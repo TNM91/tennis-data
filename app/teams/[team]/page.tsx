@@ -1365,6 +1365,13 @@ function TeamPageContent() {
       .sort((left, right) => (left.match_date || '').localeCompare(right.match_date || ''))[0] ?? null
   }, [matchCards])
 
+  const latestUnreportedMatch = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    return matchCards
+      .filter((match) => match.won === null && Boolean(match.match_date) && (match.match_date || '').slice(0, 10) < today)
+      .sort((left, right) => (right.match_date || '').localeCompare(left.match_date || ''))[0] ?? null
+  }, [matchCards])
+
   const captainWeekScope = useMemo(() => {
     if (!nextScheduledMatch) return null
 
@@ -1465,6 +1472,18 @@ function TeamPageContent() {
     leagueName: leagueFilter || teamMeta.league || undefined,
     flight: flightFilter || teamMeta.flight || undefined,
   })
+  const latestUnreportedMatchRoomHref = latestUnreportedMatch
+    ? buildTeamRoomHref({
+        teamName: team,
+        leagueName: leagueFilter || teamMeta.league || undefined,
+        flight: flightFilter || teamMeta.flight || undefined,
+        date: latestUnreportedMatch.match_date || undefined,
+        opponent: latestUnreportedMatch.opponent || undefined,
+      })
+    : ''
+  const latestUnreportedMatchScorecardHref = latestUnreportedMatchRoomHref
+    ? `/data-assist?intent=upload-source&context=Team%20Match%20Pulse&type=scorecard&help=1&returnTo=${encodeURIComponent(latestUnreportedMatchRoomHref)}#upload`
+    : ''
   const teamContactsBaseHref = buildCaptainScopedHref('/captain/messaging', {
     competitionLayer,
     team,
@@ -1476,6 +1495,9 @@ function TeamPageContent() {
     : captainWeekStatus?.status === 'finalized'
       ? { href: teamRoomHref, label: 'Open Team Chat' }
       : { href: captainLinks[1].href, label: 'Build lineup' }
+  const captainMatchPulseAction = latestUnreportedMatch && latestUnreportedMatchScorecardHref
+    ? { href: latestUnreportedMatchScorecardHref, label: 'Record result' }
+    : captainMatchWeekAction
   const captainMatchWeekMeta = captainWeekStatus
     ? getCaptainWeekStatusMeta(captainWeekStatus.status)
     : { label: 'Not started', detail: 'Build the first version, then TiQ keeps the week status visible here.' }
@@ -2021,15 +2043,21 @@ function TeamPageContent() {
           </div>
         </section>
 
-        {nextScheduledMatch || roster.length || teamCourtLead ? (
+        {nextScheduledMatch || latestUnreportedMatch || roster.length || teamCourtLead ? (
           <section style={teamMatchPulseStyle} aria-label="Team match pulse">
             <div style={teamMatchPulseHeadingStyle}>
               <div>
                 <p style={sectionKicker}>Match pulse</p>
-                <h2 style={teamMatchPulseTitleStyle}>{nextScheduledMatch ? 'Ready for the next opponent.' : 'Team readiness at a glance.'}</h2>
+                <h2 style={teamMatchPulseTitleStyle}>
+                  {latestUnreportedMatch
+                    ? 'Close the last match before planning ahead.'
+                    : nextScheduledMatch
+                      ? 'Ready for the next opponent.'
+                      : 'Team readiness at a glance.'}
+                </h2>
               </div>
-              <Link href={canManageThisTeam ? captainMatchWeekAction.href : '/captain'} style={teamMatchPulseActionStyle}>
-                {canManageThisTeam ? captainMatchWeekAction.label : 'Explore Captain'}
+              <Link href={canManageThisTeam ? captainMatchPulseAction.href : '/captain'} style={teamMatchPulseActionStyle}>
+                {canManageThisTeam ? captainMatchPulseAction.label : 'Explore Captain'}
               </Link>
             </div>
 
@@ -2044,6 +2072,20 @@ function TeamPageContent() {
             ) : null}
 
             <div style={dynamicTeamMatchPulseMetricGrid}>
+              {canManageThisTeam && latestUnreportedMatch && latestUnreportedMatchScorecardHref ? (
+                <Link
+                  href={latestUnreportedMatchScorecardHref}
+                  style={teamPulseMetricStyle}
+                  aria-label={`Record the result from ${formatCompactDate(latestUnreportedMatch.match_date)} against ${latestUnreportedMatch.opponent || 'your last opponent'}`}
+                  data-team-result-status="not-reported"
+                >
+                  <span style={teamPulseLabelStyle}>Result due</span>
+                  <strong>vs {latestUnreportedMatch.opponent || 'Opponent'}</strong>
+                  <span style={teamPulseDetailStyle}>
+                    {formatCompactDate(latestUnreportedMatch.match_date)} · add or scan the scorecard
+                  </span>
+                </Link>
+              ) : null}
               {canManageThisTeam && nextScheduledMatch ? (
                 <Link
                   href={captainMatchWeekAction.href}
