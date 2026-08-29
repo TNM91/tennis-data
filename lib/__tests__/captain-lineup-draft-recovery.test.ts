@@ -22,12 +22,13 @@ describe('captain lineup draft recovery', () => {
     expect(page).toContain('saved draft</option>')
   })
 
-  it('uses indexed captain contact scope and prevents optional data from blocking the builder', () => {
+  it('uses indexed roster-contact scope and prevents optional data from blocking the builder', () => {
     expect(route).toContain(".eq('captain_user_id', auth.userId)")
     expect(route).toContain(".eq('normalized_team_name', normalizedTeam)")
     expect(route).toContain("resolveOptionalQuery('team schedule', matchesPromise")
     expect(route).toContain("resolveOptionalQuery('team availability', availabilityPromise")
-    expect(route).toContain("resolveOptionalQuery('message contacts', textContactsPromise")
+    expect(route).toContain('captainMessageContacts: [],')
+    expect(route).not.toContain('captain_message_contacts')
     expect(route).toContain("resolveOptionalQuery('saved scenarios', scenariosPromise")
     expect(route).toContain('const primaryError = rosterResult.error')
   })

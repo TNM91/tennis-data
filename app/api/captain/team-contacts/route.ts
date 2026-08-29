@@ -1,7 +1,6 @@
-import { randomUUID } from 'node:crypto'
-
 import { getCaptainApiAuth } from '@/lib/captain-api-auth'
 import { cleanAvailabilityText, getCaptainAvailabilityServiceClient, isUuid } from '@/lib/captain-availability-request-server'
+import { CAPTAIN_ROSTER_CONTACTS_TABLE, normalizeCaptainRosterContactKey } from '@/lib/captain-roster-contacts'
 import { canManageTeamRoom, normalizeTeamRoomKey } from '@/lib/team-room'
 
 export const runtime = 'nodejs'
@@ -81,10 +80,18 @@ export async function POST(request: Request) {
   }
 
   const contactId = cleanAvailabilityText(body.contactId, 80)
+  let existingContact: {
+    id: string
+    team_name: string
+    captain_user_id: string
+    email: string | null
+    source: string | null
+    source_batch_id: string | null
+  } | null = null
   if (isUuid(contactId)) {
-    const { data: existingContact, error: existingContactError } = await service
-      .from('captain_message_contacts')
-      .select('id,team_name')
+    const { data, error: existingContactError } = await service
+      .from(CAPTAIN_ROSTER_CONTACTS_TABLE)
+      .select('id,team_name,captain_user_id,email,source,source_batch_id')
       .eq('id', contactId)
       .maybeSingle()
 
@@ -97,33 +104,42 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, message: 'That contact could not be checked. Please try again.' }, { status: 500 })
     }
 
-    if (!existingContact) {
+    if (!data) {
       return Response.json({ ok: false, message: 'That contact is no longer available. Refresh the roster and try again.' }, { status: 404 })
     }
 
-    if (normalizeTeamRoomKey(existingContact.team_name) !== normalizeTeamRoomKey(teamName)) {
+    if (normalizeTeamRoomKey(data.team_name) !== normalizeTeamRoomKey(teamName)) {
       return Response.json({ ok: false, message: 'That contact does not belong to this team.' }, { status: 403 })
     }
+
+    if (!auth.isAdmin && data.captain_user_id !== auth.userId) {
+      return Response.json({ ok: false, message: 'You can only update contacts for your own roster.' }, { status: 403 })
+    }
+
+    existingContact = data
   }
 
   const contactPayload = {
+    captain_user_id: existingContact?.captain_user_id || auth.userId,
     team_name: teamName,
-    league_name: leagueName || null,
-    flight: flight || null,
-    season_label: null,
-    session_label: null,
+    normalized_team_name: normalizeCaptainRosterContactKey(teamName),
+    league_name: leagueName,
+    flight,
     full_name: fullName,
+    normalized_name: normalizeCaptainRosterContactKey(fullName),
     phone,
+    email: existingContact?.email || '',
     role: cleanAvailabilityText(body.role, 80) || 'Player',
     is_captain: body.isCaptain === true,
-    is_active: true,
-    opt_in_text: true,
-    notes: null,
+    source: existingContact?.source || 'captain_manual_entry',
+    source_batch_id: existingContact?.source_batch_id || null,
   }
-  const select = 'id,team_name,league_name,flight,full_name,phone,role,is_captain'
+  const select = 'id,captain_user_id,team_name,normalized_team_name,league_name,flight,full_name,normalized_name,phone,email,role,is_captain,source,source_batch_id'
   const saveResult = isUuid(contactId)
-    ? await service.from('captain_message_contacts').update(contactPayload).eq('id', contactId).select(select).maybeSingle()
-    : await service.from('captain_message_contacts').insert({ id: randomUUID(), ...contactPayload }).select(select).single()
+    ? await service.from(CAPTAIN_ROSTER_CONTACTS_TABLE).update(contactPayload).eq('id', contactId).select(select).maybeSingle()
+    : await service.from(CAPTAIN_ROSTER_CONTACTS_TABLE).upsert(contactPayload, {
+        onConflict: 'captain_user_id,normalized_team_name,normalized_name,league_name,flight',
+      }).select(select).maybeSingle()
 
   if (saveResult.error || !saveResult.data) {
     console.error('[api/captain/team-contacts] contact save failed', {

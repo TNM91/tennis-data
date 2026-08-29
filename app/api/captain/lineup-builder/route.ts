@@ -169,12 +169,6 @@ export async function GET(request: Request) {
     .eq('normalized_team_name', normalizedContactTeam)
     .order('full_name', { ascending: true })
     .limit(250)
-  const textContactsPromise = service
-    .from('captain_message_contacts')
-    .select('team_name,league_name,flight,full_name,phone,opt_in_text')
-    .eq('team_name', teamName)
-    .order('full_name', { ascending: true })
-    .limit(250)
   const scenariosPromise = service
     .from('lineup_scenarios')
     .select('id,scenario_name,league_name,flight,match_date,team_name,opponent_team,slots_json,opponent_slots_json,notes')
@@ -190,14 +184,6 @@ export async function GET(request: Request) {
   if (leagueName) formatsQuery = formatsQuery.eq('league_name', leagueName)
   if (flight) formatsQuery = formatsQuery.eq('flight', flight)
 
-  const emptyTextContactsResult = {
-    data: [],
-    error: null,
-    count: null,
-    status: 200,
-    statusText: 'OK',
-    success: true,
-  } as Awaited<typeof textContactsPromise>
   const emptyScenariosResult = {
     data: [],
     error: null,
@@ -239,7 +225,7 @@ export async function GET(request: Request) {
     success: true,
   } as Awaited<typeof formatsQuery>
 
-  const [rosterResult, matchesResult, availabilityResult, contactsResult, formatsResult, textContactsResult, scenariosResult] = await Promise.all([
+  const [rosterResult, matchesResult, availabilityResult, contactsResult, formatsResult, scenariosResult] = await Promise.all([
     rosterPromise,
     // Match history and availability enrich the builder, but must never prevent a
     // captain from opening their saved team when the historical import is busy.
@@ -247,7 +233,6 @@ export async function GET(request: Request) {
     resolveOptionalQuery('team availability', availabilityPromise, emptyAvailabilityResult, 3_500),
     resolveOptionalQuery('roster contacts', contactsPromise, emptyContactsResult),
     resolveOptionalQuery('team formats', formatsQuery, emptyFormatsResult),
-    resolveOptionalQuery('message contacts', textContactsPromise, emptyTextContactsResult),
     resolveOptionalQuery('saved scenarios', scenariosPromise, emptyScenariosResult),
   ])
   const primaryError = rosterResult.error
@@ -290,7 +275,10 @@ export async function GET(request: Request) {
     rosterMembers,
     availability: availabilityResult.data ?? [],
     captainRosterContacts: contactsResult.error ? [] : contactsResult.data ?? [],
-    captainMessageContacts: textContactsResult.error ? [] : textContactsResult.data ?? [],
+    // Player Roster is the single source of contact data. Keeping the legacy
+    // message-contact collection out of this path prevents a missing optional
+    // table from slowing or blocking the Builder.
+    captainMessageContacts: [],
     savedScenarios: scenariosResult.data ?? [],
     tiqTeamLeagueFormats: formatsResult.error ? [] : formatsResult.data ?? [],
   }

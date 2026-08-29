@@ -88,7 +88,7 @@ type LineMatch = {
 type TeamRatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
 type RosterFilter = 'all' | 'played' | 'roster-only' | 'singles' | 'doubles' | 'needs-mobile'
 type TeamActivityFilter = 'all' | 'upcoming' | 'results'
-type TeamSection = 'overview' | 'activity' | 'roster' | 'chat'
+type TeamSection = 'overview' | 'activity' | 'roster' | 'chat' | 'lineup'
 
 type Player = {
   id: string
@@ -157,29 +157,10 @@ type TennisRecordTeamHistoryRow = {
   team_side: 'A' | 'B' | null
 }
 
-type CaptainMessageContactRow = {
-  id: string
-  team_name: string | null
-  league_name: string | null
-  flight: string | null
-  full_name: string | null
-  phone: string | null
-  email: string | null
-  role: string | null
-  is_captain: boolean | null
-}
-
-type TeamCaptainContact = {
-  id?: string
-  team_name: string | null
-  league_name: string | null
-  flight: string | null
-  full_name: string | null
-  phone: string | null
-  email: string | null
-  role: string | null
-  is_captain: boolean | null
-}
+type TeamCaptainContact = Pick<
+  CaptainRosterContactRow,
+  'id' | 'team_name' | 'league_name' | 'flight' | 'full_name'
+>
 
 type RosterPlayer = Player & {
   appearances: number
@@ -211,34 +192,6 @@ function captainTeamContactScopeKey(contact: TeamCaptainContact) {
   return [contact.team_name, contact.league_name, contact.flight, contact.full_name]
     .map((value) => normalizeCaptainRosterContactKey(value))
     .join('|')
-}
-
-function mergeCaptainTeamContacts(input: {
-  imported: CaptainRosterContactRow[]
-  saved: CaptainMessageContactRow[]
-}) {
-  const byScope = new Map<string, TeamCaptainContact>()
-
-  for (const contact of input.imported) {
-    byScope.set(captainTeamContactScopeKey(contact), contact)
-  }
-
-  for (const contact of input.saved) {
-    const key = captainTeamContactScopeKey(contact)
-    const importedContact = byScope.get(key)
-    byScope.set(key, {
-      ...importedContact,
-      ...contact,
-      phone: contact.phone || importedContact?.phone || '',
-      email: contact.email || importedContact?.email || '',
-      role: contact.role || importedContact?.role || 'Player',
-      is_captain: contact.is_captain ?? importedContact?.is_captain ?? false,
-    })
-  }
-
-  return Array.from(byScope.values()).sort((left, right) =>
-    (left.full_name || '').localeCompare(right.full_name || ''),
-  )
 }
 
 function normalizePlayer(player: PlayerRelation): Player | null {
@@ -419,7 +372,6 @@ function TeamPageContent() {
   const [linkedPlayerName, setLinkedPlayerName] = useState('')
   const [teamConnections, setTeamConnections] = useState<TeamConnection[]>([])
   const [captainRosterContacts, setCaptainRosterContacts] = useState<CaptainRosterContactRow[]>([])
-  const [captainSavedContacts, setCaptainSavedContacts] = useState<CaptainMessageContactRow[]>([])
   const [editingRosterContactId, setEditingRosterContactId] = useState<string | null>(null)
   const [rosterContactSaveMessage, setRosterContactSaveMessage] = useState<string | null>(null)
   const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
@@ -1020,37 +972,23 @@ function TeamPageContent() {
   useEffect(() => {
     if (!currentUserId || !team) {
       setCaptainRosterContacts([])
-      setCaptainSavedContacts([])
       return
     }
 
     let active = true
-    void Promise.all([
-      supabase
-        .from(CAPTAIN_ROSTER_CONTACTS_TABLE)
-        .select('id, captain_user_id, team_name, normalized_team_name, league_name, flight, full_name, normalized_name, phone, email, role, is_captain, source, source_batch_id')
-        .eq('captain_user_id', currentUserId)
-        .eq('normalized_team_name', normalizeCaptainRosterContactKey(team))
-        .order('full_name'),
-      supabase
-        .from('captain_message_contacts')
-        .select('id, team_name, league_name, flight, full_name, phone, email, role, is_captain')
-        .eq('team_name', team)
-        .order('full_name'),
-    ]).then(([rosterResult, savedResult]) => {
+    void supabase
+      .from(CAPTAIN_ROSTER_CONTACTS_TABLE)
+      .select('id, captain_user_id, team_name, normalized_team_name, league_name, flight, full_name, normalized_name, phone, email, role, is_captain, source, source_batch_id')
+      .eq('captain_user_id', currentUserId)
+      .eq('normalized_team_name', normalizeCaptainRosterContactKey(team))
+      .order('full_name')
+      .then((rosterResult) => {
         if (!active) return
         if (rosterResult.error) {
           console.warn('captain roster contacts lookup skipped', rosterResult.error.message)
           setCaptainRosterContacts([])
         } else {
           setCaptainRosterContacts((rosterResult.data || []) as CaptainRosterContactRow[])
-        }
-
-        if (savedResult.error) {
-          console.warn('captain saved contacts lookup skipped', savedResult.error.message)
-          setCaptainSavedContacts([])
-        } else {
-          setCaptainSavedContacts((savedResult.data || []) as CaptainMessageContactRow[])
         }
       })
 
@@ -1546,30 +1484,16 @@ function TeamPageContent() {
   )
   const scopedCaptainContacts = useMemo(
     () => selectCaptainContactRowsForScope({
-      rows: mergeCaptainTeamContacts({
-        imported: captainRosterContacts,
-        saved: captainSavedContacts,
-      }),
+      rows: captainRosterContacts,
       team,
       league: leagueFilter || teamMeta.league || undefined,
       flight: flightFilter || teamMeta.flight || undefined,
     }),
-    [captainRosterContacts, captainSavedContacts, flightFilter, leagueFilter, team, teamMeta.flight, teamMeta.league],
+    [captainRosterContacts, flightFilter, leagueFilter, team, teamMeta.flight, teamMeta.league],
   )
   const captainContactByPlayerName = useMemo(
     () => new Map(scopedCaptainContacts.map((contact) => [normalizeCaptainRosterContactKey(contact.full_name), contact])),
     [scopedCaptainContacts],
-  )
-  const captainSavedContactByPlayerName = useMemo(
-    () => new Map(
-      selectCaptainContactRowsForScope({
-        rows: captainSavedContacts,
-        team,
-        league: leagueFilter || teamMeta.league || undefined,
-        flight: flightFilter || teamMeta.flight || undefined,
-      }).map((contact) => [normalizeCaptainRosterContactKey(contact.full_name), contact]),
-    ),
-    [captainSavedContacts, flightFilter, leagueFilter, team, teamMeta.flight, teamMeta.league],
   )
   const captainContactCoverage = useMemo(() => {
     const rosterNames = roster.map((player) => player.name)
@@ -1611,7 +1535,6 @@ function TeamPageContent() {
     }
 
     const playerKey = normalizeCaptainRosterContactKey(input.playerName)
-    const existingSavedContact = captainSavedContactByPlayerName.get(playerKey)
     const existingContact = captainContactByPlayerName.get(playerKey)
     try {
       const response = await fetch('/api/captain/team-contacts', {
@@ -1621,7 +1544,7 @@ function TeamPageContent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          contactId: existingSavedContact?.id || '',
+          contactId: existingContact?.id || '',
           teamName: team,
           leagueName: leagueFilter || teamMeta.league || '',
           flight: flightFilter || teamMeta.flight || '',
@@ -1634,16 +1557,13 @@ function TeamPageContent() {
       const result = await response.json() as {
         ok?: boolean
         message?: string
-        contact?: Omit<CaptainMessageContactRow, 'email'>
+        contact?: CaptainRosterContactRow
       }
       if (!response.ok || !result.ok || !result.contact) {
         return { ok: false, message: result.message || 'We could not save that mobile number. Please try again.' }
       }
-      const savedContact: CaptainMessageContactRow = {
-        ...result.contact,
-        email: existingSavedContact?.email || existingContact?.email || '',
-      }
-      setCaptainSavedContacts((current) => [
+      const savedContact = result.contact
+      setCaptainRosterContacts((current) => [
         ...current.filter((contact) => captainTeamContactScopeKey(contact) !== captainTeamContactScopeKey(savedContact)),
         savedContact,
       ].sort((left, right) => (left.full_name || '').localeCompare(right.full_name || '')))
@@ -1653,7 +1573,7 @@ function TeamPageContent() {
     setEditingRosterContactId(null)
     setRosterContactSaveMessage(`${input.playerName}'s contact is saved and ready for match week.`)
     return { ok: true, message: '' }
-  }, [accessToken, canManageThisTeam, captainContactByPlayerName, captainSavedContactByPlayerName, currentUserId, flightFilter, leagueFilter, team, teamMeta.flight, teamMeta.league])
+  }, [accessToken, canManageThisTeam, captainContactByPlayerName, currentUserId, flightFilter, leagueFilter, team, teamMeta.flight, teamMeta.league])
   const openRosterContactEditor = useCallback((playerId: string) => {
     setRosterContactSaveMessage(null)
     setEditingRosterContactId(playerId)
@@ -1851,16 +1771,20 @@ function TeamPageContent() {
             { id: 'activity', label: 'Activity', href: '#team-schedule' },
             { id: 'roster', label: 'Roster', href: '#team-roster' },
             ...(isLinkedTeamMember ? [{ id: 'chat', label: 'Team chat', href: '#team-chat' }] : []),
-          ] as Array<{ id: TeamSection; label: string; href: string }>).map((item) => {
+            ...(canManageThisTeam ? [{ id: 'lineup', label: 'Build lineup', href: captainLinks[1].href, primary: true }] : []),
+          ] as Array<{ id: TeamSection; label: string; href: string; primary?: boolean }>).map((item) => {
             const active = activeTeamSection === item.id
             return (
               <a
                 key={item.id}
                 href={item.href}
-                onClick={() => setActiveTeamSection(item.id)}
+                onClick={() => {
+                  if (item.id !== 'lineup') setActiveTeamSection(item.id)
+                }}
                 style={{
                   ...(isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle),
                   ...(active ? teamSectionNavLinkActiveStyle : {}),
+                  ...(item.primary ? isMobile ? teamSectionNavLineupMobileStyle : teamSectionNavLineupStyle : {}),
                 }}
                 aria-current={active ? 'page' : undefined}
                 data-team-section={item.id}
@@ -3309,6 +3233,13 @@ const teamSectionNavLinkActiveStyle: CSSProperties = {
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.16), 0 7px 18px rgba(0,0,0,0.16)',
 }
 
+const teamSectionNavLineupStyle: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.48)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.26), rgba(56,189,248,0.12))',
+  color: '#f6ffdc',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14), 0 7px 18px rgba(0,0,0,0.14)',
+}
+
 const teamSectionNavKickerStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 9,
@@ -3347,6 +3278,11 @@ const teamSectionNavLinkMobileStyle: CSSProperties = {
   whiteSpace: 'nowrap',
   textAlign: 'center',
   lineHeight: 1.2,
+}
+
+const teamSectionNavLineupMobileStyle: CSSProperties = {
+  ...teamSectionNavLineupStyle,
+  gridColumn: '1 / -1',
 }
 
 const teamSectionNavLabelMobileStyle: CSSProperties = {
