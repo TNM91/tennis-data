@@ -1438,7 +1438,13 @@ function TeamPageContent() {
     leagueName: leagueFilter || teamMeta.league || undefined,
     flight: flightFilter || teamMeta.flight || undefined,
   })
-  const teamContactsHref = `${captainLinks[3].href}${captainLinks[3].href.includes('?') ? '&' : '?'}contactView=all#captain-contact-manager`
+  const teamContactsBaseHref = buildCaptainScopedHref('/captain/messaging', {
+    competitionLayer,
+    team,
+    league: leagueFilter || teamMeta.league || undefined,
+    flight: flightFilter || teamMeta.flight || undefined,
+  })
+  const teamContactsHref = `${teamContactsBaseHref}${teamContactsBaseHref.includes('?') ? '&' : '?'}contactView=all#captain-contact-manager`
   const teamLeagueHref = teamMeta.league
     ? buildExploreLeagueHref({
         competitionLayer,

@@ -148,4 +148,12 @@ describe('Captain messaging mobile layout guards', () => {
     expect(source).toContain('style={isMobile ? hiddenMobileHandoffStyle : builderHandoffSurfaceStyle}')
     expect(styleBlock('potentialPlayerCardStyle')).toContain("contentVisibility: 'auto'")
   })
+
+  it('uses readable contact cards on phones instead of compressing a desktop table', () => {
+    expect(source).toContain('{isMobile ? (\n                  <div style={contactCardListStyle} aria-label="Team contacts">')
+    expect(source).toContain("const contactCardListStyle: CSSProperties = { display: 'grid', gap: 10, minWidth: 0 }")
+    expect(styleBlock('contactCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock('contactCardActionsStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr) auto'")
+    expect(source).toContain('Edit contact')
+  })
 })
