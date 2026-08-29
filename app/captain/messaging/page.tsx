@@ -630,6 +630,7 @@ function CaptainMessagingContent() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [contactSaveMessage, setContactSaveMessage] = useState<string | null>(null)
   const [weekStatus, setWeekStatus] = useState<CaptainWeekStatus>('draft-lineup')
   const [storageMode, setStorageMode] = useState<'supabase' | 'local'>('supabase')
   const [refreshTick, setRefreshTick] = useState(0)
@@ -2048,11 +2049,11 @@ function CaptainMessagingContent() {
   }, [needSubContacts, runningLateContacts, tentativeContacts, noResponseContacts])
 
   async function saveContacts(nextContacts: ContactRow[]) {
-    if (!requireCaptainAccess('Captain tier required to update message contacts.')) return
+    if (!requireCaptainAccess('Captain tier required to update message contacts.')) return null
     setContacts(nextContacts)
     if (storageMode === 'local') {
       writeLocal(CONTACTS_STORAGE_KEY, nextContacts)
-      return
+      return 'device' as const
     }
     setSaving(true)
     const { error: upsertError } = await supabase.from(CONTACTS_TABLE).upsert(nextContacts)
@@ -2061,7 +2062,9 @@ function CaptainMessagingContent() {
       setStorageMode('local')
       writeLocal(CONTACTS_STORAGE_KEY, nextContacts)
       setError('Contacts saved on this device. Cloud sync will retry later.')
+      return 'device' as const
     }
+    return 'cloud' as const
   }
 
   async function saveTemplates(nextTemplates: TemplateRow[]) {
@@ -2100,6 +2103,7 @@ function CaptainMessagingContent() {
   }
 
   async function handleSaveContact() {
+    if (!requireCaptainAccess('Captain tier required to update message contacts.')) return
     const fullName = normalizeText(draftContact.full_name)
     const phone = normalizeText(draftContact.phone)
     if (!fullName || !phone || !teamFilter) {
@@ -2125,10 +2129,16 @@ function CaptainMessagingContent() {
     }
 
     const withoutExisting = contacts.filter((contact) => contact.id !== row.id)
-    await saveContacts([...withoutExisting, row].sort((a, b) => a.full_name.localeCompare(b.full_name)))
+    const savedTo = await saveContacts([...withoutExisting, row].sort((a, b) => a.full_name.localeCompare(b.full_name)))
+    if (!savedTo) return
     setEditingId(null)
     setDraftContact({ full_name: '', phone: '', email: '', role: 'Player', is_captain: false, is_active: true, opt_in_text: true, notes: '' })
     setError(null)
+    setContactSaveMessage(
+      savedTo === 'cloud'
+        ? `${fullName}'s contact is saved and ready in your team roster.`
+        : `${fullName}'s contact is saved on this device and will sync when cloud access returns.`,
+    )
   }
 
   function buildPotentialPlayerMessage(playerName: string) {
@@ -4554,6 +4564,9 @@ function importScenarioToLineup() {
                     <button type="button" style={{ ...primaryButton, ...(!captainAccess ? disabledButtonStyle : {}) }} onClick={() => void handleSaveContact()} disabled={!captainAccess}>{editingId ? 'Update contact' : 'Save contact'}</button>
                     {editingId ? <GhostSmallBtn onClick={() => { setEditingId(null); setDraftContact({ full_name: '', phone: '', email: '', role: 'Player', is_captain: false, is_active: true, opt_in_text: true, notes: '' }) }}>Cancel edit</GhostSmallBtn> : null}
                   </div>
+                  {contactSaveMessage ? (
+                    <p role="status" aria-live="polite" style={contactSaveMessageStyle}>{contactSaveMessage}</p>
+                  ) : null}
 
                   <Field
                     label="Bulk import (Name, Phone, Role, captain, note)"
@@ -5445,6 +5458,7 @@ const contactCardEditButtonStyle: CSSProperties = { borderRadius: 12, border: '1
 const contactCardDeleteButtonStyle: CSSProperties = { border: 'none', background: 'transparent', color: '#fca5a5', fontWeight: 800, cursor: 'pointer', padding: '10px 4px', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center', alignSelf: 'center' }
 const mutedTextStyle: CSSProperties = { color: 'var(--shell-copy-muted)', margin: 0, lineHeight: 1.65, overflowWrap: 'anywhere' }
 const errorTextStyle: CSSProperties = { color: '#fca5a5', margin: 0, lineHeight: 1.65, overflowWrap: 'anywhere' }
+const contactSaveMessageStyle: CSSProperties = { color: '#d9ff76', margin: '12px 0 0', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(155, 225, 29, 0.42)', background: 'rgba(155, 225, 29, 0.10)', fontWeight: 800, lineHeight: 1.45, overflowWrap: 'anywhere' }
 const rowSubtleText: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4, overflowWrap: 'anywhere' }
 
 const rowControlWrapStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 6, minWidth: 0 }
