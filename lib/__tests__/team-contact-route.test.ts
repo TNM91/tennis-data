@@ -11,10 +11,18 @@ describe('team contact route', () => {
     expect(source).toContain("contactView=all#captain-contact-manager")
   })
 
-  it('keeps individual mobile saves on the team roster and merges them with imported contacts', () => {
-    expect(source).toContain("supabase\n        .from('captain_message_contacts')")
+  it('keeps individual mobile saves on the team roster through the authenticated Captain API', () => {
+    expect(source).toContain("fetch('/api/captain/team-contacts'")
+    expect(source).toContain('Authorization: `Bearer ${accessToken}`')
     expect(source).toContain('mergeCaptainTeamContacts')
     expect(source).toContain('<InlineRosterContactEditor')
     expect(source).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
+  })
+
+  it('only asks for the mobile number in the inline roster contact editor', () => {
+    const inlineEditor = source.slice(source.indexOf('function InlineRosterContactEditor'))
+    expect(inlineEditor).toContain('Mobile number')
+    expect(inlineEditor).not.toContain('Email (optional)')
+    expect(inlineEditor).not.toContain('initialEmail')
   })
 })
