@@ -241,11 +241,6 @@ function mergeCaptainTeamContacts(input: {
   )
 }
 
-function createTeamContactId() {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
-}
-
 function normalizePlayer(player: PlayerRelation): Player | null {
   if (!player) return null
   return Array.isArray(player) ? player[0] ?? null : player
@@ -1606,10 +1601,9 @@ function TeamPageContent() {
     baseHref: teamContactsHref,
     missingNames: captainContactCoverage.missingPhoneNames,
   })
-  const saveRosterContact = useCallback(async (input: { playerName: string; phone: string; email: string }) => {
+  const saveRosterContact = useCallback(async (input: { playerName: string; phone: string }) => {
     const phone = input.phone.trim()
-    const email = input.email.trim().toLowerCase()
-    if (!currentUserId || !canManageThisTeam) {
+    if (!currentUserId || !canManageThisTeam || !accessToken) {
       return { ok: false, message: 'Captain access is needed to save a team contact.' }
     }
     if (!phone) {
@@ -1619,38 +1613,47 @@ function TeamPageContent() {
     const playerKey = normalizeCaptainRosterContactKey(input.playerName)
     const existingSavedContact = captainSavedContactByPlayerName.get(playerKey)
     const existingContact = captainContactByPlayerName.get(playerKey)
-    const savedContact: CaptainMessageContactRow = {
-      id: existingSavedContact?.id || createTeamContactId(),
-      team_name: team,
-      league_name: leagueFilter || teamMeta.league || null,
-      flight: flightFilter || teamMeta.flight || null,
-      full_name: input.playerName,
-      phone,
-      email,
-      role: existingContact?.role || 'Player',
-      is_captain: existingContact?.is_captain || false,
+    try {
+      const response = await fetch('/api/captain/team-contacts', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contactId: existingSavedContact?.id || '',
+          teamName: team,
+          leagueName: leagueFilter || teamMeta.league || '',
+          flight: flightFilter || teamMeta.flight || '',
+          fullName: input.playerName,
+          phone,
+          role: existingContact?.role || 'Player',
+          isCaptain: existingContact?.is_captain || false,
+        }),
+      })
+      const result = await response.json() as {
+        ok?: boolean
+        message?: string
+        contact?: Omit<CaptainMessageContactRow, 'email'>
+      }
+      if (!response.ok || !result.ok || !result.contact) {
+        return { ok: false, message: result.message || 'We could not save that mobile number. Please try again.' }
+      }
+      const savedContact: CaptainMessageContactRow = {
+        ...result.contact,
+        email: existingSavedContact?.email || existingContact?.email || '',
+      }
+      setCaptainSavedContacts((current) => [
+        ...current.filter((contact) => captainTeamContactScopeKey(contact) !== captainTeamContactScopeKey(savedContact)),
+        savedContact,
+      ].sort((left, right) => (left.full_name || '').localeCompare(right.full_name || '')))
+    } catch {
+      return { ok: false, message: 'We could not save that mobile number. Please check your connection and try again.' }
     }
-    const payload = {
-      ...savedContact,
-      season_label: null,
-      session_label: null,
-      is_active: true,
-      opt_in_text: true,
-      notes: null,
-    }
-    const { error: saveError } = await supabase.from('captain_message_contacts').upsert(payload)
-    if (saveError) {
-      return { ok: false, message: 'We could not save that contact. Please try again.' }
-    }
-
-    setCaptainSavedContacts((current) => [
-      ...current.filter((contact) => captainTeamContactScopeKey(contact) !== captainTeamContactScopeKey(savedContact)),
-      savedContact,
-    ].sort((left, right) => (left.full_name || '').localeCompare(right.full_name || '')))
     setEditingRosterContactId(null)
     setRosterContactSaveMessage(`${input.playerName}'s contact is saved and ready for match week.`)
     return { ok: true, message: '' }
-  }, [canManageThisTeam, captainContactByPlayerName, captainSavedContactByPlayerName, currentUserId, flightFilter, leagueFilter, team, teamMeta.flight, teamMeta.league])
+  }, [accessToken, canManageThisTeam, captainContactByPlayerName, captainSavedContactByPlayerName, currentUserId, flightFilter, leagueFilter, team, teamMeta.flight, teamMeta.league])
   const openRosterContactEditor = useCallback((playerId: string) => {
     setRosterContactSaveMessage(null)
     setEditingRosterContactId(playerId)
@@ -3025,7 +3028,6 @@ function TeamPageContent() {
                               <InlineRosterContactEditor
                                 playerName={player.name}
                                 initialPhone={phone}
-                                initialEmail={email}
                                 onCancel={() => setEditingRosterContactId(null)}
                                 onSave={saveRosterContact}
                               />
@@ -3100,18 +3102,15 @@ function NativeRosterTextButton({ phone, playerName, label }: { phone: string; p
 function InlineRosterContactEditor({
   playerName,
   initialPhone,
-  initialEmail,
   onCancel,
   onSave,
 }: {
   playerName: string
   initialPhone: string
-  initialEmail: string
   onCancel: () => void
-  onSave: (input: { playerName: string; phone: string; email: string }) => Promise<{ ok: boolean; message: string }>
+  onSave: (input: { playerName: string; phone: string }) => Promise<{ ok: boolean; message: string }>
 }) {
   const [phone, setPhone] = useState(initialPhone)
-  const [email, setEmail] = useState(initialEmail)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
@@ -3119,7 +3118,7 @@ function InlineRosterContactEditor({
     event.preventDefault()
     setSaving(true)
     setMessage(null)
-    const result = await onSave({ playerName, phone, email })
+    const result = await onSave({ playerName, phone })
     setSaving(false)
     if (!result.ok) setMessage(result.message)
   }
@@ -3136,17 +3135,6 @@ function InlineRosterContactEditor({
           autoComplete="tel"
           inputMode="tel"
           placeholder="314-555-1234"
-          style={inlineRosterContactInputStyle}
-        />
-      </label>
-      <label style={inlineRosterContactFieldStyle}>
-        <span>Email (optional)</span>
-        <input
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          autoComplete="email"
-          placeholder="player@email.com"
           style={inlineRosterContactInputStyle}
         />
       </label>
