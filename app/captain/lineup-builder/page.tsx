@@ -1437,6 +1437,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const [manualOpponentRosterText, setManualOpponentRosterText] = useState('')
   const [manualOpponentRosterOpen, setManualOpponentRosterOpen] = useState(false)
   const [builderMode, setBuilderMode] = useState<BuilderMode>('manual')
+  const [expandedTeamSlotId, setExpandedTeamSlotId] = useState('')
 
   const [availabilityOnly, setAvailabilityOnly] = useState(initialContext.availabilityOnly)
   const [hideUnavailable, setHideUnavailable] = useState(false)
@@ -4136,7 +4137,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     )
 
     setTeamSlots(formatSafeSlots)
-    focusTeamCourtsAfterBuild()
+    focusTeamCourtsAfterBuild(formatSafeSlots)
     showAppliedLineupNotice(plan.title, formatSafeSlots)
     setMessage(`${plan.title} applied${activeLockCount ? ' with locks preserved' : ''}.`)
     setError(incompleteCourts.length
@@ -4162,14 +4163,18 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       effectiveMatchFormatId
     )
     setTeamSlots(formatSafeSlots)
-    focusTeamCourtsAfterBuild()
+    focusTeamCourtsAfterBuild(formatSafeSlots)
     showAppliedLineupNotice('Balanced lineup', formatSafeSlots)
     setMessage(`Balanced recommendation applied${activeLockCount ? ' around your locks' : ''}.`)
     setError('')
   }
 
-  function focusTeamCourtsAfterBuild() {
+  function focusTeamCourtsAfterBuild(nextSlots: LineupSlot[] = teamSlots) {
     if (!isMobile || typeof window === 'undefined') return
+
+    const firstPopulatedCourt = nextSlots.find((slot) => slot.players.some((player) => player.playerId))
+    const courtToOpen = firstPopulatedCourt?.id || nextSlots[0]?.id || ''
+    if (courtToOpen) setExpandedTeamSlotId(courtToOpen)
 
     // Wait for React to paint the selected players, then place the first
     // populated court at the top of the phone viewport instead of leaving the
@@ -5330,11 +5335,13 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                     savingPhonePlayerKey={savingPhonePlayerKey}
                     getPreparedCourtText={(targetSlot, player) => preparedCourtTexts[getPreparedCourtTextKey(targetSlot, player)]}
                     onOpenPreparedCourtText={markPreparedCourtTextOpened}
-                    openedCourtTextKeys={openedCourtTextKeySet}
-                    askingPlayers={askingCourtId === slot.id}
-                    focused={backupFocusSlot?.id === slot.id}
-                    isMobileLayout={isMobile}
-                  />
+                  openedCourtTextKeys={openedCourtTextKeySet}
+                  askingPlayers={askingCourtId === slot.id}
+                  focused={backupFocusSlot?.id === slot.id}
+                  isMobileLayout={isMobile}
+                  expanded={!isMobile || backupFocusSlot?.id === slot.id || expandedTeamSlotId === slot.id}
+                  onToggleExpanded={() => setExpandedTeamSlotId((current) => current === slot.id ? '' : slot.id)}
+                />
                 ))}
               </div>
             </section>
@@ -5952,6 +5959,8 @@ function SlotEditor({
   askingPlayers,
   focused = false,
   isMobileLayout = false,
+  expanded = true,
+  onToggleExpanded,
 }: {
   side: 'team' | 'opponent'
   slot: LineupSlot
@@ -5980,6 +5989,8 @@ function SlotEditor({
   askingPlayers: boolean
   focused?: boolean
   isMobileLayout?: boolean
+  expanded?: boolean
+  onToggleExpanded?: () => void
 }) {
   const selectablePlayerPool = playerPool.filter((player) =>
     isPlayerEligibleForSlot(player, slot, competitionRules) || slot.players.some((selected) => selected.playerId === player.id)
@@ -5989,36 +6000,71 @@ function SlotEditor({
     const selectedPoolPlayer = playerPool.find((poolPlayer) => poolPlayer.id === player.playerId)
     return availabilityLabel(selectedPoolPlayer?.availabilityStatus) !== 'Confirmed'
   })
+  const compactSelectionSummary = selectedPlayers.length
+    ? selectedPlayers.map((player) => player.playerName).join(' · ')
+    : slot.players.length === 1 ? 'Choose a player' : `Choose ${slot.players.length} players`
+  const compactReplySummary = selectedPlayers.length
+    ? selectedPlayers.map((player) => {
+        const selectedPoolPlayer = playerPool.find((poolPlayer) => poolPlayer.id === player.playerId)
+        return availabilityLabel(selectedPoolPlayer?.availabilityStatus)
+      }).join(' · ')
+    : 'Needs players'
+  const showCompactMobileCourt = isMobileLayout && !expanded
   return (
     <div
       id={`captain-lineup-slot-${slot.id}`}
       style={focused ? { ...slotCardStyle, ...focusedSlotCardStyle } : slotCardStyle}
       tabIndex={focused ? -1 : undefined}
     >
-      <div style={slotHeaderStyle}>
-        <div style={slotHeaderLeftStyle}>
-          {fixedFormat ? (
-            <strong style={fixedSlotLabelStyle}>{slot.label}</strong>
-          ) : (
-            <input
-              aria-label={`${side} slot label`}
-              value={slot.label}
-              onChange={(e) => onLabelChange(side, slot.id, e.target.value)}
-              style={slotLabelInputStyle}
-            />
-          )}
-          <span style={miniPillSlateStyle}>{slot.slotType}</span>
-          {side === 'team' ? (
-            <button type="button" aria-pressed={lockedSlotIds.has(slot.id)} style={lockedSlotIds.has(slot.id) ? pillButtonActive : pillButton} onClick={() => toggleLockedSlot(slot.id)}>
-              {lockedSlotIds.has(slot.id) ? 'line locked' : 'lock line'}
-            </button>
-          ) : null}
-        </div>
+      {showCompactMobileCourt ? (
+        <button
+          type="button"
+          aria-expanded={false}
+          aria-controls={`captain-lineup-slot-editor-${slot.id}`}
+          onClick={onToggleExpanded}
+          style={compactCourtTriggerStyle}
+        >
+          <span style={compactCourtTriggerHeaderStyle}>
+            <span style={compactCourtLabelStyle}>{slot.label}</span>
+            <span style={miniPillSlateStyle}>{selectedPlayers.length}/{slot.players.length} set</span>
+          </span>
+          <span style={compactCourtSelectionStyle}>{compactSelectionSummary}</span>
+          <span style={compactCourtTriggerFooterStyle}>
+            <span style={compactCourtStatusStyle}>{compactReplySummary}</span>
+            <span style={compactCourtEditStyle}>Edit court</span>
+          </span>
+        </button>
+      ) : (
+        <div id={`captain-lineup-slot-editor-${slot.id}`} style={slotEditorBodyStyle}>
+          <div style={slotHeaderStyle}>
+            <div style={slotHeaderLeftStyle}>
+              {fixedFormat ? (
+                <strong style={fixedSlotLabelStyle}>{slot.label}</strong>
+              ) : (
+                <input
+                  aria-label={`${side} slot label`}
+                  value={slot.label}
+                  onChange={(e) => onLabelChange(side, slot.id, e.target.value)}
+                  style={slotLabelInputStyle}
+                />
+              )}
+              <span style={miniPillSlateStyle}>{slot.slotType}</span>
+              {side === 'team' ? (
+                <button type="button" aria-pressed={lockedSlotIds.has(slot.id)} style={lockedSlotIds.has(slot.id) ? pillButtonActive : pillButton} onClick={() => toggleLockedSlot(slot.id)}>
+                  {lockedSlotIds.has(slot.id) ? 'line locked' : 'lock line'}
+                </button>
+              ) : null}
+            </div>
 
-        {!fixedFormat ? <GhostSmallBtn onClick={() => onRemove(side, slot.id)}>Remove</GhostSmallBtn> : null}
-      </div>
+            <div style={slotHeaderActionsStyle}>
+              {isMobileLayout && onToggleExpanded ? (
+                <GhostSmallBtn onClick={onToggleExpanded}>Done</GhostSmallBtn>
+              ) : null}
+              {!fixedFormat ? <GhostSmallBtn onClick={() => onRemove(side, slot.id)}>Remove</GhostSmallBtn> : null}
+            </div>
+          </div>
 
-      <div style={slotPlayersGridStyle}>
+          <div style={slotPlayersGridStyle}>
         {slot.players.map((player, index) => {
           const selectedPoolPlayer = player.playerId
             ? playerPool.find((poolPlayer) => poolPlayer.id === player.playerId)
@@ -6119,9 +6165,9 @@ function SlotEditor({
             </div>
           )
         })}
-      </div>
+          </div>
 
-      {side === 'team' && onAskPlayers && askablePlayers.length ? (
+          {side === 'team' && onAskPlayers && askablePlayers.length ? (
         <div style={isMobileLayout
           ? {
               ...mobileReplacementHandoffActionsStyle,
@@ -6189,7 +6235,9 @@ function SlotEditor({
             Private reply links stay with this court.
           </span>
         </div>
-      ) : null}
+          ) : null}
+        </div>
+      )}
     </div>
   )
 }
@@ -6841,6 +6889,74 @@ const slotCardStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const slotEditorBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+}
+
+const compactCourtTriggerStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  width: '100%',
+  minWidth: 0,
+  padding: 0,
+  border: 0,
+  background: 'transparent',
+  color: 'var(--foreground)',
+  textAlign: 'left',
+  cursor: 'pointer',
+}
+
+const compactCourtTriggerHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const compactCourtLabelStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const compactCourtSelectionStyle: CSSProperties = {
+  color: 'var(--foreground)',
+  fontSize: 14,
+  lineHeight: 1.4,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const compactCourtTriggerFooterStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const compactCourtStatusStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const compactCourtEditStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 12,
+  lineHeight: 1.25,
+  fontWeight: 900,
+  whiteSpace: 'nowrap',
+}
+
 const focusedSlotCardStyle: CSSProperties = {
   border: '2px solid color-mix(in srgb, var(--brand-green) 72%, var(--shell-panel-border))',
   boxShadow: '0 0 0 4px color-mix(in srgb, var(--brand-green) 12%, transparent)',
@@ -6949,6 +7065,14 @@ const mobileSlotPlayerActionRowStyle: CSSProperties = {
   gridTemplateColumns: 'minmax(0, 1fr) auto',
   alignItems: 'stretch',
   width: '100%',
+}
+
+const slotHeaderActionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
 }
 
 const mobilePlayerLockButtonStyle: CSSProperties = {

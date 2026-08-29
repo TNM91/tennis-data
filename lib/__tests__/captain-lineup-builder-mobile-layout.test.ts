@@ -71,6 +71,19 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain("style={{ minWidth: 0, overflowWrap: 'anywhere' }}")
     expect(styleBlock('slotLabelInputStyle')).toContain("width: 'min(100%, 180px)'")
     expect(styleBlock('slotLabelInputStyle')).toContain('minWidth: 0')
+    for (const styleName of [
+      'slotEditorBodyStyle',
+      'compactCourtTriggerStyle',
+      'compactCourtTriggerHeaderStyle',
+      'compactCourtTriggerFooterStyle',
+      'slotHeaderActionsStyle',
+    ]) {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+    expect(source).toContain('const [expandedTeamSlotId, setExpandedTeamSlotId] = useState(\'\')')
+    expect(source).toContain('aria-controls={`captain-lineup-slot-editor-${slot.id}`}')
+    expect(source).toContain('Edit court')
+    expect(source).toContain('>Done</GhostSmallBtn>')
   })
 
   it('keeps decision, projection, and lock panels resilient on narrow screens', () => {
@@ -226,7 +239,8 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('mobileLineupPulseCardStyle')).toContain('minWidth: 0')
     expect(source).toContain('const mobileCourtMap = analysis.lines.map')
     expect(source).toContain('aria-label="Court map"')
-    expect(source).toContain('function focusTeamCourtsAfterBuild()')
+    expect(source).toContain('function focusTeamCourtsAfterBuild(nextSlots: LineupSlot[] = teamSlots)')
+    expect(source).toContain('setExpandedTeamSlotId(courtToOpen)')
     expect(source).toContain("querySelector<HTMLElement>('#captain-lineup-courts [id^=\"captain-lineup-slot-\"]')")
     expect(source).toContain("?.scrollIntoView({ behavior: 'smooth', block: 'start' })")
     expect(source).toContain('Where to lean in')
