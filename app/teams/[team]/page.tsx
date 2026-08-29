@@ -7,6 +7,7 @@ import React from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
+import { getCaptainWeekStatusMeta, readCaptainWeekStatus } from '@/lib/captain-week-status'
 import {
   buildExploreLeagueHref,
   getCompetitionLayerLabel,
@@ -375,6 +376,7 @@ function TeamPageContent() {
   const [editingRosterContactId, setEditingRosterContactId] = useState<string | null>(null)
   const [rosterContactSaveMessage, setRosterContactSaveMessage] = useState<string | null>(null)
   const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
+  const [captainWeekStatus, setCaptainWeekStatus] = useState<ReturnType<typeof readCaptainWeekStatus>>(null)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { userId: currentUserId, authResolved, role, entitlements, session } = useAuth()
   const accessToken = session?.access_token || ''
@@ -1363,6 +1365,18 @@ function TeamPageContent() {
       .sort((left, right) => (left.match_date || '').localeCompare(right.match_date || ''))[0] ?? null
   }, [matchCards])
 
+  const captainWeekScope = useMemo(() => {
+    if (!nextScheduledMatch) return null
+
+    return {
+      team,
+      league: leagueFilter || teamMeta.league || undefined,
+      flight: flightFilter || teamMeta.flight || undefined,
+      eventDate: nextScheduledMatch.match_date,
+      opponentTeam: nextScheduledMatch.opponent,
+    }
+  }, [flightFilter, leagueFilter, nextScheduledMatch, team, teamMeta.flight, teamMeta.league])
+
   const playedRosterCount = useMemo(
     () => roster.filter((player) => player.appearances > 0).length,
     [roster],
@@ -1457,6 +1471,14 @@ function TeamPageContent() {
     league: leagueFilter || teamMeta.league || undefined,
     flight: flightFilter || teamMeta.flight || undefined,
   })
+  const captainMatchWeekAction = captainWeekStatus?.status === 'ready-to-send'
+    ? { href: captainLinks[3].href, label: 'Send team plan' }
+    : captainWeekStatus?.status === 'finalized'
+      ? { href: teamRoomHref, label: 'Open Team Chat' }
+      : { href: captainLinks[1].href, label: 'Build lineup' }
+  const captainMatchWeekMeta = captainWeekStatus
+    ? getCaptainWeekStatusMeta(captainWeekStatus.status)
+    : { label: 'Not started', detail: 'Build the first version, then TiQ keeps the week status visible here.' }
   const teamContactsHref = `${teamContactsBaseHref}${teamContactsBaseHref.includes('?') ? '&' : '?'}contactView=all#captain-contact-manager`
   const teamLeagueHref = teamMeta.league
     ? buildExploreLeagueHref({
@@ -1607,6 +1629,25 @@ function TeamPageContent() {
           cta: 'Check availability',
           href: captainLinks[0].href,
         }
+
+  useEffect(() => {
+    if (!canManageThisTeam || !captainWeekScope) {
+      setCaptainWeekStatus(null)
+      return
+    }
+
+    const refreshCaptainWeekStatus = () => {
+      setCaptainWeekStatus(readCaptainWeekStatus(captainWeekScope))
+    }
+
+    refreshCaptainWeekStatus()
+    window.addEventListener('focus', refreshCaptainWeekStatus)
+    window.addEventListener('storage', refreshCaptainWeekStatus)
+    return () => {
+      window.removeEventListener('focus', refreshCaptainWeekStatus)
+      window.removeEventListener('storage', refreshCaptainWeekStatus)
+    }
+  }, [canManageThisTeam, captainWeekScope])
 
   useEffect(() => {
     if ((isDoublesOnlyTeam && rosterFilter === 'singles') || (!canManageThisTeam && rosterFilter === 'needs-mobile')) {
@@ -1987,8 +2028,8 @@ function TeamPageContent() {
                 <p style={sectionKicker}>Match pulse</p>
                 <h2 style={teamMatchPulseTitleStyle}>{nextScheduledMatch ? 'Ready for the next opponent.' : 'Team readiness at a glance.'}</h2>
               </div>
-              <Link href={canManageThisTeam ? captainLinks[1].href : '/captain'} style={teamMatchPulseActionStyle}>
-                {canManageThisTeam ? 'Open lineup' : 'Explore Captain'}
+              <Link href={canManageThisTeam ? captainMatchWeekAction.href : '/captain'} style={teamMatchPulseActionStyle}>
+                {canManageThisTeam ? captainMatchWeekAction.label : 'Explore Captain'}
               </Link>
             </div>
 
@@ -2003,6 +2044,18 @@ function TeamPageContent() {
             ) : null}
 
             <div style={dynamicTeamMatchPulseMetricGrid}>
+              {canManageThisTeam && nextScheduledMatch ? (
+                <Link
+                  href={captainMatchWeekAction.href}
+                  style={teamPulseMetricStyle}
+                  aria-label={`Match-week status: ${captainMatchWeekMeta.label}. ${captainMatchWeekMeta.detail}`}
+                  data-team-match-week-status={captainWeekStatus?.status || 'not-started'}
+                >
+                  <span style={teamPulseLabelStyle}>Match week</span>
+                  <strong>{captainMatchWeekMeta.label}</strong>
+                  <span style={teamPulseDetailStyle}>{captainMatchWeekMeta.detail}</span>
+                </Link>
+              ) : null}
               {roster.length ? (
                 <a href="#team-roster" style={teamPulseMetricStyle}>
                   <span style={teamPulseLabelStyle}>Roster active</span>
