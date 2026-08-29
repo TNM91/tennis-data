@@ -44,7 +44,7 @@ describe('team detail week path', () => {
     expect(source).toContain('players with a tracked start')
     expect(source).toContain('Top doubles read')
     expect(source).toContain('Top singles read')
-    expect(source).toContain("{canManageThisTeam ? captainMatchWeekAction.label : 'Explore Captain'}")
+    expect(source).toContain("{canManageThisTeam ? captainMatchPulseAction.label : 'Explore Captain'}")
     expect(source).toContain('Turn this team read into a clear lineup.')
     expect(source).toContain('teamPulseCaptainPreviewStyle')
   })
