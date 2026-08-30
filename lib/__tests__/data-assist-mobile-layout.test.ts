@@ -31,7 +31,7 @@ describe('Data Assist mobile layout guards', () => {
     expect(source).toContain("display: 'none'")
     expect(source).toContain('style={replaceExportPickerStyle}')
     expect(source).toContain('style={replaceExportInputStyle}')
-    expect(source).toContain('Choose the source, add its TennisLink export, then review what TenAceIQ found.')
+    expect(source).toContain('Choose the source, add its TennisLink export, then review what TiQ found.')
     expect(source).toContain('<UploadJourneyRail />')
     expect(source).toContain('selectedImportType={importType}')
     expect(source).toContain('aria-pressed={selected}')

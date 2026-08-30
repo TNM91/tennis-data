@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { ScorecardImportRow } from './ingestion/importEngine'
+import type { DataAssistScorecardParsedDraft } from './data-assist-ocr'
 import { canonicalTennisRecordFingerprint, normalizeTennisIdentity } from './tennisrecord/reconcile'
 
 export type CaptainScorecardLineInput = {
@@ -19,6 +20,8 @@ export type CaptainScorecardInput = {
   facility?: string | null
   leagueName?: string | null
   flight?: string | null
+  dataAssistBatchId?: string | null
+  dataAssistDraftId?: string | null
   lines: CaptainScorecardLineInput[]
 }
 
@@ -27,6 +30,36 @@ export type CaptainScorecardObservation = {
   scoreText: string
   winnerSide: 'A' | 'B'
   participants: Array<{ name: string; side: 'A' | 'B'; seat: number }>
+}
+
+export type CaptainScorecardRecap = {
+  outcome: 'won' | 'lost' | 'split'
+  teamCourts: number
+  opponentCourts: number
+  lines: Array<{
+    courtNumber: number
+    label: string
+    matchType: 'singles' | 'doubles'
+    teamPlayers: string[]
+    opponentPlayers: string[]
+    outcome: 'team' | 'opponent'
+    score: string
+  }>
+}
+
+export type CaptainScorecardRatingChange = {
+  playerId: string
+  playerName: string
+  side: 'team' | 'opponent'
+  matchType: 'singles' | 'doubles'
+  before: number | null
+  after: number | null
+  delta: number | null
+}
+
+export type CaptainScorecardSavedRecap = CaptainScorecardRecap & {
+  ratingChanges: CaptainScorecardRatingChange[]
+  sourceConflictCount: number
 }
 
 function cleanText(value: string | null | undefined) {
@@ -42,6 +75,9 @@ export function validateCaptainScorecardInput(input: CaptainScorecardInput): str
   if (!cleanText(input.opponentTeam)) return 'Add the opposing team before saving the result.'
   if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanText(input.matchDate))) return 'Add the match date before saving the result.'
   if (!input.lines.length) return 'Add at least one completed court.'
+  const dataAssistBatchId = cleanText(input.dataAssistBatchId)
+  const dataAssistDraftId = cleanText(input.dataAssistDraftId)
+  if (Boolean(dataAssistBatchId) !== Boolean(dataAssistDraftId)) return 'The scorecard photo reference is incomplete. Reopen the photo read and try again.'
 
   const seenCourts = new Set<number>()
   for (const line of input.lines) {
@@ -99,6 +135,38 @@ export function buildCaptainScorecardObservations(input: CaptainScorecardInput):
   })
 }
 
+export function buildCaptainScorecardRecap(input: CaptainScorecardInput): CaptainScorecardRecap {
+  const teamCourts = input.lines.filter((line) => line.outcome === 'team').length
+  const opponentCourts = input.lines.filter((line) => line.outcome === 'opponent').length
+  return {
+    outcome: teamCourts === opponentCourts ? 'split' : teamCourts > opponentCourts ? 'won' : 'lost',
+    teamCourts,
+    opponentCourts,
+    lines: input.lines.map((line) => ({
+      courtNumber: line.courtNumber,
+      label: `${line.matchType === 'doubles' ? 'Doubles' : 'Singles'} ${line.courtNumber}`,
+      matchType: line.matchType,
+      teamPlayers: cleanNames(line.teamPlayers),
+      opponentPlayers: cleanNames(line.opponentPlayers),
+      outcome: line.outcome,
+      score: cleanText(line.score),
+    })),
+  }
+}
+
+export function isCaptainScorecardSavedRecap(value: unknown): value is CaptainScorecardSavedRecap {
+  if (!value || typeof value !== 'object') return false
+  const recap = value as Partial<CaptainScorecardSavedRecap>
+  return (
+    (recap.outcome === 'won' || recap.outcome === 'lost' || recap.outcome === 'split')
+    && typeof recap.teamCourts === 'number'
+    && typeof recap.opponentCourts === 'number'
+    && Array.isArray(recap.lines)
+    && Array.isArray(recap.ratingChanges)
+    && typeof recap.sourceConflictCount === 'number'
+  )
+}
+
 export function buildCaptainScorecardImportRow(
   input: CaptainScorecardInput,
   externalMatchId = buildCaptainScorecardExternalMatchId(input),
@@ -148,6 +216,44 @@ export function buildCaptainScorecardImportRow(
       evidenceClass: 'locked',
       isLocked: true,
     })),
+  }
+}
+
+/**
+ * The Team Chat result announcer accepts the same normalized match shape used
+ * by reviewed scorecard imports. A captain-entered scorecard is already
+ * verified, so build that shape directly instead of waiting for a later
+ * source pass to announce the completed match.
+ */
+export function buildCaptainScorecardTeamRoomDraft(
+  input: CaptainScorecardInput,
+  externalMatchId = buildCaptainScorecardExternalMatchId(input),
+): DataAssistScorecardParsedDraft {
+  return {
+    externalMatchId,
+    leagueName: cleanText(input.leagueName),
+    homeTeam: cleanText(input.teamName),
+    awayTeam: cleanText(input.opponentTeam),
+    matchDate: cleanText(input.matchDate),
+    lineCount: input.lines.length,
+    parserWarnings: [],
+    lines: input.lines.map((line) => ({
+      lineLabel: `${line.matchType === 'doubles' ? 'Doubles' : 'Singles'} ${line.courtNumber}`,
+      homePlayers: cleanNames(line.teamPlayers),
+      awayPlayers: cleanNames(line.opponentPlayers),
+      score: cleanText(line.score),
+      winner: line.outcome === 'team' ? 'home' : 'away',
+      winnerSource: 'winner_column',
+      confidenceScore: 1,
+      scoreEventType: /(?:^|\s)(?:1[-–]0|10[-–]\d+)(?:\s|$)/.test(cleanText(line.score))
+        ? 'third_set_match_tiebreak'
+        : 'standard',
+      parseNotes: [],
+    })),
+    rawTextPreview: 'Verified captain scorecard',
+    sourceScreenshotCount: 0,
+    provider: 'manual_review',
+    confidenceScore: 1,
   }
 }
 

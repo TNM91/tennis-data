@@ -3,7 +3,10 @@ import {
   buildCaptainScorecardExternalMatchId,
   buildCaptainScorecardImportRow,
   buildCaptainScorecardObservations,
+  buildCaptainScorecardRecap,
+  buildCaptainScorecardTeamRoomDraft,
   hasHigherPriorityCaptainScorecardConflict,
+  isCaptainScorecardSavedRecap,
   validateCaptainScorecardInput,
 } from '../captain-scorecard'
 
@@ -49,9 +52,81 @@ describe('captain scorecard capture', () => {
       .toBe('Court 1 needs two opponents.')
   })
 
+  it('requires both photo evidence references when a captain uses a scorecard read', () => {
+    expect(validateCaptainScorecardInput({ ...input, dataAssistBatchId: 'batch-1' }))
+      .toBe('The scorecard photo reference is incomplete. Reopen the photo read and try again.')
+    expect(validateCaptainScorecardInput({ ...input, dataAssistBatchId: 'batch-1', dataAssistDraftId: 'draft-1' }))
+      .toBeNull()
+  })
+
   it('never silently replaces an admin verified disagreement', () => {
     const observation = buildCaptainScorecardObservations(input)[0]
     expect(hasHigherPriorityCaptainScorecardConflict({ source: 'admin_verified', scoreText: '6-4 6-4' }, observation)).toBe(true)
     expect(hasHigherPriorityCaptainScorecardConflict({ source: 'tennisrecord', scoreText: '6-4 6-4' }, observation)).toBe(false)
+  })
+
+  it('summarizes the final court record for an immediate captain recap', () => {
+    const recap = buildCaptainScorecardRecap({
+      ...input,
+      lines: [
+        input.lines[0],
+        { ...input.lines[0], courtNumber: 2, outcome: 'team', score: '6-3 6-4' },
+      ],
+    })
+    expect(recap).toMatchObject({
+      outcome: 'split',
+      teamCourts: 1,
+      opponentCourts: 1,
+    })
+    expect(recap.lines[0]).toMatchObject({ label: 'Doubles 1', score: '6-4 3-6 1-0' })
+  })
+
+  it('recognizes the stored recap shape before a captain reopens it', () => {
+    const storedRecap = {
+      ...buildCaptainScorecardRecap(input),
+      ratingChanges: [{
+        playerId: 'player-1',
+        playerName: 'Nathan Meinert',
+        side: 'team' as const,
+        matchType: 'doubles' as const,
+        before: 4.5,
+        after: 4.51,
+        delta: 0.01,
+      }],
+      sourceConflictCount: 0,
+    }
+    expect(isCaptainScorecardSavedRecap(storedRecap)).toBe(true)
+    expect(isCaptainScorecardSavedRecap({ outcome: 'won' })).toBe(false)
+  })
+
+  it('turns a verified captain entry into an announcement-ready Team Chat result', () => {
+    const draft = buildCaptainScorecardTeamRoomDraft({
+      teamName: 'SuperSmash',
+      opponentTeam: 'Hamilton',
+      matchDate: '2026-08-31',
+      leagueName: 'STL Tri-Level',
+      lines: [{
+        courtNumber: 1,
+        matchType: 'doubles',
+        teamPlayers: ['Nathan Meinert', 'Michael Ho'],
+        opponentPlayers: ['Player One', 'Player Two'],
+        outcome: 'team',
+        score: '6-4 3-6 1-0',
+      }],
+    }, 'captain-scorecard:test')
+
+    expect(draft).toMatchObject({
+      externalMatchId: 'captain-scorecard:test',
+      homeTeam: 'SuperSmash',
+      awayTeam: 'Hamilton',
+      matchDate: '2026-08-31',
+      provider: 'manual_review',
+      lines: [{
+        lineLabel: 'Doubles 1',
+        winner: 'home',
+        score: '6-4 3-6 1-0',
+        scoreEventType: 'third_set_match_tiebreak',
+      }],
+    })
   })
 })

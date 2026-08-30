@@ -2,9 +2,14 @@
 
 import Link from 'next/link'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
+import type { CaptainScorecardSavedRecap } from '@/lib/captain-scorecard'
+import {
+  captainScorecardPhotoPrefillStorageKey,
+  isCaptainScorecardPhotoPrefill,
+} from '@/lib/captain-scorecard-photo-prefill'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import styles from './record-result.module.css'
 
@@ -53,8 +58,11 @@ function normalizeName(value: string | null | undefined) {
   return (value || '').trim().replace(/\s+/g, ' ')
 }
 
+function formatRating(value: number | null) {
+  return value === null ? 'TiQ pending' : value.toFixed(2)
+}
+
 function RecordResultContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const { authResolved, session } = useAuth()
   const teamName = searchParams.get('team')?.trim() || ''
@@ -74,7 +82,13 @@ function RecordResultContent() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [savedRecap, setSavedRecap] = useState<CaptainScorecardSavedRecap | null>(null)
+  const [teamAnnouncementUpdated, setTeamAnnouncementUpdated] = useState(false)
   const lineupPrefillKey = useRef('')
+  const scorecardPhotoPrefillKey = useRef('')
+  const scorecardPhotoPrefillActive = useRef(false)
+  const [dataAssistBatchId, setDataAssistBatchId] = useState('')
+  const [dataAssistDraftId, setDataAssistDraftId] = useState('')
 
   const teamRoomHref = useMemo(() => buildTeamRoomHref({
     teamName,
@@ -85,6 +99,28 @@ function RecordResultContent() {
     time: matchTime,
     facility,
   }), [facility, flight, leagueName, matchDate, matchTime, opponentTeam, teamName])
+  const updatedTeamRoomHref = `${teamRoomHref}${teamRoomHref.includes('?') ? '&' : '?'}result=updated`
+  const savedResultMatchId = searchParams.get('resultMatch')?.trim() || ''
+  const shouldRestoreRecap = searchParams.get('result') === 'updated' && Boolean(savedResultMatchId)
+  const scorecardPhotoDraftId = searchParams.get('scorecardDraft')?.trim() || ''
+  const scorecardCameraHref = useMemo(() => {
+    const resultParams = new URLSearchParams()
+    if (teamName) resultParams.set('team', teamName)
+    if (leagueName) resultParams.set('league', leagueName)
+    if (flight) resultParams.set('flight', flight)
+    if (matchDate) resultParams.set('date', matchDate)
+    if (opponentTeam) resultParams.set('opponent', opponentTeam)
+    if (matchTime) resultParams.set('time', matchTime)
+    if (facility) resultParams.set('facility', facility)
+    const captureParams = new URLSearchParams({
+      intent: 'upload-source',
+      context: 'captain-scorecard',
+      type: 'scorecard',
+      capture: 'camera',
+      returnTo: `/captain/record-result?${resultParams.toString()}`,
+    })
+    return `/data-assist?${captureParams.toString()}`
+  }, [facility, flight, leagueName, matchDate, matchTime, opponentTeam, teamName])
 
   useEffect(() => {
     if (!authResolved || !session?.access_token || !teamName) return
@@ -116,7 +152,39 @@ function RecordResultContent() {
   }, [authResolved, flight, leagueName, session?.access_token, teamName])
 
   useEffect(() => {
+    if (!scorecardPhotoDraftId || !teamName || scorecardPhotoPrefillKey.current === scorecardPhotoDraftId) return
+    try {
+      const raw = window.sessionStorage.getItem(captainScorecardPhotoPrefillStorageKey(scorecardPhotoDraftId))
+      if (!raw) return
+      const prefill = JSON.parse(raw) as unknown
+      if (!isCaptainScorecardPhotoPrefill(prefill) || normalizeName(prefill.teamName).toLowerCase() !== normalizeName(teamName).toLowerCase()) return
+      const preparedCourts = prefill.courts.map((court, index) => ({
+        ...createCourt(court.courtNumber || index + 1),
+        courtNumber: court.courtNumber || index + 1,
+        matchType: court.matchType,
+        teamPlayers: court.teamPlayers,
+        opponentPlayers: court.opponentPlayers,
+        outcome: court.outcome,
+        score: court.score,
+      }))
+      if (!preparedCourts.length) return
+      scorecardPhotoPrefillKey.current = scorecardPhotoDraftId
+      scorecardPhotoPrefillActive.current = true
+      lineupPrefillKey.current = `photo:${scorecardPhotoDraftId}`
+      setDataAssistBatchId(prefill.dataAssistBatchId)
+      setDataAssistDraftId(prefill.dataAssistDraftId)
+      if (prefill.matchDate) setMatchDate(prefill.matchDate)
+      if (prefill.opponentTeam) setOpponentTeam(prefill.opponentTeam)
+      setCourts(preparedCourts)
+      setNotice('Scorecard photo read loaded. Check every court, then save the verified captain result.')
+    } catch {
+      // Keep the captain form usable if the local photo draft is unavailable.
+    }
+  }, [scorecardPhotoDraftId, teamName])
+
+  useEffect(() => {
     if (!authResolved || !session?.access_token || !teamName || !matchDate || !opponentTeam) return
+    if (scorecardPhotoPrefillActive.current) return
     const prefillKey = [teamName, leagueName, flight, matchDate, opponentTeam].join('::').toLowerCase()
     if (lineupPrefillKey.current === prefillKey) return
     let active = true
@@ -154,6 +222,22 @@ function RecordResultContent() {
       .catch(() => undefined)
     return () => { active = false }
   }, [authResolved, flight, leagueName, matchDate, opponentTeam, session?.access_token, teamName])
+
+  useEffect(() => {
+    if (!authResolved || !session?.access_token || !teamName || !shouldRestoreRecap || !savedResultMatchId || savedRecap) return
+    let active = true
+    const params = new URLSearchParams({ externalMatchId: savedResultMatchId, team: teamName })
+    void fetch(`/api/captain/match-results?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      cache: 'no-store',
+    })
+      .then(async (response) => response.ok ? response.json() as Promise<{ ok?: boolean; recap?: CaptainScorecardSavedRecap }> : null)
+      .then((payload) => {
+        if (active && payload?.ok && payload.recap) setSavedRecap(payload.recap)
+      })
+      .catch(() => undefined)
+    return () => { active = false }
+  }, [authResolved, savedRecap, savedResultMatchId, session?.access_token, shouldRestoreRecap, teamName])
 
   function updateCourt(id: string, patch: Partial<CourtDraft>) {
     setCourts((current) => current.map((court) => court.id === id ? { ...court, ...patch } : court))
@@ -208,6 +292,8 @@ function RecordResultContent() {
           facility,
           leagueName,
           flight,
+          dataAssistBatchId,
+          dataAssistDraftId,
           lines: courts.map(({ courtNumber, matchType, teamPlayers, opponentPlayers, outcome, score }) => ({
             courtNumber,
             matchType,
@@ -218,18 +304,118 @@ function RecordResultContent() {
           })),
         }),
       })
-      const payload = await response.json() as { ok?: boolean; message?: string; needsReview?: boolean }
+      const payload = await response.json() as { ok?: boolean; message?: string; needsReview?: boolean; externalMatchId?: string; recap?: CaptainScorecardSavedRecap; teamAnnouncementUpdated?: boolean }
       if (!response.ok || !payload.ok) {
         setError(payload.message || 'The scorecard could not be saved.')
         return
       }
       setNotice(payload.message || 'Result saved.')
-      window.setTimeout(() => router.replace(`${teamRoomHref}${teamRoomHref.includes('?') ? '&' : '?'}result=updated`), 450)
+      setSavedRecap(payload.recap || null)
+      setTeamAnnouncementUpdated(payload.teamAnnouncementUpdated === true)
+      if (payload.externalMatchId) {
+        const url = new URL(window.location.href)
+        if (dataAssistBatchId) window.sessionStorage.removeItem(captainScorecardPhotoPrefillStorageKey(dataAssistBatchId))
+        scorecardPhotoPrefillKey.current = ''
+        scorecardPhotoPrefillActive.current = false
+        setDataAssistBatchId('')
+        setDataAssistDraftId('')
+        url.searchParams.set('result', 'updated')
+        url.searchParams.set('resultMatch', payload.externalMatchId)
+        url.searchParams.delete('scorecardDraft')
+        window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch {
       setError('The scorecard could not be saved. Check your connection and try again.')
     } finally {
       setSaving(false)
     }
+  }
+
+  if (savedRecap) {
+    const outcomeLabel = savedRecap.outcome === 'won' ? 'Match won.' : savedRecap.outcome === 'lost' ? 'Match recorded.' : 'Match split.'
+    const ratingChanges = [...savedRecap.ratingChanges].sort((left, right) => Number(right.side === 'team') - Number(left.side === 'team'))
+    return (
+      <main className={styles.page}>
+        <section className={styles.recapShell} aria-labelledby="scorecard-recap-title">
+          <div className={styles.recapHeading}>
+            <div>
+              <p className={styles.eyebrow}>Verified result</p>
+              <h1 id="scorecard-recap-title">{outcomeLabel}</h1>
+              <p>{teamName || 'Your team'} vs {opponentTeam || 'opponent'} · {matchDate || 'Match date'}</p>
+            </div>
+            <span className={styles.verifiedPill}>Captain verified</span>
+          </div>
+
+          <section className={styles.resultScoreboard} aria-label="Team result">
+            <div><span>{teamName || 'Your team'}</span><strong>{savedRecap.teamCourts}</strong></div>
+            <em>Final courts</em>
+            <div><span>{opponentTeam || 'Opponent'}</span><strong>{savedRecap.opponentCourts}</strong></div>
+          </section>
+
+          <section className={styles.recapSection}>
+            <div className={styles.recapSectionHeading}>
+              <div><p className={styles.eyebrow}>Court tape</p><h2>What was recorded</h2></div>
+              <span>{savedRecap.lines.length} court{savedRecap.lines.length === 1 ? '' : 's'}</span>
+            </div>
+            <div className={styles.recapLines}>
+              {savedRecap.lines.map((line) => (
+                <article className={styles.recapLine} key={`${line.courtNumber}-${line.label}`} data-outcome={line.outcome}>
+                  <div><strong>{line.label}</strong><span>{line.outcome === 'team' ? 'Won' : 'Lost'} · {line.score}</span></div>
+                  <p>{line.teamPlayers.join(' / ')} <small>vs</small> {line.opponentPlayers.join(' / ')}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <section className={styles.recapSection}>
+            <div className={styles.recapSectionHeading}>
+              <div><p className={styles.eyebrow}>TiQ movement</p><h2>After this result</h2></div>
+              <span>Match-specific</span>
+            </div>
+            {ratingChanges.length ? (
+              <div className={styles.ratingChanges}>
+                {ratingChanges.map((change) => (
+                  <article className={styles.ratingChange} key={change.playerId}>
+                    <div><strong>{change.playerName}</strong><span>{change.side === 'team' ? 'Your team' : 'Opponent'} · {change.matchType === 'doubles' ? 'Doubles TiQ' : 'Singles TiQ'}</span></div>
+                    <div className={styles.ratingValues}>
+                      <strong>{formatRating(change.after)}</strong>
+                      {change.delta !== null ? <span data-direction={change.delta > 0 ? 'up' : change.delta < 0 ? 'down' : 'flat'}>{change.delta > 0 ? '+' : ''}{change.delta.toFixed(3)}</span> : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : <p className={styles.recapEmpty}>TiQ is refreshing the player read. This verified scorecard is already saved.</p>}
+          </section>
+
+          <section className={styles.auditNote}>
+            <strong>{savedRecap.sourceConflictCount ? 'Source detail retained' : 'Match record protected'}</strong>
+            <span>{savedRecap.sourceConflictCount
+              ? `TiQ kept ${savedRecap.sourceConflictCount} lower-confidence score difference for audit. Your verified captain scorecard remains canonical.`
+              : 'Your verified captain scorecard is now connected to this match. Future imports can fill gaps but cannot silently replace it.'}</span>
+          </section>
+
+          {teamAnnouncementUpdated ? (
+            <section className={styles.teamUpdateNote} aria-label="Team update posted">
+              <strong>Team update posted</strong>
+              <span>The final result is now in Team Chat for your roster.</span>
+            </section>
+          ) : null}
+
+          <div className={styles.recapActions}>
+            <Link className={styles.saveButton} href={updatedTeamRoomHref}>{teamAnnouncementUpdated ? 'View team update' : 'Open team recap'}</Link>
+            <button className={styles.addCourt} type="button" onClick={() => {
+              setSavedRecap(null)
+              setTeamAnnouncementUpdated(false)
+              const url = new URL(window.location.href)
+              url.searchParams.delete('result')
+              url.searchParams.delete('resultMatch')
+              window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+            }}>Edit scorecard</button>
+          </div>
+        </section>
+      </main>
+    )
   }
 
   return (
@@ -249,6 +435,19 @@ function RecordResultContent() {
           <strong>vs {opponentTeam || 'Opponent'}</strong>
           <small>{[matchDate, matchTime, facility].filter(Boolean).join(' · ') || 'Add the match details below'}</small>
         </div>
+
+        <section className={styles.photoAssist} aria-label="Scorecard photo capture">
+          <div>
+            <p className={styles.eyebrow}>Quick capture</p>
+            <h2>Read a paper scorecard.</h2>
+            <p>Take one clear photo. TiQ fills the courts for your review; nothing is saved until you verify it.</p>
+          </div>
+          {teamName ? (
+            <Link className={styles.photoCaptureButton} href={scorecardCameraHref}>Take scorecard photo</Link>
+          ) : (
+            <span className={styles.photoCaptureHint}>Choose a team to use scorecard capture.</span>
+          )}
+        </section>
 
         <section className={styles.details} aria-label="Match details">
           <label>Match date<input type="date" value={matchDate} onChange={(event) => setMatchDate(event.target.value)} /></label>
