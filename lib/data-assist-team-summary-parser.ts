@@ -67,31 +67,6 @@ const JUNK_PLAYER_TERMS = [
   'league adult',
 ]
 
-const KNOWN_TEAM_SUMMARY_ROSTERS: Record<string, DataAssistTeamSummaryParsedPlayer[]> = {
-  'meinert the other guys s': [
-    { name: 'Nathan Meinert', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'David Cabrera', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Benjamin Strate', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Rj Tovonian', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Andy Horton', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Jon Tchen', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Brendan Czaicki', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Connor Zielonko', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Dragos Enea', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'CHRISTOPHER KRIEGER', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Richard McQueen', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Scott Hornung', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Takeshi Yoshimatsu', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Michael Thompson', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Michael Ho', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Nathan Easley', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Diego Mateluna', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Carson Fisher', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Jorge Lopez', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Martin Damm', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-  ],
-}
-
 export function buildTeamSummaryOcrDraftFromText(
   rawText: string,
   screenshots: DataAssistOcrScreenshotInput[],
@@ -116,7 +91,7 @@ export function buildTeamSummaryOcrDraftFromText(
   const ustaSection = /missouri valley/i.test(normalizedText) ? 'USTA/MISSOURI VALLEY' : ''
   const districtArea = /st\.?\s*louis/i.test(normalizedText) ? 'ST. LOUIS - St. Louis Local Leagues' : ''
   const teams = parseTeams(rawText)
-  const parsedPlayers = applyKnownRosterRepair(parsePlayers(rawText, rosterTeamName), rosterTeamName, rawText)
+  const parsedPlayers = parsePlayers(rawText, rosterTeamName)
   const namedContacts = parseContacts(rawText)
   const rosterMixedPairRole = inferMixedPairRole(leagueName, flight)
   const rosterAgeDivision = inferLeagueAgeDivision(leagueName, flight)
@@ -330,27 +305,6 @@ function addPlayer(
     ...player,
     name,
   })
-}
-
-function applyKnownRosterRepair(
-  players: DataAssistTeamSummaryParsedPlayer[],
-  rosterTeamName: string,
-  rawText: string,
-): DataAssistTeamSummaryParsedPlayer[] {
-  const rosterKey = normalizeKey(rosterTeamName)
-  const knownRoster = KNOWN_TEAM_SUMMARY_ROSTERS[rosterKey]
-  if (!knownRoster) return players
-
-  const textKey = normalizeKey(rawText)
-  const hasTeamSummarySignals = textKey.includes('team summary') && textKey.includes('players')
-  const missingRatings = players.some((player) => player.ntrp === null)
-  const likelyColumnOcrDamage = players.length < Math.round(knownRoster.length * 0.75) || missingRatings
-  if (!hasTeamSummarySignals || !likelyColumnOcrDamage) return players
-
-  return knownRoster.map((player) => ({
-    ...player,
-    teamName: rosterTeamName || player.teamName,
-  }))
 }
 
 function parseTeams(rawText: string): DataAssistTeamSummaryParsedTeam[] {

@@ -1,8 +1,43 @@
 import { describe, expect, it } from 'vitest'
-import { createImportEngine } from '../ingestion/importEngine'
+import { buildVerifiedPlayerRatingUpdate, createImportEngine } from '../ingestion/importEngine'
+
+describe('scorecard official rating updates', () => {
+  it('replaces a stale 3.5 baseline and untouched dynamics with line-level 4.0 evidence', () => {
+    expect(buildVerifiedPlayerRatingUpdate({
+      singlesRating: 3.5,
+      doublesRating: 3.5,
+      overallRating: 3.5,
+      singlesDynamicRating: 3.5,
+      doublesDynamicRating: 3.5,
+      overallDynamicRating: 3.5,
+    }, 4)).toEqual({
+      singles_rating: 4,
+      doubles_rating: 4,
+      overall_rating: 4,
+      singles_dynamic_rating: 4,
+      doubles_dynamic_rating: 4,
+      overall_dynamic_rating: 4,
+    })
+  })
+
+  it('preserves in-season dynamic movement while correcting the official baseline', () => {
+    expect(buildVerifiedPlayerRatingUpdate({
+      singlesRating: 3.5,
+      doublesRating: 3.5,
+      overallRating: 3.5,
+      singlesDynamicRating: 3.72,
+      doublesDynamicRating: 3.81,
+      overallDynamicRating: 3.76,
+    }, 4)).toEqual({
+      singles_rating: 4,
+      doubles_rating: 4,
+      overall_rating: 4,
+    })
+  })
+})
 
 describe('importTeamSummary', () => {
-  it('creates roster memberships for team summary players without ratings', async () => {
+  it('fails closed without writing players when an official roster rating is missing', async () => {
     const insertedPlayers: Array<Record<string, unknown>> = []
     const rosterMemberships: Array<Record<string, unknown>> = []
 
@@ -62,27 +97,41 @@ describe('importTeamSummary', () => {
       'commit',
     )
 
-    expect(result.createdCount).toBe(1)
-    expect(insertedPlayers).toMatchObject([
-      {
-        name: 'Roster Only Player',
-        normalized_name: 'roster only player',
-        overall_rating: 3.5,
+    expect(result.createdCount).toBe(0)
+    expect(result.failedCount).toBe(1)
+    expect(result.errors[0]?.message).toContain('official NTRP rating is missing or invalid')
+    expect(insertedPlayers).toEqual([])
+    expect(rosterMemberships).toEqual([])
+  })
+
+  it('fails the entire roster before writes when the same player has conflicting ratings', async () => {
+    const engine = createImportEngine({
+      from(table: string) {
+        throw new Error(`Unexpected write to ${table}`)
       },
-    ])
-    expect(rosterMemberships).toMatchObject([
+    } as never, { hasNormalizedPlayerNameColumn: true })
+
+    const result = await engine.importTeamSummary([
       {
-        team_name: 'Huchet/Ariston',
-        normalized_team_name: 'huchet/ariston',
-        player_name: 'Roster Only Player',
-        league_name: '2026 Adult 18 & Over Spring',
-        flight: '4.5 Men',
-        ntrp: null,
-        age_division: null,
-        rating_source: 'unknown',
-        mixed_pair_role: 'unknown',
+        leagueName: '2026 Adult 18 & Over',
+        flight: 'Men 4.0',
+        rosterTeamName: 'Example Aces',
+        teams: [],
+        players: [{ name: 'Alex Player', ntrp: 4, teamName: 'Example Aces' }],
       },
-    ])
+      {
+        leagueName: '2026 Adult 18 & Over',
+        flight: 'Men 4.0',
+        rosterTeamName: 'Example Aces',
+        teams: [],
+        players: [{ name: 'Alex Player', ntrp: 3.5, teamName: 'Example Aces' }],
+      },
+    ], 'commit')
+
+    expect(result.createdCount).toBe(0)
+    expect(result.updatedCount).toBe(0)
+    expect(result.failedCount).toBe(1)
+    expect(result.errors[0]?.message).toContain('conflicting official NTRP ratings 4.0 and 3.5')
   })
 
   it('persists official roster eligibility evidence', async () => {

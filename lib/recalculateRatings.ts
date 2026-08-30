@@ -17,7 +17,7 @@ type PlayerRow = {
 
 type MatchSource = 'usta' | 'tiq_team' | 'tiq_individual' | 'tiq_tournament'
 
-type MatchRow = {
+export type MatchRow = {
   id: string
   match_date: string
   match_type: MatchType
@@ -51,7 +51,7 @@ export type WorkingPlayer = {
   lastMatchDate: string | null
 }
 
-type RatingSnapshotInsert = {
+export type RatingSnapshotInsert = {
   player_id: string
   match_id: string
   snapshot_date: string
@@ -114,6 +114,7 @@ const K_OVERALL = 0.052
 const RATING_DIVISOR = 0.45
 const MAX_MULTIPLIER = 2.02
 const MIN_MULTIPLIER = 0.82
+const FETCH_PAGE_SIZE = 1000
 
 const RATING_BANDS = [
   1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0,
@@ -129,10 +130,24 @@ export type RecalcPhase =
   | 'saving-snapshots'
   | 'done'
 
+export type RatingRecalculationOptions = {
+  dryRun?: boolean
+  now?: number
+}
+
+export type RatingRecalculationResult = {
+  players: WorkingPlayer[]
+  snapshots: RatingSnapshotInsert[]
+  eligibleMatchCount: number
+  processedMatchCount: number
+  skippedMatches: Array<{ matchId: string; reason: string }>
+}
+
 export async function recalculateDynamicRatings(
   onPhase?: (phase: RecalcPhase, detail?: string) => void,
   client: SupabaseClient = supabase,
-) {
+  options: RatingRecalculationOptions = {},
+): Promise<RatingRecalculationResult> {
   onPhase?.('fetching-players')
   const players = await fetchPlayers(client)
   onPhase?.('fetching-matches')
@@ -179,6 +194,8 @@ export async function recalculateDynamicRatings(
   }
 
   const snapshotRows: RatingSnapshotInsert[] = []
+  const skippedMatches: Array<{ matchId: string; reason: string }> = []
+  let processedMatchCount = 0
 
   const mostRecentDate = matches.length > 0
     ? matches[matches.length - 1].match_date
@@ -200,7 +217,9 @@ export async function recalculateDynamicRatings(
 
     if (match.match_type === 'singles') {
       if (sideA.length !== 1 || sideB.length !== 1) {
-        console.warn(`Skipping singles match ${match.id}: expected 1 player per side.`)
+        const reason = 'expected 1 player per side'
+        skippedMatches.push({ matchId: match.id, reason })
+        console.warn(`Skipping singles match ${match.id}: ${reason}.`)
         continue
       }
 
@@ -208,17 +227,22 @@ export async function recalculateDynamicRatings(
       const playerB = playersById.get(sideB[0].player_id)
 
       if (!playerA || !playerB) {
-        console.warn(`Skipping singles match ${match.id}: missing player(s).`)
+        const reason = 'missing player(s)'
+        skippedMatches.push({ matchId: match.id, reason })
+        console.warn(`Skipping singles match ${match.id}: ${reason}.`)
         continue
       }
 
       processSinglesMatch(match, playerA, playerB, snapshotRows, recencyWeight)
+      processedMatchCount += 1
       continue
     }
 
     if (match.match_type === 'doubles') {
       if (sideA.length !== 2 || sideB.length !== 2) {
-        console.warn(`Skipping doubles match ${match.id}: expected 2 players per side.`)
+        const reason = 'expected 2 players per side'
+        skippedMatches.push({ matchId: match.id, reason })
+        console.warn(`Skipping doubles match ${match.id}: ${reason}.`)
         continue
       }
 
@@ -231,27 +255,54 @@ export async function recalculateDynamicRatings(
         .filter(Boolean) as WorkingPlayer[]
 
       if (teamA.length !== 2 || teamB.length !== 2) {
-        console.warn(`Skipping doubles match ${match.id}: missing player(s).`)
+        const reason = 'missing player(s)'
+        skippedMatches.push({ matchId: match.id, reason })
+        console.warn(`Skipping doubles match ${match.id}: ${reason}.`)
         continue
       }
 
       processDoublesMatch(match, teamA, teamB, snapshotRows, recencyWeight)
+      processedMatchCount += 1
+      continue
     }
+
+    skippedMatches.push({ matchId: match.id, reason: `unsupported match type: ${match.match_type}` })
   }
 
   onPhase?.('processing', `${matches.length} matches`)
   // (processing loop ran above)
 
   onPhase?.('applying-decay')
-  applyInactivityDecay(playersById.values())
+  applyInactivityDecay(playersById.values(), options.now ?? Date.now())
+
+  const calculatedPlayers = [...playersById.values()]
+
+  if (options.dryRun) {
+    onPhase?.('done')
+    return {
+      players: calculatedPlayers,
+      snapshots: dedupeRatingSnapshots(snapshotRows),
+      eligibleMatchCount: matches.length,
+      processedMatchCount,
+      skippedMatches,
+    }
+  }
 
   onPhase?.('saving-ratings', `${players.length} players`)
-  await persistPlayerRatings([...playersById.values()], client)
+  await persistPlayerRatings(calculatedPlayers, client)
 
   onPhase?.('saving-snapshots', `${snapshotRows.length} snapshots`)
   await replaceRatingSnapshots(snapshotRows, client)
 
   onPhase?.('done')
+
+  return {
+    players: calculatedPlayers,
+    snapshots: dedupeRatingSnapshots(snapshotRows),
+    eligibleMatchCount: matches.length,
+    processedMatchCount,
+    skippedMatches,
+  }
 }
 
 export function getNextRatingThreshold(currentRating: number): number {
@@ -307,67 +358,100 @@ export function projectDoublesTeamWinProbability(
 }
 
 async function fetchPlayers(client: SupabaseClient): Promise<PlayerRow[]> {
-  const { data, error } = await client
-    .from('players')
-    .select(`
-      id,
-      name,
-      singles_rating,
-      singles_dynamic_rating,
-      doubles_rating,
-      doubles_dynamic_rating,
-      overall_rating,
-      overall_dynamic_rating
-    `)
+  const rows: PlayerRow[] = []
 
-  if (error) {
-    throw new Error(`Failed to fetch players: ${error.message}`)
+  for (let from = 0; ; from += FETCH_PAGE_SIZE) {
+    const { data, error } = await client
+      .from('players')
+      .select(`
+        id,
+        name,
+        singles_rating,
+        singles_dynamic_rating,
+        doubles_rating,
+        doubles_dynamic_rating,
+        overall_rating,
+        overall_dynamic_rating
+      `)
+      .order('id', { ascending: true })
+      .range(from, from + FETCH_PAGE_SIZE - 1)
+
+    if (error) {
+      throw new Error(`Failed to fetch players: ${error.message}`)
+    }
+
+    const page = (data ?? []) as PlayerRow[]
+    rows.push(...page)
+    if (page.length < FETCH_PAGE_SIZE) break
   }
 
-  return (data ?? []) as PlayerRow[]
+  return rows
 }
 
 async function fetchMatches(client: SupabaseClient): Promise<MatchRow[]> {
-  const { data, error } = await client
-    .from('matches')
-    .select(`
-      id,
-      match_date,
-      match_type,
-      score,
-      winner_side,
-      match_source,
-      rating_eligible,
-      created_at
-    `)
-    .not('match_type', 'is', null)
-    .not('winner_side', 'is', null)
-    .eq('rating_eligible', true)
-    .order('match_date', { ascending: true })
-    .order('created_at', { ascending: true })
+  const rows: MatchRow[] = []
 
-  if (error) {
-    throw new Error(`Failed to fetch matches: ${error.message}`)
+  for (let from = 0; ; from += FETCH_PAGE_SIZE) {
+    const { data, error } = await client
+      .from('matches')
+      .select(`
+        id,
+        match_date,
+        match_type,
+        score,
+        winner_side,
+        match_source,
+        rating_eligible,
+        created_at
+      `)
+      .not('match_type', 'is', null)
+      .not('winner_side', 'is', null)
+      .eq('rating_eligible', true)
+      .order('match_date', { ascending: true })
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + FETCH_PAGE_SIZE - 1)
+
+    if (error) {
+      throw new Error(`Failed to fetch matches: ${error.message}`)
+    }
+
+    const page = (data ?? []) as MatchRow[]
+    rows.push(...page)
+    if (page.length < FETCH_PAGE_SIZE) break
   }
 
-  return (data ?? []) as MatchRow[]
+  return rows
 }
 
 async function fetchMatchPlayers(client: SupabaseClient): Promise<MatchPlayerRow[]> {
-  const { data, error } = await client
-    .from('match_players')
-    .select(`
-      match_id,
-      player_id,
-      side,
-      seat
-    `)
+  const rows: MatchPlayerRow[] = []
 
-  if (error) {
-    throw new Error(`Failed to fetch match participants: ${error.message}`)
+  for (let from = 0; ; from += FETCH_PAGE_SIZE) {
+    const { data, error } = await client
+      .from('match_players')
+      .select(`
+        match_id,
+        player_id,
+        side,
+        seat
+      `)
+      .order('match_id', { ascending: true })
+      .order('side', { ascending: true })
+      .order('seat', { ascending: true, nullsFirst: true })
+      .order('player_id', { ascending: true })
+      .range(from, from + FETCH_PAGE_SIZE - 1)
+
+    if (error) {
+      throw new Error(`Failed to fetch match participants: ${error.message}`)
+    }
+
+    const page = (data ?? []) as MatchPlayerRow[]
+    rows.push(...page)
+    if (page.length < FETCH_PAGE_SIZE) break
   }
 
-  return (data ?? []) as MatchPlayerRow[]
+  return rows
 }
 
 function processSinglesMatch(
@@ -448,7 +532,7 @@ function processSinglesMatch(
   }
 }
 
-function processDoublesMatch(
+export function processDoublesMatch(
   match: MatchRow,
   teamA: WorkingPlayer[],
   teamB: WorkingPlayer[],
@@ -472,9 +556,15 @@ function processDoublesMatch(
 
   const tiqWpA = Math.round(tiqExpectedA * 100)
   const tiqWpB = 100 - tiqWpA
+  const provisionalMultiplierByPlayerId = new Map(
+    [...teamA, ...teamB].map((player) => [
+      player.id,
+      getProvisionalkMultiplier(player.matchesProcessed),
+    ]),
+  )
 
   for (const player of teamA) {
-    const k = getProvisionalkMultiplier(player.matchesProcessed)
+    const k = provisionalMultiplierByPlayerId.get(player.id) ?? 1
     const doublesD = K_DOUBLES * k * tiqRawDoublesA
     const overallD = K_OVERALL * k * tiqRawDoublesA
     player.doublesDynamic = clampAndRoundRating(player.doublesDynamic + doublesD)
@@ -487,7 +577,7 @@ function processDoublesMatch(
   }
 
   for (const player of teamB) {
-    const k = getProvisionalkMultiplier(player.matchesProcessed)
+    const k = provisionalMultiplierByPlayerId.get(player.id) ?? 1
     const doublesD = K_DOUBLES * k * tiqRawDoublesB
     const overallD = K_OVERALL * k * tiqRawDoublesB
     player.doublesDynamic = clampAndRoundRating(player.doublesDynamic + doublesD)
@@ -515,7 +605,7 @@ function processDoublesMatch(
     const ustaWpB = 100 - ustaWpA
 
     for (const player of teamA) {
-      const k = getProvisionalkMultiplier(player.matchesProcessed)
+      const k = provisionalMultiplierByPlayerId.get(player.id) ?? 1
       const doublesD = K_DOUBLES * k * ustaRawDoublesA
       const overallD = K_OVERALL * k * ustaRawDoublesA
       player.doublesUstaDynamic = clampAndRoundRating(player.doublesUstaDynamic + doublesD)
@@ -527,7 +617,7 @@ function processDoublesMatch(
     }
 
     for (const player of teamB) {
-      const k = getProvisionalkMultiplier(player.matchesProcessed)
+      const k = provisionalMultiplierByPlayerId.get(player.id) ?? 1
       const doublesD = K_DOUBLES * k * ustaRawDoublesB
       const overallD = K_OVERALL * k * ustaRawDoublesB
       player.doublesUstaDynamic = clampAndRoundRating(player.doublesUstaDynamic + doublesD)
@@ -618,23 +708,13 @@ async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[], clie
 
   if (snapshotRows.length === 0) return
 
-  const dedupedRows = Array.from(
-    snapshotRows
-      .reduce((map, row) => {
-        const key = `${row.player_id}__${row.match_id}__${row.rating_type}`
-        if (!map.has(key) || row.track === 'tiq') {
-          map.set(key, row)
-        }
-        return map
-      }, new Map<string, RatingSnapshotInsert>())
-      .values(),
-  )
+  const dedupedRows = dedupeRatingSnapshots(snapshotRows)
 
   for (const chunk of chunkArray(dedupedRows, 500)) {
     const { error } = await client
       .from('rating_snapshots')
       .upsert(chunk, {
-        onConflict: 'player_id,match_id,rating_type',
+        onConflict: 'player_id,match_id,rating_type,track',
       })
 
     if (error) {
@@ -648,7 +728,7 @@ async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[], clie
           error.message.includes('win_probability') || error.message.includes('multiplier')) {
         const stripped = chunk.map(stripSnapshotMetrics)
         const { error: fallbackError } = await client.from('rating_snapshots').upsert(stripped, {
-          onConflict: 'player_id,match_id,rating_type',
+          onConflict: 'player_id,match_id,rating_type,track',
         })
         if (fallbackError && isMissingOnConflictConstraintError(fallbackError.message)) {
           const { error: insertFallbackError } = await client.from('rating_snapshots').insert(stripped)
@@ -663,6 +743,18 @@ async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[], clie
       throw new Error(`Failed to insert rating snapshots: ${error.message}`)
     }
   }
+}
+
+export function dedupeRatingSnapshots(snapshotRows: RatingSnapshotInsert[]) {
+  return Array.from(
+    snapshotRows
+      .reduce((map, row) => {
+        const key = `${row.player_id}__${row.match_id}__${row.rating_type}__${row.track}`
+        map.set(key, row)
+        return map
+      }, new Map<string, RatingSnapshotInsert>())
+      .values(),
+  )
 }
 
 function isMissingOnConflictConstraintError(message: string) {
@@ -730,8 +822,11 @@ export function parseScoreMetrics(score: string | null | undefined, winnerSide: 
     return fallback
   }
 
-  const totalGamesA = sets.reduce((sum, set) => sum + set.sideA, 0)
-  const totalGamesB = sets.reduce((sum, set) => sum + set.sideB, 0)
+  const gameSets = sets.filter((set) => !(
+    (set.sideA === 1 && set.sideB === 0) || (set.sideA === 0 && set.sideB === 1)
+  ))
+  const totalGamesA = gameSets.reduce((sum, set) => sum + set.sideA, 0)
+  const totalGamesB = gameSets.reduce((sum, set) => sum + set.sideB, 0)
   const totalGames = totalGamesA + totalGamesB
 
   if (totalGames <= 0) {
@@ -781,6 +876,13 @@ export function parseScoreMetrics(score: string | null | undefined, winnerSide: 
     if (!isTiebreakSet && Math.abs(set.sideA - set.sideB) <= 2) {
       closeSets += 1
     }
+  }
+
+  // A declared winner that loses more parsed sets means the score is oriented
+  // incorrectly or corrupt. Keep the result eligible, but do not apply a
+  // backwards margin-of-victory adjustment.
+  if (loserSetCount > winnerSetCount) {
+    return fallback
   }
 
   const straightSetsWin = winnerSetCount >= 2 && loserSetCount === 0
@@ -895,7 +997,7 @@ function normalizeScoreString(score: string) {
     .replace(/\bL\b/gi, '')
     .replace(/\([^)]*\)/g, '')
     .replace(/\[[^\]]*\]/g, '')
-    .replace(/\s+/g, '')
+    .replace(/\s+/g, ',')
     .replace(/\/+/g, ',')
     .replace(/:+/g, '-')
     .replace(/–/g, '-')
