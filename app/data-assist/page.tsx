@@ -44,6 +44,10 @@ import {
   buildCaptainImportReturnHref,
   isCaptainImportDraft,
 } from '@/lib/captain-import-handoff'
+import {
+  buildCaptainScorecardPhotoPrefill,
+  captainScorecardPhotoPrefillStorageKey,
+} from '@/lib/captain-scorecard-photo-prefill'
 import { acceptCaptainImportConnection } from '@/lib/team-profile-links-client'
 
 const DATA_ASSIST_OCR_TIMEOUT_MS = 100_000
@@ -249,6 +253,15 @@ function buildScorecardImportReturnHref(returnTo: string, externalMatchId: strin
   return `${url.pathname}${url.search}${url.hash}`
 }
 
+function getCaptainScorecardReturnContext(returnTo: string) {
+  const safeReturnTo = getSafeDataAssistReturnTo(returnTo)
+  if (!safeReturnTo) return null
+  const url = new URL(safeReturnTo, 'https://tenaceiq.local')
+  if (url.pathname !== '/captain/record-result') return null
+  const teamName = url.searchParams.get('team')?.trim() || ''
+  return teamName ? { href: safeReturnTo, teamName } : null
+}
+
 function buildDataAssistIssueHref(context = '', query = '') {
   const details = [
     context ? `Source context: ${context}` : '',
@@ -285,6 +298,7 @@ function DataAssistWorkspace() {
   const exportHelpRequested = searchParams.get('help') === '1'
   const scorecardCameraRequested = searchParams.get('capture') === 'camera'
   const returnTo = getSafeDataAssistReturnTo(searchParams.get('returnTo'))
+  const captainScorecardReturn = getCaptainScorecardReturnContext(returnTo)
   const [importType, setImportType] = useState<DataAssistImportType>(requestedImportType || 'scorecard')
   const [typeOverrideActive, setTypeOverrideActive] = useState(false)
   const [summary, setSummary] = useState<DataAssistBatchSummary | null>(null)
@@ -369,6 +383,33 @@ function DataAssistWorkspace() {
     if (!href) return false
     router.replace(href)
     return true
+  }
+
+  function openVerifiedCaptainScorecard(input: {
+    batchId: string
+    draftId: string
+    parsedDraft: DataAssistScorecardParsedDraft
+  }) {
+    if (!captainScorecardReturn) return
+    const prefill = buildCaptainScorecardPhotoPrefill({
+      teamName: captainScorecardReturn.teamName,
+      dataAssistBatchId: input.batchId,
+      dataAssistDraftId: input.draftId,
+      parsedDraft: input.parsedDraft,
+    })
+    if (!prefill) {
+      setError('TiQ could not prepare that photo read for a captain scorecard. Check the team and court names, then try again.')
+      return
+    }
+
+    try {
+      window.sessionStorage.setItem(captainScorecardPhotoPrefillStorageKey(prefill.dataAssistBatchId), JSON.stringify(prefill))
+      const url = new URL(captainScorecardReturn.href, window.location.origin)
+      url.searchParams.set('scorecardDraft', prefill.dataAssistBatchId)
+      router.push(`${url.pathname}${url.search}${url.hash}`)
+    } catch {
+      setError('TiQ could not carry the photo read into the verified scorecard. Try again from this device.')
+    }
   }
 
   function resetUploadFlow() {
@@ -1398,6 +1439,11 @@ function DataAssistWorkspace() {
                 busy={reviewingSubmissionId === latestScan.batchId}
                 onConfirm={() => void reviewLatestScan('confirmed')}
                 onFlag={() => void reviewLatestScan('flagged')}
+                onOpenCaptainScorecard={captainScorecardReturn ? () => openVerifiedCaptainScorecard({
+                  batchId: latestScan.batchId,
+                  draftId: latestScan.draftId,
+                  parsedDraft: latestScan.parsedDraft,
+                }) : undefined}
               />
             )}
             <div style={draftActionRowStyle}>
@@ -2765,6 +2811,25 @@ function SubmissionCard({
               busy={busy}
               onConfirm={() => onReview(submission, 'confirmed')}
               onFlag={() => onReview(submission, 'flagged')}
+              onOpenCaptainScorecard={returnTo.startsWith('/captain/record-result') ? () => {
+                const context = getCaptainScorecardReturnContext(returnTo)
+                if (!context) return
+                const prefill = buildCaptainScorecardPhotoPrefill({
+                  teamName: context.teamName,
+                  dataAssistBatchId: submission.id,
+                  dataAssistDraftId: submission.draftId,
+                  parsedDraft,
+                })
+                if (!prefill) return
+                try {
+                  window.sessionStorage.setItem(captainScorecardPhotoPrefillStorageKey(prefill.dataAssistBatchId), JSON.stringify(prefill))
+                  const url = new URL(context.href, window.location.origin)
+                  url.searchParams.set('scorecardDraft', prefill.dataAssistBatchId)
+                  window.location.assign(`${url.pathname}${url.search}${url.hash}`)
+                } catch {
+                  // Keep the generic review actions available if browser storage is unavailable.
+                }
+              } : undefined}
             />
           ) : null}
           {parsedSchedule && !isImported ? (
@@ -3270,12 +3335,14 @@ function ScorecardReviewPanel({
   busy,
   onConfirm,
   onFlag,
+  onOpenCaptainScorecard,
 }: {
   parsedDraft: DataAssistScorecardParsedDraft
   canReview: boolean
   busy: boolean
   onConfirm: () => void
   onFlag: () => void
+  onOpenCaptainScorecard?: () => void
 }) {
   const reviewItems = getScorecardReviewItems(parsedDraft)
   const winnerCount = parsedDraft.lines.filter((line) => line.winner === 'home' || line.winner === 'away').length
@@ -3345,13 +3412,24 @@ function ScorecardReviewPanel({
           <span>Players, scores, and line winners are captured. Give the read one final check.</span>
         </div>
       ) : null}
+      {onOpenCaptainScorecard ? (
+        <div style={readyImportNoteStyle}>
+          <strong>Use the verified captain scorecard</strong>
+          <span>Bring this read into your match form, make any correction, then save it as the higher-confidence local result.</span>
+          <button type="button" onClick={onOpenCaptainScorecard} style={primaryButtonStyle}>
+            Review in verified scorecard
+          </button>
+        </div>
+      ) : null}
       {canReview ? (
         <div style={cardActionRowStyle}>
-          <button type="button" onClick={onConfirm} disabled={busy} style={{ ...smallButtonStyle, ...(busy ? disabledStyle : {}) }}>
-            {busy ? 'Importing...' : 'Looks right - import'}
-          </button>
+          {!onOpenCaptainScorecard ? (
+            <button type="button" onClick={onConfirm} disabled={busy} style={{ ...smallButtonStyle, ...(busy ? disabledStyle : {}) }}>
+              {busy ? 'Importing...' : 'Looks right - import'}
+            </button>
+          ) : null}
           <button type="button" onClick={onFlag} disabled={busy} style={{ ...smallDangerButtonStyle, ...(busy ? disabledStyle : {}) }}>
-            Needs fix
+            {onOpenCaptainScorecard ? 'Retake or flag photo' : 'Needs fix'}
           </button>
         </div>
       ) : getBlockingScorecardReviewItems(parsedDraft).length ? (

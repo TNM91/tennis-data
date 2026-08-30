@@ -6,6 +6,10 @@ import { useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import type { CaptainScorecardSavedRecap } from '@/lib/captain-scorecard'
+import {
+  captainScorecardPhotoPrefillStorageKey,
+  isCaptainScorecardPhotoPrefill,
+} from '@/lib/captain-scorecard-photo-prefill'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import styles from './record-result.module.css'
 
@@ -81,6 +85,10 @@ function RecordResultContent() {
   const [savedRecap, setSavedRecap] = useState<CaptainScorecardSavedRecap | null>(null)
   const [teamAnnouncementUpdated, setTeamAnnouncementUpdated] = useState(false)
   const lineupPrefillKey = useRef('')
+  const scorecardPhotoPrefillKey = useRef('')
+  const scorecardPhotoPrefillActive = useRef(false)
+  const [dataAssistBatchId, setDataAssistBatchId] = useState('')
+  const [dataAssistDraftId, setDataAssistDraftId] = useState('')
 
   const teamRoomHref = useMemo(() => buildTeamRoomHref({
     teamName,
@@ -94,6 +102,7 @@ function RecordResultContent() {
   const updatedTeamRoomHref = `${teamRoomHref}${teamRoomHref.includes('?') ? '&' : '?'}result=updated`
   const savedResultMatchId = searchParams.get('resultMatch')?.trim() || ''
   const shouldRestoreRecap = searchParams.get('result') === 'updated' && Boolean(savedResultMatchId)
+  const scorecardPhotoDraftId = searchParams.get('scorecardDraft')?.trim() || ''
 
   useEffect(() => {
     if (!authResolved || !session?.access_token || !teamName) return
@@ -125,7 +134,39 @@ function RecordResultContent() {
   }, [authResolved, flight, leagueName, session?.access_token, teamName])
 
   useEffect(() => {
+    if (!scorecardPhotoDraftId || !teamName || scorecardPhotoPrefillKey.current === scorecardPhotoDraftId) return
+    try {
+      const raw = window.sessionStorage.getItem(captainScorecardPhotoPrefillStorageKey(scorecardPhotoDraftId))
+      if (!raw) return
+      const prefill = JSON.parse(raw) as unknown
+      if (!isCaptainScorecardPhotoPrefill(prefill) || normalizeName(prefill.teamName).toLowerCase() !== normalizeName(teamName).toLowerCase()) return
+      const preparedCourts = prefill.courts.map((court, index) => ({
+        ...createCourt(court.courtNumber || index + 1),
+        courtNumber: court.courtNumber || index + 1,
+        matchType: court.matchType,
+        teamPlayers: court.teamPlayers,
+        opponentPlayers: court.opponentPlayers,
+        outcome: court.outcome,
+        score: court.score,
+      }))
+      if (!preparedCourts.length) return
+      scorecardPhotoPrefillKey.current = scorecardPhotoDraftId
+      scorecardPhotoPrefillActive.current = true
+      lineupPrefillKey.current = `photo:${scorecardPhotoDraftId}`
+      setDataAssistBatchId(prefill.dataAssistBatchId)
+      setDataAssistDraftId(prefill.dataAssistDraftId)
+      if (prefill.matchDate) setMatchDate(prefill.matchDate)
+      if (prefill.opponentTeam) setOpponentTeam(prefill.opponentTeam)
+      setCourts(preparedCourts)
+      setNotice('Scorecard photo read loaded. Check every court, then save the verified captain result.')
+    } catch {
+      // Keep the captain form usable if the local photo draft is unavailable.
+    }
+  }, [scorecardPhotoDraftId, teamName])
+
+  useEffect(() => {
     if (!authResolved || !session?.access_token || !teamName || !matchDate || !opponentTeam) return
+    if (scorecardPhotoPrefillActive.current) return
     const prefillKey = [teamName, leagueName, flight, matchDate, opponentTeam].join('::').toLowerCase()
     if (lineupPrefillKey.current === prefillKey) return
     let active = true
@@ -233,6 +274,8 @@ function RecordResultContent() {
           facility,
           leagueName,
           flight,
+          dataAssistBatchId,
+          dataAssistDraftId,
           lines: courts.map(({ courtNumber, matchType, teamPlayers, opponentPlayers, outcome, score }) => ({
             courtNumber,
             matchType,
@@ -253,8 +296,14 @@ function RecordResultContent() {
       setTeamAnnouncementUpdated(payload.teamAnnouncementUpdated === true)
       if (payload.externalMatchId) {
         const url = new URL(window.location.href)
+        if (dataAssistBatchId) window.sessionStorage.removeItem(captainScorecardPhotoPrefillStorageKey(dataAssistBatchId))
+        scorecardPhotoPrefillKey.current = ''
+        scorecardPhotoPrefillActive.current = false
+        setDataAssistBatchId('')
+        setDataAssistDraftId('')
         url.searchParams.set('result', 'updated')
         url.searchParams.set('resultMatch', payload.externalMatchId)
+        url.searchParams.delete('scorecardDraft')
         window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
       }
       window.scrollTo({ top: 0, behavior: 'smooth' })

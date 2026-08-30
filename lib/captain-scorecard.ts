@@ -20,6 +20,8 @@ export type CaptainScorecardInput = {
   facility?: string | null
   leagueName?: string | null
   flight?: string | null
+  dataAssistBatchId?: string | null
+  dataAssistDraftId?: string | null
   lines: CaptainScorecardLineInput[]
 }
 
@@ -73,6 +75,9 @@ export function validateCaptainScorecardInput(input: CaptainScorecardInput): str
   if (!cleanText(input.opponentTeam)) return 'Add the opposing team before saving the result.'
   if (!/^\d{4}-\d{2}-\d{2}$/.test(cleanText(input.matchDate))) return 'Add the match date before saving the result.'
   if (!input.lines.length) return 'Add at least one completed court.'
+  const dataAssistBatchId = cleanText(input.dataAssistBatchId)
+  const dataAssistDraftId = cleanText(input.dataAssistDraftId)
+  if (Boolean(dataAssistBatchId) !== Boolean(dataAssistDraftId)) return 'The scorecard photo reference is incomplete. Reopen the photo read and try again.'
 
   const seenCourts = new Set<number>()
   for (const line of input.lines) {

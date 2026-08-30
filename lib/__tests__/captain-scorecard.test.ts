@@ -52,6 +52,13 @@ describe('captain scorecard capture', () => {
       .toBe('Court 1 needs two opponents.')
   })
 
+  it('requires both photo evidence references when a captain uses a scorecard read', () => {
+    expect(validateCaptainScorecardInput({ ...input, dataAssistBatchId: 'batch-1' }))
+      .toBe('The scorecard photo reference is incomplete. Reopen the photo read and try again.')
+    expect(validateCaptainScorecardInput({ ...input, dataAssistBatchId: 'batch-1', dataAssistDraftId: 'draft-1' }))
+      .toBeNull()
+  })
+
   it('never silently replaces an admin verified disagreement', () => {
     const observation = buildCaptainScorecardObservations(input)[0]
     expect(hasHigherPriorityCaptainScorecardConflict({ source: 'admin_verified', scoreText: '6-4 6-4' }, observation)).toBe(true)

@@ -54,6 +54,10 @@ type RatingPlayer = {
   doubles_dynamic_rating: number | null
 }
 
+type DataAssistReferenceRow = {
+  submitted_by_user_id: string | null
+}
+
 function matchRating(player: RatingPlayer | undefined, matchType: 'singles' | 'doubles') {
   const value = matchType === 'singles' ? player?.singles_dynamic_rating : player?.doubles_dynamic_rating
   return typeof value === 'number' && Number.isFinite(value) ? Math.round(value * 1000) / 1000 : null
@@ -88,6 +92,8 @@ function parseInput(value: unknown): CaptainScorecardInput | null {
     facility: typeof raw.facility === 'string' ? raw.facility : null,
     leagueName: typeof raw.leagueName === 'string' ? raw.leagueName : null,
     flight: typeof raw.flight === 'string' ? raw.flight : null,
+    dataAssistBatchId: typeof raw.dataAssistBatchId === 'string' ? raw.dataAssistBatchId : null,
+    dataAssistDraftId: typeof raw.dataAssistDraftId === 'string' ? raw.dataAssistDraftId : null,
     lines: lines as CaptainScorecardInput['lines'],
   }
 }
@@ -190,6 +196,32 @@ export async function POST(request: Request) {
   })
   if (!auth.isAdmin && !hasTeamAccess) {
     return Response.json({ ok: false, message: 'Captain access is required for this team.' }, { status: 403 })
+  }
+
+  const dataAssistBatchId = input.dataAssistBatchId?.trim() || ''
+  const dataAssistDraftId = input.dataAssistDraftId?.trim() || ''
+  if (dataAssistBatchId && dataAssistDraftId) {
+    const [batchReference, draftReference] = await Promise.all([
+      service
+        .from('data_assist_batches')
+        .select('submitted_by_user_id')
+        .eq('id', dataAssistBatchId)
+        .maybeSingle(),
+      service
+        .from('data_assist_drafts')
+        .select('submitted_by_user_id')
+        .eq('id', dataAssistDraftId)
+        .eq('batch_id', dataAssistBatchId)
+        .maybeSingle(),
+    ])
+    if (batchReference.error || draftReference.error) {
+      return Response.json({ ok: false, message: 'The scorecard photo reference could not be checked. Reopen the photo read and try again.' }, { status: 500 })
+    }
+    const batchOwner = (batchReference.data as DataAssistReferenceRow | null)?.submitted_by_user_id || ''
+    const draftOwner = (draftReference.data as DataAssistReferenceRow | null)?.submitted_by_user_id || ''
+    if (!batchOwner || !draftOwner || batchOwner !== auth.userId || draftOwner !== auth.userId) {
+      return Response.json({ ok: false, message: 'That scorecard photo is not available for this account.' }, { status: 403 })
+    }
   }
 
   const localObservations = buildCaptainScorecardObservations(input)
@@ -369,6 +401,35 @@ export async function POST(request: Request) {
       .in('canonical_match_id', savedLineIds)
     : { error: null }
   if (receiptError) console.error('Could not persist captain scorecard recap', receiptError)
+
+  if (dataAssistBatchId && dataAssistDraftId) {
+    const reviewedAt = new Date().toISOString()
+    const reviewNote = 'Verified through the captain scorecard.'
+    const [batchPhotoUpdate, draftPhotoUpdate] = await Promise.all([
+      service
+        .from('data_assist_batches')
+        .update({
+          status: 'verified',
+          review_note: reviewNote,
+          reviewed_by_user_id: auth.userId,
+          reviewed_at: reviewedAt,
+        })
+        .eq('id', dataAssistBatchId),
+      service
+        .from('data_assist_drafts')
+        .update({
+          status: 'verified',
+          review_note: reviewNote,
+          reviewed_by_user_id: auth.userId,
+          reviewed_at: reviewedAt,
+        })
+        .eq('id', dataAssistDraftId)
+        .eq('batch_id', dataAssistBatchId),
+    ])
+    if (batchPhotoUpdate.error || draftPhotoUpdate.error) {
+      console.error('Could not mark the scorecard photo as captain verified', batchPhotoUpdate.error || draftPhotoUpdate.error)
+    }
+  }
 
   // Captain scorecards are already verified local records. Send the final
   // result to the matching Team Chat in the same save, while the announcement
