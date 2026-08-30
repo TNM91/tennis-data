@@ -130,6 +130,38 @@
 .matchCard strong { color: var(--foreground-strong); font-size: 1.2rem; overflow-wrap: anywhere; }
 .matchCard small { color: var(--shell-copy-muted); overflow-wrap: anywhere; }
 
+.photoAssist {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding: 15px 16px;
+  border: 1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg));
+}
+
+.photoAssist > div { min-width: 0; }
+.photoAssist h2,
+.photoAssist p { margin: 0; }
+.photoAssist h2 { margin-top: 4px; color: var(--foreground-strong); font-size: clamp(1.05rem, 3.4vw, 1.32rem); line-height: 1.1; }
+.photoAssist p:not(.eyebrow) { margin-top: 6px; color: var(--shell-copy-muted); line-height: 1.45; }
+.photoCaptureButton,
+.photoCaptureHint {
+  flex: 0 0 auto;
+  max-width: 100%;
+  padding: 11px 13px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 56%, var(--shell-panel-border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--brand-green) 17%, var(--shell-chip-bg));
+  color: var(--brand-green-3);
+  font-weight: 900;
+  text-align: center;
+  text-decoration: none;
+}
+.photoCaptureHint { color: var(--shell-copy-muted); font-size: .82rem; }
+
 .details,
 .playerColumns,
 .resultControls {
@@ -319,6 +351,9 @@
   .details,
   .playerColumns,
   .resultControls { grid-template-columns: minmax(0, 1fr); }
+  .photoAssist { display: grid; gap: 12px; }
+  .photoCaptureButton,
+  .photoCaptureHint { width: 100%; }
   .courtCard { gap: 12px; padding: 14px; }
   .outcomeButtons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .outcomeButtons button { min-width: 0; }

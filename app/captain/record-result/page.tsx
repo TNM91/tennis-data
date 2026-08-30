@@ -103,6 +103,24 @@ function RecordResultContent() {
   const savedResultMatchId = searchParams.get('resultMatch')?.trim() || ''
   const shouldRestoreRecap = searchParams.get('result') === 'updated' && Boolean(savedResultMatchId)
   const scorecardPhotoDraftId = searchParams.get('scorecardDraft')?.trim() || ''
+  const scorecardCameraHref = useMemo(() => {
+    const resultParams = new URLSearchParams()
+    if (teamName) resultParams.set('team', teamName)
+    if (leagueName) resultParams.set('league', leagueName)
+    if (flight) resultParams.set('flight', flight)
+    if (matchDate) resultParams.set('date', matchDate)
+    if (opponentTeam) resultParams.set('opponent', opponentTeam)
+    if (matchTime) resultParams.set('time', matchTime)
+    if (facility) resultParams.set('facility', facility)
+    const captureParams = new URLSearchParams({
+      intent: 'upload-source',
+      context: 'captain-scorecard',
+      type: 'scorecard',
+      capture: 'camera',
+      returnTo: `/captain/record-result?${resultParams.toString()}`,
+    })
+    return `/data-assist?${captureParams.toString()}`
+  }, [facility, flight, leagueName, matchDate, matchTime, opponentTeam, teamName])
 
   useEffect(() => {
     if (!authResolved || !session?.access_token || !teamName) return
@@ -417,6 +435,19 @@ function RecordResultContent() {
           <strong>vs {opponentTeam || 'Opponent'}</strong>
           <small>{[matchDate, matchTime, facility].filter(Boolean).join(' · ') || 'Add the match details below'}</small>
         </div>
+
+        <section className={styles.photoAssist} aria-label="Scorecard photo capture">
+          <div>
+            <p className={styles.eyebrow}>Quick capture</p>
+            <h2>Read a paper scorecard.</h2>
+            <p>Take one clear photo. TiQ fills the courts for your review; nothing is saved until you verify it.</p>
+          </div>
+          {teamName ? (
+            <Link className={styles.photoCaptureButton} href={scorecardCameraHref}>Take scorecard photo</Link>
+          ) : (
+            <span className={styles.photoCaptureHint}>Choose a team to use scorecard capture.</span>
+          )}
+        </section>
 
         <section className={styles.details} aria-label="Match details">
           <label>Match date<input type="date" value={matchDate} onChange={(event) => setMatchDate(event.target.value)} /></label>
