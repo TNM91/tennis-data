@@ -14,7 +14,7 @@ const OFFER_CONFIG = {
   captain: {
     couponEnv: 'STRIPE_CAPTAIN_TEAM_INVITE_COUPON_ID',
     labelEnv: 'CAPTAIN_TEAM_INVITE_OFFER_LABEL',
-    defaultLabel: 'First month $4.99, then $9.99/month',
+    defaultLabel: 'First month $2.99, then $5.99/month',
     roles: ['captain', 'co_captain'],
     entitlementSelect: 'captain_subscription_active,captain_subscription_status',
     activeFields: ['captain_subscription_active'],
@@ -24,7 +24,7 @@ const OFFER_CONFIG = {
   player_plus: {
     couponEnv: 'STRIPE_PLAYER_TEAM_INVITE_COUPON_ID',
     labelEnv: 'PLAYER_TEAM_INVITE_OFFER_LABEL',
-    defaultLabel: 'First month $2.49, then $4.99/month',
+    defaultLabel: 'First month $1.49, then $2.99/month',
     roles: ['player'],
     entitlementSelect:
       'player_plus_subscription_active,player_plus_subscription_status,coach_subscription_active,coach_subscription_status,captain_subscription_active,captain_subscription_status',

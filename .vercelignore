@@ -23,6 +23,14 @@ yarn-error.log*
 .claude
 skills-lock.json
 
+# Local packaging and agent artifacts are not production source.
+*.zip
+.codex-deck
+.codex
+artifacts
+deliverables
+output
+
 # Project QA/docs/dev tooling that should stay in Git but not in Vercel builds
 .github
 docs

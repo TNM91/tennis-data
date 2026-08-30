@@ -24,11 +24,11 @@ TenAceIQ helps tennis players, captains, and league coordinators spend less time
 | Tier | Plan id | Price | Billing model | Checkout mode | Quantity mode | Audience |
 | --- | --- | ---: | --- | --- | --- | --- |
 | Free | `free` | `$0` | Free account | None | Account | Players, captains, and fans getting oriented |
-| Player | `player_plus` | `$4.99/month` | Monthly subscription | Subscription | Account | Players who want clearer prep and personalized tennis tools |
-| Coach | `coach` | `$9.99/month` | Monthly subscription | Subscription | Account | Private coaches, school coaches, and training-group leaders |
-| Captain | `captain` | `$9.99/month` | Monthly subscription | Subscription | Account | Captains managing lineups, readiness, and weekly decisions |
+| Player | `player_plus` | `$2.99/month` | Monthly subscription | Subscription | Account | Players who want clearer prep and personalized tennis tools |
+| Coach | `coach` | `$5.99/month` | Monthly subscription | Subscription | Account | Private coaches, school coaches, and training-group leaders |
+| Captain | `captain` | `$5.99/month` | Monthly subscription | Subscription | Account | Captains managing lineups, readiness, and weekly decisions |
 | League | `league` | `$25/season` | Season fee | One-time | League | League coordinators and organizers running one league, ladder, or tournament |
-| Full-Court | `full_court` | `$19.99/month` | Monthly subscription | Subscription | Account | Coaches, captains, clubs, and organizers using the complete TenAceIQ toolkit |
+| Full-Court | `full_court` | `$14.99/month` | Monthly subscription | Subscription | Account | Coaches, captains, clubs, and organizers using the complete TenAceIQ toolkit |
 
 Current entitlement grants:
 
@@ -47,20 +47,9 @@ Current access notes:
 - League access is satisfied by League or Full-Court.
 - Admin role turns on League tools and can resolve internal workflows.
 
-## Historical Tier Summary
+## Pricing History
 
-The section below is the 2026-05-19 snapshot retained for rollout history. Use the current tier summary above for closeout QA.
-
-| Tier | Plan id | Price | Billing model | Checkout mode | Quantity mode | Audience |
-| --- | --- | ---: | --- | --- | --- | --- |
-| Free | `free` | `$0` | Free account | None | Account | Players, captains, and fans getting oriented |
-| Player | `player_plus` | `$4.99/month` | Monthly subscription | Subscription | Account | Players who want clearer prep and a personalized tennis home |
-| Captain | `captain` | `$9.99/month` | Monthly subscription | Subscription | Account | Captains managing lineups, readiness, and weekly decisions |
-| TIQ League Coordinator | `league` | `$25/season per league` | Season fee | One-time | League | League coordinators and admins running players or teams |
-
-Discount rule:
-
-- `captain_first_league_half_off`: active Captains get 50% off their first League plan purchase.
+Use the current tier summary above for every operational, marketing, and customer-facing reference. Earlier pricing revisions remain available in Git history and are intentionally not reproduced here, so this inventory stays aligned with the active checkout catalog.
 
 ## Free
 
@@ -103,7 +92,7 @@ Upgrade cue: Unlock My Lab, follows, matchups, and player-linked insight.
 
 Pricing:
 
-- `$4.99/month`
+- `$2.99/month`
 - Monthly subscription
 - Account quantity
 
@@ -152,7 +141,7 @@ Upgrade cue: Add captain tools on top of Player features.
 
 Pricing:
 
-- `$9.99/month`
+- `$5.99/month`
 - Monthly subscription
 - Account quantity
 - Marked as `Most Popular` in pricing.

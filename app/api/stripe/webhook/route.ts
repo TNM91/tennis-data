@@ -331,6 +331,8 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, message: requestError.message }, { status: 500 })
     }
 
+    await markCaptainPilotRedemptionConverted(supabase, activationTarget.requestId)
+
     await recordStripeBillingEvent(supabase, {
       event,
       outcome: 'handled',
@@ -383,6 +385,8 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'Stripe purchase finalization failed.' }, { status: 500 })
   }
 
+  await markCaptainPilotRedemptionConverted(supabase, activationTarget.requestId)
+
   await recordStripeBillingEvent(supabase, {
     event,
     outcome: 'handled',
@@ -392,6 +396,14 @@ export async function POST(request: Request) {
   })
 
   return Response.json({ ok: true, activated: activationTarget.planId })
+}
+
+async function markCaptainPilotRedemptionConverted(supabase: ReturnType<typeof createServiceSupabaseClient>, requestId: string) {
+  const { error } = await supabase
+    .from('captain_pilot_redemptions')
+    .update({ status: 'converted', converted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('upgrade_request_id', requestId)
+  if (error) console.error('Captain Pilot redemption conversion update failed', error)
 }
 
 async function resolveReversalMetadata(

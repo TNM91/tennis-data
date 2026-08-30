@@ -71,13 +71,7 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'Checkout confirmation is not configured.' }, { status: 500 })
   }
 
-  const supabase = createClient(supabaseUrl, serviceKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  })
+  const supabase = createServiceSupabaseClient(serviceKey)
   const { data: requestRow, error: requestLoadError } = await supabase
     .from('upgrade_requests')
     .select('id, plan_id, requester_user_id, status')
@@ -137,6 +131,8 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, message: requestError.message }, { status: 500 })
     }
 
+    await markCaptainPilotRedemptionConverted(supabase, activationTarget.requestId)
+
     return Response.json({ ok: true, activated: activationTarget.planId, sessionId: stripeSession.id })
   }
 
@@ -165,7 +161,27 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'Checkout confirmation could not finalize the purchase.' }, { status: 500 })
   }
 
+  await markCaptainPilotRedemptionConverted(supabase, activationTarget.requestId)
+
   return Response.json({ ok: true, activated: activationTarget.planId, sessionId: stripeSession.id })
+}
+
+async function markCaptainPilotRedemptionConverted(supabase: ReturnType<typeof createServiceSupabaseClient>, requestId: string) {
+  const { error } = await supabase
+    .from('captain_pilot_redemptions')
+    .update({ status: 'converted', converted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('upgrade_request_id', requestId)
+  if (error) console.error('Captain Pilot redemption conversion update failed', error)
+}
+
+function createServiceSupabaseClient(serviceKey: string) {
+  return createClient(supabaseUrl, serviceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  })
 }
 
 async function findVerifiedStripeSession({

@@ -58,8 +58,8 @@ describe('upgrade request pricing snapshots', () => {
 
     expect(mapUpgradeRequestRow(row)).toMatchObject({
       planId: 'captain',
-      priceLabel: '$9.99/month',
-      billingAmountCents: 999,
+      priceLabel: '$5.99/month',
+      billingAmountCents: 599,
       billingCurrency: 'usd',
       billingInterval: 'month',
       checkoutMode: 'subscription',
@@ -75,8 +75,8 @@ describe('upgrade request pricing snapshots', () => {
   it('builds the same snapshot used by local fallback requests', () => {
     expect(buildUpgradePricingSnapshot('player_plus')).toMatchObject({
       planName: 'Player',
-      priceLabel: '$4.99/month',
-      billingAmountCents: 499,
+      priceLabel: '$2.99/month',
+      billingAmountCents: 299,
       billingInterval: 'month',
       checkoutMode: 'subscription',
       quantityMode: 'account',
@@ -86,8 +86,8 @@ describe('upgrade request pricing snapshots', () => {
   it('captures Coach as a Player plan plus coaching workflow snapshot', () => {
     expect(buildUpgradePricingSnapshot('coach')).toMatchObject({
       planName: 'Coach',
-      priceLabel: '$9.99/month',
-      billingAmountCents: 999,
+      priceLabel: '$5.99/month',
+      billingAmountCents: 599,
       billingInterval: 'month',
       checkoutMode: 'subscription',
       quantityMode: 'account',
@@ -103,8 +103,8 @@ describe('upgrade request pricing snapshots', () => {
   it('captures Full-Court as the full-suite pricing snapshot', () => {
     expect(buildUpgradePricingSnapshot('full_court')).toMatchObject({
       planName: 'Full-Court',
-      priceLabel: '$19.99/month',
-      billingAmountCents: 1999,
+      priceLabel: '$14.99/month',
+      billingAmountCents: 1499,
       billingInterval: 'month',
       checkoutMode: 'subscription',
       quantityMode: 'account',

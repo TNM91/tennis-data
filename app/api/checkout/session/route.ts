@@ -9,6 +9,11 @@ import {
 } from '@/lib/stripe-checkout'
 import { getTeamInviteOfferEligibility } from '@/lib/team-invite-offers'
 import { PAID_CHECKOUT_ENABLED, PAID_CHECKOUT_PAUSED_MESSAGE } from '@/lib/paid-checkout'
+import {
+  CAPTAIN_PILOT_CAMPAIGN_KEY,
+  buildCaptainPilotTrialEnd,
+  getCaptainPilotAvailability,
+} from '@/lib/captain-pilot'
 
 export const runtime = 'nodejs'
 
@@ -23,6 +28,11 @@ type UpgradeRequestCheckoutRow = {
   requester_user_id: string | null
   requester_email: string | null
   next_href: string | null
+  status: string | null
+}
+
+type CaptainPilotRedemptionRow = {
+  id: string
   status: string | null
 }
 
@@ -83,13 +93,7 @@ export async function POST(request: Request) {
     )
   }
 
-  const supabase = createClient(supabaseUrl, serviceKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  })
+  const supabase = createServiceSupabaseClient(serviceKey)
   const { data, error } = await supabase
     .from('upgrade_requests')
     .select('id, plan_id, requester_user_id, requester_email, next_href, status')
@@ -125,6 +129,12 @@ export async function POST(request: Request) {
   const inviteOffer = checkoutTarget.planId === 'captain' || checkoutTarget.planId === 'player_plus'
     ? await getTeamInviteOfferEligibility(supabase, checkoutTarget.userId, checkoutTarget.planId)
     : null
+  const pilotRedemption = checkoutTarget.planId === 'captain'
+    ? await getCaptainPilotRedemption(supabase, checkoutTarget.requestId, checkoutTarget.userId)
+    : null
+  if (pilotRedemption?.error) {
+    return Response.json({ ok: false, message: pilotRedemption.error }, { status: pilotRedemption.status })
+  }
   const [{ data: billingProfile }, { data: clubBilling }] = await Promise.all([
     supabase
       .from('profiles')
@@ -148,6 +158,10 @@ export async function POST(request: Request) {
     origin,
     nextHref,
     couponId: inviteOffer?.couponId,
+    trialEnd: pilotRedemption?.redemption ? buildCaptainPilotTrialEnd() : undefined,
+    campaignKey: pilotRedemption?.redemption ? CAPTAIN_PILOT_CAMPAIGN_KEY : undefined,
+    pilotRedemptionId: pilotRedemption?.redemption?.id,
+    allowPromotionCodes: !pilotRedemption?.redemption,
   })
 
   const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
@@ -172,7 +186,49 @@ export async function POST(request: Request) {
     )
   }
 
+  if (pilotRedemption?.redemption) {
+    const { error: pilotUpdateError } = await supabase
+      .from('captain_pilot_redemptions')
+      .update({ status: 'checkout_started', updated_at: new Date().toISOString() })
+      .eq('id', pilotRedemption.redemption.id)
+      .in('status', ['claimed', 'checkout_started'])
+    if (pilotUpdateError) console.error('Captain Pilot checkout state update failed', pilotUpdateError)
+  }
+
   return Response.json({ ok: true, sessionId: stripeBody.id, url: stripeBody.url })
+}
+
+async function getCaptainPilotRedemption(
+  supabase: ReturnType<typeof createServiceSupabaseClient>,
+  requestId: string,
+  userId: string,
+): Promise<{ redemption?: CaptainPilotRedemptionRow; error?: string; status: number }> {
+  const { data, error } = await supabase
+    .from('captain_pilot_redemptions')
+    .select('id, status')
+    .eq('campaign_key', CAPTAIN_PILOT_CAMPAIGN_KEY)
+    .eq('upgrade_request_id', requestId)
+    .eq('profile_id', userId)
+    .maybeSingle()
+  if (error) return { error: 'Pilot checkout could not be verified.', status: 500 }
+  if (!data) return { status: 200 }
+  if (getCaptainPilotAvailability() !== 'active') {
+    return { error: 'The Fall Captain Pilot is not accepting checkout right now.', status: 409 }
+  }
+  if ((data as CaptainPilotRedemptionRow).status === 'converted') {
+    return { error: 'This Fall Captain Pilot claim is already active.', status: 409 }
+  }
+  return { redemption: data as CaptainPilotRedemptionRow, status: 200 }
+}
+
+function createServiceSupabaseClient(serviceKey: string) {
+  return createClient(supabaseUrl, serviceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  })
 }
 
 function resolveCheckoutTarget(row: UpgradeRequestCheckoutRow | null, signedInUserId: string):
