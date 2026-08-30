@@ -9,13 +9,13 @@ describe('team invitation offer eligibility', () => {
   it('opens the configured offer for a recent first-time team connection', () => {
     expect(resolveTeamInviteOffer({
       couponId: 'coupon_player_invite',
-      label: 'First month $2.49, then $4.99/month',
+      label: 'First month $1.49, then $2.99/month',
       hasActiveAccess: false,
       hasRecentAcceptedLink: true,
       hasPriorSubscription: false,
     })).toEqual({
       available: true,
-      label: 'First month $2.49, then $4.99/month',
+      label: 'First month $1.49, then $2.99/month',
       couponId: 'coupon_player_invite',
     })
   })

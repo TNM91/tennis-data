@@ -8,7 +8,7 @@ const expectedPlans = [
     id: 'player_plus',
     name: 'Player',
     envName: 'STRIPE_PLAYER_PRICE_ID',
-    amountCents: 499,
+    amountCents: 299,
     currency: 'usd',
     checkoutMode: 'subscription',
     recurringInterval: 'month',
@@ -17,7 +17,7 @@ const expectedPlans = [
     id: 'coach',
     name: 'Coach',
     envName: 'STRIPE_COACH_PRICE_ID',
-    amountCents: 999,
+    amountCents: 599,
     currency: 'usd',
     checkoutMode: 'subscription',
     recurringInterval: 'month',
@@ -26,7 +26,7 @@ const expectedPlans = [
     id: 'captain',
     name: 'Captain',
     envName: 'STRIPE_CAPTAIN_PRICE_ID',
-    amountCents: 999,
+    amountCents: 599,
     currency: 'usd',
     checkoutMode: 'subscription',
     recurringInterval: 'month',
@@ -44,7 +44,7 @@ const expectedPlans = [
     id: 'full_court',
     name: 'Full-Court',
     envName: 'STRIPE_FULL_COURT_PRICE_ID',
-    amountCents: 1999,
+    amountCents: 1499,
     currency: 'usd',
     checkoutMode: 'subscription',
     recurringInterval: 'month',
@@ -110,7 +110,7 @@ if (!ok) {
 }
 
 async function queryStripePrices() {
-  const secretKey = process.env.STRIPE_SECRET_KEY?.trim() ?? ''
+  const secretKey = process.env.STRIPE_PRICE_MIGRATION_KEY?.trim() || process.env.STRIPE_SECRET_KEY?.trim() || ''
 
   if (!secretKey) {
     stop('Set STRIPE_SECRET_KEY in the shell before running the Stripe catalog audit with --stripe.')
@@ -119,6 +119,7 @@ async function queryStripePrices() {
   if (!isLiveStripeKey(secretKey)) {
     stop('Use a live-mode Stripe key for --stripe. Test-mode keys are intentionally rejected.')
   }
+  const canReadProducts = !secretKey.startsWith('rk_live_')
 
   const checks = [
     { label: 'Stripe key is live-mode', ok: true },
@@ -136,31 +137,37 @@ async function queryStripePrices() {
       continue
     }
 
-    const price = await fetchStripePrice(priceId)
+    const price = await fetchStripePrice(priceId, canReadProducts)
     const product = normalizeProduct(price.product)
     const recurringInterval = price.recurring?.interval ?? null
 
     checks.push(
       { label: `${plan.name} price ${redactStripeId(priceId)} is live-mode`, ok: price.livemode === true },
       { label: `${plan.name} price is active`, ok: price.active === true },
-      { label: `${plan.name} product is active`, ok: product.active === true },
       { label: `${plan.name} amount matches ${plan.amountCents}`, ok: price.unit_amount === plan.amountCents },
       { label: `${plan.name} currency matches ${plan.currency}`, ok: price.currency === plan.currency },
       { label: `${plan.name} recurring interval matches`, ok: recurringInterval === plan.recurringInterval },
-      { label: `${plan.name} product name is present`, ok: typeof product.name === 'string' && product.name.trim().length > 0 },
     )
+    if (canReadProducts) {
+      checks.push(
+        { label: `${plan.name} product is active`, ok: product.active === true },
+        { label: `${plan.name} product name is present`, ok: typeof product.name === 'string' && product.name.trim().length > 0 },
+      )
+    } else {
+      checks.push({ label: `${plan.name} product details are not requested with a restricted key`, ok: true })
+    }
   }
 
   return checks
 }
 
-async function fetchStripePrice(priceId) {
+async function fetchStripePrice(priceId, expandProduct) {
   const url = new URL(`https://api.stripe.com/v1/prices/${encodeURIComponent(priceId)}`)
-  url.searchParams.set('expand[]', 'product')
+  if (expandProduct) url.searchParams.set('expand[]', 'product')
 
   const response = await fetch(url, {
     headers: {
-      Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+      Authorization: `Bearer ${process.env.STRIPE_PRICE_MIGRATION_KEY?.trim() || process.env.STRIPE_SECRET_KEY}`,
       'Stripe-Version': STRIPE_API_VERSION,
     },
   })
