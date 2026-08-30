@@ -298,6 +298,9 @@
 
 .auditNote { display: grid; gap: 5px; padding: 14px; border: 1px solid color-mix(in srgb, var(--brand-blue-2) 32%, var(--shell-panel-border)); border-radius: 16px; background: color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg)); }
 .auditNote strong { color: var(--foreground-strong); }
+.teamUpdateNote { display: grid; gap: 4px; padding: 14px; border: 1px solid color-mix(in srgb, var(--brand-green) 52%, var(--shell-panel-border)); border-radius: 16px; background: color-mix(in srgb, var(--brand-green) 11%, var(--shell-panel-bg)); }
+.teamUpdateNote strong { color: var(--brand-green-3); }
+.teamUpdateNote span { color: var(--shell-copy-muted); line-height: 1.5; }
 .recapActions { align-items: center; flex-wrap: wrap; }
 
 

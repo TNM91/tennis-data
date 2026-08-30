@@ -79,6 +79,7 @@ function RecordResultContent() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [savedRecap, setSavedRecap] = useState<CaptainScorecardSavedRecap | null>(null)
+  const [teamAnnouncementUpdated, setTeamAnnouncementUpdated] = useState(false)
   const lineupPrefillKey = useRef('')
 
   const teamRoomHref = useMemo(() => buildTeamRoomHref({
@@ -249,6 +250,7 @@ function RecordResultContent() {
       }
       setNotice(payload.message || 'Result saved.')
       setSavedRecap(payload.recap || null)
+      setTeamAnnouncementUpdated(payload.teamAnnouncementUpdated === true)
       if (payload.externalMatchId) {
         const url = new URL(window.location.href)
         url.searchParams.set('result', 'updated')
@@ -326,10 +328,18 @@ function RecordResultContent() {
               : 'Your verified captain scorecard is now connected to this match. Future imports can fill gaps but cannot silently replace it.'}</span>
           </section>
 
+          {teamAnnouncementUpdated ? (
+            <section className={styles.teamUpdateNote} aria-label="Team update posted">
+              <strong>Team update posted</strong>
+              <span>The final result is now in Team Chat for your roster.</span>
+            </section>
+          ) : null}
+
           <div className={styles.recapActions}>
-            <Link className={styles.saveButton} href={updatedTeamRoomHref}>{notice.includes('updated Team Chat') ? 'View team update' : 'Open team recap'}</Link>
+            <Link className={styles.saveButton} href={updatedTeamRoomHref}>{teamAnnouncementUpdated ? 'View team update' : 'Open team recap'}</Link>
             <button className={styles.addCourt} type="button" onClick={() => {
               setSavedRecap(null)
+              setTeamAnnouncementUpdated(false)
               const url = new URL(window.location.href)
               url.searchParams.delete('result')
               url.searchParams.delete('resultMatch')
