@@ -39,9 +39,9 @@ export default function TennisSetupChecklist({
       complete: hasTeam,
       label: 'Team',
       title: context === 'captain' ? 'Add your first team.' : 'Connect your team.',
-      body: 'Upload a TennisLink Player Roster to bring in the team and available contact details.',
+      body: 'Upload a TennisLink Team Summary to bring in the team, roster, ratings, and standings. Add Player Roster later for team contacts.',
       href: teamHref,
-      action: 'Upload Player Roster',
+      action: 'Upload Team Summary',
     },
     {
       complete: hasMatchData,

@@ -1056,7 +1056,7 @@ const CAPTAIN_DECISION_HANDOFF_PROOF_STEPS = [
 
 const CAPTAIN_EMPTY_STATE_ACTIONS = [
   'Set your Player ID so Team Hub can find your profile team.',
-  'Upload a Player Roster. Captain will connect the team and bring you back here.',
+  'Upload a Team Summary. Captain will connect the team and bring you back here.',
   'Add the schedule when you are ready to plan availability and projected lineups.',
 ] as const
 
