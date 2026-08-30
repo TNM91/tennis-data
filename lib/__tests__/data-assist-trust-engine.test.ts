@@ -112,10 +112,22 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('onClick={() => onSelectImportType(job.id)}')
     expect(source).toContain('function chooseImportType(nextType: DataAssistImportType)')
     expect(source).toContain('fileInputRef.current?.click()')
-    expect(source).toContain('aria-label={`Upload ${job.title}: ${job.cta}`}')
+    expect(source).toContain('aria-label={`Upload ${title}: ${cta}`}')
     expect(source).toContain("location: 'data_assist_source_path'")
     expect(source.indexOf('<DataAssistSourcePathPanel')).toBeLessThan(source.indexOf('ref={fileInputRef}'))
     expect(source).not.toContain('<label style={dropzoneStyle')
+  })
+
+  it('gives captains a dedicated Player Roster contact import without replacing Team Summary', () => {
+    expect(source).toContain("const contactImportRequested = searchParams.get('contactImport') === '1'")
+    expect(source).toContain('Add team contacts.')
+    expect(source).toContain('Captain contacts: use Player Roster.')
+    expect(source).toContain('Player Roster contacts')
+    expect(source).toContain('This adds contact details only. It does not replace the team, rating, or standings context already imported.')
+    expect(source).toContain('Player Roster contact export')
+    expect(source).toContain('Team contacts imported')
+    expect(source).toContain('Return to Team contacts')
+    expect(source).toContain("if (path.startsWith('/teams/')) return path")
   })
 
   it('makes the latest import outcome and next action visible without opening history', () => {

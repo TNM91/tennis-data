@@ -10,7 +10,7 @@ import {
 import type { DataAssistScorecardParsedDraft } from './data-assist-ocr'
 import type { DataAssistScheduleParsedDraft } from './data-assist-schedule-parser'
 import type { DataAssistTeamSummaryParsedDraft } from './data-assist-team-summary-parser'
-import { syncAuthoritativeCaptainRoster, upsertCaptainRosterContacts } from './captain-roster-contacts'
+import { upsertCaptainRosterContacts } from './captain-roster-contacts'
 import { runScheduleImport, runScorecardImport, runTeamSummaryImport, type RunImportSuccess } from './ingestion/runImport'
 import { recalculateDynamicRatings } from './recalculateRatings'
 import { announceTeamRoomScorecardResult } from './team-room-result-announcement-server'
@@ -203,6 +203,10 @@ export async function runDataAssistTeamSummaryImportAction(input: {
     }
   }
 
+  if (input.parsedDraft.rosterSource === 'player_roster') {
+    return runDataAssistPlayerRosterContactImportAction(input)
+  }
+
   const payload = buildDataAssistTeamSummaryPayload(input.parsedDraft, input.batchId)
   const importResult = await runTeamSummaryImport(input.supabase, payload, input.action === 'preview' ? 'preview' : 'commit', {
     hasNormalizedPlayerNameColumn: true,
@@ -235,11 +239,6 @@ export async function runDataAssistTeamSummaryImportAction(input: {
         parsedDraft: input.parsedDraft,
         captainUserId: input.reviewedBy,
         batchId: input.batchId,
-      })
-      await syncAuthoritativeCaptainRoster({
-        supabase: input.supabase,
-        parsedDraft: input.parsedDraft,
-        captainUserId: input.reviewedBy,
       })
     } catch (error) {
       contactWarning = error instanceof Error ? error.message : 'Roster contacts could not be saved.'
@@ -296,6 +295,89 @@ export async function runDataAssistTeamSummaryImportAction(input: {
     action: input.action,
     importResult,
     message: `Roster preview ready. ${importResult.result.totalPlayers} player${importResult.result.totalPlayers === 1 ? '' : 's'} validated.`,
+  }
+}
+
+async function runDataAssistPlayerRosterContactImportAction(input: {
+  supabase: SupabaseClient
+  parsedDraft: DataAssistTeamSummaryParsedDraft
+  batchId: string
+  draftId: string
+  reviewedBy: string
+  action: DataAssistScorecardImportAction
+  validationSummary?: Record<string, unknown> | null
+}): Promise<DataAssistTeamSummaryImportActionResult> {
+  const detectedContacts = input.parsedDraft.contacts.filter((contact) => Boolean(contact.phone?.trim() || contact.email?.trim())).length
+
+  if (input.action === 'preview') {
+    return {
+      ok: true,
+      action: input.action,
+      importedContactCount: detectedContacts,
+      message: `Contact preview ready. ${detectedContacts} private team contact${detectedContacts === 1 ? '' : 's'} will be saved without changing the Team Summary.`,
+    }
+  }
+
+  let importedContactCount = 0
+  try {
+    importedContactCount = await upsertCaptainRosterContacts({
+      supabase: input.supabase,
+      parsedDraft: input.parsedDraft,
+      captainUserId: input.reviewedBy,
+      batchId: input.batchId,
+    })
+  } catch (error) {
+    return {
+      ok: false,
+      action: input.action,
+      message: error instanceof Error ? error.message : 'Team contacts could not be saved.',
+    }
+  }
+
+  const importedAt = new Date().toISOString()
+  const message = importedContactCount
+    ? `Data Assist saved ${importedContactCount} private team contact${importedContactCount === 1 ? '' : 's'}. Your Team Summary was not changed.`
+    : 'This Player Roster did not include a phone or email detail to save. Your Team Summary was not changed.'
+  const validationSummary = {
+    ...(input.validationSummary || {}),
+    importSummary: {
+      importedAt,
+      contactOnly: true,
+      rosterPlayers: input.parsedDraft.players,
+      rosterContacts: input.parsedDraft.contacts,
+      importedContactCount,
+    },
+  }
+  const [batchUpdate, draftUpdate] = await Promise.all([
+    input.supabase
+      .from('data_assist_batches')
+      .update({
+        status: 'imported',
+        review_note: message,
+        reviewed_by_user_id: input.reviewedBy,
+        reviewed_at: importedAt,
+      })
+      .eq('id', input.batchId),
+    input.supabase
+      .from('data_assist_drafts')
+      .update({
+        status: 'imported',
+        validation_summary: validationSummary,
+        reviewed_by_user_id: input.reviewedBy,
+        reviewed_at: importedAt,
+      })
+      .eq('id', input.draftId),
+  ])
+
+  if (batchUpdate.error) return { ok: false, action: input.action, message: batchUpdate.error.message }
+  if (draftUpdate.error) return { ok: false, action: input.action, message: draftUpdate.error.message }
+  await refreshDataAssistContributorStats(input.supabase, input.reviewedBy)
+
+  return {
+    ok: true,
+    action: input.action,
+    importedContactCount,
+    message,
   }
 }
 

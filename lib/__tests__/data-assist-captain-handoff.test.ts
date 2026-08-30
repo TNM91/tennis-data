@@ -13,14 +13,15 @@ describe('Data Assist Captain handoff', () => {
     expect(source).toContain('buildCaptainImportReturnHref(returnTo, handoff)')
   })
 
-  it('opens Player Roster help and returns a completed roster import to Build Lineup', () => {
+  it('opens Player Roster help and returns a completed roster import to its originating team', () => {
     expect(source).toContain("const requestedImportType = getRequestedImportType(searchParams.get('type'))")
     expect(source).toContain("const exportHelpRequested = searchParams.get('help') === '1'")
     expect(source).toContain("const returnTo = getSafeDataAssistReturnTo(searchParams.get('returnTo'))")
     expect(source).toContain('defaultOpen={exportHelpRequested}')
     expect(source).toContain('context={intentContext}')
     expect(source).toContain('returnTo={returnTo}')
-    expect(source).toContain("? 'Return to Build Lineup' : 'Continue Captain setup'")
+    expect(source).toContain("options.returnTo.startsWith('/teams/')")
+    expect(source).toContain("? 'Return to Team contacts'")
     expect(source).toContain('isCaptainImportDraft(submission.parsedPayload)')
     expect(source).toContain('finishCaptainImport')
   })

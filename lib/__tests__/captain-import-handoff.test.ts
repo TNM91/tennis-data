@@ -118,4 +118,29 @@ describe('Captain import handoff', () => {
     expect(isCaptainImportDraft(schedule)).toBe(true)
     expect(isCaptainImportDraft({ draftKind: 'scorecard' })).toBe(false)
   })
+
+  it('preserves a safe team roster return path for contact imports', () => {
+    const handoff = {
+      importType: 'team_summary' as const,
+      batchId: 'contacts-1',
+      team: 'Meinert Tri-Level',
+      league: '2026 Tri-Level',
+      flight: '3.5 / 4.0 / 4.5',
+      players: 12,
+      contacts: 10,
+      matches: 0,
+      captainRoles: 1,
+      nextMatchDate: '',
+      opponent: '',
+    }
+    const href = new URL(
+      buildCaptainImportReturnHref('/teams/Meinert?layer=usta&contacts=1#team-roster-contacts', handoff),
+      'https://tenaceiq.example',
+    )
+
+    expect(href.pathname).toBe('/teams/Meinert')
+    expect(href.searchParams.get('contacts')).toBe('1')
+    expect(href.searchParams.get('importContacts')).toBe('10')
+    expect(href.hash).toBe('#team-roster-contacts')
+  })
 })

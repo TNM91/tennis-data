@@ -53,7 +53,6 @@ import { fetchTeamConnections } from '@/lib/team-profile-links-client'
 import { isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'
 import {
   CAPTAIN_ROSTER_CONTACTS_TABLE,
-  buildCaptainContactReviewHref,
   getCaptainRosterPhoneCoverage,
   normalizeCaptainRosterContactKey,
   selectCaptainContactRowsForScope,
@@ -345,6 +344,7 @@ function TeamPageContent() {
   const layerFilter = cleanText(searchParams.get('layer'))
   const leagueFilter = cleanText(searchParams.get('league'))
   const flightFilter = cleanText(searchParams.get('flight'))
+  const contactHubRequested = searchParams.get('contacts') === '1'
 
   const [matches, setMatches] = useState<TeamMatch[]>([])
   const [players, setPlayers] = useState<MatchPlayer[]>([])
@@ -375,6 +375,7 @@ function TeamPageContent() {
   const [captainRosterContacts, setCaptainRosterContacts] = useState<CaptainRosterContactRow[]>([])
   const [editingRosterContactId, setEditingRosterContactId] = useState<string | null>(null)
   const [rosterContactSaveMessage, setRosterContactSaveMessage] = useState<string | null>(null)
+  const [contactHubOpen, setContactHubOpen] = useState(contactHubRequested)
   const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
   const [captainWeekStatus, setCaptainWeekStatus] = useState<ReturnType<typeof readCaptainWeekStatus>>(null)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
@@ -416,6 +417,15 @@ function TeamPageContent() {
     }
     setDetailReady(true)
   }, [])
+
+  useEffect(() => {
+    if (!contactHubRequested) return
+    setActiveTeamSection('roster')
+    setContactHubOpen(true)
+    window.requestAnimationFrame(() => {
+      document.getElementById('team-roster-contacts')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [contactHubRequested])
 
   useEffect(() => {
     const syncActiveSection = () => {
@@ -1484,12 +1494,13 @@ function TeamPageContent() {
   const latestUnreportedMatchScorecardHref = latestUnreportedMatchRoomHref
     ? `/data-assist?intent=upload-source&context=Team%20Match%20Pulse&type=scorecard&help=1&returnTo=${encodeURIComponent(latestUnreportedMatchRoomHref)}#upload`
     : ''
-  const teamContactsBaseHref = buildCaptainScopedHref('/captain/messaging', {
-    competitionLayer,
-    team,
+  const teamProfileHref = buildTeamProfileHref(team, {
+    layer: competitionLayer,
     league: leagueFilter || teamMeta.league || undefined,
     flight: flightFilter || teamMeta.flight || undefined,
   })
+  const teamContactReturnHref = `${teamProfileHref}${teamProfileHref.includes('?') ? '&' : '?'}contacts=1#team-roster-contacts`
+  const teamContactImportHref = `/data-assist?intent=upload-source&context=Team%20contacts&type=team_summary&contactImport=1&help=1&returnTo=${encodeURIComponent(teamContactReturnHref)}#upload`
   const captainMatchWeekAction = captainWeekStatus?.status === 'ready-to-send'
     ? { href: captainLinks[3].href, label: 'Send team plan' }
     : captainWeekStatus?.status === 'finalized'
@@ -1501,7 +1512,6 @@ function TeamPageContent() {
   const captainMatchWeekMeta = captainWeekStatus
     ? getCaptainWeekStatusMeta(captainWeekStatus.status)
     : { label: 'Not started', detail: 'Build the first version, then TiQ keeps the week status visible here.' }
-  const teamContactsHref = `${teamContactsBaseHref}${teamContactsBaseHref.includes('?') ? '&' : '?'}contactView=all#captain-contact-manager`
   const teamLeagueHref = teamMeta.league
     ? buildExploreLeagueHref({
         competitionLayer,
@@ -1565,10 +1575,6 @@ function TeamPageContent() {
       unreachableCount,
     }
   }, [captainContactByPlayerName, roster, scopedCaptainContacts])
-  const captainContactReviewHref = buildCaptainContactReviewHref({
-    baseHref: teamContactsHref,
-    missingNames: captainContactCoverage.missingPhoneNames,
-  })
   const saveRosterContact = useCallback(async (input: { playerName: string; phone: string }) => {
     const phone = input.phone.trim()
     if (!currentUserId || !canManageThisTeam || !accessToken) {
@@ -1632,7 +1638,7 @@ function TeamPageContent() {
         title: `Add mobiles for ${captainContactCoverage.missingPhoneNames.length} rostered ${captainContactCoverage.missingPhoneNames.length === 1 ? 'player' : 'players'}.`,
         detail: `${captainContactCoverage.phoneReadyCount} of ${captainContactCoverage.total} teammates are ready for a lineup text.`,
         cta: 'Update contacts',
-        href: captainContactReviewHref,
+        href: teamContactReturnHref,
       }
     : nextScheduledMatch
       ? {
@@ -2107,7 +2113,7 @@ function TeamPageContent() {
               ) : null}
               {canManageThisTeam && captainContactCoverage.total > 0 ? (
                 <Link
-                  href={captainContactCoverage.missingPhoneNames.length ? captainContactReviewHref : teamContactsHref}
+                  href={teamContactReturnHref}
                   style={teamPulseMetricStyle}
                   aria-label={`${captainContactCoverage.phoneReadyCount} of ${captainContactCoverage.total} rostered players are text-ready`}
                   data-team-contact-readiness
@@ -2819,7 +2825,7 @@ function TeamPageContent() {
                 : 'Open a player profile or join Team Chat to stay connected.'}</span>
             </div>
             <div style={rosterPeopleHubActionsStyle}>
-              {canManageThisTeam ? <Link href={teamContactsHref} style={rosterPeopleContactLinkStyle}>Team contacts</Link> : null}
+              {canManageThisTeam ? <Link href={teamContactReturnHref} style={rosterPeopleContactLinkStyle}>Team contacts</Link> : null}
               {isLinkedTeamMember ? <Link href={teamRoomHref} style={rosterPeopleChatLinkStyle}>TiQ Team Chat</Link> : null}
             </div>
           </div>
@@ -2830,7 +2836,12 @@ function TeamPageContent() {
           {roster.length ? (
             <>
               {canManageThisTeam ? (
-                <details style={captainContactHubStyle}>
+                <details
+                  id="team-roster-contacts"
+                  style={captainContactHubStyle}
+                  open={contactHubOpen}
+                  onToggle={(event) => setContactHubOpen(event.currentTarget.open)}
+                >
                   <summary style={captainContactHubSummaryStyle}>
                     <span style={detailDrawerCopyStyle}>
                       <span style={sectionKicker}>Captain contacts</span>
@@ -2844,7 +2855,7 @@ function TeamPageContent() {
                     </span>
                   </summary>
                   <div style={captainContactHubContentStyle}>
-                    <p style={captainContactPrivacyNoteStyle}>Private to captains. Keep player details current before you send a lineup ask.</p>
+                    <p style={captainContactPrivacyNoteStyle}>Private to captains. Import your Player Roster to add its phones and email details, or edit one player here.</p>
                     <div style={captainContactMetricGridStyle}>
                       <div style={captainContactMetricStyle}>
                         <span style={captainContactMetricLabelStyle}>Text-ready</span>
@@ -2863,10 +2874,10 @@ function TeamPageContent() {
                       </div>
                     </div>
                     <div style={captainContactHubActionsStyle}>
-                      <Link href={captainContactReviewHref} style={rosterPeopleContactLinkStyle}>
-                        {captainContactCoverage.missingPhoneNames.length ? 'Add missing mobiles' : 'Review contacts'}
+                      <Link href={teamContactImportHref} style={rosterPeopleContactLinkStyle}>
+                        Add Player Roster
                       </Link>
-                      <Link href={teamContactsHref} style={rosterPeopleChatLinkStyle}>Manage contacts</Link>
+                      <Link href={teamContactReturnHref} style={rosterPeopleChatLinkStyle}>Edit contacts here</Link>
                     </div>
                     <div style={captainContactPreviewGridStyle}>
                       {roster.map((player) => {

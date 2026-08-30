@@ -5,10 +5,14 @@ import { describe, expect, it } from 'vitest'
 const source = readFileSync(join(process.cwd(), 'app/teams/[team]/page.tsx'), 'utf8')
 
 describe('team contact route', () => {
-  it('uses the dedicated captain messaging route for roster contact actions', () => {
-    expect(source).toContain("const teamContactsBaseHref = buildCaptainScopedHref('/captain/messaging', {")
-    expect(source).toContain('const teamContactsHref = `${teamContactsBaseHref}')
-    expect(source).toContain("contactView=all#captain-contact-manager")
+  it('keeps captain contact work in the selected team roster', () => {
+    expect(source).toContain("const contactHubRequested = searchParams.get('contacts') === '1'")
+    expect(source).toContain('const teamContactReturnHref = `${teamProfileHref}')
+    expect(source).toContain("#team-roster-contacts")
+    expect(source).toContain('const teamContactImportHref = `/data-assist?intent=upload-source&context=Team%20contacts&type=team_summary&contactImport=1')
+    expect(source).toContain('Add Player Roster')
+    expect(source).toContain('Edit contacts here')
+    expect(source).not.toContain("const teamContactsBaseHref = buildCaptainScopedHref('/captain/messaging'")
   })
 
   it('keeps individual mobile saves on the team roster through the authenticated Captain API', () => {

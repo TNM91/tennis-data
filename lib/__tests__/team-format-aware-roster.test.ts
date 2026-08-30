@@ -16,7 +16,8 @@ describe('team format-aware roster', () => {
 
   it('makes the roster a captain-safe team people hub with private contact actions', () => {
     expect(source).toContain("from '@/lib/captain-roster-contacts'")
-    expect(source).toContain('const teamContactsHref =')
+    expect(source).toContain('const teamContactReturnHref =')
+    expect(source).toContain('const teamContactImportHref =')
     expect(source).toContain('private captain contacts saved for this team')
     expect(source).toContain('function NativeRosterTextButton')
     expect(source).toContain('data-roster-text-player={playerName}')
@@ -29,7 +30,8 @@ describe('team format-aware roster', () => {
     expect(source).toContain('const captainContactCoverage = useMemo')
     expect(source).toContain('Contact readiness for match week')
     expect(source).toContain('Private to captains.')
-    expect(source).toContain('Add missing mobiles')
+    expect(source).toContain('Add Player Roster')
+    expect(source).toContain('Edit contacts here')
     expect(source).toContain('mailto:${email}')
     expect(source).toContain('captainContactPreviewGridStyle')
     expect(source).toContain('const saveRosterContact = useCallback')
