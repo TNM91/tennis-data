@@ -2369,7 +2369,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     if (!replacementHandoff) return
     if (!suggestedSwapPlayer) {
       setMessage('')
-      setError(`${replacementHandoff.replacementPlayer} is not in this team's roster. Refresh the Player Roster before applying the swap.`)
+      setError(`${replacementHandoff.replacementPlayer} is not in this team's roster. Refresh the Team Summary before applying the swap.`)
       return
     }
 
@@ -2590,7 +2590,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     setManualRosterText('')
     setManualRosterOpen(false)
     setError('')
-    setMessage(`${newPlayers.length} player${newPlayers.length === 1 ? '' : 's'} added for this lineup. Upload the Player Roster later to connect ratings and contact details.`)
+    setMessage(`${newPlayers.length} player${newPlayers.length === 1 ? '' : 's'} added for this lineup. Upload the Team Summary for ratings, then add Player Roster later if you want team contacts.`)
   }
 
   function addManualOpponentRosterPlayers() {
@@ -2632,7 +2632,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     setManualOpponentRosterText('')
     setManualOpponentRosterOpen(false)
     setError('')
-    setMessage(`${newPlayers.length} opponent${newPlayers.length === 1 ? '' : 's'} added for this matchup. Upload their TennisLink Player Roster later to connect TiQ ratings.`)
+    setMessage(`${newPlayers.length} opponent${newPlayers.length === 1 ? '' : 's'} added for this matchup. Upload their TennisLink Team Summary later to connect TiQ ratings.`)
   }
 
   function openOpponentCourts() {
@@ -4506,14 +4506,14 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 <p style={sectionKicker}>Roster needed</p>
                 <h2 id="lineup-roster-setup-title" style={sectionTitleSmall}>Add your players to build this lineup.</h2>
                 <p style={sectionBodyTextStyle}>
-                  Upload the Player Roster, or enter player names now and connect ratings later.
+                  Upload the Team Summary, or enter player names now and connect ratings later.
                 </p>
               </div>
               <span style={miniPillWarnStyle}>Setup required</span>
             </div>
 
             <div style={rosterRecoveryActionGridStyle}>
-              <Link href={teamSummaryUploadHref} style={primaryButton}>Upload Player Roster</Link>
+              <Link href={teamSummaryUploadHref} style={primaryButton}>Upload Team Summary</Link>
               <button
                 type="button"
                 onClick={() => setManualRosterOpen((current) => !current)}
@@ -4537,22 +4537,23 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                   style={manualRosterTextareaStyle}
                 />
                 <p style={subtleHelperTextStyle}>
-                  Enter one player per line. These names save with this lineup; upload the Player Roster later to connect ratings and contact details.
+                  Enter one player per line. These names save with this lineup; upload the Team Summary later to connect ratings. Add Player Roster only when you want team contact details.
                 </p>
                 <PrimaryBtn onClick={addManualRosterPlayers}>Add players to lineup</PrimaryBtn>
               </div>
             ) : null}
 
             <details style={rosterExportHelpStyle}>
-              <summary style={rosterExportSummaryStyle}>How to export the Player Roster from TennisLink</summary>
+              <summary style={rosterExportSummaryStyle}>How to export a Team Summary from TennisLink</summary>
               <ol style={rosterExportStepsStyle}>
                 <li>Sign in to USTA TennisLink and open your league team.</li>
-                <li>Open <strong>Player Roster</strong>.</li>
-                <li>Choose <strong>Send To Excel</strong> and save the PlayerRoster .xls file.</li>
-                <li>Return here and choose <strong>Upload Player Roster</strong>. TenAceIQ will bring you back to Build Lineup after import.</li>
+                <li>Open <strong>Team Summary</strong>.</li>
+                <li>Choose <strong>Send To Excel</strong> and save the TeamSummary .xls file.</li>
+                <li>Return here and choose <strong>Upload Team Summary</strong>. TiQ will bring you back to Build Lineup after import.</li>
+                <li>Optional: if you are the captain, upload your <strong>Player Roster</strong> later to add the team contacts TennisLink provides.</li>
               </ol>
               <Link href="/resources/usta-upload#quick-guide" style={rosterExportVideoLinkStyle}>
-                Watch the 1-minute Player Roster video guide
+                Watch the 1-minute Team Summary video guide
               </Link>
             </details>
           </section>
@@ -4569,7 +4570,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               <div style={opponentRosterRecoveryCopyStyle}>
                 <span style={miniPillBlueStyle}>Opponent roster</span>
                 <strong>{opponentPlayerPool.length} player{opponentPlayerPool.length === 1 ? '' : 's'} ready for {opponentTeam}.</strong>
-                <span>{importedOpponentRosterCount ? 'TiQ ratings are available where matched.' : 'Names are ready now; upload the TennisLink Player Roster to connect TiQ ratings.'}</span>
+                <span>{importedOpponentRosterCount ? 'TiQ ratings are available where matched.' : 'Names are ready now; upload the TennisLink Team Summary to connect TiQ ratings.'}</span>
               </div>
               <div style={opponentRosterRecoveryActionsStyle}>
                 {!importedOpponentRosterCount ? <Link href={opponentSummaryUploadHref} style={ghostButton}>Add TennisLink roster</Link> : null}
@@ -4587,7 +4588,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               <div style={opponentRosterRecoveryCopyStyle}>
                 <span style={miniPillBlueStyle}>Opponent roster</span>
                 <strong>{opponentTeam} has not been added yet.</strong>
-                <span>Enter names now, or add its TennisLink Player Roster for TiQ ratings.</span>
+                <span>Enter names now, or add its TennisLink Team Summary for TiQ ratings.</span>
               </div>
               <div style={opponentRosterRecoveryActionsStyle}>
                 <button
