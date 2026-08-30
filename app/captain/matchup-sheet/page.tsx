@@ -89,6 +89,7 @@ function MatchupSheetContent() {
       intent: 'upload-source',
       context: `Matchup sheet: ${teamName || 'Team'}${opponent ? ` vs ${opponent}` : ''}`,
       type: 'scorecard',
+      capture: 'camera',
       returnTo: recordResultHref,
     })
     return `/data-assist?${params.toString()}#upload`
@@ -140,7 +141,7 @@ function MatchupSheetContent() {
     <main className={styles.page}>
       <section className={styles.screenControls} aria-label="Matchup sheet actions">
         <Link href={recordResultHref} className={styles.actionSecondary}>Record results</Link>
-        <Link href={scanHref} className={styles.actionSecondary}>Scan official scorecard</Link>
+        <Link href={scanHref} className={styles.actionSecondary}>Capture scorecard</Link>
         <button type="button" className={styles.actionPrimary} onClick={() => window.print()}>Print matchup sheet</button>
       </section>
 

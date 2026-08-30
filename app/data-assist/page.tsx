@@ -28,7 +28,7 @@ import {
   type DataAssistPreparedScreenshot,
   type DataAssistSubmission,
 } from '@/lib/data-assist'
-import { type DataAssistAutoAssessment } from '@/lib/data-assist-ocr'
+import { getDataAssistOcrReadiness, type DataAssistAutoAssessment } from '@/lib/data-assist-ocr'
 import type { DataAssistScorecardParsedDraft } from '@/lib/data-assist-ocr'
 import { detectDataAssistExportType } from '@/lib/data-assist-export-detection'
 import type { DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
@@ -283,6 +283,7 @@ function DataAssistWorkspace() {
   const intentQuery = getDataAssistQuery(searchParams.get('q'))
   const requestedImportType = getRequestedImportType(searchParams.get('type'))
   const exportHelpRequested = searchParams.get('help') === '1'
+  const scorecardCameraRequested = searchParams.get('capture') === 'camera'
   const returnTo = getSafeDataAssistReturnTo(searchParams.get('returnTo'))
   const [importType, setImportType] = useState<DataAssistImportType>(requestedImportType || 'scorecard')
   const [typeOverrideActive, setTypeOverrideActive] = useState(false)
@@ -328,6 +329,10 @@ function DataAssistWorkspace() {
     contributorStats?.uploadSuspensionReason || 'Scorecard uploads are paused while admins review recent match accuracy reports.'
   const scorecardUploadBlocked = typeOverrideActive && importType === 'scorecard' && scorecardUploadsPaused
   const summaryScorecardUploadBlocked = summary?.requestedImportType === 'scorecard' && scorecardUploadsPaused
+  const scorecardPhotoReaderReady = importType === 'scorecard' && getDataAssistOcrReadiness().canRun
+  const acceptedUploadTypes = scorecardPhotoReaderReady
+    ? '.xls,.html,application/vnd.ms-excel,text/html,image/jpeg,image/png,image/webp'
+    : '.xls,.html,application/vnd.ms-excel,text/html'
   const isCompactViewport = isMobile || isTablet
   const dynamicPanelStyle = isCompactViewport ? compactPanelStyle : panelStyle
   const dynamicSectionHeaderStyle = isCompactViewport ? compactSectionHeaderStyle : sectionHeaderStyle
@@ -1069,7 +1074,9 @@ function DataAssistWorkspace() {
               <div style={headerCopyStyle}>
                 <StepBadge step={1} label="Data Assist" />
                 <h1 style={sectionTitleStyle}>Add new tennis data.</h1>
-                <p style={copyStyle}>Choose the source, add its TennisLink export, then review what TenAceIQ found.</p>
+                <p style={copyStyle}>{scorecardPhotoReaderReady
+                  ? 'Add a TennisLink export or a clear scorecard photo. TiQ reads it first; you confirm it before it changes a match.'
+                  : 'Choose the source, add its TennisLink export, then review what TiQ found.'}</p>
               </div>
               <span style={pillStyle}>{userId ? 'Account ready' : authResolved ? 'Sign in needed' : 'Checking account'}</span>
             </div>
@@ -1099,7 +1106,8 @@ function DataAssistWorkspace() {
               ref={fileInputRef}
               type="file"
               multiple
-              accept=".xls,.html,application/vnd.ms-excel,text/html"
+              accept={acceptedUploadTypes}
+              capture={scorecardPhotoReaderReady && scorecardCameraRequested ? 'environment' : undefined}
               onChange={(event) => void handleFiles(event)}
               style={hiddenFileInputStyle}
             />
@@ -1207,10 +1215,11 @@ function DataAssistWorkspace() {
         </div>
 
         <label style={replaceExportPickerStyle}>
-          <input
-            type="file"
-            multiple={summary?.requestedImportType === 'scorecard'}
-            accept=".xls,.html,application/vnd.ms-excel,text/html"
+            <input
+              type="file"
+              multiple={summary?.requestedImportType === 'scorecard'}
+              accept={acceptedUploadTypes}
+              capture={scorecardPhotoReaderReady && scorecardCameraRequested ? 'environment' : undefined}
             onChange={(event) => void handleFiles(event)}
             disabled={summaryScorecardUploadBlocked}
             style={replaceExportInputStyle}
