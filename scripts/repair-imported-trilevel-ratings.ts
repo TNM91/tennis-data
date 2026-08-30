@@ -150,6 +150,8 @@ const playersAfter = await loadPlayers(supabase)
 const dryRunAfter = await recalculateDynamicRatings(undefined, supabase, { dryRun: true, now: auditNow })
 const eligibleMatchesAfter = await loadEligibleMatches(supabase)
 const auditAfter = buildRatingAudit(playersAfter, eligibleMatchesAfter, dryRunAfter)
+const startingMatchIds = new Set(eligibleMatches.map((match) => match.id))
+const newMatchCountDuringRepair = eligibleMatchesAfter.filter((match) => !startingMatchIds.has(match.id)).length
 const repairedById = new Map(playersAfter.map((player) => [String(player.id), player]))
 
 for (const [playerId, expectedRating] of EXPECTED_RATINGS) {
@@ -160,7 +162,7 @@ for (const [playerId, expectedRating] of EXPECTED_RATINGS) {
   }
 }
 
-if (auditAfter.dynamicDriftCount !== 0) {
+if (auditAfter.dynamicDriftCount !== 0 && newMatchCountDuringRepair === 0) {
   throw new Error(`Post-write verification found ${auditAfter.dynamicDriftCount} stored dynamic rating drifts`)
 }
 if (auditAfter.scoreAudit.unparsed > auditBefore.scoreAudit.unparsed) {
@@ -176,6 +178,8 @@ console.log(JSON.stringify({
   reorientedScoreCount: intendedScoreChanges.length,
   unresolvedScoreOrientationCount: unresolvedScoreOrientations.length,
   unresolvedScoreOrientations,
+  newMatchCountDuringRepair,
+  ratingCatchUpPending: newMatchCountDuringRepair > 0,
   recalculation: {
     eligibleMatchCount: appliedRecalculation.eligibleMatchCount,
     processedMatchCount: appliedRecalculation.processedMatchCount,
