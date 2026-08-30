@@ -337,6 +337,7 @@ function DataAssistWorkspace() {
   const scorecardCaptureReady = scorecardCameraRequested && scorecardPhotoReaderReady
   const scorecardCaptureUnavailable = scorecardCameraRequested && !scorecardPhotoReaderReady
   const scorecardCaptureButtonLabel = isCompactViewport ? 'Take scorecard photo' : 'Choose scorecard photo'
+  const isScorecardPhotoScan = Boolean(summary && scorecardCameraRequested && isScorecardPhotoSummary(summary))
   const dynamicPanelStyle = isCompactViewport ? compactPanelStyle : panelStyle
   const dynamicSectionHeaderStyle = isCompactViewport ? compactSectionHeaderStyle : sectionHeaderStyle
   const dynamicImportTypeSelectWrapStyle = isCompactViewport ? compactImportTypeSelectWrapStyle : importTypeSelectWrapStyle
@@ -492,10 +493,11 @@ function DataAssistWorkspace() {
   async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || [])
     if (!files.length) return
+    const sourceLabel = scorecardCameraRequested ? 'scorecard photo' : 'TennisLink export'
     setSelectedFileCount(files.length)
     setPreparing(true)
     setSavedBatchId('')
-    setMessage(`Checking ${files.length} TennisLink export${files.length === 1 ? '' : 's'}...`)
+    setMessage(`Checking ${files.length} ${sourceLabel}${files.length === 1 ? '' : 's'}...`)
     setError('')
     setOutcome(null)
     setBulkScorecardResults([])
@@ -566,7 +568,10 @@ function DataAssistWorkspace() {
       await importScorecardExports(files)
       return
     }
-    setMessage(`Preparing ${getShortImportTypeLabel(detected.importType)} export...`)
+    const preparedSourceLabel = scorecardCameraRequested && detected.importType === 'scorecard'
+      ? 'scorecard photo'
+      : `${getShortImportTypeLabel(detected.importType)} export`
+    setMessage(`Preparing ${preparedSourceLabel}...`)
 
     try {
       await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
@@ -580,12 +585,11 @@ function DataAssistWorkspace() {
       if (nextSummary.status === 'rejected') {
         setError(nextSummary.rejectionReason)
       } else {
-        const exportLabel = 'TennisLink export'
         if (userId) {
-          setMessage(`${exportLabel} ${changedType ? 'auto-detected' : 'detected'} as ${getShortImportTypeLabel(detected.importType)}. TenAceIQ is importing from the table data now.`)
+          setMessage(`${preparedSourceLabel} ${changedType ? 'auto-detected' : 'detected'} as ${getShortImportTypeLabel(detected.importType)}. TenAceIQ is reading it now.`)
           window.setTimeout(() => void saveDraft(nextSummary), 0)
         } else {
-          setMessage(`${exportLabel} ${changedType ? 'auto-detected' : 'detected'} as ${getShortImportTypeLabel(detected.importType)}. Sign in to import it.`)
+          setMessage(`${preparedSourceLabel} ${changedType ? 'auto-detected' : 'detected'} as ${getShortImportTypeLabel(detected.importType)}. Sign in to import it.`)
         }
       }
     } catch (err) {
@@ -807,7 +811,8 @@ function DataAssistWorkspace() {
           : draftSummary.requestedImportType === 'team_summary'
             ? 'team roster'
             : 'scorecard'
-        setMessage(`${result.screenshotCount} export${result.screenshotCount === 1 ? '' : 's'} uploaded. TenAceIQ is reading the ${readingLabel} now.`)
+        const sourceLabel = isScorecardPhotoSummary(draftSummary) ? 'scorecard photo' : 'export'
+        setMessage(`${result.screenshotCount} ${sourceLabel}${result.screenshotCount === 1 ? '' : 's'} uploaded. TenAceIQ is reading the ${readingLabel} now.`)
         const ocrResult = await withTimeout(
           queueDataAssistOcrVerification({
             batchId: result.batchId,
@@ -1238,27 +1243,34 @@ function DataAssistWorkspace() {
       <section style={dynamicPanelStyle}>
         <div style={sectionHeaderStyle}>
           <div style={headerCopyStyle}>
-            <StepBadge step={3} label="Scan setup" />
-            <h2 style={sectionTitleStyle}>Ready to scan.</h2>
-            <p style={copyStyle}>{summary ? getScanSetupText(summary.requestedImportType, summary.screenshots.length) : 'TennisLink exports are ready.'}</p>
+            <StepBadge step={3} label={isScorecardPhotoScan ? 'Photo check' : 'Scan setup'} />
+            <h2 style={sectionTitleStyle}>{isScorecardPhotoScan ? 'Check your scorecard photo.' : 'Ready to scan.'}</h2>
+            <p style={copyStyle}>{summary ? getScanSetupText(summary.requestedImportType, summary.screenshots.length, isScorecardPhotoScan) : 'TennisLink exports are ready.'}</p>
           </div>
-          {summary ? <span style={pillStyle}>{summary.screenshots.length} export{summary.screenshots.length === 1 ? '' : 's'}</span> : null}
+          {summary ? <span style={pillStyle}>{summary.screenshots.length} {isScorecardPhotoScan ? 'photo' : `export${summary.screenshots.length === 1 ? '' : 's'}`}</span> : null}
         </div>
 
         <label style={replaceExportPickerStyle}>
             <input
               type="file"
-              multiple={summary?.requestedImportType === 'scorecard'}
-              accept={acceptedUploadTypes}
-              capture={scorecardPhotoReaderReady && scorecardCameraRequested ? 'environment' : undefined}
+              multiple={isScorecardPhotoScan ? false : summary?.requestedImportType === 'scorecard'}
+              accept={isScorecardPhotoScan ? 'image/jpeg,image/png,image/webp' : acceptedUploadTypes}
+              capture={scorecardCaptureReady && isScorecardPhotoScan ? 'environment' : undefined}
             onChange={(event) => void handleFiles(event)}
             disabled={summaryScorecardUploadBlocked}
             style={replaceExportInputStyle}
           />
-          <span style={dropzoneKickerStyle}>Replace export</span>
-          <strong>{summaryScorecardUploadBlocked ? 'Scorecard uploads paused' : preparing ? 'Preparing...' : 'Choose a different supported export'}</strong>
-          <small>{summaryScorecardUploadBlocked ? 'Start over and choose Schedule or Player Roster, or wait for admins to restore scorecard upload access.' : summary?.requestedImportType === 'scorecard' ? `You can also choose up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecard exports to catch up.` : 'Use a separate upload for each schedule or roster export.'}</small>
+          <span style={dropzoneKickerStyle}>{isScorecardPhotoScan ? 'Retake photo' : 'Replace export'}</span>
+          <strong>{summaryScorecardUploadBlocked ? 'Scorecard uploads paused' : preparing ? 'Preparing...' : isScorecardPhotoScan ? 'Take a clearer scorecard photo' : 'Choose a different supported export'}</strong>
+          <small>{summaryScorecardUploadBlocked ? 'Start over and choose Schedule or Player Roster, or wait for admins to restore scorecard upload access.' : isScorecardPhotoScan ? 'Use a straight-on photo with every completed court visible.' : summary?.requestedImportType === 'scorecard' ? `You can also choose up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecard exports to catch up.` : 'Use a separate upload for each schedule or roster export.'}</small>
         </label>
+
+        {isScorecardPhotoScan ? (
+          <div style={readyImportNoteStyle}>
+            <strong>Nothing changes until you confirm.</strong>
+            <span>TiQ reads the photo first. Review every court before the result becomes verified.</span>
+          </div>
+        ) : null}
 
         {summary?.screenshots.length ? (
           <div style={screenshotGridStyle(isTablet)}>
@@ -1270,6 +1282,7 @@ function DataAssistWorkspace() {
                 total={summary.screenshots.length}
                 onMove={moveScreenshot}
                 onRemove={removeScreenshot}
+                showOrdering={!isScorecardPhotoScan}
               />
             ))}
           </div>
@@ -1289,7 +1302,7 @@ function DataAssistWorkspace() {
               ...((!summary || !userId || saving || summary.status === 'rejected' || !summary.screenshots.length) ? disabledStyle : {}),
             }}
           >
-              {saving ? `Reading ${summary?.requestedImportType === 'schedule' ? 'schedule' : summary?.requestedImportType === 'team_summary' ? 'roster' : 'scorecard'}...` : 'Import now'}
+              {saving ? `Reading ${summary?.requestedImportType === 'schedule' ? 'schedule' : summary?.requestedImportType === 'team_summary' ? 'roster' : 'scorecard'}...` : isScorecardPhotoScan ? 'Read scorecard' : 'Import now'}
           </button>
           <button type="button" onClick={resetUploadFlow} style={secondaryButtonStyle}>Cancel upload</button>
           <span style={hintStyle}>Clean exports import automatically. Anything uncertain stops here for review.</span>
@@ -1978,6 +1991,12 @@ function getShortImportTypeLabel(importType: DataAssistImportType) {
   return 'scorecard'
 }
 
+function isScorecardPhotoSummary(summary: DataAssistBatchSummary) {
+  return summary.requestedImportType === 'scorecard'
+    && summary.screenshots.length === 1
+    && summary.screenshots.every((screenshot) => screenshot.mimeType.startsWith('image/'))
+}
+
 function getUploadHelpTitle(importType: DataAssistImportType) {
   if (importType === 'schedule') return 'Flight or team schedule export'
   if (importType === 'team_summary') return 'Player Roster export'
@@ -2190,7 +2209,8 @@ function BulkScorecardResultsPanel({
   )
 }
 
-function getScanSetupText(importType: DataAssistImportType, screenshotCount: number) {
+function getScanSetupText(importType: DataAssistImportType, screenshotCount: number, scorecardPhoto = false) {
+  if (scorecardPhoto) return 'Your scorecard photo is ready. TiQ reads it first, then you verify every court before the result is saved.'
   const plural = screenshotCount === 1 ? 'export' : 'exports'
   if (importType === 'schedule') return `${screenshotCount} ${plural} ready. TenAceIQ will import schedule rows from the table.`
   if (importType === 'team_summary') return `${screenshotCount} ${plural} ready. TenAceIQ will import roster names, ratings, and available contacts.`
@@ -2260,12 +2280,14 @@ function ScreenshotCard({
   total,
   onMove,
   onRemove,
+  showOrdering = true,
 }: {
   screenshot: DataAssistPreparedScreenshot
   index: number
   total: number
   onMove: (fromIndex: number, direction: -1 | 1) => void
   onRemove: (id: string) => void
+  showOrdering?: boolean
 }) {
   const supported = screenshot.detectionStatus === 'supported'
   const rejected = screenshot.detectionStatus === 'rejected'
@@ -2299,12 +2321,16 @@ function ScreenshotCard({
           ))}
         </div>
         <div style={cardActionRowStyle}>
-          <button type="button" onClick={() => onMove(index, -1)} disabled={index === 0} style={smallButtonStyle}>
-            Up
-          </button>
-          <button type="button" onClick={() => onMove(index, 1)} disabled={index === total - 1} style={smallButtonStyle}>
-            Down
-          </button>
+          {showOrdering ? (
+            <>
+              <button type="button" onClick={() => onMove(index, -1)} disabled={index === 0} style={smallButtonStyle}>
+                Up
+              </button>
+              <button type="button" onClick={() => onMove(index, 1)} disabled={index === total - 1} style={smallButtonStyle}>
+                Down
+              </button>
+            </>
+          ) : null}
           <button type="button" onClick={() => onRemove(screenshot.id)} style={smallDangerButtonStyle}>
             Remove
           </button>
