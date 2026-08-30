@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const source = readFileSync(join(process.cwd(), 'app/data-assist/page.tsx'), 'utf8')
+const source = readFileSync(join(process.cwd(), 'app/data-assist/page.tsx'), 'utf8').replace(/\r\n/g, '\n')
 
 describe('Data Assist upload operation clarity', () => {
   it('keeps an imported roster outcome visible and linked to its saved record', () => {

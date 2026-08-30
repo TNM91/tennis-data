@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const source = readFileSync(join(process.cwd(), 'app/data-assist/page.tsx'), 'utf8')
+const source = readFileSync(join(process.cwd(), 'app/data-assist/page.tsx'), 'utf8').replace(/\r\n/g, '\n')
 const layoutSource = readFileSync(join(process.cwd(), 'app/data-assist/layout.tsx'), 'utf8')
 const eventsSource = readFileSync(join(process.cwd(), 'lib/product-usage-events.ts'), 'utf8')
 

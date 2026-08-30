@@ -358,6 +358,9 @@ function DataAssistWorkspace() {
   const dynamicImportTypeSelectWrapStyle = isCompactViewport ? compactImportTypeSelectWrapStyle : importTypeSelectWrapStyle
   const dynamicImportTypeSelectStyle = isCompactViewport ? compactImportTypeSelectStyle : importTypeSelectStyle
   const dynamicImportTypeSelectHintStyle = isCompactViewport ? compactImportTypeSelectHintStyle : importTypeSelectHintStyle
+  const latestScorecardDraft = latestScan && isScorecardParsedDraft(latestScan.parsedDraft)
+    ? latestScan.parsedDraft
+    : null
   const focusedHistoryFilter: DataAssistHistoryFilter = outcome?.tone === 'success' || outcome?.tone === 'duplicate'
     ? 'imported'
     : 'needs_review'
@@ -1439,10 +1442,10 @@ function DataAssistWorkspace() {
               <ScheduleReviewPanel parsedDraft={latestScan.parsedDraft} />
             ) : isTeamSummaryParsedDraft(latestScan.parsedDraft) ? (
               <TeamSummaryReviewPanel parsedDraft={latestScan.parsedDraft} />
-            ) : (
+            ) : latestScorecardDraft ? (
               <ScorecardReviewPanel
-                parsedDraft={latestScan.parsedDraft}
-                canReview={Boolean(latestScan.autoAssessment?.memberConfirmationRequired && canConfirmScorecardRead(latestScan.parsedDraft))}
+                parsedDraft={latestScorecardDraft}
+                canReview={Boolean(latestScan.autoAssessment?.memberConfirmationRequired && canConfirmScorecardRead(latestScorecardDraft))}
                 busy={reviewingSubmissionId === latestScan.batchId}
                 onConfirm={() => void reviewLatestScan('confirmed')}
                 onFlag={() => void reviewLatestScan('flagged')}
@@ -1450,20 +1453,20 @@ function DataAssistWorkspace() {
                   teamName: captainScorecardReturn.teamName,
                   dataAssistBatchId: latestScan.batchId,
                   dataAssistDraftId: latestScan.draftId,
-                  parsedDraft: latestScan.parsedDraft,
+                  parsedDraft: latestScorecardDraft,
                 }) : undefined}
                 onOpenCaptainScorecard={captainScorecardReturn && !getCaptainScorecardPhotoPrefillIssue({
                   teamName: captainScorecardReturn.teamName,
                   dataAssistBatchId: latestScan.batchId,
                   dataAssistDraftId: latestScan.draftId,
-                  parsedDraft: latestScan.parsedDraft,
+                  parsedDraft: latestScorecardDraft,
                 }) ? () => openVerifiedCaptainScorecard({
                   batchId: latestScan.batchId,
                   draftId: latestScan.draftId,
-                  parsedDraft: latestScan.parsedDraft,
+                  parsedDraft: latestScorecardDraft,
                 }) : undefined}
               />
-            )}
+            ) : null}
             <div style={draftActionRowStyle}>
               <button type="button" onClick={resetUploadFlow} style={primaryButtonStyle}>Upload another</button>
             </div>
@@ -2773,6 +2776,7 @@ function SubmissionCard({
   onDelete: (submission: DataAssistSubmission) => void
   returnTo: string
 }) {
+  const router = useRouter()
   const status = getSubmissionStatusCopy(submission)
   const reviewNote = submission.draftReviewNote || submission.reviewNote || submission.rejectionReason
   const parsedDraft = toScorecardParsedDraft(submission.parsedPayload)
@@ -2856,7 +2860,7 @@ function SubmissionCard({
                   window.sessionStorage.setItem(captainScorecardPhotoPrefillStorageKey(prefill.dataAssistBatchId), JSON.stringify(prefill))
                   const url = new URL(context.href, window.location.origin)
                   url.searchParams.set('scorecardDraft', prefill.dataAssistBatchId)
-                  window.location.assign(`${url.pathname}${url.search}${url.hash}`)
+                  router.push(`${url.pathname}${url.search}${url.hash}`)
                 } catch {
                   // Keep the generic review actions available if browser storage is unavailable.
                 }
