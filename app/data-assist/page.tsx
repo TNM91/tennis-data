@@ -334,6 +334,9 @@ function DataAssistWorkspace() {
     ? '.xls,.html,application/vnd.ms-excel,text/html,image/jpeg,image/png,image/webp'
     : '.xls,.html,application/vnd.ms-excel,text/html'
   const isCompactViewport = isMobile || isTablet
+  const scorecardCaptureReady = scorecardCameraRequested && scorecardPhotoReaderReady
+  const scorecardCaptureUnavailable = scorecardCameraRequested && !scorecardPhotoReaderReady
+  const scorecardCaptureButtonLabel = isCompactViewport ? 'Take scorecard photo' : 'Choose scorecard photo'
   const dynamicPanelStyle = isCompactViewport ? compactPanelStyle : panelStyle
   const dynamicSectionHeaderStyle = isCompactViewport ? compactSectionHeaderStyle : sectionHeaderStyle
   const dynamicImportTypeSelectWrapStyle = isCompactViewport ? compactImportTypeSelectWrapStyle : importTypeSelectWrapStyle
@@ -1096,6 +1099,34 @@ function DataAssistWorkspace() {
               <ScorecardUploadPausedPanel message={scorecardUploadPausedMessage} />
             ) : null}
 
+            {scorecardCameraRequested ? (
+              <section id="capture-scorecard" style={scorecardCapturePanelStyle} aria-labelledby="scorecard-capture-title">
+                <div style={headerCopyStyle}>
+                  <span style={dropzoneKickerStyle}>Scorecard camera</span>
+                  <h2 id="scorecard-capture-title" style={capturePanelTitleStyle}>
+                    {scorecardCaptureReady ? 'Ready to capture.' : 'Use the verified scorecard.'}
+                  </h2>
+                  <p style={copyStyle}>
+                    {scorecardCaptureReady
+                      ? 'Take a clear, straight-on photo of the completed scorecard. TiQ reads it first, then you review every court before it changes a match.'
+                      : 'Photo reading is not enabled here yet. Record final scores manually or upload a TennisLink scorecard export.'}
+                  </p>
+                </div>
+                {scorecardCaptureReady ? (
+                  <button
+                    type="button"
+                    style={{ ...primaryButtonStyle, ...(scorecardUploadBlocked || preparing ? disabledStyle : {}) }}
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={scorecardUploadBlocked || preparing}
+                  >
+                    {preparing ? 'Preparing…' : scorecardCaptureButtonLabel}
+                  </button>
+                ) : scorecardCaptureUnavailable && returnTo ? (
+                  <Link href={returnTo} style={secondaryButtonStyle}>Record results</Link>
+                ) : null}
+              </section>
+            ) : null}
+
             <DataAssistSourcePathPanel
               selectedImportType={importType}
               onSelectImportType={chooseImportType}
@@ -1106,7 +1137,7 @@ function DataAssistWorkspace() {
               ref={fileInputRef}
               type="file"
               multiple
-              accept={acceptedUploadTypes}
+              accept={scorecardCaptureReady ? 'image/jpeg,image/png,image/webp' : acceptedUploadTypes}
               capture={scorecardPhotoReaderReady && scorecardCameraRequested ? 'environment' : undefined}
               onChange={(event) => void handleFiles(event)}
               style={hiddenFileInputStyle}
@@ -5531,6 +5562,26 @@ const noticeStyle: CSSProperties = {
   borderRadius: 14,
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-chip-bg)',
+}
+
+const scorecardCapturePanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg) 88%), var(--shell-panel-bg))',
+}
+
+const capturePanelTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: '-0.025em',
+  overflowWrap: 'anywhere',
 }
 
 const noticeLinkStyle: CSSProperties = {

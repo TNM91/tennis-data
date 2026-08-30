@@ -33,4 +33,12 @@ describe('Data Assist Captain handoff', () => {
     expect(source).toContain('finishScorecardImport')
     expect(source).toContain('Correction found')
   })
+
+  it('offers one phone-first scorecard camera action with a verified fallback', () => {
+    expect(source).toContain("const scorecardCameraRequested = searchParams.get('capture') === 'camera'")
+    expect(source).toContain("const scorecardCaptureReady = scorecardCameraRequested && scorecardPhotoReaderReady")
+    expect(source).toContain("scorecardCaptureButtonLabel = isCompactViewport ? 'Take scorecard photo' : 'Choose scorecard photo'")
+    expect(source).toContain("Photo reading is not enabled here yet. Record final scores manually or upload a TennisLink scorecard export.")
+    expect(source).toContain("accept={scorecardCaptureReady ? 'image/jpeg,image/png,image/webp' : acceptedUploadTypes}")
+  })
 })
