@@ -850,6 +850,9 @@ function normalizeScorecardLine(
   return {
     lineNumber: numericLineNumber,
     matchType,
+    ntrp: normalizeSeedRatingValue(
+      pickFirst(line, ['ntrp', 'lineNtrp', 'line_ntrp', 'rating', 'level']),
+    ),
     sideAPlayers,
     sideBPlayers,
     winnerSide,

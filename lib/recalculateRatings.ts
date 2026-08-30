@@ -18,8 +18,9 @@ type PlayerRow = {
 
 type MatchSource = 'usta' | 'tiq_team' | 'tiq_individual' | 'tiq_tournament'
 
-type MatchRow = {
+export type MatchRow = {
   id: string
+  external_match_id?: string | null
   match_date: string
   match_type: MatchType
   score: string
@@ -59,7 +60,7 @@ export type WorkingPlayer = {
   lastMatchDate: string | null
 }
 
-type RatingSnapshotInsert = {
+export type RatingSnapshotInsert = {
   player_id: string
   match_id: string
   snapshot_date: string
@@ -147,6 +148,7 @@ export type RatingRecalculationOptions = {
    * This is intended for admin-safe audits before a production rerun.
    */
   dryRun?: boolean
+  now?: number
 }
 
 export type RatingRecalculationResult = {
@@ -155,6 +157,9 @@ export type RatingRecalculationResult = {
   eligibleMatchCount: number
   snapshotCount: number
   players: WorkingPlayer[]
+  snapshots: RatingSnapshotInsert[]
+  processedMatchCount: number
+  skippedMatches: Array<{ matchId: string; reason: string }>
 }
 
 export async function recalculateDynamicRatings(
@@ -212,6 +217,8 @@ export async function recalculateDynamicRatings(
   }
 
   const snapshotRows: RatingSnapshotInsert[] = []
+  const skippedMatches: Array<{ matchId: string; reason: string }> = []
+  let processedMatchCount = 0
 
   const mostRecentDate = matches.length > 0
     ? matches[matches.length - 1].match_date
@@ -233,7 +240,9 @@ export async function recalculateDynamicRatings(
 
     if (match.match_type === 'singles') {
       if (sideA.length !== 1 || sideB.length !== 1) {
-        console.warn(`Skipping singles match ${match.id}: expected 1 player per side.`)
+        const reason = 'expected 1 player per side'
+        skippedMatches.push({ matchId: match.id, reason })
+        console.warn(`Skipping singles match ${match.id}: ${reason}.`)
         continue
       }
 
@@ -241,17 +250,22 @@ export async function recalculateDynamicRatings(
       const playerB = playersById.get(sideB[0].player_id)
 
       if (!playerA || !playerB) {
-        console.warn(`Skipping singles match ${match.id}: missing player(s).`)
+        const reason = 'missing player(s)'
+        skippedMatches.push({ matchId: match.id, reason })
+        console.warn(`Skipping singles match ${match.id}: ${reason}.`)
         continue
       }
 
       processSinglesMatch(match, playerA, playerB, snapshotRows, recencyWeight)
+      processedMatchCount += 1
       continue
     }
 
     if (match.match_type === 'doubles') {
       if (sideA.length !== 2 || sideB.length !== 2) {
-        console.warn(`Skipping doubles match ${match.id}: expected 2 players per side.`)
+        const reason = 'expected 2 players per side'
+        skippedMatches.push({ matchId: match.id, reason })
+        console.warn(`Skipping doubles match ${match.id}: ${reason}.`)
         continue
       }
 
@@ -264,19 +278,25 @@ export async function recalculateDynamicRatings(
         .filter(Boolean) as WorkingPlayer[]
 
       if (teamA.length !== 2 || teamB.length !== 2) {
-        console.warn(`Skipping doubles match ${match.id}: missing player(s).`)
+        const reason = 'missing player(s)'
+        skippedMatches.push({ matchId: match.id, reason })
+        console.warn(`Skipping doubles match ${match.id}: ${reason}.`)
         continue
       }
 
       processDoublesMatch(match, teamA, teamB, snapshotRows, recencyWeight)
+      processedMatchCount += 1
+      continue
     }
+
+    skippedMatches.push({ matchId: match.id, reason: `unsupported match type: ${match.match_type}` })
   }
 
   onPhase?.('processing', `${matches.length} matches`)
   // (processing loop ran above)
 
   onPhase?.('finalizing')
-  applyInactivityDecay(playersById.values())
+  applyInactivityDecay(playersById.values(), options.now ?? Date.now())
 
   const recalculatedPlayers = [...playersById.values()]
 
@@ -296,6 +316,9 @@ export async function recalculateDynamicRatings(
     eligibleMatchCount: matches.length,
     snapshotCount: snapshotRows.length,
     players: recalculatedPlayers,
+    snapshots: dedupeRatingSnapshots(snapshotRows),
+    processedMatchCount,
+    skippedMatches,
   }
 }
 
@@ -515,7 +538,7 @@ function processSinglesMatch(
   registerMatchEvidence(playerB, match.match_date, 'singles')
 }
 
-function processDoublesMatch(
+export function processDoublesMatch(
   match: MatchRow,
   teamA: WorkingPlayer[],
   teamB: WorkingPlayer[],
@@ -774,6 +797,18 @@ async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[], clie
   }
 }
 
+export function dedupeRatingSnapshots(snapshotRows: RatingSnapshotInsert[]) {
+  return Array.from(
+    snapshotRows
+      .reduce((map, row) => {
+        const key = `${row.player_id}__${row.match_id}__${row.rating_type}__${row.track}`
+        map.set(key, row)
+        return map
+      }, new Map<string, RatingSnapshotInsert>())
+      .values(),
+  )
+}
+
 function isMissingOnConflictConstraintError(message: string) {
   return message.toLowerCase().includes('no unique or exclusion constraint matching the on conflict specification')
 }
@@ -891,6 +926,13 @@ export function parseScoreMetrics(score: string | null | undefined, winnerSide: 
     if (!isTiebreakSet && Math.abs(set.sideA - set.sideB) <= 2) {
       closeSets += 1
     }
+  }
+
+  // A declared winner that loses more parsed sets means the score is oriented
+  // incorrectly or corrupt. Keep the result eligible, but do not apply a
+  // backwards margin-of-victory adjustment.
+  if (loserSetCount > winnerSetCount) {
+    return fallback
   }
 
   const straightSetsWin = winnerSetCount >= 2 && loserSetCount === 0

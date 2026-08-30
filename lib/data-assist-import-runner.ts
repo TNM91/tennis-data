@@ -9,7 +9,7 @@ import {
 } from './data-assist-import'
 import type { DataAssistScorecardParsedDraft } from './data-assist-ocr'
 import type { DataAssistScheduleParsedDraft } from './data-assist-schedule-parser'
-import type { DataAssistTeamSummaryParsedDraft } from './data-assist-team-summary-parser'
+import { isTeamSummaryDraftReadyForImport, type DataAssistTeamSummaryParsedDraft } from './data-assist-team-summary-parser'
 import { upsertCaptainRosterContacts } from './captain-roster-contacts'
 import { runScheduleImport, runScorecardImport, runTeamSummaryImport, type RunImportSuccess } from './ingestion/runImport'
 import { recalculateDynamicRatings } from './recalculateRatings'
@@ -205,6 +205,19 @@ export async function runDataAssistTeamSummaryImportAction(input: {
 
   if (input.parsedDraft.rosterSource === 'player_roster') {
     return runDataAssistPlayerRosterContactImportAction(input)
+  }
+
+  if (!isTeamSummaryDraftReadyForImport(input.parsedDraft)) {
+    const missingRatings = input.parsedDraft.players
+      .filter((player) => player.ntrp === null)
+      .map((player) => player.name)
+    return {
+      ok: false,
+      action: input.action,
+      message: missingRatings.length
+        ? `Confirm the official NTRP rating for: ${missingRatings.join(', ')}.`
+        : 'Confirm every player name and official NTRP rating before importing this Player Roster.',
+    }
   }
 
   const payload = buildDataAssistTeamSummaryPayload(input.parsedDraft, input.batchId)

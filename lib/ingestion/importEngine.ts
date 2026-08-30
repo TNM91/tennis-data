@@ -94,6 +94,7 @@ export type ScheduleImportRow = {
 export type ScorecardLineImportRow = {
   lineNumber: number
   matchType: MatchType
+  ntrp?: number | null
   sideAPlayers: string[]
   sideBPlayers: string[]
   winnerSide: MatchSide | null
@@ -542,31 +543,103 @@ function buildParentMatchScore(row: ScorecardImportRow): string | null {
   return `${sideAWins}-${sideBWins}`
 }
 
-function parseRatingSeed(...values: Array<string | null | undefined>): number | null {
+function collectRatingSeeds(...values: Array<string | null | undefined>): number[] {
+  const ratings = new Set<number>()
   for (const value of values) {
     const cleaned = cleanString(value)
     if (!cleaned) continue
 
-    const match = cleaned.match(/(?:^|\b)([1-7](?:\.[05])?)(?:\b|$)/)
-    if (!match) continue
-
-    const parsed = Number(match[1])
-    if (Number.isFinite(parsed)) return parsed
+    for (const match of cleaned.matchAll(/(?:^|\b)([1-7](?:\.[05])?)(?:\b|$)/g)) {
+      const parsed = Number(match[1])
+      if (isValidOfficialNtrp(parsed)) ratings.add(parsed)
+    }
   }
 
-  return null
+  return [...ratings]
 }
 
-function inferPlayerBaselineFromRow(row: ScorecardImportRow): number {
+function isValidOfficialNtrp(value: unknown): value is number {
   return (
-    parseRatingSeed(
-      nullableString(row.flight),
-      nullableString(row.leagueName),
-      nullableString(row.ustaSection),
-      nullableString(row.districtArea),
-      nullableString(row.source),
-    ) ?? DEFAULT_PLAYER_BASELINE
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    value >= 1 &&
+    value <= 7 &&
+    Math.abs(value * 2 - Math.round(value * 2)) < Number.EPSILON
   )
+}
+
+export function inferPlayerBaselineFromRow(row: ScorecardImportRow): number | null {
+  const ratings = collectRatingSeeds(
+    nullableString(row.flight),
+    nullableString(row.leagueName),
+  )
+  return ratings.length === 1 ? ratings[0] : null
+}
+
+export function buildScorecardPlayerRatingSeedMap(row: ScorecardImportRow): Record<string, number> {
+  const ratings = new Map<string, { name: string; rating: number }>()
+
+  const addRating = (nameValue: unknown, ratingValue: unknown, source: string) => {
+    const name = cleanString(nameValue)
+    if (!name) return
+    if (!isValidOfficialNtrp(ratingValue)) {
+      throw new Error(`Invalid official NTRP rating for ${name} from ${source}`)
+    }
+
+    const key = normalizeName(name)
+    const current = ratings.get(key)
+    if (current && current.rating !== ratingValue) {
+      throw new Error(
+        `Conflicting official NTRP ratings for ${name}: ${current.rating.toFixed(1)} and ${ratingValue.toFixed(1)}`,
+      )
+    }
+    ratings.set(key, { name, rating: ratingValue })
+  }
+
+  for (const [name, rating] of Object.entries(row.playerRatingSeeds ?? {})) {
+    addRating(name, rating, 'player rating seed')
+  }
+
+  for (const line of row.lines) {
+    if (line.ntrp === null || line.ntrp === undefined) continue
+    for (const name of [...line.sideAPlayers, ...line.sideBPlayers]) {
+      addRating(name, line.ntrp, `line ${line.lineNumber}`)
+    }
+  }
+
+  return Object.fromEntries([...ratings].map(([key, value]) => [key, value.rating]))
+}
+
+export function buildVerifiedPlayerRatingUpdate(
+  player: Pick<
+    PlayerResolution,
+    | 'singlesRating'
+    | 'doublesRating'
+    | 'overallRating'
+    | 'singlesDynamicRating'
+    | 'doublesDynamicRating'
+    | 'overallDynamicRating'
+  >,
+  rating: number,
+): Record<string, number> {
+  if (!isValidOfficialNtrp(rating)) throw new Error(`Invalid official NTRP rating: ${rating}`)
+
+  const oldBaseline = player.overallRating ?? player.singlesRating ?? player.doublesRating
+  const update: Record<string, number> = {
+    singles_rating: rating,
+    doubles_rating: rating,
+    overall_rating: rating,
+  }
+  if (player.singlesDynamicRating === null || player.singlesDynamicRating === oldBaseline || player.singlesDynamicRating === DEFAULT_PLAYER_BASELINE) {
+    update.singles_dynamic_rating = rating
+  }
+  if (player.doublesDynamicRating === null || player.doublesDynamicRating === oldBaseline || player.doublesDynamicRating === DEFAULT_PLAYER_BASELINE) {
+    update.doubles_dynamic_rating = rating
+  }
+  if (player.overallDynamicRating === null || player.overallDynamicRating === oldBaseline || player.overallDynamicRating === DEFAULT_PLAYER_BASELINE) {
+    update.overall_dynamic_rating = rating
+  }
+  return update
 }
 
 function nullableRatingValue(value: unknown): number | null {
@@ -1021,10 +1094,11 @@ export class ImportEngine {
         let createdPlayerNames: string[] = []
 
         try {
+          const playerRatingSeeds = buildScorecardPlayerRatingSeedMap(hydratedRow)
           const batch = await this.resolvePlayersBatch(
             uniquePlayerNames,
             inferPlayerBaselineFromRow(hydratedRow),
-            hydratedRow.playerRatingSeeds,
+            playerRatingSeeds,
           )
           resolvedPlayers = batch.map
           createdPlayerNames = batch.created
@@ -1802,7 +1876,7 @@ export class ImportEngine {
 
   private async resolvePlayersBatch(
     names: string[],
-    baselineRating = DEFAULT_PLAYER_BASELINE,
+    baselineRating: number | null = null,
     playerRatingSeeds?: Record<string, number>,
   ): Promise<{
     map: Map<string, PlayerResolution>
@@ -1813,6 +1887,34 @@ export class ImportEngine {
     const created: string[] = []
 
     if (unique.length === 0) return { map, created }
+
+    const getEvidenceRating = (name: string): number | null => {
+      const cleanedName = cleanString(name)
+      const candidate =
+        playerRatingSeeds?.[normalizeName(cleanedName)] ??
+        playerRatingSeeds?.[cleanedName] ??
+        baselineRating
+      return isValidOfficialNtrp(candidate) ? candidate : null
+    }
+
+    const addResolvedPlayer = (row: PlayerRecord, keyValue: string) => {
+      const key = normalizeName(keyValue || row.name)
+      const current = map.get(key)
+      if (current && current.id !== row.id) {
+        throw new Error(`Duplicate player records found for ${row.name}; resolve the identity conflict before importing`)
+      }
+      map.set(key, {
+        id: row.id,
+        name: row.name,
+        wasCreated: false,
+        singlesRating: nullableRatingValue(row.singles_rating),
+        doublesRating: nullableRatingValue(row.doubles_rating),
+        overallRating: nullableRatingValue(row.overall_rating),
+        singlesDynamicRating: nullableRatingValue(row.singles_dynamic_rating),
+        doublesDynamicRating: nullableRatingValue(row.doubles_dynamic_rating),
+        overallDynamicRating: nullableRatingValue(row.overall_dynamic_rating),
+      })
+    }
 
     if (this.options.hasNormalizedPlayerNameColumn) {
       const normalizedNames = unique.map(normalizeName)
@@ -1829,18 +1931,7 @@ export class ImportEngine {
         })
       } else {
         for (const row of (data ?? []) as PlayerRecord[]) {
-          const key = normalizeName(row.normalized_name || row.name)
-          map.set(key, {
-            id: row.id,
-            name: row.name,
-            wasCreated: false,
-            singlesRating: nullableRatingValue(row.singles_rating),
-            doublesRating: nullableRatingValue(row.doubles_rating),
-            overallRating: nullableRatingValue(row.overall_rating),
-            singlesDynamicRating: nullableRatingValue(row.singles_dynamic_rating),
-            doublesDynamicRating: nullableRatingValue(row.doubles_dynamic_rating),
-            overallDynamicRating: nullableRatingValue(row.overall_dynamic_rating),
-          })
+          addResolvedPlayer(row, row.normalized_name || row.name)
         }
       }
     }
@@ -1860,32 +1951,24 @@ export class ImportEngine {
         })
       } else {
         for (const row of (data ?? []) as PlayerRecord[]) {
-          const key = normalizeName(row.name)
-          map.set(key, {
-            id: row.id,
-            name: row.name,
-            wasCreated: false,
-            singlesRating: nullableRatingValue(row.singles_rating),
-            doublesRating: nullableRatingValue(row.doubles_rating),
-            overallRating: nullableRatingValue(row.overall_rating),
-            singlesDynamicRating: nullableRatingValue(row.singles_dynamic_rating),
-            doublesDynamicRating: nullableRatingValue(row.doubles_dynamic_rating),
-            overallDynamicRating: nullableRatingValue(row.overall_dynamic_rating),
-          })
+          addResolvedPlayer(row, row.name)
         }
       }
     }
 
     const missing = unique.filter((name) => !map.has(normalizeName(name)))
+    const missingRatingEvidence = missing.filter((name) => getEvidenceRating(name) === null)
+    if (missingRatingEvidence.length > 0) {
+      throw new Error(
+        `Missing official NTRP evidence for new player${missingRatingEvidence.length === 1 ? '' : 's'}: ${missingRatingEvidence.join(', ')}`,
+      )
+    }
 
     if (missing.length > 0) {
       const insertPayload: Record<string, unknown>[] = missing.map((name) => {
         const cleanedName = cleanString(name)
         const normalized = normalizeName(cleanedName)
-        const seededRating =
-          playerRatingSeeds?.[normalized] ??
-          playerRatingSeeds?.[cleanedName] ??
-          baselineRating
+        const seededRating = getEvidenceRating(cleanedName)
 
         const payload: Record<string, unknown> = {
           name: cleanedName,
@@ -1934,7 +2017,29 @@ export class ImportEngine {
       }
     }
 
-    await this.markPlayersVerified([...map.values()].map((player) => player.id))
+    const verifiedPlayerIds: string[] = []
+    for (const name of unique) {
+      const rating = getEvidenceRating(name)
+      const player = map.get(normalizeName(name))
+      if (rating === null || !player) continue
+      verifiedPlayerIds.push(player.id)
+
+      if (player.wasCreated) continue
+
+      const update = buildVerifiedPlayerRatingUpdate(player, rating)
+
+      const { error } = await this.supabase.from('players').update(update).eq('id', player.id)
+      if (error) throw new Error(`Failed to apply official NTRP ${rating.toFixed(1)} for ${player.name}: ${error.message}`)
+
+      player.singlesRating = rating
+      player.doublesRating = rating
+      player.overallRating = rating
+      if (update.singles_dynamic_rating !== undefined) player.singlesDynamicRating = rating
+      if (update.doubles_dynamic_rating !== undefined) player.doublesDynamicRating = rating
+      if (update.overall_dynamic_rating !== undefined) player.overallDynamicRating = rating
+    }
+
+    await this.markPlayersVerified(verifiedPlayerIds)
 
     return { map, created }
   }
@@ -2100,6 +2205,7 @@ export class ImportEngine {
     }>()
     const teamSummaryTeams = new Map<string, TeamSummaryTeamRecord>()
     const rosterMembershipByKey = new Map<string, Omit<TeamRosterMembership, 'playerId'>>()
+    const ratingConflicts: Array<{ name: string; ratings: [number, number] }> = []
     for (const row of rows) {
       for (const team of row.teams ?? []) {
         const teamName = cleanString(team.name)
@@ -2138,6 +2244,9 @@ export class ImportEngine {
           playerMap.set(key, { name, ntrp, ratingSource, mixedPairRole })
         } else {
           const current = playerMap.get(key)!
+          if (current.ntrp !== null && ntrp !== null && current.ntrp !== ntrp) {
+            ratingConflicts.push({ name, ratings: [current.ntrp, ntrp] })
+          }
           playerMap.set(key, {
             name,
             ntrp: current.ntrp ?? ntrp,
@@ -2186,6 +2295,38 @@ export class ImportEngine {
     result.totalPlayers = playerMap.size
 
     const allEntries = [...playerMap.values()]
+    const playersWithoutValidRatings = allEntries.filter(({ ntrp }) => !isValidOfficialNtrp(ntrp))
+    if (playersWithoutValidRatings.length > 0 || ratingConflicts.length > 0) {
+      for (const { name, ntrp } of playersWithoutValidRatings) {
+        result.failedCount += 1
+        result.players.push({
+          name,
+          status: 'failed',
+          ntrp,
+          message: 'Official NTRP rating is missing or invalid; no player data was written',
+        })
+        result.errors.push({
+          rowIndex: 0,
+          code: 'INVALID_ROW',
+          message: `${name}: official NTRP rating is missing or invalid`,
+        })
+      }
+      for (const conflict of ratingConflicts) {
+        result.failedCount += 1
+        result.players.push({
+          name: conflict.name,
+          status: 'failed',
+          ntrp: null,
+          message: `Conflicting official NTRP ratings: ${conflict.ratings[0].toFixed(1)} and ${conflict.ratings[1].toFixed(1)}; no player data was written`,
+        })
+        result.errors.push({
+          rowIndex: 0,
+          code: 'INVALID_ROW',
+          message: `${conflict.name}: conflicting official NTRP ratings ${conflict.ratings[0].toFixed(1)} and ${conflict.ratings[1].toFixed(1)}`,
+        })
+      }
+      return result
+    }
     const allNormalizedNames = allEntries.map(({ name }) => normalizeName(name))
 
     // Single batch lookup — one round-trip regardless of player count
@@ -2213,7 +2354,12 @@ export class ImportEngine {
 
         if (!error) {
           for (const row of (data ?? []) as Array<ExistingPlayerRow & { normalized_name?: string | null }>) {
-            byNormalizedName.set(normalizeName(row.normalized_name || row.name), row)
+            const key = normalizeName(row.normalized_name || row.name)
+            const current = byNormalizedName.get(key)
+            if (current && current.id !== row.id) {
+              throw new Error(`Duplicate player records found for ${row.name}; resolve the identity conflict before importing`)
+            }
+            byNormalizedName.set(key, row)
           }
         }
       }
@@ -2230,7 +2376,12 @@ export class ImportEngine {
 
         if (!error) {
           for (const row of (data ?? []) as ExistingPlayerRow[]) {
-            byNormalizedName.set(normalizeName(row.name), row)
+            const key = normalizeName(row.name)
+            const current = byNormalizedName.get(key)
+            if (current && current.id !== row.id) {
+              throw new Error(`Duplicate player records found for ${row.name}; resolve the identity conflict before importing`)
+            }
+            byNormalizedName.set(key, row)
           }
         }
       }

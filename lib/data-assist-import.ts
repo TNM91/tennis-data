@@ -121,6 +121,7 @@ function toScorecardImportLine(line: DataAssistScorecardParsedLine, index: numbe
   return {
     lineNumber: lineMeta.lineNumber,
     matchType: lineMeta.matchType,
+    ntrp: line.ntrp ?? null,
     sideAPlayers: line.homePlayers,
     sideBPlayers: line.awayPlayers,
     winnerSide: toWinnerSide(line.winner),

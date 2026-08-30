@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { parseTennisLinkExportFiles } from '../data-assist-export-parser'
 import { buildScorecardOcrDraftFromText } from '../data-assist-ocr'
 import { buildDataAssistScorecardImportRow } from '../data-assist-import'
+import { buildScorecardPlayerRatingSeedMap, inferPlayerBaselineFromRow } from '../ingestion/importEngine'
 import { buildScheduleOcrDraftFromText } from '../data-assist-schedule-parser'
 import { buildTeamSummaryOcrDraftFromText } from '../data-assist-team-summary-parser'
 
@@ -61,11 +62,35 @@ describe('parseTennisLinkExportFiles', () => {
 
     expect(draft.leagueName).toBe('2026 STL Tri-Level 18 & Over')
     expect(draft.lines.map((line) => line.lineLabel)).toEqual(['1 Doubles', '2 Doubles', '3 Doubles'])
+    expect(draft.lines.map((line) => line.ntrp)).toEqual([4.5, 4, 3.5])
     expect(draft.lines[0]?.homePlayers).toEqual(['John Schaefer', 'Sean Baldwin'])
     expect(draft.lines[1]?.winner).toBe('home')
     expect(draft.lines[2]?.awayPlayers).toEqual(['Miles Yetter', 'Sean Bracken'])
     expect(preview.row.leagueName).toBe('2026 STL Tri-Level 18 & Over')
     expect(preview.row.lines).toHaveLength(3)
+    expect(preview.row.lines.map((line) => line.ntrp)).toEqual([4.5, 4, 3.5])
+    expect(buildScorecardPlayerRatingSeedMap(preview.row)).toMatchObject({
+      'john schaefer': 4.5,
+      'brendan czaicki': 4.5,
+      'matthew suddarth': 4,
+      'joel pottebaum': 4,
+      'anthony trent': 3.5,
+      'miles yetter': 3.5,
+    })
+    expect(inferPlayerBaselineFromRow({ ...preview.row, flight: 'Men 3.5/4.0/4.5' })).toBeNull()
+  })
+
+  it('rejects conflicting official line ratings for the same player', () => {
+    expect(() => buildScorecardPlayerRatingSeedMap({
+      externalMatchId: 'conflicting-levels',
+      matchDate: '2026-08-03',
+      homeTeam: 'Home',
+      awayTeam: 'Away',
+      lines: [
+        { lineNumber: 1, matchType: 'singles', ntrp: 4, sideAPlayers: ['Alex Player'], sideBPlayers: ['Jordan One'], winnerSide: 'A' },
+        { lineNumber: 2, matchType: 'doubles', ntrp: 3.5, sideAPlayers: ['Alex Player', 'Jordan Two'], sideBPlayers: ['Casey One', 'Casey Two'], winnerSide: 'B' },
+      ],
+    })).toThrow('Conflicting official NTRP ratings for Alex Player: 4.0 and 3.5')
   })
 
   it('turns match schedule export rows into schedule matches', () => {
