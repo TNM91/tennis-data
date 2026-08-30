@@ -133,21 +133,15 @@ if (rosterRepair.action === 'insert') {
 
 for (let start = 0; start < intendedScoreChanges.length; start += SCORE_REPAIR_BATCH_SIZE) {
   const scoreChangeBatch = intendedScoreChanges.slice(start, start + SCORE_REPAIR_BATCH_SIZE)
-  const { data, error } = await supabase
-    .from('matches')
-    .upsert(scoreChangeBatch.map((scoreChange) => ({
+  const { data, error } = await supabase.rpc('apply_match_score_repairs', {
+    score_updates: scoreChangeBatch.map((scoreChange) => ({
       id: scoreChange.matchId,
       score: scoreChange.after,
-    })), { onConflict: 'id' })
-    .select('id')
+    })),
+  })
   if (error) throw new Error(`Failed to orient score batch ${start / SCORE_REPAIR_BATCH_SIZE + 1}: ${error.message}`)
-
-  const updatedIds = new Set((data ?? []).map((row) => row.id))
-  const missingIds = scoreChangeBatch
-    .map((scoreChange) => scoreChange.matchId)
-    .filter((matchId) => !updatedIds.has(matchId))
-  if (missingIds.length) {
-    throw new Error(`Score repair did not update ${missingIds.length} match(es) in batch ${start / SCORE_REPAIR_BATCH_SIZE + 1}`)
+  if (Number(data) !== scoreChangeBatch.length) {
+    throw new Error(`Score repair updated ${Number(data)} of ${scoreChangeBatch.length} match(es) in batch ${start / SCORE_REPAIR_BATCH_SIZE + 1}`)
   }
 }
 
