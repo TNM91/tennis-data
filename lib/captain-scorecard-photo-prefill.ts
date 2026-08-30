@@ -49,21 +49,43 @@ export function captainScorecardPhotoPrefillStorageKey(batchId: string) {
   return `${STORAGE_PREFIX}${clean(batchId)}`
 }
 
-export function buildCaptainScorecardPhotoPrefill(input: {
+export type CaptainScorecardPhotoPrefillInput = {
   teamName: string
   dataAssistBatchId: string
   dataAssistDraftId: string
   parsedDraft: DataAssistScorecardParsedDraft
-}): CaptainScorecardPhotoPrefill | null {
+}
+
+export function getCaptainScorecardPhotoPrefillIssue(input: CaptainScorecardPhotoPrefillInput) {
   const teamName = clean(input.teamName)
   const dataAssistBatchId = clean(input.dataAssistBatchId)
   const dataAssistDraftId = clean(input.dataAssistDraftId)
-  if (!teamName || !dataAssistBatchId || !dataAssistDraftId || !input.parsedDraft.lines.length) return null
+  if (!teamName || !dataAssistBatchId || !dataAssistDraftId) return 'TiQ could not connect that photo to this captain scorecard. Start the photo read again from the matchup sheet.'
+  if (!input.parsedDraft.lines.length) return 'TiQ could not read any courts from that photo. Retake a tighter scorecard photo or enter the result manually.'
 
   const teamIdentity = identity(teamName)
   const homeMatchesTeam = teamIdentity && identity(input.parsedDraft.homeTeam) === teamIdentity
   const awayMatchesTeam = teamIdentity && identity(input.parsedDraft.awayTeam) === teamIdentity
-  const teamIsHome = homeMatchesTeam || !awayMatchesTeam
+  if (!homeMatchesTeam && !awayMatchesTeam) {
+    return `TiQ could not confirm ${teamName} on this scorecard. Retake a photo that includes both team names, or enter the result manually.`
+  }
+  const teamIsHome = homeMatchesTeam
+  const opponentTeam = clean(teamIsHome ? input.parsedDraft.awayTeam : input.parsedDraft.homeTeam)
+  if (!opponentTeam) return 'TiQ could not confirm the opposing team on this scorecard. Retake the photo or enter the result manually.'
+  if (input.parsedDraft.lines.some((line) => line.winner !== 'home' && line.winner !== 'away')) {
+    return 'TiQ could not confirm every court winner from that photo. Retake the photo or enter those courts manually.'
+  }
+  return null
+}
+
+export function buildCaptainScorecardPhotoPrefill(input: CaptainScorecardPhotoPrefillInput): CaptainScorecardPhotoPrefill | null {
+  const issue = getCaptainScorecardPhotoPrefillIssue(input)
+  if (issue) return null
+  const teamName = clean(input.teamName)
+  const dataAssistBatchId = clean(input.dataAssistBatchId)
+  const dataAssistDraftId = clean(input.dataAssistDraftId)
+  const teamIdentity = identity(teamName)
+  const teamIsHome = teamIdentity === identity(input.parsedDraft.homeTeam)
   const opponentTeam = clean(teamIsHome ? input.parsedDraft.awayTeam : input.parsedDraft.homeTeam)
   const usedCourtNumbers = new Set<number>()
   const courts = input.parsedDraft.lines.map((line, index) => {

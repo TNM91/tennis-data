@@ -47,6 +47,7 @@ import {
 import {
   buildCaptainScorecardPhotoPrefill,
   captainScorecardPhotoPrefillStorageKey,
+  getCaptainScorecardPhotoPrefillIssue,
 } from '@/lib/captain-scorecard-photo-prefill'
 import { acceptCaptainImportConnection } from '@/lib/team-profile-links-client'
 
@@ -391,12 +392,18 @@ function DataAssistWorkspace() {
     parsedDraft: DataAssistScorecardParsedDraft
   }) {
     if (!captainScorecardReturn) return
-    const prefill = buildCaptainScorecardPhotoPrefill({
+    const prefillInput = {
       teamName: captainScorecardReturn.teamName,
       dataAssistBatchId: input.batchId,
       dataAssistDraftId: input.draftId,
       parsedDraft: input.parsedDraft,
-    })
+    }
+    const prefillIssue = getCaptainScorecardPhotoPrefillIssue(prefillInput)
+    if (prefillIssue) {
+      setError(prefillIssue)
+      return
+    }
+    const prefill = buildCaptainScorecardPhotoPrefill(prefillInput)
     if (!prefill) {
       setError('TiQ could not prepare that photo read for a captain scorecard. Check the team and court names, then try again.')
       return
@@ -1439,7 +1446,18 @@ function DataAssistWorkspace() {
                 busy={reviewingSubmissionId === latestScan.batchId}
                 onConfirm={() => void reviewLatestScan('confirmed')}
                 onFlag={() => void reviewLatestScan('flagged')}
-                onOpenCaptainScorecard={captainScorecardReturn ? () => openVerifiedCaptainScorecard({
+                captainScorecardHandoffIssue={captainScorecardReturn ? getCaptainScorecardPhotoPrefillIssue({
+                  teamName: captainScorecardReturn.teamName,
+                  dataAssistBatchId: latestScan.batchId,
+                  dataAssistDraftId: latestScan.draftId,
+                  parsedDraft: latestScan.parsedDraft,
+                }) : undefined}
+                onOpenCaptainScorecard={captainScorecardReturn && !getCaptainScorecardPhotoPrefillIssue({
+                  teamName: captainScorecardReturn.teamName,
+                  dataAssistBatchId: latestScan.batchId,
+                  dataAssistDraftId: latestScan.draftId,
+                  parsedDraft: latestScan.parsedDraft,
+                }) ? () => openVerifiedCaptainScorecard({
                   batchId: latestScan.batchId,
                   draftId: latestScan.draftId,
                   parsedDraft: latestScan.parsedDraft,
@@ -2811,15 +2829,28 @@ function SubmissionCard({
               busy={busy}
               onConfirm={() => onReview(submission, 'confirmed')}
               onFlag={() => onReview(submission, 'flagged')}
-              onOpenCaptainScorecard={returnTo.startsWith('/captain/record-result') ? () => {
+              captainScorecardHandoffIssue={returnTo.startsWith('/captain/record-result') ? getCaptainScorecardPhotoPrefillIssue({
+                teamName: getCaptainScorecardReturnContext(returnTo)?.teamName || '',
+                dataAssistBatchId: submission.id,
+                dataAssistDraftId: submission.draftId,
+                parsedDraft,
+              }) : undefined}
+              onOpenCaptainScorecard={returnTo.startsWith('/captain/record-result') && !getCaptainScorecardPhotoPrefillIssue({
+                teamName: getCaptainScorecardReturnContext(returnTo)?.teamName || '',
+                dataAssistBatchId: submission.id,
+                dataAssistDraftId: submission.draftId,
+                parsedDraft,
+              }) ? () => {
                 const context = getCaptainScorecardReturnContext(returnTo)
                 if (!context) return
-                const prefill = buildCaptainScorecardPhotoPrefill({
+                const prefillInput = {
                   teamName: context.teamName,
                   dataAssistBatchId: submission.id,
                   dataAssistDraftId: submission.draftId,
                   parsedDraft,
-                })
+                }
+                if (getCaptainScorecardPhotoPrefillIssue(prefillInput)) return
+                const prefill = buildCaptainScorecardPhotoPrefill(prefillInput)
                 if (!prefill) return
                 try {
                   window.sessionStorage.setItem(captainScorecardPhotoPrefillStorageKey(prefill.dataAssistBatchId), JSON.stringify(prefill))
@@ -3336,6 +3367,7 @@ function ScorecardReviewPanel({
   onConfirm,
   onFlag,
   onOpenCaptainScorecard,
+  captainScorecardHandoffIssue,
 }: {
   parsedDraft: DataAssistScorecardParsedDraft
   canReview: boolean
@@ -3343,6 +3375,7 @@ function ScorecardReviewPanel({
   onConfirm: () => void
   onFlag: () => void
   onOpenCaptainScorecard?: () => void
+  captainScorecardHandoffIssue?: string | null
 }) {
   const reviewItems = getScorecardReviewItems(parsedDraft)
   const winnerCount = parsedDraft.lines.filter((line) => line.winner === 'home' || line.winner === 'away').length
@@ -3419,6 +3452,12 @@ function ScorecardReviewPanel({
           <button type="button" onClick={onOpenCaptainScorecard} style={primaryButtonStyle}>
             Review in verified scorecard
           </button>
+        </div>
+      ) : null}
+      {captainScorecardHandoffIssue ? (
+        <div style={reviewChecklistStyle}>
+          <strong>Photo needs one more check</strong>
+          <span>{captainScorecardHandoffIssue}</span>
         </div>
       ) : null}
       {canReview ? (

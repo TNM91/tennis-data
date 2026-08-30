@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildCaptainScorecardPhotoPrefill,
   captainScorecardPhotoPrefillStorageKey,
+  getCaptainScorecardPhotoPrefillIssue,
   isCaptainScorecardPhotoPrefill,
 } from '../captain-scorecard-photo-prefill'
 
@@ -85,5 +86,31 @@ describe('captain scorecard photo prefill', () => {
       opponentPlayers: ['Nathan Meinert', 'Michael Ho'],
       outcome: 'team',
     })
+  })
+
+  it('refuses an unsafe handoff when the scan cannot identify the captain team or a court winner', () => {
+    expect(getCaptainScorecardPhotoPrefillIssue({
+      teamName: 'A different team',
+      dataAssistBatchId: 'batch-1',
+      dataAssistDraftId: 'draft-1',
+      parsedDraft,
+    })).toContain('could not confirm A different team')
+
+    const incompleteWinner = {
+      ...parsedDraft,
+      lines: [{ ...parsedDraft.lines[0], winner: 'unknown' }],
+    }
+    expect(getCaptainScorecardPhotoPrefillIssue({
+      teamName: 'SuperSmash Bros',
+      dataAssistBatchId: 'batch-1',
+      dataAssistDraftId: 'draft-1',
+      parsedDraft: incompleteWinner,
+    })).toContain('could not confirm every court winner')
+    expect(buildCaptainScorecardPhotoPrefill({
+      teamName: 'SuperSmash Bros',
+      dataAssistBatchId: 'batch-1',
+      dataAssistDraftId: 'draft-1',
+      parsedDraft: incompleteWinner,
+    })).toBeNull()
   })
 })
