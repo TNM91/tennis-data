@@ -242,6 +242,7 @@ function getSafeDataAssistReturnTo(value: string | null): string {
   if (path === '/captain' || path.startsWith('/captain/')) return path
   if (path === '/team-room' || path.startsWith('/team-room?')) return path
   if (path === '/clubs' || path.startsWith('/clubs?')) return path
+  if (path.startsWith('/teams/')) return path
   return ''
 }
 
@@ -296,6 +297,7 @@ function DataAssistWorkspace() {
   const intentContext = getDataAssistContext(searchParams.get('context'))
   const intentQuery = getDataAssistQuery(searchParams.get('q'))
   const requestedImportType = getRequestedImportType(searchParams.get('type'))
+  const contactImportRequested = searchParams.get('contactImport') === '1'
   const exportHelpRequested = searchParams.get('help') === '1'
   const scorecardCameraRequested = searchParams.get('capture') === 'camera'
   const returnTo = getSafeDataAssistReturnTo(searchParams.get('returnTo'))
@@ -377,6 +379,10 @@ function DataAssistWorkspace() {
         accessToken: session.access_token,
         batchId: input.batchId,
       })
+    }
+    if (returnTo.startsWith('/teams/')) {
+      router.replace(returnTo)
+      return true
     }
     router.replace(buildCaptainImportReturnHref(returnTo, handoff))
     return true
@@ -1187,6 +1193,7 @@ function DataAssistWorkspace() {
               selectedImportType={importType}
               onSelectImportType={chooseImportType}
               issueHref={buildDataAssistIssueHref(intentContext, intentQuery)}
+              contactImportRequested={contactImportRequested}
             />
 
             <input
@@ -1231,8 +1238,8 @@ function DataAssistWorkspace() {
                 >
                   <div style={mobileUploadHelpStackStyle}>
                     <div style={simpleHelpStyle}>
-                      <strong>{getUploadHelpTitle(importType)}</strong>
-                      <span>{getUploadHelpText(importType)}</span>
+                      <strong>{getUploadHelpTitle(importType, contactImportRequested)}</strong>
+                      <span>{getUploadHelpText(importType, contactImportRequested)}</span>
                     </div>
                     {!exportHelpRequested ? (
                       <div style={seasonGuideStyle}>
@@ -1240,7 +1247,7 @@ function DataAssistWorkspace() {
                         <span>A scorecard import will not break if schedule or roster setup is missing. TenAceIQ links what it can and creates the missing player/match context it needs.</span>
                       </div>
                     ) : null}
-                    <ExportHelpPanel importType={importType} defaultOpen={exportHelpRequested} />
+                    <ExportHelpPanel importType={importType} defaultOpen={exportHelpRequested} contactImportRequested={contactImportRequested} />
                     {!exportHelpRequested ? (
                       <>
                         <DataAssistReviewFlowPanel />
@@ -1252,8 +1259,8 @@ function DataAssistWorkspace() {
               ) : (
                 <>
                   <div style={simpleHelpStyle}>
-                    <strong>{getUploadHelpTitle(importType)}</strong>
-                    <span>{getUploadHelpText(importType)}</span>
+                    <strong>{getUploadHelpTitle(importType, contactImportRequested)}</strong>
+                    <span>{getUploadHelpText(importType, contactImportRequested)}</span>
                   </div>
                   {!exportHelpRequested ? (
                     <div style={seasonGuideStyle}>
@@ -1261,7 +1268,7 @@ function DataAssistWorkspace() {
                       <span>A scorecard import will not break if schedule or roster setup is missing. TenAceIQ links what it can and creates the missing player/match context it needs.</span>
                     </div>
                   ) : null}
-                  <ExportHelpPanel importType={importType} defaultOpen={exportHelpRequested} />
+                  <ExportHelpPanel importType={importType} defaultOpen={exportHelpRequested} contactImportRequested={contactImportRequested} />
                 </>
               )
             ) : null}
@@ -1692,10 +1699,12 @@ function DataAssistSourcePathPanel({
   selectedImportType,
   onSelectImportType,
   issueHref,
+  contactImportRequested = false,
 }: {
   selectedImportType: DataAssistImportType
   onSelectImportType: (importType: DataAssistImportType) => void
   issueHref: string
+  contactImportRequested?: boolean
 }) {
   const { isMobile, isTablet } = useViewportBreakpoints()
   const isCompactViewport = isMobile || isTablet
@@ -1704,27 +1713,40 @@ function DataAssistSourcePathPanel({
   const dynamicTitleStyle = isCompactViewport ? compactSourcePathTitleStyle : sourcePathTitleStyle
   const dynamicGridStyle = isCompactViewport ? compactSourcePathGridStyle : sourcePathGridStyle
   const dynamicCardStyle = isCompactViewport ? compactSourcePathCardStyle : sourcePathCardStyle
+  const visibleJobs = contactImportRequested
+    ? dataAssistSourcePathJobs.filter((job) => job.id === 'team_summary')
+    : dataAssistSourcePathJobs
 
   return (
     <section style={dynamicPanelStyle} aria-labelledby="data-assist-source-path-title">
       <div style={dynamicHeaderStyle}>
         <div>
-          <span style={sourcePathEyebrowStyle}>Source refresh path</span>
-          <h2 id="data-assist-source-path-title" style={dynamicTitleStyle}>Choose your first source.</h2>
-          {isCompactViewport ? <p style={sourcePathIntroStyle}>For team setup, start with Team Summary.</p> : null}
+          <span style={sourcePathEyebrowStyle}>{contactImportRequested ? 'Team contacts' : 'Source refresh path'}</span>
+          <h2 id="data-assist-source-path-title" style={dynamicTitleStyle}>{contactImportRequested ? 'Add team contacts.' : 'Choose your first source.'}</h2>
+          {isCompactViewport ? <p style={sourcePathIntroStyle}>{contactImportRequested ? 'Upload your TennisLink Player Roster for private captain contact details.' : 'For team setup, start with Team Summary.'}</p> : null}
         </div>
         {!isCompactViewport ? <p style={sourcePathIntroStyle}>
-          For team setup, start with Team Summary. TiQ reviews every source before records change.
+          {contactImportRequested
+            ? 'Upload your TennisLink Player Roster to add private phone and email details. Your Team Summary stays in place.'
+            : 'For team setup, start with Team Summary. TiQ reviews every source before records change.'}
         </p> : null}
       </div>
       <div style={sourcePathDefaultCueStyle}>
-        <strong>Team setup: start with Team Summary.</strong>
-        <span>Use Player Roster later only if you manage that team and want its phone or email contacts.</span>
+        <strong>{contactImportRequested ? 'Captain contacts: use Player Roster.' : 'Team setup: start with Team Summary.'}</strong>
+        <span>{contactImportRequested
+          ? 'This adds contact details only. It does not replace the team, rating, or standings context already imported.'
+          : 'Use Player Roster later only if you manage that team and want its phone or email contacts.'}</span>
       </div>
       <div style={dynamicGridStyle}>
-        {dataAssistSourcePathJobs.map((job) => {
+        {visibleJobs.map((job) => {
           const selected = selectedImportType === job.id
           const recommended = job.id === 'team_summary'
+          const title = contactImportRequested && job.id === 'team_summary' ? 'Player Roster contacts' : job.title
+          const question = contactImportRequested && job.id === 'team_summary' ? 'Need private captain contacts?' : job.question
+          const cta = contactImportRequested && job.id === 'team_summary' ? 'Phones and email for match week' : job.cta
+          const body = contactImportRequested && job.id === 'team_summary'
+            ? 'For your team only: import the TennisLink Player Roster to save the contact details it includes. Your Team Summary is not replaced.'
+            : job.body
           return (
             <button
               key={job.id}
@@ -1732,7 +1754,7 @@ function DataAssistSourcePathPanel({
               style={{ ...dynamicCardStyle, ...(selected ? sourcePathSelectedCardStyle : {}) }}
               onClick={() => onSelectImportType(job.id)}
               data-data-assist-source-path-job={job.id}
-              aria-label={`Upload ${job.title}: ${job.cta}`}
+              aria-label={`Upload ${title}: ${cta}`}
               aria-pressed={selected}
             >
               <span style={sourcePathCardTopStyle}>
@@ -1741,10 +1763,10 @@ function DataAssistSourcePathPanel({
                   {selected ? 'Selected' : recommended ? 'Start here' : 'Upload'}
                 </span>
               </span>
-              {!isCompactViewport ? <span style={sourcePathQuestionStyle}>{job.question}</span> : null}
-              <strong style={sourcePathCardTitleStyle}>{job.title}</strong>
-              <span style={sourcePathCtaStyle}>{job.cta}</span>
-              {!isCompactViewport ? <span>{job.body}</span> : null}
+              {!isCompactViewport ? <span style={sourcePathQuestionStyle}>{question}</span> : null}
+              <strong style={sourcePathCardTitleStyle}>{title}</strong>
+              <span style={sourcePathCtaStyle}>{cta}</span>
+              {!isCompactViewport ? <span>{body}</span> : null}
             </button>
           )
         })}
@@ -2069,23 +2091,26 @@ function isScorecardPhotoSummary(summary: DataAssistBatchSummary) {
     && summary.screenshots.every((screenshot) => screenshot.mimeType.startsWith('image/'))
 }
 
-function getUploadHelpTitle(importType: DataAssistImportType) {
+function getUploadHelpTitle(importType: DataAssistImportType, contactImportRequested = false) {
   if (importType === 'schedule') return 'Flight or team schedule export'
-  if (importType === 'team_summary') return 'Team Summary export'
+  if (importType === 'team_summary') return contactImportRequested ? 'Player Roster contact export' : 'Team Summary export'
   return 'Scorecard export'
 }
 
-function getUploadHelpText(importType: DataAssistImportType) {
+function getUploadHelpText(importType: DataAssistImportType, contactImportRequested = false) {
   if (importType === 'schedule') {
     return 'Open the Match Schedule tab and choose Send To Excel. This is season setup; most teams only need it once.'
   }
   if (importType === 'team_summary') {
+    if (contactImportRequested) {
+      return 'In TennisLink, open your team’s Player Roster and choose Send To Excel. TiQ adds the phone and email details included there without replacing your Team Summary.'
+    }
     return 'Start with Team Summary and choose Send To Excel. It imports the team, league, flight, roster, official ratings, and standings. If you manage the team, add Player Roster later for phone and email details.'
   }
   return 'Open each Score Card and choose Send To Excel. Import one match after play or select several scorecards to catch up.'
 }
 
-function getExportHelpSteps(importType: DataAssistImportType) {
+function getExportHelpSteps(importType: DataAssistImportType, contactImportRequested = false) {
   if (importType === 'schedule') {
     return [
       'Open TennisLink and go to the Match Schedule tab.',
@@ -2094,6 +2119,14 @@ function getExportHelpSteps(importType: DataAssistImportType) {
     ]
   }
   if (importType === 'team_summary') {
+    if (contactImportRequested) {
+      return [
+        'Open TennisLink and select your own league team.',
+        'Open Player Roster, then choose Send To Excel.',
+        'Upload the PlayerRoster .xls file here.',
+        'Return to the team roster to see what is text-ready or still missing.',
+      ]
+    }
     return [
       'Open TennisLink and go to Team Summary.',
       'Choose Send To Excel.',
@@ -2108,9 +2141,9 @@ function getExportHelpSteps(importType: DataAssistImportType) {
   ]
 }
 
-function getExportFileExample(importType: DataAssistImportType) {
+function getExportFileExample(importType: DataAssistImportType, contactImportRequested = false) {
   if (importType === 'schedule') return 'MatchSchedule_582026.xls'
-  if (importType === 'team_summary') return 'TeamSummary_812026.xls'
+  if (importType === 'team_summary') return contactImportRequested ? 'PlayerRoster_812026.xls' : 'TeamSummary_812026.xls'
   return 'Scorecard_582026.xls'
 }
 
@@ -2129,9 +2162,17 @@ function DataAssistWalkthroughHelp() {
   )
 }
 
-function ExportHelpPanel({ importType, defaultOpen = false }: { importType: DataAssistImportType; defaultOpen?: boolean }) {
+function ExportHelpPanel({
+  importType,
+  defaultOpen = false,
+  contactImportRequested = false,
+}: {
+  importType: DataAssistImportType
+  defaultOpen?: boolean
+  contactImportRequested?: boolean
+}) {
   const [open, setOpen] = useState(defaultOpen)
-  const steps = getExportHelpSteps(importType)
+  const steps = getExportHelpSteps(importType, contactImportRequested)
 
   return (
     <div style={exportHelpStyle}>
@@ -2148,7 +2189,7 @@ function ExportHelpPanel({ importType, defaultOpen = false }: { importType: Data
             </div>
           ))}
           <div style={exportHelpExampleStyle}>
-            Expected file: <strong>{getExportFileExample(importType)}</strong>
+            Expected file: <strong>{getExportFileExample(importType, contactImportRequested)}</strong>
           </div>
         </div>
       ) : null}
@@ -3230,16 +3271,16 @@ function TeamSummaryReviewPanel({ parsedDraft }: { parsedDraft: DataAssistTeamSu
       </div>
       <p style={copyStyle}>
         {isPlayerRoster
-          ? 'TenAceIQ found roster players, starting ratings, and the phone or email details included by TennisLink.'
+          ? 'TenAceIQ found the private phone or email details included by TennisLink. This contact import will not change your Team Summary, ratings, or standings.'
           : 'TenAceIQ found the team, league, flight, roster players, official ratings, and standings. Add your Player Roster later if you want captain contact details.'}
       </p>
       <RosterPlayersList parsedDraft={parsedDraft} />
       <div style={missingRatingCount ? reviewChecklistStyle : readyImportNoteStyle}>
-        <strong>{missingRatingCount ? 'Before importing' : isPlayerRoster ? 'Roster ready' : 'Team Summary ready'}</strong>
+        <strong>{missingRatingCount ? 'Before importing' : isPlayerRoster ? 'Contacts ready' : 'Team Summary ready'}</strong>
         <span>{missingRatingCount
           ? `${missingRatingCount} player rating${missingRatingCount === 1 ? '' : 's'} need review.`
           : isPlayerRoster
-            ? `${parsedDraft.contactCount || 0} contact${parsedDraft.contactCount === 1 ? '' : 's'} will be ready for captain messages.`
+            ? `${parsedDraft.contactCount || 0} contact${parsedDraft.contactCount === 1 ? '' : 's'} will be ready for captain messages without changing your Team Summary.`
             : 'Player and rating context is ready. Player contacts remain optional.'}</span>
       </div>
     </div>
@@ -3264,10 +3305,10 @@ function TeamSummaryImportedPanel({
     <div style={importPanelStyle}>
       <div style={submissionCardTopStyle}>
         <div style={headerCopyStyle}>
-          <strong>{isPlayerRoster ? 'Player Roster imported' : 'Team Summary imported'}</strong>
+          <strong>{isPlayerRoster ? 'Team contacts imported' : 'Team Summary imported'}</strong>
           <p style={copyStyle}>
             {isPlayerRoster
-              ? 'Players, starting ratings, and available contacts are now connected to player profiles, team pages, and Team Hub.'
+              ? 'Private phone and email details from the Player Roster are ready for captain asks and team messages. Your Team Summary stays in place.'
               : 'Players, official ratings, league context, and standings are now connected to player profiles, team pages, and Team Hub.'}
           </p>
         </div>
@@ -3275,15 +3316,21 @@ function TeamSummaryImportedPanel({
       </div>
       <div style={scorecardHeaderGridStyle}>
         <ReviewFact label="Team" value={parsedDraft.rosterTeamName || 'Team roster'} />
-        <ReviewFact label="Players" value={String(rosterResult?.totalPlayers ?? parsedDraft.playerCount)} />
-        <ReviewFact label="Created" value={String(rosterResult?.createdCount ?? 0)} />
-        <ReviewFact label="Updated" value={String(rosterResult?.updatedCount ?? 0)} />
-        <ReviewFact label="Contacts" value={String(result.importedContactCount ?? parsedDraft.contactCount ?? 0)} />
+        {isPlayerRoster ? <>
+          <ReviewFact label="Roster checked" value={String(parsedDraft.playerCount)} />
+          <ReviewFact label="Contacts saved" value={String(result.importedContactCount ?? parsedDraft.contactCount ?? 0)} />
+          <ReviewFact label="Team Summary" value="Kept" />
+        </> : <>
+          <ReviewFact label="Players" value={String(rosterResult?.totalPlayers ?? parsedDraft.playerCount)} />
+          <ReviewFact label="Created" value={String(rosterResult?.createdCount ?? 0)} />
+          <ReviewFact label="Updated" value={String(rosterResult?.updatedCount ?? 0)} />
+          <ReviewFact label="Contacts" value={String(result.importedContactCount ?? parsedDraft.contactCount ?? 0)} />
+        </>}
       </div>
-      <RosterPlayersList parsedDraft={parsedDraft} />
+      {!isPlayerRoster ? <RosterPlayersList parsedDraft={parsedDraft} /> : null}
       <div style={readyImportNoteStyle}>
-        <strong>All set</strong>
-        <span>{result.message || 'Team roster imported to TenAceIQ.'}</span>
+        <strong>{isPlayerRoster ? 'Contacts ready' : 'All set'}</strong>
+        <span>{result.message || (isPlayerRoster ? 'Team contacts are ready for match week.' : 'Team roster imported to TenAceIQ.')}</span>
       </div>
       <PostImportActions
         actions={buildRosterPostImportActions(parsedDraft, { context, returnTo })}
@@ -3341,7 +3388,13 @@ function buildRosterPostImportActions(
   const actions: Array<{ label: string; href: string }> = []
   if (options.returnTo) {
     actions.push({
-      label: options.returnTo.startsWith('/clubs') ? 'Return to Club People' : options.returnTo.startsWith('/captain/lineup-builder') ? 'Return to Build Lineup' : 'Continue Captain setup',
+      label: options.returnTo.startsWith('/clubs')
+        ? 'Return to Club People'
+        : options.returnTo.startsWith('/teams/')
+          ? 'Return to Team contacts'
+          : options.returnTo.startsWith('/captain/lineup-builder')
+            ? 'Return to Build Lineup'
+            : 'Continue Captain setup',
       href: options.returnTo,
     })
   } else if (/\b(?:captain|team hub)\b/i.test(options.context || '')) {
