@@ -116,7 +116,7 @@ const tiers = [
     comparePaid: 'PLAYER MAKES TENACEIQ YOURS.',
     core: 'Player unlocks My Lab and the tools that turn your tennis context into a personal plan - for what to follow, what to practice, and how to prepare.',
     why: 'You are paying for a connected player experience - not another pile of tennis data.',
-    price: '$4.99',
+    price: '$2.99',
     priceNote: '/ MONTH',
     cta: 'UNLOCK MY LAB',
     support: 'Start with Free. Upgrade when you want TenAceIQ built around your game.',
@@ -154,7 +154,7 @@ const tiers = [
     comparePaid: 'COACH KEEPS EVERY PLAYER MOVING BETWEEN SESSIONS.',
     core: 'Coach includes Player, then adds Coach Hub to turn every lesson into assigned work, visible progress, and a clear next step.',
     why: 'You are paying to see what each player needs, send the next useful action, and know what happened before the next session.',
-    price: '$9.99',
+    price: '$5.99',
     priceNote: '/ MONTH',
     cta: 'UNLOCK COACH',
     support: 'Best for private coaches, school coaches, and training-group leaders.',
@@ -192,7 +192,7 @@ const tiers = [
     comparePaid: 'CAPTAIN BUILDS YOUR MATCH WEEK.',
     core: 'Captain includes Player, then adds Team Hub and Captain Tools for availability, lineups, pairings, scouting, readiness, and team communication.',
     why: 'You are paying for clearer lineup decisions and fewer follow-ups before match day.',
-    price: '$9.99',
+    price: '$5.99',
     priceNote: '/ MONTH',
     cta: 'UNLOCK CAPTAIN',
     support: 'Best for captains who want less chasing and a lineup they can explain.',
@@ -268,7 +268,7 @@ const tiers = [
     comparePaid: 'FULL-COURT CONNECTS EVERY TENNIS ROLE YOU SUPPORT.',
     core: 'Full-Court combines My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk tools in one account.',
     why: 'You are paying to stop switching between disconnected plans as you coach, captain, organize, and compete.',
-    price: '$19.99',
+    price: '$14.99',
     priceNote: '/ MONTH',
     cta: 'UNLOCK FULL-COURT',
     support: 'Best for people supporting players, teams, leagues, and events at once.',
@@ -306,11 +306,11 @@ const tiers = [
 
 const pricingRows = [
   ['Free', '$0', 'Find public tennis context'],
-  ['Player', '$4.99/mo', 'Make TenAceIQ personal'],
-  ['Coach', '$9.99/mo', 'Develop players between sessions'],
-  ['Captain', '$9.99/mo', 'Lead the whole match week'],
+  ['Player', '$2.99/mo', 'Make TenAceIQ personal'],
+  ['Coach', '$5.99/mo', 'Develop players between sessions'],
+  ['Captain', '$5.99/mo', 'Lead the whole match week'],
   ['League', '$25/season', 'Run one league, ladder, or event'],
-  ['Full-Court', '$19.99/mo', 'Connect every tennis role'],
+  ['Full-Court', '$14.99/mo', 'Connect every tennis role'],
 ]
 
 const browser = await chromium.launch({ headless: true })

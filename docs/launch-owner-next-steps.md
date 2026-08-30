@@ -56,11 +56,11 @@ Before public launch:
 Current tiers:
 
 - Free: `$0`.
-- Player: `$4.99/month`.
-- Coach: `$9.99/month`.
-- Captain: `$9.99/month`.
+- Player: `$2.99/month`.
+- Coach: `$5.99/month`.
+- Captain: `$5.99/month`.
 - League: `$25/season`, one-time.
-- Full-Court: `$19.99/month`.
+- Full-Court: `$14.99/month`.
 
 Current Stripe readiness:
 

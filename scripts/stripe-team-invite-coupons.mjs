@@ -1,15 +1,15 @@
 const STRIPE_API_VERSION = '2026-04-22.dahlia'
 const COUPONS = [
   {
-    id: 'tiq_captain_team_invite_first_month_2026',
-    amountOff: 500,
-    name: 'Captain invite: first month $4.99',
+    id: 'tiq_captain_team_invite_first_month_2026_v2',
+    amountOff: 300,
+    name: 'Captain invite: first month $2.99',
     planId: 'captain',
   },
   {
-    id: 'tiq_player_team_invite_first_month_2026',
-    amountOff: 250,
-    name: 'Improve invite: first month $2.49',
+    id: 'tiq_player_team_invite_first_month_2026_v2',
+    amountOff: 150,
+    name: 'Improve invite: first month $1.49',
     planId: 'player_plus',
   },
 ]
@@ -18,8 +18,8 @@ const secretKey = process.env.STRIPE_SECRET_KEY?.trim() || ''
 const expectedMode = process.argv.includes('--expect=test') ? 'test' : 'live'
 
 if (!secretKey) stop('Set STRIPE_SECRET_KEY before provisioning invitation coupons.')
-if (expectedMode === 'live' && !secretKey.startsWith('sk_live_')) {
-  stop('Expected a live Stripe key. Use --expect=test only for an intentional test-mode setup.')
+if (expectedMode === 'live' && !isLiveStripeKey(secretKey)) {
+  stop('Expected a live Stripe secret or restricted key. Use --expect=test only for an intentional test-mode setup.')
 }
 if (expectedMode === 'test' && !secretKey.startsWith('sk_test_')) {
   stop('Expected a test Stripe key.')
@@ -88,4 +88,8 @@ function verifyCoupon(coupon, config) {
 function stop(message) {
   console.error(message)
   process.exit(1)
+}
+
+function isLiveStripeKey(value) {
+  return value.startsWith('sk_live_') || value.startsWith('rk_live_')
 }

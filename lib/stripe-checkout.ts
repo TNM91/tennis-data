@@ -12,6 +12,10 @@ export type StripeCheckoutSessionInput = {
   origin: string
   nextHref: string
   couponId?: string
+  trialEnd?: number
+  campaignKey?: string
+  pilotRedemptionId?: string
+  allowPromotionCodes?: boolean
 }
 
 export const STRIPE_PRICE_ENV_BY_PLAN: Record<PaidPricingPlanId, string> = {
@@ -43,12 +47,18 @@ export function buildStripeCheckoutSessionParams({
   origin,
   nextHref,
   couponId,
+  trialEnd,
+  campaignKey,
+  pilotRedemptionId,
+  allowPromotionCodes = true,
 }: StripeCheckoutSessionInput) {
   const mode = getStripeCheckoutMode(planId)
   const metadata = {
     upgrade_request_id: requestId,
     user_id: userId,
     plan_id: planId,
+    campaign_key: campaignKey || '',
+    pilot_redemption_id: pilotRedemptionId || '',
   }
   const successUrl = buildUpgradeReturnUrl(origin, planId, nextHref, 'success', requestId)
   const cancelUrl = buildUpgradeReturnUrl(origin, planId, nextHref, 'cancel', requestId)
@@ -62,12 +72,14 @@ export function buildStripeCheckoutSessionParams({
   params.set('client_reference_id', requestId)
   if (couponId) {
     params.set('discounts[0][coupon]', couponId)
-  } else {
+  } else if (allowPromotionCodes) {
     params.set('allow_promotion_codes', 'true')
   }
   params.set('metadata[upgrade_request_id]', metadata.upgrade_request_id)
   params.set('metadata[user_id]', metadata.user_id)
   params.set('metadata[plan_id]', metadata.plan_id)
+  if (metadata.campaign_key) params.set('metadata[campaign_key]', metadata.campaign_key)
+  if (metadata.pilot_redemption_id) params.set('metadata[pilot_redemption_id]', metadata.pilot_redemption_id)
 
   if (customerId) {
     params.set('customer', customerId)
@@ -83,6 +95,13 @@ export function buildStripeCheckoutSessionParams({
   params.set(`${nestedMetadataPrefix}[upgrade_request_id]`, metadata.upgrade_request_id)
   params.set(`${nestedMetadataPrefix}[user_id]`, metadata.user_id)
   params.set(`${nestedMetadataPrefix}[plan_id]`, metadata.plan_id)
+  if (metadata.campaign_key) params.set(`${nestedMetadataPrefix}[campaign_key]`, metadata.campaign_key)
+  if (metadata.pilot_redemption_id) params.set(`${nestedMetadataPrefix}[pilot_redemption_id]`, metadata.pilot_redemption_id)
+
+  if (mode === 'subscription' && trialEnd) {
+    params.set('subscription_data[trial_end]', String(trialEnd))
+    params.set('payment_method_collection', 'always')
+  }
 
   return params
 }

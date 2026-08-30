@@ -10,7 +10,6 @@ import {
   useState,
 } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import SiteShell from '@/app/components/site-shell'
@@ -136,6 +135,7 @@ function JoinContent() {
   const searchParams = useSearchParams()
   const { role, entitlements, authResolved } = useAuth()
 
+  const [firstName, setFirstName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -157,6 +157,7 @@ function JoinContent() {
   const selectedTier = getMembershipTier(selectedPlanId)
   const requestedNextRoute = searchParams.get('next')
   const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, getJoinNextRoute(selectedPlanId))
+  const isCaptainPilotSignup = selectedPlanId === 'captain' && selectedNextRoute.startsWith('/captain-pilot')
   const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
   const signInHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, email || requestedEmail)
   const authLoading = !authResolved
@@ -217,21 +218,24 @@ function JoinContent() {
 
     try {
       const postSignupLoginHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, trimmedEmail)
-      const emailRedirectTo = typeof window !== 'undefined'
-        ? new URL(postSignupLoginHref, window.location.origin).toString()
-        : undefined
-      const { error } = await supabase.auth.signUp({
-        email: trimmedEmail,
-        password,
-        options: emailRedirectTo ? { emailRedirectTo } : undefined,
+      const signupResponse = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName,
+          email: trimmedEmail,
+          password,
+          planId: selectedPlanId,
+          nextHref: selectedNextRoute,
+          captainPilot: isCaptainPilotSignup,
+        }),
       })
+      const signupResult = await signupResponse.json().catch(() => null) as { ok?: boolean; message?: string } | null
+      if (!signupResponse.ok || !signupResult?.ok) throw new Error(signupResult?.message || 'Unable to create account.')
 
-      if (error) throw new Error(error.message)
-
-      setMessage(selectedIntent.success)
-      setTimeout(() => {
-        router.push(postSignupLoginHref)
-      }, 1000)
+      setMessage(isCaptainPilotSignup
+        ? 'Check your email to confirm your account. Your Captain Pilot welcome will guide you to the team form and secure checkout.'
+        : 'Check your email to confirm your account. Your personal TenAceiQ welcome will show you the right next step.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account.')
     } finally {
@@ -308,6 +312,24 @@ function JoinContent() {
               <p style={formIntroStyle}>
                 {isMobile ? selectedIntent.mobileText : selectedIntent.desktopText}
               </p>
+
+              <label htmlFor="firstName" style={inputLabel}>
+                First name <span style={optionalFieldLabel}>(optional)</span>
+              </label>
+              <input
+                id="firstName"
+                type="text"
+                autoComplete="given-name"
+                maxLength={60}
+                value={firstName}
+                onChange={(e) => {
+                  setFirstName(e.target.value)
+                  setError('')
+                  setMessage('')
+                }}
+                placeholder="So we can welcome you personally"
+                style={inputStyle}
+              />
 
               <label htmlFor="email" style={inputLabel}>
                 Email
@@ -418,10 +440,16 @@ function JoinContent() {
                   transition: 'transform 140ms ease, box-shadow 140ms ease',
                 }}
               >
-                {submitting ? 'Creating account...' : selectedPlanId === 'free' ? 'Create free account' : 'Create free account first'}
+                {submitting
+                  ? 'Creating account...'
+                  : isCaptainPilotSignup
+                    ? 'Create account to start 3 months free'
+                    : selectedPlanId === 'free'
+                      ? 'Create free account'
+                      : 'Create free account first'}
               </button>
 
-              {message ? <div role="status" aria-live="polite" style={successBanner}>{message}</div> : null}
+              {message ? <div role="status" aria-live="polite" style={successBanner}>{message} <Link href={signInHref} style={successBannerLink}>Already confirmed? Sign in.</Link></div> : null}
               {error ? <div id="join-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
 
               <div style={helperRowResponsive}>
@@ -444,11 +472,15 @@ function JoinContent() {
           </summary>
           <div className="authOptionalDetailsBody" style={selectedPlanDetailBodyStyle}>
             <div style={selectedPlanTextStyle}>
-              {JOIN_SELECTED_PLAN_COPY[selectedPlanId]}
+              {isCaptainPilotSignup
+                ? 'Create your account, then complete the Captain Pilot form and secure checkout. Your Captain access begins with 3 months at $0.'
+                : JOIN_SELECTED_PLAN_COPY[selectedPlanId]}
             </div>
             {selectedPlanId !== 'free' ? (
               <div style={entitlementNoticeStyle}>
-                Account creation starts Free access first.
+                {isCaptainPilotSignup
+                  ? 'Account creation gives you Free access. The next step activates your 3-month Captain pilot at $0.'
+                  : 'Account creation starts Free access first.'}
               </div>
             ) : null}
             {nextIntent ? (
@@ -750,6 +782,11 @@ const inputLabel: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const optionalFieldLabel: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontWeight: 600,
+}
+
 const inputStyle: CSSProperties = {
   width: '100%',
   minWidth: 0,
@@ -826,6 +863,12 @@ const successBanner: CSSProperties = {
   fontWeight: 700,
   fontSize: '14px',
   overflowWrap: 'anywhere',
+}
+
+const successBannerLink: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  textDecoration: 'underline',
 }
 
 const errorBanner: CSSProperties = {
