@@ -9,7 +9,7 @@ type ScorecardSet = NonNullable<DataAssistScorecardParsedLine['sets']>[number]
 const SCORE_PATTERN = /\b\d{1,2}\s*-\s*\d{1,2}(?:\s*\(\s*\d{1,2}\s*\))?/g
 const DATE_PATTERN = /\b(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|[A-Z][a-z]{2,9}\s+\d{1,2},?\s+\d{4})\b/
 const MATCH_ID_PATTERN = /\b(?:match\s*(?:id|number|#)?|scorecard\s*(?:id|#)|tennislink\s+match)\s*[:#-]?\s*([A-Z0-9][A-Z0-9-]{4,})\b/i
-const LINE_START_PATTERN = /^(?:(?:court|line)\s*)?([1-5]\s*#?\s*(?:singles|doubles|s|d)|\d+\s*#?\s*(?:singles|doubles)?)\b[:.\-\s]*/i
+const LINE_START_PATTERN = /^(?:(?:court|line)\s*)?((?:[1-7](?:\.[05])\s*(?:singles|doubles)\s*#\s*[1-5])|(?:[1-5]\s*#?\s*(?:singles|doubles|s|d))|(?:\d+\s*#?\s*(?:singles|doubles)))\b[:.\-\s]*/i
 const TEAM_SEPARATOR_PATTERN = /\s+(?:vs\.?|v\.?|at|@)\s+/i
 const RESULT_SEPARATOR_PATTERN = /\s+(def\.?|d\.?|defeated|bt\.?|beat|beats|over|lost\s+to)\s+/i
 
@@ -182,6 +182,7 @@ function extractScorecardLines(lines: string[]): DataAssistScorecardParsedLine[]
 
     parsedLines.push(withExtensionScoreMetadata({
       lineLabel: normalizeLineLabel(lineMatch[1]),
+      ntrp: extractLineNtrp(lineMatch[1]),
       homePlayers: leftPlayers,
       awayPlayers: rightPlayers,
       score,
@@ -254,6 +255,7 @@ function parseTennisLinkTableLine(lineLabel: string, value: string, score: strin
 
   return withExtensionScoreMetadata({
     lineLabel: normalizeLineLabel(lineLabel),
+    ntrp: extractLineNtrp(lineLabel),
     homePlayers,
     awayPlayers,
     score,
@@ -496,6 +498,8 @@ function splitPlayers(value: string) {
 
 function normalizeLineLabel(value: string) {
   const compact = value.toUpperCase().replace(/\s+/g, '')
+  const triLevel = value.match(/\b[1-7](?:\.[05])\s*(Singles|Doubles)\s*#\s*([1-5])/i)
+  if (triLevel) return `${triLevel[2]} ${triLevel[1]}`
   if (/^[1-5]S$/.test(compact)) return `${compact[0]} Singles`
   if (/^[1-5]D$/.test(compact)) return `${compact[0]} Doubles`
   const number = compact.match(/\d/)?.[0] || value.trim()
@@ -504,6 +508,13 @@ function normalizeLineLabel(value: string) {
   if (compact.includes('D')) return `${number} Doubles`
   if (compact.includes('S')) return `${number} Singles`
   return `Line ${number}`
+}
+
+function extractLineNtrp(value: string): number | null {
+  const match = value.match(/\b([1-7](?:\.[05]))\s*(?:Singles|Doubles)\s*#/i)
+  if (!match) return null
+  const rating = Number(match[1])
+  return Number.isFinite(rating) ? rating : null
 }
 
 function normalizeScoreSet(value: string) {

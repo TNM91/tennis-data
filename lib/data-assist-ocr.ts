@@ -36,6 +36,7 @@ export type DataAssistOcrScreenshotInput = {
 
 export type DataAssistScorecardParsedLine = {
   lineLabel: string
+  ntrp?: number | null
   homePlayers: string[]
   awayPlayers: string[]
   score: string

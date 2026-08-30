@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   recalculateDynamicRatings,
   applyVerifiedBaselineGuard,
@@ -15,9 +16,12 @@ import {
   getRatingProgressToNextLevel,
   projectHeadToHeadWinProbability,
   projectDoublesTeamWinProbability,
+  processDoublesMatch,
+  dedupeRatingSnapshots,
+  type MatchRow,
+  type RatingSnapshotInsert,
   type WorkingPlayer,
 } from '../recalculateRatings'
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 function makePlayer(overrides: Partial<WorkingPlayer> = {}): WorkingPlayer {
   return {
@@ -144,6 +148,19 @@ describe('parseScoreMetrics', () => {
     expect(m.totalGamesB).toBe(8)
   })
 
+  it('parses the space-separated score format stored by USTA imports', () => {
+    const m = parseScoreMetrics('2-6 5-7', 'B')
+    expect(m.parsed).toBe(true)
+    expect(m.gamesWonByWinner).toBe(13)
+    expect(m.gamesWonByLoser).toBe(7)
+  })
+
+  it('fails closed when the score orientation contradicts the declared winner', () => {
+    const m = parseScoreMetrics('6-2 7-5', 'B')
+    expect(m.parsed).toBe(false)
+    expect(m.multiplier).toBe(1)
+  })
+
   it('7-5 is NOT counted as a tiebreak set', () => {
     const m = parseScoreMetrics('7-5, 6-3', 'A')
     expect(m.tiebreakSets).toBe(0)
@@ -193,6 +210,13 @@ describe('parseScoreMetrics', () => {
   it('super tiebreak stored with brackets is stripped by normalizer', () => {
     const m = parseScoreMetrics('6-4, 4-6, (10-8)', 'A')
     expect(m.sets).toHaveLength(2)
+  })
+
+  it('does not count 1-0 match-tiebreak shorthand as a regulation game', () => {
+    const m = parseScoreMetrics('6-3 3-6 1-0', 'A')
+    expect(m.parsed).toBe(true)
+    expect(m.totalGames).toBe(18)
+    expect(m.decidingSetPlayed).toBe(true)
   })
 
   it('breadstick gives correct bonus', () => {
@@ -521,5 +545,110 @@ describe('projectDoublesTeamWinProbability', () => {
 
   it('stronger team has higher win probability', () => {
     expect(projectDoublesTeamWinProbability([4.5, 4.5], [3.5, 3.5])).toBeGreaterThan(50)
+  })
+})
+
+describe('dual-track rating integrity', () => {
+  it('uses the same pre-match provisional weight for TIQ and USTA doubles tracks', () => {
+    const teamA = [
+      makePlayer({ id: 'a1', matchesProcessed: 0 }),
+      makePlayer({ id: 'a2', matchesProcessed: 0 }),
+    ]
+    const teamB = [
+      makePlayer({ id: 'b1', matchesProcessed: 0 }),
+      makePlayer({ id: 'b2', matchesProcessed: 0 }),
+    ]
+    const match: MatchRow = {
+      id: 'usta-doubles-1',
+      match_date: '2026-08-15',
+      match_type: 'doubles',
+      score: '6-4, 6-4',
+      winner_side: 'A',
+      match_source: 'usta',
+    }
+    const snapshots: RatingSnapshotInsert[] = []
+
+    processDoublesMatch(match, teamA, teamB, snapshots, 1)
+
+    const tiq = snapshots.find((row) => (
+      row.player_id === 'a1' && row.rating_type === 'doubles' && row.track === 'tiq'
+    ))
+    const usta = snapshots.find((row) => (
+      row.player_id === 'a1' && row.rating_type === 'doubles' && row.track === 'usta'
+    ))
+
+    expect(tiq).toBeDefined()
+    expect(usta).toBeDefined()
+    expect(usta?.delta).toBe(tiq?.delta)
+    expect(teamA[0].matchesProcessed).toBe(1)
+  })
+
+  it('paginates beyond the first 1,000 players during recalculation', async () => {
+    const players = Array.from({ length: 1001 }, (_, index) => ({
+      id: `p-${String(index).padStart(4, '0')}`,
+      name: `Player ${index}`,
+      singles_rating: 3.5,
+      singles_dynamic_rating: 3.5,
+      doubles_rating: 3.5,
+      doubles_dynamic_rating: 3.5,
+      overall_rating: 3.5,
+      overall_dynamic_rating: 3.5,
+    }))
+    const tables: Record<string, unknown[]> = {
+      players,
+      matches: [],
+      match_players: [],
+    }
+    const client = {
+      from(table: string) {
+        let from = 0
+        let to = Number.MAX_SAFE_INTEGER
+        const query = {
+          select: () => query,
+          not: () => query,
+          eq: () => query,
+          order: () => query,
+          range: (nextFrom: number, nextTo: number) => {
+            from = nextFrom
+            to = nextTo
+            return query
+          },
+          then: (resolve: (value: { data: unknown[]; error: null }) => unknown) => (
+            Promise.resolve({ data: (tables[table] ?? []).slice(from, to + 1), error: null }).then(resolve)
+          ),
+        }
+        return query
+      },
+    } as unknown as SupabaseClient
+
+    const result = await recalculateDynamicRatings(undefined, client, { dryRun: true })
+
+    expect(result.players).toHaveLength(1001)
+    expect(result.eligibleMatchCount).toBe(0)
+  })
+
+  it('retains both tracks while removing only true snapshot duplicates', () => {
+    const base: RatingSnapshotInsert = {
+      player_id: 'p1',
+      match_id: 'm1',
+      snapshot_date: '2026-08-15',
+      rating_type: 'overall',
+      dynamic_rating: 4,
+      track: 'tiq',
+      delta: 0.02,
+      opponent_rating: 4,
+      win_probability: 50,
+      multiplier: 1,
+    }
+
+    const rows = dedupeRatingSnapshots([
+      base,
+      { ...base, dynamic_rating: 4.01 },
+      { ...base, track: 'usta', dynamic_rating: 3.99 },
+    ])
+
+    expect(rows).toHaveLength(2)
+    expect(rows.map((row) => row.track).sort()).toEqual(['tiq', 'usta'])
+    expect(rows.find((row) => row.track === 'tiq')?.dynamic_rating).toBe(4.01)
   })
 })
