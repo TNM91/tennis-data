@@ -111,6 +111,7 @@ function parseProfileLinks(html: string, side: TennisRecordSide, startSeat: numb
     participants.push({
       name,
       sourcePlayerKey: sourceKey('trp', url),
+      sourceUrl: url,
       side,
       seat: startSeat + participants.length,
       ...(rating ? { publishedRating: Number(rating) } : {}),
@@ -224,7 +225,7 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
     players.set(participant.sourcePlayerKey, {
       sourcePlayerKey: participant.sourcePlayerKey,
       name: participant.name,
-      city: '', state: '', ntrpLabel: '', publishedRating: participant.publishedRating, sourceUrl: match.sourceUrl,
+      city: '', state: '', ntrpLabel: '', publishedRating: participant.publishedRating, sourceUrl: participant.sourceUrl || match.sourceUrl,
     })
   }
   const teamMembers = parseExplicitTeamRoster(html, sourceUrl)

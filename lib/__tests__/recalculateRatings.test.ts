@@ -28,6 +28,7 @@ function makePlayer(overrides: Partial<WorkingPlayer> = {}): WorkingPlayer {
     id: 'test',
     name: 'Test Player',
     hasVerifiedBaseline: false,
+    baselineSource: 'unknown',
     singlesBase: 3.5,
     singlesDynamic: 3.5,
     singlesUstaDynamic: 3.5,
@@ -245,6 +246,11 @@ describe('competition rating context', () => {
     expect(competitionAdjustedRating(makePlayer({ hasVerifiedBaseline: false }), 3.5, match)).toBe(4.5)
     expect(competitionAdjustedRating(makePlayer({ hasVerifiedBaseline: true }), 4.1, match)).toBe(4.1)
   })
+
+  it('does not replace an explicit self-rated baseline with a higher court floor', () => {
+    const match = { league_name: '2026 Adult 18+ Missouri Valley M 4.5', flight: '4.5' }
+    expect(competitionAdjustedRating(makePlayer({ baselineSource: 'self' }), 4.0, match)).toBe(4.0)
+  })
 })
 
 // ─── getRecencyWeight ─────────────────────────────────────────────────────────
@@ -311,6 +317,12 @@ describe('getProvisionalkMultiplier', () => {
     expect(getProvisionalkMultiplier(15, true)).toBeCloseTo(0.775, 3)
     expect(getProvisionalkMultiplier(30, true)).toBe(1.0)
   })
+
+  it('uses a measured, but more responsive, multiplier for an explicit USTA self-rating', () => {
+    expect(getProvisionalkMultiplier(0, false, 'self')).toBe(0.85)
+    expect(getProvisionalkMultiplier(15, false, 'self')).toBeCloseTo(0.925, 3)
+    expect(getProvisionalkMultiplier(30, false, 'self')).toBe(1.0)
+  })
 })
 
 describe('verified NTRP baseline calibration', () => {
@@ -326,6 +338,11 @@ describe('verified NTRP baseline calibration', () => {
 
   it('does not constrain an unverified baseline', () => {
     expect(applyVerifiedBaselineGuard(3.7, 4.0, 0, false)).toBe(3.7)
+  })
+
+  it('keeps an explicit self-rated level stable on a small sample, while allowing sustained downward evidence', () => {
+    expect(applyVerifiedBaselineGuard(3.6, 4.0, 5, false, 'self')).toBe(4.0)
+    expect(applyVerifiedBaselineGuard(3.6, 4.0, 60, false, 'self')).toBe(3.75)
   })
 
   it('keeps a verified player at their baseline after an isolated lopsided loss', async () => {

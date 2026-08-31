@@ -29,7 +29,7 @@ describe('TennisRecord ingestion safety', () => {
     expect(ratingSourceFromStatedNtrp(4, 'computer')).toBe('verified')
     expect(ratingSourceFromStatedNtrp(4.5, 'self')).toBe('self')
     expect(ratingSourceFromStatedNtrp(4, 'unknown')).toBe('inferred')
-    expect(ratingSourceFromStatedNtrp(null, 'unknown')).toBe('self')
+    expect(ratingSourceFromStatedNtrp(null, 'unknown')).toBe('unknown')
   })
 
   it('establishes an inferred baseline from sustained current standard-Adult flight evidence without inventing a C/S label', () => {
@@ -120,7 +120,14 @@ describe('TennisRecord ingestion safety', () => {
     const parsed = parseTennisRecordMatchPage(fixture, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026')
     expect(parsed.matches).toHaveLength(2)
     expect(parsed.matches[0]).toMatchObject({ playedOn: '2026-04-26', discipline: 'singles', courtNumber: 1, scoreText: '6-3 6-7 1-0', winnerSide: 'A' })
-    expect(parsed.matches[0].participants[0]).toMatchObject({ name: 'Charles Kern', publishedRating: 3.85 })
+    expect(parsed.matches[0].participants[0]).toMatchObject({
+      name: 'Charles Kern',
+      publishedRating: 3.85,
+      sourceUrl: 'https://www.tennisrecord.com/adult/profile.aspx?playername=Charles+Kern',
+    })
+    expect(parsed.players.find((player) => player.name === 'Charles Kern')).toMatchObject({
+      sourceUrl: 'https://www.tennisrecord.com/adult/profile.aspx?playername=Charles+Kern',
+    })
     expect(parsed.matches[1].participants).toHaveLength(4)
     expect(parsed.teams).toHaveLength(2)
     expect(parsed.leagues[0]).toMatchObject({ flight: '4.0', seasonYear: 2026 })
