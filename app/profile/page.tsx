@@ -706,17 +706,19 @@ function ProfilePageInner() {
   )
   const profileDisplayName = profile?.linked_player_name || selectedPlayer?.name || typedPlayerNameClean || 'Choose player'
   const selfRatingValue = normalizeSelfRating(selfRating)
+  const isSelfRatedProfile = primaryRating?.rating_source === 'self' || typedProfileActive
+  const hasInferredAdultFlightBaseline = primaryRating?.rating_source === 'inferred' && !typedProfileActive
   const ratingSourceLabel = !hasRatingIdentity
     ? ''
-    : (primaryRating?.rating_source === 'self' || typedProfileActive) ? 'Self-rated S' : 'Verified'
+    : isSelfRatedProfile ? 'Self-rated S' : hasInferredAdultFlightBaseline ? 'Adult-flight inferred' : 'Verified'
   const tiqOverallValue = typedProfileActive ? selfRatingValue : getTiqRating(primaryRating, 'overall')
   const tiqSinglesValue = typedProfileActive ? selfRatingValue : getTiqRating(primaryRating, 'singles')
   const tiqDoublesValue = typedProfileActive ? selfRatingValue : getTiqRating(primaryRating, 'doubles')
   const ratingTiles = [
-    { label: 'TIQ', value: `${formatRating(tiqOverallValue)}${ratingSourceLabel === 'Self-rated S' ? ' S' : ''}` },
-    { label: 'USTA', value: ratingSourceLabel === 'Self-rated S' ? 'Pending' : formatRating(getUstaRating(primaryRating, 'overall')) },
-    { label: 'Singles', value: `${formatRating(tiqSinglesValue)}${ratingSourceLabel === 'Self-rated S' ? ' S' : ''}` },
-    { label: 'Doubles', value: `${formatRating(tiqDoublesValue)}${ratingSourceLabel === 'Self-rated S' ? ' S' : ''}` },
+    { label: 'TIQ', value: `${formatRating(tiqOverallValue)}${isSelfRatedProfile ? ' S' : ''}` },
+    { label: 'USTA', value: isSelfRatedProfile ? 'Pending' : formatRating(getUstaRating(primaryRating, 'overall')) },
+    { label: 'Singles', value: `${formatRating(tiqSinglesValue)}${isSelfRatedProfile ? ' S' : ''}` },
+    { label: 'Doubles', value: `${formatRating(tiqDoublesValue)}${isSelfRatedProfile ? ' S' : ''}` },
     { label: 'Source', value: ratingSourceLabel },
   ]
   const dataAssistProfileHref = '/data-assist?intent=upload-source&context=Profile'
@@ -748,7 +750,11 @@ function ProfilePageInner() {
     },
     {
       label: 'Public profile',
-      title: ratingSourceLabel === 'Self-rated S' ? 'Self-rated starts now; verified data can replace it later.' : 'Verified data can power public and private tools.',
+      title: isSelfRatedProfile
+        ? 'Self-rated starts now; verified data can replace it later.'
+        : hasInferredAdultFlightBaseline
+          ? 'Your Adult-flight baseline is ready while the official C or S designation is pending.'
+          : 'Verified data can power public and private tools.',
       detail: 'TenAceIQ keeps the player record clear before it feeds matchup, team, and league work.',
       icon: 'playerRatings',
     },
@@ -1023,8 +1029,10 @@ function ProfilePageInner() {
                       <span>
                         {captainSetupEntry
                           ? 'Step 1 is complete. Connect your active team to finish Captain setup.'
-                          : ratingSourceLabel === 'Self-rated S'
+                          : isSelfRatedProfile
                           ? 'Self-rated is live. Add a scorecard or match signal when you are ready.'
+                          : hasInferredAdultFlightBaseline
+                            ? 'Your Adult-flight baseline is live. The official USTA designation can be confirmed when it is available.'
                           : 'Your player identity is ready across the portal.'}
                       </span>
                     </div>

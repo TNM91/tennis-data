@@ -26,7 +26,7 @@ describe('TennisRecord checkpoint stability', () => {
     expect(source).toContain('export async function runScheduledTennisRecordRatingBatch')
     expect(source).toContain('await recalculateDynamicRatings(undefined, service, { replaceSnapshots: false })')
     expect(source).toContain(".lte('reconciled_at', ratingWatermark)")
-    expect(source).toContain("requestTennisRecordRatingRefresh(service, 'verified_usta_baseline_changed')")
+    expect(source).toContain("requestTennisRecordRatingRefresh(service, 'usta_baseline_evidence_changed')")
     expect(source).toContain('const baselineRefreshRequested = Boolean(settings.rating_recalculation_requested_at)')
     expect(source).toContain('if (!pendingMatchCount && !baselineRefreshRequested)')
   })

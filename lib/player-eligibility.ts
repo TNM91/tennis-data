@@ -1,4 +1,4 @@
-export type PlayerRatingSource = 'verified' | 'self' | 'unknown'
+export type PlayerRatingSource = 'verified' | 'inferred' | 'self' | 'unknown'
 export type MixedPairRole = 'man' | 'woman' | 'unknown'
 export type PlayerEligibilityStatus = 'verified' | 'needs_confirmation' | 'ineligible'
 
@@ -30,7 +30,7 @@ const AGE_DIVISION_PATTERN = /\b(10|12|14|16|18|21|25|30|35|40|45|50|55|60|65|70
 const RATING_LEVEL_PATTERN = /\b([2-5]\.[05])\b/g
 
 export function normalizePlayerRatingSource(value: unknown): PlayerRatingSource {
-  if (value === 'verified' || value === 'self') return value
+  if (value === 'verified' || value === 'inferred' || value === 'self') return value
   return 'unknown'
 }
 
@@ -93,7 +93,9 @@ export function assessPlayerEligibility(
       if (ratingSource === 'verified') ineligible = true
       else issues.push('Verify this self-rating before deciding.')
     } else if (ratingSource !== 'verified') {
-      issues.push(`Verify the ${rating.toFixed(1)} self-rating.`)
+      issues.push(ratingSource === 'inferred'
+        ? `Confirm the ${rating.toFixed(1)} inferred rating before deciding.`
+        : `Verify the ${rating.toFixed(1)} self-rating.`)
     }
   }
 
@@ -176,6 +178,7 @@ export function getPlayerEligibilitySourceLabel(input: {
   const ratingSource = normalizePlayerRatingSource(input.ratingSource)
   const mixedPairRole = normalizeMixedPairRole(input.mixedPairRole)
   if (ratingSource === 'verified') labels.push('Verified NTRP')
+  else if (ratingSource === 'inferred') labels.push('Inferred NTRP')
   else if (ratingSource === 'self') labels.push('Self-rated')
   if (input.ageDivision) labels.push(input.ageDivision)
   if (mixedPairRole === 'man') labels.push('Mixed: man')

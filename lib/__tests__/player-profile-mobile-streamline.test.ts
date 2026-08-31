@@ -102,7 +102,8 @@ describe('player profile mobile streamline', () => {
   })
 
   it('separates the official USTA designation from the TiQ performance read without exposing a locked exact score', () => {
-    expect(page).toContain("const officialUstaRead = isSelfRatedProfile ? 'Self-rated USTA (S)' : 'Verified USTA level'")
+    expect(page).toContain("const officialUstaRead = isSelfRatedProfile ? 'Self-rated USTA (S)' : hasInferredUstaBaseline ? 'Inferred USTA level' : 'Verified USTA level'")
+    expect(page).toContain('hasInferredAdultFlightBaseline(player)')
     expect(page).toContain("const tiqReadLabel = `TIQ ${ratingViewLabel} read`")
     expect(page).toContain("'Exact TiQ read is available with Player.'")
     expect(page).toContain('aria-label="Rating read guide"')
