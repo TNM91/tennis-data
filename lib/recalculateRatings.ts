@@ -149,6 +149,12 @@ export type RatingRecalculationOptions = {
    */
   dryRun?: boolean
   now?: number
+  /**
+   * Full rebuilds can update the existing per-match snapshots in place. This
+   * avoids a destructive table-wide delete when a controlled background job
+   * is catching up a large imported history.
+   */
+  replaceSnapshots?: boolean
 }
 
 export type RatingRecalculationResult = {
@@ -305,7 +311,7 @@ export async function recalculateDynamicRatings(
     await persistPlayerRatings(recalculatedPlayers, client)
 
     onPhase?.('saving-snapshots', `${snapshotRows.length} snapshots`)
-    await replaceRatingSnapshots(snapshotRows, client)
+    await replaceRatingSnapshots(snapshotRows, client, options.replaceSnapshots !== false)
   }
 
   onPhase?.('done')
@@ -740,14 +746,20 @@ async function persistPlayerRatings(players: WorkingPlayer[], client: SupabaseCl
   }
 }
 
-async function replaceRatingSnapshots(snapshotRows: RatingSnapshotInsert[], client: SupabaseClient) {
-  const { error: deleteError } = await client
-    .from('rating_snapshots')
-    .delete()
-    .not('id', 'is', null)
+async function replaceRatingSnapshots(
+  snapshotRows: RatingSnapshotInsert[],
+  client: SupabaseClient,
+  replaceExisting: boolean,
+) {
+  if (replaceExisting) {
+    const { error: deleteError } = await client
+      .from('rating_snapshots')
+      .delete()
+      .not('id', 'is', null)
 
-  if (deleteError) {
-    throw new Error(`Failed to clear old rating snapshots: ${deleteError.message}`)
+    if (deleteError) {
+      throw new Error(`Failed to clear old rating snapshots: ${deleteError.message}`)
+    }
   }
 
   if (snapshotRows.length === 0) return

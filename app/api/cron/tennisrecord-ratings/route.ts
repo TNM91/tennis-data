@@ -6,6 +6,7 @@ export const runtime = 'nodejs'
 export const maxDuration = 300
 
 export async function GET(request: Request) {
+  const startedAt = Date.now()
   const secret = process.env.CRON_SECRET?.trim()
   if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) {
     return Response.json({ ok: false, message: 'Scheduled rating batch is not authorized.' }, { status: 401 })
@@ -18,8 +19,24 @@ export async function GET(request: Request) {
 
   try {
     const service = createServerSupabaseClient()
-    return Response.json({ ok: true, summary: await runScheduledTennisRecordRatingBatch(service) })
+    const summary = await runScheduledTennisRecordRatingBatch(service)
+    console.info(JSON.stringify({
+      level: 'info',
+      event: 'tennisrecord_rating_batch',
+      requestId: request.headers.get('x-vercel-id'),
+      summary,
+      duration_ms: Date.now() - startedAt,
+    }))
+    return Response.json({ ok: true, summary })
   } catch (error) {
-    return Response.json({ ok: false, message: error instanceof Error ? error.message : 'Scheduled rating batch failed.' }, { status: 500 })
+    const message = error instanceof Error ? error.message : 'Scheduled rating batch failed.'
+    console.error(JSON.stringify({
+      level: 'error',
+      event: 'tennisrecord_rating_batch_failed',
+      requestId: request.headers.get('x-vercel-id'),
+      message,
+      duration_ms: Date.now() - startedAt,
+    }))
+    return Response.json({ ok: false, message }, { status: 500 })
   }
 }
