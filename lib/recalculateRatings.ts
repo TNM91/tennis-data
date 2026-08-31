@@ -19,6 +19,7 @@ type MatchSource = 'usta' | 'tiq_team' | 'tiq_individual' | 'tiq_tournament'
 
 export type MatchRow = {
   id: string
+  external_match_id?: string | null
   match_date: string
   match_type: MatchType
   score: string
