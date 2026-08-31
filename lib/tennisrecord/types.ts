@@ -6,6 +6,8 @@ export type TennisRecordNtrpDesignation = 'computer' | 'self' | 'unknown'
 export type TennisRecordParticipant = {
   name: string
   sourcePlayerKey: string
+  /** The exact public profile link that produced sourcePlayerKey, when known. */
+  sourceUrl?: string
   side: TennisRecordSide
   seat: number
   publishedRating?: number

@@ -39,11 +39,20 @@ type MatchPlayerRow = {
   seat: number | null
 }
 
+/**
+ * `verified` is an explicit computer-rated USTA profile; `inferred` is a
+ * factual numeric profile level or sustained standard-Adult evidence;
+ * `self` is an explicit USTA S. `unknown` is deliberately not treated as a
+ * self-rating simply because a public match page lacked a profile label.
+ */
+export type RatingBaselineSource = 'verified' | 'inferred' | 'self' | 'unknown'
+
 export type WorkingPlayer = {
   id: string
   name: string
   /** A confirmed USTA/NTRP baseline is a strong prior, not a self-rating. */
   hasVerifiedBaseline: boolean
+  baselineSource: RatingBaselineSource
   singlesBase: number
   singlesDynamic: number
   singlesUstaDynamic: number
@@ -132,6 +141,11 @@ const RATING_BANDS = [
   1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0,
 ] as const
 
+function ratingBaselineSource(value: string | null | undefined): RatingBaselineSource {
+  if (value === 'verified' || value === 'inferred' || value === 'self') return value
+  return 'unknown'
+}
+
 export type RecalcPhase =
   | 'fetching-players'
   | 'fetching-matches'
@@ -189,6 +203,7 @@ export async function recalculateDynamicRatings(
         roundRating((singlesBase + doublesBase) / 2),
       )
 
+      const baselineSource = ratingBaselineSource(player.rating_source)
       return [
         player.id,
         {
@@ -199,7 +214,8 @@ export async function recalculateDynamicRatings(
           // 3.5 provisional default from presenting a sustained 4.0 player
           // as immediately below that level. Explicit C ratings remain the
           // highest-confidence source.
-          hasVerifiedBaseline: player.rating_source === 'verified' || player.rating_source === 'inferred',
+          hasVerifiedBaseline: baselineSource === 'verified' || baselineSource === 'inferred',
+          baselineSource,
           singlesBase,
           singlesDynamic: singlesBase,
           singlesUstaDynamic: singlesBase,
@@ -478,10 +494,10 @@ function processSinglesMatch(
   const actualB = match.winner_side === 'B' ? 1 : 0
   const scoreMetrics = parseScoreMetrics(match.score, match.winner_side)
 
-  const kSinglesA = getProvisionalkMultiplier(playerA.singlesMatchesProcessed, playerA.hasVerifiedBaseline)
-  const kSinglesB = getProvisionalkMultiplier(playerB.singlesMatchesProcessed, playerB.hasVerifiedBaseline)
-  const kOverallA = getProvisionalkMultiplier(playerA.overallMatchesProcessed, playerA.hasVerifiedBaseline)
-  const kOverallB = getProvisionalkMultiplier(playerB.overallMatchesProcessed, playerB.hasVerifiedBaseline)
+  const kSinglesA = getProvisionalkMultiplier(playerA.singlesMatchesProcessed, playerA.hasVerifiedBaseline, playerA.baselineSource)
+  const kSinglesB = getProvisionalkMultiplier(playerB.singlesMatchesProcessed, playerB.hasVerifiedBaseline, playerB.baselineSource)
+  const kOverallA = getProvisionalkMultiplier(playerA.overallMatchesProcessed, playerA.hasVerifiedBaseline, playerA.baselineSource)
+  const kOverallB = getProvisionalkMultiplier(playerB.overallMatchesProcessed, playerB.hasVerifiedBaseline, playerB.baselineSource)
 
   // TIQ track — all matches
   const tiqExpectedA = expectedScore(playerA.singlesDynamic, playerB.singlesDynamic)
@@ -498,10 +514,10 @@ function processSinglesMatch(
   const preTiqOverallA = playerA.overallDynamic
   const preTiqOverallB = playerB.overallDynamic
 
-  playerA.singlesDynamic = applyVerifiedBaselineGuard(playerA.singlesDynamic + deltaTiqSinglesA, playerA.singlesBase, playerA.singlesMatchesProcessed, playerA.hasVerifiedBaseline)
-  playerB.singlesDynamic = applyVerifiedBaselineGuard(playerB.singlesDynamic + deltaTiqSinglesB, playerB.singlesBase, playerB.singlesMatchesProcessed, playerB.hasVerifiedBaseline)
-  playerA.overallDynamic = applyVerifiedBaselineGuard(playerA.overallDynamic + deltaTiqOverallA, playerA.overallBase, playerA.overallMatchesProcessed, playerA.hasVerifiedBaseline)
-  playerB.overallDynamic = applyVerifiedBaselineGuard(playerB.overallDynamic + deltaTiqOverallB, playerB.overallBase, playerB.overallMatchesProcessed, playerB.hasVerifiedBaseline)
+  playerA.singlesDynamic = applyVerifiedBaselineGuard(playerA.singlesDynamic + deltaTiqSinglesA, playerA.singlesBase, playerA.singlesMatchesProcessed, playerA.hasVerifiedBaseline, playerA.baselineSource)
+  playerB.singlesDynamic = applyVerifiedBaselineGuard(playerB.singlesDynamic + deltaTiqSinglesB, playerB.singlesBase, playerB.singlesMatchesProcessed, playerB.hasVerifiedBaseline, playerB.baselineSource)
+  playerA.overallDynamic = applyVerifiedBaselineGuard(playerA.overallDynamic + deltaTiqOverallA, playerA.overallBase, playerA.overallMatchesProcessed, playerA.hasVerifiedBaseline, playerA.baselineSource)
+  playerB.overallDynamic = applyVerifiedBaselineGuard(playerB.overallDynamic + deltaTiqOverallB, playerB.overallBase, playerB.overallMatchesProcessed, playerB.hasVerifiedBaseline, playerB.baselineSource)
 
   const wpA = Math.round(tiqExpectedA * 100)
   const wpB = 100 - wpA
@@ -529,10 +545,10 @@ function processSinglesMatch(
     const preUstaOverallA = playerA.overallUstaDynamic
     const preUstaOverallB = playerB.overallUstaDynamic
 
-    playerA.singlesUstaDynamic = applyVerifiedBaselineGuard(playerA.singlesUstaDynamic + deltaUstaSinglesA, playerA.singlesBase, playerA.singlesMatchesProcessed, playerA.hasVerifiedBaseline)
-    playerB.singlesUstaDynamic = applyVerifiedBaselineGuard(playerB.singlesUstaDynamic + deltaUstaSinglesB, playerB.singlesBase, playerB.singlesMatchesProcessed, playerB.hasVerifiedBaseline)
-    playerA.overallUstaDynamic = applyVerifiedBaselineGuard(playerA.overallUstaDynamic + deltaUstaOverallA, playerA.overallBase, playerA.overallMatchesProcessed, playerA.hasVerifiedBaseline)
-    playerB.overallUstaDynamic = applyVerifiedBaselineGuard(playerB.overallUstaDynamic + deltaUstaOverallB, playerB.overallBase, playerB.overallMatchesProcessed, playerB.hasVerifiedBaseline)
+    playerA.singlesUstaDynamic = applyVerifiedBaselineGuard(playerA.singlesUstaDynamic + deltaUstaSinglesA, playerA.singlesBase, playerA.singlesMatchesProcessed, playerA.hasVerifiedBaseline, playerA.baselineSource)
+    playerB.singlesUstaDynamic = applyVerifiedBaselineGuard(playerB.singlesUstaDynamic + deltaUstaSinglesB, playerB.singlesBase, playerB.singlesMatchesProcessed, playerB.hasVerifiedBaseline, playerB.baselineSource)
+    playerA.overallUstaDynamic = applyVerifiedBaselineGuard(playerA.overallUstaDynamic + deltaUstaOverallA, playerA.overallBase, playerA.overallMatchesProcessed, playerA.hasVerifiedBaseline, playerA.baselineSource)
+    playerB.overallUstaDynamic = applyVerifiedBaselineGuard(playerB.overallUstaDynamic + deltaUstaOverallB, playerB.overallBase, playerB.overallMatchesProcessed, playerB.hasVerifiedBaseline, playerB.baselineSource)
 
     const ustaWpA = Math.round(ustaExpectedA * 100)
     const ustaWpB = 100 - ustaWpA
@@ -578,8 +594,8 @@ export function processDoublesMatch(
   for (const player of teamA) {
     const preTiqDoubles = player.doublesDynamic
     const preTiqOverall = player.overallDynamic
-    const doublesK = getProvisionalkMultiplier(player.doublesMatchesProcessed, player.hasVerifiedBaseline)
-    const overallK = getProvisionalkMultiplier(player.overallMatchesProcessed, player.hasVerifiedBaseline)
+    const doublesK = getProvisionalkMultiplier(player.doublesMatchesProcessed, player.hasVerifiedBaseline, player.baselineSource)
+    const overallK = getProvisionalkMultiplier(player.overallMatchesProcessed, player.hasVerifiedBaseline, player.baselineSource)
     const playerRawResult = applyDoublesPartnerBurdenGuard(
       tiqRawDoublesA,
       player.doublesDynamic,
@@ -589,8 +605,8 @@ export function processDoublesMatch(
     )
     const doublesD = K_DOUBLES * doublesK * playerRawResult
     const overallD = K_OVERALL * overallK * playerRawResult
-    player.doublesDynamic = applyVerifiedBaselineGuard(player.doublesDynamic + doublesD, player.doublesBase, player.doublesMatchesProcessed, player.hasVerifiedBaseline)
-    player.overallDynamic = applyVerifiedBaselineGuard(player.overallDynamic + overallD, player.overallBase, player.overallMatchesProcessed, player.hasVerifiedBaseline)
+    player.doublesDynamic = applyVerifiedBaselineGuard(player.doublesDynamic + doublesD, player.doublesBase, player.doublesMatchesProcessed, player.hasVerifiedBaseline, player.baselineSource)
+    player.overallDynamic = applyVerifiedBaselineGuard(player.overallDynamic + overallD, player.overallBase, player.overallMatchesProcessed, player.hasVerifiedBaseline, player.baselineSource)
     snapshotRows.push(
       buildSnapshot(player.id, match.id, match.match_date, 'doubles', player.doublesDynamic, 'tiq', player.doublesDynamic - preTiqDoubles, tiqTeamBRating, tiqWpA, tiqMultiplier.a),
       buildSnapshot(player.id, match.id, match.match_date, 'overall', player.overallDynamic, 'tiq', player.overallDynamic - preTiqOverall, tiqTeamBOverall, tiqWpA, tiqMultiplier.a),
@@ -600,8 +616,8 @@ export function processDoublesMatch(
   for (const player of teamB) {
     const preTiqDoubles = player.doublesDynamic
     const preTiqOverall = player.overallDynamic
-    const doublesK = getProvisionalkMultiplier(player.doublesMatchesProcessed, player.hasVerifiedBaseline)
-    const overallK = getProvisionalkMultiplier(player.overallMatchesProcessed, player.hasVerifiedBaseline)
+    const doublesK = getProvisionalkMultiplier(player.doublesMatchesProcessed, player.hasVerifiedBaseline, player.baselineSource)
+    const overallK = getProvisionalkMultiplier(player.overallMatchesProcessed, player.hasVerifiedBaseline, player.baselineSource)
     const playerRawResult = applyDoublesPartnerBurdenGuard(
       tiqRawDoublesB,
       player.doublesDynamic,
@@ -611,8 +627,8 @@ export function processDoublesMatch(
     )
     const doublesD = K_DOUBLES * doublesK * playerRawResult
     const overallD = K_OVERALL * overallK * playerRawResult
-    player.doublesDynamic = applyVerifiedBaselineGuard(player.doublesDynamic + doublesD, player.doublesBase, player.doublesMatchesProcessed, player.hasVerifiedBaseline)
-    player.overallDynamic = applyVerifiedBaselineGuard(player.overallDynamic + overallD, player.overallBase, player.overallMatchesProcessed, player.hasVerifiedBaseline)
+    player.doublesDynamic = applyVerifiedBaselineGuard(player.doublesDynamic + doublesD, player.doublesBase, player.doublesMatchesProcessed, player.hasVerifiedBaseline, player.baselineSource)
+    player.overallDynamic = applyVerifiedBaselineGuard(player.overallDynamic + overallD, player.overallBase, player.overallMatchesProcessed, player.hasVerifiedBaseline, player.baselineSource)
     snapshotRows.push(
       buildSnapshot(player.id, match.id, match.match_date, 'doubles', player.doublesDynamic, 'tiq', player.doublesDynamic - preTiqDoubles, tiqTeamARating, tiqWpB, tiqMultiplier.b),
       buildSnapshot(player.id, match.id, match.match_date, 'overall', player.overallDynamic, 'tiq', player.overallDynamic - preTiqOverall, tiqTeamAOverall, tiqWpB, tiqMultiplier.b),
@@ -638,8 +654,8 @@ export function processDoublesMatch(
     for (const player of teamA) {
       const preUstaDoubles = player.doublesUstaDynamic
       const preUstaOverall = player.overallUstaDynamic
-      const doublesK = getProvisionalkMultiplier(player.doublesMatchesProcessed, player.hasVerifiedBaseline)
-      const overallK = getProvisionalkMultiplier(player.overallMatchesProcessed, player.hasVerifiedBaseline)
+      const doublesK = getProvisionalkMultiplier(player.doublesMatchesProcessed, player.hasVerifiedBaseline, player.baselineSource)
+      const overallK = getProvisionalkMultiplier(player.overallMatchesProcessed, player.hasVerifiedBaseline, player.baselineSource)
       const playerRawResult = applyDoublesPartnerBurdenGuard(
         ustaRawDoublesA,
         player.doublesUstaDynamic,
@@ -649,8 +665,8 @@ export function processDoublesMatch(
       )
       const doublesD = K_DOUBLES * doublesK * playerRawResult
       const overallD = K_OVERALL * overallK * playerRawResult
-      player.doublesUstaDynamic = applyVerifiedBaselineGuard(player.doublesUstaDynamic + doublesD, player.doublesBase, player.doublesMatchesProcessed, player.hasVerifiedBaseline)
-      player.overallUstaDynamic = applyVerifiedBaselineGuard(player.overallUstaDynamic + overallD, player.overallBase, player.overallMatchesProcessed, player.hasVerifiedBaseline)
+      player.doublesUstaDynamic = applyVerifiedBaselineGuard(player.doublesUstaDynamic + doublesD, player.doublesBase, player.doublesMatchesProcessed, player.hasVerifiedBaseline, player.baselineSource)
+      player.overallUstaDynamic = applyVerifiedBaselineGuard(player.overallUstaDynamic + overallD, player.overallBase, player.overallMatchesProcessed, player.hasVerifiedBaseline, player.baselineSource)
       snapshotRows.push(
         buildSnapshot(player.id, match.id, match.match_date, 'doubles', player.doublesUstaDynamic, 'usta', player.doublesUstaDynamic - preUstaDoubles, ustaTeamBRating, ustaWpA, ustaMultiplier.a),
         buildSnapshot(player.id, match.id, match.match_date, 'overall', player.overallUstaDynamic, 'usta', player.overallUstaDynamic - preUstaOverall, ustaTeamBOverall, ustaWpA, ustaMultiplier.a),
@@ -660,8 +676,8 @@ export function processDoublesMatch(
     for (const player of teamB) {
       const preUstaDoubles = player.doublesUstaDynamic
       const preUstaOverall = player.overallUstaDynamic
-      const doublesK = getProvisionalkMultiplier(player.doublesMatchesProcessed, player.hasVerifiedBaseline)
-      const overallK = getProvisionalkMultiplier(player.overallMatchesProcessed, player.hasVerifiedBaseline)
+      const doublesK = getProvisionalkMultiplier(player.doublesMatchesProcessed, player.hasVerifiedBaseline, player.baselineSource)
+      const overallK = getProvisionalkMultiplier(player.overallMatchesProcessed, player.hasVerifiedBaseline, player.baselineSource)
       const playerRawResult = applyDoublesPartnerBurdenGuard(
         ustaRawDoublesB,
         player.doublesUstaDynamic,
@@ -671,8 +687,8 @@ export function processDoublesMatch(
       )
       const doublesD = K_DOUBLES * doublesK * playerRawResult
       const overallD = K_OVERALL * overallK * playerRawResult
-      player.doublesUstaDynamic = applyVerifiedBaselineGuard(player.doublesUstaDynamic + doublesD, player.doublesBase, player.doublesMatchesProcessed, player.hasVerifiedBaseline)
-      player.overallUstaDynamic = applyVerifiedBaselineGuard(player.overallUstaDynamic + overallD, player.overallBase, player.overallMatchesProcessed, player.hasVerifiedBaseline)
+      player.doublesUstaDynamic = applyVerifiedBaselineGuard(player.doublesUstaDynamic + doublesD, player.doublesBase, player.doublesMatchesProcessed, player.hasVerifiedBaseline, player.baselineSource)
+      player.overallUstaDynamic = applyVerifiedBaselineGuard(player.overallUstaDynamic + overallD, player.overallBase, player.overallMatchesProcessed, player.hasVerifiedBaseline, player.baselineSource)
       snapshotRows.push(
         buildSnapshot(player.id, match.id, match.match_date, 'doubles', player.doublesUstaDynamic, 'usta', player.doublesUstaDynamic - preUstaDoubles, ustaTeamARating, ustaWpB, ustaMultiplier.b),
         buildSnapshot(player.id, match.id, match.match_date, 'overall', player.overallUstaDynamic, 'usta', player.overallUstaDynamic - preUstaOverall, ustaTeamAOverall, ustaWpB, ustaMultiplier.b),
@@ -1156,9 +1172,13 @@ export function matchCompetitionRatingFloor(match: Pick<MatchRow, 'league_name' 
   return levels.length ? Math.max(...levels) : null
 }
 
-export function competitionAdjustedRating(player: Pick<WorkingPlayer, 'hasVerifiedBaseline'>, dynamicRating: number, match: Pick<MatchRow, 'league_name' | 'flight'>) {
+export function competitionAdjustedRating(
+  player: Pick<WorkingPlayer, 'hasVerifiedBaseline'> & { baselineSource?: RatingBaselineSource },
+  dynamicRating: number,
+  match: Pick<MatchRow, 'league_name' | 'flight'>,
+) {
   const floor = matchCompetitionRatingFloor(match)
-  if (player.hasVerifiedBaseline || floor === null) return dynamicRating
+  if (player.hasVerifiedBaseline || player.baselineSource === 'self' || floor === null) return dynamicRating
   return Math.max(dynamicRating, floor)
 }
 
@@ -1166,13 +1186,25 @@ function expectedScore(playerRating: number, opponentRating: number) {
   return 1 / (1 + Math.pow(10, (opponentRating - playerRating) / RATING_DIVISOR))
 }
 
-export function getProvisionalkMultiplier(matchesProcessed: number, hasVerifiedBaseline = false): number {
+export function getProvisionalkMultiplier(
+  matchesProcessed: number,
+  hasVerifiedBaseline = false,
+  baselineSource: RatingBaselineSource = hasVerifiedBaseline ? 'verified' : 'unknown',
+): number {
   // A confirmed NTRP baseline is already meaningful evidence. New matches
-  // should refine it rather than make it swing twice as far as a self-rated
-  // player. Self-rated and unknown players retain the faster provisional path.
+  // should refine it rather than make it swing twice as far as an unknown
+  // profile. Explicit self-ratings use the measured path below.
   if (hasVerifiedBaseline) {
     if (matchesProcessed >= 30) return 1.0
     return roundRating(0.55 + (matchesProcessed / 30) * 0.45)
+  }
+
+  // An explicit USTA self-rating is factual level context, even though it is
+  // less stable than a C rating. Let results move it faster than a verified
+  // baseline, but never double early swings just because the source says S.
+  if (baselineSource === 'self') {
+    if (matchesProcessed >= 30) return 1.0
+    return roundRating(0.85 + (matchesProcessed / 30) * 0.15)
   }
 
   // Smooth linear decay from 2.0 at 0 matches to 1.0 at 30+ matches for an
@@ -1201,14 +1233,21 @@ export function applyVerifiedBaselineGuard(
   baseline: number,
   matchesProcessed: number,
   hasVerifiedBaseline: boolean,
+  baselineSource: RatingBaselineSource = hasVerifiedBaseline ? 'verified' : 'unknown',
 ) {
-  if (!hasVerifiedBaseline) return clampAndRoundRating(candidate)
+  if (!hasVerifiedBaseline && baselineSource !== 'self') return clampAndRoundRating(candidate)
 
-  const allowedDownwardMovement = matchesProcessed < 12
-    ? 0
-    : matchesProcessed < 30
-      ? ((matchesProcessed - 12) / 18) * 0.08
-      : Math.min(0.2, 0.08 + ((matchesProcessed - 30) / 30) * 0.12)
+  const allowedDownwardMovement = baselineSource === 'self'
+    ? matchesProcessed < 6
+      ? 0
+      : matchesProcessed < 24
+        ? ((matchesProcessed - 6) / 18) * 0.08
+        : Math.min(0.25, 0.08 + ((matchesProcessed - 24) / 36) * 0.17)
+    : matchesProcessed < 12
+      ? 0
+      : matchesProcessed < 30
+        ? ((matchesProcessed - 12) / 18) * 0.08
+        : Math.min(0.2, 0.08 + ((matchesProcessed - 30) / 30) * 0.12)
 
   return clampAndRoundRating(Math.max(candidate, baseline - allowedDownwardMovement))
 }

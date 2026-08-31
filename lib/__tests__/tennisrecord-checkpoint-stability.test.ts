@@ -9,7 +9,7 @@ describe('TennisRecord checkpoint stability', () => {
   it('keeps scheduled checkpoints small and defers full rating recalculation', () => {
     expect(source).toContain('const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 18')
     expect(source).toContain('const WEEKLY_TENNISRECORD_BATCH_LIMIT = 3')
-    expect(source).toContain('const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 2')
+    expect(source).toContain('const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 6')
     expect(source).toContain('recalculateRatings: false')
     expect(source).toContain('shouldRecalculateRatings && ratingChanged')
     expect(source).toContain('const TENNISRECORD_TRANSIENT_RETRY_DELAY_MS = 6 * 60_000')

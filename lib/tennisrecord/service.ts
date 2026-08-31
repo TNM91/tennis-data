@@ -45,7 +45,7 @@ export function ratingSourceFromStatedNtrp(
   if (designation === 'self') return 'self' as const
   // A source page can factually state the numeric level without showing C/S.
   // Keep that level, but never invent a self-rating designation for it.
-  return baseline === null ? 'self' as const : 'inferred' as const
+  return baseline === null ? 'unknown' as const : 'inferred' as const
 }
 
 const MIN_INFERRED_ADULT_FLIGHT_MATCHES = 8
@@ -119,10 +119,11 @@ export type RatingBaselineAlignment = {
 // the route's existing five-minute limit remains the final safety boundary.
 const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 18
 const WEEKLY_TENNISRECORD_BATCH_LIMIT = 3
-// Replaying already-captured pages does not contact the source. Two local-only
+// Replaying already-captured pages does not contact the source. Six local-only
 // pages per checkpoint recover stated NTRP evidence from existing profiles
-// without increasing external request pressure.
-const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 2
+// without increasing external request pressure, while leaving the external
+// collector sequentially rate-limited.
+const SCHEDULED_TENNISRECORD_REPLAY_BATCH_LIMIT = 6
 const MAX_TRANSIENT_TENNISRECORD_RETRIES = 3
 const MAX_DEFERRED_TENNISRECORD_RETRIES = 2
 // The Admin tracker is an estimate by design. Planner counts avoid a series
@@ -164,13 +165,16 @@ export function tennisRecordScheduledPageKindPlan(cadence: 'bootstrap' | 'weekly
     : [['match', 'history'], ['match', 'history'], ['player', 'team'], ['match', 'history']]
   return Array.from({ length: Math.max(0, limit) }, (_, index) => cycle[index % cycle.length])
 }
+// Revision 8 retains the exact public player-profile URL found on a match
+// page. This lets the collector verify an existing staged identity by the
+// source's stable profile key rather than by a name-only guess.
 // Revision 7 reads directional winner arrows from complete court rows, then
 // allows that corrected source observation to repair an older TennisRecord-only
 // canonical record. A `1-0` deciding-match-tiebreak marker cannot overturn
 // the source result.
 // TennisRecord's estimated dynamic rating remains metadata only. Captured
 // pages replay gradually from cache.
-const TENNISRECORD_PARSER_REVISION = 7
+const TENNISRECORD_PARSER_REVISION = 8
 
 export function scheduledTennisRecordBatchLimit(maxRequestsPerRun: number, cadence: 'bootstrap' | 'weekly' = 'bootstrap') {
   const ceiling = cadence === 'weekly' ? WEEKLY_TENNISRECORD_BATCH_LIMIT : BOOTSTRAP_TENNISRECORD_BATCH_LIMIT
@@ -1183,6 +1187,7 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
     const rows = parsed.players.map((player) => {
       const previous = priorByKey.get(player.sourcePlayerKey)
       const statedNtrp = tennisRecordStatedNtrpBaseline(player.ntrpLabel)
+      const isDirectProfile = tennisRecordRecordPageKind(player.sourceUrl) === 'player'
       return {
         source_player_key: player.sourcePlayerKey,
         name: player.name,
@@ -1191,7 +1196,10 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
         state: player.state || null,
         ntrp_label: statedNtrp === null ? previous?.ntrp_label || null : player.ntrpLabel,
         published_rating: player.publishedRating ?? previous?.published_rating ?? null,
-        source_url: statedNtrp === null ? previous?.source_url || player.sourceUrl : player.sourceUrl,
+        // A match page can establish the source player key, but the linked
+        // public profile is stronger provenance for the same exact key. Keep
+        // it even before its stated level is fetched so replay can enqueue it.
+        source_url: statedNtrp === null && !isDirectProfile ? previous?.source_url || player.sourceUrl : player.sourceUrl,
         raw: player,
         last_seen_at: new Date().toISOString(),
       }
@@ -1300,7 +1308,7 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
           const ntrp = baselineByCanonicalId.get(player.id as string)
           const isUntouchedProvisional = player.external_source === 'tennisrecord'
             && player.is_external_provisional === true
-            && player.rating_source === 'self'
+            && (player.rating_source === 'self' || player.rating_source === 'unknown')
             && [player.overall_rating, player.singles_rating, player.doubles_rating].every((rating) => rating === null || Number(rating) === 3.5)
           if (!ntrp || ntrp.baseline === null || ntrp.baseline === undefined || !isUntouchedProvisional) continue
           const update = {
@@ -1317,7 +1325,11 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
               overall_usta_dynamic_rating: floorFreshComputerRatedDynamic(player.overall_usta_dynamic_rating, ntrp.baseline),
             } : {}),
           }
-          const updated = await service.from('players').update(update).eq('id', player.id).eq('rating_source', 'self')
+          const updated = await service
+            .from('players')
+            .update(update)
+            .eq('id', player.id)
+            .in('rating_source', ['self', 'unknown'])
           if (updated.error) throw new Error(updated.error.message)
           baselineChanged = true
         }
@@ -1402,7 +1414,7 @@ async function applyInferredAdultFlightBaselines(service: SupabaseClient, source
       .in('id', playerIds)
       .eq('external_source', 'tennisrecord')
       .eq('is_external_provisional', true)
-      .eq('rating_source', 'self'),
+      .in('rating_source', ['self', 'unknown']),
     service
       .from('tennisrecord_ntrp_observations')
       .select('canonical_player_id')
@@ -1464,7 +1476,7 @@ async function applyInferredAdultFlightBaselines(service: SupabaseClient, source
         overall_rating: baseline.ntrp,
       })
       .eq('id', player.id)
-      .eq('rating_source', 'self')
+      .in('rating_source', ['self', 'unknown'])
     if (update.error) throw new Error(update.error.message)
     changed = true
   }
