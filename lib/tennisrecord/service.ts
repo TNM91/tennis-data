@@ -964,6 +964,10 @@ export async function runScheduledTennisRecordRatingBatch(service: SupabaseClien
   if (activeRunError) throw new Error(activeRunError.message)
   if (activeRun) return { status: 'skipped', pendingMatches: 0, processedMatches: 0, reason: 'collector_checkpoint_active' }
 
+  // A full rating rebuild reads a coherent point-in-time match cohort. Keep
+  // anything reconciled after this point queued for the next pass instead of
+  // marking it processed just because it arrived while the rebuild was saving.
+  const ratingWatermark = new Date().toISOString()
   const pendingQuery = service
     .from('tennisrecord_canonical_matches')
     .select('fingerprint', { count: 'exact', head: true })
@@ -975,7 +979,7 @@ export async function runScheduledTennisRecordRatingBatch(service: SupabaseClien
   const baselineRefreshRequested = Boolean(settings.rating_recalculation_requested_at)
   if (!pendingMatchCount && !baselineRefreshRequested) return { status: 'skipped', pendingMatches: 0, processedMatches: 0, reason: 'no_unprocessed_matches' }
 
-  await recalculateDynamicRatings(undefined, service)
+  await recalculateDynamicRatings(undefined, service, { replaceSnapshots: false })
   let processedMatches = 0
   if (pendingMatchCount) {
     const { data: processed, error: processedError } = await service
@@ -983,6 +987,7 @@ export async function runScheduledTennisRecordRatingBatch(service: SupabaseClien
       .update({ rating_processed_at: now.toISOString() })
       .not('canonical_match_id', 'is', null)
       .is('rating_processed_at', null)
+      .lte('reconciled_at', ratingWatermark)
       .select('fingerprint')
     if (processedError) throw new Error(processedError.message)
     processedMatches = processed?.length || pendingMatchCount

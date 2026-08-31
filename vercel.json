@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/tennisrecord-ratings",
-      "schedule": "31 9 * * *"
+      "schedule": "2,17,32,47 * * * *"
     }
   ]
 }
