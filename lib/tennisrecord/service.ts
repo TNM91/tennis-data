@@ -10,6 +10,8 @@ import type { TennisRecordRunSummary } from './types'
 type AutomationState = 'manual' | 'bootstrap' | 'weekly'
 type Settings = { enabled: boolean; min_request_interval_ms: number; max_requests_per_run: number; weekly_lookback_days: number; automation_state: AutomationState; bootstrap_started_at: string | null; bootstrap_completed_at: string | null; weekly_refresh_started_at: string | null; active_campaign_id: string | null; rating_recalculation_requested_at: string | null; rating_recalculation_reason: string | null; rating_recalculated_at: string | null }
 type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number; deferred_retry_count: number; deferred_retry_at: string | null }
+type FetchedTennisRecordPage = Awaited<ReturnType<typeof fetchTennisRecordPage>>
+type PendingTennisRecordFetch = { job: QueueRow; pagePromise: Promise<FetchedTennisRecordPage> }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
 type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; pageKindPlan?: readonly (readonly string[])[]; campaignId?: string | null; recalculateRatings?: boolean }
 
@@ -48,11 +50,13 @@ export type RatingBaselineAlignment = {
 // sequentially paced, while the bounded batch keeps the checkpoint resumable
 // and within the cron runtime.
 // A collector checkpoint also reconciles match evidence and may promote line
-// records. The collector remains sequentially rate-limited. Eighteen pages
-// uses the additional database headroom without increasing the public-source
-// request rate. Normal checkpoints stay within the observed runtime headroom;
-// the route's existing five-minute limit remains the final safety boundary.
-const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 18
+// records. The collector keeps one public-source request in flight at a time.
+// While its next request observes the same configured source interval, the
+// prior response can be parsed and staged locally. That uses the Small-compute
+// headroom without opening a second source lane or weakening block handling.
+// Twenty-four pages remains comfortably below the route's five-minute hard
+// limit and leaves the scheduled three-minute cadence intact.
+const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 24
 const WEEKLY_TENNISRECORD_BATCH_LIMIT = 3
 // Replaying already-captured pages does not contact the source. Two local-only
 // pages per checkpoint recover stated NTRP evidence from existing profiles
@@ -649,55 +653,99 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
     summary.matchesStaged += replay.matchesStaged
     summary.parserFailures += replay.parserFailures
     const requestedLimit = Math.min(input.limit || settings.max_requests_per_run, settings.max_requests_per_run)
-    for (let index = 0; index < requestedLimit; index += 1) {
+    const recordJobFailure = async (job: QueueRow, error: unknown) => {
+      const failureReason = error instanceof Error ? error.message : 'Unknown collector failure'
+      const disposition = tennisRecordFailureDisposition(failureReason, job.retry_count || 0)
+      const retryAt = disposition === 'retry'
+        ? tennisRecordTransientRetryAt(failureReason, job.retry_count || 0)
+        : tennisRecordDeferredRetryAt(failureReason, job.deferred_retry_count || 0)
+      if (disposition === 'retry') summary.transientRetries += 1
+      else if (retryAt) summary.transientRetries += 1
+      else summary.sourceFailures += 1
+      await service.from('tennisrecord_crawl_queue').update({
+        status: disposition === 'retry' ? 'pending' : 'error',
+        retry_count: disposition === 'retry' ? (job.retry_count || 0) + 1 : job.retry_count || 0,
+        failure_reason: failureReason,
+        last_error_at: new Date().toISOString(),
+        deferred_retry_at: retryAt,
+      }).eq('id', job.id)
+    }
+    const reserveNextFetch = async (index: number): Promise<PendingTennisRecordFetch | null> => {
+      if (index >= requestedLimit) return null
       const preferredKinds = input.pageKindPlan?.[index] || input.pageKinds || []
       const job = await selectNextTennisRecordQueueJob(service, input, preferredKinds)
         || (input.pageKindPlan ? await selectNextTennisRecordQueueJob(service, input, input.pageKinds || []) : null)
-      if (!job) break
+      if (!job) return null
       summary.pagesAttempted += 1
-      await service.from('tennisrecord_crawl_queue').update({ status: 'running', attempted_at: new Date().toISOString(), last_run_id: runId }).eq('id', job.id).eq('status', 'pending')
+      const { error } = await service
+        .from('tennisrecord_crawl_queue')
+        .update({ status: 'running', attempted_at: new Date().toISOString(), last_run_id: runId })
+        .eq('id', job.id)
+        .eq('status', 'pending')
+      if (error) throw new Error(error.message)
+      return { job, pagePromise: fetchTennisRecordPage(job.source_url, settings.min_request_interval_ms) }
+    }
+
+    // Keep a single source request in flight. Once a non-blocked response is
+    // captured, the next equally paced request starts while this response is
+    // parsed and staged. This gains local throughput without parallel source
+    // traffic, and a source block always prevents the next request from being
+    // scheduled.
+    let nextIndex = 0
+    let pendingFetch = await reserveNextFetch(nextIndex++)
+    while (pendingFetch) {
+      const current = pendingFetch
+      let page: FetchedTennisRecordPage
       try {
-        const page = await fetchTennisRecordPage(job.source_url, settings.min_request_interval_ms)
+        page = await current.pagePromise
         summary.transientRetries += page.transientRetries
-        const sourcePageId = await persistTennisRecordSourcePage(service, page, runId)
-        if (page.blockReason) {
-          summary.blockedRequests += 1; summary.status = 'blocked'
-          await service.from('tennisrecord_crawl_queue').update({ status: 'blocked', failure_reason: page.blockReason, completed_at: new Date().toISOString() }).eq('id', job.id)
-          continue
-        }
+      } catch (error) {
+        await recordJobFailure(current.job, error)
+        pendingFetch = await reserveNextFetch(nextIndex++)
+        continue
+      }
+
+      let sourcePageId: string | undefined
+      try {
+        sourcePageId = await persistTennisRecordSourcePage(service, page, runId)
+      } catch (error) {
+        await recordJobFailure(current.job, error)
+        pendingFetch = await reserveNextFetch(nextIndex++)
+        continue
+      }
+
+      if (page.blockReason) {
+        summary.blockedRequests += 1
+        summary.status = 'blocked'
+        await service.from('tennisrecord_crawl_queue').update({
+          status: 'blocked',
+          failure_reason: page.blockReason,
+          completed_at: new Date().toISOString(),
+        }).eq('id', current.job.id)
+        break
+      }
+
+      pendingFetch = await reserveNextFetch(nextIndex++)
+      try {
         const parsed = parseTennisRecordMatchPage(page.html, page.url)
-        if (job.page_kind === 'match' && parsed.matches.length === 0) {
+        if (current.job.page_kind === 'match' && parsed.matches.length === 0) {
           summary.parserFailures += 1
           await service.from('tennisrecord_crawl_queue').update({
             status: 'error',
             failure_reason: 'No complete TennisRecord court results were parsed; page evidence was retained for review.',
             last_error_at: new Date().toISOString(),
-          }).eq('id', job.id)
+          }).eq('id', current.job.id)
           continue
         }
-        const staged = await stageParsedPage(service, parsed, page.url, sourcePageId, job.campaign_id, campaignSlug, TENNISRECORD_PARSER_REVISION)
+        const staged = await stageParsedPage(service, parsed, page.url, sourcePageId, current.job.campaign_id, campaignSlug, TENNISRECORD_PARSER_REVISION)
         baselineChanged = baselineChanged || staged.baselineChanged
         for (const sourceMatchKey of staged.sourceMatchKeys) {
           touchedSourceMatchKeys.add(sourceMatchKey)
         }
         summary.pagesProcessed += 1; summary.playersDiscovered += parsed.players.length; summary.teamsDiscovered += parsed.teams.length; summary.matchesStaged += parsed.matches.length
-        await service.from('tennisrecord_crawl_queue').update({ status: 'done', retry_count: 0, deferred_retry_at: null, failure_reason: '', completed_at: new Date().toISOString() }).eq('id', job.id)
+        await service.from('tennisrecord_crawl_queue').update({ status: 'done', retry_count: 0, deferred_retry_at: null, failure_reason: '', completed_at: new Date().toISOString() }).eq('id', current.job.id)
       } catch (error) {
-        const failureReason = error instanceof Error ? error.message : 'Unknown collector failure'
-        const disposition = tennisRecordFailureDisposition(failureReason, job.retry_count || 0)
-        const retryAt = disposition === 'retry'
-          ? tennisRecordTransientRetryAt(failureReason, job.retry_count || 0)
-          : tennisRecordDeferredRetryAt(failureReason, job.deferred_retry_count || 0)
-        if (disposition === 'retry') summary.transientRetries += 1
-        else if (retryAt) summary.transientRetries += 1
-        else summary.sourceFailures += 1
-        await service.from('tennisrecord_crawl_queue').update({
-          status: disposition === 'retry' ? 'pending' : 'error',
-          retry_count: disposition === 'retry' ? (job.retry_count || 0) + 1 : job.retry_count || 0,
-          failure_reason: failureReason,
-          last_error_at: new Date().toISOString(),
-          deferred_retry_at: retryAt,
-        }).eq('id', job.id)
+        await recordJobFailure(current.job, error)
       }
     }
     const reconciled = await reconcileTennisRecordMatches(

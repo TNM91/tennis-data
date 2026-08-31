@@ -301,7 +301,9 @@ describe('TennisRecord ingestion safety', () => {
   })
 
   it('uses the bounded configured throughput for historical and weekly refreshes', () => {
-    expect(scheduledTennisRecordBatchLimit(20)).toBe(18)
+    expect(scheduledTennisRecordBatchLimit(30)).toBe(24)
+    expect(scheduledTennisRecordBatchLimit(24)).toBe(24)
+    expect(scheduledTennisRecordBatchLimit(20)).toBe(20)
     expect(scheduledTennisRecordBatchLimit(18)).toBe(18)
     expect(scheduledTennisRecordBatchLimit(15)).toBe(15)
     expect(scheduledTennisRecordBatchLimit(12)).toBe(12)
