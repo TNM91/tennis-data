@@ -194,7 +194,12 @@ export async function recalculateDynamicRatings(
         {
           id: player.id,
           name: player.name,
-          hasVerifiedBaseline: player.rating_source === 'verified',
+          // A repeated, current-season Adult-flight baseline is not an
+          // official C/S designation, but it is strong enough to prevent the
+          // 3.5 provisional default from presenting a sustained 4.0 player
+          // as immediately below that level. Explicit C ratings remain the
+          // highest-confidence source.
+          hasVerifiedBaseline: player.rating_source === 'verified' || player.rating_source === 'inferred',
           singlesBase,
           singlesDynamic: singlesBase,
           singlesUstaDynamic: singlesBase,

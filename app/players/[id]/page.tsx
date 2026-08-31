@@ -217,6 +217,10 @@ function isSelfRatedPlayer(player: Pick<Player, 'rating_source'> | null | undefi
   return player?.rating_source === 'self'
 }
 
+function hasInferredAdultFlightBaseline(player: Pick<Player, 'rating_source'> | null | undefined) {
+  return player?.rating_source === 'inferred'
+}
+
 function formatPublicRating(value: number | string | null | undefined, player: Pick<Player, 'rating_source'> | null | undefined) {
   const formatted = formatRatingValue(value)
   return isSelfRatedPlayer(player) && value != null ? `${formatted} S` : formatted
@@ -814,6 +818,7 @@ function PlayerProfileContent() {
   const selectedDynamicRating = useMemo(() => getTiqRating(player, ratingView), [player, ratingView])
   const ustaDynamicRating = useMemo(() => getUstaDynamicRating(player, ratingView), [player, ratingView])
   const isSelfRatedProfile = isSelfRatedPlayer(player)
+  const hasInferredUstaBaseline = hasInferredAdultFlightBaseline(player)
 
   const staticOverall = useMemo(() => getUstaRating(player, 'overall'), [player])
   const staticSingles = useMemo(() => getUstaRating(player, 'singles'), [player])
@@ -1185,7 +1190,7 @@ function PlayerProfileContent() {
   ] as const
   const playerPathIdentitySignals = [
     { label: 'Player ID', value: playerId },
-    { label: 'Profile source', value: isSelfRatedProfile ? 'Self-rated S' : 'Verified record' },
+    { label: 'Profile source', value: isSelfRatedProfile ? 'Self-rated S' : hasInferredUstaBaseline ? 'Adult-flight baseline' : 'Verified record' },
     { label: 'Level Up input', value: totalMatches > 0 ? `${totalMatches} matches` : 'Start with profile' },
     { label: 'First read', value: playerPathIdentityRead.label },
   ] as const
@@ -1238,8 +1243,8 @@ function PlayerProfileContent() {
   const trackedRecordLabel = hasTrackedMatches ? `${wins}-${losses}` : '--'
   const trackedWinRateLabel = hasTrackedMatches ? `${winPct}%` : '--'
   const trackedFormLabel = hasTrackedMatches ? getTrendShortLabel(trendDirection) : 'New'
-  const officialUstaRead = isSelfRatedProfile ? 'Self-rated USTA (S)' : 'Verified USTA level'
-  const officialUstaShortRead = isSelfRatedProfile ? 'USTA S' : 'Verified USTA'
+  const officialUstaRead = isSelfRatedProfile ? 'Self-rated USTA (S)' : hasInferredUstaBaseline ? 'Inferred USTA level' : 'Verified USTA level'
+  const officialUstaShortRead = isSelfRatedProfile ? 'USTA S' : hasInferredUstaBaseline ? 'Inferred USTA' : 'Verified USTA'
   const tiqReadLabel = `TIQ ${ratingViewLabel} read`
   const tiqReadNote = canViewExactTiqRating
     ? 'Current performance signal from reviewed results.'
@@ -1714,6 +1719,8 @@ function PlayerProfileContent() {
       value: isSelfRatedProfile ? 'USTA Pending' : `USTA ${baseRating.toFixed(2)}`,
       note: isSelfRatedProfile
         ? 'This profile is self-rated until verified match or TennisLink data replaces the S signal.'
+        : hasInferredUstaBaseline
+          ? 'This level is inferred from sustained standard Adult-flight results. The official C or S designation is still pending.'
         : 'Use USTA to understand official standing, bump pressure, and baseline comparison.',
     },
     {
@@ -1867,7 +1874,7 @@ function PlayerProfileContent() {
               <div className={profileStory.identityBlock}>
                 <h1>{player.name}</h1>
                 <div className={profileStory.identityMeta}>
-                  <span className={profileStory.verified}>{isSelfRatedProfile ? 'Self-rated profile' : 'Verified player record'}</span>
+                  <span className={profileStory.verified}>{isSelfRatedProfile ? 'Self-rated profile' : hasInferredUstaBaseline ? 'Adult-flight baseline' : 'Verified player record'}</span>
                   {primaryUstaMembership && primaryTeamHref ? (
                     <Link href={primaryTeamHref}>{primaryUstaMembership.teamName}</Link>
                   ) : (
@@ -2439,7 +2446,7 @@ function PlayerProfileContent() {
                   <h1 style={dynamicHeroTitle}>{player.name}</h1>
                   <div style={playerHeroMetaRowStyle}>
                     <span>{player.location || 'Location not added'}</span>
-                    <span>{isSelfRatedProfile ? 'Self-rated profile' : 'Verified player record'}</span>
+                    <span>{isSelfRatedProfile ? 'Self-rated profile' : hasInferredUstaBaseline ? 'Adult-flight baseline' : 'Verified player record'}</span>
                     {primaryUstaMembership && primaryTeamHref ? (
                       <Link href={primaryTeamHref} style={playerHeroTeamLinkStyle}>
                         {primaryUstaMembership.teamName}

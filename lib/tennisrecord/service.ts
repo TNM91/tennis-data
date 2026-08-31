@@ -21,6 +21,71 @@ type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; lim
 export function floorFreshComputerRatedDynamic(current: number | null | undefined, baseline: number) {
   return Math.max(typeof current === 'number' && Number.isFinite(current) ? current : baseline, baseline)
 }
+
+export type TennisRecordAdultFlightEvidence = {
+  matchDate: string | null | undefined
+  leagueName: string | null | undefined
+  flight: string | null | undefined
+  matchSource?: string | null | undefined
+  ratingEligible?: boolean | null | undefined
+}
+
+export type InferredAdultFlightBaseline = {
+  ntrp: number
+  seasonYear: number
+  evidenceMatches: number
+  seasonMatches: number
+}
+
+export function ratingSourceFromStatedNtrp(
+  baseline: number | null,
+  designation: ReturnType<typeof tennisRecordStatedNtrpDesignation>,
+) {
+  if (designation === 'computer') return 'verified' as const
+  if (designation === 'self') return 'self' as const
+  // A source page can factually state the numeric level without showing C/S.
+  // Keep that level, but never invent a self-rating designation for it.
+  return baseline === null ? 'self' as const : 'inferred' as const
+}
+
+const MIN_INFERRED_ADULT_FLIGHT_MATCHES = 8
+const MIN_INFERRED_ADULT_FLIGHT_SHARE = 0.7
+
+/**
+ * A standard Adult flight is meaningful public evidence of a player’s current
+ * competitive level. It is not evidence of a C/S designation: people can play
+ * up, and Mixed and Tri-Level divisions intentionally combine levels. Only a
+ * sustained, dominant standard-Adult season is allowed to establish an
+ * inferred starting baseline.
+ */
+export function inferCurrentAdultFlightBaseline(
+  matches: TennisRecordAdultFlightEvidence[],
+): InferredAdultFlightBaseline | null {
+  const evidence = matches.flatMap((match) => {
+    if (match.ratingEligible === false || (match.matchSource && match.matchSource !== 'usta')) return []
+    const leagueName = match.leagueName || ''
+    if (!/\badult\b/i.test(leagueName) || /\b(?:mixed|tri[-\s]?level)\b/i.test(leagueName)) return []
+    const seasonYear = Number(String(match.matchDate || '').slice(0, 4))
+    if (!Number.isInteger(seasonYear) || seasonYear < 2000 || seasonYear > 2100) return []
+    const flightValue = String(match.flight || '').trim()
+    const exactFlight = flightValue.match(/^([2-5]\.[05])$/)?.[1]
+    const namedFlight = leagueName.match(/\b([2-5]\.[05])\b/)?.[1]
+    const ntrp = Number(exactFlight || namedFlight)
+    return Number.isFinite(ntrp) ? [{ seasonYear, ntrp }] : []
+  })
+  if (!evidence.length) return null
+
+  const seasonYear = Math.max(...evidence.map((match) => match.seasonYear))
+  const currentSeason = evidence.filter((match) => match.seasonYear === seasonYear)
+  if (currentSeason.length < MIN_INFERRED_ADULT_FLIGHT_MATCHES) return null
+
+  const counts = new Map<number, number>()
+  for (const match of currentSeason) counts.set(match.ntrp, (counts.get(match.ntrp) || 0) + 1)
+  const [ntrp, evidenceMatches] = [...counts.entries()].sort((left, right) => right[1] - left[1] || right[0] - left[0])[0]
+  if (evidenceMatches < MIN_INFERRED_ADULT_FLIGHT_MATCHES || evidenceMatches / currentSeason.length < MIN_INFERRED_ADULT_FLIGHT_SHARE) return null
+
+  return { ntrp, seasonYear, evidenceMatches, seasonMatches: currentSeason.length }
+}
 export type TennisRecordRatingBatchSummary = {
   status: 'completed' | 'disabled' | 'skipped'
   pendingMatches: number
@@ -99,11 +164,13 @@ export function tennisRecordScheduledPageKindPlan(cadence: 'bootstrap' | 'weekly
     : [['match', 'history'], ['match', 'history'], ['player', 'team'], ['match', 'history']]
   return Array.from({ length: Math.max(0, limit) }, (_, index) => cycle[index % cycle.length])
 }
-// Revision 6 reads directional winner arrows from complete court rows, so a
-// `1-0` deciding-match-tiebreak marker cannot overturn the source result.
+// Revision 7 reads directional winner arrows from complete court rows, then
+// allows that corrected source observation to repair an older TennisRecord-only
+// canonical record. A `1-0` deciding-match-tiebreak marker cannot overturn
+// the source result.
 // TennisRecord's estimated dynamic rating remains metadata only. Captured
 // pages replay gradually from cache.
-const TENNISRECORD_PARSER_REVISION = 6
+const TENNISRECORD_PARSER_REVISION = 7
 
 export function scheduledTennisRecordBatchLimit(maxRequestsPerRun: number, cadence: 'bootstrap' | 'weekly' = 'bootstrap') {
   const ceiling = cadence === 'weekly' ? WEEKLY_TENNISRECORD_BATCH_LIMIT : BOOTSTRAP_TENNISRECORD_BATCH_LIMIT
@@ -642,6 +709,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
     const campaignSlug = campaign.data?.slug as string | undefined
     const replay = await reparseCapturedTennisRecordMatchPages(service, runId, input.campaignId, campaignSlug)
     const touchedSourceMatchKeys = new Set<string>()
+    const touchedSourcePlayerKeys = new Set(replay.sourcePlayerKeys)
     let baselineChanged = replay.baselineChanged
     summary.pagesProcessed += replay.pagesProcessed
     summary.playersDiscovered += replay.playersDiscovered
@@ -680,6 +748,9 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
         for (const sourceMatchKey of staged.sourceMatchKeys) {
           touchedSourceMatchKeys.add(sourceMatchKey)
         }
+        for (const sourcePlayerKey of staged.sourcePlayerKeys) {
+          touchedSourcePlayerKeys.add(sourcePlayerKey)
+        }
         summary.pagesProcessed += 1; summary.playersDiscovered += parsed.players.length; summary.teamsDiscovered += parsed.teams.length; summary.matchesStaged += parsed.matches.length
         await service.from('tennisrecord_crawl_queue').update({ status: 'done', retry_count: 0, deferred_retry_at: null, failure_reason: '', completed_at: new Date().toISOString() }).eq('id', job.id)
       } catch (error) {
@@ -703,13 +774,14 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
     const reconciled = await reconcileTennisRecordMatches(
       service,
       [...replay.sourceMatchKeys, ...touchedSourceMatchKeys],
-      shouldRecalculateRatings,
+      false,
     )
-    if (shouldRecalculateRatings && baselineChanged && !reconciled.ratingChanged) await recalculateDynamicRatings(undefined, service)
+    baselineChanged = (await applyInferredAdultFlightBaselines(service, [...touchedSourcePlayerKeys])) || baselineChanged
+    if (shouldRecalculateRatings && (baselineChanged || reconciled.ratingChanged)) await recalculateDynamicRatings(undefined, service)
     if (shouldRecalculateRatings && (baselineChanged || reconciled.ratingChanged)) {
       await recordTennisRecordRatingRefreshCompletion(service)
     } else if (baselineChanged) {
-      await requestTennisRecordRatingRefresh(service, 'verified_usta_baseline_changed')
+      await requestTennisRecordRatingRefresh(service, 'usta_baseline_evidence_changed')
     }
     summary.canonicalMatchesCreated = reconciled.created; summary.duplicatesDetected = reconciled.duplicates; summary.conflictsFound = reconciled.conflicts
     await service.from('tennisrecord_sync_runs').update({ status: summary.status, completed_at: new Date().toISOString(), pages_attempted: summary.pagesAttempted, pages_processed: summary.pagesProcessed, players_discovered: summary.playersDiscovered, teams_discovered: summary.teamsDiscovered, matches_staged: summary.matchesStaged, canonical_matches_created: summary.canonicalMatchesCreated, duplicates_detected: summary.duplicatesDetected, conflicts_found: summary.conflictsFound, blocked_requests: summary.blockedRequests, parser_failures: summary.parserFailures, transient_retries: summary.transientRetries, source_failures: summary.sourceFailures }).eq('id', runId)
@@ -1044,10 +1116,10 @@ function isActiveRunLockError(error: { code?: string; message?: string }) {
   return error.code === '23505' && /tennisrecord_sync_runs_one_active_idx/i.test(error.message || '')
 }
 
-type ParserReplaySummary = Pick<TennisRecordRunSummary, 'pagesProcessed' | 'playersDiscovered' | 'teamsDiscovered' | 'matchesStaged' | 'parserFailures'> & { sourceMatchKeys: string[]; baselineChanged: boolean }
+type ParserReplaySummary = Pick<TennisRecordRunSummary, 'pagesProcessed' | 'playersDiscovered' | 'teamsDiscovered' | 'matchesStaged' | 'parserFailures'> & { sourceMatchKeys: string[]; sourcePlayerKeys: string[]; baselineChanged: boolean }
 
 async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, runId: string, campaignId?: string | null, campaignSlug?: string): Promise<ParserReplaySummary> {
-  const summary: ParserReplaySummary = { pagesProcessed: 0, playersDiscovered: 0, teamsDiscovered: 0, matchesStaged: 0, parserFailures: 0, sourceMatchKeys: [], baselineChanged: false }
+  const summary: ParserReplaySummary = { pagesProcessed: 0, playersDiscovered: 0, teamsDiscovered: 0, matchesStaged: 0, parserFailures: 0, sourceMatchKeys: [], sourcePlayerKeys: [], baselineChanged: false }
   const { data: pages, error } = await service
     .from('tennisrecord_source_pages')
     .select('id,source_url,raw_html,raw_html_storage_path')
@@ -1085,6 +1157,7 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
     } else {
       const staged = await stageParsedPage(service, parsed, sourceUrl, page.id as string, campaignId, campaignSlug, TENNISRECORD_PARSER_REVISION)
       summary.sourceMatchKeys.push(...staged.sourceMatchKeys)
+      summary.sourcePlayerKeys.push(...staged.sourcePlayerKeys)
       summary.baselineChanged = summary.baselineChanged || staged.baselineChanged
       summary.pagesProcessed += 1
       summary.playersDiscovered += parsed.players.length
@@ -1100,6 +1173,7 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
 
 async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeof parseTennisRecordMatchPage>, sourceUrl: string, pageId?: string, campaignId?: string | null, campaignSlug?: string, parserRevision = TENNISRECORD_PARSER_REVISION) {
   let savedSourceMatchKeys: string[] = []
+  const sourcePlayerKeys = [...new Set(parsed.players.map((player) => player.sourcePlayerKey).filter(Boolean))]
   let baselineChanged = false
   if (parsed.players.length) {
     const sourcePlayerKeys = parsed.players.map((player) => player.sourcePlayerKey)
@@ -1156,7 +1230,7 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
             name: player.name,
             normalized_name: player.normalized_name,
             location: [player.city, player.state].filter(Boolean).join(', ') || null,
-            rating_source: designation === 'computer' ? 'verified' : 'self',
+            rating_source: ratingSourceFromStatedNtrp(baseline, designation),
             ...(baseline === null ? {} : {
               singles_rating: baseline,
               doubles_rating: baseline,
@@ -1230,7 +1304,7 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
             && [player.overall_rating, player.singles_rating, player.doubles_rating].every((rating) => rating === null || Number(rating) === 3.5)
           if (!ntrp || ntrp.baseline === null || ntrp.baseline === undefined || !isUntouchedProvisional) continue
           const update = {
-            rating_source: ntrp.designation === 'computer' ? 'verified' : 'self',
+            rating_source: ratingSourceFromStatedNtrp(ntrp.baseline, ntrp.designation),
             singles_rating: ntrp.baseline,
             doubles_rating: ntrp.baseline,
             overall_rating: ntrp.baseline,
@@ -1285,7 +1359,122 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
   }
   const scopedDiscoveryUrls = parsed.discoveredUrls.filter((candidateUrl) => isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, candidateUrl))
   if (scopedDiscoveryUrls.length) await enqueueTennisRecordUrls(service, scopedDiscoveryUrls, campaignId)
-  return { sourceMatchKeys: savedSourceMatchKeys, baselineChanged }
+  return { sourceMatchKeys: savedSourceMatchKeys, sourcePlayerKeys, baselineChanged }
+}
+
+/**
+ * Match pages do not always expose an individual C/S label. For untouched
+ * TennisRecord-created profiles, retain that distinction as unknown while
+ * allowing sustained, current standard-Adult play to replace the artificial
+ * 3.5 provisional baseline. This never touches local, reviewed, or explicitly
+ * designated profiles, and it deliberately excludes Mixed and Tri-Level play.
+ */
+async function applyInferredAdultFlightBaselines(service: SupabaseClient, sourcePlayerKeys: string[]) {
+  const uniqueSourcePlayerKeys = [...new Set(sourcePlayerKeys.filter(Boolean))]
+  if (!uniqueSourcePlayerKeys.length) return false
+
+  const stagedResult = await service
+    .from('tennisrecord_staged_players')
+    .select('id,source_player_key')
+    .in('source_player_key', uniqueSourcePlayerKeys)
+  if (stagedResult.error || !stagedResult.data?.length) {
+    if (stagedResult.error) throw new Error(stagedResult.error.message)
+    return false
+  }
+
+  const stagedIds = stagedResult.data.map((player) => player.id as string)
+  const identitiesResult = await service
+    .from('tennisrecord_player_identities')
+    .select('staged_player_id,canonical_player_id,status')
+    .in('staged_player_id', stagedIds)
+    .eq('status', 'matched')
+    .not('canonical_player_id', 'is', null)
+  if (identitiesResult.error || !identitiesResult.data?.length) {
+    if (identitiesResult.error) throw new Error(identitiesResult.error.message)
+    return false
+  }
+
+  const playerIds = [...new Set(identitiesResult.data.map((identity) => identity.canonical_player_id as string).filter(Boolean))]
+  const [playersResult, statedResult, playerMatchesResult] = await Promise.all([
+    service
+      .from('players')
+      .select('id,rating_source,external_source,is_external_provisional,overall_rating,singles_rating,doubles_rating')
+      .in('id', playerIds)
+      .eq('external_source', 'tennisrecord')
+      .eq('is_external_provisional', true)
+      .eq('rating_source', 'self'),
+    service
+      .from('tennisrecord_ntrp_observations')
+      .select('canonical_player_id')
+      .in('canonical_player_id', playerIds),
+    service
+      .from('match_players')
+      .select('player_id,match_id')
+      .in('player_id', playerIds),
+  ])
+  if (playersResult.error || statedResult.error || playerMatchesResult.error) {
+    throw new Error(playersResult.error?.message || statedResult.error?.message || playerMatchesResult.error?.message || 'Could not load current USTA flight evidence.')
+  }
+
+  const statedPlayerIds = new Set((statedResult.data || []).map((row) => row.canonical_player_id as string).filter(Boolean))
+  const eligiblePlayers = (playersResult.data || []).filter((player) => !statedPlayerIds.has(player.id as string))
+  if (!eligiblePlayers.length) return false
+
+  const eligiblePlayerIds = new Set(eligiblePlayers.map((player) => player.id as string))
+  const playerMatches = (playerMatchesResult.data || []).filter((row) => eligiblePlayerIds.has(row.player_id as string))
+  const matchIds = [...new Set(playerMatches.map((row) => row.match_id as string).filter(Boolean))]
+  if (!matchIds.length) return false
+
+  const matches: Array<{ id: string; match_date: string; league_name: string | null; flight: string | null; match_source: string | null; rating_eligible: boolean | null }> = []
+  for (const chunk of chunkArray(matchIds, 500)) {
+    const result = await service
+      .from('matches')
+      .select('id,match_date,league_name,flight,match_source,rating_eligible')
+      .in('id', chunk)
+      .eq('status', 'completed')
+    if (result.error) throw new Error(result.error.message)
+    matches.push(...(result.data || []) as typeof matches)
+  }
+  const matchById = new Map(matches.map((match) => [match.id, match]))
+  const evidenceByPlayerId = new Map<string, TennisRecordAdultFlightEvidence[]>()
+  for (const link of playerMatches) {
+    const match = matchById.get(link.match_id as string)
+    if (!match) continue
+    const evidence = evidenceByPlayerId.get(link.player_id as string) || []
+    evidence.push({
+      matchDate: match.match_date,
+      leagueName: match.league_name,
+      flight: match.flight,
+      matchSource: match.match_source,
+      ratingEligible: match.rating_eligible,
+    })
+    evidenceByPlayerId.set(link.player_id as string, evidence)
+  }
+
+  let changed = false
+  for (const player of eligiblePlayers) {
+    const baseline = inferCurrentAdultFlightBaseline(evidenceByPlayerId.get(player.id as string) || [])
+    if (!baseline) continue
+    const update = await service
+      .from('players')
+      .update({
+        rating_source: 'inferred',
+        singles_rating: baseline.ntrp,
+        doubles_rating: baseline.ntrp,
+        overall_rating: baseline.ntrp,
+      })
+      .eq('id', player.id)
+      .eq('rating_source', 'self')
+    if (update.error) throw new Error(update.error.message)
+    changed = true
+  }
+  return changed
+}
+
+function chunkArray<T>(items: T[], size: number) {
+  const chunks: T[][] = []
+  for (let index = 0; index < items.length; index += size) chunks.push(items.slice(index, index + size))
+  return chunks
 }
 
 /**
@@ -1332,7 +1521,28 @@ async function reconcileTennisRecordMatches(service: SupabaseClient, sourceMatch
     const identities = await resolveMatchedParticipants(service, item.participants)
     if (identities) {
       const existing = await findExistingProductionMatch(service, item, identities)
-      if (existing) {
+      if (existing?.source === 'tennisrecord') {
+        // Never let an older parser result become a higher-priority local
+        // observation. A newer replay of the same public source is permitted
+        // to correct this lower-authority canonical record only.
+        const changed = existing.score !== item.score_text || existing.winner_side !== item.winner_side
+        if (changed) {
+          const repair = await service
+            .from('matches')
+            .update({ score: item.score_text, winner_side: item.winner_side })
+            .eq('id', existing.id)
+            .eq('source', 'tennisrecord')
+          if (repair.error) throw new Error(repair.error.message)
+          ratingChanged = true
+        }
+        const staleObservation = await service
+          .from('tennisrecord_match_observations')
+          .delete()
+          .eq('fingerprint', item.fingerprint)
+          .eq('source', 'tenaceiq')
+          .eq('source_record_id', existing.id)
+        if (staleObservation.error) throw new Error(staleObservation.error.message)
+      } else if (existing) {
         const localSource = classifyLocalSource(existing.source)
         const { error: localObservationError } = await service.from('tennisrecord_match_observations').upsert({
           fingerprint: item.fingerprint,
@@ -1352,15 +1562,15 @@ async function reconcileTennisRecordMatches(service: SupabaseClient, sourceMatch
         if (localObservationError) throw new Error(localObservationError.message)
       }
     }
-    const { data: observations, error: observationsError } = await service.from('tennisrecord_match_observations').select('id,source,source_priority,canonical_match_id,score_text,participants,last_seen_at').eq('fingerprint', item.fingerprint).order('source_priority', { ascending: false }).order('last_seen_at', { ascending: false })
+    const { data: observations, error: observationsError } = await service.from('tennisrecord_match_observations').select('id,source,source_priority,canonical_match_id,score_text,winner_side,participants,last_seen_at').eq('fingerprint', item.fingerprint).order('source_priority', { ascending: false }).order('last_seen_at', { ascending: false })
     if (observationsError || !observations?.length) continue
     const winner = observations[0]
-    const conflicting = observations.slice(1).filter((value) => value.score_text !== winner.score_text || JSON.stringify(value.participants) !== JSON.stringify(winner.participants))
-    const canonicalMatchId = winner.canonical_match_id || null
-    const existing = await service.from('tennisrecord_canonical_matches').select('fingerprint,canonical_match_id').eq('fingerprint', item.fingerprint).maybeSingle()
+    const conflicting = observations.slice(1).filter((value) => value.score_text !== winner.score_text || value.winner_side !== winner.winner_side || JSON.stringify(value.participants) !== JSON.stringify(winner.participants))
+    const existingCanonical = await service.from('tennisrecord_canonical_matches').select('fingerprint,canonical_match_id').eq('fingerprint', item.fingerprint).maybeSingle()
+    const canonicalMatchId = winner.canonical_match_id || existingCanonical.data?.canonical_match_id || null
     const result = await service.from('tennisrecord_canonical_matches').upsert({ fingerprint: item.fingerprint, winning_observation_id: winner.id, canonical_match_id: canonicalMatchId, winning_source: winner.source, has_conflict: conflicting.length > 0, conflict_count: conflicting.length, reconciled_at: new Date().toISOString() }, { onConflict: 'fingerprint' })
     if (result.error) throw new Error(result.error.message)
-    if (existing.data) duplicates += 1; else created += 1
+    if (existingCanonical.data) duplicates += 1; else created += 1
     conflicts += conflicting.length
     if (!canonicalMatchId && winner.source === 'tennisrecord' && identities && item.winner_side) {
       const promoted = await promoteTennisRecordMatch(service, item, identities)

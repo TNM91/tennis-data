@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind, tennisRecordStatedNtrpBaseline, tennisRecordStatedNtrpDesignation } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
-import { buildTennisRecordQueueDiscoveryPlan, isTennisRecordRunStale } from '../tennisrecord/service'
+import { buildTennisRecordQueueDiscoveryPlan, inferCurrentAdultFlightBaseline, isTennisRecordRunStale, ratingSourceFromStatedNtrp } from '../tennisrecord/service'
 import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCadenceSafetyStatus, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordCheckpointForecastWithPace, tennisRecordDeferredRetryAt, tennisRecordFailureDisposition, tennisRecordObservedCheckpointPace, tennisRecordScheduledPageKindPlan, tennisRecordSourcePageStoragePath, tennisRecordTransientRetryAt, TENNISRECORD_AUTOMATION_INTERVAL_MINUTES, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordCampaignCurrentEndOn, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
@@ -26,6 +26,56 @@ describe('TennisRecord ingestion safety', () => {
     expect(tennisRecordStatedNtrpDesignation('4.0 C')).toBe('computer')
     expect(tennisRecordStatedNtrpDesignation('4.5 S')).toBe('self')
     expect(tennisRecordStatedNtrpDesignation('4.0')).toBe('unknown')
+    expect(ratingSourceFromStatedNtrp(4, 'computer')).toBe('verified')
+    expect(ratingSourceFromStatedNtrp(4.5, 'self')).toBe('self')
+    expect(ratingSourceFromStatedNtrp(4, 'unknown')).toBe('inferred')
+    expect(ratingSourceFromStatedNtrp(null, 'unknown')).toBe('self')
+  })
+
+  it('establishes an inferred baseline from sustained current standard-Adult flight evidence without inventing a C/S label', () => {
+    const matches = [
+      ...Array.from({ length: 9 }, (_, index) => ({
+        matchDate: `2026-0${(index % 8) + 1}-10`,
+        leagueName: '2026 Adult 18+ Missouri Valley Missouri St. Louis F 4.0',
+        flight: '4.0',
+        matchSource: 'usta',
+        ratingEligible: true,
+      })),
+      {
+        matchDate: '2025-08-10',
+        leagueName: '2025 Adult 18+ Missouri Valley Missouri St. Louis F 3.5',
+        flight: '3.5',
+        matchSource: 'usta',
+        ratingEligible: true,
+      },
+    ]
+
+    expect(inferCurrentAdultFlightBaseline(matches)).toEqual({
+      ntrp: 4,
+      seasonYear: 2026,
+      evidenceMatches: 9,
+      seasonMatches: 9,
+    })
+  })
+
+  it('does not infer an individual baseline from Tri-Level, Mixed, or split current-season flight evidence', () => {
+    const triLevel = Array.from({ length: 12 }, () => ({
+      matchDate: '2026-08-10',
+      leagueName: '2026 Tri-Level 18+ Missouri Valley Missouri St. Louis M 4.5',
+      flight: '4.5',
+      matchSource: 'usta',
+      ratingEligible: true,
+    }))
+    const splitAdult = Array.from({ length: 8 }, (_, index) => ({
+      matchDate: '2026-08-10',
+      leagueName: `2026 Adult 18+ Missouri Valley Missouri St. Louis F ${index < 4 ? '3.5' : '4.0'}`,
+      flight: index < 4 ? '3.5' : '4.0',
+      matchSource: 'usta',
+      ratingEligible: true,
+    }))
+
+    expect(inferCurrentAdultFlightBaseline(triLevel)).toBeNull()
+    expect(inferCurrentAdultFlightBaseline(splitAdult)).toBeNull()
   })
 
   it('preserves the stated NTRP effective date for annual calibration without using the external estimate', () => {
@@ -129,6 +179,15 @@ describe('TennisRecord ingestion safety', () => {
       )
     const parsed = parseTennisRecordMatchPage(visitingWinner, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026')
     expect(parsed.matches[0]).toMatchObject({ scoreText: '7-6 5-7 1-0', winnerSide: 'B' })
+  })
+
+  it('keeps newer TennisRecord tiebreak evidence eligible to repair an older TennisRecord-only canonical result', () => {
+    const service = readFileSync(join(process.cwd(), 'lib/tennisrecord/service.ts'), 'utf8')
+    const migration = readFileSync(join(process.cwd(), 'supabase/migrations/20260831000100_infer_sustained_adult_usta_baselines.sql'), 'utf8')
+    expect(service).toContain("existing?.source === 'tennisrecord'")
+    expect(service).toContain('value.winner_side !== winner.winner_side')
+    expect(migration).toContain("and match.source = 'tennisrecord'")
+    expect(migration).toContain('winner_side = staged.winner_side')
   })
 
   it('discovers only explicitly supported public record URLs', () => {
