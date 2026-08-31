@@ -54,10 +54,10 @@ describe('route loading shells', () => {
     expect(readAppFile('app/components/TiqLoader.tsx')).not.toContain('text-white/70')
   })
 
-  it('uses the supplied TenAceIQ Q and ball asset without an extra drawn loading badge', () => {
+  it('uses the supplied high-contrast TenAceIQ Q and ball asset without an extra drawn loading badge', () => {
     for (const file of ['components/TiqLoader.tsx', 'app/components/TiqLoader.tsx']) {
       const source = readAppFile(file)
-      expect(source).toContain('src="/brand/icons/app-icon-1024.png"')
+      expect(source).toContain('src="/brand/web/header-iq-compact.png"')
       expect(source).toContain('objectFit: "contain"')
       expect(source).toContain('grid place-items-center')
       expect(source).not.toContain('rounded-[28%]')
