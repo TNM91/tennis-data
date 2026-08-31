@@ -302,37 +302,30 @@ for (const viewport of viewports) {
           })
         }
 
-        const allToolsAction = page.locator('[data-mobile-portal-all="open"]')
-        const allToolsActionCount = await allToolsAction.count()
-        const competeLane = page.locator('[data-mobile-portal-lane="compete"]')
+        const addShortcutAction = page.locator('[data-mobile-portal-shortcut-add="1"]')
+        const addShortcutActionCount = await addShortcutAction.count()
 
-        if (allToolsActionCount !== 1) {
+        if (addShortcutActionCount !== 1) {
           findings.push({
             viewport: viewport.name,
-            type: 'mobile-portal-all-tools-action-missing',
-            allToolsActionCount,
+            type: 'mobile-portal-shortcut-add-action-missing',
+            addShortcutActionCount,
           })
         } else {
-          await allToolsAction.click()
+          await addShortcutAction.click()
           await page.waitForTimeout(200)
 
-          const allToolsPaletteCount = await page.locator('[data-mobile-portal-palette="all-tools"]').count()
-          const competeLaneCount = await competeLane.count()
+          const editorPaletteCount = await page.locator('[data-mobile-portal-palette="edit"]').count()
+          const editorSaveCount = await page.locator('[data-mobile-portal-personalize="save"]').count()
 
-          if (allToolsPaletteCount !== 1 || competeLaneCount !== 1) {
+          if (editorPaletteCount !== 1 || editorSaveCount !== 1) {
             findings.push({
               viewport: viewport.name,
-              type: 'mobile-portal-all-tools-palette-missing',
-              allToolsPaletteCount,
-              competeLaneCount,
+              type: 'mobile-portal-shortcut-editor-missing',
+              editorPaletteCount,
+              editorSaveCount,
             })
-            continue
           }
-
-          await Promise.all([
-            page.waitForURL(/\/compete(?:\?|$)/, { timeout: 10_000 }),
-            competeLane.click(),
-          ])
         }
       }
     } else if (!metrics.footerNav) {

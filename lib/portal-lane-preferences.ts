@@ -28,7 +28,7 @@ export const DEFAULT_PINNED_PORTAL_SHORTCUTS: PortalShortcutPreferenceId[] = [
   'lane:compete',
   'lane:team',
 ]
-export const PORTAL_SHORTCUT_PIN_LIMIT = 4
+export const PORTAL_SHORTCUT_PIN_LIMIT = 7
 
 const PORTAL_SHORTCUT_STORAGE_PREFIX = 'tenaceiq.portal-shortcuts.v2'
 const LEGACY_PORTAL_LANE_STORAGE_PREFIX = 'tenaceiq.portal-lanes.v1'
@@ -43,19 +43,8 @@ export function getPortalPersonalizationCueKey(userId?: string | null) {
 }
 
 export function normalizePinnedPortalShortcuts(value: unknown): PortalShortcutPreferenceId[] {
-  if (!Array.isArray(value)) return [...DEFAULT_PINNED_PORTAL_SHORTCUTS]
-
-  const valid = new Set<PortalShortcutPreferenceId>(PORTAL_SHORTCUT_IDS)
-  const normalized = value.filter(
-    (shortcutId, index, shortcutIds): shortcutId is PortalShortcutPreferenceId =>
-      typeof shortcutId === 'string'
-      && valid.has(shortcutId as PortalShortcutPreferenceId)
-      && shortcutIds.indexOf(shortcutId) === index,
-  )
-
-  return normalized.length === PORTAL_SHORTCUT_PIN_LIMIT
-    ? normalized.slice(0, PORTAL_SHORTCUT_PIN_LIMIT)
-    : [...DEFAULT_PINNED_PORTAL_SHORTCUTS]
+  if (!isPinnedPortalShortcutList(value)) return [...DEFAULT_PINNED_PORTAL_SHORTCUTS]
+  return [...value]
 }
 
 export function buildPortalLaneOrderFromShortcuts(shortcutIds: readonly PortalShortcutPreferenceId[]) {
@@ -161,7 +150,7 @@ export function hasDismissedPortalPersonalizationCue(userId?: string | null) {
 }
 
 export function isPinnedPortalShortcutList(value: unknown): value is PortalShortcutPreferenceId[] {
-  if (!Array.isArray(value) || value.length !== PORTAL_SHORTCUT_PIN_LIMIT) return false
+  if (!Array.isArray(value) || value.length < 1 || value.length > PORTAL_SHORTCUT_PIN_LIMIT) return false
   const valid = new Set<PortalShortcutPreferenceId>(PORTAL_SHORTCUT_IDS)
   return value.every((shortcutId, index) => (
     typeof shortcutId === 'string'
@@ -203,7 +192,7 @@ function normalizeLegacyPortalLanes(value: unknown): PortalShortcutPreferenceId[
       && values.indexOf(laneId) === index,
   )
 
-  if (laneIds.length !== PORTAL_SHORTCUT_PIN_LIMIT) return [...DEFAULT_PINNED_PORTAL_SHORTCUTS]
+  if (laneIds.length < 1 || laneIds.length > PORTAL_SHORTCUT_PIN_LIMIT) return [...DEFAULT_PINNED_PORTAL_SHORTCUTS]
   return laneIds.map((laneId) => `lane:${laneId}` as PortalShortcutPreferenceId)
 }
 
