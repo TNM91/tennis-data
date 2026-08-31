@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { PRODUCT_LANGUAGE_SYSTEM, PRODUCT_MOTTO } from '@/lib/product-story'
 
-const PWA_ICON_VERSION = '20260813-navy-tile'
+const PWA_ICON_VERSION = '20260831-final-svg-v1'
 const PWA_ICON = `/brand/icons/pwa-192.png?v=${PWA_ICON_VERSION}`
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -91,7 +91,7 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     screenshots: [
       {
-        src: '/brand/social/og-image-1200x630.png',
+        src: '/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1',
         sizes: '1200x630',
         type: 'image/png',
       },

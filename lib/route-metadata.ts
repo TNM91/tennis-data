@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { createClient } from '@supabase/supabase-js'
 
-const DEFAULT_IMAGE = '/brand/social/og-image-1200x630.png'
+const DEFAULT_IMAGE = '/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1'
 let metadataSupabase: ReturnType<typeof createClient> | null = null
 
 function getMetadataSupabase() {
