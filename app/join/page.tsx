@@ -217,7 +217,6 @@ function JoinContent() {
     setMessage('')
 
     try {
-      const postSignupLoginHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, trimmedEmail)
       const signupResponse = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

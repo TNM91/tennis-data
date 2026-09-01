@@ -25,7 +25,7 @@ describe('Stripe live catalog audit', () => {
       expect(pricingSource).toContain(`${planId}: {`)
     }
 
-    for (const amount of ['499', '999', '2500', '1999', '9900', '19900']) {
+    for (const amount of ['299', '599', '2500', '1499', '9900', '19900']) {
       expect(auditScript).toContain(`amountCents: ${amount}`)
       expect(pricingSource).toContain(`amountCents: ${amount}`)
     }

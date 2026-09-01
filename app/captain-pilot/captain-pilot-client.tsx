@@ -6,7 +6,6 @@ import { useMemo, useState, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import {
-  CAPTAIN_PILOT_END_AT,
   CAPTAIN_PILOT_PRICE_LABEL,
   CAPTAIN_PILOT_TRIAL_MONTHS,
   getCaptainPilotAvailability,

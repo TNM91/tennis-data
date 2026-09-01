@@ -6,6 +6,7 @@ const includeLive = args.has('--live')
 const baseUrl = cleanBaseUrl(process.env.SEO_SHARE_QA_BASE_URL || 'https://www.tenaceiq.com')
 const canonicalBaseUrl = 'https://www.tenaceiq.com'
 const previewImagePath = '/brand/social/og-image-1200x630.png'
+const previewImageUrl = `${previewImagePath}?v=20260827-ace-v6`
 const previewImageFile = join(process.cwd(), 'public', 'brand', 'social', 'og-image-1200x630.png')
 const maxPreviewBytes = 5 * 1024 * 1024
 
@@ -94,7 +95,7 @@ function runLocalChecks() {
   assertIncludes(homeSource, 'twitter', 'homepage Twitter metadata')
   assertIncludes(homeSource, previewImagePath, 'homepage social preview image')
 
-  assertIncludes(routeMetadataSource, `DEFAULT_IMAGE = '${previewImagePath}'`, 'shared route social preview')
+  assertIncludes(routeMetadataSource, `DEFAULT_IMAGE = '${previewImageUrl}'`, 'shared route social preview')
   assertIncludes(routeMetadataSource, 'alternates', 'shared route canonical metadata')
   assertIncludes(routeMetadataSource, 'openGraph', 'shared route Open Graph metadata')
   assertIncludes(routeMetadataSource, 'twitter', 'shared route Twitter metadata')
@@ -105,8 +106,8 @@ function runLocalChecks() {
 
   assertIncludes(manifestSource, "name: 'TenAceIQ'", 'manifest app name')
   assertIncludes(manifestSource, 'PRODUCT_MOTTO', 'manifest product story language')
-  assertIncludes(manifestSource, "'/brand/icons/pwa-512.png'", 'manifest 512 icon')
-  assertIncludes(manifestSource, "'/brand/social/og-image-1200x630.png'", 'manifest screenshot')
+  assertIncludes(manifestSource, '/brand/icons/pwa-512.png?v=${PWA_ICON_VERSION}', 'manifest 512 icon')
+  assertIncludes(manifestSource, "'/brand/social/og-image-1200x630.png?v=20260827-ace-v6'", 'manifest screenshot')
 
   for (const route of publicRoutes) {
     if (route === '/') continue
