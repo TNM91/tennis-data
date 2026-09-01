@@ -11,12 +11,12 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Fall Captain Pilot | TenAceIQ',
     description: 'Three months of Captain free for eligible local tennis captains.',
-    images: ['/brand/social/og-image-1200x630.png?v=20260827-ace-v6'],
+    images: ['/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1'],
   },
   twitter: {
     title: 'Fall Captain Pilot | TenAceIQ',
     description: 'Three months of Captain free for eligible local tennis captains.',
-    images: ['/brand/social/og-image-1200x630.png?v=20260827-ace-v6'],
+    images: ['/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1'],
   },
 }
 

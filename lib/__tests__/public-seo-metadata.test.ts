@@ -37,7 +37,7 @@ describe('public SEO metadata', () => {
       url: '/coaches',
       images: [
         {
-          url: '/brand/social/og-image-1200x630.png',
+          url: '/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1',
           width: 1200,
           height: 630,
         },
@@ -47,7 +47,7 @@ describe('public SEO metadata', () => {
       card: 'summary_large_image',
       title: 'Coaches',
       description: 'Find tennis coaching support and see how Coach Hub helps players and coaches keep development moving between lessons.',
-      images: ['/brand/social/og-image-1200x630.png'],
+      images: ['/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1'],
     })
   })
 

@@ -12,7 +12,7 @@ import { HOME_HERO_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 
 const homeDescription =
   'TenAceIQ helps the tennis community improve, compete, and manage the game with less friction.'
-const socialBrandImage = '/brand/social/og-image-1200x630.png'
+const socialBrandImage = '/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1'
 
 export const metadata: Metadata = {
   title: PRODUCT_MOTTO,

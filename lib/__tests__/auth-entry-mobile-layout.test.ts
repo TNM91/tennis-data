@@ -114,7 +114,7 @@ describe('auth entry mobile layout guards', () => {
     expect(source).toContain('this coach setup lands on the right player profile')
   })
 
-  it('preserves invited emails from account creation into sign in', () => {
+  it('preserves invited emails and return paths through confirmation signup', () => {
     const source = sources.get('app/join/page.tsx')!
 
     expect(source).toContain("const requestedEmail = searchParams.get('email')?.trim() ?? ''")
@@ -130,6 +130,9 @@ describe('auth entry mobile layout guards', () => {
     expect(source).toContain('email: trimmedEmail')
     expect(source).toContain('nextHref: selectedNextRoute')
     expect(source).toContain('captainPilot: isCaptainPilotSignup')
+    expect(source).toContain('Check your email to confirm your account.')
+    expect(source).not.toContain('supabase.auth.signUp')
+    expect(source).not.toContain('router.push(postSignupLoginHref)')
     expect(source).toContain('href={signInHref}')
   })
 

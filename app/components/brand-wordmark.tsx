@@ -24,9 +24,9 @@ const BRAND_ASSETS = {
     height: 1947,
   },
   headerOnLight: {
-    src: '/brand/logos/tenaceiq-full-for-light-bg.png',
-    width: 6138,
-    height: 1957,
+    src: '/brand/web/header-logo-light-bg.png',
+    width: 6118,
+    height: 1947,
   },
   compact: {
     src: '/brand/web/header-iq-compact.png',
@@ -34,7 +34,7 @@ const BRAND_ASSETS = {
     height: 1614,
   },
   compactOnLight: {
-    src: '/brand/logos/tenaceiq-iq-for-light-bg.png',
+    src: '/brand/web/header-iq-light-bg.png',
     width: 1552,
     height: 1614,
   },

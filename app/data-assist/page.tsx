@@ -52,6 +52,7 @@ import {
 import { acceptCaptainImportConnection } from '@/lib/team-profile-links-client'
 
 const DATA_ASSIST_OCR_TIMEOUT_MS = 100_000
+const DATA_ASSIST_BULK_OCR_TIMEOUT_MS = 45_000
 const DATA_ASSIST_MAX_BULK_SCORECARDS = 10
 const newPlayerActions = [
   { href: '/data-assist#upload', label: 'Upload tennis data', detail: 'Scorecard, schedule, or Team Summary' },
@@ -699,6 +700,7 @@ function DataAssistWorkspace() {
         if (scanRunRef.current !== scanRunId) return
         const file = files[index]
         setMessage(`Importing scorecard ${index + 1} of ${files.length}...`)
+        let saved: { batchId: string; draftId: string } | null = null
         try {
           const preparedSummary = await prepareDataAssistBatch([file], 'scorecard')
           const nextSummary = summarizeDataAssistBatch('scorecard', preparedSummary.screenshots)
@@ -717,18 +719,19 @@ function DataAssistWorkspace() {
             continue
           }
 
-          const saved = await withTimeout(
+          saved = await withTimeout(
             saveDataAssistDraftBatch(nextSummary),
             30_000,
             'Saving a scorecard export is taking longer than expected. Check your connection and try again.',
           )
+          void refreshSubmissions()
           const ocrResult = await withTimeout(
             queueDataAssistOcrVerification({
               batchId: saved.batchId,
               draftId: saved.draftId,
             }),
-            DATA_ASSIST_OCR_TIMEOUT_MS,
-            'Scorecard reading is taking longer than expected. The upload was saved; try it again from history in a moment.',
+            DATA_ASSIST_BULK_OCR_TIMEOUT_MS,
+            'Scorecard reading is taking longer than expected. The export was saved; TenAceIQ is moving to the next scorecard.',
           )
 
           if (ocrResult.autoImport?.ok) {
@@ -769,11 +772,13 @@ function DataAssistWorkspace() {
         } catch (err) {
           failedCount += 1
           updateBulkScorecardResult(index, {
-            batchId: '',
-            draftId: '',
+            batchId: saved?.batchId || '',
+            draftId: saved?.draftId || '',
             fileName: file.name,
             status: 'failed',
-            detail: err instanceof Error ? err.message : 'Import failed',
+            detail: saved
+              ? `${err instanceof Error ? err.message : 'Import failed'} Open the saved upload from history to retry it.`
+              : err instanceof Error ? err.message : 'Import failed',
             matchId: '',
             matchDate: '',
             matchup: '',
@@ -1945,7 +1950,7 @@ function getAutoAssessmentMessage(
     return `Scorecard read complete, but automatic import paused: ${autoImport.message}`
   }
   if (!assessment) {
-    return 'Scorecard read complete. Review the parsed export before any import is committed.'
+  return 'Scorecard read complete. Review the parsed export before it changes your tennis records.'
   }
   if (assessment.decision === 'auto_ready') {
     return 'Scorecard read complete. This scorecard passed auto-checks; no public records change until the import check finishes.'
@@ -2265,7 +2270,7 @@ function BulkScorecardResultsPanel({
           </h2>
           <p style={copyStyle}>
             {pendingCount
-              ? 'Each export is being saved and read as its own match.'
+              ? 'Each export is saved and read as its own match. A slow read moves on so the rest of your batch can continue.'
               : reviewCount
                 ? 'Open each review, check the highlighted names and scores, then confirm. Until then, the result will not appear in league stats.'
                 : 'Each export was saved and read as its own match.'}
@@ -2312,12 +2317,19 @@ function BulkScorecardResultsPanel({
                   Review now
                 </button>
               ) : null}
+              {result.status === 'failed' && result.batchId ? (
+                <button type="button" onClick={() => onReviewNow(result.batchId)} style={smallButtonStyle}>
+                  Open saved upload
+                </button>
+              ) : null}
             </div>
           </div>
         ))}
       </div>
       <div style={draftActionRowStyle}>
-        <button type="button" onClick={onStartOver} style={primaryButtonStyle}>Upload more scorecards</button>
+        <button type="button" onClick={onStartOver} style={primaryButtonStyle}>
+          {pendingCount ? 'Stop waiting and upload separately' : 'Upload more scorecards'}
+        </button>
       </div>
     </section>
   )
@@ -3090,7 +3102,7 @@ function ImportPreviewPanel({
           {isCorrection ? (
             <div style={readyImportNoteStyle}>
               <strong>Correction found</strong>
-              <span>Commit updates the saved result and Team Chat without creating another match.</span>
+              <span>Importing updates the saved result and Team Chat without creating another match.</span>
             </div>
           ) : null}
           <div style={parsedLineListStyle}>
@@ -3114,11 +3126,11 @@ function ImportPreviewPanel({
           {importing ? 'Running...' : 'Preview import'}
         </button>
         <button type="button" onClick={onCommit} disabled={importing || commitBlocked} style={{ ...smallButtonStyle, ...(importing || commitBlocked ? disabledStyle : {}) }}>
-          Commit import
+          Import confirmed scorecard
         </button>
       </div>
       {commitBlocked && preview ? (
-        <p style={warningStyle}>Commit unlocks after winners are resolved and the parsed read is confirmed.</p>
+        <p style={warningStyle}>Import unlocks after winners are resolved and the parsed read is confirmed.</p>
       ) : null}
     </div>
   )
@@ -3864,7 +3876,7 @@ function getSubmissionStatusCopy(submission: DataAssistSubmission) {
   if (submission.status === 'verified') {
     return {
       label: 'Ready to import',
-      detail: 'The read is confirmed. Preview or commit the import when you are ready.',
+      detail: 'The read is confirmed. Review it or import it when you are ready.',
       tone: 'green' as const,
     }
   }
@@ -5307,7 +5319,7 @@ const bulkResultContentStyle: CSSProperties = {
 const bulkResultActionStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'flex-end',
+  justifyContent: 'flex-start',
   flexWrap: 'wrap',
   gap: 8,
   minWidth: 0,
@@ -5331,7 +5343,7 @@ const bulkResultRowStyle = (status: BulkScorecardResult['status']): CSSPropertie
         : 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-chip-bg) 94%)',
   padding: 12,
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 12,
   alignItems: 'center',
   color: 'var(--foreground-strong)',

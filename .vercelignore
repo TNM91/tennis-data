@@ -1,4 +1,5 @@
 .next
+.vercel
 node_modules
 coverage
 test-results
@@ -20,8 +21,13 @@ yarn-debug.log*
 yarn-error.log*
 .env*
 .agents
+.pricing-release-worktree
 .claude
 skills-lock.json
+
+# Local social-art exploration files; the deployed social assets are tracked.
+public/brand/social/og-background-ace*.png
+public/brand/social/og-fast-ace-preview-1200x630.png
 
 # Local packaging and agent artifacts are not production source.
 *.zip

@@ -6,8 +6,8 @@ const layoutSource = readFileSync(join(process.cwd(), 'app/layout.tsx'), 'utf8')
 const manifestSource = readFileSync(join(process.cwd(), 'app/manifest.ts'), 'utf8')
 
 describe('bookmark and installed app branding', () => {
-  it('uses the opaque navy iQ icon set for browser bookmarks', () => {
-    expect(layoutSource).toContain("const BRAND_ICON_VERSION = '20260813-navy-tile'")
+  it('uses the transparent iQ outline set for browser bookmarks', () => {
+    expect(layoutSource).toContain("const BRAND_ICON_VERSION = '20260831-final-svg-v1'")
     expect(layoutSource).toContain('/favicon.ico')
     expect(layoutSource).toContain('/favicon-32x32.png')
     expect(layoutSource).toContain('/favicon-16x16.png')
@@ -21,8 +21,8 @@ describe('bookmark and installed app branding', () => {
     expect(existsSync(join(process.cwd(), 'public/apple-touch-icon-precomposed.png'))).toBe(true)
   })
 
-  it('keeps installed apps on opaque navy iQ assets', () => {
-    expect(manifestSource).toContain("const PWA_ICON_VERSION = '20260813-navy-tile'")
+  it('keeps installed apps on the transparent iQ outline assets', () => {
+    expect(manifestSource).toContain("const PWA_ICON_VERSION = '20260831-final-svg-v1'")
     expect(manifestSource).toContain('/brand/icons/pwa-192.png')
     expect(manifestSource).toContain('/brand/icons/pwa-maskable-512.png')
     expect(manifestSource).toContain('/brand/icons/pwa-512.png')

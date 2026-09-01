@@ -21,19 +21,22 @@ export default function TiqLoader({
   size = "md",
 }: TiqLoaderProps) {
   const config = sizeMap[size];
+  // Match the navy app icon's 90% safe area so both iQ colorways render at
+  // the same visible size on loading states.
+  const visibleIconSize = Math.round(config.icon * 0.9)
 
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-10">
       <div className={`relative grid place-items-center ${config.wrap}`} role="status" aria-label={label || "Loading"}>
         <Image
-          src="/brand/icons/app-icon-1024.png"
+          src="/brand/web/header-iq-compact.png"
           alt=""
           width={512}
           height={512}
           priority
           style={{
-            width: config.icon,
-            height: config.icon,
+            width: visibleIconSize,
+            height: visibleIconSize,
             objectFit: "contain",
           }}
         />

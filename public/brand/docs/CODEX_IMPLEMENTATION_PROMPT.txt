@@ -1,6 +1,8 @@
 TENACEIQ BRAND DEPLOYMENT — CODEX IMPLEMENTATION PROMPT
 
-Use the assets in this folder as the production source of truth. Do not redraw, recreate, reinterpret, or substitute the TenAceIQ logo.
+Use the assets in this folder as the production source of truth. The approved
+SVGs in /masters are the canonical artwork. Do not redraw, recreate,
+reinterpret, or substitute the TenAceIQ logo.
 
 Brand rules:
 - Primary dark background: #06172F
@@ -21,7 +23,8 @@ Recommended web usage:
 - Favicon: /icons/favicon.ico
 
 Implementation:
-1. Copy these assets into the site's public/brand or equivalent static directory.
+1. Preserve the SVG masters in the site's public/brand/masters directory and
+   regenerate derivatives with `node scripts/promote-final-tenaceiq-brand.mjs`.
 2. Replace any older TenAceIQ logo assets and references with these files.
 3. Use object-fit: contain; never stretch or crop logo artwork.
 4. Do not apply CSS filters, skew, rotation, shadows, or border-radius to the transparent logo files.

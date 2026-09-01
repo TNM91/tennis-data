@@ -138,7 +138,7 @@ function getFirstName(metadata: unknown) {
   return typeof firstName === 'string' ? firstName.replace(/\s+/g, ' ').trim().slice(0, 60) : ''
 }
 
-const shell: CSSProperties = { width: 'min(760px, calc(100% - clamp(24px, 5vw, 40px)))', margin: '30px auto 52px', display: 'grid', gap: 16 }
+const shell: CSSProperties = { width: 'min(760px, calc(100% - clamp(20px, 5vw, 28px)))', margin: '30px auto 52px', display: 'grid', gap: 16 }
 const hero: CSSProperties = { padding: '34px', borderRadius: 28, border: '1px solid rgba(125,211,252,0.16)', background: 'linear-gradient(145deg, rgba(6,23,47,0.98), rgba(11,36,70,0.94))', boxShadow: '0 24px 70px rgba(2,8,23,0.42)' }
 const eyebrow: CSSProperties = { margin: 0, color: 'var(--brand-green)', fontSize: 12, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }
 const title: CSSProperties = { margin: '12px 0 14px', color: '#fff', fontSize: 'clamp(32px, 6vw, 48px)', lineHeight: 0.98, letterSpacing: '-0.04em' }
@@ -148,8 +148,8 @@ const card: CSSProperties = { display: 'grid', gap: 16, padding: '28px 30px', bo
 const cardLabel: CSSProperties = { margin: 0, color: 'var(--home-eyebrow-color)', fontSize: 12, fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase' }
 const steps: CSSProperties = { display: 'grid', gap: 12, padding: 0, margin: 0, listStyle: 'none' }
 const stepRow: CSSProperties = { display: 'grid', gridTemplateColumns: '28px minmax(0, 1fr)', gap: 11, alignItems: 'start', color: 'var(--foreground)', fontSize: 15, fontWeight: 650, lineHeight: 1.42 }
-const stepNumber: CSSProperties = { display: 'grid', placeItems: 'center', width: 26, height: 26, borderRadius: 999, background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)', color: 'var(--foreground-strong)', fontSize: 12, fontWeight: 900 }
-const primaryCta: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 52, borderRadius: 15, padding: '0 20px', background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)', color: 'var(--foreground-strong)', textDecoration: 'none', fontWeight: 900, fontSize: 16 }
+const stepNumber: CSSProperties = { display: 'grid', placeItems: 'center', width: 26, height: 26, borderRadius: 999, background: 'var(--brand-green)', color: '#071226', fontSize: 12, fontWeight: 900 }
+const primaryCta: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 52, borderRadius: 15, padding: '0 20px', background: 'var(--brand-green)', color: '#071226', textDecoration: 'none', fontWeight: 900, fontSize: 16 }
 const secondaryCta: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, color: 'var(--foreground)', textDecoration: 'none', fontWeight: 800, fontSize: 14 }
 const finePrint: CSSProperties = { margin: 0, color: 'var(--shell-copy-muted)', fontSize: 13, lineHeight: 1.45, textAlign: 'center' }
-const loadingShell: CSSProperties = { width: 'min(760px, calc(100% - clamp(24px, 5vw, 40px)))', margin: '48px auto', padding: '22px', borderRadius: 20, color: 'var(--foreground-strong)', background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(125,211,252,0.16)', fontWeight: 800 }
+const loadingShell: CSSProperties = { width: 'min(760px, calc(100% - clamp(20px, 5vw, 28px)))', margin: '48px auto', padding: '22px', borderRadius: 20, color: 'var(--foreground-strong)', background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(125,211,252,0.16)', fontWeight: 800 }

@@ -21,6 +21,9 @@ export default function TiqLoader({
   size = "md",
 }: TiqLoaderProps) {
   const config = sizeMap[size];
+  // The dark UI mark uses the same 90% safe area as the navy app icon, so the
+  // visual iQ footprint stays identical across the two colorways.
+  const visibleIconSize = Math.round(config.icon * 0.9)
 
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-10">
@@ -30,14 +33,14 @@ export default function TiqLoader({
         aria-label={label || "Loading"}
       >
         <Image
-          src="/brand/icons/app-icon-1024.png"
+          src="/brand/web/header-iq-compact.png"
           alt=""
           width={512}
           height={512}
           priority
           style={{
-            width: config.icon,
-            height: config.icon,
+            width: visibleIconSize,
+            height: visibleIconSize,
             objectFit: "contain",
           }}
         />

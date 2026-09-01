@@ -632,9 +632,9 @@ const heroStyle: CSSProperties = {
 
 const compactHeroStyle: CSSProperties = {
   ...heroStyle,
-  gap: 8,
-  padding: 14,
-  borderRadius: 18,
+  gap: 10,
+  padding: 18,
+  borderRadius: 20,
 }
 
 const eyebrowStyle: CSSProperties = {
@@ -658,8 +658,8 @@ const heroTitleStyle: CSSProperties = {
 
 const compactHeroTitleStyle: CSSProperties = {
   ...heroTitleStyle,
-  fontSize: '2.25rem',
-  lineHeight: 1,
+  fontSize: 'clamp(2.15rem, 10vw, 2.55rem)',
+  lineHeight: 1.04,
 }
 
 const heroTextStyle: CSSProperties = {
@@ -676,6 +676,7 @@ const heroActionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 10,
   alignItems: 'center',
+  minWidth: 0,
 }
 
 const mobileRoleShortcutsStyle: CSSProperties = {
@@ -971,9 +972,9 @@ const planCardStyle: CSSProperties = {
 
 const compactPlanCardStyle: CSSProperties = {
   ...planCardStyle,
-  gap: 6,
-  padding: 8,
-  borderRadius: 14,
+  gap: 12,
+  padding: 16,
+  borderRadius: 18,
 }
 
 const recommendedCardStyle: CSSProperties = {
@@ -993,7 +994,7 @@ const planTopStyle: CSSProperties = {
 const compactPlanTopStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '48px minmax(0, 1fr)',
-  gap: 8,
+  gap: 10,
   alignItems: 'center',
   minWidth: 0,
 }
@@ -1003,6 +1004,7 @@ const planBadgeRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 8,
   alignItems: 'center',
+  minWidth: 0,
 }
 
 const planNameStyle: CSSProperties = {
@@ -1035,8 +1037,9 @@ const priceStyle: CSSProperties = {
 
 const compactPriceStyle: CSSProperties = {
   ...priceStyle,
-  fontSize: 16,
-  lineHeight: 1.08,
+  fontSize: 17,
+  lineHeight: 1.1,
+  whiteSpace: 'nowrap',
 }
 
 const billingCueStyle: CSSProperties = {
@@ -1052,6 +1055,7 @@ const cardTextStyle: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.65,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const compactHeroTextStyle: CSSProperties = {
@@ -1064,18 +1068,18 @@ const compactPrimaryPlanButtonStyle: CSSProperties = {
   ...primaryButtonStyle,
   width: '100%',
   minHeight: 44,
-  padding: '0 10px',
-  borderRadius: 12,
-  fontSize: 12,
+  padding: '0 14px',
+  borderRadius: 14,
+  fontSize: 13,
 }
 
 const compactSecondaryPlanButtonStyle: CSSProperties = {
   ...secondaryButtonStyle,
   width: '100%',
   minHeight: 44,
-  padding: '0 10px',
-  borderRadius: 12,
-  fontSize: 12,
+  padding: '0 14px',
+  borderRadius: 14,
+  fontSize: 13,
 }
 
 const fitBoxStyle: CSSProperties = {
@@ -1268,9 +1272,9 @@ const tableMutedCellStyle: CSSProperties = {
 const compactFeatureListStyle: CSSProperties = {
   ...featureListStyle,
   margin: 0,
-  paddingLeft: 18,
-  fontSize: 12,
-  lineHeight: 1.45,
+  paddingLeft: 20,
+  fontSize: 13,
+  lineHeight: 1.55,
 }
 
 const billingDetailsBodyStyle: CSSProperties = {
