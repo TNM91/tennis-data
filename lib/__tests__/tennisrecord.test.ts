@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind, tennisRecordStatedNtrpBaseline, tennisRecordStatedNtrpDesignation } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
-import { buildTennisRecordQueueDiscoveryPlan, inferCurrentAdultFlightBaseline, isTennisRecordRunStale, ratingSourceFromStatedNtrp } from '../tennisrecord/service'
+import { buildTennisRecordQueueDiscoveryPlan, inferCurrentAdultFlightBaseline, isTennisRecordRunStale, preserveTennisRecordStatedNtrpLabel, ratingSourceFromStatedNtrp } from '../tennisrecord/service'
 import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCadenceSafetyStatus, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordCheckpointForecastWithPace, tennisRecordDeferredRetryAt, tennisRecordFailureDisposition, tennisRecordObservedCheckpointPace, tennisRecordScheduledPageKindPlan, tennisRecordSourcePageStoragePath, tennisRecordTransientRetryAt, TENNISRECORD_AUTOMATION_INTERVAL_MINUTES, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordCampaignCurrentEndOn, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
@@ -32,6 +32,12 @@ describe('TennisRecord ingestion safety', () => {
     expect(ratingSourceFromStatedNtrp(4.5, 'self')).toBe('self')
     expect(ratingSourceFromStatedNtrp(4, 'unknown')).toBe('inferred')
     expect(ratingSourceFromStatedNtrp(null, 'unknown')).toBe('unknown')
+  })
+
+  it('clears legacy malformed NTRP labels while keeping a valid earlier profile label', () => {
+    expect(preserveTennisRecordStatedNtrpLabel('', '4.5 C')).toBe('4.5 C')
+    expect(preserveTennisRecordStatedNtrpLabel('', '7.5')).toBeNull()
+    expect(preserveTennisRecordStatedNtrpLabel('4.0 S', '4.5 C')).toBe('4.0 S')
   })
 
   it('establishes an inferred baseline from sustained current standard-Adult flight evidence without inventing a C/S label', () => {
