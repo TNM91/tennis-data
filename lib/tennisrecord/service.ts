@@ -48,6 +48,21 @@ export function ratingSourceFromStatedNtrp(
   return baseline === null ? 'unknown' as const : 'inferred' as const
 }
 
+/**
+ * A current profile page can omit its stated NTRP while an earlier profile
+ * page supplied a valid one. Preserve that valid factual context, but clear
+ * a legacy malformed value so it cannot keep blocking observation staging.
+ */
+export function preserveTennisRecordStatedNtrpLabel(currentLabel: unknown, priorLabel: unknown) {
+  if (tennisRecordStatedNtrpBaseline(currentLabel) !== null) {
+    return typeof currentLabel === 'string' ? currentLabel.trim() : null
+  }
+  if (tennisRecordStatedNtrpBaseline(priorLabel) !== null) {
+    return typeof priorLabel === 'string' ? priorLabel.trim() : null
+  }
+  return null
+}
+
 const MIN_INFERRED_ADULT_FLIGHT_MATCHES = 8
 const MIN_INFERRED_ADULT_FLIGHT_SHARE = 0.7
 
@@ -1187,6 +1202,7 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
     const rows = parsed.players.map((player) => {
       const previous = priorByKey.get(player.sourcePlayerKey)
       const statedNtrp = tennisRecordStatedNtrpBaseline(player.ntrpLabel)
+      const ntrpLabel = preserveTennisRecordStatedNtrpLabel(player.ntrpLabel, previous?.ntrp_label)
       const isDirectProfile = tennisRecordRecordPageKind(player.sourceUrl) === 'player'
       return {
         source_player_key: player.sourcePlayerKey,
@@ -1194,7 +1210,7 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
         normalized_name: normalizedTennisRecordPlayerName(player),
         city: player.city || null,
         state: player.state || null,
-        ntrp_label: statedNtrp === null ? previous?.ntrp_label || null : player.ntrpLabel,
+        ntrp_label: ntrpLabel,
         published_rating: player.publishedRating ?? previous?.published_rating ?? null,
         // A match page can establish the source player key, but the linked
         // public profile is stronger provenance for the same exact key. Keep
