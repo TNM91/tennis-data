@@ -263,6 +263,29 @@
   text-decoration: none;
 }
 
+.dialogNextStep {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 8px;
+  justify-items: end;
+}
+
+.dialogPrice {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 7px;
+  color: var(--shell-copy-muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.dialogPrice strong {
+  color: var(--brand-green);
+  font-size: 1rem;
+  font-weight: 950;
+}
+
 .dialogCta,
 .homePrimaryAction {
   border: 1px solid color-mix(in srgb, var(--brand-green) 48%, transparent);
@@ -375,6 +398,15 @@
 
   .dialogCta {
     width: 100%;
+  }
+
+  .dialogNextStep {
+    width: 100%;
+    justify-items: stretch;
+  }
+
+  .dialogPrice {
+    justify-content: center;
   }
 
   .homeActions > a {

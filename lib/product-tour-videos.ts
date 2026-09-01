@@ -1,4 +1,10 @@
-import type { CorePricingPlanId } from './pricing-plans'
+import {
+  getPricingBillingCue,
+  getPricingPlan,
+  type BillablePricingPlanId,
+  type CorePricingPlanId,
+} from './pricing-plans'
+import { getPlanUnlockHref } from './plan-intent'
 
 export type ProductTourVideoId =
   | 'teaser'
@@ -22,6 +28,7 @@ export type ProductTourVideo = {
   captions: string
   poster: string
   transcript: readonly string[]
+  pricingPlanIds?: readonly BillablePricingPlanId[]
   cta: {
     label: string
     href: string
@@ -89,6 +96,7 @@ export const PRODUCT_TOUR_VIDEOS: Record<ProductTourVideoId, ProductTourVideo> =
       'Search players, teams, leagues, rankings, coaches, and tournaments, then use public context to understand what you are seeing.',
       'Free gives you useful answers now, and a clear place to decide what to unlock next.',
     ],
+    pricingPlanIds: ['free'],
     cta: { label: 'Start exploring', href: '/explore' },
   },
   player: {
@@ -106,7 +114,8 @@ export const PRODUCT_TOUR_VIDEOS: Record<ProductTourVideoId, ProductTourVideo> =
       'Use My Lab, prepare for matchups, follow your Level Up work, and keep tactics connected to the player you are becoming.',
       'Instead of staring at match history, leave with a clearer next move for practice and competition.',
     ],
-    cta: { label: 'See Player', href: '/pricing#player_plus' },
+    pricingPlanIds: ['player_plus'],
+    cta: { label: 'Unlock Player', href: getPlanUnlockHref('player_plus') },
   },
   coach: {
     id: 'coach',
@@ -123,7 +132,8 @@ export const PRODUCT_TOUR_VIDEOS: Record<ProductTourVideoId, ProductTourVideo> =
       'Plan the lesson, assign the next piece of work, review player proof, and track progress in one connected coaching path.',
       'Give every player a clearer next step, while keeping your follow-up organized and easy to act on.',
     ],
-    cta: { label: 'See Coach', href: '/pricing#coach' },
+    pricingPlanIds: ['coach'],
+    cta: { label: 'Unlock Coach', href: getPlanUnlockHref('coach') },
   },
   captain: {
     id: 'captain',
@@ -140,7 +150,8 @@ export const PRODUCT_TOUR_VIDEOS: Record<ProductTourVideoId, ProductTourVideo> =
       'See who is ready, compare lineup scenarios, scout the matchup, and send a plan your players can understand.',
       'Spend less time chasing answers in group texts, and more time making the team decision with confidence.',
     ],
-    cta: { label: 'See Captain', href: '/pricing#captain' },
+    pricingPlanIds: ['captain'],
+    cta: { label: 'Unlock Captain', href: getPlanUnlockHref('captain') },
   },
   league: {
     id: 'league',
@@ -157,7 +168,8 @@ export const PRODUCT_TOUR_VIDEOS: Record<ProductTourVideoId, ProductTourVideo> =
       'Build schedules, collect scores, maintain standings, and connect league or tournament updates without another cleanup cycle.',
       'Move the competition forward with structure that players, captains, and organizers can follow.',
     ],
-    cta: { label: 'See League', href: '/pricing#league' },
+    pricingPlanIds: ['league'],
+    cta: { label: 'Unlock League', href: getPlanUnlockHref('league') },
   },
   'full-court': {
     id: 'full-court',
@@ -174,7 +186,8 @@ export const PRODUCT_TOUR_VIDEOS: Record<ProductTourVideoId, ProductTourVideo> =
       'Keep Player, Coach, Captain, League, and Tournament Desk tools connected to the same tennis identity and trusted data.',
       'Move between roles without rebuilding the context you already created somewhere else.',
     ],
-    cta: { label: 'See Full-Court', href: '/pricing#full_court' },
+    pricingPlanIds: ['full_court'],
+    cta: { label: 'Unlock Full-Court', href: getPlanUnlockHref('full_court') },
   },
   club: {
     id: 'club',
@@ -191,7 +204,8 @@ export const PRODUCT_TOUR_VIDEOS: Record<ProductTourVideoId, ProductTourVideo> =
       'Start with one location, or scale across locations with connected staff, coaches, players, programs, leagues, and events.',
       'Deliver one branded club experience, with the structure to grow without adding more disconnected systems.',
     ],
-    cta: { label: 'See Club plans', href: '/pricing#club-plans' },
+    pricingPlanIds: ['club_starter', 'club_unlimited'],
+    cta: { label: 'Compare Club plans', href: '/pricing#club-plans' },
   },
 }
 
@@ -213,3 +227,31 @@ export const TIER_TOUR_VIDEO_IDS: ProductTourVideoId[] = [
   'full-court',
   'club',
 ]
+
+export const PRODUCT_TOUR_CONTENT_REVIEW = {
+  contentVersion: '2026.09',
+  lastReviewedOn: '2026-09-01',
+  reviewDueOn: '2026-12-01',
+  pricingPolicy: 'dynamic' as const,
+}
+
+export function getProductTourPriceSummary(videoId: ProductTourVideoId) {
+  const planIds = PRODUCT_TOUR_VIDEOS[videoId].pricingPlanIds
+  if (!planIds?.length) return null
+
+  const plans = planIds.map((planId) => getPricingPlan(planId))
+  const firstPlan = plans[0]
+
+  if (plans.length === 1) {
+    return {
+      label: firstPlan.priceLabel,
+      detail: getPricingBillingCue(firstPlan.id),
+    }
+  }
+
+  const lastPlan = plans.at(-1) ?? firstPlan
+  return {
+    label: `From ${firstPlan.priceLabel}`,
+    detail: `${lastPlan.name} ${lastPlan.priceLabel}`,
+  }
+}
