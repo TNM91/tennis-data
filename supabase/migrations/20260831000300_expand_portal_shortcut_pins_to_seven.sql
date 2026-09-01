@@ -3,16 +3,16 @@
 -- across devices without forcing a member to fill every slot.
 begin;
 
-create or replace function public.text_array_has_unique_values(values text[])
+create or replace function public.text_array_has_unique_values(shortcut_values text[])
 returns boolean
 language sql
 immutable
 strict
 set search_path = pg_catalog
 as $$
-  select cardinality(values) = (
+  select cardinality(shortcut_values) = (
     select count(distinct value)
-    from unnest(values) as entry(value)
+    from unnest(shortcut_values) as entry(value)
   )
 $$;
 
