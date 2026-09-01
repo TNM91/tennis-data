@@ -6,6 +6,22 @@ const source = readFileSync(join(process.cwd(), 'app/data-assist/page.tsx'), 'ut
 const globalsSource = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
 
 describe('Data Assist mobile layout guards', () => {
+  it('keeps bulk scorecard results readable and lets later files continue after one slow read', () => {
+    const resultRowStart = source.indexOf('const bulkResultRowStyle')
+    const resultRowEnd = source.indexOf('\nconst ', resultRowStart + 1)
+    const resultRow = source.slice(resultRowStart, resultRowEnd)
+
+    expect(resultRow).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+    expect(resultRow).not.toContain('minmax(0, auto)')
+    expect(source).toContain('const DATA_ASSIST_BULK_OCR_TIMEOUT_MS = 45_000')
+    expect(source).toContain('DATA_ASSIST_BULK_OCR_TIMEOUT_MS,')
+    expect(source).toContain('TenAceIQ is moving to the next scorecard.')
+    expect(source).toContain('Open saved upload')
+    expect(source).toContain('Stop waiting and upload separately')
+    expect(source).toContain('Import confirmed scorecard')
+    expect(source).not.toContain('Commit import')
+  })
+
   it('keeps closed Data Assist drawers out of measured layout', () => {
     expect(source).toContain('className="dataAssistDetailsSection"')
     expect(source).toContain('className="dataAssistDetailsBody"')
