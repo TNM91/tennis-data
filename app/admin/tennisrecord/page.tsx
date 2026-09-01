@@ -14,10 +14,10 @@ type Status = {
   safetyThrottle: { active: boolean; reason: string | null; resumesAt: string | null }
   pipelineHealth: { state: 'healthy' | 'attention' | 'cooling_down' | 'paused'; message: string; lastSuccessfulCollectorAt: string | null }
   pendingPages: number
-  campaignProgress: { pending: number; completed: number; running: number; blocked: number; errors: number }
+  campaignProgress: { pending: number; completed: number; running: number; review: number; blocked: number; errors: number }
   campaignForecast: { pagesPerCheckpoint: number; checkpointsRemaining: number; estimatedMinutesRemaining: number; checkpointMinutes: number; paceSampleCount: number; paceSource: 'recent_completed_checkpoints' | 'scheduled_cadence'; estimateBasis: 'known_queue' }
   nextCampaign: { id: string; name: string; region_label: string; starts_on: string; ends_on: string; status: string } | null
-  weeklyProgress: { startedAt: string | null; pending: number; completed: number; running: number; blocked: number; errors: number }
+  weeklyProgress: { startedAt: string | null; pending: number; completed: number; running: number; review: number; blocked: number; errors: number }
   weeklyForecast: { pagesPerCheckpoint: number; checkpointsRemaining: number; estimatedMinutesRemaining: number; checkpointMinutes: number; paceSampleCount: number; paceSource: 'recent_completed_checkpoints' | 'scheduled_cadence'; estimateBasis: 'known_queue' }
   ratingProgress: { pending: number; baselineRefreshPending: boolean; baselineRefreshRequestedAt: string | null; lastRecalculatedAt: string | null; cadence: 'overnight' | 'Wednesday' | 'paused' }
   ratingEvidence: { observations: number; computerRated: number; selfRated: number; datedObservations: number; playersWithMultipleYears: number; paired2025To2026: number } | null
@@ -119,8 +119,8 @@ export default function TennisRecordAdminPage() {
   const automationState = status?.settings?.automation_state || 'manual'
   const activeCampaign = status?.campaigns?.find((campaign) => campaign.id === status?.settings?.active_campaign_id)
   const progress = status?.campaignProgress
-  const knownPages = progress ? progress.pending + progress.completed + progress.running + progress.blocked + progress.errors : 0
-  const settledPages = progress ? progress.completed + progress.blocked + progress.errors : 0
+  const knownPages = progress ? progress.pending + progress.completed + progress.running + progress.review + progress.blocked + progress.errors : 0
+  const settledPages = progress ? progress.completed + progress.review + progress.blocked + progress.errors : 0
   const progressPercent = knownPages > 0 ? Math.min(100, Math.round((settledPages / knownPages) * 100)) : 0
   const checkpointLimit = Math.max(1, status?.settings?.max_requests_per_run || 8)
   const checkpointIntervalMinutes = Math.max(1, status?.automationCadenceMinutes || 5)
@@ -143,8 +143,8 @@ export default function TennisRecordAdminPage() {
       ? `About ${estimatedMinutesRemaining} min remaining`
       : `About ${Math.ceil(estimatedMinutesRemaining / 60)} hr remaining`
   const weekly = status?.weeklyProgress
-  const weeklyKnownPages = weekly ? weekly.pending + weekly.completed + weekly.running + weekly.blocked + weekly.errors : 0
-  const weeklySettledPages = weekly ? weekly.completed + weekly.blocked + weekly.errors : 0
+  const weeklyKnownPages = weekly ? weekly.pending + weekly.completed + weekly.running + weekly.review + weekly.blocked + weekly.errors : 0
+  const weeklySettledPages = weekly ? weekly.completed + weekly.review + weekly.blocked + weekly.errors : 0
   const weeklyPercent = weeklyKnownPages > 0 ? Math.min(100, Math.round((weeklySettledPages / weeklyKnownPages) * 100)) : 0
   const weeklyCheckpointsRemaining = weeklyForecast?.checkpointsRemaining ?? (weekly ? Math.ceil((weekly.pending + weekly.running) / checkpointLimit) : 0)
   const weeklyEstimatedMinutes = weeklyForecast?.estimatedMinutesRemaining ?? weeklyCheckpointsRemaining * checkpointIntervalMinutes
@@ -188,6 +188,7 @@ export default function TennisRecordAdminPage() {
             <CampaignStep label="Then" title="Weekly seven-day refresh" detail="Runs every Wednesday and collects only the prior week’s eligible public activity." />
           </div>
           <span className="subtle-text">Time remaining reflects the currently known queue and {campaignPaceDetail}. The estimate updates automatically as public pages reveal additional eligible matches.</span>
+          <span className="subtle-text">Evidence review pages were captured safely but did not contain a complete court result. They do not pause collection or enter production matches.</span>
         </section>
         <div className="metric-grid">
           <Metric label="Collector" value={status?.settings?.enabled ? 'Enabled' : 'Disabled'} />
@@ -213,6 +214,7 @@ export default function TennisRecordAdminPage() {
           <Metric label="Transient retries" value={String(run.transient_retries ?? '—')} />
           <Metric label="Source failures" value={String(run.source_failures ?? '—')} />
           <Metric label="Parser failures" value={String(run.parser_failures ?? '—')} />
+          <Metric label="Evidence review" value={String(progress?.review ?? '—')} />
         </div>
         <section aria-label="Import health" style={{ marginTop: 20, padding: 16, borderRadius: 18, border: `1px solid ${pipelineHealth?.state === 'attention' ? 'rgba(255,157,114,0.52)' : 'rgba(116,190,255,0.2)'}`, background: pipelineHealth?.state === 'attention' ? 'rgba(98, 38, 24, 0.22)' : 'rgba(11, 31, 55, 0.42)' }}>
           <div style={{ display: 'grid', gap: 4 }}>

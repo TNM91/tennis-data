@@ -525,14 +525,15 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     if (activeCampaignId) query = query.eq('campaign_id', activeCampaignId)
     return query
   }
-  const [campaignPending, campaignCompleted, campaignRunning, campaignBlocked, campaignErrors] = await Promise.all([
+  const [campaignPending, campaignCompleted, campaignRunning, campaignReview, campaignBlocked, campaignErrors] = await Promise.all([
     countCampaignPages('pending'),
     countCampaignPages('done'),
     countCampaignPages('running'),
+    countCampaignPages('review'),
     countCampaignPages('blocked'),
     countCampaignPages('error'),
   ])
-  if (campaignPending.error || campaignCompleted.error || campaignRunning.error || campaignBlocked.error || campaignErrors.error) throw new Error('TennisRecord campaign progress is unavailable.')
+  if (campaignPending.error || campaignCompleted.error || campaignRunning.error || campaignReview.error || campaignBlocked.error || campaignErrors.error) throw new Error('TennisRecord campaign progress is unavailable.')
   const weeklyStartedAt = (settings.data as Settings | null)?.weekly_refresh_started_at || null
   const countWeeklyPages = (status: string, timestampColumn: 'last_seen_at' | 'completed_at') => {
     let query = service.from('tennisrecord_crawl_queue').select('id', TENNISRECORD_STATUS_COUNT).eq('status', status).in('page_kind', TENNISRECORD_WEEKLY_PAGE_KINDS)
@@ -541,23 +542,24 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     return query
   }
   const emptyWeeklyCount = { count: 0, error: null }
-  const [weeklyPending, weeklyCompleted, weeklyRunning, weeklyBlocked, weeklyErrors] = weeklyStartedAt
+  const [weeklyPending, weeklyCompleted, weeklyRunning, weeklyReview, weeklyBlocked, weeklyErrors] = weeklyStartedAt
     ? await Promise.all([
       countWeeklyPages('pending', 'last_seen_at'),
       countWeeklyPages('done', 'completed_at'),
       countWeeklyPages('running', 'last_seen_at'),
+      countWeeklyPages('review', 'completed_at'),
       countWeeklyPages('blocked', 'completed_at'),
       countWeeklyPages('error', 'completed_at'),
     ])
-    : [emptyWeeklyCount, emptyWeeklyCount, emptyWeeklyCount, emptyWeeklyCount, emptyWeeklyCount]
-  if (weeklyPending.error || weeklyCompleted.error || weeklyRunning.error || weeklyBlocked.error || weeklyErrors.error) throw new Error('TennisRecord weekly progress is unavailable.')
+    : [emptyWeeklyCount, emptyWeeklyCount, emptyWeeklyCount, emptyWeeklyCount, emptyWeeklyCount, emptyWeeklyCount]
+  if (weeklyPending.error || weeklyCompleted.error || weeklyRunning.error || weeklyReview.error || weeklyBlocked.error || weeklyErrors.error) throw new Error('TennisRecord weekly progress is unavailable.')
   const campaignRows = campaigns.data || []
   const activeCampaign = campaignRows.find((campaign) => campaign.id === activeCampaignId)
   const nextCampaign = campaignRows.find((campaign) => campaign.status === 'planned') || null
   const activeSeedUrls = activeCampaign
     ? getTennisRecordCampaignSeedUrls({ slug: activeCampaign.slug, startsOn: activeCampaign.starts_on, endsOn: tennisRecordCampaignCurrentEndOn(activeCampaign.ends_on) })
     : []
-  const knownCampaignPages = (campaignPending.count || 0) + (campaignCompleted.count || 0) + (campaignRunning.count || 0) + (campaignBlocked.count || 0) + (campaignErrors.count || 0)
+  const knownCampaignPages = (campaignPending.count || 0) + (campaignCompleted.count || 0) + (campaignRunning.count || 0) + (campaignReview.count || 0) + (campaignBlocked.count || 0) + (campaignErrors.count || 0)
   const completedRuns = (recentCompletedRuns.data || []) as Array<TennisRecordCompletedCheckpointSample & { trigger_kind: SyncTriggerKind }>
   const bootstrapPace = tennisRecordObservedCheckpointPace(completedRuns.filter((run) => run.trigger_kind === 'bootstrap'))
   const weeklyPace = tennisRecordObservedCheckpointPace(completedRuns.filter((run) => run.trigger_kind === 'weekly'))
@@ -595,6 +597,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
       pending: campaignPending.count || 0,
       completed: campaignCompleted.count || 0,
       running: campaignRunning.count || 0,
+      review: campaignReview.count || 0,
       blocked: campaignBlocked.count || 0,
       errors: campaignErrors.count || 0,
     },
@@ -619,6 +622,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
       pending: weeklyPending.count || 0,
       completed: weeklyCompleted.count || 0,
       running: weeklyRunning.count || 0,
+      review: weeklyReview.count || 0,
       blocked: weeklyBlocked.count || 0,
       errors: weeklyErrors.count || 0,
     },
@@ -756,9 +760,13 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
         if (job.page_kind === 'match' && parsed.matches.length === 0) {
           summary.parserFailures += 1
           await service.from('tennisrecord_crawl_queue').update({
-            status: 'error',
+            // The public page was captured and preserved. Keep it terminal for
+            // parser review instead of presenting it as an active collector
+            // failure or allowing it to re-enter the crawl queue.
+            status: 'review',
             failure_reason: 'No complete TennisRecord court results were parsed; page evidence was retained for review.',
             last_error_at: new Date().toISOString(),
+            completed_at: new Date().toISOString(),
           }).eq('id', job.id)
           continue
         }
