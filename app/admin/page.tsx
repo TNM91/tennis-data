@@ -303,7 +303,7 @@ export default function AdminDashboardPage() {
             title="Common admin work"
             subtitle="Open the job you need."
           />
-          <div className="card-grid three" style={{ marginTop: 14 }}>
+          <div className="admin-tool-grid" style={adminToolGridStyle}>
             {priorityTools.map((tool) => (
               <AdminToolCard key={tool.href} tool={tool} />
             ))}
@@ -312,7 +312,7 @@ export default function AdminDashboardPage() {
 
         <details style={moreToolsStyle}>
           <summary style={moreToolsSummaryStyle}>More admin tools <span>{moreAdminTools.length}</span></summary>
-          <div className="card-grid three" style={{ marginTop: 14 }}>
+          <div className="admin-tool-grid" style={adminToolGridStyle}>
             {moreAdminTools.map((tool) => <AdminToolCard key={tool.href} tool={tool} />)}
           </div>
         </details>
@@ -465,13 +465,13 @@ function AdminToolCard({ tool }: { tool: AdminTool }) {
   return (
     <Link
       href={tool.href}
-      className="surface-card"
+      className="surface-card admin-tool-card"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
         position: 'relative',
         display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1fr) auto',
+        gridTemplateColumns: 'minmax(0, 1fr)',
         gap: 14,
         alignItems: 'start',
         minHeight: 0,
@@ -493,7 +493,7 @@ function AdminToolCard({ tool }: { tool: AdminTool }) {
           {tool.description}
         </p>
       </div>
-      <div style={{ display: 'grid', placeItems: 'center', opacity: hovered ? 1 : 0.72 }}>
+      <div style={{ display: 'grid', placeItems: 'center', justifySelf: 'end', opacity: hovered ? 1 : 0.72 }}>
         <TiqFeatureIcon name={tool.icon} size="sm" variant={hovered ? 'surface' : 'ghost'} />
       </div>
     </Link>
@@ -528,6 +528,13 @@ const moreToolsStyle = {
   borderRadius: 18,
   background: 'var(--shell-panel-bg)',
   padding: 14,
+} as const
+
+const adminToolGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 224px), 1fr))',
+  gap: 14,
+  marginTop: 14,
 } as const
 
 const moreToolsSummaryStyle = {
