@@ -45,6 +45,7 @@ import {
 const TIQ_LEAGUES_TABLE = 'tiq_leagues'
 const TIQ_TEAM_ENTRIES_TABLE = 'tiq_team_league_entries'
 const TIQ_PLAYER_ENTRIES_TABLE = 'tiq_player_league_entries'
+const FUTURE_JWT_SETTLE_DELAY_MS = 3_000
 
 export type TiqLeagueStorageSource = 'supabase' | 'local'
 export type TiqLeagueEntryStatus = 'pending' | 'active' | 'rejected' | 'removed'
@@ -97,6 +98,14 @@ export type TiqPlayerLeagueEntryRecord = {
   eligibilityReviewNote: string
   eligibility: PlayerEligibilityAssessment
   eligibilityEvidence: PlayerEligibilityEvidence
+}
+
+function isFutureJwtError(error: unknown) {
+  return error instanceof Error && error.message.toLowerCase().includes('jwt issued at future')
+}
+
+async function waitForFutureJwtToSettle() {
+  await new Promise<void>((resolve) => globalThis.setTimeout(resolve, FUTURE_JWT_SETTLE_DELAY_MS))
 }
 
 type TiqLeagueRow = {
@@ -660,6 +669,7 @@ export async function listTiqTeamParticipations(
     sourceLeagueName?: string | null
     sourceFlight?: string | null
   },
+  retryingFutureJwt = false,
 ): Promise<{
   entries: TiqTeamParticipationRecord[]
   source: TiqLeagueStorageSource
@@ -722,6 +732,14 @@ export async function listTiqTeamParticipations(
       warning: leagueResult.warning,
     }
   } catch (error) {
+    // A just-refreshed mobile token can be rejected by PostgREST for a short
+    // propagation window. Do not silently downgrade a connected team to the
+    // device fallback before giving that token one measured retry.
+    if (!retryingFutureJwt && isFutureJwtError(error)) {
+      await waitForFutureJwtToSettle()
+      return listTiqTeamParticipations(filters, true)
+    }
+
     const fallbackLeagues = readTiqLeagueRegistry()
     const entries = fallbackLeagues
       .flatMap((record) =>

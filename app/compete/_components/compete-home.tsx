@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import RoleActionHome, { type RoleHomeAction, type RoleHomeQuickAction } from '@/app/components/role-action-home'
+import { buildProductAccessState } from '@/lib/access-model'
 import {
   chooseLatestCompeteResumeState,
   getCompeteResumeHref,
@@ -24,20 +25,13 @@ const primaryAction: RoleHomeAction = {
   event: { eventName: 'matchup_started', surface: 'matchup', metadata: { location: 'compete_hub', job: 'prep_matchup' } },
 }
 
-const quickActions: RoleHomeQuickAction[] = [
+const coreQuickActions: RoleHomeQuickAction[] = [
   {
     title: 'Scout player',
     detail: 'Ratings and recent context',
     href: '/explore/players',
     icon: 'playerRatings',
     event: { eventName: 'search_result_clicked', surface: 'public_site', metadata: { location: 'compete_hub', job: 'scout_players' } },
-  },
-  {
-    title: 'Build lineup',
-    detail: 'Turn the read into a team plan',
-    href: '/captain/lineup-builder',
-    icon: 'lineupBuilder',
-    event: { eventName: 'lineup_preview_clicked', surface: 'captain', metadata: { location: 'compete_hub', job: 'build_lineup_plan' } },
   },
   {
     title: 'Check results',
@@ -55,6 +49,30 @@ const quickActions: RoleHomeQuickAction[] = [
   },
 ]
 
+const captainQuickAction: RoleHomeQuickAction = {
+  title: 'Build lineup',
+  detail: 'Turn the read into a team plan',
+  href: '/captain/lineup-builder',
+  icon: 'lineupBuilder',
+  event: { eventName: 'lineup_preview_clicked', surface: 'captain', metadata: { location: 'compete_hub', job: 'build_lineup_plan' } },
+}
+
+const captainUpgradeQuickAction: RoleHomeQuickAction = {
+  title: 'Unlock Captain',
+  detail: 'Lineups, readiness, and team notes',
+  href: '/pricing',
+  icon: 'lineupBuilder',
+  event: { eventName: 'upgrade_checkout_started', surface: 'upgrade', metadata: { location: 'compete_hub', job: 'unlock_captain' } },
+}
+
+const publicQuickAction: RoleHomeQuickAction = {
+  title: 'See rankings',
+  detail: 'Track movement across the player pool',
+  href: '/explore/rankings',
+  icon: 'teamRankings',
+  event: { eventName: 'standings_preview_clicked', surface: 'public_site', metadata: { location: 'compete_hub', job: 'view_rankings' } },
+}
+
 const steps = [
   { title: 'Find the opponent', detail: 'Open the player, team, or league behind the next match.' },
   { title: 'Make one match plan', detail: 'Use the matchup read to choose the first pattern or pressure point.' },
@@ -62,9 +80,20 @@ const steps = [
 ]
 
 export default function CompeteHome() {
-  const { userId, authResolved, session } = useAuth()
+  const { userId, role, entitlements, authResolved, session } = useAuth()
   const [resumeState, setResumeState] = useState<CompeteResumeState | null>(null)
   const [resumeResolved, setResumeResolved] = useState(false)
+  const resolvedRole = authResolved || !userId ? role : 'member'
+  const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
+  const quickActions = useMemo(() => [
+    coreQuickActions[0],
+    access.canUseCaptainWorkflow
+      ? captainQuickAction
+      : userId
+        ? captainUpgradeQuickAction
+        : publicQuickAction,
+    ...coreQuickActions.slice(1),
+  ], [access.canUseCaptainWorkflow, userId])
 
   useEffect(() => {
     if (!authResolved) return

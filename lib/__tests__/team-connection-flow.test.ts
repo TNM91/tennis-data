@@ -97,6 +97,7 @@ describe('team connection flow', () => {
   it('shows the Improve offer after an accepted player team link', () => {
     const banner = readFileSync(join(process.cwd(), 'app/components/team-connection-invite.tsx'), 'utf8')
     const page = readFileSync(join(process.cwd(), 'app/team-connections/page.tsx'), 'utf8')
+    const route = readFileSync(join(process.cwd(), 'app/api/team-connections/route.ts'), 'utf8')
 
     expect(banner).toContain('offers.player')
     expect(banner).toContain('href={teamRoomHref}')
@@ -106,6 +107,10 @@ describe('team connection flow', () => {
     expect(page).toContain('acceptedPlayerLinks')
     expect(page).toContain('offers.player.label')
     expect(page).toContain('aria-label="Improve recommendation"')
+    expect(page).toContain('fetchTeamConnections(accessToken, { includeOffers: true, userId })')
+    expect(banner).toContain('fetchTeamConnections(accessToken, { includeOffers: true })')
+    expect(route).toContain("new URL(request.url).searchParams.get('includeOffers') === '1'")
+    expect(route).toContain("console.info('[api/team-connections] loaded'")
   })
 
   it('shows a clear multi-role update instead of replacing the player link', () => {

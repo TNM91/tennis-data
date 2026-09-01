@@ -1001,18 +1001,24 @@ function LeagueCardItem({
         </div>
       </div>
 
-      <div style={dynamicLeagueDetailGrid}>
-        <DetailCard label="USTA Section" value={league.ustaSection} hideWhenEmpty />
-        <DetailCard label="District / Area" value={league.districtArea} hideWhenEmpty />
-        <DetailCard label="Matches" value={String(league.matchCount)} />
-        <DetailCard label="Teams Seen" value={String(league.teamCount)} />
+      <div style={leagueSeasonPulseStyle} aria-label={`${league.leagueName} season pulse`}>
+        <div style={leagueSeasonPulseHeadingStyle}>
+          <span>Season pulse</span>
+          <strong>{league.latestMatchDate ? 'Active record' : 'Record building'}</strong>
+        </div>
+        <div style={leaguePulseGridStyle}>
+          <LeaguePulseMetric label="Matches" value={String(league.matchCount)} />
+          <LeaguePulseMetric label="Teams" value={String(league.teamCount)} />
+          <LeaguePulseMetric label="Latest" value={formatDate(league.latestMatchDate)} />
+        </div>
       </div>
 
-      <div style={leagueBottom}>
-        <span style={leagueBottomMeta}>
-          Latest match: <strong>{formatDate(league.latestMatchDate)}</strong>
-        </span>
-      </div>
+      {(safeText(league.ustaSection) || safeText(league.districtArea)) ? (
+        <div style={dynamicLeagueDetailGrid}>
+          <DetailCard label="USTA Section" value={league.ustaSection} hideWhenEmpty />
+          <DetailCard label="District / Area" value={league.districtArea} hideWhenEmpty />
+        </div>
+      ) : null}
       <details className="leagueDetailsSection" style={leagueCardDetailsStyle} aria-label={`${league.leagueName} data check`}>
         <summary style={leagueCardDetailsSummaryStyle}>
           <span>Data check</span>
@@ -1026,6 +1032,15 @@ function LeagueCardItem({
           />
         </div>
       </details>
+    </div>
+  )
+}
+
+function LeaguePulseMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={leaguePulseMetricStyle}>
+      <span style={leaguePulseMetricLabelStyle}>{label}</span>
+      <strong style={leaguePulseMetricValueStyle}>{value}</strong>
     </div>
   )
 }
@@ -2118,6 +2133,61 @@ const leagueDetailGrid: CSSProperties = {
   minWidth: 0,
 }
 
+const leagueSeasonPulseStyle: CSSProperties = {
+  position: 'relative',
+  marginBottom: 12,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(56,189,248,0.07))',
+  minWidth: 0,
+}
+
+const leagueSeasonPulseHeadingStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: 8,
+  marginBottom: 10,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  flexWrap: 'wrap',
+}
+
+const leaguePulseGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const leaguePulseMetricStyle: CSSProperties = {
+  minWidth: 0,
+}
+
+const leaguePulseMetricLabelStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 800,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const leaguePulseMetricValueStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.15,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
 const detailCard: CSSProperties = {
   borderRadius: '12px',
   padding: '10px',
@@ -2141,20 +2211,6 @@ const detailValue: CSSProperties = {
   lineHeight: 1.35,
   fontWeight: 800,
   wordBreak: 'break-word',
-}
-
-const leagueBottom: CSSProperties = {
-  marginTop: '10px',
-  paddingTop: '10px',
-  borderTop: '1px solid rgba(125, 211, 252, 0.14)',
-}
-
-const leagueBottomMeta: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  lineHeight: 1.4,
-  fontWeight: 600,
-  overflowWrap: 'anywhere',
 }
 
 const leagueCardDetailsStyle: CSSProperties = {

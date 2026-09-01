@@ -69,6 +69,20 @@ type ScenarioRow = {
   notes: string | null
 }
 
+type TeamMatchResult = {
+  id: string
+  match_date: string
+  home_team: string | null
+  away_team: string | null
+  winner_side: 'A' | 'B' | null
+  score: string | null
+}
+
+type ScenarioOutcome = {
+  result: 'Won' | 'Lost'
+  score: string | null
+}
+
 type PoolPlayer = PlayerRow & {
   availabilityStatus: string | null
   availabilityNotes: string | null
@@ -116,6 +130,31 @@ function cloneSlots(slots: LineupSlot[]) {
     ...slot,
     players: slot.players.map((player) => ({ ...player })),
   }))
+}
+
+function teamKey(value: string | null | undefined) {
+  return cleanText(value).toLocaleLowerCase()
+}
+
+function findScenarioOutcome(scenario: ScenarioRow, results: TeamMatchResult[]): ScenarioOutcome | null {
+  const team = teamKey(scenario.team_name)
+  const opponent = teamKey(scenario.opponent_team)
+  const date = cleanText(scenario.match_date)
+  if (!team || !opponent || !date) return null
+
+  const match = results.find((result) => {
+    if (result.match_date !== date || !result.winner_side) return false
+    const home = teamKey(result.home_team)
+    const away = teamKey(result.away_team)
+    return (home === team && away === opponent) || (home === opponent && away === team)
+  })
+  if (!match?.winner_side) return null
+
+  const teamIsHome = teamKey(match.home_team) === team
+  return {
+    result: match.winner_side === (teamIsHome ? 'A' : 'B') ? 'Won' : 'Lost',
+    score: match.score,
+  }
 }
 
 
@@ -299,6 +338,7 @@ function CaptainAnalyticsContent() {
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [availability, setAvailability] = useState<AvailabilityRow[]>([])
   const [savedScenarios, setSavedScenarios] = useState<ScenarioRow[]>([])
+  const [matchResults, setMatchResults] = useState<TeamMatchResult[]>([])
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -356,7 +396,7 @@ function CaptainAnalyticsContent() {
     setError('')
     setMessage('')
 
-    const [playersResult, availabilityResult, scenariosResult] = await Promise.all([
+    const [playersResult, availabilityResult, scenariosResult, matchResultsResult] = await Promise.all([
       supabase
         .from('players')
         .select(`
@@ -406,6 +446,13 @@ function CaptainAnalyticsContent() {
         `)
         .order('match_date', { ascending: false })
         .order('scenario_name', { ascending: true }),
+      supabase
+        .from('matches')
+        .select('id, match_date, home_team, away_team, winner_side, score')
+        .is('line_number', null)
+        .not('winner_side', 'is', null)
+        .order('match_date', { ascending: false })
+        .limit(800),
     ])
 
     if (playersResult.error) {
@@ -414,10 +461,13 @@ function CaptainAnalyticsContent() {
       setError(availabilityResult.error.message)
     } else if (scenariosResult.error) {
       setError(scenariosResult.error.message)
+    } else if (matchResultsResult.error) {
+      setError(matchResultsResult.error.message)
     } else {
       setPlayers((playersResult.data ?? []) as PlayerRow[])
       setAvailability((availabilityResult.data ?? []) as AvailabilityRow[])
       setSavedScenarios((scenariosResult.data ?? []) as ScenarioRow[])
+      setMatchResults((matchResultsResult.data ?? []) as TeamMatchResult[])
     }
 
     setLoading(false)
@@ -433,7 +483,7 @@ function CaptainAnalyticsContent() {
       setError('')
       setMessage('')
 
-      const [playersResult, availabilityResult, scenariosResult] = await Promise.all([
+      const [playersResult, availabilityResult, scenariosResult, matchResultsResult] = await Promise.all([
         supabase
           .from('players')
           .select(`
@@ -483,6 +533,13 @@ function CaptainAnalyticsContent() {
           `)
           .order('match_date', { ascending: false })
           .order('scenario_name', { ascending: true }),
+        supabase
+          .from('matches')
+          .select('id, match_date, home_team, away_team, winner_side, score')
+          .is('line_number', null)
+          .not('winner_side', 'is', null)
+          .order('match_date', { ascending: false })
+          .limit(800),
       ])
 
       if (!mounted) return
@@ -493,10 +550,13 @@ function CaptainAnalyticsContent() {
         setError(availabilityResult.error.message)
       } else if (scenariosResult.error) {
         setError(scenariosResult.error.message)
+      } else if (matchResultsResult.error) {
+        setError(matchResultsResult.error.message)
       } else {
         setPlayers((playersResult.data ?? []) as PlayerRow[])
         setAvailability((availabilityResult.data ?? []) as AvailabilityRow[])
         setSavedScenarios((scenariosResult.data ?? []) as ScenarioRow[])
+        setMatchResults((matchResultsResult.data ?? []) as TeamMatchResult[])
       }
 
       setLoading(false)
@@ -545,6 +605,21 @@ function CaptainAnalyticsContent() {
       return leagueMatch && flightMatch && teamMatch
     })
   }, [savedScenarios, leagueName, flight, teamName])
+
+  const scenarioOutcomes = useMemo(() => {
+    const outcomes = new Map<string, ScenarioOutcome>()
+    for (const scenario of scenarioOptions) {
+      const outcome = findScenarioOutcome(scenario, matchResults)
+      if (outcome) outcomes.set(scenario.id, outcome)
+    }
+    return outcomes
+  }, [matchResults, scenarioOptions])
+
+  const scenarioOutcomeSummary = useMemo(() => {
+    const outcomes = [...scenarioOutcomes.values()]
+    const wins = outcomes.filter((outcome) => outcome.result === 'Won').length
+    return { resolved: outcomes.length, wins, losses: outcomes.length - wins }
+  }, [scenarioOutcomes])
 
   const availabilityForSelection = useMemo(() => {
     return availability.filter((row) => {
@@ -984,7 +1059,7 @@ function CaptainAnalyticsContent() {
 
         </div>
 
-        <div style={captainReadCard}>
+        {!isMobile ? <div style={captainReadCard}>
           <div style={captainReadTop}>
             <div>
               <p style={sectionKicker}>Live edge</p>
@@ -1003,7 +1078,7 @@ function CaptainAnalyticsContent() {
             <span style={badgeSlate}>{teamName && opponentTeam ? 'Matchup set' : 'Set matchup'}</span>
             <span style={badgeSlate}>{scenarioOptions.length > 1 ? 'Compare ready' : 'Save another'}</span>
           </div>
-        </div>
+        </div> : null}
       </section>
 
         <section style={decisionBoardStyle}>
@@ -1345,12 +1420,21 @@ function CaptainAnalyticsContent() {
             <details style={surfaceCard}>
               <summary style={detailsSummaryStyle}>
                 <div>
-                  <p style={sectionKicker}>Saved scenarios</p>
-                  <h2 style={sectionTitle}>Reload prior versions</h2>
-                  <p style={sectionBodyTextStyle}>Load, compare, or clean up previous lineup versions.</p>
+                  <p style={sectionKicker}>Lineup results</p>
+                  <h2 style={sectionTitle}>Learn from prior versions</h2>
+                  <p style={sectionBodyTextStyle}>See which saved plans found their way into a completed team result, then reuse what worked.</p>
                 </div>
-                <span style={badgeSlate}>{scenarioOptions.length} saved</span>
+                <span style={scenarioOutcomeSummary.resolved ? goodBadgeStyle : badgeSlate}>
+                  {scenarioOutcomeSummary.resolved ? `${scenarioOutcomeSummary.wins}-${scenarioOutcomeSummary.losses}` : `${scenarioOptions.length} saved`}
+                </span>
               </summary>
+
+              <div style={heroBadgeRowStyleCompact}>
+                <span style={scenarioOutcomeSummary.resolved ? goodBadgeStyle : badgeSlate}>
+                  {scenarioOutcomeSummary.resolved ? `${scenarioOutcomeSummary.resolved} completed plan${scenarioOutcomeSummary.resolved === 1 ? '' : 's'}` : 'No completed plan linked yet'}
+                </span>
+                {scenarioOutcomeSummary.resolved ? <span style={badgeSlate}>{scenarioOutcomeSummary.wins} won - {scenarioOutcomeSummary.losses} lost</span> : null}
+              </div>
 
               <div style={stackStyle}>
                 {scenarioOptions.length === 0 ? (
@@ -1365,6 +1449,7 @@ function CaptainAnalyticsContent() {
                     const isCurrent = scenario.id === currentScenarioId
                     const isDeleting = deletingScenarioId === scenario.id
                     const isLoading = loadingScenarioId === scenario.id
+                    const outcome = scenarioOutcomes.get(scenario.id)
 
                     return (
                       <article key={scenario.id} style={{ ...savedScenarioCardStyle, ...(isCurrent ? savedScenarioCardActiveStyle : {}) }}>
@@ -1384,6 +1469,11 @@ function CaptainAnalyticsContent() {
                                 <span style={miniPillBlueStyle}>Currently loaded</span>
                               </div>
                             ) : null}
+                            <div style={{ marginTop: 8 }}>
+                              <span style={outcome?.result === 'Won' ? goodBadgeStyle : outcome?.result === 'Lost' ? warnBadgeStyle : badgeSlate}>
+                                {outcome ? `${outcome.result}${outcome.score ? ` - ${outcome.score}` : ''}` : 'Result waiting'}
+                              </span>
+                            </div>
                           </div>
 
                           <div style={savedScenarioActionsStyle}>

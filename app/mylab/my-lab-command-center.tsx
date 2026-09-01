@@ -13,6 +13,15 @@ type MatchupPreview = {
   href: string
 }
 
+type NextCourtEvent = {
+  title: string
+  dateLabel: string
+  detail: string
+  href: string
+  cta: string
+  readiness: string
+}
+
 type FirstServeStep = {
   title: string
   description: string
@@ -49,6 +58,7 @@ type MyLabCommandCenterProps = {
   sessionTarget: number
   progressHref: string
   matchup: MatchupPreview | null
+  nextCourtEvent: NextCourtEvent | null
   firstServeSteps: FirstServeStep[]
   postRepReturn: PostRepReturn | null
 }
@@ -66,13 +76,34 @@ export default function MyLabCommandCenter({
   sessionTarget,
   progressHref,
   matchup,
+  nextCourtEvent,
   firstServeSteps,
   postRepReturn,
 }: MyLabCommandCenterProps) {
-  const greeting = firstName ? `Good afternoon, ${firstName}.` : 'Your next move starts here.'
+  const greeting = firstName ? `Ready, ${firstName}.` : 'Your next move starts here.'
   const safeCompletedSessions = Math.max(0, Math.min(sessionTarget, completedSessions))
   const completedFirstServeSteps = firstServeSteps.filter((step) => step.complete).length
   const nextFirstServeStep = firstServeSteps.findIndex((step) => !step.complete)
+  const dailyPulseItems = [
+    {
+      label: 'Court time',
+      value: repDuration ? `${repDuration} min` : 'Set rep',
+      note: repDuration ? 'Today\'s rep' : 'Choose a focus',
+      href: repHref,
+    },
+    {
+      label: 'This week',
+      value: `${safeCompletedSessions}/${sessionTarget}`,
+      note: `${safeCompletedSessions} session${safeCompletedSessions === 1 ? '' : 's'} complete`,
+      href: progressHref,
+    },
+    {
+      label: 'Matchup',
+      value: matchup ? 'Ready' : 'Build',
+      note: matchup?.opponentName || 'Find an opponent',
+      href: matchup?.href || '/matchup',
+    },
+  ]
 
   return (
     <section className={styles.commandCenter} aria-labelledby="my-lab-command-title">
@@ -82,7 +113,7 @@ export default function MyLabCommandCenter({
             <TiqFeatureIcon name="myLab" size="md" variant="surface" />
             <span>
               <strong>My Lab</strong>
-              <small>Player workspace</small>
+              <small>Player tools</small>
             </span>
           </div>
           <h1 id="my-lab-command-title">{greeting}</h1>
@@ -178,6 +209,33 @@ export default function MyLabCommandCenter({
             </Link>
           </div>
         </section>
+      ) : null}
+
+      {!postRepReturn ? (
+        <section className={styles.dailyPulse} aria-label="My Lab daily pulse">
+          {dailyPulseItems.map((item) => (
+            <Link key={item.label} className={styles.dailyPulseItem} href={item.href}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+              <small>{item.note}</small>
+            </Link>
+          ))}
+        </section>
+      ) : null}
+
+      {nextCourtEvent ? (
+        <Link className={styles.nextCourtEvent} href={nextCourtEvent.href} aria-label={`${nextCourtEvent.cta}: ${nextCourtEvent.title}`}>
+          <div className={styles.nextCourtEventCopy}>
+            <p className={styles.cardEyebrow}>Next on court</p>
+            <h2>{nextCourtEvent.title}</h2>
+            <p>{nextCourtEvent.detail}</p>
+          </div>
+          <div className={styles.nextCourtEventMeta}>
+            <strong>{nextCourtEvent.dateLabel}</strong>
+            <small>{nextCourtEvent.readiness}</small>
+            <span>{nextCourtEvent.cta} <i aria-hidden="true">→</i></span>
+          </div>
+        </Link>
       ) : null}
 
       <div className={`${styles.primaryGrid} ${postRepReturn ? styles.primaryGridAfterRep : ''}`}>

@@ -29,4 +29,19 @@ describe('premium player profile', () => {
     expect(source).toContain('Open the complete Player ID read')
     expect(source).toContain('aria-label="Player path actions"')
   })
+
+  it('puts public performance evidence in the first profile screen without exposing Player Focus', () => {
+    expect(source).toContain('aria-label="Public player performance at a glance"')
+    expect(source).toContain('className={profileStory.publicEvidenceRail}')
+    expect(source).toContain('{hasPersonalPlayerExperience ? (')
+    expect(source).toContain('id="profile-player-id"')
+  })
+
+  it('makes the exact competitor TIQ benefit clear in the match tape without hiding the public result', () => {
+    expect(source).toContain('className={profileStory.matchTapeAccessHint}')
+    expect(source).toContain('!canViewExactParticipantTiq')
+    expect(source).toContain('exact partner and opponent TIQ ratings')
+    expect(source).toContain('full TIQ impact')
+    expect(source).toContain("MEMBERSHIP_TIERS.player_plus.name")
+  })
 })

@@ -12,27 +12,42 @@ const dataAssistMethodologyHref = '/data-assist?intent=request-review&context=Me
 export const metadata: Metadata = buildRouteMetadata({
   title: 'Methodology',
   description:
-    'How TenAceIQ calculates dynamic player ratings -- the Elo-based algorithm, K-factors, score multipliers, recency weighting, and inactivity decay.',
+    'How TenAceIQ calculates dynamic player ratings -- expected performance, game-score context, K-factors, and recency weighting.',
   path: '/methodology',
 })
 
 const methodologyCards: InfoActionCard[] = [
   {
-    title: 'Rating tracks',
-    text: 'TIQ and USTA tracks stay separate across singles, doubles, and overall ratings.',
+    title: 'Start with the right baseline',
+    text: 'A confirmed USTA level anchors the starting band. Self-rated and unlabelled profiles stay provisional while match evidence builds.',
     icon: 'playerRatings',
   },
   {
-    title: 'Match signal',
-    text: 'Expected outcome, score quality, recency, and inactivity shape movement.',
+    title: 'Read the score in context',
+    text: 'TiQ compares the score with what the matchup predicted. A close loss to stronger competition can still be a positive performance.',
     icon: 'matchupAnalysis',
   },
   {
-    title: 'Reviewed data',
-    text: 'Data Assist and admin review keep source records from changing tennis context unchecked.',
+    title: 'Doubles uses all four players',
+    text: 'Both teams shape the expectation. A stronger player is protected from a close-loss penalty when carrying a materially weaker partner.',
+    icon: 'lineupBuilder',
+  },
+  {
+    title: 'Keep TiQ and USTA separate',
+    text: 'TiQ reads all reviewed competition. The USTA-proximity track reads eligible USTA results only.',
+    icon: 'leagueTennis',
+  },
+  {
+    title: 'Use factual source data',
+    text: 'Source scorecards and factual USTA labels can support TiQ. TennisRecord’s estimated rating never sets or moves a TiQ rating.',
+    icon: 'dataUpload',
+  },
+  {
+    title: 'Fix the evidence, not the number',
+    text: 'If a score, player, or team context is wrong, send it for review. Data Assist prevents changing tennis context unchecked, then TiQ recalculates from the corrected match record.',
     href: dataAssistMethodologyHref,
-    cta: 'Open Data Assist',
-    icon: 'reports',
+    cta: 'Request a review',
+    icon: 'matchupAnalysis',
   },
 ]
 
@@ -42,19 +57,44 @@ export default function MethodologyPage() {
       <JsonLd id="methodology-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Methodology', '/methodology')} />
       <InfoPage
         kicker="Methodology"
-        title="How TenAceIQ calculates dynamic ratings."
-        intro="Use this when you want to know why a rating moved. The short version: every match compares expectation, score quality, recency, source, and activity level."
+        title="Understand your TiQ rating at a glance."
+        intro="TiQ is a score-aware competitive signal, not a replacement for your official USTA rating. It begins with factual USTA context when available, then learns from reviewed match results."
       >
         <InfoActionGrid cards={methodologyCards} />
+
+        <section id="rating-basics" style={ratingBasicsStyle} aria-labelledby="rating-basics-title">
+          <div>
+            <span style={basicsKickerStyle}>TiQ rating in plain English</span>
+            <h2 id="rating-basics-title" className="section-title" style={basicsTitleStyle}>What makes your number move?</h2>
+          </div>
+          <div style={basicsGridStyle}>
+            <MethodologyBasicStep number="1" title="Set a credible starting point">
+              A computer-rated USTA level is a protected starting band. A self-rated or unknown player can settle faster as results arrive.
+            </MethodologyBasicStep>
+            <MethodologyBasicStep number="2" title="Compare performance with expectation">
+              TiQ looks at the score, not only win or loss. Playing a stronger side close can help; underperforming against an expected matchup can trim the signal.
+            </MethodologyBasicStep>
+            <MethodologyBasicStep number="3" title="Build separate singles and doubles reads">
+              Singles and doubles have their own history. Overall blends the competitive evidence without pretending the two formats are identical.
+            </MethodologyBasicStep>
+            <MethodologyBasicStep number="4" title="Let evidence—not time—do the work">
+              A rating changes only when an eligible reviewed result is processed. Time away lowers confidence, not your demonstrated playing strength.
+            </MethodologyBasicStep>
+          </div>
+          <p style={basicsNoteStyle}>
+            TiQ does not import or mirror TennisRecord&rsquo;s estimated rating. It keeps TiQ, USTA-proximity, singles, doubles, and overall views distinct so you can see what the match evidence actually supports.
+          </p>
+        </section>
 
         <MethodologyDetails>
           <div>
             <h2 className="section-title" style={{ fontSize: '1.2rem' }}>The rating scale</h2>
             <p>
               Ratings run from 1.5 to 7.0 and align with NTRP levels. Bands are spaced 0.5 apart
-              (1.5, 2.0, 2.5 ... 6.5, 7.0). The default starting rating for a new player is 3.5. The
-              level-up meter on a player profile shows progress from the current band floor to the
-              next band ceiling.
+              (1.5, 2.0, 2.5 ... 6.5, 7.0). A profile with a factual USTA designation begins from
+              that band. A profile without one starts provisionally at 3.5 until reviewed match
+              evidence establishes a better read. The level-up meter shows the current TiQ signal
+              against the next half-point marker; it does not replace an official USTA rating.
             </p>
           </div>
 
@@ -63,7 +103,7 @@ export default function MethodologyPage() {
             <p>
               Every player carries two parallel sets of dynamic ratings: a <strong>TIQ track</strong> that
               updates from all matches regardless of source, and a <strong>USTA track</strong> that updates
-              only from reviewed USTA/TennisLink league results added through Data Assist or admin review.
+              only from eligible USTA results, including reviewed local uploads and factual USTA-match evidence.
               TIQ ratings reflect full competitive activity across all leagues; USTA ratings mirror what
               a USTA-only result set would produce. Both tracks maintain separate singles, doubles, and
               overall ratings -- six dynamic values per player in total.
@@ -71,18 +111,20 @@ export default function MethodologyPage() {
           </div>
 
           <div>
-            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Expected score and the Elo formula</h2>
+            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Expected performance</h2>
             <p>
-              Before each match the system computes an expected win probability for each player:
+              Before each scored match the system estimates each side&rsquo;s expected share of games from
+              their current ratings:
             </p>
             <p style={{ fontFamily: 'monospace', background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '10px 14px', margin: '10px 0', fontSize: 14, overflowWrap: 'anywhere' }}>
-              expected = 1 / (1 + 10 ^ ((opponent_rating - your_rating) / 0.45))
+              expected game share = 1 / (1 + 10 ^ ((opponent rating - your rating) / 1.6))
             </p>
             <p>
-              A player rated 4.0 facing a 3.5 opponent has roughly a 78% expected win chance. That
-              expectation anchors how much the result moves each player&rsquo;s rating -- beating a
-              heavily favored opponent moves the needle more than beating someone you were expected to
-              beat. The Win% column on a player&rsquo;s match history shows this pre-match probability.
+              The rating change starts with actual game share minus expected game share. A result close
+              to expectation makes only a small move. A lower-rated player who keeps a strong opponent
+              close can therefore gain rating despite losing; a favorite who wins less decisively than
+              expected can give some rating back. The Win% column remains a pre-match win estimate,
+              separate from this score-aware performance calculation.
             </p>
           </div>
 
@@ -91,8 +133,9 @@ export default function MethodologyPage() {
             <p>
               The K-factor controls how much a single match can shift a rating. TenAceIQ uses three
               separate K values: <strong>0.12 for singles</strong>, <strong>0.107 for doubles</strong>,
-              and <strong>0.052 for the overall rating</strong>. A win moves a rating by roughly
-              K x (1 - expected), and a loss by K x (0 - expected).
+              and <strong>0.052 for the overall rating</strong>. For a usable score, the movement is
+              roughly K x (actual game share - expected game share). When a score is unavailable, the
+              system uses a conservative expected win/loss fallback.
             </p>
             <p style={{ marginTop: 10 }}>
               New players are in a <strong>provisional phase</strong> where the K-factor is temporarily
@@ -111,23 +154,26 @@ export default function MethodologyPage() {
           </div>
 
           <div>
-            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Score quality multiplier</h2>
+            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>How the score changes the signal</h2>
             <p>
-              A 6-0 6-0 win and a 7-6 7-6 win are not the same signal. The system applies a score
-              multiplier (ranging from 0.82 to 2.02) based on what the scoreline says about how
-              dominant the win was:
+              A 7-6, 7-6 result between similarly rated players is nearly what the ratings predict, so
+              it moves them only slightly. A 6-0, 6-0 result or a close loss by a substantially lower-
+              rated player is more informative because the game share differs more from expectation.
             </p>
-            <ul style={{ paddingLeft: 20, marginTop: 8, display: 'grid', gap: 6 }}>
-              <li><strong>Dominance ratio</strong> -- games won by the winner as a share of all games played. Higher ratio produces a larger multiplier.</li>
-              <li><strong>Straight-sets win</strong> -- small bonus for winning without dropping a set.</li>
-              <li><strong>Bagel (6-0) or breadstick (6-1) set</strong> -- additional bonus per shutout set won.</li>
-              <li><strong>Tiebreak sets</strong> -- slight reduction; a tiebreak signals a close set.</li>
-              <li><strong>Deciding (third) set</strong> -- slight reduction; both players won a set.</li>
-              <li><strong>Close sets (margin {'<='} 2 games)</strong> -- minor reduction per non-tiebreak close set.</li>
-            </ul>
             <p style={{ marginTop: 10 }}>
-              Upset wins receive an additional boost: if the lower-rated player wins, their multiplier
-              scales up based on the rating gap, rewarding results the algorithm did not expect.
+              Recent results carry somewhat more weight, and an upset win receives a modest additional
+              boost. These adjustments refine the performance signal; they do not use an external source&rsquo;s
+              proprietary rating.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Doubles context</h2>
+            <p>
+              Doubles begins with the combined strength of both players on each side. TiQ then reads
+              the result against that team expectation and maintains a separate doubles signal. When
+              a stronger player has a materially lower-rated partner and loses a close scored match to
+              a comparable pair, TiQ protects that player from a speculative negative adjustment.
             </p>
           </div>
 
@@ -142,14 +188,11 @@ export default function MethodologyPage() {
           </div>
 
           <div>
-            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Inactivity decay</h2>
+            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Inactivity and confidence</h2>
             <p>
-              Ratings do not freeze permanently when a player stops competing. After 90 days of
-              inactivity, dynamic ratings begin a slow regression toward 3.5 at 2% of the gap per
-              month. A player rated 4.5 who stops playing for one year decays to roughly 4.33; after
-              two years, roughly 4.15. Players who return to competition re-enter the provisional K
-              phase, which helps them re-calibrate quickly. A staleness indicator appears on a player
-              profile when the last recorded match was more than 90 days ago.
+              Time away does not regress a player toward a default rating. TenAceIQ changes rating
+              strength only when an eligible match result is processed. Match volume and the age of a
+              player&rsquo;s last result provide context for how much evidence sits behind that rating.
             </p>
           </div>
 
@@ -159,13 +202,25 @@ export default function MethodologyPage() {
               Scores are normalized before processing. Tiebreak notation like 7-6(3) has the
               point score stripped, leaving 7-6. Match tiebreaks stored without brackets (e.g. 10-8)
               are excluded from the set-level calculation to avoid inflating game counts. A 7-5 set
-              is treated as a regular close set, not a tiebreak. Retirements and walkovers produce a
-              neutral multiplier of 1.0 -- the result counts but the margin does not.
+              is treated as a regular set, not a tiebreak. Retirements and walkovers use the
+              conservative win/loss fallback because they do not provide a complete game-share signal.
             </p>
           </div>
         </MethodologyDetails>
       </InfoPage>
     </SiteShell>
+  )
+}
+
+function MethodologyBasicStep({ number, title, children }: { number: string; title: string; children: ReactNode }) {
+  return (
+    <article style={basicStepStyle}>
+      <span style={basicNumberStyle}>{number}</span>
+      <div>
+        <h3 style={basicStepTitleStyle}>{title}</h3>
+        <p style={basicStepTextStyle}>{children}</p>
+      </div>
+    </article>
   )
 }
 
@@ -190,6 +245,86 @@ const detailsStyle: CSSProperties = {
   background: 'rgba(15,23,42,0.48)',
   boxSizing: 'border-box',
   overflow: 'hidden',
+}
+
+const ratingBasicsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: 18,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'linear-gradient(145deg, rgba(155,225,29,0.1), rgba(7,17,33,0.58) 46%, rgba(116,190,255,0.08))',
+  minWidth: 0,
+}
+
+const basicsKickerStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const basicsTitleStyle: CSSProperties = {
+  margin: '5px 0 0',
+  fontSize: 'clamp(1.35rem, 4vw, 1.85rem)',
+}
+
+const basicsGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const basicStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '30px minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'start',
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(6,16,32,0.52)',
+  minWidth: 0,
+}
+
+const basicNumberStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 30,
+  height: 30,
+  borderRadius: 999,
+  background: 'var(--brand-green)',
+  color: '#06172F',
+  fontSize: 13,
+  fontWeight: 950,
+}
+
+const basicStepTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.25,
+}
+
+const basicStepTextStyle: CSSProperties = {
+  margin: '5px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+}
+
+const basicsNoteStyle: CSSProperties = {
+  margin: 0,
+  padding: '11px 12px',
+  borderRadius: 12,
+  background: 'rgba(6,16,32,0.5)',
+  border: '1px solid rgba(116,190,255,0.16)',
+  color: 'var(--foreground)',
+  fontWeight: 650,
+  lineHeight: 1.55,
 }
 
 const summaryStyle: CSSProperties = {

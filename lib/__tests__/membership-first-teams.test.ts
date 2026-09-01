@@ -14,7 +14,7 @@ describe('membership-first Teams experience', () => {
     expect(portal).toContain("label: 'Teams'")
     expect(portal).toContain("route: '/compete/teams'")
     expect(portal).toContain("title: 'Open my teams'")
-    expect(teamsHub).toContain('fetchTeamConnections(accessToken)')
+    expect(teamsHub).toContain('fetchTeamConnections(accessToken, { force: connectionRefresh > 0, userId })')
     expect(teamsHub).toContain('Register to access your teams.')
     expect(teamsHub).toContain('Team access is included.')
     expect(teamsHub).toContain('buildTeamRoomHref({')

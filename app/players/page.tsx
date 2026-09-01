@@ -62,10 +62,12 @@ type SnapshotRow = {
 type MatchPlayerCountRow = {
   player_id: string
   match_id: string | null
+  side?: string | null
   matches?: {
     match_type?: string | null
     winner_side?: string | null
     score?: string | null
+    match_date?: string | null
   } | null
 }
 
@@ -79,6 +81,7 @@ type PlayerCard = PlayerRow & {
   overallTrendDelta: number
   confidence: ConfidenceLevel
   overallDiff: number
+  recentForm: Array<'W' | 'L'>
   awards: TiqAwardRecord[]
 }
 
@@ -264,6 +267,7 @@ export default function PlayersPage() {
       const typedPlayers = await loadPlayerDirectoryRows()
       const playerIds = typedPlayers.map((player) => player.id)
       const matchCounts = new Map<string, number>()
+      const matchEvidenceByPlayer = new Map<string, Array<{ id: string; date: string; result: 'W' | 'L' }>>()
       const snapshotsByPlayer = new Map<string, SnapshotRow[]>()
       const awardsByPlayerId = new Map<string, TiqAwardRecord[]>()
 
@@ -276,7 +280,8 @@ export default function PlayersPage() {
             matches (
               match_type,
               winner_side,
-              score
+              score,
+              match_date
             )
           `)
           .in('player_id', playerIds)
@@ -295,6 +300,16 @@ export default function PlayersPage() {
           const existing = uniqueMatchesByPlayer.get(playerId) ?? new Set<string>()
           existing.add(matchId)
           uniqueMatchesByPlayer.set(playerId, existing)
+
+          if (row.matches?.winner_side && row.side) {
+            const evidence = matchEvidenceByPlayer.get(playerId) ?? []
+            evidence.push({
+              id: matchId,
+              date: row.matches.match_date || '',
+              result: row.matches.winner_side === row.side ? 'W' : 'L',
+            })
+            matchEvidenceByPlayer.set(playerId, evidence)
+          }
         }
 
         for (const [playerId, matchIds] of uniqueMatchesByPlayer.entries()) {
@@ -344,6 +359,10 @@ export default function PlayersPage() {
           const overallStatus = getRatingStatus(baseOverall, overallUstaDynamic)
           const confidence = getConfidence(matches)
           const overallDiff = roundToTwo(overallDynamic - baseOverall)
+          const recentForm = (matchEvidenceByPlayer.get(player.id) || [])
+            .sort((left, right) => right.date.localeCompare(left.date))
+            .slice(0, 5)
+            .map((match) => match.result)
 
           return {
             ...player,
@@ -356,6 +375,7 @@ export default function PlayersPage() {
             overallTrendDelta,
             confidence,
             overallDiff,
+            recentForm,
             awards: (awardsByPlayerId.get(player.id) || []).slice(0, 3),
           }
         }),
@@ -982,8 +1002,12 @@ export default function PlayersPage() {
                         <strong style={scoreMiniValue}>{isSelfRatedPlayer(player) ? 'Pending' : player.baseOverall.toFixed(2)}</strong>
                       </div>
                       <div style={scoreMini}>
-                        <span style={scoreMiniLabel}>Confidence</span>
-                        <strong style={scoreMiniValue}>{player.confidence}</strong>
+                        <span style={scoreMiniLabel}>TIQ vs USTA</span>
+                        <strong style={scoreMiniValue}>
+                          {isSelfRatedPlayer(player)
+                            ? 'Pending'
+                            : `${player.overallDiff >= 0 ? '+' : ''}${player.overallDiff.toFixed(2)}`}
+                        </strong>
                       </div>
                     </div>
                   </div>
@@ -1025,6 +1049,29 @@ export default function PlayersPage() {
                     <span style={signalConfidencePill}>{player.confidence}</span>
                   </div>
 
+                  {player.recentForm.length > 0 ? (
+                    <div style={playerFormRail} aria-label={`${player.name} recent match form`}>
+                      <span style={playerFormLabel}>Recent form</span>
+                      <div style={playerFormMarks}>
+                        {player.recentForm.map((result, index) => (
+                          <span
+                            key={`${result}-${index}`}
+                            data-result={result}
+                            style={{
+                              ...playerFormMark,
+                              color: result === 'W' ? 'var(--brand-lime)' : '#fecaca',
+                              border: `1px solid ${result === 'W' ? 'rgba(155,225,29,0.36)' : 'rgba(248,113,113,0.3)'}`,
+                              background: result === 'W' ? 'rgba(155,225,29,0.11)' : 'rgba(248,113,113,0.1)',
+                            }}
+                          >
+                            {result}
+                          </span>
+                        ))}
+                      </div>
+                      <span style={playerFormRead}>{player.recentForm.filter((result) => result === 'W').length}–{player.recentForm.filter((result) => result === 'L').length}</span>
+                    </div>
+                  ) : null}
+
                   <details style={playerCardTrustDetailsStyle}>
                     <summary style={playerCardTrustSummaryStyle}>
                       <span>Data check</span>
@@ -1043,21 +1090,6 @@ export default function PlayersPage() {
                       />
                     </div>
                   </details>
-
-                  <div style={deltaRow}>
-                    <div style={deltaStat}>
-                      <span style={deltaLabel}>USTA</span>
-                      <span style={deltaValue}>{isSelfRatedPlayer(player) ? 'Pending' : player.baseOverall.toFixed(2)}</span>
-                    </div>
-                    <div style={deltaStat}>
-                      <span style={deltaLabel}>TIQ vs USTA</span>
-                      <span style={deltaValue}>
-                        {isSelfRatedPlayer(player)
-                          ? 'Pending'
-                          : `${player.overallDiff >= 0 ? '+' : ''}${player.overallDiff.toFixed(2)}`}
-                      </span>
-                    </div>
-                  </div>
 
                   <div style={playerCardFooter}>
                     <Link
@@ -2354,39 +2386,52 @@ const playerCardTrustBodyStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const deltaRow: CSSProperties = {
+const playerFormRail: CSSProperties = {
   position: 'relative',
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 128px), 1fr))',
-  gap: '10px',
-  marginTop: '12px',
   zIndex: 2,
-}
-
-const deltaStat: CSSProperties = {
-  borderRadius: '16px',
-  padding: '10px 12px',
-  border: '1px solid rgba(116,190,255,0.13)',
-  background: 'rgba(7,17,33,0.72)',
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto auto',
+  alignItems: 'center',
+  gap: '10px',
   minWidth: 0,
+  padding: '10px 12px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.52)',
 }
 
-const deltaLabel: CSSProperties = {
-  display: 'block',
+const playerFormLabel: CSSProperties = {
+  minWidth: 0,
   color: 'var(--shell-copy-muted)',
   fontSize: '11px',
-  fontWeight: 700,
-  marginBottom: '6px',
-  letterSpacing: 0,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
   textTransform: 'uppercase',
 }
 
-const deltaValue: CSSProperties = {
-  display: 'block',
+const playerFormMarks: CSSProperties = {
+  display: 'flex',
+  gap: '4px',
+}
+
+const playerFormMark: CSSProperties = {
+  display: 'grid',
+  placeItems: 'center',
+  width: '24px',
+  height: '24px',
+  borderRadius: '8px',
+  border: '1px solid rgba(116,190,255,0.2)',
+  background: 'rgba(4,15,29,0.78)',
   color: 'var(--foreground-strong)',
-  fontSize: '18px',
-  fontWeight: 900,
-  letterSpacing: 0,
+  fontSize: '10px',
+  fontWeight: 950,
+}
+
+const playerFormRead: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '16px',
+  fontWeight: 950,
+  letterSpacing: '-0.04em',
 }
 
 const watermarkStyle: CSSProperties = {

@@ -3,6 +3,14 @@
     {
       "path": "/api/team-rooms/reminders",
       "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/tennisrecord-automation",
+      "schedule": "*/3 * * * *"
+    },
+    {
+      "path": "/api/cron/tennisrecord-ratings",
+      "schedule": "2,17,32,47 * * * *"
     }
   ]
 }

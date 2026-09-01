@@ -35,7 +35,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 const LEAGUE_SUMMARY_TIMEOUT_MS = 12000
-const LEAGUE_SECTION_DEFAULT_LIMIT = 1
+const LEAGUE_SECTION_DEFAULT_LIMIT = 3
 
 type LayerFilter = 'all' | CompetitionLayer
 
@@ -614,7 +614,7 @@ function LeagueSection({
               <span style={leagueLaneLimitTextStyle}>
                 {showAllLeagues
                   ? `Showing all ${leagues.length} leagues.`
-                  : 'Showing the first league. Search, filter, or show more when you need another league.'}
+                  : `Showing ${visibleLeagues.length} of ${leagues.length} leagues. Search, filter, or show more when you need another league.`}
               </span>
               <button
                 type="button"

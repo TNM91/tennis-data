@@ -156,7 +156,7 @@ export default function RankingsPage() {
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
   const ratingViewLabel = getRatingViewLabel(ratingView)
   const useCompactLeaderboard = isMobile || isTablet
-  const rankingDefaultRowLimit = isMobile ? 2 : isTablet ? 3 : RANKINGS_DEFAULT_ROW_LIMIT
+  const rankingDefaultRowLimit = isMobile ? 3 : isTablet ? 3 : RANKINGS_DEFAULT_ROW_LIMIT
 
   useEffect(() => {
     void loadPlayers()
@@ -1843,7 +1843,22 @@ function RankingCompactCard({
             {player.name}
           </Link>
           <RankingAwardBadges player={player} compact />
-          <span style={compactPlayerMetaStyle}>{player.location || 'No location'} | top {player.percentile}%</span>
+          <span style={compactPlayerMetaStyle}>
+            {player.location || 'No location'} · {player.matches} reviewed match{player.matches === 1 ? '' : 'es'}
+          </span>
+          {dense ? (
+            <span
+              style={{
+                ...compactTrendPillStyle,
+                background: theme.trendBackground,
+                color: theme.trendColor,
+                border: `1px solid ${theme.trendBorder}`,
+              }}
+              aria-label={`${player.name} recent TIQ movement`}
+            >
+              {getTrendIcon(player.trendDirection)} {player.trendDirection === 'flat' ? 'Holding steady' : `${player.trendDelta >= 0 ? '+' : ''}${player.trendDelta.toFixed(2)} recent`}
+            </span>
+          ) : null}
         </div>
         <div style={dense ? compactRatingStackDenseStyle : compactRatingStackStyle}>
           <strong>{formatPublicRating(selectedRating, player)}</strong>
@@ -2886,6 +2901,22 @@ const compactPlayerMetaStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '12px',
   fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const compactTrendPillStyle: CSSProperties = {
+  justifySelf: 'start',
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '22px',
+  maxWidth: '100%',
+  padding: '2px 7px',
+  borderRadius: '999px',
+  fontSize: '10px',
+  lineHeight: 1.25,
+  fontWeight: 900,
+  letterSpacing: '0.02em',
+  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 

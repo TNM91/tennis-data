@@ -87,3 +87,81 @@ Final result: **passed**
 5. Browser console warnings/errors: none.
 
 The oversized-raster P2 issue is resolved. No remaining P0, P1, or P2 visual issues were found in the watermark layer.
+
+---
+
+# Premium Team Discovery design QA
+
+- Source visual truth: `C:\Users\nmein\.codex\generated_images\01a01d3a-e317-7831-8f3a-1c13c4c795e8\exec-36477341-1b31-4b59-907f-4d41043a3adc.png`
+- Target viewport: 390 × 844 mobile web content.
+- Intended state: public Team Discovery after **Browse teams** or a search/filter selection.
+- Implementation route: `/teams`.
+- Implementation screenshot: unavailable.
+
+## Blocking evidence gap
+
+The local page returned HTTP 200, but the required browser-control runtime could not establish a trusted browser-service connection in this environment. No browser-rendered mobile capture, same-viewport comparison, interaction test, or console check is available.
+
+## Code-level verification
+
+- Focused Team/mobile tests passed.
+- Full suite passed: 404 files, 1,982 tests.
+- Typecheck, lint, and production build passed.
+
+## Required follow-up
+
+Capture `/teams` with directory results visible at 390 × 844, compare it with the source visual, and resolve any responsive layout issue before visual approval.
+
+final result: blocked
+
+---
+
+# Team Profile depth refinement visual QA
+
+- Source visual direction: the selected Team Profile concept 2 (`C:\Users\nmein\.codex\generated_images\01a01d3a-e317-7831-8f3a-1c13c4c795e8\exec-d9dc93af-8a10-4081-a4e0-478f5caa8247.png`).
+- Target viewport: 390 × 844 mobile web content.
+- Implementation route: `/teams/[team]`.
+- Intended state: a public team with completed results and a roster larger than four players.
+- Implementation screenshot: unavailable.
+
+## Blocking evidence gap
+
+The required browser-control service still cannot establish its trusted runtime connection in this environment. A same-viewport rendered capture, focused comparison, interaction test, and console review are therefore unavailable.
+
+## Implemented hierarchy
+
+- Mobile results use one grouped, compact row surface per result group rather than a stack of large cards.
+- Match history initially shows a short preview and requires an explicit action to open all results.
+- Mobile roster starts as a four-player lineup snapshot. Full roster tools, comparison, and teammate search appear only after the visitor expands the roster.
+
+## Required follow-up
+
+Capture a populated team page at 390 × 844 and compare result-row density, roster expansion, touch targets, and horizontal overflow with the selected direction before visual approval.
+
+final result: blocked
+
+---
+
+# Premium Team Profile concept 2 design QA
+
+- Source visual truth: `C:\Users\nmein\.codex\generated_images\01a01d3a-e317-7831-8f3a-1c13c4c795e8\exec-d9dc93af-8a10-4081-a4e0-478f5caa8247.png`
+- Target viewport: 390 × 844 mobile web content.
+- Intended state: public team profile with completed matches, roster context, and no linked Captain permission.
+- Implementation route: `/teams/[team]`.
+- Implementation screenshot: unavailable.
+
+## Blocking evidence gap
+
+The local Next development server was available at `http://localhost:3000`, but the required browser-control runtime could not establish its trusted browser-service connection. No browser-rendered 390 × 844 capture, focused region capture, interaction check, console check, or source-to-implementation comparison could be completed.
+
+## Implemented alignment
+
+- The existing page now leads with the selected concept's real record, computed win rate, roster count, five-result form markers, singles/doubles split, and one latest-result link.
+- The detailed schedule remains the single full match-history destination; the overview does not render a second result list.
+- Captain planning remains role-aware and uses the centralized Captain product story rather than exposing private tools to public visitors.
+
+## Required follow-up
+
+Capture a public `/teams/[team]` page at 390 × 844 with completed results and compare the header, metrics, format split, latest-result row, and Captain teaser against the source visual. Resolve any P0/P1/P2 responsive or hierarchy differences before visual approval.
+
+final result: blocked

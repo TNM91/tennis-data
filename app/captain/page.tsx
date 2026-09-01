@@ -1056,7 +1056,7 @@ const CAPTAIN_DECISION_HANDOFF_PROOF_STEPS = [
 
 const CAPTAIN_EMPTY_STATE_ACTIONS = [
   'Set your Player ID so Team Hub can find your profile team.',
-  'Upload a Player Roster. Captain will connect the team and bring you back here.',
+  'Upload a Team Summary. Captain will connect the team and bring you back here.',
   'Add the schedule when you are ready to plan availability and projected lineups.',
 ] as const
 
@@ -1303,6 +1303,8 @@ type PairingSummary = {
   wins: number
   losses: number
   avgDoublesRating: number | null
+  recentResults: Array<{ result: 'W' | 'L'; date: string }>
+  lastMatchDate: string | null
 }
 
 type CaptainSubBoardFlag = {
@@ -1355,6 +1357,13 @@ type CaptainOpponentScoutItem = {
   state: string
   detail: string
   tone: 'good' | 'warn' | 'info'
+}
+
+type CaptainOpponentForm = {
+  record: string
+  lastFive: Array<{ id: string; result: 'W' | 'L'; date: string; score: string }>
+  headToHead: string
+  lastResult: string
 }
 
 function normalizePlayerRelation(player: PlayerRelation) {
@@ -1848,6 +1857,7 @@ function CaptainHubContent() {
     lastUpdatedLabel: 'Not updated yet',
   })
   const [rosterSortMode, setRosterSortMode] = useState<'appearances' | 'signal'>('appearances')
+  const [opponentMatches, setOpponentMatches] = useState<TeamMatch[]>([])
   const [weeklyPrepNotes, setWeeklyPrepNotes] = useState('')
   const [opponentScoutNotes, setOpponentScoutNotes] = useState('')
   const [notesUpdatedLabel, setNotesUpdatedLabel] = useState('Weekly notes not saved yet')
@@ -2346,6 +2356,34 @@ function CaptainHubContent() {
     })()
     return () => { active = false }
   }, [authResolved, role, selectedTeam, selectedLeague, selectedFlight])
+
+  useEffect(() => {
+    if (!authResolved || role === 'public' || !nextMatch?.opponent || nextMatch.opponent === 'TBD') {
+      setOpponentMatches([])
+      return
+    }
+
+    let active = true
+    const safeOpponent = nextMatch.opponent.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+
+    void (async () => {
+      let query = supabase
+        .from('matches')
+        .select('id, league_name, flight, home_team, away_team, match_date, match_type, score, winner_side')
+        .or(`home_team.eq."${safeOpponent}",away_team.eq."${safeOpponent}"`)
+        .is('line_number', null)
+        .order('match_date', { ascending: false })
+        .limit(120)
+
+      if (selectedLeague) query = query.eq('league_name', selectedLeague)
+      if (selectedFlight) query = query.eq('flight', selectedFlight)
+
+      const { data } = await query
+      if (active) setOpponentMatches((data || []) as TeamMatch[])
+    })()
+
+    return () => { active = false }
+  }, [authResolved, nextMatch?.opponent, role, selectedFlight, selectedLeague])
 
   const loadTeamRoomSummary = useCallback(async () => {
     const requestId = teamRoomSummaryRequestRef.current + 1
@@ -2992,16 +3030,24 @@ function CaptainHubContent() {
               .map((player) => player.doubles_dynamic_rating)
               .filter((value): value is number => typeof value === 'number'),
           ),
+          recentResults: [],
+          lastMatchDate: null,
         })
       }
 
       const item = map.get(key)!
       item.appearances += 1
-      if (match.winner_side === side) item.wins += 1
+      const won = match.winner_side === side
+      if (won) item.wins += 1
       else item.losses += 1
+      item.recentResults.push({ result: won ? 'W' : 'L', date: match.match_date })
+      if (!item.lastMatchDate || match.match_date > item.lastMatchDate) item.lastMatchDate = match.match_date
     }
 
-    return [...map.values()].sort((a, b) => {
+    return [...map.values()].map((pair) => ({
+      ...pair,
+      recentResults: pair.recentResults.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5),
+    })).sort((a, b) => {
       const pctDiff = getWinPct(b.wins, b.losses) - getWinPct(a.wins, a.losses)
       if (Math.abs(pctDiff) > 0.0001) return pctDiff
       if (b.appearances !== a.appearances) return b.appearances - a.appearances
@@ -4493,22 +4539,25 @@ function CaptainHubContent() {
 
   const captainCommandSteps = useMemo<CaptainCommandStep[]>(() => {
     const pendingCount = workspaceState.pendingResponseCount
+    const responseAlertCount = workspaceState.responseAlertCount
     const lineupCount = workspaceState.lineupCount
 
     return [
       {
         label: 'Who can play',
-        title: pendingCount > 0 ? 'Close the reply gap' : 'Availability is clean',
+        title: responseAlertCount > 0 ? 'Resolve match-week risk' : pendingCount > 0 ? 'Close the reply gap' : 'Availability is clean',
         detail:
-          pendingCount > 0
+          responseAlertCount > 0
+            ? `${responseAlertCount} late-arrival or substitution alert${responseAlertCount === 1 ? ' needs' : 's need'} a decision before you lock courts.`
+            : pendingCount > 0
             ? `${pendingCount} player${pendingCount === 1 ? '' : 's'} still need a clear In, Out, or Maybe before you lock courts.`
             : 'No saved response blockers are holding up the lineup.',
         href: availabilityHref,
         stage: 'availability',
         icon: 'reliabilityIndex',
-        stateLabel: pendingCount > 0 ? `${pendingCount} waiting` : 'Clear',
-        tone: pendingCount > 0 ? 'warn' : 'good',
-        cta: pendingCount > 0 ? 'Follow up' : 'Review',
+        stateLabel: responseAlertCount > 0 ? `${responseAlertCount} alert${responseAlertCount === 1 ? '' : 's'}` : pendingCount > 0 ? `${pendingCount} waiting` : 'Clear',
+        tone: responseAlertCount > 0 || pendingCount > 0 ? 'warn' : 'good',
+        cta: responseAlertCount > 0 ? 'Resolve alerts' : pendingCount > 0 ? 'Follow up' : 'Review',
       },
       {
         label: 'Build lineup',
@@ -4560,6 +4609,7 @@ function CaptainHubContent() {
     workspaceState.lineupReady,
     workspaceState.messagingReady,
     workspaceState.pendingResponseCount,
+    workspaceState.responseAlertCount,
   ])
 
   const weeklyOpsStatus = useMemo(() => {
@@ -10042,6 +10092,20 @@ function CaptainHubContent() {
       detail: workspaceState.lineupReady ? 'Court count is ready for the team note.' : 'Build courts before the final reminder.',
       tone: workspaceState.lineupReady ? 'good' : 'warn',
     },
+    {
+      label: 'Availability',
+      state: workspaceState.responseAlertCount > 0
+        ? `${workspaceState.responseAlertCount} alert${workspaceState.responseAlertCount === 1 ? '' : 's'}`
+        : workspaceState.pendingResponseCount > 0
+          ? `${workspaceState.pendingResponseCount} waiting`
+          : 'Clear',
+      detail: workspaceState.responseAlertCount > 0
+        ? 'Resolve late-arrival or substitution risk before you send the reminder.'
+        : workspaceState.pendingResponseCount > 0
+          ? 'Chase the remaining reply before you finalize courts.'
+          : 'Player responses are ready for the weekly plan.',
+      tone: workspaceState.responseAlertCount > 0 || workspaceState.pendingResponseCount > 0 ? 'warn' : 'good',
+    },
   ], [
     captainMatchLogisticsHasArrival,
     captainMatchLogisticsHasDate,
@@ -10053,11 +10117,16 @@ function CaptainHubContent() {
     weekAtGlance.opponentLabel,
     workspaceState.lineupCount,
     workspaceState.lineupReady,
+    workspaceState.pendingResponseCount,
+    workspaceState.responseAlertCount,
   ])
   const captainPhoneMatchCardReadyCount = captainPhoneMatchCardItems.filter((item) => item.tone === 'good').length
   const captainPhoneMatchCardIssueCount = captainPhoneMatchCardItems.filter((item) => item.tone === 'warn').length
-  const captainPhoneMatchCardStatus = captainPhoneMatchCardIssueCount > 0
-    ? `${captainPhoneMatchCardIssueCount} missing`
+  const captainPhoneMatchCardRiskCount = workspaceState.responseAlertCount
+  const captainPhoneMatchCardStatus = captainPhoneMatchCardRiskCount > 0
+    ? `${captainPhoneMatchCardRiskCount} alert${captainPhoneMatchCardRiskCount === 1 ? '' : 's'}`
+    : captainPhoneMatchCardIssueCount > 0
+      ? `${captainPhoneMatchCardIssueCount} to finish`
     : `${captainPhoneMatchCardReadyCount}/${captainPhoneMatchCardItems.length} ready`
 
   const captainSaveSignals = useMemo<CaptainSaveSignal[]>(() => [
@@ -10091,8 +10160,15 @@ function CaptainHubContent() {
     if (step.label === 'Availability') {
       return {
         ...step,
-        state: workspaceState.pendingResponseCount > 0 ? `${workspaceState.pendingResponseCount} waiting` : 'Clear',
-        tone: workspaceState.pendingResponseCount > 0 ? 'warn' : 'good',
+        state: workspaceState.responseAlertCount > 0
+          ? `${workspaceState.responseAlertCount} alert${workspaceState.responseAlertCount === 1 ? '' : 's'}`
+          : workspaceState.pendingResponseCount > 0
+            ? `${workspaceState.pendingResponseCount} waiting`
+            : 'Clear',
+        detail: workspaceState.responseAlertCount > 0
+          ? 'Resolve late-arrival or substitution risk before you trust the weekly lineup.'
+          : step.detail,
+        tone: workspaceState.responseAlertCount > 0 || workspaceState.pendingResponseCount > 0 ? 'warn' : 'good',
       }
     }
 
@@ -10124,6 +10200,7 @@ function CaptainHubContent() {
     workspaceState.lineupReady,
     workspaceState.messagingReady,
     workspaceState.pendingResponseCount,
+    workspaceState.responseAlertCount,
     workspaceState.scenarioReady,
   ])
 
@@ -10137,7 +10214,7 @@ function CaptainHubContent() {
     },
     {
       label: 'Availability',
-      complete: workspaceState.pendingResponseCount === 0,
+      complete: workspaceState.pendingResponseCount === 0 && workspaceState.responseAlertCount === 0,
       href: availabilityHref,
       stage: 'availability' as CaptainResumeStage,
       cta: 'Review availability',
@@ -10173,24 +10250,76 @@ function CaptainHubContent() {
     workspaceState.lineupReady,
     workspaceState.messagingReady,
     workspaceState.pendingResponseCount,
+    workspaceState.responseAlertCount,
   ])
   const captainReadinessCompleteCount = captainReadinessChecks.filter((item) => item.complete).length
   const captainReadinessScore = Math.round((captainReadinessCompleteCount / captainReadinessChecks.length) * 100)
   const captainReadinessNext = captainReadinessChecks.find((item) => !item.complete) || captainReadinessChecks[captainReadinessChecks.length - 1]
+  const captainReadinessAction = useMemo(() => {
+    if (captainReadinessNext.label === 'Team scope') {
+      return {
+        title: 'Choose the team week',
+        detail: 'Pick the team, league, and flight first so Captain can scope lineup, availability, and messaging.',
+        tone: 'info' as const,
+      }
+    }
 
-  const captainPrimaryAction = captainReadinessScore < 100 ? {
-    title: captainReadinessNext.label === 'Team scope' ? 'Choose the team week' : nextAction.title,
-    detail: captainReadinessNext.label === 'Team scope'
-      ? 'Pick the team, league, and flight first so Captain can scope lineup, availability, and messaging.'
-      : nextAction.detail,
+    if (captainReadinessNext.label === 'Availability') {
+      return {
+        title: 'Close the reply gap',
+        detail: workspaceState.pendingResponseCount > 0
+          ? `${workspaceState.pendingResponseCount} player${workspaceState.pendingResponseCount === 1 ? '' : 's'} still need a clear In, Out, or Maybe before you lock courts.`
+          : 'Check availability before moving into the lineup decision.',
+        tone: 'warn' as const,
+      }
+    }
+
+    if (captainReadinessNext.label === 'Projection') {
+      return {
+        title: 'Open the lineup projection',
+        detail: 'Review the match context and court options before you commit to a weekly lineup.',
+        tone: 'info' as const,
+      }
+    }
+
+    if (captainReadinessNext.label === 'Lineup') {
+      return {
+        title: 'Build the weekly lineup',
+        detail: 'Turn availability, player fit, and pairing reads into a playable set of courts.',
+        tone: 'info' as const,
+      }
+    }
+
+    return {
+      title: 'Send the weekly plan',
+      detail: 'Your lineup is ready. Send the plan and follow up only where the team still needs details.',
+      tone: 'good' as const,
+    }
+  }, [captainReadinessNext.label, workspaceState.pendingResponseCount])
+
+  const captainRiskAction = useMemo(() => {
+    if (workspaceState.responseAlertCount <= 0) return null
+
+    const alertLabel = `${workspaceState.responseAlertCount} match-week alert${workspaceState.responseAlertCount === 1 ? '' : 's'}`
+    return {
+      title: `Resolve ${alertLabel}`,
+      detail: 'Review availability now to address late arrivals or substitution risk before you finalize the plan.',
+      href: availabilityHref,
+      stage: 'availability' as CaptainResumeStage,
+      cta: 'Review availability',
+      tone: 'warn' as const,
+    }
+  }, [availabilityHref, workspaceState.responseAlertCount])
+
+  const captainPrimaryAction = captainRiskAction ?? (captainReadinessScore < 100 ? {
+    ...captainReadinessAction,
     href: captainReadinessNext.href,
     stage: captainReadinessNext.stage,
     cta: captainReadinessNext.cta,
-    tone: captainReadinessNext.label === 'Team scope' ? 'info' as const : nextAction.tone,
   } : {
     ...nextAction,
     stage: 'brief' as CaptainResumeStage,
-  }
+  })
 
   const captainSeasonLaunchItems = useMemo<CaptainSeasonLaunchItem[]>(() => [
     {
@@ -10983,6 +11112,49 @@ function CaptainHubContent() {
   const captainRosterDepthStatus = captainRosterDepthIssueCount > 0
     ? `${captainRosterDepthIssueCount} watch`
     : `${captainRosterDepthReadyCount}/${captainRosterDepthItems.length} ready`
+
+  const opponentForm = useMemo<CaptainOpponentForm | null>(() => {
+    const opponent = safeText(nextMatch?.opponent, '')
+    if (!opponent || opponent === 'TBD') return null
+
+    const opponentKey = normalizeTeamName(opponent)
+    const winnerForOpponent = (match: TeamMatch) => {
+      const opponentIsHome = normalizeTeamName(safeText(match.home_team, '')) === opponentKey
+      return match.winner_side === (opponentIsHome ? 'A' : 'B')
+    }
+    const decided = opponentMatches
+      .filter((match) => match.match_date <= captainTodayDate && Boolean(match.score))
+      .sort((a, b) => b.match_date.localeCompare(a.match_date))
+    const season = nextMatch?.date.slice(0, 4) || captainTodayDate.slice(0, 4)
+    const seasonMatches = decided.filter((match) => match.match_date.startsWith(season))
+    const wins = seasonMatches.filter(winnerForOpponent).length
+    const losses = Math.max(0, seasonMatches.length - wins)
+    const lastFive = decided.slice(0, 5).map((match) => ({
+      id: match.id,
+      result: winnerForOpponent(match) ? 'W' as const : 'L' as const,
+      date: match.match_date,
+      score: safeText(match.score, 'Score pending'),
+    }))
+
+    const headToHead = matches
+      .filter((match) => {
+        const home = normalizeTeamName(safeText(match.home_team, ''))
+        const away = normalizeTeamName(safeText(match.away_team, ''))
+        return match.match_date <= captainTodayDate && Boolean(match.score) && (home === opponentKey || away === opponentKey)
+      })
+      .sort((a, b) => b.match_date.localeCompare(a.match_date))
+    const teamWins = headToHead.filter((match) => {
+      const selectedTeamIsHome = normalizeTeamName(safeText(match.home_team, '')) === normalizeTeamName(selectedTeam)
+      return match.winner_side === (selectedTeamIsHome ? 'A' : 'B')
+    }).length
+
+    return {
+      record: seasonMatches.length ? `${wins}-${losses}` : 'No season result yet',
+      lastFive,
+      headToHead: headToHead.length ? `${teamWins}-${headToHead.length - teamWins} vs ${opponent}` : 'No recorded meeting yet',
+      lastResult: lastFive[0] ? `${lastFive[0].result} - ${formatDateShort(lastFive[0].date)} - ${lastFive[0].score}` : 'No completed opponent result yet',
+    }
+  }, [captainTodayDate, matches, nextMatch?.date, nextMatch?.opponent, opponentMatches, selectedTeam])
 
   const opponentScoutNoteReady = opponentScoutNotes.trim().length > 0
   const opponentScoutHomeAwayLabel = nextMatch ? (nextMatch.home ? 'Home' : 'Away') : 'Venue TBD'
@@ -14247,7 +14419,7 @@ function CaptainHubContent() {
             <div style={captainPhoneMatchCardTitle}>{weekAtGlance.eventDateLabel}</div>
             <div style={captainPhoneMatchCardOpponent}>vs {weekAtGlance.opponentLabel}</div>
           </div>
-          <span style={captainPhoneMatchCardIssueCount > 0 ? warnBadge : badgeGreen}>
+          <span style={captainPhoneMatchCardRiskCount > 0 || captainPhoneMatchCardIssueCount > 0 ? warnBadge : badgeGreen}>
             {captainPhoneMatchCardStatus}
           </span>
         </div>
@@ -14275,8 +14447,14 @@ function CaptainHubContent() {
           <PrimarySmallBtn fullWidth={isSmallMobile} disabled={!hasTeamScope || !premiumEnabled} onClick={() => void handleCopyCaptainMatchLogistics()}>
             {copiedCaptainMatchLogistics ? 'Copied reminder' : 'Copy final reminder'}
           </PrimarySmallBtn>
-          <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(messagingHref, 'messaging')}>
-            Open messages
+          <SecondarySmallBtn
+            disabled={!hasTeamScope || !premiumEnabled}
+            onClick={() => handleCaptainNav(
+              workspaceState.responseAlertCount > 0 || workspaceState.pendingResponseCount > 0 ? availabilityHref : messagingHref,
+              workspaceState.responseAlertCount > 0 || workspaceState.pendingResponseCount > 0 ? 'availability' : 'messaging',
+            )}
+          >
+            {workspaceState.responseAlertCount > 0 ? 'Resolve alerts' : workspaceState.pendingResponseCount > 0 ? 'Review availability' : 'Open messages'}
           </SecondarySmallBtn>
           <SecondarySmallBtn disabled={!hasTeamScope || !premiumEnabled} onClick={() => handleCaptainNav(lineupBuilderHref, 'lineup')}>
             Review lineup
@@ -15902,6 +16080,31 @@ function CaptainHubContent() {
               <strong style={commandCenterSnapshotValue}>{nextMatch?.facility || matchDayLocationLabel}</strong>
             </div>
           </div>
+          <div style={opponentFormCard} aria-label="Opponent form">
+            <div style={opponentFormTop}>
+              <span style={commandCenterLabel}>Opponent form</span>
+              <strong style={opponentFormRecord}>{opponentForm?.record || 'Awaiting history'}</strong>
+            </div>
+            {opponentForm?.lastFive.length ? (
+              <>
+                <div style={opponentFormPills} aria-label="Opponent last five results">
+                  {opponentForm.lastFive.map((result) => (
+                    <span
+                      key={result.id}
+                      title={`${formatDateShort(result.date)} - ${result.score}`}
+                      style={result.result === 'W' ? opponentFormWinPill : opponentFormLossPill}
+                    >
+                      {result.result}
+                    </span>
+                  ))}
+                </div>
+                <span style={opponentFormDetail}>Last result: {opponentForm.lastResult}</span>
+                <span style={opponentFormDetail}>Head-to-head: {opponentForm.headToHead}</span>
+              </>
+            ) : (
+              <span style={opponentFormDetail}>Completed match history will appear here as it becomes available for this league and flight.</span>
+            )}
+          </div>
           <div style={opponentScoutNoteCard}>
             <span style={commandCenterLabel}>Scout note</span>
             <span>{opponentScoutNoteReady ? opponentScoutNotes.trim().slice(0, 180) : 'Add patterns to exploit, likely pairings, pressure points, or court tendencies before you build the lineup.'}</span>
@@ -16375,7 +16578,7 @@ function CaptainHubContent() {
       id: 'chat',
       label: captainPostArrivalStep === 'send_lineup_change'
         ? 'Send lineup change'
-        : captainLateArrival ? 'Handle late arrival' : captainArrivalFollowUp ? 'Follow up arrivals' : 'Team chat',
+        : captainLateArrival ? 'Handle late arrival' : captainArrivalFollowUp ? 'Follow up arrivals' : 'Send team note',
       detail: captainLateArrival
         ? `${captainLateArrival.playerName} · ${captainLateArrival.courtLabel}`
         : captainPostArrivalStep === 'send_lineup_change' && captainOpenLineupChange
@@ -16384,7 +16587,7 @@ function CaptainHubContent() {
         ? `${captainArrivalFollowUp.count} still waiting`
         : teamRoomSummary.unreadCount > 0
         ? `${teamRoomSummary.unreadCount} unread`
-        : 'Open team chat',
+        : 'Open Team Chat',
       href: captainLateArrivalMessageHref || (captainPostArrivalStep === 'send_lineup_change' ? captainLineupChangeCourtHref : '') || captainArrivalFollowUpHref || teamRoomHref,
       stage: 'team-room' as CaptainResumeStage,
       icon: 'messagingCenter' as TiqFeatureIconName,
@@ -16434,6 +16637,26 @@ function CaptainHubContent() {
     const item = captainMobileActionById.get(id)
     return item ? [item] : []
   })
+  const captainMobileMatchPocketLinks = captainMatchDayPocketLinks.filter((handoff) => handoff.href)
+  const captainMobileTeamPulse = [
+    {
+      label: 'Next up',
+      value: nextMatch ? weekAtGlance.opponentLabel : 'Set match',
+      detail: nextMatch ? weekAtGlance.eventDateLabel : 'Opponent + date',
+    },
+    {
+      label: 'Availability',
+      value: captainAvailabilityPendingCount > 0 ? `${captainAvailabilityPendingCount} open` : captainAvailabilityHasReplies ? 'Clear' : 'Not asked',
+      detail: captainAvailabilityInvitedCount ? `${captainAvailabilityAnsweredCount}/${captainAvailabilityInvitedCount} answered` : 'Availability',
+    },
+    {
+      label: 'Lineup confidence',
+      value: workspaceState.lineupReady ? `${captainCourtConfidencePercent}%` : 'Draft',
+      detail: workspaceState.lineupReady
+        ? `${captainCourtSolidCount} solid${captainCourtWatchCount ? ` · ${captainCourtWatchCount} watch` : ''}`
+        : 'Build courts',
+    },
+  ]
 
   function handleCaptainMobileCommandAction(item: CaptainMobileCommandAction) {
     if (item.id === 'chat') {
@@ -16737,6 +16960,35 @@ function CaptainHubContent() {
         </select>
       ) : null}
 
+      {hasTeamScope ? (
+        <section className={mobileCommandStyles.matchPocket} aria-label="Captain next match">
+          <div className={mobileCommandStyles.matchPocketCopy}>
+            <span>Next match</span>
+            <strong>vs {weekAtGlance.opponentLabel}</strong>
+            <small>{weekAtGlance.eventDateLabel} · Arrive {matchDayArrivalLabel}</small>
+            <small>{matchDayLocationLabel}</small>
+          </div>
+          {captainMobileMatchPocketLinks.length ? (
+            <div className={mobileCommandStyles.matchPocketActions}>
+              {captainMobileMatchPocketLinks.map((handoff) => (
+                <a key={handoff.id} className={mobileCommandStyles.matchPocketAction} href={handoff.href} title={handoff.detail}>
+                  {handoff.label}
+                </a>
+              ))}
+            </div>
+          ) : (
+            <button
+              type="button"
+              className={mobileCommandStyles.matchPocketAction}
+              disabled={!premiumEnabled}
+              onClick={() => handleCaptainAction(weeklyBriefHref, 'brief')}
+            >
+              Add details
+            </button>
+          )}
+        </section>
+      ) : null}
+
       {captainImportHandoff ? (
         <div className={mobileCommandStyles.importNotice} role="status">
           <div className={mobileCommandStyles.noticeCopy}>
@@ -16771,6 +17023,16 @@ function CaptainHubContent() {
       ) : null}
 
       {captainMobileNow}
+
+      <div className={mobileCommandStyles.pulseRail} aria-label="Captain team pulse">
+        {captainMobileTeamPulse.map((item) => (
+          <div key={item.label} className={mobileCommandStyles.pulse}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+            <small>{item.detail}</small>
+          </div>
+        ))}
+      </div>
 
       <div className={mobileCommandStyles.actionGrid} aria-label="Captain one tap actions">
         {captainMobileVisibleActions.map((item) => {
@@ -18099,6 +18361,7 @@ function CaptainHubContent() {
           <h1 style={visuallyHiddenHeadingStyle}>Captain Home</h1>
         ) : null}
         {!isMobile && hasTeamScope ? captainHomeShortcut : null}
+        {isMobile ? captainMobileCommandCenter : null}
         <section style={dynamicCaptainScoreboardBannerStyle} aria-label="League rankings">
           <TiqFeatureIcon name="teamRankings" size="md" variant="surface" />
           <div style={captainScoreboardBannerCopyStyle}>
@@ -18122,7 +18385,7 @@ function CaptainHubContent() {
             </span>
           </Link>
         </section>
-        {captainMobileCommandCenter}
+        {!isMobile ? captainMobileCommandCenter : null}
         {!isMobile ? (
         <>
         <details
@@ -19318,6 +19581,30 @@ function CaptainHubContent() {
                           </div>
                           <div style={listMeta}>
                             {pair.wins}-{pair.losses} together - {pair.appearances} doubles lines
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' as const, marginTop: 7 }} aria-label={`${pair.names.join(' and ')} recent results`}>
+                            <span style={{ ...pillHelper, color: 'var(--shell-copy-muted)' }}>Recent</span>
+                            {pair.recentResults.map((entry, recentIndex) => (
+                              <span
+                                key={`${entry.date}-${recentIndex}`}
+                                title={`${formatDateShort(entry.date)} - ${entry.result === 'W' ? 'Won' : 'Lost'}`}
+                                style={{
+                                  width: 22,
+                                  minHeight: 22,
+                                  display: 'inline-grid',
+                                  placeItems: 'center',
+                                  borderRadius: 999,
+                                  border: entry.result === 'W' ? '1px solid rgba(155,225,29,0.34)' : '1px solid rgba(251,113,133,0.28)',
+                                  background: entry.result === 'W' ? 'rgba(155,225,29,0.14)' : 'rgba(251,113,133,0.12)',
+                                  color: entry.result === 'W' ? 'var(--brand-green)' : '#fda4af',
+                                  fontSize: 11,
+                                  fontWeight: 950,
+                                }}
+                              >
+                                {entry.result}
+                              </span>
+                            ))}
+                            {pair.lastMatchDate ? <span style={pillHelper}>Last played {formatDateShort(pair.lastMatchDate)}</span> : null}
                           </div>
                         </div>
 
@@ -25698,6 +25985,72 @@ const opponentScoutMetaCard: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.10)',
   background: 'rgba(255,255,255,0.045)',
   overflowWrap: 'anywhere',
+}
+
+const opponentFormCard: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 15,
+  border: '1px solid rgba(125,211,252,0.18)',
+  background: 'rgba(125,211,252,0.055)',
+  overflowWrap: 'anywhere',
+}
+
+const opponentFormTop: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const opponentFormRecord: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  fontWeight: 950,
+  lineHeight: 1,
+}
+
+const opponentFormPills: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 6,
+  minWidth: 0,
+}
+
+const opponentFormPillBase: CSSProperties = {
+  width: 28,
+  minHeight: 28,
+  display: 'inline-grid',
+  placeItems: 'center',
+  borderRadius: 999,
+  fontSize: 12,
+  lineHeight: 1,
+  fontWeight: 950,
+}
+
+const opponentFormWinPill: CSSProperties = {
+  ...opponentFormPillBase,
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.14)',
+  color: 'var(--brand-green)',
+}
+
+const opponentFormLossPill: CSSProperties = {
+  ...opponentFormPillBase,
+  border: '1px solid rgba(251,113,133,0.28)',
+  background: 'rgba(251,113,133,0.12)',
+  color: '#fda4af',
+}
+
+const opponentFormDetail: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 750,
 }
 
 const opponentScoutNoteCard: CSSProperties = {

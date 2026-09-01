@@ -13,13 +13,29 @@ function styleBlock(styleName: string) {
 }
 
 describe('My Lab premium surface', () => {
+  it('keeps saved Match Prep reviews private and mobile-safe', () => {
+    expect(source).toContain("activeGoal.id.startsWith('matchup-prep-')")
+    expect(source).toContain('Did the plan hold up?')
+    expect(source).toContain('Plan held')
+    expect(source).toContain('Adjust plan')
+    expect(source).toContain('matchPrepReviewStyle(isTablet)')
+    expect(source).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto'")
+  })
   it('keeps the top read tennis-specific and Data Assist aware', () => {
-    expect(source).toContain('scorecardSummaryCards')
+    expect(source).toContain('buildMatchIntelligenceRead')
+    expect(source).toContain('Match Intelligence')
+    expect(source).toContain('Rating Journey')
+    expect(source).toContain('buildPlayerRatingJourneyRead')
+    expect(source).toContain(".from('rating_snapshots')")
+    expect(source).toContain(".eq('track', 'tiq')")
+    expect(source).toContain('Rating evidence')
+    expect(source).toContain('Your next focus')
+    expect(source).toContain('canUseAdvancedPlayerInsights ? (')
     expect(source).toContain('starterActionCards')
     expect(source).toContain("const dataAssistMyLabHref = '/data-assist?intent=upload-source&context=My%20Lab'")
     expect(source).toContain('href: dataAssistMyLabHref')
-    expect(source).toContain('Recent record')
-    expect(source).toContain('Matchup read')
+    expect(source).toContain('matchIntelligence.patternLabel')
+    expect(source).toContain('Open match history')
     expect(source).toContain('Upload scores')
     expect(source).toContain('Use a scorecard or Player Roster to replace the starter rating with verified match context.')
     expect(source).toContain('Start your TIQ signal with a scorecard, a local league match, a TIQ league, or a close player to test.')
@@ -45,7 +61,8 @@ describe('My Lab premium surface', () => {
   it('keeps read and starter cards responsive for dark-shell mobile scanning', () => {
     expect(source).toContain('personalReadGridStyle(isTablet)')
     expect(source).toContain('starterGridStyle(isTablet)')
-    expect(source).toContain('todayReadGridStyle(isTablet)')
+    expect(source).toContain('matchIntelligenceGridStyle(isTablet)')
+    expect(source).toContain('ratingJourneyGridStyle(isTablet)')
     expect(source).toContain('matchupQueueGridStyle(isTablet)')
     expect(source).toContain('gridTemplateColumns: isTablet')
     expect(source).toContain('minmax(0, 1fr)')
@@ -109,7 +126,8 @@ describe('My Lab premium surface', () => {
       'levelUpPanelStyle',
       'quickProfileGridStyle',
       'starterGridStyle',
-      'todayReadGridStyle',
+      'matchIntelligenceGridStyle',
+      'ratingJourneyGridStyle',
       'matchupSpotlightHeroStyle',
       'matchupPreviewGridStyle',
       'matchupQueueGridStyle',
@@ -156,8 +174,17 @@ describe('My Lab premium surface', () => {
       'quickProfileStyle',
       'starterPanelStyle',
       'starterCardStyle',
-      'todayReadPanelStyle',
-      'todayReadCardStyle',
+      'matchIntelligencePanelStyle',
+      'matchIntelligenceHeaderStyle',
+      'matchIntelligenceCardStyle',
+      'matchIntelligenceFocusCardStyle',
+      'ratingJourneyPanelStyle',
+      'ratingJourneyHeaderStyle',
+      'ratingJourneyCardStyle',
+      'ratingJourneyTrendStyle',
+      'ratingJourneyPlotStyle',
+      'ratingJourneyPlotPointStyle',
+      'ratingJourneyEmptyStyle',
       'matchupSpotlightStyle',
       'matchupQueueCardStyle',
       'matchupQueueCopyStyle',
@@ -257,7 +284,6 @@ describe('My Lab premium surface', () => {
       'myLabRefreshProofCardStyle',
       'myLabRefreshProofLabelStyle',
       'myLabRefreshProofTextStyle',
-      'todayReadCardStyle',
       'todayReadValueStyle',
       'matchPlanTextStyle',
       'trophyProofItemStyle',

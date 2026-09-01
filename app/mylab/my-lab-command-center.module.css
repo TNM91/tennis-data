@@ -446,6 +446,99 @@
   transform: translateY(-2px);
 }
 
+.dailyPulse {
+  display: none;
+}
+
+.nextCourtEvent {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+  margin: 0 0 18px;
+  padding: 16px 18px;
+  border: 1px solid rgba(185, 239, 50, 0.38);
+  border-radius: 20px;
+  background:
+    linear-gradient(110deg, rgba(169, 235, 8, 0.15), rgba(10, 25, 45, 0.92) 46%),
+    #0a192d;
+  color: #f8fbff;
+  text-decoration: none;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.nextCourtEvent:hover,
+.nextCourtEvent:focus-visible {
+  border-color: rgba(185, 239, 50, 0.74);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.nextCourtEventCopy,
+.nextCourtEventMeta {
+  min-width: 0;
+}
+
+.nextCourtEventCopy h2 {
+  margin: 5px 0 0;
+  color: #ffffff;
+  font-size: clamp(1.1rem, 2.2vw, 1.45rem);
+  font-weight: 950;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.nextCourtEventCopy p:not(.cardEyebrow) {
+  margin: 7px 0 0;
+  color: #a8bbd0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.nextCourtEventMeta {
+  display: grid;
+  justify-items: end;
+  gap: 9px;
+  text-align: right;
+}
+
+.nextCourtEventMeta strong {
+  color: #d7ff59;
+  font-size: 0.84rem;
+  font-weight: 950;
+  line-height: 1.2;
+}
+
+.nextCourtEventMeta small {
+  color: #a8bbd0;
+  font-size: 0.64rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.nextCourtEventMeta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid rgba(116, 190, 255, 0.3);
+  border-radius: 999px;
+  color: #9fd4ff;
+  font-size: 0.7rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.nextCourtEventMeta i {
+  font-size: 1rem;
+  font-style: normal;
+}
+
 .primaryGrid {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(310px, 0.8fr);
@@ -758,8 +851,8 @@
   .intro {
     flex-direction: column;
     align-items: flex-start;
-    gap: 14px;
-    margin-bottom: 18px;
+    gap: 10px;
+    margin-bottom: 14px;
   }
 
   .labSignature {
@@ -767,7 +860,7 @@
   }
 
   .intro h1 {
-    font-size: clamp(2.1rem, 11vw, 3.15rem);
+    font-size: clamp(2rem, 9.6vw, 2.8rem);
   }
 
   .introCopy {
@@ -776,21 +869,110 @@
 
   .playerLink {
     display: flex;
-    width: 100%;
+    width: fit-content;
     min-width: 0;
-    max-width: none;
+    max-width: 100%;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 12px;
     min-height: 44px;
     padding: 8px 11px;
   }
 
   .playerLink strong {
+    max-width: min(220px, 58vw);
     overflow: hidden;
     font-size: 0.78rem;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .dailyPulse {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    margin: 0 0 12px;
+  }
+
+  .dailyPulseItem {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+    min-height: 90px;
+    padding: 11px 9px;
+    border: 1px solid rgba(116, 190, 255, 0.18);
+    border-radius: 16px;
+    background: rgba(10, 25, 45, 0.76);
+    color: #f8fbff;
+    text-decoration: none;
+  }
+
+  .dailyPulseItem:first-child {
+    border-color: rgba(185, 239, 50, 0.42);
+    background: linear-gradient(145deg, rgba(169, 235, 8, 0.16), rgba(10, 25, 45, 0.84));
+  }
+
+  .dailyPulseItem span {
+    color: #82c5ff;
+    font-size: 0.57rem;
+    font-weight: 900;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  .dailyPulseItem strong {
+    min-width: 0;
+    overflow: hidden;
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 950;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dailyPulseItem small {
+    min-width: 0;
+    overflow: hidden;
+    color: #91a6bd;
+    font-size: 0.61rem;
+    font-weight: 750;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dailyPulseItem:hover,
+  .dailyPulseItem:focus-visible {
+    border-color: rgba(185, 239, 50, 0.62);
+    outline: none;
+  }
+
+  .nextCourtEvent {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 11px;
+    margin-bottom: 12px;
+    padding: 13px;
+    border-radius: 18px;
+  }
+
+  .nextCourtEventCopy h2 {
+    font-size: 1.1rem;
+  }
+
+  .nextCourtEventMeta {
+    gap: 7px;
+  }
+
+  .nextCourtEventMeta strong {
+    font-size: 0.7rem;
+  }
+
+  .nextCourtEventMeta span {
+    min-height: 32px;
+    padding: 7px 9px;
+    font-size: 0.63rem;
   }
 
   .firstServe {
@@ -899,6 +1081,7 @@
   }
 
   .momentumCard {
+    display: none;
     min-height: 142px;
     gap: 14px;
     padding: 16px;

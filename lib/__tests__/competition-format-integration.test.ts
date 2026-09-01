@@ -26,11 +26,13 @@ describe('shared competition formats', () => {
 
   it('loads one format into lineup creation and keeps arbitrary saved slots usable downstream', () => {
     const builder = read('app/captain/lineup-builder/page.tsx')
+    const builderRoute = read('app/api/captain/lineup-builder/route.ts')
     const scenario = read('app/captain/scenario-builder/page.tsx')
     const messaging = read('app/captain/messaging/page.tsx')
     const results = read('app/components/team-league-results-workspace.tsx')
 
-    expect(builder).toContain(".select('league_name, flight, team_match_format_id, competition_rules')")
+    expect(builder).toContain('/api/captain/lineup-builder?${params.toString()}')
+    expect(builderRoute).toContain(".select('league_name,flight,team_match_format_id,competition_rules')")
     expect(builder).toContain('Automatic · {resolvedMatchFormat.label}')
     expect(builder).toContain('effectiveMatchFormatId')
     expect(scenario).toContain('(raw as Record<string, unknown>).courts')

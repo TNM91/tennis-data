@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import React from 'react'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
 import ActiveTeamChallengeCard from '@/app/components/active-team-challenge-card'
@@ -62,9 +62,14 @@ import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { VIDEO_REVIEW_ROUTE } from '@/lib/video-review'
 import { loadTiqAwardsForPlayer, readTiqAwardsRegistry, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
+import { buildPlayerTrophyBadges } from '@/lib/player-trophy-badges'
+import { readMatchupPrepDraft } from '@/lib/matchup-prep-note'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
+import { buildMatchIntelligenceRead } from '@/lib/player-match-intelligence'
+import { filterMatchbookEntries, getMatchbookFilterLabel, type MatchbookFilter } from '@/lib/player-matchbook'
+import { buildPlayerRatingJourneyRead, type RatingJourneySnapshot } from '@/lib/player-rating-journey'
 import type { PlayerCompetitionScheduleEvent } from '@/lib/player-competition-schedule'
 import {
   PLAYER_DEVELOPMENT_IDENTITIES,
@@ -169,7 +174,12 @@ type PersonalMatchRow = {
   score: string | null
   result: 'W' | 'L' | '-'
   opponent: string
+  opponents: Array<{ id: string; name: string }>
 }
+
+type RatingSnapshotRow = RatingJourneySnapshot
+
+const MATCHBOOK_FILTERS: MatchbookFilter[] = ['all', 'singles', 'doubles']
 
 type PersonalParticipantRow = MatchPlayerRow & {
   players?: { id: string; name: string } | { id: string; name: string }[] | null
@@ -904,6 +914,9 @@ function MyLabPageInner() {
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayerRow[]>([])
   const [personalMatches, setPersonalMatches] = useState<PersonalMatchRow[]>([])
+  const [ratingSnapshots, setRatingSnapshots] = useState<RatingSnapshotRow[]>([])
+  const [matchbookFilter, setMatchbookFilter] = useState<MatchbookFilter>('all')
+  const [showFullMatchbook, setShowFullMatchbook] = useState(false)
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([])
   const [cloudFeedRows, setCloudFeedRows] = useState<MyLabFeedRow[]>([])
   const [follows, setFollows] = useState<FollowItem[]>([])
@@ -945,10 +958,12 @@ function MyLabPageInner() {
   const [error, setError] = useState<string | null>(null)
   const [goals, setGoals] = useState<LabGoalState[]>([EMPTY_LAB_GOAL])
   const [activeGoalId, setActiveGoalId] = useState(EMPTY_LAB_GOAL.id)
+  const [matchupPrepSaved, setMatchupPrepSaved] = useState('')
   const [notebookSavedLabel, setNotebookSavedLabel] = useState('All changes saved')
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [savedToCloud, setSavedToCloud] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
+  const matchupPrepHandledRef = useRef(false)
   const [tiqAwards, setTiqAwards] = useState<TiqAwardRecord[]>([])
   const [localLevelUpCompletions, setLocalLevelUpCompletions] = useState<LevelUpCompletion[]>([])
   const [remoteLevelUpSessions, setRemoteLevelUpSessions] = useState<LevelUpSession[]>([])
@@ -1008,6 +1023,70 @@ function MyLabPageInner() {
     setNotebookSavedLabel('All changes saved')
     setLastSavedAt(nextGoals.find((goal) => goal.updatedAt)?.updatedAt || null)
   }, [userId, profileLink?.linked_player_id])
+
+  useEffect(() => {
+    if (
+      matchupPrepHandledRef.current ||
+      loading ||
+      !authResolved ||
+      !canUseAdvancedPlayerInsights ||
+      !profileLink?.linked_player_id
+    ) return
+
+    const draft = readMatchupPrepDraft(searchParams.get('matchupPrep'))
+    if (!draft) return
+
+    matchupPrepHandledRef.current = true
+    const now = new Date().toISOString()
+    const prepGoal: LabGoalState = {
+      id: `matchup-prep-${draft.id}`,
+      goal: draft.title,
+      progressStatus: 'in-progress',
+      progressUpdate: draft.context,
+      doingWell: draft.evidence,
+      improveNext: draft.courtPlan,
+      notes: `Saved Match Prep\n\n${draft.evidence}\n\nCourt plan: ${draft.courtPlan}`,
+      updatedAt: now,
+    }
+    const existing = goals.find((goal) => goal.id === prepGoal.id)
+    const hasOnlyEmptyGoal =
+      goals.length === 1 &&
+      !goals[0].goal.trim() &&
+      !goals[0].progressUpdate.trim() &&
+      !goals[0].doingWell.trim() &&
+      !goals[0].improveNext.trim() &&
+      !goals[0].notes.trim()
+    const nextGoals = existing
+      ? goals.map((goal) => (goal.id === prepGoal.id ? prepGoal : goal))
+      : hasOnlyEmptyGoal
+        ? [prepGoal]
+        : [prepGoal, ...goals]
+
+    persistGoalList(nextGoals, prepGoal.id, 'Match prep saved')
+    setActiveGoalId(prepGoal.id)
+    setMatchupPrepSaved(draft.title)
+    void trackProductUsageEvent({
+      eventName: 'matchup_prep_saved',
+      surface: 'mylab',
+      planId: 'player_plus',
+      metadata: { matchupPrepId: draft.id },
+    })
+
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('matchupPrep')
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+    }
+  // The URL payload is consumed once; the ref prevents duplicate notebook writes as goals update.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    authResolved,
+    canUseAdvancedPlayerInsights,
+    goals,
+    loading,
+    profileLink?.linked_player_id,
+    searchParams,
+  ])
 
   useEffect(() => {
     if (!authResolved) return
@@ -1292,16 +1371,46 @@ function MyLabPageInner() {
     }
 
     if (linkedPlayerIdForWorkshop) {
+      const ratingSnapshotsRequest = supabase
+        .from('rating_snapshots')
+        .select('id, snapshot_date, dynamic_rating, delta')
+        .eq('player_id', linkedPlayerIdForWorkshop)
+        .eq('rating_type', 'overall')
+        .eq('track', 'tiq')
+        .order('snapshot_date', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(12)
       const { data: playerMatchRefs } = await supabase
         .from('match_players')
         .select('match_id')
         .eq('player_id', linkedPlayerIdForWorkshop)
         .limit(80)
+      const { data: ratingSnapshotRows, error: ratingSnapshotsError } = await ratingSnapshotsRequest
+
+      if (ratingSnapshotsError) {
+        console.warn('Rating Journey snapshots unavailable:', ratingSnapshotsError.message)
+      }
+      setRatingSnapshots(
+        ((ratingSnapshotRows || []) as Array<{
+          id: string
+          snapshot_date: string | null
+          dynamic_rating: number | null
+          delta: number | null
+        }>).map((snapshot) => ({
+          id: snapshot.id,
+          snapshotDate: snapshot.snapshot_date,
+          dynamicRating: snapshot.dynamic_rating,
+          delta: snapshot.delta,
+        })),
+      )
 
       const personalMatchIds = [...new Set((playerMatchRefs || []).map((row) => row.match_id).filter(Boolean))]
 
       if (personalMatchIds.length) {
-        const [{ data: personalMatchRows }, { data: personalParticipantRows }] = await Promise.all([
+        const [
+          { data: personalMatchRows },
+          { data: personalParticipantRows },
+        ] = await Promise.all([
           supabase
             .from('matches')
             .select('id, match_date, match_type, league_name, score, winner_side')
@@ -1339,7 +1448,10 @@ function MyLabPageInner() {
               .sort((a, b) => (a.seat ?? 0) - (b.seat ?? 0))
               .map((participant) => {
                 const player = Array.isArray(participant.players) ? participant.players[0] : participant.players
-                return player?.name || 'Player'
+                return {
+                  id: participant.player_id,
+                  name: player?.name || 'Player',
+                }
               })
             const result =
               playerSide && match.winner_side
@@ -1355,15 +1467,18 @@ function MyLabPageInner() {
               matchType: match.match_type,
               score: match.score,
               result,
-              opponent: opponents.join(' / ') || 'Opponent',
+              opponent: opponents.map((opponent) => opponent.name).join(' / ') || 'Opponent',
+              opponents,
             }
           }),
         )
       } else {
         setPersonalMatches([])
+        setRatingSnapshots([])
       }
     } else {
       setPersonalMatches([])
+      setRatingSnapshots([])
     }
 
     if (!followsRes.error && Array.isArray(followsRes.data) && followsRes.data.length) {
@@ -2506,6 +2621,23 @@ function MyLabPageInner() {
     await persistFollows(next)
   }
 
+  async function followMatchOpponents(match: PersonalMatchRow) {
+    const newOpponentFollows = match.opponents
+      .filter((opponent) => opponent.id && !followContainsEntity(follows, 'player', opponent.id))
+      .map((opponent) => ({
+        id: `player-${opponent.id}`,
+        entity_type: 'player' as const,
+        entity_id: opponent.id,
+        entity_name: opponent.name,
+        subtitle: [match.leagueName, match.matchType].filter(Boolean).join(' · ') || 'Recent opponent',
+        created_at: new Date().toISOString(),
+      }))
+
+    if (!newOpponentFollows.length) return
+
+    await persistFollows([...newOpponentFollows, ...follows])
+  }
+
   function persistGoalList(nextGoals: LabGoalState[], nextActiveGoalId = activeGoalId, label = 'Saved just now') {
     setGoals(nextGoals)
     writeLocalGoals(userId, profileLink?.linked_player_id, nextGoals)
@@ -2658,6 +2790,12 @@ function MyLabPageInner() {
   const recentWinRate = recentDecisionMatches.length ? Math.round((recentWins / recentDecisionMatches.length) * 100) : 0
   const lastMatch = personalMatches[0] || null
   const lastMatchSummary = lastMatch ? `Last: ${lastMatch.result} vs ${compactOpponentLabel(lastMatch.opponent)}` : 'Recent results appear as imports connect.'
+  const filteredMatchbookMatches = useMemo(
+    () => filterMatchbookEntries(personalMatches, matchbookFilter),
+    [matchbookFilter, personalMatches],
+  )
+  const matchbookMatches = filteredMatchbookMatches.slice(0, showFullMatchbook ? 12 : 5)
+  const hasMoreMatchbookMatches = filteredMatchbookMatches.length > matchbookMatches.length
   const personalSinglesCount = personalMatches.filter((match) => (match.matchType || '').toLowerCase().includes('singles')).length
   const personalDoublesCount = personalMatches.filter((match) => (match.matchType || '').toLowerCase().includes('doubles')).length
   const currentTiq = linkedPlayer?.overall_dynamic_rating ?? null
@@ -2704,6 +2842,13 @@ function MyLabPageInner() {
     if (match.result !== 'W') break
     currentWinStreak += 1
   }
+  const trophyBadges = buildPlayerTrophyBadges({
+    verifiedHonors: earnedAwardCards.length,
+    reviewedMatches: recentDecisionMatches.length,
+    longestWinStreak: bestWinStreak,
+  })
+  const earnedTrophyBadges = trophyBadges.filter((badge) => badge.earned)
+  const nextTrophyBadge = trophyBadges.find((badge) => !badge.earned) || null
   const seasonRecords = new Map<string, { wins: number; losses: number }>()
   const leagueRecords = new Map<string, { wins: number; losses: number }>()
   recentDecisionMatches.forEach((match) => {
@@ -2766,6 +2911,37 @@ function MyLabPageInner() {
   const topMatchupCandidate = matchupCandidates[0] || null
   const matchupQueue = matchupCandidates.slice(0, 3)
   const matchupHref = linkedPlayer ? buildSinglesMatchupHref(linkedPlayer.id, topMatchupCandidate?.player.id) : '/matchup'
+  const todayDateKey = getLocalDateKey(new Date())
+  const nextCourtEvent = [
+    ...competitionCalendarItems
+      .filter((item) => item.eventType === 'match' && item.date >= todayDateKey)
+      .map((item) => ({
+        title: item.title || item.competitionName,
+        date: item.date,
+        time: item.time,
+        dateLabel: formatPlayerCoachCalendarDate(item.time ? `${item.date}T${item.time}` : item.date),
+        detail: [item.detail, item.location].filter(Boolean).join(' - ') || item.competitionName,
+        href: item.href || '/mylab#player-workshop',
+        cta: 'Open match details',
+        readiness: item.responseStatus === 'unavailable'
+          ? 'Marked unavailable'
+          : item.responseStatus === 'available' && !item.responseIsStale
+            ? 'Availability confirmed'
+            : 'Availability needs a reply',
+      })),
+    ...personalCalendarItems
+      .filter((item) => item.kind === 'match' && item.date >= todayDateKey)
+      .map((item) => ({
+        title: item.title || 'Personal match',
+        date: item.date,
+        time: item.time,
+        dateLabel: formatPersonalCalendarItemDate(item),
+        detail: item.location || 'Personal calendar match',
+        href: '/mylab#player-workshop',
+        cta: 'Open calendar',
+        readiness: item.availabilityStatus === 'unavailable' ? 'Marked unavailable' : 'Personal calendar',
+      })),
+  ].sort((left, right) => getPlayerCoachCalendarSortKey(left).localeCompare(getPlayerCoachCalendarSortKey(right)))[0] || null
   const matchupGapScore = topMatchupCandidate ? topMatchupCandidate.fitScore : 0
   const matchupReadLabel = topMatchupCandidate?.read || (isNewSelfRatedProfile ? 'Start the signal' : 'Set profile')
   const matchupPreviewCards = [
@@ -2790,6 +2966,9 @@ function MyLabPageInner() {
     },
   ]
   const activeGoal = goals.find((goal) => goal.id === activeGoalId) || goals[0] || EMPTY_LAB_GOAL
+  const matchPrepGoals = goals.filter((goal) => goal.id.startsWith('matchup-prep-'))
+  const matchPrepHeld = matchPrepGoals.filter((goal) => goal.progressUpdate.includes('plan held')).length
+  const matchPrepAdjusted = matchPrepGoals.filter((goal) => goal.progressUpdate.includes('adjust the plan')).length
   const activeGoals = goals.filter((goal) => goal.progressStatus !== 'completed')
   const completedGoals = goals.filter((goal) => goal.progressStatus === 'completed')
   const goalReadinessChecks = goalReadinessChecksFor(activeGoal)
@@ -3233,16 +3412,24 @@ function MyLabPageInner() {
       display: `${formatRating(linkedPlayer?.doubles_dynamic_rating ?? null)}${isSelfRatedProfile ? ' S' : ''}`,
     },
   ]
-  const scorecardSummaryCards = [
-    { label: 'Recent record', value: recentRecordLabel, note: `${recentDecisionMatches.length} connected decisions` },
-    { label: 'Win rate', value: recentDecisionMatches.length ? `${recentWinRate}%` : 'New', note: lastMatchSummary },
-    {
-      label: 'Matchup read',
-      value: matchupReadLabel,
-      note: topMatchupCandidate ? `${topMatchupCandidate.player.name} - gap ${topMatchupCandidate.gap.toFixed(2)}` : 'Use Matchup to compare',
-    },
-    { label: 'Current focus', value: activeGoal.goal || 'Optional', note: activeGoal.progressUpdate || 'Add a goal only when it helps' },
-  ]
+  const matchIntelligence = buildMatchIntelligenceRead({
+    matches: personalMatches,
+    activeFocus: activeGoal.goal,
+    activeFocusNote: activeGoal.improveNext || activeGoal.progressUpdate,
+  })
+  const ratingJourney = buildPlayerRatingJourneyRead({
+    snapshots: ratingSnapshots,
+    decidedMatches: recentDecisionMatches.length,
+  })
+  const ratingJourneyValues = [currentTiq, ...ratingJourney.snapshotPoints.map((point) => point.rating)]
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+  const ratingJourneyMin = ratingJourneyValues.length ? Math.min(...ratingJourneyValues) : 0
+  const ratingJourneyMax = ratingJourneyValues.length ? Math.max(...ratingJourneyValues) : 0
+  const ratingJourneyRange = Math.max(0.02, ratingJourneyMax - ratingJourneyMin)
+  const ratingJourneyPoints = ratingJourney.snapshotPoints.map((point) => ({
+    ...point,
+    position: Math.max(8, Math.min(100, ((point.rating - ratingJourneyMin) / ratingJourneyRange) * 92 + 8)),
+  }))
   const starterActionCards = [
     {
       title: 'Upload scores',
@@ -3414,6 +3601,7 @@ function MyLabPageInner() {
           firstServeSteps={[]}
           postRepReturn={null}
           matchup={null}
+          nextCourtEvent={null}
         />
       </section>
     )
@@ -3465,6 +3653,7 @@ function MyLabPageInner() {
           read: `${topMatchupCandidate.read} · ${topMatchupCandidate.gap.toFixed(2)} gap`,
           href: matchupHref,
         } : null}
+        nextCourtEvent={nextCourtEvent}
       />
 
       <PlayerWorkshopShell
@@ -3850,6 +4039,63 @@ function MyLabPageInner() {
                 </div>
               </section>
 
+              {canUseAdvancedPlayerInsights ? (
+                <section style={ratingJourneyPanelStyle} aria-label="Rating Journey">
+                  <div style={ratingJourneyHeaderStyle}>
+                    <div style={sectionTitleClusterStyle}>
+                      <TiqFeatureIcon name="playerRatings" size="md" variant="surface" />
+                      <div>
+                        <p style={sectionKickerStyle}>Rating Journey</p>
+                        <h3 style={compactSectionTitleStyle}>See the evidence behind your TIQ read.</h3>
+                        <p style={sectionTextStyle}>{ratingJourney.explainer}</p>
+                      </div>
+                    </div>
+                    <Link href={MY_LAB_RECENT_MATCHES_HREF} style={smallInlineLinkStyle}>Open Matchbook</Link>
+                  </div>
+                  <div style={ratingJourneyGridStyle(isTablet)}>
+                    <div style={ratingJourneyCardStyle}>
+                      <div style={metricLabelStyle}>TIQ overall</div>
+                      <div style={ratingJourneyValueStyle}>{formatRating(currentTiq)}</div>
+                      <div style={metricNoteStyle}>{ratingJourney.movementLabel} · {ratingJourney.movementNote}</div>
+                    </div>
+                    <div style={ratingJourneyCardStyle}>
+                      <div style={metricLabelStyle}>Evidence</div>
+                      <div style={todayReadValueStyle}>{ratingJourney.evidenceLabel}</div>
+                      <div style={metricNoteStyle}>{ratingJourney.evidenceNote}</div>
+                    </div>
+                    <div style={ratingJourneyCardStyle}>
+                      <div style={metricLabelStyle}>Latest TIQ update</div>
+                      <div style={todayReadValueStyle}>{ratingJourney.latestDeltaLabel}</div>
+                      <div style={metricNoteStyle}>{ustaBase == null ? 'Add your USTA context to compare your current starting point.' : `USTA reference: ${ustaBase.toFixed(1)}.`}</div>
+                    </div>
+                  </div>
+                  <div style={ratingJourneyTrendStyle}>
+                    <div style={ratingJourneyTrendHeaderStyle}>
+                      <div>
+                        <div style={metricLabelStyle}>Recent TIQ checkpoints</div>
+                        <div style={metricNoteStyle}>Up to four of your latest overall rating updates.</div>
+                      </div>
+                      <span style={ratingJourney.hasSnapshotTrend ? pillBlueStyle : pillSlateStyle}>{ratingJourney.hasSnapshotTrend ? 'Trend connected' : 'Trend building'}</span>
+                    </div>
+                    {ratingJourneyPoints.length ? (
+                      <div style={ratingJourneyPlotStyle} aria-label="Recent TIQ rating checkpoints">
+                        {ratingJourneyPoints.map((point) => (
+                          <div key={point.id} style={ratingJourneyPlotPointStyle}>
+                            <strong style={ratingJourneyPlotValueStyle}>{point.rating.toFixed(2)}</strong>
+                            <div style={ratingJourneyPlotRailStyle}>
+                              <span style={ratingJourneyPlotFillStyle(point.position)} />
+                            </div>
+                            <small style={ratingJourneyPlotDateStyle}>{safeDate(point.date)}</small>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={ratingJourneyEmptyStyle}>Your first TIQ checkpoint appears as scored results are reconciled to your player record.</div>
+                    )}
+                  </div>
+                </section>
+              ) : null}
+
               {isNewSelfRatedProfile ? (
                 <section style={starterPanelStyle}>
                   <div style={sectionHeaderStyle}>
@@ -3875,21 +4121,147 @@ function MyLabPageInner() {
                 </section>
               ) : null}
 
-              <section style={todayReadPanelStyle}>
-                <div style={workshopContextRowStyle}>
-                  <span>Today&apos;s read</span>
-                  <strong>{linkedPlayer?.name || profileLink?.linked_player_name || 'Player profile'}</strong>
-                </div>
-                <div style={todayReadGridStyle(isTablet)}>
-                  {scorecardSummaryCards.map((item) => (
-                    <div key={item.label} style={todayReadCardStyle}>
-                      <div style={metricLabelStyle}>{item.label}</div>
-                      <div style={todayReadValueStyle}>{item.value}</div>
-                      <div style={metricNoteStyle}>{item.note}</div>
+              {canUseAdvancedPlayerInsights ? (
+                <section style={matchIntelligencePanelStyle} aria-label="Match Intelligence">
+                  <div style={matchIntelligenceHeaderStyle}>
+                    <div style={sectionTitleClusterStyle}>
+                      <TiqFeatureIcon name="playerRatings" size="md" variant="surface" />
+                      <div>
+                        <p style={sectionKickerStyle}>Match Intelligence</p>
+                        <h3 style={compactSectionTitleStyle}>A clearer read on your tennis.</h3>
+                        <p style={sectionTextStyle}>{matchIntelligence.evidenceNote}</p>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </section>
+                    <Link href={MY_LAB_RECENT_MATCHES_HREF} style={smallInlineLinkStyle}>Open match history</Link>
+                  </div>
+                  <div style={matchIntelligenceGridStyle(isTablet)}>
+                    <div style={matchIntelligenceCardStyle}>
+                      <div style={metricLabelStyle}>Rating evidence</div>
+                      <div style={todayReadValueStyle}>{matchIntelligence.confidenceLabel}</div>
+                      <div style={metricNoteStyle}>{matchIntelligence.confidenceNote}</div>
+                    </div>
+                    <div style={matchIntelligenceCardStyle}>
+                      <div style={metricLabelStyle}>{matchIntelligence.patternLabel}</div>
+                      <div style={todayReadValueStyle}>{matchIntelligence.record}</div>
+                      <div style={metricNoteStyle}>Last five: {matchIntelligence.pattern}</div>
+                    </div>
+                    <div style={matchIntelligenceCardStyle}>
+                      <div style={metricLabelStyle}>Singles / doubles</div>
+                      <div style={todayReadValueStyle}>{matchIntelligence.courtMixLabel}</div>
+                      <div style={metricNoteStyle}>{matchIntelligence.courtMixNote}</div>
+                    </div>
+                    <Link href={MY_LAB_NOTEBOOK_HREF} style={matchIntelligenceFocusCardStyle}>
+                      <div style={metricLabelStyle}>Your next focus</div>
+                      <div style={todayReadValueStyle}>{matchIntelligence.focusTitle}</div>
+                      <div style={metricNoteStyle}>{matchIntelligence.focusNote}</div>
+                    </Link>
+                  </div>
+                </section>
+              ) : null}
+
+              {canUseAdvancedPlayerInsights ? (
+                <section id="recent-matches" style={matchbookPanelStyle} aria-label="Player Matchbook">
+                  <div style={matchbookHeaderStyle}>
+                    <div style={sectionTitleClusterStyle}>
+                      <TiqFeatureIcon name="reports" size="md" variant="surface" />
+                      <div>
+                        <p style={sectionKickerStyle}>Your Matchbook</p>
+                        <h3 style={compactSectionTitleStyle}>Results without the clutter.</h3>
+                        <p style={sectionTextStyle}>Scan the score, opponent, and court—then reflect only when a match gives you something useful.</p>
+                      </div>
+                    </div>
+                    <div style={matchbookFilterStyle} aria-label="Matchbook filter">
+                      {MATCHBOOK_FILTERS.map((filter) => (
+                        <button
+                          key={filter}
+                          type="button"
+                          onClick={() => {
+                            setMatchbookFilter(filter)
+                            setShowFullMatchbook(false)
+                          }}
+                          style={matchbookFilter === filter ? tabActiveStyle : tabButtonStyle}
+                        >
+                          {getMatchbookFilterLabel(filter)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={matchbookListStyle}>
+                    {matchbookMatches.length ? matchbookMatches.map((match) => {
+                      const existingReport = myMatchReportByMatchId.get(match.id) || null
+                      const watchableOpponents = match.opponents.filter((opponent) => Boolean(opponent.id))
+                      const opponentsAlreadyFollowed = watchableOpponents.length > 0 && watchableOpponents.every(
+                        (opponent) => followContainsEntity(follows, 'player', opponent.id),
+                      )
+                      return (
+                        <article key={match.id} style={matchbookRowStyle(isTablet)}>
+                          <span style={match.result === 'W' ? pillGreenStyle : match.result === 'L' ? pillRedStyle : pillSlateStyle}>
+                            {match.result}
+                          </span>
+                          <div style={matchbookCopyStyle}>
+                            <div style={matchbookDateStyle}>{[safeDate(match.date), match.matchType || 'Match'].filter(Boolean).join(' · ')}</div>
+                            <div style={matchbookOpponentStyle}>
+                              <strong>vs {compactOpponentLabel(match.opponent)}</strong>
+                              <span>{[match.leagueName, match.score].filter(Boolean).join(' · ') || 'Score pending'}</span>
+                            </div>
+                          </div>
+                          <div style={matchbookActionStyle(isTablet)}>
+                            {existingReport ? (
+                              <span style={existingReport.status === 'resolved' ? pillGreenStyle : existingReport.status === 'rejected' ? pillRedStyle : existingReport.status === 'reviewing' ? pillBlueStyle : pillSlateStyle}>
+                                {getReportStatusLabel(existingReport.status)}
+                              </span>
+                            ) : (
+                              <MatchAccuracyReportButton
+                                matchId={match.id}
+                                reporterPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
+                                matchLabel={`${match.result} vs ${compactOpponentLabel(match.opponent)}${match.score ? ` - ${match.score}` : ''}`}
+                                context={{
+                                  surface: 'mylab_matchbook',
+                                  linkedPlayerId: profileLink?.linked_player_id || '',
+                                  leagueName: match.leagueName || '',
+                                  matchType: match.matchType || '',
+                                  matchDate: match.date || '',
+                                  opponent: match.opponent,
+                                  result: match.result,
+                                }}
+                                onSubmitted={() => void refreshMyMatchReports()}
+                              />
+                            )}
+                            {watchableOpponents.length ? (
+                              <button
+                                type="button"
+                                onClick={() => void followMatchOpponents(match)}
+                                disabled={opponentsAlreadyFollowed}
+                                style={opponentsAlreadyFollowed ? matchbookWatchDoneButtonStyle : matchbookWatchButtonStyle}
+                              >
+                                {opponentsAlreadyFollowed
+                                  ? 'Watching'
+                                  : watchableOpponents.length === 1
+                                    ? 'Watch opponent'
+                                    : 'Watch opponents'}
+                              </button>
+                            ) : null}
+                            <button type="button" onClick={() => reflectOnMatch(match)} style={matchReflectButtonStyle}>Reflect</button>
+                          </div>
+                        </article>
+                      )
+                    }) : (
+                      <div style={emptyStateStyle}>
+                        {personalMatches.length
+                          ? `No ${getMatchbookFilterLabel(matchbookFilter).toLowerCase()} are connected yet.`
+                          : `${DATA_ASSIST_STORY.shortCue} Reviewed results will appear here once they connect to your player record.`}
+                      </div>
+                    )}
+                  </div>
+                  {hasMoreMatchbookMatches ? (
+                    <button type="button" onClick={() => setShowFullMatchbook(true)} style={matchbookMoreButtonStyle}>
+                      Show {Math.min(7, filteredMatchbookMatches.length - matchbookMatches.length)} more matches
+                    </button>
+                  ) : showFullMatchbook && filteredMatchbookMatches.length > 5 ? (
+                    <button type="button" onClick={() => setShowFullMatchbook(false)} style={matchbookMoreButtonStyle}>Show fewer matches</button>
+                  ) : null}
+                </section>
+              ) : null}
 
               <section style={matchupSpotlightStyle}>
                 <div style={matchupSpotlightHeroStyle(isTablet)}>
@@ -4070,6 +4442,25 @@ function MyLabPageInner() {
                         <strong>Best marks</strong>
                         <em>{trophyRoomCards.length - earnedAwardCards.length}</em>
                       </div>
+                    </div>
+                    <div style={trophyBadgeHeaderStyle}>
+                      <div>
+                        <div style={metricLabelStyle}>Earned badges</div>
+                        <strong style={trophyBadgeTitleStyle}>{earnedTrophyBadges.length} collected</strong>
+                      </div>
+                      {nextTrophyBadge ? <span style={trophyNextBadgeStyle}>Next: {nextTrophyBadge.label} · {nextTrophyBadge.progressLabel}</span> : <span style={trophyNextBadgeStyle}>Full collection</span>}
+                    </div>
+                    <div style={trophyBadgeGridStyle} aria-label="Player trophy badges">
+                      {trophyBadges.map((badge) => (
+                        <div key={badge.key} style={{ ...trophyBadgeCardStyle, opacity: badge.earned ? 1 : 0.58 }} data-earned={badge.earned}>
+                          <TiqFeatureIcon name={badge.icon} size="sm" variant="surface" />
+                          <div>
+                            <strong style={trophyBadgeNameStyle}>{badge.label}</strong>
+                            <span style={trophyBadgeProgressStyle}>{badge.earned ? 'Earned' : badge.progressLabel}</span>
+                            <small style={metricNoteStyle}>{badge.detail}</small>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                     <div style={trophyRoomGridStyle(isTablet)}>
                       {trophyRoomCards.map((record) => (
@@ -4270,6 +4661,17 @@ function MyLabPageInner() {
                 </div>
               </div>
               <div id="player-notebook" style={goalWorkspaceStyle}>
+                {matchPrepGoals.length ? <section style={matchPrepHistoryStyle} aria-label="Match Prep history">
+                  <span><small>Prep notes</small><strong>{matchPrepGoals.length}</strong></span>
+                  <span><small>Plans held</small><strong>{matchPrepHeld}</strong></span>
+                  <span><small>Adjusted</small><strong>{matchPrepAdjusted}</strong></span>
+                </section> : null}
+                {matchupPrepSaved ? (
+                  <div role="status" style={matchupPrepSavedStyle}>
+                    <strong>Match Prep saved</strong>
+                    <span>{matchupPrepSaved} is ready in your private notebook.</span>
+                  </div>
+                ) : null}
                 <div style={goalListStyle}>
                   {goals.map((goal, index) => (
                     <button
@@ -4293,6 +4695,29 @@ function MyLabPageInner() {
                 <details className="myLabDetailsSection" style={goalEditorDetailsStyle}>
                   <summary style={collapsibleSummaryStyle}>+ Update goals and notes</summary>
                   <div className="myLabDetailsBody" style={goalEditorStyle}>
+                    {activeGoal.id.startsWith('matchup-prep-') ? (
+                      <section style={matchPrepReviewStyle(isTablet)} aria-labelledby="match-prep-review-title">
+                        <div>
+                          <p style={sectionKickerStyle}>After play</p>
+                          <h3 id="match-prep-review-title" style={compactSectionTitleStyle}>Did the plan hold up?</h3>
+                          <p style={metricNoteStyle}>Keep the useful pattern, or name the adjustment for your next court.</p>
+                        </div>
+                        <div style={matchPrepReviewActionsStyle}>
+                          <button type="button" style={saveNotebookButtonStyle} onClick={() => updateGoal(activeGoal.id, {
+                            progressStatus: 'improving',
+                            progressUpdate: 'Match Prep reviewed: the plan held up. Carry the same pattern into the next match.',
+                          })}>
+                            Plan held
+                          </button>
+                          <button type="button" style={smallGhostButtonStyle} onClick={() => updateGoal(activeGoal.id, {
+                            progressStatus: 'in-progress',
+                            progressUpdate: 'Match Prep reviewed: adjust the plan before the next match.',
+                          })}>
+                            Adjust plan
+                          </button>
+                        </div>
+                      </section>
+                    ) : null}
                     <div style={inputWrapStyle}>
                       <label style={labelStyle} htmlFor={`my-lab-goal-${activeGoal.id}`}>Goal</label>
                       <input
@@ -4380,64 +4805,6 @@ function MyLabPageInner() {
             </section>
 
             <div style={workshopGridStyle(isTablet)}>
-              <div id="recent-matches" style={workshopPanelStyle}>
-                <div style={sectionKickerStyle}>Recent matches</div>
-                <div style={workshopListStyle}>
-                  {personalMatches.length ? (
-                    personalMatches.slice(0, 5).map((match) => {
-                      const existingReport = myMatchReportByMatchId.get(match.id) || null
-                      return (
-                        <div key={match.id} style={workshopMatchRowStyle}>
-                          <span style={match.result === 'W' ? pillGreenStyle : match.result === 'L' ? pillRedStyle : pillSlateStyle}>
-                            {match.result}
-                          </span>
-                          <div style={workshopRowCopyStyle}>
-                            <div style={workshopRowTitleStyle}>{match.opponent}</div>
-                            <div style={workshopRowMetaStyle}>
-                              {[safeDate(match.date), match.leagueName, match.matchType, match.score].filter(Boolean).join(' - ')}
-                            </div>
-                          </div>
-                          <div style={matchActionStackStyle}>
-                            {existingReport ? (
-                              <span style={existingReport.status === 'resolved' ? pillGreenStyle : existingReport.status === 'rejected' ? pillRedStyle : existingReport.status === 'reviewing' ? pillBlueStyle : pillSlateStyle}>
-                                {getReportStatusLabel(existingReport.status)}
-                              </span>
-                            ) : (
-                              <MatchAccuracyReportButton
-                                matchId={match.id}
-                                reporterPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
-                                matchLabel={`${match.result} vs ${compactOpponentLabel(match.opponent)}${match.score ? ` - ${match.score}` : ''}`}
-                                context={{
-                                  surface: 'mylab_recent_matches',
-                                  linkedPlayerId: profileLink?.linked_player_id || '',
-                                  leagueName: match.leagueName || '',
-                                  matchType: match.matchType || '',
-                                  matchDate: match.date || '',
-                                  opponent: match.opponent,
-                                  result: match.result,
-                                }}
-                                onSubmitted={() => void refreshMyMatchReports()}
-                              />
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => reflectOnMatch(match)}
-                              style={matchReflectButtonStyle}
-                            >
-                              Reflect
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    })
-                  ) : (
-                    <div style={emptyStateStyle}>
-                      {isProfileConfirmed ? `${DATA_ASSIST_STORY.shortCue} Reviewed results will appear here once they connect to your player record.` : 'Set up your profile to unlock your personal match history.'}
-                    </div>
-                  )}
-                </div>
-              </div>
-
               <div id="match-report-status" style={workshopPanelStyle}>
                 <div style={sectionHeaderStyle}>
                   <div style={sectionHeaderCopyStyle}>
@@ -6701,6 +7068,13 @@ function getPlayerCoachCalendarSortKey(event: { date: string; time?: string }) {
   return `${event.date || '9999-12-31'}T${event.time || '23:59'}`
 }
 
+function getLocalDateKey(value: Date) {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function formatPlayerCoachCalendarDate(value: string) {
   const normalized = value.includes('T') ? value : `${value}T12:00:00`
   const parsed = new Date(normalized)
@@ -8613,14 +8987,23 @@ const quickProfileValueStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const todayReadPanelStyle: CSSProperties = {
+const matchIntelligencePanelStyle: CSSProperties = {
   borderRadius: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background: 'linear-gradient(135deg, rgba(116,190,255,0.1), rgba(155,225,29,0.055))',
   padding: 18,
   display: 'grid',
   gap: 12,
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const matchIntelligenceHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  flexWrap: 'wrap',
   minWidth: 0,
 }
 
@@ -8657,7 +9040,7 @@ const starterCardStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const todayReadGridStyle = (isTablet: boolean): CSSProperties => ({
+const matchIntelligenceGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
     ? 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'
@@ -8666,16 +9049,286 @@ const todayReadGridStyle = (isTablet: boolean): CSSProperties => ({
   minWidth: 0,
 })
 
-const todayReadCardStyle: CSSProperties = {
+const matchIntelligenceCardStyle: CSSProperties = {
   borderRadius: 14,
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 90%, rgba(116,190,255,0.10) 10%)',
   padding: 12,
   minHeight: 106,
   display: 'grid',
   gap: 6,
   alignContent: 'start',
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const matchIntelligenceFocusCardStyle: CSSProperties = {
+  ...matchIntelligenceCardStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%)',
+  color: 'inherit',
+  textDecoration: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyPanelStyle: CSSProperties = {
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 32%, var(--shell-panel-border) 68%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg) 88%), var(--shell-panel-bg))',
+  padding: 18,
+  display: 'grid',
+  gap: 14,
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const ratingJourneyHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const ratingJourneyGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet
+    ? 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'
+    : 'repeat(3, minmax(0, 1fr))',
+  gap: 10,
+  minWidth: 0,
+})
+
+const ratingJourneyCardStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg-strong) 86%, transparent)',
+  padding: 14,
+  minHeight: 118,
+  display: 'grid',
+  alignContent: 'start',
+  gap: 7,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(2rem, 5vw, 2.8rem)',
+  lineHeight: 0.94,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyTrendStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'rgba(4, 12, 28, 0.42)',
+  padding: 14,
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+}
+
+const ratingJourneyTrendHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const ratingJourneyPlotStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 72px), 1fr))',
+  alignItems: 'end',
+  gap: 8,
+  minHeight: 126,
+  minWidth: 0,
+}
+
+const ratingJourneyPlotPointStyle: CSSProperties = {
+  minWidth: 0,
+  display: 'grid',
+  gridTemplateRows: 'auto 72px auto',
+  justifyItems: 'center',
+  alignItems: 'end',
+  gap: 7,
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyPlotValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1,
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyPlotRailStyle: CSSProperties = {
+  width: '100%',
+  height: 72,
+  display: 'flex',
+  alignItems: 'flex-end',
+  borderRadius: 10,
+  padding: 3,
+  background: 'color-mix(in srgb, var(--foreground-strong) 8%, var(--shell-chip-bg) 92%)',
+  overflow: 'hidden',
+  minWidth: 0,
+}
+
+const ratingJourneyPlotFillStyle = (position: number): CSSProperties => ({
+  display: 'block',
+  width: '100%',
+  height: `${position}%`,
+  minHeight: 9,
+  borderRadius: 7,
+  background: 'linear-gradient(180deg, var(--brand-lime), var(--brand-blue-2))',
+  boxShadow: '0 0 18px color-mix(in srgb, var(--brand-lime) 34%, transparent)',
+})
+
+const ratingJourneyPlotDateStyle: CSSProperties = {
+  maxWidth: '100%',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 800,
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyEmptyStyle: CSSProperties = {
+  borderRadius: 12,
+  border: '1px dashed var(--shell-panel-border)',
+  padding: 12,
+  color: 'var(--shell-copy-muted)',
+  fontWeight: 800,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const matchbookPanelStyle: CSSProperties = {
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-panel-bg) 94%)',
+  padding: 18,
+  display: 'grid',
+  gap: 12,
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const matchbookHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const matchbookFilterStyle: CSSProperties = {
+  display: 'flex',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const matchbookListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const matchbookRowStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet
+    ? 'minmax(0, auto) minmax(0, 1fr)'
+    : 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
+  gap: 10,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  overflowWrap: 'anywhere',
+})
+
+const matchbookCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+}
+
+const matchbookDateStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const matchbookOpponentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const matchbookActionStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'flex',
+  gridColumn: isTablet ? '1 / -1' : undefined,
+  justifyContent: isTablet ? 'flex-start' : 'flex-end',
+  alignItems: 'center',
+  gap: 7,
+  flexWrap: 'wrap',
+  minWidth: 0,
+})
+
+const matchbookWatchButtonStyle: CSSProperties = {
+  maxWidth: '100%',
+  minWidth: 0,
+  minHeight: 34,
+  padding: '0 11px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 13%, var(--shell-chip-bg) 87%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: 'pointer',
+  whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const matchbookWatchDoneButtonStyle: CSSProperties = {
+  ...matchbookWatchButtonStyle,
+  minWidth: 0,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  cursor: 'default',
+}
+
+const matchbookMoreButtonStyle: CSSProperties = {
+  justifySelf: 'start',
+  maxWidth: '100%',
+  minWidth: 0,
+  minHeight: 36,
+  padding: '0 12px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: 'pointer',
+  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 
@@ -8991,6 +9644,61 @@ const trophyRoomGridStyle = (isTablet: boolean): CSSProperties => ({
   gap: 12,
   minWidth: 0,
 })
+
+const trophyBadgeHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'end',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+}
+
+const trophyBadgeTitleStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--foreground-strong)',
+  fontSize: '1.05rem',
+  fontWeight: 950,
+}
+
+const trophyNextBadgeStyle: CSSProperties = {
+  color: 'var(--foreground-muted)',
+  fontSize: 12,
+  fontWeight: 800,
+}
+
+const trophyBadgeGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const trophyBadgeCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 15,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
+}
+
+const trophyBadgeNameStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 900,
+}
+
+const trophyBadgeProgressStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 2,
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 900,
+}
 
 const trophyProofGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
@@ -9638,6 +10346,43 @@ const goalWorkspaceStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const matchPrepHistoryStyle: CSSProperties = {
+  display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, padding: 12,
+  borderRadius: 14, background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg) 92%)', minWidth: 0,
+}
+
+const matchPrepReviewStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto',
+  gap: 14,
+  alignItems: 'center',
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
+  minWidth: 0,
+})
+
+const matchPrepReviewActionsStyle: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  minWidth: 0,
+}
+
+const matchupPrepSavedStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: '12px 14px',
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-panel-bg) 91%)',
+  color: 'var(--foreground-strong)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const goalListStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
@@ -9744,27 +10489,6 @@ const goalEditorStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   marginTop: 14,
-  minWidth: 0,
-}
-
-const workshopMatchRowStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
-  gap: 10,
-  alignItems: 'center',
-  borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  padding: '10px 12px',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const matchActionStackStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'flex-end',
-  gap: 8,
   minWidth: 0,
 }
 

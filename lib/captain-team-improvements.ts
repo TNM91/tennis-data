@@ -23,8 +23,8 @@ export function buildCaptainTeamImprovements(input: {
       id: 'roster',
       title: 'Add your players',
       state: 'Roster missing',
-      detail: 'Upload the Player Roster to connect player names, ratings, and the contact details TennisLink includes.',
-      cta: 'Upload Player Roster',
+      detail: 'Upload the Team Summary to connect the team, player names, ratings, and standings. Add Player Roster later for team contacts.',
+      cta: 'Upload Team Summary',
     })
   } else if (input.missingPhoneCount > 0) {
     const hasImportedPhones = input.phoneReadyCount > 0
@@ -54,8 +54,8 @@ export function buildCaptainTeamImprovements(input: {
       id: 'ratings',
       title: 'Complete player ratings',
       state: `${input.missingRatingCount} missing`,
-      detail: `Refresh the Player Roster to add rating context for ${input.missingRatingCount} player${input.missingRatingCount === 1 ? '' : 's'}.`,
-      cta: 'Refresh Player Roster',
+      detail: `Refresh the Team Summary to add rating context for ${input.missingRatingCount} player${input.missingRatingCount === 1 ? '' : 's'}.`,
+      cta: 'Refresh Team Summary',
     })
   }
 

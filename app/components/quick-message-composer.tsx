@@ -92,7 +92,7 @@ export default function QuickMessageComposer({
           if (!active) return
           setRecipient(nextRecipient)
           if (!nextRecipient) {
-            setError('This opponent is not linked to a TenAceIQ account yet. You can still open Messages and search by name.')
+            setError('This player is not linked to a TenAceIQ account yet. You can still open Messages and search by name.')
           }
         }
       } catch (err) {

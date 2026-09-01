@@ -145,10 +145,8 @@ function buildStructuredTeamSummaryMeta(rows: HtmlRow[]) {
     cells.some((cell) => /^Wins\*?$/i.test(cell)) &&
     cells.some((cell) => /^Losses$/i.test(cell))
   ))
-  const hasLegacyRosterHeader = rows.some((cells) => (
-    cells.some((cell) => /^Player Name$/i.test(cell)) &&
-    cells.some((cell) => /^NTRP$/i.test(cell))
-  ))
+  const legacyRosterHeaderIndex = rows.findIndex(isLegacyRosterHeader)
+  const hasLegacyRosterHeader = legacyRosterHeaderIndex >= 0
   const hasPlayerRosterHeader = rows.some(isPlayerRosterHeader)
   if ((!hasLegacyRosterHeader || standingsHeaderIndex < 0) && !hasPlayerRosterHeader) return []
 
@@ -281,7 +279,13 @@ function buildStructuredRosterLines(rows: HtmlRow[]) {
     return lines
   }
 
-  for (const cells of rows) {
+  const legacyRosterHeaderIndex = rows.findIndex(isLegacyRosterHeader)
+  if (legacyRosterHeaderIndex < 0) return lines
+
+  // A Team Summary starts with league and standings tables. Only rows after the
+  // dedicated Player Name / NTRP header belong to the roster, otherwise a team
+  // name plus its wins can be misread as a player plus a rating.
+  for (const cells of rows.slice(legacyRosterHeaderIndex + 1)) {
     if (cells.length < 2) continue
     for (let index = 0; index < cells.length - 1; index += 2) {
       const name = cells[index] || ''
@@ -292,6 +296,13 @@ function buildStructuredRosterLines(rows: HtmlRow[]) {
     }
   }
   return lines
+}
+
+function isLegacyRosterHeader(cells: HtmlRow) {
+  return (
+    cells.some((cell) => /^Player Name$/i.test(cell)) &&
+    cells.some((cell) => /^NTRP$/i.test(cell))
+  )
 }
 
 function buildStructuredRosterContacts(rows: HtmlRow[]) {

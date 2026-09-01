@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const source = readFileSync(join(process.cwd(), 'app/captain/messaging/page.tsx'), 'utf8')
+const source = readFileSync(join(process.cwd(), 'app/captain/messaging/page.tsx'), 'utf8').replace(/\r\n/g, '\n')
 
 function styleBlock(styleName: string) {
   const start = source.indexOf(`const ${styleName}:`)
@@ -55,6 +55,8 @@ describe('Captain messaging mobile layout guards', () => {
     expect(styleBlock('messageControlTitleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(source).toContain("{!isMobile ? <CaptainSuitePanel active=\"messaging\" teamLabel={teamFilter || 'Team week'} /> : null}")
     expect(source).toContain('<PrimaryLink href="#captain-message-composer">Review send</PrimaryLink>')
+    expect(source).toContain('const mobileSendPulse = [')
+    expect(source).toContain('aria-label="Captain message send pulse"')
     expect(source).toContain('<section id="captain-message-composer" style={surfaceCard}>')
     expect(source.indexOf('messageControlShellResponsive(isTablet, isMobile)')).toBeLessThan(
       source.indexOf('messagePlaybookSurfaceStyle'),
@@ -93,6 +95,9 @@ describe('Captain messaging mobile layout guards', () => {
     expect(styleBlock('composerBodyPreviewStyle')).toContain("overflowWrap: 'anywhere'")
     expect(functionBlock('messagePlaybookGridResponsive')).toContain("gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))'")
     expect(functionBlock('messagePlaybookCardResponsive')).toContain('minHeight: isMobile ? 112')
+    expect(styleBlock('mobileSendPulseGridStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
+    expect(styleBlock('mobileSendPulseCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock('mobileWeekStatusButtonRowStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
   })
 
   it('keeps tables, recipient controls, lineup cards, templates, and repeated grids mobile-safe', () => {
@@ -142,5 +147,13 @@ describe('Captain messaging mobile layout guards', () => {
     expect(source).toContain('<GhostLink href="#captain-message-composer">Review &amp; send</GhostLink>')
     expect(source).toContain('style={isMobile ? hiddenMobileHandoffStyle : builderHandoffSurfaceStyle}')
     expect(styleBlock('potentialPlayerCardStyle')).toContain("contentVisibility: 'auto'")
+  })
+
+  it('uses readable contact cards on phones instead of compressing a desktop table', () => {
+    expect(source).toContain('{isMobile ? (\n                  <div style={contactCardListStyle} aria-label="Team contacts">')
+    expect(source).toContain("const contactCardListStyle: CSSProperties = { display: 'grid', gap: 10, minWidth: 0 }")
+    expect(styleBlock('contactCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock('contactCardActionsStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr) auto'")
+    expect(source).toContain('Edit contact')
   })
 })

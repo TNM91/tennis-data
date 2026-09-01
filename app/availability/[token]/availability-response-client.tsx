@@ -2,6 +2,11 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import {
+  buildMatchWeekGoogleCalendarHref,
+  buildMatchWeekPhoneCalendarHref,
+  buildMatchWeekMapsHref,
+} from '@/lib/captain-match-week-links'
 
 type InvitedPlayer = { playerId: string; playerName: string }
 type MatchOption = {
@@ -81,12 +86,12 @@ export default function AvailabilityResponseClient({ token }: { token: string })
     setSaved(false)
   }, [data, selectedPlayer])
 
-  async function submitAvailability() {
+  async function submitAvailability(responsesOverride?: Array<{ matchDate: string; status: AvailabilityStatus }>) {
     if (!selectedPlayer) {
       setError('Choose your name first.')
       return
     }
-    const responses = Object.entries(statuses).map(([matchDate, status]) => ({ matchDate, status }))
+    const responses = responsesOverride ?? Object.entries(statuses).map(([matchDate, status]) => ({ matchDate, status }))
     if (!responses.length) {
       setError('Set your availability for at least one match.')
       return
@@ -116,9 +121,35 @@ export default function AvailabilityResponseClient({ token }: { token: string })
     }
   }
 
+  async function answerThisMatch(status: Extract<AvailabilityStatus, 'available' | 'unavailable'>) {
+    if (!data) return
+    setStatuses((current) => ({ ...current, [data.request.matchDate]: status }))
+    await submitAvailability([{ matchDate: data.request.matchDate, status }])
+  }
+
   if (loading) return <main style={pageStyle}><section style={cardStyle}>Loading match details...</section></main>
   if (error && !data) return <main style={pageStyle}><section style={cardStyle}><h1 style={titleStyle}>Link unavailable</h1><p style={bodyStyle}>{error}</p></section></main>
   if (!data) return null
+
+  const calendarHref = buildMatchWeekGoogleCalendarHref({
+    eventDate: data.request.matchDate,
+    eventTime: data.request.matchTime,
+    opponent: data.request.opponentTeam,
+    location: data.request.facility,
+    details: `Availability request for ${data.request.teamName}.`,
+  })
+  const mapsHref = buildMatchWeekMapsHref(data.request.facility)
+  const phoneCalendarHref = buildMatchWeekPhoneCalendarHref(
+    typeof window === 'undefined' ? '' : `${window.location.origin}/availability/${token}`
+  )
+  const currentMatch = data.matches.find((match) => match.matchDate === data.request.matchDate) ?? {
+    id: 'requested-match',
+    matchDate: data.request.matchDate,
+    matchTime: data.request.matchTime,
+    facility: data.request.facility,
+    opponent: data.request.opponentTeam,
+  }
+  const futureMatches = data.matches.filter((match) => match.matchDate !== data.request.matchDate)
 
   return (
     <main style={pageStyle}>
@@ -152,17 +183,64 @@ export default function AvailabilityResponseClient({ token }: { token: string })
       </section>
 
       {selectedPlayer ? (
-        <section style={cardStyle}>
+        <>
+          <section style={cardStyle}>
+            <div>
+              <p style={kickerStyle}>One-tap reply</p>
+              <h2 style={sectionTitleStyle}>Can you play?</h2>
+              <p style={bodyStyle}>Answer for {formatDate(currentMatch.matchDate)} vs {currentMatch.opponent || 'opponent'}.</p>
+            </div>
+            <div style={quickReplyRowStyle} role="group" aria-label="Reply for this match">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void answerThisMatch('available')}
+                style={statuses[currentMatch.matchDate] === 'available' ? activeStatusStyle('available') : quickReplyYesStyle}
+              >
+                {saving ? 'Saving...' : 'Yes, I’m in'}
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void answerThisMatch('unavailable')}
+                style={statuses[currentMatch.matchDate] === 'unavailable' ? activeStatusStyle('unavailable') : quickReplyNoStyle}
+              >
+                {saving ? 'Saving...' : 'No, I’m out'}
+              </button>
+            </div>
+            {saved ? (
+              <div role="status" style={successStyle}>
+                <strong>Thanks—your response was saved.</strong> It was sent to your captain.
+              </div>
+            ) : null}
+          </section>
+
+          <section style={cardStyle}>
+            <div>
+              <p style={kickerStyle}>Match details</p>
+              <h2 style={sectionTitleStyle}>Keep the week in sync</h2>
+            </div>
+            {calendarHref || mapsHref ? (
+              <div style={quickLinkRowStyle}>
+                {calendarHref ? <a href={calendarHref} target="_blank" rel="noreferrer" style={quickLinkStyle}>Add to Google Calendar</a> : null}
+                {phoneCalendarHref ? <a href={phoneCalendarHref} style={quickLinkStyle}>Add calendar reminder</a> : null}
+                {mapsHref ? <a href={mapsHref} target="_blank" rel="noreferrer" style={quickLinkStyle}>Open directions</a> : null}
+              </div>
+            ) : null}
+          </section>
+
+          <section style={cardStyle}>
           <div style={sectionHeaderStyle}>
             <div>
-              <p style={kickerStyle}>This match and the season</p>
-              <h2 style={sectionTitleStyle}>Set your availability</h2>
+              <p style={kickerStyle}>Plan ahead</p>
+              <h2 style={sectionTitleStyle}>Future availability</h2>
+              <p style={bodyStyle}>Help your captain by marking any upcoming dates below.</p>
             </div>
-            <span style={countPillStyle}>{Object.keys(statuses).length} answered</span>
+            <span style={countPillStyle}>{futureMatches.filter((match) => statuses[match.matchDate]).length} future dates set</span>
           </div>
 
           <div style={matchListStyle}>
-            {data.matches.map((match) => (
+            {futureMatches.map((match) => (
               <article key={`${match.id}-${match.matchDate}`} style={matchCardStyle}>
                 <div>
                   <strong style={matchDateStyle}>{formatDate(match.matchDate)}</strong>
@@ -186,28 +264,25 @@ export default function AvailabilityResponseClient({ token }: { token: string })
             ))}
           </div>
 
+          {!futureMatches.length ? <p style={bodyStyle}>No later team matches are scheduled yet. Your captain will send the next check when the schedule is ready.</p> : null}
+
           <label htmlFor="availability-notes" style={labelStyle}>Note for your captain (optional)</label>
           <textarea id="availability-notes" value={notes} onChange={(event) => setNotes(event.target.value)} style={textareaStyle} placeholder="Timing, travel, or anything your captain should know" />
 
           {error ? <div role="alert" style={errorStyle}>{error}</div> : null}
-          {saved ? (
-            <div role="status" style={successStyle}>
-              <strong>Availability saved.</strong> Your captain can use it while finalizing the lineup.
-            </div>
-          ) : null}
-
-          <button type="button" onClick={() => void submitAvailability()} disabled={saving} style={primaryButtonStyle}>
-            {saving ? 'Saving...' : 'Send availability'}
+          <button type="button" onClick={() => void submitAvailability()} disabled={saving || !futureMatches.some((match) => statuses[match.matchDate])} style={primaryButtonStyle}>
+            {saving ? 'Saving...' : 'Save future availability'}
           </button>
-        </section>
+          </section>
+        </>
       ) : null}
 
       <section style={joinCardStyle}>
         <div>
           <h2 style={sectionTitleStyle}>Want fewer availability texts?</h2>
-          <p style={bodyStyle}>Join TIQ to keep your player profile and future availability in one place.</p>
+          <p style={bodyStyle}>Join TiQ to keep your player profile and future availability in one place.</p>
         </div>
-        <Link href="/join" style={joinLinkStyle}>Join TIQ</Link>
+        <Link href="/join" style={joinLinkStyle}>Join TiQ</Link>
       </section>
     </main>
   )
@@ -233,12 +308,17 @@ const titleStyle: CSSProperties = { margin: 0, fontSize: 'clamp(30px, 7vw, 46px)
 const sectionTitleStyle: CSSProperties = { margin: 0, fontSize: 22, color: 'var(--shell-copy)' }
 const bodyStyle: CSSProperties = { margin: '8px 0 0', color: 'var(--shell-copy-muted)', lineHeight: 1.55 }
 const detailStyle: CSSProperties = { margin: '5px 0 0', color: 'var(--shell-copy)', lineHeight: 1.4 }
+const quickLinkRowStyle: CSSProperties = { marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 10 }
+const quickLinkStyle: CSSProperties = { minHeight: 40, display: 'inline-flex', alignItems: 'center', padding: '0 14px', borderRadius: 12, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--shell-copy)', textDecoration: 'none', fontWeight: 800, fontSize: 14 }
+const quickReplyRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }
+const quickReplyYesStyle: CSSProperties = { minHeight: 52, borderRadius: 14, border: '1px solid var(--brand-green)', background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-bg) 82%)', color: 'var(--shell-copy)', fontWeight: 850, fontSize: 16, cursor: 'pointer' }
+const quickReplyNoStyle: CSSProperties = { minHeight: 52, borderRadius: 14, border: '1px solid #df6a70', background: 'color-mix(in srgb, #df6a70 12%, var(--shell-panel-bg) 88%)', color: 'var(--shell-copy)', fontWeight: 850, fontSize: 16, cursor: 'pointer' }
 const smallStyle: CSSProperties = { marginTop: 4, color: 'var(--shell-copy-muted)', fontSize: 13 }
 const labelStyle: CSSProperties = { color: 'var(--shell-copy)', fontWeight: 750, fontSize: 14 }
 const inputStyle: CSSProperties = { width: '100%', minHeight: 48, borderRadius: 12, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-input-bg, var(--shell-chip-bg))', color: 'var(--shell-copy)', padding: '0 12px', font: 'inherit' }
 const textareaStyle: CSSProperties = { ...inputStyle, minHeight: 92, padding: 12, resize: 'vertical' }
-const sectionHeaderStyle: CSSProperties = { display: 'flex', gap: 12, justifyContent: 'space-between', alignItems: 'start' }
-const countPillStyle: CSSProperties = { borderRadius: 999, padding: '6px 10px', background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%)', color: 'var(--shell-copy)', fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap' }
+const sectionHeaderStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', alignItems: 'start', minWidth: 0 }
+const countPillStyle: CSSProperties = { maxWidth: '100%', borderRadius: 999, padding: '6px 10px', background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%)', color: 'var(--shell-copy)', fontSize: 12, fontWeight: 800, lineHeight: 1.25, overflowWrap: 'anywhere', textAlign: 'center' }
 const matchListStyle: CSSProperties = { display: 'grid', gap: 10 }
 const matchCardStyle: CSSProperties = { padding: 14, borderRadius: 16, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', display: 'grid', gap: 12 }
 const matchDateStyle: CSSProperties = { color: 'var(--shell-copy)', fontSize: 17 }

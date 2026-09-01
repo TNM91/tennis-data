@@ -32,6 +32,7 @@ import {
   pickNullableString,
   formatPhone,
   buildSmsHref,
+  prepareSmsBodyForNativeComposer,
   cleanText,
   safeKey,
   readLocalArray as readLocal,
@@ -42,10 +43,16 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
   CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY,
   buildPotentialLineupAvailabilityMessage,
+  buildPlayerPotentialLineupAvailabilityMessage,
   extractPotentialLineupPlayers,
   readCaptainLineupHandoff,
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
+import {
+  buildMatchWeekGoogleCalendarHref,
+  buildMatchWeekPhoneCalendarHref,
+  buildMatchWeekMapsHref,
+} from '@/lib/captain-match-week-links'
 import {
   CAPTAIN_ROSTER_CONTACTS_TABLE,
   selectCaptainContactRowsForScope,
@@ -623,6 +630,7 @@ function CaptainMessagingContent() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [contactSaveMessage, setContactSaveMessage] = useState<string | null>(null)
   const [weekStatus, setWeekStatus] = useState<CaptainWeekStatus>('draft-lineup')
   const [storageMode, setStorageMode] = useState<'supabase' | 'local'>('supabase')
   const [refreshTick, setRefreshTick] = useState(0)
@@ -1392,14 +1400,14 @@ function CaptainMessagingContent() {
     return new Map(invites.map((invite) => [invite.playerName.trim().toLowerCase(), invite]))
   }, [availabilityHandoff, liveAvailabilityRequest])
   const potentialTextQueueStorageKey = useMemo(() => {
-    const queueId = availabilityHandoff?.scenario.id || liveAvailabilityRequest?.request?.id || safeKey(
+    const queueId = requestedAvailabilityRequestId || availabilityHandoff?.availabilityRequestId || liveAvailabilityRequest?.request?.id || availabilityHandoff?.availabilityRequestUrl || safeKey(
       teamFilter,
       leagueFilter,
       flightFilter,
       availabilityMatchDate
     )
     return `${POTENTIAL_LINEUP_TEXT_QUEUE_STORAGE_PREFIX}:${queueId}`
-  }, [availabilityHandoff, availabilityMatchDate, flightFilter, leagueFilter, liveAvailabilityRequest, teamFilter])
+  }, [availabilityHandoff, availabilityMatchDate, flightFilter, leagueFilter, liveAvailabilityRequest, requestedAvailabilityRequestId, teamFilter])
   const potentialLineupQueue = useMemo<PotentialLineupQueueItem[]>(() => {
     const statusPriority: Record<PotentialAvailabilityStatus, number> = {
       unavailable: 0,
@@ -1871,6 +1879,42 @@ function CaptainMessagingContent() {
       label: ready ? 'Ready to send' : 'Needs captain attention',
     }
   }, [lineupRows, availabilitySummary, responseSummary])
+  const mobileSendPulse = [
+    {
+      label: 'Lineup',
+      value: finalizationReadiness.lineupComplete ? 'Ready' : lineupRows.length ? 'Open spots' : 'Not loaded',
+      detail: lineupRows.length ? `${lineupRows.length} court${lineupRows.length === 1 ? '' : 's'} in this week` : 'Build the courts first',
+      tone: finalizationReadiness.lineupComplete ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Audience',
+      value: selectedRecipients.length ? String(selectedRecipients.length) : 'Open',
+      detail: selectedRecipients.length ? 'Contacts selected' : 'Choose recipients',
+      tone: selectedRecipients.length ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Message',
+      value: messageBody.trim() ? 'Drafted' : 'Open',
+      detail: messageBody.trim() ? `${messageBody.trim().length} characters ready` : 'Load a send first',
+      tone: messageBody.trim() ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Replies',
+      wide: true,
+      value: responseSummary.noResponseCount || responseSummary.needSubCount || responseSummary.runningLateCount
+        ? `${responseSummary.noResponseCount + responseSummary.needSubCount + responseSummary.runningLateCount} open`
+        : 'Clear',
+      detail:
+        responseSummary.needSubCount > 0
+          ? `${responseSummary.needSubCount} need a sub`
+          : responseSummary.runningLateCount > 0
+            ? `${responseSummary.runningLateCount} running late`
+            : responseSummary.noResponseCount > 0
+              ? `${responseSummary.noResponseCount} waiting on a reply`
+              : 'No reply blockers',
+      tone: responseSummary.noResponseCount || responseSummary.needSubCount || responseSummary.runningLateCount ? 'waiting' : 'ready',
+    },
+  ]
 
   const followUpTargets = useMemo(() => {
     return scopedContacts.filter((contact) => {
@@ -2005,11 +2049,11 @@ function CaptainMessagingContent() {
   }, [needSubContacts, runningLateContacts, tentativeContacts, noResponseContacts])
 
   async function saveContacts(nextContacts: ContactRow[]) {
-    if (!requireCaptainAccess('Captain tier required to update message contacts.')) return
+    if (!requireCaptainAccess('Captain tier required to update message contacts.')) return null
     setContacts(nextContacts)
     if (storageMode === 'local') {
       writeLocal(CONTACTS_STORAGE_KEY, nextContacts)
-      return
+      return 'device' as const
     }
     setSaving(true)
     const { error: upsertError } = await supabase.from(CONTACTS_TABLE).upsert(nextContacts)
@@ -2018,7 +2062,9 @@ function CaptainMessagingContent() {
       setStorageMode('local')
       writeLocal(CONTACTS_STORAGE_KEY, nextContacts)
       setError('Contacts saved on this device. Cloud sync will retry later.')
+      return 'device' as const
     }
+    return 'cloud' as const
   }
 
   async function saveTemplates(nextTemplates: TemplateRow[]) {
@@ -2057,6 +2103,7 @@ function CaptainMessagingContent() {
   }
 
   async function handleSaveContact() {
+    if (!requireCaptainAccess('Captain tier required to update message contacts.')) return
     const fullName = normalizeText(draftContact.full_name)
     const phone = normalizeText(draftContact.phone)
     if (!fullName || !phone || !teamFilter) {
@@ -2082,16 +2129,23 @@ function CaptainMessagingContent() {
     }
 
     const withoutExisting = contacts.filter((contact) => contact.id !== row.id)
-    await saveContacts([...withoutExisting, row].sort((a, b) => a.full_name.localeCompare(b.full_name)))
+    const savedTo = await saveContacts([...withoutExisting, row].sort((a, b) => a.full_name.localeCompare(b.full_name)))
+    if (!savedTo) return
     setEditingId(null)
     setDraftContact({ full_name: '', phone: '', email: '', role: 'Player', is_captain: false, is_active: true, opt_in_text: true, notes: '' })
     setError(null)
+    setContactSaveMessage(
+      savedTo === 'cloud'
+        ? `${fullName}'s contact is saved and ready in your team roster.`
+        : `${fullName}'s contact is saved on this device and will sync when cloud access returns.`,
+    )
   }
 
   function buildPotentialPlayerMessage(playerName: string) {
     const playerKey = playerName.trim().toLowerCase()
     const invite = privateInviteByPlayer.get(playerKey)
-    return buildPotentialLineupAvailabilityMessage({
+    return buildPlayerPotentialLineupAvailabilityMessage({
+      playerName,
       teamName: liveAvailabilityRequest?.request?.teamName || availabilityHandoff?.scenario.team_name || inferredTeamName,
       opponent: liveAvailabilityRequest?.request?.opponentTeam || availabilityHandoff?.match.opponent || inferredOpponent,
       dateText: formatDate(liveAvailabilityRequest?.request?.matchDate || availabilityHandoff?.match.date || availabilityMatchDate),
@@ -2146,11 +2200,14 @@ function CaptainMessagingContent() {
       notes: existingContact?.notes ?? null,
     }
 
+    const withoutExisting = contacts.filter((contact) => contact.id !== row.id)
+    const nextContacts = [...withoutExisting, row].sort((left, right) => left.full_name.localeCompare(right.full_name))
+    const potentialMessage = buildPotentialPlayerMessage(playerName)
+    const smsHref = buildSmsHref([phone], potentialMessage)
+
     setError(null)
     setSavingInlinePhoneKey(playerKey)
-    const withoutExisting = contacts.filter((contact) => contact.id !== row.id)
-    await saveContacts([...withoutExisting, row].sort((left, right) => left.full_name.localeCompare(right.full_name)))
-    setSavingInlinePhoneKey('')
+    const contactSave = saveContacts(nextContacts)
     setInlinePhoneByPlayer((current) => {
       const next = { ...current }
       delete next[playerKey]
@@ -2159,8 +2216,12 @@ function CaptainMessagingContent() {
     markPotentialPlayerTextOpened(playerKey)
 
     if (typeof window !== 'undefined') {
-      window.location.href = buildSmsHref([phone], buildPotentialPlayerMessage(playerName))
+      prepareSmsBodyForNativeComposer(potentialMessage)
+      window.location.href = smsHref
     }
+
+    await contactSave
+    setSavingInlinePhoneKey('')
   }
 
   function handleEditContact(contact: ContactRow) {
@@ -2327,8 +2388,29 @@ function buildWinningLineupMessage() {
   const scenarioDateText = formatDate(selectedScenario.match_date)
   const eventDateText = selectedMatch ? formatDate(selectedMatch.match_date) : scenarioDateText
   const opponentText = inferredOpponent || selectedScenario.opponent_team || 'the opponent'
+  const eventDate = selectedMatch?.match_date || selectedScenario.match_date || ''
+  const calendarHref = buildMatchWeekGoogleCalendarHref({
+    eventDate,
+    eventTime: eventArrivalTime,
+    opponent: opponentText,
+    location: eventLocation,
+    details: `Final lineup for ${teamFilter || selectedScenario.team_name || 'your TiQ team'}.`,
+  })
+  const mapsHref = buildMatchWeekMapsHref(eventLocation)
+  const phoneCalendarHref = buildMatchWeekPhoneCalendarHref(
+    liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl || ''
+  )
 
-  return withWeekChallenge(`Lineup is set for ${eventDateText} vs ${opponentText}:\n\n${lineupText}\n\nArrive by ${eventArrivalTime || 'match time'}.\n${eventLocation ? `Location: ${eventLocation}` : ''}`)
+  return withWeekChallenge([
+    `Lineup is set for ${eventDateText} vs ${opponentText}:`,
+    lineupText,
+    `Arrive by ${eventArrivalTime || 'match time'}.`,
+    eventLocation ? `Location: ${eventLocation}` : '',
+    calendarHref ? `Add to Google Calendar: ${calendarHref}` : '',
+    phoneCalendarHref ? `Add calendar reminder: ${phoneCalendarHref}` : '',
+    mapsHref ? `Open directions: ${mapsHref}` : '',
+    'TiQ members: open this team message and choose Add to My Calendar.',
+  ].filter(Boolean).join('\n\n'))
 }
 
 function applyWinningLineupToComposer() {
@@ -2666,7 +2748,41 @@ function importScenarioToLineup() {
               </div>
             </div>
 
-            <div style={heroStatusShell}>
+            {isMobile ? (
+              <div style={mobileSendPulseShellStyle} aria-label="Captain message send pulse">
+                <div style={mobileSendPulseGridStyle}>
+                  {mobileSendPulse.map((item) => (
+                    <div
+                      key={item.label}
+                      style={{
+                        ...mobileSendPulseCardStyle,
+                        ...(item.wide ? mobileSendPulseCardWideStyle : {}),
+                        ...(item.tone === 'ready' ? mobileSendPulseCardReadyStyle : mobileSendPulseCardWaitingStyle),
+                      }}
+                    >
+                      <span style={mobileSendPulseLabelStyle}>{item.label}</span>
+                      <strong style={mobileSendPulseValueStyle}>{item.value}</strong>
+                      <small style={mobileSendPulseDetailStyle}>{item.detail}</small>
+                    </div>
+                  ))}
+                </div>
+                <div style={mobileWeekStatusHeaderStyle}>
+                  <span style={sectionKicker}>This week</span>
+                  <strong style={mobileWeekStatusValueStyle}>{weekStatusMeta.label}</strong>
+                </div>
+                <div style={mobileWeekStatusButtonRowStyle}>
+                  <button type="button" onClick={() => updateWeekStatus('draft-lineup')} style={weekStatus === 'draft-lineup' ? primaryButtonBlock : ghostButtonSmallButton}>
+                    Draft
+                  </button>
+                  <button type="button" onClick={() => updateWeekStatus('ready-to-send')} style={weekStatus === 'ready-to-send' ? primaryButtonBlock : ghostButtonSmallButton}>
+                    Ready
+                  </button>
+                  <button type="button" onClick={() => updateWeekStatus('finalized')} style={weekStatus === 'finalized' ? primaryButtonBlock : ghostButtonSmallButton}>
+                    Final
+                  </button>
+                </div>
+              </div>
+            ) : <div style={heroStatusShell}>
               <div>
                 <div style={sectionKicker}>This week</div>
                 <div style={heroStatusValue}>{weekStatusMeta.label}</div>
@@ -2683,7 +2799,7 @@ function importScenarioToLineup() {
                   Finalized
                 </button>
               </div>
-            </div>
+            </div>}
           </section>
          ) : null}
 
@@ -2694,7 +2810,7 @@ function importScenarioToLineup() {
                 <p style={sectionKicker}>Availability</p>
                 <h2 id="potential-lineup-confirm-title" style={sectionTitle}>Who can play?</h2>
                 <p style={mutedTextStyle}>
-                  Open each private text in order. TIQ keeps your place and replies appear here automatically.
+                  Open each private text in order. TiQ keeps your place and replies appear here automatically.
                 </p>
               </div>
               <button
@@ -2729,7 +2845,10 @@ function importScenarioToLineup() {
                     [nextPotentialTextTarget.contact.phone],
                     buildPotentialPlayerMessage(nextPotentialTextTarget.playerName)
                   )}
-                  onClick={() => markPotentialPlayerTextOpened(nextPotentialTextTarget.playerKey)}
+                  onClick={() => {
+                    prepareSmsBodyForNativeComposer(buildPotentialPlayerMessage(nextPotentialTextTarget.playerName))
+                    markPotentialPlayerTextOpened(nextPotentialTextTarget.playerKey)
+                  }}
                   style={primaryButtonBlock}
                 >
                   Text next: {nextPotentialTextTarget.playerName.split(' ')[0]}
@@ -2784,7 +2903,10 @@ function importScenarioToLineup() {
                     {canText && contact ? (
                       <a
                         href={buildSmsHref([contact.phone], privateMessage)}
-                        onClick={() => markPotentialPlayerTextOpened(playerKey)}
+                        onClick={() => {
+                          prepareSmsBodyForNativeComposer(privateMessage)
+                          markPotentialPlayerTextOpened(playerKey)
+                        }}
                         style={primaryButtonBlock}
                       >
                         {openedPotentialPlayerKeySet.has(playerKey) ? 'Text again' : `Text ${playerName.split(' ')[0]}`}
@@ -2854,7 +2976,7 @@ function importScenarioToLineup() {
             {missingPotentialLineupNames.length ? (
               <div style={potentialMissingStyle}>
                 <strong>Add a mobile number on the player card:</strong>{' '}
-                {missingPotentialLineupNames.join(', ')}. Saving opens that player&apos;s prepared text immediately. The player does not need a TIQ account to answer.
+                {missingPotentialLineupNames.join(', ')}. Saving opens that player&apos;s prepared text immediately. The player does not need a TiQ account to answer.
               </div>
             ) : null}
 
@@ -4349,7 +4471,7 @@ function importScenarioToLineup() {
                     </div>
 
                     <div style={actionRowStyle}>
-                      <a href={captainAccess ? smsHref : undefined} style={{ ...primaryButton, ...(captainAccess ? null : disabledButtonStyle) }} onClick={(event) => { if (!captainAccess) { event.preventDefault(); setError('Captain tier required to send team messages.') } }}>Open texts</a>
+                      <a href={captainAccess ? smsHref : undefined} style={{ ...primaryButton, ...(captainAccess ? null : disabledButtonStyle) }} onClick={(event) => { if (!captainAccess) { event.preventDefault(); setError('Captain tier required to send team messages.'); return } prepareSmsBodyForNativeComposer(messageBody) }}>Open texts</a>
                       <GhostSmallBtn onClick={copyBody}>{copiedState === 'body' ? 'Copied body' : 'Copy body'}</GhostSmallBtn>
                       <GhostSmallBtn onClick={copyNumbers}>{copiedState === 'numbers' ? 'Copied numbers' : 'Copy numbers'}</GhostSmallBtn>
                       <GhostSmallBtn onClick={() => void handleSaveTemplate()} disabled={!captainAccess}>Save template</GhostSmallBtn>
@@ -4442,6 +4564,9 @@ function importScenarioToLineup() {
                     <button type="button" style={{ ...primaryButton, ...(!captainAccess ? disabledButtonStyle : {}) }} onClick={() => void handleSaveContact()} disabled={!captainAccess}>{editingId ? 'Update contact' : 'Save contact'}</button>
                     {editingId ? <GhostSmallBtn onClick={() => { setEditingId(null); setDraftContact({ full_name: '', phone: '', email: '', role: 'Player', is_captain: false, is_active: true, opt_in_text: true, notes: '' }) }}>Cancel edit</GhostSmallBtn> : null}
                   </div>
+                  {contactSaveMessage ? (
+                    <p role="status" aria-live="polite" style={contactSaveMessageStyle}>{contactSaveMessage}</p>
+                  ) : null}
 
                   <Field
                     label="Bulk import (Name, Phone, Role, captain, note)"
@@ -4461,33 +4586,61 @@ function importScenarioToLineup() {
                     <h3 style={sectionTitleSmall}>Team contacts</h3>
                   </div>
                 </div>
-                <div style={tableWrapStyle}>
-                  <table style={tableStyle}>
-                    <thead>
-                      <tr>
-                        <th style={thStyle}>Name</th>
-                        <th style={thStyle}>Phone</th>
-                        <th style={thStyle}>Scope</th>
-                        <th style={thStyle}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {scopedContacts.map((contact) => (
-                        <tr key={contact.id}>
-                          <td style={tdLabelStyle}>{contact.full_name}</td>
-                          <td style={tdStyle}>{formatPhone(contact.phone)}</td>
-                          <td style={tdStyle}>{[contact.team_name, contact.season_label, contact.session_label].filter(Boolean).join(' - ') || '—'}</td>
-                          <td style={tdStyle}>
-                            <div style={actionRowStyleCompact}>
-                              <button type="button" style={linkButtonStyle} onClick={() => handleEditContact(contact)}>Edit</button>
-                              <button type="button" style={linkButtonStyleDanger} onClick={() => void handleDeleteContact(contact.id)}>Delete</button>
+                {isMobile ? (
+                  <div style={contactCardListStyle} aria-label="Team contacts">
+                    {scopedContacts.map((contact) => {
+                      const scope = [contact.team_name, contact.season_label, contact.session_label].filter(Boolean).join(' · ')
+                      const imported = (contact.notes || '').toLowerCase().includes('player roster')
+                      return (
+                        <article key={contact.id} style={contactCardStyle}>
+                          <div style={contactCardHeaderStyle}>
+                            <div style={contactCardCopyStyle}>
+                              <strong style={contactCardNameStyle}>{contact.full_name}</strong>
+                              <span style={contactCardPhoneStyle}>{contact.phone ? formatPhone(contact.phone) : 'Mobile not saved'}</span>
                             </div>
-                          </td>
+                            <span style={imported ? miniPillBlue : miniPillSlate}>
+                              {imported ? 'Player Roster' : 'Team contact'}
+                            </span>
+                          </div>
+                          <span style={contactCardScopeStyle}>{scope || 'Current team'}</span>
+                          <div style={contactCardActionsStyle}>
+                            <button type="button" style={contactCardEditButtonStyle} onClick={() => handleEditContact(contact)}>Edit contact</button>
+                            <button type="button" style={contactCardDeleteButtonStyle} onClick={() => void handleDeleteContact(contact.id)}>Delete</button>
+                          </div>
+                        </article>
+                      )
+                    })}
+                    {!scopedContacts.length ? <p style={mutedTextStyle}>No contacts are saved for this team yet.</p> : null}
+                  </div>
+                ) : (
+                  <div style={tableWrapStyle}>
+                    <table style={tableStyle}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>Name</th>
+                          <th style={thStyle}>Phone</th>
+                          <th style={thStyle}>Scope</th>
+                          <th style={thStyle}>Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {scopedContacts.map((contact) => (
+                          <tr key={contact.id}>
+                            <td style={tdLabelStyle}>{contact.full_name}</td>
+                            <td style={tdStyle}>{formatPhone(contact.phone)}</td>
+                            <td style={tdStyle}>{[contact.team_name, contact.season_label, contact.session_label].filter(Boolean).join(' - ') || '—'}</td>
+                            <td style={tdStyle}>
+                              <div style={actionRowStyleCompact}>
+                                <button type="button" style={linkButtonStyle} onClick={() => handleEditContact(contact)}>Edit</button>
+                                <button type="button" style={linkButtonStyleDanger} onClick={() => void handleDeleteContact(contact.id)}>Delete</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </section>
 
               <section style={surfaceCard}>
@@ -4693,6 +4846,96 @@ const heroStatusButtonRow: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 10,
+  minWidth: 0,
+}
+
+const mobileSendPulseShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 6%, var(--shell-panel-bg-strong) 94%)',
+  minWidth: 0,
+}
+
+const mobileSendPulseGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+const mobileSendPulseCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: '9px 7px',
+  borderRadius: 12,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+}
+
+const mobileSendPulseCardWideStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+}
+
+const mobileSendPulseCardReadyStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+}
+
+const mobileSendPulseCardWaitingStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+}
+
+const mobileSendPulseLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 9,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const mobileSendPulseValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const mobileSendPulseDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekStatusHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+}
+
+const mobileWeekStatusValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  textAlign: 'right',
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekStatusButtonRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 7,
   minWidth: 0,
 }
 
@@ -5203,8 +5446,19 @@ const tableStyle: CSSProperties = { width: '100%', borderCollapse: 'collapse', m
 const thStyle: CSSProperties = { textAlign: 'left', padding: '14px', background: 'var(--shell-chip-bg-strong)', color: '#c7dbff', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '.06em', overflowWrap: 'anywhere' }
 const tdStyle: CSSProperties = { padding: '14px', borderTop: '1px solid var(--shell-panel-border)', color: 'var(--foreground)', verticalAlign: 'top', overflowWrap: 'anywhere' }
 const tdLabelStyle: CSSProperties = { ...tdStyle, fontWeight: 800 }
+const contactCardListStyle: CSSProperties = { display: 'grid', gap: 10, minWidth: 0 }
+const contactCardStyle: CSSProperties = { display: 'grid', gap: 12, padding: 16, borderRadius: 18, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', minWidth: 0 }
+const contactCardHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, minWidth: 0 }
+const contactCardCopyStyle: CSSProperties = { display: 'grid', gap: 5, minWidth: 0 }
+const contactCardNameStyle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 18, lineHeight: 1.2, overflowWrap: 'anywhere' }
+const contactCardPhoneStyle: CSSProperties = { color: 'var(--foreground)', fontSize: 15, fontWeight: 800, overflowWrap: 'anywhere' }
+const contactCardScopeStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 13, lineHeight: 1.45, overflowWrap: 'anywhere' }
+const contactCardActionsStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 10, minWidth: 0 }
+const contactCardEditButtonStyle: CSSProperties = { borderRadius: 12, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg-strong)', color: '#9cc6ff', padding: '10px 12px', fontWeight: 850, cursor: 'pointer', width: '100%', minHeight: 42, minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
+const contactCardDeleteButtonStyle: CSSProperties = { border: 'none', background: 'transparent', color: '#fca5a5', fontWeight: 800, cursor: 'pointer', padding: '10px 4px', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center', alignSelf: 'center' }
 const mutedTextStyle: CSSProperties = { color: 'var(--shell-copy-muted)', margin: 0, lineHeight: 1.65, overflowWrap: 'anywhere' }
 const errorTextStyle: CSSProperties = { color: '#fca5a5', margin: 0, lineHeight: 1.65, overflowWrap: 'anywhere' }
+const contactSaveMessageStyle: CSSProperties = { color: '#d9ff76', margin: '12px 0 0', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(155, 225, 29, 0.42)', background: 'rgba(155, 225, 29, 0.10)', fontWeight: 800, lineHeight: 1.45, overflowWrap: 'anywhere' }
 const rowSubtleText: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4, overflowWrap: 'anywhere' }
 
 const rowControlWrapStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 6, minWidth: 0 }

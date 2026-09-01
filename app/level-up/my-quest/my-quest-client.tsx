@@ -1132,7 +1132,7 @@ export default function MyQuestClient() {
 
     await supabase.from('personal_quest_profiles').upsert({
       user_id: ownerId,
-      season_slug: 'operation-visible-abs',
+      season_slug: 'tennis-season',
       display_name: 'Nathan',
       weekly_rule: (profileResult.data as { weekly_rule?: string } | null)?.weekly_rule || getDefaultPersonalQuestRule(),
       updated_at: new Date().toISOString(),
@@ -1777,7 +1777,7 @@ export default function MyQuestClient() {
       .from('personal_quest_profiles')
       .upsert({
         user_id: ownerId,
-        season_slug: 'operation-visible-abs',
+        season_slug: 'tennis-season',
         display_name: 'Nathan',
         weekly_rule: cleanRule,
         updated_at: new Date().toISOString(),
@@ -1943,8 +1943,8 @@ export default function MyQuestClient() {
     <section className={styles.pageShell} data-phone-mode={phoneCompact ? 'pocket' : 'full'}>
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}>Level Up: My Quest</p>
-          <h1>Operation Visible Abs</h1>
+          <p className={styles.eyebrow}>Player plan</p>
+          <h1>My Quest</h1>
           <p className={styles.heroText}>Your private daily plan. Complete today&apos;s habits, protect the week, and review progress when you need it.</p>
           <div className={styles.heroActions}>
             <a href="#today-quests">Today</a>
@@ -1992,7 +1992,7 @@ export default function MyQuestClient() {
 
       <section className={styles.mobileTodayFocus} aria-label="My Quest iPhone today focus">
         <div>
-          <span>Today focus</span>
+          <span>My Quest | Today focus</span>
           <strong>{todayFocusQuest?.shortTitle ?? 'Board cleared'}</strong>
           <small>{todayFocusQuest ? `${todayRemainingCount} left | +${todayFocusQuest.xp} XP next` : `${todayXp} XP banked today`}</small>
         </div>
@@ -2804,7 +2804,7 @@ export default function MyQuestClient() {
             <div className={styles.sectionHeader}>
               <div>
                 <p className={styles.eyebrow}>Season Map</p>
-                <h2>Road to Six Pack Mode</h2>
+                <h2>Build your tennis season</h2>
               </div>
               <span className={styles.scorePill}>{stats.level.title}</span>
             </div>

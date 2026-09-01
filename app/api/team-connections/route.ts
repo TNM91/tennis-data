@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { getCache } from '@vercel/functions'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
   buildTeamConnectionScopeKey,
@@ -19,6 +20,7 @@ export const runtime = 'nodejs'
 
 const TEAM_LINK_SELECT =
   'id,team_name,normalized_team_name,league_name,flight,team_role,team_roles,declined_roles,role_accepted_at,matched_player_id,source_type,source_record_id,status,is_default,accepted_at,updated_at'
+const TEAM_CONNECTIONS_CACHE_TTL_SECONDS = 45
 
 type TeamConnectionAction = 'accept' | 'decline' | 'unlink' | 'relink' | 'restore_roles' | 'set_default' | 'accept_import'
 
@@ -36,22 +38,80 @@ type ProfileConnectionRow = {
   linked_flight?: string | null
 }
 
+type TeamConnectionsCachedResponse = {
+  ok?: boolean
+  pending?: TeamConnection[]
+  connections?: TeamConnection[]
+  offers?: unknown
+}
+
 export async function GET(request: Request) {
+  const startedAt = Date.now()
   const auth = await getTeamConnectionAuth(request)
   if (!auth.ok) return auth.response
+  const includeOffers = new URL(request.url).searchParams.get('includeOffers') === '1'
+  const cache = getCache({ namespace: 'team-connections' })
+  const cacheKey = `${auth.userId}:${includeOffers ? 'offers' : 'default'}`
 
-  const [result, offers] = await Promise.all([
-    loadTeamConnections(auth.service, auth.userId, auth.email),
-    getPublicTeamInviteOffers(auth.service, auth.userId),
-  ])
-  if (!result.ok) return Response.json({ ok: false, message: result.message }, { status: 500 })
+  try {
+    const cached = await cache.get(cacheKey) as TeamConnectionsCachedResponse | undefined
+    if (cached?.ok && Array.isArray(cached.connections) && Array.isArray(cached.pending)) {
+      console.info('[api/team-connections] cache hit', {
+        includeOffers,
+        durationMs: Date.now() - startedAt,
+        connectionCount: cached.connections.length,
+      })
+      return Response.json(cached)
+    }
+  } catch {
+    // Runtime Cache is an optimization; a cache outage must not block teams.
+  }
 
-  return Response.json({
-    ok: true,
-    pending: result.pending,
-    connections: result.connections,
-    offers,
-  })
+  try {
+    const [result, offers] = await Promise.all([
+      loadTeamConnections(auth.service, auth.userId, auth.email),
+      includeOffers
+        ? getPublicTeamInviteOffers(auth.service, auth.userId)
+        : Promise.resolve({
+            captain: { available: false, label: '' },
+            player: { available: false, label: '' },
+          }),
+    ])
+    if (!result.ok) {
+      console.error('[api/team-connections] load failed', { includeOffers, durationMs: Date.now() - startedAt, message: result.message })
+      return Response.json({ ok: false, message: result.message }, { status: 500 })
+    }
+
+    console.info('[api/team-connections] loaded', {
+      includeOffers,
+      durationMs: Date.now() - startedAt,
+      pendingCount: result.pending.length,
+      connectionCount: result.connections.length,
+    })
+    const payload = {
+      ok: true,
+      pending: result.pending,
+      connections: result.connections,
+      offers,
+    }
+    try {
+      await cache.set(cacheKey, payload, {
+        ttl: TEAM_CONNECTIONS_CACHE_TTL_SECONDS,
+        tags: [`team-connections:${auth.userId}`],
+        name: 'team-connections',
+      })
+    } catch {
+      // The direct response remains authoritative if Runtime Cache is unavailable.
+    }
+    return Response.json(payload)
+  } catch (error) {
+    console.error('[api/team-connections] unexpected failure', {
+      includeOffers,
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return Response.json({ ok: false, message: 'Team connections could not be loaded.' }, { status: 500 })
+  }
 }
 
 export async function POST(request: Request) {
@@ -216,6 +276,23 @@ export async function POST(request: Request) {
 }
 
 async function loadTeamConnections(service: SupabaseClient, userId: string, email: string) {
+  // An accepted team link is the account's durable, user-approved connection.
+  // Read it first and return it immediately. Discovery is useful when someone
+  // has not linked a team yet, but it must never hold an existing captain's
+  // Teams screen hostage while the importer is using database capacity.
+  const { data: savedData, error: savedError } = await service
+    .from('team_profile_links')
+    .select(TEAM_LINK_SELECT)
+    .eq('profile_user_id', userId)
+    .order('updated_at', { ascending: false })
+    .limit(100)
+
+  if (savedError) return { ok: false as const, message: savedError.message }
+  const savedLinks = (savedData || []) as TeamProfileLinkRow[]
+  if (savedLinks.some((link) => link.status === 'accepted')) {
+    return { ok: true as const, ...buildTeamConnections({ savedLinks }) }
+  }
+
   const { data: profileData, error: profileError } = await service
     .from('profiles')
     .select('linked_player_id')
@@ -240,12 +317,7 @@ async function loadTeamConnections(service: SupabaseClient, userId: string, emai
           .eq('player_id', linkedPlayerId)
           .limit(100)
       : Promise.resolve({ data: [], error: null }),
-    service
-      .from('team_profile_links')
-      .select(TEAM_LINK_SELECT)
-      .eq('profile_user_id', userId)
-      .order('updated_at', { ascending: false })
-      .limit(100),
+    Promise.resolve({ data: savedLinks, error: null }),
   ])
 
   const error = contactsResult.error || rosterResult.error || savedResult.error
@@ -737,8 +809,9 @@ async function getTeamConnectionAuth(request: Request) {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
   })
-  const { data, error } = await authClient.auth.getUser(token)
-  if (error || !data.user) {
+  const { data, error } = await authClient.auth.getClaims(token)
+  const userId = typeof data?.claims.sub === 'string' ? data.claims.sub : ''
+  if (error || !userId) {
     return { ok: false as const, response: Response.json({ ok: false, message: 'Sign in to review team connections.' }, { status: 401 }) }
   }
 
@@ -753,8 +826,8 @@ async function getTeamConnectionAuth(request: Request) {
   return {
     ok: true as const,
     service,
-    userId: data.user.id,
-    email: cleanText(data.user.email).toLowerCase(),
+    userId,
+    email: cleanText(data?.claims.email).toLowerCase(),
   }
 }
 

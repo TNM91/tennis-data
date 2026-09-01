@@ -34,10 +34,12 @@ export function usePlatformResume({
   accessToken,
   userId,
   refreshKey,
+  enabled = true,
 }: {
   accessToken?: string | null
   userId?: string | null
   refreshKey?: string | null
+  enabled?: boolean
 }) {
   const [localCandidates, setLocalCandidates] = useState<PlatformResumeCandidate[]>([])
   const [cloudCandidates, setCloudCandidates] = useState<PlatformResumeCandidate[]>([])
@@ -50,6 +52,7 @@ export function usePlatformResume({
 
   useEffect(() => {
     let timeout: number | null = null
+    if (!enabled) return
     let clearHandoffForUserChange = previousUserIdRef.current !== userId
     if (clearHandoffForUserChange) {
       previousUserIdRef.current = userId
@@ -121,13 +124,13 @@ export function usePlatformResume({
       window.removeEventListener('pageshow', scheduleLocalRefresh)
       document.removeEventListener('visibilitychange', refreshOnVisible)
     }
-  }, [refreshKey, userId])
+  }, [enabled, refreshKey, userId])
 
   useEffect(() => {
     let active = true
 
     async function loadCloudCandidates() {
-      if (!accessToken || !userId) {
+      if (!enabled || !accessToken || !userId) {
         window.setTimeout(() => {
           if (active) setCloudCandidates([])
         }, 0)
@@ -158,10 +161,10 @@ export function usePlatformResume({
       window.removeEventListener('pageshow', loadCloudCandidates)
       document.removeEventListener('visibilitychange', refreshCloudOnVisible)
     }
-  }, [accessToken, userId])
+  }, [accessToken, enabled, userId])
 
   const syncCloudSuppressions = useCallback(() => {
-    if (!accessToken || !userId) return Promise.resolve(null)
+    if (!enabled || !accessToken || !userId) return Promise.resolve(null)
     if (suppressionSyncRef.current) return suppressionSyncRef.current
 
     const request = syncPlatformResumeSuppressionsWithCloud(accessToken, userId)
@@ -170,7 +173,7 @@ export function usePlatformResume({
       })
     suppressionSyncRef.current = request
     return request
-  }, [accessToken, userId])
+  }, [accessToken, enabled, userId])
 
   useEffect(() => {
     let active = true

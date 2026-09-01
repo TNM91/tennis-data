@@ -1,0 +1,59 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+const source = readFileSync(join(process.cwd(), 'app/captain/season-dashboard/page.tsx'), 'utf8')
+
+describe('Captain Season Dashboard', () => {
+  it('keeps the dashboard behind shared Captain access', () => {
+    expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(source).toContain('const { role, entitlements, authResolved } = useAuth()')
+    expect(source).toContain('buildProductAccessState(role, entitlements)')
+    expect(source).toContain('if (!access.canUseCaptainWorkflow)')
+    expect(source).toContain('<LockedPlanPage')
+  })
+
+  it('loads only the saved team, league, and flight context', () => {
+    expect(source).toContain('escapePostgrestValue')
+    expect(source).toContain(".is('line_number', null)")
+    expect(source).toContain("inventoryQuery = inventoryQuery.eq('league_name', league)")
+    expect(source).toContain("inventoryQuery = inventoryQuery.eq('flight', flight)")
+    expect(source).toContain(".not('winner_side', 'is', null)")
+    expect(source).toContain('Promise.all([inventoryQuery, upcomingQuery, resultsQuery])')
+  })
+
+  it('connects saved Match Week work instead of fabricated season metrics', () => {
+    expect(source).toContain("const WEEKLY_LINEUPS_STORAGE_KEY = 'tenaceiq_weekly_lineups'")
+    expect(source).toContain("const WEEKLY_AVAILABILITY_STORAGE_KEY = 'tenaceiq_weekly_availability'")
+    expect(source).toContain("const WEEKLY_RESPONSES_STORAGE_KEY = 'tenaceiq_weekly_responses'")
+    expect(source).toContain('Based on your saved team plan')
+    expect(source).toContain('buildCaptainScopedHref')
+    expect(source).toContain("lastTool: 'season-dashboard'")
+  })
+
+  it('uses only reported canonical team results for form and record', () => {
+    expect(source).toContain('function didTeamWin')
+    expect(source).toContain('Recent team results')
+    expect(source).toContain('Scheduled and unreported matches stay out of the record.')
+    expect(source).toContain('Reported record')
+    expect(source).toContain('Winning')
+    expect(source).toContain("buildCaptainScopedHref('/captain/lineup-projection', scopedParams)")
+    expect(source).toContain('Compare lineups')
+  })
+
+  it('shows roster impact only from linked canonical participant results', () => {
+    expect(source).toContain('function buildPlayerImpact')
+    expect(source).toContain(".from('match_players')")
+    expect(source).toContain('Who has carried the most match load')
+    expect(source).toContain('Player links are still being completed')
+  })
+
+  it('shows the next opponent only from canonical results in the saved scope', () => {
+    expect(source).toContain('const [opponentResults, setOpponentResults]')
+    expect(source).toContain('const escapedOpponent = escapePostgrestValue(resolvedOpponent)')
+    expect(source).toContain(".not('winner_side', 'is', null)")
+    expect(source).toContain('What the next opponent brings in')
+    expect(source).toContain('Canonical reported results only')
+  })
+
+})

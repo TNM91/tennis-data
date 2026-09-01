@@ -96,7 +96,7 @@ describe('Captain availability mobile layout guards', () => {
     expect(styleBlock('playerRow')).toContain("flexWrap: 'wrap'")
     expect(styleBlock('statusButton')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('loadingCard')).toContain("overflowWrap: 'anywhere'")
-    expect(functionBlock('statusButtonRowResponsive')).toContain("gridTemplateColumns: isSmallMobile ? 'repeat(4, minmax(0, 1fr))'")
+    expect(functionBlock('statusButtonRowResponsive')).toContain("gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))'")
     expect(source).toContain('{!isMobile ? (')
     expect(source).toContain('aria-label="Availability next move"')
     expect(source).toContain('compact={isMobile}')

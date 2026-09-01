@@ -4,6 +4,12 @@ import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
 import ProductTourVideoButton from '@/app/components/product-tour-video'
+import ProductTourPlanFinder from '@/app/components/product-tour-plan-finder'
+import {
+  PRODUCT_TOUR_PLAN_FINDER_OPTIONS,
+  getProductTourPlanFinderOption,
+} from '@/lib/product-tour-plan-finder'
+import { VERIFIED_PRODUCT_TOUR_PROOF } from '@/lib/product-tour-proof'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import {
   PRODUCT_TOUR_VIDEOS,
@@ -50,6 +56,25 @@ export default function PlatformTourPage() {
           />
         </section>
 
+        <section className={styles.pricingStrip} aria-labelledby="tour-pricing-title">
+          <div className={styles.pricingStripHeading}>
+            <span>Current plans</span>
+            <h2 id="tour-pricing-title">Start free. Add only the tennis tools you need.</h2>
+            <p>See today’s plan prices here, then use each quick video to understand what that role helps you do next.</p>
+          </div>
+          <div className={styles.pricingRail}>
+            {PRODUCT_TOUR_PLAN_FINDER_OPTIONS.map((option) => (
+              <Link key={option.id} className={styles.priceCard} href={option.comparisonHref}>
+                <span>{option.label}</span>
+                <strong>{option.priceLabel}</strong>
+                <small>{option.priceNote}</small>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <ProductTourPlanFinder options={PRODUCT_TOUR_PLAN_FINDER_OPTIONS} />
+
         <section className={styles.tierSection} aria-labelledby="tier-tours-title">
           <div className={styles.sectionHeading}>
             <span>Choose your role</span>
@@ -59,6 +84,7 @@ export default function PlatformTourPage() {
           <div className={styles.tierGrid}>
             {TIER_TOUR_VIDEO_IDS.map((videoId) => {
               const video = PRODUCT_TOUR_VIDEOS[videoId]
+              const planOption = getProductTourPlanFinderOption(videoId)
               return (
                 <article key={videoId} className={styles.tierCard}>
                   <ProductTourVideoButton
@@ -72,12 +98,40 @@ export default function PlatformTourPage() {
                     <h3>{video.title}</h3>
                     <p>{video.description}</p>
                   </div>
-                  <Link className={styles.tierAction} href={video.cta.href}>{video.cta.label}</Link>
+                  {planOption ? (
+                    <div className={styles.tierPrice}>
+                      <strong>{planOption.priceLabel}</strong>
+                      <span>{planOption.priceNote}</span>
+                    </div>
+                  ) : null}
+                  <Link className={styles.tierAction} href={planOption?.ctaHref ?? video.cta.href}>
+                    {planOption?.ctaLabel ?? video.cta.label}
+                  </Link>
                 </article>
               )
             })}
           </div>
         </section>
+
+        {VERIFIED_PRODUCT_TOUR_PROOF.length ? (
+          <section className={styles.proofSection} aria-labelledby="tour-proof-title">
+            <div className={styles.sectionHeading}>
+              <span>Member stories</span>
+              <h2 id="tour-proof-title">How TenAceIQ helps in real tennis life.</h2>
+            </div>
+            <div className={styles.proofGrid}>
+              {VERIFIED_PRODUCT_TOUR_PROOF.map((proof) => (
+                <figure key={proof.id} className={styles.proofCard}>
+                  <blockquote>“{proof.quote}”</blockquote>
+                  <figcaption>
+                    <strong>{proof.memberName}</strong>
+                    <span>{[proof.memberRole, proof.organization].filter(Boolean).join(' · ')}</span>
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className={styles.closeout} aria-labelledby="tour-closeout-title">
           <div>

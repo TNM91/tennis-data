@@ -23,6 +23,7 @@ describe('My Lab command center', () => {
     expect(pageSource).toContain('completedSessions={commandCenterCompletedSessions}')
     expect(pageSource).toContain('firstServeSteps={firstServeSteps}')
     expect(pageSource).toContain('postRepReturn={postRepReturn}')
+    expect(pageSource).toContain('nextCourtEvent={nextCourtEvent}')
   })
 
   it('returns completed players to proof and one score-adjusted weekly plan', () => {
@@ -94,6 +95,37 @@ describe('My Lab command center', () => {
     expect(styleSource).not.toContain('right: -44px;')
   })
 
+  it('keeps the active-player context compact on a phone', () => {
+    expect(styleSource).toContain('.playerLink {\n    display: flex;\n    width: fit-content;')
+    expect(styleSource).toContain('max-width: min(220px, 58vw);')
+    expect(styleSource).toContain('font-size: clamp(2rem, 9.6vw, 2.8rem);')
+  })
+
+  it('uses a compact daily pulse instead of a second large weekly card on phones', () => {
+    expect(componentSource).toContain('const dailyPulseItems = [')
+    expect(componentSource).toContain("label: 'Court time'")
+    expect(componentSource).toContain("label: 'This week'")
+    expect(componentSource).toContain("label: 'Matchup'")
+    expect(componentSource).toContain('aria-label="My Lab daily pulse"')
+    expect(componentSource).toContain('{!postRepReturn ? (')
+    expect(styleSource).toContain('.dailyPulse')
+    expect(styleSource).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));')
+    expect(styleSource).toContain('.momentumCard {\n    display: none;')
+  })
+
+  it('puts an actual upcoming scheduled match ahead of generic match prep', () => {
+    expect(pageSource).toContain('const nextCourtEvent = [')
+    expect(pageSource).toContain("item.eventType === 'match' && item.date >= todayDateKey")
+    expect(pageSource).toContain("item.kind === 'match' && item.date >= todayDateKey")
+    expect(pageSource).toContain('getLocalDateKey(new Date())')
+    expect(componentSource).toContain('Next on court')
+    expect(componentSource).toContain('className={styles.nextCourtEvent}')
+    expect(componentSource).toContain('{nextCourtEvent.cta}')
+    expect(componentSource).toContain('{nextCourtEvent.readiness}')
+    expect(pageSource).toContain("'Availability needs a reply'")
+    expect(pageSource).toContain("'Availability confirmed'")
+  })
+
   it('keeps the deeper legacy workspace behind one mobile disclosure', () => {
     expect(pageSource).toContain('const collapseLegacyWorkspace = isMobile && isProfileConfirmed')
     expect(pageSource).toContain("const PlayerWorkshopShell: 'details' | 'section'")
@@ -108,7 +140,7 @@ describe('My Lab command center', () => {
     expect(iconSource).not.toContain('tiq-feature-icon--signature')
     expect(iconSource).not.toContain('data-icon-treatment')
     expect(componentSource).toContain('<TiqFeatureIcon name="myLab" size="md" variant="surface" />')
-    expect(componentSource).toContain('Player workspace')
+    expect(componentSource).toContain('Player tools')
     expect(portalSource).toContain("icon: 'myLab'")
     expect(pricingSource).toContain("player_plus: 'myLab'")
     expect(upgradeSource).toContain("player_plus: 'myLab'")

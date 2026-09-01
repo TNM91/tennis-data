@@ -450,6 +450,37 @@ function CaptainWeeklyBriefContent() {
     responseSummary.late +
     responseSummary.noResponse +
     (lineupRows.length ? 0 : 1)
+  const captainDecision = openRiskCount === 0
+    ? 'Your week is ready. Confirm the lineup, then send the team brief.'
+    : availabilitySummary.noResponse + responseSummary.noResponse > 0
+      ? `Clear ${availabilitySummary.noResponse + responseSummary.noResponse} missing response${availabilitySummary.noResponse + responseSummary.noResponse === 1 ? '' : 's'} before locking courts.`
+      : !lineupRows.length
+        ? 'Build the first lineup scenario before you make match-day calls.'
+        : 'Review tentative availability before confirming the final courts.'
+  const mobileWeekPulse = [
+    {
+      label: 'Courts',
+      value: lineupRows.length ? `${lineupRows.length} set` : 'Open',
+      detail: lineupRows.length ? `${lineupReadyPercent}% lineup read` : 'Build the lineup first',
+      tone: lineupRows.length ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Available',
+      value: String(availabilitySummary.available),
+      detail: availabilitySummary.tentative + availabilitySummary.noResponse
+        ? `${availabilitySummary.tentative + availabilitySummary.noResponse} to clear`
+        : 'No reply gaps',
+      tone: availabilityReadyPercent >= 75 ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Replies',
+      value: String(responseSummary.confirmed),
+      detail: responseSummary.late + responseSummary.noResponse
+        ? `${responseSummary.late + responseSummary.noResponse} to chase`
+        : 'Replies steady',
+      tone: responseReadyPercent >= 75 ? 'ready' : 'waiting',
+    },
+  ]
 
   const readinessItems = [
     {
@@ -493,6 +524,14 @@ function CaptainWeeklyBriefContent() {
     date: eventDate,
     opponent: resolvedOpponent,
   })
+  const availabilityHref = buildCaptainScopedHref('/captain/availability', {
+    competitionLayer,
+    team,
+    league,
+    flight,
+    date: eventDate,
+    opponent: resolvedOpponent,
+  })
   const analyticsHref = buildCaptainScopedHref('/captain/analytics', {
     competitionLayer,
     team,
@@ -524,9 +563,23 @@ function CaptainWeeklyBriefContent() {
     : ''
   const nextAction = !lineupRows.length
     ? { label: 'Build lineup', href: lineupBuilderHref }
-    : openRiskCount > 0
+    : availabilitySummary.tentative + availabilitySummary.noResponse > 0
+      ? { label: 'Check availability', href: availabilityHref }
+      : openRiskCount > 0
       ? { label: 'Send follow-up', href: messagingHref }
       : { label: 'Open team brief', href: teamBriefHref }
+  const weekReadinessPercent = Math.round(
+    (readinessItems.filter((item) => item.done).length / readinessItems.length) * 100,
+  )
+  const matchWeekPulseDetail = !lineupRows.length
+    ? 'Set the courts before the rest of the week gets harder.'
+    : availabilitySummary.tentative + availabilitySummary.noResponse > 0
+      ? 'Clear the player pool before you lock the plan.'
+      : responseSummary.late + responseSummary.noResponse > 0
+        ? 'Close the reply gaps, then send the team plan.'
+        : !eventDetail?.arrivalTime && !eventDetail?.location
+          ? 'Add the match details so everyone arrives ready.'
+          : 'The essentials are set. Review the team brief before match day.'
 
   function updateWeekStatus(nextStatus: CaptainWeekStatus) {
     setWeekStatusState({
@@ -578,14 +631,20 @@ function CaptainWeeklyBriefContent() {
                 <h1 style={heroTitle}>{resolvedOpponent ? `Week vs ${resolvedOpponent}` : 'Match week readout'}</h1>
               </div>
 
-              <div style={heroButtonRow}>
-                <PrimaryLink href={nextAction.href}>{nextAction.label}</PrimaryLink>
-                <SecondaryLink href={teamBriefHref}>Team brief</SecondaryLink>
-                <SecondaryBtn onClick={handlePrint}>Print</SecondaryBtn>
-              </div>
+              {!isMobile ? (
+                <div style={heroButtonRow}>
+                  <PrimaryLink href={nextAction.href}>{nextAction.label}</PrimaryLink>
+                  <SecondaryLink href={teamBriefHref}>Team brief</SecondaryLink>
+                  <SecondaryBtn onClick={handlePrint}>Print</SecondaryBtn>
+                </div>
+              ) : null}
             </div>
 
             <div style={briefBoardStyle}>
+              <div style={{ ...briefStatusStyle, gridColumn: '1 / -1' }}>
+                <span style={briefStatusPillStyle}>Captain call</span>
+                <div style={statusValue}>{captainDecision}</div>
+              </div>
               <div style={briefStatusStyle}>
                 <span style={briefStatusPillStyle}>{openRiskCount ? `${openRiskCount} open risk${openRiskCount === 1 ? '' : 's'}` : 'Ready'}</span>
                 <div style={statusValue}>{weekStatusMeta.label}</div>
@@ -594,6 +653,10 @@ function CaptainWeeklyBriefContent() {
                   <span>{formatDate(eventDate || currentMatch?.match_date)}</span>
                   <span>{team || 'Team not set'}</span>
                   <span>{eventDetail?.arrivalTime || 'Arrival pending'}</span>
+                </div>
+                <div style={briefMetaRowStyle}>
+                  <span>{selectedScenario?.scenario_name || 'Scenario pending'}</span>
+                  <span>{resolvedOpponent ? `Opponent: ${resolvedOpponent}` : 'Opponent pending'}</span>
                 </div>
               </div>
               <div style={statusButtonRow}>
@@ -609,7 +672,42 @@ function CaptainWeeklyBriefContent() {
               </div>
             </div>
 
-            <div style={briefSignalGridStyle}>
+            {isMobile ? (
+              <div style={mobileWeekPulseShellStyle} aria-label="Captain match week pulse">
+                <div style={mobileWeekPulseSummaryStyle}>
+                  <div>
+                    <p style={mobileWeekPulseKickerStyle}>Match Week Pulse</p>
+                    <strong style={mobileWeekPulseHeadlineStyle}>{weekReadinessPercent}% ready</strong>
+                  </div>
+                  <span style={mobileWeekPulseRiskStyle}>
+                    {openRiskCount ? `${openRiskCount} to clear` : 'On track'}
+                  </span>
+                </div>
+                <div style={mobileWeekPulseStyle}>
+                  {mobileWeekPulse.map((item) => (
+                    <div
+                      key={item.label}
+                      style={{
+                        ...mobileWeekPulseCardStyle,
+                        ...(item.tone === 'ready' ? mobileWeekPulseCardReadyStyle : mobileWeekPulseCardWaitingStyle),
+                      }}
+                    >
+                      <span style={mobileWeekPulseLabelStyle}>{item.label}</span>
+                      <strong style={mobileWeekPulseValueStyle}>{item.value}</strong>
+                      <small style={mobileWeekPulseDetailStyle}>{item.detail}</small>
+                    </div>
+                  ))}
+                </div>
+                <div style={mobileWeekPulseNextStyle}>
+                  <div style={mobileWeekPulseNextCopyStyle}>
+                    <span style={mobileWeekPulseNextLabelStyle}>Next move</span>
+                    <strong style={mobileWeekPulseNextTitleStyle}>{nextAction.label}</strong>
+                    <small style={mobileWeekPulseNextDetailStyle}>{matchWeekPulseDetail}</small>
+                  </div>
+                  <PrimaryLink href={nextAction.href}>{nextAction.label}</PrimaryLink>
+                </div>
+              </div>
+            ) : <div style={briefSignalGridStyle}>
               <BriefSignal
                 label="Lineup"
                 value={lineupRows.length ? `${lineupRows.length} courts` : 'Not loaded'}
@@ -631,7 +729,7 @@ function CaptainWeeklyBriefContent() {
                 percent={responseReadyPercent}
                 accent={responseReadyPercent >= 75}
               />
-            </div>
+            </div>}
 
           </section>
 
@@ -1045,6 +1143,151 @@ const briefSignalGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: 14,
   minWidth: 0,
+}
+
+const mobileWeekPulseShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  position: 'relative',
+  zIndex: 1,
+  minWidth: 0,
+}
+
+const mobileWeekPulseSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+}
+
+const mobileWeekPulseKickerStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--brand-blue-2)',
+  fontSize: 10,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseHeadlineStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.05,
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseRiskStyle: CSSProperties = {
+  flex: '0 1 auto',
+  maxWidth: '100%',
+  borderRadius: 999,
+  padding: '6px 9px',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 26%, var(--shell-panel-border) 74%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 10,
+  fontWeight: 900,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 7,
+  position: 'relative',
+  zIndex: 1,
+  minWidth: 0,
+}
+
+const mobileWeekPulseCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: '10px 8px',
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+}
+
+const mobileWeekPulseCardReadyStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+}
+
+const mobileWeekPulseCardWaitingStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+}
+
+const mobileWeekPulseLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 9,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseNextStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: 10,
+  minWidth: 0,
+  padding: '11px 12px',
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg) 88%), var(--shell-panel-bg))',
+}
+
+const mobileWeekPulseNextCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const mobileWeekPulseNextLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 9,
+  fontWeight: 950,
+  letterSpacing: '0.07em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseNextTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseNextDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const briefSignalCardStyle: CSSProperties = {

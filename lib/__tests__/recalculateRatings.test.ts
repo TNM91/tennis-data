@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
+  recalculateDynamicRatings,
+  applyVerifiedBaselineGuard,
+  applyDoublesPartnerBurdenGuard,
   parseScoreMetrics,
+  competitionAdjustedRating,
+  matchCompetitionRatingFloor,
+  getScoreAwarePerformance,
   getRecencyWeight,
   getProvisionalkMultiplier,
   applyInactivityDecay,
@@ -12,7 +18,6 @@ import {
   projectDoublesTeamWinProbability,
   processDoublesMatch,
   dedupeRatingSnapshots,
-  recalculateDynamicRatings,
   type MatchRow,
   type RatingSnapshotInsert,
   type WorkingPlayer,
@@ -22,6 +27,8 @@ function makePlayer(overrides: Partial<WorkingPlayer> = {}): WorkingPlayer {
   return {
     id: 'test',
     name: 'Test Player',
+    hasVerifiedBaseline: false,
+    baselineSource: 'unknown',
     singlesBase: 3.5,
     singlesDynamic: 3.5,
     singlesUstaDynamic: 3.5,
@@ -31,11 +38,66 @@ function makePlayer(overrides: Partial<WorkingPlayer> = {}): WorkingPlayer {
     overallBase: 3.5,
     overallDynamic: 3.5,
     overallUstaDynamic: 3.5,
+    singlesMatchesProcessed: 0,
+    doublesMatchesProcessed: 0,
+    overallMatchesProcessed: 0,
     matchesProcessed: 50,
     lastMatchDate: null,
     ...overrides,
   }
 }
+
+describe('recalculateDynamicRatings pagination', () => {
+  it('reads every page of player and participant rows in a dry run', async () => {
+    const calls: Record<string, Array<[number, number]>> = {
+      players: [],
+      matches: [],
+      match_players: [],
+    }
+    const rows = {
+      players: Array.from({ length: 1001 }, (_, index) => ({
+        id: `player-${index}`,
+        name: `Player ${index}`,
+        singles_rating: 3.5,
+        singles_dynamic_rating: 3.5,
+        doubles_rating: 3.5,
+        doubles_dynamic_rating: 3.5,
+        overall_rating: 3.5,
+        overall_dynamic_rating: 3.5,
+      })),
+      matches: [],
+      match_players: Array.from({ length: 1001 }, (_, index) => ({
+        match_id: `match-${index}`,
+        player_id: `player-${index}`,
+        side: 'A',
+        seat: 1,
+      })),
+    }
+
+    const client = {
+      from(table: keyof typeof rows) {
+        const builder = {
+          select: () => builder,
+          not: () => builder,
+          eq: () => builder,
+          order: () => builder,
+          range: (from: number, to: number) => {
+            calls[table].push([from, to])
+            return Promise.resolve({ data: rows[table].slice(from, to + 1), error: null })
+          },
+        }
+        return builder
+      },
+    } as unknown as SupabaseClient
+
+    const result = await recalculateDynamicRatings(undefined, client, { dryRun: true })
+
+    expect(result.dryRun).toBe(true)
+    expect(result.playerCount).toBe(1001)
+    expect(calls.players).toEqual([[0, 999], [1000, 1999]])
+    expect(calls.match_players).toEqual([[0, 999], [1000, 1999]])
+  })
+})
 
 // ─── parseScoreMetrics ────────────────────────────────────────────────────────
 
@@ -77,6 +139,14 @@ describe('parseScoreMetrics', () => {
     expect(m.tiebreakSets).toBe(0)
     expect(m.gamesWonByWinner).toBe(12)
     expect(m.gamesWonByLoser).toBe(7)
+  })
+
+  it('parses whitespace-separated set scores from TennisRecord', () => {
+    const m = parseScoreMetrics('6-4 6-4', 'A')
+    expect(m.parsed).toBe(true)
+    expect(m.sets).toHaveLength(2)
+    expect(m.totalGamesA).toBe(12)
+    expect(m.totalGamesB).toBe(8)
   })
 
   it('parses the space-separated score format stored by USTA imports', () => {
@@ -122,6 +192,16 @@ describe('parseScoreMetrics', () => {
     expect(m.straightSetsWin).toBe(false)
   })
 
+  it('keeps a 1-0 deciding match tiebreak out of game-share scoring', () => {
+    const m = parseScoreMetrics('7-6 5-7 1-0', 'B')
+    expect(m.sets).toHaveLength(3)
+    expect(m.decidingSetPlayed).toBe(true)
+    expect(m.totalGamesA).toBe(12)
+    expect(m.totalGamesB).toBe(13)
+    expect(m.gamesWonByWinner).toBe(13)
+    expect(m.gamesWonByLoser).toBe(12)
+  })
+
   it('super tiebreak (10-8) is ignored, only regular sets counted', () => {
     const m = parseScoreMetrics('6-4, 4-6, 10-8', 'A')
     expect(m.sets).toHaveLength(2)
@@ -156,6 +236,20 @@ describe('parseScoreMetrics', () => {
     const straight = parseScoreMetrics('6-3, 6-3', 'A')
     const threeSet = parseScoreMetrics('6-3, 3-6, 6-3', 'A')
     expect(straight.multiplier).toBeGreaterThan(threeSet.multiplier)
+  })
+})
+
+describe('competition rating context', () => {
+  it('uses the stated flight only to protect an unverified default from depressing a court expectation', () => {
+    const match = { league_name: '2026 Tri-Level 18+ Missouri Valley M 4.5', flight: '4.5' }
+    expect(matchCompetitionRatingFloor(match)).toBe(4.5)
+    expect(competitionAdjustedRating(makePlayer({ hasVerifiedBaseline: false }), 3.5, match)).toBe(4.5)
+    expect(competitionAdjustedRating(makePlayer({ hasVerifiedBaseline: true }), 4.1, match)).toBe(4.1)
+  })
+
+  it('does not replace an explicit self-rated baseline with a higher court floor', () => {
+    const match = { league_name: '2026 Adult 18+ Missouri Valley M 4.5', flight: '4.5' }
+    expect(competitionAdjustedRating(makePlayer({ baselineSource: 'self' }), 4.0, match)).toBe(4.0)
   })
 })
 
@@ -217,6 +311,71 @@ describe('getProvisionalkMultiplier', () => {
   it('stays at 1.0 for veterans', () => {
     expect(getProvisionalkMultiplier(200)).toBe(1.0)
   })
+
+  it('uses a conservative evidence multiplier for a verified NTRP baseline', () => {
+    expect(getProvisionalkMultiplier(0, true)).toBe(0.55)
+    expect(getProvisionalkMultiplier(15, true)).toBeCloseTo(0.775, 3)
+    expect(getProvisionalkMultiplier(30, true)).toBe(1.0)
+  })
+
+  it('uses a measured, but more responsive, multiplier for an explicit USTA self-rating', () => {
+    expect(getProvisionalkMultiplier(0, false, 'self')).toBe(0.85)
+    expect(getProvisionalkMultiplier(15, false, 'self')).toBeCloseTo(0.925, 3)
+    expect(getProvisionalkMultiplier(30, false, 'self')).toBe(1.0)
+  })
+})
+
+describe('verified NTRP baseline calibration', () => {
+  it('does not move a verified player below their official baseline on a small sample', () => {
+    expect(applyVerifiedBaselineGuard(3.7, 4.0, 0, true)).toBe(4.0)
+    expect(applyVerifiedBaselineGuard(3.7, 4.0, 11, true)).toBe(4.0)
+  })
+
+  it('allows a measured downward signal only after sustained evidence', () => {
+    expect(applyVerifiedBaselineGuard(3.7, 4.0, 21, true)).toBeGreaterThanOrEqual(3.96)
+    expect(applyVerifiedBaselineGuard(3.7, 4.0, 60, true)).toBe(3.8)
+  })
+
+  it('does not constrain an unverified baseline', () => {
+    expect(applyVerifiedBaselineGuard(3.7, 4.0, 0, false)).toBe(3.7)
+  })
+
+  it('keeps an explicit self-rated level stable on a small sample, while allowing sustained downward evidence', () => {
+    expect(applyVerifiedBaselineGuard(3.6, 4.0, 5, false, 'self')).toBe(4.0)
+    expect(applyVerifiedBaselineGuard(3.6, 4.0, 60, false, 'self')).toBe(3.75)
+  })
+
+  it('keeps a verified player at their baseline after an isolated lopsided loss', async () => {
+    const rows = {
+      players: [
+        { id: 'a', name: 'Verified player', rating_source: 'verified', singles_rating: 4, singles_dynamic_rating: 4, doubles_rating: 4, doubles_dynamic_rating: 4, overall_rating: 4, overall_dynamic_rating: 4 },
+        { id: 'b', name: 'Opponent', rating_source: 'verified', singles_rating: 4, singles_dynamic_rating: 4, doubles_rating: 4, doubles_dynamic_rating: 4, overall_rating: 4, overall_dynamic_rating: 4 },
+      ],
+      matches: [{ id: 'match-1', match_date: '2026-08-01', match_type: 'singles', score: '0-6, 0-6', winner_side: 'B', match_source: 'usta', rating_eligible: true, created_at: '2026-08-01T00:00:00Z' }],
+      match_players: [
+        { match_id: 'match-1', player_id: 'a', side: 'A', seat: 1 },
+        { match_id: 'match-1', player_id: 'b', side: 'B', seat: 1 },
+      ],
+    }
+    const client = {
+      from(table: keyof typeof rows) {
+        const builder = {
+          select: () => builder,
+          not: () => builder,
+          eq: () => builder,
+          order: () => builder,
+          range: (from: number, to: number) => Promise.resolve({ data: rows[table].slice(from, to + 1), error: null }),
+        }
+        return builder
+      },
+    } as unknown as SupabaseClient
+
+    const result = await recalculateDynamicRatings(undefined, client, { dryRun: true })
+    const player = result.players.find((candidate) => candidate.id === 'a')
+
+    expect(player?.overallDynamic).toBe(4)
+    expect(player?.singlesDynamic).toBe(4)
+  })
 })
 
 // ─── applyInactivityDecay ────────────────────────────────────────────────────
@@ -236,14 +395,13 @@ describe('applyInactivityDecay', () => {
     expect(player.singlesDynamic).toBe(4.5)
   })
 
-  it('decays a player inactive for 1 year', () => {
+  it('does not change a player inactive for 1 year', () => {
     const player = makePlayer({ singlesDynamic: 4.5, lastMatchDate: '2025-04-24' })
     applyInactivityDecay([player].values(), NOW)
-    expect(player.singlesDynamic).toBeLessThan(4.5)
-    expect(player.singlesDynamic).toBeGreaterThan(3.5)
+    expect(player.singlesDynamic).toBe(4.5)
   })
 
-  it('decays all six dynamic ratings together', () => {
+  it('preserves all six dynamic ratings during inactivity', () => {
     const player = makePlayer({
       singlesDynamic: 4.5,
       doublesDynamic: 4.0,
@@ -254,19 +412,18 @@ describe('applyInactivityDecay', () => {
       lastMatchDate: '2025-04-24',
     })
     applyInactivityDecay([player].values(), NOW)
-    expect(player.singlesDynamic).toBeLessThan(4.5)
-    expect(player.doublesDynamic).toBeLessThan(4.0)
-    expect(player.overallDynamic).toBeLessThan(4.2)
-    expect(player.singlesUstaDynamic).toBeLessThan(4.5)
-    expect(player.doublesUstaDynamic).toBeLessThan(4.0)
-    expect(player.overallUstaDynamic).toBeLessThan(4.2)
+    expect(player.singlesDynamic).toBe(4.5)
+    expect(player.doublesDynamic).toBe(4.0)
+    expect(player.overallDynamic).toBe(4.2)
+    expect(player.singlesUstaDynamic).toBe(4.5)
+    expect(player.doublesUstaDynamic).toBe(4.0)
+    expect(player.overallUstaDynamic).toBe(4.2)
   })
 
-  it('regresses toward 3.5 (not toward 0)', () => {
+  it('does not regress lower-rated players upward toward 3.5', () => {
     const player = makePlayer({ singlesDynamic: 2.0, lastMatchDate: '2023-01-01' })
     applyInactivityDecay([player].values(), NOW)
-    expect(player.singlesDynamic).toBeGreaterThan(2.0)
-    expect(player.singlesDynamic).toBeLessThan(3.5)
+    expect(player.singlesDynamic).toBe(2.0)
   })
 
   it('skips players with null lastMatchDate', () => {
@@ -281,12 +438,46 @@ describe('applyInactivityDecay', () => {
     expect(player.singlesDynamic).toBe(4.5)
   })
 
-  it('longer inactivity produces more decay', () => {
+  it('does not vary ratings by inactivity duration', () => {
     const p1 = makePlayer({ singlesDynamic: 4.5, lastMatchDate: '2025-01-01' })
     const p2 = makePlayer({ singlesDynamic: 4.5, lastMatchDate: '2024-01-01' })
     applyInactivityDecay([p1].values(), NOW)
     applyInactivityDecay([p2].values(), NOW)
-    expect(p2.singlesDynamic).toBeLessThan(p1.singlesDynamic)
+    expect(p2.singlesDynamic).toBe(p1.singlesDynamic)
+  })
+})
+
+describe('getScoreAwarePerformance', () => {
+  it('keeps a close contest between equal ratings near-neutral', () => {
+    const tight = parseScoreMetrics('7-6, 7-6', 'A')
+    const dominant = parseScoreMetrics('6-0, 6-0', 'A')
+    expect(getScoreAwarePerformance(tight, 'A', 4.0, 4.0).a).toBeCloseTo(1 / 26, 3)
+    expect(getScoreAwarePerformance(dominant, 'A', 4.0, 4.0).a).toBeCloseTo(0.5, 3)
+  })
+
+  it('allows a close loss to a much stronger player to be positive', () => {
+    const closeLoss = parseScoreMetrics('4-6 4-6', 'B')
+    const performance = getScoreAwarePerformance(closeLoss, 'B', 4.1, 4.9)
+    expect(performance.a).toBeGreaterThan(0)
+    expect(performance.b).toBeLessThan(0)
+  })
+
+  it('credits a close doubles loss when a weaker partner makes the pair an underdog', () => {
+    // A 4.0 player paired with a 3.0 player faces two 4.0 players. The pair
+    // is evaluated at 3.5 against 4.0, so a 4-6, 4-6 loss outperforms the
+    // team expectation instead of being treated as a penalty.
+    const closeDoublesLoss = parseScoreMetrics('4-6 4-6', 'B')
+    const performance = getScoreAwarePerformance(closeDoublesLoss, 'B', 3.5, 4.0)
+    expect(performance.a).toBeGreaterThan(0)
+    expect(performance.b).toBeLessThan(0)
+  })
+
+  it('protects the stronger partner from a close doubles-loss penalty against a comparable pair', () => {
+    const closeLoss = parseScoreMetrics('4-6 4-6', 'B')
+    const rawTeamPerformance = getScoreAwarePerformance(closeLoss, 'B', 4.25, 4.5).a
+
+    expect(rawTeamPerformance).toBeLessThan(0)
+    expect(applyDoublesPartnerBurdenGuard(rawTeamPerformance, 4.5, [4.0], 4.5, closeLoss)).toBe(0)
   })
 })
 

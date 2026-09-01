@@ -46,7 +46,7 @@ function TeamConnectionsContent() {
     setLoading(true)
     setMessage('')
     try {
-      const result = await fetchTeamConnections(accessToken)
+      const result = await fetchTeamConnections(accessToken, { includeOffers: true, userId })
       setPending(result.pending)
       setConnections(result.connections)
       setOffers(result.offers)
@@ -55,7 +55,7 @@ function TeamConnectionsContent() {
     } finally {
       setLoading(false)
     }
-  }, [accessToken])
+  }, [accessToken, userId])
 
   useEffect(() => {
     if (!authResolved) return

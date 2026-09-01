@@ -7,6 +7,7 @@ export const PRODUCT_USAGE_EVENT_NAMES = [
   'profile_cloud_sync_repair',
   'mylab_match_plan_action',
   'mylab_goal_template_applied',
+  'matchup_prep_saved',
   'captain_closeout_action',
   'captain_team_scope_selected',
   'captain_default_team_saved',
@@ -47,8 +48,10 @@ export const PRODUCT_USAGE_EVENT_NAMES = [
   'portal_lane_opened',
   'portal_shortcut_opened',
   'product_tour_started',
+  'product_tour_progressed',
   'product_tour_completed',
   'product_tour_cta_clicked',
+  'product_tour_role_selected',
 ] as const
 
 export const PRODUCT_USAGE_EVENT_SURFACES = [

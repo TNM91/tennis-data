@@ -30,10 +30,12 @@ describe('portal shortcut personalization', () => {
     expect(normalizePinnedPortalShortcuts(null)).toEqual(DEFAULT_PINNED_PORTAL_SHORTCUTS)
   })
 
-  it('accepts only four unique known shortcuts for cloud storage', () => {
+  it('accepts one through seven unique known shortcuts for cloud storage', () => {
     expect(isPinnedPortalShortcutList(['action:mylab', 'action:tactics', 'lane:team', 'lane:club'])).toBe(true)
+    expect(isPinnedPortalShortcutList(['action:mylab', 'action:tactics', 'lane:team', 'lane:club', 'lane:find', 'lane:you', 'lane:compete'])).toBe(true)
     expect(isPinnedPortalShortcutList(['action:mylab', 'action:mylab', 'lane:team', 'lane:club'])).toBe(false)
-    expect(isPinnedPortalShortcutList(['action:mylab', 'lane:team', 'lane:club'])).toBe(false)
+    expect(isPinnedPortalShortcutList([])).toBe(false)
+    expect(isPinnedPortalShortcutList(['action:mylab', 'lane:team', 'lane:club', 'lane:find', 'lane:you', 'lane:compete', 'lane:coach', 'lane:league'])).toBe(false)
     expect(isPinnedPortalShortcutList(['action:mylab', 'action:unknown', 'lane:team', 'lane:club'])).toBe(false)
   })
 
@@ -61,10 +63,11 @@ describe('portal shortcut personalization', () => {
     expect(getPortalShortcutStorageKey('player-123')).toBe('tenaceiq.portal-shortcuts.v2.player-123')
   })
 
-  it('offers actions, All tools, and a one-time cue in the shared top menu', () => {
+  it('offers actions, seven shortcut slots, and a one-time cue in the shared top menu', () => {
     expect(portalSource).toContain("id: 'action:mylab'")
     expect(portalSource).toContain("id: 'action:tactics'")
-    expect(portalSource).toContain('data-mobile-portal-all="open"')
+    expect(portalSource).toContain('data-mobile-portal-shortcut-add={index + 1}')
+    expect(portalSource).toContain('Add shortcut ${pinnedPortalShortcuts.length + index + 1} of ${PORTAL_SHORTCUT_PIN_LIMIT}')
     expect(portalSource).toContain('data-portal-personalization-cue="true"')
     expect(portalSource).toContain('Pin My Lab, Tactics, or the hubs you use most.')
     expect(portalSource).toContain('writePinnedPortalShortcuts(draftPinnedPortalShortcutIds, userId)')

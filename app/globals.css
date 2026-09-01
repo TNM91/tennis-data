@@ -736,10 +736,13 @@ footer {
 
 .metric-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
   gap: 16px;
+  min-width: 0;
 }
 
 .metric-card {
+  min-width: 0;
   border-radius: 20px;
   border: 1px solid var(--card-border-soft);
   background: linear-gradient(180deg, rgba(20, 42, 78, 0.62) 0%, rgba(11, 25, 48, 0.82) 100%);
@@ -773,6 +776,8 @@ footer {
 }
 
 .metric-label {
+  min-width: 0;
+  overflow-wrap: break-word;
   font-size: 0.82rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -781,11 +786,21 @@ footer {
 }
 
 .metric-value {
+  min-width: 0;
+  overflow-wrap: break-word;
   margin-top: 8px;
   font-size: clamp(1.5rem, 2vw, 2rem);
   font-weight: 850;
   line-height: 1;
   color: #ffffff;
+}
+
+@media (max-width: 767px) {
+  .card-grid.two,
+  .card-grid.three,
+  .card-grid.four {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .metric-help,
@@ -1351,9 +1366,6 @@ hr {
     padding: 28px;
   }
 
-  .metric-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 @media (min-width: 1024px) {
@@ -1450,6 +1462,22 @@ hr {
 }
 
 @media (max-width: 767px) {
+  /* Mobile text safety contract: UI must reflow before it clips or forces words vertically. */
+  #main-content,
+  #main-content * {
+    min-inline-size: 0;
+  }
+
+  #main-content :is(button, a, label, [role='button'], input, select, textarea) {
+    max-inline-size: 100%;
+  }
+
+  #main-content :is(button, a, label, [role='button']) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
   h1,
   h2,
   h3,

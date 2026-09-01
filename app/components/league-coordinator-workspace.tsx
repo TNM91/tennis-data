@@ -1049,6 +1049,36 @@ export function LeagueCoordinatorWorkspace() {
     isMobile && primaryLeagueDeskItem ? [primaryLeagueDeskItem] : leagueDeskItems
   const extraLeagueDeskItems =
     isMobile && primaryLeagueDeskItem ? leagueDeskItems.filter((item) => item.job !== primaryLeagueDeskItem.job) : []
+  const leagueDeskCompleteCount = leagueDeskItems.filter((item) => item.complete).length
+  const leagueMobileSeasonPulse = hasSavedLeague && isMobile ? (
+    <section style={leagueMobilePulseStyle} aria-label="League season pulse">
+      <div style={leagueMobilePulseHeaderStyle}>
+        <div style={leagueMobilePulseCopyStyle}>
+          <span style={sectionEyebrow}>Season pulse</span>
+          <strong>Keep the season moving.</strong>
+        </div>
+        <span style={leagueDeskCompleteCount === leagueDeskItems.length ? pillGreen : pillSlate}>
+          {leagueDeskCompleteCount}/{leagueDeskItems.length} ready
+        </span>
+      </div>
+      <div style={leagueMobilePulseGridStyle}>
+        {leagueDeskItems.map((item) => (
+          <Link
+            key={`mobile-pulse-${item.job}`}
+            href={item.href}
+            style={item.complete ? leagueMobilePulseItemReadyStyle : leagueMobilePulseItemStyle}
+            aria-label={`${item.label}: ${item.complete ? 'Ready' : item.cta}`}
+          >
+            <span style={item.complete ? leagueMobilePulseDotReadyStyle : leagueMobilePulseDotStyle} aria-hidden="true" />
+            <span style={leagueMobilePulseItemCopyStyle}>
+              <small>{item.label}</small>
+              <strong>{item.complete ? 'Ready' : item.cta}</strong>
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  ) : null
   const leagueOpsChecks = [
     {
       label: 'Access',
@@ -1800,6 +1830,8 @@ export function LeagueCoordinatorWorkspace() {
             onAction={handleLeagueHomeAction}
           />
         </div>
+
+        {leagueMobileSeasonPulse}
 
         {canUseLeagueTools ? <OrganizerScheduleAttention /> : null}
 
@@ -2987,22 +3019,11 @@ export function LeagueCoordinatorWorkspace() {
 
         {hasSavedLeague ? (
           <>
-          {isMobile ? (
-          <details className="leagueCoordinatorDetailsSection" style={leaguePathMobileDetailsStyle} aria-label="Today's League Office desk">
-            <summary style={leaguePathMobileSummaryStyle}>
-              <span style={leaguePathCopyStyle}>
-                <em>Today&apos;s league desk</em>
-                <strong>Show season jobs.</strong>
-              </span>
-              <span style={pillSlate}>{leagueDeskItems.length} jobs</span>
-            </summary>
-            <div style={leaguePathMobileBodyStyle}>{leagueDeskContent}</div>
-          </details>
-        ) : (
-          <section style={leaguePathStyle} aria-labelledby="league-office-desk-title">
-            {leagueDeskContent}
-          </section>
-        )}
+          {!isMobile ? (
+            <section style={leaguePathStyle} aria-labelledby="league-office-desk-title">
+              {leagueDeskContent}
+            </section>
+          ) : null}
 
         <details className="leagueCoordinatorDetailsSection" id="shared-calendar" style={responsiveCommandCard} open={!isCompactViewport}>
           <summary style={responsiveOptionalSummary}>
@@ -4036,31 +4057,85 @@ const leaguePathStyle: CSSProperties = {
   overflow: 'hidden',
 }
 
-const leaguePathMobileDetailsStyle: CSSProperties = {
-  ...leaguePathStyle,
-  gap: 0,
-  padding: 0,
-  borderRadius: '20px',
-  minWidth: 0,
-}
-
-const leaguePathMobileSummaryStyle: CSSProperties = {
+const leagueMobilePulseStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
-  gap: 12,
-  alignItems: 'center',
+  gap: 10,
   minWidth: 0,
-  padding: '14px',
-  cursor: 'pointer',
-  listStyle: 'none',
+  padding: 14,
+  borderRadius: 20,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'linear-gradient(135deg, rgba(116,190,255,0.09), rgba(155,225,29,0.06)), rgba(7,19,38,0.9)',
+  boxShadow: '0 14px 34px rgba(2,10,24,0.18)',
   overflowWrap: 'anywhere',
 }
 
-const leaguePathMobileBodyStyle: CSSProperties = {
-  display: 'grid',
-  gap: '12px',
+const leagueMobilePulseHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
   minWidth: 0,
-  padding: '0 12px 12px',
+}
+
+const leagueMobilePulseCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
+}
+
+const leagueMobilePulseGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const leagueMobilePulseItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '8px minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 62,
+  border: '1px solid rgba(116,190,255,0.18)',
+  borderRadius: 14,
+  background: 'rgba(5,15,31,0.44)',
+  color: 'var(--foreground-strong)',
+  padding: '9px 10px',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const leagueMobilePulseItemReadyStyle: CSSProperties = {
+  ...leagueMobilePulseItemStyle,
+  borderColor: 'color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, rgba(5,15,31,0.44))',
+}
+
+const leagueMobilePulseDotStyle: CSSProperties = {
+  width: 8,
+  height: 8,
+  borderRadius: 999,
+  background: 'var(--brand-lime)',
+  boxShadow: '0 0 0 4px rgba(155,225,29,0.09)',
+}
+
+const leagueMobilePulseDotReadyStyle: CSSProperties = {
+  ...leagueMobilePulseDotStyle,
+  background: 'var(--brand-green)',
+  boxShadow: '0 0 0 4px rgba(64,214,145,0.08)',
+}
+
+const leagueMobilePulseItemCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const leaguePathHeaderStyle: CSSProperties = {

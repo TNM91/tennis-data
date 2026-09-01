@@ -257,3 +257,35 @@ export function buildCaptainScopedHref(
   const query = params.toString()
   return query ? `${path}?${query}` : path
 }
+
+/**
+ * A scoped Captain link is an intentional team or match selection.  It must
+ * take precedence over a recoverable device draft from a different team.
+ */
+export function hasExplicitCaptainRouteScope(params: URLSearchParams) {
+  return ['layer', 'team', 'league', 'flight', 'date', 'opponent', 'match', 'scenario', 'left']
+    .some((key) => Boolean(params.get(key)?.trim()))
+}
+
+function isPastCaptainMatchDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const matchDay = new Date(`${value}T12:00:00`).getTime()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Number.isFinite(matchDay) && matchDay < today.getTime()
+}
+
+/**
+ * A new Lineup Builder entry always starts at the next Match Week. A saved
+ * match is restored only by an explicit date/opponent/match link (such as
+ * Continue), never by a generic Teams or Captain shortcut.
+ */
+export function resolveCaptainMatchContext(params: URLSearchParams) {
+  const eventDate = params.get('date') || ''
+  const isHistorical = isPastCaptainMatchDate(eventDate)
+  return {
+    eventDate: isHistorical ? '' : eventDate,
+    opponentTeam: isHistorical ? '' : (params.get('opponent') || ''),
+    matchId: isHistorical ? '' : (params.get('match') || ''),
+  }
+}

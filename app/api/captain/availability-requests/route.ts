@@ -1,4 +1,6 @@
 import { getCaptainApiAuth } from '@/lib/captain-api-auth'
+import { randomUUID } from 'node:crypto'
+
 import {
   cleanAvailabilityText,
   getCaptainAvailabilityServiceClient,
@@ -18,7 +20,8 @@ type AvailabilityRequestBody = {
   matchTime?: string
   facility?: string
   slots?: unknown
-  invitedPlayers?: Array<{ playerId?: string; playerName?: string }>
+  invitedPlayers?: Array<{ playerId?: string; playerName?: string; responseToken?: string }>
+  inviteMode?: 'append' | 'replace'
 }
 
 export async function GET(request: Request) {
@@ -121,19 +124,40 @@ async function canManageSharedAvailabilityRequest(
 }
 
 export async function POST(request: Request) {
+  const startedAt = Date.now()
+  console.info('[api/captain/availability-requests] incoming', {
+    method: request.method,
+    hasAuthorization: Boolean(request.headers.get('authorization')),
+  })
   const auth = await getCaptainApiAuth(request)
-  if (!auth.ok) return auth.response
+  if (!auth.ok) {
+    console.warn('[api/captain/availability-requests] rejected before body parse', {
+      durationMs: Date.now() - startedAt,
+      status: auth.response.status,
+    })
+    return auth.response
+  }
 
   let body: AvailabilityRequestBody
   try {
     body = await request.json() as AvailabilityRequestBody
   } catch {
+    console.warn('[api/captain/availability-requests] invalid JSON body', {
+      durationMs: Date.now() - startedAt,
+      userId: auth.userId,
+    })
     return Response.json({ ok: false, message: 'Invalid availability request.' }, { status: 400 })
   }
 
   const teamName = cleanAvailabilityText(body.teamName)
   const matchDate = cleanAvailabilityText(body.matchDate, 10)
   if (!teamName || !/^\d{4}-\d{2}-\d{2}$/.test(matchDate)) {
+    console.warn('[api/captain/availability-requests] missing match scope', {
+      durationMs: Date.now() - startedAt,
+      userId: auth.userId,
+      hasTeamName: Boolean(teamName),
+      matchDate,
+    })
     return Response.json(
       { ok: false, message: 'Choose a team and scheduled match before confirming availability.' },
       { status: 400 }
@@ -145,10 +169,24 @@ export async function POST(request: Request) {
     .map((player) => ({
       playerId: cleanAvailabilityText(player.playerId, 80),
       playerName: cleanAvailabilityText(player.playerName),
+      responseToken: cleanAvailabilityText(player.responseToken, 80),
+    }))
+    .map((player) => ({
+      ...player,
+      // Always provide a secure per-player token. Older deployed schemas can
+      // lack the database default, and a bulk lineup request has no reason to
+      // depend on that default being present.
+      responseToken: isUuid(player.responseToken) ? player.responseToken : randomUUID(),
     }))
     .filter((player) => player.playerName)
 
   if (!invitedPlayers.length) {
+    console.warn('[api/captain/availability-requests] no invited players', {
+      durationMs: Date.now() - startedAt,
+      userId: auth.userId,
+      teamName,
+      matchDate,
+    })
     return Response.json(
       { ok: false, message: 'Add at least one player to the potential lineup first.' },
       { status: 400 }
@@ -157,6 +195,71 @@ export async function POST(request: Request) {
 
   const service = getCaptainAvailabilityServiceClient()
   const scenarioId = cleanAvailabilityText(body.scenarioId, 80)
+  const existingQuery = service
+    .from('captain_availability_requests')
+    .select('id,request_token,invited_players_json')
+    .eq('created_by', auth.userId)
+    .eq('team_name', teamName)
+    .eq('match_date', matchDate)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  if (isUuid(scenarioId)) existingQuery.eq('scenario_id', scenarioId)
+  const { data: existingRows } = await existingQuery
+  const existing = existingRows?.[0] as {
+    id: string
+    request_token: string
+    invited_players_json: Array<{ playerId?: string; playerName?: string }> | null
+  } | undefined
+  const appendInvites = body.inviteMode === 'append'
+  const existingInviteTokens = new Map<string, string>()
+  if (appendInvites && existing?.id) {
+    const { data: existingInviteRows, error: existingInviteError } = await service
+      .from('captain_availability_request_invites')
+      .select('player_id,player_name,response_token')
+      .eq('request_id', existing.id)
+
+    if (existingInviteError) {
+      console.error('[api/captain/availability-requests] existing invite read failed', {
+        durationMs: Date.now() - startedAt,
+        userId: auth.userId,
+        requestId: existing.id,
+        message: existingInviteError.message,
+      })
+      return Response.json({ ok: false, message: 'TiQ could not reopen the saved player asks. Please try again in a moment.' }, { status: 500 })
+    }
+
+    for (const invite of existingInviteRows ?? []) {
+      const key = `${cleanAvailabilityText(invite.player_id, 80)}:${cleanAvailabilityText(invite.player_name).toLowerCase()}`
+      if (isUuid(invite.response_token)) existingInviteTokens.set(key, invite.response_token)
+    }
+  }
+
+  const existingInvites = appendInvites && Array.isArray(existing?.invited_players_json)
+    ? existing.invited_players_json
+      .map((player) => {
+        const playerId = cleanAvailabilityText(player.playerId, 80)
+        const playerName = cleanAvailabilityText(player.playerName)
+        return {
+          playerId,
+          playerName,
+          responseToken: existingInviteTokens.get(`${playerId}:${playerName.toLowerCase()}`) || randomUUID(),
+        }
+      })
+      .filter((player) => player.playerName)
+    : []
+  const requestInvitedPlayers = Array.from(
+    new Map([...existingInvites, ...invitedPlayers].map((player) => [
+      `${player.playerId || ''}:${player.playerName.toLowerCase()}`,
+      player,
+    ])).values()
+  ).map((player) => ({
+    ...player,
+    // Existing request JSON from an earlier build can lack a response token.
+    // The final row normalization protects appends as well as brand-new asks.
+    responseToken: isUuid(player.responseToken) ? player.responseToken : randomUUID(),
+  }))
   const payload = {
     created_by: auth.userId,
     scenario_id: isUuid(scenarioId) ? scenarioId : null,
@@ -168,23 +271,9 @@ export async function POST(request: Request) {
     match_time: cleanAvailabilityText(body.matchTime, 80),
     facility: cleanAvailabilityText(body.facility, 240),
     slots_json: Array.isArray(body.slots) ? body.slots : [],
-    invited_players_json: invitedPlayers,
+    invited_players_json: requestInvitedPlayers,
     updated_at: new Date().toISOString(),
   }
-
-  const existingQuery = service
-    .from('captain_availability_requests')
-    .select('id,request_token')
-    .eq('created_by', auth.userId)
-    .eq('team_name', teamName)
-    .eq('match_date', matchDate)
-    .gt('expires_at', new Date().toISOString())
-    .order('created_at', { ascending: false })
-    .limit(1)
-
-  if (payload.scenario_id) existingQuery.eq('scenario_id', payload.scenario_id)
-  const { data: existingRows } = await existingQuery
-  const existing = existingRows?.[0] as { id: string; request_token: string } | undefined
 
   let requestId = existing?.id ?? ''
   let token = existing?.request_token ?? ''
@@ -193,30 +282,43 @@ export async function POST(request: Request) {
       .from('captain_availability_requests')
       .update(payload)
       .eq('id', existing.id)
-    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    if (error) {
+      console.error('[api/captain/availability-requests] request update failed', { durationMs: Date.now() - startedAt, userId: auth.userId, message: error.message })
+      return Response.json({ ok: false, message: error.message }, { status: 500 })
+    }
   } else {
     const { data, error } = await service
       .from('captain_availability_requests')
       .insert(payload)
       .select('id,request_token')
       .single()
-    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    if (error) {
+      console.error('[api/captain/availability-requests] request insert failed', { durationMs: Date.now() - startedAt, userId: auth.userId, message: error.message })
+      return Response.json({ ok: false, message: error.message }, { status: 500 })
+    }
     requestId = String(data.id)
     token = String(data.request_token)
   }
 
-  const inviteRows = invitedPlayers.map((player) => ({
+  const inviteRows = requestInvitedPlayers.map((player) => ({
     request_id: requestId,
     player_id: isUuid(player.playerId) ? player.playerId : null,
     player_name: player.playerName,
+    response_token: player.responseToken,
     updated_at: new Date().toISOString(),
   }))
   const { error: inviteError } = await service
     .from('captain_availability_request_invites')
     .upsert(inviteRows, { onConflict: 'request_id,player_name' })
-  if (inviteError) return Response.json({ ok: false, message: inviteError.message }, { status: 500 })
+  if (inviteError) {
+    console.error('[api/captain/availability-requests] invite upsert failed', { durationMs: Date.now() - startedAt, userId: auth.userId, requestId, message: inviteError.message })
+    return Response.json({
+      ok: false,
+      message: 'TiQ could not prepare secure reply links. Please try again in a moment.',
+    }, { status: 500 })
+  }
 
-  const invitedNames = new Set(invitedPlayers.map((player) => player.playerName.toLowerCase()))
+  const invitedNames = new Set(requestInvitedPlayers.map((player) => player.playerName.toLowerCase()))
   const { data: currentInvites } = await service
     .from('captain_availability_request_invites')
     .select('id,player_name')
@@ -224,7 +326,7 @@ export async function POST(request: Request) {
   const staleInviteIds = (currentInvites ?? [])
     .filter((invite) => !invitedNames.has(String(invite.player_name).toLowerCase()))
     .map((invite) => invite.id)
-  if (staleInviteIds.length) {
+  if (!appendInvites && staleInviteIds.length) {
     await service
       .from('captain_availability_request_invites')
       .delete()
@@ -235,9 +337,20 @@ export async function POST(request: Request) {
     .from('captain_availability_request_invites')
     .select('player_id,player_name,response_token')
     .eq('request_id', requestId)
-  if (inviteReadError) return Response.json({ ok: false, message: inviteReadError.message }, { status: 500 })
+  if (inviteReadError) {
+    console.error('[api/captain/availability-requests] invite read failed', { durationMs: Date.now() - startedAt, userId: auth.userId, requestId, message: inviteReadError.message })
+    return Response.json({ ok: false, message: inviteReadError.message }, { status: 500 })
+  }
 
   const origin = new URL(request.url).origin
+
+  console.info('[api/captain/availability-requests] created', {
+    durationMs: Date.now() - startedAt,
+    userId: auth.userId,
+    requestId,
+    invitedPlayerCount: requestInvitedPlayers.length,
+    inviteMode: body.inviteMode === 'append' ? 'append' : 'replace',
+  })
 
   return Response.json({
     ok: true,

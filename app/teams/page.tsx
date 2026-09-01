@@ -15,6 +15,7 @@ import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatShortDate, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
+import { isPublicTeamDirectoryMatch, isPublicTeamDirectoryName, isScheduleTeamSource, shouldRestrictTeamDirectoryToLocalRoster } from '@/lib/team-directory'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
@@ -50,17 +51,32 @@ type MatchPlayerRow = {
     | null
 }
 
+type TennisRecordTeamContextRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+  last_seen_at: string | null
+}
+
+type TennisRecordTeamRosterCountRow = {
+  normalized_team_name: string | null
+  listed_player_count: number | null
+}
+
 type TeamDirectoryEntry = {
   key: string
   team: string
   league: string | null
   flight: string | null
+  season: string | null
   matchCount: number
   wins: number
   losses: number
   recentForm: Array<'W' | 'L'>
   playerIds: Set<string>
+  sourceRosterCount: number
   mostRecentMatchDate: string | null
+  source: 'canonical' | 'tennisrecord'
 }
 
 type SortKey = 'team' | 'matches' | 'players' | 'recent' | 'winpct'
@@ -68,16 +84,12 @@ type SortKey = 'team' | 'matches' | 'players' | 'recent' | 'winpct'
 const TEAMS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_TEAMS_INLINE || null
 const TEAM_DEFAULT_CARD_LIMIT = 8
 
-function buildTeamKey(team: string, league: string | null, flight: string | null) {
-  return `${team}__${league || ''}__${flight || ''}`
+function buildTeamKey(team: string, league: string | null, flight: string | null, season: string | null = null) {
+  return `${team}__${league || ''}__${flight || ''}__${season || ''}`
 }
 
 function buildScopeKey(league: string | null, flight: string | null) {
   return `${(league || '').toLowerCase()}__${(flight || '').toLowerCase()}`
-}
-
-function isScheduleLikeMatch(match: MatchRow) {
-  return /\bschedule\b/i.test(cleanText(match.source))
 }
 
 function compareNullableDatesDesc(left: string | null, right: string | null) {
@@ -93,6 +105,10 @@ function compareNullableDatesDesc(left: string | null, right: string | null) {
   if (Number.isNaN(rightTime)) return -1
 
   return rightTime - leftTime
+}
+
+function getDirectoryPlayerCount(row: TeamDirectoryEntry) {
+  return Math.max(row.playerIds.size, row.sourceRosterCount)
 }
 
 
@@ -113,6 +129,7 @@ export default function TeamsPage() {
   const [search, setSearch] = useState('')
   const [leagueFilter, setLeagueFilter] = useState('')
   const [flightFilter, setFlightFilter] = useState('')
+  const [seasonFilter, setSeasonFilter] = useState('')
   const [sortBy, setSortBy] = useState<SortKey>('matches')
   const [browseAll, setBrowseAll] = useState(false)
   const [showAllTeams, setShowAllTeams] = useState(false)
@@ -136,6 +153,7 @@ export default function TeamsPage() {
         setSearch('')
         setLeagueFilter('')
         setFlightFilter('')
+        setSeasonFilter('')
         setSortBy('matches')
         setBrowseAll(false)
         setShowAllTeams(false)
@@ -150,10 +168,12 @@ export default function TeamsPage() {
     const nextSearch = params.get('q')?.trim() || ''
     const nextLeague = params.get('league')?.trim() || ''
     const nextFlight = params.get('flight')?.trim() || ''
+    const nextSeason = params.get('season')?.trim() || ''
     setSearch(nextSearch)
     setLeagueFilter(nextLeague)
     setFlightFilter(nextFlight)
-    setBrowseAll(Boolean(nextSearch || nextLeague || nextFlight))
+    setSeasonFilter(nextSeason)
+    setBrowseAll(Boolean(nextSearch || nextLeague || nextFlight || nextSeason))
     const nextSort = params.get('sort') as SortKey | null
     if (nextSort === 'team' || nextSort === 'matches' || nextSort === 'players' || nextSort === 'recent' || nextSort === 'winpct') setSortBy(nextSort)
     setDirectoryReady(true)
@@ -164,10 +184,11 @@ export default function TeamsPage() {
     if (search.trim()) params.set('q', search.trim())
     if (leagueFilter) params.set('league', leagueFilter)
     if (flightFilter) params.set('flight', flightFilter)
+    if (seasonFilter) params.set('season', seasonFilter)
     if (sortBy !== 'matches') params.set('sort', sortBy)
     const query = params.toString()
     return `/explore/teams${query ? `?${query}` : ''}`
-  }, [flightFilter, leagueFilter, search, sortBy])
+  }, [flightFilter, leagueFilter, search, seasonFilter, sortBy])
 
   useEffect(() => {
     if (!directoryReady) return
@@ -179,11 +200,26 @@ export default function TeamsPage() {
     setError('')
 
     try {
-      const { data: matchData, error: matchError } = await supabase
-        .from('matches')
-        .select('id, match_date, home_team, away_team, league_name, flight, line_number, winner_side, source, status, score')
-        .is('line_number', null)
-        .order('match_date', { ascending: false })
+      const [
+        { data: matchData, error: matchError },
+        { data: tennisRecordContext, error: tennisRecordContextError },
+        { data: tennisRecordRosterCounts, error: tennisRecordRosterCountsError },
+      ] = await Promise.all([
+        supabase
+          .from('matches')
+          .select('id, match_date, home_team, away_team, league_name, flight, line_number, winner_side, source, status, score')
+          .is('line_number', null)
+          .order('match_date', { ascending: false })
+          .limit(10000),
+        supabase
+          .from('tennisrecord_public_team_context')
+          .select('team_name, league_name, flight, last_seen_at')
+          .limit(10000),
+        supabase
+          .from('tennisrecord_public_team_roster_counts')
+          .select('normalized_team_name, listed_player_count')
+          .limit(10000),
+      ])
 
       if (matchError) throw new Error(matchError.message)
 
@@ -191,10 +227,29 @@ export default function TeamsPage() {
         const homeTeam = cleanText(row.home_team)
         const awayTeam = cleanText(row.away_team)
 
-        return Boolean(homeTeam && awayTeam)
+        return isPublicTeamDirectoryMatch({
+          homeTeam,
+          awayTeam,
+          league: row.league_name,
+          source: row.source,
+        })
       })
 
-      if (!matches.length) {
+      const sourceContexts = tennisRecordContextError
+        ? []
+        : (tennisRecordContext || []) as TennisRecordTeamContextRow[]
+      const sourceRosterCounts = tennisRecordRosterCountsError
+        ? []
+        : (tennisRecordRosterCounts || []) as TennisRecordTeamRosterCountRow[]
+
+      const sourceRosterCountByTeam = new Map<string, number>()
+      for (const row of sourceRosterCounts) {
+        const normalizedTeam = normalizeTeamName(row.normalized_team_name)
+        if (!normalizedTeam) continue
+        sourceRosterCountByTeam.set(normalizedTeam, Math.max(0, Number(row.listed_player_count) || 0))
+      }
+
+      if (!matches.length && !sourceContexts.length) {
         setRows([])
         return
       }
@@ -218,7 +273,7 @@ export default function TeamsPage() {
       }
 
       for (const match of matches) {
-        if (!isScheduleLikeMatch(match)) continue
+        if (!isScheduleTeamSource(match.source)) continue
         const league = cleanText(match.league_name)
         const flight = cleanText(match.flight)
         const scopeKey = buildScopeKey(league, flight)
@@ -234,21 +289,23 @@ export default function TeamsPage() {
         const homeTeam = cleanText(match.home_team)
         const awayTeam = cleanText(match.away_team)
 
-        if (!homeTeam || !awayTeam) continue
+        if (!isPublicTeamDirectoryMatch({ homeTeam, awayTeam, league: match.league_name, source: match.source })) continue
 
         const league = cleanText(match.league_name)
         const flight = cleanText(match.flight)
         const scopeKey = buildScopeKey(league, flight)
         const allowedTeams = scheduleTeamsByScope.get(scopeKey) ?? rosterTeamsByScope.get(scopeKey)
         if (
+          shouldRestrictTeamDirectoryToLocalRoster(match.source) &&
           allowedTeams?.size &&
           (!allowedTeams.has(normalizeTeamName(homeTeam)) || !allowedTeams.has(normalizeTeamName(awayTeam)))
         ) {
           continue
         }
 
-        const homeKey = buildTeamKey(homeTeam, league, flight)
-        const awayKey = buildTeamKey(awayTeam, league, flight)
+        const season = cleanText(match.match_date)?.slice(0, 4) || null
+        const homeKey = buildTeamKey(homeTeam, league, flight, season)
+        const awayKey = buildTeamKey(awayTeam, league, flight, season)
 
         if (!directoryMap.has(homeKey)) {
           directoryMap.set(homeKey, {
@@ -256,12 +313,15 @@ export default function TeamsPage() {
             team: homeTeam,
             league,
             flight,
+            season,
             matchCount: 0,
             wins: 0,
             losses: 0,
             recentForm: [],
             playerIds: new Set<string>(),
+            sourceRosterCount: sourceRosterCountByTeam.get(normalizeTeamName(homeTeam)) || 0,
             mostRecentMatchDate: null,
+            source: 'canonical',
           })
         }
 
@@ -271,12 +331,15 @@ export default function TeamsPage() {
             team: awayTeam,
             league,
             flight,
+            season,
             matchCount: 0,
             wins: 0,
             losses: 0,
             recentForm: [],
             playerIds: new Set<string>(),
+            sourceRosterCount: sourceRosterCountByTeam.get(normalizeTeamName(awayTeam)) || 0,
             mostRecentMatchDate: null,
+            source: 'canonical',
           })
         }
 
@@ -344,6 +407,7 @@ export default function TeamsPage() {
         {
           league: string | null
           flight: string | null
+          season: string | null
           homeTeam: string
           awayTeam: string
         }
@@ -352,11 +416,12 @@ export default function TeamsPage() {
       for (const match of matches) {
         const homeTeam = cleanText(match.home_team)
         const awayTeam = cleanText(match.away_team)
-        if (!homeTeam || !awayTeam) continue
+        if (!isPublicTeamDirectoryMatch({ homeTeam, awayTeam, league: match.league_name, source: match.source })) continue
 
         matchMetaById.set(match.id, {
           league: cleanText(match.league_name),
           flight: cleanText(match.flight),
+          season: cleanText(match.match_date)?.slice(0, 4) || null,
           homeTeam,
           awayTeam,
         })
@@ -369,7 +434,7 @@ export default function TeamsPage() {
         if (!matchMeta) continue
 
         const teamName = row.side === 'A' ? matchMeta.homeTeam : matchMeta.awayTeam
-        const teamKey = buildTeamKey(teamName, matchMeta.league, matchMeta.flight)
+        const teamKey = buildTeamKey(teamName, matchMeta.league, matchMeta.flight, matchMeta.season)
         const expectedSide = teamSideByMatchAndTeam.get(`${row.match_id}__${teamKey}`)
 
         if (!expectedSide || expectedSide !== row.side) continue
@@ -383,6 +448,32 @@ export default function TeamsPage() {
         if (!playerId) continue
 
         entry.playerIds.add(playerId)
+      }
+
+      for (const context of sourceContexts) {
+        const team = cleanText(context.team_name)
+        const league = cleanText(context.league_name)
+        const flight = cleanText(context.flight)
+        if (!team || !isPublicTeamDirectoryName(team, league)) continue
+
+        const key = buildTeamKey(team, league, flight)
+        if (directoryMap.has(key)) continue
+
+        directoryMap.set(key, {
+          key,
+          team,
+          league,
+          flight,
+          season: null,
+          matchCount: 0,
+          wins: 0,
+          losses: 0,
+          recentForm: [],
+          playerIds: new Set<string>(),
+          sourceRosterCount: sourceRosterCountByTeam.get(normalizeTeamName(team)) || 0,
+          mostRecentMatchDate: cleanText(context.last_seen_at),
+          source: 'tennisrecord',
+        })
       }
 
       setRows(
@@ -415,6 +506,7 @@ export default function TeamsPage() {
   }
 
   const leagueOptions = useMemo(() => uniqueSorted(rows.map((row) => row.league)), [rows])
+  const seasonOptions = useMemo(() => uniqueSorted(rows.map((row) => row.season)), [rows])
   const flightOptions = useMemo(() => {
     const scopedRows = leagueFilter ? rows.filter((row) => row.league === leagueFilter) : rows
     return uniqueSorted(scopedRows.map((row) => row.flight))
@@ -426,6 +518,7 @@ export default function TeamsPage() {
     const next = rows.filter((row) => {
       if (leagueFilter && row.league !== leagueFilter) return false
       if (flightFilter && row.flight !== flightFilter) return false
+      if (seasonFilter && row.season !== seasonFilter) return false
 
       if (!searchText) return true
 
@@ -433,10 +526,34 @@ export default function TeamsPage() {
       return haystack.includes(searchText)
     })
 
-    next.sort((left, right) => {
+    // Keep the default directory as the dynasty view. A selected season exposes
+    // that season's distinct roster and performance without duplicating teams by year.
+    const displayRows = seasonFilter
+      ? next
+      : Array.from(next.reduce((map, row) => {
+          const dynastyKey = buildTeamKey(row.team, row.league, row.flight)
+          const existing = map.get(dynastyKey)
+          if (!existing) {
+            map.set(dynastyKey, { ...row, key: dynastyKey, season: null, playerIds: new Set(row.playerIds) })
+            return map
+          }
+
+          existing.matchCount += row.matchCount
+          existing.wins += row.wins
+          existing.losses += row.losses
+          existing.sourceRosterCount = Math.max(existing.sourceRosterCount, row.sourceRosterCount)
+          for (const playerId of row.playerIds) existing.playerIds.add(playerId)
+          if (compareNullableDatesDesc(row.mostRecentMatchDate, existing.mostRecentMatchDate) < 0) {
+            existing.mostRecentMatchDate = row.mostRecentMatchDate
+            existing.recentForm = row.recentForm
+          }
+          return map
+        }, new Map<string, TeamDirectoryEntry>()).values())
+
+    displayRows.sort((left, right) => {
       if (sortBy === 'team') return left.team.localeCompare(right.team)
       if (sortBy === 'players') {
-        const diff = right.playerIds.size - left.playerIds.size
+        const diff = getDirectoryPlayerCount(right) - getDirectoryPlayerCount(left)
         if (diff !== 0) return diff
         return left.team.localeCompare(right.team)
       }
@@ -458,10 +575,10 @@ export default function TeamsPage() {
       return left.team.localeCompare(right.team)
     })
 
-    return next
-  }, [flightFilter, leagueFilter, rows, search, sortBy])
+    return displayRows
+  }, [flightFilter, leagueFilter, rows, search, seasonFilter, sortBy])
   const hasActiveFilters =
-    search.trim().length > 0 || leagueFilter.length > 0 || flightFilter.length > 0 || sortBy !== 'matches'
+    search.trim().length > 0 || leagueFilter.length > 0 || flightFilter.length > 0 || seasonFilter.length > 0 || sortBy !== 'matches'
   const shouldShowTeamResults = hasActiveFilters || browseAll
   const visibleRows = shouldShowTeamResults
     ? showAllTeams
@@ -478,7 +595,7 @@ export default function TeamsPage() {
     const uniqueTeams = new Set(rowsForTotals.map((row) => row.key))
     const leagues = new Set(rowsForTotals.map((row) => row.league).filter(Boolean))
     const flights = new Set(rowsForTotals.map((row) => row.flight).filter(Boolean))
-    const players = rowsForTotals.reduce((sum, row) => sum + row.playerIds.size, 0)
+    const players = rowsForTotals.reduce((sum, row) => sum + getDirectoryPlayerCount(row), 0)
 
     return {
       teams: uniqueTeams.size,
@@ -494,7 +611,7 @@ export default function TeamsPage() {
         surface="teams"
         label="team directory"
         href={exploreResumeHref}
-        contextLabel={search.trim() || leagueFilter || flightFilter || 'Teams'}
+        contextLabel={search.trim() || leagueFilter || flightFilter || seasonFilter || 'Teams'}
         enabled={directoryReady}
       />
       <main style={pageWrap}>
@@ -518,6 +635,7 @@ export default function TeamsPage() {
                   setSearch('')
                   setLeagueFilter('')
                   setFlightFilter('')
+                  setSeasonFilter('')
                   setSortBy('matches')
                   setBrowseAll(false)
                   setShowAllTeams(false)
@@ -613,6 +731,32 @@ export default function TeamsPage() {
               </div>
 
               <div>
+                <label htmlFor="team-directory-season" style={{ ...labelStyle, marginBottom: isMobile ? 6 : labelStyle.marginBottom }}>Season</label>
+                <select
+                  id="team-directory-season"
+                  value={seasonFilter}
+                  onFocus={() => setFocusedDirectoryControl('season')}
+                  onBlur={() => setFocusedDirectoryControl(null)}
+                  onChange={(event) => {
+                    setSeasonFilter(event.target.value)
+                    setShowAllTeams(false)
+                  }}
+                  style={{
+                    ...inputStyle,
+                    ...(isMobile ? compactDirectoryControlStyle : null),
+                    borderColor: seasonFilter ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)' : undefined,
+                    boxShadow: seasonFilter ? 'var(--home-control-shadow)' : undefined,
+                    ...(focusedDirectoryControl === 'season' ? directoryControlFocusStyle : null),
+                  }}
+                >
+                  <option value="">All seasons (Dynasty)</option>
+                  {seasonOptions.map((option) => (
+                    <option key={option} value={option}>{option} season</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label htmlFor="team-directory-sort" style={{ ...labelStyle, marginBottom: isMobile ? 6 : labelStyle.marginBottom }}>Sort</label>
                 <select
                   id="team-directory-sort"
@@ -679,6 +823,7 @@ export default function TeamsPage() {
                     setSearch('')
                     setLeagueFilter('')
                     setFlightFilter('')
+                    setSeasonFilter('')
                     setSortBy('matches')
                     setBrowseAll(false)
                     setShowAllTeams(false)
@@ -747,13 +892,26 @@ export default function TeamsPage() {
               </div>
             </section>
           ) : (
-            <section style={cardsGrid(isTablet, isMobile)}>
-              {visibleRows.map((row) => {
+            <section style={teamDiscoveryResultsStyle}>
+              <TeamPulseFeature
+                href={{
+                  pathname: `/teams/${encodeTeamRouteSegment(visibleRows[0].team)}`,
+                  query: {
+                    ...(visibleRows[0].league ? { league: visibleRows[0].league } : {}),
+                    ...(visibleRows[0].flight ? { flight: visibleRows[0].flight } : {}),
+                    ...(visibleRows[0].season ? { season: visibleRows[0].season } : {}),
+                  },
+                }}
+                row={visibleRows[0]}
+              />
+              <section style={cardsGrid(isTablet, isMobile)}>
+              {visibleRows.slice(1).map((row) => {
                 const teamHref = {
                   pathname: `/teams/${encodeTeamRouteSegment(row.team)}`,
                   query: {
                     ...(row.league ? { league: row.league } : {}),
                     ...(row.flight ? { flight: row.flight } : {}),
+                    ...(row.season ? { season: row.season } : {}),
                   },
                 }
 
@@ -780,6 +938,8 @@ export default function TeamsPage() {
                   </button>
                 </div>
               ) : null}
+              </section>
+              <CaptainDiscoveryTease />
             </section>
           )}
         </section>
@@ -1082,8 +1242,96 @@ function TeamWeekStep({ action, step }: { action: TeamNextAction; step: number }
   )
 }
 
+function TeamPulseFeature({ href, row }: { href: object; row: TeamDirectoryEntry }) {
+  const totalDecisions = row.wins + row.losses
+  const record = totalDecisions > 0 ? `${row.wins}-${row.losses}` : 'New'
+  const rosterCount = getDirectoryPlayerCount(row)
+  const formLabel = totalDecisions > 0
+    ? row.wins >= row.losses ? 'Winning form' : 'Competitive form'
+    : 'Fresh team context'
+
+  return (
+    <article style={teamPulseFeatureStyle}>
+      <div style={teamPulseFeatureTopStyle}>
+        <div style={teamPulseFeatureCopyStyle}>
+          <span style={teamPulseEyebrowStyle}>Team pulse</span>
+          <Link href={href as Parameters<typeof Link>[0]['href']} style={teamPulseTitleStyle}>{row.team}</Link>
+          <div style={teamPulseMetaStyle}>
+            {row.league ? <span>{row.league}</span> : null}
+            {row.flight ? <span style={teamPulseFlightStyle}>{row.flight} flight</span> : null}
+            {row.season ? <span>{row.season} season</span> : null}
+          </div>
+        </div>
+        <span style={teamPulseSourceStyle}>{row.source === 'tennisrecord' ? 'Team context ready' : 'Team record ready'}</span>
+      </div>
+
+      <div style={teamPulseMainStyle}>
+        <div style={teamPulseRecordStyle}>
+          <strong style={teamPulseRecordValueStyle}>{record}</strong>
+          <span style={teamPulseRecordLabelStyle}>{totalDecisions > 0 ? `Last ${totalDecisions} decisions` : 'Ready to explore'}</span>
+        </div>
+        <div style={teamPulseFormStyle}>
+          <span style={teamPulseEyebrowStyle}>{formLabel}</span>
+          <strong style={teamPulseFormTitleStyle}>{totalDecisions > 0 ? `${Math.round((row.wins / totalDecisions) * 100)}% win rate` : 'League and flight added'}</strong>
+          {row.recentForm.length ? (
+            <div style={teamPulseBadgesStyle} aria-label={`${row.team} recent form`}>
+              {row.recentForm.map((result, index) => (
+                <span key={`${result}-${index}`} style={{ ...recentFormBadgeBase, background: result === 'W' ? 'rgba(155,225,29,0.15)' : 'rgba(239,68,68,0.12)', color: result === 'W' ? '#d9f84a' : '#fca5a5', border: `1px solid ${result === 'W' ? 'rgba(155,225,29,0.3)' : 'rgba(239,68,68,0.24)'}` }}>{result}</span>
+              ))}
+            </div>
+          ) : <span style={teamPulseSupportStyle}>Results appear as reviewed scorecards connect.</span>}
+        </div>
+      </div>
+
+      <div style={teamPulseSignalGridStyle} aria-label={`${row.team} scouting signals`}>
+        <TeamPulseSignal label="Roster" value={rosterCount > 0 ? `${rosterCount} listed` : 'Building'} />
+        <TeamPulseSignal label="Match record" value={row.matchCount > 0 ? `${row.matchCount} logged` : 'New'} />
+        <TeamPulseSignal label="Latest" value={formatShortDate(row.mostRecentMatchDate, 'Pending')} />
+      </div>
+
+      <div style={teamPulseFooterStyle}>
+        <span style={teamPulseSupportStyle}>{row.mostRecentMatchDate ? `Updated ${formatShortDate(row.mostRecentMatchDate, 'recently')}` : 'League context is ready to explore.'}</span>
+        <Link href={href as Parameters<typeof Link>[0]['href']} style={teamPulseActionStyle}>Open team</Link>
+      </div>
+    </article>
+  )
+}
+
+function TeamPulseSignal({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={teamPulseSignalStyle}>
+      <span>{label}</span>
+      <strong style={teamPulseSignalValueStyle}>{value}</strong>
+    </div>
+  )
+}
+
+function CaptainDiscoveryTease() {
+  return (
+    <section style={captainDiscoveryTeaseStyle}>
+      <div style={captainDiscoveryTeaseCopyStyle}>
+        <span style={teamPulseEyebrowStyle}>For captains</span>
+        <strong>Claim your team when you are ready to lead it.</strong>
+        <span>Unlock lineup preparation, availability, and opponent scouting while public team discovery stays free.</span>
+      </div>
+      <TrackedProductLink
+        href="/captain"
+        style={captainDiscoveryTeaseActionStyle}
+        event={{
+          eventName: 'captain_tools_clicked',
+          surface: 'teams',
+          metadata: { location: 'team_discovery_tease' },
+        }}
+      >
+        Explore Captain tools
+      </TrackedProductLink>
+    </section>
+  )
+}
+
 function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry; awards: TiqAwardRecord[] }) {
   const [hovered, setHovered] = useState(false)
+  const isTennisRecordContext = row.source === 'tennisrecord'
 
   return (
     <article
@@ -1108,6 +1356,7 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
               <div style={metaRow}>
                 {row.league ? <span style={metaPillBlue}>{row.league}</span> : null}
                 {row.flight ? <span style={metaPillGreen}>{row.flight}</span> : null}
+                {row.season ? <span style={metaPillBlue}>{row.season} season</span> : null}
               </div>
             ) : null}
           </div>
@@ -1130,48 +1379,59 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
           const total = row.wins + row.losses
           const winPct = Math.round((row.wins / total) * 100)
           return (
-            <div style={teamRecordBarWrap}>
+            <div style={teamSnapshotStyle} aria-label={`${row.team} team form`}>
+              <div style={teamSnapshotHeadingStyle}>
+                <span>Team form</span>
+                <strong>{row.wins}W - {row.losses}L</strong>
+              </div>
               <div style={teamRecordBar}>
-                <div style={{ width: `${winPct}%`, background: 'linear-gradient(90deg,rgba(155,225,29,0.65),rgba(74,222,128,0.65))', minWidth: winPct > 0 ? 4 : 0, transition: 'width 400ms ease' }} />
-                <div style={{ flex: 1, background: 'rgba(239,68,68,0.22)' }} />
+                <div style={{ width: `${winPct}%`, background: 'linear-gradient(90deg,rgba(155,225,29,0.72),rgba(74,222,128,0.72))', minWidth: winPct > 0 ? 4 : 0, transition: 'width 400ms ease' }} />
+                <div style={{ flex: 1, background: 'rgba(239,68,68,0.24)' }} />
               </div>
-              <div style={teamRecordLegend}>
-                <span style={teamRecordWinText}>{row.wins}W - {winPct}%</span>
-                <span style={teamRecordLossText}>{row.losses}L</span>
-              </div>
+              <span style={teamRecordWinText}>{winPct}% win rate</span>
+
+              {row.recentForm.length > 0 ? (
+                <div style={recentFormRow}>
+                  <span style={recentFormLabel}>Last five</span>
+                  {row.recentForm.map((r, i) => (
+                    <span key={i} style={{ ...recentFormBadgeBase, background: r === 'W' ? 'rgba(155,225,29,0.12)' : 'rgba(239,68,68,0.10)', color: r === 'W' ? '#d9f84a' : '#fca5a5', border: `1px solid ${r === 'W' ? 'rgba(155,225,29,0.22)' : 'rgba(239,68,68,0.18)'}` }}>
+                      {r}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
           )
         })() : null}
 
-        {row.recentForm.length > 0 ? (
-          <div style={recentFormRow}>
-            <span style={recentFormLabel}>Form</span>
-            {row.recentForm.map((r, i) => (
-              <span key={i} style={{ ...recentFormBadgeBase, background: r === 'W' ? 'rgba(155,225,29,0.12)' : 'rgba(239,68,68,0.10)', color: r === 'W' ? '#d9f84a' : '#fca5a5', border: `1px solid ${r === 'W' ? 'rgba(155,225,29,0.22)' : 'rgba(239,68,68,0.18)'}` }}>
-                {r}
-              </span>
-            ))}
-          </div>
-        ) : null}
-
         <div style={metricsGrid}>
-          <Metric label="Matches" value={String(row.matchCount)} />
-          <Metric label="Players" value={String(row.playerIds.size)} />
-          <Metric label="Last match" value={formatShortDate(row.mostRecentMatchDate, '--')} />
+          {isTennisRecordContext ? (
+            <>
+              <Metric label="Team context" value="Ready" />
+              <Metric label="Players listed" value={String(getDirectoryPlayerCount(row) || '--')} />
+              <Metric label="Updated" value={formatShortDate(row.mostRecentMatchDate, '--')} />
+            </>
+          ) : (
+            <>
+              <Metric label="Matches" value={String(row.matchCount)} />
+              <Metric label="Players" value={String(getDirectoryPlayerCount(row))} />
+              <Metric label="Last match" value={formatShortDate(row.mostRecentMatchDate, '--')} />
+            </>
+          )}
         </div>
         <details style={teamCardTrustDetailsStyle}>
           <summary style={teamCardTrustSummaryStyle}>
             <span>Data check</span>
-            <strong>{row.mostRecentMatchDate ? 'Match context' : 'Review pending'}</strong>
+            <strong>{isTennisRecordContext ? 'Team context' : row.mostRecentMatchDate ? 'Match context' : 'Review pending'}</strong>
           </summary>
           <div style={teamCardTrustBodyStyle}>
             <TiqTrustStrip
               label={`${row.team} data trust signals`}
               signals={[
-                { label: 'Source', value: 'Scorecards / rosters', tone: 'info' },
+                { label: 'Source', value: isTennisRecordContext ? 'League and flight context' : 'Scorecards / rosters', tone: 'info' },
                 { label: 'Freshness', value: row.mostRecentMatchDate ? formatShortDate(row.mostRecentMatchDate, 'Review pending') : 'Review pending', tone: row.mostRecentMatchDate ? 'good' : 'warn' },
                 { label: 'Confidence', value: row.matchCount >= 5 ? 'High' : row.matchCount >= 2 ? 'Medium' : 'Limited', tone: row.matchCount >= 5 ? 'good' : row.matchCount >= 2 ? 'warn' : 'info' },
-                { label: 'Status', value: 'Reviewable', tone: 'good' },
+                { label: 'Status', value: isTennisRecordContext ? 'Ready to explore' : 'Reviewable', tone: 'good' },
               ]}
               reviewContext={`Team ${row.team}`}
             />
@@ -1860,6 +2120,99 @@ const emptyActionRow: CSSProperties = {
   minWidth: 0,
 }
 
+const teamDiscoveryResultsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  marginTop: 18,
+  minWidth: 0,
+}
+
+const teamPulseFeatureStyle: CSSProperties = {
+  display: 'grid',
+  gap: 18,
+  minWidth: 0,
+  padding: 'clamp(18px, 4vw, 30px)',
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 12%, rgba(8,16,34,0.94) 88%), rgba(7,17,33,0.94) 64%)',
+  boxShadow: '0 24px 70px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.06)',
+  overflow: 'hidden',
+}
+
+const teamPulseFeatureTopStyle: CSSProperties = {
+  display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, minWidth: 0,
+}
+
+const teamPulseFeatureCopyStyle: CSSProperties = { display: 'grid', gap: 6, minWidth: 0 }
+
+const teamPulseEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase',
+}
+
+const teamPulseTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)', fontSize: 'clamp(1.8rem, 6vw, 3.2rem)', lineHeight: 0.98, letterSpacing: '-0.04em', fontWeight: 950, textDecoration: 'none', overflowWrap: 'anywhere',
+}
+
+const teamPulseMetaStyle: CSSProperties = {
+  display: 'flex', flexWrap: 'wrap', gap: 8, color: 'var(--shell-copy-muted)', fontSize: 13, fontWeight: 760, overflowWrap: 'anywhere',
+}
+
+const teamPulseFlightStyle: CSSProperties = { color: 'var(--brand-lime)' }
+
+const teamPulseSourceStyle: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', minHeight: 28, padding: '0 10px', borderRadius: 999, border: '1px solid rgba(116,190,255,0.2)', background: 'rgba(7,17,33,0.58)', color: 'var(--foreground-strong)', fontSize: 11, fontWeight: 820, maxWidth: '100%', overflowWrap: 'anywhere',
+}
+
+const teamPulseMainStyle: CSSProperties = {
+  display: 'grid', gridTemplateColumns: 'minmax(130px, 0.72fr) minmax(0, 1.28fr)', gap: 16, alignItems: 'stretch', minWidth: 0,
+}
+
+const teamPulseRecordStyle: CSSProperties = {
+  display: 'grid', alignContent: 'center', gap: 4, minWidth: 0, padding: '16px', borderRadius: 18, border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)', background: 'rgba(5,14,29,0.56)', color: 'var(--brand-lime)',
+}
+
+const teamPulseRecordValueStyle: CSSProperties = { fontSize: 'clamp(2.5rem, 9vw, 4.6rem)', lineHeight: 0.9, letterSpacing: '-0.07em', fontWeight: 950 }
+const teamPulseRecordLabelStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 820, textTransform: 'uppercase', letterSpacing: '0.08em' }
+
+const teamPulseFormStyle: CSSProperties = { display: 'grid', alignContent: 'center', gap: 7, minWidth: 0, padding: '16px 4px' }
+const teamPulseFormTitleStyle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 'clamp(1.25rem, 4vw, 2rem)', lineHeight: 1.04, fontWeight: 930, overflowWrap: 'anywhere' }
+const teamPulseBadgesStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 6, minWidth: 0 }
+const teamPulseSupportStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.45, fontWeight: 700, overflowWrap: 'anywhere' }
+
+const teamPulseSignalGridStyle: CSSProperties = {
+  display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, minWidth: 0,
+}
+
+const teamPulseSignalStyle: CSSProperties = {
+  display: 'grid', gap: 4, minWidth: 0, padding: '10px', borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.13)', background: 'rgba(7,17,33,0.5)', overflowWrap: 'anywhere',
+  color: 'var(--shell-copy-muted)', fontSize: 10, fontWeight: 850, letterSpacing: '0.06em', textTransform: 'uppercase',
+}
+
+const teamPulseSignalValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)', fontSize: 13, lineHeight: 1.1, fontWeight: 950, letterSpacing: 0, textTransform: 'none',
+}
+
+const teamPulseFooterStyle: CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, minWidth: 0, paddingTop: 14, borderTop: '1px solid rgba(116,190,255,0.14)',
+}
+
+const teamPulseActionStyle: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 42, padding: '0 16px', borderRadius: 999, background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)', color: 'var(--foreground-strong)', fontSize: 13, fontWeight: 950, textDecoration: 'none',
+}
+
+const captainDiscoveryTeaseStyle: CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14, minWidth: 0, padding: '18px', borderRadius: 20, border: '1px solid color-mix(in srgb, var(--brand-blue-2) 32%, var(--shell-panel-border) 68%)', background: 'linear-gradient(135deg, rgba(38,120,255,0.13), rgba(7,17,33,0.78))',
+}
+
+const captainDiscoveryTeaseCopyStyle: CSSProperties = {
+  display: 'grid', gap: 5, minWidth: 0, maxWidth: 660, color: 'var(--shell-copy-muted)', fontSize: 13, lineHeight: 1.5, fontWeight: 700,
+}
+
+const captainDiscoveryTeaseActionStyle: CSSProperties = {
+  ...secondaryIntroButton, flex: '0 0 auto', borderColor: 'color-mix(in srgb, var(--brand-blue-2) 38%, var(--shell-panel-border) 62%)',
+}
+
 const cardsGrid = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
@@ -2008,9 +2361,27 @@ const teamAwardPillStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const teamRecordBarWrap: CSSProperties = {
-  marginBottom: 10,
+const teamSnapshotStyle: CSSProperties = {
+  marginTop: 16,
+  padding: '12px',
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.09), rgba(116,190,255,0.06))',
   minWidth: 0,
+}
+
+const teamSnapshotHeadingStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: 8,
+  marginBottom: 8,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  flexWrap: 'wrap',
 }
 
 const teamRecordBar: CSSProperties = {
@@ -2019,15 +2390,7 @@ const teamRecordBar: CSSProperties = {
   overflow: 'hidden',
   height: 7,
   background: 'color-mix(in srgb, var(--foreground-strong) 6%, transparent)',
-  marginBottom: 5,
-  minWidth: 0,
-}
-
-const teamRecordLegend: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: 8,
-  flexWrap: 'wrap',
+  marginBottom: 7,
   minWidth: 0,
 }
 
@@ -2038,18 +2401,11 @@ const teamRecordWinText: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const teamRecordLossText: CSSProperties = {
-  fontSize: 11,
-  fontWeight: 700,
-  color: '#fca5a5',
-  overflowWrap: 'anywhere',
-}
-
 const recentFormRow: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 6,
-  marginBottom: 10,
+  marginTop: 10,
   flexWrap: 'wrap',
   minWidth: 0,
 }

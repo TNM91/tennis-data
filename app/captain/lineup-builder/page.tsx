@@ -12,7 +12,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
@@ -22,8 +22,10 @@ import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
 import {
   buildCaptainScopedHref,
   chooseLatestCaptainResumeState,
+  hasExplicitCaptainRouteScope,
   loadCaptainResumeStateFromCloud,
   readCaptainResumeState,
+  resolveCaptainMatchContext,
   syncCaptainResumeState,
 } from '@/lib/captain-memory'
 import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
@@ -31,7 +33,7 @@ import { readCaptainWeekStatus } from '@/lib/captain-week-status'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
-import { formatDate, formatRating, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
+import { buildSmsHref, formatDate, formatRating, uniqueSorted, cleanText, normalizeTeamName, prepareSmsBodyForNativeComposer } from '@/lib/captain-formatters'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
@@ -67,14 +69,27 @@ import {
   type PlayerRatingSource,
 } from '@/lib/player-eligibility'
 import {
+  CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY,
   CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY,
+  buildPlayerPotentialLineupAvailabilityMessage,
+  getCaptainLineupDraftStorageKey,
+  readCaptainLineupBuilderDraft,
+  readCaptainDirectCourtTextHandoff,
+  type CaptainDirectCourtTextHandoff,
+  type CaptainLineupBuilderDraft,
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
+import {
+  normalizeCaptainRosterContactKey,
+  selectCaptainContactRowsForScope,
+  type CaptainRosterContactRow,
+} from '@/lib/captain-roster-contacts'
 import {
   applyCaptainSuggestedSwap,
   buildCaptainSuggestedSwapImpact,
   type CaptainSuggestedSwapImpact,
 } from '@/lib/captain-replacement-recommendation'
+import { readPrivateClientSnapshot, writePrivateClientSnapshot } from '@/lib/private-client-snapshot'
 
 type PlayerRow = {
   id: string
@@ -148,6 +163,17 @@ type SlotPlayer = {
   playerId: string
   playerName: string
 }
+
+type PreparedCourtText = {
+  key: string
+  playerId: string
+  playerName: string
+  phone: string
+  href: string
+  body: string
+}
+
+type BuilderMode = 'manual' | 'insights'
 
 type LineupSlot = CaptainLineupSlot
 
@@ -260,6 +286,8 @@ type RecommendationCard = {
   tone: 'good' | 'warn' | 'info'
 }
 
+type CourtMapTone = 'good' | 'warn' | 'info' | 'muted'
+
 type AppliedLineupNotice = {
   title: string
   changedCourts: number
@@ -268,6 +296,12 @@ type AppliedLineupNotice = {
 }
 
 type AvailabilityConfirmationStage = 'idle' | 'saving-lineup' | 'preparing-replies' | 'opening-messages'
+
+type CourtAskSignal = {
+  label: string
+  detail: string
+  tone: 'ready' | 'waiting' | 'confirmed' | 'maybe' | 'out' | 'warning' | 'muted'
+}
 
 function getSaveAndAskLabel(stage: AvailabilityConfirmationStage) {
   if (stage === 'saving-lineup') return 'Saving lineup...'
@@ -307,23 +341,45 @@ function cloneSlots(slots: LineupSlot[]) {
   }))
 }
 
+type CaptainMessageTextContactRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+  full_name: string | null
+  phone: string | null
+  opt_in_text: boolean | null
+}
+
+type LineupBuilderPayload = {
+  ok?: boolean
+  message?: string
+  players?: PlayerRow[]
+  matches?: MatchTeamRow[]
+  matchPlayers?: MatchPlayerLinkRow[]
+  rosterMembers?: TeamRosterMemberRow[]
+  availability?: AvailabilityRow[]
+  captainRosterContacts?: CaptainRosterContactRow[]
+  captainMessageContacts?: CaptainMessageTextContactRow[]
+  savedScenarios?: ScenarioRow[]
+  tiqTeamLeagueFormats?: TiqTeamLeagueFormatRow[]
+}
+
+const CAPTAIN_LINEUP_SNAPSHOT_MAX_AGE_MS = 6 * 60 * 60 * 1000
+const CAPTAIN_LINEUP_REQUEST_TIMEOUT_MS = 12_000
+
 function buildRosterPlayerIdSet(
   targetTeam: string,
   matches: MatchTeamRow[],
   matchPlayers: MatchPlayerLinkRow[],
   availabilityRows: AvailabilityRow[],
   rosterMembers: TeamRosterMemberRow[],
-  filters: { leagueName: string; flight: string }
 ) {
   const normalizedTarget = normalizeTeamName(targetTeam)
   if (!normalizedTarget) return new Set<string>()
-
   const filteredMatches = matches.filter((match) => {
     const home = normalizeTeamName(match.home_team)
     const away = normalizeTeamName(match.away_team)
     if (home !== normalizedTarget && away !== normalizedTarget) return false
-    if (filters.leagueName && (match.league_name ?? '').trim() !== filters.leagueName) return false
-    if (filters.flight && (match.flight ?? '').trim() !== filters.flight) return false
     return true
   })
 
@@ -346,12 +402,10 @@ function buildRosterPlayerIdSet(
   for (const row of availabilityRows) {
     if (!row.player_id) continue
     if (normalizeTeamName(row.team_name) !== normalizedTarget) continue
-    if (filters.leagueName && (row.league_name ?? '').trim() && (row.league_name ?? '').trim() !== filters.leagueName) continue
-    if (filters.flight && (row.flight ?? '').trim() && (row.flight ?? '').trim() !== filters.flight) continue
     ids.add(row.player_id)
   }
 
-  for (const row of getScopedRosterMembers(targetTeam, rosterMembers, filters)) {
+  for (const row of getScopedRosterMembers(targetTeam, rosterMembers)) {
     if (!row.player_id) continue
     ids.add(row.player_id)
   }
@@ -362,26 +416,19 @@ function buildRosterPlayerIdSet(
 function getScopedRosterMembers(
   targetTeam: string,
   rosterMembers: TeamRosterMemberRow[],
-  filters: { leagueName: string; flight: string },
 ) {
   const normalizedTarget = normalizeTeamName(targetTeam)
   const teamRosterMembers = rosterMembers.filter((row) => (
     Boolean(row.player_id) && normalizeTeamName(row.team_name) === normalizedTarget
   ))
-  const scopedRosterMembers = teamRosterMembers.filter((row) => {
-    if (filters.leagueName && (row.league_name ?? '').trim() && (row.league_name ?? '').trim() !== filters.leagueName) return false
-    if (filters.flight && (row.flight ?? '').trim() && (row.flight ?? '').trim() !== filters.flight) return false
-    return true
-  })
-  return scopedRosterMembers.length ? scopedRosterMembers : teamRosterMembers
+  return teamRosterMembers
 }
 
 function buildRosterEligibilityByPlayerId(
   targetTeam: string,
   rosterMembers: TeamRosterMemberRow[],
-  filters: { leagueName: string; flight: string },
 ) {
-  return new Map(getScopedRosterMembers(targetTeam, rosterMembers, filters)
+  return new Map(getScopedRosterMembers(targetTeam, rosterMembers)
     .filter((row) => Boolean(row.player_id))
     .map((row) => [row.player_id as string, row]))
 }
@@ -443,6 +490,14 @@ function createManualRosterPlayer(
     manualLeagueName: scope.leagueName,
     manualFlight: scope.flight,
   }
+}
+
+function restoreManualRosterPlayers(draft: CaptainLineupBuilderDraft | null | undefined) {
+  return (draft?.manualRosterEntries ?? []).map((entry) => createManualRosterPlayer(entry.name, {
+    teamName: entry.teamName,
+    leagueName: entry.leagueName,
+    flight: entry.flight,
+  }))
 }
 
 function buildTeamSummaryUploadHref(context: {
@@ -507,6 +562,51 @@ function availabilityRank(status: string | null | undefined) {
   if (normalized === 'unknown' || normalized === '') return 2
   if (normalized === 'unavailable' || normalized === 'no' || normalized === 'out') return 3
   return 2
+}
+
+function availabilityLabel(status: string | null | undefined) {
+  const normalized = (status ?? '').trim().toLowerCase()
+  if (normalized === 'available' || normalized === 'yes' || normalized === 'in' || normalized === 'confirmed') return 'Confirmed'
+  if (normalized === 'maybe' || normalized === 'limited') return 'Maybe'
+  if (normalized === 'unavailable' || normalized === 'no' || normalized === 'out' || normalized === 'declined') return 'Out'
+  return 'No response'
+}
+
+function getCourtAskSignal({
+  replyLabel,
+  prepared,
+  opened,
+  preparing,
+  needsPhone,
+}: {
+  replyLabel: ReturnType<typeof availabilityLabel>
+  prepared: boolean
+  opened: boolean
+  preparing: boolean
+  needsPhone: boolean
+}): CourtAskSignal {
+  if (replyLabel === 'Confirmed') {
+    return { label: 'Confirmed', detail: 'Reply received. This player stays protected in your lineup.', tone: 'confirmed' }
+  }
+  if (replyLabel === 'Maybe') {
+    return { label: 'Maybe · review', detail: 'Reply received. Keep this court flexible until they confirm.', tone: 'maybe' }
+  }
+  if (replyLabel === 'Out') {
+    return { label: 'No · replace', detail: 'Reply received. Choose another player for this court.', tone: 'out' }
+  }
+  if (needsPhone) {
+    return { label: 'Mobile needed', detail: 'Add a mobile number to prepare this player’s private Ask.', tone: 'warning' }
+  }
+  if (prepared && opened) {
+    return { label: 'Ask sent · waiting', detail: 'TiQ is checking for their reply while you keep building.', tone: 'waiting' }
+  }
+  if (prepared) {
+    return { label: 'Ask ready', detail: 'Tap Ask below to open a prefilled message.', tone: 'ready' }
+  }
+  if (preparing) {
+    return { label: 'Preparing Ask', detail: 'Securing this player’s one-tap reply link now.', tone: 'waiting' }
+  }
+  return { label: 'Ask pending', detail: 'Prepare this player’s private Ask when you are ready.', tone: 'muted' }
 }
 
 function reliabilityWeight(status: string | null | undefined) {
@@ -646,6 +746,14 @@ function formatLineGap(line: LineProjection) {
 function formatSlotPlayerNames(players: SlotPlayer[], fallback: string) {
   const names = players.map((player) => player.playerName).filter(Boolean)
   return names.length ? names.join(' / ') : fallback
+}
+
+function slotPlayerSignature(players: SlotPlayer[]) {
+  return players
+    .map((player) => player.playerId || player.playerName)
+    .filter(Boolean)
+    .sort()
+    .join('|')
 }
 
 function probabilityFromDiff(diff: number | null | undefined) {
@@ -1130,7 +1238,7 @@ function getLineupWarnings(
           rules.ratingRule !== 'local_rules' &&
           typeof getPlayerBaseRating(player) !== 'number'
         ) {
-          warnings.push(`${selected.playerName || 'Selected player'} needs a rating before TIQ can confirm eligibility.`)
+          warnings.push(`${selected.playerName || 'Selected player'} needs a rating before TiQ can confirm eligibility.`)
         }
         if (
           player &&
@@ -1184,41 +1292,21 @@ function toneCardStyle(tone: 'good' | 'warn' | 'info'): CSSProperties {
   return bannerBlueStyle
 }
 
-function readInitialLineupBuilderContext(userId?: string | null) {
-  if (typeof window === 'undefined') {
-    return {
-      competitionLayer: '',
-      team: '',
-      league: '',
-      flight: '',
-      eventDate: '',
-      opponentTeam: '',
-      matchId: '',
-      scenario: '',
-      pairIds: [] as string[],
-      singleId: '',
-      matchFormat: 'auto' as const,
-      replacePlayer: '',
-      replacementPlayer: '',
-      replacementPlayerId: '',
-      replacementCourt: '',
-      mode: '',
-      source: '',
-      availabilityOnly: false,
-    }
-  }
-
-  const params = new URLSearchParams(window.location.search)
-  const resumeState = readCaptainResumeState(userId)
+function readInitialLineupBuilderContext(routeSearch: string, userId?: string | null) {
+  const params = new URLSearchParams(routeSearch)
+  const resumeState = typeof window === 'undefined' ? null : readCaptainResumeState(userId)
+  const matchContext = resolveCaptainMatchContext(params)
+  const hasExplicitRouteScope = hasExplicitCaptainRouteScope(params)
 
   return {
+    hasExplicitRouteScope,
     competitionLayer: params.get('layer') || resumeState?.competitionLayer || '',
     team: params.get('team') || resumeState?.team || '',
     league: params.get('league') || resumeState?.league || '',
     flight: params.get('flight') || resumeState?.flight || '',
-    eventDate: params.get('date') || resumeState?.eventDate || '',
-    opponentTeam: params.get('opponent') || resumeState?.opponentTeam || '',
-    matchId: params.get('match') || resumeState?.matchId || '',
+    eventDate: matchContext.eventDate,
+    opponentTeam: matchContext.opponentTeam,
+    matchId: matchContext.matchId,
     scenario: params.get('scenario') || params.get('left') || resumeState?.scenarioId || '',
     pairIds: (params.get('pair') || '').split(',').map((value) => value.trim()).filter(Boolean),
     singleId: params.get('single') || '',
@@ -1229,28 +1317,71 @@ function readInitialLineupBuilderContext(userId?: string | null) {
     replacementCourt: params.get('court') || '',
     mode: params.get('mode') || '',
     source: params.get('source') || '',
-    availabilityOnly: params.get('source') === 'team_room' && params.get('availability') === 'replies',
+      availabilityOnly: false,
   }
 }
 
 export default function LineupBuilderPage() {
+  const searchParams = useSearchParams()
+  const routeSearch = searchParams.toString()
+  const builderContextKey = hasExplicitCaptainRouteScope(new URLSearchParams(routeSearch))
+    ? `captain-scope:${routeSearch}`
+    : 'captain-resume'
+
   return (
     <SiteShell active="/captain">
-      <LineupBuilderContent />
+      <LineupBuilderContent key={builderContextKey} routeSearch={routeSearch} />
     </SiteShell>
   )
 }
 
-function LineupBuilderContent() {
+function isFutureJwtError(message: string | null | undefined) {
+  return (message || '').toLowerCase().includes('jwt issued at future')
+}
+
+// A freshly issued mobile session can take a couple of seconds to be accepted
+// by every Supabase/PostgREST node. Retrying immediately treats that short
+// propagation window as a lost roster, which is the opposite of what a
+// captain needs while building a lineup.
+const FUTURE_JWT_SETTLE_DELAY_MS = 3_000
+const MAX_FUTURE_JWT_RECOVERY_ATTEMPTS = 2
+
+function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const router = useRouter()
   const { role, entitlements, authResolved, userId, session } = useAuth()
-  const initialContext = readInitialLineupBuilderContext(userId)
+  const initialContext = readInitialLineupBuilderContext(routeSearch, userId)
+  const persistedDirectCourtTextHandoff = typeof window === 'undefined'
+    ? null
+    : readCaptainDirectCourtTextHandoff(window.localStorage.getItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY))
+  const persistedDeviceBuilderDraft = typeof window === 'undefined'
+    ? null
+    : readCaptainLineupBuilderDraft(window.localStorage.getItem(getCaptainLineupDraftStorageKey(userId)))
+  // A Team card is a deliberate route choice. Never let a recoverable draft
+  // from another team replace that selection after mobile auth settles.
+  const persistedBuilderDraft = initialContext.hasExplicitRouteScope
+    ? null
+    : (persistedDirectCourtTextHandoff?.builderDraft ?? persistedDeviceBuilderDraft)
+  const persistedManualRosterDraft = persistedDirectCourtTextHandoff?.builderDraft ?? persistedDeviceBuilderDraft
+  const initialCompetitionLayer = initialContext.competitionLayer || persistedBuilderDraft?.competitionLayer || ''
+  const initialLeagueName = initialContext.league || persistedBuilderDraft?.leagueName || ''
+  const initialFlight = initialContext.flight || persistedBuilderDraft?.flight || ''
+  const initialTeamName = initialContext.team || persistedBuilderDraft?.teamName || ''
+  const initialOpponentTeam = initialContext.opponentTeam || persistedBuilderDraft?.opponentTeam || ''
+  const initialMatchDate = initialContext.eventDate || persistedBuilderDraft?.matchDate || ''
+  const initialMatchId = initialContext.matchId || persistedBuilderDraft?.selectedMatchId || ''
+  const initialMatchFormat = initialContext.matchFormat !== 'auto'
+    ? initialContext.matchFormat
+    : persistedBuilderDraft?.matchFormat || 'auto'
 
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [matches, setMatches] = useState<MatchTeamRow[]>([])
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayerLinkRow[]>([])
   const [rosterMembers, setRosterMembers] = useState<TeamRosterMemberRow[]>([])
+  const [teamRosterPlayers, setTeamRosterPlayers] = useState<PlayerRow[]>([])
+  const [scopedRosterPlayerIds, setScopedRosterPlayerIds] = useState<string[]>([])
   const [availability, setAvailability] = useState<AvailabilityRow[]>([])
+  const [captainRosterContacts, setCaptainRosterContacts] = useState<CaptainRosterContactRow[]>([])
+  const [captainMessageContacts, setCaptainMessageContacts] = useState<CaptainMessageTextContactRow[]>([])
   const [savedScenarios, setSavedScenarios] = useState<ScenarioRow[]>([])
   const [tiqTeamLeagueFormats, setTiqTeamLeagueFormats] = useState<TiqTeamLeagueFormatRow[]>([])
 
@@ -1259,37 +1390,57 @@ function LineupBuilderContent() {
   const [confirmationStage, setConfirmationStage] = useState<AvailabilityConfirmationStage>('idle')
   const preparingConfirmation = confirmationStage !== 'idle'
   const saveAndAskLabel = getSaveAndAskLabel(confirmationStage)
+  const [askingCourtId, setAskingCourtId] = useState('')
+  const [preparedCourtTexts, setPreparedCourtTexts] = useState<Record<string, PreparedCourtText>>({})
+  const [openedCourtTextKeys, setOpenedCourtTextKeys] = useState<string[]>([])
+  const [missingPhonePlayerKeys, setMissingPhonePlayerKeys] = useState<string[]>([])
+  const [inlinePhoneByPlayerKey, setInlinePhoneByPlayerKey] = useState<Record<string, string>>({})
+  const [savingPhonePlayerKey, setSavingPhonePlayerKey] = useState('')
+  const preparingCourtTextKeysRef = useRef(new Set<string>())
+  const [directCourtTextHandoff, setDirectCourtTextHandoff] = useState<CaptainDirectCourtTextHandoff | null>(
+    initialContext.hasExplicitRouteScope ? null : persistedDirectCourtTextHandoff,
+  )
+  const [refreshingReplies, setRefreshingReplies] = useState(false)
   const [trackingSnapshot, setTrackingSnapshot] = useState(false)
   const [deletingScenarioId, setDeletingScenarioId] = useState('')
   const [loadingScenarioId, setLoadingScenarioId] = useState('')
-  const [currentScenarioId, setCurrentScenarioId] = useState('')
+  const [currentScenarioId, setCurrentScenarioId] = useState(persistedBuilderDraft?.scenarioId || '')
+  const [comparisonScenarioId, setComparisonScenarioId] = useState('')
 
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [smsFallback, setSmsFallback] = useState<{ href: string; playerName: string } | null>(null)
+  const [recoveringSecureSession, setRecoveringSecureSession] = useState(false)
   const [appliedLineupNotice, setAppliedLineupNotice] = useState<AppliedLineupNotice | null>(null)
   const [suggestedSwapDraft, setSuggestedSwapDraft] = useState<SuggestedSwapDraft | null>(null)
   const [savedLineupChangeDelivery, setSavedLineupChangeDelivery] = useState<SavedLineupChangeDelivery | null>(null)
   const [notifyingLineupChange, setNotifyingLineupChange] = useState(false)
 
-  const [competitionLayer, setCompetitionLayer] = useState(initialContext.competitionLayer)
-  const [leagueName, setLeagueName] = useState(initialContext.league)
+  const [competitionLayer, setCompetitionLayer] = useState(initialCompetitionLayer)
+  const [leagueName, setLeagueName] = useState(initialLeagueName)
   const [selectedMatchFormatId, setSelectedMatchFormatId] = useState<TeamMatchFormatId | 'auto'>(
-    initialContext.matchFormat === 'auto' ? 'auto' : normalizeTeamMatchFormatId(initialContext.matchFormat)
+    initialMatchFormat === 'auto' ? 'auto' : normalizeTeamMatchFormatId(initialMatchFormat)
   )
-  const [flight, setFlight] = useState(initialContext.flight)
-  const [teamName, setTeamName] = useState(initialContext.team)
-  const [opponentTeam, setOpponentTeam] = useState(initialContext.opponentTeam)
-  const [matchDate, setMatchDate] = useState(initialContext.eventDate)
-  const [selectedMatchId, setSelectedMatchId] = useState(initialContext.matchId)
-  const [scenarioName, setScenarioName] = useState('')
-  const [notes, setNotes] = useState('')
+  const [flight, setFlight] = useState(initialFlight)
+  const [teamName, setTeamName] = useState(initialTeamName)
+  const [opponentTeam, setOpponentTeam] = useState(initialOpponentTeam)
+  const [matchDate, setMatchDate] = useState(initialMatchDate)
+  const [selectedMatchId, setSelectedMatchId] = useState(initialMatchId)
+  const [scenarioName, setScenarioName] = useState(persistedBuilderDraft?.scenarioName || '')
+  const [notes, setNotes] = useState(persistedBuilderDraft?.notes || '')
   const [refreshTick, setRefreshTick] = useState(0)
-  const [manualRosterPlayers, setManualRosterPlayers] = useState<ManualRosterPlayer[]>([])
+  const [manualRosterPlayers, setManualRosterPlayers] = useState<ManualRosterPlayer[]>(() =>
+    restoreManualRosterPlayers(persistedManualRosterDraft)
+  )
   const [manualRosterText, setManualRosterText] = useState('')
   const [manualRosterOpen, setManualRosterOpen] = useState(false)
+  const [manualOpponentRosterText, setManualOpponentRosterText] = useState('')
+  const [manualOpponentRosterOpen, setManualOpponentRosterOpen] = useState(false)
+  const [builderMode, setBuilderMode] = useState<BuilderMode>('manual')
+  const [expandedTeamSlotId, setExpandedTeamSlotId] = useState('')
 
   const [availabilityOnly, setAvailabilityOnly] = useState(initialContext.availabilityOnly)
-  const [hideUnavailable, setHideUnavailable] = useState(true)
+  const [hideUnavailable, setHideUnavailable] = useState(false)
   const replacementHandoff = useMemo(
     () => initialContext.replacePlayer && initialContext.replacementPlayer && initialContext.replacementCourt
       ? {
@@ -1313,24 +1464,33 @@ function LineupBuilderContent() {
     [initialContext.mode, initialContext.replacePlayer, initialContext.replacementCourt],
   )
   const [teamSlots, setTeamSlots] = useState<LineupSlot[]>(() =>
-    buildCaptainLineupSlots(initialContext.league, initialContext.flight, 'team', initialContext.matchFormat)
+    normalizeSavedSlots(persistedBuilderDraft?.teamSlots).length
+      ? normalizeSavedSlots(persistedBuilderDraft?.teamSlots)
+      : buildCaptainLineupSlots(initialLeagueName, initialFlight, 'team', initialMatchFormat)
   )
   const [opponentSlots, setOpponentSlots] = useState<LineupSlot[]>(() =>
-    buildCaptainLineupSlots(initialContext.league, initialContext.flight, 'opponent', initialContext.matchFormat)
+    normalizeSavedSlots(persistedBuilderDraft?.opponentSlots).length
+      ? normalizeSavedSlots(persistedBuilderDraft?.opponentSlots)
+      : buildCaptainLineupSlots(initialLeagueName, initialFlight, 'opponent', initialMatchFormat)
   )
   const [activeLineupFormatKey, setActiveLineupFormatKey] = useState(() =>
-    getCaptainLineupFormatKey(initialContext.league, initialContext.flight, initialContext.matchFormat)
+    getCaptainLineupFormatKey(initialLeagueName, initialFlight, initialMatchFormat)
   )
   const [lockedSlotIds, setLockedSlotIds] = useState<string[]>([])
   const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
+  const [releasedConfirmedPlayerIds, setReleasedConfirmedPlayerIds] = useState<string[]>([])
 
-  const [prefillScenarioId, setPrefillScenarioId] = useState(initialContext.scenario)
+  const [prefillScenarioId] = useState(initialContext.scenario)
   const [prefillPairIds] = useState<string[]>(initialContext.pairIds)
   const [prefillSingleId] = useState(initialContext.singleId)
   const [prefillApplied, setPrefillApplied] = useState(false)
   const [scopedResumeResolved, setScopedResumeResolved] = useState(false)
   const scopedResumeAppliedRef = useRef(false)
   const backupFocusHandledRef = useRef(false)
+  const lastReplyRefreshRef = useRef(0)
+  const futureJwtRefreshAttemptedRef = useRef(0)
+  const localBuilderDraftRestoredRef = useRef(Boolean(persistedBuilderDraft))
+  const localBuilderDraftWriteReadyRef = useRef(Boolean(persistedBuilderDraft))
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
@@ -1344,7 +1504,13 @@ function LineupBuilderContent() {
       (!normalizedFlight || !record.flight || normalizeTeamName(record.flight) === normalizedFlight)
     ) || null
   }, [flight, leagueName, tiqTeamLeagueFormats])
-  const storedTiqMatchFormatId = storedTiqLeagueFormat?.team_match_format_id || ''
+  // A TiQ League Coordinator can explicitly configure a TiQ league's court
+  // format. That configuration must never replace the format supplied by a
+  // connected USTA league such as Tri-Level, Mixed, or Combo.
+  const isTiqLeagueContext = competitionLayer === 'tiq'
+  const storedTiqMatchFormatId = isTiqLeagueContext
+    ? storedTiqLeagueFormat?.team_match_format_id || ''
+    : ''
   const effectiveMatchFormatId = selectedMatchFormatId === 'auto'
     ? storedTiqMatchFormatId || 'auto'
     : selectedMatchFormatId
@@ -1358,9 +1524,11 @@ function LineupBuilderContent() {
       flight,
       explicitFormatId: effectiveMatchFormatId,
       competitionLayer,
-      rulesOverride: normalizeTeamCompetitionRulesOverride(storedTiqLeagueFormat?.competition_rules),
+      rulesOverride: isTiqLeagueContext
+        ? normalizeTeamCompetitionRulesOverride(storedTiqLeagueFormat?.competition_rules)
+        : undefined,
     }),
-    [competitionLayer, effectiveMatchFormatId, flight, leagueName, storedTiqLeagueFormat?.competition_rules],
+    [competitionLayer, effectiveMatchFormatId, flight, isTiqLeagueContext, leagueName, storedTiqLeagueFormat?.competition_rules],
   )
   const matchFormatSummary = useMemo(() => getTeamMatchFormatSummary(resolvedMatchFormat), [resolvedMatchFormat])
   const triLevelRatings = useMemo(() => getTriLevelRatings(leagueName, flight), [flight, leagueName])
@@ -1370,6 +1538,42 @@ function LineupBuilderContent() {
     () => getCaptainLineupFormatKey(leagueName, flight, effectiveMatchFormatId),
     [effectiveMatchFormatId, flight, leagueName]
   )
+  const currentBuilderDraft = useMemo<CaptainLineupBuilderDraft>(() => ({
+    competitionLayer,
+    leagueName,
+    flight,
+    teamName,
+    opponentTeam,
+    matchDate,
+    selectedMatchId,
+    matchFormat: selectedMatchFormatId,
+    scenarioId: currentScenarioId,
+    scenarioName,
+    notes,
+    teamSlots: cloneSlots(teamSlots),
+    opponentSlots: cloneSlots(opponentSlots),
+    manualRosterEntries: manualRosterPlayers.slice(-80).map((player) => ({
+      name: player.name,
+      teamName: player.manualTeamName,
+      leagueName: player.manualLeagueName,
+      flight: player.manualFlight,
+    })),
+  }), [
+    competitionLayer,
+    currentScenarioId,
+    flight,
+    leagueName,
+    matchDate,
+    manualRosterPlayers,
+    notes,
+    opponentSlots,
+    opponentTeam,
+    scenarioName,
+    selectedMatchFormatId,
+    selectedMatchId,
+    teamName,
+    teamSlots,
+  ])
   const backupFocusSlot = useMemo(() => {
     if (!backupHandoff) return null
     const courtKey = normalizeTeamName(backupHandoff.courtLabel)
@@ -1391,12 +1595,75 @@ function LineupBuilderContent() {
     setActiveLineupFormatKey(lineupFormatKey)
     setLockedSlotIds([])
     setLockedPlayerIds([])
+    setReleasedConfirmedPlayerIds([])
     setAppliedLineupNotice(null)
     setSuggestedSwapDraft(null)
     setSavedLineupChangeDelivery(null)
 
     setMessage(`${resolvedMatchFormat.label} set: ${matchFormatSummary.courts} court${matchFormatSummary.courts === 1 ? '' : 's'}.`)
   }, [activeLineupFormatKey, effectiveMatchFormatId, flight, leagueName, lineupFormatKey, matchFormatSummary.courts, resolvedMatchFormat.label])
+
+  useEffect(() => {
+    if (!authResolved || !userId || typeof window === 'undefined' || localBuilderDraftRestoredRef.current) return
+
+    if (initialContext.hasExplicitRouteScope) {
+      localBuilderDraftRestoredRef.current = true
+      return
+    }
+
+    const storedDraft = readCaptainLineupBuilderDraft(
+      window.localStorage.getItem(getCaptainLineupDraftStorageKey(userId))
+    )
+    localBuilderDraftRestoredRef.current = true
+    if (!storedDraft) return
+
+    localBuilderDraftWriteReadyRef.current = false
+    const restoredTeamSlots = normalizeSavedSlots(storedDraft.teamSlots)
+    const restoredOpponentSlots = normalizeSavedSlots(storedDraft.opponentSlots)
+    const restoredMatchFormat = storedDraft.matchFormat === 'auto'
+      ? 'auto'
+      : normalizeTeamMatchFormatId(storedDraft.matchFormat)
+
+    setCompetitionLayer(storedDraft.competitionLayer)
+    setLeagueName(storedDraft.leagueName)
+    setFlight(storedDraft.flight)
+    setTeamName(storedDraft.teamName)
+    setOpponentTeam(storedDraft.opponentTeam)
+    setMatchDate(storedDraft.matchDate)
+    setSelectedMatchId(storedDraft.selectedMatchId)
+    setSelectedMatchFormatId(restoredMatchFormat)
+    setCurrentScenarioId(storedDraft.scenarioId)
+    setScenarioName(storedDraft.scenarioName)
+    setNotes(storedDraft.notes)
+    const restoredManualRosterPlayers = restoreManualRosterPlayers(storedDraft)
+    if (restoredManualRosterPlayers.length) {
+      setManualRosterPlayers((current) => {
+        const currentIds = new Set(current.map((player) => player.id))
+        return [...current, ...restoredManualRosterPlayers.filter((player) => !currentIds.has(player.id))]
+      })
+    }
+    if (restoredTeamSlots.length) setTeamSlots(restoredTeamSlots)
+    if (restoredOpponentSlots.length) setOpponentSlots(restoredOpponentSlots)
+    setActiveLineupFormatKey(getCaptainLineupFormatKey(
+      storedDraft.leagueName,
+      storedDraft.flight,
+      restoredMatchFormat,
+    ))
+    setMessage('Draft restored on this device.')
+  }, [authResolved, initialContext.hasExplicitRouteScope, userId])
+
+  useEffect(() => {
+    if (!authResolved || !userId || typeof window === 'undefined' || !localBuilderDraftRestoredRef.current) return
+    if (!localBuilderDraftWriteReadyRef.current) {
+      localBuilderDraftWriteReadyRef.current = true
+      return
+    }
+
+    window.localStorage.setItem(getCaptainLineupDraftStorageKey(userId), JSON.stringify({
+      ...currentBuilderDraft,
+      updatedAt: new Date().toISOString(),
+    }))
+  }, [authResolved, currentBuilderDraft, userId])
 
   useEffect(() => {
     if (loading || !backupFocusSlot || backupFocusHandledRef.current) return
@@ -1427,18 +1694,22 @@ function LineupBuilderContent() {
 
   useEffect(() => {
     if (!authResolved || scopedResumeAppliedRef.current) return
+    if (initialContext.hasExplicitRouteScope) {
+      scopedResumeAppliedRef.current = true
+      setScopedResumeResolved(true)
+      return
+    }
+    if (localBuilderDraftRestoredRef.current) {
+      scopedResumeAppliedRef.current = true
+      setScopedResumeResolved(true)
+      return
+    }
     if (!userId || !session?.access_token) {
       scopedResumeAppliedRef.current = true
       setScopedResumeResolved(true)
       return
     }
     scopedResumeAppliedRef.current = true
-
-    const params = new URLSearchParams(window.location.search)
-    if (['layer', 'team', 'league', 'flight', 'date', 'opponent', 'match', 'scenario', 'left'].some((key) => Boolean(params.get(key)?.trim()))) {
-      setScopedResumeResolved(true)
-      return
-    }
 
     let active = true
     void (async () => {
@@ -1451,17 +1722,13 @@ function LineupBuilderContent() {
       setTeamName(resumeState.team || '')
       setLeagueName(resumeState.league || '')
       setFlight(resumeState.flight || '')
-      setMatchDate(resumeState.eventDate || '')
-      setOpponentTeam(resumeState.opponentTeam || '')
-      setSelectedMatchId(resumeState.matchId || '')
-      setPrefillScenarioId(resumeState.scenarioId || '')
       setPrefillApplied(false)
     })().finally(() => {
       if (active) setScopedResumeResolved(true)
     })
 
     return () => { active = false }
-  }, [authResolved, session?.access_token, userId])
+  }, [authResolved, initialContext.hasExplicitRouteScope, session?.access_token, userId])
 
   useEffect(() => {
     if (!scopedResumeResolved || (!teamName && !leagueName && !flight)) return
@@ -1527,141 +1794,163 @@ function LineupBuilderContent() {
     })
   }
 
-  const refreshBuilderData = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    setMessage('')
+  const applyBuilderPayload = useCallback((result: LineupBuilderPayload) => {
+    const nextMatches = result.matches ?? []
+    const nextMatchPlayers = result.matchPlayers ?? []
+    setPlayers(result.players ?? [])
+    setMatches(nextMatches)
+    setMatchPlayers(nextMatchPlayers)
+    setRosterMembers(result.rosterMembers ?? [])
+    setTeamRosterPlayers(result.players ?? [])
+    setAvailability(result.availability ?? [])
+    setCaptainRosterContacts(result.captainRosterContacts ?? [])
+    setCaptainMessageContacts(result.captainMessageContacts ?? [])
+    setSavedScenarios(result.savedScenarios ?? [])
+    setTiqTeamLeagueFormats(result.tiqTeamLeagueFormats ?? [])
 
-    const [
-      playersResult,
-      matchesResult,
-      matchPlayersResult,
-      rosterMembersResult,
-      availabilityResult,
-      scenariosResult,
-      tiqLeagueFormatsResult,
-    ] = await Promise.all([
-      supabase
-        .from('players')
-        .select(`
-          id,
-          name,
-          location,
-          flight,
-          preferred_role,
-          lineup_notes,
-          singles_rating,
-          singles_dynamic_rating,
-          singles_usta_dynamic_rating,
-          doubles_rating,
-          doubles_dynamic_rating,
-          doubles_usta_dynamic_rating,
-          overall_rating,
-          overall_dynamic_rating,
-          overall_usta_dynamic_rating,
-          rating_source,
-          mixed_pair_role
-        `)
-        .order('name', { ascending: true }),
-      supabase
-        .from('matches')
-        .select(`
-          id,
-          league_name,
-          flight,
-          match_date,
-          match_time,
-          facility,
-          home_team,
-          away_team,
-          line_number
-        `)
-        .is('line_number', null)
-        .order('match_date', { ascending: false })
-        .limit(400),
-      supabase
-        .from('match_players')
-        .select(`
-          match_id,
-          player_id,
-          side
-        `)
-        .limit(4000),
-      supabase
-        .from('team_roster_members')
-        .select(`
-          team_name,
-          player_id,
-          player_name,
-          league_name,
-          flight,
-          rating_source,
-          mixed_pair_role,
-          age_division
-        `)
-        .limit(4000),
-      supabase
-        .from('lineup_availability')
-        .select(`
-          id,
-          match_date,
-          team_name,
-          league_name,
-          flight,
-          player_id,
-          status,
-          notes
-        `)
-        .order('match_date', { ascending: false }),
-      supabase
-        .from('lineup_scenarios')
-        .select(`
-          id,
-          scenario_name,
-          league_name,
-          flight,
-          match_date,
-          team_name,
-          opponent_team,
-          slots_json,
-          opponent_slots_json,
-          notes
-        `)
-        .order('match_date', { ascending: false })
-        .order('scenario_name', { ascending: true }),
-      supabase
-        .from('tiq_leagues')
-        .select('league_name, flight, team_match_format_id, competition_rules')
-        .eq('league_format', 'team'),
-    ])
+    const sideByMatchId = new Map<string, 'A' | 'B'>()
+    const normalizedTeam = normalizeTeamName(teamName)
+    for (const match of nextMatches) {
+      if (normalizeTeamName(match.home_team) === normalizedTeam) sideByMatchId.set(match.id, 'A')
+      else if (normalizeTeamName(match.away_team) === normalizedTeam) sideByMatchId.set(match.id, 'B')
+    }
+    const scopedIds = new Set<string>()
+    for (const row of nextMatchPlayers) {
+      if (row.player_id && sideByMatchId.get(row.match_id) === row.side) scopedIds.add(row.player_id)
+    }
+    setScopedRosterPlayerIds([...scopedIds])
+  }, [teamName])
 
-    if (playersResult.error) {
-      setError(playersResult.error.message)
-    } else if (matchesResult.error) {
-      setError(matchesResult.error.message)
-    } else if (matchPlayersResult.error) {
-      setError(matchPlayersResult.error.message)
-    } else if (availabilityResult.error) {
-      setError(availabilityResult.error.message)
-    } else if (scenariosResult.error) {
-      setError(scenariosResult.error.message)
+  const refreshBuilderData = useCallback(async (quiet = false) => {
+    if (!quiet) {
+      setError('')
+      setMessage('')
+    }
+    const accessToken = session?.access_token || (await supabase.auth.getSession()).data.session?.access_token
+    if (!accessToken) {
+      setLoading(false)
+      setError('Sign in to load your Captain lineup.')
+      return false
+    }
+
+    const params = new URLSearchParams()
+    if (teamName) params.set('team', teamName)
+    if (leagueName) params.set('league', leagueName)
+    if (flight) params.set('flight', flight)
+
+    const snapshotScope = [normalizeTeamName(teamName), normalizeTeamName(leagueName), normalizeTeamName(flight)].join('__')
+    const snapshot = readPrivateClientSnapshot<LineupBuilderPayload>({
+      namespace: 'captain-lineup',
+      userId,
+      scope: snapshotScope,
+      maxAgeMs: CAPTAIN_LINEUP_SNAPSHOT_MAX_AGE_MS,
+      allowStale: true,
+    })
+    if (snapshot) {
+      applyBuilderPayload(snapshot.value)
+      setLoading(false)
+      if (snapshot.stale && !quiet) setMessage('Showing your saved lineup while live team data refreshes.')
     } else {
-      setPlayers((playersResult.data ?? []) as PlayerRow[])
-      setMatches((matchesResult.data ?? []) as MatchTeamRow[])
-      setMatchPlayers((matchPlayersResult.data ?? []) as MatchPlayerLinkRow[])
-      setRosterMembers(rosterMembersResult.error ? [] : ((rosterMembersResult.data ?? []) as TeamRosterMemberRow[]))
-      setAvailability((availabilityResult.data ?? []) as AvailabilityRow[])
-      setSavedScenarios((scenariosResult.data ?? []) as ScenarioRow[])
-      setTiqTeamLeagueFormats(tiqLeagueFormatsResult.error ? [] : (tiqLeagueFormatsResult.data ?? []) as TiqTeamLeagueFormatRow[])
+      setLoading(true)
+    }
+
+    let response: Response
+    let result: LineupBuilderPayload
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), CAPTAIN_LINEUP_REQUEST_TIMEOUT_MS)
+    try {
+      response = await fetch(`/api/captain/lineup-builder?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: 'no-store',
+        signal: controller.signal,
+      })
+      result = await response.json() as typeof result
+    } catch {
+      setLoading(false)
+      if (snapshot) {
+        if (!quiet) setMessage('Showing your saved lineup while live team data reconnects.')
+      } else {
+        setError('Your lineup data could not be reached. Please try again.')
+      }
+      return false
+    } finally {
+      window.clearTimeout(timeout)
+    }
+
+    const primaryError = !response.ok ? result.message || 'Your lineup data could not be loaded.' : ''
+    if (primaryError && isFutureJwtError(primaryError)) {
+      // Keep the existing lineup context intact while the newly-issued token
+      // settles. The observed mobile window is longer than a single paint, so
+      // do not expose an empty-roster/setup state between attempts.
+      futureJwtRefreshAttemptedRef.current += 1
+      setRecoveringSecureSession(true)
+      setMessage('Securing your team data…')
+
+      if (futureJwtRefreshAttemptedRef.current <= MAX_FUTURE_JWT_RECOVERY_ATTEMPTS) {
+        await supabase.auth.refreshSession()
+        window.setTimeout(() => setRefreshTick((current) => current + 1), FUTURE_JWT_SETTLE_DELAY_MS)
+        return false
+      }
+
+      setError('Your secure session is still reconnecting. Your saved team and lineup have been kept in place.')
+      setLoading(false)
+      return false
+    }
+
+    if (primaryError) {
+      futureJwtRefreshAttemptedRef.current = 0
+      setRecoveringSecureSession(false)
+      if (!quiet || !snapshot) setError(primaryError)
+    } else {
+      futureJwtRefreshAttemptedRef.current = 0
+      setRecoveringSecureSession(false)
+      applyBuilderPayload(result)
+      writePrivateClientSnapshot({
+        namespace: 'captain-lineup',
+        userId,
+        scope: snapshotScope,
+        value: result,
+      })
     }
 
     setLoading(false)
-  }, [])
+    return !primaryError
+  }, [applyBuilderPayload, flight, leagueName, session?.access_token, teamName, userId])
 
   useEffect(() => {
     if (!authResolved || role === 'public') return
     void refreshBuilderData()
   }, [authResolved, role, refreshTick, refreshBuilderData])
+
+  const refreshAvailabilityReplies = useCallback(async (quiet = false) => {
+    if (refreshingReplies) return
+    setRefreshingReplies(true)
+    if (!quiet) setMessage('Refreshing player replies...')
+    const loaded = await refreshBuilderData(quiet)
+    if (loaded && !quiet) setMessage('Player replies are up to date.')
+    setRefreshingReplies(false)
+  }, [refreshBuilderData, refreshingReplies])
+
+  useEffect(() => {
+    if (!authResolved || role === 'public' || typeof window === 'undefined') return
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'hidden') return
+      const now = Date.now()
+      if (now - lastReplyRefreshRef.current < 5000) return
+      lastReplyRefreshRef.current = now
+      void refreshAvailabilityReplies(true)
+    }
+
+    window.addEventListener('focus', refreshWhenVisible)
+    window.addEventListener('pageshow', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      window.removeEventListener('focus', refreshWhenVisible)
+      window.removeEventListener('pageshow', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [authResolved, refreshAvailabilityReplies, role])
 
   const leagueOptions = useMemo(
     () =>
@@ -1764,10 +2053,9 @@ function LineupBuilderContent() {
       const dateMatch = !matchDate || row.match_date === matchDate
       const teamMatch = !teamName || row.team_name === teamName
       const leagueMatch = !leagueName || row.league_name === leagueName
-      const flightMatch = !flight || row.flight === flight
-      return dateMatch && teamMatch && leagueMatch && flightMatch
+      return dateMatch && teamMatch && leagueMatch
     })
-  }, [availability, matchDate, teamName, leagueName, flight])
+  }, [availability, matchDate, teamName, leagueName])
 
   const availabilityMap = useMemo(() => {
     const map = new Map<string, { status: string | null; notes: string | null }>()
@@ -1776,6 +2064,28 @@ function LineupBuilderContent() {
     }
     return map
   }, [availabilityForSelection])
+  const openedCourtTextKeySet = useMemo(() => new Set(openedCourtTextKeys), [openedCourtTextKeys])
+  const hasPendingCourtReplies = useMemo(() => Object.values(preparedCourtTexts).some((preparedText) => (
+    openedCourtTextKeySet.has(preparedText.key) &&
+    availabilityLabel(availabilityMap.get(preparedText.playerId)?.status) === 'No response'
+  )), [availabilityMap, openedCourtTextKeySet, preparedCourtTexts])
+
+  useEffect(() => {
+    setPreparedCourtTexts({})
+    setOpenedCourtTextKeys([])
+    preparingCourtTextKeysRef.current.clear()
+  }, [flight, leagueName, matchDate, teamName])
+
+  useEffect(() => {
+    if (!hasPendingCourtReplies || !authResolved || role === 'public' || typeof window === 'undefined') return
+
+    const refreshPendingReplies = () => {
+      if (document.visibilityState === 'hidden') return
+      void refreshAvailabilityReplies(true)
+    }
+    const interval = window.setInterval(refreshPendingReplies, 20_000)
+    return () => window.clearInterval(interval)
+  }, [authResolved, hasPendingCourtReplies, refreshAvailabilityReplies, role])
 
   const teamRoomReplyCounts = useMemo(() => {
     if (initialContext.source !== 'team_room') return null
@@ -1791,8 +2101,14 @@ function LineupBuilderContent() {
     return { yes, maybe, no, total: yes + maybe + no }
   }, [availabilityForSelection, initialContext.source])
 
+  const rosterBackedPlayers = useMemo(() => {
+    const playersById = new Map(players.map((player) => [player.id, player]))
+    for (const player of teamRosterPlayers) playersById.set(player.id, player)
+    return Array.from(playersById.values())
+  }, [players, teamRosterPlayers])
+
   const availablePlayerPool = useMemo<PoolPlayer[]>(() => {
-    return players
+    return rosterBackedPlayers
       .map((player) => {
         const availabilityEntry = availabilityMap.get(player.id)
         return {
@@ -1802,7 +2118,6 @@ function LineupBuilderContent() {
         }
       })
       .filter((player) => {
-        if (flight && player.flight && player.flight !== flight) return false
         if (availabilityOnly && availabilityForSelection.length > 0) return availabilityMap.has(player.id)
         return true
       })
@@ -1821,34 +2136,28 @@ function LineupBuilderContent() {
         if (ratingB !== ratingA) return ratingB - ratingA
         return a.name.localeCompare(b.name)
       })
-  }, [players, availabilityMap, flight, availabilityOnly, availabilityForSelection.length, hideUnavailable])
+  }, [rosterBackedPlayers, availabilityMap, availabilityOnly, availabilityForSelection.length, hideUnavailable])
 
-  const myRosterPlayerIds = useMemo(
-    () =>
-      buildRosterPlayerIdSet(teamName, matches, matchPlayers, availability, rosterMembers, {
-        leagueName,
-        flight,
-      }),
-    [teamName, matches, matchPlayers, availability, rosterMembers, leagueName, flight]
-  )
+  const myRosterPlayerIds = useMemo(() => {
+    const ids = buildRosterPlayerIdSet(teamName, matches, matchPlayers, availability, rosterMembers)
+    for (const playerId of scopedRosterPlayerIds) ids.add(playerId)
+    return ids
+  }, [teamName, matches, matchPlayers, availability, rosterMembers, scopedRosterPlayerIds])
 
   const opponentRosterPlayerIds = useMemo(
     () =>
-      buildRosterPlayerIdSet(opponentTeam, matches, matchPlayers, availability, rosterMembers, {
-        leagueName,
-        flight,
-      }),
-    [opponentTeam, matches, matchPlayers, availability, rosterMembers, leagueName, flight]
+      buildRosterPlayerIdSet(opponentTeam, matches, matchPlayers, availability, rosterMembers),
+    [opponentTeam, matches, matchPlayers, availability, rosterMembers]
   )
 
   const myRosterEligibilityByPlayerId = useMemo(
-    () => buildRosterEligibilityByPlayerId(teamName, rosterMembers, { leagueName, flight }),
-    [flight, leagueName, rosterMembers, teamName],
+    () => buildRosterEligibilityByPlayerId(teamName, rosterMembers),
+    [rosterMembers, teamName],
   )
 
   const opponentRosterEligibilityByPlayerId = useMemo(
-    () => buildRosterEligibilityByPlayerId(opponentTeam, rosterMembers, { leagueName, flight }),
-    [flight, leagueName, opponentTeam, rosterMembers],
+    () => buildRosterEligibilityByPlayerId(opponentTeam, rosterMembers),
+    [opponentTeam, rosterMembers],
   )
 
   const scopedManualRosterPlayers = useMemo(
@@ -1858,6 +2167,14 @@ function LineupBuilderContent() {
       player.manualFlight === flight
     ),
     [flight, leagueName, manualRosterPlayers, teamName]
+  )
+  const scopedManualOpponentRosterPlayers = useMemo(
+    () => manualRosterPlayers.filter((player) =>
+      normalizeTeamName(player.manualTeamName) === normalizeTeamName(opponentTeam) &&
+      player.manualLeagueName === leagueName &&
+      player.manualFlight === flight
+    ),
+    [flight, leagueName, manualRosterPlayers, opponentTeam]
   )
 
   const myPlayerPool = useMemo<PoolPlayer[]>(() => {
@@ -1873,8 +2190,65 @@ function LineupBuilderContent() {
     return [...importedRoster, ...manualRoster]
   }, [availablePlayerPool, myRosterEligibilityByPlayerId, myRosterPlayerIds, scopedManualRosterPlayers])
 
+  const captainRosterContactsForTeam = useMemo(
+    () => selectCaptainContactRowsForScope({
+      rows: captainRosterContacts,
+      team: teamName,
+      league: leagueName,
+      flight,
+    }),
+    [captainRosterContacts, flight, leagueName, teamName],
+  )
+  const directTextContactByName = useMemo(() => {
+    const directContacts = new Map<string, { phone: string }>()
+    for (const contact of captainRosterContactsForTeam) {
+      const key = normalizeCaptainRosterContactKey(contact.full_name)
+      if (key && contact.phone?.trim()) directContacts.set(key, { phone: contact.phone.trim() })
+    }
+    for (const contact of selectCaptainContactRowsForScope({
+      rows: captainMessageContacts,
+      team: teamName,
+      league: leagueName,
+      flight,
+    })) {
+      const key = normalizeCaptainRosterContactKey(contact.full_name)
+      if (key && contact.phone?.trim() && contact.opt_in_text !== false && !directContacts.has(key)) {
+        directContacts.set(key, { phone: contact.phone.trim() })
+      }
+    }
+    return directContacts
+  }, [captainMessageContacts, captainRosterContactsForTeam, flight, leagueName, teamName])
+  const nextDirectCourtTextPlayer = useMemo(() => {
+    if (!directCourtTextHandoff) return null
+    return directCourtTextHandoff.players.find((player) =>
+      !directCourtTextHandoff.openedPlayerKeys.includes(normalizeCaptainRosterContactKey(player.playerName))
+    ) ?? null
+  }, [directCourtTextHandoff])
+  const hasPreparedDirectCourtText = useMemo(() => {
+    if (!directCourtTextHandoff) return false
+    return Object.values(preparedCourtTexts).some((preparedText) =>
+      normalizeCaptainRosterContactKey(preparedText.playerName) ===
+      normalizeCaptainRosterContactKey(directCourtTextHandoff.players[0]?.playerName || ''),
+    )
+  }, [directCourtTextHandoff, preparedCourtTexts])
+
+  const myAvailabilitySummary = useMemo(() => {
+    let confirmed = 0
+    let maybe = 0
+    let out = 0
+    let noResponse = 0
+    for (const player of myPlayerPool) {
+      const label = availabilityLabel(player.availabilityStatus)
+      if (label === 'Confirmed') confirmed += 1
+      else if (label === 'Maybe') maybe += 1
+      else if (label === 'Out') out += 1
+      else noResponse += 1
+    }
+    return { confirmed, maybe, out, noResponse }
+  }, [myPlayerPool])
+
   const opponentPlayerPool = useMemo<PoolPlayer[]>(() => {
-    return filterPlayerPoolByRoster(
+    const importedRoster = filterPlayerPoolByRoster(
       players
         .map((player) => ({
           ...player,
@@ -1890,7 +2264,25 @@ function LineupBuilderContent() {
       opponentRosterPlayerIds,
       opponentRosterEligibilityByPlayerId,
     )
-  }, [opponentRosterEligibilityByPlayerId, opponentRosterPlayerIds, players])
+    const importedIds = new Set(importedRoster.map((player) => player.id))
+    const manualRoster = scopedManualOpponentRosterPlayers
+      .filter((player) => !importedIds.has(player.id))
+      .map((player) => ({
+        ...player,
+        availabilityStatus: null,
+        availabilityNotes: null,
+      }))
+    return [...importedRoster, ...manualRoster]
+  }, [opponentRosterEligibilityByPlayerId, opponentRosterPlayerIds, players, scopedManualOpponentRosterPlayers])
+
+  const opponentManualPlayerIdSet = useMemo(
+    () => new Set(scopedManualOpponentRosterPlayers.map((player) => player.id)),
+    [scopedManualOpponentRosterPlayers],
+  )
+  const importedOpponentRosterCount = useMemo(
+    () => opponentPlayerPool.filter((player) => !opponentManualPlayerIdSet.has(player.id)).length,
+    [opponentManualPlayerIdSet, opponentPlayerPool],
+  )
 
   const builderPlayers = useMemo<PlayerRow[]>(() => {
     const enrichedById = new Map<string, PlayerRow>()
@@ -1898,8 +2290,9 @@ function LineupBuilderContent() {
     for (const player of opponentPlayerPool) enrichedById.set(player.id, player)
     for (const player of myPlayerPool) enrichedById.set(player.id, player)
     for (const player of scopedManualRosterPlayers) enrichedById.set(player.id, player)
+    for (const player of scopedManualOpponentRosterPlayers) enrichedById.set(player.id, player)
     return Array.from(enrichedById.values())
-  }, [myPlayerPool, opponentPlayerPool, players, scopedManualRosterPlayers])
+  }, [myPlayerPool, opponentPlayerPool, players, scopedManualOpponentRosterPlayers, scopedManualRosterPlayers])
 
   const teamAssignedPlayerIds = useMemo(() => {
     const ids = new Set<string>()
@@ -1922,7 +2315,39 @@ function LineupBuilderContent() {
   }, [opponentSlots])
 
   const lockedSlotIdSet = useMemo(() => new Set(lockedSlotIds), [lockedSlotIds])
-  const lockedPlayerIdSet = useMemo(() => new Set(lockedPlayerIds), [lockedPlayerIds])
+  const confirmedAssignedPlayerIdSet = useMemo(() => {
+    const ids = new Set<string>()
+    for (const slot of teamSlots) {
+      for (const player of slot.players) {
+        if (!player.playerId) continue
+        if (availabilityLabel(availabilityMap.get(player.playerId)?.status) === 'Confirmed') {
+          ids.add(player.playerId)
+        }
+      }
+    }
+    return ids
+  }, [availabilityMap, teamSlots])
+  const releasedConfirmedPlayerIdSet = useMemo(
+    () => new Set(releasedConfirmedPlayerIds),
+    [releasedConfirmedPlayerIds],
+  )
+  const autoLockedConfirmedPlayerIdSet = useMemo(
+    () => new Set([...confirmedAssignedPlayerIdSet].filter((playerId) => !releasedConfirmedPlayerIdSet.has(playerId))),
+    [confirmedAssignedPlayerIdSet, releasedConfirmedPlayerIdSet],
+  )
+  const lockedPlayerIdSet = useMemo(
+    () => new Set([...lockedPlayerIds, ...autoLockedConfirmedPlayerIdSet]),
+    [autoLockedConfirmedPlayerIdSet, lockedPlayerIds],
+  )
+  const activePlayerLockCount = lockedPlayerIdSet.size
+  const activeLockCount = lockedSlotIds.length + activePlayerLockCount
+
+  useEffect(() => {
+    setReleasedConfirmedPlayerIds((current) => {
+      const next = current.filter((playerId) => confirmedAssignedPlayerIdSet.has(playerId))
+      return next.length === current.length ? current : next
+    })
+  }, [confirmedAssignedPlayerIdSet])
 
   const suggestedSwapPlayer = useMemo(() => {
     if (!replacementHandoff) return null
@@ -1944,7 +2369,7 @@ function LineupBuilderContent() {
     if (!replacementHandoff) return
     if (!suggestedSwapPlayer) {
       setMessage('')
-      setError(`${replacementHandoff.replacementPlayer} is not in this team's roster. Refresh the Player Roster before applying the swap.`)
+      setError(`${replacementHandoff.replacementPlayer} is not in this team's roster. Refresh the Team Summary before applying the swap.`)
       return
     }
 
@@ -2049,6 +2474,35 @@ function LineupBuilderContent() {
     [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName]
   )
 
+  const teamBriefHref = useMemo(
+    () => buildCaptainScopedHref('/captain/team-brief', {
+      competitionLayer,
+      league: leagueName,
+      flight,
+      team: teamName,
+      date: matchDate,
+      opponent: opponentTeam,
+    }),
+    [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName]
+  )
+
+  const teamContactsHref = useMemo(() => {
+    const baseHref = buildCaptainScopedHref('/captain/messaging', {
+      competitionLayer,
+      league: leagueName,
+      flight,
+      team: teamName,
+      date: matchDate,
+      opponent: opponentTeam,
+    })
+    return `${baseHref}${baseHref.includes('?') ? '&' : '?'}contactView=all#captain-contact-manager`
+  }, [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName])
+
+  const teamRoomHref = useMemo(
+    () => buildTeamRoomHref({ teamName, leagueName, flight }),
+    [flight, leagueName, teamName],
+  )
+
   const teamSummaryUploadHref = useMemo(
     () => buildTeamSummaryUploadHref({
       teamName,
@@ -2057,6 +2511,15 @@ function LineupBuilderContent() {
       returnTo: lineupBuilderReturnHref,
     }),
     [flight, leagueName, lineupBuilderReturnHref, teamName]
+  )
+  const opponentSummaryUploadHref = useMemo(
+    () => buildTeamSummaryUploadHref({
+      teamName: opponentTeam,
+      leagueName,
+      flight,
+      returnTo: lineupBuilderReturnHref,
+    }),
+    [flight, leagueName, lineupBuilderReturnHref, opponentTeam]
   )
 
   function toggleLockedSlot(slotId: string) {
@@ -2067,6 +2530,12 @@ function LineupBuilderContent() {
 
   function toggleLockedPlayer(playerId: string) {
     if (!playerId) return
+    if (confirmedAssignedPlayerIdSet.has(playerId)) {
+      setReleasedConfirmedPlayerIds((current) =>
+        current.includes(playerId) ? current.filter((id) => id !== playerId) : [...current, playerId]
+      )
+      return
+    }
     setLockedPlayerIds((current) =>
       current.includes(playerId) ? current.filter((id) => id !== playerId) : [...current, playerId]
     )
@@ -2075,6 +2544,7 @@ function LineupBuilderContent() {
   function clearLocks() {
     setLockedSlotIds([])
     setLockedPlayerIds([])
+    setReleasedConfirmedPlayerIds([])
   }
 
   function getPlayerById(playerId: string) {
@@ -2120,7 +2590,56 @@ function LineupBuilderContent() {
     setManualRosterText('')
     setManualRosterOpen(false)
     setError('')
-    setMessage(`${newPlayers.length} player${newPlayers.length === 1 ? '' : 's'} added for this lineup. Upload the Player Roster later to connect ratings and contact details.`)
+    setMessage(`${newPlayers.length} player${newPlayers.length === 1 ? '' : 's'} added for this lineup. Upload the Team Summary for ratings, then add Player Roster later if you want team contacts.`)
+  }
+
+  function addManualOpponentRosterPlayers() {
+    if (!opponentTeam.trim()) {
+      setError('Choose an opponent before entering their players.')
+      return
+    }
+
+    const enteredNames = uniqueSorted(
+      manualOpponentRosterText
+        .split(/\r?\n|;/)
+        .map((name) => cleanText(name))
+        .filter(Boolean)
+    )
+    const seenNames = new Set<string>()
+    const names = enteredNames.filter((name) => {
+      const key = normalizeTeamName(name)
+      if (!key || seenNames.has(key)) return false
+      seenNames.add(key)
+      return true
+    })
+
+    if (!names.length) {
+      setError('Enter at least one opponent name, one player per line.')
+      return
+    }
+
+    const existingNames = new Set(opponentPlayerPool.map((player) => normalizeTeamName(player.name)))
+    const newPlayers = names
+      .filter((name) => !existingNames.has(normalizeTeamName(name)))
+      .map((name) => createManualRosterPlayer(name, { teamName: opponentTeam, leagueName, flight }))
+
+    if (!newPlayers.length) {
+      setError('Those opponents are already available in this matchup.')
+      return
+    }
+
+    setManualRosterPlayers((current) => [...current, ...newPlayers])
+    setManualOpponentRosterText('')
+    setManualOpponentRosterOpen(false)
+    setError('')
+    setMessage(`${newPlayers.length} opponent${newPlayers.length === 1 ? '' : 's'} added for this matchup. Upload their TennisLink Team Summary later to connect TiQ ratings.`)
+  }
+
+  function openOpponentCourts() {
+    setBuilderMode('insights')
+    window.requestAnimationFrame(() => {
+      document.getElementById('opponent-lineup')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
 
   function setSlotPlayer(
@@ -2202,8 +2721,20 @@ function LineupBuilderContent() {
         return { ...slot, players: nextPlayers }
       })
 
-    if (side === 'team') setTeamSlots((current) => update(current))
-    else setOpponentSlots((current) => update(current))
+    if (side === 'team') {
+      const nextSlots = update(teamSlots)
+      setTeamSlots(nextSlots)
+      const selectedSlot = nextSlots.find((slot) => slot.id === slotId)
+      const selectedPlayer = selectedSlot?.players[playerIndex]
+      if (selectedSlot && selectedPlayer?.playerId && selectedPlayer.playerName.trim()) {
+        // Persist the private reply link while the captain continues building.
+        // The later Ask control is a physical sms: link, so iOS receives it
+        // directly from that tap instead of cancelling an in-flight request.
+        void askProposedCourtPlayers(selectedSlot, selectedPlayer, { silent: true })
+      }
+    } else {
+      setOpponentSlots((current) => update(current))
+    }
   }
 
   function setSlotLabel(side: 'team' | 'opponent', slotId: string, label: string) {
@@ -2248,6 +2779,11 @@ function LineupBuilderContent() {
     setAppliedLineupNotice(null)
     setSuggestedSwapDraft(null)
     setSavedLineupChangeDelivery(null)
+    setDirectCourtTextHandoff(null)
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY)
+      window.localStorage.removeItem(getCaptainLineupDraftStorageKey(userId))
+    }
     clearLocks()
     setMessage('Builder reset.')
     setError('')
@@ -2389,6 +2925,7 @@ function LineupBuilderContent() {
         opponent: opponentTeam,
       },
       availabilityRequestUrl,
+      availabilityRequestId,
       playerRequestUrls,
       createdAt: new Date().toISOString(),
     }
@@ -2415,6 +2952,354 @@ function LineupBuilderContent() {
     })
     router.push(`${messagingHref}${messagingHref.includes('?') ? '&' : '?'}source=lineup_builder`)
   }
+
+  function saveDirectCourtTextHandoff(next: CaptainDirectCourtTextHandoff | null) {
+    setDirectCourtTextHandoff(next)
+    if (typeof window === 'undefined') return
+    if (next) window.localStorage.setItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY, JSON.stringify(next))
+    else window.localStorage.removeItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY)
+  }
+
+  function openNativeSmsHandoff(contactPhone: string, playerName: string, body: string) {
+    const href = buildSmsHref([contactPhone], body)
+    setSmsFallback({ href, playerName })
+    const copied = prepareSmsBodyForNativeComposer(body)
+    setMessage(
+      copied
+        ? `Opening Messages for ${playerName}. Your TiQ invitation is copied—paste it to send.`
+        : `Opening Messages for ${playerName}. If it does not open, use the Open Messages link below.`,
+    )
+
+    // Keep this synchronous with the captain's physical tap. iOS blocks custom
+    // app handoffs that happen after an awaited request or delayed callback.
+    window.location.href = href
+  }
+
+  function openDirectCourtText(
+    player: CaptainDirectCourtTextHandoff['players'][number],
+    handoffOverride?: CaptainDirectCourtTextHandoff,
+  ) {
+    const activeHandoff = handoffOverride ?? directCourtTextHandoff
+    if (!activeHandoff) return
+    const playerKey = normalizeCaptainRosterContactKey(player.playerName)
+    const contact = directTextContactByName.get(playerKey)
+    if (!contact?.phone?.trim()) {
+      setError(`Add a mobile number for ${player.playerName} before opening their private text.`)
+      setMessage('')
+      return
+    }
+
+    const next = {
+      ...activeHandoff,
+      openedPlayerKeys: Array.from(new Set([...activeHandoff.openedPlayerKeys, playerKey])),
+    }
+    saveDirectCourtTextHandoff(next)
+    setError('')
+    setMessage(`Opening a private availability text for ${player.playerName}.`)
+    const body = buildPlayerPotentialLineupAvailabilityMessage({
+      playerName: player.playerName,
+      teamName,
+      opponent: activeHandoff.match.opponent,
+      dateText: formatDate(activeHandoff.match.date),
+      time: activeHandoff.match.time,
+      facility: activeHandoff.match.facility,
+      slotsJson: activeHandoff.slotsJson,
+      availabilityRequestUrl: player.requestUrl,
+    })
+    openNativeSmsHandoff(contact.phone, player.playerName, body)
+  }
+
+  function getPreparedCourtTextKey(slot: LineupSlot, invitedPlayer: LineupSlot['players'][number]) {
+    return [
+      normalizeTeamName(teamName),
+      normalizeTeamName(leagueName),
+      normalizeTeamName(flight),
+      matchDate,
+      slot.id,
+      invitedPlayer.playerId || normalizeCaptainRosterContactKey(invitedPlayer.playerName),
+    ].join(':')
+  }
+
+  function markPreparedCourtTextOpened(preparedText: PreparedCourtText) {
+    const playerKey = normalizeCaptainRosterContactKey(preparedText.playerName)
+    setOpenedCourtTextKeys((current) => Array.from(new Set([...current, preparedText.key])))
+    if (directCourtTextHandoff) {
+      saveDirectCourtTextHandoff({
+        ...directCourtTextHandoff,
+        openedPlayerKeys: Array.from(new Set([...directCourtTextHandoff.openedPlayerKeys, playerKey])),
+      })
+    }
+
+    setError('')
+    setSmsFallback({ href: preparedText.href, playerName: preparedText.playerName })
+    setMessage(`Opening Messages for ${preparedText.playerName}.`)
+  }
+
+  async function askProposedCourtPlayers(
+    slot: LineupSlot,
+    invitedPlayer: LineupSlot['players'][number],
+    options: { silent?: boolean; contactPhone?: string } = {},
+  ) {
+    if (!teamName || !matchDate) {
+      setError('Choose the team and match before asking a player.')
+      setMessage('')
+      return
+    }
+
+    const invitedPlayers = invitedPlayer.playerName.trim() ? [invitedPlayer] : []
+
+    if (!invitedPlayers.length) {
+      setError('Choose a player for this court before asking availability.')
+      setMessage('')
+      return
+    }
+
+    const playerKey = normalizeCaptainRosterContactKey(invitedPlayer.playerName)
+    const contactPhone = options.contactPhone?.trim() || directTextContactByName.get(playerKey)?.phone?.trim() || ''
+    if (!contactPhone) {
+      if (options.silent) return
+      setMissingPhonePlayerKeys((current) => current.includes(playerKey) ? current : [...current, playerKey])
+      setError(`Add a mobile number for ${invitedPlayer.playerName} before opening their private text.`)
+      setMessage('')
+      return
+    }
+
+    if (typeof window === 'undefined' || !window.crypto?.randomUUID) {
+      if (options.silent) return
+      setError('This browser could not prepare a secure reply link. Please update your browser and try again.')
+      setMessage('')
+      return
+    }
+
+    // The Builder can be open while Supabase refreshes its access token. Read
+    // the current session here instead of treating a momentarily stale React
+    // auth value as a missing captain session.
+    let accessToken = session?.access_token
+    if (!accessToken) {
+      const { data: sessionData } = await supabase.auth.getSession()
+      accessToken = sessionData.session?.access_token
+    }
+    if (!accessToken) {
+      if (options.silent) return
+      setError('Sign in again before sending availability texts.')
+      setMessage('')
+      return
+    }
+
+    const preparedKey = getPreparedCourtTextKey(slot, invitedPlayer)
+    if (preparedCourtTexts[preparedKey] || preparingCourtTextKeysRef.current.has(preparedKey)) return
+
+    preparingCourtTextKeysRef.current.add(preparedKey)
+    setAskingCourtId(slot.id)
+    setError('')
+    setMessage(`Preparing a private availability text for ${invitedPlayer.playerName}...`)
+    const preservedTeamSlots = cloneSlots(teamSlots.map((currentSlot) =>
+      currentSlot.id === slot.id ? slot : currentSlot,
+    ))
+    const preservedOpponentSlots = cloneSlots(opponentSlots)
+    const responseToken = window.crypto.randomUUID()
+    try {
+      const response = await fetch('/api/captain/availability-requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          scenarioId: currentScenarioId,
+          teamName,
+          leagueName,
+          flight,
+          matchDate,
+          opponentTeam,
+          matchTime: selectedMatch?.match_time || '',
+          facility: selectedMatch?.facility || '',
+          slots: [slot],
+          invitedPlayers: invitedPlayers.map((player) => ({
+            ...player,
+            responseToken: player.playerId === invitedPlayer.playerId && player.playerName === invitedPlayer.playerName
+              ? responseToken
+              : undefined,
+          })),
+          inviteMode: 'append',
+        }),
+      })
+      const result = await response.json().catch(() => null) as {
+        message?: string
+        requestId?: string
+        playerRequestUrls?: Array<{ playerId?: string; playerName?: string; requestUrl?: string }>
+      } | null
+      if (!response.ok) throw new Error(result?.message || 'The private reply link could not be saved.')
+
+      const requestUrl = result?.playerRequestUrls?.find((entry) =>
+        (entry.playerId && entry.playerId === invitedPlayer.playerId) ||
+        normalizeCaptainRosterContactKey(entry.playerName || '') === playerKey,
+      )?.requestUrl
+      if (!requestUrl) throw new Error('The private reply link was not returned. Please try again.')
+
+      const body = buildPlayerPotentialLineupAvailabilityMessage({
+        playerName: invitedPlayer.playerName,
+        teamName,
+        opponent: opponentTeam,
+        dateText: formatDate(matchDate),
+        time: selectedMatch?.match_time || '',
+        facility: selectedMatch?.facility || '',
+        slotsJson: [slot],
+        availabilityRequestUrl: requestUrl,
+      })
+      const directTextHandoff: CaptainDirectCourtTextHandoff = {
+        version: 1,
+        courtId: slot.id,
+        courtLabel: slot.label,
+        requestId: result?.requestId || '',
+        match: {
+          date: matchDate,
+          time: selectedMatch?.match_time || '',
+          facility: selectedMatch?.facility || '',
+          opponent: opponentTeam,
+        },
+        slotsJson: [slot],
+        players: [{
+          playerId: invitedPlayer.playerId,
+          playerName: invitedPlayer.playerName,
+          requestUrl,
+        }],
+        openedPlayerKeys: [],
+        builderDraft: {
+          ...currentBuilderDraft,
+          teamSlots: preservedTeamSlots,
+          opponentSlots: preservedOpponentSlots,
+          updatedAt: new Date().toISOString(),
+        },
+      }
+      saveDirectCourtTextHandoff(directTextHandoff)
+      setPreparedCourtTexts((current) => ({
+        ...current,
+        [preparedKey]: {
+          key: preparedKey,
+          playerId: invitedPlayer.playerId,
+          playerName: invitedPlayer.playerName,
+          phone: contactPhone,
+          href: buildSmsHref([contactPhone], body),
+          body,
+        },
+      }))
+      setMissingPhonePlayerKeys((current) => current.filter((key) => key !== playerKey))
+      setMessage(`${invitedPlayer.playerName} is ready. Tap Ask ${invitedPlayer.playerName.split(' ')[0]} to open Messages.`)
+    } catch (caught) {
+      preparingCourtTextKeysRef.current.delete(preparedKey)
+      setError(caught instanceof Error ? caught.message : 'The private reply link could not be saved. Please try again.')
+      setMessage('')
+    } finally {
+      setAskingCourtId((current) => current === slot.id ? '' : current)
+    }
+  }
+
+  async function saveCourtPlayerPhone(slot: LineupSlot, invitedPlayer: LineupSlot['players'][number]) {
+    const playerKey = normalizeCaptainRosterContactKey(invitedPlayer.playerName)
+    const phone = (inlinePhoneByPlayerKey[playerKey] || '').trim()
+    if (!phone) {
+      setError(`Add a mobile number for ${invitedPlayer.playerName}.`)
+      return
+    }
+    if (!teamName) {
+      setError('Choose the team before saving a player mobile number.')
+      return
+    }
+    if (!userId) {
+      setError('Your secure session is still loading. Please try saving the number again in a moment.')
+      return
+    }
+
+    setSavingPhonePlayerKey(playerKey)
+    setError('')
+    try {
+      const accessToken = session?.access_token || (await supabase.auth.getSession()).data.session?.access_token
+      if (!accessToken) throw new Error('Sign in again before saving this mobile number.')
+
+      const existingContact = captainRosterContactsForTeam.find((contact) => (
+        normalizeCaptainRosterContactKey(contact.full_name) === playerKey
+      ))
+      const response = await fetch('/api/captain/team-contacts', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contactId: existingContact?.id || '',
+          teamName,
+          leagueName,
+          flight,
+          fullName: invitedPlayer.playerName.trim(),
+          phone,
+          role: existingContact?.role || 'Player',
+          isCaptain: existingContact?.is_captain || false,
+        }),
+      })
+      const result = await response.json() as { ok?: boolean; message?: string; contact?: CaptainRosterContactRow }
+      if (!response.ok || !result.ok || !result.contact) {
+        throw new Error(result.message || `Could not save ${invitedPlayer.playerName}'s mobile number.`)
+      }
+      const contact = result.contact
+
+      setCaptainRosterContacts((current) => [
+        ...current.filter((row) => !(
+          normalizeCaptainRosterContactKey(row.team_name) === normalizeCaptainRosterContactKey(teamName) &&
+          normalizeCaptainRosterContactKey(row.full_name) === playerKey &&
+          normalizeCaptainRosterContactKey(row.league_name) === normalizeCaptainRosterContactKey(leagueName) &&
+          normalizeCaptainRosterContactKey(row.flight) === normalizeCaptainRosterContactKey(flight)
+        )),
+        contact,
+      ])
+      setInlinePhoneByPlayerKey((current) => {
+        const next = { ...current }
+        delete next[playerKey]
+        return next
+      })
+      setMissingPhonePlayerKeys((current) => current.filter((key) => key !== playerKey))
+      await askProposedCourtPlayers(slot, invitedPlayer, { contactPhone: phone })
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : `Could not save ${invitedPlayer.playerName}'s mobile number.`)
+      setMessage('')
+    } finally {
+      setSavingPhonePlayerKey((current) => current === playerKey ? '' : current)
+    }
+  }
+
+  useEffect(() => {
+    if (!authResolved || !teamName || !matchDate || !teamSlots.length) return
+
+    // Draft restoration should be just as ready to text as a fresh player
+    // selection. This only prepares the secure reply link; it never opens
+    // Messages or sends anything until the captain taps Ask.
+    teamSlots.forEach((slot) => {
+      slot.players
+        .filter((player) => player.playerId && player.playerName.trim())
+        .forEach((player) => {
+          void askProposedCourtPlayers(slot, player, { silent: true })
+        })
+    })
+  // The preparation callback intentionally stays out of this dependency list:
+  // it is recreated as normal Builder state changes, while this effect should
+  // retry only when restored lineup data or authenticated scope changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    authResolved,
+    captainMessageContacts,
+    captainRosterContacts,
+    currentScenarioId,
+    flight,
+    leagueName,
+    matchDate,
+    opponentTeam,
+    selectedMatch?.facility,
+    selectedMatch?.match_time,
+    session?.access_token,
+    teamName,
+    teamSlots,
+  ])
+
   async function refreshSavedScenarios() {
     const { data, error: nextError } = await supabase
       .from('lineup_scenarios')
@@ -2461,6 +3346,81 @@ function LineupBuilderContent() {
     () => compareLineupStrength(teamSlots, opponentSlots, builderPlayers),
     [builderPlayers, opponentSlots, teamSlots]
   )
+
+  const comparisonCandidates = useMemo(
+    () => scenarioOptions.filter((scenario) => {
+      if (scenario.id === currentScenarioId) return false
+      if (matchDate && scenario.match_date !== matchDate) return false
+      if (opponentTeam && scenario.opponent_team !== opponentTeam) return false
+      return true
+    }),
+    [currentScenarioId, matchDate, opponentTeam, scenarioOptions]
+  )
+
+  const comparisonScenario = useMemo(
+    () => comparisonCandidates.find((scenario) => scenario.id === comparisonScenarioId) ?? comparisonCandidates[0] ?? null,
+    [comparisonCandidates, comparisonScenarioId]
+  )
+
+  const lineupVersionComparison = useMemo(() => {
+    if (!comparisonScenario) return null
+
+    const baselineAnalysis = compareLineupStrength(
+      normalizeSavedSlots(comparisonScenario.slots_json),
+      normalizeSavedSlots(comparisonScenario.opponent_slots_json),
+      builderPlayers
+    )
+
+    const courts = analysis.lines.map((line, index) => {
+      const baseline = baselineAnalysis.lines[index]
+      const yourChanged = slotPlayerSignature(line.teamPlayers) !== slotPlayerSignature(baseline?.teamPlayers ?? [])
+      const opponentChanged = slotPlayerSignature(line.opponentPlayers) !== slotPlayerSignature(baseline?.opponentPlayers ?? [])
+      const before = baseline?.projection ?? null
+      const after = line.projection
+      const delta = typeof before === 'number' && typeof after === 'number' ? after - before : null
+
+      return {
+        label: line.label,
+        yourChanged,
+        opponentChanged,
+        before,
+        after,
+        delta,
+        beforePlayers: formatSlotPlayerNames(baseline?.teamPlayers ?? [], 'Team spots open'),
+        afterPlayers: formatSlotPlayerNames(line.teamPlayers, 'Team spots open'),
+      }
+    })
+
+    const changedCourts = courts.filter((court) => court.yourChanged || court.opponentChanged)
+    const biggestShift = [...courts]
+      .filter((court) => typeof court.delta === 'number')
+      .sort((left, right) => Math.abs(right.delta ?? 0) - Math.abs(left.delta ?? 0))[0] ?? null
+    const playerSwap = changedCourts.find((court) => court.yourChanged) ?? null
+    const overallDelta = analysis.projection - baselineAnalysis.projection
+    const fullyProjected = analysis.lines.every((line) => typeof line.projection === 'number') &&
+      baselineAnalysis.lines.length === analysis.lines.length &&
+      baselineAnalysis.lines.every((line) => typeof line.projection === 'number')
+    const recommendation = !fullyProjected
+      ? 'Fill both lineups before relying on the comparison.'
+      : overallDelta >= 0.03
+        ? 'Carry the current draft forward. It improves the match outlook.'
+        : overallDelta <= -0.03
+          ? 'Reconsider the current draft. The saved version projects better.'
+          : changedCourts.length
+            ? 'Refine the current draft. The versions are close, so protect the swing court.'
+            : 'No material lineup change. Save a new version only when the plan changes.'
+
+    return {
+      baselineName: comparisonScenario.scenario_name || 'Saved version',
+      baselineProjection: baselineAnalysis.projection,
+      overallDelta,
+      changedCourts,
+      biggestShift,
+      playerSwap,
+      recommendation,
+      fullyProjected,
+    }
+  }, [analysis, builderPlayers, comparisonScenario])
 
   const suggestedSwapImpact = useMemo<CaptainSuggestedSwapImpact | null>(() => {
     if (!suggestedSwapDraft) return null
@@ -3177,8 +4137,9 @@ function LineupBuilderContent() {
     )
 
     setTeamSlots(formatSafeSlots)
+    focusTeamCourtsAfterBuild(formatSafeSlots)
     showAppliedLineupNotice(plan.title, formatSafeSlots)
-    setMessage(`${plan.title} applied${lockedSlotIds.length || lockedPlayerIds.length ? ' with locks preserved' : ''}.`)
+    setMessage(`${plan.title} applied${activeLockCount ? ' with locks preserved' : ''}.`)
     setError(incompleteCourts.length
       ? `Best lineup filled ${formatSafeSlots.length - incompleteCourts.length} of ${formatSafeSlots.length} courts. Add more eligible players or turn off Availability only.`
       : '')
@@ -3202,9 +4163,29 @@ function LineupBuilderContent() {
       effectiveMatchFormatId
     )
     setTeamSlots(formatSafeSlots)
+    focusTeamCourtsAfterBuild(formatSafeSlots)
     showAppliedLineupNotice('Balanced lineup', formatSafeSlots)
-    setMessage(`Balanced recommendation applied${lockedSlotIds.length || lockedPlayerIds.length ? ' around your locks' : ''}.`)
+    setMessage(`Balanced recommendation applied${activeLockCount ? ' around your locks' : ''}.`)
     setError('')
+  }
+
+  function focusTeamCourtsAfterBuild(nextSlots: LineupSlot[] = teamSlots) {
+    if (!isMobile || typeof window === 'undefined') return
+
+    const firstPopulatedCourt = nextSlots.find((slot) => slot.players.some((player) => player.playerId))
+    const courtToOpen = firstPopulatedCourt?.id || nextSlots[0]?.id || ''
+    if (courtToOpen) setExpandedTeamSlotId(courtToOpen)
+
+    // Wait for React to paint the selected players, then place the first
+    // populated court at the top of the phone viewport instead of leaving the
+    // captain above a long chain of status and insight panels.
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        document
+          .querySelector<HTMLElement>('#captain-lineup-courts [id^="captain-lineup-slot-"]')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    })
   }
 
   function rebuildAroundLocks() {
@@ -3255,6 +4236,94 @@ function LineupBuilderContent() {
     },
   ]
   const readinessCompleteCount = builderReadiness.filter((item) => item.done).length
+  const completedCourtCount = analysis.lines.filter((line) => isProjectedLineComplete(line)).length
+  const assignedTeamReplySummary = useMemo(() => {
+    const playerById = new Map(builderPlayers.map((player) => [player.id, player]))
+    const availabilityByPlayerId = new Map(myPlayerPool.map((player) => [player.id, player.availabilityStatus]))
+    const assigned = new Map<string, { name: string; label: ReturnType<typeof availabilityLabel> }>()
+
+    for (const slot of teamSlots) {
+      for (const selection of slot.players) {
+        const playerId = selection.playerId.trim()
+        const playerName = selection.playerName.trim()
+        const key = playerId || playerName.toLowerCase()
+        if (!key || assigned.has(key)) continue
+        const player = playerId ? playerById.get(playerId) : undefined
+        assigned.set(key, {
+          name: player?.name || playerName || 'Player',
+          label: availabilityLabel(playerId ? availabilityByPlayerId.get(playerId) : null),
+        })
+      }
+    }
+
+    const players = Array.from(assigned.values())
+    const confirmed = players.filter((player) => player.label === 'Confirmed')
+    const maybe = players.filter((player) => player.label === 'Maybe')
+    const out = players.filter((player) => player.label === 'Out')
+    const waiting = players.filter((player) => player.label === 'No response')
+    return { players, confirmed, maybe, out, waiting }
+  }, [builderPlayers, myPlayerPool, teamSlots])
+  const finalLineupReady = completedCourtCount === analysis.lines.length
+    && assignedTeamReplySummary.players.length > 0
+    && assignedTeamReplySummary.confirmed.length === assignedTeamReplySummary.players.length
+  const finalLineupReadinessTitle = finalLineupReady
+    ? 'Every court is set and every selected player is in.'
+    : completedCourtCount !== analysis.lines.length
+      ? `${completedCourtCount} of ${analysis.lines.length} courts are complete.`
+      : assignedTeamReplySummary.waiting.length
+        ? `${assignedTeamReplySummary.waiting.length} selected player${assignedTeamReplySummary.waiting.length === 1 ? '' : 's'} still need${assignedTeamReplySummary.waiting.length === 1 ? 's' : ''} to reply.`
+        : assignedTeamReplySummary.maybe.length
+          ? `${assignedTeamReplySummary.maybe.length} selected player${assignedTeamReplySummary.maybe.length === 1 ? ' is' : 's are'} still maybe.`
+          : assignedTeamReplySummary.out.length
+            ? `${assignedTeamReplySummary.out.length} selected player${assignedTeamReplySummary.out.length === 1 ? ' is' : 's are'} out — adjust that court.`
+            : 'Name a player on a court to start the final check.'
+  const finalLineupReadinessDetail = finalLineupReady
+    ? 'Review it in Team Room, then send the complete lineup with match details when you are ready.'
+    : assignedTeamReplySummary.waiting.length
+      ? `Waiting on ${assignedTeamReplySummary.waiting.slice(0, 2).map((player) => player.name).join(' and ')}${assignedTeamReplySummary.waiting.length > 2 ? ` and ${assignedTeamReplySummary.waiting.length - 2} more` : ''}.`
+      : 'A player is selectable before they reply, but only an In reply clears the final lineup check.'
+  const availablePlayerCount = myPlayerPool.filter((player) => {
+    const status = (player.availabilityStatus ?? '').trim().toLowerCase()
+    return status === 'available' || status === 'yes' || status === 'in' || status === 'maybe'
+  }).length
+  const mobileLineupPulse = [
+    {
+      label: 'Courts',
+      value: `${completedCourtCount}/${analysis.lines.length}`,
+      detail: completedCourtCount === analysis.lines.length ? 'Ready to review' : 'Need players',
+    },
+    {
+      label: 'Replies',
+      value: `${availablePlayerCount}`,
+      detail: myPlayerPool.length ? `of ${myPlayerPool.length} rostered` : 'Add roster',
+    },
+    {
+      label: 'Roster',
+      value: `${myPlayerPool.length}`,
+      detail: myPlayerPool.length ? 'Full team pool' : 'Needs players',
+    },
+  ]
+  const mobileCourtMap = analysis.lines.map((line) => {
+    const probability = typeof line.projection === 'number' ? line.projection : null
+    const edge = typeof line.diff === 'number' ? line.diff : null
+    const status: 'Needs data' | 'Edge' | 'Protect' | 'Swing' = probability === null
+      ? 'Needs data'
+      : probability >= 0.58
+        ? 'Edge'
+        : probability <= 0.42
+          ? 'Protect'
+          : 'Swing'
+
+    return {
+      label: line.label,
+      status,
+      value: probability === null ? '-' : formatPercent(probability),
+      detail: edge === null
+        ? 'Complete both sides'
+        : `${edge >= 0 ? '+' : ''}${edge.toFixed(2)} rating edge`,
+      tone: (status === 'Edge' ? 'good' : status === 'Protect' ? 'warn' : status === 'Swing' ? 'info' : 'muted') as CourtMapTone,
+    }
+  })
 
   if (!authResolved) {
     return (
@@ -3311,9 +4380,13 @@ function LineupBuilderContent() {
 
           {isSmallMobile ? (
             <div style={builderMobileActionStackStyle}>
-              <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
-                {saveAndAskLabel}
-              </PrimaryBtn>
+              {lineupHasAssignments ? (
+                <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
+                  {saveAndAskLabel}
+                </PrimaryBtn>
+              ) : (
+                <Link href="#captain-lineup-courts" style={primaryButton}>Build lineup</Link>
+              )}
               <details style={builderMoreActionsStyle}>
                 <summary style={builderMoreActionsSummaryStyle}>More lineup actions</summary>
                 <div style={builderMoreActionsBodyStyle}>
@@ -3339,7 +4412,45 @@ function LineupBuilderContent() {
           )}
         </section>
 
+        <section style={builderModeShellStyle} aria-label="Choose a lineup building path">
+          <div style={builderModeHeaderStyle}>
+            <div>
+              <p style={sectionKicker}>Build path</p>
+              <h2 style={sectionTitleSmall}>How do you want to build?</h2>
+            </div>
+            <span style={miniPillBlueStyle}>{builderMode === 'manual' ? 'Hands-on' : 'Insights on'}</span>
+          </div>
+          <div style={builderModeOptionsStyle}>
+            <button
+              type="button"
+              aria-pressed={builderMode === 'manual'}
+              onClick={() => setBuilderMode('manual')}
+              style={builderModeOptionStyle(builderMode === 'manual')}
+            >
+              <strong>Build myself</strong>
+              <span>Set courts, ask players, and see live replies as you go.</span>
+            </button>
+            <button
+              type="button"
+              aria-pressed={builderMode === 'insights'}
+              onClick={() => setBuilderMode('insights')}
+              style={builderModeOptionStyle(builderMode === 'insights')}
+            >
+              <strong>Use TiQ insights</strong>
+              <span>Review recommended builds, matchup edges, and the stats behind them.</span>
+            </button>
+          </div>
+        </section>
+
         {!!message && <div role="status" aria-live="polite" style={bannerGreenStyle}>{message}</div>}
+        {smsFallback ? (
+          <div style={smsFallbackStyle}>
+            <span style={smsFallbackCopyStyle}>If Messages did not open, tap once more.</span>
+            <a href={smsFallback.href} style={smsFallbackLinkStyle}>
+              Open Messages for {smsFallback.playerName.split(' ')[0] || 'player'}
+            </a>
+          </div>
+        ) : null}
         {!!error && (
           <div role="alert" style={warningCardStyle}>
             <div>{error}</div>
@@ -3388,21 +4499,21 @@ function LineupBuilderContent() {
             compact
           />
         ) : null}
-        {teamName && !loading && !myPlayerPool.length ? (
+        {teamName && !loading && !recoveringSecureSession && !myPlayerPool.length ? (
           <section style={rosterRecoveryCardStyle} aria-labelledby="lineup-roster-setup-title">
             <div style={rosterRecoveryHeaderStyle}>
               <div>
                 <p style={sectionKicker}>Roster needed</p>
                 <h2 id="lineup-roster-setup-title" style={sectionTitleSmall}>Add your players to build this lineup.</h2>
                 <p style={sectionBodyTextStyle}>
-                  Upload the Player Roster, or enter player names now and connect ratings later.
+                  Upload the Team Summary, or enter player names now and connect ratings later.
                 </p>
               </div>
               <span style={miniPillWarnStyle}>Setup required</span>
             </div>
 
             <div style={rosterRecoveryActionGridStyle}>
-              <Link href={teamSummaryUploadHref} style={primaryButton}>Upload Player Roster</Link>
+              <Link href={teamSummaryUploadHref} style={primaryButton}>Upload Team Summary</Link>
               <button
                 type="button"
                 onClick={() => setManualRosterOpen((current) => !current)}
@@ -3426,28 +4537,90 @@ function LineupBuilderContent() {
                   style={manualRosterTextareaStyle}
                 />
                 <p style={subtleHelperTextStyle}>
-                  Enter one player per line. These names save with this lineup; upload the Player Roster later to connect ratings and contact details.
+                  Enter one player per line. These names save with this lineup; upload the Team Summary later to connect ratings. Add Player Roster only when you want team contact details.
                 </p>
                 <PrimaryBtn onClick={addManualRosterPlayers}>Add players to lineup</PrimaryBtn>
               </div>
             ) : null}
 
             <details style={rosterExportHelpStyle}>
-              <summary style={rosterExportSummaryStyle}>How to export the Player Roster from TennisLink</summary>
+              <summary style={rosterExportSummaryStyle}>How to export a Team Summary from TennisLink</summary>
               <ol style={rosterExportStepsStyle}>
                 <li>Sign in to USTA TennisLink and open your league team.</li>
-                <li>Open <strong>Player Roster</strong>.</li>
-                <li>Choose <strong>Send To Excel</strong> and save the PlayerRoster .xls file.</li>
-                <li>Return here and choose <strong>Upload Player Roster</strong>. TenAceIQ will bring you back to Build Lineup after import.</li>
+                <li>Open <strong>Team Summary</strong>.</li>
+                <li>Choose <strong>Send To Excel</strong> and save the TeamSummary .xls file.</li>
+                <li>Return here and choose <strong>Upload Team Summary</strong>. TiQ will bring you back to Build Lineup after import.</li>
+                <li>Optional: if you are the captain, upload your <strong>Player Roster</strong> later to add the team contacts TennisLink provides.</li>
               </ol>
+              <Link href="/resources/usta-upload#quick-guide" style={rosterExportVideoLinkStyle}>
+                Watch the 1-minute Team Summary video guide
+              </Link>
             </details>
           </section>
         ) : null}
-        {opponentTeam && !opponentPlayerPool.length ? (
-          <div style={bannerBlueStyle}>
-            No opponent roster is available for {opponentTeam} yet. Auto-fill will appear after that team has
-            roster summary or played match data.
-          </div>
+        {opponentTeam ? (
+          opponentPlayerPool.length ? (
+            <section
+              style={{
+                ...opponentRosterReadyStyle,
+                gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : opponentRosterReadyStyle.gridTemplateColumns,
+              }}
+              aria-label="Opponent roster ready"
+            >
+              <div style={opponentRosterRecoveryCopyStyle}>
+                <span style={miniPillBlueStyle}>Opponent roster</span>
+                <strong>{opponentPlayerPool.length} player{opponentPlayerPool.length === 1 ? '' : 's'} ready for {opponentTeam}.</strong>
+                <span>{importedOpponentRosterCount ? 'TiQ ratings are available where matched.' : 'Names are ready now; upload the TennisLink Team Summary to connect TiQ ratings.'}</span>
+              </div>
+              <div style={opponentRosterRecoveryActionsStyle}>
+                {!importedOpponentRosterCount ? <Link href={opponentSummaryUploadHref} style={ghostButton}>Add TennisLink roster</Link> : null}
+                <button type="button" onClick={openOpponentCourts} style={primaryButton}>Set opponent courts</button>
+              </div>
+            </section>
+          ) : (
+            <section
+              style={{
+                ...opponentRosterRecoveryStyle,
+                gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : opponentRosterRecoveryStyle.gridTemplateColumns,
+              }}
+              aria-label="Opponent roster options"
+            >
+              <div style={opponentRosterRecoveryCopyStyle}>
+                <span style={miniPillBlueStyle}>Opponent roster</span>
+                <strong>{opponentTeam} has not been added yet.</strong>
+                <span>Enter names now, or add its TennisLink Team Summary for TiQ ratings.</span>
+              </div>
+              <div style={opponentRosterRecoveryActionsStyle}>
+                <button
+                  type="button"
+                  onClick={() => setManualOpponentRosterOpen((current) => !current)}
+                  style={ghostButton}
+                  aria-expanded={manualOpponentRosterOpen}
+                  aria-controls="manual-opponent-roster"
+                >
+                  {manualOpponentRosterOpen ? 'Close names' : 'Enter names'}
+                </button>
+                <Link href={opponentSummaryUploadHref} style={primaryButton}>Upload TennisLink roster</Link>
+              </div>
+              {manualOpponentRosterOpen ? (
+                <div id="manual-opponent-roster" style={opponentRosterManualEntryStyle}>
+                  <label htmlFor="manual-opponent-roster-names" style={labelStyle}>Opponent names</label>
+                  <textarea
+                    id="manual-opponent-roster-names"
+                    value={manualOpponentRosterText}
+                    onChange={(event) => setManualOpponentRosterText(event.target.value)}
+                    placeholder={'Player one\nPlayer two'}
+                    rows={3}
+                    style={opponentRosterTextareaStyle}
+                  />
+                  <div style={opponentRosterManualActionsStyle}>
+                    <span style={subtleHelperTextStyle}>One player per line. You can add ratings later.</span>
+                    <PrimaryBtn onClick={addManualOpponentRosterPlayers}>Add opponents</PrimaryBtn>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          )
         ) : null}
 
         {replacementHandoff ? (
@@ -3529,21 +4702,83 @@ function LineupBuilderContent() {
         ) : null}
 
         {isMobile ? (
-          <section style={mobileCourtFocusStyle} aria-label="Lineup next decision">
-            <div>
-              <p style={sectionKicker}>Next decision</p>
-              <h2 style={mobileCourtFocusTitleStyle}>Set the courts.</h2>
-              <p style={mobileCourtFocusTextStyle}>
-                {lineupHasAssignments
-                  ? `${formatPercent(analysis.projection)} projected. Review the pairings, then ask players.`
-                  : 'Start with the three team courts. TIQ can fill a balanced first draft for you.'}
-              </p>
-            </div>
-            <div style={mobileCourtFocusActionsStyle}>
-              <Link href="#captain-lineup-courts" style={primaryButton}>Choose players</Link>
-              <GhostBtn onClick={() => applyOptimizedPlan('best')}>Auto-build</GhostBtn>
-            </div>
-          </section>
+          <>
+            <section style={mobileCourtFocusStyle} aria-label="Lineup next decision">
+              <div>
+                <p style={sectionKicker}>Next decision</p>
+                <h2 style={mobileCourtFocusTitleStyle}>{finalLineupReady ? 'Ready to send.' : 'Set the courts.'}</h2>
+                <p style={mobileCourtFocusTextStyle}>
+                  {finalLineupReady
+                    ? 'Every selected player is in. Send one clear lineup and match update to the team.'
+                    : lineupHasAssignments
+                      ? `${formatPercent(analysis.projection)} projected. Review the pairings, then ask players.`
+                      : 'Start with the three team courts. TiQ can fill a balanced first draft for you.'}
+                </p>
+                <div style={mobileLineupPulseStyle} aria-label="Lineup readiness pulse">
+                  {mobileLineupPulse.map((item) => (
+                    <div key={item.label} style={mobileLineupPulseCardStyle}>
+                      <span style={mobileLineupPulseLabelStyle}>{item.label}</span>
+                      <strong style={mobileLineupPulseValueStyle}>{item.value}</strong>
+                      <small style={mobileLineupPulseDetailStyle}>{item.detail}</small>
+                    </div>
+                  ))}
+                </div>
+                {mobileCourtMap.length ? (
+                  <div style={mobileCourtMapShellStyle} aria-label="Court map">
+                    <div style={mobileCourtMapHeaderStyle}>
+                      <span style={mobileCourtMapTitleStyle}>Court map</span>
+                      <span style={mobileCourtMapHintStyle}>Where to lean in</span>
+                    </div>
+                    <div style={mobileCourtMapGridStyle}>
+                      {mobileCourtMap.map((court) => (
+                        <div key={court.label} style={mobileCourtMapCardStyle(court.tone)}>
+                          <span style={mobileCourtMapLabelStyle}>{court.label}</span>
+                          <div style={mobileCourtMapValueRowStyle}>
+                            <strong style={mobileCourtMapValueStyle}>{court.value}</strong>
+                            <span style={mobileCourtMapStatusStyle(court.tone)}>{court.status}</span>
+                          </div>
+                          <span style={mobileCourtMapDetailStyle}>{court.detail}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              <div style={mobileCourtFocusActionsStyle}>
+                {!finalLineupReady ? (
+                  <PrimaryBtn onClick={() => applyOptimizedPlan('best')}>
+                    {lineupHasAssignments ? 'Refresh lineup' : 'Build lineup'}
+                  </PrimaryBtn>
+                ) : null}
+                <GhostLink href="#captain-lineup-courts">Review courts</GhostLink>
+              </div>
+            </section>
+
+            {lineupHasAssignments ? (
+              <section style={mobileFinalLineupPanelStyle} aria-label="Final lineup status" role="status" aria-live="polite">
+                <div style={mobileFinalLineupHeaderStyle}>
+                  <div style={mobileFinalLineupCopyStyle}>
+                    <p style={sectionKicker}>Final lineup</p>
+                    <strong>{finalLineupReadinessTitle}</strong>
+                    <span>{finalLineupReadinessDetail}</span>
+                  </div>
+                  <span style={finalLineupReady ? miniPillGreenStyle : miniPillBlueStyle}>
+                    {assignedTeamReplySummary.confirmed.length}/{assignedTeamReplySummary.players.length} in
+                  </span>
+                </div>
+                <div style={mobileFinalLineupActionsStyle}>
+                  {finalLineupReady ? (
+                    <Link href={teamRoomHref} style={primaryButton}>Send lineup to team</Link>
+                  ) : (
+                    <GhostBtn onClick={() => void refreshAvailabilityReplies()} disabled={refreshingReplies}>
+                      {refreshingReplies ? 'Checking replies...' : 'Check replies'}
+                    </GhostBtn>
+                  )}
+                  <GhostLink href="#captain-lineup-courts">Edit courts</GhostLink>
+                </div>
+              </section>
+            ) : null}
+          </>
         ) : <section style={decisionBoardShellStyle}>
           <div style={decisionBoardHeaderStyle}>
             <div>
@@ -3600,13 +4835,40 @@ function LineupBuilderContent() {
             This is a potential lineup. Review it, then confirm each player&apos;s availability before finalizing.
           </p>
 
+          <div role="status" aria-live="polite" style={finalLineupReady ? bannerGreenStyle : bannerBlueStyle}>
+            <div style={finalLineupGateHeaderStyle}>
+              <div style={finalLineupGateCopyStyle}>
+                <p style={sectionKicker}>Final lineup check</p>
+                <strong>{finalLineupReadinessTitle}</strong>
+                <span>{finalLineupReadinessDetail}</span>
+              </div>
+              <span style={finalLineupReady ? miniPillGreenStyle : miniPillBlueStyle}>
+                {assignedTeamReplySummary.confirmed.length}/{assignedTeamReplySummary.players.length} in
+              </span>
+            </div>
+            <div style={finalLineupGateActionsStyle}>
+              {finalLineupReady ? (
+                <GhostLink href={teamRoomHref}>Review final lineup</GhostLink>
+              ) : (
+                <GhostBtn onClick={() => void refreshAvailabilityReplies()} disabled={refreshingReplies}>
+                  {refreshingReplies ? 'Refreshing replies...' : 'Check replies'}
+                </GhostBtn>
+              )}
+              <GhostLink href="#captain-lineup-courts">Review courts</GhostLink>
+            </div>
+          </div>
+
           <div style={decisionBoardActionRowStyle}>
             <PrimaryBtn onClick={() => applyOptimizedPlan('best')}>Apply best lineup</PrimaryBtn>
             <GhostBtn onClick={() => applyOptimizedPlan('safe')}>Reduce risk</GhostBtn>
             <GhostBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
               {saveAndAskLabel}
             </GhostBtn>
+            <GhostBtn onClick={() => void refreshAvailabilityReplies()} disabled={refreshingReplies}>
+              {refreshingReplies ? 'Refreshing replies...' : 'Refresh replies'}
+            </GhostBtn>
             <GhostLink href={compareHref}>Compare versions</GhostLink>
+            <GhostLink href={teamBriefHref}>Open team brief</GhostLink>
           </div>
 
           {appliedLineupNotice ? (
@@ -3633,6 +4895,89 @@ function LineupBuilderContent() {
             </div>
           ) : null}
         </section>}
+
+        {lineupVersionComparison && comparisonScenario ? (
+          <section id="captain-lineup-version-compare" style={lineupVersionCompareShellStyle} aria-label="Saved lineup comparison">
+            <div style={lineupVersionCompareHeaderStyle}>
+              <div>
+                <p style={sectionKicker}>Version compare</p>
+                <h2 style={sectionTitleSmall}>What changed?</h2>
+                <p style={sectionBodyTextStyle}>Working draft vs {lineupVersionComparison.baselineName}. Review the difference before you ask the team.</p>
+              </div>
+              <label style={lineupVersionCompareSelectLabelStyle} htmlFor="lineup-version-compare-select">
+                <span>Compare against</span>
+                <select
+                  id="lineup-version-compare-select"
+                  value={comparisonScenario.id}
+                  onChange={(event) => setComparisonScenarioId(event.target.value)}
+                  style={lineupVersionCompareSelectStyle}
+                >
+                  {comparisonCandidates.map((scenario) => (
+                    <option key={scenario.id} value={scenario.id}>{scenario.scenario_name || 'Untitled saved version'}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div style={lineupVersionCompareGridStyle}>
+              <div style={lineupVersionCompareCardStyle('info')}>
+                <span style={lineupVersionCompareLabelStyle}>Match outlook</span>
+                <strong style={lineupVersionCompareValueStyle}>
+                  {lineupVersionComparison.fullyProjected
+                    ? `${formatPercent(lineupVersionComparison.baselineProjection)} to ${formatPercent(analysis.projection)}`
+                    : 'Needs both lineups'}
+                </strong>
+                <span style={lineupVersionCompareDetailStyle}>
+                  {lineupVersionComparison.fullyProjected
+                    ? formatProjectionPointDelta(lineupVersionComparison.overallDelta)
+                    : 'Complete team and opponent courts first'}
+                </span>
+              </div>
+              <div style={lineupVersionCompareCardStyle(lineupVersionComparison.changedCourts.length ? 'good' : 'muted')}>
+                <span style={lineupVersionCompareLabelStyle}>Courts changed</span>
+                <strong style={lineupVersionCompareValueStyle}>{lineupVersionComparison.changedCourts.length}</strong>
+                <span style={lineupVersionCompareDetailStyle}>
+                  {lineupVersionComparison.changedCourts.length ? 'Player or opponent assignments moved' : 'Same court assignments'}
+                </span>
+              </div>
+              <div style={lineupVersionCompareCardStyle(lineupVersionComparison.biggestShift?.delta && lineupVersionComparison.biggestShift.delta < 0 ? 'warn' : 'info')}>
+                <span style={lineupVersionCompareLabelStyle}>Biggest shift</span>
+                <strong style={lineupVersionCompareValueStyle}>{lineupVersionComparison.biggestShift?.label ?? 'No court read'}</strong>
+                <span style={lineupVersionCompareDetailStyle}>
+                  {typeof lineupVersionComparison.biggestShift?.delta === 'number'
+                    ? formatProjectionPointDelta(lineupVersionComparison.biggestShift.delta)
+                    : 'No projection change yet'}
+                </span>
+              </div>
+            </div>
+
+            <div style={lineupVersionCompareCallStyle}>
+              <span style={lineupVersionCompareLabelStyle}>Captain call</span>
+              <strong>{lineupVersionComparison.recommendation}</strong>
+              {lineupVersionComparison.playerSwap ? (
+                <span>
+                  {lineupVersionComparison.playerSwap.label}: {lineupVersionComparison.playerSwap.beforePlayers} → {lineupVersionComparison.playerSwap.afterPlayers}
+                </span>
+              ) : null}
+            </div>
+
+            {lineupVersionComparison.changedCourts.length ? (
+              <div style={lineupVersionCompareCourtGridStyle}>
+                {lineupVersionComparison.changedCourts.slice(0, 4).map((court) => (
+                  <div key={court.label} style={lineupVersionCompareCourtStyle}>
+                    <span style={lineupVersionCompareLabelStyle}>{court.label}</span>
+                    <strong>{court.beforePlayers} → {court.afterPlayers}</strong>
+                    <span style={lineupVersionCompareDetailStyle}>
+                      {typeof court.delta === 'number'
+                        ? `${formatPercent(court.before)} to ${formatPercent(court.after)} · ${formatProjectionPointDelta(court.delta)}`
+                        : 'Complete both court reads to see the impact'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         <details style={isMobile ? hiddenMobileContextStyle : surfaceCard}>
           <summary style={detailsSummaryStyle}>
@@ -3774,7 +5119,7 @@ function LineupBuilderContent() {
                     {flightOptions.map((item) => <option key={item} value={item} />)}
                   </datalist>
                 </Field>
-                <Field label="Match format" htmlFor="lineup-builder-match-format" hint="Detected from USTA names or loaded from a TIQ league. Change it only when local rules use a different scorecard.">
+                <Field label="Match format" htmlFor="lineup-builder-match-format" hint="Detected from USTA names or loaded from a TiQ league. Change it only when local rules use a different scorecard.">
                   <select
                     id="lineup-builder-match-format"
                     value={selectedMatchFormatId}
@@ -3861,11 +5206,11 @@ function LineupBuilderContent() {
               <div style={toggleRowStyle}>
                 <label style={checkLabelStyle}>
                   <input type="checkbox" checked={availabilityOnly} onChange={(e) => setAvailabilityOnly(e.target.checked)} />
-                  Availability-only player pool
+                  Show only players who replied
                 </label>
                 <label style={checkLabelStyle}>
                   <input type="checkbox" checked={hideUnavailable} onChange={(e) => setHideUnavailable(e.target.checked)} />
-                  Hide unavailable players
+                  Hide players marked out
                 </label>
               </div>
             </section>
@@ -3933,12 +5278,15 @@ function LineupBuilderContent() {
                   <p style={sectionKicker}>Your lineup</p>
                   <h2 style={sectionTitle}>Build your team courts</h2>
                 </div>
-                {!isFixedLineupFormat ? (
-                  <div style={actionRowStyle}>
+                <div style={actionRowStyle}>
+                  {!isFixedLineupFormat ? (
+                    <>
                     <GhostSmallBtn onClick={() => addSlot('team', 'singles')}>+ Singles</GhostSmallBtn>
                     <GhostSmallBtn onClick={() => addSlot('team', 'doubles')}>+ Doubles</GhostSmallBtn>
-                  </div>
-                ) : null}
+                    </>
+                  ) : null}
+                  <GhostLink href={teamContactsHref}>Team contacts</GhostLink>
+                </div>
               </div>
 
               {teamRoomReplyCounts && !loading ? (
@@ -3946,6 +5294,35 @@ function LineupBuilderContent() {
                   {teamRoomReplyCounts.total
                     ? `Team replies applied: ${teamRoomReplyCounts.yes} In${teamRoomReplyCounts.maybe ? ` · ${teamRoomReplyCounts.maybe} Maybe` : ''}. Out players are hidden.`
                     : 'No linked replies yet. Showing the full roster.'}
+                </div>
+              ) : null}
+
+              {hasPendingCourtReplies ? (
+                <div role="status" aria-live="polite" style={bannerBlueStyle}>
+                  Waiting for player replies. TiQ is checking automatically while this Builder stays open.
+                </div>
+              ) : null}
+
+              {directCourtTextHandoff && !hasPreparedDirectCourtText ? (
+                <div role="status" aria-live="polite" style={directCourtTextBannerStyle}>
+                  <div style={directCourtTextCopyStyle}>
+                    <p style={sectionKicker}>Private court check</p>
+                    <strong>{nextDirectCourtTextPlayer
+                      ? `${directCourtTextHandoff.courtLabel}: text ${nextDirectCourtTextPlayer.playerName} next.`
+                      : `${directCourtTextHandoff.courtLabel}: every selected player has been texted.`}</strong>
+                    <span>{nextDirectCourtTextPlayer
+                      ? 'The Builder keeps this court in place while you privately confirm this player.'
+                      : 'Keep building the rest of the lineup. Replies will refresh when you return.'}</span>
+                  </div>
+                  <div style={directCourtTextActionStyle}>
+                    {nextDirectCourtTextPlayer ? (
+                      <PrimaryBtn onClick={() => openDirectCourtText(nextDirectCourtTextPlayer)}>
+                        Text {nextDirectCourtTextPlayer.playerName.split(' ')[0]}
+                      </PrimaryBtn>
+                    ) : (
+                      <GhostBtn onClick={() => saveDirectCourtTextHandoff(null)}>Clear check</GhostBtn>
+                    )}
+                  </div>
                 </div>
               ) : null}
 
@@ -3978,17 +5355,40 @@ function LineupBuilderContent() {
                     toggleLockedPlayer={toggleLockedPlayer}
                     lockedSlotIds={lockedSlotIdSet}
                     lockedPlayerIds={lockedPlayerIdSet}
+                    autoLockedPlayerIds={autoLockedConfirmedPlayerIdSet}
+                    releasedConfirmedPlayerIds={releasedConfirmedPlayerIdSet}
                     fixedFormat={isFixedLineupFormat}
                     competitionRules={competitionRules}
-                    focused={backupFocusSlot?.id === slot.id}
-                  />
+                    onAskPlayers={askProposedCourtPlayers}
+                    onSavePlayerPhone={saveCourtPlayerPhone}
+                    missingPhonePlayerKeys={new Set(missingPhonePlayerKeys)}
+                    inlinePhoneByPlayerKey={inlinePhoneByPlayerKey}
+                    onInlinePhoneChange={(playerKey, value) => setInlinePhoneByPlayerKey((current) => ({ ...current, [playerKey]: value }))}
+                    savingPhonePlayerKey={savingPhonePlayerKey}
+                    getPreparedCourtText={(targetSlot, player) => preparedCourtTexts[getPreparedCourtTextKey(targetSlot, player)]}
+                    onOpenPreparedCourtText={markPreparedCourtTextOpened}
+                  openedCourtTextKeys={openedCourtTextKeySet}
+                  askingPlayers={askingCourtId === slot.id}
+                  focused={backupFocusSlot?.id === slot.id}
+                  isMobileLayout={isMobile}
+                  expanded={!isMobile || backupFocusSlot?.id === slot.id || expandedTeamSlotId === slot.id}
+                  onToggleExpanded={() => setExpandedTeamSlotId((current) => current === slot.id ? '' : slot.id)}
+                />
                 ))}
               </div>
             </section>
           </div>
 
           <div style={columnStyle}>
-            <section style={surfaceCardStrong}>
+            <details open={builderMode === 'insights'} style={surfaceCardStrong}>
+              <summary style={detailsSummaryStyle}>
+                <div>
+                  <p style={sectionKicker}>Opponent + insights</p>
+                  <h2 style={sectionTitleSmall}>Project the matchup</h2>
+                </div>
+                <span style={miniPillBlueStyle}>{builderMode === 'insights' ? 'Open' : 'Optional'}</span>
+              </summary>
+            <section id="opponent-lineup" style={surfaceCardStrong}>
               <div style={sectionHeaderStyle}>
                 <div>
                   <p style={sectionKicker}>Opponent lineup</p>
@@ -4024,8 +5424,13 @@ function LineupBuilderContent() {
                     toggleLockedPlayer={() => undefined}
                     lockedSlotIds={new Set()}
                     lockedPlayerIds={new Set()}
+                    autoLockedPlayerIds={new Set()}
+                    releasedConfirmedPlayerIds={new Set()}
                     fixedFormat={isFixedLineupFormat}
                     competitionRules={competitionRules}
+                    onAskPlayers={undefined}
+                    askingPlayers={false}
+                    isMobileLayout={isMobile}
                   />
                 ))}
               </div>
@@ -4042,7 +5447,7 @@ function LineupBuilderContent() {
                 <PrimaryBtn onClick={applyRecommendedTeamLineup}>Apply Balanced Build</PrimaryBtn>
                 <GhostBtn onClick={applyRecommendedOpponentLineup}>Auto-Fill Opponent</GhostBtn>
                 <GhostBtn onClick={rebuildAroundLocks}>Rebuild Around Locks</GhostBtn>
-                <GhostBtn onClick={clearLocks}>Clear Locks</GhostBtn>
+                <GhostBtn onClick={clearLocks}>Reset Locks</GhostBtn>
               </div>
 
               <div style={heroBadgeRowStyleCompact}>
@@ -4058,7 +5463,7 @@ function LineupBuilderContent() {
                     <h3 style={sectionTitleSmall}>What is fixed and what can still move</h3>
                   </div>
                   <span style={miniPillSlateStyle}>
-                    {lockedSlotIds.length + lockedPlayerIds.length} lock{lockedSlotIds.length + lockedPlayerIds.length === 1 ? '' : 's'}
+                    {activeLockCount} lock{activeLockCount === 1 ? '' : 's'}
                   </span>
                 </div>
 
@@ -4073,14 +5478,14 @@ function LineupBuilderContent() {
 
                   <div style={lockSummaryCardStyle}>
                     <div style={lockSummaryLabelStyle}>Locked players</div>
-                    <div style={lockSummaryValueStyle}>{lockedPlayerIds.length}</div>
+                    <div style={lockSummaryValueStyle}>{activePlayerLockCount}</div>
                     <div style={lockSummaryTextStyle}>
-                      Keep specific players in the lineup while the rest of the build adjusts around them.
+                      Confirmed players lock automatically. You can unlock one when you need to move them.
                     </div>
                   </div>
                 </div>
 
-                {(lockedSlotIds.length || lockedPlayerIds.length) ? (
+                {activeLockCount ? (
                   <div style={stackStyleCompact}>
                     {lockedSlotIds.length ? (
                       <div style={listCardStyleCompact}>
@@ -4097,7 +5502,7 @@ function LineupBuilderContent() {
                       </div>
                     ) : null}
 
-                    {lockedPlayerIds.length ? (
+                    {activePlayerLockCount ? (
                       <div style={listCardStyleCompact}>
                         <div>
                           <div style={listTitleStyle}>Locked players</div>
@@ -4108,7 +5513,7 @@ function LineupBuilderContent() {
                               .join(' - ')}
                           </div>
                         </div>
-                        <span style={miniPillGreenStyle}>player locks</span>
+                        <span style={miniPillGreenStyle}>{autoLockedConfirmedPlayerIdSet.size ? 'confirmed locks' : 'player locks'}</span>
                       </div>
                     ) : null}
                   </div>
@@ -4119,7 +5524,7 @@ function LineupBuilderContent() {
                 )}
 
                 <div style={lockInsightStyle}>
-                  {lockedSlotIds.length || lockedPlayerIds.length
+                  {activeLockCount
                     ? 'Rebuilds will preserve your locked structure first, then fill the rest of the lineup from the current player pool.'
                     : 'Nothing is pinned yet, so optimizer actions can freely rebalance your entire lineup.'}
                 </div>
@@ -4143,7 +5548,7 @@ function LineupBuilderContent() {
                         <div>
                           <div style={listTitleStyle}>{player.name}</div>
                           <div style={listMetaStyle}>
-                            TIQ {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} | USTA {formatRating(player.overall_usta_dynamic_rating ?? player.overall_rating)} - S {formatRating(player.singles_dynamic_rating ?? player.singles_rating)} - D {formatRating(player.doubles_dynamic_rating ?? player.doubles_rating)}
+                            TiQ {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} | USTA {formatRating(player.overall_usta_dynamic_rating ?? player.overall_rating)} - S {formatRating(player.singles_dynamic_rating ?? player.singles_rating)} - D {formatRating(player.doubles_dynamic_rating ?? player.doubles_rating)}
                           </div>
                         </div>
                         <div style={rightPillStackStyle}>
@@ -4225,9 +5630,10 @@ function LineupBuilderContent() {
                 ))}
               </div>
             </details>
+            </details>
           </div>
 
-          <div style={columnStyle}>
+          {builderMode === 'insights' ? <div style={columnStyle}>
             <section style={surfaceCardStrong}>
               <p style={sectionKicker}>Scorecard</p>
               <h2 style={sectionTitle}>What this lineup says</h2>
@@ -4467,12 +5873,17 @@ function LineupBuilderContent() {
               <summary style={detailsSummaryStyle}>
                 <div>
                   <p style={sectionKicker}>Player pool</p>
-                  <h3 style={sectionTitleSmall}>Available players</h3>
+                  <h3 style={sectionTitleSmall}>Team roster</h3>
                 </div>
                 <span style={miniPillSlateStyle}>{myPlayerPool.length} team players</span>
               </summary>
 
               <div style={stackStyleCompact}>
+                {myPlayerPool.length ? (
+                  <p style={subtleHelperTextStyle}>
+                    {myAvailabilitySummary.confirmed} confirmed · {myAvailabilitySummary.maybe} maybe · {myAvailabilitySummary.noResponse} no response · {myAvailabilitySummary.out} out. No-response players remain selectable; Save &amp; ask players sends their confirmation request.
+                  </p>
+                ) : null}
                 {myPlayerPool.length ? myPlayerPool.map((player) => {
                   const rStatus = getLineupRatingStatus(player)
                   const eligibilityLabels = getPlayerEligibilitySourceLabel({
@@ -4493,7 +5904,7 @@ function LineupBuilderContent() {
 
                       <div style={rightPillStackStyle}>
                         <span style={{ ...miniPillSlateStyle, ...statusTone(player.availabilityStatus) }}>
-                          {player.availabilityStatus || 'unknown'}
+                          {availabilityLabel(player.availabilityStatus)}
                         </span>
                         {rStatus ? <span style={getLineupStatusStyle(rStatus)}>{rStatus}</span> : null}
                         {teamAssignedPlayerIds.has(player.id) ? <span style={miniPillBlueStyle}>assigned</span> : null}
@@ -4514,7 +5925,25 @@ function LineupBuilderContent() {
                 )}
               </div>
             </details>
-          </div>
+          </div> : (
+            <div style={columnStyle}>
+              <details style={surfaceCard}>
+                <summary style={detailsSummaryStyle}>
+                  <div>
+                    <p style={sectionKicker}>Insights</p>
+                    <h3 style={sectionTitleSmall}>Recommendations and matchup stats</h3>
+                  </div>
+                  <span style={miniPillBlueStyle}>{formatPercent(analysis.projection)} outlook</span>
+                </summary>
+                <p style={sectionBodyTextStyle}>
+                  Keep building yourself, or switch on TiQ insights to compare recommended lineups, opponent matchups, and the rating evidence behind each option.
+                </p>
+                <div style={{ marginTop: 14 }}>
+                  <PrimaryBtn onClick={() => setBuilderMode('insights')}>Open TiQ insights</PrimaryBtn>
+                </div>
+              </details>
+            </div>
+          )}
         </div>
       </div>
   )
@@ -4546,9 +5975,24 @@ function SlotEditor({
   toggleLockedPlayer,
   lockedSlotIds,
   lockedPlayerIds,
+  autoLockedPlayerIds,
+  releasedConfirmedPlayerIds,
   fixedFormat,
   competitionRules,
+  onAskPlayers,
+  onSavePlayerPhone,
+  missingPhonePlayerKeys,
+  inlinePhoneByPlayerKey,
+  onInlinePhoneChange,
+  savingPhonePlayerKey,
+  getPreparedCourtText,
+  onOpenPreparedCourtText,
+  openedCourtTextKeys,
+  askingPlayers,
   focused = false,
+  isMobileLayout = false,
+  expanded = true,
+  onToggleExpanded,
 }: {
   side: 'team' | 'opponent'
   slot: LineupSlot
@@ -4561,80 +6005,271 @@ function SlotEditor({
   toggleLockedPlayer: (playerId: string) => void
   lockedSlotIds: Set<string>
   lockedPlayerIds: Set<string>
+  autoLockedPlayerIds: Set<string>
+  releasedConfirmedPlayerIds: Set<string>
   fixedFormat: boolean
   competitionRules: TeamCompetitionRules
+  onAskPlayers?: (slot: LineupSlot, player: LineupSlot['players'][number]) => void
+  onSavePlayerPhone?: (slot: LineupSlot, player: LineupSlot['players'][number]) => void
+  missingPhonePlayerKeys?: Set<string>
+  inlinePhoneByPlayerKey?: Record<string, string>
+  onInlinePhoneChange?: (playerKey: string, value: string) => void
+  savingPhonePlayerKey?: string
+  getPreparedCourtText?: (slot: LineupSlot, player: LineupSlot['players'][number]) => PreparedCourtText | undefined
+  onOpenPreparedCourtText?: (preparedText: PreparedCourtText) => void
+  openedCourtTextKeys?: Set<string>
+  askingPlayers: boolean
   focused?: boolean
+  isMobileLayout?: boolean
+  expanded?: boolean
+  onToggleExpanded?: () => void
 }) {
   const selectablePlayerPool = playerPool.filter((player) =>
     isPlayerEligibleForSlot(player, slot, competitionRules) || slot.players.some((selected) => selected.playerId === player.id)
   )
-
+  const selectedPlayers = slot.players.filter((player) => player.playerId && player.playerName.trim())
+  const askablePlayers = selectedPlayers.filter((player) => {
+    const selectedPoolPlayer = playerPool.find((poolPlayer) => poolPlayer.id === player.playerId)
+    return availabilityLabel(selectedPoolPlayer?.availabilityStatus) !== 'Confirmed'
+  })
+  const compactSelectionSummary = selectedPlayers.length
+    ? selectedPlayers.map((player) => player.playerName).join(' · ')
+    : slot.players.length === 1 ? 'Choose a player' : `Choose ${slot.players.length} players`
+  const compactReplySummary = selectedPlayers.length
+    ? selectedPlayers.map((player) => {
+        const selectedPoolPlayer = playerPool.find((poolPlayer) => poolPlayer.id === player.playerId)
+        return availabilityLabel(selectedPoolPlayer?.availabilityStatus)
+      }).join(' · ')
+    : 'Needs players'
+  const showCompactMobileCourt = isMobileLayout && !expanded
   return (
     <div
       id={`captain-lineup-slot-${slot.id}`}
       style={focused ? { ...slotCardStyle, ...focusedSlotCardStyle } : slotCardStyle}
       tabIndex={focused ? -1 : undefined}
     >
-      <div style={slotHeaderStyle}>
-        <div style={slotHeaderLeftStyle}>
-          {fixedFormat ? (
-            <strong style={fixedSlotLabelStyle}>{slot.label}</strong>
-          ) : (
-            <input
-              aria-label={`${side} slot label`}
-              value={slot.label}
-              onChange={(e) => onLabelChange(side, slot.id, e.target.value)}
-              style={slotLabelInputStyle}
-            />
-          )}
-          <span style={miniPillSlateStyle}>{slot.slotType}</span>
-          {side === 'team' ? (
-            <button type="button" aria-pressed={lockedSlotIds.has(slot.id)} style={lockedSlotIds.has(slot.id) ? pillButtonActive : pillButton} onClick={() => toggleLockedSlot(slot.id)}>
-              {lockedSlotIds.has(slot.id) ? 'line locked' : 'lock line'}
-            </button>
-          ) : null}
-        </div>
+      {showCompactMobileCourt ? (
+        <button
+          type="button"
+          aria-expanded={false}
+          aria-controls={`captain-lineup-slot-editor-${slot.id}`}
+          onClick={onToggleExpanded}
+          style={compactCourtTriggerStyle}
+        >
+          <span style={compactCourtTriggerHeaderStyle}>
+            <span style={compactCourtLabelStyle}>{slot.label}</span>
+            <span style={miniPillSlateStyle}>{selectedPlayers.length}/{slot.players.length} set</span>
+          </span>
+          <span style={compactCourtSelectionStyle}>{compactSelectionSummary}</span>
+          <span style={compactCourtTriggerFooterStyle}>
+            <span style={compactCourtStatusStyle}>{compactReplySummary}</span>
+            <span style={compactCourtEditStyle}>Edit court</span>
+          </span>
+        </button>
+      ) : (
+        <div id={`captain-lineup-slot-editor-${slot.id}`} style={slotEditorBodyStyle}>
+          <div style={slotHeaderStyle}>
+            <div style={slotHeaderLeftStyle}>
+              {fixedFormat ? (
+                <strong style={fixedSlotLabelStyle}>{slot.label}</strong>
+              ) : (
+                <input
+                  aria-label={`${side} slot label`}
+                  value={slot.label}
+                  onChange={(e) => onLabelChange(side, slot.id, e.target.value)}
+                  style={slotLabelInputStyle}
+                />
+              )}
+              <span style={miniPillSlateStyle}>{slot.slotType}</span>
+              {side === 'team' ? (
+                <button type="button" aria-pressed={lockedSlotIds.has(slot.id)} style={lockedSlotIds.has(slot.id) ? pillButtonActive : pillButton} onClick={() => toggleLockedSlot(slot.id)}>
+                  {lockedSlotIds.has(slot.id) ? 'line locked' : 'lock line'}
+                </button>
+              ) : null}
+            </div>
 
-        {!fixedFormat ? <GhostSmallBtn onClick={() => onRemove(side, slot.id)}>Remove</GhostSmallBtn> : null}
-      </div>
+            <div style={slotHeaderActionsStyle}>
+              {isMobileLayout && onToggleExpanded ? (
+                <GhostSmallBtn onClick={onToggleExpanded}>Done</GhostSmallBtn>
+              ) : null}
+              {!fixedFormat ? <GhostSmallBtn onClick={() => onRemove(side, slot.id)}>Remove</GhostSmallBtn> : null}
+            </div>
+          </div>
 
-      <div style={slotPlayersGridStyle}>
-        {slot.players.map((player, index) => (
-          <div key={`${slot.id}-${index}`} style={slotPlayerRowStyle}>
+          <div style={slotPlayersGridStyle}>
+        {slot.players.map((player, index) => {
+          const selectedPoolPlayer = player.playerId
+            ? playerPool.find((poolPlayer) => poolPlayer.id === player.playerId)
+            : null
+          const selectedReplyLabel = side === 'team'
+            ? availabilityLabel(selectedPoolPlayer?.availabilityStatus)
+            : 'No response'
+          const selectedReplyStyle = selectedReplyLabel === 'Confirmed'
+            ? selectedPlayerInFieldStyle
+            : selectedReplyLabel === 'Out'
+              ? selectedPlayerOutFieldStyle
+              : undefined
+          const playerKey = normalizeCaptainRosterContactKey(player.playerName)
+          const needsPhone = Boolean(missingPhonePlayerKeys?.has(playerKey))
+          const isAutoLocked = autoLockedPlayerIds.has(player.playerId)
+          const isConfirmedReleased = selectedReplyLabel === 'Confirmed' && releasedConfirmedPlayerIds.has(player.playerId)
+          const preparedCourtText = side === 'team' && player.playerId
+            ? getPreparedCourtText?.(slot, player)
+            : undefined
+          const askSignal = side === 'team' && player.playerId
+            ? getCourtAskSignal({
+                replyLabel: selectedReplyLabel,
+                prepared: Boolean(preparedCourtText),
+                opened: Boolean(preparedCourtText && openedCourtTextKeys?.has(preparedCourtText.key)),
+                preparing: askingPlayers,
+                needsPhone,
+              })
+            : null
+          const showAskSignal = !isMobileLayout || askSignal?.tone !== 'ready'
+
+          return (
+            <div
+              key={`${slot.id}-${index}`}
+              style={selectedReplyLabel === 'Confirmed'
+                ? { ...slotPlayerRowStyle, ...confirmedPlayerRowStyle }
+                : slotPlayerRowStyle}
+            >
               <select
                 aria-label={`${slot.label} player ${index + 1}`}
                 value={player.playerId}
                 onChange={(e) => onPlayerChange(side, slot.id, index, e.target.value)}
-                style={inputStyle}
-            >
-              <option value="">Select player</option>
-              {selectablePlayerPool.map((poolPlayer) => {
-                const disabled =
-                  poolPlayer.id !== player.playerId &&
-                  assignedPlayerIds.has(poolPlayer.id) &&
-                  side === 'team'
-
-                return (
-                  <option key={poolPlayer.id} value={poolPlayer.id} disabled={disabled}>
-                    {poolPlayer.name} - {typeof slot.ratingLevel === 'number' ? `NTRP ${formatRating(getPlayerBaseRating(poolPlayer))}` : `OVR ${formatRating(poolPlayer.overall_dynamic_rating ?? poolPlayer.overall_rating)}`}
-                  </option>
-                )
-              })}
-            </select>
-
-            {side === 'team' && player.playerId ? (
-              <button
-                type="button"
-                aria-pressed={lockedPlayerIds.has(player.playerId)}
-                style={lockedPlayerIds.has(player.playerId) ? pillButtonActive : pillButton}
-                onClick={() => toggleLockedPlayer(player.playerId)}
+                style={selectedReplyStyle
+                  ? { ...(isMobileLayout ? mobileSelectInputStyle : inputStyle), ...selectedReplyStyle }
+                  : isMobileLayout ? mobileSelectInputStyle : inputStyle}
               >
-                {lockedPlayerIds.has(player.playerId) ? 'player locked' : 'lock player'}
-              </button>
-            ) : null}
+                <option value="">Select player</option>
+                {player.playerId && !selectedPoolPlayer ? (
+                  <option value={player.playerId}>{player.playerName || 'Saved player'} · saved draft</option>
+                ) : null}
+                {selectablePlayerPool.map((poolPlayer) => {
+                  const disabled =
+                    poolPlayer.id !== player.playerId &&
+                    assignedPlayerIds.has(poolPlayer.id) &&
+                    side === 'team'
+
+                  return (
+                    <option key={poolPlayer.id} value={poolPlayer.id} disabled={disabled}>
+                      {poolPlayer.name} · {availabilityLabel(poolPlayer.availabilityStatus)} · {typeof slot.ratingLevel === 'number' ? `NTRP ${formatRating(getPlayerBaseRating(poolPlayer))}` : `OVR ${formatRating(poolPlayer.overall_dynamic_rating ?? poolPlayer.overall_rating)}`}
+                    </option>
+                  )
+                })}
+              </select>
+
+              {side === 'team' && player.playerId ? (
+                <div style={isMobileLayout
+                  ? {
+                      ...mobileSlotPlayerActionRowStyle,
+                      gridTemplateColumns: showAskSignal ? 'minmax(0, 1fr) auto' : 'auto',
+                      justifyContent: showAskSignal ? undefined : 'start',
+                    }
+                  : slotPlayerActionRowStyle}>
+                  {showAskSignal && askSignal ? (
+                    <span style={courtAskSignalStyle(askSignal.tone)} title={askSignal.detail}>
+                      {askSignal.label}
+                    </span>
+                  ) : null}
+                  <button
+                    type="button"
+                    aria-pressed={lockedPlayerIds.has(player.playerId)}
+                    aria-label={isAutoLocked
+                      ? `${player.playerName} is confirmed and locked. Unlock player.`
+                      : isConfirmedReleased
+                        ? `Re-lock confirmed player ${player.playerName}.`
+                        : undefined}
+                    style={lockedPlayerIds.has(player.playerId)
+                      ? isAutoLocked
+                        ? { ...confirmedPlayerLockButtonStyle, ...(isMobileLayout ? mobilePlayerLockButtonStyle : {}) }
+                        : { ...pillButtonActive, ...(isMobileLayout ? mobilePlayerLockButtonStyle : {}) }
+                      : { ...pillButton, ...(isMobileLayout ? mobilePlayerLockButtonStyle : {}) }}
+                    onClick={() => toggleLockedPlayer(player.playerId)}
+                  >
+                    {lockedPlayerIds.has(player.playerId)
+                      ? isAutoLocked ? 'Unlock' : 'Locked'
+                      : isConfirmedReleased ? 'Re-lock' : 'Lock'}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          )
+        })}
           </div>
-        ))}
-      </div>
+
+          {side === 'team' && onAskPlayers && askablePlayers.length ? (
+        <div style={isMobileLayout
+          ? {
+              ...mobileReplacementHandoffActionsStyle,
+              gridTemplateColumns: askablePlayers.length === 1 ? 'minmax(0, 1fr)' : mobileReplacementHandoffActionsStyle.gridTemplateColumns,
+            }
+          : replacementHandoffActionsStyle}>
+          {askablePlayers.map((player) => {
+            const preparedText = getPreparedCourtText?.(slot, player)
+            const playerKey = normalizeCaptainRosterContactKey(player.playerName)
+            const needsPhone = Boolean(missingPhonePlayerKeys?.has(playerKey))
+            if (preparedText && onOpenPreparedCourtText) {
+              return (
+                <a
+                  key={player.playerId || player.playerName}
+                  href={preparedText.href}
+                  onClick={() => onOpenPreparedCourtText(preparedText)}
+                  style={isMobileLayout ? mobileSmsFallbackLinkStyle : smsFallbackLinkStyle}
+                >
+                  Ask {player.playerName.split(' ')[0]}
+                </a>
+              )
+            }
+
+            return (
+              <div
+                key={player.playerId || player.playerName}
+                style={isMobileLayout
+                  ? needsPhone ? mobileCourtAskControlWithPhoneStyle : mobileCourtAskControlStyle
+                  : courtAskControlStyle}
+              >
+                <GhostSmallBtn onClick={() => onAskPlayers(slot, player)} disabled={askingPlayers} fullWidth={isMobileLayout}>
+                  {askingPlayers ? 'Preparing...' : `Ask ${player.playerName.split(' ')[0]}`}
+                </GhostSmallBtn>
+                {needsPhone && onSavePlayerPhone && onInlinePhoneChange ? (
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault()
+                      onSavePlayerPhone(slot, player)
+                    }}
+                    style={isMobileLayout ? mobileCourtPhoneFormStyle : courtPhoneFormStyle}
+                  >
+                    <label htmlFor={`captain-lineup-phone-${slot.id}-${playerKey}`} style={courtPhoneLabelStyle}>
+                      Add {player.playerName.split(' ')[0]}’s mobile number
+                    </label>
+                    <input
+                      id={`captain-lineup-phone-${slot.id}-${playerKey}`}
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      value={inlinePhoneByPlayerKey?.[playerKey] || ''}
+                      onChange={(event) => onInlinePhoneChange(playerKey, event.target.value)}
+                      placeholder="Mobile number"
+                      required
+                      style={inputStyle}
+                    />
+                    <GhostSmallBtn type="submit" disabled={savingPhonePlayerKey === playerKey} fullWidth={isMobileLayout}>
+                      {savingPhonePlayerKey === playerKey ? 'Saving mobile...' : 'Save mobile & prepare Ask'}
+                    </GhostSmallBtn>
+                  </form>
+                ) : null}
+              </div>
+            )
+          })}
+          <span style={isMobileLayout ? mobileCourtAskHelperStyle : mutedTextStyle}>
+            Private reply links stay with this court.
+          </span>
+        </div>
+          ) : null}
+        </div>
+      )}
     </div>
   )
 }
@@ -4678,6 +6313,15 @@ const replacementHandoffActionsStyle: CSSProperties = {
   alignItems: 'center',
   gap: 8,
   minWidth: 0,
+}
+
+const mobileReplacementHandoffActionsStyle: CSSProperties = {
+  ...replacementHandoffActionsStyle,
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  alignItems: 'stretch',
+  width: '100%',
+  gap: 10,
 }
 
 const savedLineupChangeStyle: CSSProperties = {
@@ -4812,6 +6456,10 @@ const builderControlRowStyle = (isSmallMobile: boolean): CSSProperties => ({
 const builderMobileActionStackStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
+  padding: 8,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
+  borderRadius: 18,
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%), var(--shell-chip-bg))',
 }
 
 const builderMoreActionsStyle: CSSProperties = {
@@ -4844,6 +6492,49 @@ const builderLayoutResponsive = (isTablet: boolean): CSSProperties => ({
   gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
   gap: 22,
   minWidth: 0,
+})
+
+const builderModeShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: 18,
+  borderRadius: 22,
+  border: '1px solid rgba(96,165,250,0.24)',
+  background: 'linear-gradient(135deg, rgba(30,64,175,0.16), rgba(8,13,28,0.72))',
+  minWidth: 0,
+}
+
+const builderModeHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const builderModeOptionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const builderModeOptionStyle = (selected: boolean): CSSProperties => ({
+  display: 'grid',
+  gap: 5,
+  width: '100%',
+  minWidth: 0,
+  padding: 15,
+  borderRadius: 17,
+  border: selected ? '1px solid rgba(190,242,100,0.84)' : '1px solid rgba(125,211,252,0.18)',
+  background: selected
+    ? 'linear-gradient(135deg, rgba(163,230,53,0.22), rgba(30,41,59,0.84))'
+    : 'rgba(15,23,42,0.68)',
+  color: 'var(--shell-copy)',
+  textAlign: 'left',
+  cursor: 'pointer',
+  boxShadow: selected ? '0 0 0 2px rgba(163,230,53,0.12)' : 'none',
 })
 
 const columnStyle: CSSProperties = {
@@ -4928,6 +6619,16 @@ const inputStyle: CSSProperties = {
   outline: 'none',
   colorScheme: 'dark',
   minWidth: 0,
+  boxSizing: 'border-box',
+}
+
+const mobileSelectInputStyle: CSSProperties = {
+  ...inputStyle,
+  padding: '0 38px 0 12px',
+  fontSize: 15,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
 }
 
 const readOnlyInputStyle: CSSProperties = {
@@ -5220,6 +6921,74 @@ const slotCardStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const slotEditorBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+}
+
+const compactCourtTriggerStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  width: '100%',
+  minWidth: 0,
+  padding: 0,
+  border: 0,
+  background: 'transparent',
+  color: 'var(--foreground)',
+  textAlign: 'left',
+  cursor: 'pointer',
+}
+
+const compactCourtTriggerHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const compactCourtLabelStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const compactCourtSelectionStyle: CSSProperties = {
+  color: 'var(--foreground)',
+  fontSize: 14,
+  lineHeight: 1.4,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const compactCourtTriggerFooterStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const compactCourtStatusStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const compactCourtEditStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 12,
+  lineHeight: 1.25,
+  fontWeight: 900,
+  whiteSpace: 'nowrap',
+}
+
 const focusedSlotCardStyle: CSSProperties = {
   border: '2px solid color-mix(in srgb, var(--brand-green) 72%, var(--shell-panel-border))',
   boxShadow: '0 0 0 4px color-mix(in srgb, var(--brand-green) 12%, transparent)',
@@ -5306,6 +7075,108 @@ const slotPlayerRowStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const confirmedPlayerRowStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-green) 72%, transparent)',
+  borderRadius: 16,
+  padding: 10,
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(16,185,129,0.04))',
+  boxShadow: '0 0 0 2px color-mix(in srgb, var(--brand-green) 10%, transparent)',
+}
+
+const slotPlayerActionRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const mobileSlotPlayerActionRowStyle: CSSProperties = {
+  ...slotPlayerActionRowStyle,
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  alignItems: 'stretch',
+  width: '100%',
+}
+
+const slotHeaderActionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const mobilePlayerLockButtonStyle: CSSProperties = {
+  minHeight: 32,
+  minWidth: 78,
+  padding: '0 11px',
+  whiteSpace: 'nowrap',
+}
+
+const courtAskControlStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  maxWidth: '100%',
+}
+
+const mobileCourtAskControlStyle: CSSProperties = {
+  ...courtAskControlStyle,
+  width: '100%',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+}
+
+const mobileCourtAskControlWithPhoneStyle: CSSProperties = {
+  ...mobileCourtAskControlStyle,
+  gridColumn: '1 / -1',
+}
+
+const mobileCourtAskHelperStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.4,
+}
+
+const courtPhoneFormStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 8,
+  minWidth: 0,
+  maxWidth: '100%',
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+}
+
+const mobileCourtPhoneFormStyle: CSSProperties = {
+  ...courtPhoneFormStyle,
+  width: '100%',
+  boxSizing: 'border-box',
+  padding: 12,
+  gap: 10,
+}
+
+const courtPhoneLabelStyle: CSSProperties = {
+  color: 'var(--foreground)',
+  fontSize: 12,
+  fontWeight: 800,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const selectedPlayerInFieldStyle: CSSProperties = {
+  border: '2px solid var(--brand-green)',
+  boxShadow: '0 0 0 3px color-mix(in srgb, var(--brand-green) 15%, transparent)',
+}
+
+const selectedPlayerOutFieldStyle: CSSProperties = {
+  border: '2px solid #fb7185',
+  boxShadow: '0 0 0 3px rgba(251, 113, 133, 0.14)',
+}
+
 const tableHeaderStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -5347,13 +7218,139 @@ const decisionBoardShellStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const lineupVersionCompareShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: 20,
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-panel-bg-strong) 90%), var(--shell-chip-bg))',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.16)',
+  minWidth: 0,
+}
+
+const lineupVersionCompareHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-end',
+  justifyContent: 'space-between',
+  gap: 14,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const lineupVersionCompareSelectLabelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 'min(100%, 220px)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 850,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+}
+
+const lineupVersionCompareSelectStyle: CSSProperties = {
+  ...inputStyle,
+  height: 40,
+  fontSize: 13,
+  fontWeight: 800,
+}
+
+const lineupVersionCompareGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+function lineupVersionCompareCardStyle(tone: CourtMapTone): CSSProperties {
+  const palette = tone === 'good'
+    ? { border: 'rgba(134, 239, 172, 0.3)', background: 'rgba(22, 101, 52, 0.15)' }
+    : tone === 'warn'
+      ? { border: 'rgba(252, 165, 165, 0.3)', background: 'rgba(127, 29, 29, 0.15)' }
+      : tone === 'info'
+        ? { border: 'rgba(125, 211, 252, 0.28)', background: 'rgba(3, 105, 161, 0.14)' }
+        : { border: 'var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
+
+  return {
+    display: 'grid',
+    gap: 5,
+    minWidth: 0,
+    padding: 14,
+    borderRadius: 17,
+    border: `1px solid ${palette.border}`,
+    background: palette.background,
+  }
+}
+
+const lineupVersionCompareLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const lineupVersionCompareValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  fontWeight: 950,
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const lineupVersionCompareDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 750,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const lineupVersionCompareCallStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  padding: '14px 16px',
+  borderRadius: 17,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 27%, var(--shell-panel-border) 73%)',
+  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const lineupVersionCompareCourtGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const lineupVersionCompareCourtStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: 13,
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
 const mobileCourtFocusStyle: CSSProperties = {
   display: 'grid',
   gap: 13,
-  padding: '16px',
-  borderRadius: 20,
+  padding: '18px',
+  borderRadius: 22,
   border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
-  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg-strong) 92%)',
+  background: 'linear-gradient(145deg, color-mix(in srgb, var(--brand-green) 11%, var(--shell-panel-bg-strong) 89%), var(--shell-panel-bg))',
+  boxShadow: '0 18px 42px rgba(2, 10, 24, 0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
   minWidth: 0,
 }
 
@@ -5374,8 +7371,192 @@ const mobileCourtFocusTextStyle: CSSProperties = {
 
 const mobileCourtFocusActionsStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.3fr) minmax(0, .7fr)',
+  gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 8,
+  minWidth: 0,
+}
+
+const mobileFinalLineupPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 13,
+  padding: 16,
+  borderRadius: 20,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%), var(--shell-chip-bg))',
+  boxShadow: '0 14px 34px rgba(2, 10, 24, 0.16)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const mobileFinalLineupHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const mobileFinalLineupCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  flex: '1 1 220px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const mobileFinalLineupActionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 8,
+  minWidth: 0,
+}
+
+const mobileLineupPulseStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8,
+  marginTop: 13,
+  minWidth: 0,
+}
+
+const mobileLineupPulseCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  minHeight: 78,
+  padding: '10px 8px',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  borderRadius: 14,
+  background: 'linear-gradient(145deg, color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg) 92%), var(--shell-chip-bg))',
+}
+
+const mobileLineupPulseLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 9,
+  fontWeight: 900,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const mobileLineupPulseValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  fontWeight: 950,
+  lineHeight: 1.1,
+  overflowWrap: 'anywhere',
+}
+
+const mobileLineupPulseDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 750,
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere',
+}
+
+const mobileCourtMapShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  marginTop: 14,
+  minWidth: 0,
+}
+
+const mobileCourtMapHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+}
+
+const mobileCourtMapTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: '0.03em',
+  overflowWrap: 'anywhere',
+}
+
+const mobileCourtMapHintStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 750,
+  textAlign: 'right',
+  overflowWrap: 'anywhere',
+}
+
+const mobileCourtMapGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+function mobileCourtMapCardStyle(tone: CourtMapTone): CSSProperties {
+  const palette = tone === 'good'
+    ? { border: 'rgba(134, 239, 172, 0.32)', background: 'rgba(22, 101, 52, 0.16)' }
+    : tone === 'warn'
+      ? { border: 'rgba(252, 165, 165, 0.32)', background: 'rgba(127, 29, 29, 0.16)' }
+      : tone === 'info'
+        ? { border: 'rgba(125, 211, 252, 0.3)', background: 'rgba(3, 105, 161, 0.14)' }
+        : { border: 'var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
+
+  return {
+    display: 'grid',
+    gap: 4,
+    padding: '10px',
+    borderRadius: 13,
+    border: `1px solid ${palette.border}`,
+    background: palette.background,
+    minWidth: 0,
+  }
+}
+
+const mobileCourtMapLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const mobileCourtMapValueRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 6,
+  minWidth: 0,
+}
+
+const mobileCourtMapValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  fontWeight: 950,
+  lineHeight: 1,
+  overflowWrap: 'anywhere',
+}
+
+function mobileCourtMapStatusStyle(tone: CourtMapTone): CSSProperties {
+  return {
+    color: tone === 'good' ? '#86efac' : tone === 'warn' ? '#fca5a5' : tone === 'info' ? '#7dd3fc' : 'var(--shell-copy-muted)',
+    fontSize: 9,
+    fontWeight: 900,
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+    textAlign: 'right',
+    overflowWrap: 'anywhere',
+  }
+}
+
+const mobileCourtMapDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 750,
+  lineHeight: 1.3,
+  overflowWrap: 'anywhere',
 }
 
 const hiddenMobileContextStyle: CSSProperties = {
@@ -5501,6 +7682,61 @@ const appliedLineupNextCopyStyle: CSSProperties = {
 }
 
 const appliedLineupActionStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const finalLineupGateHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+}
+
+const finalLineupGateCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  flex: '1 1 260px',
+}
+
+const finalLineupGateActionsStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+  marginTop: 12,
+}
+
+const directCourtTextBannerStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-end',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 12,
+  padding: '15px 17px',
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const directCourtTextCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  flex: '1 1 240px',
+  color: 'var(--foreground)',
+  fontSize: 14,
+  lineHeight: 1.55,
+}
+
+const directCourtTextActionStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
@@ -5745,6 +7981,47 @@ const miniPillWarnStyle: CSSProperties = {
   border: '1px solid rgba(251, 191, 36, 0.24)',
 }
 
+const selectedPlayerInPillStyle: CSSProperties = {
+  ...miniPillGreenStyle,
+  border: '1px solid var(--brand-green)',
+}
+
+const selectedPlayerOutPillStyle: CSSProperties = {
+  ...miniPillStyle,
+  background: 'rgba(251, 113, 133, 0.14)',
+  color: '#fecdd3',
+  border: '1px solid rgba(251, 113, 133, 0.66)',
+}
+
+const courtAskReadyPillStyle: CSSProperties = {
+  ...miniPillBlueStyle,
+  minHeight: 32,
+  fontSize: 11,
+}
+
+const courtAskWaitingPillStyle: CSSProperties = {
+  ...miniPillGreenStyle,
+  minHeight: 32,
+  fontSize: 11,
+  border: '1px solid rgba(155, 225, 29, 0.54)',
+}
+
+function courtAskSignalStyle(tone: CourtAskSignal['tone']): CSSProperties {
+  const base: CSSProperties = {
+    ...miniPillStyle,
+    minHeight: 32,
+    fontSize: 11,
+    textAlign: 'left',
+  }
+  if (tone === 'confirmed') return { ...base, ...selectedPlayerInPillStyle }
+  if (tone === 'ready') return { ...base, ...courtAskReadyPillStyle }
+  if (tone === 'waiting') return { ...base, ...courtAskWaitingPillStyle }
+  if (tone === 'maybe') return { ...base, ...miniPillWarnStyle }
+  if (tone === 'out') return { ...base, ...selectedPlayerOutPillStyle }
+  if (tone === 'warning') return { ...base, ...miniPillWarnStyle, border: '1px solid rgba(251, 191, 36, 0.58)' }
+  return { ...base, ...miniPillSlateStyle }
+}
+
 const badgeGreen: CSSProperties = { ...miniPillGreenStyle }
 const badgeBlue: CSSProperties = { ...miniPillBlueStyle }
 const badgeSlate: CSSProperties = { ...miniPillSlateStyle }
@@ -5834,6 +8111,57 @@ const bannerGreenStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const smsFallbackStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  padding: '10px 12px',
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 34%, var(--shell-panel-border) 66%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 10%, var(--shell-chip-bg) 90%)',
+}
+
+const smsFallbackCopyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontWeight: 700,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const smsFallbackLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: 40,
+  padding: '0 14px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 800,
+  textDecoration: 'none',
+  cursor: 'pointer',
+  minWidth: 0,
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
+  flex: '0 1 auto',
+}
+
+const mobileSmsFallbackLinkStyle: CSSProperties = {
+  ...smsFallbackLinkStyle,
+  width: '100%',
+  minHeight: 44,
+  boxSizing: 'border-box',
+  padding: '10px 14px',
+}
+
 const rosterRecoveryCardStyle: CSSProperties = {
   display: 'grid',
   gap: 16,
@@ -5843,6 +8171,67 @@ const rosterRecoveryCardStyle: CSSProperties = {
   background: 'linear-gradient(145deg, rgba(120, 53, 15, 0.30), rgba(8, 13, 28, 0.78))',
   border: '1px solid rgba(251, 191, 36, 0.28)',
   boxShadow: '0 18px 42px rgba(2, 8, 23, 0.28)',
+}
+
+const opponentRosterRecoveryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: 12,
+  minWidth: 0,
+  padding: '13px 15px',
+  borderRadius: 18,
+  border: '1px solid rgba(37, 99, 235, 0.30)',
+  background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.14), rgba(8, 13, 28, 0.74))',
+}
+
+const opponentRosterReadyStyle: CSSProperties = {
+  ...opponentRosterRecoveryStyle,
+  minWidth: 0,
+  border: '1px solid rgba(155, 225, 29, 0.42)',
+  background: 'linear-gradient(135deg, rgba(70, 119, 25, 0.20), rgba(8, 13, 28, 0.74))',
+}
+
+const opponentRosterRecoveryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const opponentRosterRecoveryActionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const opponentRosterManualEntryStyle: CSSProperties = {
+  display: 'grid',
+  gridColumn: '1 / -1',
+  gap: 8,
+  minWidth: 0,
+  paddingTop: 10,
+  borderTop: '1px solid rgba(147, 197, 253, 0.18)',
+}
+
+const opponentRosterTextareaStyle: CSSProperties = {
+  ...textareaStyle,
+  minHeight: 88,
+}
+
+const opponentRosterManualActionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
 }
 
 const rosterRecoveryHeaderStyle: CSSProperties = {
@@ -5899,6 +8288,27 @@ const rosterExportStepsStyle: CSSProperties = {
   color: '#e2e8f0',
   fontSize: 13,
   lineHeight: 1.55,
+  overflowWrap: 'anywhere',
+}
+
+const rosterExportVideoLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 40,
+  maxWidth: '100%',
+  marginTop: 12,
+  padding: '8px 12px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 800,
+  lineHeight: 1.3,
+  textAlign: 'center',
+  textDecoration: 'none',
+  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 
@@ -5969,6 +8379,14 @@ const pillButtonActive: CSSProperties = {
   cursor: 'pointer',
 }
 
+const confirmedPlayerLockButtonStyle: CSSProperties = {
+  ...pillButtonActive,
+  border: '1px solid var(--brand-green)',
+  background: 'rgba(155,225,29,0.16)',
+  boxShadow: '0 0 0 2px color-mix(in srgb, var(--brand-green) 15%, transparent)',
+  color: '#efffbc',
+}
+
 function PrimaryBtn({
   onClick,
   disabled,
@@ -6032,14 +8450,26 @@ function GhostBtn({ onClick, disabled, children }: { onClick: () => void; disabl
   )
 }
 
-function GhostSmallBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: ReactNode }) {
+function GhostSmallBtn({
+  onClick,
+  disabled,
+  children,
+  type = 'button',
+  fullWidth = false,
+}: {
+  onClick?: () => void
+  disabled?: boolean
+  children: ReactNode
+  type?: 'button' | 'submit'
+  fullWidth?: boolean
+}) {
   const [hovered, setHovered] = useState(false)
   return (
     <button
-      type="button"
+      type={type}
       onClick={onClick}
       disabled={disabled}
-      style={{ ...ghostButtonSmallButton, ...(hovered && !disabled ? { background: 'rgba(25,38,62,0.98)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(2,8,28,0.32)' } : {}), ...(disabled ? { opacity: 0.55, cursor: 'not-allowed' } : {}) }}
+      style={{ ...ghostButtonSmallButton, ...(fullWidth ? { width: '100%', boxSizing: 'border-box', padding: '10px 12px' } : {}), ...(hovered && !disabled ? { background: 'rgba(25,38,62,0.98)', transform: 'translateY(-2px)', boxShadow: '0 4px 12px rgba(2,8,28,0.32)' } : {}), ...(disabled ? { opacity: 0.55, cursor: 'not-allowed' } : {}) }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >

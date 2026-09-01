@@ -12,6 +12,7 @@ const availabilitySource = readFileSync(join(process.cwd(), 'app/captain/availab
 const lineupAvailabilitySource = readFileSync(join(process.cwd(), 'app/captain/lineup-availability/page.tsx'), 'utf8')
 const messagingSource = readFileSync(join(process.cwd(), 'app/captain/messaging/page.tsx'), 'utf8')
 const lineupBuilderSource = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
+const seasonDashboardSource = readFileSync(join(process.cwd(), 'app/captain/season-dashboard/page.tsx'), 'utf8')
 
 describe('Captain shared auth access', () => {
   it('keeps the captain hub on shared auth before resolving team scope', () => {
@@ -103,5 +104,24 @@ describe('Captain shared auth access', () => {
     expect(lineupBuilderSource).not.toContain('const [authLoading, setAuthLoading]')
     expect(lineupBuilderSource).not.toContain("const [role, setRole] = useState<UserRole>('public')")
     expect(lineupBuilderSource).not.toContain('supabase.auth.onAuthStateChange')
+  })
+
+  it('recovers a briefly future-issued mobile token before showing the lineup load error', () => {
+    expect(lineupBuilderSource).toContain('function isFutureJwtError')
+    expect(lineupBuilderSource).toContain('supabase.auth.refreshSession()')
+    expect(lineupBuilderSource).toContain("setMessage('Securing your team data…')")
+    expect(lineupBuilderSource).toContain('futureJwtRefreshAttemptedRef')
+    expect(lineupBuilderSource).toContain('FUTURE_JWT_SETTLE_DELAY_MS = 3_000')
+    expect(lineupBuilderSource).toContain('MAX_FUTURE_JWT_RECOVERY_ATTEMPTS = 2')
+    expect(lineupBuilderSource).toContain('!recoveringSecureSession && !myPlayerPool.length')
+  })
+
+  it('keeps the Captain Season Dashboard on shared auth before loading team data', () => {
+    expect(seasonDashboardSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(seasonDashboardSource).toContain('<SiteShell active="/captain">')
+    expect(seasonDashboardSource).toContain('const { role, entitlements, authResolved } = useAuth()')
+    expect(seasonDashboardSource).toContain("if (!authResolved || role === 'public') return")
+    expect(seasonDashboardSource).not.toContain("import { getClientAuthState } from '@/lib/auth'")
+    expect(seasonDashboardSource).not.toContain('supabase.auth.onAuthStateChange')
   })
 })

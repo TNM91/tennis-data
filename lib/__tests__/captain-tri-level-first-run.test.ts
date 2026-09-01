@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 function source(path: string) {
-  return readFileSync(join(process.cwd(), path), 'utf8')
+  return readFileSync(join(process.cwd(), path), 'utf8').replace(/\r\n/g, '\n')
 }
 
 describe('captain tri-level first run', () => {
@@ -12,14 +12,15 @@ describe('captain tri-level first run', () => {
   const playerProfileSource = source('app/players/[id]/page.tsx')
   const importEngineSource = source('lib/ingestion/importEngine.ts')
 
-  it('puts the league scoreboard at the top of Team Hub with a real feature icon', () => {
+  it('keeps the league scoreboard first on desktop and puts the Captain command center first on phones', () => {
     expect(captainSource).toContain('currentLeagueStatsHref')
     expect(captainSource).toContain('Ultimate scoreboard')
     expect(captainSource).toContain('League scoreboard')
     expect(captainSource).toContain('Open league rankings')
     expect(captainSource).toContain('name="captainDashboard"')
     expect(captainSource).toContain('name="teamRankings"')
-    expect(captainSource.indexOf('aria-label="League rankings"')).toBeLessThan(captainSource.indexOf('{captainMobileCommandCenter}'))
+    expect(captainSource.indexOf('{isMobile ? captainMobileCommandCenter : null}')).toBeLessThan(captainSource.indexOf('aria-label="League rankings"'))
+    expect(captainSource.indexOf('aria-label="League rankings"')).toBeLessThan(captainSource.indexOf('{!isMobile ? captainMobileCommandCenter : null}'))
     expect(captainSource).not.toContain('watermarkStyle')
   })
 
@@ -29,7 +30,8 @@ describe('captain tri-level first run', () => {
     expect(dataAssistSource).toContain('Review scorecards now')
     expect(dataAssistSource).toContain('Review now')
     expect(dataAssistSource).toContain('data-assist-submission-${submission.id}')
-    expect(dataAssistSource).toContain("focusedSubmissionId ? 'needs_review' : 'all'")
+    expect(dataAssistSource).toContain("const focusedHistoryFilter: DataAssistHistoryFilter = outcome?.tone === 'success' || outcome?.tone === 'duplicate'")
+    expect(dataAssistSource).toContain("? 'imported'\n    : 'needs_review'")
   })
 
   it('keeps review cards compact and gives player profiles a dominant first-glance scorecard', () => {

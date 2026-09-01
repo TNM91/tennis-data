@@ -8,6 +8,7 @@ const migration = readFileSync(
 )
 const captainSource = readFileSync(join(process.cwd(), 'app/captain/page.tsx'), 'utf8')
 const lineupBuilderSource = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
+const lineupBuilderRoute = readFileSync(join(process.cwd(), 'app/api/captain/lineup-builder/route.ts'), 'utf8')
 
 describe('team roster browser access', () => {
   it('lets public and signed-in Captain clients read imported roster memberships', () => {
@@ -26,7 +27,17 @@ describe('team roster browser access', () => {
   it('supports both Captain setup discovery and Build Lineup roster loading', () => {
     expect(captainSource).toContain(".from('team_roster_members')")
     expect(captainSource).toContain("source: 'roster'")
-    expect(lineupBuilderSource).toContain(".from('team_roster_members')")
+    expect(lineupBuilderRoute).toContain(".from('team_roster_members')")
+    expect(lineupBuilderSource).toContain('/api/captain/lineup-builder?${params.toString()}')
     expect(lineupBuilderSource).toContain('buildRosterPlayerIdSet')
+  })
+
+  it('keeps platform Admin access and imported contact lookups aligned with Captain Builder data', () => {
+    const captainAuthSource = readFileSync(join(process.cwd(), 'lib/captain-api-auth.ts'), 'utf8')
+    expect(captainAuthSource).toContain('isAdmin: boolean')
+    expect(captainAuthSource).toContain('isAdmin: row.role === \'admin\'')
+    expect(lineupBuilderRoute).toContain('auth.isAdmin || hasCaptainTeamLink')
+    expect(lineupBuilderRoute).toContain('normalizeCaptainRosterContactKey(teamName)')
+    expect(lineupBuilderRoute).toContain("authorization: auth.isAdmin ? 'platform-admin' : 'captain-team-link'")
   })
 })

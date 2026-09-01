@@ -2,10 +2,12 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { track } from '@vercel/analytics'
 import { useRef, useState } from 'react'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import {
   PRODUCT_TOUR_VIDEOS,
+  getProductTourPriceSummary,
   type ProductTourVideoId,
 } from '@/lib/product-tour-videos'
 import type { ProductUsageEventSurface } from '@/lib/product-usage-events'
@@ -33,12 +35,15 @@ export default function ProductTourVideoButton({
   const videoRef = useRef<HTMLVideoElement>(null)
   const startedRef = useRef(false)
   const completedRef = useRef(false)
+  const progressRef = useRef(new Set<number>())
   const [mediaReady, setMediaReady] = useState(false)
+  const priceSummary = getProductTourPriceSummary(videoId)
 
   function openVideo() {
     setMediaReady(true)
     startedRef.current = false
     completedRef.current = false
+    progressRef.current.clear()
     dialogRef.current?.showModal()
   }
 
@@ -53,6 +58,12 @@ export default function ProductTourVideoButton({
   function trackStarted() {
     if (startedRef.current) return
     startedRef.current = true
+    track('Product Tour', {
+      action: 'started',
+      videoId,
+      source,
+      durationSeconds: video.durationSeconds,
+    })
     void trackProductUsageEvent({
       eventName: 'product_tour_started',
       surface,
@@ -60,9 +71,36 @@ export default function ProductTourVideoButton({
     })
   }
 
+  function trackProgress(player: HTMLVideoElement) {
+    if (!Number.isFinite(player.duration) || player.duration <= 0) return
+    const watchedPercent = (player.currentTime / player.duration) * 100
+
+    for (const milestone of [25, 50, 75]) {
+      if (watchedPercent < milestone || progressRef.current.has(milestone)) continue
+      progressRef.current.add(milestone)
+      track('Product Tour', {
+        action: 'progressed',
+        videoId,
+        source,
+        milestone,
+      })
+      void trackProductUsageEvent({
+        eventName: 'product_tour_progressed',
+        surface,
+        metadata: { videoId, source, milestone, durationSeconds: video.durationSeconds },
+      })
+    }
+  }
+
   function trackCompleted() {
     if (completedRef.current) return
     completedRef.current = true
+    track('Product Tour', {
+      action: 'completed',
+      videoId,
+      source,
+      durationSeconds: video.durationSeconds,
+    })
     void trackProductUsageEvent({
       eventName: 'product_tour_completed',
       surface,
@@ -139,6 +177,7 @@ export default function ProductTourVideoButton({
               poster={video.poster}
               aria-label={`${video.title} video`}
               onPlay={trackStarted}
+              onTimeUpdate={(event) => trackProgress(event.currentTarget)}
               onEnded={trackCompleted}
             >
               {mediaReady ? <source src={video.src} type="video/mp4" /> : null}
@@ -157,20 +196,34 @@ export default function ProductTourVideoButton({
                 {video.transcript.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
               </div>
             </details>
-            <Link
-              className={styles.dialogCta}
-              href={video.cta.href}
-              onClick={() => {
-                void trackProductUsageEvent({
-                  eventName: 'product_tour_cta_clicked',
-                  surface,
-                  metadata: { videoId, source, href: video.cta.href },
-                })
-                dialogRef.current?.close()
-              }}
-            >
-              {video.cta.label}
-            </Link>
+            <div className={styles.dialogNextStep}>
+              {priceSummary ? (
+                <div className={styles.dialogPrice} aria-label={`Current plan price: ${priceSummary.label}`}>
+                  <strong>{priceSummary.label}</strong>
+                  <span>{priceSummary.detail}</span>
+                </div>
+              ) : null}
+              <Link
+                className={styles.dialogCta}
+                href={video.cta.href}
+                onClick={() => {
+                  track('Product Tour', {
+                    action: 'cta_clicked',
+                    videoId,
+                    source,
+                    destination: video.cta.href,
+                  })
+                  void trackProductUsageEvent({
+                    eventName: 'product_tour_cta_clicked',
+                    surface,
+                    metadata: { videoId, source, href: video.cta.href },
+                  })
+                  dialogRef.current?.close()
+                }}
+              >
+                {video.cta.label}
+              </Link>
+            </div>
           </div>
         </div>
       </dialog>

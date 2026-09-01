@@ -25,6 +25,11 @@ describe('Tournament Desk organizer path', () => {
     expect(source).toContain('Keep the event moving.')
     expect(source).toContain('Build the room first.')
     expect(source).toContain('Tournament Desk status scan')
+    expect(source).toContain("import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'")
+    expect(source).toContain('const { isMobile } = useViewportBreakpoints()')
+    expect(source).toContain('aria-label="Tournament actions"')
+    expect(source).toContain('tournamentMobileActionRailStyle')
+    expect(source).toContain('tournamentMobileActionCopyStyle')
     expect(source.indexOf('<section style={tournamentPathStyle}')).toBeLessThan(
       source.indexOf('<section style={builderGridStyle}>'),
     )
@@ -60,6 +65,9 @@ describe('Tournament Desk organizer path', () => {
     expect(source).toContain('tournamentPathCardStyle')
     expect(source).toContain('tournamentPathCommandStyle')
     expect(source).toContain('tournamentPathStatusDetailStyle')
+    expect(source).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
+    expect(source).toContain("gridTemplateColumns: '30px minmax(0, 1fr)'")
+    expect(source).toContain('minHeight: 66')
 
     const cardStyle = styleBlock('tournamentPathCardStyle')
     expect(cardStyle).toContain("gridTemplateColumns: '38px minmax(0, 1fr)'")

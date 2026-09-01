@@ -62,13 +62,13 @@ const adminTools: AdminTool[] = [
   {
     title: 'TennisRecord Backfill',
     href: '/admin/tennisrecord',
-    description: 'Review the staged backup source, queue a small sync, and inspect conflicts.',
-    badge: 'Source sync',
-    accent: 'slate',
+    description: 'Monitor the live historical import, source safety cooldowns, and data coverage.',
+    badge: 'Live import',
+    accent: 'green',
     icon: 'reports',
-    highlights: ['Disabled by default', 'Blocked-page stop', 'Local data wins', 'Run metrics'],
+    highlights: ['Live progress', 'Safety cooldowns', 'Local data wins', 'Run metrics'],
     statLabel: 'Best for',
-    statValue: 'Backfill ops',
+    statValue: 'Import health',
   },
   {
     title: 'Match Accuracy Reports',
@@ -228,12 +228,11 @@ const adminTools: AdminTool[] = [
 ]
 
 const priorityToolHrefs = [
+  '/admin/tennisrecord',
   '/admin/data-assist',
   '/admin/missing-scorecards',
   '/admin/match-reports',
   '/admin/clubs',
-  '/admin/access',
-  '/admin/upgrade-requests',
 ]
 
 const priorityTools = priorityToolHrefs

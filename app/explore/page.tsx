@@ -8,7 +8,7 @@ import AdsenseSlot from '@/app/components/adsense-slot'
 import TrackedProductLink, { type ProductLinkEvent } from '@/app/components/tracked-product-link'
 import UniversalSearch from '@/app/components/universal-search'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
-import { DATA_ASSIST_STORY, getMembershipTier } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, getMembershipTier, PRODUCT_UPGRADE_MESSAGE } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -236,14 +236,15 @@ function FindCommandPanel({ compact, mobile }: { compact: boolean; mobile: boole
   const shortcutCardStyle = mobile
     ? {
         ...findCommandCard,
-        gridTemplateColumns: 'minmax(0, 1fr)',
-        minHeight: 48,
-        padding: '6px',
-        gap: '3px',
+        gridTemplateColumns: '32px minmax(0, 1fr)',
+        minHeight: 58,
+        padding: '8px',
+        gap: '7px',
+        alignItems: 'center',
       }
     : findCommandCard
   const shortcutTitleStyle = mobile
-    ? { ...findCommandCardTitle, fontSize: '10px', lineHeight: 1.1 }
+    ? { ...findCommandCardTitle, fontSize: '12px', lineHeight: 1.1 }
     : findCommandCardTitle
   const headerStyle = mobile
     ? compactFindCommandHeader
@@ -305,7 +306,7 @@ function FindCommandPanel({ compact, mobile }: { compact: boolean; mobile: boole
               ariaLabel={`${step.label}: ${step.title}. ${step.body}`}
               event={step.event}
             >
-              {!mobile ? <TiqFeatureIcon name={step.icon} size="sm" variant="ghost" /> : null}
+              <TiqFeatureIcon name={step.icon} size="sm" variant="ghost" />
               <span style={findCommandCardCopy}>
                 <span style={findCommandLabel}>{step.label}</span>
                 <strong style={shortcutTitleStyle}>{step.title}</strong>
@@ -313,6 +314,21 @@ function FindCommandPanel({ compact, mobile }: { compact: boolean; mobile: boole
             </TrackedProductLink>
           ))}
         </div>
+      </div>
+
+      <div style={upgradeNudgeStyle}>
+        <div style={upgradeNudgeCopyStyle}>
+          <span style={findCommandEyebrow}>Explore stays free</span>
+          <strong style={upgradeNudgeTitleStyle}>Keep searching. Add the tools that help you act.</strong>
+          <span style={upgradeNudgeBodyStyle}>{PRODUCT_UPGRADE_MESSAGE}</span>
+        </div>
+        <TrackedProductLink
+          href="/pricing"
+          style={upgradeNudgeActionStyle}
+          event={{ eventName: 'search_category_selected', surface: 'public_site', metadata: { location: 'explore_upgrade_nudge', job: 'compare_tiers' } }}
+        >
+          Compare plans
+        </TrackedProductLink>
       </div>
 
       <details className="exploreDetailsSection" style={proofStyle} aria-label="What you can check free">
@@ -500,6 +516,58 @@ const findCommandPrimaryCard: CSSProperties = {
 const findCommandPrimaryIconStyle: CSSProperties = {
   display: 'inline-grid',
   width: 'fit-content',
+}
+
+const upgradeNudgeStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  padding: '12px 14px',
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.11), rgba(116,190,255,0.06) 52%, rgba(7,17,33,0.52))',
+  minWidth: 0,
+}
+
+const upgradeNudgeCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  flex: '1 1 300px',
+  minWidth: 0,
+}
+
+const upgradeNudgeTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const upgradeNudgeBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12.5,
+  lineHeight: 1.45,
+  fontWeight: 740,
+  overflowWrap: 'anywhere',
+}
+
+const upgradeNudgeActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 40,
+  padding: '0 13px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.36)',
+  background: 'linear-gradient(180deg, #eaff9e 0%, #9be11d 100%)',
+  color: '#071226',
+  textDecoration: 'none',
+  fontSize: 12,
+  fontWeight: 950,
+  whiteSpace: 'nowrap',
 }
 
 const findCommandPrimaryTitleStyle: CSSProperties = {

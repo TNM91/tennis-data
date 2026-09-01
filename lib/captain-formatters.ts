@@ -113,9 +113,49 @@ export function formatPhone(phone: string) {
   return phone
 }
 
-export function buildSmsHref(recipients: string[], body: string) {
+export function isAppleSmsComposer(userAgent?: string) {
+  const resolvedUserAgent = userAgent ?? (typeof navigator === 'undefined' ? '' : navigator.userAgent)
+  return /iPad|iPhone|iPod/i.test(resolvedUserAgent)
+}
+
+export function getSmsBodySeparator(userAgent?: string) {
+  // iOS Messages uses an ampersand before the body parameter while Android
+  // uses a question mark. Keeping this in one formatter prevents a silent
+  // handoff regression when Captain tools are opened from Safari.
+  return isAppleSmsComposer(userAgent) ? '&' : '?'
+}
+
+export function prepareSmsBodyForNativeComposer(body: string, userAgent?: string) {
+  if (!body.trim() || !isAppleSmsComposer(userAgent)) {
+    return false
+  }
+
+  if (typeof document !== 'undefined') {
+    const textarea = document.createElement('textarea')
+    textarea.value = body.trim()
+    textarea.setAttribute('readonly', '')
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.append(textarea)
+    textarea.select()
+    const copied = document.execCommand('copy')
+    textarea.remove()
+    if (copied) return true
+  }
+
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    void navigator.clipboard.writeText(body.trim()).catch(() => undefined)
+    return true
+  }
+
+  return false
+}
+
+export function buildSmsHref(recipients: string[], body: string, userAgent?: string) {
   const address = recipients.map(cleanPhone).filter(Boolean).join(',')
-  const query = body.trim() ? `?body=${encodeURIComponent(body.trim())}` : ''
+  const query = body.trim()
+    ? `${getSmsBodySeparator(userAgent)}body=${encodeURIComponent(body.trim())}`
+    : ''
   return `sms:${address}${query}`
 }
 

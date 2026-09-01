@@ -155,6 +155,39 @@ describe('parseTennisLinkExportFiles', () => {
     expect(draft.players.map((player) => player.name)).toContain('Connor Zielonko')
   })
 
+  it('keeps multi-team standings out of the Team Summary roster', () => {
+    const html = `
+      <table>
+        <tr><td>Section</td><td>District/Area</td><td>League</td><td>Flight</td></tr>
+        <tr><td>USTA/MISSOURI VALLEY</td><td>ST. LOUIS</td><td>2026 STL Tri-Level 18 &amp; Over</td><td>Men 3.5/4.0/4.5</td></tr>
+        <tr><td>Captain</td><td>Co-Captain</td></tr>
+        <tr><td>William Hamilton 314-555-0100</td><td></td></tr>
+        <tr><td>Team Name</td><td>Wins*</td><td>Losses</td></tr>
+        <tr><td>Hamilton</td><td>4</td><td>0</td></tr>
+        <tr><td>SuperSmash Bros/Pottebaum-Meinart</td><td>2</td><td>2</td></tr>
+        <tr><td>Gontarz</td><td>2</td><td>2</td></tr>
+        <tr><td>Players</td></tr>
+        <tr><td>Player Name</td><td>NTRP</td><td>Player Name</td><td>NTRP</td></tr>
+        <tr><td>William Hamilton</td><td>4.5</td><td>Rob Armstrong</td><td>3.5</td></tr>
+        <tr><td>Ryan Papproth</td><td>4.0</td><td>Trevor Neale</td><td>4.5</td></tr>
+      </table>
+    `
+    const parsed = parseTennisLinkExportFiles([{ ...screenshot, fileName: 'TeamSummary_8302026.xls', fileBuffer: Buffer.from(html), mimeType: 'application/vnd.ms-excel' }])
+    const draft = buildTeamSummaryOcrDraftFromText(parsed.rawText, [screenshot], parsed.provider)
+
+    expect(draft.rosterSource).toBe('team_summary')
+    expect(draft.rosterTeamName).toBe('Hamilton')
+    expect(draft.teams.map((team) => team.name)).toEqual(['Hamilton', 'SuperSmash Bros/Pottebaum-Meinart', 'Gontarz'])
+    expect(draft.players).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'William Hamilton', ntrp: 4.5 }),
+      expect.objectContaining({ name: 'Rob Armstrong', ntrp: 3.5 }),
+      expect.objectContaining({ name: 'Ryan Papproth', ntrp: 4 }),
+      expect.objectContaining({ name: 'Trevor Neale', ntrp: 4.5 }),
+    ]))
+    expect(draft.players.map((player) => player.name)).not.toContain('Gontarz')
+    expect(draft.players).toHaveLength(4)
+  })
+
   it('turns a Player Roster export into players, ratings, and private captain contacts', () => {
     const html = `
       <table>

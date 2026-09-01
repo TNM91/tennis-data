@@ -11,10 +11,11 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
-import { fetchTeamConnections } from '@/lib/team-profile-links-client'
-import { getTeamConnectionRolesLabel, type TeamConnection } from '@/lib/team-profile-links'
+import { fetchTeamConnections, getCachedTeamConnections } from '@/lib/team-profile-links-client'
+import { getTeamConnectionRolesLabel, isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { buildTeamProfileHref } from '@/lib/team-routes'
+import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import {
   listTiqTeamParticipations,
@@ -23,6 +24,23 @@ import {
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const dataAssistTeamsHref = '/data-assist?intent=upload-source&context=League%20Office%20teams'
+const FUTURE_JWT_SETTLE_DELAY_MS = 3_000
+
+function isFutureJwtError(error: unknown) {
+  return error instanceof Error && error.message.toLowerCase().includes('jwt issued at future')
+}
+
+async function loadConnectedTeamDirectoryOptions(teamNames: string[], retryingFutureJwt = false) {
+  try {
+    return await listTeamDirectoryOptions({ teamNames })
+  } catch (error) {
+    if (!retryingFutureJwt && isFutureJwtError(error)) {
+      await new Promise<void>((resolve) => globalThis.setTimeout(resolve, FUTURE_JWT_SETTLE_DELAY_MS))
+      return loadConnectedTeamDirectoryOptions(teamNames, true)
+    }
+    throw error
+  }
+}
 
 const TEAM_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('doubles-commander-4-0')
 const TEAM_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(TEAM_PLAYER_IDENTITY)
@@ -101,6 +119,8 @@ function CompeteTeamsContent() {
   const [pendingConnections, setPendingConnections] = useState<TeamConnection[]>([])
   const [teamDirectory, setTeamDirectory] = useState<TeamDirectoryOption[]>([])
   const [loading, setLoading] = useState(true)
+  const [connectionError, setConnectionError] = useState('')
+  const [connectionRefresh, setConnectionRefresh] = useState(0)
   const [storageWarning, setStorageWarning] = useState('')
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
@@ -111,44 +131,74 @@ function CompeteTeamsContent() {
     let active = true
 
     if (!authResolved && !accessToken) {
+      // Do not leave the public shell on an indefinite team loader while
+      // Supabase restores a mobile session. Once auth resolves this effect
+      // runs again and fetches the connected teams automatically.
+      setLoading(false)
       return () => {
         active = false
       }
     }
 
     async function loadConnections() {
-      setLoading(true)
-      const connectionResult = accessToken
-        ? await fetchTeamConnections(accessToken).catch(() => ({ pending: [], connections: [], offers: null }))
-        : { pending: [], connections: [], offers: null }
+      const cachedConnections = accessToken ? getCachedTeamConnections(accessToken, { userId }) : null
+      setConnectionError('')
+      setLoading(!cachedConnections)
 
-      if (!active) return
+      if (cachedConnections) {
+        setConnections(cachedConnections.connections)
+        setPendingConnections(cachedConnections.pending)
+        void loadSupportingTeamContext(cachedConnections.connections)
+        if (connectionRefresh === 0) return
+      }
 
-      setConnections(connectionResult.connections)
-      setPendingConnections(connectionResult.pending)
-      setLoading(false)
+      try {
+        const connectionResult = accessToken
+          ? await fetchTeamConnections(accessToken, { force: connectionRefresh > 0, userId })
+          : { pending: [], connections: [], offers: null }
+
+        if (!active) return
+
+        setConnections(connectionResult.connections)
+        setPendingConnections(connectionResult.pending)
+        void loadSupportingTeamContext(connectionResult.connections)
+      } catch (error) {
+        if (!active) return
+        if (!cachedConnections) {
+          setConnectionError(error instanceof Error ? error.message : 'Your teams could not be refreshed. Please try again.')
+        }
+      } finally {
+        if (active) setLoading(false)
+      }
     }
 
-    async function loadSupportingTeamContext() {
+    async function loadSupportingTeamContext(connectedTeams: TeamConnection[]) {
+      // A connected USTA team does not need a second, broad TIQ-entry read to
+      // remain usable. That optional read was the source of the misleading
+      // "cloud sync" banner even though the team connection itself succeeded.
+      const needsTiqParticipationContext = connectedTeams.some((connection) => connection.sourceType === 'tiq_entry')
       const [participationResult, teamOptions] = await Promise.all([
-        listTiqTeamParticipations(),
-        listTeamDirectoryOptions().catch(() => []),
+        needsTiqParticipationContext
+          ? listTiqTeamParticipations()
+          : Promise.resolve({ entries: [], source: 'supabase' as const, warning: null }),
+        connectedTeams.length > 0
+          ? loadConnectedTeamDirectoryOptions(connectedTeams.map((connection) => connection.teamName)).catch(() => [])
+          : Promise.resolve([]),
       ])
 
       if (!active) return
 
       setParticipations(participationResult.entries)
       setTeamDirectory(teamOptions)
-      setStorageWarning(participationResult.warning || '')
+      setStorageWarning(needsTiqParticipationContext ? participationResult.warning || '' : '')
     }
 
     void loadConnections()
-    void loadSupportingTeamContext()
 
     return () => {
       active = false
     }
-  }, [accessToken, authResolved])
+  }, [accessToken, authResolved, connectionRefresh, userId])
 
   const groupedTeams = useMemo(() => {
     const directoryByTeam = new Map(teamDirectory.map((option) => [option.team, option]))
@@ -198,7 +248,7 @@ function CompeteTeamsContent() {
 
   return (
     <>
-      {!loading && (!userId || groupedTeams.length === 0) ? (
+      {!loading && !connectionError && (!userId || groupedTeams.length === 0) ? (
         <TeamAccountAccessPanel
           authResolved={authResolved}
           signedIn={Boolean(userId)}
@@ -225,7 +275,9 @@ function CompeteTeamsContent() {
           <div style={sectionEyebrowStyle}>{userId ? 'Your teams' : 'Explore teams'}</div>
         )}
         <div style={sectionTextStyle}>
-          {loading
+          {connectionError
+            ? 'Your teams did not finish loading. Nothing has been changed.'
+            : loading
             ? 'Getting your teams...'
             : groupedTeams.length > 0
               ? 'Open a team for its roster, schedule, stats, and Team Chat.'
@@ -235,35 +287,44 @@ function CompeteTeamsContent() {
         </div>
 
         {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
-        {loading ? (
+        {connectionError ? (
+          <TeamListLoadError message={connectionError} onRetry={() => setConnectionRefresh((value) => value + 1)} />
+        ) : loading ? (
           <TeamListLoadingState />
         ) : groupedTeams.length === 0 ? (
           <EmptyTeamsState signedIn={Boolean(userId)} pendingTeamCount={pendingConnections.length} />
         ) : (
           <div style={listStyle}>
             {groupedTeams.map((group) => {
-              const competitionLayer = group.connection.sourceType === 'tiq_entry' || group.tiqLeagues.length > 0 ? 'tiq' : 'usta'
+              // A connected USTA team can also participate in TiQ features.
+              // Its Builder handoff must retain the connection's source so a
+              // TiQ participation record cannot relabel a USTA Tri-Level team.
+              const competitionLayer = group.connection.sourceType === 'tiq_entry' ? 'tiq' : 'usta'
               const teamPageHref = buildTeamProfileHref(group.teamName, {
                 layer: competitionLayer,
                 league: group.sourceLeagueName,
                 flight: group.sourceFlight,
               })
-              const lineupHref = `/captain/lineup-builder?layer=tiq&team=${encodeURIComponent(group.teamName)}${group.sourceLeagueName ? `&league=${encodeURIComponent(group.sourceLeagueName)}` : ''}${group.sourceFlight ? `&flight=${encodeURIComponent(group.sourceFlight)}` : ''}`
+              const lineupHref = buildCaptainScopedHref('/captain/lineup-builder', {
+                competitionLayer,
+                team: group.teamName,
+                league: group.sourceLeagueName || undefined,
+                flight: group.sourceFlight || undefined,
+              })
               const teamRoomHref = buildTeamRoomHref({
                 teamName: group.teamName,
                 leagueName: group.sourceLeagueName,
                 flight: group.sourceFlight,
               })
+              const canStartTeamLineup = access.canUseCaptainWorkflow || isCaptainTeamConnection(group.connection.roles)
               const teamFacts = [
                 {
-                  label: 'League connection',
-                  value: group.tiqLeagues.length > 0
-                    ? `${group.tiqLeagues.length} TIQ league${group.tiqLeagues.length === 1 ? '' : 's'}`
-                    : 'Not linked',
+                  label: 'Team connection',
+                  value: 'Connected',
                 },
                 {
                   label: 'Match history',
-                  value: group.directoryOption ? `${group.directoryOption.matchCount} matches` : 'No matches',
+                  value: group.directoryOption ? `${group.directoryOption.matchCount} matches` : 'Match data syncing',
                 },
               ]
               const teamMetaItems = [
@@ -302,7 +363,7 @@ function CompeteTeamsContent() {
                   </div>
                   <div style={isMobile ? { ...teamRowActionStyle, ...teamRowActionMobileStyle } : teamRowActionStyle}>
                     <Link href={teamRoomHref} style={teamSecondaryLinkStyle}>Team Chat</Link>
-                    {access.canUseCaptainWorkflow ? (
+                    {canStartTeamLineup ? (
                       <Link href={lineupHref} style={teamSecondaryLinkStyle}>Build lineup</Link>
                     ) : null}
                   </div>
@@ -628,6 +689,19 @@ function TeamListLoadingState() {
   )
 }
 
+function TeamListLoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div style={teamLoadErrorStyle} role="alert">
+      <TiqFeatureIcon name="teamRankings" size="sm" variant="ghost" />
+      <span style={teamLoadErrorCopyStyle}>
+        <strong style={teamLoadingTitleStyle}>We could not refresh your teams.</strong>
+        <span style={teamLoadingTextStyle}>{message}</span>
+      </span>
+      <button type="button" onClick={onRetry} style={teamLoadRetryStyle}>Try again</button>
+    </div>
+  )
+}
+
 const sectionStyle = {
   position: 'relative',
   zIndex: 1,
@@ -678,6 +752,31 @@ const teamLoadingTextStyle: CSSProperties = {
   fontSize: '13px',
   lineHeight: 1.45,
   fontWeight: 600,
+}
+
+const teamLoadErrorStyle: CSSProperties = {
+  ...teamLoadingStyle,
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  borderColor: 'rgba(255, 163, 112, 0.32)',
+}
+
+const teamLoadErrorCopyStyle: CSSProperties = {
+  minWidth: 0,
+}
+
+const teamLoadRetryStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  width: '100%',
+  minHeight: 40,
+  padding: '8px 12px',
+  border: '1px solid rgba(116,190,255,0.32)',
+  borderRadius: 12,
+  background: 'rgba(16, 35, 63, 0.76)',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  font: 'inherit',
+  fontSize: 13,
+  fontWeight: 850,
 }
 
 const accountAccessStyle: CSSProperties = {

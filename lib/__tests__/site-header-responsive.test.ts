@@ -24,11 +24,12 @@ describe('site header responsive rules', () => {
     expect(shouldUseCompactSiteHeader({ role: 'public', authenticated: false, screenWidth: 1920 })).toBe(true)
   })
 
-  it('does not show public account CTAs while auth is still resolving', () => {
+  it('keeps signed-in menu navigation available while access refreshes in the background', () => {
     expect(siteHeaderSource).toContain('const authPending = !authResolved')
     expect(siteHeaderSource).toContain("authPending ? 'Checking access'")
     expect(siteHeaderSource).toContain('Checking access')
-    expect(siteHeaderSource).toContain('{authPending ? null : authenticated ? (')
+    expect(siteHeaderSource).toContain('{authenticated ? (')
+    expect(siteHeaderSource).not.toContain('{authPending ? null : authenticated ? (')
   })
 
   it('labels League plan access as League instead of Coordinator', () => {
@@ -136,5 +137,10 @@ describe('site header responsive rules', () => {
     expect(siteHeaderSource).toContain('const headerSearchPanelHeaderStyle')
     expect(siteHeaderSource).toContain('const searchCloseButtonStyle')
     expect(siteHeaderSource).toContain('<UniversalSearch compact placeholder="Search TenAceIQ" showResults={false} />')
+  })
+
+  it('does not prefetch the full site when the menu opens on a phone', () => {
+    expect(siteHeaderSource).toContain('enabled: !isMobile && authenticated && authResolved')
+    expect(siteHeaderSource.match(/prefetch=\{false\}/g)?.length).toBeGreaterThanOrEqual(14)
   })
 })

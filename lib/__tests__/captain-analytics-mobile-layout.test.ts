@@ -47,6 +47,7 @@ describe('Captain analytics mobile layout guards', () => {
     expect(styleBlock('toolControlTitleStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('signalNoteStyle')).toContain("lineHeight: 1.5")
     expect(source).toContain("{!isMobile ? <CaptainSuitePanel active=\"analytics\" teamLabel={teamName || 'Team week'} /> : null}")
+    expect(source).toContain('{!isMobile ? <div style={captainReadCard}>')
     expect(source.indexOf('toolControlShellResponsive(isTablet, isMobile)')).toBeLessThan(
       source.indexOf('decisionBoardStyle'),
     )

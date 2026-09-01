@@ -31,6 +31,20 @@ describe('league detail table mobile layout guards', () => {
     expect(styleBlock('standingsTableStyle')).not.toContain("minWidth: 'min(100%, 620px)'")
   })
 
+  it('puts a compact standings pulse ahead of the detailed view on phones', () => {
+    expect(source).toContain('const leagueLeader = teamSummaries[0] ?? null')
+    expect(source).toContain('const leagueChaser = teamSummaries[1] ?? null')
+    expect(source).toContain('const completedTeamMatches = useMemo(')
+    expect(source).toContain('isMobile && leagueLeader && leagueLeader.completedMatches > 0')
+    expect(source).toContain('aria-label="League standings pulse"')
+    expect(source).toContain('The race at a glance')
+    expect(source).toContain('Current leader')
+    expect(source).toContain('Next in line')
+    expect(source).toContain('const leaguePulseStyle: CSSProperties')
+    expect(styleBlock('leaguePulseFactsStyle')).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
+    expect(styleBlock('leaguePulseLeaderNameStyle')).toContain("overflowWrap: 'anywhere'")
+  })
+
   it('keeps the team filter select labeled and visibly focused', () => {
     expect(source).toContain('<label htmlFor="teamFilter" style={inputLabel}>')
     expect(source).toContain('onFocus={() => setTeamFilterFocused(true)}')
@@ -40,6 +54,20 @@ describe('league detail table mobile layout guards', () => {
     expect(styleBlock('selectStyle')).toContain("outline: '2px solid transparent'")
     expect(styleBlock('selectStyle')).toContain('outlineOffset: 2')
     expect(styleBlock('selectStyle')).not.toContain("outline: 'none'")
+  })
+
+  it('keeps league match activity scannable on phones without replacing the team filter', () => {
+    expect(source).toContain("type LeagueMatchActivity = 'all' | 'scheduled' | 'results'")
+    expect(source).toContain('const [matchActivity, setMatchActivity]')
+    expect(source).toContain('const scheduledMatches = useMemo(')
+    expect(source).toContain('const completedMatches = useMemo(')
+    expect(source).toContain('const activityMatches =')
+    expect(source).toContain('aria-label="League match activity filter"')
+    expect(source).toContain("['scheduled', 'Schedule ' + scheduledMatches.length]")
+    expect(source).toContain("['results', 'Results ' + completedMatches.length]")
+    expect(source).toContain('const leagueMatchActivityFilterStyle: CSSProperties')
+    expect(styleBlock('leagueMatchActivityFilterStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
+    expect(source).toContain('function leagueMatchActivityButtonStyle(active: boolean): CSSProperties')
   })
 
   it('keeps no-data league detail short and explanation on request', () => {

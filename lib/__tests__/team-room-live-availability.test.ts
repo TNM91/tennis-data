@@ -40,7 +40,8 @@ describe('Team Room live availability card', () => {
     expect(messagingPage).toContain("params.set('requestId', requestedAvailabilityRequestId)")
     expect(messagingPage).toContain("params.get('focus') === 'waiting'")
     expect(messagingPage).toContain("getElementById('potential-lineup-confirm-title')")
-    expect(lineupPage).toContain("params.get('source') === 'team_room' && params.get('availability') === 'replies'")
+    expect(lineupPage).toContain('availabilityOnly: false')
+    expect(lineupPage).toContain('Show only players who replied')
     expect(lineupPage).toContain('Team replies applied: ${teamRoomReplyCounts.yes} In')
     expect(lineupPage).toContain("status === 'maybe' || status === 'limited'")
   })
@@ -412,9 +413,12 @@ describe('Team Room live availability card', () => {
   it('posts one final-result update and edits that update for corrections', () => {
     const announcementServer = readSource('lib/team-room-result-announcement-server.ts')
     const importRunner = readSource('lib/data-assist-import-runner.ts')
+    const captainScorecardRoute = readSource('app/api/captain/match-results/route.ts')
     const roomPage = readSource('app/team-room/page.tsx')
 
     expect(importRunner).toContain('announceTeamRoomScorecardResult({')
+    expect(captainScorecardRoute).toContain('buildCaptainScorecardTeamRoomDraft(input, scorecard.externalMatchId)')
+    expect(captainScorecardRoute).toContain('teamAnnouncementUpdated')
     expect(announcementServer).toContain('teamRoomResultAnnouncement: true')
     expect(announcementServer).toContain(".select('id,conversation_id,metadata')")
     expect(announcementServer).toContain('messageId: input.resultCardId || input.messageId')

@@ -4,8 +4,10 @@ import {
   chooseLatestCaptainResumeState,
   getCaptainResumeHref,
   getCaptainResumeStorageKey,
+  hasExplicitCaptainRouteScope,
   isSafeCaptainResumeHref,
   readCaptainResumeState,
+  resolveCaptainMatchContext,
   sanitizeCaptainResumeState,
   writeCaptainResumeState,
 } from '../captain-memory'
@@ -96,5 +98,19 @@ describe('captain resume memory', () => {
       '/captain/lineup-builder?team=SuperSmash+Bros&league=Tri-Level&flight=3.5%2F4.0%2F4.5&match=match-1&scenario=scenario-1',
     )
     expect(chooseLatestCaptainResumeState(local, cloud)).toBe(cloud)
+  })
+
+  it('starts every new builder entry at the next match instead of reusing an expired saved match', () => {
+    expect(resolveCaptainMatchContext(new URLSearchParams('team=SuperSmash+Bros&league=Missouri')))
+      .toEqual({ eventDate: '', opponentTeam: '', matchId: '' })
+    expect(resolveCaptainMatchContext(new URLSearchParams()))
+      .toEqual({ eventDate: '', opponentTeam: '', matchId: '' })
+    expect(resolveCaptainMatchContext(new URLSearchParams('team=SuperSmash+Bros&date=2026-09-01&match=next-match')))
+      .toEqual({ eventDate: '2026-09-01', opponentTeam: '', matchId: 'next-match' })
+  })
+
+  it('recognizes a team card handoff as an intentional Builder selection', () => {
+    expect(hasExplicitCaptainRouteScope(new URLSearchParams('team=SuperSmash+Bros&league=Tri-Level'))).toBe(true)
+    expect(hasExplicitCaptainRouteScope(new URLSearchParams())).toBe(false)
   })
 })

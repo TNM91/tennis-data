@@ -71,6 +71,19 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain("style={{ minWidth: 0, overflowWrap: 'anywhere' }}")
     expect(styleBlock('slotLabelInputStyle')).toContain("width: 'min(100%, 180px)'")
     expect(styleBlock('slotLabelInputStyle')).toContain('minWidth: 0')
+    for (const styleName of [
+      'slotEditorBodyStyle',
+      'compactCourtTriggerStyle',
+      'compactCourtTriggerHeaderStyle',
+      'compactCourtTriggerFooterStyle',
+      'slotHeaderActionsStyle',
+    ]) {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+    expect(source).toContain('const [expandedTeamSlotId, setExpandedTeamSlotId] = useState(\'\')')
+    expect(source).toContain('aria-controls={`captain-lineup-slot-editor-${slot.id}`}')
+    expect(source).toContain('Edit court')
+    expect(source).toContain('>Done</GhostSmallBtn>')
   })
 
   it('keeps decision, projection, and lock panels resilient on narrow screens', () => {
@@ -116,18 +129,84 @@ describe('Captain lineup builder mobile layout guards', () => {
 
   it('turns a missing roster into upload, export-help, and manual-entry actions', () => {
     expect(source).toContain('Add your players to build this lineup.')
-    expect(source).toContain('Upload Player Roster')
+    expect(source).toContain('Upload Team Summary')
     expect(source).toContain('Enter players manually')
-    expect(source).toContain('How to export the Player Roster from TennisLink')
+    expect(source).toContain('How to export a Team Summary from TennisLink')
     expect(source).toContain('Choose <strong>Send To Excel</strong>')
+    expect(source).toContain('Watch the 1-minute Team Summary video guide')
+    expect(source).toContain('href="/resources/usta-upload#quick-guide"')
     expect(source).toContain("type: 'team_summary'")
     expect(source).toContain("help: '1'")
     expect(source).toContain('returnTo: context.returnTo')
     expect(source).toContain('function addManualRosterPlayers()')
-    expect(source).toContain('Upload the Player Roster later to connect ratings and contact details.')
+    expect(source).toContain('Upload the Team Summary for ratings, then add Player Roster later if you want team contacts.')
     expect(styleBlock('rosterRecoveryCardStyle')).toContain('minWidth: 0')
     expect(styleBlock('rosterRecoveryActionGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 210px), 1fr))")
     expect(styleBlock('manualRosterEntryStyle')).toContain('minWidth: 0')
+  })
+
+  it('treats an absent opponent roster as a compact recovery choice, not a failure', () => {
+    expect(source).toContain('aria-label="Opponent roster options"')
+    expect(source).toContain('has not been added yet.')
+    expect(source).toContain('Enter names now, or add its TennisLink Team Summary for TiQ ratings.')
+    expect(source).toContain('Upload TennisLink roster')
+    expect(source).toContain('function addManualOpponentRosterPlayers()')
+    expect(source).toContain('const scopedManualOpponentRosterPlayers = useMemo(')
+    expect(source).toContain('const opponentSummaryUploadHref = useMemo(')
+    expect(source).not.toContain('No opponent roster is available for {opponentTeam} yet.')
+    expect(styleBlock('opponentRosterRecoveryStyle')).toContain('minWidth: 0')
+    expect(styleBlock('opponentRosterManualEntryStyle')).toContain("gridColumn: '1 / -1'")
+  })
+
+  it('confirms when opponent players are ready and opens the opponent courts directly', () => {
+    expect(source).toContain('aria-label="Opponent roster ready"')
+    expect(source).toContain('TiQ ratings are available where matched.')
+    expect(source).toContain('Set opponent courts')
+    expect(source).toContain("document.getElementById('opponent-lineup')?.scrollIntoView")
+    expect(source).toContain('<section id="opponent-lineup" style={surfaceCardStrong}>')
+    expect(styleBlock('opponentRosterReadyStyle')).toContain('minWidth: 0')
+  })
+
+  it('keeps manual opponent names available after a Builder refresh or upload return', () => {
+    expect(source).toContain('function restoreManualRosterPlayers(')
+    expect(source).toContain('const persistedManualRosterDraft = persistedDirectCourtTextHandoff?.builderDraft ?? persistedDeviceBuilderDraft')
+    expect(source).toContain('manualRosterEntries: manualRosterPlayers.slice(-80).map((player) => ({')
+    expect(source).toContain('const restoredManualRosterPlayers = restoreManualRosterPlayers(storedDraft)')
+  })
+
+  it('keeps a missing mobile number in the Builder instead of sending the captain to another screen', () => {
+    expect(source).toContain('Add {player.playerName.split(\' \')[0]}’s mobile number')
+    expect(source).toContain('Save mobile & prepare Ask')
+    expect(source).toContain("await askProposedCourtPlayers(slot, invitedPlayer, { contactPhone: phone })")
+    expect(source).toContain("fetch('/api/captain/team-contacts'")
+    expect(source).toContain('Sign in again before saving this mobile number.')
+    expect(source).toContain('const existingContact = captainRosterContactsForTeam.find')
+    expect(styleBlock('courtAskControlStyle')).toContain('minWidth: 0')
+    expect(styleBlock('courtPhoneFormStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+    expect(styleBlock('courtPhoneLabelStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('inputStyle')).toContain("boxSizing: 'border-box'")
+    expect(styleBlock('mobileSelectInputStyle')).toContain("textOverflow: 'ellipsis'")
+    expect(styleBlock('mobileReplacementHandoffActionsStyle')).toContain("width: '100%'")
+    expect(styleBlock('mobileCourtAskControlStyle')).toContain("width: '100%'")
+    expect(styleBlock('mobileCourtPhoneFormStyle')).toContain("boxSizing: 'border-box'")
+    expect(styleBlock('mobileSmsFallbackLinkStyle')).toContain("width: '100%'")
+    expect(source).toContain('fullWidth={isMobileLayout}')
+    expect(styleBlock('mobileCourtFocusActionsStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+    expect(source).toContain('>Team contacts</GhostLink>')
+  })
+
+  it('keeps hands-on building focused while putting opponent and recommendation work behind a disclosure', () => {
+    expect(source).toContain("const [builderMode, setBuilderMode] = useState<BuilderMode>('manual')")
+    expect(source).toContain('Build myself')
+    expect(source).toContain('Use TiQ insights')
+    expect(source).toContain("<details open={builderMode === 'insights'} style={surfaceCardStrong}>")
+    expect(source).toContain('Opponent + insights')
+    expect(source).toContain("{builderMode === 'insights' ? <div style={columnStyle}>")
+    for (const styleName of ['builderModeShellStyle', 'builderModeHeaderStyle', 'builderModeOptionsStyle']) {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+    expect(styleBlock('builderModeOptionsStyle')).toContain("repeat(auto-fit, minmax(min(100%, 230px), 1fr))")
+    expect(styleBlock('builderModeOptionStyle')).toContain("width: '100%'")
   })
 
   it('makes optimizer changes visible and keeps Tri-Level on three rating-specific doubles courts', () => {
@@ -147,7 +226,52 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('appliedLineupActionStyle')).toContain('flexWrap: \'wrap\'')
     expect(styleBlock('triLevelFormatStyle')).toContain('minWidth: 0')
     expect(source).toContain('aria-label="Lineup next decision"')
-    expect(source).toContain('<Link href="#captain-lineup-courts" style={primaryButton}>Choose players</Link>')
+    expect(source).toContain("{lineupHasAssignments ? 'Refresh lineup' : 'Build lineup'}")
+    expect(source).toContain("<GhostLink href=\"#captain-lineup-courts\">Review courts</GhostLink>")
+    expect(source).toContain("<PrimaryBtn onClick={() => applyOptimizedPlan('best')}>")
+    expect(source).toContain('<Link href="#captain-lineup-courts" style={primaryButton}>Build lineup</Link>')
+    expect(source).toContain('const mobileLineupPulse = [')
+    expect(source).toContain('aria-label="Lineup readiness pulse"')
+    expect(source).toContain("label: 'Courts'")
+    expect(source).toContain("label: 'Replies'")
+    expect(source).toContain("label: 'Roster'")
+    expect(styleBlock('mobileLineupPulseStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
+    expect(styleBlock('mobileLineupPulseCardStyle')).toContain('minWidth: 0')
+    expect(source).toContain('const mobileCourtMap = analysis.lines.map')
+    expect(source).toContain('aria-label="Court map"')
+    expect(source).toContain('function focusTeamCourtsAfterBuild(nextSlots: LineupSlot[] = teamSlots)')
+    expect(source).toContain('setExpandedTeamSlotId(courtToOpen)')
+    expect(source).toContain("querySelector<HTMLElement>('#captain-lineup-courts [id^=\"captain-lineup-slot-\"]')")
+    expect(source).toContain("?.scrollIntoView({ behavior: 'smooth', block: 'start' })")
+    expect(source).toContain('Where to lean in')
+    expect(source).toContain("? 'Edge'")
+    expect(source).toContain("? 'Protect'")
+    expect(source).toContain(": 'Swing'")
+    for (const styleName of [
+      'mobileCourtMapShellStyle',
+      'mobileCourtMapHeaderStyle',
+      'mobileCourtMapGridStyle',
+      'mobileCourtMapValueRowStyle',
+    ]) {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+    expect(styleBlock('mobileCourtMapGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 132px), 1fr))")
     expect(source).toContain('style={isMobile ? hiddenMobileContextStyle : surfaceCard}')
+  })
+
+  it('gives mobile captains a clear final lineup check before they send the team update', () => {
+    expect(source).toContain('aria-label="Final lineup status"')
+    expect(source).toContain('Ready to send.')
+    expect(source).toContain('Send lineup to team')
+    expect(source).toContain('Edit courts')
+    for (const styleName of [
+      'mobileFinalLineupPanelStyle',
+      'mobileFinalLineupHeaderStyle',
+      'mobileFinalLineupCopyStyle',
+      'mobileFinalLineupActionsStyle',
+    ]) {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+    expect(styleBlock('mobileFinalLineupActionsStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
   })
 })
