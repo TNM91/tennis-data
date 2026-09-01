@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AdminActionRow,
   AdminEmptyState,
@@ -40,6 +40,7 @@ export default function ManagePlayersPage() {
   const [savingId, setSavingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [recalculating, setRecalculating] = useState(false)
+  const [searching, setSearching] = useState(false)
 
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<
@@ -61,14 +62,17 @@ export default function ManagePlayersPage() {
 
   const [editedPlayers, setEditedPlayers] = useState<Record<string, Partial<PlayerRow>>>({})
   const deferredSearch = useDeferredValue(search)
+  const playerLoadRequestRef = useRef(0)
 
-  useEffect(() => {
-    void loadPlayers()
-  }, [])
+  const loadPlayers = useCallback(async (showRefreshing = false, searchTerm = deferredSearch) => {
+    const requestId = playerLoadRequestRef.current + 1
+    playerLoadRequestRef.current = requestId
+    const normalizedSearch = searchTerm.trim()
 
-  async function loadPlayers(showRefreshing = false) {
     if (showRefreshing) {
       setRefreshing(true)
+    } else if (normalizedSearch) {
+      setSearching(true)
     } else {
       setLoading(true)
     }
@@ -76,7 +80,7 @@ export default function ManagePlayersPage() {
     setError('')
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('players')
         .select(`
           id,
@@ -93,21 +97,38 @@ export default function ManagePlayersPage() {
           overall_usta_dynamic_rating,
           rating_source
         `)
-        .limit(1200)
+        .order('name', { ascending: true })
+        .limit(normalizedSearch ? 100 : 1200)
+
+      if (normalizedSearch) {
+        const escapedSearch = escapePostgrestSearch(normalizedSearch)
+        query = query.or(`name.ilike.%${escapedSearch}%,location.ilike.%${escapedSearch}%`)
+      }
+
+      const { data, error } = await query
 
       if (error) {
         throw new Error(error.message)
       }
 
+      if (requestId !== playerLoadRequestRef.current) return
+
       setPlayers((data || []) as PlayerRow[])
       setEditedPlayers({})
     } catch (err) {
+      if (requestId !== playerLoadRequestRef.current) return
       setError(err instanceof Error ? err.message : 'Failed to load players.')
     } finally {
+      if (requestId !== playerLoadRequestRef.current) return
       setLoading(false)
       setRefreshing(false)
+      setSearching(false)
     }
-  }
+  }, [deferredSearch])
+
+  useEffect(() => {
+    void loadPlayers(false, deferredSearch)
+  }, [deferredSearch, loadPlayers])
 
   function getPlayerValue(player: PlayerRow, field: keyof PlayerRow) {
     const editedValue = editedPlayers[player.id]?.[field]
@@ -430,7 +451,7 @@ export default function ManagePlayersPage() {
             </div>
 
             <p className="subtle-text" style={{ marginTop: 14, maxWidth: 760 }}>
-              Use search to isolate a player or location, then save only the rows you actually changed. Recalculate ratings after larger cleanup waves if you want a fresh board immediately.
+              Use search to look through the full player roster by name or location, then save only the rows you actually changed. Recalculate ratings after larger cleanup waves if you want a fresh board immediately.
             </p>
 
             {message && (
@@ -465,7 +486,11 @@ export default function ManagePlayersPage() {
             </div>
 
             <p className="subtle-text" style={{ marginTop: 12, maxWidth: 760 }}>
-              This editor loads the most recent 1,200 player rows so admin cleanup stays responsive as the roster grows.
+              {searching
+                ? 'Searching the full player roster…'
+                : search.trim()
+                  ? `Showing up to 100 player matches for “${search.trim()}”.`
+                  : 'This editor starts with the first 1,200 player rows. Search uses the full player roster.'}
             </p>
 
             {loading ? (
@@ -700,4 +725,8 @@ function normalizeName(name: string) {
 function normalizeNullableText(value: string | null | undefined) {
   const normalized = (value ?? '').trim()
   return normalized ? normalized : null
+}
+
+function escapePostgrestSearch(value: string) {
+  return value.replace(/[%,_.()]/g, ' ').replace(/'/g, "''").replace(/\s+/g, ' ').trim()
 }
