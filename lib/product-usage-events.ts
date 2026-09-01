@@ -48,8 +48,10 @@ export const PRODUCT_USAGE_EVENT_NAMES = [
   'portal_lane_opened',
   'portal_shortcut_opened',
   'product_tour_started',
+  'product_tour_progressed',
   'product_tour_completed',
   'product_tour_cta_clicked',
+  'product_tour_role_selected',
 ] as const
 
 export const PRODUCT_USAGE_EVENT_SURFACES = [
