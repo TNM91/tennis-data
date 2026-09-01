@@ -34,12 +34,23 @@ describe('portal shortcut cloud sync', () => {
     expect(toolbarSource).toContain('syncPortalShortcutsToCloud(pinnedPortalShortcutIds, true)')
   })
 
-  it('stores exactly four allowed shortcuts in a user-owned row', () => {
+  it('expands the persisted shortcut count to seven without changing the allowed catalog', () => {
     expect(migrationSource).toContain('user_id uuid primary key references auth.users(id) on delete cascade')
     expect(migrationSource).toContain('cardinality(shortcut_ids) = 4')
     expect(migrationSource).toContain('portal_shortcut_preferences_allowed_shortcuts')
     expect(migrationSource).toContain('alter table public.portal_shortcut_preferences enable row level security')
     expect(migrationSource).toContain('using (auth.uid() = user_id)')
     expect(migrationSource).toContain('with check (auth.uid() = user_id)')
+  })
+
+  it('adds a safe production constraint for one through seven unique shortcuts', () => {
+    const expansionMigration = readFileSync(
+      join(process.cwd(), 'supabase/migrations/20260831000300_expand_portal_shortcut_pins_to_seven.sql'),
+      'utf8',
+    )
+
+    expect(expansionMigration).toContain('portal_shortcut_preferences_up_to_seven_unique_shortcuts')
+    expect(expansionMigration).toContain('cardinality(shortcut_ids) between 1 and 7')
+    expect(expansionMigration).toContain('text_array_has_unique_values')
   })
 })

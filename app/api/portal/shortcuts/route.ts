@@ -62,7 +62,7 @@ export async function PUT(request: Request) {
   }
 
   if (!isPinnedPortalShortcutList(body.shortcuts) || typeof body.cueDismissed !== 'boolean') {
-    return Response.json({ ok: false, message: 'Choose four valid shortcuts.' }, { status: 400 })
+    return Response.json({ ok: false, message: 'Choose up to seven valid shortcuts.' }, { status: 400 })
   }
 
   const updatedAt = new Date().toISOString()
