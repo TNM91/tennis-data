@@ -21,6 +21,8 @@ describe('TennisRecord ingestion safety', () => {
   it('uses only a stated NTRP designation as a TiQ baseline, never a proprietary estimate', () => {
     expect(tennisRecordStatedNtrpBaseline('4.0 C')).toBe(4)
     expect(tennisRecordStatedNtrpBaseline('4.5 S')).toBe(4.5)
+    expect(tennisRecordStatedNtrpBaseline('7.0 C')).toBe(7)
+    expect(tennisRecordStatedNtrpBaseline('7.5')).toBeNull()
     expect(tennisRecordStatedNtrpBaseline('4.0122')).toBeNull()
     expect(tennisRecordStatedNtrpBaseline('Estimated Dynamic Rating 4.0122')).toBeNull()
     expect(tennisRecordStatedNtrpDesignation('4.0 C')).toBe('computer')
@@ -94,6 +96,23 @@ describe('TennisRecord ingestion safety', () => {
       ntrpDesignation: 'computer',
       ntrpEffectiveDate: '2025-12-31',
       publishedRating: 4.0122,
+    })])
+  })
+
+  it('ignores an out-of-range value near the profile header instead of storing invalid USTA provenance', () => {
+    const profileUrl = 'https://www.tennisrecord.com/adult/profile.aspx?playername=Brock+Jones'
+    const profile = `
+      <h1>Brock Jones</h1>
+      <div>Brock Jones (Saint Louis, MO)</div>
+      <div>7.5</div>
+      <div>Estimated Dynamic Rating 3.6252</div>`
+
+    const parsed = parseTennisRecordMatchPage(profile, profileUrl)
+
+    expect(parsed.players).toEqual([expect.objectContaining({
+      name: 'Brock Jones',
+      ntrpLabel: '',
+      publishedRating: 3.6252,
     })])
   })
 

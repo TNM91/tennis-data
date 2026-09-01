@@ -10,6 +10,12 @@ function htmlDecode(value: string) { return value.replace(/&amp;/gi, '&').replac
 function getText(html: string) { return stripTags(html) }
 
 const NON_TEAM_LABELS = new Set(['match results', 'team name', 'home team', 'visiting team', 'score', 'courts won'])
+// USTA NTRP labels are whole or half levels through 7.0. Keep this stricter
+// than the generic score/rating parser so an unrelated value such as 7.5 can
+// never become factual NTRP provenance or block a staged player profile.
+const STATED_NTRP_LEVEL_PATTERN = '(?:[1-6]\\.[05]|7\\.0)'
+const STATED_NTRP_LABEL_PATTERN = new RegExp(`(?:^|\\s)(${STATED_NTRP_LEVEL_PATTERN})(?=\\s|$)`)
+const STATED_NTRP_DESIGNATION_PATTERN = new RegExp(`(?:^|\\s)${STATED_NTRP_LEVEL_PATTERN}\\s*([CS])(?=\\s|$)`, 'i')
 
 function isTeamName(value: string) {
   const name = value.trim().replace(/\s+/g, ' ')
@@ -245,7 +251,7 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
     const name = getText(html.match(/<(?:h1|h2)[^>]*>([\s\S]*?)<\/(?:h1|h2)>/i)?.[1] || '') || url.searchParams.get('playername')?.replace(/\+/g, ' ') || ''
     const location = plain.match(/\(([A-Za-z .'-]+),\s*([A-Z]{2})\)/)
     const rating = plain.match(/Estimated\s+Dynamic\s+Rating\s*([1-7]\.\d{1,4})/i)?.[1]
-    const statedNtrp = plain.match(/\b([1-7](?:\.0|\.5)\s*[A-Z]?)\b(?:\s+(\d{1,2}\/\d{1,2}\/20\d{2}))?/)
+    const statedNtrp = plain.match(new RegExp(`\\b(${STATED_NTRP_LEVEL_PATTERN}\\s*[A-Z]?)\\b(?:\\s+(\\d{1,2}\\/\\d{1,2}\\/20\\d{2}))?`))
     const ntrp = statedNtrp?.[1] || ''
     const ntrpEffectiveDate = statedNtrp?.[2] ? toIsoDate(statedNtrp[2]) : undefined
     const ntrpDesignation = tennisRecordStatedNtrpDesignation(ntrp)
@@ -270,7 +276,7 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
  */
 export function tennisRecordStatedNtrpBaseline(value: unknown): number | null {
   const label = typeof value === 'string' ? value.trim() : ''
-  const match = label.match(/(?:^|\s)([1-7]\.[05])(?=\s|$)/)
+  const match = label.match(STATED_NTRP_LABEL_PATTERN)
   return match ? Number(match[1]) : null
 }
 
@@ -281,7 +287,7 @@ export function tennisRecordStatedNtrpBaseline(value: unknown): number | null {
  */
 export function tennisRecordStatedNtrpDesignation(value: unknown): import('./types').TennisRecordNtrpDesignation {
   const label = typeof value === 'string' ? value.trim() : ''
-  const match = label.match(/(?:^|\s)[1-7]\.[05]\s*([CS])(?=\s|$)/i)
+  const match = label.match(STATED_NTRP_DESIGNATION_PATTERN)
   if (match?.[1]?.toUpperCase() === 'C') return 'computer'
   if (match?.[1]?.toUpperCase() === 'S') return 'self'
   return 'unknown'
