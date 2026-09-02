@@ -32,7 +32,8 @@ describe('captain lineup roster-first availability', () => {
 
   it('keeps the complete team roster together for match planning', () => {
     expect(route).toContain(".eq('normalized_team_name', normalizedTeam)")
-    expect(route).toContain(".in('id', rosterPlayerIds)")
+    expect(route).toContain('const playerIds = Array.from(new Set([...rosterPlayerIds, ...historicalPlayerIds]))')
+    expect(route).toContain(".in('id', playerIds)")
     expect(source).toContain('/api/captain/lineup-builder?${params.toString()}')
     expect(source).toContain('const [teamRosterPlayers, setTeamRosterPlayers] = useState<PlayerRow[]>([])')
     expect(source).toContain('const rosterBackedPlayers = useMemo(() =>')

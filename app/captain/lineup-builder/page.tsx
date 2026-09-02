@@ -1261,9 +1261,7 @@ function getLineupWarnings(
           warnings.push(`${selected.playerName || 'Selected player'} is self-rated. Confirm league eligibility before finalizing.`)
         }
         if (player && sideLabel === 'Your' && rules?.ageDivision) {
-          if (!player.roster_age_division) {
-            warnings.push(`${selected.playerName || 'Selected player'} needs ${rules.ageDivision} roster eligibility confirmed.`)
-          } else if (player.roster_age_division !== rules.ageDivision) {
+          if (player.roster_age_division && player.roster_age_division !== rules.ageDivision) {
             warnings.push(`${selected.playerName || 'Selected player'} is verified for ${player.roster_age_division}, not ${rules.ageDivision}.`)
           }
         }
@@ -1854,8 +1852,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     if (teamName) params.set('team', teamName)
     if (leagueName) params.set('league', leagueName)
     if (flight) params.set('flight', flight)
+    if (opponentTeam) params.set('opponent', opponentTeam)
 
-    const snapshotScope = [normalizeTeamName(teamName), normalizeTeamName(leagueName), normalizeTeamName(flight)].join('__')
+    const snapshotScope = [normalizeTeamName(teamName), normalizeTeamName(leagueName), normalizeTeamName(flight), normalizeTeamName(opponentTeam)].join('__')
     const snapshot = readPrivateClientSnapshot<LineupBuilderPayload>({
       namespace: 'captain-lineup',
       userId,
@@ -1932,7 +1931,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
     setLoading(false)
     return !primaryError
-  }, [applyBuilderPayload, flight, leagueName, session?.access_token, teamName, userId])
+  }, [applyBuilderPayload, flight, leagueName, opponentTeam, session?.access_token, teamName, userId])
 
   useEffect(() => {
     if (!authResolved || role === 'public') return
@@ -2166,9 +2165,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   }, [teamName, matches, matchPlayers, availability, rosterMembers, scopedRosterPlayerIds])
 
   const opponentRosterPlayerIds = useMemo(
-    () =>
-      buildRosterPlayerIdSet(opponentTeam, matches, matchPlayers, availability, rosterMembers),
-    [opponentTeam, matches, matchPlayers, availability, rosterMembers]
+    () => buildRosterPlayerIdSet(opponentTeam, historicalLineMatches, historicalLineMatchPlayers, [], []),
+    [historicalLineMatchPlayers, historicalLineMatches, opponentTeam]
   )
 
   const myRosterEligibilityByPlayerId = useMemo(
@@ -4338,10 +4336,20 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   }
 
   function applyRecommendedOpponentLineup() {
+    if (!opponentPlayerPool.length) {
+      setError('No opponent roster is connected for this matchup yet. Add opponent players or import a prior scorecard before TiQ can project their courts.')
+      setMessage('')
+      return
+    }
     const next = recommendLineupFromPool(opponentSlots, opponentPlayerPool, 'ceiling', competitionRules)
     setOpponentSlots(next.slots)
-    setMessage('Projected opponent lineup applied.')
-    setError('')
+    const incompleteCourts = next.slots.filter((slot) => slot.players.some((player) => !player.playerId))
+    setMessage(incompleteCourts.length
+      ? `Projected opponent lineup filled ${next.slots.length - incompleteCourts.length} of ${next.slots.length} courts from ${opponentPlayerPool.length} known opponent players.`
+      : `Projected opponent lineup applied from ${opponentPlayerPool.length} known opponent players.`)
+    setError(incompleteCourts.length
+      ? 'TiQ needs more opponent roster data to finish every projected court.'
+      : '')
   }
 
   const currentScenario = savedScenarios.find((scenario) => scenario.id === currentScenarioId) ?? null
@@ -5730,7 +5738,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               <p style={sectionKicker}>Auto-build</p>
               <h2 style={sectionTitle}>Get a starting lineup</h2>
               <p style={sectionBodyTextStyle}>
-                Fill a first draft from the current player pool, then adjust the courts you care about.
+                {opponentPlayerPool.length
+                  ? `Fill a first projected draft from ${opponentPlayerPool.length} known opponent player${opponentPlayerPool.length === 1 ? '' : 's'}, then adjust the courts you care about.`
+                  : 'Add opponent players or import a prior scorecard before TiQ can project their courts.'}
               </p>
 
               <div style={actionRowStyleWrap}>

@@ -85,6 +85,7 @@ export async function GET(request: Request) {
   const teamName = cleanAvailabilityText(url.searchParams.get('team'), 160)
   const leagueName = cleanAvailabilityText(url.searchParams.get('league'), 160)
   const flight = cleanAvailabilityText(url.searchParams.get('flight'), 120)
+  const opponentName = cleanAvailabilityText(url.searchParams.get('opponent'), 160)
   if (!teamName) {
     return Response.json({
       ok: true,
@@ -129,7 +130,7 @@ export async function GET(request: Request) {
   // is read. The cache only avoids re-running the same roster/schedule bundle
   // during a short mobile navigation session.
   const runtimeCache = getCache({ namespace: 'captain-lineup-builder' })
-  const cacheKey = `${auth.userId}:${normalizeTeamRoomKey(teamName)}:${normalizeTeamRoomKey(leagueName)}:${normalizeTeamRoomKey(flight)}`
+  const cacheKey = `${auth.userId}:${normalizeTeamRoomKey(teamName)}:${normalizeTeamRoomKey(leagueName)}:${normalizeTeamRoomKey(flight)}:${normalizeTeamRoomKey(opponentName)}`
   try {
     const cached = await runtimeCache.get(cacheKey) as Record<string, unknown> | undefined
     if (cached?.ok === true) {
@@ -247,12 +248,19 @@ export async function GET(request: Request) {
   if (primaryError) return Response.json({ ok: false, message: primaryError.message }, { status: 500 })
 
   const rosterMembers = rosterResult.data ?? []
+  const historicalLineMatches = (historicalLineMatchesResult.data ?? []).filter((match) => {
+    if (!opponentName) return true
+    const home = normalizeTeamName(match.home_team)
+    const away = normalizeTeamName(match.away_team)
+    const normalizedOpponent = normalizeTeamName(opponentName)
+    return home === normalizedOpponent || away === normalizedOpponent
+  })
   const rosterPlayerIds = Array.from(new Set(rosterMembers.map((row) => row.player_id).filter((id): id is string => Boolean(id))))
   const matchIds = (matchesResult.data ?? []).map((match) => match.id)
   const matchPlayersResultPromise = matchIds.length
     ? service.from('match_players').select('match_id,player_id,side,seat').in('match_id', matchIds).limit(1200)
     : Promise.resolve({ data: [], error: null })
-  const historicalLineMatchIds = (historicalLineMatchesResult.data ?? []).map((match) => match.id)
+  const historicalLineMatchIds = historicalLineMatches.map((match) => match.id)
   const historicalLineMatchPlayersResultPromise = historicalLineMatchIds.length
     ? service.from('match_players').select('match_id,player_id,side,seat').in('match_id', historicalLineMatchIds).limit(2400)
     : Promise.resolve({ data: [], error: null })
@@ -264,13 +272,15 @@ export async function GET(request: Request) {
     statusText: 'OK',
     success: true,
   } as Awaited<typeof matchPlayersResultPromise>
-  const [playersResult, matchPlayersResult, historicalLineMatchPlayersResult] = await Promise.all([
-    rosterPlayerIds.length
-      ? service.from('players').select(PLAYER_ROSTER_SELECT).in('id', rosterPlayerIds).order('name', { ascending: true })
-      : Promise.resolve({ data: [], error: null }),
+  const [matchPlayersResult, historicalLineMatchPlayersResult] = await Promise.all([
     resolveOptionalQuery('scheduled match players', matchPlayersResultPromise, emptyMatchPlayersResult, 3_500),
     resolveOptionalQuery('historical lineup players', historicalLineMatchPlayersResultPromise, emptyMatchPlayersResult, 3_500),
   ])
+  const historicalPlayerIds = Array.from(new Set((historicalLineMatchPlayersResult.data ?? []).map((row) => row.player_id).filter((id): id is string => Boolean(id))))
+  const playerIds = Array.from(new Set([...rosterPlayerIds, ...historicalPlayerIds]))
+  const playersResult = playerIds.length
+    ? await service.from('players').select(PLAYER_ROSTER_SELECT).in('id', playerIds).order('name', { ascending: true })
+    : { data: [], error: null }
   if (playersResult.error) {
     return Response.json({ ok: false, message: playersResult.error.message || 'Lineup data is unavailable.' }, { status: 500 })
   }
@@ -285,7 +295,7 @@ export async function GET(request: Request) {
     players: playersResult.data ?? [],
     matches: matchesResult.data ?? [],
     matchPlayers: matchPlayersResult.data ?? [],
-    historicalLineMatches: historicalLineMatchesResult.data ?? [],
+    historicalLineMatches,
     historicalLineMatchPlayers: historicalLineMatchPlayersResult.data ?? [],
     rosterMembers,
     availability: availabilityResult.data ?? [],

@@ -130,6 +130,19 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('Check replies')
   })
 
+  it('uses known opponent court history for projections and explains when no opponent roster is available', () => {
+    const source = readSource('app/captain/lineup-builder/page.tsx')
+    const route = readSource('app/api/captain/lineup-builder/route.ts')
+
+    expect(source).toContain("params.set('opponent', opponentTeam)")
+    expect(source).toContain('buildRosterPlayerIdSet(opponentTeam, historicalLineMatches, historicalLineMatchPlayers, [], [])')
+    expect(source).toContain('No opponent roster is connected for this matchup yet.')
+    expect(source).toContain('known opponent player')
+    expect(source).not.toContain('needs ${rules.ageDivision} roster eligibility confirmed')
+    expect(route).toContain("const opponentName = cleanAvailabilityText(url.searchParams.get('opponent'), 160)")
+    expect(route).toContain('const historicalPlayerIds = Array.from(new Set(')
+  })
+
   it('syncs a saved suggested replacement before offering targeted delivery', () => {
     const source = readSource('app/captain/lineup-builder/page.tsx')
 
