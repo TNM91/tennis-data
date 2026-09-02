@@ -169,6 +169,7 @@ type PreparedCourtText = {
   playerId: string
   playerName: string
   phone: string
+  requestUrl: string
   href: string
   body: string
 }
@@ -1468,6 +1469,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       ? normalizeSavedSlots(persistedBuilderDraft?.teamSlots)
       : buildCaptainLineupSlots(initialLeagueName, initialFlight, 'team', initialMatchFormat)
   )
+  const teamSlotsRef = useRef(teamSlots)
   const [opponentSlots, setOpponentSlots] = useState<LineupSlot[]>(() =>
     normalizeSavedSlots(persistedBuilderDraft?.opponentSlots).length
       ? normalizeSavedSlots(persistedBuilderDraft?.opponentSlots)
@@ -2077,6 +2079,10 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   }, [flight, leagueName, matchDate, teamName])
 
   useEffect(() => {
+    teamSlotsRef.current = teamSlots
+  }, [teamSlots])
+
+  useEffect(() => {
     if (!hasPendingCourtReplies || !authResolved || role === 'public' || typeof window === 'undefined') return
 
     const refreshPendingReplies = () => {
@@ -2536,9 +2542,53 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       )
       return
     }
-    setLockedPlayerIds((current) =>
-      current.includes(playerId) ? current.filter((id) => id !== playerId) : [...current, playerId]
-    )
+    const willLock = !lockedPlayerIdSet.has(playerId)
+    setLockedPlayerIds((current) => willLock ? [...current, playerId] : current.filter((id) => id !== playerId))
+    if (willLock) void markLockedPlayerAvailable(playerId)
+  }
+
+  async function markLockedPlayerAvailable(playerId: string) {
+    if (!teamName || !matchDate) {
+      setError('Choose the team and match before marking a player available.')
+      return
+    }
+
+    const previousAvailability = availability
+    const optimisticRow: AvailabilityRow = {
+      id: availabilityMap.get(playerId) ? `captain-confirmed:${playerId}` : `captain-confirmed:${Date.now()}:${playerId}`,
+      match_date: matchDate,
+      team_name: teamName,
+      league_name: leagueName || null,
+      flight: flight || null,
+      player_id: playerId,
+      status: 'available',
+      notes: 'Confirmed by captain from Lineup Builder.',
+    }
+    setAvailability((current) => [
+      ...current.filter((row) => !(row.match_date === matchDate && row.team_name === teamName && row.player_id === playerId)),
+      optimisticRow,
+    ])
+
+    try {
+      const accessToken = session?.access_token || (await supabase.auth.getSession()).data.session?.access_token
+      if (!accessToken) throw new Error('Sign in again before marking a player available.')
+      const response = await fetch('/api/captain/lineup-builder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ teamName, leagueName, flight, matchDate, playerId }),
+      })
+      const result = await response.json() as { ok?: boolean; message?: string; availability?: AvailabilityRow }
+      if (!response.ok || !result.ok || !result.availability) throw new Error(result.message || 'Availability could not be saved.')
+      setAvailability((current) => [
+        ...current.filter((row) => !(row.match_date === matchDate && row.team_name === teamName && row.player_id === playerId)),
+        result.availability as AvailabilityRow,
+      ])
+      setMessage('Player marked Yes and protected in this lineup.')
+      setError('')
+    } catch (caught) {
+      setAvailability(previousAvailability)
+      setError(caught instanceof Error ? caught.message : 'Availability could not be saved.')
+    }
   }
 
   function clearLocks() {
@@ -2725,12 +2775,19 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       const nextSlots = update(teamSlots)
       setTeamSlots(nextSlots)
       const selectedSlot = nextSlots.find((slot) => slot.id === slotId)
-      const selectedPlayer = selectedSlot?.players[playerIndex]
-      if (selectedSlot && selectedPlayer?.playerId && selectedPlayer.playerName.trim()) {
-        // Persist the private reply link while the captain continues building.
-        // The later Ask control is a physical sms: link, so iOS receives it
-        // directly from that tap instead of cancelling an in-flight request.
-        void askProposedCourtPlayers(selectedSlot, selectedPlayer, { silent: true })
+      if (selectedSlot) {
+        // Refresh every selected player's prepared text when a court changes.
+        // A doubles partner may be chosen after the first private text is
+        // prepared, and the outgoing message must include that partner.
+        selectedSlot.players
+          .filter((player) => player.playerId && player.playerName.trim())
+          .forEach((selectedPlayer) => {
+            // Persist the private reply link while the captain continues
+            // building. The later Ask control is a physical sms: link, so iOS
+            // receives it directly from that tap instead of cancelling an
+            // in-flight request.
+            void askProposedCourtPlayers(selectedSlot, selectedPlayer, { silent: true })
+          })
       }
     } else {
       setOpponentSlots((current) => update(current))
@@ -3064,6 +3121,33 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       return
     }
 
+    const preparedKey = getPreparedCourtTextKey(slot, invitedPlayer)
+    const existingPreparedText = preparedCourtTexts[preparedKey]
+    if (existingPreparedText) {
+      const refreshedBody = buildPlayerPotentialLineupAvailabilityMessage({
+        playerName: invitedPlayer.playerName,
+        teamName,
+        opponent: opponentTeam,
+        dateText: formatDate(matchDate),
+        time: selectedMatch?.match_time || '',
+        facility: selectedMatch?.facility || '',
+        slotsJson: [slot],
+        availabilityRequestUrl: existingPreparedText.requestUrl,
+      })
+      if (refreshedBody !== existingPreparedText.body || contactPhone !== existingPreparedText.phone) {
+        setPreparedCourtTexts((current) => ({
+          ...current,
+          [preparedKey]: {
+            ...existingPreparedText,
+            phone: contactPhone,
+            href: buildSmsHref([contactPhone], refreshedBody),
+            body: refreshedBody,
+          },
+        }))
+      }
+      return
+    }
+
     if (typeof window === 'undefined' || !window.crypto?.randomUUID) {
       if (options.silent) return
       setError('This browser could not prepare a secure reply link. Please update your browser and try again.')
@@ -3086,16 +3170,12 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       return
     }
 
-    const preparedKey = getPreparedCourtTextKey(slot, invitedPlayer)
-    if (preparedCourtTexts[preparedKey] || preparingCourtTextKeysRef.current.has(preparedKey)) return
+    if (preparingCourtTextKeysRef.current.has(preparedKey)) return
 
     preparingCourtTextKeysRef.current.add(preparedKey)
     setAskingCourtId(slot.id)
     setError('')
     setMessage(`Preparing a private availability text for ${invitedPlayer.playerName}...`)
-    const preservedTeamSlots = cloneSlots(teamSlots.map((currentSlot) =>
-      currentSlot.id === slot.id ? slot : currentSlot,
-    ))
     const preservedOpponentSlots = cloneSlots(opponentSlots)
     const responseToken = window.crypto.randomUUID()
     try {
@@ -3137,20 +3217,24 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       )?.requestUrl
       if (!requestUrl) throw new Error('The private reply link was not returned. Please try again.')
 
+      // A partner can be placed or locked while this secure link is being
+      // prepared. Read the current court before composing the actual text.
+      const currentSlot = teamSlotsRef.current.find((candidate) => candidate.id === slot.id) ?? slot
+      const currentPlayer = currentSlot.players.find((player) => player.playerId === invitedPlayer.playerId) ?? invitedPlayer
       const body = buildPlayerPotentialLineupAvailabilityMessage({
-        playerName: invitedPlayer.playerName,
+        playerName: currentPlayer.playerName,
         teamName,
         opponent: opponentTeam,
         dateText: formatDate(matchDate),
         time: selectedMatch?.match_time || '',
         facility: selectedMatch?.facility || '',
-        slotsJson: [slot],
+        slotsJson: [currentSlot],
         availabilityRequestUrl: requestUrl,
       })
       const directTextHandoff: CaptainDirectCourtTextHandoff = {
         version: 1,
-        courtId: slot.id,
-        courtLabel: slot.label,
+        courtId: currentSlot.id,
+        courtLabel: currentSlot.label,
         requestId: result?.requestId || '',
         match: {
           date: matchDate,
@@ -3158,16 +3242,16 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           facility: selectedMatch?.facility || '',
           opponent: opponentTeam,
         },
-        slotsJson: [slot],
+        slotsJson: [currentSlot],
         players: [{
-          playerId: invitedPlayer.playerId,
-          playerName: invitedPlayer.playerName,
+          playerId: currentPlayer.playerId,
+          playerName: currentPlayer.playerName,
           requestUrl,
         }],
         openedPlayerKeys: [],
         builderDraft: {
           ...currentBuilderDraft,
-          teamSlots: preservedTeamSlots,
+          teamSlots: cloneSlots(teamSlotsRef.current),
           opponentSlots: preservedOpponentSlots,
           updatedAt: new Date().toISOString(),
         },
@@ -3177,9 +3261,10 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         ...current,
         [preparedKey]: {
           key: preparedKey,
-          playerId: invitedPlayer.playerId,
-          playerName: invitedPlayer.playerName,
+          playerId: currentPlayer.playerId,
+          playerName: currentPlayer.playerName,
           phone: contactPhone,
+          requestUrl,
           href: buildSmsHref([contactPhone], body),
           body,
         },
@@ -6190,7 +6275,7 @@ function SlotEditor({
                   >
                     {lockedPlayerIds.has(player.playerId)
                       ? isAutoLocked ? 'Unlock' : 'Locked'
-                      : isConfirmedReleased ? 'Re-lock' : 'Lock'}
+                      : isConfirmedReleased ? 'Re-lock' : 'Yes & lock'}
                   </button>
                 </div>
               ) : null}
