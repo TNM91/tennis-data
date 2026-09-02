@@ -1452,6 +1452,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const [matchSetupOpen, setMatchSetupOpen] = useState(
     () => !(initialTeamName && initialOpponentTeam && initialMatchDate)
   )
+  const didAutoCollapseMatchSetupRef = useRef(false)
 
   const [availabilityOnly, setAvailabilityOnly] = useState(initialContext.availabilityOnly)
   const [hideUnavailable, setHideUnavailable] = useState(false)
@@ -4366,6 +4367,11 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const matchSetupSummary = hasCoreContext
     ? `${teamName} vs ${opponentTeam} · ${formatDate(matchDate || null)}`
     : 'Choose your team and scheduled match to fill in opponent and date.'
+  useEffect(() => {
+    if (!hasCoreContext || didAutoCollapseMatchSetupRef.current) return
+    didAutoCollapseMatchSetupRef.current = true
+    setMatchSetupOpen(false)
+  }, [hasCoreContext])
   const hasComparisonCandidates = scenarioOptions.length > 1
   const teamCourtProgress = useMemo(() => teamSlots.map((slot) => {
     const selectedPlayers = slot.players.filter((player) => player.playerId || player.playerName.trim()).length
