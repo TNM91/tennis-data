@@ -69,28 +69,24 @@ describe('parseTennisLinkExportFiles', () => {
     expect(preview.row.leagueName).toBe('2026 STL Tri-Level 18 & Over')
     expect(preview.row.lines).toHaveLength(3)
     expect(preview.row.lines.map((line) => line.ntrp)).toEqual([4.5, 4, 3.5])
-    expect(buildScorecardPlayerRatingSeedMap(preview.row)).toMatchObject({
-      'john schaefer': 4.5,
-      'brendan czaicki': 4.5,
-      'matthew suddarth': 4,
-      'joel pottebaum': 4,
-      'anthony trent': 3.5,
-      'miles yetter': 3.5,
-    })
+    // The line labels are court assignments. They are not official player
+    // ratings because a player may compete up a level.
+    expect(buildScorecardPlayerRatingSeedMap(preview.row)).toEqual({})
     expect(inferPlayerBaselineFromRow({ ...preview.row, flight: 'Men 3.5/4.0/4.5' })).toBeNull()
   })
 
-  it('rejects conflicting official line ratings for the same player', () => {
-    expect(() => buildScorecardPlayerRatingSeedMap({
+  it('uses only explicit per-player official rating evidence', () => {
+    expect(buildScorecardPlayerRatingSeedMap({
       externalMatchId: 'conflicting-levels',
       matchDate: '2026-08-03',
       homeTeam: 'Home',
       awayTeam: 'Away',
+      playerRatingSeeds: { 'Alex Player': 4 },
       lines: [
         { lineNumber: 1, matchType: 'singles', ntrp: 4, sideAPlayers: ['Alex Player'], sideBPlayers: ['Jordan One'], winnerSide: 'A' },
         { lineNumber: 2, matchType: 'doubles', ntrp: 3.5, sideAPlayers: ['Alex Player', 'Jordan Two'], sideBPlayers: ['Casey One', 'Casey Two'], winnerSide: 'B' },
       ],
-    })).toThrow('Conflicting official NTRP ratings for Alex Player: 4.0 and 3.5')
+    })).toEqual({ 'alex player': 4 })
   })
 
   it('turns match schedule export rows into schedule matches', () => {
