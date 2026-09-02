@@ -2793,6 +2793,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     if (side === 'team') {
       const nextSlots = update(teamSlots)
       setTeamSlots(nextSlots)
+      setError('')
+      setMessage('Lineup updated. Your draft is saved on this phone.')
       const selectedSlot = nextSlots.find((slot) => slot.id === slotId)
       if (selectedSlot) {
         // Refresh every selected player's prepared text when a court changes.
@@ -3192,9 +3194,11 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     if (preparingCourtTextKeysRef.current.has(preparedKey)) return
 
     preparingCourtTextKeysRef.current.add(preparedKey)
-    setAskingCourtId(slot.id)
-    setError('')
-    setMessage(`Preparing a private availability text for ${invitedPlayer.playerName}...`)
+    if (!options.silent) {
+      setAskingCourtId(slot.id)
+      setError('')
+      setMessage(`Preparing a private availability text for ${invitedPlayer.playerName}...`)
+    }
     const preservedOpponentSlots = cloneSlots(opponentSlots)
     const responseToken = window.crypto.randomUUID()
     try {
@@ -3289,13 +3293,17 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         },
       }))
       setMissingPhonePlayerKeys((current) => current.filter((key) => key !== playerKey))
-      setMessage(`${invitedPlayer.playerName} is ready. Tap Ask ${invitedPlayer.playerName.split(' ')[0]} to open Messages.`)
+      if (!options.silent) {
+        setMessage(`${invitedPlayer.playerName} is ready. Tap Ask ${invitedPlayer.playerName.split(' ')[0]} to open Messages.`)
+      }
     } catch (caught) {
       preparingCourtTextKeysRef.current.delete(preparedKey)
-      setError(caught instanceof Error ? caught.message : 'The private reply link could not be saved. Please try again.')
-      setMessage('')
+      if (!options.silent) {
+        setError(caught instanceof Error ? caught.message : 'The private reply link could not be saved. Please try again.')
+        setMessage('')
+      }
     } finally {
-      setAskingCourtId((current) => current === slot.id ? '' : current)
+      if (!options.silent) setAskingCourtId((current) => current === slot.id ? '' : current)
     }
   }
 
@@ -4708,6 +4716,10 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             <div>
               <p style={sectionKicker}>Lineup controls</p>
               <h1 style={builderControlTitleStyle}>Build a potential lineup.</h1>
+              <div style={builderDraftStatusStyle} role="status" aria-live="polite">
+                <span style={miniPillGreenStyle}>Draft saved on this phone</span>
+                {currentScenarioId ? <span style={miniPillBlueStyle}>Saved lineup version</span> : null}
+              </div>
             </div>
             <span style={lineupHasAssignments ? miniPillGreenStyle : miniPillSlateStyle}>
               {lineupHasAssignments ? `${teamAssignedPlayerCount}/${teamRequiredPlayerCount} selected` : 'Start lineup'}
@@ -4717,8 +4729,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           {isSmallMobile ? (
             <div style={builderMobileActionStackStyle}>
               {lineupHasAssignments ? (
-                <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
-                  {saveAndAskLabel}
+                <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
+                  {saving ? 'Saving...' : currentScenarioId ? 'Update saved lineup' : 'Save lineup'}
                 </PrimaryBtn>
               ) : (
                 <Link href="#captain-lineup-courts" style={primaryButton}>Build lineup</Link>
@@ -4726,8 +4738,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               <details style={builderMoreActionsStyle}>
                 <summary style={builderMoreActionsSummaryStyle}>More lineup actions</summary>
                 <div style={builderMoreActionsBodyStyle}>
-                  <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
-                    {saving ? 'Saving...' : currentScenarioId ? 'Update lineup version' : 'Save lineup version'}
+                  <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
+                    {saveAndAskLabel}
                   </PrimaryBtn>
                   <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare versions</Link>
                   <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
@@ -5875,9 +5887,14 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               </div>
             </section>
 
-            <section style={surfaceCardStrong}>
-              <p style={sectionKicker}>Auto-build</p>
-              <h2 style={sectionTitle}>Build my lineup</h2>
+            <details style={surfaceCardStrong}>
+              <summary style={detailsSummaryStyle}>
+                <div>
+                  <p style={sectionKicker}>Auto-build</p>
+                  <h2 style={sectionTitleSmall}>Build a recommended draft</h2>
+                </div>
+                <span style={miniPillBlueStyle}>{activeLockCount} lock{activeLockCount === 1 ? '' : 's'}</span>
+              </summary>
               <p style={sectionBodyTextStyle}>
                 TiQ fills a balanced first draft from your roster and keeps any court or player locks in place. Review the courts after it builds.
               </p>
@@ -5952,7 +5969,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                   </div>
                 </div>
               </details>
-            </section>
+            </details>
 
             <details style={surfaceCardStrong}>
               <summary style={detailsSummaryStyle}>
@@ -6027,6 +6044,15 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           </div>
 
           {builderMode === 'insights' ? <div style={columnStyle}>
+            <details open={!isMobile} style={isMobile ? surfaceCardStrong : desktopInsightsDisclosureStyle}>
+              <summary style={isMobile ? detailsSummaryStyle : desktopInsightsDisclosureSummaryStyle}>
+                <div>
+                  <p style={sectionKicker}>Match forecast</p>
+                  <h2 style={sectionTitleSmall}>Scorecard, strategy, and next steps</h2>
+                </div>
+                <span style={miniPillBlueStyle}>{formatPercent(analysis.projection)} outlook</span>
+              </summary>
+              <div style={isMobile ? stackStyle : columnStyle}>
             <section style={surfaceCardStrong}>
               <p style={sectionKicker}>Scorecard</p>
               <h2 style={sectionTitle}>What this lineup says</h2>
@@ -6317,6 +6343,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                     ) : null}
                   </div>
                 )}
+              </div>
+            </details>
               </div>
             </details>
           </div> : (
@@ -6836,6 +6864,15 @@ const builderControlTitleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const builderDraftStatusStyle: CSSProperties = {
+  display: 'flex',
+  gap: 6,
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  marginTop: 10,
+  minWidth: 0,
+}
+
 const builderControlRowStyle = (isSmallMobile: boolean): CSSProperties => ({
   position: 'relative',
   zIndex: 1,
@@ -6930,6 +6967,15 @@ const builderModeOptionStyle = (selected: boolean): CSSProperties => ({
   cursor: 'pointer',
   boxShadow: selected ? '0 0 0 2px rgba(163,230,53,0.12)' : 'none',
 })
+
+const desktopInsightsDisclosureStyle: CSSProperties = {
+  display: 'contents',
+  minWidth: 0,
+}
+
+const desktopInsightsDisclosureSummaryStyle: CSSProperties = {
+  display: 'none',
+}
 
 const columnStyle: CSSProperties = {
   display: 'grid',
