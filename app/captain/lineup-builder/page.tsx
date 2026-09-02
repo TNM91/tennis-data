@@ -1489,6 +1489,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       ? normalizeSavedSlots(persistedBuilderDraft?.opponentSlots)
       : buildCaptainLineupSlots(initialLeagueName, initialFlight, 'opponent', initialMatchFormat)
   )
+  const [opponentCourtSetupPromptOpen, setOpponentCourtSetupPromptOpen] = useState(false)
   const [activeLineupFormatKey, setActiveLineupFormatKey] = useState(() =>
     getCaptainLineupFormatKey(initialLeagueName, initialFlight, initialMatchFormat)
   )
@@ -2704,6 +2705,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
   function openOpponentCourts() {
     setBuilderMode('insights')
+    setOpponentCourtSetupPromptOpen(true)
     window.requestAnimationFrame(() => {
       document.getElementById('opponent-lineup')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
@@ -4438,6 +4440,52 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     ? `${formatDate(recentHistoricalLineup.matchDate)} vs ${recentHistoricalLineup.opponent} · fills open spots only`
     : ''
 
+  const recentHistoricalOpponentLineup = useMemo<HistoricalLineupSuggestion | null>(() => {
+    const normalizedTeam = normalizeTeamName(opponentTeam)
+    if (!normalizedTeam || !historicalLineMatches.length || !historicalLineMatchPlayers.length) return null
+
+    const currentRosterIds = new Set(opponentPlayerPool.map((player) => player.id))
+    const historicalMatches = historicalLineMatches.filter((match) => {
+      const home = normalizeTeamName(match.home_team)
+      const away = normalizeTeamName(match.away_team)
+      if (home !== normalizedTeam && away !== normalizedTeam) return false
+      if (!match.match_date || (matchDate && match.match_date >= matchDate)) return false
+      if (leagueName && match.league_name && match.league_name !== leagueName) return false
+      if (flight && match.flight && match.flight !== flight) return false
+      return true
+    })
+
+    const grouped = new Map<string, { matchDate: string; opponent: string; lines: MatchTeamRow[] }>()
+    for (const match of historicalMatches) {
+      const opponent = normalizeTeamName(match.home_team) === normalizedTeam ? match.away_team : match.home_team
+      const key = [match.match_date, normalizeTeamName(opponent), match.match_time || '', match.facility || ''].join('|')
+      const group = grouped.get(key) ?? { matchDate: match.match_date || '', opponent: opponent || 'their opponent', lines: [] }
+      group.lines.push(match)
+      grouped.set(key, group)
+    }
+
+    const groups = [...grouped.values()].sort((a, b) => b.matchDate.localeCompare(a.matchDate))
+    for (const group of groups) {
+      const courts = group.lines
+        .map((match, fallbackIndex) => {
+          const expectedSide = normalizeTeamName(match.home_team) === normalizedTeam ? 'A' : 'B'
+          const playerIds = historicalLineMatchPlayers
+            .filter((player) => player.match_id === match.id && player.side === expectedSide && currentRosterIds.has(player.player_id))
+            .sort((a, b) => (a.seat ?? 99) - (b.seat ?? 99))
+            .map((player) => player.player_id)
+          return { lineNumber: Number(match.line_number) || fallbackIndex + 1, playerIds }
+        })
+        .filter((court) => court.playerIds.length)
+        .sort((a, b) => a.lineNumber - b.lineNumber)
+
+      const returningPlayerCount = new Set(courts.flatMap((court) => court.playerIds)).size
+      if (courts.length && returningPlayerCount) {
+        return { matchDate: group.matchDate, opponent: group.opponent, courts, returningPlayerCount }
+      }
+    }
+    return null
+  }, [flight, historicalLineMatchPlayers, historicalLineMatches, leagueName, matchDate, opponentPlayerPool, opponentTeam])
+
   function applyRecentHistoricalLineup() {
     if (!recentHistoricalLineup) return
     const playerById = new Map(myPlayerPool.map((player) => [player.id, player]))
@@ -4468,6 +4516,40 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     }
     setTeamSlots(nextSlots)
     setMessage(`Filled ${filled} open player${filled === 1 ? '' : 's'} from the ${formatDate(recentHistoricalLineup.matchDate)} lineup vs ${recentHistoricalLineup.opponent}. Your existing court choices stayed in place.`)
+    setError('')
+  }
+
+  function applyRecentHistoricalOpponentLineup() {
+    if (!recentHistoricalOpponentLineup) return
+    const playerById = new Map(opponentPlayerPool.map((player) => [player.id, player]))
+    const alreadyAssignedPlayerIds = new Set(opponentSlots.flatMap((slot) => slot.players.map((player) => player.playerId).filter(Boolean)))
+    let filled = 0
+    const nextSlots = opponentSlots.map((slot, index) => {
+      const historicalCourt = recentHistoricalOpponentLineup.courts.find((court) => court.lineNumber === index + 1)
+        ?? recentHistoricalOpponentLineup.courts[index]
+      if (!historicalCourt) return slot
+      const remainingPlayerIds = [...historicalCourt.playerIds]
+      const players = slot.players.map((player) => {
+        if (player.playerId || player.playerName.trim()) return player
+        const nextPlayerIndex = remainingPlayerIds.findIndex((playerId) => !alreadyAssignedPlayerIds.has(playerId))
+        const nextPlayerId = nextPlayerIndex >= 0 ? remainingPlayerIds.splice(nextPlayerIndex, 1)[0] : undefined
+        const nextPlayer = nextPlayerId ? playerById.get(nextPlayerId) : null
+        if (!nextPlayer) return player
+        alreadyAssignedPlayerIds.add(nextPlayer.id)
+        filled += 1
+        return { playerId: nextPlayer.id, playerName: nextPlayer.name }
+      })
+      return { ...slot, players }
+    })
+
+    setOpponentCourtSetupPromptOpen(false)
+    if (!filled) {
+      setMessage('Those opponent courts already have players selected, so the historic prefill did not replace them.')
+      setError('')
+      return
+    }
+    setOpponentSlots(nextSlots)
+    setMessage(`Prefilled ${filled} open opponent spot${filled === 1 ? '' : 's'} from ${opponentTeam}'s ${formatDate(recentHistoricalOpponentLineup.matchDate)} lineup. Review or adjust any court before forecasting.`)
     setError('')
   }
   const builderReadiness = [
@@ -5726,6 +5808,38 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                   </div>
                 ) : null}
               </div>
+
+              {opponentCourtSetupPromptOpen ? (
+                <section style={opponentCourtSetupChoiceStyle} aria-label="Choose opponent court setup">
+                  <div>
+                    <p style={sectionKicker}>Start opponent courts</p>
+                    <h3 style={sectionTitleSmall}>How do you want to begin?</h3>
+                    <p style={sectionBodyTextStyle}>Use their latest known courts as a quick draft, or choose the players yourself.</p>
+                  </div>
+                  <div style={actionRowStyleWrap}>
+                    {recentHistoricalOpponentLineup ? (
+                      <PrimaryBtn onClick={applyRecentHistoricalOpponentLineup}>
+                        Prefill from last lineup
+                      </PrimaryBtn>
+                    ) : null}
+                    <GhostBtn onClick={() => {
+                      setOpponentCourtSetupPromptOpen(false)
+                      setMessage('Choose the opponent players and courts you expect. You can adjust them any time.')
+                      setError('')
+                    }}>
+                      Select players manually
+                    </GhostBtn>
+                  </div>
+                  {recentHistoricalOpponentLineup ? (
+                    <div style={opponentCourtSetupHistoryStyle}>
+                      <strong>{recentHistoricalOpponentLineup.returningPlayerCount} returning player{recentHistoricalOpponentLineup.returningPlayerCount === 1 ? '' : 's'}</strong>
+                      <span>Latest known lineup: {formatDate(recentHistoricalOpponentLineup.matchDate)} vs {recentHistoricalOpponentLineup.opponent}. Existing court choices stay in place.</span>
+                    </div>
+                  ) : (
+                    <p style={subtleHelperTextStyle}>No prior opponent lineup is available yet, so manual selection is ready.</p>
+                  )}
+                </section>
+              ) : null}
 
               {isFixedLineupFormat ? (
                 <div style={triLevelFormatStyle}>
@@ -8505,6 +8619,28 @@ const opponentRosterManualActionsStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 10,
   minWidth: 0,
+}
+
+const opponentCourtSetupChoiceStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 18,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 52%, var(--shell-panel-border) 48%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-blue-2) 13%, var(--shell-panel-bg) 87%), var(--shell-panel-bg))',
+}
+
+const opponentCourtSetupHistoryStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: '12px 14px',
+  borderRadius: 14,
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  color: 'var(--shell-copy)',
+  fontSize: 14,
+  lineHeight: 1.45,
 }
 
 const rosterRecoveryHeaderStyle: CSSProperties = {
