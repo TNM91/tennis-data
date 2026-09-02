@@ -1814,19 +1814,19 @@ function DataAssistSourcePathPanel({
         <div>
           <span style={sourcePathEyebrowStyle}>{contactImportRequested ? 'Team contacts' : 'Source refresh path'}</span>
           <h2 id="data-assist-source-path-title" style={dynamicTitleStyle}>{contactImportRequested ? 'Add team contacts.' : 'Choose your first source.'}</h2>
-          {isCompactViewport ? <p style={sourcePathIntroStyle}>{contactImportRequested ? 'Upload your TennisLink Player Roster for private captain contact details.' : 'For team setup, start with Team Summary.'}</p> : null}
+          {isCompactViewport ? <p style={sourcePathIntroStyle}>{contactImportRequested ? 'Upload your TennisLink Player Roster, then connect your team.' : 'For your own team: Team Summary, schedule, then Player Roster.'}</p> : null}
         </div>
         {!isCompactViewport ? <p style={sourcePathIntroStyle}>
           {contactImportRequested
-            ? 'Upload your TennisLink Player Roster to add private phone and email details. Your Team Summary stays in place.'
-            : 'For team setup, start with Team Summary. TiQ reviews every source before records change.'}
+            ? 'Upload your TennisLink Player Roster for private phone and email details, then connect the team to your profile. Your Team Summary stays in place.'
+            : 'For your own team, import Team Summary, Match Schedule, then Player Roster. TiQ reviews every source before records change.'}
         </p> : null}
       </div>
       <div style={sourcePathDefaultCueStyle}>
-        <strong>{contactImportRequested ? 'Captain contacts: use Player Roster.' : 'Team setup: start with Team Summary.'}</strong>
+        <strong>{contactImportRequested ? 'Captain contacts: use Player Roster.' : 'Team setup: Team Summary → schedule → Player Roster.'}</strong>
         <span>{contactImportRequested
-          ? 'This adds contact details only. It does not replace the team, rating, or standings context already imported.'
-          : 'Use Player Roster later only if you manage that team and want its phone or email contacts.'}</span>
+          ? 'This adds contact details only. After import, approve the team connection so it appears in My Teams.'
+          : 'The Player Roster adds captain contact details. After it imports, approve your team once to add it to My Teams.'}</span>
       </div>
       <div style={dynamicGridStyle}>
         {visibleJobs.map((job) => {
@@ -1836,7 +1836,7 @@ function DataAssistSourcePathPanel({
           const question = contactImportRequested && job.id === 'team_summary' ? 'Need private captain contacts?' : job.question
           const cta = contactImportRequested && job.id === 'team_summary' ? 'Phones and email for match week' : job.cta
           const body = contactImportRequested && job.id === 'team_summary'
-            ? 'For your team only: import the TennisLink Player Roster to save the contact details it includes. Your Team Summary is not replaced.'
+            ? 'For your team only: import the TennisLink Player Roster to save its contact details, then approve the team connection. Your Team Summary is not replaced.'
             : job.body
           return (
             <button
@@ -3550,6 +3550,15 @@ function TeamSummaryImportedPanel({
         <strong>{isPlayerRoster ? 'Contacts ready' : 'All set'}</strong>
         <span>{result.message || (isPlayerRoster ? 'Team contacts are ready for match week.' : 'Team roster imported to TenAceIQ.')}</span>
       </div>
+      {isPlayerRoster ? (
+        <section style={teamConnectionNextStepStyle} aria-label="Connect your imported team">
+          <div style={headerCopyStyle}>
+            <strong>Make this your team</strong>
+            <p style={copyStyle}>We found your captain contact in this Player Roster. Approve the team once to add it to My Teams, Team Chat, and Captain.</p>
+          </div>
+          <Link href="/team-connections" style={primaryButtonStyle}>Connect my team</Link>
+        </section>
+      ) : null}
       <PostImportActions
         actions={buildRosterPostImportActions(parsedDraft, { context, returnTo })}
       />
@@ -3604,6 +3613,9 @@ function buildRosterPostImportActions(
   options: { context?: string; returnTo?: string } = {},
 ) {
   const actions: Array<{ label: string; href: string }> = []
+  if (parsedDraft.rosterSource === 'player_roster') {
+    actions.push({ label: 'Connect my team', href: '/team-connections' })
+  }
   if (options.returnTo) {
     actions.push({
       label: options.returnTo.startsWith('/clubs')
@@ -5894,6 +5906,16 @@ const readyImportNoteStyle: CSSProperties = {
   fontWeight: 850,
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const teamConnectionNextStepStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  minWidth: 0,
 }
 
 const duplicateBannerStyle: CSSProperties = {
