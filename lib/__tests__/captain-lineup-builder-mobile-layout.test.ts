@@ -222,6 +222,9 @@ describe('Captain lineup builder mobile layout guards', () => {
   it('starts completed match setup collapsed while keeping its match summary visible', () => {
     expect(source).toContain('const [matchSetupOpen, setMatchSetupOpen] = useState(')
     expect(source).toContain('() => !(initialTeamName && initialOpponentTeam && initialMatchDate)')
+    expect(source).toContain('const didAutoCollapseMatchSetupRef = useRef(false)')
+    expect(source).toContain('if (!hasCoreContext || didAutoCollapseMatchSetupRef.current) return')
+    expect(source).toContain('setMatchSetupOpen(false)')
     expect(source).toContain('const matchSetupSummary = hasCoreContext')
     expect(source).toContain('open={matchSetupOpen}')
     expect(source).toContain('onToggle={(event) => setMatchSetupOpen(event.currentTarget.open)}')
