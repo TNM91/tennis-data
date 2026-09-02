@@ -182,7 +182,7 @@ function TeamConnectionsContent() {
           ) : !pending.length && !loading ? (
             <div style={emptyStyle}>
               <strong>No team links yet.</strong>
-              <span>Connect your player or upload a Player Roster to find your team.</span>
+              <span>To find an imported team, use the same email that appears on its Player Roster, or link your player profile first.</span>
               <div style={cardActionsStyle}>
                 <Link href="/profile#profile-identity" style={primaryLinkStyle}>Find my player</Link>
                 <Link href="/data-assist?intent=upload-source&context=Team%20Hub#upload" style={secondaryLinkStyle}>Upload roster</Link>

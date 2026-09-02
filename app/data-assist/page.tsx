@@ -2667,6 +2667,9 @@ function MySubmissionsPanel({
           <h2 style={sectionTitleStyle}>Know what happened next.</h2>
         </div>
         <div style={cardActionRowStyle}>
+          {authResolved && userId ? (
+            <Link href="/team-connections" style={smallButtonStyle}>Link a team</Link>
+          ) : null}
           <button type="button" onClick={() => setHistoryOpen((current) => !current)} style={smallButtonStyle}>
             {historyOpen ? 'Hide history' : `Show history${submissions.length ? ` (${submissions.length})` : ''}`}
           </button>
