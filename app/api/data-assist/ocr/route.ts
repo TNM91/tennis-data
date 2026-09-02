@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { apiServerError } from '@/lib/api-error-response'
+import { scheduleDataAssistRatingRefresh } from '@/lib/data-assist-rating-refresh'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import type { DataAssistImportType } from '@/lib/data-assist'
 import {
@@ -28,7 +29,7 @@ import {
 } from '@/lib/data-assist-tesseract'
 
 export const runtime = 'nodejs'
-export const maxDuration = 120
+export const maxDuration = 300
 
 const DATA_ASSIST_SCREENSHOT_BUCKET = 'data-assist-screenshots'
 
@@ -607,6 +608,7 @@ export async function POST(request: Request) {
           sourceScreenshotCount: screenshots.length,
           ocrConfidenceScore: ocrResult.confidenceScore,
         },
+        deferRatingRecalculation: true,
       })
     } catch (error) {
       console.error('Automatic Data Assist scorecard import failed', error)
@@ -644,6 +646,12 @@ export async function POST(request: Request) {
           })
           .eq('id', draftId),
       ])
+    } else {
+      scheduleDataAssistRatingRefresh(supabase)
+      autoImport = {
+        ...autoImport,
+        message: `${autoImport.message} Ratings are refreshing in the background.`,
+      }
     }
   }
 

@@ -432,6 +432,8 @@ export async function runDataAssistScorecardImportAction(input: {
   reviewedBy: string
   action: DataAssistScorecardImportAction
   validationSummary?: Record<string, unknown> | null
+  /** Let the route return the saved scorecard before the full ratings refresh. */
+  deferRatingRecalculation?: boolean
 }): Promise<DataAssistScorecardImportActionResult> {
   const importPreview = await buildDataAssistImportPreview({
     supabase: input.supabase,
@@ -536,7 +538,9 @@ export async function runDataAssistScorecardImportAction(input: {
       }
     }
 
-    await recalculateDynamicRatings(undefined, input.supabase)
+    if (!input.deferRatingRecalculation) {
+      await recalculateDynamicRatings(undefined, input.supabase, { replaceSnapshots: false })
+    }
     const importedAt = new Date().toISOString()
     const validationSummary = {
       ...(input.validationSummary || {}),

@@ -53,6 +53,7 @@ import { acceptCaptainImportConnection } from '@/lib/team-profile-links-client'
 
 const DATA_ASSIST_OCR_TIMEOUT_MS = 100_000
 const DATA_ASSIST_BULK_OCR_TIMEOUT_MS = 45_000
+const DATA_ASSIST_CONFIRM_TIMEOUT_MS = 45_000
 const DATA_ASSIST_MAX_BULK_SCORECARDS = 10
 const newPlayerActions = [
   { href: '/data-assist#upload', label: 'Upload tennis data', detail: 'Scorecard, schedule, or Team Summary' },
@@ -332,6 +333,7 @@ function DataAssistWorkspace() {
     autoImport?: DataAssistImportActionResult
   } | null>(null)
   const scanRunRef = useRef(0)
+  const submissionsRefreshRef = useRef(0)
   const latestReadRef = useRef<HTMLElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -489,8 +491,13 @@ function DataAssistWorkspace() {
   }
 
   async function refreshSubmissions() {
+    const refreshId = submissionsRefreshRef.current + 1
+    submissionsRefreshRef.current = refreshId
+
     if (!authResolved || !userId) {
-      setSubmissions([])
+      if (refreshId === submissionsRefreshRef.current) {
+        setSubmissions([])
+      }
       return
     }
 
@@ -501,12 +508,16 @@ function DataAssistWorkspace() {
         listMyDataAssistSubmissions(),
         getMyDataAssistContributorStats(),
       ])
+      if (refreshId !== submissionsRefreshRef.current) return
       setSubmissions(nextSubmissions)
       setContributorStats(nextStats)
     } catch (err) {
+      if (refreshId !== submissionsRefreshRef.current) return
       setSubmissionsError(err instanceof Error ? err.message : 'Your Data Assist submissions could not be loaded.')
     } finally {
-      setSubmissionsLoading(false)
+      if (refreshId === submissionsRefreshRef.current) {
+        setSubmissionsLoading(false)
+      }
     }
   }
 
@@ -955,11 +966,15 @@ function DataAssistWorkspace() {
     setError('')
 
     try {
-      const result = await reviewMyDataAssistOcrDraft({
-        batchId: latestScan.batchId,
-        draftId: latestScan.draftId,
-        decision,
-      })
+      const result = await withTimeout(
+        reviewMyDataAssistOcrDraft({
+          batchId: latestScan.batchId,
+          draftId: latestScan.draftId,
+          decision,
+        }),
+        DATA_ASSIST_CONFIRM_TIMEOUT_MS,
+        'Confirmation is taking longer than expected. Your scorecard may still finish saving; open Saved uploads and refresh before trying again.',
+      )
       setMessage(result.message || (decision === 'confirmed'
         ? `${reviewLabel} confirmed. TenAceIQ is preparing this upload.`
         : `Thanks. This ${reviewLabel.toLowerCase()} is marked for a closer look.`))
@@ -1011,11 +1026,15 @@ function DataAssistWorkspace() {
     setError('')
 
     try {
-      const result = await reviewMyDataAssistOcrDraft({
-        batchId: submission.id,
-        draftId: submission.draftId,
-        decision,
-      })
+      const result = await withTimeout(
+        reviewMyDataAssistOcrDraft({
+          batchId: submission.id,
+          draftId: submission.draftId,
+          decision,
+        }),
+        DATA_ASSIST_CONFIRM_TIMEOUT_MS,
+        'Confirmation is taking longer than expected. Your scorecard may still finish saving; refresh Saved uploads before trying again.',
+      )
       setMessage(result.message || (decision === 'confirmed'
         ? `${reviewLabel} confirmed. Contribution credit updated.`
         : `Thanks. This ${reviewLabel.toLowerCase()} is marked for a closer look.`))
@@ -1046,17 +1065,24 @@ function DataAssistWorkspace() {
     setError('')
 
     try {
-      const result = await runMyDataAssistImport({
-        batchId: submission.id,
-        draftId: submission.draftId,
-        action,
-      })
+      const result = await withTimeout(
+        runMyDataAssistImport({
+          batchId: submission.id,
+          draftId: submission.draftId,
+          action,
+        }),
+        action === 'commit' ? DATA_ASSIST_CONFIRM_TIMEOUT_MS : 30_000,
+        action === 'commit'
+          ? 'Confirmation is taking longer than expected. Your scorecard may still finish saving; refresh Saved uploads before trying again.'
+          : 'Preview is taking longer than expected. Try again in a moment.',
+      )
       setImportResultsBySubmission((current) => ({
         ...current,
         [submission.id]: result,
       }))
       setMessage(result.message)
       if (action === 'commit' && result.ok) {
+        void refreshSubmissions()
         const didReturn = isScorecardParsedDraft(submission.parsedPayload)
           ? finishScorecardImport(submission.parsedPayload)
           : isCaptainImportDraft(submission.parsedPayload)
@@ -1068,7 +1094,7 @@ function DataAssistWorkspace() {
             : false
         if (didReturn) return
       }
-      if (action === 'commit') await refreshSubmissions()
+      if (action === 'commit') void refreshSubmissions()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not run this Data Assist import.')
     } finally {
