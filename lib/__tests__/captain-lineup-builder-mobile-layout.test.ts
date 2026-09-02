@@ -209,6 +209,16 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('builderModeOptionStyle')).toContain("width: '100%'")
   })
 
+  it('keeps phone auto-build to one primary action and puts optimizer detail behind disclosures', () => {
+    expect(source).toContain('>Auto-build my lineup</PrimaryBtn>')
+    expect(source).toContain('>Build options</p>')
+    expect(source).toContain('Locks, opponent, and alternates')
+    expect(source).toContain('>Rebuild around locks</GhostBtn>')
+    expect(source).toContain('>Auto-fill opponent</GhostBtn>')
+    expect(source).toContain('>Match insight</p>')
+    expect(source).toContain('How to win this match')
+  })
+
   it('starts completed match setup collapsed while keeping its match summary visible', () => {
     expect(source).toContain('const [matchSetupOpen, setMatchSetupOpen] = useState(')
     expect(source).toContain('() => !(initialTeamName && initialOpponentTeam && initialMatchDate)')

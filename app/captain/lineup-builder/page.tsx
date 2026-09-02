@@ -5757,139 +5757,91 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
             <section style={surfaceCardStrong}>
               <p style={sectionKicker}>Auto-build</p>
-              <h2 style={sectionTitle}>Get a starting lineup</h2>
+              <h2 style={sectionTitle}>Build my lineup</h2>
               <p style={sectionBodyTextStyle}>
-                {opponentPlayerPool.length
-                  ? `Fill a first projected draft from ${opponentPlayerPool.length} known opponent player${opponentPlayerPool.length === 1 ? '' : 's'}, then adjust the courts you care about.`
-                  : 'Add opponent players or import a prior scorecard before TiQ can project their courts.'}
+                TiQ fills a balanced first draft from your roster and keeps any court or player locks in place. Review the courts after it builds.
               </p>
 
-              <div style={actionRowStyleWrap}>
-                <PrimaryBtn onClick={applyRecommendedTeamLineup}>Apply Balanced Build</PrimaryBtn>
-                <GhostBtn onClick={applyRecommendedOpponentLineup}>Auto-Fill Opponent</GhostBtn>
-                <GhostBtn onClick={rebuildAroundLocks}>Rebuild Around Locks</GhostBtn>
-                <GhostBtn onClick={clearLocks}>Reset Locks</GhostBtn>
-              </div>
+              <PrimaryBtn onClick={applyRecommendedTeamLineup}>Auto-build my lineup</PrimaryBtn>
 
-              <div style={heroBadgeRowStyleCompact}>
-                <span style={badgeGreen}>Recommended win chance {formatPercent(eliteRecommendation.analysis.projection)}</span>
-                <span style={badgeBlue}>Edge {analysis.avgDiff.toFixed(2)}</span>
-                <span style={badgeSlate}>{eliteRecommendation.bench.length} bench options</span>
-              </div>
-
-              <div style={lockPanelStyle}>
-                <div style={tableHeaderStyle}>
+              <details style={surfaceCard}>
+                <summary style={detailsSummaryStyle}>
                   <div>
-                    <p style={sectionKicker}>Lock + rebuild intelligence</p>
-                    <h3 style={sectionTitleSmall}>What is fixed and what can still move</h3>
+                    <p style={sectionKicker}>Build options</p>
+                    <h3 style={sectionTitleSmall}>Locks, opponent, and alternates</h3>
                   </div>
-                  <span style={miniPillSlateStyle}>
-                    {activeLockCount} lock{activeLockCount === 1 ? '' : 's'}
-                  </span>
+                  <span style={miniPillSlateStyle}>{activeLockCount} lock{activeLockCount === 1 ? '' : 's'}</span>
+                </summary>
+
+                <div style={actionRowStyleWrap}>
+                  <GhostBtn onClick={rebuildAroundLocks}>Rebuild around locks</GhostBtn>
+                  <GhostBtn onClick={clearLocks}>Reset locks</GhostBtn>
+                  {opponentPlayerPool.length ? <GhostBtn onClick={applyRecommendedOpponentLineup}>Auto-fill opponent</GhostBtn> : null}
                 </div>
 
-                <div style={lockGridStyle}>
-                  <div style={lockSummaryCardStyle}>
-                    <div style={lockSummaryLabelStyle}>Locked lines</div>
-                    <div style={lockSummaryValueStyle}>{lockedSlotIds.length}</div>
-                    <div style={lockSummaryTextStyle}>
-                      Preserve whole courts exactly as currently built during rebuilds.
-                    </div>
-                  </div>
+                <div style={heroBadgeRowStyleCompact}>
+                  <span style={badgeGreen}>Recommended win chance {formatPercent(eliteRecommendation.analysis.projection)}</span>
+                  <span style={badgeBlue}>Edge {analysis.avgDiff.toFixed(2)}</span>
+                  <span style={badgeSlate}>{eliteRecommendation.bench.length} alternates</span>
+                </div>
 
-                  <div style={lockSummaryCardStyle}>
-                    <div style={lockSummaryLabelStyle}>Locked players</div>
-                    <div style={lockSummaryValueStyle}>{activePlayerLockCount}</div>
-                    <div style={lockSummaryTextStyle}>
-                      Confirmed players lock automatically. You can unlock one when you need to move them.
+                <div style={lockPanelStyle}>
+                  <div style={tableHeaderStyle}>
+                    <div>
+                      <p style={sectionKicker}>Locks</p>
+                      <h3 style={sectionTitleSmall}>What stays in place</h3>
+                    </div>
+                    <span style={miniPillSlateStyle}>{activeLockCount} active</span>
+                  </div>
+                  <div style={lockGridStyle}>
+                    <div style={lockSummaryCardStyle}>
+                      <div style={lockSummaryLabelStyle}>Locked lines</div>
+                      <div style={lockSummaryValueStyle}>{lockedSlotIds.length}</div>
+                      <div style={lockSummaryTextStyle}>Keep whole courts exactly as built.</div>
+                    </div>
+                    <div style={lockSummaryCardStyle}>
+                      <div style={lockSummaryLabelStyle}>Locked players</div>
+                      <div style={lockSummaryValueStyle}>{activePlayerLockCount}</div>
+                      <div style={lockSummaryTextStyle}>Confirmed players lock automatically. Unlock one only when you need to move them.</div>
                     </div>
                   </div>
                 </div>
 
-                {activeLockCount ? (
+                {lineupWarnings.length ? (
+                  <div style={stackStyle}>{lineupWarnings.map((warning) => <div key={warning} style={warningCardStyle}>{warning}</div>)}</div>
+                ) : <div style={bannerGreenStyle}>No lineup conflicts detected.</div>}
+
+                <div style={{ marginTop: 16 }}>
+                  <div style={sectionKicker}>Alternates</div>
                   <div style={stackStyleCompact}>
-                    {lockedSlotIds.length ? (
-                      <div style={listCardStyleCompact}>
-                        <div>
-                          <div style={listTitleStyle}>Locked lines</div>
-                          <div style={listMetaStyle}>
-                            {teamSlots
-                              .filter((slot) => lockedSlotIdSet.has(slot.id))
-                              .map((slot) => slot.label)
-                              .join(' - ')}
+                    {eliteRecommendation.bench.length ? eliteRecommendation.bench.map((player) => {
+                      const rStatus = getLineupRatingStatus(player)
+                      return (
+                        <div key={player.id} style={listCardStyleCompact}>
+                          <div>
+                            <div style={listTitleStyle}>{player.name}</div>
+                            <div style={listMetaStyle}>TiQ {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} · USTA {formatRating(player.overall_usta_dynamic_rating ?? player.overall_rating)}</div>
+                          </div>
+                          <div style={rightPillStackStyle}>
+                            <span style={{ ...miniPillSlateStyle, ...statusTone(player.availabilityStatus) }}>{player.availabilityStatus || 'unknown'}</span>
+                            {rStatus ? <span style={getLineupStatusStyle(rStatus)}>{rStatus}</span> : null}
                           </div>
                         </div>
-                        <span style={miniPillBlueStyle}>line locks</span>
-                      </div>
-                    ) : null}
-
-                    {activePlayerLockCount ? (
-                      <div style={listCardStyleCompact}>
-                        <div>
-                          <div style={listTitleStyle}>Locked players</div>
-                          <div style={listMetaStyle}>
-                            {players
-                              .filter((player) => lockedPlayerIdSet.has(player.id))
-                              .map((player) => player.name)
-                              .join(' - ')}
-                          </div>
-                        </div>
-                        <span style={miniPillGreenStyle}>{autoLockedConfirmedPlayerIdSet.size ? 'confirmed locks' : 'player locks'}</span>
-                      </div>
-                    ) : null}
+                      )
+                    }) : <p style={mutedTextStyle}>No alternates are left after the recommendation fills the lineup.</p>}
                   </div>
-                ) : (
-                  <div style={bannerBlueStyle}>
-                    No locks are active. Use line lock to preserve a whole court, or player lock to anchor specific players before rebuilding.
-                  </div>
-                )}
-
-                <div style={lockInsightStyle}>
-                  {activeLockCount
-                    ? 'Rebuilds will preserve your locked structure first, then fill the rest of the lineup from the current player pool.'
-                    : 'Nothing is pinned yet, so optimizer actions can freely rebalance your entire lineup.'}
                 </div>
-              </div>
-
-              {lineupWarnings.length ? (
-                <div style={stackStyle}>
-                  {lineupWarnings.map((warning) => <div key={warning} style={warningCardStyle}>{warning}</div>)}
-                </div>
-              ) : (
-                <div style={bannerGreenStyle}>No lineup conflicts detected. Slots are filled cleanly with no duplicate player assignments inside a line.</div>
-              )}
-
-              <div style={{ marginTop: 16 }}>
-                <div style={sectionKicker}>Bench / alternates</div>
-                <div style={stackStyleCompact}>
-                  {eliteRecommendation.bench.length ? eliteRecommendation.bench.map((player) => {
-                    const rStatus = getLineupRatingStatus(player)
-                    return (
-                      <div key={player.id} style={listCardStyleCompact}>
-                        <div>
-                          <div style={listTitleStyle}>{player.name}</div>
-                          <div style={listMetaStyle}>
-                            TiQ {formatRating(player.overall_dynamic_rating ?? player.overall_rating)} | USTA {formatRating(player.overall_usta_dynamic_rating ?? player.overall_rating)} - S {formatRating(player.singles_dynamic_rating ?? player.singles_rating)} - D {formatRating(player.doubles_dynamic_rating ?? player.doubles_rating)}
-                          </div>
-                        </div>
-                        <div style={rightPillStackStyle}>
-                          <span style={{ ...miniPillSlateStyle, ...statusTone(player.availabilityStatus) }}>
-                            {player.availabilityStatus || 'unknown'}
-                          </span>
-                          {rStatus ? <span style={getLineupStatusStyle(rStatus)}>{rStatus}</span> : null}
-                        </div>
-                      </div>
-                    )
-                  }) : (
-                    <p style={mutedTextStyle}>No bench players are left after the recommendation engine fills the lineup.</p>
-                  )}
-                </div>
-              </div>
+              </details>
             </section>
 
-            <section style={surfaceCardStrong}>
-              <p style={sectionKicker}>Lineup read</p>
-              <h2 style={sectionTitle}>How to win this match</h2>
+            <details style={surfaceCardStrong}>
+              <summary style={detailsSummaryStyle}>
+                <div>
+                  <p style={sectionKicker}>Match insight</p>
+                  <h2 style={sectionTitle}>How to win this match</h2>
+                </div>
+                <span style={miniPillBlueStyle}>{formatPercent(analysis.projection)} outlook</span>
+              </summary>
 
               <div style={{ marginTop: 14, display: 'grid', gap: 12 }}>
                 <div style={bannerBlueStyle}>
@@ -5923,7 +5875,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 <GhostBtn onClick={() => applyOptimizedPlan('safe')}>Play It Safe</GhostBtn>
                 <GhostBtn onClick={() => applyOptimizedPlan('upside')}>Max Upside</GhostBtn>
               </div>
-            </section>
+            </details>
 
             <details style={surfaceCard}>
               <summary style={detailsSummaryStyle}>
@@ -8405,13 +8357,6 @@ const lockSummaryTextStyle: CSSProperties = {
   color: '#cbd5e1',
   fontSize: 13,
   lineHeight: 1.55,
-  overflowWrap: 'anywhere',
-}
-
-const lockInsightStyle: CSSProperties = {
-  color: '#dbeafe',
-  fontSize: 13,
-  lineHeight: 1.65,
   overflowWrap: 'anywhere',
 }
 
