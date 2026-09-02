@@ -1,11 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 import { apiServerError } from '@/lib/api-error-response'
+import { scheduleDataAssistRatingRefresh } from '@/lib/data-assist-rating-refresh'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import { runDataAssistScorecardImportAction } from '@/lib/data-assist-import-runner'
 import type { DataAssistScorecardParsedDraft } from '@/lib/data-assist-ocr'
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
+export const maxDuration = 300
 
 type ImportRequestBody = {
   batchId?: unknown
@@ -108,13 +109,23 @@ export async function POST(request: Request) {
     reviewedBy: requester.userId,
     action,
     validationSummary: draft.validation_summary,
+    deferRatingRecalculation: action === 'commit',
   })
 
   if (!importResult.ok) {
     return Response.json(importResult, { status: 400 })
   }
 
-  return Response.json(importResult)
+  if (action === 'commit') {
+    scheduleDataAssistRatingRefresh(supabase)
+  }
+
+  return Response.json({
+    ...importResult,
+    message: action === 'commit'
+      ? `${importResult.message} Ratings are refreshing in the background.`
+      : importResult.message,
+  })
 }
 
 async function getRequester(token: string): Promise<

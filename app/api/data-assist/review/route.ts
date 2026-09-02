@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { apiServerError } from '@/lib/api-error-response'
+import { scheduleDataAssistRatingRefresh } from '@/lib/data-assist-rating-refresh'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
   runDataAssistScheduleImportAction,
@@ -14,7 +15,7 @@ import type { DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-p
 import type { DataAssistTeamSummaryParsedDraft } from '@/lib/data-assist-team-summary-parser'
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
+export const maxDuration = 300
 
 type ReviewRequestBody = {
   batchId?: unknown
@@ -152,6 +153,11 @@ export async function POST(request: Request) {
       validationSummary: draft.validation_summary,
     })
 
+    const scorecardImport = !isTeamSummaryParsedDraft(parsedDraft) && !isScheduleParsedDraft(parsedDraft)
+    if (autoImport.ok && scorecardImport) {
+      scheduleDataAssistRatingRefresh(supabase)
+    }
+
     if (!autoImport.ok) {
       const exceptionNote = `Confirmed read, but import paused: ${autoImport.message}`
       const [exceptionBatchUpdate, exceptionDraftUpdate] = await Promise.all([
@@ -191,7 +197,7 @@ export async function POST(request: Request) {
       status: autoImport.ok ? 'imported' : 'needs_review',
       autoImport,
       message: autoImport.ok
-        ? autoImport.message
+        ? `${autoImport.message}${scorecardImport ? ' Ratings are refreshing in the background.' : ''}`
         : `Read confirmed, but TenAceIQ needs one exception check before import: ${autoImport.message}`,
     })
   }
@@ -280,6 +286,7 @@ async function runConfirmedReviewImport(input: {
         ...(input.validationSummary || {}),
         memberConfirmedAt: new Date().toISOString(),
       },
+      deferRatingRecalculation: true,
     })
   } catch (error) {
     console.error('Confirmed Data Assist import failed', error)
