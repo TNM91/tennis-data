@@ -1,6 +1,6 @@
 import { getCaptainApiAuth } from '@/lib/captain-api-auth'
 import { getCache } from '@vercel/functions'
-import { cleanAvailabilityText, getCaptainAvailabilityServiceClient } from '@/lib/captain-availability-request-server'
+import { cleanAvailabilityText, getCaptainAvailabilityServiceClient, isUuid } from '@/lib/captain-availability-request-server'
 import { normalizeTeamName } from '@/lib/captain-formatters'
 import { normalizeCaptainRosterContactKey } from '@/lib/captain-roster-contacts'
 import { canManageTeamRoom, normalizeTeamRoomKey } from '@/lib/team-room'
@@ -292,4 +292,54 @@ export async function GET(request: Request) {
     // The direct response remains authoritative if Runtime Cache is unavailable.
   }
   return Response.json(payload, { headers: { 'Cache-Control': 'private, no-store' } })
+}
+
+export async function POST(request: Request) {
+  const auth = await getCaptainApiAuth(request)
+  if (!auth.ok) return auth.response
+
+  const body = await request.json().catch(() => null) as Record<string, unknown> | null
+  const teamName = cleanAvailabilityText(body?.teamName, 160)
+  const leagueName = cleanAvailabilityText(body?.leagueName, 160)
+  const flight = cleanAvailabilityText(body?.flight, 120)
+  const matchDate = cleanAvailabilityText(body?.matchDate, 10)
+  const playerId = cleanAvailabilityText(body?.playerId, 80)
+  if (!teamName || !/^\d{4}-\d{2}-\d{2}$/.test(matchDate) || !isUuid(playerId)) {
+    return Response.json({ ok: false, message: 'Choose a valid team, match, and roster player before confirming availability.' }, { status: 400 })
+  }
+
+  const service = getCaptainAvailabilityServiceClient()
+  const { data: teamLinks, error: teamLinksError } = await service
+    .from('team_profile_links')
+    .select('team_role,team_roles')
+    .eq('profile_user_id', auth.userId)
+    .eq('normalized_team_name', normalizeTeamRoomKey(teamName))
+    .eq('status', 'accepted')
+    .limit(10)
+  if (teamLinksError) return Response.json({ ok: false, message: 'Captain team access could not be checked.' }, { status: 500 })
+
+  const canManageSelectedTeam = auth.isAdmin || (teamLinks ?? []).some((link) => {
+    const roles = Array.isArray(link.team_roles) && link.team_roles.length
+      ? link.team_roles.map(String)
+      : [String(link.team_role || 'player')]
+    return canManageTeamRoom(roles)
+  })
+  if (!canManageSelectedTeam) return Response.json({ ok: false, message: 'Captain access is required for this team.' }, { status: 403 })
+
+  const { data, error } = await service
+    .from('lineup_availability')
+    .upsert({
+      match_date: matchDate,
+      team_name: teamName,
+      league_name: leagueName || null,
+      flight: flight || null,
+      player_id: playerId,
+      status: 'available',
+      notes: 'Confirmed by captain from Lineup Builder.',
+    }, { onConflict: 'match_date,team_name,player_id' })
+    .select('id,match_date,team_name,league_name,flight,player_id,status,notes')
+    .single()
+  if (error) return Response.json({ ok: false, message: error.message || 'Availability could not be saved.' }, { status: 500 })
+
+  return Response.json({ ok: true, availability: data })
 }
