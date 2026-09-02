@@ -236,7 +236,7 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain('no recent players were added')
     expect(source).toContain("builderMode === 'insights' && mobileCourtMap.length")
     expect(source).toContain('Finish {firstOpenTeamCourt.label}')
-    expect(source).toContain("<GhostLink href=\"#captain-lineup-courts\">Review courts</GhostLink>")
+    expect(source).toContain('<GhostBtn onClick={() => focusTeamCourts()}>Review courts</GhostBtn>')
     expect(source).toContain("<PrimaryBtn onClick={() => applyOptimizedPlan('best')}>")
     expect(source).toContain('<Link href="#captain-lineup-courts" style={primaryButton}>Build lineup</Link>')
     expect(source).toContain('const mobileLineupPulse = [')
@@ -248,9 +248,10 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('mobileLineupPulseCardStyle')).toContain('minWidth: 0')
     expect(source).toContain('const mobileCourtMap = analysis.lines.map')
     expect(source).toContain('aria-label="Court map"')
+    expect(source).toContain('function focusTeamCourts(nextSlots: LineupSlot[] = teamSlots, preferredCourtId = \'\')')
     expect(source).toContain('function focusTeamCourtsAfterBuild(nextSlots: LineupSlot[] = teamSlots)')
     expect(source).toContain('setExpandedTeamSlotId(courtToOpen)')
-    expect(source).toContain("querySelector<HTMLElement>('#captain-lineup-courts [id^=\"captain-lineup-slot-\"]')")
+    expect(source).toContain('document.getElementById(`captain-lineup-slot-${courtToOpen}`)')
     expect(source).toContain("?.scrollIntoView({ behavior: 'smooth', block: 'start' })")
     expect(source).toContain('Where to lean in')
     expect(source).toContain("? 'Edge'")
@@ -273,6 +274,8 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain('Ready to send.')
     expect(source).toContain('Send lineup to team')
     expect(source).toContain('Edit courts')
+    expect(source).toContain('<GhostBtn onClick={() => focusTeamCourts()}>Review player replies</GhostBtn>')
+    expect(source).toContain('<GhostBtn onClick={() => focusTeamCourts()}>Edit courts</GhostBtn>')
     for (const styleName of [
       'mobileFinalLineupPanelStyle',
       'mobileFinalLineupHeaderStyle',

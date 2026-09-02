@@ -4302,23 +4302,29 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     setError('')
   }
 
-  function focusTeamCourtsAfterBuild(nextSlots: LineupSlot[] = teamSlots) {
-    if (!isMobile || typeof window === 'undefined') return
+  function focusTeamCourts(nextSlots: LineupSlot[] = teamSlots, preferredCourtId = '') {
+    if (typeof window === 'undefined') return
 
     const firstPopulatedCourt = nextSlots.find((slot) => slot.players.some((player) => player.playerId))
-    const courtToOpen = firstPopulatedCourt?.id || nextSlots[0]?.id || ''
-    if (courtToOpen) setExpandedTeamSlotId(courtToOpen)
+    const courtToOpen = preferredCourtId || firstPopulatedCourt?.id || nextSlots[0]?.id || ''
+    if (isMobile && courtToOpen) setExpandedTeamSlotId(courtToOpen)
 
-    // Wait for React to paint the selected players, then place the first
-    // populated court at the top of the phone viewport instead of leaving the
-    // captain above a long chain of status and insight panels.
+    // Hash links were unreliable here on mobile Safari: the URL changed, but
+    // the captain remained in the decision panel. Open the specific court and
+    // scroll to it after React has painted the expanded editor instead.
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
-        document
-          .querySelector<HTMLElement>('#captain-lineup-courts [id^="captain-lineup-slot-"]')
-          ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        const target = courtToOpen
+          ? document.getElementById(`captain-lineup-slot-${courtToOpen}`)
+          : document.getElementById('captain-lineup-courts')
+        target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       })
     })
+  }
+
+  function focusTeamCourtsAfterBuild(nextSlots: LineupSlot[] = teamSlots) {
+    if (!isMobile) return
+    focusTeamCourts(nextSlots)
   }
 
   function rebuildAroundLocks() {
@@ -4929,9 +4935,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               <PrimaryBtn onClick={applySuggestedSwap} disabled={Boolean(suggestedSwapDraft) || loading || loadingScenarioId !== ''}>
                 {suggestedSwapDraft ? 'Draft applied' : 'Apply suggested swap'}
               </PrimaryBtn>
-              <GhostLink href={suggestedSwapCourt ? `#captain-lineup-slot-${suggestedSwapCourt.id}` : '#captain-lineup-courts'}>
+              <GhostBtn onClick={() => focusTeamCourts(teamSlots, suggestedSwapCourt?.id)}>
                 Review court
-              </GhostLink>
+              </GhostBtn>
               {suggestedSwapDraft ? <GhostBtn onClick={undoSuggestedSwap}>Undo</GhostBtn> : null}
             </div>
           </section>
@@ -4982,11 +4988,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 {finalLineupReady ? (
                   <Link href={teamRoomHref} style={primaryButton}>Send lineup to team</Link>
                 ) : firstOpenTeamCourt ? (
-                  <GhostLink href={`#captain-lineup-slot-${firstOpenTeamCourt.id}`}>Finish {firstOpenTeamCourt.label}</GhostLink>
+                  <GhostBtn onClick={() => focusTeamCourts(teamSlots, firstOpenTeamCourt.id)}>Finish {firstOpenTeamCourt.label}</GhostBtn>
                 ) : (
-                  <GhostBtn onClick={() => void refreshAvailabilityReplies()} disabled={refreshingReplies}>
-                    {refreshingReplies ? 'Checking replies...' : 'Check replies'}
-                  </GhostBtn>
+                  <GhostBtn onClick={() => focusTeamCourts()}>Review player replies</GhostBtn>
                 )}
                 {builderMode === 'manual' ? (
                   <GhostBtn onClick={openOpponentCourts}>Scout opponent &amp; forecast</GhostBtn>
@@ -4996,7 +5000,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 {recentHistoricalLineup ? (
                   <GhostBtn onClick={applyRecentHistoricalLineup}>Use recent lineup</GhostBtn>
                 ) : null}
-                <GhostLink href="#captain-lineup-courts">Review courts</GhostLink>
+                <GhostBtn onClick={() => focusTeamCourts()}>Review courts</GhostBtn>
               </div>
             </section>
 
@@ -5016,11 +5020,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                   {finalLineupReady ? (
                     <Link href={teamRoomHref} style={primaryButton}>Send lineup to team</Link>
                   ) : (
-                    <GhostBtn onClick={() => void refreshAvailabilityReplies()} disabled={refreshingReplies}>
-                      {refreshingReplies ? 'Checking replies...' : 'Check replies'}
-                    </GhostBtn>
+                    <GhostBtn onClick={() => focusTeamCourts()}>Review player replies</GhostBtn>
                   )}
-                  <GhostLink href="#captain-lineup-courts">Edit courts</GhostLink>
+                  <GhostBtn onClick={() => focusTeamCourts()}>Edit courts</GhostBtn>
                 </div>
               </section>
             ) : null}
@@ -5096,11 +5098,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               {finalLineupReady ? (
                 <GhostLink href={teamRoomHref}>Review final lineup</GhostLink>
               ) : (
-                <GhostBtn onClick={() => void refreshAvailabilityReplies()} disabled={refreshingReplies}>
-                  {refreshingReplies ? 'Refreshing replies...' : 'Check replies'}
-                </GhostBtn>
+                <GhostBtn onClick={() => focusTeamCourts()}>Review player replies</GhostBtn>
               )}
-              <GhostLink href="#captain-lineup-courts">Review courts</GhostLink>
+              <GhostBtn onClick={() => focusTeamCourts()}>Review courts</GhostBtn>
             </div>
           </div>
 
@@ -5135,7 +5135,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                   <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
                     {saveAndAskLabel}
                   </PrimaryBtn>
-                  <GhostLink href="#captain-lineup-courts">Review lineup</GhostLink>
+                  <GhostBtn onClick={() => focusTeamCourts()}>Review lineup</GhostBtn>
                 </div>
               </div>
             </div>
@@ -5179,17 +5179,15 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             {finalLineupReady ? (
               <Link href={teamRoomHref} style={primaryButton}>Send lineup to team</Link>
             ) : firstOpenTeamCourt ? (
-              <GhostLink href={`#captain-lineup-slot-${firstOpenTeamCourt.id}`}>Finish {firstOpenTeamCourt.label}</GhostLink>
+              <GhostBtn onClick={() => focusTeamCourts(teamSlots, firstOpenTeamCourt.id)}>Finish {firstOpenTeamCourt.label}</GhostBtn>
             ) : (
-              <GhostBtn onClick={() => void refreshAvailabilityReplies()} disabled={refreshingReplies}>
-                {refreshingReplies ? 'Checking replies...' : 'Check replies'}
-              </GhostBtn>
+              <GhostBtn onClick={() => focusTeamCourts()}>Review player replies</GhostBtn>
             )}
             {recentHistoricalLineup ? (
               <GhostBtn onClick={applyRecentHistoricalLineup}>Use recent lineup</GhostBtn>
             ) : null}
             <GhostBtn onClick={openOpponentCourts}>Scout opponent &amp; forecast</GhostBtn>
-            <GhostLink href="#captain-lineup-courts">Review my courts</GhostLink>
+            <GhostBtn onClick={() => focusTeamCourts()}>Review my courts</GhostBtn>
             <GhostLink href={compareHref}>Compare versions</GhostLink>
           </div>
         </section>}

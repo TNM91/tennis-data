@@ -127,7 +127,8 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('Final lineup check')
     expect(source).toContain('Every court is set and every selected player is in.')
     expect(source).toContain('Review final lineup')
-    expect(source).toContain('Check replies')
+    expect(source).toContain('Review player replies')
+    expect(source).toContain('<GhostBtn onClick={() => focusTeamCourts()}>Edit courts</GhostBtn>')
   })
 
   it('uses known opponent court history for projections and explains when no opponent roster is available', () => {
