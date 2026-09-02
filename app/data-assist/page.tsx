@@ -2543,7 +2543,10 @@ function MySubmissionsPanel({
 }) {
   const [historyOpen, setHistoryOpen] = useState(Boolean(focusedSubmissionId) || forceHistoryOpen)
   const [historyFilter, setHistoryFilter] = useState<DataAssistHistoryFilter>(focusedSubmissionId ? initialHistoryFilter : 'all')
-  const pendingCount = contributorStats?.pendingReviewCount ?? submissions.filter((submission) => submission.status !== 'verified' && submission.status !== 'imported' && submission.status !== 'rejected').length
+  // The review action and its filter must read the same current list. The
+  // contributor aggregate is useful for badges, but can lag behind a just
+  // completed OCR or import update.
+  const pendingCount = filterDataAssistSubmissions(submissions, 'needs_review').length
   const verifiedCount = contributorStats?.verifiedImportCount ?? submissions.filter((submission) => submission.status === 'verified' || submission.status === 'imported').length
   const importedCount = submissions.filter((submission) => submission.status === 'imported').length
   const accuracyScore = Math.round((contributorStats?.contributionAccuracyScore ?? 0) * 100)

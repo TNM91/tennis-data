@@ -28,5 +28,7 @@ describe('Data Assist scorecard confirmation resilience', () => {
     expect(page).toContain('const submissionsRefreshRef = useRef(0)')
     expect(page).toContain('if (refreshId !== submissionsRefreshRef.current) return')
     expect(page).toContain("action === 'commit' ? DATA_ASSIST_CONFIRM_TIMEOUT_MS : 30_000")
+    expect(page).toContain("filterDataAssistSubmissions(submissions, 'needs_review').length")
+    expect(page).not.toContain('contributorStats?.pendingReviewCount ??')
   })
 })
