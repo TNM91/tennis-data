@@ -672,6 +672,13 @@ async function acceptImportedCaptainTeam(input: {
       .limit(1)
     playsOnTeam = Boolean(memberships?.length)
   }
+  if (!playsOnTeam) {
+    return {
+      ok: false as const,
+      status: 403,
+      message: 'Only a roster that includes your linked player can be connected to your Captain profile.',
+    }
+  }
   const { data: existing } = await input.service
     .from('team_profile_links')
     .select(TEAM_LINK_SELECT)
