@@ -19,7 +19,7 @@ describe('team connection flow', () => {
     expect(route).toContain('is_default')
   })
 
-  it('connects an authenticated Captain import and defaults the first team', () => {
+  it('rejects an imported opponent team as a Captain connection', () => {
     const route = readFileSync(join(process.cwd(), 'app/api/team-connections/route.ts'), 'utf8')
     const client = readFileSync(join(process.cwd(), 'lib/team-profile-links-client.ts'), 'utf8')
 
@@ -27,6 +27,8 @@ describe('team connection flow', () => {
     expect(route).toContain(".eq('submitted_by_user_id', input.userId)")
     expect(route).toContain("batchRow.status !== 'imported' || draftRow.status !== 'imported'")
     expect(route).toContain("payload.draftKind !== 'schedule' && payload.draftKind !== 'team_summary'")
+    expect(route).toContain('if (!playsOnTeam)')
+    expect(route).toContain('Only a roster that includes your linked player')
     expect(route).toContain("mergeTeamConnectionRoles(")
     expect(route).toContain("playsOnTeam ? ['player'] : []")
     expect(route).toContain("source_type: 'data_assist_import'")

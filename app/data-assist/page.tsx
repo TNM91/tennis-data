@@ -40,8 +40,6 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { buildSupportMessageHref } from '@/lib/message-links'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import {
-  buildCaptainImportHandoff,
-  buildCaptainImportReturnHref,
   isCaptainImportDraft,
 } from '@/lib/captain-import-handoff'
 import {
@@ -49,7 +47,6 @@ import {
   captainScorecardPhotoPrefillStorageKey,
   getCaptainScorecardPhotoPrefillIssue,
 } from '@/lib/captain-scorecard-photo-prefill'
-import { acceptCaptainImportConnection } from '@/lib/team-profile-links-client'
 
 const DATA_ASSIST_OCR_TIMEOUT_MS = 100_000
 const DATA_ASSIST_BULK_OCR_TIMEOUT_MS = 45_000
@@ -291,7 +288,7 @@ export default function DataAssistPage() {
 }
 
 function DataAssistWorkspace() {
-  const { userId, authResolved, session } = useAuth()
+  const { userId, authResolved } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { isTablet, isMobile } = useViewportBreakpoints()
@@ -376,18 +373,9 @@ function DataAssistWorkspace() {
     result?: DataAssistImportActionResult
   }) {
     if (!returnTo || !isCaptainImportDraft(input.parsedDraft)) return false
-    const handoff = buildCaptainImportHandoff(input)
-    if (session?.access_token) {
-      await acceptCaptainImportConnection({
-        accessToken: session.access_token,
-        batchId: input.batchId,
-      })
-    }
-    if (returnTo.startsWith('/teams/')) {
-      router.replace(returnTo)
-      return true
-    }
-    router.replace(buildCaptainImportReturnHref(returnTo, handoff))
+    // A team summary may belong to an opponent. Importing it must never grant
+    // Captain access or replace the team already selected in Captain.
+    router.replace(returnTo)
     return true
   }
 

@@ -9,8 +9,9 @@ describe('Data Assist Captain handoff', () => {
     expect(source).toContain('context={intentContext}')
     expect(source).toContain("actions={buildSchedulePostImportActions(parsedDraft, context)}")
     expect(source).toContain("actions.push({ label: 'Continue Captain setup', href: '/captain' })")
-    expect(source).toContain('acceptCaptainImportConnection')
-    expect(source).toContain('buildCaptainImportReturnHref(returnTo, handoff)')
+    expect(source).toContain('router.replace(returnTo)')
+    expect(source).toContain('Importing it must never grant')
+    expect(source).not.toContain('acceptCaptainImportConnection')
   })
 
   it('opens Player Roster help and returns a completed roster import to its originating team', () => {
