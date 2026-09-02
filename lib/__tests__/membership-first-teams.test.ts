@@ -16,6 +16,7 @@ describe('membership-first Teams experience', () => {
     expect(portal).toContain("title: 'Open my teams'")
     expect(teamsHub).toContain('fetchTeamConnections(accessToken, { force: Boolean(cachedConnections) || connectionRefresh > 0, userId })')
     expect(teamsHub).not.toContain('if (connectionRefresh === 0) return')
+    expect(teamsHub).toContain("connections.filter((connection) => connection.status === 'accepted')")
     expect(teamsHub).toContain('Register to access your teams.')
     expect(teamsHub).toContain('Team access is included.')
     expect(teamsHub).toContain('buildTeamRoomHref({')
