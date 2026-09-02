@@ -4467,7 +4467,6 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     },
   ]
   const readinessCompleteCount = builderReadiness.filter((item) => item.done).length
-  const completedCourtCount = analysis.lines.filter((line) => isProjectedLineComplete(line)).length
   const assignedTeamReplySummary = useMemo(() => {
     const playerById = new Map(builderPlayers.map((player) => [player.id, player]))
     const availabilityByPlayerId = new Map(myPlayerPool.map((player) => [player.id, player.availabilityStatus]))
