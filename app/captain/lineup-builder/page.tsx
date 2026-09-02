@@ -1490,6 +1490,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       : buildCaptainLineupSlots(initialLeagueName, initialFlight, 'opponent', initialMatchFormat)
   )
   const [opponentCourtSetupPromptOpen, setOpponentCourtSetupPromptOpen] = useState(false)
+  const [mobileForecastOpen, setMobileForecastOpen] = useState(false)
   const [activeLineupFormatKey, setActiveLineupFormatKey] = useState(() =>
     getCaptainLineupFormatKey(initialLeagueName, initialFlight, initialMatchFormat)
   )
@@ -2711,6 +2712,14 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     })
   }
 
+  function openMatchForecast() {
+    setBuilderMode('insights')
+    setMobileForecastOpen(true)
+    window.requestAnimationFrame(() => {
+      document.getElementById('captain-lineup-match-forecast')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
   function setSlotPlayer(
     side: 'team' | 'opponent',
     slotId: string,
@@ -2794,7 +2803,6 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       const nextSlots = update(teamSlots)
       setTeamSlots(nextSlots)
       setError('')
-      setMessage('Lineup updated. Your draft is saved on this phone.')
       const selectedSlot = nextSlots.find((slot) => slot.id === slotId)
       if (selectedSlot) {
         // Refresh every selected player's prepared text when a court changes.
@@ -2811,7 +2819,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           })
       }
     } else {
-      setOpponentSlots((current) => update(current))
+      setOpponentSlots(update(opponentSlots))
+      setMobileForecastOpen(false)
+      setError('')
     }
   }
 
@@ -3197,7 +3207,6 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     if (!options.silent) {
       setAskingCourtId(slot.id)
       setError('')
-      setMessage(`Preparing a private availability text for ${invitedPlayer.playerName}...`)
     }
     const preservedOpponentSlots = cloneSlots(opponentSlots)
     const responseToken = window.crypto.randomUUID()
@@ -3293,9 +3302,6 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         },
       }))
       setMissingPhonePlayerKeys((current) => current.filter((key) => key !== playerKey))
-      if (!options.silent) {
-        setMessage(`${invitedPlayer.playerName} is ready. Tap Ask ${invitedPlayer.playerName.split(' ')[0]} to open Messages.`)
-      }
     } catch (caught) {
       preparingCourtTextKeysRef.current.delete(preparedKey)
       if (!options.silent) {
@@ -4399,6 +4405,12 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const firstOpenTeamCourt = teamCourtProgress.find((court) => court.openPlayers > 0) ?? null
   const teamLineupComplete = completedTeamCourtCount === teamCourtProgress.length && teamRequiredPlayerCount > 0
   const lineupHasAssignments = teamAssignedPlayerCount > 0
+  const opponentAssignedPlayerCount = opponentSlots.reduce(
+    (total, slot) => total + slot.players.filter((player) => player.playerId || player.playerName.trim()).length,
+    0,
+  )
+  const opponentRequiredPlayerCount = opponentSlots.reduce((total, slot) => total + slot.players.length, 0)
+  const opponentLineupComplete = opponentRequiredPlayerCount > 0 && opponentAssignedPlayerCount === opponentRequiredPlayerCount
   const recentHistoricalLineup = useMemo<HistoricalLineupSuggestion | null>(() => {
     const normalizedTeam = normalizeTeamName(teamName)
     if (!normalizedTeam || !historicalLineMatches.length || !historicalLineMatchPlayers.length) return null
@@ -5885,21 +5897,35 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                   />
                 ))}
               </div>
+
+              {opponentAssignedPlayerCount ? (
+                <div role="status" aria-live="polite" style={{ ...bannerBlueStyle, marginTop: 16 }}>
+                  <strong>{opponentLineupComplete ? 'Opponent lineup projected.' : 'Opponent courts updated.'}</strong>{' '}
+                  {opponentAssignedPlayerCount}/{opponentRequiredPlayerCount} opponent player spots selected.{' '}
+                  <button type="button" onClick={openMatchForecast} style={inlineActionButtonStyle}>
+                    View matchup forecast
+                  </button>
+                </div>
+              ) : null}
             </section>
 
-            <details style={surfaceCardStrong}>
+            {!isMobile || !teamLineupComplete ? <details style={surfaceCardStrong}>
               <summary style={detailsSummaryStyle}>
                 <div>
-                  <p style={sectionKicker}>Auto-build</p>
-                  <h2 style={sectionTitleSmall}>Build a recommended draft</h2>
+                  <p style={sectionKicker}>{teamLineupComplete ? 'Lineup tools' : 'Auto-build'}</p>
+                  <h2 style={sectionTitleSmall}>{teamLineupComplete ? 'Rebuild only if you need to' : 'Build a recommended draft'}</h2>
                 </div>
-                <span style={miniPillBlueStyle}>{activeLockCount} lock{activeLockCount === 1 ? '' : 's'}</span>
+                <span style={teamLineupComplete ? miniPillGreenStyle : miniPillBlueStyle}>
+                  {teamLineupComplete ? 'Your courts set' : `${activeLockCount} lock${activeLockCount === 1 ? '' : 's'}`}
+                </span>
               </summary>
               <p style={sectionBodyTextStyle}>
-                TiQ fills a balanced first draft from your roster and keeps any court or player locks in place. Review the courts after it builds.
+                {teamLineupComplete
+                  ? 'Your lineup is already built. Open this only to rebuild unlocked courts, adjust locks, or review alternates.'
+                  : 'TiQ fills a balanced first draft from your roster and keeps any court or player locks in place. Review the courts after it builds.'}
               </p>
 
-              <PrimaryBtn onClick={applyRecommendedTeamLineup}>Auto-build my lineup</PrimaryBtn>
+              {!teamLineupComplete ? <PrimaryBtn onClick={applyRecommendedTeamLineup}>Auto-build my lineup</PrimaryBtn> : null}
 
               <details style={surfaceCard}>
                 <summary style={detailsSummaryStyle}>
@@ -5911,6 +5937,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 </summary>
 
                 <div style={actionRowStyleWrap}>
+                  {teamLineupComplete ? <GhostBtn onClick={applyRecommendedTeamLineup}>Rebuild unlocked courts</GhostBtn> : null}
                   <GhostBtn onClick={rebuildAroundLocks}>Rebuild around locks</GhostBtn>
                   <GhostBtn onClick={clearLocks}>Reset locks</GhostBtn>
                   {opponentPlayerPool.length ? <GhostBtn onClick={applyRecommendedOpponentLineup}>Auto-fill opponent</GhostBtn> : null}
@@ -5969,9 +5996,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                   </div>
                 </div>
               </details>
-            </details>
+            </details> : null}
 
-            <details style={surfaceCardStrong}>
+            {!isMobile ? <details style={surfaceCardStrong}>
               <summary style={detailsSummaryStyle}>
                 <div>
                   <p style={sectionKicker}>Match insight</p>
@@ -6012,9 +6039,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 <GhostBtn onClick={() => applyOptimizedPlan('safe')}>Play It Safe</GhostBtn>
                 <GhostBtn onClick={() => applyOptimizedPlan('upside')}>Max Upside</GhostBtn>
               </div>
-            </details>
+            </details> : null}
 
-            <details style={surfaceCard}>
+            {!isMobile ? <details style={surfaceCard}>
               <summary style={detailsSummaryStyle}>
                 <div>
                   <p style={sectionKicker}>More strategies</p>
@@ -6039,12 +6066,19 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                   </div>
                 ))}
               </div>
-            </details>
+            </details> : null}
             </details>
           </div>
 
           {builderMode === 'insights' ? <div style={columnStyle}>
-            <details open={!isMobile} style={isMobile ? surfaceCardStrong : desktopInsightsDisclosureStyle}>
+            <details
+              id="captain-lineup-match-forecast"
+              open={isMobile ? mobileForecastOpen : true}
+              onToggle={(event) => {
+                if (isMobile) setMobileForecastOpen(event.currentTarget.open)
+              }}
+              style={isMobile ? surfaceCardStrong : desktopInsightsDisclosureStyle}
+            >
               <summary style={isMobile ? detailsSummaryStyle : desktopInsightsDisclosureSummaryStyle}>
                 <div>
                   <p style={sectionKicker}>Match forecast</p>
@@ -8533,6 +8567,18 @@ const bannerBlueStyle: CSSProperties = {
   border: '1px solid rgba(37, 99, 235, 0.26)',
   color: '#dbeafe',
   overflowWrap: 'anywhere',
+}
+
+const inlineActionButtonStyle: CSSProperties = {
+  margin: 0,
+  padding: 0,
+  border: 0,
+  background: 'transparent',
+  color: 'var(--brand-blue-2)',
+  font: 'inherit',
+  fontWeight: 900,
+  textDecoration: 'underline',
+  cursor: 'pointer',
 }
 
 const bannerGreenStyle: CSSProperties = {

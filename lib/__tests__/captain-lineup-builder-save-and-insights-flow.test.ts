@@ -6,17 +6,21 @@ const source = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page
 
 describe('Captain lineup builder save and insights flow', () => {
   it('keeps background text preparation from presenting an Ask message', () => {
-    expect(source).toContain("setMessage('Lineup updated. Your draft is saved on this phone.')")
     expect(source).toContain('if (!options.silent) {\n      setAskingCourtId(slot.id)')
-    expect(source).toContain('if (!options.silent) {\n        setMessage(`${invitedPlayer.playerName} is ready.')
     expect(source).toContain('if (!options.silent) {\n        setError(caught instanceof Error')
+    expect(source).not.toContain('is ready. Tap Ask')
+    expect(source).not.toContain('Preparing a private availability text')
   })
 
   it('makes saving an intentional first action and keeps optional analysis collapsed on phones', () => {
     expect(source).toContain('Draft saved on this phone')
     expect(source).toContain("currentScenarioId ? 'Update saved lineup' : 'Save lineup'")
     expect(source).toContain('Scorecard, strategy, and next steps')
-    expect(source).toContain('<details open={!isMobile} style={isMobile ? surfaceCardStrong : desktopInsightsDisclosureStyle}>')
+    expect(source).toContain('open={isMobile ? mobileForecastOpen : true}')
+    expect(source).toContain('id="captain-lineup-match-forecast"')
     expect(source).toContain('Build a recommended draft')
+    expect(source).toContain('Opponent lineup projected.')
+    expect(source).toContain('View matchup forecast')
+    expect(source).toContain('{!isMobile ? <details style={surfaceCardStrong}>')
   })
 })
