@@ -105,8 +105,8 @@ describe('captain resume memory', () => {
       .toEqual({ eventDate: '', opponentTeam: '', matchId: '' })
     expect(resolveCaptainMatchContext(new URLSearchParams()))
       .toEqual({ eventDate: '', opponentTeam: '', matchId: '' })
-    expect(resolveCaptainMatchContext(new URLSearchParams('team=SuperSmash+Bros&date=2026-09-01&match=next-match')))
-      .toEqual({ eventDate: '2026-09-01', opponentTeam: '', matchId: 'next-match' })
+    expect(resolveCaptainMatchContext(new URLSearchParams('team=SuperSmash+Bros&date=2099-09-01&match=next-match')))
+      .toEqual({ eventDate: '2099-09-01', opponentTeam: '', matchId: 'next-match' })
   })
 
   it('recognizes a team card handoff as an intentional Builder selection', () => {
