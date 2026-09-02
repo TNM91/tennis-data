@@ -342,6 +342,43 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: inviteReadError.message }, { status: 500 })
   }
 
+  // Keep an independent, per-player copy of every link we hand to Messages.
+  // Unlike the live request/invite tables, snapshots have no foreign key to a
+  // request, so an accidental request replacement or cascade cannot strand a
+  // player with a text that no longer opens.
+  const snapshotRows = (inviteData ?? []).map((invite) => ({
+    response_token: invite.response_token,
+    request_id: requestId,
+    created_by: auth.userId,
+    player_id: isUuid(invite.player_id ?? '') ? invite.player_id : null,
+    player_name: invite.player_name,
+    team_name: payload.team_name,
+    league_name: payload.league_name,
+    flight: payload.flight,
+    match_date: payload.match_date,
+    opponent_team: payload.opponent_team,
+    match_time: payload.match_time,
+    facility: payload.facility,
+    slots_json: payload.slots_json,
+    invited_players_json: payload.invited_players_json,
+    updated_at: new Date().toISOString(),
+  }))
+  const { error: snapshotError } = await service
+    .from('captain_availability_link_snapshots')
+    .upsert(snapshotRows, { onConflict: 'response_token' })
+  if (snapshotError) {
+    console.error('[api/captain/availability-requests] durable link snapshot failed', {
+      durationMs: Date.now() - startedAt,
+      userId: auth.userId,
+      requestId,
+      message: snapshotError.message,
+    })
+    return Response.json({
+      ok: false,
+      message: 'TiQ could not secure the player reply links. Please try again in a moment.',
+    }, { status: 500 })
+  }
+
   const origin = new URL(request.url).origin
 
   console.info('[api/captain/availability-requests] created', {
@@ -350,6 +387,7 @@ export async function POST(request: Request) {
     requestId,
     invitedPlayerCount: requestInvitedPlayers.length,
     inviteMode: body.inviteMode === 'append' ? 'append' : 'replace',
+    durableSnapshotCount: snapshotRows.length,
   })
 
   return Response.json({
