@@ -131,6 +131,7 @@ export async function runDataAssistScheduleImportAction(input: {
         .from('data_assist_drafts')
         .update({
           status: 'imported',
+          parsed_payload: input.parsedDraft,
           validation_summary: validationSummary,
           reviewed_by_user_id: input.reviewedBy,
           reviewed_at: importedAt,

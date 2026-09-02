@@ -31,7 +31,7 @@ import {
 import { getDataAssistOcrReadiness, type DataAssistAutoAssessment } from '@/lib/data-assist-ocr'
 import type { DataAssistScorecardParsedDraft } from '@/lib/data-assist-ocr'
 import { detectDataAssistExportType } from '@/lib/data-assist-export-detection'
-import type { DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
+import { getScheduleMatchReviewNotes, type DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
 import {
   buildTeamScheduleCalendarItems,
   getTeamScheduleCalendarItemId,
@@ -954,9 +954,10 @@ function DataAssistWorkspace() {
     }
   }
 
-  async function reviewLatestScan(decision: 'confirmed' | 'flagged') {
+  async function reviewLatestScan(decision: 'confirmed' | 'flagged', parsedDraft?: DataAssistScheduleParsedDraft) {
     if (!latestScan || reviewingSubmissionId) return
-    const reviewLabel = getParsedDraftReviewLabel(latestScan.parsedDraft)
+    const reviewedDraft = parsedDraft || latestScan.parsedDraft
+    const reviewLabel = getParsedDraftReviewLabel(reviewedDraft)
     setReviewingSubmissionId(latestScan.batchId)
     setMessage('')
     setError('')
@@ -967,6 +968,7 @@ function DataAssistWorkspace() {
           batchId: latestScan.batchId,
           draftId: latestScan.draftId,
           decision,
+          parsedDraft,
         }),
         DATA_ASSIST_CONFIRM_TIMEOUT_MS,
         'Confirmation is taking longer than expected. Your scorecard may still finish saving; open Saved uploads and refresh before trying again.',
@@ -975,19 +977,19 @@ function DataAssistWorkspace() {
         ? `${reviewLabel} confirmed. TenAceIQ is preparing this upload.`
         : `Thanks. This ${reviewLabel.toLowerCase()} is marked for a closer look.`))
       if (decision === 'confirmed' && result.autoImport?.ok) {
-        const didReturn = isScorecardParsedDraft(latestScan.parsedDraft)
-          ? finishScorecardImport(latestScan.parsedDraft)
-          : isCaptainImportDraft(latestScan.parsedDraft)
+        const didReturn = isScorecardParsedDraft(reviewedDraft)
+          ? finishScorecardImport(reviewedDraft)
+          : isCaptainImportDraft(reviewedDraft)
             ? await finishCaptainImport({
                 batchId: latestScan.batchId,
-                parsedDraft: latestScan.parsedDraft,
+                parsedDraft: reviewedDraft,
                 result: result.autoImport,
               })
             : false
         if (didReturn) return
         completeUploadFlow(
           'Upload complete.',
-          buildImportedDataAssistOutcome(latestScan.parsedDraft, latestScan.batchId),
+          buildImportedDataAssistOutcome(reviewedDraft, latestScan.batchId),
         )
         await refreshSubmissions()
         return
@@ -1014,7 +1016,7 @@ function DataAssistWorkspace() {
     }
   }
 
-  async function reviewSubmission(submission: DataAssistSubmission, decision: 'confirmed' | 'flagged') {
+  async function reviewSubmission(submission: DataAssistSubmission, decision: 'confirmed' | 'flagged', parsedDraft?: DataAssistScheduleParsedDraft) {
     if (!submission.draftId || reviewingSubmissionId) return
     const reviewLabel = getDataAssistImportTypeLabel(submission.requestedImportType)
     setReviewingSubmissionId(submission.id)
@@ -1027,6 +1029,7 @@ function DataAssistWorkspace() {
           batchId: submission.id,
           draftId: submission.draftId,
           decision,
+          parsedDraft,
         }),
         DATA_ASSIST_CONFIRM_TIMEOUT_MS,
         'Confirmation is taking longer than expected. Your scorecard may still finish saving; refresh Saved uploads before trying again.',
@@ -1524,7 +1527,11 @@ function DataAssistWorkspace() {
                 returnTo={returnTo}
               />
             ) : isScheduleParsedDraft(latestScan.parsedDraft) ? (
-              <ScheduleReviewPanel parsedDraft={latestScan.parsedDraft} />
+              <ScheduleReviewPanel
+                parsedDraft={latestScan.parsedDraft}
+                busy={reviewingSubmissionId === latestScan.batchId}
+                onConfirm={(draft) => void reviewLatestScan('confirmed', draft)}
+              />
             ) : isTeamSummaryParsedDraft(latestScan.parsedDraft) ? (
               <TeamSummaryReviewPanel parsedDraft={latestScan.parsedDraft} />
             ) : latestScorecardDraft ? (
@@ -1569,7 +1576,7 @@ function DataAssistWorkspace() {
         error={submissionsError}
         onRefresh={() => void refreshSubmissions()}
         reviewingSubmissionId={reviewingSubmissionId}
-        onReviewSubmission={(submission, decision) => void reviewSubmission(submission, decision)}
+        onReviewSubmission={(submission, decision, parsedDraft) => void reviewSubmission(submission, decision, parsedDraft)}
         importingSubmissionId={importingSubmissionId}
         deletingSubmissionId={deletingSubmissionId}
         bulkDeleting={bulkDeletingHistory}
@@ -2586,7 +2593,7 @@ function MySubmissionsPanel({
   error: string
   onRefresh: () => void
   reviewingSubmissionId: string
-  onReviewSubmission: (submission: DataAssistSubmission, decision: 'confirmed' | 'flagged') => void
+  onReviewSubmission: (submission: DataAssistSubmission, decision: 'confirmed' | 'flagged', parsedDraft?: DataAssistScheduleParsedDraft) => void
   importingSubmissionId: string
   deletingSubmissionId: string
   bulkDeleting: boolean
@@ -3003,7 +3010,7 @@ function SubmissionCard({
 }: {
   submission: DataAssistSubmission
   busy: boolean
-  onReview: (submission: DataAssistSubmission, decision: 'confirmed' | 'flagged') => void
+  onReview: (submission: DataAssistSubmission, decision: 'confirmed' | 'flagged', parsedDraft?: DataAssistScheduleParsedDraft) => void
   importing: boolean
   deleting: boolean
   importResult?: DataAssistImportActionResult
@@ -3109,7 +3116,13 @@ function SubmissionCard({
             />
           ) : null}
           {parsedSchedule && !isImported ? (
-            <ScheduleReviewPanel parsedDraft={parsedSchedule} />
+            <ScheduleReviewPanel
+              parsedDraft={parsedSchedule}
+              busy={busy}
+              onConfirm={submission.draftId && submission.draftOcrStatus === 'processed' && (submission.status === 'ready_to_import' || submission.status === 'needs_review')
+                ? (draft) => onReview(submission, 'confirmed', draft)
+                : undefined}
+            />
           ) : null}
           {parsedTeamSummary && !isImported ? (
             <TeamSummaryReviewPanel parsedDraft={parsedTeamSummary} />
@@ -3321,25 +3334,62 @@ function DuplicateImportBanner({
   )
 }
 
-function ScheduleReviewPanel({ parsedDraft }: { parsedDraft: DataAssistScheduleParsedDraft }) {
-  const needsCheckCount = parsedDraft.matches.filter((match) => match.reviewNotes.length).length
+function ScheduleReviewPanel({
+  parsedDraft,
+  busy = false,
+  onConfirm,
+}: {
+  parsedDraft: DataAssistScheduleParsedDraft
+  busy?: boolean
+  onConfirm?: (draft: DataAssistScheduleParsedDraft) => void
+}) {
+  const [reviewedDraft, setReviewedDraft] = useState(parsedDraft)
+  const needsCheckCount = reviewedDraft.matches.filter((match) => match.reviewNotes.length).length
+  const canConfirm = reviewedDraft.matches.length > 0 && needsCheckCount === 0
+
+  useEffect(() => {
+    setReviewedDraft(parsedDraft)
+  }, [parsedDraft])
+
+  function updateMatchDate(matchIndex: number, dateValue: string) {
+    const matchDate = formatScheduleDraftDate(dateValue)
+    setReviewedDraft((current) => ({
+      ...current,
+      matches: current.matches.map((match, index) => index === matchIndex
+        ? { ...match, matchDate, reviewNotes: getScheduleMatchReviewNotes({ ...match, matchDate }) }
+        : match),
+    }))
+  }
 
   return (
     <div style={scorecardReviewStyle}>
       <div style={scorecardHeaderGridStyle}>
-        <ReviewFact label="Team" value={parsedDraft.teamName || 'Check team'} />
-        <ReviewFact label="League" value={parsedDraft.leagueName || 'Check league'} />
-        <ReviewFact label="Flight" value={parsedDraft.flight || 'Check flight'} />
-        <ReviewFact label="Matches" value={String(parsedDraft.matchCount)} />
+        <ReviewFact label="Team" value={reviewedDraft.teamName || 'Check team'} />
+        <ReviewFact label="League" value={reviewedDraft.leagueName || 'Check league'} />
+        <ReviewFact label="Flight" value={reviewedDraft.flight || 'Check flight'} />
+        <ReviewFact label="Matches" value={String(reviewedDraft.matchCount)} />
       </div>
       <p style={copyStyle}>
         This is a team schedule read. TenAceIQ is capturing the visible match IDs, dates, times, opponents, and sites for this team.
       </p>
-      <ScheduleRowsList parsedDraft={parsedDraft} />
+      <ScheduleRowsList parsedDraft={reviewedDraft} onChangeMatchDate={updateMatchDate} />
       <div style={needsCheckCount ? reviewChecklistStyle : readyImportNoteStyle}>
-        <strong>{needsCheckCount ? 'Before importing' : 'Schedule ready'}</strong>
-        <span>{needsCheckCount ? `${needsCheckCount} visible match row${needsCheckCount === 1 ? '' : 's'} need review.` : 'Visible team schedule rows are captured for one final check.'}</span>
+        <strong>{needsCheckCount ? 'Fix highlighted dates' : 'Schedule ready to import'}</strong>
+        <span>{needsCheckCount ? `Use the date fields on the highlighted row${needsCheckCount === 1 ? '' : 's'}, then confirm the schedule.` : 'All visible match details are ready. Confirm once to import the full schedule.'}</span>
       </div>
+      {onConfirm ? (
+        <div style={draftActionRowStyle}>
+          <button
+            type="button"
+            onClick={() => onConfirm(reviewedDraft)}
+            disabled={!canConfirm || busy}
+            style={{ ...primaryButtonStyle, ...((!canConfirm || busy) ? disabledStyle : {}) }}
+          >
+            {busy ? 'Importing schedule...' : `Confirm & import ${reviewedDraft.matches.length} matches`}
+          </button>
+          {!canConfirm ? <span style={compactListHintStyle}>Finish the highlighted checks to unlock import.</span> : null}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -3600,15 +3650,22 @@ function ScheduleRowsList({
   calendarSavingKey,
   calendarOwnerId = '',
   onAddMatchToCalendar,
+  onChangeMatchDate,
 }: {
   parsedDraft: DataAssistScheduleParsedDraft
   calendarSavedItemIds?: Set<string>
   calendarSavingKey?: string
   calendarOwnerId?: string
   onAddMatchToCalendar?: (schedule: DataAssistScheduleParsedDraft, match: DataAssistScheduleParsedDraft['matches'][number]) => void
+  onChangeMatchDate?: (matchIndex: number, dateValue: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
-  const visibleMatches = expanded ? parsedDraft.matches : parsedDraft.matches.slice(0, 8)
+  const priorityMatches = onChangeMatchDate
+    ? parsedDraft.matches.filter((match) => match.reviewNotes.length)
+    : []
+  const visibleMatches = expanded
+    ? parsedDraft.matches
+    : Array.from(new Set([...parsedDraft.matches.slice(0, 8), ...priorityMatches]))
   const hiddenCount = parsedDraft.matches.length - visibleMatches.length
 
   return (
@@ -3633,6 +3690,17 @@ function ScheduleRowsList({
             <strong style={lineScoreStyle}>{match.matchDate || 'Check date'}</strong>
           </div>
           <div style={scheduleMatchGridStyle}>
+            {onChangeMatchDate && match.reviewNotes.includes('Check date') ? (
+              <label style={scheduleDateFieldStyle}>
+                <span>Confirm date</span>
+                <input
+                  type="date"
+                  value={toScheduleDateInputValue(match.matchDate)}
+                  onChange={(event) => onChangeMatchDate(matchIndex >= 0 ? matchIndex : index, event.target.value)}
+                  style={scheduleDateInputStyle}
+                />
+              </label>
+            ) : null}
             <ReviewFact label="Time" value={match.matchTime || 'Check time'} />
             <ReviewFact label="Home" value={match.homeTeam || 'Check home team'} />
             <ReviewFact label="Visiting" value={match.awayTeam || 'Check visiting team'} />
@@ -3937,6 +4005,18 @@ function isParsedDraftReady(value: DataAssistScorecardParsedDraft | DataAssistSc
   if (isScheduleParsedDraft(value)) return value.matches.length > 0 && value.matches.every((match) => match.reviewNotes.length === 0)
   if (isTeamSummaryParsedDraft(value)) return isTeamSummaryDraftReadyForImport(value)
   return getBlockingScorecardReviewItems(value).length === 0
+}
+
+function toScheduleDateInputValue(value: string) {
+  const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(20\d{2})$/)
+  if (!match) return ''
+  return `${match[3]}-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}`
+}
+
+function formatScheduleDraftDate(value: string) {
+  const match = value.trim().match(/^(20\d{2})-(\d{2})-(\d{2})$/)
+  if (!match) return ''
+  return `${Number(match[2])}/${Number(match[3])}/${match[1]}`
 }
 
 function toScorecardParsedDraft(value: DataAssistSubmission['parsedPayload']): DataAssistScorecardParsedDraft | null {
@@ -5493,6 +5573,29 @@ const scheduleMatchGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: 8,
   minWidth: 0,
+}
+
+const scheduleDateFieldStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 850,
+}
+
+const scheduleDateInputStyle: CSSProperties = {
+  width: '100%',
+  minWidth: 0,
+  minHeight: 40,
+  borderRadius: 10,
+  border: '1px solid color-mix(in srgb, #fbbf24 42%, var(--shell-panel-border) 58%)',
+  background: 'var(--shell-panel-bg-strong)',
+  color: 'var(--foreground-strong)',
+  padding: '0 10px',
+  font: 'inherit',
+  fontSize: 13,
+  fontWeight: 850,
 }
 
 const bulkResultListStyle: CSSProperties = {

@@ -316,7 +316,7 @@ function buildMatch(input: {
   const awayTeam = cleanTeamName(input.awayTeam)
   const facility = cleanFacility(input.facility)
   const reviewNotes: string[] = []
-  reviewNotes.push(...buildReviewNotes({ externalMatchId, matchDate, matchTime, homeTeam, awayTeam, facility }))
+  reviewNotes.push(...getScheduleMatchReviewNotes({ externalMatchId, matchDate, matchTime, homeTeam, awayTeam, facility }))
 
   const confidenceScore = roundConfidence(
     0.2 +
@@ -339,7 +339,7 @@ function buildMatch(input: {
   }
 }
 
-function buildReviewNotes(input: {
+export function getScheduleMatchReviewNotes(input: {
   externalMatchId: string
   matchDate: string
   matchTime: string
@@ -439,7 +439,7 @@ function applyKnownScheduleRowRepair(match: DataAssistScheduleParsedMatch, teamN
   }
   return {
     ...merged,
-    reviewNotes: buildReviewNotes(merged),
+    reviewNotes: getScheduleMatchReviewNotes(merged),
     confidenceScore: roundConfidence(Math.max(match.confidenceScore, 0.88)),
   }
 }
@@ -478,7 +478,7 @@ function cleanFacility(value: string) {
 }
 
 function normalizeDateToken(value: string) {
-  const direct = cleanText(value).match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](2026)\b/)
+  const direct = cleanText(value).match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](20\d{2})\b/)
   if (direct) return `${Number(direct[1])}/${Number(direct[2])}/${direct[3]}`
   const compact = cleanText(value).match(/\b(\d{5,8})\b/)
   const digits = compact?.[1] || value.replace(/\D/g, '')

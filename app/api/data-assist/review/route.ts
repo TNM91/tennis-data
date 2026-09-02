@@ -11,7 +11,7 @@ import {
   type DataAssistTeamSummaryImportActionResult,
 } from '@/lib/data-assist-import-runner'
 import type { DataAssistScorecardParsedDraft } from '@/lib/data-assist-ocr'
-import type { DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
+import { getScheduleMatchReviewNotes, type DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
 import type { DataAssistTeamSummaryParsedDraft } from '@/lib/data-assist-team-summary-parser'
 
 export const runtime = 'nodejs'
@@ -21,6 +21,7 @@ type ReviewRequestBody = {
   batchId?: unknown
   draftId?: unknown
   decision?: unknown
+  parsedDraft?: unknown
 }
 
 type DataAssistStatsBatchRow = {
@@ -109,9 +110,12 @@ export async function POST(request: Request) {
   const draftLabel = getParsedDraftLabel(draft.parsed_payload)
 
   if (decision === 'confirmed') {
-    const parsedDraft = toParsedDraft(draft.parsed_payload)
+    const parsedDraft = toReviewedParsedDraft(draft.parsed_payload, body.parsedDraft)
     if (!parsedDraft) {
       return Response.json({ ok: false, message: 'This OCR draft does not have a complete parsed payload to import.' }, { status: 400 })
+    }
+    if (isScheduleParsedDraft(parsedDraft) && !isScheduleDraftReadyForImport(parsedDraft)) {
+      return Response.json({ ok: false, message: 'Complete the highlighted schedule details before importing.' }, { status: 400 })
     }
 
     const parsedLineCount = getParsedLineCount(parsedDraft)
@@ -134,6 +138,7 @@ export async function POST(request: Request) {
         .from('data_assist_drafts')
         .update({
           status: 'verified',
+          parsed_payload: parsedDraft,
           review_note: verifiedNote,
           reviewed_by_user_id: requester.userId,
           reviewed_at: reviewedAt,
@@ -400,6 +405,27 @@ function toParsedDraft(value: unknown): DataAssistScorecardParsedDraft | DataAss
   const draft = value as Partial<DataAssistScorecardParsedDraft>
   if (!draft.externalMatchId || !draft.matchDate || !draft.homeTeam || !draft.awayTeam || !Array.isArray(draft.lines)) return null
   return draft as DataAssistScorecardParsedDraft
+}
+
+function toReviewedParsedDraft(
+  storedValue: unknown,
+  submittedValue: unknown,
+): DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft | null {
+  if (isScheduleParsedDraft(submittedValue)) {
+    return {
+      ...submittedValue,
+      matches: submittedValue.matches.map((match) => ({
+        ...match,
+        reviewNotes: getScheduleMatchReviewNotes(match),
+      })),
+      matchCount: submittedValue.matches.length,
+    }
+  }
+  return toParsedDraft(storedValue)
+}
+
+function isScheduleDraftReadyForImport(draft: DataAssistScheduleParsedDraft) {
+  return draft.matches.length > 0 && draft.matches.every((match) => match.reviewNotes.length === 0)
 }
 
 function getParsedLineCount(value: unknown) {

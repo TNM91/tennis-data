@@ -827,6 +827,7 @@ export async function reviewMyDataAssistOcrDraft(input: {
   batchId: string
   draftId: string
   decision: DataAssistOcrReviewDecision
+  parsedDraft?: DataAssistScheduleParsedDraft
 }) {
   const normalizedBatchId = cleanText(input.batchId)
   const normalizedDraftId = cleanText(input.draftId)
@@ -850,6 +851,7 @@ export async function reviewMyDataAssistOcrDraft(input: {
       batchId: normalizedBatchId,
       draftId: normalizedDraftId,
       decision: input.decision,
+      parsedDraft: input.parsedDraft,
     }),
   })
   const result = (await response.json().catch(() => null)) as {
