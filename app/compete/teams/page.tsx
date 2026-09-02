@@ -146,9 +146,10 @@ function CompeteTeamsContent() {
       setLoading(!cachedConnections)
 
       if (cachedConnections) {
-        setConnections(cachedConnections.connections)
+        const acceptedConnections = cachedConnections.connections.filter((connection) => connection.status === 'accepted')
+        setConnections(acceptedConnections)
         setPendingConnections(cachedConnections.pending)
-        void loadSupportingTeamContext(cachedConnections.connections)
+        void loadSupportingTeamContext(acceptedConnections)
       }
 
       try {
@@ -158,9 +159,10 @@ function CompeteTeamsContent() {
 
         if (!active) return
 
-        setConnections(connectionResult.connections)
+        const acceptedConnections = connectionResult.connections.filter((connection) => connection.status === 'accepted')
+        setConnections(acceptedConnections)
         setPendingConnections(connectionResult.pending)
-        void loadSupportingTeamContext(connectionResult.connections)
+        void loadSupportingTeamContext(acceptedConnections)
       } catch (error) {
         if (!active) return
         if (!cachedConnections) {
