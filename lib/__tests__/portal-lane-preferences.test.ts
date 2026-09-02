@@ -73,6 +73,7 @@ describe('portal shortcut personalization', () => {
     expect(portalSource).toContain('writePinnedPortalShortcuts(draftPinnedPortalShortcutIds, userId)')
     expect(portalSource).toContain('loadPortalShortcutCloudState(accessToken, controller.signal)')
     expect(portalSource).toContain('syncPortalShortcutsToCloud(savedShortcutIds, true)')
+    expect(portalSource).not.toContain('syncPortalShortcutsToCloud(pinnedPortalShortcutIds, true)')
     expect(portalSource).toContain('draftPinnedPortalShortcuts.map((shortcut)')
     expect(portalSource).toContain('unpinnedPortalShortcutOptions.map((shortcut)')
     expect(portalSource).toContain('data-portal-shortcut-selected={selected')

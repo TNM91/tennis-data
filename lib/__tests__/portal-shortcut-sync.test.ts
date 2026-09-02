@@ -27,11 +27,11 @@ describe('portal shortcut cloud sync', () => {
     expect(toolbarSource).toContain('portalShortcutInteractionVersionRef.current !== restoreVersion')
   })
 
-  it('migrates a first signed-in device and syncs later edits or cue dismissal', () => {
+  it('migrates a first signed-in device and syncs later edits without overwriting pins when the cue is dismissed', () => {
     expect(toolbarSource).toContain('if (!cloud.shortcuts)')
     expect(toolbarSource).toContain('shortcuts: localShortcutIds')
     expect(toolbarSource).toContain('syncPortalShortcutsToCloud(savedShortcutIds, true)')
-    expect(toolbarSource).toContain('syncPortalShortcutsToCloud(pinnedPortalShortcutIds, true)')
+    expect(toolbarSource).not.toContain('syncPortalShortcutsToCloud(pinnedPortalShortcutIds, true)')
   })
 
   it('expands the persisted shortcut count to seven without changing the allowed catalog', () => {

@@ -659,7 +659,6 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     portalShortcutInteractionVersionRef.current += 1
     dismissPortalPersonalizationCue(userId)
     setShowPortalPersonalizationCue(false)
-    syncPortalShortcutsToCloud(pinnedPortalShortcutIds, true)
   }
 
   function applyPortalPinRecommendation() {

@@ -149,12 +149,11 @@ function CompeteTeamsContent() {
         setConnections(cachedConnections.connections)
         setPendingConnections(cachedConnections.pending)
         void loadSupportingTeamContext(cachedConnections.connections)
-        if (connectionRefresh === 0) return
       }
 
       try {
         const connectionResult = accessToken
-          ? await fetchTeamConnections(accessToken, { force: connectionRefresh > 0, userId })
+          ? await fetchTeamConnections(accessToken, { force: Boolean(cachedConnections) || connectionRefresh > 0, userId })
           : { pending: [], connections: [], offers: null }
 
         if (!active) return
