@@ -2167,6 +2167,9 @@ function PublishedLineupPin({
     : null
   const backupHref = lateArrival ? buildTeamRoomLateArrivalBuilderHref(lineupHref, lateArrival) : ''
   const focusedLineupHref = lateArrival ? buildTeamRoomLineupCourtHref(lineupHref, lateArrival.courtLabel) : lineupHref
+  const shareScorecardHref = receipt
+    ? `${matchupSheetHref}${matchupSheetHref.includes('?') ? '&' : '?'}confirmed=1`
+    : matchupSheetHref
   function openArrivalPlayer(playerName: string, courtLabel: string) {
     setEditingArrivalPlayer(`${courtLabel}:${playerName}`)
     if (arrivalCourtDetailsRef.current) arrivalCourtDetailsRef.current.open = true
@@ -2273,7 +2276,7 @@ function PublishedLineupPin({
       {!result ? (
         <div className={styles.matchDayActions}>
           {canManage ? (
-            <Link className={styles.buttonSecondary} href={matchupSheetHref}>Print matchup sheet</Link>
+            <Link className={styles.buttonSecondary} href={shareScorecardHref}>{receipt ? 'Share / print confirmed lineup' : 'Print scorecard'}</Link>
           ) : null}
           {isPostMatch && canManage ? (
             <Link className={styles.buttonPrimary} href={scorecardHref}>Add scorecard</Link>

@@ -1488,6 +1488,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const [prefillApplied, setPrefillApplied] = useState(false)
   const [scopedResumeResolved, setScopedResumeResolved] = useState(false)
   const scopedResumeAppliedRef = useRef(false)
+  const savedLineupRestoreAppliedRef = useRef(false)
   const backupFocusHandledRef = useRef(false)
   const lastReplyRefreshRef = useRef(0)
   const futureJwtRefreshAttemptedRef = useRef(0)
@@ -4102,6 +4103,41 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   }
 
   useEffect(() => {
+    if (savedLineupRestoreAppliedRef.current || !scopedResumeResolved || !savedScenarios.length || prefillScenarioId) return
+
+    const hasDraftAssignments = teamSlots.some((slot) => slot.players.some((player) => player.playerId || player.playerName))
+    if (hasDraftAssignments) {
+      savedLineupRestoreAppliedRef.current = true
+      return
+    }
+
+    const isInCurrentScope = (scenario: ScenarioRow) => (
+      (!teamName || scenario.team_name === teamName)
+      && (!leagueName || scenario.league_name === leagueName)
+      && (!flight || scenario.flight === flight)
+      && (!matchDate || scenario.match_date === matchDate)
+      && (!opponentTeam || scenario.opponent_team === opponentTeam)
+    )
+    const hasCourtAssignments = (scenario: ScenarioRow) => normalizeSavedSlots(scenario.slots_json)
+      .some((slot) => slot.players.some((player) => player.playerId || player.playerName))
+    const currentScenario = currentScenarioId
+      ? savedScenarios.find((scenario) => scenario.id === currentScenarioId) ?? null
+      : null
+    const scopedScenario = savedScenarios.find((scenario) => isInCurrentScope(scenario) && hasCourtAssignments(scenario)) ?? null
+    const fallbackScenario = !teamName && !leagueName && !flight && !matchDate && !opponentTeam
+      ? savedScenarios.find(hasCourtAssignments) ?? null
+      : null
+    const scenarioToRestore = currentScenario ?? scopedScenario ?? fallbackScenario
+
+    savedLineupRestoreAppliedRef.current = true
+    if (!scenarioToRestore) return
+    void loadScenario(scenarioToRestore.id)
+    setMessage('Saved lineup restored. Your draft will keep saving on this phone.')
+  // The restore is intentionally a one-time handoff after the scoped state and saved scenarios are both ready.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentScenarioId, flight, leagueName, matchDate, opponentTeam, prefillScenarioId, savedScenarios, scopedResumeResolved, teamName, teamSlots])
+
+  useEffect(() => {
     if (prefillApplied) return
 
     if (prefillScenarioId) {
@@ -5926,7 +5962,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
               <div style={scenarioDeckButtonRowStyle}>
                 <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
-                  {saving ? 'Saving...' : currentScenarioId ? 'Update potential lineup' : 'Save potential lineup'}
+                  {saving ? 'Saving...' : 'Save lineup version'}
                 </PrimaryBtn>
                 <GhostBtn onClick={() => saveScenario(true)} disabled={saving}>Save as new</GhostBtn>
                 <GhostBtn onClick={() => void trackPredictionSnapshot('command-deck-track')} disabled={trackingSnapshot}>
@@ -5937,6 +5973,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 </PrimaryBtn>
                 <GhostLink href={compareHref}>Compare versions</GhostLink>
               </div>
+              <p style={subtleHelperTextStyle}>Your draft saves automatically on this phone. Save a version when you are ready to compare it, share it, or track replies.</p>
 
               {!isCaptainAccess ? (
                 <div style={{ marginTop: 16 }}>

@@ -56,6 +56,98 @@ function buildRecordResultHref(input: {
   return `/captain/record-result?${params.toString()}`
 }
 
+function wrapCanvasText(context: CanvasRenderingContext2D, text: string, maxWidth: number) {
+  const words = text.trim().split(/\s+/).filter(Boolean)
+  const lines: string[] = []
+  let line = ''
+  for (const word of words) {
+    const candidate = line ? `${line} ${word}` : word
+    if (line && context.measureText(candidate).width > maxWidth) {
+      lines.push(line)
+      line = word
+    } else {
+      line = candidate
+    }
+  }
+  if (line) lines.push(line)
+  return lines.length ? lines : ['']
+}
+
+async function createLineupImage(input: {
+  teamName: string
+  leagueName: string
+  flight: string
+  matchDate: string
+  opponent: string
+  matchTime: string
+  facility: string
+  confirmed: boolean
+  lineup: Array<{ label?: string; players?: string[] }>
+}) {
+  const courtHeight = 166
+  const canvas = document.createElement('canvas')
+  canvas.width = 1200
+  canvas.height = 460 + Math.max(input.lineup.length, 1) * courtHeight
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Lineup image could not be created.')
+
+  const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height)
+  gradient.addColorStop(0, '#071a31')
+  gradient.addColorStop(0.52, '#0c2746')
+  gradient.addColorStop(1, '#132d1c')
+  context.fillStyle = gradient
+  context.fillRect(0, 0, canvas.width, canvas.height)
+
+  context.fillStyle = 'rgba(182, 242, 72, 0.16)'
+  context.beginPath()
+  context.arc(1040, 120, 255, 0, Math.PI * 2)
+  context.fill()
+  context.fillStyle = 'rgba(78, 146, 224, 0.12)'
+  context.beginPath()
+  context.arc(160, canvas.height - 80, 330, 0, Math.PI * 2)
+  context.fill()
+
+  context.fillStyle = '#c7ef7a'
+  context.font = '800 25px Arial, sans-serif'
+  context.fillText('TENACEIQ  •  CAPTAIN', 70, 76)
+  context.fillStyle = '#ffffff'
+  context.font = '800 54px Arial, sans-serif'
+  for (const [index, line] of wrapCanvasText(context, `${input.teamName || 'Team'} lineup`, 980).slice(0, 2).entries()) {
+    context.fillText(line, 70, 142 + index * 62)
+  }
+  context.fillStyle = '#aec1d7'
+  context.font = '600 26px Arial, sans-serif'
+  context.fillText(`${formatDate(input.matchDate)}${input.matchTime ? `  •  ${input.matchTime}` : ''}`, 70, 280)
+  context.fillText(`vs ${input.opponent || 'Opponent to be confirmed'}${input.facility ? `  •  ${input.facility}` : ''}`, 70, 322)
+  context.fillStyle = '#b9ec5d'
+  context.font = '800 21px Arial, sans-serif'
+  context.fillText(input.confirmed ? 'CONFIRMED LINEUP' : 'TEAM LINEUP', 70, 378)
+
+  input.lineup.forEach((court, index) => {
+    const top = 416 + index * courtHeight
+    context.fillStyle = 'rgba(4, 17, 34, 0.72)'
+    context.strokeStyle = 'rgba(139, 191, 55, 0.58)'
+    context.lineWidth = 2
+    context.beginPath()
+    context.roundRect(58, top, 1084, 132, 22)
+    context.fill()
+    context.stroke()
+    context.fillStyle = '#b9ec5d'
+    context.font = '800 20px Arial, sans-serif'
+    context.fillText((court.label || `Court ${index + 1}`).toUpperCase(), 88, top + 44)
+    context.fillStyle = '#ffffff'
+    context.font = '800 31px Arial, sans-serif'
+    const names = (court.players || []).filter(Boolean).join('  /  ') || 'Player to be set'
+    for (const [lineIndex, line] of wrapCanvasText(context, names, 960).slice(0, 2).entries()) {
+      context.fillText(line, 88, top + 84 + lineIndex * 34)
+    }
+  })
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Lineup image could not be created.')), 'image/png')
+  })
+}
+
 function MatchupSheetContent() {
   const searchParams = useSearchParams()
   const { authResolved, session } = useAuth()
@@ -66,9 +158,12 @@ function MatchupSheetContent() {
   const requestedOpponent = cleanText(searchParams.get('opponent'))
   const requestedTime = cleanText(searchParams.get('time'))
   const requestedFacility = cleanText(searchParams.get('facility'))
+  const confirmedLineup = searchParams.get('confirmed') === '1'
   const [card, setCard] = useState<MatchupCard | null>(null)
   const [loading, setLoading] = useState(() => Boolean(teamName && requestedDate && requestedOpponent))
   const [qrCode, setQrCode] = useState('')
+  const [sharing, setSharing] = useState(false)
+  const [shareNotice, setShareNotice] = useState('')
 
   const matchDate = card?.matchDate || requestedDate
   const opponent = card?.opponent || requestedOpponent
@@ -94,6 +189,35 @@ function MatchupSheetContent() {
     })
     return `/data-assist?${params.toString()}#upload`
   }, [opponent, recordResultHref, teamName])
+
+  async function shareLineupImage() {
+    if (!lineup.length || sharing) return
+    setSharing(true)
+    setShareNotice('')
+    try {
+      const image = await createLineupImage({ teamName, leagueName, flight, matchDate, opponent, matchTime, facility, confirmed: confirmedLineup, lineup })
+      const file = new File([image], `tenaceiq-${teamName || 'team'}-lineup.png`.replace(/[^a-z0-9._-]+/gi, '-'), { type: 'image/png' })
+      if (typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ title: `${teamName || 'Team'} ${confirmedLineup ? 'confirmed ' : ''}lineup`, files: [file] })
+        setShareNotice('Lineup image ready to send.')
+      } else {
+        const url = URL.createObjectURL(image)
+        const download = document.createElement('a')
+        download.href = url
+        download.download = file.name
+        document.body.append(download)
+        download.click()
+        download.remove()
+        URL.revokeObjectURL(url)
+        setShareNotice('Lineup image downloaded. Attach it to your team text.')
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+      setShareNotice('The lineup image could not be shared. Please try again.')
+    } finally {
+      setSharing(false)
+    }
+  }
 
   useEffect(() => {
     if (!authResolved || !session?.access_token || !teamName || !requestedDate || !requestedOpponent) return
@@ -140,15 +264,19 @@ function MatchupSheetContent() {
   return (
     <main className={styles.page}>
       <section className={styles.screenControls} aria-label="Matchup sheet actions">
-        <Link href={recordResultHref} className={styles.actionSecondary}>Record results</Link>
-        <Link href={scanHref} className={styles.actionSecondary}>Capture scorecard</Link>
-        <button type="button" className={styles.actionPrimary} onClick={() => window.print()}>Print matchup sheet</button>
+        <button type="button" className={styles.actionPrimary} disabled={!lineup.length || sharing} onClick={() => void shareLineupImage()}>
+          {sharing ? 'Preparing image…' : 'Share lineup image'}
+        </button>
+        <button type="button" className={styles.actionSecondary} onClick={() => window.print()}>Print scorecard</button>
+        <Link href={scanHref} className={styles.actionSecondary}>Capture completed scorecard</Link>
+        <Link href={recordResultHref} className={styles.actionSecondary}>Enter results</Link>
       </section>
+      {shareNotice ? <p className={styles.shareNotice} role="status">{shareNotice}</p> : null}
 
       <article className={styles.sheet} aria-label="Printable matchup sheet">
         <header className={styles.sheetHeader}>
           <div>
-            <p>TiQ Captain match sheet</p>
+            <p>TiQ Captain scorecard</p>
             <h1>{teamName || 'Team matchup'}</h1>
             <span>{leagueName || 'League'}{flight ? ` · ${flight}` : ''}</span>
           </div>
@@ -173,8 +301,8 @@ function MatchupSheetContent() {
 
         <section className={styles.instructions}>
           <div>
-            <strong>Bring this to the match.</strong>
-            <span>Write scores below, then scan the code to enter a verified TiQ result.</span>
+            <strong>Send the lineup, then bring this to the match.</strong>
+            <span>Write scores below, then scan the code to read and update the verified TiQ result.</span>
           </div>
           <div className={styles.qrBlock}>
             {qrCode ? <Image src={qrCode} alt="Scan to record this match's result in TiQ" width={94} height={94} unoptimized /> : <span>TiQ</span>}
@@ -206,7 +334,7 @@ function MatchupSheetContent() {
         </section>
 
         <footer className={styles.sheetFooter}>
-          <span>TiQ keeps this scorecard connected to the correct match.</span>
+          <span>This scorecard stays connected to the confirmed lineup and match.</span>
           <span>More Tennis. Less Chaos.</span>
         </footer>
       </article>
