@@ -25,7 +25,7 @@ describe('Captain Tri-Level best-lineup flow', () => {
     expect(source).toContain('<strong>Next: ask your players</strong>')
     expect(source).toContain('Saves this lineup, then opens messages with the players and match details ready.')
     expect(source).toContain('{saveAndAskLabel}')
-    expect(source).toContain('<GhostLink href="#captain-lineup-courts">Review lineup</GhostLink>')
+    expect(source).toContain('<GhostBtn onClick={() => focusTeamCourts()}>Review lineup</GhostBtn>')
   })
 
   it('keeps waiting players available for projected lineup building by default', () => {
