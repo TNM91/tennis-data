@@ -1449,6 +1449,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const [manualOpponentRosterOpen, setManualOpponentRosterOpen] = useState(false)
   const [builderMode, setBuilderMode] = useState<BuilderMode>('manual')
   const [expandedTeamSlotId, setExpandedTeamSlotId] = useState('')
+  const [matchSetupOpen, setMatchSetupOpen] = useState(
+    () => !(initialTeamName && initialOpponentTeam && initialMatchDate)
+  )
 
   const [availabilityOnly, setAvailabilityOnly] = useState(initialContext.availabilityOnly)
   const [hideUnavailable, setHideUnavailable] = useState(false)
@@ -4360,6 +4363,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
   const currentScenario = savedScenarios.find((scenario) => scenario.id === currentScenarioId) ?? null
   const hasCoreContext = !!teamName && !!opponentTeam && !!matchDate
+  const matchSetupSummary = hasCoreContext
+    ? `${teamName} vs ${opponentTeam} · ${formatDate(matchDate || null)}`
+    : 'Choose your team and scheduled match to fill in opponent and date.'
   const hasComparisonCandidates = scenarioOptions.length > 1
   const teamCourtProgress = useMemo(() => teamSlots.map((slot) => {
     const selectedPlayers = slot.players.filter((player) => player.playerId || player.playerName.trim()).length
@@ -5378,11 +5384,28 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
         <div style={builderLayoutResponsive(isTablet)}>
           <div style={columnStyle}>
-            <section style={surfaceCardStrong}>
-              <div style={sectionHeaderStyle}>
+            <details
+              open={matchSetupOpen}
+              onToggle={(event) => setMatchSetupOpen(event.currentTarget.open)}
+              style={surfaceCardStrong}
+            >
+              <summary style={detailsSummaryStyle}>
                 <div>
                   <p style={sectionKicker}>Match setup</p>
-                  <h2 style={sectionTitle}>Pick the match</h2>
+                  <h2 style={sectionTitle}>{hasCoreContext ? 'Match ready' : 'Pick the match'}</h2>
+                  <p style={sectionBodyTextStyle}>
+                    {matchSetupSummary}
+                  </p>
+                </div>
+                <span style={hasCoreContext ? miniPillGreenStyle : miniPillBlueStyle}>
+                  {hasCoreContext ? 'Ready' : 'Needs match'}
+                </span>
+              </summary>
+
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>Match details</p>
+                  <h3 style={sectionTitleSmall}>Edit this match</h3>
                   <p style={sectionBodyTextStyle}>
                     Choose the team and match. A clear name is added automatically if you leave it blank.
                   </p>
@@ -5509,7 +5532,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                   Hide players marked out
                 </label>
               </div>
-            </section>
+            </details>
 
             <details style={surfaceCard}>
               <summary style={detailsSummaryStyle}>

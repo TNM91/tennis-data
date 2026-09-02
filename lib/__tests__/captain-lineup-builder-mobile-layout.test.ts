@@ -209,6 +209,15 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('builderModeOptionStyle')).toContain("width: '100%'")
   })
 
+  it('starts completed match setup collapsed while keeping its match summary visible', () => {
+    expect(source).toContain('const [matchSetupOpen, setMatchSetupOpen] = useState(')
+    expect(source).toContain('() => !(initialTeamName && initialOpponentTeam && initialMatchDate)')
+    expect(source).toContain('const matchSetupSummary = hasCoreContext')
+    expect(source).toContain('open={matchSetupOpen}')
+    expect(source).toContain('onToggle={(event) => setMatchSetupOpen(event.currentTarget.open)}')
+    expect(source).toContain("{hasCoreContext ? 'Ready' : 'Needs match'}")
+  })
+
   it('makes optimizer changes visible and keeps Tri-Level on three rating-specific doubles courts', () => {
     expect(source).toContain('This is a potential lineup. Review it, then confirm each player')
     expect(source).toContain('role="status" aria-live="polite"')
