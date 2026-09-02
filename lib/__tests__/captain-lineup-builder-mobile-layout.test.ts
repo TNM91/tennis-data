@@ -22,6 +22,7 @@ describe('Captain lineup builder mobile layout guards', () => {
       'columnStyle',
       'surfaceCardStrong',
       'surfaceCard',
+      'opponentCourtSetupChoiceStyle',
       'sectionHeaderStyle',
       'filtersGridStyle',
       'contextSummaryGridStyle',
