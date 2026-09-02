@@ -114,6 +114,7 @@ import {
   type CaptainAvailabilityInvite,
   type CaptainAvailabilityResponse,
 } from '@/lib/captain-availability-progress'
+import { mergeCaptainWeeklyResponses } from '@/lib/captain-weekly-responses'
 import {
   buildCaptainAvailabilityResponseSignature,
   CAPTAIN_AVAILABILITY_REFRESH_MS,
@@ -2232,7 +2233,11 @@ function CaptainHubContent() {
       if (scenarioError) throw new Error(scenarioError.message)
 
       setParticipants((participantResult.data || []) as MatchPlayer[])
-      setRosterMembers(rosterMemberResult.error ? [] : ((rosterMemberResult.data || []) as TeamRosterMember[]))
+      if (rosterMemberResult.error) {
+        setError(`Your roster could not refresh. Keeping the last saved roster visible. (${rosterMemberResult.error.message})`)
+      } else {
+        setRosterMembers((rosterMemberResult.data || []) as TeamRosterMember[])
+      }
       setCaptainRosterContacts(rosterContactsResult.error ? [] : ((rosterContactsResult.data || []) as CaptainRosterContactRow[]))
 
       const typedScenarios = (scenarioData || []) as Array<{ id: string; scenario_name: string; match_date: string | null }>
@@ -2958,9 +2963,14 @@ function CaptainHubContent() {
       else item.losses += 1
     }
 
-    for (const row of rosterMembers) {
-      if (selectedLeague && safeText(row.league_name, '') && safeText(row.league_name) !== selectedLeague) continue
-      if (selectedFlight && safeText(row.flight, '') && safeText(row.flight) !== selectedFlight) continue
+    const selectedRosterMembers = rosterMembers.filter((row) => {
+      if (selectedLeague && safeText(row.league_name, '') && safeText(row.league_name) !== selectedLeague) return false
+      if (selectedFlight && safeText(row.flight, '') && safeText(row.flight) !== selectedFlight) return false
+      return true
+    })
+    const visibleRosterMembers = selectedRosterMembers.length ? selectedRosterMembers : rosterMembers
+
+    for (const row of visibleRosterMembers) {
       const player = normalizePlayerRelation(row.players)
       const id = player?.id || row.player_id
       const name = player?.name || safeText(row.player_name)
@@ -4721,9 +4731,19 @@ function CaptainHubContent() {
   const matchDayResponseRows = useMemo(() => {
     if (!workspaceState.currentEventKey) return []
 
-    return readLocalArray<CaptainWeeklyResponse>(WEEKLY_RESPONSES_STORAGE_KEY)
-      .filter((row) => safeText(row.event_key) === workspaceState.currentEventKey)
-  }, [workspaceState.currentEventKey])
+    return mergeCaptainWeeklyResponses({
+      eventKey: workspaceState.currentEventKey,
+      matchDate: matchWeekDate,
+      localResponses: readLocalArray<CaptainWeeklyResponse>(WEEKLY_RESPONSES_STORAGE_KEY),
+      liveResponses: captainAvailabilityRequestSummary?.responses ?? [],
+      resolveContactId: (response) => {
+        const responseName = normalizeCaptainRosterContactKey(response.player_name)
+        return captainRosterContacts.find((contact) => (
+          normalizeCaptainRosterContactKey(contact.full_name) === responseName
+        ))?.id || response.player_id || response.player_name
+      },
+    })
+  }, [captainAvailabilityRequestSummary?.responses, captainRosterContacts, matchWeekDate, workspaceState.currentEventKey])
 
   const captainLiveAvailabilityPeople = useMemo(() => {
     const summary = captainAvailabilityRequestSummary
