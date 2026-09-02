@@ -139,6 +139,7 @@ type MatchPlayerLinkRow = {
   match_id: string
   player_id: string
   side: 'A' | 'B' | null
+  seat: number | null
 }
 
 type TeamRosterMemberRow = {
@@ -296,6 +297,13 @@ type AppliedLineupNotice = {
   totalCourts: number
 }
 
+type HistoricalLineupSuggestion = {
+  matchDate: string
+  opponent: string
+  courts: Array<{ lineNumber: number; playerIds: string[] }>
+  returningPlayerCount: number
+}
+
 type AvailabilityConfirmationStage = 'idle' | 'saving-lineup' | 'preparing-replies' | 'opening-messages'
 
 type CourtAskSignal = {
@@ -357,6 +365,8 @@ type LineupBuilderPayload = {
   players?: PlayerRow[]
   matches?: MatchTeamRow[]
   matchPlayers?: MatchPlayerLinkRow[]
+  historicalLineMatches?: MatchTeamRow[]
+  historicalLineMatchPlayers?: MatchPlayerLinkRow[]
   rosterMembers?: TeamRosterMemberRow[]
   availability?: AvailabilityRow[]
   captainRosterContacts?: CaptainRosterContactRow[]
@@ -1377,6 +1387,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [matches, setMatches] = useState<MatchTeamRow[]>([])
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayerLinkRow[]>([])
+  const [historicalLineMatches, setHistoricalLineMatches] = useState<MatchTeamRow[]>([])
+  const [historicalLineMatchPlayers, setHistoricalLineMatchPlayers] = useState<MatchPlayerLinkRow[]>([])
   const [rosterMembers, setRosterMembers] = useState<TeamRosterMemberRow[]>([])
   const [teamRosterPlayers, setTeamRosterPlayers] = useState<PlayerRow[]>([])
   const [scopedRosterPlayerIds, setScopedRosterPlayerIds] = useState<string[]>([])
@@ -1803,6 +1815,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     setPlayers(result.players ?? [])
     setMatches(nextMatches)
     setMatchPlayers(nextMatchPlayers)
+    setHistoricalLineMatches(result.historicalLineMatches ?? [])
+    setHistoricalLineMatchPlayers(result.historicalLineMatchPlayers ?? [])
     setRosterMembers(result.rosterMembers ?? [])
     setTeamRosterPlayers(result.players ?? [])
     setAvailability(result.availability ?? [])
@@ -4333,7 +4347,103 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const currentScenario = savedScenarios.find((scenario) => scenario.id === currentScenarioId) ?? null
   const hasCoreContext = !!teamName && !!opponentTeam && !!matchDate
   const hasComparisonCandidates = scenarioOptions.length > 1
-  const lineupHasAssignments = teamSlots.some((slot) => slot.players.some((player) => player.playerId))
+  const teamCourtProgress = useMemo(() => teamSlots.map((slot) => {
+    const selectedPlayers = slot.players.filter((player) => player.playerId || player.playerName.trim()).length
+    return {
+      id: slot.id,
+      label: slot.label,
+      selectedPlayers,
+      requiredPlayers: slot.players.length,
+      openPlayers: Math.max(0, slot.players.length - selectedPlayers),
+    }
+  }), [teamSlots])
+  const teamAssignedPlayerCount = teamCourtProgress.reduce((total, court) => total + court.selectedPlayers, 0)
+  const teamRequiredPlayerCount = teamCourtProgress.reduce((total, court) => total + court.requiredPlayers, 0)
+  const completedTeamCourtCount = teamCourtProgress.filter((court) => court.openPlayers === 0).length
+  const firstOpenTeamCourt = teamCourtProgress.find((court) => court.openPlayers > 0) ?? null
+  const teamLineupComplete = completedTeamCourtCount === teamCourtProgress.length && teamRequiredPlayerCount > 0
+  const lineupHasAssignments = teamAssignedPlayerCount > 0
+  const recentHistoricalLineup = useMemo<HistoricalLineupSuggestion | null>(() => {
+    const normalizedTeam = normalizeTeamName(teamName)
+    if (!normalizedTeam || !historicalLineMatches.length || !historicalLineMatchPlayers.length) return null
+
+    const currentRosterIds = new Set(myPlayerPool.map((player) => player.id))
+    const historicalMatches = historicalLineMatches.filter((match) => {
+      const home = normalizeTeamName(match.home_team)
+      const away = normalizeTeamName(match.away_team)
+      if (home !== normalizedTeam && away !== normalizedTeam) return false
+      if (!match.match_date || (matchDate && match.match_date >= matchDate)) return false
+      if (leagueName && match.league_name && match.league_name !== leagueName) return false
+      if (flight && match.flight && match.flight !== flight) return false
+      return true
+    })
+
+    const grouped = new Map<string, { matchDate: string; opponent: string; lines: MatchTeamRow[] }>()
+    for (const match of historicalMatches) {
+      const opponent = normalizeTeamName(match.home_team) === normalizedTeam ? match.away_team : match.home_team
+      const key = [match.match_date, normalizeTeamName(opponent), match.match_time || '', match.facility || ''].join('|')
+      const group = grouped.get(key) ?? { matchDate: match.match_date || '', opponent: opponent || 'your opponent', lines: [] }
+      group.lines.push(match)
+      grouped.set(key, group)
+    }
+
+    const groups = [...grouped.values()].sort((a, b) => b.matchDate.localeCompare(a.matchDate))
+    for (const group of groups) {
+      const courts = group.lines
+        .map((match, fallbackIndex) => {
+          const expectedSide = normalizeTeamName(match.home_team) === normalizedTeam ? 'A' : 'B'
+          const playerIds = historicalLineMatchPlayers
+            .filter((player) => player.match_id === match.id && player.side === expectedSide && currentRosterIds.has(player.player_id))
+            .sort((a, b) => (a.seat ?? 99) - (b.seat ?? 99))
+            .map((player) => player.player_id)
+          return { lineNumber: Number(match.line_number) || fallbackIndex + 1, playerIds }
+        })
+        .filter((court) => court.playerIds.length)
+        .sort((a, b) => a.lineNumber - b.lineNumber)
+
+      const returningPlayerCount = new Set(courts.flatMap((court) => court.playerIds)).size
+      if (courts.length && returningPlayerCount) {
+        return { matchDate: group.matchDate, opponent: group.opponent, courts, returningPlayerCount }
+      }
+    }
+    return null
+  }, [flight, historicalLineMatchPlayers, historicalLineMatches, leagueName, matchDate, myPlayerPool, teamName])
+  const recentHistoricalLineupDetail = recentHistoricalLineup
+    ? `${formatDate(recentHistoricalLineup.matchDate)} vs ${recentHistoricalLineup.opponent} · fills open spots only`
+    : ''
+
+  function applyRecentHistoricalLineup() {
+    if (!recentHistoricalLineup) return
+    const playerById = new Map(myPlayerPool.map((player) => [player.id, player]))
+    const alreadyAssignedPlayerIds = new Set(teamSlots.flatMap((slot) => slot.players.map((player) => player.playerId).filter(Boolean)))
+    let filled = 0
+    const nextSlots = teamSlots.map((slot, index) => {
+      const historicalCourt = recentHistoricalLineup.courts.find((court) => court.lineNumber === index + 1)
+        ?? recentHistoricalLineup.courts[index]
+      if (!historicalCourt) return slot
+      const remainingPlayerIds = [...historicalCourt.playerIds]
+      const players = slot.players.map((player) => {
+        if (player.playerId || player.playerName.trim()) return player
+        const nextPlayerIndex = remainingPlayerIds.findIndex((playerId) => !alreadyAssignedPlayerIds.has(playerId))
+        const nextPlayerId = nextPlayerIndex >= 0 ? remainingPlayerIds.splice(nextPlayerIndex, 1)[0] : undefined
+        const nextPlayer = nextPlayerId ? playerById.get(nextPlayerId) : null
+        if (!nextPlayer) return player
+        alreadyAssignedPlayerIds.add(nextPlayer.id)
+        filled += 1
+        return { playerId: nextPlayer.id, playerName: nextPlayer.name }
+      })
+      return { ...slot, players }
+    })
+
+    if (!filled) {
+      setMessage('Your court choices are already filled, so no recent players were added.')
+      setError('')
+      return
+    }
+    setTeamSlots(nextSlots)
+    setMessage(`Filled ${filled} open player${filled === 1 ? '' : 's'} from the ${formatDate(recentHistoricalLineup.matchDate)} lineup vs ${recentHistoricalLineup.opponent}. Your existing court choices stayed in place.`)
+    setError('')
+  }
   const builderReadiness = [
     {
       label: 'Potential lineup named',
@@ -4384,13 +4494,13 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     const waiting = players.filter((player) => player.label === 'No response')
     return { players, confirmed, maybe, out, waiting }
   }, [builderPlayers, myPlayerPool, teamSlots])
-  const finalLineupReady = completedCourtCount === analysis.lines.length
+  const finalLineupReady = teamLineupComplete
     && assignedTeamReplySummary.players.length > 0
     && assignedTeamReplySummary.confirmed.length === assignedTeamReplySummary.players.length
   const finalLineupReadinessTitle = finalLineupReady
     ? 'Every court is set and every selected player is in.'
-    : completedCourtCount !== analysis.lines.length
-      ? `${completedCourtCount} of ${analysis.lines.length} courts are complete.`
+    : !teamLineupComplete
+      ? `${completedTeamCourtCount} of ${teamCourtProgress.length} courts are set.`
       : assignedTeamReplySummary.waiting.length
         ? `${assignedTeamReplySummary.waiting.length} selected player${assignedTeamReplySummary.waiting.length === 1 ? '' : 's'} still need${assignedTeamReplySummary.waiting.length === 1 ? 's' : ''} to reply.`
         : assignedTeamReplySummary.maybe.length
@@ -4400,23 +4510,21 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             : 'Name a player on a court to start the final check.'
   const finalLineupReadinessDetail = finalLineupReady
     ? 'Review it in Team Room, then send the complete lineup with match details when you are ready.'
+    : firstOpenTeamCourt
+      ? `Finish ${firstOpenTeamCourt.label}: choose ${firstOpenTeamCourt.openPlayers} more player${firstOpenTeamCourt.openPlayers === 1 ? '' : 's'}.`
     : assignedTeamReplySummary.waiting.length
       ? `Waiting on ${assignedTeamReplySummary.waiting.slice(0, 2).map((player) => player.name).join(' and ')}${assignedTeamReplySummary.waiting.length > 2 ? ` and ${assignedTeamReplySummary.waiting.length - 2} more` : ''}.`
       : 'A player is selectable before they reply, but only an In reply clears the final lineup check.'
-  const availablePlayerCount = myPlayerPool.filter((player) => {
-    const status = (player.availabilityStatus ?? '').trim().toLowerCase()
-    return status === 'available' || status === 'yes' || status === 'in' || status === 'maybe'
-  }).length
   const mobileLineupPulse = [
     {
       label: 'Courts',
-      value: `${completedCourtCount}/${analysis.lines.length}`,
-      detail: completedCourtCount === analysis.lines.length ? 'Ready to review' : 'Need players',
+      value: `${teamAssignedPlayerCount}/${teamRequiredPlayerCount}`,
+      detail: teamLineupComplete ? 'Courts set' : firstOpenTeamCourt ? `Finish ${firstOpenTeamCourt.label}` : 'Choose players',
     },
     {
       label: 'Replies',
-      value: `${availablePlayerCount}`,
-      detail: myPlayerPool.length ? `of ${myPlayerPool.length} rostered` : 'Add roster',
+      value: `${assignedTeamReplySummary.confirmed.length}/${assignedTeamReplySummary.players.length}`,
+      detail: assignedTeamReplySummary.players.length ? 'Players in' : 'Choose players',
     },
     {
       label: 'Roster',
@@ -4495,7 +4603,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               <h1 style={builderControlTitleStyle}>Build a potential lineup.</h1>
             </div>
             <span style={lineupHasAssignments ? miniPillGreenStyle : miniPillSlateStyle}>
-              {lineupHasAssignments ? `${formatPercent(analysis.projection)} projected` : 'Start lineup'}
+              {lineupHasAssignments ? `${teamAssignedPlayerCount}/${teamRequiredPlayerCount} selected` : 'Start lineup'}
             </span>
           </div>
 
@@ -4512,7 +4620,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 <summary style={builderMoreActionsSummaryStyle}>More lineup actions</summary>
                 <div style={builderMoreActionsBodyStyle}>
                   <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
-                    {saving ? 'Saving...' : currentScenarioId ? 'Update potential lineup' : 'Save potential lineup'}
+                    {saving ? 'Saving...' : currentScenarioId ? 'Update lineup version' : 'Save lineup version'}
                   </PrimaryBtn>
                   <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare versions</Link>
                   <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
@@ -4522,7 +4630,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           ) : (
             <div style={builderControlRowStyle(isSmallMobile)}>
               <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
-                {saving ? 'Saving...' : currentScenarioId ? 'Update potential lineup' : 'Save potential lineup'}
+                {saving ? 'Saving...' : currentScenarioId ? 'Update lineup version' : 'Save lineup version'}
               </PrimaryBtn>
               <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare versions</Link>
               <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
@@ -4827,13 +4935,11 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             <section style={mobileCourtFocusStyle} aria-label="Lineup next decision">
               <div>
                 <p style={sectionKicker}>Next decision</p>
-                <h2 style={mobileCourtFocusTitleStyle}>{finalLineupReady ? 'Ready to send.' : 'Set the courts.'}</h2>
+                <h2 style={mobileCourtFocusTitleStyle}>{finalLineupReady ? 'Ready to send.' : finalLineupReadinessTitle}</h2>
                 <p style={mobileCourtFocusTextStyle}>
                   {finalLineupReady
                     ? 'Every selected player is in. Send one clear lineup and match update to the team.'
-                    : lineupHasAssignments
-                      ? `${formatPercent(analysis.projection)} projected. Review the pairings, then ask players.`
-                      : 'Start with the three team courts. TiQ can fill a balanced first draft for you.'}
+                    : finalLineupReadinessDetail}
                 </p>
                 <div style={mobileLineupPulseStyle} aria-label="Lineup readiness pulse">
                   {mobileLineupPulse.map((item) => (
@@ -4844,7 +4950,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                     </div>
                   ))}
                 </div>
-                {mobileCourtMap.length ? (
+                {builderMode === 'insights' && mobileCourtMap.length ? (
                   <div style={mobileCourtMapShellStyle} aria-label="Court map">
                     <div style={mobileCourtMapHeaderStyle}>
                       <span style={mobileCourtMapTitleStyle}>Court map</span>
@@ -4866,10 +4972,22 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 ) : null}
               </div>
               <div style={mobileCourtFocusActionsStyle}>
-                {!finalLineupReady ? (
-                  <PrimaryBtn onClick={() => applyOptimizedPlan('best')}>
-                    {lineupHasAssignments ? 'Refresh lineup' : 'Build lineup'}
-                  </PrimaryBtn>
+                {finalLineupReady ? (
+                  <Link href={teamRoomHref} style={primaryButton}>Send lineup to team</Link>
+                ) : firstOpenTeamCourt ? (
+                  <GhostLink href={`#captain-lineup-slot-${firstOpenTeamCourt.id}`}>Finish {firstOpenTeamCourt.label}</GhostLink>
+                ) : (
+                  <GhostBtn onClick={() => void refreshAvailabilityReplies()} disabled={refreshingReplies}>
+                    {refreshingReplies ? 'Checking replies...' : 'Check replies'}
+                  </GhostBtn>
+                )}
+                {builderMode === 'manual' ? (
+                  <GhostBtn onClick={openOpponentCourts}>Scout opponent &amp; forecast</GhostBtn>
+                ) : (
+                  <GhostBtn onClick={() => setBuilderMode('manual')}>Back to my lineup</GhostBtn>
+                )}
+                {recentHistoricalLineup ? (
+                  <GhostBtn onClick={applyRecentHistoricalLineup}>Use recent lineup</GhostBtn>
                 ) : null}
                 <GhostLink href="#captain-lineup-courts">Review courts</GhostLink>
               </div>
@@ -4900,7 +5018,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               </section>
             ) : null}
           </>
-        ) : <section style={decisionBoardShellStyle}>
+        ) : builderMode === 'insights' ? <section style={decisionBoardShellStyle}>
           <div style={decisionBoardHeaderStyle}>
             <div>
               <p style={sectionKicker}>Captain scorecard</p>
@@ -5015,6 +5133,58 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               </div>
             </div>
           ) : null}
+        </section> : <section style={decisionBoardShellStyle} aria-label="Your lineup next">
+          <div style={decisionBoardHeaderStyle}>
+            <div>
+              <p style={sectionKicker}>Your lineup next</p>
+              <h2 style={decisionBoardTitleStyle}>{finalLineupReady ? 'Ready to send.' : finalLineupReadinessTitle}</h2>
+              <p style={sectionBodyTextStyle}>Finish your courts and confirm your players. Opponent scouting is optional.</p>
+            </div>
+            <span style={finalLineupReady ? miniPillGreenStyle : miniPillBlueStyle}>{teamAssignedPlayerCount}/{teamRequiredPlayerCount} selected</span>
+          </div>
+
+          <div style={decisionBoardGridStyle}>
+            <div style={decisionHeroCardStyle}>
+              <div style={decisionCardLabelStyle}>Your courts</div>
+              <div style={decisionHeroValueStyle}>{completedTeamCourtCount}/{teamCourtProgress.length}</div>
+              <div style={decisionCardTextStyle}>{teamLineupComplete ? 'Every court has a pair.' : firstOpenTeamCourt ? `${firstOpenTeamCourt.label} still needs ${firstOpenTeamCourt.openPlayers} player${firstOpenTeamCourt.openPlayers === 1 ? '' : 's'}.` : 'Choose your players.'}</div>
+            </div>
+            <div style={decisionCompactCardStyle}>
+              <div style={decisionCardLabelStyle}>Player replies</div>
+              <div style={decisionCardValueStyle}>{assignedTeamReplySummary.confirmed.length}/{assignedTeamReplySummary.players.length} in</div>
+              <div style={decisionCardTextStyle}>{assignedTeamReplySummary.waiting.length ? `${assignedTeamReplySummary.waiting.length} still need to reply.` : assignedTeamReplySummary.maybe.length ? `${assignedTeamReplySummary.maybe.length} are still maybe.` : assignedTeamReplySummary.out.length ? 'Replace any player marked out.' : 'Replies are ready.'}</div>
+            </div>
+            <div style={decisionCompactCardStyle}>
+              <div style={decisionCardLabelStyle}>Opponent scouting</div>
+              <div style={decisionCardValueStyle}>Optional</div>
+              <div style={decisionCardTextStyle}>Open it when you want matchup projections and court edges.</div>
+            </div>
+            {recentHistoricalLineup ? (
+              <div style={decisionCompactCardStyle}>
+                <div style={decisionCardLabelStyle}>Recent team history</div>
+                <div style={decisionCardValueStyle}>{recentHistoricalLineup.returningPlayerCount} returning</div>
+                <div style={decisionCardTextStyle}>{recentHistoricalLineupDetail}</div>
+              </div>
+            ) : null}
+          </div>
+
+          <div style={decisionBoardActionRowStyle}>
+            {finalLineupReady ? (
+              <Link href={teamRoomHref} style={primaryButton}>Send lineup to team</Link>
+            ) : firstOpenTeamCourt ? (
+              <GhostLink href={`#captain-lineup-slot-${firstOpenTeamCourt.id}`}>Finish {firstOpenTeamCourt.label}</GhostLink>
+            ) : (
+              <GhostBtn onClick={() => void refreshAvailabilityReplies()} disabled={refreshingReplies}>
+                {refreshingReplies ? 'Checking replies...' : 'Check replies'}
+              </GhostBtn>
+            )}
+            {recentHistoricalLineup ? (
+              <GhostBtn onClick={applyRecentHistoricalLineup}>Use recent lineup</GhostBtn>
+            ) : null}
+            <GhostBtn onClick={openOpponentCourts}>Scout opponent &amp; forecast</GhostBtn>
+            <GhostLink href="#captain-lineup-courts">Review my courts</GhostLink>
+            <GhostLink href={compareHref}>Compare versions</GhostLink>
+          </div>
         </section>}
 
         {lineupVersionComparison && comparisonScenario ? (
@@ -5501,7 +5671,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           </div>
 
           <div style={columnStyle}>
-            <details open={builderMode === 'insights'} style={surfaceCardStrong}>
+            <details id="captain-lineup-insights" open={builderMode === 'insights'} style={surfaceCardStrong}>
               <summary style={detailsSummaryStyle}>
                 <div>
                   <p style={sectionKicker}>Opponent + insights</p>

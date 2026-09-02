@@ -88,7 +88,7 @@ export async function GET(request: Request) {
   if (!teamName) {
     return Response.json({
       ok: true,
-      players: [], matches: [], matchPlayers: [], rosterMembers: [], availability: [],
+      players: [], matches: [], matchPlayers: [], historicalLineMatches: [], historicalLineMatchPlayers: [], rosterMembers: [], availability: [],
       captainRosterContacts: [], captainMessageContacts: [], savedScenarios: [], tiqTeamLeagueFormats: [],
     })
   }
@@ -153,6 +153,13 @@ export async function GET(request: Request) {
     .or(`home_team.eq."${escapedTeam}",away_team.eq."${escapedTeam}"`)
     .order('match_date', { ascending: false })
     .limit(120)
+  const historicalLineMatchesPromise = service
+    .from('matches')
+    .select('id,league_name,flight,match_date,match_time,facility,home_team,away_team,line_number')
+    .not('line_number', 'is', null)
+    .or(`home_team.eq."${escapedTeam}",away_team.eq."${escapedTeam}"`)
+    .order('match_date', { ascending: false })
+    .limit(360)
   const availabilityPromise = service
     .from('lineup_availability')
     .select('id,match_date,team_name,league_name,flight,player_id,status,notes')
@@ -235,6 +242,7 @@ export async function GET(request: Request) {
     resolveOptionalQuery('team formats', formatsQuery, emptyFormatsResult),
     resolveOptionalQuery('saved scenarios', scenariosPromise, emptyScenariosResult),
   ])
+  const historicalLineMatchesResult = await resolveOptionalQuery('historical court lineups', historicalLineMatchesPromise, emptyMatchesResult, 3_500)
   const primaryError = rosterResult.error
   if (primaryError) return Response.json({ ok: false, message: primaryError.message }, { status: 500 })
 
@@ -242,7 +250,11 @@ export async function GET(request: Request) {
   const rosterPlayerIds = Array.from(new Set(rosterMembers.map((row) => row.player_id).filter((id): id is string => Boolean(id))))
   const matchIds = (matchesResult.data ?? []).map((match) => match.id)
   const matchPlayersResultPromise = matchIds.length
-    ? service.from('match_players').select('match_id,player_id,side').in('match_id', matchIds).limit(1200)
+    ? service.from('match_players').select('match_id,player_id,side,seat').in('match_id', matchIds).limit(1200)
+    : Promise.resolve({ data: [], error: null })
+  const historicalLineMatchIds = (historicalLineMatchesResult.data ?? []).map((match) => match.id)
+  const historicalLineMatchPlayersResultPromise = historicalLineMatchIds.length
+    ? service.from('match_players').select('match_id,player_id,side,seat').in('match_id', historicalLineMatchIds).limit(2400)
     : Promise.resolve({ data: [], error: null })
   const emptyMatchPlayersResult = {
     data: [],
@@ -252,11 +264,12 @@ export async function GET(request: Request) {
     statusText: 'OK',
     success: true,
   } as Awaited<typeof matchPlayersResultPromise>
-  const [playersResult, matchPlayersResult] = await Promise.all([
+  const [playersResult, matchPlayersResult, historicalLineMatchPlayersResult] = await Promise.all([
     rosterPlayerIds.length
       ? service.from('players').select(PLAYER_ROSTER_SELECT).in('id', rosterPlayerIds).order('name', { ascending: true })
       : Promise.resolve({ data: [], error: null }),
     resolveOptionalQuery('scheduled match players', matchPlayersResultPromise, emptyMatchPlayersResult, 3_500),
+    resolveOptionalQuery('historical lineup players', historicalLineMatchPlayersResultPromise, emptyMatchPlayersResult, 3_500),
   ])
   if (playersResult.error) {
     return Response.json({ ok: false, message: playersResult.error.message || 'Lineup data is unavailable.' }, { status: 500 })
@@ -272,6 +285,8 @@ export async function GET(request: Request) {
     players: playersResult.data ?? [],
     matches: matchesResult.data ?? [],
     matchPlayers: matchPlayersResult.data ?? [],
+    historicalLineMatches: historicalLineMatchesResult.data ?? [],
+    historicalLineMatchPlayers: historicalLineMatchPlayersResult.data ?? [],
     rosterMembers,
     availability: availabilityResult.data ?? [],
     captainRosterContacts: contactsResult.error ? [] : contactsResult.data ?? [],
