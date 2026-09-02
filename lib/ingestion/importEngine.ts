@@ -543,21 +543,6 @@ function buildParentMatchScore(row: ScorecardImportRow): string | null {
   return `${sideAWins}-${sideBWins}`
 }
 
-function collectRatingSeeds(...values: Array<string | null | undefined>): number[] {
-  const ratings = new Set<number>()
-  for (const value of values) {
-    const cleaned = cleanString(value)
-    if (!cleaned) continue
-
-    for (const match of cleaned.matchAll(/(?:^|\b)([1-7](?:\.[05])?)(?:\b|$)/g)) {
-      const parsed = Number(match[1])
-      if (isValidOfficialNtrp(parsed)) ratings.add(parsed)
-    }
-  }
-
-  return [...ratings]
-}
-
 function isValidOfficialNtrp(value: unknown): value is number {
   return (
     typeof value === 'number' &&
@@ -569,11 +554,11 @@ function isValidOfficialNtrp(value: unknown): value is number {
 }
 
 export function inferPlayerBaselineFromRow(row: ScorecardImportRow): number | null {
-  const ratings = collectRatingSeeds(
-    nullableString(row.flight),
-    nullableString(row.leagueName),
-  )
-  return ratings.length === 1 ? ratings[0] : null
+  // A scorecard flight describes the court being played, not a player's
+  // official USTA level. Players can play up, particularly in Tri-Level,
+  // so it must never be used to seed or replace a player baseline.
+  void row
+  return null
 }
 
 export function buildScorecardPlayerRatingSeedMap(row: ScorecardImportRow): Record<string, number> {
@@ -600,12 +585,8 @@ export function buildScorecardPlayerRatingSeedMap(row: ScorecardImportRow): Reco
     addRating(name, rating, 'player rating seed')
   }
 
-  for (const line of row.lines) {
-    if (line.ntrp === null || line.ntrp === undefined) continue
-    for (const name of [...line.sideAPlayers, ...line.sideBPlayers]) {
-      addRating(name, line.ntrp, `line ${line.lineNumber}`)
-    }
-  }
+  // Court NTRP is match context, not official player evidence. Only an
+  // explicitly supplied per-player rating may update an existing baseline.
 
   return Object.fromEntries([...ratings].map(([key, value]) => [key, value.rating]))
 }
