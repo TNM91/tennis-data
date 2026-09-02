@@ -122,7 +122,8 @@ describe('Captain projected lineup confirmation flow', () => {
     const source = readSource('app/captain/lineup-builder/page.tsx')
 
     expect(source).toContain('const assignedTeamReplySummary = useMemo(() =>')
-    expect(source).toContain('const finalLineupReady = completedCourtCount === analysis.lines.length')
+    expect(source).toContain('const finalLineupReady = teamLineupComplete')
+    expect(source).toContain('const teamLineupComplete = completedTeamCourtCount === teamCourtProgress.length')
     expect(source).toContain('Final lineup check')
     expect(source).toContain('Every court is set and every selected player is in.')
     expect(source).toContain('Review final lineup')
