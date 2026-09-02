@@ -4772,34 +4772,33 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           )}
         </section>
 
-        <section style={builderModeShellStyle} aria-label="Choose a lineup building path">
-          <div style={builderModeHeaderStyle}>
+        <section style={builderInsightToggleStyle} aria-label="Matchup insights">
+          <div style={builderInsightCopyStyle}>
             <div>
-              <p style={sectionKicker}>Build path</p>
-              <h2 style={sectionTitleSmall}>How do you want to build?</h2>
+              <p style={sectionKicker}>Optional</p>
+              <h2 style={sectionTitleSmall}>Scouting &amp; matchup forecast</h2>
+              <p style={subtleHelperTextStyle}>Build your lineup first. Open this when you want to project the opponent or see the match read.</p>
             </div>
-            <span style={miniPillBlueStyle}>{builderMode === 'manual' ? 'Hands-on' : 'Insights on'}</span>
+            <span style={builderMode === 'insights' ? miniPillGreenStyle : miniPillSlateStyle}>
+              {builderMode === 'insights' ? 'Open' : 'Optional'}
+            </span>
           </div>
-          <div style={builderModeOptionsStyle}>
-            <button
-              type="button"
-              aria-pressed={builderMode === 'manual'}
-              onClick={() => setBuilderMode('manual')}
-              style={builderModeOptionStyle(builderMode === 'manual')}
-            >
-              <strong>Build myself</strong>
-              <span>Set courts, ask players, and see live replies as you go.</span>
-            </button>
-            <button
-              type="button"
-              aria-pressed={builderMode === 'insights'}
-              onClick={() => setBuilderMode('insights')}
-              style={builderModeOptionStyle(builderMode === 'insights')}
-            >
-              <strong>Use TiQ insights</strong>
-              <span>Review recommended builds, matchup edges, and the stats behind them.</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            aria-pressed={builderMode === 'insights'}
+            onClick={() => {
+              const openingInsights = builderMode !== 'insights'
+              setBuilderMode(openingInsights ? 'insights' : 'manual')
+              if (openingInsights) {
+                window.requestAnimationFrame(() => {
+                  document.getElementById('captain-lineup-insights')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                })
+              }
+            }}
+            style={builderInsightButtonStyle}
+          >
+            {builderMode === 'insights' ? 'Back to my lineup' : 'Open matchup insights'}
+          </button>
         </section>
 
         {!!message && <div role="status" aria-live="polite" style={bannerGreenStyle}>{message}</div>}
@@ -6959,17 +6958,17 @@ const builderLayoutResponsive = (isTablet: boolean): CSSProperties => ({
   minWidth: 0,
 })
 
-const builderModeShellStyle: CSSProperties = {
+const builderInsightToggleStyle: CSSProperties = {
   display: 'grid',
-  gap: 14,
-  padding: 18,
-  borderRadius: 22,
-  border: '1px solid rgba(96,165,250,0.24)',
-  background: 'linear-gradient(135deg, rgba(30,64,175,0.16), rgba(8,13,28,0.72))',
+  gap: 10,
+  padding: '14px 16px',
+  borderRadius: 18,
+  border: '1px solid rgba(96,165,250,0.2)',
+  background: 'rgba(8,13,28,0.48)',
   minWidth: 0,
 }
 
-const builderModeHeaderStyle: CSSProperties = {
+const builderInsightCopyStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
@@ -6978,29 +6977,23 @@ const builderModeHeaderStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const builderModeOptionsStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
-  gap: 10,
-  minWidth: 0,
-}
-
-const builderModeOptionStyle = (selected: boolean): CSSProperties => ({
-  display: 'grid',
-  gap: 5,
+const builderInsightButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
   width: '100%',
   minWidth: 0,
-  padding: 15,
-  borderRadius: 17,
-  border: selected ? '1px solid rgba(190,242,100,0.84)' : '1px solid rgba(125,211,252,0.18)',
-  background: selected
-    ? 'linear-gradient(135deg, rgba(163,230,53,0.22), rgba(30,41,59,0.84))'
-    : 'rgba(15,23,42,0.68)',
-  color: 'var(--shell-copy)',
-  textAlign: 'left',
+  minHeight: 44,
+  padding: '10px 14px',
+  borderRadius: 14,
+  border: '1px solid rgba(125,211,252,0.28)',
+  background: 'rgba(30,64,175,0.18)',
+  color: '#dbeafe',
+  fontSize: 14,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
   cursor: 'pointer',
-  boxShadow: selected ? '0 0 0 2px rgba(163,230,53,0.12)' : 'none',
-})
+}
 
 const desktopInsightsDisclosureStyle: CSSProperties = {
   display: 'contents',

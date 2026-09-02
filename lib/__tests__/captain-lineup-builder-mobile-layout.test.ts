@@ -196,18 +196,19 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain('>Team contacts</GhostLink>')
   })
 
-  it('keeps hands-on building focused while putting opponent and recommendation work behind a disclosure', () => {
+  it('keeps hands-on building focused while making matchup insights a compact optional action', () => {
     expect(source).toContain("const [builderMode, setBuilderMode] = useState<BuilderMode>('manual')")
-    expect(source).toContain('Build myself')
-    expect(source).toContain('Use TiQ insights')
+    expect(source).toContain('Scouting &amp; matchup forecast')
+    expect(source).toContain('Open matchup insights')
+    expect(source).toContain('Back to my lineup')
     expect(source).toContain("<details id=\"captain-lineup-insights\" open={builderMode === 'insights'} style={surfaceCardStrong}>")
     expect(source).toContain('Opponent + insights')
     expect(source).toContain("{builderMode === 'insights' ? <div style={columnStyle}>")
-    for (const styleName of ['builderModeShellStyle', 'builderModeHeaderStyle', 'builderModeOptionsStyle']) {
+    for (const styleName of ['builderInsightToggleStyle', 'builderInsightCopyStyle', 'builderInsightButtonStyle']) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
-    expect(styleBlock('builderModeOptionsStyle')).toContain("repeat(auto-fit, minmax(min(100%, 230px), 1fr))")
-    expect(styleBlock('builderModeOptionStyle')).toContain("width: '100%'")
+    expect(styleBlock('builderInsightButtonStyle')).toContain("width: '100%'")
+    expect(source).toContain("document.getElementById('captain-lineup-insights')?.scrollIntoView")
   })
 
   it('keeps phone auto-build to one primary action and puts optimizer detail behind disclosures', () => {
