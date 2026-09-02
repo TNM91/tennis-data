@@ -31,6 +31,24 @@ describe('buildScheduleOcrDraftFromText', () => {
     expect(draft.matches[1].reviewNotes).toEqual([])
   })
 
+  it('keeps next-year schedule dates import-ready', () => {
+    const draft = buildScheduleOcrDraftFromText(
+      [
+        'Team: Meinert/The Other Guys (F)',
+        '2027 Adult 18 & Over Fall',
+        'Men 4.5',
+        'Schedule row | 1012222981 | 1/3/2027 | 8:00 AM | Meinert/The Other Guys (F) | Schnamellton (F) | Vetta West',
+        'Schedule row | 1012222984 | 1/10/2027 | 4:00 PM | Schlueter-White (F) | Meinert/The Other Guys (F) | Forest Lake Tennis Club',
+      ].join('\n'),
+      [],
+      'tesseract',
+    )
+
+    expect(draft.matches).toHaveLength(2)
+    expect(draft.matches.map((match) => match.matchDate)).toEqual(['1/3/2027', '1/10/2027'])
+    expect(draft.matches.every((match) => match.reviewNotes.length === 0)).toBe(true)
+  })
+
   it('repairs common OCR slips from full-page team schedule screenshots', () => {
     const draft = buildScheduleOcrDraftFromText(
       [
