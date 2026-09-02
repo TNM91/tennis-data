@@ -14,6 +14,7 @@ const calendarItemSelect = 'id,player_user_id,title,scheduled_date,scheduled_tim
 
 type SaveCalendarItemBody = {
   item?: PlayerCalendarItemInput
+  items?: PlayerCalendarItemInput[]
 }
 
 function cleanText(value: unknown) {
@@ -63,22 +64,37 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'Invalid calendar item request.' }, { status: 400 })
   }
 
-  const payload = buildPlayerCalendarItemPayload(body.item ?? {}, auth.userId)
-  if (!payload) {
-    return Response.json({ ok: false, message: 'Calendar title and date are required.' }, { status: 400 })
+  const requestedItems = Array.isArray(body.items)
+    ? body.items.slice(0, 100)
+    : body.item
+      ? [body.item]
+      : []
+  const payloads = requestedItems
+    .map((item) => buildPlayerCalendarItemPayload(item, auth.userId))
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+
+  if (!payloads.length) {
+    return Response.json({ ok: false, message: 'Each calendar item needs a title and date.' }, { status: 400 })
   }
 
   const { data, error } = await auth.supabase
     .from('player_calendar_items')
-    .upsert(payload, { onConflict: 'id' })
+    .upsert(payloads, { onConflict: 'id' })
     .select(calendarItemSelect)
-    .single()
 
   if (error) {
     return apiServerError('Could not save player calendar item', error, 'The calendar item could not be saved.')
   }
 
-  return Response.json({ ok: true, item: mapPlayerCalendarItemRow(data as PlayerCalendarItemRow) })
+  const items = ((data ?? []) as PlayerCalendarItemRow[]).map(mapPlayerCalendarItemRow)
+
+  return Response.json({
+    ok: true,
+    item: items[0] ?? null,
+    items,
+    savedCount: payloads.length,
+    skippedCount: requestedItems.length - payloads.length,
+  })
 }
 
 export async function DELETE(request: Request) {

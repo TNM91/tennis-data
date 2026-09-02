@@ -32,6 +32,11 @@ import { getDataAssistOcrReadiness, type DataAssistAutoAssessment } from '@/lib/
 import type { DataAssistScorecardParsedDraft } from '@/lib/data-assist-ocr'
 import { detectDataAssistExportType } from '@/lib/data-assist-export-detection'
 import type { DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
+import {
+  buildTeamScheduleCalendarItems,
+  getTeamScheduleCalendarItemId,
+  normalizeScheduleCalendarDate,
+} from '@/lib/team-schedule-calendar'
 import { isTeamSummaryDraftReadyForImport, type DataAssistTeamSummaryParsedDraft } from '@/lib/data-assist-team-summary-parser'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
@@ -288,7 +293,7 @@ export default function DataAssistPage() {
 }
 
 function DataAssistWorkspace() {
-  const { userId, authResolved } = useAuth()
+  const { userId, authResolved, session } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { isTablet, isMobile } = useViewportBreakpoints()
@@ -322,6 +327,9 @@ function DataAssistWorkspace() {
   const [deletingSubmissionId, setDeletingSubmissionId] = useState('')
   const [bulkDeletingHistory, setBulkDeletingHistory] = useState(false)
   const [importResultsBySubmission, setImportResultsBySubmission] = useState<Record<string, DataAssistImportActionResult>>({})
+  const [calendarSavingKey, setCalendarSavingKey] = useState('')
+  const [calendarSavedItemIds, setCalendarSavedItemIds] = useState<Set<string>>(() => new Set())
+  const [calendarMessage, setCalendarMessage] = useState('')
   const [latestScan, setLatestScan] = useState<{
     batchId: string
     draftId: string
@@ -1137,6 +1145,51 @@ function DataAssistWorkspace() {
     }
   }
 
+  async function saveScheduleToMyCalendar(parsedDraft: DataAssistScheduleParsedDraft, match?: DataAssistScheduleParsedDraft['matches'][number]) {
+    if (!session?.access_token) {
+      setError('Sign in to add this schedule to My Calendar.')
+      return
+    }
+
+    const allItems = buildTeamScheduleCalendarItems({ ...parsedDraft, calendarOwnerId: userId || '' })
+    const items = match
+      ? allItems.filter((item) => item.id === getTeamScheduleCalendarItemId(parsedDraft.teamName, match, parsedDraft.matches.indexOf(match), userId || ''))
+      : allItems
+    if (!items.length) {
+      setError(match
+        ? 'This match needs a valid date before it can be added to your calendar.'
+        : 'The reviewed schedule needs at least one valid match date before it can be added to your calendar.')
+      return
+    }
+
+    const savingKey = match ? items[0].id : `schedule:${parsedDraft.teamName}:${parsedDraft.leagueName}`
+    setCalendarSavingKey(savingKey)
+    setCalendarMessage('')
+    setError('')
+    try {
+      const response = await fetch('/api/player/calendar-items', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ items }),
+      })
+      const body = (await response.json()) as { ok?: boolean; message?: string; savedCount?: number; skippedCount?: number }
+      if (!response.ok || !body.ok) throw new Error(body.message || 'Could not add this schedule to My Calendar.')
+
+      setCalendarSavedItemIds((current) => new Set([...current, ...items.map((item) => item.id)]))
+      const skipped = body.skippedCount ? ` ${body.skippedCount} item${body.skippedCount === 1 ? '' : 's'} without a valid date skipped.` : ''
+      setCalendarMessage(match
+        ? 'Match added to My Calendar.'
+        : `${body.savedCount ?? items.length} match${(body.savedCount ?? items.length) === 1 ? '' : 'es'} added to My Calendar.${skipped}`)
+    } catch (calendarError) {
+      setError(calendarError instanceof Error ? calendarError.message : 'Could not add this schedule to My Calendar.')
+    } finally {
+      setCalendarSavingKey('')
+    }
+  }
+
   return (
     <section style={pageStyle(isMobile)}>
       {!showOrderStep && message && !outcome ? <div style={successStyle}>{message}</div> : null}
@@ -1450,6 +1503,12 @@ function DataAssistWorkspace() {
                 result={latestScan.autoImport}
                 parsedDraft={latestScan.parsedDraft}
                 context={intentContext}
+                calendarSavingKey={calendarSavingKey}
+                calendarSavedItemIds={calendarSavedItemIds}
+                calendarMessage={calendarMessage}
+                calendarOwnerId={userId || ''}
+                onAddScheduleToCalendar={(schedule) => void saveScheduleToMyCalendar(schedule)}
+                onAddMatchToCalendar={(schedule, match) => void saveScheduleToMyCalendar(schedule, match)}
               />
             ) : latestScan.autoImport?.importPreview?.duplicateMatch && isScorecardParsedDraft(latestScan.parsedDraft) ? (
               <ImportedSummaryPanel
@@ -1518,6 +1577,12 @@ function DataAssistWorkspace() {
         onRunImport={(submission, action) => void runSubmissionImport(submission, action)}
         onDeleteSubmission={(submission) => void deleteSubmission(submission)}
         onDeleteAllDrafts={() => void deleteAllDraftSubmissions()}
+        calendarSavingKey={calendarSavingKey}
+        calendarSavedItemIds={calendarSavedItemIds}
+        calendarMessage={calendarMessage}
+        calendarOwnerId={userId || ''}
+        onAddScheduleToCalendar={(schedule) => void saveScheduleToMyCalendar(schedule)}
+        onAddMatchToCalendar={(schedule, match) => void saveScheduleToMyCalendar(schedule, match)}
         focusedSubmissionId={focusedSubmissionId}
         forceHistoryOpen={Boolean(outcome)}
         initialHistoryFilter={focusedHistoryFilter}
@@ -2501,6 +2566,12 @@ function MySubmissionsPanel({
   onRunImport,
   onDeleteSubmission,
   onDeleteAllDrafts,
+  calendarSavingKey,
+  calendarSavedItemIds,
+  calendarMessage,
+  calendarOwnerId,
+  onAddScheduleToCalendar,
+  onAddMatchToCalendar,
   focusedSubmissionId,
   forceHistoryOpen,
   initialHistoryFilter,
@@ -2523,6 +2594,12 @@ function MySubmissionsPanel({
   onRunImport: (submission: DataAssistSubmission, action: 'preview' | 'commit') => void
   onDeleteSubmission: (submission: DataAssistSubmission) => void
   onDeleteAllDrafts: () => void
+  calendarSavingKey: string
+  calendarSavedItemIds: Set<string>
+  calendarMessage: string
+  calendarOwnerId: string
+  onAddScheduleToCalendar: (schedule: DataAssistScheduleParsedDraft) => void
+  onAddMatchToCalendar: (schedule: DataAssistScheduleParsedDraft, match: DataAssistScheduleParsedDraft['matches'][number]) => void
   focusedSubmissionId: string
   forceHistoryOpen: boolean
   initialHistoryFilter: DataAssistHistoryFilter
@@ -2660,6 +2737,12 @@ function MySubmissionsPanel({
                   importResult={importResultsBySubmission[submission.id]}
                   onRunImport={onRunImport}
                   onDelete={onDeleteSubmission}
+                  calendarSavingKey={calendarSavingKey}
+                  calendarSavedItemIds={calendarSavedItemIds}
+                  calendarMessage={calendarMessage}
+                  calendarOwnerId={calendarOwnerId}
+                  onAddScheduleToCalendar={onAddScheduleToCalendar}
+                  onAddMatchToCalendar={onAddMatchToCalendar}
                   returnTo={returnTo}
                 />
               ))}
@@ -2910,6 +2993,12 @@ function SubmissionCard({
   importResult,
   onRunImport,
   onDelete,
+  calendarSavingKey,
+  calendarSavedItemIds,
+  calendarMessage,
+  calendarOwnerId,
+  onAddScheduleToCalendar,
+  onAddMatchToCalendar,
   returnTo,
 }: {
   submission: DataAssistSubmission
@@ -2920,6 +3009,12 @@ function SubmissionCard({
   importResult?: DataAssistImportActionResult
   onRunImport: (submission: DataAssistSubmission, action: 'preview' | 'commit') => void
   onDelete: (submission: DataAssistSubmission) => void
+  calendarSavingKey: string
+  calendarSavedItemIds: Set<string>
+  calendarMessage: string
+  calendarOwnerId: string
+  onAddScheduleToCalendar: (schedule: DataAssistScheduleParsedDraft) => void
+  onAddMatchToCalendar: (schedule: DataAssistScheduleParsedDraft, match: DataAssistScheduleParsedDraft['matches'][number]) => void
   returnTo: string
 }) {
   const router = useRouter()
@@ -3036,6 +3131,12 @@ function SubmissionCard({
                 message: importSummary.message,
               }}
               parsedDraft={parsedSchedule}
+              calendarSavingKey={calendarSavingKey}
+              calendarSavedItemIds={calendarSavedItemIds}
+              calendarMessage={calendarMessage}
+              calendarOwnerId={calendarOwnerId}
+              onAddScheduleToCalendar={onAddScheduleToCalendar}
+              onAddMatchToCalendar={onAddMatchToCalendar}
             />
           ) : isImported ? (
             <ImportedSummaryPanel summary={importSummary} parsedDraft={parsedDraft} returnTo={returnTo} />
@@ -3247,14 +3348,28 @@ function ScheduleImportedSummaryPanel({
   result,
   parsedDraft,
   context = '',
+  calendarSavingKey,
+  calendarSavedItemIds,
+  calendarMessage,
+  calendarOwnerId,
+  onAddScheduleToCalendar,
+  onAddMatchToCalendar,
 }: {
   result: DataAssistImportActionResult
   parsedDraft: DataAssistScheduleParsedDraft
   context?: string
+  calendarSavingKey: string
+  calendarSavedItemIds: Set<string>
+  calendarMessage: string
+  calendarOwnerId: string
+  onAddScheduleToCalendar: (schedule: DataAssistScheduleParsedDraft) => void
+  onAddMatchToCalendar: (schedule: DataAssistScheduleParsedDraft, match: DataAssistScheduleParsedDraft['matches'][number]) => void
 }) {
   const scheduleResult = result.importResult?.kind === 'schedule' ? result.importResult.result : null
   const imported = scheduleResult ? scheduleResult.successCount + scheduleResult.updatedCount : parsedDraft.matchCount
   const updated = scheduleResult?.updatedCount ?? 0
+  const calendarItems = buildTeamScheduleCalendarItems({ ...parsedDraft, calendarOwnerId })
+  const bulkSavingKey = `schedule:${parsedDraft.teamName}:${parsedDraft.leagueName}`
 
   return (
     <div style={importPanelStyle}>
@@ -3273,7 +3388,31 @@ function ScheduleImportedSummaryPanel({
         <ReviewFact label="Updated" value={String(updated)} />
         <ReviewFact label="League" value={parsedDraft.leagueName || 'Imported'} />
       </div>
-      <ScheduleRowsList parsedDraft={parsedDraft} />
+      <section style={calendarAddPanelStyle} aria-label="Add this team schedule to your calendar">
+        <div style={headerCopyStyle}>
+          <strong>Put this season on your calendar</strong>
+          <p style={copyStyle}>Add all confirmed match dates now. Then subscribe once from My Calendar to keep iPhone, Google, or Outlook current when the schedule changes.</p>
+        </div>
+        <div style={cardActionRowStyle}>
+          <button
+            type="button"
+            onClick={() => onAddScheduleToCalendar(parsedDraft)}
+            disabled={!calendarItems.length || calendarSavingKey === bulkSavingKey}
+            style={{ ...smallButtonStyle, ...((!calendarItems.length || calendarSavingKey === bulkSavingKey) ? disabledStyle : {}) }}
+          >
+            {calendarSavingKey === bulkSavingKey ? 'Adding season...' : `Add all ${calendarItems.length} matches`}
+          </button>
+          <Link href="/mylab#my-calendar" style={secondaryButtonStyle}>Set up phone / Google sync</Link>
+        </div>
+        {calendarMessage ? <p style={calendarAddMessageStyle} aria-live="polite">{calendarMessage}</p> : null}
+      </section>
+      <ScheduleRowsList
+        parsedDraft={parsedDraft}
+        calendarSavedItemIds={calendarSavedItemIds}
+        calendarSavingKey={calendarSavingKey}
+        calendarOwnerId={calendarOwnerId}
+        onAddMatchToCalendar={onAddMatchToCalendar}
+      />
       <div style={readyImportNoteStyle}>
         <strong>All set</strong>
         <span>{result.message || 'Team schedule imported to TenAceIQ.'}</span>
@@ -3455,7 +3594,19 @@ function buildPlayerSearchHref(query: string) {
   return cleanQuery ? `/explore/search?scope=players&q=${encodeURIComponent(cleanQuery)}` : '/explore/players'
 }
 
-function ScheduleRowsList({ parsedDraft }: { parsedDraft: DataAssistScheduleParsedDraft }) {
+function ScheduleRowsList({
+  parsedDraft,
+  calendarSavedItemIds,
+  calendarSavingKey,
+  calendarOwnerId = '',
+  onAddMatchToCalendar,
+}: {
+  parsedDraft: DataAssistScheduleParsedDraft
+  calendarSavedItemIds?: Set<string>
+  calendarSavingKey?: string
+  calendarOwnerId?: string
+  onAddMatchToCalendar?: (schedule: DataAssistScheduleParsedDraft, match: DataAssistScheduleParsedDraft['matches'][number]) => void
+}) {
   const [expanded, setExpanded] = useState(false)
   const visibleMatches = expanded ? parsedDraft.matches : parsedDraft.matches.slice(0, 8)
   const hiddenCount = parsedDraft.matches.length - visibleMatches.length
@@ -3465,7 +3616,14 @@ function ScheduleRowsList({ parsedDraft }: { parsedDraft: DataAssistSchedulePars
       {hiddenCount > 0 ? (
         <p style={compactListHintStyle}>Showing the first {visibleMatches.length} of {parsedDraft.matches.length} matches.</p>
       ) : null}
-      {visibleMatches.map((match) => (
+      {visibleMatches.map((match, index) => {
+        const matchIndex = parsedDraft.matches.indexOf(match)
+        const calendarItemId = getTeamScheduleCalendarItemId(parsedDraft.teamName, match, matchIndex >= 0 ? matchIndex : index, calendarOwnerId)
+        const matchSaved = calendarSavedItemIds?.has(calendarItemId)
+        const matchSaving = calendarSavingKey === calendarItemId
+        const canAddMatch = Boolean(onAddMatchToCalendar && normalizeScheduleCalendarDate(match.matchDate))
+
+        return (
         <div key={match.externalMatchId} style={scheduleMatchRowStyle}>
           <div style={parsedLineMainStyle}>
             <span style={lineHeaderStyle}>
@@ -3480,8 +3638,21 @@ function ScheduleRowsList({ parsedDraft }: { parsedDraft: DataAssistSchedulePars
             <ReviewFact label="Visiting" value={match.awayTeam || 'Check visiting team'} />
             <ReviewFact label="Site" value={match.facility || 'Check site'} />
           </div>
+          {onAddMatchToCalendar ? (
+            <div style={cardActionRowStyle}>
+              <button
+                type="button"
+                onClick={() => onAddMatchToCalendar(parsedDraft, match)}
+                disabled={!canAddMatch || matchSaving}
+                style={{ ...smallButtonStyle, ...((!canAddMatch || matchSaving) ? disabledStyle : {}) }}
+              >
+                {matchSaving ? 'Adding...' : matchSaved ? 'In My Calendar' : 'Add this match'}
+              </button>
+            </div>
+          ) : null}
         </div>
-      ))}
+        )
+      })}
       {hiddenCount > 0 ? (
         <button type="button" onClick={() => setExpanded(true)} style={showMoreButtonStyle}>
           Show {hiddenCount} more match{hiddenCount === 1 ? '' : 'es'}
@@ -5141,6 +5312,25 @@ const importPanelStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const calendarAddPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 26%, var(--shell-panel-border) 74%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+  overflowWrap: 'anywhere',
+}
+
+const calendarAddMessageStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 850,
+  lineHeight: 1.45,
 }
 
 const scorecardHeaderGridStyle: CSSProperties = {
