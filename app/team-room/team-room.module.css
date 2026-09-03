@@ -189,6 +189,37 @@
   background: var(--shell-page-bg);
 }
 
+.finalizeLineupGuide {
+  display: grid;
+  gap: 5px;
+  margin: 14px 14px 0;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 46%, var(--shell-panel-border));
+  border-radius: 16px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 15%, var(--shell-chip-bg-strong)), var(--shell-chip-bg-strong));
+  box-shadow: 0 10px 24px rgba(1, 8, 20, 0.18);
+}
+
+.finalizeLineupGuide p {
+  margin: 0;
+  color: var(--brand-green-3);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.finalizeLineupGuide strong {
+  color: var(--foreground-strong);
+  font-size: 1rem;
+}
+
+.finalizeLineupGuide span {
+  color: var(--shell-copy-muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .pinnedAreaFocused {
   border-radius: 18px;
   outline: 2px solid color-mix(in srgb, var(--brand-green) 72%, transparent);

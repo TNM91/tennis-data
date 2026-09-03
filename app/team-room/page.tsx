@@ -393,6 +393,7 @@ function TeamRoomContent() {
   const focusedCourtLabel = searchParams.get('court')?.trim() || ''
   const focusedReplyStatus = searchParams.get('status')?.trim() || ''
   const focusedArrivalAction = searchParams.get('arrival')?.trim() || ''
+  const finalLineupDeliveryIntent = searchParams.get('intent') === 'finalize-lineup'
 
   const pinnedMessage = useMemo(
     () => room?.messages.find((message) => message.id === focusedMessageId && message.card)
@@ -420,6 +421,8 @@ function TeamRoomContent() {
     [focusedMessageId, room?.activeLevelUpChallengeId, room?.messages],
   )
   const currentFinalLineup = activeMatchMessage?.card?.finalLineup || null
+  const finalLineupDeliveryCard = pinnedMessage?.card || activeMatchMessage?.card || null
+  const finalLineupDeliverySent = Boolean(finalLineupDeliveryCard?.finalLineup)
   const currentFinalLineupPhase = getTeamRoomMatchDayPhase({
     matchDate: activeMatchMessage?.card?.matchDate || '',
     localDateKey,
@@ -1631,6 +1634,16 @@ function TeamRoomContent() {
           {notice ? <div className={styles.notice} role="status">{notice}</div> : null}
           {error ? <div className={styles.error} role="alert">{error}</div> : null}
         </header>
+
+        {finalLineupDeliveryIntent && room.canManage ? (
+          <section className={styles.finalizeLineupGuide} aria-label="Finish final lineup" role="status">
+            <p>Finish final lineup</p>
+            <strong>{finalLineupDeliverySent ? 'Lineup sent to the team.' : 'Nothing has been sent yet.'}</strong>
+            <span>{finalLineupDeliverySent
+              ? 'Next, use Share / print confirmed lineup below to send the image or print the scorecard.'
+              : 'Step 1: review the pinned lineup and tap Send lineup to team. Step 2: share the image or print the scorecard.'}</span>
+          </section>
+        ) : null}
 
         {showMatchComposer ? (
           <div className={styles.pinnedArea}>
