@@ -19,4 +19,17 @@ describe('Team Room mobile composer', () => {
     expect(styles).toContain('bottom: calc(100% + 8px);')
     expect(styles).toContain('width: min(244px, calc(100vw - 40px));')
   })
+
+  it('keeps the reply dock visible while messages scroll independently and groups travel actions', () => {
+    expect(page).toContain('buildMatchWeekGoogleCalendarHref')
+    expect(page).toContain('Add to calendar')
+    expect(page).toContain('className={styles.matchDayTravelActions}')
+    expect(page).toContain('aria-label="Team Chat message composer"')
+    expect(page).toContain('Reply to the team')
+    expect(styles).toContain('.matchDayTravelActions')
+    expect(styles).toContain('position: fixed;')
+    expect(styles).toContain('height: min(58dvh, 620px);')
+    expect(styles).toContain('overflow-y: auto;')
+    expect(styles).toContain('scroll-padding-bottom: 224px;')
+  })
 })
