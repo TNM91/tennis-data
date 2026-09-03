@@ -162,6 +162,43 @@
 }
 .photoCaptureHint { color: var(--shell-copy-muted); font-size: .82rem; }
 
+.quickActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+  padding: 11px 13px;
+  border: 1px solid color-mix(in srgb, var(--brand-blue-2) 30%, var(--shell-panel-border));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--brand-blue-2) 6%, var(--shell-panel-bg));
+}
+
+.quickActions > div { display: grid; gap: 2px; min-width: 0; }
+.quickActions strong { color: var(--foreground-strong); font-size: .9rem; }
+.quickActions span { color: var(--shell-copy-muted); font-size: .8rem; line-height: 1.35; }
+
+.matchDetails {
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 14px;
+  background: rgba(5, 11, 26, 0.28);
+}
+
+.matchDetails summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  color: var(--foreground-strong);
+  cursor: pointer;
+  font-size: .86rem;
+  font-weight: 850;
+}
+
+.matchDetails summary span { color: var(--shell-copy-muted); font-size: .75rem; font-weight: 700; text-align: right; }
+.matchDetails .details { padding: 0 14px 14px; }
+
 .details,
 .playerColumns,
 .resultControls {
@@ -356,6 +393,11 @@
   .playerColumns,
   .resultControls { grid-template-columns: minmax(0, 1fr); }
   .photoAssist { display: grid; gap: 12px; }
+  .quickActions { align-items: flex-start; flex-direction: column; }
+  .quickActions .photoCaptureButton,
+  .quickActions .photoCaptureHint { width: 100%; }
+  .matchDetails summary { align-items: flex-start; }
+  .matchDetails summary span { max-width: 45%; }
   .photoCaptureButton,
   .photoCaptureHint { width: 100%; }
   .courtCard { gap: 12px; padding: 14px; }
