@@ -121,7 +121,7 @@
   .courts { gap: 10px; padding: 10px; }
   .court { gap: 13px; padding: 15px; }
   .scoreGrid { margin-inline: -2px; }
-  .scoreGridHead, .scoreGridRow { grid-template-columns: minmax(118px, 1.25fr) repeat(3, minmax(41px, .7fr)) minmax(36px, .5fr); }
+  .scoreGridHead, .scoreGridRow { grid-template-columns: minmax(110px, 1.2fr) repeat(3, minmax(40px, .68fr)) minmax(46px, .58fr); }
   .scoreGridHead { font-size: .55rem; letter-spacing: .05em; }
   .scoreGridHead > span { min-height: 34px; padding: 3px 2px; white-space: nowrap; }
   .tieBreakLabel b { display: none; }

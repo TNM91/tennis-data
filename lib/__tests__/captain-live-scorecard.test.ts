@@ -11,6 +11,13 @@ describe('Captain live scorecard', () => {
     expect(sheet).toContain('<strong>{court.label || `Court ${index + 1}`}</strong>')
     expect(sheet).toContain('className={styles.opponentPlayerBlank}')
     expect(sheet).not.toContain('Write in after warm-up')
+    expect(sheet).toContain('<span>W/L</span>')
+  })
+
+  it('uses the approved TenAceIQ brand asset in the lineup image shared by text', () => {
+    expect(sheet).toContain("loadCanvasImage('/brand/web/header-logo-transparent.png')")
+    expect(sheet).toContain("context.fillText('CAPTAIN LINEUP'")
+    expect(sheet).toContain("context.fillText('MORE TENNIS. LESS CHAOS.'")
   })
 
   it('opens a live scorecard with suggested opponent names and score choices', () => {

@@ -73,6 +73,15 @@ function wrapCanvasText(context: CanvasRenderingContext2D, text: string, maxWidt
   return lines.length ? lines : ['']
 }
 
+function loadCanvasImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new window.Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error('Image could not be loaded.'))
+    image.src = src
+  })
+}
+
 async function createLineupImage(input: {
   teamName: string
   leagueName: string
@@ -84,19 +93,26 @@ async function createLineupImage(input: {
   confirmed: boolean
   lineup: Array<{ label?: string; players?: string[] }>
 }) {
-  const courtHeight = 166
+  const courtHeight = 146
   const canvas = document.createElement('canvas')
   canvas.width = 1200
-  canvas.height = 460 + Math.max(input.lineup.length, 1) * courtHeight
+  canvas.height = 390 + Math.max(input.lineup.length, 1) * courtHeight
   const context = canvas.getContext('2d')
   if (!context) throw new Error('Lineup image could not be created.')
 
   const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height)
-  gradient.addColorStop(0, '#071a31')
+  gradient.addColorStop(0, '#0b1f3b')
   gradient.addColorStop(0.52, '#0c2746')
-  gradient.addColorStop(1, '#132d1c')
+  gradient.addColorStop(1, '#102d26')
   context.fillStyle = gradient
   context.fillRect(0, 0, canvas.width, canvas.height)
+
+  const topBar = context.createLinearGradient(0, 0, canvas.width, 0)
+  topBar.addColorStop(0, '#9be11d')
+  topBar.addColorStop(0.6, '#d7ff4a')
+  topBar.addColorStop(1, '#78b9ee')
+  context.fillStyle = topBar
+  context.fillRect(0, 0, canvas.width, 10)
 
   context.fillStyle = 'rgba(182, 242, 72, 0.16)'
   context.beginPath()
@@ -107,41 +123,66 @@ async function createLineupImage(input: {
   context.arc(160, canvas.height - 80, 330, 0, Math.PI * 2)
   context.fill()
 
+  try {
+    const logo = await loadCanvasImage('/brand/web/header-logo-transparent.png')
+    context.drawImage(logo, 70, 50, 300, 78)
+  } catch {
+    // The share card remains usable if the approved logo asset is temporarily unavailable.
+  }
   context.fillStyle = '#c7ef7a'
-  context.font = '800 25px Arial, sans-serif'
-  context.fillText('TENACEIQ  •  CAPTAIN', 70, 76)
+  context.font = '900 20px Arial, sans-serif'
+  context.fillText('CAPTAIN LINEUP', 70, 174)
+  context.fillStyle = '#173b61'
+  context.beginPath()
+  context.roundRect(930, 54, 202, 44, 22)
+  context.fill()
+  context.fillStyle = '#d7ff78'
+  context.font = '900 15px Arial, sans-serif'
+  context.textAlign = 'center'
+  context.fillText(input.confirmed ? 'CONFIRMED LINEUP' : 'MATCH LINEUP', 1031, 82)
+  context.textAlign = 'left'
   context.fillStyle = '#ffffff'
-  context.font = '800 54px Arial, sans-serif'
-  for (const [index, line] of wrapCanvasText(context, `${input.teamName || 'Team'} lineup`, 980).slice(0, 2).entries()) {
-    context.fillText(line, 70, 142 + index * 62)
+  context.font = '800 48px Arial, sans-serif'
+  for (const [index, line] of wrapCanvasText(context, input.teamName || 'Team', 1000).slice(0, 2).entries()) {
+    context.fillText(line, 70, 234 + index * 54)
   }
   context.fillStyle = '#aec1d7'
-  context.font = '600 26px Arial, sans-serif'
-  context.fillText(`${formatDate(input.matchDate)}${input.matchTime ? `  •  ${input.matchTime}` : ''}`, 70, 280)
-  context.fillText(`vs ${input.opponent || 'Opponent to be confirmed'}${input.facility ? `  •  ${input.facility}` : ''}`, 70, 322)
-  context.fillStyle = '#b9ec5d'
-  context.font = '800 21px Arial, sans-serif'
-  context.fillText(input.confirmed ? 'CONFIRMED LINEUP' : 'TEAM LINEUP', 70, 378)
+  context.font = '700 22px Arial, sans-serif'
+  context.fillText(`${formatDate(input.matchDate)}${input.matchTime ? `  •  ${input.matchTime}` : ''}`, 70, 306)
+  context.fillText(`vs ${input.opponent || 'Opponent to be confirmed'}${input.facility ? `  •  ${input.facility}` : ''}`, 70, 338)
 
   input.lineup.forEach((court, index) => {
-    const top = 416 + index * courtHeight
-    context.fillStyle = 'rgba(4, 17, 34, 0.72)'
-    context.strokeStyle = 'rgba(139, 191, 55, 0.58)'
+    const top = 370 + index * courtHeight
+    context.fillStyle = 'rgba(4, 20, 40, 0.84)'
+    context.strokeStyle = 'rgba(155, 225, 29, 0.5)'
     context.lineWidth = 2
     context.beginPath()
-    context.roundRect(58, top, 1084, 132, 22)
+    context.roundRect(58, top, 1084, 118, 18)
     context.fill()
     context.stroke()
+    context.fillStyle = '#9be11d'
+    context.beginPath()
+    context.roundRect(82, top + 22, 34, 34, 9)
+    context.fill()
+    context.fillStyle = '#10250e'
+    context.font = '900 16px Arial, sans-serif'
+    context.textAlign = 'center'
+    context.fillText(String(index + 1), 99, top + 45)
+    context.textAlign = 'left'
     context.fillStyle = '#b9ec5d'
-    context.font = '800 20px Arial, sans-serif'
-    context.fillText((court.label || `Court ${index + 1}`).toUpperCase(), 88, top + 44)
+    context.font = '900 16px Arial, sans-serif'
+    context.fillText((court.label || `Court ${index + 1}`).toUpperCase(), 138, top + 44)
     context.fillStyle = '#ffffff'
-    context.font = '800 31px Arial, sans-serif'
+    context.font = '800 29px Arial, sans-serif'
     const names = (court.players || []).filter(Boolean).join('  /  ') || 'Player to be set'
-    for (const [lineIndex, line] of wrapCanvasText(context, names, 960).slice(0, 2).entries()) {
-      context.fillText(line, 88, top + 84 + lineIndex * 34)
+    for (const [lineIndex, line] of wrapCanvasText(context, names, 930).slice(0, 2).entries()) {
+      context.fillText(line, 138, top + 82 + lineIndex * 31)
     }
   })
+
+  context.fillStyle = '#c7ef7a'
+  context.font = '800 15px Arial, sans-serif'
+  context.fillText('MORE TENNIS. LESS CHAOS.', 70, canvas.height - 22)
 
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Lineup image could not be created.')), 'image/png')
@@ -332,7 +373,7 @@ function MatchupSheetContent() {
                   <span>Set 1</span>
                   <span>Set 2</span>
                   <span className={styles.tieBreakLabel} aria-label="Match tie-break"><b>Match tie-break</b><i>TB</i></span>
-                  <span>W / L</span>
+                  <span>W/L</span>
                 </div>
                 <div className={styles.scoreGridRow}>
                   <strong>{(court.players || []).filter(Boolean).join(' / ') || 'Your pair'}</strong>
