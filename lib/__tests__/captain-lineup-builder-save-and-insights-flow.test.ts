@@ -32,6 +32,7 @@ describe('Captain lineup builder save and insights flow', () => {
     expect(source).toContain("const finalLineupDeliveryLabel = openingFinalDelivery ? 'Preparing final send…' : 'Review & send final lineup'")
     expect(source).toContain("hrefUrl.searchParams.set('intent', 'finalize-lineup')")
     expect(source).toContain("action: 'post_match_card'")
+    expect(source).toContain('captainConfirmedLineup: true')
     expect(source).toContain("hrefUrl.searchParams.set('message', result.messageId)")
     expect(source).toContain('Open the final send screen to publish the lineup, share the team image, or print the scorecard.')
     expect(source).toContain('Mark Yes & lock')
