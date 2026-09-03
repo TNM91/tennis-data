@@ -43,4 +43,12 @@ describe('League Coordinator first-use path', () => {
     expect(source).toContain("setStatus('')")
     expect(source).toContain('Done')
   })
+
+  it('celebrates the first saved season without repeating the launch moment on later edits', () => {
+    expect(source).toContain('const [lastSavedFirstLeague, setLastSavedFirstLeague] = useState(false)')
+    expect(source).toContain('const firstLeagueLaunch = !editingId && records.length === 0')
+    expect(source).toContain('League trophy earned')
+    expect(source).toContain('First season launched')
+    expect(source).toContain('setLastSavedFirstLeague(false)')
+  })
 })
