@@ -45,12 +45,12 @@ describe('contextual shell atmosphere', () => {
     expect(clubStyles).not.toContain('inset: auto -70px -100px auto;')
   })
 
-  it('separates the Captain team and checklist watermark marks on phone screens', () => {
+  it('keeps the Captain team and checklist watermark as a spaced diagonal pair on phone screens', () => {
     const visualStyles = readFileSync(join(process.cwd(), 'app/components/contextual-tennis-visual.module.css'), 'utf8').replace(/\r\n/g, '\n')
 
-    expect(visualStyles).toContain('.atmosphere.visual-captain .primary {\n  transform: translate(-20%, 20%) scale(0.82) rotate(2deg);')
-    expect(visualStyles).toContain('.atmosphere.visual-captain .secondary {\n  right: 2%;\n  top: 2%;\n  transform: scale(0.7) rotate(6deg);')
-    expect(visualStyles).toContain('.atmosphere.visual-captain .primary {\n    transform: translate(-24%, 22%) scale(0.78) rotate(2deg);')
-    expect(visualStyles).toContain('.atmosphere.visual-captain .secondary {\n    right: 2%;\n    top: 2%;\n    transform: scale(0.64) rotate(6deg);')
+    expect(visualStyles).toContain('.atmosphere.visual-captain .primary {\n  transform: translate(-12%, 13%) scale(0.88) rotate(2deg);')
+    expect(visualStyles).toContain('.atmosphere.visual-captain .secondary {\n  right: 6%;\n  top: 6%;\n  transform: scale(0.76) rotate(6deg);')
+    expect(visualStyles).toContain('.atmosphere.visual-captain .primary {\n    transform: translate(-13%, 15%) scale(0.84) rotate(2deg);')
+    expect(visualStyles).toContain('.atmosphere.visual-captain .secondary {\n    right: 6%;\n    top: 9%;\n    transform: scale(0.72) rotate(6deg);')
   })
 })
