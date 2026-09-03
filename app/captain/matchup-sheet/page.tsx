@@ -93,10 +93,10 @@ async function createLineupImage(input: {
   confirmed: boolean
   lineup: Array<{ label?: string; players?: string[] }>
 }) {
-  const courtHeight = 146
+  const courtHeight = 156
   const canvas = document.createElement('canvas')
   canvas.width = 1200
-  canvas.height = 390 + Math.max(input.lineup.length, 1) * courtHeight
+  canvas.height = 468 + Math.max(input.lineup.length, 1) * courtHeight
   const context = canvas.getContext('2d')
   if (!context) throw new Error('Lineup image could not be created.')
 
@@ -112,7 +112,7 @@ async function createLineupImage(input: {
   topBar.addColorStop(0.6, '#d7ff4a')
   topBar.addColorStop(1, '#78b9ee')
   context.fillStyle = topBar
-  context.fillRect(0, 0, canvas.width, 10)
+  context.fillRect(0, 0, canvas.width, 12)
 
   context.fillStyle = 'rgba(182, 242, 72, 0.16)'
   context.beginPath()
@@ -123,66 +123,101 @@ async function createLineupImage(input: {
   context.arc(160, canvas.height - 80, 330, 0, Math.PI * 2)
   context.fill()
 
+  context.strokeStyle = 'rgba(203, 239, 130, 0.16)'
+  context.lineWidth = 3
+  context.beginPath()
+  context.arc(1010, 210, 150, 0, Math.PI * 2)
+  context.stroke()
+  context.beginPath()
+  context.moveTo(860, 210)
+  context.lineTo(1160, 210)
+  context.stroke()
+
+  context.fillStyle = 'rgba(6, 23, 47, 0.42)'
+  context.beginPath()
+  context.roundRect(44, 34, 1112, canvas.height - 68, 30)
+  context.fill()
+  context.strokeStyle = 'rgba(183, 222, 248, 0.22)'
+  context.lineWidth = 2
+  context.stroke()
+
   try {
     const logo = await loadCanvasImage('/brand/web/header-logo-transparent.png')
-    context.drawImage(logo, 70, 50, 300, 78)
+    context.drawImage(logo, 78, 58, 300, 78)
   } catch {
     // The share card remains usable if the approved logo asset is temporarily unavailable.
   }
   context.fillStyle = '#c7ef7a'
-  context.font = '900 20px Arial, sans-serif'
-  context.fillText('CAPTAIN LINEUP', 70, 174)
-  context.fillStyle = '#173b61'
+  context.font = '900 18px Arial, sans-serif'
+  context.fillText('MATCH DAY  /  CAPTAIN SERIES', 78, 174)
+  context.fillStyle = '#1c4d4a'
   context.beginPath()
-  context.roundRect(930, 54, 202, 44, 22)
+  context.roundRect(874, 58, 258, 48, 24)
   context.fill()
+  context.strokeStyle = 'rgba(215, 255, 74, 0.7)'
+  context.lineWidth = 2
+  context.stroke()
   context.fillStyle = '#d7ff78'
   context.font = '900 15px Arial, sans-serif'
   context.textAlign = 'center'
-  context.fillText(input.confirmed ? 'CONFIRMED LINEUP' : 'MATCH LINEUP', 1031, 82)
+  context.fillText(input.confirmed ? 'FINAL • CONFIRMED' : 'LINEUP • IN PROGRESS', 1003, 88)
   context.textAlign = 'left'
   context.fillStyle = '#ffffff'
-  context.font = '800 48px Arial, sans-serif'
-  for (const [index, line] of wrapCanvasText(context, input.teamName || 'Team', 1000).slice(0, 2).entries()) {
-    context.fillText(line, 70, 234 + index * 54)
+  context.font = '900 46px Arial, sans-serif'
+  for (const [index, line] of wrapCanvasText(context, input.teamName || 'Team', 940).slice(0, 2).entries()) {
+    context.fillText(line, 78, 226 + index * 50)
   }
   context.fillStyle = '#aec1d7'
-  context.font = '700 22px Arial, sans-serif'
-  context.fillText(`${formatDate(input.matchDate)}${input.matchTime ? `  •  ${input.matchTime}` : ''}`, 70, 306)
-  context.fillText(`vs ${input.opponent || 'Opponent to be confirmed'}${input.facility ? `  •  ${input.facility}` : ''}`, 70, 338)
+  context.font = '700 20px Arial, sans-serif'
+  const matchDetails = [formatDate(input.matchDate), input.matchTime, input.facility].filter(Boolean).join('  •  ')
+  context.fillText(matchDetails, 78, 314)
+  context.fillStyle = '#d7ff78'
+  context.font = '900 17px Arial, sans-serif'
+  context.fillText(`VS  ${(input.opponent || 'OPPONENT TO BE CONFIRMED').toUpperCase()}`, 78, 350)
+  context.fillStyle = '#8cb2d3'
+  context.font = '800 14px Arial, sans-serif'
+  context.fillText([input.leagueName, input.flight].filter(Boolean).join('  •  ').toUpperCase() || 'TENACEIQ CAPTAIN LINEUP', 78, 382)
 
   input.lineup.forEach((court, index) => {
-    const top = 370 + index * courtHeight
-    context.fillStyle = 'rgba(4, 20, 40, 0.84)'
-    context.strokeStyle = 'rgba(155, 225, 29, 0.5)'
+    const top = 410 + index * courtHeight
+    context.fillStyle = 'rgba(5, 25, 48, 0.88)'
+    context.strokeStyle = 'rgba(155, 225, 29, 0.55)'
     context.lineWidth = 2
     context.beginPath()
-    context.roundRect(58, top, 1084, 118, 18)
+    context.roundRect(72, top, 1056, 126, 20)
     context.fill()
     context.stroke()
     context.fillStyle = '#9be11d'
     context.beginPath()
-    context.roundRect(82, top + 22, 34, 34, 9)
+    context.roundRect(96, top + 22, 46, 46, 14)
     context.fill()
     context.fillStyle = '#10250e'
-    context.font = '900 16px Arial, sans-serif'
+    context.font = '900 20px Arial, sans-serif'
     context.textAlign = 'center'
-    context.fillText(String(index + 1), 99, top + 45)
+    context.fillText(String(index + 1), 119, top + 53)
     context.textAlign = 'left'
     context.fillStyle = '#b9ec5d'
-    context.font = '900 16px Arial, sans-serif'
-    context.fillText((court.label || `Court ${index + 1}`).toUpperCase(), 138, top + 44)
+    context.font = '900 18px Arial, sans-serif'
+    context.fillText((court.label || `Court ${index + 1}`).toUpperCase(), 166, top + 46)
+    context.fillStyle = '#8cb2d3'
+    context.font = '800 13px Arial, sans-serif'
+    context.fillText(input.confirmed ? 'CONFIRMED PAIR' : 'PROJECTED PAIR', 166, top + 70)
     context.fillStyle = '#ffffff'
-    context.font = '800 29px Arial, sans-serif'
+    context.font = '800 30px Arial, sans-serif'
     const names = (court.players || []).filter(Boolean).join('  /  ') || 'Player to be set'
-    for (const [lineIndex, line] of wrapCanvasText(context, names, 930).slice(0, 2).entries()) {
-      context.fillText(line, 138, top + 82 + lineIndex * 31)
+    for (const [lineIndex, line] of wrapCanvasText(context, names, 890).slice(0, 2).entries()) {
+      context.fillText(line, 166, top + 105 + lineIndex * 29)
     }
   })
 
   context.fillStyle = '#c7ef7a'
-  context.font = '800 15px Arial, sans-serif'
-  context.fillText('MORE TENNIS. LESS CHAOS.', 70, canvas.height - 22)
+  context.font = '900 15px Arial, sans-serif'
+  context.fillText('MORE TENNIS. LESS CHAOS.', 78, canvas.height - 28)
+  context.fillStyle = '#8cb2d3'
+  context.font = '800 13px Arial, sans-serif'
+  context.textAlign = 'right'
+  context.fillText('TENACEIQ  /  CAPTAIN', 1122, canvas.height - 28)
+  context.textAlign = 'left'
 
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error('Lineup image could not be created.')), 'image/png')

@@ -121,9 +121,12 @@
   .courts { gap: 10px; padding: 10px; }
   .court { gap: 13px; padding: 15px; }
   .scoreGrid { margin-inline: -2px; }
-  .scoreGridHead, .scoreGridRow { grid-template-columns: minmax(110px, 1.2fr) repeat(3, minmax(40px, .68fr)) minmax(46px, .58fr); }
+  /* Let player names wrap before the score fields do. This protects W/L on the
+     narrowest phones, where the printable card has less room than its page width. */
+  .scoreGridHead, .scoreGridRow { grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(30px, .44fr)) minmax(54px, .63fr); }
   .scoreGridHead { font-size: .55rem; letter-spacing: .05em; }
   .scoreGridHead > span { min-height: 34px; padding: 3px 2px; white-space: nowrap; }
+  .scoreGridHead > span:last-child { min-width: 54px; padding-inline: 0; letter-spacing: 0; }
   .tieBreakLabel b { display: none; }
   .tieBreakLabel i { display: inline; }
   .sheetFooter { align-items: flex-start; flex-direction: column; padding: 16px 18px; }
