@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const source = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
+const source = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8').replace(/\r\n/g, '\n')
 
 describe('Captain lineup builder save and insights flow', () => {
   it('keeps background text preparation from presenting an Ask message', () => {
@@ -23,5 +23,14 @@ describe('Captain lineup builder save and insights flow', () => {
     expect(source).toContain('Opponent lineup projected.')
     expect(source).toContain('View matchup forecast')
     expect(source).toContain('{!isMobile ? <details style={surfaceCardStrong}>')
+  })
+
+  it('explains captain-recorded Yes replies and makes the final send, image, and scorecard handoff explicit', () => {
+    expect(source).toContain("label: 'Yes confirmed'")
+    expect(source).toContain('They replied Yes, or you recorded their Yes from a text or call.')
+    expect(source).toContain("setMessage('Yes recorded and this player is protected in the lineup.')")
+    expect(source).toContain("const finalLineupDeliveryLabel = 'Finalize, send & print'")
+    expect(source).toContain('Open the final send screen to publish the lineup, share the team image, or print the scorecard.')
+    expect(source).toContain('Mark Yes & lock')
   })
 })
