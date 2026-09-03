@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type For
 import { useRouter, useSearchParams } from 'next/navigation'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import ClubContextBanner from '@/app/components/club-context-banner'
+import CoachLaunchPath from '@/app/components/coach-launch-path'
 import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
 import RoleActionHome, {
   type RoleHomeAction,
@@ -21,6 +22,7 @@ import type { ClubRole } from '@/lib/club-workspace'
 import { buildConsumedWorkflowHref } from '@/lib/workflow-return'
 import { COACH_ASSIGNMENT_TEMPLATES, getCoachAssignmentTemplate } from '@/lib/coach-assignment-templates'
 import type { CoachStudentInvite } from '@/lib/coach-invites'
+import { getCoachLaunchProgress } from '@/lib/coach-launch-progress'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
   assignmentNeedsCoachReview,
@@ -1515,6 +1517,10 @@ function CoachContent() {
     () => buildLinkedPlayerCards(savedStudents, assignments, invites)
       .sort((a, b) => Number(!questionStudentIds.has(a.student.id)) - Number(!questionStudentIds.has(b.student.id))),
     [assignments, invites, questionStudentIds, savedStudents],
+  )
+  const coachLaunchProgress = useMemo(
+    () => getCoachLaunchProgress({ students: savedStudents, invites, assignments }),
+    [assignments, invites, savedStudents],
   )
   const activeMobileBenchCard = useMemo(
     () =>
@@ -3261,11 +3267,13 @@ function CoachContent() {
         quickActions={COACH_HOME_QUICK_ACTIONS}
         helpTitle={savedStudents.length ? 'Need help with Coach setup?' : 'Set up Coach in three steps'}
         steps={COACH_HOME_STEPS}
-        showSteps={!savedStudents.length}
+        showSteps={false}
         resumeKey={userId ? `coach:${userId}` : undefined}
         preferPrimaryAction={Boolean(firstPlayerQuestion || coachContinueAction)}
         onAction={handleCoachHomeAction}
       />
+
+      <CoachLaunchPath progress={coachLaunchProgress} />
 
       {!isMobile ? (
         <details style={coachToolsDetailsStyle}>
