@@ -41,4 +41,21 @@ describe('Team Room mobile composer', () => {
     expect(styles).toContain('.installHint')
     expect(styles).not.toContain('.installCard')
   })
+
+  it('keeps the match plan in the message stream and makes it expandable', () => {
+    expect(page).toContain('className={`${styles.matchPlanMessage}')
+    expect(page).toContain('<small>Match plan</small>')
+    expect(page).toContain('embedded')
+    expect(styles).toContain('.matchPlanMessage')
+    expect(styles).toContain('.matchPlanMessage[open]')
+  })
+
+  it('shows a team mark beside the approved iQ mark without exposing account roles', () => {
+    expect(page).toContain('/brand/web/header-iq-compact.png')
+    expect(page).toContain('room.teamLogoUrl')
+    expect(page).toContain('/api/team-rooms/branding')
+    expect(page).not.toContain('styles.roleBadge')
+    expect(styles).toContain('.appTiqMark')
+    expect(styles).toContain('.appTeamMark')
+  })
 })

@@ -262,6 +262,7 @@ type TeamRoom = {
   id: string
   subject: string
   teamName: string
+  teamLogoUrl: string
   leagueName: string
   flight: string
   roles: string[]
@@ -328,6 +329,7 @@ function TeamRoomContent() {
   const [room, setRoom] = useState<TeamRoom | null>(null)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
+  const [uploadingTeamLogo, setUploadingTeamLogo] = useState(false)
   const [sharing, setSharing] = useState(false)
   const [respondingId, setRespondingId] = useState('')
   const [acknowledgingId, setAcknowledgingId] = useState('')
@@ -374,6 +376,7 @@ function TeamRoomContent() {
   const messagesRef = useRef<HTMLDivElement | null>(null)
   const composerRef = useRef<HTMLTextAreaElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const teamLogoInputRef = useRef<HTMLInputElement | null>(null)
   const realtimeRefreshRef = useRef<number | null>(null)
   const draftPendingRef = useRef(false)
   const arrivalMessagePreparedRef = useRef('')
@@ -826,6 +829,33 @@ function TeamRoomContent() {
       setError(sendError instanceof Error ? sendError.message : 'Message could not be sent.')
     } finally {
       setSending(false)
+    }
+  }
+
+  async function uploadTeamLogo(file: File | null) {
+    if (!file || !room || uploadingTeamLogo) return
+    setUploadingTeamLogo(true)
+    setError('')
+    try {
+      const form = new FormData()
+      form.set('file', file)
+      form.set('teamName', room.teamName)
+      form.set('leagueName', room.leagueName)
+      form.set('flight', room.flight)
+      const response = await fetch('/api/team-rooms/branding', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: form,
+      })
+      const payload = await response.json() as { ok?: boolean; message?: string }
+      if (!response.ok || !payload.ok) throw new Error(payload.message || 'The team logo could not be saved.')
+      setNotice(room.teamLogoUrl ? 'Team logo updated.' : 'Team logo added for everyone in Team Chat.')
+      await loadRoom({ quiet: true })
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'The team logo could not be saved.')
+    } finally {
+      setUploadingTeamLogo(false)
+      if (teamLogoInputRef.current) teamLogoInputRef.current.value = ''
     }
   }
 
@@ -1583,7 +1613,10 @@ function TeamRoomContent() {
           href="/compete/teams"
           aria-label="Back to My Teams"
         >
-          <Image src="/brand/icons/pwa-192.png" alt="" width={32} height={32} />
+          <span className={styles.appBrandMarks}>
+            <Image className={styles.appTiqMark} src="/brand/web/header-iq-compact.png" alt="TenAceIQ" width={34} height={34} />
+            {room.teamLogoUrl ? <Image className={styles.appTeamMark} src={room.teamLogoUrl} alt={`${room.teamName} logo`} width={30} height={30} /> : null}
+          </span>
           <span>My Teams</span>
         </Link>
         <div className={styles.appIdentity}>
@@ -1609,6 +1642,17 @@ function TeamRoomContent() {
                 </button>
               ) : null}
               <button className={styles.buttonSecondary} type="button" onClick={() => void shareRoom()}>Share room</button>
+              {room.canManage ? (
+                <label className={styles.teamLogoUpload}>
+                  <input
+                    ref={teamLogoInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(event) => void uploadTeamLogo(event.target.files?.[0] || null)}
+                  />
+                  <span>{uploadingTeamLogo ? 'Saving logo…' : room.teamLogoUrl ? 'Change team logo' : 'Add team logo'}</span>
+                </label>
+              ) : null}
             </div>
           </div>
 
@@ -1632,7 +1676,6 @@ function TeamRoomContent() {
               {room.members.length} connected
             </button>
             <span className={styles.liveBadge}>{realtimeConnected ? 'Live' : 'Syncing'}</span>
-            <span className={styles.roleBadge}>{room.roles.join(' + ').replaceAll('_', '-')}</span>
             <button className={styles.buttonQuiet} type="button" onClick={() => void toggleMute()}>
               {room.muted ? 'Turn notifications on' : 'Mute room'}
             </button>
@@ -1837,49 +1880,62 @@ function TeamRoomContent() {
           </div>
         ) : null}
 
-        {pinnedMessage?.card && !pinnedMessage.card.finalLineup ? (
-          <div className={styles.pinnedArea}>
-            <MatchCard
-              message={pinnedMessage}
-              memberCount={room.members.length}
-              canManage={room.canManage}
-              teamName={room.teamName}
-              leagueName={room.leagueName}
-              flight={room.flight}
-              focused={pinnedMessage.id === focusedMessageId}
-              focusedPlayerName={focusedPlayerName}
-              focusedCourtLabel={focusedCourtLabel}
-              focusedReplyStatus={focusedReplyStatus}
-              responding={respondingId === pinnedMessage.id}
-              acknowledging={acknowledgingId === pinnedMessage.id}
-              notifyingLineupChange={notifyingLineupChangeId === pinnedMessage.id}
-              sendingFinalLineup={sendingFinalLineupId === pinnedMessage.id}
-              respondingLineupChange={respondingLineupChangeId === pinnedMessage.id}
-              schedulingLineupChangeDeadline={schedulingLineupChangeDeadlineId === pinnedMessage.id}
-              lineupChangeDeadlineDate={lineupChangeDeadlineDate}
-              currentPlayerNames={room.members
-                .filter((member) => member.id === userId)
-                .flatMap((member) => [member.playerName, member.name])}
-              onRespond={(response) => void respondToMatch(pinnedMessage.id, response)}
-              onAcknowledge={() => void acknowledgeLineup(pinnedMessage.id)}
-              onNotifyLineupChange={() => void notifyLineupChange(pinnedMessage.id)}
-              onSendFinalLineup={(lineupId) => void sendFinalLineup(pinnedMessage.id, lineupId)}
-              onRespondLineupChange={(response) => void respondToLineupChange(pinnedMessage.id, response)}
-              onLineupChangeDeadlineDate={setLineupChangeDeadlineDate}
-              onScheduleLineupChangeDeadline={() => void scheduleLineupChangeDeadline(pinnedMessage.id)}
-              onAskCaptain={() => {
-                setMessageBody(`Question about ${formatMatchDate(pinnedMessage.card?.matchDate || '')}${pinnedMessage.card?.opponent ? ` vs ${pinnedMessage.card.opponent}` : ''}: `)
-                window.requestAnimationFrame(() => composerRef.current?.focus())
-              }}
-            />
-          </div>
-        ) : null}
-
         <div ref={messagesRef} className={styles.messages} aria-live="polite">
           {!room.messages.length ? (
             <div className={styles.emptyMessages}>
               Start the team conversation. Match reminders, availability questions, projected lineups, and team updates stay here for everyone to find.
             </div>
+          ) : null}
+          {pinnedMessage?.card && !pinnedMessage.card.finalLineup ? (
+            <details
+              id={`match-card-${pinnedMessage.id}`}
+              className={`${styles.matchPlanMessage} ${pinnedMessage.id === focusedMessageId ? styles.matchPlanMessageFocused : ''}`}
+              open={pinnedMessage.id === focusedMessageId}
+              tabIndex={pinnedMessage.id === focusedMessageId ? -1 : undefined}
+            >
+              <summary>
+                <span>
+                  <small>Match plan</small>
+                  <strong>{pinnedMessage.card.title}</strong>
+                  <em>{formatMatchDate(pinnedMessage.card.matchDate)}{pinnedMessage.card.opponent ? ` · vs ${pinnedMessage.card.opponent}` : ''}</em>
+                </span>
+                <b>View</b>
+              </summary>
+              <MatchCard
+                embedded
+                message={pinnedMessage}
+                memberCount={room.members.length}
+                canManage={room.canManage}
+                teamName={room.teamName}
+                leagueName={room.leagueName}
+                flight={room.flight}
+                focused={pinnedMessage.id === focusedMessageId}
+                focusedPlayerName={focusedPlayerName}
+                focusedCourtLabel={focusedCourtLabel}
+                focusedReplyStatus={focusedReplyStatus}
+                responding={respondingId === pinnedMessage.id}
+                acknowledging={acknowledgingId === pinnedMessage.id}
+                notifyingLineupChange={notifyingLineupChangeId === pinnedMessage.id}
+                sendingFinalLineup={sendingFinalLineupId === pinnedMessage.id}
+                respondingLineupChange={respondingLineupChangeId === pinnedMessage.id}
+                schedulingLineupChangeDeadline={schedulingLineupChangeDeadlineId === pinnedMessage.id}
+                lineupChangeDeadlineDate={lineupChangeDeadlineDate}
+                currentPlayerNames={room.members
+                  .filter((member) => member.id === userId)
+                  .flatMap((member) => [member.playerName, member.name])}
+                onRespond={(response) => void respondToMatch(pinnedMessage.id, response)}
+                onAcknowledge={() => void acknowledgeLineup(pinnedMessage.id)}
+                onNotifyLineupChange={() => void notifyLineupChange(pinnedMessage.id)}
+                onSendFinalLineup={(lineupId) => void sendFinalLineup(pinnedMessage.id, lineupId)}
+                onRespondLineupChange={(response) => void respondToLineupChange(pinnedMessage.id, response)}
+                onLineupChangeDeadlineDate={setLineupChangeDeadlineDate}
+                onScheduleLineupChangeDeadline={() => void scheduleLineupChangeDeadline(pinnedMessage.id)}
+                onAskCaptain={() => {
+                  setMessageBody(`Question about ${formatMatchDate(pinnedMessage.card?.matchDate || '')}${pinnedMessage.card?.opponent ? ` vs ${pinnedMessage.card.opponent}` : ''}: `)
+                  window.requestAnimationFrame(() => composerRef.current?.focus())
+                }}
+              />
+            </details>
           ) : null}
           {room.messages.map((message) => {
             if (message.id === pinnedMessage?.id) return null
@@ -2907,6 +2963,7 @@ function UpcomingMatchCard({ message }: { message: TeamRoomMessage }) {
 }
 
 function MatchCard({
+  embedded = false,
   message,
   memberCount,
   canManage,
@@ -2934,6 +2991,7 @@ function MatchCard({
   onScheduleLineupChangeDeadline,
   onAskCaptain,
 }: {
+  embedded?: boolean
   message: TeamRoomMessage
   memberCount: number
   canManage: boolean
@@ -3054,7 +3112,7 @@ function MatchCard({
           <p className={styles.matchCardEyebrow}>{card.cardType === 'projected_lineup' ? 'Projected lineup' : 'Next match'}</p>
           <h2>{card.title}</h2>
         </div>
-        <span className={styles.pinnedBadge}>Pinned</span>
+        {!embedded ? <span className={styles.pinnedBadge}>Pinned</span> : null}
       </div>
       <div className={styles.matchIdentity}>
         <strong>{formatMatchDate(card.matchDate)}</strong>
