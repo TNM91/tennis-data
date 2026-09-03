@@ -186,6 +186,15 @@ describe('Team Room live availability card', () => {
     expect(roomPage).toContain("<span className={styles.captainActionComplete}>Lineup sent</span>")
   })
 
+  it('explains the final send and scorecard steps after the Builder opens Team Room', () => {
+    const roomPage = readSource('app/team-room/page.tsx')
+
+    expect(roomPage).toContain("searchParams.get('intent') === 'finalize-lineup'")
+    expect(roomPage).toContain('Nothing has been sent yet.')
+    expect(roomPage).toContain('Step 1: review the pinned lineup and tap Send lineup to team. Step 2: share the image or print the scorecard.')
+    expect(roomPage).toContain('Share / print confirmed lineup below to send the image or print the scorecard.')
+  })
+
   it('publishes one affected-court update when a final lineup changes', () => {
     const roomApi = readSource('app/api/team-rooms/route.ts')
     const roomPage = readSource('app/team-room/page.tsx')
