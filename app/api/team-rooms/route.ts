@@ -1108,6 +1108,11 @@ export async function POST(request: Request) {
             facility: card.facility || previousCard.facility,
             availabilityRequestId: card.availabilityRequestId || previousCard.availabilityRequestId,
             availabilityRequestUrl: card.availabilityRequestUrl || previousCard.availabilityRequestUrl,
+            // A captain confirmation remains valid only while the same courts
+            // are carried forward. A changed lineup needs a fresh confirmation.
+            captainConfirmedLineup: card.captainConfirmedLineup === true
+              || (previousCard.captainConfirmedLineup
+                && buildLineupChanges(previousCard.lineup, card.lineup).length === 0),
           }
         : card
     const lineupChanges = effectiveCard.cardType === 'projected_lineup'
@@ -2531,9 +2536,7 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
         : null,
       reactionByMessageId.get(row.id) || [],
       attachmentUrlByMessageId.get(row.id) || '',
-      isMatchCardMetadata(row.metadata)
-        ? availabilityByRequestId.get(cleanText(row.metadata.availabilityRequestId)) || null
-        : null,
+      resolveTeamRoomAvailabilitySummary(row.metadata, availabilityByRequestId),
       row.id === activeLevelUpChallengeId ? Array.from(activeLevelUpCompletion.completedIds) : [],
       row.id === activeLevelUpChallengeId
         ? activeLevelUpCompletion.completedCardIdsByPlayer.get(userId) || []
@@ -2955,8 +2958,10 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
         'active',
         [],
         '',
-        (await loadAvailabilityRequestSummaries(service, [latestCard]))
-          .get(cleanText(latestCard.metadata?.availabilityRequestId)) || null,
+        resolveTeamRoomAvailabilitySummary(
+          latestCard.metadata,
+          await loadAvailabilityRequestSummaries(service, [latestCard]),
+        ),
       )
     : null
   const actionQueue = buildTeamRoomActionQueue(members, message)
@@ -4375,7 +4380,34 @@ function cleanMatchCard(value: unknown) {
     lineup,
     availabilityRequestId: cleanText(card.availabilityRequestId),
     availabilityRequestUrl: cleanText(card.availabilityRequestUrl).slice(0, 500),
+    captainConfirmedLineup: card.captainConfirmedLineup === true,
   }
+}
+
+function resolveTeamRoomAvailabilitySummary(
+  metadata: Record<string, unknown> | null,
+  summaries: Map<string, TeamRoomAvailabilitySummary>,
+) {
+  if (!isMatchCardMetadata(metadata)) return null
+
+  const card = cleanMatchCard(metadata)
+  if (card.captainConfirmedLineup) {
+    const players = Array.from(new Set(card.lineup.flatMap((court) => court.players).map(cleanText).filter(Boolean)))
+    if (players.length) {
+      return summarizeTeamRoomAvailability({
+        matchDate: card.matchDate,
+        invites: players.map((playerName) => ({ playerName })),
+        responses: players.map((playerName) => ({
+          playerName,
+          matchDate: card.matchDate,
+          status: 'yes',
+          respondedAt: '9999-12-31T23:59:59.999Z',
+        })),
+      })
+    }
+  }
+
+  return summaries.get(card.availabilityRequestId) || null
 }
 
 function cleanLineupChangeContext(value: unknown) {

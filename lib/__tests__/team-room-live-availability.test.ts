@@ -17,6 +17,8 @@ describe('Team Room live availability card', () => {
     expect(roomApi).toContain(".from('lineup_availability')")
     expect(roomApi).toContain('summarizeTeamRoomAvailability({')
     expect(roomApi).toContain("respondedAt: '9999-12-31T23:59:59.999Z'")
+    expect(roomApi).toContain('resolveTeamRoomAvailabilitySummary')
+    expect(roomApi).toContain('captainConfirmedLineup')
     expect(availabilityApi).toContain("url.searchParams.get('requestId')")
     expect(availabilityApi).toContain('canManageSharedAvailabilityRequest')
   })

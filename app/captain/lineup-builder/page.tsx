@@ -3072,6 +3072,10 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             matchTime: selectedMatch?.match_time || '',
             facility: selectedMatch?.facility || '',
             matchId: selectedMatch?.id || '',
+            // This action is enabled only after every selected player has a
+            // captain-recorded Yes. Carry that verified state into the Team
+            // Room instead of asking its older availability request to infer it.
+            captainConfirmedLineup: true,
             lineup: teamSlots.map((slot) => ({
               label: slot.label,
               players: slot.players.map((player) => player.playerName).filter(Boolean),
