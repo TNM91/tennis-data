@@ -273,7 +273,7 @@ function MatchupSheetContent() {
       </section>
       {shareNotice ? <p className={styles.shareNotice} role="status">{shareNotice}</p> : null}
 
-      <article className={styles.sheet} aria-label="Printable matchup sheet">
+      <article className={`${styles.sheet} ${lineup.length > 3 ? styles.denseSheet : ''}`} aria-label="Printable matchup sheet">
         <header className={styles.sheetHeader}>
           <div className={styles.brandBlock}>
             <Image
@@ -343,21 +343,21 @@ function MatchupSheetContent() {
               </div>
               <div className={styles.scoreGrid} aria-label={`Score entry for ${court.label || `Court ${index + 1}`}`}>
                 <div className={styles.scoreGridHead}>
-                  <span>Side</span>
+                  <span>Pair</span>
                   <span>Set 1</span>
                   <span>Set 2</span>
                   <span>Match tie-break</span>
                   <span>W / L</span>
                 </div>
                 <div className={styles.scoreGridRow}>
-                  <strong>TiQ</strong>
+                  <strong>{(court.players || []).filter(Boolean).join(' / ') || 'Your pair'}</strong>
                   <i aria-hidden="true" />
                   <i aria-hidden="true" />
                   <i aria-hidden="true" />
                   <i aria-hidden="true" />
                 </div>
                 <div className={styles.scoreGridRow}>
-                  <strong>Opp</strong>
+                  <strong>{opponent ? `${opponent} pair` : 'Opponent pair'}</strong>
                   <i aria-hidden="true" />
                   <i aria-hidden="true" />
                   <i aria-hidden="true" />
