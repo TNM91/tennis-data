@@ -13,6 +13,7 @@ import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
+import { markCaptainLaunchOutreachStarted } from '@/lib/captain-launch-progress'
 import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
 import {
   buildCaptainWeekStatusKey,
@@ -455,6 +456,10 @@ function eventDefaultMessage(kind: MessageKind, params: {
   return `Following up for ${dateText}. I still need your response. Please reply ASAP so I can finalize the lineup.`
 }
 
+function buildTeamConnectionMessage(teamName: string) {
+  return `Hi ${teamName || 'team'} — I added our team to TenAceIQ. Please create or sign in, then open Profile and choose Find my player: https://www.tenaceiq.com/profile#profile-identity\n\nOnce your Player ID matches our roster, open My Teams to review and link the team. You stay in control of the connection.`
+}
+
 
 function demoEventKey() {
   return safeKey(demoScenario.team_name || demoMatch.home_team, demoScenario.league_name || demoMatch.league_name, demoScenario.flight || demoMatch.flight, demoScenario.match_date || demoMatch.match_date)
@@ -623,6 +628,7 @@ function CaptainMessagingContent() {
   const initialContext = readInitialMessagingContext()
   const contactReviewMode = searchParams.get('contactView') === 'missing'
   const contactManagerRequested = Boolean(searchParams.get('contactView'))
+  const setupTeamLinkRequested = searchParams.get('setup') === 'team-link'
   const requestedMissingContactNames = useMemo(
     () => (searchParams.get('missingContacts') || '').split('|').map((name) => name.trim()).filter(Boolean),
     [searchParams],
@@ -663,6 +669,7 @@ function CaptainMessagingContent() {
   const [focusWaiting] = useState(initialContext.focusWaiting)
   const nudgeQueuePreparedRef = useRef(false)
   const contactReviewAppliedRef = useRef(false)
+  const teamConnectionInviteAppliedRef = useRef(false)
 
   const [prefillScenarioRaw] = useState<ScenarioRow | null>(initialContext.scenario)
   const [prefillFlowSource] = useState(initialContext.flowSource)
@@ -1362,6 +1369,24 @@ function CaptainMessagingContent() {
     }
     return base
   }, [scopedContacts, recipientMode, availabilityMap, lineupPlayerSet, responseMap, selectedRecipientIds])
+
+  useEffect(() => {
+    if (!setupTeamLinkRequested || loading || teamConnectionInviteAppliedRef.current || !teamFilter) return
+    const invitees = scopedContacts.filter((contact) => contact.phone && contact.opt_in_text)
+    if (!invitees.length) {
+      setError('Add a mobile number for at least one player before sending the team connection text.')
+      teamConnectionInviteAppliedRef.current = true
+      return
+    }
+
+    setRecipientMode('custom')
+    setSelectedRecipientIds(invitees.map((contact) => contact.id))
+    setMessageKind('availability')
+    setSelectedTemplateId('')
+    setMessageTitle('Connect your TenAceIQ Player ID')
+    setMessageBody(buildTeamConnectionMessage(teamFilter))
+    teamConnectionInviteAppliedRef.current = true
+  }, [loading, scopedContacts, setupTeamLinkRequested, teamFilter])
 
   const recipientsPhones = useMemo(() => selectedRecipients.map((recipient) => recipient.phone).filter(Boolean), [selectedRecipients])
   const smsHref = buildSmsHref(recipientsPhones, messageBody)
@@ -4471,7 +4496,7 @@ function importScenarioToLineup() {
                     </div>
 
                     <div style={actionRowStyle}>
-                      <a href={captainAccess ? smsHref : undefined} style={{ ...primaryButton, ...(captainAccess ? null : disabledButtonStyle) }} onClick={(event) => { if (!captainAccess) { event.preventDefault(); setError('Captain tier required to send team messages.'); return } prepareSmsBodyForNativeComposer(messageBody) }}>Open texts</a>
+                      <a href={captainAccess ? smsHref : undefined} style={{ ...primaryButton, ...(captainAccess ? null : disabledButtonStyle) }} onClick={(event) => { if (!captainAccess) { event.preventDefault(); setError('Captain tier required to send team messages.'); return } if (setupTeamLinkRequested) markCaptainLaunchOutreachStarted({ team: teamFilter, league: leagueFilter, flight: flightFilter }); prepareSmsBodyForNativeComposer(messageBody) }}>Open texts</a>
                       <GhostSmallBtn onClick={copyBody}>{copiedState === 'body' ? 'Copied body' : 'Copy body'}</GhostSmallBtn>
                       <GhostSmallBtn onClick={copyNumbers}>{copiedState === 'numbers' ? 'Copied numbers' : 'Copy numbers'}</GhostSmallBtn>
                       <GhostSmallBtn onClick={() => void handleSaveTemplate()} disabled={!captainAccess}>Save template</GhostSmallBtn>

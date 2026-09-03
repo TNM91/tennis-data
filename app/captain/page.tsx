@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import ClubContextBanner from '@/app/components/club-context-banner'
 import ContextualTennisVisual from '@/app/components/contextual-tennis-visual'
+import CaptainLaunchPath from '@/app/components/captain-launch-path'
 import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
@@ -97,6 +98,7 @@ import {
   type CaptainLevelUpChallengeProgress,
 } from '@/lib/captain-level-up-challenge'
 import { getCaptainSetupProgress, type CaptainSetupProgress } from '@/lib/captain-setup-progress'
+import { getCaptainLaunchProgress, readCaptainLaunchOutreach } from '@/lib/captain-launch-progress'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { selectPrimaryTeamRoomCourtReadiness } from '@/lib/team-room-match-flow'
 import { buildTeamRoomLateArrivalBuilderHref } from '@/lib/team-room-arrival'
@@ -156,6 +158,7 @@ import mobileCommandStyles from './captain-mobile-command.module.css'
 const dataAssistCaptainHref = '/data-assist?intent=upload-source&context=Team%20Hub'
 const captainPlayerRosterHref = `${dataAssistCaptainHref}&type=team_summary&help=1&returnTo=%2Fcaptain#upload`
 const captainScheduleHref = `${dataAssistCaptainHref}&type=schedule&help=1&returnTo=%2Fcaptain#upload`
+const captainContactsImportHref = `${dataAssistCaptainHref}&type=team_summary&contactImport=1&help=1&returnTo=%2Fcaptain#upload`
 const captainScorecardHref = `${dataAssistCaptainHref}&type=scorecard&help=1#upload`
 const TEAM_ROOM_SUMMARY_REFRESH_MS = 30_000
 const captainTeamImprovementHrefs: Record<CaptainTeamImprovementId, string> = {
@@ -1733,6 +1736,7 @@ function CaptainHubContent() {
   const [levelUpChallengeHistoryMessage, setLevelUpChallengeHistoryMessage] = useState('')
   const [captainTeamScopes, setCaptainTeamScopes] = useState<CaptainTeamScope[]>([])
   const [captainProfileLink, setCaptainProfileLink] = useState<CaptainProfileLinkRow | null>(null)
+  const [captainLaunchOutreachStarted, setCaptainLaunchOutreachStarted] = useState(false)
   const [teamScopeResolved, setTeamScopeResolved] = useState(false)
   const [teamSelectionInitialized, setTeamSelectionInitialized] = useState(false)
   const [savingDefaultTeam, setSavingDefaultTeam] = useState(false)
@@ -3368,6 +3372,7 @@ function CaptainHubContent() {
     date: matchWeekDate,
     opponent: matchWeekOpponent,
   })
+  const captainLaunchInviteHref = `${messagingHref}${messagingHref.includes('?') ? '&' : '?'}setup=team-link`
   const teamRoomHref = buildTeamRoomHref({
     teamName: selectedTeam,
     leagueName: selectedLeague,
@@ -3521,6 +3526,20 @@ function CaptainHubContent() {
     teamOptions: filteredTeamOptions,
     importHandoff: captainImportHandoff,
   }), [captainImportHandoff, captainProfileLink, captainTeamScopes, filteredTeamOptions])
+  useEffect(() => {
+    setCaptainLaunchOutreachStarted(readCaptainLaunchOutreach({
+      team: selectedTeam,
+      league: selectedLeague,
+      flight: selectedFlight,
+    }))
+  }, [selectedFlight, selectedLeague, selectedTeam])
+  const captainLaunchProgress = useMemo(() => getCaptainLaunchProgress({
+    hasPlayer: captainSetupProgress.hasPlayer,
+    hasTeam: captainSetupProgress.hasTeam,
+    hasSchedule: captainSetupProgress.hasMatchData,
+    hasContacts: captainRosterContacts.length > 0,
+    hasOutreach: captainLaunchOutreachStarted,
+  }), [captainLaunchOutreachStarted, captainRosterContacts.length, captainSetupProgress.hasMatchData, captainSetupProgress.hasPlayer, captainSetupProgress.hasTeam])
   useEffect(() => {
     setCaptainHomeChecklistDoneById(hasTeamScope ? readCaptainHomeChecklist(captainWeekStatusKey) : {})
     setCaptainFirstSeasonDryRunDoneById(hasTeamScope ? readCaptainFirstSeasonDryRun(captainWeekStatusKey) : {})
@@ -18545,6 +18564,18 @@ function CaptainHubContent() {
               <div role="status" aria-live="polite" style={captainDefaultTeamMessageStyle}>
                 {defaultTeamMessage}
               </div>
+            ) : null}
+
+            {hasTeamScope ? (
+              <CaptainLaunchPath
+                progress={captainLaunchProgress}
+                playerHref="/profile?setup=captain&returnTo=%2Fcaptain#profile-identity"
+                teamHref={captainPlayerRosterHref}
+                scheduleHref={captainScheduleHref}
+                contactsHref={captainContactsImportHref}
+                outreachHref={captainLaunchInviteHref}
+                matchWeekHref={availabilityHref}
+              />
             ) : null}
 
             {filteredTeamOptions.length ? (
