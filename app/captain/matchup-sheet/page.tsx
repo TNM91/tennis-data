@@ -114,24 +114,17 @@ async function createLineupImage(input: {
   context.fillStyle = topBar
   context.fillRect(0, 0, canvas.width, 12)
 
-  context.fillStyle = 'rgba(182, 242, 72, 0.16)'
-  context.beginPath()
-  context.arc(1040, 120, 255, 0, Math.PI * 2)
-  context.fill()
-  context.fillStyle = 'rgba(78, 146, 224, 0.12)'
-  context.beginPath()
-  context.arc(160, canvas.height - 80, 330, 0, Math.PI * 2)
-  context.fill()
-
-  context.strokeStyle = 'rgba(203, 239, 130, 0.16)'
-  context.lineWidth = 3
-  context.beginPath()
-  context.arc(1010, 210, 150, 0, Math.PI * 2)
-  context.stroke()
-  context.beginPath()
-  context.moveTo(860, 210)
-  context.lineTo(1160, 210)
-  context.stroke()
+  try {
+    const watermark = await loadCanvasImage('/brand/web/header-iq-compact.png')
+    const watermarkHeight = 300
+    const watermarkWidth = watermarkHeight * (watermark.naturalWidth / watermark.naturalHeight)
+    context.save()
+    context.globalAlpha = 0.1
+    context.drawImage(watermark, canvas.width - watermarkWidth - 110, 170, watermarkWidth, watermarkHeight)
+    context.restore()
+  } catch {
+    // The branded card remains usable if the optional watermark cannot be loaded.
+  }
 
   context.fillStyle = 'rgba(6, 23, 47, 0.42)'
   context.beginPath()
