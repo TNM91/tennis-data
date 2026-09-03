@@ -177,8 +177,12 @@
   display: grid;
   align-content: end;
   gap: 13px;
-  min-height: min(58vh, 620px);
-  padding: 20px 18px;
+  height: min(58dvh, 620px);
+  min-height: 360px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px 18px 224px;
+  scroll-padding-bottom: 224px;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--shell-page-bg) 72%, transparent), transparent 16%),
     var(--shell-page-bg);
@@ -938,8 +942,23 @@
   overflow-wrap: anywhere;
 }
 
-.matchDayActions > * {
+.matchDayActions > :is(a, button) {
   flex: 1 1 128px;
+  min-height: 38px;
+  padding: 7px 11px;
+  font-size: 0.76rem;
+}
+
+.matchDayTravelActions {
+  display: flex;
+  flex: 1 1 262px;
+  gap: 7px;
+  min-width: 0;
+}
+
+.matchDayTravelActions > a {
+  flex: 1 1 128px;
+  min-width: 0;
   min-height: 38px;
   padding: 7px 11px;
   font-size: 0.76rem;
@@ -1645,16 +1664,26 @@
 }
 
 .composer {
-  position: sticky;
+  position: fixed;
+  right: auto;
   bottom: 0;
+  left: 50%;
   z-index: 8;
   display: grid;
+  width: min(980px, 100vw);
   gap: 10px;
   border-top: 1px solid var(--shell-panel-border);
+  border-right: 1px solid var(--shell-panel-border);
+  border-left: 1px solid var(--shell-panel-border);
   background: color-mix(in srgb, var(--shell-panel-bg) 96%, transparent);
   padding: 13px 14px calc(13px + env(safe-area-inset-bottom));
   backdrop-filter: blur(18px);
+  transform: translateX(-50%);
 }
+
+.composerHeading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.composerHeading strong { color: var(--foreground-strong); font-size: .82rem; }
+.composerHeading span { color: var(--shell-copy-muted); font-size: .74rem; font-weight: 750; }
 
 .composer textarea {
   width: 100%;
@@ -2683,9 +2712,12 @@
   }
 
   .messages {
-    min-height: 54vh;
-    padding: 17px 13px;
+    height: 54dvh;
+    min-height: 300px;
+    padding: 17px 13px 224px;
   }
+
+  .composer { width: 100vw; }
 
   .bubble {
     max-width: 88%;

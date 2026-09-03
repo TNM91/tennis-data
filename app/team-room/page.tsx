@@ -35,6 +35,7 @@ import {
   getTeamRoomMatchDayPhase,
   type TeamRoomMatchDayPhase,
 } from '@/lib/team-room-match-day'
+import { buildMatchWeekGoogleCalendarHref } from '@/lib/captain-match-week-links'
 import { CAPTAIN_AVAILABILITY_REPLY_NOTICE } from '@/lib/captain-reply-alert'
 import { buildCaptainLockedLineupId, isCaptainLineupLocked } from '@/lib/captain-lineup-confirmation'
 import { buildCaptainLevelUpCardHref, getCaptainLevelUpCardDetails } from '@/lib/captain-level-up-challenge'
@@ -1991,7 +1992,11 @@ function TeamRoomContent() {
           <div ref={endRef} />
         </div>
 
-        <div className={styles.composer}>
+        <div className={styles.composer} aria-label="Team Chat message composer">
+          <div className={styles.composerHeading}>
+            <strong>Team Chat</strong>
+            <span>Reply to the team</span>
+          </div>
           <div className={styles.quickActions} aria-label="Quick team messages">
             {room.canManage ? (
               <button className={styles.quickButtonPrimary} type="button" onClick={openAvailability}>
@@ -2167,6 +2172,13 @@ function PublishedLineupPin({
     card.opponent ? `vs ${card.opponent}` : '',
   ].filter(Boolean).join(' ')
   const mapsHref = buildTeamRoomMapsHref(card.facility)
+  const calendarHref = buildMatchWeekGoogleCalendarHref({
+    eventDate: card.matchDate,
+    eventTime: card.matchTime,
+    opponent: card.opponent,
+    location: card.facility,
+    details: 'Team match from TenAceIQ Team Chat.',
+  })
   const isMatchDay = phase === 'match_day'
   const isPostMatch = phase === 'post_match'
   const scoreLabel = result?.teamScore && result.opponentScore
@@ -2304,8 +2316,11 @@ function PublishedLineupPin({
           {isPostMatch && canManage ? (
             <Link className={styles.buttonPrimary} href={scorecardHref}>Add scorecard</Link>
           ) : null}
-          {mapsHref ? (
-            <a className={styles.buttonSecondary} href={mapsHref} target="_blank" rel="noreferrer">Open maps</a>
+          {mapsHref || calendarHref ? (
+            <div className={styles.matchDayTravelActions} aria-label="Match travel actions">
+              {mapsHref ? <a className={styles.buttonSecondary} href={mapsHref} target="_blank" rel="noreferrer">Open maps</a> : null}
+              {calendarHref ? <a className={styles.buttonSecondary} href={calendarHref} target="_blank" rel="noreferrer">Add to calendar</a> : null}
+            </div>
           ) : null}
           {canManage && !isPostMatch ? (
             <Link className={styles.buttonSecondary} href={lineupHref}>Update lineup</Link>
