@@ -14,7 +14,9 @@ describe('Team Room live availability card', () => {
     expect(roomApi).toContain('loadAvailabilityRequestSummaries')
     expect(roomApi).toContain(".from('captain_availability_request_invites')")
     expect(roomApi).toContain(".from('captain_availability_request_responses')")
+    expect(roomApi).toContain(".from('lineup_availability')")
     expect(roomApi).toContain('summarizeTeamRoomAvailability({')
+    expect(roomApi).toContain("respondedAt: '9999-12-31T23:59:59.999Z'")
     expect(availabilityApi).toContain("url.searchParams.get('requestId')")
     expect(availabilityApi).toContain('canManageSharedAvailabilityRequest')
   })
@@ -193,6 +195,8 @@ describe('Team Room live availability card', () => {
     expect(roomPage).toContain('Nothing has been sent yet.')
     expect(roomPage).toContain('Step 1: review the pinned lineup and tap Send lineup to team. Step 2: share the image or print the scorecard.')
     expect(roomPage).toContain('Share / print confirmed lineup below to send the image or print the scorecard.')
+    expect(roomPage).toContain('This match is already complete.')
+    expect(roomPage).toContain('Open scorecard')
   })
 
   it('publishes one affected-court update when a final lineup changes', () => {

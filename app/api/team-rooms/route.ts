@@ -3759,7 +3759,7 @@ async function loadAvailabilityRequestSummaries(service: SupabaseClient, message
   const [requestsResult, invitesResult, responsesResult] = await Promise.all([
     service
       .from('captain_availability_requests')
-      .select('id,scenario_id,match_date')
+      .select('id,scenario_id,team_name,match_date')
       .in('id', requestIds),
     service
       .from('captain_availability_request_invites')
@@ -3772,9 +3772,34 @@ async function loadAvailabilityRequestSummaries(service: SupabaseClient, message
   ])
   if (requestsResult.error || invitesResult.error || responsesResult.error) return summaries
 
-  for (const requestRow of requestsResult.data ?? []) {
+  const requestRows = requestsResult.data ?? []
+  const teamNames = Array.from(new Set(requestRows.map((row) => cleanText(row.team_name)).filter(Boolean)))
+  const matchDates = Array.from(new Set(requestRows.map((row) => cleanText(row.match_date).slice(0, 10)).filter(Boolean)))
+  const captainAvailabilityResult = teamNames.length && matchDates.length
+    ? await service
+        .from('lineup_availability')
+        .select('team_name,match_date,player_id,status')
+        .in('team_name', teamNames)
+        .in('match_date', matchDates)
+    : { data: [], error: null }
+  const captainAvailabilityRows = captainAvailabilityResult.error ? [] : captainAvailabilityResult.data ?? []
+
+  for (const requestRow of requestRows) {
     const requestId = cleanText(requestRow.id)
     if (!requestId) continue
+    const captainReplies = captainAvailabilityRows
+      .filter((row) => (
+        cleanText(row.team_name) === cleanText(requestRow.team_name)
+        && cleanText(row.match_date).slice(0, 10) === cleanText(requestRow.match_date).slice(0, 10)
+      ))
+      .map((row) => ({
+        playerId: row.player_id,
+        playerName: '',
+        matchDate: row.match_date,
+        status: row.status,
+        // A captain-recorded availability is the current decision for this match.
+        respondedAt: '9999-12-31T23:59:59.999Z',
+      }))
     summaries.set(requestId, summarizeTeamRoomAvailability({
       matchDate: cleanText(requestRow.match_date),
       scenarioId: cleanText(requestRow.scenario_id),
@@ -3789,7 +3814,7 @@ async function loadAvailabilityRequestSummaries(service: SupabaseClient, message
           matchDate: response.match_date,
           status: response.status,
           respondedAt: response.responded_at,
-        })),
+        })).concat(captainReplies),
     }))
   }
   return summaries

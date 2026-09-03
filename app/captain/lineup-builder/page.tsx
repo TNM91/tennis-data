@@ -1497,6 +1497,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const [lockedSlotIds, setLockedSlotIds] = useState<string[]>([])
   const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
   const [releasedConfirmedPlayerIds, setReleasedConfirmedPlayerIds] = useState<string[]>([])
+  const [openingFinalDelivery, setOpeningFinalDelivery] = useState(false)
 
   const [prefillScenarioId] = useState(initialContext.scenario)
   const [prefillPairIds] = useState<string[]>(initialContext.pairIds)
@@ -2523,19 +2524,6 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     return `${baseHref}${baseHref.includes('?') ? '&' : '?'}contactView=all#captain-contact-manager`
   }, [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName])
 
-  const finalLineupDeliveryHref = useMemo(() => {
-    const baseHref = buildTeamRoomHref({
-      teamName,
-      leagueName,
-      flight,
-      date: matchDate,
-      opponent: opponentTeam,
-      time: selectedMatch?.match_time || '',
-      facility: selectedMatch?.facility || '',
-    })
-    return `${baseHref}${baseHref.includes('?') ? '&' : '?'}intent=finalize-lineup`
-  }, [flight, leagueName, matchDate, opponentTeam, selectedMatch?.facility, selectedMatch?.match_time, teamName])
-
   const teamSummaryUploadHref = useMemo(
     () => buildTeamSummaryUploadHref({
       teamName,
@@ -3047,6 +3035,67 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       opponent: opponentTeam,
     })
     router.push(`${messagingHref}${messagingHref.includes('?') ? '&' : '?'}source=lineup_builder`)
+  }
+
+  async function openFinalLineupDelivery() {
+    if (!finalLineupReady || !teamName || !matchDate) {
+      setError('Finish every court and confirm every selected player before sending the final lineup.')
+      return
+    }
+    const accessToken = session?.access_token || (await supabase.auth.getSession()).data.session?.access_token
+    if (!accessToken) {
+      setError('Sign in again before sending the final lineup.')
+      return
+    }
+
+    setOpeningFinalDelivery(true)
+    setError('')
+    setMessage('Preparing the exact lineup for final send...')
+    try {
+      const response = await fetch('/api/team-rooms', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'post_match_card',
+          teamName,
+          leagueName,
+          flight,
+          silent: true,
+          card: {
+            cardType: 'projected_lineup',
+            title: 'Final lineup ready to send',
+            matchDate,
+            opponent: opponentTeam,
+            matchTime: selectedMatch?.match_time || '',
+            facility: selectedMatch?.facility || '',
+            matchId: selectedMatch?.id || '',
+            lineup: teamSlots.map((slot) => ({
+              label: slot.label,
+              players: slot.players.map((player) => player.playerName).filter(Boolean),
+            })),
+          },
+        }),
+      })
+      const result = await response.json() as { ok?: boolean; message?: string; messageId?: string; href?: string }
+      if (!response.ok || !result.ok || !result.messageId) {
+        throw new Error(result.message || 'The final lineup could not be prepared. Please try again.')
+      }
+      const hrefUrl = new URL(
+        result.href || buildTeamRoomHref({ teamName, leagueName, flight }),
+        window.location.origin,
+      )
+      hrefUrl.searchParams.set('message', result.messageId)
+      hrefUrl.searchParams.set('intent', 'finalize-lineup')
+      hrefUrl.hash = `match-card-${encodeURIComponent(result.messageId)}`
+      router.push(`${hrefUrl.pathname}${hrefUrl.search}${hrefUrl.hash}`)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'The final lineup could not be prepared. Please try again.')
+      setMessage('')
+      setOpeningFinalDelivery(false)
+    }
   }
 
   function saveDirectCourtTextHandoff(next: CaptainDirectCourtTextHandoff | null) {
@@ -4650,7 +4699,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     : assignedTeamReplySummary.waiting.length
       ? `Waiting on ${assignedTeamReplySummary.waiting.slice(0, 2).map((player) => player.name).join(' and ')}${assignedTeamReplySummary.waiting.length > 2 ? ` and ${assignedTeamReplySummary.waiting.length - 2} more` : ''}.`
       : 'A selected player only counts after they reply Yes or you use Mark Yes & lock to record a text or call confirmation.'
-  const finalLineupDeliveryLabel = 'Open final send & print'
+  const finalLineupDeliveryLabel = openingFinalDelivery ? 'Preparing final send…' : 'Review & send final lineup'
   const mobileLineupPulse = [
     {
       label: 'Courts',
@@ -5113,7 +5162,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               </div>
               <div style={mobileCourtFocusActionsStyle}>
                 {finalLineupReady ? (
-                  <Link href={finalLineupDeliveryHref} style={primaryButton}>{finalLineupDeliveryLabel}</Link>
+                  <PrimaryBtn disabled={openingFinalDelivery} onClick={() => void openFinalLineupDelivery()}>{finalLineupDeliveryLabel}</PrimaryBtn>
                 ) : firstOpenTeamCourt ? (
                   <GhostBtn onClick={() => focusTeamCourts(teamSlots, firstOpenTeamCourt.id)}>Finish {firstOpenTeamCourt.label}</GhostBtn>
                 ) : (
@@ -5145,7 +5194,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 </div>
                 <div style={mobileFinalLineupActionsStyle}>
                   {finalLineupReady ? (
-                    <Link href={finalLineupDeliveryHref} style={primaryButton}>{finalLineupDeliveryLabel}</Link>
+                    <PrimaryBtn disabled={openingFinalDelivery} onClick={() => void openFinalLineupDelivery()}>{finalLineupDeliveryLabel}</PrimaryBtn>
                   ) : (
                     <GhostBtn onClick={() => focusTeamCourts()}>Review player replies</GhostBtn>
                   )}
@@ -5223,7 +5272,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             </div>
             <div style={finalLineupGateActionsStyle}>
               {finalLineupReady ? (
-                <GhostLink href={finalLineupDeliveryHref}>{finalLineupDeliveryLabel}</GhostLink>
+                <GhostBtn disabled={openingFinalDelivery} onClick={() => void openFinalLineupDelivery()}>{finalLineupDeliveryLabel}</GhostBtn>
               ) : (
                 <GhostBtn onClick={() => focusTeamCourts()}>Review player replies</GhostBtn>
               )}
@@ -5304,7 +5353,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
           <div style={decisionBoardActionRowStyle}>
             {finalLineupReady ? (
-              <Link href={finalLineupDeliveryHref} style={primaryButton}>{finalLineupDeliveryLabel}</Link>
+              <PrimaryBtn disabled={openingFinalDelivery} onClick={() => void openFinalLineupDelivery()}>{finalLineupDeliveryLabel}</PrimaryBtn>
             ) : firstOpenTeamCourt ? (
               <GhostBtn onClick={() => focusTeamCourts(teamSlots, firstOpenTeamCourt.id)}>Finish {firstOpenTeamCourt.label}</GhostBtn>
             ) : (
