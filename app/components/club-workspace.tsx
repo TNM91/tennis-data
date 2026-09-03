@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
+import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { TEAM_MATCH_FORMATS, TOURNAMENT_DRAW_FORMATS } from '@/lib/competition-format-registry'
 import { getClubRosterConnectionLabel, type ClubRosterConnectionStatus } from '@/lib/club-roster-reconciliation'
 import { getClubCommunicationSummary, type ClubCommunicationItem } from '@/lib/club-communication'
@@ -1604,6 +1605,22 @@ function ClubHome({ workspace, roles, working, openCommunicationOnLoad, onPostMe
       </section> : null}
       {showEverydayWorkspace ? <ClubExperiencePath workspace={workspace} roles={roles} onOpenTab={onOpenTab} /> : null}
       {showEverydayWorkspace ? <ClubPulse key={workspace.club.id} workspace={workspace} roles={roles} openCommunicationOnLoad={openCommunicationOnLoad} onPostMessage={onPostMessage} onLoadAnnouncements={onLoadAnnouncements} onRecordAnnouncement={onRecordAnnouncement} onLoadCommunication={onLoadCommunication} onMarkCommunicationRead={onMarkCommunicationRead} onOpenTab={onOpenTab} /> : null}
+      {manager && setupComplete && !showSetup ? (
+        <section className={styles.launchTrophy} aria-label="Club launch complete">
+          <div className={styles.launchTrophyTop}>
+            <TiqFeatureIcon name="clubTennis" size="md" variant="surface" />
+            <div>
+              <p className={styles.eyebrow}>Club trophy earned</p>
+              <h3>First club launch complete</h3>
+              <p>Your club identity, first staff member, first player, first program, and public link are connected.</p>
+            </div>
+          </div>
+          <div className={styles.launchTrophyActions}>
+            <button className={styles.primary} type="button" onClick={() => onOpenTab('groups')}>Open programs</button>
+            <button className={styles.quietButton} type="button" onClick={() => setShowSetup(true)}>Review launch checklist</button>
+          </div>
+        </section>
+      ) : null}
       {manager && (!setupComplete || showSetup) ? (
         <section className={styles.setupCard} aria-labelledby="club-setup-title">
           <div className={styles.setupTop}>

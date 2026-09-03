@@ -464,6 +464,21 @@
 .setupProgress { height: 7px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .09); }
 .setupProgress span { display: block; height: 100%; border-radius: inherit; background: var(--club-color, var(--brand-green)); transition: width .2s ease; }
 .setupCard > .primary { justify-self: start; }
+
+.launchTrophy {
+  display: grid;
+  gap: 15px;
+  border: 1px solid color-mix(in srgb, var(--club-color, var(--brand-green)) 48%, var(--shell-panel-border));
+  border-radius: 16px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--club-color, var(--brand-green)) 14%, rgba(5, 14, 28, .92)), rgba(7, 21, 40, .94));
+  padding: clamp(16px, 3vw, 22px);
+}
+
+.launchTrophyTop { display: flex; align-items: flex-start; gap: 13px; min-width: 0; }
+.launchTrophyTop > div { display: grid; gap: 5px; min-width: 0; }
+.launchTrophyTop h3 { margin: 0; font-size: clamp(20px, 3vw, 26px); line-height: 1.1; overflow-wrap: anywhere; }
+.launchTrophyTop p:not(.eyebrow) { margin: 0; color: var(--shell-copy-muted); font-size: 13px; font-weight: 700; line-height: 1.48; }
+.launchTrophyActions { display: flex; flex-wrap: wrap; gap: 9px; }
 .setupToggle { justify-self: start; padding: 0; border: 0; background: transparent; color: var(--foreground-strong); font: inherit; font-size: 13px; font-weight: 900; cursor: pointer; }
 .setupSteps { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .setupSteps li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--shell-panel-border); }
@@ -666,6 +681,7 @@
   .seasonAction { grid-template-columns: 1fr; }
   .seasonAction > button { width: 100%; }
   .setupSteps li { align-items: flex-start; }
+  .launchTrophyActions > button { flex: 1 1 150px; }
   .experiencePath, .commandLayout { grid-template-columns: 1fr; }
   .experienceSteps button { grid-template-columns: 36px minmax(0, 1fr) auto; min-height: 76px; padding-inline: 12px; }
   .continueHeading { align-items: stretch; flex-direction: column; }
