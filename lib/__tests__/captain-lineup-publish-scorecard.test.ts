@@ -17,9 +17,10 @@ describe('Captain lineup publishing and scorecard handoff', () => {
 
   it('gives captains a native-share lineup image and a printable, scannable scorecard', () => {
     expect(sheet).toContain('async function createLineupImage')
-    expect(sheet).toContain('Share lineup image')
+    expect(sheet).toContain('Share final lineup + chat')
     expect(sheet).toContain('navigator.canShare?.({ files: [file] })')
-    expect(sheet).toContain('Print scorecard')
+    expect(sheet).toContain('Team Chat: ${teamChatUrl}')
+    expect(sheet).toContain('Print one-page scorecard')
     expect(sheet).toContain('Capture completed scorecard')
     expect(sheet).toContain('This scorecard stays connected to the confirmed lineup and match.')
   })

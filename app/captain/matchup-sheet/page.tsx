@@ -7,6 +7,7 @@ import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
+import { buildTeamRoomHref } from '@/lib/team-room'
 import styles from './matchup-sheet.module.css'
 
 type MatchupCard = {
@@ -96,7 +97,7 @@ async function createLineupImage(input: {
   const courtHeight = 156
   const canvas = document.createElement('canvas')
   canvas.width = 1200
-  canvas.height = 468 + Math.max(input.lineup.length, 1) * courtHeight
+  canvas.height = 484 + Math.max(input.lineup.length, 1) * courtHeight
   const context = canvas.getContext('2d')
   if (!context) throw new Error('Lineup image could not be created.')
 
@@ -160,19 +161,33 @@ async function createLineupImage(input: {
   for (const [index, line] of wrapCanvasText(context, input.teamName || 'Team', 940).slice(0, 2).entries()) {
     context.fillText(line, 78, 226 + index * 50)
   }
-  context.fillStyle = '#aec1d7'
-  context.font = '700 20px Arial, sans-serif'
-  const matchDetails = [formatDate(input.matchDate), input.matchTime, input.facility].filter(Boolean).join('  •  ')
-  context.fillText(matchDetails, 78, 314)
+  context.fillStyle = 'rgba(4, 24, 45, 0.82)'
+  context.beginPath()
+  context.roundRect(78, 292, 1044, 112, 18)
+  context.fill()
+  context.strokeStyle = 'rgba(183, 222, 248, 0.28)'
+  context.lineWidth = 2
+  context.stroke()
+  context.fillStyle = '#c7ef7a'
+  context.font = '900 14px Arial, sans-serif'
+  context.fillText('MATCH DETAILS', 104, 319)
+  context.fillStyle = '#ffffff'
+  context.font = '800 19px Arial, sans-serif'
+  context.fillText(`${formatDate(input.matchDate)}${input.matchTime ? `  •  ${input.matchTime}` : ''}`, 104, 350)
   context.fillStyle = '#d7ff78'
   context.font = '900 17px Arial, sans-serif'
-  context.fillText(`VS  ${(input.opponent || 'OPPONENT TO BE CONFIRMED').toUpperCase()}`, 78, 350)
+  context.fillText(`VS  ${(input.opponent || 'OPPONENT TO BE CONFIRMED').toUpperCase()}`, 104, 378)
+  context.fillStyle = '#aec1d7'
+  context.font = '700 15px Arial, sans-serif'
+  context.fillText(input.facility || 'Location to be confirmed', 104, 398)
   context.fillStyle = '#8cb2d3'
-  context.font = '800 14px Arial, sans-serif'
-  context.fillText([input.leagueName, input.flight].filter(Boolean).join('  •  ').toUpperCase() || 'TENACEIQ CAPTAIN LINEUP', 78, 382)
+  context.font = '800 13px Arial, sans-serif'
+  context.textAlign = 'right'
+  context.fillText([input.leagueName, input.flight].filter(Boolean).join('  •  ').toUpperCase() || 'TENACEIQ CAPTAIN LINEUP', 1096, 319)
+  context.textAlign = 'left'
 
   input.lineup.forEach((court, index) => {
-    const top = 410 + index * courtHeight
+    const top = 426 + index * courtHeight
     context.fillStyle = 'rgba(5, 25, 48, 0.88)'
     context.strokeStyle = 'rgba(155, 225, 29, 0.55)'
     context.lineWidth = 2
@@ -248,6 +263,15 @@ function MatchupSheetContent() {
     matchTime,
     facility,
   }), [facility, flight, leagueName, matchDate, matchTime, opponent, teamName])
+  const teamChatHref = useMemo(() => buildTeamRoomHref({
+    teamName,
+    leagueName,
+    flight,
+    date: matchDate,
+    opponent,
+    time: matchTime,
+    facility,
+  }), [facility, flight, leagueName, matchDate, matchTime, opponent, teamName])
   const scanHref = useMemo(() => {
     const params = new URLSearchParams({
       intent: 'upload-source',
@@ -266,9 +290,16 @@ function MatchupSheetContent() {
     try {
       const image = await createLineupImage({ teamName, leagueName, flight, matchDate, opponent, matchTime, facility, confirmed: confirmedLineup, lineup })
       const file = new File([image], `tenaceiq-${teamName || 'team'}-lineup.png`.replace(/[^a-z0-9._-]+/gi, '-'), { type: 'image/png' })
+      const teamChatUrl = new URL(teamChatHref, window.location.origin).toString()
+      const shareText = [
+        confirmedLineup ? 'Final lineup confirmed.' : 'Match lineup.',
+        `${teamName || 'Team'} vs ${opponent || 'Opponent to be confirmed'}.`,
+        [formatDate(matchDate), matchTime, facility].filter(Boolean).join(' • '),
+        `Team Chat: ${teamChatUrl}`,
+      ].filter(Boolean).join('\n')
       if (typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ title: `${teamName || 'Team'} ${confirmedLineup ? 'confirmed ' : ''}lineup`, files: [file] })
-        setShareNotice('Lineup image ready to send.')
+        await navigator.share({ title: `${teamName || 'Team'} ${confirmedLineup ? 'confirmed ' : ''}lineup`, text: shareText, files: [file] })
+        setShareNotice('Final lineup image and Team Chat link are ready to send.')
       } else {
         const url = URL.createObjectURL(image)
         const download = document.createElement('a')
@@ -278,7 +309,7 @@ function MatchupSheetContent() {
         download.click()
         download.remove()
         URL.revokeObjectURL(url)
-        setShareNotice('Lineup image downloaded. Attach it to your team text.')
+        setShareNotice('Lineup image downloaded. Attach it to your team text, then use Team Chat for changes.')
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
@@ -286,6 +317,10 @@ function MatchupSheetContent() {
     } finally {
       setSharing(false)
     }
+  }
+
+  function printScorecard() {
+    window.print()
   }
 
   useEffect(() => {
@@ -334,13 +369,13 @@ function MatchupSheetContent() {
     <main className={styles.page}>
       <section className={styles.screenControls} aria-label="Matchup sheet actions">
         <button type="button" className={styles.actionPrimary} disabled={!lineup.length || sharing} onClick={() => void shareLineupImage()}>
-          {sharing ? 'Preparing image…' : 'Share lineup image'}
+          {sharing ? 'Preparing image…' : 'Share final lineup + chat'}
         </button>
-        <button type="button" className={styles.actionSecondary} onClick={() => window.print()}>Print scorecard</button>
+        <button type="button" className={styles.actionSecondary} onClick={printScorecard}>Print one-page scorecard</button>
         <Link href={scanHref} className={styles.actionSecondary}>Capture completed scorecard</Link>
         <Link href={recordResultHref} className={styles.actionSecondary}>Open live scorecard</Link>
       </section>
-      {shareNotice ? <p className={styles.shareNotice} role="status">{shareNotice}</p> : null}
+      {shareNotice ? <p className={styles.shareNotice} role="status">{shareNotice} <Link href={teamChatHref}>Open Team Chat</Link></p> : null}
 
       <article className={`${styles.sheet} ${lineup.length > 3 ? styles.denseSheet : ''}`} aria-label="Printable matchup sheet">
         <header className={styles.sheetHeader}>
