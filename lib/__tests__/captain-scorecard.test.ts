@@ -81,6 +81,14 @@ describe('captain scorecard capture', () => {
     expect(recap.lines[0]).toMatchObject({ label: 'Doubles 1', score: '6-4 3-6 1-0' })
   })
 
+  it('keeps a competition-specific court label from the confirmed lineup', () => {
+    const recap = buildCaptainScorecardRecap({
+      ...input,
+      lines: [{ ...input.lines[0], label: '4.0 Doubles' }],
+    })
+    expect(recap.lines[0].label).toBe('4.0 Doubles')
+  })
+
   it('recognizes the stored recap shape before a captain reopens it', () => {
     const storedRecap = {
       ...buildCaptainScorecardRecap(input),

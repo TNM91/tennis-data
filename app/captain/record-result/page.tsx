@@ -16,6 +16,7 @@ import styles from './record-result.module.css'
 type CourtDraft = {
   id: string
   courtNumber: number
+  label?: string
   matchType: 'singles' | 'doubles'
   teamPlayers: string[]
   opponentPlayers: string[]
@@ -27,6 +28,7 @@ type RosterResponse = {
   ok?: boolean
   players?: Array<{ name?: string | null }>
   rosterMembers?: Array<{ player_name?: string | null }>
+  opponentRosterNames?: string[]
 }
 
 type TeamRoomResponse = {
@@ -78,6 +80,7 @@ function RecordResultContent() {
   const [facility, setFacility] = useState(defaultFacility)
   const [courts, setCourts] = useState<CourtDraft[]>(() => [createCourt(1)])
   const [rosterNames, setRosterNames] = useState<string[]>([])
+  const [opponentRosterNames, setOpponentRosterNames] = useState<string[]>([])
   const [loadingRoster, setLoadingRoster] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -129,6 +132,7 @@ function RecordResultContent() {
     const params = new URLSearchParams({ team: teamName })
     if (leagueName) params.set('league', leagueName)
     if (flight) params.set('flight', flight)
+    if (opponentTeam) params.set('opponent', opponentTeam)
     void fetch(`/api/captain/lineup-builder?${params.toString()}`, {
       headers: { Authorization: `Bearer ${session.access_token}` },
     })
@@ -143,13 +147,14 @@ function RecordResultContent() {
           ...(payload.rosterMembers || []).map((player) => normalizeName(player.player_name)),
         ].filter(Boolean))].sort((left, right) => left.localeCompare(right))
         setRosterNames(names)
+        setOpponentRosterNames((payload.opponentRosterNames || []).map(normalizeName).filter(Boolean))
       })
       .catch(() => undefined)
       .finally(() => {
         if (active) setLoadingRoster(false)
       })
     return () => { active = false }
-  }, [authResolved, flight, leagueName, session?.access_token, teamName])
+  }, [authResolved, flight, leagueName, opponentTeam, session?.access_token, teamName])
 
   useEffect(() => {
     if (!scorecardPhotoDraftId || !teamName || scorecardPhotoPrefillKey.current === scorecardPhotoDraftId) return
@@ -210,6 +215,7 @@ function RecordResultContent() {
           return {
             ...createCourt(index + 1),
             courtNumber: index + 1,
+            label: normalizeName(line.label),
             matchType: singles ? 'singles' as const : 'doubles' as const,
             teamPlayers: singles ? [players[0] || ''] : [players[0] || '', players[1] || ''],
             opponentPlayers: singles ? [''] : ['', ''],
@@ -294,8 +300,9 @@ function RecordResultContent() {
           flight,
           dataAssistBatchId,
           dataAssistDraftId,
-          lines: courts.map(({ courtNumber, matchType, teamPlayers, opponentPlayers, outcome, score }) => ({
+          lines: courts.map(({ courtNumber, label, matchType, teamPlayers, opponentPlayers, outcome, score }) => ({
             courtNumber,
+            label,
             matchType,
             teamPlayers,
             opponentPlayers,
@@ -423,9 +430,9 @@ function RecordResultContent() {
       <section className={styles.shell} aria-labelledby="record-result-title">
         <div className={styles.heading}>
           <div>
-            <p className={styles.eyebrow}>Post-match scorecard</p>
-            <h1 id="record-result-title">Record the result.</h1>
-            <p>Save the final courts now. TiQ uses this verified captain record first; later source imports fill gaps and flag any disagreement.</p>
+            <p className={styles.eyebrow}>Live scorecard</p>
+            <h1 id="record-result-title">Finish the match.</h1>
+            <p>Your built lineup is ready below. Pick a known opponent or type one in, select or enter each final score, then submit the verified result to TiQ.</p>
           </div>
           <Link className={styles.backLink} href={teamRoomHref}>Back to team</Link>
         </div>
@@ -459,7 +466,7 @@ function RecordResultContent() {
         <div className={styles.courtHeader}>
           <div>
             <p className={styles.eyebrow}>Court results</p>
-            <h2>Enter each completed court.</h2>
+            <h2>Complete the live scorecard.</h2>
           </div>
           <button className={styles.addCourt} type="button" onClick={() => setCourts((current) => [...current, createCourt(Math.max(0, ...current.map((court) => court.courtNumber)) + 1)])}>Add court</button>
         </div>
@@ -471,8 +478,8 @@ function RecordResultContent() {
               <article className={styles.courtCard} key={court.id}>
                 <div className={styles.courtTitle}>
                   <div>
-                    <span>Court {court.courtNumber}</span>
-                    <strong>{court.matchType === 'doubles' ? 'Doubles' : 'Singles'}</strong>
+                    <span>Match line</span>
+                    <strong>{court.label || `${court.matchType === 'doubles' ? 'Doubles' : 'Singles'} ${court.courtNumber}`}</strong>
                   </div>
                   {courts.length > 1 ? <button type="button" className={styles.removeCourt} onClick={() => setCourts((current) => current.filter((item) => item.id !== court.id))}>Remove</button> : null}
                 </div>
@@ -500,13 +507,14 @@ function RecordResultContent() {
                     {Array.from({ length: playerCount }, (_, playerIndex) => (
                       <label className={styles.compactLabel} key={`opponent-${playerIndex}`}>
                         <span>{playerCount === 2 ? `Player ${playerIndex + 1}` : 'Player'}</span>
-                        <input value={court.opponentPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value)} placeholder="Opponent name" />
+                        <input list="captain-opponent-roster" value={court.opponentPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value)} placeholder={opponentRosterNames.length ? 'Choose or type opponent' : 'Type opponent name'} />
                       </label>
                     ))}
+                    <small className={styles.rosterNote}>{opponentRosterNames.length ? 'Known opponent roster available — or type an unlisted player.' : 'Type the opponent name if their roster is not connected yet.'}</small>
                   </div>
                 </div>
                 <div className={styles.resultControls}>
-                  <label className={styles.scoreInput}><span>Final score</span><input value={court.score} onChange={(event) => updateCourt(court.id, { score: event.target.value })} placeholder="6-4 3-6 10-8" /></label>
+                  <label className={styles.scoreInput}><span>Select or enter final score</span><input list="captain-score-options" value={court.score} onChange={(event) => updateCourt(court.id, { score: event.target.value })} placeholder="6-4 3-6 10-8" /></label>
                   <fieldset>
                     <legend>Winner</legend>
                     <div className={styles.outcomeButtons}>
@@ -526,6 +534,12 @@ function RecordResultContent() {
           <p>TiQ will refresh the team result and its ratings after this scorecard is saved.</p>
           <button className={styles.saveButton} type="button" disabled={saving || !authResolved} onClick={() => void saveResult()}>{saving ? 'Saving result…' : 'Save verified result'}</button>
         </div>
+        <datalist id="captain-opponent-roster">
+          {opponentRosterNames.map((name) => <option value={name} key={name} />)}
+        </datalist>
+        <datalist id="captain-score-options">
+          {['6-0 6-0', '6-1 6-1', '6-2 6-2', '6-3 6-3', '6-4 6-4', '7-5 6-4', '7-6 6-4', '6-4 6-7 10-8', '6-7 6-4 10-8'].map((score) => <option value={score} key={score} />)}
+        </datalist>
       </section>
     </main>
   )

@@ -5,6 +5,7 @@ import { canonicalTennisRecordFingerprint, normalizeTennisIdentity } from './ten
 
 export type CaptainScorecardLineInput = {
   courtNumber: number
+  label?: string | null
   matchType: 'singles' | 'doubles'
   teamPlayers: string[]
   opponentPlayers: string[]
@@ -144,7 +145,7 @@ export function buildCaptainScorecardRecap(input: CaptainScorecardInput): Captai
     opponentCourts,
     lines: input.lines.map((line) => ({
       courtNumber: line.courtNumber,
-      label: `${line.matchType === 'doubles' ? 'Doubles' : 'Singles'} ${line.courtNumber}`,
+      label: cleanText(line.label) || `${line.matchType === 'doubles' ? 'Doubles' : 'Singles'} ${line.courtNumber}`,
       matchType: line.matchType,
       teamPlayers: cleanNames(line.teamPlayers),
       opponentPlayers: cleanNames(line.opponentPlayers),
@@ -238,7 +239,7 @@ export function buildCaptainScorecardTeamRoomDraft(
     lineCount: input.lines.length,
     parserWarnings: [],
     lines: input.lines.map((line) => ({
-      lineLabel: `${line.matchType === 'doubles' ? 'Doubles' : 'Singles'} ${line.courtNumber}`,
+      lineLabel: cleanText(line.label) || `${line.matchType === 'doubles' ? 'Doubles' : 'Singles'} ${line.courtNumber}`,
       homePlayers: cleanNames(line.teamPlayers),
       awayPlayers: cleanNames(line.opponentPlayers),
       score: cleanText(line.score),

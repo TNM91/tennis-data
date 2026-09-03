@@ -68,9 +68,8 @@
 
 .courts { display: grid; gap: 12px; padding: 18px; background: #edf1f4; }
 .court { display: grid; gap: 15px; padding: 18px 20px 20px; border: 1px solid #ccd7df; border-radius: 12px; background: #fff; box-shadow: 0 2px 0 rgb(7 26 49 / 4%); break-inside: avoid; }
-.court > header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.court > header { display: flex; align-items: center; min-width: 0; }
 .courtNumber { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; background: #0a2b4c; color: #c9f176 !important; font-size: .72rem !important; font-weight: 950 !important; letter-spacing: .04em !important; }
-.court header > div { display: grid; gap: 3px; min-width: 0; }
 .court header strong { color: #102035; font-size: 1.12rem; letter-spacing: -.02em; }
 .courtStatus { color: #5e8a23 !important; font-size: .67rem !important; font-weight: 950 !important; letter-spacing: .1em !important; text-transform: uppercase; }
 
@@ -84,13 +83,15 @@
 .scoreGrid { overflow: hidden; border: 1px solid #bdceda; border-radius: 9px; }
 .scoreGridHead, .scoreGridRow { display: grid; grid-template-columns: minmax(142px, 1.5fr) repeat(3, minmax(54px, .75fr)) minmax(52px, .58fr); align-items: stretch; }
 .scoreGridHead { background: #102e4c; color: #d6eeff; }
-.scoreGridHead span { display: grid; min-height: 30px; place-items: center; padding: 5px 7px; border-right: 1px solid rgb(213 238 255 / 18%); text-align: center; }
-.scoreGridHead span:last-child { border-right: 0; }
+.scoreGridHead > span { display: grid; min-height: 30px; place-items: center; padding: 5px 7px; border-right: 1px solid rgb(213 238 255 / 18%); text-align: center; }
+.scoreGridHead > span:last-child { border-right: 0; }
+.tieBreakLabel i { display: none; font-style: normal; }
 .scoreGridRow { min-height: 42px; background: #fff; }
 .scoreGridRow + .scoreGridRow { border-top: 1px solid #d8e2e9; }
 .scoreGridRow strong, .scoreGridRow i { display: grid; place-items: center; border-right: 1px solid #d8e2e9; }
 .scoreGridRow strong { padding: 5px 8px; color: #173b61; font-size: .77rem; font-weight: 900; letter-spacing: .01em; line-height: 1.18; text-align: left; }
 .scoreGridRow i:last-child { border-right: 0; }
+.scoreGridRow .opponentPlayerBlank { position: relative; min-height: 100%; padding: 0; background: linear-gradient(transparent 62%, #aab7c1 63%, #aab7c1 65%, transparent 66%); }
 
 .emptyState { padding: 36px 28px; border: 1px dashed #aebdca; border-radius: 12px; color: #526171; text-align: center; }
 .sheetFooter { display: flex; justify-content: space-between; align-items: center; gap: 22px; padding: 17px 32px; background: #08213c; color: #dce9f2; }
@@ -119,14 +120,12 @@
   .qrBlock small { max-width: 66px; font-size: .54rem; }
   .courts { gap: 10px; padding: 10px; }
   .court { gap: 13px; padding: 15px; }
-  .court > header { grid-template-columns: auto minmax(0, 1fr); }
-  .courtStatus { grid-column: 2; }
-  .playerRow { grid-template-columns: 1fr; gap: 12px; }
-  .opponentBlank { border-top: 1px dashed #b5c2cc; border-left: 0; padding-top: 12px; padding-left: 0; }
   .scoreGrid { margin-inline: -2px; }
-  .scoreGridHead, .scoreGridRow { grid-template-columns: minmax(94px, 1.25fr) repeat(3, minmax(43px, .8fr)) minmax(42px, .65fr); }
+  .scoreGridHead, .scoreGridRow { grid-template-columns: minmax(118px, 1.25fr) repeat(3, minmax(41px, .7fr)) minmax(36px, .5fr); }
   .scoreGridHead { font-size: .55rem; letter-spacing: .05em; }
-  .scoreGridHead span { min-height: 34px; padding: 3px; }
+  .scoreGridHead > span { min-height: 34px; padding: 3px 2px; white-space: nowrap; }
+  .tieBreakLabel b { display: none; }
+  .tieBreakLabel i { display: inline; }
   .sheetFooter { align-items: flex-start; flex-direction: column; padding: 16px 18px; }
 }
 
@@ -165,19 +164,10 @@
   .courts { gap: 6px; padding: 7px 9px; }
   .court { gap: 6px; padding: 8px 10px; border-radius: 8px; break-inside: avoid; page-break-inside: avoid; }
   .court > header { gap: 8px; }
-  .courtNumber { width: 26px; height: 26px; border-radius: 7px; font-size: .57rem !important; }
-  .court header > div { gap: 1px; }
-  .court header > div > span, .courtStatus { font-size: .5rem !important; }
   .court header strong { font-size: .78rem; }
-  .playerRow { grid-template-columns: minmax(0, 1.18fr) minmax(150px, .82fr); gap: 10px; padding: 6px 8px; border-radius: 6px; }
-  .playerRow > div { gap: 2px; }
-  .playerRow > div > span { font-size: .5rem; }
-  .playerRow p { font-size: .72rem; line-height: 1.2; }
-  .opponentBlank { padding-left: 10px; }
-  .opponentBlank b { min-height: 13px; font-size: .62rem; }
   .scoreGrid { border-radius: 6px; }
   .scoreGridHead { font-size: .49rem; letter-spacing: .06em; }
-  .scoreGridHead span { min-height: 19px; padding: 2px 4px; }
+  .scoreGridHead > span { min-height: 19px; padding: 2px 4px; }
   .scoreGridRow { min-height: 24px; }
   .scoreGridRow strong { padding: 3px 5px; font-size: .58rem; letter-spacing: 0; }
   .sheetFooter { gap: 12px; padding: 7px 18px; }
@@ -185,7 +175,5 @@
   .sheetFooter span { font-size: .59rem; }
   .denseSheet .courts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .denseSheet .court { padding: 7px 8px; }
-  .denseSheet .playerRow { grid-template-columns: 1fr; gap: 4px; }
-  .denseSheet .opponentBlank { border-top: 1px dashed #b5c2cc; border-left: 0; padding-top: 4px; padding-left: 0; }
   .sheet, .sheetHeader, .instructions, .sheetFooter, .scoreGridHead { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

@@ -247,6 +247,25 @@ export async function GET(request: Request) {
   const primaryError = rosterResult.error
   if (primaryError) return Response.json({ ok: false, message: primaryError.message }, { status: 500 })
 
+  // A captain can use an imported opponent Team Summary as a quick picker when
+  // recording the final score. Returning only names keeps this scoped to the
+  // match workflow while still allowing an unlisted player to be typed in.
+  const opponentRosterRows = opponentName
+    ? await resolveOptionalQuery(
+      'opponent roster',
+      service
+        .from('team_roster_members')
+        .select('player_name')
+        .eq('normalized_team_name', normalizeTeamName(opponentName))
+        .limit(250)
+        .then((result) => result.data || []),
+      [] as Array<{ player_name: string | null }>,
+    )
+    : []
+  const opponentRosterNames = [...new Set(opponentRosterRows
+    .map((row) => cleanAvailabilityText(row.player_name, 160))
+    .filter(Boolean))].sort((left, right) => left.localeCompare(right))
+
   const rosterMembers = rosterResult.data ?? []
   const historicalLineMatches = (historicalLineMatchesResult.data ?? []).filter((match) => {
     if (!opponentName) return true
@@ -293,6 +312,7 @@ export async function GET(request: Request) {
   const payload = {
     ok: true,
     players: playersResult.data ?? [],
+    opponentRosterNames,
     matches: matchesResult.data ?? [],
     matchPlayers: matchPlayersResult.data ?? [],
     historicalLineMatches,

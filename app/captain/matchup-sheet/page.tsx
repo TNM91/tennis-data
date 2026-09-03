@@ -269,7 +269,7 @@ function MatchupSheetContent() {
         </button>
         <button type="button" className={styles.actionSecondary} onClick={() => window.print()}>Print scorecard</button>
         <Link href={scanHref} className={styles.actionSecondary}>Capture completed scorecard</Link>
-        <Link href={recordResultHref} className={styles.actionSecondary}>Enter results</Link>
+        <Link href={recordResultHref} className={styles.actionSecondary}>Open live scorecard</Link>
       </section>
       {shareNotice ? <p className={styles.shareNotice} role="status">{shareNotice}</p> : null}
 
@@ -324,29 +324,14 @@ function MatchupSheetContent() {
           {lineup.length ? lineup.map((court, index) => (
             <article className={styles.court} key={`${court.label || 'Court'}-${index}`}>
               <header>
-                <span className={styles.courtNumber}>{String(index + 1).padStart(2, '0')}</span>
-                <div>
-                  <span>Lineup court</span>
-                  <strong>{court.label || `Court ${index + 1}`}</strong>
-                </div>
-                <span className={styles.courtStatus}>Final score</span>
+                <strong>{court.label || `Court ${index + 1}`}</strong>
               </header>
-              <div className={styles.playerRow}>
-                <div>
-                  <span>Your pair</span>
-                  <p>{(court.players || []).filter(Boolean).join(' / ') || 'Player to be set'}</p>
-                </div>
-                <div className={styles.opponentBlank}>
-                  <span>Opponent pair</span>
-                  <b>Write in after warm-up</b>
-                </div>
-              </div>
               <div className={styles.scoreGrid} aria-label={`Score entry for ${court.label || `Court ${index + 1}`}`}>
                 <div className={styles.scoreGridHead}>
-                  <span>Pair</span>
+                  <span>Player(s)</span>
                   <span>Set 1</span>
                   <span>Set 2</span>
-                  <span>Match tie-break</span>
+                  <span className={styles.tieBreakLabel} aria-label="Match tie-break"><b>Match tie-break</b><i>TB</i></span>
                   <span>W / L</span>
                 </div>
                 <div className={styles.scoreGridRow}>
@@ -357,7 +342,7 @@ function MatchupSheetContent() {
                   <i aria-hidden="true" />
                 </div>
                 <div className={styles.scoreGridRow}>
-                  <strong>{opponent ? `${opponent} pair` : 'Opponent pair'}</strong>
+                  <strong className={styles.opponentPlayerBlank} aria-label="Opponent player names, write in" />
                   <i aria-hidden="true" />
                   <i aria-hidden="true" />
                   <i aria-hidden="true" />
