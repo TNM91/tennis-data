@@ -423,6 +423,11 @@ function TeamRoomContent() {
   const currentFinalLineup = activeMatchMessage?.card?.finalLineup || null
   const finalLineupDeliveryCard = pinnedMessage?.card || activeMatchMessage?.card || null
   const finalLineupDeliverySent = Boolean(finalLineupDeliveryCard?.finalLineup)
+  const finalLineupDeliveryMatchComplete = Boolean(
+    finalLineupDeliveryCard?.matchDate
+    && finalResultMessage?.card?.matchDate === finalLineupDeliveryCard.matchDate
+    && room?.finalResult,
+  )
   const currentFinalLineupPhase = getTeamRoomMatchDayPhase({
     matchDate: activeMatchMessage?.card?.matchDate || '',
     localDateKey,
@@ -1638,10 +1643,15 @@ function TeamRoomContent() {
         {finalLineupDeliveryIntent && room.canManage ? (
           <section className={styles.finalizeLineupGuide} aria-label="Finish final lineup" role="status">
             <p>Finish final lineup</p>
-            <strong>{finalLineupDeliverySent ? 'Lineup sent to the team.' : 'Nothing has been sent yet.'}</strong>
-            <span>{finalLineupDeliverySent
+            <strong>{finalLineupDeliveryMatchComplete
+              ? 'This match is already complete.'
+              : finalLineupDeliverySent ? 'Lineup sent to the team.' : 'Nothing has been sent yet.'}</strong>
+            <span>{finalLineupDeliveryMatchComplete
+              ? 'A final score is already saved. A pre-match lineup can no longer be sent; open the scorecard to view or print the result.'
+              : finalLineupDeliverySent
               ? 'Next, use Share / print confirmed lineup below to send the image or print the scorecard.'
               : 'Step 1: review the pinned lineup and tap Send lineup to team. Step 2: share the image or print the scorecard.'}</span>
+            {finalLineupDeliveryMatchComplete ? <Link className={styles.finalizeLineupGuideAction} href={scorecardHref}>Open scorecard</Link> : null}
           </section>
         ) : null}
 

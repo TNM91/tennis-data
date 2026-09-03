@@ -220,6 +220,18 @@
   line-height: 1.45;
 }
 
+.finalizeLineupGuideAction {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 8px 11px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 58%, var(--shell-panel-border));
+  border-radius: 10px;
+  color: var(--foreground-strong);
+  font-size: 0.8rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
 .pinnedAreaFocused {
   border-radius: 18px;
   outline: 2px solid color-mix(in srgb, var(--brand-green) 72%, transparent);
