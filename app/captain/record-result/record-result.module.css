@@ -185,6 +185,8 @@
 .details input,
 .compactLabel input,
 .compactLabel select,
+.opponentEntry input,
+.opponentEntry select,
 .scoreInput input {
   width: 100%;
   min-width: 0;
@@ -211,6 +213,8 @@
 .matchTypeControl button[data-active="true"],
 .outcomeButtons button[data-active="true"] { border-color: color-mix(in srgb, var(--brand-green) 65%, var(--shell-panel-border)); background: color-mix(in srgb, var(--brand-green) 20%, var(--shell-chip-bg)); color: var(--brand-green-3); }
 .playerColumns > div { display: grid; align-content: start; gap: 8px; min-width: 0; }
+.opponentEntry { display: grid; gap: 6px; min-width: 0; color: var(--shell-copy-muted); font-size: .78rem; font-weight: 800; }
+.opponentEntry > span { color: var(--brand-blue-2); font-size: .7rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
 .rosterNote { font-size: 0.74rem; }
 .resultControls { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
 .resultControls fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }

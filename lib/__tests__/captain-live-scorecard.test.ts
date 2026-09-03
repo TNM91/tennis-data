@@ -15,23 +15,28 @@ describe('Captain live scorecard', () => {
     expect(sheet).toContain('<span>W/L</span>')
     expect(sheetStyles).toContain('minmax(42px, .52fr)')
     expect(sheetStyles).toContain('.scoreGridHead > span:last-child { min-width: 42px;')
+    expect(sheetStyles).toContain('@page { size: letter portrait; margin: .15in; }')
+    expect(sheetStyles).toContain('grid-template-rows: auto auto auto minmax(0, 1fr) auto')
   })
 
   it('uses the approved TenAceIQ brand asset in the lineup image shared by text', () => {
     expect(sheet).toContain("loadCanvasImage('/brand/web/header-logo-transparent.png')")
     expect(sheet).toContain("loadCanvasImage('/brand/web/header-iq-compact.png')")
     expect(sheet).toContain("context.fillText('MATCH DAY  /  CAPTAIN SERIES'")
+    expect(sheet).toContain("context.fillText('MATCH DETAILS'")
     expect(sheet).toContain("input.confirmed ? 'FINAL • CONFIRMED'")
     expect(sheet).toContain("input.confirmed ? 'CONFIRMED PAIR'")
     expect(sheet).toContain("context.fillText('MORE TENNIS. LESS CHAOS.'")
+    expect(sheet).toContain('Team Chat: ${teamChatUrl}')
   })
 
   it('opens a live scorecard with suggested opponent names and score choices', () => {
     expect(sheet).toContain('Open live scorecard')
     expect(liveScorecard).toContain('Live scorecard')
-    expect(liveScorecard).toContain('list="captain-opponent-roster"')
+    expect(liveScorecard).toContain('Choose a known opponent')
+    expect(liveScorecard).toContain('Enter a different player')
     expect(liveScorecard).toContain('list="captain-score-options"')
-    expect(liveScorecard).toContain('Known opponent roster available — or type an unlisted player.')
+    expect(liveScorecard).toContain('No opponent roster is connected yet. Type each opponent name.')
   })
 
   it('returns the opponent roster only through the authorized captain lineup response', () => {

@@ -13,6 +13,7 @@
 .actionPrimary { border-color: #9be11d; background: linear-gradient(135deg, #d7ff4a, #9be11d); color: #10250e; }
 .actionSecondary { background: #13223a; }
 .shareNotice { margin: -4px 0 14px; color: #d9f9a3; font-size: .88rem; font-weight: 750; text-align: right; }
+.shareNotice a { color: #fff; font-weight: 900; }
 
 .sheet {
   position: relative; overflow: hidden; border: 1px solid #c9d3dc; border-radius: 18px;
@@ -132,14 +133,14 @@
   .sheetFooter { align-items: flex-start; flex-direction: column; padding: 16px 18px; }
 }
 
-@page { size: letter; margin: .24in; }
+@page { size: letter portrait; margin: .15in; }
 @media print {
-  :global(body):has(.page) { background: #fff !important; }
+  :global(html), :global(body) { width: 8.2in !important; height: 10.7in !important; overflow: hidden !important; background: #fff !important; }
   :global(body):has(.page) * { visibility: hidden !important; }
   .sheet, .sheet * { visibility: visible !important; }
-  .page { width: 100% !important; margin: 0 !important; padding: 0 !important; }
+  .page { width: 8.2in !important; height: 10.7in !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
   .screenControls, .shareNotice { display: none !important; }
-  .sheet { border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+  .sheet { display: grid !important; grid-template-rows: auto auto auto minmax(0, 1fr) auto; width: 8.2in !important; height: 10.7in !important; max-height: 10.7in !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; break-inside: avoid !important; page-break-inside: avoid !important; overflow: hidden !important; }
   .sheet::before { display: none; }
   .sheetHeader { grid-template-columns: minmax(0, 1fr) auto; gap: 14px; padding: 13px 18px 12px; }
   .brandBlock { grid-template-columns: 142px minmax(0, 1fr); align-items: center; gap: 12px; }
@@ -164,8 +165,8 @@
   .qrBlock { grid-template-columns: 44px auto; min-width: 0; align-items: center; gap: 5px; padding: 3px 5px; border-radius: 7px; }
   .qrBlock img, .qrBlock > span { width: 44px; height: 44px; }
   .qrBlock small { max-width: 58px; font-size: .48rem; line-height: 1.05; }
-  .courts { gap: 6px; padding: 7px 9px; }
-  .court { gap: 6px; padding: 8px 10px; border-radius: 8px; break-inside: avoid; page-break-inside: avoid; }
+  .courts { grid-auto-rows: minmax(0, 1fr); gap: 6px; min-height: 0; padding: 7px 9px; overflow: hidden; }
+  .court { min-height: 0; gap: 6px; padding: 8px 10px; border-radius: 8px; break-inside: avoid; page-break-inside: avoid; overflow: hidden; }
   .court > header { gap: 8px; }
   .court header strong { font-size: .78rem; }
   .scoreGrid { border-radius: 6px; }

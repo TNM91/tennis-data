@@ -505,12 +505,29 @@ function RecordResultContent() {
                   <div>
                     <span className={styles.sideLabel}>Opposition</span>
                     {Array.from({ length: playerCount }, (_, playerIndex) => (
-                      <label className={styles.compactLabel} key={`opponent-${playerIndex}`}>
+                      <div className={styles.opponentEntry} key={`opponent-${playerIndex}`}>
                         <span>{playerCount === 2 ? `Player ${playerIndex + 1}` : 'Player'}</span>
-                        <input list="captain-opponent-roster" value={court.opponentPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value)} placeholder={opponentRosterNames.length ? 'Choose or type opponent' : 'Type opponent name'} />
-                      </label>
+                        {opponentRosterNames.length ? (
+                          <>
+                            <select
+                              aria-label={`Choose an opponent for ${court.label || `court ${court.courtNumber}`}`}
+                              value={opponentRosterNames.includes(court.opponentPlayers[playerIndex] || '') ? court.opponentPlayers[playerIndex] || '' : '__manual__'}
+                              onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value === '__manual__' ? '' : event.target.value)}
+                            >
+                              <option value="">Choose a known opponent</option>
+                              {opponentRosterNames.map((name) => <option value={name} key={name}>{name}</option>)}
+                              <option value="__manual__">Enter a different player</option>
+                            </select>
+                            {!opponentRosterNames.includes(court.opponentPlayers[playerIndex] || '') ? (
+                              <input aria-label={`Enter an opponent for ${court.label || `court ${court.courtNumber}`}`} value={court.opponentPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value)} placeholder="Type opponent name" />
+                            ) : null}
+                          </>
+                        ) : (
+                          <input aria-label={`Enter an opponent for ${court.label || `court ${court.courtNumber}`}`} value={court.opponentPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value)} placeholder="Type opponent name" />
+                        )}
+                      </div>
                     ))}
-                    <small className={styles.rosterNote}>{opponentRosterNames.length ? 'Known opponent roster available — or type an unlisted player.' : 'Type the opponent name if their roster is not connected yet.'}</small>
+                    <small className={styles.rosterNote}>{opponentRosterNames.length ? `Choose from ${opponentRosterNames.length} known opponent${opponentRosterNames.length === 1 ? '' : 's'}, or select “Enter a different player.”` : 'No opponent roster is connected yet. Type each opponent name.'}</small>
                   </div>
                 </div>
                 <div className={styles.resultControls}>
@@ -534,9 +551,6 @@ function RecordResultContent() {
           <p>TiQ will refresh the team result and its ratings after this scorecard is saved.</p>
           <button className={styles.saveButton} type="button" disabled={saving || !authResolved} onClick={() => void saveResult()}>{saving ? 'Saving result…' : 'Save verified result'}</button>
         </div>
-        <datalist id="captain-opponent-roster">
-          {opponentRosterNames.map((name) => <option value={name} key={name} />)}
-        </datalist>
         <datalist id="captain-score-options">
           {['6-0 6-0', '6-1 6-1', '6-2 6-2', '6-3 6-3', '6-4 6-4', '7-5 6-4', '7-6 6-4', '6-4 6-7 10-8', '6-7 6-4 10-8'].map((score) => <option value={score} key={score} />)}
         </datalist>
