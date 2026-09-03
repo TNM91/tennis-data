@@ -15,8 +15,10 @@ describe('Captain live scorecard', () => {
     expect(sheet).toContain('<span>W/L</span>')
     expect(sheetStyles).toContain('minmax(42px, .52fr)')
     expect(sheetStyles).toContain('.scoreGridHead > span:last-child { min-width: 42px;')
-    expect(sheetStyles).toContain('@page { size: letter portrait; margin: .15in; }')
-    expect(sheetStyles).toContain('grid-template-rows: auto auto auto minmax(0, 1fr) auto')
+    expect(sheet).toContain('function createPrintableScorecard')
+    expect(sheet).toContain('@page { size: letter portrait; margin: .25in; }')
+    expect(sheet).toContain("const printWindow = window.open('', '_blank')")
+    expect(sheet).toContain('printWindow.print()')
   })
 
   it('uses the approved TenAceIQ brand asset in the lineup image shared by text', () => {
@@ -37,6 +39,10 @@ describe('Captain live scorecard', () => {
     expect(liveScorecard).toContain('Enter a different player')
     expect(liveScorecard).toContain('list="captain-score-options"')
     expect(liveScorecard).toContain('No opponent roster is connected yet. Type each opponent name.')
+    expect(liveScorecard).toContain('Scan scorecard')
+    expect(liveScorecard).toContain('Match details <span>Edit date, opponent, time, or location</span>')
+    expect(liveScorecard).toContain('Text final result')
+    expect(liveScorecard).toContain('navigator.share')
   })
 
   it('returns the opponent roster only through the authorized captain lineup response', () => {

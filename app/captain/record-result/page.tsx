@@ -87,6 +87,7 @@ function RecordResultContent() {
   const [notice, setNotice] = useState('')
   const [savedRecap, setSavedRecap] = useState<CaptainScorecardSavedRecap | null>(null)
   const [teamAnnouncementUpdated, setTeamAnnouncementUpdated] = useState(false)
+  const [resultShareNotice, setResultShareNotice] = useState('')
   const lineupPrefillKey = useRef('')
   const scorecardPhotoPrefillKey = useRef('')
   const scorecardPhotoPrefillActive = useRef(false)
@@ -271,6 +272,25 @@ function RecordResultContent() {
     }))
   }
 
+  async function textFinalResult() {
+    if (!savedRecap) return
+    const teamChatUrl = new URL(updatedTeamRoomHref, window.location.origin).toString()
+    const scoreLine = `${teamName || 'Your team'} ${savedRecap.teamCourts}–${savedRecap.opponentCourts} ${opponentTeam || 'Opponent'}`
+    const courtLines = savedRecap.lines.map((line) => `${line.label}: ${line.outcome === 'team' ? 'W' : 'L'} ${line.score}`).join('\n')
+    const message = ['Final result', scoreLine, matchDate ? `Match date: ${matchDate}` : '', courtLines, `Team Chat: ${teamChatUrl}`].filter(Boolean).join('\n')
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ title: `${teamName || 'Team'} final result`, text: message, url: teamChatUrl })
+        setResultShareNotice('Choose Messages to text the final result to any player or captain.')
+        return
+      }
+      window.location.href = `sms:?&body=${encodeURIComponent(message)}`
+    } catch (shareError) {
+      if (shareError instanceof DOMException && shareError.name === 'AbortError') return
+      window.location.href = `sms:?&body=${encodeURIComponent(message)}`
+    }
+  }
+
   async function saveResult() {
     setError('')
     setNotice('')
@@ -411,6 +431,7 @@ function RecordResultContent() {
 
           <div className={styles.recapActions}>
             <Link className={styles.saveButton} href={updatedTeamRoomHref}>{teamAnnouncementUpdated ? 'View team update' : 'Open team recap'}</Link>
+            <button className={styles.addCourt} type="button" onClick={() => void textFinalResult()}>Text final result</button>
             <button className={styles.addCourt} type="button" onClick={() => {
               setSavedRecap(null)
               setTeamAnnouncementUpdated(false)
@@ -420,6 +441,7 @@ function RecordResultContent() {
               window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
             }}>Edit scorecard</button>
           </div>
+          {resultShareNotice ? <p className={styles.notice} role="status">{resultShareNotice}</p> : null}
         </section>
       </main>
     )
@@ -431,8 +453,8 @@ function RecordResultContent() {
         <div className={styles.heading}>
           <div>
             <p className={styles.eyebrow}>Live scorecard</p>
-            <h1 id="record-result-title">Finish the match.</h1>
-            <p>Your built lineup is ready below. Pick a known opponent or type one in, select or enter each final score, then submit the verified result to TiQ.</p>
+            <h1 id="record-result-title">Record the result.</h1>
+            <p>Enter the opponents and final score for each court, then submit once.</p>
           </div>
           <Link className={styles.backLink} href={teamRoomHref}>Back to team</Link>
         </div>
@@ -443,30 +465,29 @@ function RecordResultContent() {
           <small>{[matchDate, matchTime, facility].filter(Boolean).join(' · ') || 'Add the match details below'}</small>
         </div>
 
-        <section className={styles.photoAssist} aria-label="Scorecard photo capture">
-          <div>
-            <p className={styles.eyebrow}>Quick capture</p>
-            <h2>Read a paper scorecard.</h2>
-            <p>Take one clear photo. TiQ fills the courts for your review; nothing is saved until you verify it.</p>
-          </div>
+        <section className={styles.quickActions} aria-label="Scorecard shortcuts">
+          <div><strong>Have a paper scorecard?</strong><span>Scan it and review the prefilled courts.</span></div>
           {teamName ? (
-            <Link className={styles.photoCaptureButton} href={scorecardCameraHref}>Take scorecard photo</Link>
+            <Link className={styles.photoCaptureButton} href={scorecardCameraHref}>Scan scorecard</Link>
           ) : (
             <span className={styles.photoCaptureHint}>Choose a team to use scorecard capture.</span>
           )}
         </section>
 
-        <section className={styles.details} aria-label="Match details">
-          <label>Match date<input type="date" value={matchDate} onChange={(event) => setMatchDate(event.target.value)} /></label>
-          <label>Opponent<input value={opponentTeam} onChange={(event) => setOpponentTeam(event.target.value)} placeholder="Opponent team" /></label>
-          <label>Start time<input value={matchTime} onChange={(event) => setMatchTime(event.target.value)} placeholder="Optional" /></label>
-          <label>Location<input value={facility} onChange={(event) => setFacility(event.target.value)} placeholder="Optional" /></label>
-        </section>
+        <details className={styles.matchDetails} open={!defaultDate || !defaultOpponent}>
+          <summary>Match details <span>Edit date, opponent, time, or location</span></summary>
+          <section className={styles.details} aria-label="Match details">
+            <label>Match date<input type="date" value={matchDate} onChange={(event) => setMatchDate(event.target.value)} /></label>
+            <label>Opponent<input value={opponentTeam} onChange={(event) => setOpponentTeam(event.target.value)} placeholder="Opponent team" /></label>
+            <label>Start time<input value={matchTime} onChange={(event) => setMatchTime(event.target.value)} placeholder="Optional" /></label>
+            <label>Location<input value={facility} onChange={(event) => setFacility(event.target.value)} placeholder="Optional" /></label>
+          </section>
+        </details>
 
         <div className={styles.courtHeader}>
           <div>
             <p className={styles.eyebrow}>Court results</p>
-            <h2>Complete the live scorecard.</h2>
+            <h2>Enter each court.</h2>
           </div>
           <button className={styles.addCourt} type="button" onClick={() => setCourts((current) => [...current, createCourt(Math.max(0, ...current.map((court) => court.courtNumber)) + 1)])}>Add court</button>
         </div>
@@ -548,8 +569,8 @@ function RecordResultContent() {
         {error ? <p className={styles.error} role="alert">{error}</p> : null}
         {notice ? <p className={styles.notice} role="status">{notice}</p> : null}
         <div className={styles.saveBar}>
-          <p>TiQ will refresh the team result and its ratings after this scorecard is saved.</p>
-          <button className={styles.saveButton} type="button" disabled={saving || !authResolved} onClick={() => void saveResult()}>{saving ? 'Saving result…' : 'Save verified result'}</button>
+          <p>Review the courts, then submit the final result to TiQ.</p>
+          <button className={styles.saveButton} type="button" disabled={saving || !authResolved} onClick={() => void saveResult()}>{saving ? 'Saving result…' : 'Submit final result'}</button>
         </div>
         <datalist id="captain-score-options">
           {['6-0 6-0', '6-1 6-1', '6-2 6-2', '6-3 6-3', '6-4 6-4', '7-5 6-4', '7-6 6-4', '6-4 6-7 10-8', '6-7 6-4 10-8'].map((score) => <option value={score} key={score} />)}
