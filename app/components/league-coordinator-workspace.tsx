@@ -10,6 +10,7 @@ import RoleActionHome, {
   type RoleHomeAction,
   type RoleHomeQuickAction,
 } from '@/app/components/role-action-home'
+import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import OrganizerScheduleAttention from '@/app/components/organizer-schedule-attention'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
@@ -406,6 +407,7 @@ export function LeagueCoordinatorWorkspace() {
   const [appliedClubSetupId, setAppliedClubSetupId] = useState('')
   const [status, setStatus] = useState('')
   const [lastSavedRecord, setLastSavedRecord] = useState<TiqLeagueRecord | null>(null)
+  const [lastSavedFirstLeague, setLastSavedFirstLeague] = useState(false)
   const [photoUploadStatus, setPhotoUploadStatus] = useState('')
   const [photoUploading, setPhotoUploading] = useState(false)
   const [storageSource, setStorageSource] = useState<TiqLeagueStorageSource>('local')
@@ -430,6 +432,7 @@ export function LeagueCoordinatorWorkspace() {
 
   function dismissLeagueSetupConfirmation() {
     setLastSavedRecord(null)
+    setLastSavedFirstLeague(false)
     setStatus('')
   }
 
@@ -1157,7 +1160,10 @@ export function LeagueCoordinatorWorkspace() {
     setEditingId('')
     setCustomSeasonLabelOpen(false)
     setPhotoUploadStatus('')
-    if (clearHandoff) setLastSavedRecord(null)
+    if (clearHandoff) {
+      setLastSavedRecord(null)
+      setLastSavedFirstLeague(false)
+    }
   }
 
   function beginNewLeague(format: TiqLeagueDraft['leagueFormat']) {
@@ -1176,6 +1182,7 @@ export function LeagueCoordinatorWorkspace() {
     setCustomSeasonLabelOpen(false)
     setPhotoUploadStatus('')
     setLastSavedRecord(null)
+    setLastSavedFirstLeague(false)
     setSetupOpen(true)
     setStatus(
       format === 'individual'
@@ -1261,9 +1268,11 @@ export function LeagueCoordinatorWorkspace() {
       return
     }
 
+    const firstLeagueLaunch = !editingId && records.length === 0
     const saved = await saveTiqLeague(nextDraft, editingId || undefined)
     await refreshRegistry()
     setLastSavedRecord(saved.record)
+    setLastSavedFirstLeague(firstLeagueLaunch)
     setStatus(
       editingId
         ? `${saved.record.leagueName} was updated in your season list.`
@@ -1333,6 +1342,7 @@ export function LeagueCoordinatorWorkspace() {
     setParticipantQuickAddInput('')
     setCustomSeasonLabelOpen(Boolean(normalizedSeason && !seasonLabelOptions.includes(normalizedSeason)))
     setLastSavedRecord(null)
+    setLastSavedFirstLeague(false)
     setSetupOpen(true)
     setStatus(`Editing ${record.leagueName}.`)
     if (options.scrollToForm) {
@@ -1400,7 +1410,10 @@ export function LeagueCoordinatorWorkspace() {
     const result = await removeTiqLeague(id)
     await refreshRegistry()
     if (editingId === id) resetDraft()
-    if (lastSavedRecord?.id === id) setLastSavedRecord(null)
+    if (lastSavedRecord?.id === id) {
+      setLastSavedRecord(null)
+      setLastSavedFirstLeague(false)
+    }
     setStatus(
       result.source === 'supabase'
         ? 'The league was removed from your season list.'
@@ -2708,13 +2721,25 @@ export function LeagueCoordinatorWorkspace() {
             {lastSavedRecord ? (
               <div style={responsiveNextActionCardStyle}>
                 <div style={leagueOpsHeaderCopyStyle}>
-                  <div style={nextActionTitleStyle}>
-                    Next: review {lastSavedRecord.leagueName}
-                  </div>
+                  {lastSavedFirstLeague ? (
+                    <div style={leagueLaunchTrophyHeaderStyle}>
+                      <TiqFeatureIcon name="competeTennis" size="sm" variant="surface" title="First season trophy" />
+                      <div>
+                        <div style={sectionEyebrow}>League trophy earned</div>
+                        <div style={nextActionTitleStyle}>First season launched</div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={nextActionTitleStyle}>
+                      Next: review {lastSavedRecord.leagueName}
+                    </div>
+                  )}
                   <div style={nextActionTextStyle}>
-                    {lastSavedRecord.leagueFormat === 'team'
-                      ? 'Next, open Team Results to add match date, teams, line winners, and scores. Use Data Assist scorecards only after review.'
-                      : 'Next, open Player Results to add players, result date, winner, and score. Use reviewed scorecards when available.'}
+                    {lastSavedFirstLeague
+                      ? `${lastSavedRecord.leagueName} is ready with its first ${lastSavedRecord.leagueFormat === 'team' ? 'team' : 'player'} list. Open results when the first match is ready, or check the member view now.`
+                      : lastSavedRecord.leagueFormat === 'team'
+                        ? 'Next, open Team Results to add match date, teams, line winners, and scores. Use Data Assist scorecards only after review.'
+                        : 'Next, open Player Results to add players, result date, winner, and score. Use reviewed scorecards when available.'}
                   </div>
                 </div>
                 <div style={responsiveNextActionButtonRowStyle}>
@@ -5328,6 +5353,13 @@ const nextActionTitleStyle: CSSProperties = {
   fontSize: '15px',
   fontWeight: 900,
   overflowWrap: 'anywhere',
+}
+
+const leagueLaunchTrophyHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '10px',
+  minWidth: 0,
 }
 
 const nextActionTextStyle: CSSProperties = {
