@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   buildClubCompetitionLaunchHref,
@@ -21,6 +23,9 @@ import {
   type ClubMembership,
   type ClubWorkspaceData,
 } from '../club-workspace'
+
+const clubWorkspaceSource = readFileSync(join(process.cwd(), 'app/components/club-workspace.tsx'), 'utf8')
+const clubWorkspaceStyles = readFileSync(join(process.cwd(), 'app/components/club-workspace.module.css'), 'utf8')
 
 describe('club workspace', () => {
   it('creates stable public club slugs', () => {
@@ -291,5 +296,16 @@ describe('club workspace', () => {
     expect(getClubSetupSteps(workspace).at(-1)).toMatchObject({ id: 'access', completed: false })
     workspace.club.onboardingCompletedAt = '2026-08-07T18:30:00Z'
     expect(getClubSetupSteps(workspace).every((step) => step.completed)).toBe(true)
+  })
+
+  it('turns a completed first club setup into a compact launch trophy', () => {
+    expect(clubWorkspaceSource).toContain("import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'")
+    expect(clubWorkspaceSource).toContain('Club trophy earned')
+    expect(clubWorkspaceSource).toContain('First club launch complete')
+    expect(clubWorkspaceSource).toContain('Review launch checklist')
+    expect(clubWorkspaceSource).toContain("onOpenTab('groups')")
+    expect(clubWorkspaceSource).toContain('manager && setupComplete && !showSetup')
+    expect(clubWorkspaceStyles).toContain('.launchTrophy')
+    expect(clubWorkspaceStyles).toContain('.launchTrophyActions > button { flex: 1 1 150px; }')
   })
 })
