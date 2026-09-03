@@ -4729,7 +4729,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               <p style={sectionKicker}>Lineup controls</p>
               <h1 style={builderControlTitleStyle}>Build a potential lineup.</h1>
               <div style={builderDraftStatusStyle} role="status" aria-live="polite">
-                <span style={miniPillGreenStyle}>Draft saved on this phone</span>
+                <span style={miniPillGreenStyle}>Draft autosaved on this phone</span>
                 {currentScenarioId ? <span style={miniPillBlueStyle}>Saved lineup version</span> : null}
               </div>
             </div>
@@ -4742,7 +4742,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             <div style={builderMobileActionStackStyle}>
               {lineupHasAssignments ? (
                 <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
-                  {saving ? 'Saving...' : currentScenarioId ? 'Update saved lineup' : 'Save lineup'}
+                  {saving ? 'Saving...' : currentScenarioId ? 'Update saved version' : 'Save lineup version'}
                 </PrimaryBtn>
               ) : (
                 <Link href="#captain-lineup-courts" style={primaryButton}>Build lineup</Link>
@@ -4770,6 +4770,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
             </div>
           )}
+          <p style={subtleHelperTextStyle}>Auto-saved on this phone. Save a version when you are ready to compare it, send it, print it, or track replies.</p>
         </section>
 
         <section style={builderInsightToggleStyle} aria-label="Matchup insights">
