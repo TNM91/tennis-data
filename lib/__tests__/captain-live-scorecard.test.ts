@@ -13,12 +13,13 @@ describe('Captain live scorecard', () => {
     expect(sheet).toContain('className={styles.opponentPlayerBlank}')
     expect(sheet).not.toContain('Write in after warm-up')
     expect(sheet).toContain('<span>W/L</span>')
-    expect(sheetStyles).toContain('minmax(54px, .63fr)')
-    expect(sheetStyles).toContain('.scoreGridHead > span:last-child { min-width: 54px;')
+    expect(sheetStyles).toContain('minmax(42px, .52fr)')
+    expect(sheetStyles).toContain('.scoreGridHead > span:last-child { min-width: 42px;')
   })
 
   it('uses the approved TenAceIQ brand asset in the lineup image shared by text', () => {
     expect(sheet).toContain("loadCanvasImage('/brand/web/header-logo-transparent.png')")
+    expect(sheet).toContain("loadCanvasImage('/brand/web/header-iq-compact.png')")
     expect(sheet).toContain("context.fillText('MATCH DAY  /  CAPTAIN SERIES'")
     expect(sheet).toContain("input.confirmed ? 'FINAL • CONFIRMED'")
     expect(sheet).toContain("input.confirmed ? 'CONFIRMED PAIR'")
