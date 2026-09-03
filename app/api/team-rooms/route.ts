@@ -4391,7 +4391,12 @@ function resolveTeamRoomAvailabilitySummary(
   if (!isMatchCardMetadata(metadata)) return null
 
   const card = cleanMatchCard(metadata)
-  if (card.captainConfirmedLineup) {
+  // Final-send cards created before the explicit confirmation flag shipped are
+  // equally authoritative: that Builder action was available only when every
+  // selected player already had a Yes. Keep those existing cards accurate too.
+  const captainConfirmedLineup = card.captainConfirmedLineup
+    || (card.cardType === 'projected_lineup' && card.title === 'Final lineup ready to send')
+  if (captainConfirmedLineup) {
     const players = Array.from(new Set(card.lineup.flatMap((court) => court.players).map(cleanText).filter(Boolean)))
     if (players.length) {
       return summarizeTeamRoomAvailability({
