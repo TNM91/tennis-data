@@ -1637,6 +1637,7 @@ function TeamRoomContent() {
               {room.muted ? 'Turn notifications on' : 'Mute room'}
             </button>
           </div>
+          <TeamRoomInstallHint />
           {notice ? <div className={styles.notice} role="status">{notice}</div> : null}
           {error ? <div className={styles.error} role="alert">{error}</div> : null}
         </header>
@@ -2088,7 +2089,6 @@ function TeamRoomContent() {
         />
       ) : null}
 
-      <TeamRoomInstallCard room={room} />
       {showBrowserAlertPrompt ? (
         <button className={styles.browserAlertButton} type="button" onClick={() => void enableBrowserAlerts()}>
           Turn on background alerts
@@ -3483,10 +3483,10 @@ function normalizeTeamRoomPlayerName(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }
 
-function TeamRoomInstallCard({ room }: { room: TeamRoom }) {
+function TeamRoomInstallHint() {
   const isIOS = useSyncExternalStore(subscribeToUserAgent, getIsIOSSnapshot, () => false)
   const isStandalone = useSyncExternalStore(subscribeToStandalone, getIsStandaloneSnapshot, () => false)
-  const [showIOSSteps, setShowIOSSteps] = useState(false)
+  const [showInstallDetails, setShowInstallDetails] = useState(false)
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
 
   useEffect(() => {
@@ -3505,35 +3505,34 @@ function TeamRoomInstallCard({ room }: { room: TeamRoom }) {
       setInstallPrompt(null)
       return
     }
-    setShowIOSSteps(true)
+    setShowInstallDetails(true)
   }
 
   return (
-    <section className={styles.installCard} aria-label="Team Room app access">
-      <div>
-        <h2>Put this Team Room on your Home Screen.</h2>
-        <p>Open TenAceIQ like an app and return to your default team conversation in one tap.</p>
-      </div>
-      <div className={styles.installActions}>
-        {isStandalone ? (
-          <span className={styles.standaloneBadge}>Home Screen ready</span>
-        ) : (
-          <button className={styles.buttonPrimary} type="button" onClick={() => void install()}>
-            Add to Home Screen
+    <details
+      className={styles.installHint}
+      open={showInstallDetails}
+      onToggle={(event) => setShowInstallDetails(event.currentTarget.open)}
+    >
+      <summary>
+        {isStandalone ? 'Home Screen ready' : 'Add to Home Screen'}
+      </summary>
+      <div className={styles.installHintBody}>
+        <p>{isStandalone
+          ? 'TenAceIQ will open this team chat like an app.'
+          : 'Keep this Team Chat one tap away and open it full screen.'}</p>
+        {!isStandalone ? (
+          <button className={styles.buttonSecondary} type="button" onClick={() => void install()}>
+            {installPrompt ? 'Add to Home Screen' : 'Show steps'}
           </button>
-        )}
-        <button className={styles.buttonSecondary} type="button" onClick={() => void shareOrCopy({
-          title: `${room.teamName} Team Room`,
-          text: `Open our ${room.teamName} Team Room in TenAceIQ.`,
-          url: new URL(room.href, window.location.origin).toString(),
-        })}>Share</button>
+        ) : null}
+        {isIOS && !isStandalone ? (
+          <span>In Safari, tap Share, choose <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>.</span>
+        ) : !isStandalone && !installPrompt ? (
+          <span>In your browser menu, choose <strong>Install TenAceIQ</strong> or <strong>Add to Home screen</strong>.</span>
+        ) : null}
       </div>
-      {showIOSSteps || (isIOS && !isStandalone) ? (
-        <div className={styles.iosSteps}>
-          On iPhone: open this page in Safari, tap the Share button, choose <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>. Your TenAceIQ icon will open full screen like an app.
-        </div>
-      ) : null}
-    </section>
+    </details>
   )
 }
 
