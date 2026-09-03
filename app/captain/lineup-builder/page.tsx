@@ -597,7 +597,7 @@ function getCourtAskSignal({
   needsPhone: boolean
 }): CourtAskSignal {
   if (replyLabel === 'Confirmed') {
-    return { label: 'Confirmed', detail: 'Reply received. This player stays protected in your lineup.', tone: 'confirmed' }
+    return { label: 'Yes confirmed', detail: 'They replied Yes, or you recorded their Yes from a text or call. Their court is protected in this lineup.', tone: 'confirmed' }
   }
   if (replyLabel === 'Maybe') {
     return { label: 'Maybe · review', detail: 'Reply received. Keep this court flexible until they confirm.', tone: 'maybe' }
@@ -2602,7 +2602,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         ...current.filter((row) => !(row.match_date === matchDate && row.team_name === teamName && row.player_id === playerId)),
         result.availability as AvailabilityRow,
       ])
-      setMessage('Player marked Yes and protected in this lineup.')
+      setMessage('Yes recorded and this player is protected in the lineup.')
       setError('')
     } catch (caught) {
       setAvailability(previousAvailability)
@@ -4636,12 +4636,13 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             ? `${assignedTeamReplySummary.out.length} selected player${assignedTeamReplySummary.out.length === 1 ? ' is' : 's are'} out — adjust that court.`
             : 'Name a player on a court to start the final check.'
   const finalLineupReadinessDetail = finalLineupReady
-    ? 'Review it in Team Room, then send the complete lineup with match details when you are ready.'
+    ? 'All selected players have a Yes. Open the final send screen to publish the lineup, share the team image, or print the scorecard.'
     : firstOpenTeamCourt
       ? `Finish ${firstOpenTeamCourt.label}: choose ${firstOpenTeamCourt.openPlayers} more player${firstOpenTeamCourt.openPlayers === 1 ? '' : 's'}.`
     : assignedTeamReplySummary.waiting.length
       ? `Waiting on ${assignedTeamReplySummary.waiting.slice(0, 2).map((player) => player.name).join(' and ')}${assignedTeamReplySummary.waiting.length > 2 ? ` and ${assignedTeamReplySummary.waiting.length - 2} more` : ''}.`
-      : 'A player is selectable before they reply, but only an In reply clears the final lineup check.'
+      : 'A selected player only counts after they reply Yes or you use Mark Yes & lock to record a text or call confirmation.'
+  const finalLineupDeliveryLabel = 'Finalize, send & print'
   const mobileLineupPulse = [
     {
       label: 'Courts',
@@ -5104,7 +5105,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               </div>
               <div style={mobileCourtFocusActionsStyle}>
                 {finalLineupReady ? (
-                  <Link href={teamRoomHref} style={primaryButton}>Send lineup to team</Link>
+                  <Link href={teamRoomHref} style={primaryButton}>{finalLineupDeliveryLabel}</Link>
                 ) : firstOpenTeamCourt ? (
                   <GhostBtn onClick={() => focusTeamCourts(teamSlots, firstOpenTeamCourt.id)}>Finish {firstOpenTeamCourt.label}</GhostBtn>
                 ) : (
@@ -5136,7 +5137,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 </div>
                 <div style={mobileFinalLineupActionsStyle}>
                   {finalLineupReady ? (
-                    <Link href={teamRoomHref} style={primaryButton}>Send lineup to team</Link>
+                    <Link href={teamRoomHref} style={primaryButton}>{finalLineupDeliveryLabel}</Link>
                   ) : (
                     <GhostBtn onClick={() => focusTeamCourts()}>Review player replies</GhostBtn>
                   )}
@@ -5214,7 +5215,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             </div>
             <div style={finalLineupGateActionsStyle}>
               {finalLineupReady ? (
-                <GhostLink href={teamRoomHref}>Review final lineup</GhostLink>
+                <GhostLink href={teamRoomHref}>{finalLineupDeliveryLabel}</GhostLink>
               ) : (
                 <GhostBtn onClick={() => focusTeamCourts()}>Review player replies</GhostBtn>
               )}
@@ -5295,7 +5296,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
           <div style={decisionBoardActionRowStyle}>
             {finalLineupReady ? (
-              <Link href={teamRoomHref} style={primaryButton}>Send lineup to team</Link>
+              <Link href={teamRoomHref} style={primaryButton}>{finalLineupDeliveryLabel}</Link>
             ) : firstOpenTeamCourt ? (
               <GhostBtn onClick={() => focusTeamCourts(teamSlots, firstOpenTeamCourt.id)}>Finish {firstOpenTeamCourt.label}</GhostBtn>
             ) : (
@@ -6646,7 +6647,7 @@ function SlotEditor({
                   >
                     {lockedPlayerIds.has(player.playerId)
                       ? isAutoLocked ? 'Unlock' : 'Locked'
-                      : isConfirmedReleased ? 'Re-lock' : 'Yes & lock'}
+                      : isConfirmedReleased ? 'Re-lock' : 'Mark Yes & lock'}
                   </button>
                 </div>
               ) : null}
