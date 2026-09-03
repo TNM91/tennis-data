@@ -90,10 +90,12 @@ function TeamConnectionsContent() {
     }
   }
 
-  const acceptedCaptainLinks = connections.filter(
+  const activeConnections = connections.filter((connection) => !connection.archivedAt)
+  const archivedConnections = connections.filter((connection) => Boolean(connection.archivedAt))
+  const acceptedCaptainLinks = activeConnections.filter(
     (connection) => connection.status === 'accepted' && isCaptainTeamConnection(connection.roles),
   )
-  const acceptedPlayerLinks = connections.filter(
+  const acceptedPlayerLinks = activeConnections.filter(
     (connection) => connection.status === 'accepted' && connection.roles.includes('player'),
   )
 
@@ -141,9 +143,9 @@ function TeamConnectionsContent() {
             <span style={eyebrowStyle}>Your profile</span>
             <h2 style={sectionTitleStyle}>Saved team links</h2>
           </div>
-          {connections.length ? (
+          {activeConnections.length ? (
             <div style={cardGridStyle}>
-              {connections.map((connection) => (
+              {activeConnections.map((connection) => (
                 <ConnectionCard key={connection.id} connection={connection}>
                   {connection.status === 'accepted' ? (
                     <>
@@ -189,6 +191,22 @@ function TeamConnectionsContent() {
               </div>
             </div>
           ) : null}
+        </section>
+      ) : null}
+
+      {userId && archivedConnections.length ? (
+        <section style={sectionStyle} aria-label="Past team seasons">
+          <div style={sectionHeaderStyle}>
+            <span style={eyebrowStyle}>Season history</span>
+            <h2 style={sectionTitleStyle}>Past teams</h2>
+          </div>
+          <div style={cardGridStyle}>
+            {archivedConnections.map((connection) => (
+              <ConnectionCard key={connection.id} connection={connection}>
+                <Link href={buildTeamRoomHref({ teamName: connection.teamName, leagueName: connection.leagueName, flight: connection.flight })} style={secondaryLinkStyle}>Open history</Link>
+              </ConnectionCard>
+            ))}
+          </div>
         </section>
       ) : null}
 
@@ -241,7 +259,7 @@ function ConnectionCard({ connection, children }: { connection: TeamConnection; 
   return (
     <article style={cardStyle} className="team-connection-card">
       <div style={copyBlockStyle}>
-        <span style={statusStyle}>{connection.isDefault ? 'Default team' : connection.isRoleUpdate ? 'Role update' : connection.status === 'pending' ? 'New' : connection.status}</span>
+        <span style={statusStyle}>{connection.archivedAt ? 'Season complete' : connection.isDefault ? 'Default team' : connection.isRoleUpdate ? 'Role update' : connection.status === 'pending' ? 'New' : connection.status}</span>
         <strong style={cardTitleStyle}>{connection.teamName}</strong>
         <span style={metaStyle}>{getTeamConnectionRolesLabel(connection.roles)}</span>
         <span style={copyStyle}>{[connection.leagueName, connection.flight].filter(Boolean).join(' · ') || 'Team membership'}</span>
