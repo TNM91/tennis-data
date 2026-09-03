@@ -93,6 +93,7 @@ type ConversationRow = {
   subject: string | null
   created_by_user_id: string
   related_entity_id: string
+  metadata: Record<string, unknown> | null
   created_at: string | null
   updated_at: string | null
 }
@@ -2439,6 +2440,10 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
   const ensured = await ensureTeamRoom(service, selected)
   if (!ensured.ok) return ensured
   const conversation = ensured.conversation
+  const teamLogo = cleanTeamLogoMetadata(conversation.metadata)
+  const teamLogoUrl = teamLogo
+    ? (await service.storage.from(teamLogo.bucket).createSignedUrl(teamLogo.path, 60 * 60 * 4)).data?.signedUrl || ''
+    : ''
   const members = await syncTeamRoomParticipants(service, conversation.id, selected)
   if (!members.some((member) => member.id === userId)) {
     return { ok: false as const, status: 403, message: 'A captain removed this profile from Team Chat.' }
@@ -2584,6 +2589,7 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
       id: conversation.id,
       subject: conversation.subject || `${selected.team_name} Team Room`,
       teamName: selected.team_name,
+      teamLogoUrl,
       leagueName: selected.league_name,
       flight: selected.flight,
       roles: teamRoles(selected),
@@ -3106,7 +3112,7 @@ async function ensureTeamRoom(service: SupabaseClient, selected: TeamLinkRow) {
   })
   let { data, error } = await service
     .from('internal_conversations')
-    .select('id,subject,created_by_user_id,related_entity_id,created_at,updated_at')
+    .select('id,subject,created_by_user_id,related_entity_id,metadata,created_at,updated_at')
     .eq('related_entity_type', 'team_room')
     .eq('related_entity_id', scopeId)
     .maybeSingle()
@@ -3130,14 +3136,14 @@ async function ensureTeamRoom(service: SupabaseClient, selected: TeamLinkRow) {
           flight: selected.flight,
         },
       })
-      .select('id,subject,created_by_user_id,related_entity_id,created_at,updated_at')
+      .select('id,subject,created_by_user_id,related_entity_id,metadata,created_at,updated_at')
       .single()
     data = inserted.data
     error = inserted.error
     if (error) {
       const raced = await service
         .from('internal_conversations')
-        .select('id,subject,created_by_user_id,related_entity_id,created_at,updated_at')
+        .select('id,subject,created_by_user_id,related_entity_id,metadata,created_at,updated_at')
         .eq('related_entity_type', 'team_room')
         .eq('related_entity_id', scopeId)
         .maybeSingle()
@@ -4024,6 +4030,18 @@ function cleanAttachmentMetadata(metadata: unknown) {
   const size = Math.max(0, Number(attachment.size) || 0)
   if (bucket !== 'team-room-files' || !path || !name || !['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(mimeType)) return null
   return { bucket, path, name, mimeType, size }
+}
+
+function cleanTeamLogoMetadata(metadata: unknown) {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null
+  const raw = (metadata as Record<string, unknown>).teamLogo
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const logo = raw as Record<string, unknown>
+  const bucket = cleanText(logo.bucket)
+  const path = cleanText(logo.path)
+  const mimeType = cleanText(logo.mimeType)
+  if (bucket !== 'team-room-files' || !path || !['image/jpeg', 'image/png', 'image/webp'].includes(mimeType)) return null
+  return { bucket, path, mimeType }
 }
 
 async function loadActionableMatchCard(service: SupabaseClient, conversationId: string, requestedMessageId: string) {
