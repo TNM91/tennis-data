@@ -2523,10 +2523,6 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     return `${baseHref}${baseHref.includes('?') ? '&' : '?'}contactView=all#captain-contact-manager`
   }, [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName])
 
-  const teamRoomHref = useMemo(
-    () => buildTeamRoomHref({ teamName, leagueName, flight }),
-    [flight, leagueName, teamName],
-  )
   const finalLineupDeliveryHref = useMemo(() => {
     const baseHref = buildTeamRoomHref({
       teamName,
