@@ -19,7 +19,7 @@ import { getPublicTeamInviteOffers } from '@/lib/team-invite-offers'
 export const runtime = 'nodejs'
 
 const TEAM_LINK_SELECT =
-  'id,team_name,normalized_team_name,league_name,flight,team_role,team_roles,declined_roles,role_accepted_at,matched_player_id,source_type,source_record_id,status,is_default,accepted_at,updated_at'
+  'id,team_name,normalized_team_name,league_name,flight,team_role,team_roles,declined_roles,role_accepted_at,matched_player_id,source_type,source_record_id,status,is_default,archived_at,accepted_at,updated_at'
 const TEAM_CONNECTIONS_CACHE_TTL_SECONDS = 45
 
 type TeamConnectionAction = 'accept' | 'decline' | 'unlink' | 'relink' | 'restore_roles' | 'set_default' | 'accept_import'
@@ -237,6 +237,7 @@ export async function POST(request: Request) {
     source_type: candidate.sourceType,
     source_record_id: candidate.sourceRecordId || null,
     status: action === 'accept' ? 'accepted' : 'declined',
+    archived_at: action === 'accept' ? null : existing?.archived_at || null,
     accepted_at: action === 'accept' ? existing?.accepted_at || now : null,
     unlinked_at: null,
     updated_at: now,
@@ -714,6 +715,7 @@ async function acceptImportedCaptainTeam(input: {
       source_type: 'data_assist_import',
       source_record_id: input.batchId,
       status: 'accepted',
+      archived_at: null,
       accepted_at: now,
       unlinked_at: null,
       updated_at: now,

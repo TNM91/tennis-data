@@ -14,6 +14,7 @@ import { upsertCaptainRosterContacts } from './captain-roster-contacts'
 import { runScheduleImport, runScorecardImport, runTeamSummaryImport, type RunImportSuccess } from './ingestion/runImport'
 import { recalculateDynamicRatings } from './recalculateRatings'
 import { announceTeamRoomScorecardResult } from './team-room-result-announcement-server'
+import { notifyLinkedPlayersOfImportedTeam } from './team-import-notifications-server'
 
 export type DataAssistScorecardImportAction = 'preview' | 'commit'
 
@@ -49,6 +50,7 @@ export type DataAssistTeamSummaryImportActionResult = {
   message: string
   importResult?: Extract<RunImportSuccess, { kind: 'team_summary' }>
   importedContactCount?: number
+  invitedPlayerCount?: number
   contactWarning?: string
 }
 
@@ -333,6 +335,7 @@ async function runDataAssistPlayerRosterContactImportAction(input: {
   }
 
   let importedContactCount = 0
+  let invitedPlayerCount = 0
   try {
     importedContactCount = await upsertCaptainRosterContacts({
       supabase: input.supabase,
@@ -340,6 +343,12 @@ async function runDataAssistPlayerRosterContactImportAction(input: {
       captainUserId: input.reviewedBy,
       batchId: input.batchId,
     })
+    invitedPlayerCount = await notifyLinkedPlayersOfImportedTeam({
+      supabase: input.supabase,
+      actorUserId: input.reviewedBy,
+      batchId: input.batchId,
+      parsedDraft: input.parsedDraft,
+    }).catch(() => 0)
   } catch (error) {
     return {
       ok: false,
@@ -349,8 +358,11 @@ async function runDataAssistPlayerRosterContactImportAction(input: {
   }
 
   const importedAt = new Date().toISOString()
+  const playerInviteNote = invitedPlayerCount
+    ? ` ${invitedPlayerCount} linked ${invitedPlayerCount === 1 ? 'player has' : 'players have'} an inbox invite to review the team.`
+    : ''
   const message = importedContactCount
-    ? `Data Assist saved ${importedContactCount} private team contact${importedContactCount === 1 ? '' : 's'}. Your Team Summary was not changed.`
+    ? `Data Assist saved ${importedContactCount} private team contact${importedContactCount === 1 ? '' : 's'}. Your Team Summary was not changed.${playerInviteNote}`
     : 'This Player Roster did not include a phone or email detail to save. Your Team Summary was not changed.'
   const validationSummary = {
     ...(input.validationSummary || {}),
@@ -391,6 +403,7 @@ async function runDataAssistPlayerRosterContactImportAction(input: {
     ok: true,
     action: input.action,
     importedContactCount,
+    invitedPlayerCount,
     message,
   }
 }

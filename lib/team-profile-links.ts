@@ -17,6 +17,7 @@ export type TeamConnection = {
   roleAcceptedAt: Partial<Record<TeamConnectionRole, string>>
   matchedPlayerId: string
   isDefault: boolean
+  archivedAt: string
   updatedAt: string
 }
 
@@ -59,6 +60,7 @@ export type TeamProfileLinkRow = {
   source_record_id?: string | null
   status?: string | null
   is_default?: boolean | null
+  archived_at?: string | null
   updated_at?: string | null
 }
 
@@ -221,6 +223,7 @@ export function mapRosterContactCandidate(row: TeamConnectionContactRow): TeamCo
     roleAcceptedAt: {},
     matchedPlayerId: '',
     isDefault: false,
+    archivedAt: '',
     updatedAt: cleanText(row.updated_at),
   }
 }
@@ -244,6 +247,7 @@ export function mapRosterMembershipCandidate(row: TeamConnectionRosterRow): Team
     roleAcceptedAt: {},
     matchedPlayerId: cleanText(row.player_id),
     isDefault: false,
+    archivedAt: '',
     updatedAt: cleanText(row.updated_at),
   }
 }
@@ -272,6 +276,7 @@ export function mapSavedTeamConnection(row: TeamProfileLinkRow): TeamConnection 
     roleAcceptedAt,
     matchedPlayerId: cleanText(row.matched_player_id),
     isDefault: row.is_default === true,
+    archivedAt: cleanText(row.archived_at),
     updatedAt: cleanText(row.updated_at),
   }
 }

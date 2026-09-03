@@ -146,7 +146,7 @@ function CompeteTeamsContent() {
       setLoading(!cachedConnections)
 
       if (cachedConnections) {
-        const acceptedConnections = cachedConnections.connections.filter((connection) => connection.status === 'accepted')
+        const acceptedConnections = cachedConnections.connections.filter((connection) => connection.status === 'accepted' && !connection.archivedAt)
         setConnections(acceptedConnections)
         setPendingConnections(cachedConnections.pending)
         void loadSupportingTeamContext(acceptedConnections)
@@ -159,7 +159,7 @@ function CompeteTeamsContent() {
 
         if (!active) return
 
-        const acceptedConnections = connectionResult.connections.filter((connection) => connection.status === 'accepted')
+        const acceptedConnections = connectionResult.connections.filter((connection) => connection.status === 'accepted' && !connection.archivedAt)
         setConnections(acceptedConnections)
         setPendingConnections(connectionResult.pending)
         void loadSupportingTeamContext(acceptedConnections)
