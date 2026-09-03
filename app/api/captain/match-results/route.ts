@@ -77,6 +77,7 @@ function parseInput(value: unknown): CaptainScorecardInput | null {
     const outcome = item.outcome === 'team' || item.outcome === 'opponent' ? item.outcome : ''
     return [{
       courtNumber,
+      label: typeof item.label === 'string' ? item.label : null,
       matchType,
       teamPlayers: Array.isArray(item.teamPlayers) ? item.teamPlayers.filter((name): name is string => typeof name === 'string') : [],
       opponentPlayers: Array.isArray(item.opponentPlayers) ? item.opponentPlayers.filter((name): name is string => typeof name === 'string') : [],
