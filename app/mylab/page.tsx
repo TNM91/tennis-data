@@ -2842,10 +2842,14 @@ function MyLabPageInner() {
     if (match.result !== 'W') break
     currentWinStreak += 1
   }
+  const firstServeFocusComplete = Boolean(
+    (goals.find((goal) => goal.id === activeGoalId) || goals[0] || EMPTY_LAB_GOAL).goal.trim(),
+  )
   const trophyBadges = buildPlayerTrophyBadges({
     verifiedHonors: earnedAwardCards.length,
     reviewedMatches: recentDecisionMatches.length,
     longestWinStreak: bestWinStreak,
+    firstServeProgress: [isProfileConfirmed, firstServeFocusComplete, Boolean(latestLevelUpProof)].filter(Boolean).length,
   })
   const earnedTrophyBadges = trophyBadges.filter((badge) => badge.earned)
   const nextTrophyBadge = trophyBadges.find((badge) => !badge.earned) || null
