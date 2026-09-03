@@ -17,6 +17,8 @@ describe('Captain live scorecard', () => {
     expect(sheetStyles).toContain('.scoreGridHead > span:last-child { min-width: 42px;')
     expect(sheet).toContain('function createPrintableScorecard')
     expect(sheet).toContain('@page { size: letter portrait; margin: .25in; }')
+    expect(sheet).toContain('const inkSafePrintStyle')
+    expect(sheet).toContain('.courts { background: #fff !important; }')
     expect(sheet).toContain("const printWindow = window.open('', '_blank')")
     expect(sheet).toContain('printWindow.print()')
   })

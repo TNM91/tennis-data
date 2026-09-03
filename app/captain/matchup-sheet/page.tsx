@@ -58,7 +58,10 @@ function createPrintableScorecard(input: {
   lineup: Array<{ label?: string; players?: string[] }>
 }) {
   const matchDetails = [formatDate(input.matchDate), input.matchTime, input.facility].filter(Boolean).join(' · ') || 'Match details to be confirmed'
-  const courts = input.lineup.map((court, index) => `
+  // The printed sheet stays deliberately white through the court area. Some mobile
+  // print renderers were turning that surface into a large grey ink block.
+  const inkSafePrintStyle = '<style media="print">.courts { background: #fff !important; } .court { box-shadow: none !important; } .details { background: #fff !important; border-bottom: 1px solid #d6e0e8; }</style>'
+  const courts = `${inkSafePrintStyle}${input.lineup.map((court, index) => `
     <article class="court">
       <h2>${escapePrintText(court.label || `Court ${index + 1}`)}</h2>
       <div class="grid">
@@ -66,7 +69,7 @@ function createPrintableScorecard(input: {
         <div class="row"><strong>${escapePrintText((court.players || []).filter(Boolean).join(' / ') || 'Your pair')}</strong><i></i><i></i><i></i><i></i></div>
         <div class="row"><strong class="blank"></strong><i></i><i></i><i></i><i></i></div>
       </div>
-    </article>`).join('') || '<p class="empty">Save a lineup first, then print its court scorecard.</p>'
+    </article>`).join('') || '<p class="empty">Save a lineup first, then print its court scorecard.</p>'}`
   return `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>TenAceIQ scorecard</title>
 <style>
