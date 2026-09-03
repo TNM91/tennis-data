@@ -45,8 +45,9 @@ describe('role action home', () => {
     expect(styles).not.toContain('var(--brand-lime)')
   })
 
-  it('opens setup only for first-time users', () => {
-    expect(coach).toContain('showSteps={!savedStudents.length}')
+  it('keeps role-home setup compact when a dedicated launch path owns the first win', () => {
+    expect(coach).toContain('showSteps={false}')
+    expect(coach).toContain('<CoachLaunchPath progress={coachLaunchProgress} />')
     expect(league).toContain('showSteps={isFirstLeagueSetup}')
     expect(coach).toContain('contextValue={activeMobileBenchCard?.student.playerName')
     expect(league).toContain('contextValue={coordinatorResumeLeague?.leagueName || latestRecord?.leagueName')
