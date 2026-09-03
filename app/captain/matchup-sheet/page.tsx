@@ -275,24 +275,33 @@ function MatchupSheetContent() {
 
       <article className={styles.sheet} aria-label="Printable matchup sheet">
         <header className={styles.sheetHeader}>
-          <div>
-            <p>TiQ Captain scorecard</p>
-            <h1>{teamName || 'Team matchup'}</h1>
-            <span>{leagueName || 'League'}{flight ? ` · ${flight}` : ''}</span>
+          <div className={styles.brandBlock}>
+            <Image
+              className={styles.brandLogo}
+              src="/brand/web/header-logo-transparent.png"
+              alt="TenAceIQ"
+              width={300}
+              height={78}
+              priority
+            />
+            <div>
+              <p>Captain scorecard</p>
+              <span>{leagueName || 'League'}{flight ? ` · ${flight}` : ''}</span>
+            </div>
           </div>
           <div className={styles.matchMeta}>
+            <span className={styles.matchMetaLabel}>Match day</span>
             <strong>{formatDate(matchDate)}</strong>
-            <span>{matchTime || 'Time to be confirmed'}</span>
-            <span>{facility || 'Location to be confirmed'}</span>
+            <span>{matchTime || 'Time to be confirmed'} · {facility || 'Location to be confirmed'}</span>
           </div>
         </header>
 
         <section className={styles.matchup}>
           <div>
-            <span>Your team</span>
+            <span>Your side</span>
             <strong>{teamName || 'Team'}</strong>
           </div>
-          <b>vs</b>
+          <b aria-label="versus">vs</b>
           <div>
             <span>Opponent</span>
             <strong>{opponent || 'Opponent to be confirmed'}</strong>
@@ -301,8 +310,9 @@ function MatchupSheetContent() {
 
         <section className={styles.instructions}>
           <div>
-            <strong>Send the lineup, then bring this to the match.</strong>
-            <span>Write scores below, then scan the code to read and update the verified TiQ result.</span>
+            <p>Match-day kit</p>
+            <strong>Bring the lineup. Capture every court.</strong>
+            <span>Circle the winner, write each set, then scan to save the verified result in TiQ.</span>
           </div>
           <div className={styles.qrBlock}>
             {qrCode ? <Image src={qrCode} alt="Scan to record this match's result in TiQ" width={94} height={94} unoptimized /> : <span>TiQ</span>}
@@ -314,16 +324,45 @@ function MatchupSheetContent() {
           {lineup.length ? lineup.map((court, index) => (
             <article className={styles.court} key={`${court.label || 'Court'}-${index}`}>
               <header>
-                <strong>{court.label || `Court ${index + 1}`}</strong>
-                <span>Team</span>
+                <span className={styles.courtNumber}>{String(index + 1).padStart(2, '0')}</span>
+                <div>
+                  <span>Lineup court</span>
+                  <strong>{court.label || `Court ${index + 1}`}</strong>
+                </div>
+                <span className={styles.courtStatus}>Final score</span>
               </header>
               <div className={styles.playerRow}>
-                <p>{(court.players || []).filter(Boolean).join(' / ') || 'Player to be set'}</p>
-                <span className={styles.resultBlank}>Result: __________</span>
+                <div>
+                  <span>Your pair</span>
+                  <p>{(court.players || []).filter(Boolean).join(' / ') || 'Player to be set'}</p>
+                </div>
+                <div className={styles.opponentBlank}>
+                  <span>Opponent pair</span>
+                  <b>Write in after warm-up</b>
+                </div>
               </div>
-              <div className={styles.scoreLine}>
-                <span>Opponent(s): __________________________________</span>
-                <span>Score: ________________________</span>
+              <div className={styles.scoreGrid} aria-label={`Score entry for ${court.label || `Court ${index + 1}`}`}>
+                <div className={styles.scoreGridHead}>
+                  <span>Side</span>
+                  <span>Set 1</span>
+                  <span>Set 2</span>
+                  <span>Match tie-break</span>
+                  <span>W / L</span>
+                </div>
+                <div className={styles.scoreGridRow}>
+                  <strong>TiQ</strong>
+                  <i aria-hidden="true" />
+                  <i aria-hidden="true" />
+                  <i aria-hidden="true" />
+                  <i aria-hidden="true" />
+                </div>
+                <div className={styles.scoreGridRow}>
+                  <strong>Opp</strong>
+                  <i aria-hidden="true" />
+                  <i aria-hidden="true" />
+                  <i aria-hidden="true" />
+                  <i aria-hidden="true" />
+                </div>
               </div>
             </article>
           )) : (
@@ -334,7 +373,10 @@ function MatchupSheetContent() {
         </section>
 
         <footer className={styles.sheetFooter}>
-          <span>This scorecard stays connected to the confirmed lineup and match.</span>
+          <div>
+            <strong>TiQ verified match record</strong>
+            <span>This scorecard stays connected to the confirmed lineup and match.</span>
+          </div>
           <span>More Tennis. Less Chaos.</span>
         </footer>
       </article>
