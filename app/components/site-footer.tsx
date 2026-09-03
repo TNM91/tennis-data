@@ -43,6 +43,8 @@ export default function SiteFooter({ railLayout = false, railWidth = 0 }: SiteFo
       style={{
         position: 'relative',
         zIndex: 1,
+        isolation: 'isolate',
+        background: 'var(--footer-bg)',
         padding: useRailFooter
           ? '10px 0 calc(14px + env(safe-area-inset-bottom)) 0'
           : `14px max(12px, env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left))`,
