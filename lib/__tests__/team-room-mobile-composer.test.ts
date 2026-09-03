@@ -32,4 +32,13 @@ describe('Team Room mobile composer', () => {
     expect(styles).toContain('overflow-y: auto;')
     expect(styles).toContain('scroll-padding-bottom: 224px;')
   })
+
+  it('keeps Home Screen guidance compact in the chat header instead of below the conversation', () => {
+    expect(page).toContain('<TeamRoomInstallHint />')
+    expect(page).not.toContain('<TeamRoomInstallCard room={room} />')
+    expect(page).toContain("{isStandalone ? 'Home Screen ready' : 'Add to Home Screen'}")
+    expect(page).toContain("{installPrompt ? 'Add to Home Screen' : 'Show steps'}")
+    expect(styles).toContain('.installHint')
+    expect(styles).not.toContain('.installCard')
+  })
 })
