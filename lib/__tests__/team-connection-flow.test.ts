@@ -80,6 +80,17 @@ describe('team connection flow', () => {
     expect(page).toContain("'Open Captain' : 'Open My Lab'")
   })
 
+  it('keeps the exact team scope when a captain opens their workspace', () => {
+    const page = readFileSync(join(process.cwd(), 'app/team-connections/page.tsx'), 'utf8')
+
+    expect(page).toContain("import { buildCaptainScopedHref } from '@/lib/captain-memory'")
+    expect(page).toContain('function buildTeamConnectionWorkspaceHref(connection: TeamConnection)')
+    expect(page).toContain("return buildCaptainScopedHref('/captain', {")
+    expect(page).toContain('team: connection.teamName')
+    expect(page).toContain('href={buildTeamConnectionWorkspaceHref(completedConnection)}')
+    expect(page).toContain('href={buildTeamConnectionWorkspaceHref(connection)}')
+  })
+
   it('protects stored team links with profile-scoped policies', () => {
     const migration = readFileSync(
       join(process.cwd(), 'supabase/migrations/20260801000600_create_team_profile_links.sql'),

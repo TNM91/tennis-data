@@ -18,6 +18,7 @@ import {
 } from '@/lib/team-profile-links-client'
 import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
 import { buildTeamRoomHref } from '@/lib/team-room'
+import { buildCaptainScopedHref } from '@/lib/captain-memory'
 
 export default function TeamConnectionsPage() {
   return (
@@ -149,7 +150,7 @@ function TeamConnectionsContent() {
             })} style={primaryLinkStyle}>
               Open team home
             </Link>
-            <Link href={isCaptainTeamConnection(completedConnection.roles) ? '/captain' : '/mylab'} style={secondaryLinkStyle}>
+            <Link href={buildTeamConnectionWorkspaceHref(completedConnection)} style={secondaryLinkStyle}>
               {isCaptainTeamConnection(completedConnection.roles) ? 'Open Captain' : 'Open My Lab'}
             </Link>
             <button type="button" onClick={() => setCompletedConnection(null)} style={secondaryButtonStyle}>Done</button>
@@ -196,7 +197,7 @@ function TeamConnectionsContent() {
                       })} style={primaryLinkStyle}>
                         Open Team Room
                       </Link>
-                      <Link href={isCaptainTeamConnection(connection.roles) ? '/captain' : '/mylab'} style={primaryLinkStyle}>
+                      <Link href={buildTeamConnectionWorkspaceHref(connection)} style={primaryLinkStyle}>
                         {isCaptainTeamConnection(connection.roles) ? 'Open Captain' : 'Open My Lab'}
                       </Link>
                       {!connection.isDefault ? (
@@ -294,6 +295,15 @@ function TeamConnectionsContent() {
       `}</style>
     </main>
   )
+}
+
+function buildTeamConnectionWorkspaceHref(connection: TeamConnection) {
+  if (!isCaptainTeamConnection(connection.roles)) return '/mylab'
+  return buildCaptainScopedHref('/captain', {
+    team: connection.teamName,
+    league: connection.leagueName,
+    flight: connection.flight,
+  })
 }
 
 function ConnectionCard({ connection, children, highlighted = false }: { connection: TeamConnection; children: ReactNode; highlighted?: boolean }) {
