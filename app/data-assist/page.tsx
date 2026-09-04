@@ -302,6 +302,7 @@ function DataAssistWorkspace() {
   const intentQuery = getDataAssistQuery(searchParams.get('q'))
   const requestedImportType = getRequestedImportType(searchParams.get('type'))
   const contactImportRequested = searchParams.get('contactImport') === '1'
+  const teamSetupRequested = requestedImportType === 'team_summary' && intentContext.toLowerCase().includes('team')
   const exportHelpRequested = searchParams.get('help') === '1'
   const scorecardCameraRequested = searchParams.get('capture') === 'camera'
   const returnTo = getSafeDataAssistReturnTo(searchParams.get('returnTo'))
@@ -1197,7 +1198,7 @@ function DataAssistWorkspace() {
     <section style={pageStyle(isMobile)}>
       {!showOrderStep && message && !outcome ? <div style={successStyle}>{message}</div> : null}
       {!showOrderStep && error ? <UploadIssueNotice message={error} onStartOver={resetUploadFlow} /> : null}
-      {intent ? <DataAssistIntentPanel intent={intent} context={intentContext} query={intentQuery} /> : null}
+      {intent && !teamSetupRequested ? <DataAssistIntentPanel intent={intent} context={intentContext} query={intentQuery} /> : null}
       {outcome ? <DataAssistOutcomePanel outcome={outcome} onUploadAnother={resetUploadFlow} /> : null}
       {showBulkScorecardResults ? (
         <BulkScorecardResultsPanel
@@ -1212,18 +1213,20 @@ function DataAssistWorkspace() {
           <section id="upload" style={dynamicPanelStyle}>
             <div style={dynamicSectionHeaderStyle}>
               <div style={headerCopyStyle}>
-                <StepBadge step={1} label="Data Assist" />
-                <h1 style={sectionTitleStyle}>Add new tennis data.</h1>
-                <p style={copyStyle}>{scorecardPhotoReaderReady
-                  ? 'Add a TennisLink export or a clear scorecard photo. TiQ reads it first; you confirm it before it changes a match.'
-                  : 'Choose the source, add its TennisLink export, then review what TiQ found.'}</p>
+                <StepBadge step={1} label={teamSetupRequested ? 'Add a team' : 'Data Assist'} />
+                <h1 style={sectionTitleStyle}>{teamSetupRequested ? 'Upload your Team Summary.' : 'Add new tennis data.'}</h1>
+                <p style={copyStyle}>{teamSetupRequested
+                  ? 'TiQ will read your team, league, flight, and roster. Next: add the schedule, then approve your private team link.'
+                  : scorecardPhotoReaderReady
+                    ? 'Add a TennisLink export or a clear scorecard photo. TiQ reads it first; you confirm it before it changes a match.'
+                    : 'Choose the source, add its TennisLink export, then review what TiQ found.'}</p>
               </div>
               <span style={pillStyle}>{userId ? 'Account ready' : authResolved ? 'Sign in needed' : 'Checking account'}</span>
             </div>
 
-            <UploadJourneyRail />
+            {!teamSetupRequested ? <UploadJourneyRail /> : null}
 
-            <DataAssistWalkthroughHelp />
+            {!teamSetupRequested ? <DataAssistWalkthroughHelp /> : null}
 
             {authResolved && !userId ? (
               <div style={noticeStyle}>
@@ -1269,7 +1272,7 @@ function DataAssistWorkspace() {
               onSelectImportType={chooseImportType}
               issueHref={buildDataAssistIssueHref(intentContext, intentQuery)}
               contactImportRequested={contactImportRequested}
-              teamSetupRequested={requestedImportType === 'team_summary' && intentContext.toLowerCase().includes('team')}
+              teamSetupRequested={teamSetupRequested}
             />
 
             <input
@@ -1598,7 +1601,7 @@ function DataAssistWorkspace() {
         returnTo={returnTo}
       />
       ) : null}
-      {showUploadStep ? (
+      {showUploadStep && !teamSetupRequested ? (
         <DataAssistDetailsSection
           eyebrow="Player tools"
           title="Want the player path around this data?"
@@ -1807,7 +1810,7 @@ function DataAssistSourcePathPanel({
   const dynamicTitleStyle = isCompactViewport ? compactSourcePathTitleStyle : sourcePathTitleStyle
   const dynamicGridStyle = isCompactViewport ? compactSourcePathGridStyle : sourcePathGridStyle
   const dynamicCardStyle = isCompactViewport ? compactSourcePathCardStyle : sourcePathCardStyle
-  const visibleJobs = contactImportRequested
+  const visibleJobs = contactImportRequested || teamSetupRequested
     ? dataAssistSourcePathJobs.filter((job) => job.id === 'team_summary')
     : dataAssistSourcePathJobs
 
@@ -1841,7 +1844,11 @@ function DataAssistSourcePathPanel({
           const recommended = job.id === 'team_summary'
           const title = contactImportRequested && job.id === 'team_summary' ? 'Player Roster contacts' : job.title
           const question = contactImportRequested && job.id === 'team_summary' ? 'Need private captain contacts?' : job.question
-          const cta = contactImportRequested && job.id === 'team_summary' ? 'Phones and email for match week' : job.cta
+          const cta = contactImportRequested && job.id === 'team_summary'
+            ? 'Phones and email for match week'
+            : teamSetupRequested && job.id === 'team_summary'
+              ? 'Choose Team Summary file'
+              : job.cta
           const body = contactImportRequested && job.id === 'team_summary'
             ? 'For your team only: import the TennisLink Player Roster to save its contact details, then approve the team connection. Your Team Summary is not replaced.'
             : job.body

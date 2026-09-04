@@ -41,7 +41,7 @@ export default function CaptainMatchWeekRail({
       <section style={railShell} aria-label="Match week setup">
         <div>
           <div style={kicker}>Match week</div>
-          <strong style={title}>Add the schedule to choose the next match.</strong>
+          <strong style={title}>{scope.team ? `Add ${scope.team}'s schedule to choose the next match.` : 'Add the schedule to choose the next match.'}</strong>
         </div>
         <Link href={scheduleHref} style={scheduleLink}>Add schedule</Link>
       </section>
@@ -56,6 +56,7 @@ export default function CaptainMatchWeekRail({
           {scope.opponent ? `vs ${scope.opponent}` : 'Selected match'}
           {scope.date ? <span style={dateText}> - {formatMatchDate(scope.date)}</span> : null}
         </strong>
+        {scope.team ? <span style={teamText}>{scope.team}{scope.league ? ` · ${scope.league}` : ''}{scope.flight ? ` · ${scope.flight}` : ''}</span> : null}
       </div>
       <nav style={isMobile ? mobileStepList : stepList} aria-label="Match week steps">
         {steps.map((step, index) => {
@@ -122,6 +123,7 @@ const matchContext: CSSProperties = { minWidth: 0 }
 const kicker: CSSProperties = { color: '#93c5fd', fontSize: 11, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase' }
 const title: CSSProperties = { display: 'block', marginTop: 4, color: 'var(--foreground-strong)', fontSize: 16, lineHeight: 1.25, overflowWrap: 'anywhere' }
 const dateText: CSSProperties = { color: 'var(--shell-copy-muted)', fontWeight: 700 }
+const teamText: CSSProperties = { display: 'block', marginTop: 3, color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700, overflowWrap: 'anywhere' }
 const stepList: CSSProperties = { display: 'flex', gap: 7, flexWrap: 'wrap' }
 const stepLink: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: 44, padding: '7px 11px', borderRadius: 12, border: '1px solid var(--shell-panel-border)', color: 'var(--shell-copy-muted)', background: 'var(--shell-chip-bg)', fontSize: 12, fontWeight: 800, textDecoration: 'none' }
 const mobileStepList: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 7, minWidth: 0 }

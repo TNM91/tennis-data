@@ -302,17 +302,17 @@ for (const viewport of viewports) {
           })
         }
 
-        const addShortcutAction = page.locator('[data-mobile-portal-shortcut-add="1"]')
-        const addShortcutActionCount = await addShortcutAction.count()
+        const shortcutEditorAction = page.locator('[data-mobile-portal-personalize="open"]')
+        const shortcutEditorActionCount = await shortcutEditorAction.count()
 
-        if (addShortcutActionCount !== 1) {
+        if (shortcutEditorActionCount !== 1) {
           findings.push({
             viewport: viewport.name,
-            type: 'mobile-portal-shortcut-add-action-missing',
-            addShortcutActionCount,
+            type: 'mobile-portal-shortcut-editor-action-missing',
+            shortcutEditorActionCount,
           })
         } else {
-          await addShortcutAction.click()
+          await shortcutEditorAction.click()
           await page.waitForTimeout(200)
 
           const editorPaletteCount = await page.locator('[data-mobile-portal-palette="edit"]').count()
