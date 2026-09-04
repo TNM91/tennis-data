@@ -228,11 +228,11 @@ const adminTools: AdminTool[] = [
 ]
 
 const priorityToolHrefs = [
+  '/admin/access',
+  '/admin/product-events',
   '/admin/tennisrecord',
   '/admin/data-assist',
   '/admin/missing-scorecards',
-  '/admin/match-reports',
-  '/admin/clubs',
 ]
 
 const priorityTools = priorityToolHrefs
@@ -288,8 +288,9 @@ export default function AdminDashboardPage() {
           actions={
             <>
               <Link href="/admin/data-assist" className="button-primary">Review uploads</Link>
+              <Link href="/admin/access" className="button-secondary">Grant access</Link>
+              <Link href="/admin/product-events" className="button-secondary">Traffic & activity</Link>
               <Link href="/admin/clubs" className="button-secondary">Manage clubs</Link>
-              <Link href="/admin/backups" className="button-secondary">Backups</Link>
             </>
           }
         >
@@ -331,6 +332,9 @@ function DataQualityPanel() {
     totalPlayers: number | null
     pendingUpgradeRequests: number | null
     profileSyncNeedsReview: number | null
+    activeMembers7d: number | null
+    publicSiteActions7d: number | null
+    checkoutStarts7d: number | null
     lastSnapshotDate: string | null
   }>({
     totalMatches: null,
@@ -339,6 +343,9 @@ function DataQualityPanel() {
     totalPlayers: null,
     pendingUpgradeRequests: null,
     profileSyncNeedsReview: null,
+    activeMembers7d: null,
+    publicSiteActions7d: null,
+    checkoutStarts7d: null,
     lastSnapshotDate: null,
   })
   const [loading, setLoading] = useState(true)
@@ -354,6 +361,7 @@ function DataQualityPanel() {
         { data: matchesWithPlayersData },
         { data: profileSyncRepairData },
         { data: profileSyncReviewData },
+        { data: recentProductEvents },
       ] = await Promise.all([
         supabase.from('matches').select('*', { count: 'exact', head: true }).not('match_type', 'is', null),
         supabase.from('matches').select('*', { count: 'exact', head: true }).not('score', 'is', null).neq('score', ''),
@@ -372,6 +380,11 @@ function DataQualityPanel() {
           .select('event_id, status')
           .eq('status', 'reviewed')
           .limit(500),
+        supabase
+          .from('product_usage_events')
+          .select('user_id, surface, event_name')
+          .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+          .limit(1000),
       ])
       const linkedMatchIds = new Set((matchesWithPlayersData ?? []).map((r: { match_id: string }) => r.match_id))
       const reviewedSyncRepairEventIds = new Set((profileSyncReviewData ?? []).map((row: { event_id: string }) => row.event_id))
@@ -381,6 +394,9 @@ function DataQualityPanel() {
         matchesWithPlayers: linkedMatchIds.size,
         totalPlayers,
         pendingUpgradeRequests,
+        activeMembers7d: new Set((recentProductEvents ?? []).map((row: { user_id: string }) => row.user_id)).size,
+        publicSiteActions7d: (recentProductEvents ?? []).filter((row: { surface: string }) => row.surface === 'public_site').length,
+        checkoutStarts7d: (recentProductEvents ?? []).filter((row: { event_name: string }) => row.event_name === 'upgrade_checkout_started').length,
         profileSyncNeedsReview: (profileSyncRepairData ?? []).filter((row: { id: string; metadata: Record<string, unknown> | null }) =>
           !reviewedSyncRepairEventIds.has(row.id) && isProfileSyncRepairNeedingReview(row.metadata),
         ).length,
@@ -399,8 +415,18 @@ function DataQualityPanel() {
       {loading ? (
         <div className="subtle-text" style={{ fontSize: 13 }}>Loading health metrics...</div>
       ) : (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div className="subtle-text" style={{ fontSize: 13, maxWidth: 720 }}>
+              <strong style={{ color: 'var(--foreground)' }}>Traffic & activity:</strong> Vercel Web Analytics is the source of truth for visitors and page views. TiQ activity below shows what signed-in members did after they arrived.
+            </div>
+            <a href="https://vercel.com/tennis-data/tennis-data/analytics" target="_blank" rel="noreferrer" className="button-ghost">Open site traffic</a>
+          </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12 }}>
           {[
+            { label: 'Active members · 7d', value: stats.activeMembers7d?.toLocaleString() ?? '-', href: '/admin/product-events' },
+            { label: 'Public actions · 7d', value: stats.publicSiteActions7d?.toLocaleString() ?? '-', href: '/admin/product-events?filter=public_site' },
+            { label: 'Checkout starts · 7d', value: stats.checkoutStarts7d?.toLocaleString() ?? '-', href: '/admin/product-events?filter=upgrade' },
             { label: 'Total matches', value: stats.totalMatches?.toLocaleString() ?? '-' },
             { label: 'Scores entered', value: scorePct != null ? `${scorePct}%` : '-', flag: scorePct != null && scorePct < 80 },
             { label: 'Player-linked', value: linkedPct != null ? `${linkedPct}%` : '-', flag: linkedPct != null && linkedPct < 80 },
@@ -444,6 +470,7 @@ function DataQualityPanel() {
             )
           })}
         </div>
+        </>
       )}
     </section>
   )

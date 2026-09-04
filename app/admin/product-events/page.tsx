@@ -164,6 +164,11 @@ export default function AdminProductEventsPage() {
   const openProfileSyncReviewEvents = events.filter((event) => isOpenProfileSyncReviewEvent(event, profileSyncReviews)).length
   const reviewedProfileSyncEvents = Object.values(profileSyncReviews).filter((review) => review.status === 'reviewed').length
   const latestEvent = events[0] ?? null
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+  const recentEvents = events.filter((event) => Date.parse(event.created_at) >= sevenDaysAgo)
+  const activeMembers7d = new Set(recentEvents.map((event) => event.user_id)).size
+  const publicSiteActions7d = recentEvents.filter((event) => event.surface === 'public_site').length
+  const checkoutStarts7d = recentEvents.filter((event) => event.event_name === 'upgrade_checkout_started').length
 
   async function saveProfileSyncReview(event: ProductUsageEventRow, status: ProfileSyncReviewStatus) {
     const note = (reviewDrafts[event.id] ?? profileSyncReviews[event.id]?.reviewNote ?? '').trim()
@@ -203,12 +208,22 @@ export default function AdminProductEventsPage() {
       <AdminGate>
         <AdminReviewFrame>
           <AdminReviewHero kicker="Product Events" title="Product behavior signals">
-            See which workflows people reach, where personalization lands, and what needs attention.
+            See what signed-in members do after they arrive, then open site traffic for visitor and page-view trends.
           </AdminReviewHero>
 
-          <AdminReviewPanel>
+          <AdminStatusPanel
+            tone="success"
+            text="TiQ events are signed-in product activity, not total site traffic. Use Vercel Web Analytics for visitors, page views, and acquisition sources."
+          >
+            <a href="https://vercel.com/tennis-data/tennis-data/analytics" target="_blank" rel="noreferrer" className="button-ghost">Open site traffic</a>
+          </AdminStatusPanel>
+
+          <AdminReviewPanel style={{ marginTop: 18 }}>
             {message ? <AdminStatusPanel tone="success" text={message} /> : null}
             <div className="metric-grid">
+              <MetricCard label="Active members · 7d" value={activeMembers7d} />
+              <MetricCard label="Public actions · 7d" value={publicSiteActions7d} />
+              <MetricCard label="Checkout starts · 7d" value={checkoutStarts7d} />
               <MetricCard label="Events" value={events.length} />
               <MetricCard label="Users" value={uniqueUsers} />
               <MetricCard label="Billing" value={billingEvents} />

@@ -10,5 +10,8 @@ describe('admin dashboard launch operations', () => {
     expect(adminPageSource).toContain('temporary promotional access with end dates')
     expect(adminPageSource).toContain('Timed promos')
     expect(adminPageSource).toContain('/admin/access')
+    expect(adminPageSource).toContain('Traffic & activity')
+    expect(adminPageSource).toContain('Vercel Web Analytics is the source of truth')
+    expect(adminPageSource).toContain('Active members · 7d')
   })
 })
