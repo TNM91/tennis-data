@@ -2,6 +2,7 @@ import type { BillablePricingPlanId } from './pricing-plans'
 
 export const PRODUCT_USAGE_EVENT_NAMES = [
   'billing_portal_opened',
+  'signup_confirmation_sent',
   'upgrade_checkout_started',
   'profile_player_linked',
   'profile_cloud_sync_repair',
