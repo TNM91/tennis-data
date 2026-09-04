@@ -86,7 +86,7 @@ describe('Teams experience simplification', () => {
     expect(teamsHub).toContain('async function loadSupportingTeamContext(connectedTeams: TeamConnection[])')
     expect(teamsHub).toContain('loadConnectedTeamDirectoryOptions')
     expect(teamsHub).toContain("label: 'Team connection'")
-    expect(teamsHub).toContain("'Match data syncing'")
+    expect(teamsHub).toContain("'Schedule syncing'")
     expect(teamsHub).toContain('<TeamListLoadingState />')
     expect(teamConnectionsClient).toContain('TEAM_CONNECTIONS_CACHE_TTL_MS')
     expect(teamConnectionsClient).toContain('preloadTeamConnections')

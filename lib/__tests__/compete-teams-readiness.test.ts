@@ -123,7 +123,8 @@ describe('compete teams readiness', () => {
   it('keeps team facts distinct from the clickable team actions', () => {
     expect(source).toContain('teamFacts')
     expect(source).toContain("label: 'Team connection'")
-    expect(source).toContain("label: 'Match history'")
+    expect(source).toContain("label: 'Next match'")
+    expect(source).toContain('formatUpcomingTeamMatchDate(upcomingMatch.date)')
     expect(source).not.toContain("label: 'Team Chat'")
     expect(source).toContain('Build lineup')
     expect(source).toContain('Roster & schedule')

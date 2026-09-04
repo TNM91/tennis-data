@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { isPublicTeamDirectoryMatch, isPublicTeamDirectoryName, isScheduleTeamSource } from '../team-directory'
 
@@ -33,5 +35,13 @@ describe('public team directory trust filter', () => {
   it('accepts factual TennisRecord team names for a source-labeled directory context', () => {
     expect(isPublicTeamDirectoryName('Masengill/Suddarth (S)', '2026 Adult 18+ Missouri Valley Missouri St. Louis M 4.0')).toBe(true)
     expect(isPublicTeamDirectoryName('Visiting Team', '2026 Adult 18+ Missouri Valley Missouri St. Louis M 4.0')).toBe(false)
+  })
+
+  it('keeps the next scheduled opponent alongside team directory context', () => {
+    const source = readFileSync(join(process.cwd(), 'lib/team-directory.ts'), 'utf8')
+
+    expect(source).toContain('nextMatch?: { date: string; opponent: string } | null')
+    expect(source).toContain('function isFutureOrTodayMatch')
+    expect(source).toContain('current.nextMatch = { date: match.match_date!, opponent }')
   })
 })

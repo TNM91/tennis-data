@@ -26,6 +26,12 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 const dataAssistTeamsHref = '/data-assist?intent=upload-source&type=team_summary&context=Add%20my%20team#upload'
 const FUTURE_JWT_SETTLE_DELAY_MS = 3_000
 
+function formatUpcomingTeamMatchDate(value: string) {
+  const date = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date)
+}
+
 function isFutureJwtError(error: unknown) {
   return error instanceof Error && error.message.toLowerCase().includes('jwt issued at future')
 }
@@ -356,14 +362,19 @@ function CompeteTeamsContent() {
                 flight: group.sourceFlight,
               })
               const canStartTeamLineup = access.canUseCaptainWorkflow || isCaptainTeamConnection(group.connection.roles)
+              const upcomingMatch = group.directoryOption?.nextMatch || null
               const teamFacts = [
                 {
                   label: 'Team connection',
                   value: 'Connected',
                 },
                 {
-                  label: 'Match history',
-                  value: group.directoryOption ? `${group.directoryOption.matchCount} matches` : 'Match data syncing',
+                  label: 'Next match',
+                  value: upcomingMatch
+                    ? `${formatUpcomingTeamMatchDate(upcomingMatch.date)} vs ${upcomingMatch.opponent}`
+                    : group.directoryOption
+                      ? `${group.directoryOption.matchCount} matches in history`
+                      : 'Schedule syncing',
                 },
               ]
               const teamMetaItems = [
