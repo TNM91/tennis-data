@@ -817,7 +817,9 @@ function TiqLeagueDetailContent() {
   const availableTeamOptions = useMemo(() => {
     if (!league || league.leagueFormat !== 'team') return []
 
-    const listedByLeagueOffice = visibleTeamEntries.map((entry) => ({
+    const listedByLeagueOffice = visibleTeamEntries
+      .filter((entry) => !entry.createdByUserId && !entry.teamEntityId)
+      .map((entry) => ({
       key: `league-entry:${entry.teamEntityId || entry.teamName.toLowerCase()}`,
       team: entry.teamName,
       league: entry.sourceLeagueName || league.leagueName || null,
@@ -825,12 +827,14 @@ function TiqLeagueDetailContent() {
       matchCount: 0,
       mostRecentMatchDate: null,
       source: 'canonical' as const,
-    }))
+      }))
     const listedTeamKeys = new Set(
       listedByLeagueOffice.map((option) => `${option.team.toLowerCase()}__${option.league || ''}__${option.flight || ''}`),
     )
+    const enteredTeamNames = new Set(visibleTeamEntries.map((entry) => entry.teamName.toLowerCase()))
     const directoryOptions = teamOptions.filter((option) => {
       if (league.flight && option.flight && option.flight !== league.flight) return false
+      if (enteredTeamNames.has(option.team.toLowerCase())) return false
       return !listedTeamKeys.has(`${option.team.toLowerCase()}__${option.league || ''}__${option.flight || ''}`)
     })
 

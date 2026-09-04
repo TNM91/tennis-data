@@ -44,6 +44,8 @@ describe('team connection flow', () => {
     expect(leaguePage).toContain('Add another team')
     expect(leaguePage).toContain('only when you manage a second team in this league.')
     expect(leaguePage).toContain("key: `league-entry:${entry.teamEntityId || entry.teamName.toLowerCase()}`")
+    expect(leaguePage).toContain('.filter((entry) => !entry.createdByUserId && !entry.teamEntityId)')
+    expect(leaguePage).toContain('const enteredTeamNames = new Set(visibleTeamEntries.map((entry) => entry.teamName.toLowerCase()))')
     expect(leaguePage).toContain('Listed by League Office')
     expect(leaguePage).toContain('Choose a team already in TiQ')
     expect(leaguePage).toContain("if (league.leagueFormat === 'team') setSelectedTeamKey('')")
