@@ -104,4 +104,13 @@ describe('Teams experience simplification', () => {
     expect(teamsHub).toContain('defaultTeamChipStyle')
     expect(teamsHub).toContain('Default team')
   })
+
+  it('lets members choose a default team without leaving My Teams', () => {
+    expect(teamsHub).toContain('updateTeamConnection')
+    expect(teamsHub).toContain("action: 'set_default'")
+    expect(teamsHub).toContain('function makeDefaultTeam(connection: TeamConnection)')
+    expect(teamsHub).toContain('will open first in Captain and My Lab.')
+    expect(teamsHub).toContain("'Make default'")
+    expect(teamsHub).toContain('teamSecondaryButtonStyle')
+  })
 })

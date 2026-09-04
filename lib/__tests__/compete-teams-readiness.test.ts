@@ -165,7 +165,7 @@ describe('compete teams readiness', () => {
   })
 
   it('fails team loading fast without scanning the full public directory for a connected team', () => {
-    expect(source).toContain("import { fetchTeamConnections, getCachedTeamConnections } from '@/lib/team-profile-links-client'")
+    expect(source).toContain("import { fetchTeamConnections, getCachedTeamConnections, updateTeamConnection } from '@/lib/team-profile-links-client'")
     expect(source).toContain('const [connectionError, setConnectionError] = useState(\'\')')
     expect(source).toContain('getCachedTeamConnections(accessToken, { userId })')
     expect(source).toContain('loadConnectedTeamDirectoryOptions(connectedTeams.map((connection) => connection.teamName))')

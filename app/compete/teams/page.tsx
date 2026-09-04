@@ -11,7 +11,7 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
-import { fetchTeamConnections, getCachedTeamConnections } from '@/lib/team-profile-links-client'
+import { fetchTeamConnections, getCachedTeamConnections, updateTeamConnection } from '@/lib/team-profile-links-client'
 import { isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { buildTeamProfileHref } from '@/lib/team-routes'
@@ -122,6 +122,8 @@ function CompeteTeamsContent() {
   const [connectionError, setConnectionError] = useState('')
   const [connectionRefresh, setConnectionRefresh] = useState(0)
   const [storageWarning, setStorageWarning] = useState('')
+  const [defaultTeamMessage, setDefaultTeamMessage] = useState('')
+  const [savingDefaultTeamId, setSavingDefaultTeamId] = useState('')
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
   const accessToken = session?.access_token || ''
@@ -251,6 +253,24 @@ function CompeteTeamsContent() {
   }, [connections, participations, teamDirectory])
   const defaultTeam = groupedTeams.find((group) => group.connection.isDefault) || null
 
+  async function makeDefaultTeam(connection: TeamConnection) {
+    if (!accessToken || savingDefaultTeamId) return
+    setSavingDefaultTeamId(connection.id)
+    setDefaultTeamMessage('')
+    try {
+      await updateTeamConnection({ accessToken, connectionId: connection.id, action: 'set_default' })
+      setConnections((current) => current.map((item) => ({
+        ...item,
+        isDefault: item.id === connection.id,
+      })))
+      setDefaultTeamMessage(`${connection.teamName} will open first in Captain and My Lab.`)
+    } catch (error) {
+      setDefaultTeamMessage(error instanceof Error ? error.message : 'We could not set your default team. Please try again.')
+    } finally {
+      setSavingDefaultTeamId('')
+    }
+  }
+
   return (
     <>
       {!loading && !connectionError && (!userId || groupedTeams.length === 0) ? (
@@ -305,6 +325,7 @@ function CompeteTeamsContent() {
         ) : null}
 
         {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
+        {defaultTeamMessage ? <div style={defaultTeamNoticeStyle} role="status">{defaultTeamMessage}</div> : null}
         {connectionError ? (
           <TeamListLoadError message={connectionError} onRetry={() => setConnectionRefresh((value) => value + 1)} />
         ) : loading ? (
@@ -382,6 +403,16 @@ function CompeteTeamsContent() {
                     <Link href={teamRoomHref} style={teamSecondaryLinkStyle}>Team Chat</Link>
                     {canStartTeamLineup ? (
                       <Link href={lineupHref} style={teamSecondaryLinkStyle}>Build lineup</Link>
+                    ) : null}
+                    {groupedTeams.length > 1 && !group.connection.isDefault ? (
+                      <button
+                        type="button"
+                        onClick={() => void makeDefaultTeam(group.connection)}
+                        disabled={Boolean(savingDefaultTeamId)}
+                        style={teamSecondaryButtonStyle}
+                      >
+                        {savingDefaultTeamId === group.connection.id ? 'Saving…' : 'Make default'}
+                      </button>
                     ) : null}
                   </div>
                 </div>
@@ -1377,6 +1408,12 @@ const teamSecondaryLinkStyle = {
   whiteSpace: 'normal',
 } as const
 
+const teamSecondaryButtonStyle: CSSProperties = {
+  ...teamSecondaryLinkStyle,
+  cursor: 'pointer',
+  font: 'inherit',
+}
+
 const teamRowActionStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -1401,4 +1438,17 @@ const warningStyle = {
   color: 'rgba(253,230,138,0.88)',
   fontSize: '13px',
   lineHeight: 1.55,
+} as const
+
+const defaultTeamNoticeStyle = {
+  marginTop: '12px',
+  padding: '10px 14px',
+  borderRadius: '12px',
+  border: '1px solid rgba(155,225,29,0.30)',
+  background: 'rgba(79,124,32,0.14)',
+  color: '#efffc6',
+  fontSize: '13px',
+  fontWeight: 800,
+  lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 } as const
