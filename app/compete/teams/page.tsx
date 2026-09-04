@@ -287,9 +287,9 @@ function CompeteTeamsContent() {
                 : 'Public team pages are open now. Accepted team connections appear here after registration.'}
         </div>
 
-        {authResolved && userId ? (
+        {authResolved && userId && groupedTeams.length > 0 ? (
           <div style={{ ...teamsHeaderActionRowStyle, ...(isMobile ? teamsHeaderActionRowMobileStyle : {}) }} aria-label="Team setup actions">
-            <Link href={dataAssistTeamsHref} style={teamPrimaryActionStyle}>Add a team</Link>
+            <Link href={dataAssistTeamsHref} style={teamPrimaryActionStyle}>Add another team</Link>
             <Link href="/team-connections" style={teamSecondaryLinkStyle}>
               {pendingConnections.length > 0 ? 'Review team links' : 'Manage team links'}
             </Link>
@@ -619,7 +619,7 @@ function TeamAccountAccessPanel({
         ? `${linkedTeamCount} team${linkedTeamCount === 1 ? '' : 's'} connected.`
         : pendingTeamCount > 0
           ? `${pendingTeamCount} team connection${pendingTeamCount === 1 ? '' : 's'} waiting.`
-          : 'Connect your first team.'
+          : 'Add or link your first team.'
 
   return (
     <section
@@ -637,7 +637,9 @@ function TeamAccountAccessPanel({
         <span style={sectionTextStyle}>
           {!signedIn
             ? 'A Free account includes every accepted team’s roster, schedule, stats, and private Team Chat.'
-            : 'Team access is included. Player adds personalized improvement tools; Captain adds lineup and match-week decisions.'}
+            : pendingTeamCount > 0
+              ? 'Review the team link waiting for you. Once accepted, its roster, schedule, and Team Chat appear here.'
+              : 'Team access is included. Upload a Team Summary to add your team, or link one someone else already imported.'}
         </span>
         {signedIn && linkedTeamCount > 0 ? (
           <span style={accountTierCueStyle}>
@@ -652,9 +654,14 @@ function TeamAccountAccessPanel({
             <Link href="/login?next=%2Fcompete%2Fteams" style={teamSecondaryLinkStyle}>Sign in</Link>
           </>
         ) : (
-          <Link href="/team-connections" style={teamPrimaryActionStyle}>
-            {pendingTeamCount > 0 ? 'Review team connections' : 'Connect a team'}
-          </Link>
+          <>
+            <Link href={pendingTeamCount > 0 ? '/team-connections' : dataAssistTeamsHref} style={teamPrimaryActionStyle}>
+              {pendingTeamCount > 0 ? 'Review team links' : 'Upload team summary'}
+            </Link>
+            <Link href={pendingTeamCount > 0 ? dataAssistTeamsHref : '/team-connections'} style={teamSecondaryLinkStyle}>
+              {pendingTeamCount > 0 ? 'Upload team summary' : 'Link existing team'}
+            </Link>
+          </>
         )}
       </div>
     </section>
@@ -669,16 +676,13 @@ function EmptyTeamsState({ signedIn, pendingTeamCount }: { signedIn: boolean; pe
         <span>
           {signedIn
             ? pendingTeamCount > 0
-              ? 'Review the team connection waiting for you, then its Team Chat and team tools will open here.'
-              : 'Connect your player profile, accept a team invitation, or find the team already in the public map.'
+              ? 'Review the team link above, then its Team Chat and team tools will open here.'
+              : 'Use the team actions above to upload your Team Summary or link a team already in TiQ.'
             : 'Check rosters, records, standings, and recent results without an account.'}
         </span>
       </div>
       <div style={emptyTeamsActionRowStyle}>
-        {signedIn ? (
-          <Link href="/team-connections" style={emptyTeamsActionStyle}>{pendingTeamCount > 0 ? 'Review connections' : 'Connect team'}</Link>
-        ) : null}
-        <Link href="/teams" style={emptyTeamsActionStyle}>Browse public teams</Link>
+        {!signedIn ? <Link href="/teams" style={emptyTeamsActionStyle}>Browse public teams</Link> : null}
       </div>
     </div>
   )

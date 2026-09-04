@@ -20,6 +20,14 @@ describe('Teams experience simplification', () => {
     )
   })
 
+  it('gives a first-time captain two distinct team entry paths without duplicating them below', () => {
+    expect(teamsHub).toContain("'Add or link your first team.'")
+    expect(teamsHub).toContain("'Upload team summary'")
+    expect(teamsHub).toContain("'Link existing team'")
+    expect(teamsHub).toContain('authResolved && userId && groupedTeams.length > 0')
+    expect(teamsHub).toContain('Use the team actions above to upload your Team Summary or link a team already in TiQ.')
+  })
+
   it('keeps team sections legible without horizontal phone scrolling', () => {
     expect(teamDetail).toContain('teamSectionNavMobileStyle')
     expect(teamDetail).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
