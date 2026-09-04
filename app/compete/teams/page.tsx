@@ -306,7 +306,7 @@ function CompeteTeamsContent() {
             ? 'Getting your teams...'
             : groupedTeams.length > 0
               ? groupedTeams.length === 1
-                ? 'Open your team for its roster, schedule, stats, and Team Chat.'
+                ? 'Open the roster and schedule, then use Team Chat or Build lineup when needed.'
                 : defaultTeam
                   ? `${groupedTeams.length} teams connected. ${defaultTeam.teamName} opens first in Captain and My Lab.`
                   : `${groupedTeams.length} teams connected. Choose a default team in Manage team links.`
@@ -395,8 +395,12 @@ function CompeteTeamsContent() {
                         </div>
                       ))}
                     </dl>
-                    <Link href={teamPageHref} style={{ ...teamPrimaryActionStyle, width: isMobile ? '100%' : undefined }}>
-                      Open team
+                    <Link
+                      href={teamPageHref}
+                      style={{ ...teamPrimaryActionStyle, width: isMobile ? '100%' : undefined }}
+                      aria-label={`Open ${group.teamName} roster and schedule`}
+                    >
+                      Roster & schedule
                     </Link>
                   </div>
                   <div style={isMobile ? { ...teamRowActionStyle, ...teamRowActionMobileStyle } : teamRowActionStyle}>
