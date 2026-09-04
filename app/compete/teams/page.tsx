@@ -287,6 +287,15 @@ function CompeteTeamsContent() {
                 : 'Public team pages are open now. Accepted team connections appear here after registration.'}
         </div>
 
+        {authResolved && userId ? (
+          <div style={{ ...teamsHeaderActionRowStyle, ...(isMobile ? teamsHeaderActionRowMobileStyle : {}) }} aria-label="Team setup actions">
+            <Link href={dataAssistTeamsHref} style={teamPrimaryActionStyle}>Add a team</Link>
+            <Link href="/team-connections" style={teamSecondaryLinkStyle}>
+              {pendingConnections.length > 0 ? 'Review team links' : 'Manage team links'}
+            </Link>
+          </div>
+        ) : null}
+
         {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
         {connectionError ? (
           <TeamListLoadError message={connectionError} onRetry={() => setConnectionRefresh((value) => value + 1)} />
@@ -1181,6 +1190,21 @@ const emptyTeamsActionRowStyle = {
   gap: '10px',
   minWidth: 0,
 } as const
+
+const teamsHeaderActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  gap: 10,
+  marginTop: 14,
+  minWidth: 0,
+}
+
+const teamsHeaderActionRowMobileStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  width: '100%',
+}
 
 const mobileActionGridStyle: CSSProperties = {
   display: 'grid',

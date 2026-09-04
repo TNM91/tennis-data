@@ -63,6 +63,15 @@ describe('compete teams readiness', () => {
     expect(styleBlock('teamPathGuideGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))'")
   })
 
+  it('keeps adding a team visible instead of hiding it in the management disclosure', () => {
+    expect(source).toContain('aria-label="Team setup actions"')
+    expect(source).toContain('<Link href={dataAssistTeamsHref} style={teamPrimaryActionStyle}>Add a team</Link>')
+    expect(source).toContain("{pendingConnections.length > 0 ? 'Review team links' : 'Manage team links'}")
+    expect(source.indexOf('aria-label="Team setup actions"')).toBeLessThan(source.indexOf('function TeamToolsDisclosure'))
+    expect(styleBlock('teamsHeaderActionRowStyle')).toContain('minWidth: 0')
+    expect(styleBlock('teamsHeaderActionRowMobileStyle')).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
+  })
+
   it('keeps the Teams top actions aligned with League and Team handoffs', () => {
     expect(source).toContain('title="Team directory"')
     expect(source).toContain('title="Team book"')
