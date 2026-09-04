@@ -32,7 +32,10 @@ describe('team connection flow', () => {
     expect(leaguePage).toContain('How this becomes your team in TiQ')
     expect(leaguePage).toContain('League Office approves it')
     expect(leaguePage).toContain('It appears in My Teams')
-    expect(leaguePage).toContain('Once approved, it also appears in My Teams for Team Chat and Captain tools.')
+    expect(leaguePage).toContain('If League Office listed it first, request it here to connect it to your account after approval.')
+    expect(leaguePage).toContain("if (league.leagueFormat !== 'team' && currentList.some")
+    expect(leaguePage).toContain("existingRequest?.entryStatus === 'active'")
+    expect(leaguePage).toContain('After League Office approves it, the team appears in My Teams.')
   })
 
   it('rejects an imported opponent team as a Captain connection', () => {

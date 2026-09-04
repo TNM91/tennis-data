@@ -2106,7 +2106,7 @@ function TiqLeagueDetailContent() {
     }
 
     const currentList = league.leagueFormat === 'team' ? league.teams : league.players
-    if (currentList.some((item) => item.toLowerCase() === normalizedEntry.toLowerCase())) {
+    if (league.leagueFormat !== 'team' && currentList.some((item) => item.toLowerCase() === normalizedEntry.toLowerCase())) {
       setStatus(
         league.leagueFormat === 'team'
           ? `${normalizedEntry} is already entered in this TIQ team league.`
@@ -2126,6 +2126,11 @@ function TiqLeagueDetailContent() {
     }
     if (existingRequest?.entryStatus === 'rejected') {
       setStatus(`${normalizedEntry} was previously declined. Contact the coordinator before requesting again.`)
+      return
+    }
+
+    if (league.leagueFormat === 'team' && existingRequest?.entryStatus === 'active') {
+      setStatus(`${normalizedEntry} is already connected to another team entry. Ask League Office to update the team contact if that should be yours.`)
       return
     }
 
@@ -2164,7 +2169,7 @@ function TiqLeagueDetailContent() {
       setStorageWarning(result.warning || '')
       setStatus(
         league.leagueFormat === 'team'
-          ? `${normalizedEntry} requested entry. The coordinator must approve it before the team appears in this league.`
+          ? `${normalizedEntry} requested entry. After League Office approves it, the team appears in My Teams.`
           : `${normalizedEntry} requested entry. The coordinator must approve it before the player appears in this league.`,
       )
       if (league.leagueFormat === 'individual') {
@@ -2915,7 +2920,7 @@ function TiqLeagueDetailContent() {
                 </h2>
                 <p style={sectionText}>
                   {league.leagueFormat === 'team'
-                    ? 'Submit your team for League Office approval. Once approved, it also appears in My Teams for Team Chat and Captain tools.'
+                    ? 'Select or type the team you manage. If League Office listed it first, request it here to connect it to your account after approval.'
                     : `Submit your player entry for League Office approval. ${getTiqIndividualCompetitionFormatDescription(league.individualCompetitionFormat)}`}
                 </p>
 
