@@ -1508,6 +1508,41 @@ hr {
     padding-bottom: calc(56px + var(--safe-bottom));
   }
 
+  /* Admin uses dense operational controls. Preserve readable line lengths by
+     collapsing the few desktop-only splits before any label can be squeezed. */
+  .admin-review-frame {
+    padding: 14px 0 30px !important;
+  }
+
+  .admin-review-frame .hero-panel,
+  .admin-review-frame .surface-card {
+    min-width: 0;
+  }
+
+  .admin-review-frame .hero-panel {
+    padding: 18px !important;
+  }
+
+  .admin-review-frame :is(input, select, textarea) {
+    min-inline-size: 0 !important;
+    max-inline-size: 100%;
+  }
+
+  .admin-review-frame :is(.metric-value, strong, .metric-label, .subtle-text) {
+    max-inline-size: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .admin-review-split-grid,
+  .admin-promotion-code-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch !important;
+  }
+
+  .admin-promotion-code-row > .button-ghost {
+    justify-self: stretch;
+  }
+
   .brand-atmosphere-mark {
     top: auto;
     right: 16px;
