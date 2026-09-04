@@ -94,4 +94,14 @@ describe('Teams experience simplification', () => {
     expect(teamsHub).toContain('buildTeamProfileHref(group.teamName')
     expect(teamsHub).not.toContain('`/team/${encodeURIComponent(group.teamName)}')
   })
+
+  it('keeps a default team first and makes multi-team context explicit', () => {
+    expect(teamsHub).toContain('left.connection.isDefault !== right.connection.isDefault')
+    expect(teamsHub).toContain('const defaultTeam = groupedTeams.find((group) => group.connection.isDefault) || null')
+    expect(teamsHub).toContain('opens first in Captain and My Lab.')
+    expect(teamsHub).toContain('Choose a default team in Manage team links.')
+    expect(teamsHub).toContain('defaultTeamRowStyle')
+    expect(teamsHub).toContain('defaultTeamChipStyle')
+    expect(teamsHub).toContain('Default team')
+  })
 })

@@ -65,7 +65,7 @@ describe('compete teams readiness', () => {
 
   it('keeps adding a team visible instead of hiding it in the management disclosure', () => {
     expect(source).toContain('aria-label="Team setup actions"')
-    expect(source).toContain('<Link href={dataAssistTeamsHref} style={teamPrimaryActionStyle}>Add a team</Link>')
+    expect(source).toContain('<Link href={dataAssistTeamsHref} style={teamPrimaryActionStyle}>Add another team</Link>')
     expect(source).toContain("{pendingConnections.length > 0 ? 'Review team links' : 'Manage team links'}")
     expect(source.indexOf('aria-label="Team setup actions"')).toBeLessThan(source.indexOf('function TeamToolsDisclosure'))
     expect(styleBlock('teamsHeaderActionRowStyle')).toContain('minWidth: 0')
@@ -150,7 +150,7 @@ describe('compete teams readiness', () => {
     expect(source).toContain("const dataAssistTeamsHref = '/data-assist?intent=upload-source&type=team_summary&context=Add%20my%20team#upload'")
     expect(source).not.toContain('context=League%20Office%20teams')
     expect(source).toContain('Register Free')
-    expect(source).toContain('Connect team')
+    expect(source).toContain('Link existing team')
     expect(source).toContain('Browse public teams')
     expect(source).toContain('Explore public teams now.')
     expect(source).toContain('Check rosters, records, standings, and recent results without an account.')

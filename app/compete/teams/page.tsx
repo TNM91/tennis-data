@@ -240,12 +240,16 @@ function CompeteTeamsContent() {
     }
 
     return Array.from(grouped.values()).sort((left, right) => {
+      if (left.connection.isDefault !== right.connection.isDefault) {
+        return left.connection.isDefault ? -1 : 1
+      }
       if (right.tiqLeagues.length !== left.tiqLeagues.length) {
         return right.tiqLeagues.length - left.tiqLeagues.length
       }
       return left.teamName.localeCompare(right.teamName)
     })
   }, [connections, participations, teamDirectory])
+  const defaultTeam = groupedTeams.find((group) => group.connection.isDefault) || null
 
   return (
     <>
@@ -281,7 +285,11 @@ function CompeteTeamsContent() {
             : loading
             ? 'Getting your teams...'
             : groupedTeams.length > 0
-              ? 'Open a team for its roster, schedule, stats, and Team Chat.'
+              ? groupedTeams.length === 1
+                ? 'Open your team for its roster, schedule, stats, and Team Chat.'
+                : defaultTeam
+                  ? `${groupedTeams.length} teams connected. ${defaultTeam.teamName} opens first in Captain and My Lab.`
+                  : `${groupedTeams.length} teams connected. Choose a default team in Manage team links.`
               : userId
                 ? 'Accept a team connection or connect your player profile to bring your teams here.'
                 : 'Public team pages are open now. Accepted team connections appear here after registration.'}
@@ -347,6 +355,7 @@ function CompeteTeamsContent() {
                   key={`${group.teamName}-${group.sourceLeagueName}-${group.sourceFlight}`}
                   style={{
                     ...rowStyle,
+                    ...(group.connection.isDefault ? defaultTeamRowStyle : {}),
                     padding: isMobile ? '14px' : rowStyle.padding,
                     borderRadius: isMobile ? '16px' : rowStyle.borderRadius,
                   }}
@@ -354,6 +363,7 @@ function CompeteTeamsContent() {
                   <div style={teamCopyStyle}>
                     <div style={{ ...rowTitleStyle, fontSize: isMobile ? '17px' : rowTitleStyle.fontSize }}>{group.teamName}</div>
                     <div style={rowMetaStyle}>
+                      {group.connection.isDefault ? <span style={defaultTeamChipStyle}>Default team</span> : null}
                       {teamMetaItems.map((item) => <span key={item} style={rowMetaChipStyle}>{item}</span>)}
                     </div>
                     <dl style={teamFactsStyle} aria-label={`${group.teamName} team status`}>
@@ -1246,6 +1256,11 @@ const rowStyle = {
   minWidth: 0,
 } as const
 
+const defaultTeamRowStyle = {
+  border: '1px solid rgba(155,225,29,0.38)',
+  background: 'linear-gradient(135deg, rgba(79,124,32,0.16), rgba(8,16,34,0.74))',
+} as const
+
 const teamCopyStyle = {
   minWidth: 0,
 } as const
@@ -1276,6 +1291,19 @@ const rowMetaChipStyle = {
   borderRadius: '999px',
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'rgba(116,190,255,0.06)',
+  overflowWrap: 'anywhere',
+} as const
+
+const defaultTeamChipStyle = {
+  display: 'inline-flex',
+  maxWidth: '100%',
+  minWidth: 0,
+  padding: '3px 7px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155,225,29,0.36)',
+  background: 'rgba(155,225,29,0.12)',
+  color: '#efffc6',
+  fontWeight: 900,
   overflowWrap: 'anywhere',
 } as const
 
