@@ -49,6 +49,15 @@ describe('Captain live scorecard', () => {
     expect(liveScorecard).toContain('navigator.share')
   })
 
+  it('keeps match-day entry focused on one compact court at a time', () => {
+    expect(liveScorecard).toContain('const [openCourtId, setOpenCourtId] = useState<string | null | undefined>(undefined)')
+    expect(liveScorecard).toContain('Enter one court at a time.')
+    expect(liveScorecard).toContain('ready to submit')
+    expect(liveScorecard).toContain('aria-expanded={isOpen}')
+    expect(liveScorecard).toContain("{isOpen ? 'Done for now' : 'Enter result'}")
+    expect(liveScorecard).toContain('function isCourtEntryComplete(court: CourtDraft)')
+  })
+
   it('returns the opponent roster only through the authorized captain lineup response', () => {
     expect(rosterRoute).toContain('const opponentRosterNames')
     expect(rosterRoute).toContain('opponentRosterNames,')

@@ -60,6 +60,13 @@ function normalizeName(value: string | null | undefined) {
   return (value || '').trim().replace(/\s+/g, ' ')
 }
 
+function isCourtEntryComplete(court: CourtDraft) {
+  const playerCount = court.matchType === 'doubles' ? 2 : 1
+  return court.teamPlayers.slice(0, playerCount).every((name) => Boolean(normalizeName(name)))
+    && court.opponentPlayers.slice(0, playerCount).every((name) => Boolean(normalizeName(name)))
+    && Boolean(court.score.trim())
+}
+
 function formatRating(value: number | null) {
   return value === null ? 'TiQ pending' : value.toFixed(2)
 }
@@ -79,6 +86,9 @@ function RecordResultContent() {
   const [matchTime, setMatchTime] = useState(defaultTime)
   const [facility, setFacility] = useState(defaultFacility)
   const [courts, setCourts] = useState<CourtDraft[]>(() => [createCourt(1)])
+  // Undefined means "open the first court" for a fresh scorecard. Null means
+  // the captain intentionally collapsed every court after reviewing it.
+  const [openCourtId, setOpenCourtId] = useState<string | null | undefined>(undefined)
   const [rosterNames, setRosterNames] = useState<string[]>([])
   const [opponentRosterNames, setOpponentRosterNames] = useState<string[]>([])
   const [loadingRoster, setLoadingRoster] = useState(false)
@@ -125,6 +135,10 @@ function RecordResultContent() {
     })
     return `/data-assist?${captureParams.toString()}`
   }, [facility, flight, leagueName, matchDate, matchTime, opponentTeam, teamName])
+  const activeCourtId = openCourtId === undefined
+    ? courts[0]?.id || ''
+    : courts.some((court) => court.id === openCourtId) ? openCourtId || '' : ''
+  const completedCourtCount = courts.filter(isCourtEntryComplete).length
 
   useEffect(() => {
     if (!authResolved || !session?.access_token || !teamName) return
@@ -487,7 +501,8 @@ function RecordResultContent() {
         <div className={styles.courtHeader}>
           <div>
             <p className={styles.eyebrow}>Court results</p>
-            <h2>Enter each court.</h2>
+            <h2>Enter one court at a time.</h2>
+            <p>{completedCourtCount}/{courts.length} ready to submit</p>
           </div>
           <button className={styles.addCourt} type="button" onClick={() => setCourts((current) => [...current, createCourt(Math.max(0, ...current.map((court) => court.courtNumber)) + 1)])}>Add court</button>
         </div>
@@ -495,72 +510,93 @@ function RecordResultContent() {
         <div className={styles.courtList}>
           {courts.map((court) => {
             const playerCount = court.matchType === 'doubles' ? 2 : 1
+            const isOpen = court.id === activeCourtId
+            const entryComplete = isCourtEntryComplete(court)
+            const teamPlayers = court.teamPlayers.slice(0, playerCount).map(normalizeName).filter(Boolean)
+            const opponentPlayers = court.opponentPlayers.slice(0, playerCount).map(normalizeName).filter(Boolean)
             return (
-              <article className={styles.courtCard} key={court.id}>
+              <article className={styles.courtCard} key={court.id} id={`scorecard-court-${court.id}`} data-open={isOpen}>
                 <div className={styles.courtTitle}>
                   <div>
                     <span>Match line</span>
                     <strong>{court.label || `${court.matchType === 'doubles' ? 'Doubles' : 'Singles'} ${court.courtNumber}`}</strong>
                   </div>
-                  {courts.length > 1 ? <button type="button" className={styles.removeCourt} onClick={() => setCourts((current) => current.filter((item) => item.id !== court.id))}>Remove</button> : null}
-                </div>
-                <div className={styles.matchTypeControl} aria-label={`Court ${court.courtNumber} match type`}>
-                  <button type="button" data-active={court.matchType === 'doubles'} onClick={() => setMatchType(court.id, 'doubles')}>Doubles</button>
-                  <button type="button" data-active={court.matchType === 'singles'} onClick={() => setMatchType(court.id, 'singles')}>Singles</button>
-                </div>
-                <div className={styles.playerColumns}>
-                  <div>
-                    <span className={styles.sideLabel}>Your team</span>
-                    {Array.from({ length: playerCount }, (_, playerIndex) => (
-                      <label className={styles.compactLabel} key={`team-${playerIndex}`}>
-                        <span>{playerCount === 2 ? `Player ${playerIndex + 1}` : 'Player'}</span>
-                        <select value={court.teamPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'teamPlayers', playerIndex, event.target.value)}>
-                          <option value="">Select player</option>
-                          {rosterNames.map((name) => <option value={name} key={name}>{name}</option>)}
-                        </select>
-                      </label>
-                    ))}
-                    {loadingRoster ? <small className={styles.rosterNote}>Loading your roster…</small> : null}
-                    {!loadingRoster && !rosterNames.length ? <small className={styles.rosterNote}>Your roster is not available yet. Add the player name in Team Roster, then return here.</small> : null}
-                  </div>
-                  <div>
-                    <span className={styles.sideLabel}>Opposition</span>
-                    {Array.from({ length: playerCount }, (_, playerIndex) => (
-                      <div className={styles.opponentEntry} key={`opponent-${playerIndex}`}>
-                        <span>{playerCount === 2 ? `Player ${playerIndex + 1}` : 'Player'}</span>
-                        {opponentRosterNames.length ? (
-                          <>
-                            <select
-                              aria-label={`Choose an opponent for ${court.label || `court ${court.courtNumber}`}`}
-                              value={opponentRosterNames.includes(court.opponentPlayers[playerIndex] || '') ? court.opponentPlayers[playerIndex] || '' : '__manual__'}
-                              onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value === '__manual__' ? '' : event.target.value)}
-                            >
-                              <option value="">Choose a known opponent</option>
-                              {opponentRosterNames.map((name) => <option value={name} key={name}>{name}</option>)}
-                              <option value="__manual__">Enter a different player</option>
-                            </select>
-                            {!opponentRosterNames.includes(court.opponentPlayers[playerIndex] || '') ? (
-                              <input aria-label={`Enter an opponent for ${court.label || `court ${court.courtNumber}`}`} value={court.opponentPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value)} placeholder="Type opponent name" />
-                            ) : null}
-                          </>
-                        ) : (
-                          <input aria-label={`Enter an opponent for ${court.label || `court ${court.courtNumber}`}`} value={court.opponentPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value)} placeholder="Type opponent name" />
-                        )}
-                      </div>
-                    ))}
-                    <small className={styles.rosterNote}>{opponentRosterNames.length ? `Choose from ${opponentRosterNames.length} known opponent${opponentRosterNames.length === 1 ? '' : 's'}, or select “Enter a different player.”` : 'No opponent roster is connected yet. Type each opponent name.'}</small>
+                  <div className={styles.courtTitleActions}>
+                    <span className={entryComplete ? styles.courtReady : styles.courtPending}>{entryComplete ? 'Ready' : isOpen ? 'Editing' : 'Needs result'}</span>
+                    <button
+                      type="button"
+                      className={styles.toggleCourt}
+                      aria-expanded={isOpen}
+                      aria-controls={`scorecard-court-entry-${court.id}`}
+                      onClick={() => setOpenCourtId(isOpen ? '' : court.id)}
+                    >
+                      {isOpen ? 'Done for now' : 'Enter result'}
+                    </button>
+                    {courts.length > 1 ? <button type="button" className={styles.removeCourt} onClick={() => setCourts((current) => current.filter((item) => item.id !== court.id))}>Remove</button> : null}
                   </div>
                 </div>
-                <div className={styles.resultControls}>
-                  <label className={styles.scoreInput}><span>Select or enter final score</span><input list="captain-score-options" value={court.score} onChange={(event) => updateCourt(court.id, { score: event.target.value })} placeholder="6-4 3-6 10-8" /></label>
-                  <fieldset>
-                    <legend>Winner</legend>
-                    <div className={styles.outcomeButtons}>
-                      <button type="button" data-active={court.outcome === 'team'} onClick={() => updateCourt(court.id, { outcome: 'team' })}>We won</button>
-                      <button type="button" data-active={court.outcome === 'opponent'} onClick={() => updateCourt(court.id, { outcome: 'opponent' })}>They won</button>
+                {!isOpen ? <p className={styles.courtSummary}>{teamPlayers.length ? teamPlayers.join(' / ') : 'Add your player(s)'} <small>vs</small> {opponentPlayers.length ? opponentPlayers.join(' / ') : 'add opponent(s)'}{court.score ? ` · ${court.score}` : ''}</p> : null}
+                {isOpen ? (
+                  <div className={styles.courtEntry} id={`scorecard-court-entry-${court.id}`}>
+                    <div className={styles.matchTypeControl} aria-label={`Court ${court.courtNumber} match type`}>
+                      <button type="button" data-active={court.matchType === 'doubles'} onClick={() => setMatchType(court.id, 'doubles')}>Doubles</button>
+                      <button type="button" data-active={court.matchType === 'singles'} onClick={() => setMatchType(court.id, 'singles')}>Singles</button>
                     </div>
-                  </fieldset>
-                </div>
+                    <div className={styles.playerColumns}>
+                      <div>
+                        <span className={styles.sideLabel}>Your team</span>
+                        {Array.from({ length: playerCount }, (_, playerIndex) => (
+                          <label className={styles.compactLabel} key={`team-${playerIndex}`}>
+                            <span>{playerCount === 2 ? `Player ${playerIndex + 1}` : 'Player'}</span>
+                            <select value={court.teamPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'teamPlayers', playerIndex, event.target.value)}>
+                              <option value="">Select player</option>
+                              {rosterNames.map((name) => <option value={name} key={name}>{name}</option>)}
+                            </select>
+                          </label>
+                        ))}
+                        {loadingRoster ? <small className={styles.rosterNote}>Loading your roster…</small> : null}
+                        {!loadingRoster && !rosterNames.length ? <small className={styles.rosterNote}>Your roster is not available yet. Add the player name in Team Roster, then return here.</small> : null}
+                      </div>
+                      <div>
+                        <span className={styles.sideLabel}>Opposition</span>
+                        {Array.from({ length: playerCount }, (_, playerIndex) => (
+                          <div className={styles.opponentEntry} key={`opponent-${playerIndex}`}>
+                            <span>{playerCount === 2 ? `Player ${playerIndex + 1}` : 'Player'}</span>
+                            {opponentRosterNames.length ? (
+                              <>
+                                <select
+                                  aria-label={`Choose an opponent for ${court.label || `court ${court.courtNumber}`}`}
+                                  value={opponentRosterNames.includes(court.opponentPlayers[playerIndex] || '') ? court.opponentPlayers[playerIndex] || '' : '__manual__'}
+                                  onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value === '__manual__' ? '' : event.target.value)}
+                                >
+                                  <option value="">Choose a known opponent</option>
+                                  {opponentRosterNames.map((name) => <option value={name} key={name}>{name}</option>)}
+                                  <option value="__manual__">Enter a different player</option>
+                                </select>
+                                {!opponentRosterNames.includes(court.opponentPlayers[playerIndex] || '') ? (
+                                  <input aria-label={`Enter an opponent for ${court.label || `court ${court.courtNumber}`}`} value={court.opponentPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value)} placeholder="Type opponent name" />
+                                ) : null}
+                              </>
+                            ) : (
+                              <input aria-label={`Enter an opponent for ${court.label || `court ${court.courtNumber}`}`} value={court.opponentPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value)} placeholder="Type opponent name" />
+                            )}
+                          </div>
+                        ))}
+                        <small className={styles.rosterNote}>{opponentRosterNames.length ? `Choose from ${opponentRosterNames.length} known opponent${opponentRosterNames.length === 1 ? '' : 's'}, or select “Enter a different player.”` : 'No opponent roster is connected yet. Type each opponent name.'}</small>
+                      </div>
+                    </div>
+                    <div className={styles.resultControls}>
+                      <label className={styles.scoreInput}><span>Select or enter final score</span><input list="captain-score-options" value={court.score} onChange={(event) => updateCourt(court.id, { score: event.target.value })} placeholder="6-4 3-6 10-8" /></label>
+                      <fieldset>
+                        <legend>Winner</legend>
+                        <div className={styles.outcomeButtons}>
+                          <button type="button" data-active={court.outcome === 'team'} onClick={() => updateCourt(court.id, { outcome: 'team' })}>We won</button>
+                          <button type="button" data-active={court.outcome === 'opponent'} onClick={() => updateCourt(court.id, { outcome: 'opponent' })}>They won</button>
+                        </div>
+                      </fieldset>
+                    </div>
+                  </div>
+                ) : null}
               </article>
             )
           })}
