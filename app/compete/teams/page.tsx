@@ -12,7 +12,7 @@ import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
 import { fetchTeamConnections, getCachedTeamConnections } from '@/lib/team-profile-links-client'
-import { getTeamConnectionRolesLabel, isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'
+import { isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { buildTeamProfileHref } from '@/lib/team-routes'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
@@ -355,9 +355,6 @@ function CompeteTeamsContent() {
                     <div style={{ ...rowTitleStyle, fontSize: isMobile ? '17px' : rowTitleStyle.fontSize }}>{group.teamName}</div>
                     <div style={rowMetaStyle}>
                       {teamMetaItems.map((item) => <span key={item} style={rowMetaChipStyle}>{item}</span>)}
-                    </div>
-                    <div style={rowSubtleStyle}>
-                      {getTeamConnectionRolesLabel(group.connection.roles)} connection
                     </div>
                     <dl style={teamFactsStyle} aria-label={`${group.teamName} team status`}>
                       {teamFacts.map((item) => (
@@ -1275,14 +1272,6 @@ const rowMetaChipStyle = {
   borderRadius: '999px',
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'rgba(116,190,255,0.06)',
-  overflowWrap: 'anywhere',
-} as const
-
-const rowSubtleStyle = {
-  marginTop: '6px',
-  color: 'var(--foreground)',
-  fontSize: '12px',
-  lineHeight: 1.55,
   overflowWrap: 'anywhere',
 } as const
 
