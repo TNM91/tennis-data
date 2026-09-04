@@ -102,6 +102,19 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'We could not send your confirmation email. Please try again in a minute.' }, { status: 502 })
   }
 
+  const { error: eventError } = await supabase
+    .from('product_usage_events')
+    .insert({
+      user_id: data.user.id,
+      event_name: 'signup_confirmation_sent',
+      surface: 'public_site',
+      plan_id: planId === 'free' ? null : planId,
+      metadata: { signup_intent: intent },
+    })
+  if (eventError) {
+    console.warn('Signup funnel event was not recorded.', { code: eventError.code, message: eventError.message })
+  }
+
   return Response.json({ ok: true })
 }
 

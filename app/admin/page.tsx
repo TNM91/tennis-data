@@ -149,6 +149,17 @@ const adminTools: AdminTool[] = [
     statValue: 'Access control',
   },
   {
+    title: 'Stripe Promotions',
+    href: '/admin/promotions',
+    description: 'Create private checkout offers, set their duration, and see live Stripe redemption totals.',
+    badge: 'Billing',
+    accent: 'green',
+    icon: 'accountSecurity',
+    highlights: ['Plan-specific codes', 'Timed discounts', 'Redemption totals', 'Safe end control'],
+    statLabel: 'Best for',
+    statValue: 'Offers',
+  },
+  {
     title: 'Upgrade Requests',
     href: '/admin/upgrade-requests',
     description: 'Review plan requests and activate approved access.',
@@ -169,6 +180,17 @@ const adminTools: AdminTool[] = [
     highlights: ['Billing opens', 'Player activation', 'Sync repairs', 'Captain closeout'],
     statLabel: 'Best for',
     statValue: 'Activation health',
+  },
+  {
+    title: 'Growth Funnel',
+    href: '/admin/growth',
+    description: 'See signup requests, checkout starts, and paid activations in one clear conversion path.',
+    badge: 'Growth',
+    accent: 'blue',
+    icon: 'reliabilityIndex',
+    highlights: ['Signup signals', 'Checkout starts', 'Paid activation', 'Next decision'],
+    statLabel: 'Best for',
+    statValue: 'Conversion',
   },
   {
     title: 'Backups',
@@ -229,6 +251,8 @@ const adminTools: AdminTool[] = [
 
 const priorityToolHrefs = [
   '/admin/access',
+  '/admin/promotions',
+  '/admin/growth',
   '/admin/product-events',
   '/admin/tennisrecord',
   '/admin/data-assist',
@@ -289,6 +313,8 @@ export default function AdminDashboardPage() {
             <>
               <Link href="/admin/data-assist" className="button-primary">Review uploads</Link>
               <Link href="/admin/access" className="button-secondary">Grant access</Link>
+              <Link href="/admin/promotions" className="button-secondary">Stripe promotions</Link>
+              <Link href="/admin/growth" className="button-secondary">Growth funnel</Link>
               <Link href="/admin/product-events" className="button-secondary">Traffic & activity</Link>
               <Link href="/admin/clubs" className="button-secondary">Manage clubs</Link>
             </>

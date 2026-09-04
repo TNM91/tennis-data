@@ -11,10 +11,10 @@ import {
 
 describe('product usage events', () => {
   it('keeps production event and surface constraints aligned with the application registry', () => {
-    const migration = readFileSync(
-      join(process.cwd(), 'supabase/migrations/20260901000200_add_product_tour_conversion_usage_events.sql'),
-      'utf8',
-    )
+    const migration = [
+      '20260901000200_add_product_tour_conversion_usage_events.sql',
+      '20260904000200_add_signup_funnel_usage_event.sql',
+    ].map((file) => readFileSync(join(process.cwd(), `supabase/migrations/${file}`), 'utf8')).join('\n')
 
     for (const eventName of PRODUCT_USAGE_EVENT_NAMES) {
       expect(migration).toContain(`'${eventName}'`)
@@ -106,6 +106,15 @@ describe('product usage events', () => {
         nextHref: '/captain',
       },
     })
+  })
+
+  it('accepts signup confirmation funnel events', () => {
+    expect(buildProductUsageEventInsert('user-signup', {
+      eventName: 'signup_confirmation_sent',
+      surface: 'public_site',
+      planId: 'captain',
+      metadata: { signup_intent: 'captain' },
+    })?.event_name).toBe('signup_confirmation_sent')
   })
 
   it('accepts Club upgrade checkout plan ids', () => {

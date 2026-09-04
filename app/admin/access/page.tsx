@@ -71,6 +71,7 @@ type EditableProfileAccess = {
 
 type AccessPreset = 'player_plus' | 'coach' | 'captain' | 'league' | 'full_court'
 type AccessOffer = 'permanent_full' | 'trial_14' | 'trial_30' | 'complimentary_month'
+type AccessChangeType = 'grant' | 'extend' | 'revoke' | 'manual_update'
 type RoleFilter = 'all' | 'admin' | 'captain' | 'member' | 'public'
 type BillingFilter = 'all' | 'stripe' | 'past_due' | 'canceled' | 'webhook_error' | 'webhook_ignored' | 'manual'
 type ProfileLinkFilter = 'all' | 'cloud' | 'display_only' | 'missing'
@@ -120,6 +121,17 @@ type AccessAudit = {
   sources: string[]
   warnings: string[]
   lastConvertedRequest: ConvertedUpgradeRequest | null
+}
+
+type AccessChangeEvent = {
+  id: string
+  changed_by_user_id: string | null
+  change_type: AccessChangeType
+  offer_key: string | null
+  reason: string
+  previous_access: Partial<EditableProfileAccess> | null
+  next_access: Partial<EditableProfileAccess> | null
+  created_at: string
 }
 
 const STATUS_OPTIONS: CaptainSubscriptionStatus[] = [
@@ -217,6 +229,67 @@ function isExpiredDateInputValue(value: string) {
   return Date.parse(expiresAt) <= Date.now()
 }
 
+function hasAnyManualAccess(access: EditableProfileAccess) {
+  return access.player_plus_subscription_active ||
+    access.coach_subscription_active ||
+    access.captain_subscription_active ||
+    access.tiq_team_league_entry_enabled ||
+    access.tiq_individual_league_creator_enabled
+}
+
+function getAccessChangeType(
+  profile: ProfileAccessRow,
+  draft: EditableProfileAccess,
+  requestedType: AccessChangeType | undefined,
+): AccessChangeType {
+  if (requestedType) return requestedType
+
+  const previous = normalizeEditable(profile)
+  if (hasAnyManualAccess(previous) && !hasAnyManualAccess(draft)) return 'revoke'
+  if (!hasAnyManualAccess(previous) && hasAnyManualAccess(draft)) return 'grant'
+
+  const previousEndsAt = Math.max(
+    ...[
+      previous.player_plus_access_expires_at,
+      previous.coach_access_expires_at,
+      previous.captain_access_expires_at,
+      previous.league_access_expires_at,
+    ].map((value) => Date.parse(toAccessExpiryTimestamp(value) ?? '') || 0),
+  )
+  const nextEndsAt = Math.max(
+    ...[
+      draft.player_plus_access_expires_at,
+      draft.coach_access_expires_at,
+      draft.captain_access_expires_at,
+      draft.league_access_expires_at,
+    ].map((value) => Date.parse(toAccessExpiryTimestamp(value) ?? '') || 0),
+  )
+  return nextEndsAt > previousEndsAt ? 'extend' : 'manual_update'
+}
+
+function accessExpiresWithin(profile: ProfileAccessRow, days: number) {
+  const draft = normalizeEditable(profile)
+  const now = Date.now()
+  const latest = Math.max(
+    ...[
+      draft.player_plus_subscription_active ? draft.player_plus_access_expires_at : '',
+      draft.coach_subscription_active ? draft.coach_access_expires_at : '',
+      draft.captain_subscription_active ? draft.captain_access_expires_at : '',
+      draft.tiq_team_league_entry_enabled || draft.tiq_individual_league_creator_enabled
+        ? draft.league_access_expires_at
+        : '',
+    ].map((value) => Date.parse(toAccessExpiryTimestamp(value) ?? '') || 0),
+  )
+  return latest > now && latest <= now + days * 24 * 60 * 60 * 1000
+}
+
+function formatAccessChangeType(changeType: AccessChangeType) {
+  if (changeType === 'grant') return 'Granted'
+  if (changeType === 'extend') return 'Extended'
+  if (changeType === 'revoke') return 'Revoked'
+  return 'Adjusted'
+}
+
 function roleLabel(value: string | null | undefined) {
   const normalized = (value || '').trim().toLowerCase()
   if (normalized === 'admin') return 'Admin'
@@ -285,8 +358,16 @@ export default function AdminAccessPage() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
   const [billingFilter, setBillingFilter] = useState<BillingFilter>('all')
   const [profileLinkFilter, setProfileLinkFilter] = useState<ProfileLinkFilter>('all')
+  const [showExpiringOnly, setShowExpiringOnly] = useState(false)
   const [expandedProfileId, setExpandedProfileId] = useState<string | null>(null)
   const [editedProfiles, setEditedProfiles] = useState<Record<string, EditableProfileAccess>>({})
+  const [accessReasons, setAccessReasons] = useState<Record<string, string>>({})
+  const [accessOfferDrafts, setAccessOfferDrafts] = useState<Record<string, AccessOffer | undefined>>({})
+  const [accessChangeTypeDrafts, setAccessChangeTypeDrafts] = useState<Record<string, AccessChangeType | undefined>>({})
+  const [historyProfileId, setHistoryProfileId] = useState<string | null>(null)
+  const [accessHistoryByProfile, setAccessHistoryByProfile] = useState<Record<string, AccessChangeEvent[]>>({})
+  const [loadingHistoryProfileId, setLoadingHistoryProfileId] = useState<string | null>(null)
+  const [accessHistoryAvailable, setAccessHistoryAvailable] = useState(true)
   const [convertedRequestsByUser, setConvertedRequestsByUser] = useState<Record<string, ConvertedUpgradeRequest>>({})
   const [convertedRequestsAvailable, setConvertedRequestsAvailable] = useState(true)
   const [stripeEventsByUser, setStripeEventsByUser] = useState<Record<string, StripeBillingEvent>>({})
@@ -560,6 +641,12 @@ export default function AdminAccessPage() {
         },
       }
     })
+    setAccessOfferDrafts((current) => ({ ...current, [profileId]: undefined }))
+    setAccessChangeTypeDrafts((current) => ({ ...current, [profileId]: 'grant' }))
+    setAccessReasons((current) => ({
+      ...current,
+      [profileId]: `Granted ${formatAccessPreset(preset)} access`,
+    }))
     setMessage(`Drafted ${formatAccessPreset(preset)} access. Save the row to apply it.`)
     setError('')
   }
@@ -591,13 +678,130 @@ export default function AdminAccessPage() {
         },
       }
     })
+    setAccessOfferDrafts((current) => ({ ...current, [profileId]: offerValue }))
+    setAccessChangeTypeDrafts((current) => ({
+      ...current,
+      [profileId]: hasAnyManualAccess(normalizeEditable(profile)) ? 'extend' : 'grant',
+    }))
+    setAccessReasons((current) => ({
+      ...current,
+      [profileId]: `${hasAnyManualAccess(normalizeEditable(profile)) ? 'Changed to' : 'Granted'} ${offer.label.toLowerCase()}`,
+    }))
     setMessage(`Drafted ${offer.label.toLowerCase()} for ${getProfileLabel(profile)}. Save access to apply; Stripe billing is unchanged.`)
     setError('')
+  }
+
+  function extendExistingAccess(profile: ProfileAccessRow) {
+    const current = editedProfiles[profile.id] ?? normalizeEditable(profile)
+    if (!hasAnyManualAccess(current)) {
+      setError(`Choose an offer before extending ${getProfileLabel(profile)}.`)
+      return
+    }
+
+    const today = new Date()
+    const existingLatest = Math.max(
+      ...[
+        current.player_plus_access_expires_at,
+        current.coach_access_expires_at,
+        current.captain_access_expires_at,
+        current.league_access_expires_at,
+      ].map((value) => Date.parse(toAccessExpiryTimestamp(value) ?? '') || 0),
+    )
+    if (!existingLatest) {
+      setError(`${getProfileLabel(profile)} already has permanent access. Choose a timed offer only if you want to add an end date.`)
+      return
+    }
+    const start = Math.max(today.getTime(), existingLatest)
+    const extended = new Date(start)
+    extended.setUTCDate(extended.getUTCDate() + 30)
+    const expiresAt = extended.toISOString().slice(0, 10)
+
+    setEditedProfiles((profiles) => ({
+      ...profiles,
+      [profile.id]: {
+        ...current,
+        player_plus_access_expires_at: current.player_plus_subscription_active ? expiresAt : current.player_plus_access_expires_at,
+        coach_access_expires_at: current.coach_subscription_active ? expiresAt : current.coach_access_expires_at,
+        captain_access_expires_at: current.captain_subscription_active ? expiresAt : current.captain_access_expires_at,
+        league_access_expires_at:
+          current.tiq_team_league_entry_enabled || current.tiq_individual_league_creator_enabled
+            ? expiresAt
+            : current.league_access_expires_at,
+      },
+    }))
+    setAccessOfferDrafts((currentOffers) => ({ ...currentOffers, [profile.id]: undefined }))
+    setAccessChangeTypeDrafts((currentTypes) => ({ ...currentTypes, [profile.id]: 'extend' }))
+    setAccessReasons((currentReasons) => ({ ...currentReasons, [profile.id]: 'Extended access by 30 days' }))
+    setMessage(`Drafted a 30-day extension for ${getProfileLabel(profile)}. Save access to apply it.`)
+    setError('')
+  }
+
+  function revokeAllAccess(profile: ProfileAccessRow) {
+    setEditedProfiles((current) => ({
+      ...current,
+      [profile.id]: {
+        ...(current[profile.id] ?? normalizeEditable(profile)),
+        player_plus_subscription_active: false,
+        player_plus_subscription_status: 'inactive',
+        player_plus_access_expires_at: '',
+        coach_subscription_active: false,
+        coach_subscription_status: 'inactive',
+        coach_access_expires_at: '',
+        captain_subscription_active: false,
+        captain_subscription_status: 'inactive',
+        captain_access_expires_at: '',
+        tiq_team_league_entry_enabled: false,
+        tiq_individual_league_creator_enabled: false,
+        league_access_expires_at: '',
+      },
+    }))
+    setAccessOfferDrafts((current) => ({ ...current, [profile.id]: undefined }))
+    setAccessChangeTypeDrafts((current) => ({ ...current, [profile.id]: 'revoke' }))
+    setAccessReasons((current) => ({ ...current, [profile.id]: 'Manual access revoked' }))
+    setMessage(`Drafted removal of manual TiQ access for ${getProfileLabel(profile)}. This does not cancel Stripe billing.`)
+    setError('')
+  }
+
+  async function loadAccessHistory(profileId: string) {
+    setLoadingHistoryProfileId(profileId)
+    setError('')
+    try {
+      const { data, error: historyError } = await supabase
+        .from('profile_access_change_events')
+        .select('id, changed_by_user_id, change_type, offer_key, reason, previous_access, next_access, created_at')
+        .eq('profile_id', profileId)
+        .order('created_at', { ascending: false })
+        .limit(30)
+
+      if (historyError) throw new Error(historyError.message)
+      setAccessHistoryByProfile((current) => ({ ...current, [profileId]: (data ?? []) as AccessChangeEvent[] }))
+      setAccessHistoryAvailable(true)
+    } catch (historyError) {
+      setAccessHistoryAvailable(false)
+      setError(historyError instanceof Error ? historyError.message : 'Access history is not available yet.')
+    } finally {
+      setLoadingHistoryProfileId(null)
+    }
+  }
+
+  function toggleAccessHistory(profileId: string) {
+    if (historyProfileId === profileId) {
+      setHistoryProfileId(null)
+      return
+    }
+    setHistoryProfileId(profileId)
+    void loadAccessHistory(profileId)
   }
 
   async function saveProfile(profile: ProfileAccessRow) {
     const draft = editedProfiles[profile.id]
     if (!draft) return
+
+    const reason = accessReasons[profile.id]?.trim() ?? ''
+    if (reason.length < 3) {
+      setError('Add a brief reason before saving an access change.')
+      return
+    }
 
     setSavingId(profile.id)
     setMessage('')
@@ -623,17 +827,45 @@ export default function AdminAccessPage() {
         payload.league_access_expires_at = toAccessExpiryTimestamp(draft.league_access_expires_at)
       }
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update(payload)
-        .eq('id', profile.id)
+      const changeType = getAccessChangeType(profile, draft, accessChangeTypeDrafts[profile.id])
+      if (!accessExpirationFieldsAvailable || !playerEntitlementsAvailable) {
+        throw new Error('Access history needs the current access migrations before it can save changes safely.')
+      }
+
+      const { data: auditResult, error: updateError } = await supabase.rpc('apply_profile_access_change', {
+        p_profile_id: profile.id,
+        p_player_plus_subscription_active: draft.player_plus_subscription_active,
+        p_player_plus_subscription_status: draft.player_plus_subscription_status,
+        p_player_plus_access_expires_at: toAccessExpiryTimestamp(draft.player_plus_access_expires_at),
+        p_coach_subscription_active: draft.coach_subscription_active,
+        p_coach_subscription_status: draft.coach_subscription_status,
+        p_coach_access_expires_at: toAccessExpiryTimestamp(draft.coach_access_expires_at),
+        p_captain_subscription_active: draft.captain_subscription_active,
+        p_captain_subscription_status: draft.captain_subscription_status,
+        p_captain_access_expires_at: toAccessExpiryTimestamp(draft.captain_access_expires_at),
+        p_tiq_team_league_entry_enabled: draft.tiq_team_league_entry_enabled,
+        p_tiq_individual_league_creator_enabled: draft.tiq_individual_league_creator_enabled,
+        p_league_access_expires_at: toAccessExpiryTimestamp(draft.league_access_expires_at),
+        p_reason: reason,
+        p_change_type: changeType,
+        p_offer_key: accessOfferDrafts[profile.id] ?? null,
+      })
 
       if (updateError) throw new Error(updateError.message)
 
       setProfiles((current) =>
         current.map((row) => (row.id === profile.id ? { ...row, ...payload } : row)),
       )
-      setMessage(`Updated access for ${compactUserId(profile.id)}.`)
+      setEditedProfiles((current) => ({ ...current, [profile.id]: normalizeEditable({ ...profile, ...payload }) }))
+      setAccessOfferDrafts((current) => ({ ...current, [profile.id]: undefined }))
+      setAccessChangeTypeDrafts((current) => ({ ...current, [profile.id]: undefined }))
+      setAccessHistoryAvailable(true)
+      if (historyProfileId === profile.id) {
+        await loadAccessHistory(profile.id)
+      } else if (auditResult && typeof auditResult === 'object') {
+        setAccessHistoryByProfile((current) => ({ ...current, [profile.id]: current[profile.id] ?? [] }))
+      }
+      setMessage(`${formatAccessChangeType(changeType)} access for ${getProfileLabel(profile)}. The reason and expiry are saved in history.`)
     } catch (err) {
       setError(
         err instanceof Error
@@ -669,6 +901,7 @@ export default function AdminAccessPage() {
       if (roleFilter !== 'all' && normalizedRole !== roleFilter) return false
       if (!matchesBillingFilter(profile, stripeEventsByUser[profile.id] ?? null, billingFilter)) return false
       if (!matchesProfileLinkFilter(profile, profileLinkFilter)) return false
+      if (showExpiringOnly && !accessExpiresWithin(profile, 14)) return false
 
       if (!normalizedSearch) return true
 
@@ -688,7 +921,7 @@ export default function AdminAccessPage() {
         .toLowerCase()
         .includes(normalizedSearch)
     })
-  }, [billingFilter, deferredSearch, profileLinkFilter, profiles, roleFilter, stripeEventsByUser])
+  }, [billingFilter, deferredSearch, profileLinkFilter, profiles, roleFilter, showExpiringOnly, stripeEventsByUser])
 
   const accessByProfileId = useMemo(() =>
     profiles.reduce<Record<string, ReturnType<typeof buildProductAccessState>>>((acc, profile) => {
@@ -739,6 +972,7 @@ export default function AdminAccessPage() {
   const missingProfileLinkCount = profiles.filter((profile) =>
     !hasCloudLinkedPlayer(profile) && !profile.message_display_name,
   ).length
+  const expiringAccessCount = profiles.filter((profile) => accessExpiresWithin(profile, 14)).length
   const handoffProfile = handoffSearch && filteredProfiles.length === 1 ? filteredProfiles[0] : null
 
   return (
@@ -765,9 +999,10 @@ export default function AdminAccessPage() {
             tone="success"
             text="Promotional access changes TiQ features, not a Stripe subscription, invoice, or charge. Use a complimentary month for a promotion; manage an actual billed discount in Stripe."
           >
-            <Link href="/admin/product-events?filter=upgrade" className="button-ghost">
-              View upgrade activity
-            </Link>
+            <AdminActionRow>
+              <Link href="/admin/promotions" className="button-ghost">Manage Stripe promotions</Link>
+              <Link href="/admin/product-events?filter=upgrade" className="button-ghost">View upgrade activity</Link>
+            </AdminActionRow>
           </AdminStatusPanel>
 
           <AdminReviewPanel
@@ -830,6 +1065,12 @@ export default function AdminAccessPage() {
               <MetricCard label="Canceled" value={canceledCount} />
               <MetricCard label="Webhook Errors" value={webhookErrorCount} />
               <MetricCard label="Audit Flags" value={auditWarningCount} />
+              <MetricCard
+                label="Access Ending · 14 Days"
+                value={expiringAccessCount}
+                active={showExpiringOnly}
+                onClick={() => setShowExpiringOnly((current) => !current)}
+              />
               <MetricCard
                 label="Cloud Player Links"
                 value={cloudLinkedProfileCount}
@@ -952,6 +1193,9 @@ export default function AdminAccessPage() {
               failed payments, canceled subscriptions, and webhook outcomes that need follow-up.
               Use the Profile link filter to find accounts that are only display-name linked or missing a
               cloud player link.
+              {expiringAccessCount > 0
+                ? ' Select Access Ending · 14 Days above to review upcoming promotional expiry.'
+                : ' No active promotional access ends in the next 14 days.'}
               {convertedRequestsAvailable
                 ? ' Converted checkout requests are shown beside each profile when available.'
                 : ' Converted checkout requests are not available yet, so this view is showing profile fields only.'}
@@ -1066,6 +1310,8 @@ export default function AdminAccessPage() {
 
                       const latestStripeEvent = stripeEventsByUser[profile.id] ?? null
                       const expanded = expandedProfileId === profile.id
+                      const historyExpanded = historyProfileId === profile.id
+                      const history = accessHistoryByProfile[profile.id] ?? []
 
                       return (
                         <Fragment key={profile.id}>
@@ -1308,6 +1554,20 @@ export default function AdminAccessPage() {
                           <td>
                             <div style={supportActionStackStyle}>
                               <label style={{ display: 'grid', gap: 5, minWidth: 178 }}>
+                                <span className="metric-label">Change note</span>
+                                <input
+                                  className="input"
+                                  value={accessReasons[profile.id] ?? ''}
+                                  onChange={(event) => setAccessReasons((current) => ({
+                                    ...current,
+                                    [profile.id]: event.target.value,
+                                  }))}
+                                  placeholder="Why are you changing access?"
+                                  aria-label={`Reason for changing access for ${getProfileLabel(profile)}`}
+                                  disabled={savingId === profile.id}
+                                />
+                              </label>
+                              <label style={{ display: 'grid', gap: 5, minWidth: 178 }}>
                                 <span className="metric-label">Quick offer</span>
                                 <select
                                   className="select"
@@ -1327,6 +1587,24 @@ export default function AdminAccessPage() {
                                   ))}
                                 </select>
                               </label>
+                              <button
+                                type="button"
+                                className="button-ghost"
+                                style={supportActionButtonStyle}
+                                onClick={() => extendExistingAccess(profile)}
+                                disabled={savingId === profile.id}
+                              >
+                                Extend 30 days
+                              </button>
+                              <button
+                                type="button"
+                                className="button-ghost"
+                                style={supportActionButtonStyle}
+                                onClick={() => revokeAllAccess(profile)}
+                                disabled={savingId === profile.id}
+                              >
+                                Revoke manual access
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => void saveProfile(profile)}
@@ -1349,6 +1627,17 @@ export default function AdminAccessPage() {
                                 onClick={() => setExpandedProfileId(expanded ? null : profile.id)}
                               >
                                 {expanded ? 'Hide billing' : 'Billing details'}
+                              </button>
+                              <button
+                                type="button"
+                                className="button-ghost"
+                                style={supportActionButtonStyle}
+                                onClick={() => toggleAccessHistory(profile.id)}
+                                disabled={loadingHistoryProfileId === profile.id}
+                              >
+                                {loadingHistoryProfileId === profile.id
+                                  ? 'Loading history...'
+                                  : historyExpanded ? 'Hide history' : 'Access history'}
                               </button>
                               <button
                                 type="button"
@@ -1392,6 +1681,17 @@ export default function AdminAccessPage() {
                                 latestEvent={latestStripeEvent}
                                 convertedRequest={convertedRequestsByUser[profile.id] ?? null}
                                 audit={audit}
+                              />
+                            </td>
+                          </tr>
+                        ) : null}
+                        {historyExpanded ? (
+                          <tr>
+                            <td colSpan={19} style={supportDetailCellStyle}>
+                              <AccessHistoryPanel
+                                profile={profile}
+                                events={history}
+                                available={accessHistoryAvailable}
                               />
                             </td>
                           </tr>
@@ -1737,6 +2037,96 @@ function MetricCard({
       {content}
     </div>
   )
+}
+
+function AccessHistoryPanel({
+  profile,
+  events,
+  available,
+}: {
+  profile: ProfileAccessRow
+  events: AccessChangeEvent[]
+  available: boolean
+}) {
+  return (
+    <div style={supportDetailPanelStyle}>
+      <div>
+        <div className="section-kicker">Permanent access history</div>
+        <h3 style={supportDetailTitleStyle}>{getProfileLabel(profile)}</h3>
+        <p className="subtle-text" style={{ margin: '6px 0 0' }}>
+          Each save records who changed this account, why it changed, and the resulting access window.
+        </p>
+      </div>
+      {!available ? (
+        <AdminEmptyState
+          text="Access history is not available yet."
+        >
+          Apply the latest database migration, then refresh this account to load its permanent history.
+        </AdminEmptyState>
+      ) : events.length === 0 ? (
+        <AdminEmptyState
+          text="No manual access changes yet."
+        >
+          The next saved grant, extension, revocation, or adjustment will appear here.
+        </AdminEmptyState>
+      ) : (
+        <div style={{ display: 'grid', gap: 9 }}>
+          {events.map((event) => (
+            <div key={event.id} style={supportEventPanelStyle}>
+              <div style={supportEventGridStyle}>
+                <SupportDetailItem label="Action" value={formatAccessChangeType(event.change_type)} />
+                <SupportDetailItem label="When" value={formatEventTime(event.created_at)} />
+                <SupportDetailItem label="By" value={event.changed_by_user_id ? compactUserId(event.changed_by_user_id) : 'System'} />
+                <SupportDetailItem
+                  label="Access ends"
+                  value={formatHistoryExpiry(event.next_access)}
+                />
+                {event.offer_key ? <SupportDetailItem label="Offer" value={formatAccessOffer(event.offer_key)} /> : null}
+                <div style={supportEventMessageStyle}>
+                  <span style={supportDetailLabelStyle}>Reason</span>
+                  <strong>{event.reason}</strong>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function formatAccessOffer(value: string) {
+  return ACCESS_OFFERS.find((offer) => offer.value === value)?.label ?? value
+}
+
+function formatHistoryExpiry(access: Partial<EditableProfileAccess> | null) {
+  if (!access) return 'No end date'
+  const dates = [
+    access.player_plus_access_expires_at,
+    access.coach_access_expires_at,
+    access.captain_access_expires_at,
+    access.league_access_expires_at,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => Date.parse(value))
+    .filter((value) => Number.isFinite(value))
+
+  if (!dates.length) return hasAnyManualAccess({
+    player_plus_subscription_active: Boolean(access.player_plus_subscription_active),
+    player_plus_subscription_status: access.player_plus_subscription_status ?? 'inactive',
+    player_plus_access_expires_at: '',
+    coach_subscription_active: Boolean(access.coach_subscription_active),
+    coach_subscription_status: access.coach_subscription_status ?? 'inactive',
+    coach_access_expires_at: '',
+    captain_subscription_active: Boolean(access.captain_subscription_active),
+    captain_subscription_status: access.captain_subscription_status ?? 'inactive',
+    captain_access_expires_at: '',
+    tiq_team_league_entry_enabled: Boolean(access.tiq_team_league_entry_enabled),
+    tiq_individual_league_creator_enabled: Boolean(access.tiq_individual_league_creator_enabled),
+    league_access_expires_at: '',
+  }) ? 'Permanent' : 'Removed'
+
+  return `Ends ${new Date(Math.max(...dates)).toLocaleDateString()}`
 }
 
 function SupportBillingDetails({
