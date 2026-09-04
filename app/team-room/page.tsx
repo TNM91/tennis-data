@@ -283,6 +283,11 @@ type TeamRoom = {
   actionQueue: TeamRoomActionQueue
 }
 
+function getTeamRoomOptionLabel(team: TeamOption) {
+  const scope = [team.teamName, team.leagueName, team.flight].filter(Boolean).join(' · ')
+  return `${scope}${team.isDefault ? ' · Default' : ''}`
+}
+
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
@@ -1660,13 +1665,13 @@ function TeamRoomContent() {
           {teams.length > 1 ? (
             <select
               className={styles.teamSelect}
-              aria-label="Choose Team Room"
+              aria-label="Switch Team Chat"
               value={room.href}
               onChange={(event) => router.replace(event.target.value)}
             >
               {teams.map((team) => (
                 <option key={team.href} value={team.href}>
-                  {team.teamName}{team.isDefault ? ' · Default' : ''}
+                  {getTeamRoomOptionLabel(team)}
                 </option>
               ))}
             </select>
