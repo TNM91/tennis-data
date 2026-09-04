@@ -284,7 +284,7 @@ export default function AdminPromotionsPage() {
             {!loading && promotions.length > 0 ? (
               <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
                 {promotions.map((promotion) => (
-                  <div key={promotion.id} style={{ ...adminSubPanelStyle, gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center' }}>
+                  <div key={promotion.id} className="admin-promotion-code-row" style={{ ...adminSubPanelStyle, gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center' }}>
                     <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                         <strong style={{ fontSize: '1.1rem', letterSpacing: '0.04em' }}>{promotion.code}</strong>

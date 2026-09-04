@@ -282,7 +282,7 @@ export default function TennisRecordAdminPage() {
             <option value="">Choose campaign</option>
             {status?.campaigns?.filter((campaign) => campaign.status !== 'completed').map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name} · {campaign.starts_on} to {campaign.ends_on}</option>)}
           </select>
-          <input aria-label="Public TennisRecord seed URL" value={seedUrl} onChange={(event) => setSeedUrl(event.target.value)} placeholder="Public TennisRecord match URL" style={{ minWidth: 280, flex: '1 1 280px' }} />
+          <input aria-label="Public TennisRecord seed URL" value={seedUrl} onChange={(event) => setSeedUrl(event.target.value)} placeholder="Public TennisRecord match URL" style={{ width: 'min(100%, 280px)', minWidth: 0, flex: '1 1 min(100%, 280px)' }} />
           <button className="button-secondary" disabled={busy || !seedUrl.trim()} onClick={() => void act({ action: 'enqueue', urls: [seedUrl] })}>Queue page</button>
         </div>
         {message ? <p role="status" className="subtle-text" style={{ marginTop: 14 }}>{message}</p> : null}
@@ -297,7 +297,7 @@ export default function TennisRecordAdminPage() {
               <div><strong>{player?.name || 'Unknown player'}</strong>{player?.city || player?.state ? ` · ${[player.city, player.state].filter(Boolean).join(', ')}` : ''}{player?.ntrp_label ? ` · ${player.ntrp_label}` : ''}</div>
               <a className="subtle-text" href={player?.source_url} target="_blank" rel="noreferrer">View source record</a>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <input aria-label={`TenAceIQ player ID for ${player?.name || 'staged player'}`} value={mappingIds[identity.staged_player_id] || ''} onChange={(event) => setMappingIds((current) => ({ ...current, [identity.staged_player_id]: event.target.value }))} placeholder="Verified TenAceIQ player ID" style={{ minWidth: 280, flex: '1 1 280px' }} />
+                <input aria-label={`TenAceIQ player ID for ${player?.name || 'staged player'}`} value={mappingIds[identity.staged_player_id] || ''} onChange={(event) => setMappingIds((current) => ({ ...current, [identity.staged_player_id]: event.target.value }))} placeholder="Verified TenAceIQ player ID" style={{ width: 'min(100%, 280px)', minWidth: 0, flex: '1 1 min(100%, 280px)' }} />
                 <button className="button-secondary" disabled={busy || !(mappingIds[identity.staged_player_id] || '').trim()} onClick={() => void act({ action: 'resolve_identity', stagedPlayerId: identity.staged_player_id, canonicalPlayerId: mappingIds[identity.staged_player_id] })}>Confirm mapping</button>
               </div>
             </div>
