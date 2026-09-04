@@ -23,8 +23,12 @@ describe('site header data upload shortcut', () => {
     expect(headerSource).toContain('aria-modal="true"')
     expect(headerSource).toContain('aria-labelledby="site-header-upload-title"')
     expect(headerSource).toContain('/data-assist?intent=upload-source&type=scorecard#upload')
-    expect(headerSource).toContain('/data-assist?intent=upload-source&type=team_summary#upload')
+    expect(headerSource).toContain('/data-assist?intent=upload-source&type=team_summary&context=Add%20my%20team#upload')
     expect(headerSource).toContain('/data-assist?intent=upload-source&type=schedule#upload')
+    expect(headerSource).toContain("label: 'Add my team'")
+    expect(headerSource).toContain("label: 'Create a league'")
+    expect(headerSource).toContain('What do you want to add?')
+    expect(headerSource).toContain('Already have a file?')
     expect(headerSource).toContain('Upload something else or report a data issue')
   })
 

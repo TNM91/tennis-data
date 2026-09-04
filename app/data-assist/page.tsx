@@ -1269,6 +1269,7 @@ function DataAssistWorkspace() {
               onSelectImportType={chooseImportType}
               issueHref={buildDataAssistIssueHref(intentContext, intentQuery)}
               contactImportRequested={contactImportRequested}
+              teamSetupRequested={requestedImportType === 'team_summary' && intentContext.toLowerCase().includes('team')}
             />
 
             <input
@@ -1791,11 +1792,13 @@ function DataAssistSourcePathPanel({
   onSelectImportType,
   issueHref,
   contactImportRequested = false,
+  teamSetupRequested = false,
 }: {
   selectedImportType: DataAssistImportType
   onSelectImportType: (importType: DataAssistImportType) => void
   issueHref: string
   contactImportRequested?: boolean
+  teamSetupRequested?: boolean
 }) {
   const { isMobile, isTablet } = useViewportBreakpoints()
   const isCompactViewport = isMobile || isTablet
@@ -1812,20 +1815,24 @@ function DataAssistSourcePathPanel({
     <section style={dynamicPanelStyle} aria-labelledby="data-assist-source-path-title">
       <div style={dynamicHeaderStyle}>
         <div>
-          <span style={sourcePathEyebrowStyle}>{contactImportRequested ? 'Team contacts' : 'Source refresh path'}</span>
-          <h2 id="data-assist-source-path-title" style={dynamicTitleStyle}>{contactImportRequested ? 'Add team contacts.' : 'Choose your first source.'}</h2>
-          {isCompactViewport ? <p style={sourcePathIntroStyle}>{contactImportRequested ? 'Upload your TennisLink Player Roster, then connect your team.' : 'For your own team: Team Summary, schedule, then Player Roster.'}</p> : null}
+          <span style={sourcePathEyebrowStyle}>{contactImportRequested ? 'Team contacts' : teamSetupRequested ? 'Add my team' : 'Source refresh path'}</span>
+          <h2 id="data-assist-source-path-title" style={dynamicTitleStyle}>{contactImportRequested ? 'Add team contacts.' : teamSetupRequested ? 'Start with your Team Summary.' : 'Choose your first source.'}</h2>
+          {isCompactViewport ? <p style={sourcePathIntroStyle}>{contactImportRequested ? 'Upload your TennisLink Player Roster, then connect your team.' : teamSetupRequested ? 'Add the Team Summary now. After review, add the schedule and approve your private team link.' : 'For your own team: Team Summary, schedule, then Player Roster.'}</p> : null}
         </div>
         {!isCompactViewport ? <p style={sourcePathIntroStyle}>
           {contactImportRequested
             ? 'Upload your TennisLink Player Roster for private phone and email details, then connect the team to your profile. Your Team Summary stays in place.'
+            : teamSetupRequested
+              ? 'This adds the team record, league, flight, and roster. After review, add the schedule and approve your private team link so it appears in My Teams.'
             : 'For your own team, import Team Summary, Match Schedule, then Player Roster. TiQ reviews every source before records change.'}
         </p> : null}
       </div>
       <div style={sourcePathDefaultCueStyle}>
-        <strong>{contactImportRequested ? 'Captain contacts: use Player Roster.' : 'Team setup: Team Summary → schedule → Player Roster.'}</strong>
+        <strong>{contactImportRequested ? 'Captain contacts: use Player Roster.' : teamSetupRequested ? 'Your team path: Team Summary → schedule → approve your team link.' : 'Team setup: Team Summary → schedule → Player Roster.'}</strong>
         <span>{contactImportRequested
           ? 'This adds contact details only. After import, approve the team connection so it appears in My Teams.'
+          : teamSetupRequested
+            ? 'A Team Summary does not automatically connect the team to you. That protects teams imported by someone else; you approve your own connection after import.'
           : 'The Player Roster adds captain contact details. After it imports, approve your team once to add it to My Teams.'}</span>
       </div>
       <div style={dynamicGridStyle}>
@@ -3553,15 +3560,17 @@ function TeamSummaryImportedPanel({
         <strong>{isPlayerRoster ? 'Contacts ready' : 'All set'}</strong>
         <span>{result.message || (isPlayerRoster ? 'Team contacts are ready for match week.' : 'Team roster imported to TenAceIQ.')}</span>
       </div>
-      {isPlayerRoster ? (
-        <section style={teamConnectionNextStepStyle} aria-label="Connect your imported team">
-          <div style={headerCopyStyle}>
-            <strong>Make this your team</strong>
-            <p style={copyStyle}>We found your captain contact in this Player Roster. Approve the team once to add it to My Teams, Team Chat, and Captain.</p>
-          </div>
-          <Link href="/team-connections" style={primaryButtonStyle}>Connect my team</Link>
-        </section>
-      ) : null}
+      <section style={teamConnectionNextStepStyle} aria-label="Connect your imported team">
+        <div style={headerCopyStyle}>
+          <strong>{isPlayerRoster ? 'Make this your team' : 'Add this to My Teams'}</strong>
+          <p style={copyStyle}>
+            {isPlayerRoster
+              ? 'We found your captain contact in this Player Roster. Approve the team once to add it to My Teams, Team Chat, and Captain.'
+              : 'If this is your team, review the private team connection next. TiQ checks it against your player profile before it appears in My Teams.'}
+          </p>
+        </div>
+        <Link href="/team-connections" style={primaryButtonStyle}>{isPlayerRoster ? 'Connect my team' : 'Review team connection'}</Link>
+      </section>
       <PostImportActions
         actions={buildRosterPostImportActions(parsedDraft, { context, returnTo })}
       />
