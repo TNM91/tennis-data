@@ -69,6 +69,17 @@ describe('team connection flow', () => {
     expect(page).toContain('highlightedCardStyle')
   })
 
+  it('confirms a newly linked team and immediately offers the next useful destination', () => {
+    const page = readFileSync(join(process.cwd(), 'app/team-connections/page.tsx'), 'utf8')
+
+    expect(page).toContain('const [completedConnection, setCompletedConnection]')
+    expect(page).toContain('await reload()')
+    expect(page).toContain('aria-label="Team link complete"')
+    expect(page).toContain('is now in My Teams.')
+    expect(page).toContain('Open team home')
+    expect(page).toContain("'Open Captain' : 'Open My Lab'")
+  })
+
   it('protects stored team links with profile-scoped policies', () => {
     const migration = readFileSync(
       join(process.cwd(), 'supabase/migrations/20260801000600_create_team_profile_links.sql'),

@@ -38,6 +38,7 @@ function TeamConnectionsContent() {
   const [loading, setLoading] = useState(true)
   const [workingId, setWorkingId] = useState('')
   const [message, setMessage] = useState('')
+  const [completedConnection, setCompletedConnection] = useState<TeamConnection | null>(null)
   const [requestedScope, setRequestedScope] = useState({ teamName: '', leagueName: '', flight: '' })
   const accessToken = session?.access_token || ''
   const access = useMemo(() => buildProductAccessState(userId ? role : 'public', entitlements), [entitlements, role, userId])
@@ -84,10 +85,15 @@ function TeamConnectionsContent() {
     setMessage('')
     try {
       await updateTeamConnection({ accessToken, connectionId: connection.id, action })
+      const linked = action === 'accept' || action === 'relink' || action === 'restore_roles'
+      if (linked) {
+        setCompletedConnection({ ...connection, status: 'accepted' })
+      }
+      await reload()
       setMessage(
         action === 'set_default'
           ? `${connection.teamName} will open first across My Lab and Captain.`
-          : action === 'accept' || action === 'relink' || action === 'restore_roles'
+          : linked
             ? `${connection.teamName} is linked to your profile.`
           : action === 'unlink'
             ? `${connection.teamName} was unlinked. You can reconnect it here later.`
@@ -128,6 +134,28 @@ function TeamConnectionsContent() {
         </section>
       ) : null}
       {message ? <p style={noticeStyle} role="status" aria-live="polite">{message}</p> : null}
+      {completedConnection ? (
+        <section style={completionStyle} className="team-connection-completion" aria-label="Team link complete">
+          <div style={copyBlockStyle}>
+            <span style={eyebrowStyle}>Team linked</span>
+            <strong style={panelTitleStyle}>{completedConnection.teamName} is now in My Teams.</strong>
+            <span style={copyStyle}>Open the team home for the roster, schedule, and Team Chat.</span>
+          </div>
+          <div style={cardActionsStyle}>
+            <Link href={buildTeamRoomHref({
+              teamName: completedConnection.teamName,
+              leagueName: completedConnection.leagueName,
+              flight: completedConnection.flight,
+            })} style={primaryLinkStyle}>
+              Open team home
+            </Link>
+            <Link href={isCaptainTeamConnection(completedConnection.roles) ? '/captain' : '/mylab'} style={secondaryLinkStyle}>
+              {isCaptainTeamConnection(completedConnection.roles) ? 'Open Captain' : 'Open My Lab'}
+            </Link>
+            <button type="button" onClick={() => setCompletedConnection(null)} style={secondaryButtonStyle}>Done</button>
+          </div>
+        </section>
+      ) : null}
 
       {userId && pending.length ? (
         <section id="pending-team-links" style={sectionStyle} aria-label="Pending team invitations">
@@ -249,6 +277,7 @@ function TeamConnectionsContent() {
       <style jsx>{`
         @media (max-width: 680px) {
           :global(.team-connection-card),
+          .team-connection-completion,
           .team-connections-offer {
             align-items: stretch !important;
             grid-template-columns: minmax(0, 1fr) !important;
@@ -321,3 +350,4 @@ const emptyStyle: CSSProperties = { display: 'grid', gap: 6, padding: 20, border
 const panelStyle: CSSProperties = { display: 'grid', gap: 14, padding: 22, border: '1px solid rgba(255,255,255,.1)', borderRadius: 20, background: 'rgba(7,18,38,.86)' }
 const panelTitleStyle: CSSProperties = { color: '#fff', fontSize: 20, lineHeight: 1.2 }
 const offerStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', gap: 20, marginTop: 30, padding: 22, border: '1px solid rgba(155,225,29,.3)', borderRadius: 22, background: 'linear-gradient(135deg, rgba(21,50,39,.94), rgba(8,27,48,.94))' }
+const completionStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', gap: 18, padding: 20, borderRadius: 22, border: '1px solid rgba(155,225,29,.52)', background: 'linear-gradient(135deg, rgba(75,120,27,.28), rgba(9,24,45,.95))', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.08)' }
