@@ -221,6 +221,7 @@ type DataAssistOutcome = {
   detail: string
   batchId?: string
   target: 'history' | 'latest-read'
+  teamConnectionHref?: string
 }
 
 function getDataAssistIntent(value: string | null): DataAssistIntent | null {
@@ -1003,10 +1004,16 @@ function DataAssistWorkspace() {
       setFocusedSubmissionId(latestScan.batchId)
       setOutcome({
         tone: 'review',
-        title: decision === 'flagged' ? `${reviewLabel} sent for review` : `${reviewLabel} review saved`,
+        title: decision === 'flagged'
+          ? `${reviewLabel} sent for review`
+          : result.autoImport && !result.autoImport.ok
+            ? `${reviewLabel} import paused`
+            : `${reviewLabel} review saved`,
         detail: decision === 'flagged'
           ? 'TiQ saved your note for a closer check. This upload will not change records until it is resolved.'
-          : 'Your review is saved. Open the upload below whenever you need to check its status.',
+          : result.autoImport && !result.autoImport.ok
+            ? `${result.autoImport.message || 'TiQ could not finish importing this upload.'} Open the import record to review its status and next steps.`
+            : 'Your review is saved. Open the upload below whenever you need to check its status.',
         batchId: latestScan.batchId,
         target: 'history',
       })
@@ -2039,7 +2046,10 @@ function DataAssistOutcomePanel({
         </span>
       </div>
       <div style={dataAssistOutcomeActionRowStyle}>
-        <a href={`#${targetId}`} style={primaryButtonStyle}>{actionLabel}</a>
+        {outcome.teamConnectionHref ? (
+          <Link href={outcome.teamConnectionHref} style={primaryButtonStyle}>Review &amp; link this team</Link>
+        ) : null}
+        <a href={`#${targetId}`} style={outcome.teamConnectionHref ? secondaryButtonStyle : primaryButtonStyle}>{actionLabel}</a>
         <button type="button" onClick={onUploadAnother} style={secondaryButtonStyle}>Upload another</button>
       </div>
     </section>
@@ -2091,21 +2101,22 @@ function buildImportedDataAssistOutcome(
   batchId: string,
   duplicate = false,
 ): DataAssistOutcome {
+  if (isTeamSummaryParsedDraft(parsedDraft)) {
+    return {
+      tone: duplicate ? 'duplicate' : 'success',
+      title: duplicate ? 'Roster already in TiQ' : 'Roster imported',
+      detail: `${parsedDraft.rosterTeamName || 'Your team'}: ${parsedDraft.playerCount} player${parsedDraft.playerCount === 1 ? '' : 's'} ${duplicate ? 'already saved. No duplicate was created.' : 'saved.'} Next, review your team link to add it to My Teams. Uploading a roster does not make you a member or captain. If this is an opponent, no team link is needed.`,
+      batchId,
+      target: 'history',
+      teamConnectionHref: buildTeamConnectionReviewHref(parsedDraft),
+    }
+  }
+
   if (duplicate) {
     return {
       tone: 'duplicate',
       title: `${getDataAssistImportTypeLabel(getParsedDraftImportType(parsedDraft))} already in TiQ`,
       detail: 'TiQ kept the existing record and saved this upload in your history as proof. No duplicate was created.',
-      batchId,
-      target: 'history',
-    }
-  }
-
-  if (isTeamSummaryParsedDraft(parsedDraft)) {
-    return {
-      tone: 'success',
-      title: 'Roster imported',
-      detail: `${parsedDraft.playerCount} player${parsedDraft.playerCount === 1 ? '' : 's'}, USTA ratings, and ${parsedDraft.contactCount || 0} available contact${parsedDraft.contactCount === 1 ? '' : 's'} are now connected for team tools.`,
       batchId,
       target: 'history',
     }
@@ -3164,7 +3175,13 @@ function SubmissionCard({
             />
           ) : null}
           {parsedTeamSummary && !isImported ? (
-            <TeamSummaryReviewPanel parsedDraft={parsedTeamSummary} />
+            <TeamSummaryReviewPanel
+              parsedDraft={parsedTeamSummary}
+              busy={busy}
+              onImport={submission.draftId && submission.draftOcrStatus === 'processed' && (submission.status === 'ready_to_import' || submission.status === 'needs_review')
+                ? () => onReview(submission, 'confirmed')
+                : undefined}
+            />
           ) : null}
           {isImported && parsedTeamSummary ? (
             <TeamSummaryImportedPanel
@@ -3520,7 +3537,7 @@ function TeamSummaryReviewPanel({
 }: {
   parsedDraft: DataAssistTeamSummaryParsedDraft
   busy: boolean
-  onImport: () => void
+  onImport?: () => void
 }) {
   const missingRatingCount = parsedDraft.players.filter((player) => player.ntrp === null).length
   const isPlayerRoster = parsedDraft.rosterSource === 'player_roster'
@@ -3549,7 +3566,7 @@ function TeamSummaryReviewPanel({
             ? `${parsedDraft.contactCount || 0} contact${parsedDraft.contactCount === 1 ? '' : 's'} will be ready for captain messages without changing your Team Summary.`
             : 'Player and rating context is ready. Player contacts remain optional.'}</span>
       </div>
-      <section style={teamSummaryImportActionStyle} aria-label="Import this team summary">
+      {onImport ? <section style={teamSummaryImportActionStyle} aria-label="Import this team summary">
         <div style={headerCopyStyle}>
           <strong>{isPlayerRoster ? 'Import team contacts' : 'Import Team Summary'}</strong>
           <p style={copyStyle}>
@@ -3568,7 +3585,7 @@ function TeamSummaryReviewPanel({
         >
           {busy ? 'Importing...' : isPlayerRoster ? 'Import team contacts' : 'Import Team Summary'}
         </button>
-      </section>
+      </section> : null}
     </div>
   )
 }

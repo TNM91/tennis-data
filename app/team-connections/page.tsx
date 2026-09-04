@@ -116,6 +116,7 @@ function TeamConnectionsContent() {
     (connection) => connection.status === 'accepted' && connection.roles.includes('player'),
   )
   const requestedPendingConnection = pending.find((connection) => matchesRequestedTeamScope(connection, requestedScope)) || null
+  const requestedSavedConnection = connections.find((connection) => matchesRequestedTeamScope(connection, requestedScope)) || null
 
   return (
     <main style={pageStyle}>
@@ -151,6 +152,18 @@ function TeamConnectionsContent() {
             </Link>
             <button type="button" onClick={() => setCompletedConnection(null)} style={secondaryButtonStyle}>Done</button>
           </div>
+        </section>
+      ) : null}
+
+      {userId && !loading && !message && requestedScope.teamName && !requestedPendingConnection && !requestedSavedConnection ? (
+        <section id={!pending.length ? 'pending-team-links' : undefined} style={panelStyle} aria-label="Find your imported team link">
+          <strong style={panelTitleStyle}>Connect your player to {requestedScope.teamName}.</strong>
+          <p style={copyStyle}>TiQ has not matched this team to your account yet. Find and link your player profile, or use the email listed for you on the Player Roster. Then return here and check again.</p>
+          <div style={cardActionsStyle}>
+            <Link href="/profile#profile-identity" style={primaryLinkStyle}>Find my player</Link>
+            <button type="button" onClick={() => void reload()} style={secondaryButtonStyle}>Check again</button>
+          </div>
+          <p style={copyStyle}>Uploaded an opponent? You do not need to link their team.</p>
         </section>
       ) : null}
 

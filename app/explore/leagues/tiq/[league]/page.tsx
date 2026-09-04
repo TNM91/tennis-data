@@ -2134,11 +2134,7 @@ function TiqLeagueDetailContent() {
 
     const currentList = league.leagueFormat === 'team' ? league.teams : league.players
     if (league.leagueFormat !== 'team' && currentList.some((item) => item.toLowerCase() === normalizedEntry.toLowerCase())) {
-      setStatus(
-        league.leagueFormat === 'team'
-          ? `${normalizedEntry} is already entered in this TIQ team league.`
-          : `${normalizedEntry} is already part of this TIQ individual league.`,
-      )
+      setStatus(`${normalizedEntry} is already part of this TIQ individual league.`)
       return
     }
 
