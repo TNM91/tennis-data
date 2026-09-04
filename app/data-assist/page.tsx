@@ -1538,7 +1538,11 @@ function DataAssistWorkspace() {
                 onConfirm={(draft) => void reviewLatestScan('confirmed', draft)}
               />
             ) : isTeamSummaryParsedDraft(latestScan.parsedDraft) ? (
-              <TeamSummaryReviewPanel parsedDraft={latestScan.parsedDraft} />
+              <TeamSummaryReviewPanel
+                parsedDraft={latestScan.parsedDraft}
+                busy={reviewingSubmissionId === latestScan.batchId}
+                onImport={() => void reviewLatestScan('confirmed')}
+              />
             ) : latestScorecardDraft ? (
               <ScorecardReviewPanel
                 parsedDraft={latestScorecardDraft}
@@ -3509,9 +3513,18 @@ function ScheduleImportedSummaryPanel({
   )
 }
 
-function TeamSummaryReviewPanel({ parsedDraft }: { parsedDraft: DataAssistTeamSummaryParsedDraft }) {
+function TeamSummaryReviewPanel({
+  parsedDraft,
+  busy,
+  onImport,
+}: {
+  parsedDraft: DataAssistTeamSummaryParsedDraft
+  busy: boolean
+  onImport: () => void
+}) {
   const missingRatingCount = parsedDraft.players.filter((player) => player.ntrp === null).length
   const isPlayerRoster = parsedDraft.rosterSource === 'player_roster'
+  const readyToImport = isTeamSummaryDraftReadyForImport(parsedDraft)
 
   return (
     <div style={scorecardReviewStyle}>
@@ -3536,6 +3549,26 @@ function TeamSummaryReviewPanel({ parsedDraft }: { parsedDraft: DataAssistTeamSu
             ? `${parsedDraft.contactCount || 0} contact${parsedDraft.contactCount === 1 ? '' : 's'} will be ready for captain messages without changing your Team Summary.`
             : 'Player and rating context is ready. Player contacts remain optional.'}</span>
       </div>
+      <section style={teamSummaryImportActionStyle} aria-label="Import this team summary">
+        <div style={headerCopyStyle}>
+          <strong>{isPlayerRoster ? 'Import team contacts' : 'Import Team Summary'}</strong>
+          <p style={copyStyle}>
+            {readyToImport
+              ? isPlayerRoster
+                ? 'Save these private contacts now. Next, choose whether to link this team to My Teams.'
+                : 'Save this roster now. Next, review and link the team to My Teams, Team Chat, and Captain.'
+              : 'This export is missing required roster details. Upload a complete Team Summary with player ratings before importing.'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onImport}
+          disabled={busy || !readyToImport}
+          style={{ ...primaryButtonStyle, ...(busy || !readyToImport ? disabledStyle : {}) }}
+        >
+          {busy ? 'Importing...' : isPlayerRoster ? 'Import team contacts' : 'Import Team Summary'}
+        </button>
+      </section>
     </div>
   )
 }
@@ -5961,6 +5994,16 @@ const readyImportNoteStyle: CSSProperties = {
   fontWeight: 850,
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const teamSummaryImportActionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+  minWidth: 0,
 }
 
 const teamConnectionNextStepStyle: CSSProperties = {
