@@ -21,6 +21,7 @@ describe('team connection flow', () => {
 
   it('makes an approved TIQ team entry a durable My Teams connection', () => {
     const route = readFileSync(join(process.cwd(), 'app/api/team-connections/route.ts'), 'utf8')
+    const leaguePage = readFileSync(join(process.cwd(), 'app/explore/leagues/tiq/[league]/page.tsx'), 'utf8')
 
     expect(route).toContain('syncOwnedActiveTiqTeamEntries')
     expect(route).toContain(".from('tiq_team_league_entries')")
@@ -28,6 +29,10 @@ describe('team connection flow', () => {
     expect(route).toContain("source_type: 'tiq_entry'")
     expect(route).toContain("team_role: 'captain'")
     expect(route).toContain('await reconcileDefaultTeam(service, userId)')
+    expect(leaguePage).toContain('How this becomes your team in TiQ')
+    expect(leaguePage).toContain('League Office approves it')
+    expect(leaguePage).toContain('It appears in My Teams')
+    expect(leaguePage).toContain('Once approved, it also appears in My Teams for Team Chat and Captain tools.')
   })
 
   it('rejects an imported opponent team as a Captain connection', () => {

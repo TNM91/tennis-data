@@ -2915,9 +2915,20 @@ function TiqLeagueDetailContent() {
                 </h2>
                 <p style={sectionText}>
                   {league.leagueFormat === 'team'
-                    ? 'Submit your team for League Office approval. Approved teams appear in participants, schedules, results, and standings.'
+                    ? 'Submit your team for League Office approval. Once approved, it also appears in My Teams for Team Chat and Captain tools.'
                     : `Submit your player entry for League Office approval. ${getTiqIndividualCompetitionFormatDescription(league.individualCompetitionFormat)}`}
                 </p>
+
+                {league.leagueFormat === 'team' ? (
+                  <div style={teamEntryPathStyle} aria-label="How team entry works">
+                    <strong style={teamEntryPathTitleStyle}>How this becomes your team in TiQ</strong>
+                    <div style={teamEntryPathStepsStyle}>
+                      <span>1. Request this team</span>
+                      <span>2. League Office approves it</span>
+                      <span>3. It appears in My Teams</span>
+                    </div>
+                  </div>
+                ) : null}
 
                 {league.leagueFormat === 'individual' ? (
                   <div style={entryRequirementRailStyle} aria-label="Entry requirements">
@@ -4316,6 +4327,35 @@ const statusBanner: CSSProperties = {
   fontWeight: 700,
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const teamEntryPathStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  padding: '12px',
+  borderRadius: '14px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'linear-gradient(135deg, rgba(78,130,27,0.16), rgba(8,13,28,0.52))',
+  minWidth: 0,
+}
+
+const teamEntryPathTitleStyle: CSSProperties = {
+  color: '#efffe9',
+  fontSize: 13,
+  lineHeight: 1.25,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const teamEntryPathStepsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 7,
+  minWidth: 0,
+  color: '#cbd5e1',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 750,
 }
 
 const leagueHubPanelStyle: CSSProperties = {
