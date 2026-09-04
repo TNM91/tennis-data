@@ -19,6 +19,17 @@ describe('team connection flow', () => {
     expect(route).toContain('is_default')
   })
 
+  it('makes an approved TIQ team entry a durable My Teams connection', () => {
+    const route = readFileSync(join(process.cwd(), 'app/api/team-connections/route.ts'), 'utf8')
+
+    expect(route).toContain('syncOwnedActiveTiqTeamEntries')
+    expect(route).toContain(".from('tiq_team_league_entries')")
+    expect(route).toContain(".eq('entry_status', 'active')")
+    expect(route).toContain("source_type: 'tiq_entry'")
+    expect(route).toContain("team_role: 'captain'")
+    expect(route).toContain('await reconcileDefaultTeam(service, userId)')
+  })
+
   it('rejects an imported opponent team as a Captain connection', () => {
     const route = readFileSync(join(process.cwd(), 'app/api/team-connections/route.ts'), 'utf8')
     const client = readFileSync(join(process.cwd(), 'lib/team-profile-links-client.ts'), 'utf8')
