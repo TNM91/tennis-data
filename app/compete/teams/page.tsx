@@ -75,10 +75,18 @@ const teamPathActions = [
   {
     href: dataAssistTeamsHref,
     job: 'add_team',
-    question: 'How do I add my team?',
-    title: 'Add my team',
+    question: 'Do I have a TennisLink team?',
+    title: 'Import TennisLink team',
     body: 'Start with a TennisLink Team Summary. TiQ reads the team, league, flight, and roster, then you approve your private team link.',
-    cta: 'Add team',
+    cta: 'Upload Team Summary',
+  },
+  {
+    href: '/explore/leagues?layer=tiq',
+    job: 'enter_tiq_team',
+    question: 'Am I joining a TIQ league?',
+    title: 'Enter TIQ team',
+    body: 'Open the team league, select an existing team or type a custom team name, then wait for League Office approval before it appears in My Teams.',
+    cta: 'Find TIQ league',
   },
   {
     href: '/captain/lineup-builder',
@@ -695,7 +703,7 @@ function TeamAccountAccessPanel({
             ? 'A Free account includes every accepted team’s roster, schedule, stats, and private Team Chat.'
             : pendingTeamCount > 0
               ? 'Review the team link waiting for you. Once accepted, its roster, schedule, and Team Chat appear here.'
-              : 'Team access is included. Upload a Team Summary to add your team, or link one someone else already imported.'}
+              : 'Team access is included. Import a TennisLink Team Summary, link an existing team, or request entry to a TIQ team league.'}
         </span>
         {signedIn && linkedTeamCount > 0 ? (
           <span style={accountTierCueStyle}>
@@ -716,6 +724,9 @@ function TeamAccountAccessPanel({
             </Link>
             <Link href={pendingTeamCount > 0 ? dataAssistTeamsHref : '/team-connections'} style={teamSecondaryLinkStyle}>
               {pendingTeamCount > 0 ? 'Upload team summary' : 'Link existing team'}
+            </Link>
+            <Link href="/explore/leagues?layer=tiq" style={teamSecondaryLinkStyle}>
+              Find TIQ league
             </Link>
           </>
         )}
