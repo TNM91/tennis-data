@@ -64,6 +64,7 @@ describe('Captain live scorecard', () => {
     expect(liveScorecard).toContain("setNotice('Your in-progress scorecard was restored on this device.')")
     expect(liveScorecard).toContain('window.localStorage.setItem(scorecardDraftStorageKey, JSON.stringify(draft))')
     expect(liveScorecard).toContain('window.localStorage.removeItem(scorecardDraftStorageKey)')
+    expect(liveScorecard).toContain('Draft saved on this device')
   })
 
   it('returns the opponent roster only through the authorized captain lineup response', () => {

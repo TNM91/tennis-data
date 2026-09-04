@@ -89,6 +89,7 @@
 }
 
 .courtHeader p:not(.eyebrow) { margin: 6px 0 0; font-size: .84rem; }
+.draftSaved { display: inline-flex; width: fit-content; margin-top: 9px; padding: 6px 9px; border: 1px solid color-mix(in srgb, var(--brand-green) 48%, var(--shell-panel-border)); border-radius: 999px; background: color-mix(in srgb, var(--brand-green) 11%, var(--shell-chip-bg)); color: var(--brand-green-3); font-size: .7rem; font-weight: 900; letter-spacing: .04em; }
 
 .backLink,
 .addCourt,

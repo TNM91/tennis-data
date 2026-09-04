@@ -142,6 +142,7 @@ function RecordResultContent() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [draftReady, setDraftReady] = useState(false)
+  const [draftSaved, setDraftSaved] = useState(false)
   const [savedRecap, setSavedRecap] = useState<CaptainScorecardSavedRecap | null>(null)
   const [teamAnnouncementUpdated, setTeamAnnouncementUpdated] = useState(false)
   const [resultShareNotice, setResultShareNotice] = useState('')
@@ -215,6 +216,7 @@ function RecordResultContent() {
       setCourts(draft.courts)
       lineupPrefillKey.current = [teamName, leagueName, flight, draft.matchDate, draft.opponentTeam].join('::').toLowerCase()
       setNotice('Your in-progress scorecard was restored on this device.')
+      setDraftSaved(true)
     } catch {
       // A malformed local draft should never block a captain from recording a result.
       window.localStorage.removeItem(scorecardDraftStorageKey)
@@ -233,6 +235,7 @@ function RecordResultContent() {
     try {
       if (!hasProgress) {
         window.localStorage.removeItem(scorecardDraftStorageKey)
+        setDraftSaved(false)
         return
       }
       const draft: StoredScorecardDraft = {
@@ -245,8 +248,10 @@ function RecordResultContent() {
         courts,
       }
       window.localStorage.setItem(scorecardDraftStorageKey, JSON.stringify(draft))
+      setDraftSaved(true)
     } catch {
       // Score entry remains fully usable when device storage is unavailable.
+      setDraftSaved(false)
     }
   }, [courts, draftReady, facility, matchDate, matchTime, opponentTeam, scorecardDraftStorageKey, teamName])
 
@@ -465,6 +470,7 @@ function RecordResultContent() {
       setTeamAnnouncementUpdated(payload.teamAnnouncementUpdated === true)
       if (payload.externalMatchId) {
         if (scorecardDraftStorageKey) window.localStorage.removeItem(scorecardDraftStorageKey)
+        setDraftSaved(false)
         const url = new URL(window.location.href)
         if (dataAssistBatchId) window.sessionStorage.removeItem(captainScorecardPhotoPrefillStorageKey(dataAssistBatchId))
         scorecardPhotoPrefillKey.current = ''
@@ -614,6 +620,7 @@ function RecordResultContent() {
             <p className={styles.eyebrow}>Court results</p>
             <h2>Enter one court at a time.</h2>
             <p>{completedCourtCount}/{courts.length} ready to submit</p>
+            {draftSaved ? <span className={styles.draftSaved} role="status">Draft saved on this device</span> : null}
           </div>
           <button className={styles.addCourt} type="button" onClick={() => setCourts((current) => [...current, createCourt(Math.max(0, ...current.map((court) => court.courtNumber)) + 1)])}>Add court</button>
         </div>
