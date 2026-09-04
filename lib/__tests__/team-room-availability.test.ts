@@ -47,4 +47,23 @@ describe('Team Room availability summary', () => {
 
     expect(summary).toMatchObject({ yes: 1, maybe: 0, no: 0, waiting: 0, total: 1 })
   })
+
+  it('treats captain-confirmed final-lineup players as fully answered', () => {
+    const confirmedAt = '9999-12-31T23:59:59.999Z'
+    const players = ['Sam Edwards', 'Michael Ho', 'Nathan Meinert', 'David Cabrera']
+    const summary = summarizeTeamRoomAvailability({
+      matchDate: '2026-09-14',
+      invites: players.map((playerName) => ({ playerName })),
+      responses: players.map((playerName) => ({
+        playerName,
+        matchDate: '2026-09-14',
+        status: 'yes',
+        respondedAt: confirmedAt,
+      })),
+    })
+
+    expect(summary).toMatchObject({ yes: 4, maybe: 0, no: 0, waiting: 0, total: 4 })
+    expect(summary.yesNames).toEqual(players)
+    expect(summary.waitingNames).toEqual([])
+  })
 })
