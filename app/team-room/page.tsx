@@ -1663,18 +1663,24 @@ function TeamRoomContent() {
           </div>
 
           {teams.length > 1 ? (
-            <select
-              className={styles.teamSelect}
-              aria-label="Switch Team Chat"
-              value={room.href}
-              onChange={(event) => router.replace(event.target.value)}
-            >
-              {teams.map((team) => (
-                <option key={team.href} value={team.href}>
-                  {getTeamRoomOptionLabel(team)}
-                </option>
-              ))}
-            </select>
+            <div className={styles.teamSwitcher} aria-label="Team switcher">
+              <label className={styles.teamSwitcherLabel}>
+                <span>Viewing team</span>
+                <select
+                  className={styles.teamSelect}
+                  aria-label="Switch Team Chat"
+                  value={room.href}
+                  onChange={(event) => router.replace(event.target.value)}
+                >
+                  {teams.map((team) => (
+                    <option key={team.href} value={team.href}>
+                      {getTeamRoomOptionLabel(team)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Link className={styles.teamSwitcherManage} href="/compete/teams">All teams</Link>
+            </div>
           ) : null}
 
           <div className={styles.memberSummary}>
