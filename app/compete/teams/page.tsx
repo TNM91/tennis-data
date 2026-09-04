@@ -331,7 +331,8 @@ function CompeteTeamsContent() {
 
         {authResolved && userId && groupedTeams.length > 0 ? (
           <div style={{ ...teamsHeaderActionRowStyle, ...(isMobile ? teamsHeaderActionRowMobileStyle : {}) }} aria-label="Team setup actions">
-            <Link href={dataAssistTeamsHref} style={teamPrimaryActionStyle}>Add another team</Link>
+            <Link href={dataAssistTeamsHref} style={teamPrimaryActionStyle}>Import TennisLink team</Link>
+            <Link href="/explore/leagues?layer=tiq" style={teamSecondaryLinkStyle}>Enter TIQ team</Link>
             <Link href="/team-connections" style={teamSecondaryLinkStyle}>
               {pendingConnections.length > 0 ? 'Review team links' : 'Manage team links'}
             </Link>

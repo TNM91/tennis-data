@@ -69,7 +69,8 @@ describe('compete teams readiness', () => {
 
   it('keeps adding a team visible instead of hiding it in the management disclosure', () => {
     expect(source).toContain('aria-label="Team setup actions"')
-    expect(source).toContain('<Link href={dataAssistTeamsHref} style={teamPrimaryActionStyle}>Add another team</Link>')
+    expect(source).toContain('<Link href={dataAssistTeamsHref} style={teamPrimaryActionStyle}>Import TennisLink team</Link>')
+    expect(source).toContain('<Link href="/explore/leagues?layer=tiq" style={teamSecondaryLinkStyle}>Enter TIQ team</Link>')
     expect(source).toContain("{pendingConnections.length > 0 ? 'Review team links' : 'Manage team links'}")
     expect(source.indexOf('aria-label="Team setup actions"')).toBeLessThan(source.indexOf('function TeamToolsDisclosure'))
     expect(styleBlock('teamsHeaderActionRowStyle')).toContain('minWidth: 0')
