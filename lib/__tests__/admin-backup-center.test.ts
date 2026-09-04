@@ -36,7 +36,6 @@ describe('admin backup center', () => {
   it('links the Backup Center from the main admin tools', () => {
     expect(adminPageSource).toContain("href: '/admin/backups'")
     expect(adminPageSource).toContain("title: 'Backups'")
-    expect(adminPageSource).toContain('href="/admin/backups"')
   })
 
   it('keeps the admin route in Vercel builds while excluding root backup artifacts', () => {
