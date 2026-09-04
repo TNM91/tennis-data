@@ -1897,6 +1897,23 @@ function DataAssistSourcePathPanel({
 }
 
 function DataAssistReviewFlowPanel() {
+  const { isMobile, isTablet } = useViewportBreakpoints()
+  const isCompactViewport = isMobile || isTablet
+  const dynamicUploadStateProofStyle: CSSProperties = isCompactViewport
+    ? {
+        ...uploadStateProofStyle,
+        gridTemplateColumns: 'minmax(0, 1fr)',
+        gap: 12,
+        padding: 12,
+      }
+    : uploadStateProofStyle
+  const dynamicUploadStateProofGridStyle: CSSProperties = isCompactViewport
+    ? {
+        ...uploadStateProofGridStyle,
+        gridTemplateColumns: 'minmax(0, 1fr)',
+      }
+    : uploadStateProofGridStyle
+
   return (
     <section style={reviewFlowPanelStyle} aria-labelledby="data-assist-review-flow-title">
       <div style={reviewFlowHeaderStyle}>
@@ -1915,12 +1932,12 @@ function DataAssistReviewFlowPanel() {
           </article>
         ))}
       </div>
-      <div style={uploadStateProofStyle} aria-label="Upload review status">
+      <div style={dynamicUploadStateProofStyle} aria-label="Upload review status">
         <div style={uploadStateProofHeaderStyle}>
           <span style={reviewFlowEyebrowStyle}>Upload review status</span>
           <strong style={uploadStateProofTitleStyle}>Know what changed and what did not.</strong>
         </div>
-        <div style={uploadStateProofGridStyle}>
+        <div style={dynamicUploadStateProofGridStyle}>
           {dataAssistUploadStateProof.map((item) => (
             <article key={item.label} style={uploadStateProofCardStyle}>
               <span style={uploadStateProofLabelStyle}>{item.label}</span>
