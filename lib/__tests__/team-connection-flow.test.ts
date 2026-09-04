@@ -76,7 +76,8 @@ describe('team connection flow', () => {
     expect(page).toContain('await reload()')
     expect(page).toContain('aria-label="Team link complete"')
     expect(page).toContain('is now in My Teams.')
-    expect(page).toContain('Open team home')
+    expect(page).toContain('Open My Teams')
+    expect(page).toContain('Open My Teams for the roster, schedule, and Team Chat.')
     expect(page).toContain("'Open Captain' : 'Open My Lab'")
   })
 

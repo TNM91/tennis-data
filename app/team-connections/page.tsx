@@ -140,15 +140,11 @@ function TeamConnectionsContent() {
           <div style={copyBlockStyle}>
             <span style={eyebrowStyle}>Team linked</span>
             <strong style={panelTitleStyle}>{completedConnection.teamName} is now in My Teams.</strong>
-            <span style={copyStyle}>Open the team home for the roster, schedule, and Team Chat.</span>
+            <span style={copyStyle}>Open My Teams for the roster, schedule, and Team Chat.</span>
           </div>
           <div style={cardActionsStyle}>
-            <Link href={buildTeamRoomHref({
-              teamName: completedConnection.teamName,
-              leagueName: completedConnection.leagueName,
-              flight: completedConnection.flight,
-            })} style={primaryLinkStyle}>
-              Open team home
+            <Link href="/compete/teams" style={primaryLinkStyle}>
+              Open My Teams
             </Link>
             <Link href={buildTeamConnectionWorkspaceHref(completedConnection)} style={secondaryLinkStyle}>
               {isCaptainTeamConnection(completedConnection.roles) ? 'Open Captain' : 'Open My Lab'}
