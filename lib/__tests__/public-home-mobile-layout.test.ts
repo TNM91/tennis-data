@@ -252,7 +252,7 @@ describe('Public home mobile layout guards', () => {
     expect(portalToolbarSource).toContain('data-mobile-portal-action="main"')
     expect(portalToolbarSource).toContain('onSelect={handlePortalShortcutCustomization}')
     expect(portalToolbarSource).toContain('data-portal-shortcut={shortcut.id}')
-    expect(portalToolbarSource).toContain('data-mobile-portal-shortcut-add={index + 1}')
+    expect(portalToolbarSource).not.toContain('data-mobile-portal-shortcut-add={index + 1}')
     expect(portalToolbarSource).toContain('openPortalShortcutCustomization')
     expect(portalToolbarSource).toContain('aria-controls={portalMenuId}')
     expect(portalToolbarSource).toContain('onClick={(event) => onActivate(event, target.href)}')
@@ -297,7 +297,7 @@ describe('Public home mobile layout guards', () => {
     expect(shellSmokeSource).toContain("type: 'top-navigation-lane-palette-too-tall'")
     expect(shellSmokeSource).toContain("type: 'mobile-portal-shortcut-palette-missing'")
     expect(shellSmokeSource).toContain('[data-mobile-portal-palette="shortcuts"]')
-    expect(shellSmokeSource).toContain('[data-mobile-portal-shortcut-add="1"]')
+    expect(shellSmokeSource).toContain('[data-mobile-portal-personalize="open"]')
     expect(shellSmokeSource).toContain('[data-mobile-portal-palette="edit"]')
   })
 

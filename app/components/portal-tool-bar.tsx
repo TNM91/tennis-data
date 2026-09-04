@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { PlusIcon } from '@phosphor-icons/react/dist/csr/Plus'
 import { PushPinSimpleIcon } from '@phosphor-icons/react/dist/csr/PushPinSimple'
 import { SlidersHorizontalIcon } from '@phosphor-icons/react/dist/csr/SlidersHorizontal'
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent, type UIEvent } from 'react'
@@ -317,7 +316,6 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
       .map((shortcutId) => portalShortcutCatalog.find((shortcut) => shortcut.id === shortcutId))
       .filter((shortcut): shortcut is PortalShortcut => Boolean(shortcut))
   }, [pinnedPortalShortcutIds])
-  const openPortalShortcutSlots = Math.max(0, PORTAL_SHORTCUT_PIN_LIMIT - pinnedPortalShortcuts.length)
   const personalizedPortalLanes = useMemo(() => {
     const laneIds = buildPortalLaneOrderFromShortcuts(pinnedPortalShortcutIds)
     return laneIds.map((laneId) => portalLanes.find((lane) => lane.id === laneId)).filter((lane): lane is PortalLane => Boolean(lane))
@@ -992,21 +990,6 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
                     attentionCount={shortcut.laneId === 'club' ? clubAttentionCount : 0}
                     onActivate={handlePinnedPortalShortcutActivate}
                   />
-                ))}
-                {Array.from({ length: openPortalShortcutSlots }, (_, index) => (
-                  <button
-                    key={`portal-shortcut-add-${index}`}
-                    type="button"
-                    onClick={openPortalShortcutCustomization}
-                    data-mobile-portal-shortcut-add={index + 1}
-                    style={{ ...mobilePortalTileStyle, ...mobilePortalAddTileStyle }}
-                    aria-label={`Add shortcut ${pinnedPortalShortcuts.length + index + 1} of ${PORTAL_SHORTCUT_PIN_LIMIT}`}
-                  >
-                    <span style={mobilePortalTileIconStyle}>
-                      <PlusIcon size={27} weight="bold" aria-hidden="true" />
-                    </span>
-                    <span style={mobilePortalTileLabelStyle}>Add</span>
-                  </button>
                 ))}
                 <button
                   type="button"
@@ -2112,13 +2095,6 @@ const mobilePortalPersonalizeTileStyle: CSSProperties = {
   borderColor: 'rgba(155,225,29,0.28)',
   background: 'linear-gradient(145deg, rgba(155,225,29,0.08), rgba(116,190,255,0.07))',
   color: 'var(--brand-green)',
-}
-
-const mobilePortalAddTileStyle: CSSProperties = {
-  borderStyle: 'dashed',
-  borderColor: 'rgba(116,190,255,0.30)',
-  background: 'rgba(116,190,255,0.035)',
-  color: 'var(--shell-copy-muted)',
 }
 
 const mobilePortalPersonalizeDoneStyle: CSSProperties = {
