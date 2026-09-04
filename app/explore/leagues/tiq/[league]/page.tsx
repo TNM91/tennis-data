@@ -799,8 +799,13 @@ function TiqLeagueDetailContent() {
       sourceLeagueName: '',
       sourceFlight: '',
       entryStatus: 'active' as const,
+      createdByUserId: '',
     }))
   }, [league, teamEntries])
+  const yourTeamEntry = useMemo(() => {
+    if (!league || league.leagueFormat !== 'team' || !userId) return null
+    return teamEntries.find((entry) => entry.createdByUserId === userId) || null
+  }, [league, teamEntries, userId])
   const availableTeamOptions = useMemo(() => {
     if (!league || league.leagueFormat !== 'team') return []
 
@@ -2935,6 +2940,21 @@ function TiqLeagueDetailContent() {
                   </div>
                 ) : null}
 
+                {yourTeamEntry?.entryStatus === 'pending' ? (
+                  <div style={teamEntryPendingStatusStyle} aria-live="polite">
+                    <strong>{yourTeamEntry.teamName} is waiting for League Office approval.</strong>
+                    <span>Once it is approved, the team will appear in My Teams with Team Chat and captain tools.</span>
+                  </div>
+                ) : yourTeamEntry?.entryStatus === 'active' ? (
+                  <div style={teamEntryReadyStatusStyle} aria-live="polite">
+                    <div>
+                      <strong>{yourTeamEntry.teamName} is ready in My Teams.</strong>
+                      <span>Open it to manage the roster, schedule, lineup, and Team Chat.</span>
+                    </div>
+                    <Link href="/compete/teams" style={teamEntryReadyLinkStyle}>Open My Teams</Link>
+                  </div>
+                ) : null}
+
                 {league.leagueFormat === 'individual' ? (
                   <div style={entryRequirementRailStyle} aria-label="Entry requirements">
                     <span style={entryRequirementItemStyle}>{entryRequirement.ratingLevel ? `${entryRequirement.ratingLevel.toFixed(1)} division` : 'Open rating or format review'}</span>
@@ -4361,6 +4381,45 @@ const teamEntryPathStepsStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.35,
   fontWeight: 750,
+}
+
+const teamEntryPendingStatusStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  padding: '12px 14px',
+  borderRadius: '14px',
+  border: '1px solid rgba(251,191,36,0.34)',
+  background: 'rgba(251,191,36,0.09)',
+  color: '#fef3c7',
+  fontSize: 13,
+  lineHeight: 1.4,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamEntryReadyStatusStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  padding: '12px 14px',
+  borderRadius: '14px',
+  border: '1px solid rgba(155,225,29,0.32)',
+  background: 'rgba(155,225,29,0.09)',
+  color: '#efffe9',
+  minWidth: 0,
+}
+
+const teamEntryReadyLinkStyle: CSSProperties = {
+  ...ghostButton,
+  width: 'auto',
+  minHeight: 40,
+  padding: '9px 12px',
+  borderColor: 'rgba(155,225,29,0.44)',
+  background: 'rgba(155,225,29,0.13)',
+  color: '#efffe9',
+  flex: '0 0 auto',
 }
 
 const leagueHubPanelStyle: CSSProperties = {

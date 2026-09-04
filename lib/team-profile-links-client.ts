@@ -87,12 +87,15 @@ function writePersistedTeamConnections(accessToken: string, includesOffers: bool
   }
 }
 
-async function requestTeamConnections(accessToken: string, includeOffers: boolean): Promise<TeamConnectionsResult> {
+async function requestTeamConnections(accessToken: string, includeOffers: boolean, forceRefresh: boolean): Promise<TeamConnectionsResult> {
   const controller = new AbortController()
   const timeout = globalThis.setTimeout(() => controller.abort(), TEAM_CONNECTIONS_REQUEST_TIMEOUT_MS)
 
   try {
-    const response = await fetch(includeOffers ? '/api/team-connections?includeOffers=1' : '/api/team-connections', {
+    const query = new URLSearchParams()
+    if (includeOffers) query.set('includeOffers', '1')
+    if (forceRefresh) query.set('refresh', '1')
+    const response = await fetch(`/api/team-connections${query.size ? `?${query.toString()}` : ''}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: 'no-store',
       signal: controller.signal,
@@ -139,7 +142,7 @@ export async function fetchTeamConnections(accessToken: string, options: { force
     if (teamConnectionsCache.promise) return teamConnectionsCache.promise
   }
 
-  const promise = requestTeamConnections(accessToken, includeOffers)
+  const promise = requestTeamConnections(accessToken, includeOffers, options.force === true)
   teamConnectionsCache = {
     identityKey,
     expiresAt: now + TEAM_CONNECTIONS_CACHE_TTL_MS,

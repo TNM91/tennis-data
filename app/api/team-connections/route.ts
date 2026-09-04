@@ -63,19 +63,23 @@ export async function GET(request: Request) {
   const startedAt = Date.now()
   const auth = await getTeamConnectionAuth(request)
   if (!auth.ok) return auth.response
-  const includeOffers = new URL(request.url).searchParams.get('includeOffers') === '1'
+  const searchParams = new URL(request.url).searchParams
+  const includeOffers = searchParams.get('includeOffers') === '1'
+  const forceRefresh = searchParams.get('refresh') === '1'
   const cache = getCache({ namespace: 'team-connections' })
   const cacheKey = `${auth.userId}:${includeOffers ? 'offers' : 'default'}`
 
   try {
-    const cached = await cache.get(cacheKey) as TeamConnectionsCachedResponse | undefined
-    if (cached?.ok && Array.isArray(cached.connections) && Array.isArray(cached.pending)) {
-      console.info('[api/team-connections] cache hit', {
-        includeOffers,
-        durationMs: Date.now() - startedAt,
-        connectionCount: cached.connections.length,
-      })
-      return Response.json(cached)
+    if (!forceRefresh) {
+      const cached = await cache.get(cacheKey) as TeamConnectionsCachedResponse | undefined
+      if (cached?.ok && Array.isArray(cached.connections) && Array.isArray(cached.pending)) {
+        console.info('[api/team-connections] cache hit', {
+          includeOffers,
+          durationMs: Date.now() - startedAt,
+          connectionCount: cached.connections.length,
+        })
+        return Response.json(cached)
+      }
     }
   } catch {
     // Runtime Cache is an optimization; a cache outage must not block teams.

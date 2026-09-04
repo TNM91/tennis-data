@@ -22,6 +22,7 @@ describe('team connection flow', () => {
   it('makes an approved TIQ team entry a durable My Teams connection', () => {
     const route = readFileSync(join(process.cwd(), 'app/api/team-connections/route.ts'), 'utf8')
     const leaguePage = readFileSync(join(process.cwd(), 'app/explore/leagues/tiq/[league]/page.tsx'), 'utf8')
+    const client = readFileSync(join(process.cwd(), 'lib/team-profile-links-client.ts'), 'utf8')
 
     expect(route).toContain('syncOwnedActiveTiqTeamEntries')
     expect(route).toContain(".from('tiq_team_league_entries')")
@@ -36,6 +37,13 @@ describe('team connection flow', () => {
     expect(leaguePage).toContain("if (league.leagueFormat !== 'team' && currentList.some")
     expect(leaguePage).toContain("existingRequest?.entryStatus === 'active'")
     expect(leaguePage).toContain('After League Office approves it, the team appears in My Teams.')
+    expect(leaguePage).toContain('createdByUserId === userId')
+    expect(leaguePage).toContain('is waiting for League Office approval.')
+    expect(leaguePage).toContain('is ready in My Teams.')
+    expect(leaguePage).toContain('Open My Teams')
+    expect(route).toContain("searchParams.get('refresh') === '1'")
+    expect(route).toContain('if (!forceRefresh)')
+    expect(client).toContain("query.set('refresh', '1')")
   })
 
   it('rejects an imported opponent team as a Captain connection', () => {
@@ -166,7 +174,7 @@ describe('team connection flow', () => {
     expect(page).toContain('aria-label="Improve recommendation"')
     expect(page).toContain('fetchTeamConnections(accessToken, { includeOffers: true, userId })')
     expect(banner).toContain('fetchTeamConnections(accessToken, { includeOffers: true })')
-    expect(route).toContain("new URL(request.url).searchParams.get('includeOffers') === '1'")
+    expect(route).toContain("searchParams.get('includeOffers') === '1'")
     expect(route).toContain("console.info('[api/team-connections] loaded'")
   })
 
