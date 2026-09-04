@@ -75,7 +75,8 @@ describe('TennisRecord Admin import progress', () => {
     expect(adminRoute).toContain('ADMIN_STATUS_CACHE_TTL_SECONDS = 120')
     expect(adminRoute).toContain('cache hit')
     expect(adminRoute).toContain('expireTag(ADMIN_STATUS_CACHE_TAG)')
-    expect(adminHome).toContain("const priorityToolHrefs = [\n  '/admin/tennisrecord'")
+    expect(adminHome).toContain("const priorityToolHrefs = [\n  '/admin/access'")
+    expect(adminHome).toContain("  '/admin/tennisrecord'")
   })
 
   it('keeps metric cards responsive instead of forcing phone screens into columns', () => {

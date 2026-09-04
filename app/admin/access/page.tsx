@@ -19,7 +19,6 @@ import SiteShell from '@/app/components/site-shell'
 import {
   buildProductAccessState,
   CAPTAIN_SUBSCRIPTION_PRICE_LABEL,
-  TIQ_SEASON_FEE_PRICE_LABEL,
   type CaptainSubscriptionStatus,
   type ProductEntitlementSnapshot,
 } from '@/lib/access-model'
@@ -71,6 +70,7 @@ type EditableProfileAccess = {
 }
 
 type AccessPreset = 'player_plus' | 'coach' | 'captain' | 'league' | 'full_court'
+type AccessOffer = 'permanent_full' | 'trial_14' | 'trial_30' | 'complimentary_month'
 type RoleFilter = 'all' | 'admin' | 'captain' | 'member' | 'public'
 type BillingFilter = 'all' | 'stripe' | 'past_due' | 'canceled' | 'webhook_error' | 'webhook_ignored' | 'manual'
 type ProfileLinkFilter = 'all' | 'cloud' | 'display_only' | 'missing'
@@ -122,31 +122,25 @@ type AccessAudit = {
   lastConvertedRequest: ConvertedUpgradeRequest | null
 }
 
-const ADMIN_ACCESS_REPAIR_PROOF_STEPS = [
-  {
-    label: 'Starting access',
-    text: 'Capture the current Player, Coach, Captain, League Office, and Stripe-managed state before editing.',
-  },
-  {
-    label: 'Target access',
-    text: 'Name the tier or entitlement the test profile should have after the repair.',
-  },
-  {
-    label: 'Affected surface',
-    text: 'Check the exact My Lab, Coach Hub, Captain, League Office, pricing, or gated route expected to change.',
-  },
-  {
-    label: 'Rollback note',
-    text: 'Record how to return the fixture to its original access state before saving.',
-  },
-]
-
 const STATUS_OPTIONS: CaptainSubscriptionStatus[] = [
   'inactive',
   'trial',
   'active',
   'past_due',
   'canceled',
+]
+
+const ACCESS_OFFERS: Array<{
+  value: AccessOffer
+  label: string
+  description: string
+  status: CaptainSubscriptionStatus
+  durationDays: number | null
+}> = [
+  { value: 'permanent_full', label: 'Permanent all access', description: 'Complimentary access with no end date.', status: 'active', durationDays: null },
+  { value: 'trial_14', label: '14-day all-access trial', description: 'Trial access that ends automatically.', status: 'trial', durationDays: 14 },
+  { value: 'trial_30', label: '30-day all-access trial', description: 'A longer trial that ends automatically.', status: 'trial', durationDays: 30 },
+  { value: 'complimentary_month', label: 'One complimentary month', description: 'Active access for 30 days without changing billing.', status: 'active', durationDays: 30 },
 ]
 
 function normalizeEditable(row: ProfileAccessRow): EditableProfileAccess {
@@ -204,6 +198,12 @@ function toAccessExpiryTimestamp(value: string) {
   return `${trimmed}T23:59:59.999Z`
 }
 
+function dateInputValueAfterDays(days: number) {
+  const date = new Date()
+  date.setDate(date.getDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
 function formatAccessExpiry(value: string | null | undefined) {
   if (!value) return 'No end date'
   const date = new Date(value)
@@ -231,6 +231,10 @@ function formatAccessPreset(value: AccessPreset) {
   if (value === 'captain') return 'Captain'
   if (value === 'full_court') return 'Full-Court'
   return 'League Office'
+}
+
+function getProfileLabel(profile: ProfileAccessRow) {
+  return profile.linked_player_name?.trim() || profile.message_display_name?.trim() || compactUserId(profile.id)
 }
 
 function normalizeRoleFilter(value: string | null): RoleFilter {
@@ -560,6 +564,37 @@ export default function AdminAccessPage() {
     setError('')
   }
 
+  function applyAccessOffer(profileId: string, offerValue: AccessOffer) {
+    const profile = profiles.find((item) => item.id === profileId)
+    const offer = ACCESS_OFFERS.find((item) => item.value === offerValue)
+    if (!profile || !offer) return
+
+    const expiresAt = offer.durationDays == null ? '' : dateInputValueAfterDays(offer.durationDays)
+    setEditedProfiles((current) => {
+      const base = current[profileId] ?? normalizeEditable(profile)
+      return {
+        ...current,
+        [profileId]: {
+          ...base,
+          player_plus_subscription_active: true,
+          player_plus_subscription_status: offer.status,
+          player_plus_access_expires_at: expiresAt,
+          coach_subscription_active: true,
+          coach_subscription_status: offer.status,
+          coach_access_expires_at: expiresAt,
+          captain_subscription_active: true,
+          captain_subscription_status: offer.status,
+          captain_access_expires_at: expiresAt,
+          tiq_team_league_entry_enabled: true,
+          tiq_individual_league_creator_enabled: true,
+          league_access_expires_at: expiresAt,
+        },
+      }
+    })
+    setMessage(`Drafted ${offer.label.toLowerCase()} for ${getProfileLabel(profile)}. Save access to apply; Stripe billing is unchanged.`)
+    setError('')
+  }
+
   async function saveProfile(profile: ProfileAccessRow) {
     const draft = editedProfiles[profile.id]
     if (!draft) return
@@ -641,6 +676,10 @@ export default function AdminAccessPage() {
         profile.id,
         normalizedRole,
         compactUserId(profile.id),
+        profile.linked_player_name ?? '',
+        profile.message_display_name ?? '',
+        profile.linked_team_name ?? '',
+        profile.linked_league_name ?? '',
         profile.stripe_customer_id ?? '',
         profile.stripe_subscription_id ?? '',
         getProfileLinkStatus(profile).label,
@@ -708,7 +747,7 @@ export default function AdminAccessPage() {
         <AdminReviewFrame>
           <AdminReviewHero
             kicker="Admin Access"
-            title="Player, Coach, Captain, and League Office entitlements"
+            title="Give the right access, without billing surprises"
             actions={
               <>
                 <span className="badge badge-green">Coach subscription control</span>
@@ -718,29 +757,29 @@ export default function AdminAccessPage() {
               </>
             }
           >
-            Control who has {PLAYER_TIER.name}, Coach, and {CAPTAIN_SUBSCRIPTION_PRICE_LABEL} captain
-            workflows, plus who can run TIQ team or individual leagues at {TIQ_SEASON_FEE_PRICE_LABEL}.
+            Find a person by name, choose a permanent or timed all-access offer, then save. You can also
+            manage {PLAYER_TIER.name}, Coach, {CAPTAIN_SUBSCRIPTION_PRICE_LABEL} Captain, and League Office access individually.
           </AdminReviewHero>
 
           <AdminStatusPanel
             tone="success"
-            text="Fixture safety: use test profiles only. Capture starting access, target access, affected surface, and rollback note before saving."
+            text="Promotional access changes TiQ features, not a Stripe subscription, invoice, or charge. Use a complimentary month for a promotion; manage an actual billed discount in Stripe."
           >
-            <Link href="/admin/import-queue" className="button-ghost">
-              Review import queue
+            <Link href="/admin/product-events?filter=upgrade" className="button-ghost">
+              View upgrade activity
             </Link>
           </AdminStatusPanel>
 
           <AdminReviewPanel
-            ariaLabel="Access repair check"
+            ariaLabel="Promotional access offers"
             style={{ marginTop: 18 }}
           >
             <div style={{ display: 'grid', gap: 8 }}>
               <div style={{ color: 'var(--foreground)', fontSize: '1rem', fontWeight: 900 }}>
-                Access repair check
+                Gift, trial, or complimentary access
               </div>
               <p className="subtle-text" style={{ margin: 0 }}>
-                Check the test profile first, then update only the intended tennis access.
+                Search for the person below. Choose an offer from their row, then select <strong>Save access</strong> to apply it.
               </p>
             </div>
             <div
@@ -751,9 +790,9 @@ export default function AdminAccessPage() {
                 marginTop: 14,
               }}
             >
-              {ADMIN_ACCESS_REPAIR_PROOF_STEPS.map((step) => (
+              {ACCESS_OFFERS.map((offer) => (
                 <div
-                  key={step.label}
+                  key={offer.value}
                   style={{
                     ...adminSubPanelStyle,
                     background: 'rgba(255,255,255,0.035)',
@@ -762,10 +801,10 @@ export default function AdminAccessPage() {
                   }}
                 >
                   <div style={{ color: 'var(--foreground)', fontWeight: 900 }}>
-                    {step.label}
+                    {offer.label}
                   </div>
                   <div className="subtle-text">
-                    {step.text}
+                    {offer.description}
                   </div>
                 </div>
               ))}
@@ -833,7 +872,7 @@ export default function AdminAccessPage() {
                   type="text"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search by user id, role, or profile link"
+                  placeholder="Search by player name, display name, team, or user ID"
                   className="input"
                   disabled={loading || refreshing}
                 />
@@ -908,8 +947,8 @@ export default function AdminAccessPage() {
             </AdminActionRow>
 
             <p className="subtle-text" style={{ marginTop: 14, maxWidth: 860 }}>
-              Manage TenAceIQ access and billing follow-up here. League Office access can be
-              granted by itself, without enabling Player or Captain tools. Use the Billing filter for
+              Manage TenAceIQ access and billing follow-up here. Quick offers grant all TiQ tools now and
+              can include an automatic end date. League Office access can also be granted by itself, without enabling Player or Captain tools. Use the Billing filter for
               failed payments, canceled subscriptions, and webhook outcomes that need follow-up.
               Use the Profile link filter to find accounts that are only display-name linked or missing a
               cloud player link.
@@ -1268,6 +1307,26 @@ export default function AdminAccessPage() {
                           </td>
                           <td>
                             <div style={supportActionStackStyle}>
+                              <label style={{ display: 'grid', gap: 5, minWidth: 178 }}>
+                                <span className="metric-label">Quick offer</span>
+                                <select
+                                  className="select"
+                                  defaultValue=""
+                                  disabled={savingId === profile.id}
+                                  aria-label={`Choose a promotional access offer for ${getProfileLabel(profile)}`}
+                                  onChange={(event) => {
+                                    const value = event.target.value as AccessOffer
+                                    if (!value) return
+                                    applyAccessOffer(profile.id, value)
+                                    event.currentTarget.value = ''
+                                  }}
+                                >
+                                  <option value="">Choose an offer…</option>
+                                  {ACCESS_OFFERS.map((offer) => (
+                                    <option key={offer.value} value={offer.value}>{offer.label}</option>
+                                  ))}
+                                </select>
+                              </label>
                               <button
                                 type="button"
                                 onClick={() => void saveProfile(profile)}
@@ -1868,7 +1927,7 @@ const supportActionStackStyle = {
   display: 'grid',
   gap: 8,
   width: '100%',
-  maxWidth: 150,
+  maxWidth: 190,
   minWidth: 0,
 } as const
 
