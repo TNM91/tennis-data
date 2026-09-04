@@ -58,10 +58,41 @@ function createPrintableScorecard(input: {
   lineup: Array<{ label?: string; players?: string[] }>
 }) {
   const matchDetails = [formatDate(input.matchDate), input.matchTime, input.facility].filter(Boolean).join(' · ') || 'Match details to be confirmed'
-  // The printed sheet stays deliberately white through the court area. Some mobile
-  // print renderers were turning that surface into a large grey ink block.
-  const inkSafePrintStyle = '<style media="print">.courts { background: #fff !important; } .court { box-shadow: none !important; } .details { background: #fff !important; border-bottom: 1px solid #d6e0e8; }</style>'
-  const courts = `${inkSafePrintStyle}${input.lineup.map((court, index) => `
+  const brandLogoUrl = `${window.location.origin}/brand/logos/tenaceiq-full-for-light-bg.png`
+  // The popup has its own document. These rules give it the same crisp, ink-safe
+  // navy/white/lime system as the Captain flyer and lock it to a single page.
+  const premiumPrintStyle = `<style>
+    @page { size: letter portrait; margin: .22in; }
+    html, body { width: 8.06in; height: 10.56in; background: #fff !important; color: #0a2b4c; }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .sheet { width: 8.06in; height: 10.56in; min-height: 0; display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; overflow: hidden; border: 3px solid #0a2b4c; background: #fff; }
+    .top { position: relative; padding: .14in .28in .16in; border-bottom: 2px solid #0a2b4c; background: #fff; color: #0a2b4c; }
+    .top::before { content: ''; display: block; width: 2.5in; height: .52in; margin-bottom: .08in; background: url('${brandLogoUrl}') left center / contain no-repeat; }
+    .brand { color: #65b900; font-size: 8px; font-weight: 950; letter-spacing: .16em; }
+    h1 { margin: 4px 0 0; color: #0a2b4c; font-size: 24px; font-weight: 950; letter-spacing: -.045em; line-height: 1; text-transform: uppercase; }
+    .league { margin: 5px 0 0; color: #40506a; font-size: 10px; font-weight: 800; }
+    .matchup { padding: .13in .28in; border-bottom: 1px solid #9aa8b7; background: #fff; }
+    .label { color: #557a16; font-size: 8px; font-weight: 950; letter-spacing: .13em; }
+    .team { color: #0a2b4c; font-size: 14px; font-weight: 950; }
+    .vs { width: 27px; height: 27px; border: 1px solid #0a2b4c; border-radius: 50%; background: #9be11d; color: #0a2b4c; font-size: 9px; }
+    .details { padding: .1in .28in; border-bottom: 1px dashed #8797ae; background: #fff !important; color: #40506a; font-size: 9px; font-weight: 800; }
+    .courts { grid-auto-rows: minmax(0, 1fr); gap: .1in; padding: .12in .18in; background: #fff !important; }
+    .court { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; padding: .12in; border: 1.5px solid #0a2b4c; border-left: 6px solid #9be11d; border-radius: 0; background: #fff; box-shadow: none !important; }
+    h2 { margin: 0 0 8px; color: #0a2b4c; font-size: 13px; font-weight: 950; letter-spacing: .045em; text-transform: uppercase; }
+    .grid { border: 1px solid #0a2b4c; border-radius: 0; }
+    .head { background: #0a2b4c; color: #fff; font-size: 7px; letter-spacing: .08em; }
+    .head span { padding: 5px 3px; }
+    .row { min-height: 31px; background: #fff; }
+    .row + .row { border-top-color: #9aa8b7; }
+    .row strong, .row i { border-right-color: #9aa8b7; }
+    .row strong { color: #0a2b4c; font-size: 9px; font-weight: 900; }
+    .blank { background: linear-gradient(transparent 61%, #718196 62%, #718196 65%, transparent 66%); }
+    footer { padding: .09in .28in; border-top: 2px solid #0a2b4c; background: #fff; color: #40506a; font-size: 8px; font-weight: 800; }
+    footer b { color: #65b900; }
+    footer span:last-child { color: #0a2b4c; font-weight: 950; letter-spacing: .06em; }
+    @media print { .courts, .court, .details { background: #fff !important; } }
+  </style>`
+  const courts = `${premiumPrintStyle}${input.lineup.map((court, index) => `
     <article class="court">
       <h2>${escapePrintText(court.label || `Court ${index + 1}`)}</h2>
       <div class="grid">
