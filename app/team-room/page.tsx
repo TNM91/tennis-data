@@ -283,6 +283,11 @@ type TeamRoom = {
   actionQueue: TeamRoomActionQueue
 }
 
+function getTeamRoomOptionLabel(team: TeamOption) {
+  const scope = [team.teamName, team.leagueName, team.flight].filter(Boolean).join(' · ')
+  return `${scope}${team.isDefault ? ' · Default' : ''}`
+}
+
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
@@ -426,6 +431,7 @@ function TeamRoomContent() {
   )
   const currentFinalLineup = activeMatchMessage?.card?.finalLineup || null
   const finalLineupDeliveryCard = pinnedMessage?.card || activeMatchMessage?.card || null
+  const finalLineupDeliveryMessageId = pinnedMessage?.id || activeMatchMessage?.id || focusedMessageId
   const finalLineupDeliverySent = Boolean(finalLineupDeliveryCard?.finalLineup)
   const finalLineupDeliveryMatchComplete = Boolean(
     finalLineupDeliveryCard?.matchDate
@@ -1659,13 +1665,13 @@ function TeamRoomContent() {
           {teams.length > 1 ? (
             <select
               className={styles.teamSelect}
-              aria-label="Choose Team Room"
+              aria-label="Switch Team Chat"
               value={room.href}
               onChange={(event) => router.replace(event.target.value)}
             >
               {teams.map((team) => (
                 <option key={team.href} value={team.href}>
-                  {team.teamName}{team.isDefault ? ' · Default' : ''}
+                  {getTeamRoomOptionLabel(team)}
                 </option>
               ))}
             </select>
@@ -1696,7 +1702,18 @@ function TeamRoomContent() {
               : finalLineupDeliverySent
               ? 'Next, use Share / print confirmed lineup below to send the image or print the scorecard.'
               : 'Step 1: review the pinned lineup and tap Send lineup to team. Step 2: share the image or print the scorecard.'}</span>
-            {finalLineupDeliveryMatchComplete ? <Link className={styles.finalizeLineupGuideAction} href={scorecardHref}>Open scorecard</Link> : null}
+            {finalLineupDeliveryMatchComplete ? (
+              <Link className={styles.finalizeLineupGuideAction} href={scorecardHref}>Open scorecard</Link>
+            ) : finalLineupDeliverySent ? (
+              <Link className={styles.finalizeLineupGuideAction} href={matchupSheetHref}>Share lineup image</Link>
+            ) : (
+              <a
+                className={styles.finalizeLineupGuideAction}
+                href={finalLineupDeliveryMessageId ? `#match-card-${encodeURIComponent(finalLineupDeliveryMessageId)}` : '#pinned-lineup'}
+              >
+                Review &amp; send lineup
+              </a>
+            )}
           </section>
         ) : null}
 

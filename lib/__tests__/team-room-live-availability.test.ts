@@ -200,6 +200,9 @@ describe('Team Room live availability card', () => {
     expect(roomPage).toContain('Share / print confirmed lineup below to send the image or print the scorecard.')
     expect(roomPage).toContain('This match is already complete.')
     expect(roomPage).toContain('Open scorecard')
+    expect(roomPage).toContain('Review &amp; send lineup')
+    expect(roomPage).toContain('Share lineup image')
+    expect(roomPage).toContain('const finalLineupDeliveryMessageId =')
   })
 
   it('publishes one affected-court update when a final lineup changes', () => {
