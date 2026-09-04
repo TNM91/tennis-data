@@ -7,9 +7,9 @@ const styles = readFileSync(join(process.cwd(), 'app/players/[id]/player-profile
 
 describe('player profile mobile streamline', () => {
   it('puts the public stats path ahead of personal tooling', () => {
-    expect(page).toContain("const heroSecondaryHref = isPublicExplorerProfile ? '#profile-performance' : '#profile-matches'")
+    expect(page).toContain("const heroSecondaryHref = '#profile-performance'")
     expect(page).toContain("const heroSecondaryLabel = isPublicExplorerProfile ? 'Review stats' : 'Recent matches'")
-    expect(page).toContain('id="profile-matches"')
+    expect(page).toContain('id="profile-performance"')
     expect(page).toContain('className={profileStory.historyGroup}')
   })
 
@@ -132,7 +132,7 @@ describe('player profile mobile streamline', () => {
   })
 
   it('puts verified visual stats on the public profile before deeper reads', () => {
-    expect(page).toContain("const heroSecondaryHref = isPublicExplorerProfile ? '#profile-performance' : '#profile-matches'")
+    expect(page).toContain("const heroSecondaryHref = '#profile-performance'")
     expect(page).toContain("{isPublicExplorerProfile ? 'Stats' : 'Matches'}")
     expect(page).toContain('const publicPerformanceStats = [')
     expect(page).toContain('id="profile-performance"')

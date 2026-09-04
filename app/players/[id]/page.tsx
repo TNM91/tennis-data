@@ -1488,7 +1488,7 @@ function PlayerProfileContent() {
 
     const sections: Array<{ key: ProfileNavSection; id: string }> = [
       { key: 'overview', id: 'profile-overview' },
-      { key: 'performance', id: isPublicExplorerProfile ? 'profile-performance' : 'profile-matches' },
+      { key: 'performance', id: 'profile-performance' },
       { key: 'rating', id: 'profile-rating-journey' },
       ...(hasPersonalPlayerExperience ? [{ key: 'player-id' as const, id: 'profile-player-id' }] : []),
       ...(hasTeamProfileContext ? [{ key: 'teams' as const, id: 'profile-teams' }] : []),
@@ -1527,7 +1527,7 @@ function PlayerProfileContent() {
   const heroStoryTitle = isPublicExplorerProfile ? publicProfileTitle : storyChapter
   const heroStoryBody = isPublicExplorerProfile ? publicProfileBody : storyChapterBody
   const heroPrimaryLabel = isPublicExplorerProfile && hasTrackedMatches ? 'Compare players' : storyActionLabel
-  const heroSecondaryHref = isPublicExplorerProfile ? '#profile-performance' : '#profile-matches'
+  const heroSecondaryHref = '#profile-performance'
   const heroSecondaryLabel = isPublicExplorerProfile ? 'Review stats' : 'Recent matches'
   const ratingJourneyTitle = hasPersonalPlayerExperience
     ? hasTrackedMatches ? `${capitalize(ratingView)} movement` : 'Your first result starts the trend'
@@ -1796,7 +1796,7 @@ function PlayerProfileContent() {
             <a href="#profile-overview" data-active={activeProfileSection === 'overview'} onClick={() => setActiveProfileSection('overview')}>Overview</a>
             <a href="#profile-rating-journey" data-active={activeProfileSection === 'rating'} onClick={() => setActiveProfileSection('rating')}>Rating</a>
             <a
-              href={isPublicExplorerProfile ? '#profile-performance' : '#profile-matches'}
+              href={heroSecondaryHref}
               data-active={activeProfileSection === 'performance'}
               onClick={() => setActiveProfileSection('performance')}
             >
