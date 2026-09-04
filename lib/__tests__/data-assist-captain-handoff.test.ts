@@ -8,7 +8,10 @@ describe('Data Assist Captain handoff', () => {
   it('returns a completed Captain schedule import to Captain setup', () => {
     expect(source).toContain('context={intentContext}')
     expect(source).toContain("actions={buildSchedulePostImportActions(parsedDraft, context)}")
-    expect(source).toContain("actions.push({ label: 'Continue Captain setup', href: '/captain' })")
+    expect(source).toContain("import { buildCaptainScopedHref } from '@/lib/captain-memory'")
+    expect(source).toContain("actions.push({ label: 'Continue Captain setup', href: buildCaptainImportScopeHref(parsedDraft) })")
+    expect(source).toContain('function buildCaptainImportScopeHref(input:')
+    expect(source).toContain("return buildCaptainScopedHref('/captain', {")
     expect(source).toContain('router.replace(returnTo)')
     expect(source).toContain('Importing it must never grant')
     expect(source).not.toContain('acceptCaptainImportConnection')

@@ -43,6 +43,7 @@ import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { buildSupportMessageHref } from '@/lib/message-links'
+import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import {
   isCaptainImportDraft,
@@ -3619,7 +3620,7 @@ function buildScorecardPostImportActions(parsedDraft: DataAssistScorecardParsedD
 function buildSchedulePostImportActions(parsedDraft: DataAssistScheduleParsedDraft, context = '') {
   const actions: Array<{ label: string; href: string }> = []
   if (/\b(?:captain|team hub)\b/i.test(context)) {
-    actions.push({ label: 'Continue Captain setup', href: '/captain' })
+    actions.push({ label: 'Continue Captain setup', href: buildCaptainImportScopeHref(parsedDraft) })
   }
   const teamHref = parsedDraft.teamName ? buildTeamHref(parsedDraft.teamName, parsedDraft) : ''
   if (teamHref) actions.push({ label: 'View team', href: teamHref })
@@ -3648,13 +3649,21 @@ function buildRosterPostImportActions(
       href: options.returnTo,
     })
   } else if (/\b(?:captain|team hub)\b/i.test(options.context || '')) {
-    actions.push({ label: 'Continue Captain setup', href: '/captain' })
+    actions.push({ label: 'Continue Captain setup', href: buildCaptainImportScopeHref(parsedDraft) })
   }
   const teamHref = parsedDraft.rosterTeamName ? buildTeamHref(parsedDraft.rosterTeamName, parsedDraft) : ''
   if (teamHref) actions.push({ label: 'View team', href: teamHref })
   actions.push({ label: 'Open League Office', href: '/league-coordinator#league-setup-form' })
   actions.push({ label: 'Find players', href: buildPlayerSearchHref(parsedDraft.players[0]?.name || parsedDraft.rosterTeamName) })
   return actions
+}
+
+function buildCaptainImportScopeHref(input: Pick<DataAssistScheduleParsedDraft, 'teamName' | 'leagueName' | 'flight'> | Pick<DataAssistTeamSummaryParsedDraft, 'rosterTeamName' | 'leagueName' | 'flight'>) {
+  return buildCaptainScopedHref('/captain', {
+    team: 'teamName' in input ? input.teamName : input.rosterTeamName,
+    league: input.leagueName,
+    flight: input.flight,
+  })
 }
 
 function buildTeamConnectionReviewHref(parsedDraft: Pick<DataAssistTeamSummaryParsedDraft, 'rosterTeamName' | 'leagueName' | 'flight'>) {
