@@ -19,6 +19,9 @@ describe('Data Assist scorecard confirmation resilience', () => {
     for (const route of [importRoute, reviewRoute, ocrRoute]) {
       expect(route).toContain('scheduleDataAssistRatingRefresh(supabase)')
     }
+    expect(importRoute).toContain("console.info('[api/data-assist/import] started'")
+    expect(importRoute).toContain("console.error('[api/data-assist/import] failed'")
+    expect(importRoute).toContain('Your upload is still saved')
   })
 
   it('does not leave a phone waiting forever or replace newer History data with an older refresh', () => {
