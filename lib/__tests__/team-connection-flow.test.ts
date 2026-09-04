@@ -41,6 +41,8 @@ describe('team connection flow', () => {
     expect(leaguePage).toContain('is waiting for League Office approval.')
     expect(leaguePage).toContain('is ready in My Teams.')
     expect(leaguePage).toContain('Open My Teams')
+    expect(leaguePage).toContain('Add another team')
+    expect(leaguePage).toContain('only when you manage a second team in this league.')
     expect(route).toContain("searchParams.get('refresh') === '1'")
     expect(route).toContain('if (!forceRefresh)')
     expect(client).toContain("query.set('refresh', '1')")
