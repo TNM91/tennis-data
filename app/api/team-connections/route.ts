@@ -296,9 +296,7 @@ export async function POST(request: Request) {
 
 async function loadTeamConnections(service: SupabaseClient, userId: string, email: string) {
   // An accepted team link is the account's durable, user-approved connection.
-  // Read it first and return it immediately. Discovery is useful when someone
-  // has not linked a team yet, but it must never hold an existing captain's
-  // Teams screen hostage while the importer is using database capacity.
+  // Keep saved decisions while discovering additional teams and seasons.
   const { data: savedData, error: savedError } = await service
     .from('team_profile_links')
     .select(TEAM_LINK_SELECT)
@@ -319,9 +317,8 @@ async function loadTeamConnections(service: SupabaseClient, userId: string, emai
     if (refreshError) return { ok: false as const, message: refreshError.message }
     savedLinks = (refreshedLinks || []) as TeamProfileLinkRow[]
   }
-  if (savedLinks.some((link) => link.status === 'accepted')) {
-    return { ok: true as const, ...buildTeamConnections({ savedLinks }) }
-  }
+  // Existing connections must not prevent discovery of a new team or season.
+  // Match candidates by verified email/player identity and leave acceptance explicit.
 
   const { data: profileData, error: profileError } = await service
     .from('profiles')

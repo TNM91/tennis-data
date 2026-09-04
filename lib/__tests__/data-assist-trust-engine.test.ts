@@ -108,7 +108,7 @@ describe('Data Assist trust engine', () => {
     expect(source).toContain('const visibleJobs = contactImportRequested || teamSetupRequested')
     expect(source).toContain("? 'Choose Team Summary file'")
     expect(source).toContain('Start with your Team Summary.')
-    expect(source).toContain('Your team path: Team Summary → schedule → approve your team link.')
+    expect(source).toContain('Your team path: Import Team Summary → review team link → My Teams.')
     expect(source).toContain('A Team Summary does not automatically connect the team to you.')
     expect(source).toContain('What result should update first?')
     expect(source).toContain("title: 'Scorecard'")

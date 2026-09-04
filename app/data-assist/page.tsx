@@ -1224,7 +1224,7 @@ function DataAssistWorkspace() {
                 <StepBadge step={1} label={teamSetupRequested ? 'Add a team' : 'Data Assist'} />
                 <h1 style={sectionTitleStyle}>{teamSetupRequested ? 'Upload your Team Summary.' : 'Add new tennis data.'}</h1>
                 <p style={copyStyle}>{teamSetupRequested
-                  ? 'TiQ will read your team, league, flight, and roster. Next: add the schedule, then approve your private team link.'
+                  ? 'TiQ will read your team, league, flight, and roster. Next: review your team link to add it to My Teams. Add the schedule later.'
                   : scorecardPhotoReaderReady
                     ? 'Add a TennisLink export or a clear scorecard photo. TiQ reads it first; you confirm it before it changes a match.'
                     : 'Choose the source, add its TennisLink export, then review what TiQ found.'}</p>
@@ -1832,18 +1832,18 @@ function DataAssistSourcePathPanel({
         <div>
           <span style={sourcePathEyebrowStyle}>{contactImportRequested ? 'Team contacts' : teamSetupRequested ? 'Add my team' : 'Source refresh path'}</span>
           <h2 id="data-assist-source-path-title" style={dynamicTitleStyle}>{contactImportRequested ? 'Add team contacts.' : teamSetupRequested ? 'Start with your Team Summary.' : 'Choose your first source.'}</h2>
-          {isCompactViewport ? <p style={sourcePathIntroStyle}>{contactImportRequested ? 'Upload your TennisLink Player Roster, then connect your team.' : teamSetupRequested ? 'Add the Team Summary now. After review, add the schedule and approve your private team link.' : 'For your own team: Team Summary, schedule, then Player Roster.'}</p> : null}
+          {isCompactViewport ? <p style={sourcePathIntroStyle}>{contactImportRequested ? 'Upload your TennisLink Player Roster, then connect your team.' : teamSetupRequested ? 'Import your Team Summary, then review your team link. The schedule can come later.' : 'For your own team: Team Summary, schedule, then Player Roster.'}</p> : null}
         </div>
         {!isCompactViewport ? <p style={sourcePathIntroStyle}>
           {contactImportRequested
             ? 'Upload your TennisLink Player Roster for private phone and email details, then connect the team to your profile. Your Team Summary stays in place.'
             : teamSetupRequested
-              ? 'This adds the team record, league, flight, and roster. After review, add the schedule and approve your private team link so it appears in My Teams.'
+              ? 'This adds the team record, league, flight, and roster. After import, review your private team link so it appears in My Teams. Add the schedule and optional contacts later.'
             : 'For your own team, import Team Summary, Match Schedule, then Player Roster. TiQ reviews every source before records change.'}
         </p> : null}
       </div>
       <div style={sourcePathDefaultCueStyle}>
-        <strong>{contactImportRequested ? 'Captain contacts: use Player Roster.' : teamSetupRequested ? 'Your team path: Team Summary → schedule → approve your team link.' : 'Team setup: Team Summary → schedule → Player Roster.'}</strong>
+        <strong>{contactImportRequested ? 'Captain contacts: use Player Roster.' : teamSetupRequested ? 'Your team path: Import Team Summary → review team link → My Teams.' : 'Team setup: Team Summary → schedule → Player Roster.'}</strong>
         <span>{contactImportRequested
           ? 'This adds contact details only. After import, approve the team connection so it appears in My Teams.'
           : teamSetupRequested
@@ -3631,7 +3631,6 @@ function TeamSummaryImportedPanel({
           <ReviewFact label="Contacts" value={String(result.importedContactCount ?? parsedDraft.contactCount ?? 0)} />
         </>}
       </div>
-      {!isPlayerRoster ? <RosterPlayersList parsedDraft={parsedDraft} /> : null}
       <div style={readyImportNoteStyle}>
         <strong>{isPlayerRoster ? 'Contacts ready' : 'All set'}</strong>
         <span>{result.message || (isPlayerRoster ? 'Team contacts are ready for match week.' : 'Team roster imported to TenAceIQ.')}</span>
@@ -3647,6 +3646,7 @@ function TeamSummaryImportedPanel({
         </div>
         <Link href={teamConnectionReviewHref} style={primaryButtonStyle}>{isPlayerRoster ? 'Link this team' : 'Review & link this team'}</Link>
       </section>
+      {!isPlayerRoster ? <RosterPlayersList parsedDraft={parsedDraft} /> : null}
       <PostImportActions
         actions={buildRosterPostImportActions(parsedDraft, { context, returnTo })}
       />

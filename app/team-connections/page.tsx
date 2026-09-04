@@ -49,7 +49,7 @@ function TeamConnectionsContent() {
     setLoading(true)
     setMessage('')
     try {
-      const result = await fetchTeamConnections(accessToken, { includeOffers: true, userId })
+      const result = await fetchTeamConnections(accessToken, { includeOffers: true, userId, force: true })
       setPending(result.pending)
       setConnections(result.connections)
       setOffers(result.offers)

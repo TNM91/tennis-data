@@ -180,7 +180,7 @@ describe('team connection flow', () => {
     expect(page).toContain('acceptedPlayerLinks')
     expect(page).toContain('offers.player.label')
     expect(page).toContain('aria-label="Improve recommendation"')
-    expect(page).toContain('fetchTeamConnections(accessToken, { includeOffers: true, userId })')
+    expect(page).toContain('fetchTeamConnections(accessToken, { includeOffers: true, userId, force: true })')
     expect(banner).toContain('fetchTeamConnections(accessToken, { includeOffers: true })')
     expect(route).toContain("searchParams.get('includeOffers') === '1'")
     expect(route).toContain("console.info('[api/team-connections] loaded'")
