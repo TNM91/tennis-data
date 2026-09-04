@@ -58,6 +58,14 @@ describe('Captain live scorecard', () => {
     expect(liveScorecard).toContain('function isCourtEntryComplete(court: CourtDraft)')
   })
 
+  it('recovers an in-progress scorecard on the same device and clears it after save', () => {
+    expect(liveScorecard).toContain('function buildScorecardDraftStorageKey(input:')
+    expect(liveScorecard).toContain('function isStoredScorecardDraft(value: unknown): value is StoredScorecardDraft')
+    expect(liveScorecard).toContain("setNotice('Your in-progress scorecard was restored on this device.')")
+    expect(liveScorecard).toContain('window.localStorage.setItem(scorecardDraftStorageKey, JSON.stringify(draft))')
+    expect(liveScorecard).toContain('window.localStorage.removeItem(scorecardDraftStorageKey)')
+  })
+
   it('returns the opponent roster only through the authorized captain lineup response', () => {
     expect(rosterRoute).toContain('const opponentRosterNames')
     expect(rosterRoute).toContain('opponentRosterNames,')

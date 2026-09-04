@@ -24,6 +24,16 @@ type CourtDraft = {
   score: string
 }
 
+type StoredScorecardDraft = {
+  version: 1
+  teamName: string
+  matchDate: string
+  opponentTeam: string
+  matchTime: string
+  facility: string
+  courts: CourtDraft[]
+}
+
 type RosterResponse = {
   ok?: boolean
   players?: Array<{ name?: string | null }>
@@ -67,6 +77,42 @@ function isCourtEntryComplete(court: CourtDraft) {
     && Boolean(court.score.trim())
 }
 
+function buildScorecardDraftStorageKey(input: {
+  teamName: string
+  leagueName: string
+  flight: string
+  matchDate: string
+  opponentTeam: string
+}) {
+  const scope = [input.teamName, input.leagueName, input.flight, input.matchDate, input.opponentTeam]
+    .map((value) => normalizeName(value).toLowerCase())
+    .join('::')
+  return scope.replace(/:/g, '') ? `tiq:captain-scorecard-draft:${scope}` : ''
+}
+
+function isStoredScorecardDraft(value: unknown): value is StoredScorecardDraft {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const draft = value as Partial<StoredScorecardDraft>
+  return draft.version === 1
+    && typeof draft.teamName === 'string'
+    && typeof draft.matchDate === 'string'
+    && typeof draft.opponentTeam === 'string'
+    && typeof draft.matchTime === 'string'
+    && typeof draft.facility === 'string'
+    && Array.isArray(draft.courts)
+    && draft.courts.every((court) => (
+      court
+      && typeof court === 'object'
+      && typeof court.id === 'string'
+      && Number.isInteger(court.courtNumber)
+      && (court.matchType === 'singles' || court.matchType === 'doubles')
+      && Array.isArray(court.teamPlayers)
+      && Array.isArray(court.opponentPlayers)
+      && (court.outcome === 'team' || court.outcome === 'opponent')
+      && typeof court.score === 'string'
+    ))
+}
+
 function formatRating(value: number | null) {
   return value === null ? 'TiQ pending' : value.toFixed(2)
 }
@@ -95,10 +141,12 @@ function RecordResultContent() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [draftReady, setDraftReady] = useState(false)
   const [savedRecap, setSavedRecap] = useState<CaptainScorecardSavedRecap | null>(null)
   const [teamAnnouncementUpdated, setTeamAnnouncementUpdated] = useState(false)
   const [resultShareNotice, setResultShareNotice] = useState('')
   const lineupPrefillKey = useRef('')
+  const restoredScorecardDraftKey = useRef('')
   const scorecardPhotoPrefillKey = useRef('')
   const scorecardPhotoPrefillActive = useRef(false)
   const [dataAssistBatchId, setDataAssistBatchId] = useState('')
@@ -135,10 +183,72 @@ function RecordResultContent() {
     })
     return `/data-assist?${captureParams.toString()}`
   }, [facility, flight, leagueName, matchDate, matchTime, opponentTeam, teamName])
+  const scorecardDraftStorageKey = useMemo(() => buildScorecardDraftStorageKey({
+    teamName,
+    leagueName,
+    flight,
+    matchDate: defaultDate,
+    opponentTeam: defaultOpponent,
+  }), [defaultDate, defaultOpponent, flight, leagueName, teamName])
   const activeCourtId = openCourtId === undefined
     ? courts[0]?.id || ''
     : courts.some((court) => court.id === openCourtId) ? openCourtId || '' : ''
   const completedCourtCount = courts.filter(isCourtEntryComplete).length
+
+  useEffect(() => {
+    if (restoredScorecardDraftKey.current === scorecardDraftStorageKey) return
+    restoredScorecardDraftKey.current = scorecardDraftStorageKey
+    if (!scorecardDraftStorageKey || scorecardPhotoDraftId) {
+      setDraftReady(true)
+      return
+    }
+
+    try {
+      const raw = window.localStorage.getItem(scorecardDraftStorageKey)
+      if (!raw) return
+      const draft = JSON.parse(raw) as unknown
+      if (!isStoredScorecardDraft(draft) || normalizeName(draft.teamName).toLowerCase() !== normalizeName(teamName).toLowerCase()) return
+      setMatchDate(draft.matchDate)
+      setOpponentTeam(draft.opponentTeam)
+      setMatchTime(draft.matchTime)
+      setFacility(draft.facility)
+      setCourts(draft.courts)
+      lineupPrefillKey.current = [teamName, leagueName, flight, draft.matchDate, draft.opponentTeam].join('::').toLowerCase()
+      setNotice('Your in-progress scorecard was restored on this device.')
+    } catch {
+      // A malformed local draft should never block a captain from recording a result.
+      window.localStorage.removeItem(scorecardDraftStorageKey)
+    } finally {
+      setDraftReady(true)
+    }
+  }, [flight, leagueName, scorecardDraftStorageKey, scorecardPhotoDraftId, teamName])
+
+  useEffect(() => {
+    if (!draftReady || !scorecardDraftStorageKey) return
+    const hasProgress = courts.some((court) => (
+      court.teamPlayers.some((name) => Boolean(normalizeName(name)))
+      || court.opponentPlayers.some((name) => Boolean(normalizeName(name)))
+      || Boolean(court.score.trim())
+    ))
+    try {
+      if (!hasProgress) {
+        window.localStorage.removeItem(scorecardDraftStorageKey)
+        return
+      }
+      const draft: StoredScorecardDraft = {
+        version: 1,
+        teamName,
+        matchDate,
+        opponentTeam,
+        matchTime,
+        facility,
+        courts,
+      }
+      window.localStorage.setItem(scorecardDraftStorageKey, JSON.stringify(draft))
+    } catch {
+      // Score entry remains fully usable when device storage is unavailable.
+    }
+  }, [courts, draftReady, facility, matchDate, matchTime, opponentTeam, scorecardDraftStorageKey, teamName])
 
   useEffect(() => {
     if (!authResolved || !session?.access_token || !teamName) return
@@ -354,6 +464,7 @@ function RecordResultContent() {
       setSavedRecap(payload.recap || null)
       setTeamAnnouncementUpdated(payload.teamAnnouncementUpdated === true)
       if (payload.externalMatchId) {
+        if (scorecardDraftStorageKey) window.localStorage.removeItem(scorecardDraftStorageKey)
         const url = new URL(window.location.href)
         if (dataAssistBatchId) window.sessionStorage.removeItem(captainScorecardPhotoPrefillStorageKey(dataAssistBatchId))
         scorecardPhotoPrefillKey.current = ''
