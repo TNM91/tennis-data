@@ -23,7 +23,7 @@ import {
 } from '@/lib/tiq-league-service'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
-const dataAssistTeamsHref = '/data-assist?intent=upload-source&context=League%20Office%20teams'
+const dataAssistTeamsHref = '/data-assist?intent=upload-source&type=team_summary&context=Add%20my%20team#upload'
 const FUTURE_JWT_SETTLE_DELAY_MS = 3_000
 
 function isFutureJwtError(error: unknown) {
@@ -68,11 +68,11 @@ const teamPathActions = [
   },
   {
     href: dataAssistTeamsHref,
-    job: 'refresh_roster',
-    question: 'How do I refresh the roster?',
-    title: 'Upload team data',
-    body: 'Send reviewed Player Rosters or scorecards through Data Assist when team context is stale.',
-    cta: 'Refresh data',
+    job: 'add_team',
+    question: 'How do I add my team?',
+    title: 'Add my team',
+    body: 'Start with a TennisLink Team Summary. TiQ reads the team, league, flight, and roster, then you approve your private team link.',
+    cta: 'Add team',
   },
   {
     href: '/captain/lineup-builder',

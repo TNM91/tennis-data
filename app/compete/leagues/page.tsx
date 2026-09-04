@@ -32,11 +32,11 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 const leaguePathActions = [
   {
     href: '/league-coordinator',
-    job: 'run_league',
-    question: 'How do I run the season?',
-    title: 'Open League Office',
-    body: 'Set up seasons, approve entries, publish league rooms, schedule matches, and keep standings moving.',
-    cta: 'Open League Office',
+    job: 'create_league',
+    question: 'Starting a new league season?',
+    title: 'Create a league',
+    body: 'Start in League Office, then add teams or players, publish the schedule, and keep standings moving.',
+    cta: 'Create league',
   },
   {
     href: '/explore/leagues',

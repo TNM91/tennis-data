@@ -26,6 +26,26 @@ type SiteHeaderProps = {
   onCompactMenuOpenChange?: (open: boolean) => void
 }
 
+const HEADER_START_ITEMS: Array<{
+  href: string
+  label: string
+  description: string
+  icon: TiqFeatureIconName
+}> = [
+  {
+    href: '/data-assist?intent=upload-source&type=team_summary&context=Add%20my%20team#upload',
+    label: 'Add my team',
+    description: 'Upload a TennisLink Team Summary. TiQ reads the team, league, flight, and roster first.',
+    icon: 'lineupBuilder',
+  },
+  {
+    href: '/league-coordinator#league-setup-form',
+    label: 'Create a league',
+    description: 'Starting a new season? Set up the league first, then add teams, players, and the schedule.',
+    icon: 'teamRankings',
+  },
+]
+
 const HEADER_UPLOAD_ITEMS: Array<{
   href: string
   label: string
@@ -39,9 +59,9 @@ const HEADER_UPLOAD_ITEMS: Array<{
     icon: 'dataUpload',
   },
   {
-    href: '/data-assist?intent=upload-source&type=team_summary#upload',
-    label: 'Player roster',
-    description: 'Team Summary export',
+    href: '/data-assist?intent=upload-source&type=team_summary&context=Add%20my%20team#upload',
+    label: 'Team Summary',
+    description: 'Team, league, flight, and roster',
     icon: 'lineupBuilder',
   },
   {
@@ -379,9 +399,9 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
           >
             <div style={headerUploadPanelHeaderStyle}>
               <div style={headerUploadPanelTitleBlockStyle}>
-                <span style={mobileSectionLabelStyle}>New tennis data</span>
-                <h2 id="site-header-upload-title" style={headerUploadPanelTitleStyle}>What are you uploading?</h2>
-                <p style={headerUploadPanelCopyStyle}>Choose the source and TenAceIQ will open the matching upload lane.</p>
+                <span style={mobileSectionLabelStyle}>Add to TenAceIQ</span>
+                <h2 id="site-header-upload-title" style={headerUploadPanelTitleStyle}>What do you want to add?</h2>
+                <p style={headerUploadPanelCopyStyle}>Start with the tennis outcome. We will take you to the right next step.</p>
               </div>
               <button
                 type="button"
@@ -391,6 +411,28 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               >
                 <CloseIcon />
               </button>
+            </div>
+
+            <div style={{ ...headerUploadChoiceGridStyle, gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))' }}>
+              {HEADER_START_ITEMS.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setUploadOpen(false)}
+                  style={headerUploadStartChoiceStyle}
+                >
+                  <TiqFeatureIcon name={item.icon} size="sm" variant="ghost" />
+                  <span style={headerUploadChoiceCopyStyle}>
+                    <strong style={headerUploadChoiceTitleStyle}>{item.label}</strong>
+                    <span style={headerUploadChoiceDescriptionStyle}>{item.description}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+
+            <div style={headerUploadFileDividerStyle}>
+              <strong>Already have a file?</strong>
+              <span>Choose its type and upload it.</span>
             </div>
 
             <div style={{ ...headerUploadChoiceGridStyle, gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))' }}>
@@ -1088,6 +1130,24 @@ const headerUploadChoiceStyle: CSSProperties = {
   background: 'color-mix(in srgb, var(--shell-chip-bg) 88%, transparent 12%)',
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
+}
+
+const headerUploadStartChoiceStyle: CSSProperties = {
+  ...headerUploadChoiceStyle,
+  minHeight: 76,
+  borderColor: 'color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
+  background: 'linear-gradient(140deg, color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%), color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%))',
+}
+
+const headerUploadFileDividerStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+  padding: '3px 2px 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.25,
+  fontWeight: 700,
 }
 
 const headerUploadChoiceCopyStyle: CSSProperties = {
