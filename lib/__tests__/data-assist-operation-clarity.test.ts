@@ -9,7 +9,7 @@ describe('Data Assist upload operation clarity', () => {
     expect(source).toContain('type DataAssistOutcome')
     expect(source).toContain('function DataAssistOutcomePanel')
     expect(source).toContain('data-data-assist-outcome={outcome.tone}')
-    expect(source).toContain("title: 'Roster imported'")
+    expect(source).toContain("title: duplicate ? 'Roster already in TiQ' : 'Roster imported'")
     expect(source).toContain('buildImportedDataAssistOutcome(ocrResult.parsedDraft, result.batchId)')
     expect(source).toContain('setFocusedSubmissionId(nextOutcome?.batchId || \'\')')
     expect(source).toContain('Open import record')
