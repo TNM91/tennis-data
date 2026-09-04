@@ -817,14 +817,24 @@ function TiqLeagueDetailContent() {
   const availableTeamOptions = useMemo(() => {
     if (!league || league.leagueFormat !== 'team') return []
 
-    return teamOptions.filter((option) => {
-      if (visibleTeamEntries.some((entry) => entry.teamName.toLowerCase() === option.team.toLowerCase())) {
-        return false
-      }
-
+    const listedByLeagueOffice = visibleTeamEntries.map((entry) => ({
+      key: `league-entry:${entry.teamEntityId || entry.teamName.toLowerCase()}`,
+      team: entry.teamName,
+      league: entry.sourceLeagueName || league.leagueName || null,
+      flight: entry.sourceFlight || league.flight || null,
+      matchCount: 0,
+      mostRecentMatchDate: null,
+      source: 'canonical' as const,
+    }))
+    const listedTeamKeys = new Set(
+      listedByLeagueOffice.map((option) => `${option.team.toLowerCase()}__${option.league || ''}__${option.flight || ''}`),
+    )
+    const directoryOptions = teamOptions.filter((option) => {
       if (league.flight && option.flight && option.flight !== league.flight) return false
-      return true
+      return !listedTeamKeys.has(`${option.team.toLowerCase()}__${option.league || ''}__${option.flight || ''}`)
     })
+
+    return [...listedByLeagueOffice, ...directoryOptions]
   }, [league, teamOptions, visibleTeamEntries])
   const visiblePlayerEntries = useMemo(() => {
     if (!league || league.leagueFormat !== 'individual') return []
@@ -919,7 +929,7 @@ function TiqLeagueDetailContent() {
           },
         ]
       : []
-  const selectedTeamOption = teamOptions.find((item) => item.key === selectedTeamKey) || null
+  const selectedTeamOption = availableTeamOptions.find((item) => item.key === selectedTeamKey) || null
   const resultPlayerAOption =
     resultParticipantOptions.find((option) => option.value === resultPlayerA) || null
   const resultPlayerBOption =
@@ -1726,7 +1736,7 @@ function TiqLeagueDetailContent() {
 
   function handleSelectExistingTeam(nextKey: string) {
     setSelectedTeamKey(nextKey)
-    const option = teamOptions.find((item) => item.key === nextKey)
+    const option = availableTeamOptions.find((item) => item.key === nextKey)
     if (!option) return
     setEntryValue(option.team)
   }
@@ -2980,7 +2990,10 @@ function TiqLeagueDetailContent() {
                   <span>{league.leagueFormat === 'team' ? 'Team name' : 'Player name'}</span>
                   <input
                     value={entryValue}
-                    onChange={(event) => setEntryValue(event.target.value)}
+                    onChange={(event) => {
+                      setEntryValue(event.target.value)
+                      if (league.leagueFormat === 'team') setSelectedTeamKey('')
+                    }}
                     placeholder={entryPlaceholder}
                     style={inputStyle}
                     disabled={saving || Boolean(league.leagueFormat === 'individual' && registrationPlayer)}
@@ -2989,21 +3002,23 @@ function TiqLeagueDetailContent() {
 
                 {league.leagueFormat === 'team' ? (
                   <label style={fieldLabel}>
-                    <span>Choose an existing TenAceIQ team</span>
+                    <span>Choose a team already in TiQ</span>
                     <select
                       value={selectedTeamKey}
                       onChange={(event) => handleSelectExistingTeam(event.target.value)}
                       style={inputStyle}
                       disabled={saving}
                     >
-                      <option value="">Use a custom team name</option>
+                      <option value="">Type a custom team name</option>
                       {availableTeamOptions.map((option) => (
                         <option key={option.key} value={option.key}>
                           {[
                             option.team,
                             option.league || null,
                             option.flight || null,
-                            `${option.matchCount} matches`,
+                            option.key.startsWith('league-entry:')
+                              ? 'Listed by League Office'
+                              : `${option.matchCount} matches`,
                           ]
                             .filter(Boolean)
                             .join(' | ')}
