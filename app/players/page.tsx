@@ -21,6 +21,7 @@ import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import { loadPlayerDirectoryBatches } from '@/lib/player-directory-batching'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 type SortKey = 'overall' | 'singles' | 'doubles' | 'name'
@@ -272,25 +273,28 @@ export default function PlayersPage() {
       const awardsByPlayerId = new Map<string, TiqAwardRecord[]>()
 
       if (playerIds.length > 0) {
-        const { data: matchPlayerRows, error: matchPlayersError } = await supabase
-          .from('match_players')
-          .select(`
-            player_id,
-            match_id,
-            matches (
-              match_type,
-              winner_side,
-              score,
-              match_date
-            )
-          `)
-          .in('player_id', playerIds)
+        const matchPlayerRows = await loadPlayerDirectoryBatches(playerIds, async (playerIdBatch) => {
+          const { data, error: matchPlayersError } = await supabase
+            .from('match_players')
+            .select(`
+              player_id,
+              match_id,
+              matches (
+                match_type,
+                winner_side,
+                score,
+                match_date
+              )
+            `)
+            .in('player_id', playerIdBatch)
 
-        if (matchPlayersError) throw new Error(matchPlayersError.message)
+          if (matchPlayersError) throw new Error(matchPlayersError.message)
+          return (data || []) as MatchPlayerCountRow[]
+        })
 
         const uniqueMatchesByPlayer = new Map<string, Set<string>>()
 
-        for (const row of ((matchPlayerRows || []) as MatchPlayerCountRow[])) {
+        for (const row of matchPlayerRows) {
           const playerId = String(row.player_id)
           const matchId = String(row.match_id || '')
           if (!matchId) continue
@@ -316,20 +320,23 @@ export default function PlayersPage() {
           matchCounts.set(playerId, matchIds.size)
         }
 
-        const { data: snapshotRows, error: snapshotError } = await supabase
-          .from('rating_snapshots')
-          .select(`
-            player_id,
-            rating_type,
-            dynamic_rating,
-            snapshot_date
-          `)
-          .in('player_id', playerIds)
-          .order('snapshot_date', { ascending: true })
+        const snapshotRows = await loadPlayerDirectoryBatches(playerIds, async (playerIdBatch) => {
+          const { data, error: snapshotError } = await supabase
+            .from('rating_snapshots')
+            .select(`
+              player_id,
+              rating_type,
+              dynamic_rating,
+              snapshot_date
+            `)
+            .in('player_id', playerIdBatch)
+            .order('snapshot_date', { ascending: true })
 
-        if (snapshotError) throw new Error(snapshotError.message)
+          if (snapshotError) throw new Error(snapshotError.message)
+          return (data || []) as SnapshotRow[]
+        })
 
-        for (const row of (snapshotRows || []) as SnapshotRow[]) {
+        for (const row of snapshotRows) {
           const key = `${row.player_id}:${row.rating_type || 'overall'}`
           const existing = snapshotsByPlayer.get(key) ?? []
           existing.push(row)
