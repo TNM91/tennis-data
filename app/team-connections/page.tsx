@@ -38,6 +38,7 @@ function TeamConnectionsContent() {
   const [loading, setLoading] = useState(true)
   const [workingId, setWorkingId] = useState('')
   const [message, setMessage] = useState('')
+  const [requestedScope, setRequestedScope] = useState({ teamName: '', leagueName: '', flight: '' })
   const accessToken = session?.access_token || ''
   const access = useMemo(() => buildProductAccessState(userId ? role : 'public', entitlements), [entitlements, role, userId])
 
@@ -67,6 +68,15 @@ function TeamConnectionsContent() {
   }, [accessToken, authResolved, reload])
 
   useEffect(() => subscribeToTeamConnectionsChanged(() => void reload()), [reload])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setRequestedScope({
+      teamName: params.get('team')?.trim() || '',
+      leagueName: params.get('league')?.trim() || '',
+      flight: params.get('flight')?.trim() || '',
+    })
+  }, [])
 
   async function act(connection: TeamConnection, action: 'accept' | 'decline' | 'unlink' | 'relink' | 'restore_roles' | 'set_default') {
     if (!accessToken || workingId) return
@@ -98,6 +108,7 @@ function TeamConnectionsContent() {
   const acceptedPlayerLinks = activeConnections.filter(
     (connection) => connection.status === 'accepted' && connection.roles.includes('player'),
   )
+  const requestedPendingConnection = pending.find((connection) => matchesRequestedTeamScope(connection, requestedScope)) || null
 
   return (
     <main style={pageStyle}>
@@ -119,14 +130,15 @@ function TeamConnectionsContent() {
       {message ? <p style={noticeStyle} role="status" aria-live="polite">{message}</p> : null}
 
       {userId && pending.length ? (
-        <section style={sectionStyle} aria-label="Pending team invitations">
+        <section id="pending-team-links" style={sectionStyle} aria-label="Pending team invitations">
           <div style={sectionHeaderStyle}>
             <span style={eyebrowStyle}>Needs your review</span>
             <h2 style={sectionTitleStyle}>Team invitations</h2>
           </div>
+          {requestedPendingConnection ? <p style={noticeStyle} role="status">Review the highlighted {requestedPendingConnection.teamName} link, then choose Link team.</p> : null}
           <div style={cardGridStyle}>
             {pending.map((connection) => (
-              <ConnectionCard key={connection.id} connection={connection}>
+              <ConnectionCard key={connection.id} connection={connection} highlighted={connection.id === requestedPendingConnection?.id}>
                 <button type="button" onClick={() => void act(connection, 'accept')} disabled={Boolean(workingId)} style={primaryButtonStyle}>
                   {workingId === connection.id ? 'Saving' : connection.isRoleUpdate ? 'Link both roles' : 'Link team'}
                 </button>
@@ -255,9 +267,9 @@ function TeamConnectionsContent() {
   )
 }
 
-function ConnectionCard({ connection, children }: { connection: TeamConnection; children: ReactNode }) {
+function ConnectionCard({ connection, children, highlighted = false }: { connection: TeamConnection; children: ReactNode; highlighted?: boolean }) {
   return (
-    <article style={cardStyle} className="team-connection-card">
+    <article style={highlighted ? { ...cardStyle, ...highlightedCardStyle } : cardStyle} className="team-connection-card" data-highlighted={highlighted || undefined}>
       <div style={copyBlockStyle}>
         <span style={statusStyle}>{connection.archivedAt ? 'Season complete' : connection.isDefault ? 'Default team' : connection.isRoleUpdate ? 'Role update' : connection.status === 'pending' ? 'New' : connection.status}</span>
         <strong style={cardTitleStyle}>{connection.teamName}</strong>
@@ -268,6 +280,13 @@ function ConnectionCard({ connection, children }: { connection: TeamConnection; 
       <div style={cardActionsStyle} className="team-connection-card-actions">{children}</div>
     </article>
   )
+}
+
+function matchesRequestedTeamScope(connection: TeamConnection, requestedScope: { teamName: string; leagueName: string; flight: string }) {
+  const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase()
+  if (!requestedScope.teamName || normalize(connection.teamName) !== normalize(requestedScope.teamName)) return false
+  if (requestedScope.leagueName && normalize(connection.leagueName) !== normalize(requestedScope.leagueName)) return false
+  return !requestedScope.flight || normalize(connection.flight) === normalize(requestedScope.flight)
 }
 
 function formatConnectionDate(value: string) {
@@ -286,6 +305,7 @@ const sectionHeaderStyle: CSSProperties = { display: 'grid', gap: 5 }
 const sectionTitleStyle: CSSProperties = { margin: 0, fontSize: 24, lineHeight: 1.1 }
 const cardGridStyle: CSSProperties = { display: 'grid', gap: 12 }
 const cardStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', gap: 18, minWidth: 0, padding: 18, border: '1px solid rgba(255,255,255,.1)', borderRadius: 20, background: 'rgba(9,24,45,.9)' }
+const highlightedCardStyle: CSSProperties = { borderColor: 'rgba(155,225,29,.62)', background: 'linear-gradient(135deg, rgba(155,225,29,.12), rgba(9,24,45,.94))', boxShadow: '0 0 0 2px rgba(155,225,29,.08)' }
 const copyBlockStyle: CSSProperties = { display: 'grid', gap: 6, minWidth: 0 }
 const cardTitleStyle: CSSProperties = { fontSize: 20, lineHeight: 1.15, overflowWrap: 'anywhere' }
 const metaStyle: CSSProperties = { color: '#fff', fontSize: 13, fontWeight: 900, textTransform: 'capitalize' }

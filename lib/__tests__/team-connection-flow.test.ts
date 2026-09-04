@@ -56,6 +56,19 @@ describe('team connection flow', () => {
     expect(page).toContain("act(connection, 'restore_roles')")
   })
 
+  it('takes a freshly imported team directly to its matching review card', () => {
+    const page = readFileSync(join(process.cwd(), 'app/team-connections/page.tsx'), 'utf8')
+    const dataAssist = readFileSync(join(process.cwd(), 'app/data-assist/page.tsx'), 'utf8')
+
+    expect(dataAssist).toContain('function buildTeamConnectionReviewHref(parsedDraft:')
+    expect(dataAssist).toContain("'Review & link this team'")
+    expect(dataAssist).toContain('#pending-team-links')
+    expect(page).toContain("id=\"pending-team-links\"")
+    expect(page).toContain('matchesRequestedTeamScope(connection, requestedScope)')
+    expect(page).toContain('Review the highlighted')
+    expect(page).toContain('highlightedCardStyle')
+  })
+
   it('protects stored team links with profile-scoped policies', () => {
     const migration = readFileSync(
       join(process.cwd(), 'supabase/migrations/20260801000600_create_team_profile_links.sql'),

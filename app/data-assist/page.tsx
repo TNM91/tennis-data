@@ -3535,6 +3535,7 @@ function TeamSummaryImportedPanel({
 }) {
   const rosterResult = result.importResult?.kind === 'team_summary' ? result.importResult.result : null
   const isPlayerRoster = parsedDraft.rosterSource === 'player_roster'
+  const teamConnectionReviewHref = buildTeamConnectionReviewHref(parsedDraft)
 
   return (
     <div style={importPanelStyle}>
@@ -3576,7 +3577,7 @@ function TeamSummaryImportedPanel({
               : 'If this is your team, review the private team connection next. TiQ checks it against your player profile before it appears in My Teams.'}
           </p>
         </div>
-        <Link href="/team-connections" style={primaryButtonStyle}>{isPlayerRoster ? 'Connect my team' : 'Review team connection'}</Link>
+        <Link href={teamConnectionReviewHref} style={primaryButtonStyle}>{isPlayerRoster ? 'Link this team' : 'Review & link this team'}</Link>
       </section>
       <PostImportActions
         actions={buildRosterPostImportActions(parsedDraft, { context, returnTo })}
@@ -3633,7 +3634,7 @@ function buildRosterPostImportActions(
 ) {
   const actions: Array<{ label: string; href: string }> = []
   if (parsedDraft.rosterSource === 'player_roster') {
-    actions.push({ label: 'Connect my team', href: '/team-connections' })
+    actions.push({ label: 'Link this team', href: buildTeamConnectionReviewHref(parsedDraft) })
   }
   if (options.returnTo) {
     actions.push({
@@ -3654,6 +3655,15 @@ function buildRosterPostImportActions(
   actions.push({ label: 'Open League Office', href: '/league-coordinator#league-setup-form' })
   actions.push({ label: 'Find players', href: buildPlayerSearchHref(parsedDraft.players[0]?.name || parsedDraft.rosterTeamName) })
   return actions
+}
+
+function buildTeamConnectionReviewHref(parsedDraft: Pick<DataAssistTeamSummaryParsedDraft, 'rosterTeamName' | 'leagueName' | 'flight'>) {
+  const params = new URLSearchParams()
+  if (parsedDraft.rosterTeamName) params.set('team', parsedDraft.rosterTeamName)
+  if (parsedDraft.leagueName) params.set('league', parsedDraft.leagueName)
+  if (parsedDraft.flight) params.set('flight', parsedDraft.flight)
+  const query = params.toString()
+  return `/team-connections${query ? `?${query}` : ''}#pending-team-links`
 }
 
 function buildTeamHref(
