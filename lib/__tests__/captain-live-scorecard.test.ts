@@ -49,6 +49,24 @@ describe('Captain live scorecard', () => {
     expect(liveScorecard).toContain('navigator.share')
   })
 
+  it('keeps match-day entry focused on one compact court at a time', () => {
+    expect(liveScorecard).toContain('const [openCourtId, setOpenCourtId] = useState<string | null | undefined>(undefined)')
+    expect(liveScorecard).toContain('Enter one court at a time.')
+    expect(liveScorecard).toContain('ready to submit')
+    expect(liveScorecard).toContain('aria-expanded={isOpen}')
+    expect(liveScorecard).toContain("{isOpen ? 'Done for now' : 'Enter result'}")
+    expect(liveScorecard).toContain('function isCourtEntryComplete(court: CourtDraft)')
+  })
+
+  it('recovers an in-progress scorecard on the same device and clears it after save', () => {
+    expect(liveScorecard).toContain('function buildScorecardDraftStorageKey(input:')
+    expect(liveScorecard).toContain('function isStoredScorecardDraft(value: unknown): value is StoredScorecardDraft')
+    expect(liveScorecard).toContain("setNotice('Your in-progress scorecard was restored on this device.')")
+    expect(liveScorecard).toContain('window.localStorage.setItem(scorecardDraftStorageKey, JSON.stringify(draft))')
+    expect(liveScorecard).toContain('window.localStorage.removeItem(scorecardDraftStorageKey)')
+    expect(liveScorecard).toContain('Draft saved on this device')
+  })
+
   it('returns the opponent roster only through the authorized captain lineup response', () => {
     expect(rosterRoute).toContain('const opponentRosterNames')
     expect(rosterRoute).toContain('opponentRosterNames,')

@@ -3153,7 +3153,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
     setOpeningFinalDelivery(true)
     setError('')
-    setMessage('Preparing the exact lineup for final send...')
+    setMessage('Sending the confirmed lineup to Team Chat…')
     try {
       const response = await fetch('/api/team-rooms', {
         method: 'POST',
@@ -3169,7 +3169,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           silent: true,
           card: {
             cardType: 'projected_lineup',
-            title: 'Final lineup ready to send',
+            title: 'Confirmed lineup',
             matchDate,
             opponent: opponentTeam,
             matchTime: selectedMatch?.match_time || '',
@@ -4800,13 +4800,13 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             ? `${assignedTeamReplySummary.out.length} selected player${assignedTeamReplySummary.out.length === 1 ? ' is' : 's are'} out — adjust that court.`
             : 'Name a player on a court to start the final check.'
   const finalLineupReadinessDetail = finalLineupReady
-    ? 'All selected players have a Yes. Open the final send screen to publish the lineup, share the team image, or print the scorecard.'
+    ? 'All selected players have a Yes. Send this confirmed lineup to Team Chat; the next screen has the image and one-page scorecard.'
     : firstOpenTeamCourt
       ? `Finish ${firstOpenTeamCourt.label}: choose ${firstOpenTeamCourt.openPlayers} more player${firstOpenTeamCourt.openPlayers === 1 ? '' : 's'}.`
     : assignedTeamReplySummary.waiting.length
       ? `Waiting on ${assignedTeamReplySummary.waiting.slice(0, 2).map((player) => player.name).join(' and ')}${assignedTeamReplySummary.waiting.length > 2 ? ` and ${assignedTeamReplySummary.waiting.length - 2} more` : ''}.`
       : 'A selected player only counts after they reply Yes or you use Mark Yes & lock to record a text or call confirmation.'
-  const finalLineupDeliveryLabel = openingFinalDelivery ? 'Preparing final send…' : 'Review & send final lineup'
+  const finalLineupDeliveryLabel = openingFinalDelivery ? 'Sending lineup…' : 'Send lineup to Team Chat'
   const mobileLineupPulse = [
     {
       label: 'Courts',

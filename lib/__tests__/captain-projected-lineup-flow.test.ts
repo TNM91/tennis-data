@@ -126,7 +126,7 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('const teamLineupComplete = completedTeamCourtCount === teamCourtProgress.length')
     expect(source).toContain('Final lineup check')
     expect(source).toContain('Every court is set and every selected player is in.')
-    expect(source).toContain('Review & send final lineup')
+    expect(source).toContain('Send lineup to Team Chat')
     expect(source).toContain('Review player replies')
     expect(source).toContain('<GhostBtn onClick={() => focusTeamCourts()}>Edit courts</GhostBtn>')
   })

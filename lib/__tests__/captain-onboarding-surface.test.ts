@@ -141,6 +141,15 @@ describe('Captain onboarding surface', () => {
     expect(source).toContain('for (const scope of captainTeamScopes)')
   })
 
+  it('keeps a manually selected Captain team in the URL for refreshes and sharing', () => {
+    expect(source).toContain('function selectCaptainTeamScope(option: TeamOption)')
+    expect(source).toContain("nextParams.set('team', option.team)")
+    expect(source).toContain("nextParams.set('league', option.league)")
+    expect(source).toContain("nextParams.set('flight', option.flight)")
+    expect(source).toContain("router.replace(`/captain?${nextParams.toString()}`, { scroll: false })")
+    expect(source).toContain('if (option) selectCaptainTeamScope(option)')
+  })
+
   it('keeps Captain onboarding compact on small mobile screens', () => {
     expect(styleBlock('pageWrap')).toContain("width: 'min(1280px, calc(100% - clamp(24px, 5vw, 48px)))'")
     expect(styleBlock('pageWrap')).toContain('overflowX: \'clip\'')

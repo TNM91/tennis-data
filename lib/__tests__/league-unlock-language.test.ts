@@ -75,7 +75,7 @@ describe('League unlock language', () => {
     expect(tiqLeagueDetailSource).toContain('opening League Office for updates')
     expect(tiqLeagueDetailSource).toContain('League Office records player results')
     expect(tiqLeagueDetailSource).toContain('League Office context')
-    expect(tiqLeagueDetailSource).toContain('Submit your team for League Office approval')
+    expect(tiqLeagueDetailSource).toContain('If League Office listed it first, request it here to connect it to your account after approval.')
     expect(tiqLeagueDetailSource).toContain('Submit your player entry for League Office approval')
     expect(tiqLeagueDetailSource).toContain('Waiting for League Office approval')
     expect(tiqLeagueDetailSource).toContain('League Office Required')

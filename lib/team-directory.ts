@@ -19,6 +19,7 @@ export type TeamDirectoryOption = {
   flight: string | null
   matchCount: number
   mostRecentMatchDate: string | null
+  nextMatch?: { date: string; opponent: string } | null
   source?: 'canonical' | 'tennisrecord'
 }
 
@@ -120,6 +121,17 @@ function compareNullableDatesDesc(left: string | null, right: string | null) {
   return rightTime - leftTime
 }
 
+function getLocalIsoDate() {
+  const today = new Date()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  const day = String(today.getDate()).padStart(2, '0')
+  return `${today.getFullYear()}-${month}-${day}`
+}
+
+function isFutureOrTodayMatch(matchDate: string | null, today = getLocalIsoDate()) {
+  return Boolean(matchDate && /^\d{4}-\d{2}-\d{2}$/.test(matchDate) && matchDate >= today)
+}
+
 export async function listTeamDirectoryOptions(options?: { teamNames?: string[] }): Promise<TeamDirectoryOption[]> {
   const requestedTeamNames = [...new Set((options?.teamNames || []).map((name) => cleanText(name)).filter((name): name is string => Boolean(name)))]
   const matchQuery = () => supabase
@@ -166,6 +178,7 @@ export async function listTeamDirectoryOptions(options?: { teamNames?: string[] 
           flight,
           matchCount: 0,
           mostRecentMatchDate: null,
+          nextMatch: null,
           source: 'canonical',
         })
       }
@@ -174,6 +187,13 @@ export async function listTeamDirectoryOptions(options?: { teamNames?: string[] 
       if (!current) continue
 
       current.matchCount += 1
+      const opponent = team === home ? away : home
+      if (
+        isFutureOrTodayMatch(match.match_date)
+        && (!current.nextMatch || match.match_date! < current.nextMatch.date)
+      ) {
+        current.nextMatch = { date: match.match_date!, opponent }
+      }
       if (
         compareNullableDatesDesc(match.match_date, current.mostRecentMatchDate) < 0 ||
         current.mostRecentMatchDate === null
@@ -209,6 +229,7 @@ export async function listTeamDirectoryOptions(options?: { teamNames?: string[] 
         flight,
         matchCount: 0,
         mostRecentMatchDate: cleanText(row.last_seen_at),
+        nextMatch: null,
         source: 'tennisrecord',
       })
     }

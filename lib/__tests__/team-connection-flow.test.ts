@@ -19,6 +19,41 @@ describe('team connection flow', () => {
     expect(route).toContain('is_default')
   })
 
+  it('makes an approved TIQ team entry a durable My Teams connection', () => {
+    const route = readFileSync(join(process.cwd(), 'app/api/team-connections/route.ts'), 'utf8')
+    const leaguePage = readFileSync(join(process.cwd(), 'app/explore/leagues/tiq/[league]/page.tsx'), 'utf8')
+    const client = readFileSync(join(process.cwd(), 'lib/team-profile-links-client.ts'), 'utf8')
+
+    expect(route).toContain('syncOwnedActiveTiqTeamEntries')
+    expect(route).toContain(".from('tiq_team_league_entries')")
+    expect(route).toContain(".eq('entry_status', 'active')")
+    expect(route).toContain("source_type: 'tiq_entry'")
+    expect(route).toContain("team_role: 'captain'")
+    expect(route).toContain('await reconcileDefaultTeam(service, userId)')
+    expect(leaguePage).toContain('How this becomes your team in TiQ')
+    expect(leaguePage).toContain('League Office approves it')
+    expect(leaguePage).toContain('It appears in My Teams')
+    expect(leaguePage).toContain('If League Office listed it first, request it here to connect it to your account after approval.')
+    expect(leaguePage).toContain("if (league.leagueFormat !== 'team' && currentList.some")
+    expect(leaguePage).toContain("existingRequest?.entryStatus === 'active'")
+    expect(leaguePage).toContain('After League Office approves it, the team appears in My Teams.')
+    expect(leaguePage).toContain('createdByUserId === userId')
+    expect(leaguePage).toContain('is waiting for League Office approval.')
+    expect(leaguePage).toContain('is ready in My Teams.')
+    expect(leaguePage).toContain('Open My Teams')
+    expect(leaguePage).toContain('Add another team')
+    expect(leaguePage).toContain('only when you manage a second team in this league.')
+    expect(leaguePage).toContain("key: `league-entry:${entry.teamEntityId || entry.teamName.toLowerCase()}`")
+    expect(leaguePage).toContain('.filter((entry) => !entry.createdByUserId && !entry.teamEntityId)')
+    expect(leaguePage).toContain('const enteredTeamNames = new Set(visibleTeamEntries.map((entry) => entry.teamName.toLowerCase()))')
+    expect(leaguePage).toContain('Listed by League Office')
+    expect(leaguePage).toContain('Choose a team already in TiQ')
+    expect(leaguePage).toContain("if (league.leagueFormat === 'team') setSelectedTeamKey('')")
+    expect(route).toContain("searchParams.get('refresh') === '1'")
+    expect(route).toContain('if (!forceRefresh)')
+    expect(client).toContain("query.set('refresh', '1')")
+  })
+
   it('rejects an imported opponent team as a Captain connection', () => {
     const route = readFileSync(join(process.cwd(), 'app/api/team-connections/route.ts'), 'utf8')
     const client = readFileSync(join(process.cwd(), 'lib/team-profile-links-client.ts'), 'utf8')
@@ -54,6 +89,42 @@ describe('team connection flow', () => {
     expect(page).toContain("act(connection, 'unlink')")
     expect(page).toContain("act(connection, 'relink')")
     expect(page).toContain("act(connection, 'restore_roles')")
+  })
+
+  it('takes a freshly imported team directly to its matching review card', () => {
+    const page = readFileSync(join(process.cwd(), 'app/team-connections/page.tsx'), 'utf8')
+    const dataAssist = readFileSync(join(process.cwd(), 'app/data-assist/page.tsx'), 'utf8')
+
+    expect(dataAssist).toContain('function buildTeamConnectionReviewHref(parsedDraft:')
+    expect(dataAssist).toContain("'Review & link this team'")
+    expect(dataAssist).toContain('#pending-team-links')
+    expect(page).toContain("id=\"pending-team-links\"")
+    expect(page).toContain('matchesRequestedTeamScope(connection, requestedScope)')
+    expect(page).toContain('Review the highlighted')
+    expect(page).toContain('highlightedCardStyle')
+  })
+
+  it('confirms a newly linked team and immediately offers the next useful destination', () => {
+    const page = readFileSync(join(process.cwd(), 'app/team-connections/page.tsx'), 'utf8')
+
+    expect(page).toContain('const [completedConnection, setCompletedConnection]')
+    expect(page).toContain('await reload()')
+    expect(page).toContain('aria-label="Team link complete"')
+    expect(page).toContain('is now in My Teams.')
+    expect(page).toContain('Open My Teams')
+    expect(page).toContain('Open My Teams for the roster, schedule, and Team Chat.')
+    expect(page).toContain("'Open Captain' : 'Open My Lab'")
+  })
+
+  it('keeps the exact team scope when a captain opens their workspace', () => {
+    const page = readFileSync(join(process.cwd(), 'app/team-connections/page.tsx'), 'utf8')
+
+    expect(page).toContain("import { buildCaptainScopedHref } from '@/lib/captain-memory'")
+    expect(page).toContain('function buildTeamConnectionWorkspaceHref(connection: TeamConnection)')
+    expect(page).toContain("return buildCaptainScopedHref('/captain', {")
+    expect(page).toContain('team: connection.teamName')
+    expect(page).toContain('href={buildTeamConnectionWorkspaceHref(completedConnection)}')
+    expect(page).toContain('href={buildTeamConnectionWorkspaceHref(connection)}')
   })
 
   it('protects stored team links with profile-scoped policies', () => {
@@ -109,9 +180,9 @@ describe('team connection flow', () => {
     expect(page).toContain('acceptedPlayerLinks')
     expect(page).toContain('offers.player.label')
     expect(page).toContain('aria-label="Improve recommendation"')
-    expect(page).toContain('fetchTeamConnections(accessToken, { includeOffers: true, userId })')
+    expect(page).toContain('fetchTeamConnections(accessToken, { includeOffers: true, userId, force: true })')
     expect(banner).toContain('fetchTeamConnections(accessToken, { includeOffers: true })')
-    expect(route).toContain("new URL(request.url).searchParams.get('includeOffers') === '1'")
+    expect(route).toContain("searchParams.get('includeOffers') === '1'")
     expect(route).toContain("console.info('[api/team-connections] loaded'")
   })
 

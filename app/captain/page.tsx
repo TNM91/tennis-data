@@ -2127,6 +2127,28 @@ function CaptainHubContent() {
     }
   }, [captainProfileLink, captainTeamScopes, role, selectedFlight, selectedLeague, selectedTeam, teamScopeResolved, teamSelectionInitialized])
 
+  function selectCaptainTeamScope(option: TeamOption) {
+    setDefaultTeamMessage('')
+    setSelectedTeam(option.team)
+    setSelectedLeague(option.league)
+    setSelectedFlight(option.flight)
+    const nextParams = new URLSearchParams(searchParams.toString())
+    nextParams.set('team', option.team)
+    nextParams.set('league', option.league)
+    nextParams.set('flight', option.flight)
+    router.replace(`/captain?${nextParams.toString()}`, { scroll: false })
+    void trackProductUsageEvent({
+      eventName: 'captain_team_scope_selected',
+      surface: 'captain',
+      planId: 'captain',
+      metadata: {
+        team: option.team,
+        league: option.league,
+        flight: option.flight,
+      },
+    })
+  }
+
   const loadSelectedTeam = useCallback(async () => {
     setLoadingTeam(true)
     setError('')
@@ -18476,22 +18498,7 @@ function CaptainHubContent() {
                 disabled={loadingOptions || !filteredTeamOptions.length}
                 onChange={(e) => {
                   const option = filteredTeamOptions.find((item) => buildTeamOptionKey(item) === e.target.value)
-                  if (option) {
-                    setDefaultTeamMessage('')
-                    setSelectedTeam(option.team)
-                    setSelectedLeague(option.league)
-                    setSelectedFlight(option.flight)
-                    void trackProductUsageEvent({
-                      eventName: 'captain_team_scope_selected',
-                      surface: 'captain',
-                      planId: 'captain',
-                      metadata: {
-                        team: option.team,
-                        league: option.league,
-                        flight: option.flight,
-                      },
-                    })
-                  }
+                  if (option) selectCaptainTeamScope(option)
                 }}
                 style={dynamicSelectStyle}
               >

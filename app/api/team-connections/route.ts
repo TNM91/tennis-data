@@ -38,6 +38,20 @@ type ProfileConnectionRow = {
   linked_flight?: string | null
 }
 
+type TiqTeamEntryConnectionRow = {
+  id?: string | null
+  league_id?: string | null
+  team_name?: string | null
+  source_league_name?: string | null
+  source_flight?: string | null
+}
+
+type TiqLeagueConnectionRow = {
+  id?: string | null
+  league_name?: string | null
+  flight?: string | null
+}
+
 type TeamConnectionsCachedResponse = {
   ok?: boolean
   pending?: TeamConnection[]
@@ -49,19 +63,23 @@ export async function GET(request: Request) {
   const startedAt = Date.now()
   const auth = await getTeamConnectionAuth(request)
   if (!auth.ok) return auth.response
-  const includeOffers = new URL(request.url).searchParams.get('includeOffers') === '1'
+  const searchParams = new URL(request.url).searchParams
+  const includeOffers = searchParams.get('includeOffers') === '1'
+  const forceRefresh = searchParams.get('refresh') === '1'
   const cache = getCache({ namespace: 'team-connections' })
   const cacheKey = `${auth.userId}:${includeOffers ? 'offers' : 'default'}`
 
   try {
-    const cached = await cache.get(cacheKey) as TeamConnectionsCachedResponse | undefined
-    if (cached?.ok && Array.isArray(cached.connections) && Array.isArray(cached.pending)) {
-      console.info('[api/team-connections] cache hit', {
-        includeOffers,
-        durationMs: Date.now() - startedAt,
-        connectionCount: cached.connections.length,
-      })
-      return Response.json(cached)
+    if (!forceRefresh) {
+      const cached = await cache.get(cacheKey) as TeamConnectionsCachedResponse | undefined
+      if (cached?.ok && Array.isArray(cached.connections) && Array.isArray(cached.pending)) {
+        console.info('[api/team-connections] cache hit', {
+          includeOffers,
+          durationMs: Date.now() - startedAt,
+          connectionCount: cached.connections.length,
+        })
+        return Response.json(cached)
+      }
     }
   } catch {
     // Runtime Cache is an optimization; a cache outage must not block teams.
@@ -278,9 +296,7 @@ export async function POST(request: Request) {
 
 async function loadTeamConnections(service: SupabaseClient, userId: string, email: string) {
   // An accepted team link is the account's durable, user-approved connection.
-  // Read it first and return it immediately. Discovery is useful when someone
-  // has not linked a team yet, but it must never hold an existing captain's
-  // Teams screen hostage while the importer is using database capacity.
+  // Keep saved decisions while discovering additional teams and seasons.
   const { data: savedData, error: savedError } = await service
     .from('team_profile_links')
     .select(TEAM_LINK_SELECT)
@@ -289,10 +305,20 @@ async function loadTeamConnections(service: SupabaseClient, userId: string, emai
     .limit(100)
 
   if (savedError) return { ok: false as const, message: savedError.message }
-  const savedLinks = (savedData || []) as TeamProfileLinkRow[]
-  if (savedLinks.some((link) => link.status === 'accepted')) {
-    return { ok: true as const, ...buildTeamConnections({ savedLinks }) }
+  let savedLinks = (savedData || []) as TeamProfileLinkRow[]
+  const syncedTiqEntries = await syncOwnedActiveTiqTeamEntries(service, userId, savedLinks)
+  if (syncedTiqEntries) {
+    const { data: refreshedLinks, error: refreshError } = await service
+      .from('team_profile_links')
+      .select(TEAM_LINK_SELECT)
+      .eq('profile_user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(100)
+    if (refreshError) return { ok: false as const, message: refreshError.message }
+    savedLinks = (refreshedLinks || []) as TeamProfileLinkRow[]
   }
+  // Existing connections must not prevent discovery of a new team or season.
+  // Match candidates by verified email/player identity and leave acceptance explicit.
 
   const { data: profileData, error: profileError } = await service
     .from('profiles')
@@ -351,6 +377,89 @@ async function loadTeamConnections(service: SupabaseClient, userId: string, emai
   })
 
   return { ok: true as const, ...built }
+}
+
+async function syncOwnedActiveTiqTeamEntries(
+  service: SupabaseClient,
+  userId: string,
+  savedLinks: TeamProfileLinkRow[],
+) {
+  try {
+    const { data: entryData, error: entryError } = await service
+      .from('tiq_team_league_entries')
+      .select('id,league_id,team_name,source_league_name,source_flight')
+      .eq('created_by_user_id', userId)
+      .eq('entry_status', 'active')
+      .limit(100)
+    if (entryError) return false
+
+    const entries = (entryData || []) as TiqTeamEntryConnectionRow[]
+    const leagueIds = [...new Set(entries.map((entry) => cleanText(entry.league_id)).filter(Boolean))]
+    const { data: leagueData, error: leagueError } = leagueIds.length
+      ? await service
+          .from('tiq_leagues')
+          .select('id,league_name,flight')
+          .in('id', leagueIds)
+          .limit(100)
+      : { data: [], error: null }
+    if (leagueError) return false
+
+    const leaguesById = new Map(
+      ((leagueData || []) as TiqLeagueConnectionRow[]).map((league) => [cleanText(league.id), league]),
+    )
+    const savedScopes = new Set(savedLinks.map((link) => buildTeamConnectionScopeKey({
+      teamName: link.team_name,
+      leagueName: link.league_name,
+      flight: link.flight,
+    })))
+    const now = new Date().toISOString()
+    const additions = entries.flatMap((entry) => {
+      const teamName = cleanText(entry.team_name)
+      const entryId = cleanText(entry.id)
+      const league = leaguesById.get(cleanText(entry.league_id))
+      const leagueName = cleanText(entry.source_league_name) || cleanText(league?.league_name)
+      const flight = cleanText(entry.source_flight) || cleanText(league?.flight)
+      const scope = buildTeamConnectionScopeKey({ teamName, leagueName, flight })
+      if (!teamName || !entryId || savedScopes.has(scope)) return []
+      savedScopes.add(scope)
+      return [{
+        profile_user_id: userId,
+        source_actor_user_id: userId,
+        team_name: teamName,
+        normalized_team_name: normalizeKey(teamName),
+        league_name: leagueName,
+        flight,
+        team_role: 'captain',
+        team_roles: ['captain'],
+        declined_roles: [],
+        role_accepted_at: { captain: now },
+        matched_player_id: null,
+        source_type: 'tiq_entry',
+        source_record_id: entryId,
+        status: 'accepted',
+        archived_at: null,
+        accepted_at: now,
+        unlinked_at: null,
+        updated_at: now,
+      }]
+    })
+    if (!additions.length) return false
+
+    const { error: saveError } = await service
+      .from('team_profile_links')
+      .upsert(additions, {
+        onConflict: 'profile_user_id,normalized_team_name,league_name,flight',
+        ignoreDuplicates: true,
+      })
+    if (saveError) return false
+
+    await reconcileDefaultTeam(service, userId)
+    return true
+  } catch {
+    // Team links remain available from roster and import sources if TIQ entry
+    // synchronization is temporarily unavailable.
+    return false
+  }
 }
 
 async function resolveDiscoveredCandidate(input: {

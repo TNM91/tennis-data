@@ -11,7 +11,7 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
-import { fetchTeamConnections, getCachedTeamConnections } from '@/lib/team-profile-links-client'
+import { fetchTeamConnections, getCachedTeamConnections, updateTeamConnection } from '@/lib/team-profile-links-client'
 import { isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { buildTeamProfileHref } from '@/lib/team-routes'
@@ -25,6 +25,12 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const dataAssistTeamsHref = '/data-assist?intent=upload-source&type=team_summary&context=Add%20my%20team#upload'
 const FUTURE_JWT_SETTLE_DELAY_MS = 3_000
+
+function formatUpcomingTeamMatchDate(value: string) {
+  const date = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date)
+}
 
 function isFutureJwtError(error: unknown) {
   return error instanceof Error && error.message.toLowerCase().includes('jwt issued at future')
@@ -69,10 +75,18 @@ const teamPathActions = [
   {
     href: dataAssistTeamsHref,
     job: 'add_team',
-    question: 'How do I add my team?',
-    title: 'Add my team',
+    question: 'Do I have a TennisLink team?',
+    title: 'Import TennisLink team',
     body: 'Start with a TennisLink Team Summary. TiQ reads the team, league, flight, and roster, then you approve your private team link.',
-    cta: 'Add team',
+    cta: 'Upload Team Summary',
+  },
+  {
+    href: '/explore/leagues?layer=tiq',
+    job: 'enter_tiq_team',
+    question: 'Am I joining a TIQ league?',
+    title: 'Enter TIQ team',
+    body: 'Open the team league, select an existing team or type a custom team name, then wait for League Office approval before it appears in My Teams.',
+    cta: 'Find TIQ league',
   },
   {
     href: '/captain/lineup-builder',
@@ -122,6 +136,8 @@ function CompeteTeamsContent() {
   const [connectionError, setConnectionError] = useState('')
   const [connectionRefresh, setConnectionRefresh] = useState(0)
   const [storageWarning, setStorageWarning] = useState('')
+  const [defaultTeamMessage, setDefaultTeamMessage] = useState('')
+  const [savingDefaultTeamId, setSavingDefaultTeamId] = useState('')
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
   const accessToken = session?.access_token || ''
@@ -240,12 +256,34 @@ function CompeteTeamsContent() {
     }
 
     return Array.from(grouped.values()).sort((left, right) => {
+      if (left.connection.isDefault !== right.connection.isDefault) {
+        return left.connection.isDefault ? -1 : 1
+      }
       if (right.tiqLeagues.length !== left.tiqLeagues.length) {
         return right.tiqLeagues.length - left.tiqLeagues.length
       }
       return left.teamName.localeCompare(right.teamName)
     })
   }, [connections, participations, teamDirectory])
+  const defaultTeam = groupedTeams.find((group) => group.connection.isDefault) || null
+
+  async function makeDefaultTeam(connection: TeamConnection) {
+    if (!accessToken || savingDefaultTeamId) return
+    setSavingDefaultTeamId(connection.id)
+    setDefaultTeamMessage('')
+    try {
+      await updateTeamConnection({ accessToken, connectionId: connection.id, action: 'set_default' })
+      setConnections((current) => current.map((item) => ({
+        ...item,
+        isDefault: item.id === connection.id,
+      })))
+      setDefaultTeamMessage(`${connection.teamName} will open first in Captain and My Lab.`)
+    } catch (error) {
+      setDefaultTeamMessage(error instanceof Error ? error.message : 'We could not set your default team. Please try again.')
+    } finally {
+      setSavingDefaultTeamId('')
+    }
+  }
 
   return (
     <>
@@ -281,15 +319,20 @@ function CompeteTeamsContent() {
             : loading
             ? 'Getting your teams...'
             : groupedTeams.length > 0
-              ? 'Open a team for its roster, schedule, stats, and Team Chat.'
+              ? groupedTeams.length === 1
+                ? 'Open the roster and schedule, then use Team Chat or Build lineup when needed.'
+                : defaultTeam
+                  ? `${groupedTeams.length} teams connected. ${defaultTeam.teamName} opens first in Captain and My Lab.`
+                  : `${groupedTeams.length} teams connected. Choose a default team in Manage team links.`
               : userId
                 ? 'Accept a team connection or connect your player profile to bring your teams here.'
                 : 'Public team pages are open now. Accepted team connections appear here after registration.'}
         </div>
 
-        {authResolved && userId ? (
+        {authResolved && userId && groupedTeams.length > 0 ? (
           <div style={{ ...teamsHeaderActionRowStyle, ...(isMobile ? teamsHeaderActionRowMobileStyle : {}) }} aria-label="Team setup actions">
-            <Link href={dataAssistTeamsHref} style={teamPrimaryActionStyle}>Add a team</Link>
+            <Link href={dataAssistTeamsHref} style={teamPrimaryActionStyle}>Import TennisLink team</Link>
+            <Link href="/explore/leagues?layer=tiq" style={teamSecondaryLinkStyle}>Enter TIQ team</Link>
             <Link href="/team-connections" style={teamSecondaryLinkStyle}>
               {pendingConnections.length > 0 ? 'Review team links' : 'Manage team links'}
             </Link>
@@ -297,6 +340,7 @@ function CompeteTeamsContent() {
         ) : null}
 
         {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
+        {defaultTeamMessage ? <div style={defaultTeamNoticeStyle} role="status">{defaultTeamMessage}</div> : null}
         {connectionError ? (
           <TeamListLoadError message={connectionError} onRetry={() => setConnectionRefresh((value) => value + 1)} />
         ) : loading ? (
@@ -327,14 +371,19 @@ function CompeteTeamsContent() {
                 flight: group.sourceFlight,
               })
               const canStartTeamLineup = access.canUseCaptainWorkflow || isCaptainTeamConnection(group.connection.roles)
+              const upcomingMatch = group.directoryOption?.nextMatch || null
               const teamFacts = [
                 {
                   label: 'Team connection',
                   value: 'Connected',
                 },
                 {
-                  label: 'Match history',
-                  value: group.directoryOption ? `${group.directoryOption.matchCount} matches` : 'Match data syncing',
+                  label: 'Next match',
+                  value: upcomingMatch
+                    ? `${formatUpcomingTeamMatchDate(upcomingMatch.date)} vs ${upcomingMatch.opponent}`
+                    : group.directoryOption
+                      ? `${group.directoryOption.matchCount} matches in history`
+                      : 'Schedule syncing',
                 },
               ]
               const teamMetaItems = [
@@ -347,6 +396,7 @@ function CompeteTeamsContent() {
                   key={`${group.teamName}-${group.sourceLeagueName}-${group.sourceFlight}`}
                   style={{
                     ...rowStyle,
+                    ...(group.connection.isDefault ? defaultTeamRowStyle : {}),
                     padding: isMobile ? '14px' : rowStyle.padding,
                     borderRadius: isMobile ? '16px' : rowStyle.borderRadius,
                   }}
@@ -354,6 +404,7 @@ function CompeteTeamsContent() {
                   <div style={teamCopyStyle}>
                     <div style={{ ...rowTitleStyle, fontSize: isMobile ? '17px' : rowTitleStyle.fontSize }}>{group.teamName}</div>
                     <div style={rowMetaStyle}>
+                      {group.connection.isDefault ? <span style={defaultTeamChipStyle}>Default team</span> : null}
                       {teamMetaItems.map((item) => <span key={item} style={rowMetaChipStyle}>{item}</span>)}
                     </div>
                     <dl style={teamFactsStyle} aria-label={`${group.teamName} team status`}>
@@ -364,14 +415,28 @@ function CompeteTeamsContent() {
                         </div>
                       ))}
                     </dl>
-                    <Link href={teamPageHref} style={{ ...teamPrimaryActionStyle, width: isMobile ? '100%' : undefined }}>
-                      Open team
+                    <Link
+                      href={teamPageHref}
+                      style={{ ...teamPrimaryActionStyle, width: isMobile ? '100%' : undefined }}
+                      aria-label={`Open ${group.teamName} roster and schedule`}
+                    >
+                      Roster & schedule
                     </Link>
                   </div>
                   <div style={isMobile ? { ...teamRowActionStyle, ...teamRowActionMobileStyle } : teamRowActionStyle}>
                     <Link href={teamRoomHref} style={teamSecondaryLinkStyle}>Team Chat</Link>
                     {canStartTeamLineup ? (
                       <Link href={lineupHref} style={teamSecondaryLinkStyle}>Build lineup</Link>
+                    ) : null}
+                    {groupedTeams.length > 1 && !group.connection.isDefault ? (
+                      <button
+                        type="button"
+                        onClick={() => void makeDefaultTeam(group.connection)}
+                        disabled={Boolean(savingDefaultTeamId)}
+                        style={teamSecondaryButtonStyle}
+                      >
+                        {savingDefaultTeamId === group.connection.id ? 'Saving…' : 'Make default'}
+                      </button>
                     ) : null}
                   </div>
                 </div>
@@ -619,7 +684,7 @@ function TeamAccountAccessPanel({
         ? `${linkedTeamCount} team${linkedTeamCount === 1 ? '' : 's'} connected.`
         : pendingTeamCount > 0
           ? `${pendingTeamCount} team connection${pendingTeamCount === 1 ? '' : 's'} waiting.`
-          : 'Connect your first team.'
+          : 'Add or link your first team.'
 
   return (
     <section
@@ -637,7 +702,9 @@ function TeamAccountAccessPanel({
         <span style={sectionTextStyle}>
           {!signedIn
             ? 'A Free account includes every accepted team’s roster, schedule, stats, and private Team Chat.'
-            : 'Team access is included. Player adds personalized improvement tools; Captain adds lineup and match-week decisions.'}
+            : pendingTeamCount > 0
+              ? 'Review the team link waiting for you. Once accepted, its roster, schedule, and Team Chat appear here.'
+              : 'Team access is included. Import a TennisLink Team Summary, link an existing team, or request entry to a TIQ team league.'}
         </span>
         {signedIn && linkedTeamCount > 0 ? (
           <span style={accountTierCueStyle}>
@@ -652,9 +719,17 @@ function TeamAccountAccessPanel({
             <Link href="/login?next=%2Fcompete%2Fteams" style={teamSecondaryLinkStyle}>Sign in</Link>
           </>
         ) : (
-          <Link href="/team-connections" style={teamPrimaryActionStyle}>
-            {pendingTeamCount > 0 ? 'Review team connections' : 'Connect a team'}
-          </Link>
+          <>
+            <Link href={pendingTeamCount > 0 ? '/team-connections' : dataAssistTeamsHref} style={teamPrimaryActionStyle}>
+              {pendingTeamCount > 0 ? 'Review team links' : 'Upload team summary'}
+            </Link>
+            <Link href={pendingTeamCount > 0 ? dataAssistTeamsHref : '/team-connections'} style={teamSecondaryLinkStyle}>
+              {pendingTeamCount > 0 ? 'Upload team summary' : 'Link existing team'}
+            </Link>
+            <Link href="/explore/leagues?layer=tiq" style={teamSecondaryLinkStyle}>
+              Find TIQ league
+            </Link>
+          </>
         )}
       </div>
     </section>
@@ -669,16 +744,13 @@ function EmptyTeamsState({ signedIn, pendingTeamCount }: { signedIn: boolean; pe
         <span>
           {signedIn
             ? pendingTeamCount > 0
-              ? 'Review the team connection waiting for you, then its Team Chat and team tools will open here.'
-              : 'Connect your player profile, accept a team invitation, or find the team already in the public map.'
+              ? 'Review the team link above, then its Team Chat and team tools will open here.'
+              : 'Use the team actions above to upload your Team Summary or link a team already in TiQ.'
             : 'Check rosters, records, standings, and recent results without an account.'}
         </span>
       </div>
       <div style={emptyTeamsActionRowStyle}>
-        {signedIn ? (
-          <Link href="/team-connections" style={emptyTeamsActionStyle}>{pendingTeamCount > 0 ? 'Review connections' : 'Connect team'}</Link>
-        ) : null}
-        <Link href="/teams" style={emptyTeamsActionStyle}>Browse public teams</Link>
+        {!signedIn ? <Link href="/teams" style={emptyTeamsActionStyle}>Browse public teams</Link> : null}
       </div>
     </div>
   )
@@ -1242,6 +1314,11 @@ const rowStyle = {
   minWidth: 0,
 } as const
 
+const defaultTeamRowStyle = {
+  border: '1px solid rgba(155,225,29,0.38)',
+  background: 'linear-gradient(135deg, rgba(79,124,32,0.16), rgba(8,16,34,0.74))',
+} as const
+
 const teamCopyStyle = {
   minWidth: 0,
 } as const
@@ -1272,6 +1349,19 @@ const rowMetaChipStyle = {
   borderRadius: '999px',
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'rgba(116,190,255,0.06)',
+  overflowWrap: 'anywhere',
+} as const
+
+const defaultTeamChipStyle = {
+  display: 'inline-flex',
+  maxWidth: '100%',
+  minWidth: 0,
+  padding: '3px 7px',
+  borderRadius: '999px',
+  border: '1px solid rgba(155,225,29,0.36)',
+  background: 'rgba(155,225,29,0.12)',
+  color: '#efffc6',
+  fontWeight: 900,
   overflowWrap: 'anywhere',
 } as const
 
@@ -1345,6 +1435,12 @@ const teamSecondaryLinkStyle = {
   whiteSpace: 'normal',
 } as const
 
+const teamSecondaryButtonStyle: CSSProperties = {
+  ...teamSecondaryLinkStyle,
+  cursor: 'pointer',
+  font: 'inherit',
+}
+
 const teamRowActionStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -1369,4 +1465,17 @@ const warningStyle = {
   color: 'rgba(253,230,138,0.88)',
   fontSize: '13px',
   lineHeight: 1.55,
+} as const
+
+const defaultTeamNoticeStyle = {
+  marginTop: '12px',
+  padding: '10px 14px',
+  borderRadius: '12px',
+  border: '1px solid rgba(155,225,29,0.30)',
+  background: 'rgba(79,124,32,0.14)',
+  color: '#efffc6',
+  fontSize: '13px',
+  fontWeight: 800,
+  lineHeight: 1.5,
+  overflowWrap: 'anywhere',
 } as const

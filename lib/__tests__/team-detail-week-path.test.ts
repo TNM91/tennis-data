@@ -26,6 +26,9 @@ describe('team detail week path', () => {
     expect(source).toContain('aria-label={`${item.cta}: ${item.question}`}')
     expect(source).toContain('const captainWeekFocus =')
     expect(source).toContain('data-team-week-focus={captainWeekFocus.key}')
+    expect(source).toContain('const supplementalCaptainLinks = captainLinks.filter')
+    expect(source).toContain('More Captain tools')
+    expect(source).toContain('{isMobile ? (')
     expect(source).toContain('Readiness check')
     expect(source).toContain('Build for ${nextScheduledMatch.opponent')
     expect(source).toContain('data-team-contact-readiness')
@@ -69,6 +72,8 @@ describe('team detail week path', () => {
     expect(styleBlock('teamWeekActionTextStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('teamWeekFocusStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('teamWeekFocusStyle')).toContain("minWidth: 0")
+    expect(styleBlock('teamWeekMoreToolsStyle')).toContain('minWidth: 0')
+    expect(styleBlock('teamWeekMoreToolsSummaryStyle')).toContain("cursor: 'pointer'")
   })
 
   it('keeps the core team jobs first and removes generic player-ID detours', () => {

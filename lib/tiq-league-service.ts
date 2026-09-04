@@ -63,6 +63,7 @@ export type TiqTeamLeagueEntryRecord = {
   sourceLeagueName: string
   sourceFlight: string
   entryStatus: TiqLeagueEntryStatus
+  createdByUserId: string
 }
 
 export type TiqTeamParticipationRecord = {
@@ -148,6 +149,7 @@ type TiqLeagueRow = {
 }
 
 type TiqTeamEntryRow = {
+  created_by_user_id?: string | null
   league_id?: string | null
   team_name?: string | null
   team_entity_id?: string | null
@@ -314,6 +316,7 @@ function normalizeTeamEntryRow(row: TiqTeamEntryRow): TiqTeamLeagueEntryRecord |
     sourceLeagueName: cleanText(row.source_league_name),
     sourceFlight: cleanText(row.source_flight),
     entryStatus: normalizeEntryStatus(row.entry_status),
+    createdByUserId: cleanText(row.created_by_user_id),
   }
 }
 
@@ -526,7 +529,7 @@ async function tryLoadRemoteParticipantEntries() {
       await Promise.all([
         supabase
           .from(TIQ_TEAM_ENTRIES_TABLE)
-          .select('league_id, team_name, team_entity_id, source_league_name, source_flight, entry_status'),
+          .select('created_by_user_id,league_id, team_name, team_entity_id, source_league_name, source_flight, entry_status'),
         supabase
           .from(TIQ_PLAYER_ENTRIES_TABLE)
           .select('league_id, player_name, player_id, player_location, entry_status'),
@@ -627,7 +630,7 @@ export async function listTiqTeamLeagueEntries(
   try {
     const { data, error } = await supabase
       .from(TIQ_TEAM_ENTRIES_TABLE)
-      .select('league_id, team_name, team_entity_id, source_league_name, source_flight, entry_status')
+      .select('created_by_user_id,league_id, team_name, team_entity_id, source_league_name, source_flight, entry_status')
       .eq('league_id', normalizedLeagueId)
 
     if (error) throw error
@@ -653,6 +656,7 @@ export async function listTiqTeamLeagueEntries(
         sourceLeagueName: '',
         sourceFlight: '',
         entryStatus: 'active',
+        createdByUserId: '',
       })),
       source: 'local',
       warning:
@@ -683,7 +687,7 @@ export async function listTiqTeamParticipations(
     const [{ data: entryRows, error: entryError }, leagueResult] = await Promise.all([
       supabase
         .from(TIQ_TEAM_ENTRIES_TABLE)
-        .select('league_id, team_name, team_entity_id, source_league_name, source_flight, entry_status'),
+        .select('created_by_user_id,league_id, team_name, team_entity_id, source_league_name, source_flight, entry_status'),
       listTiqLeagues(),
     ])
 

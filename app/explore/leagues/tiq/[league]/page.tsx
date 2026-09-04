@@ -427,6 +427,7 @@ function TiqLeagueDetailContent() {
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
   const [saving, setSaving] = useState(false)
+  const [addingAnotherTeam, setAddingAnotherTeam] = useState(false)
   const [entryValue, setEntryValue] = useState('')
   const [selectedTeamKey, setSelectedTeamKey] = useState('')
   const [teamOptions, setTeamOptions] = useState<TeamDirectoryOption[]>([])
@@ -515,6 +516,7 @@ function TiqLeagueDetailContent() {
             : '',
         )
         setSelectedTeamKey('')
+        setAddingAnotherTeam(false)
         setEntryAgeAttested(false)
         setEntryDivisionAttested(false)
       } catch (err) {
@@ -736,8 +738,18 @@ function TiqLeagueDetailContent() {
   const individualFormatExperience = getTiqIndividualCompetitionFormatExperience(
     league?.individualCompetitionFormat,
   )
+  const yourTeamEntries = useMemo(() => {
+    if (!league || league.leagueFormat !== 'team' || !userId) return []
+    return teamEntries.filter((entry) => entry.createdByUserId === userId)
+  }, [league, teamEntries, userId])
+  const yourActiveTeamEntries = yourTeamEntries.filter((entry) => entry.entryStatus === 'active')
+  const yourPendingTeamEntries = yourTeamEntries.filter((entry) => entry.entryStatus === 'pending')
+  const hasExistingTiqTeamEntry = yourTeamEntries.length > 0
+  const showTeamEntryForm = league?.leagueFormat !== 'team' || !hasExistingTiqTeamEntry || addingAnotherTeam
   const entryEnabled = league?.leagueFormat === 'team' ? access.canEnterTiqTeamLeague : access.canJoinTiqIndividualLeague
-  const entryLabel = league?.leagueFormat === 'team' ? 'Request Team Entry' : 'Request to Join'
+  const entryLabel = league?.leagueFormat === 'team'
+    ? hasExistingTiqTeamEntry ? 'Request Another Team' : 'Request Team Entry'
+    : 'Request to Join'
   const entryPlaceholder =
     league?.leagueFormat === 'team' ? 'North Dallas Aces' : deriveDefaultParticipantName(userEmail) || 'Player name'
   const entryMessage =
@@ -799,19 +811,34 @@ function TiqLeagueDetailContent() {
       sourceLeagueName: '',
       sourceFlight: '',
       entryStatus: 'active' as const,
+      createdByUserId: '',
     }))
   }, [league, teamEntries])
   const availableTeamOptions = useMemo(() => {
     if (!league || league.leagueFormat !== 'team') return []
 
-    return teamOptions.filter((option) => {
-      if (visibleTeamEntries.some((entry) => entry.teamName.toLowerCase() === option.team.toLowerCase())) {
-        return false
-      }
-
+    const listedByLeagueOffice = visibleTeamEntries
+      .filter((entry) => !entry.createdByUserId && !entry.teamEntityId)
+      .map((entry) => ({
+      key: `league-entry:${entry.teamEntityId || entry.teamName.toLowerCase()}`,
+      team: entry.teamName,
+      league: entry.sourceLeagueName || league.leagueName || null,
+      flight: entry.sourceFlight || league.flight || null,
+      matchCount: 0,
+      mostRecentMatchDate: null,
+      source: 'canonical' as const,
+      }))
+    const listedTeamKeys = new Set(
+      listedByLeagueOffice.map((option) => `${option.team.toLowerCase()}__${option.league || ''}__${option.flight || ''}`),
+    )
+    const enteredTeamNames = new Set(visibleTeamEntries.map((entry) => entry.teamName.toLowerCase()))
+    const directoryOptions = teamOptions.filter((option) => {
       if (league.flight && option.flight && option.flight !== league.flight) return false
-      return true
+      if (enteredTeamNames.has(option.team.toLowerCase())) return false
+      return !listedTeamKeys.has(`${option.team.toLowerCase()}__${option.league || ''}__${option.flight || ''}`)
     })
+
+    return [...listedByLeagueOffice, ...directoryOptions]
   }, [league, teamOptions, visibleTeamEntries])
   const visiblePlayerEntries = useMemo(() => {
     if (!league || league.leagueFormat !== 'individual') return []
@@ -906,7 +933,7 @@ function TiqLeagueDetailContent() {
           },
         ]
       : []
-  const selectedTeamOption = teamOptions.find((item) => item.key === selectedTeamKey) || null
+  const selectedTeamOption = availableTeamOptions.find((item) => item.key === selectedTeamKey) || null
   const resultPlayerAOption =
     resultParticipantOptions.find((option) => option.value === resultPlayerA) || null
   const resultPlayerBOption =
@@ -1713,7 +1740,7 @@ function TiqLeagueDetailContent() {
 
   function handleSelectExistingTeam(nextKey: string) {
     setSelectedTeamKey(nextKey)
-    const option = teamOptions.find((item) => item.key === nextKey)
+    const option = availableTeamOptions.find((item) => item.key === nextKey)
     if (!option) return
     setEntryValue(option.team)
   }
@@ -2106,12 +2133,8 @@ function TiqLeagueDetailContent() {
     }
 
     const currentList = league.leagueFormat === 'team' ? league.teams : league.players
-    if (currentList.some((item) => item.toLowerCase() === normalizedEntry.toLowerCase())) {
-      setStatus(
-        league.leagueFormat === 'team'
-          ? `${normalizedEntry} is already entered in this TIQ team league.`
-          : `${normalizedEntry} is already part of this TIQ individual league.`,
-      )
+    if (league.leagueFormat !== 'team' && currentList.some((item) => item.toLowerCase() === normalizedEntry.toLowerCase())) {
+      setStatus(`${normalizedEntry} is already part of this TIQ individual league.`)
       return
     }
 
@@ -2126,6 +2149,11 @@ function TiqLeagueDetailContent() {
     }
     if (existingRequest?.entryStatus === 'rejected') {
       setStatus(`${normalizedEntry} was previously declined. Contact the coordinator before requesting again.`)
+      return
+    }
+
+    if (league.leagueFormat === 'team' && existingRequest?.entryStatus === 'active') {
+      setStatus(`${normalizedEntry} is already connected to another team entry. Ask League Office to update the team contact if that should be yours.`)
       return
     }
 
@@ -2164,7 +2192,7 @@ function TiqLeagueDetailContent() {
       setStorageWarning(result.warning || '')
       setStatus(
         league.leagueFormat === 'team'
-          ? `${normalizedEntry} requested entry. The coordinator must approve it before the team appears in this league.`
+          ? `${normalizedEntry} requested entry. After League Office approves it, the team appears in My Teams.`
           : `${normalizedEntry} requested entry. The coordinator must approve it before the player appears in this league.`,
       )
       if (league.leagueFormat === 'individual') {
@@ -2907,17 +2935,47 @@ function TiqLeagueDetailContent() {
 
             <div style={dynamicContentGrid}>
               <section id="league-requests" style={dynamicPanelCard}>
-                <div style={sectionEyebrow}>Entry request</div>
+                <div style={sectionEyebrow}>{hasExistingTiqTeamEntry ? 'Your team access' : 'Entry request'}</div>
                 <h2 style={sectionTitle}>
                   {league.leagueFormat === 'team'
-                    ? 'Request team entry'
+                    ? hasExistingTiqTeamEntry ? 'Add another team' : 'Request team entry'
                     : 'Request to join'}
                 </h2>
                 <p style={sectionText}>
                   {league.leagueFormat === 'team'
-                    ? 'Submit your team for League Office approval. Approved teams appear in participants, schedules, results, and standings.'
+                    ? hasExistingTiqTeamEntry
+                      ? 'Your current team access is shown below. Add another team only when you manage a second team in this league.'
+                      : 'Select or type the team you manage. If League Office listed it first, request it here to connect it to your account after approval.'
                     : `Submit your player entry for League Office approval. ${getTiqIndividualCompetitionFormatDescription(league.individualCompetitionFormat)}`}
                 </p>
+
+                {league.leagueFormat === 'team' && !hasExistingTiqTeamEntry ? (
+                  <div style={teamEntryPathStyle} aria-label="How team entry works">
+                    <strong style={teamEntryPathTitleStyle}>How this becomes your team in TiQ</strong>
+                    <div style={teamEntryPathStepsStyle}>
+                      <span>1. Request this team</span>
+                      <span>2. League Office approves it</span>
+                      <span>3. It appears in My Teams</span>
+                    </div>
+                  </div>
+                ) : null}
+
+                {yourPendingTeamEntries.map((entry) => (
+                  <div key={`pending-${entry.teamEntityId || entry.teamName}`} style={teamEntryPendingStatusStyle} aria-live="polite">
+                    <strong>{entry.teamName} is waiting for League Office approval.</strong>
+                    <span>Once it is approved, the team will appear in My Teams with Team Chat and captain tools.</span>
+                  </div>
+                ))}
+
+                {yourActiveTeamEntries.map((entry) => (
+                  <div key={`active-${entry.teamEntityId || entry.teamName}`} style={teamEntryReadyStatusStyle} aria-live="polite">
+                    <div>
+                      <strong>{entry.teamName} is ready in My Teams.</strong>
+                      <span>Open it to manage the roster, schedule, lineup, and Team Chat.</span>
+                    </div>
+                    <Link href="/compete/teams" style={teamEntryReadyLinkStyle}>Open My Teams</Link>
+                  </div>
+                ))}
 
                 {league.leagueFormat === 'individual' ? (
                   <div style={entryRequirementRailStyle} aria-label="Entry requirements">
@@ -2927,11 +2985,15 @@ function TiqLeagueDetailContent() {
                   </div>
                 ) : null}
 
+                {showTeamEntryForm ? <>
                 <label style={fieldLabel}>
                   <span>{league.leagueFormat === 'team' ? 'Team name' : 'Player name'}</span>
                   <input
                     value={entryValue}
-                    onChange={(event) => setEntryValue(event.target.value)}
+                    onChange={(event) => {
+                      setEntryValue(event.target.value)
+                      if (league.leagueFormat === 'team') setSelectedTeamKey('')
+                    }}
                     placeholder={entryPlaceholder}
                     style={inputStyle}
                     disabled={saving || Boolean(league.leagueFormat === 'individual' && registrationPlayer)}
@@ -2940,21 +3002,23 @@ function TiqLeagueDetailContent() {
 
                 {league.leagueFormat === 'team' ? (
                   <label style={fieldLabel}>
-                    <span>Choose an existing TenAceIQ team</span>
+                    <span>Choose a team already in TiQ</span>
                     <select
                       value={selectedTeamKey}
                       onChange={(event) => handleSelectExistingTeam(event.target.value)}
                       style={inputStyle}
                       disabled={saving}
                     >
-                      <option value="">Use a custom team name</option>
+                      <option value="">Type a custom team name</option>
                       {availableTeamOptions.map((option) => (
                         <option key={option.key} value={option.key}>
                           {[
                             option.team,
                             option.league || null,
                             option.flight || null,
-                            `${option.matchCount} matches`,
+                            option.key.startsWith('league-entry:')
+                              ? 'Listed by League Office'
+                              : `${option.matchCount} matches`,
                           ]
                             .filter(Boolean)
                             .join(' | ')}
@@ -3062,6 +3126,24 @@ function TiqLeagueDetailContent() {
                     <GhostLink href="/league-coordinator">Manage TIQ Seasons</GhostLink>
                   ) : null}
                 </div>
+                </> : league.leagueFormat === 'team' ? (
+                  <div style={actionRow}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddingAnotherTeam(true)
+                        setEntryValue('')
+                        setSelectedTeamKey('')
+                        setStatus('')
+                      }}
+                      disabled={!entryEnabled}
+                      style={{ ...primaryButton, ...(!entryEnabled ? disabledButton : {}) }}
+                    >
+                      Add another team
+                    </button>
+                    <GhostLink href="/league-coordinator">Manage TIQ Seasons</GhostLink>
+                  </div>
+                ) : null}
               </section>
 
               <section id="league-participants" style={dynamicPanelCard}>
@@ -4316,6 +4398,74 @@ const statusBanner: CSSProperties = {
   fontWeight: 700,
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const teamEntryPathStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  padding: '12px',
+  borderRadius: '14px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'linear-gradient(135deg, rgba(78,130,27,0.16), rgba(8,13,28,0.52))',
+  minWidth: 0,
+}
+
+const teamEntryPathTitleStyle: CSSProperties = {
+  color: '#efffe9',
+  fontSize: 13,
+  lineHeight: 1.25,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const teamEntryPathStepsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 7,
+  minWidth: 0,
+  color: '#cbd5e1',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 750,
+}
+
+const teamEntryPendingStatusStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  padding: '12px 14px',
+  borderRadius: '14px',
+  border: '1px solid rgba(251,191,36,0.34)',
+  background: 'rgba(251,191,36,0.09)',
+  color: '#fef3c7',
+  fontSize: 13,
+  lineHeight: 1.4,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamEntryReadyStatusStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  padding: '12px 14px',
+  borderRadius: '14px',
+  border: '1px solid rgba(155,225,29,0.32)',
+  background: 'rgba(155,225,29,0.09)',
+  color: '#efffe9',
+  minWidth: 0,
+}
+
+const teamEntryReadyLinkStyle: CSSProperties = {
+  ...ghostButton,
+  width: 'auto',
+  minHeight: 40,
+  padding: '9px 12px',
+  borderColor: 'rgba(155,225,29,0.44)',
+  background: 'rgba(155,225,29,0.13)',
+  color: '#efffe9',
+  flex: '0 0 auto',
 }
 
 const leagueHubPanelStyle: CSSProperties = {

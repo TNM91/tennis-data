@@ -43,6 +43,7 @@ import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { buildSupportMessageHref } from '@/lib/message-links'
+import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import {
   isCaptainImportDraft,
@@ -220,6 +221,7 @@ type DataAssistOutcome = {
   detail: string
   batchId?: string
   target: 'history' | 'latest-read'
+  teamConnectionHref?: string
 }
 
 function getDataAssistIntent(value: string | null): DataAssistIntent | null {
@@ -1002,10 +1004,16 @@ function DataAssistWorkspace() {
       setFocusedSubmissionId(latestScan.batchId)
       setOutcome({
         tone: 'review',
-        title: decision === 'flagged' ? `${reviewLabel} sent for review` : `${reviewLabel} review saved`,
+        title: decision === 'flagged'
+          ? `${reviewLabel} sent for review`
+          : result.autoImport && !result.autoImport.ok
+            ? `${reviewLabel} import paused`
+            : `${reviewLabel} review saved`,
         detail: decision === 'flagged'
           ? 'TiQ saved your note for a closer check. This upload will not change records until it is resolved.'
-          : 'Your review is saved. Open the upload below whenever you need to check its status.',
+          : result.autoImport && !result.autoImport.ok
+            ? `${result.autoImport.message || 'TiQ could not finish importing this upload.'} Open the import record to review its status and next steps.`
+            : 'Your review is saved. Open the upload below whenever you need to check its status.',
         batchId: latestScan.batchId,
         target: 'history',
       })
@@ -1216,7 +1224,7 @@ function DataAssistWorkspace() {
                 <StepBadge step={1} label={teamSetupRequested ? 'Add a team' : 'Data Assist'} />
                 <h1 style={sectionTitleStyle}>{teamSetupRequested ? 'Upload your Team Summary.' : 'Add new tennis data.'}</h1>
                 <p style={copyStyle}>{teamSetupRequested
-                  ? 'TiQ will read your team, league, flight, and roster. Next: add the schedule, then approve your private team link.'
+                  ? 'TiQ will read your team, league, flight, and roster. Next: review your team link to add it to My Teams. Add the schedule later.'
                   : scorecardPhotoReaderReady
                     ? 'Add a TennisLink export or a clear scorecard photo. TiQ reads it first; you confirm it before it changes a match.'
                     : 'Choose the source, add its TennisLink export, then review what TiQ found.'}</p>
@@ -1537,7 +1545,11 @@ function DataAssistWorkspace() {
                 onConfirm={(draft) => void reviewLatestScan('confirmed', draft)}
               />
             ) : isTeamSummaryParsedDraft(latestScan.parsedDraft) ? (
-              <TeamSummaryReviewPanel parsedDraft={latestScan.parsedDraft} />
+              <TeamSummaryReviewPanel
+                parsedDraft={latestScan.parsedDraft}
+                busy={reviewingSubmissionId === latestScan.batchId}
+                onImport={() => void reviewLatestScan('confirmed')}
+              />
             ) : latestScorecardDraft ? (
               <ScorecardReviewPanel
                 parsedDraft={latestScorecardDraft}
@@ -1820,18 +1832,18 @@ function DataAssistSourcePathPanel({
         <div>
           <span style={sourcePathEyebrowStyle}>{contactImportRequested ? 'Team contacts' : teamSetupRequested ? 'Add my team' : 'Source refresh path'}</span>
           <h2 id="data-assist-source-path-title" style={dynamicTitleStyle}>{contactImportRequested ? 'Add team contacts.' : teamSetupRequested ? 'Start with your Team Summary.' : 'Choose your first source.'}</h2>
-          {isCompactViewport ? <p style={sourcePathIntroStyle}>{contactImportRequested ? 'Upload your TennisLink Player Roster, then connect your team.' : teamSetupRequested ? 'Add the Team Summary now. After review, add the schedule and approve your private team link.' : 'For your own team: Team Summary, schedule, then Player Roster.'}</p> : null}
+          {isCompactViewport ? <p style={sourcePathIntroStyle}>{contactImportRequested ? 'Upload your TennisLink Player Roster, then connect your team.' : teamSetupRequested ? 'Import your Team Summary, then review your team link. The schedule can come later.' : 'For your own team: Team Summary, schedule, then Player Roster.'}</p> : null}
         </div>
         {!isCompactViewport ? <p style={sourcePathIntroStyle}>
           {contactImportRequested
             ? 'Upload your TennisLink Player Roster for private phone and email details, then connect the team to your profile. Your Team Summary stays in place.'
             : teamSetupRequested
-              ? 'This adds the team record, league, flight, and roster. After review, add the schedule and approve your private team link so it appears in My Teams.'
+              ? 'This adds the team record, league, flight, and roster. After import, review your private team link so it appears in My Teams. Add the schedule and optional contacts later.'
             : 'For your own team, import Team Summary, Match Schedule, then Player Roster. TiQ reviews every source before records change.'}
         </p> : null}
       </div>
       <div style={sourcePathDefaultCueStyle}>
-        <strong>{contactImportRequested ? 'Captain contacts: use Player Roster.' : teamSetupRequested ? 'Your team path: Team Summary → schedule → approve your team link.' : 'Team setup: Team Summary → schedule → Player Roster.'}</strong>
+        <strong>{contactImportRequested ? 'Captain contacts: use Player Roster.' : teamSetupRequested ? 'Your team path: Import Team Summary → review team link → My Teams.' : 'Team setup: Team Summary → schedule → Player Roster.'}</strong>
         <span>{contactImportRequested
           ? 'This adds contact details only. After import, approve the team connection so it appears in My Teams.'
           : teamSetupRequested
@@ -1896,6 +1908,23 @@ function DataAssistSourcePathPanel({
 }
 
 function DataAssistReviewFlowPanel() {
+  const { isMobile, isTablet } = useViewportBreakpoints()
+  const isCompactViewport = isMobile || isTablet
+  const dynamicUploadStateProofStyle: CSSProperties = isCompactViewport
+    ? {
+        ...uploadStateProofStyle,
+        gridTemplateColumns: 'minmax(0, 1fr)',
+        gap: 12,
+        padding: 12,
+      }
+    : uploadStateProofStyle
+  const dynamicUploadStateProofGridStyle: CSSProperties = isCompactViewport
+    ? {
+        ...uploadStateProofGridStyle,
+        gridTemplateColumns: 'minmax(0, 1fr)',
+      }
+    : uploadStateProofGridStyle
+
   return (
     <section style={reviewFlowPanelStyle} aria-labelledby="data-assist-review-flow-title">
       <div style={reviewFlowHeaderStyle}>
@@ -1914,12 +1943,12 @@ function DataAssistReviewFlowPanel() {
           </article>
         ))}
       </div>
-      <div style={uploadStateProofStyle} aria-label="Upload review status">
+      <div style={dynamicUploadStateProofStyle} aria-label="Upload review status">
         <div style={uploadStateProofHeaderStyle}>
           <span style={reviewFlowEyebrowStyle}>Upload review status</span>
           <strong style={uploadStateProofTitleStyle}>Know what changed and what did not.</strong>
         </div>
-        <div style={uploadStateProofGridStyle}>
+        <div style={dynamicUploadStateProofGridStyle}>
           {dataAssistUploadStateProof.map((item) => (
             <article key={item.label} style={uploadStateProofCardStyle}>
               <span style={uploadStateProofLabelStyle}>{item.label}</span>
@@ -2017,7 +2046,10 @@ function DataAssistOutcomePanel({
         </span>
       </div>
       <div style={dataAssistOutcomeActionRowStyle}>
-        <a href={`#${targetId}`} style={primaryButtonStyle}>{actionLabel}</a>
+        {outcome.teamConnectionHref ? (
+          <Link href={outcome.teamConnectionHref} style={primaryButtonStyle}>Review &amp; link this team</Link>
+        ) : null}
+        <a href={`#${targetId}`} style={outcome.teamConnectionHref ? secondaryButtonStyle : primaryButtonStyle}>{actionLabel}</a>
         <button type="button" onClick={onUploadAnother} style={secondaryButtonStyle}>Upload another</button>
       </div>
     </section>
@@ -2069,21 +2101,22 @@ function buildImportedDataAssistOutcome(
   batchId: string,
   duplicate = false,
 ): DataAssistOutcome {
+  if (isTeamSummaryParsedDraft(parsedDraft)) {
+    return {
+      tone: duplicate ? 'duplicate' : 'success',
+      title: duplicate ? 'Roster already in TiQ' : 'Roster imported',
+      detail: `${parsedDraft.rosterTeamName || 'Your team'}: ${parsedDraft.playerCount} player${parsedDraft.playerCount === 1 ? '' : 's'} ${duplicate ? 'already saved. No duplicate was created.' : 'saved.'} Next, review your team link to add it to My Teams. Uploading a roster does not make you a member or captain. If this is an opponent, no team link is needed.`,
+      batchId,
+      target: 'history',
+      teamConnectionHref: buildTeamConnectionReviewHref(parsedDraft),
+    }
+  }
+
   if (duplicate) {
     return {
       tone: 'duplicate',
       title: `${getDataAssistImportTypeLabel(getParsedDraftImportType(parsedDraft))} already in TiQ`,
       detail: 'TiQ kept the existing record and saved this upload in your history as proof. No duplicate was created.',
-      batchId,
-      target: 'history',
-    }
-  }
-
-  if (isTeamSummaryParsedDraft(parsedDraft)) {
-    return {
-      tone: 'success',
-      title: 'Roster imported',
-      detail: `${parsedDraft.playerCount} player${parsedDraft.playerCount === 1 ? '' : 's'}, USTA ratings, and ${parsedDraft.contactCount || 0} available contact${parsedDraft.contactCount === 1 ? '' : 's'} are now connected for team tools.`,
       batchId,
       target: 'history',
     }
@@ -3142,7 +3175,13 @@ function SubmissionCard({
             />
           ) : null}
           {parsedTeamSummary && !isImported ? (
-            <TeamSummaryReviewPanel parsedDraft={parsedTeamSummary} />
+            <TeamSummaryReviewPanel
+              parsedDraft={parsedTeamSummary}
+              busy={busy}
+              onImport={submission.draftId && submission.draftOcrStatus === 'processed' && (submission.status === 'ready_to_import' || submission.status === 'needs_review')
+                ? () => onReview(submission, 'confirmed')
+                : undefined}
+            />
           ) : null}
           {isImported && parsedTeamSummary ? (
             <TeamSummaryImportedPanel
@@ -3491,9 +3530,18 @@ function ScheduleImportedSummaryPanel({
   )
 }
 
-function TeamSummaryReviewPanel({ parsedDraft }: { parsedDraft: DataAssistTeamSummaryParsedDraft }) {
+function TeamSummaryReviewPanel({
+  parsedDraft,
+  busy,
+  onImport,
+}: {
+  parsedDraft: DataAssistTeamSummaryParsedDraft
+  busy: boolean
+  onImport?: () => void
+}) {
   const missingRatingCount = parsedDraft.players.filter((player) => player.ntrp === null).length
   const isPlayerRoster = parsedDraft.rosterSource === 'player_roster'
+  const readyToImport = isTeamSummaryDraftReadyForImport(parsedDraft)
 
   return (
     <div style={scorecardReviewStyle}>
@@ -3518,6 +3566,26 @@ function TeamSummaryReviewPanel({ parsedDraft }: { parsedDraft: DataAssistTeamSu
             ? `${parsedDraft.contactCount || 0} contact${parsedDraft.contactCount === 1 ? '' : 's'} will be ready for captain messages without changing your Team Summary.`
             : 'Player and rating context is ready. Player contacts remain optional.'}</span>
       </div>
+      {onImport ? <section style={teamSummaryImportActionStyle} aria-label="Import this team summary">
+        <div style={headerCopyStyle}>
+          <strong>{isPlayerRoster ? 'Import team contacts' : 'Import Team Summary'}</strong>
+          <p style={copyStyle}>
+            {readyToImport
+              ? isPlayerRoster
+                ? 'Save these private contacts now. Next, choose whether to link this team to My Teams.'
+                : 'Save this roster now. Next, review and link the team to My Teams, Team Chat, and Captain.'
+              : 'This export is missing required roster details. Upload a complete Team Summary with player ratings before importing.'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onImport}
+          disabled={busy || !readyToImport}
+          style={{ ...primaryButtonStyle, ...(busy || !readyToImport ? disabledStyle : {}) }}
+        >
+          {busy ? 'Importing...' : isPlayerRoster ? 'Import team contacts' : 'Import Team Summary'}
+        </button>
+      </section> : null}
     </div>
   )
 }
@@ -3535,6 +3603,7 @@ function TeamSummaryImportedPanel({
 }) {
   const rosterResult = result.importResult?.kind === 'team_summary' ? result.importResult.result : null
   const isPlayerRoster = parsedDraft.rosterSource === 'player_roster'
+  const teamConnectionReviewHref = buildTeamConnectionReviewHref(parsedDraft)
 
   return (
     <div style={importPanelStyle}>
@@ -3562,7 +3631,6 @@ function TeamSummaryImportedPanel({
           <ReviewFact label="Contacts" value={String(result.importedContactCount ?? parsedDraft.contactCount ?? 0)} />
         </>}
       </div>
-      {!isPlayerRoster ? <RosterPlayersList parsedDraft={parsedDraft} /> : null}
       <div style={readyImportNoteStyle}>
         <strong>{isPlayerRoster ? 'Contacts ready' : 'All set'}</strong>
         <span>{result.message || (isPlayerRoster ? 'Team contacts are ready for match week.' : 'Team roster imported to TenAceIQ.')}</span>
@@ -3576,8 +3644,9 @@ function TeamSummaryImportedPanel({
               : 'If this is your team, review the private team connection next. TiQ checks it against your player profile before it appears in My Teams.'}
           </p>
         </div>
-        <Link href="/team-connections" style={primaryButtonStyle}>{isPlayerRoster ? 'Connect my team' : 'Review team connection'}</Link>
+        <Link href={teamConnectionReviewHref} style={primaryButtonStyle}>{isPlayerRoster ? 'Link this team' : 'Review & link this team'}</Link>
       </section>
+      {!isPlayerRoster ? <RosterPlayersList parsedDraft={parsedDraft} /> : null}
       <PostImportActions
         actions={buildRosterPostImportActions(parsedDraft, { context, returnTo })}
       />
@@ -3618,7 +3687,7 @@ function buildScorecardPostImportActions(parsedDraft: DataAssistScorecardParsedD
 function buildSchedulePostImportActions(parsedDraft: DataAssistScheduleParsedDraft, context = '') {
   const actions: Array<{ label: string; href: string }> = []
   if (/\b(?:captain|team hub)\b/i.test(context)) {
-    actions.push({ label: 'Continue Captain setup', href: '/captain' })
+    actions.push({ label: 'Continue Captain setup', href: buildCaptainImportScopeHref(parsedDraft) })
   }
   const teamHref = parsedDraft.teamName ? buildTeamHref(parsedDraft.teamName, parsedDraft) : ''
   if (teamHref) actions.push({ label: 'View team', href: teamHref })
@@ -3633,7 +3702,7 @@ function buildRosterPostImportActions(
 ) {
   const actions: Array<{ label: string; href: string }> = []
   if (parsedDraft.rosterSource === 'player_roster') {
-    actions.push({ label: 'Connect my team', href: '/team-connections' })
+    actions.push({ label: 'Link this team', href: buildTeamConnectionReviewHref(parsedDraft) })
   }
   if (options.returnTo) {
     actions.push({
@@ -3647,13 +3716,30 @@ function buildRosterPostImportActions(
       href: options.returnTo,
     })
   } else if (/\b(?:captain|team hub)\b/i.test(options.context || '')) {
-    actions.push({ label: 'Continue Captain setup', href: '/captain' })
+    actions.push({ label: 'Continue Captain setup', href: buildCaptainImportScopeHref(parsedDraft) })
   }
   const teamHref = parsedDraft.rosterTeamName ? buildTeamHref(parsedDraft.rosterTeamName, parsedDraft) : ''
   if (teamHref) actions.push({ label: 'View team', href: teamHref })
   actions.push({ label: 'Open League Office', href: '/league-coordinator#league-setup-form' })
   actions.push({ label: 'Find players', href: buildPlayerSearchHref(parsedDraft.players[0]?.name || parsedDraft.rosterTeamName) })
   return actions
+}
+
+function buildCaptainImportScopeHref(input: Pick<DataAssistScheduleParsedDraft, 'teamName' | 'leagueName' | 'flight'> | Pick<DataAssistTeamSummaryParsedDraft, 'rosterTeamName' | 'leagueName' | 'flight'>) {
+  return buildCaptainScopedHref('/captain', {
+    team: 'teamName' in input ? input.teamName : input.rosterTeamName,
+    league: input.leagueName,
+    flight: input.flight,
+  })
+}
+
+function buildTeamConnectionReviewHref(parsedDraft: Pick<DataAssistTeamSummaryParsedDraft, 'rosterTeamName' | 'leagueName' | 'flight'>) {
+  const params = new URLSearchParams()
+  if (parsedDraft.rosterTeamName) params.set('team', parsedDraft.rosterTeamName)
+  if (parsedDraft.leagueName) params.set('league', parsedDraft.leagueName)
+  if (parsedDraft.flight) params.set('flight', parsedDraft.flight)
+  const query = params.toString()
+  return `/team-connections${query ? `?${query}` : ''}#pending-team-links`
 }
 
 function buildTeamHref(
@@ -5925,6 +6011,16 @@ const readyImportNoteStyle: CSSProperties = {
   fontWeight: 850,
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const teamSummaryImportActionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+  minWidth: 0,
 }
 
 const teamConnectionNextStepStyle: CSSProperties = {

@@ -76,6 +76,7 @@
 }
 
 .heading p:not(.eyebrow),
+.courtHeader p:not(.eyebrow),
 .saveBar p,
 .rosterNote {
   color: var(--shell-copy-muted);
@@ -87,9 +88,13 @@
   max-width: 61ch;
 }
 
+.courtHeader p:not(.eyebrow) { margin: 6px 0 0; font-size: .84rem; }
+.draftSaved { display: inline-flex; width: fit-content; margin-top: 9px; padding: 6px 9px; border: 1px solid color-mix(in srgb, var(--brand-green) 48%, var(--shell-panel-border)); border-radius: 999px; background: color-mix(in srgb, var(--brand-green) 11%, var(--shell-chip-bg)); color: var(--brand-green-3); font-size: .7rem; font-weight: 900; letter-spacing: .04em; }
+
 .backLink,
 .addCourt,
 .removeCourt,
+.toggleCourt,
 .saveButton,
 .matchTypeControl button,
 .outcomeButtons button {
@@ -104,7 +109,8 @@
 
 .backLink,
 .addCourt,
-.removeCourt {
+.removeCourt,
+.toggleCourt {
   flex: 0 0 auto;
   padding: 10px 13px;
   text-decoration: none;
@@ -240,10 +246,19 @@
 .courtHeader h2 { margin-top: 4px; font-size: clamp(1.25rem, 4vw, 1.75rem); }
 .courtList { display: grid; gap: 14px; min-width: 0; }
 .courtCard { display: grid; gap: 14px; min-width: 0; padding: 16px; border: 1px solid var(--shell-panel-border); border-radius: 18px; background: rgba(5, 11, 26, 0.45); }
+.courtCard[data-open="true"] { border-color: color-mix(in srgb, var(--brand-blue-2) 58%, var(--shell-panel-border)); background: color-mix(in srgb, var(--brand-blue-2) 5%, rgba(5, 11, 26, 0.45)); }
 .courtTitle { align-items: center; }
 .courtTitle span { display: block; color: var(--brand-blue-2); font-size: 0.72rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
 .courtTitle strong { display: block; margin-top: 3px; color: var(--foreground-strong); font-size: 1.08rem; }
+.courtTitleActions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.courtReady,
+.courtPending { flex: 0 0 auto; padding: 6px 8px; border: 1px solid var(--shell-panel-border); border-radius: 999px; background: var(--shell-chip-bg); color: var(--shell-copy-muted) !important; font-size: .64rem !important; letter-spacing: .06em !important; }
+.courtReady { border-color: color-mix(in srgb, var(--brand-green) 56%, var(--shell-panel-border)); background: color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg)); color: var(--brand-green-3) !important; }
+.toggleCourt { padding: 8px 11px; }
 .removeCourt { padding: 8px 11px; color: var(--shell-copy-muted); }
+.courtSummary { margin: -2px 0 0; color: var(--shell-copy-muted); font-size: .84rem; font-weight: 720; line-height: 1.45; overflow-wrap: anywhere; }
+.courtSummary small { color: var(--brand-blue-2); font-size: .74rem; font-weight: 900; text-transform: uppercase; }
+.courtEntry { display: grid; gap: 14px; min-width: 0; }
 .matchTypeControl { display: flex; gap: 8px; flex-wrap: wrap; }
 .matchTypeControl button,
 .outcomeButtons button { padding: 9px 12px; }
@@ -401,6 +416,8 @@
   .photoCaptureButton,
   .photoCaptureHint { width: 100%; }
   .courtCard { gap: 12px; padding: 14px; }
+  .courtTitle { align-items: flex-start; }
+  .courtTitleActions { justify-content: flex-start; }
   .outcomeButtons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .outcomeButtons button { min-width: 0; }
   .resultScoreboard { gap: 9px; padding: 15px; }

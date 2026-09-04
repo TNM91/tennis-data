@@ -20,6 +20,14 @@ describe('Teams experience simplification', () => {
     )
   })
 
+  it('gives a first-time captain two distinct team entry paths without duplicating them below', () => {
+    expect(teamsHub).toContain("'Add or link your first team.'")
+    expect(teamsHub).toContain("'Upload team summary'")
+    expect(teamsHub).toContain("'Link existing team'")
+    expect(teamsHub).toContain('authResolved && userId && groupedTeams.length > 0')
+    expect(teamsHub).toContain('Use the team actions above to upload your Team Summary or link a team already in TiQ.')
+  })
+
   it('keeps team sections legible without horizontal phone scrolling', () => {
     expect(teamDetail).toContain('teamSectionNavMobileStyle')
     expect(teamDetail).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
@@ -78,12 +86,31 @@ describe('Teams experience simplification', () => {
     expect(teamsHub).toContain('async function loadSupportingTeamContext(connectedTeams: TeamConnection[])')
     expect(teamsHub).toContain('loadConnectedTeamDirectoryOptions')
     expect(teamsHub).toContain("label: 'Team connection'")
-    expect(teamsHub).toContain("'Match data syncing'")
+    expect(teamsHub).toContain("'Schedule syncing'")
     expect(teamsHub).toContain('<TeamListLoadingState />')
     expect(teamConnectionsClient).toContain('TEAM_CONNECTIONS_CACHE_TTL_MS')
     expect(teamConnectionsClient).toContain('preloadTeamConnections')
     expect(portal).toContain('preloadTeamConnections(accessToken, { userId })')
     expect(teamsHub).toContain('buildTeamProfileHref(group.teamName')
     expect(teamsHub).not.toContain('`/team/${encodeURIComponent(group.teamName)}')
+  })
+
+  it('keeps a default team first and makes multi-team context explicit', () => {
+    expect(teamsHub).toContain('left.connection.isDefault !== right.connection.isDefault')
+    expect(teamsHub).toContain('const defaultTeam = groupedTeams.find((group) => group.connection.isDefault) || null')
+    expect(teamsHub).toContain('opens first in Captain and My Lab.')
+    expect(teamsHub).toContain('Choose a default team in Manage team links.')
+    expect(teamsHub).toContain('defaultTeamRowStyle')
+    expect(teamsHub).toContain('defaultTeamChipStyle')
+    expect(teamsHub).toContain('Default team')
+  })
+
+  it('lets members choose a default team without leaving My Teams', () => {
+    expect(teamsHub).toContain('updateTeamConnection')
+    expect(teamsHub).toContain("action: 'set_default'")
+    expect(teamsHub).toContain('function makeDefaultTeam(connection: TeamConnection)')
+    expect(teamsHub).toContain('will open first in Captain and My Lab.')
+    expect(teamsHub).toContain("'Make default'")
+    expect(teamsHub).toContain('teamSecondaryButtonStyle')
   })
 })

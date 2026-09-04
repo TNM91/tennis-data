@@ -1655,8 +1655,9 @@ function TeamPageContent() {
           title: 'Get the roster ready for the next match.',
           detail: 'Check availability now so the first lineup is easy to set when the schedule lands.',
           cta: 'Check availability',
-          href: captainLinks[0].href,
-        }
+        href: captainLinks[0].href,
+      }
+  const supplementalCaptainLinks = captainLinks.filter((item) => item.href !== captainWeekFocus.href)
 
   useEffect(() => {
     if (!canManageThisTeam || !captainWeekScope) {
@@ -2217,8 +2218,31 @@ function TeamPageContent() {
               <span style={teamWeekFocusActionStyle}>{captainWeekFocus.cta} →</span>
             </Link>
           </div>
+          {isMobile ? (
+            <details style={teamWeekMoreToolsStyle}>
+              <summary style={teamWeekMoreToolsSummaryStyle}>
+                <span>More Captain tools</span>
+                <span>View</span>
+              </summary>
+              <div style={teamWeekPathGridStyle(isSmallMobile)}>
+                {supplementalCaptainLinks.map((item) => (
+                  <Link
+                    key={item.question}
+                    href={item.href}
+                    style={teamWeekActionCardStyle}
+                    aria-label={`${item.cta}: ${item.question}`}
+                    data-team-week-job={item.job}
+                  >
+                    <span style={teamWeekActionQuestionStyle}>{item.question}</span>
+                    <strong style={teamWeekActionTitleStyle}>{item.title}</strong>
+                    <span style={teamWeekActionTextStyle}>{item.description}</span>
+                  </Link>
+                ))}
+              </div>
+            </details>
+          ) : (
           <div style={teamWeekPathGridStyle(isSmallMobile)}>
-            {captainLinks.map((item) => (
+            {supplementalCaptainLinks.map((item) => (
               <Link
                 key={item.question}
                 href={item.href}
@@ -2232,6 +2256,7 @@ function TeamPageContent() {
               </Link>
             ))}
           </div>
+          )}
         </section>
         ) : null}
 
@@ -4087,6 +4112,28 @@ const teamWeekFocusStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   textDecoration: 'none',
   overflowWrap: 'anywhere',
+}
+
+const teamWeekMoreToolsStyle: CSSProperties = {
+  minWidth: 0,
+  border: '1px solid rgba(116,190,255,0.16)',
+  borderRadius: 16,
+  background: 'rgba(8,16,34,0.56)',
+  overflow: 'hidden',
+}
+
+const teamWeekMoreToolsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minHeight: 48,
+  padding: '0 14px',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  fontSize: 13,
+  fontWeight: 900,
+  listStyle: 'none',
 }
 
 const teamWeekFocusKickerStyle: CSSProperties = {

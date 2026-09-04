@@ -24,6 +24,16 @@ type CourtDraft = {
   score: string
 }
 
+type StoredScorecardDraft = {
+  version: 1
+  teamName: string
+  matchDate: string
+  opponentTeam: string
+  matchTime: string
+  facility: string
+  courts: CourtDraft[]
+}
+
 type RosterResponse = {
   ok?: boolean
   players?: Array<{ name?: string | null }>
@@ -60,6 +70,49 @@ function normalizeName(value: string | null | undefined) {
   return (value || '').trim().replace(/\s+/g, ' ')
 }
 
+function isCourtEntryComplete(court: CourtDraft) {
+  const playerCount = court.matchType === 'doubles' ? 2 : 1
+  return court.teamPlayers.slice(0, playerCount).every((name) => Boolean(normalizeName(name)))
+    && court.opponentPlayers.slice(0, playerCount).every((name) => Boolean(normalizeName(name)))
+    && Boolean(court.score.trim())
+}
+
+function buildScorecardDraftStorageKey(input: {
+  teamName: string
+  leagueName: string
+  flight: string
+  matchDate: string
+  opponentTeam: string
+}) {
+  const scope = [input.teamName, input.leagueName, input.flight, input.matchDate, input.opponentTeam]
+    .map((value) => normalizeName(value).toLowerCase())
+    .join('::')
+  return scope.replace(/:/g, '') ? `tiq:captain-scorecard-draft:${scope}` : ''
+}
+
+function isStoredScorecardDraft(value: unknown): value is StoredScorecardDraft {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const draft = value as Partial<StoredScorecardDraft>
+  return draft.version === 1
+    && typeof draft.teamName === 'string'
+    && typeof draft.matchDate === 'string'
+    && typeof draft.opponentTeam === 'string'
+    && typeof draft.matchTime === 'string'
+    && typeof draft.facility === 'string'
+    && Array.isArray(draft.courts)
+    && draft.courts.every((court) => (
+      court
+      && typeof court === 'object'
+      && typeof court.id === 'string'
+      && Number.isInteger(court.courtNumber)
+      && (court.matchType === 'singles' || court.matchType === 'doubles')
+      && Array.isArray(court.teamPlayers)
+      && Array.isArray(court.opponentPlayers)
+      && (court.outcome === 'team' || court.outcome === 'opponent')
+      && typeof court.score === 'string'
+    ))
+}
+
 function formatRating(value: number | null) {
   return value === null ? 'TiQ pending' : value.toFixed(2)
 }
@@ -79,16 +132,22 @@ function RecordResultContent() {
   const [matchTime, setMatchTime] = useState(defaultTime)
   const [facility, setFacility] = useState(defaultFacility)
   const [courts, setCourts] = useState<CourtDraft[]>(() => [createCourt(1)])
+  // Undefined means "open the first court" for a fresh scorecard. Null means
+  // the captain intentionally collapsed every court after reviewing it.
+  const [openCourtId, setOpenCourtId] = useState<string | null | undefined>(undefined)
   const [rosterNames, setRosterNames] = useState<string[]>([])
   const [opponentRosterNames, setOpponentRosterNames] = useState<string[]>([])
   const [loadingRoster, setLoadingRoster] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [draftReady, setDraftReady] = useState(false)
+  const [draftSaved, setDraftSaved] = useState(false)
   const [savedRecap, setSavedRecap] = useState<CaptainScorecardSavedRecap | null>(null)
   const [teamAnnouncementUpdated, setTeamAnnouncementUpdated] = useState(false)
   const [resultShareNotice, setResultShareNotice] = useState('')
   const lineupPrefillKey = useRef('')
+  const restoredScorecardDraftKey = useRef('')
   const scorecardPhotoPrefillKey = useRef('')
   const scorecardPhotoPrefillActive = useRef(false)
   const [dataAssistBatchId, setDataAssistBatchId] = useState('')
@@ -125,6 +184,76 @@ function RecordResultContent() {
     })
     return `/data-assist?${captureParams.toString()}`
   }, [facility, flight, leagueName, matchDate, matchTime, opponentTeam, teamName])
+  const scorecardDraftStorageKey = useMemo(() => buildScorecardDraftStorageKey({
+    teamName,
+    leagueName,
+    flight,
+    matchDate: defaultDate,
+    opponentTeam: defaultOpponent,
+  }), [defaultDate, defaultOpponent, flight, leagueName, teamName])
+  const activeCourtId = openCourtId === undefined
+    ? courts[0]?.id || ''
+    : courts.some((court) => court.id === openCourtId) ? openCourtId || '' : ''
+  const completedCourtCount = courts.filter(isCourtEntryComplete).length
+
+  useEffect(() => {
+    if (restoredScorecardDraftKey.current === scorecardDraftStorageKey) return
+    restoredScorecardDraftKey.current = scorecardDraftStorageKey
+    if (!scorecardDraftStorageKey || scorecardPhotoDraftId) {
+      setDraftReady(true)
+      return
+    }
+
+    try {
+      const raw = window.localStorage.getItem(scorecardDraftStorageKey)
+      if (!raw) return
+      const draft = JSON.parse(raw) as unknown
+      if (!isStoredScorecardDraft(draft) || normalizeName(draft.teamName).toLowerCase() !== normalizeName(teamName).toLowerCase()) return
+      setMatchDate(draft.matchDate)
+      setOpponentTeam(draft.opponentTeam)
+      setMatchTime(draft.matchTime)
+      setFacility(draft.facility)
+      setCourts(draft.courts)
+      lineupPrefillKey.current = [teamName, leagueName, flight, draft.matchDate, draft.opponentTeam].join('::').toLowerCase()
+      setNotice('Your in-progress scorecard was restored on this device.')
+      setDraftSaved(true)
+    } catch {
+      // A malformed local draft should never block a captain from recording a result.
+      window.localStorage.removeItem(scorecardDraftStorageKey)
+    } finally {
+      setDraftReady(true)
+    }
+  }, [flight, leagueName, scorecardDraftStorageKey, scorecardPhotoDraftId, teamName])
+
+  useEffect(() => {
+    if (!draftReady || !scorecardDraftStorageKey) return
+    const hasProgress = courts.some((court) => (
+      court.teamPlayers.some((name) => Boolean(normalizeName(name)))
+      || court.opponentPlayers.some((name) => Boolean(normalizeName(name)))
+      || Boolean(court.score.trim())
+    ))
+    try {
+      if (!hasProgress) {
+        window.localStorage.removeItem(scorecardDraftStorageKey)
+        setDraftSaved(false)
+        return
+      }
+      const draft: StoredScorecardDraft = {
+        version: 1,
+        teamName,
+        matchDate,
+        opponentTeam,
+        matchTime,
+        facility,
+        courts,
+      }
+      window.localStorage.setItem(scorecardDraftStorageKey, JSON.stringify(draft))
+      setDraftSaved(true)
+    } catch {
+      // Score entry remains fully usable when device storage is unavailable.
+      setDraftSaved(false)
+    }
+  }, [courts, draftReady, facility, matchDate, matchTime, opponentTeam, scorecardDraftStorageKey, teamName])
 
   useEffect(() => {
     if (!authResolved || !session?.access_token || !teamName) return
@@ -340,6 +469,8 @@ function RecordResultContent() {
       setSavedRecap(payload.recap || null)
       setTeamAnnouncementUpdated(payload.teamAnnouncementUpdated === true)
       if (payload.externalMatchId) {
+        if (scorecardDraftStorageKey) window.localStorage.removeItem(scorecardDraftStorageKey)
+        setDraftSaved(false)
         const url = new URL(window.location.href)
         if (dataAssistBatchId) window.sessionStorage.removeItem(captainScorecardPhotoPrefillStorageKey(dataAssistBatchId))
         scorecardPhotoPrefillKey.current = ''
@@ -487,7 +618,9 @@ function RecordResultContent() {
         <div className={styles.courtHeader}>
           <div>
             <p className={styles.eyebrow}>Court results</p>
-            <h2>Enter each court.</h2>
+            <h2>Enter one court at a time.</h2>
+            <p>{completedCourtCount}/{courts.length} ready to submit</p>
+            {draftSaved ? <span className={styles.draftSaved} role="status">Draft saved on this device</span> : null}
           </div>
           <button className={styles.addCourt} type="button" onClick={() => setCourts((current) => [...current, createCourt(Math.max(0, ...current.map((court) => court.courtNumber)) + 1)])}>Add court</button>
         </div>
@@ -495,72 +628,93 @@ function RecordResultContent() {
         <div className={styles.courtList}>
           {courts.map((court) => {
             const playerCount = court.matchType === 'doubles' ? 2 : 1
+            const isOpen = court.id === activeCourtId
+            const entryComplete = isCourtEntryComplete(court)
+            const teamPlayers = court.teamPlayers.slice(0, playerCount).map(normalizeName).filter(Boolean)
+            const opponentPlayers = court.opponentPlayers.slice(0, playerCount).map(normalizeName).filter(Boolean)
             return (
-              <article className={styles.courtCard} key={court.id}>
+              <article className={styles.courtCard} key={court.id} id={`scorecard-court-${court.id}`} data-open={isOpen}>
                 <div className={styles.courtTitle}>
                   <div>
                     <span>Match line</span>
                     <strong>{court.label || `${court.matchType === 'doubles' ? 'Doubles' : 'Singles'} ${court.courtNumber}`}</strong>
                   </div>
-                  {courts.length > 1 ? <button type="button" className={styles.removeCourt} onClick={() => setCourts((current) => current.filter((item) => item.id !== court.id))}>Remove</button> : null}
-                </div>
-                <div className={styles.matchTypeControl} aria-label={`Court ${court.courtNumber} match type`}>
-                  <button type="button" data-active={court.matchType === 'doubles'} onClick={() => setMatchType(court.id, 'doubles')}>Doubles</button>
-                  <button type="button" data-active={court.matchType === 'singles'} onClick={() => setMatchType(court.id, 'singles')}>Singles</button>
-                </div>
-                <div className={styles.playerColumns}>
-                  <div>
-                    <span className={styles.sideLabel}>Your team</span>
-                    {Array.from({ length: playerCount }, (_, playerIndex) => (
-                      <label className={styles.compactLabel} key={`team-${playerIndex}`}>
-                        <span>{playerCount === 2 ? `Player ${playerIndex + 1}` : 'Player'}</span>
-                        <select value={court.teamPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'teamPlayers', playerIndex, event.target.value)}>
-                          <option value="">Select player</option>
-                          {rosterNames.map((name) => <option value={name} key={name}>{name}</option>)}
-                        </select>
-                      </label>
-                    ))}
-                    {loadingRoster ? <small className={styles.rosterNote}>Loading your roster…</small> : null}
-                    {!loadingRoster && !rosterNames.length ? <small className={styles.rosterNote}>Your roster is not available yet. Add the player name in Team Roster, then return here.</small> : null}
-                  </div>
-                  <div>
-                    <span className={styles.sideLabel}>Opposition</span>
-                    {Array.from({ length: playerCount }, (_, playerIndex) => (
-                      <div className={styles.opponentEntry} key={`opponent-${playerIndex}`}>
-                        <span>{playerCount === 2 ? `Player ${playerIndex + 1}` : 'Player'}</span>
-                        {opponentRosterNames.length ? (
-                          <>
-                            <select
-                              aria-label={`Choose an opponent for ${court.label || `court ${court.courtNumber}`}`}
-                              value={opponentRosterNames.includes(court.opponentPlayers[playerIndex] || '') ? court.opponentPlayers[playerIndex] || '' : '__manual__'}
-                              onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value === '__manual__' ? '' : event.target.value)}
-                            >
-                              <option value="">Choose a known opponent</option>
-                              {opponentRosterNames.map((name) => <option value={name} key={name}>{name}</option>)}
-                              <option value="__manual__">Enter a different player</option>
-                            </select>
-                            {!opponentRosterNames.includes(court.opponentPlayers[playerIndex] || '') ? (
-                              <input aria-label={`Enter an opponent for ${court.label || `court ${court.courtNumber}`}`} value={court.opponentPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value)} placeholder="Type opponent name" />
-                            ) : null}
-                          </>
-                        ) : (
-                          <input aria-label={`Enter an opponent for ${court.label || `court ${court.courtNumber}`}`} value={court.opponentPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value)} placeholder="Type opponent name" />
-                        )}
-                      </div>
-                    ))}
-                    <small className={styles.rosterNote}>{opponentRosterNames.length ? `Choose from ${opponentRosterNames.length} known opponent${opponentRosterNames.length === 1 ? '' : 's'}, or select “Enter a different player.”` : 'No opponent roster is connected yet. Type each opponent name.'}</small>
+                  <div className={styles.courtTitleActions}>
+                    <span className={entryComplete ? styles.courtReady : styles.courtPending}>{entryComplete ? 'Ready' : isOpen ? 'Editing' : 'Needs result'}</span>
+                    <button
+                      type="button"
+                      className={styles.toggleCourt}
+                      aria-expanded={isOpen}
+                      aria-controls={`scorecard-court-entry-${court.id}`}
+                      onClick={() => setOpenCourtId(isOpen ? '' : court.id)}
+                    >
+                      {isOpen ? 'Done for now' : 'Enter result'}
+                    </button>
+                    {courts.length > 1 ? <button type="button" className={styles.removeCourt} onClick={() => setCourts((current) => current.filter((item) => item.id !== court.id))}>Remove</button> : null}
                   </div>
                 </div>
-                <div className={styles.resultControls}>
-                  <label className={styles.scoreInput}><span>Select or enter final score</span><input list="captain-score-options" value={court.score} onChange={(event) => updateCourt(court.id, { score: event.target.value })} placeholder="6-4 3-6 10-8" /></label>
-                  <fieldset>
-                    <legend>Winner</legend>
-                    <div className={styles.outcomeButtons}>
-                      <button type="button" data-active={court.outcome === 'team'} onClick={() => updateCourt(court.id, { outcome: 'team' })}>We won</button>
-                      <button type="button" data-active={court.outcome === 'opponent'} onClick={() => updateCourt(court.id, { outcome: 'opponent' })}>They won</button>
+                {!isOpen ? <p className={styles.courtSummary}>{teamPlayers.length ? teamPlayers.join(' / ') : 'Add your player(s)'} <small>vs</small> {opponentPlayers.length ? opponentPlayers.join(' / ') : 'add opponent(s)'}{court.score ? ` · ${court.score}` : ''}</p> : null}
+                {isOpen ? (
+                  <div className={styles.courtEntry} id={`scorecard-court-entry-${court.id}`}>
+                    <div className={styles.matchTypeControl} aria-label={`Court ${court.courtNumber} match type`}>
+                      <button type="button" data-active={court.matchType === 'doubles'} onClick={() => setMatchType(court.id, 'doubles')}>Doubles</button>
+                      <button type="button" data-active={court.matchType === 'singles'} onClick={() => setMatchType(court.id, 'singles')}>Singles</button>
                     </div>
-                  </fieldset>
-                </div>
+                    <div className={styles.playerColumns}>
+                      <div>
+                        <span className={styles.sideLabel}>Your team</span>
+                        {Array.from({ length: playerCount }, (_, playerIndex) => (
+                          <label className={styles.compactLabel} key={`team-${playerIndex}`}>
+                            <span>{playerCount === 2 ? `Player ${playerIndex + 1}` : 'Player'}</span>
+                            <select value={court.teamPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'teamPlayers', playerIndex, event.target.value)}>
+                              <option value="">Select player</option>
+                              {rosterNames.map((name) => <option value={name} key={name}>{name}</option>)}
+                            </select>
+                          </label>
+                        ))}
+                        {loadingRoster ? <small className={styles.rosterNote}>Loading your roster…</small> : null}
+                        {!loadingRoster && !rosterNames.length ? <small className={styles.rosterNote}>Your roster is not available yet. Add the player name in Team Roster, then return here.</small> : null}
+                      </div>
+                      <div>
+                        <span className={styles.sideLabel}>Opposition</span>
+                        {Array.from({ length: playerCount }, (_, playerIndex) => (
+                          <div className={styles.opponentEntry} key={`opponent-${playerIndex}`}>
+                            <span>{playerCount === 2 ? `Player ${playerIndex + 1}` : 'Player'}</span>
+                            {opponentRosterNames.length ? (
+                              <>
+                                <select
+                                  aria-label={`Choose an opponent for ${court.label || `court ${court.courtNumber}`}`}
+                                  value={opponentRosterNames.includes(court.opponentPlayers[playerIndex] || '') ? court.opponentPlayers[playerIndex] || '' : '__manual__'}
+                                  onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value === '__manual__' ? '' : event.target.value)}
+                                >
+                                  <option value="">Choose a known opponent</option>
+                                  {opponentRosterNames.map((name) => <option value={name} key={name}>{name}</option>)}
+                                  <option value="__manual__">Enter a different player</option>
+                                </select>
+                                {!opponentRosterNames.includes(court.opponentPlayers[playerIndex] || '') ? (
+                                  <input aria-label={`Enter an opponent for ${court.label || `court ${court.courtNumber}`}`} value={court.opponentPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value)} placeholder="Type opponent name" />
+                                ) : null}
+                              </>
+                            ) : (
+                              <input aria-label={`Enter an opponent for ${court.label || `court ${court.courtNumber}`}`} value={court.opponentPlayers[playerIndex] || ''} onChange={(event) => updatePlayer(court.id, 'opponentPlayers', playerIndex, event.target.value)} placeholder="Type opponent name" />
+                            )}
+                          </div>
+                        ))}
+                        <small className={styles.rosterNote}>{opponentRosterNames.length ? `Choose from ${opponentRosterNames.length} known opponent${opponentRosterNames.length === 1 ? '' : 's'}, or select “Enter a different player.”` : 'No opponent roster is connected yet. Type each opponent name.'}</small>
+                      </div>
+                    </div>
+                    <div className={styles.resultControls}>
+                      <label className={styles.scoreInput}><span>Select or enter final score</span><input list="captain-score-options" value={court.score} onChange={(event) => updateCourt(court.id, { score: event.target.value })} placeholder="6-4 3-6 10-8" /></label>
+                      <fieldset>
+                        <legend>Winner</legend>
+                        <div className={styles.outcomeButtons}>
+                          <button type="button" data-active={court.outcome === 'team'} onClick={() => updateCourt(court.id, { outcome: 'team' })}>We won</button>
+                          <button type="button" data-active={court.outcome === 'opponent'} onClick={() => updateCourt(court.id, { outcome: 'opponent' })}>They won</button>
+                        </div>
+                      </fieldset>
+                    </div>
+                  </div>
+                ) : null}
               </article>
             )
           })}
