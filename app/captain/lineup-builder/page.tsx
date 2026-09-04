@@ -90,6 +90,9 @@ import {
   type CaptainSuggestedSwapImpact,
 } from '@/lib/captain-replacement-recommendation'
 import { readPrivateClientSnapshot, writePrivateClientSnapshot } from '@/lib/private-client-snapshot'
+import { fetchTeamConnections } from '@/lib/team-profile-links-client'
+import { isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'
+import { buildCaptainTeamScopeKey } from '@/lib/captain-team-scope'
 
 type PlayerRow = {
   id: string
@@ -152,6 +155,8 @@ type TeamRosterMemberRow = {
   mixed_pair_role: MixedPairRole | string | null
   age_division: string | null
 }
+
+type LinkedCaptainTeam = Pick<TeamConnection, 'teamName' | 'leagueName' | 'flight' | 'isDefault' | 'sourceType'>
 
 type TiqTeamLeagueFormatRow = {
   league_name: string | null
@@ -1395,6 +1400,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const [captainMessageContacts, setCaptainMessageContacts] = useState<CaptainMessageTextContactRow[]>([])
   const [savedScenarios, setSavedScenarios] = useState<ScenarioRow[]>([])
   const [tiqTeamLeagueFormats, setTiqTeamLeagueFormats] = useState<TiqTeamLeagueFormatRow[]>([])
+  const [linkedCaptainTeams, setLinkedCaptainTeams] = useState<LinkedCaptainTeam[]>([])
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -1516,6 +1522,50 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const isCaptainAccess = access.canUseCaptainWorkflow
   const isPreviewMode = role === 'member'
+
+  useEffect(() => {
+    if (!authResolved || !session?.access_token || !userId) {
+      setLinkedCaptainTeams([])
+      return
+    }
+
+    let active = true
+    void fetchTeamConnections(session.access_token, { userId })
+      .then((result) => {
+        if (!active) return
+
+        const uniqueTeams = new Map<string, LinkedCaptainTeam>()
+        for (const connection of result.connections) {
+          if (connection.status !== 'accepted' || !isCaptainTeamConnection(connection.roles)) continue
+          const team = connection.teamName.trim()
+          if (!team) continue
+          const scope = {
+            teamName: team,
+            leagueName: connection.leagueName.trim(),
+            flight: connection.flight.trim(),
+            isDefault: connection.isDefault,
+            sourceType: connection.sourceType,
+          }
+          const key = buildCaptainTeamScopeKey({
+            team: scope.teamName,
+            league: scope.leagueName,
+            flight: scope.flight,
+          })
+          const existing = uniqueTeams.get(key)
+          uniqueTeams.set(key, existing ? { ...existing, isDefault: existing.isDefault || scope.isDefault } : scope)
+        }
+
+        setLinkedCaptainTeams([...uniqueTeams.values()].sort((left, right) => {
+          if (left.isDefault !== right.isDefault) return left.isDefault ? -1 : 1
+          return left.teamName.localeCompare(right.teamName) || left.leagueName.localeCompare(right.leagueName)
+        }))
+      })
+      .catch(() => {
+        if (active) setLinkedCaptainTeams([])
+      })
+
+    return () => { active = false }
+  }, [authResolved, session?.access_token, userId])
   const storedTiqLeagueFormat = useMemo(() => {
     const normalizedLeague = normalizeTeamName(leagueName)
     const normalizedFlight = normalizeTeamName(flight)
@@ -2008,6 +2058,17 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       ]),
     [availability, matches, rosterMembers, savedScenarios]
   )
+
+  const selectedLinkedCaptainTeamKey = useMemo(() => {
+    const matchedTeam = linkedCaptainTeams.find((team) =>
+      normalizeTeamName(team.teamName) === normalizeTeamName(teamName)
+      && normalizeTeamName(team.leagueName) === normalizeTeamName(leagueName)
+      && normalizeTeamName(team.flight) === normalizeTeamName(flight)
+    )
+    return matchedTeam
+      ? buildCaptainTeamScopeKey({ team: matchedTeam.teamName, league: matchedTeam.leagueName, flight: matchedTeam.flight })
+      : ''
+  }, [flight, leagueName, linkedCaptainTeams, teamName])
 
   const scopedMatchOptions = useMemo(() => {
     return matches.filter((match) => isSameScope(match, {
@@ -2871,6 +2932,48 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     clearLocks()
     setMessage('Builder reset.')
     setError('')
+  }
+
+  function selectLinkedCaptainTeam(nextScopeKey: string) {
+    const nextTeam = linkedCaptainTeams.find((team) =>
+      buildCaptainTeamScopeKey({ team: team.teamName, league: team.leagueName, flight: team.flight }) === nextScopeKey
+    )
+    if (!nextTeam) return
+
+    const switchingScope = nextScopeKey !== selectedLinkedCaptainTeamKey
+    const hasInProgressLineup = teamSlots.some((slot) => slot.players.length > 0)
+      || opponentSlots.some((slot) => slot.players.length > 0)
+      || Boolean(notes.trim())
+    if (switchingScope && hasInProgressLineup && typeof window !== 'undefined') {
+      const shouldSwitch = window.confirm(
+        `Switch to ${nextTeam.teamName}? This starts a fresh lineup for that team. Save this version first if you want to keep editing it.`,
+      )
+      if (!shouldSwitch) return
+    }
+
+    const nextFormat = 'auto'
+    setCurrentScenarioId('')
+    setCompetitionLayer(nextTeam.sourceType === 'tiq_entry' ? 'tiq' : '')
+    setScenarioName('')
+    setLeagueName(nextTeam.leagueName)
+    setFlight(nextTeam.flight)
+    setTeamName(nextTeam.teamName)
+    setOpponentTeam('')
+    setMatchDate('')
+    setSelectedMatchId('')
+    setSelectedMatchFormatId(nextFormat)
+    setNotes('')
+    setTeamSlots(buildCaptainLineupSlots(nextTeam.leagueName, nextTeam.flight, 'team', nextFormat))
+    setOpponentSlots(buildCaptainLineupSlots(nextTeam.leagueName, nextTeam.flight, 'opponent', nextFormat))
+    setActiveLineupFormatKey(getCaptainLineupFormatKey(nextTeam.leagueName, nextTeam.flight, nextFormat))
+    setAppliedLineupNotice(null)
+    setSuggestedSwapDraft(null)
+    setSavedLineupChangeDelivery(null)
+    setDirectCourtTextHandoff(null)
+    clearLocks()
+    setMatchSetupOpen(true)
+    setError('')
+    setMessage(`${nextTeam.teamName} selected. Choose its scheduled match to start the lineup.`)
   }
   async function saveAndConfirmPotentialLineupAvailability() {
     if (!teamName || !matchDate) {
@@ -4784,6 +4887,42 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
              opponent: opponentTeam,
            }}
          />
+         {linkedCaptainTeams.length > 1 ? (
+           <section style={linkedTeamSwitcherStyle(isMobile)} aria-label="Active lineup team">
+             <div style={linkedTeamSwitcherCopyStyle}>
+               <p style={sectionKicker}>Active captain team</p>
+               <strong style={linkedTeamSwitcherTitleStyle}>{teamName || 'Choose a team'}</strong>
+               <span style={subtleHelperTextStyle}>
+                 {[leagueName, flight].filter(Boolean).join(' · ') || 'Choose the team you are building for.'}
+               </span>
+             </div>
+             <label style={linkedTeamSwitcherSelectWrapStyle}>
+               <span style={linkedTeamSwitcherLabelStyle}>Switch team</span>
+               <select
+                 aria-label="Switch lineup builder team"
+                 value={selectedLinkedCaptainTeamKey}
+                 onChange={(event) => selectLinkedCaptainTeam(event.target.value)}
+                 style={linkedTeamSwitcherSelectStyle}
+               >
+                 {!selectedLinkedCaptainTeamKey ? (
+                   <option value="" disabled>{teamName ? `${teamName} · current team` : 'Choose a linked team'}</option>
+                 ) : null}
+                 {linkedCaptainTeams.map((team) => {
+                   const value = buildCaptainTeamScopeKey({
+                     team: team.teamName,
+                     league: team.leagueName,
+                     flight: team.flight,
+                   })
+                   return (
+                     <option key={value} value={value}>
+                       {[team.teamName, team.leagueName, team.flight].filter(Boolean).join(' · ')}{team.isDefault ? ' · Default' : ''}
+                     </option>
+                   )
+                 })}
+               </select>
+             </label>
+           </section>
+         ) : null}
          <section style={builderControlShellStyle(isMobile)} aria-label="Lineup controls">
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={builderControlHeaderStyle}>
@@ -5628,7 +5767,11 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 <Field label="Match date" htmlFor="lineup-builder-date">
                   <input id="lineup-builder-date" type="date" value={matchDate} readOnly style={readOnlyInputStyle} />
                 </Field>
-                <Field label="Team" htmlFor="lineup-builder-team">
+                <Field
+                  label="Team"
+                  htmlFor="lineup-builder-team"
+                  hint={linkedCaptainTeams.length > 1 ? 'Use the active team switcher above for a linked team. Use this field only for a manual lineup.' : undefined}
+                >
                   <input
                     id="lineup-builder-team"
                     list="team-options"
@@ -6913,6 +7056,63 @@ const suggestedSwapImpactUnavailableStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.4,
+}
+
+const linkedTeamSwitcherStyle = (isMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(250px, 0.8fr)',
+  alignItems: 'end',
+  gap: 14,
+  padding: isMobile ? '14px 16px' : '16px 18px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  borderRadius: 20,
+  background: 'linear-gradient(130deg, color-mix(in srgb, var(--brand-green) 12%, var(--portal-surface-bg) 88%), var(--portal-surface-bg))',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  minWidth: 0,
+})
+
+const linkedTeamSwitcherCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const linkedTeamSwitcherTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  fontWeight: 900,
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const linkedTeamSwitcherSelectWrapStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const linkedTeamSwitcherLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const linkedTeamSwitcherSelectStyle: CSSProperties = {
+  width: '100%',
+  height: 46,
+  padding: '0 14px',
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground)',
+  outline: 'none',
+  colorScheme: 'dark',
+  minWidth: 0,
+  boxSizing: 'border-box',
+  fontWeight: 800,
+  textOverflow: 'ellipsis',
 }
 
 const builderControlShellStyle = (isMobile: boolean): CSSProperties => ({

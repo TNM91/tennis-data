@@ -211,6 +211,26 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain("document.getElementById('captain-lineup-insights')?.scrollIntoView")
   })
 
+  it('keeps linked captain teams obvious and safe to switch on every screen size', () => {
+    expect(source).toContain("import { fetchTeamConnections } from '@/lib/team-profile-links-client'")
+    expect(source).toContain("import { isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'")
+    expect(source).toContain("const [linkedCaptainTeams, setLinkedCaptainTeams] = useState<LinkedCaptainTeam[]>([])")
+    expect(source).toContain("connection.status !== 'accepted' || !isCaptainTeamConnection(connection.roles)")
+    expect(source).toContain('aria-label="Switch lineup builder team"')
+    expect(source).toContain('function selectLinkedCaptainTeam(nextScopeKey: string)')
+    expect(source).toContain('Save this version first if you want to keep editing it.')
+    expect(source).toContain('Choose its scheduled match to start the lineup.')
+    for (const styleName of [
+      'linkedTeamSwitcherStyle',
+      'linkedTeamSwitcherCopyStyle',
+      'linkedTeamSwitcherSelectWrapStyle',
+      'linkedTeamSwitcherSelectStyle',
+    ]) {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+    expect(styleBlock('linkedTeamSwitcherStyle')).toContain("gridTemplateColumns: isMobile ? 'minmax(0, 1fr)'")
+  })
+
   it('keeps phone auto-build to one primary action and puts optimizer detail behind disclosures', () => {
     expect(source).toContain('>Auto-build my lineup</PrimaryBtn>')
     expect(source).toContain('>Build options</p>')
