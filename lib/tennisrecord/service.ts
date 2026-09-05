@@ -190,7 +190,9 @@ export function tennisRecordScheduledPageKindPlan(cadence: 'bootstrap' | 'weekly
 // the source result.
 // TennisRecord's estimated dynamic rating remains metadata only. Captured
 // pages replay gradually from cache.
-const TENNISRECORD_PARSER_REVISION = 8
+// Revision 9 preserves apostrophes inside quoted profile URLs so different
+// O'-surnames cannot share one truncated source identity.
+const TENNISRECORD_PARSER_REVISION = 9
 
 export function scheduledTennisRecordBatchLimit(maxRequestsPerRun: number, cadence: 'bootstrap' | 'weekly' = 'bootstrap') {
   const ceiling = cadence === 'weekly' ? WEEKLY_TENNISRECORD_BATCH_LIMIT : BOOTSTRAP_TENNISRECORD_BATCH_LIMIT
