@@ -379,7 +379,8 @@ describe('TennisRecord ingestion safety', () => {
     expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', root, section)).toBe(true)
     expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', section, missouri)).toBe(true)
     expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', section, otherSection)).toBe(false)
-    expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', missouri, 'https://www.tennisrecord.com/adult/teamprofile.aspx?teamname=Sample')).toBe(true)
+    expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', missouri, 'https://www.tennisrecord.com/adult/teamprofile.aspx?teamname=Sample')).toBe(false)
+    expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', missouri + '&districtname=Missouri', 'https://www.tennisrecord.com/adult/teamprofile.aspx?teamname=Sample')).toBe(true)
   })
 
   it('queues the nationwide public league directory only after its planned campaign activates', () => {
