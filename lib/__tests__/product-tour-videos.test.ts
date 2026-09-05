@@ -19,6 +19,26 @@ const tourPageSource = readFileSync(join(process.cwd(), 'app/resources/platform-
 const sitemapSource = readFileSync(join(process.cwd(), 'app/sitemap.ts'), 'utf8')
 
 describe('product tour videos', () => {
+  it('keeps the public Captain clip free of the private draft recording and uses valid caption cues', () => {
+    expect(PRODUCT_TOUR_VIDEOS.captain.src).toBe('/media/product-tours/captain.mp4')
+    expect(PRODUCT_TOUR_VIDEOS.captain.poster).toBe('/media/product-tours/captain-poster.jpg')
+    const captions = readFileSync(join(process.cwd(), 'public/media/product-tours/captain.vtt'), 'utf8')
+    const cues = captions.trim().split(/\r?\n\r?\n/).slice(1)
+    expect(cues).toHaveLength(5)
+    for (const cue of cues) {
+      expect(cue).toMatch(/^\d{2}:\d{2}:\d{2}\.\d{3} --> \d{2}:\d{2}:\d{2}\.\d{3}\r?\n\S/)
+    }
+    const spoken = captions.split(/\r?\n/).filter((line) => line && line !== 'WEBVTT' && !line.includes('-->')).join(' ')
+    expect(spoken).toBe(PRODUCT_TOUR_VIDEOS.captain.transcript.join(' '))
+  })
+
+  it('preserves intrinsic video proportions and a non-shrinking close button on phones', () => {
+    const css = readFileSync(join(process.cwd(), 'app/components/product-tour-video.module.css'), 'utf8')
+    const videoRule = css.slice(css.indexOf('.video {'), css.indexOf('.dialogFooter {'))
+    expect(videoRule).toContain('aspect-ratio: auto')
+    expect(videoRule).toContain('object-fit: contain')
+    expect(css).toContain('.dialogHeader form { flex: 0 0 auto; }')
+  })
   it('ships every video with an optimized poster and English caption track', () => {
     for (const video of Object.values(PRODUCT_TOUR_VIDEOS)) {
       for (const publicPath of [video.src, video.captions, video.poster]) {

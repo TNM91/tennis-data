@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import type { Metadata } from 'next'
-import { CAPTAIN_PILOT_PRICE_LABEL } from '@/lib/captain-pilot'
+import { CAPTAIN_PILOT_FLYER } from '@/lib/captain-pilot-flyer'
 import { FlyerBenefitIcon, FlyerFeedbackIcon } from './flyer-icons'
 import styles from './flyer.module.css'
 
@@ -23,28 +23,31 @@ export const metadata: Metadata = {
 export default function CaptainPilotFlyerPage() {
   return (
     <main className={styles.canvas}>
+      <nav className={styles.actions} aria-label="Flyer actions">
+        <Link href="/captain-pilot" className={styles.applyLink}>Start 3 months free</Link>
+        <a href={CAPTAIN_PILOT_FLYER.pdfPath} target="_blank" rel="noopener noreferrer" className={styles.pdfLink}>Print / save PDF <span>(1 page)</span></a>
+      </nav>
       <article className={styles.flyer}>
         <header className={styles.header}>
-          <Image src="/brand/logos/tenaceiq-full-for-light-bg.png" alt="TenAceIQ" width={544} height={144} priority className={styles.logo} />
+          <Image src="/brand/logos/tenaceiq-full-white.png" alt="TenAceIQ" width={544} height={144} priority className={styles.logo} />
           <h1>Local Tennis<br />Captains</h1>
           <div className={styles.pilotLabel}><i /> <span>Fall Captain Pilot</span> <i /></div>
           <p>Start your fall season on us.</p>
         </header>
 
         <section className={styles.offer}>
-          <strong>3 months of Captain free</strong>
-          <span>3 consecutive months of Captain access from activation.</span>
+          <strong>{CAPTAIN_PILOT_FLYER.offer}</strong>
+          <span>{CAPTAIN_PILOT_FLYER.duration}</span>
+          <span>{CAPTAIN_PILOT_FLYER.renewal}</span>
         </section>
 
         <section className={styles.body}>
           <div className={styles.value}>
             <p className={styles.toolsLabel}>Captain tools</p>
             <ul>
-              <li><FlyerBenefitIcon name="access" className={styles.benefitIcon} /><span><strong>Everything in Player +</strong> Team Hub + Captain Tools.</span></li>
-              <li><FlyerBenefitIcon name="availability" className={styles.benefitIcon} /><span><strong>Know availability</strong> before lineup pressure.</span></li>
-              <li><FlyerBenefitIcon name="lineups" className={styles.benefitIcon} /><span><strong>Build and compare lineups.</strong></span></li>
-              <li><FlyerBenefitIcon name="scouting" className={styles.benefitIcon} /><span><strong>Scout teams and pairings.</strong></span></li>
-              <li><FlyerBenefitIcon name="teamPlan" className={styles.benefitIcon} /><span><strong>Send a clear team plan.</strong></span></li>
+              {(['access', 'availability', 'lineups', 'scouting', 'teamPlan'] as const).map((icon, index) => (
+                <li key={icon}><FlyerBenefitIcon name={icon} className={styles.benefitIcon} /><span>{CAPTAIN_PILOT_FLYER.benefits[index]}</span></li>
+              ))}
             </ul>
             <div className={styles.feedbackBlock}>
               <FlyerFeedbackIcon className={styles.feedbackIcon} />
@@ -54,8 +57,8 @@ export default function CaptainPilotFlyerPage() {
           <div className={styles.qrPanel}>
             <div className={styles.workflowRail} aria-hidden="true"><i /><i /><i /></div>
             <Image src="/brand/flyers/fall-2026-captain-pilot-qr.svg" alt="QR code to claim the Fall Captain Pilot" width={360} height={360} loading="eager" />
-            <strong>Scan to apply</strong>
-            <span>tenaceiq.com/captain-pilot</span>
+            <strong>Scan to start</strong>
+            <Link href="/captain-pilot">tenaceiq.com/captain-pilot</Link>
           </div>
         </section>
 
@@ -69,7 +72,7 @@ export default function CaptainPilotFlyerPage() {
           </div>
           <div className={styles.terms}>
             <strong>Pilot terms</strong>
-            <span>Offer available through December 31, 2026, for eligible local tennis captains. Captain tier only. One claim per captain or team. New Captain pilot participants only; not transferable, resalable, or combinable with other offers. Trial begins when checkout is completed. Captain access renews at {CAPTAIN_PILOT_PRICE_LABEL} until canceled. TenAceIQ may revoke access for misuse or modify the offer where permitted.</span>
+            <span>{CAPTAIN_PILOT_FLYER.terms}</span>
           </div>
         </footer>
       </article>
