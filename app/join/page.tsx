@@ -153,11 +153,18 @@ function JoinContent() {
   const selectedPlanId: MembershipTierId = JOIN_PLAN_IDS.includes(requestedPlan as MembershipTierId)
     ? (requestedPlan as MembershipTierId)
     : 'free'
-  const selectedIntent = JOIN_INTENT_COPY[selectedPlanId]
   const selectedTier = getMembershipTier(selectedPlanId)
   const requestedNextRoute = searchParams.get('next')
   const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, getJoinNextRoute(selectedPlanId))
   const isCaptainPilotSignup = selectedPlanId === 'captain' && selectedNextRoute.startsWith('/captain-pilot')
+  const selectedIntent = isCaptainPilotSignup ? {
+    ...JOIN_INTENT_COPY.captain,
+    eyebrow: 'Captain offer · Create your account',
+    mobileTitle: 'Start your 3 months free.',
+    desktopTitle: 'Start your 3 months free.',
+    mobileText: 'Create your account and confirm your email. Then activate your Captain trial and follow the guided team setup.',
+    desktopText: 'Create your account and confirm your email. Then activate your Captain trial and follow the guided team setup.',
+  } : JOIN_INTENT_COPY[selectedPlanId]
   const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
   const signInHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, email || requestedEmail)
   const authLoading = !authResolved

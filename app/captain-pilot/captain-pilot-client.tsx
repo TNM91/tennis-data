@@ -6,6 +6,7 @@ import { useMemo, useState, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
+import { CAPTAIN_QUICK_START_HREF } from '@/lib/captain-quick-start'
 import {
   CAPTAIN_PILOT_PRICE_LABEL,
   CAPTAIN_PILOT_TRIAL_MONTHS,
@@ -38,6 +39,7 @@ function CaptainPilotContent() {
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [notice, setNotice] = useState('')
+  const [pilotAlreadyActive, setPilotAlreadyActive] = useState(false)
   const availability = useMemo(() => getCaptainPilotAvailability(), [])
   const isOpen = availability === 'active'
   const returnTo = '/captain-pilot'
@@ -66,7 +68,8 @@ function CaptainPilotContent() {
       const claim = await claimResponse.json().catch(() => null) as ClaimResponse | null
       if (!claimResponse.ok || !claim?.ok) throw new Error(claim?.message || 'Your pilot claim could not be started.')
       if (claim.alreadyActive) {
-        setNotice('Your Fall Captain Pilot is already active. Open Team Hub to keep building the week.')
+        setPilotAlreadyActive(true)
+        setNotice('Your Fall Captain Pilot is already active. Continue with your guided team setup below.')
         return
       }
       if (!claim.requestId) throw new Error('Your pilot claim did not include checkout access.')
@@ -77,7 +80,7 @@ function CaptainPilotContent() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ requestId: claim.requestId, nextHref: '/captain' }),
+        body: JSON.stringify({ requestId: claim.requestId, nextHref: CAPTAIN_QUICK_START_HREF }),
       })
       const checkout = await checkoutResponse.json().catch(() => null) as { ok?: boolean; message?: string; url?: string } | null
       if (!checkoutResponse.ok || !checkout?.ok || !checkout.url) {
@@ -105,11 +108,23 @@ function CaptainPilotContent() {
           <p className={styles.eyebrow}>Local Tennis Captains · Fall Captain Pilot</p>
           <h1 id="captain-pilot-title">Start your fall season on us.</h1>
           <p className={styles.heroCopy}>
-            Bring availability, lineup decisions, scouting, and a clear team plan into one Captain workflow — and help us build it around the way local teams really operate.
+            Know who can play, build your lineup, and send one clear match-day plan. We’ll walk you through your first team setup.
           </p>
           <div className={styles.offerCard}>
             <strong>{CAPTAIN_PILOT_TRIAL_MONTHS} months of Captain free</strong>
             <span>Then {CAPTAIN_PILOT_PRICE_LABEL} until canceled.</span>
+          </div>
+          <div className={styles.heroActions}>
+            {!authResolved ? <p className={styles.status}>Checking your account…</p> : hasCaptainAccess || pilotAlreadyActive ? (
+              <Link href={CAPTAIN_QUICK_START_HREF} className={styles.primaryAction}>Set up your team</Link>
+            ) : isOpen ? (
+              <>
+                <Link href={session?.user ? '#pilot-claim' : joinHref} className={styles.primaryAction}>
+                  {session?.user ? 'Activate 3 months free' : 'Start 3 months free'}
+                </Link>
+                {!session?.user ? <Link href={loginHref} className={styles.secondaryAction}>Already have an account? Sign in</Link> : null}
+              </>
+            ) : <p className={styles.status}>Pilot enrollment has closed.</p>}
           </div>
           <div className={styles.benefitGrid}>
             <p><strong>Know availability</strong><span>before lineup pressure arrives.</span></p>
@@ -119,7 +134,7 @@ function CaptainPilotContent() {
           </div>
         </section>
 
-        <section className={styles.claimCard} aria-labelledby="pilot-claim-title">
+        <section id="pilot-claim" className={styles.claimCard} aria-labelledby="pilot-claim-title">
           <div className={styles.claimHeading}>
             <p>{hasCaptainAccess ? 'Your Captain access' : session?.user ? 'Step 2 of 2 · Activate Captain' : 'Step 1 of 2 · Create or sign in'}</p>
             <h2 id="pilot-claim-title">
@@ -155,8 +170,8 @@ function CaptainPilotContent() {
               </div>
             </div>
           ) : (
-            <form className={styles.form} onSubmit={beginPilot}>
-              <p className={styles.activationNote}><strong>What happens next:</strong> submit this form, add payment details securely in Stripe, and Captain activates immediately. You will not be charged for the first 3 months.</p>
+            pilotAlreadyActive ? <Link href={CAPTAIN_QUICK_START_HREF} className={styles.primaryAction}>Continue team setup</Link> : <form className={styles.form} onSubmit={beginPilot}>
+              <p className={styles.activationNote}><strong>What happens next:</strong> add payment details securely in Stripe to activate your trial, then follow the guided steps to add your team. You will not be charged for the first 3 months.</p>
               <label>
                 Your name
                 <input value={captainName} onChange={(event) => setCaptainName(event.target.value)} required autoComplete="name" />
