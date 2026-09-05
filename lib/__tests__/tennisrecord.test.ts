@@ -196,10 +196,10 @@ describe('TennisRecord ingestion safety', () => {
     expect(parsed.matches[0].participants.map((player) => player.name)).toEqual(['Charles Kern', 'John Uy'])
   })
 
-  it('derives the winner from factual set scores when the source omits a winner marker', () => {
+  it('leaves winner-first scores unresolved when the source omits a winner marker', () => {
     const scoreOnly = fixture.replace('<span>Winner</span>', '')
     const parsed = parseTennisRecordMatchPage(scoreOnly, 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=84487&year=2026')
-    expect(parsed.matches[0]?.winnerSide).toBe('A')
+    expect(parsed.matches[0]?.winnerSide).toBeNull()
   })
 
   it('uses the directional winner arrow over a 1-0 deciding-tiebreak marker', () => {
