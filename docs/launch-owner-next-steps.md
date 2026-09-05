@@ -61,11 +61,14 @@ Current tiers:
 - Captain: `$4.99/month`.
 - League: `$25/season`, one-time.
 - Full-Court: `$9.99/month`.
+- Club Starter: `$99/month`.
+- Club Unlimited: `$149/month`.
 
 Current Stripe readiness:
 
-- Checkout has no coupon or promotion-code path; the Captain Pilot is the sole offer.
-- Paid plan price env vars are mapped for Player, Coach, Captain, League, and Full-Court.
+- The Captain Pilot is the only standing offer: eligible new captains receive three months at $0, then renew at $4.99/month.
+- Admins can create a deliberate, plan-specific Stripe promotion in `/admin/promotions`; ordinary checkout keeps Stripe promotion-code entry available for those codes.
+- Paid plan price env vars are mapped for Player, Coach, Captain, League, Full-Court, Club Starter, and Club Unlimited.
 - Webhook readiness checks cover signed checkout and subscription lifecycle events.
 
 Before live charges:
