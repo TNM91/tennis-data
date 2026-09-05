@@ -136,6 +136,16 @@ export async function POST(request: Request) {
   const auth = await getTeamConnectionAuth(request)
   if (!auth.ok) return auth.response
 
+  async function savedConnectionResponse(connection: TeamConnection | null) {
+    try {
+      await getCache({ namespace: 'team-connections' }).expireTag(`team-connections:${auth.userId}`)
+    } catch {
+      // Saving succeeded. The client also bypasses cached reads after a mutation.
+      console.warn('[api/team-connections] saved connection cache invalidation unavailable')
+    }
+    return Response.json({ ok: true, connection }, { headers: { 'Cache-Control': 'private, no-store' } })
+  }
+
   let body: TeamConnectionActionBody
   try {
     body = (await request.json()) as TeamConnectionActionBody
@@ -162,7 +172,7 @@ export async function POST(request: Request) {
     if (!importedResult.ok) {
       return Response.json({ ok: false, message: importedResult.message }, { status: importedResult.status })
     }
-    return Response.json({ ok: true, connection: importedResult.connection })
+    return savedConnectionResponse(importedResult.connection)
   }
 
   if (!connectionId) {
@@ -179,7 +189,7 @@ export async function POST(request: Request) {
     if (!savedResult.ok) {
       return Response.json({ ok: false, message: savedResult.message }, { status: savedResult.status })
     }
-    return Response.json({ ok: true, connection: savedResult.connection })
+    return savedConnectionResponse(savedResult.connection)
   }
 
   const candidateResult = await resolveDiscoveredCandidate({
@@ -192,8 +202,16 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: candidateResult.message }, { status: candidateResult.status })
   }
 
+  // The invitation combines verified roster membership and contact roles.
+  // Save that same scope, not just the contact row named by its candidate ID:
+  // an email-matched captain contact can lack the name needed by the contact's
+  // player lookup, even though the account's linked player is on this roster.
+  const discovery = await loadTeamConnections(auth.service, auth.userId, auth.email)
+  if (!discovery.ok) return Response.json({ ok: false, message: discovery.message }, { status: 500 })
+  const candidateScope = buildTeamConnectionScopeKey(candidateResult.candidate)
+  const candidate = discovery.pending.find((item) => buildTeamConnectionScopeKey(item) === candidateScope)
+    || candidateResult.candidate
   const now = new Date().toISOString()
-  const candidate = candidateResult.candidate
   const normalizedTeamName = normalizeKey(candidate.teamName)
   const { data: existingData, error: existingError } = await auth.service
     .from('team_profile_links')
@@ -227,7 +245,7 @@ export async function POST(request: Request) {
       .single()
     if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
     const connection = buildTeamConnections({ savedLinks: [data as TeamProfileLinkRow] }).connections[0] ?? null
-    return Response.json({ ok: true, connection })
+    return savedConnectionResponse(connection)
   }
 
   const acceptedRoles = action === 'accept'
@@ -291,7 +309,7 @@ export async function POST(request: Request) {
     .eq('id', cleanText((data as TeamProfileLinkRow).id))
     .maybeSingle()
   const connections = buildTeamConnections({ savedLinks: [(refreshedData || data) as TeamProfileLinkRow] }).connections
-  return Response.json({ ok: true, connection: connections[0] ?? null })
+  return savedConnectionResponse(connections[0] ?? null)
 }
 
 async function loadTeamConnections(service: SupabaseClient, userId: string, email: string) {

@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { getCaptainQuickStartSteps, hasCompleteSavedLineup } from '../captain-quick-start'
 import type { TeamConnection } from '../team-profile-links'
 
@@ -10,6 +12,18 @@ const team: TeamConnection = {
 const player = (id: string) => ({ playerId: id, playerName: `Player ${id}` })
 
 describe('Captain quick start', () => {
+  it('compacts only the guide summary while preserving first-time help and direct links', () => {
+    const component = readFileSync(resolve(process.cwd(), 'app/components/captain-quick-start.tsx'), 'utf8')
+    const css = readFileSync(resolve(process.cwd(), 'app/components/captain-quick-start.module.css'), 'utf8')
+    expect(component).toContain('compact = false')
+    expect(component).toContain("compact ? 'Setup guide' : 'Set up your team'")
+    expect(component).toContain('!compact ? <small>Five steps')
+    expect(component).toContain("window.location.hash === '#captain-setup'")
+    expect(component).toContain('onToggle={(event) => setOpen(event.currentTarget.open)}')
+    expect(component).toContain('{open ? <div className={styles.content}>')
+    expect(css).toContain('.guide.compact { margin: 0;')
+    expect(css).toContain('box-sizing: border-box; min-height: 44px;')
+  })
   it('starts a new team with no completed steps', () => {
     expect(getCaptainQuickStartSteps().filter((step) => step.complete)).toHaveLength(0)
   })

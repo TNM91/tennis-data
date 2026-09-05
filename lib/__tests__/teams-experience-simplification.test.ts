@@ -97,9 +97,9 @@ describe('Teams experience simplification', () => {
 
   it('keeps a default team first and makes multi-team context explicit', () => {
     expect(teamsHub).toContain('left.connection.isDefault !== right.connection.isDefault')
-    expect(teamsHub).toContain('const defaultTeam = groupedTeams.find((group) => group.connection.isDefault) || null')
-    expect(teamsHub).toContain('opens first in Captain and My Lab.')
-    expect(teamsHub).toContain('Choose a default team in Manage team links.')
+    expect(teamsHub).toContain("`${groupedTeams.length} ${groupedTeams.length === 1 ? 'team' : 'teams'} connected`")
+    expect(teamsHub).toContain('compact={groupedTeams.length > 0}')
+    expect(teamsHub).not.toContain('${defaultTeam.teamName} opens first')
     expect(teamsHub).toContain('defaultTeamRowStyle')
     expect(teamsHub).toContain('defaultTeamChipStyle')
     expect(teamsHub).toContain('Default team')

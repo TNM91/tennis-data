@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { buildTeamRoomHref } from '@/lib/team-room'
+import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
 import {
   getTeamConnectionRolesLabel,
   isCaptainTeamConnection,
@@ -30,8 +31,11 @@ export default function TeamConnectionInvite() {
   })
   const [loadingAction, setLoadingAction] = useState(false)
   const [message, setMessage] = useState('')
+  const [connectionRevision, setConnectionRevision] = useState(0)
   const access = useMemo(() => buildProductAccessState(userId ? role : 'public', entitlements), [entitlements, role, userId])
   const accessToken = session?.access_token || ''
+
+  useEffect(() => subscribeToTeamConnectionsChanged(() => setConnectionRevision((current) => current + 1)), [])
 
   useEffect(() => {
     if (!authResolved || !userId || !accessToken || HIDDEN_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
@@ -40,7 +44,7 @@ export default function TeamConnectionInvite() {
     }
 
     let active = true
-    void fetchTeamConnections(accessToken)
+    void fetchTeamConnections(accessToken, { userId, force: true })
       .then((result) => {
         if (!active) return
         setPending(result.pending)
@@ -53,7 +57,7 @@ export default function TeamConnectionInvite() {
     return () => {
       active = false
     }
-  }, [accessToken, authResolved, pathname, userId])
+  }, [accessToken, authResolved, pathname, userId, connectionRevision])
 
   const invitation = pending[0] || null
   if (!invitation && !accepted) return null
@@ -71,8 +75,11 @@ export default function TeamConnectionInvite() {
       setPending((current) => current.filter((item) => item.id !== invitation.id))
       if (action === 'accept' && connection) {
         setAccepted(connection)
-        const refreshed = await fetchTeamConnections(accessToken, { includeOffers: true }).catch(() => null)
-        if (refreshed) setOffers(refreshed.offers)
+        const refreshed = await fetchTeamConnections(accessToken, { includeOffers: true, userId, force: true }).catch(() => null)
+        if (refreshed) {
+          setPending(refreshed.pending)
+          setOffers(refreshed.offers)
+        }
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Team connection could not be updated.')
