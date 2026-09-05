@@ -17,7 +17,7 @@ Cooldown saves are checked. A persistence failure stops the checkpoint rather th
 
 ## Rollout
 
-This change is prepared locally on `codex/importer-source-cooldown`, based on production HTTP guards `1afd3a23`. The separate snapshot-write optimization is not included.
+Published September 5 through PR #1196, master commit `784d52cb`. Production deployment `dpl_9BZT8SJF9et2ReGrQnqb55Vta14R` became READY at 21:33:20 UTC and serves both TenAceIQ domains. The migration was applied before merging; read-back confirms it exists and source pacing remains 18 requests per checkpoint / 3,000 ms. The separate snapshot-write optimization was not included in that release.
 
 Apply additive migration `20260905000400_source_outage_cooldown.sql` before deploying this code. It adds only an empty JSON operational-state column to existing protected settings; it does not alter queue rows, access policies, match records, ratings or existing retry limits. The authoritative column read fails closed if migration is missing.
 
@@ -29,4 +29,4 @@ Rollback: restore the prior application version; leave the additive column for e
 
 Regression coverage includes distinct-page counting across serialized checkpoints, stale failure expiry, bounded backoff, direct/manual and scheduler skips, lock-time rechecks, triggering/probe retry preservation, success reset, replay exclusion, database-error separation, block termination, and persistence/cleanup failures.
 
-Final local verification on September 5: 506 test files / 2,469 tests passed; full lint, standalone typecheck, production build including TypeScript and all 245 prerendered pages, extension syntax check, and diff whitespace check passed. Linked migration dry run lists only the new additive migration; it was not applied. No live migration or deployment has occurred yet.
+Final local verification on September 5: 506 test files / 2,469 tests passed; full lint, standalone typecheck, production build including TypeScript and all 245 prerendered pages, extension syntax check, and diff whitespace check passed. CI and schema audit passed before merge. Preview and production cron authentication smoke checks returned the expected 401 without invoking jobs; the initial post-release error scan was empty. Follow natural checkpoint telemetry for operational acceptance; never trigger source work to manufacture an outage test.

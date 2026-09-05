@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { saveRatingSnapshotBatches } from './rating-snapshot-batches'
 
 type MatchType = 'singles' | 'doubles'
 export type MatchSide = 'A' | 'B'
@@ -169,6 +170,8 @@ export type RatingRecalculationOptions = {
    * is catching up a large imported history.
    */
   replaceSnapshots?: boolean
+  /** Opt-in bounded writes for disjoint, deduplicated snapshot batches. */
+  snapshotWriteConcurrency?: 1 | 2
 }
 
 export type RatingRecalculationResult = {
@@ -331,7 +334,7 @@ export async function recalculateDynamicRatings(
     await persistPlayerRatings(recalculatedPlayers, client)
 
     onPhase?.('saving-snapshots', `${snapshotRows.length} snapshots`)
-    await replaceRatingSnapshots(snapshotRows, client, options.replaceSnapshots !== false)
+    await replaceRatingSnapshots(snapshotRows, client, options.replaceSnapshots !== false, options.snapshotWriteConcurrency)
   }
 
   onPhase?.('done')
@@ -770,6 +773,7 @@ async function replaceRatingSnapshots(
   snapshotRows: RatingSnapshotInsert[],
   client: SupabaseClient,
   replaceExisting: boolean,
+  concurrency: 1 | 2 = 1,
 ) {
   if (replaceExisting) {
     const { error: deleteError } = await client
@@ -794,7 +798,7 @@ async function replaceRatingSnapshots(
       .values(),
   )
 
-  for (const chunk of chunkArray(dedupedRows, 500)) {
+  await saveRatingSnapshotBatches(chunkArray(dedupedRows, 500), async chunk => {
     const { error } = await client
       .from('rating_snapshots')
       .upsert(chunk, {
@@ -804,7 +808,7 @@ async function replaceRatingSnapshots(
     if (error) {
       if (isMissingOnConflictConstraintError(error.message)) {
         await insertRatingSnapshotChunk(chunk, client)
-        continue
+        return
       }
 
       // delta/opponent_rating/win_probability/multiplier columns may not be migrated yet
@@ -819,14 +823,14 @@ async function replaceRatingSnapshots(
           if (insertFallbackError) {
             throw new Error(`Failed to insert rating snapshots: ${insertFallbackError.message}`)
           }
-          continue
+          return
         }
         if (fallbackError) throw new Error(`Failed to insert rating snapshots: ${fallbackError.message}`)
-        continue
+        return
       }
       throw new Error(`Failed to insert rating snapshots: ${error.message}`)
     }
-  }
+  }, concurrency)
 }
 
 export function dedupeRatingSnapshots(snapshotRows: RatingSnapshotInsert[]) {
