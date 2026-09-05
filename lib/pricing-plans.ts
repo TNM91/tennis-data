@@ -122,21 +122,21 @@ const PRICING_BILLING: Record<BillablePricingPlanId, PricingBillingModel> = {
     quantityMode: 'account',
   },
   player_plus: {
-    amountCents: 299,
+    amountCents: 199,
     currency: USD,
     interval: 'month',
     checkoutMode: 'subscription',
     quantityMode: 'account',
   },
   coach: {
-    amountCents: 599,
+    amountCents: 499,
     currency: USD,
     interval: 'month',
     checkoutMode: 'subscription',
     quantityMode: 'account',
   },
   captain: {
-    amountCents: 599,
+    amountCents: 499,
     currency: USD,
     interval: 'month',
     checkoutMode: 'subscription',
@@ -150,7 +150,7 @@ const PRICING_BILLING: Record<BillablePricingPlanId, PricingBillingModel> = {
     quantityMode: 'league',
   },
   full_court: {
-    amountCents: 1499,
+    amountCents: 999,
     currency: USD,
     interval: 'month',
     checkoutMode: 'subscription',
@@ -164,7 +164,7 @@ const PRICING_BILLING: Record<BillablePricingPlanId, PricingBillingModel> = {
     quantityMode: 'account',
   },
   club_unlimited: {
-    amountCents: 19900,
+    amountCents: 14900,
     currency: USD,
     interval: 'month',
     checkoutMode: 'subscription',

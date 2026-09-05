@@ -11,7 +11,6 @@ export type StripeCheckoutSessionInput = {
   customerId?: string
   origin: string
   nextHref: string
-  couponId?: string
   trialEnd?: number
   campaignKey?: string
   pilotRedemptionId?: string
@@ -46,7 +45,6 @@ export function buildStripeCheckoutSessionParams({
   customerId,
   origin,
   nextHref,
-  couponId,
   trialEnd,
   campaignKey,
   pilotRedemptionId,
@@ -70,11 +68,7 @@ export function buildStripeCheckoutSessionParams({
   params.set('success_url', successUrl)
   params.set('cancel_url', cancelUrl)
   params.set('client_reference_id', requestId)
-  if (couponId) {
-    params.set('discounts[0][coupon]', couponId)
-  } else if (allowPromotionCodes) {
-    params.set('allow_promotion_codes', 'true')
-  }
+  if (allowPromotionCodes) params.set('allow_promotion_codes', 'true')
   params.set('metadata[upgrade_request_id]', metadata.upgrade_request_id)
   params.set('metadata[user_id]', metadata.user_id)
   params.set('metadata[plan_id]', metadata.plan_id)

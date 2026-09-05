@@ -11,7 +11,7 @@ describe('club plans', () => {
       playerProfileLimit: 150,
     })
     expect(CLUB_PLANS.unlimited).toMatchObject({
-      priceLabel: '$199/month',
+      priceLabel: '$149/month',
       locationLimit: null,
       coachStaffLimit: null,
       playerProfileLimit: null,

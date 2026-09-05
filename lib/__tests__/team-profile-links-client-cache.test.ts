@@ -114,9 +114,9 @@ describe('team connections client cache', () => {
     await Promise.resolve()
     expect(fetchMock).toHaveBeenCalledTimes(1)
 
-    await fetchTeamConnections(token, { includeOffers: true, userId: 'player-a' })
+    await fetchTeamConnections(token, { force: true, userId: 'player-a' })
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/team-connections?includeOffers=1')
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/api/team-connections?refresh=1')
   })
 
   it('keeps the last-good team connection after a mobile session token changes', async () => {

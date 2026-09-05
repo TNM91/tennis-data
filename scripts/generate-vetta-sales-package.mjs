@@ -106,7 +106,7 @@ function executiveOnePager(a) {
         <p class="rail-copy">Vetta already offers the programs. TenAceIQ Club connects the identity, coaching, teams, leagues, and tournaments around them.</p>
         <div class="rail-rule"></div>
         <p class="price-label">RECOMMENDED DISCUSSION</p>
-        <div class="price"><strong>$199</strong><span>/ MONTH</span></div>
+        <div class="price"><strong>$149</strong><span>/ MONTH</span></div>
         <p class="limit">CLUB UNLIMITED<br>ONE BRANDED WORKSPACE<br>NO STAFF OR PLAYER CAPS</p>
         <p class="starter-note"><b>$99 STARTER</b><br>Up to 10 coaches or staff<br>and 150 connected players.</p>
         <p class="boundary">Both plans use the same premium Club product. Pricing shown is for one branded Club workspace.</p>
@@ -135,7 +135,7 @@ function pricingOnePager(a) {
       <p class="pricing-lead">Each plan activates one branded Club workspace with the same connected Player, Coach, Captain, League, and Tournament experience.</p>
       <div class="plans">
         ${planCard({ name: 'CLUB STARTER', price: '$99', audience: 'Focused Vetta rollout', accent: '#58dfff', qr: a.starterQr, url: starterUrl, rows: ['1 branded Club workspace', 'Up to 10 coaches or staff', 'Up to 150 connected players', 'Programs, teams, leagues, and tournaments', 'TIQ rated, public-history-only, or social competition', 'Best when the first rollout stays under both caps'] })}
-        ${planCard({ name: 'CLUB UNLIMITED', price: '$199', audience: 'Organization-scale capacity', accent: '#9bea18', qr: a.unlimitedQr, url: unlimitedUrl, rows: ['Everything in Club Starter', 'Unlimited coaches and staff', 'Unlimited connected players', 'Unlimited programs, groups, and teams', 'Reusable league and tournament setups', 'Best if one Vetta workspace exceeds either Starter cap'] })}
+        ${planCard({ name: 'CLUB UNLIMITED', price: '$149', audience: 'Organization-scale capacity', accent: '#9bea18', qr: a.unlimitedQr, url: unlimitedUrl, rows: ['Everything in Club Starter', 'Unlimited coaches and staff', 'Unlimited connected players', 'Unlimited programs, groups, and teams', 'Reusable league and tournament setups', 'Best if one Vetta workspace exceeds either Starter cap'] })}
       </div>
       <section class="decision"><h2>THE COMMERCIAL DECISION COMES AFTER THE WORKSPACE DECISION</h2><div><b>ONE VETTA-WIDE WORKSPACE</b><span>One identity and operating layer across the racquet organization. Unlimited is the likely fit if adoption exceeds Starter capacity.</span><b>SEPARATE WORKSPACES</b><span>Distinct club homes by location. Scope the number of workspaces before quoting the rollout.</span></div></section>
       <footer class="pricing-footer"><strong>TenAceIQ complements Vetta's booking, registration, membership, point-of-sale, and payment systems.</strong><span>It connects the tennis experience around them.</span></footer>
@@ -162,7 +162,7 @@ function executiveDeck(a) {
     `<div class="split"><div class="deck-copy"><p class="deck-kicker">WHY THE IDENTITY MATTERS</p><h2>THE MEMBER DOES NOT<br><em>START OVER AT THE CLUB DOOR.</em></h2><p>Club membership links to the member's existing Player ID. Their public history, TIQ context, My Lab, and Vetta relationship can stay connected without creating a duplicate tennis record.</p><strong class="statement">Connect once. Carry the context everywhere.</strong></div>${deckProof(a.playerHome, 'Verified Club member and Player ID experience')}</div>`,
     `<div class="deck-title"><p class="deck-kicker">ROLE-BASED VALUE</p><h2>THE CLUB FOLLOWS EACH PERSON<br><em>INTO THE WORK THEY ACTUALLY DO.</em></h2></div><div class="role-proof">${roleProof(a.myLab, 'PLAYER', 'My Lab keeps goals, programs, match context, tactics, video, and the next useful step connected.')}${roleProof(a.coach, 'COACH', 'Coach Hub carries players, assignments, lesson notes, plans, and visible progress.')}${roleProof(a.captain, 'CAPTAIN', 'Team Hub connects availability, projected lineups, messages, and match-week decisions.')}</div>`,
     `<div class="deck-title"><p class="deck-kicker">COMPETITION WITH INTENT</p><h2>VETTA DECIDES<br><em>HOW EACH RESULT SHOULD COUNT.</em></h2></div><div class="competition-proof">${deckProof(a.leaguePolicy, 'League Office - result policy')}${deckProof(a.tournament, 'Tournament Desk - result policy')}</div><div class="policy-row"><b>TIQ RATED</b><span>Public history + TIQ rating update</span><b>PUBLIC HISTORY ONLY</b><span>Visible history without rating impact</span><b>SOCIAL / EVENT ONLY</b><span>Local record; no public history or TIQ impact</span></div>`,
-    `<div class="deck-title"><p class="deck-kicker">PRICING</p><h2>SAME PREMIUM CLUB PRODUCT.<br><em>CHOOSE THE CAPACITY.</em></h2></div><div class="deck-plans"><div><p>CLUB STARTER</p><strong>$99<span>/MONTH</span></strong><ul><li>1 branded Club workspace</li><li>Up to 10 coaches or staff</li><li>Up to 150 connected players</li><li>Best for a focused rollout under both caps</li></ul></div><div class="recommended"><p>CLUB UNLIMITED</p><strong>$199<span>/MONTH</span></strong><ul><li>The same complete Club experience</li><li>Unlimited coaches, staff, and connected players</li><li>Unlimited programs, groups, and teams</li><li>Likely fit for one Vetta-wide workspace</li></ul></div></div><p class="pricing-boundary">Pricing shown activates one branded Club workspace. If Vetta prefers separate workspaces by location, scope that structure before quoting.</p>`,
+    `<div class="deck-title"><p class="deck-kicker">PRICING</p><h2>SAME PREMIUM CLUB PRODUCT.<br><em>CHOOSE THE CAPACITY.</em></h2></div><div class="deck-plans"><div><p>CLUB STARTER</p><strong>$99<span>/MONTH</span></strong><ul><li>1 branded Club workspace</li><li>Up to 10 coaches or staff</li><li>Up to 150 connected players</li><li>Best for a focused rollout under both caps</li></ul></div><div class="recommended"><p>CLUB UNLIMITED</p><strong>$149<span>/MONTH</span></strong><ul><li>The same complete Club experience</li><li>Unlimited coaches, staff, and connected players</li><li>Unlimited programs, groups, and teams</li><li>Likely fit for one Vetta-wide workspace</li></ul></div></div><p class="pricing-boundary">Pricing shown activates one branded Club workspace. If Vetta prefers separate workspaces by location, scope that structure before quoting.</p>`,
     `<div class="deck-title"><p class="deck-kicker">THE NEXT DECISION</p><h2>DEFINE THE SHAPE OF<br><em>THE VETTA CLUB EXPERIENCE.</em></h2></div><div class="decision-list">${decisionLine('01','WORKSPACE','One Vetta-wide racquet workspace or separate location workspaces?')}${decisionLine('02','FIRST JOURNEY','Player development, team operations, league, or tournament?')}${decisionLine('03','OWNER','Who will define roles, programs, and the first member group?')}${decisionLine('04','ACTIVATION','When will Vetta and TenAceIQ scope the live rollout together?')}</div><div class="deck-close"><b>RECOMMENDED NEXT STEP</b><span>A 45-minute workspace and rollout session with Vetta's racquet-sports owner.</span></div>`,
   ]
 }
@@ -220,13 +220,13 @@ Vetta already offers a broad racquet-sports experience. TenAceIQ Club connects t
 ## Pricing to state exactly
 
 - Club Starter: $99/month for one branded Club workspace, up to 10 coaches or staff, and up to 150 connected players.
-- Club Unlimited: $199/month for one branded Club workspace with unlimited coaches, staff, and connected players.
+- Club Unlimited: $149/month for one branded Club workspace with unlimited coaches, staff, and connected players.
 
 Both plans use the same premium Club product. The difference is capacity.
 
 ## Important Vetta scoping decision
 
-Do not promise that $199 automatically covers a separate workspace for every Vetta location. First decide whether Vetta wants one organization-wide racquet workspace or separate workspaces by location. If separate workspaces are preferred, scope the commercial structure before quoting.
+Do not promise that $149 automatically covers a separate workspace for every Vetta location. First decide whether Vetta wants one organization-wide racquet workspace or separate workspaces by location. If separate workspaces are preferred, scope the commercial structure before quoting.
 `
 }
 
@@ -317,7 +317,7 @@ Accessed August 12, 2026. These official pages support the statements that Vetta
 - Product and pricing language: lib/product-story.ts in the verified Club build.
 - Product screenshots: artifacts/club-experience-audit in the verified Club build.
 - Club Starter: $99/month, one branded workspace, up to 10 coaches or staff, up to 150 connected players.
-- Club Unlimited: $199/month, one branded workspace, unlimited coaches, staff, and connected players.
+- Club Unlimited: $149/month, one branded workspace, unlimited coaches, staff, and connected players.
 
 ## Concept boundary
 
@@ -345,7 +345,7 @@ Vetta already has the programs. TenAceIQ Club connects the member identity, deve
 ## Pricing
 
 - Club Starter: $99/month for one branded Club workspace, up to 10 coaches or staff, and up to 150 connected players.
-- Club Unlimited: $199/month for one branded Club workspace with unlimited coaches, staff, and connected players.
+- Club Unlimited: $149/month for one branded Club workspace with unlimited coaches, staff, and connected players.
 
 The package intentionally does not claim that Club Unlimited includes a separate workspace for every Vetta location. The workspace structure must be scoped first.
 `

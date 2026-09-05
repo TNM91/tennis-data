@@ -15,7 +15,6 @@ vi.mock('@vercel/functions', () => ({
   getCache: () => ({ get: mocks.cacheGet, set: mocks.cacheSet, expireTag: mocks.cacheExpire }),
 }))
 vi.mock('@/lib/supabase', () => ({ supabaseUrl: 'https://test.invalid', supabaseKey: 'test-key' }))
-vi.mock('@/lib/team-invite-offers', () => ({ getPublicTeamInviteOffers: vi.fn() }))
 
 import { GET, POST } from '@/app/api/team-connections/route'
 

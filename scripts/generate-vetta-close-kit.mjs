@@ -175,7 +175,7 @@ function proposalHtml() {
       <p class="page-lead">Both plans activate one branded Club workspace with Player, Coach, Captain, League, and Tournament experiences. The difference is capacity.</p>
       <section class="plan-grid">
         ${plan('CLUB STARTER', '$99', 'Focused rollout', ['1 branded Club workspace', 'Up to 10 coaches or staff', 'Up to 150 connected players', 'All Club tools and result policies'])}
-        ${plan('CLUB UNLIMITED', '$199', 'Organization-scale capacity', ['1 branded Club workspace', 'Unlimited coaches and staff', 'Unlimited connected players', 'All Club tools and result policies'], true)}
+        ${plan('CLUB UNLIMITED', '$149', 'Organization-scale capacity', ['1 branded Club workspace', 'Unlimited coaches and staff', 'Unlimited connected players', 'All Club tools and result policies'], true)}
       </section>
       <section class="scope-question">
         <p class="eyebrow">DECIDE THIS BEFORE QUOTING</p>
@@ -194,7 +194,7 @@ function proposalHtml() {
       <p class="form-intro">Use the interactive fields below to capture the decisions needed for a scoped activation. This worksheet is not a binding order form.</p>
       ${formSection('CONTACT', 110, '<span class="label left">Vetta contact</span><span class="label right">Title</span>')}
       ${formSection('WORKSPACE SHAPE', 213, '<span class="choice left-one">One Vetta-wide workspace</span><span class="choice left-two">Location-specific workspaces - scope count before quote</span>')}
-      ${formSection('CAPACITY', 311, '<span class="choice left-one">Club Starter - $99/month</span><span class="choice left-two">Club Unlimited - $199/month</span>')}
+      ${formSection('CAPACITY', 311, '<span class="choice left-one">Club Starter - $99/month</span><span class="choice left-two">Club Unlimited - $149/month</span>')}
       ${formSection('FIRST MEMBER JOURNEY', 409, '<span class="choice journey-one">Player development</span><span class="choice journey-two">Team operations</span><span class="choice journey-three">League</span><span class="choice journey-four">Tournament</span>')}
       ${formSection('DEFAULT RESULT POLICY', 507, '<span class="choice result-one">TIQ rated</span><span class="choice result-two">Public history only</span><span class="choice result-three">Social / event only</span>')}
       ${formSection('OWNERS + TIMING', 605, '<span class="label third-one">Target launch</span><span class="label third-two">Vetta owner</span><span class="label third-three">TenAceIQ owner</span>')}
@@ -348,7 +348,7 @@ Use this folder after the executive conversation moves from interest to scope.
 ## Commercial language to keep exact
 
 - Club Starter: $99/month for one branded Club workspace, up to 10 coaches or staff, and up to 150 connected players.
-- Club Unlimited: $199/month for one branded Club workspace with unlimited coaches, staff, and connected players.
+- Club Unlimited: $149/month for one branded Club workspace with unlimited coaches, staff, and connected players.
 - Both plans use the same premium Club product. The difference is capacity.
 - If Vetta wants separate workspaces by location, scope the number of workspaces before quoting.
 `
@@ -370,7 +370,7 @@ Thank you for the conversation. The clearest opportunity is to connect Vetta's t
 The key decisions for a scoped activation are:
 
 - one Vetta-wide racquet workspace or location-specific workspaces;
-- Club Starter at $99/month for up to 10 coaches or staff and 150 connected players, or Club Unlimited at $199/month with no staff or player caps;
+- Club Starter at $99/month for up to 10 coaches or staff and 150 connected players, or Club Unlimited at $149/month with no staff or player caps;
 - the first member journey to launch;
 - who owns the rollout; and
 - how league and tournament results should count.
@@ -470,7 +470,7 @@ Both plans use the same product. Starter is limited to 10 coaches or staff and 1
 
 ## Do not overpromise
 
-- Do not say $199 automatically covers separate workspaces at every Vetta location.
+- Do not say $149 automatically covers separate workspaces at every Vetta location.
 - Do not describe Vetta branding as a live customer account.
 - Do not position TenAceIQ as a replacement for booking, registration, membership, point-of-sale, or payment systems.
 - Do not promise data integrations until the specific systems and data exchanges are scoped.

@@ -99,7 +99,7 @@ describe('Club tier and Clinic Hub integration', () => {
     const billingPolicy = source('lib/billing-policy.ts')
 
     expect(CLUB_PLAN_STORY.starter.priceLabel).toBe('$99/month')
-    expect(CLUB_PLAN_STORY.unlimited.priceLabel).toBe('$199/month')
+    expect(CLUB_PLAN_STORY.unlimited.priceLabel).toBe('$149/month')
     expect(CLUB_PLAN_STORY.starter).toMatchObject({
       workspaceLimit: 1,
       coachStaffLimit: 10,

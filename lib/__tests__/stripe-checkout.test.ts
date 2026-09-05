@@ -162,46 +162,4 @@ describe('stripe checkout helpers', () => {
     expect(params.get('customer_email')).toBeNull()
   })
 
-  it('applies an eligible team invitation coupon instead of a second promotion code', () => {
-    const params = buildStripeCheckoutSessionParams({
-      planId: 'captain',
-      priceId: 'price_captain',
-      requestId: 'request-invited-captain',
-      userId: 'invited-captain',
-      origin: 'https://tenaceiq.test',
-      nextHref: '/captain',
-      couponId: 'coupon_first_month',
-    })
-
-    expect(params.get('discounts[0][coupon]')).toBe('coupon_first_month')
-    expect(params.get('allow_promotion_codes')).toBeNull()
-  })
-
-  it('keeps invitation coupon provisioning exact and repeatable', () => {
-    const packageJson = readFileSync(join(process.cwd(), 'package.json'), 'utf8')
-    const setupScript = readFileSync(join(process.cwd(), 'scripts/stripe-team-invite-coupons.mjs'), 'utf8')
-
-    expect(packageJson).toContain('"setup:stripe-team-invite-offers"')
-    expect(setupScript).toContain("id: 'tiq_captain_team_invite_first_month_2026_v2'")
-    expect(setupScript).toContain('amountOff: 300')
-    expect(setupScript).toContain("id: 'tiq_player_team_invite_first_month_2026_v2'")
-    expect(setupScript).toContain('amountOff: 150')
-    expect(setupScript).toContain("duration: 'once'")
-    expect(setupScript).not.toContain('console.log(secretKey)')
-  })
-
-  it('applies the Improve invitation coupon to Player checkout', () => {
-    const params = buildStripeCheckoutSessionParams({
-      planId: 'player_plus',
-      priceId: 'price_player',
-      requestId: 'request-invited-player',
-      userId: 'invited-player',
-      origin: 'https://tenaceiq.test',
-      nextHref: '/mylab',
-      couponId: 'coupon_player_first_month',
-    })
-
-    expect(params.get('discounts[0][coupon]')).toBe('coupon_player_first_month')
-    expect(params.get('allow_promotion_codes')).toBeNull()
-  })
 })

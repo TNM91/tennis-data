@@ -52,11 +52,11 @@ describe('buildProductAccessState', () => {
   it('reuses centralized tier story for access labels and messages', () => {
     const freeAccess = buildProductAccessState('member')
 
-    expect(freeAccess.playerPlusLabel).toBe(`${MEMBERSHIP_TIERS.player_plus.name} - $2.99/month`)
+    expect(freeAccess.playerPlusLabel).toBe(`${MEMBERSHIP_TIERS.player_plus.name} - $1.99/month`)
     expect(freeAccess.playerPlusMessage).toBe(MEMBERSHIP_TIERS.player_plus.description)
-    expect(freeAccess.captainTierLabel).toBe(`${MEMBERSHIP_TIERS.captain.name} - $5.99/month`)
+    expect(freeAccess.captainTierLabel).toBe(`${MEMBERSHIP_TIERS.captain.name} - $4.99/month`)
     expect(freeAccess.captainTierMessage).toBe(MEMBERSHIP_TIERS.captain.description)
-    expect(freeAccess.coachTierLabel).toBe(`${MEMBERSHIP_TIERS.coach.name} - $5.99/month`)
+    expect(freeAccess.coachTierLabel).toBe(`${MEMBERSHIP_TIERS.coach.name} - $4.99/month`)
     expect(freeAccess.coachTierMessage).toBe(MEMBERSHIP_TIERS.coach.description)
     expect(freeAccess.leagueTierLabel).toBe(`${MEMBERSHIP_TIERS.league.name} - $25/season`)
     expect(freeAccess.leagueTierMessage).toBe(MEMBERSHIP_TIERS.league.description)

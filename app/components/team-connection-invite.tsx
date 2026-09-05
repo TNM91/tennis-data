@@ -15,7 +15,6 @@ import {
 import {
   fetchTeamConnections,
   updateTeamConnection,
-  type TeamInviteOffers,
 } from '@/lib/team-profile-links-client'
 
 const HIDDEN_ROUTE_PREFIXES = ['/login', '/join', '/forget-password', '/reset-password', '/upgrade', '/team-connections']
@@ -25,10 +24,6 @@ export default function TeamConnectionInvite() {
   const { authResolved, entitlements, role, session, userId } = useAuth()
   const [pending, setPending] = useState<TeamConnection[]>([])
   const [accepted, setAccepted] = useState<TeamConnection | null>(null)
-  const [offers, setOffers] = useState<TeamInviteOffers>({
-    captain: { available: false, label: '' },
-    player: { available: false, label: '' },
-  })
   const [loadingAction, setLoadingAction] = useState(false)
   const [message, setMessage] = useState('')
   const [connectionRevision, setConnectionRevision] = useState(0)
@@ -48,7 +43,6 @@ export default function TeamConnectionInvite() {
       .then((result) => {
         if (!active) return
         setPending(result.pending)
-        setOffers(result.offers)
       })
       .catch(() => {
         if (active) setPending([])
@@ -75,10 +69,9 @@ export default function TeamConnectionInvite() {
       setPending((current) => current.filter((item) => item.id !== invitation.id))
       if (action === 'accept' && connection) {
         setAccepted(connection)
-        const refreshed = await fetchTeamConnections(accessToken, { includeOffers: true, userId, force: true }).catch(() => null)
+        const refreshed = await fetchTeamConnections(accessToken, { userId, force: true }).catch(() => null)
         if (refreshed) {
           setPending(refreshed.pending)
-          setOffers(refreshed.offers)
         }
       }
     } catch (error) {
@@ -100,13 +93,7 @@ export default function TeamConnectionInvite() {
     leagueName: activeConnection.leagueName,
     flight: activeConnection.flight,
   })
-  const tierLabel = isCaptainConnection
-    ? offers.captain.available && offers.captain.label
-      ? offers.captain.label
-      : 'Try Captain'
-    : offers.player.available && offers.player.label
-      ? offers.player.label
-      : 'Try Player'
+  const tierLabel = isCaptainConnection ? 'Try Captain' : 'Try Player'
 
   return (
     <section style={bannerWrapStyle} aria-label={accepted ? 'Team connected' : 'Team connection invitation'}>

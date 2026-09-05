@@ -133,7 +133,7 @@ export const CLUB_PLAN_STORY = {
   unlimited: {
     id: 'club_unlimited',
     name: 'Club Unlimited',
-    priceLabel: '$199/month',
+    priceLabel: '$149/month',
     workspaceLimit: 1,
     coachStaffLimit: null,
     connectedPlayerLimit: null,
@@ -320,7 +320,7 @@ export const CLUB_PLANS = {
   unlimited: {
     id: 'unlimited',
     name: 'Club Unlimited',
-    priceLabel: '$199/month',
+    priceLabel: '$149/month',
     locationLimit: null,
     coachStaffLimit: null,
     playerProfileLimit: null,

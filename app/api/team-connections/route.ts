@@ -14,7 +14,6 @@ import {
   type TeamConnectionRosterRow,
   type TeamProfileLinkRow,
 } from '@/lib/team-profile-links'
-import { getPublicTeamInviteOffers } from '@/lib/team-invite-offers'
 
 export const runtime = 'nodejs'
 
@@ -56,7 +55,6 @@ type TeamConnectionsCachedResponse = {
   ok?: boolean
   pending?: TeamConnection[]
   connections?: TeamConnection[]
-  offers?: unknown
 }
 
 export async function GET(request: Request) {
@@ -64,17 +62,15 @@ export async function GET(request: Request) {
   const auth = await getTeamConnectionAuth(request)
   if (!auth.ok) return auth.response
   const searchParams = new URL(request.url).searchParams
-  const includeOffers = searchParams.get('includeOffers') === '1'
   const forceRefresh = searchParams.get('refresh') === '1'
   const cache = getCache({ namespace: 'team-connections' })
-  const cacheKey = `${auth.userId}:${includeOffers ? 'offers' : 'default'}`
+  const cacheKey = auth.userId
 
   try {
     if (!forceRefresh) {
       const cached = await cache.get(cacheKey) as TeamConnectionsCachedResponse | undefined
       if (cached?.ok && Array.isArray(cached.connections) && Array.isArray(cached.pending)) {
         console.info('[api/team-connections] cache hit', {
-          includeOffers,
           durationMs: Date.now() - startedAt,
           connectionCount: cached.connections.length,
         })
@@ -86,22 +82,13 @@ export async function GET(request: Request) {
   }
 
   try {
-    const [result, offers] = await Promise.all([
-      loadTeamConnections(auth.service, auth.userId, auth.email),
-      includeOffers
-        ? getPublicTeamInviteOffers(auth.service, auth.userId)
-        : Promise.resolve({
-            captain: { available: false, label: '' },
-            player: { available: false, label: '' },
-          }),
-    ])
+    const result = await loadTeamConnections(auth.service, auth.userId, auth.email)
     if (!result.ok) {
-      console.error('[api/team-connections] load failed', { includeOffers, durationMs: Date.now() - startedAt, message: result.message })
+      console.error('[api/team-connections] load failed', { durationMs: Date.now() - startedAt, message: result.message })
       return Response.json({ ok: false, message: result.message }, { status: 500 })
     }
 
     console.info('[api/team-connections] loaded', {
-      includeOffers,
       durationMs: Date.now() - startedAt,
       pendingCount: result.pending.length,
       connectionCount: result.connections.length,
@@ -110,7 +97,6 @@ export async function GET(request: Request) {
       ok: true,
       pending: result.pending,
       connections: result.connections,
-      offers,
     }
     try {
       await cache.set(cacheKey, payload, {
@@ -124,7 +110,6 @@ export async function GET(request: Request) {
     return Response.json(payload)
   } catch (error) {
     console.error('[api/team-connections] unexpected failure', {
-      includeOffers,
       durationMs: Date.now() - startedAt,
       error: error instanceof Error ? error.message : String(error),
     })
