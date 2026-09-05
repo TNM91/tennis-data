@@ -2941,6 +2941,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     if (!nextTeam) return
 
     const switchingScope = nextScopeKey !== selectedLinkedCaptainTeamKey
+    if (!switchingScope) return
     const hasInProgressLineup = teamSlots.some((slot) => slot.players.length > 0)
       || opponentSlots.some((slot) => slot.players.length > 0)
       || Boolean(notes.trim())
@@ -2951,29 +2952,14 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       if (!shouldSwitch) return
     }
 
-    const nextFormat = 'auto'
-    setCurrentScenarioId('')
-    setCompetitionLayer(nextTeam.sourceType === 'tiq_entry' ? 'tiq' : '')
-    setScenarioName('')
-    setLeagueName(nextTeam.leagueName)
-    setFlight(nextTeam.flight)
-    setTeamName(nextTeam.teamName)
-    setOpponentTeam('')
-    setMatchDate('')
-    setSelectedMatchId('')
-    setSelectedMatchFormatId(nextFormat)
-    setNotes('')
-    setTeamSlots(buildCaptainLineupSlots(nextTeam.leagueName, nextTeam.flight, 'team', nextFormat))
-    setOpponentSlots(buildCaptainLineupSlots(nextTeam.leagueName, nextTeam.flight, 'opponent', nextFormat))
-    setActiveLineupFormatKey(getCaptainLineupFormatKey(nextTeam.leagueName, nextTeam.flight, nextFormat))
-    setAppliedLineupNotice(null)
-    setSuggestedSwapDraft(null)
-    setSavedLineupChangeDelivery(null)
-    setDirectCourtTextHandoff(null)
-    clearLocks()
-    setMatchSetupOpen(true)
-    setError('')
-    setMessage(`${nextTeam.teamName} selected. Choose its scheduled match to start the lineup.`)
+    // Navigate through the keyed builder boundary so URL prefills, roster,
+    // locks and match identifiers cannot survive from the previous team.
+    router.push(buildCaptainScopedHref('/captain/lineup-builder', {
+      competitionLayer: nextTeam.sourceType === 'tiq_entry' ? 'tiq' : 'usta',
+      team: nextTeam.teamName,
+      league: nextTeam.leagueName,
+      flight: nextTeam.flight,
+    }))
   }
   async function saveAndConfirmPotentialLineupAvailability() {
     if (!teamName || !matchDate) {

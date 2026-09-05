@@ -218,8 +218,19 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain("connection.status !== 'accepted' || !isCaptainTeamConnection(connection.roles)")
     expect(source).toContain('aria-label="Switch lineup builder team"')
     expect(source).toContain('function selectLinkedCaptainTeam(nextScopeKey: string)')
+    const switchHandler = source.slice(source.indexOf('function selectLinkedCaptainTeam('), source.indexOf('async function saveAndConfirmPotentialLineupAvailability('))
+    expect(switchHandler).toContain('if (!switchingScope) return')
+    expect(switchHandler).toContain("router.push(buildCaptainScopedHref('/captain/lineup-builder', {")
+    expect(switchHandler).toContain("competitionLayer: nextTeam.sourceType === 'tiq_entry' ? 'tiq' : 'usta'")
+    expect(switchHandler).toContain('team: nextTeam.teamName')
+    expect(switchHandler).toContain('league: nextTeam.leagueName')
+    expect(switchHandler).toContain('flight: nextTeam.flight')
+    expect(switchHandler).not.toContain('setTeamName(')
+    expect(switchHandler).not.toContain('scenarioId:')
+    expect(switchHandler).not.toContain('matchId:')
+    expect(switchHandler).toContain('if (!shouldSwitch) return')
     expect(source).toContain('Save this version first if you want to keep editing it.')
-    expect(source).toContain('Choose its scheduled match to start the lineup.')
+    expect(source).toContain('<LineupBuilderContent key={builderContextKey} routeSearch={routeSearch} />')
     for (const styleName of [
       'linkedTeamSwitcherStyle',
       'linkedTeamSwitcherCopyStyle',
