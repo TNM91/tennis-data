@@ -1,3 +1,6 @@
+import type { ParsedTennisRecordPage } from './types'
+import { hasMissouriPageEvidence } from './current-refresh'
+
 /**
  * Public, explicit-season history pages provide a bounded starting frontier.
  * They are discovery-only: the collector extracts direct match-result URLs
@@ -79,19 +82,27 @@ function isMissouriValleyDirectoryUrl(url: URL) {
 /**
  * The initial league type and section directory pages have no geographic
  * parameter. They are a small public index. Every deeper Missouri campaign
- * directory link must explicitly identify Missouri Valley before it is queued.
+ * directory link must identify Missouri Valley and cannot name another
+ * district. Non-directory expansion requires Missouri district/profile data.
  */
-export function isTennisRecordCampaignDiscoveryAllowed(campaignSlug: string | null | undefined, sourceUrl: string, candidateUrl: string) {
-  if (campaignSlug !== 'missouri-2025-current') return true
+export function isTennisRecordCampaignDiscoveryAllowed(campaignSlug: string | null | undefined, sourceUrl: string, candidateUrl: string, page?: ParsedTennisRecordPage) {
   try {
     const source = new URL(sourceUrl)
     const candidate = new URL(candidateUrl)
-    if (!isLeagueDirectoryUrl(source)) return true
-    if (isMissouriValleyDirectoryUrl(source)) return true
-
+    if (!['tennisrecord.com', 'www.tennisrecord.com'].includes(candidate.hostname) || !['http:', 'https:'].includes(candidate.protocol)) return false
+    const year = candidate.searchParams.get('year')
+    if (campaignSlug === 'missouri-2025-current' && year && (!/^20\d{2}$/.test(year) || Number(year) < 2025 || Number(year) > new Date().getUTCFullYear())) return false
+    if (campaignSlug !== 'missouri-2025-current') return true
     const candidatePath = candidate.pathname.toLowerCase()
     if (candidatePath === '/adult/league/leaguetype.aspx' || candidatePath === '/adult/league/leaguesection.aspx') return true
-    return isLeagueDirectoryUrl(candidate) && isMissouriValleyDirectoryUrl(candidate)
+    const district = candidate.searchParams.get('districtname')?.trim().toLowerCase()
+    if (isLeagueDirectoryUrl(candidate)) return isMissouriValleyDirectoryUrl(candidate) && (!district || district === 'missouri')
+    const sourceDistrict = source.searchParams.get('districtname')?.trim().toLowerCase()
+    const inScope = (isMissouriValleyDirectoryUrl(source) && sourceDistrict === 'missouri') || hasMissouriPageEvidence(page)
+    // Participant profiles remain factual references, not permission to crawl
+    // that opponent's unrelated history. Their own profile must prove MO.
+    if (candidatePath.endsWith('/profile.aspx')) return Boolean(page?.players.some(p => p.sourceUrl === candidateUrl))
+    return inScope
   } catch {
     return false
   }
