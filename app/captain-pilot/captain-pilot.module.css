@@ -28,10 +28,13 @@
 .checkRow input { width: 18px; height: 18px; margin-top: 2px; accent-color: #9be11d; }
 .activationNote { margin: 0; padding: 14px 16px; border: 1px solid rgba(155,225,29,.42); border-radius: 12px; background: rgba(155,225,29,.1); color: #e8f6d6; line-height: 1.5; font-size: 14px; font-weight: 650; }
 .activationNote strong { color: #9be11d; }
-.primaryAction, .secondaryAction { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 18px; border-radius: 999px; text-decoration: none; font: inherit; font-weight: 900; cursor: pointer; }
+.primaryAction, .secondaryAction { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; min-width: 0; max-width: 100%; box-sizing: border-box; padding: 12px 18px; border-radius: 999px; text-align: center; text-decoration: none; font: inherit; line-height: 1.4; font-weight: 900; cursor: pointer; }
 .primaryAction { border: 1px solid #9be11d; background: #9be11d; color: #06172f; }
 .primaryAction:disabled { opacity: .58; cursor: not-allowed; }
-.secondaryAction { margin-left: 10px; border: 1px solid rgba(255,255,255,.27); background: rgba(255,255,255,.05); color: #fff; }
+.secondaryAction { border: 1px solid rgba(255,255,255,.27); background: rgba(255,255,255,.05); color: #fff; }
+.heroActions, .accountActions > div { position: relative; z-index: 1; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.heroActions { margin-top: 20px; }
+.primaryAction:focus-visible, .secondaryAction:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
 .accountActions { display: grid; gap: 16px; color: #d7e5f6; font-weight: 650; }
 .accountActions p, .status, .notice { margin: 0; }
 .notice { padding: 13px 15px; border-left: 3px solid #9be11d; background: rgba(155,225,29,.1); color: #eff8e2; line-height: 1.45; font-weight: 700; }
@@ -46,4 +49,16 @@
 .shareCard span { color: #c8d8eb; font-weight: 700; }
 .printLink { margin-left: auto; color: #9be11d; font-weight: 800; text-decoration: none; }
 .dateNote { margin: -5px 0 0; color: #aebfd5; font-size: 13px; text-align: center; }
+.claimCard { scroll-margin-top: 90px; }
+.form input, .form textarea { font-size: 16px; }
 @media (max-width: 720px) { .page { width: min(100% - 20px, 1120px); padding: 22px 0 46px; } .hero, .claimCard { border-radius: 22px; } .benefitGrid, .form { grid-template-columns: 1fr; } .form label:nth-of-type(4), .activationNote, .checkRow, .form button { grid-column: auto; } .shareCard { align-items: flex-start; flex-wrap: wrap; } .printLink { margin-left: 0; width: 100%; } .offerCard { gap: 8px; } }
+@media (max-width: 720px) {
+  .hero { padding: 24px; }
+  .logo { width: 200px; max-width: 100%; margin-bottom: 18px; }
+  .hero h1 { font-size: clamp(34px, 9vw, 48px); line-height: 1.05; }
+  .heroCopy { font-size: 16px; line-height: 1.5; }
+  .offerCard { margin-top: 20px; padding: 14px; }
+  .offerCard strong { font-size: 26px; line-height: 1.1; }
+  .heroActions, .accountActions > div { align-items: stretch; flex-direction: column; }
+  .heroActions a, .accountActions a { width: 100%; }
+}

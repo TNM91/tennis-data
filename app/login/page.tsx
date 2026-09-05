@@ -145,9 +145,15 @@ function LoginContent() {
 
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const selectedPlanId = getLoginPlanIntent()
-  const selectedIntent = LOGIN_INTENT_COPY[selectedPlanId]
   const requestedNextRoute = searchParams.get('next')
   const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, DEFAULT_POST_LOGIN_ROUTE)
+  const isCaptainPilotLogin = selectedPlanId === 'captain' && selectedNextRoute.startsWith('/captain-pilot')
+  const selectedIntent = isCaptainPilotLogin ? {
+    eyebrow: 'Captain offer · Sign in',
+    title: 'Continue your Captain offer.',
+    body: 'Sign in to activate 3 months free. Already have Captain access? We’ll take you to your team setup options.',
+    destination: 'Captain offer',
+  } : LOGIN_INTENT_COPY[selectedPlanId]
   const hasSafeRequestedNext = !!requestedNextRoute && selectedNextRoute === requestedNextRoute
   const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
   const createAccountHref = buildAuthEntryHref('/join', selectedPlanId, selectedNextRoute, hasSafeRequestedNext)

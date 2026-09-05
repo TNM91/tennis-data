@@ -29,6 +29,7 @@ import {
   type DataAssistSubmission,
 } from '@/lib/data-assist'
 import { getDataAssistOcrReadiness, type DataAssistAutoAssessment } from '@/lib/data-assist-ocr'
+import { buildDataAssistSignInHref } from '@/lib/data-assist-navigation'
 import type { DataAssistScorecardParsedDraft } from '@/lib/data-assist-ocr'
 import { detectDataAssistExportType } from '@/lib/data-assist-export-detection'
 import { getScheduleMatchReviewNotes, type DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
@@ -292,6 +293,11 @@ export default function DataAssistPage() {
       <DataAssistWorkspace />
     </SiteShell>
   )
+}
+
+function DataAssistSignInLink({ style, section = 'upload' }: { style: CSSProperties; section?: 'upload' | 'history' }) {
+  const searchParams = useSearchParams()
+  return <Link href={buildDataAssistSignInHref(searchParams.toString(), section)} style={style}>Sign in</Link>
 }
 
 function DataAssistWorkspace() {
@@ -1239,7 +1245,7 @@ function DataAssistWorkspace() {
             {authResolved && !userId ? (
               <div style={noticeStyle}>
                 Sign in first, then choose the supported export. Data Assist saves it to your TenAceIQ account for review.
-                <Link href="/login?redirect=/data-assist" style={inlineLinkStyle}>Sign in</Link>
+                <DataAssistSignInLink style={inlineLinkStyle} />
               </div>
             ) : null}
 
@@ -2699,7 +2705,7 @@ function MySubmissionsPanel({
         >
           <div style={noticeStyle}>
             Sign in to keep Data Assist uploads tied to your profile across devices.{' '}
-            <Link href="/login?redirect=/data-assist" style={noticeLinkStyle}>Sign in</Link>
+            <DataAssistSignInLink style={noticeLinkStyle} section="history" />
           </div>
         </DataAssistDetailsSection>
       </section>
@@ -2738,7 +2744,7 @@ function MySubmissionsPanel({
       {!authResolved || !userId ? (
         <div style={noticeStyle}>
           Sign in to keep Data Assist uploads tied to your profile across devices.{' '}
-          <Link href="/login?redirect=/data-assist" style={noticeLinkStyle}>Sign in</Link>
+          <DataAssistSignInLink style={noticeLinkStyle} section="history" />
         </div>
       ) : !historyOpen ? (
         <div style={historyCollapsedStyle}>
