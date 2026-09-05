@@ -11,9 +11,10 @@ describe('Captain launch surface', () => {
     expect(captainSource).toContain('<CaptainLaunchPath')
     expect(captainSource).toContain('captainContactsImportHref')
     expect(captainSource).toContain('captainLaunchInviteHref')
-    expect(launchSource).toContain('First captain win')
-    expect(launchSource).toContain('Team launch complete')
-    expect(launchSource).toContain('Invite players to connect')
+    expect(launchSource).toContain('Open setup guide')
+    expect(launchSource).toContain('#captain-setup')
+    expect(launchSource).not.toContain('Team launch complete')
+    expect(launchSource).toContain("['team', 'league', 'flight']")
   })
 
   it('prepares a privacy-respecting player ID text from the final launch step', () => {

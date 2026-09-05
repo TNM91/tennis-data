@@ -10,6 +10,7 @@ import CompetePageFrame, {
 import { buildProductAccessState } from '@/lib/access-model'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
+import CaptainQuickStart from '@/app/components/captain-quick-start'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
 import { fetchTeamConnections, getCachedTeamConnections, updateTeamConnection } from '@/lib/team-profile-links-client'
 import { isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'
@@ -339,6 +340,7 @@ function CompeteTeamsContent() {
           </div>
         ) : null}
 
+        <CaptainQuickStart connections={connections} pending={pendingConnections} loading={loading} error={connectionError} />
         {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
         {defaultTeamMessage ? <div style={defaultTeamNoticeStyle} role="status">{defaultTeamMessage}</div> : null}
         {connectionError ? (

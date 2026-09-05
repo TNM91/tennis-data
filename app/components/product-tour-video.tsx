@@ -38,6 +38,7 @@ export default function ProductTourVideoButton({
   const progressRef = useRef(new Set<number>())
   const [mediaReady, setMediaReady] = useState(false)
   const priceSummary = getProductTourPriceSummary(videoId)
+  const videoMimeType = video.src.endsWith('.webm') ? 'video/webm' : 'video/mp4'
 
   function openVideo() {
     setMediaReady(true)
@@ -180,7 +181,7 @@ export default function ProductTourVideoButton({
               onTimeUpdate={(event) => trackProgress(event.currentTarget)}
               onEnded={trackCompleted}
             >
-              {mediaReady ? <source src={video.src} type="video/mp4" /> : null}
+              {mediaReady ? <source src={video.src} type={videoMimeType} /> : null}
               {mediaReady ? (
                 <track default src={video.captions} kind="captions" srcLang="en" label="English" />
               ) : null}

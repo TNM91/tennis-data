@@ -151,7 +151,7 @@ export const PRODUCT_TOUR_VIDEOS: Record<ProductTourVideoId, ProductTourVideo> =
       'Spend less time chasing answers in group texts, and more time making the team decision with confidence.',
     ],
     pricingPlanIds: ['captain'],
-    cta: { label: 'Unlock Captain', href: getPlanUnlockHref('captain') },
+    cta: { label: 'Set up your team', href: '/compete/teams#captain-setup' },
   },
   league: {
     id: 'league',

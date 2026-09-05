@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useMemo, useState, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
+import { buildProductAccessState } from '@/lib/access-model'
 import {
   CAPTAIN_PILOT_PRICE_LABEL,
   CAPTAIN_PILOT_TRIAL_MONTHS,
@@ -28,7 +29,8 @@ export default function CaptainPilotPage() {
 }
 
 function CaptainPilotContent() {
-  const { session, authResolved } = useAuth()
+  const { session, authResolved, role, entitlements } = useAuth()
+  const hasCaptainAccess = authResolved && Boolean(session?.user) && buildProductAccessState(role, entitlements).canUseCaptainWorkflow
   const [captainName, setCaptainName] = useState('')
   const [clubOrArea, setClubOrArea] = useState('')
   const [teamName, setTeamName] = useState('')
@@ -44,7 +46,7 @@ function CaptainPilotContent() {
 
   async function beginPilot(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!session?.access_token || submitting || !isOpen) return
+    if (!session?.access_token || submitting || !isOpen || hasCaptainAccess) return
     if (!acceptedTerms) {
       setNotice('Please confirm the pilot and renewal terms before continuing.')
       return
@@ -84,6 +86,7 @@ function CaptainPilotContent() {
       window.location.assign(checkout.url)
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Your pilot claim could not be started.')
+    } finally {
       setSubmitting(false)
     }
   }
@@ -118,20 +121,32 @@ function CaptainPilotContent() {
 
         <section className={styles.claimCard} aria-labelledby="pilot-claim-title">
           <div className={styles.claimHeading}>
-            <p>{session?.user ? 'Step 2 of 2 · Activate Captain' : 'Step 1 of 2 · Create or sign in'}</p>
+            <p>{hasCaptainAccess ? 'Your Captain access' : session?.user ? 'Step 2 of 2 · Activate Captain' : 'Step 1 of 2 · Create or sign in'}</p>
             <h2 id="pilot-claim-title">
-              {availability === 'expired'
+              {hasCaptainAccess
+                ? 'Your Captain tools are ready.'
+                : availability === 'expired'
                 ? 'This pilot has closed.'
                 : session?.user
                   ? 'Finish your free Captain pilot.'
                   : 'Start your free Captain pilot.'}
             </h2>
-            <span>{session?.user
-              ? 'Your account currently has Free access. Share a little about your team, then complete secure checkout to activate 3 months of Captain at $0. No charge today.'
+            <span>{hasCaptainAccess
+              ? 'Captain is already included in your access. Open your teams to prepare the next match, or share this offer with another local captain.'
+              : session?.user
+              ? 'Share a little about your team, then complete secure checkout to activate 3 months of Captain at $0. No charge today.'
               : 'Create your account first. Then share a little about your team and complete secure checkout to activate 3 months of Captain at $0.'}</span>
           </div>
 
-          {!authResolved ? <p className={styles.status}>Checking your account…</p> : !session?.user ? (
+          {!authResolved ? <p className={styles.status}>Checking your account…</p> : hasCaptainAccess ? (
+            <div className={styles.accountActions}>
+              <div>
+                <Link href="/compete/teams" className={styles.primaryAction}>Open My Teams</Link>
+                <Link href="/compete/teams#captain-setup" className={styles.secondaryAction}>Set up your team · guided steps</Link>
+                <Link href="/captain-pilot/flyer" className={styles.secondaryAction}>Share the pilot flyer</Link>
+              </div>
+            </div>
+          ) : !session?.user ? (
             <div className={styles.accountActions}>
               <p>Start with your free TenAceIQ account. Captain tools activate after the short pilot form and secure checkout.</p>
               <div>

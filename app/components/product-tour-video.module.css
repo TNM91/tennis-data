@@ -157,6 +157,8 @@
   padding: 18px 20px;
 }
 
+.dialogHeader form { flex: 0 0 auto; }
+
 .dialogHeading {
   display: grid;
   gap: 6px;
@@ -207,13 +209,17 @@
 
 .videoStage {
   padding: 0 20px;
+  display: flex;
+  justify-content: center;
 }
 
 .video {
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: auto;
+  max-height: 70dvh;
+  object-fit: contain;
   border-radius: 18px;
   background: #020817;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.38);
@@ -386,6 +392,10 @@
   .video {
     border-radius: 12px;
   }
+
+  .dialogHeader { gap: 10px; }
+  .dialogHeading h2 { font-size: 1.15rem; line-height: 1.2; }
+  .dialogHeading p { font-size: .82rem; font-weight: 500; }
 
   .dialogFooter {
     flex-direction: column;
