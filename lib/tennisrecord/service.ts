@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
-import { fetchTennisRecordPage } from './collector'
+import { fetchTennisRecordPage, hasTennisRecordFetchBudget, TennisRecordCheckpointBudgetError, TENNISRECORD_SOURCE_WORK_BUDGET_MS } from './collector'
 import { parseTennisRecordMatchPage, normalizedTennisRecordPlayerName, tennisRecordRecordPageKind, tennisRecordStatedNtrpBaseline, tennisRecordStatedNtrpDesignation } from './parser'
 import { canonicalTennisRecordFingerprint, normalizeTennisIdentity, sourcePriority } from './reconcile'
 import { isSyntheticTennisRecordObservation, tennisRecordResultCorrection } from './result-integrity'
@@ -717,6 +717,7 @@ export async function seedTennisRecordCampaignFrontier(service: SupabaseClient, 
 }
 
 export async function runTennisRecordSync(service: SupabaseClient, input: SyncInput): Promise<TennisRecordRunSummary> {
+  const sourceDeadlineAt = Date.now() + TENNISRECORD_SOURCE_WORK_BUDGET_MS
   const { data: rawSettings, error: settingsError } = await service.from('tennisrecord_collector_settings').select('*').eq('id', true).single()
   if (settingsError) throw new Error(settingsError.message)
   const settings = rawSettings as Settings
@@ -746,14 +747,18 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
     summary.parserFailures += replay.parserFailures
     const requestedLimit = Math.min(input.limit || settings.max_requests_per_run, settings.max_requests_per_run)
     for (let index = 0; index < requestedLimit; index += 1) {
+      if (!hasTennisRecordFetchBudget(sourceDeadlineAt, settings.min_request_interval_ms)) break
       const preferredKinds = input.pageKindPlan?.[index] || input.pageKinds || []
       const job = await selectNextTennisRecordQueueJob(service, input, preferredKinds)
         || (input.pageKindPlan ? await selectNextTennisRecordQueueJob(service, input, input.pageKinds || []) : null)
       if (!job) break
+      // Queue selection can itself take time. Do not claim another row once
+      // the remaining source budget cannot accommodate its pacing interval.
+      if (!hasTennisRecordFetchBudget(sourceDeadlineAt, settings.min_request_interval_ms)) break
       summary.pagesAttempted += 1
       await service.from('tennisrecord_crawl_queue').update({ status: 'running', attempted_at: new Date().toISOString(), last_run_id: runId }).eq('id', job.id).eq('status', 'pending')
       try {
-        const page = await fetchTennisRecordPage(job.source_url, settings.min_request_interval_ms)
+        const page = await fetchTennisRecordPage(job.source_url, settings.min_request_interval_ms, sourceDeadlineAt)
         summary.transientRetries += page.transientRetries
         const sourcePageId = await persistTennisRecordSourcePage(service, page, runId)
         if (page.blockReason) {
@@ -788,6 +793,13 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
         summary.parserFailures += unclearWinners
         await service.from('tennisrecord_crawl_queue').update({ status: unclearWinners ? 'review' : 'done', retry_count: 0, deferred_retry_at: null, failure_reason: unclearWinners ? 'Winner indicator is missing or conflicting. Source scorecards retained for review.' : '', completed_at: new Date().toISOString() }).eq('id', job.id)
       } catch (error) {
+        if (error instanceof TennisRecordCheckpointBudgetError) {
+          // A planned yield is not a source failure and must not consume a
+          // retry or strand the claimed row. Reconcile captured pages below.
+          const released = await service.from('tennisrecord_crawl_queue').update({ status: 'pending' }).eq('id', job.id).eq('status', 'running')
+          if (released.error) throw new Error(released.error.message)
+          break
+        }
         const failureReason = error instanceof Error ? error.message : 'Unknown collector failure'
         const disposition = tennisRecordFailureDisposition(failureReason, job.retry_count || 0)
         const retryAt = disposition === 'retry'
