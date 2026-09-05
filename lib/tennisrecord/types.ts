@@ -64,6 +64,8 @@ export type ParsedTennisRecordPage = {
 }
 
 export type TennisRecordRunSummary = {
+  reason?: 'source_cooldown'
+  retryAt?: string
   status: 'completed' | 'blocked' | 'failed' | 'disabled' | 'skipped' | 'awaiting_seed'
   pagesAttempted: number
   pagesProcessed: number
