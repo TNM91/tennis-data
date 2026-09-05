@@ -120,6 +120,7 @@ export function buildUpgradePricingSnapshot(planId: BillablePricingPlanId) {
     checkoutMode: plan.billing.checkoutMode,
     quantityMode: plan.billing.quantityMode,
     entitlementGrant: plan.entitlementGrant,
-    discountRules: plan.discountRules ?? [],
+    // Automatic plan discounts are retired. Stripe promotions are created intentionally in Admin.
+    discountRules: [],
   }
 }
