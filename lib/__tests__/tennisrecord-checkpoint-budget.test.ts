@@ -86,7 +86,7 @@ describe('bounded TennisRecord checkpoints', () => {
     const budgetCatch = sync.slice(sync.indexOf('if (error instanceof TennisRecordCheckpointBudgetError)'), sync.indexOf('const failureReason'))
     expect(sync).toContain('Date.now() + TENNISRECORD_SOURCE_WORK_BUDGET_MS')
     expect(sync.match(/if \(!hasTennisRecordFetchBudget\(sourceDeadlineAt/g)).toHaveLength(2)
-    expect(sync).toContain('fetchTennisRecordPage(job.source_url, settings.min_request_interval_ms, sourceDeadlineAt)')
+    expect(sync).toMatch(/fetchTennisRecordPage\(job.source_url, settings.min_request_interval_ms, sourceDeadlineAt[,)]/)
     expect(budgetCatch).toContain("update({ status: 'pending' })")
     expect(budgetCatch).toContain(".eq('status', 'running')")
     expect(budgetCatch).toContain('if (released.error) throw')

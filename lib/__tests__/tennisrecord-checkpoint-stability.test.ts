@@ -24,7 +24,7 @@ describe('TennisRecord checkpoint stability', () => {
   it('defers scheduled TiQ engine work to the controlled batch', () => {
     expect(source).toContain('rating_processed_at: shouldRecalculateRatings ? new Date().toISOString() : null')
     expect(source).toContain('export async function runScheduledTennisRecordRatingBatch')
-    expect(source).toContain('await recalculateDynamicRatings(undefined, service, { replaceSnapshots: false })')
+    expect(source).toContain('await recalculateDynamicRatings(timing.onPhase, service, { replaceSnapshots: false })')
     expect(source).toContain(".lte('reconciled_at', ratingWatermark)")
     expect(source).toContain("requestTennisRecordRatingRefresh(service, 'usta_baseline_evidence_changed')")
     expect(source).toContain('const baselineRefreshRequested = Boolean(settings.rating_recalculation_requested_at)')

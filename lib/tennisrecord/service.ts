@@ -9,6 +9,7 @@ import { findExistingProductionMatch, type ProductionMatch, type CanonicalPartic
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordCampaignCurrentEndOn, tennisRecordFrontierStatus } from './frontier'
 import type { TennisRecordRunSummary } from './types'
 import { currentSeasonDiscoveryUrls, nextCurrentRefreshAt, preferCurrentSeason } from './current-refresh'
+import { createRatingTimingObserver, emitImporterTelemetry } from './telemetry'
 
 type AutomationState = 'manual' | 'bootstrap' | 'weekly'
 type Settings = { enabled: boolean; current_refresh_enabled?: boolean; current_refresh_seeded_at?: string | null; current_refresh_player_cursor?: string | null; current_refresh_seed_cycle_at?: string | null; min_request_interval_ms: number; max_requests_per_run: number; weekly_lookback_days: number; automation_state: AutomationState; bootstrap_started_at: string | null; bootstrap_completed_at: string | null; weekly_refresh_started_at: string | null; active_campaign_id: string | null; rating_recalculation_requested_at: string | null; rating_recalculation_reason: string | null; rating_recalculated_at: string | null }
@@ -822,7 +823,9 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
       summary.pagesAttempted += 1
       await service.from('tennisrecord_crawl_queue').update({ status: 'running', attempted_at: new Date().toISOString(), last_run_id: runId }).eq('id', job.id).eq('status', 'pending')
       try {
-        const page = await fetchTennisRecordPage(job.source_url, settings.min_request_interval_ms, sourceDeadlineAt)
+        const page = await fetchTennisRecordPage(job.source_url, settings.min_request_interval_ms, sourceDeadlineAt, sample => {
+          emitImporterTelemetry({ event: 'tennisrecord_source_attempt', run_id: runId, queue_id: job.id, page_kind: job.page_kind, lane: input.currentSeason ? 'current' : input.triggerKind, ...sample })
+        })
         summary.transientRetries += page.transientRetries
         const sourcePageId = await persistTennisRecordSourcePage(service, page, runId)
         if (page.blockReason) {
@@ -1180,8 +1183,10 @@ export async function runScheduledTennisRecordRatingBatch(service: SupabaseClien
   const locked = await service.from('tennisrecord_sync_runs').insert({ trigger_kind: 'ratings' }).select('id').single()
   if (locked.error && isActiveRunLockError(locked.error)) return { status: 'skipped', pendingMatches: pendingMatchCount, processedMatches: 0, reason: 'collector_checkpoint_active' }
   if (locked.error || !locked.data?.id) throw new Error(locked.error?.message || 'Could not lock rating batch.')
+  const timing = createRatingTimingObserver(locked.data.id)
   try {
-    await recalculateDynamicRatings(undefined, service, { replaceSnapshots: false })
+    await recalculateDynamicRatings(timing.onPhase, service, { replaceSnapshots: false })
+    timing.finish('completed')
     let processedMatches = 0
     if (pendingMatchCount) {
       const { data: processed, error: processedError } = await service
@@ -1200,6 +1205,7 @@ export async function runScheduledTennisRecordRatingBatch(service: SupabaseClien
 
     return { status: 'completed', pendingMatches: pendingMatchCount, processedMatches }
   } catch (error) {
+    timing.finish('failed')
     await service.from('tennisrecord_sync_runs').update({ status: 'failed', completed_at: new Date().toISOString(), error_message: error instanceof Error ? error.message : 'Rating rebuild failed' }).eq('id', locked.data.id)
     throw error
   }
