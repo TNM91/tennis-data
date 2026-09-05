@@ -5,6 +5,18 @@ import { fetchTennisRecordPage, TennisRecordCheckpointBudgetError } from '../ten
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('sanitized source attempt timings', () => {
+  it('retains HTTP 503 evidence without an immediate fetch retry', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.fn().mockResolvedValue(new Response('The service is unavailable.', { status: 503 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const samples = vi.fn()
+    const pending = fetchTennisRecordPage('https://www.tennisrecord.com/adult/profile.aspx', 3000, undefined, samples)
+    await vi.advanceTimersByTimeAsync(3000)
+    await expect(pending).resolves.toMatchObject({ status: 503, html: 'The service is unavailable.', blockReason: '', transientRetries: 0 })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(samples).toHaveBeenCalledWith(expect.objectContaining({ status: 503, outcome: 'http_error', pacing_ms: 3000 }))
+  })
+
   it.each([
     [new DOMException('private source URL', 'TimeoutError'), 'timeout'],
     [{ cause: { code: 'EAI_AGAIN' } }, 'dns'],
