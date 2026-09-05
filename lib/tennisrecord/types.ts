@@ -55,6 +55,8 @@ export type TennisRecordTeamMember = {
 }
 
 export type ParsedTennisRecordPage = {
+  /** Retain the source for review; no part of this page may be staged. */
+  reviewReason?: string
   players: TennisRecordPlayer[]
   teams: TennisRecordTeam[]
   teamMembers: TennisRecordTeamMember[]

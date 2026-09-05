@@ -906,6 +906,15 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
           throw new Error(`TennisRecord source HTTP ${page.status}; response retained, import not completed.`)
         }
         const parsed = parseTennisRecordMatchPage(page.html, page.url)
+        if (parsed.reviewReason) {
+          summary.parserFailures += 1
+          const review = await service.from('tennisrecord_crawl_queue').update({
+            status: 'review', failure_reason: parsed.reviewReason,
+            last_error_at: new Date().toISOString(), completed_at: new Date().toISOString(),
+          }).eq('id', job.id)
+          if (review.error) throw new Error(review.error.message)
+          continue
+        }
         if (job.page_kind === 'match' && parsed.matches.length === 0) {
           summary.parserFailures += 1
           await service.from('tennisrecord_crawl_queue').update({
@@ -1383,6 +1392,14 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
     }
     if (!html) continue
     const parsed = parseTennisRecordMatchPage(html, sourceUrl)
+    if (parsed.reviewReason) {
+      // Do not supersede prior court evidence, stage URL-only identities, or
+      // enqueue discoveries from a missing profile during cached replay.
+      summary.parserFailures += 1
+      const reviewed = await service.from('tennisrecord_source_pages').update({ parser_revision: TENNISRECORD_PARSER_REVISION, sync_run_id: runId, last_seen_at: new Date().toISOString() }).eq('id', page.id)
+      if (reviewed.error) throw new Error(reviewed.error.message)
+      continue
+    }
     const isMatchPage = tennisRecordRecordPageKind(sourceUrl) === 'match'
     const hasCompleteMatches = parsed.matches.length > 0
     const now = new Date().toISOString()
@@ -1416,12 +1433,13 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
 }
 
 async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeof parseTennisRecordMatchPage>, sourceUrl: string, pageId?: string, campaignId?: string | null, campaignSlug?: string, parserRevision = TENNISRECORD_PARSER_REVISION, currentRefreshEnabled = false) {
+  if (parsed.reviewReason) throw new Error(parsed.reviewReason)
   let savedSourceMatchKeys: string[] = []
   const sourcePlayerKeys = [...new Set(parsed.players.map((player) => player.sourcePlayerKey).filter(Boolean))]
   let baselineChanged = false
   if (parsed.players.length) {
     const sourcePlayerKeys = parsed.players.map((player) => player.sourcePlayerKey)
-    const prior = await service.from('tennisrecord_staged_players').select('source_player_key,ntrp_label,published_rating,source_url').in('source_player_key', sourcePlayerKeys)
+    const prior = await service.from('tennisrecord_staged_players').select('source_player_key,city,state,ntrp_label,published_rating,source_url').in('source_player_key', sourcePlayerKeys)
     if (prior.error) throw new Error(prior.error.message)
     const priorByKey = new Map((prior.data || []).map((player) => [player.source_player_key as string, player]))
     const rows = parsed.players.map((player) => {
@@ -1433,8 +1451,8 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
         source_player_key: player.sourcePlayerKey,
         name: player.name,
         normalized_name: normalizedTennisRecordPlayerName(player),
-        city: player.city || null,
-        state: player.state || null,
+        city: player.city || previous?.city || null,
+        state: player.state || previous?.state || null,
         ntrp_label: ntrpLabel,
         published_rating: player.publishedRating ?? previous?.published_rating ?? null,
         // A match page can establish the source player key, but the linked

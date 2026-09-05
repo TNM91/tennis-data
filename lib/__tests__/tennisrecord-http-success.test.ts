@@ -18,7 +18,7 @@ type Op = { name: string; args: unknown[] }
 type Call = { table: string; ops: Op[] }
 const op = (call: Call, name: string) => call.ops.find(o => o.name === name)
 
-function fixture(options: { kind?: string; retryCount?: number; deferredCount?: number; replay?: Row[]; failSave?: boolean; outage?: Row; lockedOutage?: Row; jobCount?: number; failOutageSave?: boolean; failCapture?: boolean; staleRun?: boolean } = {}) {
+function fixture(options: { priorPlayer?: Row; kind?: string; retryCount?: number; deferredCount?: number; replay?: Row[]; failSave?: boolean; outage?: Row; lockedOutage?: Row; jobCount?: number; failOutageSave?: boolean; failCapture?: boolean; staleRun?: boolean } = {}) {
   const calls: Call[] = []
   let selections = 0
   let outage = options.outage || {}
@@ -34,6 +34,7 @@ function fixture(options: { kind?: string; retryCount?: number; deferredCount?: 
       if (options.failCapture && table === 'tennisrecord_source_pages' && op(call, 'upsert')) return { error: { message: 'Database network timeout' } }
       if (options.failSave && table === 'tennisrecord_crawl_queue' && update?.failure_reason) return { error: { message: 'Retry save failed' } }
       if (op(call, 'insert') || op(call, 'upsert') || update) return { data: { id: 'saved-evidence' }, error: null }
+      if (options.priorPlayer && table === 'tennisrecord_staged_players') return { data: [options.priorPlayer], error: null }
       if (options.staleRun && table === 'tennisrecord_sync_runs' && op(call, 'lt')) return { data: [{ id: 'stale-run' }], error: null }
       if (table === 'tennisrecord_collector_settings') return { data: { automation_state: 'bootstrap', source_outage_state: op(call, 'select')?.args[0] === 'source_outage_state' ? options.lockedOutage || outage : outage, enabled: true, current_refresh_enabled: true, current_refresh_seeded_at: new Date(now).toISOString(), min_request_interval_ms: 3000, max_requests_per_run: options.jobCount || 1 } }
       if (table === 'tennisrecord_crawl_queue' && String(op(call, 'select')?.args[0]).startsWith('id,source_url,page_kind')) return { data: ++selections <= (options.jobCount || 1) && !options.replay ? { id: `queue-${selections}`, source_url: url, page_kind: options.kind || 'player', retry_count: options.retryCount || 0, deferred_retry_count: options.deferredCount || 0 } : null }
@@ -60,6 +61,57 @@ function response(status: number, blockReason = '') {
 afterEach(() => { vi.useRealTimers(); vi.resetAllMocks() })
 
 describe('HTTP success is required for import completion', () => {
+  it('uses the real parser to block a 200 No Player Found response before any identity write', async () => {
+    response(200)
+    const real = await vi.importActual<typeof import('../tennisrecord/parser')>('../tennisrecord/parser')
+    vi.mocked(parseTennisRecordMatchPage).mockImplementation(real.parseTennisRecordMatchPage)
+    vi.mocked(fetchTennisRecordPage).mockResolvedValue({ url, status: 200, html: '<div>Player Profile</div><div>No Player Found</div>', blockReason: '', contentHash: 'missing-profile', transientRetries: 0 })
+    const f = fixture()
+    expect(await runTennisRecordSync(f.db, { triggerKind: 'weekly', currentSeason: true, recalculateRatings: false })).toMatchObject({ pagesProcessed: 0, parserFailures: 1 })
+    expect(f.queueWrites().at(-1)).toMatchObject({ status: 'review', failure_reason: expect.stringContaining('No Player Found') })
+    expect(f.calls.some(c => c.table === 'tennisrecord_staged_players' && op(c, 'upsert'))).toBe(false)
+  })
+
+  it('preserves previously known location and stated level when valid sparse evidence omits them', async () => {
+    response(200)
+    vi.mocked(parseTennisRecordMatchPage).mockReturnValue({ players: [{ sourcePlayerKey: 'p1', name: 'Fixture', city: '', state: '', ntrpLabel: '', sourceUrl: url }], teams: [], teamMembers: [], leagues: [], matches: [], discoveredUrls: [] })
+    const f = fixture({ priorPlayer: { source_player_key: 'p1', city: 'St. Louis', state: 'MO', ntrp_label: '4.0 C', source_url: url } })
+    await runTennisRecordSync(f.db, { triggerKind: 'manual', recalculateRatings: false })
+    const write = f.calls.find(c => c.table === 'tennisrecord_staged_players' && op(c, 'upsert'))!
+    expect(op(write, 'upsert')!.args[0]).toEqual([expect.objectContaining({ name: 'Fixture', city: 'St. Louis', state: 'MO', ntrp_label: '4.0 C' })])
+  })
+
+  it.each(['weekly', 'bootstrap', 'manual'] as const)('retains missing profiles for review without staging, retries or freshness in %s', async triggerKind => {
+    response(200)
+    vi.mocked(parseTennisRecordMatchPage).mockReturnValue({ players: [], teams: [], teamMembers: [], leagues: [], matches: [], discoveredUrls: [], reviewReason: 'No Player Found; evidence retained.' })
+    const f = fixture({ retryCount: 2 })
+    const result = await runTennisRecordSync(f.db, { triggerKind, currentSeason: triggerKind === 'weekly', recalculateRatings: false })
+    expect(result).toMatchObject({ pagesProcessed: 0, playersDiscovered: 0, parserFailures: 1, transientRetries: 0, sourceFailures: 0 })
+    expect(f.queueWrites().at(-1)).toMatchObject({ status: 'review', failure_reason: 'No Player Found; evidence retained.' })
+    expect(f.queueWrites().at(-1)).not.toHaveProperty('current_refreshed_at')
+    expect(f.queueWrites().at(-1)).not.toHaveProperty('retry_count')
+    expect(f.calls.filter(c => ['tennisrecord_staged_players', 'tennisrecord_player_identities', 'players', 'tennisrecord_staged_matches'].includes(c.table) && (op(c, 'upsert') || op(c, 'update') || op(c, 'insert')))).toEqual([])
+    expect(f.upload).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects cached missing profiles before superseding or staging existing evidence', async () => {
+    response(200)
+    vi.mocked(parseTennisRecordMatchPage).mockReturnValue({ players: [], teams: [], teamMembers: [], leagues: [], matches: [], discoveredUrls: [], reviewReason: 'No Player Found' })
+    const f = fixture({ replay: [{ id: 'cached-missing', source_url: url, http_status: 200, raw_html: 'No Player Found' }] })
+    expect(await runTennisRecordSync(f.db, { triggerKind: 'bootstrap', recalculateRatings: false })).toMatchObject({ pagesProcessed: 0, playersDiscovered: 0, parserFailures: 1 })
+    expect(f.calls.filter(c => ['tennisrecord_staged_players', 'tennisrecord_player_identities', 'players', 'tennisrecord_staged_matches', 'tennisrecord_crawl_queue'].includes(c.table) && (op(c, 'upsert') || op(c, 'insert') || op(c, 'update')))).toEqual([])
+    expect(f.calls.some(c => c.table === 'tennisrecord_source_pages' && op(c, 'update'))).toBe(true)
+    expect(fetchTennisRecordPage).not.toHaveBeenCalled()
+  })
+
+  it('does not report a successful import when saving profile review fails', async () => {
+    response(200)
+    vi.mocked(parseTennisRecordMatchPage).mockReturnValue({ players: [], teams: [], teamMembers: [], leagues: [], matches: [], discoveredUrls: [], reviewReason: 'No Player Found' })
+    const f = fixture({ failSave: true })
+    await expect(runTennisRecordSync(f.db, { triggerKind: 'manual', recalculateRatings: false })).rejects.toThrow('Retry save failed')
+    expect(f.queueWrites().some(w => w.status === 'done' || 'current_refreshed_at' in w)).toBe(false)
+  })
+
   it('still reclaims stale locks during cooldown so ratings are not stranded', async () => {
     response(200)
     const f = fixture({ staleRun: true, outage: { cooldownUntil: '2026-09-05T17:15:00Z', level: 1 } })
