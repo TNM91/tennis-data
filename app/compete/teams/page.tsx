@@ -139,6 +139,7 @@ function CompeteTeamsContent() {
   const [storageWarning, setStorageWarning] = useState('')
   const [defaultTeamMessage, setDefaultTeamMessage] = useState('')
   const [savingDefaultTeamId, setSavingDefaultTeamId] = useState('')
+  const [addTeamOpen, setAddTeamOpen] = useState(false)
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
   const accessToken = session?.access_token || ''
@@ -266,7 +267,6 @@ function CompeteTeamsContent() {
       return left.teamName.localeCompare(right.teamName)
     })
   }, [connections, participations, teamDirectory])
-  const defaultTeam = groupedTeams.find((group) => group.connection.isDefault) || null
 
   async function makeDefaultTeam(connection: TeamConnection) {
     if (!accessToken || savingDefaultTeamId) return
@@ -320,11 +320,7 @@ function CompeteTeamsContent() {
             : loading
             ? 'Getting your teams...'
             : groupedTeams.length > 0
-              ? groupedTeams.length === 1
-                ? 'Open the roster and schedule, then use Team Chat or Build lineup when needed.'
-                : defaultTeam
-                  ? `${groupedTeams.length} teams connected. ${defaultTeam.teamName} opens first in Captain and My Lab.`
-                  : `${groupedTeams.length} teams connected. Choose a default team in Manage team links.`
+              ? `${groupedTeams.length} ${groupedTeams.length === 1 ? 'team' : 'teams'} connected`
               : userId
                 ? 'Accept a team connection or connect your player profile to bring your teams here.'
                 : 'Public team pages are open now. Accepted team connections appear here after registration.'}
@@ -332,15 +328,22 @@ function CompeteTeamsContent() {
 
         {authResolved && userId && groupedTeams.length > 0 ? (
           <div style={{ ...teamsHeaderActionRowStyle, ...(isMobile ? teamsHeaderActionRowMobileStyle : {}) }} aria-label="Team setup actions">
-            <Link href={dataAssistTeamsHref} style={teamPrimaryActionStyle}>Import TennisLink team</Link>
-            <Link href="/explore/leagues?layer=tiq" style={teamSecondaryLinkStyle}>Enter TIQ team</Link>
-            <Link href="/team-connections" style={teamSecondaryLinkStyle}>
-              {pendingConnections.length > 0 ? 'Review team links' : 'Manage team links'}
+            <button type="button" style={teamsAddButtonStyle} aria-expanded={addTeamOpen} aria-controls="teams-add-options" onClick={() => setAddTeamOpen((current) => !current)}>
+              {addTeamOpen ? 'Close options' : '+ Add team'}
+            </button>
+            <Link href="/team-connections" style={teamsManageLinkStyle}>
+              {pendingConnections.length > 0 ? `Review links (${pendingConnections.length})` : 'Manage links'}
             </Link>
+            <div id="teams-add-options" hidden={!addTeamOpen} style={teamsAddOptionsStyle}>
+              {addTeamOpen ? <div style={teamsAddOptionsGridStyle}>
+                <Link href={dataAssistTeamsHref} style={teamsAddButtonStyle}>Import TennisLink team</Link>
+                <Link href="/explore/leagues?layer=tiq" style={teamsManageLinkStyle}>Enter TIQ team</Link>
+              </div> : null}
+            </div>
           </div>
         ) : null}
 
-        <CaptainQuickStart connections={connections} pending={pendingConnections} loading={loading} error={connectionError} />
+        <CaptainQuickStart connections={connections} pending={pendingConnections} loading={loading} error={connectionError} compact={groupedTeams.length > 0} />
         {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
         {defaultTeamMessage ? <div style={defaultTeamNoticeStyle} role="status">{defaultTeamMessage}</div> : null}
         {connectionError ? (
@@ -1265,9 +1268,9 @@ const emptyTeamsActionRowStyle = {
 const teamsHeaderActionRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
-  alignItems: 'center',
+  alignItems: 'stretch',
   gap: 10,
-  marginTop: 14,
+  marginTop: 0,
   minWidth: 0,
 }
 
@@ -1441,6 +1444,35 @@ const teamSecondaryButtonStyle: CSSProperties = {
   ...teamSecondaryLinkStyle,
   cursor: 'pointer',
   font: 'inherit',
+}
+
+const teamsAddButtonStyle: CSSProperties = {
+  ...teamPrimaryActionStyle,
+  boxSizing: 'border-box',
+  minHeight: 44,
+  fontFamily: 'inherit',
+  cursor: 'pointer',
+}
+
+const teamsManageLinkStyle: CSSProperties = {
+  ...teamSecondaryLinkStyle,
+  boxSizing: 'border-box',
+  minWidth: 0,
+  minHeight: 44,
+  textAlign: 'center',
+}
+
+const teamsAddOptionsStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  flexBasis: '100%',
+  minWidth: 0,
+}
+
+const teamsAddOptionsGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gap: 10,
+  minWidth: 0,
 }
 
 const teamRowActionStyle: CSSProperties = {

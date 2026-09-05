@@ -3,6 +3,10 @@
 .guide summary::-webkit-details-marker { display: none; }
 .guide > summary > span:first-child { min-width: 0; display: grid; gap: 5px; }
 .guide > summary strong { font-size: 18px; line-height: 1.3; }
+.guide.compact { margin: 0; border-radius: 12px; }
+.guide.compact > summary { box-sizing: border-box; min-height: 44px; padding: 10px 12px; }
+.guide.compact > summary strong { font-size: 14px; }
+.guide.compact .toggle { max-width: none; }
 .guide small, .content p { color: var(--shell-copy-muted); line-height: 1.5; }
 .toggle { flex-shrink: 0; color: var(--brand-green); font-size: 12px; font-weight: 800; }
 .content { display: grid; gap: 14px; padding: 0 16px 16px; min-width: 0; }

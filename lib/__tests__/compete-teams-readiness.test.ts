@@ -67,11 +67,18 @@ describe('compete teams readiness', () => {
     expect(styleBlock('teamPathGuideGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))'")
   })
 
-  it('keeps adding a team visible instead of hiding it in the management disclosure', () => {
+  it('keeps Add team visible with compact, accessible import choices', () => {
     expect(source).toContain('aria-label="Team setup actions"')
-    expect(source).toContain('<Link href={dataAssistTeamsHref} style={teamPrimaryActionStyle}>Import TennisLink team</Link>')
-    expect(source).toContain('<Link href="/explore/leagues?layer=tiq" style={teamSecondaryLinkStyle}>Enter TIQ team</Link>')
-    expect(source).toContain("{pendingConnections.length > 0 ? 'Review team links' : 'Manage team links'}")
+    expect(source).toContain('<Link href={dataAssistTeamsHref} style={teamsAddButtonStyle}>Import TennisLink team</Link>')
+    expect(source).toContain('<Link href="/explore/leagues?layer=tiq" style={teamsManageLinkStyle}>Enter TIQ team</Link>')
+    expect(source).toContain("{addTeamOpen ? 'Close options' : '+ Add team'}")
+    expect(source).toContain('aria-expanded={addTeamOpen} aria-controls="teams-add-options"')
+    expect(source).toContain('id="teams-add-options" hidden={!addTeamOpen}')
+    expect(source).toContain('`Review links (${pendingConnections.length})`')
+    expect(source).toContain("'Manage links'")
+    expect(styleBlock('teamsAddButtonStyle')).toContain('minHeight: 44')
+    expect(styleBlock('teamsManageLinkStyle')).toContain('minHeight: 44')
+    expect(styleBlock('teamsAddOptionsStyle')).toContain("gridColumn: '1 / -1'")
     expect(source.indexOf('aria-label="Team setup actions"')).toBeLessThan(source.indexOf('function TeamToolsDisclosure'))
     expect(styleBlock('teamsHeaderActionRowStyle')).toContain('minWidth: 0')
     expect(styleBlock('teamsHeaderActionRowMobileStyle')).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")

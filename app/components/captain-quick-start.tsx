@@ -23,18 +23,18 @@ function subscribeGuideRoute(onChange: () => void) {
   return () => { window.removeEventListener('popstate', onChange); window.removeEventListener('hashchange', onChange) }
 }
 
-export default function CaptainQuickStart({ connections, pending, loading, error }: {
-  connections: TeamConnection[]; pending: TeamConnection[]; loading: boolean; error: string
+export default function CaptainQuickStart({ connections, pending, loading, error, compact = false }: {
+  connections: TeamConnection[]; pending: TeamConnection[]; loading: boolean; error: string; compact?: boolean
 }) {
   const { userId, role, entitlements, session } = useAuth()
   const access = buildProductAccessState(role, entitlements).canUseCaptainWorkflow
   const choices = [...connections, ...pending].filter((team) => !team.archivedAt && isCaptainTeamConnection(team.roles))
   return <QuickStart key={userId || 'public'} choices={choices} userId={userId || ''}
-    token={session?.access_token || ''} access={access} loading={loading} error={error} />
+    token={session?.access_token || ''} access={access} loading={loading} error={error} compact={compact} />
 }
 
-function QuickStart({ choices, userId, token, access, loading, error }: {
-  choices: TeamConnection[]; userId: string; token: string; access: boolean; loading: boolean; error: string
+function QuickStart({ choices, userId, token, access, loading, error, compact }: {
+  choices: TeamConnection[]; userId: string; token: string; access: boolean; loading: boolean; error: string; compact: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -54,8 +54,11 @@ function QuickStart({ choices, userId, token, access, loading, error }: {
   // If a stored connection was removed, do not show that team's old progress.
   const current = selected || (activeId !== '' ? preferred : undefined)
   return (
-    <details id="captain-setup" className={styles.guide} open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary><span><strong>Set up your team</strong><small>Five steps · pick up where you left off</small></span><span className={styles.toggle}>{open ? 'Close guide' : 'Open guide'}</span></summary>
+    <details id="captain-setup" className={`${styles.guide} ${compact ? styles.compact : ''}`} open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary>
+        <span><strong>{compact ? 'Setup guide' : 'Set up your team'}</strong>{!compact ? <small>Five steps · pick up where you left off</small> : null}</span>
+        <span className={styles.toggle}>{open ? 'Close guide' : 'Open guide'}</span>
+      </summary>
       {open ? <div className={styles.content}>
         <p>One team, one clear next step. Completed work is checked from your saved team records.</p>
         <ProductTourVideoButton videoId="captain" label="Watch the 18-second Captain intro" variant="compact" source="captain-quick-start" />

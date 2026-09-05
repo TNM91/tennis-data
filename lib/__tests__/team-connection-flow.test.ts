@@ -84,6 +84,9 @@ describe('team connection flow', () => {
     const page = readFileSync(join(process.cwd(), 'app/team-connections/page.tsx'), 'utf8')
 
     expect(shell).toContain('<TeamConnectionInvite />')
+    expect(banner).toContain('subscribeToTeamConnectionsChanged')
+    expect(banner).toContain('fetchTeamConnections(accessToken, { userId, force: true })')
+    expect(banner).toContain('setPending(refreshed.pending)')
     expect(banner).toContain('You were added to')
     expect(banner).toContain('Link this team to your profile? You can unlink it later.')
     expect(page).toContain("act(connection, 'unlink')")
@@ -181,7 +184,7 @@ describe('team connection flow', () => {
     expect(page).toContain('offers.player.label')
     expect(page).toContain('aria-label="Improve recommendation"')
     expect(page).toContain('fetchTeamConnections(accessToken, { includeOffers: true, userId, force: true })')
-    expect(banner).toContain('fetchTeamConnections(accessToken, { includeOffers: true })')
+    expect(banner).toContain('fetchTeamConnections(accessToken, { includeOffers: true, userId, force: true })')
     expect(route).toContain("searchParams.get('includeOffers') === '1'")
     expect(route).toContain("console.info('[api/team-connections] loaded'")
   })
