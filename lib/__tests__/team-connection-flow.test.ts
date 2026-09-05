@@ -157,35 +157,19 @@ describe('team connection flow', () => {
     expect(defaultTeamMigration).toContain("where is_default = true and status = 'accepted'")
   })
 
-  it('limits team invitation coupons to recent accepted roles without prior access', () => {
-    const checkout = readFileSync(join(process.cwd(), 'app/api/checkout/session/route.ts'), 'utf8')
-    const offers = readFileSync(join(process.cwd(), 'lib/team-invite-offers.ts'), 'utf8')
-
-    expect(checkout).toContain("checkoutTarget.planId === 'captain' || checkoutTarget.planId === 'player_plus'")
-    expect(offers).toContain('STRIPE_CAPTAIN_TEAM_INVITE_COUPON_ID')
-    expect(offers).toContain('STRIPE_PLAYER_TEAM_INVITE_COUPON_ID')
-    expect(offers).toContain(".eq('status', 'accepted')")
-    expect(offers).toContain('link.role_accepted_at?.[role]')
-    expect(offers).toContain(".eq('outcome', 'handled')")
-    expect(offers).toContain('getTeamInviteOfferAcceptedSince()')
-  })
-
-  it('shows the Improve offer after an accepted player team link', () => {
+  it('shows connected-team upgrade guidance without an automatic discount', () => {
     const banner = readFileSync(join(process.cwd(), 'app/components/team-connection-invite.tsx'), 'utf8')
     const page = readFileSync(join(process.cwd(), 'app/team-connections/page.tsx'), 'utf8')
     const route = readFileSync(join(process.cwd(), 'app/api/team-connections/route.ts'), 'utf8')
 
-    expect(banner).toContain('offers.player')
     expect(banner).toContain('href={teamRoomHref}')
     expect(banner).toContain('Open Team Chat')
     expect(banner).toContain('!hasRecommendedAccess ? <Link href={tierHref}')
     expect(banner).toContain("onClick={() => setAccepted(null)}")
     expect(page).toContain('acceptedPlayerLinks')
-    expect(page).toContain('offers.player.label')
     expect(page).toContain('aria-label="Improve recommendation"')
-    expect(page).toContain('fetchTeamConnections(accessToken, { includeOffers: true, userId, force: true })')
-    expect(banner).toContain('fetchTeamConnections(accessToken, { includeOffers: true, userId, force: true })')
-    expect(route).toContain("searchParams.get('includeOffers') === '1'")
+    expect(page).toContain('Try Player')
+    expect(banner).toContain('Try Captain')
     expect(route).toContain("console.info('[api/team-connections] loaded'")
   })
 

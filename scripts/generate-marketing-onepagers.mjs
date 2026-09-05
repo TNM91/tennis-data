@@ -116,7 +116,7 @@ const tiers = [
     comparePaid: 'PLAYER MAKES TENACEIQ YOURS.',
     core: 'Player unlocks My Lab and the tools that turn your tennis context into a personal plan - for what to follow, what to practice, and how to prepare.',
     why: 'You are paying for a connected player experience - not another pile of tennis data.',
-    price: '$2.99',
+    price: '$1.99',
     priceNote: '/ MONTH',
     cta: 'UNLOCK MY LAB',
     support: 'Start with Free. Upgrade when you want TenAceIQ built around your game.',
@@ -154,7 +154,7 @@ const tiers = [
     comparePaid: 'COACH KEEPS EVERY PLAYER MOVING BETWEEN SESSIONS.',
     core: 'Coach includes Player, then adds Coach Hub to turn every lesson into assigned work, visible progress, and a clear next step.',
     why: 'You are paying to see what each player needs, send the next useful action, and know what happened before the next session.',
-    price: '$5.99',
+    price: '$4.99',
     priceNote: '/ MONTH',
     cta: 'UNLOCK COACH',
     support: 'Best for private coaches, school coaches, and training-group leaders.',
@@ -192,7 +192,7 @@ const tiers = [
     comparePaid: 'CAPTAIN BUILDS YOUR MATCH WEEK.',
     core: 'Captain includes Player, then adds Team Hub and Captain Tools for availability, lineups, pairings, scouting, readiness, and team communication.',
     why: 'You are paying for clearer lineup decisions and fewer follow-ups before match day.',
-    price: '$5.99',
+    price: '$4.99',
     priceNote: '/ MONTH',
     cta: 'UNLOCK CAPTAIN',
     support: 'Best for captains who want less chasing and a lineup they can explain.',
@@ -268,7 +268,7 @@ const tiers = [
     comparePaid: 'FULL-COURT CONNECTS EVERY TENNIS ROLE YOU SUPPORT.',
     core: 'Full-Court combines My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk tools in one account.',
     why: 'You are paying to stop switching between disconnected plans as you coach, captain, organize, and compete.',
-    price: '$14.99',
+    price: '$9.99',
     priceNote: '/ MONTH',
     cta: 'UNLOCK FULL-COURT',
     support: 'Best for people supporting players, teams, leagues, and events at once.',
@@ -306,11 +306,11 @@ const tiers = [
 
 const pricingRows = [
   ['Free', '$0', 'Find public tennis context'],
-  ['Player', '$2.99/mo', 'Make TenAceIQ personal'],
-  ['Coach', '$5.99/mo', 'Develop players between sessions'],
-  ['Captain', '$5.99/mo', 'Lead the whole match week'],
+  ['Player', '$1.99/mo', 'Make TenAceIQ personal'],
+  ['Coach', '$4.99/mo', 'Develop players between sessions'],
+  ['Captain', '$4.99/mo', 'Lead the whole match week'],
   ['League', '$25/season', 'Run one league, ladder, or event'],
-  ['Full-Court', '$14.99/mo', 'Connect every tennis role'],
+  ['Full-Court', '$9.99/mo', 'Connect every tennis role'],
 ]
 
 const browser = await chromium.launch({ headless: true })
@@ -421,7 +421,7 @@ function clubPage(assets) {
         core: 'Club brings players, coaches, programs, leagues, tournaments, schedules, and updates into one branded member experience.',
         price: '$99',
         priceNote: '/ MONTH - UP TO 10 COACHES',
-        secondaryPrice: '$199 / MONTH - UNLIMITED COACHES',
+        secondaryPrice: '$149 / MONTH - UNLIMITED COACHES',
         cta: 'EXPLORE CLUB',
         support: 'Connect the member experience without replacing your booking or payment system.',
         displayUrl: 'tenaceiq.com/clubs',
@@ -482,7 +482,7 @@ function pricingPage(assets) {
         </section>
         <section class="club-pricing-line">
           <div><b>CLUB STARTER</b><strong>$99/mo</strong><span>1 location - Up to 10 coaches/staff - 150 player profiles</span></div>
-          <div><b>CLUB UNLIMITED</b><strong>$199/mo</strong><span>All locations - Unlimited coaches/staff and player profiles</span></div>
+          <div><b>CLUB UNLIMITED</b><strong>$149/mo</strong><span>All locations - Unlimited coaches/staff and player profiles</span></div>
         </section>
         ${mainClose('READY TO CHOOSE THE TOOL THAT FITS?', 'Pricing', 'START', 'WITH FREE', 'FIND YOUR PLAN', 'tenaceiq.com/pricing', assets.clickUrl)}
       </section>
@@ -601,7 +601,7 @@ function clubCarouselTier() {
     why: 'You are paying for fewer spreadsheets, one source of truth, and a member experience that keeps every tennis role moving.',
     price: '$99',
     priceNote: '/ MONTH - UP TO 10 COACHES',
-    secondaryPrice: '$199 / MONTH - UNLIMITED COACHES',
+    secondaryPrice: '$149 / MONTH - UNLIMITED COACHES',
     cta: 'EXPLORE CLUB',
     support: 'Starter covers one location, up to 10 coaches/staff, and 150 player profiles. Unlimited removes those limits.',
     ctaUrl: 'https://www.tenaceiq.com/clubs',
@@ -658,7 +658,7 @@ async function renderPricingCarousel(browserHandle, assets) {
   const slideHtml = [
     carouselSlide(pricingTier, 1, 'PROMISE', `<div class="carousel-kicker">TENACEIQ PRICING</div><h1>START FREE.<strong>PAY FOR THE JOB YOU NEED.</strong></h1><p class="carousel-lead">Your game, your players, your team, your season, or your whole operation.</p><div class="carousel-payoff">Upgrade only when a role-specific tool removes real tennis friction.</div>`),
     carouselSlide(pricingTier, 2, 'CHOOSE', `<div class="carousel-kicker">INDIVIDUAL ROLE PLANS</div><h2>CHOOSE THE WEEKLY JOB.</h2><div class="carousel-price-grid">${pricingRows.map(([name, price, job]) => `<article><b>${escapeHtml(name)}</b><strong>${escapeHtml(price)}</strong><span>${escapeHtml(job)}</span></article>`).join('')}</div>`),
-    carouselSlide(pricingTier, 3, 'ORGANIZATION', `<div class="carousel-kicker">CLUB PLANS</div><h2>CONNECT THE WHOLE MEMBER EXPERIENCE.</h2><div class="carousel-club-plans"><article><b>STARTER</b><strong>$99/mo</strong><p>One location - Up to 10 coaches or staff - Up to 150 player profiles.</p></article><article><b>UNLIMITED</b><strong>$199/mo</strong><p>All locations - Unlimited coaches, staff, and player profiles.</p></article></div><div class="carousel-payoff">Same complete toolset. Choose Starter for a focused launch or Unlimited for organization-wide scale.</div>`),
+    carouselSlide(pricingTier, 3, 'ORGANIZATION', `<div class="carousel-kicker">CLUB PLANS</div><h2>CONNECT THE WHOLE MEMBER EXPERIENCE.</h2><div class="carousel-club-plans"><article><b>STARTER</b><strong>$99/mo</strong><p>One location - Up to 10 coaches or staff - Up to 150 player profiles.</p></article><article><b>UNLIMITED</b><strong>$149/mo</strong><p>All locations - Unlimited coaches, staff, and player profiles.</p></article></div><div class="carousel-payoff">Same complete toolset. Choose Starter for a focused launch or Unlimited for organization-wide scale.</div>`),
     carouselSlide(pricingTier, 4, 'ACTION', `<div class="carousel-kicker">NOT SURE YET?</div><h2>START WITH FREE.</h2><p class="carousel-support">Explore players, teams, leagues, rankings, and public tennis intelligence. Choose a paid role only when you know the job you need solved.</p><div class="carousel-cta">FIND YOUR PLAN</div><div class="carousel-scan"><img src="${assets.qrData}" alt="Scan to open TenAceIQ pricing"><div><b>SCAN TO EXPLORE</b><span>tenaceiq.com/pricing</span></div></div>`),
   ]
   await renderCarouselSlides(browserHandle, 'pricing', slideHtml)

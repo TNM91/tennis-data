@@ -1000,8 +1000,8 @@ export default function AdminAccessPage() {
             text="Promotional access changes TiQ features, not a Stripe subscription, invoice, or charge. Use a complimentary month for a promotion; manage an actual billed discount in Stripe."
           >
             <AdminActionRow>
-              <Link href="/admin/promotions" className="button-ghost">Manage Stripe promotions</Link>
               <Link href="/admin/product-events?filter=upgrade" className="button-ghost">View upgrade activity</Link>
+              <Link href="/admin/promotions" className="button-ghost">Manage Stripe promotions</Link>
             </AdminActionRow>
           </AdminStatusPanel>
 

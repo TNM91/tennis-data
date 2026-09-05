@@ -56,15 +56,15 @@ Before public launch:
 Current tiers:
 
 - Free: `$0`.
-- Player: `$2.99/month`.
-- Coach: `$5.99/month`.
-- Captain: `$5.99/month`.
+- Player: `$1.99/month`.
+- Coach: `$4.99/month`.
+- Captain: `$4.99/month`.
 - League: `$25/season`, one-time.
-- Full-Court: `$14.99/month`.
+- Full-Court: `$9.99/month`.
 
 Current Stripe readiness:
 
-- Checkout supports Stripe promotion codes.
+- Checkout has no coupon or promotion-code path; the Captain Pilot is the sole offer.
 - Paid plan price env vars are mapped for Player, Coach, Captain, League, and Full-Court.
 - Webhook readiness checks cover signed checkout and subscription lifecycle events.
 
@@ -120,7 +120,6 @@ Current app status:
 - `/admin/access` can grant Player, Coach, Captain, League, and Full-Court access.
 - Admin can now set access end dates for manual/promotional grants.
 - Expired manual grants stop unlocking paid features.
-- Stripe promotion codes can cover promotional pricing in checkout.
 
 Before launch:
 
@@ -128,4 +127,3 @@ Before launch:
 2. Confirm `/admin/access` loads with the new `Until` fields.
 3. Test a temporary access grant on a non-customer account.
 4. Test an expired access grant and confirm the account returns to free access.
-5. Keep Stripe coupons/promotion codes in Stripe for customer-facing promotional pricing.

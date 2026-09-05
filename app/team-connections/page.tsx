@@ -14,7 +14,6 @@ import {
 import {
   fetchTeamConnections,
   updateTeamConnection,
-  type TeamInviteOffers,
 } from '@/lib/team-profile-links-client'
 import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
 import { buildTeamRoomHref } from '@/lib/team-room'
@@ -32,10 +31,6 @@ function TeamConnectionsContent() {
   const { authResolved, entitlements, role, session, userId } = useAuth()
   const [pending, setPending] = useState<TeamConnection[]>([])
   const [connections, setConnections] = useState<TeamConnection[]>([])
-  const [offers, setOffers] = useState<TeamInviteOffers>({
-    captain: { available: false, label: '' },
-    player: { available: false, label: '' },
-  })
   const [loading, setLoading] = useState(true)
   const [workingId, setWorkingId] = useState('')
   const [message, setMessage] = useState('')
@@ -49,10 +44,9 @@ function TeamConnectionsContent() {
     setLoading(true)
     setMessage('')
     try {
-      const result = await fetchTeamConnections(accessToken, { includeOffers: true, userId, force: true })
+      const result = await fetchTeamConnections(accessToken, { userId, force: true })
       setPending(result.pending)
       setConnections(result.connections)
-      setOffers(result.offers)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Team connections could not be loaded.')
     } finally {
@@ -268,7 +262,7 @@ function TeamConnectionsContent() {
             <span style={copyStyle}>Manage availability, build projected lineups, confirm players, and send the match plan from one team context.</span>
           </div>
           <Link href="/upgrade?plan=captain&next=%2Fcaptain&source=team_connection" style={primaryLinkStyle}>
-            {offers.captain.available && offers.captain.label ? offers.captain.label : 'Try Captain'}
+            Try Captain
           </Link>
         </section>
       ) : null}
@@ -280,7 +274,7 @@ function TeamConnectionsContent() {
             <span style={copyStyle}>Open My Lab, prepare for matchups, and keep your tennis context connected in one place.</span>
           </div>
           <Link href="/upgrade?plan=player_plus&next=%2Fmylab&source=team_connection" style={primaryLinkStyle}>
-            {offers.player.available && offers.player.label ? offers.player.label : 'Try Player'}
+            Try Player
           </Link>
         </section>
       ) : null}

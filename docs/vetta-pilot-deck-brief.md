@@ -70,7 +70,7 @@ Show one simple path:
 **Commercial path after the pilot:**
 
 - Club — **$99/month** for one branded club workspace and a practical starter group of staff and member access.
-- Club Unlimited — **$199/month** for unlimited coaches and players added through the club.
+- Club Unlimited — **$149/month** for unlimited coaches and players added through the club.
 
 **Boundary:** Court booking, program registration, and payment processing remain in Vetta's current systems.
 

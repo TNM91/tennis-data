@@ -101,7 +101,7 @@ function clubOnePager(a) {
         <p class="price-label">CLUB STARTER</p>
         <div class="price"><strong>$99</strong><span>/ MONTH</span></div>
         <p class="limit">UP TO 10 COACHES OR STAFF<br>UP TO 150 CONNECTED PLAYERS</p>
-        <p class="unlimited"><b>$199 / MONTH</b><br>UNLIMITED STAFF + PLAYERS</p>
+        <p class="unlimited"><b>$149 / MONTH</b><br>UNLIMITED STAFF + PLAYERS</p>
         <a class="rail-cta" href="${starterUrl}">START CLUB</a>
         <p class="boundary">Works with your current registration, booking, and payment systems.</p>
         <div class="qr"><img src="${a.starterQr}" alt="QR code"><b>SCAN TO START</b><span>tenaceiq.com/upgrade?plan=club_starter</span></div>
@@ -129,7 +129,7 @@ function pricingOnePager(a) {
       <p class="pricing-lead">Both plans unlock the same premium Club experience. The difference is rollout size - not a stripped-down product.</p>
       <div class="plans">
         ${planCard({ name: 'CLUB STARTER', price: '$99', audience: 'For a focused rollout', accent: '#58dfff', qr: a.starterQr, url: starterUrl, rows: ['1 branded Club workspace', 'Up to 10 coaches or staff', 'Up to 150 connected players', 'Programs, clinics, teams, leagues, and tournaments', 'Club-sponsored Player, Coach, League, Tournament, and optional Captain experiences', 'TIQ rated, public-history-only, or social competition'] })}
-        ${planCard({ name: 'CLUB UNLIMITED', price: '$199', audience: 'For a full club rollout', accent: '#9bea18', qr: a.unlimitedQr, url: unlimitedUrl, rows: ['Everything in Club Starter', 'Unlimited coaches and staff', 'Unlimited connected players', 'Unlimited clinics, camps, development groups, and teams', 'Reusable league and tournament setups', 'Club-wide onboarding and role-based home views'] })}
+        ${planCard({ name: 'CLUB UNLIMITED', price: '$149', audience: 'For a full club rollout', accent: '#9bea18', qr: a.unlimitedQr, url: unlimitedUrl, rows: ['Everything in Club Starter', 'Unlimited coaches and staff', 'Unlimited connected players', 'Unlimited clinics, camps, development groups, and teams', 'Reusable league and tournament setups', 'Club-wide onboarding and role-based home views'] })}
       </div>
       <section class="pricing-why"><h2>WHAT THE SUBSCRIPTION ACTUALLY BUYS</h2><div>${miniValue('ONE IDENTITY', 'Club membership and Player ID connect without creating duplicate player records.')}${miniValue('ONE DEVELOPMENT STORY', 'Programs, coaching, My Lab, goals, tactics, video, and progress stay connected.')}${miniValue('ONE COMPETITION SYSTEM', 'Schedules, entrants, scores, standings, public history, and rating policy stay intentional.')}</div></section>
       <footer class="pricing-footer"><strong>TenAceIQ Club complements your booking, registration, point-of-sale, and payment systems.</strong><span>Choose Starter for a controlled rollout. Choose Unlimited when caps would slow adoption.</span></footer>
@@ -144,7 +144,7 @@ function salesDeck(a) {
     `<div class="deck-title"><p class="deck-kicker">THE CONNECTION MODEL</p><h2>ONE MEMBERSHIP SETS THE ROLE.<br><em>PLAYER ID CONNECTS THE TENNIS HISTORY.</em></h2></div><div class="flow"><div><b>01</b><strong>JOIN THE CLUB</strong><span>Current TenAceIQ member or new invitation</span></div><i>→</i><div><b>02</b><strong>SET THE ROLE</strong><span>Player, coach, captain, coordinator, staff - or more than one</span></div><i>→</i><div><b>03</b><strong>CONNECT PLAYER ID</strong><span>No duplicate profile; public history and TIQ context stay intact</span></div><i>→</i><div><b>04</b><strong>OPEN THE RIGHT EXPERIENCE</strong><span>My Lab, Coach Hub, Team Hub, League Office, or Tournament Desk</span></div></div><p class="flow-note">Club is a connected operating layer across TenAceIQ - not a decorative portal and not a replacement for booking or payments.</p>`,
     `<div class="deck-title"><p class="deck-kicker">ROLE-BASED VALUE</p><h2>THE CLUB FOLLOWS EACH PERSON<br><em>INTO THE TOOLS THEY ACTUALLY USE.</em></h2></div><div class="role-proof">${roleProof(a.myLab, 'PLAYER', 'Club-sponsored My Lab keeps goals, programs, matches, and the next useful step connected.')}${roleProof(a.coach, 'COACH', 'Coach Hub carries the Club’s players, assignments, lesson notes, tactics, and progress.')}${roleProof(a.captain, 'CAPTAIN', 'Team Hub connects availability, projected lineups, messages, and match-week decisions.')}</div>`,
     `<div class="deck-title"><p class="deck-kicker">COMPETITION WITHOUT THE GUESSING</p><h2>THE CLUB DECIDES<br><em>HOW EVERY RESULT SHOULD COUNT.</em></h2></div><div class="competition-proof">${deckProof(a.leaguePolicy, 'League Office · result policy')}${deckProof(a.tournament, 'Tournament Desk · club-sponsored')}</div><div class="policy-row"><b>TIQ RATED</b><span>Public player history + TIQ rating update</span><b>PUBLIC HISTORY ONLY</b><span>Visible match history without rating impact</span><b>SOCIAL / EVENT ONLY</b><span>Local record; no public history or TIQ rating impact</span></div>`,
-    `<div class="deck-title"><p class="deck-kicker">PRICING</p><h2>SAME PREMIUM CLUB EXPERIENCE.<br><em>CHOOSE THE ROLLOUT SIZE.</em></h2></div><div class="deck-plans"><div><p>CLUB STARTER</p><strong>$99<span>/MONTH</span></strong><ul><li>1 branded Club workspace</li><li>Up to 10 coaches or staff</li><li>Up to 150 connected players</li><li>Programs + competition + connected role experiences</li></ul></div><div class="recommended"><p>CLUB UNLIMITED</p><strong>$199<span>/MONTH</span></strong><ul><li>Everything in Starter</li><li>Unlimited coaches, staff, and connected players</li><li>Unlimited programs and teams</li><li>Club-wide onboarding and reusable competition setups</li></ul></div></div><div class="deck-close"><img src="${a.starterQr}"><div><b>START WITH THE ROLLOUT THAT FITS.</b><span>tenaceiq.com/upgrade?plan=club_starter</span></div></div>`,
+    `<div class="deck-title"><p class="deck-kicker">PRICING</p><h2>SAME PREMIUM CLUB EXPERIENCE.<br><em>CHOOSE THE ROLLOUT SIZE.</em></h2></div><div class="deck-plans"><div><p>CLUB STARTER</p><strong>$99<span>/MONTH</span></strong><ul><li>1 branded Club workspace</li><li>Up to 10 coaches or staff</li><li>Up to 150 connected players</li><li>Programs + competition + connected role experiences</li></ul></div><div class="recommended"><p>CLUB UNLIMITED</p><strong>$149<span>/MONTH</span></strong><ul><li>Everything in Starter</li><li>Unlimited coaches, staff, and connected players</li><li>Unlimited programs and teams</li><li>Club-wide onboarding and reusable competition setups</li></ul></div></div><div class="deck-close"><img src="${a.starterQr}"><div><b>START WITH THE ROLLOUT THAT FITS.</b><span>tenaceiq.com/upgrade?plan=club_starter</span></div></div>`,
   ]
 }
 
@@ -208,10 +208,10 @@ The organizer chooses when creating the league or tournament:
 - Public history only: results appear publicly but do not change TIQ ratings.
 - Social / event only: the event stays local and does not affect public history or TIQ ratings.
 
-## $99 versus $199
+## $99 versus $149
 
 - Club Starter - $99/month: one branded Club workspace, up to 10 coaches or staff, and up to 150 connected players.
-- Club Unlimited - $199/month: the same premium Club experience with unlimited coaches, staff, and connected players, plus unlimited programs and club-wide rollout support.
+- Club Unlimited - $149/month: the same premium Club experience with unlimited coaches, staff, and connected players, plus unlimited programs and club-wide rollout support.
 
 Starter is not a feature-reduced plan. It is a controlled rollout with capacity limits. Unlimited removes those limits.
 
@@ -244,7 +244,7 @@ Club is not simply a public portal. It is the connected operating layer that car
 ## Pricing
 
 - Club Starter: $99/month; up to 10 coaches or staff and 150 connected players.
-- Club Unlimited: $199/month; unlimited coaches, staff, and connected players.
+- Club Unlimited: $149/month; unlimited coaches, staff, and connected players.
 `
 }
 

@@ -137,6 +137,17 @@ const adminTools: AdminTool[] = [
     statValue: 'Club upkeep',
   },
   {
+    title: 'Stripe Promotions',
+    href: '/admin/promotions',
+    description: 'Create private checkout offers, set their duration, and see live Stripe redemption totals.',
+    badge: 'Billing',
+    accent: 'green',
+    icon: 'accountSecurity',
+    highlights: ['Plan-specific codes', 'Timed discounts', 'Redemption totals', 'Safe end control'],
+    statLabel: 'Best for',
+    statValue: 'Offers',
+  },
+  {
     title: 'Access Control',
     href: '/admin/access',
     description:
@@ -147,17 +158,6 @@ const adminTools: AdminTool[] = [
     highlights: ['Timed promos', 'Coach subscription', 'Captain subscription', 'League access'],
     statLabel: 'Best for',
     statValue: 'Access control',
-  },
-  {
-    title: 'Stripe Promotions',
-    href: '/admin/promotions',
-    description: 'Create private checkout offers, set their duration, and see live Stripe redemption totals.',
-    badge: 'Billing',
-    accent: 'green',
-    icon: 'accountSecurity',
-    highlights: ['Plan-specific codes', 'Timed discounts', 'Redemption totals', 'Safe end control'],
-    statLabel: 'Best for',
-    statValue: 'Offers',
   },
   {
     title: 'Upgrade Requests',

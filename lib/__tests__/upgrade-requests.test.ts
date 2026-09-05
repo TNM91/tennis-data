@@ -58,8 +58,8 @@ describe('upgrade request pricing snapshots', () => {
 
     expect(mapUpgradeRequestRow(row)).toMatchObject({
       planId: 'captain',
-      priceLabel: '$5.99/month',
-      billingAmountCents: 599,
+      priceLabel: '$4.99/month',
+      billingAmountCents: 499,
       billingCurrency: 'usd',
       billingInterval: 'month',
       checkoutMode: 'subscription',
@@ -75,8 +75,8 @@ describe('upgrade request pricing snapshots', () => {
   it('builds the same snapshot used by local fallback requests', () => {
     expect(buildUpgradePricingSnapshot('player_plus')).toMatchObject({
       planName: 'Player',
-      priceLabel: '$2.99/month',
-      billingAmountCents: 299,
+      priceLabel: '$1.99/month',
+      billingAmountCents: 199,
       billingInterval: 'month',
       checkoutMode: 'subscription',
       quantityMode: 'account',
@@ -86,8 +86,8 @@ describe('upgrade request pricing snapshots', () => {
   it('captures Coach as a Player plan plus coaching workflow snapshot', () => {
     expect(buildUpgradePricingSnapshot('coach')).toMatchObject({
       planName: 'Coach',
-      priceLabel: '$5.99/month',
-      billingAmountCents: 599,
+      priceLabel: '$4.99/month',
+      billingAmountCents: 499,
       billingInterval: 'month',
       checkoutMode: 'subscription',
       quantityMode: 'account',
@@ -103,8 +103,8 @@ describe('upgrade request pricing snapshots', () => {
   it('captures Full-Court as the full-suite pricing snapshot', () => {
     expect(buildUpgradePricingSnapshot('full_court')).toMatchObject({
       planName: 'Full-Court',
-      priceLabel: '$14.99/month',
-      billingAmountCents: 1499,
+      priceLabel: '$9.99/month',
+      billingAmountCents: 999,
       billingInterval: 'month',
       checkoutMode: 'subscription',
       quantityMode: 'account',
@@ -134,8 +134,8 @@ describe('upgrade request pricing snapshots', () => {
     })
     expect(buildUpgradePricingSnapshot('club_unlimited')).toMatchObject({
       planName: 'Club Unlimited',
-      priceLabel: '$199/month',
-      billingAmountCents: 19900,
+      priceLabel: '$149/month',
+      billingAmountCents: 14900,
       billingInterval: 'month',
       checkoutMode: 'subscription',
       quantityMode: 'account',

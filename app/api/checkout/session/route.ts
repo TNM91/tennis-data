@@ -7,7 +7,6 @@ import {
   getStripePriceId,
   type PaidPricingPlanId,
 } from '@/lib/stripe-checkout'
-import { getTeamInviteOfferEligibility } from '@/lib/team-invite-offers'
 import { PAID_CHECKOUT_ENABLED, PAID_CHECKOUT_PAUSED_MESSAGE } from '@/lib/paid-checkout'
 import {
   CAPTAIN_PILOT_CAMPAIGN_KEY,
@@ -126,9 +125,6 @@ export async function POST(request: Request) {
     cleanString(body.nextHref) || checkoutTarget.nextHref,
     checkoutTarget.nextHref || '/pricing',
   )
-  const inviteOffer = checkoutTarget.planId === 'captain' || checkoutTarget.planId === 'player_plus'
-    ? await getTeamInviteOfferEligibility(supabase, checkoutTarget.userId, checkoutTarget.planId)
-    : null
   const pilotRedemption = checkoutTarget.planId === 'captain'
     ? await getCaptainPilotRedemption(supabase, checkoutTarget.requestId, checkoutTarget.userId)
     : null
@@ -157,7 +153,6 @@ export async function POST(request: Request) {
     customerId,
     origin,
     nextHref,
-    couponId: inviteOffer?.couponId,
     trialEnd: pilotRedemption?.redemption ? buildCaptainPilotTrialEnd() : undefined,
     campaignKey: pilotRedemption?.redemption ? CAPTAIN_PILOT_CAMPAIGN_KEY : undefined,
     pilotRedemptionId: pilotRedemption?.redemption?.id,

@@ -142,7 +142,7 @@ describe('upgrade page naming', () => {
       'from your player home',
       'Starting ${plan.name} checkout.',
       'Request ${plan.name}',
-      'Unlock the Player path for $2.99/month.',
+      'Unlock the Player path for $1.99/month.',
       'Run the full court.',
       'should stay connected around one tennis operation',
       'Preview full suite',

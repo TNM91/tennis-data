@@ -1,22 +1,16 @@
 import type { TeamConnection } from './team-profile-links'
 import { notifyTeamConnectionsChanged } from './team-profile-links-events'
-import type { TeamInviteOffer, TeamInviteOffers } from './team-invite-offers-core'
-
-export type { TeamInviteOffer, TeamInviteOffers }
-
 export type TeamConnectionsResponse = {
   ok?: boolean
   pending?: TeamConnection[]
   connections?: TeamConnection[]
   connection?: TeamConnection | null
-  offers?: TeamInviteOffers
   message?: string
 }
 
 export type TeamConnectionsResult = {
   pending: TeamConnection[]
   connections: TeamConnection[]
-  offers: TeamInviteOffers
 }
 
 const TEAM_CONNECTIONS_CACHE_TTL_MS = 60_000
@@ -26,7 +20,6 @@ const TEAM_CONNECTIONS_CACHE_PREFIX = 'tenaceiq-team-connections:v1:'
 let teamConnectionsCache: {
   identityKey: string
   expiresAt: number
-  includesOffers: boolean
   value?: TeamConnectionsResult
   promise?: Promise<TeamConnectionsResult>
 } | null = null
@@ -35,7 +28,6 @@ const dirtyTeamConnectionIdentities = new Set<string>()
 
 type PersistedTeamConnections = {
   cachedAt: number
-  includesOffers: boolean
   value: TeamConnectionsResult
 }
 
@@ -56,7 +48,7 @@ function getTeamConnectionsIdentityKey(accessToken: string, userId?: string | nu
   return getTeamConnectionsStorageKey(accessToken, userId) || accessToken
 }
 
-function readPersistedTeamConnections(accessToken: string, includeOffers: boolean, userId?: string | null) {
+function readPersistedTeamConnections(accessToken: string, userId?: string | null) {
   if (typeof window === 'undefined') return null
   const key = getTeamConnectionsStorageKey(accessToken, userId)
   if (!key) return null
@@ -67,7 +59,6 @@ function readPersistedTeamConnections(accessToken: string, includeOffers: boolea
       !Number.isFinite(value.cachedAt)
       || !value.value
       || Date.now() - Number(value.cachedAt) > PERSISTED_TEAM_CONNECTIONS_CACHE_TTL_MS
-      || (includeOffers && value.includesOffers !== true)
     ) {
       window.localStorage.removeItem(key)
       return null
@@ -78,24 +69,23 @@ function readPersistedTeamConnections(accessToken: string, includeOffers: boolea
   }
 }
 
-function writePersistedTeamConnections(accessToken: string, includesOffers: boolean, value: TeamConnectionsResult, userId?: string | null) {
+function writePersistedTeamConnections(accessToken: string, value: TeamConnectionsResult, userId?: string | null) {
   if (typeof window === 'undefined') return
   const key = getTeamConnectionsStorageKey(accessToken, userId)
   if (!key) return
   try {
-    window.localStorage.setItem(key, JSON.stringify({ cachedAt: Date.now(), includesOffers, value }))
+    window.localStorage.setItem(key, JSON.stringify({ cachedAt: Date.now(), value }))
   } catch {
     // Private browsing and full storage must not prevent teams from loading.
   }
 }
 
-async function requestTeamConnections(accessToken: string, includeOffers: boolean, forceRefresh: boolean): Promise<TeamConnectionsResult> {
+async function requestTeamConnections(accessToken: string, forceRefresh: boolean): Promise<TeamConnectionsResult> {
   const controller = new AbortController()
   const timeout = globalThis.setTimeout(() => controller.abort(), TEAM_CONNECTIONS_REQUEST_TIMEOUT_MS)
 
   try {
     const query = new URLSearchParams()
-    if (includeOffers) query.set('includeOffers', '1')
     if (forceRefresh) query.set('refresh', '1')
     const response = await fetch(`/api/team-connections${query.size ? `?${query.toString()}` : ''}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -107,10 +97,6 @@ async function requestTeamConnections(accessToken: string, includeOffers: boolea
     return {
       pending: json.pending || [],
       connections: json.connections || [],
-      offers: json.offers || {
-        captain: { available: false, label: '' },
-        player: { available: false, label: '' },
-      },
     }
   } catch (error) {
     if (controller.signal.aborted) {
@@ -122,23 +108,21 @@ async function requestTeamConnections(accessToken: string, includeOffers: boolea
   }
 }
 
-export function getCachedTeamConnections(accessToken: string, options: { includeOffers?: boolean; userId?: string | null } = {}) {
+export function getCachedTeamConnections(accessToken: string, options: { userId?: string | null } = {}) {
   const identityKey = getTeamConnectionsIdentityKey(accessToken, options.userId)
-  if (identityKey && teamConnectionsCache?.identityKey === identityKey && (!options.includeOffers || teamConnectionsCache.includesOffers)) {
+  if (identityKey && teamConnectionsCache?.identityKey === identityKey) {
     return teamConnectionsCache.value || null
   }
-  return readPersistedTeamConnections(accessToken, options.includeOffers === true, options.userId)
+  return readPersistedTeamConnections(accessToken, options.userId)
 }
 
-export async function fetchTeamConnections(accessToken: string, options: { force?: boolean; includeOffers?: boolean; userId?: string | null } = {}): Promise<TeamConnectionsResult> {
+export async function fetchTeamConnections(accessToken: string, options: { force?: boolean; userId?: string | null } = {}): Promise<TeamConnectionsResult> {
   const now = Date.now()
-  const includeOffers = options.includeOffers === true
   const identityKey = getTeamConnectionsIdentityKey(accessToken, options.userId)
   if (
     !options.force
     && teamConnectionsCache?.identityKey === identityKey
     && teamConnectionsCache.expiresAt > now
-    && (!includeOffers || teamConnectionsCache.includesOffers)
   ) {
     if (teamConnectionsCache.value) return teamConnectionsCache.value
     if (teamConnectionsCache.promise) {
@@ -149,11 +133,10 @@ export async function fetchTeamConnections(accessToken: string, options: { force
   }
 
   const revision = teamConnectionsRevision
-  const promise = requestTeamConnections(accessToken, includeOffers, options.force === true || dirtyTeamConnectionIdentities.has(identityKey))
+  const promise = requestTeamConnections(accessToken, options.force === true || dirtyTeamConnectionIdentities.has(identityKey))
   teamConnectionsCache = {
     identityKey,
     expiresAt: now + TEAM_CONNECTIONS_CACHE_TTL_MS,
-    includesOffers: includeOffers,
     promise,
   }
 
@@ -168,11 +151,10 @@ export async function fetchTeamConnections(accessToken: string, options: { force
       teamConnectionsCache = {
         identityKey,
         expiresAt: Date.now() + TEAM_CONNECTIONS_CACHE_TTL_MS,
-        includesOffers: includeOffers,
         value,
       }
       dirtyTeamConnectionIdentities.delete(identityKey)
-      writePersistedTeamConnections(accessToken, includeOffers, value, options.userId)
+      writePersistedTeamConnections(accessToken, value, options.userId)
     }
     return value
   } catch (error) {

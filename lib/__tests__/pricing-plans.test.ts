@@ -15,9 +15,9 @@ describe('pricing plans', () => {
     })
 
     expect(getPricingPlan('player_plus')).toMatchObject({
-      priceLabel: '$2.99/month',
+      priceLabel: '$1.99/month',
       billing: {
-        amountCents: 299,
+        amountCents: 199,
         interval: 'month',
         checkoutMode: 'subscription',
         quantityMode: 'account',
@@ -25,9 +25,9 @@ describe('pricing plans', () => {
     })
 
     expect(getPricingPlan('captain')).toMatchObject({
-      priceLabel: '$5.99/month',
+      priceLabel: '$4.99/month',
       billing: {
-        amountCents: 599,
+        amountCents: 499,
         interval: 'month',
         checkoutMode: 'subscription',
         quantityMode: 'account',
@@ -49,9 +49,9 @@ describe('pricing plans', () => {
     expect(getPricingPlan('free').outcome).not.toContain('workspace makes your tennis life easier')
 
     expect(getPricingPlan('coach')).toMatchObject({
-      priceLabel: '$5.99/month',
+      priceLabel: '$4.99/month',
       billing: {
-        amountCents: 599,
+        amountCents: 499,
         interval: 'month',
         checkoutMode: 'subscription',
         quantityMode: 'account',
@@ -59,11 +59,11 @@ describe('pricing plans', () => {
     })
 
     expect(getPricingPlan('full_court')).toMatchObject({
-      priceLabel: '$14.99/month',
+      priceLabel: '$9.99/month',
       badge: 'All Roles',
       outcome: 'Keep every tennis role connected, with unlimited Tournament Desk room.',
       billing: {
-        amountCents: 1499,
+        amountCents: 999,
         interval: 'month',
         checkoutMode: 'subscription',
         quantityMode: 'account',
@@ -84,9 +84,9 @@ describe('pricing plans', () => {
     })
 
     expect(getPricingPlan('club_unlimited')).toMatchObject({
-      priceLabel: '$199/month',
+      priceLabel: '$149/month',
       billing: {
-        amountCents: 19900,
+        amountCents: 14900,
         interval: 'month',
         checkoutMode: 'subscription',
         quantityMode: 'account',

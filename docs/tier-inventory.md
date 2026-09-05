@@ -24,11 +24,11 @@ TenAceIQ helps tennis players, captains, and league coordinators spend less time
 | Tier | Plan id | Price | Billing model | Checkout mode | Quantity mode | Audience |
 | --- | --- | ---: | --- | --- | --- | --- |
 | Free | `free` | `$0` | Free account | None | Account | Players, captains, and fans getting oriented |
-| Player | `player_plus` | `$2.99/month` | Monthly subscription | Subscription | Account | Players who want clearer prep and personalized tennis tools |
-| Coach | `coach` | `$5.99/month` | Monthly subscription | Subscription | Account | Private coaches, school coaches, and training-group leaders |
-| Captain | `captain` | `$5.99/month` | Monthly subscription | Subscription | Account | Captains managing lineups, readiness, and weekly decisions |
+| Player | `player_plus` | `$1.99/month` | Monthly subscription | Subscription | Account | Players who want clearer prep and personalized tennis tools |
+| Coach | `coach` | `$4.99/month` | Monthly subscription | Subscription | Account | Private coaches, school coaches, and training-group leaders |
+| Captain | `captain` | `$4.99/month` | Monthly subscription | Subscription | Account | Captains managing lineups, readiness, and weekly decisions |
 | League | `league` | `$25/season` | Season fee | One-time | League | League coordinators and organizers running one league, ladder, or tournament |
-| Full-Court | `full_court` | `$14.99/month` | Monthly subscription | Subscription | Account | Coaches, captains, clubs, and organizers using the complete TenAceIQ toolkit |
+| Full-Court | `full_court` | `$9.99/month` | Monthly subscription | Subscription | Account | Coaches, captains, clubs, and organizers using the complete TenAceIQ toolkit |
 
 Current entitlement grants:
 
@@ -92,7 +92,7 @@ Upgrade cue: Unlock My Lab, follows, matchups, and player-linked insight.
 
 Pricing:
 
-- `$2.99/month`
+- `$1.99/month`
 - Monthly subscription
 - Account quantity
 
@@ -141,7 +141,7 @@ Upgrade cue: Add captain tools on top of Player features.
 
 Pricing:
 
-- `$5.99/month`
+- `$4.99/month`
 - Monthly subscription
 - Account quantity
 - Marked as `Most Popular` in pricing.
