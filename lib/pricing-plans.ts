@@ -33,14 +33,6 @@ export type PricingEntitlementGrant = {
   clubUnlimited: boolean
 }
 
-export type PricingDiscountRule = {
-  id: 'captain_first_league_half_off'
-  label: string
-  percentOff: number
-  appliesToPlanId: PricingPlanId
-  eligibility: 'active_captain_first_league'
-}
-
 export type PricingPlan = {
   id: BillablePricingPlanId
   name: string
@@ -48,7 +40,6 @@ export type PricingPlan = {
   audience: string
   billing: PricingBillingModel
   entitlementGrant: PricingEntitlementGrant
-  discountRules?: PricingDiscountRule[]
   priceLabel: string
   alternatePriceNote?: string
   badge?: string
