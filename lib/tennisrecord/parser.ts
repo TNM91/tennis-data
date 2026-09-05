@@ -128,9 +128,6 @@ function parseProfileLinks(html: string, side: TennisRecordSide, startSeat: numb
   }
   return participants
 }
-function parseWinnerSide(html: string, a: TennisRecordParticipant[]) {
-  return /winner/i.test(html) && a.length ? 'A' as const : null
-}
 
 /**
  * Current public match-result pages put an arrow beside the score rather than
@@ -140,13 +137,18 @@ function parseWinnerSide(html: string, a: TennisRecordParticipant[]) {
  * than counting set tokens, especially where a match tiebreak is displayed as
  * the conventional `1-0` marker.
  */
-function winnerFromResultCells(cells: string[], scoreCellIndex: number) {
-  if (scoreCellIndex < 0) return null
+function winnerFromResultCells(cells: string[], scoreCellIndex: number, profileCells: string[]) {
+  const indicators = new Set<'A' | 'B'>()
   const beforeScore = cells.slice(0, scoreCellIndex).join(' ')
   const afterScore = cells.slice(scoreCellIndex + 1).join(' ')
-  if (/arrowhead[_-]?right\.png/i.test(beforeScore)) return 'A' as const
-  if (/arrowhead[_-]?left\.png/i.test(afterScore)) return 'B' as const
-  return null
+  if (scoreCellIndex >= 0 && /arrowhead[_-]?right\.png/i.test(beforeScore)) indicators.add('A')
+  if (scoreCellIndex >= 0 && /arrowhead[_-]?left\.png/i.test(afterScore)) indicators.add('B')
+  // Legacy layouts label the winner beside either player. Conflicting labels
+  // or arrows are not resolved by guessing from winner-first score text.
+  const winnerLabel = /<(?:span|b|strong|div)\b[^>]*>\s*Winner\s*<\/(?:span|b|strong|div)>/i
+  if (winnerLabel.test(profileCells[0] || '')) indicators.add('A')
+  if (winnerLabel.test(profileCells.at(-1) || '')) indicators.add('B')
+  return indicators.size === 1 ? [...indicators][0] : null
 }
 
 /**
@@ -187,15 +189,6 @@ function parseExplicitTeamRoster(html: string, sourceUrl: string): TennisRecordT
 
   return [...members.values()]
 }
-function winnerFromScoreText(scoreText: string) {
-  let a = 0; let b = 0
-  for (const score of scoreText.matchAll(/\b(\d+)\s*-\s*(\d+)\b/g)) {
-    const left = Number(score[1]); const right = Number(score[2])
-    if (left > right) a += 1
-    else if (right > left) b += 1
-  }
-  return a > b ? 'A' as const : b > a ? 'B' as const : null
-}
 
 export function parseTennisRecordMatchPage(html: string, sourceUrl: string): ParsedTennisRecordPage {
   const plain = getText(html)
@@ -222,7 +215,7 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
     const scoreCell = scoreCellIndex >= 0 ? resultRow[scoreCellIndex] : ''
     const scoreText = [...scoreCell.matchAll(/\b(\d+)\s*-\s*(\d+)\b/g)].map((score) => `${score[1]}-${score[2]}`).join(' ')
     const participants = [...left, ...right]
-    const winnerSide = winnerFromResultCells(resultRow, scoreCellIndex) || parseWinnerSide(profileCells[0] || '', left) || winnerFromScoreText(scoreText)
+    const winnerSide = winnerFromResultCells(resultRow, scoreCellIndex, profileCells)
     const sourceMatchKey = sourceKey('trm', `${sourceUrl}::${discipline}::${courtNumber}`)
     // Do not turn a page heading or league label into a team. A court result
     // only becomes staging evidence when the event context is complete.

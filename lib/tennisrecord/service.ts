@@ -5,6 +5,7 @@ import { fetchTennisRecordPage } from './collector'
 import { parseTennisRecordMatchPage, normalizedTennisRecordPlayerName, tennisRecordRecordPageKind, tennisRecordStatedNtrpBaseline, tennisRecordStatedNtrpDesignation } from './parser'
 import { canonicalTennisRecordFingerprint, normalizeTennisIdentity, sourcePriority } from './reconcile'
 import { isSyntheticTennisRecordObservation, tennisRecordResultCorrection } from './result-integrity'
+import { findExistingProductionMatch, type ProductionMatch, type CanonicalParticipant } from './production-match-lookup'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordCampaignCurrentEndOn, tennisRecordFrontierStatus } from './frontier'
 import type { TennisRecordRunSummary } from './types'
 
@@ -192,7 +193,8 @@ export function tennisRecordScheduledPageKindPlan(cadence: 'bootstrap' | 'weekly
 // pages replay gradually from cache.
 // Revision 9 preserves apostrophes inside quoted profile URLs so different
 // O'-surnames cannot share one truncated source identity.
-const TENNISRECORD_PARSER_REVISION = 9
+// Revision 10 requires an unambiguous source winner marker, never score order.
+const TENNISRECORD_PARSER_REVISION = 10
 
 export function scheduledTennisRecordBatchLimit(maxRequestsPerRun: number, cadence: 'bootstrap' | 'weekly' = 'bootstrap') {
   const ceiling = cadence === 'weekly' ? WEEKLY_TENNISRECORD_BATCH_LIMIT : BOOTSTRAP_TENNISRECORD_BATCH_LIMIT
@@ -782,7 +784,9 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
           touchedSourcePlayerKeys.add(sourcePlayerKey)
         }
         summary.pagesProcessed += 1; summary.playersDiscovered += parsed.players.length; summary.teamsDiscovered += parsed.teams.length; summary.matchesStaged += parsed.matches.length
-        await service.from('tennisrecord_crawl_queue').update({ status: 'done', retry_count: 0, deferred_retry_at: null, failure_reason: '', completed_at: new Date().toISOString() }).eq('id', job.id)
+        const unclearWinners = parsed.matches.filter(match => !match.winnerSide).length
+        summary.parserFailures += unclearWinners
+        await service.from('tennisrecord_crawl_queue').update({ status: unclearWinners ? 'review' : 'done', retry_count: 0, deferred_retry_at: null, failure_reason: unclearWinners ? 'Winner indicator is missing or conflicting. Source scorecards retained for review.' : '', completed_at: new Date().toISOString() }).eq('id', job.id)
       } catch (error) {
         const failureReason = error instanceof Error ? error.message : 'Unknown collector failure'
         const disposition = tennisRecordFailureDisposition(failureReason, job.retry_count || 0)
@@ -1193,6 +1197,7 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
       summary.playersDiscovered += parsed.players.length
       summary.teamsDiscovered += parsed.teams.length
       summary.matchesStaged += parsed.matches.length
+      summary.parserFailures += parsed.matches.filter(match => !match.winnerSide).length
     }
 
     const sourceUpdate = await service.from('tennisrecord_source_pages').update({ parser_revision: TENNISRECORD_PARSER_REVISION, sync_run_id: runId, last_seen_at: now }).eq('id', page.id)
@@ -1386,12 +1391,13 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
   }
   if (parsed.matches.length) {
     const now = new Date().toISOString()
-    const rows = parsed.matches.map((match) => ({ source_match_key: match.sourceMatchKey, source_url: match.sourceUrl, page_id: pageId || null, played_on: match.playedOn || null, league_name: match.leagueName || null, flight: match.flight || null, home_team: match.homeTeam || null, away_team: match.awayTeam || null, discipline: match.discipline, court_number: match.courtNumber, score_text: match.scoreText || null, winner_side: match.winnerSide, participants: match.participants, fingerprint: canonicalTennisRecordFingerprint(match), raw: match, parser_revision: parserRevision, parse_status: 'valid', parse_failure_reason: '', last_seen_at: now }))
+    const rows = parsed.matches.map((match) => ({ source_match_key: match.sourceMatchKey, source_url: match.sourceUrl, page_id: pageId || null, played_on: match.playedOn || null, league_name: match.leagueName || null, flight: match.flight || null, home_team: match.homeTeam || null, away_team: match.awayTeam || null, discipline: match.discipline, court_number: match.courtNumber, score_text: match.scoreText || null, winner_side: match.winnerSide, participants: match.participants, fingerprint: canonicalTennisRecordFingerprint(match), raw: match, parser_revision: parserRevision, parse_status: match.winnerSide ? 'valid' : 'quarantined', parse_failure_reason: match.winnerSide ? '' : 'Winner indicator is missing or conflicting. Review the retained source scorecard.', last_seen_at: now }))
     const { data: saved, error } = await service.from('tennisrecord_staged_matches').upsert(rows, { onConflict: 'source_match_key' }).select('id,fingerprint,source_match_key,source_url,score_text,winner_side,participants')
     if (error) throw new Error(error.message)
-    if (saved?.length) {
-      savedSourceMatchKeys = saved.map((match) => match.source_match_key as string)
-      const observationRows = saved.map((match) => ({ fingerprint: match.fingerprint, source: 'tennisrecord', source_priority: sourcePriority('tennisrecord'), source_record_id: match.source_match_key, source_url: match.source_url, staged_match_id: match.id, score_text: match.score_text, winner_side: match.winner_side, participants: match.participants, raw: { stagedMatchId: match.id }, confidence: 0.55, captured_at: now, last_seen_at: now }))
+    const valid = (saved || []).filter(match => match.winner_side === 'A' || match.winner_side === 'B')
+    if (valid.length) {
+      savedSourceMatchKeys = valid.map((match) => match.source_match_key as string)
+      const observationRows = valid.map((match) => ({ fingerprint: match.fingerprint, source: 'tennisrecord', source_priority: sourcePriority('tennisrecord'), source_record_id: match.source_match_key, source_url: match.source_url, staged_match_id: match.id, score_text: match.score_text, winner_side: match.winner_side, participants: match.participants, raw: { stagedMatchId: match.id }, confidence: 0.55, captured_at: now, last_seen_at: now }))
       const observation = await service.from('tennisrecord_match_observations').upsert(observationRows, { onConflict: 'fingerprint,source,source_record_id' })
       if (observation.error) throw new Error(observation.error.message)
     }
@@ -1557,10 +1563,19 @@ async function reconcileTennisRecordMatches(service: SupabaseClient, sourceMatch
   let created = 0; let duplicates = 0; let conflicts = 0
   let ratingChanged = false
   for (const item of staged || []) {
+    const existingCanonical = await service.from('tennisrecord_canonical_matches').select('fingerprint,canonical_match_id').eq('fingerprint', item.fingerprint).maybeSingle()
+    if (existingCanonical.error) throw new Error(existingCanonical.error.message)
     const identities = await resolveMatchedParticipants(service, item.participants)
     let existing: ProductionMatch | null = null
     if (identities) {
-      existing = await findExistingProductionMatch(service, item, identities)
+      const lookup = await findExistingProductionMatch(service, { ...item, known_canonical_match_id: existingCanonical.data?.canonical_match_id }, identities)
+      if (lookup.kind === 'review') {
+        const held = await service.from('tennisrecord_staged_matches').update({ parse_status: 'quarantined', parse_failure_reason: `Possible existing match with different or ambiguous court context. Review before importing. Candidates: ${lookup.candidateIds.join(', ')}` }).eq('id', item.id)
+        if (held.error) throw new Error(held.error.message)
+        conflicts += 1
+        continue
+      }
+      existing = lookup.kind === 'match' ? lookup.match : null
       if (existing?.source === 'tennisrecord') {
         // Never let an older parser result become a higher-priority local
         // observation. A newer replay of the same public source is permitted
@@ -1602,9 +1617,7 @@ async function reconcileTennisRecordMatches(service: SupabaseClient, sourceMatch
     if (!observations?.length) continue
     const winner = observations[0]
     const conflicting = observations.slice(1).filter((value) => value.score_text !== winner.score_text || value.winner_side !== winner.winner_side || JSON.stringify(value.participants) !== JSON.stringify(winner.participants))
-    const existingCanonical = await service.from('tennisrecord_canonical_matches').select('fingerprint,canonical_match_id').eq('fingerprint', item.fingerprint).maybeSingle()
-    if (existingCanonical.error) throw new Error(existingCanonical.error.message)
-    const canonicalMatchId = winner.canonical_match_id || existingCanonical.data?.canonical_match_id || null
+    const canonicalMatchId = winner.canonical_match_id || existingCanonical.data?.canonical_match_id || existing?.id || null
     const correction = existing && existing.id === canonicalMatchId ? tennisRecordResultCorrection(existing, winner) : null
     // Queue before changing the winner. A failed/interrupted write must not
     // leave corrected evidence marked as already reflected in TiQ ratings.
@@ -1638,9 +1651,6 @@ async function reconcileTennisRecordMatches(service: SupabaseClient, sourceMatch
   return { created, duplicates, conflicts, ratingChanged }
 }
 
-type ProductionMatch = { id: string; source: string | null; score: string | null; winner_side: 'A' | 'B' | null }
-type CanonicalParticipant = { playerId: string; side: 'A' | 'B'; seat: number }
-
 async function resolveMatchedParticipants(service: SupabaseClient, rawParticipants: unknown): Promise<CanonicalParticipant[] | null> {
   const participants = Array.isArray(rawParticipants) ? rawParticipants as Array<{ sourcePlayerKey?: unknown; side?: unknown; seat?: unknown }> : []
   if (!participants.length) return null
@@ -1661,21 +1671,11 @@ async function resolveMatchedParticipants(service: SupabaseClient, rawParticipan
     if (!mapping?.canonical_player_id || mapping.status !== 'matched' || !side || !seat) return null
     resolved.push({ playerId: mapping.canonical_player_id, side, seat })
   }
+  // Distinct source identities can still map to the same canonical player.
+  // Never promote someone onto both sides or into two seats of one court.
+  if (new Set(resolved.map(p => p.playerId)).size !== resolved.length ||
+    new Set(resolved.map(p => `${p.side}:${p.seat}`)).size !== resolved.length) return null
   return resolved
-}
-
-async function findExistingProductionMatch(service: SupabaseClient, staged: Record<string, unknown>, participants: CanonicalParticipant[]): Promise<ProductionMatch | null> {
-  const candidates = await service.from('matches').select('id,source,score,winner_side').eq('match_date', staged.played_on).eq('match_type', staged.discipline).eq('status', 'completed').limit(200)
-  if (candidates.error || !candidates.data?.length) return null
-  const candidateIds = candidates.data.map((candidate) => candidate.id as string)
-  const links = await service.from('match_players').select('match_id,player_id,side,seat').in('match_id', candidateIds)
-  if (links.error) return null
-  const expected = new Set(participants.map((participant) => `${participant.playerId}:${participant.side}:${participant.seat}`))
-  for (const candidate of candidates.data) {
-    const actual = new Set((links.data || []).filter((link) => link.match_id === candidate.id).map((link) => `${link.player_id}:${link.side}:${link.seat}`))
-    if (actual.size === expected.size && [...expected].every((value) => actual.has(value))) return candidate as ProductionMatch
-  }
-  return null
 }
 
 function classifyLocalSource(source: string | null): 'admin_verified' | 'captain_upload' | 'player_upload' | 'tenaceiq' {
