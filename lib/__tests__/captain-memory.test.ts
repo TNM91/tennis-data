@@ -4,11 +4,13 @@ import {
   chooseLatestCaptainResumeState,
   getCaptainResumeHref,
   getCaptainResumeStorageKey,
+  getCaptainRouteResumeFallback,
   hasExplicitCaptainRouteScope,
   isSafeCaptainResumeHref,
   readCaptainResumeState,
   resolveCaptainMatchContext,
   sanitizeCaptainResumeState,
+  syncCaptainResumeState,
   writeCaptainResumeState,
 } from '../captain-memory'
 
@@ -19,7 +21,7 @@ function installLocalStorage() {
     setItem: vi.fn((key: string, value: string) => store.set(key, value)),
   }
 
-  vi.stubGlobal('window', { localStorage })
+  vi.stubGlobal('window', { localStorage, dispatchEvent: vi.fn() })
   return store
 }
 
@@ -27,6 +29,21 @@ describe('captain resume memory', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
+
+  it.each(['team=Team+Two', 'league=Spring', 'flight=4.5', 'layer=tiq', 'team=Team+One&scenario=new-lineup'])(
+    'does not inherit a previous saved lineup through an explicit team route: %s', (query) => {
+      expect(getCaptainRouteResumeFallback(new URLSearchParams(query), {
+        team: 'Team One', league: 'Fall', flight: '4.0', scenarioId: 'old-lineup',
+      })).toBeNull()
+    },
+  )
+
+  it.each(['', 'team=%20', 'scenario=selected-lineup'])(
+    'preserves resume context for a shortcut without a team selection: %s', (query) => {
+      const resume = { team: 'Team One', league: 'Fall', scenarioId: 'saved-lineup' }
+      expect(getCaptainRouteResumeFallback(new URLSearchParams(query), resume)).toBe(resume)
+    },
+  )
 
   it('keeps each signed-in account in its own captain context', () => {
     installLocalStorage()
@@ -49,6 +66,48 @@ describe('captain resume memory', () => {
   it('uses a stable account-specific storage key', () => {
     expect(getCaptainResumeStorageKey(' user-1 ')).toBe(`${CAPTAIN_RESUME_STORAGE_KEY}:user-1`)
     expect(getCaptainResumeStorageKey(null)).toBe(CAPTAIN_RESUME_STORAGE_KEY)
+  })
+
+  it.each([
+    { team: 'Team Two', league: 'Fall', flight: '4.0' },
+    { team: 'Team One', league: 'Spring', flight: '4.0' },
+    { team: 'Team One', league: 'Fall', flight: '4.5' },
+  ])('does not carry another team or season into the next workspace: %j', (scope) => {
+    installLocalStorage()
+    writeCaptainResumeState({
+      team: 'Team One', league: 'Fall', flight: '4.0', competitionLayer: 'usta',
+      lastTool: 'lineup-builder', scenarioId: 'old-lineup', matchId: 'old-match',
+      eventDate: '2099-09-14', opponentTeam: 'Old Opponent', teamRoomId: 'old-room',
+      weekStatus: 'finalized', lineupCount: 3, pendingResponseCount: 2,
+      lastHref: '/captain/lineup-builder?team=Team+One&scenario=old-lineup',
+    }, 'user-1')
+
+    writeCaptainResumeState({ ...scope, lastTool: 'team-room' }, 'user-1')
+    const saved = readCaptainResumeState('user-1')
+    expect(saved).toMatchObject(scope)
+    for (const key of ['scenarioId', 'matchId', 'eventDate', 'opponentTeam', 'teamRoomId', 'weekStatus', 'lineupCount', 'pendingResponseCount', 'lastHref']) {
+      expect(saved).not.toHaveProperty(key)
+    }
+    expect(getCaptainResumeHref(saved)).toContain('/team-room?')
+    expect(getCaptainResumeHref(saved)).not.toContain('old-')
+  })
+
+  it('preserves an existing match when updating the same team workspace', () => {
+    installLocalStorage()
+    writeCaptainResumeState({ team: 'Team One', league: 'Fall', flight: '4.0', scenarioId: 'saved-lineup' }, 'user-1')
+    writeCaptainResumeState({ team: ' Team One ', league: 'Fall', flight: '4.0', lineupCount: 3 }, 'user-1')
+    expect(readCaptainResumeState('user-1')).toMatchObject({ team: 'Team One', scenarioId: 'saved-lineup', lineupCount: 3 })
+  })
+
+  it('syncs the new team to cloud without the old lineup identifiers', async () => {
+    installLocalStorage()
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('fetch', fetchMock)
+    writeCaptainResumeState({ team: 'Team One', league: 'Fall', flight: '4.0', scenarioId: 'old-lineup' }, 'user-1')
+    await syncCaptainResumeState({ team: 'Team Two', league: 'Spring', flight: '4.5', lastTool: 'team-room' }, 'user-1', 'test-token')
+    const sent = JSON.parse(fetchMock.mock.calls[0][1].body).resume
+    expect(sent).toMatchObject({ team: 'Team Two', league: 'Spring', flight: '4.5' })
+    expect(sent).not.toHaveProperty('scenarioId')
   })
 
   it('keeps only safe resumable Captain context', () => {

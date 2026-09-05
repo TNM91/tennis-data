@@ -25,6 +25,12 @@ export function buildTeamRoomScopeId(scope: Partial<TeamRoomScope>) {
     .join('__')
 }
 
+export function buildTeamRoomSessionKey(userId: string | null | undefined, params: Pick<URLSearchParams, 'get'>) {
+  // Focus links within a room keep the editor; another team or account gets
+  // fresh state (including attachments, replies, match drafts and requests).
+  return JSON.stringify([userId || '', ...['team', 'league', 'flight'].map((key) => params.get(key)?.trim() || '')])
+}
+
 export function buildTeamRoomHref(scope: Partial<TeamRoomScope & TeamRoomMatchContext> = {}) {
   const params = new URLSearchParams()
   if (scope.teamName?.trim()) params.set('team', scope.teamName.trim())

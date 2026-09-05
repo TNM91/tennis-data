@@ -173,8 +173,21 @@ export function writeCaptainResumeState(nextState: CaptainResumeState, userId?: 
   try {
     const storageKey = getCaptainResumeStorageKey(userId)
     const current = readCaptainResumeState(userId) || {}
+    const scopeChanged = (['team', 'league', 'flight', 'competitionLayer'] as const).some((key) =>
+      nextState[key] !== undefined && cleanResumeText(nextState[key]) !== cleanResumeText(current[key]),
+    )
+    // Match IDs, lineup status and return links belong to one team/season.
+    // A new scope must not inherit them from the last Captain workspace.
+    const teamChanged = nextState.team !== undefined && cleanResumeText(nextState.team) !== cleanResumeText(current.team)
+    const leagueChanged = nextState.league !== undefined && cleanResumeText(nextState.league) !== cleanResumeText(current.league)
+    const inheritedState = scopeChanged ? {
+      team: current.team,
+      competitionLayer: teamChanged ? undefined : current.competitionLayer,
+      league: teamChanged ? undefined : current.league,
+      flight: teamChanged || leagueChanged ? undefined : current.flight,
+    } : current
     const saved = sanitizeCaptainResumeState({
-      ...current,
+      ...inheritedState,
       ...nextState,
       lastVisitedAt: nextState.lastVisitedAt || new Date().toISOString(),
     })
@@ -265,6 +278,14 @@ export function buildCaptainScopedHref(
 export function hasExplicitCaptainRouteScope(params: URLSearchParams) {
   return ['layer', 'team', 'league', 'flight', 'date', 'opponent', 'match', 'scenario', 'left']
     .some((key) => Boolean(params.get(key)?.trim()))
+}
+
+export function getCaptainRouteResumeFallback(params: URLSearchParams, resume: CaptainResumeState | null) {
+  // A deliberate team/season selection is complete on its own. Missing fields
+  // must stay empty, not inherit another team's league, flight or saved lineup.
+  return ['layer', 'team', 'league', 'flight'].some((key) => Boolean(params.get(key)?.trim()))
+    ? null
+    : resume
 }
 
 function isPastCaptainMatchDate(value: string) {

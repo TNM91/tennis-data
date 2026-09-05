@@ -19,7 +19,7 @@ import {
   syncCaptainResumeState,
 } from '@/lib/captain-memory'
 import { notifyPlatformResumeUpdated } from '@/lib/platform-resume-events'
-import { buildTeamRoomHref } from '@/lib/team-room'
+import { buildTeamRoomHref, buildTeamRoomSessionKey } from '@/lib/team-room'
 import {
   buildTeamRoomCourtReadiness,
   canRespondToLineupChange,
@@ -327,6 +327,13 @@ export default function TeamRoomPage() {
 }
 
 function TeamRoomContent() {
+  const searchParams = useSearchParams()
+  const { authResolved, userId } = useAuth()
+  if (!authResolved) return <TeamRoomLoading />
+  return <TeamRoomSession key={buildTeamRoomSessionKey(userId, searchParams)} />
+}
+
+function TeamRoomSession() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { authResolved, session, userId } = useAuth()
