@@ -15,7 +15,7 @@ Rating jobs now take the same active-run lock as imports and mark failures for r
 ## Rollout order
 
 1. Run lint, typecheck, the full tests, production build, and disposable PostgreSQL verification below. Inspect the exact production queue/coverage before activation.
-2. Apply migration `20260905000100_independent_current_season_refresh.sql` before deploying this code. It is additive; `current_refresh_enabled` defaults to false. Existing collection is unchanged by the migration alone. It also permits the new ratings lock record, so deploying code first is unsafe.
+2. Apply migration `20260905000300_independent_current_season_refresh.sql` before deploying this code. It is additive; `current_refresh_enabled` defaults to false. Existing collection is unchanged by the migration alone. It also permits the new ratings lock record, so deploying code first is unsafe. The local database check also rejects duplicate migration versions.
 3. Deploy the verified code while the new lane remains disabled. Verify authenticated cron handling and normal checkpoint/rating logs.
 4. Explicitly enable `tennisrecord_collector_settings.current_refresh_enabled` for the singleton row, preserving enabled, campaign state, request pacing, and rating watermarks.
 5. Verify a weekly checkpoint during bootstrap, subsequent historical progress, due-page timestamps, held-page preservation, rating completion and no overlapping running jobs. Measure successful source fetches and current-team coverage, not merely completed invocations. Do not declare fall coverage ready from a seed count alone.

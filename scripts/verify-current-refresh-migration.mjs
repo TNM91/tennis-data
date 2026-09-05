@@ -1,7 +1,10 @@
 // Disposable local PostgreSQL only. Never loads .env or contacts production.
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import assert from 'node:assert/strict'
 const { PGlite } = await import(process.env.TIQ_PGLITE_MODULE || '@electric-sql/pglite')
+const migrations = await readdir(new URL('../supabase/migrations/', import.meta.url))
+const versions = migrations.filter(name => /^\d+_.*\.sql$/.test(name)).map(name => name.split('_')[0])
+assert.equal(new Set(versions).size, versions.length, 'Migration versions must be unique before rollout')
 const db = new PGlite()
 try {
   await db.exec(`
@@ -15,7 +18,7 @@ try {
     create table tennisrecord_staged_leagues(source_url text,season_year integer,name text);
     create table tennisrecord_staged_matches(source_url text,played_on date,league_name text);
   `)
-  await db.exec(await readFile(new URL('../supabase/migrations/20260905000100_independent_current_season_refresh.sql', import.meta.url), 'utf8'))
+  await db.exec(await readFile(new URL('../supabase/migrations/20260905000300_independent_current_season_refresh.sql', import.meta.url), 'utf8'))
   const { rows: [run] } = await db.query("insert into tennisrecord_sync_runs(trigger_kind) values('weekly') returning id")
   const prepare = seed => db.query('select prepare_tennisrecord_current_refresh($1,$2) as released', [run.id, seed])
   assert.equal((await prepare(false)).rows[0].released, 0, 'disabled by default')
