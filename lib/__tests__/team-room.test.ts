@@ -4,11 +4,30 @@ import { describe, expect, it } from 'vitest'
 import {
   buildTeamRoomHref,
   buildTeamRoomScopeId,
+  buildTeamRoomSessionKey,
   canManageTeamRoom,
   normalizeTeamRoomKey,
 } from '../team-room'
 
 describe('Team Room', () => {
+  it('isolates the editor by team, league, flight and signed-in account', () => {
+    const params = new URLSearchParams('team=Team+One&league=Fall&flight=4.0')
+    const original = buildTeamRoomSessionKey('user-1', params)
+    for (const [key, value] of [['team', 'Team Two'], ['league', 'Spring'], ['flight', '4.5']]) {
+      const changed = new URLSearchParams(params)
+      changed.set(key, value)
+      expect(buildTeamRoomSessionKey('user-1', changed)).not.toBe(original)
+    }
+    expect(buildTeamRoomSessionKey('user-2', params)).not.toBe(original)
+    expect(buildTeamRoomSessionKey(null, params)).not.toBe(original)
+    params.set('message', 'pinned-card')
+    params.set('court', 'Doubles 1')
+    expect(buildTeamRoomSessionKey('user-1', params)).toBe(original)
+
+    const page = readFileSync(join(process.cwd(), 'app/team-room/page.tsx'), 'utf8')
+    expect(page).toContain('<TeamRoomSession key={buildTeamRoomSessionKey(userId, searchParams)} />')
+  })
+
   it('keeps one stable room across TennisLink punctuation differences', () => {
     expect(normalizeTeamRoomKey('SuperSmash Bros/Pottebaum-Meinart'))
       .toBe('supersmash bros pottebaum meinart')
