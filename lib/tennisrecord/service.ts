@@ -10,8 +10,10 @@ import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUr
 import type { TennisRecordRunSummary } from './types'
 import { currentSeasonDiscoveryUrls, nextCurrentRefreshAt, preferCurrentSeason } from './current-refresh'
 import { createRatingTimingObserver, emitImporterTelemetry } from './telemetry'
+import { readSourceOutageState, recordSourceOutageFailure, sourceOutageIsCooling, type SourceOutageState } from './source-outage'
 
 type AutomationState = 'manual' | 'bootstrap' | 'weekly'
+type SourceOutageSettings = { source_outage_state?: unknown }
 type Settings = { enabled: boolean; current_refresh_enabled?: boolean; current_refresh_seeded_at?: string | null; current_refresh_player_cursor?: string | null; current_refresh_seed_cycle_at?: string | null; min_request_interval_ms: number; max_requests_per_run: number; weekly_lookback_days: number; automation_state: AutomationState; bootstrap_started_at: string | null; bootstrap_completed_at: string | null; weekly_refresh_started_at: string | null; active_campaign_id: string | null; rating_recalculation_requested_at: string | null; rating_recalculation_reason: string | null; rating_recalculated_at: string | null }
 type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number; deferred_retry_count: number; deferred_retry_at: string | null }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
@@ -461,9 +463,11 @@ export function tennisRecordPipelineHealth(input: {
   automationState: AutomationState
   lastSuccessfulCollectorAt: string | null
   safetyThrottle: TennisRecordCadenceSafety
+  sourceOutage?: unknown
 }, now = Date.now()): TennisRecordPipelineHealth {
   if (!input.enabled || input.automationState === 'manual') return { state: 'paused', message: 'Automatic collection is paused.' }
   if (input.safetyThrottle.active) return { state: 'cooling_down', message: 'The collector is taking its planned safety pause.' }
+  if (sourceOutageIsCooling(input.sourceOutage, now)) return { state: 'cooling_down', message: 'The source is temporarily unavailable. Imports will retry automatically; saved results are unaffected.' }
   if (input.automationState === 'bootstrap') {
     const lastSuccess = Date.parse(input.lastSuccessfulCollectorAt || '')
     const hasMissedCheckpointWindow = !Number.isFinite(lastSuccess) || now - lastSuccess > 20 * 60_000
@@ -610,6 +614,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
         automationState: collectorSettings?.automation_state || 'manual',
         lastSuccessfulCollectorAt: (lastSuccessfulRun.data?.completed_at as string | null | undefined) || null,
         safetyThrottle,
+        sourceOutage: sourceOutageFromSettings(collectorSettings),
       }),
       lastSuccessfulCollectorAt: (lastSuccessfulRun.data?.completed_at as string | null | undefined) || null,
     },
@@ -786,12 +791,39 @@ export async function prepareCurrentSeasonRefresh(service: SupabaseClient, runId
   if (recorded.error) throw new Error(recorded.error.message)
 }
 
+function sourceOutageFromSettings(settings: unknown) {
+  return readSourceOutageState((settings as SourceOutageSettings | null)?.source_outage_state)
+}
+
+async function sourceCooldownSummary(service: SupabaseClient, settings: unknown): Promise<TennisRecordRunSummary | null> {
+  const state = sourceOutageFromSettings(settings)
+  if (!sourceOutageIsCooling(state)) return null
+  // A process crash must not leave ratings locked out for the full cooldown.
+  // This only reclaims already-stale runs; it does not start source work.
+  await reclaimStaleTennisRecordRuns(service)
+  emitImporterTelemetry({ event: 'tennisrecord_source_cooldown', kind: 'skipped', retry_at: state.cooldownUntil })
+  return { ...emptySummary('skipped'), reason: 'source_cooldown', retryAt: state.cooldownUntil! }
+}
+
+class SourceOutagePersistenceError extends Error {}
+
+async function saveSourceOutage(service: SupabaseClient, state: SourceOutageState) {
+  try {
+    const saved = await service.from('tennisrecord_collector_settings').update({ source_outage_state: state }).eq('id', true).select('id').single()
+    if (saved.error || !saved.data) throw new Error(saved.error?.message || 'Could not save source cooldown.')
+  } catch (error) {
+    throw new SourceOutagePersistenceError(error instanceof Error ? error.message : 'Could not save source cooldown.')
+  }
+}
+
 export async function runTennisRecordSync(service: SupabaseClient, input: SyncInput): Promise<TennisRecordRunSummary> {
   const sourceDeadlineAt = Date.now() + TENNISRECORD_SOURCE_WORK_BUDGET_MS
   const { data: rawSettings, error: settingsError } = await service.from('tennisrecord_collector_settings').select('*').eq('id', true).single()
   if (settingsError) throw new Error(settingsError.message)
   const settings = rawSettings as Settings
   if (!settings.enabled) return emptySummary('disabled')
+  const cooling = await sourceCooldownSummary(service, settings)
+  if (cooling) return cooling
   await reclaimStaleTennisRecordRuns(service)
   const { data: run, error: runError } = await service.from('tennisrecord_sync_runs').insert({ trigger_kind: input.triggerKind, requested_by_user_id: input.requestedByUserId || null }).select('id').single()
   if (runError && isActiveRunLockError(runError)) return emptySummary('skipped')
@@ -800,6 +832,17 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
   const summary = emptySummary('completed')
   const shouldRecalculateRatings = input.recalculateRatings !== false
   try {
+    // Settings may have changed while waiting for the shared collector/rating
+    // lock. This authoritative read also fails closed if migration is missing.
+    const outageRead = await service.from('tennisrecord_collector_settings').select('source_outage_state').eq('id', true).single()
+    if (outageRead.error) throw new Error(outageRead.error.message)
+    const lockedCooling = await sourceCooldownSummary(service, outageRead.data)
+    if (lockedCooling) {
+      const finished = await service.from('tennisrecord_sync_runs').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', runId)
+      if (finished.error) throw new Error(finished.error.message)
+      return lockedCooling
+    }
+    let outage = sourceOutageFromSettings(outageRead.data)
     if (input.currentSeason) await prepareCurrentSeasonRefresh(service, runId, settings)
     summary.transientRetries += await requeueDueDeferredTennisRecordRetries(service, input.campaignId)
     const campaign = input.campaignId
@@ -828,22 +871,38 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
       // Queue selection can itself take time. Do not claim another row once
       // the remaining source budget cannot accommodate its pacing interval.
       if (!hasTennisRecordFetchBudget(sourceDeadlineAt, settings.min_request_interval_ms)) break
+      const claimed = await service.from('tennisrecord_crawl_queue').update({ status: 'running', attempted_at: new Date().toISOString(), last_run_id: runId }).eq('id', job.id).eq('status', 'pending').select('id').maybeSingle()
+      if (claimed.error) throw new Error(claimed.error.message)
+      if (!claimed.data) break
       summary.pagesAttempted += 1
-      await service.from('tennisrecord_crawl_queue').update({ status: 'running', attempted_at: new Date().toISOString(), last_run_id: runId }).eq('id', job.id).eq('status', 'pending')
+      let sourceFailure = false
       try {
         const page = await fetchTennisRecordPage(job.source_url, settings.min_request_interval_ms, sourceDeadlineAt, sample => {
           emitImporterTelemetry({ event: 'tennisrecord_source_attempt', run_id: runId, queue_id: job.id, page_kind: job.page_kind, lane: input.currentSeason ? 'current' : input.triggerKind, ...sample })
+        }).catch(error => {
+          sourceFailure = !(error instanceof TennisRecordCheckpointBudgetError) && isTennisRecordTransientFailure(error instanceof Error ? error.message : '')
+          throw error
         })
         summary.transientRetries += page.transientRetries
         const sourcePageId = await persistTennisRecordSourcePage(service, page, runId)
+        // A real non-transient response proves connectivity, not match validity.
+        // Cached replay and database success must never close this circuit.
+        const transientHttp = !page.blockReason && [408, 500, 502, 503, 504].includes(page.status)
+        if (!page.blockReason && !transientHttp && (outage.level || outage.failedQueueIds.length)) {
+          outage = readSourceOutageState(null)
+          await saveSourceOutage(service, outage)
+          emitImporterTelemetry({ event: 'tennisrecord_source_cooldown', kind: 'recovered', run_id: runId })
+        }
         if (page.blockReason) {
           summary.blockedRequests += 1; summary.status = 'blocked'
-          await service.from('tennisrecord_crawl_queue').update({ status: 'blocked', failure_reason: page.blockReason, completed_at: new Date().toISOString() }).eq('id', job.id)
-          continue
+          const blocked = await service.from('tennisrecord_crawl_queue').update({ status: 'blocked', failure_reason: page.blockReason, completed_at: new Date().toISOString() }).eq('id', job.id)
+          if (blocked.error) throw new Error(blocked.error.message)
+          break
         }
         // Keep the response as diagnostic evidence, but do not parse, stage,
         // complete or advance weekly freshness from an upstream error page.
         if (!isSuccessfulTennisRecordHttpStatus(page.status)) {
+          sourceFailure = transientHttp
           throw new Error(`TennisRecord source HTTP ${page.status}; response retained, import not completed.`)
         }
         const parsed = parseTennisRecordMatchPage(page.html, page.url)
@@ -880,6 +939,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
         const savedJob = await service.from('tennisrecord_crawl_queue').update({ status: unclearWinners ? 'review' : 'done', retry_count: 0, deferred_retry_at: null, failure_reason: unclearWinners ? 'Winner indicator is missing or conflicting. Source scorecards retained for review.' : '', completed_at: new Date().toISOString(), ...(input.currentSeason && !unclearWinners ? { current_refreshed_at: new Date().toISOString(), refresh_due_at: nextCurrentRefreshAt() } : {}) }).eq('id', job.id)
         if (savedJob.error) throw new Error(savedJob.error.message)
       } catch (error) {
+        if (error instanceof SourceOutagePersistenceError) throw error
         if (error instanceof TennisRecordCheckpointBudgetError) {
           // A planned yield is not a source failure and must not consume a
           // retry or strand the claimed row. Reconcile captured pages below.
@@ -888,6 +948,20 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
           break
         }
         const failureReason = error instanceof Error ? error.message : 'Unknown collector failure'
+        if (sourceFailure) {
+          outage = recordSourceOutageFailure(outage, job.id)
+          // Persist the global pause before releasing the page. If either save
+          // fails, stop visibly; stale-run recovery can reclaim a running row.
+          await saveSourceOutage(service, outage)
+          if (sourceOutageIsCooling(outage)) {
+            const released = await service.from('tennisrecord_crawl_queue').update({ status: 'pending', failure_reason: failureReason, last_error_at: new Date().toISOString(), deferred_retry_at: outage.cooldownUntil }).eq('id', job.id).eq('status', 'running')
+            if (released.error) throw new Error(released.error.message)
+            summary.reason = 'source_cooldown'
+            summary.retryAt = outage.cooldownUntil!
+            emitImporterTelemetry({ event: 'tennisrecord_source_cooldown', kind: 'opened', run_id: runId, retry_at: outage.cooldownUntil, level: outage.level })
+            break
+          }
+        }
         const disposition = tennisRecordFailureDisposition(failureReason, job.retry_count || 0)
         const retryAt = disposition === 'retry'
           ? tennisRecordTransientRetryAt(failureReason, job.retry_count || 0)
@@ -921,7 +995,10 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
     await service.from('tennisrecord_sync_runs').update({ status: summary.status, completed_at: new Date().toISOString(), pages_attempted: summary.pagesAttempted, pages_processed: summary.pagesProcessed, players_discovered: summary.playersDiscovered, teams_discovered: summary.teamsDiscovered, matches_staged: summary.matchesStaged, canonical_matches_created: summary.canonicalMatchesCreated, duplicates_detected: summary.duplicatesDetected, conflicts_found: summary.conflictsFound, blocked_requests: summary.blockedRequests, parser_failures: summary.parserFailures, transient_retries: summary.transientRetries, source_failures: summary.sourceFailures }).eq('id', runId)
     return summary
   } catch (error) {
-    await service.from('tennisrecord_sync_runs').update({ status: 'failed', completed_at: new Date().toISOString(), error_message: error instanceof Error ? error.message : 'Unknown sync failure' }).eq('id', runId)
+    // Do not strand a claimed row behind a terminal failed run. If releasing
+    // it also fails, keep the run reclaimable by the existing stale-run path.
+    const released = await service.from('tennisrecord_crawl_queue').update({ status: 'pending' }).eq('last_run_id', runId).eq('status', 'running')
+    await service.from('tennisrecord_sync_runs').update({ ...(released.error ? {} : { status: 'failed', completed_at: new Date().toISOString() }), error_message: error instanceof Error ? error.message : 'Unknown sync failure' }).eq('id', runId)
     throw error
   }
 }
@@ -966,6 +1043,8 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
   if (error) throw new Error(error.message)
   const settings = rawSettings as Settings
   if (!settings.enabled) return emptySummary('disabled')
+  const cooling = await sourceCooldownSummary(service, settings)
+  if (cooling) return cooling
   const scheduledBatchLimit = scheduledTennisRecordBatchLimit(settings.max_requests_per_run, cadence)
 
   if (cadence === 'bootstrap') {
@@ -1138,6 +1217,8 @@ export async function runAutomaticTennisRecordSync(service: SupabaseClient) {
     automationState = activated?.automation_state as AutomationState | undefined
   }
   if (automationState !== 'bootstrap' && automationState !== 'weekly') return emptySummary('skipped')
+  const cooling = await sourceCooldownSummary(service, data)
+  if (cooling) return cooling
   if (tennisRecordCadenceSafetyStatus(recentRunResult.data as TennisRecordRunSafetySample | null).active) return emptySummary('skipped')
   if (data?.current_refresh_enabled && preferCurrentSeason(automationState, recentRunResult.data?.trigger_kind)) {
     // Reuse the established checkpoint ceiling and deadline, not the legacy

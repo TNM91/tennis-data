@@ -53,11 +53,13 @@ describe('checkpoint yield persistence', () => {
     expect(selections()).toBe(1)
   })
 
-  it('reports a failed checkpoint if its page could not be released', async () => {
+  it('reports a release failure but keeps the lock reclaimable if cleanup also fails', async () => {
     vi.mocked(fetchTennisRecordPage).mockRejectedValue(new TennisRecordCheckpointBudgetError())
     const { db, writes } = fixture({ failRelease: true })
     await expect(runTennisRecordSync(db, { triggerKind: 'bootstrap', recalculateRatings: false })).rejects.toThrow('Release failed')
-    expect(writes.at(-1)).toMatchObject({ table: 'tennisrecord_sync_runs', payload: { status: 'failed', error_message: 'Release failed' } })
+    expect(writes.at(-1)).toMatchObject({ table: 'tennisrecord_sync_runs', payload: { error_message: 'Release failed' } })
+    expect(writes.at(-1)?.payload).not.toHaveProperty('status')
+    expect(writes.at(-1)?.payload).not.toHaveProperty('completed_at')
   })
 
   it('does not claim a page when selection itself consumes the remaining time', async () => {
