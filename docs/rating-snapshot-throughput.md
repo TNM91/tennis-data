@@ -12,7 +12,7 @@ Each two-batch wave is fully settled before proceeding or throwing. On failure, 
 
 ## Verification and rollout
 
-Local release verification passed: 506 test files / 2,440 tests, full lint, typecheck, extension syntax and Node 22 production build. No production deployment of the two-batch option has occurred at this implementation handoff.
+Release candidate is integrated on the source-outage cooldown release (`784d52cb`, PR #1196). September 5 combined verification passed: 508 test files / 2,480 tests, full lint, standalone typecheck, extension syntax, diff checks and Node 22 production build (245 pages). The focused combined rating-write, lock, HTTP and cooldown suite also passes (5 files / 54 tests). No production deployment of the two-batch option has occurred at this implementation handoff.
 
 Tests compare all six player ratings, every snapshot and the full request-payload inventory against sequential execution across more than 2,000 snapshots. They include current schema, missing metrics, missing conflict constraint, both missing, dry runs, bounded concurrency, synchronous/asynchronous failures, draining sibling writes and preventing later writes after failure. Database read plans were inspected, but no indexes changed: prioritize the measured save bottleneck first.
 
