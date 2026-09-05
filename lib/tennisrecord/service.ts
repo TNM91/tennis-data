@@ -375,7 +375,15 @@ export function tennisRecordTransientRetryAt(message: string, retryCount: number
 }
 
 export function isTennisRecordTransientFailure(message: string) {
+  // Classify our source HTTP errors before generic transport text. Access
+  // restrictions and permanent errors must never become automatic retries.
+  const http = /^TennisRecord source HTTP (\d{3})\b/.exec(message)
+  if (http) return [408, 500, 502, 503, 504].includes(Number(http[1]))
   return /(fetch failed|network|timeout|timed out|econn|socket hang up|temporarily unavailable)/i.test(message)
+}
+
+export function isSuccessfulTennisRecordHttpStatus(status: unknown): status is number {
+  return typeof status === 'number' && Number.isInteger(status) && status >= 200 && status < 300
 }
 
 /**
@@ -833,6 +841,11 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
           await service.from('tennisrecord_crawl_queue').update({ status: 'blocked', failure_reason: page.blockReason, completed_at: new Date().toISOString() }).eq('id', job.id)
           continue
         }
+        // Keep the response as diagnostic evidence, but do not parse, stage,
+        // complete or advance weekly freshness from an upstream error page.
+        if (!isSuccessfulTennisRecordHttpStatus(page.status)) {
+          throw new Error(`TennisRecord source HTTP ${page.status}; response retained, import not completed.`)
+        }
         const parsed = parseTennisRecordMatchPage(page.html, page.url)
         if (job.page_kind === 'match' && parsed.matches.length === 0) {
           summary.parserFailures += 1
@@ -882,13 +895,14 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
         if (disposition === 'retry') summary.transientRetries += 1
         else if (retryAt) summary.transientRetries += 1
         else summary.sourceFailures += 1
-        await service.from('tennisrecord_crawl_queue').update({
+        const savedFailure = await service.from('tennisrecord_crawl_queue').update({
           status: disposition === 'retry' ? 'pending' : 'error',
           retry_count: disposition === 'retry' ? (job.retry_count || 0) + 1 : job.retry_count || 0,
           failure_reason: failureReason,
           last_error_at: new Date().toISOString(),
           deferred_retry_at: retryAt,
         }).eq('id', job.id)
+        if (savedFailure.error) throw new Error(savedFailure.error.message)
       }
     }
     const reconciled = await reconcileTennisRecordMatches(
@@ -1266,8 +1280,10 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
   const summary: ParserReplaySummary = { pagesProcessed: 0, playersDiscovered: 0, teamsDiscovered: 0, matchesStaged: 0, parserFailures: 0, sourceMatchKeys: [], sourcePlayerKeys: [], baselineChanged: false }
   const { data: pages, error } = await service
     .from('tennisrecord_source_pages')
-    .select('id,source_url,raw_html,raw_html_storage_path')
+    .select('id,source_url,http_status,raw_html,raw_html_storage_path')
     .eq('blocked', false)
+    .gte('http_status', 200)
+    .lt('http_status', 300)
     .lt('parser_revision', TENNISRECORD_PARSER_REVISION)
     .or('raw_html.not.is.null,raw_html_storage_path.not.is.null')
     .order('last_seen_at', { ascending: false })
@@ -1275,6 +1291,8 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
   if (error) throw new Error(error.message)
 
   for (const page of pages || []) {
+    // Defense in depth before downloading or superseding any prior evidence.
+    if (!isSuccessfulTennisRecordHttpStatus(page.http_status)) continue
     const sourceUrl = page.source_url as string
     let html = page.raw_html as string | null
     if (!html && page.raw_html_storage_path) {
