@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { isTennisRecordBlock } from './reconcile'
+import { reportSourceAttempt, sourceTransportFailure, type SourceAttemptSample } from './telemetry'
 
 const allowedHosts = new Set(['tennisrecord.com', 'www.tennisrecord.com'])
 const MAX_TRANSIENT_FETCH_ATTEMPTS = 2
@@ -30,7 +31,7 @@ export function assertAllowedTennisRecordUrl(input: string) {
   return url
 }
 
-export async function fetchTennisRecordPage(input: string, minIntervalMs: number, deadlineAt?: number) {
+export async function fetchTennisRecordPage(input: string, minIntervalMs: number, deadlineAt?: number, onAttempt?: (sample: SourceAttemptSample) => void) {
   const url = assertAllowedTennisRecordUrl(input)
   const intervalMs = Math.max(1000, minIntervalMs)
 
@@ -39,7 +40,10 @@ export async function fetchTennisRecordPage(input: string, minIntervalMs: number
   // or bypass behavior is permitted.
   for (let attempt = 0; attempt < MAX_TRANSIENT_FETCH_ATTEMPTS; attempt += 1) {
     if (!hasTennisRecordFetchBudget(deadlineAt, intervalMs)) throw new TennisRecordCheckpointBudgetError()
+    const pacingStarted = performance.now()
     await wait(intervalMs)
+    const fetchStarted = performance.now()
+    const pacingMs = Math.max(0, Math.round(fetchStarted - pacingStarted))
     const remainingMs = deadlineAt === undefined ? 20_000 : Math.floor(deadlineAt - Date.now())
     if (remainingMs <= 0) throw new TennisRecordCheckpointBudgetError()
     try {
@@ -50,6 +54,7 @@ export async function fetchTennisRecordPage(input: string, minIntervalMs: number
       })
       const html = await response.text()
       const blockReason = isTennisRecordBlock(response.status, html)
+      reportSourceAttempt(onAttempt, { attempt: attempt + 1, outcome: blockReason ? 'blocked' : response.ok ? 'success' : 'http_error', status: response.status, pacing_ms: pacingMs, fetch_ms: Math.max(0, Math.round(performance.now() - fetchStarted)) })
       return {
         url: url.toString(),
         status: response.status,
@@ -59,6 +64,7 @@ export async function fetchTennisRecordPage(input: string, minIntervalMs: number
         transientRetries: attempt,
       }
     } catch (error) {
+      reportSourceAttempt(onAttempt, { attempt: attempt + 1, outcome: sourceTransportFailure(error), status: null, pacing_ms: pacingMs, fetch_ms: Math.max(0, Math.round(performance.now() - fetchStarted)) })
       if (deadlineAt !== undefined && Date.now() >= deadlineAt) throw new TennisRecordCheckpointBudgetError()
       if (attempt === MAX_TRANSIENT_FETCH_ATTEMPTS - 1) throw error
     }

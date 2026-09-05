@@ -194,6 +194,8 @@ export async function recalculateDynamicRatings(
   onPhase?.('fetching-participants')
   const matchPlayers = await fetchMatchPlayers(client)
 
+  onPhase?.('processing', `${matches.length} matches`)
+
   const playersById = new Map<string, WorkingPlayer>(
     players.map((player) => {
       const singlesBase = safeNumber(player.singles_rating, DEFAULT_RATING)
@@ -318,9 +320,6 @@ export async function recalculateDynamicRatings(
 
     skippedMatches.push({ matchId: match.id, reason: `unsupported match type: ${match.match_type}` })
   }
-
-  onPhase?.('processing', `${matches.length} matches`)
-  // (processing loop ran above)
 
   onPhase?.('finalizing')
   applyInactivityDecay(playersById.values(), options.now ?? Date.now())
