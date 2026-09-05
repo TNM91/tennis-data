@@ -108,9 +108,12 @@ function readLeagueName(plain: string) {
 }
 function parseProfileLinks(html: string, side: TennisRecordSide, startSeat: number) {
   const participants: TennisRecordParticipant[] = []
-  for (const match of html.matchAll(/<a[^>]+href=["']([^"']*profile\.aspx[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
-    const url = new URL(htmlDecode(match[1]), 'https://www.tennisrecord.com').toString()
-    const text = getText(match[2])
+  // Only the matching delimiter ends an attribute. An apostrophe inside a
+  // double-quoted O'Neill/O'Keefe URL is part of the identity, not its end.
+  for (const match of html.matchAll(/<a\b[^>]*\bhref\s*=\s*(["'])([\s\S]*?)\1[^>]*>([\s\S]*?)<\/a>/gi)) {
+    if (!/profile\.aspx/i.test(match[2])) continue
+    const url = new URL(htmlDecode(match[2]), 'https://www.tennisrecord.com').toString()
+    const text = getText(match[3])
     const rating = text.match(/\(([1-7]\.\d{1,4})\)\s*$/)?.[1]
     const name = text.replace(/\s*\([1-7]\.\d{1,4}\)\s*$/, '').trim()
     if (!name) continue
@@ -260,8 +263,8 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
   const seasonYear = Number(leagueName.match(/\b(20\d{2})\b/)?.[1]) || null
   const leagues: TennisRecordLeague[] = leagueName ? [{ sourceLeagueKey: sourceKey('trl', `${leagueName}::${flight}::${seasonYear || ''}`), name: leagueName, flight, seasonYear, sourceUrl }] : []
   const teams: TennisRecordTeam[] = [homeTeam, awayTeam].filter(isTeamName).map((name) => ({ sourceTeamKey: sourceKey('trt', `${name}::${leagueName}::${flight}::${seasonYear || ''}`), name, leagueName, flight, seasonYear, sourceUrl }))
-  const discoveredUrls = [...html.matchAll(/href=["']([^"']+)["']/gi)]
-    .map((link) => new URL(htmlDecode(link[1]), sourceUrl).toString())
+  const discoveredUrls = [...html.matchAll(/href\s*=\s*(["'])([\s\S]*?)\1/gi)]
+    .map((link) => new URL(htmlDecode(link[2]), sourceUrl).toString())
     .filter((url) => isAllowedTennisRecordDiscovery(sourceUrl, url))
   const discoveryLimit = tennisRecordRecordPageKind(sourceUrl) === 'league'
     ? MAX_DISCOVERED_DIRECTORY_URLS_PER_PAGE

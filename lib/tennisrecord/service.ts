@@ -4,6 +4,7 @@ import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import { fetchTennisRecordPage } from './collector'
 import { parseTennisRecordMatchPage, normalizedTennisRecordPlayerName, tennisRecordRecordPageKind, tennisRecordStatedNtrpBaseline, tennisRecordStatedNtrpDesignation } from './parser'
 import { canonicalTennisRecordFingerprint, normalizeTennisIdentity, sourcePriority } from './reconcile'
+import { isSyntheticTennisRecordObservation, tennisRecordResultCorrection } from './result-integrity'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordCampaignCurrentEndOn, tennisRecordFrontierStatus } from './frontier'
 import type { TennisRecordRunSummary } from './types'
 
@@ -189,7 +190,9 @@ export function tennisRecordScheduledPageKindPlan(cadence: 'bootstrap' | 'weekly
 // the source result.
 // TennisRecord's estimated dynamic rating remains metadata only. Captured
 // pages replay gradually from cache.
-const TENNISRECORD_PARSER_REVISION = 8
+// Revision 9 preserves apostrophes inside quoted profile URLs so different
+// O'-surnames cannot share one truncated source identity.
+const TENNISRECORD_PARSER_REVISION = 9
 
 export function scheduledTennisRecordBatchLimit(maxRequestsPerRun: number, cadence: 'bootstrap' | 'weekly' = 'bootstrap') {
   const ceiling = cadence === 'weekly' ? WEEKLY_TENNISRECORD_BATCH_LIMIT : BOOTSTRAP_TENNISRECORD_BATCH_LIMIT
@@ -1555,29 +1558,25 @@ async function reconcileTennisRecordMatches(service: SupabaseClient, sourceMatch
   let ratingChanged = false
   for (const item of staged || []) {
     const identities = await resolveMatchedParticipants(service, item.participants)
+    let existing: ProductionMatch | null = null
     if (identities) {
-      const existing = await findExistingProductionMatch(service, item, identities)
+      existing = await findExistingProductionMatch(service, item, identities)
       if (existing?.source === 'tennisrecord') {
         // Never let an older parser result become a higher-priority local
         // observation. A newer replay of the same public source is permitted
         // to correct this lower-authority canonical record only.
-        const changed = existing.score !== item.score_text || existing.winner_side !== item.winner_side
-        if (changed) {
-          const repair = await service
-            .from('matches')
-            .update({ score: item.score_text, winner_side: item.winner_side })
-            .eq('id', existing.id)
-            .eq('source', 'tennisrecord')
-          if (repair.error) throw new Error(repair.error.message)
-          ratingChanged = true
-        }
-        const staleObservation = await service
+        const priorObservations = await service
           .from('tennisrecord_match_observations')
-          .delete()
+          .select('id,source,source_record_id,raw')
           .eq('fingerprint', item.fingerprint)
           .eq('source', 'tenaceiq')
           .eq('source_record_id', existing.id)
-        if (staleObservation.error) throw new Error(staleObservation.error.message)
+        if (priorObservations.error) throw new Error(priorObservations.error.message)
+        const staleIds = (priorObservations.data || []).filter(o => isSyntheticTennisRecordObservation(o, existing!)).map(o => o.id)
+        if (staleIds.length) {
+          const removed = await service.from('tennisrecord_match_observations').delete().in('id', staleIds)
+          if (removed.error) throw new Error(removed.error.message)
+        }
       } else if (existing) {
         const localSource = classifyLocalSource(existing.source)
         const { error: localObservationError } = await service.from('tennisrecord_match_observations').upsert({
@@ -1599,13 +1598,26 @@ async function reconcileTennisRecordMatches(service: SupabaseClient, sourceMatch
       }
     }
     const { data: observations, error: observationsError } = await service.from('tennisrecord_match_observations').select('id,source,source_priority,canonical_match_id,score_text,winner_side,participants,last_seen_at').eq('fingerprint', item.fingerprint).order('source_priority', { ascending: false }).order('last_seen_at', { ascending: false })
-    if (observationsError || !observations?.length) continue
+    if (observationsError) throw new Error(observationsError.message)
+    if (!observations?.length) continue
     const winner = observations[0]
     const conflicting = observations.slice(1).filter((value) => value.score_text !== winner.score_text || value.winner_side !== winner.winner_side || JSON.stringify(value.participants) !== JSON.stringify(winner.participants))
     const existingCanonical = await service.from('tennisrecord_canonical_matches').select('fingerprint,canonical_match_id').eq('fingerprint', item.fingerprint).maybeSingle()
+    if (existingCanonical.error) throw new Error(existingCanonical.error.message)
     const canonicalMatchId = winner.canonical_match_id || existingCanonical.data?.canonical_match_id || null
-    const result = await service.from('tennisrecord_canonical_matches').upsert({ fingerprint: item.fingerprint, winning_observation_id: winner.id, canonical_match_id: canonicalMatchId, winning_source: winner.source, has_conflict: conflicting.length > 0, conflict_count: conflicting.length, reconciled_at: new Date().toISOString() }, { onConflict: 'fingerprint' })
+    const correction = existing && existing.id === canonicalMatchId ? tennisRecordResultCorrection(existing, winner) : null
+    // Queue before changing the winner. A failed/interrupted write must not
+    // leave corrected evidence marked as already reflected in TiQ ratings.
+    const result = await service.from('tennisrecord_canonical_matches').upsert({ fingerprint: item.fingerprint, winning_observation_id: winner.id, canonical_match_id: canonicalMatchId, winning_source: winner.source, has_conflict: conflicting.length > 0, conflict_count: conflicting.length, reconciled_at: new Date().toISOString(), ...(correction ? { rating_processed_at: null } : {}) }, { onConflict: 'fingerprint' })
     if (result.error) throw new Error(result.error.message)
+    if (correction && existing) {
+      let update = service.from('matches').update(correction).eq('id', existing.id).eq('source', 'tennisrecord')
+      update = existing.score === null ? update.is('score', null) : update.eq('score', existing.score)
+      update = existing.winner_side === null ? update.is('winner_side', null) : update.eq('winner_side', existing.winner_side)
+      const repaired = await update.select('id')
+      if (repaired.error || repaired.data?.length !== 1) throw new Error(repaired.error?.message || 'Match changed during source reconciliation; retry from fresh evidence.')
+      ratingChanged = true
+    }
     if (existingCanonical.data) duplicates += 1; else created += 1
     conflicts += conflicting.length
     if (!canonicalMatchId && winner.source === 'tennisrecord' && identities && item.winner_side) {

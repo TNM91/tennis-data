@@ -46,6 +46,7 @@ export type MatchObservation<T = unknown> = {
   source: TennisRecordSource
   observedAt: string
   scoreText?: string | null
+  winnerSide?: 'A' | 'B' | null
   participants?: T
   verifiedAt?: string | null
 }
@@ -63,7 +64,7 @@ export function reconcileMatchObservations<T>(observations: MatchObservation<T>[
   return {
     winner,
     conflicts: sorted.slice(1).filter((candidate) => (
-      candidate.scoreText !== winner.scoreText || JSON.stringify(candidate.participants) !== JSON.stringify(winner.participants)
+      candidate.scoreText !== winner.scoreText || candidate.winnerSide !== winner.winnerSide || JSON.stringify(candidate.participants) !== JSON.stringify(winner.participants)
     )),
   }
 }
@@ -82,6 +83,7 @@ export function isAmbiguousIdentity(candidates: Array<{ id: string }>, hasIndepe
 
 export function classifyExistingMatchSource(source: string | null | undefined): TennisRecordSource {
   const normalized = (source || '').toLowerCase()
+  if (normalized === 'tennisrecord') return 'tennisrecord'
   if (normalized.includes('admin')) return 'admin_verified'
   if (normalized.includes('captain') || normalized.includes('data_assist')) return 'captain_upload'
   if (normalized.includes('player_upload')) return 'player_upload'

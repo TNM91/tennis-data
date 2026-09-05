@@ -213,6 +213,19 @@ describe('TennisRecord ingestion safety', () => {
     expect(parsed.matches[0]).toMatchObject({ scoreText: '7-6 5-7 1-0', winnerSide: 'B' })
   })
 
+  it('keeps apostrophe surnames distinct in source identity and discovery links', () => {
+    const url = 'https://www.tennisrecord.com/adult/matchresults.aspx?year=2026&mid=84487'
+    const html = fixture.replaceAll('Charles+Kern', "Michael+O'Keefe").replaceAll('Charles Kern', "Michael O'Keefe")
+      .replaceAll('John+Uy', "Michael+O'Neill").replaceAll('John Uy', "Michael O'Neill")
+    const parsed = parseTennisRecordMatchPage(html, url)
+    const people = parsed.matches.flatMap(m => m.participants).filter(p => p.name.startsWith('Michael O'))
+    expect(people).toHaveLength(2)
+    expect(new Set(people.map(p => p.sourcePlayerKey)).size).toBe(2)
+    expect(people.map(p => new URL(p.sourceUrl!).searchParams.get('playername'))).toEqual(["Michael O'Keefe", "Michael O'Neill"])
+    expect(parsed.discoveredUrls.some(link => new URL(link).searchParams.get('playername') === "Michael O'Keefe")).toBe(true)
+    expect(parsed.discoveredUrls.some(link => new URL(link).searchParams.get('playername') === "Michael O'Neill")).toBe(true)
+  })
+
   it('keeps newer TennisRecord tiebreak evidence eligible to repair an older TennisRecord-only canonical result', () => {
     const service = readFileSync(join(process.cwd(), 'lib/tennisrecord/service.ts'), 'utf8')
     const migration = readFileSync(join(process.cwd(), 'supabase/migrations/20260831000100_infer_sustained_adult_usta_baselines.sql'), 'utf8')
