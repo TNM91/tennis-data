@@ -4,6 +4,7 @@ import {
   chooseLatestCaptainResumeState,
   getCaptainResumeHref,
   getCaptainResumeStorageKey,
+  getCaptainRouteResumeFallback,
   hasExplicitCaptainRouteScope,
   isSafeCaptainResumeHref,
   readCaptainResumeState,
@@ -28,6 +29,21 @@ describe('captain resume memory', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
   })
+
+  it.each(['team=Team+Two', 'league=Spring', 'flight=4.5', 'layer=tiq', 'team=Team+One&scenario=new-lineup'])(
+    'does not inherit a previous saved lineup through an explicit team route: %s', (query) => {
+      expect(getCaptainRouteResumeFallback(new URLSearchParams(query), {
+        team: 'Team One', league: 'Fall', flight: '4.0', scenarioId: 'old-lineup',
+      })).toBeNull()
+    },
+  )
+
+  it.each(['', 'team=%20', 'scenario=selected-lineup'])(
+    'preserves resume context for a shortcut without a team selection: %s', (query) => {
+      const resume = { team: 'Team One', league: 'Fall', scenarioId: 'saved-lineup' }
+      expect(getCaptainRouteResumeFallback(new URLSearchParams(query), resume)).toBe(resume)
+    },
+  )
 
   it('keeps each signed-in account in its own captain context', () => {
     installLocalStorage()

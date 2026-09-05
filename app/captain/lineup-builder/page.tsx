@@ -22,6 +22,7 @@ import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
 import {
   buildCaptainScopedHref,
   chooseLatestCaptainResumeState,
+  getCaptainRouteResumeFallback,
   hasExplicitCaptainRouteScope,
   loadCaptainResumeStateFromCloud,
   readCaptainResumeState,
@@ -1308,7 +1309,7 @@ function toneCardStyle(tone: 'good' | 'warn' | 'info'): CSSProperties {
 
 function readInitialLineupBuilderContext(routeSearch: string, userId?: string | null) {
   const params = new URLSearchParams(routeSearch)
-  const resumeState = typeof window === 'undefined' ? null : readCaptainResumeState(userId)
+  const resumeState = getCaptainRouteResumeFallback(params, typeof window === 'undefined' ? null : readCaptainResumeState(userId))
   const matchContext = resolveCaptainMatchContext(params)
   const hasExplicitRouteScope = hasExplicitCaptainRouteScope(params)
 

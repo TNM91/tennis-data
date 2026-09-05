@@ -15,6 +15,7 @@ describe('captain lineup draft recovery', () => {
     expect(page).toContain('if (localBuilderDraftRestoredRef.current)')
     expect(page).toContain('if (initialContext.hasExplicitRouteScope)')
     expect(page).toContain('Never let a recoverable draft')
+    expect(page).toContain('getCaptainRouteResumeFallback(params,')
   })
 
   it('keeps saved selections visible if the live roster refresh is delayed', () => {

@@ -280,6 +280,14 @@ export function hasExplicitCaptainRouteScope(params: URLSearchParams) {
     .some((key) => Boolean(params.get(key)?.trim()))
 }
 
+export function getCaptainRouteResumeFallback(params: URLSearchParams, resume: CaptainResumeState | null) {
+  // A deliberate team/season selection is complete on its own. Missing fields
+  // must stay empty, not inherit another team's league, flight or saved lineup.
+  return ['layer', 'team', 'league', 'flight'].some((key) => Boolean(params.get(key)?.trim()))
+    ? null
+    : resume
+}
+
 function isPastCaptainMatchDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const matchDay = new Date(`${value}T12:00:00`).getTime()
