@@ -190,7 +190,42 @@ function parseExplicitTeamRoster(html: string, sourceUrl: string): TennisRecordT
   return [...members.values()]
 }
 
+/** A URL is a locator, not evidence that its requested player was found. */
+export function tennisRecordProfileEvidence(html: string, sourceUrl: string): { ownerName?: string; reviewReason?: string } {
+  if (tennisRecordRecordPageKind(sourceUrl) !== 'player') return {}
+  const visible = html.replace(/<!--[\s\S]*?-->/g, '').replace(/<(script|style|template)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+  const text = (value: string) => getText(htmlDecode(value).replace(/&#x27;|&apos;/gi, "'"))
+  if (/\b(?:no players? found|player(?: profile)? (?:was )?not found|profile not found)\b/i.test(text(visible))) {
+    return { reviewReason: 'TennisRecord reports No Player Found. Profile evidence retained for review; existing player details were not changed.' }
+  }
+  const requested = new URL(sourceUrl)
+  const expected = normalizeTennisIdentity(requested.searchParams.get('playername') || '')
+  const matchesOwner = (name: string) => Boolean(expected && name.length < 120 && normalizeTennisIdentity(name) === expected)
+  // Named headings support older/sparse profiles. Generic navigation headings
+  // and names occurring only in an opponent's match table do not establish ownership.
+  const header = visible.split(/Current Playing Areas|Recent Team|Match Results|(?:Singles|Doubles)\s*#?\s*\d/i)[0]
+  for (const heading of header.matchAll(/<h[12]\b[^>]*>([\s\S]*?)<\/h[12]>/gi)) {
+    const name = text(heading[1])
+    if (matchesOwner(name) && !/^(?:player profile|tennis record|tennisrecord)$/i.test(name)) return { ownerName: name }
+  }
+  // Current source profiles identify their owner with a self-link in the
+  // Player Profile header; a location or rating is optional, not required.
+  const profileStart = header.search(/Player\s+Profile/i)
+  if (profileStart >= 0) for (const link of header.slice(profileStart).matchAll(/<a\b[^>]*\bhref\s*=\s*(["'])([\s\S]*?)\1[^>]*>([\s\S]*?)<\/a>/gi)) {
+    let target: URL
+    try { target = new URL(htmlDecode(link[2]), sourceUrl) } catch { continue }
+    const name = text(link[3])
+    if (target.origin === requested.origin && target.pathname.toLowerCase() === '/adult/profile.aspx'
+      && normalizeTennisIdentity(target.searchParams.get('playername') || '') === expected
+      && (target.searchParams.get('s') || '') === (requested.searchParams.get('s') || '')
+      && matchesOwner(name)) return { ownerName: name }
+  }
+  return { reviewReason: 'TennisRecord player profile is empty or its owner could not be verified. Source retained for review; existing player details were not changed.' }
+}
+
 export function parseTennisRecordMatchPage(html: string, sourceUrl: string): ParsedTennisRecordPage {
+  const profile = tennisRecordProfileEvidence(html, sourceUrl)
+  if (profile.reviewReason) return { reviewReason: profile.reviewReason, players: [], teams: [], teamMembers: [], leagues: [], matches: [], discoveredUrls: [] }
   const plain = getText(html)
   const playedOn = readDate(plain)
   const [homeTeam = '', awayTeam = ''] = readTeamNames(html)
@@ -243,8 +278,7 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
   // discard that profile evidence merely because those rows created players.
   // History pages remain discovery-only and never provide rating provenance.
   if (tennisRecordRecordPageKind(sourceUrl) === 'player') {
-    const url = new URL(sourceUrl)
-    const name = getText(html.match(/<(?:h1|h2)[^>]*>([\s\S]*?)<\/(?:h1|h2)>/i)?.[1] || '') || url.searchParams.get('playername')?.replace(/\+/g, ' ') || ''
+    const name = profile.ownerName || ''
     const location = plain.match(/\(([A-Za-z .'-]+),\s*([A-Z]{2})\)/)
     const rating = plain.match(/Estimated\s+Dynamic\s+Rating\s*([1-7]\.\d{1,4})/i)?.[1]
     const statedNtrp = plain.match(new RegExp(`\\b(${STATED_NTRP_LEVEL_PATTERN}\\s*[A-Z]?)\\b(?:\\s+(\\d{1,2}\\/\\d{1,2}\\/20\\d{2}))?`))
