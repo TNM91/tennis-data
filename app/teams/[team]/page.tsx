@@ -60,6 +60,7 @@ import {
 } from '@/lib/captain-roster-contacts'
 import { getTeamMatchFormatSummary, resolveTeamMatchFormat } from '@/lib/competition-format-registry'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
+import TeamSeasonCalendar from '@/app/components/team-season-calendar'
 
 type TeamMatch = {
   id: string
@@ -67,6 +68,9 @@ type TeamMatch = {
   home_team: string | null
   away_team: string | null
   match_date: string | null
+  match_time?: string | null
+  facility?: string | null
+  status?: string | null
   match_type: 'singles' | 'doubles' | null
   winner_side: 'A' | 'B' | null
   score: string | null
@@ -381,6 +385,11 @@ function TeamPageContent() {
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { userId: currentUserId, authResolved, role, entitlements, session } = useAuth()
   const accessToken = session?.access_token || ''
+  useEffect(() => {
+    if (loading || window.location.hash !== '#team-schedule') return
+    const frame = window.requestAnimationFrame(() => document.getElementById('team-schedule')?.scrollIntoView({ block: 'start' }))
+    return () => window.cancelAnimationFrame(frame)
+  }, [loading])
   const resolvedRole = authResolved || !currentUserId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
 
@@ -452,7 +461,7 @@ function TeamPageContent() {
 
   useEffect(() => {
     if (!detailReady) return
-    window.history.replaceState(null, '', exploreResumeHref)
+    window.history.replaceState(null, '', `${exploreResumeHref}${window.location.hash}`)
   }, [detailReady, exploreResumeHref])
 
   useEffect(() => {
@@ -630,6 +639,9 @@ function TeamPageContent() {
           home_team,
           away_team,
           match_date,
+          match_time,
+          facility,
+          status,
           match_type,
           winner_side,
           score,
@@ -651,7 +663,7 @@ function TeamPageContent() {
         matchQuery = matchQuery.eq('flight', flightFilter)
       }
 
-      if (!leagueFilter && !flightFilter) {
+      {
         const safeTeam = escapePostgrestValue(team)
         matchQuery = matchQuery.or(`home_team.eq."${safeTeam}",away_team.eq."${safeTeam}"`)
       }
@@ -1838,7 +1850,7 @@ function TeamPageContent() {
         <nav style={isMobile ? teamSectionNavMobileStyle : teamSectionNavStyle} aria-label="Team page sections">
           {([
             { id: 'overview', label: 'Overview', href: '#team-overview' },
-            { id: 'activity', label: 'Activity', href: '#team-schedule' },
+            { id: 'activity', label: 'Schedule', href: '#team-schedule' },
             { id: 'roster', label: 'Roster', href: '#team-roster' },
             ...(isLinkedTeamMember ? [{ id: 'chat', label: 'Team chat', href: '#team-chat' }] : []),
             ...(canManageThisTeam ? [{ id: 'lineup', label: 'Build lineup', href: captainLinks[1].href, primary: true }] : []),
@@ -2025,7 +2037,7 @@ function TeamPageContent() {
             ) : null}
 
             {latestResult ? (
-              <a href="#team-schedule" style={featuredTeamResultStyle}>
+              <a href="#team-match-history" style={featuredTeamResultStyle}>
                 <span style={latestResult.winner_side === teamSideForMatch(latestResult, team) ? resultWinMarkStyle : resultLossMarkStyle}>
                   {didTeamWin(latestResult, team) ? 'W' : 'L'}
                 </span>
@@ -2036,7 +2048,7 @@ function TeamPageContent() {
                 <span style={featuredTeamResultScoreStyle}>{latestResult.score || 'View'}</span>
               </a>
             ) : tennisRecordHistory.length > 0 ? (
-              <a href="#team-schedule" style={featuredTeamResultStyle}>
+              <a href="#team-source-history" style={featuredTeamResultStyle}>
                 <span style={sourceHistoryMarkStyle}>•</span>
                 <span style={featuredTeamResultCopyStyle}>
                   <span style={featuredTeamResultKickerStyle}>Team activity</span>
@@ -2046,9 +2058,19 @@ function TeamPageContent() {
               </a>
             ) : null}
 
-            <a href="#team-schedule" style={summaryHistoryLinkStyle}>View full match history</a>
+            <a href={matches.length ? '#team-match-history' : '#team-source-history'} style={summaryHistoryLinkStyle}>View full match history</a>
           </div>
         </section>
+
+        {!loading && !error ? <TeamSeasonCalendar
+          key={`${team}-${leagueFilter}-${flightFilter}-${seasonFilter}-${currentUserId}`}
+          team={team}
+          matches={seasonMatches}
+          userId={currentUserId || ''}
+          accessToken={accessToken}
+          incomplete={matches.length >= 250}
+          importHref={`/data-assist?type=schedule&team=${encodeURIComponent(team)}&league=${encodeURIComponent(leagueFilter || teamMeta.league || '')}`}
+        /> : null}
 
         {nextScheduledMatch || latestUnreportedMatch || roster.length || teamCourtLead ? (
           <section style={teamMatchPulseStyle} aria-label="Team match pulse">
@@ -2308,7 +2330,7 @@ function TeamPageContent() {
         ) : null}
 
         {!error && tennisRecordHistory.length ? (
-          <section style={{ ...surfaceCard, order: 2, scrollMarginTop: 16 }} id="team-schedule">
+          <section style={{ ...surfaceCard, order: 2, scrollMarginTop: 16 }} id="team-source-history">
             <div style={sectionHeadingRow}>
               <div style={sectionHeadingCopyStyle}>
                 <p style={sectionKicker}>Team activity</p>
@@ -2566,7 +2588,7 @@ function TeamPageContent() {
         ) : null}
 
         {matches.length ? (
-        <section style={{ ...surfaceCard, order: 2, scrollMarginTop: 16 }} id="team-schedule">
+        <section style={{ ...surfaceCard, order: 2, scrollMarginTop: 16 }} id="team-match-history">
           <div style={sectionHeadingRow}>
             <div style={sectionHeadingCopyStyle}>
               <p style={sectionKicker}>Team activity</p>
