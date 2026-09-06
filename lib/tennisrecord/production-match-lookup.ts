@@ -23,10 +23,9 @@ export function classifyProductionMatchCandidates(staged: Record<string, unknown
   })
   const knownId = typeof staged.known_canonical_match_id === 'string' ? staged.known_canonical_match_id : null
   if (!possible.length) return knownId ? { kind: 'review', candidateIds: [knownId] } : { kind: 'none' }
-  // An existing source ID or established canonical association is evidence
-  // of event identity. Even perfect date/team/court/score agreement alone
-  // cannot distinguish a doubleheader from a duplicate across sources.
-  const exact = possible.filter(p => p.same && (p.match.id === knownId || p.match.external_match_id === `tennisrecord:${staged.fingerprint}::line:${staged.court_number}`))
+  // Legacy external IDs contain participant fingerprints, not source event IDs.
+  // They are usable only AFTER checking all retained source-event evidence.
+  const exact = possible.filter(p => staged.source_event_verified === true && p.same && (p.match.id === knownId || p.match.external_match_id === `tennisrecord:${staged.fingerprint}::line:${staged.court_number}`))
   if (exact.length === 1) return { kind: 'match', match: exact[0].match }
   return { kind: 'review', candidateIds: possible.map(p => p.match.id) }
 }

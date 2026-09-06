@@ -1,5 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { canonicalTennisRecordFingerprint } from '../tennisrecord/reconcile'
 import { fetchTennisRecordPage } from '../tennisrecord/collector'
 import { parseTennisRecordMatchPage } from '../tennisrecord/parser'
 import { isSuccessfulTennisRecordHttpStatus, runAutomaticTennisRecordSync, runScheduledTennisRecordSync, runTennisRecordSync, tennisRecordCadenceSafetyStatus, tennisRecordDeferredRetryAt, tennisRecordFailureDisposition, tennisRecordPipelineHealth, tennisRecordTransientRetryAt } from '../tennisrecord/service'
@@ -18,7 +20,7 @@ type Op = { name: string; args: unknown[] }
 type Call = { table: string; ops: Op[] }
 const op = (call: Call, name: string) => call.ops.find(o => o.name === name)
 
-function fixture(options: { priorPlayer?: Row; kind?: string; retryCount?: number; deferredCount?: number; replay?: Row[]; failSave?: boolean; outage?: Row; lockedOutage?: Row; jobCount?: number; failOutageSave?: boolean; failCapture?: boolean; staleRun?: boolean } = {}) {
+function fixture(options: { eventAliases?: string[]; eventEvidence?: Row[]; priorPlayer?: Row; kind?: string; retryCount?: number; deferredCount?: number; replay?: Row[]; failSave?: boolean; outage?: Row; lockedOutage?: Row; jobCount?: number; failOutageSave?: boolean; failCapture?: boolean; staleRun?: boolean } = {}) {
   const calls: Call[] = []
   let selections = 0
   let outage = options.outage || {}
@@ -34,6 +36,8 @@ function fixture(options: { priorPlayer?: Row; kind?: string; retryCount?: numbe
       if (options.failCapture && table === 'tennisrecord_source_pages' && op(call, 'upsert')) return { error: { message: 'Database network timeout' } }
       if (options.failSave && table === 'tennisrecord_crawl_queue' && update?.failure_reason) return { error: { message: 'Retry save failed' } }
       if (op(call, 'insert') || op(call, 'upsert') || update) return { data: { id: 'saved-evidence' }, error: null }
+      if (options.eventEvidence && table === 'tennisrecord_staged_matches' && op(call, 'range')) return { data: options.eventEvidence, error: null }
+      if (options.eventAliases && table === 'tennisrecord_canonical_matches') return { data: op(call, 'range') ? options.eventAliases.map(fingerprint => ({ fingerprint })) : { canonical_match_id: 'existing-result' }, error: null }
       if (options.priorPlayer && table === 'tennisrecord_staged_players') return { data: [options.priorPlayer], error: null }
       if (options.staleRun && table === 'tennisrecord_sync_runs' && op(call, 'lt')) return { data: [{ id: 'stale-run' }], error: null }
       if (table === 'tennisrecord_collector_settings') return { data: { automation_state: 'bootstrap', source_outage_state: op(call, 'select')?.args[0] === 'source_outage_state' ? options.lockedOutage || outage : outage, enabled: true, current_refresh_enabled: true, current_refresh_seeded_at: new Date(now).toISOString(), min_request_interval_ms: 3000, max_requests_per_run: options.jobCount || 1 } }
@@ -59,6 +63,45 @@ function response(status: number, blockReason = '') {
   vi.mocked(parseTennisRecordMatchPage).mockReturnValue({ players: [], teams: [], leagues: [], teamMembers: [], matches: [], discoveredUrls: [] })
 }
 afterEach(() => { vi.useRealTimers(); vi.resetAllMocks() })
+
+describe('source-event guard runs before import writes', () => {
+  async function collisionFixture() {
+    response(200)
+    const real = await vi.importActual<typeof import('../tennisrecord/parser')>('../tennisrecord/parser')
+    const matchUrl = 'https://www.tennisrecord.com/adult/matchresults.aspx?year=2026&mid=84487'
+    const html = readFileSync('lib/__tests__/fixtures/tennisrecord-stl-match-84487.html', 'utf8')
+    const parsed = real.parseTennisRecordMatchPage(html, matchUrl)
+    vi.mocked(parseTennisRecordMatchPage).mockReturnValue(parsed)
+    const eventEvidence = [{ id: 'previous-rematch', fingerprint: canonicalTennisRecordFingerprint(parsed.matches[0]), source_url: matchUrl.replace('84487', '84488') }]
+    return { eventEvidence, matchUrl, html }
+  }
+  it.each(['manual', 'weekly', 'bootstrap'] as const)('holds %s collisions before identities, observations or match writes', async triggerKind => {
+    const c = await collisionFixture()
+    const f = fixture({ eventEvidence: c.eventEvidence, kind: 'match' })
+    const result = await runTennisRecordSync(f.db, { triggerKind, currentSeason: triggerKind === 'weekly', recalculateRatings: false })
+    expect(result).toMatchObject({ pagesProcessed: 0, parserFailures: 1 })
+    expect(f.queueWrites().at(-1)).toMatchObject({ status: 'review', failure_reason: expect.stringContaining('Different source events') })
+    expect(f.queueWrites().at(-1)).not.toHaveProperty('current_refreshed_at')
+    expect(f.calls.filter(c => ['tennisrecord_staged_players', 'tennisrecord_player_identities', 'players', 'tennisrecord_staged_matches', 'tennisrecord_match_observations', 'tennisrecord_canonical_matches', 'matches'].includes(c.table) && (op(c, 'upsert') || op(c, 'update') || op(c, 'insert')))).toEqual([])
+    expect(f.upload).toHaveBeenCalledTimes(1)
+  })
+  it('holds a cached collision before superseding historical source evidence', async () => {
+    const c = await collisionFixture()
+    const f = fixture({ eventEvidence: c.eventEvidence, replay: [{ id: 'cached', source_url: c.matchUrl, http_status: 200, raw_html: c.html }] })
+    await runTennisRecordSync(f.db, { triggerKind: 'weekly', recalculateRatings: false })
+    expect(f.calls.filter(c => ['tennisrecord_staged_matches', 'tennisrecord_match_observations', 'tennisrecord_canonical_matches', 'matches', 'players'].includes(c.table) && (op(c, 'upsert') || op(c, 'update') || op(c, 'insert')))).toEqual([])
+    expect(f.queueWrites().some(row => row.status === 'review' && String(row.failure_reason).includes('Different source events'))).toBe(true)
+  })
+  it('checks cross-fingerprint aliases before staging or claiming current-season freshness', async () => {
+    const c = await collisionFixture()
+    const fingerprint = c.eventEvidence[0].fingerprint
+    const f = fixture({ kind: 'match', eventAliases: [fingerprint, 'legacy-alias'], eventEvidence: [{ id: 'own', fingerprint, source_url: c.matchUrl }, { ...c.eventEvidence[0], fingerprint: 'legacy-alias' }] })
+    await runTennisRecordSync(f.db, { triggerKind: 'weekly', currentSeason: true, recalculateRatings: false })
+    expect(f.queueWrites().at(-1)).toMatchObject({ status: 'review', failure_reason: expect.stringContaining('Different source events') })
+    expect(f.queueWrites().at(-1)).not.toHaveProperty('current_refreshed_at')
+    expect(f.calls.filter(c => ['tennisrecord_staged_matches', 'tennisrecord_match_observations', 'tennisrecord_canonical_matches', 'matches', 'players'].includes(c.table) && (op(c, 'upsert') || op(c, 'update') || op(c, 'insert')))).toEqual([])
+  })
+})
 
 describe('HTTP success is required for import completion', () => {
   it('uses the real parser to block a 200 No Player Found response before any identity write', async () => {
