@@ -1,0 +1,21 @@
+.card { order: 1; min-width: 0; scroll-margin-top: 20px; padding: 20px; border: 1px solid rgba(177, 240, 66, .35); border-radius: 20px; background: linear-gradient(125deg, #102b29, #0b172a); color: #f4f8ff; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.header > div { min-width: 0; }
+.card h2 { margin: 4px 0 8px; font-size: 22px; line-height: 1.25; }
+.card p { margin: 0; color: #b7c6d7; line-height: 1.5; font-size: 14px; overflow-wrap: break-word; }
+.card .eyebrow { color: #c7f183; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.primary, .secondary { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 12px 18px; border-radius: 12px; font: inherit; font-size: 14px; font-weight: 750; text-align: center; line-height: 1.4; text-decoration: none; cursor: pointer; }
+.primary { border: 1px solid #b6ea4c; background: #b6ea4c; color: #0b1c1a; }
+.header > button { flex: 0 0 auto; max-width: 100%; }
+.secondary { border: 1px solid #395369; background: #101f31; color: #e3efff; }
+.options { display: grid; gap: 14px; margin-top: 18px; padding-top: 18px; border-top: 1px solid #304a51; }
+.options label { display: grid; gap: 8px; min-width: 0; font-size: 14px; font-weight: 700; }
+.options select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 46px; padding: 10px; border: 1px solid #4a6076; border-radius: 10px; font-size: 16px; color: #f4f8ff; background: #0b172a; }
+.options summary { cursor: pointer; padding: 12px 0; font-size: 14px; font-weight: 700; }
+.download { display: grid; gap: 12px; padding: 10px 0; }
+.matches { display: grid; gap: 12px; list-style: none; margin: 8px 0; padding: 0; max-height: 320px; overflow: auto; }
+.matches li { display: grid; gap: 5px; padding: 12px; border-radius: 10px; background: #101f31; font-size: 14px; overflow-wrap: anywhere; }
+.matches span { color: #b7c6d7; }
+.card button:disabled { opacity: .6; cursor: wait; }
+.card :focus-visible { outline: 2px solid #b6ea4c; outline-offset: 3px; }
+@media (max-width: 600px) { .card { padding: 16px; border-radius: 16px; } .header { align-items: stretch; flex-direction: column; gap: 14px; } .card h2 { font-size: 20px; } .primary, .secondary { width: 100%; } }

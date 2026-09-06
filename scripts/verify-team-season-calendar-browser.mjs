@@ -1,0 +1,62 @@
+import { chromium } from '@playwright/test'
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+
+const browser = await chromium.launch({ headless: true })
+const context = await browser.newContext({ acceptDownloads: true, viewport: { width: 390, height: 844 } })
+const page = await context.newPage()
+await page.goto('http://127.0.0.1:3041')
+await page.getByRole('button', { name: 'Add season to calendar' }).click()
+await page.getByText('Download a one-time calendar file').click()
+const pending = page.waitForEvent('download')
+await page.getByRole('button', { name: 'Download season (.ics)' }).click()
+const download = await pending
+const failure = await download.failure()
+assert.equal(failure, null)
+const savedPath = await download.path()
+const ics = await readFile(savedPath, 'utf8')
+assert.equal((ics.match(/BEGIN:VEVENT/g) || []).length, 2)
+assert(ics.includes('DTSTART;TZID=America/Chicago:20260914T180000'))
+assert(ics.includes('DTSTART;VALUE=DATE:20260921'))
+assert(ics.includes('Forest Park'))
+await page.getByLabel('Choose season').selectOption({ index: 1 })
+assert.equal(await page.getByRole('status').count(), 0)
+await page.getByRole('button', { name: 'Add 1 match to TiQ' }).click()
+await page.getByRole('status').waitFor()
+const saves = await (await page.request.get('http://127.0.0.1:3041/saved')).json()
+assert.equal(saves.at(-1).length, 1)
+assert.equal(saves.at(-1)[0].date, '2025-09-14')
+await page.setViewportSize({width:1280,height:900})
+assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+await page.goto('http://127.0.0.1:3041/?empty=1')
+await page.getByRole('button', { name: 'Add season to calendar' }).click()
+await page.getByRole('link', { name: 'Upload team schedule' }).waitFor()
+await page.goto('http://127.0.0.1:3041/?signedout=1')
+await page.getByRole('button', { name: 'Add season to calendar' }).click()
+await page.getByRole('link', { name: 'Sign in to add to TiQ' }).waitFor()
+console.log(JSON.stringify({download:true,events:2,timedAndAllDay:true,seasonSelection:true,desktopOverflow:false,emptyState:true,signedOut:true}))
+if (process.argv.includes('--production-bundle')) {
+  const match = { id: '11111111-1111-4111-8111-111111111111', external_match_id: 'fixture-101', home_team: 'Calendar Aces', away_team: 'Volleys', match_date: '2026-09-14', match_time: '6:00 PM', facility: 'Center Court', league_name: '2026 Fall', flight: '4.0', line_number: null, match_type: null, winner_side: null, score: null, status: 'scheduled' }
+  await context.route('**/*', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.hostname === '127.0.0.1') return route.continue()
+    if (url.hostname.endsWith('.supabase.co')) {
+      const rows = url.pathname === '/rest/v1/matches' ? [match] : []
+      return route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' }, body: JSON.stringify(rows) })
+    }
+    return route.abort()
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('http://127.0.0.1:3042/teams/Calendar%20Aces?league=2026%20Fall&flight=4.0#team-schedule')
+  const panel = page.getByRole('region', { name: 'Team season calendar' })
+  await panel.waitFor()
+  assert(page.url().endsWith('#team-schedule'))
+  await page.waitForFunction(() => document.getElementById('team-schedule')?.getBoundingClientRect().top < 100)
+  await panel.getByRole('button', { name: 'Add season to calendar' }).click()
+  await panel.getByRole('link', { name: 'Sign in to add to TiQ' }).waitFor()
+  assert.equal(await page.locator('#team-schedule').count(), 1)
+  assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+  await page.screenshot({ path: 'artifacts/team-season-calendar/production-phone.png' })
+  console.log(JSON.stringify({ productionBundle: true, scheduleDeepLink: true, uniqueAnchor: true, phoneOverflow: false }))
+}
+await browser.close()

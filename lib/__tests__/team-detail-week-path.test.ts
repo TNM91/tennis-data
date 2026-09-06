@@ -79,9 +79,10 @@ describe('team detail week path', () => {
   it('keeps the core team jobs first and removes generic player-ID detours', () => {
     expect(source).toContain('aria-label="Team page sections"')
     expect(source).toContain("{ id: 'overview', label: 'Overview', href: '#team-overview' }")
-    expect(source).toContain("{ id: 'activity', label: 'Activity', href: '#team-schedule' }")
+    expect(source).toContain("{ id: 'activity', label: 'Schedule', href: '#team-schedule' }")
     expect(source).toContain("{ id: 'roster', label: 'Roster', href: '#team-roster' }")
-    expect(source).toContain('id="team-schedule"')
+    expect(source).toContain('<TeamSeasonCalendar')
+    expect(source).toContain('`${exploreResumeHref}${window.location.hash}`')
     expect(source).toContain('id="team-roster"')
     expect(source).not.toContain('Roster Player ID trail')
     expect(source).not.toContain('ROSTER_PLAYER_IDENTITY')
@@ -93,7 +94,7 @@ describe('team detail week path', () => {
     expect(source).toContain("{isLinkedTeamMember ? <section id=\"team-chat\"")
     expect(source).toContain('Team activity')
     expect(source).toContain('results ready to review')
-    expect(source).toContain("{ id: 'activity', label: 'Activity', href: '#team-schedule' }")
+    expect(source).toContain("{ id: 'activity', label: 'Schedule', href: '#team-schedule' }")
     expect(source).toContain('{!canManageThisTeam && !isMobile && !(nextScheduledMatch || roster.length || teamCourtLead) ? (')
   })
 

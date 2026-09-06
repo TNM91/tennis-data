@@ -429,6 +429,7 @@ function CompeteTeamsContent() {
                     </Link>
                   </div>
                   <div style={isMobile ? { ...teamRowActionStyle, ...teamRowActionMobileStyle } : teamRowActionStyle}>
+                    <Link href={`${teamPageHref}#team-schedule`} style={teamSecondaryLinkStyle}>Season calendar</Link>
                     <Link href={teamRoomHref} style={teamSecondaryLinkStyle}>Team Chat</Link>
                     {canStartTeamLineup ? (
                       <Link href={lineupHref} style={teamSecondaryLinkStyle}>Build lineup</Link>
