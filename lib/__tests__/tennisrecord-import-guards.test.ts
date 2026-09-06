@@ -7,7 +7,7 @@ import { classifyProductionMatchCandidates, findExistingProductionMatch, type Ca
 const fixture = readFileSync('lib/__tests__/fixtures/tennisrecord-stl-match-84487.html', 'utf8')
 const url = 'https://www.tennisrecord.com/adult/matchresults.aspx?year=2026&mid=84487'
 const participants: CanonicalParticipant[] = [{ playerId: 'a', side: 'A', seat: 1 }, { playerId: 'b', side: 'B', seat: 1 }]
-const staged = { played_on: '2026-09-05', discipline: 'singles', fingerprint: 'fp', home_team: 'Home', away_team: 'Away', league_name: 'League', court_number: 1 }
+const staged = { played_on: '2026-09-05', discipline: 'singles', fingerprint: 'fp', home_team: 'Home', away_team: 'Away', league_name: 'League', court_number: 1, source_event_verified: true }
 const match: ProductionMatch = { id: 'existing', source: 'captain_upload', score: '6-4 6-3', winner_side: 'A', home_team: 'Home', away_team: 'Away', league_name: 'League', line_number: '1' }
 const linksFor = (id: string, people = participants) => people.map(p => ({ match_id: id, player_id: p.playerId, side: p.side, seat: p.seat }))
 
@@ -43,6 +43,11 @@ describe('explicit import winner evidence', () => {
 })
 
 describe('context-aware import duplicate checks', () => {
+  it('does not trust a legacy fingerprint or canonical link before event verification', () => {
+    const unchecked = { ...staged, source_event_verified: false, known_canonical_match_id: match.id }
+    expect(classifyProductionMatchCandidates(unchecked, participants, [match], linksFor(match.id)).kind).toBe('review')
+    expect(classifyProductionMatchCandidates({ ...unchecked, known_canonical_match_id: undefined }, participants, [{ ...match, external_match_id: 'tennisrecord:fp::line:1' }], linksFor(match.id)).kind).toBe('review')
+  })
   it('preserves an established same-side canonical association', () => {
     expect(classifyProductionMatchCandidates({ ...staged, known_canonical_match_id: match.id }, participants, [match], linksFor(match.id))).toEqual({ kind: 'match', match })
   })

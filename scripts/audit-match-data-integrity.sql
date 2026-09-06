@@ -30,6 +30,25 @@ with active as materialized (
  count(distinct case when m.winner_side='A' then r.team_a when m.winner_side='B' then r.team_b end)>1 as winner_disagreement
  from active m join rosters r using(id) where r.players>0 and not exists(select 1 from malformed bad where bad.id=m.id)
  group by m.match_date,m.match_type,r.player_set,least(r.team_a,r.team_b),greatest(r.team_a,r.team_b) having count(*)>1
+), event_rows as materialized (
+ -- Do not use latest-per-fingerprint or filter out held/superseded originals.
+ -- Source event identity is separate from the player/date/court fingerprint.
+ select s.id,s.fingerprint,s.source_url,s.parse_status,
+ substring(lower(replace(s.source_url,'&amp;','&')) from '[?&]year=([0-9]{4})(?:&|$)')||':'||
+ nullif(ltrim(substring(lower(replace(s.source_url,'&amp;','&')) from '[?&]mid=([0-9]+)(?:&|$)'),'0'),'') as event_id
+ from public.tennisrecord_staged_matches s
+ where lower(s.source_url) ~ '^https?://(www\.)?tennisrecord\.com/adult/matchresults\.aspx\?'
+), event_collisions as materialized (
+ select fingerprint,count(distinct event_id) as event_count,
+ array_agg(distinct event_id order by event_id) as source_event_ids,
+ array_agg(id order by id) as staged_ids
+ from event_rows where event_id is not null group by fingerprint having count(distinct event_id)>1
+), associated_event_collisions as materialized (
+ select c.canonical_match_id,count(distinct e.event_id) as event_count,
+ array_agg(distinct e.event_id order by e.event_id) as source_event_ids,
+ array_agg(distinct c.fingerprint order by c.fingerprint) as fingerprints
+ from public.tennisrecord_canonical_matches c join active m on m.id=c.canonical_match_id join event_rows e using(fingerprint)
+ where e.event_id is not null group by c.canonical_match_id having count(distinct e.event_id)>1
 ), source_evidence as materialized (
  select distinct on(s.fingerprint) s.fingerprint,s.winner_side,s.participants,s.last_seen_at,s.parser_revision
  from public.tennisrecord_staged_matches s where s.parse_status='valid' and s.winner_side in ('A','B')
@@ -60,6 +79,9 @@ select jsonb_build_object(
  'scanned_at',now(),'read_only',true,'examples_limit',25,
  'coverage',jsonb_build_object('active_played_matches',(select count(*) from active),'source_comparisons',(select count(*) from compared),'created_last_24h',(select count(*) from active where created_at>=now()-interval '24 hours')),
  'source_winner_disagreements',jsonb_build_object('count',(select count(*) from winner_disagreements),'examples',(select coalesce(jsonb_agg(to_jsonb(x)),'[]') from(select * from winner_disagreements order by id limit 25)x)),
+ 'source_event_collisions_review_only',jsonb_build_object('count',(select count(*) from event_collisions),'examples',(select coalesce(jsonb_agg(to_jsonb(x)),'[]') from(select * from event_collisions order by fingerprint limit 25)x)),
+ 'active_source_event_collisions_review_only',jsonb_build_object('count',(select count(*) from associated_event_collisions),'examples',(select coalesce(jsonb_agg(to_jsonb(x)),'[]') from(select * from associated_event_collisions order by canonical_match_id limit 25)x)),
+ 'source_event_guard_reviews',jsonb_build_object('pages',(select count(*) from public.tennisrecord_crawl_queue where status='review' and (failure_reason like 'Different source events%' or failure_reason like 'Source event could not be verified%')),'courts',(select count(*) from public.tennisrecord_staged_matches where parse_status='quarantined' and (parse_failure_reason like 'Different source events%' or parse_failure_reason like 'Source event could not be verified%'))),
  'independently_overridden_source_results',jsonb_build_object('count',(select count(*) from independent_overrides),'examples',(select coalesce(jsonb_agg(to_jsonb(x)),'[]') from(select * from independent_overrides order by id limit 25)x)),
  'synthetic_authority',jsonb_build_object('count',(select count(*) from synthetic),'examples',(select coalesce(jsonb_agg(to_jsonb(x)),'[]') from(select * from synthetic order by id limit 25)x)),
  'invalid_court_rosters',jsonb_build_object('count',(select count(*) from malformed),'examples',(select coalesce(jsonb_agg(to_jsonb(x)),'[]') from(select * from malformed order by id limit 25)x)),
