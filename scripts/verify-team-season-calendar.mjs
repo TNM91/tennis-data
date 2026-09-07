@@ -23,8 +23,32 @@ createRoot(document.getElementById('root')).render(<Calendar team={base.home_tea
   } }],
 })
 const saves = []
+const shareBundle = await build({entryPoints:['lib/shared-calendar-page.ts'],bundle:true,platform:'node',format:'esm',write:false})
+const {sharedCalendarPage} = await import(`data:text/javascript;base64,${Buffer.from(shareBundle.outputFiles[0].text).toString('base64')}`)
+const shares = []
+const fixtureSecret = 's'.repeat(43)
 const venuePreferences = new Map()
 createServer(async (req, res) => {
+  const requestUrl = new URL(req.url,'http://127.0.0.1:3043')
+  if(requestUrl.pathname === '/api/player/match-calendar-shares') {
+    res.setHeader('Content-Type','application/json')
+    if(req.method==='GET'){res.end(JSON.stringify({ok:true,shares:shares.filter(s=>s.status==='active')}));return}
+    if(req.method==='DELETE'){const share=shares.find(s=>s.id===requestUrl.searchParams.get('id'));if(share)share.status='revoked';res.end(JSON.stringify({ok:true}));return}
+    let raw='';for await(const part of req)raw+=part
+    const body=JSON.parse(raw)
+    if(req.method==='PATCH'){const share=shares.find(s=>s.id===body.id);share.item_ids=body.itemIds;res.end(JSON.stringify({ok:true,share}));return}
+    const share={id:`00000000-0000-4000-8000-${String(shares.length).padStart(12,'0')}`,label:body.label,team_name:body.teamName,season_key:body.seasonKey,time_zone:body.timeZone,item_ids:body.itemIds,status:'active',created_at:new Date().toISOString()}
+    shares.push(share)
+    res.end(JSON.stringify({ok:true,share,shareUrl:`${requestUrl.origin}/calendar/share/${share.id}#${fixtureSecret}`}));return
+  }
+  if(requestUrl.pathname.startsWith('/api/calendar/shared/')) {
+    const share=shares.find(s=>s.id===requestUrl.pathname.split('/')[4] && s.status==='active')
+    if(!share || requestUrl.searchParams.get('token')!==fixtureSecret){res.writeHead(404);res.end('Sharing stopped');return}
+    const matches=[...new Map(saves.flat().map(item=>[item.id,item])).values()].filter(item=>share.item_ids.includes(item.id))
+    res.setHeader('Content-Type','application/json');res.end(JSON.stringify({ok:true,teamName:share.team_name,timeZone:share.time_zone,count:matches.length,matches:matches.map(item=>({title:item.title,date:item.date,time:item.time,location:item.location}))}));return
+  }
+  if(requestUrl.pathname.startsWith('/calendar/share/')){res.setHeader('Content-Type','text/html');res.end(sharedCalendarPage(requestUrl.pathname.split('/').at(-1),'fixture'));return}
+  if(requestUrl.pathname==='/brand/web/header-logo-transparent.png'){res.setHeader('Content-Type','image/png');res.end(await readFile('public/brand/web/header-logo-transparent.png'));return}
   if (req.url.startsWith('/api/player/venue-locations')) {
     res.setHeader('Content-Type','application/json')
     if(req.method==='POST'){

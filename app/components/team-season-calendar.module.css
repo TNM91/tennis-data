@@ -36,6 +36,7 @@
 .result .savedMessage { color: #d6f8a7; font-weight: 750; }
 .steps { margin: 0; padding-left: 22px; color: #b7c6d7; font-size: 14px; line-height: 1.5; }
 .steps li + li { margin-top: 8px; }
+.shareInput { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 12px; border: 1px solid #4a6076; border-radius: 10px; background: #0b172a; color: #fff; font-size: 16px; }
 .result input { box-sizing: border-box; width: 100%; min-width: 0; padding: 12px; border: 1px solid #4a6076; border-radius: 8px; background: #0b172a; color: #f4f8ff; font-size: 16px; }
 @media (max-width: 600px) { .destinations { grid-template-columns: minmax(0, 1fr); } .selectionActions { flex-wrap: wrap; } .selectionActions > * { flex: 1 1 130px; } }
 @media (max-width: 600px) { .card { padding: 16px; border-radius: 16px; } .header { align-items: stretch; flex-direction: column; gap: 14px; } .card h2 { font-size: 20px; } .primary, .secondary { width: 100%; } }

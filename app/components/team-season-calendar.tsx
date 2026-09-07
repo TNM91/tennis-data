@@ -7,6 +7,7 @@ import { appleSubscriptionUrl, buildSeasonCalendarDownload, createSeasonCalendar
 import styles from './team-season-calendar.module.css'
 import SeasonVenueLocation, {withVenueChoice,type CalendarVenueChoice} from './season-venue-locations'
 import { isStreetLocation } from '@/lib/venue-directory'
+import MatchCalendarSharing from './match-calendar-sharing'
 
 type Props = { team: string; matches: TeamSeasonMatch[]; userId: string; accessToken: string; importHref: string; incomplete?: boolean; loadError?: string; onRetry?: () => void }
 
@@ -172,6 +173,11 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
               </div></details>
             </> : null}
           </div>
+          {accessToken ? <MatchCalendarSharing key={venueScope} team={team} seasonKey={season.key} timeZone={timeZone} itemIds={items.map(item=>item.id)} token={accessToken} disabled={saving || !locationsReady} saveMatches={async()=>{
+            if(busy.current)throw new Error('Wait for your calendar save to finish.')
+            busy.current=true;setSaving(true);setProgress(0)
+            try{await saveSeasonCalendarItems(items,accessToken,setProgress)}finally{busy.current=false;setSaving(false)}
+          }} /> : null}
           <details><summary>Calendar help &amp; download (.ics)</summary><div className={styles.download}>
             <p>Adding dates does not confirm your availability. Match times use Central time; dates without a time appear as all-day events.</p>
             <p>Already subscribed? Choose Save to TiQ only to update your saved dates without adding another subscription.</p>
