@@ -40,6 +40,7 @@ import {
 } from '@/lib/team-schedule-calendar'
 import { isTeamSummaryDraftReadyForImport, type DataAssistTeamSummaryParsedDraft } from '@/lib/data-assist-team-summary-parser'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
+import { buildScheduleCalendarHref } from '@/lib/schedule-calendar-href'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -223,6 +224,7 @@ type DataAssistOutcome = {
   batchId?: string
   target: 'history' | 'latest-read'
   teamConnectionHref?: string
+  calendarHref?: string
 }
 
 function getDataAssistIntent(value: string | null): DataAssistIntent | null {
@@ -390,6 +392,9 @@ function DataAssistWorkspace() {
     result?: DataAssistImportActionResult
   }) {
     if (!returnTo || !isCaptainImportDraft(input.parsedDraft)) return false
+    // Keep the successful schedule receipt and calendar action visible instead
+    // of silently navigating away as soon as the import finishes.
+    if (isScheduleParsedDraft(input.parsedDraft)) return false
     // A team summary may belong to an opponent. Importing it must never grant
     // Captain access or replace the team already selected in Captain.
     router.replace(returnTo)
@@ -460,7 +465,7 @@ function DataAssistWorkspace() {
     setLatestScan(null)
     setSavedBatchId('')
     setBulkScorecardResults([])
-    setFocusedSubmissionId(nextOutcome?.batchId || '')
+    setFocusedSubmissionId(nextOutcome?.calendarHref ? '' : nextOutcome?.batchId || '')
     setError('')
     setMessage(completionMessage)
     setOutcome(nextOutcome)
@@ -1063,6 +1068,9 @@ function DataAssistWorkspace() {
               })
             : false
         if (didReturn) return
+        if (isScheduleParsedDraft(submission.parsedPayload)) {
+          completeUploadFlow('Schedule imported.', buildImportedDataAssistOutcome(submission.parsedPayload, submission.id))
+        }
       }
       await refreshSubmissions()
     } catch (err) {
@@ -1107,6 +1115,9 @@ function DataAssistWorkspace() {
               })
             : false
         if (didReturn) return
+        if (isScheduleParsedDraft(submission.parsedPayload)) {
+          completeUploadFlow('Schedule imported.', buildImportedDataAssistOutcome(submission.parsedPayload, submission.id))
+        }
       }
       if (action === 'commit') void refreshSubmissions()
     } catch (err) {
@@ -1214,6 +1225,14 @@ function DataAssistWorkspace() {
       {!showOrderStep && error ? <UploadIssueNotice message={error} onStartOver={resetUploadFlow} /> : null}
       {intent && !teamSetupRequested ? <DataAssistIntentPanel intent={intent} context={intentContext} query={intentQuery} /> : null}
       {outcome ? <DataAssistOutcomePanel outcome={outcome} onUploadAnother={resetUploadFlow} /> : null}
+      {importType === 'schedule' && !outcome && !preparing ? (
+        <section style={calendarAddPanelStyle} aria-label="Use an existing team schedule">
+          <strong>Schedule already in TiQ?</strong>
+          <p style={copyStyle}>Open your team’s season calendar to add its matches to Apple, Google, or TiQ. No new upload is needed if your dates are already there.</p>
+          <Link href={buildScheduleCalendarHref(searchParams.get('team') || '', searchParams.get('league') || '', searchParams.get('flight') || '')} style={primaryButtonStyle}>Open team calendars</Link>
+          <p style={copyStyle}>Use the upload below only for missing dates or an updated schedule.</p>
+        </section>
+      ) : null}
       {showBulkScorecardResults ? (
         <BulkScorecardResultsPanel
           results={bulkScorecardResults}
@@ -2032,15 +2051,24 @@ function DataAssistOutcomePanel({
   outcome: DataAssistOutcome
   onUploadAnother: () => void
 }) {
+  const receiptRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (!outcome.calendarHref) return
+    const frame = window.requestAnimationFrame(() => {
+      receiptRef.current?.scrollIntoView({ block: 'start' })
+      receiptRef.current?.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [outcome.calendarHref, outcome.batchId])
   const targetId = outcome.target === 'latest-read' ? 'latest-data-assist-read' : 'history'
   const actionLabel = outcome.target === 'latest-read'
     ? 'Review this upload'
-    : outcome.batchId
+    : outcome.batchId && !outcome.calendarHref
       ? 'Open import record'
       : 'Open import history'
 
   return (
-    <section style={dataAssistOutcomeStyle(outcome.tone)} aria-live="polite" data-data-assist-outcome={outcome.tone}>
+    <section ref={receiptRef} tabIndex={-1} style={dataAssistOutcomeStyle(outcome.tone)} aria-live="polite" data-data-assist-outcome={outcome.tone}>
       <div style={dataAssistOutcomeHeaderStyle}>
         <div style={headerCopyStyle}>
           <span style={dataAssistOutcomeEyebrowStyle}>{outcome.tone === 'review' ? 'Your next action' : 'Import complete'}</span>
@@ -2055,7 +2083,8 @@ function DataAssistOutcomePanel({
         {outcome.teamConnectionHref ? (
           <Link href={outcome.teamConnectionHref} style={primaryButtonStyle}>Review &amp; link this team</Link>
         ) : null}
-        <a href={`#${targetId}`} style={outcome.teamConnectionHref ? secondaryButtonStyle : primaryButtonStyle}>{actionLabel}</a>
+        {outcome.calendarHref ? <Link href={outcome.calendarHref} style={primaryButtonStyle}>Add season to Apple / Google Calendar</Link> : null}
+        <a href={`#${targetId}`} style={outcome.teamConnectionHref || outcome.calendarHref ? secondaryButtonStyle : primaryButtonStyle}>{actionLabel}</a>
         <button type="button" onClick={onUploadAnother} style={secondaryButtonStyle}>Upload another</button>
       </div>
     </section>
@@ -2118,21 +2147,22 @@ function buildImportedDataAssistOutcome(
     }
   }
 
+  if (isScheduleParsedDraft(parsedDraft)) {
+    return {
+      tone: duplicate ? 'duplicate' : 'success',
+      title: duplicate ? 'Schedule already in TiQ' : 'Schedule imported',
+      detail: `${parsedDraft.teamName || 'Your team'}: ${parsedDraft.matchCount} scheduled match${parsedDraft.matchCount === 1 ? '' : 'es'} ${duplicate ? 'already saved' : 'saved'}. Next, choose Apple, Google, or TiQ on your season calendar. Importing a schedule does not add it to your phone automatically.`,
+      batchId,
+      target: 'history',
+      calendarHref: buildScheduleCalendarHref(parsedDraft.teamName, parsedDraft.leagueName, parsedDraft.flight),
+    }
+  }
+
   if (duplicate) {
     return {
       tone: 'duplicate',
       title: `${getDataAssistImportTypeLabel(getParsedDraftImportType(parsedDraft))} already in TiQ`,
       detail: 'TiQ kept the existing record and saved this upload in your history as proof. No duplicate was created.',
-      batchId,
-      target: 'history',
-    }
-  }
-
-  if (isScheduleParsedDraft(parsedDraft)) {
-    return {
-      tone: 'success',
-      title: 'Schedule imported',
-      detail: `${parsedDraft.matchCount} scheduled match${parsedDraft.matchCount === 1 ? '' : 'es'} are now ready for your team and captain views.`,
       batchId,
       target: 'history',
     }
@@ -3502,10 +3532,11 @@ function ScheduleImportedSummaryPanel({
       </div>
       <section style={calendarAddPanelStyle} aria-label="Add this team schedule to your calendar">
         <div style={headerCopyStyle}>
-          <strong>Put this season on your calendar</strong>
-          <p style={copyStyle}>Add all confirmed match dates now. Then subscribe once from My Calendar to keep iPhone, Google, or Outlook current when the schedule changes.</p>
+          <strong>Next: choose your calendar</strong>
+          <p style={copyStyle}>Your schedule is saved in TiQ. Open the season calendar to choose matches and finish adding them to Apple or Google. No new upload is needed.</p>
         </div>
         <div style={cardActionRowStyle}>
+          <Link href={buildScheduleCalendarHref(parsedDraft.teamName, parsedDraft.leagueName, parsedDraft.flight)} style={primaryButtonStyle}>Add season to Apple / Google Calendar</Link>
           <button
             type="button"
             onClick={() => onAddScheduleToCalendar(parsedDraft)}
@@ -3514,7 +3545,7 @@ function ScheduleImportedSummaryPanel({
           >
             {calendarSavingKey === bulkSavingKey ? 'Adding season...' : `Add all ${calendarItems.length} matches`}
           </button>
-          <Link href="/mylab#my-calendar" style={secondaryButtonStyle}>Set up phone / Google sync</Link>
+          <Link href="/mylab#my-calendar" style={secondaryButtonStyle}>View My Calendar</Link>
         </div>
         {calendarMessage ? <p style={calendarAddMessageStyle} aria-live="polite">{calendarMessage}</p> : null}
       </section>
@@ -3691,7 +3722,10 @@ function buildScorecardPostImportActions(parsedDraft: DataAssistScorecardParsedD
 }
 
 function buildSchedulePostImportActions(parsedDraft: DataAssistScheduleParsedDraft, context = '') {
-  const actions: Array<{ label: string; href: string }> = []
+  const actions: Array<{ label: string; href: string }> = [{
+    label: 'Add season to Apple / Google Calendar',
+    href: buildScheduleCalendarHref(parsedDraft.teamName, parsedDraft.leagueName, parsedDraft.flight),
+  }]
   if (/\b(?:captain|team hub)\b/i.test(context)) {
     actions.push({ label: 'Continue Captain setup', href: buildCaptainImportScopeHref(parsedDraft) })
   }

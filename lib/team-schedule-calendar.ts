@@ -1,3 +1,5 @@
+import { isValidCalendarDate } from './calendar-date'
+
 export type TeamScheduleCalendarMatch = {
   externalMatchId?: string
   matchDate?: string
@@ -36,14 +38,11 @@ function slug(value: unknown) {
 export function normalizeScheduleCalendarDate(value: unknown) {
   const text = cleanText(value)
   const iso = /^(20\d{2})-(\d{1,2})-(\d{1,2})$/.exec(text)
-  if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`
-
   const slash = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2})$/.exec(text)
-  if (!slash) return ''
-  const month = Number(slash[1])
-  const day = Number(slash[2])
-  if (month < 1 || month > 12 || day < 1 || day > 31) return ''
-  return `${slash[3]}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  const date = iso
+    ? `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`
+    : slash ? `${slash[3]}-${slash[1].padStart(2, '0')}-${slash[2].padStart(2, '0')}` : ''
+  return isValidCalendarDate(date) ? date : ''
 }
 
 export function normalizeScheduleCalendarTime(value: unknown) {

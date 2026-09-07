@@ -7,9 +7,9 @@ import { buildTennisCalendarFeed } from '@/lib/tiq-league-schedule-calendar'
 import { appleSubscriptionUrl, createSeasonCalendarLink, googleMatchCalendarUrl, saveSeasonCalendarItems, type SeasonCalendarDestination } from '@/lib/season-calendar-actions'
 import styles from './team-season-calendar.module.css'
 
-type Props = { team: string; matches: TeamSeasonMatch[]; userId: string; accessToken: string; importHref: string; incomplete?: boolean }
+type Props = { team: string; matches: TeamSeasonMatch[]; userId: string; accessToken: string; importHref: string; incomplete?: boolean; loadError?: string; onRetry?: () => void }
 
-export default function TeamSeasonCalendar({ team, matches, userId, accessToken, importHref, incomplete = false }: Props) {
+export default function TeamSeasonCalendar({ team, matches, userId, accessToken, importHref, incomplete = false, loadError = '', onRetry }: Props) {
   const seasons = useMemo(() => buildTeamSeasonCalendars(team, matches, userId), [team, matches, userId])
   const [selectedKey, setSelectedKey] = useState('')
   const [excludedIds, setExcludedIds] = useState<string[]>([])
@@ -39,7 +39,7 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
   function resetFeedback() { setMessage(''); setError(''); setDestination(null) }
 
   async function save(nextDestination: SeasonCalendarDestination) {
-    if (busy.current || incomplete) return
+    if (busy.current || incomplete || loadError) return
     busy.current = true
     setSaving(true)
     setProgress(0)
@@ -85,7 +85,11 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
         <div><p className={styles.eyebrow}>Season schedule</p><h2>Take your season with you.</h2><p>{allItems.length ? `${allItems.length} matches · ${season.label}` : 'Your team dates, in TiQ and on your phone.'}</p></div>
         <button type="button" className={open ? styles.secondary : styles.primary} aria-expanded={open} aria-controls={optionsId} onClick={() => setOpen(!open)}>{open ? 'Hide calendar options' : 'Add season to calendar'}</button>
       </div>
-      {open ? <div id={optionsId} className={styles.options}>
+      {open && loadError ? <div id={optionsId} className={styles.options}>
+        <p role="alert">{loadError}</p>
+        <p>You do not need to upload your schedule again. Retry to load the dates already saved in TiQ.</p>
+        {onRetry ? <button type="button" className={styles.primary} onClick={onRetry}>Retry schedule</button> : null}
+      </div> : open ? <div id={optionsId} className={styles.options}>
         {incomplete ? <p role="alert">This view may not include the complete season. Open your uploaded schedule to add every match.</p> : null}
         {allItems.length > 0 && !incomplete ? <>
           {seasons.length > 1 ? <label>Choose season<select value={season.key} disabled={saving} onChange={(event) => { setSelectedKey(event.target.value); setExcludedIds([]); resetFeedback() }}>{seasons.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select></label> : null}
