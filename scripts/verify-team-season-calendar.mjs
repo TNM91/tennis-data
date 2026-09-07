@@ -23,7 +23,20 @@ createRoot(document.getElementById('root')).render(<Calendar team={base.home_tea
   } }],
 })
 const saves = []
+const venuePreferences = new Map()
 createServer(async (req, res) => {
+  if (req.url.startsWith('/api/player/venue-locations')) {
+    res.setHeader('Content-Type','application/json')
+    if(req.method==='POST'){
+      let raw='';for await(const part of req)raw+=part
+      const body=JSON.parse(raw)
+      const preference={id:'fixture-pref',context_key:body.context,facility_name:body.facilityName,name_key:body.facilityName.toLowerCase(),city:body.city,state_code:body.state,street_address:body.streetAddress,source_url:body.sourceUrl || '',directory_id:null,review_status:body.shareForReview?'pending':'private'}
+      venuePreferences.set(body.context,preference)
+      res.end(JSON.stringify({ok:true,preference}));return
+    }
+    const params=new URL(req.url,'http://localhost').searchParams
+    res.end(JSON.stringify({ok:true,venues:[],preference:venuePreferences.get(params.get('context')) || null}));return
+  }
   if (req.url === '/api/player/calendar-items') {
     let body = ''; for await (const chunk of req) body += chunk
     const { items } = JSON.parse(body); saves.push(items)
@@ -37,4 +50,4 @@ createServer(async (req, res) => {
     res.setHeader('Content-Type',req.url.endsWith('.js')?'text/javascript':'text/css'); res.end(await readFile(path.join(output, req.url.slice(1)))); return
   }
   res.setHeader('Content-Type','text/html'); res.end('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/fixture.css"><style>body{margin:0;padding:16px;background:#071423;font-family:Arial,sans-serif}#root{max-width:900px;margin:auto}</style></head><body><div id="root"></div><script src="/fixture.js"></script></body></html>')
-}).listen(3041, '127.0.0.1', () => console.log('Synthetic calendar fixture: http://127.0.0.1:3041'))
+}).listen(Number(process.env.TENACEIQ_CALENDAR_FIXTURE_PORT || 3041), '127.0.0.1', () => console.log(`Synthetic calendar fixture: http://127.0.0.1:${process.env.TENACEIQ_CALENDAR_FIXTURE_PORT || 3041}`))

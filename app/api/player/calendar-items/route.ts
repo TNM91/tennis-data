@@ -8,10 +8,11 @@ import {
 } from '@/lib/player-calendar-items'
 import { loadPlayerCompetitionSchedule } from '@/lib/player-competition-schedule'
 import { loadAllPlayerCalendarItems } from '@/lib/player-calendar-storage'
+import { applyCalendarVenueLocations } from '@/lib/venue-calendar-storage'
 
 export const runtime = 'nodejs'
 
-const calendarItemSelect = 'id,player_user_id,title,scheduled_date,scheduled_time,location,kind,recurrence_rule,availability_status,created_at,updated_at'
+const calendarItemSelect = 'id,player_user_id,title,scheduled_date,scheduled_time,location,kind,recurrence_rule,availability_status,created_at,updated_at,venue_directory_id,venue_preference_id'
 
 type SaveCalendarItemBody = {
   item?: PlayerCalendarItemInput
@@ -66,13 +67,16 @@ export async function POST(request: Request) {
     : body.item
       ? [body.item]
       : []
-  const payloads = requestedItems
+  let payloads = requestedItems
     .map((item) => buildPlayerCalendarItemPayload(item, auth.userId))
     .filter((item): item is NonNullable<typeof item> => Boolean(item))
 
   if (!payloads.length) {
     return Response.json({ ok: false, message: 'Each calendar item needs a title and date.' }, { status: 400 })
   }
+
+  try { payloads = await applyCalendarVenueLocations(auth.supabase,auth.userId,payloads) }
+  catch { return Response.json({ok:false,message:'A venue could not be verified for your calendar. Retry the location confirmation.'},{status:400}) }
 
   const { data, error } = await auth.supabase
     .from('player_calendar_items')

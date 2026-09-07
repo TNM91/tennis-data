@@ -38,7 +38,7 @@ describe('team schedule calendar items', () => {
         title: 'Meinert/The Other Guys (S) vs Hodge/Kamman (S) · 2026 Adult 18 & Over Spring',
         date: '2026-01-18',
         time: '17:30',
-        location: 'St. Clair Tennis Club',
+        location: "St. Clair Tennis Club — 733 Hartman Ln, O'Fallon, IL 62269",
         kind: 'match',
       }),
     ])

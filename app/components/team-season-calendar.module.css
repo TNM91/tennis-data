@@ -14,6 +14,11 @@
 .options select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 46px; padding: 10px; border: 1px solid #4a6076; border-radius: 10px; font-size: 16px; color: #f4f8ff; background: #0b172a; }
 .options summary { cursor: pointer; padding: 12px 0; font-size: 14px; font-weight: 700; }
 .download { display: grid; gap: 12px; padding: 10px 0; }
+.venue { min-width: 0; padding: 14px; border: 1px solid #395369; border-radius: 12px; display: grid; gap: 12px; }
+.venueHeader, .venueForm { display: grid; gap: 12px; min-width: 0; }
+.venueHeader strong { overflow-wrap: break-word; }
+.venueFields { display: grid; grid-template-columns: minmax(0, 1fr) 80px; gap: 12px; }
+.venueForm input:not([type=checkbox]) { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 10px; border: 1px solid #4a6076; border-radius: 8px; background: #0b172a; color: #f4f8ff; font-size: 16px; }
 .matches { display: grid; gap: 12px; list-style: none; margin: 8px 0; padding: 0; max-height: 320px; overflow: auto; }
 .matches li { display: grid; gap: 5px; padding: 12px; border-radius: 10px; background: #101f31; font-size: 14px; overflow-wrap: anywhere; }
 .matches span { color: #b7c6d7; }

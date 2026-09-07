@@ -64,6 +64,7 @@ export function parseTennisLinkExportFiles(files: ExportFileInput[]): DataAssist
 function parseTennisLinkExportFile(file: ExportFileInput) {
   const html = decodeFileBuffer(file.fileBuffer)
   const rows = extractHtmlRows(html)
+  const scheduleRows = extractHtmlRows(html, true)
   const textRows = rows.map((row) => `Export table row | ${row.join(' | ')}`).filter(Boolean)
   const scorecardRows = [
     ...buildStructuredScorecardMeta(rows),
@@ -72,8 +73,8 @@ function parseTennisLinkExportFile(file: ExportFileInput) {
   ]
   const structuredRows = [
     ...scorecardRows,
-    ...buildStructuredScheduleMeta(rows),
-    ...buildStructuredScheduleLines(rows),
+    ...buildStructuredScheduleMeta(scheduleRows),
+    ...buildStructuredScheduleLines(scheduleRows),
     ...buildStructuredTeamSummaryMeta(rows),
     ...buildStructuredRosterLines(rows),
     ...buildStructuredRosterContacts(rows),
@@ -110,6 +111,8 @@ function buildStructuredScorecardTeams(rows: HtmlRow[]) {
 }
 
 function buildStructuredScheduleLines(rows: HtmlRow[]) {
+  const header = rows.find(cells=>cells.some(cell=>/^Match ID$/i.test(cell)) && cells.some(cell=>/^Home Team$/i.test(cell))) || []
+  const field = (cells: HtmlRow, pattern: RegExp) => cells[header.findIndex(cell=>pattern.test(cell))] || ''
   return getStructuredScheduleRows(rows)
     .map((cells) => [
       'Schedule row',
@@ -118,7 +121,9 @@ function buildStructuredScheduleLines(rows: HtmlRow[]) {
       cells[2],
       cells[3],
       cells[5],
-      cells[7],
+      [field(cells,/^(?:Facility|Site|Location)$/i) || cells[7],
+        [field(cells,/^(?:Facility |Site |Street )?Address$/i),field(cells,/^(?:Facility |Site )?City$/i),field(cells,/^(?:Facility |Site )?State$/i),field(cells,/^(?:Zip|Zip Code|Postal Code)$/i)].filter(Boolean).join(', '),
+      ].filter(Boolean).join(' — '),
       cells.join(' '),
     ].join(' | '))
 }
@@ -396,13 +401,13 @@ function cleanScorecardTeam(value: string) {
     .trim()
 }
 
-function extractHtmlRows(html: string): HtmlRow[] {
+function extractHtmlRows(html: string, preserveEmpty = false): HtmlRow[] {
   const rows: HtmlRow[] = []
   for (const rowMatch of html.matchAll(/<tr\b[\s\S]*?<\/tr>/gi)) {
     const rowHtml = rowMatch[0]
     const cells = Array.from(rowHtml.matchAll(/<t[dh]\b[\s\S]*?<\/t[dh]>/gi))
       .map((cellMatch) => htmlCellToText(cellMatch[0]))
-      .filter((cell) => cell.length > 0)
+      .filter((cell) => preserveEmpty || cell.length > 0)
     if (cells.length) rows.push(cells)
   }
   return rows

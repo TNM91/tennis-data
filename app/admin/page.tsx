@@ -126,6 +126,17 @@ const adminTools: AdminTool[] = [
     statValue: 'Match hygiene',
   },
   {
+    title: 'Venue Addresses',
+    href: '/admin/venue-locations',
+    description: 'Verify playing addresses suggested by players and captains.',
+    badge: 'Data Quality',
+    accent: 'green',
+    icon: 'clubTennis',
+    highlights: ['Official sources', 'City and state', 'Safe calendar locations'],
+    statLabel: 'Best for',
+    statValue: 'Address reviews',
+  },
+  {
     title: 'Club Accounts',
     href: '/admin/clubs',
     description: 'Find, review, or permanently remove club workspaces.',
