@@ -39,10 +39,13 @@ by this feature's migration.
 
 ## Release status / prerequisites
 
-Implemented locally on `codex/season-kickoff`; **not published**. Before deploying,
-apply `supabase/migrations/20260907200000_season_kickoff.sql` through the normal
-reviewed migration process. It creates two RLS-protected tables and a service-only
-save function. No production migration or invitations were applied during development.
+Release tracked in [PR #1206](https://github.com/TNM91/tennis-data/pull/1206).
+Applied `supabase/migrations/20260907200000_season_kickoff.sql` to production on
+September 7, 2026, in one transaction with its migration-ledger entry. It creates
+two RLS-protected tables and a service-only save function. Verified anonymous
+reads, browser-client writes and anonymous function execution are denied. Both
+tables were empty after deployment preparation; no invitations were sent.
+The PR's deployment status identifies when the application release is live.
 The existing availability `updated_at` column is used for latest-answer ordering.
 
 ## Verification
