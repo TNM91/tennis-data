@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import TeamHomeCard from './team-home-card'
+import homeStyles from './teams-home.module.css'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import CompetePageFrame, {
@@ -27,11 +29,6 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 const dataAssistTeamsHref = '/data-assist?intent=upload-source&type=team_summary&context=Add%20my%20team#upload'
 const FUTURE_JWT_SETTLE_DELAY_MS = 3_000
 
-function formatUpcomingTeamMatchDate(value: string) {
-  const date = new Date(`${value}T12:00:00`)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date)
-}
 
 function isFutureJwtError(error: unknown) {
   return error instanceof Error && error.message.toLowerCase().includes('jwt issued at future')
@@ -108,14 +105,12 @@ const teamPathActions = [
 ] as const
 
 export default function CompeteTeamsPage() {
-  const { isMobile } = useViewportBreakpoints()
-
   return (
     <CompetePageFrame
       eyebrow="My Teams"
       title="Your teams, one tap away."
       description="Open the roster, schedule, stats, and Team Chat connected to your account."
-      compactHome={isMobile}
+      compactHome
       resumeSurface="teams"
       resumeLabel="team directory"
       resumeHref="/compete/teams"
@@ -302,18 +297,9 @@ function CompeteTeamsContent() {
 
       <section
         id="tiq-entered-teams"
-        style={{
-          ...sectionStyle,
-          marginTop: isMobile ? 0 : sectionStyle.marginTop,
-          padding: isMobile ? '16px' : sectionStyle.padding,
-          borderRadius: isMobile ? '20px' : sectionStyle.borderRadius,
-        }}
+        className={homeStyles.home}
       >
-        {isMobile ? (
-          <h1 style={mobileTeamsTitleStyle}>{userId ? 'Your teams' : 'Explore teams'}</h1>
-        ) : (
-          <div style={sectionEyebrowStyle}>{userId ? 'Your teams' : 'Explore teams'}</div>
-        )}
+        <h1 style={mobileTeamsTitleStyle}>{userId ? 'Your teams' : 'Explore teams'}</h1>
         <div style={sectionTextStyle}>
           {connectionError
             ? 'Your teams did not finish loading. Nothing has been changed.'
@@ -343,7 +329,7 @@ function CompeteTeamsContent() {
           </div>
         ) : null}
 
-        <CaptainQuickStart connections={connections} pending={pendingConnections} loading={loading} error={connectionError} compact={groupedTeams.length > 0} />
+
         {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
         {defaultTeamMessage ? <div style={defaultTeamNoticeStyle} role="status">{defaultTeamMessage}</div> : null}
         {connectionError ? (
@@ -353,7 +339,7 @@ function CompeteTeamsContent() {
         ) : groupedTeams.length === 0 ? (
           <EmptyTeamsState signedIn={Boolean(userId)} pendingTeamCount={pendingConnections.length} />
         ) : (
-          <div style={listStyle}>
+          <div className={homeStyles.teamGrid}>
             {groupedTeams.map((group) => {
               // A connected USTA team can also participate in TiQ features.
               // Its Builder handoff must retain the connection's source so a
@@ -377,79 +363,29 @@ function CompeteTeamsContent() {
               })
               const canStartTeamLineup = access.canUseCaptainWorkflow || isCaptainTeamConnection(group.connection.roles)
               const upcomingMatch = group.directoryOption?.nextMatch || null
-              const teamFacts = [
-                {
-                  label: 'Team connection',
-                  value: 'Connected',
-                },
-                {
-                  label: 'Next match',
-                  value: upcomingMatch
-                    ? `${formatUpcomingTeamMatchDate(upcomingMatch.date)} vs ${upcomingMatch.opponent}`
-                    : group.directoryOption
-                      ? `${group.directoryOption.matchCount} matches in history`
-                      : 'Schedule syncing',
-                },
-              ]
-              const teamMetaItems = [
-                group.sourceLeagueName,
-                group.sourceFlight,
-              ].filter(Boolean)
-
-              return (
-                <div
-                  key={`${group.teamName}-${group.sourceLeagueName}-${group.sourceFlight}`}
-                  style={{
-                    ...rowStyle,
-                    ...(group.connection.isDefault ? defaultTeamRowStyle : {}),
-                    padding: isMobile ? '14px' : rowStyle.padding,
-                    borderRadius: isMobile ? '16px' : rowStyle.borderRadius,
-                  }}
-                >
-                  <div style={teamCopyStyle}>
-                    <div style={{ ...rowTitleStyle, fontSize: isMobile ? '17px' : rowTitleStyle.fontSize }}>{group.teamName}</div>
-                    <div style={rowMetaStyle}>
-                      {group.connection.isDefault ? <span style={defaultTeamChipStyle}>Default team</span> : null}
-                      {teamMetaItems.map((item) => <span key={item} style={rowMetaChipStyle}>{item}</span>)}
-                    </div>
-                    <dl style={teamFactsStyle} aria-label={`${group.teamName} team status`}>
-                      {teamFacts.map((item) => (
-                        <div key={item.label} style={teamFactStyle}>
-                          <dt style={teamFactLabelStyle}>{item.label}</dt>
-                          <dd style={teamFactValueStyle}>{item.value}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                    <Link
-                      href={teamPageHref}
-                      style={{ ...teamPrimaryActionStyle, width: isMobile ? '100%' : undefined }}
-                      aria-label={`Open ${group.teamName} roster and schedule`}
-                    >
-                      Roster & schedule
-                    </Link>
-                  </div>
-                  <div style={isMobile ? { ...teamRowActionStyle, ...teamRowActionMobileStyle } : teamRowActionStyle}>
-                    <Link href={`${teamPageHref}#team-schedule`} style={teamSecondaryLinkStyle}>Season calendar</Link>
-                    <Link href={teamRoomHref} style={teamSecondaryLinkStyle}>Team Chat</Link>
-                    {canStartTeamLineup ? (
-                      <Link href={lineupHref} style={teamSecondaryLinkStyle}>Build lineup</Link>
-                    ) : null}
-                    {groupedTeams.length > 1 && !group.connection.isDefault ? (
-                      <button
-                        type="button"
-                        onClick={() => void makeDefaultTeam(group.connection)}
-                        disabled={Boolean(savingDefaultTeamId)}
-                        style={teamSecondaryButtonStyle}
-                      >
-                        {savingDefaultTeamId === group.connection.id ? 'Saving…' : 'Make default'}
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              )
+              return <TeamHomeCard
+                key={group.connection.id}
+                name={group.teamName}
+                league={group.sourceLeagueName}
+                flight={group.sourceFlight}
+                isDefault={group.connection.isDefault}
+                teamHref={teamPageHref}
+                chatHref={teamRoomHref}
+                lineupHref={canStartTeamLineup ? lineupHref : undefined}
+                availabilityHref={isCaptainTeamConnection(group.connection.roles) ? `${teamPageHref}#team-availability` : undefined}
+                nextMatch={upcomingMatch}
+                syncing={!group.directoryOption}
+                historyCount={group.directoryOption?.matchCount}
+                onMakeDefault={groupedTeams.length > 1 && !group.connection.isDefault ? () => void makeDefaultTeam(group.connection) : undefined}
+                savingDefault={savingDefaultTeamId === group.connection.id}
+                defaultDisabled={Boolean(savingDefaultTeamId)}
+              />
             })}
           </div>
         )}
+        <div className={homeStyles.support}>
+          <CaptainQuickStart connections={connections} pending={pendingConnections} loading={loading} error={connectionError} compact={groupedTeams.length > 0} />
+        </div>
       </section>
 
       {!loading && userId && groupedTeams.length > 0 && pendingConnections.length > 0 ? (
@@ -1303,108 +1239,6 @@ const emptyTeamsActionStyle = {
   overflowWrap: 'anywhere',
 } as const
 
-const listStyle = {
-  display: 'grid',
-  gap: '12px',
-} as const
-
-const rowStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
-  gap: '12px',
-  alignItems: 'center',
-  padding: '16px',
-  borderRadius: '18px',
-  border: '1px solid rgba(116,190,255,0.13)',
-  background: 'rgba(8,16,34,0.66)',
-  minWidth: 0,
-} as const
-
-const defaultTeamRowStyle = {
-  border: '1px solid rgba(155,225,29,0.38)',
-  background: 'linear-gradient(135deg, rgba(79,124,32,0.16), rgba(8,16,34,0.74))',
-} as const
-
-const teamCopyStyle = {
-  minWidth: 0,
-} as const
-
-const rowTitleStyle = {
-  color: 'var(--foreground-strong)',
-  fontSize: '18px',
-  fontWeight: 800,
-  overflowWrap: 'anywhere',
-} as const
-
-const rowMetaStyle = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '6px',
-  marginTop: '4px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  lineHeight: 1.6,
-  overflowWrap: 'anywhere',
-} as const
-
-const rowMetaChipStyle = {
-  display: 'inline-flex',
-  maxWidth: '100%',
-  minWidth: 0,
-  padding: '3px 7px',
-  borderRadius: '999px',
-  border: '1px solid rgba(116,190,255,0.12)',
-  background: 'rgba(116,190,255,0.06)',
-  overflowWrap: 'anywhere',
-} as const
-
-const defaultTeamChipStyle = {
-  display: 'inline-flex',
-  maxWidth: '100%',
-  minWidth: 0,
-  padding: '3px 7px',
-  borderRadius: '999px',
-  border: '1px solid rgba(155,225,29,0.36)',
-  background: 'rgba(155,225,29,0.12)',
-  color: '#efffc6',
-  fontWeight: 900,
-  overflowWrap: 'anywhere',
-} as const
-
-const teamFactsStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: '12px',
-  margin: '12px 0',
-  padding: '10px 0',
-  borderTop: '1px solid rgba(116,190,255,0.10)',
-  borderBottom: '1px solid rgba(116,190,255,0.10)',
-  minWidth: 0,
-} as const
-
-const teamFactStyle = {
-  minWidth: 0,
-} as const
-
-const teamFactLabelStyle: CSSProperties = {
-  minWidth: 0,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 11,
-  fontWeight: 750,
-  lineHeight: 1.3,
-  overflowWrap: 'anywhere',
-}
-
-const teamFactValueStyle: CSSProperties = {
-  margin: '3px 0 0',
-  minWidth: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: 13,
-  fontWeight: 850,
-  lineHeight: 1.35,
-  overflowWrap: 'anywhere',
-}
-
 const teamPrimaryActionStyle = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -1441,12 +1275,6 @@ const teamSecondaryLinkStyle = {
   whiteSpace: 'normal',
 } as const
 
-const teamSecondaryButtonStyle: CSSProperties = {
-  ...teamSecondaryLinkStyle,
-  cursor: 'pointer',
-  font: 'inherit',
-}
-
 const teamsAddButtonStyle: CSSProperties = {
   ...teamPrimaryActionStyle,
   boxSizing: 'border-box',
@@ -1474,22 +1302,6 @@ const teamsAddOptionsGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
   gap: 10,
   minWidth: 0,
-}
-
-const teamRowActionStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'flex-end',
-  flexWrap: 'wrap',
-  gap: 8,
-  minWidth: 0,
-}
-
-const teamRowActionMobileStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 108px), 1fr))',
-  justifyContent: 'stretch',
-  width: '100%',
 }
 
 const warningStyle = {

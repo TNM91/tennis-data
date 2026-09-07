@@ -51,11 +51,18 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
   const allMatchLabel = allItems.length === 1 ? 'match' : 'matches'
 
   useEffect(() => {
-    const openFromLink = () => { if (window.location.hash === '#team-schedule') setOpen(true) }
+    const openFromLink = () => {
+      if (kickoffDirty) return
+      if (window.location.hash === '#team-schedule') { setOpen(true); setKickoffOpen(false) }
+      if (window.location.hash === '#team-availability' && canStartSeason && accessToken) {
+        setKickoffOpen(true); setOpen(false)
+        window.requestAnimationFrame(() => document.getElementById('team-schedule')?.scrollIntoView({ block: 'start' }))
+      }
+    }
     openFromLink()
     window.addEventListener('hashchange', openFromLink)
     return () => window.removeEventListener('hashchange', openFromLink)
-  }, [])
+  }, [accessToken, canStartSeason, kickoffDirty])
 
   function resetFeedback() { setMessage(''); setCopyMessage(''); setError(''); setDestination(null) }
 

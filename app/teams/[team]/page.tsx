@@ -440,7 +440,7 @@ function TeamPageContent() {
   useEffect(() => {
     const syncActiveSection = () => {
       const hash = window.location.hash
-      setActiveTeamSection(hash === '#team-schedule' ? 'activity' : hash === '#team-roster' ? 'roster' : hash === '#team-chat' ? 'chat' : 'overview')
+      setActiveTeamSection(['#team-schedule', '#team-availability'].includes(hash) ? 'activity' : hash === '#team-roster' ? 'roster' : hash === '#team-chat' ? 'chat' : 'overview')
     }
 
     syncActiveSection()
@@ -1762,7 +1762,7 @@ function TeamPageContent() {
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
-    padding: isMobile ? '18px' : '34px 26px',
+    padding: isMobile ? '18px' : '24px',
     gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.2fr) minmax(min(100%, 300px), 0.85fr)',
     gap: isMobile ? '14px' : '22px',
     borderRadius: isMobile ? 22 : heroShell.borderRadius,
@@ -1771,8 +1771,8 @@ function TeamPageContent() {
 
   const dynamicHeroTitle: CSSProperties = {
     ...heroTitle,
-    fontSize: isSmallMobile ? '30px' : isMobile ? '38px' : '56px',
-    lineHeight: isMobile ? 1.04 : heroTitle.lineHeight,
+    fontSize: isSmallMobile ? '26px' : isMobile ? '30px' : '42px',
+    lineHeight: 1.16,
   }
 
   const dynamicCardGrid: CSSProperties = {
@@ -1850,65 +1850,10 @@ function TeamPageContent() {
           contextLabel={team}
           enabled={detailReady}
         />
-        <nav style={isMobile ? teamSectionNavMobileStyle : teamSectionNavStyle} aria-label="Team page sections">
-          {([
-            { id: 'overview', label: 'Overview', href: '#team-overview' },
-            { id: 'activity', label: 'Schedule', href: '#team-schedule' },
-            { id: 'roster', label: 'Roster', href: '#team-roster' },
-            ...(isLinkedTeamMember ? [{ id: 'chat', label: 'Team chat', href: '#team-chat' }] : []),
-            ...(canManageThisTeam ? [{ id: 'lineup', label: 'Build lineup', href: captainLinks[1].href, primary: true }] : []),
-          ] as Array<{ id: TeamSection; label: string; href: string; primary?: boolean }>).map((item) => {
-            const active = activeTeamSection === item.id
-            const navigationStyle = {
-              ...(isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle),
-              ...(active ? teamSectionNavLinkActiveStyle : {}),
-              ...(item.primary ? isMobile ? teamSectionNavLineupMobileStyle : teamSectionNavLineupStyle : {}),
-            }
-            const navigationLabel = (
-              <>
-                {!isMobile ? <span style={teamSectionNavKickerStyle}>{active ? 'Viewing' : 'Jump to'}</span> : null}
-                <strong style={isMobile ? teamSectionNavLabelMobileStyle : teamSectionNavLabelStyle}>{item.label}</strong>
-              </>
-            )
-
-            // Route the Builder through Next navigation with scroll restoration
-            // explicitly enabled. On mobile Safari, a plain anchor can retain the
-            // deep scroll position from the Team page when entering this route.
-            if (item.id === 'lineup') {
-              return (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  scroll
-                  onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' })}
-                  style={navigationStyle}
-                  data-team-section={item.id}
-                >
-                  {navigationLabel}
-                </Link>
-              )
-            }
-
-            return (
-              <a
-                key={item.id}
-                href={item.href}
-                onClick={() => {
-                  setActiveTeamSection(item.id)
-                }}
-                style={navigationStyle}
-                aria-current={active ? 'page' : undefined}
-                data-team-section={item.id}
-              >
-                {navigationLabel}
-              </a>
-            )
-          })}
-        </nav>
         <section id="team-overview" style={{ ...dynamicHeroShell, scrollMarginTop: 16 }}>
           <span aria-hidden="true" style={watermarkStyle} />
           <div>
-            <Link href="/teams" style={heroBackLinkStyle}>Back to teams</Link>
+            <Link href={isLinkedTeamMember ? '/compete/teams' : '/explore/teams'} style={heroBackLinkStyle}>{isLinkedTeamMember ? 'My teams' : 'Find teams'}</Link>
             <p style={eyebrow}>Team profile</p>
             <h1 style={dynamicHeroTitle}>{team || 'Team Detail'}</h1>
 
@@ -1987,8 +1932,9 @@ function TeamPageContent() {
             </div>
           </div>
 
-          <div style={dynamicSummaryCard}>
-            <div style={isMobile ? mobileSummaryTitle : summaryTitle}>Season pulse</div>
+          <details style={dynamicSummaryCard} open={!isMobile}>
+            <summary style={{ ...(isMobile ? mobileSummaryTitle : summaryTitle), cursor: 'pointer', minHeight: 44, alignContent: 'center' }}>Season stats · {record.wins}–{record.losses}<span style={{ display: 'block', fontSize: 12, fontWeight: 600, marginTop: 5, color: 'var(--shell-copy-muted)' }}>Record, roster and recent results</span></summary>
+            <div style={{ display: 'grid', gap: 14, paddingTop: 12, minWidth: 0 }}>
 
             <div style={dynamicSummaryMetricGrid}>
               <MetricCard compact={isMobile} label="Record" value={`${record.wins}-${record.losses}`} subtle="Wins / losses" />
@@ -2062,8 +2008,65 @@ function TeamPageContent() {
             ) : null}
 
             <a href={matches.length ? '#team-match-history' : '#team-source-history'} style={summaryHistoryLinkStyle}>View full match history</a>
-          </div>
+            </div>
+          </details>
         </section>
+
+        <nav style={isMobile ? teamSectionNavMobileStyle : teamSectionNavStyle} aria-label="Team page sections">
+          {([
+            { id: 'overview', label: 'Overview', href: '#team-overview' },
+            { id: 'activity', label: 'Schedule', href: '#team-schedule' },
+            { id: 'roster', label: 'Roster', href: '#team-roster' },
+            ...(isLinkedTeamMember ? [{ id: 'chat', label: 'Team chat', href: '#team-chat' }] : []),
+            ...(canManageThisTeam ? [{ id: 'lineup', label: 'Build lineup', href: captainLinks[1].href, primary: true }] : []),
+          ] as Array<{ id: TeamSection; label: string; href: string; primary?: boolean }>).map((item) => {
+            const active = activeTeamSection === item.id
+            const navigationStyle = {
+              ...(isMobile ? teamSectionNavLinkMobileStyle : teamSectionNavLinkStyle),
+              ...(active ? teamSectionNavLinkActiveStyle : {}),
+              ...(item.primary ? isMobile ? teamSectionNavLineupMobileStyle : teamSectionNavLineupStyle : {}),
+            }
+            const navigationLabel = (
+              <>
+                {!isMobile ? <span style={teamSectionNavKickerStyle}>{active ? 'Viewing' : 'Jump to'}</span> : null}
+                <strong style={isMobile ? teamSectionNavLabelMobileStyle : teamSectionNavLabelStyle}>{item.label}</strong>
+              </>
+            )
+
+            // Route the Builder through Next navigation with scroll restoration
+            // explicitly enabled. On mobile Safari, a plain anchor can retain the
+            // deep scroll position from the Team page when entering this route.
+            if (item.id === 'lineup') {
+              return (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  scroll
+                  onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' })}
+                  style={navigationStyle}
+                  data-team-section={item.id}
+                >
+                  {navigationLabel}
+                </Link>
+              )
+            }
+
+            return (
+              <a
+                key={item.id}
+                href={item.href}
+                onClick={() => {
+                  setActiveTeamSection(item.id)
+                }}
+                style={navigationStyle}
+                aria-current={active ? 'page' : undefined}
+                data-team-section={item.id}
+              >
+                {navigationLabel}
+              </a>
+            )
+          })}
+        </nav>
 
         {!loading && !error ? <TeamSeasonCalendar
           key={`${team}-${leagueFilter}-${flightFilter}-${currentUserId}`}
@@ -3413,7 +3416,8 @@ const teamSectionNavStyle: CSSProperties = {
   maxWidth: '100%',
   margin: '0 auto -6px',
   padding: 6,
-  overflowX: 'auto',
+  flexWrap: 'wrap',
+  overflowX: 'visible',
   overscrollBehaviorX: 'contain',
   borderRadius: 20,
   border: '1px solid rgba(125, 211, 252, 0.22)',
@@ -3427,7 +3431,7 @@ const teamSectionNavLinkStyle: CSSProperties = {
   alignContent: 'center',
   justifyContent: 'center',
   minWidth: 96,
-  minHeight: 52,
+  minHeight: 44,
   gap: 2,
   padding: '7px 14px',
   borderRadius: 15,
@@ -3485,11 +3489,11 @@ const teamSectionNavMobileStyle: CSSProperties = {
 const teamSectionNavLinkMobileStyle: CSSProperties = {
   ...teamSectionNavLinkStyle,
   minWidth: 0,
-  minHeight: 52,
+  minHeight: 44,
   padding: '9px 12px',
   borderRadius: 12,
   fontSize: 15,
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
   textAlign: 'center',
   lineHeight: 1.2,
 }
@@ -3505,7 +3509,7 @@ const teamSectionNavLabelMobileStyle: CSSProperties = {
   lineHeight: 1.2,
   overflowWrap: 'normal',
   wordBreak: 'normal',
-  whiteSpace: 'nowrap',
+  whiteSpace: 'normal',
 }
 
 const heroShell: CSSProperties = {
