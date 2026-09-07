@@ -2071,6 +2071,7 @@ function TeamPageContent() {
           matches={matches}
           userId={currentUserId || ''}
           accessToken={accessToken}
+          canStartSeason={canManageThisTeam}
           incomplete={matches.length >= 250}
           loadError={scheduleLoadError}
           onRetry={() => void loadTeamPage()}
