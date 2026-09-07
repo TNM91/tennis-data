@@ -55,7 +55,7 @@ describe('coach calendar events', () => {
     expect(feed).toContain('X-WR-CALNAME:Taylor Player coach calendar')
     expect(feed).toContain('SUMMARY:Lesson: Taylor Player')
     expect(feed).toContain('LOCATION:Court 7')
-    expect(feed).toContain('DESCRIPTION:Coach/student lesson for Taylor Player.\\nFocus: Serve rhythm\\nLocation: Court 7\\nFollow-up: Serve target ladder')
+    expect(feed.replace(/\r\n[ \t]/g, '')).toContain('DESCRIPTION:Coach/student lesson for Taylor Player.\\nFocus: Serve rhythm\\nLocation: Court 7\\nFollow-up: Serve target ladder')
     expect(feed).toContain('DTSTART;TZID=America/Chicago:20260612T163000')
     expect(feed).toContain('DTEND;TZID=America/Chicago:20260612T173000')
     expect(feed).toContain('SUMMARY:Coach assignment due: Serve target ladder')

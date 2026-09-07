@@ -36,6 +36,7 @@ const playerSupabase = {
       limit() {
         return this
       },
+      range() { return this },
       upsert(payload: Record<string, unknown> | Record<string, unknown>[]) {
         upsertedCalendarItem = payload
         return this

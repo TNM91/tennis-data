@@ -72,7 +72,23 @@ function escapeIcsText(value: string) {
     .replace(/\\/g, '\\\\')
     .replace(/;/g, '\\;')
     .replace(/,/g, '\\,')
-    .replace(/\r?\n/g, '\\n')
+    .replace(/\r\n|\r|\n/g, '\\n')
+}
+
+// RFC 5545 content lines: fold at 75 UTF-8 octets without splitting a character.
+function foldIcsLine(value: string) {
+  const encoder = new TextEncoder()
+  let line = ''
+  let size = 0
+  const folded: string[] = []
+  for (const character of value) {
+    const bytes = encoder.encode(character).length
+    if (size + bytes > 75) { folded.push(line); line = ' '; size = 1 }
+    line += character
+    size += bytes
+  }
+  folded.push(line)
+  return folded.join('\r\n')
 }
 
 function formatIcsDate(value: string) {
@@ -172,6 +188,7 @@ export function buildTennisCalendarFeed(
   const productUrl = options.productUrl || 'https://www.tenaceiq.com'
   const timeZone = options.timeZone || 'America/Chicago'
   const durationMinutes = options.durationMinutes ?? 90
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -189,6 +206,7 @@ export function buildTennisCalendarFeed(
     lines.push(
       'BEGIN:VEVENT',
       `UID:${escapeIcsText(event.id)}@tenaceiq.com`,
+      `DTSTAMP:${stamp}`,
       `SUMMARY:${escapeIcsText(event.title || 'TenAceIQ calendar item')}`,
       `DESCRIPTION:${escapeIcsText(event.description || '')}`,
       `LOCATION:${escapeIcsText(event.location || '')}`,
@@ -200,5 +218,5 @@ export function buildTennisCalendarFeed(
   }
 
   lines.push('END:VCALENDAR')
-  return `${lines.join('\r\n')}\r\n`
+  return `${lines.map(foldIcsLine).join('\r\n')}\r\n`
 }

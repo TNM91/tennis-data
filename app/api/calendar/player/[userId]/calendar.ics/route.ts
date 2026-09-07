@@ -19,11 +19,11 @@ import {
 } from '@/lib/player-competition-schedule'
 import { buildTennisCalendarFeed, type TennisCalendarEvent } from '@/lib/tiq-league-schedule-calendar'
 import { supabaseUrl } from '@/lib/supabase'
+import { loadAllPlayerCalendarItems } from '@/lib/player-calendar-storage'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-const playerCalendarSelect = 'id,player_user_id,title,scheduled_date,scheduled_time,location,kind,recurrence_rule,availability_status,created_at,updated_at'
 const coachStudentSelect = 'id,coach_user_id,player_user_id,player_id,player_name,identity_slug,level_label,player_email,player_phone,contact_preference,setup_status,status,notes,updated_at'
 const assignmentSelect = 'id,student_link_id,title,focus,due_date,status,assignment_json,updated_at'
 
@@ -70,7 +70,7 @@ function buildPlayerItemEvent(item: PlayerCalendarItem, request: Request): Tenni
     location: item.location,
     description: [`My calendar: ${item.kind}`, availabilityLine, recurrenceLine, item.time ? `Time: ${item.time}` : 'All day'].filter(Boolean).join('\n'),
     url: new URL('/mylab#my-calendar', request.url).toString(),
-    durationMinutes: item.time ? 60 : undefined,
+    durationMinutes: item.time ? (item.kind === 'match' ? 120 : 60) : undefined,
     recurrenceRule: item.recurrenceRule,
   }
 }
@@ -117,15 +117,7 @@ export async function GET(
       return calendarResponse('Player calendar not found.', 404)
     }
 
-    const { data: personalData, error: personalError } = await supabase
-      .from('player_calendar_items')
-      .select(playerCalendarSelect)
-      .eq('player_user_id', userId)
-      .order('scheduled_date', { ascending: true })
-      .order('scheduled_time', { ascending: true })
-      .limit(100)
-
-    if (personalError) throw personalError
+    const personalData = await loadAllPlayerCalendarItems(supabase, userId)
 
     const { data: linkData, error: linkError } = await supabase
       .from('coach_player_links')

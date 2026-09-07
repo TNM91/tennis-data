@@ -48,6 +48,8 @@ export function normalizeScheduleCalendarDate(value: unknown) {
 
 export function normalizeScheduleCalendarTime(value: unknown) {
   const text = cleanText(value)
+  // Postgres time columns serialize with seconds; calendar inputs use HH:mm.
+  if (/^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?$/.test(text)) return text.slice(0, 5)
   const twentyFourHour = /^(?:[01]\d|2[0-3]):[0-5]\d$/.exec(text)
   if (twentyFourHour) return text
 
