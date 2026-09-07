@@ -214,6 +214,7 @@ export async function POST(
       flight: row.flight || null,
       player_id: player.playerId,
       status: response.status === 'maybe' ? 'limited' : response.status,
+      updated_at: new Date().toISOString(),
       notes,
     }))
     await service

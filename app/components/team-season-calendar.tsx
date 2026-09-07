@@ -8,14 +8,16 @@ import styles from './team-season-calendar.module.css'
 import SeasonVenueLocation, {withVenueChoice,type CalendarVenueChoice} from './season-venue-locations'
 import { isStreetLocation } from '@/lib/venue-directory'
 import MatchCalendarSharing from './match-calendar-sharing'
+import SeasonKickoff from './season-kickoff'
 
-type Props = { team: string; matches: TeamSeasonMatch[]; userId: string; accessToken: string; importHref: string; incomplete?: boolean; loadError?: string; onRetry?: () => void }
+type Props = { team: string; matches: TeamSeasonMatch[]; userId: string; accessToken: string; importHref: string; incomplete?: boolean; loadError?: string; onRetry?: () => void; canStartSeason?: boolean }
 
-export default function TeamSeasonCalendar({ team, matches, userId, accessToken, importHref, incomplete = false, loadError = '', onRetry }: Props) {
+export default function TeamSeasonCalendar({ team, matches, userId, accessToken, importHref, incomplete = false, loadError = '', onRetry, canStartSeason = false }: Props) {
   const seasons = useMemo(() => buildTeamSeasonCalendars(team, matches, userId), [team, matches, userId])
   const [selectedKey, setSelectedKey] = useState('')
   const [excludedIds, setExcludedIds] = useState<string[]>([])
   const [open, setOpen] = useState(false)
+  const [kickoffOpen, setKickoffOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [progress, setProgress] = useState(0)
   const [message, setMessage] = useState('')
@@ -108,8 +110,17 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
     <section id="team-schedule" className={styles.card} aria-label="Team season calendar">
       <div className={styles.header}>
         <div><p className={styles.eyebrow}>Season calendar</p><h2>{team}</h2><p>{allItems.length ? season.label : 'Your team dates, in TiQ and on your phone.'}</p>{allItems.length ? <p className={styles.seasonCount}><strong>{allItems.length} {allMatchLabel}</strong> · {formatSeasonDateRange(allItems)}</p> : null}</div>
-        <button type="button" className={open ? styles.secondary : styles.primary} aria-expanded={open} aria-controls={optionsId} onClick={() => setOpen(!open)}>{open ? 'Hide calendar options' : 'Add season to calendar'}</button>
+        <div className={styles.selectionActions}>
+          {canStartSeason && accessToken ? <button type="button" className={styles.primary} aria-expanded={kickoffOpen} aria-controls={`${optionsId}-kickoff`} onClick={() => setKickoffOpen(!kickoffOpen)}>{kickoffOpen ? 'Hide season setup' : 'Start season'}</button> : null}
+          <button type="button" className={open ? styles.secondary : styles.primary} aria-expanded={open} aria-controls={optionsId} onClick={() => setOpen(!open)}>{open ? 'Hide calendar options' : 'Add season to calendar'}</button>
+        </div>
       </div>
+      {kickoffOpen && canStartSeason ? <div id={`${optionsId}-kickoff`} className={styles.options}>
+        {loadError || incomplete ? <p role="alert">Load the complete team schedule before starting the season. {loadError}</p> : !season ? <p>Add your team schedule first, then return here to invite your roster.</p> : <>
+          {seasons.length > 1 ? <label>Season to plan<select value={season.key} disabled={saving} onChange={event => { setSelectedKey(event.target.value); setExcludedIds([]); resetFeedback() }}>{seasons.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select></label> : null}
+          <SeasonKickoff key={`${userId}:${season.key}`} scope={{ team, league: season.matches[0]?.league_name || '', flight: season.matches[0]?.flight || '', seasonKey: season.key }} token={accessToken} onCalendar={() => { setOpen(true); window.requestAnimationFrame(() => document.getElementById(optionsId)?.scrollIntoView({ block: 'start' })) }} />
+        </>}
+      </div> : null}
       {open && loadError ? <div id={optionsId} className={styles.options}>
         <p role="alert">{loadError}</p>
         <p>You do not need to upload your schedule again. Retry to load the dates already saved in TiQ.</p>

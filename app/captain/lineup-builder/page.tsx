@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import { mergeSeasonLineupAnswers } from '@/lib/season-kickoff'
 import {
   useCallback,
   useEffect,
@@ -117,6 +118,8 @@ type PlayerRow = {
 }
 
 type AvailabilityRow = {
+  match_id?: string
+  responded_at?: string | null
   id: string
   match_date: string | null
   team_name: string | null
@@ -574,7 +577,7 @@ function formatProjectionPointDelta(value: number) {
 
 function availabilityRank(status: string | null | undefined) {
   const normalized = (status ?? '').trim().toLowerCase()
-  if (normalized === 'available' || normalized === 'yes' || normalized === 'in') return 0
+  if (normalized === 'available' || normalized === 'season-available' || normalized === 'yes' || normalized === 'in') return 0
   if (normalized === 'maybe' || normalized === 'limited') return 1
   if (normalized === 'unknown' || normalized === '') return 2
   if (normalized === 'unavailable' || normalized === 'no' || normalized === 'out') return 3
@@ -583,6 +586,7 @@ function availabilityRank(status: string | null | undefined) {
 
 function availabilityLabel(status: string | null | undefined) {
   const normalized = (status ?? '').trim().toLowerCase()
+  if (normalized === 'season-available') return 'Available for season'
   if (normalized === 'available' || normalized === 'yes' || normalized === 'in' || normalized === 'confirmed') return 'Confirmed'
   if (normalized === 'maybe' || normalized === 'limited') return 'Maybe'
   if (normalized === 'unavailable' || normalized === 'no' || normalized === 'out' || normalized === 'declined') return 'Out'
@@ -610,6 +614,9 @@ function getCourtAskSignal({
   }
   if (replyLabel === 'Out') {
     return { label: 'No · replace', detail: 'Reply received. Choose another player for this court.', tone: 'out' }
+  }
+  if (replyLabel === 'Available for season') {
+    return { label: 'Available · confirm selection', detail: 'They marked this date available for the season. Ask them to confirm the selected lineup, or record their Yes from a text or call.', tone: 'ready' }
   }
   if (needsPhone) {
     return { label: 'Mobile needed', detail: 'Add a mobile number to prepare this player’s private Ask.', tone: 'warning' }
@@ -2134,13 +2141,15 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   }, [savedScenarios, leagueName, flight, teamName])
 
   const availabilityForSelection = useMemo(() => {
-    return availability.filter((row) => {
+    return mergeSeasonLineupAnswers(availability.filter((row) => {
       const dateMatch = !matchDate || row.match_date === matchDate
       const teamMatch = !teamName || row.team_name === teamName
       const leagueMatch = !leagueName || row.league_name === leagueName
-      return dateMatch && teamMatch && leagueMatch
-    })
-  }, [availability, matchDate, teamName, leagueName])
+      const fixtureMatch = !row.match_id || row.match_id === selectedMatchId
+      const flightMatch = !flight || !row.flight || row.flight === flight
+      return dateMatch && teamMatch && leagueMatch && fixtureMatch && flightMatch
+    }))
+  }, [availability, matchDate, teamName, leagueName, flight, selectedMatchId])
 
   const availabilityMap = useMemo(() => {
     const map = new Map<string, { status: string | null; notes: string | null }>()
@@ -2640,6 +2649,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       player_id: playerId,
       status: 'available',
       notes: 'Confirmed by captain from Lineup Builder.',
+      responded_at: new Date().toISOString(),
     }
     setAvailability((current) => [
       ...current.filter((row) => !(row.match_date === matchDate && row.team_name === teamName && row.player_id === playerId)),
@@ -4769,7 +4779,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     const confirmed = players.filter((player) => player.label === 'Confirmed')
     const maybe = players.filter((player) => player.label === 'Maybe')
     const out = players.filter((player) => player.label === 'Out')
-    const waiting = players.filter((player) => player.label === 'No response')
+    const waiting = players.filter((player) => player.label === 'No response' || player.label === 'Available for season')
     return { players, confirmed, maybe, out, waiting }
   }, [builderPlayers, myPlayerPool, teamSlots])
   const finalLineupReady = teamLineupComplete

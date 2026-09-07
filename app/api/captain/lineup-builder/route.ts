@@ -4,6 +4,7 @@ import { cleanAvailabilityText, getCaptainAvailabilityServiceClient, isUuid } fr
 import { normalizeTeamName } from '@/lib/captain-formatters'
 import { normalizeCaptainRosterContactKey } from '@/lib/captain-roster-contacts'
 import { canManageTeamRoom, normalizeTeamRoomKey } from '@/lib/team-room'
+import { loadSeasonLineupAnswers } from '@/lib/season-kickoff-server'
 
 export const runtime = 'nodejs'
 export const maxDuration = 20
@@ -163,7 +164,7 @@ export async function GET(request: Request) {
     .limit(360)
   const availabilityPromise = service
     .from('lineup_availability')
-    .select('id,match_date,team_name,league_name,flight,player_id,status,notes')
+    .select('id,match_date,team_name,league_name,flight,player_id,status,notes,responded_at:updated_at')
     .eq('team_name', teamName)
     .order('match_date', { ascending: false })
     .limit(500)
@@ -309,6 +310,12 @@ export async function GET(request: Request) {
     rosterCount: rosterMembers.length,
     matchCount: matchesResult.data?.length ?? 0,
   })
+  let seasonAnswers
+  try {
+    seasonAnswers = await loadSeasonLineupAnswers(service, auth.userId, { team: teamName, league: leagueName, flight, seasonKey: '' }, matchesResult.data || [])
+  } catch {
+    return Response.json({ ok: false, message: 'Season availability could not be checked. Retry before choosing players.' }, { status: 503 })
+  }
   const payload = {
     ok: true,
     players: playersResult.data ?? [],
@@ -318,7 +325,7 @@ export async function GET(request: Request) {
     historicalLineMatches,
     historicalLineMatchPlayers: historicalLineMatchPlayersResult.data ?? [],
     rosterMembers,
-    availability: availabilityResult.data ?? [],
+    availability: [...(availabilityResult.data ?? []), ...seasonAnswers],
     captainRosterContacts: contactsResult.error ? [] : contactsResult.data ?? [],
     // Player Roster is the single source of contact data. Keeping the legacy
     // message-contact collection out of this path prevents a missing optional
@@ -381,8 +388,9 @@ export async function POST(request: Request) {
       player_id: playerId,
       status: 'available',
       notes: 'Confirmed by captain from Lineup Builder.',
+      updated_at: new Date().toISOString(),
     }, { onConflict: 'match_date,team_name,player_id' })
-    .select('id,match_date,team_name,league_name,flight,player_id,status,notes')
+    .select('id,match_date,team_name,league_name,flight,player_id,status,notes,responded_at:updated_at')
     .single()
   if (error) return Response.json({ ok: false, message: error.message || 'Availability could not be saved.' }, { status: 500 })
 

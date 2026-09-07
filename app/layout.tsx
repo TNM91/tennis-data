@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import JsonLd from '@/app/components/json-ld'
 import NavigationScrollManager from '@/app/components/navigation-scroll-manager'
+import SeasonPrivacyBoundary from '@/app/components/season-privacy-boundary'
 import { ThemeProvider } from '@/app/components/theme-provider'
 import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
 import { buildOrganizationJsonLd, buildWebSiteJsonLd } from '@/lib/structured-data'
@@ -144,7 +145,7 @@ export default function RootLayout({
         <JsonLd id="tenaceiq-website-jsonld" data={buildWebSiteJsonLd()} />
         <NavigationScrollManager />
         <ThemeProvider>{children}</ThemeProvider>
-        {VERCEL_OBSERVABILITY_ENABLED ? (
+        <SeasonPrivacyBoundary>{VERCEL_OBSERVABILITY_ENABLED ? (
           <>
             <Analytics />
             <SpeedInsights />
@@ -155,6 +156,7 @@ export default function RootLayout({
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789"
           crossOrigin="anonymous"
         />
+        </SeasonPrivacyBoundary>
       </body>
     </html>
   )

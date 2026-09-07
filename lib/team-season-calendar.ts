@@ -39,6 +39,7 @@ export function buildTeamSeasonCalendars(team: string, matches: TeamSeasonMatch[
   return [...groups.values()].sort((a, b) => b.year.localeCompare(a.year) || a.label.localeCompare(b.label)).map((group) => ({
     key: group.key,
     label: group.label,
+    matches: group.matches,
     items: buildTeamScheduleCalendarItems({
       teamName: team,
       leagueName: group.league,
