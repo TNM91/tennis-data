@@ -1,4 +1,5 @@
 import type { TiqLeagueScheduleItem } from '@/lib/tiq-league-schedule-service'
+import { resolveCalendarLocation } from './calendar-location'
 
 export type ScheduleCalendarDay = {
   date: string
@@ -209,7 +210,7 @@ export function buildTennisCalendarFeed(
       `DTSTAMP:${stamp}`,
       `SUMMARY:${escapeIcsText(event.title || 'TenAceIQ calendar item')}`,
       `DESCRIPTION:${escapeIcsText(event.description || '')}`,
-      `LOCATION:${escapeIcsText(event.location || '')}`,
+      `LOCATION:${escapeIcsText(resolveCalendarLocation(event.location))}`,
       `URL:${escapeIcsText(event.url || productUrl)}`,
       ...buildIcsDateLines(event.date, event.time || '', timeZone, event.durationMinutes ?? durationMinutes),
       ...(recurrenceRule ? [`RRULE:${recurrenceRule}`] : []),

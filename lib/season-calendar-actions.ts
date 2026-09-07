@@ -1,4 +1,5 @@
 import type { TeamScheduleCalendarItem } from './team-schedule-calendar'
+import { resolveCalendarLocation } from './calendar-location'
 
 export type SeasonCalendarDestination = 'tiq' | 'apple' | 'google'
 
@@ -50,6 +51,6 @@ export function googleMatchCalendarUrl(item: TeamScheduleCalendarItem, timeZone 
   end.setUTCMinutes(end.getUTCMinutes() + (item.time ? 120 : 1440))
   const endStamp = end.toISOString().replace(/[-:]/g, '').slice(0, item.time ? 15 : 8)
   const startStamp = item.time ? `${date}T${item.time.replace(':', '')}00` : date
-  const params = new URLSearchParams({ action: 'TEMPLATE', text: item.title, dates: `${startStamp}/${endStamp}`, ctz: timeZone, location: item.location, details: 'Team match from TenAceIQ. Adding this event does not confirm your availability. This one-time copy does not sync later schedule changes.' })
+  const params = new URLSearchParams({ action: 'TEMPLATE', text: item.title, dates: `${startStamp}/${endStamp}`, ctz: timeZone, location: resolveCalendarLocation(item.location), details: 'Team match from TenAceIQ. Adding this event does not confirm your availability. This one-time copy does not sync later schedule changes.' })
   return `https://calendar.google.com/calendar/render?${params}`
 }

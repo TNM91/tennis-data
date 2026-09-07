@@ -1,4 +1,5 @@
 import { isValidCalendarDate } from './calendar-date'
+import { resolveCalendarLocation } from './calendar-location'
 
 export type TeamScheduleCalendarMatch = {
   externalMatchId?: string
@@ -96,7 +97,7 @@ export function buildTeamScheduleCalendarItems(input: {
       title: `${teamName || 'My team'} vs ${opponentLabel}${league ? ` · ${league}` : ''}`,
       date,
       time: normalizeScheduleCalendarTime(match.matchTime),
-      location: cleanText(match.facility),
+      location: resolveCalendarLocation(cleanText(match.facility)),
       kind: 'match',
     })
   })
