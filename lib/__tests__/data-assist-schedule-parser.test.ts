@@ -2,6 +2,19 @@ import { describe, expect, it } from 'vitest'
 import { buildScheduleOcrDraftFromText } from '../data-assist-schedule-parser'
 
 describe('buildScheduleOcrDraftFromText', () => {
+  it('never applies remembered OCR fixture repairs to source export cells', () => {
+    const draft = buildScheduleOcrDraftFromText([
+      "Team: Meinert/The Other Guys (F)",
+      'League: 2027 Adult 18 & Over Fall',
+      'Flight: Men 4.5 (F)',
+      "Schedule row | 1011650666 | 9/13/2026 | 10:00 AM | Meinert/The Other Guys (F) | Hodge-Kamman (F) | New Club",
+      "Schedule row | 1011650869 | 1/10/2027 | 4:00 PM | O'Kelly's Aces | Meinert/The Other Guys (F) | Another Club",
+    ].join('\n'), [], 'tennislink_export')
+    expect(draft.teamName).toBe('Meinert/The Other Guys (F)')
+    expect(draft.matches[0]).toMatchObject({ externalMatchId: '1011650666', matchDate: '9/13/2026', matchTime: '10:00 AM', homeTeam: 'Meinert/The Other Guys (F)', awayTeam: 'Hodge-Kamman (F)', facility: 'New Club' })
+    expect(draft.matches[1]).toMatchObject({ externalMatchId: '1011650869', matchDate: '1/10/2027', homeTeam: "O'Kelly's Aces", awayTeam: 'Meinert/The Other Guys (F)' })
+  })
+
   it('parses structured TennisLink team schedule rows', () => {
     const draft = buildScheduleOcrDraftFromText(
       [

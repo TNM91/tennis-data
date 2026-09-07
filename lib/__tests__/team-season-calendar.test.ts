@@ -1,10 +1,36 @@
 import { describe, expect, it } from 'vitest'
-import { buildTeamSeasonCalendars, type TeamSeasonMatch } from '../team-season-calendar'
+import { buildTeamSeasonCalendars, formatSeasonDateRange, type TeamSeasonMatch } from '../team-season-calendar'
 import { buildTeamScheduleCalendarItems } from '../team-schedule-calendar'
+import { buildTennisCalendarFeed } from '../tiq-league-schedule-calendar'
 
 const fixture: TeamSeasonMatch = { id: 'canonical-1', external_match_id: '1011650666', home_team: 'Aces', away_team: 'Volleys', match_date: '2026-09-14', match_time: '6:00 PM', facility: 'Center Court', league_name: 'Fall', flight: '4.0', match_type: null }
 
 describe('team season calendar', () => {
+  it('keeps all 14 matches in a named Fall season spanning two calendar years', () => {
+    const rows = Array.from({ length: 14 }, (_, i) => ({ ...fixture, id: `fall-${i}`, external_match_id: `fall-${i}`, league_name: '2027 Adult 18 & Over Fall', match_date: i < 12 ? `2026-${i < 6 ? '09' : '12'}-${String(i + 1).padStart(2, '0')}` : `2027-01-${i === 12 ? '03' : '10'}` }))
+    const seasons = buildTeamSeasonCalendars('Aces', rows, 'owner')
+    expect(seasons).toHaveLength(1)
+    expect(seasons[0].label).toBe('2027 Adult 18 & Over Fall · 4.0')
+    expect(seasons[0].items).toHaveLength(14)
+    expect(formatSeasonDateRange(seasons[0].items)).toBe('Sep 1, 2026 – Jan 10, 2027')
+    expect(buildTennisCalendarFeed(seasons[0].items).match(/BEGIN:VEVENT/g)).toHaveLength(14)
+    expect(seasons[0].items.map((item) => item.id)).toEqual(rows.map((row) => buildTeamSeasonCalendars('Aces', [row], 'owner')[0].items[0].id))
+  })
+
+  it('keeps different named seasons and flights separate even when their dates overlap', () => {
+    const rows = [
+      { ...fixture, league_name: '2027 Fall' },
+      { ...fixture, id: '2', external_match_id: '2', league_name: '2026 Fall' },
+      { ...fixture, id: '3', external_match_id: '3', league_name: '2027 Fall', flight: '4.5' },
+    ]
+    expect(buildTeamSeasonCalendars('Aces', rows, 'owner').map((season) => season.items.length)).toEqual([1, 1, 1])
+  })
+
+  it('formats calendar ranges without changing dates or inventing missing dates', () => {
+    expect(formatSeasonDateRange([])).toBe('')
+    expect(formatSeasonDateRange([{ date: 'invalid' }, { date: '2027-01-03' }])).toBe('Jan 3, 2027')
+  })
+
   it('keeps saved identities stable after reordering and a schedule time correction', () => {
     const later = { ...fixture, id: 'later', external_match_id: 'later', match_date: '2026-09-21' }
     const before = buildTeamSeasonCalendars('Aces', [fixture, later], 'owner')[0].items

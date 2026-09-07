@@ -25,9 +25,14 @@ export function buildTeamSeasonCalendars(team: string, matches: TeamSeasonMatch[
     const parsed = new Date(`${date}T12:00:00Z`)
     if (!date || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) continue
     const year = date.slice(0, 4)
-    const league = match.league_name || ''
-    const key = JSON.stringify([year, league, match.flight || ''])
-    const group = groups.get(key) || { key, year, league, label: [year, league, match.flight].filter(Boolean).join(' · '), matches: [] }
+    const league = (match.league_name || '').trim()
+    // A named league season is not a calendar year: Fall 2027 can start in
+    // September 2026. Keep the complete season together across New Year's Day.
+    // Without an explicit season year, retain year isolation for reused names.
+    const leagueYear = /\b(20\d{2})\b/.exec(league)?.[1]
+    const seasonYear = leagueYear || year
+    const key = JSON.stringify([seasonYear, league, match.flight || ''])
+    const group = groups.get(key) || { key, year: seasonYear, league, label: [leagueYear ? '' : year, league, match.flight].filter(Boolean).join(' · '), matches: [] }
     group.matches.push(match)
     groups.set(key, group)
   }
@@ -48,4 +53,11 @@ export function buildTeamSeasonCalendars(team: string, matches: TeamSeasonMatch[
       })),
     }).sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)),
   }))
+}
+
+export function formatSeasonDateRange(items: Array<{ date: string }>) {
+  const dates = items.map((item) => normalizeScheduleCalendarDate(item.date)).filter(Boolean).sort()
+  if (!dates.length) return ''
+  const format = (date: string) => new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`))
+  return dates[0] === dates.at(-1) ? format(dates[0]) : `${format(dates[0])} – ${format(dates.at(-1)!)}`
 }

@@ -2941,7 +2941,7 @@ function MyLabPageInner() {
         time: item.time,
         dateLabel: formatPersonalCalendarItemDate(item),
         detail: item.location || 'Personal calendar match',
-        href: '/mylab#player-workshop',
+        href: '/mylab#my-calendar',
         cta: 'Open calendar',
         readiness: item.availabilityStatus === 'unavailable' ? 'Marked unavailable' : 'Personal calendar',
       })),
@@ -3660,6 +3660,35 @@ function MyLabPageInner() {
         nextCourtEvent={nextCourtEvent}
       />
 
+      <details className="myLabDetailsSection" style={labDrawerDetailsStyle}>
+        <summary style={labDrawerSummaryStyle}>
+          <span style={labDrawerSummaryCopyStyle}>
+            <strong>My Calendar</strong>
+            <em style={labDrawerSummaryHintStyle}>Saved matches, Apple, Google, and your tennis week.</em>
+          </span>
+          <span style={optionalContextCountStyle}>Open</span>
+        </summary>
+        <div className="myLabDetailsBody" style={labDrawerContentStyle}>
+          <MyLabCalendarPanel
+            personalItems={personalCalendarItems}
+            sharedCoachEvents={sharedCoachCalendarEvents}
+            competitionItems={competitionCalendarItems}
+            syncLabel={personalCalendarSyncLabel}
+            calendarFeedUrl={personalCalendarFeedUrl}
+            calendarFeedActive={personalCalendarFeedStatus.active}
+            calendarFeedLastUsedAt={personalCalendarFeedStatus.lastUsedAt}
+            coachFeedActiveCount={activeCoachCalendarFeeds.length}
+            coachFeedLastUsedAt={latestCoachCalendarFeedUse}
+            calendarFeedLoading={personalCalendarFeedLoading}
+            onCreateCalendarFeed={createPersonalCalendarFeedLink}
+            onRevokeCalendarFeed={revokePersonalCalendarFeedLink}
+            onAddPersonalItem={addPersonalCalendarItem}
+            onRemovePersonalItem={removePersonalCalendarItem}
+            onRespondToCompetition={respondToCompetitionSchedule}
+          />
+        </div>
+      </details>
+
       <PlayerWorkshopShell
         id="player-workshop"
         style={collapseLegacyWorkspace ? mobileMyLabExtrasDetailsStyle : profileLinkSectionStyle}
@@ -3889,7 +3918,7 @@ function MyLabPageInner() {
                 <summary style={labDrawerSummaryStyle}>
                   <span style={labDrawerSummaryCopyStyle}>
                     <strong>More tools</strong>
-                    <em style={labDrawerSummaryHintStyle}>Progress, calendar, coach.</em>
+                    <em style={labDrawerSummaryHintStyle}>Progress and coach.</em>
                   </span>
                   <span style={optionalContextCountStyle}>Open</span>
                 </summary>
@@ -3907,24 +3936,6 @@ function MyLabPageInner() {
                     syncState={levelUpProofSyncState}
                     playerLabel={linkedPlayer?.name || profileLink?.linked_player_name || ''}
                     nextMoveLabel={nextMoveCta}
-                  />
-
-                  <MyLabCalendarPanel
-                    personalItems={personalCalendarItems}
-                    sharedCoachEvents={sharedCoachCalendarEvents}
-                    competitionItems={competitionCalendarItems}
-                    syncLabel={personalCalendarSyncLabel}
-                    calendarFeedUrl={personalCalendarFeedUrl}
-                    calendarFeedActive={personalCalendarFeedStatus.active}
-                    calendarFeedLastUsedAt={personalCalendarFeedStatus.lastUsedAt}
-                    coachFeedActiveCount={activeCoachCalendarFeeds.length}
-                    coachFeedLastUsedAt={latestCoachCalendarFeedUse}
-                    calendarFeedLoading={personalCalendarFeedLoading}
-                    onCreateCalendarFeed={createPersonalCalendarFeedLink}
-                    onRevokeCalendarFeed={revokePersonalCalendarFeedLink}
-                    onAddPersonalItem={addPersonalCalendarItem}
-                    onRemovePersonalItem={removePersonalCalendarItem}
-                    onRespondToCompetition={respondToCompetitionSchedule}
                   />
 
                   <PlayerCoachAssignmentsPanel
@@ -3957,24 +3968,6 @@ function MyLabPageInner() {
                 syncState={levelUpProofSyncState}
                 playerLabel={linkedPlayer?.name || profileLink?.linked_player_name || ''}
                 nextMoveLabel={nextMoveCta}
-              />
-
-              <MyLabCalendarPanel
-                personalItems={personalCalendarItems}
-                sharedCoachEvents={sharedCoachCalendarEvents}
-                competitionItems={competitionCalendarItems}
-                syncLabel={personalCalendarSyncLabel}
-                calendarFeedUrl={personalCalendarFeedUrl}
-                calendarFeedActive={personalCalendarFeedStatus.active}
-                calendarFeedLastUsedAt={personalCalendarFeedStatus.lastUsedAt}
-                coachFeedActiveCount={activeCoachCalendarFeeds.length}
-                coachFeedLastUsedAt={latestCoachCalendarFeedUse}
-                calendarFeedLoading={personalCalendarFeedLoading}
-                onCreateCalendarFeed={createPersonalCalendarFeedLink}
-                onRevokeCalendarFeed={revokePersonalCalendarFeedLink}
-                onAddPersonalItem={addPersonalCalendarItem}
-                onRemovePersonalItem={removePersonalCalendarItem}
-                onRespondToCompetition={respondToCompetitionSchedule}
               />
 
               <PlayerCoachAssignmentsPanel
@@ -5699,6 +5692,29 @@ function MyLabCalendarPanel({
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const calendarPanelRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    let frame: number | undefined
+    const revealCalendar = () => {
+      if (window.location.hash !== '#my-calendar') return
+      const panel = calendarPanelRef.current
+      if (!panel) return
+      for (let parent = panel.parentElement; parent; parent = parent.parentElement) {
+        if (parent instanceof HTMLDetailsElement) parent.open = true
+      }
+      if (frame !== undefined) window.cancelAnimationFrame(frame)
+      frame = window.requestAnimationFrame(() => {
+        panel.scrollIntoView({ block: 'start' })
+        panel.focus({ preventScroll: true })
+      })
+    }
+    revealCalendar()
+    window.addEventListener('hashchange', revealCalendar)
+    return () => {
+      if (frame !== undefined) window.cancelAnimationFrame(frame)
+      window.removeEventListener('hashchange', revealCalendar)
+    }
+  }, [])
   const [responseSavingId, setResponseSavingId] = useState('')
   const conflictKeys = useMemo(() => {
     const counts = new Map<string, number>()
@@ -5826,7 +5842,7 @@ function MyLabCalendarPanel({
   }
 
   return (
-    <section id="my-calendar" style={myCalendarPanelStyle}>
+    <section id="my-calendar" ref={calendarPanelRef} tabIndex={-1} style={{ ...myCalendarPanelStyle, scrollMarginTop: 24 }}>
       <div style={developmentPathHeaderStyle}>
         <div style={sectionTitleClusterStyle}>
           <TiqFeatureIcon name="schedule" size="md" variant="surface" />
