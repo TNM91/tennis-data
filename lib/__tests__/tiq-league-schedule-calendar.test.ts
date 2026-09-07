@@ -26,6 +26,13 @@ function scheduleItem(overrides: Partial<TiqLeagueScheduleItem>): TiqLeagueSched
 }
 
 describe('buildScheduleCalendarDays', () => {
+  it('includes required event timestamps and folds long UTF-8 lines losslessly', () => {
+    const title = 'Équipe 🎾 '.repeat(24)
+    const feed = buildTennisCalendarFeed([{ id: 'long-name', title, date: '2026-09-14', time: '18:00' }])
+    expect(feed).toMatch(/DTSTAMP:\d{8}T\d{6}Z\r\n/)
+    expect(feed.split('\r\n').every((line) => new TextEncoder().encode(line).length <= 75)).toBe(true)
+    expect(feed.replace(/\r\n[ \t]/g, '')).toContain(`SUMMARY:${title}`)
+  })
   it('groups scheduled matches by date in calendar order', () => {
     const days = buildScheduleCalendarDays([
       scheduleItem({ id: 'late', scheduledDate: '2026-02-08' }),
@@ -79,7 +86,7 @@ describe('buildScheduleCalendarDays', () => {
     expect(feed).toContain('UID:scheduled@tenaceiq.com')
     expect(feed).toContain('SUMMARY:Alice\\, A vs Bob\\; B')
     expect(feed).toContain('LOCATION:Court 1')
-    expect(feed).toContain('DESCRIPTION:Individual league match\\nBring balls\\nUse indoor courts\\nStatus: confirmed')
+    expect(feed.replace(/\r\n[ \t]/g, '')).toContain('DESCRIPTION:Individual league match\\nBring balls\\nUse indoor courts\\nStatus: confirmed')
     expect(feed).toContain('DTSTART;TZID=America/New_York:20260201T090000')
     expect(feed).toContain('DTEND;TZID=America/New_York:20260201T110000')
     expect(feed).toContain('URL:https://tenaceiq.com/compete/schedule')

@@ -54,18 +54,9 @@ export async function POST(request: Request) {
   const tokenHash = hashCalendarFeedToken(token)
   const now = new Date().toISOString()
 
-  const { error: revokeError } = await auth.supabase
-    .from('calendar_feed_tokens')
-    .update({ status: 'revoked', updated_at: now })
-    .eq('scope_type', 'player_calendar')
-    .eq('scope_id', auth.userId)
-    .eq('owner_user_id', auth.userId)
-    .eq('status', 'active')
-
-  if (revokeError) {
-    return apiServerError('Could not refresh personal calendar link', revokeError, 'Your calendar link could not be refreshed.')
-  }
-
+  // Each device can keep its own subscription. Creating a link must never
+  // invalidate one already installed in Apple/Google (including on retries).
+  // Explicit DELETE below remains the owner's way to revoke all links.
   const { error: insertError } = await auth.supabase
     .from('calendar_feed_tokens')
     .insert({
@@ -85,7 +76,7 @@ export async function POST(request: Request) {
   return Response.json({
     ok: true,
     calendarUrl: buildPlayerCalendarUrl(request, auth.userId, token),
-  })
+  }, { headers: { 'Cache-Control': 'no-store' } })
 }
 
 export async function DELETE(request: Request) {

@@ -113,13 +113,9 @@ describe('player personal calendar link route', () => {
       status: 'active',
     })
     expect(insertedCalendarToken).not.toHaveProperty('token', 'player-calendar-token')
-    expect(revokedCalendarTokenPayloads[0]).toMatchObject({ status: 'revoked' })
-    expect(revokedCalendarTokenFilters.slice(-4)).toEqual([
-      ['scope_type', 'player_calendar'],
-      ['scope_id', 'player-1'],
-      ['owner_user_id', 'player-1'],
-      ['status', 'active'],
-    ])
+    expect(revokedCalendarTokenPayloads).toEqual([])
+    expect(revokedCalendarTokenFilters).toEqual([])
+    expect(response.headers.get('Cache-Control')).toBe('no-store')
   })
 
   it('revokes active player-owned My Calendar feeds', async () => {

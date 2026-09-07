@@ -5767,8 +5767,8 @@ function MyLabCalendarPanel({
   const feedStatusLabel = calendarFeedUrl
     ? 'New feed link ready.'
     : calendarFeedActive
-      ? `Subscribed${calendarFeedLastUsedAt ? `, calendar app last fetched ${safeDate(calendarFeedLastUsedAt)}` : '. Create a new link to copy it again.'}`
-      : 'Not subscribed yet.'
+      ? `Calendar link active${calendarFeedLastUsedAt ? `, calendar app last fetched ${safeDate(calendarFeedLastUsedAt)}` : '. Finish adding it in your calendar app.'}`
+      : 'No calendar link created yet.'
 
   const createFeedLink = async () => {
     setMessage('')
@@ -5845,7 +5845,7 @@ function MyLabCalendarPanel({
             disabled={calendarFeedLoading}
             style={coachCheckInButtonStyle}
           >
-            {calendarFeedLoading ? 'Creating' : calendarFeedUrl || calendarFeedActive ? 'Replace link' : 'Subscribe calendar'}
+            {calendarFeedLoading ? 'Creating' : calendarFeedUrl || calendarFeedActive ? 'Create another link' : 'Subscribe calendar'}
           </button>
           {calendarFeedUrl ? (
             <a href={calendarFeedUrl} style={coachCheckInGhostLinkStyle}>
@@ -5864,7 +5864,7 @@ function MyLabCalendarPanel({
               disabled={calendarFeedLoading}
               style={coachCheckInGhostButtonStyle}
             >
-              Revoke feed
+              Disconnect all calendar links
             </button>
           ) : null}
           <button type="button" onClick={() => setHelpOpen((current) => !current)} style={coachCheckInGhostButtonStyle}>
@@ -5882,7 +5882,7 @@ function MyLabCalendarPanel({
             </div>
             <div style={calendarHelpItemStyle}>
               <strong>Google Calendar</strong>
-              <span>Open the feed, copy the URL, then add it under Other calendars by URL.</span>
+              <span>On a computer, open Google Calendar, choose Other calendars → From URL, and paste your private feed link. New links keep existing subscriptions working.</span>
             </div>
             <div style={calendarHelpItemStyle}>
               <strong>Outlook</strong>
@@ -7112,8 +7112,7 @@ function toWebcalUrl(value: string) {
   try {
     const url = new URL(value)
     if (url.protocol === 'https:' || url.protocol === 'http:') {
-      url.protocol = 'webcal:'
-      return url.toString()
+      return url.toString().replace(/^https?:/, 'webcal:')
     }
   } catch {
     return value

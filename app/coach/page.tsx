@@ -4999,8 +4999,7 @@ function toWebcalUrl(value: string) {
   try {
     const url = new URL(value)
     if (url.protocol === 'https:' || url.protocol === 'http:') {
-      url.protocol = 'webcal:'
-      return url.toString()
+      return url.toString().replace(/^https?:/, 'webcal:')
     }
   } catch {
     return value

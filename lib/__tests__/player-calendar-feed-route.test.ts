@@ -37,6 +37,7 @@ vi.mock('@supabase/supabase-js', () => ({
 
       if (table === 'player_calendar_items') {
         return {
+          range() { return this },
           select() {
             return this
           },

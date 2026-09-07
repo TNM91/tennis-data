@@ -7,6 +7,7 @@ import {
   type PlayerCalendarItemRow,
 } from '@/lib/player-calendar-items'
 import { loadPlayerCompetitionSchedule } from '@/lib/player-competition-schedule'
+import { loadAllPlayerCalendarItems } from '@/lib/player-calendar-storage'
 
 export const runtime = 'nodejs'
 
@@ -26,13 +27,9 @@ export async function GET(request: Request) {
   if (!auth.ok) return auth.response
 
   const [personalResult, competitionResult] = await Promise.all([
-    auth.supabase
-      .from('player_calendar_items')
-      .select(calendarItemSelect)
-      .eq('player_user_id', auth.userId)
-      .order('scheduled_date', { ascending: true })
-      .order('scheduled_time', { ascending: true })
-      .limit(100),
+    loadAllPlayerCalendarItems(auth.supabase, auth.userId)
+      .then((data) => ({ data, error: null }))
+      .catch((error: unknown) => ({ data: [], error })),
     loadPlayerCompetitionSchedule(auth.supabase, auth.userId)
       .then((items) => ({ items, error: null }))
       .catch((error: unknown) => ({
@@ -42,7 +39,7 @@ export async function GET(request: Request) {
   ])
 
   if (personalResult.error) {
-    return Response.json({ ok: false, message: personalResult.error.message }, { status: 500 })
+    return apiServerError('Could not load player calendar', personalResult.error, 'Your calendar could not be loaded completely. Please retry.')
   }
 
   return Response.json({
