@@ -29,4 +29,15 @@
 .saveBar { position: sticky; bottom: 12px; z-index: 2; padding: 12px; border: 1px solid #517642; background: #10251f; border-radius: 14px; display: grid; gap: 8px; box-shadow: 0 4px 24px #0005; }
 .saveBar p { margin: 0; font-size: 13px; color: #e0efd5; }
 .input { box-sizing: border-box; width: 100%; min-width: 0; padding: 12px; background: #0b192b; border: 1px solid #446075; border-radius: 10px; color: #fff; font-size: 16px; }
+.viewNav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.viewNav > * { min-width: 0; overflow-wrap: break-word; }
+.panel button[aria-pressed=true] { background: #29412c; border-color: #b6ea4c; color: #efffd1; }
+.panel .matchSummary { display: grid; gap: 6px; line-height: 1.45; }
+.counts { font-size: 14px; font-weight: 600; color: #e0efd5; }
+.disclosure { color: #b6ea4c; font-size: 13px; }
+.answerRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding-block: 6px; border-bottom: 1px solid #334c60; line-height: 1.4; font-size: 14px; }
+.answerRow > * { overflow-wrap: break-word; }
+.embedded { min-width: 0; display: grid; gap: 16px; }
+.embedded > .panel { border: 0; background: transparent; padding: 0; }
+@media (max-width: 480px) { .viewNav { grid-template-columns: repeat(2, minmax(0, 1fr)); } .viewNav > :last-child { grid-column: 1 / -1; } }
 @media (max-width: 480px) { .panel { padding: 14px; } .row { align-items: stretch; } .row > button { width: 100%; } }

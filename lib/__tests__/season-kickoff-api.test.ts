@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-const mocked = vi.hoisted(() => ({ auth: vi.fn(), authorize: vi.fn(), fixtures: vi.fn(), roster: vi.fn(), invites: vi.fn(), replies: vi.fn(), recipient: vi.fn(), from: vi.fn(), rpc: vi.fn() }))
+const mocked = vi.hoisted(() => ({ auth: vi.fn(), authorize: vi.fn(), fixtures: vi.fn(), roster: vi.fn(), invites: vi.fn(), replies: vi.fn(), recipient: vi.fn(), self: vi.fn(), from: vi.fn(), rpc: vi.fn() }))
 vi.mock('@/lib/captain-api-auth', () => ({ getCaptainApiAuth: mocked.auth }))
 vi.mock('@/lib/captain-availability-request-server', () => ({ getCaptainAvailabilityServiceClient: () => ({ from: mocked.from, rpc: mocked.rpc }), isUuid: (s: string) => /^[a-f0-9-]{36}$/.test(s) }))
 vi.mock('@/lib/season-kickoff-server', () => ({ seasonPrivateHeaders: { 'Cache-Control': 'private, no-store' }, seasonToday: () => '2026-09-07',
   readSeasonScope: () => ({ team: 'Aces', league: '2027 Fall', flight: '4.0', seasonKey: 'season' }), authorizeSeason: mocked.authorize,
-  loadSeasonFixtures: mocked.fixtures, loadSeasonRoster: mocked.roster, loadSeasonInvites: mocked.invites, loadSeasonResponses: mocked.replies, loadSeasonRecipient: mocked.recipient }))
+  loadSeasonFixtures: mocked.fixtures, loadSeasonRoster: mocked.roster, loadSeasonInvites: mocked.invites, loadSeasonResponses: mocked.replies, loadSeasonRecipient: mocked.recipient, loadSeasonSelf: mocked.self }))
 import { GET as captainGet, POST as captainPost } from '@/app/api/captain/season-kickoff/route'
 import { GET as playerGet, POST as playerPost } from '@/app/api/season-availability/[token]/route'
 import { GET as calendarGet } from '@/app/api/season-availability/[token]/calendar.ics/route'
@@ -18,10 +18,26 @@ beforeEach(() => {
   mocked.auth.mockResolvedValue({ ok: true, userId: 'captain' }); mocked.authorize.mockResolvedValue(true)
   mocked.fixtures.mockResolvedValue([match]); mocked.roster.mockResolvedValue([{ key: 'p1', playerId: 'p1', name: 'Jordan' }])
   mocked.invites.mockResolvedValue([]); mocked.replies.mockResolvedValue([])
+  mocked.self.mockResolvedValue({ key: 'p1', playerId: 'p1', name: 'Jordan' })
   mocked.recipient.mockResolvedValue({ playerName: 'Jordan', matches: [match], replies: [], today: '2026-09-07' })
   mocked.rpc.mockResolvedValue({ data: 1, error: null })
 })
 describe('captain season endpoints', () => {
+  it('prepares only the authenticated captain’s own roster identity for self entry', async () => {
+    const upsert = vi.fn().mockResolvedValue({ error: null })
+    const query: Record<string, unknown> = {}
+    for (const name of ['update', 'eq', 'in', 'is']) query[name] = vi.fn(() => query)
+    query.then = (resolve: (value: unknown) => void) => resolve({ error: null })
+    mocked.from.mockReturnValue({ ...query, upsert })
+    expect((await captainPost(request({ action: 'self', playerKeys: ['victim'] }))).status).toBe(200)
+    expect(upsert.mock.calls[0][0]).toEqual([expect.objectContaining({ roster_key: 'p1', player_id: 'p1', player_name: 'Jordan' })])
+    expect(mocked.self).toHaveBeenCalledWith(expect.anything(), 'captain', expect.any(Array))
+  })
+  it('does not guess a personal roster identity from a name or posted player key', async () => {
+    mocked.self.mockResolvedValue(null)
+    expect((await captainPost(request({ action: 'self', playerKeys: ['p1'] }))).status).toBe(409)
+    expect(mocked.from).not.toHaveBeenCalled()
+  })
   it('requires authentication before accessing private data', async () => {
     mocked.auth.mockResolvedValue({ ok: false, response: new Response(null, { status: 401 }) })
     expect((await captainGet(new Request('https://example.test'))).status).toBe(401)

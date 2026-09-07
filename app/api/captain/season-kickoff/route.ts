@@ -1,6 +1,6 @@
 import { getCaptainApiAuth } from '@/lib/captain-api-auth'
 import { getCaptainAvailabilityServiceClient, isUuid } from '@/lib/captain-availability-request-server'
-import { authorizeSeason, loadSeasonFixtures, loadSeasonInvites, loadSeasonResponses, loadSeasonRoster, readSeasonScope, seasonPrivateHeaders, seasonToday } from '@/lib/season-kickoff-server'
+import { authorizeSeason, loadSeasonFixtures, loadSeasonInvites, loadSeasonResponses, loadSeasonRoster, loadSeasonSelf, readSeasonScope, seasonPrivateHeaders, seasonToday } from '@/lib/season-kickoff-server'
 import { seasonReadiness } from '@/lib/season-kickoff'
 import { randomUUID } from 'node:crypto'
 
@@ -15,8 +15,14 @@ async function handle(request: Request) {
   if (!await authorizeSeason(service, auth.userId, scope)) return json({ message: 'Link your captain or co-captain role for this team and season first.' }, 403)
   const [allMatches, roster] = await Promise.all([loadSeasonFixtures(service, scope), loadSeasonRoster(service, scope)])
   const matches = allMatches.filter(match => (match.match_date || '') >= seasonToday())
+  const self = await loadSeasonSelf(service, auth.userId, roster)
   if (request.method === 'POST') {
-    const body = await request.json() as { playerKeys?: unknown }
+    const body = await request.json() as { playerKeys?: unknown; action?: unknown }
+    if (body.action === 'self') {
+      if (!self) return json({ message: 'Link your own player record in Profile and make sure it is on this team roster.' }, 409)
+      // Never use a submitted player ID or a name guess for "my availability".
+      body.playerKeys = [self.key]
+    }
     if (!Array.isArray(body.playerKeys) || !body.playerKeys.length || body.playerKeys.length > 60 || !matches.length) return json({ message: 'Choose up to 60 roster players and a season with upcoming matches.' }, 400)
     const players = roster.filter(player => body.playerKeys instanceof Array && body.playerKeys.includes(player.key))
     if (players.length !== new Set(body.playerKeys).size) return json({ message: 'Your roster changed. Reload before preparing invitations.' }, 409)
@@ -42,7 +48,7 @@ async function handle(request: Request) {
   }
   const invites = await loadSeasonInvites(service, scope)
   const replies = await loadSeasonResponses(service, invites.map(invite => invite.id))
-  return json({ ok: true, matches, roster, invites, replies, readiness: seasonReadiness(matches, invites, replies) })
+  return json({ ok: true, matches, roster, invites, replies, self, readiness: seasonReadiness(matches, invites, replies) })
 }
 async function safely(request: Request) {
   try { return await handle(request) }

@@ -10,7 +10,7 @@ import styles from '@/app/components/season-kickoff.module.css'
 
 type Payload = { scope: SeasonScope; playerName: string; matches: TeamSeasonMatch[]; replies: SeasonReply[]; today: string; calendarToken: string }
 const labels: Record<SeasonReplyStatus, string> = { available: 'Available', maybe: 'Not sure', unavailable: 'Unavailable' }
-export default function SeasonAvailabilityClient() {
+export default function SeasonAvailabilityClient({ responseToken, embedded = false, onSaved, onDirtyChange, onBusyChange }: { responseToken?: string; embedded?: boolean; onSaved?: () => void; onDirtyChange?: (dirty: boolean) => void; onBusyChange?: (busy: boolean) => void } = {}) {
   const { session, userId } = useAuth()
   const [token, setToken] = useState('')
   const [data, setData] = useState<Payload | null>(null)
@@ -27,8 +27,10 @@ export default function SeasonAvailabilityClient() {
   useEffect(() => {
     // The secret stays out of page requests/referrers. API calls are private
     // and return only this player's answers, never the rest of the roster.
-    setToken(window.location.hash.slice(1)); setOrigin(window.location.origin)
-  }, [])
+    setToken(responseToken || window.location.hash.slice(1)); setOrigin(window.location.origin)
+  }, [responseToken])
+  useEffect(() => { onDirtyChange?.(dirty.length > 0) }, [dirty.length, onDirtyChange])
+  useEffect(() => { onBusyChange?.(busy); return () => onBusyChange?.(false) }, [busy, onBusyChange])
   const load = useCallback(async () => {
     if (!token) return
     const run = ++loadingGeneration.current
@@ -64,7 +66,8 @@ export default function SeasonAvailabilityClient() {
       const response = await fetch(`/api/season-availability/${encodeURIComponent(token)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responses }), signal: AbortSignal.timeout(30000) })
       const result = await response.json()
       if (!response.ok || result.saved !== responses.length) throw new Error(result.message || 'Not all answers were saved. Please retry.')
-      setDirty([]); setMessage(`${result.saved} match ${result.saved === 1 ? 'answer' : 'answers'} saved for your captain. Return to this link any time to update them.`)
+      setDirty([]); setMessage(`${result.saved} match ${result.saved === 1 ? 'answer' : 'answers'} saved.${embedded ? ' Your team overview is being refreshed.' : ' Your captain can see your answers. Return to this link any time to update them.'}`)
+      onSaved?.()
     } catch (cause) { setError(cause instanceof Error && !['TimeoutError', 'AbortError'].includes(cause.name) ? cause.message : 'Saving took too long. Retry safely; your answers will not be duplicated.') }
     finally { setBusy(false); lock.current = false }
   }
@@ -75,13 +78,14 @@ export default function SeasonAvailabilityClient() {
     catch (cause) { setCalendarMessage(cause instanceof Error ? cause.message : 'Calendar save failed. Please retry.') }
     finally { setBusy(false); lock.current = false }
   }
-  return <main className={styles.page}>
-    <section className={styles.panel}><p>TenAceIQ · Season availability</p><h1>Plan your season</h1>
-      {data ? <><strong>{data.scope.team}</strong><p>{data.scope.league} · {data.scope.flight}</p><h2>Hi {data.playerName}</h2><p>Mark the dates you can play. Your captain will choose the final lineup separately. No login needed to reply.</p></> : <p>{busy ? 'Loading your season…' : 'Open the personal season link your captain sent you.'}</p>}
+  const Container = embedded ? 'div' : 'main'
+  return <Container className={embedded ? styles.embedded : styles.page}>
+    <section className={styles.panel}>{!embedded ? <><p>TenAceIQ · Season availability</p><h1>Plan your season</h1></> : null}
+      {data ? embedded ? <><h2>Your answers · {data.playerName}</h2><p>Choose Yes, Not sure, or No, then save. You can update your answers any time.</p></> : <><strong>{data.scope.team}</strong><p>{data.scope.league} · {data.scope.flight}</p><h2>Hi {data.playerName}</h2><p>Mark the dates you can play. Your captain will choose the final lineup separately. No login needed to reply.</p></> : <p>{busy ? 'Loading your season…' : 'Open the personal season link your captain sent you.'}</p>}
       {error ? <div role="alert" className={`${styles.feedback} ${styles.error}`}><p>{error}</p><button className={styles.secondary} disabled={busy} onClick={() => { if (!dirty.length || window.confirm('Reload the schedule? Unsaved changes will be discarded.')) void load() }}>Reload schedule</button></div> : null}
     </section>
     {data ? <>
-      <section className={styles.panel} aria-label="Season calendar"><h2>Keep the dates handy</h2><p>Add {items.length} season matches. Adding dates does not answer your availability.</p>
+      {!embedded ? <section className={styles.panel} aria-label="Season calendar"><h2>Keep the dates handy</h2><p>Add {items.length} season matches. Adding dates does not answer your availability.</p>
         <div className={styles.actions}><button className={styles.secondary} onClick={() => setCalendar('apple')}>Apple Calendar</button><button className={styles.secondary} onClick={() => setCalendar('google')}>Google Calendar</button>
           {session ? <button className={styles.secondary} disabled={busy} onClick={() => void saveCalendar()}>Save to my TiQ calendar</button> : <Link className={styles.secondary} href="/login" target="_blank" rel="noreferrer">Sign in to save to TiQ</Link>}</div>
         {!session ? <p>Sign-in opens a new tab. Return here afterward to save these dates to your own TiQ calendar.</p> : null}
@@ -90,7 +94,7 @@ export default function SeasonAvailabilityClient() {
           <details><summary>On your phone? Add individual matches</summary><ul className={styles.list}>{items.map(item => <li key={item.id}><a className={styles.secondary} href={googleMatchCalendarUrl(item)} target="_blank" rel="noreferrer">{item.date} · {item.title}</a></li>)}</ul><p>These are one-time copies. Confirm Save in Google. Do not add them individually if you already subscribed.</p></details></div> : null}
         {calendar ? <p>This read-only calendar link includes this season only, not your availability replies. Keep your personal reply link separate. Use TiQ’s family calendar sharing to choose exactly which matches to share.</p> : null}
         {calendarMessage ? <p role="status">{calendarMessage}</p> : null}
-      </section>
+      </section> : null}
       <section className={styles.panel}><div className={styles.row}><h2>{upcoming.length} upcoming matches</h2><button className={styles.secondary} disabled={busy || !upcoming.length} onClick={() => {
         setStatuses(previous => ({ ...previous, ...Object.fromEntries(upcoming.map(match => [match.id, 'available' as const])) })); setDirty(upcoming.map(match => match.id)); setMessage('')
       }}>Available for all · then adjust</button></div>
@@ -102,5 +106,5 @@ export default function SeasonAvailabilityClient() {
       {!upcoming.length ? <p>There are no upcoming matches in this season.</p> : null}</section>
       <div className={styles.saveBar}><p role="status">{message || (dirty.length ? `${dirty.length} unsaved changes` : 'Choose a response for the dates you know.')}</p><button className={styles.button} disabled={busy || !dirty.length} onClick={() => void save()}>{busy ? 'Please wait…' : 'Save availability'}</button></div>
     </> : null}
-  </main>
+  </Container>
 }
