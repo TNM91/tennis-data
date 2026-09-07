@@ -3494,7 +3494,6 @@ function ScheduleImportedSummaryPanel({
   calendarSavedItemIds,
   calendarMessage,
   calendarOwnerId,
-  onAddScheduleToCalendar,
   onAddMatchToCalendar,
 }: {
   result: DataAssistImportActionResult
@@ -3511,7 +3510,6 @@ function ScheduleImportedSummaryPanel({
   const imported = scheduleResult ? scheduleResult.successCount + scheduleResult.updatedCount : parsedDraft.matchCount
   const updated = scheduleResult?.updatedCount ?? 0
   const calendarItems = buildTeamScheduleCalendarItems({ ...parsedDraft, calendarOwnerId })
-  const bulkSavingKey = `schedule:${parsedDraft.teamName}:${parsedDraft.leagueName}`
 
   return (
     <div style={importPanelStyle}>
@@ -3532,37 +3530,29 @@ function ScheduleImportedSummaryPanel({
       </div>
       <section style={calendarAddPanelStyle} aria-label="Add this team schedule to your calendar">
         <div style={headerCopyStyle}>
-          <strong>Next: choose your calendar</strong>
-          <p style={copyStyle}>Your schedule is saved in TiQ. Open the season calendar to choose matches and finish adding them to Apple or Google. No new upload is needed.</p>
+          <strong>{calendarItems.length} matches ready for your calendar</strong>
+          <p style={copyStyle}>Your full season is ready. Choose Apple, Google, or TiQ next. No new upload is needed.</p>
         </div>
         <div style={cardActionRowStyle}>
-          <Link href={buildScheduleCalendarHref(parsedDraft.teamName, parsedDraft.leagueName, parsedDraft.flight)} style={primaryButtonStyle}>Add season to Apple / Google Calendar</Link>
-          <button
-            type="button"
-            onClick={() => onAddScheduleToCalendar(parsedDraft)}
-            disabled={!calendarItems.length || calendarSavingKey === bulkSavingKey}
-            style={{ ...smallButtonStyle, ...((!calendarItems.length || calendarSavingKey === bulkSavingKey) ? disabledStyle : {}) }}
-          >
-            {calendarSavingKey === bulkSavingKey ? 'Adding season...' : `Add all ${calendarItems.length} matches`}
-          </button>
-          <Link href="/mylab#my-calendar" style={secondaryButtonStyle}>View My Calendar</Link>
+          <Link href={buildScheduleCalendarHref(parsedDraft.teamName, parsedDraft.leagueName, parsedDraft.flight)} style={primaryButtonStyle}>Choose calendar · all {calendarItems.length} matches</Link>
         </div>
         {calendarMessage ? <p style={calendarAddMessageStyle} aria-live="polite">{calendarMessage}</p> : null}
       </section>
-      <ScheduleRowsList
-        parsedDraft={parsedDraft}
-        calendarSavedItemIds={calendarSavedItemIds}
-        calendarSavingKey={calendarSavingKey}
-        calendarOwnerId={calendarOwnerId}
-        onAddMatchToCalendar={onAddMatchToCalendar}
-      />
+      <details>
+        <summary style={compactListHintStyle}>Review {parsedDraft.matches.length} imported matches</summary>
+        <ScheduleRowsList
+          parsedDraft={parsedDraft}
+          calendarSavedItemIds={calendarSavedItemIds}
+          calendarSavingKey={calendarSavingKey}
+          calendarOwnerId={calendarOwnerId}
+          onAddMatchToCalendar={onAddMatchToCalendar}
+        />
+      </details>
       <div style={readyImportNoteStyle}>
         <strong>All set</strong>
         <span>{result.message || 'Team schedule imported to TenAceIQ.'}</span>
       </div>
-      <PostImportActions
-        actions={buildSchedulePostImportActions(parsedDraft, context)}
-      />
+      <details><summary style={compactListHintStyle}>More team tools</summary><PostImportActions actions={buildSchedulePostImportActions(parsedDraft, context)} /></details>
     </div>
   )
 }
@@ -3722,10 +3712,7 @@ function buildScorecardPostImportActions(parsedDraft: DataAssistScorecardParsedD
 }
 
 function buildSchedulePostImportActions(parsedDraft: DataAssistScheduleParsedDraft, context = '') {
-  const actions: Array<{ label: string; href: string }> = [{
-    label: 'Add season to Apple / Google Calendar',
-    href: buildScheduleCalendarHref(parsedDraft.teamName, parsedDraft.leagueName, parsedDraft.flight),
-  }]
+  const actions: Array<{ label: string; href: string }> = []
   if (/\b(?:captain|team hub)\b/i.test(context)) {
     actions.push({ label: 'Continue Captain setup', href: buildCaptainImportScopeHref(parsedDraft) })
   }

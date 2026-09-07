@@ -2660,6 +2660,8 @@ function TeamPageContent() {
             return (
             <>
             {isMobile ? (
+              <>
+              {activityCards.length > visibleCards.length ? <p style={summaryHistoryLinkStyle}>Showing {visibleCards.length} of {activityCards.length} matches. Your season calendar above includes the full season.</p> : null}
               <div style={activityFilterControlsStyle} aria-label="Team activity filter">
                 {([
                   { key: 'all', label: 'All' },
@@ -2686,6 +2688,7 @@ function TeamPageContent() {
                   )
                 })}
               </div>
+              </>
             ) : null}
             {isMobile ? (
               <div style={mobileMatchListStyle}>

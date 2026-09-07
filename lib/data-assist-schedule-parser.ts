@@ -192,10 +192,13 @@ export function buildScheduleOcrDraftFromText(
   provider: DataAssistOcrProvider,
 ): DataAssistScheduleParsedDraft {
   const text = normalizeWhitespace(rawText)
-  const structuredRows = parseStructuredScheduleRows(rawText)
-  const fallbackRows = parseRawScheduleRows(rawText)
-  const teamName = cleanTeamName(extractLabeledValue(rawText, 'Team'))
-  const matches = filterTeamScheduleRows(
+  // Table exports are source data, not OCR. Never apply remembered team names,
+  // Spring suffixes, match IDs, or historical fixture repairs to their cells.
+  const preserveSource = provider === 'tennislink_export'
+  const structuredRows = parseStructuredScheduleRows(rawText, preserveSource)
+  const fallbackRows = preserveSource ? [] : parseRawScheduleRows(rawText)
+  const teamName = (preserveSource ? cleanText : cleanTeamName)(extractLabeledValue(rawText, 'Team'))
+  const matches = preserveSource ? uniqueMatches(structuredRows) : filterTeamScheduleRows(
     uniqueMatches([...structuredRows, ...fallbackRows]).map((match) => applyKnownScheduleRowRepair(match, teamName)),
     teamName,
   )
@@ -240,7 +243,7 @@ export function buildScheduleOcrDraftFromText(
   }
 }
 
-function parseStructuredScheduleRows(rawText: string): DataAssistScheduleParsedMatch[] {
+function parseStructuredScheduleRows(rawText: string, preserveSource = false): DataAssistScheduleParsedMatch[] {
   return rawText
     .split('\n')
     .map((line) => line.trim())
@@ -250,6 +253,7 @@ function parseStructuredScheduleRows(rawText: string): DataAssistScheduleParsedM
         .split('|')
         .map((part) => part.trim())
       const rowText = rowTextParts.join(' ')
+      if (preserveSource) return buildMatch({ externalMatchId, matchDate, matchTime, homeTeam, awayTeam, facility }, true)
       const fallbackTeams = inferKnownTeams(rowText || `${homeTeam} ${awayTeam}`)
       const cleanedHome = cleanTeamName(homeTeam)
       const cleanedAway = cleanTeamName(awayTeam)
@@ -307,14 +311,14 @@ function buildMatch(input: {
   homeTeam: string
   awayTeam: string
   facility: string
-}): DataAssistScheduleParsedMatch | null {
-  const externalMatchId = normalizeExternalMatchId(input.externalMatchId)
+}, preserveSource = false): DataAssistScheduleParsedMatch | null {
+  const externalMatchId = preserveSource ? cleanText(input.externalMatchId) : normalizeExternalMatchId(input.externalMatchId)
   if (externalMatchId.length < 8) return null
   const matchDate = normalizeDateToken(input.matchDate)
   const matchTime = normalizeTimeToken(input.matchTime)
-  const homeTeam = cleanTeamName(input.homeTeam)
-  const awayTeam = cleanTeamName(input.awayTeam)
-  const facility = cleanFacility(input.facility)
+  const homeTeam = (preserveSource ? cleanText : cleanTeamName)(input.homeTeam)
+  const awayTeam = (preserveSource ? cleanText : cleanTeamName)(input.awayTeam)
+  const facility = (preserveSource ? cleanText : cleanFacility)(input.facility)
   const reviewNotes: string[] = []
   reviewNotes.push(...getScheduleMatchReviewNotes({ externalMatchId, matchDate, matchTime, homeTeam, awayTeam, facility }))
 

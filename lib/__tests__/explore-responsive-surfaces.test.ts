@@ -478,7 +478,8 @@ describe('Explore responsive surfaces', () => {
 
   it('keeps paid tool entry pages action-first on phones', () => {
     expect(myLabSource).toContain('More tools')
-    expect(myLabSource).toContain('Progress, calendar, coach.')
+    expect(myLabSource).toContain('Progress and coach.')
+    expect(myLabSource).toContain('<strong>My Calendar</strong>')
     expect(myLabSource).toContain("const myLabTitle = isProfileConfirmed ? welcomeLine : 'My Lab.'")
     expect(myLabSource).toContain('<TennisSetupChecklist')
     expect(myLabSource).toContain('{!isProfileConfirmed ? (')

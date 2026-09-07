@@ -25,6 +25,17 @@ describe('Data Assist upload operation clarity', () => {
     expect(source).toContain("completeUploadFlow('Schedule imported.', buildImportedDataAssistOutcome(submission.parsedPayload, submission.id))")
   })
 
+  it('gives an imported schedule one calendar handoff and collapses secondary details', () => {
+    const panel = source.split('function ScheduleImportedSummaryPanel(')[1].split('\nfunction ')[0]
+    expect(panel).toContain('Choose calendar · all {calendarItems.length} matches')
+    expect(panel).toContain('buildScheduleCalendarHref(parsedDraft.teamName, parsedDraft.leagueName, parsedDraft.flight)')
+    expect(panel).toContain('Your full season is ready.')
+    expect(panel).toMatch(/<details>\s*<summary[^>]*>Review/)
+    expect(panel).toContain('More team tools')
+    expect(panel).not.toContain('onClick={() => onAddScheduleToCalendar')
+    expect(panel).not.toContain('Add all {calendarItems.length} matches')
+  })
+
   it('brings unresolved uploads forward as a clear review action', () => {
     expect(source).toContain('buildReviewDataAssistOutcome(ocrResult.parsedDraft, result.batchId)')
     expect(source).toContain("title: `${getDataAssistImportTypeLabel(getParsedDraftImportType(parsedDraft))} review ready`")

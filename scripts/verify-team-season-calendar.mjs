@@ -9,7 +9,9 @@ await build({
   stdin: {
     contents: `import React from 'react'; import { createRoot } from 'react-dom/client'; import Calendar from './app/components/team-season-calendar';
 const base = {id:'one',external_match_id:'101',home_team:'SuperSmash Bros/Pottebaum–Meinert',away_team:'Gontarz',match_date:'2026-09-14',match_time:'6:00 PM',facility:'Forest Park — Dwight Davis Tennis Center',league_name:'2026 STL Tri-Level 18 & Over',flight:'Men 3.5/4.0/4.5',match_type:null};
-const params = new URLSearchParams(location.search); const rows = params.has('empty') ? [] : [base, {...base,id:'two',external_match_id:'102',match_date:'2026-09-21',match_time:null}, {...base,id:'old',external_match_id:'99',match_date:'2025-09-14'}];
+const params = new URLSearchParams(location.search);
+const dates = ['2026-09-13','2026-09-20','2026-09-27','2026-10-04','2026-10-11','2026-10-18','2026-10-25','2026-11-08','2026-11-15','2026-11-22','2026-12-06','2026-12-13','2027-01-03','2027-01-10'];
+const rows = params.has('empty') ? [] : params.has('crossyear') ? dates.map((date,index)=>({...base,id:'cross-'+index,external_match_id:'cross-'+index,league_name:'2027 Adult 18 & Over Fall',flight:'Men 4.5 (F)',match_date:date,match_time:index===2?null:base.match_time})) : [base, {...base,id:'two',external_match_id:'102',match_date:'2026-09-21',match_time:null}, {...base,id:'old',external_match_id:'99',league_name:'2025 STL Tri-Level 18 & Over',match_date:'2025-09-14'}];
 createRoot(document.getElementById('root')).render(<Calendar team={base.home_team} matches={rows} userId="fixture-user" accessToken={params.has('signedout')?'':'fixture-token'} importHref="/data-assist?type=schedule" loadError={params.has('loaderror')?'Your saved schedule could not be loaded right now.':''} onRetry={()=>{location.search=''}} />);`,
     resolveDir: process.cwd(), loader: 'tsx',
   },

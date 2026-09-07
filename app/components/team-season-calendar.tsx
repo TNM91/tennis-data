@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { buildTeamSeasonCalendars, type TeamSeasonMatch } from '@/lib/team-season-calendar'
+import { buildTeamSeasonCalendars, formatSeasonDateRange, type TeamSeasonMatch } from '@/lib/team-season-calendar'
 import { buildTennisCalendarFeed } from '@/lib/tiq-league-schedule-calendar'
 import { appleSubscriptionUrl, createSeasonCalendarLink, googleMatchCalendarUrl, saveSeasonCalendarItems, type SeasonCalendarDestination } from '@/lib/season-calendar-actions'
 import styles from './team-season-calendar.module.css'
@@ -28,6 +28,7 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
   const allItems = season?.items || []
   const items = allItems.filter((item) => !excludedIds.includes(item.id))
   const matchLabel = items.length === 1 ? 'match' : 'matches'
+  const allMatchLabel = allItems.length === 1 ? 'match' : 'matches'
 
   useEffect(() => {
     const openFromLink = () => { if (window.location.hash === '#team-schedule') setOpen(true) }
@@ -82,7 +83,7 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
   return (
     <section id="team-schedule" className={styles.card} aria-label="Team season calendar">
       <div className={styles.header}>
-        <div><p className={styles.eyebrow}>Season schedule</p><h2>Take your season with you.</h2><p>{allItems.length ? `${allItems.length} matches · ${season.label}` : 'Your team dates, in TiQ and on your phone.'}</p></div>
+        <div><p className={styles.eyebrow}>Season calendar</p><h2>{team}</h2><p>{allItems.length ? season.label : 'Your team dates, in TiQ and on your phone.'}</p>{allItems.length ? <p className={styles.seasonCount}><strong>{allItems.length} {allMatchLabel}</strong> · {formatSeasonDateRange(allItems)}</p> : null}</div>
         <button type="button" className={open ? styles.secondary : styles.primary} aria-expanded={open} aria-controls={optionsId} onClick={() => setOpen(!open)}>{open ? 'Hide calendar options' : 'Add season to calendar'}</button>
       </div>
       {open && loadError ? <div id={optionsId} className={styles.options}>
@@ -93,7 +94,8 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
         {incomplete ? <p role="alert">This view may not include the complete season. Open your uploaded schedule to add every match.</p> : null}
         {allItems.length > 0 && !incomplete ? <>
           {seasons.length > 1 ? <label>Choose season<select value={season.key} disabled={saving} onChange={(event) => { setSelectedKey(event.target.value); setExcludedIds([]); resetFeedback() }}>{seasons.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select></label> : null}
-          <details><summary>Choose matches · {items.length} of {allItems.length} selected</summary>
+          <p><strong>{items.length === allItems.length ? `${allItems.length > 1 ? 'All ' : ''}${allItems.length} ${allMatchLabel} selected` : `${items.length} of ${allItems.length} ${allMatchLabel} selected`}</strong>.</p>
+          <details><summary>Review {allItems.length > 1 ? 'all ' : ''}{allItems.length} {allMatchLabel} · change selection</summary>
             <div className={styles.selectionActions}>
               <button type="button" disabled={saving} className={styles.secondary} onClick={() => { setExcludedIds([]); resetFeedback() }}>Select all</button>
               <button type="button" disabled={saving} className={styles.secondary} onClick={() => { setExcludedIds(allItems.map((item) => item.id)); resetFeedback() }}>Clear selection</button>
@@ -104,14 +106,13 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
             </li>)}</ul>
             <p>Individual Google events are one-time copies. Confirm Save in Google Calendar.</p>
           </details>
-          <p>{items.length} {matchLabel} selected. Adding dates does not confirm your availability. Match times use Central time; dates without a time appear as all-day events.</p>
           {accessToken ? <>
             <div className={styles.destinations} aria-label="Choose your calendar">
               <button type="button" className={styles.primary} disabled={saving || !items.length} onClick={() => void save('apple')}>iPhone / Apple Calendar</button>
               <button type="button" className={styles.secondary} disabled={saving || !items.length} onClick={() => void save('google')}>Google Calendar</button>
               <button type="button" className={styles.secondary} disabled={saving || !items.length} onClick={() => void save('tiq')}>Save to TiQ only</button>
             </div>
-            <p>Each option saves your selection to TiQ first. Already connected your calendar? Choose TiQ only; your calendar app will pick up the saved dates when it refreshes.</p>
+            <p>Choose a calendar. Your selected matches are also saved to TiQ.</p>
           </> : <Link className={styles.primary} href="/login">Sign in to save your season</Link>}
           {saving ? <p role="status">{progress === items.length ? 'Preparing your calendar link…' : `Saving matches… ${progress} of ${items.length}`}</p> : null}
           <div ref={resultRef} tabIndex={-1} className={destination ? styles.result : undefined}>
@@ -126,15 +127,19 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
               </> : <>
                 <p>Google requires a computer to subscribe to a whole calendar. Copy your link, then choose Other calendars → + → From URL in Google Calendar. After adding it, turn it on in the Google Calendar app on your phone.</p>
                 <a className={styles.secondary} href="https://calendar.google.com/calendar/u/0/r/settings/addbyurl" target="_blank" rel="noopener noreferrer">Open Google Calendar setup</a>
-                <p>Only using your phone? Expand Choose matches above to add individual matches directly to Google.</p>
+                <p>Only using your phone? Expand Review all matches above to add individual matches directly to Google.</p>
               </>}
               <button type="button" className={styles.secondary} onClick={() => void copyLink()}>Copy private calendar link</button>
-              <label>Private subscription link<input readOnly value={feedUrl} onFocus={(event) => event.target.select()} /></label>
-              <p>Keep this link private: it includes all dates in your TiQ calendar, not just this team. Adding a link does not disconnect your other devices. Subscribe only once per calendar app to avoid duplicate calendars.</p>
-              <p>Your calendar app controls refresh timing. Re-save an updated uploaded schedule to TiQ to include its changes.</p>
+              <details><summary>Link details &amp; calendar updates</summary><div className={styles.download}>
+                <label>Private subscription link<input readOnly value={feedUrl} onFocus={(event) => event.target.select()} /></label>
+                <p>Keep this link private: it includes all dates in your TiQ calendar, not just this team. Subscribe only once per app. Existing devices stay connected.</p>
+                <p>Already subscribed? Save changes to TiQ only; your calendar app picks them up when it refreshes.</p>
+              </div></details>
             </> : null}
           </div>
-          <details><summary>Download a one-time copy (.ics)</summary><div className={styles.download}>
+          <details><summary>Calendar help &amp; download (.ics)</summary><div className={styles.download}>
+            <p>Adding dates does not confirm your availability. Match times use Central time; dates without a time appear as all-day events.</p>
+            <p>Already subscribed? Choose Save to TiQ only to update your saved dates without adding another subscription.</p>
             <label>Download time zone<select value={timeZone} onChange={(event) => setTimeZone(event.target.value)}>
               <option value="America/New_York">Eastern</option><option value="America/Chicago">Central</option><option value="America/Denver">Mountain</option><option value="America/Phoenix">Arizona</option><option value="America/Los_Angeles">Pacific</option><option value="America/Anchorage">Alaska</option><option value="Pacific/Honolulu">Hawaii</option>
             </select></label>
