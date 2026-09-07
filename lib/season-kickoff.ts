@@ -47,6 +47,27 @@ export function seasonInviteText(team: string, name: string, link: string) {
   return `${name}, let's plan the season for ${team}. Mark the matches you can play and add the season to your calendar: ${link}\nNo TiQ login needed to reply. Availability is not a final lineup selection. Keep this personal link to update your answers.`
 }
 
+/** Count the whole current roster, not only people with prepared invitations. */
+export function seasonRosterProgress(matches: TeamSeasonMatch[], roster: SeasonPlayer[], invites: SeasonInvite[], replies: SeasonReply[]) {
+  const valid = currentSeasonReplies(matches, replies)
+  const players = roster.map(player => {
+    const invite = invites.find(item => item.roster_key === player.key)
+    const answers = invite && !invite.revoked_at
+      ? valid.filter(reply => reply.invite_id === invite.id && invite.match_ids.includes(reply.match_id)) : []
+    return { ...player, invite, answers, answered: new Set(answers.map(reply => reply.match_id)).size }
+  })
+  const counts = matches.map(match => {
+    const statuses = players.map(player => player.answers.find(answer => answer.match_id === match.id)?.status)
+    const needsInvite = players.filter(player => !player.invite || player.invite.revoked_at).length
+    return { matchId: match.id, available: statuses.filter(status => status === 'available').length,
+      maybe: statuses.filter(status => status === 'maybe').length, unavailable: statuses.filter(status => status === 'unavailable').length,
+      waiting: statuses.filter(status => !status).length - needsInvite, needsInvite }
+  })
+  return { players, matches: counts, started: players.filter(player => player.answered > 0).length,
+    complete: matches.length ? players.filter(player => player.answered === matches.length).length : 0,
+    needsInvite: players.filter(player => !player.invite || player.invite.revoked_at).length }
+}
+
 export type SeasonLineupAnswer = { id: string; match_id?: string; match_date: string | null; team_name: string | null; league_name: string | null; flight: string | null; player_id: string; status: string | null; notes: string | null; responded_at?: string | null }
 export function mergeSeasonLineupAnswers(answers: SeasonLineupAnswer[]) {
   const byPlayer = new Map<string, SeasonLineupAnswer>()

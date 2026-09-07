@@ -43,6 +43,11 @@ export async function loadSeasonInvites(service: SupabaseClient, scope: SeasonSc
   if (error) throw new Error('Season invitations are unavailable. Please try again shortly.')
   return (data || []) as SeasonInvite[]
 }
+export async function loadSeasonSelf(service: SupabaseClient, userId: string, roster: SeasonPlayer[]) {
+  const { data, error } = await service.from('profiles').select('linked_player_id').eq('id', userId).maybeSingle()
+  if (error) throw new Error('Your linked player record could not be checked. Please retry.')
+  return roster.find(player => player.playerId && player.playerId === data?.linked_player_id) || null
+}
 export async function loadSeasonResponses(service: SupabaseClient, ids: string[]) {
   if (!ids.length) return []
   const rows: SeasonReply[] = []

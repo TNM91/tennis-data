@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const teamsHub = readFileSync(join(process.cwd(), 'app/compete/teams/page.tsx'), 'utf8')
+const teamHomeCard = readFileSync(join(process.cwd(), 'app/compete/teams/team-home-card.tsx'), 'utf8')
 const teamDetail = readFileSync(join(process.cwd(), 'app/teams/[team]/page.tsx'), 'utf8')
 const teamRoom = readFileSync(join(process.cwd(), 'app/team-room/page.tsx'), 'utf8')
 const teamRoomStyles = readFileSync(join(process.cwd(), 'app/team-room/team-room.module.css'), 'utf8')
@@ -74,7 +75,7 @@ describe('Teams experience simplification', () => {
   })
 
   it('opens mobile Teams without a staging hero or duplicate active lanes', () => {
-    expect(teamsHub).toContain('compactHome={isMobile}')
+    expect(teamsHub).toContain('compactHome')
     expect(teamsHub).toContain('<h1 style={mobileTeamsTitleStyle}>')
     expect(portal).toContain("shortcut.kind === 'lane'")
     expect(portal).toContain('shortcut.laneId === activeLane.id')
@@ -85,8 +86,8 @@ describe('Teams experience simplification', () => {
     expect(teamsHub).toContain('async function loadConnections()')
     expect(teamsHub).toContain('async function loadSupportingTeamContext(connectedTeams: TeamConnection[])')
     expect(teamsHub).toContain('loadConnectedTeamDirectoryOptions')
-    expect(teamsHub).toContain("label: 'Team connection'")
-    expect(teamsHub).toContain("'Schedule syncing'")
+    expect(teamHomeCard).toContain("'Connected team'")
+    expect(teamHomeCard).toContain("'Schedule syncing'")
     expect(teamsHub).toContain('<TeamListLoadingState />')
     expect(teamConnectionsClient).toContain('TEAM_CONNECTIONS_CACHE_TTL_MS')
     expect(teamConnectionsClient).toContain('preloadTeamConnections')
@@ -100,9 +101,8 @@ describe('Teams experience simplification', () => {
     expect(teamsHub).toContain("`${groupedTeams.length} ${groupedTeams.length === 1 ? 'team' : 'teams'} connected`")
     expect(teamsHub).toContain('compact={groupedTeams.length > 0}')
     expect(teamsHub).not.toContain('${defaultTeam.teamName} opens first')
-    expect(teamsHub).toContain('defaultTeamRowStyle')
-    expect(teamsHub).toContain('defaultTeamChipStyle')
-    expect(teamsHub).toContain('Default team')
+    expect(teamHomeCard).toContain('styles.defaultCard')
+    expect(teamHomeCard).toContain('Default team')
   })
 
   it('lets members choose a default team without leaving My Teams', () => {
@@ -110,7 +110,7 @@ describe('Teams experience simplification', () => {
     expect(teamsHub).toContain("action: 'set_default'")
     expect(teamsHub).toContain('function makeDefaultTeam(connection: TeamConnection)')
     expect(teamsHub).toContain('will open first in Captain and My Lab.')
-    expect(teamsHub).toContain("'Make default'")
-    expect(teamsHub).toContain('teamSecondaryButtonStyle')
+    expect(teamHomeCard).toContain("'Make default'")
+    expect(teamHomeCard).toContain('onClick={props.onMakeDefault}')
   })
 })

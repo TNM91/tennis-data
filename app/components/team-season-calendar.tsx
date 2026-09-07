@@ -18,6 +18,7 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
   const [excludedIds, setExcludedIds] = useState<string[]>([])
   const [open, setOpen] = useState(false)
   const [kickoffOpen, setKickoffOpen] = useState(false)
+  const [kickoffDirty, setKickoffDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [progress, setProgress] = useState(0)
   const [message, setMessage] = useState('')
@@ -50,11 +51,18 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
   const allMatchLabel = allItems.length === 1 ? 'match' : 'matches'
 
   useEffect(() => {
-    const openFromLink = () => { if (window.location.hash === '#team-schedule') setOpen(true) }
+    const openFromLink = () => {
+      if (kickoffDirty) return
+      if (window.location.hash === '#team-schedule') { setOpen(true); setKickoffOpen(false) }
+      if (window.location.hash === '#team-availability' && canStartSeason && accessToken) {
+        setKickoffOpen(true); setOpen(false)
+        window.requestAnimationFrame(() => document.getElementById('team-schedule')?.scrollIntoView({ block: 'start' }))
+      }
+    }
     openFromLink()
     window.addEventListener('hashchange', openFromLink)
     return () => window.removeEventListener('hashchange', openFromLink)
-  }, [])
+  }, [accessToken, canStartSeason, kickoffDirty])
 
   function resetFeedback() { setMessage(''); setCopyMessage(''); setError(''); setDestination(null) }
 
@@ -111,14 +119,14 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
       <div className={styles.header}>
         <div><p className={styles.eyebrow}>Season calendar</p><h2>{team}</h2><p>{allItems.length ? season.label : 'Your team dates, in TiQ and on your phone.'}</p>{allItems.length ? <p className={styles.seasonCount}><strong>{allItems.length} {allMatchLabel}</strong> · {formatSeasonDateRange(allItems)}</p> : null}</div>
         <div className={styles.selectionActions}>
-          {canStartSeason && accessToken ? <button type="button" className={styles.primary} aria-expanded={kickoffOpen} aria-controls={`${optionsId}-kickoff`} onClick={() => setKickoffOpen(!kickoffOpen)}>{kickoffOpen ? 'Hide season setup' : 'Start season'}</button> : null}
-          <button type="button" className={open ? styles.secondary : styles.primary} aria-expanded={open} aria-controls={optionsId} onClick={() => setOpen(!open)}>{open ? 'Hide calendar options' : 'Add season to calendar'}</button>
+          {canStartSeason && accessToken ? <button type="button" className={styles.primary} disabled={kickoffDirty} aria-expanded={kickoffOpen} aria-controls={`${optionsId}-kickoff`} onClick={() => { setKickoffOpen(!kickoffOpen); setOpen(false) }}>{kickoffOpen ? 'Hide availability' : 'Season availability'}</button> : null}
+          <button type="button" className={open ? styles.secondary : styles.primary} disabled={kickoffDirty} aria-expanded={open} aria-controls={optionsId} onClick={() => { setOpen(!open); setKickoffOpen(false) }}>{open ? 'Hide calendar options' : 'Add season to calendar'}</button>
         </div>
       </div>
       {kickoffOpen && canStartSeason ? <div id={`${optionsId}-kickoff`} className={styles.options}>
         {loadError || incomplete ? <p role="alert">Load the complete team schedule before starting the season. {loadError}</p> : !season ? <p>Add your team schedule first, then return here to invite your roster.</p> : <>
-          {seasons.length > 1 ? <label>Season to plan<select value={season.key} disabled={saving} onChange={event => { setSelectedKey(event.target.value); setExcludedIds([]); resetFeedback() }}>{seasons.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select></label> : null}
-          <SeasonKickoff key={`${userId}:${season.key}`} scope={{ team, league: season.matches[0]?.league_name || '', flight: season.matches[0]?.flight || '', seasonKey: season.key }} token={accessToken} onCalendar={() => { setOpen(true); window.requestAnimationFrame(() => document.getElementById(optionsId)?.scrollIntoView({ block: 'start' })) }} />
+          {seasons.length > 1 ? <label>Season to plan<select value={season.key} disabled={saving || kickoffDirty} onChange={event => { setSelectedKey(event.target.value); setExcludedIds([]); resetFeedback() }}>{seasons.map(item => <option key={item.key} value={item.key}>{item.label}</option>)}</select></label> : null}
+          <SeasonKickoff key={`${userId}:${season.key}`} scope={{ team, league: season.matches[0]?.league_name || '', flight: season.matches[0]?.flight || '', seasonKey: season.key }} token={accessToken} onDirtyChange={setKickoffDirty} onCalendar={() => { if (kickoffDirty) return; setKickoffOpen(false); setOpen(true); window.requestAnimationFrame(() => document.getElementById(optionsId)?.scrollIntoView({ block: 'start' })) }} />
         </>}
       </div> : null}
       {open && loadError ? <div id={optionsId} className={styles.options}>

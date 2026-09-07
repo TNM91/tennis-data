@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { buildTeamConnections } from '../team-profile-links'
 
 const teamsHub = readFileSync(join(process.cwd(), 'app/compete/teams/page.tsx'), 'utf8')
+const homeStyles = readFileSync(join(process.cwd(), 'app/compete/teams/teams-home.module.css'), 'utf8')
 const teamPage = readFileSync(join(process.cwd(), 'app/teams/[team]/page.tsx'), 'utf8')
 const teamRoom = readFileSync(join(process.cwd(), 'app/team-room/page.tsx'), 'utf8')
 const teamRoomApi = readFileSync(join(process.cwd(), 'app/api/team-rooms/route.ts'), 'utf8')
@@ -36,9 +37,10 @@ describe('membership-first Teams experience', () => {
     expect(teamsHub).toContain('Find or manage a team')
     expect(teamsHub).toContain('More team options')
     expect(teamsHub).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
-    expect(teamsHub).toContain('rowMetaChipStyle')
-    expect(teamsHub).toContain('teamFactValueStyle')
-    expect(teamsHub).toContain('teamRowActionMobileStyle')
+    expect(teamsHub).toContain('<TeamHomeCard')
+    expect(homeStyles).toContain('.cardActions')
+    expect(homeStyles).toContain('overflow-wrap: break-word')
+    expect(homeStyles).toContain('grid-template-columns: minmax(0, 1fr)')
     expect(teamsHub).toContain('Explore public teams now.')
     expect(teamsHub).not.toContain('Your private team spaces start with a Free account.')
   })

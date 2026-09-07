@@ -1,11 +1,33 @@
 import { describe, expect, it } from 'vitest'
-import { currentSeasonReplies, mergeSeasonLineupAnswers, seasonFixtures, seasonInviteText, seasonReadiness, seasonMatchLabel, type SeasonReply, type SeasonScope } from '../season-kickoff'
+import { currentSeasonReplies, mergeSeasonLineupAnswers, seasonFixtures, seasonInviteText, seasonReadiness, seasonRosterProgress, seasonMatchLabel, type SeasonInvite, type SeasonReply, type SeasonScope } from '../season-kickoff'
 import type { TeamSeasonMatch } from '../team-season-calendar'
 
 const scope: SeasonScope = { team: 'Aces', league: '2027 Fall', flight: '4.0', seasonKey: JSON.stringify(['2027', '2027 Fall', '4.0']) }
 const match: TeamSeasonMatch = { id: 'match-1', league_name: scope.league, flight: scope.flight, home_team: 'Aces', away_team: 'Volleys', match_date: '2026-09-14', match_time: '18:00:00' }
 const reply: SeasonReply = { match_id: match.id, invite_id: 'player-1', match_date: match.match_date!, match_time: '18:00:00', status: 'available' }
 describe('season kickoff integrity', () => {
+  const roster = Array.from({ length: 10 }, (_, i) => ({ key: `p${i}`, playerId: `p${i}`, name: `Player ${i}` }))
+  const invite: SeasonInvite = { id: 'player-1', roster_key: 'p0', player_id: 'p0', player_name: 'Player 0', response_token: 'secret', revoked_at: null, match_ids: [match.id] }
+  it('accounts for all ten players when only one has been invited', () => {
+    const progress = seasonRosterProgress([match], roster, [invite], [])
+    expect(progress).toMatchObject({ started: 0, complete: 0, needsInvite: 9 })
+    expect(progress.matches[0]).toMatchObject({ available: 0, waiting: 1, needsInvite: 9 })
+  })
+  it('updates team totals from a saved personal reply without treating missing players as Yes', () => {
+    const progress = seasonRosterProgress([match], roster, [invite], [reply])
+    expect(progress).toMatchObject({ started: 1, complete: 1, needsInvite: 9 })
+    expect(progress.matches[0]).toMatchObject({ available: 1, waiting: 0, needsInvite: 9 })
+  })
+  it('excludes stopped links, removed players, stale fixtures and answers outside the invitation', () => {
+    expect(seasonRosterProgress([match], roster, [{ ...invite, revoked_at: 'stopped' }], [reply]).matches[0]).toMatchObject({ available: 0, waiting: 0, needsInvite: 10 })
+    expect(seasonRosterProgress([match], roster.slice(1), [invite], [reply]).started).toBe(0)
+    expect(seasonRosterProgress([{ ...match, match_time: '19:00' }], roster, [invite], [reply]).matches[0]).toMatchObject({ available: 0, waiting: 1 })
+    expect(seasonRosterProgress([match], roster, [{ ...invite, match_ids: [] }], [reply]).matches[0]).toMatchObject({ available: 0, waiting: 1 })
+  })
+  it('does not mark the roster complete for an empty season or an unanswered doubleheader', () => {
+    expect(seasonRosterProgress([], roster, [invite], []).complete).toBe(0)
+    expect(seasonRosterProgress([match, { ...match, id: 'second' }], roster, [invite], [reply])).toMatchObject({ started: 1, complete: 0 })
+  })
   it('shows readable dates and times without guessing missing times', () => {
     expect(seasonMatchLabel(match)).toBe('Mon, Sep 14, 2026 · 6:00 PM')
     expect(seasonMatchLabel({ ...match, match_time: null })).toContain('Time TBD')

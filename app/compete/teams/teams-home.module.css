@@ -1,0 +1,32 @@
+.home { min-width: 0; display: grid; gap: 18px; }
+.heading { margin: 0; font-size: clamp(28px, 4vw, 38px); line-height: 1.15; letter-spacing: -.035em; color: #fff; }
+.teamGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.teamCard { min-width: 0; padding: 24px; display: grid; gap: 20px; border: 1px solid #304459; border-radius: 22px; color: #f3f7fd; background: linear-gradient(145deg, #102438, #091728 75%); box-shadow: 0 10px 28px #0002; }
+.defaultCard { border-color: #71983b; background: linear-gradient(145deg, #1a3028, #0c1b2b 60%); }
+.cardHeader { display: grid; gap: 12px; min-width: 0; }
+.cardStatus { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; color: #c0d3e2; font-size: 12px; font-weight: 750; line-height: 1.4; }
+.defaultCard .cardStatus > :first-child { color: #baf270; }
+.flight { padding: 5px 9px; border-radius: 8px; border: 1px solid #496071; color: #e8f1fa; max-width: 100%; overflow-wrap: break-word; }
+.teamCard h2 { margin: 0; font-size: clamp(22px, 2.6vw, 28px); font-weight: 800; line-height: 1.22; letter-spacing: -.025em; overflow-wrap: break-word; }
+.teamCard h2 a { color: inherit; text-decoration: none; }
+.league { margin: 0; font-size: 14px; color: #bccbda; line-height: 1.5; overflow-wrap: break-word; }
+.nextMatch { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 14px; align-items: center; border-block: 1px solid #334859; padding-block: 16px; color: inherit; text-decoration: none; min-width: 0; }
+.dateTile { width: 56px; min-height: 62px; box-sizing: border-box; border-radius: 12px; border: 1px solid #547044; background: #21382c; color: #edffda; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; gap: 5px; }
+.dateTile span { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; font-weight: 700; }
+.dateTile strong { font-size: 27px; font-weight: 800; }
+.nextCopy { min-width: 0; display: grid; gap: 5px; line-height: 1.4; }
+.nextCopy strong { font-size: 17px; overflow-wrap: break-word; }
+.nextCopy > :last-child { font-size: 13px; color: #b7c9d9; }
+.eyebrow { color: #a8c6df; font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+.arrow { color: #9be11d; font-size: 20px; }
+.cardActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cardActions a { display: flex; align-items: center; justify-content: center; gap: 12px; min-width: 0; min-height: 46px; box-sizing: border-box; padding: 10px 12px; border: 1px solid #41586d; border-radius: 11px; color: #eef6ff; background: #14283b; font-size: 14px; font-weight: 750; line-height: 1.35; text-decoration: none; text-align: center; overflow-wrap: break-word; }
+.cardActions .primaryAction { grid-column: 1 / -1; justify-content: space-between; background: #9be11d; color: #10210b; border-color: #9be11d; }
+.cardFooter { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid #334859; padding-top: 12px; font-size: 12px; color: #b7c9d9; }
+.cardFooter button { min-height: 44px; padding: 8px 12px; background: transparent; color: #d9f4b1; border: 1px solid #526846; border-radius: 10px; font: inherit; font-weight: 750; cursor: pointer; }
+.teamCard button:disabled { opacity: .6; cursor: default; }
+.teamCard :focus-visible, .home :focus-visible { outline: 2px solid #9be11d; outline-offset: 4px; }
+.teamCard a:hover { filter: brightness(1.1); }
+.support { min-width: 0; margin-top: 4px; }
+@media (max-width: 760px) { .teamGrid { grid-template-columns: minmax(0, 1fr); gap: 14px; } .teamCard { padding: 18px; gap: 16px; } }
+@media (prefers-reduced-motion: no-preference) { .cardActions a { transition: background .15s ease; } }
