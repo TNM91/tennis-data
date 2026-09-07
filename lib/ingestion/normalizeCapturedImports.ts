@@ -572,7 +572,8 @@ function normalizeDistrict(record: UnknownRecord): string | null {
 
 function normalizeFacility(record: UnknownRecord): string | null {
   const direct = nullableString(pickFirst(record, ['facility', 'site', 'location', 'club']))
-  if (direct) return direct
+  const address = nullableString(pickFirst(record, ['facilityAddress', 'facility_address', 'venueAddress', 'venue_address']))
+  if (direct) return address && !direct.includes(address) ? `${direct} — ${address}` : direct
 
   const nested = nullableString(
     pickNested(record, [

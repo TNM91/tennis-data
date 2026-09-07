@@ -1,11 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { buildTeamSeasonCalendars, formatSeasonDateRange, type TeamSeasonMatch } from '@/lib/team-season-calendar'
 import { buildTennisCalendarFeed } from '@/lib/tiq-league-schedule-calendar'
 import { appleSubscriptionUrl, createSeasonCalendarLink, googleMatchCalendarUrl, saveSeasonCalendarItems, type SeasonCalendarDestination } from '@/lib/season-calendar-actions'
 import styles from './team-season-calendar.module.css'
+import SeasonVenueLocation, {withVenueChoice,type CalendarVenueChoice} from './season-venue-locations'
+import { isStreetLocation } from '@/lib/venue-directory'
 
 type Props = { team: string; matches: TeamSeasonMatch[]; userId: string; accessToken: string; importHref: string; incomplete?: boolean; loadError?: string; onRetry?: () => void }
 
@@ -25,7 +27,20 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
   const resultRef = useRef<HTMLDivElement>(null)
   const optionsId = useId()
   const season = seasons.find((item) => item.key === selectedKey) || seasons[0]
-  const allItems = season?.items || []
+  const venueContext = JSON.stringify([team,season?.key || ''])
+  const venueScope = JSON.stringify([userId,venueContext])
+  const [venueChoices,setVenueChoices] = useState<Record<string,Record<string,CalendarVenueChoice>>>({})
+  const [venueLoaded,setVenueLoaded] = useState<Record<string,Record<string,boolean>>>({})
+  const onVenueChoose = useCallback((facility:string,choice:CalendarVenueChoice)=>{
+    setVenueChoices(previous=>({...previous,[venueScope]:{...previous[venueScope],[facility]:choice}}))
+    setMessage('');setDestination(null)
+  },[venueScope])
+  const onVenueLoaded = useCallback((facility:string,loaded:boolean)=>{
+    setVenueLoaded(previous=>({...previous,[venueScope]:{...previous[venueScope],[facility]:loaded}}))
+  },[venueScope])
+  const allItems = (season?.items || []).map(item=>withVenueChoice(item,venueChoices[venueScope] || {}))
+  const facilities = [...new Set(allItems.map(item=>item.facilityName || '').filter(name=>name && !isStreetLocation(name)))]
+  const locationsReady = !accessToken || facilities.every(name=>venueLoaded[venueScope]?.[name])
   const items = allItems.filter((item) => !excludedIds.includes(item.id))
   const matchLabel = items.length === 1 ? 'match' : 'matches'
   const allMatchLabel = allItems.length === 1 ? 'match' : 'matches'
@@ -40,7 +55,7 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
   function resetFeedback() { setMessage(''); setError(''); setDestination(null) }
 
   async function save(nextDestination: SeasonCalendarDestination) {
-    if (busy.current || incomplete || loadError) return
+    if (busy.current || incomplete || loadError || !locationsReady) return
     busy.current = true
     setSaving(true)
     setProgress(0)
@@ -95,6 +110,11 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
         {allItems.length > 0 && !incomplete ? <>
           {seasons.length > 1 ? <label>Choose season<select value={season.key} disabled={saving} onChange={(event) => { setSelectedKey(event.target.value); setExcludedIds([]); resetFeedback() }}>{seasons.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}</select></label> : null}
           <p><strong>{items.length === allItems.length ? `${allItems.length > 1 ? 'All ' : ''}${allItems.length} ${allMatchLabel} selected` : `${items.length} of ${allItems.length} ${allMatchLabel} selected`}</strong>.</p>
+          {accessToken && facilities.length ? <details><summary>Locations · confirm or update addresses</summary><div className={styles.download}>
+            <p>Addresses in your upload stay as supplied. Confirm unfamiliar venues once for this team and season.</p>
+            {facilities.map(facility=><SeasonVenueLocation key={`${venueScope}:${facility}`} facility={facility} context={venueContext} token={accessToken} disabled={saving} onChoose={onVenueChoose} onLoaded={onVenueLoaded} />)}
+          </div></details>:null}
+          {!locationsReady?<p role="status">Checking saved locations. If this does not finish, open Locations above to retry.</p>:null}
           <details><summary>Review {allItems.length > 1 ? 'all ' : ''}{allItems.length} {allMatchLabel} · change selection</summary>
             <div className={styles.selectionActions}>
               <button type="button" disabled={saving} className={styles.secondary} onClick={() => { setExcludedIds([]); resetFeedback() }}>Select all</button>
@@ -108,9 +128,9 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
           </details>
           {accessToken ? <>
             <div className={styles.destinations} aria-label="Choose your calendar">
-              <button type="button" className={styles.primary} disabled={saving || !items.length} onClick={() => void save('apple')}>iPhone / Apple Calendar</button>
-              <button type="button" className={styles.secondary} disabled={saving || !items.length} onClick={() => void save('google')}>Google Calendar</button>
-              <button type="button" className={styles.secondary} disabled={saving || !items.length} onClick={() => void save('tiq')}>Save to TiQ only</button>
+              <button type="button" className={styles.primary} disabled={saving || !locationsReady || !items.length} onClick={() => void save('apple')}>iPhone / Apple Calendar</button>
+              <button type="button" className={styles.secondary} disabled={saving || !locationsReady || !items.length} onClick={() => void save('google')}>Google Calendar</button>
+              <button type="button" className={styles.secondary} disabled={saving || !locationsReady || !items.length} onClick={() => void save('tiq')}>Save to TiQ only</button>
             </div>
             <p>Choose a calendar. Your selected matches are also saved to TiQ.</p>
           </> : <Link className={styles.primary} href="/login">Sign in to save your season</Link>}
@@ -143,7 +163,7 @@ export default function TeamSeasonCalendar({ team, matches, userId, accessToken,
             <label>Download time zone<select value={timeZone} onChange={(event) => setTimeZone(event.target.value)}>
               <option value="America/New_York">Eastern</option><option value="America/Chicago">Central</option><option value="America/Denver">Mountain</option><option value="America/Phoenix">Arizona</option><option value="America/Los_Angeles">Pacific</option><option value="America/Anchorage">Alaska</option><option value="Pacific/Honolulu">Hawaii</option>
             </select></label>
-            <button type="button" className={styles.secondary} disabled={!items.length || saving} onClick={download}>Download {items.length} {matchLabel}</button>
+            <button type="button" className={styles.secondary} disabled={!items.length || saving || !locationsReady} onClick={download}>Download {items.length} {matchLabel}</button>
             <p>For a one-time import, not automatic updates. On iPhone, the Apple Calendar subscription above is the recommended option.</p>
           </div></details>
         </> : <><p>Upload your TennisLink match schedule, or open My Calendar for dates from your approved TiQ league entries.</p><Link className={styles.primary} href={importHref}>Upload team schedule</Link><Link className={styles.secondary} href="/mylab#my-calendar">Open My Calendar</Link></>}

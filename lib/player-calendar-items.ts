@@ -16,6 +16,8 @@ export type PlayerCalendarItem = {
   availabilityStatus: PlayerAvailabilityStatus
   createdAt: string
   updatedAt: string
+  venueDirectoryId?: string
+  venuePreferenceId?: string
 }
 
 export type PlayerCalendarItemRow = {
@@ -30,6 +32,8 @@ export type PlayerCalendarItemRow = {
   availability_status?: string | null
   created_at: string
   updated_at: string
+  venue_directory_id?: string | null
+  venue_preference_id?: string | null
 }
 
 export type PlayerCalendarItemInput = {
@@ -43,6 +47,8 @@ export type PlayerCalendarItemInput = {
   recurrence_rule?: unknown
   availabilityStatus?: unknown
   availability_status?: unknown
+  venueDirectoryId?: unknown
+  venuePreferenceId?: unknown
 }
 
 function cleanText(value: unknown) {
@@ -79,6 +85,8 @@ export function mapPlayerCalendarItemRow(row: PlayerCalendarItemRow): PlayerCale
     availabilityStatus: normalizePlayerAvailabilityStatus(row.availability_status),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    ...(row.venue_directory_id ? {venueDirectoryId:row.venue_directory_id} : {}),
+    ...(row.venue_preference_id ? {venuePreferenceId:row.venue_preference_id} : {}),
   }
 }
 
@@ -107,5 +115,7 @@ export function buildPlayerCalendarItemPayload(input: PlayerCalendarItemInput, p
     recurrence_rule: normalizePlayerCalendarRecurrenceRule(input.recurrenceRule ?? input.recurrence_rule),
     availability_status: availabilityStatus,
     updated_at: now,
+    venue_directory_id: cleanText(input.venueDirectoryId) || null,
+    venue_preference_id: cleanText(input.venuePreferenceId) || null,
   }
 }

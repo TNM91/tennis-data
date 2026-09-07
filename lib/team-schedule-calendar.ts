@@ -17,6 +17,9 @@ export type TeamScheduleCalendarItem = {
   time: string
   location: string
   kind: 'match'
+  facilityName?: string
+  venueDirectoryId?: string
+  venuePreferenceId?: string
 }
 
 function cleanText(value: unknown) {
@@ -98,6 +101,7 @@ export function buildTeamScheduleCalendarItems(input: {
       date,
       time: normalizeScheduleCalendarTime(match.matchTime),
       location: resolveCalendarLocation(cleanText(match.facility)),
+      facilityName: cleanText(match.facility),
       kind: 'match',
     })
   })
