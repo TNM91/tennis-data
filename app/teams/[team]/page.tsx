@@ -351,6 +351,7 @@ function TeamPageContent() {
   const contactHubRequested = searchParams.get('contacts') === '1'
 
   const [matches, setMatches] = useState<TeamMatch[]>([])
+  const [scheduleLoadError, setScheduleLoadError] = useState('')
   const [players, setPlayers] = useState<MatchPlayer[]>([])
   const [rosterMembers, setRosterMembers] = useState<TeamRosterMemberRow[]>([])
   const [summaryTeams, setSummaryTeams] = useState<TeamSummaryTeamRow[]>([])
@@ -510,6 +511,7 @@ function TeamPageContent() {
   const loadTeamPage = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setScheduleLoadError('')
 
     try {
       if (!team) {
@@ -671,6 +673,7 @@ function TeamPageContent() {
       const { data: matchData, error: matchError } = await matchQuery
       if (matchError) {
         console.warn('team match lookup skipped', matchError.message)
+        setScheduleLoadError('Your saved schedule could not be loaded right now.')
       }
 
       const scopedMatches = matchError ? [] : ((matchData || []) as TeamMatch[]).filter((match) => {
@@ -2063,12 +2066,14 @@ function TeamPageContent() {
         </section>
 
         {!loading && !error ? <TeamSeasonCalendar
-          key={`${team}-${leagueFilter}-${flightFilter}-${seasonFilter}-${currentUserId}`}
+          key={`${team}-${leagueFilter}-${flightFilter}-${currentUserId}`}
           team={team}
-          matches={seasonMatches}
+          matches={matches}
           userId={currentUserId || ''}
           accessToken={accessToken}
           incomplete={matches.length >= 250}
+          loadError={scheduleLoadError}
+          onRetry={() => void loadTeamPage()}
           importHref={`/data-assist?type=schedule&team=${encodeURIComponent(team)}&league=${encodeURIComponent(leagueFilter || teamMeta.league || '')}`}
         /> : null}
 

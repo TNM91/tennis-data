@@ -1,3 +1,5 @@
+import { isValidCalendarDate } from './calendar-date'
+
 export type PlayerCalendarKind = 'practice' | 'match' | 'lesson' | 'reminder' | 'availability'
 export type PlayerAvailabilityStatus = '' | 'available' | 'unavailable'
 export type PlayerCalendarRecurrenceRule = '' | 'FREQ=DAILY' | 'FREQ=WEEKLY' | 'FREQ=MONTHLY'
@@ -82,7 +84,7 @@ export function mapPlayerCalendarItemRow(row: PlayerCalendarItemRow): PlayerCale
 export function buildPlayerCalendarItemPayload(input: PlayerCalendarItemInput, playerUserId: string) {
   const title = cleanText(input.title)
   const date = cleanText(input.date)
-  if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null
+  if (!title || !isValidCalendarDate(date)) return null
 
   const rawTime = cleanText(input.time)
   const time = /^([01]\d|2[0-3]):[0-5]\d$/.test(rawTime) ? rawTime : ''

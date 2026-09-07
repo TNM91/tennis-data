@@ -10,7 +10,7 @@ await build({
     contents: `import React from 'react'; import { createRoot } from 'react-dom/client'; import Calendar from './app/components/team-season-calendar';
 const base = {id:'one',external_match_id:'101',home_team:'SuperSmash Bros/Pottebaum–Meinert',away_team:'Gontarz',match_date:'2026-09-14',match_time:'6:00 PM',facility:'Forest Park — Dwight Davis Tennis Center',league_name:'2026 STL Tri-Level 18 & Over',flight:'Men 3.5/4.0/4.5',match_type:null};
 const params = new URLSearchParams(location.search); const rows = params.has('empty') ? [] : [base, {...base,id:'two',external_match_id:'102',match_date:'2026-09-21',match_time:null}, {...base,id:'old',external_match_id:'99',match_date:'2025-09-14'}];
-createRoot(document.getElementById('root')).render(<Calendar team={base.home_team} matches={rows} userId="fixture-user" accessToken={params.has('signedout')?'':'fixture-token'} importHref="/data-assist?type=schedule" />);`,
+createRoot(document.getElementById('root')).render(<Calendar team={base.home_team} matches={rows} userId="fixture-user" accessToken={params.has('signedout')?'':'fixture-token'} importHref="/data-assist?type=schedule" loadError={params.has('loaderror')?'Your saved schedule could not be loaded right now.':''} onRetry={()=>{location.search=''}} />);`,
     resolveDir: process.cwd(), loader: 'tsx',
   },
   bundle: true, outfile: `${output}/fixture.js`, jsx: 'automatic', loader: { '.css': 'local-css' },

@@ -5,6 +5,26 @@ import { buildTeamScheduleCalendarItems } from '../team-schedule-calendar'
 const fixture: TeamSeasonMatch = { id: 'canonical-1', external_match_id: '1011650666', home_team: 'Aces', away_team: 'Volleys', match_date: '2026-09-14', match_time: '6:00 PM', facility: 'Center Court', league_name: 'Fall', flight: '4.0', match_type: null }
 
 describe('team season calendar', () => {
+  it('keeps saved identities stable after reordering and a schedule time correction', () => {
+    const later = { ...fixture, id: 'later', external_match_id: 'later', match_date: '2026-09-21' }
+    const before = buildTeamSeasonCalendars('Aces', [fixture, later], 'owner')[0].items
+    const after = buildTeamSeasonCalendars('Aces', [later, { ...fixture, match_time: '7:00 PM', facility: 'New court' }], 'owner')[0].items
+    expect(after.map((item) => item.id)).toEqual(before.map((item) => item.id))
+    expect(after[0]).toMatchObject({ time: '19:00', location: 'New court' })
+  })
+
+  it('does not leak another team into the selected season', () => {
+    const other = { ...fixture, id: 'other', external_match_id: 'other', home_team: 'Smash', away_team: 'Topspin' }
+    const rows = [fixture, other]
+    const aces = buildTeamSeasonCalendars('Aces', rows, 'owner')[0].items
+    const smash = buildTeamSeasonCalendars('Smash', rows, 'owner')[0].items
+    expect(aces).toHaveLength(1)
+    expect(smash).toHaveLength(1)
+    expect(aces[0].title).toContain('Aces vs Volleys')
+    expect(smash[0].title).toContain('Smash vs Topspin')
+    expect(aces[0].id).not.toBe(smash[0].id)
+  })
+
   it('keeps the same identity as adding the imported schedule, including on retry', () => {
     const items = buildTeamSeasonCalendars('Aces', [fixture, fixture], 'owner')[0].items
     const upload = buildTeamScheduleCalendarItems({ teamName: 'Aces', leagueName: 'Fall', calendarOwnerId: 'owner', matches: [{ externalMatchId: '1011650666', matchDate: '9/14/2026', matchTime: '6:00 PM', homeTeam: 'Aces', awayTeam: 'Volleys', facility: 'Center Court' }] })

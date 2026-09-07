@@ -1,6 +1,17 @@
 # Season calendar repair and verification
 
-Status: implemented and verified locally; not published. No calendar subscriptions or personal calendar items were created in production during testing.
+Status: initial calendar repair published in PR #1201 (production merge dd992be0b5e7e866f030ea18bb932174f4d821e4). The no-reupload and completion-action follow-up below is local only. No calendar subscriptions or personal calendar items were created in production during testing.
+
+## No-reupload follow-up
+
+- Successful schedule imports retain a focused receipt with an explicit Apple / Google calendar action, including imports completed from saved history. They no longer silently navigate away through the Captain return path. Roster and scorecard return behavior is unchanged.
+- The schedule uploader offers an existing-team-calendar route before a new upload. Its link carries the team, league, and flight and opens the calendar controls.
+- A failed team match query now produces a retry state instead of being presented as an empty schedule needing upload.
+- Calendar seasons are derived from the loaded team matches, independently of the match-history year filter. This prevents a history filter from hiding saved calendar dates.
+- Calendar dates are validated as real dates before imported/manual events are saved; impossible dates are rejected rather than rolled into another month.
+- Synthetic mobile check: load failure shows Retry schedule, no upload prompt; Retry restores the calendar actions; no horizontal overflow or browser errors.
+- Production-bundle mobile check: the real nine-match 2026 season remains available with match history filtered to 2025; no horizontal overflow or browser errors. No new upload or calendar write was performed.
+- The user confirmed starting from their team page, but the precise original trigger (failed read versus filtered/limited data or another upload control) was not reproduced in their device session. These are verified failure paths, not a claim of a proven original network failure.
 
 ## User story
 

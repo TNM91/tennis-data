@@ -11,11 +11,18 @@ describe('Data Assist upload operation clarity', () => {
     expect(source).toContain('data-data-assist-outcome={outcome.tone}')
     expect(source).toContain("title: duplicate ? 'Roster already in TiQ' : 'Roster imported'")
     expect(source).toContain('buildImportedDataAssistOutcome(ocrResult.parsedDraft, result.batchId)')
-    expect(source).toContain('setFocusedSubmissionId(nextOutcome?.batchId || \'\')')
+    expect(source).toContain("setFocusedSubmissionId(nextOutcome?.calendarHref ? '' : nextOutcome?.batchId || '')")
     expect(source).toContain('Open import record')
     expect(source).toContain('Upload another')
     expect(source).toContain("? 'imported'\n    : 'needs_review'")
     expect(source).toContain('initialHistoryFilter={focusedHistoryFilter}')
+  })
+
+  it('keeps a completed schedule focused on its calendar action, not a history refresh', () => {
+    expect(source).toContain('if (!outcome.calendarHref) return')
+    expect(source).toContain('receiptRef.current?.focus({ preventScroll: true })')
+    expect(source).toContain('outcome.calendarHref ? <Link')
+    expect(source).toContain("completeUploadFlow('Schedule imported.', buildImportedDataAssistOutcome(submission.parsedPayload, submission.id))")
   })
 
   it('brings unresolved uploads forward as a clear review action', () => {

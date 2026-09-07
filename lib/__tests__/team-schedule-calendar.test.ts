@@ -6,6 +6,15 @@ import {
 } from '../team-schedule-calendar'
 
 describe('team schedule calendar items', () => {
+  it.each(['2026-02-30', '2/29/2026', '04/31/2026', '2026-13-01', '2026-00-01', '2026-01-00', '2026-01-32'])('rejects impossible imported date %s', (date) => {
+    expect(normalizeScheduleCalendarDate(date)).toBe('')
+    expect(buildTeamScheduleCalendarItems({ teamName: 'Aces', matches: [{ matchDate: date }] })).toEqual([])
+  })
+
+  it.each(['2028-02-29', '2/29/2028', '2028-2-29'])('preserves a valid leap day %s', (date) => {
+    expect(normalizeScheduleCalendarDate(date)).toBe('2028-02-29')
+  })
+
   it('turns a reviewed team schedule into stable personal calendar matches', () => {
     const items = buildTeamScheduleCalendarItems({
       teamName: 'Meinert/The Other Guys (S)',
