@@ -1,7 +1,16 @@
 import type { TeamScheduleCalendarItem } from './team-schedule-calendar'
 import { resolveCalendarLocation } from './calendar-location'
+import { buildTennisCalendarFeed } from './tiq-league-schedule-calendar'
 
 export type SeasonCalendarDestination = 'tiq' | 'apple' | 'google'
+
+// Keep the event identity identical to the personal subscription feed. Calendar
+// apps may still duplicate separate subscriptions: never promise cross-app dedup.
+export function buildSeasonCalendarDownload(items: TeamScheduleCalendarItem[], calendarName: string, timeZone: string) {
+  return buildTennisCalendarFeed(items.map(item => ({ ...item, id: `player-calendar-${item.id}` })), {
+    calendarName, timeZone, durationMinutes: 120,
+  })
+}
 
 // A network request cannot be part of the native-calendar click: Safari may
 // discard user activation while it runs. Prepare first, then render real links.

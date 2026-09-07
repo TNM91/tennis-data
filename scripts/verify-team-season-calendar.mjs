@@ -44,6 +44,9 @@ createServer(async (req, res) => {
   }
   if (req.url === '/saved') { res.setHeader('Content-Type','application/json'); res.end(JSON.stringify(saves)); return }
   if (req.url === '/api/player/personal-calendar-link') {
+    if ((req.headers.referer || '').includes('linkfailure')) {
+      res.writeHead(503, {'Content-Type':'application/json'}); res.end(JSON.stringify({ok:false})); return
+    }
     res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ok:true,calendarUrl:'https://calendar-fixture.example/api/calendar/player/fixture/calendar.ics?token=synthetic-only'})); return
   }
   if (req.url === '/fixture.js' || req.url === '/fixture.css') {
