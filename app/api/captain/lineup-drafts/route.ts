@@ -6,11 +6,14 @@ import {
   type CaptainLineupBuilderDraft,
 } from '@/lib/captain-lineup-handoff'
 import { canManageTeamRoom, normalizeTeamRoomKey } from '@/lib/team-room'
+import { isCaptainLineupSummaryCurrent, summarizeCaptainLineupDraft } from '@/lib/captain-lineup-draft-summary'
+import { todayDateKey } from '@/lib/team-room-match-flow'
 
 export const runtime = 'nodejs'
 export const maxDuration = 20
 
 type DraftRequest = { draft?: unknown }
+type DraftStatusRequest = { scope?: unknown; status?: unknown }
 
 function readScope(source: URLSearchParams | Record<string, unknown>) {
   const get = (key: string) => source instanceof URLSearchParams ? source.get(key) : source[key]
@@ -78,7 +81,50 @@ function toDraft(row: Record<string, unknown> | null): CaptainLineupBuilderDraft
 }
 
 export async function GET(request: Request) {
-  const scope = readScope(new URL(request.url).searchParams)
+  const searchParams = new URL(request.url).searchParams
+  if (searchParams.get('view') === 'summary') {
+    const auth = await getCaptainApiAuth(request)
+    if (!auth.ok) return auth.response
+    const service = getCaptainAvailabilityServiceClient()
+    const linksResult = auth.isAdmin
+      ? { data: [], error: null }
+      : await service
+        .from('team_profile_links')
+        .select('normalized_team_name,team_role,team_roles')
+        .eq('profile_user_id', auth.userId)
+        .eq('status', 'accepted')
+
+    if (linksResult.error) {
+      return Response.json({ ok: false, message: 'Your lineup access could not be checked.' }, { status: 500 })
+    }
+
+    const captainTeams = new Set((linksResult.data ?? []).filter((link) => {
+      const roles = Array.isArray(link.team_roles) && link.team_roles.length
+        ? link.team_roles.map(String)
+        : [String(link.team_role || 'player')]
+      return canManageTeamRoom(roles)
+    }).map((link) => String(link.normalized_team_name || '')))
+
+    const { data, error } = await service
+      .from('captain_lineup_drafts')
+      .select('competition_layer,team_name,league_name,flight,match_date,opponent_team,slots_json,status,updated_at')
+      .eq('user_id', auth.userId)
+      .order('updated_at', { ascending: false })
+      .limit(100)
+    if (error) return Response.json({ ok: false, message: 'Your active lineups could not be loaded.' }, { status: 500 })
+
+    const today = todayDateKey()
+    const summaries = (data ?? [])
+      .filter((row) => auth.isAdmin || captainTeams.has(normalizeTeamRoomKey(String(row.team_name || ''))))
+      .map((row) => summarizeCaptainLineupDraft(row))
+      .filter((summary) => summary !== null && isCaptainLineupSummaryCurrent(summary, today))
+
+    return Response.json({ ok: true, summaries }, {
+      headers: { 'Cache-Control': 'private, no-store' },
+    })
+  }
+
+  const scope = readScope(searchParams)
   const authorized = await authorizeTeam(request, scope.teamName)
   if (!authorized.ok) return authorized.response
 
@@ -127,6 +173,8 @@ export async function PUT(request: Request) {
       slots_json: draft.teamSlots,
       opponent_slots_json: draft.opponentSlots,
       manual_roster_entries: draft.manualRosterEntries,
+      status: 'working',
+      finalized_at: null,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id,scope_key' })
     .select('updated_at')
@@ -134,6 +182,26 @@ export async function PUT(request: Request) {
   if (error) return Response.json({ ok: false, message: 'Your in-progress lineup could not be saved.' }, { status: 500 })
 
   return Response.json({ ok: true, updatedAt: data.updated_at })
+}
+
+export async function PATCH(request: Request) {
+  const body = await request.json().catch(() => null) as DraftStatusRequest | null
+  const scope = readScope(body?.scope && typeof body.scope === 'object' ? body.scope as Record<string, unknown> : {})
+  if (body?.status !== 'final') {
+    return Response.json({ ok: false, message: 'This lineup status is not valid.' }, { status: 400 })
+  }
+  const authorized = await authorizeTeam(request, scope.teamName)
+  if (!authorized.ok) return authorized.response
+
+  const finalizedAt = new Date().toISOString()
+  const { error } = await authorized.service
+    .from('captain_lineup_drafts')
+    .update({ status: 'final', finalized_at: finalizedAt, updated_at: finalizedAt })
+    .eq('user_id', authorized.auth.userId)
+    .eq('scope_key', getCaptainLineupDraftScopeKey(scope))
+  if (error) return Response.json({ ok: false, message: 'This lineup could not be finalized.' }, { status: 500 })
+
+  return Response.json({ ok: true, finalizedAt })
 }
 
 export async function DELETE(request: Request) {

@@ -252,7 +252,10 @@ export async function POST(request: Request) {
     : []
   const requestInvitedPlayers = Array.from(
     new Map([...existingInvites, ...invitedPlayers].map((player) => [
-      `${player.playerId || ''}:${player.playerName.toLowerCase()}`,
+      // The database invite is unique by request + player name. Use that same
+      // identity when merging so a refreshed canonical player id replaces the
+      // stale entry instead of leaving two versions of one person.
+      player.playerName.toLowerCase(),
       player,
     ])).values()
   ).map((player) => ({

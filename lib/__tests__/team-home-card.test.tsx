@@ -26,6 +26,20 @@ describe('team home cards', () => {
     expect(html).toContain('#team-availability')
     expect(html).toContain('/captain/lineup-builder?team=Aces&amp;layer=usta')
   })
+  it('shows a compact resumable lineup with real progress and final-state copy', () => {
+    const working = renderToStaticMarkup(<TeamHomeCard {...base} lineupHref="/captain/lineup-builder?team=Aces" lineupContinuation={{
+      competitionLayer: 'usta', teamName: 'Aces / Fall Team', leagueName: 'Fall league', flight: '4.0', matchDate: '2026-09-14', opponentTeam: 'Volleys', assignedPlayers: 4, requiredPlayers: 6, completedCourts: 2, totalCourts: 3, status: 'working', updatedAt: '2026-09-08T12:00:00Z', href: '/captain/lineup-builder?team=Aces',
+    }} />)
+    expect(working).toContain('Lineup in progress')
+    expect(working).toContain('4/6 selected · 2/3 courts set')
+    expect(working).toContain('Resume lineup')
+
+    const final = renderToStaticMarkup(<TeamHomeCard {...base} lineupHref="/captain/lineup-builder?team=Aces" lineupContinuation={{
+      competitionLayer: 'usta', teamName: 'Aces / Fall Team', leagueName: 'Fall league', flight: '4.0', matchDate: '2026-09-14', opponentTeam: 'Volleys', assignedPlayers: 6, requiredPlayers: 6, completedCourts: 3, totalCourts: 3, status: 'final', updatedAt: '2026-09-08T12:00:00Z', href: '/captain/lineup-builder?team=Aces',
+    }} />)
+    expect(final).toContain('Final lineup')
+    expect(final).toContain('Open final lineup')
+  })
   it('separates loading from an empty upcoming schedule', () => {
     expect(renderToStaticMarkup(<TeamHomeCard {...base} syncing />)).toContain('Schedule syncing')
     const loaded = renderToStaticMarkup(<TeamHomeCard {...base} historyCount={7} />)

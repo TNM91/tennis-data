@@ -1577,6 +1577,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const localBuilderDraftRestoredRef = useRef(Boolean(persistedBuilderDraft))
   const localBuilderDraftWriteReadyRef = useRef(Boolean(persistedBuilderDraft))
   const cloudDraftScopeRef = useRef('')
+  const finalizedDraftFingerprintRef = useRef('')
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
@@ -5177,6 +5178,35 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const finalLineupReady = teamLineupComplete
     && assignedTeamReplySummary.players.length > 0
     && assignedTeamReplySummary.confirmed.length === assignedTeamReplySummary.players.length
+  useEffect(() => {
+    if (!finalLineupReady) {
+      finalizedDraftFingerprintRef.current = ''
+      return
+    }
+    if (!cloudDraftResolved || !session?.access_token || !teamName || !matchDate) return
+
+    const fingerprint = JSON.stringify(currentBuilderDraft)
+    if (finalizedDraftFingerprintRef.current === fingerprint) return
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      void fetch('/api/captain/lineup-drafts', {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'final', scope: currentBuilderDraft }),
+        signal: controller.signal,
+      }).then((response) => {
+        if (response.ok) finalizedDraftFingerprintRef.current = fingerprint
+      }).catch(() => undefined)
+    }, 1_500)
+
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [cloudDraftResolved, currentBuilderDraft, finalLineupReady, matchDate, session?.access_token, teamName])
   const finalLineupReadinessTitle = finalLineupReady
     ? 'Every court is set and every selected player is in.'
     : !teamLineupComplete
