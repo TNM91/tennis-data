@@ -26,6 +26,10 @@ import {
   type TiqTeamParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import {
+  selectCaptainLineupSummaryForTeam,
+  type CaptainLineupDraftSummary,
+} from '@/lib/captain-lineup-draft-summary'
 
 const dataAssistTeamsHref = '/data-assist?intent=upload-source&type=team_summary&context=Add%20my%20team#upload'
 const FUTURE_JWT_SETTLE_DELAY_MS = 3_000
@@ -129,6 +133,7 @@ function CompeteTeamsContent() {
   const [connections, setConnections] = useState<TeamConnection[]>([])
   const [pendingConnections, setPendingConnections] = useState<TeamConnection[]>([])
   const [teamDirectory, setTeamDirectory] = useState<TeamDirectoryOption[]>([])
+  const [lineupSummaries, setLineupSummaries] = useState<CaptainLineupDraftSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [connectionError, setConnectionError] = useState('')
   const [connectionRefresh, setConnectionRefresh] = useState(0)
@@ -214,6 +219,45 @@ function CompeteTeamsContent() {
       active = false
     }
   }, [accessToken, authResolved, connectionRefresh, userId])
+
+  useEffect(() => {
+    if (!authResolved || !userId || !accessToken) {
+      setLineupSummaries([])
+      return
+    }
+
+    const controller = new AbortController()
+    let active = true
+    const loadLineupSummaries = () => {
+      void fetch('/api/captain/lineup-drafts?view=summary', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: 'no-store',
+        signal: controller.signal,
+      })
+        .then(async (response) => {
+          if (!response.ok) return []
+          const payload = await response.json().catch(() => null) as { summaries?: CaptainLineupDraftSummary[] } | null
+          return Array.isArray(payload?.summaries) ? payload.summaries : []
+        })
+        .then((summaries) => {
+          if (active) setLineupSummaries(summaries)
+        })
+        .catch(() => undefined)
+    }
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') loadLineupSummaries()
+    }
+    loadLineupSummaries()
+    window.addEventListener('pageshow', loadLineupSummaries)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      active = false
+      controller.abort()
+      window.removeEventListener('pageshow', loadLineupSummaries)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [accessToken, authResolved, userId])
 
   const groupedTeams = useMemo(() => {
     const directoryByTeam = new Map(teamDirectory.map((option) => [option.team, option]))
@@ -370,6 +414,21 @@ function CompeteTeamsContent() {
               })
               const canStartTeamLineup = access.canUseCaptainWorkflow || isCaptainTeamConnection(group.connection.roles)
               const upcomingMatch = group.directoryOption?.nextMatch || null
+              const lineupContinuation = selectCaptainLineupSummaryForTeam({
+                summaries: lineupSummaries,
+                teamName: group.teamName,
+                leagueName: group.sourceLeagueName,
+                flight: group.sourceFlight,
+                nextMatch: upcomingMatch,
+              })
+              const continuationHref = lineupContinuation ? buildCaptainScopedHref('/captain/lineup-builder', {
+                competitionLayer: lineupContinuation.competitionLayer,
+                team: lineupContinuation.teamName,
+                league: lineupContinuation.leagueName || undefined,
+                flight: lineupContinuation.flight || undefined,
+                date: lineupContinuation.matchDate || undefined,
+                opponent: lineupContinuation.opponentTeam || undefined,
+              }) : lineupHref
               return <TeamHomeCard
                 key={group.connection.id}
                 name={group.teamName}
@@ -378,7 +437,8 @@ function CompeteTeamsContent() {
                 isDefault={group.connection.isDefault}
                 teamHref={teamPageHref}
                 chatHref={teamRoomHref}
-                lineupHref={canStartTeamLineup ? lineupHref : undefined}
+                lineupHref={canStartTeamLineup ? continuationHref : undefined}
+                lineupContinuation={canStartTeamLineup && lineupContinuation ? { ...lineupContinuation, href: continuationHref } : undefined}
                 availabilityHref={isCaptainTeamConnection(group.connection.roles) ? `${teamPageHref}#team-availability` : undefined}
                 nextMatch={upcomingMatch}
                 availabilitySummary={access.canUseCaptainWorkflow && isCaptainTeamConnection(group.connection.roles) && upcomingMatch && accessToken ? <TeamAvailabilitySummary

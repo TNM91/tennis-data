@@ -70,7 +70,15 @@ export default function AvailabilityResponseClient({ token }: { token: string })
 
   const selectedPlayer = useMemo(() => {
     if (!data) return null
-    return data.request.invitedPlayers.find((player) => playerKeyFor(player) === playerKey) ?? null
+    // The per-player token is the authoritative guest identity. A roster
+    // refresh can replace a canonical player id after the request was first
+    // created; requiring that newer id to still match the older request JSON
+    // hid the reply and calendar controls for a valid private link.
+    if (data.lockedPlayer) return data.lockedPlayer
+    return data.request.invitedPlayers.find((player) => (
+      playerKeyFor(player) === playerKey
+      || player.playerName.trim().toLowerCase() === playerKey.trim().toLowerCase()
+    )) ?? null
   }, [data, playerKey])
 
   useEffect(() => {
@@ -277,13 +285,15 @@ export default function AvailabilityResponseClient({ token }: { token: string })
         </>
       ) : null}
 
-      <section style={joinCardStyle}>
-        <div>
-          <h2 style={sectionTitleStyle}>Want fewer availability texts?</h2>
-          <p style={bodyStyle}>Join TiQ to keep your player profile and future availability in one place.</p>
-        </div>
-        <Link href="/join" style={joinLinkStyle}>Join TiQ</Link>
-      </section>
+      {selectedPlayer && saved ? (
+        <section style={joinCardStyle}>
+          <div>
+            <h2 style={sectionTitleStyle}>Want fewer availability texts?</h2>
+            <p style={bodyStyle}>Your reply is already saved. Joining TiQ is optional.</p>
+          </div>
+          <Link href="/join" style={joinLinkStyle}>Create an optional account</Link>
+        </section>
+      ) : null}
     </main>
   )
 }

@@ -21,6 +21,17 @@
 .nextCopy > :last-child { font-size: 13px; color: #b7c9d9; }
 .eyebrow { color: #a8c6df; font-size: 11px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
 .arrow { color: #9be11d; font-size: 20px; }
+.lineupContinuation { min-width: 0; display: grid; gap: 9px; padding: 14px; border: 1px solid #668a42; border-radius: 15px; color: #effbe3; background: linear-gradient(135deg, rgba(155, 225, 29, .13), rgba(18, 51, 62, .72)); text-decoration: none; box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
+.lineupContinuation:hover { filter: brightness(1.08); }
+.finalLineup { border-color: #86c750; background: linear-gradient(135deg, rgba(155, 225, 29, .2), rgba(13, 48, 42, .82)); }
+.lineupContinuationHeader, .lineupContinuationFooter { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #bfcfda; font-size: 11px; line-height: 1.35; }
+.lineupContinuationEyebrow { color: #baf270; font-weight: 850; letter-spacing: .09em; text-transform: uppercase; }
+.lineupContinuationMatch { min-width: 0; font-size: 16px; line-height: 1.3; overflow-wrap: break-word; }
+.lineupContinuation progress { width: 100%; height: 6px; border: 0; border-radius: 999px; overflow: hidden; accent-color: #9be11d; background: #071523; }
+.lineupContinuation progress::-webkit-progress-bar { background: #071523; border-radius: 999px; }
+.lineupContinuation progress::-webkit-progress-value { background: linear-gradient(90deg, #79bd2b, #b2f14c); border-radius: 999px; }
+.lineupContinuationFooter > span { min-width: 0; overflow-wrap: break-word; }
+.lineupContinuationFooter > strong { flex: 0 0 auto; color: #efffdc; font-size: 12px; }
 .cardActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .cardActions a { display: flex; align-items: center; justify-content: center; gap: 12px; min-width: 0; min-height: 46px; box-sizing: border-box; padding: 10px 12px; border: 1px solid #41586d; border-radius: 11px; color: #eef6ff; background: #14283b; font-size: 14px; font-weight: 750; line-height: 1.35; text-decoration: none; text-align: center; overflow-wrap: break-word; }
 .cardActions .primaryAction { grid-column: 1 / -1; justify-content: space-between; background: #9be11d; color: #10210b; border-color: #9be11d; }
@@ -54,6 +65,6 @@
 .replyList li > span { display: grid; gap: 4px; align-content: start; }
 .replyList small { font-size: 11px; color: #b2c8da; }
 .summaryChecked { color: #9db7cb; font-size: 11px; line-height: 1.4; }
-@media (max-width: 760px) { .teamGrid { grid-template-columns: minmax(0, 1fr); gap: 14px; } .teamCard { padding: 18px; gap: 16px; } }
+@media (max-width: 760px) { .teamGrid { grid-template-columns: minmax(0, 1fr); gap: 14px; } .teamCard { padding: 18px; gap: 16px; } .lineupContinuation { padding: 13px; } .lineupContinuationFooter { align-items: flex-end; } }
 @media (max-width: 760px) { .homeHeader { grid-template-columns: minmax(0, 1fr); gap: 12px; } }
 @media (prefers-reduced-motion: no-preference) { .cardActions a { transition: background .15s ease; } }
