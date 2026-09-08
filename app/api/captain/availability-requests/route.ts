@@ -1,4 +1,5 @@
 import { getCaptainApiAuth } from '@/lib/captain-api-auth'
+import { matchAvailabilityPath } from '@/lib/availability-short-links'
 import { randomUUID } from 'node:crypto'
 
 import {
@@ -89,13 +90,13 @@ export async function GET(request: Request) {
       facility: row.facility,
       slots: row.slots_json,
       invitedPlayers: row.invited_players_json,
-      requestUrl: `${origin}/availability/${encodeURIComponent(row.request_token)}`,
+      requestUrl: `${origin}${matchAvailabilityPath(row.request_token)}`,
       updatedAt: row.updated_at,
     },
     invites: (invitesResult.data ?? []).map((invite) => ({
       playerId: invite.player_id ?? '',
       playerName: invite.player_name,
-      requestUrl: `${origin}/availability/${encodeURIComponent(invite.response_token)}`,
+      requestUrl: `${origin}${matchAvailabilityPath(invite.response_token)}`,
     })),
     responses: responsesResult.data ?? [],
   })
@@ -394,11 +395,11 @@ export async function POST(request: Request) {
     ok: true,
     requestId,
     token,
-    requestUrl: `${origin}/availability/${encodeURIComponent(token)}`,
+    requestUrl: `${origin}${matchAvailabilityPath(token)}`,
     playerRequestUrls: (inviteData ?? []).map((invite) => ({
       playerId: invite.player_id ?? '',
       playerName: invite.player_name,
-      requestUrl: `${origin}/availability/${encodeURIComponent(invite.response_token)}`,
+      requestUrl: `${origin}${matchAvailabilityPath(invite.response_token)}`,
     })),
   })
 }

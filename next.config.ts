@@ -97,6 +97,12 @@ const nextConfig: NextConfig = {
           { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
         ],
       })),
+      // Personal short links must not inherit the broader site's referrer
+      // policy. Keep this after the shared headers so it wins in production.
+      ...['/a/:path*', '/s'].map(source => ({
+        source,
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
+      })),
     ]
   },
 };

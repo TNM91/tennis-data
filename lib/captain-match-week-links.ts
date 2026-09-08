@@ -1,3 +1,5 @@
+import { expandAvailabilityToken } from './availability-short-links'
+
 type CalendarLinkInput = {
   eventDate: string
   eventTime: string
@@ -32,7 +34,9 @@ export function buildMatchWeekMapsHref(location: string) {
 export function buildMatchWeekPhoneCalendarHref(requestUrl: string) {
   try {
     const url = new URL(requestUrl)
-    const token = url.pathname.split('/').filter(Boolean).pop()
+    const parts = url.pathname.split('/').filter(Boolean)
+    if (parts.length !== 2 || !['a', 'availability'].includes(parts[0])) return ''
+    const token = parts[0] === 'a' ? expandAvailabilityToken(parts[1]) : parts[1]
     if (!token) return ''
     return `${url.origin}/api/captain/availability-requests/${encodeURIComponent(token)}/calendar.ics`
   } catch {

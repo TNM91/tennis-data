@@ -8,6 +8,7 @@ import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import styles from './season-kickoff.module.css'
 import SeasonAvailabilityClient from '@/app/season-availability/season-availability-client'
 import SeasonGroupRequest from './season-group-request'
+import { seasonAvailabilityPath } from '@/lib/availability-short-links'
 
 type Payload = { roster: SeasonPlayer[]; matches: TeamSeasonMatch[]; invites: SeasonInvite[]; replies: SeasonReply[]; readiness: ReturnType<typeof seasonReadiness>; self: SeasonPlayer | null }
 const replyLabels: Record<string, string> = { available: 'Available', maybe: 'Not sure', unavailable: 'Unavailable' }
@@ -54,7 +55,7 @@ export default function SeasonKickoff({ scope, token, onCalendar, onDirtyChange 
   }
 
   async function copy(invite: SeasonInvite) {
-    const link = `${window.location.origin}/season-availability#${invite.response_token}`
+    const link = `${window.location.origin}${seasonAvailabilityPath(invite.response_token)}`
     try { await navigator.clipboard.writeText(seasonInviteText(scope.team, invite.player_name, link)); setMessage(`Invite copied for ${invite.player_name}. Paste it into your message and send.`) }
     catch { setCopiedLink(link); setMessage('Copy this personal link and send it only to the named player.') }
   }
@@ -97,7 +98,7 @@ export default function SeasonKickoff({ scope, token, onCalendar, onDirtyChange 
             <p>{invite.revoked_at ? 'Link stopped' : `${answered} of ${data.matches.length} dates answered`}</p>
             {!invite.player_id ? <p>Player ID not linked yet. Replies appear here; link their player record to use them in the lineup builder.</p> : null}
             {!invite.revoked_at ? <div className={styles.actions}><button className={styles.button} onClick={() => void copy(invite)}>Copy invite</button>
-              <a className={styles.secondary} href={`sms:?body=${encodeURIComponent(seasonInviteText(scope.team, invite.player_name, typeof window === 'undefined' ? '' : `${window.location.origin}/season-availability#${invite.response_token}`))}`}>Open text message</a>
+              <a className={styles.secondary} href={`sms:?body=${encodeURIComponent(seasonInviteText(scope.team, invite.player_name, typeof window === 'undefined' ? '' : `${window.location.origin}${seasonAvailabilityPath(invite.response_token)}`))}`}>Open text message</a>
               <button className={styles.secondary} disabled={busy} onClick={() => { if (window.confirm(`Stop ${invite.player_name}'s season link? They will no longer be able to reply or load its calendar.`)) void load('PATCH', { inviteId: invite.id }) }}>Stop link</button></div>
               : <button className={styles.secondary} disabled={busy} onClick={() => void load('PATCH', { inviteId: invite.id, action: 'replace' })}>Create replacement link</button>}
           </li>

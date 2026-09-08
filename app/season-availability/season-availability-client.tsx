@@ -7,6 +7,7 @@ import { buildTeamSeasonCalendars, type TeamSeasonMatch } from '@/lib/team-seaso
 import { appleSubscriptionUrl, googleMatchCalendarUrl, saveSeasonCalendarItems } from '@/lib/season-calendar-actions'
 import { seasonMatchLabel, type SeasonReply, type SeasonReplyStatus, type SeasonScope } from '@/lib/season-kickoff'
 import styles from '@/app/components/season-kickoff.module.css'
+import { readSeasonAvailabilityToken } from '@/lib/availability-short-links'
 
 type Payload = { scope: SeasonScope; playerName: string; matches: TeamSeasonMatch[]; replies: SeasonReply[]; today: string; calendarToken: string }
 const labels: Record<SeasonReplyStatus, string> = { available: 'Available', maybe: 'Not sure', unavailable: 'Unavailable' }
@@ -29,7 +30,7 @@ export default function SeasonAvailabilityClient({ responseToken, embedded = fal
   useEffect(() => {
     // The secret stays out of page requests/referrers. API calls are private
     // and return only this player's answers, never the rest of the roster.
-    setToken(responseToken || window.location.hash.slice(1)); setOrigin(window.location.origin)
+    setToken(responseToken || readSeasonAvailabilityToken(window.location.hash)); setOrigin(window.location.origin)
   }, [responseToken])
   useEffect(() => { onDirtyChange?.(dirty.length > 0) }, [dirty.length, onDirtyChange])
   useEffect(() => { onBusyChange?.(busy); return () => onBusyChange?.(false) }, [busy, onBusyChange])

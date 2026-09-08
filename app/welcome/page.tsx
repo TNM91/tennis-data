@@ -8,6 +8,7 @@ import { useAuth } from '@/app/components/auth-provider'
 import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
 import { isSafeLocalNextHref } from '@/lib/plan-intent'
 import { CAPTAIN_PILOT_PRICE_LABEL } from '@/lib/captain-pilot'
+import { getAvailabilityEntry } from '@/lib/availability-onboarding'
 
 const PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 
@@ -95,6 +96,7 @@ function WelcomeContent() {
   const tier = getMembershipTier(planId)
   const fallbackHref = planId === 'free' ? '/explore' : `/upgrade?plan=${planId}`
   const nextHref = isSafeLocalNextHref(searchParams.get('next'), fallbackHref)
+  const availabilityHref = planId === 'free' ? getAvailabilityEntry(nextHref)?.href || '' : ''
   const email = searchParams.get('email')?.trim() || ''
   const firstName = getFirstName(session?.user.user_metadata)
 
@@ -103,12 +105,16 @@ function WelcomeContent() {
       const params = new URLSearchParams({ plan: planId, next: nextHref })
       if (email) params.set('email', email)
       router.replace(`/login?${params.toString()}`)
+    } else if (authResolved && session && availabilityHref) {
+      router.replace(availabilityHref)
     }
-  }, [authResolved, email, nextHref, planId, router, session])
+  }, [authResolved, availabilityHref, email, nextHref, planId, router, session])
 
   if (!authResolved || !session) {
     return <section style={loadingShell}>Finishing your secure TenAceiQ welcome…</section>
   }
+
+  if (availabilityHref) return <section style={loadingShell}><div style={card}><h1 style={title}>Your account is ready.</h1><p style={body} role="status">Opening your team’s availability…</p><Link href={availabilityHref} style={primaryCta}>Continue to availability</Link></div></section>
 
   return (
     <section style={shell}>

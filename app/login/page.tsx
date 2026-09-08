@@ -15,6 +15,7 @@ import { type MembershipTierId } from '@/lib/product-story'
 import { isSafeLocalNextHref } from '@/lib/plan-intent'
 import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
 import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'
+import { getAvailabilityEntry } from '@/lib/availability-onboarding'
 
 const DEFAULT_POST_LOGIN_ROUTE = FREE_POST_LOGIN_ROUTE
 const LOGIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
@@ -147,12 +148,18 @@ function LoginContent() {
   const selectedPlanId = getLoginPlanIntent()
   const requestedNextRoute = searchParams.get('next')
   const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, DEFAULT_POST_LOGIN_ROUTE)
+  const availabilityEntry = selectedPlanId === 'free' ? getAvailabilityEntry(selectedNextRoute) : null
   const isCaptainPilotLogin = selectedPlanId === 'captain' && selectedNextRoute.startsWith('/captain-pilot')
   const selectedIntent = isCaptainPilotLogin ? {
     eyebrow: 'Captain offer · Sign in',
     title: 'Continue your Captain offer.',
     body: 'Sign in to activate 3 months free. Already have Captain access? We’ll take you to your team setup options.',
     destination: 'Captain offer',
+  } : availabilityEntry ? {
+    eyebrow: 'Team availability',
+    title: 'Back to your team.',
+    body: `Sign in to mark when you can play for ${availabilityEntry.team}. Your match and season request will open next. No paid plan needed.`,
+    destination: 'Your availability',
   } : LOGIN_INTENT_COPY[selectedPlanId]
   const hasSafeRequestedNext = !!requestedNextRoute && selectedNextRoute === requestedNextRoute
   const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
