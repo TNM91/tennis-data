@@ -102,6 +102,116 @@ export async function GET(request: Request) {
   })
 }
 
+export async function PATCH(request: Request) {
+  const auth = await getCaptainApiAuth(request)
+  if (!auth.ok) return auth.response
+
+  let body: {
+    requestId?: string
+    playerId?: string
+    playerName?: string
+    status?: string
+  }
+  try {
+    body = await request.json()
+  } catch {
+    return Response.json({ ok: false, message: 'The availability update is incomplete.' }, { status: 400 })
+  }
+
+  const requestId = cleanAvailabilityText(body.requestId, 80)
+  const playerId = cleanAvailabilityText(body.playerId, 80)
+  const playerName = cleanAvailabilityText(body.playerName)
+  const status = cleanAvailabilityText(body.status, 20)
+  if (!isUuid(requestId) || !playerName || !['available', 'maybe', 'unavailable', 'unanswered', 'in', 'out'].includes(status)) {
+    return Response.json({ ok: false, message: 'Choose a valid player and reply.' }, { status: 400 })
+  }
+
+  const service = getCaptainAvailabilityServiceClient()
+  const { data: requestRows, error: requestError } = await service
+    .from('captain_availability_requests')
+    .select('id,created_by,team_name,league_name,flight,match_date,expires_at')
+    .eq('id', requestId)
+    .limit(1)
+  if (requestError) return Response.json({ ok: false, message: requestError.message }, { status: 500 })
+  const row = requestRows?.[0]
+  if (!row || new Date(row.expires_at).getTime() <= Date.now()) {
+    return Response.json({ ok: false, message: 'This availability request has expired. Prepare a new request.' }, { status: 404 })
+  }
+  if (row.created_by !== auth.userId && !await canManageSharedAvailabilityRequest(service, auth.userId, row)) {
+    return Response.json({ ok: false, message: 'This availability request is not linked to one of your teams.' }, { status: 403 })
+  }
+
+  const { data: inviteRows, error: inviteError } = await service
+    .from('captain_availability_request_invites')
+    .select('player_id,player_name')
+    .eq('request_id', requestId)
+    .ilike('player_name', playerName)
+    .limit(1)
+  if (inviteError) return Response.json({ ok: false, message: inviteError.message }, { status: 500 })
+  const invite = inviteRows?.find((candidate) => (
+    String(candidate.player_name).trim().toLowerCase() === playerName.toLowerCase()
+  ))
+  if (!invite) return Response.json({ ok: false, message: 'That player is not part of this availability request.' }, { status: 404 })
+
+  const canonicalPlayerId = isUuid(invite.player_id || '')
+    ? String(invite.player_id)
+    : isUuid(playerId)
+      ? playerId
+      : null
+
+  if (status === 'unanswered') {
+    const { error: responseDeleteError } = await service
+      .from('captain_availability_request_responses')
+      .delete()
+      .eq('request_id', requestId)
+      .eq('player_name', String(invite.player_name))
+      .eq('match_date', row.match_date)
+    if (responseDeleteError) return Response.json({ ok: false, message: responseDeleteError.message }, { status: 500 })
+
+    if (canonicalPlayerId) {
+      await service
+        .from('lineup_availability')
+        .delete()
+        .eq('match_date', row.match_date)
+        .eq('team_name', row.team_name)
+        .eq('player_id', canonicalPlayerId)
+    }
+    return Response.json({ ok: true, status: 'unanswered' })
+  }
+
+  const savedStatus = status === 'in' ? 'available' : status === 'out' ? 'unavailable' : status
+  const respondedAt = new Date().toISOString()
+  const { error: responseSaveError } = await service
+    .from('captain_availability_request_responses')
+    .upsert({
+      request_id: requestId,
+      player_id: canonicalPlayerId,
+      player_name: String(invite.player_name),
+      match_date: row.match_date,
+      status: savedStatus,
+      notes: 'Updated by captain',
+      responded_at: respondedAt,
+    }, { onConflict: 'request_id,player_name,match_date' })
+  if (responseSaveError) return Response.json({ ok: false, message: responseSaveError.message }, { status: 500 })
+
+  if (canonicalPlayerId) {
+    await service
+      .from('lineup_availability')
+      .upsert({
+        match_date: row.match_date,
+        team_name: row.team_name,
+        league_name: row.league_name || null,
+        flight: row.flight || null,
+        player_id: canonicalPlayerId,
+        status: savedStatus === 'maybe' ? 'limited' : savedStatus,
+        notes: 'Updated by captain',
+        updated_at: respondedAt,
+      }, { onConflict: 'match_date,team_name,player_id' })
+  }
+
+  return Response.json({ ok: true, status: savedStatus, respondedAt })
+}
+
 async function canManageSharedAvailabilityRequest(
   service: ReturnType<typeof getCaptainAvailabilityServiceClient>,
   userId: string,
