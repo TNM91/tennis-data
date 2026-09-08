@@ -25,7 +25,6 @@ import {
 import { supabase } from '@/lib/supabase'
 import {
   formatDate,
-  uniqueSorted,
   inferSeasonLabel,
   inferSessionLabel,
   parseBooleanLike,
@@ -74,6 +73,14 @@ import {
   type CaptainWeekChallenge,
   type CaptainWeekChallengeHistoryItem,
 } from '@/lib/captain-week-challenge'
+import {
+  buildCaptainManagedTeamOptions,
+  captainTeamScopeKey,
+  chooseCaptainManagedTeam,
+  orderCaptainScheduledMatches,
+  type CaptainManagedTeamOption,
+} from '@/lib/captain-managed-team-context'
+import type { TeamConnection } from '@/lib/team-profile-links'
 
 type ContactRow = {
   id: string
@@ -625,7 +632,7 @@ export default function CaptainMessagingPage() {
 function CaptainMessagingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const initialContext = readInitialMessagingContext()
+  const initialContext = useMemo(() => readInitialMessagingContext(), [])
   const contactReviewMode = searchParams.get('contactView') === 'missing'
   const contactManagerRequested = Boolean(searchParams.get('contactView'))
   const setupTeamLinkRequested = searchParams.get('setup') === 'team-link'
@@ -651,6 +658,9 @@ function CaptainMessagingContent() {
   const [lineups, setLineups] = useState<LineupAssignment[]>([])
   const [externalAvailabilityRows, setExternalAvailabilityRows] = useState<ExternalAvailabilityRow[]>([])
   const [availabilitySyncSource, setAvailabilitySyncSource] = useState<string | null>(null)
+  const [managedTeamOptions, setManagedTeamOptions] = useState<CaptainManagedTeamOption[]>([])
+  const [managedTeamsLoading, setManagedTeamsLoading] = useState(false)
+  const [managedTeamsError, setManagedTeamsError] = useState('')
 
   const [leagueFilter, setLeagueFilter] = useState(initialContext.league)
   const [flightFilter, setFlightFilter] = useState(initialContext.flight)
@@ -873,6 +883,52 @@ function CaptainMessagingContent() {
   }, [authResolved, refreshTick, role])
 
   useEffect(() => {
+    if (!authResolved || role === 'public' || !captainAccess) return
+    const accessToken = session?.access_token || ''
+    if (!accessToken) return
+
+    let active = true
+    const controller = new AbortController()
+    setManagedTeamsLoading(true)
+    setManagedTeamsError('')
+
+    void fetch('/api/team-connections', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: 'no-store',
+      signal: controller.signal,
+    }).then(async (response) => {
+      const result = await response.json() as { connections?: TeamConnection[]; message?: string }
+      if (!response.ok) throw new Error(result.message || 'Captain teams could not be loaded.')
+      if (!active) return
+
+      const options = buildCaptainManagedTeamOptions(result.connections || [])
+      setManagedTeamOptions(options)
+      const selected = chooseCaptainManagedTeam(options, {
+        team: initialContext.team,
+        league: initialContext.league,
+        flight: initialContext.flight,
+      })
+      if (selected) {
+        setTeamFilter(selected.team)
+        setLeagueFilter(selected.league)
+        setFlightFilter(selected.flight)
+        setSeasonFilter('')
+        setSessionFilter('')
+      }
+    }).catch((cause) => {
+      if (!active || cause?.name === 'AbortError') return
+      setManagedTeamsError(cause instanceof Error ? cause.message : 'Captain teams could not be loaded.')
+    }).finally(() => {
+      if (active) setManagedTeamsLoading(false)
+    })
+
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [authResolved, captainAccess, initialContext.flight, initialContext.league, initialContext.team, refreshTick, role, session?.access_token])
+
+  useEffect(() => {
     if (loading) return
     if (prefillApplied) return
     if (!prefillScenarioRaw) return
@@ -954,11 +1010,11 @@ function CaptainMessagingContent() {
     setPrefillApplied(true)
   }, [availabilityHandoff, contacts, loading, prefillApplied, prefillScenarioRaw, scenarios, matches, eventNotes])
 
-  const leagueOptions = useMemo(() => uniqueSorted([...contacts.map((c) => c.league_name), ...matches.map((m) => m.league_name), ...scenarios.map((s) => s.league_name)]), [contacts, matches, scenarios])
-  const flightOptions = useMemo(() => uniqueSorted([...contacts.map((c) => c.flight), ...matches.map((m) => m.flight), ...scenarios.map((s) => s.flight)]), [contacts, matches, scenarios])
-  const seasonOptions = useMemo(() => uniqueSorted([...contacts.map((c) => c.season_label), ...matches.map((m) => inferSeasonLabel(m.match_date))]), [contacts, matches])
-  const sessionOptions = useMemo(() => uniqueSorted([...contacts.map((c) => c.session_label), ...matches.map((m) => inferSessionLabel(m.match_date))]), [contacts, matches])
-  const teamOptions = useMemo(() => uniqueSorted([...contacts.map((c) => c.team_name), ...matches.flatMap((m) => [m.home_team, m.away_team]), ...scenarios.map((s) => s.team_name)]), [contacts, matches, scenarios])
+  const selectedTeamScopeKey = captainTeamScopeKey({ team: teamFilter, league: leagueFilter, flight: flightFilter })
+  const visibleManagedTeamOptions = useMemo(() => {
+    if (managedTeamOptions.length || !teamFilter) return managedTeamOptions
+    return [{ team: teamFilter, league: leagueFilter, flight: flightFilter, matches: 0, isDefault: true }]
+  }, [flightFilter, leagueFilter, managedTeamOptions, teamFilter])
 
   const scopedContacts = useMemo(() => {
     const teamContacts = selectCaptainContactRowsForScope({
@@ -1005,7 +1061,7 @@ function CaptainMessagingContent() {
   }, [contactManagerRequested, loading, requestedMissingContactNames, scopedContacts])
 
   const filteredMatches = useMemo(() => {
-    return matches.filter((match) => {
+    return orderCaptainScheduledMatches(matches.filter((match) => {
       const inferredSeason = inferSeasonLabel(match.match_date)
       const inferredSession = inferSessionLabel(match.match_date)
       const matchTeam = [normalizeText(match.home_team), normalizeText(match.away_team)]
@@ -1015,7 +1071,7 @@ function CaptainMessagingContent() {
       const sessionMatch = !sessionFilter || normalizeText(inferredSession) === sessionFilter
       const teamMatch = !teamFilter || matchTeam.includes(teamFilter)
       return leagueMatch && flightMatch && seasonMatch && sessionMatch && teamMatch
-    })
+    }))
   }, [matches, leagueFilter, flightFilter, seasonFilter, sessionFilter, teamFilter])
 
   useEffect(() => {
@@ -3129,7 +3185,7 @@ function importScenarioToLineup() {
             <summary style={detailsSummaryStyle}>
               <div>
                 <p style={sectionKicker}>Scope</p>
-                <h2 style={sectionTitle}>Team and match filters</h2>
+                <h2 style={sectionTitle}>Captain team and match</h2>
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                 <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)} disabled={loading}>
@@ -3142,34 +3198,29 @@ function importScenarioToLineup() {
             </summary>
 
             <div style={filtersGridStyle}>
-              <Field label="League" htmlFor="captain-messaging-league">
-                <select id="captain-messaging-league" value={leagueFilter} onChange={(e) => setLeagueFilter(e.target.value)} style={inputStyle}>
-                  <option value="">All</option>
-                  {leagueOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                </select>
-              </Field>
-              <Field label="Flight" htmlFor="captain-messaging-flight">
-                <select id="captain-messaging-flight" value={flightFilter} onChange={(e) => setFlightFilter(e.target.value)} style={inputStyle}>
-                  <option value="">All</option>
-                  {flightOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                </select>
-              </Field>
-              <Field label="Season" htmlFor="captain-messaging-season">
-                <select id="captain-messaging-season" value={seasonFilter} onChange={(e) => setSeasonFilter(e.target.value)} style={inputStyle}>
-                  <option value="">All</option>
-                  {seasonOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                </select>
-              </Field>
-              <Field label="Session" htmlFor="captain-messaging-session">
-                <select id="captain-messaging-session" value={sessionFilter} onChange={(e) => setSessionFilter(e.target.value)} style={inputStyle}>
-                  <option value="">All</option>
-                  {sessionOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                </select>
-              </Field>
-              <Field label="Team" htmlFor="captain-messaging-team">
-                <select id="captain-messaging-team" value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)} style={inputStyle}>
-                  <option value="">All</option>
-                  {teamOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+              <Field label="Captain team" htmlFor="captain-messaging-team">
+                <select
+                  id="captain-messaging-team"
+                  value={selectedTeamScopeKey}
+                  onChange={(event) => {
+                    const selected = visibleManagedTeamOptions.find((option) => captainTeamScopeKey(option) === event.target.value)
+                    if (!selected) return
+                    setTeamFilter(selected.team)
+                    setLeagueFilter(selected.league)
+                    setFlightFilter(selected.flight)
+                    setSeasonFilter('')
+                    setSessionFilter('')
+                    setEventMatchId('')
+                  }}
+                  style={inputStyle}
+                  disabled={managedTeamsLoading || visibleManagedTeamOptions.length === 0}
+                >
+                  {visibleManagedTeamOptions.length === 0 ? <option value="">No managed teams</option> : null}
+                  {visibleManagedTeamOptions.map((option) => (
+                    <option key={captainTeamScopeKey(option)} value={captainTeamScopeKey(option)}>
+                      {option.team} · {option.league} · {option.flight}
+                    </option>
+                  ))}
                 </select>
               </Field>
               <Field label="Upcoming match" htmlFor="captain-messaging-match">
@@ -3183,6 +3234,8 @@ function importScenarioToLineup() {
                 </select>
               </Field>
             </div>
+
+            {managedTeamsError ? <p role="alert" style={errorTextStyle}>{managedTeamsError}</p> : null}
 
             <div style={pillRowStyle}>
               <span style={miniPillSlate}>{scopedContacts.length} in roster scope</span>

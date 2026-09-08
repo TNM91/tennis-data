@@ -12,6 +12,7 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { readLocalArray, safeKey } from '@/lib/captain-formatters'
 import { supabase } from '@/lib/supabase'
+import { getLocalIsoDate, parseCaptainCalendarDate } from '@/lib/captain-calendar-date'
 
 type MatchRow = {
   id: string
@@ -53,9 +54,8 @@ function escapePostgrestValue(value: string) {
 }
 
 function formatDate(value: string | null | undefined) {
-  if (!value) return 'Date pending'
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? 'Date pending' : parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  const parsed = parseCaptainCalendarDate(value)
+  return parsed ? parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Date pending'
 }
 
 function getOpponent(match: MatchRow | null, team: string) {
@@ -134,7 +134,7 @@ function CaptainSeasonDashboardContent() {
       .or(`home_team.eq."${escapedTeam}",away_team.eq."${escapedTeam}"`).is('line_number', null)
     let upcomingQuery = supabase.from('matches').select('id, match_date, home_team, away_team, winner_side, score')
       .or(`home_team.eq."${escapedTeam}",away_team.eq."${escapedTeam}"`).is('line_number', null)
-      .gte('match_date', new Date().toISOString().slice(0, 10)).order('match_date', { ascending: true }).limit(1)
+      .gte('match_date', getLocalIsoDate()).order('match_date', { ascending: true }).limit(1)
     let resultsQuery = supabase.from('matches').select('id, match_date, home_team, away_team, winner_side, score')
       .or(`home_team.eq."${escapedTeam}",away_team.eq."${escapedTeam}"`).is('line_number', null)
       .not('winner_side', 'is', null).order('match_date', { ascending: false }).limit(400)
