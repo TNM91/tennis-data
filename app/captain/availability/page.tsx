@@ -1320,7 +1320,7 @@ function CaptainAvailabilityContent() {
 
                 {visibleAvailabilityPlayers.length ? visibleAvailabilityPlayers.map((player) => (
                   <div key={player.id} style={playerRowResponsive(isMobile)}>
-                    <div style={playerIdentityStyle}>
+                    <div style={playerIdentityStyleResponsive(isMobile)}>
                       <div style={playerNameRowStyle}>
                         <div style={playerName}>{player.name}</div>
                         <span style={player.status === 'in' ? statusPillIn : player.status === 'out' ? statusPillOut : player.status === 'maybe' ? statusPillMaybe : statusPillWaiting}>
@@ -1334,7 +1334,7 @@ function CaptainAvailabilityContent() {
                       </div>
                     </div>
 
-                    <div style={playerCommandStyle}>
+                    <div style={playerCommandStyleResponsive(isMobile)}>
                       <div style={statusButtonRowResponsive(isMobile)} aria-label={`Set ${player.name} availability`} role="group">
                         <button type="button" disabled={savingPlayerId === player.id} style={{ ...statusButton, ...(player.status === 'in' ? statusButtonIn : {}) }} aria-pressed={player.status === 'in'} onClick={() => void updateStatus(player, 'in')}>Yes</button>
                         <button type="button" disabled={savingPlayerId === player.id} style={{ ...statusButton, ...(player.status === 'maybe' ? statusButtonMaybe : {}) }} aria-pressed={player.status === 'maybe'} onClick={() => void updateStatus(player, 'maybe')}>Maybe</button>
@@ -1489,6 +1489,21 @@ function playerRowResponsive(isMobile: boolean): CSSProperties {
     padding: isMobile ? 12 : playerRow.padding,
     borderRadius: isMobile ? 16 : playerRow.borderRadius,
     minWidth: 0,
+  }
+}
+
+function playerIdentityStyleResponsive(isMobile: boolean): CSSProperties {
+  return {
+    ...playerIdentityStyle,
+    flex: isMobile ? '0 0 auto' : playerIdentityStyle.flex,
+    width: isMobile ? '100%' : playerIdentityStyle.width,
+  }
+}
+
+function playerCommandStyleResponsive(isMobile: boolean): CSSProperties {
+  return {
+    ...playerCommandStyle,
+    flex: isMobile ? '0 0 auto' : playerCommandStyle.flex,
   }
 }
 
