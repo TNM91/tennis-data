@@ -293,7 +293,7 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain('Finish {firstOpenTeamCourt.label}')
     expect(source).toContain('<GhostBtn onClick={() => focusTeamCourts()}>Review courts</GhostBtn>')
     expect(source).toContain("<PrimaryBtn onClick={() => applyOptimizedPlan('best')}>")
-    expect(source).toContain('<Link href="#captain-lineup-courts" style={primaryButton}>Build lineup</Link>')
+    expect(source).toContain('<PrimaryBtn onClick={() => focusTeamCourts()}>Build lineup</PrimaryBtn>')
     expect(source).toContain('const mobileLineupPulse = [')
     expect(source).toContain('aria-label="Lineup readiness pulse"')
     expect(source).toContain("label: 'Courts'")

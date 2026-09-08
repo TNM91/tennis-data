@@ -74,11 +74,14 @@ import {
   CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY,
   CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY,
   buildPlayerPotentialLineupAvailabilityMessage,
+  captainLineupDraftMatchesScope,
   getCaptainLineupDraftStorageKey,
+  hasCaptainLineupDraftContent,
   readCaptainLineupBuilderDraft,
   readCaptainDirectCourtTextHandoff,
   type CaptainDirectCourtTextHandoff,
   type CaptainLineupBuilderDraft,
+  type CaptainLineupDraftScope,
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
 import {
@@ -398,6 +401,17 @@ type LineupBuilderPayload = {
 
 const CAPTAIN_LINEUP_SNAPSHOT_MAX_AGE_MS = 6 * 60 * 60 * 1000
 const CAPTAIN_LINEUP_REQUEST_TIMEOUT_MS = 12_000
+
+function buildCaptainLineupDraftParams(draft: CaptainLineupDraftScope) {
+  const params = new URLSearchParams()
+  params.set('competitionLayer', draft.competitionLayer)
+  params.set('teamName', draft.teamName)
+  params.set('leagueName', draft.leagueName)
+  params.set('flight', draft.flight)
+  params.set('matchDate', draft.matchDate)
+  params.set('opponentTeam', draft.opponentTeam)
+  return params
+}
 
 function buildRosterPlayerIdSet(
   targetTeam: string,
@@ -1391,10 +1405,27 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const persistedDeviceBuilderDraft = typeof window === 'undefined'
     ? null
     : readCaptainLineupBuilderDraft(window.localStorage.getItem(getCaptainLineupDraftStorageKey(userId)))
-  // A Team card is a deliberate route choice. Never let a recoverable draft
-  // from another team replace that selection after mobile auth settles.
-  const persistedBuilderDraft = initialContext.hasExplicitRouteScope
+  const initialDraftScope: CaptainLineupDraftScope = {
+    competitionLayer: initialContext.competitionLayer,
+    teamName: initialContext.team,
+    leagueName: initialContext.league,
+    flight: initialContext.flight,
+    matchDate: initialContext.eventDate,
+    opponentTeam: initialContext.opponentTeam,
+  }
+  const persistedScopedBuilderDraft = typeof window === 'undefined' || !initialContext.hasExplicitRouteScope
     ? null
+    : readCaptainLineupBuilderDraft(window.localStorage.getItem(getCaptainLineupDraftStorageKey(userId, initialDraftScope)))
+  // A Team card is a deliberate route choice. Restore only the draft for that
+  // exact team and match; never let another team's working lineup replace it.
+  const persistedBuilderDraft = initialContext.hasExplicitRouteScope
+    ? (persistedScopedBuilderDraft
+      ?? (persistedDirectCourtTextHandoff?.builderDraft && captainLineupDraftMatchesScope(persistedDirectCourtTextHandoff.builderDraft, initialDraftScope)
+        ? persistedDirectCourtTextHandoff.builderDraft
+        : null)
+      ?? (persistedDeviceBuilderDraft && captainLineupDraftMatchesScope(persistedDeviceBuilderDraft, initialDraftScope)
+        ? persistedDeviceBuilderDraft
+        : null))
     : (persistedDirectCourtTextHandoff?.builderDraft ?? persistedDeviceBuilderDraft)
   const persistedManualRosterDraft = persistedDirectCourtTextHandoff?.builderDraft ?? persistedDeviceBuilderDraft
   const initialCompetitionLayer = initialContext.competitionLayer || persistedBuilderDraft?.competitionLayer || ''
@@ -1530,6 +1561,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
   const [releasedConfirmedPlayerIds, setReleasedConfirmedPlayerIds] = useState<string[]>([])
   const [openingFinalDelivery, setOpeningFinalDelivery] = useState(false)
+  const [cloudDraftResolved, setCloudDraftResolved] = useState(false)
+  const [cloudDraftSaveState, setCloudDraftSaveState] = useState<'idle' | 'saving' | 'saved' | 'local'>('idle')
 
   const [prefillScenarioId] = useState(initialContext.scenario)
   const [prefillPairIds] = useState<string[]>(initialContext.pairIds)
@@ -1543,6 +1576,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const futureJwtRefreshAttemptedRef = useRef(0)
   const localBuilderDraftRestoredRef = useRef(Boolean(persistedBuilderDraft))
   const localBuilderDraftWriteReadyRef = useRef(Boolean(persistedBuilderDraft))
+  const cloudDraftScopeRef = useRef('')
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
@@ -1773,7 +1807,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       storedDraft.flight,
       restoredMatchFormat,
     ))
-    setMessage('Draft restored on this device.')
+    setMessage('In-progress lineup restored.')
   }, [authResolved, initialContext.hasExplicitRouteScope, userId])
 
   useEffect(() => {
@@ -1783,11 +1817,164 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       return
     }
 
-    window.localStorage.setItem(getCaptainLineupDraftStorageKey(userId), JSON.stringify({
+    const savedDraft = {
       ...currentBuilderDraft,
       updatedAt: new Date().toISOString(),
-    }))
+    }
+    window.localStorage.setItem(getCaptainLineupDraftStorageKey(userId), JSON.stringify(savedDraft))
+    window.localStorage.setItem(
+      getCaptainLineupDraftStorageKey(userId, currentBuilderDraft),
+      JSON.stringify(savedDraft),
+    )
   }, [authResolved, currentBuilderDraft, userId])
+
+  const currentBuilderDraftRef = useRef(currentBuilderDraft)
+  currentBuilderDraftRef.current = currentBuilderDraft
+
+  useEffect(() => {
+    if (!authResolved || loading || !scopedResumeResolved) return
+    if (!isCaptainAccess || !session?.access_token || !userId || !teamName) {
+      setCloudDraftResolved(true)
+      return
+    }
+
+    const scope: CaptainLineupDraftScope = {
+      competitionLayer,
+      teamName,
+      leagueName,
+      flight,
+      matchDate,
+      opponentTeam,
+    }
+    const params = buildCaptainLineupDraftParams(scope)
+    const scopeKey = params.toString()
+    if (cloudDraftScopeRef.current === scopeKey) return
+    cloudDraftScopeRef.current = scopeKey
+    setCloudDraftResolved(false)
+
+    const controller = new AbortController()
+    let active = true
+    void fetch(`/api/captain/lineup-drafts?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) return null
+        const payload = await response.json().catch(() => null) as { draft?: unknown } | null
+        return readCaptainLineupBuilderDraft(JSON.stringify(payload?.draft ?? null))
+      })
+      .then((cloudDraft) => {
+        if (!active || !cloudDraft || !hasCaptainLineupDraftContent(cloudDraft)) return
+
+        const localDraft = typeof window === 'undefined'
+          ? null
+          : readCaptainLineupBuilderDraft(
+            window.localStorage.getItem(getCaptainLineupDraftStorageKey(userId, scope)),
+          )
+        const cloudUpdatedAt = Date.parse(cloudDraft.updatedAt || '') || 0
+        const localUpdatedAt = Date.parse(localDraft?.updatedAt || '') || 0
+        const currentDraftHasWork = hasCaptainLineupDraftContent(currentBuilderDraftRef.current)
+        if (currentDraftHasWork && localUpdatedAt >= cloudUpdatedAt) return
+
+        const restoredTeamSlots = normalizeSavedSlots(cloudDraft.teamSlots)
+        const restoredOpponentSlots = normalizeSavedSlots(cloudDraft.opponentSlots)
+        const restoredMatchFormat = cloudDraft.matchFormat === 'auto'
+          ? 'auto'
+          : normalizeTeamMatchFormatId(cloudDraft.matchFormat)
+
+        localBuilderDraftWriteReadyRef.current = false
+        setCompetitionLayer(cloudDraft.competitionLayer)
+        setLeagueName(cloudDraft.leagueName)
+        setFlight(cloudDraft.flight)
+        setTeamName(cloudDraft.teamName)
+        setOpponentTeam(cloudDraft.opponentTeam)
+        setMatchDate(cloudDraft.matchDate)
+        setSelectedMatchId(cloudDraft.selectedMatchId)
+        setSelectedMatchFormatId(restoredMatchFormat)
+        setCurrentScenarioId(cloudDraft.scenarioId)
+        setScenarioName(cloudDraft.scenarioName)
+        setNotes(cloudDraft.notes)
+        const restoredManualRosterPlayers = restoreManualRosterPlayers(cloudDraft)
+        if (restoredManualRosterPlayers.length) {
+          setManualRosterPlayers((current) => {
+            const currentIds = new Set(current.map((player) => player.id))
+            return [...current, ...restoredManualRosterPlayers.filter((player) => !currentIds.has(player.id))]
+          })
+        }
+        if (restoredTeamSlots.length) setTeamSlots(restoredTeamSlots)
+        if (restoredOpponentSlots.length) setOpponentSlots(restoredOpponentSlots)
+        setActiveLineupFormatKey(getCaptainLineupFormatKey(
+          cloudDraft.leagueName,
+          cloudDraft.flight,
+          restoredMatchFormat,
+        ))
+        setMessage('In-progress lineup restored from TiQ.')
+      })
+      .catch(() => null)
+      .finally(() => {
+        if (active) setCloudDraftResolved(true)
+      })
+
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [
+    authResolved,
+    competitionLayer,
+    flight,
+    isCaptainAccess,
+    leagueName,
+    loading,
+    matchDate,
+    opponentTeam,
+    scopedResumeResolved,
+    session?.access_token,
+    teamName,
+    userId,
+  ])
+
+  useEffect(() => {
+    if (!cloudDraftResolved || !isCaptainAccess || !session?.access_token || !userId || !teamName || loading) return
+
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      const draft = {
+        ...currentBuilderDraft,
+        updatedAt: new Date().toISOString(),
+      }
+      const hasDraftContent = hasCaptainLineupDraftContent(draft)
+      setCloudDraftSaveState('saving')
+      void fetch(
+        hasDraftContent
+          ? '/api/captain/lineup-drafts'
+          : `/api/captain/lineup-drafts?${buildCaptainLineupDraftParams(draft).toString()}`,
+        {
+          method: hasDraftContent ? 'PUT' : 'DELETE',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            ...(hasDraftContent ? { 'Content-Type': 'application/json' } : {}),
+          },
+          body: hasDraftContent ? JSON.stringify({ draft }) : undefined,
+          signal: controller.signal,
+        },
+      )
+        .then((response) => {
+          if (!response.ok) throw new Error('Draft save failed')
+          setCloudDraftSaveState('saved')
+        })
+        .catch((saveError: unknown) => {
+          if (saveError instanceof DOMException && saveError.name === 'AbortError') return
+          setCloudDraftSaveState('local')
+        })
+    }, 900)
+
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [cloudDraftResolved, currentBuilderDraft, isCaptainAccess, loading, session?.access_token, teamName, userId])
 
   useEffect(() => {
     if (loading || !backupFocusSlot || backupFocusHandledRef.current) return
@@ -2966,6 +3153,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   }
 
   function resetBuilder() {
+    const draftToClear = currentBuilderDraft
+    const accessToken = session?.access_token
     setCurrentScenarioId('')
     setCompetitionLayer('')
     setScenarioName('')
@@ -2985,6 +3174,13 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY)
       window.localStorage.removeItem(getCaptainLineupDraftStorageKey(userId))
+      window.localStorage.removeItem(getCaptainLineupDraftStorageKey(userId, draftToClear))
+    }
+    if (accessToken && draftToClear.teamName) {
+      void fetch(`/api/captain/lineup-drafts?${buildCaptainLineupDraftParams(draftToClear).toString()}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }).catch(() => null)
     }
     clearLocks()
     setMessage('Builder reset.')
@@ -4492,7 +4688,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   }
 
   useEffect(() => {
-    if (savedLineupRestoreAppliedRef.current || !scopedResumeResolved || !savedScenarios.length || prefillScenarioId) return
+    if (savedLineupRestoreAppliedRef.current || !scopedResumeResolved || !cloudDraftResolved || !savedScenarios.length || prefillScenarioId) return
 
     const hasDraftAssignments = teamSlots.some((slot) => slot.players.some((player) => player.playerId || player.playerName))
     if (hasDraftAssignments) {
@@ -4521,10 +4717,10 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     savedLineupRestoreAppliedRef.current = true
     if (!scenarioToRestore) return
     void loadScenario(scenarioToRestore.id)
-    setMessage('Saved lineup restored. Your draft will keep saving on this phone.')
+    setMessage('Saved lineup restored. Your working lineup will keep autosaving.')
   // The restore is intentionally a one-time handoff after the scoped state and saved scenarios are both ready.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentScenarioId, flight, leagueName, matchDate, opponentTeam, prefillScenarioId, savedScenarios, scopedResumeResolved, teamName, teamSlots])
+  }, [cloudDraftResolved, currentScenarioId, flight, leagueName, matchDate, opponentTeam, prefillScenarioId, savedScenarios, scopedResumeResolved, teamName, teamSlots])
 
   useEffect(() => {
     if (prefillApplied) return
@@ -5164,7 +5360,15 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               <p style={sectionKicker}>Lineup controls</p>
               <h1 style={builderControlTitleStyle}>Build a potential lineup.</h1>
               <div style={builderDraftStatusStyle} role="status" aria-live="polite">
-                <span style={miniPillGreenStyle}>Draft autosaved on this phone</span>
+                <span style={cloudDraftSaveState === 'local' ? miniPillSlateStyle : miniPillGreenStyle}>
+                  {cloudDraftSaveState === 'saving'
+                    ? 'Saving draft…'
+                    : cloudDraftSaveState === 'saved'
+                      ? 'Draft autosaved to TiQ'
+                      : cloudDraftSaveState === 'local'
+                        ? 'Saved on this phone'
+                        : 'Draft autosaves to TiQ'}
+                </span>
                 {currentScenarioId ? <span style={miniPillBlueStyle}>Saved lineup version</span> : null}
               </div>
             </div>
@@ -5180,7 +5384,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                   {saving ? 'Saving...' : currentScenarioId ? 'Update saved version' : 'Save lineup version'}
                 </PrimaryBtn>
               ) : (
-                <Link href="#captain-lineup-courts" style={primaryButton}>Build lineup</Link>
+                <PrimaryBtn onClick={() => focusTeamCourts()}>Build lineup</PrimaryBtn>
               )}
               <GhostBtn onClick={() => void createCoCaptainReview()} disabled={!lineupHasAssignments || saving || creatingCoCaptainReview}>
                 {creatingCoCaptainReview ? 'Preparing review…' : 'Ask co-captain'}
@@ -5211,7 +5415,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
             </div>
           )}
-          <p style={subtleHelperTextStyle}>Auto-saved on this phone. Save a version when you are ready to compare it, send it, print it, or track replies.</p>
+          <p style={subtleHelperTextStyle}>Your working lineup saves automatically. Save a version when you want a stable checkpoint to compare, send, print, or track replies.</p>
           {coCaptainReviewShare ? (
             <div style={coCaptainShareReadyStyle} aria-live="polite">
               <div style={{ minWidth: 0 }}>
