@@ -119,7 +119,7 @@ describe('Captain shared auth access', () => {
   it('keeps the Captain Season Dashboard on shared auth before loading team data', () => {
     expect(seasonDashboardSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
     expect(seasonDashboardSource).toContain('<SiteShell active="/captain">')
-    expect(seasonDashboardSource).toContain('const { role, entitlements, authResolved } = useAuth()')
+    expect(seasonDashboardSource).toMatch(/const \{ role, entitlements, authResolved \} = (?:useAuth\(\)|auth)/)
     expect(seasonDashboardSource).toContain("if (!authResolved || role === 'public') return")
     expect(seasonDashboardSource).not.toContain("import { getClientAuthState } from '@/lib/auth'")
     expect(seasonDashboardSource).not.toContain('supabase.auth.onAuthStateChange')

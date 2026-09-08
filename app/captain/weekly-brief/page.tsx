@@ -46,6 +46,7 @@ import {
   readLocalItem as readLocalObject,
 } from '@/lib/captain-formatters'
 import { useCaptainMatchWeekDraft } from '@/lib/use-captain-match-week-draft'
+import { useCaptainMatchWeekReadiness } from '@/lib/use-captain-match-week-readiness'
 
 type MatchRow = {
   id: string
@@ -416,6 +417,19 @@ function CaptainWeeklyBriefContent() {
   )
   const weekStatusMeta = useMemo(() => getCaptainWeekStatusMeta(weekStatus), [weekStatus])
 
+  const { readiness: cloudReadiness, status: cloudReadinessStatus } = useCaptainMatchWeekReadiness({
+    accessToken: session?.access_token,
+    enabled: authResolved && role !== 'public' && access.canUseCaptainWorkflow,
+    scope: {
+      competitionLayer,
+      teamName: team,
+      leagueName: league,
+      flight,
+      matchDate: safeText(eventDate || currentMatch?.match_date).slice(0, 10),
+      opponentTeam: resolvedOpponent,
+    },
+  })
+
   const availabilityRows = useMemo(
     () => readLocalArray<WeeklyAvailability>(WEEKLY_AVAILABILITY_STORAGE_KEY).filter((row) => row.event_key === eventKey),
     [eventKey]
@@ -425,7 +439,7 @@ function CaptainWeeklyBriefContent() {
     [eventKey]
   )
 
-  const availabilitySummary = useMemo(() => {
+  const localAvailabilitySummary = useMemo(() => {
     const counts = {
       available: 0,
       tentative: 0,
@@ -443,7 +457,16 @@ function CaptainWeeklyBriefContent() {
     return counts
   }, [availabilityRows])
 
-  const responseSummary = useMemo(() => {
+  const availabilitySummary = cloudReadiness
+    ? {
+        available: cloudReadiness.summary.available,
+        tentative: cloudReadiness.summary.maybe,
+        unavailable: cloudReadiness.summary.unavailable,
+        noResponse: cloudReadiness.summary.waiting,
+      }
+    : localAvailabilitySummary
+
+  const localResponseSummary = useMemo(() => {
     const counts = {
       confirmed: 0,
       late: 0,
@@ -459,6 +482,14 @@ function CaptainWeeklyBriefContent() {
     return counts
   }, [responseRows])
 
+  const responseSummary = cloudReadiness
+    ? {
+        confirmed: Math.max(0, cloudReadiness.summary.roster - cloudReadiness.summary.waiting),
+        late: localResponseSummary.late,
+        noResponse: cloudReadiness.summary.waiting,
+      }
+    : localResponseSummary
+
   const availabilityTotal =
     availabilitySummary.available +
     availabilitySummary.tentative +
@@ -471,16 +502,16 @@ function CaptainWeeklyBriefContent() {
   const responseReadyPercent = responseTotal ? Math.round((responseSummary.confirmed / responseTotal) * 100) : 0
   const lineupTarget = Math.max(lineupRows.length, 5)
   const lineupReadyPercent = lineupRows.length ? Math.min(100, Math.round((lineupRows.length / lineupTarget) * 100)) : 0
-  const openRiskCount =
-    availabilitySummary.tentative +
-    availabilitySummary.noResponse +
-    responseSummary.late +
-    responseSummary.noResponse +
-    (lineupRows.length ? 0 : 1)
+  const openRiskCount = cloudReadiness
+    ? availabilitySummary.tentative + availabilitySummary.unavailable + availabilitySummary.noResponse + responseSummary.late + (lineupRows.length ? 0 : 1)
+    : availabilitySummary.tentative + availabilitySummary.noResponse + responseSummary.late + responseSummary.noResponse + (lineupRows.length ? 0 : 1)
+  const missingReplyCount = cloudReadiness
+    ? cloudReadiness.summary.waiting
+    : availabilitySummary.noResponse + responseSummary.noResponse
   const captainDecision = openRiskCount === 0
     ? 'Your week is ready. Confirm the lineup, then send the team brief.'
-    : availabilitySummary.noResponse + responseSummary.noResponse > 0
-      ? `Clear ${availabilitySummary.noResponse + responseSummary.noResponse} missing response${availabilitySummary.noResponse + responseSummary.noResponse === 1 ? '' : 's'} before locking courts.`
+    : missingReplyCount > 0
+      ? `Clear ${missingReplyCount} missing response${missingReplyCount === 1 ? '' : 's'} before locking courts.`
       : !lineupRows.length
         ? 'Build the first lineup scenario before you make match-day calls.'
         : 'Review tentative availability before confirming the final courts.'
@@ -687,6 +718,9 @@ function CaptainWeeklyBriefContent() {
                   <span>{matchWeekCloudStatus === 'loading' ? 'Syncing Match Week'
                     : matchWeek ? 'Match Week synced'
                       : 'Phone backup'}</span>
+                  <span>{cloudReadinessStatus === 'loading' ? 'Checking replies'
+                    : cloudReadiness ? 'Replies synced'
+                      : 'Phone reply backup'}</span>
                 </div>
               </div>
               <div style={statusButtonRow}>

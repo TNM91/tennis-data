@@ -13,6 +13,8 @@ import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState
 import { readLocalArray, safeKey } from '@/lib/captain-formatters'
 import { supabase } from '@/lib/supabase'
 import { getLocalIsoDate, parseCaptainCalendarDate } from '@/lib/captain-calendar-date'
+import { useCaptainMatchWeekDraft } from '@/lib/use-captain-match-week-draft'
+import { useCaptainMatchWeekReadiness } from '@/lib/use-captain-match-week-readiness'
 
 type MatchRow = {
   id: string
@@ -103,7 +105,9 @@ export default function CaptainSeasonDashboardPage() {
 function CaptainSeasonDashboardContent() {
   const router = useRouter()
   const initialScope = useMemo(() => readInitialScope(), [])
-  const { role, entitlements, authResolved } = useAuth()
+  const auth = useAuth()
+  const { role, entitlements, authResolved } = auth
+  const { session } = auth
   const access = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
   const [matchCount, setMatchCount] = useState<number | null>(null)
   const [nextMatch, setNextMatch] = useState<MatchRow | null>(null)
@@ -203,14 +207,46 @@ function CaptainSeasonDashboardContent() {
     return `${first ? 'Winning' : 'Loss'} streak: ${length}`
   }, [seasonResults])
   const eventKey = useMemo(() => safeKey(team, league, flight, resolvedDate || null), [flight, league, resolvedDate, team])
-  const lineupRows = useMemo(() => readLocalArray<LineupAssignment>(WEEKLY_LINEUPS_STORAGE_KEY).filter((row) => row.event_key === eventKey), [eventKey])
+  const localLineupRows = useMemo(() => readLocalArray<LineupAssignment>(WEEKLY_LINEUPS_STORAGE_KEY).filter((row) => row.event_key === eventKey), [eventKey])
   const availabilityRows = useMemo(() => readLocalArray<WeeklyAvailability>(WEEKLY_AVAILABILITY_STORAGE_KEY).filter((row) => row.event_key === eventKey), [eventKey])
   const responseRows = useMemo(() => readLocalArray<WeeklyResponse>(WEEKLY_RESPONSES_STORAGE_KEY).filter((row) => row.event_key === eventKey), [eventKey])
-  const eventDetail = useMemo(() => readLocalArray<EventDetail>(WEEKLY_EVENT_DETAILS_STORAGE_KEY).find((row) => row.key === eventKey) ?? null, [eventKey])
-  const availabilityReady = availabilityRows.filter((row) => row.status === 'available').length
-  const availabilityToClear = availabilityRows.filter((row) => row.status === 'tentative' || row.status === 'no-response').length
-  const replyRisk = responseRows.filter((row) => row.status === 'no-response' || row.status === 'running-late' || row.status === 'need-sub').length
-  const readinessItems = [lineupRows.length > 0, availabilityRows.length > 0 && availabilityToClear === 0, responseRows.length === 0 || replyRisk === 0, Boolean(eventDetail?.location || eventDetail?.arrivalTime || eventDetail?.notes)]
+  const localEventDetail = useMemo(() => readLocalArray<EventDetail>(WEEKLY_EVENT_DETAILS_STORAGE_KEY).find((row) => row.key === eventKey) ?? null, [eventKey])
+  const matchWeekScope = useMemo(() => ({
+    competitionLayer,
+    teamName: team,
+    leagueName: league,
+    flight,
+    matchDate: resolvedDate || '',
+    opponentTeam: resolvedOpponent,
+  }), [competitionLayer, flight, league, resolvedDate, resolvedOpponent, team])
+  const { matchWeek } = useCaptainMatchWeekDraft({
+    accessToken: session?.access_token,
+    enabled: authResolved && role !== 'public' && access.canUseCaptainWorkflow,
+    scope: matchWeekScope,
+  })
+  const { readiness: cloudReadiness } = useCaptainMatchWeekReadiness({
+    accessToken: session?.access_token,
+    enabled: authResolved && role !== 'public' && access.canUseCaptainWorkflow,
+    scope: matchWeekScope,
+  })
+  const lineupRows = useMemo<LineupAssignment[]>(() => matchWeek
+    ? matchWeek.courts.map((court) => ({ id: court.id, event_key: eventKey, court_label: court.label, players: court.players }))
+    : localLineupRows, [eventKey, localLineupRows, matchWeek])
+  const eventDetail = matchWeek ? { key: eventKey, ...matchWeek.details } : localEventDetail
+  const availabilityReady = cloudReadiness?.summary.available ?? availabilityRows.filter((row) => row.status === 'available').length
+  const availabilityToClear = cloudReadiness
+    ? cloudReadiness.summary.waiting + cloudReadiness.summary.maybe
+    : availabilityRows.filter((row) => row.status === 'tentative' || row.status === 'no-response').length
+  const cloudSelectedRisk = cloudReadiness
+    ? cloudReadiness.summary.people.filter((person) => person.selected && person.status !== 'available').length + cloudReadiness.summary.selectedUnmatched
+    : 0
+  const localOperationalRisk = responseRows.filter((row) => row.status === 'running-late' || row.status === 'need-sub').length
+  const replyRisk = cloudReadiness
+    ? cloudSelectedRisk + localOperationalRisk
+    : responseRows.filter((row) => row.status === 'no-response' || row.status === 'running-late' || row.status === 'need-sub').length
+  const hasAvailability = cloudReadiness ? cloudReadiness.summary.roster > 0 : availabilityRows.length > 0
+  const hasReplies = cloudReadiness ? cloudReadiness.summary.roster - cloudReadiness.summary.waiting > 0 : responseRows.length > 0
+  const readinessItems = [lineupRows.length > 0, hasAvailability && availabilityToClear === 0, hasReplies && replyRisk === 0, Boolean(eventDetail?.location || eventDetail?.arrivalTime || eventDetail?.notes)]
   const readinessPercent = resolvedDate ? Math.round((readinessItems.filter(Boolean).length / readinessItems.length) * 100) : 0
   const scopedParams = useMemo(
     () => ({ competitionLayer, team, league, flight, date: resolvedDate || '', opponent: resolvedOpponent }),
@@ -315,11 +351,11 @@ function CaptainSeasonDashboardContent() {
           <div style={sectionHeaderStyle}><div><p style={eyebrowStyle}>Next up</p><h2 style={sectionTitleStyle}>{resolvedOpponent ? `Prepare for ${resolvedOpponent}` : 'Prepare your next match week'}</h2></div><Link href={weeklyBriefHref} style={secondaryLinkStyle}>Open Match Week</Link></div>
           <div style={readinessGridStyle}>
             <ReadinessItem label="Lineup" value={lineupRows.length ? `${lineupRows.length} courts set` : 'Not built'} detail={lineupRows.length ? 'Court assignments saved' : 'Build the lineup first'} ready={lineupRows.length > 0} />
-            <ReadinessItem label="Availability" value={availabilityRows.length ? `${availabilityReady} in` : 'Not collected'} detail={availabilityToClear ? `${availabilityToClear} still to clear` : availabilityRows.length ? 'No saved reply gaps' : 'Ask the roster'} ready={availabilityRows.length > 0 && availabilityToClear === 0} />
-            <ReadinessItem label="Team replies" value={responseRows.length ? `${responseRows.length} tracked` : 'Not sent'} detail={replyRisk ? `${replyRisk} need follow-up` : responseRows.length ? 'No saved reply risks' : 'Send the plan when ready'} ready={responseRows.length > 0 && replyRisk === 0} />
+            <ReadinessItem label="Availability" value={hasAvailability ? `${availabilityReady} in` : 'Not collected'} detail={availabilityToClear ? `${availabilityToClear} still to clear` : hasAvailability ? 'No reply gaps' : 'Ask the roster'} ready={hasAvailability && availabilityToClear === 0} />
+            <ReadinessItem label="Team replies" value={hasReplies ? `${cloudReadiness ? cloudReadiness.summary.roster - cloudReadiness.summary.waiting : responseRows.length} tracked` : 'Not sent'} detail={replyRisk ? `${replyRisk} need follow-up` : hasReplies ? 'No reply risks' : 'Send the plan when ready'} ready={hasReplies && replyRisk === 0} />
             <ReadinessItem label="Match details" value={eventDetail?.location || eventDetail?.arrivalTime ? 'Saved' : 'Missing'} detail={eventDetail?.arrivalTime ? `Arrive by ${eventDetail.arrivalTime}` : eventDetail?.location ? eventDetail.location : 'Add location or arrival time'} ready={Boolean(eventDetail?.location || eventDetail?.arrivalTime || eventDetail?.notes)} />
           </div>
-          <div style={actionRowStyle}><Link href={lineupHref} style={primaryLinkStyle}>{lineupRows.length ? 'Review lineup' : 'Build lineup'}</Link><Link href={lineupProjectionHref} style={secondaryLinkStyle}>Compare lineups</Link><Link href={availabilityHref} style={secondaryLinkStyle}>{availabilityRows.length ? 'Review availability' : 'Collect availability'}</Link></div>
+          <div style={actionRowStyle}><Link href={lineupHref} style={primaryLinkStyle}>{lineupRows.length ? 'Review lineup' : 'Build lineup'}</Link><Link href={lineupProjectionHref} style={secondaryLinkStyle}>Compare lineups</Link><Link href={availabilityHref} style={secondaryLinkStyle}>{hasAvailability ? 'Review availability' : 'Collect availability'}</Link></div>
         </section>
       </div>
     </main>

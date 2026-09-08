@@ -14,10 +14,10 @@ beforeEach(() => {
   vi.resetAllMocks(); queries = {}; errors = new Set()
   mock.auth.mockResolvedValue({ ok: true, userId: 'captain' }); mock.authorize.mockResolvedValue(true)
   mock.roster.mockResolvedValue([{ key: 'p1', name: 'Jordan', playerId: 'p1' }]); mock.invites.mockResolvedValue([])
-  rows = { matches: [match], lineup_availability: [], lineup_scenarios: [], captain_availability_requests: [], captain_availability_request_responses: [], season_availability_responses: [] }
+  rows = { matches: [match], lineup_availability: [], lineup_scenarios: [], captain_lineup_drafts: [], captain_availability_requests: [], captain_availability_request_responses: [], season_availability_responses: [] }
   mock.from.mockImplementation((table: string) => {
     const query: Record<string, ReturnType<typeof vi.fn>> = {}
-    for (const method of ['select', 'eq', 'is', 'or', 'limit', 'in', 'gt']) query[method] = vi.fn(() => query)
+    for (const method of ['select', 'eq', 'is', 'or', 'limit', 'in', 'gt', 'order']) query[method] = vi.fn(() => query)
     query.then = vi.fn(resolve => resolve({ data: rows[table], error: errors.has(table) ? { message: 'failure' } : null }))
     queries[table] = query
     return query
@@ -52,6 +52,17 @@ describe('captain summary read API', () => {
   it('shows selected waiting names from the single matching saved lineup', async () => {
     rows.lineup_scenarios = [{ id: 's1', slots_json: [{ players: [{ playerId: 'p1' }] }] }]
     expect(await (await GET(new Request(path))).json()).toMatchObject({ selection: 'saved', scenarioId: 's1', summary: { selectedWaiting: ['Jordan'] } })
+  })
+  it('uses the current cloud Match Week draft before an older saved scenario', async () => {
+    mock.roster.mockResolvedValue([
+      { key: 'p1', name: 'Jordan', playerId: 'p1' },
+      { key: 'p2', name: 'Casey', playerId: 'p2' },
+    ])
+    rows.lineup_scenarios = [{ id: 'old', slots_json: [{ players: [{ playerId: 'p1' }] }] }]
+    rows.captain_lineup_drafts = [{ scenario_id: null, slots_json: [{ players: [{ playerId: 'p2' }] }], updated_at: '2026-09-08T12:00:00Z' }]
+    const body = await (await GET(new Request(`${path}&layer=usta`))).json()
+    expect(body).toMatchObject({ selection: 'draft', summary: { selectedWaiting: ['Casey'] } })
+    expect(queries.captain_lineup_drafts.eq).toHaveBeenCalledWith('competition_layer', 'usta')
   })
   it('never silently reports zero when data fails or a bounded query is incomplete', async () => {
     errors.add('lineup_availability')
