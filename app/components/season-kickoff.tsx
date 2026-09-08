@@ -7,6 +7,7 @@ import type { TeamSeasonMatch } from '@/lib/team-season-calendar'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import styles from './season-kickoff.module.css'
 import SeasonAvailabilityClient from '@/app/season-availability/season-availability-client'
+import SeasonGroupRequest from './season-group-request'
 
 type Payload = { roster: SeasonPlayer[]; matches: TeamSeasonMatch[]; invites: SeasonInvite[]; replies: SeasonReply[]; readiness: ReturnType<typeof seasonReadiness>; self: SeasonPlayer | null }
 const replyLabels: Record<string, string> = { available: 'Available', maybe: 'Not sure', unavailable: 'Unavailable' }
@@ -75,6 +76,7 @@ export default function SeasonKickoff({ scope, token, onCalendar, onDirtyChange 
       <p><strong>{data.matches.length} upcoming matches · {data.roster.length} roster players</strong></p>
       {!data.matches.length ? <p>No upcoming dates in this season. Choose another season or add the schedule first.</p> : null}
       {!data.roster.length ? <p>No roster found for this season. Add your team roster before preparing personal invitations.</p> : null}
+      {view !== 'mine' && data.matches.length > 0 && data.roster.length > 0 ? <SeasonGroupRequest key={JSON.stringify(scope)} scope={scope} matches={data.matches} token={token} onPrepared={() => void load()} /> : null}
       {view === 'mine' ? !data.self ? <div className={styles.item}><h3>Connect your player record</h3><p>Your linked player record needs to be on this roster to enter your own availability here. You can still manage the team.</p><Link className={styles.secondary} href="/profile">Open my profile</Link></div>
         : selfInvite && !selfInvite.revoked_at ? <SeasonAvailabilityClient key={selfInvite.response_token} responseToken={selfInvite.response_token} embedded onSaved={() => { void load() }} onDirtyChange={setDirty} onBusyChange={setAnswerBusy} />
         : <div className={styles.item}><h3>{data.self.name} · your availability</h3><p>Answer for yourself right here. No text message to yourself needed.</p><button className={styles.button} disabled={busy || !data.matches.length} onClick={() => void (selfInvite?.revoked_at ? load('PATCH', { inviteId: selfInvite.id, action: 'replace' }) : load('POST', { action: 'self' }))}>{selfInvite?.revoked_at ? 'Reopen my availability' : 'Set my availability'}</button>{selfInvite?.revoked_at ? <p>This creates a new personal link; your old link stays invalid.</p> : null}</div> : null}

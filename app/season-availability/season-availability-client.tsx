@@ -10,7 +10,7 @@ import styles from '@/app/components/season-kickoff.module.css'
 
 type Payload = { scope: SeasonScope; playerName: string; matches: TeamSeasonMatch[]; replies: SeasonReply[]; today: string; calendarToken: string }
 const labels: Record<SeasonReplyStatus, string> = { available: 'Available', maybe: 'Not sure', unavailable: 'Unavailable' }
-export default function SeasonAvailabilityClient({ responseToken, embedded = false, onSaved, onDirtyChange, onBusyChange }: { responseToken?: string; embedded?: boolean; onSaved?: () => void; onDirtyChange?: (dirty: boolean) => void; onBusyChange?: (busy: boolean) => void } = {}) {
+export default function SeasonAvailabilityClient({ responseToken, embedded = false, focusMatchId = '', groupEntry = false, onSaved, onDirtyChange, onBusyChange }: { responseToken?: string; embedded?: boolean; focusMatchId?: string; groupEntry?: boolean; onSaved?: () => void; onDirtyChange?: (dirty: boolean) => void; onBusyChange?: (busy: boolean) => void } = {}) {
   const { session, userId } = useAuth()
   const [token, setToken] = useState('')
   const [data, setData] = useState<Payload | null>(null)
@@ -22,6 +22,8 @@ export default function SeasonAvailabilityClient({ responseToken, embedded = fal
   const [calendar, setCalendar] = useState<'apple' | 'google' | null>(null)
   const [calendarMessage, setCalendarMessage] = useState('')
   const [origin, setOrigin] = useState('')
+  const [showOtherDates, setShowOtherDates] = useState(false)
+  const [showCalendar, setShowCalendar] = useState(!groupEntry)
   const loadingGeneration = useRef(0)
   const lock = useRef(false)
   useEffect(() => {
@@ -52,6 +54,8 @@ export default function SeasonAvailabilityClient({ responseToken, embedded = fal
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty.length])
   const upcoming = data?.matches.filter(match => (match.match_date || '') >= data.today) || []
+  const focused = upcoming.find(match => match.id === focusMatchId)
+  const visibleMatches = focused && !showOtherDates ? [focused] : upcoming
   const items = data ? buildTeamSeasonCalendars(data.scope.team, data.matches, userId || 'season').flatMap(season => season.items) : []
   const feed = `${origin}/api/season-availability/${encodeURIComponent(data?.calendarToken || '')}/calendar.ics`
 
@@ -80,12 +84,13 @@ export default function SeasonAvailabilityClient({ responseToken, embedded = fal
   }
   const Container = embedded ? 'div' : 'main'
   return <Container className={embedded ? styles.embedded : styles.page}>
-    <section className={styles.panel}>{!embedded ? <><p>TenAceIQ · Season availability</p><h1>Plan your season</h1></> : null}
-      {data ? embedded ? <><h2>Your answers · {data.playerName}</h2><p>Choose Yes, Not sure, or No, then save. You can update your answers any time.</p></> : <><strong>{data.scope.team}</strong><p>{data.scope.league} · {data.scope.flight}</p><h2>Hi {data.playerName}</h2><p>Mark the dates you can play. Your captain will choose the final lineup separately. No login needed to reply.</p></> : <p>{busy ? 'Loading your season…' : 'Open the personal season link your captain sent you.'}</p>}
+    <section className={styles.panel}>{!embedded ? <><p>TenAceIQ · Season availability</p><h1>{groupEntry ? 'Can you play?' : 'Plan your season'}</h1></> : null}
+      {data ? embedded ? <><h2>Your answers · {data.playerName}</h2><p>Choose Yes, Not sure, or No, then save. You can update your answers any time.</p></> : <><strong>{data.scope.team}</strong><p>{data.scope.league} · {data.scope.flight}</p><h2>Hi {data.playerName}</h2><p>Mark the dates you can play. Your captain will choose the final lineup separately. {groupEntry ? 'Only your own answers are shown.' : 'No login needed to reply.'}</p></> : <p>{busy ? 'Loading your season…' : 'Open the personal season link your captain sent you.'}</p>}
       {error ? <div role="alert" className={`${styles.feedback} ${styles.error}`}><p>{error}</p><button className={styles.secondary} disabled={busy} onClick={() => { if (!dirty.length || window.confirm('Reload the schedule? Unsaved changes will be discarded.')) void load() }}>Reload schedule</button></div> : null}
     </section>
     {data ? <>
-      {!embedded ? <section className={styles.panel} aria-label="Season calendar"><h2>Keep the dates handy</h2><p>Add {items.length} season matches. Adding dates does not answer your availability.</p>
+      {groupEntry ? <button className={styles.secondary} onClick={() => setShowCalendar(value => !value)} aria-expanded={showCalendar}>{showCalendar ? 'Hide calendar options' : 'Add matches to my calendar'}</button> : null}
+      {!embedded && showCalendar ? <section className={styles.panel} aria-label="Season calendar"><h2>Keep the dates handy</h2><p>Add {items.length} season matches. Adding dates does not answer your availability.</p>
         <div className={styles.actions}><button className={styles.secondary} onClick={() => setCalendar('apple')}>Apple Calendar</button><button className={styles.secondary} onClick={() => setCalendar('google')}>Google Calendar</button>
           {session ? <button className={styles.secondary} disabled={busy} onClick={() => void saveCalendar()}>Save to my TiQ calendar</button> : <Link className={styles.secondary} href="/login" target="_blank" rel="noreferrer">Sign in to save to TiQ</Link>}</div>
         {!session ? <p>Sign-in opens a new tab. Return here afterward to save these dates to your own TiQ calendar.</p> : null}
@@ -95,14 +100,15 @@ export default function SeasonAvailabilityClient({ responseToken, embedded = fal
         {calendar ? <p>This read-only calendar link includes this season only, not your availability replies. Keep your personal reply link separate. Use TiQ’s family calendar sharing to choose exactly which matches to share.</p> : null}
         {calendarMessage ? <p role="status">{calendarMessage}</p> : null}
       </section> : null}
-      <section className={styles.panel}><div className={styles.row}><h2>{upcoming.length} upcoming matches</h2><button className={styles.secondary} disabled={busy || !upcoming.length} onClick={() => {
+      <section className={styles.panel}><div className={styles.row}><h2>{focused && !showOtherDates ? 'This match first' : `${upcoming.length} upcoming matches`}</h2>{(!focused || showOtherDates) ? <button className={styles.secondary} disabled={busy || !upcoming.length} onClick={() => {
         setStatuses(previous => ({ ...previous, ...Object.fromEntries(upcoming.map(match => [match.id, 'available' as const])) })); setDirty(upcoming.map(match => match.id)); setMessage('')
-      }}>Available for all · then adjust</button></div>
+      }}>Available for all · then adjust</button> : null}</div>
       <p>Yes = available · No = unavailable. Not sure is fine. Unanswered dates never count as Yes.</p>
-      <ul className={styles.list}>{upcoming.map(match => <li className={styles.item} key={match.id}><strong>{seasonMatchLabel(match)}</strong><p>vs {match.home_team === data.scope.team ? match.away_team : match.home_team}{match.facility ? ` · ${match.facility}` : ''}</p>
+      <ul className={styles.list}>{visibleMatches.map(match => <li className={styles.item} key={match.id}><strong>{seasonMatchLabel(match)}</strong><p>vs {match.home_team === data.scope.team ? match.away_team : match.home_team}{match.facility ? ` · ${match.facility}` : ''}</p>
         <div className={styles.statuses} role="group" aria-label={`Availability for ${match.match_date} vs ${match.home_team === data.scope.team ? match.away_team : match.home_team}`}>{(Object.keys(labels) as SeasonReplyStatus[]).map(status => <button className={styles.secondary} key={status} disabled={busy} aria-label={labels[status]} aria-pressed={statuses[match.id] === status} onClick={() => select(match.id, status)}>{status === 'available' ? 'Yes' : status === 'unavailable' ? 'No' : 'Not sure'}</button>)}</div>
         <p>{dirty.includes(match.id) ? 'Unsaved change' : statuses[match.id] ? `Saved: ${labels[statuses[match.id]]}` : 'Unanswered'}</p>
       </li>)}</ul>
+      {focused && upcoming.length > 1 ? <button className={styles.secondary} aria-expanded={showOtherDates} onClick={() => setShowOtherDates(value => !value)}>{showOtherDates ? 'Show requested match only' : `Other season dates · optional (${upcoming.length - 1})`}</button> : null}
       {!upcoming.length ? <p>There are no upcoming matches in this season.</p> : null}</section>
       <div className={styles.saveBar}><p role="status">{message || (dirty.length ? `${dirty.length} unsaved changes` : 'Choose a response for the dates you know.')}</p><button className={styles.button} disabled={busy || !dirty.length} onClick={() => void save()}>{busy ? 'Please wait…' : 'Save availability'}</button></div>
     </> : null}

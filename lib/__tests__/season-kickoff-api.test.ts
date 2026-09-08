@@ -23,6 +23,19 @@ beforeEach(() => {
   mocked.rpc.mockResolvedValue({ data: 1, error: null })
 })
 describe('captain season endpoints', () => {
+  it('prepares a group request from the server roster without reviving stopped links', async () => {
+    mocked.roster.mockResolvedValue([{ key: 'p1', playerId: 'p1', name: 'Jordan' }, { key: 'stopped', playerId: 'p2', name: 'Taylor' }])
+    mocked.invites.mockResolvedValue([{ roster_key: 'stopped', revoked_at: 'stopped' }])
+    const upsert = vi.fn().mockResolvedValue({ error: null })
+    const query: Record<string, unknown> = {}
+    for (const name of ['update', 'eq', 'in', 'is']) query[name] = vi.fn(() => query)
+    query.then = (resolve: (value: unknown) => void) => resolve({ error: null })
+    mocked.from.mockReturnValue({ ...query, upsert })
+    expect((await captainPost(request({ action: 'group', playerKeys: ['victim'] }))).status).toBe(200)
+    expect(upsert.mock.calls[0][0]).toEqual([expect.objectContaining({ roster_key: 'p1' })])
+    expect(upsert.mock.calls[0][1]).toMatchObject({ ignoreDuplicates: true })
+    expect(query.is).toHaveBeenCalledWith('revoked_at', null)
+  })
   it('prepares only the authenticated captain’s own roster identity for self entry', async () => {
     const upsert = vi.fn().mockResolvedValue({ error: null })
     const query: Record<string, unknown> = {}
