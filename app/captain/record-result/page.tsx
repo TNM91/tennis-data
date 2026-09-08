@@ -11,6 +11,7 @@ import {
   isCaptainScorecardPhotoPrefill,
 } from '@/lib/captain-scorecard-photo-prefill'
 import { buildTeamRoomHref } from '@/lib/team-room'
+import { useCaptainMatchWeekDraft } from '@/lib/use-captain-match-week-draft'
 import styles from './record-result.module.css'
 
 type CourtDraft = {
@@ -120,6 +121,7 @@ function formatRating(value: number | null) {
 function RecordResultContent() {
   const searchParams = useSearchParams()
   const { authResolved, session } = useAuth()
+  const competitionLayer = searchParams.get('layer')?.trim() || ''
   const teamName = searchParams.get('team')?.trim() || ''
   const leagueName = searchParams.get('league')?.trim() || ''
   const flight = searchParams.get('flight')?.trim() || ''
@@ -152,6 +154,19 @@ function RecordResultContent() {
   const scorecardPhotoPrefillActive = useRef(false)
   const [dataAssistBatchId, setDataAssistBatchId] = useState('')
   const [dataAssistDraftId, setDataAssistDraftId] = useState('')
+  const matchWeekScope = useMemo(() => ({
+    competitionLayer,
+    teamName,
+    leagueName,
+    flight,
+    matchDate,
+    opponentTeam,
+  }), [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName])
+  const { matchWeek } = useCaptainMatchWeekDraft({
+    accessToken: session?.access_token,
+    enabled: authResolved,
+    scope: matchWeekScope,
+  })
 
   const teamRoomHref = useMemo(() => buildTeamRoomHref({
     teamName,
@@ -320,6 +335,7 @@ function RecordResultContent() {
   useEffect(() => {
     if (!authResolved || !session?.access_token || !teamName || !matchDate || !opponentTeam) return
     if (scorecardPhotoPrefillActive.current) return
+    if (draftSaved) return
     const prefillKey = [teamName, leagueName, flight, matchDate, opponentTeam].join('::').toLowerCase()
     if (lineupPrefillKey.current === prefillKey) return
     let active = true
@@ -331,13 +347,16 @@ function RecordResultContent() {
       cache: 'no-store',
     })
       .then(async (response) => response.ok ? response.json() as Promise<TeamRoomResponse> : null)
+      .catch(() => null)
       .then((payload) => {
-        if (!active || !payload?.ok || lineupPrefillKey.current === prefillKey) return
+        if (!active || lineupPrefillKey.current === prefillKey) return
         const expectedOpponent = normalizeName(opponentTeam).toLowerCase()
-        const card = (payload.room?.messages || [])
+        const card = (payload?.ok ? payload.room?.messages || [] : [])
           .map((message) => message.card)
           .find((candidate) => candidate?.matchDate === matchDate && normalizeName(candidate.opponent).toLowerCase() === expectedOpponent)
-        const lineup = card?.lineup || []
+        const lineup = card?.lineup?.length
+          ? card.lineup
+          : matchWeek?.courts.map((court) => ({ label: court.label, players: court.players })) || []
         if (!lineup.length) return
         const prepared = lineup.map((line, index) => {
           const players = (line.players || []).map(normalizeName).filter(Boolean).slice(0, 2)
@@ -352,12 +371,13 @@ function RecordResultContent() {
           }
         })
         lineupPrefillKey.current = prefillKey
+        if (matchWeek?.details.arrivalTime) setMatchTime(matchWeek.details.arrivalTime)
+        if (matchWeek?.details.location) setFacility(matchWeek.details.location)
         setCourts(prepared)
-        setNotice(`Loaded ${prepared.length} saved court${prepared.length === 1 ? '' : 's'} from your lineup.`)
+        setNotice(`Loaded ${prepared.length} saved court${prepared.length === 1 ? '' : 's'} from ${card?.lineup?.length ? 'Team Chat' : 'Match Week'}.`)
       })
-      .catch(() => undefined)
     return () => { active = false }
-  }, [authResolved, flight, leagueName, matchDate, opponentTeam, session?.access_token, teamName])
+  }, [authResolved, draftSaved, flight, leagueName, matchDate, matchWeek, opponentTeam, session?.access_token, teamName])
 
   useEffect(() => {
     if (!authResolved || !session?.access_token || !teamName || !shouldRestoreRecap || !savedResultMatchId || savedRecap) return

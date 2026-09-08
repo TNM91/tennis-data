@@ -8,6 +8,7 @@ import { useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildTeamRoomHref } from '@/lib/team-room'
+import { useCaptainMatchWeekDraft } from '@/lib/use-captain-match-week-draft'
 import styles from './matchup-sheet.module.css'
 
 type MatchupCard = {
@@ -307,6 +308,7 @@ async function createLineupImage(input: {
 function MatchupSheetContent() {
   const searchParams = useSearchParams()
   const { authResolved, session } = useAuth()
+  const competitionLayer = cleanText(searchParams.get('layer'))
   const teamName = cleanText(searchParams.get('team'))
   const leagueName = cleanText(searchParams.get('league'))
   const flight = cleanText(searchParams.get('flight'))
@@ -321,11 +323,28 @@ function MatchupSheetContent() {
   const [sharing, setSharing] = useState(false)
   const [shareNotice, setShareNotice] = useState('')
 
+  const matchWeekScope = useMemo(() => ({
+    competitionLayer,
+    teamName,
+    leagueName,
+    flight,
+    matchDate: requestedDate,
+    opponentTeam: requestedOpponent,
+  }), [competitionLayer, flight, leagueName, requestedDate, requestedOpponent, teamName])
+  const { matchWeek, status: matchWeekCloudStatus } = useCaptainMatchWeekDraft({
+    accessToken: session?.access_token,
+    enabled: authResolved,
+    scope: matchWeekScope,
+  })
+
   const matchDate = card?.matchDate || requestedDate
   const opponent = card?.opponent || requestedOpponent
-  const matchTime = card?.matchTime || requestedTime
-  const facility = card?.facility || requestedFacility
-  const lineup = card?.lineup || []
+  const matchTime = matchWeek?.details.arrivalTime || card?.matchTime || requestedTime
+  const facility = matchWeek?.details.location || card?.facility || requestedFacility
+  const lineup = card?.lineup?.length
+    ? card.lineup
+    : matchWeek?.courts.map((court) => ({ label: court.label, players: court.players })) || []
+  const lineupLoading = loading || matchWeekCloudStatus === 'loading'
   const recordResultHref = useMemo(() => buildRecordResultHref({
     teamName,
     leagueName,
@@ -367,6 +386,8 @@ function MatchupSheetContent() {
         confirmedLineup ? 'Final lineup confirmed.' : 'Match lineup.',
         `${teamName || 'Team'} vs ${opponent || 'Opponent to be confirmed'}.`,
         [formatDate(matchDate), matchTime, facility].filter(Boolean).join(' • '),
+        matchWeek?.details.directions ? `Directions: ${matchWeek.details.directions}` : '',
+        matchWeek?.details.notes || '',
         `Team Chat: ${teamChatUrl}`,
       ].filter(Boolean).join('\n')
       if (typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] })) {
@@ -552,7 +573,7 @@ function MatchupSheetContent() {
             </article>
           )) : (
             <div className={styles.emptyState}>
-              {loading ? 'Loading the saved lineup…' : 'Save a lineup first, then print the exact courts from TiQ.'}
+              {lineupLoading ? 'Loading the saved lineup…' : 'Save a lineup first, then print the exact courts from TiQ.'}
             </div>
           )}
         </section>
