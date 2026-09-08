@@ -9,6 +9,21 @@ export type CaptainRosterAvailabilityRow = {
   updated_at: string
 }
 
+export type CaptainCloudAvailabilityRow = {
+  playerName: string
+  status: CaptainRosterAvailabilityStatus
+  note: string
+  updatedAt: string
+}
+
+export type CaptainAvailabilityCloudUpdate = {
+  contactId: string
+  playerName: string
+  status: CaptainRosterAvailabilityStatus
+  note: string
+  updatedAt: string
+}
+
 type CaptainAvailabilityContact = {
   id: string
   full_name: string
@@ -27,7 +42,7 @@ export function reconcileCaptainGuestAvailability(input: {
   replies: CaptainGuestAvailabilityReply[]
 }) {
   if (!input.eventKey || !input.contacts.length || !input.replies.length) {
-    return { rows: input.rows, changed: false, matchedReplies: 0 }
+    return { rows: input.rows, changed: false, matchedReplies: 0, updates: [] as CaptainAvailabilityCloudUpdate[] }
   }
 
   const contactByName = new Map(
@@ -46,6 +61,7 @@ export function reconcileCaptainGuestAvailability(input: {
   let changed = false
   let matchedReplies = 0
   const nextRows = [...input.rows]
+  const updates: CaptainAvailabilityCloudUpdate[] = []
 
   for (const [playerKey, reply] of latestReplyByName) {
     const contact = contactByName.get(playerKey)
@@ -70,10 +86,75 @@ export function reconcileCaptainGuestAvailability(input: {
     }
     if (existingIndex >= 0) nextRows[existingIndex] = nextRow
     else nextRows.push(nextRow)
+    updates.push({
+      contactId: contact.id,
+      playerName: contact.full_name,
+      status: nextRow.status,
+      note: nextRow.note,
+      updatedAt: nextRow.updated_at,
+    })
     changed = true
   }
 
-  return { rows: changed ? nextRows : input.rows, changed, matchedReplies }
+  return { rows: changed ? nextRows : input.rows, changed, matchedReplies, updates }
+}
+
+export function reconcileCaptainCloudAvailability(input: {
+  eventKey: string
+  contacts: CaptainAvailabilityContact[]
+  rows: CaptainRosterAvailabilityRow[]
+  cloudRows: CaptainCloudAvailabilityRow[]
+}) {
+  if (!input.eventKey || !input.contacts.length) {
+    return { rows: input.rows, changed: false, uploads: [] as CaptainAvailabilityCloudUpdate[] }
+  }
+
+  const cloudByName = new Map<string, CaptainCloudAvailabilityRow>()
+  for (const row of input.cloudRows) {
+    const key = normalizeName(row.playerName)
+    const current = cloudByName.get(key)
+    if (key && (!current || timestamp(row.updatedAt) >= timestamp(current.updatedAt))) cloudByName.set(key, row)
+  }
+
+  let changed = false
+  const nextRows = [...input.rows]
+  const uploads: CaptainAvailabilityCloudUpdate[] = []
+
+  for (const contact of input.contacts) {
+    const cloud = cloudByName.get(normalizeName(contact.full_name))
+    const localIndex = nextRows.findIndex((row) => row.event_key === input.eventKey && row.contact_id === contact.id)
+    const local = localIndex >= 0 ? nextRows[localIndex] : null
+    const cloudTime = timestamp(cloud?.updatedAt || '')
+    const localTime = timestamp(local?.updated_at || '')
+
+    if (cloud && (!local || cloudTime >= localTime)) {
+      if (local?.status === cloud.status && local.note === cloud.note && localTime === cloudTime) continue
+      const nextRow: CaptainRosterAvailabilityRow = {
+        id: local?.id || `cloud:${input.eventKey}:${contact.id}`,
+        event_key: input.eventKey,
+        contact_id: contact.id,
+        status: cloud.status,
+        note: cloud.note,
+        updated_at: validTimestamp(cloud.updatedAt),
+      }
+      if (localIndex >= 0) nextRows[localIndex] = nextRow
+      else nextRows.push(nextRow)
+      changed = true
+      continue
+    }
+
+    if (local && (!cloud || localTime > cloudTime)) {
+      uploads.push({
+        contactId: contact.id,
+        playerName: contact.full_name,
+        status: local.status,
+        note: local.note,
+        updatedAt: validTimestamp(local.updated_at),
+      })
+    }
+  }
+
+  return { rows: changed ? nextRows : input.rows, changed, uploads }
 }
 
 function mapGuestStatus(status: CaptainGuestAvailabilityReply['status']): CaptainRosterAvailabilityStatus {
