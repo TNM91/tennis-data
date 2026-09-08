@@ -353,7 +353,7 @@ function CaptainTeamBriefContent() {
     {
       label: 'Risk watch',
       value: alertLines.length ? `${alertLines.length} open` : 'Clear',
-      detail: alertLines.length ? 'Follow up before sending' : 'No saved response risks',
+      detail: alertLines.length ? 'Follow up before sending' : 'Selected players are clear',
       tone: alertLines.length ? 'attention' : 'ready',
     },
   ]
@@ -580,7 +580,7 @@ function CaptainTeamBriefContent() {
               <div style={signalCardStyle}>
                 <div style={signalLabelStyle}>Alerts</div>
                 <div style={signalValueStyle}>{alertLines.length ? String(alertLines.length) : 'Clear'}</div>
-                <div style={signalNoteStyle}>{alertLines.length ? 'Follow up before sending' : 'No saved response risks'}</div>
+                <div style={signalNoteStyle}>{alertLines.length ? 'Follow up before sending' : 'Selected players are clear'}</div>
               </div>
             </div>}
 
@@ -730,7 +730,7 @@ function CaptainTeamBriefContent() {
               </div>
             ) : (
               <div style={mutedCallout}>
-                No current late-arrival, substitution, or no-response alerts are saved for this event.
+                No selected player is waiting, late, unavailable, or asking for a substitute.
               </div>
             )}
 
