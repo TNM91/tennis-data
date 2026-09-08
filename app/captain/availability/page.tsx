@@ -49,6 +49,13 @@ type AvailabilityPlayer = {
   name: string
   status: AvailabilityStatus
   note?: string
+  respondedAt?: string
+}
+
+type AvailabilityPlayerLink = {
+  playerId: string
+  playerName: string
+  requestUrl: string
 }
 
 type AvailabilityActionCard = {
@@ -119,7 +126,7 @@ type AvailabilityRequestResponseRow = {
 function formatScheduleLabel(match: TeamRosterMatchRow | null) {
   if (!match) return 'Select a scheduled match'
   const parts = [
-    match.match_date ? new Date(match.match_date).toLocaleDateString() : '',
+    match.match_date ? new Date(`${match.match_date}T12:00:00`).toLocaleDateString() : '',
     safeText(match.match_time),
     safeText(match.facility),
   ].filter(Boolean)
@@ -210,10 +217,13 @@ function CaptainAvailabilityContent() {
   const [preferredOpponent] = useState(initialContext.opponentTeam)
   const [availabilityRequestId, setAvailabilityRequestId] = useState('')
   const [availabilityRequestUrl, setAvailabilityRequestUrl] = useState('')
+  const [availabilityPlayerLinks, setAvailabilityPlayerLinks] = useState<AvailabilityPlayerLink[]>([])
   const [availabilityRequestState, setAvailabilityRequestState] = useState<'idle' | 'preparing' | 'ready' | 'error'>('idle')
   const [availabilityRequestError, setAvailabilityRequestError] = useState('')
   const [preparedRequestKey, setPreparedRequestKey] = useState('')
   const [shareFeedback, setShareFeedback] = useState('')
+  const [playerActionFeedback, setPlayerActionFeedback] = useState<{ playerId: string; message: string } | null>(null)
+  const [savingPlayerId, setSavingPlayerId] = useState('')
   const [availabilityLiveNotice, setAvailabilityLiveNotice] = useState('')
   const preparingRequestKeyRef = useRef('')
   const availabilityRefreshInFlightRef = useRef('')
@@ -243,10 +253,11 @@ function CaptainAvailabilityContent() {
         (row.player_id && row.player_id === player.id)
         || row.player_name.trim().toLowerCase() === player.name.trim().toLowerCase()
       ))
-      if (!saved) return player
+      if (!saved) return { ...player, status: 'unanswered', respondedAt: undefined }
       return {
         ...player,
         status: saved.status === 'available' ? 'in' : saved.status === 'unavailable' ? 'out' : 'maybe',
+        respondedAt: saved.responded_at,
       }
     }))
   }, [])
@@ -263,7 +274,15 @@ function CaptainAvailabilityContent() {
         cache: 'no-store',
       })
       if (!response.ok || availabilityResponseRequestIdRef.current !== availabilityRequestId) return
-      const result = await response.json() as { responses?: AvailabilityRequestResponseRow[] }
+      const result = await response.json() as {
+        invites?: Array<{ playerId?: string; playerName?: string; requestUrl?: string }>
+        responses?: AvailabilityRequestResponseRow[]
+      }
+      setAvailabilityPlayerLinks((result.invites ?? []).flatMap((invite) => (
+        invite.playerName && invite.requestUrl
+          ? [{ playerId: invite.playerId || '', playerName: invite.playerName, requestUrl: invite.requestUrl }]
+          : []
+      )))
       applyAvailabilityResponses(result.responses ?? [])
     } catch {
       // Keep the latest confirmed response state while the connection recovers.
@@ -459,6 +478,7 @@ function CaptainAvailabilityContent() {
 
     if (preparedRequestKey !== availabilityRequestKey) {
       setAvailabilityRequestId('')
+      setAvailabilityPlayerLinks([])
       availabilityResponseRequestIdRef.current = ''
       availabilityResponseBaselineRef.current = false
       availabilityResponseSignatureRef.current = ''
@@ -495,7 +515,12 @@ function CaptainAvailabilityContent() {
           })),
         }),
       })
-      const result = await response.json() as { requestId?: string; requestUrl?: string; message?: string }
+      const result = await response.json() as {
+        requestId?: string
+        requestUrl?: string
+        playerRequestUrls?: Array<{ playerId?: string; playerName?: string; requestUrl?: string }>
+        message?: string
+      }
       if (!response.ok || !result.requestId || !result.requestUrl) {
         throw new Error(result.message || 'The availability request could not be prepared.')
       }
@@ -509,6 +534,11 @@ function CaptainAvailabilityContent() {
       }
       setAvailabilityRequestId(result.requestId)
       setAvailabilityRequestUrl(result.requestUrl)
+      setAvailabilityPlayerLinks((result.playerRequestUrls ?? []).flatMap((invite) => (
+        invite.playerName && invite.requestUrl
+          ? [{ playerId: invite.playerId || '', playerName: invite.playerName, requestUrl: invite.requestUrl }]
+          : []
+      )))
       setPreparedRequestKey(availabilityRequestKey)
       setAvailabilityRequestState('ready')
     } catch (nextError) {
@@ -600,6 +630,42 @@ function CaptainAvailabilityContent() {
     }
   }
 
+  async function copyAvailabilityLink(url: string, label: string) {
+    if (!url) return
+    try {
+      await navigator.clipboard.writeText(url)
+      setShareFeedback(`${label} copied.`)
+    } catch {
+      setAvailabilityRequestError('The link could not be copied. Open it and use your browser share button.')
+    }
+  }
+
+  function getPlayerRequestUrl(player: AvailabilityPlayer) {
+    return availabilityPlayerLinks.find((invite) => (
+      (invite.playerId && invite.playerId === player.id)
+      || invite.playerName.trim().toLowerCase() === player.name.trim().toLowerCase()
+    ))?.requestUrl || ''
+  }
+
+  async function sharePlayerAvailability(player: AvailabilityPlayer) {
+    const requestUrl = getPlayerRequestUrl(player)
+    if (!requestUrl) return
+    const text = `${player.name}, please confirm your availability for ${selectedTeam}${selectedOpponent ? ` vs ${selectedOpponent}` : ''}. You can reply and add the match to your calendar without joining TiQ. ${requestUrl}`
+
+    try {
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ title: `${player.name} availability`, text })
+        setPlayerActionFeedback({ playerId: player.id, message: 'Shared' })
+        return
+      }
+      await navigator.clipboard.writeText(text)
+      setPlayerActionFeedback({ playerId: player.id, message: 'Text copied' })
+    } catch (nextError) {
+      if (nextError instanceof DOMException && nextError.name === 'AbortError') return
+      setPlayerActionFeedback({ playerId: player.id, message: 'Try again' })
+    }
+  }
+
   useEffect(() => {
     if (!selectedTeam && !selectedLeague && !selectedFlight) return
 
@@ -631,12 +697,44 @@ function CaptainAvailabilityContent() {
     void loadRoster()
   }, [authResolved, loadRoster, role, selectedTeam])
 
-  function updateStatus(playerId: string, status: AvailabilityStatus) {
-    setPlayers((current) =>
-      current.map((player) =>
-        player.id === playerId ? { ...player, status } : player,
-      ),
-    )
+  async function updateStatus(player: AvailabilityPlayer, status: AvailabilityStatus) {
+    if (!availabilityRequestId || !selectedEventDate) return
+    const previousStatus = player.status
+    const previousRespondedAt = player.respondedAt
+    const respondedAt = status === 'unanswered' ? undefined : new Date().toISOString()
+    setPlayers((current) => current.map((item) => (
+      item.id === player.id ? { ...item, status, respondedAt } : item
+    )))
+    setSavingPlayerId(player.id)
+    setPlayerActionFeedback({ playerId: player.id, message: 'Saving…' })
+
+    try {
+      const accessToken = session?.access_token || ''
+      if (!accessToken) throw new Error('Sign in again to save this reply.')
+      const response = await fetch('/api/captain/availability-requests', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({
+          requestId: availabilityRequestId,
+          playerId: player.id,
+          playerName: player.name,
+          status,
+        }),
+      })
+      const result = await response.json() as { message?: string }
+      if (!response.ok) throw new Error(result.message || 'The reply could not be saved.')
+      setPlayerActionFeedback({ playerId: player.id, message: status === 'unanswered' ? 'Reset' : 'Saved' })
+    } catch (nextError) {
+      setPlayers((current) => current.map((item) => (
+        item.id === player.id ? { ...item, status: previousStatus, respondedAt: previousRespondedAt } : item
+      )))
+      setPlayerActionFeedback({
+        playerId: player.id,
+        message: nextError instanceof Error ? nextError.message : 'Try again',
+      })
+    } finally {
+      setSavingPlayerId((current) => current === player.id ? '' : current)
+    }
   }
 
   const filteredTeamOptions = useMemo(() => {
@@ -837,98 +935,148 @@ function CaptainAvailabilityContent() {
               </span>
             </div>
 
-            <div style={selectorPanelResponsive(isSmallMobile)}>
-              <select
-                value={selectedTeam}
-                onChange={(e) => {
-                  const option = filteredTeamOptions.find((item) => item.team === e.target.value)
-                  setSelectedTeam(e.target.value)
-                  if (option) {
-                    setSelectedLeague(option.league)
-                    setSelectedFlight(option.flight)
-                  }
-                }}
-                style={selectStyle}
-              >
-                {loadingOptions && !filteredTeamOptions.length ? (
-                  <option>Loading teams...</option>
-                ) : (
-                  filteredTeamOptions.map((option) => (
+            {isMobile ? (
+              <div style={mobileAvailabilityCommandStyle}>
+                <div style={mobileMatchSummaryStyle}>
+                  <div>
+                    <span style={mobileMatchLabelStyle}>Next match</span>
+                    <strong style={mobileMatchTitleStyle}>vs {selectedOpponent || 'Opponent'}</strong>
+                    <span style={mobileMatchMetaStyle}>{weekLabel}</span>
+                  </div>
+                  <span style={availabilityRequestState === 'ready' ? mobileLinkReadyStyle : badgeSlate}>
+                    {availabilityRequestState === 'ready' ? 'Link ready' : 'Preparing'}
+                  </span>
+                </div>
+
+                <div style={mobileRequestActionsStyle}>
+                  <button
+                    type="button"
+                    style={{ ...primaryButton, ...(!canShareAvailability ? disabledAction : {}) }}
+                    onClick={() => void shareAvailabilityRequest()}
+                    disabled={!canShareAvailability}
+                  >
+                    {availabilityRequestState === 'preparing' ? 'Preparing…' : counts.unanswered ? `Remind ${counts.unanswered}` : 'Share request'}
+                  </button>
+                  <button
+                    type="button"
+                    style={{ ...sectionCtaSecondary, ...(!canShareAvailability ? disabledAction : {}) }}
+                    onClick={() => void copyAvailabilityLink(availabilityRequestUrl, 'Team link')}
+                    disabled={!canShareAvailability}
+                  >
+                    Copy link
+                  </button>
+                </div>
+
+                <div style={mobileAvailabilityReadStyle} aria-label="Availability summary">
+                  <div style={mobileAvailabilityCountStyle}>
+                    <strong>{responseAnswered} of {responseTotal || players.length} answered</strong>
+                    <span>{counts.unanswered ? `${counts.unanswered} waiting` : lineupPoolLabel}</span>
+                  </div>
+                  <div
+                    style={responseTrack}
+                    role="meter"
+                    aria-label="Availability responses answered"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={responseProgress}
+                  >
+                    <span style={{ ...responseFill, width: `${responseProgress}%` }} />
+                  </div>
+                </div>
+
+                {shareFeedback ? <div style={mobileActionReceiptStyle} role="status">{shareFeedback}</div> : null}
+
+                <details style={mobileMatchDetailsStyle}>
+                  <summary style={mobileMatchSummaryButtonStyle}>Change team or match</summary>
+                  <div style={mobileMatchDetailControlsStyle}>
+                    <select
+                      aria-label="Team"
+                      value={selectedTeam}
+                      onChange={(e) => {
+                        const option = filteredTeamOptions.find((item) => item.team === e.target.value)
+                        setSelectedTeam(e.target.value)
+                        if (option) {
+                          setSelectedLeague(option.league)
+                          setSelectedFlight(option.flight)
+                        }
+                      }}
+                      style={selectStyle}
+                    >
+                      {loadingOptions && !filteredTeamOptions.length ? <option>Loading teams...</option> : filteredTeamOptions.map((option) => (
+                        <option key={`${option.team}__${option.league}__${option.flight}`} value={option.team}>
+                          {option.team} - {option.league} - {option.flight}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label="Match"
+                      value={selectedMatchId}
+                      onChange={(e) => {
+                        setSelectedMatchId(e.target.value)
+                        const match = scheduledMatches.find((item) => item.id === e.target.value) ?? null
+                        setWeekLabel(formatScheduleLabel(match))
+                      }}
+                      style={selectStyle}
+                      disabled={!selectedTeam || scheduledMatches.length === 0}
+                    >
+                      <option value="">Select match</option>
+                      {scheduledMatches.map((match) => (
+                        <option key={match.id} value={match.id}>
+                          {getOpponent(match, selectedTeam)} - {formatScheduleLabel(match)}
+                        </option>
+                      ))}
+                    </select>
+                    <button type="button" style={sectionCtaSecondary} onClick={() => void loadRoster()} disabled={!hasScope || loadingRoster}>
+                      {loadingRoster ? 'Refreshing…' : 'Refresh roster'}
+                    </button>
+                  </div>
+                </details>
+              </div>
+            ) : (
+              <div style={selectorPanelResponsive(isSmallMobile)}>
+                <select
+                  value={selectedTeam}
+                  onChange={(e) => {
+                    const option = filteredTeamOptions.find((item) => item.team === e.target.value)
+                    setSelectedTeam(e.target.value)
+                    if (option) {
+                      setSelectedLeague(option.league)
+                      setSelectedFlight(option.flight)
+                    }
+                  }}
+                  style={selectStyle}
+                >
+                  {loadingOptions && !filteredTeamOptions.length ? <option>Loading teams...</option> : filteredTeamOptions.map((option) => (
                     <option key={`${option.team}__${option.league}__${option.flight}`} value={option.team}>
                       {option.team} - {option.league} - {option.flight}
                     </option>
-                  ))
-                )}
-              </select>
-
-              {!isMobile ? (
-                <input
-                  aria-label="Selected match date"
-                  value={weekLabel}
-                  readOnly
-                  style={textInputStyle}
-                  placeholder="Select a scheduled match"
-                />
-              ) : null}
-
-              <select
-                value={selectedMatchId}
-                onChange={(e) => {
-                  setSelectedMatchId(e.target.value)
-                  const match = scheduledMatches.find((item) => item.id === e.target.value) ?? null
-                  setWeekLabel(formatScheduleLabel(match))
-                }}
-                style={selectStyle}
-                disabled={!selectedTeam || scheduledMatches.length === 0}
-              >
-                <option value="">Select match</option>
-                {scheduledMatches.map((match) => (
-                  <option key={match.id} value={match.id}>
-                    {getOpponent(match, selectedTeam)} - {formatScheduleLabel(match)}
-                  </option>
-                ))}
-              </select>
-
-              <button
-                type="button"
-                style={{
-                  ...primaryButton,
-                  ...(!canShareAvailability ? disabledAction : {}),
-                }}
-                onClick={() => void shareAvailabilityRequest()}
-                disabled={!canShareAvailability}
-              >
-                {availabilityRequestState === 'preparing' ? 'Preparing request...' : 'Share availability'}
-              </button>
-
-              <button
-                type="button"
-                style={sectionCtaSecondary}
-                onClick={() => void loadRoster()}
-                disabled={!hasScope || loadingRoster}
-              >
-                {loadingRoster ? 'Refreshing...' : 'Refresh roster'}
-              </button>
-            </div>
-
-            {isMobile ? (
-              <div style={mobileAvailabilityReadStyle} aria-label="Availability summary">
-                <div>
-                  <strong>{responseAnswered} of {responseTotal || players.length} answered</strong>
-                  <span>{counts.unanswered ? `${counts.unanswered} to chase` : lineupPoolLabel}</span>
-                </div>
-                <div
-                  style={responseTrack}
-                  role="meter"
-                  aria-label="Availability responses answered"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={responseProgress}
+                  ))}
+                </select>
+                <input aria-label="Selected match date" value={weekLabel} readOnly style={textInputStyle} placeholder="Select a scheduled match" />
+                <select
+                  value={selectedMatchId}
+                  onChange={(e) => {
+                    setSelectedMatchId(e.target.value)
+                    const match = scheduledMatches.find((item) => item.id === e.target.value) ?? null
+                    setWeekLabel(formatScheduleLabel(match))
+                  }}
+                  style={selectStyle}
+                  disabled={!selectedTeam || scheduledMatches.length === 0}
                 >
-                  <span style={{ ...responseFill, width: `${responseProgress}%` }} />
-                </div>
+                  <option value="">Select match</option>
+                  {scheduledMatches.map((match) => <option key={match.id} value={match.id}>{getOpponent(match, selectedTeam)} - {formatScheduleLabel(match)}</option>)}
+                </select>
+                <button type="button" style={{ ...primaryButton, ...(!canShareAvailability ? disabledAction : {}) }} onClick={() => void shareAvailabilityRequest()} disabled={!canShareAvailability}>
+                  {availabilityRequestState === 'preparing' ? 'Preparing request...' : 'Share availability'}
+                </button>
+                <button type="button" style={{ ...sectionCtaSecondary, ...(!canShareAvailability ? disabledAction : {}) }} onClick={() => void copyAvailabilityLink(availabilityRequestUrl, 'Team link')} disabled={!canShareAvailability}>
+                  Copy team link
+                </button>
+                <button type="button" style={sectionCtaSecondary} onClick={() => void loadRoster()} disabled={!hasScope || loadingRoster}>
+                  {loadingRoster ? 'Refreshing...' : 'Refresh roster'}
+                </button>
               </div>
-            ) : null}
+            )}
           </div>
 
           {!isMobile ? <div style={captainReadCard}>
@@ -1009,23 +1157,8 @@ function CaptainAvailabilityContent() {
           </section>
         ) : null}
 
-        {isMobile ? (
-          <section style={mobileNextMoveStyle} aria-label="Availability next move">
-            <div>
-              <div style={sectionKicker}>Next move</div>
-              <strong style={mobileNextMoveTitleStyle}>
-                {counts.unanswered > 0 ? `Chase ${counts.unanswered} repl${counts.unanswered === 1 ? 'y' : 'ies'}` : 'Build the lineup'}
-              </strong>
-              <span style={mobileNextMoveTextStyle}>{responseSummary}</span>
-            </div>
-            <div style={mobileNextMoveActionsStyle}>
-              <Link href={counts.unanswered > 0 ? messagingHref : lineupBuilderHref} style={sectionCtaPrimary}>
-                {counts.unanswered > 0 ? 'Text Team' : 'Build Lineup'}
-              </Link>
-              <Link href={lineupBuilderHref} style={sectionCtaSecondary}>Open courts</Link>
-            </div>
-          </section>
-        ) : <section style={decisionPanel}>
+        {!isMobile ? (
+          <section style={decisionPanel}>
           <div style={sectionHeadResponsive(isTablet)}>
             <div>
               <div style={sectionKicker}>Availability read</div>
@@ -1077,33 +1210,40 @@ function CaptainAvailabilityContent() {
               </article>
             ))}
           </div>
-        </section>}
+          </section>
+        ) : null}
 
         <section style={contentWrap}>
-          <div style={metricGridResponsive(isMobile)}>
+          {!isMobile ? <div style={metricGridResponsive(false)}>
             <MetricCard label="In" value={String(counts.in)} accent="green" compact={isMobile} />
             <MetricCard label="Out" value={String(counts.out)} accent="blue" compact={isMobile} />
             <MetricCard label="Maybe" value={String(counts.maybe)} accent="slate" compact={isMobile} />
             <MetricCard label="Waiting" value={String(counts.unanswered)} accent="slate" compact={isMobile} />
-          </div>
+          </div> : null}
 
-          <section style={sectionCard}>
+          <section style={sectionCardResponsive(isMobile)}>
             <div style={sectionHeadResponsive(isTablet)}>
               <div>
-                <div style={sectionKicker}>Weekly roster</div>
-                <h2 style={sectionTitle}>Player responses</h2>
-                <div style={sectionSub}>
-                  Update the list as replies come in. The lineup should start here.
-                </div>
-                <div style={sectionChipRow}>
+                <div style={sectionKicker}>{isMobile ? 'Response inbox' : 'Weekly roster'}</div>
+                <h2 style={sectionTitleResponsive(isMobile)}>
+                  {isMobile
+                    ? attentionPlayerCount
+                      ? `${attentionPlayerCount} need attention`
+                      : 'Everyone is accounted for'
+                    : 'Player responses'}
+                </h2>
+                {!isMobile ? <div style={sectionSub}>
+                  Update a reply when a player texts you back. TiQ saves the change for the lineup.
+                </div> : null}
+                {!isMobile ? <div style={sectionChipRow}>
                   <span style={badgeGreen}>{lineupPoolCount} in play</span>
                   <span style={counts.unanswered > 0 ? badgeBlue : badgeSlate}>
                     {counts.unanswered > 0 ? `${counts.unanswered} to chase` : 'Ready for lineup'}
                   </span>
-                </div>
+                </div> : null}
               </div>
 
-              <div style={sectionActions}>
+              {!isMobile ? <div style={sectionActions}>
                 <Link href={lineupBuilderHref} style={sectionCtaPrimary}>
                   Build Lineup
                 </Link>
@@ -1130,7 +1270,7 @@ function CaptainAvailabilityContent() {
                     defaultFacility={selectedMatch?.facility || ''}
                   />
                 ) : null}
-              </div>
+              </div> : null}
             </div>
 
             {!filteredTeamOptions.length && !loadingOptions ? (
@@ -1147,77 +1287,69 @@ function CaptainAvailabilityContent() {
             ) : (
               <div style={playerList}>
                 <div style={availabilityInboxHeaderStyle}>
-                  <div style={availabilityInboxHeaderCopyStyle}>
+                  {!isMobile ? <div style={availabilityInboxHeaderCopyStyle}>
                     <span style={availabilityInboxLabelStyle}>Response inbox</span>
                     <strong style={availabilityInboxTitleStyle}>
                       {attentionPlayerCount ? `${attentionPlayerCount} need attention` : 'Everyone is accounted for'}
                     </strong>
-                  </div>
+                  </div> : null}
                   <div style={availabilityInboxFilterRowStyle} role="group" aria-label="Availability inbox filter">
                     <button
                       type="button"
                       style={{ ...availabilityInboxFilterStyle, ...(availabilityInboxFilter === 'attention' ? availabilityInboxFilterActiveStyle : {}) }}
                       onClick={() => setAvailabilityInboxFilter('attention')}
                     >
-                      Needs action
+                      Needs action {attentionPlayerCount}
                     </button>
                     <button
                       type="button"
                       style={{ ...availabilityInboxFilterStyle, ...(availabilityInboxFilter === 'in-play' ? availabilityInboxFilterActiveStyle : {}) }}
                       onClick={() => setAvailabilityInboxFilter('in-play')}
                     >
-                      In play
+                      In play {lineupPoolCount}
                     </button>
                     <button
                       type="button"
                       style={{ ...availabilityInboxFilterStyle, ...(availabilityInboxFilter === 'all' ? availabilityInboxFilterActiveStyle : {}) }}
                       onClick={() => setAvailabilityInboxFilter('all')}
                     >
-                      All
+                      All {responseTotal}
                     </button>
                   </div>
                 </div>
 
                 {visibleAvailabilityPlayers.length ? visibleAvailabilityPlayers.map((player) => (
                   <div key={player.id} style={playerRowResponsive(isMobile)}>
-                    <div>
-                      <div style={playerName}>{player.name}</div>
-                      {!isMobile ? (
-                        <div style={playerMeta}>
-                          {selectedTeam || 'Team'} - {weekLabel}
-                        </div>
-                      ) : null}
+                    <div style={playerIdentityStyle}>
+                      <div style={playerNameRowStyle}>
+                        <div style={playerName}>{player.name}</div>
+                        <span style={player.status === 'in' ? statusPillIn : player.status === 'out' ? statusPillOut : player.status === 'maybe' ? statusPillMaybe : statusPillWaiting}>
+                          {player.status === 'in' ? 'Yes' : player.status === 'out' ? 'No' : player.status === 'maybe' ? 'Maybe' : 'Waiting'}
+                        </span>
+                      </div>
+                      <div style={playerMeta}>
+                        {player.respondedAt
+                          ? `Updated ${new Date(player.respondedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`
+                          : 'No reply saved yet'}
+                      </div>
                     </div>
 
-                    <div style={statusButtonRowResponsive(isMobile)}>
-                      <button
-                        type="button"
-                        style={{ ...statusButton, ...(player.status === 'in' ? statusButtonIn : {}) }}
-                        onClick={() => updateStatus(player.id, 'in')}
-                      >
-                        In
-                      </button>
-                      <button
-                        type="button"
-                        style={{ ...statusButton, ...(player.status === 'out' ? statusButtonOut : {}) }}
-                        onClick={() => updateStatus(player.id, 'out')}
-                      >
-                        Out
-                      </button>
-                      <button
-                        type="button"
-                        style={{ ...statusButton, ...(player.status === 'maybe' ? statusButtonMaybe : {}) }}
-                        onClick={() => updateStatus(player.id, 'maybe')}
-                      >
-                        Maybe
-                      </button>
-                      <button
-                        type="button"
-                        style={{ ...statusButton, ...(player.status === 'unanswered' ? statusButtonUnanswered : {}) }}
-                        onClick={() => updateStatus(player.id, 'unanswered')}
-                      >
-                        No reply
-                      </button>
+                    <div style={playerCommandStyle}>
+                      <div style={statusButtonRowResponsive(isMobile)} aria-label={`Set ${player.name} availability`} role="group">
+                        <button type="button" disabled={savingPlayerId === player.id} style={{ ...statusButton, ...(player.status === 'in' ? statusButtonIn : {}) }} aria-pressed={player.status === 'in'} onClick={() => void updateStatus(player, 'in')}>Yes</button>
+                        <button type="button" disabled={savingPlayerId === player.id} style={{ ...statusButton, ...(player.status === 'maybe' ? statusButtonMaybe : {}) }} aria-pressed={player.status === 'maybe'} onClick={() => void updateStatus(player, 'maybe')}>Maybe</button>
+                        <button type="button" disabled={savingPlayerId === player.id} style={{ ...statusButton, ...(player.status === 'out' ? statusButtonOut : {}) }} aria-pressed={player.status === 'out'} onClick={() => void updateStatus(player, 'out')}>No</button>
+                        <button type="button" disabled={savingPlayerId === player.id} style={{ ...statusButton, ...(player.status === 'unanswered' ? statusButtonUnanswered : {}) }} aria-pressed={player.status === 'unanswered'} onClick={() => void updateStatus(player, 'unanswered')}>Reset</button>
+                      </div>
+                      {getPlayerRequestUrl(player) ? <div style={playerLinkActionsStyle}>
+                        <button type="button" style={playerLinkButtonStyle} onClick={() => void sharePlayerAvailability(player)}>
+                          Share private link
+                        </button>
+                        <a href={getPlayerRequestUrl(player)} target="_blank" rel="noreferrer" style={playerPreviewLinkStyle}>
+                          Preview
+                        </a>
+                        {playerActionFeedback?.playerId === player.id ? <span style={playerActionReceiptStyle} role="status">{playerActionFeedback.message}</span> : null}
+                      </div> : null}
                     </div>
                   </div>
                 )) : (
@@ -1233,6 +1365,24 @@ function CaptainAvailabilityContent() {
             )}
           </section>
         </section>
+
+        {isMobile ? (
+          <section style={mobileNextMoveStyle} aria-label="Availability next move">
+            <div>
+              <div style={sectionKicker}>Next move</div>
+              <strong style={mobileNextMoveTitleStyle}>
+                {counts.unanswered > 0 ? `Chase ${counts.unanswered} repl${counts.unanswered === 1 ? 'y' : 'ies'}` : 'Build the lineup'}
+              </strong>
+              <span style={mobileNextMoveTextStyle}>{responseSummary}</span>
+            </div>
+            <div style={mobileNextMoveActionsStyle}>
+              <Link href={counts.unanswered > 0 ? messagingHref : lineupBuilderHref} style={sectionCtaPrimary}>
+                {counts.unanswered > 0 ? 'Open team chat' : 'Build lineup'}
+              </Link>
+              <Link href={lineupBuilderHref} style={sectionCtaSecondary}>Open courts</Link>
+            </div>
+          </section>
+        ) : null}
       </div>
   )
 }
@@ -1311,6 +1461,22 @@ function sectionHeadResponsive(isTablet: boolean): CSSProperties {
     gap: '16px',
     flexDirection: isTablet ? 'column' : 'row',
     minWidth: 0,
+  }
+}
+
+function sectionCardResponsive(isMobile: boolean): CSSProperties {
+  return {
+    ...sectionCard,
+    padding: isMobile ? '17px 14px' : sectionCard.padding,
+    borderRadius: isMobile ? 22 : sectionCard.borderRadius,
+  }
+}
+
+function sectionTitleResponsive(isMobile: boolean): CSSProperties {
+  return {
+    ...sectionTitle,
+    fontSize: isMobile ? 25 : sectionTitle.fontSize,
+    lineHeight: isMobile ? 1.08 : sectionTitle.lineHeight,
   }
 }
 
@@ -1538,9 +1704,103 @@ const captainReadText: CSSProperties = {
 const mobileAvailabilityReadStyle: CSSProperties = {
   display: 'grid',
   gap: 9,
-  marginTop: 12,
   color: 'var(--foreground-strong)',
   fontSize: 13,
+}
+
+const mobileAvailabilityCommandStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+}
+
+const mobileMatchSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+  padding: '12px 13px',
+  borderRadius: 17,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+}
+
+const mobileMatchLabelStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--brand-blue-2)',
+  fontSize: 9,
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '0.09em',
+  textTransform: 'uppercase',
+}
+
+const mobileMatchTitleStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 5,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const mobileMatchMetaStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 5,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const mobileLinkReadyStyle: CSSProperties = {
+  ...badgeGreen,
+  flex: '0 0 auto',
+  minHeight: 29,
+  padding: '0 10px',
+  fontSize: 10,
+}
+
+const mobileRequestActionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1.35fr) minmax(0, .85fr)',
+  gap: 8,
+  minWidth: 0,
+}
+
+const mobileAvailabilityCountStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'baseline',
+  gap: 10,
+  minWidth: 0,
+}
+
+const mobileActionReceiptStyle: CSSProperties = {
+  color: '#dffad5',
+  fontSize: 11,
+  fontWeight: 800,
+}
+
+const mobileMatchDetailsStyle: CSSProperties = {
+  borderTop: '1px solid var(--shell-panel-border)',
+  paddingTop: 9,
+  minWidth: 0,
+}
+
+const mobileMatchSummaryButtonStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  fontWeight: 850,
+  cursor: 'pointer',
+}
+
+const mobileMatchDetailControlsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  marginTop: 10,
+  minWidth: 0,
 }
 
 const mobileNextMoveStyle: CSSProperties = {
@@ -1999,6 +2259,100 @@ const playerName: CSSProperties = {
   fontSize: '16px',
   fontWeight: 800,
   lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
+const playerIdentityStyle: CSSProperties = {
+  flex: '1 1 190px',
+  minWidth: 0,
+}
+
+const playerNameRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 9,
+  minWidth: 0,
+}
+
+const statusPillBase: CSSProperties = {
+  flex: '0 0 auto',
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 25,
+  padding: '0 9px',
+  borderRadius: 999,
+  fontSize: 10,
+  fontWeight: 900,
+  border: '1px solid var(--shell-panel-border)',
+}
+
+const statusPillIn: CSSProperties = {
+  ...statusPillBase,
+  color: '#dffad5',
+  background: 'rgba(96,221,116,0.14)',
+  borderColor: 'rgba(130,244,118,0.20)',
+}
+
+const statusPillOut: CSSProperties = {
+  ...statusPillBase,
+  color: '#fecaca',
+  background: 'rgba(142,32,32,0.18)',
+  borderColor: 'rgba(248,113,113,0.22)',
+}
+
+const statusPillMaybe: CSSProperties = {
+  ...statusPillBase,
+  color: '#c7dbff',
+  background: 'rgba(37,91,227,0.16)',
+  borderColor: 'rgba(98,154,255,0.18)',
+}
+
+const statusPillWaiting: CSSProperties = {
+  ...statusPillBase,
+  color: 'var(--shell-copy-muted)',
+  background: 'var(--shell-chip-bg)',
+}
+
+const playerCommandStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  flex: '1 1 330px',
+  minWidth: 0,
+  width: '100%',
+}
+
+const playerLinkActionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 9,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const playerLinkButtonStyle: CSSProperties = {
+  appearance: 'none',
+  padding: 0,
+  border: 0,
+  background: 'transparent',
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const playerPreviewLinkStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 800,
+  textDecoration: 'none',
+}
+
+const playerActionReceiptStyle: CSSProperties = {
+  marginLeft: 'auto',
+  color: '#dffad5',
+  fontSize: 10,
+  fontWeight: 850,
   overflowWrap: 'anywhere',
 }
 
