@@ -13,7 +13,16 @@ export const runtime = 'nodejs'
 export const maxDuration = 20
 
 type DraftRequest = { draft?: unknown }
-type DraftStatusRequest = { scope?: unknown; status?: unknown }
+type DraftStatusRequest = {
+  action?: unknown
+  scope?: unknown
+  status?: unknown
+  teamSlots?: unknown
+  selectedMatchId?: unknown
+  matchFormat?: unknown
+  matchDetails?: unknown
+  updatedAt?: unknown
+}
 
 function readScope(source: URLSearchParams | Record<string, unknown>) {
   const get = (key: string) => source instanceof URLSearchParams ? source.get(key) : source[key]
@@ -76,8 +85,51 @@ function toDraft(row: Record<string, unknown> | null): CaptainLineupBuilderDraft
     teamSlots: row.slots_json,
     opponentSlots: row.opponent_slots_json,
     manualRosterEntries: row.manual_roster_entries,
+    matchDetails: {
+      location: row.match_location,
+      directions: row.match_directions,
+      arrivalTime: row.arrival_time,
+      notes: row.captain_notes,
+    },
+    matchWeekUpdatedAt: row.match_week_updated_at,
     updatedAt: row.updated_at,
   }))
+}
+
+function cleanMatchWeekDetails(value: unknown) {
+  const source = value && typeof value === 'object' ? value as Record<string, unknown> : {}
+  return {
+    location: cleanAvailabilityText(source.location, 240),
+    directions: cleanAvailabilityText(source.directions, 600),
+    arrivalTime: cleanAvailabilityText(source.arrivalTime, 80),
+    notes: cleanAvailabilityText(source.notes, 1200),
+  }
+}
+
+function cleanMatchWeekSlots(value: unknown) {
+  if (!Array.isArray(value)) return []
+  return value.slice(0, 30).map((slot, index) => {
+    const source = slot && typeof slot === 'object' ? slot as Record<string, unknown> : {}
+    const slotType = source.slotType === 'doubles' ? 'doubles' : 'singles'
+    const playerCount = slotType === 'doubles' ? 2 : 1
+    const players = Array.isArray(source.players) ? source.players : []
+    return {
+      id: cleanAvailabilityText(source.id, 120) || `slot-${index + 1}`,
+      label: cleanAvailabilityText(source.label, 120) || `Court ${index + 1}`,
+      slotType,
+      ...(typeof source.ratingLevel === 'number' && Number.isFinite(source.ratingLevel)
+        ? { ratingLevel: source.ratingLevel }
+        : {}),
+      players: Array.from({ length: playerCount }, (_, playerIndex) => {
+        const player = players[playerIndex]
+        const entry = player && typeof player === 'object' ? player as Record<string, unknown> : {}
+        return {
+          playerId: cleanAvailabilityText(entry.playerId, 120),
+          playerName: cleanAvailabilityText(entry.playerName, 160),
+        }
+      }),
+    }
+  })
 }
 
 export async function GET(request: Request) {
@@ -131,7 +183,7 @@ export async function GET(request: Request) {
   const scopeKey = getCaptainLineupDraftScopeKey(scope)
   const { data, error } = await authorized.service
     .from('captain_lineup_drafts')
-    .select('competition_layer,team_name,league_name,flight,match_date,opponent_team,selected_match_id,match_format,scenario_id,scenario_name,notes,slots_json,opponent_slots_json,manual_roster_entries,updated_at')
+    .select('competition_layer,team_name,league_name,flight,match_date,opponent_team,selected_match_id,match_format,scenario_id,scenario_name,notes,slots_json,opponent_slots_json,manual_roster_entries,match_location,match_directions,arrival_time,captain_notes,match_week_updated_at,updated_at')
     .eq('user_id', authorized.auth.userId)
     .eq('scope_key', scopeKey)
     .maybeSingle()
@@ -154,9 +206,8 @@ export async function PUT(request: Request) {
   if (authorized.auth.userId !== auth.userId) return Response.json({ ok: false, message: 'This lineup draft is not available.' }, { status: 403 })
 
   const scopeKey = getCaptainLineupDraftScopeKey(draft)
-  const { data, error } = await authorized.service
-    .from('captain_lineup_drafts')
-    .upsert({
+  const matchWeekUpdatedAt = draft.updatedAt || new Date().toISOString()
+  const upsertRow: Record<string, unknown> = {
       user_id: auth.userId,
       scope_key: scopeKey,
       competition_layer: draft.competitionLayer,
@@ -173,10 +224,22 @@ export async function PUT(request: Request) {
       slots_json: draft.teamSlots,
       opponent_slots_json: draft.opponentSlots,
       manual_roster_entries: draft.manualRosterEntries,
+      match_week_updated_at: matchWeekUpdatedAt,
       status: 'working',
       finalized_at: null,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'user_id,scope_key' })
+      updated_at: matchWeekUpdatedAt,
+  }
+  if (draft.matchDetails) {
+    const details = cleanMatchWeekDetails(draft.matchDetails)
+    upsertRow.match_location = details.location
+    upsertRow.match_directions = details.directions
+    upsertRow.arrival_time = details.arrivalTime
+    upsertRow.captain_notes = details.notes
+  }
+
+  const { data, error } = await authorized.service
+    .from('captain_lineup_drafts')
+    .upsert(upsertRow, { onConflict: 'user_id,scope_key' })
     .select('updated_at')
     .single()
   if (error) return Response.json({ ok: false, message: 'Your in-progress lineup could not be saved.' }, { status: 500 })
@@ -187,6 +250,56 @@ export async function PUT(request: Request) {
 export async function PATCH(request: Request) {
   const body = await request.json().catch(() => null) as DraftStatusRequest | null
   const scope = readScope(body?.scope && typeof body.scope === 'object' ? body.scope as Record<string, unknown> : {})
+  if (body?.action === 'sync-match-week') {
+    const authorized = await authorizeTeam(request, scope.teamName)
+    if (!authorized.ok) return authorized.response
+    const updatedAt = cleanAvailabilityText(body.updatedAt, 40)
+    if (!/^\d{4}-\d{2}-\d{2}T/.test(updatedAt)) {
+      return Response.json({ ok: false, message: 'This Match Week update is not valid.' }, { status: 400 })
+    }
+
+    const scopeKey = getCaptainLineupDraftScopeKey(scope)
+    const { data: existing, error: readError } = await authorized.service
+      .from('captain_lineup_drafts')
+      .select('match_week_updated_at')
+      .eq('user_id', authorized.auth.userId)
+      .eq('scope_key', scopeKey)
+      .maybeSingle()
+    if (readError) return Response.json({ ok: false, message: 'Match Week could not be checked.' }, { status: 500 })
+
+    const existingUpdatedAt = Date.parse(String(existing?.match_week_updated_at || '')) || 0
+    if (existingUpdatedAt > (Date.parse(updatedAt) || 0)) {
+      return Response.json({ ok: true, ignored: true, updatedAt: existing?.match_week_updated_at })
+    }
+
+    const details = cleanMatchWeekDetails(body.matchDetails)
+    const row = {
+      user_id: authorized.auth.userId,
+      scope_key: scopeKey,
+      competition_layer: scope.competitionLayer,
+      team_name: scope.teamName,
+      league_name: scope.leagueName,
+      flight: scope.flight,
+      match_date: /^\d{4}-\d{2}-\d{2}$/.test(scope.matchDate) ? scope.matchDate : null,
+      opponent_team: scope.opponentTeam,
+      selected_match_id: cleanAvailabilityText(body.selectedMatchId, 160),
+      match_format: cleanAvailabilityText(body.matchFormat, 80) || 'auto',
+      slots_json: cleanMatchWeekSlots(body.teamSlots),
+      match_location: details.location,
+      match_directions: details.directions,
+      arrival_time: details.arrivalTime,
+      captain_notes: details.notes,
+      match_week_updated_at: updatedAt,
+      updated_at: updatedAt,
+    }
+    const { error } = await authorized.service
+      .from('captain_lineup_drafts')
+      .upsert(row, { onConflict: 'user_id,scope_key' })
+    if (error) return Response.json({ ok: false, message: 'Match Week could not be saved.' }, { status: 500 })
+
+    return Response.json({ ok: true, updatedAt })
+  }
+
   if (body?.status !== 'final') {
     return Response.json({ ok: false, message: 'This lineup status is not valid.' }, { status: 400 })
   }
