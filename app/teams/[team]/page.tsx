@@ -61,6 +61,8 @@ import {
 import { getTeamMatchFormatSummary, resolveTeamMatchFormat } from '@/lib/competition-format-registry'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 import TeamSeasonCalendar from '@/app/components/team-season-calendar'
+import TeamQuickActions from './team-quick-actions'
+import profileStyles from './team-profile.module.css'
 
 type TeamMatch = {
   id: string
@@ -1908,28 +1910,32 @@ function TeamPageContent() {
                   <SecondaryLink href={`/login?next=${encodeURIComponent(teamRoomHref)}`}>Sign in</SecondaryLink>
                 </>
               ) : isLinkedTeamMember ? (
-                <>
-                  <PrimaryLink href="#team-chat">Open Team Chat</PrimaryLink>
-                  {!isMobile && access.canUseAdvancedPlayerInsights ? <SecondaryLink href="/mylab">Open My Lab</SecondaryLink> : null}
-                  {!isMobile && access.canUseAdvancedPlayerInsights ? <GhostLink href="/matchup">Prep matchup</GhostLink> : null}
-                  {canManageThisTeam ? <SecondaryLink href={captainLinks[1].href}>Build lineup</SecondaryLink> : null}
-                  {!isMobile && canManageThisTeam ? <GhostLink href={captainLinks[0].href}>Check availability</GhostLink> : null}
-                </>
+                <TeamQuickActions chatHref={teamRoomHref} lineupHref={canManageThisTeam ? captainLinks[1].href : undefined} availabilityHref={canManageThisTeam ? '#team-availability' : undefined} />
               ) : (
                 <>
                   <PrimaryLink href="/team-connections">Connect this team</PrimaryLink>
                   <GhostLink href="/compete/teams">My Teams</GhostLink>
                 </>
               )}
-              <div style={followButtonWrap}>
+              {!isLinkedTeamMember ? <div style={followButtonWrap}>
                 <FollowButton
                   entityType="team"
                   entityId={stableFollowId}
                   entityName={team}
                   subtitle={heroMetaParts.join(' - ') || undefined}
                 />
-              </div>
+              </div> : null}
             </div>
+            {isLinkedTeamMember ? <details className={profileStyles.drawer}>
+              <summary>Follow & player tools</summary>
+              <div className={profileStyles.drawerBody}>
+                <FollowButton entityType="team" entityId={stableFollowId} entityName={team} subtitle={heroMetaParts.join(' - ') || undefined} />
+                {isLinkedTeamMember && access.canUseAdvancedPlayerInsights ? <>
+                  <p style={bodyText}>Turn team context into your next improvement.</p>
+                  <div style={dynamicHeroActions}><SecondaryLink href="/mylab">Open My Lab</SecondaryLink><GhostLink href="/matchup">Prep matchup</GhostLink></div>
+                </> : null}
+              </div>
+            </details> : null}
           </div>
 
           <details style={dynamicSummaryCard} open={!isMobile}>
@@ -2215,27 +2221,15 @@ function TeamPageContent() {
             <GhostLink href={teamRoomHref}>Open full room</GhostLink>
           </div>
 
-          {isLinkedTeamMember && access.canUseAdvancedPlayerInsights ? (
-            <div style={{ marginTop: 16, padding: 16, borderRadius: 18, border: '1px solid rgba(125, 211, 252, 0.16)', background: 'rgba(255, 255, 255, 0.035)' }}>
-              <p style={sectionKicker}>Player tools</p>
-              <h3 style={{ ...sectionTitle, fontSize: 18 }}>Turn team context into your next improvement.</h3>
-              <p style={bodyText}>Bring this roster, your match history, and the next opponent into My Lab and matchup prep.</p>
-              <div style={dynamicHeroActions}>
-                <PrimaryLink href="/mylab">Open My Lab</PrimaryLink>
-                <SecondaryLink href="/matchup">Prep matchup</SecondaryLink>
-              </div>
-            </div>
-          ) : null}
-
-          {linkedTeamConnection && isCaptainTeamConnection(linkedTeamConnection.roles) && access.canUseCaptainWorkflow ? (
-            <div style={{ marginTop: 12 }}>
-              <SecondaryLink href={captainLinks[1].href}>Open captain team tools</SecondaryLink>
-            </div>
-          ) : null}
         </section> : null}
 
         {canManageThisTeam ? (
-        <section style={{ ...teamWeekPathStyle(isTablet), order: 1 }} aria-label="Captain team week tools">
+        <details style={{ ...detailDrawerStyle, order: 5 }} aria-label="Captain team week tools">
+          <summary style={detailDrawerSummaryStyle}>
+            <span style={detailDrawerCopyStyle}><span style={sectionKicker}>Captain tools</span><strong style={detailDrawerTitleStyle}>Readiness, pairings & team plan</strong></span>
+            <span style={panelCountPill}>View</span>
+          </summary>
+          <div style={{ ...teamWeekPathStyle(isTablet), border: 0, boxShadow: 'none', background: 'transparent' }}>
           <div style={teamWeekPathCopyStyle}>
             <p style={sectionKicker}>Team week path</p>
             <h2 style={teamWeekPathTitleStyle}>Answer match week from your phone.</h2>
@@ -2250,11 +2244,8 @@ function TeamPageContent() {
             </Link>
           </div>
           {isMobile ? (
-            <details style={teamWeekMoreToolsStyle}>
-              <summary style={teamWeekMoreToolsSummaryStyle}>
-                <span>More Captain tools</span>
-                <span>View</span>
-              </summary>
+            <div style={teamWeekMoreToolsStyle}>
+              <h3 style={{ ...teamWeekMoreToolsSummaryStyle, cursor: 'default' }}>More Captain tools</h3>
               <div style={teamWeekPathGridStyle(isSmallMobile)}>
                 {supplementalCaptainLinks.map((item) => (
                   <Link
@@ -2270,7 +2261,7 @@ function TeamPageContent() {
                   </Link>
                 ))}
               </div>
-            </details>
+            </div>
           ) : (
           <div style={teamWeekPathGridStyle(isSmallMobile)}>
             {supplementalCaptainLinks.map((item) => (
@@ -2288,7 +2279,8 @@ function TeamPageContent() {
             ))}
           </div>
           )}
-        </section>
+          </div>
+        </details>
         ) : null}
 
         <details style={{ ...detailDrawerStyle, order: 7 }}>

@@ -50,9 +50,11 @@ describe('Teams experience simplification', () => {
   })
 
   it('keeps the primary team action in the hero and moves repeated tools down the page on phones', () => {
-    expect(teamDetail).toContain('<PrimaryLink href="#team-chat">Open Team Chat</PrimaryLink>')
-    expect(teamDetail).toContain('!isMobile && access.canUseAdvancedPlayerInsights')
-    expect(teamDetail).toContain('!isMobile && canManageThisTeam')
+    expect(teamDetail).toContain('<TeamQuickActions')
+    expect(teamDetail).toContain('chatHref={teamRoomHref}')
+    expect(teamDetail).toContain('lineupHref={canManageThisTeam ? captainLinks[1].href : undefined}')
+    expect(teamDetail).toContain('<summary>Follow & player tools</summary>')
+    expect(teamDetail).toContain('aria-label="Captain team week tools"')
   })
 
   it('keeps chat message controls and alert prompts from crowding the conversation', () => {

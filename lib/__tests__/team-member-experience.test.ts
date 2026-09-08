@@ -46,7 +46,8 @@ describe('membership-first Teams experience', () => {
   it('layers Player and Captain tools above free team collaboration', () => {
     expect(teamPage).toContain('isLinkedTeamMember && access.canUseAdvancedPlayerInsights')
     expect(teamPage).toContain('Turn team context into your next improvement.')
-    expect(teamPage).toContain('access.canUseCaptainWorkflow ?')
+    expect(teamPage).toContain('const canManageThisTeam = Boolean(')
+    expect(teamPage).toContain('lineupHref={canManageThisTeam ? captainLinks[1].href : undefined}')
     expect(teamPage).toContain('aria-label="Captain team week tools"')
   })
 })
