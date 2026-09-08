@@ -18,6 +18,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
 import { getPlanDestinationHref, getPlanUnlockHref, isSafeLocalNextHref } from '@/lib/plan-intent'
 import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
+import { getAvailabilityEntry } from '@/lib/availability-onboarding'
 
 const JOIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 
@@ -156,6 +157,7 @@ function JoinContent() {
   const selectedTier = getMembershipTier(selectedPlanId)
   const requestedNextRoute = searchParams.get('next')
   const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, getJoinNextRoute(selectedPlanId))
+  const availabilityEntry = selectedPlanId === 'free' ? getAvailabilityEntry(selectedNextRoute) : null
   const isCaptainPilotSignup = selectedPlanId === 'captain' && selectedNextRoute.startsWith('/captain-pilot')
   const selectedIntent = isCaptainPilotSignup ? {
     ...JOIN_INTENT_COPY.captain,
@@ -164,6 +166,13 @@ function JoinContent() {
     desktopTitle: 'Start your 3 months free.',
     mobileText: 'Create your account and confirm your email. Then activate your Captain trial and follow the guided team setup.',
     desktopText: 'Create your account and confirm your email. Then activate your Captain trial and follow the guided team setup.',
+  } : availabilityEntry ? {
+    ...JOIN_INTENT_COPY.free,
+    eyebrow: 'Team availability · Free account',
+    mobileTitle: 'Join your team in TiQ.',
+    desktopTitle: 'Join your team in TiQ.',
+    mobileText: `Create your free account for ${availabilityEntry.team}. Confirm your email, connect your player, then mark when you can play. No payment card needed.`,
+    desktopText: `Create your free account for ${availabilityEntry.team}. Confirm your email, connect your player, then mark when you can play. No payment card needed.`,
   } : JOIN_INTENT_COPY[selectedPlanId]
   const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
   const signInHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, email || requestedEmail)
@@ -209,7 +218,7 @@ function JoinContent() {
       return
     }
 
-    if (password !== confirmPassword) {
+    if (!availabilityEntry && password !== confirmPassword) {
       setError('Passwords do not match.')
       return
     }
@@ -239,7 +248,9 @@ function JoinContent() {
       const signupResult = await signupResponse.json().catch(() => null) as { ok?: boolean; message?: string } | null
       if (!signupResponse.ok || !signupResult?.ok) throw new Error(signupResult?.message || 'Unable to create account.')
 
-      setMessage(isCaptainPilotSignup
+      setMessage(availabilityEntry
+        ? `Check ${trimmedEmail} and confirm your email. We’ll bring you back to ${availabilityEntry.team} to connect your player and answer. Your match request is saved in the confirmation link.`
+        : isCaptainPilotSignup
         ? 'Check your email to confirm your account. Your Captain Pilot welcome will guide you to the team form and secure checkout.'
         : 'Check your email to confirm your account. Your personal TenAceiQ welcome will show you the right next step.')
     } catch (err) {
@@ -319,7 +330,7 @@ function JoinContent() {
                 {isMobile ? selectedIntent.mobileText : selectedIntent.desktopText}
               </p>
 
-              <label htmlFor="firstName" style={inputLabel}>
+              {!availabilityEntry ? <><label htmlFor="firstName" style={inputLabel}>
                 First name <span style={optionalFieldLabel}>(optional)</span>
               </label>
               <input
@@ -335,7 +346,7 @@ function JoinContent() {
                 }}
                 placeholder="So we can welcome you personally"
                 style={inputStyle}
-              />
+              /></> : null}
 
               <label htmlFor="email" style={inputLabel}>
                 Email
@@ -379,7 +390,7 @@ function JoinContent() {
                 style={inputStyle}
               />
 
-              <label htmlFor="confirmPassword" style={inputLabel}>
+              {!availabilityEntry ? <><label htmlFor="confirmPassword" style={inputLabel}>
                 Confirm password
               </label>
               <input
@@ -398,7 +409,7 @@ function JoinContent() {
                 }}
                 placeholder="Re-enter your password"
                 style={inputStyle}
-              />
+              /></> : null}
 
               <label style={termsRow}>
                 <input
@@ -429,7 +440,7 @@ function JoinContent() {
                 onClick={() => setShowPassword((v) => !v)}
                 style={togglePasswordButton}
               >
-                {showPassword ? 'Hide passwords' : 'Show passwords'}
+                {availabilityEntry ? showPassword ? 'Hide password' : 'Show password' : showPassword ? 'Hide passwords' : 'Show passwords'}
               </button>
 
               <button
@@ -448,7 +459,9 @@ function JoinContent() {
               >
                 {submitting
                   ? 'Creating account...'
-                  : isCaptainPilotSignup
+                  : availabilityEntry
+                    ? 'Create account & continue'
+                    : isCaptainPilotSignup
                     ? 'Create account to start 3 months free'
                     : selectedPlanId === 'free'
                       ? 'Create free account'
@@ -468,7 +481,7 @@ function JoinContent() {
           </div>
         </div>
 
-        {selectedPlanId !== 'free' || nextIntent ? <details className="authOptionalDetailsSection" style={selectedPlanCardStyle}>
+        {!availabilityEntry && (selectedPlanId !== 'free' || nextIntent) ? <details className="authOptionalDetailsSection" style={selectedPlanCardStyle}>
           <summary style={selectedPlanSummaryStyle}>
             <span style={selectedPlanSummaryTextStyle}>
               <span style={selectedPlanLabelStyle}>Selected start</span>
