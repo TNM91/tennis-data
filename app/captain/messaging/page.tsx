@@ -82,7 +82,12 @@ import {
 } from '@/lib/captain-managed-team-context'
 import type { TeamConnection } from '@/lib/team-profile-links'
 import { buildCaptainMessagingAudienceCopy } from '@/lib/captain-messaging-audience'
-import { reconcileCaptainGuestAvailability } from '@/lib/captain-availability-reconciliation'
+import {
+  reconcileCaptainCloudAvailability,
+  reconcileCaptainGuestAvailability,
+  type CaptainAvailabilityCloudUpdate,
+  type CaptainCloudAvailabilityRow,
+} from '@/lib/captain-availability-reconciliation'
 
 type ContactRow = {
   id: string
@@ -659,7 +664,7 @@ function CaptainMessagingContent() {
   const [responses, setResponses] = useState<WeeklyResponse[]>([])
   const [lineups, setLineups] = useState<LineupAssignment[]>([])
   const [externalAvailabilityRows, setExternalAvailabilityRows] = useState<ExternalAvailabilityRow[]>([])
-  const [availabilitySyncSource, setAvailabilitySyncSource] = useState<string | null>(null)
+  const [availabilityCloudState, setAvailabilityCloudState] = useState<'idle' | 'syncing' | 'synced' | 'local'>('idle')
   const [managedTeamOptions, setManagedTeamOptions] = useState<CaptainManagedTeamOption[]>([])
   const [managedTeamsLoading, setManagedTeamsLoading] = useState(false)
   const [managedTeamsError, setManagedTeamsError] = useState('')
@@ -682,6 +687,7 @@ function CaptainMessagingContent() {
   const nudgeQueuePreparedRef = useRef(false)
   const contactReviewAppliedRef = useRef(false)
   const teamConnectionInviteAppliedRef = useRef(false)
+  const availabilityRef = useRef<WeeklyAvailability[]>([])
 
   const [prefillScenarioRaw] = useState<ScenarioRow | null>(initialContext.scenario)
   const [prefillFlowSource] = useState(initialContext.flowSource)
@@ -801,20 +807,17 @@ function CaptainMessagingContent() {
         setScenarios(scenariosData.length ? scenariosData : shouldUseDemo ? [demoScenario as ScenarioRow] : [])
 
         let syncedAvailability: ExternalAvailabilityRow[] = []
-        let syncedSource: string | null = null
         for (const tableName of AVAILABILITY_SOURCE_TABLES) {
           const availabilityResult = await supabase.from(tableName).select('*').limit(1000)
           if (!availabilityResult.error && availabilityResult.data) {
             const normalized = normalizeExternalAvailabilityRows(tableName, availabilityResult.data as unknown[])
             if (normalized.length) {
               syncedAvailability = normalized
-              syncedSource = tableName
               break
             }
           }
         }
         setExternalAvailabilityRows(syncedAvailability)
-        setAvailabilitySyncSource(syncedSource)
 
         setAvailability(localAvailability.length ? localAvailability : shouldUseDemo ? demoAvailabilityRows : [])
         setResponses(localResponses.length ? localResponses : shouldUseDemo ? demoResponseRows : [])
@@ -854,7 +857,6 @@ function CaptainMessagingContent() {
         setContacts(readLocal<ContactRow>(CONTACTS_STORAGE_KEY).length ? readLocal<ContactRow>(CONTACTS_STORAGE_KEY) : demoContacts)
         setTemplates(readLocal<TemplateRow>(TEMPLATES_STORAGE_KEY))
         setExternalAvailabilityRows([])
-        setAvailabilitySyncSource(null)
         setAvailability(readLocal<WeeklyAvailability>(AVAILABILITY_STORAGE_KEY).length ? readLocal<WeeklyAvailability>(AVAILABILITY_STORAGE_KEY) : buildDemoAvailabilityRows(demoContacts))
         setResponses(readLocal<WeeklyResponse>(RESPONSES_STORAGE_KEY).length ? readLocal<WeeklyResponse>(RESPONSES_STORAGE_KEY) : buildDemoResponseRows(demoContacts))
         setLineups(readLocal<LineupAssignment>(LINEUPS_STORAGE_KEY).length ? readLocal<LineupAssignment>(LINEUPS_STORAGE_KEY) : buildDemoLineupRows())
@@ -1149,6 +1151,110 @@ function CaptainMessagingContent() {
     opponent: inferredOpponent,
   }), [competitionLayer, flightFilter, inferredOpponent, inferredTeamName, leagueFilter, preferredEventDate, selectedMatch, teamFilter])
   const scopedLineupBuilderHref = buildCaptainScopedHref('/captain/lineup-builder', matchWeekScope)
+
+  useEffect(() => {
+    availabilityRef.current = availability
+  }, [availability])
+
+  const persistCloudAvailability = useCallback(async (update: CaptainAvailabilityCloudUpdate) => {
+    const teamName = matchWeekScope.team.trim()
+    const leagueName = matchWeekScope.league.trim()
+    const scopedFlight = matchWeekScope.flight.trim()
+    const matchDate = matchWeekScope.date.slice(0, 10)
+    const accessToken = session?.access_token || ''
+    if (!captainAccess || !accessToken || !teamName || !leagueName || !scopedFlight || !/^\d{4}-\d{2}-\d{2}$/.test(matchDate)) return false
+
+    setAvailabilityCloudState('syncing')
+    try {
+      const response = await fetch('/api/captain/weekly-availability', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          team: teamName,
+          league: leagueName,
+          flight: scopedFlight,
+          matchDate,
+          playerName: update.playerName,
+          status: update.status,
+          note: update.note,
+          updatedAt: update.updatedAt,
+        }),
+      })
+      const result = await response.json() as { message?: string }
+      if (!response.ok) throw new Error(result.message || 'Availability could not sync.')
+      setAvailabilityCloudState('synced')
+      return true
+    } catch (nextError) {
+      setAvailabilityCloudState('local')
+      setError(nextError instanceof Error ? nextError.message : 'Availability is saved on this phone and will sync when cloud access returns.')
+      return false
+    }
+  }, [captainAccess, matchWeekScope.date, matchWeekScope.flight, matchWeekScope.league, matchWeekScope.team, session?.access_token])
+
+  useEffect(() => {
+    const teamName = matchWeekScope.team.trim()
+    const leagueName = matchWeekScope.league.trim()
+    const scopedFlight = matchWeekScope.flight.trim()
+    const matchDate = matchWeekScope.date.slice(0, 10)
+    const accessToken = session?.access_token || ''
+    if (!authResolved || !captainAccess || !accessToken || !eventKey || !scopedContacts.length
+      || !teamName || !leagueName || !scopedFlight || !/^\d{4}-\d{2}-\d{2}$/.test(matchDate)) return
+
+    let active = true
+    const controller = new AbortController()
+
+    async function loadCloudAvailability() {
+      setAvailabilityCloudState('syncing')
+      try {
+        const params = new URLSearchParams({ team: teamName, league: leagueName, flight: scopedFlight, matchDate })
+        const response = await fetch(`/api/captain/weekly-availability?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+        const result = await response.json() as { availability?: CaptainCloudAvailabilityRow[]; message?: string }
+        if (!response.ok) throw new Error(result.message || 'Shared availability could not be loaded.')
+        if (!active) return
+
+        const reconciled = reconcileCaptainCloudAvailability({
+          eventKey,
+          contacts: scopedContacts,
+          rows: availabilityRef.current,
+          cloudRows: result.availability || [],
+        })
+        if (reconciled.changed) {
+          availabilityRef.current = reconciled.rows
+          setAvailability(reconciled.rows)
+          writeLocal(AVAILABILITY_STORAGE_KEY, reconciled.rows)
+        }
+        setAvailabilityCloudState('synced')
+        for (const update of reconciled.uploads) {
+          if (!active) break
+          await persistCloudAvailability(update)
+        }
+      } catch (nextError) {
+        if (!active || (nextError instanceof DOMException && nextError.name === 'AbortError')) return
+        setAvailabilityCloudState('local')
+      }
+    }
+
+    void loadCloudAvailability()
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void loadCloudAvailability()
+    }
+    const interval = window.setInterval(refreshWhenVisible, 60_000)
+    window.addEventListener('focus', refreshWhenVisible)
+    window.addEventListener('pageshow', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      active = false
+      controller.abort()
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refreshWhenVisible)
+      window.removeEventListener('pageshow', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [authResolved, captainAccess, eventKey, matchWeekScope.date, matchWeekScope.flight, matchWeekScope.league, matchWeekScope.team, persistCloudAvailability, scopedContacts, session?.access_token])
 
   useEffect(() => {
     const teamName = matchWeekScope.team.trim()
@@ -1579,10 +1685,11 @@ function CaptainMessagingContent() {
       replies: currentLiveResponses,
     })
     if (!reconciled.changed) return
+    availabilityRef.current = reconciled.rows
     setAvailability(reconciled.rows)
     writeLocal(AVAILABILITY_STORAGE_KEY, reconciled.rows)
-    setAvailabilitySyncSource((current) => current || 'player replies')
-  }, [availability, captainAccess, currentLiveResponses, eventKey, scopedContacts])
+    for (const update of reconciled.updates) void persistCloudAvailability(update)
+  }, [availability, captainAccess, currentLiveResponses, eventKey, persistCloudAvailability, scopedContacts])
 
   const recipientIntelligence = useMemo(() => {
     const base = scopedContacts.filter((contact) => contact.phone && contact.opt_in_text)
@@ -2443,8 +2550,17 @@ function CaptainMessagingContent() {
 
   function setAvailabilityStatus(contactId: string, status: WeeklyAvailability['status']) {
     const next = availability.filter((row) => !(row.event_key === eventKey && row.contact_id === contactId))
-    next.push({ id: createId(), event_key: eventKey, contact_id: contactId, status, note: availabilityMap.get(contactId)?.note || '', updated_at: new Date().toISOString() })
+    const nextRow = { id: createId(), event_key: eventKey, contact_id: contactId, status, note: availabilityMap.get(contactId)?.note || '', updated_at: new Date().toISOString() }
+    next.push(nextRow)
     saveAvailability(next)
+    const contact = scopedContacts.find((candidate) => candidate.id === contactId)
+    if (contact) void persistCloudAvailability({
+      contactId,
+      playerName: contact.full_name,
+      status,
+      note: nextRow.note,
+      updatedAt: nextRow.updated_at,
+    })
   }
 
   async function recordManualAvailabilityResponse(
@@ -3277,7 +3393,9 @@ function importScenarioToLineup() {
               <span style={miniPillBlue}>{audienceCopy.rosterAvailable}</span>
               <span style={miniPillGreen}>{audienceCopy.matchConfirmed}</span>
               <span style={warnPill}>{audienceCopy.matchRepliesPending}</span>
-              {availabilitySyncSource ? <span style={miniPillBlue}>Availability connected</span> : <span style={miniPillSlate}>Manual availability</span>}
+              {availabilityCloudState === 'syncing' ? <span style={miniPillBlue}>Syncing availability...</span>
+                : availabilityCloudState === 'synced' ? <span style={miniPillGreen}>Saved across devices</span>
+                  : <span style={miniPillSlate}>Saved on this phone</span>}
             </div>
           </details>
 
