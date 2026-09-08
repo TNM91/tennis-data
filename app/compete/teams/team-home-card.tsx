@@ -2,12 +2,14 @@
 
 import Link from 'next/link'
 import styles from './teams-home.module.css'
+import type { ReactNode } from 'react'
 
 export type TeamHomeCardProps = {
   name: string; league?: string | null; flight?: string | null; isDefault: boolean
   teamHref: string; chatHref: string; lineupHref?: string; availabilityHref?: string
   nextMatch?: { date: string; opponent: string } | null
   historyCount?: number; syncing?: boolean
+  availabilitySummary?: ReactNode
   onMakeDefault?: () => void; savingDefault?: boolean; defaultDisabled?: boolean
 }
 
@@ -25,6 +27,7 @@ export default function TeamHomeCard(props: TeamHomeCardProps) {
       <span className={styles.nextCopy}><span className={styles.eyebrow}>Next match</span><strong>{props.nextMatch ? `vs ${props.nextMatch.opponent}` : props.syncing ? 'Schedule syncing' : 'No upcoming match listed'}</strong><span>{validDate ? new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(validDate) : props.historyCount ? `${props.historyCount} matches in history · View schedule` : 'Open your schedule and calendar'}</span></span>
       <span aria-hidden="true" className={styles.arrow}>↗</span>
     </Link>
+    {props.availabilitySummary}
     <nav className={styles.cardActions} aria-label={`${props.name} team tools`}>
       {props.lineupHref ? <Link className={styles.primaryAction} href={props.lineupHref}>Build lineup <span aria-hidden="true">→</span></Link> : null}
       {props.availabilityHref ? <Link href={props.availabilityHref} className={styles.availabilityAction}>Season availability</Link> : null}

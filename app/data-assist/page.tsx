@@ -180,12 +180,6 @@ const dataAssistSourcePathJobs = [
   cta: string
 }>
 
-const uploadJourneySteps = [
-  { step: '1', label: 'Choose source', active: true },
-  { step: '2', label: 'Add file', active: false },
-  { step: '3', label: 'Review & import', active: false },
-] as const
-
 const importTypes: Array<{
   id: DataAssistImportType
   label: string
@@ -312,7 +306,7 @@ function DataAssistWorkspace() {
   const intentQuery = getDataAssistQuery(searchParams.get('q'))
   const requestedImportType = getRequestedImportType(searchParams.get('type'))
   const contactImportRequested = searchParams.get('contactImport') === '1'
-  const teamSetupRequested = requestedImportType === 'team_summary' && intentContext.toLowerCase().includes('team')
+  const teamSetupRequested = !contactImportRequested && requestedImportType === 'team_summary' && intentContext.toLowerCase().includes('team')
   const exportHelpRequested = searchParams.get('help') === '1'
   const scorecardCameraRequested = searchParams.get('capture') === 'camera'
   const returnTo = getSafeDataAssistReturnTo(searchParams.get('returnTo'))
@@ -1246,20 +1240,22 @@ function DataAssistWorkspace() {
           <section id="upload" style={dynamicPanelStyle}>
             <div style={dynamicSectionHeaderStyle}>
               <div style={headerCopyStyle}>
-                <StepBadge step={1} label={teamSetupRequested ? 'Add a team' : 'Data Assist'} />
-                <h1 style={sectionTitleStyle}>{teamSetupRequested ? 'Upload your Team Summary.' : 'Add new tennis data.'}</h1>
+                <StepBadge step={1} label={teamSetupRequested ? 'Add a team' : contactImportRequested ? 'Team contacts' : 'Data Assist'} />
+                <h1 style={sectionTitleStyle}>{teamSetupRequested ? 'Add your team.' : contactImportRequested ? 'Add team contacts.' : 'Upload tennis data.'}</h1>
                 <p style={copyStyle}>{teamSetupRequested
-                  ? 'TiQ will read your team, league, flight, and roster. Next: review your team link to add it to My Teams. Add the schedule later.'
-                  : scorecardPhotoReaderReady
-                    ? 'Add a TennisLink export or a clear scorecard photo. TiQ reads it first; you confirm it before it changes a match.'
-                    : 'Choose the source, add its TennisLink export, then review what TiQ found.'}</p>
+                  ? 'Choose the Team Summary export from TennisLink.'
+                  : contactImportRequested
+                    ? 'Choose the Player Roster export from TennisLink.'
+                    : scorecardPhotoReaderReady
+                      ? 'Pick what you have. TiQ reads it before anything changes.'
+                      : 'Pick the TennisLink export you have.'}</p>
               </div>
-              <span style={pillStyle}>{userId ? 'Account ready' : authResolved ? 'Sign in needed' : 'Checking account'}</span>
+              {!isCompactViewport ? <span style={pillStyle}>{userId ? 'Account ready' : authResolved ? 'Sign in needed' : 'Checking account'}</span> : null}
             </div>
 
-            {!teamSetupRequested ? <UploadJourneyRail /> : null}
+            <UploadJourneyRail importType={importType} teamSetupRequested={teamSetupRequested} contactImportRequested={contactImportRequested} />
 
-            {!teamSetupRequested ? <DataAssistWalkthroughHelp /> : null}
+            {!teamSetupRequested && !isCompactViewport ? <DataAssistWalkthroughHelp /> : null}
 
             {authResolved && !userId ? (
               <div style={noticeStyle}>
@@ -1318,7 +1314,7 @@ function DataAssistWorkspace() {
               style={hiddenFileInputStyle}
             />
 
-            <details style={typeOverrideDetailsStyle}>
+            {!isCompactViewport && !teamSetupRequested && !contactImportRequested ? <details style={typeOverrideDetailsStyle}>
               <summary style={typeOverrideSummaryStyle}>
                 <span>Having trouble?</span>
                 <strong>Choose file type</strong>
@@ -1338,36 +1334,13 @@ function DataAssistWorkspace() {
                   {scorecardUploadBlocked ? 'Scorecard uploads are temporarily paused.' : 'Only use this when TenAceIQ cannot identify the export.'}
                 </small>
               </label>
-            </details>
+            </details> : null}
 
             {!hasPreparedScreenshots ? (
               isCompactViewport ? (
-                <DataAssistDetailsSection
-                  eyebrow="Export help"
-                  title="Need upload help?"
-                  cue="Show steps"
-                  defaultOpen={exportHelpRequested}
-                >
-                  <div style={mobileUploadHelpStackStyle}>
-                    <div style={simpleHelpStyle}>
-                      <strong>{getUploadHelpTitle(importType, contactImportRequested)}</strong>
-                      <span>{getUploadHelpText(importType, contactImportRequested)}</span>
-                    </div>
-                    {!exportHelpRequested ? (
-                      <div style={seasonGuideStyle}>
-                        <strong>Scorecards can stand alone</strong>
-                        <span>A scorecard import will not break if schedule or roster setup is missing. TenAceIQ links what it can and creates the missing player/match context it needs.</span>
-                      </div>
-                    ) : null}
-                    <ExportHelpPanel importType={importType} defaultOpen={exportHelpRequested} contactImportRequested={contactImportRequested} />
-                    {!exportHelpRequested ? (
-                      <>
-                        <DataAssistReviewFlowPanel />
-                        <DataAssistTrustEnginePanel />
-                      </>
-                    ) : null}
-                  </div>
-                </DataAssistDetailsSection>
+                <div style={mobileUploadHelpStackStyle}>
+                  <ExportHelpPanel importType={importType} defaultOpen={exportHelpRequested} contactImportRequested={contactImportRequested} />
+                </div>
               ) : (
                 <>
                   <div style={simpleHelpStyle}>
@@ -1850,14 +1823,22 @@ function DataAssistSourcePathPanel({
   const visibleJobs = contactImportRequested || teamSetupRequested
     ? dataAssistSourcePathJobs.filter((job) => job.id === 'team_summary')
     : dataAssistSourcePathJobs
+  const nextStep = contactImportRequested
+    ? 'Review the contacts, then return to your team.'
+    : teamSetupRequested
+      ? 'Review the team, then connect it to My Teams.'
+      : selectedImportType === 'schedule'
+        ? 'Review the dates, then open your season calendar.'
+        : selectedImportType === 'team_summary'
+          ? 'Review the roster, then connect the team.'
+          : 'Review the read, then import the match.'
 
   return (
     <section style={dynamicPanelStyle} aria-labelledby="data-assist-source-path-title">
       <div style={dynamicHeaderStyle}>
         <div>
-          <span style={sourcePathEyebrowStyle}>{contactImportRequested ? 'Team contacts' : teamSetupRequested ? 'Add my team' : 'Source refresh path'}</span>
-          <h2 id="data-assist-source-path-title" style={dynamicTitleStyle}>{contactImportRequested ? 'Add team contacts.' : teamSetupRequested ? 'Start with your Team Summary.' : 'Choose your first source.'}</h2>
-          {isCompactViewport ? <p style={sourcePathIntroStyle}>{contactImportRequested ? 'Upload your TennisLink Player Roster, then connect your team.' : teamSetupRequested ? 'Import your Team Summary, then review your team link. The schedule can come later.' : 'For your own team: Team Summary, schedule, then Player Roster.'}</p> : null}
+          <span style={sourcePathEyebrowStyle}>{contactImportRequested ? 'Player Roster' : teamSetupRequested ? 'Team Summary' : 'Choose a file'}</span>
+          <h2 id="data-assist-source-path-title" style={dynamicTitleStyle}>{contactImportRequested ? 'Choose your Player Roster.' : teamSetupRequested ? 'Choose your Team Summary.' : 'What are you uploading?'}</h2>
         </div>
         {!isCompactViewport ? <p style={sourcePathIntroStyle}>
           {contactImportRequested
@@ -1867,14 +1848,14 @@ function DataAssistSourcePathPanel({
             : 'For your own team, import Team Summary, Match Schedule, then Player Roster. TiQ reviews every source before records change.'}
         </p> : null}
       </div>
-      <div style={sourcePathDefaultCueStyle}>
+      {!isCompactViewport ? <div style={sourcePathDefaultCueStyle}>
         <strong>{contactImportRequested ? 'Captain contacts: use Player Roster.' : teamSetupRequested ? 'Your team path: Import Team Summary → review team link → My Teams.' : 'Team setup: Team Summary → schedule → Player Roster.'}</strong>
         <span>{contactImportRequested
           ? 'This adds contact details only. After import, approve the team connection so it appears in My Teams.'
           : teamSetupRequested
             ? 'A Team Summary does not automatically connect the team to you. That protects teams imported by someone else; you approve your own connection after import.'
           : 'The Player Roster adds captain contact details. After it imports, approve your team once to add it to My Teams.'}</span>
-      </div>
+      </div> : null}
       <div style={dynamicGridStyle}>
         {visibleJobs.map((job) => {
           const selected = selectedImportType === job.id
@@ -1889,6 +1870,13 @@ function DataAssistSourcePathPanel({
           const body = contactImportRequested && job.id === 'team_summary'
             ? 'For your team only: import the TennisLink Player Roster to save its contact details, then approve the team connection. Your Team Summary is not replaced.'
             : job.body
+          const compactDetail = contactImportRequested && job.id === 'team_summary'
+            ? 'Adds phones and email'
+            : job.id === 'team_summary'
+              ? 'Adds team, roster, ratings and flight'
+              : job.id === 'schedule'
+                ? 'Adds dates, times and locations'
+                : 'Adds the match result and line scores'
           return (
             <button
               key={job.id}
@@ -1899,20 +1887,47 @@ function DataAssistSourcePathPanel({
               aria-label={`Upload ${title}: ${cta}`}
               aria-pressed={selected}
             >
-              <span style={sourcePathCardTopStyle}>
-                <TiqFeatureIcon name={job.icon} size="sm" variant="ghost" />
-                <span style={selected ? sourcePathSelectedPillStyle : sourcePathReadyPillStyle}>
-                  {selected ? 'Selected' : recommended ? 'Start here' : 'Upload'}
+              {isCompactViewport ? (
+                <span style={compactSourcePathCardRowStyle}>
+                  <TiqFeatureIcon name={job.icon} size="sm" variant="ghost" />
+                  <span style={compactSourcePathCardCopyStyle}>
+                    <strong style={sourcePathCardTitleStyle}>{title}</strong>
+                    <span style={compactSourcePathDetailStyle}>{compactDetail}</span>
+                  </span>
+                  <span style={selected ? compactSourcePathActionStyle : sourcePathReadyPillStyle}>
+                    Choose file
+                  </span>
                 </span>
-              </span>
-              {!isCompactViewport ? <span style={sourcePathQuestionStyle}>{question}</span> : null}
-              <strong style={sourcePathCardTitleStyle}>{title}</strong>
-              <span style={sourcePathCtaStyle}>{cta}</span>
-              {!isCompactViewport ? <span>{body}</span> : null}
+              ) : (
+                <>
+                  <span style={sourcePathCardTopStyle}>
+                    <TiqFeatureIcon name={job.icon} size="sm" variant="ghost" />
+                    <span style={selected ? sourcePathSelectedPillStyle : sourcePathReadyPillStyle}>
+                      {selected ? 'Selected' : recommended ? 'Start here' : 'Upload'}
+                    </span>
+                  </span>
+                  <span style={sourcePathQuestionStyle}>{question}</span>
+                  <strong style={sourcePathCardTitleStyle}>{title}</strong>
+                  <span style={sourcePathCtaStyle}>{cta}</span>
+                  <span>{body}</span>
+                </>
+              )}
             </button>
           )
         })}
       </div>
+      {isCompactViewport ? (
+        <div style={sourcePathNextStyle}>
+          <span>Next</span>
+          <strong>{nextStep}</strong>
+        </div>
+      ) : null}
+      {isCompactViewport && (teamSetupRequested || contactImportRequested) ? (
+        <details style={sourcePathSafetyDetailsStyle}>
+          <summary style={sourcePathSafetySummaryStyle}>Why review before connecting?</summary>
+          <span style={sourcePathSafetyCopyStyle}>It prevents an opponent’s upload from becoming one of your teams.</span>
+        </details>
+      ) : null}
       <Link
         href={issueHref}
         style={sourcePathSupportLinkStyle}
@@ -2742,8 +2757,8 @@ function MySubmissionsPanel({
     )
   }
 
-  return (
-    <section id="history" style={panelStyle}>
+  const panelContent = (
+    <>
       <div style={sectionHeaderStyle}>
         <div style={headerCopyStyle}>
           <div className="section-kicker">Upload activity</div>
@@ -2851,8 +2866,24 @@ function MySubmissionsPanel({
       )}
 
       {error ? <div style={errorStyle}>{error}</div> : null}
-    </section>
+    </>
   )
+
+  if (isMobile && !forceHistoryOpen) {
+    return (
+      <section id="history" style={mobileHistoryShellStyle}>
+        <DataAssistDetailsSection
+          eyebrow="Your uploads"
+          title={pendingCount ? `${pendingCount} need review` : `${submissions.length} saved · all clear`}
+          cue="Open upload activity"
+        >
+          {panelContent}
+        </DataAssistDetailsSection>
+      </section>
+    )
+  }
+
+  return <section id="history" style={panelStyle}>{panelContent}</section>
 }
 
 function EmptyDataAssistHistory() {
@@ -3026,10 +3057,33 @@ function StepBadge({ step, label }: { step: number; label: string }) {
   )
 }
 
-function UploadJourneyRail() {
+function UploadJourneyRail({
+  importType,
+  teamSetupRequested = false,
+  contactImportRequested = false,
+}: {
+  importType: DataAssistImportType
+  teamSetupRequested?: boolean
+  contactImportRequested?: boolean
+}) {
+  const finalLabel = teamSetupRequested
+    ? 'Connect'
+    : contactImportRequested
+      ? 'Return'
+      : importType === 'schedule'
+        ? 'Calendar'
+        : importType === 'team_summary'
+          ? 'Connect'
+          : 'Import'
+  const steps = [
+    { step: '1', label: 'Choose file', active: true },
+    { step: '2', label: 'Review', active: false },
+    { step: '3', label: finalLabel, active: false },
+  ] as const
+
   return (
     <div aria-label="Upload progress" style={uploadJourneyRailStyle}>
-      {uploadJourneySteps.map((item) => (
+      {steps.map((item) => (
         <span key={item.step} style={item.active ? uploadJourneyActiveStepStyle : uploadJourneyStepStyle}>
           <strong style={uploadJourneyStepNumberStyle}>{item.step}</strong>
           <span>{item.label}</span>
@@ -4470,10 +4524,33 @@ const sourcePathCardStyle: CSSProperties = {
 
 const compactSourcePathCardStyle: CSSProperties = {
   ...sourcePathCardStyle,
-  minHeight: 112,
+  minHeight: 76,
   borderRadius: 12,
-  padding: 10,
-  gap: 5,
+  padding: 9,
+  gap: 0,
+}
+
+const compactSourcePathCardRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: 9,
+  minWidth: 0,
+}
+
+const compactSourcePathCardCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  textAlign: 'left',
+}
+
+const compactSourcePathDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.25,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
 }
 
 const sourcePathSelectedCardStyle: CSSProperties = {
@@ -4510,6 +4587,13 @@ const sourcePathSelectedPillStyle: CSSProperties = {
   color: 'var(--brand-green)',
 }
 
+const compactSourcePathActionStyle: CSSProperties = {
+  ...sourcePathSelectedPillStyle,
+  minHeight: 34,
+  padding: '0 10px',
+  whiteSpace: 'nowrap',
+}
+
 const sourcePathSupportLinkStyle: CSSProperties = {
   minHeight: 42,
   display: 'flex',
@@ -4522,6 +4606,43 @@ const sourcePathSupportLinkStyle: CSSProperties = {
   lineHeight: 1.35,
   fontWeight: 850,
   textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const sourcePathNextStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+  padding: '9px 10px',
+  borderRadius: 11,
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const sourcePathSafetyDetailsStyle: CSSProperties = {
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.4,
+}
+
+const sourcePathSafetySummaryStyle: CSSProperties = {
+  minHeight: 34,
+  display: 'flex',
+  alignItems: 'center',
+  color: 'var(--brand-blue-2)',
+  fontWeight: 850,
+  cursor: 'pointer',
+}
+
+const sourcePathSafetyCopyStyle: CSSProperties = {
+  display: 'block',
+  padding: '0 4px 6px',
   overflowWrap: 'anywhere',
 }
 

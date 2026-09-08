@@ -95,6 +95,11 @@ import { readPrivateClientSnapshot, writePrivateClientSnapshot } from '@/lib/pri
 import { fetchTeamConnections } from '@/lib/team-profile-links-client'
 import { isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'
 import { buildCaptainTeamScopeKey } from '@/lib/captain-team-scope'
+import {
+  buildCaptainLineupReviewText,
+  countCaptainLineupReviewChanges,
+  type CaptainLineupReviewPayload,
+} from '@/lib/captain-lineup-review'
 
 type PlayerRow = {
   id: string
@@ -314,6 +319,13 @@ type HistoricalLineupSuggestion = {
 }
 
 type AvailabilityConfirmationStage = 'idle' | 'saving-lineup' | 'preparing-replies' | 'opening-messages'
+
+type CoCaptainReviewShare = {
+  reviewUrl: string
+  captainUrl: string
+  expiresAt: string
+  text: string
+}
 
 type CourtAskSignal = {
   label: string
@@ -1339,7 +1351,8 @@ function readInitialLineupBuilderContext(routeSearch: string, userId?: string | 
     replacementCourt: params.get('court') || '',
     mode: params.get('mode') || '',
     source: params.get('source') || '',
-      availabilityOnly: false,
+    reviewToken: params.get('review') || '',
+    availabilityOnly: false,
   }
 }
 
@@ -1440,6 +1453,11 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const [suggestedSwapDraft, setSuggestedSwapDraft] = useState<SuggestedSwapDraft | null>(null)
   const [savedLineupChangeDelivery, setSavedLineupChangeDelivery] = useState<SavedLineupChangeDelivery | null>(null)
   const [notifyingLineupChange, setNotifyingLineupChange] = useState(false)
+  const [creatingCoCaptainReview, setCreatingCoCaptainReview] = useState(false)
+  const [coCaptainReviewShare, setCoCaptainReviewShare] = useState<CoCaptainReviewShare | null>(null)
+  const [incomingCoCaptainReview, setIncomingCoCaptainReview] = useState<CaptainLineupReviewPayload | null>(null)
+  const [loadingIncomingCoCaptainReview, setLoadingIncomingCoCaptainReview] = useState(false)
+  const [applyingCoCaptainReview, setApplyingCoCaptainReview] = useState(false)
 
   const [competitionLayer, setCompetitionLayer] = useState(initialCompetitionLayer)
   const [leagueName, setLeagueName] = useState(initialLeagueName)
@@ -1574,6 +1592,34 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
     return () => { active = false }
   }, [authResolved, session?.access_token, userId])
+
+  useEffect(() => {
+    if (!initialContext.reviewToken) {
+      setIncomingCoCaptainReview(null)
+      return
+    }
+    let active = true
+    setLoadingIncomingCoCaptainReview(true)
+    fetch(`/api/lineup-reviews/${encodeURIComponent(initialContext.reviewToken)}`, { cache: 'no-store' })
+      .then(async (response) => {
+        const body = await response.json() as { ok?: boolean; message?: string; review?: CaptainLineupReviewPayload }
+        if (!response.ok || !body.review) throw new Error(body.message || 'The co-captain suggestion could not be opened.')
+        if (!active) return
+        setIncomingCoCaptainReview(body.review)
+        if (body.review.status === 'pending') {
+          setMessage('This review is still waiting for the co-captain’s suggestion.')
+        }
+      })
+      .catch((caught) => {
+        if (!active) return
+        setError(caught instanceof Error ? caught.message : 'The co-captain suggestion could not be opened.')
+      })
+      .finally(() => {
+        if (active) setLoadingIncomingCoCaptainReview(false)
+      })
+    return () => { active = false }
+  }, [initialContext.reviewToken])
+
   const storedTiqLeagueFormat = useMemo(() => {
     const normalizedLeague = normalizeTeamName(leagueName)
     const normalizedFlight = normalizeTeamName(flight)
@@ -2972,7 +3018,157 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       flight: nextTeam.flight,
     }))
   }
+
   async function saveAndConfirmPotentialLineupAvailability() {
+    return saveAndConfirmPotentialLineupAvailabilityImpl()
+  }
+
+  async function createCoCaptainReview() {
+    const assignedPlayers = teamSlots.flatMap((slot) => slot.players).filter((player) => player.playerName.trim())
+    if (!teamName || !assignedPlayers.length) {
+      setError('Choose a team and add at least one player before asking your co-captain.')
+      setMessage('')
+      return
+    }
+
+    setCreatingCoCaptainReview(true)
+    setCoCaptainReviewShare(null)
+    setError('')
+    setMessage('Saving a private review copy…')
+    const savedScenario = await saveScenario(false, true)
+    if (!savedScenario) {
+      setCreatingCoCaptainReview(false)
+      return
+    }
+
+    const accessToken = session?.access_token || (await supabase.auth.getSession()).data.session?.access_token
+    if (!accessToken) {
+      setCreatingCoCaptainReview(false)
+      setError('Sign in again before sharing this lineup.')
+      setMessage('')
+      return
+    }
+
+    const rosterMap = new Map<string, { id: string; name: string }>()
+    for (const player of myPlayerPool) {
+      const key = player.id || normalizeTeamName(player.name)
+      if (key) rosterMap.set(key, { id: player.id, name: player.name })
+    }
+    for (const player of assignedPlayers) {
+      const key = player.playerId || normalizeTeamName(player.playerName)
+      if (key && !rosterMap.has(key)) rosterMap.set(key, { id: player.playerId, name: player.playerName })
+    }
+
+    try {
+      const response = await fetch('/api/captain/lineup-reviews', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenarioId: savedScenario.id,
+          teamName,
+          leagueName,
+          flight,
+          matchDate,
+          opponentTeam,
+          matchTime: selectedMatch?.match_time || '',
+          facility: selectedMatch?.facility || '',
+          slots: teamSlots,
+          roster: Array.from(rosterMap.values()),
+        }),
+      })
+      const body = await response.json() as {
+        ok?: boolean
+        message?: string
+        reviewUrl?: string
+        captainUrl?: string
+        expiresAt?: string
+      }
+      if (!response.ok || !body.ok || !body.reviewUrl || !body.captainUrl) {
+        throw new Error(body.message || 'The private review link could not be created.')
+      }
+      const text = buildCaptainLineupReviewText({
+        teamName,
+        opponentTeam,
+        dateText: matchDate ? formatDate(matchDate) : '',
+        reviewUrl: body.reviewUrl,
+      })
+      setCoCaptainReviewShare({
+        reviewUrl: body.reviewUrl,
+        captainUrl: body.captainUrl,
+        expiresAt: body.expiresAt || '',
+        text,
+      })
+      setMessage('Private review link ready. Tap Text co-captain to choose the conversation.')
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'The private review link could not be created.')
+      setMessage('')
+    } finally {
+      setCreatingCoCaptainReview(false)
+    }
+  }
+
+  function openCoCaptainReviewText() {
+    if (!coCaptainReviewShare) return
+    const href = buildSmsHref([], coCaptainReviewShare.text)
+    const copied = prepareSmsBodyForNativeComposer(coCaptainReviewShare.text)
+    setSmsFallback({ href, playerName: 'co-captain' })
+    setMessage(copied
+      ? 'Opening Messages. The review note is copied if iPhone asks you to paste it.'
+      : 'Opening Messages. Choose your co-captain and send the prepared review link.')
+    window.location.href = href
+  }
+
+  async function copyCoCaptainReviewLink() {
+    if (!coCaptainReviewShare?.reviewUrl || !navigator.clipboard) return
+    const copied = await navigator.clipboard.writeText(coCaptainReviewShare.reviewUrl).then(() => true).catch(() => false)
+    setMessage(copied ? 'Private review link copied.' : 'Press and hold the review link to copy it.')
+  }
+
+  function dismissIncomingCoCaptainReview() {
+    setIncomingCoCaptainReview(null)
+    const params = new URLSearchParams(routeSearch)
+    params.delete('review')
+    router.replace(params.size ? `/captain/lineup-builder?${params.toString()}` : '/captain/lineup-builder')
+  }
+
+  async function applyIncomingCoCaptainReview() {
+    if (!incomingCoCaptainReview?.proposedSlots) return
+    setApplyingCoCaptainReview(true)
+    setTeamName(incomingCoCaptainReview.teamName)
+    setLeagueName(incomingCoCaptainReview.leagueName)
+    setFlight(incomingCoCaptainReview.flight)
+    setOpponentTeam(incomingCoCaptainReview.opponentTeam)
+    setMatchDate(incomingCoCaptainReview.matchDate)
+    setSelectedMatchId('')
+    setCurrentScenarioId(incomingCoCaptainReview.scenarioId)
+    setTeamSlots(cloneSlots(incomingCoCaptainReview.proposedSlots))
+    setActiveLineupFormatKey(getCaptainLineupFormatKey(
+      incomingCoCaptainReview.leagueName,
+      incomingCoCaptainReview.flight,
+      selectedMatchFormatId,
+    ))
+    setAppliedLineupNotice({
+      title: 'Co-captain suggestion loaded',
+      changedCourts: countCaptainLineupReviewChanges(incomingCoCaptainReview.slots, incomingCoCaptainReview.proposedSlots),
+      filledCourts: incomingCoCaptainReview.proposedSlots.filter((slot) => slot.players.every((player) => player.playerName)).length,
+      totalCourts: incomingCoCaptainReview.proposedSlots.length,
+    })
+
+    const accessToken = session?.access_token || (await supabase.auth.getSession()).data.session?.access_token
+    if (accessToken) {
+      await fetch(`/api/captain/lineup-reviews/${encodeURIComponent(initialContext.reviewToken)}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }).catch(() => null)
+    }
+    setMessage('Co-captain suggestion loaded into your draft. Review it, then update the saved version if you want to keep it.')
+    setError('')
+    setApplyingCoCaptainReview(false)
+    dismissIncomingCoCaptainReview()
+    window.requestAnimationFrame(() => focusTeamCourts(incomingCoCaptainReview.proposedSlots || []))
+  }
+
+  async function saveAndConfirmPotentialLineupAvailabilityImpl() {
     if (!teamName || !matchDate) {
       setError('Choose the team and match before asking players.')
       setMessage('')
@@ -4920,6 +5116,47 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
              </label>
            </section>
          ) : null}
+         {loadingIncomingCoCaptainReview ? (
+           <section style={coCaptainReviewCardStyle} aria-live="polite">
+             <p style={sectionKicker}>Co-captain review</p>
+             <strong style={coCaptainReviewTitleStyle}>Opening the suggested lineup…</strong>
+           </section>
+         ) : incomingCoCaptainReview ? (
+           <section style={coCaptainReviewCardStyle} aria-label="Co-captain lineup suggestion">
+             <div style={coCaptainReviewHeaderStyle}>
+               <div style={{ minWidth: 0 }}>
+                 <p style={sectionKicker}>Co-captain review</p>
+                 <strong style={coCaptainReviewTitleStyle}>
+                   {incomingCoCaptainReview.status === 'pending'
+                     ? 'Still waiting for their suggestion.'
+                     : `${incomingCoCaptainReview.reviewerName || 'Your co-captain'} sent a lineup.`}
+                 </strong>
+                 <span style={subtleHelperTextStyle}>
+                   {incomingCoCaptainReview.teamName}{incomingCoCaptainReview.opponentTeam ? ` vs ${incomingCoCaptainReview.opponentTeam}` : ''}
+                 </span>
+               </div>
+               <span style={incomingCoCaptainReview.status === 'pending' ? miniPillSlateStyle : miniPillGreenStyle}>
+                 {incomingCoCaptainReview.status === 'pending'
+                   ? 'Waiting'
+                   : `${countCaptainLineupReviewChanges(incomingCoCaptainReview.slots, incomingCoCaptainReview.proposedSlots || incomingCoCaptainReview.slots)} changed`}
+               </span>
+             </div>
+             {incomingCoCaptainReview.reviewerNote ? (
+               <div style={coCaptainReviewNoteStyle}>“{incomingCoCaptainReview.reviewerNote}”</div>
+             ) : null}
+             <div style={coCaptainReviewActionsStyle}>
+               {incomingCoCaptainReview.proposedSlots ? (
+                 <PrimaryBtn onClick={() => void applyIncomingCoCaptainReview()} disabled={applyingCoCaptainReview}>
+                   {applyingCoCaptainReview ? 'Loading suggestion…' : 'Use suggested version'}
+                 </PrimaryBtn>
+               ) : null}
+               <GhostBtn onClick={dismissIncomingCoCaptainReview}>
+                 {incomingCoCaptainReview.proposedSlots ? 'Keep my lineup' : 'Close'}
+               </GhostBtn>
+             </div>
+             <p style={coCaptainReviewAssuranceStyle}>Your saved lineup stays unchanged until you load this suggestion and save it.</p>
+           </section>
+         ) : null}
          <section style={builderControlShellStyle(isMobile)} aria-label="Lineup controls">
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={builderControlHeaderStyle}>
@@ -4945,6 +5182,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               ) : (
                 <Link href="#captain-lineup-courts" style={primaryButton}>Build lineup</Link>
               )}
+              <GhostBtn onClick={() => void createCoCaptainReview()} disabled={!lineupHasAssignments || saving || creatingCoCaptainReview}>
+                {creatingCoCaptainReview ? 'Preparing review…' : 'Ask co-captain'}
+              </GhostBtn>
               <details style={builderMoreActionsStyle}>
                 <summary style={builderMoreActionsSummaryStyle}>More lineup actions</summary>
                 <div style={builderMoreActionsBodyStyle}>
@@ -4961,6 +5201,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
                 {saving ? 'Saving...' : currentScenarioId ? 'Update lineup version' : 'Save lineup version'}
               </PrimaryBtn>
+              <GhostBtn onClick={() => void createCoCaptainReview()} disabled={!lineupHasAssignments || saving || creatingCoCaptainReview}>
+                {creatingCoCaptainReview ? 'Preparing review…' : 'Ask co-captain'}
+              </GhostBtn>
               <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare versions</Link>
               <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
                 {saveAndAskLabel}
@@ -4969,6 +5212,22 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             </div>
           )}
           <p style={subtleHelperTextStyle}>Auto-saved on this phone. Save a version when you are ready to compare it, send it, print it, or track replies.</p>
+          {coCaptainReviewShare ? (
+            <div style={coCaptainShareReadyStyle} aria-live="polite">
+              <div style={{ minWidth: 0 }}>
+                <p style={sectionKicker}>Private review ready</p>
+                <strong style={coCaptainShareTitleStyle}>Send a copy. Keep control of your draft.</strong>
+                <p style={coCaptainReviewAssuranceStyle}>They can move players and text a proposed version back. Your lineup will not change automatically.</p>
+              </div>
+              <div style={coCaptainReviewActionsStyle}>
+                <PrimaryBtn onClick={openCoCaptainReviewText}>Text co-captain</PrimaryBtn>
+                <GhostBtn onClick={() => void copyCoCaptainReviewLink()}>Copy link</GhostBtn>
+              </div>
+              <a href={coCaptainReviewShare.reviewUrl} target="_blank" rel="noreferrer" style={coCaptainReviewLinkStyle}>
+                Open private review
+              </a>
+            </div>
+          ) : null}
         </section>
 
         <section style={builderInsightToggleStyle} aria-label="Matchup insights">
@@ -7110,6 +7369,93 @@ const linkedTeamSwitcherSelectStyle: CSSProperties = {
   boxSizing: 'border-box',
   fontWeight: 800,
   textOverflow: 'ellipsis',
+}
+
+const coCaptainReviewCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 13,
+  minWidth: 0,
+  padding: '18px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 46%, var(--shell-panel-border) 54%)',
+  borderRadius: 22,
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 12%, var(--portal-surface-bg) 88%), var(--portal-surface-bg))',
+  boxShadow: '0 18px 50px rgba(2,8,23,0.28)',
+}
+
+const coCaptainReviewHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 12,
+  minWidth: 0,
+}
+
+const coCaptainReviewTitleStyle: CSSProperties = {
+  display: 'block',
+  margin: '5px 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.1rem, 4.8vw, 1.45rem)',
+  lineHeight: 1.12,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const coCaptainReviewNoteStyle: CSSProperties = {
+  minWidth: 0,
+  padding: '12px 14px',
+  border: '1px solid rgba(132,166,211,0.2)',
+  borderRadius: 14,
+  background: 'rgba(5,18,36,0.52)',
+  color: 'var(--shell-copy)',
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const coCaptainReviewActionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+  gap: 9,
+  minWidth: 0,
+}
+
+const coCaptainReviewAssuranceStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const coCaptainShareReadyStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gap: 11,
+  minWidth: 0,
+  padding: '14px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+  borderRadius: 18,
+  background: 'rgba(4, 19, 36, 0.74)',
+}
+
+const coCaptainShareTitleStyle: CSSProperties = {
+  display: 'block',
+  margin: '5px 0 6px',
+  color: 'var(--foreground-strong)',
+  fontSize: 16,
+  fontWeight: 900,
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere',
+}
+
+const coCaptainReviewLinkStyle: CSSProperties = {
+  color: '#bde4ff',
+  fontSize: 13,
+  fontWeight: 800,
+  textDecoration: 'underline',
+  textUnderlineOffset: 3,
+  overflowWrap: 'anywhere',
 }
 
 const builderControlShellStyle = (isMobile: boolean): CSSProperties => ({

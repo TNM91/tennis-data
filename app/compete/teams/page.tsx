@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import TeamHomeCard from './team-home-card'
+import TeamAvailabilitySummary from './team-availability-summary'
 import homeStyles from './teams-home.module.css'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
@@ -359,6 +360,8 @@ function CompeteTeamsContent() {
                 team: group.teamName,
                 league: group.sourceLeagueName || undefined,
                 flight: group.sourceFlight || undefined,
+                date: group.directoryOption?.nextMatch?.date,
+                opponent: group.directoryOption?.nextMatch?.opponent,
               })
               const teamRoomHref = buildTeamRoomHref({
                 teamName: group.teamName,
@@ -378,6 +381,10 @@ function CompeteTeamsContent() {
                 lineupHref={canStartTeamLineup ? lineupHref : undefined}
                 availabilityHref={isCaptainTeamConnection(group.connection.roles) ? `${teamPageHref}#team-availability` : undefined}
                 nextMatch={upcomingMatch}
+                availabilitySummary={access.canUseCaptainWorkflow && isCaptainTeamConnection(group.connection.roles) && upcomingMatch && accessToken ? <TeamAvailabilitySummary
+                  key={`${userId}:${group.connection.id}:${upcomingMatch.date}:${upcomingMatch.opponent}`}
+                  token={accessToken} query={new URLSearchParams({ team: group.teamName, league: group.sourceLeagueName || '', flight: group.sourceFlight || '', date: upcomingMatch.date, opponent: upcomingMatch.opponent }).toString()}
+                  lineupHref={lineupHref} scheduleHref={`${teamPageHref}#team-schedule`} /> : undefined}
                 syncing={!group.directoryOption}
                 historyCount={group.directoryOption?.matchCount}
                 onMakeDefault={groupedTeams.length > 1 && !group.connection.isDefault ? () => void makeDefaultTeam(group.connection) : undefined}
