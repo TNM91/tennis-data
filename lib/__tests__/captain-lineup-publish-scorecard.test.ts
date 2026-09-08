@@ -10,7 +10,7 @@ describe('Captain lineup publishing and scorecard handoff', () => {
   it('restores an assigned saved lineup instead of leaving the captain in an empty builder', () => {
     expect(builder).toContain('const savedLineupRestoreAppliedRef = useRef(false)')
     expect(builder).toContain('const scenarioToRestore = currentScenario ?? scopedScenario ?? fallbackScenario')
-    expect(builder).toContain("setMessage('Saved lineup restored. Your draft will keep saving on this phone.')")
+    expect(builder).toContain("setMessage('Saved lineup restored. Your working lineup will keep autosaving.')")
     expect(builder).toContain('Save lineup version')
     expect(builder).toContain('Your draft saves automatically on this phone.')
   })

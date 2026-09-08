@@ -13,9 +13,9 @@ describe('Captain lineup builder save and insights flow', () => {
   })
 
   it('makes saving an intentional first action and keeps optional analysis collapsed on phones', () => {
-    expect(source).toContain('Draft autosaved on this phone')
+    expect(source).toContain('Draft autosaved to TiQ')
     expect(source).toContain("currentScenarioId ? 'Update saved version' : 'Save lineup version'")
-    expect(source).toContain('Auto-saved on this phone. Save a version when you are ready to compare it, send it, print it, or track replies.')
+    expect(source).toContain('Your working lineup saves automatically. Save a version when you want a stable checkpoint to compare, send, print, or track replies.')
     expect(source).toContain('Scorecard, strategy, and next steps')
     expect(source).toContain('open={isMobile ? mobileForecastOpen : true}')
     expect(source).toContain('id="captain-lineup-match-forecast"')

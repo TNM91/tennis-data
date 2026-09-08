@@ -53,6 +53,11 @@ export type CaptainLineupBuilderDraft = {
   updatedAt?: string
 }
 
+export type CaptainLineupDraftScope = Pick<
+  CaptainLineupBuilderDraft,
+  'competitionLayer' | 'leagueName' | 'flight' | 'teamName' | 'opponentTeam' | 'matchDate'
+>
+
 export type CaptainLineupManualRosterEntry = {
   name: string
   teamName: string
@@ -157,8 +162,62 @@ export function readCaptainDirectCourtTextHandoff(raw: string | null): CaptainDi
   }
 }
 
-export function getCaptainLineupDraftStorageKey(userId?: string | null) {
-  return `${CAPTAIN_LINEUP_DRAFT_STORAGE_KEY}:${userId?.trim() || 'anonymous'}`
+function normalizeDraftScopePart(value: string | null | undefined) {
+  return encodeURIComponent((value || '').trim().toLowerCase())
+}
+
+export function getCaptainLineupDraftScopeKey(scope: CaptainLineupDraftScope) {
+  return [
+    scope.competitionLayer,
+    scope.teamName,
+    scope.leagueName,
+    scope.flight,
+    scope.matchDate,
+    scope.opponentTeam,
+  ].map(normalizeDraftScopePart).join('|')
+}
+
+export function getCaptainLineupDraftStorageKey(
+  userId?: string | null,
+  scope?: CaptainLineupDraftScope | null,
+) {
+  const accountKey = `${CAPTAIN_LINEUP_DRAFT_STORAGE_KEY}:${userId?.trim() || 'anonymous'}`
+  return scope ? `${accountKey}:${getCaptainLineupDraftScopeKey(scope)}` : accountKey
+}
+
+export function captainLineupDraftMatchesScope(
+  draft: CaptainLineupBuilderDraft,
+  scope: Partial<CaptainLineupDraftScope>,
+) {
+  const pairs: Array<[string | undefined, string | undefined]> = [
+    [scope.competitionLayer, draft.competitionLayer],
+    [scope.teamName, draft.teamName],
+    [scope.leagueName, draft.leagueName],
+    [scope.flight, draft.flight],
+    [scope.matchDate, draft.matchDate],
+    [scope.opponentTeam, draft.opponentTeam],
+  ]
+  return pairs.every(([requested, stored]) => !requested || normalizeDraftScopePart(requested) === normalizeDraftScopePart(stored))
+}
+
+export function hasCaptainLineupDraftContent(draft: CaptainLineupBuilderDraft) {
+  const hasPlayers = (slots: unknown) => Array.isArray(slots) && slots.some((slot) => {
+    if (!slot || typeof slot !== 'object') return false
+    const players = (slot as { players?: unknown }).players
+    return Array.isArray(players) && players.some((player) => {
+      if (!player || typeof player !== 'object') return false
+      const entry = player as { playerId?: unknown; playerName?: unknown }
+      return Boolean(
+        (typeof entry.playerId === 'string' && entry.playerId.trim()) ||
+        (typeof entry.playerName === 'string' && entry.playerName.trim())
+      )
+    })
+  })
+
+  return hasPlayers(draft.teamSlots)
+    || hasPlayers(draft.opponentSlots)
+    || Boolean(draft.notes.trim())
+    || draft.manualRosterEntries.length > 0
 }
 
 export function readCaptainLineupBuilderDraft(raw: string | null): CaptainLineupBuilderDraft | null {

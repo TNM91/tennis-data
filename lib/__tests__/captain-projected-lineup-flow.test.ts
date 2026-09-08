@@ -42,7 +42,7 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain(': (persistedDirectCourtTextHandoff?.builderDraft ?? persistedDeviceBuilderDraft)')
     expect(source).toContain('const persistedDeviceBuilderDraft =')
     expect(source).toContain('getCaptainLineupDraftStorageKey(userId)')
-    expect(source).toContain("setMessage('Draft restored on this device.')")
+    expect(source).toContain("setMessage('In-progress lineup restored.')")
     expect(source).toContain("player.playerName || 'Saved player'")
     expect(source).toContain('saved draft</option>')
     expect(source).toContain('teamSlots: cloneSlots(teamSlotsRef.current)')
