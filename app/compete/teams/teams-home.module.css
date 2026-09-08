@@ -33,6 +33,27 @@
 .teamCard :focus-visible, .home :focus-visible { outline: 2px solid #9be11d; outline-offset: 4px; }
 .teamCard a:hover { filter: brightness(1.1); }
 .support { min-width: 0; margin-top: 4px; }
+.availabilitySummary { min-width: 0; display: grid; gap: 10px; border-bottom: 1px solid #334859; padding-bottom: 16px; }
+.availabilitySummary p { margin: 0; font-size: 13px; line-height: 1.5; color: #c2d2df; overflow-wrap: break-word; }
+.availabilitySummary a { color: #c4f18d; }
+.summaryHeading { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 15px; }
+.summaryHeading button, .summaryTools > button, .summaryTools > a { min-height: 44px; border: 1px solid #4e687a; border-radius: 9px; background: #14283b; color: #e4f3ff; padding: 8px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.summaryCounts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.summaryCounts > span { display: grid; gap: 4px; min-width: 0; font-size: 12px; line-height: 1.4; color: #c1d2df; }
+.summaryCounts strong { font-size: 25px; line-height: 1; color: #f2f8ff; }
+.summaryCounts > :first-child strong { color: #baf270; }
+.summaryTools { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
+.summaryDetails { min-width: 0; flex: 1 1 120px; }
+.summaryDetails[open] { flex-basis: 100%; }
+.summaryDetails > summary { min-height: 44px; box-sizing: border-box; padding: 12px; border: 1px solid #4e687a; border-radius: 10px; background: #14283b; color: #e4f3ff; font-size: 13px; font-weight: 750; cursor: pointer; }
+.summaryExpanded { min-width: 0; display: grid; gap: 12px; padding-block: 14px 4px; }
+.summaryExpanded summary { min-height: 44px; align-content: center; cursor: pointer; font-size: 14px; }
+.summaryLink { display: block; padding: 12px; min-height: 44px; box-sizing: border-box; border: 1px solid #526d46; border-radius: 10px; text-align: center; text-decoration: none; font-size: 14px; }
+.replyList { display: grid; gap: 10px; padding: 0; margin: 0; list-style: none; max-height: 320px; overflow-y: auto; }
+.replyList li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; border-bottom: 1px solid #334859; padding-bottom: 10px; font-size: 13px; line-height: 1.45; overflow-wrap: break-word; }
+.replyList li > span { display: grid; gap: 4px; align-content: start; }
+.replyList small { font-size: 11px; color: #b2c8da; }
+.summaryChecked { color: #9db7cb; font-size: 11px; line-height: 1.4; }
 @media (max-width: 760px) { .teamGrid { grid-template-columns: minmax(0, 1fr); gap: 14px; } .teamCard { padding: 18px; gap: 16px; } }
 @media (max-width: 760px) { .homeHeader { grid-template-columns: minmax(0, 1fr); gap: 12px; } }
 @media (prefers-reduced-motion: no-preference) { .cardActions a { transition: background .15s ease; } }
