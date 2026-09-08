@@ -8,7 +8,7 @@ import type { TeamSeasonMatch } from '@/lib/team-season-calendar'
 import type { TeamAvailabilitySummary as Summary } from '@/lib/team-availability-summary'
 import styles from './teams-home.module.css'
 
-export type TeamAvailabilityPayload = { summary: Summary; selection: 'saved' | 'choose' | 'none'; scenarioId: string; scope: SeasonScope; match: TeamSeasonMatch; checkedAt: string; dayScopedAnswersOmitted: boolean }
+export type TeamAvailabilityPayload = { summary: Summary; selection: 'draft' | 'saved' | 'choose' | 'none'; scenarioId: string; scope: SeasonScope; match: TeamSeasonMatch; checkedAt: string; dayScopedAnswersOmitted: boolean }
 type Props = { token: string; query: string; lineupHref: string; scheduleHref: string }
 
 export default function TeamAvailabilitySummary(props: Props) {

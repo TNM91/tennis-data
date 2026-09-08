@@ -27,6 +27,7 @@ import {
   readLocalArray,
 } from '@/lib/captain-formatters'
 import { useCaptainMatchWeekDraft } from '@/lib/use-captain-match-week-draft'
+import { useCaptainMatchWeekReadiness } from '@/lib/use-captain-match-week-readiness'
 
 type MatchRow = {
   id: string
@@ -273,6 +274,18 @@ function CaptainTeamBriefContent() {
   const eventDetail = matchWeek
     ? { key: eventKey, ...matchWeek.details }
     : localEventDetail
+  const { readiness: cloudReadiness, status: cloudReadinessStatus } = useCaptainMatchWeekReadiness({
+    accessToken: session?.access_token,
+    enabled: authResolved && role !== 'public' && access.canUseCaptainWorkflow,
+    scope: {
+      competitionLayer,
+      teamName: team,
+      leagueName: league,
+      flight,
+      matchDate: safeText(eventDate || currentMatch?.match_date).slice(0, 10),
+      opponentTeam: resolvedOpponent,
+    },
+  })
 
   const lineupSummaryText = useMemo(() => {
     if (!lineupRows.length) return 'Lineup assignments are still being finalized.'
@@ -285,19 +298,30 @@ function CaptainTeamBriefContent() {
     let late = 0
     let noResponse = 0
     let needSub = 0
+    let maybe = 0
+    let unavailable = 0
 
     for (const row of responseRows) {
       if (row.status === 'running-late') late += 1
-      if (row.status === 'no-response') noResponse += 1
+      if (!cloudReadiness && row.status === 'no-response') noResponse += 1
       if (row.status === 'need-sub') needSub += 1
     }
 
-    return { late, noResponse, needSub }
-  }, [responseRows])
+    if (cloudReadiness) {
+      const selectedPeople = cloudReadiness.summary.people.filter((person) => person.selected)
+      noResponse = cloudReadiness.summary.selectedWaiting?.length ?? cloudReadiness.summary.waiting
+      maybe = selectedPeople.filter((person) => person.status === 'maybe').length
+      unavailable = selectedPeople.filter((person) => person.status === 'unavailable').length
+    }
+
+    return { late, noResponse, needSub, maybe, unavailable }
+  }, [cloudReadiness, responseRows])
 
   const alertLines = [
     responseRiskSummary.late ? `${responseRiskSummary.late} player${responseRiskSummary.late === 1 ? '' : 's'} flagged as running late.` : '',
     responseRiskSummary.noResponse ? `${responseRiskSummary.noResponse} player${responseRiskSummary.noResponse === 1 ? '' : 's'} still have no response.` : '',
+    responseRiskSummary.maybe ? `${responseRiskSummary.maybe} selected player${responseRiskSummary.maybe === 1 ? '' : 's'} replied maybe.` : '',
+    responseRiskSummary.unavailable ? `${responseRiskSummary.unavailable} selected player${responseRiskSummary.unavailable === 1 ? '' : 's'} can’t play.` : '',
     responseRiskSummary.needSub ? `${responseRiskSummary.needSub} substitution issue${responseRiskSummary.needSub === 1 ? '' : 's'} still need attention.` : '',
   ].filter(Boolean)
   const readyForTeam = lineupRows.length > 0 && !!(eventDetail?.arrivalTime || eventDetail?.location) && !alertLines.length
@@ -434,7 +458,11 @@ function CaptainTeamBriefContent() {
       : eventDetail
         ? 'Phone backup loaded'
         : 'No event details saved'
-  const responseUpdatedLabel = latestResponseUpdate ? formatDateTime(latestResponseUpdate) : 'No response updates yet'
+  const responseUpdatedLabel = cloudReadinessStatus === 'loading'
+    ? 'Checking cloud replies'
+    : cloudReadiness
+      ? `Replies synced ${formatDateTime(cloudReadiness.checkedAt)}`
+      : latestResponseUpdate ? formatDateTime(latestResponseUpdate) : 'No response updates yet'
 
   async function handleCopyMessage() {
     if (typeof navigator === 'undefined' || !navigator.clipboard) {

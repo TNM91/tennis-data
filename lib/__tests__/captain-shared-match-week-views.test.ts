@@ -7,7 +7,9 @@ const weeklyBrief = readFileSync(join(process.cwd(), 'app/captain/weekly-brief/p
 const teamBrief = readFileSync(join(process.cwd(), 'app/captain/team-brief/page.tsx'), 'utf8')
 const matchupSheet = readFileSync(join(process.cwd(), 'app/captain/matchup-sheet/page.tsx'), 'utf8')
 const recordResult = readFileSync(join(process.cwd(), 'app/captain/record-result/page.tsx'), 'utf8')
+const seasonDashboard = readFileSync(join(process.cwd(), 'app/captain/season-dashboard/page.tsx'), 'utf8')
 const draftRoute = readFileSync(join(process.cwd(), 'app/api/captain/lineup-drafts/route.ts'), 'utf8')
+const readinessRoute = readFileSync(join(process.cwd(), 'app/api/captain/team-availability-summary/route.ts'), 'utf8')
 
 describe('shared captain Match Week views', () => {
   it('normalizes cloud courts and logistics for every read-only captain view', () => {
@@ -66,5 +68,13 @@ describe('shared captain Match Week views', () => {
   it('finds existing drafts when an older link does not include a competition layer', () => {
     expect(draftRoute).toContain("['', 'usta', 'tiq']")
     expect(draftRoute).toContain("draftQuery.in('scope_key', scopeKeys)")
+  })
+
+  it('uses the same live replies and captain confirmations across captain views', () => {
+    for (const source of [weeklyBrief, teamBrief, seasonDashboard]) {
+      expect(source).toContain('useCaptainMatchWeekReadiness')
+    }
+    expect(readinessRoute).toContain("service.from('captain_lineup_drafts')")
+    expect(readinessRoute).toContain("selection: draftSelection ? 'draft'")
   })
 })

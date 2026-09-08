@@ -7,7 +7,7 @@ const source = readFileSync(join(process.cwd(), 'app/captain/season-dashboard/pa
 describe('Captain Season Dashboard', () => {
   it('keeps the dashboard behind shared Captain access', () => {
     expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
-    expect(source).toContain('const { role, entitlements, authResolved } = useAuth()')
+    expect(source).toMatch(/const (?:\{ role, entitlements, authResolved \}|auth) = useAuth\(\)/)
     expect(source).toContain('buildProductAccessState(role, entitlements)')
     expect(source).toContain('if (!access.canUseCaptainWorkflow)')
     expect(source).toContain('<LockedPlanPage')
