@@ -25,6 +25,16 @@ Focused existing Teams tests: 29 passed. Four new compact-action tests passed, c
 
 The complete rerun passed **all 2,678 tests in 527 files**. After the final native-anchor refinement, all **20 targeted tests** (compact actions, Teams simplification and locked assets) passed, as did focused lint and standalone TypeScript checking (`tsc --noEmit --incremental false`). The static-render test emits a non-fatal styled-jsx attribute warning from the existing icon component outside Next's compiler. A fresh production build remains required before release because the initial successful build preceded the anchor refinement.
 
-The browser connection was reset during the app update. A subsequent browser reconnection was rejected by automatic approval because of a usage limit. No alternative browser or indirect browser execution was used to bypass it. The post-change phone screenshot comparison and live interactive release smoke remain blocked. The premium branch must not be presented as visually verified or deployed until that check is completed.
+The earlier browser approval usage limit cleared on the next user-requested continuation. The in-app browser reconnected successfully. Native viewport overrides changed layout but screenshot capture failed twice; the existing same-browser loopback phone iframe preview was used instead, with the override reset. No alternative browser or indirect browser execution bypassed the earlier rejection.
+
+### September 8 verification continuation
+
+- Final production build of `3b58a557` passed (including the native-anchor change).
+- Synthetic previews of the actual TeamHomeCard and TeamQuickActions components were inspected at 320px and 390px. Cards, long names, captain/player quick actions and disclosures remained readable, without horizontal overflow. The 390px iframe had 375px usable content after its desktop scrollbar.
+- Synthetic default-team switching reordered the cards correctly. Availability navigation reached the native hash target. Follow/player tools expanded and remained accessible. No real account state was changed.
+- The local production-bundle Fall team profile loaded successfully, with no captured browser errors. Schedule navigation opened the calendar panel, which showed all 14 matches selected (not just the two recent-history preview rows). Settled panel position was 20px from the frame top, with no horizontal overflow.
+- Localhost remains signed out. The user was asked to sign in at `http://localhost:3030/compete/teams` to check the actual linked/captain profile composition and protected actions. Production remains signed in, but its existing build is not evidence for the pending changes.
+
+Remaining release gate: signed-in local team profile, captain disclosure and exact team-scoped navigation. No premium production deployment has been made. The build is available on port 3030 for this check.
 
 Next visual checks: 320px/390px captain and player action groups; long team names; opening all disclosures; direct Season availability anchor; exact team scope on chat/lineup links; default-team switching with synthetic data. Existing synthetic card fixture: `scripts/team-home-browser-fixture.mjs`; existing phone production-bundle preview: `/phone-team` on that fixture.
