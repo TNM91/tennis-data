@@ -81,6 +81,7 @@ import {
   type CaptainManagedTeamOption,
 } from '@/lib/captain-managed-team-context'
 import type { TeamConnection } from '@/lib/team-profile-links'
+import { buildCaptainMessagingAudienceCopy } from '@/lib/captain-messaging-audience'
 
 type ContactRow = {
   id: string
@@ -1923,6 +1924,24 @@ function CaptainMessagingContent() {
     return { confirmedCount, declinedCount, viewedCount, noResponseCount, runningLateCount, needSubCount }
   }, [scopedContacts, responseMap])
 
+  const audienceCopy = useMemo(() => buildCaptainMessagingAudienceCopy({
+    lineupPlayers: potentialLineupQueue.length,
+    lineupTextsOpened: openedPotentialTextCount,
+    rosterPlayers: scopedContacts.length,
+    rosterNeedsStatus: availabilitySummary.noResponseCount,
+    rosterAvailable: availabilitySummary.availableCount,
+    matchConfirmed: responseSummary.confirmedCount,
+    matchRepliesPending: responseSummary.noResponseCount,
+  }), [
+    availabilitySummary.availableCount,
+    availabilitySummary.noResponseCount,
+    openedPotentialTextCount,
+    potentialLineupQueue.length,
+    responseSummary.confirmedCount,
+    responseSummary.noResponseCount,
+    scopedContacts.length,
+  ])
+
   const blockingContacts = useMemo(() => {
     return scopedContacts.filter((contact) => {
       const availabilityStatus = availabilityMap.get(contact.id)?.status ?? 'no-response'
@@ -2908,8 +2927,8 @@ function importScenarioToLineup() {
               <div style={potentialTextQueueCopyStyle}>
                 <span style={sectionKicker}>Send availability</span>
                 <strong style={potentialTextQueueTitleStyle}>
-                  {textablePotentialPlayers.length
-                    ? `${openedPotentialTextCount} of ${potentialLineupQueue.length} player texts opened`
+                  {potentialLineupQueue.length
+                    ? audienceCopy.lineupProgress
                     : 'Add player phone numbers to start'}
                 </strong>
                 <span style={mutedTextStyle}>
@@ -2919,6 +2938,7 @@ function importScenarioToLineup() {
                       ? 'All available player texts have been opened. Waiting for replies.'
                       : 'Every player has replied.'}
                 </span>
+                <span style={fieldHintStyle}>{audienceCopy.lineupScope}</span>
               </div>
               {nextPotentialTextTarget?.contact ? (
                 <a
@@ -2952,8 +2972,8 @@ function importScenarioToLineup() {
 
             <details open={!isMobile} style={potentialPlayerResponsesStyle}>
               <summary style={potentialPlayerResponsesSummaryStyle}>
-                <span>Player responses</span>
-                <span>{liveResponseCounts.waiting} waiting</span>
+                <span>Selected-player replies</span>
+                <span>{liveResponseCounts.waiting} pending</span>
               </summary>
               <div style={potentialPlayerGridStyle}>
               {potentialLineupQueue.map(({ playerName, playerKey, contact, canText, liveResponse }) => {
@@ -3093,7 +3113,7 @@ function importScenarioToLineup() {
             <button type="button" style={messagePlaybookCardResponsive(isMobile)} onClick={loadAvailabilityCheckMessage}>
               <span style={messagePlaybookLabelStyle}>Ask</span>
               <strong style={messagePlaybookTitleResponsive(isMobile)}>Availability check</strong>
-              <span style={messagePlaybookTextStyle}>{availabilitySummary.noResponseCount} still need status</span>
+              <span style={messagePlaybookTextStyle}>{audienceCopy.rosterNeedsStatus}</span>
             </button>
             <button type="button" style={messagePlaybookCardResponsive(isMobile)} onClick={applyWinningLineupToComposer}>
               <span style={messagePlaybookLabelStyle}>Announce</span>
@@ -3238,10 +3258,10 @@ function importScenarioToLineup() {
             {managedTeamsError ? <p role="alert" style={errorTextStyle}>{managedTeamsError}</p> : null}
 
             <div style={pillRowStyle}>
-              <span style={miniPillSlate}>{scopedContacts.length} in roster scope</span>
-              <span style={miniPillBlue}>{availabilitySummary.availableCount} available</span>
-              <span style={miniPillGreen}>{responseSummary.confirmedCount} confirmed</span>
-              <span style={warnPill}>{responseSummary.noResponseCount} still waiting</span>
+              <span style={miniPillSlate}>{audienceCopy.rosterPlayers}</span>
+              <span style={miniPillBlue}>{audienceCopy.rosterAvailable}</span>
+              <span style={miniPillGreen}>{audienceCopy.matchConfirmed}</span>
+              <span style={warnPill}>{audienceCopy.matchRepliesPending}</span>
               {availabilitySyncSource ? <span style={miniPillBlue}>Availability connected</span> : <span style={miniPillSlate}>Manual availability</span>}
             </div>
           </details>
@@ -3299,9 +3319,9 @@ function importScenarioToLineup() {
                   <div style={tableHeaderStyle}>
                     <div>
                       <p style={sectionKicker}>Availability pulse</p>
-                      <h3 style={sectionTitleSmall}>Who is in this week?</h3>
+                      <h3 style={sectionTitleSmall}>Full-roster availability</h3>
                     </div>
-                    <span style={miniPillSlate}>{scopedContacts.length} tracked</span>
+                    <span style={miniPillSlate}>{audienceCopy.rosterPlayers}</span>
                   </div>
 
                   <div style={statsGridStyle}>
@@ -3317,9 +3337,9 @@ function importScenarioToLineup() {
                 <summary style={detailsSummaryStyle}>
                   <div>
                     <p style={sectionKicker}>Player status</p>
-                    <h3 style={sectionTitleSmall}>Availability and replies</h3>
+                    <h3 style={sectionTitleSmall}>Full-roster status and replies</h3>
                   </div>
-                  <span style={miniPillSlate}>{scopedContacts.length} players</span>
+                  <span style={miniPillSlate}>{audienceCopy.rosterPlayers}</span>
                 </summary>
                 <div style={tableWrapStyle}>
                   <table style={tableStyle}>
