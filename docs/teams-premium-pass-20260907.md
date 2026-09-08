@@ -35,6 +35,10 @@ The earlier browser approval usage limit cleared on the next user-requested cont
 - The local production-bundle Fall team profile loaded successfully, with no captured browser errors. Schedule navigation opened the calendar panel, which showed all 14 matches selected (not just the two recent-history preview rows). Settled panel position was 20px from the frame top, with no horizontal overflow.
 - Localhost remains signed out. The user was asked to sign in at `http://localhost:3030/compete/teams` to check the actual linked/captain profile composition and protected actions. Production remains signed in, but its existing build is not evidence for the pending changes.
 
-Remaining release gate: signed-in local team profile, captain disclosure and exact team-scoped navigation. No premium production deployment has been made. The build is available on port 3030 for this check.
+### Signed-in release gate completed
+
+After the user signed in, the actual local production bundle showed both connected teams and retained the correct default. At the 390px phone viewport, the Fall team's four quick actions were 151.5px wide and 55–61px tall, with no horizontal overflow (375px usable width). Screenshots confirmed readable, non-overlapping cards and tools. Follow/player tools expanded correctly. The availability shortcut opened the Fall team's season panel; the calendar shortcut switched to all 14 selected matches with Apple, Google, TiQ and family-sharing options. The closed Captain tools disclosure expanded to readiness, availability, lineup, pairings and team-plan links. No invitations, availability answers, default-team changes, follow changes or saved lineups were submitted during these checks. The protected links preserve exact team, league and flight scope.
+
+Production publication is pending the pull-request checks and deployment verification.
 
 Next visual checks: 320px/390px captain and player action groups; long team names; opening all disclosures; direct Season availability anchor; exact team scope on chat/lineup links; default-team switching with synthetic data. Existing synthetic card fixture: `scripts/team-home-browser-fixture.mjs`; existing phone production-bundle preview: `/phone-team` on that fixture.
