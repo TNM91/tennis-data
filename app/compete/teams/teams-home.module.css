@@ -1,4 +1,6 @@
 .home { min-width: 0; display: grid; gap: 18px; }
+.homeHeader { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; min-width: 0; }
+.headingCopy { display: grid; gap: 8px; min-width: 0; }
 .heading { margin: 0; font-size: clamp(28px, 4vw, 38px); line-height: 1.15; letter-spacing: -.035em; color: #fff; }
 .teamGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
 .teamCard { min-width: 0; padding: 24px; display: grid; gap: 20px; border: 1px solid #304459; border-radius: 22px; color: #f3f7fd; background: linear-gradient(145deg, #102438, #091728 75%); box-shadow: 0 10px 28px #0002; }
@@ -22,6 +24,9 @@
 .cardActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .cardActions a { display: flex; align-items: center; justify-content: center; gap: 12px; min-width: 0; min-height: 46px; box-sizing: border-box; padding: 10px 12px; border: 1px solid #41586d; border-radius: 11px; color: #eef6ff; background: #14283b; font-size: 14px; font-weight: 750; line-height: 1.35; text-decoration: none; text-align: center; overflow-wrap: break-word; }
 .cardActions .primaryAction { grid-column: 1 / -1; justify-content: space-between; background: #9be11d; color: #10210b; border-color: #9be11d; }
+.cardActions .primaryAction:has(+ .availabilityAction) { grid-column: auto; }
+.cardActions .availabilityAction { border-color: #68864b; background: #233b2d; color: #e8ffd0; }
+.cardActions .calendarAction { grid-column: 1 / -1; }
 .cardFooter { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid #334859; padding-top: 12px; font-size: 12px; color: #b7c9d9; }
 .cardFooter button { min-height: 44px; padding: 8px 12px; background: transparent; color: #d9f4b1; border: 1px solid #526846; border-radius: 10px; font: inherit; font-weight: 750; cursor: pointer; }
 .teamCard button:disabled { opacity: .6; cursor: default; }
@@ -29,4 +34,5 @@
 .teamCard a:hover { filter: brightness(1.1); }
 .support { min-width: 0; margin-top: 4px; }
 @media (max-width: 760px) { .teamGrid { grid-template-columns: minmax(0, 1fr); gap: 14px; } .teamCard { padding: 18px; gap: 16px; } }
+@media (max-width: 760px) { .homeHeader { grid-template-columns: minmax(0, 1fr); gap: 12px; } }
 @media (prefers-reduced-motion: no-preference) { .cardActions a { transition: background .15s ease; } }

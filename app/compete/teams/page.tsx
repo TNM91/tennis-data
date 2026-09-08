@@ -299,6 +299,8 @@ function CompeteTeamsContent() {
         id="tiq-entered-teams"
         className={homeStyles.home}
       >
+        <header className={homeStyles.homeHeader}>
+        <div className={homeStyles.headingCopy}>
         <h1 style={mobileTeamsTitleStyle}>{userId ? 'Your teams' : 'Explore teams'}</h1>
         <div style={sectionTextStyle}>
           {connectionError
@@ -310,6 +312,7 @@ function CompeteTeamsContent() {
               : userId
                 ? 'Accept a team connection or connect your player profile to bring your teams here.'
                 : 'Public team pages are open now. Accepted team connections appear here after registration.'}
+        </div>
         </div>
 
         {authResolved && userId && groupedTeams.length > 0 ? (
@@ -330,6 +333,7 @@ function CompeteTeamsContent() {
         ) : null}
 
 
+        </header>
         {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
         {defaultTeamMessage ? <div style={defaultTeamNoticeStyle} role="status">{defaultTeamMessage}</div> : null}
         {connectionError ? (

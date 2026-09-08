@@ -26,11 +26,11 @@ export default function TeamHomeCard(props: TeamHomeCardProps) {
       <span aria-hidden="true" className={styles.arrow}>↗</span>
     </Link>
     <nav className={styles.cardActions} aria-label={`${props.name} team tools`}>
-      <Link className={styles.primaryAction} href={props.teamHref} aria-label={`Open ${props.name} roster and schedule`}>Roster & schedule <span aria-hidden="true">→</span></Link>
+      {props.lineupHref ? <Link className={styles.primaryAction} href={props.lineupHref}>Build lineup <span aria-hidden="true">→</span></Link> : null}
+      {props.availabilityHref ? <Link href={props.availabilityHref} className={styles.availabilityAction}>Season availability</Link> : null}
+      <Link className={props.lineupHref ? undefined : styles.primaryAction} href={props.teamHref} aria-label={`Open ${props.name} roster and schedule`}>Roster & schedule</Link>
       <Link href={props.chatHref}>Team Chat</Link>
-      <Link href={`${props.teamHref}#team-schedule`}>Season calendar</Link>
-      {props.availabilityHref ? <Link href={props.availabilityHref}>Season availability</Link> : null}
-      {props.lineupHref ? <Link href={props.lineupHref}>Build lineup</Link> : null}
+      <Link className={props.lineupHref ? styles.calendarAction : undefined} href={`${props.teamHref}#team-schedule`}>Season calendar</Link>
     </nav>
     {props.onMakeDefault ? <div className={styles.cardFooter}><span>Choose which team opens first.</span><button type="button" onClick={props.onMakeDefault} disabled={props.defaultDisabled}>{props.savingDefault ? 'Saving…' : 'Make default'}</button></div> : null}
   </article>
