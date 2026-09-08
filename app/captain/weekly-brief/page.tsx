@@ -45,6 +45,7 @@ import {
   readLocalArray,
   readLocalItem as readLocalObject,
 } from '@/lib/captain-formatters'
+import { useCaptainMatchWeekDraft } from '@/lib/use-captain-match-week-draft'
 
 type MatchRow = {
   id: string
@@ -356,13 +357,39 @@ function CaptainWeeklyBriefContent() {
     [currentMatch?.match_date, eventDate, flight, league, team]
   )
 
-  const lineupRows = useMemo(
+  const localLineupRows = useMemo(
     () => readLocalArray<LineupAssignment>(WEEKLY_LINEUPS_STORAGE_KEY).filter((row) => row.event_key === eventKey),
     [eventKey]
   )
 
-  const eventDetail =
+  const localEventDetail =
     readLocalArray<EventDetail>(WEEKLY_EVENT_DETAILS_STORAGE_KEY).find((row) => safeText(row.key) === eventKey) ?? null
+
+  const matchWeekDraftScope = useMemo(() => ({
+    competitionLayer,
+    teamName: team,
+    leagueName: league,
+    flight,
+    matchDate: safeText(eventDate || currentMatch?.match_date).slice(0, 10),
+    opponentTeam: resolvedOpponent,
+  }), [competitionLayer, currentMatch?.match_date, eventDate, flight, league, resolvedOpponent, team])
+  const { matchWeek, status: matchWeekCloudStatus } = useCaptainMatchWeekDraft({
+    accessToken: session?.access_token,
+    enabled: authResolved && role !== 'public' && access.canUseCaptainWorkflow,
+    scope: matchWeekDraftScope,
+  })
+  const lineupRows = useMemo<LineupAssignment[]>(() => matchWeek
+    ? matchWeek.courts.map((court) => ({
+        id: court.id,
+        event_key: eventKey,
+        court_label: court.label,
+        slot_type: court.slotType,
+        players: court.players,
+      }))
+    : localLineupRows, [eventKey, localLineupRows, matchWeek])
+  const eventDetail = matchWeek
+    ? { key: eventKey, ...matchWeek.details }
+    : localEventDetail
 
   const selectedScenario = readLocalObject<StoredScenario>(SELECTED_SCENARIO_STORAGE_KEY)
   const sharedNotes = readCaptainWeekNotes({
@@ -657,6 +684,9 @@ function CaptainWeeklyBriefContent() {
                 <div style={briefMetaRowStyle}>
                   <span>{selectedScenario?.scenario_name || 'Scenario pending'}</span>
                   <span>{resolvedOpponent ? `Opponent: ${resolvedOpponent}` : 'Opponent pending'}</span>
+                  <span>{matchWeekCloudStatus === 'loading' ? 'Syncing Match Week'
+                    : matchWeek ? 'Match Week synced'
+                      : 'Phone backup'}</span>
                 </div>
               </div>
               <div style={statusButtonRow}>

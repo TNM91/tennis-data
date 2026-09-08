@@ -180,12 +180,19 @@ export async function GET(request: Request) {
   const authorized = await authorizeTeam(request, scope.teamName)
   if (!authorized.ok) return authorized.response
 
-  const scopeKey = getCaptainLineupDraftScopeKey(scope)
-  const { data, error } = await authorized.service
+  const scopeKeys = scope.competitionLayer
+    ? [getCaptainLineupDraftScopeKey(scope)]
+    : ['', 'usta', 'tiq'].map((competitionLayer) => getCaptainLineupDraftScopeKey({ ...scope, competitionLayer }))
+  let draftQuery = authorized.service
     .from('captain_lineup_drafts')
     .select('competition_layer,team_name,league_name,flight,match_date,opponent_team,selected_match_id,match_format,scenario_id,scenario_name,notes,slots_json,opponent_slots_json,manual_roster_entries,match_location,match_directions,arrival_time,captain_notes,match_week_updated_at,updated_at')
     .eq('user_id', authorized.auth.userId)
-    .eq('scope_key', scopeKey)
+  draftQuery = scopeKeys.length === 1
+    ? draftQuery.eq('scope_key', scopeKeys[0])
+    : draftQuery.in('scope_key', scopeKeys)
+  const { data, error } = await draftQuery
+    .order('updated_at', { ascending: false })
+    .limit(1)
     .maybeSingle()
   if (error) return Response.json({ ok: false, message: 'Your in-progress lineup could not be loaded.' }, { status: 500 })
 

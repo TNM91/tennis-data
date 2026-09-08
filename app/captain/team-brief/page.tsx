@@ -26,6 +26,7 @@ import {
   formatDateTime,
   readLocalArray,
 } from '@/lib/captain-formatters'
+import { useCaptainMatchWeekDraft } from '@/lib/use-captain-match-week-draft'
 
 type MatchRow = {
   id: string
@@ -94,7 +95,9 @@ export default function CaptainTeamBriefPage() {
 
 function CaptainTeamBriefContent() {
   const router = useRouter()
-  const { role, entitlements, authResolved } = useAuth()
+  const auth = useAuth()
+  const { role, entitlements, authResolved } = auth
+  const { session } = auth
   const { isTablet, isSmallMobile, isMobile } = useViewportBreakpoints()
   const initialContext = readInitialContext()
 
@@ -234,7 +237,7 @@ function CaptainTeamBriefContent() {
     [currentMatch?.match_date, eventDate, flight, league, team]
   )
 
-  const lineupRows = useMemo(
+  const localLineupRows = useMemo(
     () => readLocalArray<LineupAssignment>(WEEKLY_LINEUPS_STORAGE_KEY).filter((row) => row.event_key === eventKey),
     [eventKey]
   )
@@ -242,8 +245,34 @@ function CaptainTeamBriefContent() {
     () => readLocalArray<WeeklyResponse>(WEEKLY_RESPONSES_STORAGE_KEY).filter((row) => row.event_key === eventKey),
     [eventKey]
   )
-  const eventDetail =
+  const localEventDetail =
     readLocalArray<EventDetail>(WEEKLY_EVENT_DETAILS_STORAGE_KEY).find((row) => safeText(row.key) === eventKey) ?? null
+
+  const matchWeekDraftScope = useMemo(() => ({
+    competitionLayer,
+    teamName: team,
+    leagueName: league,
+    flight,
+    matchDate: safeText(eventDate || currentMatch?.match_date).slice(0, 10),
+    opponentTeam: resolvedOpponent,
+  }), [competitionLayer, currentMatch?.match_date, eventDate, flight, league, resolvedOpponent, team])
+  const { matchWeek, status: matchWeekCloudStatus } = useCaptainMatchWeekDraft({
+    accessToken: session?.access_token,
+    enabled: authResolved && role !== 'public' && access.canUseCaptainWorkflow,
+    scope: matchWeekDraftScope,
+  })
+  const lineupRows = useMemo<LineupAssignment[]>(() => matchWeek
+    ? matchWeek.courts.map((court) => ({
+        id: court.id,
+        event_key: eventKey,
+        court_label: court.label,
+        slot_type: court.slotType,
+        players: court.players,
+      }))
+    : localLineupRows, [eventKey, localLineupRows, matchWeek])
+  const eventDetail = matchWeek
+    ? { key: eventKey, ...matchWeek.details }
+    : localEventDetail
 
   const lineupSummaryText = useMemo(() => {
     if (!lineupRows.length) return 'Lineup assignments are still being finalized.'
@@ -398,7 +427,13 @@ function CaptainTeamBriefContent() {
     return new Date(row.updated_at).getTime() > new Date(latest).getTime() ? row.updated_at : latest
   }, null)
   const lineupUpdatedLabel = lineupRows.length ? `${lineupRows.length} assignments ready` : 'No lineup saved yet'
-  const eventUpdatedLabel = eventDetail ? 'Event details saved' : 'No event details saved'
+  const eventUpdatedLabel = matchWeekCloudStatus === 'loading'
+    ? 'Syncing Match Week'
+    : matchWeek
+      ? 'Match Week synced'
+      : eventDetail
+        ? 'Phone backup loaded'
+        : 'No event details saved'
   const responseUpdatedLabel = latestResponseUpdate ? formatDateTime(latestResponseUpdate) : 'No response updates yet'
 
   async function handleCopyMessage() {
