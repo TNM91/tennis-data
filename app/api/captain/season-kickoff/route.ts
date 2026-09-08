@@ -18,6 +18,12 @@ async function handle(request: Request) {
   const self = await loadSeasonSelf(service, auth.userId, roster)
   if (request.method === 'POST') {
     const body = await request.json() as { playerKeys?: unknown; action?: unknown }
+    if (body.action === 'group') {
+      const existing = await loadSeasonInvites(service, scope)
+      const stopped = new Set(existing.filter(invite => invite.revoked_at).map(invite => invite.roster_key))
+      // Group reminders do not revive stopped links or accept caller-selected identities.
+      body.playerKeys = roster.filter(player => !stopped.has(player.key)).map(player => player.key)
+    }
     if (body.action === 'self') {
       if (!self) return json({ message: 'Link your own player record in Profile and make sure it is on this team roster.' }, 409)
       // Never use a submitted player ID or a name guess for "my availability".
