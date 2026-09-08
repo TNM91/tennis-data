@@ -157,4 +157,27 @@ describe('captain potential-lineup handoff', () => {
       flight: '4.0',
     }])
   })
+
+  it('restores shared Match Week details without making them required for older drafts', () => {
+    const draft = readCaptainLineupBuilderDraft(JSON.stringify({
+      teamSlots: slots,
+      opponentSlots: [],
+      manualRosterEntries: [],
+      matchDetails: {
+        location: 'Forest Lake Tennis Club',
+        directions: 'Courts 5–7',
+        arrivalTime: '5:30 PM',
+        notes: 'Bring balls',
+      },
+      matchWeekUpdatedAt: '2026-09-08T18:00:00.000Z',
+    }))
+
+    expect(draft?.matchDetails).toEqual({
+      location: 'Forest Lake Tennis Club',
+      directions: 'Courts 5–7',
+      arrivalTime: '5:30 PM',
+      notes: 'Bring balls',
+    })
+    expect(draft?.matchWeekUpdatedAt).toBe('2026-09-08T18:00:00.000Z')
+  })
 })

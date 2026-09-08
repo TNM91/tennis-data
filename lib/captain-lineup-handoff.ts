@@ -50,7 +50,16 @@ export type CaptainLineupBuilderDraft = {
   teamSlots: unknown
   opponentSlots: unknown
   manualRosterEntries: CaptainLineupManualRosterEntry[]
+  matchDetails?: CaptainMatchWeekDetails
+  matchWeekUpdatedAt?: string
   updatedAt?: string
+}
+
+export type CaptainMatchWeekDetails = {
+  location: string
+  directions: string
+  arrivalTime: string
+  notes: string
 }
 
 export type CaptainLineupDraftScope = Pick<
@@ -217,6 +226,7 @@ export function hasCaptainLineupDraftContent(draft: CaptainLineupBuilderDraft) {
   return hasPlayers(draft.teamSlots)
     || hasPlayers(draft.opponentSlots)
     || Boolean(draft.notes.trim())
+    || Boolean(draft.matchDetails && Object.values(draft.matchDetails).some((value) => value.trim()))
     || draft.manualRosterEntries.length > 0
 }
 
@@ -244,6 +254,15 @@ export function readCaptainLineupBuilderDraft(raw: string | null): CaptainLineup
         .slice(-80)
       : []
 
+    const matchDetails = parsed.matchDetails && typeof parsed.matchDetails === 'object'
+      ? {
+          location: typeof parsed.matchDetails.location === 'string' ? parsed.matchDetails.location : '',
+          directions: typeof parsed.matchDetails.directions === 'string' ? parsed.matchDetails.directions : '',
+          arrivalTime: typeof parsed.matchDetails.arrivalTime === 'string' ? parsed.matchDetails.arrivalTime : '',
+          notes: typeof parsed.matchDetails.notes === 'string' ? parsed.matchDetails.notes : '',
+        }
+      : undefined
+
     return {
       competitionLayer: typeof parsed.competitionLayer === 'string' ? parsed.competitionLayer : '',
       leagueName: typeof parsed.leagueName === 'string' ? parsed.leagueName : '',
@@ -259,6 +278,8 @@ export function readCaptainLineupBuilderDraft(raw: string | null): CaptainLineup
       teamSlots: parsed.teamSlots,
       opponentSlots: parsed.opponentSlots,
       manualRosterEntries,
+      ...(matchDetails ? { matchDetails } : {}),
+      matchWeekUpdatedAt: typeof parsed.matchWeekUpdatedAt === 'string' ? parsed.matchWeekUpdatedAt : undefined,
       updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : undefined,
     }
   } catch {

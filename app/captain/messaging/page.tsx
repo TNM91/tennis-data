@@ -45,7 +45,10 @@ import {
   buildPotentialLineupAvailabilityMessage,
   buildPlayerPotentialLineupAvailabilityMessage,
   extractPotentialLineupPlayers,
+  getCaptainLineupDraftScopeKey,
+  readCaptainLineupBuilderDraft,
   readCaptainLineupHandoff,
+  type CaptainLineupBuilderDraft,
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
 import {
@@ -165,6 +168,18 @@ type LineupAssignment = {
   court_label: string
   slot_type: 'singles' | 'doubles'
   players: string[]
+  player_ids?: string[]
+  rating_level?: number
+  updated_at?: string
+}
+
+type EventDetail = {
+  key: string
+  location: string
+  directions: string
+  arrivalTime: string
+  notes: string
+  updatedAt?: string
 }
 type ExternalAvailabilityRow = {
   source_table: string
@@ -446,6 +461,57 @@ function normalizeSlots(raw: unknown): NormalizedSlot[] {
   })
 }
 
+function lineupAssignmentsFromDraft(draft: CaptainLineupBuilderDraft, eventKey: string) {
+  if (!Array.isArray(draft.teamSlots)) return [] as LineupAssignment[]
+  const updatedAt = draft.matchWeekUpdatedAt || draft.updatedAt || new Date(0).toISOString()
+  return draft.teamSlots.map((slot, index) => {
+    const source = slot && typeof slot === 'object' ? slot as Record<string, unknown> : {}
+    const slotType = source.slotType === 'doubles' ? 'doubles' : 'singles'
+    const playerCount = slotType === 'doubles' ? 2 : 1
+    const players = Array.isArray(source.players) ? source.players : []
+    const normalizedPlayers = Array.from({ length: playerCount }, (_, playerIndex) => {
+      const player = players[playerIndex]
+      const entry = player && typeof player === 'object' ? player as Record<string, unknown> : {}
+      return {
+        id: cleanText(entry.playerId),
+        name: cleanText(entry.playerName),
+      }
+    })
+    return {
+      id: cleanText(source.id) || `cloud-${index + 1}`,
+      event_key: eventKey,
+      court_label: cleanText(source.label) || `Court ${index + 1}`,
+      slot_type: slotType,
+      players: normalizedPlayers.map((player) => player.name),
+      player_ids: normalizedPlayers.map((player) => player.id),
+      ...(typeof source.ratingLevel === 'number' && Number.isFinite(source.ratingLevel)
+        ? { rating_level: source.ratingLevel }
+        : {}),
+      updated_at: updatedAt,
+    } satisfies LineupAssignment
+  })
+}
+
+function lineupAssignmentsToDraftSlots(rows: LineupAssignment[]) {
+  return rows.map((row) => ({
+    id: row.id,
+    label: row.court_label,
+    slotType: row.slot_type,
+    ...(typeof row.rating_level === 'number' ? { ratingLevel: row.rating_level } : {}),
+    players: row.players.map((playerName, index) => ({
+      playerId: row.player_ids?.[index] || '',
+      playerName,
+    })),
+  }))
+}
+
+function newestMatchWeekTimestamp(details: EventDetail | null, rows: LineupAssignment[]) {
+  return Math.max(
+    Date.parse(details?.updatedAt || '') || 0,
+    ...rows.map((row) => Date.parse(row.updated_at || '') || 0),
+  )
+}
+
 function eventDefaultMessage(kind: MessageKind, params: {
   teamName: string
   opponent: string
@@ -665,6 +731,7 @@ function CaptainMessagingContent() {
   const [lineups, setLineups] = useState<LineupAssignment[]>([])
   const [externalAvailabilityRows, setExternalAvailabilityRows] = useState<ExternalAvailabilityRow[]>([])
   const [availabilityCloudState, setAvailabilityCloudState] = useState<'idle' | 'syncing' | 'synced' | 'local'>('idle')
+  const [matchWeekCloudState, setMatchWeekCloudState] = useState<'idle' | 'syncing' | 'synced' | 'local'>('idle')
   const [managedTeamOptions, setManagedTeamOptions] = useState<CaptainManagedTeamOption[]>([])
   const [managedTeamsLoading, setManagedTeamsLoading] = useState(false)
   const [managedTeamsError, setManagedTeamsError] = useState('')
@@ -688,6 +755,10 @@ function CaptainMessagingContent() {
   const contactReviewAppliedRef = useRef(false)
   const teamConnectionInviteAppliedRef = useRef(false)
   const availabilityRef = useRef<WeeklyAvailability[]>([])
+  const matchWeekLocalReadyKeyRef = useRef('')
+  const matchWeekCloudScopeRef = useRef('')
+  const matchWeekCloudResolvedRef = useRef(false)
+  const skipNextMatchWeekSaveRef = useRef(false)
 
   const [prefillScenarioRaw] = useState<ScenarioRow | null>(initialContext.scenario)
   const [prefillFlowSource] = useState(initialContext.flowSource)
@@ -834,22 +905,6 @@ function CaptainMessagingContent() {
           if (!eventNotes) setEventNotes('Example match week loaded.')
         }
 
-        type EventDetail = {
-          key: string
-          location: string
-          directions: string
-          arrivalTime: string
-          notes: string
-        }
-
-        const eventDetails = readLocal<EventDetail>(EVENT_DETAILS_STORAGE_KEY)
-        const detail = eventDetails[0]
-        if (detail) {
-          setEventLocation(detail.location || '')
-          setEventDirections(detail.directions || '')
-          setEventArrivalTime(detail.arrivalTime || '')
-          setEventNotes(detail.notes || '')
-        }
       } catch (err) {
         if (!mounted) return
         const demoContacts = buildDemoContacts()
@@ -1150,6 +1205,14 @@ function CaptainMessagingContent() {
     date: selectedMatch?.match_date || preferredEventDate,
     opponent: inferredOpponent,
   }), [competitionLayer, flightFilter, inferredOpponent, inferredTeamName, leagueFilter, preferredEventDate, selectedMatch, teamFilter])
+  const matchWeekDraftScope = useMemo(() => ({
+    competitionLayer: matchWeekScope.competitionLayer,
+    teamName: matchWeekScope.team,
+    leagueName: matchWeekScope.league,
+    flight: matchWeekScope.flight,
+    matchDate: matchWeekScope.date.slice(0, 10),
+    opponentTeam: matchWeekScope.opponent,
+  }), [matchWeekScope])
   const scopedLineupBuilderHref = buildCaptainScopedHref('/captain/lineup-builder', matchWeekScope)
 
   useEffect(() => {
@@ -1440,9 +1503,156 @@ function CaptainMessagingContent() {
   }, [externalAvailabilityRows, scopedContacts, teamFilter, leagueFilter, flightFilter, seasonFilter, sessionFilter, selectedMatch])
 
   useEffect(() => {
-    const details = [{ key: eventKey, location: eventLocation, directions: eventDirections, arrivalTime: eventArrivalTime, notes: eventNotes }]
-    writeLocal(EVENT_DETAILS_STORAGE_KEY, details)
-  }, [eventKey, eventLocation, eventDirections, eventArrivalTime, eventNotes])
+    const matchDate = matchWeekDraftScope.matchDate
+    if (!eventKey || !/^\d{4}-\d{2}-\d{2}$/.test(matchDate)) return
+
+    const detail = readLocal<EventDetail>(EVENT_DETAILS_STORAGE_KEY).find((row) => row.key === eventKey) ?? null
+    skipNextMatchWeekSaveRef.current = true
+    setEventLocation(detail?.location || selectedMatch?.facility || '')
+    setEventDirections(detail?.directions || '')
+    setEventArrivalTime(detail?.arrivalTime || selectedMatch?.match_time || '')
+    setEventNotes(detail?.notes || selectedScenario?.notes || '')
+    matchWeekLocalReadyKeyRef.current = eventKey
+    matchWeekCloudResolvedRef.current = false
+    matchWeekCloudScopeRef.current = ''
+    setMatchWeekCloudState('idle')
+  }, [eventKey, matchWeekDraftScope.matchDate, selectedMatch?.facility, selectedMatch?.match_time, selectedScenario?.notes])
+
+  const persistMatchWeekCloud = useCallback(async (input: {
+    rows: LineupAssignment[]
+    details: Omit<EventDetail, 'key' | 'updatedAt'>
+    updatedAt: string
+    signal?: AbortSignal
+  }) => {
+    const accessToken = session?.access_token || ''
+    if (!captainAccess || !accessToken || !matchWeekDraftScope.teamName || !matchWeekDraftScope.leagueName
+      || !matchWeekDraftScope.flight || !/^\d{4}-\d{2}-\d{2}$/.test(matchWeekDraftScope.matchDate)) return false
+
+    const response = await fetch('/api/captain/lineup-drafts', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'sync-match-week',
+        scope: matchWeekDraftScope,
+        selectedMatchId: selectedMatch?.id || '',
+        matchFormat: 'auto',
+        teamSlots: lineupAssignmentsToDraftSlots(input.rows),
+        matchDetails: input.details,
+        updatedAt: input.updatedAt,
+      }),
+      signal: input.signal,
+    })
+    if (!response.ok) {
+      const result = await response.json().catch(() => null) as { message?: string } | null
+      throw new Error(result?.message || 'Match Week could not sync.')
+    }
+    return true
+  }, [captainAccess, matchWeekDraftScope, selectedMatch?.id, session?.access_token])
+
+  useEffect(() => {
+    const accessToken = session?.access_token || ''
+    if (loading || !authResolved || !captainAccess || !accessToken || !eventKey
+      || matchWeekLocalReadyKeyRef.current !== eventKey || !matchWeekDraftScope.teamName
+      || !matchWeekDraftScope.leagueName || !matchWeekDraftScope.flight
+      || !/^\d{4}-\d{2}-\d{2}$/.test(matchWeekDraftScope.matchDate)) return
+
+    const scopeKey = getCaptainLineupDraftScopeKey(matchWeekDraftScope)
+    if (matchWeekCloudScopeRef.current === scopeKey) return
+    matchWeekCloudScopeRef.current = scopeKey
+    matchWeekCloudResolvedRef.current = false
+    setMatchWeekCloudState('syncing')
+
+    const controller = new AbortController()
+    let active = true
+    const params = new URLSearchParams(matchWeekDraftScope)
+    void fetch(`/api/captain/lineup-drafts?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: 'no-store',
+      signal: controller.signal,
+    }).then(async (response) => {
+      if (!response.ok) throw new Error('Match Week could not load.')
+      const result = await response.json() as { draft?: unknown }
+      return readCaptainLineupBuilderDraft(JSON.stringify(result.draft ?? null))
+    }).then(async (cloudDraft) => {
+      if (!active) return
+      const localDetails = readLocal<EventDetail>(EVENT_DETAILS_STORAGE_KEY).find((row) => row.key === eventKey) ?? null
+      const localRows = lineups.filter((row) => row.event_key === eventKey)
+      const localTimestamp = newestMatchWeekTimestamp(localDetails, localRows)
+      const cloudTimestamp = Date.parse(cloudDraft?.matchWeekUpdatedAt || cloudDraft?.updatedAt || '') || 0
+
+      if (cloudDraft && cloudTimestamp >= localTimestamp) {
+        const cloudRows = lineupAssignmentsFromDraft(cloudDraft, eventKey)
+        const cloudDetails = cloudDraft.matchDetails || { location: '', directions: '', arrivalTime: '', notes: '' }
+        const updatedAt = cloudDraft.matchWeekUpdatedAt || cloudDraft.updatedAt || new Date().toISOString()
+        const nextLineups = [...lineups.filter((row) => row.event_key !== eventKey), ...cloudRows]
+        skipNextMatchWeekSaveRef.current = true
+        setLineups(nextLineups)
+        writeLocal(LINEUPS_STORAGE_KEY, nextLineups)
+        setEventLocation(cloudDetails.location || selectedMatch?.facility || '')
+        setEventDirections(cloudDetails.directions)
+        setEventArrivalTime(cloudDetails.arrivalTime || selectedMatch?.match_time || '')
+        setEventNotes(cloudDetails.notes)
+        const details = readLocal<EventDetail>(EVENT_DETAILS_STORAGE_KEY).filter((row) => row.key !== eventKey)
+        writeLocal(EVENT_DETAILS_STORAGE_KEY, [{ key: eventKey, ...cloudDetails, updatedAt }, ...details].slice(0, 80))
+      } else {
+        const details = localDetails || {
+          key: eventKey,
+          location: eventLocation,
+          directions: eventDirections,
+          arrivalTime: eventArrivalTime,
+          notes: eventNotes,
+        }
+        const updatedAt = localTimestamp ? new Date(localTimestamp).toISOString() : new Date().toISOString()
+        await persistMatchWeekCloud({ rows: localRows, details, updatedAt, signal: controller.signal })
+      }
+      if (!active) return
+      matchWeekCloudResolvedRef.current = true
+      setMatchWeekCloudState('synced')
+    }).catch((cause) => {
+      if (!active || (cause instanceof DOMException && cause.name === 'AbortError')) return
+      matchWeekCloudResolvedRef.current = true
+      setMatchWeekCloudState('local')
+    })
+
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [authResolved, captainAccess, eventArrivalTime, eventDirections, eventKey, eventLocation, eventNotes, lineups, loading, matchWeekDraftScope, persistMatchWeekCloud, selectedMatch?.facility, selectedMatch?.match_time, session?.access_token])
+
+  useEffect(() => {
+    if (!matchWeekCloudResolvedRef.current || matchWeekLocalReadyKeyRef.current !== eventKey) return
+    if (skipNextMatchWeekSaveRef.current) {
+      skipNextMatchWeekSaveRef.current = false
+      return
+    }
+
+    const updatedAt = new Date().toISOString()
+    const details = {
+      location: eventLocation,
+      directions: eventDirections,
+      arrivalTime: eventArrivalTime,
+      notes: eventNotes,
+    }
+    const storedDetails = readLocal<EventDetail>(EVENT_DETAILS_STORAGE_KEY).filter((row) => row.key !== eventKey)
+    writeLocal(EVENT_DETAILS_STORAGE_KEY, [{ key: eventKey, ...details, updatedAt }, ...storedDetails].slice(0, 80))
+
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      setMatchWeekCloudState('syncing')
+      void persistMatchWeekCloud({ rows: lineupRows, details, updatedAt, signal: controller.signal })
+        .then(() => setMatchWeekCloudState('synced'))
+        .catch((cause) => {
+          if (cause instanceof DOMException && cause.name === 'AbortError') return
+          setMatchWeekCloudState('local')
+        })
+    }, 900)
+
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [eventArrivalTime, eventDirections, eventKey, eventLocation, eventNotes, lineupRows, persistMatchWeekCloud])
 
   useEffect(() => {
     if (!eventKey || !scopedContacts.length || !syncedAvailabilityCandidates.length) return
@@ -2320,8 +2530,10 @@ function CaptainMessagingContent() {
 
   function saveLineups(nextRows: LineupAssignment[]) {
     if (!requireCaptainAccess('Captain tier required to update the weekly lineup.')) return
-    setLineups(nextRows)
-    writeLocal(LINEUPS_STORAGE_KEY, nextRows)
+    const updatedAt = new Date().toISOString()
+    const timestampedRows = nextRows.map((row) => row.event_key === eventKey ? { ...row, updated_at: updatedAt } : row)
+    setLineups(timestampedRows)
+    writeLocal(LINEUPS_STORAGE_KEY, timestampedRows)
   }
 
   async function handleSaveContact() {
@@ -2708,7 +2920,9 @@ function importScenarioToLineup() {
       if (row.id !== assignmentId) return row
       const players = [...row.players]
       players[playerIndex] = value
-      return { ...row, players }
+      const playerIds = [...(row.player_ids || [])]
+      if (value !== row.players[playerIndex]) playerIds[playerIndex] = ''
+      return { ...row, players, player_ids: playerIds }
     })
     saveLineups(next)
   }
@@ -3342,10 +3556,16 @@ function importScenarioToLineup() {
                 <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)} disabled={loading}>
                   {loading ? 'Refreshing...' : 'Refresh data'}
                 </GhostSmallBtn>
-                <span style={availabilityCloudState === 'synced' ? miniPillGreen : availabilityCloudState === 'syncing' ? miniPillBlue : miniPillSlate}>
-                  {availabilityCloudState === 'synced' ? 'Cloud synced'
-                    : availabilityCloudState === 'syncing' ? 'Syncing...'
-                      : availabilityCloudState === 'local' ? 'Phone backup'
+                <span style={availabilityCloudState === 'local' || matchWeekCloudState === 'local'
+                  ? miniPillSlate
+                  : availabilityCloudState === 'syncing' || matchWeekCloudState === 'syncing'
+                    ? miniPillBlue
+                    : availabilityCloudState === 'synced' && matchWeekCloudState === 'synced'
+                      ? miniPillGreen
+                      : miniPillSlate}>
+                  {availabilityCloudState === 'local' || matchWeekCloudState === 'local' ? 'Phone backup'
+                    : availabilityCloudState === 'syncing' || matchWeekCloudState === 'syncing' ? 'Saving match week...'
+                      : availabilityCloudState === 'synced' && matchWeekCloudState === 'synced' ? 'Match week synced'
                         : 'Team data ready'}
                 </span>
               </div>
@@ -3544,6 +3764,12 @@ function importScenarioToLineup() {
                       <GhostSmallBtn onClick={() => addLineAssignment('singles')}>Add singles</GhostSmallBtn>
                       <GhostSmallBtn onClick={() => addLineAssignment('doubles')}>Add doubles</GhostSmallBtn>
                       {selectedScenario ? <span style={miniPillSlate}>Auto-seeded from {selectedScenario.scenario_name}</span> : null}
+                      <span style={matchWeekCloudState === 'synced' ? miniPillGreen : matchWeekCloudState === 'syncing' ? miniPillBlue : miniPillSlate}>
+                        {matchWeekCloudState === 'synced' ? 'Courts saved across devices'
+                          : matchWeekCloudState === 'syncing' ? 'Saving courts...'
+                            : matchWeekCloudState === 'local' ? 'Phone backup'
+                              : 'Courts ready'}
+                      </span>
                     </div>
                   </div>
 
