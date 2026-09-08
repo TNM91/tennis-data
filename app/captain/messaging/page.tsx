@@ -82,6 +82,7 @@ import {
 } from '@/lib/captain-managed-team-context'
 import type { TeamConnection } from '@/lib/team-profile-links'
 import { buildCaptainMessagingAudienceCopy } from '@/lib/captain-messaging-audience'
+import { reconcileCaptainGuestAvailability } from '@/lib/captain-availability-reconciliation'
 
 type ContactRow = {
   id: string
@@ -1467,14 +1468,14 @@ function CaptainMessagingContent() {
     )
     return potentialLineupNames.filter((name) => !readyNames.has(name.trim().toLowerCase()))
   }, [potentialLineupContacts, potentialLineupNames])
-  const liveResponseByPlayer = useMemo(() => {
+  const currentLiveResponses = useMemo(() => {
     const matchDate = liveAvailabilityRequest?.request?.matchDate || availabilityMatchDate
-    return new Map(
-      (liveAvailabilityRequest?.responses ?? [])
-        .filter((response) => !matchDate || response.match_date === matchDate)
-        .map((response) => [response.player_name.trim().toLowerCase(), response])
-    )
+    return (liveAvailabilityRequest?.responses ?? [])
+      .filter((response) => !matchDate || response.match_date === matchDate)
   }, [availabilityMatchDate, liveAvailabilityRequest])
+  const liveResponseByPlayer = useMemo(() => new Map(
+    currentLiveResponses.map((response) => [response.player_name.trim().toLowerCase(), response])
+  ), [currentLiveResponses])
   const privateInviteByPlayer = useMemo(() => {
     const invites = liveAvailabilityRequest?.invites.length
       ? liveAvailabilityRequest.invites
@@ -1568,6 +1569,20 @@ function CaptainMessagingContent() {
     })
     return { yes, maybe, no, waiting: Math.max(0, potentialLineupNames.length - yes - maybe - no) }
   }, [liveResponseByPlayer, potentialLineupNames])
+
+  useEffect(() => {
+    if (!captainAccess || !eventKey || !currentLiveResponses.length) return
+    const reconciled = reconcileCaptainGuestAvailability({
+      eventKey,
+      contacts: scopedContacts,
+      rows: availability,
+      replies: currentLiveResponses,
+    })
+    if (!reconciled.changed) return
+    setAvailability(reconciled.rows)
+    writeLocal(AVAILABILITY_STORAGE_KEY, reconciled.rows)
+    setAvailabilitySyncSource((current) => current || 'player replies')
+  }, [availability, captainAccess, currentLiveResponses, eventKey, scopedContacts])
 
   const recipientIntelligence = useMemo(() => {
     const base = scopedContacts.filter((contact) => contact.phone && contact.opt_in_text)
@@ -3089,7 +3104,7 @@ function importScenarioToLineup() {
               ) : null}
             </div>
             <p style={fieldHintStyle}>
-              Updates refresh automatically while this page is open and whenever you return.
+              Player replies refresh automatically and update full-roster availability.
               {lastResponseRefreshAt ? ` Last checked ${lastResponseRefreshAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : ''}
             </p>
           </section>
