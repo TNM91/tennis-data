@@ -3342,8 +3342,11 @@ function importScenarioToLineup() {
                 <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)} disabled={loading}>
                   {loading ? 'Refreshing...' : 'Refresh data'}
                 </GhostSmallBtn>
-                <span style={storageMode === 'supabase' ? miniPillGreen : miniPillSlate}>
-                  {storageMode === 'supabase' ? 'Synced' : 'Saved on device'}
+                <span style={availabilityCloudState === 'synced' ? miniPillGreen : availabilityCloudState === 'syncing' ? miniPillBlue : miniPillSlate}>
+                  {availabilityCloudState === 'synced' ? 'Cloud synced'
+                    : availabilityCloudState === 'syncing' ? 'Syncing...'
+                      : availabilityCloudState === 'local' ? 'Phone backup'
+                        : 'Team data ready'}
                 </span>
               </div>
             </summary>
