@@ -15,6 +15,14 @@ describe('captain availability command center', () => {
     expect(page).toContain('new Date(`${match.match_date}T12:00:00`)')
   })
 
+  it('limits captain context to managed teams and keeps same-name seasons distinct', () => {
+    expect(page).toContain("fetch('/api/team-connections'")
+    expect(page).toContain('buildCaptainManagedTeamOptions(result.connections || [])')
+    expect(page).toContain('orderCaptainScheduledMatches')
+    expect(page).toContain('value={selectedTeamScopeKey}')
+    expect(page).toContain('Only teams you manage appear here.')
+  })
+
   it('gives every invited player a private share and preview action', () => {
     expect(page).toContain('playerRequestUrls')
     expect(page).toContain('Share private link')
