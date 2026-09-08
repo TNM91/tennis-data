@@ -33,13 +33,16 @@ import {
   CAPTAIN_AVAILABILITY_REFRESH_MS,
   CAPTAIN_AVAILABILITY_UPDATE_NOTICE_MS,
 } from '@/lib/captain-availability-live'
+import {
+  buildCaptainManagedTeamOptions,
+  captainTeamScopeKey,
+  chooseCaptainManagedTeam,
+  orderCaptainScheduledMatches,
+  type CaptainManagedTeamOption,
+} from '@/lib/captain-managed-team-context'
+import type { TeamConnection } from '@/lib/team-profile-links'
 
-type TeamOption = {
-  team: string
-  league: string
-  flight: string
-  matches: number
-}
+type TeamOption = CaptainManagedTeamOption
 
 type AvailabilityStatus = 'in' | 'out' | 'maybe' | 'unanswered'
 type AvailabilityInboxFilter = 'attention' | 'in-play' | 'all'
@@ -66,17 +69,6 @@ type AvailabilityActionCard = {
   tone: 'green' | 'blue' | 'slate' | 'warn'
   cta: string
   href: string
-}
-
-type TeamOptionMatchRow = {
-  home_team: string | null
-  away_team: string | null
-  league_name: string | null
-  flight: string | null
-  match_date: string | null
-  match_time?: string | null
-  facility?: string | null
-  line_number: string | null
 }
 
 type TeamRosterMatchRow = {
@@ -203,6 +195,7 @@ function CaptainAvailabilityContent() {
   const [selectedFlight, setSelectedFlight] = useState(flightParam)
 
   const [loadingOptions, setLoadingOptions] = useState(true)
+  const [teamScopeResolved, setTeamScopeResolved] = useState(false)
   const [loadingRoster, setLoadingRoster] = useState(false)
   const [error, setError] = useState('')
 
@@ -295,52 +288,48 @@ function CaptainAvailabilityContent() {
 
   const loadTeamOptions = useCallback(async () => {
     setLoadingOptions(true)
+    setTeamScopeResolved(false)
     setError('')
 
     try {
-      const { data, error } = await supabase
-        .from('matches')
-        .select('home_team, away_team, league_name, flight, match_date, match_time, facility, line_number')
-        .is('line_number', null)
-
-      if (error) throw new Error(error.message)
-
-      const map = new Map<string, TeamOption>()
-
-      for (const row of (data || []) as TeamOptionMatchRow[]) {
-        const league = safeText(row.league_name, 'Unknown League')
-        const flight = safeText(row.flight, 'Unknown Flight')
-
-        for (const side of [safeText(row.home_team), safeText(row.away_team)]) {
-          if (side === 'Unknown') continue
-          const key = `${side}__${league}__${flight}`
-
-          if (!map.has(key)) {
-            map.set(key, { team: side, league, flight, matches: 0 })
-          }
-
-          map.get(key)!.matches += 1
-        }
-      }
-
-      const next = [...map.values()].sort((a, b) => {
-        if (b.matches !== a.matches) return b.matches - a.matches
-        return a.team.localeCompare(b.team)
+      const accessToken = session?.access_token || ''
+      if (!accessToken) throw new Error('Sign in again to load your captain teams.')
+      const response = await fetch('/api/team-connections', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: 'no-store',
       })
+      const result = await response.json() as { connections?: TeamConnection[]; message?: string }
+      if (!response.ok) throw new Error(result.message || 'Captain teams could not be loaded.')
+
+      const next = buildCaptainManagedTeamOptions(result.connections || [])
 
       setTeamOptions(next)
-
-      if (!teamParam && next.length > 0) {
-        setSelectedTeam(next[0].team)
-        setSelectedLeague(next[0].league)
-        setSelectedFlight(next[0].flight)
+      const preferred = chooseCaptainManagedTeam(next, {
+        team: teamParam,
+        league: leagueParam,
+        flight: flightParam,
+      })
+      if (preferred) {
+        setSelectedTeam(preferred.team)
+        setSelectedLeague(preferred.league)
+        setSelectedFlight(preferred.flight)
+      } else {
+        setSelectedTeam('')
+        setSelectedLeague('')
+        setSelectedFlight('')
+        setScheduledMatches([])
+        setPlayers([])
       }
     } catch (err) {
+      setSelectedTeam('')
+      setSelectedLeague('')
+      setSelectedFlight('')
       setError(err instanceof Error ? err.message : 'Failed to load teams')
     } finally {
       setLoadingOptions(false)
+      setTeamScopeResolved(true)
     }
-  }, [teamParam])
+  }, [flightParam, leagueParam, session?.access_token, teamParam])
 
   const loadRoster = useCallback(async () => {
     setLoadingRoster(true)
@@ -359,7 +348,7 @@ function CaptainAvailabilityContent() {
       const { data: matches, error: matchError } = await matchQuery.limit(25)
       if (matchError) throw new Error(matchError.message)
 
-      const typedMatches = (matches || []) as TeamRosterMatchRow[]
+      const typedMatches = orderCaptainScheduledMatches((matches || []) as TeamRosterMatchRow[])
       setScheduledMatches(typedMatches)
       const nextSelectedMatch =
         typedMatches.find((match) => match.id === selectedMatchId) ??
@@ -693,9 +682,9 @@ function CaptainAvailabilityContent() {
 
   useEffect(() => {
     if (!authResolved || role === 'public') return
-    if (!selectedTeam) return
+    if (!teamScopeResolved || !selectedTeam) return
     void loadRoster()
-  }, [authResolved, loadRoster, role, selectedTeam])
+  }, [authResolved, loadRoster, role, selectedTeam, teamScopeResolved])
 
   async function updateStatus(player: AvailabilityPlayer, status: AvailabilityStatus) {
     if (!availabilityRequestId || !selectedEventDate) return
@@ -738,13 +727,11 @@ function CaptainAvailabilityContent() {
   }
 
   const filteredTeamOptions = useMemo(() => {
-    const next = teamOptions.filter((option) => option.team && option.league && option.flight)
-    if (selectedTeam && !next.some((option) => option.team === selectedTeam && option.league === selectedLeague && option.flight === selectedFlight)) {
-      next.unshift({ team: selectedTeam, league: selectedLeague, flight: selectedFlight, matches: 0 })
-    }
-    return next
-  }, [selectedFlight, selectedLeague, selectedTeam, teamOptions])
-  const hasScope = Boolean(selectedTeam && selectedLeague && selectedFlight)
+    return teamOptions.filter((option) => option.team && option.league && option.flight)
+  }, [teamOptions])
+  const selectedTeamScopeKey = captainTeamScopeKey({ team: selectedTeam, league: selectedLeague, flight: selectedFlight })
+  const hasManagedTeams = filteredTeamOptions.length > 0
+  const hasScope = Boolean(teamScopeResolved && selectedTeam && selectedLeague && selectedFlight)
   const canShareAvailability = Boolean(
     selectedTeam &&
     selectedEventDate &&
@@ -939,33 +926,39 @@ function CaptainAvailabilityContent() {
               <div style={mobileAvailabilityCommandStyle}>
                 <div style={mobileMatchSummaryStyle}>
                   <div>
-                    <span style={mobileMatchLabelStyle}>Next match</span>
-                    <strong style={mobileMatchTitleStyle}>vs {selectedOpponent || 'Opponent'}</strong>
-                    <span style={mobileMatchMetaStyle}>{weekLabel}</span>
+                    <span style={mobileMatchLabelStyle}>{hasScope ? 'Next match' : 'Captain team'}</span>
+                    <strong style={mobileMatchTitleStyle}>{hasScope ? `vs ${selectedOpponent || 'Opponent'}` : 'Connect your team'}</strong>
+                    <span style={mobileMatchMetaStyle}>{hasScope ? weekLabel : 'Only teams you manage appear here.'}</span>
                   </div>
-                  <span style={availabilityRequestState === 'ready' ? mobileLinkReadyStyle : badgeSlate}>
-                    {availabilityRequestState === 'ready' ? 'Link ready' : 'Preparing'}
+                  <span style={availabilityRequestState === 'ready' && hasScope ? mobileLinkReadyStyle : badgeSlate}>
+                    {hasScope ? (availabilityRequestState === 'ready' ? 'Link ready' : 'Preparing') : 'Setup needed'}
                   </span>
                 </div>
 
-                <div style={mobileRequestActionsStyle}>
-                  <button
-                    type="button"
-                    style={{ ...primaryButton, ...(!canShareAvailability ? disabledAction : {}) }}
-                    onClick={() => void shareAvailabilityRequest()}
-                    disabled={!canShareAvailability}
-                  >
-                    {availabilityRequestState === 'preparing' ? 'Preparing…' : counts.unanswered ? `Remind ${counts.unanswered}` : 'Share request'}
-                  </button>
-                  <button
-                    type="button"
-                    style={{ ...sectionCtaSecondary, ...(!canShareAvailability ? disabledAction : {}) }}
-                    onClick={() => void copyAvailabilityLink(availabilityRequestUrl, 'Team link')}
-                    disabled={!canShareAvailability}
-                  >
-                    Copy link
-                  </button>
-                </div>
+                {!loadingOptions && !hasManagedTeams ? (
+                  <Link href="/compete/teams#captain-setup" style={{ ...primaryButton, textDecoration: 'none', textAlign: 'center' }}>
+                    Connect a captain team
+                  </Link>
+                ) : (
+                  <div style={mobileRequestActionsStyle}>
+                    <button
+                      type="button"
+                      style={{ ...primaryButton, ...(!canShareAvailability ? disabledAction : {}) }}
+                      onClick={() => void shareAvailabilityRequest()}
+                      disabled={!canShareAvailability}
+                    >
+                      {availabilityRequestState === 'preparing' ? 'Preparing…' : counts.unanswered ? `Remind ${counts.unanswered}` : 'Share request'}
+                    </button>
+                    <button
+                      type="button"
+                      style={{ ...sectionCtaSecondary, ...(!canShareAvailability ? disabledAction : {}) }}
+                      onClick={() => void copyAvailabilityLink(availabilityRequestUrl, 'Team link')}
+                      disabled={!canShareAvailability}
+                    >
+                      Copy link
+                    </button>
+                  </div>
+                )}
 
                 <div style={mobileAvailabilityReadStyle} aria-label="Availability summary">
                   <div style={mobileAvailabilityCountStyle}>
@@ -991,19 +984,21 @@ function CaptainAvailabilityContent() {
                   <div style={mobileMatchDetailControlsStyle}>
                     <select
                       aria-label="Team"
-                      value={selectedTeam}
+                      value={selectedTeamScopeKey}
                       onChange={(e) => {
-                        const option = filteredTeamOptions.find((item) => item.team === e.target.value)
-                        setSelectedTeam(e.target.value)
+                        const option = filteredTeamOptions.find((item) => captainTeamScopeKey(item) === e.target.value)
                         if (option) {
+                          setSelectedTeam(option.team)
                           setSelectedLeague(option.league)
                           setSelectedFlight(option.flight)
                         }
                       }}
                       style={selectStyle}
                     >
-                      {loadingOptions && !filteredTeamOptions.length ? <option>Loading teams...</option> : filteredTeamOptions.map((option) => (
-                        <option key={`${option.team}__${option.league}__${option.flight}`} value={option.team}>
+                      {!filteredTeamOptions.length ? (
+                        <option value="">{loadingOptions ? 'Loading captain teams…' : 'No captain teams linked'}</option>
+                      ) : filteredTeamOptions.map((option) => (
+                        <option key={captainTeamScopeKey(option)} value={captainTeamScopeKey(option)}>
                           {option.team} - {option.league} - {option.flight}
                         </option>
                       ))}
@@ -1035,23 +1030,31 @@ function CaptainAvailabilityContent() {
             ) : (
               <div style={selectorPanelResponsive(isSmallMobile)}>
                 <select
-                  value={selectedTeam}
+                  aria-label="Team"
+                  value={selectedTeamScopeKey}
                   onChange={(e) => {
-                    const option = filteredTeamOptions.find((item) => item.team === e.target.value)
-                    setSelectedTeam(e.target.value)
+                    const option = filteredTeamOptions.find((item) => captainTeamScopeKey(item) === e.target.value)
                     if (option) {
+                      setSelectedTeam(option.team)
                       setSelectedLeague(option.league)
                       setSelectedFlight(option.flight)
                     }
                   }}
                   style={selectStyle}
                 >
-                  {loadingOptions && !filteredTeamOptions.length ? <option>Loading teams...</option> : filteredTeamOptions.map((option) => (
-                    <option key={`${option.team}__${option.league}__${option.flight}`} value={option.team}>
+                  {!filteredTeamOptions.length ? (
+                    <option value="">{loadingOptions ? 'Loading captain teams…' : 'No captain teams linked'}</option>
+                  ) : filteredTeamOptions.map((option) => (
+                    <option key={captainTeamScopeKey(option)} value={captainTeamScopeKey(option)}>
                       {option.team} - {option.league} - {option.flight}
                     </option>
                   ))}
                 </select>
+                {!loadingOptions && !hasManagedTeams ? (
+                  <Link href="/compete/teams#captain-setup" style={{ ...primaryButton, textDecoration: 'none', textAlign: 'center' }}>
+                    Connect a captain team
+                  </Link>
+                ) : null}
                 <input aria-label="Selected match date" value={weekLabel} readOnly style={textInputStyle} placeholder="Select a scheduled match" />
                 <select
                   value={selectedMatchId}
@@ -1275,7 +1278,9 @@ function CaptainAvailabilityContent() {
 
             {!filteredTeamOptions.length && !loadingOptions ? (
               <div style={stateBox}>
-                Team history is not ready yet. Import match data first, then return here to track responses.
+                <strong>Connect a team you captain.</strong>
+                <span>Accepted captain and co-captain teams appear here automatically.</span>
+                <Link href="/compete/teams#captain-setup" style={inlineStateLinkStyle}>Open Teams</Link>
               </div>
             ) : loadingRoster ? (
               <div style={stateBox}>Loading roster...</div>
@@ -2429,6 +2434,10 @@ const statusButtonUnanswered: CSSProperties = {
 }
 
 const stateBox: CSSProperties = {
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'flex-start',
+  gap: '6px',
   borderRadius: '18px',
   padding: '16px',
   background: 'var(--shell-chip-bg)',
@@ -2436,6 +2445,12 @@ const stateBox: CSSProperties = {
   color: 'var(--foreground)',
   fontWeight: 700,
   overflowWrap: 'anywhere',
+}
+
+const inlineStateLinkStyle: CSSProperties = {
+  color: '#b8ff3d',
+  fontWeight: 900,
+  textDecoration: 'none',
 }
 
 const errorCard: CSSProperties = {
