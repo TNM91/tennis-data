@@ -89,9 +89,9 @@
 .tieBreakLabel i { display: none; font-style: normal; }
 .scoreGridRow { min-height: 42px; background: #fff; }
 .scoreGridRow + .scoreGridRow { border-top: 1px solid #d8e2e9; }
-.scoreGridRow strong, .scoreGridRow i { display: grid; place-items: center; border-right: 1px solid #d8e2e9; }
+.scoreGridRow > strong, .scoreGridRow > i { display: grid; min-width: 0; min-height: 100%; place-items: center; border-right: 1px solid #9cabb8; background-color: #fff; }
 .scoreGridRow strong { padding: 5px 8px; color: #173b61; font-size: .77rem; font-weight: 900; letter-spacing: .01em; line-height: 1.18; text-align: left; }
-.scoreGridRow i:last-child { border-right: 0; }
+.scoreGridRow > :last-child { border-right: 0; }
 .scoreGridRow .opponentPlayerBlank { position: relative; min-height: 100%; padding: 0; background: linear-gradient(transparent 62%, #aab7c1 63%, #aab7c1 65%, transparent 66%); }
 
 .emptyState { padding: 36px 28px; border: 1px dashed #aebdca; border-radius: 12px; color: #526171; text-align: center; }
@@ -178,6 +178,7 @@
   .sheetFooter strong { font-size: .54rem; }
   .sheetFooter span { font-size: .59rem; }
   .denseSheet .courts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .denseSheet .court:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .denseSheet .court { padding: 7px 8px; }
   .sheet, .sheetHeader, .instructions, .sheetFooter, .scoreGridHead { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

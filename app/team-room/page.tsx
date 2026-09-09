@@ -1748,6 +1748,42 @@ function TeamRoomSession() {
         style={{ '--team-room-composer-inset': `${composerInset}px` } as CSSProperties}
       >
         <header className={styles.roomHeader}>
+          <div className={styles.mobileRoomControls}>
+            <details className={styles.mobileRoomMenu}>
+              <summary>Team options</summary>
+              <div className={styles.mobileRoomMenuBody}>
+                {teams.length > 1 ? (
+                  <label className={styles.teamSwitcherLabel}>
+                    <span>Viewing team</span>
+                    <select
+                      className={styles.teamSelect}
+                      aria-label="Switch Team Chat"
+                      value={room.href}
+                      onChange={(event) => router.replace(event.target.value)}
+                    >
+                      {teams.map((team) => (
+                        <option key={team.href} value={team.href}>
+                          {getTeamRoomOptionLabel(team)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+                <div className={styles.mobileRoomMenuActions}>
+                  <button className={styles.buttonSecondary} type="button" onClick={() => void shareRoom()}>Share room</button>
+                  {room.canManage ? (
+                    <button className={styles.buttonSecondary} type="button" onClick={() => teamLogoInputRef.current?.click()}>
+                      {uploadingTeamLogo ? 'Saving logo…' : room.teamLogoUrl ? 'Change logo' : 'Add team logo'}
+                    </button>
+                  ) : null}
+                  <button className={styles.buttonSecondary} type="button" onClick={() => void toggleMute()}>
+                    {room.muted ? 'Turn notifications on' : 'Mute room'}
+                  </button>
+                  <Link className={styles.buttonSecondary} href="/compete/teams">All teams</Link>
+                </div>
+              </div>
+            </details>
+          </div>
           <div className={styles.headerTop}>
             <div>
               <p className={styles.eyebrow}>Team Room</p>
@@ -2309,7 +2345,7 @@ function TeamRoomSession() {
           {replyTo ? (
             <div className={styles.composerContext}>
               <span><strong>Replying to {replyTo.senderName}</strong>{replyTo.body.slice(0, 100)}</span>
-              <button type="button" onClick={() => setReplyTo(null)}>Cancel</button>
+              <button type="button" onClick={() => setReplyTo(null)}>Close</button>
             </div>
           ) : null}
           {selectedFile ? (
@@ -2521,7 +2557,7 @@ function PublishedLineupPin({
     return () => window.cancelAnimationFrame(frame)
   }, [focusedArrivalTextReturn, messageId, onArrivalTextReturnRestored])
   return (
-    <details className={styles.publishedLineupPin} open={defaultOpen ?? Boolean(result || receipt)}>
+    <details className={styles.publishedLineupPin} open={defaultOpen ?? Boolean(result)}>
       <summary>
         <div>
           <span>{result ? 'Final result' : isPostMatch ? 'After match' : isMatchDay ? 'Match day' : 'Match plan'}</span>

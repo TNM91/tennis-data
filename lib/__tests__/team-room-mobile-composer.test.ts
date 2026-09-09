@@ -36,6 +36,18 @@ describe('Team Room mobile composer', () => {
     expect(styles).toContain('scroll-padding-bottom: var(--team-room-composer-inset, 224px);')
     expect(styles).toContain('grid-template-columns: minmax(0, 1fr) auto;')
     expect(styles).toContain('min-height: 44px;')
+    expect(page).toContain('onClick={() => setReplyTo(null)}>Close</button>')
+    expect(styles).toContain('white-space: nowrap;')
+  })
+
+  it('keeps the mobile opening chat-first and moves secondary room controls into one compact menu', () => {
+    expect(page).toContain('className={styles.mobileRoomControls}')
+    expect(page).toContain('className={styles.mobileRoomMenu}')
+    expect(page).toContain('<summary>Team options</summary>')
+    expect(page).toContain("room.teamLogoUrl ? 'Change logo' : 'Add team logo'")
+    expect(styles).toContain('.mobileRoomMenuBody')
+    expect(styles).toContain('.headerTop,')
+    expect(styles).toContain('height: calc(100dvh - 112px);')
   })
 
   it('keeps Home Screen guidance compact in the chat header instead of below the conversation', () => {
@@ -56,6 +68,7 @@ describe('Team Room mobile composer', () => {
     expect(styles).toContain('.matchPlanMessage')
     expect(styles).toContain('.matchPlanMessage[open]')
     expect(styles).toContain('overflow-wrap: anywhere;')
+    expect(page).toContain('open={defaultOpen ?? Boolean(result)}')
   })
 
   it('shows a team mark beside the approved iQ mark without exposing account roles', () => {

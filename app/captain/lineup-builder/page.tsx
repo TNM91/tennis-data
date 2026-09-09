@@ -5354,6 +5354,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     opponent: opponentTeam,
   })
   const lineupImageHref = `${lineupImageBaseHref}${lineupImageBaseHref.includes('?') ? '&' : '?'}confirmed=1`
+  const lineupPrintHref = `${lineupImageHref}&print=1`
   const mobileLineupPulse = [
     {
       label: 'Courts',
@@ -5460,8 +5461,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
              <div style={lineupDeliveryActionsStyle}>
                {lineupDeliveryReceipt.kind === 'final' ? (
                  <>
-                   <Link href={lineupImageHref} style={primaryButton}>Save or share lineup image</Link>
-                   <GhostBtn onClick={() => void copyFinalLineupForGroupText()}>Copy for group text</GhostBtn>
+                   <Link href={lineupImageHref} style={primaryButton}>Create image + text team</Link>
+                   <GhostLink href={lineupPrintHref}>Print lineup / scorecard</GhostLink>
+                   <GhostBtn onClick={() => void copyFinalLineupForGroupText()}>Copy lineup text</GhostBtn>
                  </>
                ) : (
                  <PrimaryBtn onClick={() => focusTeamCourts()}>Review selected players</PrimaryBtn>
@@ -5645,9 +5647,13 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
              </div>
              <div style={lineupTransitionActionsStyle}>
                {finalLineupReady ? (
-                 <PrimaryBtn disabled={openingFinalDelivery} onClick={() => void openFinalLineupDelivery()}>
-                   {openingFinalDelivery ? 'Posting final lineup…' : 'Post final lineup'}
-                 </PrimaryBtn>
+                 <>
+                   <PrimaryBtn disabled={openingFinalDelivery} onClick={() => void openFinalLineupDelivery()}>
+                     {openingFinalDelivery ? 'Posting to Team Chat…' : 'Post to Team Chat'}
+                   </PrimaryBtn>
+                   <GhostLink href={lineupImageHref}>Create image + text team</GhostLink>
+                   <GhostLink href={lineupPrintHref}>Print lineup / scorecard</GhostLink>
+                 </>
                ) : (
                  <PrimaryBtn disabled={saving || preparingConfirmation} onClick={() => void saveAndConfirmPotentialLineupAvailability()}>
                    {saveAndAskLabel}
