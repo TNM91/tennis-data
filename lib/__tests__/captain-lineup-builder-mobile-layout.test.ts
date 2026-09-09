@@ -325,6 +325,11 @@ describe('Captain lineup builder mobile layout guards', () => {
   })
 
   it('gives mobile captains a clear final lineup check before they send the team update', () => {
+    expect(source).toContain('aria-label="Continue lineup workflow"')
+    expect(source).toContain('Lineup built')
+    expect(source).toContain('Continue to confirm players')
+    expect(source).toContain('Continue to send lineup')
+    expect(source).toContain('lineupHasAssignments && !teamLineupComplete')
     expect(source).toContain('aria-label="Final lineup status"')
     expect(source).toContain('Ready to send.')
     expect(source).toContain('Send lineup to Team Chat')
@@ -336,9 +341,12 @@ describe('Captain lineup builder mobile layout guards', () => {
       'mobileFinalLineupHeaderStyle',
       'mobileFinalLineupCopyStyle',
       'mobileFinalLineupActionsStyle',
+      'lineupTransitionCopyStyle',
+      'lineupTransitionActionsStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
+    expect(styleBlock('lineupTransitionCardStyle')).toContain("repeat(auto-fit, minmax(min(100%, 250px), 1fr))")
     expect(styleBlock('mobileFinalLineupActionsStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
   })
 })

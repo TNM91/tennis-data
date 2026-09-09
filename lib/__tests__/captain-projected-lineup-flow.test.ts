@@ -14,7 +14,7 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('const savedScenario = await saveScenario(false, true)')
     expect(source).toContain('Potential lineup - ${formatDate(matchDate || null)}')
     expect(source).toContain("window.localStorage.setItem(CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY")
-    expect(source).toContain("return 'Save & ask players'")
+    expect(source).toContain("return 'Continue to confirm players'")
     expect(source).toContain("setConfirmationStage('saving-lineup')")
     expect(source).toContain("setConfirmationStage('preparing-replies')")
     expect(source).toContain("setConfirmationStage('opening-messages')")
@@ -129,6 +129,20 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('Send lineup to Team Chat')
     expect(source).toContain('Review player replies')
     expect(source).toContain('<GhostBtn onClick={() => focusTeamCourts()}>Edit courts</GhostBtn>')
+  })
+
+  it('carries a completed lineup directly into confirmation without re-entering the roster', () => {
+    const source = readSource('app/captain/lineup-builder/page.tsx')
+    const rail = readSource('app/components/captain-match-week-rail.tsx')
+
+    expect(source).toContain('aria-label="Continue lineup workflow"')
+    expect(source).toContain('Confirm these ${assignedTeamReplySummary.players.length} selected players.')
+    expect(source).toContain('TiQ will ask only the players in this lineup—no names to enter again.')
+    expect(source).toContain('onConfirmPlayers={() => void saveAndConfirmPotentialLineupAvailability()}')
+    expect(source).toContain('confirmPlayersDisabled={!teamLineupComplete || finalLineupReady || preparingConfirmation}')
+    expect(source).toContain("current={finalLineupReady ? 'messaging' : teamLineupComplete ? 'availability' : 'lineup'}")
+    expect(rail).toContain("aria-label={step.id === 'availability' ? 'Continue to confirm selected players'")
+    expect(rail).toContain('if (onClick) {')
   })
 
   it('uses known opponent court history for projections and explains when no opponent roster is available', () => {
