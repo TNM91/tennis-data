@@ -66,6 +66,33 @@ final result: passed
 
 ---
 
+# Format-aware captain scorecard and practice RSVP QA
+
+- Target viewport: 390 x 844 CSS pixels in the authenticated captain experience.
+- Routes checked: `/compete/teams`, `/captain/practice`, `/team-room`, and `/captain/matchup-sheet`.
+- Print artifact checked: `output/pdf/tenaceiq-captain-scorecard-preview.pdf` at US Letter portrait.
+
+## Findings
+
+No actionable P0/P1/P2 issue remains in the implemented scope.
+
+- Scorecards now infer the season shape from the saved lineup and league labels. Regular, doubles-only, mixed, and rating-based Tri-Level formats retain their exact court labels.
+- Singles opponent rows provide one uninterrupted handwriting area. Doubles opponent rows provide two distinct name slots.
+- The printed scorecard is one page, uses the approved TenAceIQ logo, and keeps all court and score borders visible.
+- Captain team cards and Team Chat expose a compact `Plan practice` action with the selected team already scoped.
+- The mobile practice form keeps setup fields readable, reviews the final invite in a drawer, posts to Team Chat, and prepares a group-text link.
+- Practice replies are grouped by In, Maybe, Out, and Waiting, with player names visible to the team.
+- Browser console review showed no page errors or warnings beyond the normal development-runtime messages.
+
+## Interaction notes
+
+- A sample practice was prepared through the review step only. The final send action was intentionally not submitted during QA so no real team message or RSVP thread was created.
+- Team Chat loaded the scoped `Plan practice` shortcut after the existing room data resolved.
+
+final result: passed
+
+---
+
 # Team Chat, final-lineup delivery, and scorecard print QA
 
 - Source visual truth: `C:\Users\nmein\.codex\visualizations\2026\09\01\01a05eb9-7774-7440-9217-9154c15d360d\team-chat-audit\01-room-current-viewport.jpg` plus the reported scorecard border defect.

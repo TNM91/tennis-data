@@ -27,6 +27,9 @@ describe('Captain lineup publishing and scorecard handoff', () => {
     expect(sheet).toContain('window.setTimeout(() => window.print(), 240)')
     expect(sheet).toContain('.row > strong, .row > i')
     expect(sheet).toContain('border-right: 1px solid #718196')
+    expect(sheet).toContain('captainScorecardOpponentSlots')
+    expect(sheet).toContain('data-player-slots')
+    expect(sheet).toContain('inferCaptainScorecardFormat')
   })
 
   it('offers every final-lineup delivery action before leaving the builder', () => {

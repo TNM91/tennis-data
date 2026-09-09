@@ -42,6 +42,7 @@ export type InternalScheduleEvent = {
 export type InternalScheduleResponse = {
   eventId: string
   profileId: string
+  profileName: string
   responseStatus: InternalScheduleResponseStatus
   note: string
   updatedAt: string
@@ -138,7 +139,7 @@ function toScheduleEvent(row: ScheduleEventRow): InternalScheduleEvent | null {
   }
 }
 
-function toScheduleResponse(row: ScheduleResponseRow): InternalScheduleResponse | null {
+function toScheduleResponse(row: ScheduleResponseRow, profileName = ''): InternalScheduleResponse | null {
   const eventId = cleanText(row.event_id)
   const profileId = cleanText(row.profile_id)
   if (!eventId || !profileId) return null
@@ -146,6 +147,7 @@ function toScheduleResponse(row: ScheduleResponseRow): InternalScheduleResponse 
   return {
     eventId,
     profileId,
+    profileName: cleanText(profileName),
     responseStatus: normalizeResponseStatus(row.response_status),
     note: cleanText(row.note),
     updatedAt: cleanText(row.updated_at),
@@ -500,8 +502,21 @@ export async function listInternalScheduleResponses(eventIds: string[]) {
     .in('event_id', eventIds)
 
   if (error) throw new Error(error.message)
-  return ((data || []) as ScheduleResponseRow[])
-    .map(toScheduleResponse)
+  const rows = (data || []) as ScheduleResponseRow[]
+  const profileIds = Array.from(new Set(rows.map((row) => cleanText(row.profile_id)).filter(Boolean)))
+  const profileNameById = new Map<string, string>()
+  if (profileIds.length) {
+    const directoryResult = await supabase
+      .from('internal_message_directory')
+      .select('id, display_name')
+      .in('id', profileIds)
+    for (const profile of (directoryResult.data || []) as DirectoryRosterRow[]) {
+      const profileId = cleanText(profile.id)
+      if (profileId) profileNameById.set(profileId, cleanText(profile.display_name))
+    }
+  }
+  return rows
+    .map((row) => toScheduleResponse(row, profileNameById.get(cleanText(row.profile_id)) || ''))
     .filter((response): response is InternalScheduleResponse => Boolean(response))
 }
 

@@ -37,6 +37,7 @@
 .cardActions .primaryAction { grid-column: 1 / -1; justify-content: space-between; background: #9be11d; color: #10210b; border-color: #9be11d; }
 .cardActions .primaryAction:has(+ .availabilityAction) { grid-column: auto; }
 .cardActions .availabilityAction { border-color: #68864b; background: #233b2d; color: #e8ffd0; }
+.cardActions .practiceAction { border-color: #5f8846; background: linear-gradient(135deg, #27432f, #163244); color: #eeffdc; }
 .cardActions .calendarAction { grid-column: 1 / -1; }
 .cardFooter { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid #334859; padding-top: 12px; font-size: 12px; color: #b7c9d9; }
 .cardFooter button { min-height: 44px; padding: 8px 12px; background: transparent; color: #d9f4b1; border: 1px solid #526846; border-radius: 10px; font: inherit; font-weight: 750; cursor: pointer; }

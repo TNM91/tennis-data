@@ -502,6 +502,11 @@ function TeamRoomSession() {
     date: pinnedMessage?.card?.matchDate || matchDraft.matchDate,
     opponent: pinnedMessage?.card?.opponent || matchDraft.opponent,
   }), [matchDraft.matchDate, matchDraft.opponent, pinnedMessage?.card?.matchDate, pinnedMessage?.card?.opponent, room?.flight, room?.leagueName, room?.teamName])
+  const practiceHref = useMemo(() => buildCaptainScopedHref('/captain/practice', {
+    team: room?.teamName,
+    league: room?.leagueName,
+    flight: room?.flight,
+  }), [room?.flight, room?.leagueName, room?.teamName])
   const finalLineupEditHref = useMemo(() => {
     const card = activeMatchMessage?.card
     const baseHref = buildCaptainScopedHref('/captain/lineup-builder', {
@@ -2316,9 +2321,12 @@ function TeamRoomSession() {
           </div>
           <div className={styles.quickActions} aria-label="Quick team messages">
             {room.canManage ? (
-              <button className={styles.quickButtonPrimary} type="button" onClick={openAvailability}>
-                {hasActiveAvailability ? 'Review availability' : 'Ask availability'}
-              </button>
+              <>
+                <button className={styles.quickButtonPrimary} type="button" onClick={openAvailability}>
+                  {hasActiveAvailability ? 'Review availability' : 'Ask availability'}
+                </button>
+                <Link className={styles.quickButton} href={practiceHref}>Plan practice</Link>
+              </>
             ) : null}
             <details className={styles.quickMessageTemplates}>
               <summary className={styles.quickMessageTemplatesSummary}>

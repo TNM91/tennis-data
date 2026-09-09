@@ -9,6 +9,7 @@ describe('Team Room mobile composer', () => {
   it('keeps the captain availability action visible while folding optional message templates into a compact menu', () => {
     expect(page).toContain('aria-label="Quick team messages"')
     expect(page).toContain("{hasActiveAvailability ? 'Review availability' : 'Ask availability'}")
+    expect(page).toContain('<Link className={styles.quickButton} href={practiceHref}>Plan practice</Link>')
     expect(page).toContain('<details className={styles.quickMessageTemplates}>')
     expect(page).toContain('<summary className={styles.quickMessageTemplatesSummary}>')
     expect(page).toContain('Quick notes')

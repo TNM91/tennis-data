@@ -38,9 +38,9 @@ function CaptainPracticeContent() {
   const [teamName, setTeamName] = useState(searchParams.get('team') || '')
   const [leagueName, setLeagueName] = useState(searchParams.get('league') || '')
   const [flight, setFlight] = useState(searchParams.get('flight') || '')
-  const [practiceDate, setPracticeDate] = useState('')
-  const [practiceTime, setPracticeTime] = useState('')
-  const [facility, setFacility] = useState('')
+  const [practiceDate, setPracticeDate] = useState(searchParams.get('date') || '')
+  const [practiceTime, setPracticeTime] = useState(searchParams.get('time') || '')
+  const [facility, setFacility] = useState(searchParams.get('facility') || '')
   const [practiceFocus, setPracticeFocus] = useState(
     incomingLevelUpChallenge ? `${incomingLevelUpChallenge.title}: ${incomingLevelUpChallenge.focus}` : '',
   )
@@ -152,7 +152,7 @@ function CaptainPracticeContent() {
           {teamName.trim() ? (
             <ScheduleMessageComposer
               mode="captain-practice"
-              triggerLabel="Schedule practice"
+              triggerLabel="Review & send invite"
               teamName={teamName}
               leagueName={leagueName}
               flight={flight}
@@ -182,7 +182,7 @@ function CaptainPracticeContent() {
           <div style={eyebrowStyle}>Captain practice</div>
           <h1 style={titleStyle}>Plan practice without a separate thread.</h1>
           <p style={textStyle}>
-            Pick the team, date, time, site, and focus. TenAceIQ opens a practice thread and collects In, Out, or Maybe responses from linked player accounts.
+            Pick the date, time, site, and focus. TiQ posts the invite to Team Chat, gives you a group-text link, and builds the practice roster from In replies.
           </p>
           <div style={proofGridStyle}>
             <ProofItem label="Invite" value="Roster-linked" />
@@ -192,8 +192,8 @@ function CaptainPracticeContent() {
         </div>
         <div style={heroPanelStyle}>
           <TiqFeatureIcon name="schedule" size="lg" variant="surface" />
-          <strong>Practice sits in Team.</strong>
-          <span>Use it before lineup week, between matches, or whenever the roster needs a shared training plan.</span>
+          <strong>Your practice roster builds itself.</strong>
+          <span>Players mark In, Out, or Maybe, see who is coming, and keep the plan with the team.</span>
         </div>
       </section>
     </main>
@@ -211,16 +211,16 @@ function ProofItem({ label, value }: { label: string; value: string }) {
 
 const practiceHints = [
   {
-    title: 'Use roster names',
-    detail: 'Linked player accounts receive RSVP tracking; unlinked names still appear in the invite preview.',
+    title: 'Invite the whole team',
+    detail: 'Linked players receive the RSVP; the same link is ready for your existing group text.',
   },
   {
     title: 'Keep it specific',
     detail: 'Add the court, focus, rain plan, or arrival note so players know what the practice is for.',
   },
   {
-    title: 'Follow up in Messages',
-    detail: 'The scheduler creates the thread, then replies and updates stay with team communication.',
+    title: 'See the practice roster',
+    detail: 'In, Maybe, Out, and Waiting stay visible so you know who is coming before you reserve courts.',
   },
 ]
 

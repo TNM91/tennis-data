@@ -413,6 +413,12 @@ function CompeteTeamsContent() {
                 flight: group.sourceFlight,
               })
               const canStartTeamLineup = access.canUseCaptainWorkflow || isCaptainTeamConnection(group.connection.roles)
+              const practiceHref = buildCaptainScopedHref('/captain/practice', {
+                competitionLayer,
+                team: group.teamName,
+                league: group.sourceLeagueName || undefined,
+                flight: group.sourceFlight || undefined,
+              })
               const upcomingMatch = group.directoryOption?.nextMatch || null
               const lineupContinuation = selectCaptainLineupSummaryForTeam({
                 summaries: lineupSummaries,
@@ -440,6 +446,7 @@ function CompeteTeamsContent() {
                 lineupHref={canStartTeamLineup ? continuationHref : undefined}
                 lineupContinuation={canStartTeamLineup && lineupContinuation ? { ...lineupContinuation, href: continuationHref } : undefined}
                 availabilityHref={isCaptainTeamConnection(group.connection.roles) ? `${teamPageHref}#team-availability` : undefined}
+                practiceHref={canStartTeamLineup ? practiceHref : undefined}
                 nextMatch={upcomingMatch}
                 availabilitySummary={access.canUseCaptainWorkflow && isCaptainTeamConnection(group.connection.roles) && upcomingMatch && accessToken ? <TeamAvailabilitySummary
                   key={`${userId}:${group.connection.id}:${upcomingMatch.date}:${upcomingMatch.opponent}`}

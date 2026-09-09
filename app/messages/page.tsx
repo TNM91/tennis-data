@@ -1159,6 +1159,25 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     }, [coachContacts, selectedConversation],
   )
   const selectedScheduleEvent = scheduleEvents[0] ?? null
+  const selectedScheduleResponses = useMemo(
+    () => selectedScheduleEvent
+      ? scheduleResponses.filter((response) => response.eventId === selectedScheduleEvent.id)
+      : [],
+    [scheduleResponses, selectedScheduleEvent],
+  )
+  const practiceRosterGroups = useMemo(() => {
+    const groups = new Map<InternalScheduleResponseStatus, string[]>([
+      ['in', []],
+      ['maybe', []],
+      ['out', []],
+      ['unanswered', []],
+    ])
+    for (const response of selectedScheduleResponses) {
+      const name = response.profileName.trim()
+      if (name) groups.get(response.responseStatus)?.push(name)
+    }
+    return groups
+  }, [selectedScheduleResponses])
   const canManageSchedule = Boolean(
     identity &&
       selectedScheduleEvent &&
@@ -2813,15 +2832,39 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
               <div style={rsvpSummaryStyle(isMobile)}>
                 {(['in', 'maybe', 'out', 'unanswered'] as InternalScheduleResponseStatus[]).map((status) => (
                   <div key={status} style={rsvpStatStyle}>
-                    <strong>{scheduleResponses.filter((response) => response.responseStatus === status).length}</strong>
+                    <strong>{selectedScheduleResponses.filter((response) => response.responseStatus === status).length}</strong>
                     <span>{status === 'in' ? 'In' : status === 'out' ? 'Out' : status === 'maybe' ? 'Maybe' : 'Waiting'}</span>
                   </div>
                 ))}
               </div>
 
+              {selectedScheduleEvent?.eventType === 'captain_practice' ? (
+                <div style={practiceRosterStyle} aria-label="Practice roster">
+                  <div style={practiceRosterHeadlineStyle}>
+                    <span style={labelStyle}>Practice roster</span>
+                    <strong>
+                      {practiceRosterGroups.get('in')?.length
+                        ? practiceRosterGroups.get('in')!.join(', ')
+                        : 'No one is marked In yet.'}
+                    </strong>
+                  </div>
+                  <details style={practiceReplyDetailsStyle}>
+                    <summary>See every reply</summary>
+                    <div style={practiceReplyListStyle}>
+                      {(['in', 'maybe', 'out', 'unanswered'] as InternalScheduleResponseStatus[]).map((status) => (
+                        <div key={status} style={practiceReplyRowStyle}>
+                          <b>{status === 'in' ? 'In' : status === 'out' ? 'Out' : status === 'maybe' ? 'Maybe' : 'Waiting'}</b>
+                          <span>{practiceRosterGroups.get(status)?.join(', ') || 'None'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+              ) : null}
+
               <div style={rsvpActionRowStyle}>
                 {(['in', 'out', 'maybe'] as InternalScheduleResponseStatus[]).map((status) => {
-                  const active = scheduleResponses.some(
+                  const active = selectedScheduleResponses.some(
                     (response) => response.profileId === identity.userId && response.eventId === selectedScheduleEvent?.id && response.responseStatus === status,
                   )
                   return (
@@ -4183,6 +4226,49 @@ const rsvpStatStyle: CSSProperties = {
   fontWeight: 850,
   textTransform: 'uppercase',
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const practiceRosterStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 12,
+  borderRadius: 15,
+  border: '1px solid rgba(155,225,29,0.2)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(7,17,33,0.35))',
+  minWidth: 0,
+}
+
+const practiceRosterHeadlineStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
+const practiceReplyDetailsStyle: CSSProperties = {
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 850,
+}
+
+const practiceReplyListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  marginTop: 10,
+}
+
+const practiceReplyRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '72px minmax(0, 1fr)',
+  gap: 8,
+  borderTop: '1px solid rgba(125,211,252,0.12)',
+  paddingTop: 8,
+  lineHeight: 1.4,
   overflowWrap: 'anywhere',
 }
 
