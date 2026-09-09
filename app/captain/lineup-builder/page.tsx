@@ -340,7 +340,7 @@ function getSaveAndAskLabel(stage: AvailabilityConfirmationStage) {
   if (stage === 'saving-lineup') return 'Saving lineup...'
   if (stage === 'preparing-replies') return 'Preparing replies...'
   if (stage === 'opening-messages') return 'Opening messages...'
-  return 'Save & ask players'
+  return 'Continue to confirm players'
 }
 
 const DEFAULT_TEAM_SLOTS: LineupSlot[] = buildCaptainLineupSlots('', '', 'team')
@@ -5296,7 +5296,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     <div style={pageWrap}>
          {!isMobile ? <CaptainSuitePanel active="lineup" teamLabel={teamName || 'Team week'} /> : null}
          <CaptainMatchWeekRail
-           current="lineup"
+           current={finalLineupReady ? 'messaging' : teamLineupComplete ? 'availability' : 'lineup'}
            scope={{
              competitionLayer,
              team: teamName,
@@ -5305,6 +5305,10 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
              date: matchDate,
              opponent: opponentTeam,
            }}
+           onConfirmPlayers={() => void saveAndConfirmPotentialLineupAvailability()}
+           confirmPlayersDisabled={!teamLineupComplete || finalLineupReady || preparingConfirmation}
+           onSendTeamUpdate={() => void openFinalLineupDelivery()}
+           sendTeamUpdateDisabled={!finalLineupReady || openingFinalDelivery}
          />
          {linkedCaptainTeams.length > 1 ? (
            <section style={linkedTeamSwitcherStyle(isMobile)} aria-label="Active lineup team">
@@ -5462,9 +5466,39 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               </a>
             </div>
           ) : null}
-        </section>
+         </section>
 
-        <section style={builderInsightToggleStyle} aria-label="Matchup insights">
+         {teamLineupComplete ? (
+           <section style={lineupTransitionCardStyle(finalLineupReady)} aria-label="Continue lineup workflow" role="status" aria-live="polite">
+             <div style={lineupTransitionCopyStyle}>
+               <p style={sectionKicker}>{finalLineupReady ? 'Ready to share' : 'Lineup built'}</p>
+               <strong style={lineupTransitionTitleStyle}>
+                 {finalLineupReady
+                   ? 'Every selected player is confirmed.'
+                   : `Confirm these ${assignedTeamReplySummary.players.length} selected players.`}
+               </strong>
+               <span style={lineupTransitionTextStyle}>
+                 {finalLineupReady
+                   ? 'Your exact courts will carry forward. Choose Team Chat, your group text, or both on the next screen.'
+                   : 'Your court choices stay in place. TiQ will ask only the players in this lineup—no names to enter again.'}
+               </span>
+             </div>
+             <div style={lineupTransitionActionsStyle}>
+               {finalLineupReady ? (
+                 <PrimaryBtn disabled={openingFinalDelivery} onClick={() => void openFinalLineupDelivery()}>
+                   {openingFinalDelivery ? 'Opening share options…' : 'Continue to send lineup'}
+                 </PrimaryBtn>
+               ) : (
+                 <PrimaryBtn disabled={saving || preparingConfirmation} onClick={() => void saveAndConfirmPotentialLineupAvailability()}>
+                   {saveAndAskLabel}
+                 </PrimaryBtn>
+               )}
+               <GhostBtn onClick={() => focusTeamCourts()}>Review courts</GhostBtn>
+             </div>
+           </section>
+         ) : null}
+
+         <section style={builderInsightToggleStyle} aria-label="Matchup insights">
           <div style={builderInsightCopyStyle}>
             <div>
               <p style={sectionKicker}>Optional</p>
@@ -5752,9 +5786,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           </section>
         ) : null}
 
-        {isMobile ? (
-          <>
-            <section style={mobileCourtFocusStyle} aria-label="Lineup next decision">
+         {isMobile ? (
+           <>
+             {!teamLineupComplete ? <section style={mobileCourtFocusStyle} aria-label="Lineup next decision">
               <div>
                 <p style={sectionKicker}>Next decision</p>
                 <h2 style={mobileCourtFocusTitleStyle}>{finalLineupReady ? 'Ready to send.' : finalLineupReadinessTitle}</h2>
@@ -5811,9 +5845,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 ) : null}
                 <GhostBtn onClick={() => focusTeamCourts()}>Review courts</GhostBtn>
               </div>
-            </section>
+             </section> : null}
 
-            {lineupHasAssignments ? (
+             {lineupHasAssignments && !teamLineupComplete ? (
               <section style={mobileFinalLineupPanelStyle} aria-label="Final lineup status" role="status" aria-live="polite">
                 <div style={mobileFinalLineupHeaderStyle}>
                   <div style={mobileFinalLineupCopyStyle}>
@@ -7764,6 +7798,49 @@ const builderMobileActionStackStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
   borderRadius: 18,
   background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%), var(--shell-chip-bg))',
+}
+
+const lineupTransitionCardStyle = (ready: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
+  alignItems: 'center',
+  gap: 14,
+  minWidth: 0,
+  padding: '16px 18px',
+  borderRadius: 22,
+  border: `1px solid color-mix(in srgb, ${ready ? 'var(--brand-green)' : 'var(--brand-blue-2)'} 42%, var(--shell-panel-border) 58%)`,
+  background: ready
+    ? 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 13%, var(--shell-panel-bg-strong) 87%), var(--shell-panel-bg))'
+    : 'linear-gradient(135deg, color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-panel-bg-strong) 88%), var(--shell-panel-bg))',
+  boxShadow: '0 16px 38px rgba(2, 10, 24, 0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
+})
+
+const lineupTransitionCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const lineupTransitionTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  fontWeight: 950,
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const lineupTransitionTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const lineupTransitionActionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 8,
+  minWidth: 0,
 }
 
 const builderMoreActionsStyle: CSSProperties = {

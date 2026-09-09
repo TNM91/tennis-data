@@ -14,4 +14,14 @@ describe('Captain match-week order', () => {
     expect(confirm).toBeGreaterThan(lineup)
     expect(send).toBeGreaterThan(confirm)
   })
+
+  it('supports in-place step actions so a completed draft is not discarded by navigation', () => {
+    const source = readFileSync(join(process.cwd(), 'app/components/captain-match-week-rail.tsx'), 'utf8')
+
+    expect(source).toContain('onConfirmPlayers?: () => void')
+    expect(source).toContain('onSendTeamUpdate?: () => void')
+    expect(source).toContain("step.id === 'availability'")
+    expect(source).toContain('Continue to confirm selected players')
+    expect(source).toContain('Continue to send the final lineup')
+  })
 })
