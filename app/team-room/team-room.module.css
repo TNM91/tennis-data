@@ -225,8 +225,8 @@
   min-height: 360px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 20px 18px 224px;
-  scroll-padding-bottom: 224px;
+  padding: 20px 18px var(--team-room-composer-inset, 224px);
+  scroll-padding-bottom: var(--team-room-composer-inset, 224px);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--shell-page-bg) 72%, transparent), transparent 16%),
     var(--shell-page-bg);
@@ -1177,21 +1177,20 @@
 }
 
 .matchPlanMessage summary strong {
-  overflow: hidden;
   color: var(--foreground-strong);
   font-size: 0.98rem;
   line-height: 1.18;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .matchPlanMessage summary em {
-  overflow: hidden;
   color: var(--shell-copy-muted);
   font-size: 0.72rem;
   font-style: normal;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .matchPlanMessage summary b {
@@ -2597,6 +2596,15 @@
   padding: 3px;
 }
 
+.bubble a {
+  color: var(--brand-blue-2);
+  font-weight: 850;
+  overflow-wrap: anywhere;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
 .teamLogoUpload {
   display: inline-flex;
   align-items: center;
@@ -3052,7 +3060,7 @@
   .messages {
     height: 54dvh;
     min-height: 300px;
-    padding: 17px 13px 224px;
+    padding: 17px 13px var(--team-room-composer-inset, 224px);
   }
 
   .composer { width: 100vw; }

@@ -327,8 +327,8 @@ describe('Captain lineup builder mobile layout guards', () => {
   it('gives mobile captains a clear final lineup check before they send the team update', () => {
     expect(source).toContain('aria-label="Continue lineup workflow"')
     expect(source).toContain('Lineup built')
-    expect(source).toContain('Continue to confirm players')
-    expect(source).toContain('Continue to send lineup')
+    expect(source).toContain('Save lineup & check replies')
+    expect(source).toContain('Post final lineup')
     expect(source).toContain('lineupHasAssignments && !teamLineupComplete')
     expect(source).toContain('aria-label="Final lineup status"')
     expect(source).toContain('Ready to send.')

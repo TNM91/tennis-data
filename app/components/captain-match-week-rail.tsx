@@ -18,7 +18,7 @@ type MatchWeekScope = {
 
 const steps: Array<{ id: MatchWeekStep; label: string; path: string }> = [
   { id: 'lineup', label: 'Build lineup', path: '/captain/lineup-builder' },
-  { id: 'availability', label: 'Confirm players', path: '/captain/availability' },
+  { id: 'availability', label: 'Check replies', path: '/captain/availability' },
   { id: 'messaging', label: 'Send team update', path: '/captain/messaging' },
 ]
 
@@ -94,7 +94,7 @@ export default function CaptainMatchWeekRail({
                 key={step.id}
                 type="button"
                 aria-current={isCurrent ? 'step' : undefined}
-                aria-label={step.id === 'availability' ? 'Continue to confirm selected players' : 'Continue to send the final lineup'}
+                aria-label={step.id === 'availability' ? 'Save lineup and check selected player replies' : 'Post the final lineup to Team Chat'}
                 disabled={disabled}
                 onClick={onClick}
                 style={{
@@ -139,7 +139,7 @@ function formatMatchDate(value: string) {
 }
 
 function mobileStepLabel(step: MatchWeekStep) {
-  if (step === 'availability') return 'Confirm'
+  if (step === 'availability') return 'Replies'
   if (step === 'lineup') return 'Lineup'
   return 'Send'
 }
