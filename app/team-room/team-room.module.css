@@ -2589,12 +2589,12 @@
 }
 
 .appTeamMark {
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--shell-panel-border);
-  border-radius: 50%;
+  border-radius: 11px;
   background: var(--shell-panel-bg);
-  padding: 2px;
+  padding: 3px;
 }
 
 .teamLogoUpload {

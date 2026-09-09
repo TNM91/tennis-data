@@ -1,11 +1,14 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
+import {
+  buildTeamLogoStoragePath,
+  inspectTeamLogoImage,
+  validateTeamLogoDimensions,
+  validateTeamLogoFile,
+} from '@/lib/team-branding'
 import { buildTeamRoomScopeId, canManageTeamRoom, normalizeTeamRoomKey } from '@/lib/team-room'
 
 export const runtime = 'nodejs'
-
-const MAX_LOGO_BYTES = 2 * 1024 * 1024
-const ALLOWED_LOGO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 type TeamLinkRow = {
   profile_user_id: string
@@ -28,15 +31,17 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'The team logo could not be read.' }, { status: 400 })
   }
   const file = form.get('file')
-  if (!(file instanceof File) || file.size < 1) {
-    return Response.json({ ok: false, message: 'Choose a team logo first.' }, { status: 400 })
+  if (!(file instanceof File)) return Response.json({ ok: false, message: 'Choose a team logo first.' }, { status: 400 })
+  const fileValidationMessage = validateTeamLogoFile(file)
+  if (fileValidationMessage) return Response.json({ ok: false, message: fileValidationMessage }, { status: 400 })
+
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  const dimensions = inspectTeamLogoImage(bytes, file.type)
+  if (!dimensions) {
+    return Response.json({ ok: false, message: 'That file does not appear to be a valid team logo image.' }, { status: 400 })
   }
-  if (file.size > MAX_LOGO_BYTES) {
-    return Response.json({ ok: false, message: 'Team logos must be 2 MB or smaller.' }, { status: 400 })
-  }
-  if (!ALLOWED_LOGO_TYPES.has(file.type)) {
-    return Response.json({ ok: false, message: 'Use a JPG, PNG, or WebP team logo.' }, { status: 400 })
-  }
+  const imageValidationMessage = validateTeamLogoDimensions(dimensions)
+  if (imageValidationMessage) return Response.json({ ok: false, message: imageValidationMessage }, { status: 400 })
 
   const selected = await loadSelectedTeamLink(auth.service, auth.userId, {
     teamName: cleanText(form.get('teamName')),
@@ -70,9 +75,9 @@ export async function POST(request: Request) {
     .maybeSingle()
   if (!participant) return Response.json({ ok: false, message: 'You no longer have access to this Team Chat.' }, { status: 403 })
 
-  const extension = file.type === 'image/jpeg' ? 'jpg' : file.type === 'image/png' ? 'png' : 'webp'
-  const path = `team-logos/${conversation.id}/${crypto.randomUUID()}.${extension}`
-  const upload = await auth.service.storage.from('team-room-files').upload(path, Buffer.from(await file.arrayBuffer()), {
+  const path = buildTeamLogoStoragePath(conversation.id, file.type, crypto.randomUUID())
+  const upload = await auth.service.storage.from('team-room-files').upload(path, bytes, {
+    cacheControl: '31536000',
     contentType: file.type,
     upsert: false,
   })
@@ -84,7 +89,7 @@ export async function POST(request: Request) {
   const previousLogo = readTeamLogo(previousMetadata)
   const metadata = {
     ...previousMetadata,
-    teamLogo: { bucket: 'team-room-files', path, mimeType: file.type },
+    teamLogo: { bucket: 'team-room-files', path, mimeType: file.type, ...dimensions },
   }
   const { error: updateError } = await auth.service
     .from('internal_conversations')

@@ -30,6 +30,7 @@ import {
   type TeamRoomFinalLineupReceipt,
   type TeamRoomLineupAnnouncement,
 } from '@/lib/team-room-final-lineup'
+import { validateTeamLogoFile } from '@/lib/team-branding'
 import {
   buildTeamRoomMapsHref,
   getTeamRoomMatchDayPhase,
@@ -896,6 +897,12 @@ function TeamRoomSession() {
 
   async function uploadTeamLogo(file: File | null) {
     if (!file || !room || uploadingTeamLogo) return
+    const validationMessage = validateTeamLogoFile(file)
+    if (validationMessage) {
+      setError(validationMessage)
+      if (teamLogoInputRef.current) teamLogoInputRef.current.value = ''
+      return
+    }
     setUploadingTeamLogo(true)
     setError('')
     try {
@@ -1701,7 +1708,7 @@ function TeamRoomSession() {
         >
           <span className={styles.appBrandMarks}>
             <Image className={styles.appTiqMark} src="/brand/web/header-iq-compact.png" alt="TenAceIQ" width={34} height={34} />
-            {room.teamLogoUrl ? <Image className={styles.appTeamMark} src={room.teamLogoUrl} alt={`${room.teamName} logo`} width={30} height={30} /> : null}
+            {room.teamLogoUrl ? <Image className={styles.appTeamMark} src={room.teamLogoUrl} alt={`${room.teamName} logo`} width={40} height={40} /> : null}
           </span>
           <span>My Teams</span>
         </Link>
@@ -1729,7 +1736,10 @@ function TeamRoomSession() {
               ) : null}
               <button className={styles.buttonSecondary} type="button" onClick={() => void shareRoom()}>Share room</button>
               {room.canManage ? (
-                <label className={styles.teamLogoUpload}>
+                <label
+                  className={styles.teamLogoUpload}
+                  title="JPG, PNG, or WebP up to 8 MB. Square or wide team marks work best."
+                >
                   <input
                     ref={teamLogoInputRef}
                     type="file"
