@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildCaptainFinalLineupGroupText,
   buildCaptainLockedLineupAnnouncement,
   buildCaptainLockedLineupId,
   buildCaptainLineupConfirmationId,
@@ -62,6 +63,26 @@ describe('Captain lineup confirmation closeout', () => {
       '4.0 Doubles: Casey Court / Drew Deuce',
       '4.5 Doubles: Emery Edge / Frankie Forehand',
       'Arrive by 6:00 PM at Riverside Tennis Center.',
+    ].join('\n'))
+  })
+
+  it('builds one copy-ready group text with the lineup, logistics, and Team Chat link', () => {
+    expect(buildCaptainFinalLineupGroupText({
+      lineup: lockedLineup,
+      teamName: 'Aces',
+      matchDate: '2026-08-12',
+      opponent: 'Net Results',
+      arrivalTime: '6:00 PM',
+      facility: 'Riverside Tennis Center',
+      teamChatUrl: 'https://www.tenaceiq.com/team-room?team=Aces',
+    })).toBe([
+      'Aces final lineup — 2026-08-12 vs Net Results',
+      '3.5 Doubles: Alex Ace / Blair Ball',
+      '4.0 Doubles: Casey Court / Drew Deuce',
+      '4.5 Doubles: Emery Edge / Frankie Forehand',
+      'Arrive by 6:00 PM at Riverside Tennis Center.',
+      '',
+      'Team Chat: https://www.tenaceiq.com/team-room?team=Aces',
     ].join('\n'))
   })
 
