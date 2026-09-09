@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit --incremental false",
     "test": "vitest --pool=threads --no-file-parallelism",
     "test:e2e": "playwright test",
+    "test:e2e:captain-week": "playwright test tests/e2e/captain-weekly-continuity.e2e.ts --project=mobile-chrome",
     "test:e2e:ui": "playwright test --ui",
     "check:extension": "node --check tenaceiq-capture-extension/content_script.js",
     "audit:artifacts": "node scripts/audit-artifacts.mjs",
