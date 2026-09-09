@@ -30,7 +30,9 @@ describe('Team Room mobile composer', () => {
     expect(styles).toContain('position: fixed;')
     expect(styles).toContain('height: min(58dvh, 620px);')
     expect(styles).toContain('overflow-y: auto;')
-    expect(styles).toContain('scroll-padding-bottom: 224px;')
+    expect(page).toContain("'--team-room-composer-inset': `${composerInset}px`")
+    expect(page).toContain('ref={composerShellRef}')
+    expect(styles).toContain('scroll-padding-bottom: var(--team-room-composer-inset, 224px);')
   })
 
   it('keeps Home Screen guidance compact in the chat header instead of below the conversation', () => {
@@ -46,8 +48,11 @@ describe('Team Room mobile composer', () => {
     expect(page).toContain('className={`${styles.matchPlanMessage}')
     expect(page).toContain('<small>Match plan</small>')
     expect(page).toContain('embedded')
+    expect(page).toContain('open={expandedMatchPlanId === pinnedMessage.id}')
+    expect(page).toContain("onToggle={(event) => setExpandedMatchPlanId(event.currentTarget.open ? pinnedMessage.id : '')}")
     expect(styles).toContain('.matchPlanMessage')
     expect(styles).toContain('.matchPlanMessage[open]')
+    expect(styles).toContain('overflow-wrap: anywhere;')
   })
 
   it('shows a team mark beside the approved iQ mark without exposing account roles', () => {

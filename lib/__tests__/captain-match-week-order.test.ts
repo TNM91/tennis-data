@@ -3,11 +3,11 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 describe('Captain match-week order', () => {
-  it('starts with the lineup, confirms selected players, then sends the team update', () => {
+  it('starts with the lineup, checks selected-player replies, then sends the team update', () => {
     const source = readFileSync(join(process.cwd(), 'app/components/captain-match-week-rail.tsx'), 'utf8')
 
     const lineup = source.indexOf("{ id: 'lineup', label: 'Build lineup'")
-    const confirm = source.indexOf("{ id: 'availability', label: 'Confirm players'")
+    const confirm = source.indexOf("{ id: 'availability', label: 'Check replies'")
     const send = source.indexOf("{ id: 'messaging', label: 'Send team update'")
 
     expect(lineup).toBeGreaterThan(-1)
@@ -21,7 +21,7 @@ describe('Captain match-week order', () => {
     expect(source).toContain('onConfirmPlayers?: () => void')
     expect(source).toContain('onSendTeamUpdate?: () => void')
     expect(source).toContain("step.id === 'availability'")
-    expect(source).toContain('Continue to confirm selected players')
-    expect(source).toContain('Continue to send the final lineup')
+    expect(source).toContain('Save lineup and check selected player replies')
+    expect(source).toContain('Post the final lineup to Team Chat')
   })
 })

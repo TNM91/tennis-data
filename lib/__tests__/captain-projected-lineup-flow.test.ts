@@ -7,14 +7,14 @@ function readSource(path: string) {
 }
 
 describe('Captain projected lineup confirmation flow', () => {
-  it('saves the exact potential lineup before opening availability messaging', () => {
+  it('saves the exact potential lineup and updates Team Chat without leaving the Builder', () => {
     const source = readSource('app/captain/lineup-builder/page.tsx')
 
     expect(source).toContain('async function saveAndConfirmPotentialLineupAvailability()')
     expect(source).toContain('const savedScenario = await saveScenario(false, true)')
     expect(source).toContain('Potential lineup - ${formatDate(matchDate || null)}')
     expect(source).toContain("window.localStorage.setItem(CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY")
-    expect(source).toContain("return 'Continue to confirm players'")
+    expect(source).toContain("return 'Save lineup & check replies'")
     expect(source).toContain("setConfirmationStage('saving-lineup')")
     expect(source).toContain("setConfirmationStage('preparing-replies')")
     expect(source).toContain("setConfirmationStage('opening-messages')")
@@ -22,7 +22,9 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain("hrefUrl.searchParams.set('intent', 'confirm-lineup')")
     expect(source).toContain("if (teamRoomResult.roomId) hrefUrl.searchParams.set('room', teamRoomResult.roomId)")
     expect(source).toContain('hrefUrl.hash = `match-card-${encodeURIComponent(teamRoomMessageId)}`')
-    expect(source).toContain('router.push(teamRoomCardHref)')
+    expect(source).toContain("? 'Lineup saved. Team Chat was updated in the background.'")
+    expect(source).toContain("kind: 'reply-check'")
+    expect(source).not.toContain('router.push(teamRoomCardHref)')
   })
 
   it('keeps a private court ask inside the Builder and texts each selected player separately', () => {
@@ -108,12 +110,16 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('style={courtAskSignalStyle(askSignal.tone)}')
   })
 
-  it('returns to the exact Team Room card before the captain sends the lineup', () => {
+  it('posts the final lineup in the background and keeps exact Team Chat and sharing choices', () => {
     const builder = readSource('app/captain/lineup-builder/page.tsx')
     const room = readSource('app/team-room/page.tsx')
 
-    expect(builder).toContain("setMessage('Opening Team Room...')")
+    expect(builder).toContain("setMessage('Final lineup posted to Team Chat.')")
     expect(builder).toContain("if (result.roomId) hrefUrl.searchParams.set('room', result.roomId)")
+    expect(builder).toContain("action: 'send_final_lineup'")
+    expect(builder).toContain("body: JSON.stringify({ status: 'final', scope: currentBuilderDraft })")
+    expect(builder).toContain('Save or share lineup image')
+    expect(builder).toContain('Copy for group text')
     expect(room).toContain("action: 'send_final_lineup'")
     expect(room).toContain("'Send lineup to team'")
     expect(room).toContain('isCaptainLineupLocked({')
@@ -139,12 +145,13 @@ describe('Captain projected lineup confirmation flow', () => {
     const rail = readSource('app/components/captain-match-week-rail.tsx')
 
     expect(source).toContain('aria-label="Continue lineup workflow"')
-    expect(source).toContain('Confirm these ${assignedTeamReplySummary.players.length} selected players.')
+    expect(source).toContain('Check replies for these ${assignedTeamReplySummary.players.length} selected players.')
     expect(source).toContain('TiQ will ask only the players in this lineup—no names to enter again.')
     expect(source).toContain('onConfirmPlayers={() => void saveAndConfirmPotentialLineupAvailability()}')
     expect(source).toContain('confirmPlayersDisabled={!teamLineupComplete || finalLineupReady || preparingConfirmation}')
     expect(source).toContain("current={finalLineupReady ? 'messaging' : teamLineupComplete ? 'availability' : 'lineup'}")
-    expect(rail).toContain("aria-label={step.id === 'availability' ? 'Continue to confirm selected players'")
+    expect(rail).toContain("aria-label={step.id === 'availability' ? 'Save lineup and check selected player replies'")
+    expect(rail).toContain("if (step === 'availability') return 'Replies'")
     expect(rail).toContain('if (onClick) {')
   })
 

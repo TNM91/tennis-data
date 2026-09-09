@@ -54,6 +54,10 @@ import {
   type TeamMatchFormatId,
 } from '@/lib/competition-format-registry'
 import {
+  buildCaptainFinalLineupGroupText,
+  buildCaptainLockedLineupId,
+} from '@/lib/captain-lineup-confirmation'
+import {
   getCompetitionPairRatingIssues,
   isCompetitionPairRatingEligible,
   isCompetitionPlayerRatingEligible,
@@ -323,6 +327,13 @@ type HistoricalLineupSuggestion = {
 
 type AvailabilityConfirmationStage = 'idle' | 'saving-lineup' | 'preparing-replies' | 'opening-messages'
 
+type LineupDeliveryReceipt = {
+  kind: 'reply-check' | 'final'
+  teamRoomHref: string
+  teamChatUpdated: boolean
+  waitingPlayerNames: string[]
+}
+
 type CoCaptainReviewShare = {
   reviewUrl: string
   captainUrl: string
@@ -339,8 +350,8 @@ type CourtAskSignal = {
 function getSaveAndAskLabel(stage: AvailabilityConfirmationStage) {
   if (stage === 'saving-lineup') return 'Saving lineup...'
   if (stage === 'preparing-replies') return 'Preparing replies...'
-  if (stage === 'opening-messages') return 'Opening messages...'
-  return 'Continue to confirm players'
+  if (stage === 'opening-messages') return 'Updating Team Chat...'
+  return 'Save lineup & check replies'
 }
 
 const DEFAULT_TEAM_SLOTS: LineupSlot[] = buildCaptainLineupSlots('', '', 'team')
@@ -1561,6 +1572,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
   const [releasedConfirmedPlayerIds, setReleasedConfirmedPlayerIds] = useState<string[]>([])
   const [openingFinalDelivery, setOpeningFinalDelivery] = useState(false)
+  const [lineupDeliveryReceipt, setLineupDeliveryReceipt] = useState<LineupDeliveryReceipt | null>(null)
   const [cloudDraftResolved, setCloudDraftResolved] = useState(false)
   const [cloudDraftSaveState, setCloudDraftSaveState] = useState<'idle' | 'saving' | 'saved' | 'local'>('idle')
 
@@ -1831,6 +1843,10 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
   const currentBuilderDraftRef = useRef(currentBuilderDraft)
   currentBuilderDraftRef.current = currentBuilderDraft
+
+  useEffect(() => {
+    setLineupDeliveryReceipt(null)
+  }, [currentBuilderDraft])
 
   useEffect(() => {
     if (!authResolved || loading || !scopedResumeResolved) return
@@ -3405,7 +3421,15 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     let availabilityRequestId = ''
     let playerRequestUrls: CaptainLineupHandoff['playerRequestUrls'] = []
     let teamRoomCardPosted = false
-    let teamRoomCardHref = ''
+    let teamRoomCardHref = buildTeamRoomHref({
+      teamName,
+      leagueName,
+      flight,
+      date: matchDate,
+      opponent: opponentTeam,
+      time: selectedMatch?.match_time || '',
+      facility: selectedMatch?.facility || '',
+    })
     const { data: sessionData } = await supabase.auth.getSession()
     const accessToken = sessionData.session?.access_token
     if (accessToken) {
@@ -3441,6 +3465,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         }
 
         if (response.ok) {
+          setConfirmationStage('opening-messages')
+          setMessage('Updating Team Chat...')
           const teamRoomResponse = await fetch('/api/team-rooms', {
             method: 'POST',
             headers: {
@@ -3521,21 +3547,25 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       window.localStorage.setItem('tenace_flow_source', 'lineup_builder')
     }
 
-    setConfirmationStage('opening-messages')
-    setMessage('Opening Team Room...')
-    if (teamRoomCardPosted) {
-      router.push(teamRoomCardHref)
-      return
-    }
-    const messagingHref = buildCaptainScopedHref('/captain/messaging', {
-      competitionLayer,
-      team: teamName,
-      league: leagueName,
-      flight,
-      date: matchDate,
-      opponent: opponentTeam,
+    const poolByPlayerId = new Map(myPlayerPool.map((player) => [player.id, player]))
+    const waitingPlayerNames = invitedPlayers
+      .filter((player) => {
+        const label = availabilityLabel(poolByPlayerId.get(player.playerId)?.availabilityStatus)
+        return label === 'No response' || label === 'Available for season'
+      })
+      .map((player) => player.playerName)
+
+    setConfirmationStage('idle')
+    setLineupDeliveryReceipt({
+      kind: 'reply-check',
+      teamRoomHref: teamRoomCardHref,
+      teamChatUpdated: teamRoomCardPosted,
+      waitingPlayerNames,
     })
-    router.push(`${messagingHref}${messagingHref.includes('?') ? '&' : '?'}source=lineup_builder`)
+    setMessage(teamRoomCardPosted
+      ? 'Lineup saved. Team Chat was updated in the background.'
+      : 'Lineup saved. Your player reply links are ready.')
+    setError(teamRoomCardPosted ? '' : 'Team Chat could not update automatically. Your saved lineup is still safe.')
   }
 
   async function openFinalLineupDelivery() {
@@ -3594,6 +3624,44 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       if (!response.ok || !result.ok || !result.messageId) {
         throw new Error(result.message || 'The final lineup could not be prepared. Please try again.')
       }
+      const finalLineup = teamSlots.map((slot) => ({
+        label: slot.label,
+        players: slot.players.map((player) => player.playerName).filter(Boolean),
+      }))
+      const lineupId = buildCaptainLockedLineupId({
+        messageId: result.messageId,
+        lineup: finalLineup,
+      })
+      const sendResponse = await fetch('/api/team-rooms', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'send_final_lineup',
+          teamName,
+          leagueName,
+          flight,
+          messageId: result.messageId,
+          lineupId,
+        }),
+      })
+      const sendResult = await sendResponse.json() as { ok?: boolean; message?: string }
+      if (!sendResponse.ok || !sendResult.ok) {
+        throw new Error(sendResult.message || 'The final lineup could not be posted. Please try again.')
+      }
+
+      const draftResponse = await fetch('/api/captain/lineup-drafts', {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'final', scope: currentBuilderDraft }),
+      })
+      if (draftResponse.ok) finalizedDraftFingerprintRef.current = JSON.stringify(currentBuilderDraft)
+
       const hrefUrl = new URL(
         result.href || buildTeamRoomHref({
           roomId: result.roomId || '',
@@ -3605,13 +3673,44 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       )
       if (result.roomId) hrefUrl.searchParams.set('room', result.roomId)
       hrefUrl.searchParams.set('message', result.messageId)
-      hrefUrl.searchParams.set('intent', 'finalize-lineup')
       hrefUrl.hash = `match-card-${encodeURIComponent(result.messageId)}`
-      router.push(`${hrefUrl.pathname}${hrefUrl.search}${hrefUrl.hash}`)
+      setLineupDeliveryReceipt({
+        kind: 'final',
+        teamRoomHref: `${hrefUrl.pathname}${hrefUrl.search}${hrefUrl.hash}`,
+        teamChatUpdated: true,
+        waitingPlayerNames: [],
+      })
+      setMessage('Final lineup posted to Team Chat.')
+      setError(draftResponse.ok ? '' : 'The lineup was posted, but My Teams may need a refresh to show it as final.')
+      setOpeningFinalDelivery(false)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'The final lineup could not be prepared. Please try again.')
       setMessage('')
       setOpeningFinalDelivery(false)
+    }
+  }
+
+  async function copyFinalLineupForGroupText() {
+    if (!lineupDeliveryReceipt || lineupDeliveryReceipt.kind !== 'final') return
+    const teamChatUrl = new URL(lineupDeliveryReceipt.teamRoomHref, window.location.origin).toString()
+    const body = buildCaptainFinalLineupGroupText({
+      lineup: teamSlots.map((slot) => ({
+        label: slot.label,
+        players: slot.players.map((player) => player.playerName).filter(Boolean),
+      })),
+      teamName,
+      matchDate: formatDate(matchDate || null),
+      opponent: opponentTeam,
+      arrivalTime: selectedMatch?.match_time || '',
+      facility: selectedMatch?.facility || '',
+      teamChatUrl,
+    })
+    try {
+      await navigator.clipboard.writeText(body)
+      setMessage('Final lineup copied. Paste it into your group text.')
+      setError('')
+    } catch {
+      setError('The lineup could not be copied. Try Share lineup image instead.')
     }
   }
 
@@ -5239,13 +5338,22 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             ? `${assignedTeamReplySummary.out.length} selected player${assignedTeamReplySummary.out.length === 1 ? ' is' : 's are'} out — adjust that court.`
             : 'Name a player on a court to start the final check.'
   const finalLineupReadinessDetail = finalLineupReady
-    ? 'All selected players have a Yes. Send this confirmed lineup to Team Chat; the next screen has the image and one-page scorecard.'
+    ? 'All selected players have a Yes. Post the confirmed lineup without leaving this page, then share the image or print the scorecard.'
     : firstOpenTeamCourt
       ? `Finish ${firstOpenTeamCourt.label}: choose ${firstOpenTeamCourt.openPlayers} more player${firstOpenTeamCourt.openPlayers === 1 ? '' : 's'}.`
     : assignedTeamReplySummary.waiting.length
       ? `Waiting on ${assignedTeamReplySummary.waiting.slice(0, 2).map((player) => player.name).join(' and ')}${assignedTeamReplySummary.waiting.length > 2 ? ` and ${assignedTeamReplySummary.waiting.length - 2} more` : ''}.`
       : 'A selected player only counts after they reply Yes or you use Mark Yes & lock to record a text or call confirmation.'
   const finalLineupDeliveryLabel = openingFinalDelivery ? 'Sending lineup…' : 'Send lineup to Team Chat'
+  const lineupImageBaseHref = buildCaptainScopedHref('/captain/matchup-sheet', {
+    competitionLayer,
+    team: teamName,
+    league: leagueName,
+    flight,
+    date: matchDate,
+    opponent: opponentTeam,
+  })
+  const lineupImageHref = `${lineupImageBaseHref}${lineupImageBaseHref.includes('?') ? '&' : '?'}confirmed=1`
   const mobileLineupPulse = [
     {
       label: 'Courts',
@@ -5330,6 +5438,38 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
            onSendTeamUpdate={() => void openFinalLineupDelivery()}
            sendTeamUpdateDisabled={!finalLineupReady || openingFinalDelivery}
          />
+         {lineupDeliveryReceipt ? (
+           <section style={lineupDeliveryReceiptStyle(lineupDeliveryReceipt.kind)} aria-label="Lineup saved" role="status" aria-live="polite">
+             <div style={lineupTransitionCopyStyle}>
+               <p style={sectionKicker}>{lineupDeliveryReceipt.kind === 'final' ? 'Final lineup sent' : 'Lineup saved'}</p>
+               <strong style={lineupTransitionTitleStyle}>
+                 {lineupDeliveryReceipt.kind === 'final'
+                   ? 'Posted to Team Chat and ready to share.'
+                   : lineupDeliveryReceipt.waitingPlayerNames.length
+                     ? `${lineupDeliveryReceipt.waitingPlayerNames.length} selected player${lineupDeliveryReceipt.waitingPlayerNames.length === 1 ? '' : 's'} still need${lineupDeliveryReceipt.waitingPlayerNames.length === 1 ? 's' : ''} a Yes.`
+                     : 'Your selected players are ready to review.'}
+               </strong>
+               <span style={lineupTransitionTextStyle}>
+                 {lineupDeliveryReceipt.kind === 'final'
+                   ? [formatDate(matchDate || null), selectedMatch?.match_time, opponentTeam ? `vs ${opponentTeam}` : '', selectedMatch?.facility].filter(Boolean).join(' · ')
+                   : lineupDeliveryReceipt.waitingPlayerNames.length
+                     ? `Waiting on ${lineupDeliveryReceipt.waitingPlayerNames.slice(0, 3).join(', ')}${lineupDeliveryReceipt.waitingPlayerNames.length > 3 ? ` and ${lineupDeliveryReceipt.waitingPlayerNames.length - 3} more` : ''}. Your courts stayed saved.`
+                     : 'Your courts stayed saved. Review replies when you are ready.'}
+               </span>
+             </div>
+             <div style={lineupDeliveryActionsStyle}>
+               {lineupDeliveryReceipt.kind === 'final' ? (
+                 <>
+                   <Link href={lineupImageHref} style={primaryButton}>Save or share lineup image</Link>
+                   <GhostBtn onClick={() => void copyFinalLineupForGroupText()}>Copy for group text</GhostBtn>
+                 </>
+               ) : (
+                 <PrimaryBtn onClick={() => focusTeamCourts()}>Review selected players</PrimaryBtn>
+               )}
+               <GhostLink href={lineupDeliveryReceipt.teamRoomHref}>Open Team Chat</GhostLink>
+             </div>
+           </section>
+         ) : null}
          {linkedCaptainTeams.length > 1 ? (
            <section style={linkedTeamSwitcherStyle(isMobile)} aria-label="Active lineup team">
              <div style={linkedTeamSwitcherCopyStyle}>
@@ -5488,25 +5628,25 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           ) : null}
          </section>
 
-         {teamLineupComplete ? (
+         {teamLineupComplete && !lineupDeliveryReceipt ? (
            <section style={lineupTransitionCardStyle(finalLineupReady)} aria-label="Continue lineup workflow" role="status" aria-live="polite">
              <div style={lineupTransitionCopyStyle}>
                <p style={sectionKicker}>{finalLineupReady ? 'Ready to share' : 'Lineup built'}</p>
                <strong style={lineupTransitionTitleStyle}>
                  {finalLineupReady
                    ? 'Every selected player is confirmed.'
-                   : `Confirm these ${assignedTeamReplySummary.players.length} selected players.`}
+                   : `Check replies for these ${assignedTeamReplySummary.players.length} selected players.`}
                </strong>
                <span style={lineupTransitionTextStyle}>
                  {finalLineupReady
-                   ? 'Your exact courts will carry forward. Choose Team Chat, your group text, or both on the next screen.'
+                   ? 'Post it to Team Chat in the background, then share the branded image or copy it for your group text.'
                    : 'Your court choices stay in place. TiQ will ask only the players in this lineup—no names to enter again.'}
                </span>
              </div>
              <div style={lineupTransitionActionsStyle}>
                {finalLineupReady ? (
                  <PrimaryBtn disabled={openingFinalDelivery} onClick={() => void openFinalLineupDelivery()}>
-                   {openingFinalDelivery ? 'Opening share options…' : 'Continue to send lineup'}
+                   {openingFinalDelivery ? 'Posting final lineup…' : 'Post final lineup'}
                  </PrimaryBtn>
                ) : (
                  <PrimaryBtn disabled={saving || preparingConfirmation} onClick={() => void saveAndConfirmPotentialLineupAvailability()}>
@@ -7861,6 +8001,19 @@ const lineupTransitionActionsStyle: CSSProperties = {
   gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 8,
   minWidth: 0,
+}
+
+const lineupDeliveryReceiptStyle = (kind: LineupDeliveryReceipt['kind']): CSSProperties => ({
+  ...lineupTransitionCardStyle(kind === 'final'),
+  borderWidth: 2,
+  background: kind === 'final'
+    ? 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-bg-strong) 80%), var(--shell-panel-bg))'
+    : 'linear-gradient(135deg, color-mix(in srgb, var(--brand-blue-2) 17%, var(--shell-panel-bg-strong) 83%), var(--shell-panel-bg))',
+})
+
+const lineupDeliveryActionsStyle: CSSProperties = {
+  ...lineupTransitionActionsStyle,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
 }
 
 const builderMoreActionsStyle: CSSProperties = {

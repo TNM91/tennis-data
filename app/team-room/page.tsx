@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import SiteHeader from '@/app/components/site-header'
 import SiteFooter from '@/app/components/site-footer'
@@ -62,6 +62,7 @@ import {
   type TeamRoomArrivalTextReturn,
 } from '@/lib/team-room-arrival'
 import { supabase } from '@/lib/supabase'
+import { tokenizeTeamRoomMessageBody } from '@/lib/team-room-message-links'
 import styles from './team-room.module.css'
 
 type TeamOption = {
@@ -370,6 +371,7 @@ function TeamRoomSession() {
   const [reminderAt, setReminderAt] = useState('')
   const [showBrowserAlertPrompt, setShowBrowserAlertPrompt] = useState(false)
   const [messageBody, setMessageBody] = useState('')
+  const [expandedMatchPlanId, setExpandedMatchPlanId] = useState('')
   const [announcement, setAnnouncement] = useState(false)
   const [showMatchComposer, setShowMatchComposer] = useState(false)
   const [showMembers, setShowMembers] = useState(false)
@@ -389,9 +391,11 @@ function TeamRoomSession() {
   }))
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
+  const [composerInset, setComposerInset] = useState(224)
   const endRef = useRef<HTMLDivElement | null>(null)
   const messagesRef = useRef<HTMLDivElement | null>(null)
   const composerRef = useRef<HTMLTextAreaElement | null>(null)
+  const composerShellRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const teamLogoInputRef = useRef<HTMLInputElement | null>(null)
   const realtimeRefreshRef = useRef<number | null>(null)
@@ -417,6 +421,10 @@ function TeamRoomSession() {
   const focusedArrivalAction = searchParams.get('arrival')?.trim() || ''
   const confirmLineupIntent = searchParams.get('intent') === 'confirm-lineup'
   const finalLineupDeliveryIntent = searchParams.get('intent') === 'finalize-lineup'
+
+  useEffect(() => {
+    if (focusedMessageId) setExpandedMatchPlanId(focusedMessageId)
+  }, [focusedMessageId])
 
   const pinnedMessage = useMemo(
     () => focusedMessageId
@@ -568,6 +576,20 @@ function TeamRoomSession() {
     const interval = window.setInterval(updateLocalDate, 60_000)
     return () => window.clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    const composer = composerShellRef.current
+    if (!composer) return
+    const updateInset = () => setComposerInset(Math.ceil(composer.getBoundingClientRect().height) + 18)
+    updateInset()
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateInset)
+    observer?.observe(composer)
+    window.addEventListener('resize', updateInset)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', updateInset)
+    }
+  }, [room?.id])
 
   const pinnedMatchDate = pinnedMessage?.card?.matchDate || ''
   const pinnedReminderAt = pinnedMessage?.card?.reminder?.reminderAt || ''
@@ -1720,7 +1742,11 @@ function TeamRoomSession() {
           Members
         </button>
       </nav>
-      <section className={styles.roomShell} aria-label={`${room.teamName} Team Room`}>
+      <section
+        className={styles.roomShell}
+        aria-label={`${room.teamName} Team Room`}
+        style={{ '--team-room-composer-inset': `${composerInset}px` } as CSSProperties}
+      >
         <header className={styles.roomHeader}>
           <div className={styles.headerTop}>
             <div>
@@ -2085,7 +2111,8 @@ function TeamRoomSession() {
             <details
               id={`match-card-${pinnedMessage.id}`}
               className={`${styles.matchPlanMessage} ${pinnedMessage.id === focusedMessageId ? styles.matchPlanMessageFocused : ''}`}
-              open={pinnedMessage.id === focusedMessageId}
+              open={expandedMatchPlanId === pinnedMessage.id}
+              onToggle={(event) => setExpandedMatchPlanId(event.currentTarget.open ? pinnedMessage.id : '')}
               tabIndex={pinnedMessage.id === focusedMessageId ? -1 : undefined}
             >
               <summary>
@@ -2200,7 +2227,9 @@ function TeamRoomSession() {
                   </div>
                 ) : (
                   <>
-                    <div className={`${styles.bubble} ${message.deletedAt ? styles.bubbleDeleted : ''}`}>{message.body}</div>
+                    <div className={`${styles.bubble} ${message.deletedAt ? styles.bubbleDeleted : ''}`}>
+                      <MessageBody body={message.body} />
+                    </div>
                     {message.attachment?.url ? (
                       <a className={styles.attachmentCard} href={message.attachment.url} target="_blank" rel="noreferrer">
                         {message.attachment.mimeType.startsWith('image/') ? (
@@ -2244,7 +2273,7 @@ function TeamRoomSession() {
           <div ref={endRef} />
         </div>
 
-        <div className={styles.composer} aria-label="Team Chat message composer">
+        <div ref={composerShellRef} className={styles.composer} aria-label="Team Chat message composer">
           <div className={styles.composerHeading}>
             <strong>Team Chat</strong>
             <span>Reply to the team</span>
@@ -2347,6 +2376,14 @@ function TeamRoomSession() {
       ) : null}
     </main>
   )
+}
+
+function MessageBody({ body }: { body: string }) {
+  return tokenizeTeamRoomMessageBody(body).map((segment, index) => segment.href ? (
+    <a key={`${segment.href}-${index}`} href={segment.href} target="_blank" rel="noreferrer">
+      {segment.text}
+    </a>
+  ) : <span key={`text-${index}`}>{segment.text}</span>)
 }
 
 function PublishedLineupPin({
