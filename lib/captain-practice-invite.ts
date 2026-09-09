@@ -29,6 +29,7 @@ export function buildCaptainPracticeInviteText(input: {
   scheduledTime?: string | null
   facility?: string | null
   practiceFocus?: string | null
+  capacity?: number | null
   responseUrl: string
 }) {
   const when = [
@@ -39,6 +40,7 @@ export function buildCaptainPracticeInviteText(input: {
     `${cleanText(input.teamName) || 'Team'} practice`,
     when,
     cleanText(input.facility) ? `Where: ${cleanText(input.facility)}` : '',
+    input.capacity ? `Spots: ${input.capacity} (waitlist opens when full)` : '',
     cleanText(input.practiceFocus) ? `Focus: ${cleanText(input.practiceFocus)}` : '',
   ].filter(Boolean)
   return `${details.join('\n')}\n\nRSVP In, Out, or Maybe and see who's coming: ${input.responseUrl}`

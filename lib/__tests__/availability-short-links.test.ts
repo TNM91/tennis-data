@@ -10,10 +10,9 @@ import nextConfig from '../../next.config'
 const token = '00112233-4455-4677-8899-aabbccddeeff'
 const code = 'ABEiM0RVRneImaq7zN3u_w'
 describe('short personal availability links', () => {
-  it('overrides the global referrer policy for both short routes in production', async () => {
+  it('overrides the global referrer policy for every bearer short route in production', async () => {
     const rules = await nextConfig.headers!()
-    for (const path of ['/a/:path*', '/s']) {
-      expect(rules.at(-1)?.source === path || rules.at(-2)?.source === path).toBe(true)
+    for (const path of ['/a/:path*', '/pr/:path*', '/s']) {
       expect(rules.find(rule => rule.source === path)?.headers).toContainEqual({ key: 'Referrer-Policy', value: 'no-referrer' })
     }
   })

@@ -9,6 +9,7 @@ import {
   type InternalIdentity,
 } from '@/lib/internal-messages'
 import { safeText, normalizeTeamName } from '@/lib/captain-formatters'
+import { assignPracticeDisplayStatuses, normalizePracticeName, type PracticeDisplayStatus } from '@/lib/captain-practice-rsvp'
 import { supabase } from '@/lib/supabase'
 import {
   saveTiqLeagueScheduleItem,
@@ -80,6 +81,31 @@ type RosterRow = {
   team_name?: string | null
   league_name?: string | null
   flight?: string | null
+}
+
+type CaptainPracticeInviteRow = {
+  id?: string | null
+  public_token?: string | null
+  capacity?: number | null
+}
+
+type CaptainPracticeInviteeRow = {
+  id?: string | null
+  player_name?: string | null
+  response_status?: InternalScheduleResponseStatus | null
+  responded_at?: string | null
+}
+
+export type CaptainPracticeRosterOverview = {
+  publicToken: string
+  capacity: number | null
+  roster: Array<{
+    id: string
+    playerName: string
+    responseStatus: InternalScheduleResponseStatus
+    displayStatus: PracticeDisplayStatus
+    respondedAt: string
+  }>
 }
 
 type DirectoryRosterRow = {
@@ -362,6 +388,7 @@ export async function createCaptainPracticeThread(input: {
   facility?: string | null
   recurrenceRule?: string | null
   notes?: string | null
+  capacity?: number | null
 }) {
   const identity = await getInternalIdentity()
   if (!identity) throw new Error('Sign in to schedule practice through Messages.')
@@ -380,6 +407,7 @@ export async function createCaptainPracticeThread(input: {
     input.facility ? `Site: ${input.facility}` : '',
     input.recurrenceRule ? `Repeats: ${input.recurrenceRule}` : '',
     input.notes ? `Notes: ${input.notes}` : '',
+    input.capacity ? `Spots: ${input.capacity}` : '',
     '',
     'Please mark In, Out, or Maybe so the captain knows who can make it.',
   ].filter(Boolean).join('\n')
@@ -402,6 +430,7 @@ export async function createCaptainPracticeThread(input: {
       scheduleTime: input.scheduledTime || '',
       facility: input.facility || '',
       recurrenceRule: input.recurrenceRule || '',
+      capacity: input.capacity ? String(input.capacity) : '',
     },
   })
 
@@ -420,15 +449,157 @@ export async function createCaptainPracticeThread(input: {
       teamName: input.teamName,
       leagueName: input.leagueName || '',
       flight: input.flight || '',
+      practiceNotes: input.notes || '',
+      capacity: input.capacity ? String(input.capacity) : '',
     },
     participantProfileIds,
   })
 
+  const invite = await createCaptainPracticeInvite({
+    eventId: event.id,
+    identity,
+    roster: filteredRows,
+    teamName: input.teamName,
+    leagueName: input.leagueName,
+    flight: input.flight,
+    capacity: input.capacity,
+  })
+
+  const eventWithInvite = {
+    ...event,
+    metadata: {
+      ...event.metadata,
+      publicToken: invite.publicToken,
+    },
+  }
+  await supabase
+    .from('internal_schedule_events')
+    .update({ metadata: eventWithInvite.metadata })
+    .eq('id', event.id)
+
   return {
     conversationId,
-    event,
+    event: eventWithInvite,
+    publicToken: invite.publicToken,
     rosterCount: filteredRows.length,
     linkedParticipantCount: participantProfileIds.length,
+  }
+}
+
+async function createCaptainPracticeInvite(input: {
+  eventId: string
+  identity: InternalIdentity
+  roster: RosterRow[]
+  teamName: string
+  leagueName?: string | null
+  flight?: string | null
+  capacity?: number | null
+}) {
+  const capacity = input.capacity && input.capacity > 0 ? Math.min(100, Math.round(input.capacity)) : null
+  const { data, error } = await supabase
+    .from('captain_practice_invites')
+    .insert({
+      event_id: input.eventId,
+      capacity,
+      created_by_user_id: input.identity.userId,
+    })
+    .select('id,public_token,capacity')
+    .single()
+  if (error) throw new Error(`Practice RSVP link could not be created: ${error.message}`)
+  const invite = data as CaptainPracticeInviteRow
+  const inviteId = cleanText(invite.id)
+  const publicToken = cleanText(invite.public_token)
+  if (!inviteId || !publicToken) throw new Error('Practice RSVP link could not be created.')
+
+  const playerIds = Array.from(new Set(input.roster.map((row) => cleanText(row.player_id)).filter(Boolean)))
+  const profileByPlayerId = new Map<string, string>()
+  if (playerIds.length) {
+    const directoryResult = await supabase
+      .from('internal_message_directory')
+      .select('id,linked_player_id')
+      .in('linked_player_id', playerIds)
+    for (const row of (directoryResult.data ?? []) as DirectoryRosterRow[]) {
+      const playerId = cleanText(row.linked_player_id)
+      const profileId = cleanText(row.id)
+      if (playerId && profileId) profileByPlayerId.set(playerId, profileId)
+    }
+  }
+
+  const contactResult = await supabase
+    .from('captain_roster_contacts')
+    .select('full_name,normalized_name,phone,league_name,flight')
+    .eq('captain_user_id', input.identity.userId)
+    .eq('normalized_team_name', normalizeTeamName(input.teamName))
+    .limit(250)
+  const scopedContacts = ((contactResult.data ?? []) as Array<{
+    full_name?: string | null
+    normalized_name?: string | null
+    phone?: string | null
+    league_name?: string | null
+    flight?: string | null
+  }>).filter((contact) => {
+    if (input.leagueName && cleanText(contact.league_name) && cleanText(contact.league_name) !== input.leagueName) return false
+    if (input.flight && cleanText(contact.flight) && cleanText(contact.flight) !== input.flight) return false
+    return true
+  })
+  const phoneByName = new Map(scopedContacts.map((contact) => [
+    normalizePracticeName(contact.normalized_name || contact.full_name),
+    cleanText(contact.phone),
+  ]))
+  const inviteesByName = new Map(input.roster
+    .map((row) => {
+      const playerName = cleanText(row.player_name)
+      const normalizedName = normalizePracticeName(playerName)
+      const playerId = cleanText(row.player_id)
+      const profileId = profileByPlayerId.get(playerId) || null
+      return [normalizedName, {
+        invite_id: inviteId,
+        event_id: input.eventId,
+        player_id: playerId,
+        profile_id: profileId,
+        player_name: playerName,
+        normalized_name: normalizedName,
+        phone: phoneByName.get(normalizedName) || '',
+        response_status: profileId === input.identity.userId ? 'in' : 'unanswered',
+        responded_at: profileId === input.identity.userId ? new Date().toISOString() : null,
+      }] as const
+    })
+    .filter(([normalizedName, row]) => Boolean(normalizedName && row.player_name)))
+  const invitees = Array.from(inviteesByName.values())
+  if (invitees.length) {
+    const inviteeResult = await supabase.from('captain_practice_invitees').insert(invitees)
+    if (inviteeResult.error) throw new Error(`Practice roster could not be opened: ${inviteeResult.error.message}`)
+  }
+  return { id: inviteId, publicToken, capacity }
+}
+
+export async function listCaptainPracticeRoster(eventId: string): Promise<CaptainPracticeRosterOverview | null> {
+  const { data, error } = await supabase
+    .from('captain_practice_invites')
+    .select('id,public_token,capacity')
+    .eq('event_id', eventId)
+    .maybeSingle()
+  if (error || !data) return null
+  const invite = data as CaptainPracticeInviteRow
+  const { data: rows, error: rosterError } = await supabase
+    .from('captain_practice_invitees')
+    .select('id,player_name,response_status,responded_at')
+    .eq('invite_id', cleanText(invite.id))
+    .order('player_name', { ascending: true })
+  if (rosterError) return null
+  const roster = assignPracticeDisplayStatuses(
+    ((rows ?? []) as CaptainPracticeInviteeRow[]).map((row) => ({
+      id: cleanText(row.id),
+      playerName: cleanText(row.player_name),
+      responseStatus: normalizeResponseStatus(row.response_status),
+      respondedAt: cleanText(row.responded_at),
+    })),
+    typeof invite.capacity === 'number' ? invite.capacity : null,
+  )
+  return {
+    publicToken: cleanText(invite.public_token),
+    capacity: typeof invite.capacity === 'number' ? invite.capacity : null,
+    roster,
   }
 }
 
@@ -538,6 +709,16 @@ export async function saveInternalScheduleResponse(input: {
     }, { onConflict: 'event_id,profile_id' })
 
   if (error) throw new Error(error.message)
+
+  await supabase
+    .from('captain_practice_invitees')
+    .update({
+      response_status: input.responseStatus,
+      note: input.note || '',
+      responded_at: new Date().toISOString(),
+    })
+    .eq('profile_id', input.profileId)
+    .eq('event_id', input.eventId)
 
   if (input.conversationId) {
     const label = input.responseStatus === 'in' ? 'In' : input.responseStatus === 'out' ? 'Out' : input.responseStatus === 'maybe' ? 'Maybe' : 'Unanswered'
