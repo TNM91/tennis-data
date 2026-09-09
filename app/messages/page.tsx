@@ -2899,11 +2899,16 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
               </div>
 
               <div style={rsvpSummaryStyle(isMobile)}>
-                {(['in', 'maybe', 'out', 'unanswered'] as InternalScheduleResponseStatus[]).map((status) => (
+                {(selectedScheduleEvent?.eventType === 'captain_practice'
+                  ? (['in', 'waitlist', 'maybe', 'out', 'unanswered'] as PracticeDisplayStatus[])
+                  : (['in', 'maybe', 'out', 'unanswered'] as PracticeDisplayStatus[])
+                ).map((status) => (
                   <div key={status} style={rsvpStatStyle}>
                     <strong>{practiceRosterOverview && selectedScheduleEvent?.eventType === 'captain_practice'
                       ? practiceRosterGroups.get(status as PracticeDisplayStatus)?.length || 0
-                      : selectedScheduleResponses.filter((response) => response.responseStatus === status).length}</strong>
+                      : selectedScheduleResponses.filter(
+                        (response) => response.responseStatus === (status as InternalScheduleResponseStatus),
+                      ).length}</strong>
                     <span>{status === 'in' ? 'In' : status === 'waitlist' ? 'Waitlist' : status === 'out' ? 'Out' : status === 'maybe' ? 'Maybe' : 'Waiting'}</span>
                   </div>
                 ))}
