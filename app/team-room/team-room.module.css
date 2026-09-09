@@ -34,6 +34,50 @@
   background: color-mix(in srgb, var(--shell-chip-bg-strong) 88%, transparent);
 }
 
+.mobileRoomControls {
+  display: none;
+}
+
+.mobileRoomMenu {
+  min-width: 0;
+}
+
+.mobileRoomMenu > summary {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 999px;
+  background: var(--shell-chip-bg);
+  color: var(--foreground);
+  padding: 0 12px;
+  font-size: 0.76rem;
+  font-weight: 900;
+  cursor: pointer;
+  list-style: none;
+}
+
+.mobileRoomMenu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.mobileRoomMenuBody {
+  display: grid;
+  gap: 10px;
+  margin-top: 9px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 14px;
+  background: var(--shell-chip-bg-strong);
+  padding: 10px;
+}
+
+.mobileRoomMenuActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
 .headerTop,
 .roomActions,
 .memberSummary,
@@ -2842,6 +2886,11 @@
   white-space: nowrap;
 }
 
+.composerContext button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .composerContext strong {
   color: var(--foreground);
 }
@@ -3014,8 +3063,46 @@
   }
 
   .roomHeader {
-    gap: 10px;
-    padding: 11px 12px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .mobileRoomControls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-column: 1;
+  }
+
+  .roomHeader > .installHint {
+    grid-column: 2;
+    width: auto;
+  }
+
+  .roomHeader > :is(.notice, .error) {
+    grid-column: 1 / -1;
+  }
+
+  .mobileRoomMenu > summary {
+    min-height: 36px;
+    padding: 0 11px;
+    font-size: 0.74rem;
+  }
+
+  .mobileRoomMenu > summary {
+    width: 100%;
+  }
+
+  .mobileRoomMenuActions > :is(button, a) {
+    min-height: 38px;
+    padding: 0 9px;
+    font-size: 0.72rem;
+  }
+
+  .headerTop,
+  .roomHeader > .teamSwitcher,
+  .memberSummary {
+    display: none;
   }
 
   .roomHeader h1 {
@@ -3058,12 +3145,35 @@
   }
 
   .messages {
-    height: 54dvh;
+    height: calc(100dvh - 112px);
     min-height: 300px;
     padding: 17px 13px var(--team-room-composer-inset, 224px);
   }
 
-  .composer { width: 100vw; }
+  .composer {
+    width: 100vw;
+    gap: 7px;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .composerHeading {
+    display: none;
+  }
+
+  .composerHeading strong {
+    font-size: 0.84rem;
+  }
+
+  .composerHeading span {
+    font-size: 0.76rem;
+  }
+
+  .composer textarea {
+    min-height: 44px;
+    max-height: 104px;
+    padding: 10px 12px;
+    resize: none;
+  }
 
   .bubble {
     max-width: 88%;
@@ -3112,15 +3222,75 @@
   }
 
   .composerActions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
     align-items: stretch;
   }
 
   .composerOptions {
     flex: 1 1 auto;
+    flex-wrap: nowrap;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .composerOptions .buttonSecondary,
+  .composerActions > .buttonPrimary {
+    min-height: 40px;
+    padding: 0 11px;
+    font-size: 0.8rem;
+  }
+
+  .announcementToggle {
+    gap: 5px;
+    min-width: 0;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .announcementToggle input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
   }
 
   .quickActions {
+    flex-wrap: nowrap;
+    gap: 7px;
     overflow-x: visible;
+  }
+
+  .quickMessageTemplatesBody {
+    right: auto;
+    bottom: calc(100% + 10px);
+    left: 0;
+    width: min(286px, calc(100vw - 24px));
+    max-height: min(42dvh, 320px);
+    overflow-y: auto;
+    border-radius: 18px;
+    padding: 10px;
+    box-shadow: 0 -18px 42px rgba(1, 8, 20, 0.5);
+  }
+
+  .matchPlanMessage summary {
+    min-height: 58px;
+    padding: 9px 11px;
+  }
+
+  .matchPlanMessage summary strong {
+    font-size: 0.88rem;
+  }
+
+  .matchPlanMessage summary em {
+    font-size: 0.68rem;
+  }
+
+  .quickButtonPrimary,
+  .quickMessageTemplatesSummary {
+    min-height: 36px;
+    padding: 0 11px;
+    font-size: 0.78rem;
   }
 
   .browserAlertButton {

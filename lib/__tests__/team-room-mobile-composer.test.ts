@@ -9,6 +9,7 @@ describe('Team Room mobile composer', () => {
   it('keeps the captain availability action visible while folding optional message templates into a compact menu', () => {
     expect(page).toContain('aria-label="Quick team messages"')
     expect(page).toContain("{hasActiveAvailability ? 'Review availability' : 'Ask availability'}")
+    expect(page).toContain('<Link className={styles.quickButton} href={practiceHref}>Plan practice</Link>')
     expect(page).toContain('<details className={styles.quickMessageTemplates}>')
     expect(page).toContain('<summary className={styles.quickMessageTemplatesSummary}>')
     expect(page).toContain('Quick notes')
@@ -26,6 +27,7 @@ describe('Team Room mobile composer', () => {
     expect(page).toContain('className={styles.matchDayTravelActions}')
     expect(page).toContain('aria-label="Team Chat message composer"')
     expect(page).toContain('Reply to the team')
+    expect(page).toContain('rows={1}')
     expect(styles).toContain('.matchDayTravelActions')
     expect(styles).toContain('position: fixed;')
     expect(styles).toContain('height: min(58dvh, 620px);')
@@ -33,6 +35,20 @@ describe('Team Room mobile composer', () => {
     expect(page).toContain("'--team-room-composer-inset': `${composerInset}px`")
     expect(page).toContain('ref={composerShellRef}')
     expect(styles).toContain('scroll-padding-bottom: var(--team-room-composer-inset, 224px);')
+    expect(styles).toContain('grid-template-columns: minmax(0, 1fr) auto;')
+    expect(styles).toContain('min-height: 44px;')
+    expect(page).toContain('onClick={() => setReplyTo(null)}>Close</button>')
+    expect(styles).toContain('white-space: nowrap;')
+  })
+
+  it('keeps the mobile opening chat-first and moves secondary room controls into one compact menu', () => {
+    expect(page).toContain('className={styles.mobileRoomControls}')
+    expect(page).toContain('className={styles.mobileRoomMenu}')
+    expect(page).toContain('<summary>Team options</summary>')
+    expect(page).toContain("room.teamLogoUrl ? 'Change logo' : 'Add team logo'")
+    expect(styles).toContain('.mobileRoomMenuBody')
+    expect(styles).toContain('.headerTop,')
+    expect(styles).toContain('height: calc(100dvh - 112px);')
   })
 
   it('keeps Home Screen guidance compact in the chat header instead of below the conversation', () => {
@@ -53,6 +69,7 @@ describe('Team Room mobile composer', () => {
     expect(styles).toContain('.matchPlanMessage')
     expect(styles).toContain('.matchPlanMessage[open]')
     expect(styles).toContain('overflow-wrap: anywhere;')
+    expect(page).toContain('open={defaultOpen ?? Boolean(result)}')
   })
 
   it('shows a team mark beside the approved iQ mark without exposing account roles', () => {

@@ -21,10 +21,12 @@ describe('team home cards', () => {
     expect(html).not.toContain('6:00')
   })
   it('exposes captain tools only when supplied and preserves the exact handoff', () => {
-    const html = renderToStaticMarkup(<TeamHomeCard {...base} availabilityHref={`${base.teamHref}#team-availability`} lineupHref="/captain/lineup-builder?team=Aces&layer=usta" />)
+    const html = renderToStaticMarkup(<TeamHomeCard {...base} availabilityHref={`${base.teamHref}#team-availability`} lineupHref="/captain/lineup-builder?team=Aces&layer=usta" practiceHref="/captain/practice?team=Aces&layer=usta" />)
     expect(html).toContain('Season availability')
     expect(html).toContain('#team-availability')
     expect(html).toContain('/captain/lineup-builder?team=Aces&amp;layer=usta')
+    expect(html).toContain('/captain/practice?team=Aces&amp;layer=usta')
+    expect(html).toContain('Plan practice')
   })
   it('shows a compact resumable lineup with real progress and final-state copy', () => {
     const working = renderToStaticMarkup(<TeamHomeCard {...base} lineupHref="/captain/lineup-builder?team=Aces" lineupContinuation={{

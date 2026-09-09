@@ -89,10 +89,14 @@
 .tieBreakLabel i { display: none; font-style: normal; }
 .scoreGridRow { min-height: 42px; background: #fff; }
 .scoreGridRow + .scoreGridRow { border-top: 1px solid #d8e2e9; }
-.scoreGridRow strong, .scoreGridRow i { display: grid; place-items: center; border-right: 1px solid #d8e2e9; }
+.scoreGridRow > strong, .scoreGridRow > i { display: grid; min-width: 0; min-height: 100%; place-items: center; border-right: 1px solid #9cabb8; background-color: #fff; }
 .scoreGridRow strong { padding: 5px 8px; color: #173b61; font-size: .77rem; font-weight: 900; letter-spacing: .01em; line-height: 1.18; text-align: left; }
-.scoreGridRow i:last-child { border-right: 0; }
-.scoreGridRow .opponentPlayerBlank { position: relative; min-height: 100%; padding: 0; background: linear-gradient(transparent 62%, #aab7c1 63%, #aab7c1 65%, transparent 66%); }
+.scoreGridRow > :last-child { border-right: 0; }
+.scoreGridRow .opponentPlayerBlank { display: grid; min-height: 100%; padding: 0; background: #fff; }
+.opponentPlayerBlank > span { display: block; min-height: 100%; }
+.opponentPlayerBlank[data-player-slots='2'] { grid-template-rows: repeat(2, minmax(0, 1fr)); }
+.opponentPlayerBlank[data-player-slots='2'] > span + span { border-top: 1px solid #aab7c1; }
+.court[data-player-format='doubles'] .scoreGridRow:last-child { min-height: 50px; }
 
 .emptyState { padding: 36px 28px; border: 1px dashed #aebdca; border-radius: 12px; color: #526171; text-align: center; }
 .sheetFooter { display: flex; justify-content: space-between; align-items: center; gap: 22px; padding: 17px 32px; background: #08213c; color: #dce9f2; }
@@ -173,11 +177,13 @@
   .scoreGridHead { font-size: .49rem; letter-spacing: .06em; }
   .scoreGridHead > span { min-height: 19px; padding: 2px 4px; }
   .scoreGridRow { min-height: 24px; }
+  .court[data-player-format='doubles'] .scoreGridRow:last-child { min-height: 31px; }
   .scoreGridRow strong { padding: 3px 5px; font-size: .58rem; letter-spacing: 0; }
   .sheetFooter { gap: 12px; padding: 7px 18px; }
   .sheetFooter strong { font-size: .54rem; }
   .sheetFooter span { font-size: .59rem; }
   .denseSheet .courts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .denseSheet .court:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .denseSheet .court { padding: 7px 8px; }
   .sheet, .sheetHeader, .instructions, .sheetFooter, .scoreGridHead { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

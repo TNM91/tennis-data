@@ -66,6 +66,73 @@ final result: passed
 
 ---
 
+# Format-aware captain scorecard and practice RSVP QA
+
+- Target viewport: 390 x 844 CSS pixels in the authenticated captain experience.
+- Routes checked: `/compete/teams`, `/captain/practice`, `/team-room`, and `/captain/matchup-sheet`.
+- Print artifact checked: `output/pdf/tenaceiq-captain-scorecard-preview.pdf` at US Letter portrait.
+
+## Findings
+
+No actionable P0/P1/P2 issue remains in the implemented scope.
+
+- Scorecards now infer the season shape from the saved lineup and league labels. Regular, doubles-only, mixed, and rating-based Tri-Level formats retain their exact court labels.
+- Singles opponent rows provide one uninterrupted handwriting area. Doubles opponent rows provide two distinct name slots.
+- The printed scorecard is one page, uses the approved TenAceIQ logo, and keeps all court and score borders visible.
+- Captain team cards and Team Chat expose a compact `Plan practice` action with the selected team already scoped.
+- The mobile practice form keeps setup fields readable, reviews the final invite in a drawer, posts to Team Chat, and prepares a group-text link.
+- Practice replies are grouped by In, Maybe, Out, and Waiting, with player names visible to the team.
+- Browser console review showed no page errors or warnings beyond the normal development-runtime messages.
+
+## Interaction notes
+
+- A sample practice was prepared through the review step only. The final send action was intentionally not submitted during QA so no real team message or RSVP thread was created.
+- Team Chat loaded the scoped `Plan practice` shortcut after the existing room data resolved.
+
+final result: passed
+
+---
+
+# Team Chat, final-lineup delivery, and scorecard print QA
+
+- Source visual truth: `C:\Users\nmein\.codex\visualizations\2026\09\01\01a05eb9-7774-7440-9217-9154c15d360d\team-chat-audit\01-room-current-viewport.jpg` plus the reported scorecard border defect.
+- Browser-rendered Team Chat implementation: `tmp/design-qa/team-chat-after.png`.
+- Browser-rendered scorecard detail: `tmp/design-qa/scorecard-borders-after.png`.
+- Combined Team Chat comparison: `tmp/design-qa/team-chat-comparison.png`.
+- One-page PDF proof: `output/pdf/tenaceiq-captain-scorecard-preview.pdf` with Poppler render at `tmp/pdfs/rendered/scorecard.png`.
+- Viewport and state: 390 x 844 CSS viewport override, authenticated captain, dark Team Chat, current confirmed five-court lineup. In-app browser captures were 375 x 750 pixels at 1x after browser chrome; the side-by-side comparison normalizes both content captures to 390 x 844.
+
+## Findings
+
+No actionable P0/P1/P2 differences remain for the requested mobile workflow.
+
+- Fonts and typography: the condensed mobile header, match strip, quick actions, reply context, and score headers remain readable without letter-by-letter wrapping. The reply close action stays on one line.
+- Spacing and layout rhythm: secondary room controls now live behind one compact Team options disclosure; the confirmed match plan is collapsed by default; the composer stays fixed and compact while messages scroll behind its measured inset.
+- Colors and visual tokens: existing TenAceIQ navy, lime, blue, and semantic status tokens are preserved across chat, the scorecard, and the PDF proof.
+- Image and asset fidelity: only approved `public/brand/` logo assets are used. No logo, navigation icon, or product mark was redrawn or filtered.
+- Copy and content: the final-lineup state now exposes the three captain outcomes directly: Post to Team Chat, Create image + text team, and Print lineup / scorecard.
+
+## Comparison history
+
+1. Earlier P1: the room header consumed most of the first mobile screen. The implementation keeps team identity and Members in the app bar, moves secondary controls into Team options, and places the latest conversation immediately below a compact match strip.
+2. Earlier P1: the pinned confirmed lineup opened as a large card and displaced the conversation. It now opens collapsed unless a final result or explicit focus requires expansion.
+3. Earlier P2: Quick notes and reply controls competed with the composer. Quick notes now open as a bounded, scrollable sheet above the dock, and Close remains a stable one-line action.
+4. Reported P1: opponent score cells lost visible borders in print. Both the screen print stylesheet and popup scorecard HTML now draw explicit grid borders on every opponent score cell. The rendered PDF proof is one US Letter page and preserves all opponent-row borders.
+
+## Interaction and runtime checks
+
+- Opened and closed Team options.
+- Opened the Quick notes sheet.
+- Entered reply mode and verified the Close action remains aligned.
+- Verified the confirmed match strip is collapsed by default and expandable.
+- Verified the matchup sheet loads five saved courts and renders every score column border at phone width.
+- Browser console errors and warnings: none.
+- Focused browser regions were used because the score-grid border and composer controls are too small to judge reliably from only the full-page comparison.
+
+final result: passed
+
+---
+
 # Desktop and tablet watermark visual QA
 
 Final result: **passed**
@@ -165,3 +232,31 @@ The local Next development server was available at `http://localhost:3000`, but 
 Capture a public `/teams/[team]` page at 390 × 844 with completed results and compare the header, metrics, format split, latest-result row, and Captain teaser against the source visual. Resolve any P0/P1/P2 responsive or hierarchy differences before visual approval.
 
 final result: blocked
+
+---
+
+# Mobile Team Chat and live scorecard formatting QA
+
+- Source visual truth: `C:\Users\nmein\.codex\codex-remote-attachments\01a05eb9-7774-7440-9217-9154c15d360d\65EE78AB-E0CB-4AA3-B843-6C6D21759D02\1-Photo-1.jpg` and `2-Photo-2.jpg`.
+- Rendered implementation: `C:\Users\nmein\.codex\visualizations\2026\09\01\01a05eb9-7774-7440-9217-9154c15d360d\team-chat-composer-mobile-after.jpg` and `scorecard-mobile-after.jpg`.
+- Viewport and state: 390 x 844 CSS pixels, 1x browser capture, dark theme, compact Team Chat composer and captain live-scorecard entry.
+- Pixel normalization: source captures are 591 x 1280 device screenshots; Team Chat implementation is 390 x 844; full scorecard implementation is 375 x 2510. Matching content regions were compared, excluding browser chrome and density-only differences.
+
+## Findings
+
+No actionable P0/P1/P2 differences remain for the reported defects.
+
+- Fonts and typography: scorecard labels no longer break letter-by-letter; composer labels remain legible at phone width.
+- Spacing and layout rhythm: the scorecard title and actions use separate mobile rows; the fixed composer is a compact 186px footer instead of covering roughly half the screen.
+- Colors and tokens: existing TenAceIQ dark, blue, and green tokens remain unchanged.
+- Image and asset fidelity: no logos or imagery were replaced, redrawn, filtered, or degraded.
+- Copy and content: existing task labels and actions are preserved.
+
+## Comparison history
+
+1. Initial P1: live-scorecard court headings were compressed beside the action buttons. The court heading now stacks above a full-width action grid; post-fix evidence shows complete `MATCH LINE` and `Doubles 1` labels.
+2. Initial P1: the fixed Team Chat composer obscured too much recent conversation. A one-row textarea, tighter padding, compact quick actions, and a two-column action row reduce the footer while keeping every action visible.
+
+Focused region comparisons were required because both defects were localized UI failures. The source and implementation regions were opened together and checked for wrapping, control visibility, overlap, hierarchy, and touch sizing. No residual P0/P1/P2 issue was found.
+
+final result: passed

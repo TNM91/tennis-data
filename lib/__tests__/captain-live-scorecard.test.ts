@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 const sheet = readFileSync(join(process.cwd(), 'app', 'captain', 'matchup-sheet', 'page.tsx'), 'utf8')
 const sheetStyles = readFileSync(join(process.cwd(), 'app', 'captain', 'matchup-sheet', 'matchup-sheet.module.css'), 'utf8')
 const liveScorecard = readFileSync(join(process.cwd(), 'app', 'captain', 'record-result', 'page.tsx'), 'utf8')
+const liveScorecardStyles = readFileSync(join(process.cwd(), 'app', 'captain', 'record-result', 'record-result.module.css'), 'utf8')
 const rosterRoute = readFileSync(join(process.cwd(), 'app', 'api', 'captain', 'lineup-builder', 'route.ts'), 'utf8')
 
 describe('Captain live scorecard', () => {
@@ -56,6 +57,9 @@ describe('Captain live scorecard', () => {
     expect(liveScorecard).toContain('aria-expanded={isOpen}')
     expect(liveScorecard).toContain("{isOpen ? 'Done for now' : 'Enter result'}")
     expect(liveScorecard).toContain('function isCourtEntryComplete(court: CourtDraft)')
+    expect(liveScorecardStyles).toContain('.courtTitleActions .courtPending')
+    expect(liveScorecardStyles).toContain('grid-column: 1 / -1;')
+    expect(liveScorecardStyles).toContain('.courtTitleActions .toggleCourt { width: 100%; }')
   })
 
   it('recovers an in-progress scorecard on the same device and clears it after save', () => {

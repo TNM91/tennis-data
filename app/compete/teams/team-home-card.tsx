@@ -9,7 +9,7 @@ export type TeamLineupContinuation = CaptainLineupDraftSummary & { href: string 
 
 export type TeamHomeCardProps = {
   name: string; league?: string | null; flight?: string | null; isDefault: boolean
-  teamHref: string; chatHref: string; lineupHref?: string; availabilityHref?: string
+  teamHref: string; chatHref: string; lineupHref?: string; availabilityHref?: string; practiceHref?: string
   nextMatch?: { date: string; opponent: string } | null
   historyCount?: number; syncing?: boolean
   availabilitySummary?: ReactNode
@@ -61,6 +61,7 @@ export default function TeamHomeCard(props: TeamHomeCardProps) {
     <nav className={styles.cardActions} aria-label={`${props.name} team tools`}>
       {props.lineupHref ? <Link className={styles.primaryAction} href={props.lineupHref}>{continuation ? continuation.status === 'final' ? 'Open final lineup' : lineupCourtsReady ? 'Review lineup' : 'Resume lineup' : 'Build lineup'} <span aria-hidden="true">→</span></Link> : null}
       {props.availabilityHref ? <Link href={props.availabilityHref} className={styles.availabilityAction}>Season availability</Link> : null}
+      {props.practiceHref ? <Link href={props.practiceHref} className={styles.practiceAction}>Plan practice</Link> : null}
       <Link className={props.lineupHref ? undefined : styles.primaryAction} href={props.teamHref} aria-label={`Open ${props.name} roster and schedule`}>Roster & schedule</Link>
       <Link href={props.chatHref}>Team Chat</Link>
       <Link className={props.lineupHref ? styles.calendarAction : undefined} href={`${props.teamHref}#team-schedule`}>Season calendar</Link>

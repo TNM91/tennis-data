@@ -2,6 +2,11 @@
 
 import Link from 'next/link'
 import { useEffect, useState, type CSSProperties } from 'react'
+import { useAuth } from '@/app/components/auth-provider'
+import {
+  buildCaptainPracticeInviteText,
+  buildCaptainPracticeSmsHref,
+} from '@/lib/captain-practice-invite'
 import {
   createCaptainPracticeThread,
   createTiqLeagueScheduleThread,
@@ -48,6 +53,7 @@ export default function ScheduleMessageComposer({
   defaultFacility?: string
   defaultNotes?: string
 }) {
+  const { session } = useAuth()
   const [open, setOpen] = useState(false)
   const [scheduledDate, setScheduledDate] = useState(defaultDate)
   const [scheduledTime, setScheduledTime] = useState(defaultTime)
@@ -65,6 +71,11 @@ export default function ScheduleMessageComposer({
     unlinkedRosterNames: string[]
   } | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+  const [practiceDelivery, setPracticeDelivery] = useState<{
+    responseUrl: string
+    inviteText: string
+    postedToTeamChat: boolean
+  } | null>(null)
 
   useEffect(() => {
     if (!open) {
@@ -78,6 +89,7 @@ export default function ScheduleMessageComposer({
       setError('')
       setRecipientPreview(null)
       setPreviewLoading(false)
+      setPracticeDelivery(null)
     }
   }, [defaultDate, defaultFacility, defaultNotes, defaultTime, open])
 
@@ -144,16 +156,57 @@ export default function ScheduleMessageComposer({
           notes,
         })
         setConversationId(result.conversationId)
+        const responseUrl = `${window.location.origin}/messages?thread=${encodeURIComponent(result.conversationId)}#message-schedule-panel`
+        const inviteText = buildCaptainPracticeInviteText({
+          teamName,
+          scheduledDate,
+          scheduledTime,
+          facility,
+          practiceFocus: notes.replace(/Please mark In, Out, or Maybe[\s\S]*$/i, '').replace(/^Practice focus:\s*/i, '').trim(),
+          responseUrl,
+        })
+        let postedToTeamChat = false
+        if (session?.access_token) {
+          const teamRoomResponse = await fetch('/api/team-rooms', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              action: 'send',
+              teamName,
+              leagueName,
+              flight,
+              body: inviteText,
+              announcement: true,
+            }),
+          }).catch(() => null)
+          postedToTeamChat = Boolean(teamRoomResponse?.ok)
+        }
+        setPracticeDelivery({ responseUrl, inviteText, postedToTeamChat })
         setStatus(
-          result.linkedParticipantCount > 0
-            ? `Practice thread opened for ${result.linkedParticipantCount} linked player account${result.linkedParticipantCount === 1 ? '' : 's'}.`
-            : 'Practice thread opened. Link player profiles to capture individual RSVPs.',
+          postedToTeamChat
+            ? `Practice posted to Team Chat for ${result.linkedParticipantCount} linked player account${result.linkedParticipantCount === 1 ? '' : 's'}.`
+            : result.linkedParticipantCount > 0
+              ? `Practice RSVP opened for ${result.linkedParticipantCount} linked player account${result.linkedParticipantCount === 1 ? '' : 's'}. Share it with the team below.`
+              : 'Practice RSVP opened. Link player profiles to capture individual replies.',
         )
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Schedule could not be created.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function copyPracticeInvite() {
+    if (!practiceDelivery) return
+    try {
+      await navigator.clipboard.writeText(practiceDelivery.inviteText)
+      setStatus('Practice invite copied. Paste it into your group text.')
+    } catch {
+      setError('The invite could not be copied. Use Text group instead.')
     }
   }
 
@@ -251,14 +304,28 @@ export default function ScheduleMessageComposer({
                 disabled={saving || !scheduledDate}
                 style={{ ...primaryStyle, ...((saving || !scheduledDate) ? disabledStyle : {}) }}
               >
-                {saving ? 'Scheduling...' : 'Create schedule thread'}
+                {saving ? 'Sending...' : mode === 'captain-practice' ? 'Send practice invite' : 'Create schedule thread'}
               </button>
-              <Link href="/messages" style={secondaryStyle}>Open Messages</Link>
+              <Link href={conversationId ? `/messages?thread=${encodeURIComponent(conversationId)}#message-schedule-panel` : '/messages'} style={secondaryStyle}>
+                {conversationId ? 'Open RSVP roster' : 'Open Messages'}
+              </Link>
             </div>
 
             {status ? (
-              <div style={successStyle}>
-                {status} {conversationId ? <Link href={`/messages?thread=${encodeURIComponent(conversationId)}`} style={inlineLinkStyle}>View thread</Link> : null}
+              <div style={successStyle}>{status}</div>
+            ) : null}
+            {practiceDelivery ? (
+              <div style={deliveryPanelStyle} aria-label="Share practice invite">
+                <div style={deliveryHeaderStyle}>
+                  <span style={kickerStyle}>Practice ready</span>
+                  <strong>{practiceDelivery.postedToTeamChat ? 'Posted to Team Chat' : 'Ready to share'}</strong>
+                </div>
+                <div style={deliveryActionsStyle}>
+                  <Link href={`/messages?thread=${encodeURIComponent(conversationId)}#message-schedule-panel`} style={primaryStyle}>View RSVPs</Link>
+                  <a href={buildCaptainPracticeSmsHref(practiceDelivery.inviteText)} style={primaryStyle}>Text group</a>
+                  <button type="button" onClick={() => void copyPracticeInvite()} style={ghostActionStyle}>Copy invite</button>
+                </div>
+                <p style={deliveryHintStyle}>Players can answer In, Out, or Maybe and see the current practice roster.</p>
               </div>
             ) : null}
             {error ? <div style={errorStyle}>{error}</div> : null}
@@ -419,6 +486,9 @@ const actionRowStyle: CSSProperties = {
 }
 
 const primaryStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
   minHeight: 44,
   padding: '0 14px',
   borderRadius: 999,
@@ -426,6 +496,8 @@ const primaryStyle: CSSProperties = {
   background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
   color: 'var(--foreground-strong)',
   fontWeight: 950,
+  textAlign: 'center',
+  textDecoration: 'none',
   cursor: 'pointer',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
@@ -445,11 +517,6 @@ const secondaryStyle: CSSProperties = {
   textDecoration: 'none',
 }
 
-const inlineLinkStyle: CSSProperties = {
-  color: '#dffad5',
-  fontWeight: 950,
-}
-
 const successStyle: CSSProperties = {
   color: '#bbf7d0',
   fontSize: 13,
@@ -462,4 +529,40 @@ const errorStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.5,
   fontWeight: 900,
+}
+
+const deliveryPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.3)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(116,190,255,0.08))',
+}
+
+const deliveryHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  color: '#f8fbff',
+}
+
+const deliveryActionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))',
+  gap: 8,
+}
+
+const ghostActionStyle: CSSProperties = {
+  ...primaryStyle,
+  borderColor: 'rgba(116,190,255,0.22)',
+  background: 'rgba(7,17,33,0.7)',
+  color: '#dbeafe',
+}
+
+const deliveryHintStyle: CSSProperties = {
+  margin: 0,
+  color: '#cbd5e1',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 750,
 }

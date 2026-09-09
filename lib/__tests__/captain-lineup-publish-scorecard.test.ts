@@ -23,6 +23,20 @@ describe('Captain lineup publishing and scorecard handoff', () => {
     expect(sheet).toContain('Print one-page scorecard')
     expect(sheet).toContain('Capture completed scorecard')
     expect(sheet).toContain('This scorecard stays connected to the confirmed lineup and match.')
+    expect(sheet).toContain("const printRequested = searchParams.get('print') === '1'")
+    expect(sheet).toContain('window.setTimeout(() => window.print(), 240)')
+    expect(sheet).toContain('.row > strong, .row > i')
+    expect(sheet).toContain('border-right: 1px solid #718196')
+    expect(sheet).toContain('captainScorecardOpponentSlots')
+    expect(sheet).toContain('data-player-slots')
+    expect(sheet).toContain('inferCaptainScorecardFormat')
+  })
+
+  it('offers every final-lineup delivery action before leaving the builder', () => {
+    expect(builder).toContain("'Post to Team Chat'")
+    expect(builder).toContain('Create image + text team')
+    expect(builder).toContain('Print lineup / scorecard')
+    expect(builder).toContain('const lineupPrintHref = `${lineupImageHref}&print=1`')
   })
 
   it('opens the share and print card from the confirmed Team Room lineup', () => {

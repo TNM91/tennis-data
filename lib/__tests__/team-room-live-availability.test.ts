@@ -235,7 +235,7 @@ describe('Team Room live availability card', () => {
     expect(roomPage).toContain('<PublishedLineupPin')
     expect(roomPage).toContain('review={room.finalLineupReview}')
     expect(roomPage).toContain('pinnedMessage?.card && !pinnedMessage.card.finalLineup ? (')
-    expect(roomPage).toContain('open={defaultOpen ?? Boolean(result || receipt)}')
+    expect(roomPage).toContain('open={defaultOpen ?? Boolean(result)}')
     expect(roomPage).toContain("isMatchDay ? 'Match day' : 'Match plan'")
     expect(roomPage).toContain("isMatchDay ? 'Today' : 'Sent'")
     expect(roomPage).toContain("{' · Sent to team'}")
