@@ -2,8 +2,10 @@ import { getCaptainApiAuth } from '@/lib/captain-api-auth'
 import { cleanAvailabilityText, getCaptainAvailabilityServiceClient } from '@/lib/captain-availability-request-server'
 import {
   getCaptainLineupDraftScopeKey,
+  getCaptainTeamLineupFingerprint,
   readCaptainLineupBuilderDraft,
   type CaptainLineupBuilderDraft,
+  type CaptainLineupDeliveryState,
 } from '@/lib/captain-lineup-handoff'
 import { canManageTeamRoom, normalizeTeamRoomKey } from '@/lib/team-room'
 import { isCaptainLineupSummaryCurrent, summarizeCaptainLineupDraft } from '@/lib/captain-lineup-draft-summary'
@@ -12,7 +14,7 @@ import { todayDateKey } from '@/lib/team-room-match-flow'
 export const runtime = 'nodejs'
 export const maxDuration = 20
 
-type DraftRequest = { draft?: unknown }
+type DraftRequest = { draft?: unknown; preserveDelivery?: unknown }
 type DraftStatusRequest = {
   action?: unknown
   scope?: unknown
@@ -22,6 +24,8 @@ type DraftStatusRequest = {
   matchFormat?: unknown
   matchDetails?: unknown
   updatedAt?: unknown
+  deliveryStatus?: unknown
+  teamRoomMessageId?: unknown
 }
 
 function readScope(source: URLSearchParams | Record<string, unknown>) {
@@ -96,6 +100,14 @@ function toDraft(row: Record<string, unknown> | null): CaptainLineupBuilderDraft
   }))
 }
 
+function toDelivery(row: Record<string, unknown> | null): CaptainLineupDeliveryState {
+  return {
+    status: row?.delivery_status === 'sent' ? 'sent' : 'not_sent',
+    deliveredAt: cleanAvailabilityText(row?.delivered_at, 40),
+    teamRoomMessageId: cleanAvailabilityText(row?.team_room_message_id, 80),
+  }
+}
+
 function cleanMatchWeekDetails(value: unknown) {
   const source = value && typeof value === 'object' ? value as Record<string, unknown> : {}
   return {
@@ -159,7 +171,7 @@ export async function GET(request: Request) {
 
     const { data, error } = await service
       .from('captain_lineup_drafts')
-      .select('competition_layer,team_name,league_name,flight,match_date,opponent_team,slots_json,status,updated_at')
+      .select('competition_layer,team_name,league_name,flight,match_date,opponent_team,slots_json,status,delivery_status,delivered_at,updated_at')
       .eq('user_id', auth.userId)
       .order('updated_at', { ascending: false })
       .limit(100)
@@ -185,7 +197,7 @@ export async function GET(request: Request) {
     : ['', 'usta', 'tiq'].map((competitionLayer) => getCaptainLineupDraftScopeKey({ ...scope, competitionLayer }))
   let draftQuery = authorized.service
     .from('captain_lineup_drafts')
-    .select('competition_layer,team_name,league_name,flight,match_date,opponent_team,selected_match_id,match_format,scenario_id,scenario_name,notes,slots_json,opponent_slots_json,manual_roster_entries,match_location,match_directions,arrival_time,captain_notes,match_week_updated_at,updated_at')
+    .select('competition_layer,team_name,league_name,flight,match_date,opponent_team,selected_match_id,match_format,scenario_id,scenario_name,notes,slots_json,opponent_slots_json,manual_roster_entries,match_location,match_directions,arrival_time,captain_notes,match_week_updated_at,status,finalized_at,delivery_status,delivered_at,team_room_message_id,updated_at')
     .eq('user_id', authorized.auth.userId)
   draftQuery = scopeKeys.length === 1
     ? draftQuery.eq('scope_key', scopeKeys[0])
@@ -196,7 +208,8 @@ export async function GET(request: Request) {
     .maybeSingle()
   if (error) return Response.json({ ok: false, message: 'Your in-progress lineup could not be loaded.' }, { status: 500 })
 
-  return Response.json({ ok: true, draft: toDraft(data as Record<string, unknown> | null) }, {
+  const row = data as Record<string, unknown> | null
+  return Response.json({ ok: true, draft: toDraft(row), delivery: toDelivery(row) }, {
     headers: { 'Cache-Control': 'private, no-store' },
   })
 }
@@ -213,6 +226,19 @@ export async function PUT(request: Request) {
   if (authorized.auth.userId !== auth.userId) return Response.json({ ok: false, message: 'This lineup draft is not available.' }, { status: 403 })
 
   const scopeKey = getCaptainLineupDraftScopeKey(draft)
+  const { data: existingDraft, error: existingDraftError } = await authorized.service
+    .from('captain_lineup_drafts')
+    .select('slots_json,delivery_status')
+    .eq('user_id', auth.userId)
+    .eq('scope_key', scopeKey)
+    .maybeSingle()
+  if (existingDraftError) {
+    return Response.json({ ok: false, message: 'Your saved lineup could not be checked.' }, { status: 500 })
+  }
+  const preserveDelivery = body?.preserveDelivery === true || Boolean(
+    existingDraft?.delivery_status === 'sent'
+    && getCaptainTeamLineupFingerprint(existingDraft.slots_json) === getCaptainTeamLineupFingerprint(draft.teamSlots)
+  )
   const matchWeekUpdatedAt = draft.updatedAt || new Date().toISOString()
   const upsertRow: Record<string, unknown> = {
       user_id: auth.userId,
@@ -232,9 +258,14 @@ export async function PUT(request: Request) {
       opponent_slots_json: draft.opponentSlots,
       manual_roster_entries: draft.manualRosterEntries,
       match_week_updated_at: matchWeekUpdatedAt,
-      status: 'working',
-      finalized_at: null,
       updated_at: matchWeekUpdatedAt,
+  }
+  if (!preserveDelivery) {
+    upsertRow.status = 'working'
+    upsertRow.finalized_at = null
+    upsertRow.delivery_status = 'not_sent'
+    upsertRow.delivered_at = null
+    upsertRow.team_room_message_id = null
   }
   if (draft.matchDetails) {
     const details = cleanMatchWeekDetails(draft.matchDetails)
@@ -314,14 +345,39 @@ export async function PATCH(request: Request) {
   if (!authorized.ok) return authorized.response
 
   const finalizedAt = new Date().toISOString()
+  const deliveryStatus = body.deliveryStatus === 'sent' ? 'sent' : null
+  const teamRoomMessageId = deliveryStatus
+    ? cleanAvailabilityText(body.teamRoomMessageId, 80)
+    : ''
+  if (deliveryStatus && !teamRoomMessageId) {
+    return Response.json({ ok: false, message: 'The Team Chat receipt is missing.' }, { status: 400 })
+  }
+  const statusUpdate: Record<string, unknown> = {
+    status: 'final',
+    finalized_at: finalizedAt,
+    updated_at: finalizedAt,
+  }
+  if (deliveryStatus) {
+    statusUpdate.delivery_status = deliveryStatus
+    statusUpdate.delivered_at = finalizedAt
+    statusUpdate.team_room_message_id = teamRoomMessageId
+  }
   const { error } = await authorized.service
     .from('captain_lineup_drafts')
-    .update({ status: 'final', finalized_at: finalizedAt, updated_at: finalizedAt })
+    .update(statusUpdate)
     .eq('user_id', authorized.auth.userId)
     .eq('scope_key', getCaptainLineupDraftScopeKey(scope))
   if (error) return Response.json({ ok: false, message: 'This lineup could not be finalized.' }, { status: 500 })
 
-  return Response.json({ ok: true, finalizedAt })
+  return Response.json({
+    ok: true,
+    finalizedAt,
+    ...(deliveryStatus ? { delivery: {
+      status: deliveryStatus,
+      deliveredAt: finalizedAt,
+      teamRoomMessageId,
+    } } : {}),
+  })
 }
 
 export async function DELETE(request: Request) {

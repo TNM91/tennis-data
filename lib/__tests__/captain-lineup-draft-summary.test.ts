@@ -4,6 +4,7 @@ import {
   selectCaptainLineupSummaryForTeam,
   summarizeCaptainLineupDraft,
 } from '@/lib/captain-lineup-draft-summary'
+import { getCaptainLineupDraftFingerprint, type CaptainLineupBuilderDraft } from '@/lib/captain-lineup-handoff'
 
 const slots = [
   { id: 'court-1', players: [{ playerId: 'one', playerName: 'One' }, { playerId: 'two', playerName: 'Two' }] },
@@ -11,6 +12,18 @@ const slots = [
 ]
 
 describe('captain lineup draft summaries', () => {
+  it('keeps a sent receipt across unrelated hydration changes but invalidates a changed team court', () => {
+    const draft = {
+      competitionLayer: 'usta', leagueName: 'Fall League', flight: '4.0', teamName: 'Aces', opponentTeam: 'Volleys',
+      matchDate: '2026-09-14', selectedMatchId: '', matchFormat: 'auto', scenarioId: '', scenarioName: '', notes: '',
+      teamSlots: slots, opponentSlots: [], manualRosterEntries: [],
+    } satisfies CaptainLineupBuilderDraft
+    expect(getCaptainLineupDraftFingerprint({ ...draft, selectedMatchId: 'hydrated-match-id', opponentSlots: [{ id: 'opponent' }] }))
+      .toBe(getCaptainLineupDraftFingerprint(draft))
+    expect(getCaptainLineupDraftFingerprint({ ...draft, teamSlots: [{ id: 'court-1', players: [{ playerId: 'new-player' }] }] }))
+      .not.toBe(getCaptainLineupDraftFingerprint(draft))
+  })
+
   it('returns compact progress without exposing player identities', () => {
     const summary = summarizeCaptainLineupDraft({
       competition_layer: 'usta',
@@ -26,6 +39,25 @@ describe('captain lineup draft summaries', () => {
 
     expect(summary).toMatchObject({ assignedPlayers: 3, requiredPlayers: 4, completedCourts: 1, totalCourts: 2, status: 'working' })
     expect(JSON.stringify(summary)).not.toContain('Three')
+  })
+
+  it('keeps confirmed and sent as separate states', () => {
+    const confirmed = summarizeCaptainLineupDraft({
+      team_name: 'Aces',
+      slots_json: [{ players: [{ playerId: 'one' }] }],
+      status: 'final',
+      delivery_status: 'not_sent',
+    })
+    const sent = summarizeCaptainLineupDraft({
+      team_name: 'Aces',
+      slots_json: [{ players: [{ playerId: 'one' }] }],
+      status: 'final',
+      delivery_status: 'sent',
+      delivered_at: '2026-09-09T13:15:00Z',
+    })
+
+    expect(confirmed).toMatchObject({ status: 'final', deliveryStatus: 'not_sent', deliveredAt: '' })
+    expect(sent).toMatchObject({ status: 'final', deliveryStatus: 'sent', deliveredAt: '2026-09-09T13:15:00Z' })
   })
 
   it('only reports final when the server flag and court completion agree', () => {

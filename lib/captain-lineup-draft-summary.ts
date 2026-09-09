@@ -10,6 +10,8 @@ export type CaptainLineupDraftSummary = {
   completedCourts: number
   totalCourts: number
   status: 'working' | 'final'
+  deliveryStatus: 'not_sent' | 'sent'
+  deliveredAt: string
   updatedAt: string
 }
 
@@ -22,6 +24,8 @@ type CaptainLineupDraftSummaryRow = {
   opponent_team?: unknown
   slots_json?: unknown
   status?: unknown
+  delivery_status?: unknown
+  delivered_at?: unknown
   updated_at?: unknown
 }
 
@@ -77,6 +81,8 @@ export function summarizeCaptainLineupDraft(
     opponentTeam: cleanText(row.opponent_team),
     ...progress,
     status: row.status === 'final' && complete ? 'final' : 'working',
+    deliveryStatus: row.delivery_status === 'sent' && complete ? 'sent' : 'not_sent',
+    deliveredAt: cleanText(row.delivered_at),
     updatedAt: cleanText(row.updated_at),
   }
 }

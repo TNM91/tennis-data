@@ -79,12 +79,15 @@ import {
   CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY,
   buildPlayerPotentialLineupAvailabilityMessage,
   captainLineupDraftMatchesScope,
+  getCaptainLineupDraftFingerprint,
   getCaptainLineupDraftStorageKey,
+  getCaptainTeamLineupFingerprint,
   hasCaptainLineupDraftContent,
   readCaptainLineupBuilderDraft,
   readCaptainDirectCourtTextHandoff,
   type CaptainDirectCourtTextHandoff,
   type CaptainLineupBuilderDraft,
+  type CaptainLineupDeliveryState,
   type CaptainLineupDraftScope,
   type CaptainLineupHandoff,
 } from '@/lib/captain-lineup-handoff'
@@ -332,6 +335,7 @@ type LineupDeliveryReceipt = {
   teamRoomHref: string
   teamChatUpdated: boolean
   waitingPlayerNames: string[]
+  deliveredAt?: string
 }
 
 type CoCaptainReviewShare = {
@@ -345,6 +349,17 @@ type CourtAskSignal = {
   label: string
   detail: string
   tone: 'ready' | 'waiting' | 'confirmed' | 'maybe' | 'out' | 'warning' | 'muted'
+}
+
+function formatDeliveryTime(value: string) {
+  const deliveredAt = new Date(value)
+  if (Number.isNaN(deliveredAt.getTime())) return 'to Team Chat'
+  return deliveredAt.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
 }
 
 function getSaveAndAskLabel(stage: AvailabilityConfirmationStage) {
@@ -1590,6 +1605,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const localBuilderDraftWriteReadyRef = useRef(Boolean(persistedBuilderDraft))
   const cloudDraftScopeRef = useRef('')
   const finalizedDraftFingerprintRef = useRef('')
+  const deliveredDraftFingerprintRef = useRef('')
+  const restoringDeliveryReceiptRef = useRef(false)
 
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
@@ -1845,7 +1862,13 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   currentBuilderDraftRef.current = currentBuilderDraft
 
   useEffect(() => {
-    setLineupDeliveryReceipt(null)
+    if (restoringDeliveryReceiptRef.current) return
+    const fingerprint = getCaptainLineupDraftFingerprint(currentBuilderDraft)
+    setLineupDeliveryReceipt((current) => {
+      if (current?.kind === 'final' && deliveredDraftFingerprintRef.current === fingerprint) return current
+      if (current?.kind === 'final') deliveredDraftFingerprintRef.current = ''
+      return null
+    })
   }, [currentBuilderDraft])
 
   useEffect(() => {
@@ -1878,11 +1901,49 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     })
       .then(async (response) => {
         if (!response.ok) return null
-        const payload = await response.json().catch(() => null) as { draft?: unknown } | null
-        return readCaptainLineupBuilderDraft(JSON.stringify(payload?.draft ?? null))
+        const payload = await response.json().catch(() => null) as {
+          draft?: unknown
+          delivery?: CaptainLineupDeliveryState
+        } | null
+        return {
+          draft: readCaptainLineupBuilderDraft(JSON.stringify(payload?.draft ?? null)),
+          delivery: payload?.delivery,
+        }
       })
-      .then((cloudDraft) => {
+      .then((cloudResult) => {
+        const cloudDraft = cloudResult?.draft
         if (!active || !cloudDraft || !hasCaptainLineupDraftContent(cloudDraft)) return
+
+        const restoreDeliveryReceipt = () => {
+          if (cloudResult.delivery?.status !== 'sent') return false
+          const messageId = cloudResult.delivery.teamRoomMessageId
+          const teamRoomHref = buildTeamRoomHref({
+            teamName: cloudDraft.teamName,
+            leagueName: cloudDraft.leagueName,
+            flight: cloudDraft.flight,
+            date: cloudDraft.matchDate,
+            opponent: cloudDraft.opponentTeam,
+            messageId,
+          })
+          const restoredReceipt: LineupDeliveryReceipt = {
+            kind: 'final',
+            teamRoomHref: messageId
+              ? `${teamRoomHref}#match-card-${encodeURIComponent(messageId)}`
+              : teamRoomHref,
+            teamChatUpdated: true,
+            waitingPlayerNames: [],
+            deliveredAt: cloudResult.delivery.deliveredAt,
+          }
+          restoringDeliveryReceiptRef.current = true
+          setLineupDeliveryReceipt(restoredReceipt)
+          window.setTimeout(() => {
+            deliveredDraftFingerprintRef.current = getCaptainLineupDraftFingerprint(currentBuilderDraftRef.current)
+            restoringDeliveryReceiptRef.current = false
+            setLineupDeliveryReceipt(restoredReceipt)
+          }, 0)
+          setMessage('Sent lineup restored from TiQ.')
+          return true
+        }
 
         const localDraft = typeof window === 'undefined'
           ? null
@@ -1892,7 +1953,13 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         const cloudUpdatedAt = Date.parse(cloudDraft.updatedAt || '') || 0
         const localUpdatedAt = Date.parse(localDraft?.updatedAt || '') || 0
         const currentDraftHasWork = hasCaptainLineupDraftContent(currentBuilderDraftRef.current)
-        if (currentDraftHasWork && localUpdatedAt >= cloudUpdatedAt) return
+        if (currentDraftHasWork && localUpdatedAt >= cloudUpdatedAt) {
+          if (
+            cloudResult.delivery?.status === 'sent'
+            && getCaptainTeamLineupFingerprint(currentBuilderDraftRef.current.teamSlots) === getCaptainTeamLineupFingerprint(cloudDraft.teamSlots)
+          ) restoreDeliveryReceipt()
+          return
+        }
 
         const restoredTeamSlots = normalizeSavedSlots(cloudDraft.teamSlots)
         const restoredOpponentSlots = normalizeSavedSlots(cloudDraft.opponentSlots)
@@ -1926,7 +1993,10 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           cloudDraft.flight,
           restoredMatchFormat,
         ))
-        setMessage('In-progress lineup restored from TiQ.')
+        if (!restoreDeliveryReceipt()) {
+          deliveredDraftFingerprintRef.current = ''
+          setMessage('In-progress lineup restored from TiQ.')
+        }
       })
       .catch(() => null)
       .finally(() => {
@@ -1961,6 +2031,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         ...currentBuilderDraft,
         updatedAt: new Date().toISOString(),
       }
+      const preserveDelivery = deliveredDraftFingerprintRef.current === getCaptainLineupDraftFingerprint(currentBuilderDraft)
       const hasDraftContent = hasCaptainLineupDraftContent(draft)
       setCloudDraftSaveState('saving')
       void fetch(
@@ -1973,7 +2044,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             Authorization: `Bearer ${session.access_token}`,
             ...(hasDraftContent ? { 'Content-Type': 'application/json' } : {}),
           },
-          body: hasDraftContent ? JSON.stringify({ draft }) : undefined,
+          body: hasDraftContent ? JSON.stringify({ draft, preserveDelivery }) : undefined,
           signal: controller.signal,
         },
       )
@@ -3658,9 +3729,20 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status: 'final', scope: currentBuilderDraft }),
+        body: JSON.stringify({
+          status: 'final',
+          deliveryStatus: 'sent',
+          teamRoomMessageId: result.messageId,
+          scope: currentBuilderDraft,
+        }),
       })
-      if (draftResponse.ok) finalizedDraftFingerprintRef.current = JSON.stringify(currentBuilderDraft)
+      const draftResult = await draftResponse.json().catch(() => null) as {
+        delivery?: CaptainLineupDeliveryState
+      } | null
+      if (draftResponse.ok) {
+        finalizedDraftFingerprintRef.current = JSON.stringify(currentBuilderDraft)
+        deliveredDraftFingerprintRef.current = getCaptainLineupDraftFingerprint(currentBuilderDraft)
+      }
 
       const hrefUrl = new URL(
         result.href || buildTeamRoomHref({
@@ -3679,6 +3761,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         teamRoomHref: `${hrefUrl.pathname}${hrefUrl.search}${hrefUrl.hash}`,
         teamChatUpdated: true,
         waitingPlayerNames: [],
+        deliveredAt: draftResult?.delivery?.deliveredAt,
       })
       setMessage('Final lineup posted to Team Chat.')
       setError(draftResponse.ok ? '' : 'The lineup was posted, but My Teams may need a refresh to show it as final.')
@@ -5344,7 +5427,10 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     : assignedTeamReplySummary.waiting.length
       ? `Waiting on ${assignedTeamReplySummary.waiting.slice(0, 2).map((player) => player.name).join(' and ')}${assignedTeamReplySummary.waiting.length > 2 ? ` and ${assignedTeamReplySummary.waiting.length - 2} more` : ''}.`
       : 'A selected player only counts after they reply Yes or you use Mark Yes & lock to record a text or call confirmation.'
-  const finalLineupDeliveryLabel = openingFinalDelivery ? 'Sending lineup…' : 'Send lineup to Team Chat'
+  const finalLineupSent = lineupDeliveryReceipt?.kind === 'final'
+  const finalLineupDeliveryLabel = openingFinalDelivery
+    ? 'Sending lineup…'
+    : finalLineupSent ? 'Sent to Team Chat' : 'Send lineup to Team Chat'
   const lineupImageBaseHref = buildCaptainScopedHref('/captain/matchup-sheet', {
     competitionLayer,
     team: teamName,
@@ -5437,22 +5523,23 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
            onConfirmPlayers={() => void saveAndConfirmPotentialLineupAvailability()}
            confirmPlayersDisabled={!teamLineupComplete || finalLineupReady || preparingConfirmation}
            onSendTeamUpdate={() => void openFinalLineupDelivery()}
-           sendTeamUpdateDisabled={!finalLineupReady || openingFinalDelivery}
+           sendTeamUpdateDisabled={!finalLineupReady || openingFinalDelivery || finalLineupSent}
+           messagingComplete={lineupDeliveryReceipt?.kind === 'final'}
          />
          {lineupDeliveryReceipt ? (
            <section style={lineupDeliveryReceiptStyle(lineupDeliveryReceipt.kind)} aria-label="Lineup saved" role="status" aria-live="polite">
              <div style={lineupTransitionCopyStyle}>
-               <p style={sectionKicker}>{lineupDeliveryReceipt.kind === 'final' ? 'Final lineup sent' : 'Lineup saved'}</p>
+               <p style={sectionKicker}>{lineupDeliveryReceipt.kind === 'final' ? 'Sent to team' : 'Lineup saved'}</p>
                <strong style={lineupTransitionTitleStyle}>
                  {lineupDeliveryReceipt.kind === 'final'
-                   ? 'Posted to Team Chat and ready to share.'
+                   ? 'Your confirmed lineup is in Team Chat.'
                    : lineupDeliveryReceipt.waitingPlayerNames.length
                      ? `${lineupDeliveryReceipt.waitingPlayerNames.length} selected player${lineupDeliveryReceipt.waitingPlayerNames.length === 1 ? '' : 's'} still need${lineupDeliveryReceipt.waitingPlayerNames.length === 1 ? 's' : ''} a Yes.`
                      : 'Your selected players are ready to review.'}
                </strong>
                <span style={lineupTransitionTextStyle}>
                  {lineupDeliveryReceipt.kind === 'final'
-                   ? [formatDate(matchDate || null), selectedMatch?.match_time, opponentTeam ? `vs ${opponentTeam}` : '', selectedMatch?.facility].filter(Boolean).join(' · ')
+                   ? [lineupDeliveryReceipt.deliveredAt ? `Sent ${formatDeliveryTime(lineupDeliveryReceipt.deliveredAt)}` : '', formatDate(matchDate || null), selectedMatch?.match_time, opponentTeam ? `vs ${opponentTeam}` : '', selectedMatch?.facility].filter(Boolean).join(' · ')
                    : lineupDeliveryReceipt.waitingPlayerNames.length
                      ? `Waiting on ${lineupDeliveryReceipt.waitingPlayerNames.slice(0, 3).join(', ')}${lineupDeliveryReceipt.waitingPlayerNames.length > 3 ? ` and ${lineupDeliveryReceipt.waitingPlayerNames.length - 3} more` : ''}. Your courts stayed saved.`
                      : 'Your courts stayed saved. Review replies when you are ready.'}
@@ -5648,7 +5735,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
              <div style={lineupTransitionActionsStyle}>
                {finalLineupReady ? (
                  <>
-                   <PrimaryBtn disabled={openingFinalDelivery} onClick={() => void openFinalLineupDelivery()}>
+                   <PrimaryBtn disabled={openingFinalDelivery || finalLineupSent} onClick={() => void openFinalLineupDelivery()}>
                      {openingFinalDelivery ? 'Posting to Team Chat…' : 'Post to Team Chat'}
                    </PrimaryBtn>
                    <GhostLink href={lineupImageHref}>Create image + text team</GhostLink>
@@ -5995,7 +6082,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               </div>
               <div style={mobileCourtFocusActionsStyle}>
                 {finalLineupReady ? (
-                  <PrimaryBtn disabled={openingFinalDelivery} onClick={() => void openFinalLineupDelivery()}>{finalLineupDeliveryLabel}</PrimaryBtn>
+                  <PrimaryBtn disabled={openingFinalDelivery || finalLineupSent} onClick={() => void openFinalLineupDelivery()}>{finalLineupDeliveryLabel}</PrimaryBtn>
                 ) : firstOpenTeamCourt ? (
                   <GhostBtn onClick={() => focusTeamCourts(teamSlots, firstOpenTeamCourt.id)}>Finish {firstOpenTeamCourt.label}</GhostBtn>
                 ) : (
@@ -6027,7 +6114,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 </div>
                 <div style={mobileFinalLineupActionsStyle}>
                   {finalLineupReady ? (
-                    <PrimaryBtn disabled={openingFinalDelivery} onClick={() => void openFinalLineupDelivery()}>{finalLineupDeliveryLabel}</PrimaryBtn>
+                    <PrimaryBtn disabled={openingFinalDelivery || finalLineupSent} onClick={() => void openFinalLineupDelivery()}>{finalLineupDeliveryLabel}</PrimaryBtn>
                   ) : (
                     <GhostBtn onClick={() => focusTeamCourts()}>Review player replies</GhostBtn>
                   )}
@@ -6105,7 +6192,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             </div>
             <div style={finalLineupGateActionsStyle}>
               {finalLineupReady ? (
-                <GhostBtn disabled={openingFinalDelivery} onClick={() => void openFinalLineupDelivery()}>{finalLineupDeliveryLabel}</GhostBtn>
+                <GhostBtn disabled={openingFinalDelivery || finalLineupSent} onClick={() => void openFinalLineupDelivery()}>{finalLineupDeliveryLabel}</GhostBtn>
               ) : (
                 <GhostBtn onClick={() => focusTeamCourts()}>Review player replies</GhostBtn>
               )}
@@ -6186,7 +6273,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
           <div style={decisionBoardActionRowStyle}>
             {finalLineupReady ? (
-              <PrimaryBtn disabled={openingFinalDelivery} onClick={() => void openFinalLineupDelivery()}>{finalLineupDeliveryLabel}</PrimaryBtn>
+              <PrimaryBtn disabled={openingFinalDelivery || finalLineupSent} onClick={() => void openFinalLineupDelivery()}>{finalLineupDeliveryLabel}</PrimaryBtn>
             ) : firstOpenTeamCourt ? (
               <GhostBtn onClick={() => focusTeamCourts(teamSlots, firstOpenTeamCourt.id)}>Finish {firstOpenTeamCourt.label}</GhostBtn>
             ) : (

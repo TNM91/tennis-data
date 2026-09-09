@@ -40,11 +40,24 @@ describe('captain lineup draft recovery', () => {
 
   it('provides a private minimal Teams summary and finalizes only a confirmed lineup', () => {
     expect(draftRoute).toContain("searchParams.get('view') === 'summary'")
-    expect(draftRoute).toContain(".select('competition_layer,team_name,league_name,flight,match_date,opponent_team,slots_json,status,updated_at')")
+    expect(draftRoute).toContain('delivery_status,delivered_at,updated_at')
     expect(draftRoute).toContain('summarizeCaptainLineupDraft(row)')
-    expect(draftRoute).toContain(".update({ status: 'final'")
+    expect(draftRoute).toContain("status: 'final'")
     expect(page).toContain("method: 'PATCH'")
     expect(page).toContain('if (!finalLineupReady)')
+  })
+
+  it('restores a sent receipt and preserves it until the lineup changes', () => {
+    const receiptMigration = readFileSync(join(process.cwd(), 'supabase/migrations/20260909000200_add_captain_lineup_delivery_receipts.sql'), 'utf8')
+    expect(receiptMigration).toContain("delivery_status in ('not_sent', 'sent')")
+    expect(draftRoute).toContain('team_room_message_id')
+    expect(draftRoute).toContain("deliveryStatus = body.deliveryStatus === 'sent'")
+    expect(page).toContain("cloudResult.delivery?.status === 'sent'")
+    expect(page).toContain('deliveredDraftFingerprintRef')
+    expect(page).toContain('preserveDelivery')
+    expect(draftRoute).toContain("existingDraft?.delivery_status === 'sent'")
+    expect(draftRoute).toContain('getCaptainTeamLineupFingerprint(existingDraft.slots_json)')
+    expect(page).toContain("setMessage('Sent lineup restored from TiQ.')")
   })
 
   it('keeps saved selections visible if the live roster refresh is delayed', () => {

@@ -139,7 +139,7 @@
 
 @page { size: letter portrait; margin: .15in; }
 @media print {
-  :global(html), :global(body) { width: 8.2in !important; height: 10.7in !important; overflow: hidden !important; background: #fff !important; }
+  :global(html):has(.page), :global(body):has(.page) { width: 8.2in !important; height: 10.7in !important; overflow: hidden !important; background: #fff !important; }
   :global(body):has(.page) * { visibility: hidden !important; }
   .sheet, .sheet * { visibility: visible !important; }
   .page { width: 8.2in !important; height: 10.7in !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; }
