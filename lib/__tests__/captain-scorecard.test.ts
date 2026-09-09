@@ -7,6 +7,7 @@ import {
   buildCaptainScorecardTeamRoomDraft,
   hasHigherPriorityCaptainScorecardConflict,
   isCaptainScorecardSavedRecap,
+  resolveCaptainScorecardSaveTarget,
   validateCaptainScorecardInput,
 } from '../captain-scorecard'
 
@@ -45,6 +46,23 @@ describe('captain scorecard capture', () => {
     const corrected = { ...input, lines: [{ ...input.lines[0], score: '6-4 4-6 10-8' }] }
     expect(buildCaptainScorecardExternalMatchId(input)).toBe(buildCaptainScorecardExternalMatchId(corrected))
     expect(buildCaptainScorecardObservations(input)[0].fingerprint).toBe(buildCaptainScorecardObservations(corrected)[0].fingerprint)
+  })
+
+  it('reuses one canonical match for corrections and stops ambiguous duplicates', () => {
+    const existingId = 'tennislink-scorecard:existing-match'
+    expect(resolveCaptainScorecardSaveTarget(input, [existingId, existingId])).toEqual({
+      ok: true,
+      externalMatchId: existingId,
+      reusesExistingMatch: true,
+    })
+    expect(resolveCaptainScorecardSaveTarget(input, ['match-a', 'match-b'])).toEqual({
+      ok: false,
+      message: 'This scorecard matches more than one existing match. Nothing was changed; review the duplicate match records first.',
+    })
+    expect(resolveCaptainScorecardSaveTarget(input, [])).toMatchObject({
+      ok: true,
+      reusesExistingMatch: false,
+    })
   })
 
   it('requires complete named courts before committing', () => {

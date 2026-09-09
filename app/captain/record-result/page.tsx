@@ -57,7 +57,7 @@ type TeamRoomResponse = {
 
 function createCourt(courtNumber: number): CourtDraft {
   return {
-    id: `court-${courtNumber}-${Math.random().toString(36).slice(2, 8)}`,
+    id: `court-${courtNumber}`,
     courtNumber,
     matchType: 'doubles',
     teamPlayers: ['', ''],
@@ -146,12 +146,14 @@ function RecordResultContent() {
   const [draftReady, setDraftReady] = useState(false)
   const [draftSaved, setDraftSaved] = useState(false)
   const [savedRecap, setSavedRecap] = useState<CaptainScorecardSavedRecap | null>(null)
+  const [resultSaveMode, setResultSaveMode] = useState<'created' | 'updated' | ''>('')
   const [teamAnnouncementUpdated, setTeamAnnouncementUpdated] = useState(false)
   const [resultShareNotice, setResultShareNotice] = useState('')
   const lineupPrefillKey = useRef('')
   const restoredScorecardDraftKey = useRef('')
   const scorecardPhotoPrefillKey = useRef('')
   const scorecardPhotoPrefillActive = useRef(false)
+  const saveInFlightRef = useRef(false)
   const [dataAssistBatchId, setDataAssistBatchId] = useState('')
   const [dataAssistDraftId, setDataAssistDraftId] = useState('')
   const matchWeekScope = useMemo(() => ({
@@ -441,6 +443,7 @@ function RecordResultContent() {
   }
 
   async function saveResult() {
+    if (saveInFlightRef.current) return
     setError('')
     setNotice('')
     if (!session?.access_token) {
@@ -451,6 +454,7 @@ function RecordResultContent() {
       setError('Choose a team before recording a result.')
       return
     }
+    saveInFlightRef.current = true
     setSaving(true)
     try {
       const response = await fetch('/api/captain/match-results', {
@@ -480,13 +484,14 @@ function RecordResultContent() {
           })),
         }),
       })
-      const payload = await response.json() as { ok?: boolean; message?: string; needsReview?: boolean; externalMatchId?: string; recap?: CaptainScorecardSavedRecap; teamAnnouncementUpdated?: boolean }
+      const payload = await response.json() as { ok?: boolean; message?: string; needsReview?: boolean; externalMatchId?: string; recap?: CaptainScorecardSavedRecap; teamAnnouncementUpdated?: boolean; saveMode?: 'created' | 'updated' }
       if (!response.ok || !payload.ok) {
         setError(payload.message || 'The scorecard could not be saved.')
         return
       }
       setNotice(payload.message || 'Result saved.')
       setSavedRecap(payload.recap || null)
+      setResultSaveMode(payload.saveMode || '')
       setTeamAnnouncementUpdated(payload.teamAnnouncementUpdated === true)
       if (payload.externalMatchId) {
         if (scorecardDraftStorageKey) window.localStorage.removeItem(scorecardDraftStorageKey)
@@ -506,6 +511,7 @@ function RecordResultContent() {
     } catch {
       setError('The scorecard could not be saved. Check your connection and try again.')
     } finally {
+      saveInFlightRef.current = false
       setSaving(false)
     }
   }
@@ -518,7 +524,7 @@ function RecordResultContent() {
         <section className={styles.recapShell} aria-labelledby="scorecard-recap-title">
           <div className={styles.recapHeading}>
             <div>
-              <p className={styles.eyebrow}>Verified result</p>
+              <p className={styles.eyebrow}>{resultSaveMode === 'updated' ? 'Verified correction' : 'Verified result'}</p>
               <h1 id="scorecard-recap-title">{outcomeLabel}</h1>
               <p>{teamName || 'Your team'} vs {opponentTeam || 'opponent'} · {matchDate || 'Match date'}</p>
             </div>
@@ -567,9 +573,11 @@ function RecordResultContent() {
           </section>
 
           <section className={styles.auditNote}>
-            <strong>{savedRecap.sourceConflictCount ? 'Source detail retained' : 'Match record protected'}</strong>
+            <strong>{resultSaveMode === 'updated' ? 'Correction saved safely' : savedRecap.sourceConflictCount ? 'Source detail retained' : 'Match record protected'}</strong>
             <span>{savedRecap.sourceConflictCount
               ? `TiQ kept ${savedRecap.sourceConflictCount} lower-confidence score difference for audit. Your verified captain scorecard remains canonical.`
+              : resultSaveMode === 'updated'
+              ? 'The existing match was updated in place. No duplicate match was created, and future imports cannot silently replace your correction.'
               : 'Your verified captain scorecard is now connected to this match. Future imports can fill gaps but cannot silently replace it.'}</span>
           </section>
 
@@ -585,6 +593,7 @@ function RecordResultContent() {
             <button className={styles.addCourt} type="button" onClick={() => void textFinalResult()}>Text final result</button>
             <button className={styles.addCourt} type="button" onClick={() => {
               setSavedRecap(null)
+              setResultSaveMode('')
               setTeamAnnouncementUpdated(false)
               const url = new URL(window.location.href)
               url.searchParams.delete('result')

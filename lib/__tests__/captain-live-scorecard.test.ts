@@ -71,6 +71,18 @@ describe('Captain live scorecard', () => {
     expect(liveScorecard).toContain('Draft saved on this device')
   })
 
+  it('blocks duplicate submit events before React can repaint the button', () => {
+    expect(liveScorecard).toContain('const saveInFlightRef = useRef(false)')
+    expect(liveScorecard).toContain('if (saveInFlightRef.current) return')
+    expect(liveScorecard).toContain('saveInFlightRef.current = true')
+    expect(liveScorecard).toContain('saveInFlightRef.current = false')
+  })
+
+  it('uses deterministic court ids so the scorecard hydrates cleanly', () => {
+    expect(liveScorecard).toContain('id: `court-${courtNumber}`')
+    expect(liveScorecard).not.toContain('Math.random()')
+  })
+
   it('returns the opponent roster only through the authorized captain lineup response', () => {
     expect(rosterRoute).toContain('const opponentRosterNames')
     expect(rosterRoute).toContain('opponentRosterNames,')

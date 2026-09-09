@@ -6,6 +6,7 @@ import {
   buildCaptainScorecardTeamRoomDraft,
   hasHigherPriorityCaptainScorecardConflict,
   isCaptainScorecardSavedRecap,
+  resolveCaptainScorecardSaveTarget,
   validateCaptainScorecardInput,
   type CaptainScorecardInput,
   type CaptainScorecardSavedRecap,
@@ -262,11 +263,13 @@ export async function POST(request: Request) {
   const existingParentIds = [...new Set((existingMatches.data as ExistingMatch[] || [])
     .map((match) => extractParentExternalId(match.external_match_id))
     .filter(Boolean))]
-  // Reuse the existing canonical event whenever the captain is correcting a
-  // previously imported court. That prevents a second production match from
-  // being created just because the stronger local score arrived later.
-  const externalMatchId = existingParentIds.length === 1 ? existingParentIds[0] : undefined
-  const scorecard = buildCaptainScorecardImportRow(input, externalMatchId)
+  // Reuse one existing canonical event for a correction. More than one parent
+  // is an integrity conflict, so stop for review instead of creating a third.
+  const saveTarget = resolveCaptainScorecardSaveTarget(input, existingParentIds)
+  if (!saveTarget.ok) {
+    return Response.json({ ok: false, needsReview: true, message: saveTarget.message }, { status: 409 })
+  }
+  const scorecard = buildCaptainScorecardImportRow(input, saveTarget.externalMatchId)
   const importResult = await runScorecardImport(service, scorecard, 'commit', {
     hasNormalizedPlayerNameColumn: true,
     matchPlayersDeleteBeforeInsert: true,
@@ -279,6 +282,7 @@ export async function POST(request: Request) {
   if (importResult.result.failedCount || importResult.result.successCount + importResult.result.updatedCount === 0) {
     return Response.json({ ok: false, message: importResult.result.errors[0]?.message || 'The scorecard could not be saved.' }, { status: 500 })
   }
+  const saveMode = saveTarget.reusesExistingMatch || importResult.result.updatedCount > 0 ? 'updated' : 'created'
 
   const lineExternalIds = input.lines.map((line) => `${scorecard.externalMatchId}::line:${line.courtNumber}`)
   const { data: savedLines, error: savedLinesError } = await service
@@ -450,11 +454,16 @@ export async function POST(request: Request) {
   return Response.json({
     ok: true,
     externalMatchId: scorecard.externalMatchId,
+    saveMode,
     linesRecorded: observationPayload.length,
     recap,
     teamAnnouncementUpdated,
-    message: teamAnnouncementUpdated
-      ? `Saved ${observationPayload.length} court result${observationPayload.length === 1 ? '' : 's'}, refreshed TiQ ratings, and updated Team Chat.`
-      : `Saved ${observationPayload.length} court result${observationPayload.length === 1 ? '' : 's'} and refreshed TiQ ratings.`,
+    message: saveMode === 'updated'
+      ? teamAnnouncementUpdated
+        ? `Updated this match without creating a duplicate, refreshed TiQ ratings, and updated Team Chat.`
+        : `Updated this match without creating a duplicate and refreshed TiQ ratings.`
+      : teamAnnouncementUpdated
+        ? `Saved ${observationPayload.length} court result${observationPayload.length === 1 ? '' : 's'}, refreshed TiQ ratings, and updated Team Chat.`
+        : `Saved ${observationPayload.length} court result${observationPayload.length === 1 ? '' : 's'} and refreshed TiQ ratings.`,
   })
 }
