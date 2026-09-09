@@ -39,7 +39,7 @@ describe('Team branding uploads', () => {
   it('wires the validated upload limit through Team Room and storage', () => {
     const route = readFileSync(join(process.cwd(), 'app/api/team-rooms/branding/route.ts'), 'utf8')
     const room = readFileSync(join(process.cwd(), 'app/team-room/page.tsx'), 'utf8')
-    const migration = readFileSync(join(process.cwd(), 'supabase/migrations/20260908000100_expand_team_logo_uploads.sql'), 'utf8')
+    const migration = readFileSync(join(process.cwd(), 'supabase/migrations/20260908000600_expand_team_logo_uploads.sql'), 'utf8')
 
     expect(route).toContain('inspectTeamLogoImage')
     expect(route).toContain('validateTeamLogoDimensions')
