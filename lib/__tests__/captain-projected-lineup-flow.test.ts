@@ -19,6 +19,8 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain("setConfirmationStage('preparing-replies')")
     expect(source).toContain("setConfirmationStage('opening-messages')")
     expect(source).toContain("hrefUrl.searchParams.set('message', teamRoomMessageId)")
+    expect(source).toContain("hrefUrl.searchParams.set('intent', 'confirm-lineup')")
+    expect(source).toContain("if (teamRoomResult.roomId) hrefUrl.searchParams.set('room', teamRoomResult.roomId)")
     expect(source).toContain('hrefUrl.hash = `match-card-${encodeURIComponent(teamRoomMessageId)}`')
     expect(source).toContain('router.push(teamRoomCardHref)')
   })
@@ -111,6 +113,7 @@ describe('Captain projected lineup confirmation flow', () => {
     const room = readSource('app/team-room/page.tsx')
 
     expect(builder).toContain("setMessage('Opening Team Room...')")
+    expect(builder).toContain("if (result.roomId) hrefUrl.searchParams.set('room', result.roomId)")
     expect(room).toContain("action: 'send_final_lineup'")
     expect(room).toContain("'Send lineup to team'")
     expect(room).toContain('isCaptainLineupLocked({')
