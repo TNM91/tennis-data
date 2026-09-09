@@ -29,6 +29,7 @@ export default function CaptainMatchWeekRail({
   confirmPlayersDisabled = false,
   onSendTeamUpdate,
   sendTeamUpdateDisabled = false,
+  messagingComplete = false,
 }: {
   current: MatchWeekStep
   scope: MatchWeekScope
@@ -36,6 +37,7 @@ export default function CaptainMatchWeekRail({
   confirmPlayersDisabled?: boolean
   onSendTeamUpdate?: () => void
   sendTeamUpdateDisabled?: boolean
+  messagingComplete?: boolean
 }) {
   const { isMobile } = useViewportBreakpoints()
   const currentIndex = steps.findIndex((step) => step.id === current)
@@ -69,7 +71,7 @@ export default function CaptainMatchWeekRail({
       <nav style={isMobile ? mobileStepList : stepList} aria-label="Match week steps">
         {steps.map((step, index) => {
           const isCurrent = step.id === current
-          const isComplete = index < currentIndex
+          const isComplete = index < currentIndex || (step.id === 'messaging' && messagingComplete)
           const href = buildCaptainScopedHref(step.path, scope)
           const onClick = step.id === 'availability'
             ? onConfirmPlayers
@@ -176,7 +178,7 @@ const stepLink: CSSProperties = { display: 'inline-flex', alignItems: 'center', 
 const stepButton: CSSProperties = { fontFamily: 'inherit', cursor: 'pointer' }
 const mobileStepList: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 7, minWidth: 0 }
 const mobileStepLink: CSSProperties = { flexDirection: 'column', justifyContent: 'center', minWidth: 0, minHeight: 56, gap: 5, padding: '8px 5px', borderRadius: 14, fontSize: 10, lineHeight: 1.15, textAlign: 'center' }
-const activeStep: CSSProperties = { color: 'var(--foreground-strong)', borderColor: 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)', background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)' }
+const activeStep: CSSProperties = { color: 'var(--foreground-strong)', border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)', background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)' }
 const completeStep: CSSProperties = { color: 'var(--brand-lime)' }
 const disabledStep: CSSProperties = { cursor: 'not-allowed', opacity: 0.48 }
 const stepNumber: CSSProperties = { display: 'grid', placeItems: 'center', minWidth: 20, height: 20, padding: '0 4px', borderRadius: 999, border: '1px solid currentColor', fontSize: 10 }

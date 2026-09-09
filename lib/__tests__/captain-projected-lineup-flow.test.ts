@@ -118,6 +118,7 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(builder).toContain("if (result.roomId) hrefUrl.searchParams.set('room', result.roomId)")
     expect(builder).toContain("action: 'send_final_lineup'")
     expect(builder).toContain("body: JSON.stringify({ status: 'final', scope: currentBuilderDraft })")
+    expect(builder).toContain("deliveryStatus: 'sent'")
     expect(builder).toContain('Create image + text team')
     expect(builder).toContain('Copy lineup text')
     expect(room).toContain("action: 'send_final_lineup'")

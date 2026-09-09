@@ -29,6 +29,7 @@ export default function TeamHomeCard(props: TeamHomeCardProps) {
     && continuation.assignedPlayers >= continuation.requiredPlayers
     && continuation.completedCourts >= continuation.totalCourts,
   )
+  const lineupSent = continuation?.deliveryStatus === 'sent'
   return <article className={`${styles.teamCard} ${props.isDefault ? styles.defaultCard : ''}`} aria-label={props.name}>
     <header className={styles.cardHeader}>
       <div className={styles.cardStatus}><span>{props.isDefault ? 'Default team' : 'Connected team'}</span>{props.flight ? <span className={styles.flight}>{props.flight}</span> : null}</div>
@@ -43,8 +44,8 @@ export default function TeamHomeCard(props: TeamHomeCardProps) {
     {continuation ? (
       <Link href={continuation.href} className={`${styles.lineupContinuation} ${continuation.status === 'final' ? styles.finalLineup : ''}`}>
         <span className={styles.lineupContinuationHeader}>
-          <span className={styles.lineupContinuationEyebrow}>{continuation.status === 'final' ? 'Final lineup' : lineupCourtsReady ? 'Lineup saved' : 'Lineup in progress'}</span>
-          <span>{formatSavedAt(continuation.updatedAt)}</span>
+          <span className={styles.lineupContinuationEyebrow}>{lineupSent ? 'Sent to team' : continuation.status === 'final' ? 'Lineup confirmed' : lineupCourtsReady ? 'Lineup saved' : 'Lineup in progress'}</span>
+          <span>{lineupSent ? formatSentAt(continuation.deliveredAt) : formatSavedAt(continuation.updatedAt)}</span>
         </span>
         <strong className={styles.lineupContinuationMatch}>
           {continuation.opponentTeam ? `vs ${continuation.opponentTeam}` : 'Opponent not set'}
@@ -53,13 +54,13 @@ export default function TeamHomeCard(props: TeamHomeCardProps) {
         <progress value={continuationProgress} max={100} aria-label={`${continuation.assignedPlayers} of ${continuation.requiredPlayers} lineup spots selected`} />
         <span className={styles.lineupContinuationFooter}>
           <span>{continuation.assignedPlayers}/{continuation.requiredPlayers} selected · {continuation.completedCourts}/{continuation.totalCourts} courts set</span>
-          <strong>{continuation.status === 'final' ? 'Open final →' : lineupCourtsReady ? 'Review replies →' : 'Resume →'}</strong>
+          <strong>{lineupSent ? 'View sent lineup →' : continuation.status === 'final' ? 'Share lineup →' : lineupCourtsReady ? 'Review replies →' : 'Resume →'}</strong>
         </span>
       </Link>
     ) : null}
     {props.availabilitySummary}
     <nav className={styles.cardActions} aria-label={`${props.name} team tools`}>
-      {props.lineupHref ? <Link className={styles.primaryAction} href={props.lineupHref}>{continuation ? continuation.status === 'final' ? 'Open final lineup' : lineupCourtsReady ? 'Review lineup' : 'Resume lineup' : 'Build lineup'} <span aria-hidden="true">→</span></Link> : null}
+      {props.lineupHref ? <Link className={styles.primaryAction} href={props.lineupHref}>{continuation ? lineupSent ? 'View sent lineup' : continuation.status === 'final' ? 'Share confirmed lineup' : lineupCourtsReady ? 'Review lineup' : 'Resume lineup' : 'Build lineup'} <span aria-hidden="true">→</span></Link> : null}
       {props.availabilityHref ? <Link href={props.availabilityHref} className={styles.availabilityAction}>Season availability</Link> : null}
       {props.practiceHref ? <Link href={props.practiceHref} className={styles.practiceAction}>Plan practice</Link> : null}
       <Link className={props.lineupHref ? undefined : styles.primaryAction} href={props.teamHref} aria-label={`Open ${props.name} roster and schedule`}>Roster & schedule</Link>
@@ -80,4 +81,10 @@ function formatSavedAt(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return 'Saved in TiQ'
   return `Saved ${new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date)}`
+}
+
+function formatSentAt(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Sent in TiQ'
+  return `Sent ${new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date)}`
 }

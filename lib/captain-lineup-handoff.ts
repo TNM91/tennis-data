@@ -55,6 +55,12 @@ export type CaptainLineupBuilderDraft = {
   updatedAt?: string
 }
 
+export type CaptainLineupDeliveryState = {
+  status: 'not_sent' | 'sent'
+  deliveredAt: string
+  teamRoomMessageId: string
+}
+
 export type CaptainMatchWeekDetails = {
   location: string
   directions: string
@@ -228,6 +234,38 @@ export function hasCaptainLineupDraftContent(draft: CaptainLineupBuilderDraft) {
     || Boolean(draft.notes.trim())
     || Boolean(draft.matchDetails && Object.values(draft.matchDetails).some((value) => value.trim()))
     || draft.manualRosterEntries.length > 0
+}
+
+export function getCaptainLineupDraftFingerprint(draft: CaptainLineupBuilderDraft) {
+  return JSON.stringify({
+    competitionLayer: draft.competitionLayer,
+    leagueName: draft.leagueName,
+    flight: draft.flight,
+    teamName: draft.teamName,
+    opponentTeam: draft.opponentTeam,
+    matchDate: draft.matchDate,
+    teamSlots: getCaptainTeamLineupFingerprint(draft.teamSlots),
+  })
+}
+
+export function getCaptainTeamLineupFingerprint(slots: unknown) {
+  if (!Array.isArray(slots)) return '[]'
+  return JSON.stringify(slots.map((slot) => {
+    const source = slot && typeof slot === 'object' ? slot as Record<string, unknown> : {}
+    const players = Array.isArray(source.players) ? source.players : []
+    return {
+      label: typeof source.label === 'string' ? source.label.trim() : '',
+      slotType: source.slotType === 'doubles' ? 'doubles' : 'singles',
+      ratingLevel: typeof source.ratingLevel === 'number' ? source.ratingLevel : null,
+      players: players.map((player) => {
+        const entry = player && typeof player === 'object' ? player as Record<string, unknown> : {}
+        return {
+          playerId: typeof entry.playerId === 'string' ? entry.playerId.trim() : '',
+          playerName: typeof entry.playerName === 'string' ? entry.playerName.trim() : '',
+        }
+      }),
+    }
+  }))
 }
 
 export function readCaptainLineupBuilderDraft(raw: string | null): CaptainLineupBuilderDraft | null {
