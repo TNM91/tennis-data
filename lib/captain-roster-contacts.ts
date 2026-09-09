@@ -94,6 +94,13 @@ export function buildCaptainContactReviewHref(input: {
 
 type RosterMembershipRow = { id: string; player_name: string | null }
 type StoredCaptainContactRow = { id: string; normalized_name: string | null }
+type ExistingCaptainContactDetailRow = {
+  normalized_name?: string | null
+  phone?: string | null
+  email?: string | null
+  role?: string | null
+  is_captain?: boolean | null
+}
 
 export async function syncAuthoritativeCaptainRoster(input: {
   supabase: SupabaseClient
@@ -203,8 +210,18 @@ export async function upsertCaptainRosterContacts(input: {
   captainUserId: string
   batchId?: string | null
 }) {
-  const rows = buildCaptainRosterContactRows(input)
+  let rows = buildCaptainRosterContactRows(input)
   if (!rows.length) return 0
+
+  const existingResult = await input.supabase
+    .from(CAPTAIN_ROSTER_CONTACTS_TABLE)
+    .select('normalized_name,phone,email,role,is_captain')
+    .eq('captain_user_id', input.captainUserId)
+    .eq('normalized_team_name', normalizeCaptainRosterContactKey(input.parsedDraft.rosterTeamName))
+    .eq('league_name', input.parsedDraft.leagueName.trim())
+    .eq('flight', input.parsedDraft.flight.trim())
+  if (existingResult.error) throw new Error(`Existing roster contacts could not be checked: ${existingResult.error.message}`)
+  rows = mergeCaptainRosterContactRows(rows, (existingResult.data || []) as ExistingCaptainContactDetailRow[])
 
   const { error } = await input.supabase
     .from(CAPTAIN_ROSTER_CONTACTS_TABLE)
@@ -213,4 +230,28 @@ export async function upsertCaptainRosterContacts(input: {
     })
   if (error) throw new Error(`Roster contacts could not be saved: ${error.message}`)
   return rows.length
+}
+
+export function mergeCaptainRosterContactRows(
+  incomingRows: CaptainRosterContactRow[],
+  existingRows: ExistingCaptainContactDetailRow[],
+) {
+  const existingByName = new Map(
+    existingRows.map((row) => [normalizeCaptainRosterContactKey(row.normalized_name), row]),
+  )
+  return incomingRows.map((row) => {
+    const existing = existingByName.get(row.normalized_name)
+    if (!existing) return row
+    return {
+      ...row,
+      phone: row.phone || existing.phone?.trim() || '',
+      email: row.email || existing.email?.trim().toLowerCase() || '',
+      role: row.is_captain
+        ? row.role || 'Captain'
+        : existing.is_captain
+          ? existing.role?.trim() || 'Captain'
+          : row.role || existing.role?.trim() || 'Player',
+      is_captain: row.is_captain || Boolean(existing.is_captain),
+    }
+  })
 }

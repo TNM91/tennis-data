@@ -15,6 +15,7 @@ import { runScheduleImport, runScorecardImport, runTeamSummaryImport, type RunIm
 import { recalculateDynamicRatings } from './recalculateRatings'
 import { announceTeamRoomScorecardResult } from './team-room-result-announcement-server'
 import { notifyLinkedPlayersOfImportedTeam } from './team-import-notifications-server'
+import { analyzeTeamDataRefresh, type TeamDataRefreshComparison } from './team-data-refresh'
 
 export type DataAssistScorecardImportAction = 'preview' | 'commit'
 
@@ -52,6 +53,7 @@ export type DataAssistTeamSummaryImportActionResult = {
   importedContactCount?: number
   invitedPlayerCount?: number
   contactWarning?: string
+  refreshComparison?: TeamDataRefreshComparison
 }
 
 type ExistingMatchRow = {
@@ -206,8 +208,34 @@ export async function runDataAssistTeamSummaryImportAction(input: {
     }
   }
 
+  let refreshComparison: TeamDataRefreshComparison
+  try {
+    refreshComparison = await analyzeTeamDataRefresh({
+      supabase: input.supabase,
+      parsedDraft: input.parsedDraft,
+      captainUserId: input.reviewedBy,
+    })
+  } catch (error) {
+    return {
+      ok: false,
+      action: input.action,
+      message: error instanceof Error ? error.message : 'The current team record could not be compared safely.',
+    }
+  }
+
+  const memberConfirmedRefresh = typeof input.validationSummary?.memberConfirmedAt === 'string'
+    && Boolean(input.validationSummary.memberConfirmedAt.trim())
+  if (input.action === 'commit' && refreshComparison.needsConfirmation && !memberConfirmedRefresh) {
+    return {
+      ok: false,
+      action: input.action,
+      message: `${refreshComparison.summary} Review and confirm this refresh before importing.`,
+      refreshComparison,
+    }
+  }
+
   if (input.parsedDraft.rosterSource === 'player_roster') {
-    return runDataAssistPlayerRosterContactImportAction(input)
+    return runDataAssistPlayerRosterContactImportAction(input, refreshComparison)
   }
 
   if (!isTeamSummaryDraftReadyForImport(input.parsedDraft)) {
@@ -220,6 +248,7 @@ export async function runDataAssistTeamSummaryImportAction(input: {
       message: missingRatings.length
         ? `Confirm the official NTRP rating for: ${missingRatings.join(', ')}.`
         : 'Confirm every player name and official NTRP rating before importing this Player Roster.',
+      refreshComparison,
     }
   }
 
@@ -243,6 +272,7 @@ export async function runDataAssistTeamSummaryImportAction(input: {
         action: input.action,
         message: importResult.result.errors[0]?.message || 'Player Roster import did not commit.',
         importResult,
+        refreshComparison,
       }
     }
 
@@ -302,7 +332,8 @@ export async function runDataAssistTeamSummaryImportAction(input: {
       importResult,
       importedContactCount,
       contactWarning: contactWarning || undefined,
-      message,
+      refreshComparison,
+      message: `${message} ${refreshComparison.summary}`,
     }
   }
 
@@ -310,7 +341,8 @@ export async function runDataAssistTeamSummaryImportAction(input: {
     ok: true,
     action: input.action,
     importResult,
-    message: `Roster preview ready. ${importResult.result.totalPlayers} player${importResult.result.totalPlayers === 1 ? '' : 's'} validated.`,
+    refreshComparison,
+    message: `Roster preview ready. ${importResult.result.totalPlayers} player${importResult.result.totalPlayers === 1 ? '' : 's'} validated. ${refreshComparison.summary}`,
   }
 }
 
@@ -322,7 +354,7 @@ async function runDataAssistPlayerRosterContactImportAction(input: {
   reviewedBy: string
   action: DataAssistScorecardImportAction
   validationSummary?: Record<string, unknown> | null
-}): Promise<DataAssistTeamSummaryImportActionResult> {
+}, refreshComparison: TeamDataRefreshComparison): Promise<DataAssistTeamSummaryImportActionResult> {
   const detectedContacts = input.parsedDraft.contacts.filter((contact) => Boolean(contact.phone?.trim() || contact.email?.trim())).length
 
   if (input.action === 'preview') {
@@ -330,7 +362,8 @@ async function runDataAssistPlayerRosterContactImportAction(input: {
       ok: true,
       action: input.action,
       importedContactCount: detectedContacts,
-      message: `Contact preview ready. ${detectedContacts} private team contact${detectedContacts === 1 ? '' : 's'} will be saved without changing the Team Summary.`,
+      refreshComparison,
+      message: `Contact preview ready. ${detectedContacts} private team contact${detectedContacts === 1 ? '' : 's'} will be saved without changing the Team Summary. ${refreshComparison.summary}`,
     }
   }
 
@@ -354,6 +387,7 @@ async function runDataAssistPlayerRosterContactImportAction(input: {
       ok: false,
       action: input.action,
       message: error instanceof Error ? error.message : 'Team contacts could not be saved.',
+      refreshComparison,
     }
   }
 
@@ -404,7 +438,8 @@ async function runDataAssistPlayerRosterContactImportAction(input: {
     action: input.action,
     importedContactCount,
     invitedPlayerCount,
-    message,
+    refreshComparison,
+    message: `${message} ${refreshComparison.summary}`,
   }
 }
 

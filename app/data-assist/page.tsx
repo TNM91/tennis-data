@@ -39,6 +39,7 @@ import {
   normalizeScheduleCalendarDate,
 } from '@/lib/team-schedule-calendar'
 import { isTeamSummaryDraftReadyForImport, type DataAssistTeamSummaryParsedDraft } from '@/lib/data-assist-team-summary-parser'
+import type { TeamDataRefreshComparison } from '@/lib/team-data-refresh'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { buildScheduleCalendarHref } from '@/lib/schedule-calendar-href'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
@@ -318,6 +319,7 @@ function DataAssistWorkspace() {
   const [, setSelectedFileCount] = useState(0)
   const [saving, setSaving] = useState(false)
   const [savedBatchId, setSavedBatchId] = useState('')
+  const [exactDuplicate, setExactDuplicate] = useState<{ batchId: string; draftId: string } | null>(null)
   const [submissions, setSubmissions] = useState<DataAssistSubmission[]>([])
   const [contributorStats, setContributorStats] = useState<DataAssistContributorStats | null>(null)
   const [submissionsLoading, setSubmissionsLoading] = useState(false)
@@ -443,6 +445,7 @@ function DataAssistWorkspace() {
     setSummary(null)
     setLatestScan(null)
     setSavedBatchId('')
+    setExactDuplicate(null)
     setMessage('')
     setError('')
     setOutcome(null)
@@ -458,6 +461,7 @@ function DataAssistWorkspace() {
     setSummary(null)
     setLatestScan(null)
     setSavedBatchId('')
+    setExactDuplicate(null)
     setBulkScorecardResults([])
     setFocusedSubmissionId(nextOutcome?.calendarHref ? '' : nextOutcome?.batchId || '')
     setError('')
@@ -478,6 +482,7 @@ function DataAssistWorkspace() {
     setImportType(nextType)
     setSummary((current) => current ? summarizeDataAssistBatch(nextType, current.screenshots) : null)
     setSavedBatchId('')
+    setExactDuplicate(null)
     setMessage('')
     setError('')
     setOutcome(null)
@@ -539,6 +544,7 @@ function DataAssistWorkspace() {
     setSummary(null)
     setLatestScan(null)
     setSavedBatchId('')
+    setExactDuplicate(null)
     setMessage('')
     setError('')
     setOutcome(null)
@@ -570,6 +576,7 @@ function DataAssistWorkspace() {
     setSelectedFileCount(files.length)
     setPreparing(true)
     setSavedBatchId('')
+    setExactDuplicate(null)
     setMessage(`Checking ${files.length} ${sourceLabel}${files.length === 1 ? '' : 's'}...`)
     setError('')
     setOutcome(null)
@@ -854,6 +861,7 @@ function DataAssistWorkspace() {
     const nextScreenshots = reorderDataAssistScreenshots(summary.screenshots, fromIndex, toIndex)
     setSummary(summarizeDataAssistBatch(importType, nextScreenshots))
     setSavedBatchId('')
+    setExactDuplicate(null)
   }
 
   function removeScreenshot(id: string) {
@@ -863,9 +871,21 @@ function DataAssistWorkspace() {
       .map((screenshot, index) => ({ ...screenshot, uploadOrder: index + 1 }))
     setSummary(summarizeDataAssistBatch(importType, nextScreenshots))
     setSavedBatchId('')
+    setExactDuplicate(null)
   }
 
-  async function saveDraft(summaryOverride?: DataAssistBatchSummary) {
+  function useSavedExactImport() {
+    if (!exactDuplicate) return
+    completeUploadFlow('No duplicate created.', {
+      tone: 'duplicate',
+      title: 'Exact file already imported',
+      detail: 'TiQ kept the saved import. Upload a newer export when players or team details change.',
+      batchId: exactDuplicate.batchId,
+      target: 'history',
+    })
+  }
+
+  async function saveDraft(summaryOverride?: DataAssistBatchSummary, allowExactDuplicate = false) {
     const draftSummary = summaryOverride || summary
     if (!draftSummary || saving) return
     const scanRunId = scanRunRef.current + 1
@@ -874,13 +894,20 @@ function DataAssistWorkspace() {
     setError('')
     setMessage('')
     setLatestScan(null)
+    setExactDuplicate(null)
 
     try {
       const result = await withTimeout(
-        saveDataAssistDraftBatch(draftSummary),
+        saveDataAssistDraftBatch(draftSummary, { allowExactDuplicate }),
         30_000,
         'Saving the export is taking longer than expected. Check your connection and try again.',
       )
+      if (result.exactDuplicate) {
+        setExactDuplicate({ batchId: result.batchId, draftId: result.draftId })
+        setFocusedSubmissionId(result.batchId)
+        return
+      }
+      setExactDuplicate(null)
       setSavedBatchId(result.batchId)
       if (draftSummary.requestedImportType === 'scorecard' || draftSummary.requestedImportType === 'schedule' || draftSummary.requestedImportType === 'team_summary') {
         const readingLabel = draftSummary.requestedImportType === 'schedule'
@@ -1435,21 +1462,35 @@ function DataAssistWorkspace() {
           </div>
         )}
 
-        <div style={draftActionRowStyle}>
-          <button
-            type="button"
-            onClick={() => void saveDraft()}
-            disabled={!summary || !userId || saving || summary.status === 'rejected' || !summary.screenshots.length}
-            style={{
-              ...primaryButtonStyle,
-              ...((!summary || !userId || saving || summary.status === 'rejected' || !summary.screenshots.length) ? disabledStyle : {}),
-            }}
-          >
-              {saving ? `Reading ${summary?.requestedImportType === 'schedule' ? 'schedule' : summary?.requestedImportType === 'team_summary' ? 'roster' : 'scorecard'}...` : isScorecardPhotoScan ? 'Read scorecard' : 'Import now'}
-          </button>
-          <button type="button" onClick={resetUploadFlow} style={secondaryButtonStyle}>Cancel upload</button>
-          <span style={hintStyle}>Clean exports import automatically. Anything uncertain stops here for review.</span>
-        </div>
+        {exactDuplicate ? (
+          <div style={teamSummaryImportActionStyle}>
+            <div style={headerCopyStyle}>
+              <strong>This exact file is already imported.</strong>
+              <span style={hintStyle}>No second copy is needed. A newer export with added players or updated details will refresh normally.</span>
+            </div>
+            <div style={draftActionRowStyle}>
+              <button type="button" onClick={useSavedExactImport} style={primaryButtonStyle}>Use saved import</button>
+              <button type="button" onClick={() => void saveDraft(undefined, true)} style={secondaryButtonStyle}>Import again anyway</button>
+              <button type="button" onClick={resetUploadFlow} style={secondaryButtonStyle}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <div style={draftActionRowStyle}>
+            <button
+              type="button"
+              onClick={() => void saveDraft()}
+              disabled={!summary || !userId || saving || summary.status === 'rejected' || !summary.screenshots.length}
+              style={{
+                ...primaryButtonStyle,
+                ...((!summary || !userId || saving || summary.status === 'rejected' || !summary.screenshots.length) ? disabledStyle : {}),
+              }}
+            >
+                {saving ? `Reading ${summary?.requestedImportType === 'schedule' ? 'schedule' : summary?.requestedImportType === 'team_summary' ? 'roster' : 'scorecard'}...` : isScorecardPhotoScan ? 'Read scorecard' : 'Import now'}
+            </button>
+            <button type="button" onClick={resetUploadFlow} style={secondaryButtonStyle}>Cancel upload</button>
+            <span style={hintStyle}>Clean exports import automatically. Anything uncertain stops here for review.</span>
+          </div>
+        )}
 
         {saving ? (
           <div style={scanLoadingStyle}>
@@ -1547,6 +1588,7 @@ function DataAssistWorkspace() {
                 parsedDraft={latestScan.parsedDraft}
                 busy={reviewingSubmissionId === latestScan.batchId}
                 onImport={() => void reviewLatestScan('confirmed')}
+                refreshComparison={latestScan.autoImport?.refreshComparison}
               />
             ) : latestScorecardDraft ? (
               <ScorecardReviewPanel
@@ -3268,6 +3310,7 @@ function SubmissionCard({
             <TeamSummaryReviewPanel
               parsedDraft={parsedTeamSummary}
               busy={busy}
+              refreshComparison={readTeamDataRefreshComparison(submission.validationSummary)}
               onImport={submission.draftId && submission.draftOcrStatus === 'processed' && (submission.status === 'ready_to_import' || submission.status === 'needs_review')
                 ? () => onReview(submission, 'confirmed')
                 : undefined}
@@ -3615,10 +3658,12 @@ function TeamSummaryReviewPanel({
   parsedDraft,
   busy,
   onImport,
+  refreshComparison,
 }: {
   parsedDraft: DataAssistTeamSummaryParsedDraft
   busy: boolean
   onImport?: () => void
+  refreshComparison?: TeamDataRefreshComparison
 }) {
   const missingRatingCount = parsedDraft.players.filter((player) => player.ntrp === null).length
   const isPlayerRoster = parsedDraft.rosterSource === 'player_roster'
@@ -3638,6 +3683,18 @@ function TeamSummaryReviewPanel({
           ? 'TenAceIQ found the private phone or email details included by TennisLink. This contact import will not change your Team Summary, ratings, or standings.'
           : 'TenAceIQ found the team, league, flight, roster players, official ratings, and standings. Add your Player Roster later if you want captain contact details.'}
       </p>
+      {refreshComparison && refreshComparison.existingPlayerCount > 0 ? (
+        <div style={refreshComparison.needsConfirmation ? reviewChecklistStyle : readyImportNoteStyle}>
+          <strong>{refreshComparison.needsConfirmation ? 'Check this team refresh' : 'Safe team refresh'}</strong>
+          <span>{refreshComparison.summary}</span>
+          {refreshComparison.addedPlayerNames.length ? (
+            <span>Adding: {refreshComparison.addedPlayerNames.slice(0, 4).join(', ')}{refreshComparison.addedPlayerNames.length > 4 ? ` +${refreshComparison.addedPlayerNames.length - 4} more` : ''}</span>
+          ) : null}
+          {refreshComparison.preservedPlayerNames.length ? (
+            <span>Keeping from TiQ: {refreshComparison.preservedPlayerNames.slice(0, 4).join(', ')}{refreshComparison.preservedPlayerNames.length > 4 ? ` +${refreshComparison.preservedPlayerNames.length - 4} more` : ''}</span>
+          ) : null}
+        </div>
+      ) : null}
       <RosterPlayersList parsedDraft={parsedDraft} />
       <div style={missingRatingCount ? reviewChecklistStyle : readyImportNoteStyle}>
         <strong>{missingRatingCount ? 'Before importing' : isPlayerRoster ? 'Contacts ready' : 'Team Summary ready'}</strong>
@@ -3664,7 +3721,7 @@ function TeamSummaryReviewPanel({
           disabled={busy || !readyToImport}
           style={{ ...primaryButtonStyle, ...(busy || !readyToImport ? disabledStyle : {}) }}
         >
-          {busy ? 'Importing...' : isPlayerRoster ? 'Import team contacts' : 'Import Team Summary'}
+          {busy ? 'Importing...' : refreshComparison?.needsConfirmation ? 'Confirm safe refresh' : isPlayerRoster ? 'Import team contacts' : 'Import Team Summary'}
         </button>
       </section> : null}
     </div>
@@ -4528,6 +4585,26 @@ const compactSourcePathCardStyle: CSSProperties = {
   borderRadius: 12,
   padding: 9,
   gap: 0,
+}
+
+function readTeamDataRefreshComparison(validationSummary: Record<string, unknown>): TeamDataRefreshComparison | undefined {
+  const autoImport = validationSummary.autoImport
+  if (!autoImport || typeof autoImport !== 'object' || Array.isArray(autoImport)) return undefined
+  const comparison = (autoImport as Record<string, unknown>).refreshComparison
+  if (!comparison || typeof comparison !== 'object' || Array.isArray(comparison)) return undefined
+  const value = comparison as Partial<TeamDataRefreshComparison>
+  if (!Number.isFinite(value.existingPlayerCount) || !Number.isFinite(value.incomingPlayerCount) || typeof value.summary !== 'string') return undefined
+  return {
+    existingPlayerCount: Number(value.existingPlayerCount),
+    incomingPlayerCount: Number(value.incomingPlayerCount),
+    addedPlayerNames: Array.isArray(value.addedPlayerNames) ? value.addedPlayerNames.filter((name): name is string => typeof name === 'string') : [],
+    preservedPlayerNames: Array.isArray(value.preservedPlayerNames) ? value.preservedPlayerNames.filter((name): name is string => typeof name === 'string') : [],
+    existingDetailCount: Number(value.existingDetailCount) || 0,
+    incomingDetailCount: Number(value.incomingDetailCount) || 0,
+    preservedDetailCount: Number(value.preservedDetailCount) || 0,
+    needsConfirmation: value.needsConfirmation === true,
+    summary: value.summary,
+  }
 }
 
 const compactSourcePathCardRowStyle: CSSProperties = {

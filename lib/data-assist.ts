@@ -11,6 +11,7 @@ import {
 } from './data-assist-ocr'
 import type { DataAssistScheduleParsedDraft } from './data-assist-schedule-parser'
 import type { DataAssistTeamSummaryParsedDraft } from './data-assist-team-summary-parser'
+import type { TeamDataRefreshComparison } from './team-data-refresh'
 import type { DataAssistImportPreview } from './data-assist-import'
 import type { RunImportSuccess } from './ingestion/runImport'
 import { supabase } from './supabase'
@@ -65,6 +66,7 @@ export type DataAssistSaveResult = {
   batchId: string
   draftId: string
   screenshotCount: number
+  exactDuplicate?: boolean
 }
 
 export type DataAssistOcrVerificationResult = {
@@ -87,6 +89,7 @@ export type DataAssistImportActionResult = {
   importResult?: Extract<RunImportSuccess, { kind: 'scorecard' | 'schedule' | 'team_summary' }>
   importedContactCount?: number
   contactWarning?: string
+  refreshComparison?: TeamDataRefreshComparison
 }
 
 export type DataAssistAdminBatch = {
@@ -672,11 +675,19 @@ export function reorderDataAssistScreenshots(
   return nextScreenshots.map((screenshot, index) => ({ ...screenshot, uploadOrder: index + 1 }))
 }
 
-export async function saveDataAssistDraftBatch(summary: DataAssistBatchSummary): Promise<DataAssistSaveResult> {
+export async function saveDataAssistDraftBatch(
+  summary: DataAssistBatchSummary,
+  options: { allowExactDuplicate?: boolean } = {},
+): Promise<DataAssistSaveResult> {
   const authState = await getClientAuthState()
   const userId = authState.user?.id?.trim()
   if (!userId) throw new Error('Sign in to import with Data Assist.')
   if (summary.status === 'rejected') throw new Error(summary.rejectionReason || 'This batch is not supported.')
+
+  if (!options.allowExactDuplicate && summary.requestedImportType !== 'scorecard' && summary.screenshots.length === 1) {
+    const duplicate = await findExactImportedDataAssistUpload(userId, summary)
+    if (duplicate) return { ...duplicate, screenshotCount: 1, exactDuplicate: true }
+  }
 
   const { data: batch, error: batchError } = await supabase
     .from('data_assist_batches')
@@ -762,6 +773,47 @@ export async function saveDataAssistDraftBatch(summary: DataAssistBatchSummary):
   if (!draftId) throw new Error('Data Assist draft could not be created.')
 
   return { batchId, draftId, screenshotCount: uploadedScreenshots.length }
+}
+
+async function findExactImportedDataAssistUpload(userId: string, summary: DataAssistBatchSummary) {
+  const screenshot = summary.screenshots[0]
+  if (!screenshot?.clientFingerprint) return null
+  const screenshotResult = await supabase
+    .from('data_assist_screenshots')
+    .select('batch_id')
+    .eq('submitted_by_user_id', userId)
+    .eq('client_fingerprint', screenshot.clientFingerprint)
+    .eq('file_size_bytes', screenshot.fileSizeBytes)
+    .eq('mime_type', screenshot.mimeType)
+    .order('created_at', { ascending: false })
+    .limit(20)
+  if (screenshotResult.error) return null
+  const candidateIds = Array.from(new Set((screenshotResult.data || [])
+    .map((row) => cleanText((row as { batch_id?: string | null }).batch_id))
+    .filter(Boolean)))
+  if (!candidateIds.length) return null
+
+  const batchResult = await supabase
+    .from('data_assist_batches')
+    .select('id')
+    .in('id', candidateIds)
+    .eq('submitted_by_user_id', userId)
+    .eq('requested_import_type', summary.requestedImportType)
+    .eq('status', 'imported')
+  if (batchResult.error) return null
+  const importedIds = new Set((batchResult.data || []).map((row) => cleanText((row as { id?: string | null }).id)).filter(Boolean))
+  const batchId = candidateIds.find((id) => importedIds.has(id)) || ''
+  if (!batchId) return null
+
+  const draftResult = await supabase
+    .from('data_assist_drafts')
+    .select('id')
+    .eq('batch_id', batchId)
+    .eq('submitted_by_user_id', userId)
+    .maybeSingle()
+  if (draftResult.error) return null
+  const draftId = cleanText((draftResult.data as { id?: string | null } | null)?.id)
+  return draftId ? { batchId, draftId } : null
 }
 
 export async function listMyDataAssistSubmissions() {

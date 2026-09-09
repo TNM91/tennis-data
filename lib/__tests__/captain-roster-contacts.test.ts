@@ -4,6 +4,7 @@ import {
   buildCaptainContactReviewHref,
   getCaptainRosterPhoneCoverage,
   normalizeCaptainRosterContactKey,
+  mergeCaptainRosterContactRows,
   selectCaptainContactRowsForScope,
   syncAuthoritativeCaptainRoster,
   upsertCaptainRosterContacts,
@@ -82,7 +83,14 @@ describe('captain roster contacts', () => {
 
   it('upserts contacts on the private captain/team/player scope', async () => {
     const upsert = vi.fn().mockResolvedValue({ error: null })
-    const from = vi.fn().mockReturnValue({ upsert })
+    const selectBuilder = {
+      eq: vi.fn(() => selectBuilder),
+      then: (resolve: (value: { data: unknown[]; error: null }) => unknown) => Promise.resolve({ data: [], error: null }).then(resolve),
+    }
+    const from = vi.fn().mockReturnValue({
+      select: vi.fn(() => selectBuilder),
+      upsert,
+    })
     const count = await upsertCaptainRosterContacts({
       supabase: { from } as never,
       parsedDraft,
@@ -95,6 +103,32 @@ describe('captain roster contacts', () => {
     expect(upsert).toHaveBeenCalledWith(expect.any(Array), {
       onConflict: 'captain_user_id,normalized_team_name,normalized_name,league_name,flight',
     })
+  })
+
+  it('preserves richer saved contact fields during a thinner refresh', () => {
+    const incoming = buildCaptainRosterContactRows({
+      parsedDraft: {
+        ...parsedDraft,
+        contacts: [{ name: 'Alex Captain', phone: '314-555-0100', email: '', role: 'Player', isCaptain: false }],
+      },
+      captainUserId: 'captain-1',
+      batchId: 'batch-2',
+    })
+
+    expect(mergeCaptainRosterContactRows(incoming, [{
+      normalized_name: 'alex captain',
+      phone: '314-555-0199',
+      email: 'alex@example.com',
+      role: 'Captain',
+      is_captain: true,
+    }])).toEqual([
+      expect.objectContaining({
+        phone: '314-555-0100',
+        email: 'alex@example.com',
+        role: 'Captain',
+        is_captain: true,
+      }),
+    ])
   })
 
   it('removes older team-summary rows when a Player Roster is authoritative', async () => {

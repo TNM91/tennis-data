@@ -12,7 +12,7 @@ describe('Data Assist Player Roster contacts', () => {
 
     expect(contactOnlyBranch).toBeGreaterThan(actionStart)
     expect(contactOnlyBranch).toBeLessThan(teamSummaryImport)
-    expect(source).toContain('runDataAssistPlayerRosterContactImportAction(input)')
+    expect(source).toContain('runDataAssistPlayerRosterContactImportAction(input, refreshComparison)')
     expect(source).toContain('will be saved without changing the Team Summary.')
     expect(source).toContain('Your Team Summary was not changed.')
     expect(source).not.toContain("import { syncAuthoritativeCaptainRoster, upsertCaptainRosterContacts } from './captain-roster-contacts'")
