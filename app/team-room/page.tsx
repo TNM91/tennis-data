@@ -2321,6 +2321,7 @@ function TeamRoomSession() {
           <textarea
             ref={composerRef}
             aria-label="Team Room message"
+            rows={1}
             placeholder="Message the team…"
             value={messageBody}
             onChange={(event) => setMessageBody(event.target.value)}

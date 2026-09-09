@@ -26,6 +26,7 @@ describe('Team Room mobile composer', () => {
     expect(page).toContain('className={styles.matchDayTravelActions}')
     expect(page).toContain('aria-label="Team Chat message composer"')
     expect(page).toContain('Reply to the team')
+    expect(page).toContain('rows={1}')
     expect(styles).toContain('.matchDayTravelActions')
     expect(styles).toContain('position: fixed;')
     expect(styles).toContain('height: min(58dvh, 620px);')
@@ -33,6 +34,8 @@ describe('Team Room mobile composer', () => {
     expect(page).toContain("'--team-room-composer-inset': `${composerInset}px`")
     expect(page).toContain('ref={composerShellRef}')
     expect(styles).toContain('scroll-padding-bottom: var(--team-room-composer-inset, 224px);')
+    expect(styles).toContain('grid-template-columns: minmax(0, 1fr) auto;')
+    expect(styles).toContain('min-height: 44px;')
   })
 
   it('keeps Home Screen guidance compact in the chat header instead of below the conversation', () => {

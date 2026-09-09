@@ -165,3 +165,31 @@ The local Next development server was available at `http://localhost:3000`, but 
 Capture a public `/teams/[team]` page at 390 × 844 with completed results and compare the header, metrics, format split, latest-result row, and Captain teaser against the source visual. Resolve any P0/P1/P2 responsive or hierarchy differences before visual approval.
 
 final result: blocked
+
+---
+
+# Mobile Team Chat and live scorecard formatting QA
+
+- Source visual truth: `C:\Users\nmein\.codex\codex-remote-attachments\01a05eb9-7774-7440-9217-9154c15d360d\65EE78AB-E0CB-4AA3-B843-6C6D21759D02\1-Photo-1.jpg` and `2-Photo-2.jpg`.
+- Rendered implementation: `C:\Users\nmein\.codex\visualizations\2026\09\01\01a05eb9-7774-7440-9217-9154c15d360d\team-chat-composer-mobile-after.jpg` and `scorecard-mobile-after.jpg`.
+- Viewport and state: 390 x 844 CSS pixels, 1x browser capture, dark theme, compact Team Chat composer and captain live-scorecard entry.
+- Pixel normalization: source captures are 591 x 1280 device screenshots; Team Chat implementation is 390 x 844; full scorecard implementation is 375 x 2510. Matching content regions were compared, excluding browser chrome and density-only differences.
+
+## Findings
+
+No actionable P0/P1/P2 differences remain for the reported defects.
+
+- Fonts and typography: scorecard labels no longer break letter-by-letter; composer labels remain legible at phone width.
+- Spacing and layout rhythm: the scorecard title and actions use separate mobile rows; the fixed composer is a compact 186px footer instead of covering roughly half the screen.
+- Colors and tokens: existing TenAceIQ dark, blue, and green tokens remain unchanged.
+- Image and asset fidelity: no logos or imagery were replaced, redrawn, filtered, or degraded.
+- Copy and content: existing task labels and actions are preserved.
+
+## Comparison history
+
+1. Initial P1: live-scorecard court headings were compressed beside the action buttons. The court heading now stacks above a full-width action grid; post-fix evidence shows complete `MATCH LINE` and `Doubles 1` labels.
+2. Initial P1: the fixed Team Chat composer obscured too much recent conversation. A one-row textarea, tighter padding, compact quick actions, and a two-column action row reduce the footer while keeping every action visible.
+
+Focused region comparisons were required because both defects were localized UI failures. The source and implementation regions were opened together and checked for wrapping, control visibility, overlap, hierarchy, and touch sizing. No residual P0/P1/P2 issue was found.
+
+final result: passed

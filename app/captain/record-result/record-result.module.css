@@ -416,8 +416,24 @@
   .photoCaptureButton,
   .photoCaptureHint { width: 100%; }
   .courtCard { gap: 12px; padding: 14px; }
-  .courtTitle { align-items: flex-start; }
-  .courtTitleActions { justify-content: flex-start; }
+  .courtTitle {
+    display: grid;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .courtTitleActions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    justify-content: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+  .courtTitleActions .courtReady,
+  .courtTitleActions .courtPending {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+  .courtTitleActions .toggleCourt { width: 100%; }
   .outcomeButtons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .outcomeButtons button { min-width: 0; }
   .resultScoreboard { gap: 9px; padding: 15px; }
