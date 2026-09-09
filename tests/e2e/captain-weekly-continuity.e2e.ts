@@ -69,6 +69,7 @@ type JourneyState = {
 type PostMatchState = {
   saved: boolean
   submissions: Array<Record<string, unknown>>
+  latestFirstCourtScore: string
 }
 
 test.describe('captain weekly continuity', () => {
@@ -204,7 +205,11 @@ test.describe('captain weekly continuity', () => {
   })
 
   test('records a deciding match tiebreak and advances Team Chat to the next match', async ({ page }) => {
-    const state: PostMatchState = { saved: false, submissions: [] }
+    const state: PostMatchState = {
+      saved: false,
+      submissions: [],
+      latestFirstCourtScore: '6-4 6-7 10-8',
+    }
 
     await seedCaptainSession(page)
     await mockPostMatchJourney(page, state)
@@ -228,7 +233,11 @@ test.describe('captain weekly continuity', () => {
     }
 
     await expect(page.getByText('3/3 ready to submit')).toBeVisible()
-    await page.getByRole('button', { name: 'Submit final result' }).click()
+    await page.getByRole('button', { name: 'Submit final result' }).evaluate((button) => {
+      const submit = button as HTMLButtonElement
+      submit.click()
+      submit.click()
+    })
 
     await expect(page.getByRole('heading', { name: 'Match won.' })).toBeVisible()
     await expect(page.getByText('Won · 6-4 6-7 10-8')).toBeVisible()
@@ -276,12 +285,30 @@ test.describe('captain weekly continuity', () => {
     expect(importRow.lines[1]).toMatchObject({ winnerSide: 'B', scoreEventType: 'standard' })
     expect(await page.evaluate(() => Object.keys(window.localStorage).filter((key) => key.startsWith('tiq:captain-scorecard-draft:')))).toEqual([])
 
+    await page.getByRole('button', { name: 'Edit scorecard' }).click()
+    const firstCourt = page.locator('article').filter({ hasText: '3.5 Doubles' }).first()
+    await firstCourt.getByRole('button', { name: 'Enter result' }).click()
+    await firstCourt.getByPlaceholder('6-4 3-6 10-8').fill('6-4 4-6 10-7')
+    await firstCourt.getByRole('button', { name: 'Done for now' }).click()
+    await page.getByRole('button', { name: 'Submit final result' }).click()
+
+    await expect(page.getByText('Verified correction', { exact: true })).toBeVisible()
+    await expect(page.getByText('Correction saved safely', { exact: true })).toBeVisible()
+    await expect(page.getByText(/No duplicate match was created/)).toBeVisible()
+    expect(state.submissions).toHaveLength(2)
+    expect(state.submissions[1]).toMatchObject({ teamName: TEAM, opponentTeam: OPPONENT })
+    expect((state.submissions[1].lines as Array<Record<string, unknown>>)[0]).toMatchObject({
+      courtNumber: 1,
+      outcome: 'team',
+      score: '6-4 4-6 10-7',
+    })
+
     await page.getByRole('link', { name: 'View team update' }).click()
 
     await expect(page.getByText('Final result', { exact: true }).first()).toBeVisible()
     await expect(page.getByText('Won 2–1 · Scorecard linked')).toBeVisible()
     await page.getByText('Court results', { exact: true }).click()
-    await expect(page.getByText('6-4 6-7 10-8')).toBeVisible()
+    await expect(page.getByText('6-4 4-6 10-7')).toBeVisible()
     await expect(page.getByText(NEXT_OPPONENT, { exact: false }).first()).toBeVisible()
     await expect(page.getByText('Sep 21', { exact: false }).first()).toBeVisible()
     await expect(page.getByText(OPPONENT, { exact: false }).first()).toBeVisible()
@@ -687,13 +714,23 @@ async function mockPostMatchJourney(page: Page, state: PostMatchState) {
     }
 
     if (url.pathname === '/api/captain/match-results' && request.method() === 'POST') {
-      state.submissions.push(request.postDataJSON() as Record<string, unknown>)
+      const submission = request.postDataJSON() as CaptainScorecardInput
+      state.submissions.push(submission as unknown as Record<string, unknown>)
+      state.latestFirstCourtScore = submission.lines[0]?.score || state.latestFirstCourtScore
+      await new Promise((resolve) => setTimeout(resolve, 120))
       state.saved = true
+      const responseRecap = {
+        ...recap,
+        lines: recap.lines.map((line, index) => index === 0 ? { ...line, score: state.latestFirstCourtScore } : line),
+      }
       await json(route, {
         ok: true,
-        message: 'Saved 3 court results, refreshed TiQ ratings, and updated Team Chat.',
+        message: state.submissions.length > 1
+          ? 'Updated this match without creating a duplicate, refreshed TiQ ratings, and updated Team Chat.'
+          : 'Saved 3 court results, refreshed TiQ ratings, and updated Team Chat.',
         externalMatchId: 'captain-scorecard:regression-match',
-        recap,
+        saveMode: state.submissions.length > 1 ? 'updated' : 'created',
+        recap: responseRecap,
         teamAnnouncementUpdated: true,
       })
       return
@@ -701,6 +738,10 @@ async function mockPostMatchJourney(page: Page, state: PostMatchState) {
 
     if (url.pathname === '/api/team-rooms' && request.method() === 'GET') {
       const cards = state.saved ? [currentCard(), nextCard()] : [currentCard()]
+      const latestRecap = {
+        ...recap,
+        lines: recap.lines.map((line, index) => index === 0 ? { ...line, score: state.latestFirstCourtScore } : line),
+      }
       await json(route, {
         ok: true,
         teams: [{
@@ -712,7 +753,7 @@ async function mockPostMatchJourney(page: Page, state: PostMatchState) {
           isDefault: true,
           href: `/team-room?room=room-1&team=${encodeURIComponent(TEAM)}`,
         }],
-        room: teamRoomFixture(cards, state.saved, recap),
+        room: teamRoomFixture(cards, state.saved, latestRecap),
       })
       return
     }

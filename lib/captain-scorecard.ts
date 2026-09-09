@@ -63,6 +63,15 @@ export type CaptainScorecardSavedRecap = CaptainScorecardRecap & {
   sourceConflictCount: number
 }
 
+export type CaptainScorecardSaveTarget = {
+  ok: true
+  externalMatchId: string
+  reusesExistingMatch: boolean
+} | {
+  ok: false
+  message: string
+}
+
 function cleanText(value: string | null | undefined) {
   return (value || '').replace(/\s+/g, ' ').trim()
 }
@@ -104,6 +113,24 @@ export function buildCaptainScorecardExternalMatchId(input: Pick<CaptainScorecar
     normalizeTennisIdentity(input.flight),
   ].join('::')
   return `captain-scorecard:${createHash('sha256').update(stable).digest('hex')}`
+}
+
+export function resolveCaptainScorecardSaveTarget(
+  input: Pick<CaptainScorecardInput, 'teamName' | 'opponentTeam' | 'matchDate' | 'leagueName' | 'flight'>,
+  existingParentExternalIds: Array<string | null | undefined>,
+): CaptainScorecardSaveTarget {
+  const existingIds = [...new Set(existingParentExternalIds.map(cleanText).filter(Boolean))]
+  if (existingIds.length > 1) {
+    return {
+      ok: false,
+      message: 'This scorecard matches more than one existing match. Nothing was changed; review the duplicate match records first.',
+    }
+  }
+  return {
+    ok: true,
+    externalMatchId: existingIds[0] || buildCaptainScorecardExternalMatchId(input),
+    reusesExistingMatch: existingIds.length === 1,
+  }
 }
 
 export function buildCaptainScorecardObservations(input: CaptainScorecardInput): CaptainScorecardObservation[] {
