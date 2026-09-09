@@ -5,6 +5,7 @@ export type TeamRoomScope = {
 }
 
 export type TeamRoomMatchContext = {
+  roomId: string
   date: string
   opponent: string
   time: string
@@ -28,11 +29,12 @@ export function buildTeamRoomScopeId(scope: Partial<TeamRoomScope>) {
 export function buildTeamRoomSessionKey(userId: string | null | undefined, params: Pick<URLSearchParams, 'get'>) {
   // Focus links within a room keep the editor; another team or account gets
   // fresh state (including attachments, replies, match drafts and requests).
-  return JSON.stringify([userId || '', ...['team', 'league', 'flight'].map((key) => params.get(key)?.trim() || '')])
+  return JSON.stringify([userId || '', ...['room', 'team', 'league', 'flight'].map((key) => params.get(key)?.trim() || '')])
 }
 
 export function buildTeamRoomHref(scope: Partial<TeamRoomScope & TeamRoomMatchContext> = {}) {
   const params = new URLSearchParams()
+  if (scope.roomId?.trim()) params.set('room', scope.roomId.trim())
   if (scope.teamName?.trim()) params.set('team', scope.teamName.trim())
   if (scope.leagueName?.trim()) params.set('league', scope.leagueName.trim())
   if (scope.flight?.trim()) params.set('flight', scope.flight.trim())

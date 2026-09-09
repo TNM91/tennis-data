@@ -3472,16 +3472,24 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           const teamRoomResult = await teamRoomResponse.json() as {
             ok?: boolean
             messageId?: string
+            roomId?: string
             href?: string
           }
           const teamRoomMessageId = teamRoomResult.messageId || ''
           teamRoomCardPosted = teamRoomResponse.ok && teamRoomResult.ok === true && Boolean(teamRoomMessageId)
           if (teamRoomCardPosted) {
             const hrefUrl = new URL(
-              teamRoomResult.href || buildTeamRoomHref({ teamName, leagueName, flight }),
+              teamRoomResult.href || buildTeamRoomHref({
+                roomId: teamRoomResult.roomId || '',
+                teamName,
+                leagueName,
+                flight,
+              }),
               window.location.origin,
             )
+            if (teamRoomResult.roomId) hrefUrl.searchParams.set('room', teamRoomResult.roomId)
             hrefUrl.searchParams.set('message', teamRoomMessageId)
+            hrefUrl.searchParams.set('intent', 'confirm-lineup')
             hrefUrl.hash = `match-card-${encodeURIComponent(teamRoomMessageId)}`
             teamRoomCardHref = `${hrefUrl.pathname}${hrefUrl.search}${hrefUrl.hash}`
           }
@@ -3576,14 +3584,26 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           },
         }),
       })
-      const result = await response.json() as { ok?: boolean; message?: string; messageId?: string; href?: string }
+      const result = await response.json() as {
+        ok?: boolean
+        message?: string
+        messageId?: string
+        roomId?: string
+        href?: string
+      }
       if (!response.ok || !result.ok || !result.messageId) {
         throw new Error(result.message || 'The final lineup could not be prepared. Please try again.')
       }
       const hrefUrl = new URL(
-        result.href || buildTeamRoomHref({ teamName, leagueName, flight }),
+        result.href || buildTeamRoomHref({
+          roomId: result.roomId || '',
+          teamName,
+          leagueName,
+          flight,
+        }),
         window.location.origin,
       )
+      if (result.roomId) hrefUrl.searchParams.set('room', result.roomId)
       hrefUrl.searchParams.set('message', result.messageId)
       hrefUrl.searchParams.set('intent', 'finalize-lineup')
       hrefUrl.hash = `match-card-${encodeURIComponent(result.messageId)}`

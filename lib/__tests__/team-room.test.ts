@@ -13,7 +13,7 @@ describe('Team Room', () => {
   it('isolates the editor by team, league, flight and signed-in account', () => {
     const params = new URLSearchParams('team=Team+One&league=Fall&flight=4.0')
     const original = buildTeamRoomSessionKey('user-1', params)
-    for (const [key, value] of [['team', 'Team Two'], ['league', 'Spring'], ['flight', '4.5']]) {
+    for (const [key, value] of [['room', 'room-2'], ['team', 'Team Two'], ['league', 'Spring'], ['flight', '4.5']]) {
       const changed = new URLSearchParams(params)
       changed.set(key, value)
       expect(buildTeamRoomSessionKey('user-1', changed)).not.toBe(original)
@@ -46,6 +46,7 @@ describe('Team Room', () => {
     })).toBe('/team-room?team=SuperSmash+Bros&league=2026+Tri-Level&flight=3.5%2F4.0%2F4.5')
 
     expect(buildTeamRoomHref({
+      roomId: 'room-1',
       teamName: 'SuperSmash Bros',
       leagueName: '2026 Tri-Level',
       flight: '3.5/4.0/4.5',
@@ -57,7 +58,7 @@ describe('Team Room', () => {
       court: '4.5 Doubles',
       player: 'Alex Morgan',
       arrivalAction: 'message',
-    })).toBe('/team-room?team=SuperSmash+Bros&league=2026+Tri-Level&flight=3.5%2F4.0%2F4.5&date=2026-08-08&opponent=Baseline+Crew&time=6%3A00+PM&facility=North+Courts&message=match-card-1&court=4.5+Doubles&player=Alex+Morgan&arrival=message')
+    })).toBe('/team-room?room=room-1&team=SuperSmash+Bros&league=2026+Tri-Level&flight=3.5%2F4.0%2F4.5&date=2026-08-08&opponent=Baseline+Crew&time=6%3A00+PM&facility=North+Courts&message=match-card-1&court=4.5+Doubles&player=Alex+Morgan&arrival=message')
   })
 
   it('limits team invitations and announcements to team leaders', () => {
@@ -90,6 +91,11 @@ describe('Team Room', () => {
     expect(roomPage).toContain('aria-label="Switch Team Chat"')
     expect(roomPage).toContain('aria-label="Team switcher"')
     expect(roomPage).toContain('Viewing team')
+    expect(roomPage).toContain("for (const key of ['room', 'team', 'league', 'flight', 'date', 'opponent', 'time', 'facility'])")
+    expect(roomPage).toContain("searchParams.get('intent') === 'confirm-lineup'")
+    expect(roomPage).toContain('id="finish-final-lineup"')
+    expect(roomPage).toContain('id="confirm-selected-lineup"')
+    expect(roomPage).toContain('Every selected player is confirmed.')
     expect(roomPage).toContain('href="/compete/teams">All teams</Link>')
     expect(roomPage).toContain('function getTeamRoomOptionLabel(team: TeamOption)')
     expect(roomPage).toContain('[team.teamName, team.leagueName, team.flight]')
@@ -107,6 +113,8 @@ describe('Team Room', () => {
     expect(notificationWorker).not.toContain('/tenaceiq-icon-192.png')
     expect(roomApi).toContain("action === 'create_invite'")
     expect(roomApi).toContain("action === 'post_match_card'")
+    expect(roomApi).toContain('selectTeamLinkForRoom')
+    expect(roomApi).toContain('roomId: conversation.id')
     expect(roomApi).toContain("action === 'respond'")
     expect(roomApi).toContain("action === 'acknowledge_lineup'")
     expect(roomApi).toContain("action === 'schedule_reminder'")

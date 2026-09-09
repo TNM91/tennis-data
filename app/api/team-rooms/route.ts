@@ -289,11 +289,14 @@ export async function GET(request: Request) {
     })
   }
 
-  const selected = selectTeamLink(linksResult.links, {
-    teamName: url.searchParams.get('team'),
-    leagueName: url.searchParams.get('league'),
-    flight: url.searchParams.get('flight'),
-  })
+  const requestedRoomId = url.searchParams.get('room')?.trim() || ''
+  const selected = requestedRoomId
+    ? await selectTeamLinkForRoom(auth.service, linksResult.links, requestedRoomId)
+    : selectTeamLink(linksResult.links, {
+        teamName: url.searchParams.get('team'),
+        leagueName: url.searchParams.get('league'),
+        flight: url.searchParams.get('flight'),
+      })
   if (!selected) {
     return Response.json({ ok: false, message: 'This team is not linked to your profile.' }, { status: 403 })
   }
@@ -1227,9 +1230,11 @@ export async function POST(request: Request) {
     return Response.json({
       ok: true,
       messageId: writeResult.data.id,
+      roomId: conversation.id,
       silent,
       lineupChangeNotice,
       href: buildTeamRoomHref({
+        roomId: conversation.id,
         teamName: selected.team_name,
         leagueName: selected.league_name,
         flight: selected.flight,
@@ -3571,6 +3576,27 @@ function selectTeamLink(links: TeamLinkRow[], scope: {
     leagueName: link.league_name,
     flight: link.flight,
   }) === requestedScopeId) ?? teamMatches[0]
+}
+
+async function selectTeamLinkForRoom(
+  service: SupabaseClient,
+  links: TeamLinkRow[],
+  roomId: string,
+) {
+  const { data, error } = await service
+    .from('internal_conversations')
+    .select('related_entity_id')
+    .eq('id', roomId)
+    .eq('related_entity_type', 'team_room')
+    .maybeSingle()
+  if (error || !data?.related_entity_id) return null
+
+  const requestedScopeId = cleanText(data.related_entity_id)
+  return links.find((link) => buildTeamRoomScopeId({
+    teamName: link.team_name,
+    leagueName: link.league_name,
+    flight: link.flight,
+  }) === requestedScopeId) ?? null
 }
 
 function toTeamOption(link: TeamLinkRow) {

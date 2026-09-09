@@ -30,6 +30,7 @@ import {
   type TeamRoomFinalLineupReceipt,
   type TeamRoomLineupAnnouncement,
 } from '@/lib/team-room-final-lineup'
+import { validateTeamLogoFile } from '@/lib/team-branding'
 import {
   buildTeamRoomMapsHref,
   getTeamRoomMatchDayPhase,
@@ -400,7 +401,7 @@ function TeamRoomSession() {
   const accessToken = session?.access_token || ''
   const requestedQuery = useMemo(() => {
     const params = new URLSearchParams()
-    for (const key of ['team', 'league', 'flight', 'date', 'opponent', 'time', 'facility']) {
+    for (const key of ['room', 'team', 'league', 'flight', 'date', 'opponent', 'time', 'facility']) {
       const value = searchParams.get(key)?.trim()
       if (value) params.set(key, value)
     }
@@ -408,17 +409,19 @@ function TeamRoomSession() {
     return query ? `?${query}` : ''
   }, [searchParams])
 
+  const requestedRoomId = searchParams.get('room')?.trim() || ''
   const focusedMessageId = searchParams.get('message')?.trim() || ''
   const focusedPlayerName = searchParams.get('player')?.trim() || ''
   const focusedCourtLabel = searchParams.get('court')?.trim() || ''
   const focusedReplyStatus = searchParams.get('status')?.trim() || ''
   const focusedArrivalAction = searchParams.get('arrival')?.trim() || ''
+  const confirmLineupIntent = searchParams.get('intent') === 'confirm-lineup'
   const finalLineupDeliveryIntent = searchParams.get('intent') === 'finalize-lineup'
 
   const pinnedMessage = useMemo(
-    () => room?.messages.find((message) => message.id === focusedMessageId && message.card)
-      || room?.messages.find((message) => message.id === room.activeCardId)
-      || null,
+    () => focusedMessageId
+      ? room?.messages.find((message) => message.id === focusedMessageId && message.card) || null
+      : room?.messages.find((message) => message.id === room.activeCardId) || null,
     [focusedMessageId, room?.activeCardId, room?.messages],
   )
   const activeMatchMessage = useMemo(
@@ -587,7 +590,11 @@ function TeamRoomSession() {
 
   useEffect(() => {
     if (!focusedMessageId) return
-    const targetId = focusedFinalResult
+    const targetId = finalLineupDeliveryIntent
+      ? 'finish-final-lineup'
+      : confirmLineupIntent
+        ? 'confirm-selected-lineup'
+        : focusedFinalResult
       ? `final-result-${focusedMessageId}`
       : pinnedMessage?.id === focusedMessageId
         ? `match-card-${focusedMessageId}`
@@ -597,15 +604,18 @@ function TeamRoomSession() {
       const target = document.getElementById(targetId)
       if (!target) return
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      target.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' })
+      target.scrollIntoView({ block: finalLineupDeliveryIntent || confirmLineupIntent ? 'start' : 'center', behavior: reduceMotion ? 'auto' : 'smooth' })
       target.focus({ preventScroll: true })
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [focusedFinalResult, focusedMessageId, pinnedMessage?.id])
+  }, [confirmLineupIntent, finalLineupDeliveryIntent, focusedFinalResult, focusedMessageId, pinnedMessage?.id])
 
   const loadRoom = useCallback(async (options: { quiet?: boolean } = {}) => {
     if (!accessToken) return
-    if (!options.quiet) setLoading(true)
+    if (!options.quiet) {
+      setLoading(true)
+      setRoom(null)
+    }
     try {
       const response = await fetch(`/api/team-rooms${requestedQuery}`, {
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -618,6 +628,12 @@ function TeamRoomSession() {
         room?: TeamRoom | null
       }
       if (!response.ok || !payload.ok) throw new Error(payload.message || 'Team Room could not be opened.')
+      if (requestedRoomId && payload.room?.id !== requestedRoomId) {
+        throw new Error('This lineup could not be matched to its Team Chat. Return to the lineup and try again.')
+      }
+      if (focusedMessageId && !payload.room?.messages.some((message) => message.id === focusedMessageId)) {
+        throw new Error('This lineup is not in the selected Team Chat. Return to the lineup and try again.')
+      }
       setTeams(payload.teams || [])
       setRoom(payload.room || null)
       setError('')
@@ -626,7 +642,7 @@ function TeamRoomSession() {
     } finally {
       if (!options.quiet) setLoading(false)
     }
-  }, [accessToken, requestedQuery])
+  }, [accessToken, focusedMessageId, requestedQuery, requestedRoomId])
 
   useEffect(() => {
     if (!authResolved) return
@@ -736,6 +752,10 @@ function TeamRoomSession() {
     setDraftLoadedRoomId(room.id)
 
     const scrollKey = `tenaceiq-team-room-scroll:${room.id}`
+    if (focusedMessageId || confirmLineupIntent || finalLineupDeliveryIntent) {
+      window.sessionStorage.removeItem(scrollKey)
+      return
+    }
     const savedScroll = Number(window.sessionStorage.getItem(scrollKey))
     if (savedScroll > 0) {
       window.requestAnimationFrame(() => window.scrollTo({ top: savedScroll, behavior: 'instant' }))
@@ -746,7 +766,7 @@ function TeamRoomSession() {
       saveScroll()
       window.removeEventListener('pagehide', saveScroll)
     }
-  }, [room?.id])
+  }, [confirmLineupIntent, finalLineupDeliveryIntent, focusedMessageId, room?.id])
 
   useEffect(() => {
     if (!room?.id || draftLoadedRoomId !== room.id) return
@@ -877,6 +897,12 @@ function TeamRoomSession() {
 
   async function uploadTeamLogo(file: File | null) {
     if (!file || !room || uploadingTeamLogo) return
+    const validationMessage = validateTeamLogoFile(file)
+    if (validationMessage) {
+      setError(validationMessage)
+      if (teamLogoInputRef.current) teamLogoInputRef.current.value = ''
+      return
+    }
     setUploadingTeamLogo(true)
     setError('')
     try {
@@ -1682,7 +1708,7 @@ function TeamRoomSession() {
         >
           <span className={styles.appBrandMarks}>
             <Image className={styles.appTiqMark} src="/brand/web/header-iq-compact.png" alt="TenAceIQ" width={34} height={34} />
-            {room.teamLogoUrl ? <Image className={styles.appTeamMark} src={room.teamLogoUrl} alt={`${room.teamName} logo`} width={30} height={30} /> : null}
+            {room.teamLogoUrl ? <Image className={styles.appTeamMark} src={room.teamLogoUrl} alt={`${room.teamName} logo`} width={40} height={40} /> : null}
           </span>
           <span>My Teams</span>
         </Link>
@@ -1710,7 +1736,10 @@ function TeamRoomSession() {
               ) : null}
               <button className={styles.buttonSecondary} type="button" onClick={() => void shareRoom()}>Share room</button>
               {room.canManage ? (
-                <label className={styles.teamLogoUpload}>
+                <label
+                  className={styles.teamLogoUpload}
+                  title="JPG, PNG, or WebP up to 8 MB. Square or wide team marks work best."
+                >
                   <input
                     ref={teamLogoInputRef}
                     type="file"
@@ -1758,8 +1787,60 @@ function TeamRoomSession() {
           {error ? <div className={styles.error} role="alert">{error}</div> : null}
         </header>
 
+        {confirmLineupIntent && room.canManage && finalLineupDeliveryCard ? (
+          <section
+            id="confirm-selected-lineup"
+            className={styles.finalizeLineupGuide}
+            aria-label="Confirm selected lineup"
+            role="status"
+            tabIndex={-1}
+          >
+            <p>Lineup saved</p>
+            <strong>{finalLineupDeliveryLocked
+              ? 'Every selected player is confirmed.'
+              : finalLineupDeliveryWaiting === 1
+                ? '1 selected player still needs to reply.'
+                : `${finalLineupDeliveryWaiting} selected players still need to reply.`}</strong>
+            <small className={styles.finalizeLineupContext}>
+              {room.teamName}{finalLineupDeliveryCard.opponent ? ` vs ${finalLineupDeliveryCard.opponent}` : ''}
+              {finalLineupDeliveryCard.matchDate ? ` · ${formatMatchDate(finalLineupDeliveryCard.matchDate)}` : ''}
+            </small>
+            <span>{finalLineupDeliveryLocked
+              ? 'Your exact courts are saved. Continue to choose Team Chat, group text, or both.'
+              : 'Your exact courts are saved. Review only the selected players below—no names need to be entered again.'}</span>
+            {finalLineupDeliveryLocked ? (
+              <Link
+                className={styles.finalizeLineupGuideAction}
+                href={`${buildTeamRoomHref({
+                  roomId: room.id,
+                  teamName: room.teamName,
+                  leagueName: room.leagueName,
+                  flight: room.flight,
+                  date: finalLineupDeliveryCard.matchDate,
+                  opponent: finalLineupDeliveryCard.opponent,
+                  time: finalLineupDeliveryCard.matchTime,
+                  facility: finalLineupDeliveryCard.facility,
+                  messageId: finalLineupDeliveryMessageId,
+                })}&intent=finalize-lineup#match-card-${encodeURIComponent(finalLineupDeliveryMessageId)}`}
+              >
+                Continue to final send
+              </Link>
+            ) : (
+              <a className={styles.finalizeLineupGuideAction} href={`#match-card-${encodeURIComponent(finalLineupDeliveryMessageId)}`}>
+                Review selected players
+              </a>
+            )}
+          </section>
+        ) : null}
+
         {finalLineupDeliveryIntent && room.canManage ? (
-          <section className={styles.finalizeLineupGuide} aria-label="Finish final lineup" role="status">
+          <section
+            id="finish-final-lineup"
+            className={styles.finalizeLineupGuide}
+            aria-label="Finish final lineup"
+            role="status"
+            tabIndex={-1}
+          >
             <p>Final lineup</p>
             <strong>{finalLineupDeliveryMatchComplete
               ? 'This match is already complete.'
@@ -1768,6 +1849,12 @@ function TeamRoomSession() {
                 : finalLineupDeliveryLocked
                   ? 'Confirmed and ready to share.'
                   : 'Finish confirming the lineup first.'}</strong>
+            {finalLineupDeliveryCard ? (
+              <small className={styles.finalizeLineupContext}>
+                {room.teamName}{finalLineupDeliveryCard.opponent ? ` vs ${finalLineupDeliveryCard.opponent}` : ''}
+                {finalLineupDeliveryCard.matchDate ? ` · ${formatMatchDate(finalLineupDeliveryCard.matchDate)}` : ''}
+              </small>
+            ) : null}
             <span>{finalLineupDeliveryMatchComplete
               ? 'A final score is already saved. A pre-match lineup can no longer be sent; open the scorecard to view or print the result.'
               : finalLineupDeliveryLocked
@@ -1797,6 +1884,7 @@ function TeamRoomSession() {
                   </button>
                 </div>
                 <div className={styles.finalizeLineupGuideLinks}>
+                  <Link href={finalLineupEditHref}>Edit lineup</Link>
                   <Link href={matchupSheetHref}>Share lineup image</Link>
                   <Link href={scorecardHref}>Print scorecard</Link>
                 </div>

@@ -3704,7 +3704,7 @@ function TeamSummaryImportedPanel({
         {isPlayerRoster ? <>
           <ReviewFact label="Roster checked" value={String(parsedDraft.playerCount)} />
           <ReviewFact label="Contacts saved" value={String(result.importedContactCount ?? parsedDraft.contactCount ?? 0)} />
-          <ReviewFact label="Team Summary" value="Kept" />
+          <ReviewFact label="Team record" value="Merged — no duplicate" />
         </> : <>
           <ReviewFact label="Players" value={String(rosterResult?.totalPlayers ?? parsedDraft.playerCount)} />
           <ReviewFact label="Created" value={String(rosterResult?.createdCount ?? 0)} />
