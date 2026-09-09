@@ -191,16 +191,18 @@ describe('Team Room live availability card', () => {
     expect(roomPage).toContain("<span className={styles.captainActionComplete}>Lineup sent</span>")
   })
 
-  it('explains the final send and scorecard steps after the Builder opens Team Room', () => {
+  it('offers direct Team Chat and group-text delivery after the Builder opens Team Room', () => {
     const roomPage = readSource('app/team-room/page.tsx')
 
     expect(roomPage).toContain("searchParams.get('intent') === 'finalize-lineup'")
-    expect(roomPage).toContain('Nothing has been sent yet.')
-    expect(roomPage).toContain('Step 1: review the pinned lineup and tap Send lineup to team. Step 2: share the image or print the scorecard.')
-    expect(roomPage).toContain('Share / print confirmed lineup below to send the image or print the scorecard.')
+    expect(roomPage).toContain('Confirmed and ready to share.')
+    expect(roomPage).toContain('Choose Team Chat, your group text, or both.')
+    expect(roomPage).toContain('Post to Team Chat')
+    expect(roomPage).toContain('Copy for group text')
+    expect(roomPage).toContain('copyFinalLineupForGroupText()')
     expect(roomPage).toContain('This match is already complete.')
     expect(roomPage).toContain('Open scorecard')
-    expect(roomPage).toContain('Review &amp; send lineup')
+    expect(roomPage).toContain('Review lineup')
     expect(roomPage).toContain('Share lineup image')
     expect(roomPage).toContain('const finalLineupDeliveryMessageId =')
   })

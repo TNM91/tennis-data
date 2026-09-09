@@ -101,6 +101,27 @@ export function buildCaptainLockedLineupAnnouncement(input: {
   ].filter(Boolean).join('\n')
 }
 
+export function buildCaptainFinalLineupGroupText(input: {
+  lineup: CaptainLockedLineupRow[]
+  teamName?: string | null
+  matchDate?: string | null
+  opponent?: string | null
+  arrivalTime?: string | null
+  facility?: string | null
+  teamChatUrl?: string | null
+}) {
+  const teamName = cleanOptional(input.teamName)
+  const announcement = buildCaptainLockedLineupAnnouncement(input).replace(
+    /^Lineup locked/,
+    teamName ? `${teamName} final lineup` : 'Final lineup',
+  )
+  const teamChatUrl = cleanOptional(input.teamChatUrl)
+  return [
+    announcement,
+    teamChatUrl ? `Team Chat: ${teamChatUrl}` : '',
+  ].filter(Boolean).join('\n\n')
+}
+
 export function hasSeenCaptainLineupConfirmation(
   entries: CaptainLineupConfirmationSeenEntry[],
   userId: string,

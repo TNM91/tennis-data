@@ -280,6 +280,64 @@
   text-decoration: none;
 }
 
+.finalizeLineupGuideActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 7px;
+  min-width: 0;
+}
+
+.finalizeLineupGuidePrimary,
+.finalizeLineupGuideSecondary {
+  min-width: 0;
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.finalizeLineupGuidePrimary {
+  border: 1px solid color-mix(in srgb, var(--brand-green) 72%, var(--shell-panel-border));
+  background: var(--brand-green);
+  color: #071526;
+}
+
+.finalizeLineupGuidePrimary:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.finalizeLineupGuideSecondary {
+  border: 1px solid var(--shell-panel-border);
+  background: var(--shell-chip-bg);
+  color: var(--foreground-strong);
+}
+
+.finalizeLineupGuideLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 3px;
+}
+
+.finalizeLineupGuideLinks a {
+  color: var(--brand-blue-2);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+@media (max-width: 420px) {
+  .finalizeLineupGuideActions {
+    grid-template-columns: 1fr;
+  }
+}
+
 .pinnedAreaFocused {
   border-radius: 18px;
   outline: 2px solid color-mix(in srgb, var(--brand-green) 72%, transparent);

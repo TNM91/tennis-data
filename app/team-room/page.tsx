@@ -37,7 +37,11 @@ import {
 } from '@/lib/team-room-match-day'
 import { buildMatchWeekGoogleCalendarHref } from '@/lib/captain-match-week-links'
 import { CAPTAIN_AVAILABILITY_REPLY_NOTICE } from '@/lib/captain-reply-alert'
-import { buildCaptainLockedLineupId, isCaptainLineupLocked } from '@/lib/captain-lineup-confirmation'
+import {
+  buildCaptainFinalLineupGroupText,
+  buildCaptainLockedLineupId,
+  isCaptainLineupLocked,
+} from '@/lib/captain-lineup-confirmation'
 import { buildCaptainLevelUpCardHref, getCaptainLevelUpCardDetails } from '@/lib/captain-level-up-challenge'
 import {
   buildTeamRoomArrivalSmsHref,
@@ -437,9 +441,35 @@ function TeamRoomSession() {
     [focusedMessageId, room?.activeLevelUpChallengeId, room?.messages],
   )
   const currentFinalLineup = activeMatchMessage?.card?.finalLineup || null
-  const finalLineupDeliveryCard = pinnedMessage?.card || activeMatchMessage?.card || null
-  const finalLineupDeliveryMessageId = pinnedMessage?.id || activeMatchMessage?.id || focusedMessageId
+  const finalLineupDeliveryMessage = pinnedMessage || activeMatchMessage
+  const finalLineupDeliveryCard = finalLineupDeliveryMessage?.card || null
+  const finalLineupDeliveryMessageId = finalLineupDeliveryMessage?.id || focusedMessageId
   const finalLineupDeliverySent = Boolean(finalLineupDeliveryCard?.finalLineup)
+  const finalLineupDeliveryWaiting = finalLineupDeliveryMessage
+    ? finalLineupDeliveryCard?.availabilitySummary?.waiting
+      ?? Math.max(0, (room?.members.length || 0) - finalLineupDeliveryMessage.responseSummary.total)
+    : 0
+  const finalLineupDeliveryReplyGroups = finalLineupDeliveryMessage
+    ? buildMatchReplyGroups(finalLineupDeliveryMessage, finalLineupDeliveryWaiting)
+    : []
+  const finalLineupDeliveryCourtReadiness = finalLineupDeliveryCard
+    ? buildTeamRoomCourtReadiness({
+        lineup: finalLineupDeliveryCard.lineup,
+        replies: finalLineupDeliveryReplyGroups.map((group) => ({ status: group.status, names: group.names })),
+        lineupChange: finalLineupDeliveryCard.lineupChangeNotice,
+      })
+    : []
+  const finalLineupDeliveryLineupId = finalLineupDeliveryMessage && finalLineupDeliveryCard
+    ? buildCaptainLockedLineupId({ messageId: finalLineupDeliveryMessage.id, lineup: finalLineupDeliveryCard.lineup })
+    : ''
+  const finalLineupDeliveryLocked = Boolean(
+    finalLineupDeliveryCard?.cardType === 'projected_lineup'
+    && isCaptainLineupLocked({
+      confirmedCount: finalLineupDeliveryCourtReadiness.filter((court) => court.status === 'confirmed').length,
+      totalCount: finalLineupDeliveryCourtReadiness.length,
+      lineup: finalLineupDeliveryCard.lineup,
+    }),
+  )
   const finalLineupDeliveryMatchComplete = Boolean(
     finalLineupDeliveryCard?.matchDate
     && finalResultMessage?.card?.matchDate === finalLineupDeliveryCard.matchDate
@@ -1120,6 +1150,30 @@ function TeamRoomSession() {
     }
   }
 
+  async function copyFinalLineupForGroupText() {
+    if (!room || !finalLineupDeliveryCard || !finalLineupDeliveryLocked) {
+      setError('Confirm every court before copying the final lineup.')
+      return
+    }
+    setError('')
+    const teamChatUrl = new URL(room.href, window.location.origin).toString()
+    const groupText = buildCaptainFinalLineupGroupText({
+      lineup: finalLineupDeliveryCard.lineup,
+      teamName: room.teamName,
+      matchDate: formatMatchDate(finalLineupDeliveryCard.matchDate),
+      opponent: finalLineupDeliveryCard.opponent,
+      arrivalTime: finalLineupDeliveryCard.matchTime,
+      facility: finalLineupDeliveryCard.facility,
+      teamChatUrl,
+    })
+    try {
+      await navigator.clipboard.writeText(groupText)
+      setNotice('Final lineup copied. Paste it into your group text.')
+    } catch {
+      setError('The lineup could not be copied. Try again from a secure browser tab.')
+    }
+  }
+
   async function markFinalLineupSeen(messageId: string) {
     if (!room || markingFinalLineupSeen) return
     setMarkingFinalLineupSeen(true)
@@ -1706,26 +1760,49 @@ function TeamRoomSession() {
 
         {finalLineupDeliveryIntent && room.canManage ? (
           <section className={styles.finalizeLineupGuide} aria-label="Finish final lineup" role="status">
-            <p>Finish final lineup</p>
+            <p>Final lineup</p>
             <strong>{finalLineupDeliveryMatchComplete
               ? 'This match is already complete.'
-              : finalLineupDeliverySent ? 'Lineup sent to the team.' : 'Nothing has been sent yet.'}</strong>
+              : finalLineupDeliverySent
+                ? 'Shared in Team Chat.'
+                : finalLineupDeliveryLocked
+                  ? 'Confirmed and ready to share.'
+                  : 'Finish confirming the lineup first.'}</strong>
             <span>{finalLineupDeliveryMatchComplete
               ? 'A final score is already saved. A pre-match lineup can no longer be sent; open the scorecard to view or print the result.'
-              : finalLineupDeliverySent
-              ? 'Next, use Share / print confirmed lineup below to send the image or print the scorecard.'
-              : 'Step 1: review the pinned lineup and tap Send lineup to team. Step 2: share the image or print the scorecard.'}</span>
+              : finalLineupDeliveryLocked
+                ? 'Choose Team Chat, your group text, or both. Each option includes the confirmed courts and match details.'
+                : 'Review the lineup below and confirm every court before sharing it.'}</span>
             {finalLineupDeliveryMatchComplete ? (
               <Link className={styles.finalizeLineupGuideAction} href={scorecardHref}>Open scorecard</Link>
-            ) : finalLineupDeliverySent ? (
-              <Link className={styles.finalizeLineupGuideAction} href={matchupSheetHref}>Share lineup image</Link>
+            ) : finalLineupDeliveryLocked ? (
+              <>
+                <div className={styles.finalizeLineupGuideActions} aria-label="Choose how to share the final lineup">
+                  <button
+                    className={styles.finalizeLineupGuidePrimary}
+                    type="button"
+                    disabled={finalLineupDeliverySent || Boolean(sendingFinalLineupId)}
+                    onClick={() => void sendFinalLineup(finalLineupDeliveryMessageId, finalLineupDeliveryLineupId)}
+                  >
+                    {finalLineupDeliverySent
+                      ? 'Posted to Team Chat'
+                      : sendingFinalLineupId ? 'Posting…' : 'Post to Team Chat'}
+                  </button>
+                  <button
+                    className={styles.finalizeLineupGuideSecondary}
+                    type="button"
+                    onClick={() => void copyFinalLineupForGroupText()}
+                  >
+                    Copy for group text
+                  </button>
+                </div>
+                <div className={styles.finalizeLineupGuideLinks}>
+                  <Link href={matchupSheetHref}>Share lineup image</Link>
+                  <Link href={scorecardHref}>Print scorecard</Link>
+                </div>
+              </>
             ) : (
-              <a
-                className={styles.finalizeLineupGuideAction}
-                href={finalLineupDeliveryMessageId ? `#match-card-${encodeURIComponent(finalLineupDeliveryMessageId)}` : '#pinned-lineup'}
-              >
-                Review &amp; send lineup
-              </a>
+              <Link className={styles.finalizeLineupGuideAction} href={finalLineupEditHref}>Review lineup</Link>
             )}
           </section>
         ) : null}
