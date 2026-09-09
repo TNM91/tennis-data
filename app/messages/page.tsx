@@ -8,6 +8,7 @@ import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import { useAuth } from '@/app/components/auth-provider'
 import {
   cancelInternalScheduleEvent,
+  listCaptainPracticeRoster,
   listInternalScheduleEventsForConversation,
   listInternalScheduleResponses,
   saveInternalScheduleResponse,
@@ -15,7 +16,9 @@ import {
   type InternalScheduleEvent,
   type InternalScheduleResponse,
   type InternalScheduleResponseStatus,
+  type CaptainPracticeRosterOverview,
 } from '@/lib/internal-scheduling'
+import { practiceRsvpPath, type PracticeDisplayStatus } from '@/lib/captain-practice-rsvp'
 import {
   listInternalNotifications,
   markAllInternalNotificationsRead,
@@ -1091,6 +1094,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [messages, setMessages] = useState<InternalMessage[]>([])
   const [scheduleEvents, setScheduleEvents] = useState<InternalScheduleEvent[]>([])
   const [scheduleResponses, setScheduleResponses] = useState<InternalScheduleResponse[]>([])
+  const [practiceRosterOverview, setPracticeRosterOverview] = useState<CaptainPracticeRosterOverview | null>(null)
   const [notifications, setNotifications] = useState<InternalNotification[]>([])
   const [notificationPreferences, setNotificationPreferences] = useState<InternalNotificationPreferences | null>(null)
   const [coachContacts, setCoachContacts] = useState<CoachMessageContact[]>([])
@@ -1126,6 +1130,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [preferenceSaving, setPreferenceSaving] = useState('')
   const [conversationActionSaving, setConversationActionSaving] = useState('')
   const [scheduleActionSaving, setScheduleActionSaving] = useState('')
+  const [practiceReminderSaving, setPracticeReminderSaving] = useState(false)
   const [calendarQuickAddSaving, setCalendarQuickAddSaving] = useState('')
   const [calendarQuickAddedItemIds, setCalendarQuickAddedItemIds] = useState<Set<string>>(() => new Set())
   const [highlightedCalendarCueTargetId, setHighlightedCalendarCueTargetId] = useState('')
@@ -1166,18 +1171,25 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     [scheduleResponses, selectedScheduleEvent],
   )
   const practiceRosterGroups = useMemo(() => {
-    const groups = new Map<InternalScheduleResponseStatus, string[]>([
+    const groups = new Map<PracticeDisplayStatus, string[]>([
       ['in', []],
+      ['waitlist', []],
       ['maybe', []],
       ['out', []],
       ['unanswered', []],
     ])
+    if (practiceRosterOverview) {
+      for (const player of practiceRosterOverview.roster) {
+        if (player.playerName) groups.get(player.displayStatus)?.push(player.playerName)
+      }
+      return groups
+    }
     for (const response of selectedScheduleResponses) {
       const name = response.profileName.trim()
       if (name) groups.get(response.responseStatus)?.push(name)
     }
     return groups
-  }, [selectedScheduleResponses])
+  }, [practiceRosterOverview, selectedScheduleResponses])
   const canManageSchedule = Boolean(
     identity &&
       selectedScheduleEvent &&
@@ -1604,6 +1616,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       setMessages([])
       setScheduleEvents([])
       setScheduleResponses([])
+      setPracticeRosterOverview(null)
       setScheduleEditOpen(false)
       return
     }
@@ -1635,9 +1648,14 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     listInternalScheduleEventsForConversation(selectedId)
       .then(async (events) => {
         const responses = await listInternalScheduleResponses(events.map((event) => event.id))
+        const practiceEvent = events.find((event) => event.eventType === 'captain_practice')
+        const practiceRoster = practiceEvent && practiceEvent.createdByUserId === identity?.userId
+          ? await listCaptainPracticeRoster(practiceEvent.id)
+          : null
         if (!active) return
         setScheduleEvents(events)
         setScheduleResponses(responses)
+        setPracticeRosterOverview(practiceRoster)
       })
       .catch(() => {
         if (!active) {
@@ -1645,6 +1663,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         }
         setScheduleEvents([])
         setScheduleResponses([])
+        setPracticeRosterOverview(null)
       })
       .finally(() => {
         if (active) setScheduleLoading(false)
@@ -1672,6 +1691,19 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     setScheduleDraftNotes('')
     setScheduleCancelReason('')
   }, [selectedScheduleEvent])
+
+  useEffect(() => {
+    if (
+      !selectedScheduleEvent ||
+      selectedScheduleEvent.eventType !== 'captain_practice' ||
+      selectedScheduleEvent.createdByUserId !== identity?.userId
+    ) return
+    const refresh = () => {
+      void listCaptainPracticeRoster(selectedScheduleEvent.id).then(setPracticeRosterOverview)
+    }
+    const interval = window.setInterval(refresh, 20000)
+    return () => window.clearInterval(interval)
+  }, [identity?.userId, selectedScheduleEvent])
 
   async function resolveRecipient() {
     setRecipient(null)
@@ -2048,6 +2080,9 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         conversationId: selectedConversation.id,
       })
       setScheduleResponses(await listInternalScheduleResponses(scheduleEvents.map((event) => event.id)))
+      if (selectedScheduleEvent?.eventType === 'captain_practice' && selectedScheduleEvent.createdByUserId === identity.userId) {
+        setPracticeRosterOverview(await listCaptainPracticeRoster(selectedScheduleEvent.id))
+      }
       setMessages(await listInternalMessages(selectedConversation.id))
       setConversations(await listInternalConversations(identity))
       setMessage(`RSVP saved as ${responseStatus === 'in' ? 'In' : responseStatus === 'out' ? 'Out' : responseStatus === 'maybe' ? 'Maybe' : 'Unanswered'}.`)
@@ -2055,6 +2090,40 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       setError(err instanceof Error ? err.message : 'RSVP could not be saved.')
     } finally {
       setResponseSaving('')
+    }
+  }
+
+  async function remindPracticeWaiting() {
+    if (!selectedScheduleEvent || !session?.access_token || practiceReminderSaving) return
+    setPracticeReminderSaving(true)
+    setError('')
+    setMessage('')
+    try {
+      const response = await fetch(`/api/captain/practices/${encodeURIComponent(selectedScheduleEvent.id)}/remind`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const result = await response.json() as {
+        message?: string
+        count?: number
+        phoneCount?: number
+        reminderBody?: string
+        smsHref?: string
+      }
+      if (!response.ok) throw new Error(result.message || 'Practice reminders could not be prepared.')
+      if (result.smsHref) {
+        window.location.href = result.smsHref
+        setMessage(`${result.message} Messages opened for ${result.phoneCount} saved phone number${result.phoneCount === 1 ? '' : 's'}.`)
+      } else if (result.reminderBody) {
+        await navigator.clipboard.writeText(result.reminderBody)
+        setMessage(`${result.message} The reminder was copied; add any players without saved phone numbers.`)
+      } else {
+        setMessage(result.message || 'Everyone has replied.')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Practice reminders could not be prepared.')
+    } finally {
+      setPracticeReminderSaving(false)
     }
   }
 
@@ -2832,8 +2901,10 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
               <div style={rsvpSummaryStyle(isMobile)}>
                 {(['in', 'maybe', 'out', 'unanswered'] as InternalScheduleResponseStatus[]).map((status) => (
                   <div key={status} style={rsvpStatStyle}>
-                    <strong>{selectedScheduleResponses.filter((response) => response.responseStatus === status).length}</strong>
-                    <span>{status === 'in' ? 'In' : status === 'out' ? 'Out' : status === 'maybe' ? 'Maybe' : 'Waiting'}</span>
+                    <strong>{practiceRosterOverview && selectedScheduleEvent?.eventType === 'captain_practice'
+                      ? practiceRosterGroups.get(status as PracticeDisplayStatus)?.length || 0
+                      : selectedScheduleResponses.filter((response) => response.responseStatus === status).length}</strong>
+                    <span>{status === 'in' ? 'In' : status === 'waitlist' ? 'Waitlist' : status === 'out' ? 'Out' : status === 'maybe' ? 'Maybe' : 'Waiting'}</span>
                   </div>
                 ))}
               </div>
@@ -2847,18 +2918,43 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                         ? practiceRosterGroups.get('in')!.join(', ')
                         : 'No one is marked In yet.'}
                     </strong>
+                    {practiceRosterOverview?.capacity ? (
+                      <span style={copyStyle}>
+                        {practiceRosterGroups.get('in')?.length || 0}/{practiceRosterOverview.capacity} confirmed
+                        {(practiceRosterGroups.get('waitlist')?.length || 0) > 0
+                          ? ` · ${practiceRosterGroups.get('waitlist')!.length} waitlisted`
+                          : ''}
+                      </span>
+                    ) : null}
                   </div>
                   <details style={practiceReplyDetailsStyle}>
                     <summary>See every reply</summary>
                     <div style={practiceReplyListStyle}>
-                      {(['in', 'maybe', 'out', 'unanswered'] as InternalScheduleResponseStatus[]).map((status) => (
+                      {(['in', 'waitlist', 'maybe', 'out', 'unanswered'] as PracticeDisplayStatus[]).map((status) => (
                         <div key={status} style={practiceReplyRowStyle}>
-                          <b>{status === 'in' ? 'In' : status === 'out' ? 'Out' : status === 'maybe' ? 'Maybe' : 'Waiting'}</b>
+                          <b>{status === 'in' ? 'In' : status === 'waitlist' ? 'Waitlist' : status === 'out' ? 'Out' : status === 'maybe' ? 'Maybe' : 'Waiting'}</b>
                           <span>{practiceRosterGroups.get(status)?.join(', ') || 'None'}</span>
                         </div>
                       ))}
                     </div>
                   </details>
+                  {canManageSchedule && practiceRosterOverview?.publicToken ? (
+                    <div style={rsvpActionRowStyle}>
+                      <Link href={practiceRsvpPath(practiceRosterOverview.publicToken)} style={ghostButtonStyle}>
+                        Open guest RSVP
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => void remindPracticeWaiting()}
+                        disabled={practiceReminderSaving || !(practiceRosterGroups.get('unanswered')?.length)}
+                        style={primaryButtonStyle}
+                      >
+                        {practiceReminderSaving ? 'Preparing...' : practiceRosterGroups.get('unanswered')?.length
+                          ? `Remind ${practiceRosterGroups.get('unanswered')!.length} waiting`
+                          : 'Everyone replied'}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 

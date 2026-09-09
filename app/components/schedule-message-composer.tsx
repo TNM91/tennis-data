@@ -7,6 +7,7 @@ import {
   buildCaptainPracticeInviteText,
   buildCaptainPracticeSmsHref,
 } from '@/lib/captain-practice-invite'
+import { practiceRsvpPath } from '@/lib/captain-practice-rsvp'
 import {
   createCaptainPracticeThread,
   createTiqLeagueScheduleThread,
@@ -60,6 +61,7 @@ export default function ScheduleMessageComposer({
   const [facility, setFacility] = useState(defaultFacility)
   const [recurrenceRule, setRecurrenceRule] = useState('')
   const [notes, setNotes] = useState('')
+  const [capacity, setCapacity] = useState('')
   const [saving, setSaving] = useState(false)
   const [conversationId, setConversationId] = useState('')
   const [status, setStatus] = useState('')
@@ -84,6 +86,7 @@ export default function ScheduleMessageComposer({
       setFacility(defaultFacility)
       setRecurrenceRule('')
       setNotes(defaultNotes)
+      setCapacity('')
       setConversationId('')
       setStatus('')
       setError('')
@@ -154,14 +157,16 @@ export default function ScheduleMessageComposer({
           facility,
           recurrenceRule,
           notes,
+          capacity: capacity ? Number(capacity) : null,
         })
         setConversationId(result.conversationId)
-        const responseUrl = `${window.location.origin}/messages?thread=${encodeURIComponent(result.conversationId)}#message-schedule-panel`
+        const responseUrl = `${window.location.origin}${practiceRsvpPath(result.publicToken)}`
         const inviteText = buildCaptainPracticeInviteText({
           teamName,
           scheduledDate,
           scheduledTime,
           facility,
+          capacity: capacity ? Number(capacity) : null,
           practiceFocus: notes.replace(/Please mark In, Out, or Maybe[\s\S]*$/i, '').replace(/^Practice focus:\s*/i, '').trim(),
           responseUrl,
         })
@@ -282,14 +287,29 @@ export default function ScheduleMessageComposer({
             </label>
 
             {mode === 'captain-practice' ? (
-              <label style={fieldStyle}>
-                <span style={labelStyle}>Repeats</span>
-                <select value={recurrenceRule} onChange={(event) => setRecurrenceRule(event.target.value)} style={inputStyle}>
-                  <option value="">One time</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="biweekly">Every other week</option>
-                </select>
-              </label>
+              <div style={fieldGridStyle}>
+                <label style={fieldStyle}>
+                  <span style={labelStyle}>Repeats</span>
+                  <select value={recurrenceRule} onChange={(event) => setRecurrenceRule(event.target.value)} style={inputStyle}>
+                    <option value="">One time</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="biweekly">Every other week</option>
+                  </select>
+                </label>
+                <label style={fieldStyle}>
+                  <span style={labelStyle}>Player limit</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    inputMode="numeric"
+                    value={capacity}
+                    onChange={(event) => setCapacity(event.target.value)}
+                    placeholder="No limit"
+                    style={inputStyle}
+                  />
+                </label>
+              </div>
             ) : null}
 
             <label style={fieldStyle}>
@@ -325,7 +345,7 @@ export default function ScheduleMessageComposer({
                   <a href={buildCaptainPracticeSmsHref(practiceDelivery.inviteText)} style={primaryStyle}>Text group</a>
                   <button type="button" onClick={() => void copyPracticeInvite()} style={ghostActionStyle}>Copy invite</button>
                 </div>
-                <p style={deliveryHintStyle}>Players can answer In, Out, or Maybe and see the current practice roster.</p>
+                <p style={deliveryHintStyle}>No account needed. Players can RSVP, see who is coming, join the waitlist, and add practice to their calendar.</p>
               </div>
             ) : null}
             {error ? <div style={errorStyle}>{error}</div> : null}

@@ -99,7 +99,7 @@ const nextConfig: NextConfig = {
       })),
       // Personal short links must not inherit the broader site's referrer
       // policy. Keep this after the shared headers so it wins in production.
-      ...['/a/:path*', '/s'].map(source => ({
+      ...['/a/:path*', '/pr/:path*', '/s'].map(source => ({
         source,
         headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
       })),
