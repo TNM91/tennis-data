@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test'
+import { buildCaptainScorecardImportRow, type CaptainScorecardInput } from '../../lib/captain-scorecard'
 
 const SUPABASE_PROJECT = 'pwxppfazbyourjrsutgx'
 const TEAM = 'Regression Aces'
@@ -7,6 +8,17 @@ const FLIGHT = 'Men 3.5/4.0/4.5'
 const MATCH_DATE = '2026-09-14'
 const OPPONENT = 'Baseline Club'
 const MATCH_ID = 'match-1'
+const NEXT_MATCH_DATE = '2026-09-21'
+const NEXT_OPPONENT = 'Second Serve Club'
+
+const opponentPlayers = [
+  'Jordan Rally',
+  'Morgan Matchpoint',
+  'Parker Passing Shot',
+  'Quinn Quick Volley',
+  'Riley Return',
+  'Skyler Smash',
+] as const
 
 const players = [
   ['p1', 'Alex Ace', 3.5],
@@ -54,6 +66,11 @@ type JourneyState = {
   draftUpdates: Array<Record<string, unknown>>
 }
 
+type PostMatchState = {
+  saved: boolean
+  submissions: Array<Record<string, unknown>>
+}
+
 test.describe('captain weekly continuity', () => {
   test('keeps a confirmed lineup intact through send, refresh, and My Teams', async ({ page }) => {
     const state: JourneyState = {
@@ -70,8 +87,17 @@ test.describe('captain weekly continuity', () => {
     await page.goto(builderHref())
 
     await expect(page.getByRole('heading', { name: /Build (a potential lineup|your team courts)/i }).first()).toBeVisible()
-    for (const [, playerName] of players) {
-      await expect(page.getByText(playerName, { exact: false }).first()).toBeVisible()
+    if ((page.viewportSize()?.width || 0) <= 700) {
+      for (const court of teamSlots) {
+        await expect(page.getByRole('button').filter({
+          hasText: court.players.map((player) => player.playerName).join(' · '),
+        })).toBeVisible()
+      }
+    } else {
+      for (const court of teamSlots) {
+        await expect(page.getByRole('combobox', { name: `${court.label} player 1` })).toHaveValue(court.players[0].playerId)
+        await expect(page.getByRole('combobox', { name: `${court.label} player 2` })).toHaveValue(court.players[1].playerId)
+      }
     }
     const sendStep = page.getByRole('button', { name: 'Post the final lineup to Team Chat' })
     await expect(sendStep).toBeEnabled()
@@ -176,6 +202,91 @@ test.describe('captain weekly continuity', () => {
     }])
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
   })
+
+  test('records a deciding match tiebreak and advances Team Chat to the next match', async ({ page }) => {
+    const state: PostMatchState = { saved: false, submissions: [] }
+
+    await seedCaptainSession(page)
+    await mockPostMatchJourney(page, state)
+
+    await page.goto(scorecardHref())
+
+    await expect(page.getByRole('heading', { name: 'Record the result.' })).toBeVisible()
+    await expect(page.getByText('Loaded 3 saved courts from Team Chat.', { exact: true })).toBeVisible()
+
+    const scores = ['6-4 6-7 10-8', '3-6 4-6', '7-6 6-4']
+    for (const [index, court] of teamSlots.entries()) {
+      const courtCard = page.locator('article').filter({ hasText: court.label }).first()
+      if (index > 0) await courtCard.getByRole('button', { name: 'Enter result' }).click()
+
+      const opponentSelects = courtCard.getByLabel(`Choose an opponent for ${court.label}`)
+      await opponentSelects.nth(0).selectOption(opponentPlayers[index * 2])
+      await opponentSelects.nth(1).selectOption(opponentPlayers[index * 2 + 1])
+      await courtCard.getByPlaceholder('6-4 3-6 10-8').fill(scores[index])
+      await courtCard.getByRole('button', { name: index === 1 ? 'They won' : 'We won' }).click()
+      await courtCard.getByRole('button', { name: 'Done for now' }).click()
+    }
+
+    await expect(page.getByText('3/3 ready to submit')).toBeVisible()
+    await page.getByRole('button', { name: 'Submit final result' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Match won.' })).toBeVisible()
+    await expect(page.getByText('Won · 6-4 6-7 10-8')).toBeVisible()
+    await expect(page.getByText('Match record protected')).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Team update posted' })).toBeVisible()
+
+    expect(state.submissions).toHaveLength(1)
+    expect(state.submissions[0]).toMatchObject({
+      teamName: TEAM,
+      opponentTeam: OPPONENT,
+      matchDate: MATCH_DATE,
+      lines: [
+        {
+          courtNumber: 1,
+          label: '3.5 Doubles',
+          teamPlayers: ['Alex Ace', 'Blake Baseline'],
+          opponentPlayers: ['Jordan Rally', 'Morgan Matchpoint'],
+          outcome: 'team',
+          score: '6-4 6-7 10-8',
+        },
+        {
+          courtNumber: 2,
+          label: '4.0 Doubles',
+          outcome: 'opponent',
+          score: '3-6 4-6',
+        },
+        {
+          courtNumber: 3,
+          label: '4.5 Doubles',
+          outcome: 'team',
+          score: '7-6 6-4',
+        },
+      ],
+    })
+    const importRow = buildCaptainScorecardImportRow(
+      state.submissions[0] as CaptainScorecardInput,
+      'captain-scorecard:regression-match',
+    )
+    expect(importRow.lines[0]).toMatchObject({
+      winnerSide: 'A',
+      score: '6-4 6-7 10-8',
+      scoreEventType: 'third_set_match_tiebreak',
+      evidenceClass: 'locked',
+    })
+    expect(importRow.lines[1]).toMatchObject({ winnerSide: 'B', scoreEventType: 'standard' })
+    expect(await page.evaluate(() => Object.keys(window.localStorage).filter((key) => key.startsWith('tiq:captain-scorecard-draft:')))).toEqual([])
+
+    await page.getByRole('link', { name: 'View team update' }).click()
+
+    await expect(page.getByText('Final result', { exact: true }).first()).toBeVisible()
+    await expect(page.getByText('Won 2–1 · Scorecard linked')).toBeVisible()
+    await page.getByText('Court results', { exact: true }).click()
+    await expect(page.getByText('6-4 6-7 10-8')).toBeVisible()
+    await expect(page.getByText(NEXT_OPPONENT, { exact: false }).first()).toBeVisible()
+    await expect(page.getByText('Sep 21', { exact: false }).first()).toBeVisible()
+    await expect(page.getByText(OPPONENT, { exact: false }).first()).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
+  })
 })
 
 function slot(
@@ -208,6 +319,20 @@ function builderHref() {
     match: MATCH_ID,
   })
   return `/captain/lineup-builder?${params.toString()}`
+}
+
+function scorecardHref() {
+  const params = new URLSearchParams({
+    layer: 'usta',
+    team: TEAM,
+    league: LEAGUE,
+    flight: FLIGHT,
+    date: MATCH_DATE,
+    opponent: OPPONENT,
+    time: '6:00 PM',
+    facility: 'Forest Park Tennis Center',
+  })
+  return `/captain/record-result?${params.toString()}`
 }
 
 async function seedCaptainSession(page: Page) {
@@ -466,6 +591,282 @@ async function mockCaptainJourney(page: Page, state: JourneyState) {
 
     await json(route, { ok: true })
   })
+}
+
+async function mockPostMatchJourney(page: Page, state: PostMatchState) {
+  const finalLineup = {
+    lineupId: 'lineup-1',
+    sourceMessageId: 'message-1',
+    announcementMessageId: 'announcement-1',
+    sentAt: '2026-09-09T16:05:00.000Z',
+    sentByUserId: 'captain-user',
+    sentByName: 'Regression Captain',
+  }
+  const currentCard = matchCard({
+    id: MATCH_ID,
+    date: MATCH_DATE,
+    opponent: OPPONENT,
+    state: () => state.saved ? 'archived' : 'active',
+    lineup: teamSlots.map((court) => ({ label: court.label, players: court.players.map((player) => player.playerName) })),
+    finalLineup,
+  })
+  const nextCard = matchCard({
+    id: 'match-2',
+    date: NEXT_MATCH_DATE,
+    opponent: NEXT_OPPONENT,
+    state: () => 'active',
+    lineup: [],
+    finalLineup: null,
+  })
+  const recap = {
+    outcome: 'won' as const,
+    teamCourts: 2,
+    opponentCourts: 1,
+    lines: teamSlots.map((court, index) => ({
+      courtNumber: index + 1,
+      label: court.label,
+      matchType: 'doubles' as const,
+      teamPlayers: court.players.map((player) => player.playerName),
+      opponentPlayers: [opponentPlayers[index * 2], opponentPlayers[index * 2 + 1]],
+      outcome: index === 1 ? 'opponent' as const : 'team' as const,
+      score: ['6-4 6-7 10-8', '3-6 4-6', '7-6 6-4'][index],
+    })),
+    ratingChanges: [],
+    sourceConflictCount: 0,
+  }
+
+  await page.route(`https://${SUPABASE_PROJECT}.supabase.co/rest/v1/**`, (route) => json(route, []))
+  await page.route(`https://${SUPABASE_PROJECT}.supabase.co/auth/v1/**`, async (route) => {
+    if (route.request().url().endsWith('/user')) {
+      await json(route, { id: 'captain-user', email: 'captain@regression.test' })
+      return
+    }
+    await json(route, {})
+  })
+  await page.route('**/api/**', async (route) => {
+    const request = route.request()
+    const url = new URL(request.url())
+
+    if (url.pathname === '/api/auth/access') {
+      await json(route, {
+        ok: true,
+        access: {
+          role: 'captain',
+          entitlements: {
+            playerPlusSubscriptionActive: true,
+            playerPlusSubscriptionStatus: 'active',
+            playerPlusAccessExpiresAt: null,
+            coachSubscriptionActive: false,
+            coachSubscriptionStatus: 'inactive',
+            coachAccessExpiresAt: null,
+            captainSubscriptionActive: true,
+            captainSubscriptionStatus: 'active',
+            captainAccessExpiresAt: null,
+            tiqTeamLeagueEntryEnabled: true,
+            tiqIndividualLeagueCreatorEnabled: false,
+            leagueAccessExpiresAt: null,
+          },
+        },
+      })
+      return
+    }
+
+    if (url.pathname === '/api/captain/lineup-builder') {
+      await json(route, {
+        ok: true,
+        players: players.map(([id, name]) => ({ id, name })),
+        rosterMembers: players.map(([id, name]) => ({ player_id: id, player_name: name })),
+        opponentRosterNames: [...opponentPlayers],
+      })
+      return
+    }
+
+    if (url.pathname === '/api/captain/lineup-drafts') {
+      await json(route, { ok: true, draft: null })
+      return
+    }
+
+    if (url.pathname === '/api/captain/match-results' && request.method() === 'POST') {
+      state.submissions.push(request.postDataJSON() as Record<string, unknown>)
+      state.saved = true
+      await json(route, {
+        ok: true,
+        message: 'Saved 3 court results, refreshed TiQ ratings, and updated Team Chat.',
+        externalMatchId: 'captain-scorecard:regression-match',
+        recap,
+        teamAnnouncementUpdated: true,
+      })
+      return
+    }
+
+    if (url.pathname === '/api/team-rooms' && request.method() === 'GET') {
+      const cards = state.saved ? [currentCard(), nextCard()] : [currentCard()]
+      await json(route, {
+        ok: true,
+        teams: [{
+          id: 'connection-1',
+          teamName: TEAM,
+          leagueName: LEAGUE,
+          flight: FLIGHT,
+          roles: ['player', 'captain'],
+          isDefault: true,
+          href: `/team-room?room=room-1&team=${encodeURIComponent(TEAM)}`,
+        }],
+        room: teamRoomFixture(cards, state.saved, recap),
+      })
+      return
+    }
+
+    await json(route, { ok: true })
+  })
+}
+
+function matchCard(input: {
+  id: string
+  date: string
+  opponent: string
+  state: () => 'active' | 'archived'
+  lineup: Array<{ label: string; players: string[] }>
+  finalLineup: Record<string, string> | null
+}) {
+  return () => ({
+    cardType: input.lineup.length ? 'projected_lineup' : 'availability',
+    title: input.lineup.length ? 'Projected lineup — can you play?' : 'Can you play?',
+    matchDate: input.date,
+    opponent: input.opponent,
+    matchTime: '6:00 PM',
+    facility: 'Forest Park Tennis Center',
+    matchId: input.id,
+    externalMatchId: input.id,
+    lineup: input.lineup,
+    availabilityRequestId: `request-${input.id}`,
+    availabilityRequestUrl: `/availability/request-${input.id}`,
+    state: input.state(),
+    lineupVersion: 1,
+    lineupChanges: [],
+    lineupChangeNotice: null,
+    finalLineup: input.finalLineup,
+    arrivalCheckIns: [],
+    arrivalOutreach: [],
+    matchCompletedAt: input.state() === 'archived' ? '2026-09-14T23:00:00.000Z' : '',
+    acknowledged: false,
+    acknowledgmentSummary: { total: 0, profileIds: [] },
+    availabilitySummary: input.lineup.length ? null : {
+      yes: 0,
+      maybe: 0,
+      no: 0,
+      waiting: 6,
+      total: 6,
+      yesNames: [],
+      waitingNames: players.map(([, name]) => name),
+      maybeNames: [],
+      noNames: [],
+      scenarioId: 'scenario-2',
+    },
+    reminder: null,
+  })
+}
+
+function teamRoomFixture(
+  cards: Array<ReturnType<ReturnType<typeof matchCard>>>,
+  saved: boolean,
+  recap: {
+    lines: Array<{
+      label: string
+      teamPlayers: string[]
+      opponentPlayers: readonly string[]
+      outcome: 'team' | 'opponent'
+      score: string
+    }>
+  },
+) {
+  const messages = cards.map((card, index) => ({
+    id: index === 0 ? 'message-1' : 'message-2',
+    senderUserId: 'captain-user',
+    senderName: 'Regression Captain',
+    body: index === 0 ? 'Final lineup' : 'Availability for the next match',
+    kind: index === 0 ? 'system' : 'announcement',
+    createdAt: index === 0 ? '2026-09-09T16:05:00.000Z' : '2026-09-15T16:00:00.000Z',
+    editedAt: '',
+    deletedAt: '',
+    isMine: true,
+    replyToMessageId: '',
+    replyTo: null,
+    reactions: [],
+    attachment: null,
+    card,
+    levelUpChallenge: null,
+    lineupAnnouncement: null,
+    response: null,
+    responseSummary: { yes: 0, maybe: 0, no: 0, total: 0 },
+    responseDetails: [],
+  }))
+  return {
+    id: 'room-1',
+    subject: TEAM,
+    teamName: TEAM,
+    teamLogoUrl: '',
+    leagueName: LEAGUE,
+    flight: FLIGHT,
+    roles: ['player', 'captain'],
+    canManage: true,
+    muted: false,
+    members: [{ id: 'captain-user', name: 'Regression Captain', playerName: 'Alex Ace', roles: ['player', 'captain'], muted: false }],
+    rosterMembers: [],
+    removedMembers: [],
+    activeInviteCount: 0,
+    messages,
+    href: `/team-room?room=room-1&team=${encodeURIComponent(TEAM)}`,
+    activeCardId: saved ? 'message-2' : 'message-1',
+    nextScheduledMatch: saved ? {
+      id: 'match-2',
+      source: 'usta',
+      matchDate: NEXT_MATCH_DATE,
+      matchTime: '6:00 PM',
+      opponent: NEXT_OPPONENT,
+      facility: 'Forest Park Tennis Center',
+    } : null,
+    finalResultCardId: saved ? 'message-1' : '',
+    activeLevelUpChallengeId: '',
+    finalResult: saved ? {
+      matchId: MATCH_ID,
+      externalMatchId: 'captain-scorecard:regression-match',
+      teamName: TEAM,
+      opponentName: OPPONENT,
+      teamScore: '2',
+      opponentScore: '1',
+      score: '2-1',
+      outcome: 'win',
+      unresolvedPlayerCount: 0,
+      lines: recap.lines.map((line, index) => ({
+        id: `line-${index + 1}`,
+        label: line.label,
+        teamPlayers: line.teamPlayers,
+        opponentPlayers: [...line.opponentPlayers],
+        score: line.score,
+        winner: line.outcome,
+        teamMissingPlayerCount: 0,
+        opponentMissingPlayerCount: 0,
+      })),
+    } : null,
+    finalLineupReview: null,
+    actionQueue: {
+      messageId: saved ? 'message-2' : 'message-1',
+      matchDate: saved ? NEXT_MATCH_DATE : MATCH_DATE,
+      waitingCount: saved ? 6 : 0,
+      waitingNames: saved ? players.map(([, name]) => name) : [],
+      maybeCount: 0,
+      maybeNames: [],
+      unseenLineupCount: 0,
+      unseenLineupNames: [],
+      lineupChangeCount: 0,
+      unresolvedCount: saved ? 6 : 0,
+      unresolvedProfileIds: [],
+      reminderAt: '',
+      reminderStatus: '',
+      lastReminderAt: '',
+    },
+  }
 }
 
 async function json(route: Route, body: unknown, status = 200) {
