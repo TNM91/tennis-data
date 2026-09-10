@@ -1,4 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
+import {
+  buildCaptainPilotActivation,
+  buildCaptainPilotActivationFollowUps,
+  buildCaptainPilotFunnel,
+  buildCaptainPilotFollowUps,
+  type CaptainPilotAvailabilityRow,
+  type CaptainPilotLineupDraftRow,
+  type CaptainPilotRedemptionRow,
+  type CaptainPilotTeamLinkRow,
+  type GrowthEventRow,
+} from '@/lib/admin-growth-funnel'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
@@ -13,12 +24,8 @@ const CONVERSION_EVENT_NAMES = new Set([
   'captain_pilot_viewed',
   'captain_pilot_cta_clicked',
   'captain_pilot_team_preview_viewed',
+  'product_tour_started',
 ])
-
-type GrowthEvent = {
-  user_id: string | null
-  event_name: string | null
-}
 
 type StripeBillingEvent = {
   profile_id: string | null
@@ -41,9 +48,7 @@ export async function GET(request: Request) {
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
   if (!serviceKey) return Response.json({ ok: false, message: 'Growth reporting is not configured.' }, { status: 500 })
-  const service = createClient(supabaseUrl, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  })
+  const service = createGrowthServiceClient(serviceKey)
   const { data: adminProfile, error: profileError } = await service
     .from('profiles')
     .select('role')
@@ -55,10 +60,10 @@ export async function GET(request: Request) {
 
   const days = normalizePeriod(new URL(request.url).searchParams.get('days'))
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
-  const [eventsResult, billingResult] = await Promise.all([
+  const [eventsResult, billingResult, captainPilotResult] = await Promise.all([
     service
       .from('product_usage_events')
-      .select('user_id, event_name')
+      .select('user_id, event_name, plan_id, metadata')
       .gte('created_at', since)
       .limit(10000),
     service
@@ -66,13 +71,39 @@ export async function GET(request: Request) {
       .select('profile_id, outcome, resulting_status')
       .gte('created_at', since)
       .limit(10000),
+    service
+      .from('captain_pilot_redemptions')
+      .select('profile_id, status, captain_name, captain_email, team_name, updated_at, converted_at')
+      .gte('created_at', since)
+      .limit(10000),
   ])
 
   if (eventsResult.error) return Response.json({ ok: false, message: 'Growth events could not be loaded.' }, { status: 500 })
   if (billingResult.error) return Response.json({ ok: false, message: 'Stripe activation events could not be loaded.' }, { status: 500 })
+  if (captainPilotResult.error) return Response.json({ ok: false, message: 'Captain Pilot conversion could not be loaded.' }, { status: 500 })
 
-  const events = (eventsResult.data ?? []) as GrowthEvent[]
+  const events = (eventsResult.data ?? []) as GrowthEventRow[]
   const billingEvents = (billingResult.data ?? []) as StripeBillingEvent[]
+  const captainPilotRows = (captainPilotResult.data ?? []) as CaptainPilotRedemptionRow[]
+  const captainPilot = buildCaptainPilotFunnel(
+    events,
+    captainPilotRows,
+  )
+  const activatedProfileIds = [...new Set(
+    captainPilotRows
+      .filter((row) => row.status === 'converted')
+      .map((row) => row.profile_id)
+      .filter((profileId): profileId is string => Boolean(profileId)),
+  )]
+  const captainPilotActivation = await loadCaptainPilotActivation(service, activatedProfileIds, captainPilotRows)
+  if (!captainPilotActivation.ok) {
+    return Response.json({ ok: false, message: 'Captain activation progress could not be loaded.' }, { status: 500 })
+  }
+  const allCaptainPilotFollowUps = [
+    ...buildCaptainPilotFollowUps(events, captainPilotRows),
+    ...captainPilotActivation.followUps,
+  ].sort((left, right) => Number(right.urgent) - Number(left.urgent) || right.waitingDays - left.waitingDays)
+  const captainPilotFollowUps = allCaptainPilotFollowUps.slice(0, 8)
   const publicActions = new Set(events.filter((event) => event.event_name && !CONVERSION_EVENT_NAMES.has(event.event_name)).map((event) => event.user_id).filter(Boolean)).size
   const signupRequests = uniqueUsers(events, 'signup_confirmation_sent')
   const checkoutClicks = uniqueUsers(events, 'upgrade_checkout_clicked')
@@ -96,11 +127,75 @@ export async function GET(request: Request) {
       checkoutStarts,
       checkoutFailures,
       paidActivations,
+      captainPilot,
+      captainPilotFollowUps,
+      captainPilotFollowUpCount: allCaptainPilotFollowUps.length,
+      captainPilotActivation: captainPilotActivation.value,
     },
   })
 }
 
-function uniqueUsers(events: GrowthEvent[], eventName: string) {
+async function loadCaptainPilotActivation(
+  service: ReturnType<typeof createGrowthServiceClient>,
+  profileIds: string[],
+  redemptions: CaptainPilotRedemptionRow[],
+) {
+  if (!profileIds.length) {
+    return {
+      ok: true as const,
+      value: buildCaptainPilotActivation([], [], [], []),
+      followUps: [],
+    }
+  }
+
+  const [teamLinksResult, lineupDraftsResult, availabilityResult] = await Promise.all([
+    service
+      .from('team_profile_links')
+      .select('profile_user_id, team_role, team_roles')
+      .in('profile_user_id', profileIds)
+      .eq('status', 'accepted')
+      .is('archived_at', null)
+      .limit(10000),
+    service
+      .from('captain_lineup_drafts')
+      .select('user_id, slots_json')
+      .in('user_id', profileIds)
+      .limit(10000),
+    service
+      .from('captain_availability_requests')
+      .select('created_by')
+      .in('created_by', profileIds)
+      .limit(10000),
+  ])
+
+  if (teamLinksResult.error || lineupDraftsResult.error || availabilityResult.error) {
+    return { ok: false as const }
+  }
+
+  return {
+    ok: true as const,
+    value: buildCaptainPilotActivation(
+      profileIds,
+      (teamLinksResult.data ?? []) as CaptainPilotTeamLinkRow[],
+      (lineupDraftsResult.data ?? []) as CaptainPilotLineupDraftRow[],
+      (availabilityResult.data ?? []) as CaptainPilotAvailabilityRow[],
+    ),
+    followUps: buildCaptainPilotActivationFollowUps(
+      redemptions,
+      (teamLinksResult.data ?? []) as CaptainPilotTeamLinkRow[],
+      (lineupDraftsResult.data ?? []) as CaptainPilotLineupDraftRow[],
+      (availabilityResult.data ?? []) as CaptainPilotAvailabilityRow[],
+    ),
+  }
+}
+
+function createGrowthServiceClient(serviceKey: string) {
+  return createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  })
+}
+
+function uniqueUsers(events: GrowthEventRow[], eventName: string) {
   return new Set(events.filter((event) => event.event_name === eventName).map((event) => event.user_id).filter(Boolean)).size
 }
 
