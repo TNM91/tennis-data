@@ -10,10 +10,13 @@ describe('admin growth funnel', () => {
   it('keeps visitor traffic separate from signed-in product and billing conversion signals', () => {
     expect(pageSource).toContain('Visitor and page-view traffic belongs in Vercel Web Analytics.')
     expect(pageSource).toContain('Signup requests')
-    expect(pageSource).toContain('Checkout starts')
+    expect(pageSource).toContain('Checkout clicks')
+    expect(pageSource).toContain('Stripe opens')
     expect(pageSource).toContain('Paid activations')
     expect(routeSource).toContain("uniqueUsers(events, 'signup_confirmation_sent')")
+    expect(routeSource).toContain("uniqueUsers(events, 'upgrade_checkout_clicked')")
     expect(routeSource).toContain("uniqueUsers(events, 'upgrade_checkout_started')")
+    expect(routeSource).toContain("uniqueUsers(events, 'upgrade_checkout_failed')")
     expect(routeSource).toContain("event.resulting_status === 'active' || event.resulting_status === 'trial'")
   })
 

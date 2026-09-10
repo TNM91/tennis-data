@@ -48,10 +48,10 @@ export async function POST(request: Request) {
   const captainName = cleanString(body.captainName)
   const clubOrArea = cleanString(body.clubOrArea)
   const teamName = cleanString(body.teamName)
-  const feedbackFocus = cleanString(body.feedbackFocus)
+  const feedbackFocus = cleanString(body.feedbackFocus) || 'Match-week setup and team workflow'
   const teamKey = normalizeCaptainPilotTeamKey(teamName)
-  if (!captainName || !teamName || !teamKey || !feedbackFocus) {
-    return Response.json({ ok: false, message: 'Add your name, team, and the captain problem you want us to improve.' }, { status: 400 })
+  if (!captainName || !teamName || !teamKey) {
+    return Response.json({ ok: false, message: 'Add your name and team to continue.' }, { status: 400 })
   }
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
