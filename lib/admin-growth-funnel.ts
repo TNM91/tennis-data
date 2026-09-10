@@ -53,12 +53,20 @@ export type CaptainPilotFollowUp = {
   captainName: string
   captainEmail: string
   teamName: string
-  stage: 'checkout' | 'team_connection' | 'first_week' | 'first_share' | 'billing'
+  stage: 'claim' | 'checkout' | 'team_connection' | 'first_week' | 'first_share' | 'billing'
+  claimState?: 'email_confirmation' | 'pilot_form'
   reason: string
   nextStep: string
   waitingDays: number
   daysRemaining?: number
   urgent: boolean
+}
+
+export type CaptainPilotSignupIdentity = {
+  profileId: string
+  captainName?: string | null
+  captainEmail?: string | null
+  emailConfirmed?: boolean
 }
 
 export type CaptainPilotTeamLinkRow = {
@@ -208,6 +216,69 @@ export function buildCaptainPilotFollowUps(
     .sort((left, right) => Number(right.urgent) - Number(left.urgent) || right.waitingDays - left.waitingDays)
 }
 
+export function getCaptainPilotUnclaimedSignupProfileIds(
+  events: GrowthEventRow[],
+  redemptions: CaptainPilotRedemptionRow[],
+) {
+  const claimedProfiles = new Set(
+    redemptions
+      .map((row) => row.profile_id)
+      .filter((profileId): profileId is string => Boolean(profileId)),
+  )
+
+  return [...new Set(
+    events
+      .filter(isCaptainPilotSignup)
+      .map((event) => event.user_id)
+      .filter((profileId): profileId is string => Boolean(profileId && !claimedProfiles.has(profileId))),
+  )]
+}
+
+export function buildCaptainPilotClaimFollowUps(
+  events: GrowthEventRow[],
+  redemptions: CaptainPilotRedemptionRow[],
+  identities: CaptainPilotSignupIdentity[],
+  now = Date.now(),
+): CaptainPilotFollowUp[] {
+  const unclaimedProfiles = new Set(getCaptainPilotUnclaimedSignupProfileIds(events, redemptions))
+  const identityByProfile = new Map(identities.map((identity) => [identity.profileId, identity]))
+  const latestSignupByProfile = new Map<string, GrowthEventRow>()
+
+  events.filter(isCaptainPilotSignup).forEach((event) => {
+    if (!event.user_id || !unclaimedProfiles.has(event.user_id)) return
+    const existing = latestSignupByProfile.get(event.user_id)
+    if (!existing || timestamp(event.created_at) > timestamp(existing.created_at)) {
+      latestSignupByProfile.set(event.user_id, event)
+    }
+  })
+
+  return [...latestSignupByProfile.entries()].flatMap(([profileId, event]) => {
+    const createdAtMs = event.created_at ? Date.parse(event.created_at) : Number.NaN
+    const waitingDays = Number.isFinite(createdAtMs)
+      ? Math.max(0, Math.floor((now - createdAtMs) / (24 * 60 * 60 * 1000)))
+      : 0
+    if (waitingDays < 1) return []
+    const identity = identityByProfile.get(profileId)
+
+    return [{
+      profileId,
+      captainName: cleanLabel(identity?.captainName, 'Captain'),
+      captainEmail: cleanLabel(identity?.captainEmail),
+      teamName: 'Team not added',
+      stage: 'claim',
+      claimState: identity?.emailConfirmed === false ? 'email_confirmation' : 'pilot_form',
+      reason: identity?.emailConfirmed === false
+        ? 'Confirmation email sent, account not confirmed'
+        : 'Account confirmed, Pilot form not completed',
+      nextStep: identity?.emailConfirmed === false
+        ? 'Ask them to confirm their email, then resume the Pilot.'
+        : 'Send the direct Pilot resume link.',
+      waitingDays,
+      urgent: false,
+    } satisfies CaptainPilotFollowUp]
+  })
+}
+
 export function buildCaptainPilotActivation(
   activatedProfileIds: string[],
   teamLinks: CaptainPilotTeamLinkRow[],
@@ -310,6 +381,12 @@ export function buildCaptainPilotActivationFollowUps(
 
 function uniqueEventUsers(events: GrowthEventRow[], predicate: (event: GrowthEventRow) => boolean) {
   return new Set(events.filter(predicate).map((event) => event.user_id).filter(Boolean)).size
+}
+
+function isCaptainPilotSignup(event: GrowthEventRow) {
+  return event.event_name === 'signup_confirmation_sent'
+    && event.plan_id === 'captain'
+    && event.metadata?.signup_intent === 'captain-pilot'
 }
 
 function uniqueProfiles(rows: CaptainPilotRedemptionRow[]) {

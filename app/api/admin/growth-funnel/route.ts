@@ -2,12 +2,15 @@ import { createClient } from '@supabase/supabase-js'
 import {
   buildCaptainPilotActivation,
   buildCaptainPilotActivationFollowUps,
+  buildCaptainPilotClaimFollowUps,
   buildCaptainPilotFunnel,
   buildCaptainPilotFollowUps,
   buildCaptainPilotSourceBreakdown,
+  getCaptainPilotUnclaimedSignupProfileIds,
   type CaptainPilotAvailabilityRow,
   type CaptainPilotLineupDraftRow,
   type CaptainPilotRedemptionRow,
+  type CaptainPilotSignupIdentity,
   type CaptainPilotTeamLinkRow,
   type GrowthEventRow,
 } from '@/lib/admin-growth-funnel'
@@ -96,6 +99,8 @@ export async function GET(request: Request) {
     captainPilotRows,
   )
   const captainPilotSources = buildCaptainPilotSourceBreakdown(events, captainPilotRows)
+  const unclaimedSignupProfileIds = getCaptainPilotUnclaimedSignupProfileIds(events, captainPilotRows)
+  const signupIdentities = await loadCaptainPilotSignupIdentities(service, unclaimedSignupProfileIds)
   const activatedProfileIds = [...new Set(
     captainPilotRows
       .filter((row) => row.status === 'converted')
@@ -107,6 +112,7 @@ export async function GET(request: Request) {
     return Response.json({ ok: false, message: 'Captain activation progress could not be loaded.' }, { status: 500 })
   }
   const allCaptainPilotFollowUps = [
+    ...buildCaptainPilotClaimFollowUps(events, captainPilotRows, signupIdentities),
     ...buildCaptainPilotFollowUps(events, captainPilotRows),
     ...captainPilotActivation.followUps,
   ].sort((left, right) => Number(right.urgent) - Number(left.urgent) || right.waitingDays - left.waitingDays)
@@ -195,6 +201,31 @@ async function loadCaptainPilotActivation(
       (availabilityResult.data ?? []) as CaptainPilotAvailabilityRow[],
     ),
   }
+}
+
+async function loadCaptainPilotSignupIdentities(
+  service: ReturnType<typeof createGrowthServiceClient>,
+  profileIds: string[],
+): Promise<CaptainPilotSignupIdentity[]> {
+  return Promise.all(profileIds.slice(0, 100).map(async (profileId) => {
+    const { data } = await service.auth.admin.getUserById(profileId)
+    const metadata = data.user?.user_metadata && typeof data.user.user_metadata === 'object'
+      ? data.user.user_metadata as Record<string, unknown>
+      : {}
+    const firstName = cleanIdentityLabel(metadata.first_name)
+    const fullName = cleanIdentityLabel(metadata.full_name) || cleanIdentityLabel(metadata.name)
+
+    return {
+      profileId,
+      captainName: fullName || firstName || null,
+      captainEmail: data.user?.email || null,
+      emailConfirmed: data.user ? Boolean(data.user.email_confirmed_at) : undefined,
+    }
+  }))
+}
+
+function cleanIdentityLabel(value: unknown) {
+  return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, 120) : ''
 }
 
 function createGrowthServiceClient(serviceKey: string) {

@@ -315,7 +315,9 @@ export default function AdminGrowthPage() {
                             <span>{lead.teamName}</span>
                           </div>
                           <span className={lead.urgent ? 'badge badge-slate' : 'badge badge-blue'}>
-                            {lead.stage === 'billing'
+                            {lead.stage === 'claim'
+                              ? 'Needs Pilot form'
+                              : lead.stage === 'billing'
                               ? lead.daysRemaining != null && lead.daysRemaining > 0
                                 ? `${lead.daysRemaining}d left`
                                 : 'Billing due'
@@ -548,6 +550,10 @@ async function copyCaptainFollowUp(
   const firstName = lead.captainName === 'Captain' ? 'there' : lead.captainName.split(' ')[0]
   const message = lead.stage === 'billing'
     ? `Hi ${firstName} — your free TenAceIQ Captain Pilot for ${lead.teamName} ${lead.daysRemaining != null && lead.daysRemaining > 0 ? `ends in ${lead.daysRemaining} ${lead.daysRemaining === 1 ? 'day' : 'days'}` : 'has ended'}. Add billing only if you want Captain access to continue: https://tenaceiq.com/captain-pilot. Reply if you want help.`
+    : lead.stage === 'claim'
+      ? lead.claimState === 'email_confirmation'
+        ? `Hi ${firstName} — check your email for the TenAceIQ confirmation link, then finish your free Captain Pilot setup here: https://tenaceiq.com/captain-pilot. Reply if you want help.`
+        : `Hi ${firstName} — your TenAceIQ account is ready, but your free Captain Pilot setup is not finished. Add your team and activate your three free months here: https://tenaceiq.com/captain-pilot. Reply if you want help.`
     : lead.stage === 'team_connection'
       ? `Hi ${firstName} — your TenAceIQ Captain Pilot is active. Connect your captain team so TiQ can load your roster, schedule, and weekly tools: https://tenaceiq.com/compete/teams#captain-setup. Reply if you want help.`
       : lead.stage === 'first_week'
