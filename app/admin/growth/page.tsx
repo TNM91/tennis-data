@@ -15,6 +15,8 @@ import {
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
+import type { CaptainPilotFunnel } from '@/lib/admin-growth-funnel'
+import styles from './growth.module.css'
 
 type Period = 7 | 30 | 90
 type Funnel = {
@@ -24,6 +26,7 @@ type Funnel = {
   checkoutStarts: number
   checkoutFailures: number
   paidActivations: number
+  captainPilot: CaptainPilotFunnel
 }
 
 const PERIODS: Array<{ value: Period; label: string }> = [
@@ -94,6 +97,44 @@ export default function AdminGrowthPage() {
     },
   ] : [], [funnel])
 
+  const captainStages = useMemo(() => funnel ? [
+    {
+      label: 'Offer opened',
+      value: funnel.captainPilot.offerViews,
+      detail: 'Signed-in captains who opened the pilot.',
+      rate: null,
+      href: '/admin/product-events?search=captain_pilot_viewed',
+    },
+    {
+      label: 'Offer action',
+      value: funnel.captainPilot.offerActions,
+      detail: 'Chose signup, preview, or activation.',
+      rate: ratio(funnel.captainPilot.offerActions, funnel.captainPilot.offerViews),
+      href: '/admin/product-events?search=captain_pilot_cta_clicked',
+    },
+    {
+      label: 'Pilot claimed',
+      value: funnel.captainPilot.claims,
+      detail: 'Submitted the short Captain team form.',
+      rate: ratio(funnel.captainPilot.claims, funnel.captainPilot.offerActions),
+      href: '/admin/upgrade-requests?plan=captain',
+    },
+    {
+      label: 'Stripe opened',
+      value: funnel.captainPilot.checkoutStarts,
+      detail: 'Reached secure checkout successfully.',
+      rate: ratio(funnel.captainPilot.checkoutStarts, funnel.captainPilot.claims),
+      href: '/admin/product-events?search=upgrade_checkout_started',
+    },
+    {
+      label: 'Activated',
+      value: funnel.captainPilot.activations,
+      detail: 'Captain Pilot access became active.',
+      rate: ratio(funnel.captainPilot.activations, funnel.captainPilot.checkoutStarts),
+      href: '/admin/access?billing=stripe',
+    },
+  ] : [], [funnel])
+
   return (
     <SiteShell active="/admin">
       <AdminGate>
@@ -117,6 +158,47 @@ export default function AdminGrowthPage() {
           >
             <a href="https://vercel.com/tennis-data/tennis-data/analytics" target="_blank" rel="noreferrer" className="button-ghost">Open site traffic</a>
           </AdminStatusPanel>
+
+          <AdminReviewPanel style={{ marginTop: 18 }} ariaLabel="Captain Pilot conversion funnel">
+            <div className={styles.pilotHeader}>
+              <div>
+                <div className="section-kicker">Captain Pilot</div>
+                <h2 className="section-title" style={{ marginTop: 6 }}>Offer to activation</h2>
+              </div>
+              <p className="subtle-text">Identified member actions for the last {period} days. Open site traffic for anonymous page views.</p>
+            </div>
+
+            {error ? <AdminStatusPanel tone="error" text={error} /> : null}
+            {loading ? <p className="subtle-text" style={{ marginTop: 18 }}>Loading Captain conversion...</p> : null}
+            {!loading && funnel ? (
+              <>
+                <div className={styles.pilotStages}>
+                  {captainStages.map((stage, index) => (
+                    <Link key={stage.label} href={stage.href} className={styles.pilotStage}>
+                      <span className={styles.pilotStageNumber}>{index + 1}</span>
+                      <span className={styles.pilotStageLabel}>{stage.label}</span>
+                      <strong>{stage.value.toLocaleString()}</strong>
+                      <span className={styles.pilotStageDetail}>{stage.detail}</span>
+                      <span className={styles.pilotRate}>{index === 0 ? `Last ${period} days` : `${formatPercent(stage.rate)} from prior step`}</span>
+                    </Link>
+                  ))}
+                </div>
+                <div className={styles.pilotSignals} aria-label="Captain Pilot supporting signals">
+                  <div className={styles.pilotSignal}><span>Tour starts</span><strong>{funnel.captainPilot.tourStarts.toLocaleString()}</strong></div>
+                  <div className={styles.pilotSignal}><span>New account requests</span><strong>{funnel.captainPilot.signupRequests.toLocaleString()}</strong></div>
+                  <div className={styles.pilotSignal}><span>Checkout errors</span><strong>{funnel.captainPilot.checkoutFailures.toLocaleString()}</strong></div>
+                </div>
+                <div className={styles.pilotInsight} style={adminSubPanelStyle}>
+                  <strong>Largest opportunity</strong>
+                  <p className="subtle-text" style={{ margin: 0 }}>{captainPilotInsight(funnel.captainPilot)}</p>
+                  <AdminActionRow>
+                    <Link href="/captain-pilot" className="button-secondary">Open Captain offer</Link>
+                    <Link href="/admin/product-events?search=captain_pilot" className="button-ghost">Review Captain events</Link>
+                  </AdminActionRow>
+                </div>
+              </>
+            ) : null}
+          </AdminReviewPanel>
 
           <AdminReviewPanel style={{ marginTop: 18 }} ariaLabel="Growth conversion funnel">
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
@@ -209,4 +291,28 @@ function funnelInsight(funnel: Funnel) {
     return 'People are exploring TiQ without requesting an account. Tighten the signup invitation around the action they just took.'
   }
   return 'The funnel is still gathering signals. Check back after more signups and checkout activity arrive.'
+}
+
+function captainPilotInsight(funnel: CaptainPilotFunnel) {
+  if (funnel.checkoutFailures > 0) {
+    return `${funnel.checkoutFailures} ${funnel.checkoutFailures === 1 ? 'captain hit' : 'captains hit'} a checkout error. Fix that path before changing the offer.`
+  }
+
+  const transitions = [
+    { from: funnel.offerViews, to: funnel.offerActions, message: 'Captains are opening the offer without taking the next action. Tighten the value preview and primary invitation.' },
+    { from: funnel.offerActions, to: funnel.claims, message: 'Captains are showing intent but not claiming the pilot. Simplify the team form or make the $0 terms more prominent.' },
+    { from: funnel.claims, to: funnel.checkoutStarts, message: 'Pilot forms are being completed without Stripe opening. Review the handoff into secure checkout.' },
+    { from: funnel.checkoutStarts, to: funnel.activations, message: 'Captains are reaching Stripe without activating. Review the checkout offer, trust cues, and abandonment.' },
+  ].filter((transition) => transition.from > 0)
+
+  if (!transitions.length) return 'The Captain Pilot funnel is ready. It will identify the largest drop-off as captains begin using the offer.'
+
+  const largest = transitions.reduce((current, transition) => {
+    const currentDrop = 1 - current.to / current.from
+    const transitionDrop = 1 - transition.to / transition.from
+    return transitionDrop > currentDrop ? transition : current
+  })
+
+  if (largest.to >= largest.from) return 'No drop-off is visible yet. Keep collecting Captain Pilot traffic before changing the offer.'
+  return largest.message
 }

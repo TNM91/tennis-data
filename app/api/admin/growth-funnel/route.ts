@@ -1,4 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
+import {
+  buildCaptainPilotFunnel,
+  type CaptainPilotRedemptionRow,
+  type GrowthEventRow,
+} from '@/lib/admin-growth-funnel'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
@@ -13,12 +18,8 @@ const CONVERSION_EVENT_NAMES = new Set([
   'captain_pilot_viewed',
   'captain_pilot_cta_clicked',
   'captain_pilot_team_preview_viewed',
+  'product_tour_started',
 ])
-
-type GrowthEvent = {
-  user_id: string | null
-  event_name: string | null
-}
 
 type StripeBillingEvent = {
   profile_id: string | null
@@ -55,10 +56,10 @@ export async function GET(request: Request) {
 
   const days = normalizePeriod(new URL(request.url).searchParams.get('days'))
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
-  const [eventsResult, billingResult] = await Promise.all([
+  const [eventsResult, billingResult, captainPilotResult] = await Promise.all([
     service
       .from('product_usage_events')
-      .select('user_id, event_name')
+      .select('user_id, event_name, plan_id, metadata')
       .gte('created_at', since)
       .limit(10000),
     service
@@ -66,13 +67,23 @@ export async function GET(request: Request) {
       .select('profile_id, outcome, resulting_status')
       .gte('created_at', since)
       .limit(10000),
+    service
+      .from('captain_pilot_redemptions')
+      .select('profile_id, status')
+      .gte('created_at', since)
+      .limit(10000),
   ])
 
   if (eventsResult.error) return Response.json({ ok: false, message: 'Growth events could not be loaded.' }, { status: 500 })
   if (billingResult.error) return Response.json({ ok: false, message: 'Stripe activation events could not be loaded.' }, { status: 500 })
+  if (captainPilotResult.error) return Response.json({ ok: false, message: 'Captain Pilot conversion could not be loaded.' }, { status: 500 })
 
-  const events = (eventsResult.data ?? []) as GrowthEvent[]
+  const events = (eventsResult.data ?? []) as GrowthEventRow[]
   const billingEvents = (billingResult.data ?? []) as StripeBillingEvent[]
+  const captainPilot = buildCaptainPilotFunnel(
+    events,
+    (captainPilotResult.data ?? []) as CaptainPilotRedemptionRow[],
+  )
   const publicActions = new Set(events.filter((event) => event.event_name && !CONVERSION_EVENT_NAMES.has(event.event_name)).map((event) => event.user_id).filter(Boolean)).size
   const signupRequests = uniqueUsers(events, 'signup_confirmation_sent')
   const checkoutClicks = uniqueUsers(events, 'upgrade_checkout_clicked')
@@ -96,11 +107,12 @@ export async function GET(request: Request) {
       checkoutStarts,
       checkoutFailures,
       paidActivations,
+      captainPilot,
     },
   })
 }
 
-function uniqueUsers(events: GrowthEvent[], eventName: string) {
+function uniqueUsers(events: GrowthEventRow[], eventName: string) {
   return new Set(events.filter((event) => event.event_name === eventName).map((event) => event.user_id).filter(Boolean)).size
 }
 
