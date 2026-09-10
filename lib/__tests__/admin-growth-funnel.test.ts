@@ -28,6 +28,7 @@ describe('admin growth funnel', () => {
     expect(pageSource).toContain('Copy reminder')
     expect(routeSource).toContain('captainPilotFollowUpCount')
     expect(routeSource).toContain('buildCaptainPilotActivation')
+    expect(routeSource).toContain('buildCaptainPilotActivationFollowUps')
     expect(pageSource).toContain('What happens after activation')
     expect(pageSource).toContain('First week started')
     expect(pageStyles).toContain('@media (max-width: 560px)')

@@ -12,6 +12,7 @@ export type CaptainPilotRedemptionRow = {
   captain_email?: string | null
   team_name?: string | null
   updated_at?: string | null
+  converted_at?: string | null
 }
 
 export type CaptainPilotFunnel = {
@@ -30,7 +31,7 @@ export type CaptainPilotFollowUp = {
   captainName: string
   captainEmail: string
   teamName: string
-  status: 'claimed' | 'checkout_started'
+  stage: 'checkout' | 'team_connection' | 'first_week'
   reason: string
   nextStep: string
   waitingDays: number
@@ -119,7 +120,7 @@ export function buildCaptainPilotFollowUps(
         captainName: cleanLabel(row.captain_name, 'Captain'),
         captainEmail: cleanLabel(row.captain_email),
         teamName: cleanLabel(row.team_name, 'Team not added'),
-        status: row.status,
+        stage: 'checkout',
         reason: urgent
           ? 'Checkout error recorded'
           : row.status === 'checkout_started'
@@ -143,16 +144,12 @@ export function buildCaptainPilotActivation(
   lineupDrafts: CaptainPilotLineupDraftRow[],
   availabilityRequests: CaptainPilotAvailabilityRow[],
 ): CaptainPilotActivation {
-  const activated = new Set(activatedProfileIds.filter(Boolean))
-  const connectedProfiles = profileSet(
-    teamLinks.filter(hasCaptainTeamRole).map((row) => row.profile_user_id),
-    activated,
+  const { activated, connectedProfiles, lineupProfiles, availabilityProfiles } = buildActivationProfileSets(
+    activatedProfileIds,
+    teamLinks,
+    lineupDrafts,
+    availabilityRequests,
   )
-  const lineupProfiles = profileSet(
-    lineupDrafts.filter((row) => hasAssignedPlayer(row.slots_json)).map((row) => row.user_id),
-    activated,
-  )
-  const availabilityProfiles = profileSet(availabilityRequests.map((row) => row.created_by), activated)
 
   return {
     activations: activated.size,
@@ -161,6 +158,59 @@ export function buildCaptainPilotActivation(
     availabilitySent: availabilityProfiles.size,
     firstValue: new Set([...lineupProfiles, ...availabilityProfiles]).size,
   }
+}
+
+export function buildCaptainPilotActivationFollowUps(
+  redemptions: CaptainPilotRedemptionRow[],
+  teamLinks: CaptainPilotTeamLinkRow[],
+  lineupDrafts: CaptainPilotLineupDraftRow[],
+  availabilityRequests: CaptainPilotAvailabilityRow[],
+  now = Date.now(),
+): CaptainPilotFollowUp[] {
+  const activatedRows = redemptions.filter((row) => row.status === 'converted' && row.profile_id)
+  const activatedProfileIds = activatedRows.map((row) => row.profile_id as string)
+  const { connectedProfiles, lineupProfiles, availabilityProfiles } = buildActivationProfileSets(
+    activatedProfileIds,
+    teamLinks,
+    lineupDrafts,
+    availabilityRequests,
+  )
+
+  return activatedRows.flatMap((row): CaptainPilotFollowUp[] => {
+    const profileId = row.profile_id as string
+    const completedAt = row.converted_at || row.updated_at
+    const completedAtMs = completedAt ? Date.parse(completedAt) : Number.NaN
+    const waitingDays = Number.isFinite(completedAtMs)
+      ? Math.max(0, Math.floor((now - completedAtMs) / (24 * 60 * 60 * 1000)))
+      : 0
+    if (waitingDays < 1) return []
+
+    const common = {
+      profileId,
+      captainName: cleanLabel(row.captain_name, 'Captain'),
+      captainEmail: cleanLabel(row.captain_email),
+      teamName: cleanLabel(row.team_name, 'Team not added'),
+      waitingDays,
+      urgent: false,
+    }
+    if (!connectedProfiles.has(profileId)) {
+      return [{
+        ...common,
+        stage: 'team_connection',
+        reason: 'Active, but no captain team is connected',
+        nextStep: 'Guide them back to team setup.',
+      } satisfies CaptainPilotFollowUp]
+    }
+    if (!lineupProfiles.has(profileId) && !availabilityProfiles.has(profileId)) {
+      return [{
+        ...common,
+        stage: 'first_week',
+        reason: 'Team connected, but no first week started',
+        nextStep: 'Guide them to availability or lineup building.',
+      } satisfies CaptainPilotFollowUp]
+    }
+    return []
+  })
 }
 
 function uniqueEventUsers(events: GrowthEventRow[], predicate: (event: GrowthEventRow) => boolean) {
@@ -178,6 +228,25 @@ function cleanLabel(value: string | null | undefined, fallback = '') {
 
 function profileSet(profileIds: Array<string | null>, allowedProfiles: Set<string>) {
   return new Set(profileIds.filter((profileId): profileId is string => Boolean(profileId && allowedProfiles.has(profileId))))
+}
+
+function buildActivationProfileSets(
+  activatedProfileIds: string[],
+  teamLinks: CaptainPilotTeamLinkRow[],
+  lineupDrafts: CaptainPilotLineupDraftRow[],
+  availabilityRequests: CaptainPilotAvailabilityRow[],
+) {
+  const activated = new Set(activatedProfileIds.filter(Boolean))
+  const connectedProfiles = profileSet(
+    teamLinks.filter(hasCaptainTeamRole).map((row) => row.profile_user_id),
+    activated,
+  )
+  const lineupProfiles = profileSet(
+    lineupDrafts.filter((row) => hasAssignedPlayer(row.slots_json)).map((row) => row.user_id),
+    activated,
+  )
+  const availabilityProfiles = profileSet(availabilityRequests.map((row) => row.created_by), activated)
+  return { activated, connectedProfiles, lineupProfiles, availabilityProfiles }
 }
 
 function hasAssignedPlayer(value: unknown) {

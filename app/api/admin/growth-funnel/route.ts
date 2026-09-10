@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import {
   buildCaptainPilotActivation,
+  buildCaptainPilotActivationFollowUps,
   buildCaptainPilotFunnel,
   buildCaptainPilotFollowUps,
   type CaptainPilotAvailabilityRow,
@@ -72,7 +73,7 @@ export async function GET(request: Request) {
       .limit(10000),
     service
       .from('captain_pilot_redemptions')
-      .select('profile_id, status, captain_name, captain_email, team_name, updated_at')
+      .select('profile_id, status, captain_name, captain_email, team_name, updated_at, converted_at')
       .gte('created_at', since)
       .limit(10000),
   ])
@@ -88,21 +89,21 @@ export async function GET(request: Request) {
     events,
     captainPilotRows,
   )
-  const allCaptainPilotFollowUps = buildCaptainPilotFollowUps(
-    events,
-    captainPilotRows,
-  )
-  const captainPilotFollowUps = allCaptainPilotFollowUps.slice(0, 8)
   const activatedProfileIds = [...new Set(
     captainPilotRows
       .filter((row) => row.status === 'converted')
       .map((row) => row.profile_id)
       .filter((profileId): profileId is string => Boolean(profileId)),
   )]
-  const captainPilotActivation = await loadCaptainPilotActivation(service, activatedProfileIds)
+  const captainPilotActivation = await loadCaptainPilotActivation(service, activatedProfileIds, captainPilotRows)
   if (!captainPilotActivation.ok) {
     return Response.json({ ok: false, message: 'Captain activation progress could not be loaded.' }, { status: 500 })
   }
+  const allCaptainPilotFollowUps = [
+    ...buildCaptainPilotFollowUps(events, captainPilotRows),
+    ...captainPilotActivation.followUps,
+  ].sort((left, right) => Number(right.urgent) - Number(left.urgent) || right.waitingDays - left.waitingDays)
+  const captainPilotFollowUps = allCaptainPilotFollowUps.slice(0, 8)
   const publicActions = new Set(events.filter((event) => event.event_name && !CONVERSION_EVENT_NAMES.has(event.event_name)).map((event) => event.user_id).filter(Boolean)).size
   const signupRequests = uniqueUsers(events, 'signup_confirmation_sent')
   const checkoutClicks = uniqueUsers(events, 'upgrade_checkout_clicked')
@@ -137,11 +138,13 @@ export async function GET(request: Request) {
 async function loadCaptainPilotActivation(
   service: ReturnType<typeof createGrowthServiceClient>,
   profileIds: string[],
+  redemptions: CaptainPilotRedemptionRow[],
 ) {
   if (!profileIds.length) {
     return {
       ok: true as const,
       value: buildCaptainPilotActivation([], [], [], []),
+      followUps: [],
     }
   }
 
@@ -173,6 +176,12 @@ async function loadCaptainPilotActivation(
     ok: true as const,
     value: buildCaptainPilotActivation(
       profileIds,
+      (teamLinksResult.data ?? []) as CaptainPilotTeamLinkRow[],
+      (lineupDraftsResult.data ?? []) as CaptainPilotLineupDraftRow[],
+      (availabilityResult.data ?? []) as CaptainPilotAvailabilityRow[],
+    ),
+    followUps: buildCaptainPilotActivationFollowUps(
+      redemptions,
       (teamLinksResult.data ?? []) as CaptainPilotTeamLinkRow[],
       (lineupDraftsResult.data ?? []) as CaptainPilotLineupDraftRow[],
       (availabilityResult.data ?? []) as CaptainPilotAvailabilityRow[],

@@ -260,7 +260,13 @@ export default function AdminGrowthPage() {
                             <span>{lead.teamName}</span>
                           </div>
                           <span className={lead.urgent ? 'badge badge-slate' : 'badge badge-blue'}>
-                            {lead.urgent ? 'Checkout issue' : `${lead.waitingDays}d waiting`}
+                            {lead.urgent
+                              ? 'Checkout issue'
+                              : lead.stage === 'team_connection'
+                                ? 'Needs team'
+                                : lead.stage === 'first_week'
+                                  ? 'Needs first week'
+                                  : `${lead.waitingDays}d waiting`}
                           </span>
                         </div>
                         <div className={styles.followUpReason}>
@@ -455,7 +461,11 @@ async function copyCaptainFollowUp(
   setNotice: (message: string) => void,
 ) {
   const firstName = lead.captainName === 'Captain' ? 'there' : lead.captainName.split(' ')[0]
-  const message = `Hi ${firstName} — I saw you started the TenAceIQ Captain Pilot for ${lead.teamName}. ${lead.urgent ? 'It looks like checkout may have hit an issue.' : 'Your access is not active yet.'} Return to https://tenaceiq.com/captain-pilot to finish, or reply and I’ll help.`
+  const message = lead.stage === 'team_connection'
+    ? `Hi ${firstName} — your TenAceIQ Captain Pilot is active. Connect your captain team so TiQ can load your roster, schedule, and weekly tools: https://tenaceiq.com/compete/teams#captain-setup. Reply if you want help.`
+    : lead.stage === 'first_week'
+      ? `Hi ${firstName} — your team is connected in TenAceIQ. Start your first match week with availability or a lineup here: https://tenaceiq.com/captain. Reply if you want help.`
+      : `Hi ${firstName} — I saw you started the TenAceIQ Captain Pilot for ${lead.teamName}. ${lead.urgent ? 'It looks like checkout may have hit an issue.' : 'Your access is not active yet.'} Return to https://tenaceiq.com/captain-pilot to finish, or reply and I’ll help.`
 
   try {
     await navigator.clipboard.writeText(message)

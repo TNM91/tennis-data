@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildCaptainPilotActivation,
+  buildCaptainPilotActivationFollowUps,
   buildCaptainPilotFollowUps,
   buildCaptainPilotFunnel,
   type GrowthEventRow,
@@ -94,5 +95,26 @@ describe('Captain Pilot growth funnel', () => {
       availabilitySent: 1,
       firstValue: 2,
     })
+  })
+
+  it('adds tailored onboarding follow-up only after an active captain stalls for a day', () => {
+    const now = Date.parse('2026-09-10T18:00:00.000Z')
+    const followUps = buildCaptainPilotActivationFollowUps([
+      { profile_id: 'needs-team', status: 'converted', captain_name: 'Taylor Team', converted_at: '2026-09-08T18:00:00.000Z' },
+      { profile_id: 'needs-week', status: 'converted', captain_name: 'Wes Week', converted_at: '2026-09-08T18:00:00.000Z' },
+      { profile_id: 'new-active', status: 'converted', captain_name: 'New Active', converted_at: '2026-09-10T12:00:00.000Z' },
+      { profile_id: 'has-value', status: 'converted', captain_name: 'Ready Captain', converted_at: '2026-09-01T18:00:00.000Z' },
+    ], [
+      { profile_user_id: 'needs-week', team_role: 'captain' },
+      { profile_user_id: 'new-active', team_role: 'captain' },
+      { profile_user_id: 'has-value', team_role: 'co_captain' },
+    ], [
+      { user_id: 'has-value', slots_json: [{ players: [{ playerName: 'Player One' }] }] },
+    ], [], now)
+
+    expect(followUps).toEqual([
+      expect.objectContaining({ profileId: 'needs-team', stage: 'team_connection', waitingDays: 2 }),
+      expect.objectContaining({ profileId: 'needs-week', stage: 'first_week', waitingDays: 2 }),
+    ])
   })
 })
