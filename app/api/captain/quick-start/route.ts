@@ -23,7 +23,7 @@ export async function GET(request: Request) {
       return Response.json({ message: 'Choose a team you captain.' }, { status: 403 })
     }
     const team = link.data
-    const [teammates, scenarios, conversation] = await Promise.all([
+    const [teammates, scenarios, conversation, availability] = await Promise.all([
       service.from('team_profile_links').select('id', { count: 'exact', head: true })
         .eq('team_name', team.team_name).eq('league_name', team.league_name).eq('flight', team.flight)
         .eq('status', 'accepted').is('archived_at', null).neq('profile_user_id', auth.userId),
@@ -34,8 +34,12 @@ export async function GET(request: Request) {
       service.from('internal_conversations').select('id')
         .eq('related_entity_type', 'team_room')
         .eq('related_entity_id', buildTeamRoomScopeId({ teamName: team.team_name, leagueName: team.league_name, flight: team.flight })).maybeSingle(),
+      service.from('captain_availability_requests').select('id,match_date,opponent_team,updated_at')
+        .eq('created_by', auth.userId).eq('team_name', team.team_name)
+        .eq('league_name', team.league_name).eq('flight', team.flight)
+        .order('updated_at', { ascending: false }).limit(1).maybeSingle(),
     ])
-    if (teammates.error || scenarios.error || conversation.error) throw new Error('Progress could not be checked.')
+    if (teammates.error || scenarios.error || conversation.error || availability.error) throw new Error('Progress could not be checked.')
     let sentMatch: { date: string; opponent: string } | null = null
     if (conversation.data) {
       const removal = await service.from('team_room_member_removals').select('profile_id')
@@ -61,9 +65,12 @@ export async function GET(request: Request) {
     const saved = scenarios.data?.find((row) => hasCompleteSavedLineup(row.slots_json))
     return Response.json({
       teammateConnected: (teammates.count || 0) > 0,
+      availabilityRequested: Boolean(availability.data),
       lineupSaved: Boolean(saved || sentMatch),
       lineupSent: Boolean(sentMatch),
-      match: sentMatch || { date: saved?.match_date || '', opponent: saved?.opponent_team || '', scenarioId: saved?.id || '' },
+      match: sentMatch || (saved
+        ? { date: saved.match_date || '', opponent: saved.opponent_team || '', scenarioId: saved.id || '' }
+        : { date: availability.data?.match_date || '', opponent: availability.data?.opponent_team || '' }),
     }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch {
     return Response.json({ message: 'Setup progress could not be checked. Your saved work has not changed.' }, { status: 503 })

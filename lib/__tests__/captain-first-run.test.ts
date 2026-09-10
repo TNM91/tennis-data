@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { buildDataAssistSignInHref } from '../data-assist-navigation'
 import { buildAuthEntryHref } from '../auth-entry-hrefs'
-import { CAPTAIN_QUICK_START_HREF } from '../captain-quick-start'
+import { CAPTAIN_PILOT_FIRST_WIN_HREF, CAPTAIN_QUICK_START_HREF } from '../captain-quick-start'
 import { isSafeLocalNextHref } from '../plan-intent'
 
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
@@ -23,8 +23,9 @@ describe('Captain first-run handoffs', () => {
     expect(page).toContain("session?.user ? '#pilot-preview' : joinHref")
     expect(page).toContain('Preview my first match week')
     expect(page).toContain('captain_pilot_team_preview_viewed')
-    expect(page).toContain('nextHref: CAPTAIN_QUICK_START_HREF')
-    expect(page).toContain('Set up your team')
+    expect(page).toContain('nextHref: CAPTAIN_PILOT_FIRST_WIN_HREF')
+    expect(page).toContain('Continue my first match week')
+    expect(CAPTAIN_PILOT_FIRST_WIN_HREF).toContain('source=captain-pilot')
     expect(isSafeLocalNextHref(CAPTAIN_QUICK_START_HREF, '/captain')).toBe(CAPTAIN_QUICK_START_HREF)
   })
 
@@ -46,7 +47,7 @@ describe('Captain first-run handoffs', () => {
     expect(pilot).toContain('See Captain in action')
     expect(pilot).toContain('videoId="captain"')
     expect(pilot).toContain('source="captain-pilot"')
-    expect(pilot).toContain("ctaHref={captainPilotActivated ? hasCaptainAccess ? CAPTAIN_QUICK_START_HREF : '#pilot-claim' : session?.user ? '#pilot-claim' : joinHref}")
+    expect(pilot).toContain("ctaHref={captainPilotActivated ? hasCaptainAccess ? CAPTAIN_PILOT_FIRST_WIN_HREF : '#pilot-claim' : session?.user ? '#pilot-claim' : joinHref}")
     expect(pilot.indexOf('styles.tourCard')).toBeLessThan(pilot.indexOf('id="pilot-claim"'))
   })
 

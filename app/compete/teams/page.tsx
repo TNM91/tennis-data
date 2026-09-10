@@ -4,7 +4,7 @@ import Link from 'next/link'
 import TeamHomeCard from './team-home-card'
 import TeamAvailabilitySummary from './team-availability-summary'
 import homeStyles from './teams-home.module.css'
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import CompetePageFrame, {
   CompeteCard,
@@ -34,6 +34,14 @@ import {
 const dataAssistTeamsHref = '/data-assist?intent=upload-source&type=team_summary&context=Add%20my%20team#upload'
 const FUTURE_JWT_SETTLE_DELAY_MS = 3_000
 
+function subscribeTeamsRoute(onChange: () => void) {
+  window.addEventListener('popstate', onChange)
+  return () => window.removeEventListener('popstate', onChange)
+}
+
+function readTeamsRoute() {
+  return window.location.search
+}
 
 function isFutureJwtError(error: unknown) {
   return error instanceof Error && error.message.toLowerCase().includes('jwt issued at future')
@@ -145,6 +153,8 @@ function CompeteTeamsContent() {
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
   const accessToken = session?.access_token || ''
   const { isMobile } = useViewportBreakpoints()
+  const routeSearch = useSyncExternalStore(subscribeTeamsRoute, readTeamsRoute, () => '')
+  const pilotHandoff = new URLSearchParams(routeSearch).get('source') === 'captain-pilot'
 
   useEffect(() => {
     let active = true
@@ -379,6 +389,11 @@ function CompeteTeamsContent() {
 
 
         </header>
+        {pilotHandoff ? (
+          <div className={homeStyles.support}>
+            <CaptainQuickStart connections={connections} pending={pendingConnections} loading={loading} error={connectionError} compact={groupedTeams.length > 0} />
+          </div>
+        ) : null}
         {storageWarning ? <div style={warningStyle}>{storageWarning}</div> : null}
         {defaultTeamMessage ? <div style={defaultTeamNoticeStyle} role="status">{defaultTeamMessage}</div> : null}
         {connectionError ? (
@@ -461,9 +476,9 @@ function CompeteTeamsContent() {
             })}
           </div>
         )}
-        <div className={homeStyles.support}>
+        {!pilotHandoff ? <div className={homeStyles.support}>
           <CaptainQuickStart connections={connections} pending={pendingConnections} loading={loading} error={connectionError} compact={groupedTeams.length > 0} />
-        </div>
+        </div> : null}
       </section>
 
       {!loading && userId && groupedTeams.length > 0 && pendingConnections.length > 0 ? (

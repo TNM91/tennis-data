@@ -49,12 +49,28 @@ describe('Captain quick start API', () => {
     mocks.auth.mockResolvedValue({ ok: true, userId: 'owner', supabase: caller })
     const response = await GET(request())
     expect(response.headers.get('Cache-Control')).toBe('private, no-store')
-    expect(await response.json()).toEqual({ teammateConnected: true, lineupSaved: true, lineupSent: false, match: { date: '2026-09-14', opponent: 'Opponent', scenarioId: 'saved' } })
+    expect(await response.json()).toEqual({ teammateConnected: true, availabilityRequested: false, lineupSaved: true, lineupSent: false, match: { date: '2026-09-14', opponent: 'Opponent', scenarioId: 'saved' } })
     for (const query of [service.queries[1], caller.queries[0]]) {
       expect(query.calls).toContainEqual(['eq', ['team_name', 'Our team']])
       expect(query.calls).toContainEqual(['eq', ['league_name', 'Our league']])
       expect(query.calls).toContainEqual(['eq', ['flight', '4.0']])
     }
+  })
+  it('uses a saved availability request as the first match-week milestone and scope', async () => {
+    const service = database({
+      team_profile_links: [{ data: link }, { count: 0 }],
+      internal_conversations: [{ data: null }],
+      captain_availability_requests: [{ data: { id: 'availability', match_date: '2026-09-21', opponent_team: 'Next opponent' } }],
+    })
+    mocks.service.mockReturnValue(service)
+    mocks.auth.mockResolvedValue({ ok: true, userId: 'owner', supabase: database({ lineup_scenarios: [{ data: [] }] }) })
+    expect(await (await GET(request())).json()).toEqual({
+      teammateConnected: false,
+      availabilityRequested: true,
+      lineupSaved: false,
+      lineupSent: false,
+      match: { date: '2026-09-21', opponent: 'Next opponent' },
+    })
   })
   it('does not turn failed queries into zero progress', async () => {
     mocks.service.mockReturnValue(database({ team_profile_links: [{ data: link }, { error: { message: 'offline' } }] }))

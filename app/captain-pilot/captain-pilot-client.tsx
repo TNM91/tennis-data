@@ -8,7 +8,7 @@ import SiteShell from '@/app/components/site-shell'
 import ProductTourVideoButton from '@/app/components/product-tour-video'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
-import { CAPTAIN_QUICK_START_HREF } from '@/lib/captain-quick-start'
+import { CAPTAIN_PILOT_FIRST_WIN_HREF } from '@/lib/captain-quick-start'
 import {
   CAPTAIN_PILOT_PRICE_LABEL,
   CAPTAIN_PILOT_TRIAL_MONTHS,
@@ -243,7 +243,7 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ requestId: pilotStatus.requestId, nextHref: CAPTAIN_QUICK_START_HREF }),
+        body: JSON.stringify({ requestId: pilotStatus.requestId, nextHref: CAPTAIN_PILOT_FIRST_WIN_HREF }),
       })
       const body = await response.json().catch(() => null) as { ok?: boolean; message?: string; url?: string } | null
       if (!response.ok || !body?.ok || !body.url) throw new Error(body?.message || 'Billing could not be opened.')
@@ -276,8 +276,8 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
           </div>
           <div className={styles.heroActions}>
             {!authResolved ? <p className={styles.status}>Checking your account…</p> : captainPilotActivated ? (
-              <Link href={hasCaptainAccess ? CAPTAIN_QUICK_START_HREF : '#pilot-claim'} className={styles.primaryAction}>
-                {hasCaptainAccess ? 'Set up your team' : 'Review Captain access'}
+              <Link href={hasCaptainAccess ? CAPTAIN_PILOT_FIRST_WIN_HREF : '#pilot-claim'} className={styles.primaryAction}>
+                {hasCaptainAccess ? 'Continue my first match week' : 'Review Captain access'}
               </Link>
             ) : isOpen ? (
               <>
@@ -318,7 +318,7 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
             surface="upgrade"
             source="captain-pilot"
             className={styles.tourMedia}
-            ctaHref={captainPilotActivated ? hasCaptainAccess ? CAPTAIN_QUICK_START_HREF : '#pilot-claim' : session?.user ? '#pilot-claim' : joinHref}
+            ctaHref={captainPilotActivated ? hasCaptainAccess ? CAPTAIN_PILOT_FIRST_WIN_HREF : '#pilot-claim' : session?.user ? '#pilot-claim' : joinHref}
             ctaLabel={captainPilotActivated ? hasCaptainAccess ? 'Open my teams' : 'Review Captain access' : session?.user ? 'Activate free · no card' : 'Start 3 months free'}
           />
         </section>
@@ -395,8 +395,8 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
                 </div>
               ) : null}
               <div>
-                <Link href="/compete/teams" className={styles.primaryAction}>Open My Teams</Link>
-                <Link href="/compete/teams#captain-setup" className={styles.secondaryAction}>Set up your team · guided steps</Link>
+                <Link href={CAPTAIN_PILOT_FIRST_WIN_HREF} className={styles.primaryAction}>Continue my first match week</Link>
+                <Link href="/compete/teams" className={styles.secondaryAction}>Open all teams</Link>
                 <Link href="/captain-pilot/flyer" className={styles.secondaryAction}>Share the pilot flyer</Link>
               </div>
             </div>
