@@ -280,10 +280,18 @@ export default function AdminGrowthPage() {
                     detail="A lineup or availability request exists."
                     rate={ratio(funnel.captainPilotActivation.firstValue, funnel.captainPilotActivation.activations)}
                   />
+                  <ActivationStage
+                    number="4"
+                    label="First plan shared"
+                    value={funnel.captainPilotActivation.lineupShared}
+                    detail="A saved lineup reached Team Chat."
+                    rate={ratio(funnel.captainPilotActivation.lineupShared, funnel.captainPilotActivation.activations)}
+                  />
                 </div>
                 <div className={styles.activationSignals}>
                   <span><strong>{funnel.captainPilotActivation.lineupStarted}</strong> built a lineup</span>
                   <span><strong>{funnel.captainPilotActivation.availabilitySent}</strong> sent availability</span>
+                  <span><strong>{funnel.captainPilotActivation.lineupShared}</strong> shared the plan</span>
                 </div>
                 <div className={styles.activationInsight}>
                   <strong>Onboarding read</strong>
@@ -317,6 +325,8 @@ export default function AdminGrowthPage() {
                                 ? 'Needs team'
                                 : lead.stage === 'first_week'
                                   ? 'Needs first week'
+                                  : lead.stage === 'first_share'
+                                    ? 'Needs to share'
                                   : `${lead.waitingDays}d waiting`}
                           </span>
                         </div>
@@ -521,6 +531,13 @@ function captainActivationInsight(activation: CaptainPilotActivation) {
     const missing = activation.activations - activation.firstValue
     return `${missing} active ${missing === 1 ? 'captain has' : 'captains have'} a team but no saved weekly action. Guide them directly to availability or lineup building.`
   }
+  if (activation.lineupStarted > activation.lineupShared) {
+    const missing = activation.lineupStarted - activation.lineupShared
+    return `${missing} ${missing === 1 ? 'captain has' : 'captains have'} built a lineup but not shared it with the team. Tighten the final-send handoff.`
+  }
+  if (activation.lineupShared > 0) {
+    return `Every active Captain Pilot has started a real match week, and ${activation.lineupShared} ${activation.lineupShared === 1 ? 'has' : 'have'} shared a lineup.`
+  }
   return 'Every active Captain Pilot has reached a real match-week action.'
 }
 
@@ -535,6 +552,8 @@ async function copyCaptainFollowUp(
       ? `Hi ${firstName} — your TenAceIQ Captain Pilot is active. Connect your captain team so TiQ can load your roster, schedule, and weekly tools: https://tenaceiq.com/compete/teams#captain-setup. Reply if you want help.`
       : lead.stage === 'first_week'
         ? `Hi ${firstName} — your team is connected in TenAceIQ. Start your first match week with availability or a lineup here: https://tenaceiq.com/captain. Reply if you want help.`
+        : lead.stage === 'first_share'
+          ? `Hi ${firstName} — your first TenAceIQ lineup for ${lead.teamName} is saved. Finish by sharing the plan with your team: https://tenaceiq.com/compete/teams?source=captain-pilot#captain-setup. Reply if you want help.`
         : `Hi ${firstName} — I saw you started the TenAceIQ Captain Pilot for ${lead.teamName}. ${lead.urgent ? 'It looks like checkout may have hit an issue.' : 'Your access is not active yet.'} Return to https://tenaceiq.com/captain-pilot to finish, or reply and I’ll help.`
 
   try {

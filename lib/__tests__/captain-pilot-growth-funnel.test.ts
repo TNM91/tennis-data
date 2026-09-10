@@ -101,7 +101,7 @@ describe('Captain Pilot growth funnel', () => {
         { profile_user_id: 'not-in-pilot', team_role: 'captain' },
       ],
       [
-        { user_id: 'active-one', slots_json: [{ players: [{ playerId: 'player-1', playerName: 'Player One' }] }] },
+        { user_id: 'active-one', slots_json: [{ players: [{ playerId: 'player-1', playerName: 'Player One' }] }], delivery_status: 'sent' },
         { user_id: 'active-two', slots_json: [{ players: [{ playerId: '', playerName: '' }] }] },
         { user_id: 'not-in-pilot', slots_json: [{ players: [{ playerName: 'Other Player' }] }] },
       ],
@@ -118,6 +118,7 @@ describe('Captain Pilot growth funnel', () => {
       lineupStarted: 1,
       availabilitySent: 1,
       firstValue: 2,
+      lineupShared: 1,
     })
   })
 
@@ -133,12 +134,30 @@ describe('Captain Pilot growth funnel', () => {
       { profile_user_id: 'new-active', team_role: 'captain' },
       { profile_user_id: 'has-value', team_role: 'co_captain' },
     ], [
-      { user_id: 'has-value', slots_json: [{ players: [{ playerName: 'Player One' }] }] },
+      { user_id: 'has-value', slots_json: [{ players: [{ playerName: 'Player One' }] }], delivery_status: 'sent' },
     ], [], now)
 
     expect(followUps).toEqual([
       expect.objectContaining({ profileId: 'needs-team', stage: 'team_connection', waitingDays: 2 }),
       expect.objectContaining({ profileId: 'needs-week', stage: 'first_week', waitingDays: 2 }),
+    ])
+  })
+
+  it('flags a saved first lineup that has not reached the team', () => {
+    const now = Date.parse('2026-09-10T18:00:00.000Z')
+    const followUps = buildCaptainPilotActivationFollowUps([
+      { profile_id: 'saved-only', status: 'converted', captain_name: 'Sam Saved', team_name: 'Aces', converted_at: '2026-09-08T18:00:00.000Z' },
+      { profile_id: 'shared', status: 'converted', captain_name: 'Taylor Shared', converted_at: '2026-09-08T18:00:00.000Z' },
+    ], [
+      { profile_user_id: 'saved-only', team_role: 'captain' },
+      { profile_user_id: 'shared', team_role: 'captain' },
+    ], [
+      { user_id: 'saved-only', slots_json: [{ players: [{ playerName: 'Player One' }] }], delivery_status: 'not_sent' },
+      { user_id: 'shared', slots_json: [{ players: [{ playerName: 'Player Two' }] }], delivery_status: 'sent' },
+    ], [], now)
+
+    expect(followUps).toEqual([
+      expect.objectContaining({ profileId: 'saved-only', stage: 'first_share', waitingDays: 2 }),
     ])
   })
 

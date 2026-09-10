@@ -53,7 +53,7 @@ export type CaptainPilotFollowUp = {
   captainName: string
   captainEmail: string
   teamName: string
-  stage: 'checkout' | 'team_connection' | 'first_week' | 'billing'
+  stage: 'checkout' | 'team_connection' | 'first_week' | 'first_share' | 'billing'
   reason: string
   nextStep: string
   waitingDays: number
@@ -70,6 +70,7 @@ export type CaptainPilotTeamLinkRow = {
 export type CaptainPilotLineupDraftRow = {
   user_id: string | null
   slots_json: unknown
+  delivery_status?: string | null
 }
 
 export type CaptainPilotAvailabilityRow = {
@@ -82,6 +83,7 @@ export type CaptainPilotActivation = {
   lineupStarted: number
   availabilitySent: number
   firstValue: number
+  lineupShared: number
 }
 
 export function buildCaptainPilotFunnel(
@@ -212,7 +214,7 @@ export function buildCaptainPilotActivation(
   lineupDrafts: CaptainPilotLineupDraftRow[],
   availabilityRequests: CaptainPilotAvailabilityRow[],
 ): CaptainPilotActivation {
-  const { activated, connectedProfiles, lineupProfiles, availabilityProfiles } = buildActivationProfileSets(
+  const { activated, connectedProfiles, lineupProfiles, availabilityProfiles, sharedProfiles } = buildActivationProfileSets(
     activatedProfileIds,
     teamLinks,
     lineupDrafts,
@@ -225,6 +227,7 @@ export function buildCaptainPilotActivation(
     lineupStarted: lineupProfiles.size,
     availabilitySent: availabilityProfiles.size,
     firstValue: new Set([...lineupProfiles, ...availabilityProfiles]).size,
+    lineupShared: sharedProfiles.size,
   }
 }
 
@@ -237,7 +240,7 @@ export function buildCaptainPilotActivationFollowUps(
 ): CaptainPilotFollowUp[] {
   const activatedRows = redemptions.filter((row) => row.status === 'converted' && row.profile_id)
   const activatedProfileIds = activatedRows.map((row) => row.profile_id as string)
-  const { connectedProfiles, lineupProfiles, availabilityProfiles } = buildActivationProfileSets(
+  const { connectedProfiles, lineupProfiles, availabilityProfiles, sharedProfiles } = buildActivationProfileSets(
     activatedProfileIds,
     teamLinks,
     lineupDrafts,
@@ -291,6 +294,14 @@ export function buildCaptainPilotActivationFollowUps(
         stage: 'first_week',
         reason: 'Team connected, but no first week started',
         nextStep: 'Guide them to availability or lineup building.',
+      } satisfies CaptainPilotFollowUp]
+    }
+    if (lineupProfiles.has(profileId) && !sharedProfiles.has(profileId)) {
+      return [{
+        ...common,
+        stage: 'first_share',
+        reason: 'First lineup saved, but not shared',
+        nextStep: 'Guide them to send the plan to their team.',
       } satisfies CaptainPilotFollowUp]
     }
     return []
@@ -360,7 +371,13 @@ function buildActivationProfileSets(
     activated,
   )
   const availabilityProfiles = profileSet(availabilityRequests.map((row) => row.created_by), activated)
-  return { activated, connectedProfiles, lineupProfiles, availabilityProfiles }
+  const sharedProfiles = profileSet(
+    lineupDrafts
+      .filter((row) => row.delivery_status === 'sent' && hasAssignedPlayer(row.slots_json))
+      .map((row) => row.user_id),
+    activated,
+  )
+  return { activated, connectedProfiles, lineupProfiles, availabilityProfiles, sharedProfiles }
 }
 
 function hasAssignedPlayer(value: unknown) {
