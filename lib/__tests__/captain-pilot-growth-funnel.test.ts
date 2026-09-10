@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildCaptainPilotActivation,
   buildCaptainPilotFollowUps,
   buildCaptainPilotFunnel,
   type GrowthEventRow,
@@ -62,5 +63,36 @@ describe('Captain Pilot growth funnel', () => {
       expect.objectContaining({ profileId: 'captain-error', urgent: true, waitingDays: 0 }),
       expect.objectContaining({ profileId: 'captain-waiting', urgent: false, waitingDays: 2 }),
     ])
+  })
+
+  it('counts real post-activation Captain work without treating empty drafts as first value', () => {
+    const activation = buildCaptainPilotActivation(
+      ['active-one', 'active-two', 'active-three'],
+      [
+        { profile_user_id: 'active-one', team_role: 'captain' },
+        { profile_user_id: 'active-one', team_roles: ['player', 'captain'] },
+        { profile_user_id: 'active-two', team_role: 'co_captain' },
+        { profile_user_id: 'active-three', team_role: 'player' },
+        { profile_user_id: 'not-in-pilot', team_role: 'captain' },
+      ],
+      [
+        { user_id: 'active-one', slots_json: [{ players: [{ playerId: 'player-1', playerName: 'Player One' }] }] },
+        { user_id: 'active-two', slots_json: [{ players: [{ playerId: '', playerName: '' }] }] },
+        { user_id: 'not-in-pilot', slots_json: [{ players: [{ playerName: 'Other Player' }] }] },
+      ],
+      [
+        { created_by: 'active-two' },
+        { created_by: 'active-two' },
+        { created_by: 'not-in-pilot' },
+      ],
+    )
+
+    expect(activation).toEqual({
+      activations: 3,
+      teamConnected: 2,
+      lineupStarted: 1,
+      availabilitySent: 1,
+      firstValue: 2,
+    })
   })
 })

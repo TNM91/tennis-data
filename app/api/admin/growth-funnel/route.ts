@@ -1,8 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
 import {
+  buildCaptainPilotActivation,
   buildCaptainPilotFunnel,
   buildCaptainPilotFollowUps,
+  type CaptainPilotAvailabilityRow,
+  type CaptainPilotLineupDraftRow,
   type CaptainPilotRedemptionRow,
+  type CaptainPilotTeamLinkRow,
   type GrowthEventRow,
 } from '@/lib/admin-growth-funnel'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
@@ -43,9 +47,7 @@ export async function GET(request: Request) {
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
   if (!serviceKey) return Response.json({ ok: false, message: 'Growth reporting is not configured.' }, { status: 500 })
-  const service = createClient(supabaseUrl, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  })
+  const service = createGrowthServiceClient(serviceKey)
   const { data: adminProfile, error: profileError } = await service
     .from('profiles')
     .select('role')
@@ -81,15 +83,26 @@ export async function GET(request: Request) {
 
   const events = (eventsResult.data ?? []) as GrowthEventRow[]
   const billingEvents = (billingResult.data ?? []) as StripeBillingEvent[]
+  const captainPilotRows = (captainPilotResult.data ?? []) as CaptainPilotRedemptionRow[]
   const captainPilot = buildCaptainPilotFunnel(
     events,
-    (captainPilotResult.data ?? []) as CaptainPilotRedemptionRow[],
+    captainPilotRows,
   )
   const allCaptainPilotFollowUps = buildCaptainPilotFollowUps(
     events,
-    (captainPilotResult.data ?? []) as CaptainPilotRedemptionRow[],
+    captainPilotRows,
   )
   const captainPilotFollowUps = allCaptainPilotFollowUps.slice(0, 8)
+  const activatedProfileIds = [...new Set(
+    captainPilotRows
+      .filter((row) => row.status === 'converted')
+      .map((row) => row.profile_id)
+      .filter((profileId): profileId is string => Boolean(profileId)),
+  )]
+  const captainPilotActivation = await loadCaptainPilotActivation(service, activatedProfileIds)
+  if (!captainPilotActivation.ok) {
+    return Response.json({ ok: false, message: 'Captain activation progress could not be loaded.' }, { status: 500 })
+  }
   const publicActions = new Set(events.filter((event) => event.event_name && !CONVERSION_EVENT_NAMES.has(event.event_name)).map((event) => event.user_id).filter(Boolean)).size
   const signupRequests = uniqueUsers(events, 'signup_confirmation_sent')
   const checkoutClicks = uniqueUsers(events, 'upgrade_checkout_clicked')
@@ -116,7 +129,60 @@ export async function GET(request: Request) {
       captainPilot,
       captainPilotFollowUps,
       captainPilotFollowUpCount: allCaptainPilotFollowUps.length,
+      captainPilotActivation: captainPilotActivation.value,
     },
+  })
+}
+
+async function loadCaptainPilotActivation(
+  service: ReturnType<typeof createGrowthServiceClient>,
+  profileIds: string[],
+) {
+  if (!profileIds.length) {
+    return {
+      ok: true as const,
+      value: buildCaptainPilotActivation([], [], [], []),
+    }
+  }
+
+  const [teamLinksResult, lineupDraftsResult, availabilityResult] = await Promise.all([
+    service
+      .from('team_profile_links')
+      .select('profile_user_id, team_role, team_roles')
+      .in('profile_user_id', profileIds)
+      .eq('status', 'accepted')
+      .is('archived_at', null)
+      .limit(10000),
+    service
+      .from('captain_lineup_drafts')
+      .select('user_id, slots_json')
+      .in('user_id', profileIds)
+      .limit(10000),
+    service
+      .from('captain_availability_requests')
+      .select('created_by')
+      .in('created_by', profileIds)
+      .limit(10000),
+  ])
+
+  if (teamLinksResult.error || lineupDraftsResult.error || availabilityResult.error) {
+    return { ok: false as const }
+  }
+
+  return {
+    ok: true as const,
+    value: buildCaptainPilotActivation(
+      profileIds,
+      (teamLinksResult.data ?? []) as CaptainPilotTeamLinkRow[],
+      (lineupDraftsResult.data ?? []) as CaptainPilotLineupDraftRow[],
+      (availabilityResult.data ?? []) as CaptainPilotAvailabilityRow[],
+    ),
+  }
+}
+
+function createGrowthServiceClient(serviceKey: string) {
+  return createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   })
 }
 

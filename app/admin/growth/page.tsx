@@ -15,7 +15,11 @@ import {
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
-import type { CaptainPilotFollowUp, CaptainPilotFunnel } from '@/lib/admin-growth-funnel'
+import type {
+  CaptainPilotActivation,
+  CaptainPilotFollowUp,
+  CaptainPilotFunnel,
+} from '@/lib/admin-growth-funnel'
 import styles from './growth.module.css'
 
 type Period = 7 | 30 | 90
@@ -29,6 +33,7 @@ type Funnel = {
   captainPilot: CaptainPilotFunnel
   captainPilotFollowUps: CaptainPilotFollowUp[]
   captainPilotFollowUpCount: number
+  captainPilotActivation: CaptainPilotActivation
 }
 
 const PERIODS: Array<{ value: Period; label: string }> = [
@@ -199,6 +204,44 @@ export default function AdminGrowthPage() {
                     <Link href="/admin/product-events?search=captain_pilot" className="button-ghost">Review Captain events</Link>
                   </AdminActionRow>
                 </div>
+                <div className={styles.activationHeader}>
+                  <div>
+                    <div className="section-kicker">First value</div>
+                    <h3>What happens after activation</h3>
+                  </div>
+                  <span className="badge badge-green">Real saved work</span>
+                </div>
+                <div className={styles.activationStages} aria-label="Captain Pilot activation milestones">
+                  <ActivationStage
+                    number="1"
+                    label="Activated"
+                    value={funnel.captainPilotActivation.activations}
+                    detail="Captain Pilot access is active."
+                    rate={null}
+                  />
+                  <ActivationStage
+                    number="2"
+                    label="Team connected"
+                    value={funnel.captainPilotActivation.teamConnected}
+                    detail="An active team link is saved."
+                    rate={ratio(funnel.captainPilotActivation.teamConnected, funnel.captainPilotActivation.activations)}
+                  />
+                  <ActivationStage
+                    number="3"
+                    label="First week started"
+                    value={funnel.captainPilotActivation.firstValue}
+                    detail="A lineup or availability request exists."
+                    rate={ratio(funnel.captainPilotActivation.firstValue, funnel.captainPilotActivation.activations)}
+                  />
+                </div>
+                <div className={styles.activationSignals}>
+                  <span><strong>{funnel.captainPilotActivation.lineupStarted}</strong> built a lineup</span>
+                  <span><strong>{funnel.captainPilotActivation.availabilitySent}</strong> sent availability</span>
+                </div>
+                <div className={styles.activationInsight}>
+                  <strong>Onboarding read</strong>
+                  <span>{captainActivationInsight(funnel.captainPilotActivation)}</span>
+                </div>
                 <div className={styles.followUpHeader}>
                   <div>
                     <div className="section-kicker">Captain follow-up</div>
@@ -366,6 +409,45 @@ function captainPilotInsight(funnel: CaptainPilotFunnel) {
 
   if (largest.to >= largest.from) return 'No drop-off is visible yet. Keep collecting Captain Pilot traffic before changing the offer.'
   return largest.message
+}
+
+function ActivationStage({
+  number,
+  label,
+  value,
+  detail,
+  rate,
+}: {
+  number: string
+  label: string
+  value: number
+  detail: string
+  rate: number | null
+}) {
+  return (
+    <div className={styles.activationStage}>
+      <span className={styles.pilotStageNumber}>{number}</span>
+      <div>
+        <strong>{label}</strong>
+        <span>{detail}</span>
+      </div>
+      <b>{value.toLocaleString()}</b>
+      <small>{rate == null ? 'Starting cohort' : `${formatPercent(rate)} of activated`}</small>
+    </div>
+  )
+}
+
+function captainActivationInsight(activation: CaptainPilotActivation) {
+  if (!activation.activations) return 'Activation milestones will appear after the first Captain Pilot becomes active.'
+  if (activation.teamConnected < activation.activations) {
+    const missing = activation.activations - activation.teamConnected
+    return `${missing} active ${missing === 1 ? 'captain has' : 'captains have'} not connected a team yet. Improve that handoff first.`
+  }
+  if (activation.firstValue < activation.activations) {
+    const missing = activation.activations - activation.firstValue
+    return `${missing} active ${missing === 1 ? 'captain has' : 'captains have'} a team but no saved weekly action. Guide them directly to availability or lineup building.`
+  }
+  return 'Every active Captain Pilot has reached a real match-week action.'
 }
 
 async function copyCaptainFollowUp(

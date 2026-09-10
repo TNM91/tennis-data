@@ -37,6 +37,29 @@ export type CaptainPilotFollowUp = {
   urgent: boolean
 }
 
+export type CaptainPilotTeamLinkRow = {
+  profile_user_id: string | null
+  team_role?: string | null
+  team_roles?: string[] | null
+}
+
+export type CaptainPilotLineupDraftRow = {
+  user_id: string | null
+  slots_json: unknown
+}
+
+export type CaptainPilotAvailabilityRow = {
+  created_by: string | null
+}
+
+export type CaptainPilotActivation = {
+  activations: number
+  teamConnected: number
+  lineupStarted: number
+  availabilitySent: number
+  firstValue: number
+}
+
 export function buildCaptainPilotFunnel(
   events: GrowthEventRow[],
   redemptions: CaptainPilotRedemptionRow[],
@@ -114,6 +137,32 @@ export function buildCaptainPilotFollowUps(
     .sort((left, right) => Number(right.urgent) - Number(left.urgent) || right.waitingDays - left.waitingDays)
 }
 
+export function buildCaptainPilotActivation(
+  activatedProfileIds: string[],
+  teamLinks: CaptainPilotTeamLinkRow[],
+  lineupDrafts: CaptainPilotLineupDraftRow[],
+  availabilityRequests: CaptainPilotAvailabilityRow[],
+): CaptainPilotActivation {
+  const activated = new Set(activatedProfileIds.filter(Boolean))
+  const connectedProfiles = profileSet(
+    teamLinks.filter(hasCaptainTeamRole).map((row) => row.profile_user_id),
+    activated,
+  )
+  const lineupProfiles = profileSet(
+    lineupDrafts.filter((row) => hasAssignedPlayer(row.slots_json)).map((row) => row.user_id),
+    activated,
+  )
+  const availabilityProfiles = profileSet(availabilityRequests.map((row) => row.created_by), activated)
+
+  return {
+    activations: activated.size,
+    teamConnected: connectedProfiles.size,
+    lineupStarted: lineupProfiles.size,
+    availabilitySent: availabilityProfiles.size,
+    firstValue: new Set([...lineupProfiles, ...availabilityProfiles]).size,
+  }
+}
+
 function uniqueEventUsers(events: GrowthEventRow[], predicate: (event: GrowthEventRow) => boolean) {
   return new Set(events.filter(predicate).map((event) => event.user_id).filter(Boolean)).size
 }
@@ -125,4 +174,29 @@ function uniqueProfiles(rows: CaptainPilotRedemptionRow[]) {
 function cleanLabel(value: string | null | undefined, fallback = '') {
   const cleaned = typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
   return cleaned || fallback
+}
+
+function profileSet(profileIds: Array<string | null>, allowedProfiles: Set<string>) {
+  return new Set(profileIds.filter((profileId): profileId is string => Boolean(profileId && allowedProfiles.has(profileId))))
+}
+
+function hasAssignedPlayer(value: unknown) {
+  if (!Array.isArray(value)) return false
+  return value.some((slot) => {
+    if (!slot || typeof slot !== 'object') return false
+    const players = (slot as Record<string, unknown>).players
+    if (!Array.isArray(players)) return false
+    return players.some((player) => {
+      if (!player || typeof player !== 'object') return false
+      const entry = player as Record<string, unknown>
+      return Boolean(cleanLabel(typeof entry.playerId === 'string' ? entry.playerId : '') || cleanLabel(typeof entry.playerName === 'string' ? entry.playerName : ''))
+    })
+  })
+}
+
+function hasCaptainTeamRole(row: CaptainPilotTeamLinkRow) {
+  const roles = Array.isArray(row.team_roles) && row.team_roles.length
+    ? row.team_roles
+    : [row.team_role]
+  return roles.some((role) => role === 'captain' || role === 'co_captain')
 }
