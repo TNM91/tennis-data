@@ -6,6 +6,8 @@ const pageSource = readFileSync(join(process.cwd(), 'app/admin/growth/page.tsx')
 const routeSource = readFileSync(join(process.cwd(), 'app/api/admin/growth-funnel/route.ts'), 'utf8')
 const signupSource = readFileSync(join(process.cwd(), 'app/api/auth/signup/route.ts'), 'utf8')
 const pageStyles = readFileSync(join(process.cwd(), 'app/admin/growth/growth.module.css'), 'utf8')
+const claimSource = readFileSync(join(process.cwd(), 'app/api/captain-pilot/claim/route.ts'), 'utf8')
+const sourceMigration = readFileSync(join(process.cwd(), 'supabase/migrations/20260910000100_add_captain_pilot_acquisition_source.sql'), 'utf8')
 
 describe('admin growth funnel', () => {
   it('keeps visitor traffic separate from signed-in product and billing conversion signals', () => {
@@ -31,6 +33,12 @@ describe('admin growth funnel', () => {
     expect(routeSource).toContain('buildCaptainPilotActivationFollowUps')
     expect(pageSource).toContain('What happens after activation')
     expect(pageSource).toContain('First week started')
+    expect(pageSource).toContain('What brings captains in')
+    expect(pageSource).toContain('Copy {source.label.toLowerCase()} link')
+    expect(routeSource).toContain('buildCaptainPilotSourceBreakdown')
+    expect(signupSource).toContain('acquisitionSource')
+    expect(claimSource).toContain('acquisition_source: acquisitionSource')
+    expect(sourceMigration).toContain("'text', 'flyer', 'email', 'referral', 'direct'")
     expect(pageStyles).toContain('@media (max-width: 560px)')
     expect(pageStyles).toContain('grid-template-columns: 1fr')
   })

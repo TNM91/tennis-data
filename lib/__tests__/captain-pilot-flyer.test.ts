@@ -25,5 +25,6 @@ describe('Captain pilot flyer', () => {
     expect(page).toContain('href={CAPTAIN_PILOT_FLYER.pdfPath}')
     expect(page).toContain('Print / save PDF')
     expect(page).toContain('CAPTAIN_PILOT_FLYER.terms')
+    expect(page).toContain('/captain-pilot?src=flyer')
   })
 })

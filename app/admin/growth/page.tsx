@@ -19,6 +19,7 @@ import type {
   CaptainPilotActivation,
   CaptainPilotFollowUp,
   CaptainPilotFunnel,
+  CaptainPilotSourceBreakdown,
 } from '@/lib/admin-growth-funnel'
 import styles from './growth.module.css'
 
@@ -31,6 +32,7 @@ type Funnel = {
   checkoutFailures: number
   paidActivations: number
   captainPilot: CaptainPilotFunnel
+  captainPilotSources: CaptainPilotSourceBreakdown[]
   captainPilotFollowUps: CaptainPilotFollowUp[]
   captainPilotFollowUpCount: number
   captainPilotActivation: CaptainPilotActivation
@@ -48,6 +50,7 @@ export default function AdminGrowthPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [followUpNotice, setFollowUpNotice] = useState('')
+  const [sourceNotice, setSourceNotice] = useState('')
 
   const loadFunnel = useCallback(async (days: Period) => {
     setLoading(true)
@@ -195,6 +198,47 @@ export default function AdminGrowthPage() {
                   <div className={styles.pilotSignal}><span>Tour starts</span><strong>{funnel.captainPilot.tourStarts.toLocaleString()}</strong></div>
                   <div className={styles.pilotSignal}><span>New account requests</span><strong>{funnel.captainPilot.signupRequests.toLocaleString()}</strong></div>
                   <div className={styles.pilotSignal}><span>Checkout errors</span><strong>{funnel.captainPilot.checkoutFailures.toLocaleString()}</strong></div>
+                </div>
+                <div className={styles.sourceSection}>
+                  <div className={styles.sourceHeader}>
+                    <div>
+                      <div className="section-kicker">Outreach channels</div>
+                      <h3>What brings captains in</h3>
+                    </div>
+                    <span className="badge badge-blue">First known source</span>
+                  </div>
+                  <div className={styles.sourceTable} role="table" aria-label="Captain Pilot results by outreach channel">
+                    <div className={styles.sourceTableHead} role="row">
+                      <span role="columnheader">Source</span>
+                      <span role="columnheader">Viewed</span>
+                      <span role="columnheader">Joined</span>
+                      <span role="columnheader">Claimed</span>
+                      <span role="columnheader">Active</span>
+                    </div>
+                    {funnel.captainPilotSources.map((source) => (
+                      <div className={styles.sourceRow} role="row" key={source.source}>
+                        <strong role="cell">{source.label}</strong>
+                        <span role="cell" data-label="Viewed">{source.offerViews}</span>
+                        <span role="cell" data-label="Joined">{source.signupRequests}</span>
+                        <span role="cell" data-label="Claimed">{source.claims}</span>
+                        <span role="cell" data-label="Active">{source.activations}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className={styles.sourceNote}>Use <code>?src=text</code>, <code>?src=email</code>, or <code>?src=referral</code> when sharing the Captain Pilot link. The flyer QR is tracked automatically.</p>
+                  <div className={styles.sourceActions} aria-label="Copy tracked Captain Pilot links">
+                    {funnel.captainPilotSources.filter((source) => source.source !== 'direct' && source.source !== 'flyer').map((source) => (
+                      <button
+                        type="button"
+                        className="button-ghost"
+                        key={source.source}
+                        onClick={() => void copyCaptainPilotSourceLink(source, setSourceNotice)}
+                      >
+                        Copy {source.label.toLowerCase()} link
+                      </button>
+                    ))}
+                  </div>
+                  {sourceNotice ? <p className={styles.sourceSuccess} role="status">{sourceNotice}</p> : null}
                 </div>
                 <div className={styles.pilotInsight} style={adminSubPanelStyle}>
                   <strong>Largest opportunity</strong>
@@ -391,6 +435,19 @@ function funnelInsight(funnel: Funnel) {
     return 'People are exploring TiQ without requesting an account. Tighten the signup invitation around the action they just took.'
   }
   return 'The funnel is still gathering signals. Check back after more signups and checkout activity arrive.'
+}
+
+async function copyCaptainPilotSourceLink(
+  source: CaptainPilotSourceBreakdown,
+  setNotice: (message: string) => void,
+) {
+  const url = `https://www.tenaceiq.com/captain-pilot?src=${source.source}`
+  try {
+    await navigator.clipboard.writeText(url)
+    setNotice(`${source.label} link copied.`)
+  } catch {
+    setNotice(`Copy this link: ${url}`)
+  }
 }
 
 function captainPilotInsight(funnel: CaptainPilotFunnel) {

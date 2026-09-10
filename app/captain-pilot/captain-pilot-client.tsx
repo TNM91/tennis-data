@@ -2,6 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import ProductTourVideoButton from '@/app/components/product-tour-video'
@@ -13,6 +14,7 @@ import {
   CAPTAIN_PILOT_TRIAL_MONTHS,
   getCaptainPilotAvailability,
 } from '@/lib/captain-pilot'
+import { buildCaptainPilotHref, normalizeCaptainPilotSource } from '@/lib/captain-pilot-source'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import type { TeamConnection } from '@/lib/team-profile-links'
 import styles from './captain-pilot.module.css'
@@ -37,6 +39,7 @@ export default function CaptainPilotPage({ renewalDateLabel }: CaptainPilotPageP
 }
 
 function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
+  const searchParams = useSearchParams()
   const { session, authResolved, role, entitlements } = useAuth()
   const hasCaptainAccess = authResolved && Boolean(session?.user) && buildProductAccessState(role, entitlements).canUseCaptainWorkflow
   const [captainName, setCaptainName] = useState('')
@@ -56,7 +59,10 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
   const preferredCaptainName = getPreferredName(session?.user.user_metadata, session?.user.email)
   const availability = useMemo(() => getCaptainPilotAvailability(), [])
   const isOpen = availability === 'active'
-  const returnTo = '/captain-pilot'
+  const acquisitionSource = normalizeCaptainPilotSource(
+    searchParams.get('src') ?? searchParams.get('utm_source') ?? searchParams.get('source'),
+  )
+  const returnTo = buildCaptainPilotHref(acquisitionSource)
   const joinHref = `/join?plan=captain&next=${encodeURIComponent(returnTo)}`
   const loginHref = `/login?plan=captain&next=${encodeURIComponent(returnTo)}`
   const connectedTeam = useMemo(
@@ -76,7 +82,7 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
         eventName: 'captain_pilot_viewed',
         surface: 'upgrade',
         planId: 'captain',
-        metadata: { signedIn: true },
+        metadata: { signedIn: true, acquisitionSource },
       })
     }
 
@@ -104,7 +110,7 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
       .finally(() => setTeamPreviewResolved(true))
 
     return () => controller.abort()
-  }, [accessToken, authResolved, preferredCaptainName, signedInUserId])
+  }, [accessToken, acquisitionSource, authResolved, preferredCaptainName, signedInUserId])
 
   useEffect(() => {
     if (!connectedTeam || teamName) return
@@ -120,16 +126,16 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
       eventName: 'captain_pilot_team_preview_viewed',
       surface: 'upgrade',
       planId: 'captain',
-      metadata: { hasConnectedTeam: Boolean(connectedTeam) },
+      metadata: { hasConnectedTeam: Boolean(connectedTeam), acquisitionSource },
     })
-  }, [connectedTeam, signedInUserId, teamPreviewResolved])
+  }, [acquisitionSource, connectedTeam, signedInUserId, teamPreviewResolved])
 
   function trackPilotCta(action: string) {
     void trackProductUsageEvent({
       eventName: 'captain_pilot_cta_clicked',
       surface: 'upgrade',
       planId: 'captain',
-      metadata: { action, hasConnectedTeam: Boolean(connectedTeam) },
+      metadata: { action, hasConnectedTeam: Boolean(connectedTeam), acquisitionSource },
     })
   }
 
@@ -146,7 +152,7 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
       eventName: 'upgrade_checkout_clicked',
       surface: 'upgrade',
       planId: 'captain',
-      metadata: { source: 'captain_pilot', hasConnectedTeam: Boolean(connectedTeam) },
+      metadata: { source: 'captain_pilot', acquisitionSource, hasConnectedTeam: Boolean(connectedTeam) },
     })
     setSubmitting(true)
     setNotice('')
@@ -157,7 +163,7 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ captainName, clubOrArea, teamName, feedbackFocus }),
+        body: JSON.stringify({ captainName, clubOrArea, teamName, feedbackFocus, acquisitionSource }),
       })
       const claim = await claimResponse.json().catch(() => null) as ClaimResponse | null
       if (!claimResponse.ok || !claim?.ok) {
@@ -165,7 +171,7 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
           eventName: 'upgrade_checkout_failed',
           surface: 'upgrade',
           planId: 'captain',
-          metadata: { source: 'captain_pilot', stage: 'pilot_claim', status: claimResponse.status },
+          metadata: { source: 'captain_pilot', acquisitionSource, stage: 'pilot_claim', status: claimResponse.status },
         })
         throw new Error(claim?.message || 'Your pilot claim could not be started.')
       }
@@ -179,7 +185,7 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
           eventName: 'upgrade_checkout_failed',
           surface: 'upgrade',
           planId: 'captain',
-          metadata: { source: 'captain_pilot', stage: 'pilot_claim_missing_request' },
+          metadata: { source: 'captain_pilot', acquisitionSource, stage: 'pilot_claim_missing_request' },
         })
         throw new Error('Your pilot claim did not include checkout access.')
       }
@@ -198,7 +204,7 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
           eventName: 'upgrade_checkout_failed',
           surface: 'upgrade',
           planId: 'captain',
-          metadata: { source: 'captain_pilot', stage: 'stripe_session', status: checkoutResponse.status },
+          metadata: { source: 'captain_pilot', acquisitionSource, stage: 'stripe_session', status: checkoutResponse.status },
         })
         throw new Error(checkout?.message || 'Checkout could not be started.')
       }
@@ -206,7 +212,7 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
         eventName: 'upgrade_checkout_started',
         surface: 'upgrade',
         planId: 'captain',
-        metadata: { source: 'captain_pilot', requestId: claim.requestId },
+        metadata: { source: 'captain_pilot', acquisitionSource, requestId: claim.requestId },
       })
       window.location.assign(checkout.url)
     } catch (error) {
@@ -215,7 +221,7 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
           eventName: 'upgrade_checkout_failed',
           surface: 'upgrade',
           planId: 'captain',
-          metadata: { source: 'captain_pilot', stage: 'network' },
+          metadata: { source: 'captain_pilot', acquisitionSource, stage: 'network' },
         })
       }
       setNotice(error instanceof Error ? error.message : 'Your pilot claim could not be started.')

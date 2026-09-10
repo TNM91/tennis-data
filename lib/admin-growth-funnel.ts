@@ -1,8 +1,16 @@
+import {
+  CAPTAIN_PILOT_SOURCES,
+  CAPTAIN_PILOT_SOURCE_LABELS,
+  normalizeCaptainPilotSource,
+  type CaptainPilotSource,
+} from '@/lib/captain-pilot-source'
+
 export type GrowthEventRow = {
   user_id: string | null
   event_name: string | null
   plan_id: string | null
   metadata: Record<string, unknown> | null
+  created_at?: string | null
 }
 
 export type CaptainPilotRedemptionRow = {
@@ -11,6 +19,7 @@ export type CaptainPilotRedemptionRow = {
   captain_name?: string | null
   captain_email?: string | null
   team_name?: string | null
+  acquisition_source?: string | null
   updated_at?: string | null
   converted_at?: string | null
 }
@@ -23,6 +32,15 @@ export type CaptainPilotFunnel = {
   claims: number
   checkoutStarts: number
   checkoutFailures: number
+  activations: number
+}
+
+export type CaptainPilotSourceBreakdown = {
+  source: CaptainPilotSource
+  label: string
+  offerViews: number
+  signupRequests: number
+  claims: number
   activations: number
 }
 
@@ -87,6 +105,46 @@ export function buildCaptainPilotFunnel(
     )),
     activations: uniqueProfiles(redemptions.filter((row) => row.status === 'converted')),
   }
+}
+
+export function buildCaptainPilotSourceBreakdown(
+  events: GrowthEventRow[],
+  redemptions: CaptainPilotRedemptionRow[],
+): CaptainPilotSourceBreakdown[] {
+  const sourceByProfile = buildCaptainPilotSourceMap(events)
+  redemptions.forEach((redemption) => {
+    if (!redemption.profile_id) return
+    const redemptionSource = normalizeCaptainPilotSource(redemption.acquisition_source)
+    const existing = sourceByProfile.get(redemption.profile_id)
+    if (!existing || existing === 'direct') sourceByProfile.set(redemption.profile_id, redemptionSource)
+  })
+  const rows = new Map<CaptainPilotSource, CaptainPilotSourceBreakdown>(
+    CAPTAIN_PILOT_SOURCES.map((source) => [source, {
+      source,
+      label: CAPTAIN_PILOT_SOURCE_LABELS[source],
+      offerViews: 0,
+      signupRequests: 0,
+      claims: 0,
+      activations: 0,
+    }]),
+  )
+
+  incrementUniqueProfiles(rows, sourceByProfile, events
+    .filter((event) => event.event_name === 'captain_pilot_viewed')
+    .map((event) => event.user_id), 'offerViews')
+  incrementUniqueProfiles(rows, sourceByProfile, events
+    .filter((event) => (
+      event.event_name === 'signup_confirmation_sent'
+      && event.plan_id === 'captain'
+      && event.metadata?.signup_intent === 'captain-pilot'
+    ))
+    .map((event) => event.user_id), 'signupRequests')
+  incrementUniqueProfiles(rows, sourceByProfile, redemptions.map((row) => row.profile_id), 'claims')
+  incrementUniqueProfiles(rows, sourceByProfile, redemptions
+    .filter((row) => row.status === 'converted')
+    .map((row) => row.profile_id), 'activations')
+
+  return CAPTAIN_PILOT_SOURCES.map((source) => rows.get(source) as CaptainPilotSourceBreakdown)
 }
 
 export function buildCaptainPilotFollowUps(
@@ -219,6 +277,36 @@ function uniqueEventUsers(events: GrowthEventRow[], predicate: (event: GrowthEve
 
 function uniqueProfiles(rows: CaptainPilotRedemptionRow[]) {
   return new Set(rows.map((row) => row.profile_id).filter(Boolean)).size
+}
+
+function buildCaptainPilotSourceMap(events: GrowthEventRow[]) {
+  const sourceByProfile = new Map<string, CaptainPilotSource>()
+  const orderedEvents = [...events].sort((left, right) => timestamp(left.created_at) - timestamp(right.created_at))
+  orderedEvents.forEach((event) => {
+    if (!event.user_id) return
+    const source = normalizeCaptainPilotSource(event.metadata?.acquisitionSource)
+    const existing = sourceByProfile.get(event.user_id)
+    if (!existing || (existing === 'direct' && source !== 'direct')) sourceByProfile.set(event.user_id, source)
+  })
+  return sourceByProfile
+}
+
+function incrementUniqueProfiles(
+  rows: Map<CaptainPilotSource, CaptainPilotSourceBreakdown>,
+  sourceByProfile: Map<string, CaptainPilotSource>,
+  profileIds: Array<string | null>,
+  field: 'offerViews' | 'signupRequests' | 'claims' | 'activations',
+) {
+  new Set(profileIds.filter((profileId): profileId is string => Boolean(profileId))).forEach((profileId) => {
+    const source = sourceByProfile.get(profileId) ?? 'direct'
+    const row = rows.get(source)
+    if (row) row[field] += 1
+  })
+}
+
+function timestamp(value: string | null | undefined) {
+  const parsed = value ? Date.parse(value) : Number.NaN
+  return Number.isFinite(parsed) ? parsed : Number.MAX_SAFE_INTEGER
 }
 
 function cleanLabel(value: string | null | undefined, fallback = '') {

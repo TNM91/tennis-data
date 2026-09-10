@@ -4,6 +4,7 @@ import {
   buildCaptainPilotActivationFollowUps,
   buildCaptainPilotFollowUps,
   buildCaptainPilotFunnel,
+  buildCaptainPilotSourceBreakdown,
   type GrowthEventRow,
 } from '@/lib/admin-growth-funnel'
 
@@ -64,6 +65,28 @@ describe('Captain Pilot growth funnel', () => {
       expect.objectContaining({ profileId: 'captain-error', urgent: true, waitingDays: 0 }),
       expect.objectContaining({ profileId: 'captain-waiting', urgent: false, waitingDays: 2 }),
     ])
+  })
+
+  it('attributes each captain to the first known outreach source through activation', () => {
+    const sources = buildCaptainPilotSourceBreakdown([
+      event('text-captain', 'captain_pilot_viewed', { metadata: { acquisitionSource: 'text' }, created_at: '2026-09-01T12:00:00Z' }),
+      event('text-captain', 'signup_confirmation_sent', { plan_id: 'captain', metadata: { signup_intent: 'captain-pilot', acquisitionSource: 'text' }, created_at: '2026-09-01T12:05:00Z' }),
+      event('flyer-captain', 'signup_confirmation_sent', { plan_id: 'captain', metadata: { signup_intent: 'captain-pilot', acquisitionSource: 'club-flyer' }, created_at: '2026-09-02T12:00:00Z' }),
+      event('referred-captain', 'captain_pilot_viewed', { metadata: {}, created_at: '2026-09-03T12:00:00Z' }),
+      event('referred-captain', 'captain_pilot_claimed', { metadata: { acquisitionSource: 'referral' }, created_at: '2026-09-03T12:05:00Z' }),
+    ], [
+      { profile_id: 'text-captain', status: 'converted' },
+      { profile_id: 'flyer-captain', status: 'claimed' },
+      { profile_id: 'referred-captain', status: 'converted' },
+      { profile_id: 'persisted-email-captain', status: 'converted', acquisition_source: 'email' },
+      { profile_id: 'direct-captain', status: 'claimed', acquisition_source: 'direct' },
+    ])
+
+    expect(sources.find((source) => source.source === 'text')).toMatchObject({ offerViews: 1, signupRequests: 1, claims: 1, activations: 1 })
+    expect(sources.find((source) => source.source === 'flyer')).toMatchObject({ offerViews: 0, signupRequests: 1, claims: 1, activations: 0 })
+    expect(sources.find((source) => source.source === 'referral')).toMatchObject({ offerViews: 1, claims: 1, activations: 1 })
+    expect(sources.find((source) => source.source === 'email')).toMatchObject({ claims: 1, activations: 1 })
+    expect(sources.find((source) => source.source === 'direct')).toMatchObject({ claims: 1, activations: 0 })
   })
 
   it('counts real post-activation Captain work without treating empty drafts as first value', () => {

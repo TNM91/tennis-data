@@ -19,6 +19,7 @@ import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
 import { getPlanDestinationHref, getPlanUnlockHref, isSafeLocalNextHref } from '@/lib/plan-intent'
 import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
 import { getAvailabilityEntry } from '@/lib/availability-onboarding'
+import { getCaptainPilotSourceFromHref } from '@/lib/captain-pilot-source'
 
 const JOIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 
@@ -159,6 +160,7 @@ function JoinContent() {
   const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, getJoinNextRoute(selectedPlanId))
   const availabilityEntry = selectedPlanId === 'free' ? getAvailabilityEntry(selectedNextRoute) : null
   const isCaptainPilotSignup = selectedPlanId === 'captain' && selectedNextRoute.startsWith('/captain-pilot')
+  const captainPilotSource = getCaptainPilotSourceFromHref(selectedNextRoute)
   const selectedIntent = isCaptainPilotSignup ? {
     ...JOIN_INTENT_COPY.captain,
     eyebrow: 'Captain offer · Create your account',
@@ -243,6 +245,7 @@ function JoinContent() {
           planId: selectedPlanId,
           nextHref: selectedNextRoute,
           captainPilot: isCaptainPilotSignup,
+          acquisitionSource: isCaptainPilotSignup ? captainPilotSource : undefined,
         }),
       })
       const signupResult = await signupResponse.json().catch(() => null) as { ok?: boolean; message?: string } | null
