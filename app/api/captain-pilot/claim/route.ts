@@ -4,6 +4,7 @@ import {
   getCaptainPilotAvailability,
   normalizeCaptainPilotTeamKey,
 } from '@/lib/captain-pilot'
+import { normalizeCaptainPilotSource } from '@/lib/captain-pilot-source'
 import { PAID_CHECKOUT_ENABLED, PAID_CHECKOUT_PAUSED_MESSAGE } from '@/lib/paid-checkout'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import { buildUpgradePricingSnapshot } from '@/lib/upgrade-requests'
@@ -15,6 +16,7 @@ type ClaimBody = {
   clubOrArea?: unknown
   teamName?: unknown
   feedbackFocus?: unknown
+  acquisitionSource?: unknown
 }
 
 type ExistingRedemption = {
@@ -49,6 +51,7 @@ export async function POST(request: Request) {
   const clubOrArea = cleanString(body.clubOrArea)
   const teamName = cleanString(body.teamName)
   const feedbackFocus = cleanString(body.feedbackFocus) || 'Match-week setup and team workflow'
+  const acquisitionSource = normalizeCaptainPilotSource(body.acquisitionSource)
   const teamKey = normalizeCaptainPilotTeamKey(teamName)
   if (!captainName || !teamName || !teamKey) {
     return Response.json({ ok: false, message: 'Add your name and team to continue.' }, { status: 400 })
@@ -91,6 +94,7 @@ export async function POST(request: Request) {
         team_name: teamName,
         team_key: teamKey,
         feedback_focus: feedbackFocus,
+        acquisition_source: acquisitionSource,
         status: 'claimed',
       })
       .select('id')
@@ -140,6 +144,19 @@ export async function POST(request: Request) {
     .eq('id', redemptionId)
     .is('upgrade_request_id', null)
   if (linkError) return Response.json({ ok: false, message: 'Your pilot access could not be linked.' }, { status: 500 })
+
+  const { error: eventError } = await supabase
+    .from('product_usage_events')
+    .insert({
+      user_id: user.userId,
+      event_name: 'captain_pilot_claimed',
+      surface: 'upgrade',
+      plan_id: 'captain',
+      metadata: { acquisitionSource, requestId: upgradeRequest.id },
+    })
+  if (eventError) {
+    console.warn('Captain Pilot claim attribution was not recorded.', { code: eventError.code, message: eventError.message })
+  }
 
   return Response.json({ ok: true, requestId: upgradeRequest.id })
 }

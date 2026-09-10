@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { isSafeLocalNextHref } from '@/lib/plan-intent'
 import { type MembershipTierId } from '@/lib/product-story'
+import { getCaptainPilotSourceFromHref, normalizeCaptainPilotSource } from '@/lib/captain-pilot-source'
 import {
   buildSignupConfirmationEmail,
   isSignupEmailIntent,
@@ -23,6 +24,7 @@ type SignupBody = {
   planId?: unknown
   nextHref?: unknown
   captainPilot?: unknown
+  acquisitionSource?: unknown
 }
 
 export async function POST(request: Request) {
@@ -42,6 +44,10 @@ export async function POST(request: Request) {
   const intent: SignupEmailIntent = body.captainPilot === true && planId === 'captain' ? 'captain-pilot' : planId
   const fallbackNextHref = getDefaultNextHref(planId, intent)
   const nextHref = isSafeLocalNextHref(typeof body.nextHref === 'string' ? body.nextHref : null, fallbackNextHref)
+  const hrefSource = getCaptainPilotSourceFromHref(nextHref)
+  const acquisitionSource = hrefSource === 'direct'
+    ? normalizeCaptainPilotSource(body.acquisitionSource)
+    : hrefSource
 
   if (!email) return Response.json({ ok: false, message: 'Enter a valid email address.' }, { status: 400 })
   if (password.length < 8) return Response.json({ ok: false, message: 'Use at least 8 characters for your password.' }, { status: 400 })
@@ -69,7 +75,12 @@ export async function POST(request: Request) {
     password,
     options: {
       redirectTo: confirmationRedirect,
-      data: { signup_intent: intent, selected_plan: planId, ...(firstName ? { first_name: firstName } : {}) },
+      data: {
+        signup_intent: intent,
+        selected_plan: planId,
+        ...(intent === 'captain-pilot' ? { acquisition_source: acquisitionSource } : {}),
+        ...(firstName ? { first_name: firstName } : {}),
+      },
     },
   })
 
@@ -109,7 +120,10 @@ export async function POST(request: Request) {
       event_name: 'signup_confirmation_sent',
       surface: 'public_site',
       plan_id: planId === 'free' ? null : planId,
-      metadata: { signup_intent: intent },
+      metadata: {
+        signup_intent: intent,
+        ...(intent === 'captain-pilot' ? { acquisitionSource } : {}),
+      },
     })
   if (eventError) {
     console.warn('Signup funnel event was not recorded.', { code: eventError.code, message: eventError.message })

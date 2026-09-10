@@ -24,7 +24,7 @@ export default function CaptainPilotFlyerPage() {
   return (
     <main className={styles.canvas}>
       <nav className={styles.actions} aria-label="Flyer actions">
-        <Link href="/captain-pilot" className={styles.applyLink}>Start 3 months free</Link>
+        <Link href="/captain-pilot?src=flyer" className={styles.applyLink}>Start 3 months free</Link>
         <a href={CAPTAIN_PILOT_FLYER.pdfPath} target="_blank" rel="noopener noreferrer" className={styles.pdfLink}>Print / save PDF <span>(1 page)</span></a>
       </nav>
       <article className={styles.flyer}>
@@ -58,7 +58,7 @@ export default function CaptainPilotFlyerPage() {
             <div className={styles.workflowRail} aria-hidden="true"><i /><i /><i /></div>
             <Image src="/brand/flyers/fall-2026-captain-pilot-qr.svg" alt="QR code to claim the Fall Captain Pilot" width={360} height={360} loading="eager" />
             <strong>Scan to start</strong>
-            <Link href="/captain-pilot">tenaceiq.com/captain-pilot</Link>
+            <Link href="/captain-pilot?src=flyer">tenaceiq.com/captain-pilot</Link>
           </div>
         </section>
 
@@ -76,7 +76,7 @@ export default function CaptainPilotFlyerPage() {
           </div>
         </footer>
       </article>
-      <Link href="/captain-pilot" className={styles.backLink}>Back to the Captain Pilot</Link>
+      <Link href="/captain-pilot?src=flyer" className={styles.backLink}>Back to the Captain Pilot</Link>
     </main>
   )
 }

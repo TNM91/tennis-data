@@ -6,6 +6,11 @@ import {
   getCaptainPilotAvailability,
   normalizeCaptainPilotTeamKey,
 } from '@/lib/captain-pilot'
+import {
+  buildCaptainPilotHref,
+  getCaptainPilotSourceFromHref,
+  normalizeCaptainPilotSource,
+} from '@/lib/captain-pilot-source'
 
 describe('Fall Captain Pilot campaign rules', () => {
   it('directs existing Captain members to their teams instead of another activation form', () => {
@@ -29,5 +34,14 @@ describe('Fall Captain Pilot campaign rules', () => {
 
   it('normalizes team names for the one-team redemption guard', () => {
     expect(normalizeCaptainPilotTeamKey('  River Club — 3.5 Women!  ')).toBe('river-club-3-5-women')
+  })
+
+  it('normalizes campaign aliases and preserves a clean source link', () => {
+    expect(normalizeCaptainPilotSource('SMS')).toBe('text')
+    expect(normalizeCaptainPilotSource('club-flyer')).toBe('flyer')
+    expect(getCaptainPilotSourceFromHref('/captain-pilot?utm_source=club-flyer')).toBe('flyer')
+    expect(getCaptainPilotSourceFromHref('/captain-pilot?src=referral')).toBe('referral')
+    expect(buildCaptainPilotHref('email')).toBe('/captain-pilot?src=email')
+    expect(buildCaptainPilotHref('direct')).toBe('/captain-pilot')
   })
 })

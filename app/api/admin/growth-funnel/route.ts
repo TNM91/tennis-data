@@ -4,6 +4,7 @@ import {
   buildCaptainPilotActivationFollowUps,
   buildCaptainPilotFunnel,
   buildCaptainPilotFollowUps,
+  buildCaptainPilotSourceBreakdown,
   type CaptainPilotAvailabilityRow,
   type CaptainPilotLineupDraftRow,
   type CaptainPilotRedemptionRow,
@@ -24,6 +25,7 @@ const CONVERSION_EVENT_NAMES = new Set([
   'captain_pilot_viewed',
   'captain_pilot_cta_clicked',
   'captain_pilot_team_preview_viewed',
+  'captain_pilot_claimed',
   'product_tour_started',
 ])
 
@@ -63,8 +65,9 @@ export async function GET(request: Request) {
   const [eventsResult, billingResult, captainPilotResult] = await Promise.all([
     service
       .from('product_usage_events')
-      .select('user_id, event_name, plan_id, metadata')
+      .select('user_id, event_name, plan_id, metadata, created_at')
       .gte('created_at', since)
+      .order('created_at', { ascending: true })
       .limit(10000),
     service
       .from('stripe_billing_events')
@@ -73,7 +76,7 @@ export async function GET(request: Request) {
       .limit(10000),
     service
       .from('captain_pilot_redemptions')
-      .select('profile_id, status, captain_name, captain_email, team_name, updated_at, converted_at')
+      .select('profile_id, status, captain_name, captain_email, team_name, acquisition_source, updated_at, converted_at')
       .gte('created_at', since)
       .limit(10000),
   ])
@@ -89,6 +92,7 @@ export async function GET(request: Request) {
     events,
     captainPilotRows,
   )
+  const captainPilotSources = buildCaptainPilotSourceBreakdown(events, captainPilotRows)
   const activatedProfileIds = [...new Set(
     captainPilotRows
       .filter((row) => row.status === 'converted')
@@ -128,6 +132,7 @@ export async function GET(request: Request) {
       checkoutFailures,
       paidActivations,
       captainPilot,
+      captainPilotSources,
       captainPilotFollowUps,
       captainPilotFollowUpCount: allCaptainPilotFollowUps.length,
       captainPilotActivation: captainPilotActivation.value,
