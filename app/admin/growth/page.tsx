@@ -131,17 +131,17 @@ export default function AdminGrowthPage() {
       href: '/admin/upgrade-requests?plan=captain',
     },
     {
-      label: 'Stripe opened',
-      value: funnel.captainPilot.checkoutStarts,
-      detail: 'Reached secure checkout successfully.',
-      rate: ratio(funnel.captainPilot.checkoutStarts, funnel.captainPilot.claims),
-      href: '/admin/product-events?search=upgrade_checkout_started',
-    },
-    {
       label: 'Activated',
       value: funnel.captainPilot.activations,
-      detail: 'Captain Pilot access became active.',
-      rate: ratio(funnel.captainPilot.activations, funnel.captainPilot.checkoutStarts),
+      detail: 'Captain access started with no card.',
+      rate: ratio(funnel.captainPilot.activations, funnel.captainPilot.claims),
+      href: '/admin/product-events?search=captain_pilot_card_free_activated',
+    },
+    {
+      label: 'Billing added',
+      value: funnel.captainPilot.billingConnected,
+      detail: 'Connected Stripe to continue after free access.',
+      rate: ratio(funnel.captainPilot.billingConnected, funnel.captainPilot.activations),
       href: '/admin/access?billing=stripe',
     },
   ] : [], [funnel])
@@ -160,7 +160,7 @@ export default function AdminGrowthPage() {
               </>
             }
           >
-            Follow the path from a person taking action in TiQ to a signup request, Checkout, and paid activation.
+            Follow the path from a person taking action in TiQ to card-free Captain access, first value, and optional billing.
           </AdminReviewHero>
 
           <AdminStatusPanel
@@ -174,7 +174,7 @@ export default function AdminGrowthPage() {
             <div className={styles.pilotHeader}>
               <div>
                 <div className="section-kicker">Captain Pilot</div>
-                <h2 className="section-title" style={{ marginTop: 6 }}>Offer to activation</h2>
+                <h2 className="section-title" style={{ marginTop: 6 }}>Offer to active Captain</h2>
               </div>
               <p className="subtle-text">Identified member actions for the last {period} days. Open site traffic for anonymous page views.</p>
             </div>
@@ -197,7 +197,8 @@ export default function AdminGrowthPage() {
                 <div className={styles.pilotSignals} aria-label="Captain Pilot supporting signals">
                   <div className={styles.pilotSignal}><span>Tour starts</span><strong>{funnel.captainPilot.tourStarts.toLocaleString()}</strong></div>
                   <div className={styles.pilotSignal}><span>New account requests</span><strong>{funnel.captainPilot.signupRequests.toLocaleString()}</strong></div>
-                  <div className={styles.pilotSignal}><span>Checkout errors</span><strong>{funnel.captainPilot.checkoutFailures.toLocaleString()}</strong></div>
+                  <div className={styles.pilotSignal}><span>Billing starts</span><strong>{funnel.captainPilot.checkoutStarts.toLocaleString()}</strong></div>
+                  <div className={styles.pilotSignal}><span>Billing errors</span><strong>{funnel.captainPilot.checkoutFailures.toLocaleString()}</strong></div>
                 </div>
                 <div className={styles.sourceSection}>
                   <div className={styles.sourceHeader}>
@@ -214,6 +215,7 @@ export default function AdminGrowthPage() {
                       <span role="columnheader">Joined</span>
                       <span role="columnheader">Claimed</span>
                       <span role="columnheader">Active</span>
+                      <span role="columnheader">Billing</span>
                     </div>
                     {funnel.captainPilotSources.map((source) => (
                       <div className={styles.sourceRow} role="row" key={source.source}>
@@ -222,6 +224,7 @@ export default function AdminGrowthPage() {
                         <span role="cell" data-label="Joined">{source.signupRequests}</span>
                         <span role="cell" data-label="Claimed">{source.claims}</span>
                         <span role="cell" data-label="Active">{source.activations}</span>
+                        <span role="cell" data-label="Billing">{source.billingConnected}</span>
                       </div>
                     ))}
                   </div>
@@ -304,9 +307,13 @@ export default function AdminGrowthPage() {
                             <span>{lead.teamName}</span>
                           </div>
                           <span className={lead.urgent ? 'badge badge-slate' : 'badge badge-blue'}>
-                            {lead.urgent
-                              ? 'Checkout issue'
-                              : lead.stage === 'team_connection'
+                            {lead.stage === 'billing'
+                              ? lead.daysRemaining != null && lead.daysRemaining > 0
+                                ? `${lead.daysRemaining}d left`
+                                : 'Billing due'
+                              : lead.urgent
+                                ? 'Checkout issue'
+                                : lead.stage === 'team_connection'
                                 ? 'Needs team'
                                 : lead.stage === 'first_week'
                                   ? 'Needs first week'
@@ -330,8 +337,8 @@ export default function AdminGrowthPage() {
                   </div>
                 ) : (
                   <div className={styles.followUpClear}>
-                    <strong>No stalled Captain claims.</strong>
-                    <span>New claims get a day to finish before appearing here. Checkout errors appear immediately.</span>
+                    <strong>No Captain follow-ups due.</strong>
+                    <span>New activations get a day to begin. Billing reminders appear near the end of free access.</span>
                   </div>
                 )}
                 {funnel.captainPilotFollowUpCount > funnel.captainPilotFollowUps.length ? (
@@ -458,8 +465,7 @@ function captainPilotInsight(funnel: CaptainPilotFunnel) {
   const transitions = [
     { from: funnel.offerViews, to: funnel.offerActions, message: 'Captains are opening the offer without taking the next action. Tighten the value preview and primary invitation.' },
     { from: funnel.offerActions, to: funnel.claims, message: 'Captains are showing intent but not claiming the pilot. Simplify the team form or make the $0 terms more prominent.' },
-    { from: funnel.claims, to: funnel.checkoutStarts, message: 'Pilot forms are being completed without Stripe opening. Review the handoff into secure checkout.' },
-    { from: funnel.checkoutStarts, to: funnel.activations, message: 'Captains are reaching Stripe without activating. Review the checkout offer, trust cues, and abandonment.' },
+    { from: funnel.claims, to: funnel.activations, message: 'Pilot forms are being completed without access activating. Review the card-free entitlement handoff.' },
   ].filter((transition) => transition.from > 0)
 
   if (!transitions.length) return 'The Captain Pilot funnel is ready. It will identify the largest drop-off as captains begin using the offer.'
@@ -470,7 +476,12 @@ function captainPilotInsight(funnel: CaptainPilotFunnel) {
     return transitionDrop > currentDrop ? transition : current
   })
 
-  if (largest.to >= largest.from) return 'No drop-off is visible yet. Keep collecting Captain Pilot traffic before changing the offer.'
+  if (largest.to >= largest.from) {
+    if (funnel.activations > 0 && funnel.billingConnected < funnel.activations) {
+      return 'Card-free activation is working. Watch billing additions as pilots approach the end of their three free months.'
+    }
+    return 'No drop-off is visible yet. Keep collecting Captain Pilot traffic before changing the offer.'
+  }
   return largest.message
 }
 
@@ -518,11 +529,13 @@ async function copyCaptainFollowUp(
   setNotice: (message: string) => void,
 ) {
   const firstName = lead.captainName === 'Captain' ? 'there' : lead.captainName.split(' ')[0]
-  const message = lead.stage === 'team_connection'
-    ? `Hi ${firstName} — your TenAceIQ Captain Pilot is active. Connect your captain team so TiQ can load your roster, schedule, and weekly tools: https://tenaceiq.com/compete/teams#captain-setup. Reply if you want help.`
-    : lead.stage === 'first_week'
-      ? `Hi ${firstName} — your team is connected in TenAceIQ. Start your first match week with availability or a lineup here: https://tenaceiq.com/captain. Reply if you want help.`
-      : `Hi ${firstName} — I saw you started the TenAceIQ Captain Pilot for ${lead.teamName}. ${lead.urgent ? 'It looks like checkout may have hit an issue.' : 'Your access is not active yet.'} Return to https://tenaceiq.com/captain-pilot to finish, or reply and I’ll help.`
+  const message = lead.stage === 'billing'
+    ? `Hi ${firstName} — your free TenAceIQ Captain Pilot for ${lead.teamName} ${lead.daysRemaining != null && lead.daysRemaining > 0 ? `ends in ${lead.daysRemaining} ${lead.daysRemaining === 1 ? 'day' : 'days'}` : 'has ended'}. Add billing only if you want Captain access to continue: https://tenaceiq.com/captain-pilot. Reply if you want help.`
+    : lead.stage === 'team_connection'
+      ? `Hi ${firstName} — your TenAceIQ Captain Pilot is active. Connect your captain team so TiQ can load your roster, schedule, and weekly tools: https://tenaceiq.com/compete/teams#captain-setup. Reply if you want help.`
+      : lead.stage === 'first_week'
+        ? `Hi ${firstName} — your team is connected in TenAceIQ. Start your first match week with availability or a lineup here: https://tenaceiq.com/captain. Reply if you want help.`
+        : `Hi ${firstName} — I saw you started the TenAceIQ Captain Pilot for ${lead.teamName}. ${lead.urgent ? 'It looks like checkout may have hit an issue.' : 'Your access is not active yet.'} Return to https://tenaceiq.com/captain-pilot to finish, or reply and I’ll help.`
 
   try {
     await navigator.clipboard.writeText(message)

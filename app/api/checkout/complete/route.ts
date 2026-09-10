@@ -169,7 +169,13 @@ export async function POST(request: Request) {
 async function markCaptainPilotRedemptionConverted(supabase: ReturnType<typeof createServiceSupabaseClient>, requestId: string) {
   const { error } = await supabase
     .from('captain_pilot_redemptions')
-    .update({ status: 'converted', converted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .update({
+      status: 'converted',
+      billing_status: 'collected',
+      billing_collected_at: new Date().toISOString(),
+      converted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
     .eq('upgrade_request_id', requestId)
   if (error) console.error('Captain Pilot redemption conversion update failed', error)
 }

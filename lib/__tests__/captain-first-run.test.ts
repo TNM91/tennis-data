@@ -24,28 +24,29 @@ describe('Captain first-run handoffs', () => {
     expect(page).toContain('Preview my first match week')
     expect(page).toContain('captain_pilot_team_preview_viewed')
     expect(page).toContain('nextHref: CAPTAIN_QUICK_START_HREF')
-    expect(page).toContain('Continue team setup')
+    expect(page).toContain('Set up your team')
     expect(isSafeLocalNextHref(CAPTAIN_QUICK_START_HREF, '/captain')).toBe(CAPTAIN_QUICK_START_HREF)
   })
 
-  it('shows the Captain value and billing terms before opening Stripe', () => {
+  it('activates the Captain Pilot without a card and explains optional billing', () => {
     const pilot = source('app/captain-pilot/captain-pilot-client.tsx')
     const upgrade = source('app/upgrade/page.tsx')
     expect(pilot).toContain('A calmer match week')
-    expect(pilot).toContain('Activate Captain · $0 today')
-    expect(pilot).toContain('Why are payment details needed?')
-    expect(pilot).toContain('First renewal {renewalDateLabel}.')
+    expect(pilot).toContain('Activate free · no card')
+    expect(pilot).toContain('What happens after three months?')
+    expect(pilot).toContain('Add billing later only if you want to continue')
+    expect(pilot).toContain("trackPilotCta('activate_card_free')")
     expect(upgrade).toContain("eventName: 'upgrade_checkout_clicked'")
     expect(upgrade).toContain("eventName: 'upgrade_checkout_started'")
     expect(upgrade).not.toContain('autoCheckoutStarted')
   })
 
-  it('shows the real Captain workflow before asking for payment details', () => {
+  it('shows the real Captain workflow before activation', () => {
     const pilot = source('app/captain-pilot/captain-pilot-client.tsx')
     expect(pilot).toContain('See Captain in action')
     expect(pilot).toContain('videoId="captain"')
     expect(pilot).toContain('source="captain-pilot"')
-    expect(pilot).toContain("ctaHref={hasCaptainAccess || pilotAlreadyActive ? CAPTAIN_QUICK_START_HREF : session?.user ? '#pilot-claim' : joinHref}")
+    expect(pilot).toContain("ctaHref={captainPilotActivated ? hasCaptainAccess ? CAPTAIN_QUICK_START_HREF : '#pilot-claim' : session?.user ? '#pilot-claim' : joinHref}")
     expect(pilot.indexOf('styles.tourCard')).toBeLessThan(pilot.indexOf('id="pilot-claim"'))
   })
 

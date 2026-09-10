@@ -32,8 +32,8 @@ describe('Captain Pilot growth funnel', () => {
       event('captain-1', 'captain_pilot_cta_clicked'),
       event('captain-1', 'upgrade_checkout_failed', { plan_id: 'captain', metadata: { source: 'captain_pilot' } }),
     ], [
-      { profile_id: 'captain-1', status: 'converted' },
-      { profile_id: 'captain-1', status: 'converted' },
+      { profile_id: 'captain-1', status: 'converted', billing_status: 'collected' },
+      { profile_id: 'captain-1', status: 'converted', billing_status: 'collected' },
       { profile_id: 'captain-5', status: 'claimed' },
     ])
 
@@ -46,6 +46,7 @@ describe('Captain Pilot growth funnel', () => {
       checkoutStarts: 1,
       checkoutFailures: 1,
       activations: 1,
+      billingConnected: 1,
     })
   })
 
@@ -75,14 +76,14 @@ describe('Captain Pilot growth funnel', () => {
       event('referred-captain', 'captain_pilot_viewed', { metadata: {}, created_at: '2026-09-03T12:00:00Z' }),
       event('referred-captain', 'captain_pilot_claimed', { metadata: { acquisitionSource: 'referral' }, created_at: '2026-09-03T12:05:00Z' }),
     ], [
-      { profile_id: 'text-captain', status: 'converted' },
+      { profile_id: 'text-captain', status: 'converted', billing_status: 'collected' },
       { profile_id: 'flyer-captain', status: 'claimed' },
       { profile_id: 'referred-captain', status: 'converted' },
       { profile_id: 'persisted-email-captain', status: 'converted', acquisition_source: 'email' },
       { profile_id: 'direct-captain', status: 'claimed', acquisition_source: 'direct' },
     ])
 
-    expect(sources.find((source) => source.source === 'text')).toMatchObject({ offerViews: 1, signupRequests: 1, claims: 1, activations: 1 })
+    expect(sources.find((source) => source.source === 'text')).toMatchObject({ offerViews: 1, signupRequests: 1, claims: 1, activations: 1, billingConnected: 1 })
     expect(sources.find((source) => source.source === 'flyer')).toMatchObject({ offerViews: 0, signupRequests: 1, claims: 1, activations: 0 })
     expect(sources.find((source) => source.source === 'referral')).toMatchObject({ offerViews: 1, claims: 1, activations: 1 })
     expect(sources.find((source) => source.source === 'email')).toMatchObject({ claims: 1, activations: 1 })
@@ -138,6 +139,34 @@ describe('Captain Pilot growth funnel', () => {
     expect(followUps).toEqual([
       expect.objectContaining({ profileId: 'needs-team', stage: 'team_connection', waitingDays: 2 }),
       expect.objectContaining({ profileId: 'needs-week', stage: 'first_week', waitingDays: 2 }),
+    ])
+  })
+
+  it('prioritizes billing follow-up near the end of card-free access', () => {
+    const now = Date.parse('2026-12-01T18:00:00.000Z')
+    const followUps = buildCaptainPilotActivationFollowUps([
+      {
+        profile_id: 'renewing-captain',
+        status: 'converted',
+        billing_status: 'not_collected',
+        captain_name: 'Riley Renew',
+        team_name: 'Match Point',
+        converted_at: '2026-09-01T18:00:00.000Z',
+        trial_ends_at: '2026-12-06T18:00:00.000Z',
+      },
+    ], [
+      { profile_user_id: 'renewing-captain', team_role: 'captain' },
+    ], [
+      { user_id: 'renewing-captain', slots_json: [{ players: [{ playerName: 'Player One' }] }] },
+    ], [], now)
+
+    expect(followUps).toEqual([
+      expect.objectContaining({
+        profileId: 'renewing-captain',
+        stage: 'billing',
+        daysRemaining: 5,
+        urgent: true,
+      }),
     ])
   })
 })

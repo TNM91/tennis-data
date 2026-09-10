@@ -24,6 +24,16 @@ type ClaimResponse = {
   message?: string
   requestId?: string | null
   alreadyActive?: boolean
+  cardFree?: boolean
+  trialEndsAt?: string | null
+  billingRequired?: boolean
+}
+
+type PilotStatus = {
+  active: boolean
+  requestId: string | null
+  trialEndsAt: string | null
+  billingRequired: boolean
 }
 
 type CaptainPilotPageProps = {
@@ -40,7 +50,7 @@ export default function CaptainPilotPage({ renewalDateLabel }: CaptainPilotPageP
 
 function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
   const searchParams = useSearchParams()
-  const { session, authResolved, role, entitlements } = useAuth()
+  const { session, authResolved, role, entitlements, refreshAuth } = useAuth()
   const hasCaptainAccess = authResolved && Boolean(session?.user) && buildProductAccessState(role, entitlements).canUseCaptainWorkflow
   const [captainName, setCaptainName] = useState('')
   const [clubOrArea, setClubOrArea] = useState('')
@@ -50,6 +60,8 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
   const [submitting, setSubmitting] = useState(false)
   const [notice, setNotice] = useState('')
   const [pilotAlreadyActive, setPilotAlreadyActive] = useState(false)
+  const [pilotStatus, setPilotStatus] = useState<PilotStatus | null>(null)
+  const [billingSubmitting, setBillingSubmitting] = useState(false)
   const [teamConnections, setTeamConnections] = useState<TeamConnection[]>([])
   const [teamPreviewResolved, setTeamPreviewResolved] = useState(false)
   const trackedPilotViewRef = useRef('')
@@ -59,6 +71,7 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
   const preferredCaptainName = getPreferredName(session?.user.user_metadata, session?.user.email)
   const availability = useMemo(() => getCaptainPilotAvailability(), [])
   const isOpen = availability === 'active'
+  const captainPilotActivated = hasCaptainAccess || pilotAlreadyActive || pilotStatus?.active === true
   const acquisitionSource = normalizeCaptainPilotSource(
     searchParams.get('src') ?? searchParams.get('utm_source') ?? searchParams.get('source'),
   )
@@ -113,6 +126,22 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
   }, [accessToken, acquisitionSource, authResolved, preferredCaptainName, signedInUserId])
 
   useEffect(() => {
+    if (!authResolved || !accessToken) return
+    const controller = new AbortController()
+    void fetch('/api/captain-pilot/status', {
+      signal: controller.signal,
+      cache: 'no-store',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }).then(async (response) => {
+      const body = await response.json().catch(() => null) as { ok?: boolean; pilot?: PilotStatus | null } | null
+      if (response.ok && body?.ok) setPilotStatus(body.pilot ?? null)
+    }).catch((error: unknown) => {
+      if (error instanceof DOMException && error.name === 'AbortError') return
+    })
+    return () => controller.abort()
+  }, [accessToken, authResolved])
+
+  useEffect(() => {
     if (!connectedTeam || teamName) return
     setTeamName(connectedTeam.teamName)
   }, [connectedTeam, teamName])
@@ -143,17 +172,11 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
     event.preventDefault()
     if (!session?.access_token || submitting || !isOpen || hasCaptainAccess) return
     if (!acceptedTerms) {
-      setNotice('Please confirm the pilot and renewal terms before continuing.')
+      setNotice('Please confirm the pilot terms before continuing.')
       return
     }
 
-    trackPilotCta('secure_checkout')
-    void trackProductUsageEvent({
-      eventName: 'upgrade_checkout_clicked',
-      surface: 'upgrade',
-      planId: 'captain',
-      metadata: { source: 'captain_pilot', acquisitionSource, hasConnectedTeam: Boolean(connectedTeam) },
-    })
+    trackPilotCta('activate_card_free')
     setSubmitting(true)
     setNotice('')
     try {
@@ -168,57 +191,30 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
       const claim = await claimResponse.json().catch(() => null) as ClaimResponse | null
       if (!claimResponse.ok || !claim?.ok) {
         void trackProductUsageEvent({
-          eventName: 'upgrade_checkout_failed',
+          eventName: 'captain_pilot_activation_failed',
           surface: 'upgrade',
           planId: 'captain',
           metadata: { source: 'captain_pilot', acquisitionSource, stage: 'pilot_claim', status: claimResponse.status },
         })
         throw new Error(claim?.message || 'Your pilot claim could not be started.')
       }
-      if (claim.alreadyActive) {
-        setPilotAlreadyActive(true)
-        setNotice('Your Fall Captain Pilot is already active. Continue with your guided team setup below.')
-        return
-      }
-      if (!claim.requestId) {
-        void trackProductUsageEvent({
-          eventName: 'upgrade_checkout_failed',
-          surface: 'upgrade',
-          planId: 'captain',
-          metadata: { source: 'captain_pilot', acquisitionSource, stage: 'pilot_claim_missing_request' },
+      setPilotAlreadyActive(true)
+      if (claim.requestId || claim.trialEndsAt) {
+        setPilotStatus({
+          active: true,
+          requestId: claim.requestId ?? null,
+          trialEndsAt: claim.trialEndsAt ?? null,
+          billingRequired: claim.billingRequired === true,
         })
-        throw new Error('Your pilot claim did not include checkout access.')
       }
-
-      const checkoutResponse = await fetch('/api/checkout/session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ requestId: claim.requestId, nextHref: CAPTAIN_QUICK_START_HREF }),
-      })
-      const checkout = await checkoutResponse.json().catch(() => null) as { ok?: boolean; message?: string; url?: string } | null
-      if (!checkoutResponse.ok || !checkout?.ok || !checkout.url) {
-        void trackProductUsageEvent({
-          eventName: 'upgrade_checkout_failed',
-          surface: 'upgrade',
-          planId: 'captain',
-          metadata: { source: 'captain_pilot', acquisitionSource, stage: 'stripe_session', status: checkoutResponse.status },
-        })
-        throw new Error(checkout?.message || 'Checkout could not be started.')
-      }
-      void trackProductUsageEvent({
-        eventName: 'upgrade_checkout_started',
-        surface: 'upgrade',
-        planId: 'captain',
-        metadata: { source: 'captain_pilot', acquisitionSource, requestId: claim.requestId },
-      })
-      window.location.assign(checkout.url)
+      await refreshAuth()
+      setNotice(claim.alreadyActive
+        ? 'Your Captain access is already active. Continue with your guided team setup.'
+        : `Captain is active—no card required. Your three free months run through ${formatPilotDate(claim.trialEndsAt)}.`)
     } catch (error) {
       if (error instanceof TypeError) {
         void trackProductUsageEvent({
-          eventName: 'upgrade_checkout_failed',
+          eventName: 'captain_pilot_activation_failed',
           surface: 'upgrade',
           planId: 'captain',
           metadata: { source: 'captain_pilot', acquisitionSource, stage: 'network' },
@@ -227,6 +223,34 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
       setNotice(error instanceof Error ? error.message : 'Your pilot claim could not be started.')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function beginPilotBilling() {
+    if (!session?.access_token || !pilotStatus?.requestId || billingSubmitting) return
+    setBillingSubmitting(true)
+    setNotice('')
+    void trackProductUsageEvent({
+      eventName: 'captain_pilot_billing_clicked',
+      surface: 'upgrade',
+      planId: 'captain',
+      metadata: { acquisitionSource, source: 'captain_pilot_active_offer' },
+    })
+    try {
+      const response = await fetch('/api/checkout/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ requestId: pilotStatus.requestId, nextHref: CAPTAIN_QUICK_START_HREF }),
+      })
+      const body = await response.json().catch(() => null) as { ok?: boolean; message?: string; url?: string } | null
+      if (!response.ok || !body?.ok || !body.url) throw new Error(body?.message || 'Billing could not be opened.')
+      window.location.assign(body.url)
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Billing could not be opened.')
+      setBillingSubmitting(false)
     }
   }
 
@@ -248,11 +272,13 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
           </p>
           <div className={styles.offerCard}>
             <strong>{CAPTAIN_PILOT_TRIAL_MONTHS} months of Captain free</strong>
-            <span>$0 today · then {CAPTAIN_PILOT_PRICE_LABEL} starting {renewalDateLabel} · cancel anytime.</span>
+            <span>$0 today · no card required · add billing only if you want to continue after {renewalDateLabel}.</span>
           </div>
           <div className={styles.heroActions}>
-            {!authResolved ? <p className={styles.status}>Checking your account…</p> : hasCaptainAccess || pilotAlreadyActive ? (
-              <Link href={CAPTAIN_QUICK_START_HREF} className={styles.primaryAction}>Set up your team</Link>
+            {!authResolved ? <p className={styles.status}>Checking your account…</p> : captainPilotActivated ? (
+              <Link href={hasCaptainAccess ? CAPTAIN_QUICK_START_HREF : '#pilot-claim'} className={styles.primaryAction}>
+                {hasCaptainAccess ? 'Set up your team' : 'Review Captain access'}
+              </Link>
             ) : isOpen ? (
               <>
                 <Link
@@ -292,8 +318,8 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
             surface="upgrade"
             source="captain-pilot"
             className={styles.tourMedia}
-            ctaHref={hasCaptainAccess || pilotAlreadyActive ? CAPTAIN_QUICK_START_HREF : session?.user ? '#pilot-claim' : joinHref}
-            ctaLabel={hasCaptainAccess || pilotAlreadyActive ? 'Open my teams' : session?.user ? 'Activate Captain · $0 today' : 'Start 3 months free'}
+            ctaHref={captainPilotActivated ? hasCaptainAccess ? CAPTAIN_QUICK_START_HREF : '#pilot-claim' : session?.user ? '#pilot-claim' : joinHref}
+            ctaLabel={captainPilotActivated ? hasCaptainAccess ? 'Open my teams' : 'Review Captain access' : session?.user ? 'Activate free · no card' : 'Start 3 months free'}
           />
         </section>
 
@@ -321,8 +347,8 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
               <article><b>4</b><strong>Close out the match</strong><span>Print or enter the scorecard and keep the history.</span></article>
             </div>
             <div className={styles.previewActions}>
-              <Link href="#pilot-claim" className={styles.primaryAction} onClick={() => trackPilotCta('activate_from_preview')}>
-                Activate Captain · $0 today
+              <Link href="#pilot-claim" className={styles.primaryAction} onClick={() => trackPilotCta(captainPilotActivated ? 'manage_active_pilot' : 'activate_from_preview')}>
+                {captainPilotActivated ? 'Review my Captain access' : 'Activate free · no card'}
               </Link>
               {!connectedTeam && teamPreviewResolved ? (
                 <Link href={connectTeamHref} className={styles.secondaryAction} onClick={() => trackPilotCta('connect_team_first')}>
@@ -335,25 +361,39 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
 
         <section id="pilot-claim" className={styles.claimCard} aria-labelledby="pilot-claim-title">
           <div className={styles.claimHeading}>
-            <p>{hasCaptainAccess ? 'Your Captain access' : session?.user ? 'Step 2 of 2 · Activate Captain' : 'Step 1 of 2 · Create or sign in'}</p>
+            <p>{captainPilotActivated ? 'Your Captain access' : session?.user ? 'Step 2 of 2 · Activate Captain' : 'Step 1 of 2 · Create or sign in'}</p>
             <h2 id="pilot-claim-title">
-              {hasCaptainAccess
-                ? 'Your Captain tools are ready.'
+              {captainPilotActivated
+                ? pilotStatus?.active && pilotStatus.billingRequired
+                  ? 'Manage your Captain Pilot.'
+                  : 'Your Captain tools are ready.'
                 : availability === 'expired'
                 ? 'This pilot has closed.'
                 : session?.user
                   ? 'Finish your free Captain pilot.'
                   : 'Start your free Captain pilot.'}
             </h2>
-            <span>{hasCaptainAccess
-              ? 'Captain is already included in your access. Open your teams to prepare the next match, or share this offer with another local captain.'
+            <span>{captainPilotActivated
+              ? pilotStatus?.active && pilotStatus.billingRequired
+                ? 'Review your free-access date, choose whether to add billing, or open your teams.'
+                : 'Captain is already included in your access. Open your teams to prepare the next match, or share this offer with another local captain.'
               : session?.user
-              ? `Confirm your team, then add payment details securely in Stripe. Pay $0 today; your first ${CAPTAIN_PILOT_PRICE_LABEL} renewal is ${renewalDateLabel} unless you cancel.`
-              : 'Create your account first. Then share a little about your team and complete secure checkout to activate 3 months of Captain at $0.'}</span>
+              ? `Confirm your team and activate immediately. No card is required. Add billing later only if you want to continue after ${renewalDateLabel}.`
+              : 'Create your account first. Then share a little about your team and activate three months of Captain—no card required.'}</span>
           </div>
 
-          {!authResolved ? <p className={styles.status}>Checking your account…</p> : hasCaptainAccess ? (
+          {!authResolved ? <p className={styles.status}>Checking your account…</p> : captainPilotActivated ? (
             <div className={styles.accountActions}>
+              {pilotStatus?.active && pilotStatus.billingRequired ? (
+                <div className={styles.activePilotBilling}>
+                  <p><strong>Free through {formatPilotDate(pilotStatus.trialEndsAt)}.</strong> No card is on file. Your access pauses after that date unless you choose to continue.</p>
+                  {pilotStatus.requestId ? (
+                    <button type="button" className={styles.secondaryAction} onClick={() => void beginPilotBilling()} disabled={billingSubmitting}>
+                      {billingSubmitting ? 'Opening Stripe…' : `Add billing for after the trial · ${CAPTAIN_PILOT_PRICE_LABEL}`}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
               <div>
                 <Link href="/compete/teams" className={styles.primaryAction}>Open My Teams</Link>
                 <Link href="/compete/teams#captain-setup" className={styles.secondaryAction}>Set up your team · guided steps</Link>
@@ -362,22 +402,22 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
             </div>
           ) : !session?.user ? (
             <div className={styles.accountActions}>
-              <p>Start with your free TenAceIQ account. Captain tools activate after the short pilot form and secure checkout.</p>
+              <p>Start with your free TenAceIQ account. Captain tools activate after the short pilot form—no payment step.</p>
               <div>
                 <Link href={joinHref} className={styles.primaryAction}>Create account to start 3 months free</Link>
                 <Link href={loginHref} className={styles.secondaryAction}>Sign in</Link>
               </div>
             </div>
           ) : (
-            pilotAlreadyActive ? <Link href={CAPTAIN_QUICK_START_HREF} className={styles.primaryAction}>Continue team setup</Link> : <form className={styles.form} onSubmit={beginPilot}>
+            <form className={styles.form} onSubmit={beginPilot}>
               <div className={styles.trustGrid} aria-label="Captain Pilot billing summary">
-                <p><strong>$0 today</strong><span>Three full months of Captain.</span></p>
-                <p><strong>{CAPTAIN_PILOT_PRICE_LABEL}</strong><span>First renewal {renewalDateLabel}.</span></p>
-                <p><strong>Cancel anytime</strong><span>Cancel before renewal and pay nothing.</span></p>
+                <p><strong>No card</strong><span>Activate Captain immediately.</span></p>
+                <p><strong>3 months free</strong><span>Your pilot runs through {renewalDateLabel}.</span></p>
+                <p><strong>Your choice</strong><span>Add billing later to continue for {CAPTAIN_PILOT_PRICE_LABEL}.</span></p>
               </div>
               <details className={styles.whyCard}>
-                <summary>Why are payment details needed?</summary>
-                <p>They activate the Captain subscription after your free pilot. Stripe securely handles the card; TenAceIQ does not store the card number. You will not be charged today.</p>
+                <summary>What happens after three months?</summary>
+                <p>We’ll remind you before the pilot ends. Add billing through Stripe if you want to continue; otherwise Captain access pauses automatically and you are not charged.</p>
               </details>
               <label>
                 Your name
@@ -397,10 +437,10 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
               </label>
               <label className={styles.checkRow}>
                 <input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} required />
-                <span>I’m a local captain or co-captain. I understand this is a 3-month free Captain trial, then {CAPTAIN_PILOT_PRICE_LABEL} until canceled. I can cancel before renewal.</span>
+                <span>I’m a local captain or co-captain. I understand this is three months of free Captain access with no card required. Access pauses unless I later choose to add billing.</span>
               </label>
               <button type="submit" className={styles.primaryAction} disabled={!isOpen || submitting}>
-                {submitting ? 'Opening secure checkout…' : isOpen ? 'Continue to secure checkout · 3 months free' : 'Pilot closed'}
+                {submitting ? 'Activating Captain…' : isOpen ? 'Activate my 3 months free' : 'Pilot closed'}
               </button>
             </form>
           )}
@@ -408,7 +448,7 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
 
           <div className={styles.terms}>
             <strong>Pilot terms</strong>
-            <span>Offer available through December 31, 2026, for eligible local tennis captains. One claim per captain or team. New Captain pilot participants only; not transferable, resalable, or combinable with other offers. Trial begins when checkout is completed. Continued Captain access renews at {CAPTAIN_PILOT_PRICE_LABEL} until canceled. TenAceIQ may revoke access for misuse or modify the offer where permitted.</span>
+            <span>Offer available through December 31, 2026, for eligible local tennis captains. One claim per captain or team. New Captain pilot participants only; not transferable, resalable, or combinable with other offers. Free access begins when activated and pauses after three months unless billing is added. Continuing Captain costs {CAPTAIN_PILOT_PRICE_LABEL}. TenAceIQ may revoke access for misuse or modify the offer where permitted.</span>
           </div>
           <p className={styles.feedback}>Questions or feedback? <a href="mailto:nathan@tenaceiq.com">Nathan@TenAceiQ.com</a></p>
         </section>
@@ -432,4 +472,10 @@ function getPreferredName(metadata: Record<string, unknown> | undefined, email: 
   if (typeof candidate === 'string' && candidate.trim()) return candidate.trim().slice(0, 120)
   const localPart = email?.split('@')[0]?.replace(/[._-]+/g, ' ').trim() ?? ''
   return localPart.replace(/\b\w/g, (letter) => letter.toUpperCase()).slice(0, 120)
+}
+
+function formatPilotDate(value: string | null | undefined) {
+  const parsed = value ? Date.parse(value) : Number.NaN
+  if (!Number.isFinite(parsed)) return 'the end of your pilot'
+  return new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(parsed))
 }

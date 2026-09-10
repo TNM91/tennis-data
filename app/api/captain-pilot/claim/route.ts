@@ -1,11 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 import {
   CAPTAIN_PILOT_CAMPAIGN_KEY,
+  buildCaptainPilotTrialEnd,
   getCaptainPilotAvailability,
   normalizeCaptainPilotTeamKey,
 } from '@/lib/captain-pilot'
 import { normalizeCaptainPilotSource } from '@/lib/captain-pilot-source'
-import { PAID_CHECKOUT_ENABLED, PAID_CHECKOUT_PAUSED_MESSAGE } from '@/lib/paid-checkout'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import { buildUpgradePricingSnapshot } from '@/lib/upgrade-requests'
 
@@ -23,13 +23,11 @@ type ExistingRedemption = {
   id: string
   upgrade_request_id: string | null
   status: string | null
+  trial_ends_at: string | null
+  billing_status: string | null
 }
 
 export async function POST(request: Request) {
-  if (!PAID_CHECKOUT_ENABLED) {
-    return Response.json({ ok: false, code: 'checkout_paused', message: PAID_CHECKOUT_PAUSED_MESSAGE }, { status: 503 })
-  }
-
   if (getCaptainPilotAvailability() !== 'active') {
     return Response.json({ ok: false, message: 'The Fall Captain Pilot is not accepting new claims right now.' }, { status: 409 })
   }
@@ -64,21 +62,36 @@ export async function POST(request: Request) {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   })
 
-  const { data: existing, error: existingError } = await supabase
-    .from('captain_pilot_redemptions')
-    .select('id, upgrade_request_id, status')
-    .eq('campaign_key', CAPTAIN_PILOT_CAMPAIGN_KEY)
-    .eq('profile_id', user.userId)
-    .maybeSingle()
-  if (existingError) return Response.json({ ok: false, message: 'Your pilot claim could not be loaded.' }, { status: 500 })
-
-  const redemption = existing as ExistingRedemption | null
-  if (redemption?.status === 'converted') {
-    return Response.json({ ok: true, alreadyActive: true, requestId: redemption.upgrade_request_id })
+  const [existingResult, profileResult] = await Promise.all([
+    supabase
+      .from('captain_pilot_redemptions')
+      .select('id, upgrade_request_id, status, trial_ends_at, billing_status')
+      .eq('campaign_key', CAPTAIN_PILOT_CAMPAIGN_KEY)
+      .eq('profile_id', user.userId)
+      .maybeSingle(),
+    supabase
+      .from('profiles')
+      .select('captain_subscription_active, captain_access_expires_at')
+      .eq('id', user.userId)
+      .maybeSingle(),
+  ])
+  if (existingResult.error || profileResult.error) {
+    return Response.json({ ok: false, message: 'Your pilot eligibility could not be loaded.' }, { status: 500 })
   }
 
-  if (redemption?.upgrade_request_id) {
-    return Response.json({ ok: true, requestId: redemption.upgrade_request_id, resumed: true })
+  const redemption = existingResult.data as ExistingRedemption | null
+  if (redemption?.status === 'converted') {
+    return Response.json({
+      ok: true,
+      alreadyActive: true,
+      requestId: redemption.upgrade_request_id,
+      trialEndsAt: redemption.trial_ends_at,
+      billingRequired: redemption.billing_status !== 'collected',
+    })
+  }
+
+  if (hasCurrentCaptainAccess(profileResult.data)) {
+    return Response.json({ ok: true, alreadyActive: true, billingRequired: false })
   }
 
   let redemptionId = redemption?.id ?? ''
@@ -97,7 +110,7 @@ export async function POST(request: Request) {
         acquisition_source: acquisitionSource,
         status: 'claimed',
       })
-      .select('id')
+      .select('id, trial_ends_at')
       .single()
 
     if (insertError || !inserted?.id) {
@@ -109,56 +122,84 @@ export async function POST(request: Request) {
     redemptionId = String(inserted.id)
   }
 
-  const pricing = buildUpgradePricingSnapshot('captain')
-  const { data: upgradeRequest, error: requestError } = await supabase
-    .from('upgrade_requests')
-    .insert({
-      plan_id: 'captain',
-      plan_name: pricing.planName,
-      price_label: pricing.priceLabel,
-      billing_amount_cents: pricing.billingAmountCents,
-      billing_currency: pricing.billingCurrency,
-      billing_interval: pricing.billingInterval,
-      checkout_mode: pricing.checkoutMode,
-      quantity_mode: pricing.quantityMode,
-      entitlement_grant: pricing.entitlementGrant,
-      discount_rules: pricing.discountRules,
-      requester_name: captainName,
-      requester_email: user.email.toLowerCase(),
-      requester_user_id: user.userId,
-      organization: clubOrArea,
-      goal: `Fall Captain Pilot: ${feedbackFocus}`,
-      next_href: '/captain',
-      source: 'captain_pilot_2026',
-    })
-    .select('id')
-    .single()
+  let requestId = redemption?.upgrade_request_id ?? ''
+  if (!requestId) {
+    const pricing = buildUpgradePricingSnapshot('captain')
+    const { data: upgradeRequest, error: requestError } = await supabase
+      .from('upgrade_requests')
+      .insert({
+        plan_id: 'captain',
+        plan_name: pricing.planName,
+        price_label: pricing.priceLabel,
+        billing_amount_cents: pricing.billingAmountCents,
+        billing_currency: pricing.billingCurrency,
+        billing_interval: pricing.billingInterval,
+        checkout_mode: pricing.checkoutMode,
+        quantity_mode: pricing.quantityMode,
+        entitlement_grant: pricing.entitlementGrant,
+        discount_rules: pricing.discountRules,
+        requester_name: captainName,
+        requester_email: user.email.toLowerCase(),
+        requester_user_id: user.userId,
+        organization: clubOrArea,
+        goal: `Fall Captain Pilot: ${feedbackFocus}`,
+        next_href: '/captain',
+        source: 'captain_pilot_2026',
+      })
+      .select('id')
+      .single()
 
-  if (requestError || !upgradeRequest?.id) {
-    return Response.json({ ok: false, message: 'Your pilot access could not be prepared.' }, { status: 500 })
+    if (requestError || !upgradeRequest?.id) {
+      return Response.json({ ok: false, message: 'Your pilot access could not be prepared.' }, { status: 500 })
+    }
+    requestId = String(upgradeRequest.id)
   }
 
-  const { error: linkError } = await supabase
-    .from('captain_pilot_redemptions')
-    .update({ upgrade_request_id: upgradeRequest.id, status: 'claimed', updated_at: new Date().toISOString() })
-    .eq('id', redemptionId)
-    .is('upgrade_request_id', null)
-  if (linkError) return Response.json({ ok: false, message: 'Your pilot access could not be linked.' }, { status: 500 })
+  if (!redemption?.upgrade_request_id) {
+    const { error: linkError } = await supabase
+      .from('captain_pilot_redemptions')
+      .update({ upgrade_request_id: requestId, status: 'claimed', updated_at: new Date().toISOString() })
+      .eq('id', redemptionId)
+      .is('upgrade_request_id', null)
+    if (linkError) return Response.json({ ok: false, message: 'Your pilot access could not be linked.' }, { status: 500 })
+  }
+
+  const trialEndsAt = redemption?.trial_ends_at
+    ?? new Date(buildCaptainPilotTrialEnd() * 1000).toISOString()
+  const { error: activationError } = await supabase.rpc('activate_captain_pilot_card_free', {
+    p_profile_id: user.userId,
+    p_redemption_id: redemptionId,
+    p_upgrade_request_id: requestId,
+    p_trial_ends_at: trialEndsAt,
+  })
+  if (activationError) {
+    console.error('Captain Pilot card-free activation failed', activationError)
+    return Response.json({ ok: false, message: 'Your free Captain access could not be activated.' }, { status: 500 })
+  }
 
   const { error: eventError } = await supabase
     .from('product_usage_events')
-    .insert({
-      user_id: user.userId,
-      event_name: 'captain_pilot_claimed',
-      surface: 'upgrade',
-      plan_id: 'captain',
-      metadata: { acquisitionSource, requestId: upgradeRequest.id },
-    })
+    .insert([
+      {
+        user_id: user.userId,
+        event_name: 'captain_pilot_claimed',
+        surface: 'upgrade',
+        plan_id: 'captain',
+        metadata: { acquisitionSource, requestId },
+      },
+      {
+        user_id: user.userId,
+        event_name: 'captain_pilot_card_free_activated',
+        surface: 'upgrade',
+        plan_id: 'captain',
+        metadata: { acquisitionSource, requestId, trialEndsAt },
+      },
+    ])
   if (eventError) {
-    console.warn('Captain Pilot claim attribution was not recorded.', { code: eventError.code, message: eventError.message })
+    console.warn('Captain Pilot activation attribution was not recorded.', { code: eventError.code, message: eventError.message })
   }
 
-  return Response.json({ ok: true, requestId: upgradeRequest.id })
+  return Response.json({ ok: true, cardFree: true, requestId, trialEndsAt, billingRequired: true })
 }
 
 async function getRequesterUser(token: string) {
@@ -178,4 +219,13 @@ function getBearerToken(request: Request) {
 
 function cleanString(value: unknown) {
   return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, 500) : ''
+}
+
+function hasCurrentCaptainAccess(profile: unknown) {
+  if (!profile || typeof profile !== 'object') return false
+  const row = profile as { captain_subscription_active?: unknown; captain_access_expires_at?: unknown }
+  if (row.captain_subscription_active !== true) return false
+  if (typeof row.captain_access_expires_at !== 'string' || !row.captain_access_expires_at.trim()) return true
+  const expiresAt = Date.parse(row.captain_access_expires_at)
+  return Number.isFinite(expiresAt) && expiresAt > Date.now()
 }

@@ -15,6 +15,7 @@ describe('product usage events', () => {
       '20260901000200_add_product_tour_conversion_usage_events.sql',
       '20260904000200_add_signup_funnel_usage_event.sql',
       '20260909000500_add_conversion_funnel_usage_events.sql',
+      '20260910000200_add_card_free_captain_pilot.sql',
     ].map((file) => readFileSync(join(process.cwd(), `supabase/migrations/${file}`), 'utf8')).join('\n')
 
     for (const eventName of PRODUCT_USAGE_EVENT_NAMES) {

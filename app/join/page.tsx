@@ -254,7 +254,7 @@ function JoinContent() {
       setMessage(availabilityEntry
         ? `Check ${trimmedEmail} and confirm your email. We’ll bring you back to ${availabilityEntry.team} to connect your player and answer. Your match request is saved in the confirmation link.`
         : isCaptainPilotSignup
-        ? 'Check your email to confirm your account. Your Captain Pilot welcome will guide you to the team form and secure checkout.'
+        ? 'Check your email to confirm your account. Your Captain Pilot welcome will guide you to the short team form and card-free activation.'
         : 'Check your email to confirm your account. Your personal TenAceiQ welcome will show you the right next step.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account.')
@@ -495,7 +495,7 @@ function JoinContent() {
           <div className="authOptionalDetailsBody" style={selectedPlanDetailBodyStyle}>
             <div style={selectedPlanTextStyle}>
               {isCaptainPilotSignup
-                ? 'Create your account, then complete the Captain Pilot form and secure checkout. Your Captain access begins with 3 months at $0.'
+                ? 'Create your account, then complete the short Captain Pilot form. Your three free months activate immediately—no card required.'
                 : JOIN_SELECTED_PLAN_COPY[selectedPlanId]}
             </div>
             {selectedPlanId !== 'free' ? (

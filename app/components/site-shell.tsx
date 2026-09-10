@@ -12,6 +12,7 @@ import { AuthProvider } from '@/app/components/auth-provider'
 import { pageBackground, orbOne, orbTwo, gridGlow, topBlueWash } from '@/lib/design-system'
 import { shouldUseFocusedSiteShell } from '@/lib/site-shell-focus'
 import ContextualTennisVisual, { type ContextualTennisVisualName } from '@/app/components/contextual-tennis-visual'
+import CaptainPilotBillingNotice from '@/app/components/captain-pilot-billing-notice'
 
 type SiteShellProps = {
   children: ReactNode
@@ -52,6 +53,9 @@ function SiteShellContent({ children, active, showPortalToolBar, appMode = false
   const contextualAtmosphereVisual = getContextualAtmosphereVisual(visualArea, pathname)
   const suppressShellAtmosphere = pathname === '/resources' || pathname === '/tournaments'
   const [compactSiteMenuOpen, setCompactSiteMenuOpen] = useState(false)
+  const showCaptainPilotBilling = pathname === '/captain'
+    || pathname.startsWith('/captain/')
+    || pathname === '/compete/teams'
 
   return (
       <main
@@ -86,6 +90,7 @@ function SiteShellContent({ children, active, showPortalToolBar, appMode = false
         {!compactAppMode && !focusedShell && showPortalToolBar ? <PortalToolBar suppressed={compactSiteMenuOpen} /> : null}
         {!compactAppMode && !focusedShell ? <LevelUpCoachAlert /> : null}
         {!compactAppMode && !focusedShell ? <TeamConnectionInvite /> : null}
+        {showCaptainPilotBilling ? <CaptainPilotBillingNotice returnTo={pathname} /> : null}
         <div id="main-content" className="page-reveal">{children}</div>
         {!compactAppMode && !focusedShell ? <SiteFooter railLayout={false} railWidth={0} /> : null}
       </main>
