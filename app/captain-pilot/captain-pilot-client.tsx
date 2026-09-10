@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
@@ -12,6 +12,8 @@ import {
   CAPTAIN_PILOT_TRIAL_MONTHS,
   getCaptainPilotAvailability,
 } from '@/lib/captain-pilot'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
+import type { TeamConnection } from '@/lib/team-profile-links'
 import styles from './captain-pilot.module.css'
 
 type ClaimResponse = {
@@ -21,15 +23,19 @@ type ClaimResponse = {
   alreadyActive?: boolean
 }
 
-export default function CaptainPilotPage() {
+type CaptainPilotPageProps = {
+  renewalDateLabel: string
+}
+
+export default function CaptainPilotPage({ renewalDateLabel }: CaptainPilotPageProps) {
   return (
     <SiteShell active="captain" showPortalToolBar={false}>
-      <CaptainPilotContent />
+      <CaptainPilotContent renewalDateLabel={renewalDateLabel} />
     </SiteShell>
   )
 }
 
-function CaptainPilotContent() {
+function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
   const { session, authResolved, role, entitlements } = useAuth()
   const hasCaptainAccess = authResolved && Boolean(session?.user) && buildProductAccessState(role, entitlements).canUseCaptainWorkflow
   const [captainName, setCaptainName] = useState('')
@@ -40,11 +46,91 @@ function CaptainPilotContent() {
   const [submitting, setSubmitting] = useState(false)
   const [notice, setNotice] = useState('')
   const [pilotAlreadyActive, setPilotAlreadyActive] = useState(false)
+  const [teamConnections, setTeamConnections] = useState<TeamConnection[]>([])
+  const [teamPreviewResolved, setTeamPreviewResolved] = useState(false)
+  const trackedPilotViewRef = useRef('')
+  const trackedPreviewRef = useRef('')
+  const signedInUserId = session?.user.id ?? ''
+  const accessToken = session?.access_token ?? ''
+  const preferredCaptainName = getPreferredName(session?.user.user_metadata, session?.user.email)
   const availability = useMemo(() => getCaptainPilotAvailability(), [])
   const isOpen = availability === 'active'
   const returnTo = '/captain-pilot'
   const joinHref = `/join?plan=captain&next=${encodeURIComponent(returnTo)}`
   const loginHref = `/login?plan=captain&next=${encodeURIComponent(returnTo)}`
+  const connectedTeam = useMemo(
+    () => teamConnections.find((connection) => connection.isDefault && !connection.archivedAt)
+      ?? teamConnections.find((connection) => !connection.archivedAt)
+      ?? null,
+    [teamConnections],
+  )
+  const connectTeamHref = `/compete/teams?source=captain-pilot&returnTo=${encodeURIComponent(returnTo)}#captain-setup`
+
+  useEffect(() => {
+    if (!authResolved || !signedInUserId) return
+
+    if (trackedPilotViewRef.current !== signedInUserId) {
+      trackedPilotViewRef.current = signedInUserId
+      void trackProductUsageEvent({
+        eventName: 'captain_pilot_viewed',
+        surface: 'upgrade',
+        planId: 'captain',
+        metadata: { signedIn: true },
+      })
+    }
+
+    setCaptainName((current) => current || preferredCaptainName)
+
+    if (!accessToken) {
+      setTeamPreviewResolved(true)
+      return
+    }
+
+    const controller = new AbortController()
+    setTeamPreviewResolved(false)
+    void fetch('/api/team-connections', {
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+      .then(async (response) => {
+        const body = await response.json().catch(() => null) as { ok?: boolean; connections?: TeamConnection[] } | null
+        if (!response.ok || !body?.ok || !Array.isArray(body.connections)) return
+        setTeamConnections(body.connections.filter((connection) => connection.status === 'accepted'))
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+      })
+      .finally(() => setTeamPreviewResolved(true))
+
+    return () => controller.abort()
+  }, [accessToken, authResolved, preferredCaptainName, signedInUserId])
+
+  useEffect(() => {
+    if (!connectedTeam || teamName) return
+    setTeamName(connectedTeam.teamName)
+  }, [connectedTeam, teamName])
+
+  useEffect(() => {
+    if (!signedInUserId || !teamPreviewResolved) return
+    const trackingKey = `${signedInUserId}:${connectedTeam ? 'connected' : 'generic'}`
+    if (trackedPreviewRef.current === trackingKey) return
+    trackedPreviewRef.current = trackingKey
+    void trackProductUsageEvent({
+      eventName: 'captain_pilot_team_preview_viewed',
+      surface: 'upgrade',
+      planId: 'captain',
+      metadata: { hasConnectedTeam: Boolean(connectedTeam) },
+    })
+  }, [connectedTeam, signedInUserId, teamPreviewResolved])
+
+  function trackPilotCta(action: string) {
+    void trackProductUsageEvent({
+      eventName: 'captain_pilot_cta_clicked',
+      surface: 'upgrade',
+      planId: 'captain',
+      metadata: { action, hasConnectedTeam: Boolean(connectedTeam) },
+    })
+  }
 
   async function beginPilot(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -54,6 +140,13 @@ function CaptainPilotContent() {
       return
     }
 
+    trackPilotCta('secure_checkout')
+    void trackProductUsageEvent({
+      eventName: 'upgrade_checkout_clicked',
+      surface: 'upgrade',
+      planId: 'captain',
+      metadata: { source: 'captain_pilot', hasConnectedTeam: Boolean(connectedTeam) },
+    })
     setSubmitting(true)
     setNotice('')
     try {
@@ -66,13 +159,29 @@ function CaptainPilotContent() {
         body: JSON.stringify({ captainName, clubOrArea, teamName, feedbackFocus }),
       })
       const claim = await claimResponse.json().catch(() => null) as ClaimResponse | null
-      if (!claimResponse.ok || !claim?.ok) throw new Error(claim?.message || 'Your pilot claim could not be started.')
+      if (!claimResponse.ok || !claim?.ok) {
+        void trackProductUsageEvent({
+          eventName: 'upgrade_checkout_failed',
+          surface: 'upgrade',
+          planId: 'captain',
+          metadata: { source: 'captain_pilot', stage: 'pilot_claim', status: claimResponse.status },
+        })
+        throw new Error(claim?.message || 'Your pilot claim could not be started.')
+      }
       if (claim.alreadyActive) {
         setPilotAlreadyActive(true)
         setNotice('Your Fall Captain Pilot is already active. Continue with your guided team setup below.')
         return
       }
-      if (!claim.requestId) throw new Error('Your pilot claim did not include checkout access.')
+      if (!claim.requestId) {
+        void trackProductUsageEvent({
+          eventName: 'upgrade_checkout_failed',
+          surface: 'upgrade',
+          planId: 'captain',
+          metadata: { source: 'captain_pilot', stage: 'pilot_claim_missing_request' },
+        })
+        throw new Error('Your pilot claim did not include checkout access.')
+      }
 
       const checkoutResponse = await fetch('/api/checkout/session', {
         method: 'POST',
@@ -84,10 +193,30 @@ function CaptainPilotContent() {
       })
       const checkout = await checkoutResponse.json().catch(() => null) as { ok?: boolean; message?: string; url?: string } | null
       if (!checkoutResponse.ok || !checkout?.ok || !checkout.url) {
+        void trackProductUsageEvent({
+          eventName: 'upgrade_checkout_failed',
+          surface: 'upgrade',
+          planId: 'captain',
+          metadata: { source: 'captain_pilot', stage: 'stripe_session', status: checkoutResponse.status },
+        })
         throw new Error(checkout?.message || 'Checkout could not be started.')
       }
+      void trackProductUsageEvent({
+        eventName: 'upgrade_checkout_started',
+        surface: 'upgrade',
+        planId: 'captain',
+        metadata: { source: 'captain_pilot', requestId: claim.requestId },
+      })
       window.location.assign(checkout.url)
     } catch (error) {
+      if (error instanceof TypeError) {
+        void trackProductUsageEvent({
+          eventName: 'upgrade_checkout_failed',
+          surface: 'upgrade',
+          planId: 'captain',
+          metadata: { source: 'captain_pilot', stage: 'network' },
+        })
+      }
       setNotice(error instanceof Error ? error.message : 'Your pilot claim could not be started.')
     } finally {
       setSubmitting(false)
@@ -112,15 +241,19 @@ function CaptainPilotContent() {
           </p>
           <div className={styles.offerCard}>
             <strong>{CAPTAIN_PILOT_TRIAL_MONTHS} months of Captain free</strong>
-            <span>Then {CAPTAIN_PILOT_PRICE_LABEL} until canceled.</span>
+            <span>$0 today · then {CAPTAIN_PILOT_PRICE_LABEL} starting {renewalDateLabel} · cancel anytime.</span>
           </div>
           <div className={styles.heroActions}>
             {!authResolved ? <p className={styles.status}>Checking your account…</p> : hasCaptainAccess || pilotAlreadyActive ? (
               <Link href={CAPTAIN_QUICK_START_HREF} className={styles.primaryAction}>Set up your team</Link>
             ) : isOpen ? (
               <>
-                <Link href={session?.user ? '#pilot-claim' : joinHref} className={styles.primaryAction}>
-                  {session?.user ? 'Activate 3 months free' : 'Start 3 months free'}
+                <Link
+                  href={session?.user ? '#pilot-preview' : joinHref}
+                  className={styles.primaryAction}
+                  onClick={() => trackPilotCta(session?.user ? 'view_match_week_preview' : 'create_account')}
+                >
+                  {session?.user ? 'Preview my first match week' : 'Start 3 months free'}
                 </Link>
                 {!session?.user ? <Link href={loginHref} className={styles.secondaryAction}>Already have an account? Sign in</Link> : null}
               </>
@@ -133,6 +266,42 @@ function CaptainPilotContent() {
             <p><strong>Send one clear plan</strong><span>instead of another group-text scramble.</span></p>
           </div>
         </section>
+
+        {session?.user ? (
+          <section id="pilot-preview" className={styles.previewCard} aria-labelledby="pilot-preview-title">
+            <div className={styles.previewHeading}>
+              <p>Your first win with Captain</p>
+              <h2 id="pilot-preview-title">
+                {teamPreviewResolved
+                  ? connectedTeam
+                    ? `A calmer match week for ${connectedTeam.teamName}.`
+                    : 'A calmer match week starts with your team.'
+                  : 'Finding your team…'}
+              </h2>
+              {connectedTeam ? (
+                <span>{[connectedTeam.leagueName, connectedTeam.flight].filter(Boolean).join(' · ') || 'Your connected TenAceIQ team'}</span>
+              ) : teamPreviewResolved ? (
+                <span>Connect a TennisLink or TiQ team now, or type the team name during activation.</span>
+              ) : null}
+            </div>
+            <div className={styles.previewGrid}>
+              <article><b>1</b><strong>Ask availability</strong><span>Send one link. Players can answer without joining first.</span></article>
+              <article><b>2</b><strong>Build the lineup</strong><span>Use replies, locks, and team context in one place.</span></article>
+              <article><b>3</b><strong>Share the plan</strong><span>Post to Team Chat or copy a polished group text.</span></article>
+              <article><b>4</b><strong>Close out the match</strong><span>Print or enter the scorecard and keep the history.</span></article>
+            </div>
+            <div className={styles.previewActions}>
+              <Link href="#pilot-claim" className={styles.primaryAction} onClick={() => trackPilotCta('activate_from_preview')}>
+                Activate Captain · $0 today
+              </Link>
+              {!connectedTeam && teamPreviewResolved ? (
+                <Link href={connectTeamHref} className={styles.secondaryAction} onClick={() => trackPilotCta('connect_team_first')}>
+                  Connect my team first
+                </Link>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
 
         <section id="pilot-claim" className={styles.claimCard} aria-labelledby="pilot-claim-title">
           <div className={styles.claimHeading}>
@@ -149,7 +318,7 @@ function CaptainPilotContent() {
             <span>{hasCaptainAccess
               ? 'Captain is already included in your access. Open your teams to prepare the next match, or share this offer with another local captain.'
               : session?.user
-              ? 'Share a little about your team, then complete secure checkout to activate 3 months of Captain at $0. No charge today.'
+              ? `Confirm your team, then add payment details securely in Stripe. Pay $0 today; your first ${CAPTAIN_PILOT_PRICE_LABEL} renewal is ${renewalDateLabel} unless you cancel.`
               : 'Create your account first. Then share a little about your team and complete secure checkout to activate 3 months of Captain at $0.'}</span>
           </div>
 
@@ -171,7 +340,15 @@ function CaptainPilotContent() {
             </div>
           ) : (
             pilotAlreadyActive ? <Link href={CAPTAIN_QUICK_START_HREF} className={styles.primaryAction}>Continue team setup</Link> : <form className={styles.form} onSubmit={beginPilot}>
-              <p className={styles.activationNote}><strong>What happens next:</strong> add payment details securely in Stripe to activate your trial, then follow the guided steps to add your team. You will not be charged for the first 3 months.</p>
+              <div className={styles.trustGrid} aria-label="Captain Pilot billing summary">
+                <p><strong>$0 today</strong><span>Three full months of Captain.</span></p>
+                <p><strong>{CAPTAIN_PILOT_PRICE_LABEL}</strong><span>First renewal {renewalDateLabel}.</span></p>
+                <p><strong>Cancel anytime</strong><span>Cancel before renewal and pay nothing.</span></p>
+              </div>
+              <details className={styles.whyCard}>
+                <summary>Why are payment details needed?</summary>
+                <p>They activate the Captain subscription after your free pilot. Stripe securely handles the card; TenAceIQ does not store the card number. You will not be charged today.</p>
+              </details>
               <label>
                 Your name
                 <input value={captainName} onChange={(event) => setCaptainName(event.target.value)} required autoComplete="name" />
@@ -185,8 +362,8 @@ function CaptainPilotContent() {
                 <input value={clubOrArea} onChange={(event) => setClubOrArea(event.target.value)} placeholder="Example: River Club or Naperville" />
               </label>
               <label>
-                What would make Captain more useful for your team?
-                <textarea value={feedbackFocus} onChange={(event) => setFeedbackFocus(event.target.value)} required rows={4} placeholder="Availability, lineups, scouting, communication…" />
+                What would make Captain more useful? <em>Optional</em>
+                <textarea value={feedbackFocus} onChange={(event) => setFeedbackFocus(event.target.value)} rows={3} placeholder="Availability, lineups, scouting, communication…" />
               </label>
               <label className={styles.checkRow}>
                 <input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} required />
@@ -218,4 +395,11 @@ function CaptainPilotContent() {
         <p className={styles.dateNote}>Pilot enrollment is open now and closes December 31, 2026.</p>
       </div>
   )
+}
+
+function getPreferredName(metadata: Record<string, unknown> | undefined, email: string | undefined) {
+  const candidate = metadata?.full_name ?? metadata?.name ?? metadata?.display_name
+  if (typeof candidate === 'string' && candidate.trim()) return candidate.trim().slice(0, 120)
+  const localPart = email?.split('@')[0]?.replace(/[._-]+/g, ' ').trim() ?? ''
+  return localPart.replace(/\b\w/g, (letter) => letter.toUpperCase()).slice(0, 120)
 }

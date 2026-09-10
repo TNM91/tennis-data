@@ -20,7 +20,9 @@ type Period = 7 | 30 | 90
 type Funnel = {
   publicActions: number
   signupRequests: number
+  checkoutClicks: number
   checkoutStarts: number
+  checkoutFailures: number
   paidActivations: number
 }
 
@@ -70,11 +72,18 @@ export default function AdminGrowthPage() {
       href: '/admin/product-events?search=signup_confirmation_sent',
     },
     {
-      label: 'Checkout starts',
+      label: 'Checkout clicks',
+      value: funnel.checkoutClicks,
+      detail: 'Members who chose to continue to payment.',
+      rate: ratio(funnel.checkoutClicks, funnel.signupRequests),
+      href: '/admin/product-events?search=upgrade_checkout_clicked',
+    },
+    {
+      label: 'Stripe opens',
       value: funnel.checkoutStarts,
-      detail: 'Members who opened Stripe Checkout.',
-      rate: ratio(funnel.checkoutStarts, funnel.signupRequests),
-      href: '/admin/product-events?filter=upgrade',
+      detail: 'Stripe Checkout sessions created successfully.',
+      rate: ratio(funnel.checkoutStarts, funnel.checkoutClicks),
+      href: '/admin/product-events?search=upgrade_checkout_started',
     },
     {
       label: 'Paid activations',
@@ -157,6 +166,11 @@ export default function AdminGrowthPage() {
                 <div style={{ ...adminSubPanelStyle, marginTop: 16 }}>
                   <strong>What to do next</strong>
                   <p className="subtle-text" style={{ margin: 0 }}>{funnelInsight(funnel)}</p>
+                  {funnel.checkoutFailures > 0 ? (
+                    <p className="subtle-text" style={{ margin: 0 }}>
+                      {funnel.checkoutFailures.toLocaleString()} {funnel.checkoutFailures === 1 ? 'member hit' : 'members hit'} a checkout error in this period.
+                    </p>
+                  ) : null}
                   <AdminActionRow>
                     <Link href={funnel.checkoutStarts > funnel.paidActivations ? '/admin/promotions' : '/admin/product-events?filter=upgrade'} className="button-secondary">
                       {funnel.checkoutStarts > funnel.paidActivations ? 'Review the offer' : 'Review checkout activity'}
@@ -182,11 +196,14 @@ function formatPercent(value: number | null) {
 }
 
 function funnelInsight(funnel: Funnel) {
+  if (funnel.checkoutFailures > 0 || funnel.checkoutClicks > funnel.checkoutStarts) {
+    return 'People are choosing Checkout, but Stripe is not opening for everyone. Review checkout errors before changing the offer.'
+  }
   if (funnel.checkoutStarts > funnel.paidActivations) {
     return 'People are reaching Checkout but not activating. Review the price, promotion, and checkout experience first.'
   }
-  if (funnel.signupRequests > funnel.checkoutStarts) {
-    return 'New accounts are arriving, but fewer are opening Checkout. Make the role-based upgrade value and next action more obvious.'
+  if (funnel.signupRequests > funnel.checkoutClicks) {
+    return 'New accounts are arriving, but fewer are choosing Checkout. Make the role-based value and trial terms clearer before asking for payment details.'
   }
   if (funnel.publicActions > funnel.signupRequests) {
     return 'People are exploring TiQ without requesting an account. Tighten the signup invitation around the action they just took.'

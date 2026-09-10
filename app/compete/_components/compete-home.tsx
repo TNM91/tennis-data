@@ -62,7 +62,7 @@ const captainUpgradeQuickAction: RoleHomeQuickAction = {
   detail: 'Lineups, readiness, and team notes',
   href: '/pricing',
   icon: 'lineupBuilder',
-  event: { eventName: 'upgrade_checkout_started', surface: 'upgrade', metadata: { location: 'compete_hub', job: 'unlock_captain' } },
+  event: { eventName: 'upgrade_checkout_clicked', surface: 'upgrade', metadata: { location: 'compete_hub', job: 'unlock_captain' } },
 }
 
 const publicQuickAction: RoleHomeQuickAction = {

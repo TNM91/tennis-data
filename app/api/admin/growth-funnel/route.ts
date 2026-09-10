@@ -4,6 +4,16 @@ import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 export const runtime = 'nodejs'
 
 const PERIODS = [7, 30, 90] as const
+const CONVERSION_EVENT_NAMES = new Set([
+  'signup_confirmation_sent',
+  'upgrade_page_viewed',
+  'upgrade_checkout_clicked',
+  'upgrade_checkout_started',
+  'upgrade_checkout_failed',
+  'captain_pilot_viewed',
+  'captain_pilot_cta_clicked',
+  'captain_pilot_team_preview_viewed',
+])
 
 type GrowthEvent = {
   user_id: string | null
@@ -63,9 +73,11 @@ export async function GET(request: Request) {
 
   const events = (eventsResult.data ?? []) as GrowthEvent[]
   const billingEvents = (billingResult.data ?? []) as StripeBillingEvent[]
-  const publicActions = new Set(events.filter((event) => event.event_name && event.event_name !== 'signup_confirmation_sent').map((event) => event.user_id).filter(Boolean)).size
+  const publicActions = new Set(events.filter((event) => event.event_name && !CONVERSION_EVENT_NAMES.has(event.event_name)).map((event) => event.user_id).filter(Boolean)).size
   const signupRequests = uniqueUsers(events, 'signup_confirmation_sent')
+  const checkoutClicks = uniqueUsers(events, 'upgrade_checkout_clicked')
   const checkoutStarts = uniqueUsers(events, 'upgrade_checkout_started')
+  const checkoutFailures = uniqueUsers(events, 'upgrade_checkout_failed')
   const paidActivations = new Set(
     billingEvents
       .filter((event) => event.outcome === 'handled' && (event.resulting_status === 'active' || event.resulting_status === 'trial'))
@@ -80,7 +92,9 @@ export async function GET(request: Request) {
     funnel: {
       publicActions,
       signupRequests,
+      checkoutClicks,
       checkoutStarts,
+      checkoutFailures,
       paidActivations,
     },
   })

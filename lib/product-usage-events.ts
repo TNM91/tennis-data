@@ -3,7 +3,13 @@ import type { BillablePricingPlanId } from './pricing-plans'
 export const PRODUCT_USAGE_EVENT_NAMES = [
   'billing_portal_opened',
   'signup_confirmation_sent',
+  'upgrade_page_viewed',
+  'upgrade_checkout_clicked',
   'upgrade_checkout_started',
+  'upgrade_checkout_failed',
+  'captain_pilot_viewed',
+  'captain_pilot_cta_clicked',
+  'captain_pilot_team_preview_viewed',
   'profile_player_linked',
   'profile_cloud_sync_repair',
   'mylab_match_plan_action',

@@ -1,5 +1,5 @@
 .page { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 72px; display: grid; gap: 22px; color: #f7fbff; }
-.hero, .claimCard, .shareCard { border: 1px solid rgba(155,225,29,.24); background: linear-gradient(145deg, rgba(5,23,48,.98), rgba(10,37,70,.94)); box-shadow: 0 22px 70px rgba(0,0,0,.22); }
+.hero, .previewCard, .claimCard, .shareCard { border: 1px solid rgba(155,225,29,.24); background: linear-gradient(145deg, rgba(5,23,48,.98), rgba(10,37,70,.94)); box-shadow: 0 22px 70px rgba(0,0,0,.22); }
 .hero { padding: clamp(30px, 6vw, 66px); border-radius: 30px; overflow: hidden; position: relative; }
 .hero::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 96% 0%, rgba(155,225,29,.16), transparent 34%); pointer-events: none; }
 .logo { position: relative; z-index: 1; width: min(272px, 72vw); height: auto; object-fit: contain; margin-bottom: 24px; }
@@ -13,13 +13,24 @@
 .benefitGrid p { margin: 0; padding: 16px; display: grid; gap: 4px; border-left: 2px solid #9be11d; background: rgba(255,255,255,.05); }
 .benefitGrid strong { color: #fff; font-size: 16px; }
 .benefitGrid span { color: #bed1e9; line-height: 1.45; }
+.previewCard { padding: clamp(26px, 4vw, 44px); border-radius: 28px; display: grid; gap: 22px; scroll-margin-top: 90px; }
+.previewHeading { display: grid; gap: 8px; }
+.previewHeading p { margin: 0; color: #9be11d; font-weight: 900; font-size: 12px; letter-spacing: .13em; text-transform: uppercase; }
+.previewHeading h2 { margin: 0; max-width: 760px; color: #fff; font-size: clamp(30px, 4vw, 48px); line-height: 1.05; letter-spacing: -.045em; }
+.previewHeading span { color: #c4d5e9; line-height: 1.45; font-weight: 700; }
+.previewGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.previewGrid article { min-width: 0; padding: 16px; border: 1px solid rgba(145,190,239,.2); border-radius: 16px; background: rgba(255,255,255,.045); display: grid; align-content: start; gap: 7px; }
+.previewGrid b { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: #9be11d; color: #06172f; font-size: 13px; }
+.previewGrid strong { color: #fff; font-size: 15px; line-height: 1.25; }
+.previewGrid span { color: #b9cce3; font-size: 13px; line-height: 1.45; }
+.previewActions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .claimCard { padding: clamp(26px, 4vw, 44px); border-radius: 28px; display: grid; gap: 22px; }
 .claimHeading { display: grid; gap: 8px; }
 .claimHeading h2 { margin: 0; color: #fff; font-size: clamp(30px, 4vw, 48px); letter-spacing: -.045em; }
 .claimHeading > span { color: #c4d5e9; line-height: 1.5; font-weight: 650; }
 .form { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 15px; }
 .form label { display: grid; gap: 7px; color: #f7fbff; font-size: 14px; font-weight: 800; }
-.form label:nth-of-type(4), .activationNote, .checkRow, .form button { grid-column: 1 / -1; }
+.form label:nth-of-type(4), .activationNote, .trustGrid, .whyCard, .checkRow, .form button { grid-column: 1 / -1; }
 .form em { color: #afc2d8; font-style: normal; font-size: 12px; font-weight: 650; }
 .form input, .form textarea { width: 100%; box-sizing: border-box; border: 1px solid rgba(155,225,29,.24); border-radius: 10px; padding: 12px 13px; background: rgba(0,0,0,.18); color: #fff; font: inherit; font-size: 15px; outline: none; }
 .form input:focus, .form textarea:focus { border-color: #9be11d; box-shadow: 0 0 0 3px rgba(155,225,29,.12); }
@@ -28,6 +39,13 @@
 .checkRow input { width: 18px; height: 18px; margin-top: 2px; accent-color: #9be11d; }
 .activationNote { margin: 0; padding: 14px 16px; border: 1px solid rgba(155,225,29,.42); border-radius: 12px; background: rgba(155,225,29,.1); color: #e8f6d6; line-height: 1.5; font-size: 14px; font-weight: 650; }
 .activationNote strong { color: #9be11d; }
+.trustGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.trustGrid p { margin: 0; min-width: 0; padding: 14px; border: 1px solid rgba(155,225,29,.28); border-radius: 14px; background: rgba(155,225,29,.07); display: grid; gap: 4px; }
+.trustGrid strong { color: #9be11d; font-size: 16px; }
+.trustGrid span { color: #d6e4f4; font-size: 12px; line-height: 1.4; font-weight: 650; }
+.whyCard { border: 1px solid rgba(255,255,255,.15); border-radius: 14px; background: rgba(255,255,255,.04); color: #dce8f5; }
+.whyCard summary { padding: 14px 16px; color: #fff; cursor: pointer; font-weight: 850; }
+.whyCard p { margin: 0; padding: 0 16px 16px; color: #bfd0e5; font-size: 13px; line-height: 1.5; }
 .primaryAction, .secondaryAction { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; min-width: 0; max-width: 100%; box-sizing: border-box; padding: 12px 18px; border-radius: 999px; text-align: center; text-decoration: none; font: inherit; line-height: 1.4; font-weight: 900; cursor: pointer; }
 .primaryAction { border: 1px solid #9be11d; background: #9be11d; color: #06172f; }
 .primaryAction:disabled { opacity: .58; cursor: not-allowed; }
@@ -51,7 +69,8 @@
 .dateNote { margin: -5px 0 0; color: #aebfd5; font-size: 13px; text-align: center; }
 .claimCard { scroll-margin-top: 90px; }
 .form input, .form textarea { font-size: 16px; }
-@media (max-width: 720px) { .page { width: min(100% - 20px, 1120px); padding: 22px 0 46px; } .hero, .claimCard { border-radius: 22px; } .benefitGrid, .form { grid-template-columns: 1fr; } .form label:nth-of-type(4), .activationNote, .checkRow, .form button { grid-column: auto; } .shareCard { align-items: flex-start; flex-wrap: wrap; } .printLink { margin-left: 0; width: 100%; } .offerCard { gap: 8px; } }
+@media (max-width: 900px) { .previewGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 720px) { .page { width: min(100% - 20px, 1120px); padding: 22px 0 46px; } .hero, .previewCard, .claimCard { border-radius: 22px; } .benefitGrid, .previewGrid, .form, .trustGrid { grid-template-columns: 1fr; } .form label:nth-of-type(4), .activationNote, .trustGrid, .whyCard, .checkRow, .form button { grid-column: auto; } .shareCard { align-items: flex-start; flex-wrap: wrap; } .printLink { margin-left: 0; width: 100%; } .offerCard { gap: 8px; } }
 @media (max-width: 720px) {
   .hero { padding: 24px; }
   .logo { width: 200px; max-width: 100%; margin-bottom: 18px; }
@@ -61,4 +80,7 @@
   .offerCard strong { font-size: 26px; line-height: 1.1; }
   .heroActions, .accountActions > div { align-items: stretch; flex-direction: column; }
   .heroActions a, .accountActions a { width: 100%; }
+  .previewCard { padding: 22px; }
+  .previewActions { align-items: stretch; flex-direction: column; }
+  .previewActions a { width: 100%; }
 }

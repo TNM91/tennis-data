@@ -20,10 +20,24 @@ describe('Captain first-run handoffs', () => {
   it('shows an offer action before the benefit list and sends activation to guided setup', () => {
     const page = source('app/captain-pilot/captain-pilot-client.tsx')
     expect(page.indexOf('styles.heroActions')).toBeLessThan(page.indexOf('styles.benefitGrid'))
-    expect(page).toContain("session?.user ? '#pilot-claim' : joinHref")
+    expect(page).toContain("session?.user ? '#pilot-preview' : joinHref")
+    expect(page).toContain('Preview my first match week')
+    expect(page).toContain('captain_pilot_team_preview_viewed')
     expect(page).toContain('nextHref: CAPTAIN_QUICK_START_HREF')
     expect(page).toContain('Continue team setup')
     expect(isSafeLocalNextHref(CAPTAIN_QUICK_START_HREF, '/captain')).toBe(CAPTAIN_QUICK_START_HREF)
+  })
+
+  it('shows the Captain value and billing terms before opening Stripe', () => {
+    const pilot = source('app/captain-pilot/captain-pilot-client.tsx')
+    const upgrade = source('app/upgrade/page.tsx')
+    expect(pilot).toContain('A calmer match week')
+    expect(pilot).toContain('Activate Captain · $0 today')
+    expect(pilot).toContain('Why are payment details needed?')
+    expect(pilot).toContain('First renewal {renewalDateLabel}.')
+    expect(upgrade).toContain("eventName: 'upgrade_checkout_clicked'")
+    expect(upgrade).toContain("eventName: 'upgrade_checkout_started'")
+    expect(upgrade).not.toContain('autoCheckoutStarted')
   })
 
   it('keeps signup and sign-in copy specific to the offer without replacing normal tier entry', () => {

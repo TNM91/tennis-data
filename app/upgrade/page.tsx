@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { use, useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
+import { use, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
@@ -312,9 +312,9 @@ function UpgradeContent({
   const [earlyAccessSaved, setEarlyAccessSaved] = useState(false)
   const [requestStorageMode, setRequestStorageMode] = useState<'supabase' | 'local' | null>(null)
   const [requestLinkStatus, setRequestLinkStatus] = useState('')
-  const [autoCheckoutStarted, setAutoCheckoutStarted] = useState(false)
   const [clubBilling, setClubBilling] = useState<ClubBillingAccount | null>(null)
   const [clubBillingResolved, setClubBillingResolved] = useState(false)
+  const trackedUpgradePageRef = useRef('')
   const checkoutReturnState = getSearchParamValue(resolvedSearchParams.checkout)
   const checkoutReturnRequestId = getSearchParamValue(resolvedSearchParams.request) ?? ''
   const checkoutReturnSessionId = getSearchParamValue(resolvedSearchParams.session_id) ?? ''
@@ -326,6 +326,19 @@ function UpgradeContent({
       void claimLastRemoteRequest(session?.user?.email ?? '')
     }
   }, [authResolved, session?.user?.email, userId])
+
+  useEffect(() => {
+    if (!authResolved || !userId || planId === 'free') return
+    const trackingKey = `${userId}:${planId}:${nextHref}`
+    if (trackedUpgradePageRef.current === trackingKey) return
+    trackedUpgradePageRef.current = trackingKey
+    void trackProductUsageEvent({
+      eventName: 'upgrade_page_viewed',
+      surface: 'upgrade',
+      planId,
+      metadata: { nextHref },
+    })
+  }, [authResolved, nextHref, planId, userId])
 
   useEffect(() => {
     if (!authResolved || !isClubPricingPlanId(planId)) {
@@ -392,28 +405,9 @@ function UpgradeContent({
   }
 
   const startCheckoutForRequest = useCallback(async (requestId: string, accessToken: string) => {
-    const response = await fetch('/api/checkout/session', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({
-        requestId,
-        nextHref,
-      }),
-    })
-    const body = await response.json().catch(() => null) as
-      | { ok?: boolean; message?: string; url?: string }
-      | null
-
-    if (!response.ok || !body?.ok || !body.url) {
-      throw new Error(body?.message ?? 'Checkout could not be started.')
-    }
-
     if (planId !== 'free') {
       await trackProductUsageEvent({
-        eventName: 'upgrade_checkout_started',
+        eventName: 'upgrade_checkout_clicked',
         surface: 'upgrade',
         planId,
         metadata: {
@@ -423,7 +417,55 @@ function UpgradeContent({
       })
     }
 
-    window.location.assign(body.url)
+    try {
+      const response = await fetch('/api/checkout/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          requestId,
+          nextHref,
+        }),
+      })
+      const body = await response.json().catch(() => null) as
+        | { ok?: boolean; message?: string; url?: string }
+        | null
+
+      if (!response.ok || !body?.ok || !body.url) {
+        if (planId !== 'free') {
+          await trackProductUsageEvent({
+            eventName: 'upgrade_checkout_failed',
+            surface: 'upgrade',
+            planId,
+            metadata: { requestId, nextHref, stage: 'stripe_session', status: response.status },
+          })
+        }
+        throw new Error(body?.message ?? 'Checkout could not be started.')
+      }
+
+      if (planId !== 'free') {
+        await trackProductUsageEvent({
+          eventName: 'upgrade_checkout_started',
+          surface: 'upgrade',
+          planId,
+          metadata: { requestId, nextHref },
+        })
+      }
+
+      window.location.assign(body.url)
+    } catch (error) {
+      if (planId !== 'free' && error instanceof TypeError) {
+        await trackProductUsageEvent({
+          eventName: 'upgrade_checkout_failed',
+          surface: 'upgrade',
+          planId,
+          metadata: { requestId, nextHref, stage: 'network' },
+        })
+      }
+      throw error
+    }
   }, [nextHref, planId])
 
   const startCheckout = useCallback(async () => {
@@ -549,21 +591,6 @@ function UpgradeContent({
       href: `/upgrade?plan=${choicePlanId}&next=${encodeURIComponent(getPlanDestinationHref(choicePlanId))}`,
     }
   })
-
-  useEffect(() => {
-    if (!PAID_CHECKOUT_ENABLED || autoCheckoutStarted || authLoading || !isPaidPlan || hasAccess || isPublic || checkoutReturnState) return
-
-    setAutoCheckoutStarted(true)
-    void startSignedInCheckout()
-  }, [
-    autoCheckoutStarted,
-    authLoading,
-    checkoutReturnState,
-    hasAccess,
-    isPaidPlan,
-    isPublic,
-    startSignedInCheckout,
-  ])
 
   useEffect(() => {
     if (authLoading || checkoutReturnState !== 'success' || !checkoutReturnRequestId || isPublic) return
