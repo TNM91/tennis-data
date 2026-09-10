@@ -166,7 +166,7 @@ async function loadCaptainPilotActivation(
       .limit(10000),
     service
       .from('captain_lineup_drafts')
-      .select('user_id, slots_json')
+      .select('user_id, slots_json, delivery_status')
       .in('user_id', profileIds)
       .limit(10000),
     service
