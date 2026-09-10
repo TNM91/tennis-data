@@ -41,6 +41,10 @@ web/
 social/
   og-image-1200x630.png
   social-profile-1080.png
+  captain-pilot-fall-2026-v1.png
+
+The Captain Pilot share card is generated with the approved header logo and
+current pilot terms by `npx tsx scripts/build-captain-pilot-share.tsx`.
 
 docs/
   CODEX_IMPLEMENTATION_PROMPT.txt
