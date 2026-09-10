@@ -33,6 +33,8 @@ type UpgradeRequestCheckoutRow = {
 type CaptainPilotRedemptionRow = {
   id: string
   status: string | null
+  billing_status: string | null
+  trial_ends_at: string | null
 }
 
 const PAID_PLAN_IDS: PaidPricingPlanId[] = [
@@ -153,7 +155,9 @@ export async function POST(request: Request) {
     customerId,
     origin,
     nextHref,
-    trialEnd: pilotRedemption?.redemption ? buildCaptainPilotTrialEnd() : undefined,
+    trialEnd: pilotRedemption?.redemption
+      ? getCaptainPilotCheckoutTrialEnd(pilotRedemption.redemption.trial_ends_at)
+      : undefined,
     campaignKey: pilotRedemption?.redemption ? CAPTAIN_PILOT_CAMPAIGN_KEY : undefined,
     pilotRedemptionId: pilotRedemption?.redemption?.id,
     allowPromotionCodes: !pilotRedemption?.redemption,
@@ -182,11 +186,13 @@ export async function POST(request: Request) {
   }
 
   if (pilotRedemption?.redemption) {
+    const pilotUpdate = pilotRedemption.redemption.status === 'converted'
+      ? { billing_status: 'checkout_started', updated_at: new Date().toISOString() }
+      : { status: 'checkout_started', billing_status: 'checkout_started', updated_at: new Date().toISOString() }
     const { error: pilotUpdateError } = await supabase
       .from('captain_pilot_redemptions')
-      .update({ status: 'checkout_started', updated_at: new Date().toISOString() })
+      .update(pilotUpdate)
       .eq('id', pilotRedemption.redemption.id)
-      .in('status', ['claimed', 'checkout_started'])
     if (pilotUpdateError) console.error('Captain Pilot checkout state update failed', pilotUpdateError)
   }
 
@@ -200,20 +206,27 @@ async function getCaptainPilotRedemption(
 ): Promise<{ redemption?: CaptainPilotRedemptionRow; error?: string; status: number }> {
   const { data, error } = await supabase
     .from('captain_pilot_redemptions')
-    .select('id, status')
+    .select('id, status, billing_status, trial_ends_at')
     .eq('campaign_key', CAPTAIN_PILOT_CAMPAIGN_KEY)
     .eq('upgrade_request_id', requestId)
     .eq('profile_id', userId)
     .maybeSingle()
   if (error) return { error: 'Pilot checkout could not be verified.', status: 500 }
   if (!data) return { status: 200 }
-  if (getCaptainPilotAvailability() !== 'active') {
+  const redemption = data as CaptainPilotRedemptionRow
+  if (redemption.status !== 'converted' && getCaptainPilotAvailability() !== 'active') {
     return { error: 'The Fall Captain Pilot is not accepting checkout right now.', status: 409 }
   }
-  if ((data as CaptainPilotRedemptionRow).status === 'converted') {
-    return { error: 'This Fall Captain Pilot claim is already active.', status: 409 }
+  if (redemption.billing_status === 'collected') {
+    return { error: 'Billing is already connected for this Captain Pilot.', status: 409 }
   }
-  return { redemption: data as CaptainPilotRedemptionRow, status: 200 }
+  return { redemption, status: 200 }
+}
+
+function getCaptainPilotCheckoutTrialEnd(value: string | null) {
+  const stored = value ? Math.floor(Date.parse(value) / 1000) : Number.NaN
+  const trialEnd = Number.isFinite(stored) ? stored : buildCaptainPilotTrialEnd()
+  return trialEnd >= Math.floor(Date.now() / 1000) + 48 * 60 * 60 ? trialEnd : undefined
 }
 
 function createServiceSupabaseClient(serviceKey: string) {

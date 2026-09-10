@@ -10,7 +10,8 @@ describe('signup confirmation emails', () => {
 
     expect(email).toContain('Fall Captain Pilot')
     expect(email).toContain('three months at $0')
-    expect(email).toContain('renews at $4.99/month until canceled')
+    expect(email).toContain('no card required')
+    expect(email).toContain('Add billing later only if you want access to continue at $4.99/month')
     expect(email).toContain('https://example.com/confirm?token=abc')
     expect(email).not.toContain('{{')
   })

@@ -8,6 +8,8 @@ const signupSource = readFileSync(join(process.cwd(), 'app/api/auth/signup/route
 const pageStyles = readFileSync(join(process.cwd(), 'app/admin/growth/growth.module.css'), 'utf8')
 const claimSource = readFileSync(join(process.cwd(), 'app/api/captain-pilot/claim/route.ts'), 'utf8')
 const sourceMigration = readFileSync(join(process.cwd(), 'supabase/migrations/20260910000100_add_captain_pilot_acquisition_source.sql'), 'utf8')
+const cardFreeMigration = readFileSync(join(process.cwd(), 'supabase/migrations/20260910000200_add_card_free_captain_pilot.sql'), 'utf8')
+const pilotStatusSource = readFileSync(join(process.cwd(), 'app/api/captain-pilot/status/route.ts'), 'utf8')
 
 describe('admin growth funnel', () => {
   it('keeps visitor traffic separate from signed-in product and billing conversion signals', () => {
@@ -16,7 +18,8 @@ describe('admin growth funnel', () => {
     expect(pageSource).toContain('Checkout clicks')
     expect(pageSource).toContain('Stripe opens')
     expect(pageSource).toContain('Paid activations')
-    expect(pageSource).toContain('Offer to activation')
+    expect(pageSource).toContain('Offer to active Captain')
+    expect(pageSource).toContain('Billing added')
     expect(pageSource).toContain('Largest opportunity')
     expect(routeSource).toContain("uniqueUsers(events, 'signup_confirmation_sent')")
     expect(routeSource).toContain("uniqueUsers(events, 'upgrade_checkout_clicked')")
@@ -39,6 +42,12 @@ describe('admin growth funnel', () => {
     expect(signupSource).toContain('acquisitionSource')
     expect(claimSource).toContain('acquisition_source: acquisitionSource')
     expect(sourceMigration).toContain("'text', 'flyer', 'email', 'referral', 'direct'")
+    expect(claimSource).toContain(".rpc('activate_captain_pilot_card_free'")
+    expect(claimSource).not.toContain('PAID_CHECKOUT_ENABLED')
+    expect(cardFreeMigration).toContain('security definer')
+    expect(cardFreeMigration).toContain('grant execute on function public.activate_captain_pilot_card_free')
+    expect(cardFreeMigration).toContain('to service_role')
+    expect(pilotStatusSource).toContain("billingRequired: data.billing_status !== 'collected'")
     expect(pageStyles).toContain('@media (max-width: 560px)')
     expect(pageStyles).toContain('grid-template-columns: 1fr')
   })

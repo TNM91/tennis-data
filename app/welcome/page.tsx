@@ -73,10 +73,10 @@ const WELCOME_STORIES: Record<MembershipTierId | 'captain-pilot', WelcomeStory> 
   'captain-pilot': {
     eyebrow: 'Fall Captain Pilot',
     title: (name) => name ? `Welcome, ${name}. Your captain’s chair is ready.` : 'Your captain’s chair is ready.',
-    body: `Your account is confirmed. Complete the short team form, then use secure checkout to activate three months of Captain at $0. Payment details are required for renewal at ${CAPTAIN_PILOT_PRICE_LABEL}, but you will not be charged today.`,
+    body: `Your account is confirmed. Complete the short team form to activate three months of Captain at $0—no card required. Add billing later only if you want to continue at ${CAPTAIN_PILOT_PRICE_LABEL}.`,
     access: 'Your account has Free access until the Captain Pilot activation is complete.',
     primaryLabel: 'Start my Captain Pilot',
-    checklist: ['Tell us about your team and the captain problem you want to solve.', 'Complete secure checkout with three months at $0.', 'Follow the guided team setup to add your team and prepare your first lineup.'],
+    checklist: ['Tell us about your team and the captain problem you want to solve.', 'Activate three free months with no card.', 'Follow the guided team setup to add your team and prepare your first lineup.'],
   },
 }
 

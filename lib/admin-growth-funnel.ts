@@ -22,6 +22,8 @@ export type CaptainPilotRedemptionRow = {
   acquisition_source?: string | null
   updated_at?: string | null
   converted_at?: string | null
+  trial_ends_at?: string | null
+  billing_status?: string | null
 }
 
 export type CaptainPilotFunnel = {
@@ -33,6 +35,7 @@ export type CaptainPilotFunnel = {
   checkoutStarts: number
   checkoutFailures: number
   activations: number
+  billingConnected: number
 }
 
 export type CaptainPilotSourceBreakdown = {
@@ -42,6 +45,7 @@ export type CaptainPilotSourceBreakdown = {
   signupRequests: number
   claims: number
   activations: number
+  billingConnected: number
 }
 
 export type CaptainPilotFollowUp = {
@@ -49,10 +53,11 @@ export type CaptainPilotFollowUp = {
   captainName: string
   captainEmail: string
   teamName: string
-  stage: 'checkout' | 'team_connection' | 'first_week'
+  stage: 'checkout' | 'team_connection' | 'first_week' | 'billing'
   reason: string
   nextStep: string
   waitingDays: number
+  daysRemaining?: number
   urgent: boolean
 }
 
@@ -97,13 +102,14 @@ export function buildCaptainPilotFunnel(
     )),
     offerActions: uniqueEventUsers(events, (event) => event.event_name === 'captain_pilot_cta_clicked'),
     claims: uniqueProfiles(redemptions),
-    checkoutStarts: uniqueProfiles(redemptions.filter((row) => row.status === 'checkout_started' || row.status === 'converted')),
+    checkoutStarts: uniqueProfiles(redemptions.filter((row) => row.billing_status === 'checkout_started' || row.billing_status === 'collected')),
     checkoutFailures: uniqueEventUsers(events, (event) => (
       event.event_name === 'upgrade_checkout_failed'
       && event.plan_id === 'captain'
       && event.metadata?.source === 'captain_pilot'
     )),
     activations: uniqueProfiles(redemptions.filter((row) => row.status === 'converted')),
+    billingConnected: uniqueProfiles(redemptions.filter((row) => row.billing_status === 'collected')),
   }
 }
 
@@ -126,6 +132,7 @@ export function buildCaptainPilotSourceBreakdown(
       signupRequests: 0,
       claims: 0,
       activations: 0,
+      billingConnected: 0,
     }]),
   )
 
@@ -143,6 +150,9 @@ export function buildCaptainPilotSourceBreakdown(
   incrementUniqueProfiles(rows, sourceByProfile, redemptions
     .filter((row) => row.status === 'converted')
     .map((row) => row.profile_id), 'activations')
+  incrementUniqueProfiles(rows, sourceByProfile, redemptions
+    .filter((row) => row.billing_status === 'collected')
+    .map((row) => row.profile_id), 'billingConnected')
 
   return CAPTAIN_PILOT_SOURCES.map((source) => rows.get(source) as CaptainPilotSourceBreakdown)
 }
@@ -251,6 +261,22 @@ export function buildCaptainPilotActivationFollowUps(
       waitingDays,
       urgent: false,
     }
+    const trialEndsAtMs = row.trial_ends_at ? Date.parse(row.trial_ends_at) : Number.NaN
+    const daysRemaining = Number.isFinite(trialEndsAtMs)
+      ? Math.ceil((trialEndsAtMs - now) / (24 * 60 * 60 * 1000))
+      : null
+    if (row.billing_status !== 'collected' && daysRemaining !== null && daysRemaining <= 30) {
+      return [{
+        ...common,
+        stage: 'billing',
+        reason: daysRemaining <= 0
+          ? 'Free Captain access ended without billing'
+          : `Free Captain access ends in ${daysRemaining} ${daysRemaining === 1 ? 'day' : 'days'}`,
+        nextStep: 'Invite them to add billing if they want to continue.',
+        daysRemaining,
+        urgent: daysRemaining <= 7,
+      } satisfies CaptainPilotFollowUp]
+    }
     if (!connectedProfiles.has(profileId)) {
       return [{
         ...common,
@@ -295,7 +321,7 @@ function incrementUniqueProfiles(
   rows: Map<CaptainPilotSource, CaptainPilotSourceBreakdown>,
   sourceByProfile: Map<string, CaptainPilotSource>,
   profileIds: Array<string | null>,
-  field: 'offerViews' | 'signupRequests' | 'claims' | 'activations',
+  field: 'offerViews' | 'signupRequests' | 'claims' | 'activations' | 'billingConnected',
 ) {
   new Set(profileIds.filter((profileId): profileId is string => Boolean(profileId))).forEach((profileId) => {
     const source = sourceByProfile.get(profileId) ?? 'direct'

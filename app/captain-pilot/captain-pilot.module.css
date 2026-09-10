@@ -63,6 +63,10 @@
 .primaryAction:focus-visible, .secondaryAction:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
 .accountActions { display: grid; gap: 16px; color: #d7e5f6; font-weight: 650; }
 .accountActions p, .status, .notice { margin: 0; }
+.activePilotBilling { display: grid; gap: 10px; padding: 14px; border: 1px solid rgba(155,225,29,.32); border-radius: 14px; background: rgba(155,225,29,.08); }
+.activePilotBilling p { color: #d7e5f6; font-size: 14px; line-height: 1.5; }
+.activePilotBilling strong { color: #9be11d; }
+.activePilotBilling button { justify-self: start; }
 .notice { padding: 13px 15px; border-left: 3px solid #9be11d; background: rgba(155,225,29,.1); color: #eff8e2; line-height: 1.45; font-weight: 700; }
 .terms { display: grid; gap: 7px; padding-top: 18px; border-top: 1px solid rgba(255,255,255,.16); }
 .terms span { color: #b8c9dd; font-size: 12px; line-height: 1.5; }
@@ -88,6 +92,7 @@
   .offerCard strong { font-size: 26px; line-height: 1.1; }
   .heroActions, .accountActions > div { align-items: stretch; flex-direction: column; }
   .heroActions a, .accountActions a { width: 100%; }
+  .activePilotBilling button { width: 100%; }
   .tourCard { padding: 20px; gap: 16px; }
   .tourCopy h2 { font-size: 28px; }
   .tourCopy > span { font-size: 14px; }

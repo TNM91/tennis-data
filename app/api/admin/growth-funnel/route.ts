@@ -26,6 +26,9 @@ const CONVERSION_EVENT_NAMES = new Set([
   'captain_pilot_cta_clicked',
   'captain_pilot_team_preview_viewed',
   'captain_pilot_claimed',
+  'captain_pilot_card_free_activated',
+  'captain_pilot_activation_failed',
+  'captain_pilot_billing_clicked',
   'product_tour_started',
 ])
 
@@ -76,7 +79,7 @@ export async function GET(request: Request) {
       .limit(10000),
     service
       .from('captain_pilot_redemptions')
-      .select('profile_id, status, captain_name, captain_email, team_name, acquisition_source, updated_at, converted_at')
+      .select('profile_id, status, captain_name, captain_email, team_name, acquisition_source, billing_status, trial_ends_at, updated_at, converted_at')
       .gte('created_at', since)
       .limit(10000),
   ])

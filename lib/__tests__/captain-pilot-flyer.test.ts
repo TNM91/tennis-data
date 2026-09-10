@@ -11,6 +11,7 @@ describe('Captain pilot flyer', () => {
     expect(exported.offer).toBe(`${CAPTAIN_PILOT_TRIAL_MONTHS} months of Captain free`)
     expect(exported.duration).toContain('from activation')
     expect(exported.renewal).toContain(CAPTAIN_PILOT_PRICE_LABEL)
+    expect(exported.renewal).toContain('No card required')
     const pdf = readFileSync(join(process.cwd(), 'public', CAPTAIN_PILOT_FLYER.pdfPath))
     expect(pdf.subarray(0, 5).toString()).toBe('%PDF-')
     expect(pdf.toString('latin1')).toContain('/Count 1')

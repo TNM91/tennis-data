@@ -94,14 +94,14 @@ const EMAIL_STORIES: Record<SignupEmailIntent, EmailStory> = {
   'captain-pilot': {
     eyebrow: 'Fall Captain Pilot',
     title: 'Welcome to the captain’s chair.',
-    lead: `Your Captain Pilot starts with three months at $0, then renews at ${CAPTAIN_PILOT_PRICE_LABEL} until canceled. Confirm your account, then tell us about your team and complete secure checkout to activate the pilot.`,
+    lead: `Your Captain Pilot starts with three months at $0 and no card required. Confirm your account, then tell us about your team to activate Captain immediately.`,
     steps: [
       'Confirm your email and sign in.',
       'Complete the short Captain Pilot form.',
-      'Add payment details to activate three months of Captain at $0. You will not be charged today.',
+      'Activate three months of Captain at $0—no card required.',
     ],
     cta: 'Confirm and start my Captain Pilot',
-    note: `Captain access begins only after the Pilot form and secure checkout are complete. You will not be charged during the three-month pilot; continued Captain access renews at ${CAPTAIN_PILOT_PRICE_LABEL} until canceled. We are building this with local captains and your feedback matters.`,
+    note: `Captain access begins after the short Pilot form. Add billing later only if you want access to continue at ${CAPTAIN_PILOT_PRICE_LABEL}; otherwise it pauses at the end of the three-month pilot. We are building this with local captains and your feedback matters.`,
   },
 }
 
