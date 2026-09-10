@@ -112,6 +112,97 @@
   margin-top: 12px;
 }
 
+.followUpHeader {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.followUpHeader h3 {
+  margin: 5px 0 0;
+  color: var(--foreground-strong);
+  font-size: 1.15rem;
+}
+
+.followUpList {
+  display: grid;
+  gap: 9px;
+  margin-top: 11px;
+}
+
+.followUpCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 0.8fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 16px;
+  background: var(--shell-chip-bg);
+}
+
+.followUpLead,
+.followUpReason {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.followUpLead {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.followUpLead > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.followUpLead strong,
+.followUpReason strong {
+  color: var(--foreground-strong);
+}
+
+.followUpLead span:not(:global(.badge)),
+.followUpReason span,
+.followUpClear span {
+  color: var(--shell-copy-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.followUpActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.followUpClear {
+  display: grid;
+  gap: 5px;
+  margin-top: 11px;
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg));
+}
+
+.followUpMore {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  color: var(--shell-copy-muted);
+  font-size: 0.75rem;
+}
+
 @media (max-width: 900px) {
   .pilotStages {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -119,6 +210,19 @@
 
   .pilotSignals {
     grid-template-columns: 1fr;
+  }
+
+  .followUpCard {
+    grid-template-columns: 1fr;
+  }
+
+  .followUpActions {
+    justify-content: flex-start;
+  }
+
+  .followUpMore {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 
@@ -147,5 +251,11 @@
   .pilotRate {
     grid-column: 2;
     margin: 0;
+  }
+
+  .followUpActions > * {
+    flex: 1 1 140px;
+    min-width: 0;
+    text-align: center;
   }
 }

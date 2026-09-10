@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildCaptainPilotFunnel, type GrowthEventRow } from '@/lib/admin-growth-funnel'
+import {
+  buildCaptainPilotFollowUps,
+  buildCaptainPilotFunnel,
+  type GrowthEventRow,
+} from '@/lib/admin-growth-funnel'
 
 const event = (
   userId: string,
@@ -40,5 +44,23 @@ describe('Captain Pilot growth funnel', () => {
       checkoutFailures: 1,
       activations: 1,
     })
+  })
+
+  it('surfaces checkout errors immediately and waits a day before labeling other claims as stalled', () => {
+    const now = Date.parse('2026-09-10T18:00:00.000Z')
+    const followUps = buildCaptainPilotFollowUps([
+      event('captain-error', 'upgrade_checkout_failed', { plan_id: 'captain', metadata: { source: 'captain_pilot' } }),
+      event('other-error', 'upgrade_checkout_failed', { plan_id: 'captain', metadata: { source: 'upgrade' } }),
+    ], [
+      { profile_id: 'captain-error', status: 'claimed', captain_name: 'Casey Error', captain_email: 'casey@example.com', team_name: 'Aces', updated_at: '2026-09-10T17:55:00.000Z' },
+      { profile_id: 'captain-new', status: 'claimed', captain_name: 'New Captain', updated_at: '2026-09-10T12:00:00.000Z' },
+      { profile_id: 'captain-waiting', status: 'checkout_started', captain_name: 'Jamie Waiting', team_name: 'Topspin', updated_at: '2026-09-08T18:00:00.000Z' },
+      { profile_id: 'captain-active', status: 'converted', captain_name: 'Already Active', updated_at: '2026-09-01T18:00:00.000Z' },
+    ], now)
+
+    expect(followUps).toEqual([
+      expect.objectContaining({ profileId: 'captain-error', urgent: true, waitingDays: 0 }),
+      expect.objectContaining({ profileId: 'captain-waiting', urgent: false, waitingDays: 2 }),
+    ])
   })
 })

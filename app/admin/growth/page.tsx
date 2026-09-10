@@ -15,7 +15,7 @@ import {
 import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
-import type { CaptainPilotFunnel } from '@/lib/admin-growth-funnel'
+import type { CaptainPilotFollowUp, CaptainPilotFunnel } from '@/lib/admin-growth-funnel'
 import styles from './growth.module.css'
 
 type Period = 7 | 30 | 90
@@ -27,6 +27,8 @@ type Funnel = {
   checkoutFailures: number
   paidActivations: number
   captainPilot: CaptainPilotFunnel
+  captainPilotFollowUps: CaptainPilotFollowUp[]
+  captainPilotFollowUpCount: number
 }
 
 const PERIODS: Array<{ value: Period; label: string }> = [
@@ -40,6 +42,7 @@ export default function AdminGrowthPage() {
   const [funnel, setFunnel] = useState<Funnel | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [followUpNotice, setFollowUpNotice] = useState('')
 
   const loadFunnel = useCallback(async (days: Period) => {
     setLoading(true)
@@ -196,6 +199,54 @@ export default function AdminGrowthPage() {
                     <Link href="/admin/product-events?search=captain_pilot" className="button-ghost">Review Captain events</Link>
                   </AdminActionRow>
                 </div>
+                <div className={styles.followUpHeader}>
+                  <div>
+                    <div className="section-kicker">Captain follow-up</div>
+                    <h3>Who may need help</h3>
+                  </div>
+                  <span className="badge badge-blue">{funnel.captainPilotFollowUpCount} waiting</span>
+                </div>
+                {followUpNotice ? <AdminStatusPanel tone="success" text={followUpNotice} /> : null}
+                {funnel.captainPilotFollowUps.length ? (
+                  <div className={styles.followUpList}>
+                    {funnel.captainPilotFollowUps.map((lead) => (
+                      <article key={lead.profileId} className={styles.followUpCard}>
+                        <div className={styles.followUpLead}>
+                          <div>
+                            <strong>{lead.captainName}</strong>
+                            <span>{lead.teamName}</span>
+                          </div>
+                          <span className={lead.urgent ? 'badge badge-slate' : 'badge badge-blue'}>
+                            {lead.urgent ? 'Checkout issue' : `${lead.waitingDays}d waiting`}
+                          </span>
+                        </div>
+                        <div className={styles.followUpReason}>
+                          <strong>{lead.reason}</strong>
+                          <span>{lead.nextStep}</span>
+                        </div>
+                        <div className={styles.followUpActions}>
+                          <button type="button" className="button-secondary" onClick={() => void copyCaptainFollowUp(lead, setFollowUpNotice)}>
+                            Copy reminder
+                          </button>
+                          <Link href={`/admin/access?search=${encodeURIComponent(lead.captainEmail || lead.profileId)}`} className="button-ghost">
+                            Open account
+                          </Link>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={styles.followUpClear}>
+                    <strong>No stalled Captain claims.</strong>
+                    <span>New claims get a day to finish before appearing here. Checkout errors appear immediately.</span>
+                  </div>
+                )}
+                {funnel.captainPilotFollowUpCount > funnel.captainPilotFollowUps.length ? (
+                  <div className={styles.followUpMore}>
+                    <span>Showing the {funnel.captainPilotFollowUps.length} most urgent captains.</span>
+                    <Link href="/admin/upgrade-requests?plan=captain" className="button-ghost">Open all Captain requests</Link>
+                  </div>
+                ) : null}
               </>
             ) : null}
           </AdminReviewPanel>
@@ -315,4 +366,19 @@ function captainPilotInsight(funnel: CaptainPilotFunnel) {
 
   if (largest.to >= largest.from) return 'No drop-off is visible yet. Keep collecting Captain Pilot traffic before changing the offer.'
   return largest.message
+}
+
+async function copyCaptainFollowUp(
+  lead: CaptainPilotFollowUp,
+  setNotice: (message: string) => void,
+) {
+  const firstName = lead.captainName === 'Captain' ? 'there' : lead.captainName.split(' ')[0]
+  const message = `Hi ${firstName} — I saw you started the TenAceIQ Captain Pilot for ${lead.teamName}. ${lead.urgent ? 'It looks like checkout may have hit an issue.' : 'Your access is not active yet.'} Return to https://tenaceiq.com/captain-pilot to finish, or reply and I’ll help.`
+
+  try {
+    await navigator.clipboard.writeText(message)
+    setNotice(`Follow-up copied for ${lead.captainName}.`)
+  } catch {
+    setNotice('Could not copy the reminder. Open the account and follow up from there.')
+  }
 }

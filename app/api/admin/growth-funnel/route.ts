@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import {
   buildCaptainPilotFunnel,
+  buildCaptainPilotFollowUps,
   type CaptainPilotRedemptionRow,
   type GrowthEventRow,
 } from '@/lib/admin-growth-funnel'
@@ -69,7 +70,7 @@ export async function GET(request: Request) {
       .limit(10000),
     service
       .from('captain_pilot_redemptions')
-      .select('profile_id, status')
+      .select('profile_id, status, captain_name, captain_email, team_name, updated_at')
       .gte('created_at', since)
       .limit(10000),
   ])
@@ -84,6 +85,11 @@ export async function GET(request: Request) {
     events,
     (captainPilotResult.data ?? []) as CaptainPilotRedemptionRow[],
   )
+  const allCaptainPilotFollowUps = buildCaptainPilotFollowUps(
+    events,
+    (captainPilotResult.data ?? []) as CaptainPilotRedemptionRow[],
+  )
+  const captainPilotFollowUps = allCaptainPilotFollowUps.slice(0, 8)
   const publicActions = new Set(events.filter((event) => event.event_name && !CONVERSION_EVENT_NAMES.has(event.event_name)).map((event) => event.user_id).filter(Boolean)).size
   const signupRequests = uniqueUsers(events, 'signup_confirmation_sent')
   const checkoutClicks = uniqueUsers(events, 'upgrade_checkout_clicked')
@@ -108,6 +114,8 @@ export async function GET(request: Request) {
       checkoutFailures,
       paidActivations,
       captainPilot,
+      captainPilotFollowUps,
+      captainPilotFollowUpCount: allCaptainPilotFollowUps.length,
     },
   })
 }
