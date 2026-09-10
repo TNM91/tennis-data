@@ -6,7 +6,8 @@ import { useAuth } from './auth-provider'
 import ProductTourVideoButton from './product-tour-video'
 import { buildProductAccessState } from '@/lib/access-model'
 import { getPlanUnlockHref } from '@/lib/plan-intent'
-import { CAPTAIN_QUICK_START_HREF, getCaptainQuickStartSteps, type CaptainQuickStartEvidence } from '@/lib/captain-quick-start'
+import { CAPTAIN_QUICK_START_HREF, getCaptainFirstWinPlan, getCaptainQuickStartSteps, type CaptainFirstWinPlan, type CaptainQuickStartEvidence } from '@/lib/captain-quick-start'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'
 import styles from './captain-quick-start.module.css'
 
@@ -41,12 +42,13 @@ function QuickStart({ choices, userId, token, access, loading, error, compact }:
   const storedId = useSyncExternalStore(subscribeGuideSelection, () => readGuideSelection(userId), () => null)
   const routeQuery = useSyncExternalStore(subscribeGuideRoute, () => window.location.search, () => '')
   const params = new URLSearchParams(routeQuery)
+  const pilotHandoff = params.get('source') === 'captain-pilot'
   const requested = choices.find((team) => team.teamName === params.get('team') && team.leagueName === params.get('league') && team.flight === params.get('flight'))
   const activeId = selectedId ?? requested?.id ?? storedId
   const preferred = choices.find((team) => team.isDefault) || choices.find((team) => team.status === 'accepted') || choices[0]
   const selected = activeId === null ? preferred : choices.find((team) => team.id === activeId)
   useEffect(() => {
-    const checkHash = () => { if (window.location.hash === '#captain-setup') setOpen(true) }
+    const checkHash = () => { if (window.location.hash === '#captain-setup' || new URLSearchParams(window.location.search).get('source') === 'captain-pilot') setOpen(true) }
     checkHash()
     window.addEventListener('hashchange', checkHash)
     return () => window.removeEventListener('hashchange', checkHash)
@@ -54,16 +56,16 @@ function QuickStart({ choices, userId, token, access, loading, error, compact }:
   // If a stored connection was removed, do not show that team's old progress.
   const current = selected || (activeId !== '' ? preferred : undefined)
   return (
-    <details id="captain-setup" className={`${styles.guide} ${compact ? styles.compact : ''}`} open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
+    <details id="captain-setup" className={`${styles.guide} ${compact ? styles.compact : ''} ${pilotHandoff ? styles.pilotGuide : ''}`} open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
       <summary>
-        <span><strong>{compact ? 'Setup guide' : 'Set up your team'}</strong>{!compact ? <small>Five steps · pick up where you left off</small> : null}</span>
+        <span><strong>{pilotHandoff ? 'Your first win with Captain' : compact ? 'Setup guide' : 'Set up your team'}</strong>{!compact || pilotHandoff ? <small>{pilotHandoff ? 'Three short steps · pick up where you left off' : 'Five steps · pick up where you left off'}</small> : null}</span>
         <span className={styles.toggle}>{open ? 'Close guide' : 'Open guide'}</span>
       </summary>
       {open ? <div className={styles.content}>
-        <p>One team, one clear next step. Completed work is checked from your saved team records.</p>
-        <ProductTourVideoButton videoId="captain" label="Watch the 18-second Captain intro" variant="compact" source="captain-quick-start" />
+        <p>{pilotHandoff ? 'One clear action at a time. TiQ checks your saved work and brings you back to the right spot.' : 'One team, one clear next step. Completed work is checked from your saved team records.'}</p>
+        {!pilotHandoff ? <ProductTourVideoButton videoId="captain" label="Watch the 18-second Captain intro" variant="compact" source="captain-quick-start" /> : null}
         {!access ? <Link className={styles.action} href={getPlanUnlockHref('captain', CAPTAIN_QUICK_START_HREF)}>{userId ? 'Unlock Captain tools' : 'Sign in or get Captain access'}</Link> : null}
-        {choices.length ? <label className={styles.team}>Team for this guide
+        {choices.length > 1 ? <label className={styles.team}>Team for this guide
           <select value={current?.id || ''} onChange={(event) => {
             setSelectedId(event.target.value)
             try { localStorage.setItem(`tiq:captain-guide-team:${userId}`, event.target.value) } catch { /* Selection still works for this visit. */ }
@@ -72,14 +74,14 @@ function QuickStart({ choices, userId, token, access, loading, error, compact }:
             {choices.map((team) => <option key={team.id} value={team.id}>{team.teamName} · {team.leagueName} · {team.flight}{team.status === 'pending' ? ' (link pending)' : ''}</option>)}
           </select>
         </label> : null}
-        <GuideSteps key={`${current?.id || 'new'}:${access}`} connection={current} token={token} access={access} loadingTeams={loading} teamError={error} />
+        <GuideSteps key={`${current?.id || 'new'}:${access}:${pilotHandoff}`} connection={current} token={token} access={access} loadingTeams={loading} teamError={error} pilotHandoff={pilotHandoff} />
       </div> : null}
     </details>
   )
 }
 
-function GuideSteps({ connection, token, access, loadingTeams, teamError }: {
-  connection?: TeamConnection; token: string; access: boolean; loadingTeams: boolean; teamError: string
+function GuideSteps({ connection, token, access, loadingTeams, teamError, pilotHandoff }: {
+  connection?: TeamConnection; token: string; access: boolean; loadingTeams: boolean; teamError: string; pilotHandoff: boolean
 }) {
   const [evidence, setEvidence] = useState<CaptainQuickStartEvidence | null>(null)
   const [error, setError] = useState('')
@@ -112,6 +114,15 @@ function GuideSteps({ connection, token, access, loadingTeams, teamError }: {
   const completeCount = steps.filter((step) => step.complete).length
   const unknown = Boolean(loadingTeams || teamError || (linked && access && (!evidence || error || checking)))
   const next = unknown ? undefined : steps.find((step) => !step.complete)
+  if (pilotHandoff) {
+    return <CaptainFirstWin
+      connection={connection}
+      evidence={evidence}
+      loading={loadingTeams || checking}
+      error={teamError || error}
+      onRefresh={() => { setChecking(Boolean(token && access && linked)); setError(''); setRevision((value) => value + 1) }}
+    />
+  }
   return <>
     <div className={styles.status} role="status">
       <strong>{loadingTeams || checking ? 'Checking your saved progress…' : unknown ? 'Progress needs a refresh' : `${completeCount} of 5 complete`}</strong>
@@ -136,4 +147,58 @@ function GuideSteps({ connection, token, access, loadingTeams, teamError }: {
       </li>)}
     </ol>
   </>
+}
+
+function CaptainFirstWin({ connection, evidence, loading, error, onRefresh }: {
+  connection?: TeamConnection
+  evidence: CaptainQuickStartEvidence | null
+  loading: boolean
+  error: string
+  onRefresh: () => void
+}) {
+  const plan = getCaptainFirstWinPlan(connection, evidence)
+  const teamLabel = connection?.teamName || 'Your team'
+  return <div className={styles.firstWin}>
+    <div className={styles.firstWinProgress} aria-label={`${plan.completeCount} of 3 first-win steps complete`}>
+      {['Connect team', 'Start week', 'Share plan'].map((label, index) => (
+        <span key={label} data-complete={index < plan.completeCount ? 'true' : 'false'} data-current={index === plan.completeCount ? 'true' : 'false'}>
+          <b>{index < plan.completeCount ? '✓' : index + 1}</b>
+          <small>{label}</small>
+        </span>
+      ))}
+    </div>
+    {loading ? <div className={styles.firstWinState} role="status">Checking {teamLabel}…</div> : error ? (
+      <div className={styles.firstWinState} role="alert">
+        <span>Your saved work is safe, but progress did not refresh.</span>
+        <button type="button" onClick={onRefresh}>Try again</button>
+      </div>
+    ) : (
+      <article className={styles.firstWinCard} data-stage={plan.stage}>
+        <span className={styles.firstWinEyebrow}>{plan.completeCount === 3 ? 'First win complete' : `Next · Step ${plan.completeCount + 1} of 3`}</span>
+        <h3>{plan.title}</h3>
+        <p>{plan.detail}</p>
+        <div className={styles.firstWinActions}>
+          <FirstWinAction action={plan.primary} primary />
+          {plan.secondary ? <FirstWinAction action={plan.secondary} /> : null}
+        </div>
+      </article>
+    )}
+    <Link className={styles.fullGuideLink} href="/compete/teams#captain-setup">See all setup steps</Link>
+  </div>
+}
+
+function FirstWinAction({ action, primary = false }: { action: CaptainFirstWinPlan['primary']; primary?: boolean }) {
+  return <Link
+    href={action.href}
+    className={primary ? styles.firstWinPrimary : styles.firstWinSecondary}
+    onClick={() => {
+      if (!action.event) return
+      void trackProductUsageEvent({
+        eventName: action.event,
+        surface: 'teams',
+        planId: 'captain',
+        metadata: { source: 'captain_pilot_first_win' },
+      })
+    }}
+  >{action.label}<span aria-hidden="true">→</span></Link>
 }
