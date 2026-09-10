@@ -40,6 +40,15 @@ describe('Captain first-run handoffs', () => {
     expect(upgrade).not.toContain('autoCheckoutStarted')
   })
 
+  it('shows the real Captain workflow before asking for payment details', () => {
+    const pilot = source('app/captain-pilot/captain-pilot-client.tsx')
+    expect(pilot).toContain('See Captain in action')
+    expect(pilot).toContain('videoId="captain"')
+    expect(pilot).toContain('source="captain-pilot"')
+    expect(pilot).toContain("ctaHref={hasCaptainAccess || pilotAlreadyActive ? CAPTAIN_QUICK_START_HREF : session?.user ? '#pilot-claim' : joinHref}")
+    expect(pilot.indexOf('styles.tourCard')).toBeLessThan(pilot.indexOf('id="pilot-claim"'))
+  })
+
   it('keeps signup and sign-in copy specific to the offer without replacing normal tier entry', () => {
     expect(source('app/join/page.tsx')).toContain("mobileTitle: 'Start your 3 months free.'")
     expect(source('app/join/page.tsx')).toContain('} : JOIN_INTENT_COPY[selectedPlanId]')
