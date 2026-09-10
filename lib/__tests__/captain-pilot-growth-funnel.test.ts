@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import {
   buildCaptainPilotActivation,
   buildCaptainPilotActivationFollowUps,
+  buildCaptainPilotClaimFollowUps,
   buildCaptainPilotFollowUps,
   buildCaptainPilotFunnel,
   buildCaptainPilotSourceBreakdown,
+  getCaptainPilotUnclaimedSignupProfileIds,
   type GrowthEventRow,
 } from '@/lib/admin-growth-funnel'
 
@@ -66,6 +68,40 @@ describe('Captain Pilot growth funnel', () => {
       expect.objectContaining({ profileId: 'captain-error', urgent: true, waitingDays: 0 }),
       expect.objectContaining({ profileId: 'captain-waiting', urgent: false, waitingDays: 2 }),
     ])
+  })
+
+  it('recovers Captain signups that never complete the Pilot team form', () => {
+    const now = Date.parse('2026-09-10T18:00:00.000Z')
+    const events = [
+      event('needs-claim', 'signup_confirmation_sent', { plan_id: 'captain', metadata: { signup_intent: 'captain-pilot' }, created_at: '2026-09-08T18:00:00.000Z' }),
+      event('needs-claim', 'signup_confirmation_sent', { plan_id: 'captain', metadata: { signup_intent: 'captain-pilot' }, created_at: '2026-09-09T18:00:00.000Z' }),
+      event('already-claimed', 'signup_confirmation_sent', { plan_id: 'captain', metadata: { signup_intent: 'captain-pilot' }, created_at: '2026-09-08T18:00:00.000Z' }),
+      event('new-signup', 'signup_confirmation_sent', { plan_id: 'captain', metadata: { signup_intent: 'captain-pilot' }, created_at: '2026-09-10T12:00:00.000Z' }),
+      event('regular-captain', 'signup_confirmation_sent', { plan_id: 'captain', metadata: { signup_intent: 'captain' }, created_at: '2026-09-08T18:00:00.000Z' }),
+    ]
+    const redemptions = [{ profile_id: 'already-claimed', status: 'claimed' }]
+
+    expect(getCaptainPilotUnclaimedSignupProfileIds(events, redemptions)).toEqual(['needs-claim', 'new-signup'])
+    expect(buildCaptainPilotClaimFollowUps(events, redemptions, [
+      { profileId: 'needs-claim', captainName: 'Jamie Captain', captainEmail: 'jamie@example.com', emailConfirmed: true },
+    ], now)).toEqual([
+      expect.objectContaining({
+        profileId: 'needs-claim',
+        captainName: 'Jamie Captain',
+        captainEmail: 'jamie@example.com',
+        stage: 'claim',
+        claimState: 'pilot_form',
+        waitingDays: 1,
+      }),
+    ])
+
+    expect(buildCaptainPilotClaimFollowUps(events, redemptions, [
+      { profileId: 'needs-claim', captainName: 'Jamie Captain', emailConfirmed: false },
+    ], now)[0]).toMatchObject({
+      profileId: 'needs-claim',
+      claimState: 'email_confirmation',
+      reason: 'Confirmation email sent, account not confirmed',
+    })
   })
 
   it('attributes each captain to the first known outreach source through activation', () => {
