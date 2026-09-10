@@ -20,6 +20,8 @@ type ProductTourVideoButtonProps = {
   surface?: ProductUsageEventSurface
   source?: string
   className?: string
+  ctaHref?: string
+  ctaLabel?: string
 }
 
 export default function ProductTourVideoButton({
@@ -29,6 +31,8 @@ export default function ProductTourVideoButton({
   surface = 'public_site',
   source = 'product-tour',
   className,
+  ctaHref,
+  ctaLabel,
 }: ProductTourVideoButtonProps) {
   const video = PRODUCT_TOUR_VIDEOS[videoId]
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -206,23 +210,23 @@ export default function ProductTourVideoButton({
               ) : null}
               <Link
                 className={styles.dialogCta}
-                href={video.cta.href}
+                href={ctaHref || video.cta.href}
                 onClick={() => {
                   track('Product Tour', {
                     action: 'cta_clicked',
                     videoId,
                     source,
-                    destination: video.cta.href,
+                    destination: ctaHref || video.cta.href,
                   })
                   void trackProductUsageEvent({
                     eventName: 'product_tour_cta_clicked',
                     surface,
-                    metadata: { videoId, source, href: video.cta.href },
+                    metadata: { videoId, source, href: ctaHref || video.cta.href },
                   })
                   dialogRef.current?.close()
                 }}
               >
-                {video.cta.label}
+                {ctaLabel || video.cta.label}
               </Link>
             </div>
           </div>

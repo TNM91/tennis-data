@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import ProductTourVideoButton from '@/app/components/product-tour-video'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { CAPTAIN_QUICK_START_HREF } from '@/lib/captain-quick-start'
@@ -265,6 +266,29 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
             <p><strong>Scout teams and pairings</strong><span>before match day.</span></p>
             <p><strong>Send one clear plan</strong><span>instead of another group-text scramble.</span></p>
           </div>
+        </section>
+
+        <section className={styles.tourCard} aria-labelledby="captain-tour-title">
+          <div className={styles.tourCopy}>
+            <p>See Captain in action</p>
+            <h2 id="captain-tour-title">From player replies to one clear lineup.</h2>
+            <span>Watch the real match-week flow before you activate anything.</span>
+            <div className={styles.tourSteps} aria-label="Captain match-week workflow">
+              <span>Ask availability</span>
+              <span>Build the courts</span>
+              <span>Share the plan</span>
+            </div>
+          </div>
+          <ProductTourVideoButton
+            videoId="captain"
+            variant="poster"
+            label="Watch the 18-second Captain match-week tour"
+            surface="upgrade"
+            source="captain-pilot"
+            className={styles.tourMedia}
+            ctaHref={hasCaptainAccess || pilotAlreadyActive ? CAPTAIN_QUICK_START_HREF : session?.user ? '#pilot-claim' : joinHref}
+            ctaLabel={hasCaptainAccess || pilotAlreadyActive ? 'Open my teams' : session?.user ? 'Activate Captain · $0 today' : 'Start 3 months free'}
+          />
         </section>
 
         {session?.user ? (
