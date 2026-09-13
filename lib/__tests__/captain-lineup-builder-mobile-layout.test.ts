@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
+const matchWeekRail = readFileSync(join(process.cwd(), 'app/components/captain-match-week-rail.tsx'), 'utf8')
 const intelligence = readFileSync(join(process.cwd(), 'app/components/captain-lineup-intelligence.tsx'), 'utf8')
 const intelligenceStyles = readFileSync(join(process.cwd(), 'app/components/captain-lineup-intelligence.module.css'), 'utf8')
 
@@ -241,6 +242,23 @@ describe('Captain lineup builder mobile layout guards', () => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
     expect(styleBlock('linkedTeamSwitcherStyle')).toContain("gridTemplateColumns: isMobile ? 'minmax(0, 1fr)'")
+  })
+
+  it('puts future match selection in the primary match-week flow', () => {
+    expect(source).toContain('const orderedScopedMatchOptions = useMemo(() =>')
+    expect(source).toContain('const matchWeekChoices = useMemo(() =>')
+    expect(source).toContain('function selectScheduledMatch(nextMatchId: string)')
+    expect(source).toContain('matchChoices={matchWeekChoices}')
+    expect(source).toContain('onMatchChange={selectScheduledMatch}')
+    expect(source).toContain('onChange={(e) => selectScheduledMatch(e.target.value)}')
+    expect(source).toContain('window.localStorage.setItem(getCaptainLineupDraftStorageKey(userId, currentBuilderDraft)')
+    expect(source).toContain("router.push(buildCaptainScopedHref('/captain/lineup-builder', {")
+    expect(matchWeekRail).toContain('aria-label="Choose match to build"')
+    expect(matchWeekRail).toContain('Change match')
+    expect(matchWeekRail).toContain('title="Earlier match"')
+    expect(matchWeekRail).toContain('title="Next match"')
+    expect(matchWeekRail).toContain("gridTemplateColumns: '44px minmax(0, 1fr) 44px'")
+    expect(matchWeekRail).toContain("minWidth: 0")
   })
 
   it('keeps phone auto-build to one primary action and puts optimizer detail behind disclosures', () => {

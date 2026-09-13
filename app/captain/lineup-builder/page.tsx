@@ -2475,6 +2475,22 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const selectedMatch = useMemo(() => {
     return scopedMatchOptions.find((match) => match.id === selectedMatchId) ?? null
   }, [scopedMatchOptions, selectedMatchId])
+  const orderedScopedMatchOptions = useMemo(() => {
+    return [...scopedMatchOptions].sort((left, right) => {
+      const leftDate = left.match_date || '9999-12-31'
+      const rightDate = right.match_date || '9999-12-31'
+      const dateOrder = leftDate.localeCompare(rightDate)
+      if (dateOrder !== 0) return dateOrder
+      return (left.match_time || '').localeCompare(right.match_time || '')
+    })
+  }, [scopedMatchOptions])
+  const matchWeekChoices = useMemo(() => orderedScopedMatchOptions.map((match) => {
+    const opponent = getOpponentForTeam(match, teamName) || [match.home_team, match.away_team].filter(Boolean).join(' vs ')
+    return {
+      id: match.id,
+      label: [formatDate(match.match_date), opponent].filter(Boolean).join(' · '),
+    }
+  }), [orderedScopedMatchOptions, teamName])
   const selectedFormatLeagueName = selectedMatch?.league_name || leagueName
   const selectedFormatFlight = selectedMatch?.flight || flight
 
@@ -3363,6 +3379,28 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     clearLocks()
     setMessage('Builder reset.')
     setError('')
+  }
+
+  function selectScheduledMatch(nextMatchId: string) {
+    if (!nextMatchId || nextMatchId === selectedMatchId) return
+    const nextMatch = orderedScopedMatchOptions.find((match) => match.id === nextMatchId)
+    if (!nextMatch) return
+
+    if (typeof window !== 'undefined') {
+      const savedDraft = { ...currentBuilderDraft, updatedAt: new Date().toISOString() }
+      window.localStorage.setItem(getCaptainLineupDraftStorageKey(userId), JSON.stringify(savedDraft))
+      window.localStorage.setItem(getCaptainLineupDraftStorageKey(userId, currentBuilderDraft), JSON.stringify(savedDraft))
+    }
+
+    router.push(buildCaptainScopedHref('/captain/lineup-builder', {
+      competitionLayer: competitionLayer || undefined,
+      team: teamName,
+      league: nextMatch.league_name || leagueName,
+      flight: nextMatch.flight || flight,
+      date: nextMatch.match_date || undefined,
+      opponent: getOpponentForTeam(nextMatch, teamName) || undefined,
+      matchId: nextMatch.id,
+    }))
   }
 
   function selectLinkedCaptainTeam(nextScopeKey: string) {
@@ -6182,6 +6220,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
            onSendTeamUpdate={() => void openFinalLineupDelivery()}
            sendTeamUpdateDisabled={!finalLineupReady || openingFinalDelivery || finalLineupSent}
            messagingComplete={lineupDeliveryReceipt?.kind === 'final'}
+           matchChoices={matchWeekChoices}
+           selectedMatchId={selectedMatchId}
+           onMatchChange={selectScheduledMatch}
          />
          {lineupDeliveryReceipt ? (
            <section style={lineupDeliveryReceiptStyle(lineupDeliveryReceipt.kind)} aria-label="Lineup saved" role="status" aria-live="polite">
@@ -7239,12 +7280,12 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                   <select
                     id="lineup-builder-match"
                     value={selectedMatchId}
-                    onChange={(e) => setSelectedMatchId(e.target.value)}
+                    onChange={(e) => selectScheduledMatch(e.target.value)}
                     style={inputStyle}
                     disabled={!teamName || scopedMatchOptions.length === 0}
                   >
                     <option value="">Select scheduled match</option>
-                    {scopedMatchOptions.map((match) => {
+                    {orderedScopedMatchOptions.map((match) => {
                       const opponent = getOpponentForTeam(match, teamName) || [match.home_team, match.away_team].filter(Boolean).join(' vs ')
                       return (
                         <option key={match.id} value={match.id}>
