@@ -66,6 +66,7 @@ import {
   average,
   winPct as getWinPct,
   formatPercent,
+  buildSmsHref,
   readLocalItem as readLocalObject,
   readLocalArray,
 } from '@/lib/captain-formatters'
@@ -593,6 +594,8 @@ type CaptainSmsHandoff = {
   state: string
   detail: string
   href: string
+  phones: string[]
+  body: string
   phoneCount: number
   targetLabel: string
   tone: 'good' | 'warn' | 'info'
@@ -1385,7 +1388,7 @@ function normalizeCaptainSmsPhone(phone: string) {
   return raw.trim().startsWith('+') ? `+${digits}` : digits
 }
 
-function buildCaptainSmsHref(phones: string[], body: string) {
+function buildCaptainSmsHref(phones: string[], body: string, userAgent?: string) {
   const uniquePhones = Array.from(new Set(
     phones
       .map((phone) => normalizeCaptainSmsPhone(phone))
@@ -1394,7 +1397,7 @@ function buildCaptainSmsHref(phones: string[], body: string) {
   if (!uniquePhones.length) return ''
 
   const bodyText = safeText(body)
-  return `sms:${uniquePhones.join(',')}${bodyText ? `?&body=${encodeURIComponent(bodyText)}` : ''}`
+  return buildSmsHref(uniquePhones, bodyText, userAgent)
 }
 
 function buildCaptainMapsHref(location: string) {
@@ -5148,6 +5151,8 @@ function CaptainHubContent() {
         ? `Opens ${targetLabel} in your phone messages with the note prefilled.`
         : options.emptyDetail || 'No saved phone numbers match this send yet.',
       href,
+      phones: uniqueTargetContacts.map((contact) => contact.phone),
+      body: options.body,
       phoneCount: uniqueTargetContacts.length,
       targetLabel,
       tone: href ? 'good' : 'info',
@@ -20118,7 +20123,15 @@ function SmsSmallLink({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={(event) => {
-        if (disabled) event.preventDefault()
+        if (disabled) {
+          event.preventDefault()
+          return
+        }
+
+        // Build the final SMS URL inside the physical tap so iOS receives its
+        // required `&body=` separator without introducing a hydration mismatch.
+        event.preventDefault()
+        window.location.href = buildCaptainSmsHref(handoff.phones, handoff.body, navigator.userAgent)
       }}
       style={{
         ...secondaryButtonSmall,

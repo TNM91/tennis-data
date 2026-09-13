@@ -24,4 +24,12 @@ describe('Captain scorecard submission resilience', () => {
     expect(page).not.toContain('The scorecard could not be saved. Check your connection and try again.')
     expect(page).toContain('Your scorecard is saved. TiQ ratings are refreshing in the background.')
   })
+
+  it('opens Messages directly without waiting on a native share promise', () => {
+    const page = source('app/captain/record-result/page.tsx')
+
+    expect(page).toContain('window.location.href = buildSmsHref([], message, navigator.userAgent)')
+    expect(page).not.toContain('await navigator.share')
+    expect(page).toContain('Opening Messages with the final result ready to send.')
+  })
 })

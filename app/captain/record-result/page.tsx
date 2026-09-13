@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import type { CaptainScorecardSavedRecap } from '@/lib/captain-scorecard'
-import { normalizeUstaRosterTeamName } from '@/lib/captain-formatters'
+import { buildSmsHref, normalizeUstaRosterTeamName } from '@/lib/captain-formatters'
 import {
   captainScorecardPhotoPrefillStorageKey,
   isCaptainScorecardPhotoPrefill,
@@ -481,23 +481,14 @@ function RecordResultContent() {
     }))
   }
 
-  async function textFinalResult() {
+  function textFinalResult() {
     if (!savedRecap) return
     const teamChatUrl = new URL(updatedTeamRoomHref, window.location.origin).toString()
     const scoreLine = `${teamName || 'Your team'} ${savedRecap.teamCourts}–${savedRecap.opponentCourts} ${opponentTeam || 'Opponent'}`
     const courtLines = savedRecap.lines.map((line) => `${line.label}: ${line.outcome === 'team' ? 'W' : 'L'} ${line.score}`).join('\n')
     const message = ['Final result', scoreLine, matchDate ? `Match date: ${matchDate}` : '', courtLines, `Team Chat: ${teamChatUrl}`].filter(Boolean).join('\n')
-    try {
-      if (typeof navigator.share === 'function') {
-        await navigator.share({ title: `${teamName || 'Team'} final result`, text: message, url: teamChatUrl })
-        setResultShareNotice('Choose Messages to text the final result to any player or captain.')
-        return
-      }
-      window.location.href = `sms:?&body=${encodeURIComponent(message)}`
-    } catch (shareError) {
-      if (shareError instanceof DOMException && shareError.name === 'AbortError') return
-      window.location.href = `sms:?&body=${encodeURIComponent(message)}`
-    }
+    setResultShareNotice('Opening Messages with the final result ready to send.')
+    window.location.href = buildSmsHref([], message, navigator.userAgent)
   }
 
   async function saveResult() {
@@ -699,7 +690,7 @@ function RecordResultContent() {
 
           <div className={styles.recapActions}>
             <Link className={styles.saveButton} href={updatedTeamRoomHref}>{teamAnnouncementUpdated ? 'View team update' : 'Open team recap'}</Link>
-            <button className={styles.addCourt} type="button" onClick={() => void textFinalResult()}>Text final result</button>
+            <button className={styles.addCourt} type="button" onClick={textFinalResult}>Text final result</button>
             <button className={styles.addCourt} type="button" onClick={() => {
               setSavedRecap(null)
               setResultSaveMode('')
