@@ -23,8 +23,11 @@ type CourtDraft = {
   opponentPlayers: string[]
   outcome: 'team' | 'opponent'
   score: string
-  resultType: 'played' | 'default'
+  resultType: 'played' | 'default' | 'retired'
   defaultKnownBeforeMatch: boolean | null
+  retiredPlayer: string
+  retirementReason: 'injury' | 'illness' | 'other' | null
+  retirementKnownBeforeMatch: boolean | null
 }
 
 type StoredScorecardDraft = {
@@ -68,6 +71,9 @@ function createCourt(courtNumber: number): CourtDraft {
     score: '',
     resultType: 'played',
     defaultKnownBeforeMatch: null,
+    retiredPlayer: '',
+    retirementReason: null,
+    retirementKnownBeforeMatch: null,
   }
 }
 
@@ -75,12 +81,25 @@ function normalizeName(value: string | null | undefined) {
   return (value || '').trim().replace(/\s+/g, ' ')
 }
 
+function scoreHasRetirementMarker(value: string) {
+  return /(?:^|\s)RET(?:IRED)?\.?(?:\s|$)/i.test(value)
+}
+
+function stripRetirementMarker(value: string) {
+  return value.replace(/(?:^|\s)RET(?:IRED)?\.?(?:\s|$)/gi, ' ').replace(/\s+/g, ' ').trim()
+}
+
 function isCourtEntryComplete(court: CourtDraft) {
   if (court.resultType === 'default') return court.defaultKnownBeforeMatch !== null
   const playerCount = court.matchType === 'doubles' ? 2 : 1
-  return court.teamPlayers.slice(0, playerCount).every((name) => Boolean(normalizeName(name)))
+  const baseComplete = court.teamPlayers.slice(0, playerCount).every((name) => Boolean(normalizeName(name)))
     && court.opponentPlayers.slice(0, playerCount).every((name) => Boolean(normalizeName(name)))
     && Boolean(court.score.trim())
+  if (!baseComplete || court.resultType !== 'retired') return baseComplete
+  const retiredSidePlayers = court.outcome === 'team' ? court.opponentPlayers : court.teamPlayers
+  return retiredSidePlayers.map(normalizeName).includes(normalizeName(court.retiredPlayer))
+    && court.retirementReason !== null
+    && court.retirementKnownBeforeMatch !== null
 }
 
 function buildScorecardDraftStorageKey(input: {
@@ -116,7 +135,7 @@ function isStoredScorecardDraft(value: unknown): value is StoredScorecardDraft {
       && Array.isArray(court.opponentPlayers)
       && (court.outcome === 'team' || court.outcome === 'opponent')
       && typeof court.score === 'string'
-      && (!court.resultType || court.resultType === 'played' || court.resultType === 'default')
+      && (!court.resultType || court.resultType === 'played' || court.resultType === 'default' || court.resultType === 'retired')
     ))
 }
 
@@ -242,8 +261,11 @@ function RecordResultContent() {
       setFacility(draft.facility)
       setCourts(draft.courts.map((court) => ({
         ...court,
-        resultType: court.resultType === 'default' ? 'default' : 'played',
+        resultType: court.resultType === 'default' ? 'default' : court.resultType === 'retired' ? 'retired' : 'played',
         defaultKnownBeforeMatch: court.resultType === 'default' ? court.defaultKnownBeforeMatch ?? null : null,
+        retiredPlayer: court.resultType === 'retired' ? court.retiredPlayer || '' : '',
+        retirementReason: court.resultType === 'retired' ? court.retirementReason ?? null : null,
+        retirementKnownBeforeMatch: court.resultType === 'retired' ? court.retirementKnownBeforeMatch ?? null : null,
       })))
       lineupPrefillKey.current = [teamName, leagueName, flight, draft.matchDate, draft.opponentTeam].join('::').toLowerCase()
       setNotice('Your in-progress scorecard was restored on this device.')
@@ -263,6 +285,7 @@ function RecordResultContent() {
       || court.opponentPlayers.some((name) => Boolean(normalizeName(name)))
       || Boolean(court.score.trim())
       || court.resultType === 'default'
+      || court.resultType === 'retired'
     ))
     try {
       if (!hasProgress) {
@@ -325,17 +348,23 @@ function RecordResultContent() {
       if (!raw) return
       const prefill = JSON.parse(raw) as unknown
       if (!isCaptainScorecardPhotoPrefill(prefill) || normalizeName(prefill.teamName).toLowerCase() !== normalizeName(teamName).toLowerCase()) return
-      const preparedCourts = prefill.courts.map((court, index) => ({
-        ...createCourt(court.courtNumber || index + 1),
-        courtNumber: court.courtNumber || index + 1,
-        matchType: court.matchType,
-        teamPlayers: court.teamPlayers,
-        opponentPlayers: court.opponentPlayers,
-        outcome: court.outcome,
-        score: court.score,
-        resultType: 'played' as const,
-        defaultKnownBeforeMatch: null,
-      }))
+      const preparedCourts = prefill.courts.map((court, index) => {
+        const retirementDetected = scoreHasRetirementMarker(court.score)
+        return {
+          ...createCourt(court.courtNumber || index + 1),
+          courtNumber: court.courtNumber || index + 1,
+          matchType: court.matchType,
+          teamPlayers: court.teamPlayers,
+          opponentPlayers: court.opponentPlayers,
+          outcome: court.outcome,
+          score: retirementDetected ? stripRetirementMarker(court.score) : court.score,
+          resultType: retirementDetected ? 'retired' as const : 'played' as const,
+          defaultKnownBeforeMatch: null,
+          retiredPlayer: '',
+          retirementReason: null,
+          retirementKnownBeforeMatch: null,
+        }
+      })
       if (!preparedCourts.length) return
       scorecardPhotoPrefillKey.current = scorecardPhotoDraftId
       scorecardPhotoPrefillActive.current = true
@@ -389,6 +418,9 @@ function RecordResultContent() {
             opponentPlayers: singles ? [''] : ['', ''],
             resultType: 'played' as const,
             defaultKnownBeforeMatch: null,
+            retiredPlayer: '',
+            retirementReason: null,
+            retirementKnownBeforeMatch: null,
           }
         })
         lineupPrefillKey.current = prefillKey
@@ -492,7 +524,7 @@ function RecordResultContent() {
           flight,
           dataAssistBatchId,
           dataAssistDraftId,
-          lines: courts.map(({ courtNumber, label, matchType, teamPlayers, opponentPlayers, outcome, score, resultType, defaultKnownBeforeMatch }) => ({
+          lines: courts.map(({ courtNumber, label, matchType, teamPlayers, opponentPlayers, outcome, score, resultType, defaultKnownBeforeMatch, retiredPlayer, retirementReason, retirementKnownBeforeMatch }) => ({
             courtNumber,
             label,
             matchType,
@@ -502,6 +534,9 @@ function RecordResultContent() {
             score,
             resultType,
             defaultKnownBeforeMatch,
+            retiredPlayer,
+            retirementReason,
+            retirementKnownBeforeMatch,
           })),
         }),
       })
@@ -541,6 +576,7 @@ function RecordResultContent() {
     const outcomeLabel = savedRecap.outcome === 'won' ? 'Match won.' : savedRecap.outcome === 'lost' ? 'Match recorded.' : 'Match split.'
     const ratingChanges = [...savedRecap.ratingChanges].sort((left, right) => Number(right.side === 'team') - Number(left.side === 'team'))
     const defaultedCourtCount = savedRecap.lines.filter((line) => line.resultType === 'default').length
+    const retiredCourtCount = savedRecap.lines.filter((line) => line.resultType === 'retired').length
     return (
       <main className={styles.page}>
         <section className={styles.recapShell} aria-labelledby="scorecard-recap-title">
@@ -599,6 +635,8 @@ function RecordResultContent() {
                   <div><strong>{line.label}</strong><span>{line.outcome === 'team' ? 'Won' : 'Lost'} · {line.score}</span></div>
                   <p>{line.resultType === 'default'
                     ? `${line.outcome === 'team' ? opponentTeam || 'Opponent' : teamName || 'Your team'} defaulted${line.defaultKnownBeforeMatch === true ? ' · known before match day' : line.defaultKnownBeforeMatch === false ? ' · learned on match day' : ''}`
+                    : line.resultType === 'retired'
+                      ? `${line.retiredPlayer || (line.outcome === 'team' ? opponentTeam || 'Opponent player' : teamName || 'Your player')} retired · ${line.retirementReason || 'issue'} · ${line.retirementKnownBeforeMatch ? 'known before first serve' : 'occurred during play'}`
                     : <>{line.teamPlayers.join(' / ')} <small>vs</small> {line.opponentPlayers.join(' / ')}</>}</p>
                 </article>
               ))}
@@ -622,8 +660,8 @@ function RecordResultContent() {
                   </article>
                 ))}
               </div>
-            ) : <p className={styles.recapEmpty}>{defaultedCourtCount
-              ? `${defaultedCourtCount} defaulted court${defaultedCourtCount === 1 ? '' : 's'} counted toward the team result with no player rating movement.`
+            ) : <p className={styles.recapEmpty}>{defaultedCourtCount || retiredCourtCount
+              ? `${defaultedCourtCount ? `${defaultedCourtCount} defaulted court${defaultedCourtCount === 1 ? '' : 's'}` : ''}${defaultedCourtCount && retiredCourtCount ? ' and ' : ''}${retiredCourtCount ? `${retiredCourtCount} retired court${retiredCourtCount === 1 ? '' : 's'}` : ''} counted toward the team result with no player rating movement.`
               : 'TiQ is refreshing the player read. This verified scorecard is already saved.'}</p>}
           </section>
 
@@ -716,6 +754,7 @@ function RecordResultContent() {
             const entryComplete = isCourtEntryComplete(court)
             const teamPlayers = court.teamPlayers.slice(0, playerCount).map(normalizeName).filter(Boolean)
             const opponentPlayers = court.opponentPlayers.slice(0, playerCount).map(normalizeName).filter(Boolean)
+            const retiredSidePlayers = court.outcome === 'team' ? opponentPlayers : teamPlayers
             return (
               <article className={styles.courtCard} key={court.id} id={`scorecard-court-${court.id}`} data-open={isOpen}>
                 <div className={styles.courtTitle}>
@@ -739,6 +778,8 @@ function RecordResultContent() {
                 </div>
                 {!isOpen ? <p className={styles.courtSummary}>{court.resultType === 'default'
                   ? `${court.outcome === 'team' ? opponentTeam || 'Opponent' : teamName || 'Your team'} defaulted${court.defaultKnownBeforeMatch === true ? ' · known before match' : court.defaultKnownBeforeMatch === false ? ' · match-day update' : ''}`
+                  : court.resultType === 'retired'
+                    ? `${court.outcome === 'team' ? 'Won' : 'Lost'} when ${court.retiredPlayer || 'a player'} retired${court.score ? ` · ${court.score}` : ''}`
                   : <>{teamPlayers.length ? teamPlayers.join(' / ') : 'Add your player(s)'} <small>vs</small> {opponentPlayers.length ? opponentPlayers.join(' / ') : 'add opponent(s)'}{court.score ? ` · ${court.score}` : ''}</>}</p> : null}
                 {isOpen ? (
                   <div className={styles.courtEntry} id={`scorecard-court-entry-${court.id}`}>
@@ -749,11 +790,13 @@ function RecordResultContent() {
                     <fieldset className={styles.resultTypeControl}>
                       <legend>How was this court decided?</legend>
                       <div className={styles.outcomeButtons}>
-                        <button type="button" data-active={court.resultType === 'played'} onClick={() => updateCourt(court.id, { resultType: 'played', defaultKnownBeforeMatch: null })}>Played</button>
-                        <button type="button" data-active={court.resultType === 'default'} onClick={() => updateCourt(court.id, { resultType: 'default', score: '', defaultKnownBeforeMatch: null })}>Defaulted</button>
+                        <button type="button" data-active={court.resultType === 'played'} onClick={() => updateCourt(court.id, { resultType: 'played', defaultKnownBeforeMatch: null, retiredPlayer: '', retirementReason: null, retirementKnownBeforeMatch: null })}>Played</button>
+                        <button type="button" data-active={court.resultType === 'retired'} onClick={() => updateCourt(court.id, { resultType: 'retired', defaultKnownBeforeMatch: null, retiredPlayer: '', retirementReason: null, retirementKnownBeforeMatch: null })}>Retired</button>
+                        <button type="button" data-active={court.resultType === 'default'} onClick={() => updateCourt(court.id, { resultType: 'default', score: '', defaultKnownBeforeMatch: null, retiredPlayer: '', retirementReason: null, retirementKnownBeforeMatch: null })}>Defaulted</button>
                       </div>
+                      <p className={styles.resultTypeHelp}>Defaulted means play never began. Retired means the court started and stopped early.</p>
                     </fieldset>
-                    {court.resultType === 'played' ? <div className={styles.playerColumns}>
+                    {court.resultType !== 'default' ? <div className={styles.playerColumns}>
                       <div>
                         <span className={styles.sideLabel}>Your team</span>
                         {Array.from({ length: playerCount }, (_, playerIndex) => (
@@ -814,16 +857,43 @@ function RecordResultContent() {
                         <p>TiQ counts the team court, but does not treat a default as a 6–0, 6–0 or move any player rating.</p>
                       </div>
                     )}
-                    {court.resultType === 'played' ? <div className={styles.resultControls}>
-                      <label className={styles.scoreInput}><span>Select or enter final score</span><input list="captain-score-options" value={court.score} onChange={(event) => updateCourt(court.id, { score: event.target.value })} placeholder="6-4 3-6 10-8" /></label>
+                    {court.resultType !== 'default' ? <div className={styles.resultControls}>
+                      <label className={styles.scoreInput}><span>{court.resultType === 'retired' ? 'Score when play stopped' : 'Select or enter final score'}</span><input list="captain-score-options" value={court.score} onChange={(event) => updateCourt(court.id, { score: event.target.value })} placeholder={court.resultType === 'retired' ? '6-4 2-1' : '6-4 3-6 10-8'} /></label>
                       <fieldset>
                         <legend>Winner</legend>
                         <div className={styles.outcomeButtons}>
-                          <button type="button" data-active={court.outcome === 'team'} onClick={() => updateCourt(court.id, { outcome: 'team' })}>We won</button>
-                          <button type="button" data-active={court.outcome === 'opponent'} onClick={() => updateCourt(court.id, { outcome: 'opponent' })}>They won</button>
+                          <button type="button" data-active={court.outcome === 'team'} onClick={() => updateCourt(court.id, { outcome: 'team', ...(court.resultType === 'retired' ? { retiredPlayer: '' } : {}) })}>We won</button>
+                          <button type="button" data-active={court.outcome === 'opponent'} onClick={() => updateCourt(court.id, { outcome: 'opponent', ...(court.resultType === 'retired' ? { retiredPlayer: '' } : {}) })}>They won</button>
                         </div>
                       </fieldset>
                     </div> : null}
+                    {court.resultType === 'retired' ? (
+                      <div className={styles.defaultEntry} aria-label={`Court ${court.courtNumber} retirement details`}>
+                        <label className={styles.compactLabel}>
+                          <span>Who retired?</span>
+                          <select value={court.retiredPlayer} onChange={(event) => updateCourt(court.id, { retiredPlayer: event.target.value })}>
+                            <option value="">Select player</option>
+                            {retiredSidePlayers.map((name) => <option value={name} key={name}>{name}</option>)}
+                          </select>
+                        </label>
+                        <fieldset>
+                          <legend>Why did play stop?</legend>
+                          <div className={styles.outcomeButtons}>
+                            <button type="button" data-active={court.retirementReason === 'injury'} onClick={() => updateCourt(court.id, { retirementReason: 'injury' })}>Injury</button>
+                            <button type="button" data-active={court.retirementReason === 'illness'} onClick={() => updateCourt(court.id, { retirementReason: 'illness' })}>Illness</button>
+                            <button type="button" data-active={court.retirementReason === 'other'} onClick={() => updateCourt(court.id, { retirementReason: 'other' })}>Other</button>
+                          </div>
+                        </fieldset>
+                        <fieldset>
+                          <legend>When did the issue become known?</legend>
+                          <div className={styles.outcomeButtons}>
+                            <button type="button" data-active={court.retirementKnownBeforeMatch === true} onClick={() => updateCourt(court.id, { retirementKnownBeforeMatch: true })}>Before first serve</button>
+                            <button type="button" data-active={court.retirementKnownBeforeMatch === false} onClick={() => updateCourt(court.id, { retirementKnownBeforeMatch: false })}>During play</button>
+                          </div>
+                        </fieldset>
+                        <p>TiQ counts the court result and keeps the partial score, but does not move player ratings or grade this court as a normal prediction.</p>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </article>

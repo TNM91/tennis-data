@@ -98,6 +98,55 @@ describe('captain scorecard capture', () => {
     })
   })
 
+  it('records an in-match retirement with the partial score and no invented games', () => {
+    const retired = {
+      ...input,
+      lines: [{
+        ...input.lines[0],
+        outcome: 'team' as const,
+        score: '6-4 2-1',
+        resultType: 'retired' as const,
+        retiredPlayer: 'Player One',
+        retirementReason: 'injury' as const,
+        retirementKnownBeforeMatch: false,
+      }],
+    }
+    expect(validateCaptainScorecardInput(retired)).toBeNull()
+    expect(buildCaptainScorecardObservations(retired)[0].scoreText).toBe('6-4 2-1 RET')
+    expect(buildCaptainScorecardImportRow(retired).lines[0]).toMatchObject({
+      winnerSide: 'A',
+      score: '6-4 2-1 RET',
+      sideAPlayers: ['Nathan Meinert', 'Michael Ho'],
+      sideBPlayers: ['Player One', 'Player Two'],
+    })
+    expect(buildCaptainScorecardRecap(retired).lines[0]).toMatchObject({
+      resultType: 'retired',
+      retiredPlayer: 'Player One',
+      retirementReason: 'injury',
+      retirementKnownBeforeMatch: false,
+      score: '6-4 2-1',
+    })
+  })
+
+  it('requires the retiring player to come from the side that lost the court', () => {
+    const invalidRetirement = {
+      ...input,
+      lines: [{
+        ...input.lines[0],
+        outcome: 'team' as const,
+        resultType: 'retired' as const,
+        retiredPlayer: 'Nathan Meinert',
+        retirementReason: 'injury' as const,
+        retirementKnownBeforeMatch: false,
+      }],
+    }
+    expect(validateCaptainScorecardInput(invalidRetirement)).toBe('Choose who retired on court 1.')
+    expect(validateCaptainScorecardInput({
+      ...invalidRetirement,
+      lines: [{ ...invalidRetirement.lines[0], score: 'RET' }],
+    })).toBe('Add the score when play stopped on court 1.')
+  })
+
   it('requires both photo evidence references when a captain uses a scorecard read', () => {
     expect(validateCaptainScorecardInput({ ...input, dataAssistBatchId: 'batch-1' }))
       .toBe('The scorecard photo reference is incomplete. Reopen the photo read and try again.')

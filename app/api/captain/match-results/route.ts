@@ -96,9 +96,16 @@ function parseInput(value: unknown): CaptainScorecardInput | null {
       opponentPlayers: Array.isArray(item.opponentPlayers) ? item.opponentPlayers.filter((name): name is string => typeof name === 'string') : [],
       outcome,
       score: typeof item.score === 'string' ? item.score : '',
-      resultType: item.resultType === 'default' ? 'default' as const : 'played' as const,
+      resultType: item.resultType === 'default' ? 'default' as const : item.resultType === 'retired' ? 'retired' as const : 'played' as const,
       defaultKnownBeforeMatch: item.resultType === 'default' && typeof item.defaultKnownBeforeMatch === 'boolean'
         ? item.defaultKnownBeforeMatch
+        : null,
+      retiredPlayer: item.resultType === 'retired' && typeof item.retiredPlayer === 'string' ? item.retiredPlayer : null,
+      retirementReason: item.resultType === 'retired' && (item.retirementReason === 'injury' || item.retirementReason === 'illness' || item.retirementReason === 'other')
+        ? item.retirementReason
+        : null,
+      retirementKnownBeforeMatch: item.resultType === 'retired' && typeof item.retirementKnownBeforeMatch === 'boolean'
+        ? item.retirementKnownBeforeMatch
         : null,
     }]
   })
@@ -308,21 +315,21 @@ export async function POST(request: Request) {
   if (savedLinesError) return Response.json({ ok: false, message: 'The saved court results could not be confirmed.' }, { status: 500 })
   const lineIdByExternalId = new Map(((savedLines || []) as ExistingMatch[]).map((line) => [line.external_match_id || '', line.id]))
   const savedLineIds = [...lineIdByExternalId.values()]
-  const defaultedLineIds = input.lines.flatMap((line) => {
+  const nonRatingLineIds = input.lines.flatMap((line) => {
     const lineId = lineIdByExternalId.get(`${scorecard.externalMatchId}::line:${line.courtNumber}`)
-    return lineId && line.resultType === 'default' ? [lineId] : []
+    return lineId && (line.resultType === 'default' || line.resultType === 'retired') ? [lineId] : []
   })
-  const playedLineIds = savedLineIds.filter((lineId) => !defaultedLineIds.includes(lineId))
+  const completedLineIds = savedLineIds.filter((lineId) => !nonRatingLineIds.includes(lineId))
   const eligibilityUpdates = await Promise.all([
-    defaultedLineIds.length
-      ? service.from('matches').update({ rating_eligible: false }).in('id', defaultedLineIds)
+    nonRatingLineIds.length
+      ? service.from('matches').update({ rating_eligible: false }).in('id', nonRatingLineIds)
       : Promise.resolve({ error: null }),
-    playedLineIds.length
-      ? service.from('matches').update({ rating_eligible: true }).in('id', playedLineIds)
+    completedLineIds.length
+      ? service.from('matches').update({ rating_eligible: true }).in('id', completedLineIds)
       : Promise.resolve({ error: null }),
   ])
   if (eligibilityUpdates.some((result) => result.error)) {
-    return Response.json({ ok: false, message: 'The defaulted courts could not be protected from rating movement.' }, { status: 500 })
+    return Response.json({ ok: false, message: 'The defaulted or retired courts could not be protected from rating movement.' }, { status: 500 })
   }
   const matchTypeById = new Map(input.lines.flatMap((line) => {
     const lineId = lineIdByExternalId.get(`${scorecard.externalMatchId}::line:${line.courtNumber}`)
@@ -410,6 +417,7 @@ export async function POST(request: Request) {
     : { data: [] }
   const afterRatings = new Map(((afterRatingData || []) as RatingPlayer[]).map((player) => [player.id, player]))
   const ratingChanges = [...new Map(savedParticipants.map((participant) => [participant.player_id, participant])).values()]
+    .filter((participant) => !nonRatingLineIds.includes(participant.match_id))
     .map((participant) => {
       const matchType = matchTypeById.get(participant.match_id) || 'doubles'
       const before = matchRating(beforeRatings.get(participant.player_id), matchType)

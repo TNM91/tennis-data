@@ -42,4 +42,12 @@ describe('captain lineup calibration workflow', () => {
     expect(resultRoute).toContain("update({ rating_eligible: false })")
     expect(resultPage).toContain('When was the default known?')
   })
+
+  it('keeps in-match retirements separate from completed matches and pre-play defaults', () => {
+    expect(resultPage).toContain('Retired')
+    expect(resultPage).toContain('Score when play stopped')
+    expect(resultPage).toContain('Who retired?')
+    expect(resultPage).toContain("resultType: retirementDetected ? 'retired' as const : 'played' as const")
+    expect(resultRoute).toContain("line.resultType === 'default' || line.resultType === 'retired'")
+  })
 })
