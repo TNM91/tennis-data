@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { ScorecardImportRow } from './ingestion/importEngine'
 import type { DataAssistScorecardParsedDraft } from './data-assist-ocr'
+import type { CaptainLineupCalibration } from './captain-lineup-calibration'
 import { canonicalTennisRecordFingerprint, normalizeTennisIdentity } from './tennisrecord/reconcile'
 
 export type CaptainScorecardLineInput = {
@@ -61,6 +62,7 @@ export type CaptainScorecardRatingChange = {
 export type CaptainScorecardSavedRecap = CaptainScorecardRecap & {
   ratingChanges: CaptainScorecardRatingChange[]
   sourceConflictCount: number
+  calibration?: CaptainLineupCalibration | null
 }
 
 export type CaptainScorecardSaveTarget = {

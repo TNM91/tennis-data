@@ -118,6 +118,10 @@ function formatRating(value: number | null) {
   return value === null ? 'TiQ pending' : value.toFixed(2)
 }
 
+function formatPercent(value: number | null) {
+  return value === null ? '—' : `${Math.round(value * 100)}%`
+}
+
 function RecordResultContent() {
   const searchParams = useSearchParams()
   const { authResolved, session } = useAuth()
@@ -536,6 +540,35 @@ function RecordResultContent() {
             <em>Final courts</em>
             <div><span>{opponentTeam || 'Opponent'}</span><strong>{savedRecap.opponentCourts}</strong></div>
           </section>
+
+          {savedRecap.calibration ? (
+            <section className={styles.calibration} aria-labelledby="prediction-recap-title">
+              <div className={styles.recapSectionHeading}>
+                <div><p className={styles.eyebrow}>Prediction check</p><h2 id="prediction-recap-title">{savedRecap.calibration.headline}</h2></div>
+                <span>{savedRecap.calibration.teamPredictionCorrect === true ? 'Called it' : savedRecap.calibration.teamPredictionCorrect === false ? 'Learning' : 'Evidence added'}</span>
+              </div>
+              <p className={styles.calibrationSummary}>{savedRecap.calibration.summary}</p>
+              <div className={styles.calibrationScores}>
+                <div><small>Projected</small><strong>{savedRecap.calibration.projectedScoreFor ?? '—'}–{savedRecap.calibration.projectedScoreAgainst ?? '—'}</strong><span>{formatPercent(savedRecap.calibration.projectedTeamWinPct)} match odds</span></div>
+                <i aria-hidden="true">→</i>
+                <div><small>Final</small><strong>{savedRecap.calibration.actualScoreFor}–{savedRecap.calibration.actualScoreAgainst}</strong><span>{formatPercent(savedRecap.calibration.courtPredictionAccuracy)} courts called</span></div>
+              </div>
+              <div className={styles.calibrationCourtStrip} aria-label="Court prediction results">
+                {savedRecap.calibration.courts.map((court) => <span key={court.label} data-result={court.predictionCorrect === null ? 'open' : court.predictionCorrect ? 'correct' : 'miss'} title={`${court.label}: ${court.predictionCorrect === null ? 'not scored' : court.predictionCorrect ? 'prediction matched' : 'prediction missed'}`} />)}
+              </div>
+              <details className={styles.calibrationLearning}>
+                <summary>What TiQ learned</summary>
+                <div>{savedRecap.calibration.signals.map((signal) => <p key={signal.id} data-direction={signal.direction}><strong>{signal.label}</strong><span>{signal.detail}</span></p>)}</div>
+              </details>
+              <Link className={styles.calibrationLink} href={teamName ? `/captain/calibration?team=${encodeURIComponent(teamName)}` : '/captain/calibration'}>View prediction report</Link>
+            </section>
+          ) : (
+            <section className={styles.calibrationEmpty}>
+              <div><p className={styles.eyebrow}>Prediction check</p><strong>No saved pre-match prediction was found.</strong></div>
+              <p>Next time, save a lineup version before the match. TiQ will automatically connect it to this verified scorecard.</p>
+              <Link href={teamName ? `/captain/lineup-builder?team=${encodeURIComponent(teamName)}` : '/captain/lineup-builder'}>Build next lineup</Link>
+            </section>
+          )}
 
           <section className={styles.recapSection}>
             <div className={styles.recapSectionHeading}>

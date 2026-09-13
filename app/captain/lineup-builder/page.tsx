@@ -2921,6 +2921,18 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName]
   )
 
+  const calibrationHref = useMemo(
+    () => buildCaptainScopedHref('/captain/calibration', {
+      competitionLayer,
+      league: leagueName,
+      flight,
+      team: teamName,
+      date: matchDate,
+      opponent: opponentTeam,
+    }),
+    [competitionLayer, flight, leagueName, matchDate, opponentTeam, teamName]
+  )
+
   const teamBriefHref = useMemo(
     () => buildCaptainScopedHref('/captain/team-brief', {
       competitionLayer,
@@ -6294,6 +6306,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                     {saveAndAskLabel}
                   </PrimaryBtn>
                   <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare versions</Link>
+                  <Link href={calibrationHref} style={ghostButton}>Prediction report</Link>
                   <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
                 </div>
               </details>
@@ -6307,6 +6320,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 {creatingCoCaptainReview ? 'Preparing review…' : 'Ask co-captain'}
               </GhostBtn>
               <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare versions</Link>
+              <Link href={calibrationHref} style={ghostButton}>Prediction report</Link>
               <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
                 {saveAndAskLabel}
               </PrimaryBtn>
