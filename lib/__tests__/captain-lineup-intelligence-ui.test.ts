@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const component = readFileSync('app/components/captain-lineup-intelligence.tsx', 'utf8')
+const componentStyles = readFileSync('app/components/captain-lineup-intelligence.module.css', 'utf8')
 const page = readFileSync('app/captain/lineup-builder/page.tsx', 'utf8')
 const route = readFileSync('app/api/captain/lineup-builder/route.ts', 'utf8')
 
@@ -87,6 +88,9 @@ describe('captain lineup intelligence UI', () => {
     expect(component).toContain("confidence === 'Medium' ? 0.06 : 0.1")
     expect(component).toContain('Resilient lineup active')
     expect(page).toContain('movedFromLikely: slotPlayerSignature(slot.players)')
+    expect(componentStyles).toContain('grid-template-columns: minmax(58px, 0.78fr) minmax(82px, 1.08fr) minmax(96px, 1.24fr)')
+    expect(componentStyles).toContain(':global(#main-content) .scenarioTab')
+    expect(componentStyles).toContain('hyphens: none')
   })
 
   it('ranks safe roster pairs and places one without disrupting other courts', () => {

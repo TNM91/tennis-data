@@ -242,7 +242,7 @@
 
 .scenarioTabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(58px, 0.78fr) minmax(82px, 1.08fr) minmax(96px, 1.24fr);
   gap: 6px;
 }
 
@@ -258,6 +258,12 @@
   font-size: 0.66rem;
   font-weight: 900;
   cursor: pointer;
+}
+
+:global(#main-content) .scenarioTab {
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 
 .scenarioTabActive {
