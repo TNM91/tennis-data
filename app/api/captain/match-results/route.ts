@@ -12,9 +12,13 @@ import {
   type CaptainScorecardSavedRecap,
 } from '@/lib/captain-scorecard'
 import { getCaptainAvailabilityServiceClient } from '@/lib/captain-availability-request-server'
+import {
+  buildCaptainLineupCalibration,
+  type CaptainPredictionSnapshot,
+} from '@/lib/captain-lineup-calibration'
 import { runScorecardImport } from '@/lib/ingestion/runImport'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
-import { sourcePriority } from '@/lib/tennisrecord/reconcile'
+import { normalizeTennisIdentity, sourcePriority } from '@/lib/tennisrecord/reconcile'
 import { canManageTeamRoom, normalizeTeamRoomKey } from '@/lib/team-room'
 import { announceTeamRoomScorecardResult } from '@/lib/team-room-result-announcement-server'
 
@@ -59,6 +63,14 @@ type DataAssistReferenceRow = {
   submitted_by_user_id: string | null
 }
 
+type PredictionSnapshotRow = CaptainPredictionSnapshot & {
+  team_name: string | null
+  opponent_team: string | null
+  league_name: string | null
+  flight: string | null
+  match_date: string | null
+}
+
 function matchRating(player: RatingPlayer | undefined, matchType: 'singles' | 'doubles') {
   const value = matchType === 'singles' ? player?.singles_dynamic_rating : player?.doubles_dynamic_rating
   return typeof value === 'number' && Number.isFinite(value) ? Math.round(value * 1000) / 1000 : null
@@ -84,6 +96,10 @@ function parseInput(value: unknown): CaptainScorecardInput | null {
       opponentPlayers: Array.isArray(item.opponentPlayers) ? item.opponentPlayers.filter((name): name is string => typeof name === 'string') : [],
       outcome,
       score: typeof item.score === 'string' ? item.score : '',
+      resultType: item.resultType === 'default' ? 'default' as const : 'played' as const,
+      defaultKnownBeforeMatch: item.resultType === 'default' && typeof item.defaultKnownBeforeMatch === 'boolean'
+        ? item.defaultKnownBeforeMatch
+        : null,
     }]
   })
   return {
@@ -292,6 +308,22 @@ export async function POST(request: Request) {
   if (savedLinesError) return Response.json({ ok: false, message: 'The saved court results could not be confirmed.' }, { status: 500 })
   const lineIdByExternalId = new Map(((savedLines || []) as ExistingMatch[]).map((line) => [line.external_match_id || '', line.id]))
   const savedLineIds = [...lineIdByExternalId.values()]
+  const defaultedLineIds = input.lines.flatMap((line) => {
+    const lineId = lineIdByExternalId.get(`${scorecard.externalMatchId}::line:${line.courtNumber}`)
+    return lineId && line.resultType === 'default' ? [lineId] : []
+  })
+  const playedLineIds = savedLineIds.filter((lineId) => !defaultedLineIds.includes(lineId))
+  const eligibilityUpdates = await Promise.all([
+    defaultedLineIds.length
+      ? service.from('matches').update({ rating_eligible: false }).in('id', defaultedLineIds)
+      : Promise.resolve({ error: null }),
+    playedLineIds.length
+      ? service.from('matches').update({ rating_eligible: true }).in('id', playedLineIds)
+      : Promise.resolve({ error: null }),
+  ])
+  if (eligibilityUpdates.some((result) => result.error)) {
+    return Response.json({ ok: false, message: 'The defaulted courts could not be protected from rating movement.' }, { status: 500 })
+  }
   const matchTypeById = new Map(input.lines.flatMap((line) => {
     const lineId = lineIdByExternalId.get(`${scorecard.externalMatchId}::line:${line.courtNumber}`)
     return lineId ? [[lineId, line.matchType] as const] : []
@@ -393,10 +425,66 @@ export async function POST(request: Request) {
       }
     })
   const sourceConflictCount = canonicalRows.reduce((total, row) => total + row.conflict_count, 0)
+  let calibration: CaptainScorecardSavedRecap['calibration'] = null
+  const { data: predictionData, error: predictionError } = await service
+    .from('lineup_prediction_snapshots')
+    .select('id,created_at,scenario_name,team_name,opponent_team,league_name,flight,match_date,projected_team_win_pct,projected_score_for,projected_score_against,confidence_score,confidence_tier,slots_json,opponent_slots_json,line_projections_json,known_defaults_json')
+    .eq('user_id', auth.userId)
+    .eq('match_date', input.matchDate)
+    .order('created_at', { ascending: false })
+    .limit(30)
+  if (predictionError) {
+    console.error('Could not load the Captain prediction snapshot', predictionError)
+  } else {
+    const teamKey = normalizeTennisIdentity(input.teamName)
+    const opponentKey = normalizeTennisIdentity(input.opponentTeam)
+    const leagueKey = normalizeTennisIdentity(input.leagueName)
+    const flightKey = normalizeTennisIdentity(input.flight)
+    const prediction = ((predictionData || []) as PredictionSnapshotRow[]).find((snapshot) => (
+      normalizeTennisIdentity(snapshot.team_name) === teamKey
+      && normalizeTennisIdentity(snapshot.opponent_team) === opponentKey
+      && (!leagueKey || !snapshot.league_name || normalizeTennisIdentity(snapshot.league_name) === leagueKey)
+      && (!flightKey || !snapshot.flight || normalizeTennisIdentity(snapshot.flight) === flightKey)
+    ))
+    if (prediction) {
+      calibration = buildCaptainLineupCalibration(prediction, input)
+      const { error: calibrationError } = await service
+        .from('captain_lineup_calibrations')
+        .upsert({
+          user_id: auth.userId,
+          snapshot_id: calibration.snapshotId,
+          external_match_id: scorecard.externalMatchId,
+          team_name: input.teamName,
+          opponent_team: input.opponentTeam,
+          league_name: input.leagueName || null,
+          flight: input.flight || null,
+          match_date: input.matchDate,
+          projected_team_win_pct: calibration.projectedTeamWinPct,
+          projected_score_for: calibration.projectedScoreFor,
+          projected_score_against: calibration.projectedScoreAgainst,
+          actual_score_for: calibration.actualScoreFor,
+          actual_score_against: calibration.actualScoreAgainst,
+          actual_outcome: calibration.actualOutcome,
+          team_prediction_correct: calibration.teamPredictionCorrect,
+          exact_score_correct: calibration.exactScoreCorrect,
+          court_prediction_accuracy: calibration.courtPredictionAccuracy,
+          brier_score: calibration.brierScore,
+          lineup_adherence: calibration.lineupAdherence,
+          opponent_placement_accuracy: calibration.opponentPlacementAccuracy,
+          calibration_json: calibration,
+          updated_at: observedAt,
+        }, { onConflict: 'user_id,external_match_id' })
+      if (calibrationError) {
+        console.error('Could not persist the Captain lineup calibration', calibrationError)
+      }
+    }
+  }
+
   const recap: CaptainScorecardSavedRecap = {
     ...buildCaptainScorecardRecap(input),
     ratingChanges,
     sourceConflictCount,
+    calibration,
   }
   const { error: receiptError } = savedLineIds.length
     ? await service

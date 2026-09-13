@@ -180,7 +180,7 @@ export async function GET(request: Request) {
     .limit(250)
   const scenariosPromise = service
     .from('lineup_scenarios')
-    .select('id,scenario_name,league_name,flight,match_date,team_name,opponent_team,slots_json,opponent_slots_json,notes')
+    .select('id,scenario_name,league_name,flight,match_date,team_name,opponent_team,slots_json,opponent_slots_json,known_defaults_json,notes')
     .eq('team_name', teamName)
     .order('match_date', { ascending: false })
     .order('scenario_name', { ascending: true })

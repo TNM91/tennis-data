@@ -70,6 +70,34 @@ describe('captain scorecard capture', () => {
       .toBe('Court 1 needs two opponents.')
   })
 
+  it('records a USTA default without inventing players or a 6-0 score', () => {
+    const defaulted = {
+      ...input,
+      lines: [{
+        ...input.lines[0],
+        teamPlayers: [],
+        opponentPlayers: [],
+        outcome: 'team' as const,
+        score: '',
+        resultType: 'default' as const,
+        defaultKnownBeforeMatch: true,
+      }],
+    }
+    expect(validateCaptainScorecardInput(defaulted)).toBeNull()
+    expect(buildCaptainScorecardObservations(defaulted)[0].scoreText).toBe('DEFAULT')
+    expect(buildCaptainScorecardImportRow(defaulted).lines[0]).toMatchObject({
+      winnerSide: 'A',
+      score: 'DEFAULT',
+      sideAPlayers: [],
+      sideBPlayers: [],
+    })
+    expect(buildCaptainScorecardRecap(defaulted).lines[0]).toMatchObject({
+      resultType: 'default',
+      defaultKnownBeforeMatch: true,
+      score: 'Default',
+    })
+  })
+
   it('requires both photo evidence references when a captain uses a scorecard read', () => {
     expect(validateCaptainScorecardInput({ ...input, dataAssistBatchId: 'batch-1' }))
       .toBe('The scorecard photo reference is incomplete. Reopen the photo read and try again.')
