@@ -1404,6 +1404,20 @@ function buildCaptainMapsHref(location: string) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
 }
 
+function appendCaptainHrefQuery(href: string, values: Record<string, string | null | undefined>) {
+  const hashIndex = href.indexOf('#')
+  const hash = hashIndex >= 0 ? href.slice(hashIndex) : ''
+  const pathAndQuery = hashIndex >= 0 ? href.slice(0, hashIndex) : href
+  const queryIndex = pathAndQuery.indexOf('?')
+  const path = queryIndex >= 0 ? pathAndQuery.slice(0, queryIndex) : pathAndQuery
+  const params = new URLSearchParams(queryIndex >= 0 ? pathAndQuery.slice(queryIndex + 1) : '')
+  for (const [key, value] of Object.entries(values)) {
+    if (value) params.set(key, value)
+  }
+  const query = params.toString()
+  return `${path}${query ? `?${query}` : ''}${hash}`
+}
+
 function parseCaptainCalendarDateParts(value: string) {
   const raw = safeText(value, '')
   if (!raw) return null
@@ -1709,6 +1723,10 @@ function CaptainHubContent() {
 
   const { userId, role, entitlements, authResolved, session } = useAuth()
   const productAccess = buildProductAccessState(role, entitlements)
+  const requestedMatchDate = safeText(searchParams.get('date'), '').slice(0, 10)
+  const requestedMatchOpponent = safeText(searchParams.get('opponent'), '')
+  const requestedMatchTime = safeText(searchParams.get('time'), '')
+  const requestedMatchFacility = safeText(searchParams.get('facility'), '')
   const requestedClubId = searchParams.get('clubId') || ''
   const clubAccess = useClubSponsoredAccess(requestedClubId, CLUB_CAPTAIN_SPONSORED_ROLES)
   const premiumEnabled = productAccess.canUseCaptainWorkflow || clubAccess.allowed
@@ -2355,38 +2373,70 @@ function CaptainHubContent() {
     if (!authResolved || role === 'public') return
     if (!selectedTeam) { setNextMatch(null); return }
     let active = true
-    const today = new Date().toISOString().split('T')[0]
+    const today = getCaptainLocalDateKey()
     void (async () => {
       const safeTeam = selectedTeam.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
       let q = supabase
         .from('matches')
         .select('id, match_date, match_time, facility, home_team, away_team')
         .or(`home_team.eq."${safeTeam}",away_team.eq."${safeTeam}"`)
-        .gte('match_date', today)
         .is('line_number', null)
         .order('match_date', { ascending: true })
-        .limit(1)
+        .limit(requestedMatchDate ? 20 : 1)
+      q = requestedMatchDate ? q.eq('match_date', requestedMatchDate) : q.gte('match_date', today)
       if (selectedLeague) q = q.eq('league_name', selectedLeague)
       if (selectedFlight) q = q.eq('flight', selectedFlight)
       const { data } = await q
       if (!active) return
-      if (!data?.length) {
+      const requestedOpponentKey = normalizeTeamName(requestedMatchOpponent)
+      const m = data?.find((match) => {
+        if (!requestedOpponentKey) return true
+        const opponent = match.home_team === selectedTeam ? match.away_team : match.home_team
+        return normalizeTeamName(safeText(opponent)) === requestedOpponentKey
+      })
+      if (!m && requestedMatchDate && requestedMatchOpponent) {
+        setNextMatch({
+          date: requestedMatchDate,
+          time: requestedMatchTime || null,
+          facility: requestedMatchFacility || null,
+          opponent: requestedMatchOpponent,
+          home: true,
+        })
+        return
+      }
+      if (!m) {
         setNextMatch(null)
         return
       }
-      const m = data[0] as {
+      const selectedMatch = m as {
         match_date: string
         match_time: string | null
         facility: string | null
         home_team: string | null
         away_team: string | null
       }
-      const isHome = (m.home_team || '') === selectedTeam
-      const opponent = isHome ? (m.away_team || 'TBD') : (m.home_team || 'TBD')
-      setNextMatch({ date: m.match_date, time: m.match_time, facility: m.facility, opponent, home: isHome })
+      const isHome = (selectedMatch.home_team || '') === selectedTeam
+      const opponent = isHome ? (selectedMatch.away_team || 'TBD') : (selectedMatch.home_team || 'TBD')
+      setNextMatch({
+        date: selectedMatch.match_date,
+        time: selectedMatch.match_time || requestedMatchTime || null,
+        facility: selectedMatch.facility || requestedMatchFacility || null,
+        opponent,
+        home: isHome,
+      })
     })()
     return () => { active = false }
-  }, [authResolved, role, selectedTeam, selectedLeague, selectedFlight])
+  }, [
+    authResolved,
+    requestedMatchDate,
+    requestedMatchFacility,
+    requestedMatchOpponent,
+    requestedMatchTime,
+    role,
+    selectedFlight,
+    selectedLeague,
+    selectedTeam,
+  ])
 
   useEffect(() => {
     if (!authResolved || role === 'public' || !nextMatch?.opponent || nextMatch.opponent === 'TBD') {
@@ -3404,6 +3454,36 @@ function CaptainHubContent() {
     time: nextMatch?.time || '',
     facility: nextMatch?.facility || '',
   })
+  const captainLiveScorecardHref = appendCaptainHrefQuery(buildCaptainScopedHref('/captain/record-result', {
+    competitionLayer: selectedCompetitionLayer,
+    team: selectedTeam,
+    league: selectedLeague,
+    flight: selectedFlight,
+    date: matchWeekDate,
+    opponent: matchWeekOpponent,
+  }), {
+    time: nextMatch?.time,
+    facility: nextMatch?.facility,
+  })
+  const captainFinalLineupHref = appendCaptainHrefQuery(buildCaptainScopedHref('/captain/matchup-sheet', {
+    competitionLayer: selectedCompetitionLayer,
+    team: selectedTeam,
+    league: selectedLeague,
+    flight: selectedFlight,
+    date: matchWeekDate,
+    opponent: matchWeekOpponent,
+  }), {
+    time: nextMatch?.time,
+    facility: nextMatch?.facility,
+    confirmed: workspaceState.lineupReady ? '1' : '',
+  })
+  const captainCompletedScorecardCaptureHref = `/data-assist?${new URLSearchParams({
+    intent: 'upload-source',
+    context: `Match Day: ${selectedTeam || 'Team'}${matchWeekOpponent ? ` vs ${matchWeekOpponent}` : ''}`,
+    type: 'scorecard',
+    capture: 'camera',
+    returnTo: captainLiveScorecardHref,
+  }).toString()}#upload`
   const captainResumeStage: CaptainResumeStage = captainResume?.lastTool === 'lineup-builder'
     ? 'lineup'
     : captainResume?.lastTool === 'lineup-projection'
@@ -4710,9 +4790,9 @@ function CaptainHubContent() {
 
   const weekAtGlance = useMemo(() => {
     const currentMatch = matches[0] ?? null
-    const eventDate = captainResume?.eventDate || currentMatch?.match_date || null
+    const eventDate = matchWeekDate || currentMatch?.match_date || null
     const opponent =
-      captainResume?.opponentTeam ||
+      matchWeekOpponent ||
       (currentMatch
         ? safeText(currentMatch.home_team) === selectedTeam
           ? safeText(currentMatch.away_team, 'Opponent not set')
@@ -4729,9 +4809,9 @@ function CaptainHubContent() {
       briefLabel: workspaceState.briefReady ? 'Briefing ready' : 'Brief building',
     }
   }, [
-    captainResume?.eventDate,
-    captainResume?.opponentTeam,
     hasTeamScope,
+    matchWeekDate,
+    matchWeekOpponent,
     matches,
     selectedFlight,
     selectedLeague,
@@ -16689,6 +16769,13 @@ function CaptainHubContent() {
     hasAvailabilityReplies: captainAvailabilityHasReplies,
     lineupReady: workspaceState.lineupReady,
   })
+  const captainMatchDayPrimaryCue = captainPostArrivalStep === 'send_team_recap' || captainPostArrivalStep === 'close_week'
+    ? 'Review and share result'
+    : captainScoreCaptureRows.length > 0
+      ? 'Continue live scorecard'
+      : workspaceState.lineupReady
+        ? 'Open live scorecard'
+        : 'View lineup and scorecard'
   const captainMobileActionById = new Map(captainMobileCommandActions.map((item) => [item.id, item]))
   const captainMobileVisibleActions = captainMobileActionLayout.visible.flatMap((id) => {
     const item = captainMobileActionById.get(id)
@@ -17048,6 +17135,48 @@ function CaptainHubContent() {
             </button>
           )}
         </section>
+      ) : null}
+
+      {hasTeamScope && captainMobileActionLayout.phase === 'match_day' ? (
+        <details className={mobileCommandStyles.matchDay}>
+          <summary className={mobileCommandStyles.matchDayButton}>
+            <span className={mobileCommandStyles.matchDayButtonCopy}>
+              <strong>Match Day</strong>
+              <span>{captainMatchDayPrimaryCue}</span>
+            </span>
+            <span className={mobileCommandStyles.matchDayButtonCue}>Game-day actions</span>
+          </summary>
+          <div className={mobileCommandStyles.matchDaySheet} aria-label="Match Day tools">
+            <Link className={mobileCommandStyles.matchDayPrimaryAction} href={captainLiveScorecardHref}>
+              <strong>{captainScoreCaptureRows.length ? 'Continue live scorecard' : 'Open live scorecard'}</strong>
+              <span>Enter each court, including defaults or retirements.</span>
+            </Link>
+            <div className={mobileCommandStyles.matchDayActionGrid}>
+              <Link className={mobileCommandStyles.matchDayAction} href={workspaceState.lineupReady ? captainFinalLineupHref : lineupBuilderHref}>
+                <strong>{workspaceState.lineupReady ? 'View final lineup' : 'Build lineup'}</strong>
+                <span>{workspaceState.lineupReady ? `${workspaceState.lineupCount} courts saved` : 'Set today’s courts'}</span>
+              </Link>
+              <Link className={mobileCommandStyles.matchDayAction} href={captainCompletedScorecardCaptureHref}>
+                <strong>Capture scorecard</strong>
+                <span>Photograph the completed card</span>
+              </Link>
+              <Link className={mobileCommandStyles.matchDayAction} href={teamRoomHref}>
+                <strong>Team Chat</strong>
+                <span>{teamRoomSummary.unreadCount ? `${teamRoomSummary.unreadCount} unread` : 'Message the team'}</span>
+              </Link>
+              <Link className={mobileCommandStyles.matchDayAction} href={`${lineupBuilderHref}#captain-lineup-insights`}>
+                <strong>Opponent read</strong>
+                <span>Roster and projected courts</span>
+              </Link>
+              {captainMatchMapsHref ? (
+                <a className={mobileCommandStyles.matchDayAction} href={captainMatchMapsHref}>
+                  <strong>Directions</strong>
+                  <span>{matchDayLocationLabel}</span>
+                </a>
+              ) : null}
+            </div>
+          </div>
+        </details>
       ) : null}
 
       {captainImportHandoff ? (
