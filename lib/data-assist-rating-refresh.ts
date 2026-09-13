@@ -8,10 +8,14 @@ import { recalculateDynamicRatings } from './recalculateRatings'
  * the response. Snapshot replacement stays off because several confirmations
  * can finish close together.
  */
-export function scheduleDataAssistRatingRefresh(supabase: SupabaseClient) {
+export function scheduleRatingRefresh(supabase: SupabaseClient, source = 'Data Assist') {
   waitUntil(
     recalculateDynamicRatings(undefined, supabase, { replaceSnapshots: false }).catch((error) => {
-      console.error('Data Assist rating refresh failed after scorecard import', error)
+      console.error(`${source} rating refresh failed after scorecard import`, error)
     }),
   )
+}
+
+export function scheduleDataAssistRatingRefresh(supabase: SupabaseClient) {
+  scheduleRatingRefresh(supabase)
 }

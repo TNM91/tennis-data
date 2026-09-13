@@ -82,6 +82,8 @@ function normalizeName(value: string | null | undefined) {
   return (value || '').trim().replace(/\s+/g, ' ')
 }
 
+const SCORECARD_CONFIRMATION_TIMEOUT_MESSAGE = 'TiQ took too long to confirm the save. Your courts may already be saved. Reopen this scorecard or retry safely—TiQ will not create duplicates.'
+
 function scoreHasRetirementMarker(value: string) {
   return /(?:^|\s)RET(?:IRED)?\.?(?:\s|$)/i.test(value)
 }
@@ -545,7 +547,14 @@ function RecordResultContent() {
           })),
         }),
       })
-      const payload = await response.json() as { ok?: boolean; message?: string; needsReview?: boolean; externalMatchId?: string; recap?: CaptainScorecardSavedRecap; teamAnnouncementUpdated?: boolean; saveMode?: 'created' | 'updated' }
+      const responseText = await response.text()
+      let payload: { ok?: boolean; message?: string; needsReview?: boolean; externalMatchId?: string; recap?: CaptainScorecardSavedRecap; teamAnnouncementUpdated?: boolean; saveMode?: 'created' | 'updated' }
+      try {
+        payload = JSON.parse(responseText) as typeof payload
+      } catch {
+        setError(response.status === 504 ? SCORECARD_CONFIRMATION_TIMEOUT_MESSAGE : 'TiQ could not confirm the scorecard save. Reopen it before retrying.')
+        return
+      }
       if (!response.ok || !payload.ok) {
         setError(payload.message || 'The scorecard could not be saved.')
         return
@@ -570,7 +579,7 @@ function RecordResultContent() {
       }
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch {
-      setError('The scorecard could not be saved. Check your connection and try again.')
+      setError('TiQ could not confirm the scorecard save. Your draft is still on this phone; reconnect, reopen the scorecard, and retry safely.')
     } finally {
       saveInFlightRef.current = false
       setSaving(false)
@@ -665,7 +674,9 @@ function RecordResultContent() {
                   </article>
                 ))}
               </div>
-            ) : <p className={styles.recapEmpty}>{defaultedCourtCount || retiredCourtCount
+            ) : <p className={styles.recapEmpty}>{savedRecap.ratingsRefreshing
+              ? 'Your scorecard is saved. TiQ ratings are refreshing in the background.'
+              : defaultedCourtCount || retiredCourtCount
               ? `${defaultedCourtCount ? `${defaultedCourtCount} defaulted court${defaultedCourtCount === 1 ? '' : 's'}` : ''}${defaultedCourtCount && retiredCourtCount ? ' and ' : ''}${retiredCourtCount ? `${retiredCourtCount} retired court${retiredCourtCount === 1 ? '' : 's'}` : ''} counted toward the team result with no player rating movement.`
               : 'TiQ is refreshing the player read. This verified scorecard is already saved.'}</p>}
           </section>

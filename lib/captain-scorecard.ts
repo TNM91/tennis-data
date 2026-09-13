@@ -71,6 +71,7 @@ export type CaptainScorecardRatingChange = {
 
 export type CaptainScorecardSavedRecap = CaptainScorecardRecap & {
   ratingChanges: CaptainScorecardRatingChange[]
+  ratingsRefreshing?: boolean
   sourceConflictCount: number
   calibration?: CaptainLineupCalibration | null
 }
@@ -232,6 +233,7 @@ export function isCaptainScorecardSavedRecap(value: unknown): value is CaptainSc
     && typeof recap.opponentCourts === 'number'
     && Array.isArray(recap.lines)
     && Array.isArray(recap.ratingChanges)
+    && (recap.ratingsRefreshing === undefined || typeof recap.ratingsRefreshing === 'boolean')
     && typeof recap.sourceConflictCount === 'number'
   )
 }
