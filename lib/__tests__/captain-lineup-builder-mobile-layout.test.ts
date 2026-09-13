@@ -245,6 +245,9 @@ describe('Captain lineup builder mobile layout guards', () => {
   })
 
   it('puts future match selection in the primary match-week flow', () => {
+    expect(source).toContain('const uniqueScopedMatchOptions = useMemo(() =>')
+    expect(source).toContain("const key = [match.match_date || match.id, normalizeTeamName(opponent)].join('|')")
+    expect(source).toContain('const currentDetail = Number(Boolean(current.match_time)) + Number(Boolean(current.facility))')
     expect(source).toContain('const orderedScopedMatchOptions = useMemo(() =>')
     expect(source).toContain('const matchWeekChoices = useMemo(() =>')
     expect(source).toContain('function selectScheduledMatch(nextMatchId: string)')
