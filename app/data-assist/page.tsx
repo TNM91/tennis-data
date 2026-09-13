@@ -393,7 +393,11 @@ function DataAssistWorkspace() {
     if (isScheduleParsedDraft(input.parsedDraft)) return false
     // A team summary may belong to an opponent. Importing it must never grant
     // Captain access or replace the team already selected in Captain.
-    router.replace(returnTo)
+    const hashIndex = returnTo.indexOf('#')
+    const hash = hashIndex >= 0 ? returnTo.slice(hashIndex) : ''
+    const pathAndQuery = hashIndex >= 0 ? returnTo.slice(0, hashIndex) : returnTo
+    const separator = pathAndQuery.includes('?') ? '&' : '?'
+    router.replace(`${pathAndQuery}${separator}rosterImport=${encodeURIComponent(input.batchId)}${hash}`)
     return true
   }
 

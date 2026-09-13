@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import type { CaptainScorecardSavedRecap } from '@/lib/captain-scorecard'
+import { normalizeUstaRosterTeamName } from '@/lib/captain-formatters'
 import {
   captainScorecardPhotoPrefillStorageKey,
   isCaptainScorecardPhotoPrefill,
@@ -43,7 +44,7 @@ type StoredScorecardDraft = {
 type RosterResponse = {
   ok?: boolean
   players?: Array<{ name?: string | null }>
-  rosterMembers?: Array<{ player_name?: string | null }>
+  rosterMembers?: Array<{ team_name?: string | null; player_name?: string | null }>
   opponentRosterNames?: string[]
 }
 
@@ -327,10 +328,14 @@ function RecordResultContent() {
       })
       .then((payload) => {
         if (!active || !payload?.ok) return
-        const names = [...new Set([
-          ...(payload.players || []).map((player) => normalizeName(player.name)),
-          ...(payload.rosterMembers || []).map((player) => normalizeName(player.player_name)),
-        ].filter(Boolean))].sort((left, right) => left.localeCompare(right))
+        const teamRosterNames = (payload.rosterMembers || [])
+          .filter((member) => normalizeUstaRosterTeamName(member.team_name) === normalizeUstaRosterTeamName(teamName))
+          .map((member) => normalizeName(member.player_name))
+          .filter(Boolean)
+        const names = [...new Set((teamRosterNames.length
+          ? teamRosterNames
+          : (payload.players || []).map((player) => normalizeName(player.name))
+        ).filter(Boolean))].sort((left, right) => left.localeCompare(right))
         setRosterNames(names)
         setOpponentRosterNames((payload.opponentRosterNames || []).map(normalizeName).filter(Boolean))
       })

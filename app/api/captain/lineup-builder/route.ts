@@ -1,7 +1,7 @@
 import { getCaptainApiAuth } from '@/lib/captain-api-auth'
 import { getCache } from '@vercel/functions'
 import { cleanAvailabilityText, getCaptainAvailabilityServiceClient, isUuid } from '@/lib/captain-availability-request-server'
-import { normalizeTeamName } from '@/lib/captain-formatters'
+import { normalizeTeamName, normalizeUstaRosterTeamName } from '@/lib/captain-formatters'
 import { normalizeCaptainRosterContactKey } from '@/lib/captain-roster-contacts'
 import { canManageTeamRoom, normalizeTeamRoomKey } from '@/lib/team-room'
 import { loadSeasonLineupAnswers } from '@/lib/season-kickoff-server'
@@ -87,6 +87,7 @@ export async function GET(request: Request) {
   const leagueName = cleanAvailabilityText(url.searchParams.get('league'), 160)
   const flight = cleanAvailabilityText(url.searchParams.get('flight'), 120)
   const opponentName = cleanAvailabilityText(url.searchParams.get('opponent'), 160)
+  const forceRefresh = Boolean(cleanAvailabilityText(url.searchParams.get('refresh'), 160))
   if (!teamName) {
     return Response.json({
       ok: true,
@@ -133,7 +134,7 @@ export async function GET(request: Request) {
   const runtimeCache = getCache({ namespace: 'captain-lineup-builder' })
   const cacheKey = `${auth.userId}:${normalizeTeamRoomKey(teamName)}:${normalizeTeamRoomKey(leagueName)}:${normalizeTeamRoomKey(flight)}:${normalizeTeamRoomKey(opponentName)}`
   try {
-    const cached = await runtimeCache.get(cacheKey) as Record<string, unknown> | undefined
+    const cached = forceRefresh ? undefined : await runtimeCache.get(cacheKey) as Record<string, unknown> | undefined
     if (cached?.ok === true) {
       console.info('[api/captain/lineup-builder] cache hit', { durationMs: Date.now() - startedAt })
       return Response.json(cached, { headers: { 'Cache-Control': 'private, no-store' } })
@@ -248,26 +249,39 @@ export async function GET(request: Request) {
   const primaryError = rosterResult.error
   if (primaryError) return Response.json({ ok: false, message: primaryError.message }, { status: 500 })
 
-  // A captain can use an imported opponent Team Summary as a quick picker when
-  // recording the final score. Returning only names keeps this scoped to the
-  // match workflow while still allowing an unlisted player to be typed in.
+  // USTA may include a display-only one-letter suffix in the schedule but omit
+  // it from Team Summary. Look up both forms so the just-imported roster is
+  // connected to the selected matchup.
+  const opponentRosterKeys = [...new Set([
+    normalizeTeamName(opponentName),
+    normalizeUstaRosterTeamName(opponentName),
+  ].filter(Boolean))]
   const opponentRosterRows = opponentName
     ? await resolveOptionalQuery(
       'opponent roster',
       service
         .from('team_roster_members')
-        .select('player_name')
-        .eq('normalized_team_name', normalizeTeamName(opponentName))
+        .select('team_name,player_id,player_name,league_name,flight,rating_source,mixed_pair_role,age_division')
+        .in('normalized_team_name', opponentRosterKeys)
         .limit(250)
         .then((result) => result.data || []),
-      [] as Array<{ player_name: string | null }>,
+      [] as Array<{
+        team_name: string | null
+        player_id: string | null
+        player_name: string | null
+        league_name: string | null
+        flight: string | null
+        rating_source: string | null
+        mixed_pair_role: string | null
+        age_division: string | null
+      }>,
     )
     : []
   const opponentRosterNames = [...new Set(opponentRosterRows
     .map((row) => cleanAvailabilityText(row.player_name, 160))
     .filter(Boolean))].sort((left, right) => left.localeCompare(right))
 
-  const rosterMembers = rosterResult.data ?? []
+  const rosterMembers = [...(rosterResult.data ?? []), ...opponentRosterRows]
   const historicalLineMatches = historicalLineMatchesResult.data ?? []
   const rosterPlayerIds = Array.from(new Set(rosterMembers.map((row) => row.player_id).filter((id): id is string => Boolean(id))))
   const matchIds = (matchesResult.data ?? []).map((match) => match.id)

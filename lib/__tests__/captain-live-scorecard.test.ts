@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 const sheet = readFileSync(join(process.cwd(), 'app', 'captain', 'matchup-sheet', 'page.tsx'), 'utf8')
 const sheetStyles = readFileSync(join(process.cwd(), 'app', 'captain', 'matchup-sheet', 'matchup-sheet.module.css'), 'utf8')
+const builder = readFileSync(join(process.cwd(), 'app', 'captain', 'lineup-builder', 'page.tsx'), 'utf8')
 const liveScorecard = readFileSync(join(process.cwd(), 'app', 'captain', 'record-result', 'page.tsx'), 'utf8')
 const liveScorecardStyles = readFileSync(join(process.cwd(), 'app', 'captain', 'record-result', 'record-result.module.css'), 'utf8')
 const rosterRoute = readFileSync(join(process.cwd(), 'app', 'api', 'captain', 'lineup-builder', 'route.ts'), 'utf8')
@@ -86,6 +87,13 @@ describe('Captain live scorecard', () => {
   it('returns the opponent roster only through the authorized captain lineup response', () => {
     expect(rosterRoute).toContain('const opponentRosterNames')
     expect(rosterRoute).toContain('opponentRosterNames,')
-    expect(rosterRoute).toContain(".eq('normalized_team_name', normalizeTeamName(opponentName))")
+    expect(rosterRoute).toContain('normalizeUstaRosterTeamName(opponentName)')
+    expect(rosterRoute).toContain(".in('normalized_team_name', opponentRosterKeys)")
+  })
+
+  it('puts live match entry ahead of printable scorecard actions', () => {
+    expect(sheet.indexOf('>Open live scorecard</Link>')).toBeLessThan(sheet.indexOf('>Print one-page scorecard</button>'))
+    expect(builder).toContain('const lineupLiveScorecardHref')
+    expect(builder).toContain('<GhostLink href={lineupLiveScorecardHref}>Open live scorecard</GhostLink>')
   })
 })

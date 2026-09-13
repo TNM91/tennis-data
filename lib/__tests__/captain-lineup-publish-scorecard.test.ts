@@ -36,6 +36,8 @@ describe('Captain lineup publishing and scorecard handoff', () => {
     expect(builder).toContain("'Post to Team Chat'")
     expect(builder).toContain('Create image + text team')
     expect(builder).toContain('Print lineup / scorecard')
+    expect(builder).toContain('Open live scorecard')
+    expect(builder).toContain("buildCaptainScopedHref('/captain/record-result'")
     expect(builder).toContain('const lineupPrintHref = `${lineupImageHref}&print=1`')
   })
 
