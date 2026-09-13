@@ -45,7 +45,7 @@ import { readCaptainWeekStatus } from '@/lib/captain-week-status'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
-import { buildSmsHref, formatDate, formatRating, uniqueSorted, cleanText, normalizeTeamName, prepareSmsBodyForNativeComposer } from '@/lib/captain-formatters'
+import { buildSmsHref, formatDate, formatRating, uniqueSorted, cleanText, normalizeTeamName, normalizeUstaRosterTeamName, prepareSmsBodyForNativeComposer } from '@/lib/captain-formatters'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
@@ -517,9 +517,9 @@ function getScopedRosterMembers(
   targetTeam: string,
   rosterMembers: TeamRosterMemberRow[],
 ) {
-  const normalizedTarget = normalizeTeamName(targetTeam)
+  const normalizedTarget = normalizeUstaRosterTeamName(targetTeam)
   const teamRosterMembers = rosterMembers.filter((row) => (
-    Boolean(row.player_id) && normalizeTeamName(row.team_name) === normalizedTarget
+    Boolean(row.player_id) && normalizeUstaRosterTeamName(row.team_name) === normalizedTarget
   ))
   return teamRosterMembers
 }
@@ -1475,6 +1475,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const router = useRouter()
   const { role, entitlements, authResolved, userId, session } = useAuth()
   const initialContext = readInitialLineupBuilderContext(routeSearch, userId)
+  const rosterImportBatch = cleanText(new URLSearchParams(routeSearch).get('rosterImport'))
   const persistedDirectCourtTextHandoff = typeof window === 'undefined'
     ? null
     : readCaptainDirectCourtTextHandoff(window.localStorage.getItem(CAPTAIN_DIRECT_COURT_TEXT_STORAGE_KEY))
@@ -2302,9 +2303,10 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     if (leagueName) params.set('league', leagueName)
     if (flight) params.set('flight', flight)
     if (opponentTeam) params.set('opponent', opponentTeam)
+    if (rosterImportBatch) params.set('refresh', rosterImportBatch)
 
     const snapshotScope = [normalizeTeamName(teamName), normalizeTeamName(leagueName), normalizeTeamName(flight), normalizeTeamName(opponentTeam)].join('__')
-    const snapshot = readPrivateClientSnapshot<LineupBuilderPayload>({
+    const snapshot = rosterImportBatch ? null : readPrivateClientSnapshot<LineupBuilderPayload>({
       namespace: 'captain-lineup',
       userId,
       scope: snapshotScope,
@@ -2380,7 +2382,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
     setLoading(false)
     return !primaryError
-  }, [applyBuilderPayload, flight, leagueName, opponentTeam, session?.access_token, teamName, userId])
+  }, [applyBuilderPayload, flight, leagueName, opponentTeam, rosterImportBatch, session?.access_token, teamName, userId])
 
   useEffect(() => {
     if (!authResolved || role === 'public') return
@@ -6121,6 +6123,20 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   })
   const lineupImageHref = `${lineupImageBaseHref}${lineupImageBaseHref.includes('?') ? '&' : '?'}confirmed=1`
   const lineupPrintHref = `${lineupImageHref}&print=1`
+  const lineupLiveScorecardBaseHref = buildCaptainScopedHref('/captain/record-result', {
+    competitionLayer,
+    team: teamName,
+    league: leagueName,
+    flight,
+    date: matchDate,
+    opponent: opponentTeam,
+  })
+  const lineupLiveScorecardParams = new URLSearchParams()
+  if (selectedMatch?.match_time) lineupLiveScorecardParams.set('time', selectedMatch.match_time)
+  if (selectedMatch?.facility) lineupLiveScorecardParams.set('facility', selectedMatch.facility)
+  const lineupLiveScorecardHref = lineupLiveScorecardParams.size
+    ? `${lineupLiveScorecardBaseHref}${lineupLiveScorecardBaseHref.includes('?') ? '&' : '?'}${lineupLiveScorecardParams.toString()}`
+    : lineupLiveScorecardBaseHref
   if (!authResolved) {
     return (
       <div style={pageWrap}>
@@ -6189,6 +6205,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
              <div style={lineupDeliveryActionsStyle}>
                {lineupDeliveryReceipt.kind === 'final' ? (
                  <>
+                   <Link href={lineupLiveScorecardHref} style={primaryButton}>Open live scorecard</Link>
                    <Link href={lineupImageHref} style={primaryButton}>Create image + text team</Link>
                    <GhostLink href={lineupPrintHref}>Print lineup / scorecard</GhostLink>
                    <GhostBtn onClick={() => void copyFinalLineupForGroupText()}>Copy lineup text</GhostBtn>
@@ -6418,6 +6435,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                      {openingFinalDelivery ? 'Posting to Team Chat…' : 'Post to Team Chat'}
                    </PrimaryBtn>
                    <GhostLink href={lineupImageHref}>Create image + text team</GhostLink>
+                   <GhostLink href={lineupLiveScorecardHref}>Open live scorecard</GhostLink>
                    <GhostLink href={lineupPrintHref}>Print lineup / scorecard</GhostLink>
                  </>
                ) : (
@@ -6738,6 +6756,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                   ) : (
                     <GhostBtn onClick={() => focusTeamCourts()}>Review player replies</GhostBtn>
                   )}
+                  {finalLineupReady ? <GhostLink href={lineupLiveScorecardHref}>Open live scorecard</GhostLink> : null}
                   <GhostBtn onClick={() => focusTeamCourts()}>Edit courts</GhostBtn>
                 </div>
               </section>

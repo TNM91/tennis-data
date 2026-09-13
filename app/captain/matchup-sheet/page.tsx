@@ -508,12 +508,12 @@ function MatchupSheetContent() {
   return (
     <main className={styles.page}>
       <section className={styles.screenControls} aria-label="Matchup sheet actions">
-        <button type="button" className={styles.actionPrimary} disabled={!lineup.length || sharing} onClick={() => void shareLineupImage()}>
+        <Link href={recordResultHref} className={styles.actionPrimary}>Open live scorecard</Link>
+        <button type="button" className={styles.actionSecondary} disabled={!lineup.length || sharing} onClick={() => void shareLineupImage()}>
           {sharing ? 'Preparing image…' : 'Share final lineup + chat'}
         </button>
-        <button type="button" className={styles.actionSecondary} onClick={printScorecard}>Print one-page scorecard</button>
         <Link href={scanHref} className={styles.actionSecondary}>Capture completed scorecard</Link>
-        <Link href={recordResultHref} className={styles.actionSecondary}>Open live scorecard</Link>
+        <button type="button" className={styles.actionSecondary} onClick={printScorecard}>Print one-page scorecard</button>
       </section>
       {shareNotice ? <p className={styles.shareNotice} role="status">{shareNotice} <Link href={teamChatHref}>Open Team Chat</Link></p> : null}
 

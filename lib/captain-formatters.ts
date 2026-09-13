@@ -38,6 +38,15 @@ export function normalizeTeamName(value: unknown): string {
   return cleanText(value).replace(/\s*\/\s*/g, '/').replace(/\s+/g, ' ').toLowerCase()
 }
 
+/**
+ * TennisLink schedule exports can append a one-letter team designator such as
+ * "(F)" even when the Team Summary export omits it. Treat that suffix as
+ * display-only when connecting an imported roster to a scheduled opponent.
+ */
+export function normalizeUstaRosterTeamName(value: unknown): string {
+  return normalizeTeamName(value).replace(/\s*\([a-z]\)\s*$/, '')
+}
+
 export function parseDisplayDate(value: string) {
   const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
   if (dateOnlyMatch) {
