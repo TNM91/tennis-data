@@ -2475,15 +2475,32 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const selectedMatch = useMemo(() => {
     return scopedMatchOptions.find((match) => match.id === selectedMatchId) ?? null
   }, [scopedMatchOptions, selectedMatchId])
+  const uniqueScopedMatchOptions = useMemo(() => {
+    const grouped = new Map<string, MatchTeamRow>()
+    for (const match of scopedMatchOptions) {
+      const opponent = getOpponentForTeam(match, teamName) || [match.home_team, match.away_team].filter(Boolean).join(' vs ')
+      const key = [match.match_date || match.id, normalizeTeamName(opponent)].join('|')
+      const current = grouped.get(key)
+      if (!current || match.id === selectedMatchId) {
+        grouped.set(key, match)
+        continue
+      }
+      if (current.id === selectedMatchId) continue
+      const currentDetail = Number(Boolean(current.match_time)) + Number(Boolean(current.facility))
+      const nextDetail = Number(Boolean(match.match_time)) + Number(Boolean(match.facility))
+      if (nextDetail > currentDetail) grouped.set(key, match)
+    }
+    return [...grouped.values()]
+  }, [scopedMatchOptions, selectedMatchId, teamName])
   const orderedScopedMatchOptions = useMemo(() => {
-    return [...scopedMatchOptions].sort((left, right) => {
+    return [...uniqueScopedMatchOptions].sort((left, right) => {
       const leftDate = left.match_date || '9999-12-31'
       const rightDate = right.match_date || '9999-12-31'
       const dateOrder = leftDate.localeCompare(rightDate)
       if (dateOrder !== 0) return dateOrder
       return (left.match_time || '').localeCompare(right.match_time || '')
     })
-  }, [scopedMatchOptions])
+  }, [uniqueScopedMatchOptions])
   const matchWeekChoices = useMemo(() => orderedScopedMatchOptions.map((match) => {
     const opponent = getOpponentForTeam(match, teamName) || [match.home_team, match.away_team].filter(Boolean).join(' vs ')
     return {
