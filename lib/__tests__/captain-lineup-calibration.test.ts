@@ -112,6 +112,34 @@ describe('captain lineup calibration', () => {
     expect(calibration.signals).toContainEqual(expect.objectContaining({ id: 'match-context', direction: 'learn' }))
   })
 
+  it('counts a retirement in the team result but censors it from performance grading', () => {
+    const withRetirement: CaptainScorecardInput = {
+      ...result,
+      lines: result.lines.map((line) => line.courtNumber === 2 ? {
+        ...line,
+        resultType: 'retired' as const,
+        retiredPlayer: 'Chris Court',
+        retirementReason: 'injury' as const,
+        retirementKnownBeforeMatch: false,
+        score: '4-6, 2-1',
+      } : line),
+    }
+    const calibration = buildCaptainLineupCalibration(snapshot, withRetirement)
+    expect(calibration.actualScoreAgainst).toBe(2)
+    expect(calibration.teamPredictionCorrect).toBeNull()
+    expect(calibration.exactScoreCorrect).toBeNull()
+    expect(calibration.courts[1]).toMatchObject({
+      resultType: 'retired',
+      predictionCorrect: null,
+      retiredPlayer: 'Chris Court',
+      retirementReason: 'injury',
+      retirementKnownBeforeMatch: false,
+    })
+    expect(calibration.courtPredictionAccuracy).toBe(0.5)
+    expect(calibration.brierScore).toBe(0.256)
+    expect(calibration.signals).toContainEqual(expect.objectContaining({ id: 'retirement-context', direction: 'learn' }))
+  })
+
   it('summarizes match, court, probability, and lineup-execution evidence', () => {
     const first = buildCaptainLineupCalibration(snapshot, result)
     const second = { ...first, teamPredictionCorrect: true, exactScoreCorrect: true, brierScore: 0.1, lineupAdherence: 1 }

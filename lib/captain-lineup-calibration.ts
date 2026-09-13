@@ -21,9 +21,12 @@ export type CaptainCalibrationCourt = {
   projectedWinPct: number | null
   actualOutcome: 'won' | 'lost'
   predictionCorrect: boolean | null
-  resultType: 'played' | 'default'
+  resultType: 'played' | 'default' | 'retired'
   defaultKnownBeforeMatch: boolean | null
   defaultIncludedInPrediction: boolean
+  retiredPlayer: string | null
+  retirementReason: 'injury' | 'illness' | 'other' | null
+  retirementKnownBeforeMatch: boolean | null
   teamPlayersMatched: number
   teamPlayersTotal: number
   opponentPlayersMatched: number
@@ -31,7 +34,7 @@ export type CaptainCalibrationCourt = {
 }
 
 export type CaptainCalibrationSignal = {
-  id: 'ratings' | 'court-history' | 'pair-fit' | 'opponent-placement' | 'lineup-change' | 'match-context'
+  id: 'ratings' | 'court-history' | 'pair-fit' | 'opponent-placement' | 'lineup-change' | 'match-context' | 'retirement-context'
   label: string
   direction: 'trust' | 'watch' | 'learn'
   detail: string
@@ -143,15 +146,16 @@ export function buildCaptainLineupCalibration(
   const actualOutcome = actualScoreFor === actualScoreAgainst ? 'split' : actualScoreFor > actualScoreAgainst ? 'won' : 'lost'
   const projectedTeamWinPct = normalizeProbability(snapshot.projected_team_win_pct)
   const projectedOutcome = projectedTeamWinPct === null ? null : projectedTeamWinPct >= 0.5 ? 'won' : 'lost'
-  const hasUnmodeledDefault = input.lines.some((line) => {
+  const hasUnmodeledMatchContext = input.lines.some((line) => {
+    if (line.resultType === 'retired') return true
     if (line.resultType !== 'default') return false
     const label = clean(line.label) || `${line.matchType === 'doubles' ? 'Doubles' : 'Singles'} ${line.courtNumber}`
     const predictedAward = knownDefaultByLabel.get(key(label))
     const actualAward = line.outcome === 'team' ? 'team' : 'opponent'
     return predictedAward !== actualAward || line.defaultKnownBeforeMatch !== true
   })
-  const teamPredictionCorrect = hasUnmodeledDefault || actualOutcome === 'split' || !projectedOutcome ? null : projectedOutcome === actualOutcome
-  const exactScoreCorrect = hasUnmodeledDefault || snapshot.projected_score_for === null || snapshot.projected_score_against === null
+  const teamPredictionCorrect = hasUnmodeledMatchContext || actualOutcome === 'split' || !projectedOutcome ? null : projectedOutcome === actualOutcome
+  const exactScoreCorrect = hasUnmodeledMatchContext || snapshot.projected_score_for === null || snapshot.projected_score_against === null
     ? null
     : snapshot.projected_score_for === actualScoreFor && snapshot.projected_score_against === actualScoreAgainst
 
@@ -166,7 +170,7 @@ export function buildCaptainLineupCalibration(
     const projectedOpponentSlot = findByLabelOrIndex(opponentSlots, label, index)
     const lineProjection = findByLabelOrIndex(projections, label, index)
     const projectedWinPct = lineProjection?.projection ?? null
-    const resultType = line.resultType === 'default' ? 'default' : 'played'
+    const resultType = line.resultType === 'default' ? 'default' : line.resultType === 'retired' ? 'retired' : 'played'
     const defaultIncludedInPrediction = resultType === 'default'
       && knownDefaultByLabel.get(key(label)) === (line.outcome === 'team' ? 'team' : 'opponent')
     const actualValue = line.outcome === 'team' ? 1 : 0
@@ -176,7 +180,7 @@ export function buildCaptainLineupCalibration(
     const opponentPlayers = line.opponentPlayers.map(clean).filter(Boolean)
     const teamPlayersMatched = countNameMatches(teamPlayers, projectedTeamSlot?.players ?? [])
     const opponentPlayersMatched = countNameMatches(opponentPlayers, projectedOpponentSlot?.players ?? [])
-    if (resultType === 'played') {
+    if (resultType !== 'default') {
       totalTeamPlayers += teamPlayers.length
       matchedTeamPlayers += teamPlayersMatched
       totalOpponentPlayers += opponentPlayers.length
@@ -187,10 +191,13 @@ export function buildCaptainLineupCalibration(
       label,
       projectedWinPct,
       actualOutcome: line.outcome === 'team' ? 'won' : 'lost',
-      predictionCorrect: resultType === 'default' || projectedWinPct === null ? null : (projectedWinPct >= 0.5) === (line.outcome === 'team'),
+      predictionCorrect: resultType !== 'played' || projectedWinPct === null ? null : (projectedWinPct >= 0.5) === (line.outcome === 'team'),
       resultType,
       defaultKnownBeforeMatch: resultType === 'default' ? line.defaultKnownBeforeMatch ?? null : null,
       defaultIncludedInPrediction,
+      retiredPlayer: resultType === 'retired' ? clean(line.retiredPlayer) || null : null,
+      retirementReason: resultType === 'retired' && (line.retirementReason === 'injury' || line.retirementReason === 'illness' || line.retirementReason === 'other') ? line.retirementReason : null,
+      retirementKnownBeforeMatch: resultType === 'retired' ? line.retirementKnownBeforeMatch ?? null : null,
       teamPlayersMatched,
       teamPlayersTotal: teamPlayers.length,
       opponentPlayersMatched,
@@ -208,6 +215,7 @@ export function buildCaptainLineupCalibration(
   const signals: CaptainCalibrationSignal[] = []
   const playedCourts = courts.filter((court) => court.resultType === 'played')
   const defaultedCourts = courts.filter((court) => court.resultType === 'default')
+  const retiredCourts = courts.filter((court) => court.resultType === 'retired')
   if (defaultedCourts.length) {
     const modeledDefaults = defaultedCourts.filter((court) => court.defaultIncludedInPrediction && court.defaultKnownBeforeMatch).length
     signals.push({
@@ -217,6 +225,15 @@ export function buildCaptainLineupCalibration(
       detail: modeledDefaults === defaultedCourts.length
         ? `${modeledDefaults} known default${modeledDefaults === 1 ? ' was' : 's were'} included in the pre-match odds. Defaulted courts were excluded from player and score-margin learning.`
         : `${defaultedCourts.length - modeledDefaults} defaulted court${defaultedCourts.length - modeledDefaults === 1 ? ' was' : 's were'} not in the saved pre-match context, so TiQ did not grade the match forecast. No player rating movement came from a default.`,
+    })
+  }
+  if (retiredCourts.length) {
+    const inPlayRetirements = retiredCourts.filter((court) => court.retirementKnownBeforeMatch === false).length
+    signals.push({
+      id: 'retirement-context',
+      label: 'In-match retirement',
+      direction: 'learn',
+      detail: `${retiredCourts.length} court${retiredCourts.length === 1 ? '' : 's'} ended by retirement${inPlayRetirements ? ` · ${inPlayRetirements} issue${inPlayRetirements === 1 ? ' arose' : 's arose'} during play` : ''}. TiQ counted the team result but excluded the court from ratings, score-margin learning, and prediction grading.`,
     })
   }
   if (playedCourts.length && lineupAdherence < 0.75) {
@@ -237,7 +254,7 @@ export function buildCaptainLineupCalibration(
   } else {
     signals.push({ id: 'court-history', label: 'Court history', direction: 'watch', detail: 'The mixed court result should add evidence, but not trigger a weight change by itself.' })
   }
-  if (input.lines.some((line) => line.matchType === 'doubles' && line.resultType !== 'default')) {
+  if (input.lines.some((line) => line.matchType === 'doubles' && line.resultType !== 'default' && line.resultType !== 'retired')) {
     signals.push({ id: 'pair-fit', label: 'Pair chemistry', direction: 'watch', detail: 'This scorecard adds another shared start for the doubles pairs. Pair fit should move only after repeated results, not one match.' })
   }
 
@@ -246,7 +263,7 @@ export function buildCaptainLineupCalibration(
     : teamPredictionCorrect === false
       ? 'This result gives TiQ a useful correction.'
       : 'This result adds calibration evidence.'
-  const summary = `${correctCourts}/${scoredCourts.length} played court directions matched${playedCourts.length ? lineupAdherence < 1 ? ` · ${Math.round(lineupAdherence * 100)}% of the recommended lineup played` : ' · the recommended lineup played as saved' : ' · defaulted courts were not treated as played matches'}.`
+  const summary = `${correctCourts}/${scoredCourts.length} completed court directions matched${playedCourts.length ? lineupAdherence < 1 ? ` · ${Math.round(lineupAdherence * 100)}% of the recommended lineup took court` : ' · the recommended lineup took court as saved' : retiredCourts.length ? ' · retired courts were kept as match context, not performance evidence' : ' · defaulted courts were not treated as played matches'}.`
 
   return {
     snapshotId: snapshot.id,

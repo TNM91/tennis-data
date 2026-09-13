@@ -12,8 +12,11 @@ export type CaptainScorecardLineInput = {
   opponentPlayers: string[]
   outcome: 'team' | 'opponent'
   score: string
-  resultType?: 'played' | 'default'
+  resultType?: 'played' | 'default' | 'retired'
   defaultKnownBeforeMatch?: boolean | null
+  retiredPlayer?: string | null
+  retirementReason?: 'injury' | 'illness' | 'other' | null
+  retirementKnownBeforeMatch?: boolean | null
 }
 
 export type CaptainScorecardInput = {
@@ -48,8 +51,11 @@ export type CaptainScorecardRecap = {
     opponentPlayers: string[]
     outcome: 'team' | 'opponent'
     score: string
-    resultType: 'played' | 'default'
+    resultType: 'played' | 'default' | 'retired'
     defaultKnownBeforeMatch: boolean | null
+    retiredPlayer: string | null
+    retirementReason: 'injury' | 'illness' | 'other' | null
+    retirementKnownBeforeMatch: boolean | null
   }>
 }
 
@@ -86,6 +92,12 @@ function cleanNames(values: string[]) {
   return values.map(cleanText).filter(Boolean)
 }
 
+function scoreTextForStorage(line: Pick<CaptainScorecardLineInput, 'resultType' | 'score'>) {
+  if (line.resultType === 'default') return 'DEFAULT'
+  const score = cleanText(line.score).replace(/(?:^|\s)RET(?:IRED)?\.?$/i, '').trim()
+  return line.resultType === 'retired' ? `${score} RET`.trim() : score
+}
+
 export function validateCaptainScorecardInput(input: CaptainScorecardInput): string | null {
   if (!cleanText(input.teamName)) return 'Choose your team before saving the result.'
   if (!cleanText(input.opponentTeam)) return 'Add the opposing team before saving the result.'
@@ -101,7 +113,7 @@ export function validateCaptainScorecardInput(input: CaptainScorecardInput): str
     if (seenCourts.has(line.courtNumber)) return 'Each court can only be entered once.'
     seenCourts.add(line.courtNumber)
     if (line.matchType !== 'singles' && line.matchType !== 'doubles') return 'Choose singles or doubles for every court.'
-    if (line.resultType && line.resultType !== 'played' && line.resultType !== 'default') return `Choose a valid result type for court ${line.courtNumber}.`
+    if (line.resultType && line.resultType !== 'played' && line.resultType !== 'default' && line.resultType !== 'retired') return `Choose a valid result type for court ${line.courtNumber}.`
     if (line.resultType === 'default') {
       if (line.outcome !== 'team' && line.outcome !== 'opponent') return `Choose which team received court ${line.courtNumber}.`
       if (typeof line.defaultKnownBeforeMatch !== 'boolean') return `Choose when the default for court ${line.courtNumber} became known.`
@@ -112,6 +124,18 @@ export function validateCaptainScorecardInput(input: CaptainScorecardInput): str
     if (cleanNames(line.opponentPlayers).length !== neededPlayers) return `Court ${line.courtNumber} needs ${neededPlayers === 1 ? 'one opponent' : 'two opponents'}.`
     if (line.outcome !== 'team' && line.outcome !== 'opponent') return `Choose who won court ${line.courtNumber}.`
     if (!cleanText(line.score)) return `Add the final score for court ${line.courtNumber}.`
+    if (line.resultType === 'retired') {
+      if (!/\d+\s*[-–]\s*\d+/.test(cleanText(line.score))) return `Add the score when play stopped on court ${line.courtNumber}.`
+      const retiredSidePlayers = line.outcome === 'team' ? cleanNames(line.opponentPlayers) : cleanNames(line.teamPlayers)
+      const retiredPlayer = cleanText(line.retiredPlayer)
+      if (!retiredPlayer || !retiredSidePlayers.some((name) => normalizeTennisIdentity(name) === normalizeTennisIdentity(retiredPlayer))) {
+        return `Choose who retired on court ${line.courtNumber}.`
+      }
+      if (line.retirementReason !== 'injury' && line.retirementReason !== 'illness' && line.retirementReason !== 'other') {
+        return `Choose why play stopped on court ${line.courtNumber}.`
+      }
+      if (typeof line.retirementKnownBeforeMatch !== 'boolean') return `Choose when the issue on court ${line.courtNumber} became known.`
+    }
   }
   return null
 }
@@ -168,7 +192,7 @@ export function buildCaptainScorecardObservations(input: CaptainScorecardInput):
         courtNumber: line.courtNumber,
         participants: fingerprintParticipants,
       }),
-      scoreText: line.resultType === 'default' ? 'DEFAULT' : cleanText(line.score),
+      scoreText: scoreTextForStorage(line),
       winnerSide: line.outcome === 'team' ? 'A' : 'B',
       participants,
     }
@@ -190,8 +214,11 @@ export function buildCaptainScorecardRecap(input: CaptainScorecardInput): Captai
       opponentPlayers: cleanNames(line.opponentPlayers),
       outcome: line.outcome,
       score: line.resultType === 'default' ? 'Default' : cleanText(line.score),
-      resultType: line.resultType === 'default' ? 'default' : 'played',
+      resultType: line.resultType === 'default' ? 'default' : line.resultType === 'retired' ? 'retired' : 'played',
       defaultKnownBeforeMatch: line.resultType === 'default' ? line.defaultKnownBeforeMatch ?? null : null,
+      retiredPlayer: line.resultType === 'retired' ? cleanText(line.retiredPlayer) || null : null,
+      retirementReason: line.resultType === 'retired' && (line.retirementReason === 'injury' || line.retirementReason === 'illness' || line.retirementReason === 'other') ? line.retirementReason : null,
+      retirementKnownBeforeMatch: line.resultType === 'retired' ? line.retirementKnownBeforeMatch ?? null : null,
     })),
   }
 }
@@ -247,8 +274,8 @@ export function buildCaptainScorecardImportRow(
       sideAPlayers: cleanNames(line.teamPlayers),
       sideBPlayers: cleanNames(line.opponentPlayers),
       winnerSide: line.outcome === 'team' ? 'A' : 'B',
-      score: line.resultType === 'default' ? 'DEFAULT' : cleanText(line.score),
-      rawScoreText: line.resultType === 'default' ? 'DEFAULT' : cleanText(line.score),
+      score: scoreTextForStorage(line),
+      rawScoreText: scoreTextForStorage(line),
       captureConfidence: 1,
       winnerSource: 'winner_column',
       scoreEventType: /(?:^|\s)(?:1[-–]0|10[-–]\d+)(?:\s|$)/.test(cleanText(line.score))
@@ -283,7 +310,7 @@ export function buildCaptainScorecardTeamRoomDraft(
       lineLabel: cleanText(line.label) || `${line.matchType === 'doubles' ? 'Doubles' : 'Singles'} ${line.courtNumber}`,
       homePlayers: cleanNames(line.teamPlayers),
       awayPlayers: cleanNames(line.opponentPlayers),
-      score: line.resultType === 'default' ? 'Default' : cleanText(line.score),
+      score: line.resultType === 'default' ? 'Default' : scoreTextForStorage(line),
       winner: line.outcome === 'team' ? 'home' : 'away',
       winnerSource: 'winner_column',
       confidenceScore: 1,

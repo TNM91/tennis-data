@@ -268,6 +268,7 @@
 .defaultEntry fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .resultTypeControl legend,
 .defaultEntry legend { margin-bottom: 7px; color: var(--shell-copy-muted); font-size: .78rem; font-weight: 850; }
+.resultTypeHelp { margin: 8px 0 0; color: var(--shell-copy-muted); font-size: .76rem; line-height: 1.45; }
 .defaultEntry { display: grid; gap: 14px; min-width: 0; padding: 14px; border: 1px solid color-mix(in srgb, #fbbf24 35%, var(--shell-panel-border)); border-radius: 15px; background: color-mix(in srgb, #fbbf24 7%, var(--shell-panel-bg)); }
 .defaultEntry p { margin: 0; color: var(--shell-copy-muted); font-size: .8rem; line-height: 1.48; }
 .playerColumns > div { display: grid; align-content: start; gap: 8px; min-width: 0; }
