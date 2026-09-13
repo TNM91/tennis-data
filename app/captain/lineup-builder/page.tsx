@@ -7037,32 +7037,6 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               : 'Your scenario is tied to an imported schedule match, so save, compare, and messaging can use the same match context.'}
           </div>
 
-          {competitionLayer === 'usta' ? (
-            <section style={knownDefaultsCardStyle} aria-label="Known USTA defaults">
-              <div>
-                <p style={sectionKicker}>Known USTA defaults</p>
-                <h3 style={sectionTitleSmall}>Lock in any court already awarded</h3>
-                <p style={sectionBodyTextStyle}>Use this only when a default is known before play. TiQ will count the awarded court in the match odds without treating it as a played 6–0, 6–0.</p>
-              </div>
-              <div style={knownDefaultsGridStyle}>
-                {teamSlots.map((slot) => {
-                  const selected = knownCourtDefaults.find((item) => normalizeTeamName(item.label) === normalizeTeamName(slot.label))?.awardedTo ?? null
-                  return (
-                    <div key={slot.id} style={knownDefaultRowStyle}>
-                      <strong style={knownDefaultLabelStyle}>{slot.label}</strong>
-                      <div style={knownDefaultButtonsStyle}>
-                        <button type="button" style={selected === null ? knownDefaultButtonActiveStyle : knownDefaultButtonStyle} onClick={() => setKnownDefaultForCourt(slot.label, null)}>Played</button>
-                        <button type="button" style={selected === 'team' ? knownDefaultButtonActiveStyle : knownDefaultButtonStyle} onClick={() => setKnownDefaultForCourt(slot.label, 'team')}>We receive</button>
-                        <button type="button" style={selected === 'opponent' ? knownDefaultButtonActiveStyle : knownDefaultButtonStyle} onClick={() => setKnownDefaultForCourt(slot.label, 'opponent')}>They receive</button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-              {knownCourtDefaults.length ? <div style={actionPlanInsightStyle}>{knownCourtDefaults.length} known default{knownCourtDefaults.length === 1 ? '' : 's'} included in this forecast and prediction snapshot.</div> : null}
-            </section>
-          ) : null}
-
           {sharedCaptainNotes?.weeklyNotes || sharedCaptainNotes?.opponentNotes ? (
             <div style={sharedNotesCardStyle}>
               <div style={tableHeaderStyle}>
@@ -7117,6 +7091,38 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               : 'Finish the setup items above first, then save and compare real lineup decisions instead of placeholders.'}
           </div>
         </details>
+
+        {competitionLayer === 'usta' ? (
+          <details style={knownDefaultsCardStyle} open={knownCourtDefaults.length > 0}>
+            <summary style={detailsSummaryStyle}>
+              <div>
+                <p style={sectionKicker}>Known USTA defaults</p>
+                <h3 style={sectionTitleSmall}>Any court already awarded?</h3>
+                <p style={sectionBodyTextStyle}>Add it before play so every forecast uses the right match path.</p>
+              </div>
+              <span style={knownCourtDefaults.length ? miniPillGreenStyle : miniPillBlueStyle}>{knownCourtDefaults.length ? `${knownCourtDefaults.length} set` : 'Optional'}</span>
+            </summary>
+            <section style={knownDefaultsContentStyle} aria-label="Known USTA defaults">
+              <p style={sectionBodyTextStyle}>TiQ counts an awarded court in the match odds without treating it as a played 6–0, 6–0.</p>
+              <div style={knownDefaultsGridStyle}>
+                {teamSlots.map((slot) => {
+                  const selected = knownCourtDefaults.find((item) => normalizeTeamName(item.label) === normalizeTeamName(slot.label))?.awardedTo ?? null
+                  return (
+                    <div key={slot.id} style={knownDefaultRowStyle}>
+                      <strong style={knownDefaultLabelStyle}>{slot.label}</strong>
+                      <div style={knownDefaultButtonsStyle}>
+                        <button type="button" style={selected === null ? knownDefaultButtonActiveStyle : knownDefaultButtonStyle} onClick={() => setKnownDefaultForCourt(slot.label, null)}>Played</button>
+                        <button type="button" style={selected === 'team' ? knownDefaultButtonActiveStyle : knownDefaultButtonStyle} onClick={() => setKnownDefaultForCourt(slot.label, 'team')}>We receive</button>
+                        <button type="button" style={selected === 'opponent' ? knownDefaultButtonActiveStyle : knownDefaultButtonStyle} onClick={() => setKnownDefaultForCourt(slot.label, 'opponent')}>They receive</button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {knownCourtDefaults.length ? <div style={actionPlanInsightStyle}>{knownCourtDefaults.length} known default{knownCourtDefaults.length === 1 ? '' : 's'} included in this forecast and prediction snapshot.</div> : null}
+            </section>
+          </details>
+        ) : null}
 
         <div style={builderLayoutResponsive(isTablet)}>
           <div style={columnStyle}>
@@ -10004,6 +10010,7 @@ const knownDefaultsCardStyle: CSSProperties = {
 }
 
 const knownDefaultsGridStyle: CSSProperties = { display: 'grid', gap: 9 }
+const knownDefaultsContentStyle: CSSProperties = { display: 'grid', gap: 14, paddingTop: 14 }
 const knownDefaultRowStyle: CSSProperties = { display: 'grid', gap: 8, minWidth: 0 }
 const knownDefaultLabelStyle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: '.84rem' }
 const knownDefaultButtonsStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 7 }
