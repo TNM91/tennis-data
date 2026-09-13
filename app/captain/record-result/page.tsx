@@ -84,6 +84,14 @@ function normalizeName(value: string | null | undefined) {
 
 const SCORECARD_CONFIRMATION_TIMEOUT_MESSAGE = 'TiQ took too long to confirm the save. Your courts may already be saved. Reopen this scorecard or retry safely—TiQ will not create duplicates.'
 
+function formatSavedReceiptTime(value: string | undefined) {
+  if (!value) return 'Saved to your verified match history'
+  const savedAt = new Date(value)
+  return Number.isNaN(savedAt.getTime())
+    ? 'Saved to your verified match history'
+    : `Saved ${savedAt.toLocaleString()}`
+}
+
 function scoreHasRetirementMarker(value: string) {
   return /(?:^|\s)RET(?:IRED)?\.?(?:\s|$)/i.test(value)
 }
@@ -593,6 +601,11 @@ function RecordResultContent() {
             </div>
             <span className={styles.verifiedPill}>Captain verified</span>
           </div>
+
+          <section className={styles.saveReceipt} aria-label="Saved result receipt">
+            <div><strong>Result saved</strong><span>{formatSavedReceiptTime(savedRecap.savedAt)}</span></div>
+            <span>Safe to close</span>
+          </section>
 
           <section className={styles.resultScoreboard} aria-label="Team result">
             <div><span>{teamName || 'Your team'}</span><strong>{savedRecap.teamCourts}</strong></div>

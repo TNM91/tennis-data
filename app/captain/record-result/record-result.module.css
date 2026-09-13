@@ -476,3 +476,9 @@
   .ratingValues { justify-content: flex-start; text-align: left; }
   .calibrationLink { width: 100%; padding: 11px 13px; border: 1px solid color-mix(in srgb, var(--brand-green) 48%, var(--shell-panel-border)); border-radius: 12px; background: color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg)); text-align: center; text-decoration: none; }
 }
+
+.saveReceipt { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 14px; border: 1px solid color-mix(in srgb, var(--brand-green) 58%, var(--shell-panel-border)); border-radius: 16px; background: color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg)); }
+.saveReceipt div { display: grid; gap: 3px; min-width: 0; }
+.saveReceipt strong { color: var(--brand-green-3); }
+.saveReceipt div span { color: var(--shell-copy-muted); font-size: .78rem; font-weight: 750; overflow-wrap: anywhere; }
+.saveReceipt > span { flex: 0 0 auto; color: var(--foreground-strong); font-size: .72rem; font-weight: 900; text-transform: uppercase; }

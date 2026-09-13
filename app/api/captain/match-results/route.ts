@@ -447,6 +447,7 @@ export async function POST(request: Request) {
     ...buildCaptainScorecardRecap(input),
     ratingChanges,
     ratingsRefreshing: completedLineIds.length > 0,
+    savedAt: observedAt,
     sourceConflictCount,
     calibration,
   }

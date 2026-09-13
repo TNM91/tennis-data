@@ -799,38 +799,65 @@ async function replaceRatingSnapshots(
   )
 
   await saveRatingSnapshotBatches(chunkArray(dedupedRows, 500), async chunk => {
-    const { error } = await client
-      .from('rating_snapshots')
-      .upsert(chunk, {
-        onConflict: 'player_id,match_id,rating_type,track',
-      })
-
-    if (error) {
-      if (isMissingOnConflictConstraintError(error.message)) {
-        await insertRatingSnapshotChunk(chunk, client)
-        return
-      }
-
-      // delta/opponent_rating/win_probability/multiplier columns may not be migrated yet
-      if (error.message.includes('delta') || error.message.includes('opponent_rating') ||
-          error.message.includes('win_probability') || error.message.includes('multiplier')) {
-        const stripped = chunk.map(stripSnapshotMetrics)
-        const { error: fallbackError } = await client.from('rating_snapshots').upsert(stripped, {
-          onConflict: 'player_id,match_id,rating_type,track',
-        })
-        if (fallbackError && isMissingOnConflictConstraintError(fallbackError.message)) {
-          const { error: insertFallbackError } = await client.from('rating_snapshots').insert(stripped)
-          if (insertFallbackError) {
-            throw new Error(`Failed to insert rating snapshots: ${insertFallbackError.message}`)
-          }
-          return
-        }
-        if (fallbackError) throw new Error(`Failed to insert rating snapshots: ${fallbackError.message}`)
-        return
-      }
-      throw new Error(`Failed to insert rating snapshots: ${error.message}`)
-    }
+    await saveRatingSnapshotChunk(chunk, client)
   }, concurrency)
+}
+
+async function saveRatingSnapshotChunk(
+  chunk: RatingSnapshotInsert[],
+  client: SupabaseClient,
+  retryMissingMatches = true,
+) {
+  const { error } = await client
+    .from('rating_snapshots')
+    .upsert(chunk, {
+      onConflict: 'player_id,match_id,rating_type,track',
+    })
+
+  if (!error) return
+
+  if (retryMissingMatches && isRatingSnapshotMatchForeignKeyError(error.message)) {
+    const retained = await retainSnapshotsForExistingMatches(chunk, client)
+    if (retained.length < chunk.length) {
+      const retainedMatchIds = new Set(retained.map(row => row.match_id))
+      console.warn(JSON.stringify({
+        level: 'warn',
+        event: 'rating_snapshot_stale_matches_skipped',
+        skippedSnapshotCount: chunk.length - retained.length,
+        skippedMatchCount: new Set(chunk.filter(row => !retainedMatchIds.has(row.match_id)).map(row => row.match_id)).size,
+      }))
+      if (retained.length) await saveRatingSnapshotChunk(retained, client, false)
+      return
+    }
+  }
+
+  if (isMissingOnConflictConstraintError(error.message)) {
+    await insertRatingSnapshotChunk(chunk, client, retryMissingMatches)
+    return
+  }
+
+  // delta/opponent_rating/win_probability/multiplier columns may not be migrated yet
+  if (error.message.includes('delta') || error.message.includes('opponent_rating') ||
+      error.message.includes('win_probability') || error.message.includes('multiplier')) {
+    const stripped = chunk.map(stripSnapshotMetrics)
+    const { error: fallbackError } = await client.from('rating_snapshots').upsert(stripped, {
+      onConflict: 'player_id,match_id,rating_type,track',
+    })
+    if (fallbackError && retryMissingMatches && isRatingSnapshotMatchForeignKeyError(fallbackError.message)) {
+      const retained = await retainSnapshotsForExistingMatches(chunk, client)
+      if (retained.length < chunk.length) {
+        if (retained.length) await saveRatingSnapshotChunk(retained, client, false)
+        return
+      }
+    }
+    if (fallbackError && isMissingOnConflictConstraintError(fallbackError.message)) {
+      await insertRatingSnapshotChunk(chunk, client, retryMissingMatches)
+      return
+    }
+    if (fallbackError) throw new Error(`Failed to insert rating snapshots: ${fallbackError.message}`)
+    return
+  }
+  throw new Error(`Failed to insert rating snapshots: ${error.message}`)
 }
 
 export function dedupeRatingSnapshots(snapshotRows: RatingSnapshotInsert[]) {
@@ -849,10 +876,36 @@ function isMissingOnConflictConstraintError(message: string) {
   return message.toLowerCase().includes('no unique or exclusion constraint matching the on conflict specification')
 }
 
-async function insertRatingSnapshotChunk(chunk: RatingSnapshotInsert[], client: SupabaseClient) {
+function isRatingSnapshotMatchForeignKeyError(message: string) {
+  const normalized = message.toLowerCase()
+  return normalized.includes('rating_snapshots_match_id_fkey')
+    || (normalized.includes('foreign key constraint') && normalized.includes('match_id'))
+}
+
+async function retainSnapshotsForExistingMatches(chunk: RatingSnapshotInsert[], client: SupabaseClient) {
+  const matchIds = Array.from(new Set(chunk.map(row => row.match_id)))
+  const { data, error } = await client.from('matches').select('id').in('id', matchIds)
+  if (error) throw new Error(`Failed to verify rating snapshot matches: ${error.message}`)
+  const existingIds = new Set(((data ?? []) as Array<{ id: string }>).map(row => row.id))
+  return chunk.filter(row => existingIds.has(row.match_id))
+}
+
+async function insertRatingSnapshotChunk(
+  chunk: RatingSnapshotInsert[],
+  client: SupabaseClient,
+  retryMissingMatches = true,
+) {
   const { error } = await client.from('rating_snapshots').insert(chunk)
 
   if (!error) return
+
+  if (retryMissingMatches && isRatingSnapshotMatchForeignKeyError(error.message)) {
+    const retained = await retainSnapshotsForExistingMatches(chunk, client)
+    if (retained.length < chunk.length) {
+      if (retained.length) await insertRatingSnapshotChunk(retained, client, false)
+      return
+    }
+  }
 
   if (
     error.message.includes('delta') ||

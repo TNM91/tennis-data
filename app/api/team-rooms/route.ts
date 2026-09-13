@@ -3016,6 +3016,7 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
     latestCard?.metadata?.arrivalOutreach,
   )
   const matchCompleted = Boolean(cleanText(latestCard?.metadata?.matchCompletedAt))
+  const resultExternalMatchId = cleanText(latestCard?.metadata?.resultExternalMatchId)
   const arrivalState = canManageTeamRoom(teamRoles(selected))
     && finalLineup
     && cleanText(latestCard?.metadata?.matchDate) === todayDateKey()
@@ -3075,6 +3076,7 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
       reminderStatus: actionQueue.reminderStatus,
       arrivalState,
       matchCompleted,
+      resultExternalMatchId,
       arrivalLate,
       arrivalFollowUp,
       courtReadiness: {
