@@ -61,6 +61,57 @@ describe('captain lineup calibration', () => {
     ]))
   })
 
+  it('counts defaults in the team score but excludes them from model and player grading', () => {
+    const withKnownDefault: CaptainPredictionSnapshot = {
+      ...snapshot,
+      projected_team_win_pct: 0.88,
+      projected_score_for: 2.4,
+      projected_score_against: 0.6,
+      known_defaults_json: [{ label: 'Doubles 2', awardedTo: 'team' }],
+    }
+    const withDefault: CaptainScorecardInput = {
+      ...result,
+      lines: result.lines.map((line) => line.courtNumber === 2 ? {
+        ...line,
+        teamPlayers: [],
+        opponentPlayers: [],
+        outcome: 'team' as const,
+        score: '',
+        resultType: 'default' as const,
+        defaultKnownBeforeMatch: true,
+      } : line),
+    }
+    const calibration = buildCaptainLineupCalibration(withKnownDefault, withDefault)
+    expect(calibration.actualScoreFor).toBe(2)
+    expect(calibration.courts[1]).toMatchObject({
+      resultType: 'default',
+      predictionCorrect: null,
+      defaultIncludedInPrediction: true,
+    })
+    expect(calibration.courtPredictionAccuracy).toBe(0.5)
+    expect(calibration.lineupAdherence).toBe(1)
+    expect(calibration.signals).toContainEqual(expect.objectContaining({ id: 'match-context', direction: 'trust' }))
+  })
+
+  it('does not grade a pre-match forecast when a default was learned on match day', () => {
+    const surpriseDefault: CaptainScorecardInput = {
+      ...result,
+      lines: result.lines.map((line) => line.courtNumber === 2 ? {
+        ...line,
+        teamPlayers: [],
+        opponentPlayers: [],
+        outcome: 'team' as const,
+        score: '',
+        resultType: 'default' as const,
+        defaultKnownBeforeMatch: false,
+      } : line),
+    }
+    const calibration = buildCaptainLineupCalibration(snapshot, surpriseDefault)
+    expect(calibration.teamPredictionCorrect).toBeNull()
+    expect(calibration.exactScoreCorrect).toBeNull()
+    expect(calibration.signals).toContainEqual(expect.objectContaining({ id: 'match-context', direction: 'learn' }))
+  })
+
   it('summarizes match, court, probability, and lineup-execution evidence', () => {
     const first = buildCaptainLineupCalibration(snapshot, result)
     const second = { ...first, teamPredictionCorrect: true, exactScoreCorrect: true, brierScore: 0.1, lineupAdherence: 1 }

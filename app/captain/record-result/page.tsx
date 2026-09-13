@@ -23,6 +23,8 @@ type CourtDraft = {
   opponentPlayers: string[]
   outcome: 'team' | 'opponent'
   score: string
+  resultType: 'played' | 'default'
+  defaultKnownBeforeMatch: boolean | null
 }
 
 type StoredScorecardDraft = {
@@ -64,6 +66,8 @@ function createCourt(courtNumber: number): CourtDraft {
     opponentPlayers: ['', ''],
     outcome: 'team',
     score: '',
+    resultType: 'played',
+    defaultKnownBeforeMatch: null,
   }
 }
 
@@ -72,6 +76,7 @@ function normalizeName(value: string | null | undefined) {
 }
 
 function isCourtEntryComplete(court: CourtDraft) {
+  if (court.resultType === 'default') return court.defaultKnownBeforeMatch !== null
   const playerCount = court.matchType === 'doubles' ? 2 : 1
   return court.teamPlayers.slice(0, playerCount).every((name) => Boolean(normalizeName(name)))
     && court.opponentPlayers.slice(0, playerCount).every((name) => Boolean(normalizeName(name)))
@@ -111,6 +116,7 @@ function isStoredScorecardDraft(value: unknown): value is StoredScorecardDraft {
       && Array.isArray(court.opponentPlayers)
       && (court.outcome === 'team' || court.outcome === 'opponent')
       && typeof court.score === 'string'
+      && (!court.resultType || court.resultType === 'played' || court.resultType === 'default')
     ))
 }
 
@@ -234,7 +240,11 @@ function RecordResultContent() {
       setOpponentTeam(draft.opponentTeam)
       setMatchTime(draft.matchTime)
       setFacility(draft.facility)
-      setCourts(draft.courts)
+      setCourts(draft.courts.map((court) => ({
+        ...court,
+        resultType: court.resultType === 'default' ? 'default' : 'played',
+        defaultKnownBeforeMatch: court.resultType === 'default' ? court.defaultKnownBeforeMatch ?? null : null,
+      })))
       lineupPrefillKey.current = [teamName, leagueName, flight, draft.matchDate, draft.opponentTeam].join('::').toLowerCase()
       setNotice('Your in-progress scorecard was restored on this device.')
       setDraftSaved(true)
@@ -252,6 +262,7 @@ function RecordResultContent() {
       court.teamPlayers.some((name) => Boolean(normalizeName(name)))
       || court.opponentPlayers.some((name) => Boolean(normalizeName(name)))
       || Boolean(court.score.trim())
+      || court.resultType === 'default'
     ))
     try {
       if (!hasProgress) {
@@ -322,6 +333,8 @@ function RecordResultContent() {
         opponentPlayers: court.opponentPlayers,
         outcome: court.outcome,
         score: court.score,
+        resultType: 'played' as const,
+        defaultKnownBeforeMatch: null,
       }))
       if (!preparedCourts.length) return
       scorecardPhotoPrefillKey.current = scorecardPhotoDraftId
@@ -374,6 +387,8 @@ function RecordResultContent() {
             matchType: singles ? 'singles' as const : 'doubles' as const,
             teamPlayers: singles ? [players[0] || ''] : [players[0] || '', players[1] || ''],
             opponentPlayers: singles ? [''] : ['', ''],
+            resultType: 'played' as const,
+            defaultKnownBeforeMatch: null,
           }
         })
         lineupPrefillKey.current = prefillKey
@@ -477,7 +492,7 @@ function RecordResultContent() {
           flight,
           dataAssistBatchId,
           dataAssistDraftId,
-          lines: courts.map(({ courtNumber, label, matchType, teamPlayers, opponentPlayers, outcome, score }) => ({
+          lines: courts.map(({ courtNumber, label, matchType, teamPlayers, opponentPlayers, outcome, score, resultType, defaultKnownBeforeMatch }) => ({
             courtNumber,
             label,
             matchType,
@@ -485,6 +500,8 @@ function RecordResultContent() {
             opponentPlayers,
             outcome,
             score,
+            resultType,
+            defaultKnownBeforeMatch,
           })),
         }),
       })
@@ -523,6 +540,7 @@ function RecordResultContent() {
   if (savedRecap) {
     const outcomeLabel = savedRecap.outcome === 'won' ? 'Match won.' : savedRecap.outcome === 'lost' ? 'Match recorded.' : 'Match split.'
     const ratingChanges = [...savedRecap.ratingChanges].sort((left, right) => Number(right.side === 'team') - Number(left.side === 'team'))
+    const defaultedCourtCount = savedRecap.lines.filter((line) => line.resultType === 'default').length
     return (
       <main className={styles.page}>
         <section className={styles.recapShell} aria-labelledby="scorecard-recap-title">
@@ -579,7 +597,9 @@ function RecordResultContent() {
               {savedRecap.lines.map((line) => (
                 <article className={styles.recapLine} key={`${line.courtNumber}-${line.label}`} data-outcome={line.outcome}>
                   <div><strong>{line.label}</strong><span>{line.outcome === 'team' ? 'Won' : 'Lost'} · {line.score}</span></div>
-                  <p>{line.teamPlayers.join(' / ')} <small>vs</small> {line.opponentPlayers.join(' / ')}</p>
+                  <p>{line.resultType === 'default'
+                    ? `${line.outcome === 'team' ? opponentTeam || 'Opponent' : teamName || 'Your team'} defaulted${line.defaultKnownBeforeMatch === true ? ' · known before match day' : line.defaultKnownBeforeMatch === false ? ' · learned on match day' : ''}`
+                    : <>{line.teamPlayers.join(' / ')} <small>vs</small> {line.opponentPlayers.join(' / ')}</>}</p>
                 </article>
               ))}
             </div>
@@ -602,7 +622,9 @@ function RecordResultContent() {
                   </article>
                 ))}
               </div>
-            ) : <p className={styles.recapEmpty}>TiQ is refreshing the player read. This verified scorecard is already saved.</p>}
+            ) : <p className={styles.recapEmpty}>{defaultedCourtCount
+              ? `${defaultedCourtCount} defaulted court${defaultedCourtCount === 1 ? '' : 's'} counted toward the team result with no player rating movement.`
+              : 'TiQ is refreshing the player read. This verified scorecard is already saved.'}</p>}
           </section>
 
           <section className={styles.auditNote}>
@@ -715,14 +737,23 @@ function RecordResultContent() {
                     {courts.length > 1 ? <button type="button" className={styles.removeCourt} onClick={() => setCourts((current) => current.filter((item) => item.id !== court.id))}>Remove</button> : null}
                   </div>
                 </div>
-                {!isOpen ? <p className={styles.courtSummary}>{teamPlayers.length ? teamPlayers.join(' / ') : 'Add your player(s)'} <small>vs</small> {opponentPlayers.length ? opponentPlayers.join(' / ') : 'add opponent(s)'}{court.score ? ` · ${court.score}` : ''}</p> : null}
+                {!isOpen ? <p className={styles.courtSummary}>{court.resultType === 'default'
+                  ? `${court.outcome === 'team' ? opponentTeam || 'Opponent' : teamName || 'Your team'} defaulted${court.defaultKnownBeforeMatch === true ? ' · known before match' : court.defaultKnownBeforeMatch === false ? ' · match-day update' : ''}`
+                  : <>{teamPlayers.length ? teamPlayers.join(' / ') : 'Add your player(s)'} <small>vs</small> {opponentPlayers.length ? opponentPlayers.join(' / ') : 'add opponent(s)'}{court.score ? ` · ${court.score}` : ''}</>}</p> : null}
                 {isOpen ? (
                   <div className={styles.courtEntry} id={`scorecard-court-entry-${court.id}`}>
                     <div className={styles.matchTypeControl} aria-label={`Court ${court.courtNumber} match type`}>
                       <button type="button" data-active={court.matchType === 'doubles'} onClick={() => setMatchType(court.id, 'doubles')}>Doubles</button>
                       <button type="button" data-active={court.matchType === 'singles'} onClick={() => setMatchType(court.id, 'singles')}>Singles</button>
                     </div>
-                    <div className={styles.playerColumns}>
+                    <fieldset className={styles.resultTypeControl}>
+                      <legend>How was this court decided?</legend>
+                      <div className={styles.outcomeButtons}>
+                        <button type="button" data-active={court.resultType === 'played'} onClick={() => updateCourt(court.id, { resultType: 'played', defaultKnownBeforeMatch: null })}>Played</button>
+                        <button type="button" data-active={court.resultType === 'default'} onClick={() => updateCourt(court.id, { resultType: 'default', score: '', defaultKnownBeforeMatch: null })}>Defaulted</button>
+                      </div>
+                    </fieldset>
+                    {court.resultType === 'played' ? <div className={styles.playerColumns}>
                       <div>
                         <span className={styles.sideLabel}>Your team</span>
                         {Array.from({ length: playerCount }, (_, playerIndex) => (
@@ -764,8 +795,26 @@ function RecordResultContent() {
                         ))}
                         <small className={styles.rosterNote}>{opponentRosterNames.length ? `Choose from ${opponentRosterNames.length} known opponent${opponentRosterNames.length === 1 ? '' : 's'}, or select “Enter a different player.”` : 'No opponent roster is connected yet. Type each opponent name.'}</small>
                       </div>
-                    </div>
-                    <div className={styles.resultControls}>
+                    </div> : (
+                      <div className={styles.defaultEntry}>
+                        <fieldset>
+                          <legend>Who received the court?</legend>
+                          <div className={styles.outcomeButtons}>
+                            <button type="button" data-active={court.outcome === 'team'} onClick={() => updateCourt(court.id, { outcome: 'team' })}>We received it</button>
+                            <button type="button" data-active={court.outcome === 'opponent'} onClick={() => updateCourt(court.id, { outcome: 'opponent' })}>They received it</button>
+                          </div>
+                        </fieldset>
+                        <fieldset>
+                          <legend>When was the default known?</legend>
+                          <div className={styles.outcomeButtons}>
+                            <button type="button" data-active={court.defaultKnownBeforeMatch === true} onClick={() => updateCourt(court.id, { defaultKnownBeforeMatch: true })}>Before match day</button>
+                            <button type="button" data-active={court.defaultKnownBeforeMatch === false} onClick={() => updateCourt(court.id, { defaultKnownBeforeMatch: false })}>On match day</button>
+                          </div>
+                        </fieldset>
+                        <p>TiQ counts the team court, but does not treat a default as a 6–0, 6–0 or move any player rating.</p>
+                      </div>
+                    )}
+                    {court.resultType === 'played' ? <div className={styles.resultControls}>
                       <label className={styles.scoreInput}><span>Select or enter final score</span><input list="captain-score-options" value={court.score} onChange={(event) => updateCourt(court.id, { score: event.target.value })} placeholder="6-4 3-6 10-8" /></label>
                       <fieldset>
                         <legend>Winner</legend>
@@ -774,7 +823,7 @@ function RecordResultContent() {
                           <button type="button" data-active={court.outcome === 'opponent'} onClick={() => updateCourt(court.id, { outcome: 'opponent' })}>They won</button>
                         </div>
                       </fieldset>
-                    </div>
+                    </div> : null}
                   </div>
                 ) : null}
               </article>

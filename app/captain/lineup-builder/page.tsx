@@ -128,6 +128,11 @@ import {
   summarizeCaptainPositionTendency,
   summarizeCaptainScoreTendency,
 } from '@/lib/captain-lineup-intelligence'
+import {
+  applyKnownCourtDefaults,
+  normalizeKnownCourtDefaults,
+  type CaptainKnownCourtDefault,
+} from '@/lib/captain-lineup-defaults'
 
 type PlayerRow = {
   id: string
@@ -256,6 +261,7 @@ type ScenarioRow = {
   opponent_team: string | null
   slots_json: unknown
   opponent_slots_json: unknown
+  known_defaults_json?: unknown
   notes: string | null
 }
 
@@ -280,6 +286,7 @@ type PredictionSnapshotInsert = {
   slots_json: unknown
   opponent_slots_json: unknown
   line_projections_json: unknown
+  known_defaults_json: CaptainKnownCourtDefault[]
   notes: string | null
   source: string
 }
@@ -901,6 +908,18 @@ function compareLineupStrength(
   return { lines, avgDiff, projection }
 }
 
+function compareLineupStrengthWithDefaults(
+  teamSlots: LineupSlot[],
+  opponentSlots: LineupSlot[],
+  players: PlayerRow[],
+  knownDefaults: CaptainKnownCourtDefault[],
+): LineupStrengthAnalysis {
+  const base = compareLineupStrength(teamSlots, opponentSlots, players)
+  if (!knownDefaults.length) return base
+  const adjusted = applyKnownCourtDefaults(base.lines, knownDefaults)
+  return { ...base, lines: adjusted.courts, projection: adjusted.matchWinProbability }
+}
+
 function scorePoolPlayerForSlot(player: PoolPlayer, slotType: 'singles' | 'doubles') {
   const primary =
     slotType === 'singles'
@@ -1321,11 +1340,14 @@ function getLineupWarnings(
   opponentSlots: LineupSlot[],
   players: PlayerRow[],
   rules?: TeamCompetitionRules,
+  knownDefaults: CaptainKnownCourtDefault[] = [],
 ) {
   const warnings: string[] = []
+  const knownDefaultLabels = new Set(knownDefaults.map((item) => normalizeTeamName(item.label)))
 
   const validateSlots = (slots: LineupSlot[], sideLabel: string) => {
     for (const slot of slots) {
+      if (knownDefaultLabels.has(normalizeTeamName(slot.label))) continue
       const filled = slot.players.filter((player) => player.playerId)
       if (slot.slotType === 'singles' && filled.length < 1) warnings.push(`${sideLabel} ${slot.label} is missing a player.`)
       if (slot.slotType === 'doubles' && filled.length < 2) warnings.push(`${sideLabel} ${slot.label} needs two players.`)
@@ -1555,6 +1577,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const [matchDate, setMatchDate] = useState(initialMatchDate)
   const [selectedMatchId, setSelectedMatchId] = useState(initialMatchId)
   const [scenarioName, setScenarioName] = useState(persistedBuilderDraft?.scenarioName || '')
+  const [knownCourtDefaults, setKnownCourtDefaults] = useState<CaptainKnownCourtDefault[]>([])
   const [notes, setNotes] = useState(persistedBuilderDraft?.notes || '')
   const [refreshTick, setRefreshTick] = useState(0)
   const [manualRosterPlayers, setManualRosterPlayers] = useState<ManualRosterPlayer[]>(() =>
@@ -1606,6 +1629,17 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       ? normalizeSavedSlots(persistedBuilderDraft?.opponentSlots)
       : buildCaptainLineupSlots(initialLeagueName, initialFlight, 'opponent', initialMatchFormat)
   )
+  useEffect(() => {
+    if (competitionLayer !== 'usta') {
+      setKnownCourtDefaults([])
+      return
+    }
+    const activeLabels = new Set(teamSlots.map((slot) => normalizeTeamName(slot.label)))
+    setKnownCourtDefaults((current) => {
+      const filtered = current.filter((item) => activeLabels.has(normalizeTeamName(item.label)))
+      return filtered.length === current.length ? current : filtered
+    })
+  }, [competitionLayer, teamSlots])
   const [opponentCourtSetupPromptOpen, setOpponentCourtSetupPromptOpen] = useState(false)
   const [activeOpponentScenarioId, setActiveOpponentScenarioId] = useState<CaptainOpponentScenarioId>('likely')
   const [mobileForecastOpen, setMobileForecastOpen] = useState(false)
@@ -4241,6 +4275,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         opponent_team,
         slots_json,
         opponent_slots_json,
+        known_defaults_json,
         notes
       `)
       .order('match_date', { ascending: false })
@@ -4266,14 +4301,25 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       opponent_team: opponentTeam || null,
       slots_json: teamSlots,
       opponent_slots_json: opponentSlots,
+      known_defaults_json: knownCourtDefaults,
       notes: notes.trim() || null,
     }
   }
 
-  const analysis = useMemo(
-    () => compareLineupStrength(teamSlots, opponentSlots, builderPlayers),
-    [builderPlayers, opponentSlots, teamSlots]
+  const analysis = useMemo(() => {
+    return compareLineupStrengthWithDefaults(teamSlots, opponentSlots, builderPlayers, knownCourtDefaults)
+  }, [builderPlayers, knownCourtDefaults, opponentSlots, teamSlots])
+  const knownDefaultLabelSet = useMemo(
+    () => new Set(knownCourtDefaults.map((item) => normalizeTeamName(item.label))),
+    [knownCourtDefaults],
   )
+
+  function setKnownDefaultForCourt(label: string, awardedTo: 'team' | 'opponent' | null) {
+    setKnownCourtDefaults((current) => {
+      const withoutCourt = current.filter((item) => normalizeTeamName(item.label) !== normalizeTeamName(label))
+      return awardedTo ? [...withoutCourt, { label, awardedTo }] : withoutCourt
+    })
+  }
 
   const comparisonCandidates = useMemo(
     () => scenarioOptions.filter((scenario) => {
@@ -4293,10 +4339,11 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const lineupVersionComparison = useMemo(() => {
     if (!comparisonScenario) return null
 
-    const baselineAnalysis = compareLineupStrength(
+    const baselineAnalysis = compareLineupStrengthWithDefaults(
       normalizeSavedSlots(comparisonScenario.slots_json),
       normalizeSavedSlots(comparisonScenario.opponent_slots_json),
-      builderPlayers
+      builderPlayers,
+      normalizeKnownCourtDefaults(comparisonScenario.known_defaults_json),
     )
 
     const courts = analysis.lines.map((line, index) => {
@@ -4353,7 +4400,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const suggestedSwapImpact = useMemo<CaptainSuggestedSwapImpact | null>(() => {
     if (!suggestedSwapDraft) return null
     const targetCourtIndex = suggestedSwapDraft.previousSlots.findIndex((slot) => slot.id === suggestedSwapDraft.slotId)
-    const beforeAnalysis = compareLineupStrength(suggestedSwapDraft.previousSlots, opponentSlots, builderPlayers)
+    const beforeAnalysis = compareLineupStrengthWithDefaults(suggestedSwapDraft.previousSlots, opponentSlots, builderPlayers, knownCourtDefaults)
     const countProjectedCourts = (lineupAnalysis: LineupStrengthAnalysis) => (
       lineupAnalysis.lines.filter((line) => typeof line.projection === 'number').length
     )
@@ -4365,7 +4412,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       beforeProjectedCourtCount: countProjectedCourts(beforeAnalysis),
       afterProjectedCourtCount: countProjectedCourts(analysis),
     })
-  }, [analysis, builderPlayers, opponentSlots, suggestedSwapDraft])
+  }, [analysis, builderPlayers, knownCourtDefaults, opponentSlots, suggestedSwapDraft])
 
   const favoredLines = useMemo(
     () => analysis.lines.filter((line) => typeof line.projection === 'number' && line.projection >= 0.5).length,
@@ -4379,31 +4426,31 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
   const bestLine = useMemo(() => {
     const scored = analysis.lines
-      .filter((line) => typeof line.diff === 'number')
+      .filter((line) => !knownDefaultLabelSet.has(normalizeTeamName(line.label)) && typeof line.diff === 'number')
       .sort((a, b) => (b.diff ?? 0) - (a.diff ?? 0))
     return scored[0] ?? null
-  }, [analysis.lines])
+  }, [analysis.lines, knownDefaultLabelSet])
 
   const weakestLine = useMemo(() => {
     const scored = analysis.lines
-      .filter((line) => typeof line.diff === 'number')
+      .filter((line) => !knownDefaultLabelSet.has(normalizeTeamName(line.label)) && typeof line.diff === 'number')
       .sort((a, b) => (a.diff ?? 0) - (b.diff ?? 0))
     return scored[0] ?? null
-  }, [analysis.lines])
+  }, [analysis.lines, knownDefaultLabelSet])
 
   const swingLine = useMemo(() => {
     const scored = analysis.lines
-      .filter((line) => typeof line.projection === 'number' && line.projection >= 0.45 && line.projection <= 0.55)
+      .filter((line) => !knownDefaultLabelSet.has(normalizeTeamName(line.label)) && typeof line.projection === 'number' && line.projection >= 0.45 && line.projection <= 0.55)
       .sort((a, b) => Math.abs((a.projection ?? 0.5) - 0.5) - Math.abs((b.projection ?? 0.5) - 0.5))
     return scored[0] ?? null
-  }, [analysis.lines])
+  }, [analysis.lines, knownDefaultLabelSet])
 
   const weakestOpponentLine = useMemo(() => {
     const scored = analysis.lines
-      .filter((line) => typeof line.opponentStrength === 'number')
+      .filter((line) => !knownDefaultLabelSet.has(normalizeTeamName(line.label)) && typeof line.opponentStrength === 'number')
       .sort((a, b) => (a.opponentStrength ?? 0) - (b.opponentStrength ?? 0))
     return scored[0] ?? null
-  }, [analysis.lines])
+  }, [analysis.lines, knownDefaultLabelSet])
 
   const expectedScoreline = useMemo(() => {
     const projectedWins = analysis.lines
@@ -4423,14 +4470,14 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   }, [analysis.lines])
 
   const incompleteLines = useMemo(
-    () => analysis.lines.filter((line) => !isProjectedLineComplete(line)),
-    [analysis.lines]
+    () => analysis.lines.filter((line) => !knownDefaultLabelSet.has(normalizeTeamName(line.label)) && !isProjectedLineComplete(line)),
+    [analysis.lines, knownDefaultLabelSet]
   )
 
   const confidenceScore = useMemo(() => {
     const completionScore = analysis.lines.length
       ? analysis.lines.filter((line) => {
-          return isProjectedLineComplete(line)
+          return knownDefaultLabelSet.has(normalizeTeamName(line.label)) || isProjectedLineComplete(line)
         }).length / analysis.lines.length
       : 0
 
@@ -4453,7 +4500,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       label: `${Math.round(score * 100)}%`,
       tier: score >= 0.75 ? 'High confidence' : score >= 0.55 ? 'Moderate confidence' : 'Low confidence',
     }
-  }, [analysis.lines, myPlayerPool])
+  }, [analysis.lines, knownDefaultLabelSet, myPlayerPool])
 
   const captainDecisionQueue = useMemo<RecommendationCard[]>(() => {
     const cards: RecommendationCard[] = []
@@ -4586,6 +4633,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         diff: line.diff,
         projection: line.projection,
       })),
+      known_defaults_json: knownCourtDefaults,
       notes: notes.trim() || null,
       source,
     }
@@ -4786,7 +4834,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         .from('lineup_scenarios')
         .update(payload)
         .eq('id', targetScenarioId)
-        .select('id, scenario_name, league_name, flight, match_date, team_name, opponent_team, slots_json, opponent_slots_json, notes')
+        .select('id, scenario_name, league_name, flight, match_date, team_name, opponent_team, slots_json, opponent_slots_json, known_defaults_json, notes')
         .single()
       if (updateError) {
         setSaving(false)
@@ -4822,7 +4870,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     const { data, error: insertError } = await supabase
       .from('lineup_scenarios')
       .insert(payload)
-      .select('id, scenario_name, league_name, flight, match_date, team_name, opponent_team, slots_json, opponent_slots_json, notes')
+      .select('id, scenario_name, league_name, flight, match_date, team_name, opponent_team, slots_json, opponent_slots_json, known_defaults_json, notes')
       .single()
     if (insertError) {
       setSaving(false)
@@ -4909,6 +4957,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     setTeamName(scenario.team_name ?? '')
     setOpponentTeam(scenario.opponent_team ?? '')
     setNotes(scenario.notes ?? '')
+    setKnownCourtDefaults(normalizeKnownCourtDefaults(scenario.known_defaults_json))
 
     const loadedTeamSlots = normalizeSavedSlots(scenario.slots_json)
     const loadedOpponentSlots = normalizeSavedSlots(scenario.opponent_slots_json)
@@ -5023,8 +5072,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   }, [prefillApplied, prefillScenarioId, prefillSingleId, prefillPairIds, savedScenarios, players])
 
   const lineupWarnings = useMemo(
-    () => getLineupWarnings(teamSlots, opponentSlots, builderPlayers, competitionRules),
-    [builderPlayers, competitionRules, opponentSlots, teamSlots]
+    () => getLineupWarnings(teamSlots, opponentSlots, builderPlayers, competitionRules, knownCourtDefaults),
+    [builderPlayers, competitionRules, knownCourtDefaults, opponentSlots, teamSlots]
   )
 
   const optimizerTeamSlots = useMemo(
@@ -5070,9 +5119,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     return {
       slots: balanced.slots,
       bench: balanced.bench.slice(0, 6),
-      analysis: compareLineupStrength(balanced.slots, activeProjectedOpponentSlots, builderPlayers),
+      analysis: compareLineupStrengthWithDefaults(balanced.slots, activeProjectedOpponentSlots, builderPlayers, knownCourtDefaults),
     }
-  }, [activeProjectedOpponentSlots, builderPlayers, competitionRules, myPlayerPool, optimizerTeamSlots])
+  }, [activeProjectedOpponentSlots, builderPlayers, competitionRules, knownCourtDefaults, myPlayerPool, optimizerTeamSlots])
 
   const optimizedPlans = useMemo(() => {
     return [
@@ -5096,7 +5145,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     )
     const scoredCandidates = candidates.map((candidate) => {
       const probabilities = opponentScenarioLineups
-        .map((scenario) => compareLineupStrength(candidate.slots, scenario.slots, builderPlayers))
+        .map((scenario) => compareLineupStrengthWithDefaults(candidate.slots, scenario.slots, builderPlayers, knownCourtDefaults))
         .filter((analysis) => analysis.lines.some((line) => typeof line.projection === 'number'))
         .map((analysis) => analysis.projection)
       const worstCaseProbability = probabilities.length ? Math.min(...probabilities) : null
@@ -5116,7 +5165,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     return scoredCandidates.reduce<(typeof scoredCandidates)[number] | null>((best, candidate) => (
       !best || candidate.resilienceScore > best.resilienceScore ? candidate : best
     ), null)
-  }, [builderPlayers, competitionRules, myPlayerPool, opponentScenarioLineups, optimizerTeamSlots])
+  }, [builderPlayers, competitionRules, knownCourtDefaults, myPlayerPool, opponentScenarioLineups, optimizerTeamSlots])
 
   const bestOptimizedPlan = optimizedPlans[0] ?? null
 
@@ -5133,10 +5182,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     ? optimizerTeamSlots
     : bestOptimizedPlan?.slots ?? optimizerTeamSlots
 
-  const lineupIntelligenceAnalysis = useMemo(
-    () => compareLineupStrength(lineupIntelligenceSlots, activeProjectedOpponentSlots, builderPlayers),
-    [activeProjectedOpponentSlots, builderPlayers, lineupIntelligenceSlots],
-  )
+  const lineupIntelligenceAnalysis = useMemo(() => {
+    return compareLineupStrengthWithDefaults(lineupIntelligenceSlots, activeProjectedOpponentSlots, builderPlayers, knownCourtDefaults)
+  }, [activeProjectedOpponentSlots, builderPlayers, knownCourtDefaults, lineupIntelligenceSlots])
 
   const lineupIntelligenceCourts = useMemo<CaptainLineupIntelligenceCourt[]>(() => (
     lineupIntelligenceSlots.map((slot, index) => {
@@ -5192,7 +5240,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const lineupOpponentScenarios = useMemo<CaptainOpponentScenario[]>(() => {
     const likelySlots = opponentScenarioLineups.find((scenario) => scenario.id === 'likely')?.slots ?? []
     return opponentScenarioLineups.map((scenario) => {
-      const analysis = compareLineupStrength(lineupIntelligenceSlots, scenario.slots, builderPlayers)
+      const analysis = compareLineupStrengthWithDefaults(lineupIntelligenceSlots, scenario.slots, builderPlayers, knownCourtDefaults)
       const projectedLines = analysis.lines.filter((line) => typeof line.projection === 'number')
       const holdingCourtCount = projectedLines.filter((line) => (line.projection ?? 0) >= 0.5).length
       const pressureCourt = projectedLines.reduce<LineProjection | null>((lowest, line) => (
@@ -5224,7 +5272,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         })),
       }
     })
-  }, [builderPlayers, lineupIntelligenceSlots, opponentScenarioLineups])
+  }, [builderPlayers, knownCourtDefaults, lineupIntelligenceSlots, opponentScenarioLineups])
 
   const lineupIntelligenceOverallProbability = lineupIntelligenceAnalysis.lines.some((line) => typeof line.projection === 'number')
     ? lineupIntelligenceAnalysis.projection
@@ -5252,7 +5300,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             const isCurrent = pairIds.every((playerId) => currentPlayerIdSet.has(playerId)) && currentPlayerIds.length === 2
             const candidateSlots = cloneSlots(lineupIntelligenceSlots)
             candidateSlots[slotIndex].players = pairPlayers.map((player) => ({ playerId: player.id, playerName: player.name }))
-            const candidateAnalysis = compareLineupStrength(candidateSlots, activeProjectedOpponentSlots, builderPlayers)
+            const candidateAnalysis = compareLineupStrengthWithDefaults(candidateSlots, activeProjectedOpponentSlots, builderPlayers, knownCourtDefaults)
             const pairInsight = buildCaptainPairLineupIntelligence(pairIds, historicalLineMatches, historicalLineMatchPlayers)
             const ratings = pairPlayers.map((player) => getPlayerSlotRating(player, 'doubles')).filter((rating): rating is number => typeof rating === 'number')
             const pairRating = ratings.length ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length : null
@@ -5298,7 +5346,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
         return { id: slot.id, label: slot.label, recommendations }
       })
-  }, [activeProjectedOpponentSlots, builderPlayers, competitionRules, historicalLineMatchPlayers, historicalLineMatches, lineupIntelligenceSlots, lockedPlayerIdSet, lockedSlotIdSet, myPlayerPool])
+  }, [activeProjectedOpponentSlots, builderPlayers, competitionRules, historicalLineMatchPlayers, historicalLineMatches, knownCourtDefaults, lineupIntelligenceSlots, lockedPlayerIdSet, lockedSlotIdSet, myPlayerPool])
 
   const lineupSimulations = useMemo<CaptainLineupSimulationCourt[]>(() => {
     const assignedPlayerIds = new Set(lineupIntelligenceSlots.flatMap((slot) =>
@@ -5321,7 +5369,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           .map((player) => {
             const candidateSlots = cloneSlots(lineupIntelligenceSlots)
             candidateSlots[slotIndex].players[playerIndex] = { playerId: player.id, playerName: player.name }
-            const candidateAnalysis = compareLineupStrength(candidateSlots, activeProjectedOpponentSlots, builderPlayers)
+            const candidateAnalysis = compareLineupStrengthWithDefaults(candidateSlots, activeProjectedOpponentSlots, builderPlayers, knownCourtDefaults)
             const candidateCourtProbability = candidateAnalysis.lines[slotIndex]?.projection ?? null
             const hasCandidateProjection = candidateAnalysis.lines.some((line) => typeof line.projection === 'number')
             const candidateOverallProbability = hasCandidateProjection ? candidateAnalysis.projection : null
@@ -5431,6 +5479,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     lineupIntelligenceAnalysis.lines,
     lineupIntelligenceOverallProbability,
     lineupIntelligenceSlots,
+    knownCourtDefaults,
     lockedPlayerIdSet,
     myPlayerPool,
     playerLineupInsightsById,
@@ -5454,7 +5503,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         'team',
         effectiveMatchFormatId,
       )
-      const analysis = compareLineupStrength(candidateSlots, activeProjectedOpponentSlots, builderPlayers)
+      const analysis = compareLineupStrengthWithDefaults(candidateSlots, activeProjectedOpponentSlots, builderPlayers, knownCourtDefaults)
       const currentById = new Map(lineupIntelligenceSlots.map((slot) => [slot.id, slot]))
       const changedLabels = candidateSlots.filter((slot) => {
         const current = currentById.get(slot.id)
@@ -5483,6 +5532,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     lockedPlayerIdSet,
     lockedSlotIdSet,
     myPlayerPool,
+    knownCourtDefaults,
     optimizedPlans,
     activeProjectedOpponentSlots,
     selectedFormatFlight,
@@ -6986,6 +7036,32 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               ? 'Choose a team and scheduled match so the opponent, date, time, and location stay tied to imported schedule data.'
               : 'Your scenario is tied to an imported schedule match, so save, compare, and messaging can use the same match context.'}
           </div>
+
+          {competitionLayer === 'usta' ? (
+            <section style={knownDefaultsCardStyle} aria-label="Known USTA defaults">
+              <div>
+                <p style={sectionKicker}>Known USTA defaults</p>
+                <h3 style={sectionTitleSmall}>Lock in any court already awarded</h3>
+                <p style={sectionBodyTextStyle}>Use this only when a default is known before play. TiQ will count the awarded court in the match odds without treating it as a played 6–0, 6–0.</p>
+              </div>
+              <div style={knownDefaultsGridStyle}>
+                {teamSlots.map((slot) => {
+                  const selected = knownCourtDefaults.find((item) => normalizeTeamName(item.label) === normalizeTeamName(slot.label))?.awardedTo ?? null
+                  return (
+                    <div key={slot.id} style={knownDefaultRowStyle}>
+                      <strong style={knownDefaultLabelStyle}>{slot.label}</strong>
+                      <div style={knownDefaultButtonsStyle}>
+                        <button type="button" style={selected === null ? knownDefaultButtonActiveStyle : knownDefaultButtonStyle} onClick={() => setKnownDefaultForCourt(slot.label, null)}>Played</button>
+                        <button type="button" style={selected === 'team' ? knownDefaultButtonActiveStyle : knownDefaultButtonStyle} onClick={() => setKnownDefaultForCourt(slot.label, 'team')}>We receive</button>
+                        <button type="button" style={selected === 'opponent' ? knownDefaultButtonActiveStyle : knownDefaultButtonStyle} onClick={() => setKnownDefaultForCourt(slot.label, 'opponent')}>They receive</button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {knownCourtDefaults.length ? <div style={actionPlanInsightStyle}>{knownCourtDefaults.length} known default{knownCourtDefaults.length === 1 ? '' : 's'} included in this forecast and prediction snapshot.</div> : null}
+            </section>
+          ) : null}
 
           {sharedCaptainNotes?.weeklyNotes || sharedCaptainNotes?.opponentNotes ? (
             <div style={sharedNotesCardStyle}>
@@ -9916,6 +9992,37 @@ const actionPlanTextStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.62,
   overflowWrap: 'anywhere',
+}
+
+const knownDefaultsCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: 16,
+  border: '1px solid color-mix(in srgb, #fbbf24 38%, var(--shell-panel-border))',
+  borderRadius: 16,
+  background: 'color-mix(in srgb, #fbbf24 7%, var(--shell-panel-bg))',
+}
+
+const knownDefaultsGridStyle: CSSProperties = { display: 'grid', gap: 9 }
+const knownDefaultRowStyle: CSSProperties = { display: 'grid', gap: 8, minWidth: 0 }
+const knownDefaultLabelStyle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: '.84rem' }
+const knownDefaultButtonsStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 7 }
+const knownDefaultButtonStyle: CSSProperties = {
+  minWidth: 0,
+  minHeight: 42,
+  padding: '8px 7px',
+  border: '1px solid var(--shell-panel-border)',
+  borderRadius: 11,
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  fontWeight: 850,
+  fontSize: '.75rem',
+}
+const knownDefaultButtonActiveStyle: CSSProperties = {
+  ...knownDefaultButtonStyle,
+  borderColor: 'color-mix(in srgb, var(--brand-green) 58%, var(--shell-panel-border))',
+  background: 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg))',
+  color: 'var(--brand-green-3)',
 }
 
 const actionPlanInsightStyle: CSSProperties = {

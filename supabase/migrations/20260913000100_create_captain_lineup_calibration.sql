@@ -9,8 +9,8 @@ create table if not exists public.lineup_prediction_snapshots (
   team_name text,
   opponent_team text,
   projected_team_win_pct numeric,
-  projected_score_for integer,
-  projected_score_against integer,
+  projected_score_for numeric,
+  projected_score_against numeric,
   favored_lines integer not null default 0,
   underdog_lines integer not null default 0,
   swing_line_label text,
@@ -21,13 +21,20 @@ create table if not exists public.lineup_prediction_snapshots (
   slots_json jsonb not null default '[]'::jsonb,
   opponent_slots_json jsonb not null default '[]'::jsonb,
   line_projections_json jsonb not null default '[]'::jsonb,
+  known_defaults_json jsonb not null default '[]'::jsonb,
   notes text,
   source text not null default 'lineup-builder',
   created_at timestamptz not null default now()
 );
 
+alter table public.lineup_scenarios
+  add column if not exists known_defaults_json jsonb not null default '[]'::jsonb;
+
 alter table public.lineup_prediction_snapshots
   add column if not exists user_id uuid default auth.uid() references auth.users(id) on delete cascade;
+
+alter table public.lineup_prediction_snapshots
+  add column if not exists known_defaults_json jsonb not null default '[]'::jsonb;
 
 create index if not exists lineup_prediction_snapshots_owner_match_idx
   on public.lineup_prediction_snapshots (user_id, match_date desc, created_at desc);
@@ -69,8 +76,8 @@ create table if not exists public.captain_lineup_calibrations (
   flight text,
   match_date date not null,
   projected_team_win_pct numeric,
-  projected_score_for integer,
-  projected_score_against integer,
+  projected_score_for numeric,
+  projected_score_against numeric,
   actual_score_for integer not null,
   actual_score_against integer not null,
   actual_outcome text not null,

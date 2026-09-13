@@ -8,6 +8,7 @@ const resultRoute = readFileSync(join(root, 'app/api/captain/match-results/route
 const historyRoute = readFileSync(join(root, 'app/api/captain/lineup-calibrations/route.ts'), 'utf8')
 const resultPage = readFileSync(join(root, 'app/captain/record-result/page.tsx'), 'utf8')
 const reportPage = readFileSync(join(root, 'app/captain/calibration/page.tsx'), 'utf8')
+const lineupBuilderPage = readFileSync(join(root, 'app/captain/lineup-builder/page.tsx'), 'utf8')
 
 describe('captain lineup calibration workflow', () => {
   it('stores private prediction snapshots and owner-scoped calibrations', () => {
@@ -32,5 +33,13 @@ describe('captain lineup calibration workflow', () => {
     expect(resultPage).toContain('View prediction report')
     expect(reportPage).toContain('Is the lineup model earning your trust?')
     expect(reportPage).toContain('more verified match')
+  })
+
+  it('carries known USTA defaults from lineup planning through scorecard calibration', () => {
+    expect(migration).toContain('known_defaults_json jsonb')
+    expect(lineupBuilderPage).toContain('Known USTA defaults')
+    expect(lineupBuilderPage).toContain('known_defaults_json: knownCourtDefaults')
+    expect(resultRoute).toContain("update({ rating_eligible: false })")
+    expect(resultPage).toContain('When was the default known?')
   })
 })

@@ -96,6 +96,10 @@ function parseInput(value: unknown): CaptainScorecardInput | null {
       opponentPlayers: Array.isArray(item.opponentPlayers) ? item.opponentPlayers.filter((name): name is string => typeof name === 'string') : [],
       outcome,
       score: typeof item.score === 'string' ? item.score : '',
+      resultType: item.resultType === 'default' ? 'default' as const : 'played' as const,
+      defaultKnownBeforeMatch: item.resultType === 'default' && typeof item.defaultKnownBeforeMatch === 'boolean'
+        ? item.defaultKnownBeforeMatch
+        : null,
     }]
   })
   return {
@@ -304,6 +308,22 @@ export async function POST(request: Request) {
   if (savedLinesError) return Response.json({ ok: false, message: 'The saved court results could not be confirmed.' }, { status: 500 })
   const lineIdByExternalId = new Map(((savedLines || []) as ExistingMatch[]).map((line) => [line.external_match_id || '', line.id]))
   const savedLineIds = [...lineIdByExternalId.values()]
+  const defaultedLineIds = input.lines.flatMap((line) => {
+    const lineId = lineIdByExternalId.get(`${scorecard.externalMatchId}::line:${line.courtNumber}`)
+    return lineId && line.resultType === 'default' ? [lineId] : []
+  })
+  const playedLineIds = savedLineIds.filter((lineId) => !defaultedLineIds.includes(lineId))
+  const eligibilityUpdates = await Promise.all([
+    defaultedLineIds.length
+      ? service.from('matches').update({ rating_eligible: false }).in('id', defaultedLineIds)
+      : Promise.resolve({ error: null }),
+    playedLineIds.length
+      ? service.from('matches').update({ rating_eligible: true }).in('id', playedLineIds)
+      : Promise.resolve({ error: null }),
+  ])
+  if (eligibilityUpdates.some((result) => result.error)) {
+    return Response.json({ ok: false, message: 'The defaulted courts could not be protected from rating movement.' }, { status: 500 })
+  }
   const matchTypeById = new Map(input.lines.flatMap((line) => {
     const lineId = lineIdByExternalId.get(`${scorecard.externalMatchId}::line:${line.courtNumber}`)
     return lineId ? [[lineId, line.matchType] as const] : []
@@ -408,7 +428,7 @@ export async function POST(request: Request) {
   let calibration: CaptainScorecardSavedRecap['calibration'] = null
   const { data: predictionData, error: predictionError } = await service
     .from('lineup_prediction_snapshots')
-    .select('id,created_at,scenario_name,team_name,opponent_team,league_name,flight,match_date,projected_team_win_pct,projected_score_for,projected_score_against,confidence_score,confidence_tier,slots_json,opponent_slots_json,line_projections_json')
+    .select('id,created_at,scenario_name,team_name,opponent_team,league_name,flight,match_date,projected_team_win_pct,projected_score_for,projected_score_against,confidence_score,confidence_tier,slots_json,opponent_slots_json,line_projections_json,known_defaults_json')
     .eq('user_id', auth.userId)
     .eq('match_date', input.matchDate)
     .order('created_at', { ascending: false })

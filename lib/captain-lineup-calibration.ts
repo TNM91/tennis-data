@@ -1,4 +1,5 @@
 import type { CaptainScorecardInput } from './captain-scorecard'
+import { normalizeKnownCourtDefaults } from './captain-lineup-defaults'
 
 export type CaptainPredictionSnapshot = {
   id: string
@@ -12,6 +13,7 @@ export type CaptainPredictionSnapshot = {
   slots_json: unknown
   opponent_slots_json: unknown
   line_projections_json: unknown
+  known_defaults_json?: unknown
 }
 
 export type CaptainCalibrationCourt = {
@@ -19,6 +21,9 @@ export type CaptainCalibrationCourt = {
   projectedWinPct: number | null
   actualOutcome: 'won' | 'lost'
   predictionCorrect: boolean | null
+  resultType: 'played' | 'default'
+  defaultKnownBeforeMatch: boolean | null
+  defaultIncludedInPrediction: boolean
   teamPlayersMatched: number
   teamPlayersTotal: number
   opponentPlayersMatched: number
@@ -26,7 +31,7 @@ export type CaptainCalibrationCourt = {
 }
 
 export type CaptainCalibrationSignal = {
-  id: 'ratings' | 'court-history' | 'pair-fit' | 'opponent-placement' | 'lineup-change'
+  id: 'ratings' | 'court-history' | 'pair-fit' | 'opponent-placement' | 'lineup-change' | 'match-context'
   label: string
   direction: 'trust' | 'watch' | 'learn'
   detail: string
@@ -131,13 +136,22 @@ export function buildCaptainLineupCalibration(
   const teamSlots = normalizeSlots(snapshot.slots_json)
   const opponentSlots = normalizeSlots(snapshot.opponent_slots_json)
   const projections = normalizeLineProjections(snapshot.line_projections_json)
+  const knownDefaults = normalizeKnownCourtDefaults(snapshot.known_defaults_json)
+  const knownDefaultByLabel = new Map(knownDefaults.map((item) => [key(item.label), item.awardedTo]))
   const actualScoreFor = input.lines.filter((line) => line.outcome === 'team').length
   const actualScoreAgainst = input.lines.length - actualScoreFor
   const actualOutcome = actualScoreFor === actualScoreAgainst ? 'split' : actualScoreFor > actualScoreAgainst ? 'won' : 'lost'
   const projectedTeamWinPct = normalizeProbability(snapshot.projected_team_win_pct)
   const projectedOutcome = projectedTeamWinPct === null ? null : projectedTeamWinPct >= 0.5 ? 'won' : 'lost'
-  const teamPredictionCorrect = actualOutcome === 'split' || !projectedOutcome ? null : projectedOutcome === actualOutcome
-  const exactScoreCorrect = snapshot.projected_score_for === null || snapshot.projected_score_against === null
+  const hasUnmodeledDefault = input.lines.some((line) => {
+    if (line.resultType !== 'default') return false
+    const label = clean(line.label) || `${line.matchType === 'doubles' ? 'Doubles' : 'Singles'} ${line.courtNumber}`
+    const predictedAward = knownDefaultByLabel.get(key(label))
+    const actualAward = line.outcome === 'team' ? 'team' : 'opponent'
+    return predictedAward !== actualAward || line.defaultKnownBeforeMatch !== true
+  })
+  const teamPredictionCorrect = hasUnmodeledDefault || actualOutcome === 'split' || !projectedOutcome ? null : projectedOutcome === actualOutcome
+  const exactScoreCorrect = hasUnmodeledDefault || snapshot.projected_score_for === null || snapshot.projected_score_against === null
     ? null
     : snapshot.projected_score_for === actualScoreFor && snapshot.projected_score_against === actualScoreAgainst
 
@@ -152,23 +166,31 @@ export function buildCaptainLineupCalibration(
     const projectedOpponentSlot = findByLabelOrIndex(opponentSlots, label, index)
     const lineProjection = findByLabelOrIndex(projections, label, index)
     const projectedWinPct = lineProjection?.projection ?? null
+    const resultType = line.resultType === 'default' ? 'default' : 'played'
+    const defaultIncludedInPrediction = resultType === 'default'
+      && knownDefaultByLabel.get(key(label)) === (line.outcome === 'team' ? 'team' : 'opponent')
     const actualValue = line.outcome === 'team' ? 1 : 0
-    if (projectedWinPct !== null) brierValues.push((projectedWinPct - actualValue) ** 2)
+    if (resultType === 'played' && projectedWinPct !== null) brierValues.push((projectedWinPct - actualValue) ** 2)
 
     const teamPlayers = line.teamPlayers.map(clean).filter(Boolean)
     const opponentPlayers = line.opponentPlayers.map(clean).filter(Boolean)
     const teamPlayersMatched = countNameMatches(teamPlayers, projectedTeamSlot?.players ?? [])
     const opponentPlayersMatched = countNameMatches(opponentPlayers, projectedOpponentSlot?.players ?? [])
-    totalTeamPlayers += teamPlayers.length
-    matchedTeamPlayers += teamPlayersMatched
-    totalOpponentPlayers += opponentPlayers.length
-    matchedOpponentPlayers += opponentPlayersMatched
+    if (resultType === 'played') {
+      totalTeamPlayers += teamPlayers.length
+      matchedTeamPlayers += teamPlayersMatched
+      totalOpponentPlayers += opponentPlayers.length
+      matchedOpponentPlayers += opponentPlayersMatched
+    }
 
     return {
       label,
       projectedWinPct,
       actualOutcome: line.outcome === 'team' ? 'won' : 'lost',
-      predictionCorrect: projectedWinPct === null ? null : (projectedWinPct >= 0.5) === (line.outcome === 'team'),
+      predictionCorrect: resultType === 'default' || projectedWinPct === null ? null : (projectedWinPct >= 0.5) === (line.outcome === 'team'),
+      resultType,
+      defaultKnownBeforeMatch: resultType === 'default' ? line.defaultKnownBeforeMatch ?? null : null,
+      defaultIncludedInPrediction,
       teamPlayersMatched,
       teamPlayersTotal: teamPlayers.length,
       opponentPlayersMatched,
@@ -184,12 +206,25 @@ export function buildCaptainLineupCalibration(
   const opponentPlacementAccuracy = totalOpponentPlayers ? rounded(matchedOpponentPlayers / totalOpponentPlayers) : 0
 
   const signals: CaptainCalibrationSignal[] = []
-  if (lineupAdherence < 0.75) {
+  const playedCourts = courts.filter((court) => court.resultType === 'played')
+  const defaultedCourts = courts.filter((court) => court.resultType === 'default')
+  if (defaultedCourts.length) {
+    const modeledDefaults = defaultedCourts.filter((court) => court.defaultIncludedInPrediction && court.defaultKnownBeforeMatch).length
+    signals.push({
+      id: 'match-context',
+      label: 'USTA defaults',
+      direction: modeledDefaults === defaultedCourts.length ? 'trust' : 'learn',
+      detail: modeledDefaults === defaultedCourts.length
+        ? `${modeledDefaults} known default${modeledDefaults === 1 ? ' was' : 's were'} included in the pre-match odds. Defaulted courts were excluded from player and score-margin learning.`
+        : `${defaultedCourts.length - modeledDefaults} defaulted court${defaultedCourts.length - modeledDefaults === 1 ? ' was' : 's were'} not in the saved pre-match context, so TiQ did not grade the match forecast. No player rating movement came from a default.`,
+    })
+  }
+  if (playedCourts.length && lineupAdherence < 0.75) {
     signals.push({ id: 'lineup-change', label: 'Lineup changes', direction: 'watch', detail: 'The played lineup differed materially from the saved recommendation, so this result is weaker evidence about the builder itself.' })
-  } else if (lineupAdherence === 1) {
+  } else if (playedCourts.length && lineupAdherence === 1) {
     signals.push({ id: 'lineup-change', label: 'Lineup execution', direction: 'trust', detail: 'The recommended lineup reached the court unchanged, giving TiQ a clean prediction test.' })
   }
-  if (opponentPlacementAccuracy < 0.5) {
+  if (playedCourts.length && opponentPlacementAccuracy < 0.5) {
     signals.push({ id: 'opponent-placement', label: 'Opponent placement', direction: 'learn', detail: 'The opponent stacked courts differently than projected. Future reads should give this team’s placement patterns more weight.' })
   } else if (totalOpponentPlayers) {
     signals.push({ id: 'opponent-placement', label: 'Opponent placement', direction: 'trust', detail: 'The opponent court projection closely matched who actually played.' })
@@ -202,7 +237,7 @@ export function buildCaptainLineupCalibration(
   } else {
     signals.push({ id: 'court-history', label: 'Court history', direction: 'watch', detail: 'The mixed court result should add evidence, but not trigger a weight change by itself.' })
   }
-  if (input.lines.some((line) => line.matchType === 'doubles')) {
+  if (input.lines.some((line) => line.matchType === 'doubles' && line.resultType !== 'default')) {
     signals.push({ id: 'pair-fit', label: 'Pair chemistry', direction: 'watch', detail: 'This scorecard adds another shared start for the doubles pairs. Pair fit should move only after repeated results, not one match.' })
   }
 
@@ -211,7 +246,7 @@ export function buildCaptainLineupCalibration(
     : teamPredictionCorrect === false
       ? 'This result gives TiQ a useful correction.'
       : 'This result adds calibration evidence.'
-  const summary = `${correctCourts}/${scoredCourts.length || input.lines.length} court directions matched${lineupAdherence < 1 ? ` · ${Math.round(lineupAdherence * 100)}% of the recommended lineup played` : ' · the recommended lineup played as saved'}.`
+  const summary = `${correctCourts}/${scoredCourts.length} played court directions matched${playedCourts.length ? lineupAdherence < 1 ? ` · ${Math.round(lineupAdherence * 100)}% of the recommended lineup played` : ' · the recommended lineup played as saved' : ' · defaulted courts were not treated as played matches'}.`
 
   return {
     snapshotId: snapshot.id,
