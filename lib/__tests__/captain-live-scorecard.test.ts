@@ -48,7 +48,8 @@ describe('Captain live scorecard', () => {
     expect(liveScorecard).toContain('Scan scorecard')
     expect(liveScorecard).toContain('Match details <span>Edit date, opponent, time, or location</span>')
     expect(liveScorecard).toContain('Text final result')
-    expect(liveScorecard).toContain('navigator.share')
+    expect(liveScorecard).toContain('buildSmsHref([], message, navigator.userAgent)')
+    expect(liveScorecard).not.toContain('await navigator.share')
   })
 
   it('keeps match-day entry focused on one compact court at a time', () => {
