@@ -16,6 +16,11 @@ type MatchWeekScope = {
   opponent?: string
 }
 
+type MatchWeekChoice = {
+  id: string
+  label: string
+}
+
 const steps: Array<{ id: MatchWeekStep; label: string; path: string }> = [
   { id: 'lineup', label: 'Build lineup', path: '/captain/lineup-builder' },
   { id: 'availability', label: 'Check replies', path: '/captain/availability' },
@@ -30,6 +35,9 @@ export default function CaptainMatchWeekRail({
   onSendTeamUpdate,
   sendTeamUpdateDisabled = false,
   messagingComplete = false,
+  matchChoices = [],
+  selectedMatchId = '',
+  onMatchChange,
 }: {
   current: MatchWeekStep
   scope: MatchWeekScope
@@ -38,10 +46,19 @@ export default function CaptainMatchWeekRail({
   onSendTeamUpdate?: () => void
   sendTeamUpdateDisabled?: boolean
   messagingComplete?: boolean
+  matchChoices?: MatchWeekChoice[]
+  selectedMatchId?: string
+  onMatchChange?: (matchId: string) => void
 }) {
   const { isMobile } = useViewportBreakpoints()
   const currentIndex = steps.findIndex((step) => step.id === current)
   const hasMatch = Boolean(scope.date || scope.opponent)
+  const selectedChoiceIndex = matchChoices.findIndex((choice) => choice.id === selectedMatchId)
+  const previousChoice = selectedChoiceIndex > 0 ? matchChoices[selectedChoiceIndex - 1] : null
+  const nextChoice = selectedChoiceIndex >= 0 && selectedChoiceIndex < matchChoices.length - 1
+    ? matchChoices[selectedChoiceIndex + 1]
+    : null
+  const canSwitchMatches = Boolean(onMatchChange && matchChoices.length > 1 && selectedMatchId)
 
   if (!hasMatch) {
     const returnTo = buildCaptainScopedHref(`/captain/${current === 'lineup' ? 'lineup-builder' : current}`, scope)
@@ -61,12 +78,52 @@ export default function CaptainMatchWeekRail({
   return (
     <section style={isMobile ? mobileRailShell : railShell} aria-label="Match week progress">
       <div style={matchContext}>
-        <div style={kicker}>Match week</div>
+        <div style={matchHeadingRow}>
+          <div style={kicker}>Match week</div>
+          {canSwitchMatches ? <span style={matchCountPill}>{matchChoices.length} scheduled</span> : null}
+        </div>
         <strong style={title}>
           {scope.opponent ? `vs ${scope.opponent}` : 'Selected match'}
           {scope.date ? <span style={dateText}> - {formatMatchDate(scope.date)}</span> : null}
         </strong>
         {scope.team ? <span style={teamText}>{scope.team}{scope.league ? ` · ${scope.league}` : ''}{scope.flight ? ` · ${scope.flight}` : ''}</span> : null}
+        {canSwitchMatches ? (
+          <div style={matchPickerRow}>
+            <button
+              type="button"
+              aria-label={previousChoice ? `Build lineup for ${previousChoice.label}` : 'No earlier scheduled match'}
+              title="Earlier match"
+              disabled={!previousChoice}
+              onClick={() => previousChoice && onMatchChange?.(previousChoice.id)}
+              style={{ ...matchPickerArrow, ...(!previousChoice ? matchPickerArrowDisabled : {}) }}
+            >
+              <span aria-hidden="true">‹</span>
+            </button>
+            <label style={matchPickerLabel}>
+              <span style={matchPickerCaption}>Change match</span>
+              <select
+                aria-label="Choose match to build"
+                value={selectedMatchId}
+                onChange={(event) => onMatchChange?.(event.target.value)}
+                style={matchPickerSelect}
+              >
+                {matchChoices.map((choice) => (
+                  <option key={choice.id} value={choice.id}>{choice.label}</option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              aria-label={nextChoice ? `Build lineup for ${nextChoice.label}` : 'No later scheduled match'}
+              title="Next match"
+              disabled={!nextChoice}
+              onClick={() => nextChoice && onMatchChange?.(nextChoice.id)}
+              style={{ ...matchPickerArrow, ...(!nextChoice ? matchPickerArrowDisabled : {}) }}
+            >
+              <span aria-hidden="true">›</span>
+            </button>
+          </div>
+        ) : null}
       </div>
       <nav style={isMobile ? mobileStepList : stepList} aria-label="Match week steps">
         {steps.map((step, index) => {
@@ -168,11 +225,19 @@ const mobileRailShell: CSSProperties = {
   boxShadow: '0 16px 34px rgba(2, 10, 24, 0.18), inset 0 1px 0 rgba(255,255,255,0.05)',
 }
 
-const matchContext: CSSProperties = { minWidth: 0 }
+const matchContext: CSSProperties = { minWidth: 0, flex: '1 1 310px' }
+const matchHeadingRow: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, minWidth: 0 }
 const kicker: CSSProperties = { color: '#93c5fd', fontSize: 11, fontWeight: 900, letterSpacing: '.12em', textTransform: 'uppercase' }
+const matchCountPill: CSSProperties = { flex: '0 0 auto', padding: '4px 8px', borderRadius: 999, border: '1px solid color-mix(in srgb, var(--brand-green) 34%, transparent)', background: 'color-mix(in srgb, var(--brand-green) 10%, transparent)', color: 'var(--brand-lime)', fontSize: 10, fontWeight: 900, letterSpacing: '.04em', textTransform: 'uppercase' }
 const title: CSSProperties = { display: 'block', marginTop: 4, color: 'var(--foreground-strong)', fontSize: 16, lineHeight: 1.25, overflowWrap: 'anywhere' }
 const dateText: CSSProperties = { color: 'var(--shell-copy-muted)', fontWeight: 700 }
 const teamText: CSSProperties = { display: 'block', marginTop: 3, color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700, overflowWrap: 'anywhere' }
+const matchPickerRow: CSSProperties = { display: 'grid', gridTemplateColumns: '44px minmax(0, 1fr) 44px', alignItems: 'end', gap: 7, marginTop: 12, minWidth: 0 }
+const matchPickerLabel: CSSProperties = { display: 'grid', gap: 5, minWidth: 0 }
+const matchPickerCaption: CSSProperties = { color: '#93c5fd', fontSize: 10, fontWeight: 900, letterSpacing: '.09em', textTransform: 'uppercase' }
+const matchPickerSelect: CSSProperties = { width: '100%', minWidth: 0, height: 44, padding: '0 34px 0 12px', borderRadius: 13, border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)', background: 'var(--shell-chip-bg)', color: 'var(--foreground-strong)', colorScheme: 'dark', font: 'inherit', fontSize: 13, fontWeight: 850, textOverflow: 'ellipsis', outline: 'none' }
+const matchPickerArrow: CSSProperties = { display: 'grid', placeItems: 'center', width: 44, height: 44, padding: 0, borderRadius: 13, border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)', background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)', color: 'var(--brand-lime)', fontFamily: 'inherit', fontSize: 27, lineHeight: 1, cursor: 'pointer' }
+const matchPickerArrowDisabled: CSSProperties = { borderColor: 'var(--shell-panel-border)', color: 'var(--shell-copy-muted)', background: 'var(--shell-chip-bg)', cursor: 'not-allowed', opacity: 0.42 }
 const stepList: CSSProperties = { display: 'flex', gap: 7, flexWrap: 'wrap' }
 const stepLink: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: 44, padding: '7px 11px', borderRadius: 12, border: '1px solid var(--shell-panel-border)', color: 'var(--shell-copy-muted)', background: 'var(--shell-chip-bg)', fontSize: 12, fontWeight: 800, textDecoration: 'none' }
 const stepButton: CSSProperties = { fontFamily: 'inherit', cursor: 'pointer' }
