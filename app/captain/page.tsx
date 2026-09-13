@@ -301,6 +301,7 @@ type CaptainTeamRoomSummary = {
   reminderStatus: string
   arrivalState?: 'late' | 'follow_up' | 'waiting' | 'on_way' | 'ready' | 'empty' | ''
   matchCompleted?: boolean
+  resultExternalMatchId?: string
   arrivalLate?: {
     playerName: string
     courtLabel: string
@@ -1827,6 +1828,7 @@ function CaptainHubContent() {
     reminderStatus: '',
     arrivalState: '',
     matchCompleted: false,
+    resultExternalMatchId: '',
     arrivalLate: null,
     arrivalFollowUp: null,
     courtReadiness: { messageId: '', confirmedCount: 0, totalCount: 0, courts: [] },
@@ -2474,7 +2476,7 @@ function CaptainHubContent() {
     teamRoomSummaryRequestRef.current = requestId
     const accessToken = session?.access_token || ''
     if (!accessToken || !selectedTeam) {
-      setTeamRoomSummary({ unreadCount: 0, pendingCount: 0, maybeCount: 0, unseenLineupCount: 0, unresolvedCount: 0, responseCount: 0, latestResponseAt: '', latestMatchDate: '', reminderAt: '', reminderStatus: '', arrivalState: '', matchCompleted: false, arrivalLate: null, arrivalFollowUp: null, courtReadiness: { messageId: '', confirmedCount: 0, totalCount: 0, courts: [] } })
+      setTeamRoomSummary({ unreadCount: 0, pendingCount: 0, maybeCount: 0, unseenLineupCount: 0, unresolvedCount: 0, responseCount: 0, latestResponseAt: '', latestMatchDate: '', reminderAt: '', reminderStatus: '', arrivalState: '', matchCompleted: false, resultExternalMatchId: '', arrivalLate: null, arrivalFollowUp: null, courtReadiness: { messageId: '', confirmedCount: 0, totalCount: 0, courts: [] } })
       return
     }
     const roomHref = buildTeamRoomHref({
@@ -3468,6 +3470,12 @@ function CaptainHubContent() {
     time: nextMatch?.time,
     facility: nextMatch?.facility,
   })
+  const captainResultReviewHref = teamRoomSummary.resultExternalMatchId
+    ? appendCaptainHrefQuery(captainLiveScorecardHref, {
+        result: 'updated',
+        resultMatch: teamRoomSummary.resultExternalMatchId,
+      })
+    : captainLiveScorecardHref
   const captainFinalLineupHref = appendCaptainHrefQuery(buildCaptainScopedHref('/captain/matchup-sheet', {
     competitionLayer: selectedCompetitionLayer,
     team: selectedTeam,
@@ -10638,7 +10646,7 @@ function CaptainHubContent() {
     || copiedCaptainSendQueueId
     || copiedCaptainWeeklySendBoardId,
   )
-  const captainMobilePostMatchActive = postMatchClosed || captainScoreCaptureLoggedCount > 0 || captainPostMatchRecapCopied
+  const captainMobilePostMatchActive = postMatchClosed || teamRoomSummary.matchCompleted === true || captainScoreCaptureLoggedCount > 0 || captainPostMatchRecapCopied
   const captainMobileCopiedTeamReminderReady = captainCopiedTeamTextReady && !captainMobilePostMatchActive
   const captainMobileMatchShortcutLinks = (captainMobileCopiedTeamReminderReady && !captainPostSendSent)
     ? []
@@ -10989,6 +10997,17 @@ function CaptainHubContent() {
         cta: 'Review closeout',
         tone: 'good' as const,
       }
+    : teamRoomSummary.matchCompleted
+      ? {
+          id: 'mobile-review-result',
+          label: 'Result saved',
+          state: 'Verified',
+          detail: 'Review the final courts, saved receipt, defaults, retirements, and prediction check.',
+          href: captainResultReviewHref,
+          stage: 'analytics' as CaptainResumeStage,
+          cta: 'Review result',
+          tone: 'good' as const,
+        }
     : captainPostMatchRecapCopied
       ? {
           id: 'mobile-text-recap',

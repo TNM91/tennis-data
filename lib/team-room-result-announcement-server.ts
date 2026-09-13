@@ -105,15 +105,15 @@ export async function announceTeamRoomScorecardResult(input: {
     .in('conversation_id', conversationIds)
     .contains('metadata', { teamRoomCard: true })
     .limit(300)
-  const matchingCardIdByConversationId = new Map<string, string>()
+  const matchingCardByConversationId = new Map<string, MatchCardRow>()
   for (const row of (cardData ?? []) as MatchCardRow[]) {
     const metadata = row.metadata
     if (!metadata) continue
     const exactExternalId = clean(metadata.externalMatchId) === externalMatchId
     const exactMatchId = clean(metadata.matchId) === clean(match.id)
-    if (exactExternalId || exactMatchId) matchingCardIdByConversationId.set(row.conversation_id, row.id)
+    if (exactExternalId || exactMatchId) matchingCardByConversationId.set(row.conversation_id, row)
   }
-  const targets = conversations.filter((conversation) => matchingCardIdByConversationId.has(conversation.id))
+  const targets = conversations.filter((conversation) => matchingCardByConversationId.has(conversation.id))
   if (!targets.length) return { inserted: 0, updated: 0 }
 
   const fingerprint = buildTeamRoomScorecardFingerprint(input.draft)
@@ -128,13 +128,29 @@ export async function announceTeamRoomScorecardResult(input: {
   let inserted = 0
   let updated = 0
   for (const target of targets) {
+    const resultCard = matchingCardByConversationId.get(target.id)
+    if (!resultCard) continue
+    const matchCompletedAt = clean(resultCard.metadata?.matchCompletedAt) || new Date().toISOString()
+    const completedCardMetadata = {
+      ...(resultCard.metadata || {}),
+      matchCompletedAt,
+      resultExternalMatchId: externalMatchId,
+    }
+    const { error: completionError } = await input.service
+      .from('internal_messages')
+      .update({ metadata: completedCardMetadata })
+      .eq('id', resultCard.id)
+    if (completionError) {
+      console.error('Could not mark the Team Chat match card complete', completionError)
+    }
+
     const link = linkByScopeId.get(target.related_entity_id)
     const result = link ? buildTeamRoomFinalResult(match, link.team_name) : null
     if (!link || !result) continue
     const body = buildTeamRoomResultAnnouncement(result)
     const metadata = {
       teamRoomResultAnnouncement: true,
-      teamRoomResultCardId: matchingCardIdByConversationId.get(target.id) || '',
+      teamRoomResultCardId: resultCard.id,
       externalMatchId,
       matchId: match.id,
       matchDate: clean(match.match_date),
@@ -175,7 +191,7 @@ export async function announceTeamRoomScorecardResult(input: {
       link,
       body,
       messageId: insertedMessage.id,
-      resultCardId: matchingCardIdByConversationId.get(target.id) || '',
+      resultCardId: resultCard.id,
     })
   }
   return { inserted, updated }

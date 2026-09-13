@@ -68,3 +68,47 @@ it('the actual engine rejects only after the sibling snapshot save settles, with
   expect(phases.at(-1)).toBe('saving-snapshots')
   expect(phases).not.toContain('done')
 })
+
+it('drops snapshots for matches replaced while a long rating rebuild is running', async () => {
+  const tables: Record<string, unknown[]> = {
+    players: ['a', 'b'].map(id => ({ id, name: id, rating_source: 'verified', singles_rating: 4, doubles_rating: 4, overall_rating: 4 })),
+    matches: [
+      { id: 'kept', match_date: '2026-09-12', match_type: 'singles', score: '6-4 6-4', winner_side: 'A', rating_eligible: true },
+      { id: 'replaced', match_date: '2026-09-13', match_type: 'singles', score: '6-3 6-3', winner_side: 'B', rating_eligible: true },
+    ],
+    match_players: ['kept', 'replaced'].flatMap(match_id => [
+      { match_id, player_id: 'a', side: 'A', seat: 1 },
+      { match_id, player_id: 'b', side: 'B', seat: 1 },
+    ]),
+  }
+  const snapshotWrites: unknown[][] = []
+  let snapshotAttempt = 0
+  const client = { from(table: string) {
+    const query = {
+      select: () => query,
+      not: () => query,
+      eq: () => query,
+      order: () => query,
+      range: (start: number, end: number) => Promise.resolve({ data: (tables[table] || []).slice(start, end + 1), error: null }),
+      in: (_column: string, ids: string[]) => Promise.resolve({
+        data: table === 'matches' ? ids.filter(id => id === 'kept').map(id => ({ id })) : [],
+        error: null,
+      }),
+      upsert: (rows: unknown[]) => {
+        if (table !== 'rating_snapshots') return Promise.resolve({ error: null })
+        snapshotWrites.push(rows)
+        snapshotAttempt += 1
+        return Promise.resolve(snapshotAttempt === 1
+          ? { error: { message: 'insert or update on table "rating_snapshots" violates foreign key constraint "rating_snapshots_match_id_fkey"' } }
+          : { error: null })
+      },
+    }
+    return query
+  } } as unknown as SupabaseClient
+
+  const result = await recalculateDynamicRatings(undefined, client, { replaceSnapshots: false })
+
+  expect(result.processedMatchCount).toBe(2)
+  expect(snapshotWrites).toHaveLength(2)
+  expect((snapshotWrites[1] as Array<{ match_id: string }>).every(row => row.match_id === 'kept')).toBe(true)
+})

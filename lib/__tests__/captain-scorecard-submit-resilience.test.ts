@@ -32,4 +32,14 @@ describe('Captain scorecard submission resilience', () => {
     expect(page).not.toContain('await navigator.share')
     expect(page).toContain('Opening Messages with the final result ready to send.')
   })
+
+  it('shows a timestamped durable receipt after the result is saved', () => {
+    const route = source('app/api/captain/match-results/route.ts')
+    const page = source('app/captain/record-result/page.tsx')
+
+    expect(route).toContain('savedAt: observedAt')
+    expect(page).toContain('aria-label="Saved result receipt"')
+    expect(page).toContain('Result saved')
+    expect(page).toContain('Safe to close')
+  })
 })
