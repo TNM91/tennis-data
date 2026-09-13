@@ -76,6 +76,23 @@ describe('Captain mobile action priority', () => {
     })
   })
 
+  it('supports the date gate used by the Match Day tools button', () => {
+    expect(getCaptainMobileActionLayout({
+      matchDate: '2026-09-13',
+      todayDate: '2026-09-13',
+      pendingAvailabilityCount: 2,
+      hasAvailabilityReplies: true,
+      lineupReady: true,
+    }).phase).toBe('match_day')
+    expect(getCaptainMobileActionLayout({
+      matchDate: '2026-09-14',
+      todayDate: '2026-09-13',
+      pendingAvailabilityCount: 2,
+      hasAvailabilityReplies: true,
+      lineupReady: true,
+    }).phase).toBe('upcoming')
+  })
+
   it('moves from a saved replacement to score capture without another dashboard step', () => {
     const base = {
       matchDate: '2026-08-04',
