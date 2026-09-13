@@ -16,14 +16,14 @@ import {
   buildCaptainLineupCalibration,
   type CaptainPredictionSnapshot,
 } from '@/lib/captain-lineup-calibration'
+import { scheduleRatingRefresh } from '@/lib/data-assist-rating-refresh'
 import { runScorecardImport } from '@/lib/ingestion/runImport'
-import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import { normalizeTennisIdentity, sourcePriority } from '@/lib/tennisrecord/reconcile'
 import { canManageTeamRoom, normalizeTeamRoomKey } from '@/lib/team-room'
 import { announceTeamRoomScorecardResult } from '@/lib/team-room-result-announcement-server'
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
+export const maxDuration = 300
 
 type StoredObservation = {
   fingerprint: string
@@ -46,19 +46,6 @@ type ReceiptObservation = {
   raw: unknown
 }
 
-type SavedMatchParticipant = {
-  match_id: string
-  player_id: string
-  side: 'A' | 'B'
-}
-
-type RatingPlayer = {
-  id: string
-  name: string | null
-  singles_dynamic_rating: number | null
-  doubles_dynamic_rating: number | null
-}
-
 type DataAssistReferenceRow = {
   submitted_by_user_id: string | null
 }
@@ -69,11 +56,6 @@ type PredictionSnapshotRow = CaptainPredictionSnapshot & {
   league_name: string | null
   flight: string | null
   match_date: string | null
-}
-
-function matchRating(player: RatingPlayer | undefined, matchType: 'singles' | 'doubles') {
-  const value = matchType === 'singles' ? player?.singles_dynamic_rating : player?.doubles_dynamic_rating
-  return typeof value === 'number' && Number.isFinite(value) ? Math.round(value * 1000) / 1000 : null
 }
 
 function parseInput(value: unknown): CaptainScorecardInput | null {
@@ -190,6 +172,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const startedAt = Date.now()
   const auth = await getCaptainApiAuth(request)
   if (!auth.ok) return auth.response
 
@@ -203,6 +186,12 @@ export async function POST(request: Request) {
   if (!input) return Response.json({ ok: false, message: 'Add the match and court details before saving.' }, { status: 400 })
   const validationError = validateCaptainScorecardInput(input)
   if (validationError) return Response.json({ ok: false, message: validationError }, { status: 400 })
+
+  console.info('[api/captain/match-results] save started', {
+    userId: auth.userId,
+    matchDate: input.matchDate,
+    lineCount: input.lines.length,
+  })
 
   const service = getCaptainAvailabilityServiceClient()
   const { data: teamLinks, error: teamLinksError } = await service
@@ -305,6 +294,11 @@ export async function POST(request: Request) {
   if (importResult.result.failedCount || importResult.result.successCount + importResult.result.updatedCount === 0) {
     return Response.json({ ok: false, message: importResult.result.errors[0]?.message || 'The scorecard could not be saved.' }, { status: 500 })
   }
+  console.info('[api/captain/match-results] courts persisted', {
+    durationMs: Date.now() - startedAt,
+    successCount: importResult.result.successCount,
+    updatedCount: importResult.result.updatedCount,
+  })
   const saveMode = saveTarget.reusesExistingMatch || importResult.result.updatedCount > 0 ? 'updated' : 'created'
 
   const lineExternalIds = input.lines.map((line) => `${scorecard.externalMatchId}::line:${line.courtNumber}`)
@@ -331,22 +325,6 @@ export async function POST(request: Request) {
   if (eligibilityUpdates.some((result) => result.error)) {
     return Response.json({ ok: false, message: 'The defaulted or retired courts could not be protected from rating movement.' }, { status: 500 })
   }
-  const matchTypeById = new Map(input.lines.flatMap((line) => {
-    const lineId = lineIdByExternalId.get(`${scorecard.externalMatchId}::line:${line.courtNumber}`)
-    return lineId ? [[lineId, line.matchType] as const] : []
-  }))
-  const { data: participantData } = savedLineIds.length
-    ? await service.from('match_players').select('match_id,player_id,side').in('match_id', savedLineIds)
-    : { data: [] }
-  const savedParticipants = (participantData || []) as SavedMatchParticipant[]
-  const participantIds = [...new Set(savedParticipants.map((participant) => participant.player_id).filter(Boolean))]
-  const { data: beforeRatingData } = participantIds.length
-    ? await service
-      .from('players')
-      .select('id,name,singles_dynamic_rating,doubles_dynamic_rating')
-      .in('id', participantIds)
-    : { data: [] }
-  const beforeRatings = new Map(((beforeRatingData || []) as RatingPlayer[]).map((player) => [player.id, player]))
   const observedAt = new Date().toISOString()
   const observationPayload = localObservations.flatMap((observation, index) => {
     const lineId = lineIdByExternalId.get(`${scorecard.externalMatchId}::line:${input.lines[index].courtNumber}`)
@@ -398,7 +376,7 @@ export async function POST(request: Request) {
       conflict_count: conflicts.length,
       reconciled_at: observedAt,
       promoted_at: observedAt,
-      rating_processed_at: observedAt,
+      rating_processed_at: input.lines[index].resultType === 'played' ? null : observedAt,
     }]
   })
   if (canonicalRows.length) {
@@ -408,30 +386,7 @@ export async function POST(request: Request) {
     if (canonicalError) return Response.json({ ok: false, message: 'The result reconciliation could not be saved.' }, { status: 500 })
   }
 
-  await recalculateDynamicRatings(undefined, service)
-  const { data: afterRatingData } = participantIds.length
-    ? await service
-      .from('players')
-      .select('id,name,singles_dynamic_rating,doubles_dynamic_rating')
-      .in('id', participantIds)
-    : { data: [] }
-  const afterRatings = new Map(((afterRatingData || []) as RatingPlayer[]).map((player) => [player.id, player]))
-  const ratingChanges = [...new Map(savedParticipants.map((participant) => [participant.player_id, participant])).values()]
-    .filter((participant) => !nonRatingLineIds.includes(participant.match_id))
-    .map((participant) => {
-      const matchType = matchTypeById.get(participant.match_id) || 'doubles'
-      const before = matchRating(beforeRatings.get(participant.player_id), matchType)
-      const after = matchRating(afterRatings.get(participant.player_id), matchType)
-      return {
-        playerId: participant.player_id,
-        playerName: afterRatings.get(participant.player_id)?.name || beforeRatings.get(participant.player_id)?.name || 'Player',
-        side: participant.side === 'A' ? 'team' as const : 'opponent' as const,
-        matchType,
-        before,
-        after,
-        delta: before !== null && after !== null ? Math.round((after - before) * 1000) / 1000 : null,
-      }
-    })
+  const ratingChanges: CaptainScorecardSavedRecap['ratingChanges'] = []
   const sourceConflictCount = canonicalRows.reduce((total, row) => total + row.conflict_count, 0)
   let calibration: CaptainScorecardSavedRecap['calibration'] = null
   const { data: predictionData, error: predictionError } = await service
@@ -491,6 +446,7 @@ export async function POST(request: Request) {
   const recap: CaptainScorecardSavedRecap = {
     ...buildCaptainScorecardRecap(input),
     ratingChanges,
+    ratingsRefreshing: completedLineIds.length > 0,
     sourceConflictCount,
     calibration,
   }
@@ -547,6 +503,20 @@ export async function POST(request: Request) {
     // Team Chat availability never blocks the verified match and rating save.
     console.error('Could not announce captain scorecard result in Team Chat', announcementError)
   }
+  if (completedLineIds.length) scheduleRatingRefresh(service, 'Captain scorecard')
+  console.info('[api/captain/match-results] save completed', {
+    durationMs: Date.now() - startedAt,
+    linesRecorded: observationPayload.length,
+    ratingsRefreshing: completedLineIds.length > 0,
+    teamAnnouncementUpdated,
+  })
+  const saveMessage = saveMode === 'updated'
+    ? 'Updated this match without creating a duplicate.'
+    : `Saved ${observationPayload.length} court result${observationPayload.length === 1 ? '' : 's'}.`
+  const ratingMessage = completedLineIds.length
+    ? ' TiQ ratings are refreshing in the background.'
+    : ' Defaults and retirements were excluded from player rating movement.'
+  const teamMessage = teamAnnouncementUpdated ? ' Team Chat was updated.' : ''
   return Response.json({
     ok: true,
     externalMatchId: scorecard.externalMatchId,
@@ -554,12 +524,6 @@ export async function POST(request: Request) {
     linesRecorded: observationPayload.length,
     recap,
     teamAnnouncementUpdated,
-    message: saveMode === 'updated'
-      ? teamAnnouncementUpdated
-        ? `Updated this match without creating a duplicate, refreshed TiQ ratings, and updated Team Chat.`
-        : `Updated this match without creating a duplicate and refreshed TiQ ratings.`
-      : teamAnnouncementUpdated
-        ? `Saved ${observationPayload.length} court result${observationPayload.length === 1 ? '' : 's'}, refreshed TiQ ratings, and updated Team Chat.`
-        : `Saved ${observationPayload.length} court result${observationPayload.length === 1 ? '' : 's'} and refreshed TiQ ratings.`,
+    message: `${saveMessage}${ratingMessage}${teamMessage}`,
   })
 }
