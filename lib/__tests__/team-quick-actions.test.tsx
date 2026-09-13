@@ -26,6 +26,9 @@ describe('compact team actions', () => {
     expect(css).toContain('repeat(2, minmax(0, 1fr))')
     expect(css).toContain('min-height: 54px')
     expect(css).toContain(':focus-visible')
+    expect(css).toContain(':global(#main-content) .quickActions a > :last-child')
+    expect(css).toContain('overflow-wrap: normal')
+    expect(css).toContain('hyphens: none')
     expect(css).not.toContain('word-break: break-all')
   })
   it('keeps supplementary tools closed without removing access', () => {

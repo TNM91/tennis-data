@@ -66,6 +66,44 @@ final result: passed
 
 ---
 
+# Mobile action-label wrapping QA
+
+- Source visual truth paths: `C:\Users\nmein\.codex\codex-remote-attachments\01a097f7-f6d6-7610-b5e5-43c9af75cefe\C39DCDCB-6C61-4595-ABA9-3BEF4DDD61A3\1-Photo-1.jpg` and `C:\Users\nmein\.codex\codex-remote-attachments\01a097f7-f6d6-7610-b5e5-43c9af75cefe\C39DCDCB-6C61-4595-ABA9-3BEF4DDD61A3\2-Pasted-Image-2.jpg`.
+- Browser-rendered implementation screenshots: `artifacts/team-home-browser/scenario-tabs-phone-after.png` and `artifacts/team-home-browser/team-shortcuts-phone-after.png`.
+- Viewport: 390 x 844 CSS pixels at 1x; browser content measured 375 x 844 pixels after the persistent scrollbar gutter. A second stress test ran at 320 x 844.
+- State: synthetic, read-only Captain opponent scenarios and Team Hub quick actions using the production components and CSS modules.
+
+## Findings
+
+No actionable P0, P1, or P2 issue remains in the requested scope.
+
+- Fonts and typography: Likely, Aggressive, Conservative, Build lineup, Availability, Schedule & calendar, and Team Chat now wrap only at word boundaries. At 390 px, all labels except the intentionally multi-word schedule label remain one line. At 320 px, every single-word label still fits its measured box.
+- Spacing and layout rhythm: the scenario selector uses label-weighted tracks while retaining three equal-height 44 px touch targets. Team shortcuts retain the existing 2 x 2 card layout with slightly tighter icon, gap, and padding allocation.
+- Colors and visual tokens: unchanged; the navy, blue, lime, borders, and selected states remain the existing TenAceIQ tokens.
+- Image and asset fidelity: unchanged; existing approved product icons and brand artwork remain untouched.
+- Copy and content: unchanged; no label was abbreviated or renamed to make the layout fit.
+
+## Full-view and focused comparison evidence
+
+The source and implementation captures were reviewed together at the same phone-width state. The full scenario panel shows all three opponent approaches without vertical letter splitting. The focused Team Hub shortcut capture shows Availability on one line and Schedule & calendar breaking only between words. Focused comparison was required because the defect was limited to individual button labels.
+
+## Comparison history
+
+1. Earlier [P1]: Aggressive, Conservative, and Availability broke inside words, creating compressed vertical labels.
+2. Fix: allocate scenario width according to label length; reclaim horizontal space in Team Hub cards; explicitly override the global mobile emergency-wrap rule for these known short labels.
+3. Post-fix evidence: at 390 px the scenario buttons measured 75.7, 104.9, and 120.4 px with no text overflow; Availability measured 73.5 px on one 19.6 px line. At 320 px, all three scenario labels retained positive width headroom and no mid-word wrapping.
+
+## Interaction and runtime checks
+
+- Switched the browser between 390 px and 320 px responsive widths.
+- Verified semantic scenario tabs and Team Hub navigation labels from the rendered DOM.
+- Checked label client/scroll widths, computed wrapping rules, and line heights.
+- Browser console errors: none.
+
+final result: passed
+
+---
+
 # Format-aware captain scorecard and practice RSVP QA
 
 - Target viewport: 390 x 844 CSS pixels in the authenticated captain experience.
