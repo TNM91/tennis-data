@@ -399,7 +399,9 @@ function PricingContent() {
               <div style={isMobile ? compactPlanTopStyle : planTopStyle}>
                 <TiqFeatureIcon name="teamRankings" size={isMobile ? 'md' : 'lg'} variant="surface" />
                 <span style={planNameStyle}>{plan.name}</span>
-                {plan.id === 'club_unlimited' ? <span style={badgeStyle}>Best for full-club rollout</span> : null}
+                {plan.id === 'club_unlimited' ? (
+                  <span style={isMobile ? compactBadgeStyle : badgeStyle}>Best for full-club rollout</span>
+                ) : null}
               </div>
               <div style={isMobile ? compactPriceStyle : priceStyle}>{plan.priceLabel}</div>
               <strong style={{ fontSize: isMobile ? 13 : 15 }}>{story.capacityLabel}</strong>
@@ -854,7 +856,9 @@ const detailsSummaryCueStyle: CSSProperties = {
   fontWeight: 950,
   textAlign: 'center',
   whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
+  flexShrink: 0,
+  overflowWrap: 'normal',
+  wordBreak: 'normal',
 }
 
 const sectionHeaderStyle: CSSProperties = {
@@ -1026,6 +1030,15 @@ const badgeStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 11,
   fontWeight: 950,
+}
+
+const compactBadgeStyle: CSSProperties = {
+  ...badgeStyle,
+  gridColumn: '1 / -1',
+  justifySelf: 'start',
+  maxWidth: '100%',
+  overflowWrap: 'normal',
+  wordBreak: 'normal',
 }
 
 const priceStyle: CSSProperties = {

@@ -38,7 +38,8 @@ describe('Players Player ID launchpad', () => {
     expect(source).toContain('playerDirectoryDetailsBodyClosedStyle')
     expect(source).toContain("gridTemplateColumns: isSmallMobile")
     expect(source).toContain("gridColumn: isMobile ? '1 / -1' : undefined")
-    expect(source).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
+    expect(source).toContain("? 'repeat(2, minmax(0, 1fr))'")
+    expect(source).toContain(": 'repeat(3, minmax(0, 1fr))'")
   })
 
   it('keeps Level Up support after the usable directory', () => {

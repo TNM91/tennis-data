@@ -4048,7 +4048,9 @@ const commandLabel: CSSProperties = {
   fontWeight: 900,
   textTransform: 'uppercase',
   letterSpacing: 0,
-  overflowWrap: 'anywhere',
+  overflowWrap: 'normal',
+  wordBreak: 'normal',
+  hyphens: 'none',
 }
 
 const commandValue: CSSProperties = {
