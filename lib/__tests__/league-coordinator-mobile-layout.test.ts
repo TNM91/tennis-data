@@ -257,7 +257,6 @@ describe('League Coordinator mobile layout guards', () => {
   it('keeps coordinator labels, pills, controls, and dense copy wrap-safe', () => {
     for (const styleName of [
       'pillBase',
-      'commandLabel',
       'commandValue',
       'dataAssistOpsCardStyle',
       'publicReadinessFilterButtonStyle',
@@ -301,6 +300,9 @@ describe('League Coordinator mobile layout guards', () => {
     ]) {
       expect(styleBlock(source, styleName)).toContain("overflowWrap: 'anywhere'")
     }
+
+    expect(styleBlock(source, 'commandLabel')).toContain("overflowWrap: 'normal'")
+    expect(styleBlock(source, 'commandLabel')).toContain("wordBreak: 'normal'")
 
     expect(styleBlock(source, 'pillBase')).toContain("whiteSpace: 'normal'")
     expect(styleBlock(source, 'publicReadinessFilterButtonStyle')).toContain("whiteSpace: 'normal'")

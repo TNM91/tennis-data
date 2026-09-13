@@ -505,9 +505,13 @@
 
   .pulseRail {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 7px;
     min-width: 0;
+  }
+
+  .pulse:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 
   .pulse {
@@ -526,6 +530,9 @@
     font-weight: 920;
     letter-spacing: 0.07em;
     text-transform: uppercase;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
   }
 
   .pulse > strong {

@@ -576,7 +576,9 @@ export default function PlayersPage() {
 
   const dynamicQuickFilterGrid: CSSProperties = {
     ...quickFilterGrid,
-    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gridTemplateColumns: isSmallMobile
+      ? 'repeat(2, minmax(0, 1fr))'
+      : 'repeat(3, minmax(0, 1fr))',
     gap: isMobile ? 6 : quickFilterGrid.gap,
     marginTop: isMobile ? 8 : quickFilterGrid.marginTop,
   }
