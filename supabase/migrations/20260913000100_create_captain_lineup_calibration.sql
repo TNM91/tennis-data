@@ -36,6 +36,23 @@ alter table public.lineup_prediction_snapshots
 alter table public.lineup_prediction_snapshots
   add column if not exists known_defaults_json jsonb not null default '[]'::jsonb;
 
+alter table public.lineup_prediction_snapshots
+  add column if not exists created_at timestamptz default now();
+
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'lineup_prediction_snapshots'
+      and column_name = 'tracked_at'
+  ) then
+    execute 'update public.lineup_prediction_snapshots set created_at = tracked_at where tracked_at is not null';
+  end if;
+end
+$$;
+
 create index if not exists lineup_prediction_snapshots_owner_match_idx
   on public.lineup_prediction_snapshots (user_id, match_date desc, created_at desc);
 
