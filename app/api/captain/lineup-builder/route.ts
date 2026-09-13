@@ -157,7 +157,7 @@ export async function GET(request: Request) {
     .limit(120)
   const historicalLineMatchesPromise = service
     .from('matches')
-    .select('id,league_name,flight,match_date,match_time,facility,home_team,away_team,line_number')
+    .select('id,league_name,flight,match_date,match_time,facility,home_team,away_team,line_number,match_type,winner_side,score')
     .not('line_number', 'is', null)
     .or(`home_team.eq."${escapedTeam}",away_team.eq."${escapedTeam}"`)
     .order('match_date', { ascending: false })
@@ -268,13 +268,7 @@ export async function GET(request: Request) {
     .filter(Boolean))].sort((left, right) => left.localeCompare(right))
 
   const rosterMembers = rosterResult.data ?? []
-  const historicalLineMatches = (historicalLineMatchesResult.data ?? []).filter((match) => {
-    if (!opponentName) return true
-    const home = normalizeTeamName(match.home_team)
-    const away = normalizeTeamName(match.away_team)
-    const normalizedOpponent = normalizeTeamName(opponentName)
-    return home === normalizedOpponent || away === normalizedOpponent
-  })
+  const historicalLineMatches = historicalLineMatchesResult.data ?? []
   const rosterPlayerIds = Array.from(new Set(rosterMembers.map((row) => row.player_id).filter((id): id is string => Boolean(id))))
   const matchIds = (matchesResult.data ?? []).map((match) => match.id)
   const matchPlayersResultPromise = matchIds.length

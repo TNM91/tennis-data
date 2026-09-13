@@ -20,6 +20,16 @@ import LockedPlanPage from '@/app/components/locked-plan-page'
 import { useAuth } from '@/app/components/auth-provider'
 import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
+import CaptainLineupIntelligence, {
+  type CaptainLineupIntelligenceCourt,
+  type CaptainPairMatrixCourt,
+  type CaptainOpponentScenario,
+  type CaptainOpponentScenarioId,
+  type CaptainLineupResilientPreview,
+  type CaptainLineupSimulationCandidate,
+  type CaptainLineupSimulationCourt,
+  type CaptainLineupStrategyPreview,
+} from '@/app/components/captain-lineup-intelligence'
 import {
   buildCaptainScopedHref,
   chooseLatestCaptainResumeState,
@@ -110,6 +120,14 @@ import {
   countCaptainLineupReviewChanges,
   type CaptainLineupReviewPayload,
 } from '@/lib/captain-lineup-review'
+import {
+  buildCaptainPairLineupIntelligence,
+  buildCaptainPlayerLineupIntelligence,
+  summarizeCaptainPairRecord,
+  summarizeCaptainPairScoreTendency,
+  summarizeCaptainPositionTendency,
+  summarizeCaptainScoreTendency,
+} from '@/lib/captain-lineup-intelligence'
 
 type PlayerRow = {
   id: string
@@ -155,6 +173,9 @@ type MatchTeamRow = {
   home_team: string | null
   away_team: string | null
   line_number: string | null
+  match_type?: string | null
+  winner_side?: 'A' | 'B' | null
+  score?: string | null
 }
 
 type MatchPlayerLinkRow = {
@@ -772,6 +793,12 @@ function getPlayerBaseRating(player: PlayerRow) {
   return player.overall_rating ?? player.doubles_rating ?? null
 }
 
+function getPlayerSlotRating(player: PlayerRow, slotType: LineupSlot['slotType']) {
+  return slotType === 'singles'
+    ? player.singles_dynamic_rating ?? player.singles_rating ?? player.overall_dynamic_rating ?? player.overall_rating
+    : player.doubles_dynamic_rating ?? player.doubles_rating ?? player.overall_dynamic_rating ?? player.overall_rating
+}
+
 function isPlayerEligibleForSlot(player: PlayerRow, slot: LineupSlot, rules?: TeamCompetitionRules) {
   if (rules) {
     return isCompetitionPlayerRatingEligible(rules, getPlayerBaseRating(player), slot.ratingLevel)
@@ -786,18 +813,10 @@ function selectedLineStrength(slot: LineupSlot, players: PlayerRow[]) {
 
   if (!selected.length) return null
 
-  if (slot.slotType === 'singles') {
-    const first = selected[0]
-    return (
-      first.singles_dynamic_rating ??
-      first.singles_rating ??
-      first.overall_dynamic_rating ??
-      first.overall_rating
-    )
-  }
+  if (slot.slotType === 'singles') return getPlayerSlotRating(selected[0], 'singles')
 
   const values = selected
-    .map((player) => player.doubles_dynamic_rating ?? player.doubles_rating ?? player.overall_dynamic_rating ?? player.overall_rating)
+    .map((player) => getPlayerSlotRating(player, 'doubles'))
     .filter((value): value is number => typeof value === 'number')
 
   if (!values.length) return null
@@ -1219,7 +1238,8 @@ function rebuildCandidateWithLocks(
 ) {
   const next = cloneSlots(candidateSlots)
   const currentMap = new Map(currentSlots.map((slot) => [slot.id, cloneSlots([slot])[0]]))
-  const used = new Set<string>()
+  const reservedPlayerIds = new Set<string>()
+  const protectedAssignments = new Set<string>()
 
   const scoreForFill = (player: PoolPlayer, slotType: 'singles' | 'doubles') =>
     scorePoolPlayerForSlot(player, slotType) + reliabilityWeight(player.availabilityStatus) * 0.15
@@ -1229,8 +1249,10 @@ function rebuildCandidateWithLocks(
     const current = currentMap.get(slot.id)
     if (!current) return
     next[index] = current
-    current.players.forEach((player) => {
-      if (player.playerId) used.add(player.playerId)
+    current.players.forEach((player, playerIndex) => {
+      if (!player.playerId) return
+      reservedPlayerIds.add(player.playerId)
+      protectedAssignments.add(`${slot.id}:${playerIndex}`)
     })
   })
 
@@ -1244,18 +1266,24 @@ function rebuildCandidateWithLocks(
       if (
         lockedCurrent?.playerId &&
         lockedPlayerIds.has(lockedCurrent.playerId) &&
-        !used.has(lockedCurrent.playerId)
+        !reservedPlayerIds.has(lockedCurrent.playerId)
       ) {
-        used.add(lockedCurrent.playerId)
+        reservedPlayerIds.add(lockedCurrent.playerId)
+        protectedAssignments.add(`${slot.id}:${idx}`)
         return { ...lockedCurrent }
       }
       return player
     })
   })
 
+  const used = new Set<string>()
   next.forEach((slot) => {
-    slot.players = slot.players.map((player) => {
+    slot.players = slot.players.map((player, playerIndex) => {
       if (!player.playerId) return player
+      const protectedAssignment = protectedAssignments.has(`${slot.id}:${playerIndex}`)
+      if (!protectedAssignment && reservedPlayerIds.has(player.playerId)) {
+        return { playerId: '', playerName: '' }
+      }
       if (used.has(player.playerId)) return { playerId: '', playerName: '' }
       used.add(player.playerId)
       return player
@@ -1579,6 +1607,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       : buildCaptainLineupSlots(initialLeagueName, initialFlight, 'opponent', initialMatchFormat)
   )
   const [opponentCourtSetupPromptOpen, setOpponentCourtSetupPromptOpen] = useState(false)
+  const [activeOpponentScenarioId, setActiveOpponentScenarioId] = useState<CaptainOpponentScenarioId>('likely')
   const [mobileForecastOpen, setMobileForecastOpen] = useState(false)
   const [activeLineupFormatKey, setActiveLineupFormatKey] = useState(() =>
     getCaptainLineupFormatKey(initialLeagueName, initialFlight, initialMatchFormat)
@@ -2952,6 +2981,19 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     const willLock = !lockedPlayerIdSet.has(playerId)
     setLockedPlayerIds((current) => willLock ? [...current, playerId] : current.filter((id) => id !== playerId))
     if (willLock) void markLockedPlayerAvailable(playerId)
+  }
+
+  function toggleOptimizerPlayerLock(playerId: string) {
+    if (!playerId) return
+    if (confirmedAssignedPlayerIdSet.has(playerId)) {
+      setReleasedConfirmedPlayerIds((current) =>
+        current.includes(playerId) ? current.filter((id) => id !== playerId) : [...current, playerId]
+      )
+      return
+    }
+    setLockedPlayerIds((current) =>
+      current.includes(playerId) ? current.filter((id) => id !== playerId) : [...current, playerId]
+    )
   }
 
   async function markLockedPlayerAvailable(playerId: string) {
@@ -4982,24 +5024,511 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     [effectiveMatchFormatId, opponentSlots, selectedFormatFlight, selectedFormatLeagueName]
   )
 
+  const projectedOpponentSlots = useMemo(() => {
+    const hasOpponentAssignments = optimizerOpponentSlots.some((slot) =>
+      slot.players.some((player) => Boolean(player.playerId))
+    )
+    if (hasOpponentAssignments || !opponentPlayerPool.length) return optimizerOpponentSlots
+    return recommendLineupFromPool(optimizerOpponentSlots, opponentPlayerPool, 'balanced', competitionRules).slots
+  }, [competitionRules, opponentPlayerPool, optimizerOpponentSlots])
+
+  const opponentScenarioLineups = useMemo(() => {
+    const strongestRoster = opponentPlayerPool.length
+      ? recommendLineupFromPool(optimizerOpponentSlots, opponentPlayerPool, 'ceiling', competitionRules).slots
+      : optimizerOpponentSlots
+
+    return [
+      { id: 'likely' as const, slots: projectedOpponentSlots },
+      {
+        id: 'aggressive' as const,
+        slots: arrangeOpponentScenarioSlots(optimizerTeamSlots, strongestRoster, builderPlayers, 'aggressive'),
+      },
+      {
+        id: 'conservative' as const,
+        slots: arrangeOpponentScenarioSlots(optimizerTeamSlots, strongestRoster, builderPlayers, 'conservative'),
+      },
+    ]
+  }, [builderPlayers, competitionRules, opponentPlayerPool, optimizerOpponentSlots, optimizerTeamSlots, projectedOpponentSlots])
+
+  const activeProjectedOpponentSlots = opponentScenarioLineups.find((scenario) => scenario.id === activeOpponentScenarioId)?.slots
+    ?? projectedOpponentSlots
+
   const eliteRecommendation = useMemo(() => {
     const balanced = recommendLineupFromPool(optimizerTeamSlots, myPlayerPool, 'balanced', competitionRules)
     return {
       slots: balanced.slots,
       bench: balanced.bench.slice(0, 6),
-      analysis: compareLineupStrength(balanced.slots, optimizerOpponentSlots, builderPlayers),
+      analysis: compareLineupStrength(balanced.slots, activeProjectedOpponentSlots, builderPlayers),
     }
-  }, [builderPlayers, competitionRules, myPlayerPool, optimizerOpponentSlots, optimizerTeamSlots])
+  }, [activeProjectedOpponentSlots, builderPlayers, competitionRules, myPlayerPool, optimizerTeamSlots])
 
   const optimizedPlans = useMemo(() => {
     return [
-      optimizeLineupFromPool(optimizerTeamSlots, myPlayerPool, optimizerOpponentSlots, builderPlayers, 'best', competitionRules),
-      optimizeLineupFromPool(optimizerTeamSlots, myPlayerPool, optimizerOpponentSlots, builderPlayers, 'safe', competitionRules),
-      optimizeLineupFromPool(optimizerTeamSlots, myPlayerPool, optimizerOpponentSlots, builderPlayers, 'upside', competitionRules),
+      optimizeLineupFromPool(optimizerTeamSlots, myPlayerPool, activeProjectedOpponentSlots, builderPlayers, 'best', competitionRules),
+      optimizeLineupFromPool(optimizerTeamSlots, myPlayerPool, activeProjectedOpponentSlots, builderPlayers, 'safe', competitionRules),
+      optimizeLineupFromPool(optimizerTeamSlots, myPlayerPool, activeProjectedOpponentSlots, builderPlayers, 'upside', competitionRules),
     ]
-  }, [builderPlayers, competitionRules, myPlayerPool, optimizerOpponentSlots, optimizerTeamSlots])
+  }, [activeProjectedOpponentSlots, builderPlayers, competitionRules, myPlayerPool, optimizerTeamSlots])
+
+  const resilientPlan = useMemo(() => {
+    const modes: OptimizerMode[] = ['best', 'safe', 'upside']
+    const candidates = opponentScenarioLineups.flatMap((opponentScenario) =>
+      modes.map((mode) => optimizeLineupFromPool(
+        optimizerTeamSlots,
+        myPlayerPool,
+        opponentScenario.slots,
+        builderPlayers,
+        mode,
+        competitionRules,
+      ))
+    )
+    const scoredCandidates = candidates.map((candidate) => {
+      const probabilities = opponentScenarioLineups
+        .map((scenario) => compareLineupStrength(candidate.slots, scenario.slots, builderPlayers))
+        .filter((analysis) => analysis.lines.some((line) => typeof line.projection === 'number'))
+        .map((analysis) => analysis.projection)
+      const worstCaseProbability = probabilities.length ? Math.min(...probabilities) : null
+      const averageProbability = probabilities.length
+        ? probabilities.reduce((sum, probability) => sum + probability, 0) / probabilities.length
+        : null
+      return {
+        candidate,
+        worstCaseProbability,
+        averageProbability,
+        resilienceScore: worstCaseProbability === null || averageProbability === null
+          ? -Infinity
+          : worstCaseProbability * 0.7 + averageProbability * 0.3,
+      }
+    })
+
+    return scoredCandidates.reduce<(typeof scoredCandidates)[number] | null>((best, candidate) => (
+      !best || candidate.resilienceScore > best.resilienceScore ? candidate : best
+    ), null)
+  }, [builderPlayers, competitionRules, myPlayerPool, opponentScenarioLineups, optimizerTeamSlots])
 
   const bestOptimizedPlan = optimizedPlans[0] ?? null
+
+  const playerLineupInsightsById = useMemo(() => Object.fromEntries(
+    builderPlayers.map((player) => [
+      player.id,
+      buildCaptainPlayerLineupIntelligence(player.id, historicalLineMatches, historicalLineMatchPlayers),
+    ])
+  ), [builderPlayers, historicalLineMatches, historicalLineMatchPlayers])
+
+  const lineupIntelligenceSlots = optimizerTeamSlots.some((slot) =>
+    slot.players.some((player) => Boolean(player.playerId))
+  )
+    ? optimizerTeamSlots
+    : bestOptimizedPlan?.slots ?? optimizerTeamSlots
+
+  const lineupIntelligenceAnalysis = useMemo(
+    () => compareLineupStrength(lineupIntelligenceSlots, activeProjectedOpponentSlots, builderPlayers),
+    [activeProjectedOpponentSlots, builderPlayers, lineupIntelligenceSlots],
+  )
+
+  const lineupIntelligenceCourts = useMemo<CaptainLineupIntelligenceCourt[]>(() => (
+    lineupIntelligenceSlots.map((slot, index) => {
+      const selectedPlayers = slot.players.filter((player) => Boolean(player.playerId))
+      const pairEvidence = slot.slotType === 'doubles' && selectedPlayers.length === 2
+        ? buildCaptainPairLineupIntelligence(
+          selectedPlayers.map((player) => player.playerId),
+          historicalLineMatches,
+          historicalLineMatchPlayers,
+        )
+        : undefined
+      const playerEvidence = selectedPlayers.map((player) => {
+        const insight = playerLineupInsightsById[player.playerId]
+        return {
+          id: player.playerId,
+          name: player.playerName,
+          positionSummary: summarizeCaptainPositionTendency(insight),
+          scoreSummary: summarizeCaptainScoreTendency(insight),
+          startCount: insight?.startCount ?? 0,
+          scoredSetCount: insight?.scoredSetCount ?? 0,
+        }
+      })
+      const totalStarts = playerEvidence.reduce((sum, player) => sum + player.startCount, 0)
+      const totalScoredSets = playerEvidence.reduce((sum, player) => sum + player.scoredSetCount, 0)
+      const primaryEvidence = playerEvidence[0]
+      const confidence = !opponentPlayerPool.length
+        ? 'Needs opponent' as const
+        : totalStarts >= Math.max(4, playerEvidence.length * 4) && totalScoredSets >= playerEvidence.length * 2
+          ? 'High' as const
+          : totalStarts >= Math.max(2, playerEvidence.length * 2)
+            ? 'Medium' as const
+            : 'Low' as const
+      return {
+        id: slot.id,
+        label: slot.label,
+        playerIds: selectedPlayers.map((player) => player.playerId),
+        playerNames: selectedPlayers.map((player) => player.playerName),
+        playerEvidence,
+        pairEvidence,
+        probability: lineupIntelligenceAnalysis.lines[index]?.projection ?? null,
+        positionSummary: primaryEvidence?.positionSummary ?? 'No court-position history yet',
+        scoreSummary: pairEvidence
+          ? summarizeCaptainPairScoreTendency(pairEvidence)
+          : primaryEvidence?.scoreSummary ?? 'No scored wins yet',
+        confidence,
+        confidenceDetail: totalStarts
+          ? `${totalStarts} start${totalStarts === 1 ? '' : 's'} · ${totalScoredSets} scored set${totalScoredSets === 1 ? '' : 's'}`
+          : 'History still building',
+      }
+    })
+  ), [historicalLineMatchPlayers, historicalLineMatches, lineupIntelligenceAnalysis.lines, lineupIntelligenceSlots, opponentPlayerPool.length, playerLineupInsightsById])
+
+  const lineupOpponentScenarios = useMemo<CaptainOpponentScenario[]>(() => {
+    const likelySlots = opponentScenarioLineups.find((scenario) => scenario.id === 'likely')?.slots ?? []
+    return opponentScenarioLineups.map((scenario) => {
+      const analysis = compareLineupStrength(lineupIntelligenceSlots, scenario.slots, builderPlayers)
+      const projectedLines = analysis.lines.filter((line) => typeof line.projection === 'number')
+      const holdingCourtCount = projectedLines.filter((line) => (line.projection ?? 0) >= 0.5).length
+      const pressureCourt = projectedLines.reduce<LineProjection | null>((lowest, line) => (
+        !lowest || (line.projection ?? 1) < (lowest.projection ?? 1) ? line : lowest
+      ), null)
+
+      return {
+        id: scenario.id,
+        label: scenario.id === 'likely' ? 'Likely' : scenario.id === 'aggressive' ? 'Aggressive' : 'Conservative',
+        detail: scenario.id === 'likely'
+          ? 'Uses the courts you entered, or TiQ’s balanced roster projection when courts are open.'
+          : scenario.id === 'aggressive'
+            ? 'Uses their strongest available roster and sends the strongest same-format line at your weakest court.'
+            : 'Uses their strongest available roster in traditional top-to-bottom court order.',
+        overallProbability: projectedLines.length ? analysis.projection : null,
+        resultLabel: projectedLines.length
+          ? `${holdingCourtCount}–${projectedLines.length - holdingCourtCount} court path`
+          : 'Needs opponent courts',
+        holdingCourtCount,
+        totalCourtCount: projectedLines.length || lineupIntelligenceSlots.length,
+        pressureCourtLabel: pressureCourt?.label ?? 'Add opponent courts',
+        pressureCourtProbability: pressureCourt?.projection ?? null,
+        opponentCourts: scenario.slots.map((slot, index) => ({
+          id: slot.id,
+          label: slot.label,
+          playerNames: slot.players.filter((player) => Boolean(player.playerId)).map((player) => player.playerName),
+          ratingLabel: `Opp rating ${formatRating(selectedLineStrength(slot, builderPlayers))}`,
+          movedFromLikely: slotPlayerSignature(slot.players) !== slotPlayerSignature(likelySlots[index]?.players ?? []),
+        })),
+      }
+    })
+  }, [builderPlayers, lineupIntelligenceSlots, opponentScenarioLineups])
+
+  const lineupIntelligenceOverallProbability = lineupIntelligenceAnalysis.lines.some((line) => typeof line.projection === 'number')
+    ? lineupIntelligenceAnalysis.projection
+    : null
+
+  const lineupPairMatrix = useMemo<CaptainPairMatrixCourt[]>(() => {
+    const assignedPlayerIds = new Set(lineupIntelligenceSlots.flatMap((slot) => slot.players.map((player) => player.playerId).filter(Boolean)))
+
+    return lineupIntelligenceSlots
+      .filter((slot) => slot.slotType === 'doubles')
+      .map((slot, slotIndex) => {
+        const currentPlayerIds = slot.players.map((player) => player.playerId).filter(Boolean)
+        const currentPlayerIdSet = new Set(currentPlayerIds)
+        const eligiblePlayers = myPlayerPool.filter((player) => (
+          isPlayerEligibleForSlot(player, slot, competitionRules)
+          && availabilityLabel(player.availabilityStatus) !== 'Out'
+          && (!assignedPlayerIds.has(player.id) || currentPlayerIdSet.has(player.id))
+        ))
+        const recommendations: CaptainPairMatrixCourt['recommendations'] = []
+
+        for (let firstIndex = 0; firstIndex < eligiblePlayers.length; firstIndex += 1) {
+          for (let secondIndex = firstIndex + 1; secondIndex < eligiblePlayers.length; secondIndex += 1) {
+            const pairPlayers = [eligiblePlayers[firstIndex], eligiblePlayers[secondIndex]]
+            const pairIds = pairPlayers.map((player) => player.id)
+            const isCurrent = pairIds.every((playerId) => currentPlayerIdSet.has(playerId)) && currentPlayerIds.length === 2
+            const candidateSlots = cloneSlots(lineupIntelligenceSlots)
+            candidateSlots[slotIndex].players = pairPlayers.map((player) => ({ playerId: player.id, playerName: player.name }))
+            const candidateAnalysis = compareLineupStrength(candidateSlots, activeProjectedOpponentSlots, builderPlayers)
+            const pairInsight = buildCaptainPairLineupIntelligence(pairIds, historicalLineMatches, historicalLineMatchPlayers)
+            const ratings = pairPlayers.map((player) => getPlayerSlotRating(player, 'doubles')).filter((rating): rating is number => typeof rating === 'number')
+            const pairRating = ratings.length ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length : null
+            const availabilityLabels = pairPlayers.map((player) => availabilityLabel(player.availabilityStatus))
+            const confirmedCount = availabilityLabels.filter((label) => label === 'Confirmed').length
+            const outgoingLockedPlayer = slot.players.find((player) => player.playerId && !pairIds.includes(player.playerId) && lockedPlayerIdSet.has(player.playerId))
+            const blockedReason = lockedSlotIdSet.has(slot.id)
+              ? 'Unlock court'
+              : outgoingLockedPlayer
+                ? `Unlock ${outgoingLockedPlayer.playerName.split(' ')[0]}`
+                : ''
+
+            recommendations.push({
+              id: [...pairIds].sort().join(':'),
+              playerIds: pairIds,
+              playerNames: pairPlayers.map((player) => player.name),
+              ratingLabel: `Pair rating ${formatRating(pairRating)}`,
+              availabilityLabel: confirmedCount === 2
+                ? '2 confirmed'
+                : confirmedCount === 1
+                  ? '1 confirmed · 1 waiting'
+                  : 'Replies pending',
+              courtProbability: candidateAnalysis.lines[slotIndex]?.projection ?? null,
+              pairHistory: summarizeCaptainPairRecord(pairInsight),
+              scoreSummary: summarizeCaptainPairScoreTendency(pairInsight),
+              isCurrent,
+              canApply: !isCurrent && !blockedReason,
+              blockedReason,
+              blockingLock: lockedSlotIdSet.has(slot.id)
+                ? { kind: 'court' as const, id: slot.id }
+                : outgoingLockedPlayer
+                  ? { kind: 'player' as const, id: outgoingLockedPlayer.playerId }
+                  : null,
+            })
+          }
+        }
+
+        recommendations.sort((left, right) => (
+          (right.courtProbability ?? -1) - (left.courtProbability ?? -1)
+          || Number(right.isCurrent) - Number(left.isCurrent)
+          || left.playerNames.join(' ').localeCompare(right.playerNames.join(' '))
+        ))
+
+        return { id: slot.id, label: slot.label, recommendations }
+      })
+  }, [activeProjectedOpponentSlots, builderPlayers, competitionRules, historicalLineMatchPlayers, historicalLineMatches, lineupIntelligenceSlots, lockedPlayerIdSet, lockedSlotIdSet, myPlayerPool])
+
+  const lineupSimulations = useMemo<CaptainLineupSimulationCourt[]>(() => {
+    const assignedPlayerIds = new Set(lineupIntelligenceSlots.flatMap((slot) =>
+      slot.players.map((player) => player.playerId).filter(Boolean)
+    ))
+    const builderPlayerById = new Map(builderPlayers.map((player) => [player.id, player]))
+
+    return lineupIntelligenceSlots.map((slot, slotIndex) => ({
+      id: slot.id,
+      label: slot.label,
+      players: slot.players.filter((player) => Boolean(player.playerId)).map((slotPlayer, playerIndex) => {
+        const currentCourtProbability = lineupIntelligenceAnalysis.lines[slotIndex]?.projection ?? null
+        const outgoingPlayer = builderPlayerById.get(slotPlayer.playerId)
+        const outgoingRating = outgoingPlayer ? getPlayerSlotRating(outgoingPlayer, slot.slotType) : null
+        const candidates = myPlayerPool
+          .filter((player) => player.id !== slotPlayer.playerId)
+          .filter((player) => !assignedPlayerIds.has(player.id))
+          .filter((player) => !lockedPlayerIdSet.has(player.id))
+          .filter((player) => isPlayerEligibleForSlot(player, slot, competitionRules))
+          .map((player) => {
+            const candidateSlots = cloneSlots(lineupIntelligenceSlots)
+            candidateSlots[slotIndex].players[playerIndex] = { playerId: player.id, playerName: player.name }
+            const candidateAnalysis = compareLineupStrength(candidateSlots, activeProjectedOpponentSlots, builderPlayers)
+            const candidateCourtProbability = candidateAnalysis.lines[slotIndex]?.projection ?? null
+            const hasCandidateProjection = candidateAnalysis.lines.some((line) => typeof line.projection === 'number')
+            const candidateOverallProbability = hasCandidateProjection ? candidateAnalysis.projection : null
+            const candidateRating = getPlayerSlotRating(player, slot.slotType)
+            const ratingDelta = typeof outgoingRating === 'number' && typeof candidateRating === 'number'
+              ? candidateRating - outgoingRating
+              : null
+            const candidateInsight = playerLineupInsightsById[player.id]
+            const candidateAvailability = availabilityLabel(player.availabilityStatus)
+            const remainingPartner = slot.slotType === 'doubles'
+              ? slot.players.find((_, index) => index !== playerIndex && Boolean(slot.players[index].playerId))
+              : undefined
+            const candidatePairInsight = remainingPartner
+              ? buildCaptainPairLineupIntelligence(
+                [player.id, remainingPartner.playerId],
+                historicalLineMatches,
+                historicalLineMatchPlayers,
+              )
+              : undefined
+            const factors: CaptainLineupSimulationCandidate['factors'] = [
+              {
+                id: 'rating',
+                label: `${slot.slotType === 'singles' ? 'Singles' : 'Doubles'} rating edge`,
+                value: ratingDelta === null
+                  ? 'Comparable ratings unavailable'
+                  : `${ratingDelta > 0 ? '+' : ''}${ratingDelta.toFixed(2)} vs ${slotPlayer.playerName}`,
+                detail: 'Directly drives today’s court and match percentages.',
+                modeled: true,
+                tone: ratingDelta === null || Math.abs(ratingDelta) < 0.005 ? 'neutral' : ratingDelta > 0 ? 'positive' : 'negative',
+              },
+              {
+                id: 'position',
+                label: 'Court-position history',
+                value: summarizeCaptainPositionTendency(candidateInsight),
+                detail: candidateInsight?.startCount
+                  ? `${candidateInsight.startCount} recorded start${candidateInsight.startCount === 1 ? '' : 's'}; supporting evidence only today.`
+                  : 'No recorded starts; supporting evidence only today.',
+                modeled: false,
+                tone: 'info',
+              },
+              ...(candidatePairInsight ? [{
+                id: 'pair',
+                label: `Partnership with ${remainingPartner?.playerName || 'current partner'}`,
+                value: summarizeCaptainPairRecord(candidatePairInsight),
+                detail: candidatePairInsight.startCount
+                  ? `${candidatePairInsight.startCount} shared start${candidatePairInsight.startCount === 1 ? '' : 's'}; supporting evidence only today.`
+                  : 'No shared starts; this would be a new pairing.',
+                modeled: false,
+                tone: candidatePairInsight.winPercentage !== null && candidatePairInsight.winPercentage >= 60 ? 'positive' as const : 'info' as const,
+              }] : []),
+              {
+                id: 'scores',
+                label: 'Win-score profile',
+                value: summarizeCaptainScoreTendency(candidateInsight),
+                detail: candidateInsight?.scoredSetCount
+                  ? `${candidateInsight.scoredSetCount} scored winning set${candidateInsight.scoredSetCount === 1 ? '' : 's'}; supporting evidence only today.`
+                  : 'No connected scored wins; supporting evidence only today.',
+                modeled: false,
+                tone: 'info',
+              },
+              {
+                id: 'availability',
+                label: 'Availability signal',
+                value: candidateAvailability,
+                detail: 'Controls who is offered by the simulator, not the displayed percentage.',
+                modeled: false,
+                tone: candidateAvailability === 'Confirmed' ? 'positive' : candidateAvailability === 'Out' ? 'negative' : 'neutral',
+              },
+            ]
+
+            return {
+              id: player.id,
+              name: player.name,
+              ratingLabel: `Rating ${formatRating(getPlayerBaseRating(player))}`,
+              availabilityLabel: candidateAvailability,
+              evidenceSummary: candidatePairInsight
+                ? `${summarizeCaptainPairRecord(candidatePairInsight)} · ${summarizeCaptainPositionTendency(playerLineupInsightsById[player.id])}`
+                : summarizeCaptainPositionTendency(playerLineupInsightsById[player.id]),
+              courtProbability: candidateCourtProbability,
+              overallProbability: candidateOverallProbability,
+              courtDelta: currentCourtProbability !== null && candidateCourtProbability !== null
+                ? candidateCourtProbability - currentCourtProbability
+                : null,
+              overallDelta: lineupIntelligenceOverallProbability !== null && candidateOverallProbability !== null
+                ? candidateOverallProbability - lineupIntelligenceOverallProbability
+                : null,
+              factors,
+              sortScore: candidateOverallProbability ?? scorePoolPlayerForSlot(player, slot.slotType),
+            }
+          })
+          .sort((left, right) => right.sortScore - left.sortScore)
+          .slice(0, 6)
+
+        return {
+          id: slotPlayer.playerId,
+          name: slotPlayer.playerName,
+          playerIndex,
+          candidates,
+        }
+      }),
+    }))
+  }, [
+    builderPlayers,
+    competitionRules,
+    historicalLineMatchPlayers,
+    historicalLineMatches,
+    lineupIntelligenceAnalysis.lines,
+    lineupIntelligenceOverallProbability,
+    lineupIntelligenceSlots,
+    lockedPlayerIdSet,
+    myPlayerPool,
+    playerLineupInsightsById,
+    activeProjectedOpponentSlots,
+  ])
+
+  const lineupStrategyPreviews = useMemo<CaptainLineupStrategyPreview[]>(() => (
+    optimizedPlans.map((plan) => {
+      const rebuilt = rebuildCandidateWithLocks(
+        plan.slots,
+        teamSlots,
+        lockedSlotIdSet,
+        lockedPlayerIdSet,
+        myPlayerPool,
+        competitionRules,
+      )
+      const candidateSlots = fitCaptainLineupSlotsToFormat(
+        rebuilt,
+        selectedFormatLeagueName,
+        selectedFormatFlight,
+        'team',
+        effectiveMatchFormatId,
+      )
+      const analysis = compareLineupStrength(candidateSlots, activeProjectedOpponentSlots, builderPlayers)
+      const currentById = new Map(lineupIntelligenceSlots.map((slot) => [slot.id, slot]))
+      const changedLabels = candidateSlots.filter((slot) => {
+        const current = currentById.get(slot.id)
+        if (!current) return true
+        return [...current.players.map((player) => player.playerId)].sort().join('|') !==
+          [...slot.players.map((player) => player.playerId)].sort().join('|')
+      }).map((slot) => slot.label)
+      const projectedLines = analysis.lines.filter((line) => typeof line.projection === 'number')
+      const projectedWins = projectedLines.filter((line) => (line.projection ?? 0) >= 0.5).length
+      const projectedLosses = projectedLines.length - projectedWins
+
+      return {
+        strategy: plan.mode,
+        label: plan.mode === 'best' ? 'Best odds' : plan.mode === 'safe' ? 'Safer floor' : 'More upside',
+        overallProbability: projectedLines.length ? analysis.projection : null,
+        resultLabel: projectedLines.length ? `${projectedWins}–${projectedLosses} projected` : 'Needs opponent courts',
+        changedCourts: changedLabels.length,
+        changeLabels: changedLabels,
+      }
+    })
+  ), [
+    builderPlayers,
+    competitionRules,
+    effectiveMatchFormatId,
+    lineupIntelligenceSlots,
+    lockedPlayerIdSet,
+    lockedSlotIdSet,
+    myPlayerPool,
+    optimizedPlans,
+    activeProjectedOpponentSlots,
+    selectedFormatFlight,
+    selectedFormatLeagueName,
+    teamSlots,
+  ])
+
+  const lineupResilientPreview = useMemo<CaptainLineupResilientPreview | null>(() => {
+    if (!resilientPlan || resilientPlan.worstCaseProbability === null) return null
+    const rebuilt = rebuildCandidateWithLocks(
+      resilientPlan.candidate.slots,
+      teamSlots,
+      lockedSlotIdSet,
+      lockedPlayerIdSet,
+      myPlayerPool,
+      competitionRules,
+    )
+    const candidateSlots = fitCaptainLineupSlotsToFormat(
+      rebuilt,
+      selectedFormatLeagueName,
+      selectedFormatFlight,
+      'team',
+      effectiveMatchFormatId,
+    )
+    const probabilities = opponentScenarioLineups
+      .map((scenario) => compareLineupStrength(candidateSlots, scenario.slots, builderPlayers))
+      .filter((analysis) => analysis.lines.some((line) => typeof line.projection === 'number'))
+      .map((analysis) => analysis.projection)
+    const currentById = new Map(lineupIntelligenceSlots.map((slot) => [slot.id, slot]))
+    const changeLabels = candidateSlots.filter((slot) => {
+      const current = currentById.get(slot.id)
+      if (!current) return true
+      return [...current.players.map((player) => player.playerId)].sort().join('|') !==
+        [...slot.players.map((player) => player.playerId)].sort().join('|')
+    }).map((slot) => slot.label)
+
+    return {
+      worstCaseProbability: probabilities.length ? Math.min(...probabilities) : null,
+      averageProbability: probabilities.length
+        ? probabilities.reduce((sum, probability) => sum + probability, 0) / probabilities.length
+        : null,
+      changedCourts: changeLabels.length,
+      changeLabels,
+    }
+  }, [
+    builderPlayers,
+    competitionRules,
+    effectiveMatchFormatId,
+    lineupIntelligenceSlots,
+    lockedPlayerIdSet,
+    lockedSlotIdSet,
+    myPlayerPool,
+    opponentScenarioLineups,
+    resilientPlan,
+    selectedFormatFlight,
+    selectedFormatLeagueName,
+    teamSlots,
+  ])
 
   function showAppliedLineupNotice(title: string, nextSlots: LineupSlot[]) {
     const currentById = new Map(teamSlots.map((slot) => [slot.id, slot]))
@@ -5021,7 +5550,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     })
   }
 
-  function applyOptimizedPlan(mode: OptimizerMode) {
+  function applyOptimizedPlan(mode: OptimizerMode, focusAfterBuild = true) {
     const plan = optimizedPlans.find((item) => item.mode === mode)
     if (!plan) return
 
@@ -5046,12 +5575,101 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     )
 
     setTeamSlots(formatSafeSlots)
-    focusTeamCourtsAfterBuild(formatSafeSlots)
+    if (focusAfterBuild) focusTeamCourtsAfterBuild(formatSafeSlots)
     showAppliedLineupNotice(plan.title, formatSafeSlots)
     setMessage(`${plan.title} applied${activeLockCount ? ' with locks preserved' : ''}.`)
     setError(incompleteCourts.length
       ? `Best lineup filled ${formatSafeSlots.length - incompleteCourts.length} of ${formatSafeSlots.length} courts. Add more eligible players or turn off Availability only.`
       : '')
+  }
+
+  function applyResilientPlan() {
+    if (!resilientPlan) return
+    const nextSlots = rebuildCandidateWithLocks(
+      resilientPlan.candidate.slots,
+      teamSlots,
+      lockedSlotIdSet,
+      lockedPlayerIdSet,
+      myPlayerPool,
+      competitionRules,
+    )
+    const formatSafeSlots = fitCaptainLineupSlotsToFormat(
+      nextSlots,
+      selectedFormatLeagueName,
+      selectedFormatFlight,
+      'team',
+      effectiveMatchFormatId,
+    )
+    const incompleteCourts = formatSafeSlots.filter((slot) =>
+      slot.players.some((player) => !player.playerId)
+    )
+
+    setTeamSlots(formatSafeSlots)
+    showAppliedLineupNotice('All-scenario resilient lineup', formatSafeSlots)
+    setMessage(`All-scenario resilient lineup applied${activeLockCount ? ' with locks preserved' : ''}.`)
+    setError(incompleteCourts.length
+      ? `Resilient lineup filled ${formatSafeSlots.length - incompleteCourts.length} of ${formatSafeSlots.length} courts. Add more eligible players or turn off Availability only.`
+      : '')
+  }
+
+  function applyLineupSimulationSwap(courtId: string, playerIndex: number, replacementPlayerId: string) {
+    const sourceSlot = lineupIntelligenceSlots.find((slot) => slot.id === courtId)
+    const outgoingPlayer = sourceSlot?.players[playerIndex]
+    const replacement = myPlayerPool.find((player) => player.id === replacementPlayerId)
+    if (!sourceSlot || !outgoingPlayer?.playerId || !replacement) return
+    if (lockedSlotIdSet.has(courtId) || lockedPlayerIdSet.has(outgoingPlayer.playerId)) {
+      setError('Unlock this court or player before applying the simulated swap.')
+      return
+    }
+    if (!isPlayerEligibleForSlot(replacement, sourceSlot, competitionRules)) {
+      setError(`${replacement.name} is not eligible for ${sourceSlot.label}.`)
+      return
+    }
+
+    const nextSlots = cloneSlots(lineupIntelligenceSlots)
+    const targetSlot = nextSlots.find((slot) => slot.id === courtId)
+    if (!targetSlot) return
+    targetSlot.players[playerIndex] = { playerId: replacement.id, playerName: replacement.name }
+    const formatSafeSlots = fitCaptainLineupSlotsToFormat(
+      nextSlots,
+      selectedFormatLeagueName,
+      selectedFormatFlight,
+      'team',
+      effectiveMatchFormatId,
+    )
+    setTeamSlots(formatSafeSlots)
+    showAppliedLineupNotice('Simulated swap', formatSafeSlots)
+    setMessage(`${replacement.name} replaced ${outgoingPlayer.playerName} at ${sourceSlot.label}. Review the updated win path before saving.`)
+    setError('')
+  }
+
+  function applyPairMatrixRecommendation(courtId: string, playerIds: string[]) {
+    const sourceSlot = lineupIntelligenceSlots.find((slot) => slot.id === courtId)
+    const pairPlayers = playerIds.map((playerId) => myPlayerPool.find((player) => player.id === playerId)).filter(Boolean) as PoolPlayer[]
+    if (!sourceSlot || sourceSlot.slotType !== 'doubles' || pairPlayers.length !== 2) return
+    if (lockedSlotIdSet.has(courtId)) {
+      setError(`Unlock ${sourceSlot.label} before placing another pair.`)
+      return
+    }
+    const outgoingLockedPlayer = sourceSlot.players.find((player) => player.playerId && !playerIds.includes(player.playerId) && lockedPlayerIdSet.has(player.playerId))
+    if (outgoingLockedPlayer) {
+      setError(`Unlock ${outgoingLockedPlayer.playerName} before placing another pair.`)
+      return
+    }
+    if (pairPlayers.some((player) => !isPlayerEligibleForSlot(player, sourceSlot, competitionRules))) {
+      setError(`That pair is not eligible for ${sourceSlot.label}.`)
+      return
+    }
+
+    const nextSlots = cloneSlots(lineupIntelligenceSlots)
+    const targetSlot = nextSlots.find((slot) => slot.id === courtId)
+    if (!targetSlot) return
+    targetSlot.players = pairPlayers.map((player) => ({ playerId: player.id, playerName: player.name }))
+    const formatSafeSlots = fitCaptainLineupSlotsToFormat(nextSlots, selectedFormatLeagueName, selectedFormatFlight, 'team', effectiveMatchFormatId)
+    setTeamSlots(formatSafeSlots)
+    showAppliedLineupNotice('Pair matrix choice', formatSafeSlots)
+    setMessage(`${pairPlayers.map((player) => player.name).join(' + ')} placed at ${sourceSlot.label}. Review the updated win path before saving.`)
+    setError('')
   }
 
   function applyRecommendedTeamLineup() {
@@ -5441,45 +6059,6 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   })
   const lineupImageHref = `${lineupImageBaseHref}${lineupImageBaseHref.includes('?') ? '&' : '?'}confirmed=1`
   const lineupPrintHref = `${lineupImageHref}&print=1`
-  const mobileLineupPulse = [
-    {
-      label: 'Courts',
-      value: `${teamAssignedPlayerCount}/${teamRequiredPlayerCount}`,
-      detail: teamLineupComplete ? 'Courts set' : firstOpenTeamCourt ? `Finish ${firstOpenTeamCourt.label}` : 'Choose players',
-    },
-    {
-      label: 'Replies',
-      value: `${assignedTeamReplySummary.confirmed.length}/${assignedTeamReplySummary.players.length}`,
-      detail: assignedTeamReplySummary.players.length ? 'Players in' : 'Choose players',
-    },
-    {
-      label: 'Roster',
-      value: `${myPlayerPool.length}`,
-      detail: myPlayerPool.length ? 'Full team pool' : 'Needs players',
-    },
-  ]
-  const mobileCourtMap = analysis.lines.map((line) => {
-    const probability = typeof line.projection === 'number' ? line.projection : null
-    const edge = typeof line.diff === 'number' ? line.diff : null
-    const status: 'Needs data' | 'Edge' | 'Protect' | 'Swing' = probability === null
-      ? 'Needs data'
-      : probability >= 0.58
-        ? 'Edge'
-        : probability <= 0.42
-          ? 'Protect'
-          : 'Swing'
-
-    return {
-      label: line.label,
-      status,
-      value: probability === null ? '-' : formatPercent(probability),
-      detail: edge === null
-        ? 'Complete both sides'
-        : `${edge >= 0 ? '+' : ''}${edge.toFixed(2)} rating edge`,
-      tone: (status === 'Edge' ? 'good' : status === 'Protect' ? 'warn' : status === 'Swing' ? 'info' : 'muted') as CourtMapTone,
-    }
-  })
-
   if (!authResolved) {
     return (
       <div style={pageWrap}>
@@ -5558,6 +6137,42 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                <GhostLink href={lineupDeliveryReceipt.teamRoomHref}>Open Team Chat</GhostLink>
              </div>
            </section>
+         ) : null}
+         {isMobile && teamName ? (
+           <div role="region" aria-label="Lineup next decision">
+             <CaptainLineupIntelligence
+               matchDateLabel={formatDate(matchDate)}
+               opponentName={opponentTeam}
+               opponentRosterCount={opponentPlayerPool.length}
+               rosterLoading={loading || recoveringSecureSession}
+               rosterUploadHref={opponentSummaryUploadHref}
+               courts={lineupIntelligenceCourts}
+               overallProbability={lineupIntelligenceOverallProbability}
+               insightsByPlayerId={playerLineupInsightsById}
+               opponentScenarios={lineupOpponentScenarios}
+               activeOpponentScenarioId={activeOpponentScenarioId}
+               resilientPreview={lineupResilientPreview}
+               strategyPreviews={lineupStrategyPreviews}
+               simulations={lineupSimulations}
+               pairMatrix={lineupPairMatrix}
+               lockedCourtIds={lockedSlotIds}
+               lockedPlayerIds={[...lockedPlayerIdSet]}
+               onAutoBuild={(strategy) => applyOptimizedPlan(strategy, false)}
+               onOpponentScenarioChange={setActiveOpponentScenarioId}
+               onBuildResilient={applyResilientPlan}
+               onEditCourt={(courtId) => focusTeamCourts(teamSlots, courtId)}
+               onEnterRosterManually={() => {
+                 setManualOpponentRosterOpen(true)
+                 window.requestAnimationFrame(() => {
+                   document.querySelector('[aria-label="Opponent roster options"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                 })
+               }}
+               onToggleCourtLock={toggleLockedSlot}
+               onTogglePlayerLock={toggleOptimizerPlayerLock}
+               onApplySimulation={applyLineupSimulationSwap}
+               onApplyPair={applyPairMatrixRecommendation}
+             />
+           </div>
          ) : null}
          {linkedCaptainTeams.length > 1 ? (
            <section style={linkedTeamSwitcherStyle(isMobile)} aria-label="Active lineup team">
@@ -5896,7 +6511,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             </details>
           </section>
         ) : null}
-        {opponentTeam ? (
+        {opponentTeam && (!isMobile || (!opponentPlayerPool.length && manualOpponentRosterOpen)) ? (
           opponentPlayerPool.length ? (
             <section
               style={{
@@ -6041,66 +6656,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
          {isMobile ? (
            <>
-             {!teamLineupComplete ? <section style={mobileCourtFocusStyle} aria-label="Lineup next decision">
-              <div>
-                <p style={sectionKicker}>Next decision</p>
-                <h2 style={mobileCourtFocusTitleStyle}>{finalLineupReady ? 'Ready to send.' : finalLineupReadinessTitle}</h2>
-                <p style={mobileCourtFocusTextStyle}>
-                  {finalLineupReady
-                    ? 'Every selected player is in. Send one clear lineup and match update to the team.'
-                    : finalLineupReadinessDetail}
-                </p>
-                <div style={mobileLineupPulseStyle} aria-label="Lineup readiness pulse">
-                  {mobileLineupPulse.map((item) => (
-                    <div key={item.label} style={mobileLineupPulseCardStyle}>
-                      <span style={mobileLineupPulseLabelStyle}>{item.label}</span>
-                      <strong style={mobileLineupPulseValueStyle}>{item.value}</strong>
-                      <small style={mobileLineupPulseDetailStyle}>{item.detail}</small>
-                    </div>
-                  ))}
-                </div>
-                {builderMode === 'insights' && mobileCourtMap.length ? (
-                  <div style={mobileCourtMapShellStyle} aria-label="Court map">
-                    <div style={mobileCourtMapHeaderStyle}>
-                      <span style={mobileCourtMapTitleStyle}>Court map</span>
-                      <span style={mobileCourtMapHintStyle}>Where to lean in</span>
-                    </div>
-                    <div style={mobileCourtMapGridStyle}>
-                      {mobileCourtMap.map((court) => (
-                        <div key={court.label} style={mobileCourtMapCardStyle(court.tone)}>
-                          <span style={mobileCourtMapLabelStyle}>{court.label}</span>
-                          <div style={mobileCourtMapValueRowStyle}>
-                            <strong style={mobileCourtMapValueStyle}>{court.value}</strong>
-                            <span style={mobileCourtMapStatusStyle(court.tone)}>{court.status}</span>
-                          </div>
-                          <span style={mobileCourtMapDetailStyle}>{court.detail}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-              <div style={mobileCourtFocusActionsStyle}>
-                {finalLineupReady ? (
-                  <PrimaryBtn disabled={openingFinalDelivery || finalLineupSent} onClick={() => void openFinalLineupDelivery()}>{finalLineupDeliveryLabel}</PrimaryBtn>
-                ) : firstOpenTeamCourt ? (
-                  <GhostBtn onClick={() => focusTeamCourts(teamSlots, firstOpenTeamCourt.id)}>Finish {firstOpenTeamCourt.label}</GhostBtn>
-                ) : (
-                  <GhostBtn onClick={() => focusTeamCourts()}>Review player replies</GhostBtn>
-                )}
-                {builderMode === 'manual' ? (
-                  <GhostBtn onClick={openOpponentCourts}>Scout opponent &amp; forecast</GhostBtn>
-                ) : (
-                  <GhostBtn onClick={() => setBuilderMode('manual')}>Back to my lineup</GhostBtn>
-                )}
-                {recentHistoricalLineup ? (
-                  <GhostBtn onClick={applyRecentHistoricalLineup}>Use recent lineup</GhostBtn>
-                ) : null}
-                <GhostBtn onClick={() => focusTeamCourts()}>Review courts</GhostBtn>
-              </div>
-             </section> : null}
-
-             {lineupHasAssignments && !teamLineupComplete ? (
+             {lineupHasAssignments ? (
               <section style={mobileFinalLineupPanelStyle} aria-label="Final lineup status" role="status" aria-live="polite">
                 <div style={mobileFinalLineupHeaderStyle}>
                   <div style={mobileFinalLineupCopyStyle}>
@@ -7835,6 +8391,37 @@ const suggestedSwapImpactUnavailableStyle: CSSProperties = {
   lineHeight: 1.4,
 }
 
+function arrangeOpponentScenarioSlots(
+  teamSlots: LineupSlot[],
+  opponentSlots: LineupSlot[],
+  players: PlayerRow[],
+  mode: 'aggressive' | 'conservative',
+) {
+  const arranged = cloneSlots(opponentSlots)
+
+  const compatibleCourtKeys = new Set(teamSlots.map((slot) => `${slot.slotType}:${slot.ratingLevel ?? 'open'}`))
+
+  for (const courtKey of compatibleCourtKeys) {
+    const [slotType, ratingLevel] = courtKey.split(':')
+    const sourceLines = opponentSlots
+      .map((slot, index) => ({ slot, index, strength: selectedLineStrength(slot, players) ?? -Infinity }))
+      .filter((item) => item.slot.slotType === slotType && String(item.slot.ratingLevel ?? 'open') === ratingLevel)
+      .sort((left, right) => right.strength - left.strength)
+    const targetLines = teamSlots
+      .map((slot, index) => ({ slot, index, strength: selectedLineStrength(slot, players) ?? -Infinity }))
+      .filter((item) => item.slot.slotType === slotType && String(item.slot.ratingLevel ?? 'open') === ratingLevel)
+      .sort((left, right) => mode === 'aggressive' ? left.strength - right.strength : left.index - right.index)
+
+    targetLines.forEach((target, position) => {
+      const source = sourceLines[position]
+      if (!source || !arranged[target.index]) return
+      arranged[target.index].players = source.slot.players.map((player) => ({ ...player }))
+    })
+  }
+
+  return arranged
+}
+
 const linkedTeamSwitcherStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) minmax(250px, 0.8fr)',
@@ -8993,39 +9580,6 @@ const lineupVersionCompareCourtStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const mobileCourtFocusStyle: CSSProperties = {
-  display: 'grid',
-  gap: 13,
-  padding: '18px',
-  borderRadius: 22,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
-  background: 'linear-gradient(145deg, color-mix(in srgb, var(--brand-green) 11%, var(--shell-panel-bg-strong) 89%), var(--shell-panel-bg))',
-  boxShadow: '0 18px 42px rgba(2, 10, 24, 0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
-  minWidth: 0,
-}
-
-const mobileCourtFocusTitleStyle: CSSProperties = {
-  margin: '5px 0 0',
-  color: 'var(--foreground-strong)',
-  fontSize: 22,
-  lineHeight: 1.1,
-  fontWeight: 950,
-}
-
-const mobileCourtFocusTextStyle: CSSProperties = {
-  margin: '6px 0 0',
-  color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.45,
-}
-
-const mobileCourtFocusActionsStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr)',
-  gap: 8,
-  minWidth: 0,
-}
-
 const mobileFinalLineupPanelStyle: CSSProperties = {
   display: 'grid',
   gap: 13,
@@ -9062,151 +9616,6 @@ const mobileFinalLineupActionsStyle: CSSProperties = {
   gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 8,
   minWidth: 0,
-}
-
-const mobileLineupPulseStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-  gap: 8,
-  marginTop: 13,
-  minWidth: 0,
-}
-
-const mobileLineupPulseCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: 4,
-  minWidth: 0,
-  minHeight: 78,
-  padding: '10px 8px',
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
-  borderRadius: 14,
-  background: 'linear-gradient(145deg, color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg) 92%), var(--shell-chip-bg))',
-}
-
-const mobileLineupPulseLabelStyle: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: 9,
-  fontWeight: 900,
-  letterSpacing: '0.04em',
-  textTransform: 'uppercase',
-  overflowWrap: 'anywhere',
-}
-
-const mobileLineupPulseValueStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 18,
-  fontWeight: 950,
-  lineHeight: 1.1,
-  overflowWrap: 'anywhere',
-}
-
-const mobileLineupPulseDetailStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 10,
-  fontWeight: 750,
-  lineHeight: 1.25,
-  overflowWrap: 'anywhere',
-}
-
-const mobileCourtMapShellStyle: CSSProperties = {
-  display: 'grid',
-  gap: 8,
-  marginTop: 14,
-  minWidth: 0,
-}
-
-const mobileCourtMapHeaderStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 8,
-  minWidth: 0,
-}
-
-const mobileCourtMapTitleStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 12,
-  fontWeight: 950,
-  letterSpacing: '0.03em',
-  overflowWrap: 'anywhere',
-}
-
-const mobileCourtMapHintStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 10,
-  fontWeight: 750,
-  textAlign: 'right',
-  overflowWrap: 'anywhere',
-}
-
-const mobileCourtMapGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
-  gap: 7,
-  minWidth: 0,
-}
-
-function mobileCourtMapCardStyle(tone: CourtMapTone): CSSProperties {
-  const palette = tone === 'good'
-    ? { border: 'rgba(134, 239, 172, 0.32)', background: 'rgba(22, 101, 52, 0.16)' }
-    : tone === 'warn'
-      ? { border: 'rgba(252, 165, 165, 0.32)', background: 'rgba(127, 29, 29, 0.16)' }
-      : tone === 'info'
-        ? { border: 'rgba(125, 211, 252, 0.3)', background: 'rgba(3, 105, 161, 0.14)' }
-        : { border: 'var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
-
-  return {
-    display: 'grid',
-    gap: 4,
-    padding: '10px',
-    borderRadius: 13,
-    border: `1px solid ${palette.border}`,
-    background: palette.background,
-    minWidth: 0,
-  }
-}
-
-const mobileCourtMapLabelStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 10,
-  fontWeight: 850,
-  overflowWrap: 'anywhere',
-}
-
-const mobileCourtMapValueRowStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 6,
-  minWidth: 0,
-}
-
-const mobileCourtMapValueStyle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: 17,
-  fontWeight: 950,
-  lineHeight: 1,
-  overflowWrap: 'anywhere',
-}
-
-function mobileCourtMapStatusStyle(tone: CourtMapTone): CSSProperties {
-  return {
-    color: tone === 'good' ? '#86efac' : tone === 'warn' ? '#fca5a5' : tone === 'info' ? '#7dd3fc' : 'var(--shell-copy-muted)',
-    fontSize: 9,
-    fontWeight: 900,
-    letterSpacing: '0.04em',
-    textTransform: 'uppercase',
-    textAlign: 'right',
-    overflowWrap: 'anywhere',
-  }
-}
-
-const mobileCourtMapDetailStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 10,
-  fontWeight: 750,
-  lineHeight: 1.3,
-  overflowWrap: 'anywhere',
 }
 
 const hiddenMobileContextStyle: CSSProperties = {

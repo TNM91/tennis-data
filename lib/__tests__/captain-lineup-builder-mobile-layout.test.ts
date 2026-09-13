@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
+const intelligence = readFileSync(join(process.cwd(), 'app/components/captain-lineup-intelligence.tsx'), 'utf8')
+const intelligenceStyles = readFileSync(join(process.cwd(), 'app/components/captain-lineup-intelligence.module.css'), 'utf8')
 
 function styleBlock(styleName: string) {
   const start = source.indexOf(`const ${styleName}`)
@@ -192,7 +194,6 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('mobileCourtPhoneFormStyle')).toContain("boxSizing: 'border-box'")
     expect(styleBlock('mobileSmsFallbackLinkStyle')).toContain("width: '100%'")
     expect(source).toContain('fullWidth={isMobileLayout}')
-    expect(styleBlock('mobileCourtFocusActionsStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
     expect(source).toContain('>Team contacts</GhostLink>')
   })
 
@@ -289,38 +290,25 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain('fills open spots only')
     expect(source).toContain('Your existing court choices stayed in place.')
     expect(source).toContain('no recent players were added')
-    expect(source).toContain("builderMode === 'insights' && mobileCourtMap.length")
-    expect(source).toContain('Finish {firstOpenTeamCourt.label}')
-    expect(source).toContain('<GhostBtn onClick={() => focusTeamCourts()}>Review courts</GhostBtn>')
+    expect(source).toContain('<CaptainLineupIntelligence')
+    expect(source).toContain('onAutoBuild={(strategy) => applyOptimizedPlan(strategy, false)}')
+    expect(source).toContain('onEditCourt={(courtId) => focusTeamCourts(teamSlots, courtId)}')
     expect(source).toContain("<PrimaryBtn onClick={() => applyOptimizedPlan('best')}>")
     expect(source).toContain('<PrimaryBtn onClick={() => focusTeamCourts()}>Build lineup</PrimaryBtn>')
-    expect(source).toContain('const mobileLineupPulse = [')
-    expect(source).toContain('aria-label="Lineup readiness pulse"')
-    expect(source).toContain("label: 'Courts'")
-    expect(source).toContain("label: 'Replies'")
-    expect(source).toContain("label: 'Roster'")
-    expect(styleBlock('mobileLineupPulseStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
-    expect(styleBlock('mobileLineupPulseCardStyle')).toContain('minWidth: 0')
-    expect(source).toContain('const mobileCourtMap = analysis.lines.map')
-    expect(source).toContain('aria-label="Court map"')
+    expect(intelligence).toContain('aria-label="Court outlook"')
+    expect(intelligence).toContain('Build my best lineup')
+    expect(intelligence).toContain('Best odds')
+    expect(intelligence).toContain('Safer floor')
+    expect(intelligence).toContain('More upside')
+    expect(intelligence).toContain('Court position tendency')
+    expect(intelligence).toContain('Win score distribution')
+    expect(intelligenceStyles).toContain('grid-template-columns: repeat(var(--court-count), minmax(0, 1fr))')
+    expect(intelligenceStyles).toContain('min-height: 44px')
     expect(source).toContain('function focusTeamCourts(nextSlots: LineupSlot[] = teamSlots, preferredCourtId = \'\')')
     expect(source).toContain('function focusTeamCourtsAfterBuild(nextSlots: LineupSlot[] = teamSlots)')
     expect(source).toContain('setExpandedTeamSlotId(courtToOpen)')
     expect(source).toContain('document.getElementById(`captain-lineup-slot-${courtToOpen}`)')
     expect(source).toContain("?.scrollIntoView({ behavior: 'smooth', block: 'start' })")
-    expect(source).toContain('Where to lean in')
-    expect(source).toContain("? 'Edge'")
-    expect(source).toContain("? 'Protect'")
-    expect(source).toContain(": 'Swing'")
-    for (const styleName of [
-      'mobileCourtMapShellStyle',
-      'mobileCourtMapHeaderStyle',
-      'mobileCourtMapGridStyle',
-      'mobileCourtMapValueRowStyle',
-    ]) {
-      expect(styleBlock(styleName)).toContain('minWidth: 0')
-    }
-    expect(styleBlock('mobileCourtMapGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 132px), 1fr))")
     expect(source).toContain('style={isMobile ? hiddenMobileContextStyle : surfaceCard}')
   })
 
@@ -331,7 +319,7 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain('Post to Team Chat')
     expect(source).toContain('Create image + text team')
     expect(source).toContain('Print lineup / scorecard')
-    expect(source).toContain('lineupHasAssignments && !teamLineupComplete')
+    expect(source).toContain('lineupHasAssignments ? (')
     expect(source).toContain('aria-label="Final lineup status"')
     expect(source).toContain('Ready to send.')
     expect(source).toContain('Send lineup to Team Chat')

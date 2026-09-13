@@ -183,6 +183,142 @@ final result: blocked
 
 ---
 
+# Captain lineup intelligence design QA
+
+- Source visual truth path: `C:\Users\nmein\.codex\generated_images\01a097f7-f6d6-7610-b5e5-43c9af75cefe\exec-c0c43b6a-6099-4c60-84c1-737d4544f726.png`
+- Browser-rendered implementation: `artifacts/captain-lineup-mobile-loaded.png`
+- Missing-roster implementation: `artifacts/captain-lineup-mobile.png`
+- Player-lens implementation: `artifacts/captain-lineup-player-lens.jpg`
+- Full page capture: `artifacts/captain-lineup-full-page.jpg`
+- Full-view comparison: `artifacts/captain-lineup-comparison.png`
+- Focused lens comparison: `artifacts/captain-lineup-lens-comparison.png`
+- Route: `/captain/lineup-builder`
+- Viewport: 390 × 844 CSS pixels, 1x device density; rendered content width is 375 pixels after the browser scrollbar.
+- Source pixels: 853 × 1844. The source was proportionally normalized to 375 × 811 for comparison.
+- Implementation pixels: the browser viewport captures are 375 × 812; the full page is 375 × 4369. The Captain win-path region measured 351 × 938 CSS pixels and was normalized to 375 × 1002 in the combined comparison.
+- State: signed-in Captain. Both a loaded USTA opponent roster (Tri-Level, three courts, six opponent players) and a missing USTA opponent roster (five courts) were checked. The source depicts a loaded five-court roster and an open player lens, so dynamic team format and real player history account for the documented content differences.
+
+## Findings
+
+No actionable P0, P1, or P2 differences remain.
+
+- [P3] The implementation uses a compact semantic probability rail instead of the concept's illustrated mini-court tiles.
+  Location: Captain win-path projected result.
+  Evidence: the source uses five pictorial court tiles; the implementation uses one segment per real match court followed by labeled lineup rows with percentages.
+  Impact: the implementation is less decorative, but it remains immediately scannable and adapts correctly to three-court Tri-Level and five-court formats.
+  Disposition: accepted. It avoids a fixed five-court visual and keeps the real court rows as the primary evidence.
+
+- [P3] Generated player portraits were not carried into production.
+  Location: lineup rows and player lens.
+  Evidence: the source concept uses illustrative avatars; the available live roster does not provide verified player photos.
+  Impact: the production view is visually quieter but does not misrepresent real players.
+  Disposition: accepted until verified player imagery exists.
+
+## Required fidelity surfaces
+
+- Fonts and typography: the implementation preserves the portal's approved bold display hierarchy, blue uppercase eyebrow treatment, readable body copy, and clear percentage emphasis. Real names and labels wrap without clipping. It uses larger small-text sizing than the concept where needed for phone readability.
+- Spacing and layout rhythm: the win-path hierarchy, roster state, result, court rows, player lens, and sticky strategy actions retain the source order. The implementation is taller because it preserves 44-pixel touch targets and allows real team/player names to wrap. No horizontal overflow was detected at 390 pixels.
+- Colors and visual tokens: navy surfaces, blue dividers, lime primary actions, blue evidence bars, and green/gold/red semantic states match the concept and existing TenAceIQ tokens. Contrast remains strong in both roster states.
+- Image quality and asset fidelity: approved TenAceIQ assets remain in the shared shell. No fake avatars, placeholder player photos, handcrafted SVGs, emoji, or rasterized UI substitutes were introduced in the lineup intelligence component. The circular `N` visible over some development captures is the Next.js development toolbar, not production UI.
+- Copy and content: USTA recovery instructions use the real TennisLink Team Summary → Send To Excel workflow. Court-position percentages, sample counts, outcome buckets, and matchup copy are derived from connected match history and clearly disclose missing data.
+- Icons and controls: Phosphor icons match the app's existing icon family. Buttons, disclosures, and court rows retain practical mobile targets and semantic labels.
+- Responsiveness and accessibility: the full 390 × 844 flow has no horizontal overflow. The player lens is a scrollable modal bottom sheet, focuses its close control, traps Tab navigation, returns focus to its trigger, closes by button, backdrop, or Escape, and keeps all roster/strategy states exposed semantically.
+
+## Full-view comparison evidence
+
+The combined comparison confirms the same decision sequence as the source: roster confidence, projected team result, court-by-court evidence, manual player inspection, and a strategy-aware auto-builder. The implementation replaces concept-only names and probabilities with the signed-in Captain's actual Tri-Level lineup and USTA roster. It also preserves the surrounding Team Hub rather than duplicating a second navigation shell inside the feature.
+
+## Focused region comparison evidence
+
+The focused lens comparison confirms matching position-tendency and score-distribution structures, matchup guidance, keep/edit actions, and a dismiss control. The captured live player has no connected history, so the implementation correctly renders explicit evidence-empty states instead of fabricated chart values. A separate five-court player with history was opened and showed 50% Singles 1 / 50% Singles 2 tendency plus a four-bucket scored-win distribution.
+
+## Comparison history
+
+1. Earlier [P2] finding: the mobile missing-opponent recovery panel appeared twice before the win-path content.
+   Fix: the legacy opponent entry panel now stays hidden on mobile until the Captain explicitly chooses **Enter names instead**; the integrated win-path panel owns the default USTA recovery guidance.
+   Post-fix evidence: `artifacts/captain-lineup-mobile.png` shows one recovery sequence followed immediately by projected result and player evidence.
+2. Earlier [P2] finding: the roster-help disclosure was controlled only by roster state, so the loaded-state **Roster missing?** action could not reliably reopen it.
+   Fix: added explicit disclosure state, loaded/missing synchronization, and a semantic button trigger.
+   Post-fix evidence: the loaded-roster capture shows the help panel collapsed, while the missing-roster capture shows it expanded automatically.
+3. Earlier accessibility refinement: the player lens did not support keyboard dismissal.
+   Fix: Escape now closes the active lens in addition to the visible close button and backdrop; modal focus is trapped and returned to the originating court row.
+   Post-fix evidence: browser interaction confirmed the lens was no longer visible after Escape, with no console errors.
+
+## Primary interactions tested
+
+- Signed-in load and direct Captain team scoping.
+- Missing USTA roster auto-prompt and loaded roster collapsed-help state.
+- Five-court Adult and three-court Tri-Level formats.
+- Player row → history lens, close button visibility, and Escape dismissal.
+- Strategy selection (`Best odds`, `Safer floor`, `More upside`) and auto-builder activation.
+- Real court-position and scored-win outcome rendering.
+- Console error check: none.
+- Focused suite: 6 files, 28 tests passed.
+- Typecheck, lint, and production build: passed; 245 routes generated.
+
+## Implementation checklist
+
+- [x] Prompt Captains with concrete USTA TennisLink instructions when the opponent roster is missing.
+- [x] Show loaded-roster confidence and matchup-level projected outcomes.
+- [x] Show real court-position frequency and scored-win outcome distributions.
+- [x] Support manual court inspection/editing and a strategy-aware auto-builder.
+- [x] Preserve phone-first touch targets, honest empty states, and accessible dismissal.
+- [x] Remove duplicate mobile recovery UI and verify real Adult/Tri-Level data.
+
+final result: passed
+
+# Captain quick matchup simulator design QA
+
+- Source visual truth: `C:\Users\nmein\.codex\generated_images\01a097f7-f6d6-7610-b5e5-43c9af75cefe\exec-c0c43b6a-6099-4c60-84c1-737d4544f726.png`
+- 390 px implementation: `artifacts/captain-lineup-simulator-390.png`
+- 360 px implementation, top: `artifacts/captain-lineup-simulator-360-top.png`
+- 360 px implementation, decision footer: `artifacts/captain-lineup-simulator-360-bottom.png`
+- Route: `/captain/lineup-builder`
+- Live state: signed-in Captain, loaded USTA Tri-Level opponent, confirmed lineup with protected players.
+
+## Outcome
+
+No actionable P0, P1, or P2 visual, interaction, responsive, or accessibility issues remain.
+
+- Every populated court exposes one compact **Try a swap** action alongside its existing locks.
+- The simulator uses the existing bottom-sheet visual language, navy surfaces, blue hierarchy, lime action, and Phosphor icons from the selected Win-Path direction.
+- The captain chooses the outgoing singles player or doubles partner, then compares only unassigned, unlocked, competition-eligible replacements.
+- Each candidate exposes rating, availability, court probability before/after, overall match probability before/after, percentage-point deltas, and the most relevant historical court-position evidence.
+- Candidates are ranked by projected match outcome. The live 3.5 comparison correctly showed that both eligible alternatives reduced the current odds; the UI did not fabricate a favorable recommendation.
+- Confirmed-player and court locks permit exploration but block application until explicitly unlocked.
+- Applying a swap immediately recalculates the Win-Path, court role, evidence sample, strategy preview, and overall match odds without navigating away.
+
+## Responsive and accessibility evidence
+
+- At 360 px, document `scrollWidth` and `clientWidth` both measured 345 px after the browser scrollbar; the sheet measured exactly 345 px wide with no horizontal overflow.
+- The sheet scrolls vertically when the candidate list exceeds the viewport, while preserving the close control and readable two-column Court/Match comparison cards.
+- All simulator buttons measured at least 44 px high at the narrow breakpoint.
+- On open, keyboard focus moves to **Close matchup simulator**; Escape dismisses the dialog and returns focus to the originating action.
+- Swap-out controls expose tab semantics, candidate choices expose pressed state, locked guidance is a semantic note, and the selected-swap summary updates through a live region.
+- Browser console check: no warnings or errors in the final simulator pass.
+
+## Full interaction evidence
+
+The live flow was exercised as: open 3.5 Doubles simulator → review Nick and Miles independently → compare Sean and Kaleb → unlock confirmed Nick → apply Sean → verify court odds changed from 60% to 56% and match odds from 54% to 53% → simulate Nick back → restore the original 60% / 54% state → confirm Nick was protected again. The captain's starting lineup was restored after QA.
+
+## Reference fidelity
+
+- Preserved from the selected direction: decisive mobile bottom sheet, large player choice, inline win probability, tennis-specific evidence, clear close action, and a lime primary decision.
+- Intentionally extended: explicit before/after court and match odds, eligibility-ranked alternatives, and lock-aware application state.
+- Intentionally omitted: generated player portraits, because the connected roster has no verified player imagery.
+
+## Verification
+
+- Focused simulator/mobile tests: 20 passed.
+- Focused lint: passed.
+- Typecheck: passed.
+- Full test suite: 499 files, 2,382 tests passed.
+- Production build: passed; 245 routes generated.
+
+final result: passed
+
+---
+
 # Team Profile depth refinement visual QA
 
 - Source visual direction: the selected Team Profile concept 2 (`C:\Users\nmein\.codex\generated_images\01a01d3a-e317-7831-8f3a-1c13c4c795e8\exec-d9dc93af-8a10-4081-a4e0-478f5caa8247.png`).
@@ -258,5 +394,305 @@ No actionable P0/P1/P2 differences remain for the reported defects.
 2. Initial P1: the fixed Team Chat composer obscured too much recent conversation. A one-row textarea, tighter padding, compact quick actions, and a two-column action row reduce the footer while keeping every action visible.
 
 Focused region comparisons were required because both defects were localized UI failures. The source and implementation regions were opened together and checked for wrapping, control visibility, overlap, hierarchy, and touch sizing. No residual P0/P1/P2 issue was found.
+# Captain lineup intelligence final QA pointer
+
+The complete Captain lineup intelligence report, evidence paths, comparison history, fidelity review, interaction coverage, and verification results are recorded above under **Captain lineup intelligence design QA**. That feature's browser-rendered QA is independent of the older Team Profile evidence gaps retained in this shared report.
+
+final result: passed
+
+---
+
+# Captain lineup intelligence refinement QA
+
+- Source visual truth: `C:\Users\nmein\.codex\generated_images\01a097f7-f6d6-7610-b5e5-43c9af75cefe\exec-c0c43b6a-6099-4c60-84c1-737d4544f726.png`
+- Loaded matchup evidence: `artifacts/captain-lineup-refinement-loaded-top.png`, `artifacts/captain-lineup-refinement-courts.png`, and `artifacts/captain-lineup-refinement-strategy.png`
+- Partner lens evidence: `artifacts/captain-lineup-refinement-partner-lens.png`
+- Auto-builder explanation evidence: `artifacts/captain-lineup-refinement-why.png`
+- Missing USTA roster evidence: `artifacts/captain-lineup-refinement-missing.png`
+- Narrow-phone evidence: `artifacts/captain-lineup-refinement-360.png`
+- Route: `/captain/lineup-builder`
+- Viewports: 390 × 844 and 360 × 800 CSS pixels.
+- Live states: signed-in Captain with a loaded three-court USTA Tri-Level matchup and a five-court Adult matchup whose opponent roster is missing.
+
+## Outcome
+
+No actionable P0, P1, or P2 visual, interaction, responsive, or accessibility issues remain.
+
+- Win-path intelligence now sits directly below Match Week in a scoped phone flow, ahead of lineup setup controls.
+- Both doubles partners expose independent court-position and score-outcome evidence in one bottom-sheet player lens.
+- Court and player locks are visible beside every assignment and are honored by strategy previews and rebuilds.
+- Strategy previews disclose current versus proposed odds, projected score, and changed courts before application.
+- Auto-build stays at the decision surface and opens a court-by-court **Why this lineup?** comparison instead of jumping to the legacy editor.
+- Confidence labels expose the available opponent and historical sample quality; missing evidence remains explicit rather than inferred.
+- The missing-roster state opens the USTA TennisLink Team Summary → Send To Excel instructions automatically and provides upload and manual-entry paths.
+
+## Responsive and interaction evidence
+
+- 390 px: loaded roster, all three Tri-Level courts, partner switching, strategy comparison, explanation, locks, and manual-edit handoff were browser verified.
+- 360 px: document `scrollWidth` and `clientWidth` both measured 345 px after the browser scrollbar, confirming no horizontal overflow.
+- Roster-help, court-lock, strategy, build, and edit controls measure at least 44 px high at the narrow breakpoint.
+- Auto-locked confirmed players remain in their current court assignments after rebuild; the live preview correctly reports **Current courts already match**.
+- Modal focus, partner tabs, close action, and readable empty-history states remain intact.
+- No feature-originated console errors were found. The development browser reported only Fast Refresh notices and a third-party AdSense `no_div` error outside the lineup component.
+
+## Reference fidelity
+
+- Preserved: navy/lime visual language, projected result hierarchy, semantic court outlook, court-by-court evidence, player lens, and three-strategy auto-builder.
+- Intentionally extended: compact confidence badges, both-partner evidence, explicit locks, pre-build strategy delta, and post-build rationale.
+- Intentionally omitted: generated player portraits and decorative court illustrations, because the live roster has no verified player imagery and the real competition format may contain three or five courts.
+
+## Verification
+
+- Focused lint: passed.
+- Typecheck: passed.
+- Full test suite: 499 files, 2,381 tests passed.
+- Production build: passed; 245 routes generated.
+
+final result: passed
+
+---
+
+# Captain quick matchup simulator final QA pointer
+
+The complete simulator report, reference comparison, 390 px and 360 px evidence, accessibility checks, lock-aware apply-and-restore flow, and final verification results are recorded above under **Captain quick matchup simulator design QA**.
+
+final result: passed
+
+---
+
+# Captain simulator odds-factor QA
+
+- Source visual: `C:\Users\nmein\.codex\generated_images\01a097f7-f6d6-7610-b5e5-43c9af75cefe\exec-c0c43b6a-6099-4c60-84c1-737d4544f726.png`
+- Browser evidence: `artifacts/captain-lineup-simulator-factors-390.png` and `artifacts/captain-lineup-simulator-factors-360.png`
+- Live state: signed-in Captain, loaded USTA Tri-Level matchup, Doubles 2 swap simulator with the odds-factor explanation expanded.
+
+## Outcome
+
+No actionable P0, P1, or P2 visual, interaction, responsive, or accessibility issues remain.
+
+- **Why the odds moved** clearly separates the rating edge that drives the displayed probability from supporting court-history, score-profile, and availability evidence.
+- Factor values and details update with the selected replacement candidate; Sean and Kaleb were browser-verified against the same outgoing player.
+- Supporting evidence is explicitly labeled and is not presented as part of the modeled percentage, avoiding fabricated precision.
+- The explanation stays compact by default, expands in place, and does not alter the lineup until the captain chooses **Apply swap**.
+
+## Responsive and accessibility evidence
+
+- 390 px and 360 px presentations keep the factor hierarchy readable inside the matchup sheet.
+- At 360 px, document `scrollWidth` and `clientWidth` both measured 345 px, confirming no horizontal overflow.
+- The disclosure summary measures 48 px high and uses text, icons, and labels rather than color alone.
+- No feature-originated console errors or warnings were found in the final browser state.
+
+## Verification
+
+- Focused lint: passed.
+- Focused tests: 3 files, 20 tests passed.
+- Typecheck: passed.
+- Full test suite: 499 files, 2,382 tests passed.
+- Production build: passed; 245 routes generated.
+
+final result: passed
+
+---
+
+# Captain opponent-scenario stress test QA
+
+- Source visual: `C:\Users\nmein\.codex\generated_images\01a097f7-f6d6-7610-b5e5-43c9af75cefe\exec-c0c43b6a-6099-4c60-84c1-737d4544f726.png`
+- Browser evidence: `artifacts/captain-lineup-opponent-scenarios-390.png` and `artifacts/captain-lineup-opponent-scenarios-360.png`
+- Live state: signed-in Captain with a loaded USTA Tri-Level matchup; Likely, Aggressive, and Conservative scenarios exercised.
+
+## Outcome
+
+No actionable P0, P1, or P2 visual, interaction, responsive, or accessibility issues remain.
+
+- The new scenario card preserves the reference hierarchy and navy/lime decision language without crowding the projected-result summary.
+- Each scenario updates the projected court rail, individual court odds, weak-point callout, matchup simulator, and Auto Builder inputs.
+- Likely respects entered opponent courts or a balanced inferred lineup. Aggressive and Conservative use the strongest eligible roster in different legal arrangements.
+- Scenario movement is constrained by court type and rating level, so Tri-Level players are never moved across ineligible levels to manufacture a result.
+- When the opponent roster cannot produce a genuinely different legal lineup, the projections remain unchanged rather than implying false uncertainty.
+
+## Responsive and accessibility evidence
+
+- At 390 px, the complete scenario card, all three tabs, pressure point, and the first updated court remain readable in one continuous phone flow.
+- At 360 px, document `scrollWidth` and `clientWidth` both measured 345 px, confirming no horizontal overflow.
+- Scenario tabs are exposed as a tablist with selected state and 44 px minimum touch targets.
+- The pressure point uses text and an icon in addition to color; live scenario results are announced through a polite status region.
+
+## Verification
+
+- Focused lint: passed.
+- Focused tests: 2 files, 19 tests passed.
+- Typecheck: passed.
+- Full test suite: 499 files, 2,383 tests passed.
+- Production build: passed; 245 routes generated.
+- Diff whitespace check: passed.
+
+final result: passed
+
+---
+
+# Captain all-scenario resilient builder QA
+
+- Source visual: `C:\Users\nmein\.codex\generated_images\01a097f7-f6d6-7610-b5e5-43c9af75cefe\exec-c0c43b6a-6099-4c60-84c1-737d4544f726.png`
+- Browser evidence: `artifacts/captain-lineup-resilient-builder-390.png` and `artifacts/captain-lineup-resilient-builder-360.png`
+- Live state: signed-in Captain, Aggressive opponent scenario selected, confirmed-player locks active, resilient build applied.
+
+## Outcome
+
+No actionable P0, P1, or P2 visual, interaction, responsive, or accessibility issues remain.
+
+- **Build for all 3** sits inside the opponent-scenario card, keeping the cross-scenario choice attached to the evidence it uses.
+- The preview exposes the worst-case floor, average outlook, and changed courts before application.
+- Candidate lineups are tested against every legal opponent scenario; the lowest projected result receives 70% of the selection score and the scenario average receives 30%.
+- Court and player locks are applied before the preview and preserved when the resilient lineup is built.
+- The live locked lineup already matched the resilient recommendation, and the interface stated that clearly while still confirming the applied action.
+
+## Responsive and accessibility evidence
+
+- At 390 px and 360 px, the recommendation and full-width primary action fit inside the scenario card without crowding the three scenario tabs.
+- At 360 px, document `scrollWidth` and `clientWidth` both measured 345 px, confirming no horizontal overflow.
+- The resilient action measures 46 px high, uses a Phosphor shield icon plus text, and retains visible contrast in the navy/lime system.
+
+## Verification
+
+- Focused lint: passed.
+- Focused tests: 2 files, 19 tests passed.
+- Typecheck: passed.
+- Full test suite: 499 files, 2,383 tests passed.
+- Production build: passed; 245 routes generated.
+- Diff whitespace check: passed.
+
+final result: passed
+
+---
+
+# Captain opponent lineup reveal QA
+
+- Source visual: `C:\Users\nmein\.codex\generated_images\01a097f7-f6d6-7610-b5e5-43c9af75cefe\exec-c0c43b6a-6099-4c60-84c1-737d4544f726.png`
+- Browser evidence: `artifacts/captain-lineup-opponent-reveal-390.png`, `artifacts/captain-lineup-opponent-reveal-active-390.png`, and `artifacts/captain-lineup-opponent-reveal-360.png`
+- Live state: Aggressive Tri-Level scenario selected, projected opponent courts expanded, resilient lineup applied.
+
+## Outcome
+
+No actionable P0, P1, or P2 visual, interaction, responsive, or accessibility issues remain.
+
+- **See their projected courts** reveals opponent pairs and calculated line ratings without adding permanent density to the decision card.
+- Scenario assignments are compared court by court with Likely; changed courts receive a visible **Moved** label.
+- When eligibility prevents a legal rearrangement, Captain explains that directly rather than implying unseen movement.
+- Low-confidence scenario odds render as a 20-point estimated range around the modeled point; medium confidence uses a 12-point range and high confidence retains the point estimate.
+- After **Build for all 3**, the control changes in place to **Resilient lineup active**, closing the previous no-visible-feedback gap.
+
+## Responsive and accessibility evidence
+
+- At 390 px, the complete three-court reveal, explanatory copy, range, and resilient action fit in one readable card.
+- At 360 px, long doubles pair names wrap within their own column and document `scrollWidth` equals `clientWidth` at 345 px.
+- The reveal summary measures 46 px high, the active build state uses text plus a status icon, and moved state never relies on color alone.
+
+## Verification
+
+- Focused lint: passed.
+- Focused tests: 2 files, 19 tests passed.
+- Typecheck: passed.
+- Full test suite: 499 files, 2,383 tests passed.
+- Production build: passed; 245 routes generated.
+- Diff whitespace check: passed.
+
+final result: passed
+
+---
+
+# Captain pair chemistry QA
+
+- Source visual truth: `C:\Users\nmein\.codex\generated_images\01a097f7-f6d6-7610-b5e5-43c9af75cefe\exec-c0c43b6a-6099-4c60-84c1-737d4544f726.png`
+- Implementation evidence: `artifacts/captain-lineup-pair-cards-390.png`, `artifacts/captain-lineup-pair-detail-390.png`, `artifacts/captain-lineup-pair-swap-390.png`, and `artifacts/captain-lineup-pair-cards-360.png`
+- Source pixels: 853 × 1844. Implementation captures: 375 × 812 at a 390 × 844 CSS viewport and 345 × 767 at a 360 × 800 CSS viewport. Browser density was 1; the 15 px difference is the persistent browser scrollbar gutter, not content scaling.
+- State: signed-in Captain, Tri-Level lineup loaded against Gontarz, opponent roster available, all three doubles courts filled, narrow phone layout.
+
+## Findings
+
+No actionable P0, P1, or P2 differences remain for this extension.
+
+- Fonts and typography: the partnership label, three-stat hierarchy, and supporting-evidence disclosure use the existing TenAceIQ weights, sizes, and compact mobile line height. Long pair names and evidence text wrap without clipping.
+- Spacing and layout rhythm: the chemistry signal nests under individual player evidence, while the detail card follows the source sheet hierarchy and preserves 44 px partner tabs and close control. The 360 px capture has no horizontal overflow (`scrollWidth` 345 px and rendered body width 345 px).
+- Colors and visual tokens: the card uses the established navy surfaces, blue supporting-evidence label, and lime partnership accent with sufficient contrast; record status is never communicated by color alone.
+- Image and icon fidelity: no new raster asset was needed. The partnership and swap controls use the existing Phosphor icon family; supplied TenAceIQ artwork remains untouched.
+- Copy and content: “New pairing” and “no shared starts” avoid manufactured certainty. The sheet explicitly says shared starts do not change the rating-driven percentage yet.
+
+## Full-view comparison evidence
+
+The 390 px and 360 px court-list captures preserve the selected source’s scan order: match path, opponent scenario, lineup rows, player evidence, and probability. Partnership history adds one compact line per doubles court without displacing the probability or lock actions. The narrow capture keeps the full court action row visible and wraps only secondary evidence.
+
+## Focused region comparison evidence
+
+The 390 px partnership sheet was compared directly with the source’s expanded player lens. The implementation retains the same bottom-sheet pattern, clear close affordance, player tabs, history charts, and match read, while adding a compact partnership scorecard above individual history. The swap-sheet capture confirms pair history is also visible in the decision explanation.
+
+## Interaction and accessibility checks
+
+- Opened a doubles court and verified partnership starts, decided record, win rate, score tendency, and the supporting-only disclosure.
+- Switched into the swap simulator, opened “Why the odds moved,” and verified the candidate’s history with the partner who remains.
+- Verified dialog focus entry, Escape/close controls from the existing sheet behavior, readable accessible names, and no browser console errors.
+
+## Comparison history
+
+- Initial pass: no P0/P1/P2 issue found. At 360 px the pair signal wraps to two lines, which is acceptable and keeps complete evidence visible without overflow.
+- No visual fix iteration was required.
+
+## Verification
+
+- Focused lint: passed.
+- Focused tests: 2 files, 9 tests passed.
+- Typecheck: passed.
+- Full test suite: 499 files, 2,385 tests passed.
+- Production build: passed; 245 routes generated.
+- Diff whitespace check: passed (line-ending warnings only).
+
+final result: passed
+
+---
+
+# Captain roster Pair Matrix QA
+
+- Source visual truth: `C:\Users\nmein\.codex\generated_images\01a097f7-f6d6-7610-b5e5-43c9af75cefe\exec-c0c43b6a-6099-4c60-84c1-737d4544f726.png`
+- Implementation evidence: `artifacts/captain-lineup-pair-matrix-final-390.png` and `artifacts/captain-lineup-pair-matrix-360.png`
+- Source pixels: 853 × 1844. Implementation captures: 375 × 812 at a 390 × 844 CSS viewport and 345 × 767 at a 360 × 800 CSS viewport. Browser density was 1; the 15 px width difference is the persistent browser scrollbar gutter.
+- State: signed-in Captain, USTA Tri-Level matchup against Gontarz, opponent roster loaded, six-player lineup filled and confirmed, Pair Matrix expanded on the 3.5 court.
+
+## Findings
+
+No actionable P0, P1, or P2 issues remain.
+
+- Fonts and typography: ranking numbers, pair names, probability, evidence, and button labels retain the selected source’s compact high-contrast hierarchy. Long names wrap without clipping at 360 px.
+- Spacing and layout rhythm: the matrix is collapsed by default below the court list, uses three 44 px court tabs, and presents each pair as a consistent scannable card. Expanded density is intentional because the captain explicitly requested every available pair.
+- Colors and visual tokens: current pairs use the established lime success treatment; ranking and supporting information use the existing blue and muted tokens. Status is repeated in text and icons.
+- Image and icon fidelity: no raster imagery was needed. The matrix uses the existing Phosphor grid and status icons and does not alter supplied TenAceIQ brand assets.
+- Copy and content: “Projected odds rank the list” explains the sort order, while “history … is not weighted yet” prevents shared starts from being mistaken for modeled probability.
+
+## Full-view comparison evidence
+
+The 390 px capture preserves the source’s navy/lime decision language and inserts the Pair Matrix after the captain’s court rows, before Auto Builder. The collapsed header keeps the ordinary lineup flow compact; the expanded state provides a single continuous decision path rather than a new route.
+
+## Focused region comparison evidence
+
+The expanded 390 px and 360 px captures show rank, names, pair rating, availability, court probability, shared record, winning-set tendency, and the place/unlock action together. At 360 px, document `scrollWidth` and rendered body width both measured 345 px, with no horizontal overflow.
+
+## Interaction and accessibility checks
+
+- Switched between 3.5, 4.0, and 4.5 tabs and verified selected tab state and court-specific ranking updates.
+- Unlocked a confirmed player from inside a blocked recommendation, placed Joel Pottebaum + Diego Mateluna at 4.0, verified the live applied status and recalculated current pair, then restored Sam Edwards + Joel Pottebaum and Sam’s lock.
+- Verified current-pair state, actionable lock blockers, 44 px controls, responsive wrapping, and zero browser console warnings or errors.
+
+## Comparison history
+
+- Initial P2: locked recommendation controls read “Unlock Nick” or “Unlock Miles” but were disabled, creating a false affordance.
+- Fix: each lock blocker now performs the stated unlock action in place; the same control becomes “Place on [court]” after the lock clears.
+- Post-fix evidence: `artifacts/captain-lineup-pair-matrix-final-390.png`; browser interaction confirmed the unlock-to-place transition with no console errors.
+
+## Verification
+
+- Focused lint: passed.
+- Focused tests: 2 files, 10 tests passed.
+- Typecheck: passed.
+- Full test suite: 499 files, 2,386 tests passed.
+- Production build: passed; 245 routes generated.
+- Diff whitespace check: passed (line-ending warnings only).
 
 final result: passed
