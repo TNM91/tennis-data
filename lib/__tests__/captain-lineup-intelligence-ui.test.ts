@@ -10,6 +10,11 @@ describe('captain lineup intelligence UI', () => {
   it('keeps roster recovery, manual editing, and auto-builder strategies in one mobile flow', () => {
     expect(page).toContain('<CaptainLineupIntelligence')
     expect(component).toContain('Opponent roster missing')
+    expect(component).toContain('Latest opponent lineup found')
+    expect(component).toContain('Roster ready · likely lineup projected')
+    expect(component).toContain("rosterState === 'missing' ? (")
+    expect(component).toContain('How to add roster')
+    expect(page).toContain("opponentLineupState === 'historical' ? applyRecentHistoricalOpponentLineup : openOpponentCourts")
     expect(component).toContain('Upload Team Summary')
     expect(component).toContain('Enter names instead')
     expect(component).toContain('Build my best lineup')
@@ -39,6 +44,9 @@ describe('captain lineup intelligence UI', () => {
 
   it('loads real court result evidence for sample-backed tendencies', () => {
     expect(route).toContain('line_number,match_type,winner_side,score')
+    expect(route).toContain("'opponent historical court lineups'")
+    expect(route).toContain('opponentHistoricalTeamNames')
+    expect(route).toContain('...(opponentHistoricalLineMatchesResult.data ?? [])')
     expect(component).toContain('Based on ${selectedInsight.startCount} start')
     expect(component).toContain('Based on ${selectedInsight.scoredWinCount} scored win')
   })

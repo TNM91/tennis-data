@@ -210,6 +210,14 @@ export async function GET(request: Request) {
     statusText: 'OK',
     success: true,
   } as Awaited<typeof matchesPromise>
+  const emptyHistoricalLineMatchesResult = {
+    data: [],
+    error: null,
+    count: null,
+    status: 200,
+    statusText: 'OK',
+    success: true,
+  } as Awaited<typeof historicalLineMatchesPromise>
   const emptyAvailabilityResult = {
     data: [],
     error: null,
@@ -245,7 +253,7 @@ export async function GET(request: Request) {
     resolveOptionalQuery('team formats', formatsQuery, emptyFormatsResult),
     resolveOptionalQuery('saved scenarios', scenariosPromise, emptyScenariosResult),
   ])
-  const historicalLineMatchesResult = await resolveOptionalQuery('historical court lineups', historicalLineMatchesPromise, emptyMatchesResult, 3_500)
+  const historicalLineMatchesResult = await resolveOptionalQuery('historical court lineups', historicalLineMatchesPromise, emptyHistoricalLineMatchesResult, 3_500)
   const primaryError = rosterResult.error
   if (primaryError) return Response.json({ ok: false, message: primaryError.message }, { status: 500 })
 
@@ -293,11 +301,44 @@ export async function GET(request: Request) {
     .map((row) => cleanAvailabilityText(row.player_name, 160))
     .filter(Boolean))].sort((left, right) => left.localeCompare(right))
 
+  // A captain can scout a team they have never played. Load that opponent's
+  // own court history so an existing lineup is recognized for this matchup.
+  const normalizedOpponent = normalizeTeamName(opponentName)
+  const opponentHistoricalTeamNames = [...new Set([
+    opponentName,
+    ...opponentRosterRows
+      .filter((row) => currentOpponentKeys.has(normalizeTeamName(row.team_name)) || currentOpponentKeys.has(normalizeUstaRosterTeamName(row.team_name)))
+      .map((row) => cleanAvailabilityText(row.team_name, 160)),
+  ].filter(Boolean))]
+  const opponentHistoricalTeamFilter = opponentHistoricalTeamNames
+    .flatMap((name) => {
+      const escapedName = escapePostgrestValue(name)
+      return [`home_team.eq."${escapedName}"`, `away_team.eq."${escapedName}"`]
+    })
+    .join(',')
+  const opponentHistoricalLineMatchesResult = normalizedOpponent && normalizedOpponent !== normalizedTeam
+    ? await resolveOptionalQuery(
+      'opponent historical court lineups',
+      service
+        .from('matches')
+        .select('id,league_name,flight,match_date,match_time,facility,home_team,away_team,line_number,match_type,winner_side,score')
+        .not('line_number', 'is', null)
+        .or(opponentHistoricalTeamFilter)
+        .order('match_date', { ascending: false })
+        .limit(360),
+      emptyHistoricalLineMatchesResult,
+      3_500,
+    )
+    : emptyHistoricalLineMatchesResult
+
   const rosterMembers = [...new Map([...(rosterResult.data ?? []), ...opponentRosterRows].map((row) => [
     [normalizeTeamName(row.team_name), row.player_id || normalizeTeamName(row.player_name)].join('|'),
     row,
   ])).values()]
-  const historicalLineMatches = historicalLineMatchesResult.data ?? []
+  const historicalLineMatches = [...new Map([
+    ...(historicalLineMatchesResult.data ?? []),
+    ...(opponentHistoricalLineMatchesResult.data ?? []),
+  ].map((match) => [match.id, match])).values()]
   const rosterPlayerIds = Array.from(new Set(rosterMembers.map((row) => row.player_id).filter((id): id is string => Boolean(id))))
   const matchIds = (matchesResult.data ?? []).map((match) => match.id)
   const matchPlayersResultPromise = matchIds.length

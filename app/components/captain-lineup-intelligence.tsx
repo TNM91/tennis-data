@@ -14,6 +14,7 @@ import styles from './captain-lineup-intelligence.module.css'
 export type CaptainLineupIntelligenceStrategy = 'best' | 'safe' | 'upside'
 export type CaptainLineupConfidence = 'High' | 'Medium' | 'Low' | 'Needs opponent'
 export type CaptainOpponentScenarioId = 'likely' | 'aggressive' | 'conservative'
+export type CaptainOpponentLineupState = 'entered' | 'historical' | 'projected' | 'missing'
 
 export type CaptainOpponentScenario = {
   id: CaptainOpponentScenarioId
@@ -133,6 +134,8 @@ type Props = {
   matchDateLabel: string
   opponentName: string
   opponentRosterCount: number
+  opponentLineupState: CaptainOpponentLineupState
+  opponentLineupDetail: string
   rosterLoading: boolean
   rosterUploadHref: string
   courts: CaptainLineupIntelligenceCourt[]
@@ -151,6 +154,7 @@ type Props = {
   onBuildResilient: () => void
   onEditCourt: (courtId: string) => void
   onEnterRosterManually: () => void
+  onOpponentLineupAction: () => void
   onToggleCourtLock: (courtId: string) => void
   onTogglePlayerLock: (playerId: string) => void
   onApplySimulation: (courtId: string, playerIndex: number, replacementPlayerId: string) => void
@@ -227,6 +231,8 @@ export default function CaptainLineupIntelligence({
   matchDateLabel,
   opponentName,
   opponentRosterCount,
+  opponentLineupState,
+  opponentLineupDetail,
   rosterLoading,
   rosterUploadHref,
   courts,
@@ -245,6 +251,7 @@ export default function CaptainLineupIntelligence({
   onBuildResilient,
   onEditCourt,
   onEnterRosterManually,
+  onOpponentLineupAction,
   onToggleCourtLock,
   onTogglePlayerLock,
   onApplySimulation,
@@ -253,7 +260,7 @@ export default function CaptainLineupIntelligence({
   const [strategy, setStrategy] = useState<CaptainLineupIntelligenceStrategy>('best')
   const [selectedCourtId, setSelectedCourtId] = useState('')
   const [selectedPlayerId, setSelectedPlayerId] = useState('')
-  const [helpPreference, setHelpPreference] = useState<boolean | null>(null)
+  const [rosterHelpOpen, setRosterHelpOpen] = useState(false)
   const [comparisonBaseline, setComparisonBaseline] = useState<ComparisonBaseline | null>(null)
   const [lastBuiltStrategy, setLastBuiltStrategy] = useState<CaptainLineupIntelligenceStrategy | null>(null)
   const [whyOpen, setWhyOpen] = useState(false)
@@ -275,7 +282,15 @@ export default function CaptainLineupIntelligence({
   const projectedWins = courts.filter((court) => typeof court.probability === 'number' && (court.probability ?? 0) >= 0.5).length
   const projectedLosses = courts.filter((court) => typeof court.probability === 'number').length - projectedWins
   const rosterState = rosterLoading ? 'loading' : opponentRosterCount ? 'loaded' : 'missing'
-  const helpOpen = helpPreference ?? rosterState === 'missing'
+  const opponentStatusLabel = rosterState === 'loading'
+    ? 'Checking opponent data…'
+    : opponentLineupState === 'entered'
+      ? 'Opponent courts set'
+      : opponentLineupState === 'historical'
+        ? 'Latest opponent lineup found'
+        : opponentLineupState === 'projected'
+          ? 'Roster ready · likely lineup projected'
+          : 'Opponent roster missing'
   const activePreview = strategyPreviews.find((preview) => preview.strategy === strategy) ?? null
   const activeOpponentScenario = opponentScenarios.find((scenario) => scenario.id === activeOpponentScenarioId)
     ?? opponentScenarios[0]
@@ -432,24 +447,37 @@ export default function CaptainLineupIntelligence({
           <h2 className={styles.matchTitle}>{matchDateLabel || 'Match date'} · vs {opponentName || 'Choose opponent'}</h2>
           <div className={styles[rosterState]} role="status" aria-live="polite">
             {rosterState === 'loaded' ? <CheckCircle size={19} weight="fill" aria-hidden="true" /> : null}
-            {rosterState === 'loading' ? 'Loading opponent roster…' : rosterState === 'loaded' ? `Opponent roster loaded · ${opponentRosterCount} player${opponentRosterCount === 1 ? '' : 's'}` : 'Opponent roster missing'}
+            <span>
+              <strong>{opponentStatusLabel}</strong>
+              {!rosterLoading && opponentLineupDetail ? <small>{opponentLineupDetail}</small> : null}
+            </span>
           </div>
         </div>
-        <button type="button" className={styles.help} onClick={() => setHelpPreference(true)}>Roster missing?</button>
+        {rosterState === 'missing' ? (
+          <button type="button" className={styles.help} onClick={() => setRosterHelpOpen((open) => !open)} aria-expanded={rosterHelpOpen} aria-controls="captain-lineup-roster-help">
+            How to add roster
+          </button>
+        ) : rosterState === 'loaded' ? (
+          <button type="button" className={styles.statusAction} onClick={onOpponentLineupAction}>
+            {opponentLineupState === 'historical' ? 'Use latest lineup' : opponentLineupState === 'entered' ? 'Edit courts' : 'Review projection'}
+          </button>
+        ) : null}
       </div>
 
-      <details id="captain-lineup-roster-help" className={styles.helpPanel} open={helpOpen} onToggle={(event) => setHelpPreference(event.currentTarget.open)}>
-        <summary className={styles.help}>Load a USTA TennisLink roster</summary>
-        <ol>
-          <li>Sign in to USTA TennisLink and open the opponent&apos;s league team.</li>
-          <li>Open <strong>Team Summary</strong>, then choose <strong>Send To Excel</strong>.</li>
-          <li>Upload the saved TeamSummary .xls file here. TiQ will return you to this matchup.</li>
-        </ol>
-        <div className={styles.helpActions}>
-          <Link href={rosterUploadHref} className={styles.primaryLink}>Upload Team Summary</Link>
-          <button type="button" className={styles.secondaryButton} onClick={onEnterRosterManually}>Enter names instead</button>
-        </div>
-      </details>
+      {rosterState === 'missing' ? (
+        <details id="captain-lineup-roster-help" className={styles.helpPanel} open={rosterHelpOpen} onToggle={(event) => setRosterHelpOpen(event.currentTarget.open)}>
+          <summary className={styles.help}>Load a USTA TennisLink roster</summary>
+          <ol>
+            <li>Sign in to USTA TennisLink and open the opponent&apos;s league team.</li>
+            <li>Open <strong>Team Summary</strong>, then choose <strong>Send To Excel</strong>.</li>
+            <li>Upload the saved TeamSummary .xls file here. TiQ will return you to this matchup.</li>
+          </ol>
+          <div className={styles.helpActions}>
+            <Link href={rosterUploadHref} className={styles.primaryLink}>Upload Team Summary</Link>
+            <button type="button" className={styles.secondaryButton} onClick={onEnterRosterManually}>Enter names instead</button>
+          </div>
+        </details>
+      ) : null}
 
       <div className={styles.result}>
         <div className={styles.resultHeader}>
