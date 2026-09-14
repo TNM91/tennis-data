@@ -1544,6 +1544,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const [missingPhonePlayerKeys, setMissingPhonePlayerKeys] = useState<string[]>([])
   const [inlinePhoneByPlayerKey, setInlinePhoneByPlayerKey] = useState<Record<string, string>>({})
   const [savingPhonePlayerKey, setSavingPhonePlayerKey] = useState('')
+  const [resettingConfirmationPlayerId, setResettingConfirmationPlayerId] = useState('')
   const preparingCourtTextKeysRef = useRef(new Set<string>())
   const [directCourtTextHandoff, setDirectCourtTextHandoff] = useState<CaptainDirectCourtTextHandoff | null>(
     initialContext.hasExplicitRouteScope ? null : persistedDirectCourtTextHandoff,
@@ -3529,6 +3530,60 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       opponent: getOpponentForTeam(nextMatch, teamName) || undefined,
       matchId: nextMatch.id,
     }))
+  }
+
+  async function resetPlayerConfirmation(playerId: string) {
+    if (!teamName || !matchDate || !playerId) {
+      setError('Choose the team, match, and player before undoing a confirmation.')
+      return
+    }
+
+    const previousAvailability = availability
+    const previousLockedPlayerIds = lockedPlayerIds
+    const previousReleasedConfirmedPlayerIds = releasedConfirmedPlayerIds
+    const optimisticRow: AvailabilityRow = {
+      id: `captain-reset:${Date.now()}:${playerId}`,
+      match_date: matchDate,
+      team_name: teamName,
+      league_name: leagueName || null,
+      flight: flight || null,
+      player_id: playerId,
+      status: 'pending',
+      notes: 'Confirmation reset by captain in Lineup Builder.',
+      responded_at: new Date().toISOString(),
+    }
+    setResettingConfirmationPlayerId(playerId)
+    setAvailability((current) => [
+      ...current.filter((row) => !(row.match_date === matchDate && row.team_name === teamName && row.player_id === playerId)),
+      optimisticRow,
+    ])
+    setLockedPlayerIds((current) => current.filter((id) => id !== playerId))
+    setReleasedConfirmedPlayerIds((current) => current.filter((id) => id !== playerId))
+
+    try {
+      const accessToken = session?.access_token || (await supabase.auth.getSession()).data.session?.access_token
+      if (!accessToken) throw new Error('Sign in again before undoing a confirmation.')
+      const response = await fetch('/api/captain/lineup-builder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ teamName, leagueName, flight, matchDate, playerId, status: 'pending' }),
+      })
+      const result = await response.json() as { ok?: boolean; message?: string; availability?: AvailabilityRow }
+      if (!response.ok || !result.ok || !result.availability) throw new Error(result.message || 'The confirmation could not be undone.')
+      setAvailability((current) => [
+        ...current.filter((row) => !(row.match_date === matchDate && row.team_name === teamName && row.player_id === playerId)),
+        result.availability as AvailabilityRow,
+      ])
+      setMessage('Yes undone. You can ask this player again now.')
+      setError('')
+    } catch (caught) {
+      setAvailability(previousAvailability)
+      setLockedPlayerIds(previousLockedPlayerIds)
+      setReleasedConfirmedPlayerIds(previousReleasedConfirmedPlayerIds)
+      setError(caught instanceof Error ? caught.message : 'The confirmation could not be undone.')
+    } finally {
+      setResettingConfirmationPlayerId('')
+    }
   }
 
   function selectLinkedCaptainTeam(nextScopeKey: string) {
@@ -7624,6 +7679,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                     onRemove={removeSlot}
                     toggleLockedSlot={toggleLockedSlot}
                     toggleLockedPlayer={toggleLockedPlayer}
+                    onUndoConfirmation={resetPlayerConfirmation}
+                    resettingConfirmationPlayerId={resettingConfirmationPlayerId}
                     lockedSlotIds={lockedSlotIdSet}
                     lockedPlayerIds={lockedPlayerIdSet}
                     autoLockedPlayerIds={autoLockedConfirmedPlayerIdSet}
@@ -8269,6 +8326,8 @@ function SlotEditor({
   onRemove,
   toggleLockedSlot,
   toggleLockedPlayer,
+  onUndoConfirmation,
+  resettingConfirmationPlayerId,
   lockedSlotIds,
   lockedPlayerIds,
   autoLockedPlayerIds,
@@ -8299,6 +8358,8 @@ function SlotEditor({
   onRemove: (side: 'team' | 'opponent', slotId: string) => void
   toggleLockedSlot: (slotId: string) => void
   toggleLockedPlayer: (playerId: string) => void
+  onUndoConfirmation?: (playerId: string) => void
+  resettingConfirmationPlayerId?: string
   lockedSlotIds: Set<string>
   lockedPlayerIds: Set<string>
   autoLockedPlayerIds: Set<string>
@@ -8489,6 +8550,16 @@ function SlotEditor({
                       : isConfirmedReleased ? 'Re-lock' : 'Mark Yes & lock'}
                   </button>
                 </div>
+              ) : null}
+              {side === 'team' && selectedReplyLabel === 'Confirmed' && player.playerId && onUndoConfirmation ? (
+                <button
+                  type="button"
+                  disabled={resettingConfirmationPlayerId === player.playerId}
+                  onClick={() => onUndoConfirmation(player.playerId)}
+                  style={undoPlayerConfirmationButtonStyle}
+                >
+                  {resettingConfirmationPlayerId === player.playerId ? 'Undoing Yes…' : 'Undo Yes — ask again'}
+                </button>
               ) : null}
             </div>
           )
@@ -10805,6 +10876,15 @@ const confirmedPlayerLockButtonStyle: CSSProperties = {
   background: 'rgba(155,225,29,0.16)',
   boxShadow: '0 0 0 2px color-mix(in srgb, var(--brand-green) 15%, transparent)',
   color: '#efffbc',
+}
+
+const undoPlayerConfirmationButtonStyle: CSSProperties = {
+  ...pillButton,
+  width: '100%',
+  minHeight: 40,
+  color: '#dbeafe',
+  background: 'rgba(59,130,246,0.08)',
+  borderColor: 'rgba(96,165,250,0.35)',
 }
 
 function PrimaryBtn({

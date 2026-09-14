@@ -40,5 +40,6 @@ describe('Captain lineup builder save and insights flow', () => {
     expect(source).toContain('Create image + text team')
     expect(source).toContain('Copy lineup text')
     expect(source).toContain('Mark Yes & lock')
+    expect(source).toContain('Yes undone. You can ask this player again now.')
   })
 })

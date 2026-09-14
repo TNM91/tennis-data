@@ -420,6 +420,7 @@ export async function POST(request: Request) {
   const flight = cleanAvailabilityText(body?.flight, 120)
   const matchDate = cleanAvailabilityText(body?.matchDate, 10)
   const playerId = cleanAvailabilityText(body?.playerId, 80)
+  const availabilityStatus = body?.status === 'pending' ? 'pending' : 'available'
   if (!teamName || !/^\d{4}-\d{2}-\d{2}$/.test(matchDate) || !isUuid(playerId)) {
     return Response.json({ ok: false, message: 'Choose a valid team, match, and roster player before confirming availability.' }, { status: 400 })
   }
@@ -450,13 +451,22 @@ export async function POST(request: Request) {
       league_name: leagueName || null,
       flight: flight || null,
       player_id: playerId,
-      status: 'available',
-      notes: 'Confirmed by captain from Lineup Builder.',
+      status: availabilityStatus,
+      notes: availabilityStatus === 'available'
+        ? 'Confirmed by captain from Lineup Builder.'
+        : 'Confirmation reset by captain in Lineup Builder.',
       updated_at: new Date().toISOString(),
     }, { onConflict: 'match_date,team_name,player_id' })
     .select('id,match_date,team_name,league_name,flight,player_id,status,notes,responded_at:updated_at')
     .single()
   if (error) return Response.json({ ok: false, message: error.message || 'Availability could not be saved.' }, { status: 500 })
+
+  try {
+    await getCache({ namespace: 'captain-lineup-builder' })
+      .expireTag(`captain-lineup:${auth.userId}:${normalizeTeamRoomKey(teamName)}`)
+  } catch {
+    // The saved availability and the optimistic client state remain authoritative.
+  }
 
   return Response.json({ ok: true, availability: data })
 }
