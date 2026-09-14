@@ -33,6 +33,25 @@ describe('Captain practice scheduler', () => {
     expect(source).toContain('Practice focus is filled in.')
   })
 
+  it('opens as a practice hub before asking the captain to create another practice', () => {
+    const source = readFileSync(join(process.cwd(), 'app/captain/practice/page.tsx'), 'utf8')
+    const scheduling = readFileSync(join(process.cwd(), 'lib/internal-scheduling.ts'), 'utf8')
+
+    expect(source).toContain('listCaptainPracticeManagementOverview')
+    expect(source).toContain('Manage practice.')
+    expect(source).toContain('Create another practice')
+    expect(source).toContain('Manage roster')
+    expect(source).toContain('Open signup')
+    expect(source).toContain('signed up')
+    expect(source).toContain('confirmed')
+    expect(source).toContain('waiting')
+    expect(source).toContain('event.metadata.practiceEndTime')
+    expect(source).toContain('`/messages?thread=${encodeURIComponent(event.conversationId)}`')
+    expect(scheduling).toContain('export async function listCaptainPracticeManagementOverview')
+    expect(scheduling).toContain(".eq('event_type', 'captain_practice')")
+    expect(scheduling).toContain(".eq('created_by_user_id', identity.userId)")
+  })
+
   it('uses the existing practice scheduling foundation instead of a separate workflow', () => {
     const composer = readFileSync(join(process.cwd(), 'app/components/schedule-message-composer.tsx'), 'utf8')
     const scheduling = readFileSync(join(process.cwd(), 'lib/internal-scheduling.ts'), 'utf8')

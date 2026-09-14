@@ -85,12 +85,14 @@ type RosterRow = {
 
 type CaptainPracticeInviteRow = {
   id?: string | null
+  event_id?: string | null
   public_token?: string | null
   capacity?: number | null
 }
 
 type CaptainPracticeInviteeRow = {
   id?: string | null
+  event_id?: string | null
   player_name?: string | null
   response_status?: InternalScheduleResponseStatus | null
   responded_at?: string | null
@@ -109,6 +111,11 @@ export type CaptainPracticeRosterOverview = {
     captainConfirmed: boolean
     captainConfirmedAt: string
   }>
+}
+
+export type CaptainPracticeManagementOverview = {
+  event: InternalScheduleEvent
+  roster: CaptainPracticeRosterOverview | null
 }
 
 type DirectoryRosterRow = {
@@ -609,6 +616,75 @@ export async function listCaptainPracticeRoster(eventId: string): Promise<Captai
     capacity: typeof invite.capacity === 'number' ? invite.capacity : null,
     roster,
   }
+}
+
+export async function listCaptainPracticeManagementOverview(): Promise<CaptainPracticeManagementOverview[]> {
+  const identity = await getInternalIdentity()
+  if (!identity) return []
+
+  const { data, error } = await supabase
+    .from('internal_schedule_events')
+    .select('id, conversation_id, event_type, title, scheduled_date, scheduled_time, facility, recurrence_rule, status, source_entity_type, source_entity_id, metadata, created_by_user_id, created_at, updated_at')
+    .eq('event_type', 'captain_practice')
+    .eq('created_by_user_id', identity.userId)
+    .neq('status', 'cancelled')
+    .order('scheduled_date', { ascending: false })
+    .order('scheduled_time', { ascending: false })
+    .limit(40)
+
+  if (error) throw new Error(error.message)
+  const events = ((data || []) as ScheduleEventRow[])
+    .map(toScheduleEvent)
+    .filter((event): event is InternalScheduleEvent => Boolean(event))
+
+  const eventIds = events.map((event) => event.id)
+  if (!eventIds.length) return []
+
+  const { data: inviteData, error: inviteError } = await supabase
+    .from('captain_practice_invites')
+    .select('id,event_id,public_token,capacity')
+    .in('event_id', eventIds)
+  if (inviteError) throw new Error(inviteError.message)
+  const invites = (inviteData || []) as CaptainPracticeInviteRow[]
+  const inviteIds = invites.map((invite) => cleanText(invite.id)).filter(Boolean)
+
+  const { data: rosterData, error: rosterError } = inviteIds.length
+    ? await supabase
+      .from('captain_practice_invitees')
+      .select('id,event_id,player_name,response_status,responded_at,captain_confirmed_at')
+      .in('event_id', eventIds)
+      .order('player_name', { ascending: true })
+    : { data: [] as CaptainPracticeInviteeRow[], error: null }
+  if (rosterError) throw new Error(rosterError.message)
+  const rows = (rosterData || []) as CaptainPracticeInviteeRow[]
+  const inviteByEventId = new Map(invites.map((invite) => [cleanText(invite.event_id), invite]))
+
+  return events.map((event) => {
+    const invite = inviteByEventId.get(event.id)
+    if (!invite) return { event, roster: null }
+    const capacity = typeof invite.capacity === 'number' ? invite.capacity : null
+    const roster = assignPracticeDisplayStatuses(
+      rows
+        .filter((row) => cleanText(row.event_id) === event.id)
+        .map((row) => ({
+          id: cleanText(row.id),
+          playerName: cleanText(row.player_name),
+          responseStatus: normalizeResponseStatus(row.response_status),
+          respondedAt: cleanText(row.responded_at),
+          captainConfirmedAt: cleanText(row.captain_confirmed_at),
+          captainConfirmed: Boolean(cleanText(row.captain_confirmed_at)),
+        })),
+      capacity,
+    )
+    return {
+      event,
+      roster: {
+        publicToken: cleanText(invite.public_token),
+        capacity,
+        roster,
+      },
+    }
+  })
 }
 
 export async function setCaptainPracticeInviteeConfirmed(input: {

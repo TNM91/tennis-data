@@ -2,7 +2,8 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import Link from 'next/link'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import ScheduleMessageComposer from '@/app/components/schedule-message-composer'
@@ -15,6 +16,11 @@ import {
   type CaptainLevelUpChallenge,
 } from '@/lib/captain-level-up-challenge'
 import { buildConsumedWorkflowHref } from '@/lib/workflow-return'
+import {
+  listCaptainPracticeManagementOverview,
+  type CaptainPracticeManagementOverview,
+} from '@/lib/internal-scheduling'
+import { practiceRsvpPath } from '@/lib/captain-practice-rsvp'
 
 export default function CaptainPracticePage() {
   return (
@@ -46,6 +52,22 @@ function CaptainPracticeContent() {
     incomingLevelUpChallenge ? `${incomingLevelUpChallenge.title}: ${incomingLevelUpChallenge.focus}` : '',
   )
   const [levelUpChallenge, setLevelUpChallenge] = useState<CaptainLevelUpChallenge | null>(incomingLevelUpChallenge)
+  const [practices, setPractices] = useState<CaptainPracticeManagementOverview[]>([])
+  const [practicesLoading, setPracticesLoading] = useState(true)
+  const [practicesError, setPracticesError] = useState('')
+  const [showCreate, setShowCreate] = useState(searchParams.get('new') === '1' || Boolean(incomingLevelUpChallenge))
+
+  const loadPractices = useCallback(async () => {
+    setPracticesLoading(true)
+    setPracticesError('')
+    try {
+      setPractices(await listCaptainPracticeManagementOverview())
+    } catch (error) {
+      setPracticesError(error instanceof Error ? error.message : 'Practices could not load yet.')
+    } finally {
+      setPracticesLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
     if (!authResolved || role !== 'public') return
@@ -65,6 +87,11 @@ function CaptainPracticeContent() {
     )
     if (consumedHref) router.replace(consumedHref, { scroll: false })
   }, [authResolved, incomingLevelUpChallenge, pathname, role, router, searchParams])
+
+  useEffect(() => {
+    if (!authResolved || role === 'public' || !access.canUseCaptainWorkflow) return
+    void loadPractices()
+  }, [access.canUseCaptainWorkflow, authResolved, loadPractices, role])
 
   if (!authResolved || role === 'public') {
     return null
@@ -90,9 +117,55 @@ function CaptainPracticeContent() {
     'Please mark In, Out, or Maybe so the captain can plan courts.',
   ].filter(Boolean).join('\n')
   const canSchedule = Boolean(teamName.trim() && practiceDate)
+  const today = new Date().toLocaleDateString('en-CA')
+  const upcomingPractices = practices
+    .filter(({ event }) => event.scheduledDate >= today && event.status !== 'completed')
+    .sort((left, right) => `${left.event.scheduledDate}T${left.event.scheduledTime || '00:00'}`.localeCompare(`${right.event.scheduledDate}T${right.event.scheduledTime || '00:00'}`))
+  const recentPractices = practices
+    .filter(({ event }) => event.scheduledDate < today || event.status === 'completed')
+    .slice(0, 3)
+  const hasPractices = upcomingPractices.length > 0 || recentPractices.length > 0
 
   return (
     <main style={pageStyle}>
+      <section style={workspaceStyle} aria-label="Practice management">
+        <div style={panelHeaderStyle}>
+          <div>
+            <div style={sectionEyebrowStyle}>Team practices</div>
+            <h1 style={sectionTitleStyle}>{hasPractices ? 'Manage practice.' : 'Plan your first practice.'}</h1>
+          </div>
+          {hasPractices ? (
+            <button type="button" onClick={() => setShowCreate((current) => !current)} style={primaryButtonStyle}>
+              {showCreate ? 'Close new practice' : 'Create another practice'}
+            </button>
+          ) : null}
+        </div>
+
+        {practicesLoading ? <div style={noticeStyle}>Loading your practices...</div> : null}
+        {practicesError ? (
+          <div style={errorStyle} role="alert">
+            <span>{practicesError}</span>
+            <button type="button" onClick={() => void loadPractices()} style={textButtonStyle}>Try again</button>
+          </div>
+        ) : null}
+
+        {!practicesLoading && !practicesError && hasPractices ? (
+          <div style={practiceSectionsStyle}>
+            {upcomingPractices.length ? (
+              <PracticeList label="Upcoming" practices={upcomingPractices} />
+            ) : (
+              <div style={noticeStyle}>No upcoming practice yet. Create one when the team is ready.</div>
+            )}
+            {recentPractices.length ? <PracticeList label="Recent" practices={recentPractices} compact /> : null}
+          </div>
+        ) : null}
+
+        {!practicesLoading && !hasPractices ? (
+          <div style={noticeStyle}>Your practice list will live here after you send the first invite.</div>
+        ) : null}
+      </section>
+
+      {(showCreate || (!practicesLoading && !hasPractices)) ? (
       <section style={workspaceStyle} aria-label="Practice scheduler setup">
         {levelUpChallenge ? (
           <div style={challengeLoadedStyle} role="status">
@@ -106,7 +179,7 @@ function CaptainPracticeContent() {
         ) : null}
         <div style={panelHeaderStyle}>
           <div>
-            <div style={sectionEyebrowStyle}>Setup</div>
+            <div style={sectionEyebrowStyle}>New practice</div>
             <h2 style={sectionTitleStyle}>Create the practice invite.</h2>
           </div>
           <span style={statusPillStyle}>{canSchedule ? 'Ready to schedule' : 'Team and date needed'}</span>
@@ -181,6 +254,7 @@ function CaptainPracticeContent() {
           ))}
         </div>
       </section>
+      ) : null}
 
       <section style={heroStyle}>
         <span aria-hidden="true" style={watermarkStyle} />
@@ -204,6 +278,85 @@ function CaptainPracticeContent() {
       </section>
     </main>
   )
+}
+
+function PracticeList({
+  label,
+  practices,
+  compact = false,
+}: {
+  label: string
+  practices: CaptainPracticeManagementOverview[]
+  compact?: boolean
+}) {
+  return (
+    <section style={practiceListSectionStyle} aria-label={`${label} practices`}>
+      <div style={practiceListHeaderStyle}>
+        <strong>{label}</strong>
+        <span>{practices.length}</span>
+      </div>
+      <div style={practiceListStyle}>
+        {practices.map(({ event, roster }) => {
+          const signedUp = roster?.roster.filter((player) => player.responseStatus === 'in').length || 0
+          const confirmed = roster?.roster.filter((player) => player.captainConfirmed).length || 0
+          const waiting = roster?.roster.filter((player) => player.displayStatus === 'unanswered').length || 0
+          const endTime = event.metadata.practiceEndTime || event.metadata.scheduleEndTime || ''
+          return (
+            <article key={event.id} style={{ ...practiceCardStyle, ...(compact ? compactPracticeCardStyle : {}) }}>
+              <div style={practiceCardCopyStyle}>
+                <span style={practiceDateStyle}>{formatPracticeDate(event.scheduledDate)}</span>
+                <strong style={practiceTitleStyle}>{event.title || 'Team practice'}</strong>
+                <span style={practiceMetaStyle}>
+                  {[formatPracticeTime(event.scheduledTime, endTime), event.facility].filter(Boolean).join(' · ') || 'Time and site not set'}
+                </span>
+              </div>
+              <div style={practiceCountsStyle} aria-label="Practice response summary">
+                <PracticeCount value={signedUp} label="signed up" />
+                <PracticeCount value={confirmed} label="confirmed" accent />
+                <PracticeCount value={waiting} label="waiting" />
+              </div>
+              <div style={practiceActionsStyle}>
+                <Link href={`/messages?thread=${encodeURIComponent(event.conversationId)}`} style={manageButtonStyle}>
+                  Manage roster
+                </Link>
+                {roster?.publicToken ? (
+                  <Link href={practiceRsvpPath(roster.publicToken)} style={secondaryButtonStyle}>
+                    Open signup
+                  </Link>
+                ) : null}
+              </div>
+            </article>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function PracticeCount({ value, label, accent = false }: { value: number; label: string; accent?: boolean }) {
+  return (
+    <span style={{ ...practiceCountStyle, ...(accent ? practiceCountAccentStyle : {}) }}>
+      <strong>{value}</strong> {label}
+    </span>
+  )
+}
+
+function formatPracticeDate(value: string) {
+  const date = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).format(date)
+}
+
+function formatPracticeTime(startTime: string, endTime: string) {
+  const format = (value: string) => {
+    const [hourValue, minuteValue] = value.split(':').map(Number)
+    if (!Number.isFinite(hourValue) || !Number.isFinite(minuteValue)) return value
+    const suffix = hourValue >= 12 ? 'PM' : 'AM'
+    const hour = hourValue % 12 || 12
+    return `${hour}:${String(minuteValue).padStart(2, '0')} ${suffix}`
+  }
+  if (!startTime) return ''
+  return endTime ? `${format(startTime)}–${format(endTime)}` : format(startTime)
 }
 
 function ProofItem({ label, value }: { label: string; value: string }) {
@@ -348,6 +501,190 @@ const workspaceStyle: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'linear-gradient(180deg, rgba(12,26,50,0.82) 0%, rgba(9,20,39,0.92) 100%)',
   boxShadow: '0 18px 46px rgba(2,10,24,0.18)',
+}
+
+const practiceSectionsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 18,
+  minWidth: 0,
+}
+
+const practiceListSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+}
+
+const practiceListHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: '0.1em',
+  textTransform: 'uppercase',
+}
+
+const practiceListStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 310px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const practiceCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 20,
+  border: '1px solid rgba(155,225,29,0.25)',
+  background: 'linear-gradient(145deg, rgba(155,225,29,0.09), rgba(116,190,255,0.055) 62%, rgba(15,23,42,0.56))',
+}
+
+const compactPracticeCardStyle: CSSProperties = {
+  borderColor: 'rgba(116,190,255,0.13)',
+  background: 'rgba(255,255,255,0.035)',
+}
+
+const practiceCardCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const practiceDateStyle: CSSProperties = {
+  color: '#9be11d',
+  fontSize: 12,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const practiceTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 19,
+  lineHeight: 1.18,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const practiceMetaStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const practiceCountsStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 7,
+  minWidth: 0,
+}
+
+const practiceCountStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'baseline',
+  gap: 4,
+  minHeight: 30,
+  padding: '5px 9px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 850,
+  whiteSpace: 'nowrap',
+}
+
+const practiceCountAccentStyle: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.28)',
+  color: 'var(--foreground-strong)',
+  background: 'rgba(155,225,29,0.08)',
+}
+
+const practiceActionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const manageButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minWidth: 0,
+  minHeight: 46,
+  padding: '0 14px',
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.5)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 950,
+  textAlign: 'center',
+  textDecoration: 'none',
+}
+
+const secondaryButtonStyle: CSSProperties = {
+  ...manageButtonStyle,
+  border: '1px solid rgba(116,190,255,0.2)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+}
+
+const primaryButtonStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 44,
+  padding: '0 14px',
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.11)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 950,
+  cursor: 'pointer',
+}
+
+const noticeStyle: CSSProperties = {
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 780,
+}
+
+const errorStyle: CSSProperties = {
+  ...noticeStyle,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+  borderColor: 'rgba(251,113,133,0.32)',
+  color: '#fecdd3',
+}
+
+const textButtonStyle: CSSProperties = {
+  minHeight: 40,
+  padding: '0 12px',
+  borderRadius: 12,
+  border: '1px solid rgba(251,113,133,0.3)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'inherit',
+  fontWeight: 900,
+  cursor: 'pointer',
 }
 
 const challengeLoadedStyle: CSSProperties = {
