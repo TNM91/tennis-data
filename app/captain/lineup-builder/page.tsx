@@ -6110,6 +6110,21 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     return null
   }, [flight, historicalLineMatchPlayers, historicalLineMatches, leagueName, matchDate, opponentPlayerPool, opponentTeam])
 
+  const opponentLineupState = opponentLineupComplete
+    ? 'entered' as const
+    : recentHistoricalOpponentLineup
+      ? 'historical' as const
+      : opponentPlayerPool.length
+        ? 'projected' as const
+        : 'missing' as const
+  const opponentLineupDetail = opponentLineupState === 'entered'
+    ? `${opponentAssignedPlayerCount} players across ${opponentSlots.length} courts`
+    : opponentLineupState === 'historical' && recentHistoricalOpponentLineup
+      ? `${formatDate(recentHistoricalOpponentLineup.matchDate)} · ${recentHistoricalOpponentLineup.returningPlayerCount} returning player${recentHistoricalOpponentLineup.returningPlayerCount === 1 ? '' : 's'}`
+      : opponentLineupState === 'projected'
+        ? `${opponentPlayerPool.length} known player${opponentPlayerPool.length === 1 ? '' : 's'} · no prior courts found`
+        : 'Add their Team Summary or enter names'
+
   function applyRecentHistoricalLineup() {
     if (!recentHistoricalLineup) return
     const playerById = new Map(myPlayerPool.map((player) => [player.id, player]))
@@ -6392,6 +6407,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                matchDateLabel={formatDate(matchDate)}
                opponentName={opponentTeam}
                opponentRosterCount={opponentPlayerPool.length}
+               opponentLineupState={opponentLineupState}
+               opponentLineupDetail={opponentLineupDetail}
                rosterLoading={loading || recoveringSecureSession}
                rosterUploadHref={opponentSummaryUploadHref}
                courts={lineupIntelligenceCourts}
@@ -6415,6 +6432,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                    document.querySelector('[aria-label="Opponent roster options"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                  })
                }}
+               onOpponentLineupAction={opponentLineupState === 'historical' ? applyRecentHistoricalOpponentLineup : openOpponentCourts}
                onToggleCourtLock={toggleLockedSlot}
                onTogglePlayerLock={toggleOptimizerPlayerLock}
                onApplySimulation={applyLineupSimulationSwap}
