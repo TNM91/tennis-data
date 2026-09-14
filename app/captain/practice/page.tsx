@@ -182,10 +182,10 @@ function CaptainPracticeContent() {
           <div style={eyebrowStyle}>Captain practice</div>
           <h1 style={titleStyle}>Plan practice without a separate thread.</h1>
           <p style={textStyle}>
-            Pick the date, time, site, and focus. TiQ posts the invite to Team Chat, gives you a group-text link, and builds the practice roster from In replies.
+            Pick the date, time, location, and focus. TiQ gives you one group-text link that lets teammates and guest players build the practice roster together.
           </p>
           <div style={proofGridStyle}>
-            <ProofItem label="Invite" value="Roster-linked" />
+            <ProofItem label="Invite" value="Open link" />
             <ProofItem label="Responses" value="In / Out / Maybe" />
             <ProofItem label="Thread" value="Messages" />
           </div>
@@ -193,7 +193,7 @@ function CaptainPracticeContent() {
         <div style={heroPanelStyle}>
           <TiqFeatureIcon name="schedule" size="lg" variant="surface" />
           <strong>Your practice roster builds itself.</strong>
-          <span>Players mark In, Out, or Maybe, see who is coming, and keep the plan with the team.</span>
+          <span>Teammates and guests mark In, Out, or Maybe, see who is coming, and keep the plan together.</span>
         </div>
       </section>
     </main>
@@ -212,7 +212,7 @@ function ProofItem({ label, value }: { label: string; value: string }) {
 const practiceHints = [
   {
     title: 'Invite the whole team',
-    detail: 'Linked players receive the RSVP; the same link is ready for your existing group text.',
+    detail: 'Send one link in your group text. Teammates choose their name; guest players can add theirs.',
   },
   {
     title: 'Keep it specific',

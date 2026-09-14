@@ -9,6 +9,13 @@ import {
 } from '@/lib/captain-practice-invite'
 import { practiceRsvpPath } from '@/lib/captain-practice-rsvp'
 import {
+  isStreetLocation,
+  venueLocation,
+  venueText,
+  type VenuePreference,
+  type VerifiedVenue,
+} from '@/lib/venue-directory'
+import {
   createCaptainPracticeThread,
   createTiqLeagueScheduleThread,
   previewCaptainPracticeRecipients,
@@ -195,7 +202,7 @@ export default function ScheduleMessageComposer({
             ? `Practice posted to Team Chat for ${result.linkedParticipantCount} linked player account${result.linkedParticipantCount === 1 ? '' : 's'}.`
             : result.linkedParticipantCount > 0
               ? `Practice RSVP opened for ${result.linkedParticipantCount} linked player account${result.linkedParticipantCount === 1 ? '' : 's'}. Share it with the team below.`
-              : 'Practice RSVP opened. Link player profiles to capture individual replies.',
+              : 'Practice RSVP opened. Share the link below; teammates and guest players can add their own response.',
         )
       }
     } catch (err) {
@@ -256,10 +263,13 @@ export default function ScheduleMessageComposer({
                       {' '}from {recipientPreview.rosterCount} roster player{recipientPreview.rosterCount === 1 ? '' : 's'}
                     </strong>
                     {recipientPreview.unlinkedRosterNames.length ? (
-                      <p>
-                        Needs account links: {recipientPreview.unlinkedRosterNames.slice(0, 4).join(', ')}
-                        {recipientPreview.unlinkedRosterNames.length > 4 ? `, +${recipientPreview.unlinkedRosterNames.length - 4} more` : ''}
-                      </p>
+                      <>
+                        <p>
+                          Not linked in TiQ: {recipientPreview.unlinkedRosterNames.slice(0, 4).join(', ')}
+                          {recipientPreview.unlinkedRosterNames.length > 4 ? `, +${recipientPreview.unlinkedRosterNames.length - 4} more` : ''}
+                        </p>
+                        <p>They can still RSVP from the group-text link.</p>
+                      </>
                     ) : (
                       <p>Every roster player found for this scope has a linked TenAceIQ account.</p>
                     )}
@@ -285,6 +295,15 @@ export default function ScheduleMessageComposer({
               <span style={labelStyle}>Site</span>
               <input value={facility} onChange={(event) => setFacility(event.target.value)} placeholder="Court, club, or address" style={inputStyle} />
             </label>
+            {mode === 'captain-practice' && session?.access_token ? (
+              <PracticeVenueFinder
+                facility={facility}
+                context={['practice', teamName, leagueName, flight].filter(Boolean).join(':')}
+                token={session.access_token}
+                disabled={saving}
+                onChoose={setFacility}
+              />
+            ) : null}
 
             {mode === 'captain-practice' ? (
               <div style={fieldGridStyle}>
@@ -345,7 +364,7 @@ export default function ScheduleMessageComposer({
                   <a href={buildCaptainPracticeSmsHref(practiceDelivery.inviteText)} style={primaryStyle}>Text group</a>
                   <button type="button" onClick={() => void copyPracticeInvite()} style={ghostActionStyle}>Copy invite</button>
                 </div>
-                <p style={deliveryHintStyle}>No account needed. Players can RSVP, see who is coming, join the waitlist, and add practice to their calendar.</p>
+                <p style={deliveryHintStyle}>No account needed. Teammates choose their name; guest players add theirs. Everyone can RSVP, see who is coming, and add practice to their calendar.</p>
               </div>
             ) : null}
             {error ? <div style={errorStyle}>{error}</div> : null}
@@ -353,6 +372,143 @@ export default function ScheduleMessageComposer({
         </div>
       ) : null}
     </>
+  )
+}
+
+function PracticeVenueFinder({
+  facility,
+  context,
+  token,
+  disabled,
+  onChoose,
+}: {
+  facility: string
+  context: string
+  token: string
+  disabled: boolean
+  onChoose: (location: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [working, setWorking] = useState(false)
+  const [venues, setVenues] = useState<VerifiedVenue[]>([])
+  const [city, setCity] = useState('')
+  const [state, setState] = useState('')
+  const [street, setStreet] = useState('')
+  const [error, setError] = useState('')
+  const [confirmedLocation, setConfirmedLocation] = useState('')
+  const locationConfirmed = Boolean(confirmedLocation && confirmedLocation === facility)
+
+  async function findLocation() {
+    if (!facility.trim() || loading || disabled) return
+    setLoading(true)
+    setError('')
+    try {
+      const params = new URLSearchParams({ name: facility, context })
+      const response = await fetch(`/api/player/venue-locations?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(30000),
+      })
+      const result = await response.json() as {
+        message?: string
+        venues?: VerifiedVenue[]
+        preference?: VenuePreference | null
+      }
+      if (!response.ok) throw new Error(result.message || 'Locations could not be loaded.')
+      setVenues(result.venues || [])
+      setOpen(true)
+      if (result.preference) {
+        setCity(result.preference.city)
+        setState(result.preference.state_code)
+        setStreet(result.preference.street_address)
+        const savedVenue = (result.venues || []).find((venue) => venue.id === result.preference?.directory_id)
+        const location = venueLocation(savedVenue || result.preference)
+        setConfirmedLocation(location)
+        onChoose(location)
+        setOpen(false)
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Locations could not be loaded.')
+      setOpen(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function saveLocation(venue?: VerifiedVenue) {
+    if (working || disabled) return
+    setWorking(true)
+    setError('')
+    try {
+      const response = await fetch('/api/player/venue-locations', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(30000),
+        body: JSON.stringify({
+          facilityName: facility,
+          context,
+          directoryId: venue?.id,
+          city,
+          state,
+          streetAddress: street,
+        }),
+      })
+      const result = await response.json() as {
+        message?: string
+        directory?: VerifiedVenue | null
+        preference?: VenuePreference
+      }
+      if (!response.ok || !result.preference) throw new Error(result.message || 'Location could not be saved.')
+      const location = venueLocation(result.directory || result.preference)
+      setConfirmedLocation(location)
+      onChoose(location)
+      setOpen(false)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Location could not be saved.')
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  const mapQuery = [facility, city, state].filter(Boolean).join(', ')
+  return (
+    <div style={venueFinderStyle}>
+      <div style={venueFinderHeaderStyle}>
+        <div style={venueStatusStyle}>
+          <span aria-hidden="true">{locationConfirmed ? '✓' : '⌖'}</span>
+          <span>{locationConfirmed ? 'Location confirmed' : 'Recognize this location for players'}</span>
+        </div>
+        <button type="button" style={venueFinderButtonStyle} disabled={disabled || loading || !facility.trim()} onClick={() => void findLocation()}>
+          {loading ? 'Searching…' : locationConfirmed ? 'Check another' : 'Find location'}
+        </button>
+      </div>
+      {open ? (
+        <div style={venueResultsStyle}>
+          {venues.length ? (
+            <>
+              <p style={venueHelpStyle}>Choose the correct club so every player gets the same address and directions.</p>
+              {venues.map((venue) => (
+                <button key={venue.id} type="button" style={venueChoiceStyle} disabled={working || disabled} onClick={() => void saveLocation(venue)}>
+                  <strong>{venue.facility_name}</strong>
+                  <span>{venue.street_address}, {venue.city}, {venue.state_code}</span>
+                </button>
+              ))}
+            </>
+          ) : <p style={venueHelpStyle}>No saved match yet. Find it in Maps, then confirm the playing address once.</p>}
+          <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`} target="_blank" rel="noopener noreferrer" style={venueMapsLinkStyle}>Find in Google Maps ↗</a>
+          <div style={venueFieldGridStyle}>
+            <label style={fieldStyle}><span style={labelStyle}>City</span><input value={city} maxLength={100} onChange={(event) => setCity(event.target.value)} style={inputStyle} /></label>
+            <label style={fieldStyle}><span style={labelStyle}>State</span><input value={state} maxLength={2} placeholder="MO" onChange={(event) => setState(event.target.value.toUpperCase())} style={inputStyle} /></label>
+          </div>
+          <label style={fieldStyle}><span style={labelStyle}>Street address</span><input value={street} maxLength={160} placeholder="123 Main St" onChange={(event) => setStreet(event.target.value)} style={inputStyle} /></label>
+          <button type="button" style={{ ...primaryStyle, ...((working || !isStreetLocation(street) || !venueText(city) || state.length !== 2) ? disabledStyle : {}) }} disabled={working || disabled || !isStreetLocation(street) || !venueText(city) || state.length !== 2} onClick={() => void saveLocation()}>
+            {working ? 'Confirming…' : 'Use this location'}
+          </button>
+          {error ? <div style={errorStyle}>{error}</div> : null}
+        </div>
+      ) : error ? <div style={errorStyle}>{error}</div> : null}
+    </div>
   )
 }
 
@@ -380,6 +536,90 @@ const overlayStyle: CSSProperties = {
   justifyContent: 'flex-end',
   background: 'rgba(2,8,18,0.62)',
   backdropFilter: 'blur(10px)',
+}
+
+const venueFinderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(7,17,33,0.5)',
+}
+
+const venueFinderHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+}
+
+const venueStatusStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+  color: '#dbeafe',
+  fontSize: 13,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const venueFinderButtonStyle: CSSProperties = {
+  minHeight: 40,
+  padding: '0 12px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.28)',
+  background: 'rgba(116,190,255,0.09)',
+  color: '#dbeafe',
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const venueResultsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  paddingTop: 10,
+  borderTop: '1px solid rgba(116,190,255,0.13)',
+}
+
+const venueHelpStyle: CSSProperties = {
+  margin: 0,
+  color: '#aebed3',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const venueChoiceStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 13,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.07)',
+  color: '#f8fbff',
+  textAlign: 'left',
+  lineHeight: 1.4,
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const venueMapsLinkStyle: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: 13,
+  fontWeight: 900,
+  textDecoration: 'none',
+}
+
+const venueFieldGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(88px, 0.42fr)',
+  gap: 10,
+  minWidth: 0,
 }
 
 const drawerStyle: CSSProperties = {
