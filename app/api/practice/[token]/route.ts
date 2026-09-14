@@ -64,11 +64,6 @@ export async function POST(
   if (!normalizedName || !['in', 'out', 'maybe'].includes(status)) {
     return Response.json({ ok: false, message: 'Choose your name and response.' }, { status: 400 })
   }
-  const invitee = loaded.invitees.find((row) => row.normalized_name === normalizedName)
-  if (!invitee) {
-    return Response.json({ ok: false, message: 'Choose your name from this team roster.' }, { status: 400 })
-  }
-
   const now = new Date().toISOString()
   const note = typeof body.note === 'string' ? body.note.trim().slice(0, 300) : ''
   let service: ReturnType<typeof getCaptainAvailabilityServiceClient>
@@ -76,6 +71,31 @@ export async function POST(
     service = getCaptainAvailabilityServiceClient()
   } catch {
     return Response.json({ ok: false, message: 'Practice replies are temporarily unavailable.' }, { status: 503 })
+  }
+  let invitee = loaded.invitees.find((row) => row.normalized_name === normalizedName)
+  if (!invitee) {
+    const playerName = cleanPracticeDisplayName(body.playerName)
+    if (playerName.length < 2) {
+      return Response.json({ ok: false, message: 'Enter your full name.' }, { status: 400 })
+    }
+    if (loaded.invitees.length >= 150) {
+      return Response.json({ ok: false, message: 'This practice roster is full. Contact the captain to be added.' }, { status: 409 })
+    }
+    const created = await service
+      .from('captain_practice_invitees')
+      .insert({
+        invite_id: loaded.invite.id,
+        event_id: loaded.invite.event_id,
+        player_name: playerName,
+        normalized_name: normalizedName,
+        response_status: 'unanswered',
+      })
+      .select('id,player_name,normalized_name,profile_id,response_status,note,responded_at')
+      .single()
+    if (created.error || !created.data) {
+      return Response.json({ ok: false, message: 'Your name could not be added. Refresh and try again.' }, { status: 409 })
+    }
+    invitee = created.data as InviteeRow
   }
   const { error } = await service
     .from('captain_practice_invitees')
@@ -93,7 +113,10 @@ export async function POST(
     }, { onConflict: 'event_id,profile_id' })
   }
 
-  const refreshed = loaded.invitees.map((row) => row.id === invitee.id
+  const rosterWithInvitee = loaded.invitees.some((row) => row.id === invitee.id)
+    ? loaded.invitees
+    : [...loaded.invitees, invitee]
+  const refreshed = rosterWithInvitee.map((row) => row.id === invitee.id
     ? { ...row, response_status: status, note, responded_at: now }
     : row)
   return Response.json(buildPayload(loaded.invite, refreshed, invitee.id), noStore())
@@ -163,6 +186,10 @@ function buildPayload(invite: InviteRow, invitees: InviteeRow[], selectedId = ''
 
 function cleanMetadata(value: unknown) {
   return typeof value === 'string' ? value.trim() : ''
+}
+
+function cleanPracticeDisplayName(value: unknown) {
+  return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, 80) : ''
 }
 
 function noStore() {

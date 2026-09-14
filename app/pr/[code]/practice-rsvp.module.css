@@ -34,6 +34,10 @@
 .field { display: grid; gap: 7px; color: var(--shell-copy); font-size: 13px; font-weight: 800; }
 .field small { color: var(--shell-copy-muted); font-weight: 600; }
 .field select, .field input { width: 100%; min-height: 48px; border: 1px solid var(--shell-panel-border); border-radius: 13px; padding: 0 12px; background: var(--shell-input-bg, var(--shell-chip-bg)); color: var(--shell-copy); font: inherit; }
+.identityChoice { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 4px; border: 1px solid var(--shell-panel-border); border-radius: 15px; background: rgba(3, 12, 26, .42); }
+.identityChoice button { min-width: 0; min-height: 44px; padding: 6px 9px; border: 1px solid transparent; border-radius: 11px; background: transparent; color: var(--shell-copy-muted); font: inherit; font-weight: 850; cursor: pointer; overflow-wrap: anywhere; }
+.identityChoice .identityActive { border-color: rgba(155,225,29,.5); background: rgba(155,225,29,.12); color: var(--shell-copy); }
+.identityChoice button:disabled { opacity: .62; cursor: wait; }
 .replyGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .replyGrid button { min-width: 0; min-height: 50px; padding: 0 8px; border: 1px solid var(--shell-panel-border); border-radius: 14px; background: var(--shell-chip-bg); color: var(--shell-copy); font-size: 15px; font-weight: 850; cursor: pointer; }
 .replyGrid .inButton { border-color: var(--brand-green); background: linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 38%, #123820 62%), #173d2c); }
@@ -42,6 +46,9 @@
 .success { border: 1px solid rgba(155,225,29,.48); background: rgba(155,225,29,.09); }
 .success span { color: var(--shell-copy-muted); font-size: 14px; line-height: 1.4; }
 .success a { width: fit-content; margin-top: 5px; border-color: rgba(155,225,29,.45); }
+.accountNudge { margin-top: 8px; padding-top: 12px; border-top: 1px solid rgba(155,225,29,.2); display: grid; gap: 7px; }
+.accountNudge span { color: var(--shell-copy); font-weight: 750; }
+.accountNudge a { margin-top: 0; background: rgba(155,225,29,.13); }
 .error, .cancelled { border-color: rgba(223,106,112,.56); background: rgba(223,106,112,.11); }
 .error { color: var(--shell-copy); }
 .cancelled { padding: 18px; }

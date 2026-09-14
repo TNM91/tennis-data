@@ -30,6 +30,8 @@ type Payload = {
 export default function PracticeRsvpClient({ token }: { token: string }) {
   const [data, setData] = useState<Payload | null>(null)
   const [playerName, setPlayerName] = useState('')
+  const [guestName, setGuestName] = useState('')
+  const [identityMode, setIdentityMode] = useState<'roster' | 'guest'>('roster')
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState<PracticeResponseStatus | ''>('')
   const [savedStatus, setSavedStatus] = useState<PracticeDisplayStatus | null>(null)
@@ -62,8 +64,9 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
   }, [data])
 
   async function respond(status: Exclude<PracticeResponseStatus, 'unanswered'>) {
-    if (!playerName) {
-      setError('Choose your name first.')
+    const respondingName = identityMode === 'guest' ? guestName.trim() : playerName
+    if (!respondingName) {
+      setError(identityMode === 'guest' ? 'Enter your name first.' : 'Choose your name first.')
       return
     }
     setSaving(status)
@@ -72,7 +75,7 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
       const response = await fetch(`/api/practice/${encodeURIComponent(token)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerName, status, note }),
+        body: JSON.stringify({ playerName: respondingName, status, note }),
       })
       const payload = await response.json() as Payload & { message?: string }
       if (!response.ok) throw new Error(payload.message || 'Your RSVP could not be saved.')
@@ -135,13 +138,25 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
             </div>
             <span className={styles.capacity}>{practice.capacity ? `${confirmedCount}/${practice.capacity} spots` : `${confirmedCount} in`}</span>
           </div>
-          <label className={styles.field}>
-            <span>Your name</span>
-            <select value={playerName} onChange={(event) => { setPlayerName(event.target.value); setSavedStatus(null) }}>
-              <option value="">Choose your name</option>
-              {data.roster.map((player) => <option key={player.id} value={player.playerName}>{player.playerName}</option>)}
-            </select>
-          </label>
+          <div className={styles.identityChoice} aria-label="Choose how to RSVP">
+            <button type="button" disabled={Boolean(saving)} aria-pressed={identityMode === 'roster'} className={identityMode === 'roster' ? styles.identityActive : ''} onClick={() => { setIdentityMode('roster'); setSavedStatus(null); setError('') }}>On team roster</button>
+            <button type="button" disabled={Boolean(saving)} aria-pressed={identityMode === 'guest'} className={identityMode === 'guest' ? styles.identityActive : ''} onClick={() => { setIdentityMode('guest'); setSavedStatus(null); setError('') }}>Guest player</button>
+          </div>
+          {identityMode === 'roster' ? (
+            <label className={styles.field}>
+              <span>Your name</span>
+              <select value={playerName} onChange={(event) => { setPlayerName(event.target.value); setSavedStatus(null) }}>
+                <option value="">Choose your name</option>
+                {data.roster.map((player) => <option key={player.id} value={player.playerName}>{player.playerName}</option>)}
+              </select>
+            </label>
+          ) : (
+            <label className={styles.field}>
+              <span>Add your name</span>
+              <input value={guestName} maxLength={80} autoComplete="name" onChange={(event) => { setGuestName(event.target.value); setSavedStatus(null) }} placeholder="First and last name" />
+              <small>You do not need a TenAceIQ account. Your name will be added to this practice roster.</small>
+            </label>
+          )}
           <div className={styles.replyGrid}>
             <button type="button" disabled={Boolean(saving)} onClick={() => void respond('in')} className={styles.inButton}>{saving === 'in' ? 'Saving...' : 'I’m in'}</button>
             <button type="button" disabled={Boolean(saving)} onClick={() => void respond('maybe')}>Maybe</button>
@@ -156,6 +171,10 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
               <strong>{responseHeadline}</strong>
               <span>{savedStatus === 'waitlist' ? 'Your captain can see you’re next if a spot opens.' : 'Your captain has your response.'}</span>
               <a href={phoneCalendarHref}>Add practice to calendar</a>
+              <div className={styles.accountNudge}>
+                <span>Want faster RSVPs and practice reminders next time?</span>
+                <Link href={`/signup?next=${encodeURIComponent(`/pr/${token}`)}`}>Create a free account</Link>
+              </div>
             </div>
           ) : null}
           {error ? <div className={styles.error}>{error}</div> : null}
@@ -184,7 +203,7 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
 
       <footer className={styles.footer}>
         <span>No account needed to RSVP.</span>
-        <Link href="/signup">Join TenAceIQ</Link>
+        <Link href={`/signup?next=${encodeURIComponent(`/pr/${token}`)}`}>Join TenAceIQ</Link>
       </footer>
     </main>
   )
