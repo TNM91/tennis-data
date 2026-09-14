@@ -249,21 +249,28 @@ export async function GET(request: Request) {
   const primaryError = rosterResult.error
   if (primaryError) return Response.json({ ok: false, message: primaryError.message }, { status: 500 })
 
-  // USTA may include a display-only one-letter suffix in the schedule but omit
-  // it from Team Summary. Look up both forms so the just-imported roster is
-  // connected to the selected matchup.
-  const opponentRosterKeys = [...new Set([
-    normalizeTeamName(opponentName),
-    normalizeUstaRosterTeamName(opponentName),
-  ].filter(Boolean))]
-  const opponentRosterRows = opponentName
+  // Load every scheduled opponent roster once so the Match Week planning queue
+  // can show what is ready before the captain opens a future match. USTA may
+  // include a display-only one-letter suffix in Schedule but omit it from Team
+  // Summary, so both normalized forms are included.
+  const scheduledOpponentNames = (matchesResult.data ?? []).map((match) => {
+    const home = cleanAvailabilityText(match.home_team, 160)
+    const away = cleanAvailabilityText(match.away_team, 160)
+    if (normalizeTeamName(home) === normalizedTeam) return away
+    if (normalizeTeamName(away) === normalizedTeam) return home
+    return ''
+  }).filter(Boolean)
+  const opponentRosterKeys = [...new Set([opponentName, ...scheduledOpponentNames]
+    .flatMap((name) => [normalizeTeamName(name), normalizeUstaRosterTeamName(name)])
+    .filter(Boolean))]
+  const opponentRosterRows = opponentRosterKeys.length
     ? await resolveOptionalQuery(
-      'opponent roster',
+      'scheduled opponent rosters',
       service
         .from('team_roster_members')
         .select('team_name,player_id,player_name,league_name,flight,rating_source,mixed_pair_role,age_division')
         .in('normalized_team_name', opponentRosterKeys)
-        .limit(250)
+        .limit(1000)
         .then((result) => result.data || []),
       [] as Array<{
         team_name: string | null
@@ -277,11 +284,19 @@ export async function GET(request: Request) {
       }>,
     )
     : []
+  const currentOpponentKeys = new Set([
+    normalizeTeamName(opponentName),
+    normalizeUstaRosterTeamName(opponentName),
+  ].filter(Boolean))
   const opponentRosterNames = [...new Set(opponentRosterRows
+    .filter((row) => currentOpponentKeys.has(normalizeTeamName(row.team_name)) || currentOpponentKeys.has(normalizeUstaRosterTeamName(row.team_name)))
     .map((row) => cleanAvailabilityText(row.player_name, 160))
     .filter(Boolean))].sort((left, right) => left.localeCompare(right))
 
-  const rosterMembers = [...(rosterResult.data ?? []), ...opponentRosterRows]
+  const rosterMembers = [...new Map([...(rosterResult.data ?? []), ...opponentRosterRows].map((row) => [
+    [normalizeTeamName(row.team_name), row.player_id || normalizeTeamName(row.player_name)].join('|'),
+    row,
+  ])).values()]
   const historicalLineMatches = historicalLineMatchesResult.data ?? []
   const rosterPlayerIds = Array.from(new Set(rosterMembers.map((row) => row.player_id).filter((id): id is string => Boolean(id))))
   const matchIds = (matchesResult.data ?? []).map((match) => match.id)

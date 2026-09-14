@@ -42,4 +42,13 @@ describe('captain lineup roster-first availability', () => {
     expect(route).not.toContain("rosterQuery = rosterQuery.eq('flight'")
     expect(route).not.toContain("matchQuery = matchQuery.eq('flight'")
   })
+
+  it('preloads every scheduled opponent roster for future-match planning', () => {
+    expect(route).toContain('const scheduledOpponentNames = (matchesResult.data ?? []).map((match) =>')
+    expect(route).toContain(".flatMap((name) => [normalizeTeamName(name), normalizeUstaRosterTeamName(name)])")
+    expect(route).toContain("resolveOptionalQuery(\n      'scheduled opponent rosters'")
+    expect(route).toContain(".in('normalized_team_name', opponentRosterKeys)")
+    expect(route).toContain('.limit(1000)')
+    expect(route).toContain('const currentOpponentKeys = new Set([')
+  })
 })

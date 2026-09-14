@@ -133,6 +133,7 @@ import {
   normalizeKnownCourtDefaults,
   type CaptainKnownCourtDefault,
 } from '@/lib/captain-lineup-defaults'
+import type { CaptainLineupDraftSummary } from '@/lib/captain-lineup-draft-summary'
 
 type PlayerRow = {
   id: string
@@ -1530,6 +1531,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const [savedScenarios, setSavedScenarios] = useState<ScenarioRow[]>([])
   const [tiqTeamLeagueFormats, setTiqTeamLeagueFormats] = useState<TiqTeamLeagueFormatRow[]>([])
   const [linkedCaptainTeams, setLinkedCaptainTeams] = useState<LinkedCaptainTeam[]>([])
+  const [lineupDraftSummaries, setLineupDraftSummaries] = useState<CaptainLineupDraftSummary[]>([])
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -1676,6 +1678,35 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const isCaptainAccess = access.canUseCaptainWorkflow
   const isPreviewMode = role === 'member'
+
+  useEffect(() => {
+    if (!authResolved || !isCaptainAccess || !session?.access_token || !userId) {
+      setLineupDraftSummaries([])
+      return
+    }
+
+    const controller = new AbortController()
+    let active = true
+    void fetch('/api/captain/lineup-drafts?view=summary', {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) return []
+        const payload = await response.json().catch(() => null) as { summaries?: CaptainLineupDraftSummary[] } | null
+        return Array.isArray(payload?.summaries) ? payload.summaries : []
+      })
+      .then((summaries) => {
+        if (active) setLineupDraftSummaries(summaries)
+      })
+      .catch(() => undefined)
+
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [authResolved, isCaptainAccess, session?.access_token, userId])
 
   useEffect(() => {
     if (!authResolved || !session?.access_token || !userId) {
@@ -2501,13 +2532,93 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       return (left.match_time || '').localeCompare(right.match_time || '')
     })
   }, [uniqueScopedMatchOptions])
-  const matchWeekChoices = useMemo(() => orderedScopedMatchOptions.map((match) => {
-    const opponent = getOpponentForTeam(match, teamName) || [match.home_team, match.away_team].filter(Boolean).join(' vs ')
-    return {
-      id: match.id,
-      label: [formatDate(match.match_date), opponent].filter(Boolean).join(' · '),
-    }
-  }), [orderedScopedMatchOptions, teamName])
+  const matchWeekChoices = useMemo(() => {
+    const now = new Date()
+    const today = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-')
+    const normalizedTeam = normalizeTeamName(teamName)
+
+    return orderedScopedMatchOptions.map((match) => {
+      const opponent = getOpponentForTeam(match, teamName) || [match.home_team, match.away_team].filter(Boolean).join(' vs ')
+      const normalizedOpponent = normalizeTeamName(opponent)
+      const matchDateKey = (match.match_date || '').slice(0, 10)
+      const replies = mergeSeasonLineupAnswers(availability.filter((row) => {
+        if (matchDateKey && row.match_date !== matchDateKey) return false
+        if (normalizeTeamName(row.team_name) !== normalizedTeam) return false
+        if (match.league_name && row.league_name && normalizeTeamName(row.league_name) !== normalizeTeamName(match.league_name)) return false
+        if (match.flight && row.flight && normalizeTeamName(row.flight) !== normalizeTeamName(match.flight)) return false
+        return !row.match_id || row.match_id === match.id
+      }))
+      const confirmedCount = replies.filter((row) => availabilityLabel(row.status) === 'Confirmed').length
+      const responseCount = replies.filter((row) => availabilityLabel(row.status) !== 'No response').length
+
+      const rosterKeys = new Set<string>()
+      for (const row of rosterMembers) {
+        if (normalizeUstaRosterTeamName(row.team_name) !== normalizeUstaRosterTeamName(opponent)) continue
+        const key = row.player_id || normalizeTeamName(row.player_name)
+        if (key) rosterKeys.add(key)
+      }
+      for (const playerId of buildRosterPlayerIdSet(opponent, historicalLineMatches, historicalLineMatchPlayers, [], [])) {
+        rosterKeys.add(playerId)
+      }
+      for (const player of manualRosterPlayers) {
+        if (normalizeTeamName(player.manualTeamName) !== normalizedOpponent) continue
+        rosterKeys.add(player.id)
+      }
+
+      const summary = lineupDraftSummaries
+        .filter((item) => (
+          normalizeTeamName(item.teamName) === normalizedTeam
+          && item.matchDate === matchDateKey
+          && normalizeTeamName(item.opponentTeam) === normalizedOpponent
+          && (!match.league_name || !item.leagueName || normalizeTeamName(item.leagueName) === normalizeTeamName(match.league_name))
+          && (!match.flight || !item.flight || normalizeTeamName(item.flight) === normalizeTeamName(match.flight))
+        ))
+        .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0]
+      const savedScenarioStarted = savedScenarios.some((scenario) => (
+        normalizeTeamName(scenario.team_name) === normalizedTeam
+        && (scenario.match_date || '').slice(0, 10) === matchDateKey
+        && normalizeTeamName(scenario.opponent_team) === normalizedOpponent
+        && normalizeSavedSlots(scenario.slots_json).some((slot) => slot.players.some((player) => player.playerId || player.playerName))
+      ))
+      const liveSelectedStarted = match.id === selectedMatchId
+        && teamSlots.some((slot) => slot.players.some((player) => player.playerId || player.playerName))
+      const liveSelectedFinal = match.id === selectedMatchId && lineupDeliveryReceipt?.kind === 'final'
+      const lineupStatus = liveSelectedFinal || summary?.status === 'final'
+        ? 'Final'
+        : liveSelectedStarted || Boolean(summary) || savedScenarioStarted
+          ? 'Draft'
+          : 'Not started'
+
+      return {
+        id: match.id,
+        label: [formatDate(match.match_date), opponent].filter(Boolean).join(' · '),
+        dateLabel: formatDate(match.match_date),
+        opponent,
+        upcoming: Boolean(matchDateKey && matchDateKey >= today),
+        signals: [
+          {
+            label: 'Players',
+            value: confirmedCount ? `${confirmedCount} in` : responseCount ? `${responseCount} replied` : 'Ask team',
+            tone: confirmedCount ? 'ready' as const : 'attention' as const,
+          },
+          {
+            label: 'Opponent',
+            value: rosterKeys.size ? `${rosterKeys.size} known` : 'Roster needed',
+            tone: rosterKeys.size ? 'ready' as const : 'attention' as const,
+          },
+          {
+            label: 'Lineup',
+            value: lineupStatus,
+            tone: lineupStatus === 'Final' ? 'ready' as const : lineupStatus === 'Draft' ? 'attention' as const : 'muted' as const,
+          },
+        ],
+      }
+    })
+  }, [availability, historicalLineMatchPlayers, historicalLineMatches, lineupDeliveryReceipt?.kind, lineupDraftSummaries, manualRosterPlayers, orderedScopedMatchOptions, rosterMembers, savedScenarios, selectedMatchId, teamName, teamSlots])
   const selectedFormatLeagueName = selectedMatch?.league_name || leagueName
   const selectedFormatFlight = selectedMatch?.flight || flight
 
