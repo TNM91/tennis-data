@@ -161,7 +161,8 @@ describe('Captain projected lineup confirmation flow', () => {
     const route = readSource('app/api/captain/lineup-builder/route.ts')
 
     expect(source).toContain("params.set('opponent', opponentTeam)")
-    expect(source).toContain('buildRosterPlayerIdSet(opponentTeam, historicalLineMatches, historicalLineMatchPlayers, [], [])')
+    expect(source).toContain('buildRosterPlayerIdSet(opponentTeam, historicalLineMatches, historicalLineMatchPlayers, [], rosterMembers)')
+    expect(source).toContain('const normalizedTarget = normalizeUstaRosterTeamName(targetTeam)')
     expect(source).toContain('No opponent roster is connected for this matchup yet.')
     expect(source).toContain('known opponent player')
     expect(source).toContain("const [opponentCourtSetupPromptOpen, setOpponentCourtSetupPromptOpen] = useState(false)")
