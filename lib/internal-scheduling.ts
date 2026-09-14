@@ -94,6 +94,7 @@ type CaptainPracticeInviteeRow = {
   player_name?: string | null
   response_status?: InternalScheduleResponseStatus | null
   responded_at?: string | null
+  captain_confirmed_at?: string | null
 }
 
 export type CaptainPracticeRosterOverview = {
@@ -105,6 +106,8 @@ export type CaptainPracticeRosterOverview = {
     responseStatus: InternalScheduleResponseStatus
     displayStatus: PracticeDisplayStatus
     respondedAt: string
+    captainConfirmed: boolean
+    captainConfirmedAt: string
   }>
 }
 
@@ -586,7 +589,7 @@ export async function listCaptainPracticeRoster(eventId: string): Promise<Captai
   const invite = data as CaptainPracticeInviteRow
   const { data: rows, error: rosterError } = await supabase
     .from('captain_practice_invitees')
-    .select('id,player_name,response_status,responded_at')
+    .select('id,player_name,response_status,responded_at,captain_confirmed_at')
     .eq('invite_id', cleanText(invite.id))
     .order('player_name', { ascending: true })
   if (rosterError) return null
@@ -596,6 +599,8 @@ export async function listCaptainPracticeRoster(eventId: string): Promise<Captai
       playerName: cleanText(row.player_name),
       responseStatus: normalizeResponseStatus(row.response_status),
       respondedAt: cleanText(row.responded_at),
+      captainConfirmedAt: cleanText(row.captain_confirmed_at),
+      captainConfirmed: Boolean(cleanText(row.captain_confirmed_at)),
     })),
     typeof invite.capacity === 'number' ? invite.capacity : null,
   )
@@ -604,6 +609,32 @@ export async function listCaptainPracticeRoster(eventId: string): Promise<Captai
     capacity: typeof invite.capacity === 'number' ? invite.capacity : null,
     roster,
   }
+}
+
+export async function setCaptainPracticeInviteeConfirmed(input: {
+  eventId: string
+  inviteeId: string
+  confirmed: boolean
+}) {
+  const identity = await getInternalIdentity()
+  if (!identity) throw new Error('Sign in to confirm practice players.')
+  const eventId = cleanText(input.eventId)
+  const inviteeId = cleanText(input.inviteeId)
+  if (!eventId || !inviteeId) throw new Error('Choose a practice player first.')
+
+  const confirmation = input.confirmed
+    ? { captain_confirmed_at: new Date().toISOString(), captain_confirmed_by_user_id: identity.userId }
+    : { captain_confirmed_at: null, captain_confirmed_by_user_id: null }
+  const { data, error } = await supabase
+    .from('captain_practice_invitees')
+    .update(confirmation)
+    .eq('id', inviteeId)
+    .eq('event_id', eventId)
+    .eq('response_status', 'in')
+    .select('id')
+    .maybeSingle()
+
+  if (error || !data) throw new Error('This practice confirmation could not be saved.')
 }
 
 export async function previewCaptainPracticeRecipients(input: {

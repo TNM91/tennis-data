@@ -12,6 +12,7 @@ import {
   listInternalScheduleEventsForConversation,
   listInternalScheduleResponses,
   saveInternalScheduleResponse,
+  setCaptainPracticeInviteeConfirmed,
   updateInternalScheduleEvent,
   type InternalScheduleEvent,
   type InternalScheduleResponse,
@@ -19,6 +20,7 @@ import {
   type CaptainPracticeRosterOverview,
 } from '@/lib/internal-scheduling'
 import { practiceRsvpPath, type PracticeDisplayStatus } from '@/lib/captain-practice-rsvp'
+import { buildCaptainPracticeInviteText, buildCaptainPracticeSmsHref } from '@/lib/captain-practice-invite'
 import {
   listInternalNotifications,
   markAllInternalNotificationsRead,
@@ -1131,6 +1133,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [conversationActionSaving, setConversationActionSaving] = useState('')
   const [scheduleActionSaving, setScheduleActionSaving] = useState('')
   const [practiceReminderSaving, setPracticeReminderSaving] = useState(false)
+  const [practiceConfirmationSaving, setPracticeConfirmationSaving] = useState('')
   const [calendarQuickAddSaving, setCalendarQuickAddSaving] = useState('')
   const [calendarQuickAddedItemIds, setCalendarQuickAddedItemIds] = useState<Set<string>>(() => new Set())
   const [highlightedCalendarCueTargetId, setHighlightedCalendarCueTargetId] = useState('')
@@ -1190,6 +1193,14 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     }
     return groups
   }, [practiceRosterOverview, selectedScheduleResponses])
+  const practiceConfirmedPlayers = useMemo(
+    () => practiceRosterOverview?.roster.filter((player) => player.captainConfirmed) || [],
+    [practiceRosterOverview],
+  )
+  const practiceSignedUpPlayers = useMemo(
+    () => practiceRosterOverview?.roster.filter((player) => player.responseStatus === 'in') || [],
+    [practiceRosterOverview],
+  )
   const canManageSchedule = Boolean(
     identity &&
       selectedScheduleEvent &&
@@ -2127,6 +2138,43 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     }
   }
 
+  async function togglePracticePlayerConfirmation(playerId: string, confirmed: boolean) {
+    if (!selectedScheduleEvent || practiceConfirmationSaving) return
+    setPracticeConfirmationSaving(playerId)
+    setError('')
+    setMessage('')
+    try {
+      await setCaptainPracticeInviteeConfirmed({
+        eventId: selectedScheduleEvent.id,
+        inviteeId: playerId,
+        confirmed,
+      })
+      setPracticeRosterOverview(await listCaptainPracticeRoster(selectedScheduleEvent.id))
+      setMessage(confirmed ? 'Player confirmed for practice.' : 'Practice confirmation removed.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Practice confirmation could not be saved.')
+    } finally {
+      setPracticeConfirmationSaving('')
+    }
+  }
+
+  function textPracticeGroup() {
+    if (!selectedScheduleEvent || !practiceRosterOverview?.publicToken) return
+    const metadata = selectedScheduleEvent.metadata
+    const responseUrl = `${window.location.origin}${practiceRsvpPath(practiceRosterOverview.publicToken)}`
+    const inviteText = buildCaptainPracticeInviteText({
+      teamName: metadata.teamName || selectedScheduleEvent.title.replace(/ practice$/i, ''),
+      scheduledDate: selectedScheduleEvent.scheduledDate,
+      scheduledTime: selectedScheduleEvent.scheduledTime,
+      scheduledEndTime: metadata.practiceEndTime || metadata.scheduleEndTime,
+      facility: selectedScheduleEvent.facility,
+      practiceFocus: metadata.practiceNotes,
+      capacity: practiceRosterOverview.capacity,
+      responseUrl,
+    })
+    window.location.href = buildCaptainPracticeSmsHref(inviteText)
+  }
+
   async function openNotification(notification: InternalNotification) {
     if (!identity) return
     setError('')
@@ -2919,19 +2967,44 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                   <div style={practiceRosterHeadlineStyle}>
                     <span style={labelStyle}>Practice roster</span>
                     <strong>
-                      {practiceRosterGroups.get('in')?.length
-                        ? practiceRosterGroups.get('in')!.join(', ')
-                        : 'No one is marked In yet.'}
+                      {practiceConfirmedPlayers.length
+                        ? `${practiceConfirmedPlayers.map((player) => player.playerName).join(', ')} confirmed`
+                        : 'No players captain-confirmed yet.'}
                     </strong>
-                    {practiceRosterOverview?.capacity ? (
-                      <span style={copyStyle}>
-                        {practiceRosterGroups.get('in')?.length || 0}/{practiceRosterOverview.capacity} confirmed
+                    <span style={copyStyle}>
+                      {practiceSignedUpPlayers.length} signed up · {practiceConfirmedPlayers.length} captain-confirmed
+                      {practiceRosterOverview?.capacity
+                        ? ` · ${practiceRosterOverview.capacity} spots`
+                        : ''}
                         {(practiceRosterGroups.get('waitlist')?.length || 0) > 0
                           ? ` · ${practiceRosterGroups.get('waitlist')!.length} waitlisted`
                           : ''}
-                      </span>
-                    ) : null}
+                    </span>
                   </div>
+                  {canManageSchedule && practiceSignedUpPlayers.length ? (
+                    <div style={practiceConfirmationListStyle} aria-label="Confirm practice participants">
+                      {practiceSignedUpPlayers.map((player) => (
+                        <div key={player.id} style={practiceConfirmationRowStyle}>
+                          <div style={practiceConfirmationCopyStyle}>
+                            <strong>{player.playerName}</strong>
+                            <span>{player.captainConfirmed ? 'Captain confirmed' : player.displayStatus === 'waitlist' ? 'Waitlisted signup' : 'Signed up · needs confirmation'}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void togglePracticePlayerConfirmation(player.id, !player.captainConfirmed)}
+                            disabled={Boolean(practiceConfirmationSaving)}
+                            style={player.captainConfirmed ? ghostButtonStyle : primaryButtonStyle}
+                          >
+                            {practiceConfirmationSaving === player.id
+                              ? 'Saving...'
+                              : player.captainConfirmed
+                                ? 'Undo confirm'
+                                : 'Confirm spot'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                   <details style={practiceReplyDetailsStyle}>
                     <summary>See every reply</summary>
                     <div style={practiceReplyListStyle}>
@@ -2946,8 +3019,9 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                   {canManageSchedule && practiceRosterOverview?.publicToken ? (
                     <div style={rsvpActionRowStyle}>
                       <Link href={practiceRsvpPath(practiceRosterOverview.publicToken)} style={ghostButtonStyle}>
-                        Open guest RSVP
+                        Open signup page
                       </Link>
+                      <button type="button" onClick={textPracticeGroup} style={primaryButtonStyle}>Text group</button>
                       <button
                         type="button"
                         onClick={() => void remindPracticeWaiting()}
@@ -4370,6 +4444,35 @@ const practiceReplyRowStyle: CSSProperties = {
   borderTop: '1px solid rgba(125,211,252,0.12)',
   paddingTop: 8,
   lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
+const practiceConfirmationListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const practiceConfirmationRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 13,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(3,12,26,0.42)',
+}
+
+const practiceConfirmationCopyStyle: CSSProperties = {
+  display: 'grid',
+  flex: '1 1 160px',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
   overflowWrap: 'anywhere',
 }
 

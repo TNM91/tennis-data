@@ -21,9 +21,12 @@ type Payload = {
   roster: Array<{
     id: string
     playerName: string
+    isTeamRoster: boolean
     responseStatus: PracticeResponseStatus
     respondedAt: string
     displayStatus: PracticeDisplayStatus
+    captainConfirmedAt: string
+    captainConfirmed: boolean
   }>
   selectedStatus: PracticeDisplayStatus | null
 }
@@ -41,11 +44,14 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
 
   useEffect(() => {
     let active = true
-    fetch(`/api/practice/${encodeURIComponent(token)}`)
+    const loadPractice = () => fetch(`/api/practice/${encodeURIComponent(token)}`)
       .then(async (response) => {
         const payload = await response.json() as Payload & { message?: string }
         if (!response.ok) throw new Error(payload.message || 'This practice link could not be opened.')
-        if (active) setData(payload)
+        if (active) {
+          setData(payload)
+          setError('')
+        }
       })
       .catch((nextError: unknown) => {
         if (active) setError(nextError instanceof Error ? nextError.message : 'This practice link could not be opened.')
@@ -53,16 +59,29 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
       .finally(() => {
         if (active) setLoading(false)
       })
-    return () => { active = false }
+    void loadPractice()
+    const interval = window.setInterval(() => void loadPractice(), 15000)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+    }
   }, [token])
 
   const groups = useMemo(() => {
     const next = new Map<PracticeDisplayStatus, string[]>([
       ['in', []], ['waitlist', []], ['maybe', []], ['out', []], ['unanswered', []],
     ])
-    data?.roster.forEach((player) => next.get(player.displayStatus)?.push(player.playerName))
+    data?.roster.forEach((player) => {
+      if (player.captainConfirmed) return
+      next.get(player.displayStatus)?.push(player.playerName)
+    })
     return next
   }, [data])
+
+  const captainConfirmedNames = useMemo(
+    () => data?.roster.filter((player) => player.captainConfirmed).map((player) => player.playerName) || [],
+    [data],
+  )
 
   async function respond(status: Exclude<PracticeResponseStatus, 'unanswered'>) {
     const respondingName = identityMode === 'guest' ? guestName.trim() : playerName
@@ -93,7 +112,8 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
   if (!data) return <main className={styles.page}><section className={styles.card}><h1>Link unavailable</h1><p>{error}</p></section></main>
 
   const practice = data.practice
-  const confirmedCount = groups.get('in')?.length || 0
+  const signedUpCount = data.roster.filter((player) => player.responseStatus === 'in').length
+  const captainConfirmedCount = captainConfirmedNames.length
   const calendarHref = buildPracticeGoogleCalendarHref(practice)
   const phoneCalendarHref = `/api/practice/${encodeURIComponent(token)}/calendar.ics`
   const directionsHref = practice.facility
@@ -137,7 +157,9 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
               <p className={styles.eyebrow}>Your reply</p>
               <h2>Can you make it?</h2>
             </div>
-            <span className={styles.capacity}>{practice.capacity ? `${confirmedCount}/${practice.capacity} spots` : `${confirmedCount} in`}</span>
+            <span className={styles.capacity}>
+              {practice.capacity ? `${signedUpCount}/${practice.capacity} signed up` : `${signedUpCount} signed up`}
+            </span>
           </div>
           <div className={styles.identityChoice} aria-label="Choose how to RSVP">
             <button type="button" disabled={Boolean(saving)} aria-pressed={identityMode === 'roster'} className={identityMode === 'roster' ? styles.identityActive : ''} onClick={() => { setIdentityMode('roster'); setSavedStatus(null); setError('') }}>On team roster</button>
@@ -148,7 +170,7 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
               <span>Your name</span>
               <select value={playerName} onChange={(event) => { setPlayerName(event.target.value); setSavedStatus(null) }}>
                 <option value="">Choose your name</option>
-                {data.roster.map((player) => <option key={player.id} value={player.playerName}>{player.playerName}</option>)}
+                {data.roster.filter((player) => player.isTeamRoster).map((player) => <option key={player.id} value={player.playerName}>{player.playerName}</option>)}
               </select>
             </label>
           ) : (
@@ -188,9 +210,11 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
             <p className={styles.eyebrow}>Live roster</p>
             <h2>Who’s coming</h2>
           </div>
-          <span className={styles.capacity}>{confirmedCount} confirmed</span>
+          <span className={styles.capacity}>{captainConfirmedCount} confirmed</span>
         </div>
-        <RosterRow label="In" names={groups.get('in') || []} tone="in" />
+        <RosterRow label="Captain confirmed" names={captainConfirmedNames} tone="confirmed" />
+        <RosterRow label="Signed up" names={groups.get('in') || []} tone="in" />
+        <p className={styles.rosterHint}>Signed up means the player wants in. Captain confirmed means their spot is locked.</p>
         {(groups.get('waitlist')?.length || 0) > 0 ? <RosterRow label="Waitlist" names={groups.get('waitlist') || []} tone="waitlist" /> : null}
         <RosterRow label="Maybe" names={groups.get('maybe') || []} />
         <details className={styles.details}>

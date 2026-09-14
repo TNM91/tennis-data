@@ -33,6 +33,18 @@ describe('captain practice RSVP', () => {
     ])
   })
 
+  it('keeps captain-confirmed players in the practice when capacity is full', () => {
+    const roster = assignPracticeDisplayStatuses([
+      { playerName: 'Early signup', responseStatus: 'in' as const, respondedAt: '2026-09-09T10:00:00.000Z', captainConfirmedAt: '' },
+      { playerName: 'Captain pick', responseStatus: 'in' as const, respondedAt: '2026-09-09T10:02:00.000Z', captainConfirmedAt: '2026-09-09T11:00:00.000Z' },
+    ], 1)
+
+    expect(roster.map((player) => [player.playerName, player.displayStatus])).toEqual([
+      ['Early signup', 'waitlist'],
+      ['Captain pick', 'in'],
+    ])
+  })
+
   it('uses the captain-selected end time for phone and Google calendar handoffs', () => {
     const input = {
       teamName: 'SuperSmash',

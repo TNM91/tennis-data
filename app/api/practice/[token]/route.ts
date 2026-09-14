@@ -24,12 +24,14 @@ type InviteRow = {
 
 type InviteeRow = {
   id: string
+  player_id: string
   player_name: string
   normalized_name: string
   profile_id: string | null
   response_status: PracticeResponseStatus
   note: string
   responded_at: string | null
+  captain_confirmed_at: string | null
 }
 
 export async function GET(
@@ -90,16 +92,23 @@ export async function POST(
         normalized_name: normalizedName,
         response_status: 'unanswered',
       })
-      .select('id,player_name,normalized_name,profile_id,response_status,note,responded_at')
+      .select('id,player_id,player_name,normalized_name,profile_id,response_status,note,responded_at,captain_confirmed_at')
       .single()
     if (created.error || !created.data) {
       return Response.json({ ok: false, message: 'Your name could not be added. Refresh and try again.' }, { status: 409 })
     }
     invitee = created.data as InviteeRow
   }
+  const responseUpdate = {
+    response_status: status,
+    note,
+    responded_at: now,
+    updated_at: now,
+    ...(status === 'in' ? {} : { captain_confirmed_at: null, captain_confirmed_by_user_id: null }),
+  }
   const { error } = await service
     .from('captain_practice_invitees')
-    .update({ response_status: status, note, responded_at: now, updated_at: now })
+    .update(responseUpdate)
     .eq('id', invitee.id)
   if (error) return Response.json({ ok: false, message: 'Your RSVP could not be saved.' }, { status: 500 })
 
@@ -117,7 +126,13 @@ export async function POST(
     ? loaded.invitees
     : [...loaded.invitees, invitee]
   const refreshed = rosterWithInvitee.map((row) => row.id === invitee.id
-    ? { ...row, response_status: status, note, responded_at: now }
+    ? {
+        ...row,
+        response_status: status,
+        note,
+        responded_at: now,
+        captain_confirmed_at: status === 'in' ? row.captain_confirmed_at : null,
+      }
     : row)
   return Response.json(buildPayload(loaded.invite, refreshed, invitee.id), noStore())
 }
@@ -145,7 +160,7 @@ async function loadPractice(rawToken: string): Promise<
   const invite = data as unknown as InviteRow
   const inviteesResult = await service
     .from('captain_practice_invitees')
-    .select('id,player_name,normalized_name,profile_id,response_status,note,responded_at')
+    .select('id,player_id,player_name,normalized_name,profile_id,response_status,note,responded_at,captain_confirmed_at')
     .eq('invite_id', invite.id)
     .order('player_name', { ascending: true })
   if (inviteesResult.error) {
@@ -161,8 +176,11 @@ function buildPayload(invite: InviteRow, invitees: InviteeRow[], selectedId = ''
     invitees.map((row) => ({
       id: row.id,
       playerName: row.player_name,
+      isTeamRoster: Boolean(row.player_id),
       responseStatus: row.response_status,
       respondedAt: row.responded_at || '',
+      captainConfirmedAt: row.captain_confirmed_at || '',
+      captainConfirmed: Boolean(row.captain_confirmed_at),
     })),
     invite.capacity,
   )
