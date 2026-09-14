@@ -385,6 +385,7 @@ export async function createCaptainPracticeThread(input: {
   flight?: string | null
   scheduledDate: string
   scheduledTime?: string | null
+  scheduledEndTime?: string | null
   facility?: string | null
   recurrenceRule?: string | null
   notes?: string | null
@@ -403,7 +404,7 @@ export async function createCaptainPracticeThread(input: {
     input.leagueName ? `League: ${input.leagueName}` : '',
     input.flight ? `Flight: ${input.flight}` : '',
     `Date: ${input.scheduledDate}`,
-    input.scheduledTime ? `Time: ${input.scheduledTime}` : '',
+    input.scheduledTime ? `Time: ${input.scheduledTime}${input.scheduledEndTime ? `–${input.scheduledEndTime}` : ''}` : '',
     input.facility ? `Site: ${input.facility}` : '',
     input.recurrenceRule ? `Repeats: ${input.recurrenceRule}` : '',
     input.notes ? `Notes: ${input.notes}` : '',
@@ -428,6 +429,7 @@ export async function createCaptainPracticeThread(input: {
       flight: input.flight || '',
       scheduleDate: input.scheduledDate,
       scheduleTime: input.scheduledTime || '',
+      scheduleEndTime: input.scheduledEndTime || '',
       facility: input.facility || '',
       recurrenceRule: input.recurrenceRule || '',
       capacity: input.capacity ? String(input.capacity) : '',
@@ -450,6 +452,7 @@ export async function createCaptainPracticeThread(input: {
       leagueName: input.leagueName || '',
       flight: input.flight || '',
       practiceNotes: input.notes || '',
+      practiceEndTime: input.scheduledEndTime || '',
       capacity: input.capacity ? String(input.capacity) : '',
     },
     participantProfileIds,

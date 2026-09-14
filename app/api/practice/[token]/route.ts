@@ -174,6 +174,7 @@ function buildPayload(invite: InviteRow, invitees: InviteeRow[], selectedId = ''
       leagueName: cleanMetadata(metadata.leagueName),
       scheduledDate: event?.scheduled_date || '',
       scheduledTime: event?.scheduled_time || '',
+      scheduledEndTime: cleanMetadata(metadata.practiceEndTime),
       facility: event?.facility || '',
       notes: cleanMetadata(metadata.practiceNotes),
       status: event?.status || 'proposed',

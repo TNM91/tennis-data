@@ -23,10 +23,17 @@ export function formatCaptainPracticeTime(value: string) {
   return `${displayHour}:${minute} ${period}`
 }
 
+export function formatCaptainPracticeTimeRange(startTime: string, endTime?: string | null) {
+  const start = formatCaptainPracticeTime(startTime)
+  const end = formatCaptainPracticeTime(endTime || '')
+  return [start, end].filter(Boolean).join('–')
+}
+
 export function buildCaptainPracticeInviteText(input: {
   teamName: string
   scheduledDate: string
   scheduledTime?: string | null
+  scheduledEndTime?: string | null
   facility?: string | null
   practiceFocus?: string | null
   capacity?: number | null
@@ -34,7 +41,7 @@ export function buildCaptainPracticeInviteText(input: {
 }) {
   const when = [
     formatCaptainPracticeDate(input.scheduledDate),
-    formatCaptainPracticeTime(input.scheduledTime || ''),
+    formatCaptainPracticeTimeRange(input.scheduledTime || '', input.scheduledEndTime),
   ].filter(Boolean).join(' at ')
   const details = [
     `${cleanText(input.teamName) || 'Team'} practice`,

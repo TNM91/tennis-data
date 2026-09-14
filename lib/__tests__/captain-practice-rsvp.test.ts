@@ -6,6 +6,7 @@ import {
   practiceRsvpPath,
   resolvePracticeToken,
 } from '../captain-practice-rsvp'
+import { buildCaptainPracticeInviteText } from '../captain-practice-invite'
 
 describe('captain practice RSVP', () => {
   it('uses a short, lossless public path', () => {
@@ -32,11 +33,12 @@ describe('captain practice RSVP', () => {
     ])
   })
 
-  it('builds phone and Google calendar handoffs for a 90-minute practice', () => {
+  it('uses the captain-selected end time for phone and Google calendar handoffs', () => {
     const input = {
       teamName: 'SuperSmash',
       scheduledDate: '2026-09-16',
       scheduledTime: '20:00',
+      scheduledEndTime: '22:00',
       facility: 'Vetta West',
       notes: 'Doubles patterns',
     }
@@ -45,8 +47,32 @@ describe('captain practice RSVP', () => {
 
     expect(ics).toContain('SUMMARY:SuperSmash practice')
     expect(ics).toContain('DTSTART:20260916T200000')
-    expect(ics).toContain('DTEND:20260916T213000')
+    expect(ics).toContain('DTEND:20260916T220000')
     expect(google).toContain('calendar.google.com/calendar/render')
     expect(google).toContain('Vetta+West')
+  })
+
+  it('keeps a 90-minute calendar fallback for older practices without an end time', () => {
+    const ics = buildPracticeIcs({
+      uid: 'legacy-practice',
+      teamName: 'SuperSmash',
+      scheduledDate: '2026-09-16',
+      scheduledTime: '20:00',
+      facility: 'Vetta West',
+    })
+
+    expect(ics).toContain('DTEND:20260916T213000')
+  })
+
+  it('puts the start and end time in the group-text invite', () => {
+    const invite = buildCaptainPracticeInviteText({
+      teamName: 'SuperSmash',
+      scheduledDate: '2026-09-16',
+      scheduledTime: '20:00',
+      scheduledEndTime: '22:00',
+      responseUrl: 'https://tenaceiq.com/pr/example',
+    })
+
+    expect(invite).toContain('8:00 PM–10:00 PM')
   })
 })
