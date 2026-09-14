@@ -42,6 +42,10 @@ describe('Captain practice scheduler', () => {
     expect(source).toContain('Create another practice')
     expect(source).toContain('Manage roster')
     expect(source).toContain('Open signup')
+    expect(source).toContain('Delete practice')
+    expect(source).toContain('players will no longer be able to RSVP')
+    expect(source).toContain('notifyParticipants: false')
+    expect(source).toContain('current.filter(({ event }) => event.id !== practice.event.id)')
     expect(source).toContain('signed up')
     expect(source).toContain('confirmed')
     expect(source).toContain('waiting')
@@ -50,6 +54,7 @@ describe('Captain practice scheduler', () => {
     expect(scheduling).toContain('export async function listCaptainPracticeManagementOverview')
     expect(scheduling).toContain(".eq('event_type', 'captain_practice')")
     expect(scheduling).toContain(".eq('created_by_user_id', identity.userId)")
+    expect(scheduling).toContain('input.notifyParticipants !== false')
   })
 
   it('uses the existing practice scheduling foundation instead of a separate workflow', () => {

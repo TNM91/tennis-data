@@ -922,6 +922,7 @@ export async function cancelInternalScheduleEvent(input: {
   eventId: string
   actorUserId: string
   reason?: string | null
+  notifyParticipants?: boolean
 }) {
   const eventId = cleanText(input.eventId)
   if (!eventId) throw new Error('Choose a schedule event first.')
@@ -951,20 +952,22 @@ export async function cancelInternalScheduleEvent(input: {
   const cancelledEvent = toScheduleEvent(data as ScheduleEventRow)
   if (!cancelledEvent) throw new Error('Schedule event could not be cancelled.')
 
-  await sendInternalMessage(
-    cancelledEvent.conversationId,
-    input.actorUserId,
-    [
-      `Schedule cancelled: ${cancelledEvent.title}`,
-      cleanText(input.reason) ? `Reason: ${cleanText(input.reason)}` : '',
-    ].filter(Boolean).join('\n'),
-    {
-      notificationType: 'schedule',
-      notificationTitle: 'Schedule cancelled',
-      notificationBody: 'Open Messages to review the cancelled event.',
-      scheduleEventId: cancelledEvent.id,
-    },
-  )
+  if (input.notifyParticipants !== false) {
+    await sendInternalMessage(
+      cancelledEvent.conversationId,
+      input.actorUserId,
+      [
+        `Schedule cancelled: ${cancelledEvent.title}`,
+        cleanText(input.reason) ? `Reason: ${cleanText(input.reason)}` : '',
+      ].filter(Boolean).join('\n'),
+      {
+        notificationType: 'schedule',
+        notificationTitle: 'Schedule cancelled',
+        notificationBody: 'Open Messages to review the cancelled event.',
+        scheduleEventId: cancelledEvent.id,
+      },
+    )
+  }
 
   return cancelledEvent
 }
