@@ -12,6 +12,7 @@ type Payload = {
     leagueName: string
     scheduledDate: string
     scheduledTime: string
+    scheduledEndTime: string
     facility: string
     notes: string
     status: string
@@ -118,7 +119,7 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
       <section className={styles.hero}>
         <p className={styles.eyebrow}>Team practice</p>
         <h1>{practice.teamName}</h1>
-        <p className={styles.when}>{formatDate(practice.scheduledDate)}{formatTime(practice.scheduledTime) ? ` · ${formatTime(practice.scheduledTime)}` : ''}</p>
+        <p className={styles.when}>{formatDate(practice.scheduledDate)}{formatTimeRange(practice.scheduledTime, practice.scheduledEndTime) ? ` · ${formatTimeRange(practice.scheduledTime, practice.scheduledEndTime)}` : ''}</p>
         {practice.facility ? <p className={styles.site}>{practice.facility}</p> : null}
         <div className={styles.heroActions}>
           <a href={phoneCalendarHref}>Add to iPhone</a>
@@ -229,4 +230,10 @@ function formatTime(value: string) {
   if (!match) return value
   const hour = Number(match[1])
   return `${hour % 12 || 12}:${match[2]} ${hour >= 12 ? 'PM' : 'AM'}`
+}
+
+function formatTimeRange(startTime: string, endTime: string) {
+  const start = formatTime(startTime)
+  const end = formatTime(endTime)
+  return [start, end].filter(Boolean).join('–')
 }

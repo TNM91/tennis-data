@@ -12,6 +12,7 @@ describe('Captain practice scheduler', () => {
     expect(source).toContain('mode="captain-practice"')
     expect(source).toContain('triggerLabel="Review & send invite"')
     expect(source).toContain('defaultNotes={practiceNotes}')
+    expect(source).toContain('defaultEndTime={practiceEndTime}')
     expect(source.indexOf('aria-label="Practice scheduler setup"')).toBeLessThan(
       source.indexOf('Plan practice without a separate thread.'),
     )
@@ -40,6 +41,8 @@ describe('Captain practice scheduler', () => {
     const room = readFileSync(join(process.cwd(), 'app/team-room/page.tsx'), 'utf8')
 
     expect(composer).toContain('defaultNotes')
+    expect(composer).toContain('scheduledEndTime')
+    expect(composer).toContain('End time must be later than start time.')
     expect(composer).toContain('createCaptainPracticeThread')
     expect(composer).toContain("action: 'send'")
     expect(composer).toContain('postedToTeamChat')

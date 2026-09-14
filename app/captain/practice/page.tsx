@@ -40,6 +40,7 @@ function CaptainPracticeContent() {
   const [flight, setFlight] = useState(searchParams.get('flight') || '')
   const [practiceDate, setPracticeDate] = useState(searchParams.get('date') || '')
   const [practiceTime, setPracticeTime] = useState(searchParams.get('time') || '')
+  const [practiceEndTime, setPracticeEndTime] = useState(searchParams.get('endTime') || '')
   const [facility, setFacility] = useState(searchParams.get('facility') || '')
   const [practiceFocus, setPracticeFocus] = useState(
     incomingLevelUpChallenge ? `${incomingLevelUpChallenge.title}: ${incomingLevelUpChallenge.focus}` : '',
@@ -129,8 +130,12 @@ function CaptainPracticeContent() {
             <input type="date" value={practiceDate} onChange={(event) => setPracticeDate(event.target.value)} style={inputStyle} />
           </label>
           <label style={fieldStyle}>
-            Time
+            Start time
             <input type="time" value={practiceTime} onChange={(event) => setPracticeTime(event.target.value)} style={inputStyle} />
+          </label>
+          <label style={fieldStyle}>
+            End time
+            <input type="time" min={practiceTime || undefined} value={practiceEndTime} onChange={(event) => setPracticeEndTime(event.target.value)} style={inputStyle} />
           </label>
           <label style={fieldStyle}>
             Site
@@ -158,6 +163,7 @@ function CaptainPracticeContent() {
               flight={flight}
               defaultDate={practiceDate}
               defaultTime={practiceTime}
+              defaultEndTime={practiceEndTime}
               defaultFacility={facility}
               defaultNotes={practiceNotes}
             />

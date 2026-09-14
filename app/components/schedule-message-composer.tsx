@@ -40,6 +40,7 @@ export default function ScheduleMessageComposer({
   flight = '',
   defaultDate = '',
   defaultTime = '',
+  defaultEndTime = '',
   defaultFacility = '',
   defaultNotes = '',
 }: {
@@ -58,6 +59,7 @@ export default function ScheduleMessageComposer({
   flight?: string
   defaultDate?: string
   defaultTime?: string
+  defaultEndTime?: string
   defaultFacility?: string
   defaultNotes?: string
 }) {
@@ -65,6 +67,7 @@ export default function ScheduleMessageComposer({
   const [open, setOpen] = useState(false)
   const [scheduledDate, setScheduledDate] = useState(defaultDate)
   const [scheduledTime, setScheduledTime] = useState(defaultTime)
+  const [scheduledEndTime, setScheduledEndTime] = useState(defaultEndTime)
   const [facility, setFacility] = useState(defaultFacility)
   const [recurrenceRule, setRecurrenceRule] = useState('')
   const [notes, setNotes] = useState('')
@@ -90,6 +93,7 @@ export default function ScheduleMessageComposer({
     if (!open) {
       setScheduledDate(defaultDate)
       setScheduledTime(defaultTime)
+      setScheduledEndTime(defaultEndTime)
       setFacility(defaultFacility)
       setRecurrenceRule('')
       setNotes(defaultNotes)
@@ -101,7 +105,7 @@ export default function ScheduleMessageComposer({
       setPreviewLoading(false)
       setPracticeDelivery(null)
     }
-  }, [defaultDate, defaultFacility, defaultNotes, defaultTime, open])
+  }, [defaultDate, defaultEndTime, defaultFacility, defaultNotes, defaultTime, open])
 
   useEffect(() => {
     if (!open || mode !== 'captain-practice' || !teamName) return
@@ -155,12 +159,15 @@ export default function ScheduleMessageComposer({
         setStatus(result.warning || 'Match scheduled and message thread opened.')
       } else {
         if (!teamName) throw new Error('Choose a team before scheduling practice.')
+        if (scheduledEndTime && !scheduledTime) throw new Error('Choose a start time before the end time.')
+        if (scheduledTime && scheduledEndTime && scheduledEndTime <= scheduledTime) throw new Error('End time must be later than start time.')
         const result = await createCaptainPracticeThread({
           teamName,
           leagueName,
           flight,
           scheduledDate,
           scheduledTime,
+          scheduledEndTime,
           facility,
           recurrenceRule,
           notes,
@@ -172,6 +179,7 @@ export default function ScheduleMessageComposer({
           teamName,
           scheduledDate,
           scheduledTime,
+          scheduledEndTime,
           facility,
           capacity: capacity ? Number(capacity) : null,
           practiceFocus: notes.replace(/Please mark In, Out, or Maybe[\s\S]*$/i, '').replace(/^Practice focus:\s*/i, '').trim(),
@@ -286,9 +294,15 @@ export default function ScheduleMessageComposer({
                 <input type="date" value={scheduledDate} onChange={(event) => setScheduledDate(event.target.value)} style={inputStyle} />
               </label>
               <label style={fieldStyle}>
-                <span style={labelStyle}>Time</span>
+                <span style={labelStyle}>Start time</span>
                 <input type="time" value={scheduledTime} onChange={(event) => setScheduledTime(event.target.value)} style={inputStyle} />
               </label>
+              {mode === 'captain-practice' ? (
+                <label style={fieldStyle}>
+                  <span style={labelStyle}>End time</span>
+                  <input type="time" min={scheduledTime || undefined} value={scheduledEndTime} onChange={(event) => setScheduledEndTime(event.target.value)} style={inputStyle} />
+                </label>
+              ) : null}
             </div>
 
             <label style={fieldStyle}>

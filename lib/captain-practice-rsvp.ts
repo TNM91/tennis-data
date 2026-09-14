@@ -52,10 +52,11 @@ export function buildPracticeGoogleCalendarHref(input: {
   teamName: string
   scheduledDate: string
   scheduledTime: string
+  scheduledEndTime?: string
   facility: string
   notes?: string
 }) {
-  const range = buildPracticeCalendarRange(input.scheduledDate, input.scheduledTime)
+  const range = buildPracticeCalendarRange(input.scheduledDate, input.scheduledTime, input.scheduledEndTime)
   if (!range) return ''
   const params = new URLSearchParams({
     action: 'TEMPLATE',
@@ -72,10 +73,11 @@ export function buildPracticeIcs(input: {
   teamName: string
   scheduledDate: string
   scheduledTime: string
+  scheduledEndTime?: string
   facility: string
   notes?: string
 }) {
-  const range = buildPracticeCalendarRange(input.scheduledDate, input.scheduledTime)
+  const range = buildPracticeCalendarRange(input.scheduledDate, input.scheduledTime, input.scheduledEndTime)
   if (!range) return ''
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
   return [
@@ -96,7 +98,7 @@ export function buildPracticeIcs(input: {
   ].join('\r\n')
 }
 
-function buildPracticeCalendarRange(dateValue: string, timeValue: string) {
+function buildPracticeCalendarRange(dateValue: string, timeValue: string, endTimeValue = '') {
   const date = dateValue.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/)
   const time = timeValue.trim().match(/^(\d{1,2}):(\d{2})$/)
   if (!date || !time) return null
@@ -105,7 +107,13 @@ function buildPracticeCalendarRange(dateValue: string, timeValue: string) {
   if (hour > 23 || minute > 59) return null
   const dateStamp = `${date[1]}${date[2]}${date[3]}`
   const startMinutes = hour * 60 + minute
-  const endMinutes = Math.min(startMinutes + 90, (24 * 60) - 1)
+  const requestedEnd = endTimeValue.trim().match(/^(\d{1,2}):(\d{2})$/)
+  const requestedEndHour = requestedEnd ? Number(requestedEnd[1]) : -1
+  const requestedEndMinute = requestedEnd ? Number(requestedEnd[2]) : -1
+  const requestedEndMinutes = requestedEndHour * 60 + requestedEndMinute
+  const endMinutes = requestedEnd && requestedEndHour <= 23 && requestedEndMinute <= 59 && requestedEndMinutes > startMinutes
+    ? requestedEndMinutes
+    : Math.min(startMinutes + 90, (24 * 60) - 1)
   const stamp = (minutes: number) => `${dateStamp}T${String(Math.floor(minutes / 60)).padStart(2, '0')}${String(minutes % 60).padStart(2, '0')}00`
   return { start: stamp(startMinutes), end: stamp(endMinutes) }
 }

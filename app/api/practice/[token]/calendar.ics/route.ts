@@ -37,6 +37,7 @@ export async function GET(
     teamName: typeof metadata.teamName === 'string' ? metadata.teamName : event.title.replace(/ practice$/i, ''),
     scheduledDate: event.scheduled_date,
     scheduledTime: event.scheduled_time,
+    scheduledEndTime: typeof metadata.practiceEndTime === 'string' ? metadata.practiceEndTime : '',
     facility: event.facility,
     notes: typeof metadata.practiceNotes === 'string' ? metadata.practiceNotes : '',
   })
