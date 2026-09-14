@@ -420,7 +420,7 @@ export async function POST(request: Request) {
   const flight = cleanAvailabilityText(body?.flight, 120)
   const matchDate = cleanAvailabilityText(body?.matchDate, 10)
   const playerId = cleanAvailabilityText(body?.playerId, 80)
-  const availabilityStatus = body?.status === 'pending' ? 'pending' : 'available'
+  const resetConfirmation = body?.status === 'pending'
   if (!teamName || !/^\d{4}-\d{2}-\d{2}$/.test(matchDate) || !isUuid(playerId)) {
     return Response.json({ ok: false, message: 'Choose a valid team, match, and roster player before confirming availability.' }, { status: 400 })
   }
@@ -443,23 +443,54 @@ export async function POST(request: Request) {
   })
   if (!canManageSelectedTeam) return Response.json({ ok: false, message: 'Captain access is required for this team.' }, { status: 403 })
 
-  const { data, error } = await service
-    .from('lineup_availability')
-    .upsert({
+  const updatedAt = new Date().toISOString()
+  let data
+  if (resetConfirmation) {
+    // No response is represented by the absence of a lineup_availability row.
+    // That table only accepts actual answers, so persisting `pending` would be
+    // rejected and the optimistic mobile state would snap back to Yes.
+    const { error } = await service
+      .from('lineup_availability')
+      .delete()
+      .eq('match_date', matchDate)
+      .eq('team_name', teamName)
+      .eq('player_id', playerId)
+    if (error) {
+      console.error('[api/captain/lineup-builder] availability reset failed', { message: error.message })
+      return Response.json({ ok: false, message: 'The confirmation could not be undone.' }, { status: 500 })
+    }
+    data = {
+      id: `captain-reset:${playerId}`,
       match_date: matchDate,
       team_name: teamName,
       league_name: leagueName || null,
       flight: flight || null,
       player_id: playerId,
-      status: availabilityStatus,
-      notes: availabilityStatus === 'available'
-        ? 'Confirmed by captain from Lineup Builder.'
-        : 'Confirmation reset by captain in Lineup Builder.',
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'match_date,team_name,player_id' })
-    .select('id,match_date,team_name,league_name,flight,player_id,status,notes,responded_at:updated_at')
-    .single()
-  if (error) return Response.json({ ok: false, message: error.message || 'Availability could not be saved.' }, { status: 500 })
+      status: 'pending',
+      notes: 'Confirmation reset by captain in Lineup Builder.',
+      responded_at: updatedAt,
+    }
+  } else {
+    const result = await service
+      .from('lineup_availability')
+      .upsert({
+        match_date: matchDate,
+        team_name: teamName,
+        league_name: leagueName || null,
+        flight: flight || null,
+        player_id: playerId,
+        status: 'available',
+        notes: 'Confirmed by captain from Lineup Builder.',
+        updated_at: updatedAt,
+      }, { onConflict: 'match_date,team_name,player_id' })
+      .select('id,match_date,team_name,league_name,flight,player_id,status,notes,responded_at:updated_at')
+      .single()
+    if (result.error) {
+      console.error('[api/captain/lineup-builder] availability confirmation failed', { message: result.error.message })
+      return Response.json({ ok: false, message: 'Availability could not be saved.' }, { status: 500 })
+    }
+    data = result.data
+  }
 
   try {
     await getCache({ namespace: 'captain-lineup-builder' })
@@ -468,5 +499,8 @@ export async function POST(request: Request) {
     // The saved availability and the optimistic client state remain authoritative.
   }
 
+  console.info('[api/captain/lineup-builder] availability updated', {
+    action: resetConfirmation ? 'reset' : 'confirm',
+  })
   return Response.json({ ok: true, availability: data })
 }
