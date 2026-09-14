@@ -1192,6 +1192,11 @@
   .shell { display: none; }
 }
 
+@media (max-width: 520px) {
+  .matchHeader { align-items: stretch; flex-direction: column; }
+  .statusAction { width: 100%; }
+}
+
 @media (max-width: 374px) {
   .matchHeader,
   .resultHeader,
