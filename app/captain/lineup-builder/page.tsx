@@ -475,19 +475,19 @@ function buildRosterPlayerIdSet(
   availabilityRows: AvailabilityRow[],
   rosterMembers: TeamRosterMemberRow[],
 ) {
-  const normalizedTarget = normalizeTeamName(targetTeam)
+  const normalizedTarget = normalizeUstaRosterTeamName(targetTeam)
   if (!normalizedTarget) return new Set<string>()
   const filteredMatches = matches.filter((match) => {
-    const home = normalizeTeamName(match.home_team)
-    const away = normalizeTeamName(match.away_team)
+    const home = normalizeUstaRosterTeamName(match.home_team)
+    const away = normalizeUstaRosterTeamName(match.away_team)
     if (home !== normalizedTarget && away !== normalizedTarget) return false
     return true
   })
 
   const sideByMatchId = new Map<string, 'A' | 'B'>()
   for (const match of filteredMatches) {
-    const home = normalizeTeamName(match.home_team)
-    const away = normalizeTeamName(match.away_team)
+    const home = normalizeUstaRosterTeamName(match.home_team)
+    const away = normalizeUstaRosterTeamName(match.away_team)
     if (home === normalizedTarget) sideByMatchId.set(match.id, 'A')
     else if (away === normalizedTarget) sideByMatchId.set(match.id, 'B')
   }
@@ -502,7 +502,7 @@ function buildRosterPlayerIdSet(
 
   for (const row of availabilityRows) {
     if (!row.player_id) continue
-    if (normalizeTeamName(row.team_name) !== normalizedTarget) continue
+    if (normalizeUstaRosterTeamName(row.team_name) !== normalizedTarget) continue
     ids.add(row.player_id)
   }
 
@@ -2773,8 +2773,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   }, [teamName, matches, matchPlayers, availability, rosterMembers, scopedRosterPlayerIds])
 
   const opponentRosterPlayerIds = useMemo(
-    () => buildRosterPlayerIdSet(opponentTeam, historicalLineMatches, historicalLineMatchPlayers, [], []),
-    [historicalLineMatchPlayers, historicalLineMatches, opponentTeam]
+    () => buildRosterPlayerIdSet(opponentTeam, historicalLineMatches, historicalLineMatchPlayers, [], rosterMembers),
+    [historicalLineMatchPlayers, historicalLineMatches, opponentTeam, rosterMembers]
   )
 
   const myRosterEligibilityByPlayerId = useMemo(
