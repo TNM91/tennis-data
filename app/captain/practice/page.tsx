@@ -17,6 +17,7 @@ import {
 } from '@/lib/captain-level-up-challenge'
 import { buildConsumedWorkflowHref } from '@/lib/workflow-return'
 import {
+  cancelInternalScheduleEvent,
   listCaptainPracticeManagementOverview,
   type CaptainPracticeManagementOverview,
 } from '@/lib/internal-scheduling'
@@ -55,6 +56,8 @@ function CaptainPracticeContent() {
   const [practices, setPractices] = useState<CaptainPracticeManagementOverview[]>([])
   const [practicesLoading, setPracticesLoading] = useState(true)
   const [practicesError, setPracticesError] = useState('')
+  const [practiceMessage, setPracticeMessage] = useState('')
+  const [deletingPracticeId, setDeletingPracticeId] = useState('')
   const [showCreate, setShowCreate] = useState(searchParams.get('new') === '1' || Boolean(incomingLevelUpChallenge))
 
   const loadPractices = useCallback(async () => {
@@ -68,6 +71,31 @@ function CaptainPracticeContent() {
       setPracticesLoading(false)
     }
   }, [])
+
+  const deletePractice = useCallback(async (practice: CaptainPracticeManagementOverview) => {
+    if (!userId || deletingPracticeId) return
+    const title = practice.event.title || 'this practice'
+    const confirmed = window.confirm(`Delete ${title}? It will be removed from your practice hub and players will no longer be able to RSVP.`)
+    if (!confirmed) return
+
+    setDeletingPracticeId(practice.event.id)
+    setPracticesError('')
+    setPracticeMessage('')
+    try {
+      await cancelInternalScheduleEvent({
+        eventId: practice.event.id,
+        actorUserId: userId,
+        reason: 'Removed by the captain from the practice hub.',
+        notifyParticipants: false,
+      })
+      setPractices((current) => current.filter(({ event }) => event.id !== practice.event.id))
+      setPracticeMessage(`${title} was deleted.`)
+    } catch (error) {
+      setPracticesError(error instanceof Error ? error.message : 'The practice could not be deleted.')
+    } finally {
+      setDeletingPracticeId('')
+    }
+  }, [deletingPracticeId, userId])
 
   useEffect(() => {
     if (!authResolved || role !== 'public') return
@@ -142,6 +170,7 @@ function CaptainPracticeContent() {
         </div>
 
         {practicesLoading ? <div style={noticeStyle}>Loading your practices...</div> : null}
+        {practiceMessage ? <div style={successStyle} role="status">{practiceMessage}</div> : null}
         {practicesError ? (
           <div style={errorStyle} role="alert">
             <span>{practicesError}</span>
@@ -152,11 +181,11 @@ function CaptainPracticeContent() {
         {!practicesLoading && !practicesError && hasPractices ? (
           <div style={practiceSectionsStyle}>
             {upcomingPractices.length ? (
-              <PracticeList label="Upcoming" practices={upcomingPractices} />
+              <PracticeList label="Upcoming" practices={upcomingPractices} deletingPracticeId={deletingPracticeId} onDelete={deletePractice} />
             ) : (
               <div style={noticeStyle}>No upcoming practice yet. Create one when the team is ready.</div>
             )}
-            {recentPractices.length ? <PracticeList label="Recent" practices={recentPractices} compact /> : null}
+            {recentPractices.length ? <PracticeList label="Recent" practices={recentPractices} compact deletingPracticeId={deletingPracticeId} onDelete={deletePractice} /> : null}
           </div>
         ) : null}
 
@@ -284,10 +313,14 @@ function PracticeList({
   label,
   practices,
   compact = false,
+  deletingPracticeId,
+  onDelete,
 }: {
   label: string
   practices: CaptainPracticeManagementOverview[]
   compact?: boolean
+  deletingPracticeId: string
+  onDelete: (practice: CaptainPracticeManagementOverview) => void
 }) {
   return (
     <section style={practiceListSectionStyle} aria-label={`${label} practices`}>
@@ -324,6 +357,14 @@ function PracticeList({
                     Open signup
                   </Link>
                 ) : null}
+                <button
+                  type="button"
+                  onClick={() => onDelete({ event, roster })}
+                  disabled={Boolean(deletingPracticeId)}
+                  style={deleteButtonStyle}
+                >
+                  {deletingPracticeId === event.id ? 'Deleting...' : 'Delete practice'}
+                </button>
               </div>
             </article>
           )
@@ -676,6 +717,13 @@ const errorStyle: CSSProperties = {
   color: '#fecdd3',
 }
 
+const successStyle: CSSProperties = {
+  ...noticeStyle,
+  borderColor: 'rgba(155,225,29,0.28)',
+  color: 'var(--foreground-strong)',
+  background: 'rgba(155,225,29,0.07)',
+}
+
 const textButtonStyle: CSSProperties = {
   minHeight: 40,
   padding: '0 12px',
@@ -684,6 +732,13 @@ const textButtonStyle: CSSProperties = {
   background: 'rgba(255,255,255,0.04)',
   color: 'inherit',
   fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const deleteButtonStyle: CSSProperties = {
+  ...secondaryButtonStyle,
+  borderColor: 'rgba(251,113,133,0.3)',
+  color: '#fecdd3',
   cursor: 'pointer',
 }
 
