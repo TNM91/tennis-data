@@ -19,6 +19,14 @@ type MatchWeekScope = {
 type MatchWeekChoice = {
   id: string
   label: string
+  dateLabel?: string
+  opponent?: string
+  upcoming?: boolean
+  signals?: Array<{
+    label: string
+    value: string
+    tone: 'ready' | 'attention' | 'muted'
+  }>
 }
 
 const steps: Array<{ id: MatchWeekStep; label: string; path: string }> = [
@@ -59,6 +67,10 @@ export default function CaptainMatchWeekRail({
     ? matchChoices[selectedChoiceIndex + 1]
     : null
   const canSwitchMatches = Boolean(onMatchChange && matchChoices.length > 1 && selectedMatchId)
+  const allUpcomingChoices = matchChoices.filter((choice) => choice.upcoming)
+  const selectedUpcomingIndex = allUpcomingChoices.findIndex((choice) => choice.id === selectedMatchId)
+  const upcomingStartIndex = selectedUpcomingIndex >= 0 ? selectedUpcomingIndex : 0
+  const upcomingChoices = allUpcomingChoices.slice(upcomingStartIndex, upcomingStartIndex + 4)
 
   if (!hasMatch) {
     const returnTo = buildCaptainScopedHref(`/captain/${current === 'lineup' ? 'lineup-builder' : current}`, scope)
@@ -122,6 +134,47 @@ export default function CaptainMatchWeekRail({
             >
               <span aria-hidden="true">›</span>
             </button>
+          </div>
+        ) : null}
+        {upcomingChoices.length ? (
+          <div style={planningQueue}>
+            <div style={planningQueueHeading}>
+              <div>
+                <div style={planningKicker}>Plan ahead</div>
+                <strong style={planningTitle}>Upcoming matches</strong>
+              </div>
+              <span style={planningHint}>Tap a week to start</span>
+            </div>
+            <div role="list" aria-label="Upcoming match planning" style={planningCardList}>
+              {upcomingChoices.map((choice) => {
+                const isSelected = choice.id === selectedMatchId
+                return (
+                  <div key={choice.id} role="listitem" style={planningCardItem}>
+                    <button
+                      type="button"
+                      aria-current={isSelected ? 'true' : undefined}
+                      aria-label={`Plan ${choice.label}`}
+                      onClick={() => onMatchChange?.(choice.id)}
+                      style={{ ...planningCard, ...(isSelected ? planningCardActive : {}) }}
+                    >
+                      <span style={planningCardHeader}>
+                        <span style={planningDate}>{choice.dateLabel}</span>
+                        {isSelected ? <span style={planningActivePill}>Building now</span> : null}
+                      </span>
+                      <strong style={planningOpponent}>vs {choice.opponent || 'Opponent pending'}</strong>
+                      <span style={planningSignals}>
+                        {(choice.signals ?? []).map((signal) => (
+                          <span key={signal.label} style={planningSignalRow}>
+                            <span style={planningSignalLabel}>{signal.label}</span>
+                            <span style={{ ...planningSignalValue, ...planningSignalTone[signal.tone] }}>{signal.value}</span>
+                          </span>
+                        ))}
+                      </span>
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         ) : null}
       </div>
@@ -238,6 +291,28 @@ const matchPickerCaption: CSSProperties = { color: '#93c5fd', fontSize: 10, font
 const matchPickerSelect: CSSProperties = { width: '100%', minWidth: 0, height: 44, padding: '0 34px 0 12px', borderRadius: 13, border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)', background: 'var(--shell-chip-bg)', color: 'var(--foreground-strong)', colorScheme: 'dark', font: 'inherit', fontSize: 13, fontWeight: 850, textOverflow: 'ellipsis', outline: 'none' }
 const matchPickerArrow: CSSProperties = { display: 'grid', placeItems: 'center', width: 44, height: 44, padding: 0, borderRadius: 13, border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)', background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)', color: 'var(--brand-lime)', fontFamily: 'inherit', fontSize: 27, lineHeight: 1, cursor: 'pointer' }
 const matchPickerArrowDisabled: CSSProperties = { borderColor: 'var(--shell-panel-border)', color: 'var(--shell-copy-muted)', background: 'var(--shell-chip-bg)', cursor: 'not-allowed', opacity: 0.42 }
+const planningQueue: CSSProperties = { display: 'grid', gap: 8, minWidth: 0, marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--shell-panel-border)' }
+const planningQueueHeading: CSSProperties = { display: 'flex', alignItems: 'end', justifyContent: 'space-between', gap: 10, minWidth: 0 }
+const planningKicker: CSSProperties = { color: 'var(--brand-lime)', fontSize: 10, fontWeight: 900, letterSpacing: '.1em', textTransform: 'uppercase' }
+const planningTitle: CSSProperties = { display: 'block', marginTop: 2, color: 'var(--foreground-strong)', fontSize: 14, lineHeight: 1.2 }
+const planningHint: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 10, fontWeight: 750, textAlign: 'right' }
+const planningCardList: CSSProperties = { display: 'grid', gridAutoFlow: 'column', gridAutoColumns: 'minmax(214px, 76%)', gap: 8, minWidth: 0, overflowX: 'auto', padding: '1px 1px 5px', scrollSnapType: 'x proximity', overscrollBehaviorInline: 'contain' }
+const planningCardItem: CSSProperties = { minWidth: 0, scrollSnapAlign: 'start' }
+const planningCard: CSSProperties = { display: 'grid', gap: 6, width: '100%', minWidth: 0, minHeight: 132, padding: 11, borderRadius: 15, border: '1px solid var(--shell-panel-border)', background: 'color-mix(in srgb, var(--shell-chip-bg) 94%, transparent)', color: 'var(--foreground-strong)', fontFamily: 'inherit', textAlign: 'left', cursor: 'pointer' }
+const planningCardActive: CSSProperties = { borderColor: 'color-mix(in srgb, var(--brand-green) 62%, var(--shell-panel-border) 38%)', background: 'linear-gradient(145deg, color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%), var(--shell-chip-bg))', boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--brand-green) 18%, transparent)' }
+const planningCardHeader: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 7, minWidth: 0 }
+const planningDate: CSSProperties = { color: '#93c5fd', fontSize: 11, fontWeight: 900, letterSpacing: '.04em', textTransform: 'uppercase' }
+const planningActivePill: CSSProperties = { flex: '0 0 auto', padding: '3px 6px', borderRadius: 999, background: 'var(--brand-green)', color: '#071107', fontSize: 8, fontWeight: 950, letterSpacing: '.04em', textTransform: 'uppercase' }
+const planningOpponent: CSSProperties = { minWidth: 0, fontSize: 13, lineHeight: 1.25, overflowWrap: 'anywhere' }
+const planningSignals: CSSProperties = { display: 'grid', gap: 4, minWidth: 0, marginTop: 1 }
+const planningSignalRow: CSSProperties = { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, minWidth: 0 }
+const planningSignalLabel: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 10, fontWeight: 700 }
+const planningSignalValue: CSSProperties = { minWidth: 0, fontSize: 10, fontWeight: 900, textAlign: 'right', overflowWrap: 'anywhere' }
+const planningSignalTone: Record<'ready' | 'attention' | 'muted', CSSProperties> = {
+  ready: { color: 'var(--brand-lime)' },
+  attention: { color: '#fbbf24' },
+  muted: { color: 'var(--shell-copy-muted)' },
+}
 const stepList: CSSProperties = { display: 'flex', gap: 7, flexWrap: 'wrap' }
 const stepLink: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: 44, padding: '7px 11px', borderRadius: 12, border: '1px solid var(--shell-panel-border)', color: 'var(--shell-copy-muted)', background: 'var(--shell-chip-bg)', fontSize: 12, fontWeight: 800, textDecoration: 'none' }
 const stepButton: CSSProperties = { fontFamily: 'inherit', cursor: 'pointer' }

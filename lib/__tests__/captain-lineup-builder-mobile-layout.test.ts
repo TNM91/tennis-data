@@ -264,6 +264,24 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(matchWeekRail).toContain("minWidth: 0")
   })
 
+  it('turns future matches into a compact planning queue with actionable readiness signals', () => {
+    expect(source).toContain("fetch('/api/captain/lineup-drafts?view=summary'")
+    expect(source).toContain('const [lineupDraftSummaries, setLineupDraftSummaries]')
+    expect(source).toContain("label: 'Players'")
+    expect(source).toContain("label: 'Opponent'")
+    expect(source).toContain("label: 'Lineup'")
+    expect(source).toContain("? 'Final'")
+    expect(source).toContain("? 'Draft'")
+    expect(source).toContain(": 'Not started'")
+    expect(matchWeekRail).toContain('Plan ahead')
+    expect(matchWeekRail).toContain('Upcoming matches')
+    expect(matchWeekRail).toContain('aria-label="Upcoming match planning"')
+    expect(matchWeekRail).toContain('Building now')
+    expect(matchWeekRail).toContain("gridAutoColumns: 'minmax(214px, 76%)'")
+    expect(matchWeekRail).toContain("overflowX: 'auto'")
+    expect(matchWeekRail).toContain("scrollSnapType: 'x proximity'")
+  })
+
   it('keeps phone auto-build to one primary action and puts optimizer detail behind disclosures', () => {
     expect(source).toContain('>Auto-build my lineup</PrimaryBtn>')
     expect(source).toContain('>Build options</p>')
