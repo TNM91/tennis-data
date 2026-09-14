@@ -53,10 +53,12 @@
 .error { color: var(--shell-copy); }
 .cancelled { padding: 18px; }
 
-.rosterRow { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 10px; padding: 11px 12px; border-radius: 13px; background: var(--shell-chip-bg); color: var(--shell-copy-muted); line-height: 1.4; }
+.rosterRow { display: grid; grid-template-columns: 108px minmax(0, 1fr); gap: 10px; padding: 11px 12px; border-radius: 13px; background: var(--shell-chip-bg); color: var(--shell-copy-muted); line-height: 1.4; }
 .rosterRow strong { color: var(--shell-copy); }
 .rosterRow.in { border: 1px solid rgba(155,225,29,.32); }
+.rosterRow.confirmed { border: 1px solid rgba(155,225,29,.62); background: rgba(155,225,29,.1); }
 .rosterRow.waitlist { border: 1px solid rgba(230,177,63,.42); }
+.rosterHint { margin: -2px 2px 0; color: var(--shell-copy-muted); font-size: 12px; line-height: 1.45; }
 .details { display: grid; gap: 8px; }
 .details summary { min-height: 42px; display: flex; align-items: center; color: var(--brand-blue-2); font-weight: 800; cursor: pointer; }
 .details[open] summary { margin-bottom: 8px; }
@@ -72,10 +74,11 @@
   .hero { padding: 21px 17px; }
   .card { padding: 16px; }
   .brandBar img { width: 145px; }
-  .rosterRow { grid-template-columns: 70px minmax(0, 1fr); padding-inline: 10px; }
+  .rosterRow { grid-template-columns: 100px minmax(0, 1fr); padding-inline: 10px; }
 }
 
 @media (max-width: 340px) {
   .replyGrid { grid-template-columns: 1fr; }
   .replyGrid button { min-height: 46px; }
+  .rosterRow { grid-template-columns: 1fr; gap: 4px; }
 }

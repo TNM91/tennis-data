@@ -8,6 +8,7 @@ export type PracticeInvitee = {
   playerName: string
   responseStatus: PracticeResponseStatus
   respondedAt: string
+  captainConfirmedAt: string
   displayStatus: PracticeDisplayStatus
 }
 
@@ -31,15 +32,19 @@ export function resolvePracticeToken(value: string) {
 export function assignPracticeDisplayStatuses<T extends {
   responseStatus: PracticeResponseStatus
   respondedAt: string
+  captainConfirmedAt?: string
 }>(rows: T[], capacity: number | null) {
   const confirmed = rows
     .filter((row) => row.responseStatus === 'in')
     .sort((a, b) => {
+      const confirmationDifference = Number(Boolean(b.captainConfirmedAt)) - Number(Boolean(a.captainConfirmedAt))
+      if (confirmationDifference !== 0) return confirmationDifference
       const timeDifference = Date.parse(a.respondedAt || '') - Date.parse(b.respondedAt || '')
       return Number.isFinite(timeDifference) && timeDifference !== 0 ? timeDifference : 0
     })
+  const captainConfirmedCount = confirmed.filter((row) => Boolean(row.captainConfirmedAt)).length
   const confirmedIds = new Set(
-    (capacity ? confirmed.slice(0, capacity) : confirmed).map((row) => row),
+    (capacity ? confirmed.slice(0, Math.max(capacity, captainConfirmedCount)) : confirmed).map((row) => row),
   )
 
   return rows.map((row) => ({
