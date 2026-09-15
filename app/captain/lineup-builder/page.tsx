@@ -6410,7 +6410,12 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   }
 
   return (
-    <div style={pageWrap}>
+    <div
+      style={{
+        ...pageWrap,
+        paddingBottom: isMobile && lineupHasAssignments ? 'calc(190px + env(safe-area-inset-bottom))' : pageWrap.paddingBottom,
+      }}
+    >
          {!isMobile ? <CaptainSuitePanel active="lineup" teamLabel={teamName || 'Team week'} /> : null}
          <CaptainMatchWeekRail
            current={finalLineupReady ? 'messaging' : teamLineupComplete ? 'availability' : 'lineup'}
@@ -8655,9 +8660,12 @@ const pageWrap: CSSProperties = {
 }
 
 const mobileLineupResumeStyle: CSSProperties = {
-  position: 'sticky',
-  top: 8,
-  zIndex: 30,
+  position: 'fixed',
+  left: '50%',
+  bottom: 'calc(10px + env(safe-area-inset-bottom))',
+  zIndex: 100,
+  width: 'min(560px, calc(100% - clamp(24px, 5vw, 40px)))',
+  transform: 'translateX(-50%)',
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 10,
