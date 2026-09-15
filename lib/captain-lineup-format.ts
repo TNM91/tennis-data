@@ -40,6 +40,37 @@ export function getCaptainLineupFormatKey(
   return resolveTeamMatchFormat({ leagueName, flight, explicitFormatId }).formatKey
 }
 
+export function swapCaptainLineupCourtAssignments(
+  slots: CaptainLineupSlot[],
+  sourceSlotId: string,
+  targetSlotId: string,
+) {
+  const sourceSlot = slots.find((slot) => slot.id === sourceSlotId)
+  const targetSlot = slots.find((slot) => slot.id === targetSlotId)
+
+  if (
+    !sourceSlot
+    || !targetSlot
+    || sourceSlot.id === targetSlot.id
+    || sourceSlot.slotType !== targetSlot.slotType
+    || sourceSlot.players.length !== targetSlot.players.length
+  ) {
+    return { slots, swapped: false }
+  }
+
+  const sourcePlayers = sourceSlot.players.map((player) => ({ ...player }))
+  const targetPlayers = targetSlot.players.map((player) => ({ ...player }))
+
+  return {
+    swapped: true,
+    slots: slots.map((slot) => {
+      if (slot.id === sourceSlot.id) return { ...slot, players: targetPlayers }
+      if (slot.id === targetSlot.id) return { ...slot, players: sourcePlayers }
+      return slot
+    }),
+  }
+}
+
 export function buildCaptainLineupSlots(
   leagueName: string,
   flight: string,

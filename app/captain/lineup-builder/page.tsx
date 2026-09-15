@@ -54,6 +54,7 @@ import {
   getCaptainLineupFormatKey,
   getTriLevelRatings,
   isPlayerEligibleForCaptainRating,
+  swapCaptainLineupCourtAssignments,
   type CaptainLineupSlot,
 } from '@/lib/captain-lineup-format'
 import {
@@ -812,6 +813,26 @@ function isPlayerEligibleForSlot(player: PlayerRow, slot: LineupSlot, rules?: Te
     return isCompetitionPlayerRatingEligible(rules, getPlayerBaseRating(player), slot.ratingLevel)
   }
   return isPlayerEligibleForCaptainRating(getPlayerBaseRating(player), slot.ratingLevel)
+}
+
+function canSwapCaptainCourtAssignments(
+  sourceSlot: LineupSlot,
+  targetSlot: LineupSlot,
+  playerPool: PoolPlayer[],
+  rules: TeamCompetitionRules,
+) {
+  if (sourceSlot.slotType !== targetSlot.slotType || sourceSlot.players.length !== targetSlot.players.length) {
+    return false
+  }
+
+  const assignmentsFit = (fromSlot: LineupSlot, toSlot: LineupSlot) => fromSlot.players.every((assignment) => {
+    if (!assignment.playerId) return true
+    const player = playerPool.find((candidate) => candidate.id === assignment.playerId)
+    if (player) return isPlayerEligibleForSlot(player, toSlot, rules)
+    return typeof toSlot.ratingLevel !== 'number' || fromSlot.ratingLevel === toSlot.ratingLevel
+  })
+
+  return assignmentsFit(sourceSlot, targetSlot) && assignmentsFit(targetSlot, sourceSlot)
 }
 
 function selectedLineStrength(slot: LineupSlot, players: PlayerRow[]) {
@@ -3454,6 +3475,106 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       slots.map((slot) => (slot.id === slotId ? { ...slot, label } : slot))
     if (side === 'team') setTeamSlots((current) => update(current))
     else setOpponentSlots((current) => update(current))
+  }
+
+  function swapTeamCourtAssignments(sourceSlotId: string, targetSlotId: string) {
+    const sourceSlot = teamSlots.find((slot) => slot.id === sourceSlotId)
+    const targetSlot = teamSlots.find((slot) => slot.id === targetSlotId)
+    if (!sourceSlot || !targetSlot) return
+
+    if (lockedSlotIdSet.has(sourceSlotId) || lockedSlotIdSet.has(targetSlotId)) {
+      setError('Unlock both courts before moving the full lineup.')
+      setMessage('')
+      return
+    }
+
+    if (!canSwapCaptainCourtAssignments(sourceSlot, targetSlot, myPlayerPool, competitionRules)) {
+      setError('Those courts cannot be swapped because a player would not be eligible for the new court.')
+      setMessage('')
+      return
+    }
+
+    const result = swapCaptainLineupCourtAssignments(teamSlots, sourceSlotId, targetSlotId)
+    if (!result.swapped) return
+
+    const movedPlayerIds = new Set(
+      [...sourceSlot.players, ...targetSlot.players]
+        .map((player) => player.playerId)
+        .filter(Boolean),
+    )
+    const preparedByPlayerId = new Map(
+      Object.values(preparedCourtTexts)
+        .filter((preparedText) => movedPlayerIds.has(preparedText.playerId))
+        .map((preparedText) => [preparedText.playerId, preparedText]),
+    )
+    const nextPreparedCourtTexts = Object.fromEntries(
+      Object.entries(preparedCourtTexts)
+        .filter(([, preparedText]) => !movedPlayerIds.has(preparedText.playerId)),
+    )
+    const nextOpenedCourtTextKeys = new Set(
+      openedCourtTextKeys.filter((key) => !Object.values(preparedCourtTexts).some((preparedText) => (
+        preparedText.key === key && movedPlayerIds.has(preparedText.playerId)
+      ))),
+    )
+
+    for (const movedSlot of result.slots.filter((slot) => slot.id === sourceSlotId || slot.id === targetSlotId)) {
+      for (const player of movedSlot.players) {
+        const preparedText = preparedByPlayerId.get(player.playerId)
+        if (!preparedText) continue
+        const preparedKey = getPreparedCourtTextKey(movedSlot, player)
+        const body = buildPlayerPotentialLineupAvailabilityMessage({
+          playerName: player.playerName,
+          teamName,
+          opponent: opponentTeam,
+          dateText: formatDate(matchDate),
+          time: selectedMatch?.match_time || '',
+          facility: selectedMatch?.facility || '',
+          slotsJson: [movedSlot],
+          availabilityRequestUrl: preparedText.requestUrl,
+        })
+        nextPreparedCourtTexts[preparedKey] = {
+          ...preparedText,
+          key: preparedKey,
+          playerName: player.playerName,
+          href: buildSmsHref([preparedText.phone], body),
+          body,
+        }
+        if (openedCourtTextKeys.includes(preparedText.key)) nextOpenedCourtTextKeys.add(preparedKey)
+      }
+    }
+
+    setTeamSlots(result.slots)
+    teamSlotsRef.current = result.slots
+    setPreparedCourtTexts(nextPreparedCourtTexts)
+    setOpenedCourtTextKeys(Array.from(nextOpenedCourtTextKeys))
+    setSuggestedSwapDraft(null)
+    setSavedLineupChangeDelivery(null)
+
+    if (directCourtTextHandoff) {
+      const handoffSlot = result.slots.find((slot) => slot.players.some((player) => (
+        directCourtTextHandoff.players.some((handoffPlayer) => (
+          handoffPlayer.playerId
+            ? handoffPlayer.playerId === player.playerId
+            : normalizeTeamName(handoffPlayer.playerName) === normalizeTeamName(player.playerName)
+        ))
+      )))
+      if (handoffSlot) {
+        saveDirectCourtTextHandoff({
+          ...directCourtTextHandoff,
+          courtId: handoffSlot.id,
+          courtLabel: handoffSlot.label,
+          slotsJson: [handoffSlot],
+          builderDraft: {
+            ...(directCourtTextHandoff.builderDraft ?? currentBuilderDraft),
+            teamSlots: cloneSlots(result.slots),
+            updatedAt: new Date().toISOString(),
+          },
+        })
+      }
+    }
+
+    setError('')
+    setMessage(`Swapped ${sourceSlot.label} and ${targetSlot.label}. Player replies and locks stayed with each player.`)
   }
 
   function addSlot(side: 'team' | 'opponent', slotType: 'singles' | 'doubles') {
@@ -7677,6 +7798,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                     playerPool={myPlayerPool}
                     assignedPlayerIds={teamAssignedPlayerIds}
                     onPlayerChange={setSlotPlayer}
+                    courtSwapTargets={teamSlots}
+                    onSwapCourt={swapTeamCourtAssignments}
                     onLabelChange={setSlotLabel}
                     onRemove={removeSlot}
                     toggleLockedSlot={toggleLockedSlot}
@@ -8324,6 +8447,8 @@ function SlotEditor({
   playerPool,
   assignedPlayerIds,
   onPlayerChange,
+  courtSwapTargets,
+  onSwapCourt,
   onLabelChange,
   onRemove,
   toggleLockedSlot,
@@ -8356,6 +8481,8 @@ function SlotEditor({
   playerPool: PoolPlayer[]
   assignedPlayerIds: Set<string>
   onPlayerChange: (side: 'team' | 'opponent', slotId: string, playerIndex: number, playerId: string) => void
+  courtSwapTargets?: LineupSlot[]
+  onSwapCourt?: (sourceSlotId: string, targetSlotId: string) => void
   onLabelChange: (side: 'team' | 'opponent', slotId: string, label: string) => void
   onRemove: (side: 'team' | 'opponent', slotId: string) => void
   toggleLockedSlot: (slotId: string) => void
@@ -8401,6 +8528,10 @@ function SlotEditor({
       }).join(' · ')
     : 'Needs players'
   const showCompactMobileCourt = isMobileLayout && !expanded
+  const compatibleCourtSwapTargets = (courtSwapTargets ?? []).filter((targetSlot) => (
+    targetSlot.id !== slot.id
+    && canSwapCaptainCourtAssignments(slot, targetSlot, playerPool, competitionRules)
+  ))
   return (
     <div
       id={`captain-lineup-slot-${slot.id}`}
@@ -8454,6 +8585,36 @@ function SlotEditor({
               {!fixedFormat ? <GhostSmallBtn onClick={() => onRemove(side, slot.id)}>Remove</GhostSmallBtn> : null}
             </div>
           </div>
+
+          {side === 'team' && onSwapCourt && compatibleCourtSwapTargets.length ? (
+            <label style={courtMoveControlStyle}>
+              <span style={courtMoveLabelStyle}>Move or swap court</span>
+              <select
+                aria-label={`Move ${slot.label} lineup`}
+                value=""
+                disabled={lockedSlotIds.has(slot.id)}
+                onChange={(event) => {
+                  if (event.target.value) onSwapCourt(slot.id, event.target.value)
+                }}
+                style={isMobileLayout ? mobileSelectInputStyle : inputStyle}
+              >
+                <option value="">Move this {slot.slotType === 'doubles' ? 'pair' : 'player'}…</option>
+                {compatibleCourtSwapTargets.map((targetSlot) => {
+                  const targetLocked = lockedSlotIds.has(targetSlot.id)
+                  return (
+                    <option key={targetSlot.id} value={targetSlot.id} disabled={targetLocked}>
+                      Swap with {targetSlot.label}{targetLocked ? ' · unlock first' : ''}
+                    </option>
+                  )
+                })}
+              </select>
+              <span style={courtMoveHelperStyle}>
+                {lockedSlotIds.has(slot.id)
+                  ? 'Unlock this court to move it.'
+                  : `Moves the whole ${slot.slotType === 'doubles' ? 'pair' : 'player'} and keeps replies and locks.`}
+              </span>
+            </label>
+          ) : null}
 
           <div style={slotPlayersGridStyle}>
         {slot.players.map((player, index) => {
@@ -9737,6 +9898,30 @@ const slotPlayersGridStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   minWidth: 0,
+}
+
+const courtMoveControlStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  marginBottom: 14,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+  minWidth: 0,
+}
+
+const courtMoveLabelStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 800,
+}
+
+const courtMoveHelperStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
 }
 
 const slotPlayerRowStyle: CSSProperties = {

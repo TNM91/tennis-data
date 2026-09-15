@@ -90,6 +90,14 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain('>Done</GhostSmallBtn>')
   })
 
+  it('moves a complete pair between courts without rebuilding each player spot', () => {
+    expect(source).toContain('Move or swap court')
+    expect(source).toContain("Move this {slot.slotType === 'doubles' ? 'pair' : 'player'}…")
+    expect(source).toContain('Swap with {targetSlot.label}')
+    expect(source).toContain('swapCaptainLineupCourtAssignments(teamSlots, sourceSlotId, targetSlotId)')
+    expect(source).toContain('Player replies and locks stayed with each player.')
+  })
+
   it('keeps decision, projection, and lock panels resilient on narrow screens', () => {
     for (const styleName of [
       'decisionSnapshotGridStyle',
