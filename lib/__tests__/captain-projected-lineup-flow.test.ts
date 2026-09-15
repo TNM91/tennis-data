@@ -141,7 +141,7 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('Every court is set and every selected player is in.')
     expect(source).toContain('Send lineup to Team Chat')
     expect(source).toContain('Review player replies')
-    expect(source).toContain('aria-label="Current lineup shortcut"')
+    expect(source).toContain('aria-label="Current lineup actions"')
     expect(source).toContain('<PrimaryBtn onClick={() => focusTeamCourts(teamSlots, firstReplyAttentionCourtId)}>Open lineup</PrimaryBtn>')
   })
 

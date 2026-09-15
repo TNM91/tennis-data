@@ -104,10 +104,10 @@ test.describe('captain weekly continuity', () => {
           hasText: court.players.map((player) => player.playerName).join(' · '),
         })).toBeVisible()
       }
-      const lineupShortcut = page.getByRole('region', { name: 'Current lineup shortcut' })
+      const lineupShortcut = page.getByRole('region', { name: 'Current lineup actions' })
       await expect(lineupShortcut).toBeVisible()
       await expect(lineupShortcut).toContainText('6/6 confirmed')
-      await page.getByRole('button', { name: new RegExp(`Open lineup for .*${OPPONENT}`) }).click()
+      await lineupShortcut.getByRole('button', { name: 'Open lineup' }).click()
       await expect(page.getByRole('combobox', { name: `${teamSlots[0].label} player 1` })).toBeVisible()
       await expect(lineupShortcut).toBeVisible()
     } else {

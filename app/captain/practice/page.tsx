@@ -425,6 +425,14 @@ function PracticeList({
                 <PracticeCount value={needsConfirmation} label="to confirm" attention={needsConfirmation > 0} />
                 <PracticeCount value={waiting} label="awaiting reply" />
               </div>
+              <div style={currentRosterPreviewStyle} aria-label={`Current roster has ${signedUp} signed-up player${signedUp === 1 ? '' : 's'}`}>
+                <span style={currentRosterPreviewLabelStyle}>Current roster</span>
+                <strong style={currentRosterPreviewNamesStyle}>
+                  {signedUpPlayers.length
+                    ? signedUpPlayers.map((player) => player.playerName).join(' · ')
+                    : 'No players signed up yet'}
+                </strong>
+              </div>
               <div style={practiceActionsStyle}>
                 <button
                   type="button"
@@ -433,7 +441,7 @@ function PracticeList({
                   aria-controls={`practice-roster-${event.id}`}
                   style={manageButtonStyle}
                 >
-                  {expanded ? 'Close roster' : needsConfirmation ? `Confirm ${needsConfirmation} player${needsConfirmation === 1 ? '' : 's'}` : 'Manage roster'}
+                  {expanded ? 'Close current roster' : signedUp ? `View roster · ${signedUp}` : 'View current roster'}
                 </button>
                 {roster?.publicToken ? (
                   <Link href={practiceRsvpPath(roster.publicToken)} style={secondaryButtonStyle}>
@@ -490,10 +498,10 @@ function PracticeRosterManager({
   const out = roster.filter((player) => player.displayStatus === 'out')
 
   return (
-    <section id={`practice-roster-${practice.event.id}`} style={practiceRosterManagerStyle} aria-label={`Manage roster for ${practice.event.title || 'practice'}`}>
+    <section id={`practice-roster-${practice.event.id}`} style={practiceRosterManagerStyle} aria-label={`Current roster for ${practice.event.title || 'practice'}`}>
       <div style={practiceRosterHeaderStyle}>
         <div style={practiceRosterHeaderCopyStyle}>
-          <span style={sectionEyebrowStyle}>Practice roster</span>
+          <span style={sectionEyebrowStyle}>Current roster</span>
           <strong style={practiceRosterTitleStyle}>
             {needsConfirmation.length
               ? `${needsConfirmation.length} signup${needsConfirmation.length === 1 ? '' : 's'} need your confirmation.`
@@ -838,6 +846,33 @@ const practiceCountAttentionStyle: CSSProperties = {
   borderColor: 'rgba(251,191,36,0.34)',
   color: '#fde68a',
   background: 'rgba(251,191,36,0.08)',
+}
+
+const currentRosterPreviewStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  padding: '11px 12px',
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(255,255,255,0.035)',
+}
+
+const currentRosterPreviewLabelStyle: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '.09em',
+  textTransform: 'uppercase',
+}
+
+const currentRosterPreviewNamesStyle: CSSProperties = {
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const practiceActionsStyle: CSSProperties = {
