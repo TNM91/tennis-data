@@ -104,6 +104,12 @@ test.describe('captain weekly continuity', () => {
           hasText: court.players.map((player) => player.playerName).join(' · '),
         })).toBeVisible()
       }
+      const lineupShortcut = page.getByRole('region', { name: 'Current lineup shortcut' })
+      await expect(lineupShortcut).toBeVisible()
+      await expect(lineupShortcut).toContainText('6/6 confirmed')
+      await page.getByRole('button', { name: new RegExp(`Open lineup for .*${OPPONENT}`) }).click()
+      await expect(page.getByRole('combobox', { name: `${teamSlots[0].label} player 1` })).toBeVisible()
+      await expect(lineupShortcut).toBeVisible()
     } else {
       for (const court of teamSlots) {
         await expect(page.getByRole('combobox', { name: `${court.label} player 1` })).toHaveValue(court.players[0].playerId)

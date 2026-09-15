@@ -46,6 +46,8 @@ export default function CaptainMatchWeekRail({
   matchChoices = [],
   selectedMatchId = '',
   onMatchChange,
+  onResumeLineup,
+  activeLineupSummary,
 }: {
   current: MatchWeekStep
   scope: MatchWeekScope
@@ -57,6 +59,8 @@ export default function CaptainMatchWeekRail({
   matchChoices?: MatchWeekChoice[]
   selectedMatchId?: string
   onMatchChange?: (matchId: string) => void
+  onResumeLineup?: () => void
+  activeLineupSummary?: string
 }) {
   const { isMobile } = useViewportBreakpoints()
   const currentIndex = steps.findIndex((step) => step.id === current)
@@ -153,8 +157,8 @@ export default function CaptainMatchWeekRail({
                     <button
                       type="button"
                       aria-current={isSelected ? 'true' : undefined}
-                      aria-label={`Plan ${choice.label}`}
-                      onClick={() => onMatchChange?.(choice.id)}
+                      aria-label={isSelected && onResumeLineup ? `Open lineup for ${choice.label}` : `Plan ${choice.label}`}
+                      onClick={() => isSelected && onResumeLineup ? onResumeLineup() : onMatchChange?.(choice.id)}
                       style={{ ...planningCard, ...(isSelected ? planningCardActive : {}) }}
                     >
                       <span style={planningCardHeader}>
@@ -170,6 +174,12 @@ export default function CaptainMatchWeekRail({
                           </span>
                         ))}
                       </span>
+                      {isSelected && onResumeLineup ? (
+                        <span style={planningResumeRow}>
+                          <span>Open lineup</span>
+                          {activeLineupSummary ? <span style={planningResumeSummary}>{activeLineupSummary}</span> : null}
+                        </span>
+                      ) : null}
                     </button>
                   </div>
                 )
@@ -183,11 +193,13 @@ export default function CaptainMatchWeekRail({
           const isCurrent = step.id === current
           const isComplete = index < currentIndex || (step.id === 'messaging' && messagingComplete)
           const href = buildCaptainScopedHref(step.path, scope)
-          const onClick = step.id === 'availability'
-            ? onConfirmPlayers
-            : step.id === 'messaging'
-              ? onSendTeamUpdate
-              : undefined
+          const onClick = step.id === 'lineup'
+            ? onResumeLineup
+            : step.id === 'availability'
+              ? onConfirmPlayers
+              : step.id === 'messaging'
+                ? onSendTeamUpdate
+                : undefined
           const disabled = step.id === 'availability'
             ? confirmPlayersDisabled
             : step.id === 'messaging'
@@ -206,7 +218,11 @@ export default function CaptainMatchWeekRail({
                 key={step.id}
                 type="button"
                 aria-current={isCurrent ? 'step' : undefined}
-                aria-label={step.id === 'availability' ? 'Save lineup and check selected player replies' : 'Post the final lineup to Team Chat'}
+                aria-label={step.id === 'lineup'
+                  ? 'Open the current lineup courts'
+                  : step.id === 'availability'
+                    ? 'Save lineup and check selected player replies'
+                    : 'Post the final lineup to Team Chat'}
                 disabled={disabled}
                 onClick={onClick}
                 style={{
@@ -313,6 +329,8 @@ const planningSignalTone: Record<'ready' | 'attention' | 'muted', CSSProperties>
   attention: { color: '#fbbf24' },
   muted: { color: 'var(--shell-copy-muted)' },
 }
+const planningResumeRow: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0, marginTop: 3, paddingTop: 8, borderTop: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)', color: 'var(--brand-lime)', fontSize: 11, fontWeight: 900 }
+const planningResumeSummary: CSSProperties = { minWidth: 0, color: 'var(--foreground-strong)', fontSize: 10, fontWeight: 800, textAlign: 'right', overflowWrap: 'anywhere' }
 const stepList: CSSProperties = { display: 'flex', gap: 7, flexWrap: 'wrap' }
 const stepLink: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: 44, padding: '7px 11px', borderRadius: 12, border: '1px solid var(--shell-panel-border)', color: 'var(--shell-copy-muted)', background: 'var(--shell-chip-bg)', fontSize: 12, fontWeight: 800, textDecoration: 'none' }
 const stepButton: CSSProperties = { fontFamily: 'inherit', cursor: 'pointer' }

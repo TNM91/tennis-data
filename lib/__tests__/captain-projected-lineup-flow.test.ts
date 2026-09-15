@@ -141,7 +141,8 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('Every court is set and every selected player is in.')
     expect(source).toContain('Send lineup to Team Chat')
     expect(source).toContain('Review player replies')
-    expect(source).toContain('<GhostBtn onClick={() => focusTeamCourts()}>Edit courts</GhostBtn>')
+    expect(source).toContain('aria-label="Current lineup shortcut"')
+    expect(source).toContain('<PrimaryBtn onClick={() => focusTeamCourts(teamSlots, firstReplyAttentionCourtId)}>Open lineup</PrimaryBtn>')
   })
 
   it('carries a completed lineup directly into confirmation without re-entering the roster', () => {
@@ -154,7 +155,8 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('onConfirmPlayers={() => void saveAndConfirmPotentialLineupAvailability()}')
     expect(source).toContain('confirmPlayersDisabled={!teamLineupComplete || finalLineupReady || preparingConfirmation}')
     expect(source).toContain("current={finalLineupReady ? 'messaging' : teamLineupComplete ? 'availability' : 'lineup'}")
-    expect(rail).toContain("aria-label={step.id === 'availability' ? 'Save lineup and check selected player replies'")
+    expect(rail).toContain("? 'Open the current lineup courts'")
+    expect(rail).toContain("? 'Save lineup and check selected player replies'")
     expect(rail).toContain("if (step === 'availability') return 'Replies'")
     expect(rail).toContain('if (onClick) {')
   })

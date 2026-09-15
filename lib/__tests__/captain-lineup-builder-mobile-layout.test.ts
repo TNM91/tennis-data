@@ -277,6 +277,9 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(matchWeekRail).toContain('Upcoming matches')
     expect(matchWeekRail).toContain('aria-label="Upcoming match planning"')
     expect(matchWeekRail).toContain('Building now')
+    expect(matchWeekRail).toContain('Open lineup')
+    expect(matchWeekRail).toContain('onResumeLineup')
+    expect(matchWeekRail).toContain('activeLineupSummary')
     expect(matchWeekRail).toContain("gridAutoColumns: 'minmax(214px, 76%)'")
     expect(matchWeekRail).toContain("overflowX: 'auto'")
     expect(matchWeekRail).toContain("scrollSnapType: 'x proximity'")
@@ -315,7 +318,7 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain('isPlayerEligibleForSlot(player, slot, competitionRules)')
     expect(source).toContain('isCompetitionPairRatingEligible')
     expect(source).toContain('fixedFormat={isFixedLineupFormat}')
-    expect(source).toContain('<section id="captain-lineup-courts" style={surfaceCardStrong}>')
+    expect(source).toContain('<section id="captain-lineup-courts" style={{ ...surfaceCardStrong, scrollMarginTop: 132 }}>')
     expect(source.indexOf('id="captain-lineup-courts"')).toBeLessThan(source.indexOf('<p style={sectionKicker}>Your lineup</p>'))
     expect(styleBlock('appliedLineupNoticeStyle')).toContain('minWidth: 0')
     expect(styleBlock('appliedLineupActionStyle')).toContain('flexWrap: \'wrap\'')
@@ -358,24 +361,25 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain('Post to Team Chat')
     expect(source).toContain('Create image + text team')
     expect(source).toContain('Print lineup / scorecard')
-    expect(source).toContain('lineupHasAssignments ? (')
-    expect(source).toContain('aria-label="Final lineup status"')
+    expect(source).toContain('aria-label="Current lineup shortcut"')
+    expect(source).toContain('Working lineup')
+    expect(source).toContain('Open lineup')
+    expect(source).toContain('Refresh replies')
+    expect(source).toContain('firstReplyAttentionCourtId')
     expect(source).toContain('Ready to send.')
     expect(source).toContain('Send lineup to Team Chat')
-    expect(source).toContain('Edit courts')
-    expect(source).toContain('<GhostBtn onClick={() => focusTeamCourts()}>Review player replies</GhostBtn>')
-    expect(source).toContain('<GhostBtn onClick={() => focusTeamCourts()}>Edit courts</GhostBtn>')
     for (const styleName of [
-      'mobileFinalLineupPanelStyle',
-      'mobileFinalLineupHeaderStyle',
-      'mobileFinalLineupCopyStyle',
-      'mobileFinalLineupActionsStyle',
+      'mobileLineupResumeStyle',
+      'mobileLineupResumeCopyStyle',
+      'mobileLineupResumeActionsStyle',
       'lineupTransitionCopyStyle',
       'lineupTransitionActionsStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
     expect(styleBlock('lineupTransitionCardStyle')).toContain("repeat(auto-fit, minmax(min(100%, 250px), 1fr))")
-    expect(styleBlock('mobileFinalLineupActionsStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+    expect(styleBlock('mobileLineupResumeStyle')).toContain("position: 'sticky'")
+    expect(styleBlock('mobileLineupResumeActionsStyle')).toContain("repeat(2, minmax(0, 1fr))")
+    expect(styleBlock('slotCardStyle')).toContain('scrollMarginTop: 132')
   })
 })

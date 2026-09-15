@@ -6298,6 +6298,15 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const finalLineupReady = teamLineupComplete
     && assignedTeamReplySummary.players.length > 0
     && assignedTeamReplySummary.confirmed.length === assignedTeamReplySummary.players.length
+  const firstReplyAttentionCourtId = useMemo(() => {
+    const availabilityByPlayerId = new Map(myPlayerPool.map((player) => [player.id, player.availabilityStatus]))
+    return teamSlots.find((slot) => slot.players.some((player) => (
+      player.playerId && availabilityLabel(availabilityByPlayerId.get(player.playerId)) !== 'Confirmed'
+    )))?.id ?? ''
+  }, [myPlayerPool, teamSlots])
+  const activeLineupSummary = assignedTeamReplySummary.players.length
+    ? `${assignedTeamReplySummary.confirmed.length}/${assignedTeamReplySummary.players.length} confirmed`
+    : `${completedTeamCourtCount}/${teamCourtProgress.length} courts set`
   useEffect(() => {
     if (!finalLineupReady) {
       finalizedDraftFingerprintRef.current = ''
@@ -6421,7 +6430,26 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
            matchChoices={matchWeekChoices}
            selectedMatchId={selectedMatchId}
            onMatchChange={selectScheduledMatch}
+           onResumeLineup={() => focusTeamCourts(teamSlots, firstReplyAttentionCourtId)}
+           activeLineupSummary={activeLineupSummary}
          />
+         {isMobile && lineupHasAssignments ? (
+           <section style={mobileLineupResumeStyle} aria-label="Current lineup shortcut">
+             <div style={mobileLineupResumeCopyStyle}>
+               <p style={mobileLineupResumeKickerStyle}>Working lineup</p>
+               <strong style={mobileLineupResumeTitleStyle}>{opponentTeam ? `vs ${opponentTeam}` : 'Your current courts'}</strong>
+               <span style={mobileLineupResumeStatusStyle}>
+                 {completedTeamCourtCount}/{teamCourtProgress.length} courts · {activeLineupSummary}
+               </span>
+             </div>
+             <div style={mobileLineupResumeActionsStyle}>
+               <PrimaryBtn onClick={() => focusTeamCourts(teamSlots, firstReplyAttentionCourtId)}>Open lineup</PrimaryBtn>
+               <GhostBtn onClick={() => void refreshAvailabilityReplies()} disabled={refreshingReplies}>
+                 {refreshingReplies ? 'Refreshing…' : 'Refresh replies'}
+               </GhostBtn>
+             </div>
+           </section>
+         ) : null}
          {lineupDeliveryReceipt ? (
            <section style={lineupDeliveryReceiptStyle(lineupDeliveryReceipt.kind)} aria-label="Lineup saved" role="status" aria-live="polite">
              <div style={lineupTransitionCopyStyle}>
@@ -6978,33 +7006,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           </section>
         ) : null}
 
-         {isMobile ? (
-           <>
-             {lineupHasAssignments ? (
-              <section style={mobileFinalLineupPanelStyle} aria-label="Final lineup status" role="status" aria-live="polite">
-                <div style={mobileFinalLineupHeaderStyle}>
-                  <div style={mobileFinalLineupCopyStyle}>
-                    <p style={sectionKicker}>Final lineup</p>
-                    <strong>{finalLineupReadinessTitle}</strong>
-                    <span>{finalLineupReadinessDetail}</span>
-                  </div>
-                  <span style={finalLineupReady ? miniPillGreenStyle : miniPillBlueStyle}>
-                    {assignedTeamReplySummary.confirmed.length}/{assignedTeamReplySummary.players.length} in
-                  </span>
-                </div>
-                <div style={mobileFinalLineupActionsStyle}>
-                  {finalLineupReady ? (
-                    <PrimaryBtn disabled={openingFinalDelivery || finalLineupSent} onClick={() => void openFinalLineupDelivery()}>{finalLineupDeliveryLabel}</PrimaryBtn>
-                  ) : (
-                    <GhostBtn onClick={() => focusTeamCourts()}>Review player replies</GhostBtn>
-                  )}
-                  {finalLineupReady ? <GhostLink href={lineupLiveScorecardHref}>Open live scorecard</GhostLink> : null}
-                  <GhostBtn onClick={() => focusTeamCourts()}>Edit courts</GhostBtn>
-                </div>
-              </section>
-            ) : null}
-          </>
-        ) : builderMode === 'insights' ? <section style={decisionBoardShellStyle}>
+         {!isMobile ? (builderMode === 'insights' ? <section style={decisionBoardShellStyle}>
           <div style={decisionBoardHeaderStyle}>
             <div>
               <p style={sectionKicker}>Captain scorecard</p>
@@ -7167,7 +7169,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             <GhostBtn onClick={() => focusTeamCourts()}>Review my courts</GhostBtn>
             <GhostLink href={compareHref}>Compare versions</GhostLink>
           </div>
-        </section>}
+        </section>) : null}
 
         {lineupVersionComparison && comparisonScenario ? (
           <section id="captain-lineup-version-compare" style={lineupVersionCompareShellStyle} aria-label="Saved lineup comparison">
@@ -7580,7 +7582,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               </div>
             </details>
 
-            <section id="captain-lineup-courts" style={surfaceCardStrong}>
+            <section id="captain-lineup-courts" style={{ ...surfaceCardStrong, scrollMarginTop: 132 }}>
               {backupHandoff ? (
                 <div id="captain-backup-handoff" style={backupHandoffStyle} role="status">
                   <div>
@@ -8652,6 +8654,65 @@ const pageWrap: CSSProperties = {
   boxSizing: 'border-box',
 }
 
+const mobileLineupResumeStyle: CSSProperties = {
+  position: 'sticky',
+  top: 8,
+  zIndex: 30,
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 52%, var(--shell-panel-border) 48%)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg-strong) 92%, transparent)',
+  boxShadow: '0 14px 34px rgba(2, 10, 24, 0.36)',
+  backdropFilter: 'blur(16px)',
+}
+
+const mobileLineupResumeCopyStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  alignItems: 'baseline',
+  gap: '2px 10px',
+  minWidth: 0,
+}
+
+const mobileLineupResumeKickerStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  margin: 0,
+  color: '#93c5fd',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '.1em',
+  textTransform: 'uppercase',
+}
+
+const mobileLineupResumeTitleStyle: CSSProperties = {
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere',
+}
+
+const mobileLineupResumeStatusStyle: CSSProperties = {
+  minWidth: 0,
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 850,
+  lineHeight: 1.3,
+  textAlign: 'right',
+  overflowWrap: 'anywhere',
+}
+
+const mobileLineupResumeActionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
 const replacementHandoffStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr) auto',
@@ -9529,6 +9590,7 @@ const slotCardStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
   padding: 16,
   minWidth: 0,
+  scrollMarginTop: 132,
 }
 
 const slotEditorBodyStyle: CSSProperties = {
@@ -9951,44 +10013,6 @@ const lineupVersionCompareCourtStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.4,
   overflowWrap: 'anywhere',
-}
-
-const mobileFinalLineupPanelStyle: CSSProperties = {
-  display: 'grid',
-  gap: 13,
-  padding: 16,
-  borderRadius: 20,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
-  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%), var(--shell-chip-bg))',
-  boxShadow: '0 14px 34px rgba(2, 10, 24, 0.16)',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const mobileFinalLineupHeaderStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'flex-start',
-  justifyContent: 'space-between',
-  flexWrap: 'wrap',
-  gap: 10,
-  minWidth: 0,
-}
-
-const mobileFinalLineupCopyStyle: CSSProperties = {
-  display: 'grid',
-  gap: 5,
-  minWidth: 0,
-  flex: '1 1 220px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.45,
-}
-
-const mobileFinalLineupActionsStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr)',
-  gap: 8,
-  minWidth: 0,
 }
 
 const hiddenMobileContextStyle: CSSProperties = {
