@@ -1,0 +1,79 @@
+.page {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #06172f url('/brand/social/og-background-v2.png') center / cover no-repeat;
+  color: #fff;
+}
+
+.card {
+  width: min(100%, 560px);
+  display: grid;
+  gap: 20px;
+  padding: clamp(24px, 7vw, 46px);
+  border: 1px solid color-mix(in srgb, var(--share-accent) 38%, transparent);
+  border-radius: 28px;
+  background: rgba(5, 20, 43, 0.94);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.45);
+  text-align: left;
+}
+
+.logo {
+  width: min(250px, 72%);
+  height: auto;
+  object-fit: contain;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--share-accent);
+  font-size: 13px;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.card h1 {
+  margin: 0;
+  font-size: clamp(2rem, 8vw, 3.6rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+.context,
+.description {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.context {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.description {
+  color: #cbd9ea;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.action {
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: var(--share-accent);
+  color: #06172f;
+  font-weight: 950;
+  text-decoration: none;
+}
+
+.hint {
+  margin: 0;
+  color: #8fa7c2;
+  font-size: 13px;
+}

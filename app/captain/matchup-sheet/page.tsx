@@ -8,6 +8,7 @@ import { useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildTeamRoomHref } from '@/lib/team-room'
+import { buildCaptainShareHref } from '@/lib/captain-share-preview'
 import {
   captainScorecardOpponentSlots,
   inferCaptainScorecardFormat,
@@ -397,14 +398,23 @@ function MatchupSheetContent() {
     try {
       const image = await createLineupImage({ teamName, leagueName, flight, matchDate, opponent, matchTime, facility, confirmed: confirmedLineup, lineup })
       const file = new File([image], `tenaceiq-${teamName || 'team'}-lineup.png`.replace(/[^a-z0-9._-]+/gi, '-'), { type: 'image/png' })
-      const teamChatUrl = new URL(teamChatHref, window.location.origin).toString()
+      const lineupShareUrl = new URL(buildCaptainShareHref({
+        kind: 'lineup',
+        targetHref: teamChatHref,
+        teamName,
+        opponent,
+        matchDate,
+        detail: confirmedLineup
+          ? 'Final court assignments and match details are ready.'
+          : 'Open the latest court assignments and match details.',
+      }), window.location.origin).toString()
       const shareText = [
         confirmedLineup ? 'Final lineup confirmed.' : 'Match lineup.',
         `${teamName || 'Team'} vs ${opponent || 'Opponent to be confirmed'}.`,
         [formatDate(matchDate), matchTime, facility].filter(Boolean).join(' • '),
         matchWeek?.details.directions ? `Directions: ${matchWeek.details.directions}` : '',
         matchWeek?.details.notes || '',
-        `Team Chat: ${teamChatUrl}`,
+        `Open lineup: ${lineupShareUrl}`,
       ].filter(Boolean).join('\n')
       if (typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] })) {
         await navigator.share({ title: `${teamName || 'Team'} ${confirmedLineup ? 'confirmed ' : ''}lineup`, text: shareText, files: [file] })

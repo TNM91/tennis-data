@@ -7,6 +7,7 @@ import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import type { CaptainScorecardSavedRecap } from '@/lib/captain-scorecard'
 import { buildSmsHref, normalizeUstaRosterTeamName } from '@/lib/captain-formatters'
+import { buildCaptainShareHref } from '@/lib/captain-share-preview'
 import {
   captainScorecardPhotoPrefillStorageKey,
   isCaptainScorecardPhotoPrefill,
@@ -491,10 +492,17 @@ function RecordResultContent() {
 
   function textFinalResult() {
     if (!savedRecap) return
-    const teamChatUrl = new URL(updatedTeamRoomHref, window.location.origin).toString()
     const scoreLine = `${teamName || 'Your team'} ${savedRecap.teamCourts}–${savedRecap.opponentCourts} ${opponentTeam || 'Opponent'}`
+    const finalResultUrl = new URL(buildCaptainShareHref({
+      kind: 'final-result',
+      targetHref: updatedTeamRoomHref,
+      teamName,
+      opponent: opponentTeam,
+      matchDate,
+      detail: scoreLine,
+    }), window.location.origin).toString()
     const courtLines = savedRecap.lines.map((line) => `${line.label}: ${line.outcome === 'team' ? 'W' : 'L'} ${line.score}`).join('\n')
-    const message = ['Final result', scoreLine, matchDate ? `Match date: ${matchDate}` : '', courtLines, `Team Chat: ${teamChatUrl}`].filter(Boolean).join('\n')
+    const message = ['Final result', scoreLine, matchDate ? `Match date: ${matchDate}` : '', courtLines, `Open final scorecard: ${finalResultUrl}`].filter(Boolean).join('\n')
     setResultShareNotice('Opening Messages with the final result ready to send.')
     window.location.href = buildSmsHref([], message, navigator.userAgent)
   }
