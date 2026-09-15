@@ -378,7 +378,8 @@ describe('Captain lineup builder mobile layout guards', () => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
     expect(styleBlock('lineupTransitionCardStyle')).toContain("repeat(auto-fit, minmax(min(100%, 250px), 1fr))")
-    expect(styleBlock('mobileLineupResumeStyle')).toContain("position: 'sticky'")
+    expect(styleBlock('mobileLineupResumeStyle')).toContain("position: 'fixed'")
+    expect(styleBlock('mobileLineupResumeStyle')).toContain("env(safe-area-inset-bottom)")
     expect(styleBlock('mobileLineupResumeActionsStyle')).toContain("repeat(2, minmax(0, 1fr))")
     expect(styleBlock('slotCardStyle')).toContain('scrollMarginTop: 132')
   })
