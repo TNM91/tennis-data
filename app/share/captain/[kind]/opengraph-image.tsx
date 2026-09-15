@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 import { ImageResponse } from 'next/og'
 import { getCaptainShareConfig, isCaptainShareKind, type CaptainShareKind } from '@/lib/captain-share-preview'
 
