@@ -113,6 +113,7 @@ type MessagePrefill = {
   assignmentFocus: string
   assignmentCardId: string
   threadId: string
+  scheduleEventId: string
 }
 
 type CoachMessageContact = {
@@ -1064,6 +1065,7 @@ function MessagesPageContent() {
     assignmentFocus: searchParams.get('assignmentFocus') || '',
     assignmentCardId: searchParams.get('assignmentCardId') || '',
     threadId: searchParams.get('thread') || '',
+    scheduleEventId: searchParams.get('event') || '',
   }), [searchParams])
 
   return (
@@ -1166,7 +1168,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       return coachContacts.find((contact) => contact.relationship === 'coach' && contact.linkId === linkId) ?? null
     }, [coachContacts, selectedConversation],
   )
-  const selectedScheduleEvent = scheduleEvents[0] ?? null
+  const selectedScheduleEvent = scheduleEvents.find((event) => event.id === prefill.scheduleEventId) ?? scheduleEvents[0] ?? null
   const selectedScheduleResponses = useMemo(
     () => selectedScheduleEvent
       ? scheduleResponses.filter((response) => response.eventId === selectedScheduleEvent.id)
@@ -1659,7 +1661,8 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     listInternalScheduleEventsForConversation(selectedId)
       .then(async (events) => {
         const responses = await listInternalScheduleResponses(events.map((event) => event.id))
-        const practiceEvent = events.find((event) => event.eventType === 'captain_practice')
+        const practiceEvent = events.find((event) => event.id === prefill.scheduleEventId && event.eventType === 'captain_practice')
+          ?? events.find((event) => event.eventType === 'captain_practice')
         const practiceRoster = practiceEvent && practiceEvent.createdByUserId === identity?.userId
           ? await listCaptainPracticeRoster(practiceEvent.id)
           : null
@@ -1683,7 +1686,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     return () => {
       active = false
     }
-  }, [identity?.userId, selectedId])
+  }, [identity?.userId, prefill.scheduleEventId, selectedId])
 
   useEffect(() => {
     if (!selectedScheduleEvent) {
