@@ -5,11 +5,17 @@ const SUPABASE_PROJECT = 'pwxppfazbyourjrsutgx'
 const TEAM = 'Regression Aces'
 const LEAGUE = '2026 STL Tri-Level 18 & Over'
 const FLIGHT = 'Men 3.5/4.0/4.5'
-const MATCH_DATE = '2026-09-14'
+const MATCH_DATE = futureDateKey(7)
 const OPPONENT = 'Baseline Club'
 const MATCH_ID = 'match-1'
-const NEXT_MATCH_DATE = '2026-09-21'
+const NEXT_MATCH_DATE = futureDateKey(14)
 const NEXT_OPPONENT = 'Second Serve Club'
+
+function futureDateKey(daysFromNow: number) {
+  const date = new Date()
+  date.setUTCDate(date.getUTCDate() + daysFromNow)
+  return date.toISOString().slice(0, 10)
+}
 
 const opponentPlayers = [
   'Jordan Rally',
