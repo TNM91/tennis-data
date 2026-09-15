@@ -35,7 +35,7 @@ describe('Captain live scorecard', () => {
     expect(sheet).toContain("input.confirmed ? 'FINAL • CONFIRMED'")
     expect(sheet).toContain("input.confirmed ? 'CONFIRMED PAIR'")
     expect(sheet).toContain("context.fillText('MORE TENNIS. LESS CHAOS.'")
-    expect(sheet).toContain('Team Chat: ${teamChatUrl}')
+    expect(sheet).toContain('Open lineup: ${lineupShareUrl}')
   })
 
   it('opens a live scorecard with suggested opponent names and score choices', () => {

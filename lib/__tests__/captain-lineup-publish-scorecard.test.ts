@@ -19,7 +19,7 @@ describe('Captain lineup publishing and scorecard handoff', () => {
     expect(sheet).toContain('async function createLineupImage')
     expect(sheet).toContain('Share final lineup + chat')
     expect(sheet).toContain('navigator.canShare?.({ files: [file] })')
-    expect(sheet).toContain('Team Chat: ${teamChatUrl}')
+    expect(sheet).toContain('Open lineup: ${lineupShareUrl}')
     expect(sheet).toContain('Print one-page scorecard')
     expect(sheet).toContain('Capture completed scorecard')
     expect(sheet).toContain('This scorecard stays connected to the confirmed lineup and match.')
