@@ -19,6 +19,7 @@ import { buildConsumedWorkflowHref } from '@/lib/workflow-return'
 import {
   cancelInternalScheduleEvent,
   listCaptainPracticeManagementOverview,
+  setCaptainPracticeInviteeConfirmed,
   type CaptainPracticeManagementOverview,
 } from '@/lib/internal-scheduling'
 import { practiceRsvpPath } from '@/lib/captain-practice-rsvp'
@@ -58,6 +59,8 @@ function CaptainPracticeContent() {
   const [practicesError, setPracticesError] = useState('')
   const [practiceMessage, setPracticeMessage] = useState('')
   const [deletingPracticeId, setDeletingPracticeId] = useState('')
+  const [expandedPracticeId, setExpandedPracticeId] = useState('')
+  const [practiceConfirmationSaving, setPracticeConfirmationSaving] = useState('')
   const [showCreate, setShowCreate] = useState(searchParams.get('new') === '1' || Boolean(incomingLevelUpChallenge))
 
   const loadPractices = useCallback(async () => {
@@ -96,6 +99,46 @@ function CaptainPracticeContent() {
       setDeletingPracticeId('')
     }
   }, [deletingPracticeId, userId])
+
+  const confirmPracticePlayer = useCallback(async (
+    practice: CaptainPracticeManagementOverview,
+    inviteeId: string,
+    confirmed: boolean,
+  ) => {
+    if (practiceConfirmationSaving || !practice.roster) return
+    const player = practice.roster.roster.find((entry) => entry.id === inviteeId)
+    if (!player) return
+
+    setPracticeConfirmationSaving(inviteeId)
+    setPracticesError('')
+    setPracticeMessage('')
+    try {
+      await setCaptainPracticeInviteeConfirmed({
+        eventId: practice.event.id,
+        inviteeId,
+        confirmed,
+      })
+      const confirmedAt = confirmed ? new Date().toISOString() : ''
+      setPractices((current) => current.map((entry) => entry.event.id !== practice.event.id || !entry.roster
+        ? entry
+        : {
+            ...entry,
+            roster: {
+              ...entry.roster,
+              roster: entry.roster.roster.map((rosterPlayer) => rosterPlayer.id === inviteeId
+                ? { ...rosterPlayer, captainConfirmed: confirmed, captainConfirmedAt: confirmedAt }
+                : rosterPlayer),
+            },
+          }))
+      setPracticeMessage(confirmed
+        ? `${player.playerName} is confirmed for ${practice.event.title || 'practice'}.`
+        : `${player.playerName}'s practice confirmation was removed.`)
+    } catch (error) {
+      setPracticesError(error instanceof Error ? error.message : 'The practice confirmation could not be saved.')
+    } finally {
+      setPracticeConfirmationSaving('')
+    }
+  }, [practiceConfirmationSaving])
 
   useEffect(() => {
     if (!authResolved || role !== 'public') return
@@ -181,11 +224,32 @@ function CaptainPracticeContent() {
         {!practicesLoading && !practicesError && hasPractices ? (
           <div style={practiceSectionsStyle}>
             {upcomingPractices.length ? (
-              <PracticeList label="Upcoming" practices={upcomingPractices} deletingPracticeId={deletingPracticeId} onDelete={deletePractice} />
+              <PracticeList
+                label="Upcoming"
+                practices={upcomingPractices}
+                deletingPracticeId={deletingPracticeId}
+                expandedPracticeId={expandedPracticeId}
+                practiceConfirmationSaving={practiceConfirmationSaving}
+                onToggleRoster={(practiceId) => setExpandedPracticeId((current) => current === practiceId ? '' : practiceId)}
+                onConfirmPlayer={confirmPracticePlayer}
+                onDelete={deletePractice}
+              />
             ) : (
               <div style={noticeStyle}>No upcoming practice yet. Create one when the team is ready.</div>
             )}
-            {recentPractices.length ? <PracticeList label="Recent" practices={recentPractices} compact deletingPracticeId={deletingPracticeId} onDelete={deletePractice} /> : null}
+            {recentPractices.length ? (
+              <PracticeList
+                label="Recent"
+                practices={recentPractices}
+                compact
+                deletingPracticeId={deletingPracticeId}
+                expandedPracticeId={expandedPracticeId}
+                practiceConfirmationSaving={practiceConfirmationSaving}
+                onToggleRoster={(practiceId) => setExpandedPracticeId((current) => current === practiceId ? '' : practiceId)}
+                onConfirmPlayer={confirmPracticePlayer}
+                onDelete={deletePractice}
+              />
+            ) : null}
           </div>
         ) : null}
 
@@ -314,12 +378,20 @@ function PracticeList({
   practices,
   compact = false,
   deletingPracticeId,
+  expandedPracticeId,
+  practiceConfirmationSaving,
+  onToggleRoster,
+  onConfirmPlayer,
   onDelete,
 }: {
   label: string
   practices: CaptainPracticeManagementOverview[]
   compact?: boolean
   deletingPracticeId: string
+  expandedPracticeId: string
+  practiceConfirmationSaving: string
+  onToggleRoster: (practiceId: string) => void
+  onConfirmPlayer: (practice: CaptainPracticeManagementOverview, inviteeId: string, confirmed: boolean) => void
   onDelete: (practice: CaptainPracticeManagementOverview) => void
 }) {
   return (
@@ -329,11 +401,15 @@ function PracticeList({
         <span>{practices.length}</span>
       </div>
       <div style={practiceListStyle}>
-        {practices.map(({ event, roster }) => {
-          const signedUp = roster?.roster.filter((player) => player.responseStatus === 'in').length || 0
-          const confirmed = roster?.roster.filter((player) => player.captainConfirmed).length || 0
+        {practices.map((practice) => {
+          const { event, roster } = practice
+          const signedUpPlayers = roster?.roster.filter((player) => player.responseStatus === 'in') || []
+          const signedUp = signedUpPlayers.length
+          const confirmed = signedUpPlayers.filter((player) => player.captainConfirmed).length
+          const needsConfirmation = Math.max(0, signedUp - confirmed)
           const waiting = roster?.roster.filter((player) => player.displayStatus === 'unanswered').length || 0
           const endTime = event.metadata.practiceEndTime || event.metadata.scheduleEndTime || ''
+          const expanded = expandedPracticeId === event.id
           return (
             <article key={event.id} style={{ ...practiceCardStyle, ...(compact ? compactPracticeCardStyle : {}) }}>
               <div style={practiceCardCopyStyle}>
@@ -346,12 +422,19 @@ function PracticeList({
               <div style={practiceCountsStyle} aria-label="Practice response summary">
                 <PracticeCount value={signedUp} label="signed up" />
                 <PracticeCount value={confirmed} label="confirmed" accent />
-                <PracticeCount value={waiting} label="waiting" />
+                <PracticeCount value={needsConfirmation} label="to confirm" attention={needsConfirmation > 0} />
+                <PracticeCount value={waiting} label="awaiting reply" />
               </div>
               <div style={practiceActionsStyle}>
-                <Link href={`/messages?thread=${encodeURIComponent(event.conversationId)}`} style={manageButtonStyle}>
-                  Manage roster
-                </Link>
+                <button
+                  type="button"
+                  onClick={() => onToggleRoster(event.id)}
+                  aria-expanded={expanded}
+                  aria-controls={`practice-roster-${event.id}`}
+                  style={manageButtonStyle}
+                >
+                  {expanded ? 'Close roster' : needsConfirmation ? `Confirm ${needsConfirmation} player${needsConfirmation === 1 ? '' : 's'}` : 'Manage roster'}
+                </button>
                 {roster?.publicToken ? (
                   <Link href={practiceRsvpPath(roster.publicToken)} style={secondaryButtonStyle}>
                     Open signup
@@ -366,6 +449,13 @@ function PracticeList({
                   {deletingPracticeId === event.id ? 'Deleting...' : 'Delete practice'}
                 </button>
               </div>
+              {expanded ? (
+                <PracticeRosterManager
+                  practice={practice}
+                  savingInviteeId={practiceConfirmationSaving}
+                  onConfirmPlayer={onConfirmPlayer}
+                />
+              ) : null}
             </article>
           )
         })}
@@ -374,11 +464,107 @@ function PracticeList({
   )
 }
 
-function PracticeCount({ value, label, accent = false }: { value: number; label: string; accent?: boolean }) {
+function PracticeCount({ value, label, accent = false, attention = false }: { value: number; label: string; accent?: boolean; attention?: boolean }) {
   return (
-    <span style={{ ...practiceCountStyle, ...(accent ? practiceCountAccentStyle : {}) }}>
+    <span style={{ ...practiceCountStyle, ...(accent ? practiceCountAccentStyle : {}), ...(attention ? practiceCountAttentionStyle : {}) }}>
       <strong>{value}</strong> {label}
     </span>
+  )
+}
+
+function PracticeRosterManager({
+  practice,
+  savingInviteeId,
+  onConfirmPlayer,
+}: {
+  practice: CaptainPracticeManagementOverview
+  savingInviteeId: string
+  onConfirmPlayer: (practice: CaptainPracticeManagementOverview, inviteeId: string, confirmed: boolean) => void
+}) {
+  const roster = practice.roster?.roster || []
+  const signedUp = roster.filter((player) => player.responseStatus === 'in')
+  const needsConfirmation = signedUp.filter((player) => !player.captainConfirmed)
+  const confirmed = signedUp.filter((player) => player.captainConfirmed)
+  const waiting = roster.filter((player) => player.displayStatus === 'unanswered')
+  const maybe = roster.filter((player) => player.displayStatus === 'maybe')
+  const out = roster.filter((player) => player.displayStatus === 'out')
+
+  return (
+    <section id={`practice-roster-${practice.event.id}`} style={practiceRosterManagerStyle} aria-label={`Manage roster for ${practice.event.title || 'practice'}`}>
+      <div style={practiceRosterHeaderStyle}>
+        <div style={practiceRosterHeaderCopyStyle}>
+          <span style={sectionEyebrowStyle}>Practice roster</span>
+          <strong style={practiceRosterTitleStyle}>
+            {needsConfirmation.length
+              ? `${needsConfirmation.length} signup${needsConfirmation.length === 1 ? '' : 's'} need your confirmation.`
+              : confirmed.length
+                ? 'Everyone who signed up is confirmed.'
+                : 'Waiting for the first signup.'}
+          </strong>
+          <span style={practiceRosterHelpStyle}>Players choose “In.” You confirm who has a spot. Confirmed players stay highlighted here and on the signup page.</span>
+        </div>
+        <div style={practiceRosterProgressStyle} aria-live="polite" aria-label={`${confirmed.length} of ${signedUp.length} signed-up players confirmed`}>
+          <strong>{confirmed.length}/{signedUp.length}</strong>
+          <span>confirmed</span>
+        </div>
+      </div>
+
+      {signedUp.length ? (
+        <div style={practicePlayerListStyle} aria-label="Signed-up practice players">
+          {[...needsConfirmation, ...confirmed].map((player) => (
+            <div key={player.id} style={{ ...practicePlayerRowStyle, ...(player.captainConfirmed ? practicePlayerConfirmedStyle : {}) }}>
+              <div style={practicePlayerCopyStyle}>
+                <strong>{player.playerName}</strong>
+                <span style={player.captainConfirmed ? confirmedStatusStyle : needsConfirmationStatusStyle}>
+                  {player.captainConfirmed ? 'Confirmed by you' : player.displayStatus === 'waitlist' ? 'Waitlisted · needs your decision' : 'Signed up · needs your confirmation'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onConfirmPlayer(practice, player.id, !player.captainConfirmed)}
+                disabled={Boolean(savingInviteeId)}
+                aria-label={player.captainConfirmed ? `Remove ${player.playerName}'s practice confirmation` : `Confirm ${player.playerName} for practice`}
+                style={player.captainConfirmed ? undoConfirmationButtonStyle : confirmPlayerButtonStyle}
+              >
+                {savingInviteeId === player.id ? 'Saving...' : player.captainConfirmed ? 'Undo' : 'Confirm spot'}
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={practiceRosterEmptyStyle}>No one has selected “In” yet. Share the signup link or check back after players reply.</div>
+      )}
+
+      <details style={otherRepliesStyle}>
+        <summary>Other responses · {waiting.length + maybe.length + out.length}</summary>
+        <div style={otherReplyListStyle}>
+          <PracticeReplyGroup label="Awaiting reply" players={waiting.map((player) => player.playerName)} />
+          <PracticeReplyGroup label="Maybe" players={maybe.map((player) => player.playerName)} />
+          <PracticeReplyGroup label="Out" players={out.map((player) => player.playerName)} />
+        </div>
+      </details>
+
+      <div style={practiceRosterFooterStyle}>
+        {practice.roster?.publicToken ? (
+          <Link href={practiceRsvpPath(practice.roster.publicToken)} style={secondaryButtonStyle}>Open player signup</Link>
+        ) : null}
+        <Link
+          href={`/messages?thread=${encodeURIComponent(practice.event.conversationId)}&event=${encodeURIComponent(practice.event.id)}`}
+          style={secondaryButtonStyle}
+        >
+          Open team chat
+        </Link>
+      </div>
+    </section>
+  )
+}
+
+function PracticeReplyGroup({ label, players }: { label: string; players: string[] }) {
+  return (
+    <div style={otherReplyRowStyle}>
+      <strong>{label}</strong>
+      <span>{players.length ? players.join(', ') : 'None'}</span>
+    </div>
   )
 }
 
@@ -648,6 +834,12 @@ const practiceCountAccentStyle: CSSProperties = {
   background: 'rgba(155,225,29,0.08)',
 }
 
+const practiceCountAttentionStyle: CSSProperties = {
+  borderColor: 'rgba(251,191,36,0.34)',
+  color: '#fde68a',
+  background: 'rgba(251,191,36,0.08)',
+}
+
 const practiceActionsStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))',
@@ -670,6 +862,170 @@ const manageButtonStyle: CSSProperties = {
   fontWeight: 950,
   textAlign: 'center',
   textDecoration: 'none',
+  cursor: 'pointer',
+}
+
+const practiceRosterManagerStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.2)',
+  background: 'rgba(5,15,31,0.7)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.035)',
+}
+
+const practiceRosterHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  alignItems: 'start',
+  gap: 12,
+  minWidth: 0,
+}
+
+const practiceRosterHeaderCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+}
+
+const practiceRosterTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const practiceRosterHelpStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 740,
+}
+
+const practiceRosterProgressStyle: CSSProperties = {
+  display: 'grid',
+  justifyItems: 'center',
+  gap: 1,
+  minWidth: 70,
+  padding: '9px 10px',
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.08)',
+  color: 'var(--foreground-strong)',
+  fontSize: 10,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+}
+
+const practicePlayerListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const practicePlayerRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 15,
+  border: '1px solid rgba(251,191,36,0.22)',
+  background: 'rgba(251,191,36,0.055)',
+}
+
+const practicePlayerConfirmedStyle: CSSProperties = {
+  borderColor: 'rgba(155,225,29,0.34)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(116,190,255,0.045))',
+}
+
+const practicePlayerCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.3,
+  overflowWrap: 'anywhere',
+}
+
+const needsConfirmationStatusStyle: CSSProperties = {
+  color: '#fde68a',
+  fontSize: 11,
+  fontWeight: 850,
+}
+
+const confirmedStatusStyle: CSSProperties = {
+  color: '#c9ff6a',
+  fontSize: 11,
+  fontWeight: 900,
+}
+
+const confirmPlayerButtonStyle: CSSProperties = {
+  minHeight: 42,
+  padding: '0 12px',
+  borderRadius: 12,
+  border: '1px solid rgba(155,225,29,0.5)',
+  background: 'rgba(155,225,29,0.16)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+  cursor: 'pointer',
+}
+
+const undoConfirmationButtonStyle: CSSProperties = {
+  ...confirmPlayerButtonStyle,
+  borderColor: 'rgba(116,190,255,0.2)',
+  background: 'rgba(255,255,255,0.045)',
+}
+
+const practiceRosterEmptyStyle: CSSProperties = {
+  padding: 13,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.035)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.5,
+  fontWeight: 760,
+}
+
+const otherRepliesStyle: CSSProperties = {
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 850,
+}
+
+const otherReplyListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  marginTop: 10,
+}
+
+const otherReplyRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(90px, auto) minmax(0, 1fr)',
+  gap: 10,
+  minWidth: 0,
+  padding: '9px 10px',
+  borderRadius: 12,
+  background: 'rgba(255,255,255,0.035)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
+const practiceRosterFooterStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 135px), 1fr))',
+  gap: 8,
+  minWidth: 0,
 }
 
 const secondaryButtonStyle: CSSProperties = {
