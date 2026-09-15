@@ -6,6 +6,7 @@ import {
   getTriLevelRatings,
   isPlayerEligibleForCaptainRating,
   isTriLevelFormat,
+  swapCaptainLineupCourtAssignments,
 } from '../captain-lineup-format'
 import { TEAM_MATCH_FORMATS } from '../competition-format-registry'
 
@@ -84,5 +85,37 @@ describe('captain lineup formats', () => {
     expect(isPlayerEligibleForCaptainRating(4.5, 4)).toBe(false)
     expect(isPlayerEligibleForCaptainRating(null, 4)).toBe(false)
     expect(isPlayerEligibleForCaptainRating(4.23, undefined)).toBe(true)
+  })
+
+  it('swaps complete court assignments without changing court identities', () => {
+    const slots = buildCaptainLineupSlots('Adult 18 & Over', 'Men 4.0', 'team')
+    const doublesTwo = slots.find((slot) => slot.label === 'Doubles 2')!
+    const doublesThree = slots.find((slot) => slot.label === 'Doubles 3')!
+    doublesTwo.players = [
+      { playerId: 'a', playerName: 'Andy Ace' },
+      { playerId: 'b', playerName: 'Brendan Backhand' },
+    ]
+    doublesThree.players = [
+      { playerId: 'c', playerName: 'Carlos Court' },
+      { playerId: 'd', playerName: 'David Deuce' },
+    ]
+
+    const result = swapCaptainLineupCourtAssignments(slots, doublesTwo.id, doublesThree.id)
+
+    expect(result.swapped).toBe(true)
+    expect(result.slots.find((slot) => slot.id === doublesTwo.id)?.players.map((player) => player.playerName))
+      .toEqual(['Carlos Court', 'David Deuce'])
+    expect(result.slots.find((slot) => slot.id === doublesThree.id)?.players.map((player) => player.playerName))
+      .toEqual(['Andy Ace', 'Brendan Backhand'])
+    expect(result.slots.map((slot) => slot.label)).toEqual(slots.map((slot) => slot.label))
+  })
+
+  it('does not swap assignments between singles and doubles courts', () => {
+    const slots = buildCaptainLineupSlots('Adult 18 & Over', 'Men 4.0', 'team')
+
+    const result = swapCaptainLineupCourtAssignments(slots, slots[0].id, slots[2].id)
+
+    expect(result.swapped).toBe(false)
+    expect(result.slots).toBe(slots)
   })
 })
