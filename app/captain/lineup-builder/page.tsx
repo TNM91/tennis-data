@@ -8664,7 +8664,7 @@ const mobileLineupResumeStyle: CSSProperties = {
   left: '50%',
   bottom: 'calc(10px + env(safe-area-inset-bottom))',
   zIndex: 100,
-  width: 'min(560px, calc(100% - 24px))',
+  width: 'min(560px, calc(100% - clamp(24px, 5vw, 40px)))',
   transform: 'translateX(-50%)',
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr)',
