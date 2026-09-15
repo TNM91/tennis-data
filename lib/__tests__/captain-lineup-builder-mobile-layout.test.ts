@@ -361,7 +361,7 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain('Post to Team Chat')
     expect(source).toContain('Create image + text team')
     expect(source).toContain('Print lineup / scorecard')
-    expect(source).toContain('aria-label="Current lineup shortcut"')
+    expect(source).toContain('aria-label="Current lineup actions"')
     expect(source).toContain('Working lineup')
     expect(source).toContain('Open lineup')
     expect(source).toContain('Refresh replies')
@@ -369,7 +369,7 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain('Ready to send.')
     expect(source).toContain('Send lineup to Team Chat')
     for (const styleName of [
-      'mobileLineupResumeStyle',
+      'mobileLineupActionsCardStyle',
       'mobileLineupResumeCopyStyle',
       'mobileLineupResumeActionsStyle',
       'lineupTransitionCopyStyle',
@@ -378,8 +378,9 @@ describe('Captain lineup builder mobile layout guards', () => {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
     expect(styleBlock('lineupTransitionCardStyle')).toContain("repeat(auto-fit, minmax(min(100%, 250px), 1fr))")
-    expect(styleBlock('mobileLineupResumeStyle')).toContain("position: 'fixed'")
-    expect(styleBlock('mobileLineupResumeStyle')).toContain("env(safe-area-inset-bottom)")
+    expect(styleBlock('mobileLineupActionsCardStyle')).not.toContain("position: 'fixed'")
+    expect(styleBlock('mobileLineupActionsCardStyle')).not.toContain("position: 'sticky'")
+    expect(styleBlock('mobileLineupActionsCardStyle')).toContain("width: '100%'")
     expect(styleBlock('mobileLineupResumeActionsStyle')).toContain("repeat(2, minmax(0, 1fr))")
     expect(styleBlock('slotCardStyle')).toContain('scrollMarginTop: 132')
   })

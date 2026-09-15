@@ -6410,12 +6410,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   }
 
   return (
-    <div
-      style={{
-        ...pageWrap,
-        paddingBottom: isMobile && lineupHasAssignments ? 'calc(190px + env(safe-area-inset-bottom))' : pageWrap.paddingBottom,
-      }}
-    >
+    <div style={pageWrap}>
          {!isMobile ? <CaptainSuitePanel active="lineup" teamLabel={teamName || 'Team week'} /> : null}
          <CaptainMatchWeekRail
            current={finalLineupReady ? 'messaging' : teamLineupComplete ? 'availability' : 'lineup'}
@@ -6439,7 +6434,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
            activeLineupSummary={activeLineupSummary}
          />
          {isMobile && lineupHasAssignments ? (
-           <section style={mobileLineupResumeStyle} aria-label="Current lineup shortcut">
+           <section style={mobileLineupActionsCardStyle} aria-label="Current lineup actions">
              <div style={mobileLineupResumeCopyStyle}>
                <p style={mobileLineupResumeKickerStyle}>Working lineup</p>
                <strong style={mobileLineupResumeTitleStyle}>{opponentTeam ? `vs ${opponentTeam}` : 'Your current courts'}</strong>
@@ -8659,23 +8654,18 @@ const pageWrap: CSSProperties = {
   boxSizing: 'border-box',
 }
 
-const mobileLineupResumeStyle: CSSProperties = {
-  position: 'fixed',
-  left: '50%',
-  bottom: 'calc(10px + env(safe-area-inset-bottom))',
-  zIndex: 100,
-  width: 'min(560px, calc(100% - clamp(24px, 5vw, 40px)))',
-  transform: 'translateX(-50%)',
+const mobileLineupActionsCardStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr)',
   gap: 10,
+  width: '100%',
   minWidth: 0,
   padding: 12,
   borderRadius: 18,
   border: '1px solid color-mix(in srgb, var(--brand-green) 52%, var(--shell-panel-border) 48%)',
-  background: 'color-mix(in srgb, var(--shell-panel-bg-strong) 92%, transparent)',
-  boxShadow: '0 14px 34px rgba(2, 10, 24, 0.36)',
-  backdropFilter: 'blur(16px)',
+  background: 'linear-gradient(145deg, color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg-strong) 90%), var(--shell-panel-bg))',
+  boxShadow: '0 14px 34px rgba(2, 10, 24, 0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  boxSizing: 'border-box',
 }
 
 const mobileLineupResumeCopyStyle: CSSProperties = {
