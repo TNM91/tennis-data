@@ -17,6 +17,10 @@ function futureDateKey(daysFromNow: number) {
   return date.toISOString().slice(0, 10)
 }
 
+function shortDate(value: string) {
+  return new Date(`${value}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 const opponentPlayers = [
   'Jordan Rally',
   'Morgan Matchpoint',
@@ -154,7 +158,7 @@ test.describe('captain weekly continuity', () => {
     await expect(page.getByRole('heading', { name: TEAM })).toBeVisible()
     await expect(page.getByText('Sent to team', { exact: true })).toBeVisible()
     await expect(page.getByRole('link', { name: /View sent lineup/ }).first()).toBeVisible()
-    await expect(page.getByText(`vs ${OPPONENT} · Sep 14`, { exact: true })).toBeVisible()
+    await expect(page.getByText(`vs ${OPPONENT} · ${shortDate(MATCH_DATE)}`, { exact: true })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
   })
 
@@ -316,7 +320,7 @@ test.describe('captain weekly continuity', () => {
     await page.getByText('Court results', { exact: true }).click()
     await expect(page.getByText('6-4 4-6 10-7')).toBeVisible()
     await expect(page.getByText(NEXT_OPPONENT, { exact: false }).first()).toBeVisible()
-    await expect(page.getByText('Sep 21', { exact: false }).first()).toBeVisible()
+    await expect(page.getByText(shortDate(NEXT_MATCH_DATE), { exact: false }).first()).toBeVisible()
     await expect(page.getByText(OPPONENT, { exact: false }).first()).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
   })
