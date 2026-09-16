@@ -66,6 +66,7 @@ describe('team home cards', () => {
     const css = readFileSync('app/compete/teams/teams-home.module.css', 'utf8')
     expect(css).toContain('min-height: 46px')
     expect(css).toContain('repeat(2, minmax(0, 1fr))')
+    expect(css).toContain('.cardActions .calendarAction:nth-child(even) { grid-column: auto; }')
     expect(css).toContain('grid-template-columns: minmax(0, 1fr)')
     const calendar = readFileSync('app/components/team-season-calendar.tsx', 'utf8')
     expect(calendar).toContain("window.location.hash === '#team-availability' && canStartSeason && accessToken")
