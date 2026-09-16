@@ -18,6 +18,7 @@ import { buildCaptainPilotHref, normalizeCaptainPilotSource } from '@/lib/captai
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import type { TeamConnection } from '@/lib/team-profile-links'
 import styles from './captain-pilot.module.css'
+import PilotShare from './pilot-share'
 
 type ClaimResponse = {
   ok?: boolean
@@ -453,6 +454,7 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
           <p className={styles.feedback}>Questions or feedback? <a href="mailto:nathan@tenaceiq.com">Nathan@TenAceiQ.com</a></p>
         </section>
 
+        <PilotShare />
         <section className={styles.shareCard} aria-label="Share the Captain Pilot flyer">
           <Image src="/brand/flyers/fall-2026-captain-pilot-qr.svg" alt="QR code to claim the Fall Captain Pilot" width={176} height={176} />
           <div>
