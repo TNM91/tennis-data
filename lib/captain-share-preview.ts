@@ -98,13 +98,15 @@ export function buildCaptainShareMetadata(input: {
   teamName?: string
   opponent?: string
   detail?: string
+  sharePath?: string
 }): Metadata {
   const config = getCaptainShareConfig(input.kind)
   const matchup = [input.teamName, input.opponent ? `vs ${input.opponent}` : ''].filter(Boolean).join(' ')
   const title = matchup ? `${config.eyebrow}: ${matchup}` : config.title
   const description = input.detail?.trim() || config.description
-  const path = `/share/captain/${input.kind}`
+  const path = safeCaptainSharePath(input.sharePath, input.kind)
   const image = `${path}/opengraph-image`
+  const previewImage = `/share/captain/${input.kind}/opengraph-image`
 
   return {
     title: { absolute: `${title} | TenAceIQ` },
@@ -116,13 +118,44 @@ export function buildCaptainShareMetadata(input: {
       title,
       description,
       url: path,
-      images: [{ url: image, width: 1200, height: 630, alt: `${config.eyebrow} from TenAceIQ` }],
+      images: [{ url: input.sharePath ? previewImage : image, width: 1200, height: 630, alt: `${config.eyebrow} from TenAceIQ` }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: [image],
+      images: [input.sharePath ? previewImage : image],
     },
   }
+}
+
+function safeCaptainSharePath(value: string | undefined, kind: CaptainShareKind) {
+  const candidate = value?.trim() || ''
+  return candidate.startsWith('/') && !candidate.startsWith('//')
+    ? candidate
+    : `/share/captain/${kind}`
+}
+
+export async function createCaptainShortShareUrl(input: {
+  kind: CaptainShareKind
+  targetHref: string
+  accessToken: string
+  teamName?: string | null
+  opponent?: string | null
+  matchDate?: string | null
+  detail?: string | null
+}) {
+  const response = await fetch('/api/captain/share-links', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${input.accessToken}`,
+    },
+    body: JSON.stringify(input),
+  })
+  const payload = await response.json().catch(() => null) as { shareUrl?: string; message?: string } | null
+  if (!response.ok || !payload?.shareUrl) {
+    throw new Error(payload?.message || 'The short share link could not be created.')
+  }
+  return payload.shareUrl
 }
