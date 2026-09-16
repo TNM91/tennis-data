@@ -8,7 +8,7 @@ import { useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildTeamRoomHref } from '@/lib/team-room'
-import { buildCaptainShareHref } from '@/lib/captain-share-preview'
+import { createCaptainShortShareUrl } from '@/lib/captain-share-preview'
 import {
   captainScorecardOpponentSlots,
   inferCaptainScorecardFormat,
@@ -396,18 +396,23 @@ function MatchupSheetContent() {
     setSharing(true)
     setShareNotice('')
     try {
-      const image = await createLineupImage({ teamName, leagueName, flight, matchDate, opponent, matchTime, facility, confirmed: confirmedLineup, lineup })
+      if (!session?.access_token) throw new Error('Sign in before sharing this lineup.')
+      const detail = confirmedLineup
+        ? 'Final court assignments and match details are ready.'
+        : 'Open the latest court assignments and match details.'
+      const [image, lineupShareUrl] = await Promise.all([
+        createLineupImage({ teamName, leagueName, flight, matchDate, opponent, matchTime, facility, confirmed: confirmedLineup, lineup }),
+        createCaptainShortShareUrl({
+          kind: 'lineup',
+          targetHref: teamChatHref,
+          accessToken: session.access_token,
+          teamName,
+          opponent,
+          matchDate,
+          detail,
+        }),
+      ])
       const file = new File([image], `tenaceiq-${teamName || 'team'}-lineup.png`.replace(/[^a-z0-9._-]+/gi, '-'), { type: 'image/png' })
-      const lineupShareUrl = new URL(buildCaptainShareHref({
-        kind: 'lineup',
-        targetHref: teamChatHref,
-        teamName,
-        opponent,
-        matchDate,
-        detail: confirmedLineup
-          ? 'Final court assignments and match details are ready.'
-          : 'Open the latest court assignments and match details.',
-      }), window.location.origin).toString()
       const shareText = [
         confirmedLineup ? 'Final lineup confirmed.' : 'Match lineup.',
         `${teamName || 'Team'} vs ${opponent || 'Opponent to be confirmed'}.`,

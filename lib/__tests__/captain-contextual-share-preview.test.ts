@@ -35,10 +35,22 @@ describe('captain contextual share previews', () => {
     const scorecard = readFileSync(join(process.cwd(), 'app/captain/record-result/page.tsx'), 'utf8')
     const image = readFileSync(join(process.cwd(), 'app/share/captain/[kind]/opengraph-image.tsx'), 'utf8')
 
+    expect(sheet).toContain('createCaptainShortShareUrl({')
     expect(sheet).toContain("kind: 'lineup'")
     expect(sheet).toContain('Open lineup: ${lineupShareUrl}')
+    expect(sheet).not.toContain("new URL(buildCaptainShareHref({")
     expect(scorecard).toContain("kind: 'final-result'")
     expect(scorecard).toContain('Open final scorecard: ${finalResultUrl}')
     expect(image).toContain('<PreviewGraphic kind={kind}')
+  })
+
+  it('keeps short share URLs clean while preserving the lineup-specific card', () => {
+    const shortPage = readFileSync(join(process.cwd(), 'app/s/[token]/page.tsx'), 'utf8')
+    const shortRoute = readFileSync(join(process.cwd(), 'app/api/captain/share-links/route.ts'), 'utf8')
+
+    expect(shortRoute).toContain('shareUrl: `${new URL(request.url).origin}/s/${token}`')
+    expect(shortPage).toContain('sharePath: `/s/${share.token}`')
+    expect(buildCaptainShareMetadata({ kind: 'lineup', sharePath: '/s/abc123456789' }).openGraph?.images)
+      .toEqual([expect.objectContaining({ url: '/share/captain/lineup/opengraph-image' })])
   })
 })
