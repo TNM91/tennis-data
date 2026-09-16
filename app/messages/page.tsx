@@ -13,6 +13,7 @@ import {
   listInternalScheduleResponses,
   saveInternalScheduleResponse,
   setCaptainPracticeInviteeConfirmed,
+  setCaptainPracticeInviteeStatus,
   updateInternalScheduleEvent,
   type InternalScheduleEvent,
   type InternalScheduleResponse,
@@ -1136,6 +1137,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [scheduleActionSaving, setScheduleActionSaving] = useState('')
   const [practiceReminderSaving, setPracticeReminderSaving] = useState(false)
   const [practiceConfirmationSaving, setPracticeConfirmationSaving] = useState('')
+  const [practiceRosterSaving, setPracticeRosterSaving] = useState('')
   const [calendarQuickAddSaving, setCalendarQuickAddSaving] = useState('')
   const [calendarQuickAddedItemIds, setCalendarQuickAddedItemIds] = useState<Set<string>>(() => new Set())
   const [highlightedCalendarCueTargetId, setHighlightedCalendarCueTargetId] = useState('')
@@ -2161,6 +2163,23 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     }
   }
 
+  async function updatePracticePlayerStatus(playerId: string, status: 'out' | 'unanswered') {
+    if (!selectedScheduleEvent || practiceRosterSaving || practiceConfirmationSaving || !canManageSchedule) return
+    setPracticeRosterSaving(playerId)
+    setError('')
+    setMessage('')
+    try {
+      await setCaptainPracticeInviteeStatus({ eventId: selectedScheduleEvent.id, inviteeId: playerId, status })
+      setPracticeRosterOverview(await listCaptainPracticeRoster(selectedScheduleEvent.id))
+      setScheduleResponses(await listInternalScheduleResponses(scheduleEvents.map((event) => event.id)))
+      setMessage(status === 'out' ? 'Player moved off the practice roster.' : 'The player can reply again from the practice invite.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The practice roster could not be updated.')
+    } finally {
+      setPracticeRosterSaving('')
+    }
+  }
+
   function textPracticeGroup() {
     if (!selectedScheduleEvent || !practiceRosterOverview?.publicToken) return
     const metadata = selectedScheduleEvent.metadata
@@ -2992,21 +3011,48 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                             <strong>{player.playerName}</strong>
                             <span>{player.captainConfirmed ? 'Captain confirmed' : player.displayStatus === 'waitlist' ? 'Waitlisted signup' : 'Signed up · needs confirmation'}</span>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => void togglePracticePlayerConfirmation(player.id, !player.captainConfirmed)}
-                            disabled={Boolean(practiceConfirmationSaving)}
-                            style={player.captainConfirmed ? ghostButtonStyle : primaryButtonStyle}
-                          >
-                            {practiceConfirmationSaving === player.id
-                              ? 'Saving...'
-                              : player.captainConfirmed
-                                ? 'Undo confirm'
-                                : 'Confirm spot'}
-                          </button>
+                          <div style={rsvpActionRowStyle}>
+                            <button
+                              type="button"
+                              onClick={() => void togglePracticePlayerConfirmation(player.id, !player.captainConfirmed)}
+                              disabled={Boolean(practiceConfirmationSaving || practiceRosterSaving)}
+                              style={player.captainConfirmed ? ghostButtonStyle : primaryButtonStyle}
+                            >
+                              {practiceConfirmationSaving === player.id
+                                ? 'Saving...'
+                                : player.captainConfirmed
+                                  ? 'Undo confirm'
+                                  : 'Confirm spot'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void updatePracticePlayerStatus(player.id, 'out')}
+                              disabled={Boolean(practiceConfirmationSaving || practiceRosterSaving)}
+                              style={ghostButtonStyle}
+                              aria-label={`Mark ${player.playerName} unavailable for practice`}
+                            >{practiceRosterSaving === player.id ? 'Saving...' : 'Mark unavailable'}</button>
+                          </div>
                         </div>
                       ))}
                     </div>
+                  ) : null}
+                  {canManageSchedule && practiceRosterOverview?.roster.some((player) => player.responseStatus === 'out') ? (
+                    <details style={practiceReplyDetailsStyle}>
+                      <summary>Unavailable players · {practiceRosterOverview.roster.filter((player) => player.responseStatus === 'out').length}</summary>
+                      <div style={practiceConfirmationListStyle}>
+                        {practiceRosterOverview.roster.filter((player) => player.responseStatus === 'out').map((player) => (
+                          <div key={player.id} style={practiceConfirmationRowStyle}>
+                            <strong>{player.playerName}</strong>
+                            <button
+                              type="button"
+                              onClick={() => void updatePracticePlayerStatus(player.id, 'unanswered')}
+                              disabled={Boolean(practiceConfirmationSaving || practiceRosterSaving)}
+                              style={ghostButtonStyle}
+                            >{practiceRosterSaving === player.id ? 'Saving...' : 'Reopen RSVP'}</button>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
                   ) : null}
                   <details style={practiceReplyDetailsStyle}>
                     <summary>See every reply</summary>
