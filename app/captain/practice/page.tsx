@@ -19,10 +19,13 @@ import { buildConsumedWorkflowHref } from '@/lib/workflow-return'
 import {
   cancelInternalScheduleEvent,
   listCaptainPracticeManagementOverview,
+  listCaptainPracticeRoster,
   setCaptainPracticeInviteeConfirmed,
   setCaptainPracticeInviteeStatus,
   type CaptainPracticeManagementOverview,
+  type CaptainPracticeRosterOverview,
 } from '@/lib/internal-scheduling'
+import { buildPracticeRosterExport, type PracticeRosterExportKind } from '@/lib/captain-practice-roster-export'
 import { practiceRsvpPath } from '@/lib/captain-practice-rsvp'
 import {
   buildCaptainPracticeInviteText,
@@ -69,6 +72,10 @@ function CaptainPracticeContent() {
   const [practiceConfirmationSaving, setPracticeConfirmationSaving] = useState('')
   const [practiceRosterSaving, setPracticeRosterSaving] = useState('')
   const [showCreate, setShowCreate] = useState(searchParams.get('new') === '1' || Boolean(incomingLevelUpChallenge))
+
+  const updateLoadedRoster = useCallback((eventId: string, roster: CaptainPracticeRosterOverview) => {
+    setPractices((current) => current.map((practice) => practice.event.id === eventId ? { ...practice, roster } : practice))
+  }, [])
 
   const loadPractices = useCallback(async () => {
     setPracticesLoading(true)
@@ -265,6 +272,7 @@ function CaptainPracticeContent() {
                 onToggleRoster={(practiceId) => setExpandedPracticeId((current) => current === practiceId ? '' : practiceId)}
                 onConfirmPlayer={confirmPracticePlayer}
                 onUpdatePlayerStatus={updatePracticePlayerStatus}
+                onRosterRefresh={updateLoadedRoster}
                 onDelete={deletePractice}
               />
             ) : (
@@ -282,6 +290,7 @@ function CaptainPracticeContent() {
                 onToggleRoster={(practiceId) => setExpandedPracticeId((current) => current === practiceId ? '' : practiceId)}
                 onConfirmPlayer={confirmPracticePlayer}
                 onUpdatePlayerStatus={updatePracticePlayerStatus}
+                onRosterRefresh={updateLoadedRoster}
                 onDelete={deletePractice}
               />
             ) : null}
@@ -419,6 +428,7 @@ function PracticeList({
   onToggleRoster,
   onConfirmPlayer,
   onUpdatePlayerStatus,
+  onRosterRefresh,
   onDelete,
 }: {
   label: string
@@ -431,6 +441,7 @@ function PracticeList({
   onToggleRoster: (practiceId: string) => void
   onConfirmPlayer: (practice: CaptainPracticeManagementOverview, inviteeId: string, confirmed: boolean) => void
   onUpdatePlayerStatus: (practice: CaptainPracticeManagementOverview, inviteeId: string, status: 'out' | 'unanswered') => void
+  onRosterRefresh: (eventId: string, roster: CaptainPracticeRosterOverview) => void
   onDelete: (practice: CaptainPracticeManagementOverview) => void
 }) {
   return (
@@ -512,6 +523,7 @@ function PracticeList({
                   savingStatusInviteeId={practiceRosterSaving}
                   onConfirmPlayer={onConfirmPlayer}
                   onUpdatePlayerStatus={onUpdatePlayerStatus}
+                  onRosterRefresh={onRosterRefresh}
                 />
               ) : null}
             </article>
@@ -552,13 +564,52 @@ function PracticeRosterManager({
   savingStatusInviteeId,
   onConfirmPlayer,
   onUpdatePlayerStatus,
+  onRosterRefresh,
 }: {
   practice: CaptainPracticeManagementOverview
   savingInviteeId: string
   savingStatusInviteeId: string
   onConfirmPlayer: (practice: CaptainPracticeManagementOverview, inviteeId: string, confirmed: boolean) => void
   onUpdatePlayerStatus: (practice: CaptainPracticeManagementOverview, inviteeId: string, status: 'out' | 'unanswered') => void
+  onRosterRefresh: (eventId: string, roster: CaptainPracticeRosterOverview) => void
 }) {
+  const [exportBusy, setExportBusy] = useState('')
+  const [exportMessage, setExportMessage] = useState('')
+
+  async function exportRoster(kind: PracticeRosterExportKind, action: 'text' | 'copy' | 'csv') {
+    if (exportBusy) return
+    setExportBusy(`${kind}-${action}`)
+    setExportMessage('Refreshing the latest roster…')
+    try {
+      const latestRoster = await listCaptainPracticeRoster(practice.event.id)
+      if (!latestRoster) throw new Error('The roster could not be refreshed. Try again.')
+      onRosterRefresh(practice.event.id, latestRoster)
+      const snapshot = buildPracticeRosterExport({ event: practice.event, roster: latestRoster, kind, createdAt: new Date() })
+      if (!snapshot.count) throw new Error(kind === 'confirmed' ? 'No players are captain-confirmed yet.' : 'No players are signed up yet.')
+      if (action === 'text') {
+        window.location.href = buildCaptainPracticeSmsHref(snapshot.text)
+        setExportMessage(`${snapshot.title} is ready in Messages.`)
+      } else if (action === 'copy') {
+        await navigator.clipboard.writeText(snapshot.text)
+        setExportMessage(`${snapshot.title} copied. Paste it into your group chat.`)
+      } else {
+        const url = URL.createObjectURL(new Blob([snapshot.csv], { type: 'text/csv;charset=utf-8' }))
+        const link = document.createElement('a')
+        link.href = url
+        link.download = snapshot.filename
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+        setExportMessage(`${snapshot.title} downloaded as CSV.`)
+      }
+    } catch (error) {
+      setExportMessage(error instanceof Error ? error.message : 'The roster could not be exported.')
+    } finally {
+      setExportBusy('')
+    }
+  }
+
   const roster = practice.roster?.roster || []
   const signedUp = roster.filter((player) => player.responseStatus === 'in')
   const needsConfirmation = signedUp.filter((player) => !player.captainConfirmed)
@@ -586,6 +637,28 @@ function PracticeRosterManager({
           <span>confirmed</span>
         </div>
       </div>
+
+      <details style={rosterExportStyle}>
+        <summary style={{ cursor: 'pointer' }}>Share or export roster</summary>
+        <p style={practiceRosterHelpStyle}>A fresh, timestamped snapshot. Share the current signups or only players you confirmed.</p>
+        <div style={rosterExportOptionsStyle}>
+          {([
+            { kind: 'current', title: 'Current roster', detail: 'Everyone marked In, with confirmation and waitlist status.' },
+            { kind: 'confirmed', title: 'Confirmed only', detail: 'Only players you have captain-confirmed.' },
+          ] as const).map((option) => (
+            <div key={option.kind} style={rosterExportOptionStyle}>
+              <strong>{option.title}</strong>
+              <span>{option.detail}</span>
+              <div style={rosterExportActionsStyle}>
+                <button type="button" style={secondaryButtonStyle} disabled={Boolean(exportBusy)} aria-label={`Text ${option.title.toLowerCase()}`} onClick={() => void exportRoster(option.kind, 'text')}>Text</button>
+                <button type="button" style={secondaryButtonStyle} disabled={Boolean(exportBusy)} aria-label={`Copy ${option.title.toLowerCase()}`} onClick={() => void exportRoster(option.kind, 'copy')}>Copy</button>
+                <button type="button" style={secondaryButtonStyle} disabled={Boolean(exportBusy)} aria-label={`Download ${option.title.toLowerCase()} as CSV`} onClick={() => void exportRoster(option.kind, 'csv')}>CSV</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        {exportMessage ? <span role="status" style={practiceRosterHelpStyle}>{exportMessage}</span> : null}
+      </details>
 
       {signedUp.length ? (
         <div style={practicePlayerListStyle} aria-label="Signed-up practice players">
@@ -1043,6 +1116,44 @@ const practiceRosterHelpStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.5,
   fontWeight: 740,
+}
+
+const rosterExportStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: '13px 14px',
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'rgba(116,190,255,0.055)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 850,
+}
+
+const rosterExportOptionsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  marginTop: 10,
+}
+
+const rosterExportOptionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 12,
+  background: 'rgba(3,12,26,0.42)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.4,
+}
+
+const rosterExportActionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
 }
 
 const practiceRosterProgressStyle: CSSProperties = {
