@@ -6,6 +6,7 @@ import { useAuth } from '@/app/components/auth-provider'
 import {
   buildCaptainPracticeInviteText,
   buildCaptainPracticeSmsHref,
+  extractCaptainPracticeFocus,
 } from '@/lib/captain-practice-invite'
 import { practiceRsvpPath } from '@/lib/captain-practice-rsvp'
 import {
@@ -182,7 +183,7 @@ export default function ScheduleMessageComposer({
           scheduledEndTime,
           facility,
           capacity: capacity ? Number(capacity) : null,
-          practiceFocus: notes.replace(/Please mark In, Out, or Maybe[\s\S]*$/i, '').replace(/^Practice focus:\s*/i, '').trim(),
+          practiceFocus: extractCaptainPracticeFocus(notes),
           responseUrl,
         })
         let postedToTeamChat = false

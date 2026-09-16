@@ -29,6 +29,13 @@ export function formatCaptainPracticeTimeRange(startTime: string, endTime?: stri
   return [start, end].filter(Boolean).join('–')
 }
 
+export function extractCaptainPracticeFocus(notes: string | null | undefined) {
+  return (notes || '')
+    .replace(/Please mark In, Out, or Maybe[\s\S]*$/i, '')
+    .replace(/^Practice focus:\s*/i, '')
+    .trim()
+}
+
 export function buildCaptainPracticeInviteText(input: {
   teamName: string
   scheduledDate: string

@@ -23,6 +23,11 @@ import {
   type CaptainPracticeManagementOverview,
 } from '@/lib/internal-scheduling'
 import { practiceRsvpPath } from '@/lib/captain-practice-rsvp'
+import {
+  buildCaptainPracticeInviteText,
+  buildCaptainPracticeSmsHref,
+  extractCaptainPracticeFocus,
+} from '@/lib/captain-practice-invite'
 
 export default function CaptainPracticePage() {
   return (
@@ -444,6 +449,15 @@ function PracticeList({
                   {expanded ? 'Close current roster' : signedUp ? `View roster · ${signedUp}` : 'View current roster'}
                 </button>
                 {roster?.publicToken ? (
+                  <button
+                    type="button"
+                    onClick={() => sharePracticeInvite(practice)}
+                    style={shareInviteButtonStyle}
+                  >
+                    Share invite again
+                  </button>
+                ) : null}
+                {roster?.publicToken ? (
                   <Link href={practiceRsvpPath(roster.publicToken)} style={secondaryButtonStyle}>
                     Open signup
                   </Link>
@@ -470,6 +484,22 @@ function PracticeList({
       </div>
     </section>
   )
+}
+
+function sharePracticeInvite(practice: CaptainPracticeManagementOverview) {
+  if (typeof window === 'undefined' || !practice.roster?.publicToken) return
+  const capacityValue = Number(practice.event.metadata.capacity || practice.roster.capacity || 0)
+  const inviteText = buildCaptainPracticeInviteText({
+    teamName: practice.event.metadata.teamName || practice.event.title.replace(/\s+practice$/i, ''),
+    scheduledDate: practice.event.scheduledDate,
+    scheduledTime: practice.event.scheduledTime,
+    scheduledEndTime: practice.event.metadata.practiceEndTime || practice.event.metadata.scheduleEndTime || '',
+    facility: practice.event.facility,
+    capacity: Number.isFinite(capacityValue) && capacityValue > 0 ? capacityValue : null,
+    practiceFocus: extractCaptainPracticeFocus(practice.event.metadata.practiceNotes),
+    responseUrl: `${window.location.origin}${practiceRsvpPath(practice.roster.publicToken)}`,
+  })
+  window.location.href = buildCaptainPracticeSmsHref(inviteText)
 }
 
 function PracticeCount({ value, label, accent = false, attention = false }: { value: number; label: string; accent?: boolean; attention?: boolean }) {
@@ -898,6 +928,14 @@ const manageButtonStyle: CSSProperties = {
   textAlign: 'center',
   textDecoration: 'none',
   cursor: 'pointer',
+}
+
+const shareInviteButtonStyle: CSSProperties = {
+  ...manageButtonStyle,
+  borderColor: 'color-mix(in srgb, var(--brand-green) 72%, var(--shell-panel-border) 28%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 72%, #17375e 28%), color-mix(in srgb, var(--brand-green) 52%, #0f2745 48%))',
+  color: '#07111f',
+  boxShadow: '0 12px 28px rgba(155,225,29,0.13)',
 }
 
 const practiceRosterManagerStyle: CSSProperties = {

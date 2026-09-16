@@ -6,9 +6,14 @@ import {
   practiceRsvpPath,
   resolvePracticeToken,
 } from '../captain-practice-rsvp'
-import { buildCaptainPracticeInviteText } from '../captain-practice-invite'
+import { buildCaptainPracticeInviteText, extractCaptainPracticeFocus } from '../captain-practice-invite'
 
 describe('captain practice RSVP', () => {
+  it('recovers the original practice focus for a later reshare', () => {
+    expect(extractCaptainPracticeFocus('Practice focus: Doubles patterns\nPlease mark In, Out, or Maybe so the captain can plan courts.'))
+      .toBe('Doubles patterns')
+  })
+
   it('uses a short, lossless public path', () => {
     const token = '123e4567-e89b-42d3-a456-426614174000'
     const path = practiceRsvpPath(token)
