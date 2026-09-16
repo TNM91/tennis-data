@@ -58,7 +58,7 @@ describe('Captain practice scheduler', () => {
     expect(source).toContain('confirmed')
     expect(source).toContain('to confirm')
     expect(source).toContain('awaiting reply')
-    expect(source).toContain('Players choose “In.” You confirm who has a spot.')
+    expect(source).toContain('Players choose “In.” Confirm their spot, or mark them unavailable if plans change.')
     expect(source).toContain('Confirmed by you')
     expect(source).toContain('Confirm spot')
     expect(source).toContain('aria-expanded={expanded}')
@@ -122,6 +122,21 @@ describe('Captain practice scheduler', () => {
     expect(messages).toContain('setCaptainPracticeInviteeConfirmed')
     expect(scheduling).toContain('captain_confirmed_at')
     expect(migration).toContain('captain_confirmed_by_user_id')
+  })
+
+  it('lets the practice captain move a signup out and reopen the RSVP independently of confirmation', () => {
+    const hub = readFileSync(join(process.cwd(), 'app/captain/practice/page.tsx'), 'utf8')
+    const messages = readFileSync(join(process.cwd(), 'app/messages/page.tsx'), 'utf8')
+    const route = readFileSync(join(process.cwd(), 'app/api/captain/practices/[eventId]/roster/route.ts'), 'utf8')
+
+    expect(hub).toContain('Mark unavailable')
+    expect(hub).toContain('Reopen RSVP')
+    expect(messages).toContain('Mark unavailable')
+    expect(messages).toContain('Reopen RSVP')
+    expect(route).toContain('invite.created_by_user_id !== userId')
+    expect(route).toContain(".eq('invite_id', invite.id)")
+    expect(route).toContain('captain_confirmed_at: null')
+    expect(route).toContain("from('internal_schedule_event_responses').upsert")
   })
 
   it('gives guests a premium account-free RSVP and calendar path', () => {

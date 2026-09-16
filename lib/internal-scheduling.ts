@@ -713,6 +713,25 @@ export async function setCaptainPracticeInviteeConfirmed(input: {
   if (error || !data) throw new Error('This practice confirmation could not be saved.')
 }
 
+export async function setCaptainPracticeInviteeStatus(input: {
+  eventId: string
+  inviteeId: string
+  status: 'out' | 'unanswered'
+}) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) throw new Error('Sign in to edit the practice roster.')
+  const response = await fetch(`/api/captain/practices/${encodeURIComponent(input.eventId)}/roster`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ inviteeId: input.inviteeId, status: input.status }),
+  })
+  const result = await response.json() as { message?: string }
+  if (!response.ok) throw new Error(result.message || 'The practice roster could not be updated.')
+}
+
 export async function previewCaptainPracticeRecipients(input: {
   teamName: string
   leagueName?: string | null
