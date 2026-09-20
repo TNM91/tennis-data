@@ -7,9 +7,24 @@ export type SubscriptionTrendPoint = {
   label: string
   newPaidAccounts: number
   cancellations: number
+  movements: SubscriptionMovement[]
 }
 
-export type BusinessPulseProfileRow = AccountTierRow & { id?: string | null }
+export type SubscriptionMovement = {
+  kind: 'new_paid' | 'canceled'
+  occurredAt: string
+  accountLabel: string
+  profileId: string
+  subscriptionId: string
+  planLabel: string
+}
+
+export type BusinessPulseProfileRow = AccountTierRow & {
+  id?: string | null
+  linked_player_name?: string | null
+  message_display_name?: string | null
+  tiq_public_id?: string | null
+}
 
 export type BusinessPulseClubRow = {
   owner_user_id?: string | null
@@ -83,9 +98,9 @@ export function buildBusinessPulse({
     .filter((event) => Number.isFinite(event.timestamp))
     .sort((left, right) => left.timestamp - right.timestamp)
   const since30d = now - 30 * 24 * 60 * 60 * 1000
-  const firstActiveBySubscription = new Map<string, number>()
+  const firstActiveBySubscription = new Map<string, { timestamp: number; event: BusinessPulseEventRow }>()
   const canceledSubscriptions = new Set<string>()
-  const firstCancellationBySubscription = new Map<string, number>()
+  const firstCancellationBySubscription = new Map<string, { timestamp: number; event: BusinessPulseEventRow }>()
   const trialStartedAt = new Map<string, number>()
   const convertedTrials = new Set<string>()
 
@@ -97,24 +112,25 @@ export function buildBusinessPulse({
       trialStartedAt.set(key, event.timestamp)
     }
     if (event.resulting_status === 'active') {
-      if (!firstActiveBySubscription.has(key)) firstActiveBySubscription.set(key, event.timestamp)
+      if (!firstActiveBySubscription.has(key)) firstActiveBySubscription.set(key, { timestamp: event.timestamp, event })
       const trialAt = trialStartedAt.get(key)
       if (trialAt != null && event.timestamp >= trialAt) convertedTrials.add(key)
     }
     if (
       (event.resulting_status === 'canceled' || event.event_type === 'customer.subscription.deleted')
     ) {
-      if (!firstCancellationBySubscription.has(key)) firstCancellationBySubscription.set(key, event.timestamp)
+      if (!firstCancellationBySubscription.has(key)) firstCancellationBySubscription.set(key, { timestamp: event.timestamp, event })
       if (event.timestamp >= since30d) canceledSubscriptions.add(key)
     }
   }
 
-  const newPaidAccounts30d = [...firstActiveBySubscription.values()].filter((timestamp) => timestamp >= since30d).length
+  const newPaidAccounts30d = [...firstActiveBySubscription.values()].filter(({ timestamp }) => timestamp >= since30d).length
   const recordedTrials = trialStartedAt.size
   const trialConversions = convertedTrials.size
   const subscriptionTrend6m = buildSubscriptionTrend6m(
     firstActiveBySubscription,
     firstCancellationBySubscription,
+    profiles,
     now,
   )
 
@@ -135,22 +151,54 @@ export function buildBusinessPulse({
 }
 
 function buildSubscriptionTrend6m(
-  activeBySubscription: Map<string, number>,
-  canceledBySubscription: Map<string, number>,
+  activeBySubscription: Map<string, { timestamp: number; event: BusinessPulseEventRow }>,
+  canceledBySubscription: Map<string, { timestamp: number; event: BusinessPulseEventRow }>,
+  profiles: BusinessPulseProfileRow[],
   now: number,
 ): SubscriptionTrendPoint[] {
   const nowDate = new Date(now)
+  const profilesById = new Map(profiles.map((profile) => [profile.id?.trim() ?? '', profile]))
   return Array.from({ length: 6 }, (_, index) => {
     const monthDate = new Date(Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth() - 5 + index, 1))
     const month = monthDate.toISOString().slice(0, 7)
-    const isMonth = (timestamp: number) => new Date(timestamp).toISOString().slice(0, 7) === month
+    const isMonth = ({ timestamp }: { timestamp: number }) => new Date(timestamp).toISOString().slice(0, 7) === month
+    const newPaid = [...activeBySubscription.values()].filter(isMonth)
+    const canceled = [...canceledBySubscription.values()].filter(isMonth)
     return {
       month,
       label: monthDate.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }),
-      newPaidAccounts: [...activeBySubscription.values()].filter(isMonth).length,
-      cancellations: [...canceledBySubscription.values()].filter(isMonth).length,
+      newPaidAccounts: newPaid.length,
+      cancellations: canceled.length,
+      movements: [
+        ...newPaid.map(({ timestamp, event }) => toSubscriptionMovement('new_paid', timestamp, event, profilesById)),
+        ...canceled.map(({ timestamp, event }) => toSubscriptionMovement('canceled', timestamp, event, profilesById)),
+      ].sort((left, right) => right.occurredAt.localeCompare(left.occurredAt)),
     }
   })
+}
+
+function toSubscriptionMovement(
+  kind: SubscriptionMovement['kind'],
+  timestamp: number,
+  event: BusinessPulseEventRow,
+  profilesById: Map<string, BusinessPulseProfileRow>,
+): SubscriptionMovement {
+  const profileId = event.profile_id?.trim() ?? ''
+  const profile = profilesById.get(profileId)
+  const subscriptionId = event.stripe_subscription_id?.trim() ?? ''
+  const accountLabel = profile?.linked_player_name?.trim() ||
+    profile?.message_display_name?.trim() ||
+    profile?.tiq_public_id?.trim() ||
+    (profileId ? `Account ${profileId.slice(0, 8)}` : subscriptionId ? `Subscription ${subscriptionId.slice(-8)}` : 'Stripe account')
+  const planId = normalizeBillablePlanId(event.plan_id)
+  return {
+    kind,
+    occurredAt: new Date(timestamp).toISOString(),
+    accountLabel,
+    profileId,
+    subscriptionId,
+    planLabel: planId ? getPricingPlan(planId).name : 'Paid plan',
+  }
 }
 
 function billingEventAccountKey(event: BusinessPulseEventRow) {
