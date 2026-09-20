@@ -62,5 +62,13 @@ describe('buildBusinessPulse', () => {
     expect(pulse.recordedTrials).toBe(1)
     expect(pulse.trialConversions).toBe(1)
     expect(pulse.trialConversionRate).toBe(1)
+    expect(pulse.subscriptionTrend6m).toEqual([
+      { month: '2026-04', label: 'Apr', newPaidAccounts: 0, cancellations: 0 },
+      { month: '2026-05', label: 'May', newPaidAccounts: 0, cancellations: 0 },
+      { month: '2026-06', label: 'Jun', newPaidAccounts: 0, cancellations: 0 },
+      { month: '2026-07', label: 'Jul', newPaidAccounts: 1, cancellations: 0 },
+      { month: '2026-08', label: 'Aug', newPaidAccounts: 0, cancellations: 0 },
+      { month: '2026-09', label: 'Sep', newPaidAccounts: 1, cancellations: 1 },
+    ])
   })
 })

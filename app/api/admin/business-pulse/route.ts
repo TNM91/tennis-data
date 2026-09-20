@@ -6,7 +6,7 @@ import {
   type BusinessPulseEventRow,
   type BusinessPulseProfileRow,
 } from '@/lib/admin-business-pulse'
-import { loadStripeRevenue30d } from '@/lib/stripe-revenue-api'
+import { loadStripeRevenueReporting } from '@/lib/stripe-revenue-api'
 
 export const runtime = 'nodejs'
 export const maxDuration = 20
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     loadProfiles(auth.service),
     loadClubs(auth.service),
     loadBillingEvents(auth.service),
-    loadStripeRevenue30d(now),
+    loadStripeRevenueReporting(now),
   ])
 
   if (!profilesResult.ok) {
@@ -43,6 +43,7 @@ export async function GET(request: Request) {
     now,
   })
   pulse.stripeRevenue30d = stripeRevenueResult.report
+  pulse.stripeRevenueTrend6m = stripeRevenueResult.trend
   pulse.stripeRevenueMessage = stripeRevenueResult.message
 
   return Response.json({ ok: true, pulse }, {

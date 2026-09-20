@@ -1,8 +1,10 @@
 import 'server-only'
 import {
   summarizeStripeRevenue30d,
+  summarizeStripeRevenue6m,
   type StripeBalanceTransactionRow,
   type StripeRevenueReport,
+  type StripeRevenueTrend,
 } from './stripe-revenue-report'
 
 const STRIPE_API_VERSION = '2026-04-22.dahlia'
@@ -13,18 +15,20 @@ type StripeBalanceTransactionList = {
   has_more?: boolean
 }
 
-export async function loadStripeRevenue30d(now = Date.now()): Promise<{
+export async function loadStripeRevenueReporting(now = Date.now()): Promise<{
   report: StripeRevenueReport | null
+  trend: StripeRevenueTrend | null
   message: string | null
 }> {
   const stripeKey = process.env.STRIPE_REPORTING_KEY?.trim() ||
     process.env.STRIPE_SECRET_KEY?.trim() ||
     process.env.STRIPE_RESTRICTED_KEY?.trim()
   if (!stripeKey) {
-    return { report: null, message: 'Stripe cash reporting is not configured.' }
+    return { report: null, trend: null, message: 'Stripe cash reporting is not configured.' }
   }
 
-  const sinceSeconds = Math.floor((now - 30 * 24 * 60 * 60 * 1000) / 1000)
+  const nowDate = new Date(now)
+  const sinceSeconds = Math.floor(Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth() - 5, 1) / 1000)
   const rows: StripeBalanceTransactionRow[] = []
   let startingAfter = ''
 
@@ -45,24 +49,30 @@ export async function loadStripeRevenue30d(now = Date.now()): Promise<{
         cache: 'no-store',
       })
     } catch {
-      return { report: null, message: 'Stripe cash totals are temporarily unavailable.' }
+      return { report: null, trend: null, message: 'Stripe cash totals are temporarily unavailable.' }
     }
     const body = await response.json().catch(() => null) as StripeBalanceTransactionList | null
     if (!response.ok || !body) {
       const permissionMessage = response.status === 401 || response.status === 403
         ? 'Stripe cash reporting needs Balance read access.'
         : 'Stripe cash totals are temporarily unavailable.'
-      return { report: null, message: permissionMessage }
+      return { report: null, trend: null, message: permissionMessage }
     }
 
     const pageRows = Array.isArray(body.data) ? body.data : []
     rows.push(...pageRows)
-    if (!body.has_more) return { report: summarizeStripeRevenue30d(rows, now), message: null }
+    if (!body.has_more) {
+      return {
+        report: summarizeStripeRevenue30d(rows, now),
+        trend: summarizeStripeRevenue6m(rows, now),
+        message: null,
+      }
+    }
 
     const lastId = pageRows.at(-1)?.id?.trim()
-    if (!lastId) return { report: null, message: 'Stripe returned an incomplete cash report.' }
+    if (!lastId) return { report: null, trend: null, message: 'Stripe returned an incomplete cash report.' }
     startingAfter = lastId
   }
 
-  return { report: null, message: 'Stripe cash activity is too large to summarize safely.' }
+  return { report: null, trend: null, message: 'Stripe cash activity is too large to summarize safely.' }
 }

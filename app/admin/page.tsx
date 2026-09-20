@@ -455,6 +455,7 @@ function BusinessPulsePanel() {
               </Link>
             ))}
           </div>
+          <BusinessTrend pulse={pulse} />
           <p className="subtle-text" style={{ margin: '12px 0 0', fontSize: 13, lineHeight: 1.45 }}>
             MRR is active monthly subscriptions × current list price. Collected cash comes from Stripe balance activity and includes real discounts, taxes, refunds, disputes, and processing fees.
           </p>
@@ -464,12 +465,82 @@ function BusinessPulsePanel() {
   )
 }
 
+function BusinessTrend({ pulse }: { pulse: BusinessPulse }) {
+  const revenueMonths = pulse.stripeRevenueTrend6m?.months ?? []
+  const maxRevenue = Math.max(1, ...revenueMonths.map((month) => Math.abs(month.netAfterFeesCents)))
+
+  return (
+    <div style={{ marginTop: 14, padding: '16px 12px', borderRadius: 16, border: '1px solid var(--card-border-soft)', background: 'color-mix(in srgb, var(--surface-soft) 74%, transparent)', minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ color: 'var(--foreground)', fontSize: 16, fontWeight: 900, lineHeight: 1.2 }}>Six-month direction</div>
+          <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 700, lineHeight: 1.35, marginTop: 4 }}>Cash after fees · new paid · canceled</div>
+        </div>
+        <Link href="https://dashboard.stripe.com/balance" style={{ color: 'var(--accent)', fontSize: 12, fontWeight: 850, textDecoration: 'none' }}>Open Stripe</Link>
+      </div>
+
+      {revenueMonths.length > 0 ? (
+        <div
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 6, alignItems: 'end', marginTop: 16 }}
+          aria-label="Six month Stripe revenue after fees"
+        >
+          {revenueMonths.map((month) => {
+            const height = month.netAfterFeesCents === 0 ? 3 : Math.max(10, Math.round(Math.abs(month.netAfterFeesCents) / maxRevenue * 100))
+            const value = formatCompactUsd(month.netAfterFeesCents)
+            return (
+              <div
+                key={month.month}
+                style={{ minWidth: 0, textAlign: 'center' }}
+                title={`${month.label}: ${formatUsd(month.netAfterFeesCents)} after fees; ${formatUsd(month.netCollectedCents)} collected`}
+                aria-label={`${month.label}: ${formatUsd(month.netAfterFeesCents)} after fees; ${formatUsd(month.netCollectedCents)} collected`}
+              >
+                <div style={{ height: 88, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingInline: 2 }}>
+                  <span style={{ display: 'block', width: '100%', maxWidth: 38, height: `${height}%`, minHeight: 3, borderRadius: '7px 7px 3px 3px', background: month.netAfterFeesCents < 0 ? 'linear-gradient(180deg, #fb7185, #be123c)' : month.netAfterFeesCents > 0 ? 'linear-gradient(180deg, #b7f34a, #5f9f18)' : 'var(--card-border-soft)' }} />
+                </div>
+                <div style={{ color: 'var(--foreground)', fontSize: 10, fontWeight: 850, lineHeight: 1.2, marginTop: 6, overflowWrap: 'anywhere' }}>{value}</div>
+                <div style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 800, lineHeight: 1.2, marginTop: 3 }}>{month.label}</div>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <p className="subtle-text" style={{ margin: '14px 0 0', fontSize: 13 }}>{pulse.stripeRevenueMessage || 'Stripe cash trend is unavailable.'}</p>
+      )}
+
+      <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--card-border-soft)' }}>
+        <div style={{ display: 'flex', gap: 12, color: 'var(--muted)', fontSize: 11, fontWeight: 800 }}>
+          <span><span aria-hidden="true" style={{ color: '#b7f34a' }}>●</span> New paid</span>
+          <span><span aria-hidden="true" style={{ color: '#fb7185' }}>●</span> Canceled</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 6, marginTop: 10 }} aria-label="Six month subscription movement">
+          {pulse.subscriptionTrend6m.map((month) => (
+            <div key={month.month} style={{ minWidth: 0, textAlign: 'center', padding: '8px 2px', borderRadius: 10, background: 'var(--surface-soft)' }} aria-label={`${month.label}: ${month.newPaidAccounts} new paid, ${month.cancellations} canceled`}>
+              <div style={{ color: '#b7f34a', fontSize: 12, fontWeight: 900, lineHeight: 1.2 }}>+{month.newPaidAccounts}</div>
+              <div style={{ color: '#fb9aaa', fontSize: 12, fontWeight: 900, lineHeight: 1.2, marginTop: 4 }}>−{month.cancellations}</div>
+              <div style={{ color: 'var(--muted)', fontSize: 10, fontWeight: 800, lineHeight: 1.2, marginTop: 5 }}>{month.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function formatUsd(amountCents: number) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
+  }).format(amountCents / 100)
+}
+
+function formatCompactUsd(amountCents: number) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    notation: Math.abs(amountCents) >= 100_000 ? 'compact' : 'standard',
+    maximumFractionDigits: Math.abs(amountCents) >= 100_000 ? 1 : 0,
   }).format(amountCents / 100)
 }
 
