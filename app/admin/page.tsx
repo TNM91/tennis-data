@@ -497,7 +497,7 @@ function BusinessTrend({ pulse }: { pulse: BusinessPulse }) {
                 key={month.month}
                 onClick={() => setSelectedMonth(month.month)}
                 aria-pressed={selectedMonth === month.month}
-                style={{ minWidth: 0, textAlign: 'center', padding: '4px 2px 6px', borderRadius: 10, border: selectedMonth === month.month ? '1px solid color-mix(in srgb, var(--brand-lime) 55%, var(--card-border-soft))' : '1px solid transparent', background: selectedMonth === month.month ? 'color-mix(in srgb, var(--brand-green) 18%, transparent)' : 'transparent', color: 'inherit', font: 'inherit', cursor: 'pointer' }}
+                style={{ minWidth: 0, textAlign: 'center', padding: '4px 2px 6px', borderRadius: 10, border: selectedMonth === month.month ? '1px solid color-mix(in srgb, var(--brand-lime) 55%, var(--card-border-soft))' : '1px solid transparent', background: 'transparent', boxShadow: selectedMonth === month.month ? 'inset 0 0 0 1px color-mix(in srgb, var(--brand-lime) 18%, transparent)' : 'none', color: 'inherit', font: 'inherit', cursor: 'pointer' }}
                 title={`${month.label}: ${formatUsd(month.netAfterFeesCents)} after fees; ${formatUsd(month.netCollectedCents)} collected`}
                 aria-label={`${month.label}: ${formatUsd(month.netAfterFeesCents)} after fees; ${formatUsd(month.netCollectedCents)} collected`}
               >
