@@ -6,8 +6,10 @@ import {
   type BusinessPulseEventRow,
   type BusinessPulseProfileRow,
 } from '@/lib/admin-business-pulse'
+import { loadStripeRevenue30d } from '@/lib/stripe-revenue-api'
 
 export const runtime = 'nodejs'
+export const maxDuration = 20
 
 const PAGE_SIZE = 1000
 const PROFILE_COLUMNS = 'id,role,stripe_customer_id,stripe_subscription_id,player_plus_subscription_active,player_plus_subscription_status,player_plus_access_expires_at,coach_subscription_active,coach_subscription_status,coach_access_expires_at,captain_subscription_active,captain_subscription_status,captain_access_expires_at,tiq_team_league_entry_enabled,tiq_individual_league_creator_enabled,league_access_expires_at'
@@ -16,10 +18,12 @@ export async function GET(request: Request) {
   const auth = await getAdminApiAuth(request)
   if (!auth.ok) return auth.response
 
-  const [profilesResult, clubsResult, eventsResult] = await Promise.all([
+  const now = Date.now()
+  const [profilesResult, clubsResult, eventsResult, stripeRevenueResult] = await Promise.all([
     loadProfiles(auth.service),
     loadClubs(auth.service),
     loadBillingEvents(auth.service),
+    loadStripeRevenue30d(now),
   ])
 
   if (!profilesResult.ok) {
@@ -36,7 +40,10 @@ export async function GET(request: Request) {
     profiles: profilesResult.rows,
     clubs: clubsResult.rows,
     events: eventsResult.rows,
+    now,
   })
+  pulse.stripeRevenue30d = stripeRevenueResult.report
+  pulse.stripeRevenueMessage = stripeRevenueResult.message
 
   return Response.json({ ok: true, pulse }, {
     headers: { 'Cache-Control': 'private, no-store' },

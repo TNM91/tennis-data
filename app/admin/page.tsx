@@ -399,6 +399,22 @@ function BusinessPulsePanel() {
       href: '/admin/access?billing=paid',
     },
     {
+      label: 'Collected · 30d',
+      value: pulse.stripeRevenue30d ? formatUsd(pulse.stripeRevenue30d.netCollectedCents) : '—',
+      detail: pulse.stripeRevenue30d
+        ? `${formatUsd(pulse.stripeRevenue30d.grossCollectedCents)} charged · ${formatUsd(pulse.stripeRevenue30d.refundsCents + pulse.stripeRevenue30d.disputesCents)} returned`
+        : pulse.stripeRevenueMessage || 'Stripe cash reporting unavailable',
+      href: 'https://dashboard.stripe.com/balance',
+    },
+    {
+      label: 'After fees · 30d',
+      value: pulse.stripeRevenue30d ? formatUsd(pulse.stripeRevenue30d.netAfterFeesCents) : '—',
+      detail: pulse.stripeRevenue30d
+        ? `${formatUsd(pulse.stripeRevenue30d.stripeFeesCents)} Stripe fees`
+        : 'Exact Stripe balance impact',
+      href: 'https://dashboard.stripe.com/balance',
+    },
+    {
       label: 'New paid',
       value: pulse.newPaidAccounts30d.toLocaleString(),
       detail: 'First activation · 30 days',
@@ -440,7 +456,7 @@ function BusinessPulsePanel() {
             ))}
           </div>
           <p className="subtle-text" style={{ margin: '12px 0 0', fontSize: 13, lineHeight: 1.45 }}>
-            MRR is active monthly subscriptions × current list price. Season fees, discounts, taxes, and refunds are excluded.
+            MRR is active monthly subscriptions × current list price. Collected cash comes from Stripe balance activity and includes real discounts, taxes, refunds, disputes, and processing fees.
           </p>
         </>
       ) : null}
