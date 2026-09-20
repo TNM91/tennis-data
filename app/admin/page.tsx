@@ -10,6 +10,8 @@ import AdminGate from '@/app/components/admin-gate'
 import SiteShell from '@/app/components/site-shell'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { supabase } from '@/lib/supabase'
+import { MEMBERSHIP_TIER_ORDER, MEMBERSHIP_TIERS } from '@/lib/product-story'
+import type { AccountTierCounts } from '@/lib/admin-account-tiers'
 
 type Accent = 'blue' | 'green' | 'slate'
 
@@ -173,7 +175,7 @@ const adminTools: AdminTool[] = [
   {
     title: 'Upgrade Requests',
     href: '/admin/upgrade-requests',
-    description: 'Review plan requests and activate approved access.',
+    description: 'Follow up on plan interest. Requests are not paid subscriptions or signup approvals.',
     badge: 'Leads',
     accent: 'green',
     icon: 'myLab',
@@ -260,21 +262,23 @@ const adminTools: AdminTool[] = [
   },
 ]
 
-const priorityToolHrefs = [
-  '/admin/access',
-  '/admin/promotions',
-  '/admin/growth',
-  '/admin/product-events',
-  '/admin/tennisrecord',
-  '/admin/data-assist',
-  '/admin/missing-scorecards',
-]
+const toolGroups = [
+  {
+    kicker: 'Accounts',
+    title: 'People & plans',
+    subtitle: 'Find an account, check access, and understand growth.',
+    hrefs: ['/admin/access', '/admin/growth', '/admin/clubs', '/admin/promotions'],
+  },
+  {
+    kicker: 'Tennis data',
+    title: 'Review & repair',
+    subtitle: 'Handle uploads and match records that need attention.',
+    hrefs: ['/admin/data-assist', '/admin/import-queue', '/admin/match-reports', '/admin/missing-scorecards'],
+  },
+] as const
 
-const priorityTools = priorityToolHrefs
-  .map((href) => adminTools.find((tool) => tool.href === href))
-  .filter((tool): tool is AdminTool => Boolean(tool))
-
-const moreAdminTools = adminTools.filter((tool) => !priorityToolHrefs.includes(tool.href))
+const primaryToolHrefs = new Set<string>(toolGroups.flatMap((group) => [...group.hrefs]))
+const moreAdminTools = adminTools.filter((tool) => !primaryToolHrefs.has(tool.href))
 
 function accentStyles(accent: Accent) {
   if (accent === 'green') {
@@ -319,37 +323,37 @@ export default function AdminDashboardPage() {
         <AdminReviewFrame>
         <AdminReviewHero
           kicker="Admin"
-          title="What needs attention?"
+          title="Run TenAceIQ"
           actions={
             <>
-              <Link href="/admin/data-assist" className="button-primary">Review uploads</Link>
-              <Link href="/admin/access" className="button-secondary">Grant access</Link>
-              <Link href="/admin/promotions" className="button-secondary">Stripe promotions</Link>
-              <Link href="/admin/growth" className="button-secondary">Growth funnel</Link>
-              <Link href="/admin/product-events" className="button-secondary">Traffic & activity</Link>
-              <Link href="/admin/clubs" className="button-secondary">Manage clubs</Link>
+              <Link href="/admin/access" className="button-primary">Find an account</Link>
+              <Link href="/admin/data-assist" className="button-secondary">Review uploads</Link>
             </>
           }
         >
-          Review tennis data, account access, and club workspaces from one place.
+          See account access at a glance, then open the work that needs you.
         </AdminReviewHero>
-        <DataQualityPanel />
+        <AccountTiersPanel />
 
-        <section style={{ marginTop: 24 }}>
-          <SectionHeader
-            kicker="Start here"
-            title="Common admin work"
-            subtitle="Open the job you need."
-          />
-          <div className="admin-tool-grid" style={adminToolGridStyle}>
-            {priorityTools.map((tool) => (
-              <AdminToolCard key={tool.href} tool={tool} />
-            ))}
-          </div>
-        </section>
+        {toolGroups.map((group) => (
+          <section key={group.title} style={{ marginTop: 24 }}>
+            <SectionHeader kicker={group.kicker} title={group.title} subtitle={group.subtitle} />
+            <div className="admin-tool-grid" style={adminToolGridStyle}>
+              {group.hrefs.map((href) => {
+                const tool = adminTools.find((item) => item.href === href)
+                return tool ? <AdminToolCard key={href} tool={tool} /> : null
+              })}
+            </div>
+          </section>
+        ))}
 
         <details style={moreToolsStyle}>
-          <summary style={moreToolsSummaryStyle}>More admin tools <span>{moreAdminTools.length}</span></summary>
+          <summary style={moreToolsSummaryStyle}>Operating health</summary>
+          <DataQualityPanel />
+        </details>
+
+        <details style={moreToolsStyle}>
+          <summary style={moreToolsSummaryStyle}>Specialist tools <span>{moreAdminTools.length}</span></summary>
           <div className="admin-tool-grid" style={adminToolGridStyle}>
             {moreAdminTools.map((tool) => <AdminToolCard key={tool.href} tool={tool} />)}
           </div>
@@ -358,6 +362,54 @@ export default function AdminDashboardPage() {
         </AdminReviewFrame>
       </AdminGate>
     </SiteShell>
+  )
+}
+
+function AccountTiersPanel() {
+  const [counts, setCounts] = useState<AccountTierCounts | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    void (async () => {
+      try {
+        const { data } = await supabase.auth.getSession()
+        if (!data.session?.access_token) throw new Error('Sign in to see account counts.')
+        const response = await fetch('/api/admin/account-tiers', {
+          headers: { Authorization: `Bearer ${data.session.access_token}` },
+          cache: 'no-store',
+        })
+        const body = await response.json() as { ok: boolean; counts?: AccountTierCounts; message?: string }
+        if (!response.ok || !body.counts) throw new Error(body.message || 'Account counts are unavailable.')
+        if (active) setCounts(body.counts)
+      } catch (cause) {
+        if (active) setError(cause instanceof Error ? cause.message : 'Account counts are unavailable.')
+      }
+    })()
+    return () => { active = false }
+  }, [])
+
+  return (
+    <section style={{ marginTop: 20, padding: '20px', borderRadius: 20, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+      <SectionHeader kicker="Membership" title="Accounts by tier" subtitle="Current access for signed-up accounts, not upgrade requests or tennis player records." />
+      {error ? <p role="alert" className="subtle-text">{error}</p> : null}
+      {!counts && !error ? <p className="subtle-text">Loading account counts…</p> : null}
+      {counts ? (
+        <>
+          <p style={{ margin: '12px 0', color: 'var(--muted-strong)' }}><strong style={{ color: 'var(--foreground)' }}>{counts.total.toLocaleString()} accounts</strong> · {(counts.total - counts.admins).toLocaleString()} members · {counts.admins.toLocaleString()} admins</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 135px), 1fr))', gap: 10 }}>
+            {MEMBERSHIP_TIER_ORDER.map((tier) => (
+              <div key={tier} style={{ padding: '14px', borderRadius: 14, background: 'var(--surface-soft)', border: '1px solid var(--card-border-soft)' }}>
+                <div style={{ color: 'var(--muted-strong)', fontSize: 13, fontWeight: 700 }}>{MEMBERSHIP_TIERS[tier].name}</div>
+                <div style={{ color: 'var(--foreground)', fontSize: 26, fontWeight: 900 }}>{counts[tier].toLocaleString()}</div>
+              </div>
+            ))}
+          </div>
+          <p className="subtle-text" style={{ margin: '12px 0 0', fontSize: 13 }}>Each member appears once at their highest effective tier. Admins are shown separately. This measures access, not paid subscriptions.</p>
+          <Link href="/admin/access" className="button-secondary" style={{ marginTop: 14 }}>Manage account access</Link>
+        </>
+      ) : null}
+    </section>
   )
 }
 
@@ -469,7 +521,7 @@ function DataQualityPanel() {
             { label: 'Player-linked', value: linkedPct != null ? `${linkedPct}%` : '-', flag: linkedPct != null && linkedPct < 80 },
             { label: 'Total players', value: stats.totalPlayers?.toLocaleString() ?? '-' },
             {
-              label: 'Pending upgrades',
+              label: 'Open plan requests',
               value: stats.pendingUpgradeRequests?.toLocaleString() ?? '-',
               flag: Boolean(stats.pendingUpgradeRequests),
               href: '/admin/upgrade-requests',
