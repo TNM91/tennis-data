@@ -12,6 +12,7 @@ import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqF
 import { supabase } from '@/lib/supabase'
 import { MEMBERSHIP_TIER_ORDER, MEMBERSHIP_TIERS } from '@/lib/product-story'
 import type { AccountHealthKey, AccountTierSummary } from '@/lib/admin-account-tiers'
+import type { BusinessPulse } from '@/lib/admin-business-pulse'
 
 type Accent = 'blue' | 'green' | 'slate'
 
@@ -334,6 +335,7 @@ export default function AdminDashboardPage() {
           See account access at a glance, then open the work that needs you.
         </AdminReviewHero>
         <AccountTiersPanel />
+        <BusinessPulsePanel />
 
         {toolGroups.map((group) => (
           <section key={group.title} style={{ marginTop: 24 }}>
@@ -363,6 +365,96 @@ export default function AdminDashboardPage() {
       </AdminGate>
     </SiteShell>
   )
+}
+
+function BusinessPulsePanel() {
+  const [pulse, setPulse] = useState<BusinessPulse | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    void (async () => {
+      try {
+        const { data } = await supabase.auth.getSession()
+        if (!data.session?.access_token) throw new Error('Sign in to see subscription activity.')
+        const response = await fetch('/api/admin/business-pulse', {
+          headers: { Authorization: `Bearer ${data.session.access_token}` },
+          cache: 'no-store',
+        })
+        const body = await response.json() as { ok: boolean; message?: string; pulse?: BusinessPulse }
+        if (!response.ok || !body.pulse) throw new Error(body.message || 'Subscription activity is unavailable.')
+        if (active) setPulse(body.pulse)
+      } catch (cause) {
+        if (active) setError(cause instanceof Error ? cause.message : 'Subscription activity is unavailable.')
+      }
+    })()
+    return () => { active = false }
+  }, [])
+
+  const metrics = pulse ? [
+    {
+      label: 'List-price MRR',
+      value: formatUsd(pulse.estimatedMrrCents),
+      detail: `${pulse.activePaidSubscriptions.toLocaleString()} active paid subscriptions`,
+      href: '/admin/access?billing=paid',
+    },
+    {
+      label: 'New paid',
+      value: pulse.newPaidAccounts30d.toLocaleString(),
+      detail: 'First activation · 30 days',
+      href: '/admin/growth',
+    },
+    {
+      label: 'Canceled',
+      value: pulse.cancellations30d.toLocaleString(),
+      detail: 'Subscriptions · 30 days',
+      href: '/admin/access?billing=canceled',
+    },
+    {
+      label: 'Trial → paid',
+      value: pulse.trialConversionRate == null ? '—' : `${Math.round(pulse.trialConversionRate * 100)}%`,
+      detail: `${pulse.trialConversions.toLocaleString()} of ${pulse.recordedTrials.toLocaleString()} recorded trials`,
+      href: '/admin/growth',
+    },
+  ] : []
+
+  return (
+    <section style={{ marginTop: 20, padding: '20px', borderRadius: 20, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
+      <SectionHeader kicker="Business" title="Subscription pulse" subtitle="Current recurring value and recent billing movement." />
+      {error ? <p role="alert" className="subtle-text">{error}</p> : null}
+      {!pulse && !error ? <p className="subtle-text">Loading subscription activity…</p> : null}
+      {pulse ? (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))', gap: 10, marginTop: 14 }}>
+            {metrics.map((metric) => (
+              <Link
+                key={metric.label}
+                href={metric.href}
+                style={{ display: 'block', minWidth: 0, padding: '14px', borderRadius: 14, background: 'var(--surface-soft)', border: '1px solid var(--card-border-soft)', textDecoration: 'none' }}
+                aria-label={`${metric.label}: ${metric.value}. View details`}
+              >
+                <div style={{ color: 'var(--muted-strong)', fontSize: 12, fontWeight: 800, lineHeight: 1.25 }}>{metric.label}</div>
+                <div style={{ color: 'var(--foreground)', fontSize: 25, fontWeight: 900, lineHeight: 1.15, marginTop: 5, overflowWrap: 'anywhere' }}>{metric.value}</div>
+                <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 700, lineHeight: 1.35, marginTop: 6 }}>{metric.detail}</div>
+              </Link>
+            ))}
+          </div>
+          <p className="subtle-text" style={{ margin: '12px 0 0', fontSize: 13, lineHeight: 1.45 }}>
+            MRR is active monthly subscriptions × current list price. Season fees, discounts, taxes, and refunds are excluded.
+          </p>
+        </>
+      ) : null}
+    </section>
+  )
+}
+
+function formatUsd(amountCents: number) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amountCents / 100)
 }
 
 function AccountTiersPanel() {
