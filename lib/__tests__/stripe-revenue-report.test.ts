@@ -40,8 +40,8 @@ describe('summarizeStripeRevenue6m', () => {
     const now = Date.parse('2026-09-20T12:00:00Z')
     const report = summarizeStripeRevenue6m([
       { amount: 5_000, net: 4_825, currency: 'usd', reporting_category: 'charge', created: Date.parse('2026-04-02T12:00:00Z') / 1000 },
-      { amount: 8_000, net: 7_735, currency: 'usd', reporting_category: 'charge', created: Date.parse('2026-08-10T12:00:00Z') / 1000 },
-      { amount: -1_000, net: -1_000, currency: 'usd', reporting_category: 'refund', created: Date.parse('2026-08-12T12:00:00Z') / 1000 },
+      { id: 'txn_payment', source: 'ch_123', description: 'Captain monthly payment', amount: 8_000, fee: 265, net: 7_735, currency: 'usd', reporting_category: 'charge', created: Date.parse('2026-08-10T12:00:00Z') / 1000 },
+      { id: 'txn_refund', source: 're_123', description: 'Requested refund', amount: -1_000, fee: 0, net: -1_000, currency: 'usd', reporting_category: 'refund', created: Date.parse('2026-08-12T12:00:00Z') / 1000 },
       { amount: 9_000, net: 8_700, currency: 'usd', reporting_category: 'charge', created: Date.parse('2026-03-31T23:59:59Z') / 1000 },
     ], now)
 
@@ -57,6 +57,28 @@ describe('summarizeStripeRevenue6m', () => {
       netAfterFeesCents: 6_735,
       transactionCount: 2,
     })
+    expect(report.months[4].activity).toEqual([
+      {
+        id: 'txn_refund',
+        kind: 'refund',
+        occurredAt: '2026-08-12T12:00:00.000Z',
+        description: 'Requested refund',
+        sourceId: 're_123',
+        amountCents: -1_000,
+        feeCents: 0,
+        netCents: -1_000,
+      },
+      {
+        id: 'txn_payment',
+        kind: 'payment',
+        occurredAt: '2026-08-10T12:00:00.000Z',
+        description: 'Captain monthly payment',
+        sourceId: 'ch_123',
+        amountCents: 8_000,
+        feeCents: 265,
+        netCents: 7_735,
+      },
+    ])
     expect(report.months[5].netCollectedCents).toBe(0)
   })
 })

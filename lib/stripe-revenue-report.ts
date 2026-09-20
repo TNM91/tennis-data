@@ -6,6 +6,19 @@ export type StripeBalanceTransactionRow = {
   currency?: string | null
   reporting_category?: string | null
   created?: number | null
+  description?: string | null
+  source?: string | null
+}
+
+export type StripeRevenueActivity = {
+  id: string
+  kind: 'payment' | 'refund' | 'dispute' | 'recovered'
+  occurredAt: string
+  description: string
+  sourceId: string
+  amountCents: number
+  feeCents: number
+  netCents: number
 }
 
 export type StripeRevenueReport = {
@@ -25,6 +38,7 @@ export type StripeRevenueReport = {
 export type StripeRevenueTrendPoint = Omit<StripeRevenueReport, 'periodDays' | 'since' | 'through'> & {
   month: string
   label: string
+  activity: StripeRevenueActivity[]
 }
 
 export type StripeRevenueTrend = {
@@ -94,11 +108,38 @@ export function summarizeStripeRevenue6m(
       label,
       ...summarizeRevenueRows(monthRows),
       currency: 'usd' as const,
+      activity: monthRows
+        .map(toRevenueActivity)
+        .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt)),
     })),
     currency: 'usd',
     since: new Date(firstMonthMs).toISOString(),
     through: new Date(now).toISOString(),
   }
+}
+
+function toRevenueActivity(row: StripeBalanceTransactionRow): StripeRevenueActivity {
+  const category = row.reporting_category ?? ''
+  return {
+    id: cleanActivityText(row.id, 120) || 'stripe-transaction',
+    kind: CHARGE_CATEGORIES.has(category)
+      ? 'payment'
+      : REFUND_CATEGORIES.has(category)
+        ? 'refund'
+        : DISPUTE_REVERSAL_CATEGORIES.has(category)
+          ? 'recovered'
+          : 'dispute',
+    occurredAt: new Date(Number(row.created) * 1000).toISOString(),
+    description: cleanActivityText(row.description, 180),
+    sourceId: cleanActivityText(row.source, 120),
+    amountCents: Number(row.amount) || 0,
+    feeCents: Number(row.fee) || 0,
+    netCents: Number(row.net) || 0,
+  }
+}
+
+function cleanActivityText(value: string | null | undefined, limit: number) {
+  return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, limit) : ''
 }
 
 function summarizeRevenueRows(rows: StripeBalanceTransactionRow[]) {

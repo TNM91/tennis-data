@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import {
   AdminReviewFrame,
   AdminReviewHero,
@@ -468,6 +468,10 @@ function BusinessPulsePanel() {
 function BusinessTrend({ pulse }: { pulse: BusinessPulse }) {
   const revenueMonths = pulse.stripeRevenueTrend6m?.months ?? []
   const maxRevenue = Math.max(1, ...revenueMonths.map((month) => Math.abs(month.netAfterFeesCents)))
+  const [selectedMonth, setSelectedMonth] = useState(() => revenueMonths.at(-1)?.month || pulse.subscriptionTrend6m.at(-1)?.month || '')
+  const selectedRevenue = revenueMonths.find((month) => month.month === selectedMonth)
+  const selectedSubscriptions = pulse.subscriptionTrend6m.find((month) => month.month === selectedMonth)
+  const selectedLabel = selectedRevenue?.label || selectedSubscriptions?.label || 'Month'
 
   return (
     <div style={{ marginTop: 14, padding: '16px 12px', borderRadius: 16, border: '1px solid var(--card-border-soft)', background: 'color-mix(in srgb, var(--surface-soft) 74%, transparent)', minWidth: 0 }}>
@@ -488,9 +492,12 @@ function BusinessTrend({ pulse }: { pulse: BusinessPulse }) {
             const height = month.netAfterFeesCents === 0 ? 3 : Math.max(10, Math.round(Math.abs(month.netAfterFeesCents) / maxRevenue * 100))
             const value = formatCompactUsd(month.netAfterFeesCents)
             return (
-              <div
+              <button
+                type="button"
                 key={month.month}
-                style={{ minWidth: 0, textAlign: 'center' }}
+                onClick={() => setSelectedMonth(month.month)}
+                aria-pressed={selectedMonth === month.month}
+                style={{ minWidth: 0, textAlign: 'center', padding: '4px 2px 6px', borderRadius: 10, border: selectedMonth === month.month ? '1px solid color-mix(in srgb, var(--brand-lime) 55%, var(--card-border-soft))' : '1px solid transparent', background: selectedMonth === month.month ? 'color-mix(in srgb, var(--brand-green) 18%, transparent)' : 'transparent', color: 'inherit', font: 'inherit', cursor: 'pointer' }}
                 title={`${month.label}: ${formatUsd(month.netAfterFeesCents)} after fees; ${formatUsd(month.netCollectedCents)} collected`}
                 aria-label={`${month.label}: ${formatUsd(month.netAfterFeesCents)} after fees; ${formatUsd(month.netCollectedCents)} collected`}
               >
@@ -499,7 +506,7 @@ function BusinessTrend({ pulse }: { pulse: BusinessPulse }) {
                 </div>
                 <div style={{ color: 'var(--foreground)', fontSize: 10, fontWeight: 850, lineHeight: 1.2, marginTop: 6, overflowWrap: 'anywhere' }}>{value}</div>
                 <div style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 800, lineHeight: 1.2, marginTop: 3 }}>{month.label}</div>
-              </div>
+              </button>
             )
           })}
         </div>
@@ -514,16 +521,98 @@ function BusinessTrend({ pulse }: { pulse: BusinessPulse }) {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 6, marginTop: 10 }} aria-label="Six month subscription movement">
           {pulse.subscriptionTrend6m.map((month) => (
-            <div key={month.month} style={{ minWidth: 0, textAlign: 'center', padding: '8px 2px', borderRadius: 10, background: 'var(--surface-soft)' }} aria-label={`${month.label}: ${month.newPaidAccounts} new paid, ${month.cancellations} canceled`}>
+            <button type="button" key={month.month} onClick={() => setSelectedMonth(month.month)} aria-pressed={selectedMonth === month.month} style={{ minWidth: 0, textAlign: 'center', padding: '8px 2px', borderRadius: 10, border: selectedMonth === month.month ? '1px solid color-mix(in srgb, var(--brand-lime) 55%, var(--card-border-soft))' : '1px solid transparent', background: 'var(--surface-soft)', color: 'inherit', font: 'inherit', cursor: 'pointer' }} aria-label={`${month.label}: ${month.newPaidAccounts} new paid, ${month.cancellations} canceled`}>
               <div style={{ color: '#b7f34a', fontSize: 12, fontWeight: 900, lineHeight: 1.2 }}>+{month.newPaidAccounts}</div>
               <div style={{ color: '#fb9aaa', fontSize: 12, fontWeight: 900, lineHeight: 1.2, marginTop: 4 }}>−{month.cancellations}</div>
               <div style={{ color: 'var(--muted)', fontSize: 10, fontWeight: 800, lineHeight: 1.2, marginTop: 5 }}>{month.label}</div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
+
+      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--card-border-soft)' }} aria-live="polite">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ color: 'var(--foreground)', fontSize: 15, fontWeight: 900 }}>{selectedLabel} details</div>
+          <div style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 750 }}>Tap another month to compare</div>
+        </div>
+
+        {selectedRevenue ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6, marginTop: 10 }}>
+            {[
+              ['Collected', formatUsd(selectedRevenue.netCollectedCents)],
+              ['Fees', formatUsd(selectedRevenue.stripeFeesCents)],
+              ['After fees', formatUsd(selectedRevenue.netAfterFeesCents)],
+            ].map(([label, value]) => (
+              <div key={label} style={{ minWidth: 0, padding: '8px 6px', borderRadius: 10, background: 'var(--surface-soft)' }}>
+                <div style={{ color: 'var(--muted)', fontSize: 9, fontWeight: 850, textTransform: 'uppercase', lineHeight: 1.2 }}>{label}</div>
+                <div style={{ color: 'var(--foreground)', fontSize: 13, fontWeight: 900, lineHeight: 1.25, marginTop: 3, overflowWrap: 'anywhere' }}>{value}</div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {selectedRevenue?.activity.length ? (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ color: 'var(--muted-strong)', fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>Cash activity</div>
+            <div style={{ display: 'grid', gap: 6, marginTop: 7 }}>
+              {selectedRevenue.activity.map((activity) => (
+                <div key={activity.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 10, alignItems: 'center', minWidth: 0, padding: '9px 10px', borderRadius: 11, background: 'var(--surface-soft)' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: 'var(--foreground)', fontSize: 12, fontWeight: 900, lineHeight: 1.3 }}>{revenueActivityLabel(activity.kind)}</div>
+                    <div style={{ color: 'var(--muted)', fontSize: 10, fontWeight: 700, lineHeight: 1.35, marginTop: 2, overflowWrap: 'anywhere' }}>{activity.description || activity.sourceId || activity.id} · {formatShortDate(activity.occurredAt)}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ color: activity.netCents < 0 ? '#fb9aaa' : 'var(--foreground)', fontSize: 13, fontWeight: 900 }}>{formatUsd(activity.amountCents)}</div>
+                    <div style={{ color: 'var(--muted)', fontSize: 9, fontWeight: 750, marginTop: 2 }}>{formatUsd(activity.feeCents)} fee</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {selectedSubscriptions?.movements.length ? (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ color: 'var(--muted-strong)', fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }}>Account movement</div>
+            <div style={{ display: 'grid', gap: 6, marginTop: 7 }}>
+              {selectedSubscriptions.movements.map((movement) => {
+                const content = (
+                  <>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ color: 'var(--foreground)', fontSize: 12, fontWeight: 900, lineHeight: 1.3, overflowWrap: 'anywhere' }}>{movement.accountLabel}</div>
+                      <div style={{ color: 'var(--muted)', fontSize: 10, fontWeight: 700, lineHeight: 1.35, marginTop: 2 }}>{movement.planLabel} · {formatShortDate(movement.occurredAt)}</div>
+                    </div>
+                    <div style={{ color: movement.kind === 'canceled' ? '#fb9aaa' : '#b7f34a', fontSize: 10, fontWeight: 900, textAlign: 'right' }}>{movement.kind === 'canceled' ? 'Canceled' : 'New paid'}</div>
+                  </>
+                )
+                const movementStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 10, alignItems: 'center', minWidth: 0, padding: '9px 10px', borderRadius: 11, background: 'var(--surface-soft)', textDecoration: 'none' }
+                return movement.profileId ? (
+                  <Link key={`${movement.kind}-${movement.subscriptionId}-${movement.occurredAt}`} href={`/admin/access?search=${encodeURIComponent(movement.profileId)}`} style={movementStyle}>{content}</Link>
+                ) : (
+                  <div key={`${movement.kind}-${movement.subscriptionId}-${movement.occurredAt}`} style={movementStyle}>{content}</div>
+                )
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        {!selectedRevenue?.activity.length && !selectedSubscriptions?.movements.length ? (
+          <div style={{ marginTop: 10, padding: '10px', borderRadius: 10, background: 'var(--surface-soft)', color: 'var(--muted)', fontSize: 12, fontWeight: 750 }}>No cash or subscription movement was recorded this month.</div>
+        ) : null}
+      </div>
     </div>
   )
+}
+
+function revenueActivityLabel(kind: 'payment' | 'refund' | 'dispute' | 'recovered') {
+  if (kind === 'refund') return 'Refund'
+  if (kind === 'dispute') return 'Dispute'
+  if (kind === 'recovered') return 'Dispute recovered'
+  return 'Payment'
+}
+
+function formatShortDate(value: string) {
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(value))
 }
 
 function formatUsd(amountCents: number) {
