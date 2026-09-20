@@ -1,6 +1,8 @@
 import { ImageResponse } from 'next/og'
 import { getCaptainShareConfig, isCaptainShareKind, type CaptainShareKind } from '@/lib/captain-share-preview'
 
+const BrandImage = 'img'
+
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -61,7 +63,7 @@ export default async function Image({ params }: { params: Promise<{ kind: string
     <div style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 58, overflow: 'hidden', background: 'linear-gradient(135deg, rgb(6, 23, 47) 0%, #09284b 58%, #0c3d4e 100%)', color: '#fff', fontFamily: 'sans-serif' }}>
       <div style={{ position: 'absolute', right: -100, bottom: -130, display: 'flex', width: 610, height: 610, borderRadius: 999, border: `2px solid ${config.accent}`, opacity: 0.17 }} />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <img
+        <BrandImage
           src="https://www.tenaceiq.com/brand/web/header-logo-transparent.png"
           alt="TenAceIQ"
           width="300"
