@@ -1,10 +1,10 @@
 import { getAdminApiAuth } from '@/lib/admin-api-auth'
-import { countAccountTiers, type AccountTierRow } from '@/lib/admin-account-tiers'
+import { summarizeAccountTiers, type AccountTierRow } from '@/lib/admin-account-tiers'
 
 export const runtime = 'nodejs'
 
 const PAGE_SIZE = 1000
-const PROFILE_COLUMNS = 'role,player_plus_subscription_active,player_plus_subscription_status,player_plus_access_expires_at,coach_subscription_active,coach_subscription_status,coach_access_expires_at,captain_subscription_active,captain_subscription_status,captain_access_expires_at,tiq_team_league_entry_enabled,tiq_individual_league_creator_enabled,league_access_expires_at'
+const PROFILE_COLUMNS = 'role,stripe_customer_id,stripe_subscription_id,player_plus_subscription_active,player_plus_subscription_status,player_plus_access_expires_at,coach_subscription_active,coach_subscription_status,coach_access_expires_at,captain_subscription_active,captain_subscription_status,captain_access_expires_at,tiq_team_league_entry_enabled,tiq_individual_league_creator_enabled,league_access_expires_at'
 
 export async function GET(request: Request) {
   const auth = await getAdminApiAuth(request)
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     if ((data?.length ?? 0) < PAGE_SIZE) break
   }
 
-  return Response.json({ ok: true, counts: countAccountTiers(rows), asOf: new Date().toISOString() }, {
+  return Response.json({ ok: true, ...summarizeAccountTiers(rows), asOf: new Date().toISOString() }, {
     headers: { 'Cache-Control': 'private, no-store' },
   })
 }

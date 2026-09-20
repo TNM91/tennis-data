@@ -11,7 +11,7 @@ import SiteShell from '@/app/components/site-shell'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { supabase } from '@/lib/supabase'
 import { MEMBERSHIP_TIER_ORDER, MEMBERSHIP_TIERS } from '@/lib/product-story'
-import type { AccountTierCounts } from '@/lib/admin-account-tiers'
+import type { AccountHealthKey, AccountTierSummary } from '@/lib/admin-account-tiers'
 
 type Accent = 'blue' | 'green' | 'slate'
 
@@ -366,7 +366,7 @@ export default function AdminDashboardPage() {
 }
 
 function AccountTiersPanel() {
-  const [counts, setCounts] = useState<AccountTierCounts | null>(null)
+  const [summary, setSummary] = useState<AccountTierSummary | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -379,9 +379,11 @@ function AccountTiersPanel() {
           headers: { Authorization: `Bearer ${data.session.access_token}` },
           cache: 'no-store',
         })
-        const body = await response.json() as { ok: boolean; counts?: AccountTierCounts; message?: string }
-        if (!response.ok || !body.counts) throw new Error(body.message || 'Account counts are unavailable.')
-        if (active) setCounts(body.counts)
+        const body = await response.json() as ({ ok: boolean; message?: string } & Partial<AccountTierSummary>)
+        if (!response.ok || !body.counts || !body.healthByTier || !body.healthTotals) {
+          throw new Error(body.message || 'Account counts are unavailable.')
+        }
+        if (active) setSummary({ counts: body.counts, healthByTier: body.healthByTier, healthTotals: body.healthTotals })
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : 'Account counts are unavailable.')
       }
@@ -393,30 +395,86 @@ function AccountTiersPanel() {
     <section style={{ marginTop: 20, padding: '20px', borderRadius: 20, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-panel-bg)' }}>
       <SectionHeader kicker="Membership" title="Accounts by tier" subtitle="Current access for signed-up accounts, not upgrade requests or tennis player records." />
       {error ? <p role="alert" className="subtle-text">{error}</p> : null}
-      {!counts && !error ? <p className="subtle-text">Loading account counts…</p> : null}
-      {counts ? (
+      {!summary && !error ? <p className="subtle-text">Loading account counts…</p> : null}
+      {summary ? (
         <>
-          <p style={{ margin: '12px 0', color: 'var(--muted-strong)' }}><strong style={{ color: 'var(--foreground)' }}>{counts.total.toLocaleString()} accounts</strong> · {(counts.total - counts.admins).toLocaleString()} members · {counts.admins.toLocaleString()} admins</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 135px), 1fr))', gap: 10 }}>
+          <p style={{ margin: '12px 0', color: 'var(--muted-strong)' }}><strong style={{ color: 'var(--foreground)' }}>{summary.counts.total.toLocaleString()} accounts</strong> · {(summary.counts.total - summary.counts.admins).toLocaleString()} members · {summary.counts.admins.toLocaleString()} admins</p>
+
+          {summary.healthTotals.pastDue > 0 || summary.healthTotals.expiring > 0 ? (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+              {summary.healthTotals.pastDue > 0 ? (
+                <Link href="/admin/access?billing=past_due" className="button-secondary" style={{ minHeight: 38, borderColor: 'color-mix(in srgb, #f87171 55%, var(--shell-panel-border))' }}>
+                  {summary.healthTotals.pastDue} past due · Review
+                </Link>
+              ) : null}
+              {summary.healthTotals.expiring > 0 ? (
+                <Link href="/admin/access?expiring=1" className="button-secondary" style={{ minHeight: 38, borderColor: 'color-mix(in srgb, var(--brand-gold) 55%, var(--shell-panel-border))' }}>
+                  {summary.healthTotals.expiring} ending in 14 days · Review
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 10 }}>
             {MEMBERSHIP_TIER_ORDER.map((tier) => (
-              <Link
+              <div
                 key={tier}
-                href={`/admin/access?tier=${tier}`}
-                aria-label={`View ${MEMBERSHIP_TIERS[tier].name} accounts`}
-                style={{ padding: '14px', borderRadius: 14, background: 'var(--surface-soft)', border: '1px solid var(--card-border-soft)', textDecoration: 'none' }}
+                style={{ padding: '14px', borderRadius: 14, background: 'var(--surface-soft)', border: '1px solid var(--card-border-soft)', minWidth: 0 }}
               >
-                <div style={{ color: 'var(--muted-strong)', fontSize: 13, fontWeight: 700 }}>{MEMBERSHIP_TIERS[tier].name}</div>
-                <div style={{ color: 'var(--foreground)', fontSize: 26, fontWeight: 900 }}>{counts[tier].toLocaleString()}</div>
-                <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 700, marginTop: 4 }}>View accounts →</div>
-              </Link>
+                <Link
+                  href={`/admin/access?tier=${tier}`}
+                  aria-label={`View ${MEMBERSHIP_TIERS[tier].name} accounts`}
+                  style={{ display: 'block', textDecoration: 'none' }}
+                >
+                  <div style={{ color: 'var(--muted-strong)', fontSize: 13, fontWeight: 700 }}>{MEMBERSHIP_TIERS[tier].name}</div>
+                  <div style={{ color: 'var(--foreground)', fontSize: 26, fontWeight: 900 }}>{summary.counts[tier].toLocaleString()}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 700, marginTop: 4 }}>View accounts →</div>
+                </Link>
+
+                {tier === 'free' && summary.healthByTier.free.pastDue === 0 && summary.healthByTier.free.expiring === 0 ? (
+                  <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 700, marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--card-border-soft)' }}>Standard free access</div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--card-border-soft)' }}>
+                    {(['paid', 'trial', 'complimentary', 'pastDue', 'expiring'] as AccountHealthKey[]).map((health) => {
+                      const count = summary.healthByTier[tier][health]
+                      if (tier === 'free' && health !== 'pastDue' && health !== 'expiring') return null
+                      if ((health === 'pastDue' || health === 'expiring') && count === 0) return null
+                      return (
+                        <Link
+                          key={health}
+                          href={accountHealthHref(tier, health)}
+                          aria-label={`View ${MEMBERSHIP_TIERS[tier].name} ${accountHealthLabel(health).toLowerCase()} accounts`}
+                          style={{ color: health === 'pastDue' ? '#fca5a5' : health === 'expiring' ? 'var(--brand-gold)' : 'var(--muted-strong)', fontSize: 12, lineHeight: 1.2, fontWeight: 800, textDecoration: 'none', padding: '5px 7px', borderRadius: 999, border: '1px solid var(--card-border-soft)', background: 'var(--shell-chip-bg)' }}
+                        >
+                          {accountHealthLabel(health)} {count}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
-          <p className="subtle-text" style={{ margin: '12px 0 0', fontSize: 13 }}>Each member appears once at their highest effective tier. Admins are shown separately. This measures access, not paid subscriptions.</p>
+          <p className="subtle-text" style={{ margin: '12px 0 0', fontSize: 13 }}>Each member appears once at their highest effective tier. Paid means Stripe-managed active access. Complimentary includes manual, promotional, and role-based access.</p>
           <Link href="/admin/access" className="button-secondary" style={{ marginTop: 14 }}>Manage account access</Link>
         </>
       ) : null}
     </section>
   )
+}
+
+function accountHealthLabel(health: AccountHealthKey) {
+  if (health === 'pastDue') return 'Past due'
+  if (health === 'expiring') return 'Ending soon'
+  if (health === 'complimentary') return 'Complimentary'
+  if (health === 'trial') return 'Trial'
+  return 'Paid'
+}
+
+function accountHealthHref(tier: string, health: AccountHealthKey) {
+  if (health === 'expiring') return `/admin/access?tier=${tier}&expiring=1`
+  const billing = health === 'pastDue' ? 'past_due' : health
+  return `/admin/access?tier=${tier}&billing=${billing}`
 }
 
 function DataQualityPanel() {

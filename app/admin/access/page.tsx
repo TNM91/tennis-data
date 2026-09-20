@@ -22,6 +22,7 @@ import {
   type CaptainSubscriptionStatus,
   type ProductEntitlementSnapshot,
 } from '@/lib/access-model'
+import { getAccountHealth } from '@/lib/admin-account-tiers'
 import { getMembershipTier } from '@/lib/product-story'
 import { normalizeUserRole, type UserRole } from '@/lib/roles'
 import { supabase } from '@/lib/supabase'
@@ -74,7 +75,7 @@ type AccessOffer = 'permanent_full' | 'trial_14' | 'trial_30' | 'complimentary_m
 type AccessChangeType = 'grant' | 'extend' | 'revoke' | 'manual_update'
 type RoleFilter = 'all' | 'admin' | 'captain' | 'member' | 'public'
 type PlanFilter = PricingPlanId | 'all'
-type BillingFilter = 'all' | 'stripe' | 'past_due' | 'canceled' | 'webhook_error' | 'webhook_ignored' | 'manual'
+type BillingFilter = 'all' | 'paid' | 'trial' | 'complimentary' | 'stripe' | 'past_due' | 'canceled' | 'webhook_error' | 'webhook_ignored' | 'manual'
 type ProfileLinkFilter = 'all' | 'cloud' | 'display_only' | 'missing'
 
 type ConvertedUpgradeRequestRow = {
@@ -318,6 +319,9 @@ function normalizeRoleFilter(value: string | null): RoleFilter {
 
 function normalizeBillingFilter(value: string | null): BillingFilter {
   if (
+    value === 'paid' ||
+    value === 'trial' ||
+    value === 'complimentary' ||
     value === 'stripe' ||
     value === 'past_due' ||
     value === 'canceled' ||
@@ -329,6 +333,19 @@ function normalizeBillingFilter(value: string | null): BillingFilter {
   }
 
   return 'all'
+}
+
+function formatBillingFilter(value: BillingFilter) {
+  if (value === 'past_due') return 'Past due'
+  if (value === 'webhook_error') return 'Webhook errors'
+  if (value === 'webhook_ignored') return 'Ignored webhooks'
+  if (value === 'complimentary') return 'Complimentary'
+  if (value === 'stripe') return 'Stripe managed'
+  if (value === 'manual') return 'Manual or role-based'
+  if (value === 'canceled') return 'Canceled'
+  if (value === 'trial') return 'Trial'
+  if (value === 'paid') return 'Paid'
+  return 'All billing'
 }
 
 function normalizeProfileLinkFilter(value: string | null): ProfileLinkFilter {
@@ -566,6 +583,7 @@ export default function AdminAccessPage() {
     setPlanFilter(normalizePlanFilter(initialParams.get('tier')))
     setBillingFilter(normalizeBillingFilter(initialParams.get('billing')))
     setProfileLinkFilter(normalizeProfileLinkFilter(initialParams.get('profileLink')))
+    setShowExpiringOnly(initialParams.get('expiring') === '1')
     setUrlFiltersReady(true)
     void loadProfiles()
   }, [loadProfiles])
@@ -579,6 +597,7 @@ export default function AdminAccessPage() {
     setQueryParam(params, 'tier', planFilter, 'all')
     setQueryParam(params, 'billing', billingFilter, 'all')
     setQueryParam(params, 'profileLink', profileLinkFilter, 'all')
+    setQueryParam(params, 'expiring', showExpiringOnly ? '1' : '')
 
     const nextQuery = params.toString()
     const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`
@@ -586,7 +605,7 @@ export default function AdminAccessPage() {
     if (nextUrl !== currentUrl) {
       window.history.replaceState(null, '', nextUrl)
     }
-  }, [billingFilter, planFilter, profileLinkFilter, roleFilter, search, urlFiltersReady])
+  }, [billingFilter, planFilter, profileLinkFilter, roleFilter, search, showExpiringOnly, urlFiltersReady])
 
   function updateProfileField<K extends keyof EditableProfileAccess>(
     profileId: string,
@@ -1173,6 +1192,9 @@ export default function AdminAccessPage() {
                   disabled={loading || refreshing}
                 >
                   <option value="all">All billing</option>
+                  <option value="paid">Paid</option>
+                  <option value="trial">Trial</option>
+                  <option value="complimentary">Complimentary or role-based</option>
                   <option value="stripe">Stripe managed</option>
                   <option value="past_due">Past due</option>
                   <option value="canceled">Canceled</option>
@@ -1206,6 +1228,24 @@ export default function AdminAccessPage() {
                   onClick={() => setPlanFilter('all')}
                 >
                   {formatPlanLabel(planFilter)} accounts · Clear tier
+                </button>
+              ) : null}
+              {billingFilter !== 'all' ? (
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => setBillingFilter('all')}
+                >
+                  {formatBillingFilter(billingFilter)} · Clear billing
+                </button>
+              ) : null}
+              {showExpiringOnly ? (
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => setShowExpiringOnly(false)}
+                >
+                  Ending in 14 days · Clear
                 </button>
               ) : null}
               <button
@@ -1786,6 +1826,10 @@ function matchesBillingFilter(
   billingFilter: BillingFilter,
 ) {
   if (billingFilter === 'all') return true
+  const health = getAccountHealth(profile)
+  if (billingFilter === 'paid') return health.paid
+  if (billingFilter === 'trial') return health.trial
+  if (billingFilter === 'complimentary') return health.complimentary
   if (billingFilter === 'stripe') return Boolean(profile.stripe_customer_id || profile.stripe_subscription_id)
   if (billingFilter === 'manual') return !profile.stripe_customer_id && !profile.stripe_subscription_id
   if (billingFilter === 'past_due') {
