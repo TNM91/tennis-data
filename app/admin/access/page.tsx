@@ -73,6 +73,7 @@ type AccessPreset = 'player_plus' | 'coach' | 'captain' | 'league' | 'full_court
 type AccessOffer = 'permanent_full' | 'trial_14' | 'trial_30' | 'complimentary_month'
 type AccessChangeType = 'grant' | 'extend' | 'revoke' | 'manual_update'
 type RoleFilter = 'all' | 'admin' | 'captain' | 'member' | 'public'
+type PlanFilter = PricingPlanId | 'all'
 type BillingFilter = 'all' | 'stripe' | 'past_due' | 'canceled' | 'webhook_error' | 'webhook_ignored' | 'manual'
 type ProfileLinkFilter = 'all' | 'cloud' | 'display_only' | 'missing'
 
@@ -335,6 +336,10 @@ function normalizeProfileLinkFilter(value: string | null): ProfileLinkFilter {
   return 'all'
 }
 
+function normalizePlanFilter(value: string | null): PlanFilter {
+  return normalizePricingPlanId(value) ?? 'all'
+}
+
 function setQueryParam(params: URLSearchParams, key: string, value: string, defaultValue = '') {
   if (value === defaultValue) {
     params.delete(key)
@@ -356,6 +361,7 @@ export default function AdminAccessPage() {
   const [playerEntitlementsAvailable, setPlayerEntitlementsAvailable] = useState(true)
   const [accessExpirationFieldsAvailable, setAccessExpirationFieldsAvailable] = useState(true)
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
+  const [planFilter, setPlanFilter] = useState<PlanFilter>('all')
   const [billingFilter, setBillingFilter] = useState<BillingFilter>('all')
   const [profileLinkFilter, setProfileLinkFilter] = useState<ProfileLinkFilter>('all')
   const [showExpiringOnly, setShowExpiringOnly] = useState(false)
@@ -557,6 +563,7 @@ export default function AdminAccessPage() {
       setHandoffSearch(initialSearch)
     }
     setRoleFilter(normalizeRoleFilter(initialParams.get('role')))
+    setPlanFilter(normalizePlanFilter(initialParams.get('tier')))
     setBillingFilter(normalizeBillingFilter(initialParams.get('billing')))
     setProfileLinkFilter(normalizeProfileLinkFilter(initialParams.get('profileLink')))
     setUrlFiltersReady(true)
@@ -569,6 +576,7 @@ export default function AdminAccessPage() {
     const params = new URLSearchParams(window.location.search)
     setQueryParam(params, 'search', search.trim())
     setQueryParam(params, 'role', roleFilter, 'all')
+    setQueryParam(params, 'tier', planFilter, 'all')
     setQueryParam(params, 'billing', billingFilter, 'all')
     setQueryParam(params, 'profileLink', profileLinkFilter, 'all')
 
@@ -578,7 +586,7 @@ export default function AdminAccessPage() {
     if (nextUrl !== currentUrl) {
       window.history.replaceState(null, '', nextUrl)
     }
-  }, [billingFilter, profileLinkFilter, roleFilter, search, urlFiltersReady])
+  }, [billingFilter, planFilter, profileLinkFilter, roleFilter, search, urlFiltersReady])
 
   function updateProfileField<K extends keyof EditableProfileAccess>(
     profileId: string,
@@ -893,12 +901,20 @@ export default function AdminAccessPage() {
     }
   }
 
+  const accessByProfileId = useMemo(() =>
+    profiles.reduce<Record<string, ReturnType<typeof buildProductAccessState>>>((acc, profile) => {
+      acc[profile.id] = buildProductAccessState(normalizeUserRole(profile.role), toEntitlementSnapshot(normalizeEditable(profile)))
+      return acc
+    }, {}),
+  [profiles])
+
   const filteredProfiles = useMemo(() => {
     const normalizedSearch = deferredSearch.trim().toLowerCase()
 
     return profiles.filter((profile) => {
       const normalizedRole = (profile.role || 'public').trim().toLowerCase()
       if (roleFilter !== 'all' && normalizedRole !== roleFilter) return false
+      if (planFilter !== 'all' && (normalizedRole === 'admin' || accessByProfileId[profile.id]?.currentPlanId !== planFilter)) return false
       if (!matchesBillingFilter(profile, stripeEventsByUser[profile.id] ?? null, billingFilter)) return false
       if (!matchesProfileLinkFilter(profile, profileLinkFilter)) return false
       if (showExpiringOnly && !accessExpiresWithin(profile, 14)) return false
@@ -921,14 +937,7 @@ export default function AdminAccessPage() {
         .toLowerCase()
         .includes(normalizedSearch)
     })
-  }, [billingFilter, deferredSearch, profileLinkFilter, profiles, roleFilter, showExpiringOnly, stripeEventsByUser])
-
-  const accessByProfileId = useMemo(() =>
-    profiles.reduce<Record<string, ReturnType<typeof buildProductAccessState>>>((acc, profile) => {
-      acc[profile.id] = buildProductAccessState(normalizeUserRole(profile.role), toEntitlementSnapshot(normalizeEditable(profile)))
-      return acc
-    }, {}),
-  [profiles])
+  }, [accessByProfileId, billingFilter, deferredSearch, planFilter, profileLinkFilter, profiles, roleFilter, showExpiringOnly, stripeEventsByUser])
   const activeCaptainCount = profiles.filter((profile) =>
     Boolean(accessByProfileId[profile.id]?.canUseCaptainWorkflow),
   ).length
@@ -1137,6 +1146,24 @@ export default function AdminAccessPage() {
                 </select>
               </Field>
 
+              <Field label="Tier filter" htmlFor="admin-access-tier-filter">
+                <select
+                  id="admin-access-tier-filter"
+                  value={planFilter}
+                  onChange={(event) => setPlanFilter(event.target.value as PlanFilter)}
+                  className="select"
+                  disabled={loading || refreshing}
+                >
+                  <option value="all">All tiers</option>
+                  <option value="free">Free</option>
+                  <option value="player_plus">Player</option>
+                  <option value="coach">Coach</option>
+                  <option value="captain">Captain</option>
+                  <option value="league">League</option>
+                  <option value="full_court">Full-Court</option>
+                </select>
+              </Field>
+
               <Field label="Billing filter" htmlFor="admin-access-billing-filter">
                 <select
                   id="admin-access-billing-filter"
@@ -1172,6 +1199,15 @@ export default function AdminAccessPage() {
             </div>
 
             <AdminActionRow>
+              {planFilter !== 'all' ? (
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => setPlanFilter('all')}
+                >
+                  {formatPlanLabel(planFilter)} accounts · Clear tier
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => void loadProfiles(true)}
@@ -1271,7 +1307,7 @@ export default function AdminAccessPage() {
             {loading ? (
               <AdminEmptyState text="Loading profile entitlements..." />
             ) : filteredProfiles.length === 0 ? (
-              <AdminEmptyState text="No profiles match the current filters. Clear the search or broaden the role, billing, or profile link filter to bring more entitlement rows back into scope." />
+              <AdminEmptyState text="No profiles match the current filters. Clear the search or broaden the tier, role, billing, or profile link filter to bring more accounts back into scope." />
             ) : (
               <div className="table-wrap" style={{ marginTop: 20 }}>
                 <table className="data-table" style={{ width: '100%', tableLayout: 'auto' }}>

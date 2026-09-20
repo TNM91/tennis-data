@@ -399,10 +399,16 @@ function AccountTiersPanel() {
           <p style={{ margin: '12px 0', color: 'var(--muted-strong)' }}><strong style={{ color: 'var(--foreground)' }}>{counts.total.toLocaleString()} accounts</strong> · {(counts.total - counts.admins).toLocaleString()} members · {counts.admins.toLocaleString()} admins</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 135px), 1fr))', gap: 10 }}>
             {MEMBERSHIP_TIER_ORDER.map((tier) => (
-              <div key={tier} style={{ padding: '14px', borderRadius: 14, background: 'var(--surface-soft)', border: '1px solid var(--card-border-soft)' }}>
+              <Link
+                key={tier}
+                href={`/admin/access?tier=${tier}`}
+                aria-label={`View ${MEMBERSHIP_TIERS[tier].name} accounts`}
+                style={{ padding: '14px', borderRadius: 14, background: 'var(--surface-soft)', border: '1px solid var(--card-border-soft)', textDecoration: 'none' }}
+              >
                 <div style={{ color: 'var(--muted-strong)', fontSize: 13, fontWeight: 700 }}>{MEMBERSHIP_TIERS[tier].name}</div>
                 <div style={{ color: 'var(--foreground)', fontSize: 26, fontWeight: 900 }}>{counts[tier].toLocaleString()}</div>
-              </div>
+                <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 700, marginTop: 4 }}>View accounts →</div>
+              </Link>
             ))}
           </div>
           <p className="subtle-text" style={{ margin: '12px 0 0', fontSize: 13 }}>Each member appears once at their highest effective tier. Admins are shown separately. This measures access, not paid subscriptions.</p>
