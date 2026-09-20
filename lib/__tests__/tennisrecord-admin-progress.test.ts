@@ -70,13 +70,14 @@ describe('TennisRecord Admin import progress', () => {
     expect(adminPage).toContain('Safety cooldown:')
   })
 
-  it('caches costly Admin status reads and puts the importer first', () => {
+  it('caches costly Admin status reads and keeps the importer available', () => {
     expect(adminRoute).toContain("namespace: 'tennisrecord-admin'")
     expect(adminRoute).toContain('ADMIN_STATUS_CACHE_TTL_SECONDS = 120')
     expect(adminRoute).toContain('cache hit')
     expect(adminRoute).toContain('expireTag(ADMIN_STATUS_CACHE_TAG)')
-    expect(adminHome).toContain("const priorityToolHrefs = [\n  '/admin/access'")
-    expect(adminHome).toContain("  '/admin/tennisrecord'")
+    expect(adminHome).toContain('const toolGroups = [')
+    expect(adminHome).toContain("href: '/admin/tennisrecord'")
+    expect(adminHome).toContain('Specialist tools')
   })
 
   it('keeps metric cards responsive instead of forcing phone screens into columns', () => {
