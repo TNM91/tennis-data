@@ -1,6 +1,13 @@
 import { summarizeAccountTiers, type AccountTierRow } from './admin-account-tiers'
 import { getPricingPlan, type BillablePricingPlanId, type PricingPlanId } from './pricing-plans'
-import type { StripeRevenueReport } from './stripe-revenue-report'
+import type { StripeRevenueReport, StripeRevenueTrend } from './stripe-revenue-report'
+
+export type SubscriptionTrendPoint = {
+  month: string
+  label: string
+  newPaidAccounts: number
+  cancellations: number
+}
 
 export type BusinessPulseProfileRow = AccountTierRow & { id?: string | null }
 
@@ -31,7 +38,9 @@ export type BusinessPulse = {
   trialConversions: number
   trialConversionRate: number | null
   stripeRevenue30d: StripeRevenueReport | null
+  stripeRevenueTrend6m: StripeRevenueTrend | null
   stripeRevenueMessage: string | null
+  subscriptionTrend6m: SubscriptionTrendPoint[]
   asOf: string
 }
 
@@ -76,6 +85,7 @@ export function buildBusinessPulse({
   const since30d = now - 30 * 24 * 60 * 60 * 1000
   const firstActiveBySubscription = new Map<string, number>()
   const canceledSubscriptions = new Set<string>()
+  const firstCancellationBySubscription = new Map<string, number>()
   const trialStartedAt = new Map<string, number>()
   const convertedTrials = new Set<string>()
 
@@ -92,16 +102,21 @@ export function buildBusinessPulse({
       if (trialAt != null && event.timestamp >= trialAt) convertedTrials.add(key)
     }
     if (
-      event.timestamp >= since30d &&
       (event.resulting_status === 'canceled' || event.event_type === 'customer.subscription.deleted')
     ) {
-      canceledSubscriptions.add(key)
+      if (!firstCancellationBySubscription.has(key)) firstCancellationBySubscription.set(key, event.timestamp)
+      if (event.timestamp >= since30d) canceledSubscriptions.add(key)
     }
   }
 
   const newPaidAccounts30d = [...firstActiveBySubscription.values()].filter((timestamp) => timestamp >= since30d).length
   const recordedTrials = trialStartedAt.size
   const trialConversions = convertedTrials.size
+  const subscriptionTrend6m = buildSubscriptionTrend6m(
+    firstActiveBySubscription,
+    firstCancellationBySubscription,
+    now,
+  )
 
   return {
     estimatedMrrCents,
@@ -112,9 +127,30 @@ export function buildBusinessPulse({
     trialConversions,
     trialConversionRate: recordedTrials > 0 ? trialConversions / recordedTrials : null,
     stripeRevenue30d: null,
+    stripeRevenueTrend6m: null,
     stripeRevenueMessage: null,
+    subscriptionTrend6m,
     asOf: new Date(now).toISOString(),
   }
+}
+
+function buildSubscriptionTrend6m(
+  activeBySubscription: Map<string, number>,
+  canceledBySubscription: Map<string, number>,
+  now: number,
+): SubscriptionTrendPoint[] {
+  const nowDate = new Date(now)
+  return Array.from({ length: 6 }, (_, index) => {
+    const monthDate = new Date(Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth() - 5 + index, 1))
+    const month = monthDate.toISOString().slice(0, 7)
+    const isMonth = (timestamp: number) => new Date(timestamp).toISOString().slice(0, 7) === month
+    return {
+      month,
+      label: monthDate.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }),
+      newPaidAccounts: [...activeBySubscription.values()].filter(isMonth).length,
+      cancellations: [...canceledBySubscription.values()].filter(isMonth).length,
+    }
+  })
 }
 
 function billingEventAccountKey(event: BusinessPulseEventRow) {

@@ -77,7 +77,7 @@ If rollback is needed, set `NEXT_PUBLIC_PAID_CHECKOUT_ENABLED=false` first and r
 
 ## Monitoring
 
-- Open `/admin` and confirm `Collected · 30d` and `After fees · 30d` show exact Stripe balance activity. If either shows unavailable, grant `STRIPE_REPORTING_KEY` Balance transaction read access and redeploy.
+- Open `/admin` and confirm `Collected · 30d`, `After fees · 30d`, and the six-month direction show exact Stripe balance activity. If cash reporting shows unavailable, grant `STRIPE_REPORTING_KEY` Balance transaction read access and redeploy.
 - Check `/admin/access` after deployments. Review `Webhook Errors`, `Past Due`, `Canceled`, and `Stripe Managed` metrics.
 - Check `/admin/product-events` after a checkout attempt. Confirm `upgrade_checkout_started` appears before the Stripe redirect, then compare it with later paid workspace events.
 - Use Billing filter `Webhook errors` for events that need code or data follow-up.
