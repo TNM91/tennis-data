@@ -29,6 +29,7 @@ Run `npm run qa:stripe-live-cutover` to print the secret-free cutover packet for
 2. Replace Production Vercel Stripe env vars with live-mode values:
    - `NEXT_PUBLIC_PAID_CHECKOUT_ENABLED=true` (set only for the intentional live-payment redeploy)
    - `STRIPE_SECRET_KEY`
+   - `STRIPE_REPORTING_KEY` (recommended restricted key with Balance transaction read access for exact Admin cash reporting)
    - `STRIPE_WEBHOOK_SECRET`
    - `STRIPE_PLAYER_PRICE_ID`
    - `STRIPE_COACH_PRICE_ID`
@@ -76,6 +77,7 @@ If rollback is needed, set `NEXT_PUBLIC_PAID_CHECKOUT_ENABLED=false` first and r
 
 ## Monitoring
 
+- Open `/admin` and confirm `Collected · 30d` and `After fees · 30d` show exact Stripe balance activity. If either shows unavailable, grant `STRIPE_REPORTING_KEY` Balance transaction read access and redeploy.
 - Check `/admin/access` after deployments. Review `Webhook Errors`, `Past Due`, `Canceled`, and `Stripe Managed` metrics.
 - Check `/admin/product-events` after a checkout attempt. Confirm `upgrade_checkout_started` appears before the Stripe redirect, then compare it with later paid workspace events.
 - Use Billing filter `Webhook errors` for events that need code or data follow-up.

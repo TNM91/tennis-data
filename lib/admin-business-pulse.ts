@@ -1,5 +1,6 @@
 import { summarizeAccountTiers, type AccountTierRow } from './admin-account-tiers'
 import { getPricingPlan, type BillablePricingPlanId, type PricingPlanId } from './pricing-plans'
+import type { StripeRevenueReport } from './stripe-revenue-report'
 
 export type BusinessPulseProfileRow = AccountTierRow & { id?: string | null }
 
@@ -29,6 +30,8 @@ export type BusinessPulse = {
   recordedTrials: number
   trialConversions: number
   trialConversionRate: number | null
+  stripeRevenue30d: StripeRevenueReport | null
+  stripeRevenueMessage: string | null
   asOf: string
 }
 
@@ -108,6 +111,8 @@ export function buildBusinessPulse({
     recordedTrials,
     trialConversions,
     trialConversionRate: recordedTrials > 0 ? trialConversions / recordedTrials : null,
+    stripeRevenue30d: null,
+    stripeRevenueMessage: null,
     asOf: new Date(now).toISOString(),
   }
 }
