@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isAllowedTennisRecordDiscovery, parseTennisRecordMatchPage, tennisRecordRecordPageKind, tennisRecordStatedNtrpBaseline, tennisRecordStatedNtrpDesignation } from '../tennisrecord/parser'
 import { canonicalTennisRecordFingerprint, isAmbiguousIdentity, isTennisRecordBlock, reconcileMatchObservations } from '../tennisrecord/reconcile'
-import { buildTennisRecordQueueDiscoveryPlan, inferCurrentAdultFlightBaseline, isTennisRecordRunStale, preserveTennisRecordStatedNtrpLabel, ratingSourceFromStatedNtrp } from '../tennisrecord/service'
+import { buildTennisRecordQueueDiscoveryPlan, inferCurrentAdultFlightBaseline, isTennisRecordPlayerNameConflict, isTennisRecordRunStale, partitionTennisRecordProvisionalPlayers, preserveTennisRecordStatedNtrpLabel, ratingSourceFromStatedNtrp } from '../tennisrecord/service'
 import { isTennisRecordWeeklyWindowOpen, isWeeklyTennisRecordRefreshDue, scheduledTennisRecordBatchLimit, shouldSelfStartTennisRecordBootstrap, tennisRecordAutomationDecision, tennisRecordCadenceSafetyStatus, tennisRecordCampaignCompletionAction, tennisRecordCheckpointForecast, tennisRecordCheckpointForecastWithPace, tennisRecordDeferredRetryAt, tennisRecordFailureDisposition, tennisRecordObservedCheckpointPace, tennisRecordScheduledPageKindPlan, tennisRecordSourcePageStoragePath, tennisRecordTransientRetryAt, TENNISRECORD_AUTOMATION_INTERVAL_MINUTES, TENNISRECORD_BOOTSTRAP_PAGE_KINDS, TENNISRECORD_WEEKLY_PAGE_KINDS } from '../tennisrecord/service'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordCampaignCurrentEndOn, tennisRecordFrontierStatus } from '../tennisrecord/frontier'
 
@@ -11,6 +11,18 @@ const fixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisr
 const historyFixture = readFileSync(join(process.cwd(), 'lib/__tests__/fixtures/tennisrecord-stl-history-2025.html'), 'utf8')
 
 describe('TennisRecord ingestion safety', () => {
+  it('holds same-name source identities for review without stopping unrelated players', () => {
+    const saraUpper = { id: 'one', normalized_name: 'sara lara' }
+    const saraTitle = { id: 'two', normalized_name: 'Sara Lara' }
+    const micayla = { id: 'three', normalized_name: 'micayla hendricks' }
+    expect(partitionTennisRecordProvisionalPlayers([saraUpper, saraTitle, micayla])).toEqual({
+      safeToCreate: [micayla],
+      needsReview: [saraUpper, saraTitle],
+    })
+    expect(isTennisRecordPlayerNameConflict({ code: '23505', message: 'duplicate key value violates unique constraint "players_name_unique_idx"' })).toBe(true)
+    expect(isTennisRecordPlayerNameConflict({ code: '23505', message: 'another_unique_idx' })).toBe(false)
+  })
+
   it('keeps open campaign windows current without shortening a future end date', () => {
     const now = new Date('2026-08-26T18:00:00.000Z')
     expect(tennisRecordCampaignCurrentEndOn('2026-08-22', now)).toBe('2026-08-26')

@@ -4,7 +4,7 @@ import { getCache } from '@vercel/functions'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
-const ADMIN_STATUS_CACHE_KEY = 'operational-status:v1'
+const ADMIN_STATUS_CACHE_KEY = 'operational-status:v2'
 const ADMIN_STATUS_CACHE_TAG = 'tennisrecord-admin-status'
 const ADMIN_STATUS_CACHE_TTL_SECONDS = 120
 
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
   const auth = await getAdminApiAuth(request)
   if (!auth.ok) return auth.response
   try { await getAdminStatusCache().expireTag(ADMIN_STATUS_CACHE_TAG) } catch { /* Cache expiry must not block admin actions. */ }
-  const body = await request.json().catch(() => null) as { action?: unknown; urls?: unknown; enabled?: unknown; automationState?: unknown; stagedPlayerId?: unknown; canonicalPlayerId?: unknown; campaignId?: unknown } | null
+  const body = await request.json().catch(() => null) as { action?: unknown; urls?: unknown; enabled?: unknown; automationState?: unknown; stagedPlayerId?: unknown; canonicalPlayerId?: unknown; campaignId?: unknown; queueItemId?: unknown } | null
   const action = typeof body?.action === 'string' ? body.action : ''
   try {
     if (action === 'set_enabled') {
@@ -112,6 +112,16 @@ export async function POST(request: Request) {
         .eq('staged_player_id', stagedPlayerId)
       if (observationError) throw observationError
       return Response.json({ ok: true })
+    }
+    if (action === 'retry_queue_item') {
+      const queueItemId = typeof body?.queueItemId === 'string' ? body.queueItemId.trim() : ''
+      if (!queueItemId) return Response.json({ ok: false, message: 'Choose an import item to retry.' }, { status: 400 })
+      const item = await auth.service.from('tennisrecord_crawl_queue').select('id,status').eq('id', queueItemId).maybeSingle()
+      if (item.error) throw item.error
+      if (!item.data || (item.data.status !== 'review' && item.data.status !== 'error')) return Response.json({ ok: false, message: 'Only review or error items can be retried.' }, { status: 400 })
+      const { error } = await auth.service.from('tennisrecord_crawl_queue').update({ status: 'pending', retry_count: 0, deferred_retry_count: 0, deferred_retry_at: null, failure_reason: 'Admin retry requested.', last_error_at: null, completed_at: null }).eq('id', queueItemId).in('status', ['review', 'error'])
+      if (error) throw error
+      return Response.json({ ok: true, queueItemId })
     }
     if (action === 'run') return Response.json({ ok: true, summary: await runTennisRecordSync(auth.service, { triggerKind: 'manual', requestedByUserId: auth.userId, limit: 5 }) })
     return Response.json({ ok: false, message: 'Unknown TennisRecord operation.' }, { status: 400 })

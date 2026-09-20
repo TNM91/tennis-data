@@ -19,6 +19,7 @@ type Settings = { enabled: boolean; current_refresh_enabled?: boolean; current_r
 type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number; deferred_retry_count: number; deferred_retry_at: string | null }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
 type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; pageKindPlan?: readonly (readonly string[])[]; campaignId?: string | null; recalculateRatings?: boolean; currentSeason?: boolean }
+type ProvisionalTennisRecordPlayer = { id: string; source_player_key: string; name: string; normalized_name: string; city?: string | null; state?: string | null; ntrp_label?: string | null }
 
 /**
  * A newly discovered computer-rated USTA baseline is factual player context.
@@ -53,6 +54,28 @@ export function ratingSourceFromStatedNtrp(
   // A source page can factually state the numeric level without showing C/S.
   // Keep that level, but never invent a self-rating designation for it.
   return baseline === null ? 'unknown' as const : 'inferred' as const
+}
+
+/**
+ * A name is not a source identity. If one page introduces multiple source
+ * profiles for the same normalized name, hold every candidate for review
+ * instead of letting the players table's case-insensitive name guard abort
+ * the entire collector checkpoint.
+ */
+export function partitionTennisRecordProvisionalPlayers<T extends Pick<ProvisionalTennisRecordPlayer, 'normalized_name'>>(players: T[]) {
+  const counts = new Map<string, number>()
+  for (const player of players) {
+    const name = player.normalized_name.trim().toLowerCase()
+    counts.set(name, (counts.get(name) || 0) + 1)
+  }
+  return {
+    safeToCreate: players.filter((player) => counts.get(player.normalized_name.trim().toLowerCase()) === 1),
+    needsReview: players.filter((player) => (counts.get(player.normalized_name.trim().toLowerCase()) || 0) > 1),
+  }
+}
+
+export function isTennisRecordPlayerNameConflict(error: { code?: string; message?: string } | null | undefined) {
+  return error?.code === '23505' && /players_name_unique_idx/i.test(error.message || '')
 }
 
 /**
@@ -554,6 +577,15 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     countCampaignPages('error'),
   ])
   if (campaignPending.error || campaignCompleted.error || campaignRunning.error || campaignReview.error || campaignBlocked.error || campaignErrors.error) throw new Error('TennisRecord campaign progress is unavailable.')
+  let attentionQuery = service
+    .from('tennisrecord_crawl_queue')
+    .select('id,source_url,page_kind,status,failure_reason,last_error_at,completed_at')
+    .in('status', ['review', 'error', 'blocked'])
+    .order('last_error_at', { ascending: false, nullsFirst: false })
+    .limit(12)
+  if (activeCampaignId) attentionQuery = attentionQuery.eq('campaign_id', activeCampaignId)
+  const attentionItems = await attentionQuery
+  if (attentionItems.error) throw new Error('TennisRecord attention queue is unavailable.')
   const weeklyStartedAt = (settings.data as Settings | null)?.weekly_refresh_started_at || null
   const independentRefresh = Boolean((settings.data as Settings | null)?.current_refresh_enabled)
   const countWeeklyPages = (status: string, timestampColumn: 'last_seen_at' | 'completed_at') => {
@@ -665,6 +697,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
           : 'paused',
     },
     conflicts: conflicts.count || 0,
+    attentionItems: attentionItems.data || [],
     // Coverage aggregates are intentionally deferred from this heartbeat.
     // The historical view uses whole-table counts and was starving the same
     // database that serves navigation and team access during active imports.
@@ -1386,6 +1419,8 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
     // Defense in depth before downloading or superseding any prior evidence.
     if (!isSuccessfulTennisRecordHttpStatus(page.http_status)) continue
     const sourceUrl = page.source_url as string
+    const now = new Date().toISOString()
+    try {
     let html = page.raw_html as string | null
     if (!html && page.raw_html_storage_path) {
       const storedPage = await service.storage.from(TENNISRECORD_SOURCE_PAGE_BUCKET).download(page.raw_html_storage_path as string)
@@ -1409,20 +1444,25 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
     }
     const isMatchPage = tennisRecordRecordPageKind(sourceUrl) === 'match'
     const hasCompleteMatches = parsed.matches.length > 0
-    const now = new Date().toISOString()
-
-    const quarantine = await service.from('tennisrecord_staged_matches').update({
-      parse_status: hasCompleteMatches ? 'superseded' : 'quarantined',
-      parse_failure_reason: hasCompleteMatches ? 'Superseded by a newer validated parser revision.' : 'No complete court result with trustworthy team context was parsed.',
-      parser_revision: TENNISRECORD_PARSER_REVISION,
-      last_seen_at: now,
-    }).eq('source_url', sourceUrl).lt('parser_revision', TENNISRECORD_PARSER_REVISION)
-    if (quarantine.error) throw new Error(quarantine.error.message)
 
     if (isMatchPage && !hasCompleteMatches) {
+      const quarantine = await service.from('tennisrecord_staged_matches').update({
+        parse_status: 'quarantined',
+        parse_failure_reason: 'No complete court result with trustworthy team context was parsed.',
+        parser_revision: TENNISRECORD_PARSER_REVISION,
+        last_seen_at: now,
+      }).eq('source_url', sourceUrl).lt('parser_revision', TENNISRECORD_PARSER_REVISION)
+      if (quarantine.error) throw new Error(quarantine.error.message)
       summary.parserFailures += 1
     } else {
       const staged = await stageParsedPage(service, parsed, sourceUrl, page.id as string, campaignId, campaignSlug, TENNISRECORD_PARSER_REVISION)
+      const superseded = await service.from('tennisrecord_staged_matches').update({
+        parse_status: 'superseded',
+        parse_failure_reason: 'Superseded by a newer validated parser revision.',
+        parser_revision: TENNISRECORD_PARSER_REVISION,
+        last_seen_at: now,
+      }).eq('source_url', sourceUrl).lt('parser_revision', TENNISRECORD_PARSER_REVISION)
+      if (superseded.error) throw new Error(superseded.error.message)
       summary.sourceMatchKeys.push(...staged.sourceMatchKeys)
       summary.sourcePlayerKeys.push(...staged.sourcePlayerKeys)
       summary.baselineChanged = summary.baselineChanged || staged.baselineChanged
@@ -1435,6 +1475,19 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
 
     const sourceUpdate = await service.from('tennisrecord_source_pages').update({ parser_revision: TENNISRECORD_PARSER_REVISION, sync_run_id: runId, last_seen_at: now }).eq('id', page.id)
     if (sourceUpdate.error) throw new Error(sourceUpdate.error.message)
+    } catch (replayError) {
+      const failureReason = replayError instanceof Error ? replayError.message : 'Unknown parser replay failure.'
+      summary.parserFailures += 1
+      console.error('[tennisrecord] captured-page replay quarantined', { sourceUrl, failureReason })
+      const attention = await service
+        .from('tennisrecord_crawl_queue')
+        .update({ status: 'review', failure_reason: `Captured-page replay needs review: ${failureReason}`, last_error_at: now, completed_at: now })
+        .eq('source_url', sourceUrl)
+        .in('status', ['pending', 'running', 'done', 'error'])
+      if (attention.error) throw new Error(attention.error.message)
+      const reviewed = await service.from('tennisrecord_source_pages').update({ parser_revision: TENNISRECORD_PARSER_REVISION, sync_run_id: runId, last_seen_at: now }).eq('id', page.id)
+      if (reviewed.error) throw new Error(reviewed.error.message)
+    }
   }
   return summary
 }
@@ -1527,8 +1580,13 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
         const linked = await service.from('tennisrecord_player_identities').upsert(uniqueLocal.map((player) => ({ staged_player_id: player.id, canonical_player_id: localByName.get(player.normalized_name)?.[0], status: 'matched', confidence: 0.75, signals: ['unique_local_name_match', 'tennisrecord_low_authority_evidence'] })), { onConflict: 'staged_player_id' })
         if (linked.error) throw new Error(linked.error.message)
       }
-      if (provisional.length) {
-        const created = await service.from('players').upsert(provisional.map((player) => {
+      const provisionalPartition = partitionTennisRecordProvisionalPlayers(provisional)
+      if (provisionalPartition.needsReview.length) {
+        const review = await service.from('tennisrecord_player_identities').upsert(provisionalPartition.needsReview.map((player) => ({ staged_player_id: player.id, status: 'ambiguous', confidence: 0, signals: ['same_name_source_players_require_review'] })), { onConflict: 'staged_player_id' })
+        if (review.error) throw new Error(review.error.message)
+      }
+      if (provisionalPartition.safeToCreate.length) {
+        const provisionalRows = provisionalPartition.safeToCreate.map((player) => {
           const baseline = tennisRecordStatedNtrpBaseline(player.ntrp_label)
           const designation = tennisRecordStatedNtrpDesignation(player.ntrp_label)
           return {
@@ -1548,10 +1606,31 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
             external_source_key: player.source_player_key,
             is_external_provisional: true,
           }
-        }), { onConflict: 'external_source,external_source_key' }).select('id,external_source_key')
-        if (created.error) throw new Error(created.error.message)
-        const playerIdByKey = new Map((created.data || []).map((player) => [player.external_source_key as string, player.id as string]))
-        const mappings = provisional.flatMap((player) => {
+        })
+        let createdPlayers: Array<{ id: string; external_source_key: string | null }> = []
+        const created = await service.from('players').upsert(provisionalRows, { onConflict: 'external_source,external_source_key' }).select('id,external_source_key')
+        if (created.error && !isTennisRecordPlayerNameConflict(created.error)) throw new Error(created.error.message)
+        if (!created.error) {
+          createdPlayers = created.data || []
+        } else {
+          // A legacy player can have a missing or stale normalized_name and
+          // escape the lookup above. Isolate that one identity instead of
+          // letting a name constraint stop every other page in the checkpoint.
+          for (let index = 0; index < provisionalRows.length; index += 1) {
+            const row = provisionalRows[index]
+            const player = provisionalPartition.safeToCreate[index]
+            const result = await service.from('players').upsert(row, { onConflict: 'external_source,external_source_key' }).select('id,external_source_key').maybeSingle()
+            if (isTennisRecordPlayerNameConflict(result.error)) {
+              const review = await service.from('tennisrecord_player_identities').upsert({ staged_player_id: player.id, status: 'ambiguous', confidence: 0, signals: ['player_name_constraint_requires_review'] }, { onConflict: 'staged_player_id' })
+              if (review.error) throw new Error(review.error.message)
+              continue
+            }
+            if (result.error) throw new Error(result.error.message)
+            if (result.data) createdPlayers.push(result.data)
+          }
+        }
+        const playerIdByKey = new Map(createdPlayers.map((player) => [player.external_source_key as string, player.id as string]))
+        const mappings = provisionalPartition.safeToCreate.flatMap((player) => {
           const canonicalPlayerId = playerIdByKey.get(player.source_player_key)
           return canonicalPlayerId ? [{ staged_player_id: player.id, canonical_player_id: canonicalPlayerId, status: 'matched', confidence: 0.9, signals: ['tennisrecord_source_id', 'provisional_external_player'], reviewed_at: null, reviewed_by_user_id: null }] : []
         })
