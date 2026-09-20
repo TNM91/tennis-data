@@ -24,6 +24,7 @@ type Status = {
   ratingAlignment: { verifiedPlayers: number; atOrNearBaseline: number; buildingAboveBaseline: number; belowBaseline: number; materiallyBelowBaseline: number } | null
   coverage: { staged_player_count: number; filterable_team_count: number; filterable_league_count: number; filterable_flight_count: number; source_roster_listing_count: number; source_team_history_count: number; unpromoted_team_history_count: number; promoted_match_count: number } | null
   conflicts: number
+  attentionItems: Array<{ id: string; source_url: string; page_kind: string; status: 'review' | 'error' | 'blocked'; failure_reason: string | null; last_error_at: string | null; completed_at: string | null }>
   identityReview: Array<{ staged_player_id: string; status: string; confidence: number; tennisrecord_staged_players: { name: string; city: string | null; state: string | null; ntrp_label: string | null; source_url: string } | null }>
   campaigns: Array<{ id: string; name: string; region_label: string; starts_on: string; ends_on: string; status: string; seed_provenance: string; availableSeedPages: number }>
   frontier: { status: 'seeded' | 'ready_to_seed' | 'needs_admin_seed' }
@@ -105,7 +106,7 @@ export default function TennisRecordAdminPage() {
     setBusy(true); setMessage('')
     try {
       const result = await request(body)
-      setMessage(body.action === 'run' ? 'Manual sync finished. Review the run counts below.' : body.action === 'seed_frontier' ? 'Missouri public history pages are queued. Regional automation will continue from this checkpoint.' : body.action === 'resolve_identity' ? 'Verified player mapping saved.' : 'Collector settings saved.')
+      setMessage(body.action === 'run' ? 'Manual sync finished. Review the run counts below.' : body.action === 'seed_frontier' ? 'Missouri public history pages are queued. Regional automation will continue from this checkpoint.' : body.action === 'resolve_identity' ? 'Verified player mapping saved.' : body.action === 'retry_queue_item' ? 'The page is queued for a safe retry. Automatic collection continues.' : 'Collector settings saved.')
       if (body.action === 'enqueue') setSeedUrl('')
       if ('settings' in result) setStatus(result)
       await refresh()
@@ -215,6 +216,7 @@ export default function TennisRecordAdminPage() {
           <Metric label="Source failures" value={String(run.source_failures ?? '—')} />
           <Metric label="Parser failures" value={String(run.parser_failures ?? '—')} />
           <Metric label="Evidence review" value={String(progress?.review ?? '—')} />
+          <Metric label="Attention queue" value={status?.attentionItems?.length ?? '—'} />
         </div>
         <section aria-label="Import health" style={{ marginTop: 20, padding: 16, borderRadius: 18, border: `1px solid ${pipelineHealth?.state === 'attention' ? 'rgba(255,157,114,0.52)' : 'rgba(116,190,255,0.2)'}`, background: pipelineHealth?.state === 'attention' ? 'rgba(98, 38, 24, 0.22)' : 'rgba(11, 31, 55, 0.42)' }}>
           <div style={{ display: 'grid', gap: 4 }}>
@@ -286,6 +288,23 @@ export default function TennisRecordAdminPage() {
           <button className="button-secondary" disabled={busy || !seedUrl.trim()} onClick={() => void act({ action: 'enqueue', urls: [seedUrl] })}>Queue page</button>
         </div>
         {message ? <p role="status" className="subtle-text" style={{ marginTop: 14 }}>{message}</p> : null}
+      </section>
+      <section className="surface-card" aria-label="Import attention queue" style={{ marginTop: 20, padding: 20 }}>
+        <h2 style={{ marginTop: 0 }}>Import attention queue</h2>
+        <p className="subtle-text">A problem on one source page never pauses the rest of the import. Review the saved reason here, then retry eligible pages after the underlying data issue is understood.</p>
+        {status?.attentionItems?.length ? <div style={{ display: 'grid', gap: 12, marginTop: 16 }}>
+          {status.attentionItems.map((item) => <div key={item.id} className="metric-card" style={{ display: 'grid', gap: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <strong style={{ textTransform: 'capitalize' }}>{item.page_kind} page · {item.status}</strong>
+              <span className="subtle-text">{formatDateTime(item.last_error_at || item.completed_at)}</span>
+            </div>
+            <span className="subtle-text">{item.failure_reason || 'The page was saved for review without a detailed reason.'}</span>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+              <a className="subtle-text" href={item.source_url} target="_blank" rel="noreferrer">View source page</a>
+              {item.status === 'review' || item.status === 'error' ? <button className="button-secondary" disabled={busy} onClick={() => void act({ action: 'retry_queue_item', queueItemId: item.id })}>Retry safely</button> : <span className="subtle-text">Source access remains blocked; the safety guard will not bypass it.</span>}
+            </div>
+          </div>)}
+        </div> : <p className="subtle-text" style={{ marginTop: 12 }}>No source pages need attention.</p>}
       </section>
       <section className="surface-card" style={{ marginTop: 20, padding: 20 }}>
         <h2 style={{ marginTop: 0 }}>Identity review</h2>
