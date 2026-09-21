@@ -13,6 +13,7 @@ import { supabase } from '@/lib/supabase'
 import { MEMBERSHIP_TIER_ORDER, MEMBERSHIP_TIERS } from '@/lib/product-story'
 import type { AccountHealthKey, AccountTierSummary } from '@/lib/admin-account-tiers'
 import type { BusinessPulse } from '@/lib/admin-business-pulse'
+import { buildAdminMonthCsvExport } from '@/lib/admin-business-pulse-export'
 
 type Accent = 'blue' | 'green' | 'slate'
 
@@ -472,6 +473,25 @@ function BusinessTrend({ pulse }: { pulse: BusinessPulse }) {
   const selectedRevenue = revenueMonths.find((month) => month.month === selectedMonth)
   const selectedSubscriptions = pulse.subscriptionTrend6m.find((month) => month.month === selectedMonth)
   const selectedLabel = selectedRevenue?.label || selectedSubscriptions?.label || 'Month'
+  const [exportMessage, setExportMessage] = useState('')
+
+  function exportSelectedMonth() {
+    const snapshot = buildAdminMonthCsvExport({
+      month: selectedMonth,
+      label: selectedLabel,
+      revenue: selectedRevenue,
+      subscriptions: selectedSubscriptions,
+    })
+    const url = URL.createObjectURL(new Blob([snapshot.csv], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = snapshot.filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+    setExportMessage(`${selectedLabel} activity downloaded · ${snapshot.rowCount} ${snapshot.rowCount === 1 ? 'row' : 'rows'}`)
+  }
 
   return (
     <div style={{ marginTop: 14, padding: '16px 12px', borderRadius: 16, border: '1px solid var(--card-border-soft)', background: 'color-mix(in srgb, var(--surface-soft) 74%, transparent)', minWidth: 0 }}>
@@ -531,10 +551,19 @@ function BusinessTrend({ pulse }: { pulse: BusinessPulse }) {
       </div>
 
       <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--card-border-soft)' }} aria-live="polite">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ color: 'var(--foreground)', fontSize: 15, fontWeight: 900 }}>{selectedLabel} details</div>
-          <div style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 750 }}>Tap another month to compare</div>
+          <button
+            type="button"
+            onClick={exportSelectedMonth}
+            disabled={!selectedMonth}
+            style={{ minHeight: 36, padding: '8px 12px', borderRadius: 999, border: '1px solid color-mix(in srgb, var(--brand-green) 52%, var(--card-border-soft))', background: 'color-mix(in srgb, var(--brand-green) 10%, var(--surface-soft))', color: 'var(--foreground)', font: 'inherit', fontSize: 11, fontWeight: 900, cursor: selectedMonth ? 'pointer' : 'not-allowed' }}
+          >
+            Export CSV
+          </button>
         </div>
+        <div style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 750, marginTop: 4 }}>Tap another month to compare</div>
+        {exportMessage ? <div role="status" style={{ color: 'var(--brand-green)', fontSize: 11, fontWeight: 800, marginTop: 7 }}>{exportMessage}</div> : null}
 
         {selectedRevenue ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6, marginTop: 10 }}>
