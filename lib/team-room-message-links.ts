@@ -25,3 +25,19 @@ export function tokenizeTeamRoomMessageBody(body: string): TeamRoomMessageSegmen
   if (cursor < body.length) segments.push({ text: body.slice(cursor) })
   return segments.length ? segments : [{ text: body }]
 }
+
+export function getTeamRoomMessageLinkLabel(href: string): string {
+  try {
+    const url = new URL(href)
+    const host = url.hostname.replace(/^www\./, '')
+    if (host === 'tenaceiq.com') {
+      if (/^\/(?:pr|practice)\//.test(url.pathname)) return 'Open practice RSVP ↗'
+      if (url.pathname.startsWith('/share/captain/lineup')) return 'Open shared lineup ↗'
+      if (url.pathname.startsWith('/share/captain/final-result')) return 'Open final result ↗'
+      return 'Open in TenAceIQ ↗'
+    }
+    return `${host} ↗`
+  } catch {
+    return href
+  }
+}
