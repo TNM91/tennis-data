@@ -1725,6 +1725,8 @@ function TeamRoomSession() {
     )
   }
 
+  const unconnectedRosterCount = room.rosterMembers.filter((member) => !member.joined).length
+
   return (
     <main className={styles.page}>
       <nav className={styles.appBar} aria-label="Team Chat navigation">
@@ -2351,6 +2353,19 @@ function TeamRoomSession() {
               </div>
             </details>
           </div>
+          {room.canManage ? (
+            <div className={styles.composerReach} aria-live="polite">
+              <span>
+                <strong>{room.members.length === 1 ? 'Only you are connected' : `${room.members.length} connected to chat`}</strong>
+                {unconnectedRosterCount > 0
+                  ? ` · ${unconnectedRosterCount} roster players not joined`
+                  : ''}
+              </span>
+              <button type="button" disabled={sharing} onClick={() => void inviteTeam()}>
+                {sharing ? 'Preparing…' : 'Invite players'}
+              </button>
+            </div>
+          ) : null}
           {replyTo ? (
             <div className={styles.composerContext}>
               <span><strong>Replying to {replyTo.senderName}</strong>{replyTo.body.slice(0, 100)}</span>

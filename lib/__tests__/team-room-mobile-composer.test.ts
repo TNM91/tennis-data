@@ -41,6 +41,15 @@ describe('Team Room mobile composer', () => {
     expect(styles).toContain('white-space: nowrap;')
   })
 
+  it('shows captains chat reach and a direct invite action before sending', () => {
+    expect(page).toContain('className={styles.composerReach} aria-live="polite"')
+    expect(page).toContain('Only you are connected')
+    expect(page).toContain('roster players not joined')
+    expect(page).toContain("onClick={() => void inviteTeam()}")
+    expect(page).toContain('Invite players')
+    expect(styles).toContain('.composerReach')
+  })
+
   it('keeps the mobile opening chat-first and moves secondary room controls into one compact menu', () => {
     expect(page).toContain('className={styles.mobileRoomControls}')
     expect(page).toContain('className={styles.mobileRoomMenu}')
