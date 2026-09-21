@@ -62,7 +62,7 @@ import {
   type TeamRoomArrivalTextReturn,
 } from '@/lib/team-room-arrival'
 import { supabase } from '@/lib/supabase'
-import { tokenizeTeamRoomMessageBody } from '@/lib/team-room-message-links'
+import { getTeamRoomMessageLinkLabel, tokenizeTeamRoomMessageBody } from '@/lib/team-room-message-links'
 import styles from './team-room.module.css'
 
 type TeamOption = {
@@ -2072,6 +2072,7 @@ function TeamRoomSession() {
                 ? arrivalTextReturn
                 : null}
               focusedCourtLabel={focusedCourtLabel}
+              defaultOpen={resultJustUpdated || activeFinalResultFocused}
               onSeen={() => currentFinalLineup && void markFinalLineupSeen(currentFinalLineup.announcementMessageId)}
               onRemind={() => currentFinalLineup && void remindFinalLineupUnseen(currentFinalLineup.announcementMessageId)}
               onCompleteMatch={() => currentFinalLineup && void completeMatchDay(currentFinalLineup.announcementMessageId)}
@@ -2425,8 +2426,8 @@ function TeamRoomSession() {
 
 function MessageBody({ body }: { body: string }) {
   return tokenizeTeamRoomMessageBody(body).map((segment, index) => segment.href ? (
-    <a key={`${segment.href}-${index}`} href={segment.href} target="_blank" rel="noreferrer">
-      {segment.text}
+    <a key={`${segment.href}-${index}`} href={segment.href} target="_blank" rel="noreferrer" title={segment.href} aria-label={`${getTeamRoomMessageLinkLabel(segment.href)} (${segment.href})`}>
+      {getTeamRoomMessageLinkLabel(segment.href)}
     </a>
   ) : <span key={`text-${index}`}>{segment.text}</span>)
 }

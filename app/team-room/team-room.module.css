@@ -3093,6 +3093,11 @@
     width: 100%;
   }
 
+  .mobileRoomMenuBody {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+  }
+
   .mobileRoomMenuActions > :is(button, a) {
     min-height: 38px;
     padding: 0 9px;
