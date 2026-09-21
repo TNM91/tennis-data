@@ -45,6 +45,7 @@ import {
   type MatchAccuracyReport,
 } from '@/lib/match-accuracy-reports'
 import { CAPTAIN_STORY, DATA_ASSIST_STORY } from '@/lib/product-story'
+import { getPlanUnlockHref } from '@/lib/plan-intent'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
@@ -1494,6 +1495,12 @@ function TeamPageContent() {
       }),
     },
   ]
+  const captainPreviewHref = authResolved && !access.canUseCaptainWorkflow
+    ? getPlanUnlockHref('captain', captainLinks[1].href)
+    : '/captain'
+  const captainPreviewLabel = authResolved && !access.canUseCaptainWorkflow
+    ? CAPTAIN_STORY.upgradeCta
+    : 'Open Captain'
   const teamRoomHref = buildTeamRoomHref({
     teamName: team,
     leagueName: leagueFilter || teamMeta.league || undefined,
@@ -2100,8 +2107,8 @@ function TeamPageContent() {
                       : 'Team readiness at a glance.'}
                 </h2>
               </div>
-              <Link href={canManageThisTeam ? captainMatchPulseAction.href : '/captain'} style={teamMatchPulseActionStyle}>
-                {canManageThisTeam ? captainMatchPulseAction.label : 'Explore Captain'}
+              <Link href={canManageThisTeam ? captainMatchPulseAction.href : captainPreviewHref} style={teamMatchPulseActionStyle}>
+                {canManageThisTeam ? captainMatchPulseAction.label : captainPreviewLabel}
               </Link>
             </div>
 
@@ -2175,10 +2182,11 @@ function TeamPageContent() {
             </div>
 
             {!canManageThisTeam ? (
-              <Link href="/captain" style={teamPulseCaptainPreviewStyle}>
+              <Link href={captainPreviewHref} style={teamPulseCaptainPreviewStyle}>
                 <span style={teamPulseCaptainCopyStyle}>
                   <span style={teamPulseLabelStyle}>{CAPTAIN_STORY.quickStartKicker}</span>
                   <strong>Turn this team read into a clear lineup.</strong>
+                  <span style={teamPulseLabelStyle}>{captainPreviewLabel}</span>
                 </span>
                 <span aria-hidden="true" style={teamPulseCaptainArrowStyle}>→</span>
               </Link>
@@ -2193,7 +2201,7 @@ function TeamPageContent() {
               <h2 style={captainAccessTitleStyle}>Get the lineup ready before match day.</h2>
               <p style={captainAccessTextStyle}>Availability, pairings, and team messaging stay in one weekly flow.</p>
             </div>
-            <SecondaryLink href="/captain">{CAPTAIN_STORY.quickStartKicker}</SecondaryLink>
+            <SecondaryLink href={captainPreviewHref}>{captainPreviewLabel}</SecondaryLink>
           </section>
         ) : null}
 

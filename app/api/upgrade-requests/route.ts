@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
   mapUpgradeRequestRecordToInsert,
@@ -8,6 +8,7 @@ import {
 } from '@/lib/upgrade-requests'
 import type { BillablePricingPlanId } from '@/lib/pricing-plans'
 import { isSafeLocalNextHref } from '@/lib/plan-intent'
+import { PAID_CHECKOUT_ENABLED } from '@/lib/paid-checkout'
 
 export const runtime = 'nodejs'
 
@@ -54,16 +55,19 @@ export async function POST(request: Request) {
   }
 
   const token = getBearerToken(request)
+  const requesterUserId = await getRequesterUserId(token)
+  const nextHref = sanitizeNextHref(body.nextHref)
+  const dedupeActive = !PAID_CHECKOUT_ENABLED && Boolean(requesterUserId)
   const record: UpgradeRequestRecord = {
     id: '',
     planId,
     planName: cleanString(body.planName) || planId,
     name: cleanString(body.name),
     email,
-    userId: await getRequesterUserId(token),
+    userId: requesterUserId,
     organization: cleanString(body.organization),
     goal,
-    nextHref: sanitizeNextHref(body.nextHref),
+    nextHref,
     createdAt: '',
     status: 'pending',
     source: 'supabase',
@@ -78,13 +82,29 @@ export async function POST(request: Request) {
     )
   }
 
+  if (dedupeActive && requesterUserId) {
+    const { data: existing, error: lookupError } = await findActiveRequest(supabase, requesterUserId, planId, nextHref)
+    if (lookupError) {
+      return Response.json({ ok: false, message: 'Upgrade request could not be checked.' }, { status: 500 })
+    }
+    if (existing) {
+      return Response.json({ ok: true, request: mapUpgradeRequestRow(existing as UpgradeRequestRow), alreadyRequested: true })
+    }
+  }
+
   const { data, error } = await supabase
     .from('upgrade_requests')
-    .insert(mapUpgradeRequestRecordToInsert(record))
+    .insert({ ...mapUpgradeRequestRecordToInsert(record), ...(dedupeActive ? { dedupe_active: true } : {}) })
     .select(UPGRADE_REQUEST_SELECT)
     .single()
 
   if (error) {
+    if (dedupeActive && requesterUserId && error.code === '23505' && error.message.includes('upgrade_requests_active_dedupe_idx')) {
+      const { data: existing, error: lookupError } = await findActiveRequest(supabase, requesterUserId, planId, nextHref)
+      if (!lookupError && existing) {
+        return Response.json({ ok: true, request: mapUpgradeRequestRow(existing as UpgradeRequestRow), alreadyRequested: true })
+      }
+    }
     return Response.json(
       {
         ok: false,
@@ -95,6 +115,19 @@ export async function POST(request: Request) {
   }
 
   return Response.json({ ok: true, request: mapUpgradeRequestRow(data as UpgradeRequestRow) })
+}
+
+function findActiveRequest(supabase: SupabaseClient, userId: string, planId: BillablePricingPlanId, nextHref: string) {
+  return supabase
+    .from('upgrade_requests')
+    .select(UPGRADE_REQUEST_SELECT)
+    .eq('requester_user_id', userId)
+    .eq('plan_id', planId)
+    .eq('next_href', nextHref)
+    .in('status', ['pending', 'contacted'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 }
 
 export async function PATCH(request: Request) {

@@ -22,6 +22,7 @@ import {
 } from '@/lib/competition-layers'
 import { formatDate, cleanText } from '@/lib/captain-formatters'
 import { CAPTAIN_STORY, DATA_ASSIST_STORY } from '@/lib/product-story'
+import { getPlanUnlockHref } from '@/lib/plan-intent'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
@@ -112,6 +113,14 @@ function getParamValue(value: string | string[] | undefined) {
 }
 
 export default function LeagueDetailPage() {
+  return (
+    <SiteShell active="/leagues">
+      <LeagueDetailContent />
+    </SiteShell>
+  )
+}
+
+function LeagueDetailContent() {
   const params = useParams()
   const searchParams = useSearchParams()
 
@@ -626,11 +635,6 @@ export default function LeagueDetailPage() {
       note: `Track ${stats.teams} active ${leagueFormat === 'team' ? 'teams' : 'players'} and prepare for the next match.`,
     },
   ]
-  const competeHref = buildCaptainScopedHref('/compete/leagues', {
-    competitionLayer,
-    league: leagueInfo.leagueName,
-    flight: leagueInfo.flight,
-  })
   const captainActionLinks =
     leagueFormat === 'team'
       ? [
@@ -668,8 +672,14 @@ export default function LeagueDetailPage() {
           },
         ]
       : []
+  const leagueOfficeHref = authResolved && !access.canUseLeagueTools
+    ? getPlanUnlockHref('league', '/league-coordinator')
+    : '/league-coordinator'
+  const captainTeaseHref = authResolved && !access.canUseCaptainWorkflow && captainActionLinks.length > 1
+    ? getPlanUnlockHref('captain', captainActionLinks[1].href)
+    : '/captain'
   return (
-    <SiteShell active="/leagues">
+    <>
       <ExploreResumeTracker
         surface="league"
         label="league"
@@ -706,7 +716,9 @@ export default function LeagueDetailPage() {
                 subtitle={subtitleParts.join(' | ')}
               />
               <GhostLink href="/leagues">Back to Leagues</GhostLink>
-              <GhostLink href={competeHref}>Open League Office</GhostLink>
+              <GhostLink href={leagueOfficeHref}>
+                {authResolved && !access.canUseLeagueTools ? 'Unlock League Office' : 'Open League Office'}
+              </GhostLink>
             </div>
           </div>
 
@@ -1086,7 +1098,7 @@ export default function LeagueDetailPage() {
                       Availability, pairings, and team messaging stay in one weekly flow.
                     </div>
                   </div>
-                  <GhostLink href="/captain">{CAPTAIN_STORY.upgradeCta}</GhostLink>
+                  <GhostLink href={captainTeaseHref}>{CAPTAIN_STORY.upgradeCta}</GhostLink>
                 </section>
               ) : null}
 
@@ -1230,7 +1242,7 @@ export default function LeagueDetailPage() {
           )}
         </article>
       </section>
-    </SiteShell>
+    </>
   )
 }
 
