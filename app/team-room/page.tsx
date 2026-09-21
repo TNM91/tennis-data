@@ -38,6 +38,7 @@ import {
 } from '@/lib/team-room-match-day'
 import { buildMatchWeekGoogleCalendarHref } from '@/lib/captain-match-week-links'
 import { CAPTAIN_AVAILABILITY_REPLY_NOTICE } from '@/lib/captain-reply-alert'
+import { buildSmsHref, cleanPhone, prepareSmsBodyForNativeComposer } from '@/lib/captain-formatters'
 import {
   buildCaptainFinalLineupGroupText,
   buildCaptainLockedLineupId,
@@ -1536,13 +1537,29 @@ function TeamRoomSession() {
     setNotice('Team Room link ready to share.')
   }
 
+  async function createTeamInviteUrl() {
+    const payload = await postAction({ action: 'create_invite' })
+    const inviteUrl = String(payload.inviteUrl || '')
+    if (!inviteUrl) throw new Error('Team invite could not be created.')
+    return inviteUrl
+  }
+
+  async function prepareTeamInviteForText() {
+    if (!room || sharing) throw new Error('Team invite is not ready yet.')
+    setSharing(true)
+    try {
+      return await createTeamInviteUrl()
+    } finally {
+      setSharing(false)
+    }
+  }
+
   async function inviteTeam() {
     if (!room || sharing) return
     setSharing(true)
     setError('')
     try {
-      const payload = await postAction({ action: 'create_invite' })
-      const inviteUrl = String(payload.inviteUrl || '')
+      const inviteUrl = await createTeamInviteUrl()
       await shareOrCopy({
         title: `Join ${room.teamName}`,
         text: `Join ${room.teamName} in TenAceIQ to use our Team Room and keep match-week communication together.`,
@@ -2361,8 +2378,8 @@ function TeamRoomSession() {
                   ? ` · ${unconnectedRosterCount} roster players not joined`
                   : ''}
               </span>
-              <button type="button" disabled={sharing} onClick={() => void inviteTeam()}>
-                {sharing ? 'Preparing…' : 'Invite players'}
+              <button type="button" onClick={() => setShowMembers(true)}>
+                Invite players
               </button>
             </div>
           ) : null}
@@ -2424,6 +2441,8 @@ function TeamRoomSession() {
           sharing={sharing}
           onClose={() => setShowMembers(false)}
           onInvite={() => void inviteTeam()}
+          onPrepareInvite={prepareTeamInviteForText}
+          onRefresh={() => void loadRoom({ quiet: true })}
           onRevokeInvites={() => void revokeInvites()}
           onRemove={(member) => void removeMember(member)}
           onRestore={(member) => void restoreMember(member)}
@@ -3069,6 +3088,8 @@ function TeamRoomMemberDrawer({
   sharing,
   onClose,
   onInvite,
+  onPrepareInvite,
+  onRefresh,
   onRevokeInvites,
   onRemove,
   onRestore,
@@ -3079,12 +3100,43 @@ function TeamRoomMemberDrawer({
   sharing: boolean
   onClose: () => void
   onInvite: () => void
+  onPrepareInvite: () => Promise<string>
+  onRefresh: () => void
   onRevokeInvites: () => void
   onRemove: (member: TeamRoomMember) => void
   onRestore: (member: { id: string; name: string }) => void
 }) {
   const onlineIds = new Set(onlineProfileIds)
   const waitingRoster = room.rosterMembers.filter((member) => !member.joined)
+  const textableRoster = waitingRoster.filter((member) => Boolean(cleanPhone(member.phone)))
+  const [selectedInviteIds, setSelectedInviteIds] = useState<string[]>([])
+  const [preparedInviteUrl, setPreparedInviteUrl] = useState('')
+  const [inviteError, setInviteError] = useState('')
+  const [inviteNotice, setInviteNotice] = useState('')
+  const selectedRoster = textableRoster.filter((member) => selectedInviteIds.includes(member.id))
+  const selectedPhones = Array.from(new Set(selectedRoster.map((member) => cleanPhone(member.phone)).filter(Boolean)))
+  const inviteText = `Join ${room.teamName} in TenAceIQ Team Chat to see our match-week updates. ${preparedInviteUrl}`
+
+  async function prepareTextInvite() {
+    if (!selectedPhones.length) return
+    setInviteError('')
+    setInviteNotice('')
+    try {
+      setPreparedInviteUrl(await onPrepareInvite())
+    } catch (error) {
+      setInviteError(error instanceof Error ? error.message : 'Team invite could not be prepared.')
+    }
+  }
+
+  async function copyInviteText() {
+    try {
+      await navigator.clipboard.writeText(inviteText)
+      setInviteNotice('Invite text copied. Paste it into your group text if needed.')
+    } catch {
+      setInviteError('Copy failed. Open the text message or use Share invite.')
+    }
+  }
+
   return (
     <div className={styles.drawerBackdrop} role="presentation" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose()
@@ -3097,6 +3149,7 @@ function TeamRoomMemberDrawer({
           </div>
           <button className={styles.buttonSecondary} type="button" onClick={onClose}>Close</button>
         </div>
+        <button className={styles.buttonQuiet} type="button" onClick={onRefresh}>Refresh joined status</button>
 
         <div className={styles.memberList}>
           {room.members.map((member) => (
@@ -3104,7 +3157,7 @@ function TeamRoomMemberDrawer({
               <span className={`${styles.presenceDot} ${onlineIds.has(member.id) ? styles.presenceOnline : ''}`} aria-label={onlineIds.has(member.id) ? 'Online' : 'Offline'} />
               <div>
                 <strong>{member.name}{member.id === currentUserId ? ' · You' : ''}</strong>
-                <span>{member.roles.join(' + ').replaceAll('_', '-')}</span>
+                <span>Joined chat · {member.roles.join(' + ').replaceAll('_', '-')}</span>
               </div>
               {room.canManage && member.id !== currentUserId && !member.roles.some((role) => ['captain', 'co_captain', 'co-captain'].includes(role)) ? (
                 <button className={styles.buttonQuiet} type="button" onClick={() => onRemove(member)}>Remove</button>
@@ -3118,27 +3171,59 @@ function TeamRoomMemberDrawer({
             <div className={styles.drawerSectionHeader}>
               <div>
                 <strong>Roster not connected</strong>
-                <span>{waitingRoster.length ? `${waitingRoster.length} can still join` : 'Everyone in the imported roster is connected'}</span>
+                <span>{waitingRoster.length ? `${waitingRoster.length} not joined · ${textableRoster.length} with phone` : 'Everyone in the imported roster is connected'}</span>
               </div>
               <button className={styles.buttonPrimary} type="button" disabled={sharing} onClick={onInvite}>
                 {sharing ? 'Preparing…' : 'Share invite'}
               </button>
             </div>
             {waitingRoster.length ? (
-              <div className={styles.memberList}>
-                {waitingRoster.map((member) => (
-                  <article key={member.id} className={styles.memberRow}>
-                    <span className={styles.presenceDot} aria-hidden="true" />
-                    <div>
-                      <strong>{member.name}</strong>
-                      <span>{[member.role, member.phone ? 'Phone ready' : '', member.email ? 'Email ready' : ''].filter(Boolean).join(' · ')}</span>
-                    </div>
-                    <div className={styles.contactActions}>
-                      {member.phone ? <a href={`tel:${member.phone}`}>Call</a> : null}
-                      {member.email ? <a href={`mailto:${member.email}`}>Email</a> : null}
-                    </div>
-                  </article>
-                ))}
+              <div className={styles.inviteRoster}>
+                {textableRoster.length ? (
+                  <button className={styles.buttonQuiet} type="button" onClick={() => setSelectedInviteIds(selectedRoster.length === textableRoster.length ? [] : textableRoster.map((member) => member.id))}>
+                    {selectedRoster.length === textableRoster.length ? 'Clear selection' : 'Select all with phones'}
+                  </button>
+                ) : null}
+                <div className={styles.memberList}>
+                  {waitingRoster.map((member) => (
+                    <article key={member.id} className={styles.memberRow}>
+                      <label className={styles.inviteChoice}>
+                        <input
+                          type="checkbox"
+                          checked={selectedInviteIds.includes(member.id)}
+                          disabled={!cleanPhone(member.phone)}
+                          onChange={(event) => setSelectedInviteIds((current) => event.target.checked ? [...current, member.id] : current.filter((id) => id !== member.id))}
+                        />
+                        <span>
+                          <strong>{member.name}</strong>
+                          <small>Not joined · {cleanPhone(member.phone) ? 'Text ready' : 'No phone on roster'}</small>
+                        </span>
+                      </label>
+                      <div className={styles.contactActions}>
+                        {cleanPhone(member.phone) ? <a href={`tel:${cleanPhone(member.phone)}`}>Call</a> : null}
+                        {member.email ? <a href={`mailto:${member.email}`}>Email</a> : null}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+                {textableRoster.length ? (
+                  <div className={styles.inviteTextActions}>
+                    <button className={styles.buttonPrimary} type="button" disabled={!selectedPhones.length || sharing} onClick={() => void prepareTextInvite()}>
+                      {sharing ? 'Preparing…' : `Prepare text for ${selectedRoster.length} selected`}
+                    </button>
+                    {preparedInviteUrl && selectedPhones.length ? (
+                      <>
+                        <a className={styles.buttonSecondary} href={buildSmsHref(selectedPhones, inviteText)} onClick={() => { prepareSmsBodyForNativeComposer(inviteText); setInviteNotice('Text opened. Review recipients and send it from your phone.') }}>
+                          {selectedPhones.length === 1 ? 'Open text' : 'Open group text'}
+                        </a>
+                        <button className={styles.buttonQuiet} type="button" onClick={() => void copyInviteText()}>Copy invite text</button>
+                      </>
+                    ) : null}
+                    <small>{selectedPhones.length > 1 ? 'Selected numbers may see each other in a group text. ' : ''}TiQ shows Joined only after a player accepts the invite; opening a text does not send it.</small>
+                    {inviteNotice ? <span className={styles.inviteNotice} role="status">{inviteNotice}</span> : null}
+                    {inviteError ? <span className={styles.inviteError} role="alert">{inviteError}</span> : null}
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {room.removedMembers.length ? (

@@ -3028,6 +3028,46 @@
   gap: 5px;
 }
 
+.inviteRoster,
+.inviteTextActions {
+  display: grid;
+  gap: 9px;
+}
+
+.inviteRoster > .buttonQuiet,
+.memberDrawer > .buttonQuiet {
+  justify-self: start;
+}
+
+.inviteChoice {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.inviteChoice:has(input:disabled) { cursor: default; }
+.inviteChoice input { width: 20px; height: 20px; flex: 0 0 auto; accent-color: var(--brand-green); }
+.inviteChoice span { display: grid; min-width: 0; }
+.inviteChoice small { color: var(--shell-copy-muted); font-size: 0.7rem; line-height: 1.4; }
+
+.inviteRoster .memberRow { flex-wrap: wrap; }
+.inviteRoster .contactActions { flex: 0 0 auto; }
+
+.inviteTextActions {
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 13px;
+  background: var(--shell-chip-bg);
+  padding: 11px;
+}
+
+.inviteTextActions > :is(button, a) { width: 100%; text-align: center; }
+.inviteTextActions small { color: var(--shell-copy-muted); font-size: 0.7rem; line-height: 1.45; }
+.inviteNotice { color: var(--brand-green); font-size: 0.75rem; }
+.inviteError { color: #ffd1d1; font-size: 0.75rem; }
+
 .revokeButton {
   justify-self: start;
   border-color: rgba(255, 111, 111, 0.3);
