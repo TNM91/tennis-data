@@ -1,4 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { buildFollowGrowthCohort, type FollowAccessRequest } from '@/lib/follow-growth'
+import { buildGrowthCohort, type GrowthEvent, type StripeBillingEvent as CohortBillingEvent } from '@/lib/growth-cohort'
 import {
   buildCaptainPilotActivation,
   buildCaptainPilotActivationFollowUps,
@@ -19,6 +21,7 @@ import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 export const runtime = 'nodejs'
 
 const PERIODS = [7, 30, 90] as const
+const EVENT_PAGE_SIZE = 1000
 const CONVERSION_EVENT_NAMES = new Set([
   'signup_confirmation_sent',
   'upgrade_page_viewed',
@@ -39,6 +42,7 @@ type StripeBillingEvent = {
   profile_id: string | null
   outcome: string | null
   resulting_status: string | null
+  created_at: string
 }
 
 export async function GET(request: Request) {
@@ -68,31 +72,22 @@ export async function GET(request: Request) {
 
   const days = normalizePeriod(new URL(request.url).searchParams.get('days'))
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
-  const [eventsResult, billingResult, captainPilotResult] = await Promise.all([
-    service
-      .from('product_usage_events')
-      .select('user_id, event_name, plan_id, metadata, created_at')
-      .gte('created_at', since)
-      .order('created_at', { ascending: true })
-      .limit(10000),
-    service
-      .from('stripe_billing_events')
-      .select('profile_id, outcome, resulting_status')
-      .gte('created_at', since)
-      .limit(10000),
+  const [events, billingEvents, followRequests, captainPilotResult] = await Promise.all([
+    loadGrowthEvents(service, since),
+    loadBillingEvents(service, since),
+    loadFollowAccessRequests(service, since),
     service
       .from('captain_pilot_redemptions')
       .select('profile_id, status, captain_name, captain_email, team_name, acquisition_source, billing_status, trial_ends_at, updated_at, converted_at')
       .gte('created_at', since)
       .limit(10000),
-  ])
+  ]).catch(() => [null, null, null, null] as const)
 
-  if (eventsResult.error) return Response.json({ ok: false, message: 'Growth events could not be loaded.' }, { status: 500 })
-  if (billingResult.error) return Response.json({ ok: false, message: 'Stripe activation events could not be loaded.' }, { status: 500 })
-  if (captainPilotResult.error) return Response.json({ ok: false, message: 'Captain Pilot conversion could not be loaded.' }, { status: 500 })
+  if (!events || !billingEvents || !followRequests) return Response.json({ ok: false, message: 'Growth events could not be loaded.' }, { status: 500 })
+  if (!captainPilotResult || captainPilotResult.error) return Response.json({ ok: false, message: 'Captain Pilot conversion could not be loaded.' }, { status: 500 })
 
-  const events = (eventsResult.data ?? []) as GrowthEventRow[]
-  const billingEvents = (billingResult.data ?? []) as StripeBillingEvent[]
+  const firstActions = buildGrowthCohort(events.filter((event): event is GrowthEvent & GrowthEventRow => Boolean(event.created_at)), billingEvents as CohortBillingEvent[]).firstActions
+  const followJourney = buildFollowGrowthCohort(events.filter((event): event is GrowthEvent & GrowthEventRow => Boolean(event.created_at)), followRequests)
   const captainPilotRows = (captainPilotResult.data ?? []) as CaptainPilotRedemptionRow[]
   const captainPilot = buildCaptainPilotFunnel(
     events,
@@ -133,9 +128,11 @@ export async function GET(request: Request) {
     ok: true,
     days,
     since,
+    followJourney,
     funnel: {
       publicActions,
       signupRequests,
+      firstActions,
       checkoutClicks,
       checkoutStarts,
       checkoutFailures,
@@ -147,6 +144,46 @@ export async function GET(request: Request) {
       captainPilotActivation: captainPilotActivation.value,
     },
   })
+}
+
+async function loadGrowthEvents(service: SupabaseClient, since: string): Promise<GrowthEventRow[]> {
+  const events: GrowthEventRow[] = []
+  for (let offset = 0; ; offset += EVENT_PAGE_SIZE) {
+    const { data, error } = await service.from('product_usage_events')
+      .select('user_id, event_name, plan_id, metadata, created_at')
+      .gte('created_at', since).order('created_at', { ascending: true })
+      .range(offset, offset + EVENT_PAGE_SIZE - 1)
+    if (error) throw error
+    events.push(...((data ?? []) as GrowthEventRow[]))
+    if ((data ?? []).length < EVENT_PAGE_SIZE) return events
+  }
+}
+
+async function loadBillingEvents(service: SupabaseClient, since: string): Promise<StripeBillingEvent[]> {
+  const events: StripeBillingEvent[] = []
+  for (let offset = 0; ; offset += EVENT_PAGE_SIZE) {
+    const { data, error } = await service.from('stripe_billing_events')
+      .select('profile_id, outcome, resulting_status, created_at')
+      .gte('created_at', since).order('created_at', { ascending: true })
+      .range(offset, offset + EVENT_PAGE_SIZE - 1)
+    if (error) throw error
+    events.push(...((data ?? []) as StripeBillingEvent[]))
+    if ((data ?? []).length < EVENT_PAGE_SIZE) return events
+  }
+}
+
+async function loadFollowAccessRequests(service: SupabaseClient, since: string): Promise<FollowAccessRequest[]> {
+  const requests: FollowAccessRequest[] = []
+  for (let offset = 0; ; offset += EVENT_PAGE_SIZE) {
+    const { data, error } = await service.from('upgrade_requests')
+      .select('requester_user_id, plan_id, next_href, created_at')
+      .eq('plan_id', 'player_plus').gte('created_at', since)
+      .order('created_at', { ascending: true })
+      .range(offset, offset + EVENT_PAGE_SIZE - 1)
+    if (error) throw error
+    requests.push(...((data ?? []) as FollowAccessRequest[]))
+    if ((data ?? []).length < EVENT_PAGE_SIZE) return requests
+  }
 }
 
 async function loadCaptainPilotActivation(

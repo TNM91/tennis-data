@@ -1999,6 +1999,12 @@ function PlayerProfileContent() {
                   <div className={profileStory.heroActions}>
                     <Link href={storyActionHref} className={profileStory.primaryAction}>{heroPrimaryLabel}</Link>
                     <Link href={heroSecondaryHref} className={profileStory.quietAction}>{heroSecondaryLabel}</Link>
+                    <FollowButton
+                      entityType="player"
+                      entityId={player.id}
+                      entityName={player.name}
+                      subtitle={player.location || ''}
+                    />
                     {hasPersonalPlayerExperience ? (
                       <button
                         type="button"
@@ -2498,12 +2504,6 @@ function PlayerProfileContent() {
               </div>
 
               <div style={dynamicFollowRow}>
-                <FollowButton
-                  entityType="player"
-                  entityId={player.id}
-                  entityName={player.name}
-                  subtitle={player.location || ''}
-                />
                 <Link href={primaryActionHref} style={playerPrimaryActionStyle}>{primaryActionLabel}</Link>
                 <MiniLink href={secondaryActionHref}>{secondaryActionLabel}</MiniLink>
                 <MiniLink href="/rankings">Browse rankings</MiniLink>

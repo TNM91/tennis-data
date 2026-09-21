@@ -37,6 +37,21 @@ export default function AdminUpgradeRequestsPage() {
   const [activatingId, setActivatingId] = useState<string | null>(null)
   const [setupStatus, setSetupStatus] = useState<SetupStatus>(null)
 
+  useEffect(() => {
+    const requestedPlan = new URLSearchParams(window.location.search).get('plan')
+    if (requestedPlan && ['player_plus', 'coach', 'captain', 'league', 'full_court', 'club_starter', 'club_unlimited'].includes(requestedPlan)) {
+      setFilter(requestedPlan as StatusFilter)
+    }
+  }, [])
+
+  function selectFilter(nextFilter: StatusFilter) {
+    setFilter(nextFilter)
+    const url = new URL(window.location.href)
+    if (nextFilter === 'all') url.searchParams.delete('plan')
+    else url.searchParams.set('plan', nextFilter)
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+  }
+
   const loadRequests = useCallback(async () => {
     const localRequests = readStoredRequests()
 
@@ -294,7 +309,7 @@ export default function AdminUpgradeRequestsPage() {
                   <button
                     key={value}
                     type="button"
-                    onClick={() => setFilter(value as StatusFilter)}
+                    onClick={() => selectFilter(value as StatusFilter)}
                     style={filter === value ? activeFilterButtonStyle : filterButtonStyle}
                   >
                     {label}
@@ -344,7 +359,7 @@ export default function AdminUpgradeRequestsPage() {
                       {request.email}
                     </span>
                     {request.organization ? (
-                      <div style={metaLineStyle}>Team or league: {request.organization}</div>
+                      <div style={metaLineStyle}>Player, team, or league: {request.organization}</div>
                     ) : null}
                     <PricingSnapshot request={request} />
                     {request.userId ? (

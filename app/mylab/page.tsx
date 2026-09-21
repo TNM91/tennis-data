@@ -39,6 +39,7 @@ import {
   buildScopedTeamEntityId,
 } from '@/lib/entity-ids'
 import { supabase } from '@/lib/supabase'
+import { createFollow, removeFollow as deleteFollow } from '@/lib/follow-feeds'
 import { listTiqIndividualLeagueResults, type TiqIndividualLeagueResultRecord } from '@/lib/tiq-individual-results-service'
 import { buildTiqIndividualLeagueSummaries } from '@/lib/tiq-individual-results-summary'
 import {
@@ -56,6 +57,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
+import { sortWatchlistFeed } from '@/lib/watchlist-feed'
 import type { ClubRole } from '@/lib/club-workspace'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
@@ -123,7 +125,8 @@ type FeedItem = {
   entityType: EntityType | 'community'
   entityId: string | null
   entityName: string
-  createdAt: string
+  createdAt: string | null
+  freshnessLabel?: string
   score: number
   badge: string
   accent: 'blue' | 'green' | 'violet'
@@ -340,6 +343,7 @@ function timeAgo(value: string | null | undefined) {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return 'Recently'
   const diffMs = Date.now() - d.getTime()
+  if (diffMs < 0) return safeDate(value)
   const minutes = Math.floor(diffMs / 60000)
   if (minutes < 60) return `${Math.max(minutes, 1)}m ago`
   const hours = Math.floor(minutes / 60)
@@ -2220,7 +2224,8 @@ function MyLabPageInner() {
         entityType: 'player',
         entityId: player.id,
         entityName: player.name,
-        createdAt: new Date().toISOString(),
+        createdAt: null,
+        freshnessLabel: 'Current rating',
         score: 98,
         badge: 'Ratings',
         accent: accentForType('rating'),
@@ -2294,7 +2299,8 @@ function MyLabPageInner() {
             ? getFollowedEntityId(followTeams, 'team', [homeTeamId, awayTeamId])
             : (playersInMatch[0]?.player_id ?? null),
         entityName: leagueName || homeTeam || 'Watched match',
-        createdAt: match.match_date || new Date().toISOString(),
+        createdAt: match.match_date,
+        freshnessLabel: 'Match date unavailable',
         score: 94,
         badge: 'Match',
         accent: accentForType('match'),
@@ -2341,34 +2347,13 @@ function MyLabPageInner() {
         entityType: scenarioTeamId ? 'team' : 'league',
         entityId: scenarioTeamId || scenarioLeagueId,
         entityName: scenario.team_name || scenario.league_name || 'Scenario',
-        createdAt: scenario.match_date || new Date().toISOString(),
+        createdAt: null,
+        freshnessLabel: scenario.match_date ? `For ${safeDate(scenario.match_date)}` : 'Saved scenario',
         score: 87,
         badge: 'Lineup',
         accent: accentForType('team'),
       })
     }
-
-    const streakPlayers = players
-      .filter((player) => typeof player.overall_dynamic_rating === 'number')
-      .sort((a, b) => (b.overall_dynamic_rating ?? 0) - (a.overall_dynamic_rating ?? 0))
-      .slice(0, 8)
-
-    streakPlayers.forEach((player, index) => {
-      if (!followPlayers.some((f) => f.entity_id === player.id)) return
-      items.push({
-        id: `achievement-${player.id}`,
-        type: 'achievement',
-        title: `${player.name} is trending up`,
-        body: `${player.name} is sitting near the top of your followed players by overall dynamic rating at ${formatRating(player.overall_dynamic_rating)}.`,
-        entityType: 'player',
-        entityId: player.id,
-        entityName: player.name,
-        createdAt: new Date(Date.now() - index * 3600 * 1000).toISOString(),
-        score: 85 - index,
-        badge: 'Achievement',
-        accent: accentForType('achievement'),
-      })
-    })
 
     followedTiqIndividualParticipations.slice(0, 24).forEach((entry, index) => {
       const leagueEntityId = buildScopedLeagueEntityId({
@@ -2387,7 +2372,8 @@ function MyLabPageInner() {
         entityType: 'league',
         entityId: leagueEntityId,
         entityName: entry.leagueName,
-        createdAt: new Date(Date.now() - index * 2700 * 1000).toISOString(),
+        createdAt: null,
+        freshnessLabel: 'Current entry',
         score: 89 - index,
         badge: 'TIQ League',
         accent: accentForType('league'),
@@ -2495,7 +2481,8 @@ function MyLabPageInner() {
         entityType: 'community',
         entityId: null,
         entityName: 'Community',
-        createdAt: new Date().toISOString(),
+        createdAt: null,
+        freshnessLabel: 'Start here',
         score: 999,
         badge: 'Welcome',
         accent: accentForType('community'),
@@ -2507,13 +2494,9 @@ function MyLabPageInner() {
       if (!deduped.has(item.id)) deduped.set(item.id, item)
     }
 
-    return Array.from(deduped.values())
-      .filter((item) => feedFilter === 'all' || item.type === feedFilter)
-      .sort(
-        (a, b) =>
-          b.score - a.score || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      )
-      .slice(0, 30)
+    return sortWatchlistFeed(
+      Array.from(deduped.values()).filter((item) => feedFilter === 'all' || item.type === feedFilter),
+    ).slice(0, 30)
   }, [
     follows,
     players,
@@ -2554,41 +2537,19 @@ function MyLabPageInner() {
   }, [follows, playerMap])
 
   async function persistFollows(next: FollowItem[]) {
-    setFollows(next)
-    writeLocalFollows(next)
-
     try {
       if (!userId) {
-        setSavedToCloud(false)
-        return
+        throw new Error('Sign in to save follows.')
       }
-
-      const { error: deleteError } = await supabase.from('user_follows').delete().eq('user_id', userId)
-
-      if (deleteError && !/relation .* does not exist/i.test(deleteError.message)) {
-        throw deleteError
-      }
-
-      if (next.length) {
-        const payload = next.map((item) => ({
-          user_id: userId,
-          entity_type: item.entity_type,
-          entity_id: item.entity_id,
-          entity_name: item.entity_name,
-          subtitle: item.subtitle,
-        }))
-
-        const { error: insertError } = await supabase.from('user_follows').insert(payload)
-
-        if (insertError && !/relation .* does not exist/i.test(insertError.message)) {
-          throw insertError
-        }
-
-        if (!insertError) setSavedToCloud(true)
-      } else {
-        setSavedToCloud(true)
-      }
-    } catch {
+      const added = next.filter((item) => !followContainsEntity(follows, item.entity_type, item.entity_id))
+      const removed = follows.filter((item) => !followContainsEntity(next, item.entity_type, item.entity_id))
+      for (const item of added) await createFollow(item)
+      for (const item of removed) await deleteFollow(item)
+      setFollows(next)
+      writeLocalFollows(next)
+      setSavedToCloud(true)
+    } catch (error) {
+      console.error('Failed to save follows', error)
       setSavedToCloud(false)
     }
   }
@@ -3534,8 +3495,8 @@ function MyLabPageInner() {
         {
           title: 'Choose one focus',
           description: hasMyLabFocus ? activeGoal.goal : 'Name the one thing you want to improve next.',
-          href: !linkedPlayer ? '/profile' : hasMyLabFocus ? '/mylab#player-tools' : MY_LAB_GOAL_PROGRESS_HREF,
-          action: linkedPlayer ? 'Set my focus' : 'Connect player first',
+          href: !isProfileConfirmed ? '/profile' : hasMyLabFocus ? '/mylab#player-tools' : MY_LAB_GOAL_PROGRESS_HREF,
+          action: isProfileConfirmed ? 'Set my focus' : 'Connect player first',
           complete: hasMyLabFocus,
         },
         {
@@ -4924,7 +4885,7 @@ function MyLabPageInner() {
                 </p>
               </div>
               <span style={savedToCloud ? pillGreenStyle : pillSlateStyle}>
-                {savedToCloud ? 'Cloud synced' : 'Saved on device'}
+                {savedToCloud ? 'Cloud synced' : userId ? 'Sync failed' : 'Sign in to save'}
               </span>
             </div>
 
@@ -4991,8 +4952,8 @@ function MyLabPageInner() {
           <section style={surfaceStyle}>
             <div style={sectionHeaderStyle}>
               <div>
-                <p style={sectionKickerStyle}>Watchlist updates</p>
-                <h2 style={sectionTitleStyle}>What changed around your watchlist</h2>
+                <p style={sectionKickerStyle}>Your watchlist</p>
+                <h2 style={sectionTitleStyle}>Recent results and current reads</h2>
               </div>
               <div style={filterRowStyle}>
                 <GhostButton onClick={() => setRefreshTick((current) => current + 1)}>
@@ -5035,7 +4996,7 @@ function MyLabPageInner() {
                   <article key={item.id} style={feedCardStyle(item.accent)}>
                     <div style={feedTopRowStyle}>
                       <span style={badgeForAccent(item.accent)}>{item.badge}</span>
-                      <span style={feedTimeStyle}>{timeAgo(item.createdAt)}</span>
+                      <span style={feedTimeStyle}>{item.createdAt ? timeAgo(item.createdAt) : item.freshnessLabel || 'Current context'}</span>
                     </div>
                     <h3 style={feedTitleStyle}>{item.title}</h3>
                     <p style={feedBodyStyle}>{item.body}</p>

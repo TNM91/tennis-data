@@ -8,6 +8,7 @@ import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqF
 import { buildProductAccessState } from '@/lib/access-model'
 import { isActiveClubBillingStatus, type ClubBillingAccount } from '@/lib/club-billing'
 import { getPlanDestinationHref, isSafeLocalNextHref } from '@/lib/plan-intent'
+import { claimFollowIntentTracking, peekFollowIntent } from '@/lib/follow-intent'
 import {
   PAID_CHECKOUT_EARLY_ACCESS_SAVED_MESSAGE,
   PAID_CHECKOUT_ENABLED,
@@ -296,12 +297,29 @@ function UpgradeContent({
   const mobileCopy = MOBILE_UNLOCK_COPY[planId]
   const successHandoff = SUCCESS_HANDOFF_COPY[planId]
   const nextHref = isSafeLocalNextHref(getSearchParamValue(resolvedSearchParams.next), getPlanDestinationHref(planId))
-  const nextIntent = getUpgradeNextIntent(planId, nextHref)
+  const [followContextState, setFollowContextState] = useState<{
+    intent: ReturnType<typeof peekFollowIntent>
+    path: string
+    userId: string | null
+  } | null>(null)
+  const followContext = planId === 'player_plus' && followContextState?.path === nextHref && followContextState.userId === userId
+    ? followContextState.intent
+    : null
+  const nextIntent = followContext ? getFollowUpgradeNextIntent(followContext) : getUpgradeNextIntent(planId, nextHref)
+  const successTitle = followContext ? 'Player is active. Your follow is next.' : successHandoff.title
+  const successSteps = followContext
+    ? [`Return to ${getFollowTargetLabel(followContext)}`, 'Save the follow in My Lab', 'See your follows in My Lab']
+    : successHandoff.steps
 
   const [requestName, setRequestName] = useState('')
   const [requestEmail, setRequestEmail] = useState('')
   const [requestOrganization, setRequestOrganization] = useState('')
   const [requestGoal, setRequestGoal] = useState('')
+  const [requestOrganizationEdited, setRequestOrganizationEdited] = useState(false)
+  const [requestGoalEdited, setRequestGoalEdited] = useState(false)
+  const followRequestGoal = followContext ? `Follow ${getFollowTargetLabel(followContext)} in My Lab.` : ''
+  const effectiveRequestOrganization = requestOrganizationEdited ? requestOrganization : followContext?.entityName || requestOrganization
+  const effectiveRequestGoal = requestGoalEdited ? requestGoal : followRequestGoal || requestGoal
   const [requestError, setRequestError] = useState('')
   const [submittedRequest, setSubmittedRequest] = useState<UpgradeRequestRecord | null>(null)
   const [requestSubmitting, setRequestSubmitting] = useState(false)
@@ -318,6 +336,18 @@ function UpgradeContent({
   const checkoutReturnState = getSearchParamValue(resolvedSearchParams.checkout)
   const checkoutReturnRequestId = getSearchParamValue(resolvedSearchParams.request) ?? ''
   const checkoutReturnSessionId = getSearchParamValue(resolvedSearchParams.session_id) ?? ''
+
+  useEffect(() => {
+    if (planId !== 'player_plus') {
+      setFollowContextState(null)
+      return
+    }
+    try {
+      setFollowContextState({ intent: peekFollowIntent(window.sessionStorage, nextHref, userId), path: nextHref, userId })
+    } catch {
+      setFollowContextState(null)
+    }
+  }, [nextHref, planId, userId])
 
   useEffect(() => {
     if (!authResolved) return
@@ -339,6 +369,22 @@ function UpgradeContent({
       metadata: { nextHref },
     })
   }, [authResolved, nextHref, planId, userId])
+
+  useEffect(() => {
+    if (!authResolved || !userId || !session?.access_token || planId !== 'player_plus') return
+    try {
+      const entityType = claimFollowIntentTracking(window.sessionStorage, nextHref, userId)
+      if (!entityType) return
+      void trackProductUsageEvent({
+        eventName: 'follow_upgrade_clicked',
+        surface: entityType === 'player' ? 'profile' : entityType === 'team' ? 'teams' : 'leagues',
+        planId: 'player_plus',
+        metadata: { entityType },
+      }, session.access_token)
+    } catch {
+      // The upgrade and follow return continue when browser storage is unavailable.
+    }
+  }, [authResolved, nextHref, planId, session?.access_token, userId])
 
   useEffect(() => {
     if (!authResolved || !isClubPricingPlanId(planId)) {
@@ -526,8 +572,8 @@ function UpgradeContent({
         ...pricingSnapshot,
         name: displayName,
         email: session.user.email,
-        organization: '',
-        goal: `Start ${plan.name} checkout from upgrade.`,
+        organization: followContext?.entityName ?? '',
+        goal: followRequestGoal || `Start ${plan.name} checkout from upgrade.`,
         nextHref,
         createdAt: new Date().toISOString(),
         status: 'pending',
@@ -562,7 +608,7 @@ function UpgradeContent({
       setCheckoutError(error instanceof Error ? error.message : 'Checkout could not be started.')
       setCheckoutSubmitting(false)
     }
-  }, [checkoutSubmitting, nextHref, plan.name, planId, pricingSnapshot, startCheckoutForRequest])
+  }, [checkoutSubmitting, followContext?.entityName, followRequestGoal, nextHref, plan.name, planId, pricingSnapshot, startCheckoutForRequest])
 
   const resolvedRole = authResolved || !userId ? role : 'member'
   const authLoading = !authResolved || (isClubPricingPlanId(planId) && !clubBillingResolved)
@@ -635,7 +681,13 @@ function UpgradeContent({
         if (active) {
           setRequestEmail(session?.user?.email ?? '')
           setCheckoutSubmitting(false)
-          setCheckoutSuccessMessage(`${successHandoff.body} Opening ${getPlanDestinationLabel(planId)}...`)
+          let followTarget: ReturnType<typeof peekFollowIntent> = null
+          try {
+            if (planId === 'player_plus') followTarget = peekFollowIntent(window.sessionStorage, nextHref, userId)
+          } catch {}
+          setCheckoutSuccessMessage(followTarget
+            ? `Player is active. Returning to ${getFollowTargetLabel(followTarget)} to finish your follow...`
+            : `${successHandoff.body} Opening ${getPlanDestinationLabel(planId)}...`)
           redirectTimeout = window.setTimeout(() => {
             window.location.replace(nextHref)
           }, 2800)
@@ -664,6 +716,7 @@ function UpgradeContent({
     refreshAuth,
     session?.user?.email,
     successHandoff.body,
+    userId,
   ])
 
   const supportThreadHref = buildAccessRequestSupportHref(submittedRequest ?? {
@@ -672,8 +725,8 @@ function UpgradeContent({
     ...pricingSnapshot,
     name: requestName,
     email: requestEmail,
-    organization: requestOrganization,
-    goal: requestGoal,
+    organization: effectiveRequestOrganization,
+    goal: effectiveRequestGoal,
     nextHref,
     createdAt: '',
   })
@@ -684,8 +737,8 @@ function UpgradeContent({
 
     const name = requestName.trim()
     const email = requestEmail.trim()
-    const organization = requestOrganization.trim()
-    const goal = requestGoal.trim()
+    const organization = effectiveRequestOrganization.trim()
+    const goal = effectiveRequestGoal.trim()
 
     if (!email || !email.includes('@')) {
       setRequestError('Enter an email so we can follow up.')
@@ -779,7 +832,7 @@ function UpgradeContent({
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={heroCopyStyle}>
             <div style={eyebrowStyle}>{copy.eyebrow}</div>
-            <h1 style={titleStyle}>{checkoutSuccessMessage ? successHandoff.title : hasAccess ? `${plan.name} is already active.` : isMobile ? mobileCopy.title : copy.title}</h1>
+            <h1 style={titleStyle}>{checkoutSuccessMessage ? successTitle : hasAccess ? `${plan.name} is already active.` : isMobile ? mobileCopy.title : copy.title}</h1>
             <p style={textStyle}>
               {hasAccess
                 ? checkoutSuccessMessage || `Your account already has the access needed for ${plan.name}. Open ${getPlanDestinationLabel(planId)} when you are ready.`
@@ -909,7 +962,7 @@ function UpgradeContent({
                   {!PAID_CHECKOUT_ENABLED
                     ? earlyAccessSaved ? 'You are on the list.' : `Save your ${getPlanDestinationLabel(planId)} interest.`
                     : checkoutSuccessMessage
-                    ? successHandoff.title
+                    ? successTitle
                     : checkoutSubmitting
                       ? checkoutReturnState === 'success'
                         ? 'Confirming checkout...'
@@ -920,7 +973,11 @@ function UpgradeContent({
                 </h3>
                 <p style={noteTextStyle}>
                   {!PAID_CHECKOUT_ENABLED
-                    ? earlyAccessSaved ? PAID_CHECKOUT_EARLY_ACCESS_SAVED_MESSAGE : 'One tap saves the plan you want. No payment information is collected.'
+                    ? earlyAccessSaved
+                      ? followContext
+                        ? `Your Player interest is saved. When access opens, return to ${getFollowTargetLabel(followContext)} and tap Follow.`
+                        : PAID_CHECKOUT_EARLY_ACCESS_SAVED_MESSAGE
+                      : 'One tap saves the plan you want. No payment information is collected.'
                     : checkoutSuccessMessage
                     ? checkoutSuccessMessage
                     : checkoutSubmitting
@@ -933,7 +990,7 @@ function UpgradeContent({
                 </p>
                 {checkoutSuccessMessage ? (
                   <div style={handoffStepGridStyle}>
-                    {successHandoff.steps.map((step, index) => (
+                    {successSteps.map((step, index) => (
                       <span key={step} style={handoffStepStyle}>
                         <strong>{index + 1}</strong>
                         {step}
@@ -945,8 +1002,12 @@ function UpgradeContent({
                   {!PAID_CHECKOUT_ENABLED ? (
                     earlyAccessSaved ? (
                       <>
-                        <Link href="/" style={primaryButtonStyle}>Keep using Free</Link>
-                        <Link href="/pricing" style={secondaryButtonStyle}>Compare plans</Link>
+                        <Link href={followContext ? nextHref : '/'} style={primaryButtonStyle}>
+                          {followContext ? `View ${getFollowTargetLabel(followContext)}` : 'Keep using Free'}
+                        </Link>
+                        <Link href={followContext ? '/' : '/pricing'} style={secondaryButtonStyle}>
+                          {followContext ? 'Keep using Free' : 'Compare plans'}
+                        </Link>
                       </>
                     ) : (
                       <>
@@ -996,6 +1057,11 @@ function UpgradeContent({
                     ? 'We captured the plan, account contact, and tennis need for admin follow-up.'
                     : 'We saved this request in the browser. Open a support thread if you want this routed inside TenAceIQ.'}
                 </p>
+                {!PAID_CHECKOUT_ENABLED && followContext ? (
+                  <p style={noteTextStyle}>
+                    When Player opens, return to {getFollowTargetLabel(followContext)} and tap Follow.
+                  </p>
+                ) : null}
                 {requestLinkStatus ? <p style={successMetaStyle}>{requestLinkStatus}</p> : null}
                 {requestStorageMode === 'supabase' && submittedRequest.userId ? (
                   <div style={formActionRowStyle}>
@@ -1031,6 +1097,11 @@ function UpgradeContent({
                 {requestStorageMode !== 'supabase' || !submittedRequest.userId ? (
                   <Link href={supportThreadHref} style={primaryButtonStyle}>
                     Open support thread
+                  </Link>
+                ) : null}
+                {!PAID_CHECKOUT_ENABLED && followContext ? (
+                  <Link href={nextHref} style={secondaryButtonStyle}>
+                    View {getFollowTargetLabel(followContext)}
                   </Link>
                 ) : null}
               </div>
@@ -1078,8 +1149,11 @@ function UpgradeContent({
                   Team, player, or league
                   <input
                     className="tiq-focus-ring"
-                    value={requestOrganization}
-                    onChange={(event) => setRequestOrganization(event.target.value)}
+                    value={effectiveRequestOrganization}
+                    onChange={(event) => {
+                      setRequestOrganizationEdited(true)
+                      setRequestOrganization(event.target.value)
+                    }}
                     placeholder="Optional"
                     style={{ ...inputStyle, minHeight: isMobile ? 44 : inputStyle.minHeight }}
                   />
@@ -1090,8 +1164,11 @@ function UpgradeContent({
                     className="tiq-focus-ring"
                     aria-invalid={requestError.includes('help with first')}
                     aria-describedby={requestError ? 'upgrade-request-error' : undefined}
-                    value={requestGoal}
-                    onChange={(event) => setRequestGoal(event.target.value)}
+                    value={effectiveRequestGoal}
+                    onChange={(event) => {
+                      setRequestGoalEdited(true)
+                      setRequestGoal(event.target.value)
+                    }}
                     placeholder="Example: compare a lineup, prep for a match, or run league standings."
                     style={{ ...textareaStyle, minHeight: isMobile ? 68 : textareaStyle.minHeight }}
                   />
@@ -1212,6 +1289,22 @@ function getPlanDestinationLabel(planId: PricingPlanId) {
   if (planId === 'full_court') return 'Full-Court'
   if (planId === 'club_starter' || planId === 'club_unlimited') return 'Club'
   return 'Find'
+}
+
+function getFollowTargetLabel(context: NonNullable<ReturnType<typeof peekFollowIntent>>) {
+  return context.entityName || `this ${context.entityType}`
+}
+
+function getFollowUpgradeNextIntent(context: NonNullable<ReturnType<typeof peekFollowIntent>>): UpgradeNextIntent {
+  const target = getFollowTargetLabel(context)
+  return {
+    label: 'Your next follow',
+    title: `Follow ${target} with Player`,
+    body: PAID_CHECKOUT_ENABLED
+      ? `After Player activates, you'll return to ${target} and the follow will be saved in My Lab.`
+      : `Join Player early access. When access opens, return to ${target} and tap Follow.`,
+    action: `View ${context.entityType}`,
+  }
 }
 
 function getUpgradeNextIntent(planId: PricingPlanId, nextHref: string): UpgradeNextIntent | null {

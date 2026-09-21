@@ -3,19 +3,16 @@
 import { supabase } from '@/lib/supabase'
 import type { ProductUsageEventInput } from './product-usage-events'
 
-export async function trackProductUsageEvent(input: ProductUsageEventInput) {
+export async function trackProductUsageEvent(input: ProductUsageEventInput, accessToken?: string) {
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-
-    if (!session?.access_token) return
+    const token = accessToken || (await supabase.auth.getSession()).data.session?.access_token
+    if (!token) return
 
     await fetch('/api/product-events', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(input),
       keepalive: true,

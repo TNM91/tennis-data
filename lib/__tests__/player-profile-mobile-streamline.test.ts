@@ -6,6 +6,14 @@ const page = readFileSync(join(process.cwd(), 'app/players/[id]/page.tsx'), 'utf
 const styles = readFileSync(join(process.cwd(), 'app/players/[id]/player-profile-story.module.css'), 'utf8')
 
 describe('player profile mobile streamline', () => {
+  it('keeps the follow action in the visible profile instead of the retired hidden layout', () => {
+    const hiddenLayoutStart = page.indexOf('<section style={{ display: \'none\' }} aria-hidden="true">')
+    const followAction = page.indexOf('<FollowButton')
+    expect(followAction).toBeGreaterThan(0)
+    expect(followAction).toBeLessThan(hiddenLayoutStart)
+    expect(page.indexOf('<FollowButton', followAction + 1)).toBe(-1)
+  })
+
   it('puts the public stats path ahead of personal tooling', () => {
     expect(page).toContain("const heroSecondaryHref = '#profile-performance'")
     expect(page).toContain("const heroSecondaryLabel = isPublicExplorerProfile ? 'Review stats' : 'Recent matches'")

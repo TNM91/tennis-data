@@ -7,6 +7,8 @@ export const PRODUCT_USAGE_EVENT_NAMES = [
   'upgrade_checkout_clicked',
   'upgrade_checkout_started',
   'upgrade_checkout_failed',
+  'follow_upgrade_clicked',
+  'follow_intent_completed',
   'captain_pilot_viewed',
   'captain_pilot_cta_clicked',
   'captain_pilot_team_preview_viewed',
