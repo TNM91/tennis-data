@@ -45,9 +45,22 @@ describe('Team Room mobile composer', () => {
     expect(page).toContain('className={styles.composerReach} aria-live="polite"')
     expect(page).toContain('Only you are connected')
     expect(page).toContain('roster players not joined')
-    expect(page).toContain("onClick={() => void inviteTeam()}")
+    expect(page).toContain('onClick={() => setShowMembers(true)}')
     expect(page).toContain('Invite players')
     expect(styles).toContain('.composerReach')
+  })
+
+  it('lets captains choose unconnected roster players and prepare a group text without claiming it was sent', () => {
+    expect(page).toContain('Refresh joined status')
+    expect(page).toContain('Joined chat ·')
+    expect(page).toContain('Select all with phones')
+    expect(page).toContain('disabled={!cleanPhone(member.phone)}')
+    expect(page).toContain('Prepare text for ${selectedRoster.length} selected')
+    expect(page).toContain('href={buildSmsHref(selectedPhones, inviteText)}')
+    expect(page).toContain('prepareSmsBodyForNativeComposer(inviteText)')
+    expect(page).toContain('Copy invite text')
+    expect(page).toContain('opening a text does not send it')
+    expect(styles).toContain('.inviteTextActions')
   })
 
   it('keeps the mobile opening chat-first and moves secondary room controls into one compact menu', () => {
