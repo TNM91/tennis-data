@@ -1925,6 +1925,29 @@
 .composerHeading strong { color: var(--foreground-strong); font-size: .82rem; }
 .composerHeading span { color: var(--shell-copy-muted); font-size: .74rem; font-weight: 750; }
 
+.composerReach {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--shell-copy-muted);
+  font-size: 0.76rem;
+  line-height: 1.3;
+}
+
+.composerReach span { min-width: 0; }
+.composerReach strong { color: var(--foreground-strong); }
+.composerReach button {
+  flex: 0 0 auto;
+  border: 0;
+  background: none;
+  color: var(--brand-blue-2);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.composerReach button:disabled { opacity: .6; cursor: wait; }
+
 .composer textarea {
   width: 100%;
   min-height: 54px;
