@@ -24,7 +24,11 @@ describe('scorecard signup funnel', () => {
 
   it('counts only confirmed, linked, active paid members in the signup cohort', () => {
     const ids = ['a', 'b', 'c', 'd', 'e', 'f']
-    const identities = ids.map((id) => ({ id, emailConfirmed: id !== 'b' }))
+    const identities = ids.map((id) => ({
+      id,
+      emailConfirmed: id !== 'b',
+      claimPlayerId: id === 'a' ? 'player-a' : id === 'b' ? 'player-b' : id === 'c' ? 'different-player' : null,
+    }))
     const profiles = [
       activeProfile('a'),
       activeProfile('b'),
@@ -36,6 +40,8 @@ describe('scorecard signup funnel', () => {
 
     expect(buildScorecardSignupFunnel(ids, identities, profiles, Date.parse('2026-09-22T00:00:00Z'))).toEqual({
       signupRequests: 6,
+      playerClaimStarts: 3,
+      playerClaimCompletions: 1,
       confirmedAccounts: 5,
       connectedPlayers: 4,
       paidPlayerMemberships: 1,

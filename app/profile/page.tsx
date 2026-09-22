@@ -27,7 +27,7 @@ import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } 
 import { normalizeMixedPairRole, type MixedPairRole } from '@/lib/player-eligibility'
 import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
 import { addWorkflowResult, getSafeWorkflowReturnTo } from '@/lib/workflow-return'
-import { getScorecardClaimPlayerId } from '@/lib/scorecard-signup'
+import { getScorecardClaimPlayerId, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
 
 type PreferredRole = 'singles' | 'doubles' | 'both'
 type AvailabilityDefault = 'ask-weekly' | 'usually-available' | 'limited'
@@ -550,6 +550,7 @@ function ProfilePageInner() {
         setError(saveError.message)
       }
       if (nextPlayer?.id) {
+        const scorecardClaimPlayerId = getScorecardClaimPlayerId(`/profile${window.location.search}`)
         void trackProductUsageEvent({
           eventName: 'profile_player_linked',
           surface: 'profile',
@@ -558,6 +559,10 @@ function ProfilePageInner() {
             playerId: nextPlayer.id,
             playerName: nextPlayer.name,
             teamCount: selectedPlayerTeams.length,
+            ...(scorecardClaimPlayerId === nextPlayer.id ? {
+              acquisitionSource: SCORECARD_SIGNUP_SOURCE,
+              scorecardClaimPlayerId,
+            } : {}),
           },
         })
       }
