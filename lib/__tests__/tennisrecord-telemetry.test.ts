@@ -1,10 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { X509Certificate } from 'node:crypto'
+import { Agent } from 'undici'
 import { createRatingTimingObserver, emitImporterTelemetry, sourceTransportCodes, sourceTransportFailure, type SourceAttemptSample } from '../tennisrecord/telemetry'
 import { fetchTennisRecordPage, TennisRecordCheckpointBudgetError } from '../tennisrecord/collector'
+import { GODADDY_TLS_ROOT_R1_PEM } from '../tennisrecord/godaddy-tls-root-r1'
 
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('sanitized source attempt timings', () => {
+  it('uses the verified GoDaddy R1 root only through a scoped source dispatcher', () => {
+    expect(new X509Certificate(GODADDY_TLS_ROOT_R1_PEM).fingerprint256).toBe('25:CF:3D:A8:E9:B9:7A:DD:BF:92:54:3C:2B:82:52:7C:8A:4E:2C:FF:20:62:A6:48:30:40:D4:B6:4A:CE:71:9F')
+  })
+
   it('retains HTTP 503 evidence without an immediate fetch retry', async () => {
     vi.useFakeTimers()
     const fetchMock = vi.fn().mockResolvedValue(new Response('The service is unavailable.', { status: 503 }))
@@ -14,6 +21,7 @@ describe('sanitized source attempt timings', () => {
     await vi.advanceTimersByTimeAsync(3000)
     await expect(pending).resolves.toMatchObject({ status: 503, html: 'The service is unavailable.', blockReason: '', transientRetries: 0 })
     expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0][1].dispatcher).toBeInstanceOf(Agent)
     expect(samples).toHaveBeenCalledWith(expect.objectContaining({ status: 503, outcome: 'http_error', pacing_ms: 3000 }))
   })
 

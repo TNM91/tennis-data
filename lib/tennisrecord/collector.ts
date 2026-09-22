@@ -1,9 +1,19 @@
 import { createHash } from 'node:crypto'
+import { rootCertificates } from 'node:tls'
+import { Agent } from 'undici'
 import { isTennisRecordBlock } from './reconcile'
 import { reportSourceAttempt, sourceTransportCodes, sourceTransportFailure, type SourceAttemptSample } from './telemetry'
+import { GODADDY_TLS_ROOT_R1_PEM } from './godaddy-tls-root-r1'
 
 const allowedHosts = new Set(['tennisrecord.com', 'www.tennisrecord.com'])
 const MAX_TRANSIENT_FETCH_ATTEMPTS = 2
+
+// TennisRecord now presents GoDaddy's R1 chain, which Node 22 does not yet
+// trust by default. Extend the normal CA set only for this source; TLS hostname
+// and certificate verification remain enabled. Never use a global dispatcher.
+const tennisRecordDispatcher = new Agent({
+  connect: { ca: [...rootCertificates, GODADDY_TLS_ROOT_R1_PEM] },
+})
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -51,7 +61,8 @@ export async function fetchTennisRecordPage(input: string, minIntervalMs: number
         redirect: 'follow',
         headers: { 'user-agent': process.env.TENNISRECORD_USER_AGENT?.trim() || 'TenAceIQ collector (+contact@tenaceiq.com)', accept: 'text/html,application/xhtml+xml' },
         signal: AbortSignal.timeout(Math.min(20_000, remainingMs)),
-      })
+        dispatcher: tennisRecordDispatcher,
+      } as RequestInit & { dispatcher: Agent })
       const html = await response.text()
       const blockReason = isTennisRecordBlock(response.status, html)
       reportSourceAttempt(onAttempt, { attempt: attempt + 1, outcome: blockReason ? 'blocked' : response.ok ? 'success' : 'http_error', status: response.status, pacing_ms: pacingMs, fetch_ms: Math.max(0, Math.round(performance.now() - fetchStarted)) })
