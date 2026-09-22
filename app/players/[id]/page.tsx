@@ -2175,6 +2175,9 @@ function PlayerProfileContent() {
                                 ) : match.partner}
                               </span>
                             ) : null}
+                            <Link href={`/matches/${encodeURIComponent(match.id)}`} className={profileStory.recentResultScorecardLink}>
+                              View scorecard →
+                            </Link>
                           </div>
                         </div>
                         <div className={profileStory.recentResultScoreboard}>

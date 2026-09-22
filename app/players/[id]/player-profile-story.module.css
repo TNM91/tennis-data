@@ -1554,6 +1554,19 @@
   white-space: nowrap;
 }
 
+.recentResultScorecardLink {
+  color: #bfdbfe;
+  font-size: 10px;
+  font-weight: 900;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.recentResultScorecardLink:hover,
+.recentResultScorecardLink:focus-visible {
+  color: #d9f84a;
+}
+
 .recentResultOpponent > strong,
 .recentResultOpponent > a {
   overflow: hidden;

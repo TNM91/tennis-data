@@ -23,6 +23,8 @@ type MatchRecord = {
   score: string | null
   winner_side: string | null
   status: string | null
+  line_number: string | null
+  match_type: string | null
 }
 
 type LineRecord = {
@@ -40,6 +42,8 @@ type MatchPlayer = {
   seat: number | null
   players: { id: string; name: string } | { id: string; name: string }[] | null
 }
+
+const matchSelect = 'id,external_match_id,match_date,match_time,facility,home_team,away_team,league_name,flight,usta_section,district_area,score,winner_side,status,line_number,match_type'
 
 function matchDateLabel(value: string | null) {
   if (!value) return 'Date to be confirmed'
@@ -72,6 +76,7 @@ function MatchDetailContent() {
   const [players, setPlayers] = useState<MatchPlayer[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [selectedLineId, setSelectedLineId] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -82,12 +87,12 @@ function MatchDetailContent() {
       setMatch(null)
       setLines([])
       setPlayers([])
+      setSelectedLineId(null)
 
       const { data, error: matchError } = await supabase
         .from('matches')
-        .select('id,external_match_id,match_date,match_time,facility,home_team,away_team,league_name,flight,usta_section,district_area,score,winner_side,status')
+        .select(matchSelect)
         .eq('id', matchId)
-        .is('line_number', null)
         .maybeSingle()
 
       if (!active) return
@@ -97,10 +102,29 @@ function MatchDetailContent() {
         return
       }
 
-      const record = data as MatchRecord
-      setMatch(record)
+      const requested = data as MatchRecord
+      let record = requested
+      let lineId: string | null = null
+      if (requested.line_number && requested.external_match_id?.includes('::line:')) {
+        const parentExternalId = requested.external_match_id.split('::line:')[0]
+        const { data: parentData } = await supabase
+          .from('matches')
+          .select(matchSelect)
+          .eq('external_match_id', parentExternalId)
+          .is('line_number', null)
+          .limit(1)
+          .maybeSingle()
+        if (parentData) {
+          record = parentData as MatchRecord
+          lineId = requested.id
+        }
+      }
+
+      if (!active) return
       let lineRows: LineRecord[] = []
-      if (record.external_match_id) {
+      if (record.id === requested.id && requested.line_number) {
+        lineRows = [requested]
+      } else if (record.external_match_id) {
         const prefix = `${record.external_match_id}::line:`
         const { data: lineData } = await supabase
           .from('matches')
@@ -111,6 +135,9 @@ function MatchDetailContent() {
         lineRows = ((lineData ?? []) as LineRecord[])
           .filter((line) => line.external_match_id?.startsWith(prefix))
           .sort((a, b) => Number(a.line_number || 0) - Number(b.line_number || 0))
+        if (lineId && !lineRows.some((line) => line.id === lineId)) {
+          lineRows = [...lineRows, requested].sort((a, b) => Number(a.line_number || 0) - Number(b.line_number || 0))
+        }
       }
 
       const { data: playerData } = await supabase
@@ -119,8 +146,10 @@ function MatchDetailContent() {
         .in('match_id', [record.id, ...lineRows.map((line) => line.id)])
 
       if (!active) return
+      setMatch(record)
       setLines(lineRows)
       setPlayers((playerData ?? []) as unknown as MatchPlayer[])
+      setSelectedLineId(lineId)
       setLoading(false)
     }
 
@@ -135,8 +164,9 @@ function MatchDetailContent() {
     .map((row) => Array.isArray(row.players) ? row.players[0] : row.players)
     .filter((player): player is { id: string; name: string } => Boolean(player?.id && player.name))
 
-  const home = match?.home_team || 'Home team'
-  const away = match?.away_team || 'Away team'
+  const isStandaloneLine = Boolean(match?.line_number)
+  const home = match?.home_team || 'Side A'
+  const away = match?.away_team || 'Side B'
   const winner = match?.winner_side === 'A' ? home : match?.winner_side === 'B' ? away : ''
 
   return (
@@ -149,9 +179,9 @@ function MatchDetailContent() {
       ) : (
         <>
           <header style={heroStyle}>
-            <p style={eyebrowStyle}>Match result</p>
-            <h1 style={titleStyle}>{home} vs {away}</h1>
-            <p style={metaStyle}>{[matchDateLabel(match.match_date), match.league_name, match.flight].filter(Boolean).join(' · ')}</p>
+            <p style={eyebrowStyle}>{isStandaloneLine ? 'Line result' : 'Match result'}</p>
+            <h1 style={titleStyle}>{isStandaloneLine && !match.home_team && !match.away_team ? `${match.match_type === 'singles' ? 'Singles' : match.match_type === 'doubles' ? 'Doubles' : 'Match'} result` : `${home} vs ${away}`}</h1>
+            <p style={metaStyle}>{[matchDateLabel(match.match_date), match.league_name, match.flight, isStandaloneLine ? `Line ${match.line_number}` : null].filter(Boolean).join(' · ')}</p>
             <div style={scoreRowStyle}>
               <strong style={scoreStyle}>{match.score || 'Score pending'}</strong>
               <span style={winnerStyle}>{winner ? `${winner} won` : match.status === 'completed' ? 'Result recorded' : 'Match scheduled'}</span>
@@ -159,7 +189,7 @@ function MatchDetailContent() {
             {match.facility ? <p style={venueStyle}>{match.facility}</p> : null}
           </header>
 
-          <section style={surfaceStyle} aria-label="Match teams">
+          {match.home_team && match.away_team ? <section style={surfaceStyle} aria-label="Match teams">
             <h2 style={sectionTitleStyle}>Teams</h2>
             <div style={teamGridStyle}>
               {[home, away].map((team, index) => (
@@ -170,16 +200,17 @@ function MatchDetailContent() {
                 </Link>
               ))}
             </div>
-          </section>
+          </section> : null}
 
           <section style={surfaceStyle} aria-label="Match lines">
-            <h2 style={sectionTitleStyle}>Lines and players</h2>
+            <h2 style={sectionTitleStyle}>{isStandaloneLine ? 'Players' : 'Lines and players'}</h2>
             {lines.length ? (
               <div style={lineListStyle}>
                 {lines.map((line) => (
-                  <article key={line.id} style={lineCardStyle}>
+                  <article key={line.id} style={line.id === selectedLineId ? { ...lineCardStyle, borderColor: 'rgba(155, 225, 29, 0.72)' } : lineCardStyle}>
                     <div style={lineHeaderStyle}>
                       <strong>Line {line.line_number || '—'}{line.match_type ? ` · ${line.match_type}` : ''}</strong>
+                      {line.id === selectedLineId ? <span style={selectedLineStyle}>Selected line</span> : null}
                       <span style={lineScoreStyle}>{line.score || 'Score unavailable'}</span>
                     </div>
                     <div style={teamGridStyle}>
@@ -244,6 +275,7 @@ const linkCueStyle: CSSProperties = { color: '#a6d96a', fontSize: 12, fontWeight
 const lineListStyle: CSSProperties = { display: 'grid', gap: 12 }
 const lineCardStyle: CSSProperties = { padding: 16, border: '1px solid rgba(116,190,255,0.16)', borderRadius: 14, display: 'grid', gap: 12 }
 const lineHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, color: 'var(--foreground-strong)' }
+const selectedLineStyle: CSSProperties = { color: '#d9f84a', fontSize: 12, fontWeight: 900 }
 const lineScoreStyle: CSSProperties = { fontWeight: 900 }
 const lineSideStyle: CSSProperties = { display: 'grid', alignContent: 'start', gap: 6, minWidth: 0 }
 const playerLinkStyle: CSSProperties = { color: 'var(--brand-blue-2)', fontWeight: 800, textDecoration: 'underline', textUnderlineOffset: 3 }
