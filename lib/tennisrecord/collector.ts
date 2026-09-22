@@ -7,12 +7,15 @@ import { GODADDY_TLS_ROOT_R1_PEM } from './godaddy-tls-root-r1'
 
 const allowedHosts = new Set(['tennisrecord.com', 'www.tennisrecord.com'])
 const MAX_TRANSIENT_FETCH_ATTEMPTS = 2
+// Keep below the 20-second per-request deadline. The Undici default (10s)
+// expires first on slow source handshakes, even when AbortSignal allows longer.
+const TENNISRECORD_CONNECT_TIMEOUT_MS = 18_000
 
 // TennisRecord now presents GoDaddy's R1 chain, which Node 22 does not yet
 // trust by default. Extend the normal CA set only for this source; TLS hostname
 // and certificate verification remain enabled. Never use a global dispatcher.
 const tennisRecordDispatcher = new Agent({
-  connect: { ca: [...rootCertificates, GODADDY_TLS_ROOT_R1_PEM] },
+  connect: { ca: [...rootCertificates, GODADDY_TLS_ROOT_R1_PEM], timeout: TENNISRECORD_CONNECT_TIMEOUT_MS },
 })
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
