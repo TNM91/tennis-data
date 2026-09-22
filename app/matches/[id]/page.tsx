@@ -199,7 +199,21 @@ function MatchDetailContent() {
               <p style={mutedStyle}>Line scores are not available for this match yet.</p>
             )}
             {!lines.length && players.length ? (
-              <p style={mutedStyle}>Linked players: {namesFor(match.id, 'A').concat(namesFor(match.id, 'B')).map((player) => player.name).join(', ')}</p>
+              <>
+                <h3 style={linkedPlayersTitleStyle}>Linked players</h3>
+                <div style={teamGridStyle}>
+                  {(['A', 'B'] as const).map((side) => (
+                    <div key={side} style={lineSideStyle}>
+                      <span style={smallLabelStyle}>{side === 'A' ? home : away}</span>
+                      {namesFor(match.id, side).length ? namesFor(match.id, side).map((player) => (
+                        <Link key={player.id} href={`/players/${encodeURIComponent(player.id)}`} style={playerLinkStyle}>
+                          {player.name}
+                        </Link>
+                      )) : <span style={mutedStyle}>Players not linked</span>}
+                    </div>
+                  ))}
+                </div>
+              </>
             ) : null}
           </section>
 
@@ -222,6 +236,7 @@ const winnerStyle: CSSProperties = { color: '#a6d96a', fontWeight: 800 }
 const venueStyle: CSSProperties = { margin: 0, color: 'var(--foreground-muted)' }
 const surfaceStyle: CSSProperties = { padding: 'clamp(18px, 3vw, 28px)', border: '1px solid rgba(116,190,255,0.15)', borderRadius: 20, background: 'var(--portal-surface-bg)', display: 'grid', gap: 16 }
 const sectionTitleStyle: CSSProperties = { margin: 0, color: 'var(--foreground-strong)', fontSize: 22 }
+const linkedPlayersTitleStyle: CSSProperties = { margin: '18px 0 10px', color: 'var(--foreground-strong)', fontSize: 16 }
 const teamGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 12 }
 const teamLinkStyle: CSSProperties = { display: 'grid', gap: 5, padding: 16, borderRadius: 14, border: '1px solid rgba(116,190,255,0.18)', color: 'var(--foreground-strong)', textDecoration: 'none', minWidth: 0, overflowWrap: 'anywhere' }
 const smallLabelStyle: CSSProperties = { color: 'var(--foreground-muted)', fontSize: 12, fontWeight: 800 }
@@ -231,5 +246,5 @@ const lineCardStyle: CSSProperties = { padding: 16, border: '1px solid rgba(116,
 const lineHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, color: 'var(--foreground-strong)' }
 const lineScoreStyle: CSSProperties = { fontWeight: 900 }
 const lineSideStyle: CSSProperties = { display: 'grid', alignContent: 'start', gap: 6, minWidth: 0 }
-const playerLinkStyle: CSSProperties = { color: 'var(--foreground-strong)', fontWeight: 800, textDecoration: 'none' }
+const playerLinkStyle: CSSProperties = { color: 'var(--brand-blue-2)', fontWeight: 800, textDecoration: 'underline', textUnderlineOffset: 3 }
 const mutedStyle: CSSProperties = { color: 'var(--foreground-muted)', lineHeight: 1.5 }
