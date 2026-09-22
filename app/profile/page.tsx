@@ -161,22 +161,32 @@ function isMissingRatingSourceError(message: string) {
   return normalized.includes('rating_source') || normalized.includes('schema cache') || normalized.includes('column')
 }
 
-async function loadProfilePlayers(): Promise<PlayerRow[]> {
+async function loadProfilePlayers(requestedPlayerId?: string | null): Promise<PlayerRow[]> {
   const withSource = await supabase
     .from('players')
     .select(PROFILE_PLAYER_SELECT_WITH_SOURCE)
     .order('name', { ascending: true })
 
-  if (!withSource.error) return (withSource.data || []) as PlayerRow[]
-  if (!isMissingRatingSourceError(withSource.error.message)) throw new Error(withSource.error.message)
+  let select = PROFILE_PLAYER_SELECT_WITH_SOURCE
+  let players: PlayerRow[]
+  if (!withSource.error) {
+    players = (withSource.data || []) as PlayerRow[]
+  } else {
+    if (!isMissingRatingSourceError(withSource.error.message)) throw new Error(withSource.error.message)
+    const base = await supabase
+      .from('players')
+      .select(PROFILE_PLAYER_SELECT_BASE)
+      .order('name', { ascending: true })
+    if (base.error) throw new Error(base.error.message)
+    select = PROFILE_PLAYER_SELECT_BASE
+    players = ((base.data || []) as PlayerRow[]).map((player) => ({ ...player, rating_source: null }))
+  }
 
-  const base = await supabase
-    .from('players')
-    .select(PROFILE_PLAYER_SELECT_BASE)
-    .order('name', { ascending: true })
-
-  if (base.error) throw new Error(base.error.message)
-  return ((base.data || []) as PlayerRow[]).map((player) => ({ ...player, rating_source: null }))
+  if (!requestedPlayerId || players.some((player) => player.id === requestedPlayerId)) return players
+  const requested = await supabase.from('players').select(select).eq('id', requestedPlayerId).maybeSingle()
+  if (requested.error) throw new Error(requested.error.message)
+  const player = requested.data as PlayerRow | null
+  return player ? [...players, select === PROFILE_PLAYER_SELECT_BASE ? { ...player, rating_source: null } : player] : players
 }
 
 async function createSelfRatedPlayer(name: string, rating: number, mixedPairRole: MixedPairRole): Promise<PlayerRow | null> {
@@ -320,8 +330,9 @@ function ProfilePageInner() {
     setError('')
 
     try {
+      const requestedPlayerId = getScorecardClaimPlayerId(`/profile${window.location.search}`)
       const [playersRes, matchesRes, matchPlayersRes, profileRes] = await Promise.all([
-        loadProfilePlayers(),
+        loadProfilePlayers(requestedPlayerId),
         supabase
           .from('matches')
           .select('id, flight, league_name, home_team, away_team')
@@ -345,7 +356,6 @@ function ProfilePageInner() {
       setMatchPlayers((matchPlayersRes.data || []) as MatchPlayerRow[])
       setProfile(nextProfile)
       setProfileSource(profileRes.source)
-      const requestedPlayerId = getScorecardClaimPlayerId(`/profile${window.location.search}`)
       const requestedPlayer = !nextProfile?.linked_player_id && !nextProfile?.linked_player_name && requestedPlayerId
         ? playersRes.find((player) => player.id === requestedPlayerId) || null
         : null
