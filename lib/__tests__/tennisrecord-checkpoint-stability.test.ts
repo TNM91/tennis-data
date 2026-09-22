@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { isTennisRecordRatingBatchDue } from '../tennisrecord/service'
+import { isTennisRecordHistoricalCatchupSlot, isTennisRecordRatingBatchDue } from '../tennisrecord/service'
 
 const source = readFileSync(join(process.cwd(), 'lib/tennisrecord/service.ts'), 'utf8')
 
@@ -35,5 +35,11 @@ describe('TennisRecord checkpoint stability', () => {
     expect(isTennisRecordRatingBatchDue('bootstrap', new Date('2026-08-24T15:00:00Z'))).toBe(true)
     expect(isTennisRecordRatingBatchDue('weekly', new Date('2026-08-24T15:00:00Z'))).toBe(true)
     expect(isTennisRecordRatingBatchDue('weekly', new Date('2026-08-26T15:00:00Z'))).toBe(true)
+  })
+
+  it('reserves three of eighteen bootstrap slots for unfinished historical pages', () => {
+    expect(Array.from({ length: 18 }, (_, index) => index).filter(isTennisRecordHistoricalCatchupSlot)).toEqual([0, 6, 12])
+    expect(source).toContain(".is('refresh_season', null)")
+    expect(source).toContain('job.campaign_id !== input.campaignId')
   })
 })

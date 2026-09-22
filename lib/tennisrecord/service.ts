@@ -18,7 +18,7 @@ type SourceOutageSettings = { source_outage_state?: unknown }
 type Settings = { enabled: boolean; current_refresh_enabled?: boolean; current_refresh_seeded_at?: string | null; current_refresh_player_cursor?: string | null; current_refresh_seed_cycle_at?: string | null; min_request_interval_ms: number; max_requests_per_run: number; weekly_lookback_days: number; automation_state: AutomationState; bootstrap_started_at: string | null; bootstrap_completed_at: string | null; weekly_refresh_started_at: string | null; active_campaign_id: string | null; rating_recalculation_requested_at: string | null; rating_recalculation_reason: string | null; rating_recalculated_at: string | null }
 type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number; deferred_retry_count: number; deferred_retry_at: string | null }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
-type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; pageKindPlan?: readonly (readonly string[])[]; campaignId?: string | null; recalculateRatings?: boolean; currentSeason?: boolean }
+type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; pageKindPlan?: readonly (readonly string[])[]; campaignId?: string | null; historicalCatchupCampaignId?: string | null; recalculateRatings?: boolean; currentSeason?: boolean }
 type ProvisionalTennisRecordPlayer = { id: string; source_player_key: string; name: string; normalized_name: string; city?: string | null; state?: string | null; ntrp_label?: string | null }
 
 /**
@@ -209,6 +209,11 @@ export function tennisRecordScheduledPageKindPlan(cadence: 'bootstrap' | 'weekly
     ? [['league'], ['player'], ['history', 'match', 'team']]
     : [['match', 'history'], ['match', 'history'], ['player', 'team'], ['match', 'history']]
   return Array.from({ length: Math.max(0, limit) }, (_, index) => cycle[index % cycle.length])
+}
+
+/** Reserve a small, predictable share of bootstrap requests for unfinished Missouri history. */
+export function isTennisRecordHistoricalCatchupSlot(index: number) {
+  return index % 6 === 0
 }
 // Revision 8 retains the exact public player-profile URL found on a match
 // page. This lets the collector verify an existing staged identity by the
@@ -896,12 +901,23 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
     summary.teamsDiscovered += replay.teamsDiscovered
     summary.matchesStaged += replay.matchesStaged
     summary.parserFailures += replay.parserFailures
+    if (input.historicalCatchupCampaignId) summary.transientRetries += await requeueDueDeferredTennisRecordRetries(service, input.historicalCatchupCampaignId)
     const requestedLimit = Math.min(input.limit || settings.max_requests_per_run, settings.max_requests_per_run)
     for (let index = 0; index < requestedLimit; index += 1) {
       if (!hasTennisRecordFetchBudget(sourceDeadlineAt, settings.min_request_interval_ms)) break
       const preferredKinds = input.pageKindPlan?.[index] || input.pageKinds || []
-      const job = await selectNextTennisRecordQueueJob(service, input, preferredKinds)
+      const catchupInput = input.historicalCatchupCampaignId
+        ? { ...input, campaignId: input.historicalCatchupCampaignId }
+        : null
+      const catchupJob = async () => catchupInput
+        ? await selectNextTennisRecordQueueJob(service, catchupInput, ['player'], true)
+          || await selectNextTennisRecordQueueJob(service, catchupInput, input.pageKinds || [], true)
+        : null
+      const activeJob = async () => await selectNextTennisRecordQueueJob(service, input, preferredKinds)
         || (input.pageKindPlan ? await selectNextTennisRecordQueueJob(service, input, input.pageKinds || []) : null)
+      const job = input.historicalCatchupCampaignId && isTennisRecordHistoricalCatchupSlot(index)
+        ? await catchupJob() || await activeJob()
+        : await activeJob() || await catchupJob()
       if (!job) break
       // Queue selection can itself take time. Do not claim another row once
       // the remaining source budget cannot accommodate its pacing interval.
@@ -966,7 +982,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
         }
         // Current-season pages retain their own campaign provenance even after
         // the historical collector advances to a different campaign.
-        const jobCampaign = input.currentSeason && job.campaign_id
+        const jobCampaign = job.campaign_id && (input.currentSeason || job.campaign_id !== input.campaignId)
           ? await service.from('tennisrecord_campaigns').select('slug').eq('id', job.campaign_id).single()
           : { data: { slug: campaignSlug }, error: null }
         if (jobCampaign.error) throw new Error(jobCampaign.error.message)
@@ -1093,6 +1109,23 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
   const scheduledBatchLimit = scheduledTennisRecordBatchLimit(settings.max_requests_per_run, cadence)
 
   if (cadence === 'bootstrap') {
+    const { data: missouri, error: missouriError } = await service.from('tennisrecord_campaigns')
+      .select('id').eq('slug', 'missouri-2025-current').maybeSingle()
+    if (missouriError) throw new Error(missouriError.message)
+    const catchupCampaignId = missouri?.id !== settings.active_campaign_id ? missouri?.id as string | undefined : undefined
+    const catchupPending = catchupCampaignId
+      ? await service.from('tennisrecord_crawl_queue').select('id').eq('status', 'pending')
+        .eq('campaign_id', catchupCampaignId).in('page_kind', TENNISRECORD_BOOTSTRAP_PAGE_KINDS).is('refresh_season', null).limit(1)
+      : { data: null, error: null }
+    if (catchupPending.error) throw new Error(catchupPending.error.message)
+    const catchupRetryable = catchupCampaignId
+      ? await service.from('tennisrecord_crawl_queue').select('id').eq('status', 'error')
+        .eq('campaign_id', catchupCampaignId).in('page_kind', TENNISRECORD_BOOTSTRAP_PAGE_KINDS)
+        .is('refresh_season', null).not('deferred_retry_at', 'is', null)
+        .lt('deferred_retry_count', MAX_DEFERRED_TENNISRECORD_RETRIES).limit(1)
+      : { data: null, error: null }
+    if (catchupRetryable.error) throw new Error(catchupRetryable.error.message)
+    const hasHistoricalCatchup = Boolean(catchupPending.data?.length || catchupRetryable.data?.length)
     let pendingQuery = service.from('tennisrecord_crawl_queue').select('id').eq('status', 'pending').in('page_kind', TENNISRECORD_BOOTSTRAP_PAGE_KINDS).limit(1)
     if (settings.active_campaign_id) pendingQuery = pendingQuery.eq('campaign_id', settings.active_campaign_id)
     const { data: pendingRows, error: countError } = await pendingQuery
@@ -1117,7 +1150,7 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
       : { data: pendingRows, error: null }
     if (refreshedPending.error) throw new Error(refreshedPending.error.message)
     hasPendingPages = Boolean(refreshedPending.data?.length)
-    const decision = tennisRecordAutomationDecision(settings.automation_state, cadence, hasPendingPages ? 1 : 0, hasKnownPages ? 1 : 0)
+    const decision = tennisRecordAutomationDecision(settings.automation_state, cadence, hasPendingPages || hasHistoricalCatchup ? 1 : 0, hasKnownPages || hasHistoricalCatchup ? 1 : 0)
     if (decision === 'skip') return emptySummary('skipped')
     if (decision === 'awaiting_seed') return emptySummary('awaiting_seed')
     if (decision === 'complete_bootstrap') {
@@ -1130,6 +1163,7 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
       pageKinds: [...TENNISRECORD_BOOTSTRAP_PAGE_KINDS],
       pageKindPlan: tennisRecordScheduledPageKindPlan('bootstrap', scheduledBatchLimit),
       campaignId: settings.active_campaign_id,
+      historicalCatchupCampaignId: hasHistoricalCatchup ? catchupCampaignId : undefined,
       recalculateRatings: false,
     })
     if (summary.status !== 'completed' && summary.status !== 'blocked') return summary
@@ -1137,7 +1171,22 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
     if (settings.active_campaign_id) remainingQuery = remainingQuery.eq('campaign_id', settings.active_campaign_id)
     const { data: remainingRows, error: remainingError } = await remainingQuery
     if (remainingError) throw new Error(remainingError.message)
-    if (!remainingRows?.length) await completeActiveTennisRecordCampaign(service, settings.active_campaign_id)
+    if (!remainingRows?.length) {
+      const remainingCatchup = catchupCampaignId
+        ? await service.from('tennisrecord_crawl_queue').select('id').eq('status', 'pending')
+          .eq('campaign_id', catchupCampaignId).in('page_kind', TENNISRECORD_BOOTSTRAP_PAGE_KINDS)
+          .is('refresh_season', null).limit(1)
+        : { data: null, error: null }
+      if (remainingCatchup.error) throw new Error(remainingCatchup.error.message)
+      const remainingRetryable = catchupCampaignId
+        ? await service.from('tennisrecord_crawl_queue').select('id').eq('status', 'error')
+          .eq('campaign_id', catchupCampaignId).in('page_kind', TENNISRECORD_BOOTSTRAP_PAGE_KINDS)
+          .is('refresh_season', null).not('deferred_retry_at', 'is', null)
+          .lt('deferred_retry_count', MAX_DEFERRED_TENNISRECORD_RETRIES).limit(1)
+        : { data: null, error: null }
+      if (remainingRetryable.error) throw new Error(remainingRetryable.error.message)
+      if (!remainingCatchup.data?.length && !remainingRetryable.data?.length) await completeActiveTennisRecordCampaign(service, settings.active_campaign_id)
+    }
     return summary
   }
 
@@ -1197,12 +1246,13 @@ async function completeActiveTennisRecordCampaign(service: SupabaseClient, activ
   if (settingsError) throw new Error(settingsError.message)
 }
 
-async function selectNextTennisRecordQueueJob(service: SupabaseClient, input: SyncInput, pageKinds: readonly string[]) {
+async function selectNextTennisRecordQueueJob(service: SupabaseClient, input: SyncInput, pageKinds: readonly string[], historicalCatchup = false) {
   let query = service.from('tennisrecord_crawl_queue').select('id,source_url,page_kind,campaign_id,retry_count,deferred_retry_count,deferred_retry_at').eq('status', 'pending')
   query = query.or(`deferred_retry_at.is.null,deferred_retry_at.lte.${new Date().toISOString()}`)
   if (pageKinds.length) query = query.in('page_kind', pageKinds)
   if (input.campaignId) query = query.eq('campaign_id', input.campaignId)
   if (input.currentSeason) query = query.eq('refresh_season', new Date().getUTCFullYear())
+  if (historicalCatchup) query = query.is('refresh_season', null)
   const { data, error } = await query.order('first_seen_at').limit(1).maybeSingle()
   if (error) throw new Error(error.message)
   return data as QueueRow | null
