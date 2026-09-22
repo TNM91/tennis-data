@@ -177,6 +177,39 @@ describe('HTTP success is required for import completion', () => {
     expect(tennisRecordPipelineHealth({ enabled: true, automationState: 'bootstrap', lastSuccessfulCollectorAt: null, safetyThrottle: tennisRecordCadenceSafetyStatus(null, now), sourceOutage: outage }, now)).toMatchObject({ state: 'cooling_down', message: expect.stringContaining('retry automatically') })
   })
 
+  it('replays captured pages under the normal lock during cooldown without a source request', async () => {
+    response(200)
+    const outage = { cooldownUntil: '2026-09-05T17:15:00Z', level: 1, lastFreshHttpAt: '2026-09-05T16:30:00Z' }
+    const f = fixture({ outage, replay: [{ id: 'cached', source_url: url, http_status: 200, raw_html: 'Captured page' }] })
+    const result = await runAutomaticTennisRecordSync(f.db)
+    expect(result).toMatchObject({ status: 'completed', pagesAttempted: 0, pagesProcessed: 1 })
+    expect(fetchTennisRecordPage).not.toHaveBeenCalled()
+    expect(f.calls.some(c => c.table === 'tennisrecord_sync_runs' && op(c, 'insert'))).toBe(true)
+    expect(f.calls.some(c => c.table === 'tennisrecord_crawl_queue' && op(c, 'update'))).toBe(false)
+    expect(f.calls.some(c => c.table === 'tennisrecord_collector_settings' && op(c, 'update'))).toBe(false)
+  })
+
+  it('records only a fresh successful HTTP response as proof of source access', async () => {
+    response(200)
+    const f = fixture()
+    await runTennisRecordSync(f.db, { triggerKind: 'bootstrap', recalculateRatings: false })
+    const healthWrite = f.calls.find(c => c.table === 'tennisrecord_collector_settings' && op(c, 'update'))
+    expect(op(healthWrite!, 'update')?.args[0]).toMatchObject({ source_outage_state: { lastFreshHttpAt: new Date(now).toISOString() } })
+    response(503)
+    const failed = fixture()
+    await runTennisRecordSync(failed.db, { triggerKind: 'bootstrap', recalculateRatings: false })
+    const outageWrites = failed.calls.filter(c => c.table === 'tennisrecord_collector_settings' && op(c, 'update'))
+    expect(outageWrites).not.toHaveLength(0)
+    expect(outageWrites.every(c => (op(c, 'update')?.args[0] as { source_outage_state: Row }).source_outage_state.lastFreshHttpAt === null)).toBe(true)
+  })
+
+  it('does not turn an optional health timestamp write failure into an import failure', async () => {
+    response(200)
+    const f = fixture({ failOutageSave: true })
+    await expect(runTennisRecordSync(f.db, { triggerKind: 'bootstrap', recalculateRatings: false })).resolves.toMatchObject({ status: 'completed', pagesProcessed: 1 })
+    expect(f.queueWrites().at(-1)).toMatchObject({ status: 'done' })
+  })
+
   it.each(['weekly', 'bootstrap', 'manual'] as const)('skips %s during a shared pause without claiming or retrying anything', async triggerKind => {
     response(200)
     const f = fixture({ outage: { cooldownUntil: '2026-09-05T17:15:00Z', level: 1 } })

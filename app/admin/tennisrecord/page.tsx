@@ -13,7 +13,7 @@ type Status = {
   automationCadenceMinutes: number
   safetyThrottle: { active: boolean; reason: string | null; resumesAt: string | null }
   sourceOutage: { level: number; cooldownUntil: string | null; lastFailureAt: string | null }
-  pipelineHealth: { state: 'healthy' | 'attention' | 'cooling_down' | 'paused'; message: string; lastSuccessfulCollectorAt: string | null }
+  pipelineHealth: { state: 'healthy' | 'attention' | 'cooling_down' | 'paused'; message: string; lastSuccessfulCollectorAt: string | null; lastFreshSourceAt: string | null }
   pendingPages: number
   campaignProgress: { pending: number; completed: number; running: number; review: number; blocked: number; errors: number }
   campaignForecast: { pagesPerCheckpoint: number; checkpointsRemaining: number; estimatedMinutesRemaining: number; checkpointMinutes: number; paceSampleCount: number; paceSource: 'recent_completed_checkpoints' | 'scheduled_cadence'; estimateBasis: 'known_queue' }
@@ -188,7 +188,7 @@ export default function TennisRecordAdminPage() {
     : status?.settings?.bootstrap_completed_at ? '2025 history imported' : 'Import paused'
   const historicalDetail = statusLoading ? 'Connecting to the live collector. This is not a pause.'
     : statusDelayed ? 'The live status check was delayed. The collector keeps its last confirmed automation setting.'
-    : sourceUnavailable ? `${activeCampaign?.region_label || 'This campaign'} is waiting for a source response. ${(progress?.pending || 0).toLocaleString()} pages are currently queued in this campaign; paused campaigns retain their own backlog. Saved-page replay does not mean new pages were imported. Next automatic source test after ${formatDateTime(sourceOutage?.cooldownUntil)}.`
+    : sourceUnavailable ? `${activeCampaign?.region_label || 'This campaign'} is waiting for a source response. ${(progress?.pending || 0).toLocaleString()} pages are currently queued in this campaign; paused campaigns retain their own backlog. Captured-page replay can continue safely, but does not mean new pages were fetched. Next automatic source test after ${formatDateTime(sourceOutage?.cooldownUntil)}.`
     : status?.frontier.status === 'ready_to_seed' ? `${activeCampaign?.availableSeedPages || 0} public 2025-current Missouri history pages are waiting for the next automatic checkpoint.`
     : automationState === 'bootstrap' ? `Started ${formatDateTime(status?.settings?.bootstrap_started_at)}. Forecast uses ${campaignPaceDetail}: ${campaignForecast?.pagesPerCheckpoint || checkpointLimit} pages about every ${campaignCheckpointMinutes} minutes; newly discovered public match pages can extend the queue.${safetyThrottle?.active ? ` Safety cooldown: ${safetyThrottle.reason} Resume after ${formatDateTime(safetyThrottle.resumesAt)}.` : ''}`
     : 'Historical source records remain auditable without replacing verified local scorecards.'
@@ -235,6 +235,7 @@ export default function TennisRecordAdminPage() {
           <Metric label="Safety throttle" value={sourceUnavailable || safetyThrottle?.active ? 'Cooling down' : 'Clear'} />
           <Metric label="Import health" value={pipelineHealth?.state === 'healthy' ? 'On pace' : pipelineHealth?.state === 'cooling_down' ? 'Safety pause' : pipelineHealth?.state === 'attention' ? 'Needs review' : 'Paused'} />
           <Metric label="Last completed checkpoint" value={formatDateTime(pipelineHealth?.lastSuccessfulCollectorAt)} />
+          <Metric label="Last fresh source fetch" value={formatDateTime(pipelineHealth?.lastFreshSourceAt)} />
           <Metric label="Next source test" value={sourceUnavailable ? formatDateTime(sourceOutage?.cooldownUntil) : '—'} />
           <Metric label="Historical campaign" value={activeCampaign?.region_label || 'Not selected'} />
           <Metric label="Pending pages" value={status?.pendingPages ?? '—'} />
@@ -260,7 +261,7 @@ export default function TennisRecordAdminPage() {
           <div style={{ display: 'grid', gap: 4 }}>
             <strong style={{ color: 'var(--foreground-strong)', fontSize: 18 }}>{pipelineHealth?.state === 'attention' ? 'Import health needs review' : pipelineHealth?.state === 'cooling_down' ? 'Import health: safety pause' : pipelineHealth?.state === 'paused' ? 'Import health: paused' : 'Import health: on pace'}</strong>
             <span className="subtle-text">{pipelineHealth?.message || 'Loading the latest collector health.'}</span>
-            <span className="subtle-text">Last successful checkpoint: {formatDateTime(pipelineHealth?.lastSuccessfulCollectorAt)}. Last TiQ rating pass: {formatDateTime(ratingProgress?.lastRecalculatedAt)}. TiQ ratings are {ratingProgress?.pending ? `${ratingProgress.pending.toLocaleString()} match${ratingProgress.pending === 1 ? '' : 'es'} away from the next protected batch` : ratingProgress?.baselineRefreshPending ? 'queued for the next protected baseline refresh' : 'current with the latest protected batch'}.</span>
+            <span className="subtle-text">Last fresh source fetch: {formatDateTime(pipelineHealth?.lastFreshSourceAt)}. Last completed checkpoint: {formatDateTime(pipelineHealth?.lastSuccessfulCollectorAt)}. A checkpoint may process saved pages without reaching TennisRecord. Last TiQ rating pass: {formatDateTime(ratingProgress?.lastRecalculatedAt)}. TiQ ratings are {ratingProgress?.pending ? `${ratingProgress.pending.toLocaleString()} match${ratingProgress.pending === 1 ? '' : 'es'} away from the next protected batch` : ratingProgress?.baselineRefreshPending ? 'queued for the next protected baseline refresh' : 'current with the latest protected batch'}.</span>
           </div>
         </section>
         <section aria-label="TiQ rating catch-up" style={{ marginTop: 20, padding: 16, borderRadius: 18, border: '1px solid rgba(155,225,29,0.28)', background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(116,190,255,0.06))' }}>

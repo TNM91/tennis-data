@@ -88,7 +88,8 @@ describe('TennisRecord Admin import progress', () => {
     expect(adminPage).toContain('Safety cooldown:')
     expect(adminPage).toContain('Historical source import stalled')
     expect(adminPage).toContain('Recent pulls waiting for source')
-    expect(adminPage).toContain('Saved-page replay does not mean new pages were imported')
+    expect(adminPage).toContain('Captured-page replay can continue safely, but does not mean new pages were fetched')
+    expect(adminPage).toContain('Last fresh source fetch')
   })
 
   it('caches costly Admin status reads and keeps the importer available', () => {
