@@ -1617,7 +1617,7 @@ export class ImportEngine {
           entity_name: leagueName,
           subtitle: [flight, ustaSection, districtArea].filter(Boolean).join(' • ') || null,
           title: `New result posted in ${leagueName}`,
-          body: `${cleanString(row.homeTeam)} vs ${cleanString(row.awayTeam)} • ${scoreSummary}`,
+          body: `${cleanString(row.homeTeam)} vs ${cleanString(row.awayTeam)} • ${scoreSummary}${row.matchDate ? ` on ${normalizeDateInput(row.matchDate)}` : ''}`,
         })
       }
 
