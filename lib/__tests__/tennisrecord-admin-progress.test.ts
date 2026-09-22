@@ -28,6 +28,14 @@ describe('TennisRecord Admin import progress', () => {
     expect(service).toContain("return emptySummary('awaiting_seed')")
   })
 
+  it('adopts only completed shared directory seeds when the U.S. campaign takes over', () => {
+    expect(service).toContain("campaign.slug !== 'us-2025-current'")
+    expect(service).toContain(".eq('slug', 'missouri-2025-current').in('status', ['paused', 'completed'])")
+    expect(service).toContain(".eq('page_kind', 'league').eq('status', 'done').in('source_url', urls)")
+    expect(service).toContain(".in('id', shared.map((row) => row.id)).eq('campaign_id', missouri.id).eq('status', 'done')")
+    expect(service).toContain('Active TennisRecord campaign has no queue pages after seeding')
+  })
+
   it('shows separate live historical and weekly delivery-style trackers', () => {
     expect(adminPage).toContain('ariaLabel="Historical import progress"')
     expect(adminPage).toContain('ariaLabel="Weekly refresh progress"')

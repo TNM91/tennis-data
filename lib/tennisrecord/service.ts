@@ -775,7 +775,24 @@ export async function seedTennisRecordCampaignFrontier(service: SupabaseClient, 
     if (refreshError) throw new Error(refreshError.message)
   }
   const urls = getTennisRecordCampaignSeedUrls({ slug: campaign.slug, startsOn: campaign.starts_on, endsOn })
-  return enqueueTennisRecordUrls(service, urls, campaign.id)
+  const queued = await enqueueTennisRecordUrls(service, urls, campaign.id)
+  // Queue URLs are globally unique. The nationwide campaign starts at the
+  // same public league directories already captured by Missouri, so a normal
+  // insert-ignore would leave the new campaign empty forever. Revisit only
+  // those completed, shared directory seeds; Missouri's unfinished pages and
+  // captured evidence remain in place for its own checkpoint lane.
+  if (campaign.slug !== 'us-2025-current' || !urls.length) return queued
+  const { data: missouri, error: missouriError } = await service.from('tennisrecord_campaigns').select('id').eq('slug', 'missouri-2025-current').in('status', ['paused', 'completed']).maybeSingle()
+  if (missouriError) throw new Error(missouriError.message)
+  if (!missouri?.id) return queued
+  const { data: shared, error: sharedError } = await service.from('tennisrecord_crawl_queue').select('id').eq('campaign_id', missouri.id).eq('page_kind', 'league').eq('status', 'done').in('source_url', urls)
+  if (sharedError) throw new Error(sharedError.message)
+  if (!shared?.length) return queued
+  const { data: adopted, error: adoptError } = await service.from('tennisrecord_crawl_queue')
+    .update({ campaign_id: campaign.id, status: 'pending', attempted_at: null, completed_at: null, failure_reason: '', retry_count: 0, deferred_retry_count: 0, deferred_retry_at: null })
+    .in('id', shared.map((row) => row.id)).eq('campaign_id', missouri.id).eq('status', 'done').select('id')
+  if (adoptError) throw new Error(adoptError.message)
+  return queued + (adopted?.length || 0)
 }
 
 async function markCurrentSeasonUrls(service: SupabaseClient, urls: string[]) {
@@ -1119,7 +1136,10 @@ export async function runScheduledTennisRecordSync(service: SupabaseClient, cade
     hasPendingPages = Boolean(refreshedPending.data?.length)
     const decision = tennisRecordAutomationDecision(settings.automation_state, cadence, hasPendingPages ? 1 : 0, hasKnownPages ? 1 : 0)
     if (decision === 'skip') return emptySummary('skipped')
-    if (decision === 'awaiting_seed') return emptySummary('awaiting_seed')
+    if (decision === 'awaiting_seed') {
+      if (settings.active_campaign_id) throw new Error('Active TennisRecord campaign has no queue pages after seeding; check for shared seed URL ownership.')
+      return emptySummary('awaiting_seed')
+    }
     if (decision === 'complete_bootstrap') {
       await completeActiveTennisRecordCampaign(service, settings.active_campaign_id)
       return emptySummary('completed')
