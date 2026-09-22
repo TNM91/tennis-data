@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildScorecardPlayerClaimHref, getScorecardClaimMatchId, getScorecardClaimPlayerId, isScorecardSignupIntent, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
+import { buildScorecardPlayerClaimHref, buildScorecardProfileClaimHref, getScorecardClaimMatchId, getScorecardClaimPlayerId, isScorecardSignupIntent, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
 
 describe('scorecard signup intent', () => {
   it('accepts only a free player-profile handoff from the scorecard source', () => {
@@ -26,6 +26,7 @@ describe('scorecard signup intent', () => {
     const matchId = 'b29ff678-0fd5-4dcf-9548-8de9afcf1b3d'
     const nextHref = `/profile?player=${playerId}&match=${matchId}`
 
+    expect(buildScorecardProfileClaimHref(playerId, matchId)).toBe(nextHref)
     expect(buildScorecardPlayerClaimHref(playerId, matchId)).toBe(`/join?plan=free&next=${encodeURIComponent(nextHref)}&source=scorecard_share`)
     expect(isScorecardSignupIntent(SCORECARD_SIGNUP_SOURCE, 'free', nextHref)).toBe(true)
     expect(getScorecardClaimPlayerId(nextHref)).toBe(playerId)

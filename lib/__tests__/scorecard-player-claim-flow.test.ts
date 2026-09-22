@@ -14,8 +14,17 @@ describe('shared scorecard player claim flow', () => {
     expect(signupRoute).toContain('scorecard_claim_player_id: scorecardClaimPlayerId')
     expect(signupRoute).toContain('scorecardClaimPlayerId }')
     expect(profilePage).toContain('getScorecardClaimPlayerId(`/profile${window.location.search}`)')
+    expect(profilePage).toContain('loadProfilePlayers(requestedPlayerId)')
+    expect(profilePage).toContain(".eq('id', requestedPlayerId).maybeSingle()")
     expect(profilePage).toContain('Confirm this is you, then save your player.')
     expect(profilePage).toContain('scorecardClaimPlayerId === nextPlayer.id')
     expect(profilePage).toContain('acquisitionSource: SCORECARD_SIGNUP_SOURCE')
+  })
+
+  it('sends signed-in members without a connected player directly to the same profile claim', () => {
+    expect(matchPage).toContain('loadUserProfileLink(userId)')
+    expect(matchPage).toContain('!data?.linked_player_id && !data?.linked_player_name')
+    expect(matchPage).toContain('buildScorecardProfileClaimHref(player.id, line.id)')
+    expect(matchPage).toContain('buildScorecardProfileClaimHref(player.id, match.id)')
   })
 })

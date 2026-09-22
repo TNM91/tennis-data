@@ -9,8 +9,9 @@ import PublicDetailState from '@/app/components/public-detail-state'
 import { useAuth } from '@/app/components/auth-provider'
 import { supabase } from '@/lib/supabase'
 import { MY_LAB_STORY } from '@/lib/product-story'
-import { buildScorecardPlayerClaimHref, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
+import { buildScorecardPlayerClaimHref, buildScorecardProfileClaimHref, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
 import { buildTeamProfileHref } from '@/lib/team-routes'
+import { loadUserProfileLink } from '@/lib/user-profile'
 
 type MatchRecord = {
   id: string
@@ -75,7 +76,7 @@ export default function MatchDetailPage() {
 function MatchDetailContent() {
   const params = useParams<{ id: string }>()
   const searchParams = useSearchParams()
-  const { role, authResolved } = useAuth()
+  const { role, authResolved, userId } = useAuth()
   const matchId = params?.id || ''
   const isSharedVisit = searchParams.get('via') === 'scorecard-share'
   const [match, setMatch] = useState<MatchRecord | null>(null)
@@ -85,6 +86,17 @@ function MatchDetailContent() {
   const [error, setError] = useState('')
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null)
   const [shareStatus, setShareStatus] = useState<'idle' | 'shared' | 'copied' | 'error'>('idle')
+  const [claimReadyUserId, setClaimReadyUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    if (isSharedVisit && authResolved && userId) {
+      void loadUserProfileLink(userId).then(({ data, error }) => {
+        if (active && !error && !data?.linked_player_id && !data?.linked_player_name) setClaimReadyUserId(userId)
+      })
+    }
+    return () => { active = false }
+  }, [authResolved, isSharedVisit, userId])
 
   useEffect(() => {
     let active = true
@@ -180,6 +192,11 @@ function MatchDetailContent() {
   const scorecardKind = selectedLineId || match?.line_number ? 'line' : 'match'
   const hasClaimablePlayers = (lines.length ? lines.map((line) => line.id) : match ? [match.id] : [])
     .some((id) => namesFor(id, 'A').length > 0 || namesFor(id, 'B').length > 0)
+  const accountCanClaim = Boolean(isSharedVisit && userId && claimReadyUserId === userId)
+  const showScorecardClaim = isSharedVisit && authResolved && (role === 'public' || accountCanClaim)
+  const claimIntro = accountCanClaim
+    ? hasClaimablePlayers ? 'Find your name on this scorecard to connect your player record to your account.' : 'Open your profile to connect your player record to your account.'
+    : hasClaimablePlayers ? 'Find your name on this scorecard, then create a free account to connect your player record and explore your public results.' : 'Create a free account to connect your player record and explore your public results.'
 
   useEffect(() => {
     if (!match || !isSharedVisit) return
@@ -239,18 +256,18 @@ function MatchDetailContent() {
             {match.facility ? <p style={venueStyle}>{match.facility}</p> : null}
           </header>
 
-          {isSharedVisit && authResolved && role === 'public' ? (
+          {showScorecardClaim ? (
             <section style={nextStepStyle} aria-labelledby="scorecard-next-step-title">
               <div style={nextStepCopyStyle}>
                 <p style={eyebrowStyle}>Your tennis</p>
                 <h2 id="scorecard-next-step-title" style={sectionTitleStyle}>Keep your match history together</h2>
-                <p style={metaStyle}>{hasClaimablePlayers ? 'Find your name on this scorecard, then create a free account to connect your player record and explore your public results.' : 'Create a free account to connect your player record and explore your public results.'} {MY_LAB_STORY.upgradeBody}</p>
+                <p style={metaStyle}>{claimIntro} {MY_LAB_STORY.upgradeBody}</p>
               </div>
               <div style={nextStepActionsStyle}>
                 {hasClaimablePlayers ? (
                   <Link href="#scorecard-players" style={nextStepPrimaryStyle} onClick={() => track('Scorecard Next Step', { action: 'find_player', kind: scorecardKind })}>Find my name</Link>
                 ) : (
-                  <Link href={`/join?plan=free&next=%2Fprofile&source=${SCORECARD_SIGNUP_SOURCE}`} style={nextStepPrimaryStyle} onClick={() => track('Scorecard Next Step', { action: 'start_free', kind: scorecardKind })}>Connect my player free</Link>
+                  <Link href={accountCanClaim ? '/profile' : `/join?plan=free&next=%2Fprofile&source=${SCORECARD_SIGNUP_SOURCE}`} style={nextStepPrimaryStyle} onClick={() => track('Scorecard Next Step', { action: accountCanClaim ? 'open_profile' : 'start_free', kind: scorecardKind })}>{accountCanClaim ? 'Open my profile' : 'Connect my player free'}</Link>
                 )}
                 <Link href="/pricing#player_plus" style={backLinkStyle} onClick={() => track('Scorecard Next Step', { action: 'view_player_plan', kind: scorecardKind })}>See Player plan →</Link>
               </div>
@@ -288,8 +305,8 @@ function MatchDetailContent() {
                           {namesFor(line.id, side).length ? namesFor(line.id, side).map((player) => (
                             <div key={player.id} style={playerClaimRowStyle}>
                               <Link href={`/players/${encodeURIComponent(player.id)}`} style={playerLinkStyle}>{player.name}</Link>
-                              {isSharedVisit && authResolved && role === 'public' ? (
-                                <Link href={buildScorecardPlayerClaimHref(player.id, line.id)} style={playerClaimLinkStyle} onClick={() => track('Scorecard Player Claim', { action: 'start_free', kind: scorecardKind })}>
+                              {showScorecardClaim ? (
+                                <Link href={accountCanClaim ? buildScorecardProfileClaimHref(player.id, line.id) : buildScorecardPlayerClaimHref(player.id, line.id)} style={playerClaimLinkStyle} onClick={() => track('Scorecard Player Claim', { action: accountCanClaim ? 'open_profile' : 'start_free', kind: scorecardKind })}>
                                   Connect as {player.name}
                                 </Link>
                               ) : null}
@@ -314,8 +331,8 @@ function MatchDetailContent() {
                       {namesFor(match.id, side).length ? namesFor(match.id, side).map((player) => (
                         <div key={player.id} style={playerClaimRowStyle}>
                           <Link href={`/players/${encodeURIComponent(player.id)}`} style={playerLinkStyle}>{player.name}</Link>
-                          {isSharedVisit && authResolved && role === 'public' ? (
-                            <Link href={buildScorecardPlayerClaimHref(player.id, match.id)} style={playerClaimLinkStyle} onClick={() => track('Scorecard Player Claim', { action: 'start_free', kind: scorecardKind })}>
+                          {showScorecardClaim ? (
+                            <Link href={accountCanClaim ? buildScorecardProfileClaimHref(player.id, match.id) : buildScorecardPlayerClaimHref(player.id, match.id)} style={playerClaimLinkStyle} onClick={() => track('Scorecard Player Claim', { action: accountCanClaim ? 'open_profile' : 'start_free', kind: scorecardKind })}>
                               Connect as {player.name}
                             </Link>
                           ) : null}

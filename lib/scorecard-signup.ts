@@ -27,7 +27,11 @@ export function isScorecardSignupIntent(source: unknown, planId: string, nextHre
     && (nextHref === '/profile' || Boolean(getScorecardClaimPlayerId(nextHref)))
 }
 
+export function buildScorecardProfileClaimHref(playerId: string, matchId?: string) {
+  return `/profile?player=${encodeURIComponent(playerId)}${matchId ? `&match=${encodeURIComponent(matchId)}` : ''}`
+}
+
 export function buildScorecardPlayerClaimHref(playerId: string, matchId?: string) {
-  const nextHref = `/profile?player=${encodeURIComponent(playerId)}${matchId ? `&match=${encodeURIComponent(matchId)}` : ''}`
+  const nextHref = buildScorecardProfileClaimHref(playerId, matchId)
   return `/join?plan=free&next=${encodeURIComponent(nextHref)}&source=${SCORECARD_SIGNUP_SOURCE}`
 }
