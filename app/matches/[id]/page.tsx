@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
+import { track } from '@vercel/analytics'
 import { useEffect, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import PublicDetailState from '@/app/components/public-detail-state'
@@ -77,6 +78,7 @@ function MatchDetailContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null)
+  const [shareStatus, setShareStatus] = useState<'idle' | 'shared' | 'copied' | 'error'>('idle')
 
   useEffect(() => {
     let active = true
@@ -88,6 +90,7 @@ function MatchDetailContent() {
       setLines([])
       setPlayers([])
       setSelectedLineId(null)
+      setShareStatus('idle')
 
       const { data, error: matchError } = await supabase
         .from('matches')
@@ -169,6 +172,40 @@ function MatchDetailContent() {
   const away = match?.away_team || 'Side B'
   const winner = match?.winner_side === 'A' ? home : match?.winner_side === 'B' ? away : ''
 
+  useEffect(() => {
+    if (!match || new URLSearchParams(window.location.search).get('via') !== 'scorecard-share') return
+    track('Scorecard Share Visit', { kind: selectedLineId || match.line_number ? 'line' : 'match' })
+  }, [match, selectedLineId])
+
+  async function shareScorecard() {
+    if (!match) return
+    const sharedLine = lines.find((line) => line.id === selectedLineId)
+    const sharedScore = sharedLine?.score || match.score
+    const kind = sharedLine || match.line_number ? 'line' : 'match'
+    const url = new URL(`/matches/${encodeURIComponent(matchId)}`, window.location.origin)
+    url.searchParams.set('via', 'scorecard-share')
+    const title = `${home} vs ${away}${sharedLine ? ` · Line ${sharedLine.line_number}` : match.line_number ? ` · Line ${match.line_number}` : ''}${sharedScore ? ` · ${sharedScore}` : ''}`
+
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title, url: url.toString() })
+        track('Scorecard Share', { action: 'native_share', kind })
+        setShareStatus('shared')
+        return
+      } catch (shareError) {
+        if (shareError instanceof DOMException && shareError.name === 'AbortError') return
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url.toString())
+      track('Scorecard Share', { action: 'copy_link', kind })
+      setShareStatus('copied')
+    } catch {
+      setShareStatus('error')
+    }
+  }
+
   return (
     <main style={pageStyle}>
       <Link href="/compete/results" style={backLinkStyle}>← Explore results</Link>
@@ -185,6 +222,10 @@ function MatchDetailContent() {
             <div style={scoreRowStyle}>
               <strong style={scoreStyle}>{match.score || 'Score pending'}</strong>
               <span style={winnerStyle}>{winner ? `${winner} won` : match.status === 'completed' ? 'Result recorded' : 'Match scheduled'}</span>
+            </div>
+            <div style={shareRowStyle}>
+              <button type="button" style={shareButtonStyle} onClick={() => void shareScorecard()}>Share scorecard</button>
+              <span role="status" style={metaStyle}>{shareStatus === 'copied' ? 'Link copied. Send it to your team.' : shareStatus === 'shared' ? 'Scorecard shared.' : shareStatus === 'error' ? 'Could not copy the link. Try again.' : ''}</span>
             </div>
             {match.facility ? <p style={venueStyle}>{match.facility}</p> : null}
           </header>
@@ -262,6 +303,8 @@ const eyebrowStyle: CSSProperties = { margin: 0, color: '#a6d96a', fontSize: 12,
 const titleStyle: CSSProperties = { margin: 0, color: 'var(--foreground-strong)', fontSize: 'clamp(27px, 5vw, 44px)', lineHeight: 1.1 }
 const metaStyle: CSSProperties = { margin: 0, color: 'var(--foreground-muted)', lineHeight: 1.5 }
 const scoreRowStyle: CSSProperties = { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '12px 20px' }
+const shareRowStyle: CSSProperties = { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }
+const shareButtonStyle: CSSProperties = { border: '1px solid rgba(166, 217, 106, 0.65)', borderRadius: 999, background: 'rgba(166, 217, 106, 0.12)', color: 'var(--foreground-strong)', cursor: 'pointer', font: 'inherit', fontWeight: 800, padding: '10px 16px' }
 const scoreStyle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 'clamp(30px, 5vw, 52px)' }
 const winnerStyle: CSSProperties = { color: '#a6d96a', fontWeight: 800 }
 const venueStyle: CSSProperties = { margin: 0, color: 'var(--foreground-muted)' }
