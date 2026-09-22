@@ -14,6 +14,24 @@ export function sortWatchlistFeed<T extends { createdAt: string | null; score: n
   })
 }
 
+export function dedupeLeagueResultFeed<T extends {
+  event_type: string
+  entity_type: string
+  entity_id: string
+  title: string
+  body: string | null
+  created_at: string
+}>(rows: T[]): T[] {
+  const seen = new Set<string>()
+  return rows.filter((row) => {
+    if (row.event_type !== 'league_result_posted') return true
+    const key = JSON.stringify([row.event_type, row.entity_type, row.entity_id, row.title, row.body])
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+
 export function hasWatchlistResult(score: string | null): boolean {
   return Boolean(score?.trim() && !/^pending$/i.test(score.trim()))
 }

@@ -57,7 +57,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
-import { formatUpcomingWatchlistDate, hasWatchlistResult, isUpcomingWatchlistMatch, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
+import { dedupeLeagueResultFeed, formatUpcomingWatchlistDate, hasWatchlistResult, isUpcomingWatchlistMatch, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
 import type { ClubRole } from '@/lib/club-workspace'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
@@ -2182,7 +2182,7 @@ function MyLabPageInner() {
     const followTeams = follows.filter((f) => f.entity_type === 'team')
     const followLeagues = follows.filter((f) => f.entity_type === 'league')
 
-    for (const row of cloudFeedRows) {
+    for (const row of dedupeLeagueResultFeed(cloudFeedRows)) {
       const key = `${row.entity_type}:${row.entity_id}`
       if (!followedKeySet.has(key)) continue
 
@@ -2209,7 +2209,7 @@ function MyLabPageInner() {
         entityName: row.entity_name,
         createdAt: row.created_at,
         score: 120,
-        badge: row.event_type[0].toUpperCase() + row.event_type.slice(1),
+        badge: row.event_type === 'league_result_posted' ? 'League result' : row.event_type[0].toUpperCase() + row.event_type.slice(1),
         accent: accentForType(mappedType),
       })
     }
