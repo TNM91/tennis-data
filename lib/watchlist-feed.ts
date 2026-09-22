@@ -14,6 +14,10 @@ export function sortWatchlistFeed<T extends { createdAt: string | null; score: n
   })
 }
 
+export function isLeagueWatchlistEvent(eventType: string): boolean {
+  return eventType === 'league' || eventType.startsWith('league_')
+}
+
 export function dedupeLeagueResultFeed<T extends {
   event_type: string
   entity_type: string
