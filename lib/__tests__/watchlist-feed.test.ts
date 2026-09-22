@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dedupeLeagueResultFeed, formatUpcomingWatchlistDate, hasWatchlistResult, isLeagueWatchlistEvent, isUpcomingWatchlistMatch, overlappingLeagueResultIds, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
+import { dedupeLeagueResultFeed, formatUpcomingWatchlistDate, hasWatchlistResult, isLeagueWatchlistEvent, isUpcomingWatchlistMatch, matchIdsForLeagueResults, matchIdsForResultEvents, overlappingLeagueResultIds, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
 
 describe('watchlist feed ordering', () => {
   it('shows dated results before standing snapshots, regardless of editorial score', () => {
@@ -54,7 +54,7 @@ describe('watchlist feed ordering', () => {
   })
 
   it('collapses league events only when a visible result identifies the same match', () => {
-    const match = { league_name: 'Fall League', home_team: 'Aces', away_team: 'Volleys', score: '3-2', match_date: '2026-09-20' }
+    const match = { id: 'match-20', league_name: 'Fall League', home_team: 'Aces', away_team: 'Volleys', score: '3-2', match_date: '2026-09-20' }
     const event = { id: 'same', event_type: 'league_result_posted', entity_name: 'Fall League', body: 'Aces vs Volleys • 3-2 lines on 2026-09-20' }
     const events = [
       event,
@@ -63,12 +63,21 @@ describe('watchlist feed ordering', () => {
       { ...event, id: 'legacy', body: 'Aces vs Volleys • 3-2 lines' },
     ]
     expect([...overlappingLeagueResultIds(events, [match])]).toEqual(['same', 'legacy'])
-    expect([...overlappingLeagueResultIds(events, [match, { ...match, match_date: '2026-09-27' }])]).toEqual(['same', 'different-day'])
+    expect([...matchIdsForLeagueResults(events, [match])]).toEqual([['same', 'match-20'], ['legacy', 'match-20']])
+    expect([...overlappingLeagueResultIds(events, [match, { ...match, id: 'match-27', match_date: '2026-09-27' }])]).toEqual(['same', 'different-day'])
   })
 
   it('places imported league results in the League filter', () => {
     expect(isLeagueWatchlistEvent('league_result_posted')).toBe(true)
     expect(isLeagueWatchlistEvent('league_result_burst')).toBe(true)
     expect(isLeagueWatchlistEvent('match_result')).toBe(false)
+  })
+
+  it('links a team result alert only to its exact scored match', () => {
+    const event = { id: 'team-result', event_type: 'match_result', entity_name: 'Aces', title: 'Aces defeated Volleys', body: '3-2 lines on 2026-09-20 • 6-4 6-4' }
+    const match = { id: 'match-20', league_name: 'Fall League', home_team: 'Aces', away_team: 'Volleys', score: '3-2', match_date: '2026-09-20', winner_side: 'A' }
+    expect([...matchIdsForResultEvents([event], [match])]).toEqual([['team-result', 'match-20']])
+    expect(matchIdsForResultEvents([event], [{ ...match, match_date: '2026-09-27' }]).size).toBe(0)
+    expect(matchIdsForResultEvents([event], [match, { ...match, id: 'another-record' }]).size).toBe(0)
   })
 })
