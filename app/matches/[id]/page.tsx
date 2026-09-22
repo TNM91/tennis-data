@@ -1,12 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { track } from '@vercel/analytics'
 import { useEffect, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import PublicDetailState from '@/app/components/public-detail-state'
+import { useAuth } from '@/app/components/auth-provider'
 import { supabase } from '@/lib/supabase'
+import { MY_LAB_STORY } from '@/lib/product-story'
 import { buildTeamProfileHref } from '@/lib/team-routes'
 
 type MatchRecord = {
@@ -71,7 +73,10 @@ export default function MatchDetailPage() {
 
 function MatchDetailContent() {
   const params = useParams<{ id: string }>()
+  const searchParams = useSearchParams()
+  const { role, authResolved } = useAuth()
   const matchId = params?.id || ''
+  const isSharedVisit = searchParams.get('via') === 'scorecard-share'
   const [match, setMatch] = useState<MatchRecord | null>(null)
   const [lines, setLines] = useState<LineRecord[]>([])
   const [players, setPlayers] = useState<MatchPlayer[]>([])
@@ -171,11 +176,12 @@ function MatchDetailContent() {
   const home = match?.home_team || 'Side A'
   const away = match?.away_team || 'Side B'
   const winner = match?.winner_side === 'A' ? home : match?.winner_side === 'B' ? away : ''
+  const scorecardKind = selectedLineId || match?.line_number ? 'line' : 'match'
 
   useEffect(() => {
-    if (!match || new URLSearchParams(window.location.search).get('via') !== 'scorecard-share') return
-    track('Scorecard Share Visit', { kind: selectedLineId || match.line_number ? 'line' : 'match' })
-  }, [match, selectedLineId])
+    if (!match || !isSharedVisit) return
+    track('Scorecard Share Visit', { kind: scorecardKind })
+  }, [match, isSharedVisit, scorecardKind])
 
   async function shareScorecard() {
     if (!match) return
@@ -289,6 +295,20 @@ function MatchDetailContent() {
             ) : null}
           </section>
 
+          {isSharedVisit && authResolved && role === 'public' ? (
+            <section style={nextStepStyle} aria-labelledby="scorecard-next-step-title">
+              <div style={nextStepCopyStyle}>
+                <p style={eyebrowStyle}>Your tennis</p>
+                <h2 id="scorecard-next-step-title" style={sectionTitleStyle}>See more of your match story</h2>
+                <p style={metaStyle}>Create a free account to connect your player record. {MY_LAB_STORY.upgradeBody}</p>
+              </div>
+              <div style={nextStepActionsStyle}>
+                <Link href="/join?plan=free&next=%2Fprofile" style={nextStepPrimaryStyle} onClick={() => track('Scorecard Next Step', { action: 'start_free', kind: scorecardKind })}>Connect my player</Link>
+                <Link href="/pricing#player_plus" style={backLinkStyle} onClick={() => track('Scorecard Next Step', { action: 'view_player_plan', kind: scorecardKind })}>See Player plan →</Link>
+              </div>
+            </section>
+          ) : null}
+
           {match.league_name ? <Link href={leagueHref(match)} style={backLinkStyle}>View league results →</Link> : null}
         </>
       )}
@@ -309,6 +329,10 @@ const scoreStyle: CSSProperties = { color: 'var(--foreground-strong)', fontSize:
 const winnerStyle: CSSProperties = { color: '#a6d96a', fontWeight: 800 }
 const venueStyle: CSSProperties = { margin: 0, color: 'var(--foreground-muted)' }
 const surfaceStyle: CSSProperties = { padding: 'clamp(18px, 3vw, 28px)', border: '1px solid rgba(116,190,255,0.15)', borderRadius: 20, background: 'var(--portal-surface-bg)', display: 'grid', gap: 16 }
+const nextStepStyle: CSSProperties = { padding: 'clamp(18px, 3vw, 28px)', border: '1px solid rgba(166, 217, 106, 0.35)', borderRadius: 20, background: 'var(--portal-surface-bg)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 20 }
+const nextStepCopyStyle: CSSProperties = { display: 'grid', gap: 8, flex: '1 1 360px' }
+const nextStepActionsStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16 }
+const nextStepPrimaryStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', borderRadius: 999, background: '#a6d96a', color: '#081522', fontWeight: 900, padding: '12px 18px', textDecoration: 'none' }
 const sectionTitleStyle: CSSProperties = { margin: 0, color: 'var(--foreground-strong)', fontSize: 22 }
 const linkedPlayersTitleStyle: CSSProperties = { margin: '18px 0 10px', color: 'var(--foreground-strong)', fontSize: 16 }
 const teamGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: 12 }
