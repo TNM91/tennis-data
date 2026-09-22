@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { isSafeLocalNextHref } from '@/lib/plan-intent'
 import { type MembershipTierId } from '@/lib/product-story'
 import { getCaptainPilotSourceFromHref, normalizeCaptainPilotSource } from '@/lib/captain-pilot-source'
-import { isScorecardSignupIntent, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
+import { getScorecardClaimPlayerId, isScorecardSignupIntent, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
 import {
   buildSignupConfirmationEmail,
   isSignupEmailIntent,
@@ -46,6 +46,7 @@ export async function POST(request: Request) {
   const fallbackNextHref = getDefaultNextHref(planId, intent)
   const nextHref = isSafeLocalNextHref(typeof body.nextHref === 'string' ? body.nextHref : null, fallbackNextHref)
   const isScorecardSignup = isScorecardSignupIntent(body.acquisitionSource, planId, nextHref)
+  const scorecardClaimPlayerId = isScorecardSignup ? getScorecardClaimPlayerId(nextHref) : null
   const hrefSource = getCaptainPilotSourceFromHref(nextHref)
   const acquisitionSource = hrefSource === 'direct'
     ? normalizeCaptainPilotSource(body.acquisitionSource)
@@ -82,6 +83,7 @@ export async function POST(request: Request) {
         selected_plan: planId,
         ...(intent === 'captain-pilot' ? { acquisition_source: acquisitionSource } : {}),
         ...(isScorecardSignup ? { acquisition_source: SCORECARD_SIGNUP_SOURCE } : {}),
+        ...(scorecardClaimPlayerId ? { scorecard_claim_player_id: scorecardClaimPlayerId } : {}),
         ...(firstName ? { first_name: firstName } : {}),
       },
     },
@@ -127,6 +129,7 @@ export async function POST(request: Request) {
         signup_intent: intent,
         ...(intent === 'captain-pilot' ? { acquisitionSource } : {}),
         ...(isScorecardSignup ? { acquisitionSource: SCORECARD_SIGNUP_SOURCE } : {}),
+        ...(scorecardClaimPlayerId ? { scorecardClaimPlayerId } : {}),
       },
     })
   if (eventError) {

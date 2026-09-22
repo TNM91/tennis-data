@@ -381,7 +381,7 @@ export default function AdminGrowthPage() {
             <div className="section-kicker">Shared scorecards</div>
             <h2 className="section-title" style={{ marginTop: 6 }}>From scorecard to Player membership</h2>
             <p className="subtle-text">
-              People who requested a Free account from a shared scorecard in the last {period} days. Later steps show their current progress. Each person counts once.
+              People who requested a Free account from a shared scorecard in the last {period} days. Player claims track recipients who selected their exact name. Later steps show current progress, and each person counts once.
             </p>
             {loading ? <p className="subtle-text">Loading scorecard signups...</p> : null}
             {!loading && funnel ? (
@@ -392,6 +392,22 @@ export default function AdminGrowthPage() {
                   <span className="subtle-text">Player members who shared a Matchbook scorecard in the last {period} days.</span>
                   <span className="badge badge-blue">Traffic source</span>
                 </Link>
+                <div style={{ ...adminFactGridStyle, marginTop: 18 }}>
+                  <Link href="/admin/product-events?search=signup_confirmation_sent" style={{ ...adminSubPanelStyle, textDecoration: 'none' }}>
+                    <span className="metric-label">Player claims started</span>
+                    <strong style={{ fontSize: '2rem', lineHeight: 1 }}>{funnel.scorecardSignup.playerClaimStarts.toLocaleString()}</strong>
+                    <span className="subtle-text">Recipients who chose their name and requested a Free account.</span>
+                    <span className="badge badge-blue">Exact player selected</span>
+                  </Link>
+                  <Link href="/admin/product-events?search=profile_player_linked" style={{ ...adminSubPanelStyle, textDecoration: 'none' }}>
+                    <span className="metric-label">Player claims completed</span>
+                    <strong style={{ fontSize: '2rem', lineHeight: 1 }}>{funnel.scorecardSignup.playerClaimCompletions.toLocaleString()}</strong>
+                    <span className="subtle-text">Confirmed accounts now connected to the exact player selected.</span>
+                    <span className="badge badge-green">
+                      {funnel.scorecardSignup.playerClaimStarts === 0 ? 'Awaiting claim starts' : `${formatPercent(ratio(funnel.scorecardSignup.playerClaimCompletions, funnel.scorecardSignup.playerClaimStarts))} completed`}
+                    </span>
+                  </Link>
+                </div>
                 <div style={{ ...adminFactGridStyle, marginTop: 18 }}>
                   {([
                     { label: 'Signup requests', value: funnel.scorecardSignup.signupRequests, detail: 'A confirmation email was sent.', href: '/admin/product-events?search=signup_confirmation_sent' },

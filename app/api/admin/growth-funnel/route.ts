@@ -186,7 +186,12 @@ async function loadScorecardSignupRows(
       const batch = await Promise.all(signupIds.slice(offset, offset + 10).map(async (id) => {
         const { data, error } = await service.auth.admin.getUserById(id)
         if (error && error.status !== 404) throw error
-        return { id, emailConfirmed: Boolean(data.user?.email_confirmed_at) }
+        const claimPlayerId = data.user?.user_metadata?.scorecard_claim_player_id
+        return {
+          id,
+          emailConfirmed: Boolean(data.user?.email_confirmed_at),
+          claimPlayerId: typeof claimPlayerId === 'string' ? claimPlayerId : null,
+        }
       }))
       identities.push(...batch)
     }
