@@ -178,6 +178,8 @@ function MatchDetailContent() {
   const away = match?.away_team || 'Side B'
   const winner = match?.winner_side === 'A' ? home : match?.winner_side === 'B' ? away : ''
   const scorecardKind = selectedLineId || match?.line_number ? 'line' : 'match'
+  const hasClaimablePlayers = (lines.length ? lines.map((line) => line.id) : match ? [match.id] : [])
+    .some((id) => namesFor(id, 'A').length > 0 || namesFor(id, 'B').length > 0)
 
   useEffect(() => {
     if (!match || !isSharedVisit) return
@@ -242,10 +244,14 @@ function MatchDetailContent() {
               <div style={nextStepCopyStyle}>
                 <p style={eyebrowStyle}>Your tennis</p>
                 <h2 id="scorecard-next-step-title" style={sectionTitleStyle}>Keep your match history together</h2>
-                <p style={metaStyle}>Create a free account to connect your player record and explore your public results. {MY_LAB_STORY.upgradeBody}</p>
+                <p style={metaStyle}>{hasClaimablePlayers ? 'Find your name on this scorecard, then create a free account to connect your player record and explore your public results.' : 'Create a free account to connect your player record and explore your public results.'} {MY_LAB_STORY.upgradeBody}</p>
               </div>
               <div style={nextStepActionsStyle}>
-                <Link href={`/join?plan=free&next=%2Fprofile&source=${SCORECARD_SIGNUP_SOURCE}`} style={nextStepPrimaryStyle} onClick={() => track('Scorecard Next Step', { action: 'start_free', kind: scorecardKind })}>Connect my player free</Link>
+                {hasClaimablePlayers ? (
+                  <Link href="#scorecard-players" style={nextStepPrimaryStyle} onClick={() => track('Scorecard Next Step', { action: 'find_player', kind: scorecardKind })}>Find my name</Link>
+                ) : (
+                  <Link href={`/join?plan=free&next=%2Fprofile&source=${SCORECARD_SIGNUP_SOURCE}`} style={nextStepPrimaryStyle} onClick={() => track('Scorecard Next Step', { action: 'start_free', kind: scorecardKind })}>Connect my player free</Link>
+                )}
                 <Link href="/pricing#player_plus" style={backLinkStyle} onClick={() => track('Scorecard Next Step', { action: 'view_player_plan', kind: scorecardKind })}>See Player plan →</Link>
               </div>
             </section>
@@ -264,7 +270,7 @@ function MatchDetailContent() {
             </div>
           </section> : null}
 
-          <section style={surfaceStyle} aria-label="Match lines">
+          <section id="scorecard-players" style={surfaceStyle} aria-label="Match lines">
             <h2 style={sectionTitleStyle}>{isStandaloneLine ? 'Players' : 'Lines and players'}</h2>
             {lines.length ? (
               <div style={lineListStyle}>
