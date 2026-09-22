@@ -923,6 +923,7 @@ function MyLabPageInner() {
   const [ratingSnapshots, setRatingSnapshots] = useState<RatingSnapshotRow[]>([])
   const [matchbookFilter, setMatchbookFilter] = useState<MatchbookFilter>('all')
   const [showFullMatchbook, setShowFullMatchbook] = useState(false)
+  const [matchbookShareStatus, setMatchbookShareStatus] = useState<Record<string, 'copied' | 'shared' | 'error'>>({})
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([])
   const [cloudFeedRows, setCloudFeedRows] = useState<MyLabFeedRow[]>([])
   const [follows, setFollows] = useState<FollowItem[]>([])
@@ -2713,6 +2714,49 @@ function MyLabPageInner() {
     })
   }
 
+  async function shareMatchbookScorecard(match: PersonalMatchRow) {
+    const url = new URL(`/matches/${encodeURIComponent(match.id)}`, window.location.origin)
+    url.searchParams.set('via', 'scorecard-share')
+    const opponent = compactOpponentLabel(match.opponent)
+    const title = `${match.result} vs ${opponent}${match.score ? ` · ${match.score}` : ''}`
+    const shareText = `See this tennis scorecard on TenAceIQ: ${title}`
+    let action: 'native_share' | 'copy_link'
+
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title, text: shareText, url: url.toString() })
+        action = 'native_share'
+        setMatchbookShareStatus((current) => ({ ...current, [match.id]: 'shared' }))
+      } catch (shareError) {
+        if (shareError instanceof DOMException && shareError.name === 'AbortError') return
+        action = 'copy_link'
+        try {
+          await navigator.clipboard.writeText(`${shareText}\n${url.toString()}`)
+          setMatchbookShareStatus((current) => ({ ...current, [match.id]: 'copied' }))
+        } catch {
+          setMatchbookShareStatus((current) => ({ ...current, [match.id]: 'error' }))
+          return
+        }
+      }
+    } else {
+      action = 'copy_link'
+      try {
+        await navigator.clipboard.writeText(`${shareText}\n${url.toString()}`)
+        setMatchbookShareStatus((current) => ({ ...current, [match.id]: 'copied' }))
+      } catch {
+        setMatchbookShareStatus((current) => ({ ...current, [match.id]: 'error' }))
+        return
+      }
+    }
+
+    void trackProductUsageEvent({
+      eventName: 'scorecard_shared',
+      surface: 'mylab',
+      planId: 'player_plus',
+      metadata: { action, matchType: match.matchType || 'match' },
+    })
+  }
+
   const followedPlayers = follows.filter((item) => item.entity_type === 'player')
   const followedTeams = follows.filter((item) => item.entity_type === 'team')
   const followedLeagues = follows.filter((item) => item.entity_type === 'league')
@@ -4185,6 +4229,16 @@ function MyLabPageInner() {
                             </div>
                           </div>
                           <div style={matchbookActionStyle(isTablet)}>
+                            <Link href={`/matches/${encodeURIComponent(match.id)}`} style={matchbookScorecardLinkStyle}>Scorecard</Link>
+                            <button type="button" onClick={() => void shareMatchbookScorecard(match)} style={matchbookShareButtonStyle}>
+                              {matchbookShareStatus[match.id] === 'copied'
+                                ? 'Copied'
+                                : matchbookShareStatus[match.id] === 'shared'
+                                  ? 'Shared'
+                                  : matchbookShareStatus[match.id] === 'error'
+                                    ? 'Try again'
+                                    : 'Share'}
+                            </button>
                             {existingReport ? (
                               <span style={existingReport.status === 'resolved' ? pillGreenStyle : existingReport.status === 'rejected' ? pillRedStyle : existingReport.status === 'reviewing' ? pillBlueStyle : pillSlateStyle}>
                                 {getReportStatusLabel(existingReport.status)}
@@ -9313,6 +9367,20 @@ const matchbookWatchButtonStyle: CSSProperties = {
   whiteSpace: 'normal',
   textAlign: 'center',
   overflowWrap: 'anywhere',
+}
+
+const matchbookScorecardLinkStyle: CSSProperties = {
+  ...matchbookWatchButtonStyle,
+  minWidth: 0,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  textDecoration: 'none',
+}
+
+const matchbookShareButtonStyle: CSSProperties = {
+  ...matchbookWatchButtonStyle,
+  minWidth: 0,
 }
 
 const matchbookWatchDoneButtonStyle: CSSProperties = {

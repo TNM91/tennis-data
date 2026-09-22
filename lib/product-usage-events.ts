@@ -52,6 +52,7 @@ export const PRODUCT_USAGE_EVENT_NAMES = [
   'data_assist_opened',
   'upload_type_selected',
   'scorecard_upload_started',
+  'scorecard_shared',
   'schedule_upload_started',
   'team_summary_upload_started',
   'data_issue_reported',

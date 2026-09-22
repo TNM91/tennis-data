@@ -29,6 +29,7 @@ type Period = 7 | 30 | 90
 type Funnel = {
   publicActions: number
   signupRequests: number
+  scorecardShares: number
   firstActions: number
   checkoutClicks: number
   checkoutStarts: number
@@ -384,23 +385,31 @@ export default function AdminGrowthPage() {
             </p>
             {loading ? <p className="subtle-text">Loading scorecard signups...</p> : null}
             {!loading && funnel ? (
-              <div style={{ ...adminFactGridStyle, marginTop: 18 }}>
-                {([
-                  { label: 'Signup requests', value: funnel.scorecardSignup.signupRequests, detail: 'A confirmation email was sent.', href: '/admin/product-events?search=signup_confirmation_sent' },
-                  { label: 'Accounts confirmed', value: funnel.scorecardSignup.confirmedAccounts, detail: 'The email address was confirmed.', href: '/admin/access' },
-                  { label: 'Players connected', value: funnel.scorecardSignup.connectedPlayers, detail: 'A player record is linked to the account.', href: '/admin/access' },
-                  { label: 'Paid Player access', value: funnel.scorecardSignup.paidPlayerMemberships, detail: 'An active Stripe membership includes Player access.', href: '/admin/access?billing=stripe' },
-                ] as const).map((stage, index, all) => (
-                  <Link key={stage.label} href={stage.href} style={{ ...adminSubPanelStyle, textDecoration: 'none' }}>
-                    <span className="metric-label">{index + 1}. {stage.label}</span>
-                    <strong style={{ fontSize: '2rem', lineHeight: 1 }}>{stage.value.toLocaleString()}</strong>
-                    <span className="subtle-text">{stage.detail}</span>
-                    <span className="badge badge-blue">
-                      {index === 0 ? `Last ${period} days` : all[index - 1].value === 0 ? 'Awaiting prior step' : `${formatPercent(ratio(stage.value, all[index - 1].value))} from prior step`}
-                    </span>
-                  </Link>
-                ))}
-              </div>
+              <>
+                <Link href="/admin/product-events?search=scorecard_shared" style={{ ...adminSubPanelStyle, marginTop: 18, textDecoration: 'none' }}>
+                  <span className="metric-label">Scorecard sharing</span>
+                  <strong style={{ fontSize: '2rem', lineHeight: 1 }}>{funnel.scorecardShares.toLocaleString()}</strong>
+                  <span className="subtle-text">Player members who shared a Matchbook scorecard in the last {period} days.</span>
+                  <span className="badge badge-blue">Traffic source</span>
+                </Link>
+                <div style={{ ...adminFactGridStyle, marginTop: 18 }}>
+                  {([
+                    { label: 'Signup requests', value: funnel.scorecardSignup.signupRequests, detail: 'A confirmation email was sent.', href: '/admin/product-events?search=signup_confirmation_sent' },
+                    { label: 'Accounts confirmed', value: funnel.scorecardSignup.confirmedAccounts, detail: 'The email address was confirmed.', href: '/admin/access' },
+                    { label: 'Players connected', value: funnel.scorecardSignup.connectedPlayers, detail: 'A player record is linked to the account.', href: '/admin/access' },
+                    { label: 'Paid Player access', value: funnel.scorecardSignup.paidPlayerMemberships, detail: 'An active Stripe membership includes Player access.', href: '/admin/access?billing=stripe' },
+                  ] as const).map((stage, index, all) => (
+                    <Link key={stage.label} href={stage.href} style={{ ...adminSubPanelStyle, textDecoration: 'none' }}>
+                      <span className="metric-label">{index + 1}. {stage.label}</span>
+                      <strong style={{ fontSize: '2rem', lineHeight: 1 }}>{stage.value.toLocaleString()}</strong>
+                      <span className="subtle-text">{stage.detail}</span>
+                      <span className="badge badge-blue">
+                        {index === 0 ? `Last ${period} days` : all[index - 1].value === 0 ? 'Awaiting prior step' : `${formatPercent(ratio(stage.value, all[index - 1].value))} from prior step`}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </>
             ) : null}
             {!loading && funnel && funnel.scorecardSignup.signupRequests === 0 ? (
               <p className="subtle-text" style={{ marginTop: 12 }}>No scorecard-sourced signup requests yet. Review shared-link visits in site analytics.</p>
