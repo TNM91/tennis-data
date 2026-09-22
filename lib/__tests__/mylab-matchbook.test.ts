@@ -20,6 +20,10 @@ describe('My Lab Matchbook', () => {
     expect(source).toContain("surface: 'mylab_matchbook'")
     expect(source).toContain('followMatchOpponents(match)')
     expect(source).toContain('Watch opponent')
+    expect(source).toContain('shareMatchbookScorecard(match)')
+    expect(source).toContain("eventName: 'scorecard_shared'")
+    expect(source).toContain("url.searchParams.set('via', 'scorecard-share')")
+    expect(source).toContain('>Scorecard</Link>')
     expect(source).toContain('Show fewer matches')
     expect(source).toContain('canUseAdvancedPlayerInsights ? (')
   })
@@ -41,6 +45,8 @@ describe('My Lab Matchbook', () => {
       'matchbookActionStyle',
       'matchbookWatchButtonStyle',
       'matchbookWatchDoneButtonStyle',
+      'matchbookScorecardLinkStyle',
+      'matchbookShareButtonStyle',
       'matchbookMoreButtonStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')

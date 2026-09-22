@@ -130,6 +130,7 @@ export async function GET(request: Request) {
   const captainPilotFollowUps = allCaptainPilotFollowUps.slice(0, 8)
   const publicActions = new Set(events.filter((event) => event.event_name && !CONVERSION_EVENT_NAMES.has(event.event_name)).map((event) => event.user_id).filter(Boolean)).size
   const signupRequests = uniqueUsers(events, 'signup_confirmation_sent')
+  const scorecardShares = uniqueUsers(events, 'scorecard_shared')
   const checkoutClicks = uniqueUsers(events, 'upgrade_checkout_clicked')
   const checkoutStarts = uniqueUsers(events, 'upgrade_checkout_started')
   const checkoutFailures = uniqueUsers(events, 'upgrade_checkout_failed')
@@ -148,6 +149,7 @@ export async function GET(request: Request) {
     funnel: {
       publicActions,
       signupRequests,
+      scorecardShares,
       firstActions,
       checkoutClicks,
       checkoutStarts,
