@@ -396,7 +396,7 @@ export default function AdminGrowthPage() {
                     <strong style={{ fontSize: '2rem', lineHeight: 1 }}>{stage.value.toLocaleString()}</strong>
                     <span className="subtle-text">{stage.detail}</span>
                     <span className="badge badge-blue">
-                      {index === 0 ? `Last ${period} days` : `${formatPercent(ratio(stage.value, all[index - 1].value))} from prior step`}
+                      {index === 0 ? `Last ${period} days` : all[index - 1].value === 0 ? 'Awaiting prior step' : `${formatPercent(ratio(stage.value, all[index - 1].value))} from prior step`}
                     </span>
                   </Link>
                 ))}

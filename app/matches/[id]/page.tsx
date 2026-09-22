@@ -237,6 +237,20 @@ function MatchDetailContent() {
             {match.facility ? <p style={venueStyle}>{match.facility}</p> : null}
           </header>
 
+          {isSharedVisit && authResolved && role === 'public' ? (
+            <section style={nextStepStyle} aria-labelledby="scorecard-next-step-title">
+              <div style={nextStepCopyStyle}>
+                <p style={eyebrowStyle}>Your tennis</p>
+                <h2 id="scorecard-next-step-title" style={sectionTitleStyle}>Keep your match history together</h2>
+                <p style={metaStyle}>Create a free account to connect your player record and explore your public results. {MY_LAB_STORY.upgradeBody}</p>
+              </div>
+              <div style={nextStepActionsStyle}>
+                <Link href={`/join?plan=free&next=%2Fprofile&source=${SCORECARD_SIGNUP_SOURCE}`} style={nextStepPrimaryStyle} onClick={() => track('Scorecard Next Step', { action: 'start_free', kind: scorecardKind })}>Connect my player free</Link>
+                <Link href="/pricing#player_plus" style={backLinkStyle} onClick={() => track('Scorecard Next Step', { action: 'view_player_plan', kind: scorecardKind })}>See Player plan →</Link>
+              </div>
+            </section>
+          ) : null}
+
           {match.home_team && match.away_team ? <section style={surfaceStyle} aria-label="Match teams">
             <h2 style={sectionTitleStyle}>Teams</h2>
             <div style={teamGridStyle}>
@@ -295,20 +309,6 @@ function MatchDetailContent() {
               </>
             ) : null}
           </section>
-
-          {isSharedVisit && authResolved && role === 'public' ? (
-            <section style={nextStepStyle} aria-labelledby="scorecard-next-step-title">
-              <div style={nextStepCopyStyle}>
-                <p style={eyebrowStyle}>Your tennis</p>
-                <h2 id="scorecard-next-step-title" style={sectionTitleStyle}>See more of your match story</h2>
-                <p style={metaStyle}>Create a free account to connect your player record. {MY_LAB_STORY.upgradeBody}</p>
-              </div>
-              <div style={nextStepActionsStyle}>
-                <Link href={`/join?plan=free&next=%2Fprofile&source=${SCORECARD_SIGNUP_SOURCE}`} style={nextStepPrimaryStyle} onClick={() => track('Scorecard Next Step', { action: 'start_free', kind: scorecardKind })}>Connect my player</Link>
-                <Link href="/pricing#player_plus" style={backLinkStyle} onClick={() => track('Scorecard Next Step', { action: 'view_player_plan', kind: scorecardKind })}>See Player plan →</Link>
-              </div>
-            </section>
-          ) : null}
 
           {match.league_name ? <Link href={leagueHref(match)} style={backLinkStyle}>View league results →</Link> : null}
         </>
