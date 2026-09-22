@@ -5,10 +5,11 @@ import { CSSProperties, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
-import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
+import { getMembershipTier, MY_LAB_STORY, type MembershipTierId } from '@/lib/product-story'
 import { isSafeLocalNextHref } from '@/lib/plan-intent'
 import { CAPTAIN_PILOT_PRICE_LABEL } from '@/lib/captain-pilot'
 import { getAvailabilityEntry } from '@/lib/availability-onboarding'
+import { isScorecardSignupIntent } from '@/lib/scorecard-signup'
 
 const PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 
@@ -80,6 +81,15 @@ const WELCOME_STORIES: Record<MembershipTierId | 'captain-pilot', WelcomeStory> 
   },
 }
 
+const SCORECARD_WELCOME_STORY: WelcomeStory = {
+  eyebrow: 'Your free account is ready',
+  title: (name) => name ? `${name}, connect your player.` : 'Connect your player.',
+  body: 'Your account is confirmed. Connect your player record to keep your tennis context together, then explore the matches and teams that matter to you.',
+  access: 'You have Free access now. No card is required.',
+  primaryLabel: 'Connect my player',
+  checklist: ['Find and connect your player record.', 'Review your public match and team history.', MY_LAB_STORY.upgradeBody],
+}
+
 export default function WelcomePage() {
   return <SiteShell active="welcome"><WelcomeContent /></SiteShell>
 }
@@ -92,10 +102,11 @@ function WelcomeContent() {
   const planId: MembershipTierId = PLAN_IDS.includes(planParam as MembershipTierId) ? planParam as MembershipTierId : 'free'
   const isCaptainPilot = planId === 'captain' && searchParams.get('next')?.startsWith('/captain-pilot')
   const storyKey = isCaptainPilot ? 'captain-pilot' : planId
-  const story = WELCOME_STORIES[storyKey]
   const tier = getMembershipTier(planId)
   const fallbackHref = planId === 'free' ? '/explore' : `/upgrade?plan=${planId}`
   const nextHref = isSafeLocalNextHref(searchParams.get('next'), fallbackHref)
+  const isScorecardSignup = isScorecardSignupIntent(searchParams.get('source'), planId, nextHref)
+  const story = isScorecardSignup ? SCORECARD_WELCOME_STORY : WELCOME_STORIES[storyKey]
   const availabilityHref = planId === 'free' ? getAvailabilityEntry(nextHref)?.href || '' : ''
   const email = searchParams.get('email')?.trim() || ''
   const firstName = getFirstName(session?.user.user_metadata)

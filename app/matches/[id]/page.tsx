@@ -9,6 +9,7 @@ import PublicDetailState from '@/app/components/public-detail-state'
 import { useAuth } from '@/app/components/auth-provider'
 import { supabase } from '@/lib/supabase'
 import { MY_LAB_STORY } from '@/lib/product-story'
+import { SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
 import { buildTeamProfileHref } from '@/lib/team-routes'
 
 type MatchRecord = {
@@ -303,7 +304,7 @@ function MatchDetailContent() {
                 <p style={metaStyle}>Create a free account to connect your player record. {MY_LAB_STORY.upgradeBody}</p>
               </div>
               <div style={nextStepActionsStyle}>
-                <Link href="/join?plan=free&next=%2Fprofile" style={nextStepPrimaryStyle} onClick={() => track('Scorecard Next Step', { action: 'start_free', kind: scorecardKind })}>Connect my player</Link>
+                <Link href={`/join?plan=free&next=%2Fprofile&source=${SCORECARD_SIGNUP_SOURCE}`} style={nextStepPrimaryStyle} onClick={() => track('Scorecard Next Step', { action: 'start_free', kind: scorecardKind })}>Connect my player</Link>
                 <Link href="/pricing#player_plus" style={backLinkStyle} onClick={() => track('Scorecard Next Step', { action: 'view_player_plan', kind: scorecardKind })}>See Player plan →</Link>
               </div>
             </section>

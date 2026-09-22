@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { isSafeLocalNextHref } from '@/lib/plan-intent'
 import { type MembershipTierId } from '@/lib/product-story'
 import { getCaptainPilotSourceFromHref, normalizeCaptainPilotSource } from '@/lib/captain-pilot-source'
+import { isScorecardSignupIntent, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
 import {
   buildSignupConfirmationEmail,
   isSignupEmailIntent,
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
   const intent: SignupEmailIntent = body.captainPilot === true && planId === 'captain' ? 'captain-pilot' : planId
   const fallbackNextHref = getDefaultNextHref(planId, intent)
   const nextHref = isSafeLocalNextHref(typeof body.nextHref === 'string' ? body.nextHref : null, fallbackNextHref)
+  const isScorecardSignup = isScorecardSignupIntent(body.acquisitionSource, planId, nextHref)
   const hrefSource = getCaptainPilotSourceFromHref(nextHref)
   const acquisitionSource = hrefSource === 'direct'
     ? normalizeCaptainPilotSource(body.acquisitionSource)
@@ -65,7 +67,7 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'Signup is being prepared. Please try again in a moment.' }, { status: 503 })
   }
 
-  const confirmationRedirect = buildConfirmationRedirect(planId, nextHref, email)
+  const confirmationRedirect = buildConfirmationRedirect(planId, nextHref, email, isScorecardSignup)
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   })
@@ -79,6 +81,7 @@ export async function POST(request: Request) {
         signup_intent: intent,
         selected_plan: planId,
         ...(intent === 'captain-pilot' ? { acquisition_source: acquisitionSource } : {}),
+        ...(isScorecardSignup ? { acquisition_source: SCORECARD_SIGNUP_SOURCE } : {}),
         ...(firstName ? { first_name: firstName } : {}),
       },
     },
@@ -123,6 +126,7 @@ export async function POST(request: Request) {
       metadata: {
         signup_intent: intent,
         ...(intent === 'captain-pilot' ? { acquisitionSource } : {}),
+        ...(isScorecardSignup ? { acquisitionSource: SCORECARD_SIGNUP_SOURCE } : {}),
       },
     })
   if (eventError) {
@@ -146,11 +150,12 @@ function getDefaultNextHref(planId: MembershipTierId, intent: SignupEmailIntent)
   return '/upgrade?plan=full_court&next=%2Fleague-coordinator'
 }
 
-function buildConfirmationRedirect(planId: MembershipTierId, nextHref: string, email: string) {
+function buildConfirmationRedirect(planId: MembershipTierId, nextHref: string, email: string, isScorecardSignup = false) {
   const redirect = new URL('https://tenaceiq.com/welcome')
   redirect.searchParams.set('plan', planId)
   redirect.searchParams.set('next', nextHref)
   redirect.searchParams.set('email', email)
+  if (isScorecardSignup) redirect.searchParams.set('source', SCORECARD_SIGNUP_SOURCE)
   return redirect.toString()
 }
 
