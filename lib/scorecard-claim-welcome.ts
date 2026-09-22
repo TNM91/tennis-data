@@ -14,3 +14,7 @@ export function describeClaimResult(match: ClaimResult) {
 
   return { outcome, opponents }
 }
+
+export function prioritizeClaimMatch<T extends { id: string }>(recent: T[], featured: T | null, limit = 3) {
+  return (featured ? [featured, ...recent.filter((match) => match.id !== featured.id)] : recent).slice(0, limit)
+}
