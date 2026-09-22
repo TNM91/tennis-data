@@ -32,6 +32,45 @@ export function dedupeLeagueResultFeed<T extends {
   })
 }
 
+type LeagueResultEvent = {
+  id: string
+  event_type: string
+  entity_name: string
+  body: string | null
+}
+
+type VisibleMatchResult = {
+  league_name: string | null
+  home_team: string | null
+  away_team: string | null
+  score: string | null
+  match_date: string | null
+}
+
+export function overlappingLeagueResultIds(events: LeagueResultEvent[], matches: VisibleMatchResult[]): Set<string> {
+  const normalize = (value: string | null) => (value ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase()
+  const ids = new Set<string>()
+
+  for (const event of events) {
+    if (event.event_type !== 'league_result_posted' || !event.body) continue
+    const result = /^(.+?) vs (.+?) • (\d+-\d+) lines(?: on (\d{4}-\d{2}-\d{2}))?$/.exec(event.body)
+    if (!result) continue
+
+    const candidates = matches.filter((match) =>
+      normalize(match.league_name) === normalize(event.entity_name) &&
+      normalize(match.home_team) === normalize(result[1]) &&
+      normalize(match.away_team) === normalize(result[2]) &&
+      normalize(match.score) === normalize(result[3]) &&
+      (!result[4] || match.match_date?.slice(0, 10) === result[4]),
+    )
+
+    // Older events have no match date; only collapse them when the match is unambiguous.
+    if (result[4] ? candidates.length > 0 : candidates.length === 1) ids.add(event.id)
+  }
+
+  return ids
+}
+
 export function hasWatchlistResult(score: string | null): boolean {
   return Boolean(score?.trim() && !/^pending$/i.test(score.trim()))
 }

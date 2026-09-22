@@ -57,7 +57,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
-import { dedupeLeagueResultFeed, formatUpcomingWatchlistDate, hasWatchlistResult, isUpcomingWatchlistMatch, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
+import { dedupeLeagueResultFeed, formatUpcomingWatchlistDate, hasWatchlistResult, isUpcomingWatchlistMatch, overlappingLeagueResultIds, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
 import type { ClubRole } from '@/lib/club-workspace'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
@@ -2177,6 +2177,7 @@ function MyLabPageInner() {
 
   const feed = useMemo<FeedItem[]>(() => {
     const items: FeedItem[] = []
+    const visibleMatchResults: MatchRow[] = []
     const followedKeySet = new Set(follows.map((f) => `${f.entity_type}:${f.entity_id}`))
     const followPlayers = follows.filter((f) => f.entity_type === 'player')
     const followTeams = follows.filter((f) => f.entity_type === 'team')
@@ -2290,6 +2291,7 @@ function MyLabPageInner() {
 
       const upcoming = isUpcomingWatchlistMatch(match.match_date, match.score)
       if (!upcoming && !hasWatchlistResult(match.score)) continue
+      if (!upcoming) visibleMatchResults.push(match)
       items.push({
         id: `match-${match.id}`,
         type: 'match',
@@ -2500,7 +2502,13 @@ function MyLabPageInner() {
       if (!deduped.has(item.id)) deduped.set(item.id, item)
     }
 
-    const filtered = Array.from(deduped.values()).filter((item) => feedFilter === 'all' || item.type === feedFilter)
+    const overlappingResultIds = feedFilter === 'all'
+      ? overlappingLeagueResultIds(cloudFeedRows, visibleMatchResults)
+      : new Set<string>()
+    const filtered = Array.from(deduped.values()).filter((item) =>
+      (feedFilter === 'all' || item.type === feedFilter) &&
+      !(item.id.startsWith('cloud-') && overlappingResultIds.has(item.id.slice(6))),
+    )
     return [
       ...sortUpcomingWatchlistFeed(filtered.filter((item) => item.upcoming)).slice(0, 3),
       ...sortWatchlistFeed(filtered.filter((item) => !item.upcoming)).slice(0, 5),
