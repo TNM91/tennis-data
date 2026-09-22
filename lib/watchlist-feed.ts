@@ -26,6 +26,13 @@ export function isUpcomingWatchlistMatch(matchDate: string | null, score: string
   return matchDay.getTime() >= today.getTime()
 }
 
+export function formatUpcomingWatchlistDate(matchDate: string | null): string {
+  const parts = /^([0-9]{4})-([0-9]{2})-([0-9]{2})/.exec(matchDate ?? '')
+  if (!parts) return 'Date unavailable'
+  const day = new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]), 12)
+  return Number.isNaN(day.getTime()) ? 'Date unavailable' : day.toLocaleDateString()
+}
+
 export function sortUpcomingWatchlistFeed<T extends { createdAt: string | null; score: number }>(items: T[]): T[] {
   return [...items].sort((left, right) => {
     const leftTime = left.createdAt ? Date.parse(left.createdAt) : Infinity
