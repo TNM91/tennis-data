@@ -283,7 +283,7 @@ function MatchDetailContent() {
                             <div key={player.id} style={playerClaimRowStyle}>
                               <Link href={`/players/${encodeURIComponent(player.id)}`} style={playerLinkStyle}>{player.name}</Link>
                               {isSharedVisit && authResolved && role === 'public' ? (
-                                <Link href={buildScorecardPlayerClaimHref(player.id)} style={playerClaimLinkStyle} onClick={() => track('Scorecard Player Claim', { action: 'start_free', kind: scorecardKind })}>
+                                <Link href={buildScorecardPlayerClaimHref(player.id, line.id)} style={playerClaimLinkStyle} onClick={() => track('Scorecard Player Claim', { action: 'start_free', kind: scorecardKind })}>
                                   Connect as {player.name}
                                 </Link>
                               ) : null}
@@ -309,7 +309,7 @@ function MatchDetailContent() {
                         <div key={player.id} style={playerClaimRowStyle}>
                           <Link href={`/players/${encodeURIComponent(player.id)}`} style={playerLinkStyle}>{player.name}</Link>
                           {isSharedVisit && authResolved && role === 'public' ? (
-                            <Link href={buildScorecardPlayerClaimHref(player.id)} style={playerClaimLinkStyle} onClick={() => track('Scorecard Player Claim', { action: 'start_free', kind: scorecardKind })}>
+                            <Link href={buildScorecardPlayerClaimHref(player.id, match.id)} style={playerClaimLinkStyle} onClick={() => track('Scorecard Player Claim', { action: 'start_free', kind: scorecardKind })}>
                               Connect as {player.name}
                             </Link>
                           ) : null}

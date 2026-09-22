@@ -8,7 +8,8 @@ const signupRoute = readFileSync(join(process.cwd(), 'app/api/auth/signup/route.
 
 describe('shared scorecard player claim flow', () => {
   it('offers a player-specific signup path and preselects the validated player after confirmation', () => {
-    expect(matchPage).toContain('buildScorecardPlayerClaimHref(player.id)')
+    expect(matchPage).toContain('buildScorecardPlayerClaimHref(player.id, line.id)')
+    expect(matchPage).toContain('buildScorecardPlayerClaimHref(player.id, match.id)')
     expect(matchPage).toContain('Connect as {player.name}')
     expect(signupRoute).toContain('scorecard_claim_player_id: scorecardClaimPlayerId')
     expect(signupRoute).toContain('scorecardClaimPlayerId }')

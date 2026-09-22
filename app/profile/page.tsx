@@ -27,8 +27,8 @@ import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } 
 import { normalizeMixedPairRole, type MixedPairRole } from '@/lib/player-eligibility'
 import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
 import { addWorkflowResult, getSafeWorkflowReturnTo } from '@/lib/workflow-return'
-import { getScorecardClaimPlayerId, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
-import { describeClaimResult, type ClaimResult } from '@/lib/scorecard-claim-welcome'
+import { getScorecardClaimMatchId, getScorecardClaimPlayerId, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
+import { describeClaimResult, prioritizeClaimMatch, type ClaimResult } from '@/lib/scorecard-claim-welcome'
 
 type PreferredRole = 'singles' | 'doubles' | 'both'
 type AvailabilityDefault = 'ask-weekly' | 'usually-available' | 'limited'
@@ -298,7 +298,9 @@ function ProfilePageInner() {
   const [profileAwards, setProfileAwards] = useState<TiqAwardRecord[]>([])
   const [profileSource, setProfileSource] = useState<LoadUserProfileLinkResult['source']>('none')
   const [scorecardClaimPlayerId, setScorecardClaimPlayerId] = useState<string | null>(null)
+  const [scorecardClaimMatchId, setScorecardClaimMatchId] = useState<string | null>(null)
   const [claimResults, setClaimResults] = useState<ClaimResultRow[]>([])
+  const [claimMatch, setClaimMatch] = useState<ClaimResultRow | null>(null)
   const [claimResultsLoading, setClaimResultsLoading] = useState(false)
   const [claimResultsError, setClaimResultsError] = useState(false)
 
@@ -307,6 +309,7 @@ function ProfilePageInner() {
     const params = new URLSearchParams(window.location.search)
     setCaptainSetupEntry(params.get('setup') === 'captain')
     setScorecardClaimPlayerId(getScorecardClaimPlayerId(`/profile${window.location.search}`))
+    setScorecardClaimMatchId(getScorecardClaimMatchId(`/profile${window.location.search}`))
     if (params.get('billing') === 'returned') {
       setBillingMessage('Billing management closed. Your access will reflect the latest Stripe updates.')
     }
@@ -381,22 +384,33 @@ function ProfilePageInner() {
     async function loadClaimResults() {
       setClaimResultsLoading(true)
       setClaimResultsError(false)
-      const { data, error } = await supabase
+      setClaimMatch(null)
+      const recentRequest = supabase
         .from('matches')
         .select('id,match_date,match_type,score,winner_side,claim_player:match_players!inner(side),participants:match_players(side,players(name))')
         .eq('claim_player.player_id', connectedScorecardClaimId)
         .not('line_number', 'is', null)
         .order('match_date', { ascending: false })
         .limit(3)
+      const featuredRequest = scorecardClaimMatchId
+        ? supabase
+          .from('matches')
+          .select('id,match_date,match_type,score,winner_side,claim_player:match_players!inner(side),participants:match_players(side,players(name))')
+          .eq('id', scorecardClaimMatchId)
+          .eq('claim_player.player_id', connectedScorecardClaimId)
+          .maybeSingle()
+        : Promise.resolve({ data: null, error: null })
+      const [{ data, error }, { data: featuredData }] = await Promise.all([recentRequest, featuredRequest])
       if (!active) return
       setClaimResults(error ? [] : (data ?? []) as ClaimResultRow[])
+      setClaimMatch((featuredData ?? null) as ClaimResultRow | null)
       setClaimResultsError(Boolean(error))
       setClaimResultsLoading(false)
     }
 
     void loadClaimResults()
     return () => { active = false }
-  }, [connectedScorecardClaimId, userId])
+  }, [connectedScorecardClaimId, scorecardClaimMatchId, userId])
 
   useEffect(() => subscribeToTeamConnectionsChanged(() => {
     if (!userId) return
@@ -739,6 +753,7 @@ function ProfilePageInner() {
 
   const profileComplete = Boolean(profile?.linked_player_id || profile?.linked_player_name)
   const showScorecardClaimWelcome = Boolean(connectedScorecardClaimId && !captainSetupEntry)
+  const visibleClaimResults = prioritizeClaimMatch(claimResults, claimMatch)
   const signedIn = Boolean(userId || session?.user?.id)
   const authPending = !authResolved && !signedIn
   const primaryRating = linkedPlayer || selectedPlayer
@@ -883,16 +898,17 @@ function ProfilePageInner() {
           <div>
             <span style={identitySetupEyebrowStyle}>Your player is connected</span>
             <h2 style={sectionTitleStyle}>Your results, ready to explore.</h2>
-            <p style={heroTextStyle}>Open a scorecard to revisit the match you played.</p>
+            <p style={heroTextStyle}>{claimMatch ? 'Start with the scorecard you opened, then explore your recent results.' : 'Open a scorecard to revisit the match you played.'}</p>
           </div>
-          {claimResultsLoading ? <p style={heroTextStyle}>Loading your recent results...</p> : claimResultsError ? (
+          {claimResultsLoading ? <p style={heroTextStyle}>Loading your recent results...</p> : claimResultsError && !visibleClaimResults.length ? (
             <p style={heroTextStyle}>Recent results could not load. You can still open your public player profile.</p>
-          ) : claimResults.length ? (
+          ) : visibleClaimResults.length ? (
             <div style={claimResultsStyle}>
-              {claimResults.map((match) => {
+              {visibleClaimResults.map((match) => {
                 const { outcome, opponents } = describeClaimResult(match)
                 return (
-                  <Link key={match.id} href={`/matches/${encodeURIComponent(match.id)}`} style={claimResultStyle}>
+                  <Link key={match.id} href={`/matches/${encodeURIComponent(match.id)}`} style={match.id === claimMatch?.id ? { ...claimResultStyle, borderColor: 'rgba(155,225,29,0.45)' } : claimResultStyle}>
+                    {match.id === claimMatch?.id ? <span style={identitySetupEyebrowStyle}>The scorecard you opened</span> : null}
                     <strong>{outcome} · {match.score || 'Score pending'}</strong>
                     {opponents.length ? <span>vs {opponents.join(' & ')}</span> : null}
                     <span>{[match.match_date, match.match_type].filter(Boolean).join(' · ') || 'Match scorecard'}</span>
