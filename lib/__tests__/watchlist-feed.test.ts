@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dedupeLeagueResultFeed, formatUpcomingWatchlistDate, hasWatchlistResult, isUpcomingWatchlistMatch, overlappingLeagueResultIds, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
+import { dedupeLeagueResultFeed, formatUpcomingWatchlistDate, hasWatchlistResult, isLeagueWatchlistEvent, isUpcomingWatchlistMatch, overlappingLeagueResultIds, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
 
 describe('watchlist feed ordering', () => {
   it('shows dated results before standing snapshots, regardless of editorial score', () => {
@@ -64,5 +64,11 @@ describe('watchlist feed ordering', () => {
     ]
     expect([...overlappingLeagueResultIds(events, [match])]).toEqual(['same', 'legacy'])
     expect([...overlappingLeagueResultIds(events, [match, { ...match, match_date: '2026-09-27' }])]).toEqual(['same', 'different-day'])
+  })
+
+  it('places imported league results in the League filter', () => {
+    expect(isLeagueWatchlistEvent('league_result_posted')).toBe(true)
+    expect(isLeagueWatchlistEvent('league_result_burst')).toBe(true)
+    expect(isLeagueWatchlistEvent('match_result')).toBe(false)
   })
 })

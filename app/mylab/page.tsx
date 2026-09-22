@@ -57,7 +57,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
-import { dedupeLeagueResultFeed, formatUpcomingWatchlistDate, hasWatchlistResult, isUpcomingWatchlistMatch, overlappingLeagueResultIds, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
+import { dedupeLeagueResultFeed, formatUpcomingWatchlistDate, hasWatchlistResult, isLeagueWatchlistEvent, isUpcomingWatchlistMatch, overlappingLeagueResultIds, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
 import type { ClubRole } from '@/lib/club-workspace'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
@@ -2194,7 +2194,7 @@ function MyLabPageInner() {
             ? 'achievement'
             : row.event_type === 'team'
               ? 'team'
-              : row.event_type === 'league'
+            : isLeagueWatchlistEvent(row.event_type)
                 ? 'league'
                 : row.event_type === 'community'
                   ? 'community'
