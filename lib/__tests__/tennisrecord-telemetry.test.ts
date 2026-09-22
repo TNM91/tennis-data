@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createRatingTimingObserver, emitImporterTelemetry, sourceTransportFailure, type SourceAttemptSample } from '../tennisrecord/telemetry'
+import { createRatingTimingObserver, emitImporterTelemetry, sourceTransportCodes, sourceTransportFailure, type SourceAttemptSample } from '../tennisrecord/telemetry'
 import { fetchTennisRecordPage, TennisRecordCheckpointBudgetError } from '../tennisrecord/collector'
 
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
@@ -21,12 +21,17 @@ describe('sanitized source attempt timings', () => {
     [new DOMException('private source URL', 'TimeoutError'), 'timeout'],
     [{ cause: { code: 'EAI_AGAIN' } }, 'dns'],
     [{ cause: { code: 'ECONNRESET' } }, 'connection'],
+    [{ cause: { errors: [{ code: 'ENETUNREACH' }, { code: 'ETIMEDOUT' }] } }, 'connection'],
     [{ cause: { code: 'ERR_TLS_CERT_ALTNAME_INVALID' } }, 'tls'],
     [{ code: 'UND_ERR_BODY_TIMEOUT' }, 'timeout'],
     [{ message: 'sensitive source content', code: 'UNEXPECTED_SECRET' }, 'network'],
     [null, 'network'],
   ])('categorizes without retaining arbitrary error details', (error, category) => {
     expect(sourceTransportFailure(error)).toBe(category)
+  })
+
+  it('reports only allowlisted codes from nested fetch errors', () => {
+    expect(sourceTransportCodes({ cause: { errors: [{ code: 'ENETUNREACH' }, { code: 'UNEXPECTED_SECRET' }] } })).toEqual(['ENETUNREACH'])
   })
 
   it('records failed and successful attempts separately without changing retries', async () => {
@@ -42,10 +47,10 @@ describe('sanitized source attempt timings', () => {
     await expect(page).resolves.toMatchObject({ status: 200, transientRetries: 1 })
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(samples.mock.calls.map(([sample]) => sample)).toEqual([
-      { attempt: 1, outcome: 'dns', status: null, pacing_ms: 1000, fetch_ms: 0 },
+      { attempt: 1, outcome: 'dns', status: null, pacing_ms: 1000, fetch_ms: 0, transport_codes: ['ENOTFOUND'] },
       { attempt: 2, outcome: 'success', status: 200, pacing_ms: 1000, fetch_ms: 37 },
     ])
-    expect(JSON.stringify(samples.mock.calls)).not.toMatch(/Private|private|playername|tennisrecord.com|ENOTFOUND/)
+    expect(JSON.stringify(samples.mock.calls)).not.toMatch(/Private|private|playername|tennisrecord.com/)
   })
 
   it('does not turn a logging failure into a source retry or block bypass', async () => {

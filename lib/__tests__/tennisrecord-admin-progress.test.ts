@@ -12,6 +12,7 @@ const globalStyles = read('app/globals.css')
 describe('TennisRecord Admin import progress', () => {
   it('returns scoped campaign queue states for an active historical import', () => {
     expect(service).toContain('campaignProgress: {')
+    expect(service).toContain('sourceOutage: sourceOutageFromSettings(collectorSettings)')
     expect(service).toContain('weeklyProgress: {')
     expect(service).toContain('Coverage aggregates are intentionally deferred from this heartbeat.')
     expect(service).not.toContain("service.from('tennisrecord_admin_coverage_summary')")
@@ -77,6 +78,9 @@ describe('TennisRecord Admin import progress', () => {
     expect(adminPage).toContain('Checking live importer status')
     expect(adminPage).toContain('This is not a pause.')
     expect(adminPage).toContain('Safety cooldown:')
+    expect(adminPage).toContain('Historical source import stalled')
+    expect(adminPage).toContain('Recent pulls waiting for source')
+    expect(adminPage).toContain('Saved-page replay does not mean new pages were imported')
   })
 
   it('caches costly Admin status reads and keeps the importer available', () => {
