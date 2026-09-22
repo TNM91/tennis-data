@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sortWatchlistFeed } from '@/lib/watchlist-feed'
+import { hasWatchlistResult, isUpcomingWatchlistMatch, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
 
 describe('watchlist feed ordering', () => {
   it('shows dated results before standing snapshots, regardless of editorial score', () => {
@@ -26,5 +26,20 @@ describe('watchlist feed ordering', () => {
     expect(sortWatchlistFeed(items).map((item) => item.id)).toEqual([
       'more-relevant', 'less-relevant', 'invalid-date',
     ])
+  })
+
+  it('keeps unscored future matches separate from results and orders the next match first', () => {
+    const now = new Date(2026, 8, 21, 15)
+    expect(isUpcomingWatchlistMatch('2026-09-27', null, now)).toBe(true)
+    expect(isUpcomingWatchlistMatch('2026-09-21', 'Pending', now)).toBe(true)
+    expect(isUpcomingWatchlistMatch('2026-09-20', null, now)).toBe(false)
+    expect(isUpcomingWatchlistMatch('2026-09-27', '6-4 6-2', now)).toBe(false)
+    expect(hasWatchlistResult('6-4 6-2')).toBe(true)
+    expect(hasWatchlistResult('Pending')).toBe(false)
+    expect(hasWatchlistResult(null)).toBe(false)
+    expect(sortUpcomingWatchlistFeed([
+      { createdAt: '2026-10-06', score: 94 },
+      { createdAt: '2026-09-27', score: 94 },
+    ]).map((item) => item.createdAt)).toEqual(['2026-09-27', '2026-10-06'])
   })
 })

@@ -57,7 +57,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
-import { sortWatchlistFeed } from '@/lib/watchlist-feed'
+import { hasWatchlistResult, isUpcomingWatchlistMatch, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
 import type { ClubRole } from '@/lib/club-workspace'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
@@ -127,6 +127,7 @@ type FeedItem = {
   entityName: string
   createdAt: string | null
   freshnessLabel?: string
+  upcoming?: boolean
   score: number
   badge: string
   accent: 'blue' | 'green' | 'violet'
@@ -2287,11 +2288,15 @@ function MyLabPageInner() {
         .map((mp) => playerMap.get(mp.player_id)?.name)
         .filter(Boolean) as string[]
 
+      const upcoming = isUpcomingWatchlistMatch(match.match_date, match.score)
+      if (!upcoming && !hasWatchlistResult(match.score)) continue
       items.push({
         id: `match-${match.id}`,
         type: 'match',
         title: `${homeTeam || 'Team A'} vs ${awayTeam || 'Team B'}`,
-        body: `${leagueName || 'League match'}${flight ? ` - ${flight}` : ''}. Score: ${match.score || 'Pending'}. Players: ${spotlightPlayers.join(', ') || 'Lineups unavailable'}.`,
+        body: upcoming
+          ? `${leagueName || 'League match'}${flight ? ` - ${flight}` : ''}. ${spotlightPlayers.length ? `Players: ${spotlightPlayers.join(', ')}.` : 'Lineups are not available yet.'}`
+          : `${leagueName || 'League match'}${flight ? ` - ${flight}` : ''}. Score: ${match.score || 'Pending'}. Players: ${spotlightPlayers.join(', ') || 'Lineups unavailable'}.`,
         entityType: containsFollowedLeague ? 'league' : containsFollowedTeam ? 'team' : 'player',
         entityId: containsFollowedLeague
           ? getFollowedEntityId(followLeagues, 'league', [leagueId])
@@ -2300,9 +2305,10 @@ function MyLabPageInner() {
             : (playersInMatch[0]?.player_id ?? null),
         entityName: leagueName || homeTeam || 'Watched match',
         createdAt: match.match_date,
+        upcoming,
         freshnessLabel: 'Match date unavailable',
         score: 94,
-        badge: 'Match',
+        badge: upcoming ? 'Upcoming' : 'Match',
         accent: accentForType('match'),
       })
     }
@@ -2494,9 +2500,11 @@ function MyLabPageInner() {
       if (!deduped.has(item.id)) deduped.set(item.id, item)
     }
 
-    return sortWatchlistFeed(
-      Array.from(deduped.values()).filter((item) => feedFilter === 'all' || item.type === feedFilter),
-    ).slice(0, 30)
+    const filtered = Array.from(deduped.values()).filter((item) => feedFilter === 'all' || item.type === feedFilter)
+    return [
+      ...sortUpcomingWatchlistFeed(filtered.filter((item) => item.upcoming)).slice(0, 3),
+      ...sortWatchlistFeed(filtered.filter((item) => !item.upcoming)).slice(0, 5),
+    ]
   }, [
     follows,
     players,
@@ -2515,6 +2523,7 @@ function MyLabPageInner() {
     followedPlayerNameSet,
     tiqLeagueContextById,
   ])
+  const upcomingFeedCount = feed.filter((item) => item.upcoming).length
 
   const followedPlayerSignals = useMemo(() => {
     return follows
@@ -4953,7 +4962,7 @@ function MyLabPageInner() {
             <div style={sectionHeaderStyle}>
               <div>
                 <p style={sectionKickerStyle}>Your watchlist</p>
-                <h2 style={sectionTitleStyle}>Recent results and current reads</h2>
+                <h2 style={sectionTitleStyle}>Coming up and latest updates</h2>
               </div>
               <div style={filterRowStyle}>
                 <GhostButton onClick={() => setRefreshTick((current) => current + 1)}>
@@ -4992,31 +5001,35 @@ function MyLabPageInner() {
               </div>
             ) : (
               <div style={feedListStyle}>
-                {feed.slice(0, 5).map((item) => (
-                  <article key={item.id} style={feedCardStyle(item.accent)}>
-                    <div style={feedTopRowStyle}>
-                      <span style={badgeForAccent(item.accent)}>{item.badge}</span>
-                      <span style={feedTimeStyle}>{item.createdAt ? timeAgo(item.createdAt) : item.freshnessLabel || 'Current context'}</span>
-                    </div>
-                    <h3 style={feedTitleStyle}>{item.title}</h3>
-                    <p style={feedBodyStyle}>{item.body}</p>
-                    <div style={feedMetaRowStyle}>
-                      <span style={pillSlateStyle}>{item.entityName}</span>
-                      {item.entityType === 'player' && item.entityId ? (
-                        <Link href={`/players/${item.entityId}`} style={feedLinkStyle}>
-                          Open
-                        </Link>
-                      ) : item.entityType === 'team' && item.entityId ? (
-                        <Link href={buildTeamHrefFromEntityId(item.entityId)} style={feedLinkStyle}>
-                          Open
-                        </Link>
-                      ) : item.entityType === 'league' && item.entityId ? (
-                        <Link href={buildLeagueHrefFromEntityId(item.entityId)} style={feedLinkStyle}>
-                          Open
-                        </Link>
-                      ) : null}
-                    </div>
-                  </article>
+                {feed.map((item, index) => (
+                  <React.Fragment key={item.id}>
+                    {index === 0 && item.upcoming ? <h3 style={sectionTitleStyle}>Coming up</h3> : null}
+                    {index === upcomingFeedCount && !item.upcoming ? <h3 style={sectionTitleStyle}>Latest updates</h3> : null}
+                    <article style={feedCardStyle(item.accent)}>
+                      <div style={feedTopRowStyle}>
+                        <span style={badgeForAccent(item.accent)}>{item.badge}</span>
+                        <span style={feedTimeStyle}>{item.createdAt ? timeAgo(item.createdAt) : item.freshnessLabel || 'Current context'}</span>
+                      </div>
+                      <h3 style={feedTitleStyle}>{item.title}</h3>
+                      <p style={feedBodyStyle}>{item.body}</p>
+                      <div style={feedMetaRowStyle}>
+                        <span style={pillSlateStyle}>{item.entityName}</span>
+                        {item.entityType === 'player' && item.entityId ? (
+                          <Link href={`/players/${item.entityId}`} style={feedLinkStyle}>
+                            Open
+                          </Link>
+                        ) : item.entityType === 'team' && item.entityId ? (
+                          <Link href={buildTeamHrefFromEntityId(item.entityId)} style={feedLinkStyle}>
+                            Open
+                          </Link>
+                        ) : item.entityType === 'league' && item.entityId ? (
+                          <Link href={buildLeagueHrefFromEntityId(item.entityId)} style={feedLinkStyle}>
+                            Open
+                          </Link>
+                        ) : null}
+                      </div>
+                    </article>
+                  </React.Fragment>
                 ))}
               </div>
             )}

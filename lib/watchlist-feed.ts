@@ -13,3 +13,23 @@ export function sortWatchlistFeed<T extends { createdAt: string | null; score: n
     return b.score - a.score
   })
 }
+
+export function hasWatchlistResult(score: string | null): boolean {
+  return Boolean(score?.trim() && !/^pending$/i.test(score.trim()))
+}
+
+export function isUpcomingWatchlistMatch(matchDate: string | null, score: string | null, now = new Date()): boolean {
+  if (!matchDate || hasWatchlistResult(score)) return false
+  const matchDay = new Date(`${matchDate.slice(0, 10)}T00:00:00`)
+  if (Number.isNaN(matchDay.getTime())) return false
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return matchDay.getTime() >= today.getTime()
+}
+
+export function sortUpcomingWatchlistFeed<T extends { createdAt: string | null; score: number }>(items: T[]): T[] {
+  return [...items].sort((left, right) => {
+    const leftTime = left.createdAt ? Date.parse(left.createdAt) : Infinity
+    const rightTime = right.createdAt ? Date.parse(right.createdAt) : Infinity
+    return leftTime - rightTime || right.score - left.score
+  })
+}
