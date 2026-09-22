@@ -23,6 +23,8 @@ describe('sanitized source attempt timings', () => {
     [{ cause: { code: 'ECONNRESET' } }, 'connection'],
     [{ cause: { errors: [{ code: 'ENETUNREACH' }, { code: 'ETIMEDOUT' }] } }, 'connection'],
     [{ cause: { code: 'ERR_TLS_CERT_ALTNAME_INVALID' } }, 'tls'],
+    [{ cause: { code: 'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE' } }, 'tls'],
+    [{ cause: { code: 'ERR_SSL_TLSV1_ALERT_UNKNOWN_CA' } }, 'tls'],
     [{ code: 'UND_ERR_BODY_TIMEOUT' }, 'timeout'],
     [{ message: 'sensitive source content', code: 'UNEXPECTED_SECRET' }, 'network'],
     [null, 'network'],
@@ -32,6 +34,8 @@ describe('sanitized source attempt timings', () => {
 
   it('reports only allowlisted codes from nested fetch errors', () => {
     expect(sourceTransportCodes({ cause: { errors: [{ code: 'ENETUNREACH' }, { code: 'UNEXPECTED_SECRET' }] } })).toEqual(['ENETUNREACH'])
+    expect(sourceTransportCodes({ cause: { code: 'ERR_SSL_TLSV1_ALERT_UNKNOWN_CA' } })).toEqual(['ERR_SSL_TLSV1_ALERT_UNKNOWN_CA'])
+    expect(sourceTransportCodes({ cause: { code: 'ERR_SSL_PRIVATE_URL=https://example.com' } })).toEqual([])
   })
 
   it('records failed and successful attempts separately without changing retries', async () => {

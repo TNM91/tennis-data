@@ -15,7 +15,16 @@ const SAFE_TRANSPORT_CODES = new Set([
   'ENETUNREACH', 'EHOSTUNREACH', 'UND_ERR_SOCKET', 'UND_ERR_CONNECT',
   'CERT_HAS_EXPIRED', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
   'ERR_TLS_CERT_ALTNAME_INVALID', 'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR',
+  'ERR_SSL_SSLV3_ALERT_HANDSHAKE_FAILURE', 'ERR_SSL_TLSV1_ALERT_ACCESS_DENIED',
+  'ERR_SSL_TLSV1_ALERT_HANDSHAKE_FAILURE', 'ERR_SSL_WRONG_VERSION_NUMBER',
+  'ERR_SSL_UNEXPECTED_EOF_WHILE_READING', 'ERR_SSL_EE_KEY_TOO_SMALL',
+  'ERR_TLS_HANDSHAKE_TIMEOUT',
 ])
+
+function isSafeTransportCode(code: string) {
+  return SAFE_TRANSPORT_CODES.has(code)
+    || (/^(ERR_SSL|ERR_TLS|UND_ERR)_[A-Z0-9_]{1,64}$/.test(code) && code.length <= 80)
+}
 
 /** Inspect wrapped and aggregate fetch causes, but emit only known Node error codes. */
 export function sourceTransportCodes(error: unknown): string[] {
@@ -25,7 +34,7 @@ export function sourceTransportCodes(error: unknown): string[] {
     if (!value || typeof value !== 'object' || seen.has(value) || depth > 3) return
     seen.add(value)
     const item = value as { code?: unknown; cause?: unknown; errors?: unknown }
-    if (typeof item.code === 'string' && SAFE_TRANSPORT_CODES.has(item.code)) found.add(item.code)
+    if (typeof item.code === 'string' && isSafeTransportCode(item.code)) found.add(item.code)
     inspect(item.cause, depth + 1)
     if (Array.isArray(item.errors)) item.errors.slice(0, 4).forEach(child => inspect(child, depth + 1))
   }
@@ -40,7 +49,7 @@ export function sourceTransportFailure(error: unknown): SourceAttemptSample['out
   if (item?.name === 'TimeoutError' || item?.name === 'AbortError' || ['ETIMEDOUT', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT'].includes(code || '')) return 'timeout'
   if (['ENOTFOUND', 'EAI_AGAIN'].includes(code || '')) return 'dns'
   if (['ECONNRESET', 'ECONNREFUSED', 'ECONNABORTED', 'EPIPE', 'ENETUNREACH', 'EHOSTUNREACH', 'UND_ERR_SOCKET', 'UND_ERR_CONNECT'].includes(code || '')) return 'connection'
-  if (['CERT_HAS_EXPIRED', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'ERR_TLS_CERT_ALTNAME_INVALID', 'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR'].includes(code || '')) return 'tls'
+  if (code && (code.startsWith('ERR_SSL_') || code.startsWith('ERR_TLS_') || ['CERT_HAS_EXPIRED', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'].includes(code))) return 'tls'
   return 'network'
 }
 
