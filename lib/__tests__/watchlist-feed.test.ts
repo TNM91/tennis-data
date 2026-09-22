@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dedupeLeagueResultFeed, formatUpcomingWatchlistDate, hasWatchlistResult, isUpcomingWatchlistMatch, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
+import { dedupeLeagueResultFeed, formatUpcomingWatchlistDate, hasWatchlistResult, isUpcomingWatchlistMatch, overlappingLeagueResultIds, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
 
 describe('watchlist feed ordering', () => {
   it('shows dated results before standing snapshots, regardless of editorial score', () => {
@@ -51,5 +51,18 @@ describe('watchlist feed ordering', () => {
     const anotherLeague = { ...row, entity_id: 'league-2' }
     const otherUpdate = { ...row, event_type: 'match_result' }
     expect(dedupeLeagueResultFeed([row, repeated, anotherDay, anotherLeague, otherUpdate])).toEqual([row, anotherDay, anotherLeague, otherUpdate])
+  })
+
+  it('collapses league events only when a visible result identifies the same match', () => {
+    const match = { league_name: 'Fall League', home_team: 'Aces', away_team: 'Volleys', score: '3-2', match_date: '2026-09-20' }
+    const event = { id: 'same', event_type: 'league_result_posted', entity_name: 'Fall League', body: 'Aces vs Volleys • 3-2 lines on 2026-09-20' }
+    const events = [
+      event,
+      { ...event, id: 'different-day', body: 'Aces vs Volleys • 3-2 lines on 2026-09-27' },
+      { ...event, id: 'different-score', body: 'Aces vs Volleys • 2-3 lines on 2026-09-20' },
+      { ...event, id: 'legacy', body: 'Aces vs Volleys • 3-2 lines' },
+    ]
+    expect([...overlappingLeagueResultIds(events, [match])]).toEqual(['same', 'legacy'])
+    expect([...overlappingLeagueResultIds(events, [match, { ...match, match_date: '2026-09-27' }])]).toEqual(['same', 'different-day'])
   })
 })
