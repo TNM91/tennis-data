@@ -27,6 +27,7 @@ import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } 
 import { normalizeMixedPairRole, type MixedPairRole } from '@/lib/player-eligibility'
 import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
 import { addWorkflowResult, getSafeWorkflowReturnTo } from '@/lib/workflow-return'
+import { getScorecardClaimPlayerId } from '@/lib/scorecard-signup'
 
 type PreferredRole = 'singles' | 'doubles' | 'both'
 type AvailabilityDefault = 'ask-weekly' | 'usually-available' | 'limited'
@@ -328,9 +329,16 @@ function ProfilePageInner() {
       setMatchPlayers((matchPlayersRes.data || []) as MatchPlayerRow[])
       setProfile(nextProfile)
       setProfileSource(profileRes.source)
-      setSelectedPlayerId(nextProfile?.linked_player_id || '')
+      const requestedPlayerId = getScorecardClaimPlayerId(`/profile${window.location.search}`)
+      const requestedPlayer = !nextProfile?.linked_player_id && !nextProfile?.linked_player_name && requestedPlayerId
+        ? playersRes.find((player) => player.id === requestedPlayerId) || null
+        : null
+      setSelectedPlayerId(nextProfile?.linked_player_id || requestedPlayer?.id || '')
       setTypedPlayerName(nextProfile?.linked_player_id ? '' : nextProfile?.linked_player_name || '')
       setMixedPairRole(normalizeMixedPairRole(playersRes.find((player) => player.id === nextProfile?.linked_player_id)?.mixed_pair_role))
+      if (requestedPlayer) {
+        setMessage(`${requestedPlayer.name} is ready from the shared scorecard. Confirm this is you, then save your player.`)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load your profile.')
     } finally {
