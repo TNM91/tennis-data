@@ -17,6 +17,12 @@ import {
   type GrowthEventRow,
 } from '@/lib/admin-growth-funnel'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
+import {
+  buildScorecardSignupFunnel,
+  getScorecardSignupIds,
+  type ScorecardSignupIdentity,
+  type ScorecardSignupProfile,
+} from '@/lib/scorecard-growth-funnel'
 
 export const runtime = 'nodejs'
 
@@ -96,6 +102,16 @@ export async function GET(request: Request) {
   const captainPilotSources = buildCaptainPilotSourceBreakdown(events, captainPilotRows)
   const unclaimedSignupProfileIds = getCaptainPilotUnclaimedSignupProfileIds(events, captainPilotRows)
   const signupIdentities = await loadCaptainPilotSignupIdentities(service, unclaimedSignupProfileIds)
+  const scorecardSignupIds = getScorecardSignupIds(events)
+  const scorecardSignupRows = await loadScorecardSignupRows(service, scorecardSignupIds)
+  if (!scorecardSignupRows) {
+    return Response.json({ ok: false, message: 'Scorecard signup progress could not be loaded.' }, { status: 500 })
+  }
+  const scorecardSignup = buildScorecardSignupFunnel(
+    scorecardSignupIds,
+    scorecardSignupRows.identities,
+    scorecardSignupRows.profiles,
+  )
   const activatedProfileIds = [...new Set(
     captainPilotRows
       .filter((row) => row.status === 'converted')
@@ -142,8 +158,42 @@ export async function GET(request: Request) {
       captainPilotFollowUps,
       captainPilotFollowUpCount: allCaptainPilotFollowUps.length,
       captainPilotActivation: captainPilotActivation.value,
+      scorecardSignup,
     },
   })
+}
+
+async function loadScorecardSignupRows(
+  service: ReturnType<typeof createGrowthServiceClient>,
+  signupIds: string[],
+): Promise<{ identities: ScorecardSignupIdentity[]; profiles: ScorecardSignupProfile[] } | null> {
+  const identities: ScorecardSignupIdentity[] = []
+  const profiles: ScorecardSignupProfile[] = []
+
+  try {
+    for (let offset = 0; offset < signupIds.length; offset += 100) {
+      const ids = signupIds.slice(offset, offset + 100)
+      const { data, error } = await service.from('profiles')
+        .select('id,linked_player_id,stripe_subscription_id,player_plus_subscription_active,player_plus_subscription_status,player_plus_access_expires_at')
+        .in('id', ids)
+      if (error) throw error
+      profiles.push(...((data ?? []) as ScorecardSignupProfile[]))
+    }
+
+    for (let offset = 0; offset < signupIds.length; offset += 10) {
+      const batch = await Promise.all(signupIds.slice(offset, offset + 10).map(async (id) => {
+        const { data, error } = await service.auth.admin.getUserById(id)
+        if (error && error.status !== 404) throw error
+        return { id, emailConfirmed: Boolean(data.user?.email_confirmed_at) }
+      }))
+      identities.push(...batch)
+    }
+  } catch (error) {
+    console.error('Scorecard signup progress could not be loaded.', error)
+    return null
+  }
+
+  return { identities, profiles }
 }
 
 async function loadGrowthEvents(service: SupabaseClient, since: string): Promise<GrowthEventRow[]> {
