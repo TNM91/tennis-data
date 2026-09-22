@@ -1219,6 +1219,9 @@ function LeagueDetailContent() {
                           <div style={subMeta}>
                             {[leagueInfo.flight, leagueInfo.district].filter(Boolean).join(' | ')}
                           </div>
+                          <Link href={`/matches/${encodeURIComponent(row.id)}`} style={matchDetailLinkStyle}>
+                            View match →
+                          </Link>
                         </div>
                       </div>
                     )
@@ -2495,6 +2498,14 @@ const scoreText: CSSProperties = {
   lineHeight: 1.2,
   fontWeight: 900,
   overflowWrap: 'anywhere',
+}
+
+const matchDetailLinkStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 14,
+  fontWeight: 800,
+  textDecoration: 'underline',
+  textUnderlineOffset: 3,
 }
 
 const subMeta: CSSProperties = {

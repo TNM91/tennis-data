@@ -141,7 +141,7 @@ function MatchDetailContent() {
 
   return (
     <main style={pageStyle}>
-      <Link href="/mylab" style={backLinkStyle}>← My Lab</Link>
+      <Link href="/compete/results" style={backLinkStyle}>← Explore results</Link>
       {loading && matchId ? (
         <PublicDetailState eyebrow="Match" title="Loading match" body="Getting the score and available line details." tone="loading" visual="matchup" />
       ) : error || !match ? (

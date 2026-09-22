@@ -2733,6 +2733,9 @@ function TeamPageContent() {
                               {match.match_type ? <span>{match.match_type[0].toUpperCase() + match.match_type.slice(1)}</span> : null}
                               {match.score ? <strong>Score {match.score}</strong> : null}
                             </div>
+                            <Link href={`/matches/${encodeURIComponent(match.id)}`} style={matchDetailLinkStyle}>
+                              View match →
+                            </Link>
                             {existingReport ? (
                               <span style={reportStatusBadgeStyle(existingReport.status)}>
                                 {getReportStatusLabel(existingReport.status)}
@@ -2804,6 +2807,9 @@ function TeamPageContent() {
                       <td style={tableCell}>
                         <div style={scoreCellStackStyle}>
                           <span>{match.score ?? '--'}</span>
+                          <Link href={`/matches/${encodeURIComponent(match.id)}`} style={matchDetailLinkStyle}>
+                            View match →
+                          </Link>
                           {existingReport ? (
                             <span style={reportStatusBadgeStyle(existingReport.status)}>
                               {getReportStatusLabel(existingReport.status)}
@@ -4989,6 +4995,14 @@ const scoreCellStackStyle: CSSProperties = {
   minWidth: 0,
   maxWidth: '100%',
   overflowWrap: 'anywhere',
+}
+
+const matchDetailLinkStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 13,
+  fontWeight: 800,
+  textDecoration: 'underline',
+  textUnderlineOffset: 3,
 }
 
 const reportStatusBadgeStyle = (status: MatchAccuracyReport['status']): CSSProperties => {
