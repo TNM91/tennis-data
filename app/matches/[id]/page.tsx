@@ -9,7 +9,7 @@ import PublicDetailState from '@/app/components/public-detail-state'
 import { useAuth } from '@/app/components/auth-provider'
 import { supabase } from '@/lib/supabase'
 import { MY_LAB_STORY } from '@/lib/product-story'
-import { SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
+import { buildScorecardPlayerClaimHref, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
 import { buildTeamProfileHref } from '@/lib/team-routes'
 
 type MatchRecord = {
@@ -280,7 +280,14 @@ function MatchDetailContent() {
                         <div key={side} style={lineSideStyle}>
                           <span style={smallLabelStyle}>{side === 'A' ? home : away}{line.winner_side === side ? ' · Won' : ''}</span>
                           {namesFor(line.id, side).length ? namesFor(line.id, side).map((player) => (
-                            <Link key={player.id} href={`/players/${encodeURIComponent(player.id)}`} style={playerLinkStyle}>{player.name}</Link>
+                            <div key={player.id} style={playerClaimRowStyle}>
+                              <Link href={`/players/${encodeURIComponent(player.id)}`} style={playerLinkStyle}>{player.name}</Link>
+                              {isSharedVisit && authResolved && role === 'public' ? (
+                                <Link href={buildScorecardPlayerClaimHref(player.id)} style={playerClaimLinkStyle} onClick={() => track('Scorecard Player Claim', { action: 'start_free', kind: scorecardKind })}>
+                                  Connect as {player.name}
+                                </Link>
+                              ) : null}
+                            </div>
                           )) : <span style={mutedStyle}>Players not linked</span>}
                         </div>
                       ))}
@@ -299,9 +306,14 @@ function MatchDetailContent() {
                     <div key={side} style={lineSideStyle}>
                       <span style={smallLabelStyle}>{side === 'A' ? home : away}</span>
                       {namesFor(match.id, side).length ? namesFor(match.id, side).map((player) => (
-                        <Link key={player.id} href={`/players/${encodeURIComponent(player.id)}`} style={playerLinkStyle}>
-                          {player.name}
-                        </Link>
+                        <div key={player.id} style={playerClaimRowStyle}>
+                          <Link href={`/players/${encodeURIComponent(player.id)}`} style={playerLinkStyle}>{player.name}</Link>
+                          {isSharedVisit && authResolved && role === 'public' ? (
+                            <Link href={buildScorecardPlayerClaimHref(player.id)} style={playerClaimLinkStyle} onClick={() => track('Scorecard Player Claim', { action: 'start_free', kind: scorecardKind })}>
+                              Connect as {player.name}
+                            </Link>
+                          ) : null}
+                        </div>
                       )) : <span style={mutedStyle}>Players not linked</span>}
                     </div>
                   ))}
@@ -347,4 +359,6 @@ const selectedLineStyle: CSSProperties = { color: '#d9f84a', fontSize: 12, fontW
 const lineScoreStyle: CSSProperties = { fontWeight: 900 }
 const lineSideStyle: CSSProperties = { display: 'grid', alignContent: 'start', gap: 6, minWidth: 0 }
 const playerLinkStyle: CSSProperties = { color: 'var(--brand-blue-2)', fontWeight: 800, textDecoration: 'underline', textUnderlineOffset: 3 }
+const playerClaimRowStyle: CSSProperties = { display: 'grid', justifyItems: 'start', gap: 5, minWidth: 0 }
+const playerClaimLinkStyle: CSSProperties = { color: '#a6d96a', fontSize: 12, fontWeight: 850, lineHeight: 1.35, textDecoration: 'none' }
 const mutedStyle: CSSProperties = { color: 'var(--foreground-muted)', lineHeight: 1.5 }
