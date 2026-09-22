@@ -20,6 +20,7 @@ import { getPlanDestinationHref, getPlanUnlockHref, isSafeLocalNextHref } from '
 import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
 import { getAvailabilityEntry } from '@/lib/availability-onboarding'
 import { getCaptainPilotSourceFromHref } from '@/lib/captain-pilot-source'
+import { isScorecardSignupIntent, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
 
 const JOIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 
@@ -158,6 +159,7 @@ function JoinContent() {
   const selectedTier = getMembershipTier(selectedPlanId)
   const requestedNextRoute = searchParams.get('next')
   const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, getJoinNextRoute(selectedPlanId))
+  const isScorecardSignup = isScorecardSignupIntent(searchParams.get('source'), selectedPlanId, selectedNextRoute)
   const availabilityEntry = selectedPlanId === 'free' ? getAvailabilityEntry(selectedNextRoute) : null
   const isCaptainPilotSignup = selectedPlanId === 'captain' && selectedNextRoute.startsWith('/captain-pilot')
   const captainPilotSource = getCaptainPilotSourceFromHref(selectedNextRoute)
@@ -175,6 +177,13 @@ function JoinContent() {
     desktopTitle: 'Join your team in TiQ.',
     mobileText: `Create your free account for ${availabilityEntry.team}. Confirm your email, connect your player, then mark when you can play. No payment card needed.`,
     desktopText: `Create your free account for ${availabilityEntry.team}. Confirm your email, connect your player, then mark when you can play. No payment card needed.`,
+  } : isScorecardSignup ? {
+    ...JOIN_INTENT_COPY.free,
+    eyebrow: 'Your player record',
+    mobileTitle: 'Connect your player.',
+    desktopTitle: 'Connect your player.',
+    mobileText: 'Create a free account, confirm your email, then connect your player record. No card needed.',
+    desktopText: 'Create a free account, confirm your email, then connect your player record. No card needed.',
   } : JOIN_INTENT_COPY[selectedPlanId]
   const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
   const signInHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, email || requestedEmail)
@@ -245,7 +254,7 @@ function JoinContent() {
           planId: selectedPlanId,
           nextHref: selectedNextRoute,
           captainPilot: isCaptainPilotSignup,
-          acquisitionSource: isCaptainPilotSignup ? captainPilotSource : undefined,
+          acquisitionSource: isCaptainPilotSignup ? captainPilotSource : isScorecardSignup ? SCORECARD_SIGNUP_SOURCE : undefined,
         }),
       })
       const signupResult = await signupResponse.json().catch(() => null) as { ok?: boolean; message?: string } | null
@@ -255,6 +264,8 @@ function JoinContent() {
         ? `Check ${trimmedEmail} and confirm your email. We’ll bring you back to ${availabilityEntry.team} to connect your player and answer. Your match request is saved in the confirmation link.`
         : isCaptainPilotSignup
         ? 'Check your email to confirm your account. Your Captain Pilot welcome will guide you to the short team form and card-free activation.'
+        : isScorecardSignup
+        ? 'Check your email to confirm your account. Your player setup is next.'
         : 'Check your email to confirm your account. Your personal TenAceiQ welcome will show you the right next step.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account.')
