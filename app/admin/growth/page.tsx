@@ -22,6 +22,7 @@ import type {
   CaptainPilotFunnel,
   CaptainPilotSourceBreakdown,
 } from '@/lib/admin-growth-funnel'
+import type { ScorecardSignupFunnel } from '@/lib/scorecard-growth-funnel'
 import styles from './growth.module.css'
 
 type Period = 7 | 30 | 90
@@ -38,6 +39,7 @@ type Funnel = {
   captainPilotFollowUps: CaptainPilotFollowUp[]
   captainPilotFollowUpCount: number
   captainPilotActivation: CaptainPilotActivation
+  scorecardSignup: ScorecardSignupFunnel
 }
 type FollowJourney = {
   intentClicks: number
@@ -371,6 +373,37 @@ export default function AdminGrowthPage() {
                   </div>
                 ) : null}
               </>
+            ) : null}
+          </AdminReviewPanel>
+
+          <AdminReviewPanel style={{ marginTop: 18 }} ariaLabel="Shared scorecard signup funnel">
+            <div className="section-kicker">Shared scorecards</div>
+            <h2 className="section-title" style={{ marginTop: 6 }}>From scorecard to Player membership</h2>
+            <p className="subtle-text">
+              People who requested a Free account from a shared scorecard in the last {period} days. Later steps show their current progress. Each person counts once.
+            </p>
+            {loading ? <p className="subtle-text">Loading scorecard signups...</p> : null}
+            {!loading && funnel ? (
+              <div style={{ ...adminFactGridStyle, marginTop: 18 }}>
+                {([
+                  { label: 'Signup requests', value: funnel.scorecardSignup.signupRequests, detail: 'A confirmation email was sent.', href: '/admin/product-events?search=signup_confirmation_sent' },
+                  { label: 'Accounts confirmed', value: funnel.scorecardSignup.confirmedAccounts, detail: 'The email address was confirmed.', href: '/admin/access' },
+                  { label: 'Players connected', value: funnel.scorecardSignup.connectedPlayers, detail: 'A player record is linked to the account.', href: '/admin/access' },
+                  { label: 'Paid Player access', value: funnel.scorecardSignup.paidPlayerMemberships, detail: 'An active Stripe membership includes Player access.', href: '/admin/access?billing=stripe' },
+                ] as const).map((stage, index, all) => (
+                  <Link key={stage.label} href={stage.href} style={{ ...adminSubPanelStyle, textDecoration: 'none' }}>
+                    <span className="metric-label">{index + 1}. {stage.label}</span>
+                    <strong style={{ fontSize: '2rem', lineHeight: 1 }}>{stage.value.toLocaleString()}</strong>
+                    <span className="subtle-text">{stage.detail}</span>
+                    <span className="badge badge-blue">
+                      {index === 0 ? `Last ${period} days` : `${formatPercent(ratio(stage.value, all[index - 1].value))} from prior step`}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+            {!loading && funnel && funnel.scorecardSignup.signupRequests === 0 ? (
+              <p className="subtle-text" style={{ marginTop: 12 }}>No scorecard-sourced signup requests yet. Review shared-link visits in site analytics.</p>
             ) : null}
           </AdminReviewPanel>
 
