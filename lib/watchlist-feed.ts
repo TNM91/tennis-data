@@ -40,20 +40,23 @@ type LeagueResultEvent = {
   id: string
   event_type: string
   entity_name: string
+  title?: string
   body: string | null
 }
 
 type VisibleMatchResult = {
+  id: string
   league_name: string | null
   home_team: string | null
   away_team: string | null
   score: string | null
   match_date: string | null
+  winner_side?: string | null
 }
 
-export function overlappingLeagueResultIds(events: LeagueResultEvent[], matches: VisibleMatchResult[]): Set<string> {
+export function matchIdsForLeagueResults(events: LeagueResultEvent[], matches: VisibleMatchResult[]): Map<string, string> {
   const normalize = (value: string | null) => (value ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase()
-  const ids = new Set<string>()
+  const ids = new Map<string, string>()
 
   for (const event of events) {
     if (event.event_type !== 'league_result_posted' || !event.body) continue
@@ -68,8 +71,37 @@ export function overlappingLeagueResultIds(events: LeagueResultEvent[], matches:
       (!result[4] || match.match_date?.slice(0, 10) === result[4]),
     )
 
-    // Older events have no match date; only collapse them when the match is unambiguous.
-    if (result[4] ? candidates.length > 0 : candidates.length === 1) ids.add(event.id)
+    // Older events have no match date; only link them when the match is unambiguous.
+    if (candidates.length === 1) ids.set(event.id, candidates[0].id)
+  }
+
+  return ids
+}
+
+export function overlappingLeagueResultIds(events: LeagueResultEvent[], matches: VisibleMatchResult[]): Set<string> {
+  return new Set(matchIdsForLeagueResults(events, matches).keys())
+}
+
+export function matchIdsForResultEvents(events: LeagueResultEvent[], matches: VisibleMatchResult[]): Map<string, string> {
+  const ids = matchIdsForLeagueResults(events, matches)
+  const normalize = (value: string | null) => (value ?? '').trim().replace(/\s+/g, ' ').toLowerCase()
+
+  for (const event of events) {
+    if (event.event_type !== 'match_result' || !event.body) continue
+    const outcome = /^(.+?) defeated (.+)$/.exec(event.title || '')
+    const result = /^(\d+-\d+) lines(?: on (\d{4}-\d{2}-\d{2}))?/.exec(event.body)
+    if (!outcome || !result || !result[2]) continue
+
+    const candidates = matches.filter((match) => {
+      const winner = match.winner_side === 'A' ? match.home_team : match.winner_side === 'B' ? match.away_team : null
+      const loser = match.winner_side === 'A' ? match.away_team : match.winner_side === 'B' ? match.home_team : null
+      return normalize(winner) === normalize(outcome[1]) &&
+        normalize(loser) === normalize(outcome[2]) &&
+        normalize(match.score) === normalize(result[1]) &&
+        match.match_date?.slice(0, 10) === result[2]
+    })
+
+    if (candidates.length === 1) ids.set(event.id, candidates[0].id)
   }
 
   return ids

@@ -57,7 +57,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
-import { dedupeLeagueResultFeed, formatUpcomingWatchlistDate, hasWatchlistResult, isLeagueWatchlistEvent, isUpcomingWatchlistMatch, overlappingLeagueResultIds, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
+import { dedupeLeagueResultFeed, formatUpcomingWatchlistDate, hasWatchlistResult, isLeagueWatchlistEvent, isUpcomingWatchlistMatch, matchIdsForResultEvents, overlappingLeagueResultIds, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
 import type { ClubRole } from '@/lib/club-workspace'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
@@ -119,6 +119,7 @@ const CLUB_PLAYER_SPONSORED_ROLES: ClubRole[] = ['owner', 'admin', 'director', '
 
 type FeedItem = {
   id: string
+  matchId?: string
   type: FeedType
   title: string
   body: string
@@ -2178,6 +2179,7 @@ function MyLabPageInner() {
   const feed = useMemo<FeedItem[]>(() => {
     const items: FeedItem[] = []
     const visibleMatchResults: MatchRow[] = []
+    const linkedResultMatches = matchIdsForResultEvents(cloudFeedRows, matches)
     const followedKeySet = new Set(follows.map((f) => `${f.entity_type}:${f.entity_id}`))
     const followPlayers = follows.filter((f) => f.entity_type === 'player')
     const followTeams = follows.filter((f) => f.entity_type === 'team')
@@ -2202,6 +2204,7 @@ function MyLabPageInner() {
 
       items.push({
         id: `cloud-${row.id}`,
+        matchId: linkedResultMatches.get(row.id),
         type: mappedType,
         title: row.title,
         body: row.body || row.subtitle || 'Update available.',
@@ -2294,6 +2297,7 @@ function MyLabPageInner() {
       if (!upcoming) visibleMatchResults.push(match)
       items.push({
         id: `match-${match.id}`,
+        matchId: match.id,
         type: 'match',
         title: `${homeTeam || 'Team A'} vs ${awayTeam || 'Team B'}`,
         body: upcoming
@@ -5022,7 +5026,11 @@ function MyLabPageInner() {
                       <p style={feedBodyStyle}>{item.body}</p>
                       <div style={feedMetaRowStyle}>
                         <span style={pillSlateStyle}>{item.entityName}</span>
-                        {item.entityType === 'player' && item.entityId ? (
+                        {item.matchId ? (
+                          <Link href={`/matches/${encodeURIComponent(item.matchId)}`} style={feedLinkStyle}>
+                            View match
+                          </Link>
+                        ) : item.entityType === 'player' && item.entityId ? (
                           <Link href={`/players/${item.entityId}`} style={feedLinkStyle}>
                             Open
                           </Link>
