@@ -28,6 +28,7 @@ import { normalizeMixedPairRole, type MixedPairRole } from '@/lib/player-eligibi
 import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
 import { addWorkflowResult, getSafeWorkflowReturnTo } from '@/lib/workflow-return'
 import { getScorecardClaimPlayerId, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
+import { describeClaimResult, type ClaimResult } from '@/lib/scorecard-claim-welcome'
 
 type PreferredRole = 'singles' | 'doubles' | 'both'
 type AvailabilityDefault = 'ask-weekly' | 'usually-available' | 'limited'
@@ -69,6 +70,13 @@ type MatchPlayerRow = {
   match_id: string
   player_id: string
   side: string | null
+}
+
+type ClaimResultRow = ClaimResult & {
+  id: string
+  match_date: string | null
+  match_type: string | null
+  score: string | null
 }
 
 type TeamSummary = {
@@ -289,11 +297,16 @@ function ProfilePageInner() {
   const [error, setError] = useState('')
   const [profileAwards, setProfileAwards] = useState<TiqAwardRecord[]>([])
   const [profileSource, setProfileSource] = useState<LoadUserProfileLinkResult['source']>('none')
+  const [scorecardClaimPlayerId, setScorecardClaimPlayerId] = useState<string | null>(null)
+  const [claimResults, setClaimResults] = useState<ClaimResultRow[]>([])
+  const [claimResultsLoading, setClaimResultsLoading] = useState(false)
+  const [claimResultsError, setClaimResultsError] = useState(false)
 
   useEffect(() => {
     setPrefs(readProfilePrefs())
     const params = new URLSearchParams(window.location.search)
     setCaptainSetupEntry(params.get('setup') === 'captain')
+    setScorecardClaimPlayerId(getScorecardClaimPlayerId(`/profile${window.location.search}`))
     if (params.get('billing') === 'returned') {
       setBillingMessage('Billing management closed. Your access will reflect the latest Stripe updates.')
     }
@@ -358,6 +371,32 @@ function ProfilePageInner() {
     }
     void loadProfile()
   }, [authResolved, loadProfile, userId])
+
+  const connectedScorecardClaimId = profile?.linked_player_id === scorecardClaimPlayerId ? scorecardClaimPlayerId : null
+
+  useEffect(() => {
+    let active = true
+    if (!connectedScorecardClaimId || !userId) return
+
+    async function loadClaimResults() {
+      setClaimResultsLoading(true)
+      setClaimResultsError(false)
+      const { data, error } = await supabase
+        .from('matches')
+        .select('id,match_date,match_type,score,winner_side,claim_player:match_players!inner(side),participants:match_players(side,players(name))')
+        .eq('claim_player.player_id', connectedScorecardClaimId)
+        .not('line_number', 'is', null)
+        .order('match_date', { ascending: false })
+        .limit(3)
+      if (!active) return
+      setClaimResults(error ? [] : (data ?? []) as ClaimResultRow[])
+      setClaimResultsError(Boolean(error))
+      setClaimResultsLoading(false)
+    }
+
+    void loadClaimResults()
+    return () => { active = false }
+  }, [connectedScorecardClaimId, userId])
 
   useEffect(() => subscribeToTeamConnectionsChanged(() => {
     if (!userId) return
@@ -699,6 +738,7 @@ function ProfilePageInner() {
   }
 
   const profileComplete = Boolean(profile?.linked_player_id || profile?.linked_player_name)
+  const showScorecardClaimWelcome = Boolean(connectedScorecardClaimId && !captainSetupEntry)
   const signedIn = Boolean(userId || session?.user?.id)
   const authPending = !authResolved && !signedIn
   const primaryRating = linkedPlayer || selectedPlayer
@@ -822,8 +862,8 @@ function ProfilePageInner() {
                 </>
               ) : (
                 <>
-                  <Link href="/mylab" style={primaryButtonStyle}>Open My Lab</Link>
-                  <Link href={profileMatchupHref} style={secondaryButtonStyle}>Open Matchup</Link>
+                  {showScorecardClaimWelcome ? <a href="#scorecard-claim-welcome" style={primaryButtonStyle}>See your results</a> : <Link href="/mylab" style={primaryButtonStyle}>Open My Lab</Link>}
+                  {showScorecardClaimWelcome ? null : <Link href={profileMatchupHref} style={secondaryButtonStyle}>Open Matchup</Link>}
                 </>
               )
             ) : authPending ? (
@@ -835,6 +875,43 @@ function ProfilePageInner() {
             )}
           </div>
           {billingMessage ? <div style={billingMessageStyle}>{billingMessage}</div> : null}
+        </section>
+      ) : null}
+
+      {showScorecardClaimWelcome && connectedScorecardClaimId ? (
+        <section id="scorecard-claim-welcome" aria-label="Your connected scorecards" style={claimWelcomeStyle}>
+          <div>
+            <span style={identitySetupEyebrowStyle}>Your player is connected</span>
+            <h2 style={sectionTitleStyle}>Your results, ready to explore.</h2>
+            <p style={heroTextStyle}>Open a scorecard to revisit the match you played.</p>
+          </div>
+          {claimResultsLoading ? <p style={heroTextStyle}>Loading your recent results...</p> : claimResultsError ? (
+            <p style={heroTextStyle}>Recent results could not load. You can still open your public player profile.</p>
+          ) : claimResults.length ? (
+            <div style={claimResultsStyle}>
+              {claimResults.map((match) => {
+                const { outcome, opponents } = describeClaimResult(match)
+                return (
+                  <Link key={match.id} href={`/matches/${encodeURIComponent(match.id)}`} style={claimResultStyle}>
+                    <strong>{outcome} · {match.score || 'Score pending'}</strong>
+                    {opponents.length ? <span>vs {opponents.join(' & ')}</span> : null}
+                    <span>{[match.match_date, match.match_type].filter(Boolean).join(' · ') || 'Match scorecard'}</span>
+                    <span style={claimResultActionStyle}>Open scorecard →</span>
+                  </Link>
+                )
+              })}
+            </div>
+          ) : (
+            <p style={heroTextStyle}>No match scorecards are connected to this player yet. Your public player profile is ready.</p>
+          )}
+          <div style={profileIntroActionsStyle}>
+            {access.canUseAdvancedPlayerInsights ? (
+              <Link href="/mylab#recent-matches" style={primaryButtonStyle}>Reflect on a match in My Lab</Link>
+            ) : (
+              <Link href={`/players/${encodeURIComponent(connectedScorecardClaimId)}#profile-matches`} style={primaryButtonStyle}>See all public results</Link>
+            )}
+            {access.canUseAdvancedPlayerInsights ? null : <Link href="/pricing#player_plus" style={secondaryButtonStyle}>See Player tools</Link>}
+          </div>
         </section>
       ) : null}
 
@@ -1306,6 +1383,41 @@ const profileIntroActionsStyle: CSSProperties = {
   gap: 10,
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const claimWelcomeStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  padding: '18px 20px',
+  borderRadius: 24,
+  border: '1px solid rgba(155,225,29,0.24)',
+  background: 'var(--portal-surface-bg)',
+  minWidth: 0,
+}
+
+const claimResultsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const claimResultStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const claimResultActionStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontWeight: 850,
 }
 
 const heroTitleStyle: CSSProperties = {
