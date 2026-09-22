@@ -348,8 +348,14 @@ export async function saveTiqTeamMatchLine(
     let syncWarning: string | null = null
     if (line.winnerSide) {
       try {
-        await syncTiqTeamMatchLineToMatch(line, event)
-        await recalculateDynamicRatings()
+        const leagueResult = await getTiqLeagueById(event.leagueId)
+        await syncTiqTeamMatchLineToMatch(line, event, {
+          clubId: leagueResult.record?.clubId,
+          resultMode: leagueResult.record?.resultMode,
+        })
+        if (leagueResult.record?.resultMode === 'tiq_rated' || !leagueResult.record?.resultMode) {
+          await recalculateDynamicRatings()
+        }
       } catch (syncErr) {
         syncWarning =
           syncErr instanceof Error
@@ -401,6 +407,7 @@ export async function computeTiqTeamLeagueStandings(leagueId: string): Promise<{
 
     const leagueResult = await getTiqLeagueById(leagueId)
     const useDynamicPoints = leagueResult.record?.scoringSystem === 'dynamic_points'
+    const standingsRule = leagueResult.record?.competitionRules.standingsRule || 'auto'
 
     const lineCountsByEvent: Record<string, { a: number; b: number; aPoints: number; bPoints: number }> = {}
     for (const line of (lines || []) as Array<{ event_id: string; winner_side: string; score: string | null }>) {
@@ -449,7 +456,7 @@ export async function computeTiqTeamLeagueStandings(leagueId: string): Promise<{
     }
 
     const standings = Object.values(records).sort((a, b) =>
-      compareTiqTeamStandings(a, b, useDynamicPoints ? 'dynamic_points' : 'standard'),
+      compareTiqTeamStandings(a, b, useDynamicPoints ? 'dynamic_points' : 'standard', standingsRule),
     )
 
     return { standings, warning: null }

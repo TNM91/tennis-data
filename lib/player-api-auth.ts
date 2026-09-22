@@ -1,6 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { buildProductAccessState, normalizeSubscriptionStatus } from './access-model-core'
+import { buildProductAccessState } from './access-model-core'
+import { normalizeSubscriptionStatus } from './subscription-status'
 import { MEMBERSHIP_TIERS } from './product-story'
+import { normalizeUserRole } from './roles'
 import { supabaseKey, supabaseUrl } from './supabase'
 
 const PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name
@@ -17,14 +19,19 @@ export type PlayerApiAuth =
     }
 
 type ProfileEntitlementRow = {
+  role?: unknown
   player_plus_subscription_active?: boolean | null
   player_plus_subscription_status?: string | null
+  player_plus_access_expires_at?: string | null
   coach_subscription_active?: boolean | null
   coach_subscription_status?: string | null
+  coach_access_expires_at?: string | null
   captain_subscription_active?: boolean | null
   captain_subscription_status?: string | null
+  captain_access_expires_at?: string | null
   tiq_team_league_entry_enabled?: boolean | null
   tiq_individual_league_creator_enabled?: boolean | null
+  league_access_expires_at?: string | null
 }
 
 export async function getPlayerApiAuth(request: Request): Promise<PlayerApiAuth> {
@@ -80,21 +87,25 @@ export async function loadPlayerAccess(supabase: SupabaseClient, userId: string)
   const { data } = await supabase
     .from('profiles')
     .select(
-      'player_plus_subscription_active, player_plus_subscription_status, coach_subscription_active, coach_subscription_status, captain_subscription_active, captain_subscription_status, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled',
+      'role, player_plus_subscription_active, player_plus_subscription_status, player_plus_access_expires_at, coach_subscription_active, coach_subscription_status, coach_access_expires_at, captain_subscription_active, captain_subscription_status, captain_access_expires_at, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled, league_access_expires_at',
     )
     .eq('id', userId)
     .maybeSingle()
 
   const row = (data ?? {}) as ProfileEntitlementRow
-  return buildProductAccessState('member', {
+  return buildProductAccessState(normalizeUserRole(row.role), {
     playerPlusSubscriptionActive: Boolean(row.player_plus_subscription_active),
     playerPlusSubscriptionStatus: normalizeSubscriptionStatus(row.player_plus_subscription_status),
+    playerPlusAccessExpiresAt: row.player_plus_access_expires_at ?? null,
     coachSubscriptionActive: Boolean(row.coach_subscription_active),
     coachSubscriptionStatus: normalizeSubscriptionStatus(row.coach_subscription_status),
+    coachAccessExpiresAt: row.coach_access_expires_at ?? null,
     captainSubscriptionActive: Boolean(row.captain_subscription_active),
     captainSubscriptionStatus: normalizeSubscriptionStatus(row.captain_subscription_status),
+    captainAccessExpiresAt: row.captain_access_expires_at ?? null,
     tiqTeamLeagueEntryEnabled: Boolean(row.tiq_team_league_entry_enabled),
     tiqIndividualLeagueCreatorEnabled: Boolean(row.tiq_individual_league_creator_enabled),
+    leagueAccessExpiresAt: row.league_access_expires_at ?? null,
   })
 }
 

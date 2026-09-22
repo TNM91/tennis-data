@@ -18,8 +18,8 @@ export async function generateMetadata({ params }: IdentityWorkbookPageProps): P
   const identity = getPlayerDevelopmentIdentity(slug)
 
   return buildRouteMetadata({
-    title: `${identity.title} Workbook | TenAceIQ Player Development`,
-    description: `Printable TenAceIQ workbook pages for ${identity.title}.`,
+    title: `${identity.title} Print Backup | TenAceIQ Player Development`,
+    description: `Optional TenAceIQ print backup pages for ${identity.title}.`,
     path: `/player-development/${identity.slug}/workbook`,
     titleAbsolute: true,
   })
@@ -37,7 +37,7 @@ export default async function IdentityWorkbookPage({ params }: IdentityWorkbookP
           { name: 'Home', path: '/' },
           { name: 'Player Development', path: '/player-development' },
           { name: identity.title, path: `/player-development/${identity.slug}` },
-          { name: 'Workbook', path: `/player-development/${identity.slug}/workbook` },
+          { name: 'Print Backup', path: `/player-development/${identity.slug}/workbook` },
         ])}
       />
       <PlayerDevelopmentSystem focus="workbook" identitySlug={slug} />

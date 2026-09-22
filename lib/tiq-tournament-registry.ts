@@ -1,10 +1,31 @@
 'use client'
 
 import { supabase } from './supabase'
+import {
+  normalizeTournamentDrawFormatId,
+  type TournamentDrawFormatId,
+} from './competition-format-registry'
+import {
+  normalizeMixedPairRole,
+  normalizePlayerRatingSource,
+  type PlayerEligibilityEvidence,
+  type PlayerEligibilityStatus,
+} from './player-eligibility'
+import { notifyEntryStatus } from './entry-status-notifications'
+import { recalculateDynamicRatings } from './recalculateRatings'
+import {
+  deleteTiqTournamentResultMatch,
+  syncTiqTournamentResultToMatch,
+} from './tiq-match-sync'
+import {
+  normalizeClubCompetitionResultMode,
+  type ClubCompetitionResultMode,
+} from './club-competition'
 
 export const TIQ_TOURNAMENT_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_tournament_registry'
+const TIQ_TOURNAMENT_CONTACTS_TABLE = 'tiq_tournament_contacts'
 
-export type TiqTournamentFormat = 'single_elimination' | 'round_robin' | 'compass_draw'
+export type TiqTournamentFormat = TournamentDrawFormatId
 export type TiqTournamentEntrantType = 'players' | 'teams'
 export type TiqTournamentStatus = 'draft' | 'open' | 'scheduled' | 'completed'
 export type TiqTournamentEntryStatus = 'pending' | 'approved' | 'declined'
@@ -13,6 +34,9 @@ export type TiqTournamentAlertStatus = 'draft' | 'queued' | 'sent' | 'cancelled'
 
 export type TiqTournamentRecord = {
   id: string
+  clubId?: string
+  clubGroupId?: string
+  resultMode?: ClubCompetitionResultMode
   name: string
   format: TiqTournamentFormat
   entrantType: TiqTournamentEntrantType
@@ -100,6 +124,13 @@ export type TiqTournamentEntryRecord = {
   consentNote: string
   status: TiqTournamentEntryStatus
   linkedPlayerId: string
+  eligibilityStatus: PlayerEligibilityStatus
+  eligibilityReviewNote: string
+  eligibilityEvidence: PlayerEligibilityEvidence
+  submittedByUserId: string
+  playerActionRequired: boolean
+  playerRequestNote: string
+  playerRespondedAt: string
   createdAt: string
   updatedAt: string
 }
@@ -112,6 +143,8 @@ export type TiqTournamentEntryDraft = {
   selfRating?: number
   smsOptIn?: boolean
   consentNote?: string
+  linkedPlayerId?: string | null
+  eligibilityEvidence?: PlayerEligibilityEvidence
 }
 
 export type TiqTournamentAlertRecord = {
@@ -153,6 +186,9 @@ export type TiqTournamentPreferenceEventRecord = {
 
 type TiqTournamentCloudRow = {
   id: string
+  club_id?: string | null
+  club_group_id?: string | null
+  result_mode?: string | null
   name: string
   format: string | null
   entrant_type: string | null
@@ -163,10 +199,18 @@ type TiqTournamentCloudRow = {
   entrants: string[] | null
   results: Record<string, Partial<TiqTournamentMatchResult>> | null
   schedule: Record<string, Partial<TiqTournamentMatchSchedule>> | null
-  contacts: Record<string, Partial<TiqTournamentParticipantContact>> | null
   entrant_player_ids: Record<string, string> | null
   is_public: boolean | null
   created_at: string | null
+  updated_at: string | null
+}
+
+type TiqTournamentContactCloudRow = {
+  tournament_id: string
+  entrant_name: string
+  phone: string | null
+  sms_opt_in: boolean | null
+  consent_note: string | null
   updated_at: string | null
 }
 
@@ -181,6 +225,18 @@ type TiqTournamentEntryCloudRow = {
   consent_note: string | null
   status: string | null
   linked_player_id: string | null
+  eligibility_status: string | null
+  eligibility_review_note: string | null
+  eligibility_rating: number | null
+  eligibility_rating_source: string | null
+  eligibility_mixed_pair_role: string | null
+  eligibility_mixed_pair_role_source: string | null
+  eligibility_age_division: string | null
+  eligibility_age_division_source: string | null
+  submitted_by_user_id: string | null
+  player_action_required: boolean | null
+  player_request_note: string | null
+  player_responded_at: string | null
   created_at: string | null
   updated_at: string | null
 }
@@ -280,6 +336,9 @@ function buildTournamentId(input: { name: string; startsOn: string }) {
 function normalizeTiqTournamentRecord(record: Partial<TiqTournamentRecord>): TiqTournamentRecord {
   return {
     id: cleanText(record.id),
+    clubId: cleanText(record.clubId),
+    clubGroupId: cleanText(record.clubGroupId),
+    resultMode: normalizeClubCompetitionResultMode(record.resultMode),
     name: cleanText(record.name),
     format: normalizeTiqTournamentFormat(record.format),
     entrantType: normalizeTiqTournamentEntrantType(record.entrantType),
@@ -298,9 +357,15 @@ function normalizeTiqTournamentRecord(record: Partial<TiqTournamentRecord>): Tiq
   }
 }
 
-function mapCloudTournamentRow(row: TiqTournamentCloudRow): TiqTournamentRecord {
+function mapCloudTournamentRow(
+  row: TiqTournamentCloudRow,
+  contacts: Record<string, TiqTournamentParticipantContact> = {},
+): TiqTournamentRecord {
   return normalizeTiqTournamentRecord({
     id: row.id,
+    clubId: row.club_id || '',
+    clubGroupId: row.club_group_id || '',
+    resultMode: normalizeClubCompetitionResultMode(row.result_mode),
     name: row.name,
     format: normalizeTiqTournamentFormat(row.format),
     entrantType: normalizeTiqTournamentEntrantType(row.entrant_type),
@@ -311,7 +376,7 @@ function mapCloudTournamentRow(row: TiqTournamentCloudRow): TiqTournamentRecord 
     entrants: row.entrants || [],
     results: normalizeTournamentResults(row.results || {}),
     schedule: normalizeTournamentSchedule(row.schedule || {}),
-    contacts: normalizeTournamentContacts(row.contacts || {}),
+    contacts,
     entrantPlayerIds: normalizeEntrantPlayerIds(row.entrant_player_ids || {}),
     isPublic: Boolean(row.is_public),
     createdAt: row.created_at || '',
@@ -322,6 +387,9 @@ function mapCloudTournamentRow(row: TiqTournamentCloudRow): TiqTournamentRecord 
 function toCloudTournamentPayload(record: TiqTournamentRecord, userId: string) {
   return {
     id: record.id,
+    club_id: cleanText(record.clubId) || null,
+    club_group_id: cleanText(record.clubGroupId) || null,
+    result_mode: normalizeClubCompetitionResultMode(record.resultMode),
     name: record.name,
     format: record.format,
     entrant_type: record.entrantType,
@@ -332,12 +400,64 @@ function toCloudTournamentPayload(record: TiqTournamentRecord, userId: string) {
     entrants: record.entrants,
     results: record.results,
     schedule: record.schedule,
-    contacts: record.contacts,
     entrant_player_ids: record.entrantPlayerIds,
     is_public: record.isPublic,
     updated_by_user_id: userId,
     created_by_user_id: userId,
   }
+}
+
+function mapCloudContactRows(rows: TiqTournamentContactCloudRow[]) {
+  const byTournament = new Map<string, Record<string, TiqTournamentParticipantContact>>()
+  for (const row of rows) {
+    const tournamentId = cleanText(row.tournament_id)
+    const entrantName = cleanText(row.entrant_name)
+    if (!tournamentId || !entrantName) continue
+    const contacts = byTournament.get(tournamentId) || {}
+    contacts[entrantName] = {
+      name: entrantName,
+      phone: cleanPhone(row.phone),
+      smsOptIn: Boolean(row.sms_opt_in),
+      consentNote: cleanText(row.consent_note),
+      updatedAt: cleanText(row.updated_at),
+    }
+    byTournament.set(tournamentId, contacts)
+  }
+  return byTournament
+}
+
+async function loadCloudContacts(tournamentIds: string[]) {
+  const ids = tournamentIds.map(cleanText).filter(Boolean)
+  if (!ids.length) return new Map<string, Record<string, TiqTournamentParticipantContact>>()
+  const result = await supabase
+    .from(TIQ_TOURNAMENT_CONTACTS_TABLE)
+    .select('tournament_id,entrant_name,phone,sms_opt_in,consent_note,updated_at')
+    .in('tournament_id', ids)
+  if (result.error) {
+    console.error('Tournament contact load failed', result.error)
+    return new Map<string, Record<string, TiqTournamentParticipantContact>>()
+  }
+  return mapCloudContactRows((result.data || []) as TiqTournamentContactCloudRow[])
+}
+
+async function syncCloudContacts(record: TiqTournamentRecord, userId: string) {
+  const deletion = await supabase
+    .from(TIQ_TOURNAMENT_CONTACTS_TABLE)
+    .delete()
+    .eq('tournament_id', record.id)
+  if (deletion.error) return deletion.error
+
+  const rows = Object.values(record.contacts).map((contact) => ({
+    tournament_id: record.id,
+    entrant_name: contact.name,
+    phone: cleanPhone(contact.phone),
+    sms_opt_in: Boolean(contact.smsOptIn),
+    consent_note: cleanText(contact.consentNote),
+    updated_by_user_id: userId,
+  }))
+  if (!rows.length) return null
+  const insertion = await supabase.from(TIQ_TOURNAMENT_CONTACTS_TABLE).insert(rows)
+  return insertion.error
 }
 
 function mergeLocalTournamentRecord(record: TiqTournamentRecord) {
@@ -346,8 +466,7 @@ function mergeLocalTournamentRecord(record: TiqTournamentRecord) {
 }
 
 export function normalizeTiqTournamentFormat(value: string | null | undefined): TiqTournamentFormat {
-  if (value === 'round_robin' || value === 'compass_draw') return value
-  return 'single_elimination'
+  return normalizeTournamentDrawFormatId(value)
 }
 
 export function normalizeTiqTournamentEntrantType(value: string | null | undefined): TiqTournamentEntrantType {
@@ -386,9 +505,89 @@ function mapTournamentEntryRow(row: TiqTournamentEntryCloudRow): TiqTournamentEn
     consentNote: cleanText(row.consent_note),
     status: normalizeTiqTournamentEntryStatus(row.status),
     linkedPlayerId: cleanText(row.linked_player_id),
+    eligibilityStatus: normalizeEligibilityStatus(row.eligibility_status),
+    eligibilityReviewNote: cleanText(row.eligibility_review_note),
+    eligibilityEvidence: {
+      playerId: cleanText(row.linked_player_id),
+      rating: typeof row.eligibility_rating === 'number' ? row.eligibility_rating : normalizeSelfRating(row.self_rating),
+      ratingSource: normalizePlayerRatingSource(row.eligibility_rating_source),
+      mixedPairRole: normalizeMixedPairRole(row.eligibility_mixed_pair_role),
+      mixedPairRoleSource: normalizePlayerRatingSource(row.eligibility_mixed_pair_role_source),
+      ageDivisions: [cleanText(row.eligibility_age_division)].filter(Boolean),
+      ageDivisionSource: normalizePlayerRatingSource(row.eligibility_age_division_source),
+    },
+    submittedByUserId: cleanText(row.submitted_by_user_id),
+    playerActionRequired: Boolean(row.player_action_required),
+    playerRequestNote: cleanText(row.player_request_note),
+    playerRespondedAt: cleanText(row.player_responded_at),
     createdAt: cleanText(row.created_at),
     updatedAt: cleanText(row.updated_at),
   }
+}
+
+function normalizeEligibilityStatus(value: unknown): PlayerEligibilityStatus {
+  if (value === 'verified' || value === 'ineligible') return value
+  return 'needs_confirmation'
+}
+
+async function attachTournamentEntryPlayerEvidence(entries: TiqTournamentEntryRecord[]) {
+  const playerIds = Array.from(new Set(entries.map((entry) => entry.linkedPlayerId).filter(Boolean)))
+  if (!playerIds.length) return entries
+  const [playerResult, rosterResult] = await Promise.all([
+    supabase
+      .from('players')
+      .select('id,overall_rating,doubles_rating,singles_rating,rating_source,mixed_pair_role')
+      .in('id', playerIds),
+    supabase
+      .from('team_roster_members')
+      .select('player_id,age_division,rating_source,mixed_pair_role')
+      .in('player_id', playerIds),
+  ])
+  type EvidencePlayerRow = {
+    id?: string | null
+    overall_rating?: number | null
+    doubles_rating?: number | null
+    singles_rating?: number | null
+    rating_source?: string | null
+    mixed_pair_role?: string | null
+  }
+  type EvidenceRosterRow = {
+    player_id?: string | null
+    age_division?: string | null
+    rating_source?: string | null
+    mixed_pair_role?: string | null
+  }
+  const playerById = new Map(((playerResult.data || []) as EvidencePlayerRow[]).map((row) => [cleanText(row.id), row]))
+  const rosterByPlayerId = new Map<string, EvidenceRosterRow[]>()
+  for (const row of (rosterResult.data || []) as EvidenceRosterRow[]) {
+    const playerId = cleanText(row.player_id)
+    if (!playerId) continue
+    rosterByPlayerId.set(playerId, [...(rosterByPlayerId.get(playerId) || []), row])
+  }
+
+  return entries.map((entry) => {
+    const player = playerById.get(entry.linkedPlayerId)
+    if (!player) return entry
+    const verifiedRoster = (rosterByPlayerId.get(entry.linkedPlayerId) || [])
+      .filter((row) => normalizePlayerRatingSource(row.rating_source) === 'verified')
+    const verifiedRole = verifiedRoster
+      .map((row) => normalizeMixedPairRole(row.mixed_pair_role))
+      .find((role) => role !== 'unknown') || 'unknown'
+    const playerRole = normalizeMixedPairRole(player.mixed_pair_role)
+    const verifiedAgeDivisions = verifiedRoster.map((row) => cleanText(row.age_division)).filter(Boolean)
+    return {
+      ...entry,
+      eligibilityEvidence: {
+        playerId: entry.linkedPlayerId,
+        rating: player.overall_rating ?? player.doubles_rating ?? player.singles_rating ?? entry.eligibilityEvidence.rating,
+        ratingSource: normalizePlayerRatingSource(player.rating_source),
+        mixedPairRole: verifiedRole !== 'unknown' ? verifiedRole : playerRole !== 'unknown' ? playerRole : entry.eligibilityEvidence.mixedPairRole,
+        mixedPairRoleSource: verifiedRole !== 'unknown' ? 'verified' : playerRole !== 'unknown' ? 'self' : entry.eligibilityEvidence.mixedPairRoleSource,
+        ageDivisions: verifiedAgeDivisions.length ? verifiedAgeDivisions : entry.eligibilityEvidence.ageDivisions,
+        ageDivisionSource: verifiedAgeDivisions.length ? 'verified' : entry.eligibilityEvidence.ageDivisionSource,
+      },
+    }
+  })
 }
 
 function mapTournamentAlertRow(row: TiqTournamentAlertCloudRow): TiqTournamentAlertRecord {
@@ -458,14 +657,16 @@ export async function loadTiqTournamentRegistry(userId?: string | null): Promise
 
   const result = await supabase
     .from('tiq_tournaments')
-    .select('id,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
+    .select('id,club_id,club_group_id,result_mode,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
     .order('updated_at', { ascending: false })
 
   if (result.error) {
     return { data: localRecords, error: new Error(result.error.message), source: 'local' }
   }
 
-  const cloudRecords = ((result.data || []) as TiqTournamentCloudRow[]).map(mapCloudTournamentRow)
+  const rows = (result.data || []) as TiqTournamentCloudRow[]
+  const contactsByTournament = await loadCloudContacts(rows.map((row) => row.id))
+  const cloudRecords = rows.map((row) => mapCloudTournamentRow(row, contactsByTournament.get(row.id)))
   cloudRecords.forEach(mergeLocalTournamentRecord)
   return { data: cloudRecords.length ? cloudRecords : localRecords, error: null, source: 'cloud' }
 }
@@ -481,7 +682,7 @@ export async function loadTiqTournamentRecord(id: string): Promise<{
 
   const result = await supabase
     .from('tiq_tournaments')
-    .select('id,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
+    .select('id,club_id,club_group_id,result_mode,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
     .eq('id', cleanId)
     .maybeSingle()
 
@@ -497,7 +698,8 @@ export async function loadTiqTournamentRecord(id: string): Promise<{
     return { data: localRecord, error: null, source: localRecord ? 'local' : 'none' }
   }
 
-  const record = mapCloudTournamentRow(result.data as TiqTournamentCloudRow)
+  const contactMap = await loadCloudContacts([cleanId])
+  const record = mapCloudTournamentRow(result.data as TiqTournamentCloudRow, contactMap.get(cleanId))
   mergeLocalTournamentRecord(record)
   return { data: record, error: null, source: 'cloud' }
 }
@@ -511,6 +713,9 @@ export function upsertTiqTournamentRecord(draft: TiqTournamentDraft, existingId?
   const registry = readTiqTournamentRegistry()
   const now = new Date().toISOString()
   const normalizedDraft: TiqTournamentDraft = {
+    clubId: cleanText(draft.clubId),
+    clubGroupId: cleanText(draft.clubGroupId),
+    resultMode: normalizeClubCompetitionResultMode(draft.resultMode),
     name: cleanText(draft.name),
     format: normalizeTiqTournamentFormat(draft.format),
     entrantType: normalizeTiqTournamentEntrantType(draft.entrantType),
@@ -552,14 +757,20 @@ export async function saveTiqTournamentRecord(
   const result = await supabase
     .from('tiq_tournaments')
     .upsert(toCloudTournamentPayload(record, userId), { onConflict: 'id' })
-    .select('id,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
+    .select('id,club_id,club_group_id,result_mode,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
     .maybeSingle()
 
   if (result.error) {
     return { data: record, error: new Error(result.error.message), source: 'local' }
   }
 
-  const nextRecord = mapCloudTournamentRow(result.data as TiqTournamentCloudRow)
+  const contactError = await syncCloudContacts(record, userId)
+  if (contactError) {
+    console.error('Tournament contact save failed', contactError)
+    return { data: record, error: new Error('Tournament saved, but private contacts could not be synchronized.'), source: 'local' }
+  }
+
+  const nextRecord = mapCloudTournamentRow(result.data as TiqTournamentCloudRow, record.contacts)
   mergeLocalTournamentRecord(nextRecord)
   return { data: nextRecord, error: null, source: 'cloud' }
 }
@@ -574,32 +785,80 @@ export async function upsertTiqTournamentRecordForUser(
 }
 
 export async function submitTiqTournamentEntry(draft: TiqTournamentEntryDraft) {
+  const eligibilityEvidence = draft.eligibilityEvidence || {}
   const payload = {
-    tournament_id: cleanText(draft.tournamentId),
-    player_name: cleanText(draft.playerName),
+    tournamentId: cleanText(draft.tournamentId),
+    playerName: cleanText(draft.playerName),
     email: cleanEmail(draft.email),
     phone: cleanPhone(draft.phone),
-    self_rating: normalizeSelfRating(draft.selfRating),
-    sms_opt_in: Boolean(draft.smsOptIn),
-    consent_note: cleanText(draft.consentNote),
-    status: 'pending',
+    selfRating: normalizeSelfRating(draft.selfRating),
+    smsOptIn: Boolean(draft.smsOptIn),
+    consentNote: cleanText(draft.consentNote),
+    eligibilityRating: typeof eligibilityEvidence.rating === 'number'
+      ? eligibilityEvidence.rating
+      : normalizeSelfRating(draft.selfRating),
+    eligibilityRatingSource: normalizePlayerRatingSource(eligibilityEvidence.ratingSource || 'self'),
+    eligibilityMixedPairRole: normalizeMixedPairRole(eligibilityEvidence.mixedPairRole),
+    eligibilityMixedPairRoleSource: normalizePlayerRatingSource(eligibilityEvidence.mixedPairRoleSource),
+    eligibilityAgeDivision: cleanText(eligibilityEvidence.ageDivisions?.[0]) || null,
+    eligibilityAgeDivisionSource: normalizePlayerRatingSource(eligibilityEvidence.ageDivisionSource),
   }
 
-  if (!payload.tournament_id || !payload.player_name) {
+  if (!payload.tournamentId || !payload.playerName) {
     return { data: null, error: new Error('Enter your name before submitting.'), source: 'cloud' as const }
   }
 
-  const result = await supabase
-    .from('tiq_tournament_entries')
-    .insert(payload)
-    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,created_at,updated_at')
-    .maybeSingle()
+  try {
+    const response = await fetch('/api/tournaments/entries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const body = (await response.json().catch(() => null)) as {
+      ok?: boolean
+      message?: string
+      entry?: Partial<TiqTournamentEntryCloudRow>
+      preferenceHref?: string
+    } | null
+    if (!response.ok || !body?.ok || !body.entry) {
+      return { data: null, error: new Error(body?.message || 'The entry could not be submitted.'), source: 'cloud' as const }
+    }
 
-  if (result.error) {
-    return { data: null, error: new Error(result.error.message), source: 'cloud' as const }
+    return {
+      data: mapTournamentEntryRow({
+        id: cleanText(body.entry.id),
+        tournament_id: payload.tournamentId,
+        player_name: payload.playerName,
+        email: payload.email,
+        phone: payload.phone,
+        self_rating: payload.selfRating,
+        sms_opt_in: payload.smsOptIn,
+        consent_note: payload.consentNote,
+        status: 'pending',
+        linked_player_id: null,
+        eligibility_status: cleanText(body.entry.eligibility_status),
+        eligibility_review_note: cleanText(body.entry.eligibility_review_note),
+        eligibility_rating: payload.eligibilityRating,
+        eligibility_rating_source: payload.eligibilityRatingSource,
+        eligibility_mixed_pair_role: payload.eligibilityMixedPairRole,
+        eligibility_mixed_pair_role_source: payload.eligibilityMixedPairRoleSource,
+        eligibility_age_division: payload.eligibilityAgeDivision,
+        eligibility_age_division_source: payload.eligibilityAgeDivisionSource,
+        submitted_by_user_id: null,
+        player_action_required: false,
+        player_request_note: null,
+        player_responded_at: null,
+        created_at: cleanText(body.entry.created_at),
+        updated_at: cleanText(body.entry.updated_at),
+      }),
+      error: null,
+      source: 'cloud' as const,
+      preferenceHref: cleanText(body.preferenceHref),
+    }
+  } catch (error) {
+    console.error('Tournament entry request failed', error)
+    return { data: null, error: new Error('The entry could not be submitted.'), source: 'cloud' as const }
   }
-
-  return { data: mapTournamentEntryRow(result.data as TiqTournamentEntryCloudRow), error: null, source: 'cloud' as const }
 }
 
 export async function loadTiqTournamentEntriesForUser(tournamentId: string) {
@@ -608,7 +867,7 @@ export async function loadTiqTournamentEntriesForUser(tournamentId: string) {
 
   const result = await supabase
     .from('tiq_tournament_entries')
-    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,created_at,updated_at')
+    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,eligibility_status,eligibility_review_note,eligibility_rating,eligibility_rating_source,eligibility_mixed_pair_role,eligibility_mixed_pair_role_source,eligibility_age_division,eligibility_age_division_source,submitted_by_user_id,player_action_required,player_request_note,player_responded_at,created_at,updated_at')
     .eq('tournament_id', cleanId)
     .order('created_at', { ascending: false })
 
@@ -616,17 +875,28 @@ export async function loadTiqTournamentEntriesForUser(tournamentId: string) {
     return { data: [], error: new Error(result.error.message), source: 'cloud' as const }
   }
 
-  return { data: ((result.data || []) as TiqTournamentEntryCloudRow[]).map(mapTournamentEntryRow), error: null, source: 'cloud' as const }
+  const entries = ((result.data || []) as TiqTournamentEntryCloudRow[]).map(mapTournamentEntryRow)
+  return { data: await attachTournamentEntryPlayerEvidence(entries), error: null, source: 'cloud' as const }
 }
 
 export async function updateTiqTournamentEntryStatus(
   entryId: string,
   status: TiqTournamentEntryStatus,
   linkedPlayerId?: string | null,
+  eligibilityReview?: { status: PlayerEligibilityStatus; note: string } | null,
 ) {
+  const actorUserId = cleanText((await supabase.auth.getUser()).data.user?.id)
+  const reviewerId = eligibilityReview ? actorUserId : ''
   const payload = {
     status: normalizeTiqTournamentEntryStatus(status),
     linked_player_id: cleanText(linkedPlayerId || '') || null,
+    player_action_required: false,
+    ...(eligibilityReview ? {
+      eligibility_status: normalizeEligibilityStatus(eligibilityReview.status),
+      eligibility_review_note: cleanMultiline(eligibilityReview.note),
+      eligibility_reviewed_at: new Date().toISOString(),
+      eligibility_reviewed_by: reviewerId || null,
+    } : {}),
     updated_at: new Date().toISOString(),
   }
 
@@ -634,14 +904,60 @@ export async function updateTiqTournamentEntryStatus(
     .from('tiq_tournament_entries')
     .update(payload)
     .eq('id', cleanText(entryId))
-    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,created_at,updated_at')
+    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,eligibility_status,eligibility_review_note,eligibility_rating,eligibility_rating_source,eligibility_mixed_pair_role,eligibility_mixed_pair_role_source,eligibility_age_division,eligibility_age_division_source,submitted_by_user_id,player_action_required,player_request_note,player_responded_at,created_at,updated_at')
     .maybeSingle()
 
   if (result.error) {
     return { data: null, error: new Error(result.error.message), source: 'cloud' as const }
   }
 
-  return { data: result.data ? mapTournamentEntryRow(result.data as TiqTournamentEntryCloudRow) : null, error: null, source: 'cloud' as const }
+  const entry = result.data ? mapTournamentEntryRow(result.data as TiqTournamentEntryCloudRow) : null
+  if (entry?.submittedByUserId && actorUserId) {
+    await notifyEntryStatus({
+      recipientProfileId: entry.submittedByUserId,
+      actorUserId,
+      title: status === 'approved' ? 'Tournament entry approved' : status === 'declined' ? 'Tournament entry update' : 'Tournament entry received',
+      body: status === 'approved' ? `${entry.playerName}, you are in the tournament.` : status === 'declined' ? `${entry.playerName}, your tournament request was not approved.` : `${entry.playerName}, your tournament request is under review.`,
+      href: '/compete#my-entries',
+    }).catch(() => undefined)
+  }
+
+  return { data: entry, error: null, source: 'cloud' as const }
+}
+
+export async function requestTiqTournamentEntryInformation(entryId: string, note: string) {
+  const actorUserId = cleanText((await supabase.auth.getUser()).data.user?.id)
+  const requestNote = cleanMultiline(note)
+  if (!actorUserId) return { data: null, error: new Error('Sign in to request player information.'), source: 'cloud' as const }
+  if (!requestNote) return { data: null, error: new Error('Tell the player what information is missing.'), source: 'cloud' as const }
+
+  const result = await supabase
+    .from('tiq_tournament_entries')
+    .update({
+      player_action_required: true,
+      player_request_note: requestNote,
+      eligibility_status: 'needs_confirmation',
+      eligibility_review_note: requestNote,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', cleanText(entryId))
+    .eq('status', 'pending')
+    .select('id,tournament_id,player_name,email,phone,self_rating,sms_opt_in,consent_note,status,linked_player_id,eligibility_status,eligibility_review_note,eligibility_rating,eligibility_rating_source,eligibility_mixed_pair_role,eligibility_mixed_pair_role_source,eligibility_age_division,eligibility_age_division_source,submitted_by_user_id,player_action_required,player_request_note,player_responded_at,created_at,updated_at')
+    .maybeSingle()
+
+  if (result.error) return { data: null, error: new Error(result.error.message), source: 'cloud' as const }
+  const entry = result.data ? mapTournamentEntryRow(result.data as TiqTournamentEntryCloudRow) : null
+  if (entry?.submittedByUserId) {
+    await notifyEntryStatus({
+      recipientProfileId: entry.submittedByUserId,
+      actorUserId,
+      title: 'Tournament entry needs information',
+      body: requestNote,
+      href: '/compete#my-entries',
+    }).catch(() => undefined)
+  }
+
+  return { data: entry, error: null, source: 'cloud' as const }
 }
 
 export async function loadTiqTournamentAlertRecordsForUser(tournamentId: string) {
@@ -806,6 +1122,28 @@ export async function updateTiqTournamentMatchResultForUser(
   const updated = updateTiqTournamentMatchResult(input)
   if (!updated) return null
   await saveTiqTournamentRecord(updated, userId)
+  if (userId && updated.entrantType === 'players') {
+    const match = buildTournamentPreview(updated).find((item) => item.id === cleanText(input.matchId))
+    if (match) {
+      await syncTiqTournamentResultToMatch({
+        tournamentId: updated.id,
+        matchId: match.id,
+        matchDate: updated.schedule[match.id]?.date || updated.startsOn || new Date().toISOString().slice(0, 10),
+        locationLabel: updated.locationLabel,
+        sideAName: match.sideA,
+        sideAPlayerId: updated.entrantPlayerIds[match.sideA] || '',
+        sideBName: match.sideB,
+        sideBPlayerId: updated.entrantPlayerIds[match.sideB] || '',
+        winnerName: input.winner,
+        score: cleanText(input.score),
+        clubId: updated.clubId,
+        resultMode: normalizeClubCompetitionResultMode(updated.resultMode),
+      })
+      if (normalizeClubCompetitionResultMode(updated.resultMode) === 'tiq_rated') {
+        await recalculateDynamicRatings()
+      }
+    }
+  }
   return updated
 }
 
@@ -834,6 +1172,10 @@ export async function clearTiqTournamentMatchResultForUser(tournamentId: string,
   const updated = clearTiqTournamentMatchResult(tournamentId, matchId)
   if (!updated) return null
   await saveTiqTournamentRecord(updated, userId)
+  if (userId) {
+    await deleteTiqTournamentResultMatch(updated.id, cleanText(matchId))
+    await recalculateDynamicRatings()
+  }
   return updated
 }
 
@@ -1000,14 +1342,14 @@ export function buildTiqTournamentAlertDraft(input: {
   preferencesUrl?: string
 }) {
   const siteUrl = cleanText(input.siteUrl) || 'https://www.tenaceiq.com'
-  const preferencesUrl = cleanText(input.preferencesUrl) || `${siteUrl.replace(/\/$/, '')}/preferences`
+  const preferencesUrl = cleanText(input.preferencesUrl)
   const base = cleanText(input.body) || buildDefaultTournamentAlertBody(input.kind, input.record)
   return [
     `TenAceIQ ${input.record.name}: ${base}`,
     `View details: ${siteUrl}`,
-    `Manage alerts: ${preferencesUrl}`,
+    preferencesUrl ? `Manage alerts: ${preferencesUrl}` : '',
     'Reply STOP to opt out.',
-  ].join(' ')
+  ].filter(Boolean).join(' ')
 }
 
 function buildDefaultTournamentAlertBody(

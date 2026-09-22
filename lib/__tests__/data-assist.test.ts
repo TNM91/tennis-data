@@ -16,6 +16,7 @@ const {
   reorderDataAssistScreenshots,
   summarizeDataAssistBatch,
   validateDataAssistFiles,
+  validateDataAssistFilesForType,
 } = await import('../data-assist')
 
 function screenshot(
@@ -45,6 +46,23 @@ describe('Data Assist foundation helpers', () => {
     const file = { type: 'application/pdf', size: 1200 } as File
 
     expect(validateDataAssistFiles([file])).toContain('Excel exports')
+  })
+
+  it('only accepts a scorecard photo when trusted OCR is explicitly enabled', () => {
+    const photo = { name: 'scorecard.jpg', type: 'image/jpeg', size: 1200 } as File
+
+    expect(validateDataAssistFilesForType([photo], 'scorecard', {
+      provider: 'disabled',
+      status: 'disabled',
+      canRun: false,
+      reason: 'Disabled',
+    })).toContain('not enabled')
+    expect(validateDataAssistFilesForType([photo], 'scorecard', {
+      provider: 'tesseract',
+      status: 'queued',
+      canRun: true,
+      reason: 'Ready',
+    })).toBe('')
   })
 
   it('summarizes a supported scorecard batch for layout review', () => {

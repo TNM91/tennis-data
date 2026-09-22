@@ -27,7 +27,7 @@ export default function TermsPage() {
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>1. Platform overview</h2>
           <p>
             TenAceIQ provides tennis-related analytics, ratings, matchup insight, lineup
-            planning, captain tools, communication workflows, and related platform features.
+            planning, captain tools, team communication, and related platform features.
           </p>
         </div>
 
@@ -83,8 +83,12 @@ export default function TermsPage() {
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>7. Intellectual property</h2>
           <p>
             TenAceIQ, including its branding, software, design, text, visual elements,
-            workflows, and proprietary analytics, is owned by TenAceIQ or its licensors
+            tools, and proprietary analytics, is owned by TenAceIQ or its licensors
             and is protected by applicable law.
+          </p>
+          <p>
+            Copyright notices, counter-notices, user-submitted content rules, and repeat-infringer
+            handling are described in the <Link href="/legal/copyright">Copyright Policy</Link>.
           </p>
         </div>
 

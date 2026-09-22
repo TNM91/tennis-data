@@ -1,15 +1,27 @@
 'use client'
 
 import Link from 'next/link'
-import { use, useCallback, useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
+import { use, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
+import { isActiveClubBillingStatus, type ClubBillingAccount } from '@/lib/club-billing'
 import { getPlanDestinationHref, isSafeLocalNextHref } from '@/lib/plan-intent'
-import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
+import { claimFollowIntentTracking, peekFollowIntent } from '@/lib/follow-intent'
+import {
+  PAID_CHECKOUT_EARLY_ACCESS_SAVED_MESSAGE,
+  PAID_CHECKOUT_ENABLED,
+  PAID_CHECKOUT_PAUSED_MESSAGE,
+} from '@/lib/paid-checkout'
+import {
+  getPricingPlan,
+  isClubPricingPlanId,
+  type BillablePricingPlanId as PricingPlanId,
+} from '@/lib/pricing-plans'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
-import { getMembershipTier } from '@/lib/product-story'
+import { CLUB_PLAN_STORY, getMembershipTier } from '@/lib/product-story'
+import { COACH_TACTICS_BOARD_HREF } from '@/lib/tactics-hrefs'
 import { buildSupportMessageHref } from '@/lib/message-links'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -19,7 +31,16 @@ import {
   type UpgradeRequestRecord,
 } from '@/lib/upgrade-requests'
 
-const PLAN_IDS: PricingPlanId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
+const PLAN_IDS: PricingPlanId[] = [
+  'free',
+  'player_plus',
+  'coach',
+  'captain',
+  'league',
+  'full_court',
+  'club_starter',
+  'club_unlimited',
+]
 const LAST_REMOTE_UPGRADE_REQUEST_KEY = 'tenaceiq-last-remote-upgrade-request-v1'
 
 const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
@@ -29,6 +50,8 @@ const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
   captain: 'lineupBuilder',
   league: 'teamRankings',
   full_court: 'teamRankings',
+  club_starter: 'teamRankings',
+  club_unlimited: 'teamRankings',
 }
 
 const UNLOCK_COPY: Record<PricingPlanId, {
@@ -50,7 +73,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   player_plus: {
     eyebrow: 'Player unlock',
     title: 'Activate My Lab for your game.',
-    body: 'Continue with Player when My Lab should connect your game, matchup prep, follows, Level Up work, and tennis messages.',
+    body: 'Continue with Player when you want My Lab, matchup prep, follows, Level Up work, and tennis messages tied to your game.',
     action: 'Continue with Player',
     checkoutAction: 'Unlock Player',
     setupAction: 'Preview Player setup',
@@ -66,7 +89,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   captain: {
     eyebrow: 'Captain unlock',
     title: 'Activate Team Hub for match week.',
-    body: 'Continue with Captain when Team Hub should connect lineup decisions, scouting, readiness, and team communication for match week.',
+    body: 'Continue with Team Hub when match week needs lineup decisions, scouting, readiness, and team communication in one place.',
     action: 'Continue with Team Hub',
     checkoutAction: 'Unlock Captain',
     setupAction: 'Preview Team Hub',
@@ -81,11 +104,27 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   },
   full_court: {
     eyebrow: 'Full-Court unlock',
-    title: 'Activate Full-Court for the complete toolkit.',
-    body: 'Continue with Full-Court when My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations need the complete TenAceIQ toolkit.',
+    title: 'Activate Full-Court for every tennis role.',
+    body: 'Continue with Full-Court when My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk runs all need to stay open.',
     action: 'Continue with Full-Court',
     checkoutAction: 'Unlock Full-Court',
     setupAction: 'Preview Full-Court',
+  },
+  club_starter: {
+    eyebrow: 'Club unlock',
+    title: 'Activate one connected club experience.',
+    body: `Continue with Club Starter for ${CLUB_PLAN_STORY.starter.scopeLabel.toLowerCase()}, ${CLUB_PLAN_STORY.starter.capacityLabel.toLowerCase()}, across clinics, teams, leagues, and tournaments.`,
+    action: 'Continue with Club Starter',
+    checkoutAction: 'Unlock Club Starter',
+    setupAction: 'Preview Club',
+  },
+  club_unlimited: {
+    eyebrow: 'Club-wide unlock',
+    title: 'Activate Club Unlimited for everyone.',
+    body: `Continue with Club Unlimited for ${CLUB_PLAN_STORY.unlimited.scopeLabel.toLowerCase()} with ${CLUB_PLAN_STORY.unlimited.capacityLabel.toLowerCase()}.`,
+    action: 'Continue with Club Unlimited',
+    checkoutAction: 'Unlock Club Unlimited',
+    setupAction: 'Preview Club',
   },
 }
 
@@ -96,6 +135,43 @@ const UPGRADE_JOB_FIT: Record<PricingPlanId, string> = {
   captain: 'Activate Captain when match week needs availability, lineup decisions, scouting, and team updates in Team Hub.',
   league: 'Activate League when one season needs participants, schedules, scores, standings, and corrections in League Office.',
   full_court: 'Activate Full-Court when My Lab, Coach Hub, Team Hub, League Office, and Tournament Desk all need to stay connected.',
+  club_starter: `Activate Club Starter for ${CLUB_PLAN_STORY.starter.scopeLabel.toLowerCase()} with ${CLUB_PLAN_STORY.starter.capacityLabel.toLowerCase()}.`,
+  club_unlimited: `Activate Club Unlimited for ${CLUB_PLAN_STORY.unlimited.scopeLabel.toLowerCase()} with ${CLUB_PLAN_STORY.unlimited.capacityLabel.toLowerCase()}.`,
+}
+
+const MOBILE_UNLOCK_COPY: Record<PricingPlanId, { title: string; body: string }> = {
+  free: {
+    title: 'Open the tennis map.',
+    body: 'Search players, teams, leagues, rankings, flights, and areas.',
+  },
+  player_plus: {
+    title: 'Unlock My Lab.',
+    body: 'Open My Lab, matchup prep, follows, Level Up work, and tennis messages.',
+  },
+  coach: {
+    title: 'Unlock Coach Hub.',
+    body: 'Plan lessons, assign drills, track proof, and keep player work moving.',
+  },
+  captain: {
+    title: 'Unlock Team Hub.',
+    body: 'Handle availability, lineups, scouting, and team updates for match week.',
+  },
+  league: {
+    title: 'Unlock League Office.',
+    body: 'Run players, teams, schedules, scores, standings, and corrections.',
+  },
+  full_court: {
+    title: 'Unlock Full-Court.',
+    body: 'Keep every tennis role open: player, coach, captain, league, and tournaments.',
+  },
+  club_starter: {
+    title: 'Unlock Club Starter.',
+    body: `${CLUB_PLAN_STORY.starter.scopeLabel}. ${CLUB_PLAN_STORY.starter.capacityLabel}.`,
+  },
+  club_unlimited: {
+    title: 'Unlock Club Unlimited.',
+    body: `${CLUB_PLAN_STORY.unlimited.scopeLabel}. ${CLUB_PLAN_STORY.unlimited.capacityLabel}.`,
+  },
 }
 
 const ACTIVATION_STEPS: Record<PricingPlanId, string[]> = {
@@ -104,7 +180,9 @@ const ACTIVATION_STEPS: Record<PricingPlanId, string[]> = {
   coach: ['Create Free access', 'Activate Coach', 'Open Coach Hub'],
   captain: ['Create Free access', 'Activate Captain', 'Open Team Hub'],
   league: ['Create Free access', 'Activate League', 'Open League Office'],
-  full_court: ['Create Free access', 'Activate Full-Court', 'Open the full toolkit'],
+  full_court: ['Create Free access', 'Activate Full-Court', 'Open Full-Court'],
+  club_starter: ['Create Free access', 'Activate Club Starter', 'Create your club'],
+  club_unlimited: ['Create Free access', 'Activate Club Unlimited', 'Create your club'],
 }
 
 const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
@@ -135,8 +213,8 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
     title: 'Coach Hub is active. Build the next lesson.',
     body: 'Open Coach Hub, map court work in Tactical Studio, and turn the next player-development need into assignments.',
     primaryAction: 'Open Coach Hub',
-    secondaryAction: 'Open workbook',
-    secondaryHref: '/player-development',
+    secondaryAction: 'Map court work',
+    secondaryHref: COACH_TACTICS_BOARD_HREF,
     steps: ['Plan a lesson', 'Build a tactical board', 'Assign the next drill'],
   },
   captain: {
@@ -156,13 +234,36 @@ const SUCCESS_HANDOFF_COPY: Record<PricingPlanId, {
     steps: ['Create the League Office shell', 'Add participants', 'Track results and rankings'],
   },
   full_court: {
-    title: 'Full-Court is active. Use the complete toolkit.',
-    body: 'Open Full-Court, then move between My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations without switching plans.',
+    title: 'Full-Court is active. Run every tennis role.',
+    body: 'Open Full-Court, then move between My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk runs without changing plans.',
     primaryAction: 'Open Full-Court',
     secondaryAction: 'Find leagues',
     secondaryHref: '/leagues',
-    steps: ['Open the full toolkit', 'Create leagues or tournaments', 'Track teams, players, results, and rankings'],
+    steps: ['Open Full-Court', 'Create leagues or tournaments', 'Track teams, players, results, and rankings'],
   },
+  club_starter: {
+    title: 'Club Starter is active. Create the club.',
+    body: `Open Club, add the club identity, then connect ${CLUB_PLAN_STORY.starter.capacityLabel.toLowerCase()} across programs and competition.`,
+    primaryAction: 'Open Club',
+    secondaryAction: 'Review Club plans',
+    secondaryHref: '/pricing#club',
+    steps: ['Create the club identity', 'Connect core staff', 'Invite players'],
+  },
+  club_unlimited: {
+    title: 'Club Unlimited is active. Roll out the club.',
+    body: 'Open Club, add the club identity, then connect every coach and player across programs, teams, leagues, and tournaments.',
+    primaryAction: 'Open Club',
+    secondaryAction: 'Review Club plans',
+    secondaryHref: '/pricing#club',
+    steps: ['Create the club identity', 'Connect staff', 'Invite every player'],
+  },
+}
+
+type UpgradeNextIntent = {
+  label: string
+  title: string
+  body: string
+  action: string
 }
 
 type UpgradePageProps = {
@@ -183,7 +284,7 @@ function UpgradeContent({
 }: {
   resolvedSearchParams: { [key: string]: string | string[] | undefined }
 }) {
-  const { isTablet, isSmallMobile } = useViewportBreakpoints()
+  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { role, userId, entitlements, authResolved, session, refreshAuth } = useAuth()
   const requestedPlan = getSearchParamValue(resolvedSearchParams.plan)
   const planId: PricingPlanId = PLAN_IDS.includes(requestedPlan as PricingPlanId)
@@ -191,27 +292,62 @@ function UpgradeContent({
     : 'captain'
   const plan = getPricingPlan(planId)
   const pricingSnapshot = useMemo(() => buildUpgradePricingSnapshot(planId), [planId])
-  const tier = getMembershipTier(planId)
+  const tier = getUpgradeTierStory(planId)
   const copy = UNLOCK_COPY[planId]
+  const mobileCopy = MOBILE_UNLOCK_COPY[planId]
   const successHandoff = SUCCESS_HANDOFF_COPY[planId]
   const nextHref = isSafeLocalNextHref(getSearchParamValue(resolvedSearchParams.next), getPlanDestinationHref(planId))
+  const [followContextState, setFollowContextState] = useState<{
+    intent: ReturnType<typeof peekFollowIntent>
+    path: string
+    userId: string | null
+  } | null>(null)
+  const followContext = planId === 'player_plus' && followContextState?.path === nextHref && followContextState.userId === userId
+    ? followContextState.intent
+    : null
+  const nextIntent = followContext ? getFollowUpgradeNextIntent(followContext) : getUpgradeNextIntent(planId, nextHref)
+  const successTitle = followContext ? 'Player is active. Your follow is next.' : successHandoff.title
+  const successSteps = followContext
+    ? [`Return to ${getFollowTargetLabel(followContext)}`, 'Save the follow in My Lab', 'See your follows in My Lab']
+    : successHandoff.steps
 
   const [requestName, setRequestName] = useState('')
   const [requestEmail, setRequestEmail] = useState('')
   const [requestOrganization, setRequestOrganization] = useState('')
   const [requestGoal, setRequestGoal] = useState('')
+  const [requestOrganizationEdited, setRequestOrganizationEdited] = useState(false)
+  const [requestGoalEdited, setRequestGoalEdited] = useState(false)
+  const followRequestGoal = followContext ? `Follow ${getFollowTargetLabel(followContext)} in My Lab.` : ''
+  const effectiveRequestOrganization = requestOrganizationEdited ? requestOrganization : followContext?.entityName || requestOrganization
+  const effectiveRequestGoal = requestGoalEdited ? requestGoal : followRequestGoal || requestGoal
   const [requestError, setRequestError] = useState('')
   const [submittedRequest, setSubmittedRequest] = useState<UpgradeRequestRecord | null>(null)
   const [requestSubmitting, setRequestSubmitting] = useState(false)
+  const [requestTakingLonger, setRequestTakingLonger] = useState(false)
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
   const [checkoutSuccessMessage, setCheckoutSuccessMessage] = useState('')
+  const [earlyAccessSaved, setEarlyAccessSaved] = useState(false)
   const [requestStorageMode, setRequestStorageMode] = useState<'supabase' | 'local' | null>(null)
   const [requestLinkStatus, setRequestLinkStatus] = useState('')
-  const [autoCheckoutStarted, setAutoCheckoutStarted] = useState(false)
+  const [clubBilling, setClubBilling] = useState<ClubBillingAccount | null>(null)
+  const [clubBillingResolved, setClubBillingResolved] = useState(false)
+  const trackedUpgradePageRef = useRef('')
   const checkoutReturnState = getSearchParamValue(resolvedSearchParams.checkout)
   const checkoutReturnRequestId = getSearchParamValue(resolvedSearchParams.request) ?? ''
   const checkoutReturnSessionId = getSearchParamValue(resolvedSearchParams.session_id) ?? ''
+
+  useEffect(() => {
+    if (planId !== 'player_plus') {
+      setFollowContextState(null)
+      return
+    }
+    try {
+      setFollowContextState({ intent: peekFollowIntent(window.sessionStorage, nextHref, userId), path: nextHref, userId })
+    } catch {
+      setFollowContextState(null)
+    }
+  }, [nextHref, planId, userId])
 
   useEffect(() => {
     if (!authResolved) return
@@ -220,6 +356,66 @@ function UpgradeContent({
       void claimLastRemoteRequest(session?.user?.email ?? '')
     }
   }, [authResolved, session?.user?.email, userId])
+
+  useEffect(() => {
+    if (!authResolved || !userId || planId === 'free') return
+    const trackingKey = `${userId}:${planId}:${nextHref}`
+    if (trackedUpgradePageRef.current === trackingKey) return
+    trackedUpgradePageRef.current = trackingKey
+    void trackProductUsageEvent({
+      eventName: 'upgrade_page_viewed',
+      surface: 'upgrade',
+      planId,
+      metadata: { nextHref },
+    })
+  }, [authResolved, nextHref, planId, userId])
+
+  useEffect(() => {
+    if (!authResolved || !userId || !session?.access_token || planId !== 'player_plus') return
+    try {
+      const entityType = claimFollowIntentTracking(window.sessionStorage, nextHref, userId)
+      if (!entityType) return
+      void trackProductUsageEvent({
+        eventName: 'follow_upgrade_clicked',
+        surface: entityType === 'player' ? 'profile' : entityType === 'team' ? 'teams' : 'leagues',
+        planId: 'player_plus',
+        metadata: { entityType },
+      }, session.access_token)
+    } catch {
+      // The upgrade and follow return continue when browser storage is unavailable.
+    }
+  }, [authResolved, nextHref, planId, session?.access_token, userId])
+
+  useEffect(() => {
+    if (!authResolved || !isClubPricingPlanId(planId)) {
+      setClubBillingResolved(authResolved)
+      return
+    }
+    if (!userId || !session?.access_token) {
+      setClubBilling(null)
+      setClubBillingResolved(true)
+      return
+    }
+
+    const controller = new AbortController()
+    setClubBillingResolved(false)
+    void fetch('/api/club-billing', {
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then(async (response) => {
+        const body = await response.json() as { ok?: boolean; billing?: ClubBillingAccount | null }
+        if (!response.ok || !body.ok) throw new Error('Club billing could not be checked.')
+        setClubBilling(body.billing ?? null)
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setClubBilling(null)
+      })
+      .finally(() => setClubBillingResolved(true))
+
+    return () => controller.abort()
+  }, [authResolved, planId, session?.access_token, userId])
 
   async function claimLastRemoteRequest(userEmail: string) {
     const stored = readLastRemoteRequest()
@@ -255,28 +451,9 @@ function UpgradeContent({
   }
 
   const startCheckoutForRequest = useCallback(async (requestId: string, accessToken: string) => {
-    const response = await fetch('/api/checkout/session', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({
-        requestId,
-        nextHref,
-      }),
-    })
-    const body = await response.json().catch(() => null) as
-      | { ok?: boolean; message?: string; url?: string }
-      | null
-
-    if (!response.ok || !body?.ok || !body.url) {
-      throw new Error(body?.message ?? 'Checkout could not be started.')
-    }
-
     if (planId !== 'free') {
       await trackProductUsageEvent({
-        eventName: 'upgrade_checkout_started',
+        eventName: 'upgrade_checkout_clicked',
         surface: 'upgrade',
         planId,
         metadata: {
@@ -286,11 +463,64 @@ function UpgradeContent({
       })
     }
 
-    window.location.assign(body.url)
+    try {
+      const response = await fetch('/api/checkout/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          requestId,
+          nextHref,
+        }),
+      })
+      const body = await response.json().catch(() => null) as
+        | { ok?: boolean; message?: string; url?: string }
+        | null
+
+      if (!response.ok || !body?.ok || !body.url) {
+        if (planId !== 'free') {
+          await trackProductUsageEvent({
+            eventName: 'upgrade_checkout_failed',
+            surface: 'upgrade',
+            planId,
+            metadata: { requestId, nextHref, stage: 'stripe_session', status: response.status },
+          })
+        }
+        throw new Error(body?.message ?? 'Checkout could not be started.')
+      }
+
+      if (planId !== 'free') {
+        await trackProductUsageEvent({
+          eventName: 'upgrade_checkout_started',
+          surface: 'upgrade',
+          planId,
+          metadata: { requestId, nextHref },
+        })
+      }
+
+      window.location.assign(body.url)
+    } catch (error) {
+      if (planId !== 'free' && error instanceof TypeError) {
+        await trackProductUsageEvent({
+          eventName: 'upgrade_checkout_failed',
+          surface: 'upgrade',
+          planId,
+          metadata: { requestId, nextHref, stage: 'network' },
+        })
+      }
+      throw error
+    }
   }, [nextHref, planId])
 
   const startCheckout = useCallback(async () => {
     if (!submittedRequest?.id || checkoutSubmitting) return
+
+    if (!PAID_CHECKOUT_ENABLED) {
+      setEarlyAccessSaved(true)
+      return
+    }
 
     setCheckoutSubmitting(true)
     setCheckoutError('')
@@ -342,8 +572,8 @@ function UpgradeContent({
         ...pricingSnapshot,
         name: displayName,
         email: session.user.email,
-        organization: '',
-        goal: `Start ${plan.name} checkout from upgrade.`,
+        organization: followContext?.entityName ?? '',
+        goal: followRequestGoal || `Start ${plan.name} checkout from upgrade.`,
         nextHref,
         createdAt: new Date().toISOString(),
         status: 'pending',
@@ -368,15 +598,20 @@ function UpgradeContent({
 
       setSubmittedRequest(requestBody.request)
       setRequestStorageMode('supabase')
+      if (!PAID_CHECKOUT_ENABLED) {
+        setEarlyAccessSaved(true)
+        setCheckoutSubmitting(false)
+        return
+      }
       await startCheckoutForRequest(requestBody.request.id, session.access_token)
     } catch (error) {
       setCheckoutError(error instanceof Error ? error.message : 'Checkout could not be started.')
       setCheckoutSubmitting(false)
     }
-  }, [checkoutSubmitting, nextHref, plan.name, planId, pricingSnapshot, startCheckoutForRequest])
+  }, [checkoutSubmitting, followContext?.entityName, followRequestGoal, nextHref, plan.name, planId, pricingSnapshot, startCheckoutForRequest])
 
   const resolvedRole = authResolved || !userId ? role : 'member'
-  const authLoading = !authResolved
+  const authLoading = !authResolved || (isClubPricingPlanId(planId) && !clubBillingResolved)
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
   const hasAccess =
     planId === 'free' ||
@@ -384,13 +619,15 @@ function UpgradeContent({
     (planId === 'coach' && access.canUseCoachWorkflow) ||
     (planId === 'captain' && access.canUseCaptainWorkflow) ||
     (planId === 'league' && access.canUseLeagueTools) ||
-    (planId === 'full_court' && access.currentPlanId === 'full_court')
+    (planId === 'full_court' && access.currentPlanId === 'full_court') ||
+    (planId === 'club_starter' && isActiveClubBillingStatus(clubBilling?.status)) ||
+    (planId === 'club_unlimited' && clubBilling?.planId === 'club_unlimited' && isActiveClubBillingStatus(clubBilling.status))
   const isPublic = resolvedRole === 'public'
-  const isPaidPlan = planId === 'player_plus' || planId === 'coach' || planId === 'captain' || planId === 'league' || planId === 'full_court'
+  const isPaidPlan = plan.billing.checkoutMode !== 'none'
   const showAccessRequest = isPaidPlan && !hasAccess && (isPublic || !authLoading)
   const planChoiceCards = PLAN_IDS.map((choicePlanId) => {
     const choicePlan = getPricingPlan(choicePlanId)
-    const choiceTier = getMembershipTier(choicePlanId)
+    const choiceTier = getUpgradeTierStory(choicePlanId)
     return {
       id: choicePlanId,
       plan: choicePlan,
@@ -400,21 +637,6 @@ function UpgradeContent({
       href: `/upgrade?plan=${choicePlanId}&next=${encodeURIComponent(getPlanDestinationHref(choicePlanId))}`,
     }
   })
-
-  useEffect(() => {
-    if (autoCheckoutStarted || authLoading || !isPaidPlan || hasAccess || isPublic || checkoutReturnState) return
-
-    setAutoCheckoutStarted(true)
-    void startSignedInCheckout()
-  }, [
-    autoCheckoutStarted,
-    authLoading,
-    checkoutReturnState,
-    hasAccess,
-    isPaidPlan,
-    isPublic,
-    startSignedInCheckout,
-  ])
 
   useEffect(() => {
     if (authLoading || checkoutReturnState !== 'success' || !checkoutReturnRequestId || isPublic) return
@@ -459,7 +681,13 @@ function UpgradeContent({
         if (active) {
           setRequestEmail(session?.user?.email ?? '')
           setCheckoutSubmitting(false)
-          setCheckoutSuccessMessage(`${successHandoff.body} Opening ${getPlanDestinationLabel(planId)}...`)
+          let followTarget: ReturnType<typeof peekFollowIntent> = null
+          try {
+            if (planId === 'player_plus') followTarget = peekFollowIntent(window.sessionStorage, nextHref, userId)
+          } catch {}
+          setCheckoutSuccessMessage(followTarget
+            ? `Player is active. Returning to ${getFollowTargetLabel(followTarget)} to finish your follow...`
+            : `${successHandoff.body} Opening ${getPlanDestinationLabel(planId)}...`)
           redirectTimeout = window.setTimeout(() => {
             window.location.replace(nextHref)
           }, 2800)
@@ -488,6 +716,7 @@ function UpgradeContent({
     refreshAuth,
     session?.user?.email,
     successHandoff.body,
+    userId,
   ])
 
   const supportThreadHref = buildAccessRequestSupportHref(submittedRequest ?? {
@@ -496,8 +725,8 @@ function UpgradeContent({
     ...pricingSnapshot,
     name: requestName,
     email: requestEmail,
-    organization: requestOrganization,
-    goal: requestGoal,
+    organization: effectiveRequestOrganization,
+    goal: effectiveRequestGoal,
     nextHref,
     createdAt: '',
   })
@@ -508,8 +737,8 @@ function UpgradeContent({
 
     const name = requestName.trim()
     const email = requestEmail.trim()
-    const organization = requestOrganization.trim()
-    const goal = requestGoal.trim()
+    const organization = effectiveRequestOrganization.trim()
+    const goal = effectiveRequestGoal.trim()
 
     if (!email || !email.includes('@')) {
       setRequestError('Enter an email so we can follow up.')
@@ -522,7 +751,11 @@ function UpgradeContent({
     }
 
     setRequestSubmitting(true)
+    setRequestTakingLonger(false)
     setRequestError('')
+    const requestSlowTimer = window.setTimeout(() => {
+      setRequestTakingLonger(true)
+    }, 2500)
 
     const record: UpgradeRequestRecord = {
       id: `${planId}-${Math.round(event.timeStamp)}`,
@@ -580,7 +813,9 @@ function UpgradeContent({
         setRequestError('This browser could not save the request. Open a support thread and we will handle it inside TenAceIQ.')
       }
     } finally {
+      window.clearTimeout(requestSlowTimer)
       setRequestSubmitting(false)
+      setRequestTakingLonger(false)
     }
   }
 
@@ -590,23 +825,24 @@ function UpgradeContent({
           style={{
             ...heroStyle,
             gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1.04fr) minmax(min(100%, 320px), 0.96fr)',
-            padding: isSmallMobile ? 18 : 26,
+            padding: isSmallMobile ? 16 : isMobile ? 18 : 26,
+            borderRadius: isMobile ? 22 : heroStyle.borderRadius,
           }}
         >
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={heroCopyStyle}>
             <div style={eyebrowStyle}>{copy.eyebrow}</div>
-            <h1 style={titleStyle}>{checkoutSuccessMessage ? successHandoff.title : hasAccess ? `${plan.name} is already active.` : copy.title}</h1>
+            <h1 style={titleStyle}>{checkoutSuccessMessage ? successTitle : hasAccess ? `${plan.name} is already active.` : isMobile ? mobileCopy.title : copy.title}</h1>
             <p style={textStyle}>
               {hasAccess
                 ? checkoutSuccessMessage || `Your account already has the access needed for ${plan.name}. Open ${getPlanDestinationLabel(planId)} when you are ready.`
-                : copy.body}
+                : isMobile ? mobileCopy.body : copy.body}
             </p>
 
             <div style={actionRowStyle}>
               {showAccessRequest ? (
                 <Link href={`/upgrade?plan=${planId}&next=${encodeURIComponent(nextHref)}#activation`} style={primaryButtonStyle}>
-                  {isPublic ? `Request ${getPlanDestinationLabel(planId)}` : copy.checkoutAction}
+                  {!PAID_CHECKOUT_ENABLED ? 'Join early access' : isPublic ? `Request ${getPlanDestinationLabel(planId)}` : copy.checkoutAction}
                 </Link>
               ) : (
                 <Link href={nextHref} style={primaryButtonStyle}>
@@ -620,89 +856,92 @@ function UpgradeContent({
                 {isPublic ? 'Sign in' : 'Compare plans'}
               </Link>
             </div>
+            {nextIntent ? (
+              <div style={nextIntentStyle} aria-label="Upgrade next action">
+                <span style={labelStyle}>{nextIntent.label}</span>
+                <strong style={nextIntentTitleStyle}>{nextIntent.title}</strong>
+                <p style={noteTextStyle}>{nextIntent.body}</p>
+                <Link href={nextHref} style={nextIntentLinkStyle}>
+                  {nextIntent.action}
+                </Link>
+              </div>
+            ) : null}
           </div>
 
           <aside style={planCardStyle}>
-            <TiqFeatureIcon name={PLAN_ICON_BY_ID[planId]} size="lg" variant="surface" />
-            <div style={planNameStyle}>{plan.name}</div>
-            <div style={priceStyle}>{plan.priceLabel}</div>
+            <div style={planCardHeaderStyle}>
+              <TiqFeatureIcon name={PLAN_ICON_BY_ID[planId]} size={isSmallMobile ? 'md' : 'lg'} variant="surface" />
+              <div style={planCardHeaderCopyStyle}>
+                <div style={planNameStyle}>{plan.name}</div>
+                <div style={priceStyle}>{plan.priceLabel}</div>
+              </div>
+            </div>
             {plan.alternatePriceNote ? <div style={mutedStyle}>{plan.alternatePriceNote}</div> : null}
             <div style={resultCardStyle}>
               <span style={labelStyle}>Result</span>
               <strong>{plan.outcome}</strong>
             </div>
-            <div style={metaGridStyle}>
-              <div style={metaCardStyle}>
-                <span style={labelStyle}>Best for</span>
-                <strong>{UPGRADE_JOB_FIT[planId]}</strong>
+            <details className="upgradeDetailsSection" style={planDetailStyle}>
+              <summary style={planDetailSummaryStyle}>
+                <span>{isMobile ? 'Plan details' : 'Show plan details'}</span>
+              </summary>
+              <div style={planDetailBodyStyle}>
+                <div style={metaGridStyle}>
+                  <div style={metaCardStyle}>
+                    <span style={labelStyle}>Best for</span>
+                    <strong>{UPGRADE_JOB_FIT[planId]}</strong>
+                  </div>
+                  <div style={metaCardStyle}>
+                    <span style={labelStyle}>Upgrade trigger</span>
+                    <strong>{tier.upgradeCue}</strong>
+                  </div>
+                </div>
+                <div style={valueListStyle}>
+                  {plan.valueProps.map((valueProp) => (
+                    <span key={valueProp} style={valuePillStyle}>{valueProp}</span>
+                  ))}
+                </div>
+                <div style={activationPathStyle}>
+                  <span style={labelStyle}>Activation path</span>
+                  <div
+                    style={{
+                      ...activationStepGridStyle,
+                      ...(!isMobile ? { gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' } : null),
+                    }}
+                  >
+                    {ACTIVATION_STEPS[planId].map((step, index) => (
+                      <span key={step} style={activationStepStyle}>
+                        <strong>{index + 1}</strong>
+                        {step}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div style={metaCardStyle}>
-                <span style={labelStyle}>Upgrade trigger</span>
-                <strong>{tier.upgradeCue}</strong>
-              </div>
-            </div>
-            <div style={valueListStyle}>
-              {plan.valueProps.map((valueProp) => (
-                <span key={valueProp} style={valuePillStyle}>{valueProp}</span>
-              ))}
-            </div>
-            <div style={activationPathStyle}>
-              <span style={labelStyle}>Activation path</span>
-              <div style={activationStepGridStyle}>
-                {ACTIVATION_STEPS[planId].map((step, index) => (
-                  <span key={step} style={activationStepStyle}>
-                    <strong>{index + 1}</strong>
-                    {step}
-                  </span>
-                ))}
-              </div>
-            </div>
+            </details>
           </aside>
         </section>
 
-        <section style={tierMapStyle} aria-label="Choose TenAceIQ by tennis need">
-          <div style={tierMapHeaderStyle}>
-            <div>
-              <div style={labelStyle}>Choose by need</div>
-              <h2 style={tierMapTitleStyle}>Unlock the level that removes the work in front of you.</h2>
-            </div>
-            <Link href="/pricing" style={secondaryButtonStyle}>
-              Compare full plans
-            </Link>
-          </div>
-          <div style={tierMapGridStyle}>
-            {planChoiceCards.map((choice) => (
-              <Link
-                key={choice.id}
-                href={choice.href}
-                aria-current={choice.selected ? 'page' : undefined}
-                style={{
-                  ...tierChoiceCardStyle,
-                  ...(choice.selected ? tierChoiceSelectedStyle : null),
-                }}
-              >
-                <div style={tierChoiceTopStyle}>
-                  <TiqFeatureIcon name={PLAN_ICON_BY_ID[choice.id]} size="md" variant={choice.selected ? 'surface' : 'ghost'} />
-                  <span style={choice.active ? activeBadgeStyle : tierBadgeStyle}>
-                    {choice.active ? 'Active' : choice.selected ? 'Selected' : UNLOCK_COPY[choice.id].eyebrow}
-                  </span>
-                </div>
-                <strong style={tierChoiceNameStyle}>{choice.plan.name}</strong>
-                <span style={tierChoiceBodyStyle}>{choice.tier.shortPromise}</span>
-                <span style={tierChoicePriceStyle}>{choice.plan.priceLabel}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-
         {showAccessRequest ? (
-          <section id="activation" style={activationStyle}>
+          <section
+            id="activation"
+            style={{
+              ...activationStyle,
+              gap: isMobile ? 10 : activationStyle.gap,
+              padding: isSmallMobile ? 10 : isMobile ? 12 : activationStyle.padding,
+              borderRadius: isMobile ? 16 : activationStyle.borderRadius,
+            }}
+          >
             <div style={activationCopyStyle}>
-              <div style={labelStyle}>{isPublic ? 'Quick request' : 'Activation step'}</div>
-              <h2 style={activationTitleStyle}>Ready to activate {getPlanDestinationLabel(planId)}?</h2>
+              <div style={labelStyle}>{!PAID_CHECKOUT_ENABLED ? 'Early access' : isPublic ? 'Quick request' : 'Activation step'}</div>
+              <h2 style={activationTitleStyle}>
+                {!PAID_CHECKOUT_ENABLED ? 'Paid plans are opening soon.' : <>Ready to activate {getPlanDestinationLabel(planId)}?</>}
+              </h2>
               <p style={noteTextStyle}>
-                {isPublic
-                  ? 'Send the plan request first. Account creation starts Free access; the selected tool opens after access is active.'
+                {!PAID_CHECKOUT_ENABLED
+                  ? earlyAccessSaved ? PAID_CHECKOUT_EARLY_ACCESS_SAVED_MESSAGE : PAID_CHECKOUT_PAUSED_MESSAGE
+                  : isPublic
+                    ? 'Send the plan request first. Account creation starts Free access; the selected tennis path opens after access is active.'
                   : checkoutSuccessMessage
                     ? checkoutSuccessMessage
                     : checkoutError
@@ -718,10 +957,12 @@ function UpgradeContent({
             </div>
             {!isPublic ? (
               <div style={successCardStyle}>
-                <div style={labelStyle}>Secure checkout</div>
+                <div style={labelStyle}>{PAID_CHECKOUT_ENABLED ? 'Secure checkout' : 'Early access'}</div>
                 <h3 style={successTitleStyle}>
-                  {checkoutSuccessMessage
-                    ? successHandoff.title
+                  {!PAID_CHECKOUT_ENABLED
+                    ? earlyAccessSaved ? 'You are on the list.' : `Save your ${getPlanDestinationLabel(planId)} interest.`
+                    : checkoutSuccessMessage
+                    ? successTitle
                     : checkoutSubmitting
                       ? checkoutReturnState === 'success'
                         ? 'Confirming checkout...'
@@ -731,7 +972,13 @@ function UpgradeContent({
                         : `Starting ${getPlanDestinationLabel(planId)} checkout.`}
                 </h3>
                 <p style={noteTextStyle}>
-                  {checkoutSuccessMessage
+                  {!PAID_CHECKOUT_ENABLED
+                    ? earlyAccessSaved
+                      ? followContext
+                        ? `Your Player interest is saved. When access opens, return to ${getFollowTargetLabel(followContext)} and tap Follow.`
+                        : PAID_CHECKOUT_EARLY_ACCESS_SAVED_MESSAGE
+                      : 'One tap saves the plan you want. No payment information is collected.'
+                    : checkoutSuccessMessage
                     ? checkoutSuccessMessage
                     : checkoutSubmitting
                       ? checkoutReturnState === 'success'
@@ -743,7 +990,7 @@ function UpgradeContent({
                 </p>
                 {checkoutSuccessMessage ? (
                   <div style={handoffStepGridStyle}>
-                    {successHandoff.steps.map((step, index) => (
+                    {successSteps.map((step, index) => (
                       <span key={step} style={handoffStepStyle}>
                         <strong>{index + 1}</strong>
                         {step}
@@ -752,7 +999,30 @@ function UpgradeContent({
                   </div>
                 ) : null}
                 <div style={formActionRowStyle}>
-                  {checkoutSuccessMessage ? (
+                  {!PAID_CHECKOUT_ENABLED ? (
+                    earlyAccessSaved ? (
+                      <>
+                        <Link href={followContext ? nextHref : '/'} style={primaryButtonStyle}>
+                          {followContext ? `View ${getFollowTargetLabel(followContext)}` : 'Keep using Free'}
+                        </Link>
+                        <Link href={followContext ? '/' : '/pricing'} style={secondaryButtonStyle}>
+                          {followContext ? 'Keep using Free' : 'Compare plans'}
+                        </Link>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => void (submittedRequest?.id ? startCheckout() : startSignedInCheckout())}
+                          disabled={checkoutSubmitting}
+                          style={submitButtonStyle}
+                        >
+                          {checkoutSubmitting ? 'Saving interest...' : 'Join early access'}
+                        </button>
+                        <Link href="/pricing" style={secondaryButtonStyle}>Compare plans</Link>
+                      </>
+                    )
+                  ) : checkoutSuccessMessage ? (
                     <>
                       <Link href={nextHref} style={primaryButtonStyle}>
                         {successHandoff.primaryAction}
@@ -787,6 +1057,11 @@ function UpgradeContent({
                     ? 'We captured the plan, account contact, and tennis need for admin follow-up.'
                     : 'We saved this request in the browser. Open a support thread if you want this routed inside TenAceIQ.'}
                 </p>
+                {!PAID_CHECKOUT_ENABLED && followContext ? (
+                  <p style={noteTextStyle}>
+                    When Player opens, return to {getFollowTargetLabel(followContext)} and tap Follow.
+                  </p>
+                ) : null}
                 {requestLinkStatus ? <p style={successMetaStyle}>{requestLinkStatus}</p> : null}
                 {requestStorageMode === 'supabase' && submittedRequest.userId ? (
                   <div style={formActionRowStyle}>
@@ -824,10 +1099,24 @@ function UpgradeContent({
                     Open support thread
                   </Link>
                 ) : null}
+                {!PAID_CHECKOUT_ENABLED && followContext ? (
+                  <Link href={nextHref} style={secondaryButtonStyle}>
+                    View {getFollowTargetLabel(followContext)}
+                  </Link>
+                ) : null}
               </div>
             ) : (
-              <form style={requestFormStyle} onSubmit={handleRequestSubmit}>
-                <div style={selectedPlanStyle}>
+              <form
+                noValidate
+                style={{
+                  ...requestFormStyle,
+                  gap: isMobile ? 8 : requestFormStyle.gap,
+                  padding: isSmallMobile ? 10 : isMobile ? 12 : requestFormStyle.padding,
+                  borderRadius: isMobile ? 14 : requestFormStyle.borderRadius,
+                }}
+                onSubmit={handleRequestSubmit}
+              >
+                <div style={{ ...selectedPlanStyle, display: isMobile ? 'none' : selectedPlanStyle.display }}>
                   <span style={labelStyle}>Selected tennis need</span>
                   <strong>{getPlanDestinationLabel(planId)}</strong>
                 </div>
@@ -839,7 +1128,7 @@ function UpgradeContent({
                       value={requestName}
                       onChange={(event) => setRequestName(event.target.value)}
                       placeholder="Your name"
-                      style={inputStyle}
+                      style={{ ...inputStyle, minHeight: isMobile ? 44 : inputStyle.minHeight }}
                     />
                   </label>
                   <label style={fieldStyle}>
@@ -847,10 +1136,12 @@ function UpgradeContent({
                     <input
                       className="tiq-focus-ring"
                       type="email"
+                      aria-invalid={requestError.includes('email')}
+                      aria-describedby={requestError ? 'upgrade-request-error' : undefined}
                       value={requestEmail}
                       onChange={(event) => setRequestEmail(event.target.value)}
                       placeholder="you@example.com"
-                      style={inputStyle}
+                      style={{ ...inputStyle, minHeight: isMobile ? 44 : inputStyle.minHeight }}
                     />
                   </label>
                 </div>
@@ -858,23 +1149,40 @@ function UpgradeContent({
                   Team, player, or league
                   <input
                     className="tiq-focus-ring"
-                    value={requestOrganization}
-                    onChange={(event) => setRequestOrganization(event.target.value)}
+                    value={effectiveRequestOrganization}
+                    onChange={(event) => {
+                      setRequestOrganizationEdited(true)
+                      setRequestOrganization(event.target.value)
+                    }}
                     placeholder="Optional"
-                    style={inputStyle}
+                    style={{ ...inputStyle, minHeight: isMobile ? 44 : inputStyle.minHeight }}
                   />
                 </label>
                 <label style={fieldStyle}>
-                  Which tennis need should TenAceIQ support first?
+                  Which tennis need do you want help with first?
                   <textarea
                     className="tiq-focus-ring"
-                    value={requestGoal}
-                    onChange={(event) => setRequestGoal(event.target.value)}
+                    aria-invalid={requestError.includes('help with first')}
+                    aria-describedby={requestError ? 'upgrade-request-error' : undefined}
+                    value={effectiveRequestGoal}
+                    onChange={(event) => {
+                      setRequestGoalEdited(true)
+                      setRequestGoal(event.target.value)
+                    }}
                     placeholder="Example: compare a lineup, prep for a match, or run league standings."
-                    style={textareaStyle}
+                    style={{ ...textareaStyle, minHeight: isMobile ? 68 : textareaStyle.minHeight }}
                   />
                 </label>
-                {requestError ? <p style={errorTextStyle}>{requestError}</p> : null}
+                {requestError ? (
+                  <p id="upgrade-request-error" role="alert" aria-live="assertive" style={errorTextStyle}>
+                    {requestError}
+                  </p>
+                ) : null}
+                {requestSubmitting && requestTakingLonger ? (
+                  <p role="status" aria-live="polite" style={successMetaStyle}>
+                    Still saving your Team Hub request. Ask support keeps these details attached if service is spotty.
+                  </p>
+                ) : null}
                 <div style={formActionRowStyle}>
                   <button type="submit" disabled={requestSubmitting} style={submitButtonStyle}>
                     {requestSubmitting ? 'Saving request...' : `Request ${getPlanDestinationLabel(planId)}`}
@@ -887,6 +1195,49 @@ function UpgradeContent({
             )}
           </section>
         ) : null}
+
+        <section style={tierMapStyle} aria-label="Choose TenAceIQ by tennis need">
+          <details className="upgradeDetailsSection" style={tierMapDetailsStyle}>
+            <summary style={tierMapSummaryStyle}>
+              <span style={labelStyle}>{isMobile ? 'Need another tool?' : 'Switch tools'}</span>
+              <strong style={tierMapSummaryTitleStyle}>{isMobile ? 'Switch plan' : 'Choose another tennis tool'}</strong>
+            </summary>
+            <div style={tierMapBodyStyle}>
+              <div style={tierMapHeaderStyle}>
+                <div>
+                  <div style={labelStyle}>Choose by need</div>
+                  <h2 style={tierMapTitleStyle}>Unlock the level that removes the work in front of you.</h2>
+                </div>
+                <Link href="/pricing" style={secondaryButtonStyle}>
+                  Compare full plans
+                </Link>
+              </div>
+              <div style={tierMapGridStyle}>
+                {planChoiceCards.map((choice) => (
+                  <Link
+                    key={choice.id}
+                    href={choice.href}
+                    aria-current={choice.selected ? 'page' : undefined}
+                    style={{
+                      ...tierChoiceCardStyle,
+                      ...(choice.selected ? tierChoiceSelectedStyle : null),
+                    }}
+                  >
+                    <div style={tierChoiceTopStyle}>
+                      <TiqFeatureIcon name={PLAN_ICON_BY_ID[choice.id]} size="md" variant={choice.selected ? 'surface' : 'ghost'} />
+                      <span style={choice.active ? activeBadgeStyle : tierBadgeStyle}>
+                        {choice.active ? 'Active' : choice.selected ? 'Selected' : UNLOCK_COPY[choice.id].eyebrow}
+                      </span>
+                    </div>
+                    <strong style={tierChoiceNameStyle}>{choice.plan.name}</strong>
+                    <span style={tierChoiceBodyStyle}>{choice.tier.shortPromise}</span>
+                    <span style={tierChoicePriceStyle}>{choice.plan.priceLabel}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </details>
+        </section>
     </main>
   )
 }
@@ -914,13 +1265,107 @@ function getSearchParamValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value
 }
 
+function getUpgradeTierStory(planId: PricingPlanId) {
+  if (planId === 'club_starter') {
+    return {
+      shortPromise: CLUB_PLAN_STORY.starter.shortPromise,
+      upgradeCue: `${CLUB_PLAN_STORY.starter.scopeLabel}. ${CLUB_PLAN_STORY.starter.capacityLabel}.`,
+    }
+  }
+  if (planId === 'club_unlimited') {
+    return {
+      shortPromise: CLUB_PLAN_STORY.unlimited.shortPromise,
+      upgradeCue: `${CLUB_PLAN_STORY.unlimited.scopeLabel}. ${CLUB_PLAN_STORY.unlimited.capacityLabel}.`,
+    }
+  }
+  return getMembershipTier(planId)
+}
+
 function getPlanDestinationLabel(planId: PricingPlanId) {
   if (planId === 'player_plus') return 'My Lab'
   if (planId === 'coach') return 'Coach Hub'
   if (planId === 'captain') return 'Team Hub'
   if (planId === 'league') return 'League Office'
   if (planId === 'full_court') return 'Full-Court'
+  if (planId === 'club_starter' || planId === 'club_unlimited') return 'Club'
   return 'Find'
+}
+
+function getFollowTargetLabel(context: NonNullable<ReturnType<typeof peekFollowIntent>>) {
+  return context.entityName || `this ${context.entityType}`
+}
+
+function getFollowUpgradeNextIntent(context: NonNullable<ReturnType<typeof peekFollowIntent>>): UpgradeNextIntent {
+  const target = getFollowTargetLabel(context)
+  return {
+    label: 'Your next follow',
+    title: `Follow ${target} with Player`,
+    body: PAID_CHECKOUT_ENABLED
+      ? `After Player activates, you'll return to ${target} and the follow will be saved in My Lab.`
+      : `Join Player early access. When access opens, return to ${target} and tap Follow.`,
+    action: `View ${context.entityType}`,
+  }
+}
+
+function getUpgradeNextIntent(planId: PricingPlanId, nextHref: string): UpgradeNextIntent | null {
+  const defaultDestination = getPlanDestinationHref(planId)
+  if (planId === 'player_plus' && nextHref.startsWith('/tactics') && nextHref.includes('source=improve')) {
+    const cardTitle = getUpgradeNextParam(nextHref, 'cardTitle')
+
+    if (cardTitle) {
+      return {
+        label: 'After unlock',
+        title: `Build the ${cardTitle} tactic plan.`,
+        body: `Keep the ${cardTitle} My Lab intent attached, then open Tactical Studio with the crosscourt pattern ready.`,
+        action: 'Preview tactic plan',
+      }
+    }
+
+    return {
+      label: 'After unlock',
+      title: 'Build the starter tactic plan.',
+      body: 'Keep the Improve intent attached, then open Tactical Studio with the crosscourt pattern ready.',
+      action: 'Preview tactic plan',
+    }
+  }
+
+  if (planId === 'player_plus' && nextHref.startsWith('/mylab#level-up-proof')) {
+    return {
+      label: 'After unlock',
+      title: 'Return to My Lab proof.',
+      body: 'Open the Level Up proof panel so your next drill, board, and saved signal stay connected.',
+      action: 'Preview My Lab proof',
+    }
+  }
+
+  if (planId === 'player_plus' && nextHref.startsWith('/level-up')) {
+    return {
+      label: 'After unlock',
+      title: 'Start the Level Up court flow.',
+      body: 'Open the selected Level Up card with your player-development context still attached.',
+      action: 'Preview Level Up',
+    }
+  }
+
+  if (nextHref !== defaultDestination) {
+    return {
+      label: 'After unlock',
+      title: `Open ${getPlanDestinationLabel(planId)} after access is active.`,
+      body: 'After access is active, the first click lands on the tennis path you requested.',
+      action: 'Preview destination',
+    }
+  }
+
+  return null
+}
+
+function getUpgradeNextParam(nextHref: string, paramName: string) {
+  const queryStart = nextHref.indexOf('?')
+  if (queryStart < 0) return ''
+
+  const hashStart = nextHref.indexOf('#', queryStart)
+  const rawSearch = nextHref.slice(queryStart + 1, hashStart >= 0 ? hashStart : undefined)
+  return new URLSearchParams(rawSearch).get(paramName)?.trim() ?? ''
 }
 
 function isPlanAlreadyActive(planId: PricingPlanId, access: ReturnType<typeof buildProductAccessState>) {
@@ -964,7 +1409,7 @@ const pageStyle: CSSProperties = {
 const heroStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  gap: 18,
+  gap: 14,
   minWidth: 0,
   alignItems: 'stretch',
   borderRadius: 30,
@@ -976,18 +1421,18 @@ const heroStyle: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-110px',
-  top: '-118px',
-  width: 310,
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  right: 0,
+  top: '-72px',
+  width: 'min(310px, 62vw)',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }
 
 const heroCopyStyle: CSSProperties = {
   display: 'grid',
-  gap: 13,
+  gap: 11,
   minWidth: 0,
   alignContent: 'center',
 }
@@ -1013,8 +1458,8 @@ const eyebrowStyle: CSSProperties = {
 const titleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 'clamp(2.25rem, 4.5vw, 4.6rem)',
-  lineHeight: 0.98,
+  fontSize: 'clamp(2.1rem, 4vw, 4.2rem)',
+  lineHeight: 1,
   fontWeight: 950,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
@@ -1024,7 +1469,7 @@ const textStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
   fontSize: 16,
-  lineHeight: 1.72,
+  lineHeight: 1.6,
   maxWidth: 760,
   fontWeight: 700,
   overflowWrap: 'anywhere',
@@ -1065,24 +1510,99 @@ const secondaryButtonStyle: CSSProperties = {
 const planCardStyle: CSSProperties = {
   display: 'grid',
   alignContent: 'start',
-  gap: 13,
+  gap: 10,
   minWidth: 0,
-  padding: 20,
+  padding: 16,
   borderRadius: 24,
   border: '1px solid rgba(125, 211, 252, 0.18)',
   background: 'rgba(8, 13, 28, 0.72)',
   boxShadow: 'var(--shadow-soft)',
 }
 
+const planDetailStyle: CSSProperties = {
+  display: 'block',
+  minWidth: 0,
+  borderRadius: 16,
+  border: '1px solid rgba(125, 211, 252, 0.16)',
+  background: 'rgba(15, 23, 42, 0.62)',
+  boxSizing: 'border-box',
+}
+
+const planDetailSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  minHeight: 40,
+  maxWidth: '100%',
+  padding: '0 12px',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 950,
+  listStyle: 'none',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const planDetailBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: '0 10px 10px',
+}
+
+const planCardHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 72px) minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 12,
+  minWidth: 0,
+}
+
+const planCardHeaderCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
 const tierMapStyle: CSSProperties = {
   display: 'grid',
-  gap: 14,
   minWidth: 0,
-  padding: 18,
   borderRadius: 24,
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'linear-gradient(180deg, rgba(13,28,53,0.72) 0%, rgba(8,18,36,0.9) 100%)',
   boxShadow: '0 18px 46px rgba(2,10,24,0.12), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+}
+
+const tierMapDetailsStyle: CSSProperties = {
+  display: 'block',
+  minWidth: 0,
+}
+
+const tierMapSummaryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 4,
+  minWidth: 0,
+  padding: 18,
+  color: 'var(--foreground-strong)',
+  listStyle: 'none',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const tierMapSummaryTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.15rem, 2vw, 1.5rem)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const tierMapBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: '0 18px 18px',
 }
 
 const tierMapHeaderStyle: CSSProperties = {
@@ -1196,7 +1716,7 @@ const planNameStyle: CSSProperties = {
 
 const priceStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 32,
+  fontSize: 30,
   lineHeight: 1,
   fontWeight: 950,
   overflowWrap: 'anywhere',
@@ -1223,6 +1743,33 @@ const resultCardStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const nextIntentStyle: CSSProperties = {
+  ...resultCardStyle,
+  gap: 8,
+  minWidth: 0,
+  maxWidth: 760,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, rgba(125, 211, 252, 0.16) 72%)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(34,211,238,0.07))',
+}
+
+const nextIntentTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentLinkStyle: CSSProperties = {
+  width: 'fit-content',
+  maxWidth: '100%',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 950,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
 const labelStyle: CSSProperties = {
   color: 'color-mix(in srgb, var(--brand-blue) 72%, var(--foreground-strong) 28%)',
   fontSize: 11,
@@ -1244,32 +1791,33 @@ const metaCardStyle: CSSProperties = {
 }
 
 const valueListStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   minWidth: 0,
-  gap: 8,
+  gap: 7,
 }
 
 const valuePillStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   maxWidth: '100%',
-  minHeight: 32,
-  padding: '0 11px',
-  borderRadius: 999,
+  minHeight: 30,
+  padding: '6px 9px',
+  borderRadius: 14,
   border: '1px solid rgba(125, 211, 252, 0.16)',
   background: 'rgba(15, 23, 42, 0.62)',
   color: 'var(--foreground)',
   fontSize: 12,
   fontWeight: 850,
+  lineHeight: 1.25,
   overflowWrap: 'anywhere',
 }
 
 const activationPathStyle: CSSProperties = {
   display: 'grid',
-  gap: 10,
+  gap: 8,
   minWidth: 0,
-  padding: 12,
+  padding: 10,
   borderRadius: 16,
   border: '1px solid rgba(125, 211, 252, 0.16)',
   background: 'rgba(15, 23, 42, 0.62)',
@@ -1277,18 +1825,19 @@ const activationPathStyle: CSSProperties = {
 
 const activationStepGridStyle: CSSProperties = {
   display: 'grid',
-  gap: 8,
+  gap: 7,
+  minWidth: 0,
 }
 
 const activationStepStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 24px) minmax(0, 1fr)',
-  gap: 8,
+  gridTemplateColumns: 'minmax(0, 20px) minmax(0, 1fr)',
+  gap: 7,
   minWidth: 0,
   alignItems: 'center',
-  minHeight: 34,
-  padding: '5px 9px',
-  borderRadius: 14,
+  minHeight: 32,
+  padding: '5px 8px',
+  borderRadius: 12,
   border: '1px solid rgba(116,190,255,0.10)',
   background: 'rgba(8, 13, 28, 0.58)',
   color: 'var(--foreground)',
@@ -1334,6 +1883,9 @@ const noteTextStyle: CSSProperties = {
 }
 
 const secondaryInlineLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 44,
   maxWidth: '100%',
   color: 'var(--foreground-strong)',
   fontSize: 13,

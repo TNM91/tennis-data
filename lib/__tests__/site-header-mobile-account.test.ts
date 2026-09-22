@@ -17,14 +17,22 @@ describe('site header mobile account drawer', () => {
     expect(source).not.toContain("'auto minmax(0, 1fr) auto'")
   })
 
+  it('wires the compact menu button to the compact drawer', () => {
+    expect(source).toContain("const compactMenuId = 'site-header-compact-menu'")
+    expect(source).toContain('aria-controls={compactMenuId}')
+    expect(source).toContain('aria-haspopup="dialog"')
+    expect(source).toContain('id={compactMenuId}')
+    expect(source).toContain('aria-label="Site menu"')
+  })
+
   it('keeps account utility labels wrap-safe in the drawer', () => {
     expect(source).toContain('mobilePlainItemTextStyle')
     expect(source).toContain('function MobileItemLabel')
     expect(source).toContain('<MobileItemLabel label="Admin dashboard" />')
     expect(source).toContain('<MobileItemLabel label="Logout" />')
     expect(source).toContain('<MobileItemLabel label={workspaceShortcut.label} description="Continue the active tennis tool." />')
-    expect(source).toContain('<MobileItemLabel label="Sign in" description="Open your saved tennis work." />')
-    expect(source).toContain('<MobileItemLabel label="Start Free" description="Explore public tennis context before upgrading." />')
+    expect(source).toContain('<MobileItemLabel label="Sign in" description="Open saved work." />')
+    expect(source).toContain('<MobileItemLabel label="Start Free" description="Create your account." />')
     expect(source).toContain('const mobileItemCopyStyle')
     expect(source).toContain('const mobileItemDescriptionStyle')
     expect(source).toContain("overflowWrap: 'anywhere'")

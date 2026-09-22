@@ -1,0 +1,48 @@
+TenAceIQ FINAL Deployment Pack
+
+masters/
+  tenaceiq-full-dark-ui.svg
+  tenaceiq-full-light-ui.svg
+  tenaceiq-iq-dark-ui.svg
+  tenaceiq-iq-light-ui.svg
+
+The four SVGs in masters/ are the approved, print-quality source artwork. Every
+PNG, JPG, app icon, favicon, social card, wallpaper, and browser compatibility
+alias in this pack is generated from those vectors. Do not use older raster
+logo artwork as a source.
+
+logos/
+  tenaceiq-full-transparent.png
+  tenaceiq-full-for-light-bg.png
+  tenaceiq-full-white.png
+  tenaceiq-full-black.png
+  tenaceiq-full-navy.jpg
+  tenaceiq-iq-transparent.png
+  tenaceiq-iq-for-light-bg.png
+  tenaceiq-iq-white.png
+  tenaceiq-iq-black.png
+  tenaceiq-iq-navy.jpg
+
+icons/
+  app-icon-1024.png
+  favicon.ico
+  favicon-256.png
+  favicon-512.png
+  apple-touch-icon.png
+  pwa-192.png
+  pwa-512.png
+
+web/
+  header-logo-transparent.png
+  header-iq-compact.png
+  footer-logo-dark-bg.png
+  footer-logo-light-bg.png
+
+social/
+  og-image-1200x630.png
+  social-profile-1080.png
+
+docs/
+  CODEX_IMPLEMENTATION_PROMPT.txt
+
+All derivatives come from the approved full-logo and standalone iQ SVG masters.

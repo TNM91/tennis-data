@@ -52,7 +52,7 @@ export default function AdsenseSlot({
           </div>
         </div>
         <div style={adCopyStyle}>
-          Sponsored support keeps player tools and Team Hub accessible while preserving the clean match-week workflow.
+          Sponsored support keeps player tools and Team Hub accessible without getting in the way of match-week tools.
         </div>
         <ins
           className="adsbygoogle"

@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
+const commandStyles = readFileSync(join(process.cwd(), 'app/mylab/my-lab-command-center.module.css'), 'utf8')
 
 function styleBlock(styleName: string) {
   const start = source.indexOf(`const ${styleName}`)
@@ -12,18 +13,38 @@ function styleBlock(styleName: string) {
 }
 
 describe('My Lab premium surface', () => {
+  it('keeps saved Match Prep reviews private and mobile-safe', () => {
+    expect(source).toContain("activeGoal.id.startsWith('matchup-prep-')")
+    expect(source).toContain('Did the plan hold up?')
+    expect(source).toContain('Plan held')
+    expect(source).toContain('Adjust plan')
+    expect(source).toContain('matchPrepReviewStyle(isTablet)')
+    expect(source).toContain("gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto'")
+  })
   it('keeps the top read tennis-specific and Data Assist aware', () => {
-    expect(source).toContain('scorecardSummaryCards')
+    expect(source).toContain('buildMatchIntelligenceRead')
+    expect(source).toContain('Match Intelligence')
+    expect(source).toContain('Rating Journey')
+    expect(source).toContain('buildPlayerRatingJourneyRead')
+    expect(source).toContain(".from('rating_snapshots')")
+    expect(source).toContain(".eq('track', 'tiq')")
+    expect(source).toContain('Rating evidence')
+    expect(source).toContain('Your next focus')
+    expect(source).toContain('canUseAdvancedPlayerInsights ? (')
     expect(source).toContain('starterActionCards')
     expect(source).toContain("const dataAssistMyLabHref = '/data-assist?intent=upload-source&context=My%20Lab'")
     expect(source).toContain('href: dataAssistMyLabHref')
-    expect(source).toContain('href={dataAssistMyLabHref}')
-    expect(source).toContain('Recent record')
-    expect(source).toContain('Matchup read')
+    expect(source).toContain('matchIntelligence.patternLabel')
+    expect(source).toContain('Open match history')
     expect(source).toContain('Upload scores')
-    expect(source).toContain('Use a scorecard or team summary to replace the starter rating with verified match context.')
+    expect(source).toContain('Use a scorecard or Player Roster to replace the starter rating with verified match context.')
     expect(source).toContain('Start your TIQ signal with a scorecard, a local league match, a TIQ league, or a close player to test.')
     expect(source).toContain('Open Data Assist')
+    expect(source).toContain("headline={isMobile ? 'Unlock My Lab.' : MY_LAB_STORY.upgradeHeadline}")
+    expect(source).toContain("body={isMobile ? 'Open progress, matchup prep, and cleaner tennis messages.' : MY_LAB_STORY.upgradeBody}")
+    expect(source).toContain("secondaryLabel={isMobile ? 'Plans' : MY_LAB_STORY.upgradeSecondary}")
+    expect(source).toContain("footnote={isMobile ? undefined : MY_LAB_STORY.upgradeFootnote}")
+    expect(source).toContain('Pick the next move, then keep the proof connected.')
     expect(source).toContain('My Lab answers what to work on, how you are improving, which matchups matter, and which drill or resource should come next.')
     expect(source).toContain("value: 'Next move'")
     expect(source).toContain('Your self-rated profile is live. Add a scorecard or match signal when ready.')
@@ -40,84 +61,52 @@ describe('My Lab premium surface', () => {
   it('keeps read and starter cards responsive for dark-shell mobile scanning', () => {
     expect(source).toContain('personalReadGridStyle(isTablet)')
     expect(source).toContain('starterGridStyle(isTablet)')
-    expect(source).toContain('todayReadGridStyle(isTablet)')
+    expect(source).toContain('matchIntelligenceGridStyle(isTablet)')
+    expect(source).toContain('ratingJourneyGridStyle(isTablet)')
     expect(source).toContain('matchupQueueGridStyle(isTablet)')
     expect(source).toContain('gridTemplateColumns: isTablet')
     expect(source).toContain('minmax(0, 1fr)')
     expect(source).toContain("overflowWrap: 'anywhere'")
   })
 
-  it('pulls Level Up proof into My Lab return state with honest local sync copy', () => {
+  it('turns merged Level Up proof into one account-aware weekly plan', () => {
     expect(source).toContain('LEVEL_UP_COMPLETIONS_KEY')
     expect(source).toContain('readLocalLevelUpCompletions')
-    expect(source).toContain('buildMyLabLevelUpProofs')
-    expect(source).toContain('getMyLabLevelUpStreak')
+    expect(source).toContain('mergeMyLabLevelUpProofRecords(localLevelUpCompletions, remoteLevelUpSessions)')
+    expect(source).toContain('buildMyLabWeeklyImprovementPlan(levelUpProofRecords)')
+    expect(source).toContain("fetch('/api/player/level-up-sessions'")
     expect(source).toContain('LevelUpReturnStatePanel')
-    expect(source).toContain('id="level-up-proof"')
-    expect(source).toContain('aria-label="My Lab Level Up proof return state"')
-    expect(source).toContain("questHref: `/level-up/${primaryIdentitySlug}?questCard=${encodeURIComponent(completion.cardId)}#quest-builder`")
-    expect(source).toContain('Level Up return state')
-    expect(source).toContain("Today's Level Up card")
-    expect(source).toContain('Active drill')
-    expect(source).toContain('Last proof')
-    expect(source).toContain('Streak')
-    expect(source).toContain('Resume drill')
-    expect(source).toContain('Turn into habit')
-    expect(source).toContain("Today&apos;s Level Up habit")
-    expect(source).toContain('My Lab today feed')
-    expect(source).toContain("Today's habit")
-    expect(source).toContain('Next drill')
-    expect(source).toContain('Proof to save')
-    expect(source).toContain('proofHandoffItems')
-    expect(source).toContain('My Lab Level Up proof handoff')
-    expect(source).toContain('Proof handoff')
-    expect(source).toContain('Decide where the saved work goes next.')
-    expect(source).toContain('Use ${latestProof.cardTitle} again before changing the plan.')
-    expect(source).toContain('Make it weekly')
-    expect(source).toContain('Coach-linked proof can support assignment recaps and the next lesson ask.')
-    expect(source).toContain("href: signedIn ? '/mylab#coach-assignments' : '/login'")
-    expect(source).toContain('myLabProofHandoffStyle')
-    expect(source).toContain('myLabProofHandoffGridStyle')
-    expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))'")
-    expect(source).toContain('myLabProofHandoffCardStyle')
-    expect(source).toContain('myLabTodayFeedStyle')
-    expect(source).toContain('myLabTodayFeedGridStyle')
-    expect(source).toContain('myLabTodayFeedActionStyle')
-    expect(source).toContain('levelUpTodayHabitStyle')
-    expect(source).toContain('Add as quest')
-    expect(source).toContain('No Level Up proof in this browser yet')
-    expect(source).toContain('Repeat in Level Up')
-    expect(source).toContain('Start next rep')
-    expect(source).toContain('This panel is reading this browser only.')
-    expect(source).toContain('Private windows can forget it')
-    expect(source).toContain('Signed-in Player or coach-linked proof can sync history')
-    expect(source).toContain('sync depends on signed-in Player or coach link')
-    expect(source).toContain('sign in through Player or a coach invite')
-    expect(source).not.toContain('Signed-in Player+ or coach-linked proof can sync history')
-    expect(source).toContain('My Lab refresh proof cue')
-    expect(source).toContain('What should still be clear after refresh?')
-    expect(source).toContain('Find yourself first so My Lab can stay personal.')
-    expect(source).not.toContain('Find yourself first so My Lab is not a generic dashboard.')
-    expect(source).toContain('Player record, follows, matchup notes, and coach context can anchor here.')
+    expect(source).toContain('plan={weeklyImprovementPlan}')
+    expect(source).toContain('aria-label="My Lab weekly improvement plan"')
+    expect(source).toContain('One plan built from your latest proof.')
+    expect(source).toContain('Next court action')
+    expect(source).toContain('Weekly proof')
+    expect(source).toContain('weeklyImprovementProgressFillStyle(plan.progressPercent)')
+    expect(source).toContain('Weekly improvement plan steps')
+    expect(source).toContain("label: 'Train'")
+    expect(source).toContain("label: 'Prove'")
+    expect(source).toContain("label: 'Adjust'")
+    expect(source).toContain('Coach-ready summary')
+    expect(source).toContain('{plan.coachSummary}')
+    expect(source).toContain('Proof history and handoffs')
+    expect(source).toContain('Recent scores, habits, coach sharing, and sync details.')
+    expect(source).toContain("href={signedIn ? '/mylab#coach-assignments' : '/login'}")
+    expect(source).toContain('Account proof is current across devices.')
+    expect(source).toContain('Account proof is unavailable. Showing this device instead.')
     expect(source).toContain('Assignment completed. Your coach can review the recap from Coach Hub.')
     expect(source).not.toContain('Assignment completed. Your coach can review the recap from their workspace.')
-    expect(source).toContain('Recent Level Up proof appears from this browser cache')
-    expect(source).toContain('No Level Up proof is shown unless this browser has saved it.')
-    expect(source).toContain('Add one pressure layer, not a new habit.')
-    expect(source).toContain('Repeat the same card cleaner.')
-    expect(source).toContain('Scale down and chase one clean cue.')
   })
 
-  it('uses theme-safe setup step number contrast', () => {
-    expect(source).toContain('setupStepNumberStyle')
-    expect(source).toContain("color: 'var(--foreground-strong)'")
-    expect(source).toContain("background: 'color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-chip-bg) 78%)'")
-    expect(source).not.toContain("const setupStepNumberStyle: CSSProperties = {\n  width: 32,\n  height: 32,\n  borderRadius: '50%',\n  display: 'inline-flex',\n  alignItems: 'center',\n  justifyContent: 'center',\n  background: 'linear-gradient(135deg, var(--brand-lime), var(--brand-green))',\n  color: 'var(--text-dark)'")
+  it('uses theme-safe First Serve number contrast', () => {
+    expect(commandStyles).toContain('.firstServeNumber')
+    expect(commandStyles).toContain('color: #83c8ff;')
+    expect(commandStyles).toContain('.firstServeStepCurrent .firstServeNumber')
+    expect(commandStyles).toContain('background: #a9eb08;')
+    expect(commandStyles).toContain('color: #071426;')
   })
 
   it('keeps My Lab numbered markers shell-aware instead of dark text on gradients', () => {
     for (const marker of [
-      'setupStepNumberStyle',
       'matchupQueueRankStyle',
       'readinessPillStyle',
     ]) {
@@ -136,9 +125,9 @@ describe('My Lab premium surface', () => {
       'personalReadGridStyle',
       'levelUpPanelStyle',
       'quickProfileGridStyle',
-      'setupStepGridStyle',
       'starterGridStyle',
-      'todayReadGridStyle',
+      'matchIntelligenceGridStyle',
+      'ratingJourneyGridStyle',
       'matchupSpotlightHeroStyle',
       'matchupPreviewGridStyle',
       'matchupQueueGridStyle',
@@ -183,11 +172,19 @@ describe('My Lab premium surface', () => {
       'myLabRefreshProofGridStyle',
       'myLabRefreshProofCardStyle',
       'quickProfileStyle',
-      'setupPanelStyle',
       'starterPanelStyle',
       'starterCardStyle',
-      'todayReadPanelStyle',
-      'todayReadCardStyle',
+      'matchIntelligencePanelStyle',
+      'matchIntelligenceHeaderStyle',
+      'matchIntelligenceCardStyle',
+      'matchIntelligenceFocusCardStyle',
+      'ratingJourneyPanelStyle',
+      'ratingJourneyHeaderStyle',
+      'ratingJourneyCardStyle',
+      'ratingJourneyTrendStyle',
+      'ratingJourneyPlotStyle',
+      'ratingJourneyPlotPointStyle',
+      'ratingJourneyEmptyStyle',
       'matchupSpotlightStyle',
       'matchupQueueCardStyle',
       'matchupQueueCopyStyle',
@@ -287,7 +284,6 @@ describe('My Lab premium surface', () => {
       'myLabRefreshProofCardStyle',
       'myLabRefreshProofLabelStyle',
       'myLabRefreshProofTextStyle',
-      'todayReadCardStyle',
       'todayReadValueStyle',
       'matchPlanTextStyle',
       'trophyProofItemStyle',

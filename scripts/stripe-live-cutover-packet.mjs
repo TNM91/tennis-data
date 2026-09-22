@@ -11,6 +11,7 @@ const requiredWebhookEvents = [
 ]
 
 const requiredEnvNames = [
+  'NEXT_PUBLIC_PAID_CHECKOUT_ENABLED',
   'STRIPE_SECRET_KEY',
   'STRIPE_WEBHOOK_SECRET',
   'STRIPE_PLAYER_PRICE_ID',
@@ -18,6 +19,8 @@ const requiredEnvNames = [
   'STRIPE_CAPTAIN_PRICE_ID',
   'STRIPE_LEAGUE_PRICE_ID',
   'STRIPE_FULL_COURT_PRICE_ID',
+  'STRIPE_CLUB_STARTER_PRICE_ID',
+  'STRIPE_CLUB_UNLIMITED_PRICE_ID',
 ]
 
 const expectedCatalog = [
@@ -25,7 +28,7 @@ const expectedCatalog = [
     plan: 'Player',
     planId: 'player_plus',
     priceEnvName: 'STRIPE_PLAYER_PRICE_ID',
-    amountCents: 499,
+    amountCents: 199,
     currency: 'usd',
     checkoutMode: 'subscription',
     interval: 'month',
@@ -34,7 +37,7 @@ const expectedCatalog = [
     plan: 'Coach',
     planId: 'coach',
     priceEnvName: 'STRIPE_COACH_PRICE_ID',
-    amountCents: 999,
+    amountCents: 499,
     currency: 'usd',
     checkoutMode: 'subscription',
     interval: 'month',
@@ -43,7 +46,7 @@ const expectedCatalog = [
     plan: 'Captain',
     planId: 'captain',
     priceEnvName: 'STRIPE_CAPTAIN_PRICE_ID',
-    amountCents: 999,
+    amountCents: 499,
     currency: 'usd',
     checkoutMode: 'subscription',
     interval: 'month',
@@ -52,7 +55,7 @@ const expectedCatalog = [
     plan: 'League',
     planId: 'league',
     priceEnvName: 'STRIPE_LEAGUE_PRICE_ID',
-    amountCents: 1499,
+    amountCents: 2500,
     currency: 'usd',
     checkoutMode: 'one_time',
     interval: 'season',
@@ -61,7 +64,25 @@ const expectedCatalog = [
     plan: 'Full-Court',
     planId: 'full_court',
     priceEnvName: 'STRIPE_FULL_COURT_PRICE_ID',
-    amountCents: 1999,
+    amountCents: 999,
+    currency: 'usd',
+    checkoutMode: 'subscription',
+    interval: 'month',
+  },
+  {
+    plan: 'Club Starter',
+    planId: 'club_starter',
+    priceEnvName: 'STRIPE_CLUB_STARTER_PRICE_ID',
+    amountCents: 9900,
+    currency: 'usd',
+    checkoutMode: 'subscription',
+    interval: 'month',
+  },
+  {
+    plan: 'Club Unlimited',
+    planId: 'club_unlimited',
+    priceEnvName: 'STRIPE_CLUB_UNLIMITED_PRICE_ID',
+    amountCents: 14900,
     currency: 'usd',
     checkoutMode: 'subscription',
     interval: 'month',
@@ -75,6 +96,7 @@ const cutoverPacket = {
     'Use separate live-mode Stripe keys and live Price IDs; sandbox/test objects cannot power live checkout.',
     'Prefer a restricted live key with only the permissions this app needs when practical.',
     'Keep Stripe in test mode until the owner explicitly approves opening real paid upgrades.',
+    'Keep NEXT_PUBLIC_PAID_CHECKOUT_ENABLED=false until the live catalog, webhook, and production values are ready for one coordinated redeploy.',
   ],
   sourceOfTruth: {
     stripeGoLiveChecklistUrl,
@@ -88,8 +110,8 @@ const cutoverPacket = {
     {
       step: 'Create or confirm live Stripe catalog',
       checks: [
-        'Create live Products and Prices for Player, Coach, Captain, League, and Full-Court.',
-        'Use recurring monthly Prices for Player, Coach, Captain, and Full-Court.',
+        'Create live Products and Prices for Player, Coach, Captain, League, Full-Court, Club Starter, and Club Unlimited.',
+        'Use recurring monthly Prices for Player, Coach, Captain, Full-Court, Club Starter, and Club Unlimited.',
         'Use a one-time live Price for League season access.',
         'Confirm every live Price is active and uses USD at the expected amount.',
       ],
@@ -98,7 +120,7 @@ const cutoverPacket = {
     {
       step: 'Verify live catalog from the shell',
       checks: [
-        'Set a live-mode Stripe key and the five live Price IDs in the local shell only.',
+        'Set a live-mode Stripe key and the seven live Price IDs in the local shell only.',
         'Run the audit against Stripe; it rejects test-mode keys and redacts Price IDs.',
       ],
       command: 'npm run qa:stripe-live-catalog -- --stripe',
@@ -116,6 +138,7 @@ const cutoverPacket = {
       step: 'Replace Vercel Production Stripe env values',
       checks: [
         'Set only Vercel Production values for the live cutover.',
+        'Set NEXT_PUBLIC_PAID_CHECKOUT_ENABLED=true only as the final intentional switch before the production redeploy.',
         'Do not print or commit values.',
         'Confirm all required env names are present after the swap.',
       ],
@@ -141,9 +164,9 @@ const cutoverPacket = {
     },
   ],
   rollbackIfNeeded: [
-    'Restore the previous test-mode Vercel Production Stripe env values from the secure owner source.',
+    'Set NEXT_PUBLIC_PAID_CHECKOUT_ENABLED=false before changing any other production billing value.',
     'Redeploy Production.',
-    'Run node scripts/stripe-checkout-mode-smoke.mjs --expect=test --plan=coach.',
+    'Confirm paid plan actions return to early access and /api/checkout/session returns checkout_paused.',
     'Run npm run qa:prod-logs.',
   ],
 }

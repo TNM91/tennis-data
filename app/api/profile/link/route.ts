@@ -1,6 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
 import { isMissingProfileLinkSchemaError } from '@/lib/profile-link-storage'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
+import { normalizeMixedPairRole, type MixedPairRole } from '@/lib/player-eligibility'
 
 export const runtime = 'nodejs'
 
@@ -8,6 +10,7 @@ type ProfileLinkBody = {
   linkedPlayerId?: unknown
   playerName?: unknown
   selfRating?: unknown
+  mixedPairRole?: unknown
 }
 
 type PlayerRow = {
@@ -25,6 +28,17 @@ type PlayerRow = {
   singles_usta_dynamic_rating?: number | null
   doubles_usta_dynamic_rating?: number | null
   rating_source?: string | null
+  mixed_pair_role?: MixedPairRole | string | null
+}
+
+type ProfileLinkRow = {
+  linked_player_id?: string | null
+  linked_player_name?: string | null
+  linked_team_name?: string | null
+  linked_league_name?: string | null
+  linked_flight?: string | null
+  profile_photo_url?: string | null
+  message_display_name?: string | null
 }
 
 const PLAYER_SELECT_WITH_SOURCE = `
@@ -41,7 +55,8 @@ const PLAYER_SELECT_WITH_SOURCE = `
   overall_usta_dynamic_rating,
   singles_usta_dynamic_rating,
   doubles_usta_dynamic_rating,
-  rating_source
+  rating_source,
+  mixed_pair_role
 `
 
 const PLAYER_SELECT_BASE = `
@@ -91,10 +106,7 @@ export async function GET(request: Request) {
       profile,
     })
   } catch (error) {
-    return Response.json(
-      { ok: false, message: error instanceof Error ? error.message : 'Unable to load your player profile.' },
-      { status: 500 },
-    )
+    return apiServerError('Could not load linked player profile', error, 'Unable to load your player profile.')
   }
 }
 
@@ -132,9 +144,14 @@ export async function POST(request: Request) {
   try {
     const linkedPlayerId = cleanString(body.linkedPlayerId)
     const playerName = cleanPlayerName(body.playerName)
-    const player = linkedPlayerId
+    let player = linkedPlayerId
       ? await loadPlayer(supabase, linkedPlayerId)
-      : await createSelfRatedPlayer(supabase, playerName, normalizeSelfRating(body.selfRating))
+      : await createSelfRatedPlayer(
+          supabase,
+          playerName,
+          normalizeSelfRating(body.selfRating),
+          normalizeMixedPairRole(body.mixedPairRole),
+        )
 
     if (!player) {
       return Response.json(
@@ -143,15 +160,28 @@ export async function POST(request: Request) {
       )
     }
 
+    const mixedPairRole = normalizeMixedPairRole(body.mixedPairRole)
+    if (body.mixedPairRole !== undefined && normalizeMixedPairRole(player.mixed_pair_role) !== mixedPairRole) {
+      const mixedRoleUpdate = await supabase
+        .from('players')
+        .update({ mixed_pair_role: mixedPairRole })
+        .eq('id', player.id)
+        .select(PLAYER_SELECT_WITH_SOURCE)
+        .maybeSingle()
+      if (mixedRoleUpdate.error) throw new Error(mixedRoleUpdate.error.message)
+      if (mixedRoleUpdate.data) player = mixedRoleUpdate.data as PlayerRow
+    }
+
+    const existingProfile = await loadProfileLink(supabase, requester.userId)
     const profilePayload = {
       id: requester.userId,
       linked_player_id: player.id,
       linked_player_name: player.name,
-      linked_team_name: null,
-      linked_league_name: null,
-      linked_flight: player.flight ?? null,
+      linked_team_name: cleanString(existingProfile?.linked_team_name) || null,
+      linked_league_name: cleanString(existingProfile?.linked_league_name) || null,
+      linked_flight: cleanString(existingProfile?.linked_flight) || player.flight || null,
       linked_team_at: new Date().toISOString(),
-      message_display_name: player.name,
+      message_display_name: cleanString(existingProfile?.message_display_name) || player.name,
     }
 
     const profileRes = await saveProfileLink(supabase, profilePayload)
@@ -162,21 +192,18 @@ export async function POST(request: Request) {
       profile: profileRes,
     })
   } catch (error) {
-    return Response.json(
-      { ok: false, message: error instanceof Error ? error.message : 'Unable to save your player profile.' },
-      { status: 500 },
-    )
+    return apiServerError('Could not save linked player profile', error, 'Unable to save your player profile.')
   }
 }
 
-async function loadProfileLink(supabase: SupabaseClient, userId: string) {
+async function loadProfileLink(supabase: SupabaseClient, userId: string): Promise<ProfileLinkRow | null> {
   const fullRes = await supabase
     .from('profiles')
     .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name,linked_flight,profile_photo_url,message_display_name')
     .eq('id', userId)
     .maybeSingle()
 
-  if (!fullRes.error) return fullRes.data ?? null
+  if (!fullRes.error) return (fullRes.data as ProfileLinkRow | null) ?? null
   if (!isMissingProfileLinkSchemaError(fullRes.error.message)) throw new Error(fullRes.error.message)
 
   const compatibilityRes = await supabase
@@ -185,7 +212,7 @@ async function loadProfileLink(supabase: SupabaseClient, userId: string) {
     .eq('id', userId)
     .maybeSingle()
 
-  if (!compatibilityRes.error) return compatibilityRes.data ?? null
+  if (!compatibilityRes.error) return (compatibilityRes.data as ProfileLinkRow | null) ?? null
   if (!isMissingProfileLinkSchemaError(compatibilityRes.error.message)) throw new Error(compatibilityRes.error.message)
 
   const minimalRes = await supabase
@@ -195,7 +222,7 @@ async function loadProfileLink(supabase: SupabaseClient, userId: string) {
     .maybeSingle()
 
   if (minimalRes.error) throw new Error(minimalRes.error.message)
-  return minimalRes.data ?? null
+  return (minimalRes.data as ProfileLinkRow | null) ?? null
 }
 
 async function saveProfileLink(supabase: SupabaseClient, profilePayload: {
@@ -286,7 +313,12 @@ async function loadPlayer(supabase: SupabaseClient, playerId: string) {
   return base.data ? ({ ...(base.data as PlayerRow), rating_source: null }) : null
 }
 
-async function createSelfRatedPlayer(supabase: SupabaseClient, name: string, rating: number) {
+async function createSelfRatedPlayer(
+  supabase: SupabaseClient,
+  name: string,
+  rating: number,
+  mixedPairRole: MixedPairRole,
+) {
   if (!name) return null
 
   const basePayload = {
@@ -301,7 +333,7 @@ async function createSelfRatedPlayer(supabase: SupabaseClient, name: string, rat
 
   const withSource = await supabase
     .from('players')
-    .insert({ ...basePayload, rating_source: 'self' })
+    .insert({ ...basePayload, rating_source: 'self', mixed_pair_role: mixedPairRole })
     .select(PLAYER_SELECT_WITH_SOURCE)
     .maybeSingle()
 

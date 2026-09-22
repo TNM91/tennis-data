@@ -34,7 +34,7 @@ describe('matchup readability surfaces', () => {
   it('keeps matchup player selectors labeled and visibly focused', () => {
     expect(matchupSource).toContain("import { CSSProperties, useEffect, useId, useMemo, useRef, useState } from 'react'")
     expect(matchupSource).toContain('const selectId = useId()')
-    expect(matchupSource).toContain('<label htmlFor={selectId} style={inputLabel}>{label}</label>')
+    expect(matchupSource).toContain('<label htmlFor={selectId} style={dynamicInputLabel}>{label}</label>')
     expect(matchupSource).toContain('onFocus={() => setFocused(true)}')
     expect(matchupSource).toContain('onBlur={() => setFocused(false)}')
     expect(matchupSource).toContain('...(focused ? selectFocusStyle : null)')

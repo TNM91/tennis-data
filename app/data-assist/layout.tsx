@@ -5,7 +5,7 @@ import { buildRouteMetadata } from '@/lib/route-metadata'
 export const metadata: Metadata = buildRouteMetadata({
   title: 'Data Assist',
   description:
-    'Fix tennis data with reviewed scorecard, schedule, roster, team summary, and correction uploads that improve TenAceIQ trust signals.',
+    'Fix tennis data with reviewed scorecard, schedule, Player Roster, and correction uploads that improve TenAceIQ trust signals.',
   path: '/data-assist',
 })
 

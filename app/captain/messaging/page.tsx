@@ -3,15 +3,17 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import CaptainFormField from '@/app/components/captain-form-field'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
 import CaptainSuitePanel from '@/app/components/captain-suite-panel'
+import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
 import { useAuth } from '@/app/components/auth-provider'
-import { readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
+import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
+import { markCaptainLaunchOutreachStarted } from '@/lib/captain-launch-progress'
 import { readCaptainWeekNotes } from '@/lib/captain-week-notes'
 import {
   buildCaptainWeekStatusKey,
@@ -23,7 +25,6 @@ import {
 import { supabase } from '@/lib/supabase'
 import {
   formatDate,
-  uniqueSorted,
   inferSeasonLabel,
   inferSessionLabel,
   parseBooleanLike,
@@ -31,6 +32,7 @@ import {
   pickNullableString,
   formatPhone,
   buildSmsHref,
+  prepareSmsBodyForNativeComposer,
   cleanText,
   safeKey,
   readLocalArray as readLocal,
@@ -38,6 +40,57 @@ import {
 import { buildProductAccessState } from '@/lib/access-model'
 import { demoMatch, demoScenario, demoAvailability, demoResponses } from '@/lib/demo-data'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import {
+  CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY,
+  buildPotentialLineupAvailabilityMessage,
+  buildPlayerPotentialLineupAvailabilityMessage,
+  extractPotentialLineupPlayers,
+  getCaptainLineupDraftScopeKey,
+  readCaptainLineupBuilderDraft,
+  readCaptainLineupHandoff,
+  type CaptainLineupBuilderDraft,
+  type CaptainLineupHandoff,
+} from '@/lib/captain-lineup-handoff'
+import {
+  buildMatchWeekGoogleCalendarHref,
+  buildMatchWeekPhoneCalendarHref,
+  buildMatchWeekMapsHref,
+} from '@/lib/captain-match-week-links'
+import {
+  CAPTAIN_ROSTER_CONTACTS_TABLE,
+  selectCaptainContactRowsForScope,
+  type CaptainRosterContactRow,
+} from '@/lib/captain-roster-contacts'
+import {
+  appendLevelUpChallengeHref,
+  buildCaptainLevelUpChallenge,
+} from '@/lib/captain-level-up-challenge'
+import {
+  appendCaptainWeekChallengeRecapToMessage,
+  appendCaptainWeekChallengeToMessage,
+  buildCaptainWeekChallengeHistoryHref,
+  buildCaptainWeekChallengeTeamRoomHref,
+  recommendCaptainWeekChallengeFollowUp,
+  selectCaptainCompletedWeekChallenge,
+  selectCaptainWeekChallenge,
+  type CaptainWeekChallenge,
+  type CaptainWeekChallengeHistoryItem,
+} from '@/lib/captain-week-challenge'
+import {
+  buildCaptainManagedTeamOptions,
+  captainTeamScopeKey,
+  chooseCaptainManagedTeam,
+  orderCaptainScheduledMatches,
+  type CaptainManagedTeamOption,
+} from '@/lib/captain-managed-team-context'
+import type { TeamConnection } from '@/lib/team-profile-links'
+import { buildCaptainMessagingAudienceCopy } from '@/lib/captain-messaging-audience'
+import {
+  reconcileCaptainCloudAvailability,
+  reconcileCaptainGuestAvailability,
+  type CaptainAvailabilityCloudUpdate,
+  type CaptainCloudAvailabilityRow,
+} from '@/lib/captain-availability-reconciliation'
 
 type ContactRow = {
   id: string
@@ -48,6 +101,7 @@ type ContactRow = {
   session_label: string | null
   full_name: string
   phone: string
+  email?: string | null
   role: string | null
   is_captain: boolean | null
   is_active: boolean | null
@@ -74,6 +128,8 @@ type MatchRow = {
   home_team: string | null
   away_team: string | null
   line_number: string | null
+  match_time: string | null
+  facility: string | null
 }
 
 type ScenarioRow = {
@@ -112,6 +168,18 @@ type LineupAssignment = {
   court_label: string
   slot_type: 'singles' | 'doubles'
   players: string[]
+  player_ids?: string[]
+  rating_level?: number
+  updated_at?: string
+}
+
+type EventDetail = {
+  key: string
+  location: string
+  directions: string
+  arrivalTime: string
+  notes: string
+  updatedAt?: string
 }
 type ExternalAvailabilityRow = {
   source_table: string
@@ -126,10 +194,50 @@ type ExternalAvailabilityRow = {
   match_date: string | null
 }
 
+type LiveAvailabilityRequest = {
+  request: null | {
+    id: string
+    scenarioId: string | null
+    teamName: string
+    leagueName: string
+    flight: string
+    matchDate: string
+    opponentTeam: string
+    matchTime: string
+    facility: string
+    slots: unknown
+    invitedPlayers: Array<{ playerId: string; playerName: string }>
+    requestUrl: string
+    updatedAt: string
+  }
+  invites: Array<{ playerId: string; playerName: string; requestUrl: string }>
+  responses: Array<{
+    player_id: string | null
+    player_name: string
+    match_date: string
+    status: 'available' | 'maybe' | 'unavailable'
+    notes: string | null
+    responded_at: string
+  }>
+}
+
+type PotentialAvailabilityStatus = 'available' | 'maybe' | 'unavailable' | 'waiting'
+
+type PotentialLineupQueueItem = {
+  playerName: string
+  playerKey: string
+  contact: ContactRow | undefined
+  canText: boolean
+  status: PotentialAvailabilityStatus
+  liveResponse: LiveAvailabilityRequest['responses'][number] | undefined
+  originalIndex: number
+}
+
 
 type DraftContact = {
   full_name: string
   phone: string
+  email: string
   role: string
   is_captain: boolean
   is_active: boolean
@@ -162,6 +270,7 @@ const AVAILABILITY_STORAGE_KEY = 'tenaceiq_weekly_availability'
 const RESPONSES_STORAGE_KEY = 'tenaceiq_weekly_responses'
 const LINEUPS_STORAGE_KEY = 'tenaceiq_weekly_lineups'
 const EVENT_DETAILS_STORAGE_KEY = 'tenaceiq_weekly_event_details'
+const POTENTIAL_LINEUP_TEXT_QUEUE_STORAGE_PREFIX = 'tenaceiq_potential_lineup_text_queue'
 const AVAILABILITY_SOURCE_TABLES = [
   'captain_availability',
   'lineup_availability',
@@ -178,6 +287,49 @@ function normalizeText(value: string | null | undefined) {
 function createId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function mapImportedRosterContacts(rows: CaptainRosterContactRow[]): ContactRow[] {
+  return rows.map((row) => ({
+    id: row.id || createId(),
+    team_name: row.team_name,
+    league_name: row.league_name || null,
+    flight: row.flight || null,
+    season_label: null,
+    session_label: null,
+    full_name: row.full_name,
+    phone: row.phone,
+    email: row.email,
+    role: row.role || 'Player',
+    is_captain: row.is_captain,
+    is_active: true,
+    opt_in_text: true,
+    notes: 'Imported from TennisLink Player Roster',
+  }))
+}
+
+function mergeMessageContacts(primary: ContactRow[], imported: ContactRow[]) {
+  const byScope = new Map<string, ContactRow>()
+  for (const contact of imported) byScope.set(messageContactScopeKey(contact), contact)
+  for (const contact of primary) {
+    const key = messageContactScopeKey(contact)
+    const importedContact = byScope.get(key)
+    byScope.set(key, {
+      ...importedContact,
+      ...contact,
+      phone: contact.phone || importedContact?.phone || '',
+      email: contact.email || importedContact?.email || '',
+      role: contact.role || importedContact?.role || 'Player',
+      is_captain: contact.is_captain ?? importedContact?.is_captain ?? false,
+    })
+  }
+  return Array.from(byScope.values()).sort((left, right) => left.full_name.localeCompare(right.full_name))
+}
+
+function messageContactScopeKey(contact: ContactRow) {
+  return [contact.team_name, contact.league_name, contact.flight, contact.full_name]
+    .map((value) => normalizeText(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim())
+    .join('|')
 }
 
 function coerceAvailabilityStatus(record: Record<string, unknown>): WeeklyAvailability['status'] {
@@ -309,6 +461,57 @@ function normalizeSlots(raw: unknown): NormalizedSlot[] {
   })
 }
 
+function lineupAssignmentsFromDraft(draft: CaptainLineupBuilderDraft, eventKey: string) {
+  if (!Array.isArray(draft.teamSlots)) return [] as LineupAssignment[]
+  const updatedAt = draft.matchWeekUpdatedAt || draft.updatedAt || new Date(0).toISOString()
+  return draft.teamSlots.map((slot, index) => {
+    const source = slot && typeof slot === 'object' ? slot as Record<string, unknown> : {}
+    const slotType = source.slotType === 'doubles' ? 'doubles' : 'singles'
+    const playerCount = slotType === 'doubles' ? 2 : 1
+    const players = Array.isArray(source.players) ? source.players : []
+    const normalizedPlayers = Array.from({ length: playerCount }, (_, playerIndex) => {
+      const player = players[playerIndex]
+      const entry = player && typeof player === 'object' ? player as Record<string, unknown> : {}
+      return {
+        id: cleanText(entry.playerId),
+        name: cleanText(entry.playerName),
+      }
+    })
+    return {
+      id: cleanText(source.id) || `cloud-${index + 1}`,
+      event_key: eventKey,
+      court_label: cleanText(source.label) || `Court ${index + 1}`,
+      slot_type: slotType,
+      players: normalizedPlayers.map((player) => player.name),
+      player_ids: normalizedPlayers.map((player) => player.id),
+      ...(typeof source.ratingLevel === 'number' && Number.isFinite(source.ratingLevel)
+        ? { rating_level: source.ratingLevel }
+        : {}),
+      updated_at: updatedAt,
+    } satisfies LineupAssignment
+  })
+}
+
+function lineupAssignmentsToDraftSlots(rows: LineupAssignment[]) {
+  return rows.map((row) => ({
+    id: row.id,
+    label: row.court_label,
+    slotType: row.slot_type,
+    ...(typeof row.rating_level === 'number' ? { ratingLevel: row.rating_level } : {}),
+    players: row.players.map((playerName, index) => ({
+      playerId: row.player_ids?.[index] || '',
+      playerName,
+    })),
+  }))
+}
+
+function newestMatchWeekTimestamp(details: EventDetail | null, rows: LineupAssignment[]) {
+  return Math.max(
+    Date.parse(details?.updatedAt || '') || 0,
+    ...rows.map((row) => Date.parse(row.updated_at || '') || 0),
+  )
+}
+
 function eventDefaultMessage(kind: MessageKind, params: {
   teamName: string
   opponent: string
@@ -331,6 +534,10 @@ function eventDefaultMessage(kind: MessageKind, params: {
     return `Reminder for ${dateText} vs ${opponent || 'the opponent'} - please arrive by ${arrivalTime || 'match time'}. Let me know immediately if your status changes.`
   }
   return `Following up for ${dateText}. I still need your response. Please reply ASAP so I can finalize the lineup.`
+}
+
+function buildTeamConnectionMessage(teamName: string) {
+  return `Hi ${teamName || 'team'} — I added our team to TenAceIQ. Please create or sign in, then open Profile and choose Find my player: https://www.tenaceiq.com/profile#profile-identity\n\nOnce your Player ID matches our roster, open My Teams to review and link the team. You stay in control of the connection.`
 }
 
 
@@ -451,8 +658,11 @@ function readInitialMessagingContext() {
     flight: '',
     eventDate: '',
     opponentTeam: '',
+    availabilityRequestId: '',
+    focusWaiting: false,
     flowSource: '',
     scenario: null as ScenarioRow | null,
+    handoff: null as CaptainLineupHandoff | null,
   }
 
   if (typeof window === 'undefined') return emptyContext
@@ -462,6 +672,9 @@ function readInitialMessagingContext() {
     const resumeState = readCaptainResumeState()
     const rawScenario = window.localStorage.getItem('tenace_selected_scenario')
     const rawFlowSource = window.localStorage.getItem('tenace_flow_source') || ''
+    const handoff = readCaptainLineupHandoff(
+      window.localStorage.getItem(CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY)
+    )
 
     return {
       competitionLayer: params.get('layer') || resumeState?.competitionLayer || '',
@@ -470,8 +683,11 @@ function readInitialMessagingContext() {
       flight: params.get('flight') || resumeState?.flight || '',
       eventDate: params.get('date') || resumeState?.eventDate || '',
       opponentTeam: params.get('opponent') || resumeState?.opponentTeam || '',
+      availabilityRequestId: params.get('availabilityRequest') || '',
+      focusWaiting: params.get('focus') === 'waiting',
       flowSource: params.get('source') || rawFlowSource,
-      scenario: rawScenario ? (JSON.parse(rawScenario) as ScenarioRow) : null,
+      scenario: handoff?.scenario ?? (rawScenario ? (JSON.parse(rawScenario) as ScenarioRow) : null),
+      handoff,
     }
   } catch {
     return emptyContext
@@ -488,10 +704,19 @@ export default function CaptainMessagingPage() {
 
 function CaptainMessagingContent() {
   const router = useRouter()
-  const initialContext = readInitialMessagingContext()
+  const searchParams = useSearchParams()
+  const initialContext = useMemo(() => readInitialMessagingContext(), [])
+  const contactReviewMode = searchParams.get('contactView') === 'missing'
+  const contactManagerRequested = Boolean(searchParams.get('contactView'))
+  const setupTeamLinkRequested = searchParams.get('setup') === 'team-link'
+  const requestedMissingContactNames = useMemo(
+    () => (searchParams.get('missingContacts') || '').split('|').map((name) => name.trim()).filter(Boolean),
+    [searchParams],
+  )
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [contactSaveMessage, setContactSaveMessage] = useState<string | null>(null)
   const [weekStatus, setWeekStatus] = useState<CaptainWeekStatus>('draft-lineup')
   const [storageMode, setStorageMode] = useState<'supabase' | 'local'>('supabase')
   const [refreshTick, setRefreshTick] = useState(0)
@@ -505,7 +730,11 @@ function CaptainMessagingContent() {
   const [responses, setResponses] = useState<WeeklyResponse[]>([])
   const [lineups, setLineups] = useState<LineupAssignment[]>([])
   const [externalAvailabilityRows, setExternalAvailabilityRows] = useState<ExternalAvailabilityRow[]>([])
-  const [availabilitySyncSource, setAvailabilitySyncSource] = useState<string | null>(null)
+  const [availabilityCloudState, setAvailabilityCloudState] = useState<'idle' | 'syncing' | 'synced' | 'local'>('idle')
+  const [matchWeekCloudState, setMatchWeekCloudState] = useState<'idle' | 'syncing' | 'synced' | 'local'>('idle')
+  const [managedTeamOptions, setManagedTeamOptions] = useState<CaptainManagedTeamOption[]>([])
+  const [managedTeamsLoading, setManagedTeamsLoading] = useState(false)
+  const [managedTeamsError, setManagedTeamsError] = useState('')
 
   const [leagueFilter, setLeagueFilter] = useState(initialContext.league)
   const [flightFilter, setFlightFilter] = useState(initialContext.flight)
@@ -520,14 +749,32 @@ function CaptainMessagingContent() {
   const [selectedScenarioId, setSelectedScenarioId] = useState('')
   const [preferredEventDate] = useState(initialContext.eventDate)
   const [preferredOpponent] = useState(initialContext.opponentTeam)
+  const [requestedAvailabilityRequestId] = useState(initialContext.availabilityRequestId)
+  const [focusWaiting] = useState(initialContext.focusWaiting)
+  const nudgeQueuePreparedRef = useRef(false)
+  const contactReviewAppliedRef = useRef(false)
+  const teamConnectionInviteAppliedRef = useRef(false)
+  const availabilityRef = useRef<WeeklyAvailability[]>([])
+  const matchWeekLocalReadyKeyRef = useRef('')
+  const matchWeekCloudScopeRef = useRef('')
+  const matchWeekCloudResolvedRef = useRef(false)
+  const skipNextMatchWeekSaveRef = useRef(false)
 
   const [prefillScenarioRaw] = useState<ScenarioRow | null>(initialContext.scenario)
   const [prefillFlowSource] = useState(initialContext.flowSource)
+  const [availabilityHandoff] = useState<CaptainLineupHandoff | null>(initialContext.handoff)
+  const [liveAvailabilityRequest, setLiveAvailabilityRequest] = useState<LiveAvailabilityRequest | null>(null)
+  const [liveResponsesLoading, setLiveResponsesLoading] = useState(false)
+  const [lastResponseRefreshAt, setLastResponseRefreshAt] = useState<Date | null>(null)
   const [prefillApplied, setPrefillApplied] = useState(false)
+  const [openedPotentialPlayerKeys, setOpenedPotentialPlayerKeys] = useState<string[]>([])
+  const [inlinePhoneByPlayer, setInlinePhoneByPlayer] = useState<Record<string, string>>({})
+  const [savingInlinePhoneKey, setSavingInlinePhoneKey] = useState('')
 
   const [draftContact, setDraftContact] = useState<DraftContact>({
     full_name: '',
     phone: '',
+    email: '',
     role: 'Player',
     is_captain: false,
     is_active: true,
@@ -542,11 +789,15 @@ function CaptainMessagingContent() {
   const [messageKind, setMessageKind] = useState<MessageKind>('availability')
   const [messageTitle, setMessageTitle] = useState('Availability Check')
   const [messageBody, setMessageBody] = useState('')
+  const [connectedWeekChallenge, setConnectedWeekChallenge] = useState<CaptainWeekChallenge | null>(null)
+  const [completedWeekChallenge, setCompletedWeekChallenge] = useState<CaptainWeekChallenge | null>(null)
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [copiedState, setCopiedState] = useState<'none' | 'body' | 'numbers'>('none')
 
   const { isTablet, isMobile } = useViewportBreakpoints()
-  const { role, entitlements, authResolved } = useAuth()
+  const auth = useAuth()
+  const { role, entitlements, authResolved } = auth
+  const { session } = auth
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const captainAccess = access.canUseCaptainWorkflow
   const showAdvancedMessagingPanels = false
@@ -559,7 +810,7 @@ function CaptainMessagingContent() {
 
   useEffect(() => {
     if (!authResolved || role !== 'public') return
-    router.replace('/login?next=/captain/messaging')
+    router.replace('/login?plan=captain&next=%2Fcaptain%2Fmessaging')
   }, [authResolved, role, router])
 
   useEffect(() => {
@@ -570,14 +821,15 @@ function CaptainMessagingContent() {
       setLoading(true)
       setError(null)
       try {
-        const [matchesResult, contactsResult, templatesResult, scenariosResult] = await Promise.all([
+        const [matchesResult, contactsResult, importedContactsResult, templatesResult, scenariosResult] = await Promise.all([
           supabase
             .from('matches')
-            .select('id, match_date, league_name, flight, home_team, away_team, line_number')
+            .select('id, match_date, match_time, facility, league_name, flight, home_team, away_team, line_number')
             .is('line_number', null)
             .order('match_date', { ascending: false })
             .limit(400),
           supabase.from(CONTACTS_TABLE).select('*').order('team_name', { ascending: true }).order('full_name', { ascending: true }),
+          supabase.from(CAPTAIN_ROSTER_CONTACTS_TABLE).select('*').order('team_name', { ascending: true }).order('full_name', { ascending: true }),
           supabase.from(TEMPLATES_TABLE).select('*').order('template_name', { ascending: true }),
           supabase
             .from('lineup_scenarios')
@@ -594,6 +846,9 @@ function CaptainMessagingContent() {
         const demoLineupRows = buildDemoLineupRows()
 
         const contactsOk = !contactsResult.error
+        const importedContacts = importedContactsResult.error
+          ? []
+          : mapImportedRosterContacts((importedContactsResult.data ?? []) as CaptainRosterContactRow[])
         const templatesOk = !templatesResult.error
         const matchesData = (matchesResult.data ?? []) as MatchRow[]
         const scenariosData = (scenariosResult.data ?? []) as ScenarioRow[]
@@ -605,21 +860,17 @@ function CaptainMessagingContent() {
 
         if (matchesResult.error) throw matchesResult.error
 
-        const shouldUseDemo = matchesData.length === 0 && scenariosData.length === 0 && localContacts.length === 0
+        const shouldUseDemo = matchesData.length === 0 && scenariosData.length === 0 && localContacts.length === 0 && importedContacts.length === 0
 
         if (!contactsOk || !templatesOk) {
           setStorageMode('local')
-          setContacts(localContacts.length ? localContacts : shouldUseDemo ? demoContacts : [])
+          const mergedLocalContacts = mergeMessageContacts(localContacts, importedContacts)
+          setContacts(mergedLocalContacts.length ? mergedLocalContacts : shouldUseDemo ? demoContacts : [])
           setTemplates(localTemplates)
         } else {
           setStorageMode('supabase')
-          setContacts(
-            (contactsResult.data ?? []).length
-              ? ((contactsResult.data ?? []) as ContactRow[])
-              : shouldUseDemo
-                ? demoContacts
-                : []
-          )
+          const mergedCloudContacts = mergeMessageContacts((contactsResult.data ?? []) as ContactRow[], importedContacts)
+          setContacts(mergedCloudContacts.length ? mergedCloudContacts : shouldUseDemo ? demoContacts : [])
           setTemplates((templatesResult.data ?? []) as TemplateRow[])
         }
 
@@ -627,20 +878,17 @@ function CaptainMessagingContent() {
         setScenarios(scenariosData.length ? scenariosData : shouldUseDemo ? [demoScenario as ScenarioRow] : [])
 
         let syncedAvailability: ExternalAvailabilityRow[] = []
-        let syncedSource: string | null = null
         for (const tableName of AVAILABILITY_SOURCE_TABLES) {
           const availabilityResult = await supabase.from(tableName).select('*').limit(1000)
           if (!availabilityResult.error && availabilityResult.data) {
             const normalized = normalizeExternalAvailabilityRows(tableName, availabilityResult.data as unknown[])
             if (normalized.length) {
               syncedAvailability = normalized
-              syncedSource = tableName
               break
             }
           }
         }
         setExternalAvailabilityRows(syncedAvailability)
-        setAvailabilitySyncSource(syncedSource)
 
         setAvailability(localAvailability.length ? localAvailability : shouldUseDemo ? demoAvailabilityRows : [])
         setResponses(localResponses.length ? localResponses : shouldUseDemo ? demoResponseRows : [])
@@ -657,22 +905,6 @@ function CaptainMessagingContent() {
           if (!eventNotes) setEventNotes('Example match week loaded.')
         }
 
-        type EventDetail = {
-          key: string
-          location: string
-          directions: string
-          arrivalTime: string
-          notes: string
-        }
-
-        const eventDetails = readLocal<EventDetail>(EVENT_DETAILS_STORAGE_KEY)
-        const detail = eventDetails[0]
-        if (detail) {
-          setEventLocation(detail.location || '')
-          setEventDirections(detail.directions || '')
-          setEventArrivalTime(detail.arrivalTime || '')
-          setEventNotes(detail.notes || '')
-        }
       } catch (err) {
         if (!mounted) return
         const demoContacts = buildDemoContacts()
@@ -680,7 +912,6 @@ function CaptainMessagingContent() {
         setContacts(readLocal<ContactRow>(CONTACTS_STORAGE_KEY).length ? readLocal<ContactRow>(CONTACTS_STORAGE_KEY) : demoContacts)
         setTemplates(readLocal<TemplateRow>(TEMPLATES_STORAGE_KEY))
         setExternalAvailabilityRows([])
-        setAvailabilitySyncSource(null)
         setAvailability(readLocal<WeeklyAvailability>(AVAILABILITY_STORAGE_KEY).length ? readLocal<WeeklyAvailability>(AVAILABILITY_STORAGE_KEY) : buildDemoAvailabilityRows(demoContacts))
         setResponses(readLocal<WeeklyResponse>(RESPONSES_STORAGE_KEY).length ? readLocal<WeeklyResponse>(RESPONSES_STORAGE_KEY) : buildDemoResponseRows(demoContacts))
         setLineups(readLocal<LineupAssignment>(LINEUPS_STORAGE_KEY).length ? readLocal<LineupAssignment>(LINEUPS_STORAGE_KEY) : buildDemoLineupRows())
@@ -709,6 +940,52 @@ function CaptainMessagingContent() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authResolved, refreshTick, role])
+
+  useEffect(() => {
+    if (!authResolved || role === 'public' || !captainAccess) return
+    const accessToken = session?.access_token || ''
+    if (!accessToken) return
+
+    let active = true
+    const controller = new AbortController()
+    setManagedTeamsLoading(true)
+    setManagedTeamsError('')
+
+    void fetch('/api/team-connections', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: 'no-store',
+      signal: controller.signal,
+    }).then(async (response) => {
+      const result = await response.json() as { connections?: TeamConnection[]; message?: string }
+      if (!response.ok) throw new Error(result.message || 'Captain teams could not be loaded.')
+      if (!active) return
+
+      const options = buildCaptainManagedTeamOptions(result.connections || [])
+      setManagedTeamOptions(options)
+      const selected = chooseCaptainManagedTeam(options, {
+        team: initialContext.team,
+        league: initialContext.league,
+        flight: initialContext.flight,
+      })
+      if (selected) {
+        setTeamFilter(selected.team)
+        setLeagueFilter(selected.league)
+        setFlightFilter(selected.flight)
+        setSeasonFilter('')
+        setSessionFilter('')
+      }
+    }).catch((cause) => {
+      if (!active || cause?.name === 'AbortError') return
+      setManagedTeamsError(cause instanceof Error ? cause.message : 'Captain teams could not be loaded.')
+    }).finally(() => {
+      if (active) setManagedTeamsLoading(false)
+    })
+
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [authResolved, captainAccess, initialContext.flight, initialContext.league, initialContext.team, refreshTick, role, session?.access_token])
 
   useEffect(() => {
     if (loading) return
@@ -757,35 +1034,93 @@ function CaptainMessagingContent() {
       setEventMatchId(matchedEvent.id)
     }
 
+    if (availabilityHandoff?.match.time) setEventArrivalTime(availabilityHandoff.match.time)
+    if (availabilityHandoff?.match.facility) setEventLocation(availabilityHandoff.match.facility)
+
     if (nextNotes && !eventNotes.trim()) {
       setEventNotes(nextNotes)
     }
 
-    setRecipientMode('lineup-only')
-    setMessageKind('lineup')
-    setMessageTitle('Lineup Announcement')
+    if (availabilityHandoff) {
+      const lineupNames = new Set(
+        extractPotentialLineupPlayers(availabilityHandoff.scenario.slots_json).map((name) => name.toLowerCase())
+      )
+      const matchingContactIds = contacts
+        .filter((contact) => lineupNames.has(contact.full_name.trim().toLowerCase()) && contact.phone && contact.opt_in_text)
+        .map((contact) => contact.id)
+      setSelectedRecipientIds(matchingContactIds)
+      setRecipientMode('custom')
+      setMessageKind('availability')
+      setMessageTitle('Potential lineup availability')
+      setMessageBody(buildPotentialLineupAvailabilityMessage({
+        teamName: nextTeam,
+        opponent: availabilityHandoff.match.opponent || prefillScenarioRaw.opponent_team || '',
+        dateText: formatDate(availabilityHandoff.match.date || nextMatchDate),
+        time: availabilityHandoff.match.time,
+        facility: availabilityHandoff.match.facility,
+        slotsJson: availabilityHandoff.scenario.slots_json,
+        availabilityRequestUrl: availabilityHandoff.availabilityRequestUrl,
+      }))
+    } else {
+      setRecipientMode('lineup-only')
+      setMessageKind('lineup')
+      setMessageTitle('Lineup Announcement')
+    }
     setPrefillApplied(true)
-  }, [loading, prefillApplied, prefillScenarioRaw, scenarios, matches, eventNotes])
+  }, [availabilityHandoff, contacts, loading, prefillApplied, prefillScenarioRaw, scenarios, matches, eventNotes])
 
-  const leagueOptions = useMemo(() => uniqueSorted([...contacts.map((c) => c.league_name), ...matches.map((m) => m.league_name), ...scenarios.map((s) => s.league_name)]), [contacts, matches, scenarios])
-  const flightOptions = useMemo(() => uniqueSorted([...contacts.map((c) => c.flight), ...matches.map((m) => m.flight), ...scenarios.map((s) => s.flight)]), [contacts, matches, scenarios])
-  const seasonOptions = useMemo(() => uniqueSorted([...contacts.map((c) => c.season_label), ...matches.map((m) => inferSeasonLabel(m.match_date))]), [contacts, matches])
-  const sessionOptions = useMemo(() => uniqueSorted([...contacts.map((c) => c.session_label), ...matches.map((m) => inferSessionLabel(m.match_date))]), [contacts, matches])
-  const teamOptions = useMemo(() => uniqueSorted([...contacts.map((c) => c.team_name), ...matches.flatMap((m) => [m.home_team, m.away_team]), ...scenarios.map((s) => s.team_name)]), [contacts, matches, scenarios])
+  const selectedTeamScopeKey = captainTeamScopeKey({ team: teamFilter, league: leagueFilter, flight: flightFilter })
+  const visibleManagedTeamOptions = useMemo(() => {
+    if (managedTeamOptions.length || !teamFilter) return managedTeamOptions
+    return [{ team: teamFilter, league: leagueFilter, flight: flightFilter, matches: 0, isDefault: true }]
+  }, [flightFilter, leagueFilter, managedTeamOptions, teamFilter])
 
   const scopedContacts = useMemo(() => {
-    return contacts.filter((contact) => {
-      const leagueMatch = !leagueFilter || contact.league_name === leagueFilter
-      const flightMatch = !flightFilter || contact.flight === flightFilter
+    const teamContacts = selectCaptainContactRowsForScope({
+      rows: contacts,
+      team: teamFilter,
+      league: leagueFilter,
+      flight: flightFilter,
+    })
+    return teamContacts.filter((contact) => {
       const seasonMatch = !seasonFilter || normalizeText(contact.season_label) === seasonFilter
       const sessionMatch = !sessionFilter || normalizeText(contact.session_label) === sessionFilter
-      const teamMatch = !teamFilter || contact.team_name === teamFilter
-      return leagueMatch && flightMatch && seasonMatch && sessionMatch && teamMatch
+      return seasonMatch && sessionMatch
     })
   }, [contacts, leagueFilter, flightFilter, seasonFilter, sessionFilter, teamFilter])
 
+  useEffect(() => {
+    if (!contactManagerRequested || loading || contactReviewAppliedRef.current) return
+
+    const requestedName = requestedMissingContactNames[0] || ''
+    const existingContact = requestedName
+      ? scopedContacts.find((contact) => normalizeText(contact.full_name) === normalizeText(requestedName))
+      : null
+    if (existingContact) {
+      setEditingId(existingContact.id)
+      setDraftContact({
+        full_name: existingContact.full_name,
+        phone: existingContact.phone,
+        email: existingContact.email || '',
+        role: existingContact.role || 'Player',
+        is_captain: !!existingContact.is_captain,
+        is_active: !!existingContact.is_active,
+        opt_in_text: !!existingContact.opt_in_text,
+        notes: existingContact.notes || '',
+      })
+    } else if (requestedName) {
+      setDraftContact((current) => ({ ...current, full_name: requestedName }))
+    }
+    contactReviewAppliedRef.current = true
+
+    window.requestAnimationFrame(() => {
+      document.getElementById('captain-contact-manager')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      window.requestAnimationFrame(() => document.getElementById('draft-contact-phone')?.focus())
+    })
+  }, [contactManagerRequested, loading, requestedMissingContactNames, scopedContacts])
+
   const filteredMatches = useMemo(() => {
-    return matches.filter((match) => {
+    return orderCaptainScheduledMatches(matches.filter((match) => {
       const inferredSeason = inferSeasonLabel(match.match_date)
       const inferredSession = inferSessionLabel(match.match_date)
       const matchTeam = [normalizeText(match.home_team), normalizeText(match.away_team)]
@@ -795,7 +1130,7 @@ function CaptainMessagingContent() {
       const sessionMatch = !sessionFilter || normalizeText(inferredSession) === sessionFilter
       const teamMatch = !teamFilter || matchTeam.includes(teamFilter)
       return leagueMatch && flightMatch && seasonMatch && sessionMatch && teamMatch
-    })
+    }))
   }, [matches, leagueFilter, flightFilter, seasonFilter, sessionFilter, teamFilter])
 
   useEffect(() => {
@@ -862,6 +1197,201 @@ function CaptainMessagingContent() {
   )
   const weekStatusKey = useMemo(() => buildCaptainWeekStatusKey(weekStatusScope), [weekStatusScope])
   const weekStatusMeta = useMemo(() => getCaptainWeekStatusMeta(weekStatus), [weekStatus])
+  const matchWeekScope = useMemo(() => ({
+    competitionLayer,
+    team: teamFilter || inferredTeamName,
+    league: leagueFilter || selectedMatch?.league_name || '',
+    flight: flightFilter || selectedMatch?.flight || '',
+    date: selectedMatch?.match_date || preferredEventDate,
+    opponent: inferredOpponent,
+  }), [competitionLayer, flightFilter, inferredOpponent, inferredTeamName, leagueFilter, preferredEventDate, selectedMatch, teamFilter])
+  const matchWeekDraftScope = useMemo(() => ({
+    competitionLayer: matchWeekScope.competitionLayer,
+    teamName: matchWeekScope.team,
+    leagueName: matchWeekScope.league,
+    flight: matchWeekScope.flight,
+    matchDate: matchWeekScope.date.slice(0, 10),
+    opponentTeam: matchWeekScope.opponent,
+  }), [matchWeekScope])
+  const scopedLineupBuilderHref = buildCaptainScopedHref('/captain/lineup-builder', matchWeekScope)
+
+  useEffect(() => {
+    availabilityRef.current = availability
+  }, [availability])
+
+  const persistCloudAvailability = useCallback(async (update: CaptainAvailabilityCloudUpdate) => {
+    const teamName = matchWeekScope.team.trim()
+    const leagueName = matchWeekScope.league.trim()
+    const scopedFlight = matchWeekScope.flight.trim()
+    const matchDate = matchWeekScope.date.slice(0, 10)
+    const accessToken = session?.access_token || ''
+    if (!captainAccess || !accessToken || !teamName || !leagueName || !scopedFlight || !/^\d{4}-\d{2}-\d{2}$/.test(matchDate)) return false
+
+    setAvailabilityCloudState('syncing')
+    try {
+      const response = await fetch('/api/captain/weekly-availability', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          team: teamName,
+          league: leagueName,
+          flight: scopedFlight,
+          matchDate,
+          playerName: update.playerName,
+          status: update.status,
+          note: update.note,
+          updatedAt: update.updatedAt,
+        }),
+      })
+      const result = await response.json() as { message?: string }
+      if (!response.ok) throw new Error(result.message || 'Availability could not sync.')
+      setAvailabilityCloudState('synced')
+      return true
+    } catch (nextError) {
+      setAvailabilityCloudState('local')
+      setError(nextError instanceof Error ? nextError.message : 'Availability is saved on this phone and will sync when cloud access returns.')
+      return false
+    }
+  }, [captainAccess, matchWeekScope.date, matchWeekScope.flight, matchWeekScope.league, matchWeekScope.team, session?.access_token])
+
+  useEffect(() => {
+    const teamName = matchWeekScope.team.trim()
+    const leagueName = matchWeekScope.league.trim()
+    const scopedFlight = matchWeekScope.flight.trim()
+    const matchDate = matchWeekScope.date.slice(0, 10)
+    const accessToken = session?.access_token || ''
+    if (!authResolved || !captainAccess || !accessToken || !eventKey || !scopedContacts.length
+      || !teamName || !leagueName || !scopedFlight || !/^\d{4}-\d{2}-\d{2}$/.test(matchDate)) return
+
+    let active = true
+    const controller = new AbortController()
+
+    async function loadCloudAvailability() {
+      setAvailabilityCloudState('syncing')
+      try {
+        const params = new URLSearchParams({ team: teamName, league: leagueName, flight: scopedFlight, matchDate })
+        const response = await fetch(`/api/captain/weekly-availability?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+        const result = await response.json() as { availability?: CaptainCloudAvailabilityRow[]; message?: string }
+        if (!response.ok) throw new Error(result.message || 'Shared availability could not be loaded.')
+        if (!active) return
+
+        const reconciled = reconcileCaptainCloudAvailability({
+          eventKey,
+          contacts: scopedContacts,
+          rows: availabilityRef.current,
+          cloudRows: result.availability || [],
+        })
+        if (reconciled.changed) {
+          availabilityRef.current = reconciled.rows
+          setAvailability(reconciled.rows)
+          writeLocal(AVAILABILITY_STORAGE_KEY, reconciled.rows)
+        }
+        setAvailabilityCloudState('synced')
+        for (const update of reconciled.uploads) {
+          if (!active) break
+          await persistCloudAvailability(update)
+        }
+      } catch (nextError) {
+        if (!active || (nextError instanceof DOMException && nextError.name === 'AbortError')) return
+        setAvailabilityCloudState('local')
+      }
+    }
+
+    void loadCloudAvailability()
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void loadCloudAvailability()
+    }
+    const interval = window.setInterval(refreshWhenVisible, 60_000)
+    window.addEventListener('focus', refreshWhenVisible)
+    window.addEventListener('pageshow', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      active = false
+      controller.abort()
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refreshWhenVisible)
+      window.removeEventListener('pageshow', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [authResolved, captainAccess, eventKey, matchWeekScope.date, matchWeekScope.flight, matchWeekScope.league, matchWeekScope.team, persistCloudAvailability, scopedContacts, session?.access_token])
+
+  useEffect(() => {
+    const teamName = matchWeekScope.team.trim()
+    const leagueName = matchWeekScope.league.trim()
+    const scopedFlight = matchWeekScope.flight.trim()
+    if (!authResolved || role === 'public' || !session?.access_token || !teamName || !leagueName || !scopedFlight) {
+      return
+    }
+
+    let active = true
+    const scope = { teamName, leagueName, flight: scopedFlight }
+
+    async function loadConnectedWeekChallenge() {
+      try {
+        const response = await fetch(buildCaptainWeekChallengeHistoryHref(scope), {
+          headers: { Authorization: `Bearer ${session?.access_token || ''}` },
+          cache: 'no-store',
+        })
+        const result = await response.json() as { history?: CaptainWeekChallengeHistoryItem[] }
+        if (!response.ok || !active) return
+        const history = result.history ?? []
+        const selected = selectCaptainWeekChallenge(history, matchWeekScope.date)
+        const challenge = selected ? buildCaptainLevelUpChallenge(selected.challengeId) : null
+        setConnectedWeekChallenge(selected && challenge ? {
+          challenge,
+          history: selected,
+          teamRoomHref: buildCaptainWeekChallengeTeamRoomHref(scope, selected.messageId),
+        } : null)
+        const completed = selectCaptainCompletedWeekChallenge(history, matchWeekScope.date)
+        const completedChallenge = completed ? buildCaptainLevelUpChallenge(completed.challengeId) : null
+        setCompletedWeekChallenge(completed && completedChallenge ? {
+          challenge: completedChallenge,
+          history: completed,
+          teamRoomHref: buildCaptainWeekChallengeTeamRoomHref(scope, completed.messageId),
+        } : null)
+      } catch {
+        if (active) {
+          setConnectedWeekChallenge(null)
+          setCompletedWeekChallenge(null)
+        }
+      }
+    }
+
+    void loadConnectedWeekChallenge()
+    return () => {
+      active = false
+    }
+  }, [authResolved, matchWeekScope.date, matchWeekScope.flight, matchWeekScope.league, matchWeekScope.team, role, session?.access_token])
+
+  const completedWeekChallengeFollowUp = useMemo(
+    () => completedWeekChallenge
+      ? recommendCaptainWeekChallengeFollowUp(completedWeekChallenge.history)
+      : null,
+    [completedWeekChallenge],
+  )
+  const currentMessagingChallenge = completedWeekChallenge ? null : connectedWeekChallenge
+  const displayedMessagingChallenge = completedWeekChallenge ?? connectedWeekChallenge
+  const nextTeamChallengeHref = completedWeekChallengeFollowUp
+    ? appendLevelUpChallengeHref(
+        `${buildCaptainScopedHref('/captain', matchWeekScope)}#captain-level-up-challenge`,
+        completedWeekChallengeFollowUp.challenge.id,
+      )
+    : ''
+
+  useEffect(() => {
+    if (!currentMessagingChallenge) return
+    setMessageBody((current) => current.trim()
+      ? appendCaptainWeekChallengeToMessage(current, currentMessagingChallenge.challenge)
+      : current)
+  }, [currentMessagingChallenge])
+
+  function withWeekChallenge(message: string) {
+    return appendCaptainWeekChallengeToMessage(message, currentMessagingChallenge?.challenge ?? null)
+  }
 
   useEffect(() => {
     const saved = readCaptainWeekStatus(weekStatusScope)
@@ -897,6 +1427,58 @@ function CaptainMessagingContent() {
   }, [scenarioOptions, selectedScenarioId])
 
   const selectedScenario = scenarioOptions.find((scenario) => scenario.id === selectedScenarioId) ?? null
+  const availabilityScenarioId = selectedScenario?.id || availabilityHandoff?.scenario.id || ''
+  const availabilityTeamName = selectedScenario?.team_name || availabilityHandoff?.scenario.team_name || inferredTeamName
+  const availabilityMatchDate = selectedScenario?.match_date || availabilityHandoff?.match.date || selectedMatch?.match_date || preferredEventDate
+
+  const loadLiveAvailabilityRequest = useCallback(async (showLoading = false) => {
+    if (!requestedAvailabilityRequestId && !availabilityScenarioId && (!availabilityTeamName || !availabilityMatchDate)) return
+    if (showLoading) setLiveResponsesLoading(true)
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const accessToken = sessionData.session?.access_token
+      if (!accessToken) return
+      const params = new URLSearchParams()
+      if (requestedAvailabilityRequestId) params.set('requestId', requestedAvailabilityRequestId)
+      else if (availabilityScenarioId) params.set('scenarioId', availabilityScenarioId)
+      if (availabilityTeamName) params.set('teamName', availabilityTeamName)
+      if (availabilityMatchDate) params.set('matchDate', availabilityMatchDate)
+      const response = await fetch(`/api/captain/availability-requests?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: 'no-store',
+      })
+      const result = await response.json() as LiveAvailabilityRequest & { message?: string }
+      if (!response.ok) throw new Error(result.message || 'Availability responses could not be refreshed.')
+      setLiveAvailabilityRequest(result)
+      setLastResponseRefreshAt(new Date())
+    } catch (nextError) {
+      if (showLoading) {
+        setError(nextError instanceof Error ? nextError.message : 'Availability responses could not be refreshed.')
+      }
+    } finally {
+      if (showLoading) setLiveResponsesLoading(false)
+    }
+  }, [availabilityMatchDate, availabilityScenarioId, availabilityTeamName, requestedAvailabilityRequestId])
+
+  useEffect(() => {
+    if (!authResolved || role === 'public') return
+    void loadLiveAvailabilityRequest()
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void loadLiveAvailabilityRequest()
+    }
+    const interval = window.setInterval(refreshWhenVisible, 25_000)
+    window.addEventListener('focus', refreshWhenVisible)
+    window.addEventListener('pageshow', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('focus', refreshWhenVisible)
+      window.removeEventListener('pageshow', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [authResolved, loadLiveAvailabilityRequest, role])
+
   const lineupRows = useMemo(() => lineups.filter((row) => row.event_key === eventKey), [lineups, eventKey])
   const lineupTextForMessage = useMemo(
     () => lineupRows.length
@@ -921,9 +1503,156 @@ function CaptainMessagingContent() {
   }, [externalAvailabilityRows, scopedContacts, teamFilter, leagueFilter, flightFilter, seasonFilter, sessionFilter, selectedMatch])
 
   useEffect(() => {
-    const details = [{ key: eventKey, location: eventLocation, directions: eventDirections, arrivalTime: eventArrivalTime, notes: eventNotes }]
-    writeLocal(EVENT_DETAILS_STORAGE_KEY, details)
-  }, [eventKey, eventLocation, eventDirections, eventArrivalTime, eventNotes])
+    const matchDate = matchWeekDraftScope.matchDate
+    if (!eventKey || !/^\d{4}-\d{2}-\d{2}$/.test(matchDate)) return
+
+    const detail = readLocal<EventDetail>(EVENT_DETAILS_STORAGE_KEY).find((row) => row.key === eventKey) ?? null
+    skipNextMatchWeekSaveRef.current = true
+    setEventLocation(detail?.location || selectedMatch?.facility || '')
+    setEventDirections(detail?.directions || '')
+    setEventArrivalTime(detail?.arrivalTime || selectedMatch?.match_time || '')
+    setEventNotes(detail?.notes || selectedScenario?.notes || '')
+    matchWeekLocalReadyKeyRef.current = eventKey
+    matchWeekCloudResolvedRef.current = false
+    matchWeekCloudScopeRef.current = ''
+    setMatchWeekCloudState('idle')
+  }, [eventKey, matchWeekDraftScope.matchDate, selectedMatch?.facility, selectedMatch?.match_time, selectedScenario?.notes])
+
+  const persistMatchWeekCloud = useCallback(async (input: {
+    rows: LineupAssignment[]
+    details: Omit<EventDetail, 'key' | 'updatedAt'>
+    updatedAt: string
+    signal?: AbortSignal
+  }) => {
+    const accessToken = session?.access_token || ''
+    if (!captainAccess || !accessToken || !matchWeekDraftScope.teamName || !matchWeekDraftScope.leagueName
+      || !matchWeekDraftScope.flight || !/^\d{4}-\d{2}-\d{2}$/.test(matchWeekDraftScope.matchDate)) return false
+
+    const response = await fetch('/api/captain/lineup-drafts', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'sync-match-week',
+        scope: matchWeekDraftScope,
+        selectedMatchId: selectedMatch?.id || '',
+        matchFormat: 'auto',
+        teamSlots: lineupAssignmentsToDraftSlots(input.rows),
+        matchDetails: input.details,
+        updatedAt: input.updatedAt,
+      }),
+      signal: input.signal,
+    })
+    if (!response.ok) {
+      const result = await response.json().catch(() => null) as { message?: string } | null
+      throw new Error(result?.message || 'Match Week could not sync.')
+    }
+    return true
+  }, [captainAccess, matchWeekDraftScope, selectedMatch?.id, session?.access_token])
+
+  useEffect(() => {
+    const accessToken = session?.access_token || ''
+    if (loading || !authResolved || !captainAccess || !accessToken || !eventKey
+      || matchWeekLocalReadyKeyRef.current !== eventKey || !matchWeekDraftScope.teamName
+      || !matchWeekDraftScope.leagueName || !matchWeekDraftScope.flight
+      || !/^\d{4}-\d{2}-\d{2}$/.test(matchWeekDraftScope.matchDate)) return
+
+    const scopeKey = getCaptainLineupDraftScopeKey(matchWeekDraftScope)
+    if (matchWeekCloudScopeRef.current === scopeKey) return
+    matchWeekCloudScopeRef.current = scopeKey
+    matchWeekCloudResolvedRef.current = false
+    setMatchWeekCloudState('syncing')
+
+    const controller = new AbortController()
+    let active = true
+    const params = new URLSearchParams(matchWeekDraftScope)
+    void fetch(`/api/captain/lineup-drafts?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: 'no-store',
+      signal: controller.signal,
+    }).then(async (response) => {
+      if (!response.ok) throw new Error('Match Week could not load.')
+      const result = await response.json() as { draft?: unknown }
+      return readCaptainLineupBuilderDraft(JSON.stringify(result.draft ?? null))
+    }).then(async (cloudDraft) => {
+      if (!active) return
+      const localDetails = readLocal<EventDetail>(EVENT_DETAILS_STORAGE_KEY).find((row) => row.key === eventKey) ?? null
+      const localRows = lineups.filter((row) => row.event_key === eventKey)
+      const localTimestamp = newestMatchWeekTimestamp(localDetails, localRows)
+      const cloudTimestamp = Date.parse(cloudDraft?.matchWeekUpdatedAt || cloudDraft?.updatedAt || '') || 0
+
+      if (cloudDraft && cloudTimestamp >= localTimestamp) {
+        const cloudRows = lineupAssignmentsFromDraft(cloudDraft, eventKey)
+        const cloudDetails = cloudDraft.matchDetails || { location: '', directions: '', arrivalTime: '', notes: '' }
+        const updatedAt = cloudDraft.matchWeekUpdatedAt || cloudDraft.updatedAt || new Date().toISOString()
+        const nextLineups = [...lineups.filter((row) => row.event_key !== eventKey), ...cloudRows]
+        skipNextMatchWeekSaveRef.current = true
+        setLineups(nextLineups)
+        writeLocal(LINEUPS_STORAGE_KEY, nextLineups)
+        setEventLocation(cloudDetails.location || selectedMatch?.facility || '')
+        setEventDirections(cloudDetails.directions)
+        setEventArrivalTime(cloudDetails.arrivalTime || selectedMatch?.match_time || '')
+        setEventNotes(cloudDetails.notes)
+        const details = readLocal<EventDetail>(EVENT_DETAILS_STORAGE_KEY).filter((row) => row.key !== eventKey)
+        writeLocal(EVENT_DETAILS_STORAGE_KEY, [{ key: eventKey, ...cloudDetails, updatedAt }, ...details].slice(0, 80))
+      } else {
+        const details = localDetails || {
+          key: eventKey,
+          location: eventLocation,
+          directions: eventDirections,
+          arrivalTime: eventArrivalTime,
+          notes: eventNotes,
+        }
+        const updatedAt = localTimestamp ? new Date(localTimestamp).toISOString() : new Date().toISOString()
+        await persistMatchWeekCloud({ rows: localRows, details, updatedAt, signal: controller.signal })
+      }
+      if (!active) return
+      matchWeekCloudResolvedRef.current = true
+      setMatchWeekCloudState('synced')
+    }).catch((cause) => {
+      if (!active || (cause instanceof DOMException && cause.name === 'AbortError')) return
+      matchWeekCloudResolvedRef.current = true
+      setMatchWeekCloudState('local')
+    })
+
+    return () => {
+      active = false
+      controller.abort()
+    }
+  }, [authResolved, captainAccess, eventArrivalTime, eventDirections, eventKey, eventLocation, eventNotes, lineups, loading, matchWeekDraftScope, persistMatchWeekCloud, selectedMatch?.facility, selectedMatch?.match_time, session?.access_token])
+
+  useEffect(() => {
+    if (!matchWeekCloudResolvedRef.current || matchWeekLocalReadyKeyRef.current !== eventKey) return
+    if (skipNextMatchWeekSaveRef.current) {
+      skipNextMatchWeekSaveRef.current = false
+      return
+    }
+
+    const updatedAt = new Date().toISOString()
+    const details = {
+      location: eventLocation,
+      directions: eventDirections,
+      arrivalTime: eventArrivalTime,
+      notes: eventNotes,
+    }
+    const storedDetails = readLocal<EventDetail>(EVENT_DETAILS_STORAGE_KEY).filter((row) => row.key !== eventKey)
+    writeLocal(EVENT_DETAILS_STORAGE_KEY, [{ key: eventKey, ...details, updatedAt }, ...storedDetails].slice(0, 80))
+
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      setMatchWeekCloudState('syncing')
+      void persistMatchWeekCloud({ rows: lineupRows, details, updatedAt, signal: controller.signal })
+        .then(() => setMatchWeekCloudState('synced'))
+        .catch((cause) => {
+          if (cause instanceof DOMException && cause.name === 'AbortError') return
+          setMatchWeekCloudState('local')
+        })
+    }, 900)
+
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [eventArrivalTime, eventDirections, eventKey, eventLocation, eventNotes, lineupRows, persistMatchWeekCloud])
 
   useEffect(() => {
     if (!eventKey || !scopedContacts.length || !syncedAvailabilityCandidates.length) return
@@ -970,6 +1699,7 @@ function CaptainMessagingContent() {
 
   useEffect(() => {
     if (!selectedMatch) return
+    if (availabilityHandoff) return
     const nextTitleMap: Record<MessageKind, string> = {
       availability: 'Availability Check',
       lineup: 'Lineup Announcement',
@@ -980,16 +1710,16 @@ function CaptainMessagingContent() {
     setMessageTitle(nextTitleMap[messageKind])
     setMessageBody((current) => {
       if (selectedTemplateId) return current
-      return eventDefaultMessage(messageKind, {
+      return appendCaptainWeekChallengeToMessage(eventDefaultMessage(messageKind, {
         teamName: inferredTeamName,
         opponent: inferredOpponent,
         dateText: formatDate(selectedMatch.match_date),
         location: eventLocation,
         arrivalTime: eventArrivalTime,
         lineupText: lineupTextForMessage,
-      })
+      }), currentMessagingChallenge?.challenge ?? null)
     })
-  }, [messageKind, selectedMatch, inferredTeamName, inferredOpponent, lineupTextForMessage, eventLocation, eventArrivalTime, selectedTemplateId])
+  }, [availabilityHandoff, currentMessagingChallenge, messageKind, selectedMatch, inferredTeamName, inferredOpponent, lineupTextForMessage, eventLocation, eventArrivalTime, selectedTemplateId])
 
   const availabilityMap = useMemo(() => new Map(availabilityRows.map((row) => [row.contact_id, row])), [availabilityRows])
   const responseMap = useMemo(() => new Map(responseRows.map((row) => [row.contact_id, row])), [responseRows])
@@ -1014,8 +1744,162 @@ function CaptainMessagingContent() {
     return base
   }, [scopedContacts, recipientMode, availabilityMap, lineupPlayerSet, responseMap, selectedRecipientIds])
 
+  useEffect(() => {
+    if (!setupTeamLinkRequested || loading || teamConnectionInviteAppliedRef.current || !teamFilter) return
+    const invitees = scopedContacts.filter((contact) => contact.phone && contact.opt_in_text)
+    if (!invitees.length) {
+      setError('Add a mobile number for at least one player before sending the team connection text.')
+      teamConnectionInviteAppliedRef.current = true
+      return
+    }
+
+    setRecipientMode('custom')
+    setSelectedRecipientIds(invitees.map((contact) => contact.id))
+    setMessageKind('availability')
+    setSelectedTemplateId('')
+    setMessageTitle('Connect your TenAceIQ Player ID')
+    setMessageBody(buildTeamConnectionMessage(teamFilter))
+    teamConnectionInviteAppliedRef.current = true
+  }, [loading, scopedContacts, setupTeamLinkRequested, teamFilter])
+
   const recipientsPhones = useMemo(() => selectedRecipients.map((recipient) => recipient.phone).filter(Boolean), [selectedRecipients])
   const smsHref = buildSmsHref(recipientsPhones, messageBody)
+  const potentialLineupNames = useMemo(
+    () => {
+      const invited = liveAvailabilityRequest?.request?.invitedPlayers ?? []
+      if (invited.length) return invited.map((player) => player.playerName)
+      return availabilityHandoff ? extractPotentialLineupPlayers(availabilityHandoff.scenario.slots_json) : []
+    },
+    [availabilityHandoff, liveAvailabilityRequest]
+  )
+  const potentialLineupContacts = useMemo(() => {
+    const names = new Set(potentialLineupNames.map((name) => name.toLowerCase()))
+    return scopedContacts.filter((contact) => names.has(contact.full_name.trim().toLowerCase()))
+  }, [potentialLineupNames, scopedContacts])
+  const missingPotentialLineupNames = useMemo(() => {
+    const readyNames = new Set(
+      potentialLineupContacts
+        .filter((contact) => contact.phone && contact.opt_in_text)
+        .map((contact) => contact.full_name.trim().toLowerCase())
+    )
+    return potentialLineupNames.filter((name) => !readyNames.has(name.trim().toLowerCase()))
+  }, [potentialLineupContacts, potentialLineupNames])
+  const currentLiveResponses = useMemo(() => {
+    const matchDate = liveAvailabilityRequest?.request?.matchDate || availabilityMatchDate
+    return (liveAvailabilityRequest?.responses ?? [])
+      .filter((response) => !matchDate || response.match_date === matchDate)
+  }, [availabilityMatchDate, liveAvailabilityRequest])
+  const liveResponseByPlayer = useMemo(() => new Map(
+    currentLiveResponses.map((response) => [response.player_name.trim().toLowerCase(), response])
+  ), [currentLiveResponses])
+  const privateInviteByPlayer = useMemo(() => {
+    const invites = liveAvailabilityRequest?.invites.length
+      ? liveAvailabilityRequest.invites
+      : availabilityHandoff?.playerRequestUrls ?? []
+    return new Map(invites.map((invite) => [invite.playerName.trim().toLowerCase(), invite]))
+  }, [availabilityHandoff, liveAvailabilityRequest])
+  const potentialTextQueueStorageKey = useMemo(() => {
+    const queueId = requestedAvailabilityRequestId || availabilityHandoff?.availabilityRequestId || liveAvailabilityRequest?.request?.id || availabilityHandoff?.availabilityRequestUrl || safeKey(
+      teamFilter,
+      leagueFilter,
+      flightFilter,
+      availabilityMatchDate
+    )
+    return `${POTENTIAL_LINEUP_TEXT_QUEUE_STORAGE_PREFIX}:${queueId}`
+  }, [availabilityHandoff, availabilityMatchDate, flightFilter, leagueFilter, liveAvailabilityRequest, requestedAvailabilityRequestId, teamFilter])
+  const potentialLineupQueue = useMemo<PotentialLineupQueueItem[]>(() => {
+    const statusPriority: Record<PotentialAvailabilityStatus, number> = {
+      unavailable: 0,
+      maybe: 1,
+      waiting: 2,
+      available: 3,
+    }
+
+    return potentialLineupNames
+      .map((playerName, originalIndex) => {
+        const playerKey = playerName.trim().toLowerCase()
+        const contact = scopedContacts.find((candidate) => candidate.full_name.trim().toLowerCase() === playerKey)
+        const liveResponse = liveResponseByPlayer.get(playerKey)
+        const status: PotentialAvailabilityStatus = liveResponse?.status ?? 'waiting'
+        return {
+          playerName,
+          playerKey,
+          contact,
+          canText: Boolean(contact?.phone && contact.opt_in_text),
+          status,
+          liveResponse,
+          originalIndex,
+        }
+      })
+      .sort((left, right) => statusPriority[left.status] - statusPriority[right.status] || left.originalIndex - right.originalIndex)
+  }, [liveResponseByPlayer, potentialLineupNames, scopedContacts])
+  const openedPotentialPlayerKeySet = useMemo(
+    () => new Set(openedPotentialPlayerKeys),
+    [openedPotentialPlayerKeys]
+  )
+  const textablePotentialPlayers = useMemo(
+    () => potentialLineupQueue.filter((player) => player.canText),
+    [potentialLineupQueue]
+  )
+  const openedPotentialTextCount = useMemo(
+    () => textablePotentialPlayers.filter((player) => openedPotentialPlayerKeySet.has(player.playerKey)).length,
+    [openedPotentialPlayerKeySet, textablePotentialPlayers]
+  )
+  const nextPotentialTextTarget = useMemo(
+    () => potentialLineupQueue.find((player) =>
+      player.status === 'waiting' && player.canText && !openedPotentialPlayerKeySet.has(player.playerKey)
+    ) ?? null,
+    [openedPotentialPlayerKeySet, potentialLineupQueue]
+  )
+
+  useEffect(() => {
+    if (!focusWaiting || !liveAvailabilityRequest?.request || nudgeQueuePreparedRef.current) return
+    nudgeQueuePreparedRef.current = true
+    const waitingPlayerKeys = new Set(
+      potentialLineupQueue
+        .filter((player) => player.status === 'waiting')
+        .map((player) => player.playerKey)
+    )
+    const openedWithoutWaiting = readLocal<string>(potentialTextQueueStorageKey)
+      .filter((playerKey) => !waitingPlayerKeys.has(playerKey))
+    setOpenedPotentialPlayerKeys(openedWithoutWaiting)
+    writeLocal(potentialTextQueueStorageKey, openedWithoutWaiting)
+    window.requestAnimationFrame(() => {
+      document.getElementById('potential-lineup-confirm-title')?.scrollIntoView({ block: 'start' })
+    })
+  }, [focusWaiting, liveAvailabilityRequest?.request, potentialLineupQueue, potentialTextQueueStorageKey])
+
+  useEffect(() => {
+    setOpenedPotentialPlayerKeys(readLocal<string>(potentialTextQueueStorageKey))
+  }, [potentialTextQueueStorageKey])
+
+  const liveResponseCounts = useMemo(() => {
+    let yes = 0
+    let maybe = 0
+    let no = 0
+    potentialLineupNames.forEach((name) => {
+      const status = liveResponseByPlayer.get(name.trim().toLowerCase())?.status
+      if (status === 'available') yes += 1
+      else if (status === 'maybe') maybe += 1
+      else if (status === 'unavailable') no += 1
+    })
+    return { yes, maybe, no, waiting: Math.max(0, potentialLineupNames.length - yes - maybe - no) }
+  }, [liveResponseByPlayer, potentialLineupNames])
+
+  useEffect(() => {
+    if (!captainAccess || !eventKey || !currentLiveResponses.length) return
+    const reconciled = reconcileCaptainGuestAvailability({
+      eventKey,
+      contacts: scopedContacts,
+      rows: availability,
+      replies: currentLiveResponses,
+    })
+    if (!reconciled.changed) return
+    availabilityRef.current = reconciled.rows
+    setAvailability(reconciled.rows)
+    writeLocal(AVAILABILITY_STORAGE_KEY, reconciled.rows)
+    for (const update of reconciled.updates) void persistCloudAvailability(update)
+  }, [availability, captainAccess, currentLiveResponses, eventKey, persistCloudAvailability, scopedContacts])
 
   const recipientIntelligence = useMemo(() => {
     const base = scopedContacts.filter((contact) => contact.phone && contact.opt_in_text)
@@ -1372,6 +2256,24 @@ function CaptainMessagingContent() {
     return { confirmedCount, declinedCount, viewedCount, noResponseCount, runningLateCount, needSubCount }
   }, [scopedContacts, responseMap])
 
+  const audienceCopy = useMemo(() => buildCaptainMessagingAudienceCopy({
+    lineupPlayers: potentialLineupQueue.length,
+    lineupTextsOpened: openedPotentialTextCount,
+    rosterPlayers: scopedContacts.length,
+    rosterNeedsStatus: availabilitySummary.noResponseCount,
+    rosterAvailable: availabilitySummary.availableCount,
+    matchConfirmed: responseSummary.confirmedCount,
+    matchRepliesPending: responseSummary.noResponseCount,
+  }), [
+    availabilitySummary.availableCount,
+    availabilitySummary.noResponseCount,
+    openedPotentialTextCount,
+    potentialLineupQueue.length,
+    responseSummary.confirmedCount,
+    responseSummary.noResponseCount,
+    scopedContacts.length,
+  ])
+
   const blockingContacts = useMemo(() => {
     return scopedContacts.filter((contact) => {
       const availabilityStatus = availabilityMap.get(contact.id)?.status ?? 'no-response'
@@ -1409,6 +2311,42 @@ function CaptainMessagingContent() {
       label: ready ? 'Ready to send' : 'Needs captain attention',
     }
   }, [lineupRows, availabilitySummary, responseSummary])
+  const mobileSendPulse = [
+    {
+      label: 'Lineup',
+      value: finalizationReadiness.lineupComplete ? 'Ready' : lineupRows.length ? 'Open spots' : 'Not loaded',
+      detail: lineupRows.length ? `${lineupRows.length} court${lineupRows.length === 1 ? '' : 's'} in this week` : 'Build the courts first',
+      tone: finalizationReadiness.lineupComplete ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Audience',
+      value: selectedRecipients.length ? String(selectedRecipients.length) : 'Open',
+      detail: selectedRecipients.length ? 'Contacts selected' : 'Choose recipients',
+      tone: selectedRecipients.length ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Message',
+      value: messageBody.trim() ? 'Drafted' : 'Open',
+      detail: messageBody.trim() ? `${messageBody.trim().length} characters ready` : 'Load a send first',
+      tone: messageBody.trim() ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Replies',
+      wide: true,
+      value: responseSummary.noResponseCount || responseSummary.needSubCount || responseSummary.runningLateCount
+        ? `${responseSummary.noResponseCount + responseSummary.needSubCount + responseSummary.runningLateCount} open`
+        : 'Clear',
+      detail:
+        responseSummary.needSubCount > 0
+          ? `${responseSummary.needSubCount} need a sub`
+          : responseSummary.runningLateCount > 0
+            ? `${responseSummary.runningLateCount} running late`
+            : responseSummary.noResponseCount > 0
+              ? `${responseSummary.noResponseCount} waiting on a reply`
+              : 'No reply blockers',
+      tone: responseSummary.noResponseCount || responseSummary.needSubCount || responseSummary.runningLateCount ? 'waiting' : 'ready',
+    },
+  ]
 
   const followUpTargets = useMemo(() => {
     return scopedContacts.filter((contact) => {
@@ -1543,11 +2481,11 @@ function CaptainMessagingContent() {
   }, [needSubContacts, runningLateContacts, tentativeContacts, noResponseContacts])
 
   async function saveContacts(nextContacts: ContactRow[]) {
-    if (!requireCaptainAccess('Captain tier required to update message contacts.')) return
+    if (!requireCaptainAccess('Captain tier required to update message contacts.')) return null
     setContacts(nextContacts)
     if (storageMode === 'local') {
       writeLocal(CONTACTS_STORAGE_KEY, nextContacts)
-      return
+      return 'device' as const
     }
     setSaving(true)
     const { error: upsertError } = await supabase.from(CONTACTS_TABLE).upsert(nextContacts)
@@ -1556,7 +2494,9 @@ function CaptainMessagingContent() {
       setStorageMode('local')
       writeLocal(CONTACTS_STORAGE_KEY, nextContacts)
       setError('Contacts saved on this device. Cloud sync will retry later.')
+      return 'device' as const
     }
+    return 'cloud' as const
   }
 
   async function saveTemplates(nextTemplates: TemplateRow[]) {
@@ -1590,11 +2530,14 @@ function CaptainMessagingContent() {
 
   function saveLineups(nextRows: LineupAssignment[]) {
     if (!requireCaptainAccess('Captain tier required to update the weekly lineup.')) return
-    setLineups(nextRows)
-    writeLocal(LINEUPS_STORAGE_KEY, nextRows)
+    const updatedAt = new Date().toISOString()
+    const timestampedRows = nextRows.map((row) => row.event_key === eventKey ? { ...row, updated_at: updatedAt } : row)
+    setLineups(timestampedRows)
+    writeLocal(LINEUPS_STORAGE_KEY, timestampedRows)
   }
 
   async function handleSaveContact() {
+    if (!requireCaptainAccess('Captain tier required to update message contacts.')) return
     const fullName = normalizeText(draftContact.full_name)
     const phone = normalizeText(draftContact.phone)
     if (!fullName || !phone || !teamFilter) {
@@ -1611,6 +2554,7 @@ function CaptainMessagingContent() {
       session_label: sessionFilter || inferSessionLabel(selectedMatch?.match_date ?? null) || null,
       full_name: fullName,
       phone,
+      email: normalizeText(draftContact.email).toLowerCase(),
       role: draftContact.role || null,
       is_captain: draftContact.is_captain,
       is_active: draftContact.is_active,
@@ -1619,10 +2563,99 @@ function CaptainMessagingContent() {
     }
 
     const withoutExisting = contacts.filter((contact) => contact.id !== row.id)
-    await saveContacts([...withoutExisting, row].sort((a, b) => a.full_name.localeCompare(b.full_name)))
+    const savedTo = await saveContacts([...withoutExisting, row].sort((a, b) => a.full_name.localeCompare(b.full_name)))
+    if (!savedTo) return
     setEditingId(null)
-    setDraftContact({ full_name: '', phone: '', role: 'Player', is_captain: false, is_active: true, opt_in_text: true, notes: '' })
+    setDraftContact({ full_name: '', phone: '', email: '', role: 'Player', is_captain: false, is_active: true, opt_in_text: true, notes: '' })
     setError(null)
+    setContactSaveMessage(
+      savedTo === 'cloud'
+        ? `${fullName}'s contact is saved and ready in your team roster.`
+        : `${fullName}'s contact is saved on this device and will sync when cloud access returns.`,
+    )
+  }
+
+  function buildPotentialPlayerMessage(playerName: string) {
+    const playerKey = playerName.trim().toLowerCase()
+    const invite = privateInviteByPlayer.get(playerKey)
+    return buildPlayerPotentialLineupAvailabilityMessage({
+      playerName,
+      teamName: liveAvailabilityRequest?.request?.teamName || availabilityHandoff?.scenario.team_name || inferredTeamName,
+      opponent: liveAvailabilityRequest?.request?.opponentTeam || availabilityHandoff?.match.opponent || inferredOpponent,
+      dateText: formatDate(liveAvailabilityRequest?.request?.matchDate || availabilityHandoff?.match.date || availabilityMatchDate),
+      time: liveAvailabilityRequest?.request?.matchTime || availabilityHandoff?.match.time || eventArrivalTime,
+      facility: liveAvailabilityRequest?.request?.facility || availabilityHandoff?.match.facility || eventLocation,
+      slotsJson: liveAvailabilityRequest?.request?.slots || availabilityHandoff?.scenario.slots_json || [],
+      availabilityRequestUrl: invite?.requestUrl || liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl,
+    })
+  }
+
+  function markPotentialPlayerTextOpened(playerKey: string) {
+    setOpenedPotentialPlayerKeys((current) => {
+      if (current.includes(playerKey)) return current
+      const next = [...current, playerKey]
+      writeLocal(potentialTextQueueStorageKey, next)
+      return next
+    })
+  }
+
+  async function savePotentialPlayerPhone(playerName: string) {
+    if (!requireCaptainAccess('Captain tier required to update player phone numbers.')) return
+
+    const playerKey = playerName.trim().toLowerCase()
+    const phone = normalizeText(inlinePhoneByPlayer[playerKey])
+    if (!phone) {
+      setError(`Add a mobile number for ${playerName}.`)
+      return
+    }
+    if (!teamFilter) {
+      setError('Choose the team before adding a player phone number.')
+      return
+    }
+
+    const existingContact = scopedContacts.find((contact) => contact.full_name.trim().toLowerCase() === playerKey)
+      ?? contacts.find((contact) =>
+        contact.full_name.trim().toLowerCase() === playerKey && contact.team_name === teamFilter
+      )
+    const row: ContactRow = {
+      id: existingContact?.id || createId(),
+      team_name: teamFilter,
+      league_name: existingContact?.league_name ?? (leagueFilter || null),
+      flight: existingContact?.flight ?? (flightFilter || null),
+      season_label: existingContact?.season_label ?? (seasonFilter || inferSeasonLabel(selectedMatch?.match_date ?? null) || null),
+      session_label: existingContact?.session_label ?? (sessionFilter || inferSessionLabel(selectedMatch?.match_date ?? null) || null),
+      full_name: playerName.trim(),
+      phone,
+      email: existingContact?.email || '',
+      role: existingContact?.role || 'Player',
+      is_captain: existingContact?.is_captain ?? false,
+      is_active: existingContact?.is_active ?? true,
+      opt_in_text: true,
+      notes: existingContact?.notes ?? null,
+    }
+
+    const withoutExisting = contacts.filter((contact) => contact.id !== row.id)
+    const nextContacts = [...withoutExisting, row].sort((left, right) => left.full_name.localeCompare(right.full_name))
+    const potentialMessage = buildPotentialPlayerMessage(playerName)
+    const smsHref = buildSmsHref([phone], potentialMessage)
+
+    setError(null)
+    setSavingInlinePhoneKey(playerKey)
+    const contactSave = saveContacts(nextContacts)
+    setInlinePhoneByPlayer((current) => {
+      const next = { ...current }
+      delete next[playerKey]
+      return next
+    })
+    markPotentialPlayerTextOpened(playerKey)
+
+    if (typeof window !== 'undefined') {
+      prepareSmsBodyForNativeComposer(potentialMessage)
+      window.location.href = smsHref
+    }
+
+    await contactSave
+    setSavingInlinePhoneKey('')
   }
 
   function handleEditContact(contact: ContactRow) {
@@ -1630,6 +2663,7 @@ function CaptainMessagingContent() {
     setDraftContact({
       full_name: contact.full_name,
       phone: contact.phone,
+      email: contact.email || '',
       role: contact.role || 'Player',
       is_captain: !!contact.is_captain,
       is_active: !!contact.is_active,
@@ -1728,8 +2762,49 @@ function CaptainMessagingContent() {
 
   function setAvailabilityStatus(contactId: string, status: WeeklyAvailability['status']) {
     const next = availability.filter((row) => !(row.event_key === eventKey && row.contact_id === contactId))
-    next.push({ id: createId(), event_key: eventKey, contact_id: contactId, status, note: availabilityMap.get(contactId)?.note || '', updated_at: new Date().toISOString() })
+    const nextRow = { id: createId(), event_key: eventKey, contact_id: contactId, status, note: availabilityMap.get(contactId)?.note || '', updated_at: new Date().toISOString() }
+    next.push(nextRow)
     saveAvailability(next)
+    const contact = scopedContacts.find((candidate) => candidate.id === contactId)
+    if (contact) void persistCloudAvailability({
+      contactId,
+      playerName: contact.full_name,
+      status,
+      note: nextRow.note,
+      updatedAt: nextRow.updated_at,
+    })
+  }
+
+  async function recordManualAvailabilityResponse(
+    contact: ContactRow,
+    playerName: string,
+    status: Exclude<WeeklyAvailability['status'], 'no-response'>
+  ) {
+    setAvailabilityStatus(contact.id, status)
+    const invite = privateInviteByPlayer.get(playerName.trim().toLowerCase())
+    const responseUrl = invite?.requestUrl || liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl
+    if (!responseUrl || !availabilityMatchDate) return
+    try {
+      const token = new URL(responseUrl, window.location.origin).pathname.split('/').filter(Boolean).pop()
+      if (!token) return
+      const response = await fetch(`/api/captain/availability-requests/${encodeURIComponent(token)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerId: invite?.playerId || '',
+          playerName,
+          responses: [{
+            matchDate: availabilityMatchDate,
+            status: status === 'tentative' ? 'maybe' : status,
+          }],
+        }),
+      })
+      const result = await response.json() as { message?: string }
+      if (!response.ok) throw new Error(result.message || 'The reply could not be saved.')
+      await loadLiveAvailabilityRequest()
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'The reply could not be saved.')
+    }
   }
 
   function setResponseStatus(contactId: string, status: WeeklyResponse['status']) {
@@ -1756,8 +2831,29 @@ function buildWinningLineupMessage() {
   const scenarioDateText = formatDate(selectedScenario.match_date)
   const eventDateText = selectedMatch ? formatDate(selectedMatch.match_date) : scenarioDateText
   const opponentText = inferredOpponent || selectedScenario.opponent_team || 'the opponent'
+  const eventDate = selectedMatch?.match_date || selectedScenario.match_date || ''
+  const calendarHref = buildMatchWeekGoogleCalendarHref({
+    eventDate,
+    eventTime: eventArrivalTime,
+    opponent: opponentText,
+    location: eventLocation,
+    details: `Final lineup for ${teamFilter || selectedScenario.team_name || 'your TiQ team'}.`,
+  })
+  const mapsHref = buildMatchWeekMapsHref(eventLocation)
+  const phoneCalendarHref = buildMatchWeekPhoneCalendarHref(
+    liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl || ''
+  )
 
-  return `Lineup is set for ${eventDateText} vs ${opponentText}:\n\n${lineupText}\n\nArrive by ${eventArrivalTime || 'match time'}.\n${eventLocation ? `Location: ${eventLocation}` : ''}`
+  return withWeekChallenge([
+    `Lineup is set for ${eventDateText} vs ${opponentText}:`,
+    lineupText,
+    `Arrive by ${eventArrivalTime || 'match time'}.`,
+    eventLocation ? `Location: ${eventLocation}` : '',
+    calendarHref ? `Add to Google Calendar: ${calendarHref}` : '',
+    phoneCalendarHref ? `Add calendar reminder: ${phoneCalendarHref}` : '',
+    mapsHref ? `Open directions: ${mapsHref}` : '',
+    'TiQ members: open this team message and choose Add to My Calendar.',
+  ].filter(Boolean).join('\n\n'))
 }
 
 function applyWinningLineupToComposer() {
@@ -1785,17 +2881,23 @@ useEffect(() => {
     return
   }
 
-  setRecipientMode('lineup-only')
-  setMessageKind('lineup')
-  setMessageTitle('Lineup Announcement')
-  applyWinningLineupToComposer()
+  if (availabilityHandoff) {
+    setMessageKind('availability')
+    setMessageTitle('Potential lineup availability')
+  } else {
+    setRecipientMode('lineup-only')
+    setMessageKind('lineup')
+    setMessageTitle('Lineup Announcement')
+    applyWinningLineupToComposer()
+  }
 
   if (typeof window !== 'undefined') {
+    window.localStorage.removeItem(CAPTAIN_LINEUP_HANDOFF_STORAGE_KEY)
     window.localStorage.removeItem('tenace_selected_scenario')
     window.localStorage.removeItem('tenace_flow_source')
   }
 // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [prefillApplied, prefillFlowSource, selectedScenario, lineupRows.length])
+}, [availabilityHandoff, prefillApplied, prefillFlowSource, selectedScenario, lineupRows.length])
 
 function importScenarioToLineup() {
     if (!selectedScenario) return
@@ -1818,7 +2920,9 @@ function importScenarioToLineup() {
       if (row.id !== assignmentId) return row
       const players = [...row.players]
       players[playerIndex] = value
-      return { ...row, players }
+      const playerIds = [...(row.player_ids || [])]
+      if (value !== row.players[playerIndex]) playerIds[playerIndex] = ''
+      return { ...row, players, player_ids: playerIds }
     })
     saveLineups(next)
   }
@@ -1846,16 +2950,16 @@ function importScenarioToLineup() {
     setRecipientMode('non-responders')
     setMessageKind('follow-up')
     setMessageTitle('Follow-Up Reminder')
-    setMessageBody(
+    setMessageBody(withWeekChallenge(
       `${nameText}quick follow-up for ${formatDate(selectedMatch?.match_date)}. I still need your response so I can finalize the lineup. Please reply ASAP with your status.`
-    )
+    ))
   }
 
   function loadAvailabilityCheckMessage() {
     setRecipientMode('all-opted-in')
     setMessageKind('availability')
     setMessageTitle('Availability Check')
-    setMessageBody(
+    setMessageBody(withWeekChallenge(
       eventDefaultMessage('availability', {
         teamName: inferredTeamName,
         opponent: inferredOpponent,
@@ -1864,14 +2968,14 @@ function importScenarioToLineup() {
         arrivalTime: eventArrivalTime,
         lineupText: '',
       })
-    )
+    ))
   }
 
   function loadMatchReminderMessage() {
     setRecipientMode(lineupRows.length ? 'lineup-only' : 'available-only')
     setMessageKind('reminder')
     setMessageTitle('Match Reminder')
-    setMessageBody(
+    setMessageBody(withWeekChallenge(
       eventDefaultMessage('reminder', {
         teamName: inferredTeamName,
         opponent: inferredOpponent,
@@ -1880,16 +2984,18 @@ function importScenarioToLineup() {
         arrivalTime: eventArrivalTime,
         lineupText: lineupTextForMessage,
       })
-    )
+    ))
   }
 
   function loadPostMatchNote() {
     setRecipientMode('all-opted-in')
     setMessageKind('follow-up')
     setMessageTitle('Post-Match Note')
-    setMessageBody(
-      `Thanks ${inferredTeamName || 'team'} - nice work today. I will update results once everything is confirmed. Send me any score details or notes I should capture.`
-    )
+    setMessageBody(appendCaptainWeekChallengeRecapToMessage(
+      `Thanks ${inferredTeamName || 'team'} - nice work today. I will update results once everything is confirmed. Send me any score details or notes I should capture.`,
+      completedWeekChallenge,
+      completedWeekChallengeFollowUp,
+    ))
   }
 
 
@@ -1900,9 +3006,9 @@ function importScenarioToLineup() {
     setRecipientMode('captains')
     setMessageKind('follow-up')
     setMessageTitle('Sub Needed')
-    setMessageBody(
+    setMessageBody(withWeekChallenge(
       `${nameText}just checking in - we need a substitution update for ${formatDate(selectedMatch?.match_date)}. Please confirm replacement options as soon as you can so I can finalize the lineup.`
-    )
+    ))
   }
 
   function loadRunningLateMessage() {
@@ -1912,9 +3018,9 @@ function importScenarioToLineup() {
     setRecipientMode('captains')
     setMessageKind('follow-up')
     setMessageTitle('Arrival Check')
-    setMessageBody(
+    setMessageBody(withWeekChallenge(
       `${nameText}just checking in on arrival timing for ${formatDate(selectedMatch?.match_date)}. Please send the latest ETA so captain planning stays clean.`
-    )
+    ))
   }
 
   function loadTentativeMessage() {
@@ -1925,9 +3031,9 @@ function importScenarioToLineup() {
     setSelectedRecipientIds(tentativeContacts.map((contact) => contact.id))
     setMessageKind('follow-up')
     setMessageTitle('Tentative Status Check')
-    setMessageBody(
+    setMessageBody(withWeekChallenge(
       `${nameText}just checking in - I still need a final yes or no for ${formatDate(selectedMatch?.match_date)} so I can lock the lineup. Please reply when you can.`
-    )
+    ))
   }
 
   function applyFollowUpEngine() {
@@ -1975,7 +3081,7 @@ function importScenarioToLineup() {
     }
 
     setMessageTitle('Availability Check')
-    setMessageBody(
+    setMessageBody(withWeekChallenge(
       eventDefaultMessage('availability', {
         teamName: inferredTeamName,
         opponent: inferredOpponent,
@@ -1984,7 +3090,7 @@ function importScenarioToLineup() {
         arrivalTime: eventArrivalTime,
         lineupText: '',
       })
-    )
+    ))
   }
 
   async function copyBody() {
@@ -2034,8 +3140,41 @@ function importScenarioToLineup() {
 
   return (
     <section style={pageContentStyle}>
-         <CaptainSuitePanel active="messaging" teamLabel={teamFilter || 'Team week'} />
-         <section style={messageControlShellResponsive(isTablet, isMobile)} aria-label="Messaging controls">
+         {!isMobile ? <CaptainSuitePanel active="messaging" teamLabel={teamFilter || 'Team week'} /> : null}
+         <CaptainMatchWeekRail current="messaging" scope={matchWeekScope} />
+         {displayedMessagingChallenge ? (
+          <section
+            style={weekChallengeStripStyle}
+            aria-label={
+              completedWeekChallenge
+                ? "Completed team challenge recap in messaging"
+                : "This week's team challenge in messaging"
+            }
+          >
+            <div style={weekChallengeCopyStyle}>
+              <span style={sectionKicker}>
+                {completedWeekChallenge
+                  ? 'Challenge recap'
+                  : displayedMessagingChallenge.history.status === 'scheduled' ? "This week's team challenge" : 'Challenge in progress'}
+              </span>
+              <strong style={weekChallengeTitleStyle}>{displayedMessagingChallenge.challenge.title}</strong>
+              <span style={weekChallengeFocusStyle}>
+                {completedWeekChallenge
+                  ? `${completedWeekChallenge.history.completedCount} of ${completedWeekChallenge.history.connectedCount} connected complete${completedWeekChallengeFollowUp ? ` - Next: ${completedWeekChallengeFollowUp.challenge.title}` : ''}`
+                  : displayedMessagingChallenge.challenge.focus}
+              </span>
+            </div>
+            <div style={messageControlButtonRowStyle}>
+              <span style={miniPillGreen}>{completedWeekChallenge ? 'Ready for recap' : 'Included in message'}</span>
+              <PrimaryLink href={displayedMessagingChallenge.teamRoomHref}>Open Team Room</PrimaryLink>
+              {completedWeekChallenge && nextTeamChallengeHref ? (
+                <GhostLink href={nextTeamChallengeHref}>Plan next challenge</GhostLink>
+              ) : null}
+            </div>
+          </section>
+         ) : null}
+         {!availabilityHandoff && !liveAvailabilityRequest?.request ? (
+          <section style={messageControlShellResponsive(isTablet, isMobile)} aria-label="Messaging controls">
             <div>
               <div style={messageControlHeaderStyle}>
                 <div>
@@ -2047,13 +3186,48 @@ function importScenarioToLineup() {
                 </span>
               </div>
               <div style={messageControlButtonRowStyle}>
-                <PrimaryLink href="/captain/lineup-builder">Edit lineup</PrimaryLink>
+                <PrimaryLink href="#captain-message-composer">Review send</PrimaryLink>
+                <PrimaryLink href={scopedLineupBuilderHref}>Edit lineup</PrimaryLink>
                 <GhostLink href="/captain/weekly-brief">Weekly brief</GhostLink>
                 <GhostLink href="/captain">Back to Captain</GhostLink>
               </div>
             </div>
 
-            <div style={heroStatusShell}>
+            {isMobile ? (
+              <div style={mobileSendPulseShellStyle} aria-label="Captain message send pulse">
+                <div style={mobileSendPulseGridStyle}>
+                  {mobileSendPulse.map((item) => (
+                    <div
+                      key={item.label}
+                      style={{
+                        ...mobileSendPulseCardStyle,
+                        ...(item.wide ? mobileSendPulseCardWideStyle : {}),
+                        ...(item.tone === 'ready' ? mobileSendPulseCardReadyStyle : mobileSendPulseCardWaitingStyle),
+                      }}
+                    >
+                      <span style={mobileSendPulseLabelStyle}>{item.label}</span>
+                      <strong style={mobileSendPulseValueStyle}>{item.value}</strong>
+                      <small style={mobileSendPulseDetailStyle}>{item.detail}</small>
+                    </div>
+                  ))}
+                </div>
+                <div style={mobileWeekStatusHeaderStyle}>
+                  <span style={sectionKicker}>This week</span>
+                  <strong style={mobileWeekStatusValueStyle}>{weekStatusMeta.label}</strong>
+                </div>
+                <div style={mobileWeekStatusButtonRowStyle}>
+                  <button type="button" onClick={() => updateWeekStatus('draft-lineup')} style={weekStatus === 'draft-lineup' ? primaryButtonBlock : ghostButtonSmallButton}>
+                    Draft
+                  </button>
+                  <button type="button" onClick={() => updateWeekStatus('ready-to-send')} style={weekStatus === 'ready-to-send' ? primaryButtonBlock : ghostButtonSmallButton}>
+                    Ready
+                  </button>
+                  <button type="button" onClick={() => updateWeekStatus('finalized')} style={weekStatus === 'finalized' ? primaryButtonBlock : ghostButtonSmallButton}>
+                    Final
+                  </button>
+                </div>
+              </div>
+            ) : <div style={heroStatusShell}>
               <div>
                 <div style={sectionKicker}>This week</div>
                 <div style={heroStatusValue}>{weekStatusMeta.label}</div>
@@ -2070,8 +3244,201 @@ function importScenarioToLineup() {
                   Finalized
                 </button>
               </div>
+            </div>}
+          </section>
+         ) : null}
+
+        {availabilityHandoff || liveAvailabilityRequest?.request ? (
+          <section style={potentialLineupFlowStyle} aria-labelledby="potential-lineup-confirm-title">
+            <div style={tableHeaderStyle}>
+              <div>
+                <p style={sectionKicker}>Availability</p>
+                <h2 id="potential-lineup-confirm-title" style={sectionTitle}>Who can play?</h2>
+                <p style={mutedTextStyle}>
+                  Open each private text in order. TiQ keeps your place and replies appear here automatically.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void loadLiveAvailabilityRequest(true)}
+                disabled={liveResponsesLoading}
+                style={ghostButtonSmallButton}
+              >
+                {liveResponsesLoading ? 'Refreshing...' : 'Refresh responses'}
+              </button>
             </div>
-        </section>
+
+            <div style={potentialTextQueueStyle}>
+              <div style={potentialTextQueueCopyStyle}>
+                <span style={sectionKicker}>Send availability</span>
+                <strong style={potentialTextQueueTitleStyle}>
+                  {potentialLineupQueue.length
+                    ? audienceCopy.lineupProgress
+                    : 'Add player phone numbers to start'}
+                </strong>
+                <span style={mutedTextStyle}>
+                  {nextPotentialTextTarget
+                    ? `Next up: ${nextPotentialTextTarget.playerName}. You will return here for the next player.`
+                    : liveResponseCounts.waiting > 0
+                      ? 'All available player texts have been opened. Waiting for replies.'
+                      : 'Every player has replied.'}
+                </span>
+                <span style={fieldHintStyle}>{audienceCopy.lineupScope}</span>
+              </div>
+              {nextPotentialTextTarget?.contact ? (
+                <a
+                  href={buildSmsHref(
+                    [nextPotentialTextTarget.contact.phone],
+                    buildPotentialPlayerMessage(nextPotentialTextTarget.playerName)
+                  )}
+                  onClick={() => {
+                    prepareSmsBodyForNativeComposer(buildPotentialPlayerMessage(nextPotentialTextTarget.playerName))
+                    markPotentialPlayerTextOpened(nextPotentialTextTarget.playerKey)
+                  }}
+                  style={primaryButtonBlock}
+                >
+                  Text next: {nextPotentialTextTarget.playerName.split(' ')[0]}
+                </a>
+              ) : (
+                <span style={potentialTextQueueDoneStyle}>
+                  {!textablePotentialPlayers.length
+                    ? 'Add phone numbers'
+                    : liveResponseCounts.waiting > 0 ? 'Texts opened' : 'Replies complete'}
+                </span>
+              )}
+            </div>
+
+            <div style={availabilityCountGridStyle} aria-label="Availability response summary">
+              <span style={availabilityCountStyle('#61c47c')}><strong>{liveResponseCounts.yes}</strong> Yes</span>
+              <span style={availabilityCountStyle('#d6a62a')}><strong>{liveResponseCounts.maybe}</strong> Maybe</span>
+              <span style={availabilityCountStyle('#df6a70')}><strong>{liveResponseCounts.no}</strong> No</span>
+              <span style={availabilityCountStyle('var(--brand-blue-2)')}><strong>{liveResponseCounts.waiting}</strong> Waiting</span>
+            </div>
+
+            <details open={!isMobile} style={potentialPlayerResponsesStyle}>
+              <summary style={potentialPlayerResponsesSummaryStyle}>
+                <span>Selected-player replies</span>
+                <span>{liveResponseCounts.waiting} pending</span>
+              </summary>
+              <div style={potentialPlayerGridStyle}>
+              {potentialLineupQueue.map(({ playerName, playerKey, contact, canText, liveResponse }) => {
+                const availabilityStatus = contact ? availabilityMap.get(contact.id)?.status ?? 'no-response' : 'no-response'
+                const privateMessage = buildPotentialPlayerMessage(playerName)
+                const phoneInputId = `potential-phone-${playerKey.replace(/[^a-z0-9]+/g, '-')}`
+                return (
+                  <article key={playerKey} style={potentialPlayerCardStyle}>
+                    <div style={potentialPlayerSelectStyle}>
+                      <span>
+                        <strong>{playerName}</strong>
+                        <small style={rowSubtleText}>
+                          {canText && contact ? formatPhone(contact.phone) : contact?.phone ? 'Texting not enabled' : 'Phone number needed'}
+                        </small>
+                      </span>
+                      <span style={responseStatusBadgeStyle(liveResponse?.status)}>
+                        {liveResponse?.status === 'available'
+                          ? 'Yes'
+                          : liveResponse?.status === 'maybe'
+                            ? 'Maybe'
+                            : liveResponse?.status === 'unavailable' ? 'No' : 'Waiting'}
+                      </span>
+                    </div>
+                    {liveResponse?.responded_at ? (
+                      <small style={rowSubtleText}>Updated {new Date(liveResponse.responded_at).toLocaleString()}</small>
+                    ) : null}
+                    {liveResponse?.notes ? <small style={rowSubtleText}>“{liveResponse.notes}”</small> : null}
+                    {canText && contact ? (
+                      <a
+                        href={buildSmsHref([contact.phone], privateMessage)}
+                        onClick={() => {
+                          prepareSmsBodyForNativeComposer(privateMessage)
+                          markPotentialPlayerTextOpened(playerKey)
+                        }}
+                        style={primaryButtonBlock}
+                      >
+                        {openedPotentialPlayerKeySet.has(playerKey) ? 'Text again' : `Text ${playerName.split(' ')[0]}`}
+                      </a>
+                    ) : (
+                      <form
+                        onSubmit={(event) => {
+                          event.preventDefault()
+                          void savePotentialPlayerPhone(playerName)
+                        }}
+                        style={potentialInlinePhoneFormStyle}
+                      >
+                        <label htmlFor={phoneInputId} style={potentialInlinePhoneLabelStyle}>Mobile number</label>
+                        <div style={potentialInlinePhoneRowStyle}>
+                          <input
+                            id={phoneInputId}
+                            type="tel"
+                            inputMode="tel"
+                            autoComplete="tel"
+                            value={inlinePhoneByPlayer[playerKey] ?? contact?.phone ?? ''}
+                            onChange={(event) => setInlinePhoneByPlayer((current) => ({
+                              ...current,
+                              [playerKey]: event.target.value,
+                            }))}
+                            placeholder="Enter mobile number"
+                            required
+                            style={inputStyle}
+                          />
+                          <button
+                            type="submit"
+                            disabled={savingInlinePhoneKey === playerKey}
+                            style={{
+                              ...primaryButtonBlock,
+                              opacity: savingInlinePhoneKey === playerKey ? 0.55 : 1,
+                              cursor: savingInlinePhoneKey === playerKey ? 'not-allowed' : 'pointer',
+                            }}
+                          >
+                            {savingInlinePhoneKey === playerKey ? 'Saving...' : 'Save & text'}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                    {contact ? (
+                      <details>
+                        <summary style={manualReplySummaryStyle}>Record a text reply</summary>
+                        <div style={potentialStatusRowStyle} aria-label={`Record ${playerName}'s reply`}>
+                          {(['available', 'tentative', 'unavailable'] as const).map((status) => (
+                            <button
+                              key={status}
+                              type="button"
+                              aria-pressed={availabilityStatus === status}
+                              onClick={() => void recordManualAvailabilityResponse(contact, playerName, status)}
+                              style={availabilityStatus === status ? statusButtonActive(status) : statusButtonStyle}
+                            >
+                              {status === 'available' ? 'Yes' : status === 'tentative' ? 'Maybe' : 'No'}
+                            </button>
+                          ))}
+                        </div>
+                      </details>
+                    ) : null}
+                  </article>
+                )
+              })}
+              </div>
+            </details>
+
+            {missingPotentialLineupNames.length ? (
+              <div style={potentialMissingStyle}>
+                <strong>Add a mobile number on the player card:</strong>{' '}
+                {missingPotentialLineupNames.join(', ')}. Saving opens that player&apos;s prepared text immediately. The player does not need a TiQ account to answer.
+              </div>
+            ) : null}
+
+            <div style={actionRowStyle}>
+              <GhostLink href="/captain/lineup-builder">Edit lineup</GhostLink>
+              <GhostLink href="#captain-message-composer">Edit message</GhostLink>
+              {liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl ? (
+                <GhostLink href={liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl || '#'}>Open shared response page</GhostLink>
+              ) : null}
+            </div>
+            <p style={fieldHintStyle}>
+              Player replies refresh automatically and update full-roster availability.
+              {lastResponseRefreshAt ? ` Last checked ${lastResponseRefreshAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.` : ''}
+            </p>
+          </section>
+        ) : null}
 
         <section style={messagePlaybookSurfaceStyle}>
           <div style={tableHeaderStyle}>
@@ -2087,36 +3454,46 @@ function importScenarioToLineup() {
             </span>
           </div>
 
-          <div style={messagePlaybookGridStyle}>
-            <button type="button" style={messagePlaybookCardStyle} onClick={loadAvailabilityCheckMessage}>
+          <div style={messagePlaybookGridResponsive(isMobile)}>
+            <button type="button" style={messagePlaybookCardResponsive(isMobile)} onClick={loadAvailabilityCheckMessage}>
               <span style={messagePlaybookLabelStyle}>Ask</span>
-              <strong style={messagePlaybookTitleStyle}>Availability check</strong>
-              <span style={messagePlaybookTextStyle}>{availabilitySummary.noResponseCount} still need status</span>
+              <strong style={messagePlaybookTitleResponsive(isMobile)}>Availability check</strong>
+              <span style={messagePlaybookTextStyle}>{audienceCopy.rosterNeedsStatus}</span>
             </button>
-            <button type="button" style={messagePlaybookCardStyle} onClick={applyWinningLineupToComposer}>
+            <button type="button" style={messagePlaybookCardResponsive(isMobile)} onClick={applyWinningLineupToComposer}>
               <span style={messagePlaybookLabelStyle}>Announce</span>
-              <strong style={messagePlaybookTitleStyle}>Lineup announcement</strong>
+              <strong style={messagePlaybookTitleResponsive(isMobile)}>Lineup announcement</strong>
               <span style={messagePlaybookTextStyle}>{lineupRows.length ? `${lineupRows.length} courts loaded` : 'Import a lineup first'}</span>
             </button>
-            <button type="button" style={messagePlaybookCardStyle} onClick={loadMatchReminderMessage}>
+            <button type="button" style={messagePlaybookCardResponsive(isMobile)} onClick={loadMatchReminderMessage}>
               <span style={messagePlaybookLabelStyle}>Remind</span>
-              <strong style={messagePlaybookTitleStyle}>Match reminder</strong>
+              <strong style={messagePlaybookTitleResponsive(isMobile)}>Match reminder</strong>
               <span style={messagePlaybookTextStyle}>{selectedMatch ? formatDate(selectedMatch.match_date) : 'Select match'}</span>
             </button>
-            <button type="button" style={messagePlaybookCardStyle} onClick={applyFollowUpEngine}>
+            <button type="button" style={messagePlaybookCardResponsive(isMobile)} onClick={applyFollowUpEngine}>
               <span style={messagePlaybookLabelStyle}>Clear</span>
-              <strong style={messagePlaybookTitleStyle}>Blocker follow-up</strong>
+              <strong style={messagePlaybookTitleResponsive(isMobile)}>Blocker follow-up</strong>
               <span style={messagePlaybookTextStyle}>{followUpEngine.detail}</span>
             </button>
-            <button type="button" style={messagePlaybookCardStyle} onClick={loadPostMatchNote}>
+            <button type="button" style={messagePlaybookCardResponsive(isMobile)} onClick={loadPostMatchNote}>
               <span style={messagePlaybookLabelStyle}>Close</span>
-              <strong style={messagePlaybookTitleStyle}>Post-match note</strong>
-              <span style={messagePlaybookTextStyle}>Thank the team and collect score notes</span>
+              <strong style={messagePlaybookTitleResponsive(isMobile)}>Post-match note</strong>
+              <span style={messagePlaybookTextStyle}>
+                {completedWeekChallenge
+                  ? `${completedWeekChallenge.challenge.title}: ${completedWeekChallenge.history.completedCount}/${completedWeekChallenge.history.connectedCount} complete`
+                  : 'Thank the team and collect score notes'}
+              </span>
             </button>
           </div>
+          {isMobile ? (
+            <div style={mobileMessageNextActionsStyle}>
+              <PrimaryBtn onClick={applyRecommendedSendStrategy}>Load best send</PrimaryBtn>
+              <GhostLink href="#captain-message-composer">Review &amp; send</GhostLink>
+            </div>
+          ) : null}
         </section>
 
-        <section style={builderHandoffSurfaceStyle}>
+        <section style={isMobile ? hiddenMobileHandoffStyle : builderHandoffSurfaceStyle}>
           <div style={tableHeaderStyle}>
             <div>
               <p style={sectionKicker}>Builder handoff</p>
@@ -2173,47 +3550,51 @@ function importScenarioToLineup() {
             <summary style={detailsSummaryStyle}>
               <div>
                 <p style={sectionKicker}>Scope</p>
-                <h2 style={sectionTitle}>Team and match filters</h2>
+                <h2 style={sectionTitle}>Captain team and match</h2>
               </div>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                 <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)} disabled={loading}>
                   {loading ? 'Refreshing...' : 'Refresh data'}
                 </GhostSmallBtn>
-                <span style={storageMode === 'supabase' ? miniPillGreen : miniPillSlate}>
-                  {storageMode === 'supabase' ? 'Synced' : 'Saved on device'}
+                <span style={availabilityCloudState === 'local' || matchWeekCloudState === 'local'
+                  ? miniPillSlate
+                  : availabilityCloudState === 'syncing' || matchWeekCloudState === 'syncing'
+                    ? miniPillBlue
+                    : availabilityCloudState === 'synced' && matchWeekCloudState === 'synced'
+                      ? miniPillGreen
+                      : miniPillSlate}>
+                  {availabilityCloudState === 'local' || matchWeekCloudState === 'local' ? 'Phone backup'
+                    : availabilityCloudState === 'syncing' || matchWeekCloudState === 'syncing' ? 'Saving match week...'
+                      : availabilityCloudState === 'synced' && matchWeekCloudState === 'synced' ? 'Match week synced'
+                        : 'Team data ready'}
                 </span>
               </div>
             </summary>
 
             <div style={filtersGridStyle}>
-              <Field label="League" htmlFor="captain-messaging-league">
-                <select id="captain-messaging-league" value={leagueFilter} onChange={(e) => setLeagueFilter(e.target.value)} style={inputStyle}>
-                  <option value="">All</option>
-                  {leagueOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                </select>
-              </Field>
-              <Field label="Flight" htmlFor="captain-messaging-flight">
-                <select id="captain-messaging-flight" value={flightFilter} onChange={(e) => setFlightFilter(e.target.value)} style={inputStyle}>
-                  <option value="">All</option>
-                  {flightOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                </select>
-              </Field>
-              <Field label="Season" htmlFor="captain-messaging-season">
-                <select id="captain-messaging-season" value={seasonFilter} onChange={(e) => setSeasonFilter(e.target.value)} style={inputStyle}>
-                  <option value="">All</option>
-                  {seasonOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                </select>
-              </Field>
-              <Field label="Session" htmlFor="captain-messaging-session">
-                <select id="captain-messaging-session" value={sessionFilter} onChange={(e) => setSessionFilter(e.target.value)} style={inputStyle}>
-                  <option value="">All</option>
-                  {sessionOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-                </select>
-              </Field>
-              <Field label="Team" htmlFor="captain-messaging-team">
-                <select id="captain-messaging-team" value={teamFilter} onChange={(e) => setTeamFilter(e.target.value)} style={inputStyle}>
-                  <option value="">All</option>
-                  {teamOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+              <Field label="Captain team" htmlFor="captain-messaging-team">
+                <select
+                  id="captain-messaging-team"
+                  value={selectedTeamScopeKey}
+                  onChange={(event) => {
+                    const selected = visibleManagedTeamOptions.find((option) => captainTeamScopeKey(option) === event.target.value)
+                    if (!selected) return
+                    setTeamFilter(selected.team)
+                    setLeagueFilter(selected.league)
+                    setFlightFilter(selected.flight)
+                    setSeasonFilter('')
+                    setSessionFilter('')
+                    setEventMatchId('')
+                  }}
+                  style={inputStyle}
+                  disabled={managedTeamsLoading || visibleManagedTeamOptions.length === 0}
+                >
+                  {visibleManagedTeamOptions.length === 0 ? <option value="">No managed teams</option> : null}
+                  {visibleManagedTeamOptions.map((option) => (
+                    <option key={captainTeamScopeKey(option)} value={captainTeamScopeKey(option)}>
+                      {option.team} · {option.league} · {option.flight}
+                    </option>
+                  ))}
                 </select>
               </Field>
               <Field label="Upcoming match" htmlFor="captain-messaging-match">
@@ -2228,12 +3609,16 @@ function importScenarioToLineup() {
               </Field>
             </div>
 
+            {managedTeamsError ? <p role="alert" style={errorTextStyle}>{managedTeamsError}</p> : null}
+
             <div style={pillRowStyle}>
-              <span style={miniPillSlate}>{scopedContacts.length} in roster scope</span>
-              <span style={miniPillBlue}>{availabilitySummary.availableCount} available</span>
-              <span style={miniPillGreen}>{responseSummary.confirmedCount} confirmed</span>
-              <span style={warnPill}>{responseSummary.noResponseCount} still waiting</span>
-              {availabilitySyncSource ? <span style={miniPillBlue}>Availability connected</span> : <span style={miniPillSlate}>Manual availability</span>}
+              <span style={miniPillSlate}>{audienceCopy.rosterPlayers}</span>
+              <span style={miniPillBlue}>{audienceCopy.rosterAvailable}</span>
+              <span style={miniPillGreen}>{audienceCopy.matchConfirmed}</span>
+              <span style={warnPill}>{audienceCopy.matchRepliesPending}</span>
+              {availabilityCloudState === 'syncing' ? <span style={miniPillBlue}>Syncing availability...</span>
+                : availabilityCloudState === 'synced' ? <span style={miniPillGreen}>Saved across devices</span>
+                  : <span style={miniPillSlate}>Saved on this phone</span>}
             </div>
           </details>
 
@@ -2290,9 +3675,9 @@ function importScenarioToLineup() {
                   <div style={tableHeaderStyle}>
                     <div>
                       <p style={sectionKicker}>Availability pulse</p>
-                      <h3 style={sectionTitleSmall}>Who is in this week?</h3>
+                      <h3 style={sectionTitleSmall}>Full-roster availability</h3>
                     </div>
-                    <span style={miniPillSlate}>{scopedContacts.length} tracked</span>
+                    <span style={miniPillSlate}>{audienceCopy.rosterPlayers}</span>
                   </div>
 
                   <div style={statsGridStyle}>
@@ -2308,9 +3693,9 @@ function importScenarioToLineup() {
                 <summary style={detailsSummaryStyle}>
                   <div>
                     <p style={sectionKicker}>Player status</p>
-                    <h3 style={sectionTitleSmall}>Availability and replies</h3>
+                    <h3 style={sectionTitleSmall}>Full-roster status and replies</h3>
                   </div>
-                  <span style={miniPillSlate}>{scopedContacts.length} players</span>
+                  <span style={miniPillSlate}>{audienceCopy.rosterPlayers}</span>
                 </summary>
                 <div style={tableWrapStyle}>
                   <table style={tableStyle}>
@@ -2332,6 +3717,7 @@ function importScenarioToLineup() {
                             <td style={tdLabelStyle}>
                               <div>{contact.full_name}</div>
                               <div style={rowSubtleText}>{contact.role || 'Player'}</div>
+                              {contact.email ? <div style={rowSubtleText}>{contact.email}</div> : null}
                             </td>
                             <td style={tdStyle}>{formatPhone(contact.phone)}</td>
                             <td style={tdStyle}>
@@ -2378,6 +3764,12 @@ function importScenarioToLineup() {
                       <GhostSmallBtn onClick={() => addLineAssignment('singles')}>Add singles</GhostSmallBtn>
                       <GhostSmallBtn onClick={() => addLineAssignment('doubles')}>Add doubles</GhostSmallBtn>
                       {selectedScenario ? <span style={miniPillSlate}>Auto-seeded from {selectedScenario.scenario_name}</span> : null}
+                      <span style={matchWeekCloudState === 'synced' ? miniPillGreen : matchWeekCloudState === 'syncing' ? miniPillBlue : miniPillSlate}>
+                        {matchWeekCloudState === 'synced' ? 'Courts saved across devices'
+                          : matchWeekCloudState === 'syncing' ? 'Saving courts...'
+                            : matchWeekCloudState === 'local' ? 'Phone backup'
+                              : 'Courts ready'}
+                      </span>
                     </div>
                   </div>
 
@@ -2596,7 +3988,7 @@ function importScenarioToLineup() {
                         })}
                       </div>
                     ) : (
-                      <p style={mutedTextStyle}>No obvious blockers right now. Your captain workflow is clean enough to move toward communication.</p>
+                      <p style={mutedTextStyle}>No obvious blockers right now. This week is clean enough to move toward communication.</p>
                     )}
                   </section>
 
@@ -2657,7 +4049,7 @@ function importScenarioToLineup() {
                     </div>
                   </section>
 
-                  <section style={surfaceCard}>
+                  <section id="captain-message-composer" style={surfaceCard}>
                     <div style={tableHeaderStyle}>
                       <div>
                         <p style={sectionKicker}>Smart follow-ups</p>
@@ -2686,7 +4078,7 @@ function importScenarioToLineup() {
                         </div>
                         <div style={intelligenceTextStyle}>
                           {finalizationReadiness.ready
-                            ? 'The workflow is stable enough to move from planning into communication.'
+                            ? 'The week is stable enough to move from planning into communication.'
                             : 'Use the follow-up queue and blocker list to remove uncertainty before messaging the full team.'}
                         </div>
                       </div>
@@ -2783,7 +4175,7 @@ function importScenarioToLineup() {
                     <div style={tableHeaderStyle}>
                       <div>
                         <p style={sectionKicker}>Weekly command snapshot</p>
-                        <h3 style={sectionTitleSmall}>Where this captain workflow stands right now</h3>
+                        <h3 style={sectionTitleSmall}>Where this captain week stands right now</h3>
                       </div>
                       <span
                         style={
@@ -3061,7 +4453,7 @@ function importScenarioToLineup() {
                           {selectedScenario?.scenario_name || 'None selected'}
                         </div>
                         <div style={launchSnapshotTextStyle}>
-                          Saved scenario currently tied to the weekly lineup workflow.
+                          Saved scenario currently tied to the weekly lineup plan.
                         </div>
                       </div>
 
@@ -3182,7 +4574,7 @@ function importScenarioToLineup() {
                         </div>
                         <div style={sendGateTextStyle}>
                           {finalizationReadiness.ready && selectedRecipients.length > 0 && messageBody.trim()
-                            ? 'The weekly workflow is stable enough that the current send should move the week forward.'
+                            ? 'The week is stable enough that the current send should move it forward.'
                             : 'There is still at least one missing ingredient preventing the cleanest possible captain send.'}
                         </div>
                       </div>
@@ -3369,7 +4761,7 @@ function importScenarioToLineup() {
                         <div style={deliveryReadinessValueStyle}>{deliveryReadiness.hasLineupContext ? 'Anchored' : 'Light'}</div>
                         <div style={deliveryReadinessTextStyle}>
                           {deliveryReadiness.hasLineupContext
-                            ? 'A lineup or scenario is connected to this workflow.'
+                            ? 'A lineup or scenario is connected to this send.'
                             : 'Load a scenario or weekly lineup to strengthen captain communication.'}
                         </div>
                       </div>
@@ -3480,7 +4872,7 @@ function importScenarioToLineup() {
                             const template = scopedTemplates.find((item) => item.id === value)
                             if (template) {
                               setMessageTitle(template.template_name)
-                              setMessageBody(template.message_body)
+                              setMessageBody(withWeekChallenge(template.message_body))
                             }
                           }}
                           style={inputStyle}
@@ -3492,7 +4884,7 @@ function importScenarioToLineup() {
                       <Field
                         label="Message title"
                         htmlFor="message-title"
-                        hint="Use a short internal label so you can find or save this message later."
+                        hint="Use a short private label so you can find or save this message later."
                       >
                         <input id="message-title" aria-describedby="captain-messaging-composer-helper" value={messageTitle} onChange={(e) => setMessageTitle(e.target.value)} style={inputStyle} />
                       </Field>
@@ -3539,7 +4931,7 @@ function importScenarioToLineup() {
                     </div>
 
                     <div style={actionRowStyle}>
-                      <a href={captainAccess ? smsHref : undefined} style={{ ...primaryButton, ...(captainAccess ? null : disabledButtonStyle) }} onClick={(event) => { if (!captainAccess) { event.preventDefault(); setError('Captain tier required to send team messages.') } }}>Open texts</a>
+                      <a href={captainAccess ? smsHref : undefined} style={{ ...primaryButton, ...(captainAccess ? null : disabledButtonStyle) }} onClick={(event) => { if (!captainAccess) { event.preventDefault(); setError('Captain tier required to send team messages.'); return } if (setupTeamLinkRequested) markCaptainLaunchOutreachStarted({ team: teamFilter, league: leagueFilter, flight: flightFilter }); prepareSmsBodyForNativeComposer(messageBody) }}>Open texts</a>
                       <GhostSmallBtn onClick={copyBody}>{copiedState === 'body' ? 'Copied body' : 'Copy body'}</GhostSmallBtn>
                       <GhostSmallBtn onClick={copyNumbers}>{copiedState === 'numbers' ? 'Copied numbers' : 'Copy numbers'}</GhostSmallBtn>
                       <GhostSmallBtn onClick={() => void handleSaveTemplate()} disabled={!captainAccess}>Save template</GhostSmallBtn>
@@ -3548,14 +4940,26 @@ function importScenarioToLineup() {
                 </div>
               </section>
 
-              <details style={surfaceCard}>
+              <details id="captain-contact-setup" style={surfaceCard} open={contactManagerRequested || undefined}>
                 <summary style={detailsSummaryStyle}>
                   <div>
-                    <p style={sectionKicker}>Admin setup</p>
-                    <h3 style={sectionTitleSmall}>Contacts, replies, and templates</h3>
+                    <p style={sectionKicker}>{contactReviewMode ? 'Contact review' : 'Team setup'}</p>
+                    <h3 style={sectionTitleSmall}>
+                      {contactReviewMode
+                        ? `Add ${requestedMissingContactNames.length || 1} missing phone number${requestedMissingContactNames.length === 1 ? '' : 's'}`
+                        : 'Contacts, replies, and templates'}
+                    </h3>
                   </div>
                   <span style={miniPillSlate}>{scopedContacts.length} contacts</span>
                 </summary>
+
+              {contactReviewMode ? (
+                <div role="status" aria-live="polite" style={surfaceCard}>
+                  <p style={sectionKicker}>Needs an update</p>
+                  <h3 style={sectionTitleSmall}>{requestedMissingContactNames.join(', ') || 'Team contact'}</h3>
+                  <p style={mutedTextStyle}>Add the phone number below. After you save it, full-team texts will be ready.</p>
+                </div>
+              ) : null}
 
               <section style={twoColumnGridResponsive(isTablet)}>
                 <section style={surfaceCard}>
@@ -3579,11 +4983,15 @@ function importScenarioToLineup() {
                   </div>
                 </section>
 
-                <section style={surfaceCard}>
+                <section id="captain-contact-manager" style={surfaceCard}>
                   <div style={tableHeaderStyle}>
                     <div>
-                      <p style={sectionKicker}>Contact roster manager</p>
-                      <h3 style={sectionTitleSmall}>Add or edit team cell numbers</h3>
+                      <p style={sectionKicker}>{contactReviewMode ? 'Contact to update' : 'Team contacts'}</p>
+                      <h3 style={sectionTitleSmall}>
+                        {contactReviewMode && requestedMissingContactNames.length === 1
+                          ? `Add ${requestedMissingContactNames[0]}'s phone number`
+                          : 'Add or edit team cell numbers'}
+                      </h3>
                     </div>
                     {saving ? <span style={miniPillSlate}>Saving...</span> : null}
                   </div>
@@ -3594,6 +5002,9 @@ function importScenarioToLineup() {
                     </Field>
                     <Field label="Cell phone" htmlFor="draft-contact-phone" hint="Use the number exactly as you want it texted.">
                       <input id="draft-contact-phone" value={draftContact.phone} onChange={(e) => setDraftContact((c) => ({ ...c, phone: e.target.value }))} style={inputStyle} />
+                    </Field>
+                    <Field label="Email" htmlFor="draft-contact-email" hint="Optional. Player Roster includes captain emails when TennisLink provides them.">
+                      <input id="draft-contact-email" type="email" value={draftContact.email} onChange={(e) => setDraftContact((c) => ({ ...c, email: e.target.value }))} style={inputStyle} />
                     </Field>
                     <Field label="Role" htmlFor="draft-contact-role">
                       <input id="draft-contact-role" value={draftContact.role} onChange={(e) => setDraftContact((c) => ({ ...c, role: e.target.value }))} style={inputStyle} />
@@ -3611,8 +5022,11 @@ function importScenarioToLineup() {
 
                   <div style={actionRowStyle}>
                     <button type="button" style={{ ...primaryButton, ...(!captainAccess ? disabledButtonStyle : {}) }} onClick={() => void handleSaveContact()} disabled={!captainAccess}>{editingId ? 'Update contact' : 'Save contact'}</button>
-                    {editingId ? <GhostSmallBtn onClick={() => { setEditingId(null); setDraftContact({ full_name: '', phone: '', role: 'Player', is_captain: false, is_active: true, opt_in_text: true, notes: '' }) }}>Cancel edit</GhostSmallBtn> : null}
+                    {editingId ? <GhostSmallBtn onClick={() => { setEditingId(null); setDraftContact({ full_name: '', phone: '', email: '', role: 'Player', is_captain: false, is_active: true, opt_in_text: true, notes: '' }) }}>Cancel edit</GhostSmallBtn> : null}
                   </div>
+                  {contactSaveMessage ? (
+                    <p role="status" aria-live="polite" style={contactSaveMessageStyle}>{contactSaveMessage}</p>
+                  ) : null}
 
                   <Field
                     label="Bulk import (Name, Phone, Role, captain, note)"
@@ -3632,33 +5046,61 @@ function importScenarioToLineup() {
                     <h3 style={sectionTitleSmall}>Team contacts</h3>
                   </div>
                 </div>
-                <div style={tableWrapStyle}>
-                  <table style={tableStyle}>
-                    <thead>
-                      <tr>
-                        <th style={thStyle}>Name</th>
-                        <th style={thStyle}>Phone</th>
-                        <th style={thStyle}>Scope</th>
-                        <th style={thStyle}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {scopedContacts.map((contact) => (
-                        <tr key={contact.id}>
-                          <td style={tdLabelStyle}>{contact.full_name}</td>
-                          <td style={tdStyle}>{formatPhone(contact.phone)}</td>
-                          <td style={tdStyle}>{[contact.team_name, contact.season_label, contact.session_label].filter(Boolean).join(' - ') || '—'}</td>
-                          <td style={tdStyle}>
-                            <div style={actionRowStyleCompact}>
-                              <button type="button" style={linkButtonStyle} onClick={() => handleEditContact(contact)}>Edit</button>
-                              <button type="button" style={linkButtonStyleDanger} onClick={() => void handleDeleteContact(contact.id)}>Delete</button>
+                {isMobile ? (
+                  <div style={contactCardListStyle} aria-label="Team contacts">
+                    {scopedContacts.map((contact) => {
+                      const scope = [contact.team_name, contact.season_label, contact.session_label].filter(Boolean).join(' · ')
+                      const imported = (contact.notes || '').toLowerCase().includes('player roster')
+                      return (
+                        <article key={contact.id} style={contactCardStyle}>
+                          <div style={contactCardHeaderStyle}>
+                            <div style={contactCardCopyStyle}>
+                              <strong style={contactCardNameStyle}>{contact.full_name}</strong>
+                              <span style={contactCardPhoneStyle}>{contact.phone ? formatPhone(contact.phone) : 'Mobile not saved'}</span>
                             </div>
-                          </td>
+                            <span style={imported ? miniPillBlue : miniPillSlate}>
+                              {imported ? 'Player Roster' : 'Team contact'}
+                            </span>
+                          </div>
+                          <span style={contactCardScopeStyle}>{scope || 'Current team'}</span>
+                          <div style={contactCardActionsStyle}>
+                            <button type="button" style={contactCardEditButtonStyle} onClick={() => handleEditContact(contact)}>Edit contact</button>
+                            <button type="button" style={contactCardDeleteButtonStyle} onClick={() => void handleDeleteContact(contact.id)}>Delete</button>
+                          </div>
+                        </article>
+                      )
+                    })}
+                    {!scopedContacts.length ? <p style={mutedTextStyle}>No contacts are saved for this team yet.</p> : null}
+                  </div>
+                ) : (
+                  <div style={tableWrapStyle}>
+                    <table style={tableStyle}>
+                      <thead>
+                        <tr>
+                          <th style={thStyle}>Name</th>
+                          <th style={thStyle}>Phone</th>
+                          <th style={thStyle}>Scope</th>
+                          <th style={thStyle}>Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {scopedContacts.map((contact) => (
+                          <tr key={contact.id}>
+                            <td style={tdLabelStyle}>{contact.full_name}</td>
+                            <td style={tdStyle}>{formatPhone(contact.phone)}</td>
+                            <td style={tdStyle}>{[contact.team_name, contact.season_label, contact.session_label].filter(Boolean).join(' - ') || '—'}</td>
+                            <td style={tdStyle}>
+                              <div style={actionRowStyleCompact}>
+                                <button type="button" style={linkButtonStyle} onClick={() => handleEditContact(contact)}>Edit</button>
+                                <button type="button" style={linkButtonStyleDanger} onClick={() => void handleDeleteContact(contact.id)}>Delete</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </section>
 
               <section style={surfaceCard}>
@@ -3760,6 +5202,38 @@ const pageContentStyle: CSSProperties = {
   boxSizing: 'border-box',
 }
 
+const weekChallengeStripStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+  alignItems: 'center',
+  gap: 16,
+  padding: '16px 18px',
+  borderRadius: 22,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(45,132,255,0.08))',
+  minWidth: 0,
+}
+
+const weekChallengeCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const weekChallengeTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.2,
+  overflowWrap: 'anywhere',
+}
+
+const weekChallengeFocusStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  overflowWrap: 'anywhere',
+}
+
 const messageControlShell: CSSProperties = {
   position: 'relative',
   display: 'grid',
@@ -3835,6 +5309,96 @@ const heroStatusButtonRow: CSSProperties = {
   minWidth: 0,
 }
 
+const mobileSendPulseShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 6%, var(--shell-panel-bg-strong) 94%)',
+  minWidth: 0,
+}
+
+const mobileSendPulseGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+const mobileSendPulseCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: '9px 7px',
+  borderRadius: 12,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+}
+
+const mobileSendPulseCardWideStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+}
+
+const mobileSendPulseCardReadyStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+}
+
+const mobileSendPulseCardWaitingStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+}
+
+const mobileSendPulseLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 9,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const mobileSendPulseValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const mobileSendPulseDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekStatusHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+}
+
+const mobileWeekStatusValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  textAlign: 'right',
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekStatusButtonRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
 const metricLabelStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '0.82rem',
@@ -3876,12 +5440,193 @@ const messagePlaybookSurfaceStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const potentialLineupFlowStyle: CSSProperties = {
+  ...surfaceCardStrong,
+  maxWidth: 1280,
+  margin: '0 auto 18px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg-strong) 90%), var(--shell-panel-bg-strong))',
+}
+
+const potentialPlayerGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
+  gap: 10,
+  marginTop: 16,
+}
+
+const potentialPlayerResponsesStyle: CSSProperties = {
+  marginTop: 14,
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 72%, transparent 28%)',
+  overflow: 'hidden',
+}
+
+const potentialPlayerResponsesSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minHeight: 48,
+  padding: '10px 13px',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 850,
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const potentialTextQueueStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  alignItems: 'center',
+  gap: 14,
+  marginTop: 16,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  minWidth: 0,
+}
+
+const potentialTextQueueCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+}
+
+const potentialTextQueueTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.2,
+  overflowWrap: 'anywhere',
+}
+
+const potentialTextQueueDoneStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 46,
+  padding: '0 16px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 46%, var(--shell-panel-border) 54%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+  fontWeight: 850,
+  textAlign: 'center',
+}
+
+const availabilityCountGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+  gap: 8,
+  marginTop: 16,
+}
+
+const availabilityCountStyle = (color: string): CSSProperties => ({
+  display: 'grid',
+  gap: 2,
+  padding: '10px 8px',
+  borderRadius: 14,
+  border: `1px solid color-mix(in srgb, ${color} 48%, var(--shell-panel-border) 52%)`,
+  background: `color-mix(in srgb, ${color} 12%, var(--shell-chip-bg) 88%)`,
+  color: 'var(--shell-copy)',
+  textAlign: 'center',
+  fontSize: 12,
+})
+
+const potentialPlayerCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  contentVisibility: 'auto',
+  containIntrinsicSize: '148px',
+  minWidth: 0,
+}
+
+const potentialPlayerSelectStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  color: 'var(--shell-copy)',
+}
+
+const potentialInlinePhoneFormStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+}
+
+const potentialInlinePhoneLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 800,
+}
+
+const potentialInlinePhoneRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 8,
+  minWidth: 0,
+}
+
+const responseStatusBadgeStyle = (status?: 'available' | 'maybe' | 'unavailable'): CSSProperties => {
+  const color = status === 'available' ? '#61c47c' : status === 'maybe' ? '#d6a62a' : status === 'unavailable' ? '#df6a70' : 'var(--brand-blue-2)'
+  return {
+    flex: '0 0 auto',
+    padding: '5px 9px',
+    borderRadius: 999,
+    border: `1px solid color-mix(in srgb, ${color} 54%, var(--shell-panel-border) 46%)`,
+    background: `color-mix(in srgb, ${color} 15%, var(--shell-panel-bg) 85%)`,
+    color: 'var(--shell-copy)',
+    fontSize: 12,
+    fontWeight: 850,
+  }
+}
+
+const manualReplySummaryStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  cursor: 'pointer',
+  fontSize: 12,
+  fontWeight: 750,
+  marginBottom: 8,
+}
+
+const potentialStatusRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 6,
+}
+
+const potentialMissingStyle: CSSProperties = {
+  marginTop: 14,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, #d6a62a 55%, var(--shell-panel-border) 45%)',
+  background: 'color-mix(in srgb, #d6a62a 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--shell-copy)',
+  lineHeight: 1.5,
+}
+
 const messagePlaybookGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 12,
   marginTop: 16,
   minWidth: 0,
+}
+
+function messagePlaybookGridResponsive(isMobile: boolean): CSSProperties {
+  return {
+    ...messagePlaybookGridStyle,
+    gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : messagePlaybookGridStyle.gridTemplateColumns,
+    gap: isMobile ? 8 : messagePlaybookGridStyle.gap,
+  }
 }
 
 const messagePlaybookCardStyle: CSSProperties = {
@@ -3897,6 +5642,16 @@ const messagePlaybookCardStyle: CSSProperties = {
   cursor: 'pointer',
   boxShadow: '0 12px 28px rgba(2, 8, 23, 0.12)',
   minWidth: 0,
+}
+
+function messagePlaybookCardResponsive(isMobile: boolean): CSSProperties {
+  return {
+    ...messagePlaybookCardStyle,
+    minHeight: isMobile ? 112 : messagePlaybookCardStyle.minHeight,
+    padding: isMobile ? 12 : messagePlaybookCardStyle.padding,
+    borderRadius: isMobile ? 16 : messagePlaybookCardStyle.borderRadius,
+    gap: isMobile ? 5 : messagePlaybookCardStyle.gap,
+  }
 }
 
 const messagePlaybookLabelStyle: CSSProperties = {
@@ -3916,6 +5671,13 @@ const messagePlaybookTitleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+function messagePlaybookTitleResponsive(isMobile: boolean): CSSProperties {
+  return {
+    ...messagePlaybookTitleStyle,
+    fontSize: isMobile ? 16 : messagePlaybookTitleStyle.fontSize,
+  }
+}
+
 const messagePlaybookTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
@@ -3930,6 +5692,17 @@ const builderHandoffSurfaceStyle: CSSProperties = {
   margin: '0 auto 18px',
   border: '1px solid var(--shell-panel-border)',
   minWidth: 0,
+}
+
+const hiddenMobileHandoffStyle: CSSProperties = {
+  display: 'none',
+}
+
+const mobileMessageNextActionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 8,
+  marginTop: 12,
 }
 
 const builderHandoffGridStyle: CSSProperties = {
@@ -4133,8 +5906,19 @@ const tableStyle: CSSProperties = { width: '100%', borderCollapse: 'collapse', m
 const thStyle: CSSProperties = { textAlign: 'left', padding: '14px', background: 'var(--shell-chip-bg-strong)', color: '#c7dbff', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '.06em', overflowWrap: 'anywhere' }
 const tdStyle: CSSProperties = { padding: '14px', borderTop: '1px solid var(--shell-panel-border)', color: 'var(--foreground)', verticalAlign: 'top', overflowWrap: 'anywhere' }
 const tdLabelStyle: CSSProperties = { ...tdStyle, fontWeight: 800 }
+const contactCardListStyle: CSSProperties = { display: 'grid', gap: 10, minWidth: 0 }
+const contactCardStyle: CSSProperties = { display: 'grid', gap: 12, padding: 16, borderRadius: 18, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', minWidth: 0 }
+const contactCardHeaderStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, minWidth: 0 }
+const contactCardCopyStyle: CSSProperties = { display: 'grid', gap: 5, minWidth: 0 }
+const contactCardNameStyle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 18, lineHeight: 1.2, overflowWrap: 'anywhere' }
+const contactCardPhoneStyle: CSSProperties = { color: 'var(--foreground)', fontSize: 15, fontWeight: 800, overflowWrap: 'anywhere' }
+const contactCardScopeStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 13, lineHeight: 1.45, overflowWrap: 'anywhere' }
+const contactCardActionsStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 10, minWidth: 0 }
+const contactCardEditButtonStyle: CSSProperties = { borderRadius: 12, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg-strong)', color: '#9cc6ff', padding: '10px 12px', fontWeight: 850, cursor: 'pointer', width: '100%', minHeight: 42, minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center' }
+const contactCardDeleteButtonStyle: CSSProperties = { border: 'none', background: 'transparent', color: '#fca5a5', fontWeight: 800, cursor: 'pointer', padding: '10px 4px', minWidth: 0, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'center', alignSelf: 'center' }
 const mutedTextStyle: CSSProperties = { color: 'var(--shell-copy-muted)', margin: 0, lineHeight: 1.65, overflowWrap: 'anywhere' }
 const errorTextStyle: CSSProperties = { color: '#fca5a5', margin: 0, lineHeight: 1.65, overflowWrap: 'anywhere' }
+const contactSaveMessageStyle: CSSProperties = { color: '#d9ff76', margin: '12px 0 0', padding: '10px 12px', borderRadius: 12, border: '1px solid rgba(155, 225, 29, 0.42)', background: 'rgba(155, 225, 29, 0.10)', fontWeight: 800, lineHeight: 1.45, overflowWrap: 'anywhere' }
 const rowSubtleText: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4, overflowWrap: 'anywhere' }
 
 const rowControlWrapStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 6, minWidth: 0 }

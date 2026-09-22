@@ -2,15 +2,20 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   applyDataAssistPlayerMappingsToRow,
   buildDataAssistScorecardImportRow,
+  buildScorecardImportFingerprint,
   collectDataAssistImportPlayerNames,
   type DataAssistImportPlayerMapping,
   type DataAssistImportPreview,
 } from './data-assist-import'
 import type { DataAssistScorecardParsedDraft } from './data-assist-ocr'
 import type { DataAssistScheduleParsedDraft } from './data-assist-schedule-parser'
-import type { DataAssistTeamSummaryParsedDraft } from './data-assist-team-summary-parser'
+import { isTeamSummaryDraftReadyForImport, type DataAssistTeamSummaryParsedDraft } from './data-assist-team-summary-parser'
+import { upsertCaptainRosterContacts } from './captain-roster-contacts'
 import { runScheduleImport, runScorecardImport, runTeamSummaryImport, type RunImportSuccess } from './ingestion/runImport'
 import { recalculateDynamicRatings } from './recalculateRatings'
+import { announceTeamRoomScorecardResult } from './team-room-result-announcement-server'
+import { notifyLinkedPlayersOfImportedTeam } from './team-import-notifications-server'
+import { analyzeTeamDataRefresh, type TeamDataRefreshComparison } from './team-data-refresh'
 
 export type DataAssistScorecardImportAction = 'preview' | 'commit'
 
@@ -45,15 +50,35 @@ export type DataAssistTeamSummaryImportActionResult = {
   action: DataAssistScorecardImportAction
   message: string
   importResult?: Extract<RunImportSuccess, { kind: 'team_summary' }>
+  importedContactCount?: number
+  invitedPlayerCount?: number
+  contactWarning?: string
+  refreshComparison?: TeamDataRefreshComparison
 }
 
 type ExistingMatchRow = {
+  id?: string | null
   external_match_id?: string | null
   status?: string | null
   match_date?: string | null
   home_team?: string | null
   away_team?: string | null
   line_number?: number | null
+}
+
+type ExistingLineRow = {
+  id: string
+  line_number: string | null
+  match_type: 'singles' | 'doubles' | null
+  winner_side: 'A' | 'B' | null
+  score: string | null
+}
+
+type ExistingMatchPlayerRow = {
+  match_id: string
+  player_id: string
+  side: 'A' | 'B'
+  seat: number | null
 }
 
 export async function runDataAssistScheduleImportAction(input: {
@@ -110,6 +135,7 @@ export async function runDataAssistScheduleImportAction(input: {
         .from('data_assist_drafts')
         .update({
           status: 'imported',
+          parsed_payload: input.parsedDraft,
           validation_summary: validationSummary,
           reviewed_by_user_id: input.reviewedBy,
           reviewed_at: importedAt,
@@ -174,6 +200,58 @@ export async function runDataAssistTeamSummaryImportAction(input: {
   action: DataAssistScorecardImportAction
   validationSummary?: Record<string, unknown> | null
 }): Promise<DataAssistTeamSummaryImportActionResult> {
+  if (!input.parsedDraft.rosterTeamName.trim()) {
+    return {
+      ok: false,
+      action: input.action,
+      message: 'Confirm the team before importing this Player Roster.',
+    }
+  }
+
+  let refreshComparison: TeamDataRefreshComparison
+  try {
+    refreshComparison = await analyzeTeamDataRefresh({
+      supabase: input.supabase,
+      parsedDraft: input.parsedDraft,
+      captainUserId: input.reviewedBy,
+    })
+  } catch (error) {
+    return {
+      ok: false,
+      action: input.action,
+      message: error instanceof Error ? error.message : 'The current team record could not be compared safely.',
+    }
+  }
+
+  const memberConfirmedRefresh = typeof input.validationSummary?.memberConfirmedAt === 'string'
+    && Boolean(input.validationSummary.memberConfirmedAt.trim())
+  if (input.action === 'commit' && refreshComparison.needsConfirmation && !memberConfirmedRefresh) {
+    return {
+      ok: false,
+      action: input.action,
+      message: `${refreshComparison.summary} Review and confirm this refresh before importing.`,
+      refreshComparison,
+    }
+  }
+
+  if (input.parsedDraft.rosterSource === 'player_roster') {
+    return runDataAssistPlayerRosterContactImportAction(input, refreshComparison)
+  }
+
+  if (!isTeamSummaryDraftReadyForImport(input.parsedDraft)) {
+    const missingRatings = input.parsedDraft.players
+      .filter((player) => player.ntrp === null)
+      .map((player) => player.name)
+    return {
+      ok: false,
+      action: input.action,
+      message: missingRatings.length
+        ? `Confirm the official NTRP rating for: ${missingRatings.join(', ')}.`
+        : 'Confirm every player name and official NTRP rating before importing this Player Roster.',
+      refreshComparison,
+    }
+  }
+
   const payload = buildDataAssistTeamSummaryPayload(input.parsedDraft, input.batchId)
   const importResult = await runTeamSummaryImport(input.supabase, payload, input.action === 'preview' ? 'preview' : 'commit', {
     hasNormalizedPlayerNameColumn: true,
@@ -183,7 +261,7 @@ export async function runDataAssistTeamSummaryImportAction(input: {
     return {
       ok: false,
       action: input.action,
-      message: importResult.ok ? 'Team summary import returned an unexpected result.' : importResult.error,
+      message: importResult.ok ? 'Player Roster import returned an unexpected result.' : importResult.error,
     }
   }
 
@@ -192,21 +270,37 @@ export async function runDataAssistTeamSummaryImportAction(input: {
       return {
         ok: false,
         action: input.action,
-        message: importResult.result.errors[0]?.message || 'Team summary import did not commit.',
+        message: importResult.result.errors[0]?.message || 'Player Roster import did not commit.',
         importResult,
+        refreshComparison,
       }
     }
 
     const importedAt = new Date().toISOString()
+    let importedContactCount = 0
+    let contactWarning = ''
+    try {
+      importedContactCount = await upsertCaptainRosterContacts({
+        supabase: input.supabase,
+        parsedDraft: input.parsedDraft,
+        captainUserId: input.reviewedBy,
+        batchId: input.batchId,
+      })
+    } catch (error) {
+      contactWarning = error instanceof Error ? error.message : 'Roster contacts could not be saved.'
+    }
     const validationSummary = {
       ...(input.validationSummary || {}),
       importSummary: {
         importedAt,
         importResult,
         rosterPlayers: input.parsedDraft.players,
+        rosterContacts: input.parsedDraft.contacts,
+        importedContactCount,
+        contactWarning: contactWarning || null,
       },
     }
-    const message = buildTeamSummaryImportedReviewNote(importResult)
+    const message = buildTeamSummaryImportedReviewNote(importResult, importedContactCount, contactWarning)
     const [batchUpdate, draftUpdate] = await Promise.all([
       input.supabase
         .from('data_assist_batches')
@@ -231,15 +325,121 @@ export async function runDataAssistTeamSummaryImportAction(input: {
     if (batchUpdate.error) return { ok: false, action: input.action, message: batchUpdate.error.message, importResult }
     if (draftUpdate.error) return { ok: false, action: input.action, message: draftUpdate.error.message, importResult }
     await refreshDataAssistContributorStats(input.supabase, input.reviewedBy)
+
+    return {
+      ok: true,
+      action: input.action,
+      importResult,
+      importedContactCount,
+      contactWarning: contactWarning || undefined,
+      refreshComparison,
+      message: `${message} ${refreshComparison.summary}`,
+    }
   }
 
   return {
     ok: true,
     action: input.action,
     importResult,
-    message: input.action === 'commit'
-      ? buildTeamSummaryImportedReviewNote(importResult)
-      : `Roster preview ready. ${importResult.result.totalPlayers} player${importResult.result.totalPlayers === 1 ? '' : 's'} validated.`,
+    refreshComparison,
+    message: `Roster preview ready. ${importResult.result.totalPlayers} player${importResult.result.totalPlayers === 1 ? '' : 's'} validated. ${refreshComparison.summary}`,
+  }
+}
+
+async function runDataAssistPlayerRosterContactImportAction(input: {
+  supabase: SupabaseClient
+  parsedDraft: DataAssistTeamSummaryParsedDraft
+  batchId: string
+  draftId: string
+  reviewedBy: string
+  action: DataAssistScorecardImportAction
+  validationSummary?: Record<string, unknown> | null
+}, refreshComparison: TeamDataRefreshComparison): Promise<DataAssistTeamSummaryImportActionResult> {
+  const detectedContacts = input.parsedDraft.contacts.filter((contact) => Boolean(contact.phone?.trim() || contact.email?.trim())).length
+
+  if (input.action === 'preview') {
+    return {
+      ok: true,
+      action: input.action,
+      importedContactCount: detectedContacts,
+      refreshComparison,
+      message: `Contact preview ready. ${detectedContacts} private team contact${detectedContacts === 1 ? '' : 's'} will be saved without changing the Team Summary. ${refreshComparison.summary}`,
+    }
+  }
+
+  let importedContactCount = 0
+  let invitedPlayerCount = 0
+  try {
+    importedContactCount = await upsertCaptainRosterContacts({
+      supabase: input.supabase,
+      parsedDraft: input.parsedDraft,
+      captainUserId: input.reviewedBy,
+      batchId: input.batchId,
+    })
+    invitedPlayerCount = await notifyLinkedPlayersOfImportedTeam({
+      supabase: input.supabase,
+      actorUserId: input.reviewedBy,
+      batchId: input.batchId,
+      parsedDraft: input.parsedDraft,
+    }).catch(() => 0)
+  } catch (error) {
+    return {
+      ok: false,
+      action: input.action,
+      message: error instanceof Error ? error.message : 'Team contacts could not be saved.',
+      refreshComparison,
+    }
+  }
+
+  const importedAt = new Date().toISOString()
+  const playerInviteNote = invitedPlayerCount
+    ? ` ${invitedPlayerCount} linked ${invitedPlayerCount === 1 ? 'player has' : 'players have'} an inbox invite to review the team.`
+    : ''
+  const message = importedContactCount
+    ? `Data Assist saved ${importedContactCount} private team contact${importedContactCount === 1 ? '' : 's'}. Your Team Summary was not changed.${playerInviteNote}`
+    : 'This Player Roster did not include a phone or email detail to save. Your Team Summary was not changed.'
+  const validationSummary = {
+    ...(input.validationSummary || {}),
+    importSummary: {
+      importedAt,
+      contactOnly: true,
+      rosterPlayers: input.parsedDraft.players,
+      rosterContacts: input.parsedDraft.contacts,
+      importedContactCount,
+    },
+  }
+  const [batchUpdate, draftUpdate] = await Promise.all([
+    input.supabase
+      .from('data_assist_batches')
+      .update({
+        status: 'imported',
+        review_note: message,
+        reviewed_by_user_id: input.reviewedBy,
+        reviewed_at: importedAt,
+      })
+      .eq('id', input.batchId),
+    input.supabase
+      .from('data_assist_drafts')
+      .update({
+        status: 'imported',
+        validation_summary: validationSummary,
+        reviewed_by_user_id: input.reviewedBy,
+        reviewed_at: importedAt,
+      })
+      .eq('id', input.draftId),
+  ])
+
+  if (batchUpdate.error) return { ok: false, action: input.action, message: batchUpdate.error.message }
+  if (draftUpdate.error) return { ok: false, action: input.action, message: draftUpdate.error.message }
+  await refreshDataAssistContributorStats(input.supabase, input.reviewedBy)
+
+  return {
+    ok: true,
+    action: input.action,
+    importedContactCount,
+    invitedPlayerCount,
+    refreshComparison,
+    message: `${message} ${refreshComparison.summary}`,
   }
 }
 
@@ -255,13 +455,22 @@ function buildDataAssistTeamSummaryPayload(parsedDraft: DataAssistTeamSummaryPar
       teams: parsedDraft.teams,
       players: parsedDraft.players,
       sourceBatchId: batchId,
-      source: 'tennislink_team_summary',
+      source: parsedDraft.rosterSource === 'player_roster'
+        ? 'tennislink_player_roster'
+        : 'tennislink_team_summary',
     },
   }
 }
 
-function buildTeamSummaryImportedReviewNote(importResult: Extract<RunImportSuccess, { kind: 'team_summary' }>) {
-  return `Data Assist roster imported ${importResult.result.totalPlayers} player${importResult.result.totalPlayers === 1 ? '' : 's'}: ${importResult.result.createdCount} new, ${importResult.result.updatedCount} updated.`
+function buildTeamSummaryImportedReviewNote(
+  importResult: Extract<RunImportSuccess, { kind: 'team_summary' }>,
+  importedContactCount = 0,
+  contactWarning = '',
+) {
+  const rosterMessage = `Data Assist roster imported ${importResult.result.totalPlayers} player${importResult.result.totalPlayers === 1 ? '' : 's'}: ${importResult.result.createdCount} new, ${importResult.result.updatedCount} updated.`
+  if (contactWarning) return `${rosterMessage} Player contact sync needs another try.`
+  if (importedContactCount) return `${rosterMessage} ${importedContactCount} contact${importedContactCount === 1 ? '' : 's'} ready for captain messages.`
+  return rosterMessage
 }
 
 export async function runDataAssistScorecardImportAction(input: {
@@ -272,6 +481,8 @@ export async function runDataAssistScorecardImportAction(input: {
   reviewedBy: string
   action: DataAssistScorecardImportAction
   validationSummary?: Record<string, unknown> | null
+  /** Let the route return the saved scorecard before the full ratings refresh. */
+  deferRatingRecalculation?: boolean
 }): Promise<DataAssistScorecardImportActionResult> {
   const importPreview = await buildDataAssistImportPreview({
     supabase: input.supabase,
@@ -289,7 +500,7 @@ export async function runDataAssistScorecardImportAction(input: {
     }
   }
 
-  if (importPreview.duplicateMatch?.status === 'completed') {
+  if (importPreview.duplicateMatch?.status === 'completed' && !importPreview.duplicateMatch.hasChanges) {
     if (input.action === 'commit') {
       const importedAt = new Date().toISOString()
       const message = `Already imported: match ${importPreview.row.externalMatchId} is already in TenAceIQ.`
@@ -326,6 +537,7 @@ export async function runDataAssistScorecardImportAction(input: {
       if (batchUpdate.error) return { ok: false, action: input.action, message: batchUpdate.error.message, importPreview }
       if (draftUpdate.error) return { ok: false, action: input.action, message: draftUpdate.error.message, importPreview }
       await refreshDataAssistContributorStats(input.supabase, input.reviewedBy)
+      await announceScorecardResult(input)
     }
 
     return {
@@ -375,7 +587,9 @@ export async function runDataAssistScorecardImportAction(input: {
       }
     }
 
-    await recalculateDynamicRatings(undefined, input.supabase)
+    if (!input.deferRatingRecalculation) {
+      await recalculateDynamicRatings(undefined, input.supabase, { replaceSnapshots: false })
+    }
     const importedAt = new Date().toISOString()
     const validationSummary = {
       ...(input.validationSummary || {}),
@@ -414,6 +628,7 @@ export async function runDataAssistScorecardImportAction(input: {
     }
 
     await refreshDataAssistContributorStats(input.supabase, input.reviewedBy)
+    await announceScorecardResult(input)
   }
 
   return {
@@ -424,6 +639,22 @@ export async function runDataAssistScorecardImportAction(input: {
     message: input.action === 'commit'
       ? buildImportedReviewNote(scorecardImportResult)
       : buildPreviewMessage(importPreview),
+  }
+}
+
+async function announceScorecardResult(input: {
+  supabase: SupabaseClient
+  parsedDraft: DataAssistScorecardParsedDraft
+  reviewedBy: string
+}) {
+  try {
+    await announceTeamRoomScorecardResult({
+      service: input.supabase,
+      userId: input.reviewedBy,
+      draft: input.parsedDraft,
+    })
+  } catch {
+    // The scorecard stays imported even if Team Room is temporarily unavailable.
   }
 }
 
@@ -438,33 +669,72 @@ async function buildDataAssistImportPreview(input: {
     sourceBatchId: input.batchId,
   })
   const playerMappings = await buildPlayerMappings(input.supabase, collectDataAssistImportPlayerNames(importPreview.row))
-  const duplicateMatch = await findExistingCompletedMatch(input.supabase, importPreview.row.externalMatchId)
-
   importPreview.playerMappings = playerMappings
-  if (duplicateMatch) importPreview.duplicateMatch = duplicateMatch
   importPreview.row = applyDataAssistPlayerMappingsToRow(importPreview.row, playerMappings)
+  const duplicateMatch = await findExistingCompletedMatch(input.supabase, importPreview.row)
+  if (duplicateMatch) importPreview.duplicateMatch = duplicateMatch
 
   return importPreview
 }
 
-async function findExistingCompletedMatch(supabase: SupabaseClient, externalMatchId: string) {
-  const cleanExternalMatchId = cleanText(externalMatchId)
+async function findExistingCompletedMatch(supabase: SupabaseClient, incomingRow: DataAssistImportPreview['row']) {
+  const cleanExternalMatchId = cleanText(incomingRow.externalMatchId)
   if (!cleanExternalMatchId) return null
 
   const { data } = await supabase
     .from('matches')
-    .select('external_match_id, status, match_date, home_team, away_team, line_number')
+    .select('id, external_match_id, status, match_date, home_team, away_team, line_number')
     .eq('external_match_id', cleanExternalMatchId)
     .maybeSingle()
 
   const row = data as ExistingMatchRow | null
   if (!row || cleanText(row.status) !== 'completed') return null
+  const { data: lineData } = await supabase
+    .from('matches')
+    .select('id,line_number,match_type,winner_side,score')
+    .like('external_match_id', `${cleanExternalMatchId}::line:%`)
+    .eq('status', 'completed')
+  const lines = (lineData ?? []) as ExistingLineRow[]
+  const lineIds = lines.map((line) => line.id)
+  const { data: matchPlayerData } = lineIds.length
+    ? await supabase
+        .from('match_players')
+        .select('match_id,player_id,side,seat')
+        .in('match_id', lineIds)
+    : { data: [] }
+  const matchPlayers = (matchPlayerData ?? []) as ExistingMatchPlayerRow[]
+  const playerIds = Array.from(new Set(matchPlayers.map((player) => player.player_id)))
+  const { data: playerData } = playerIds.length
+    ? await supabase.from('players').select('id,name').in('id', playerIds)
+    : { data: [] }
+  const playerNameById = new Map(((playerData ?? []) as Array<{ id: string; name: string | null }>)
+    .map((player) => [player.id, cleanText(player.name)]))
+  const persistedRow: DataAssistImportPreview['row'] = {
+    externalMatchId: cleanExternalMatchId,
+    matchDate: cleanText(row.match_date),
+    homeTeam: cleanText(row.home_team),
+    awayTeam: cleanText(row.away_team),
+    lines: lines.map((line) => {
+      const players = matchPlayers
+        .filter((player) => player.match_id === line.id)
+        .sort((left, right) => (left.seat ?? 99) - (right.seat ?? 99))
+      return {
+        lineNumber: Number(line.line_number) || 0,
+        matchType: line.match_type === 'doubles' ? 'doubles' : 'singles',
+        sideAPlayers: players.filter((player) => player.side === 'A').map((player) => playerNameById.get(player.player_id) || ''),
+        sideBPlayers: players.filter((player) => player.side === 'B').map((player) => playerNameById.get(player.player_id) || ''),
+        winnerSide: line.winner_side,
+        score: line.score,
+      }
+    }),
+  }
   return {
     externalMatchId: cleanText(row.external_match_id),
     status: cleanText(row.status),
     matchDate: cleanText(row.match_date),
     homeTeam: cleanText(row.home_team),
     awayTeam: cleanText(row.away_team),
+    hasChanges: buildScorecardImportFingerprint(persistedRow) !== buildScorecardImportFingerprint(incomingRow),
   }
 }
 
@@ -584,7 +854,8 @@ function buildPreviewMessage(importPreview: DataAssistImportPreview) {
 function buildImportedReviewNote(importResult: Extract<RunImportSuccess, { kind: 'scorecard' }>) {
   const createdPlayers = importResult.result.createdPlayersCount
   const linkedPlayers = importResult.result.linkedPlayersCount
-  return `Scorecard imported. ${linkedPlayers} player link${linkedPlayers === 1 ? '' : 's'} refreshed${createdPlayers ? `; ${createdPlayers} new player${createdPlayers === 1 ? '' : 's'} created` : ''}. Schedule and roster uploads can be added later, but this result is ready now.`
+  const resultLabel = importResult.result.updatedCount > 0 ? 'Scorecard corrected.' : 'Scorecard imported.'
+  return `${resultLabel} ${linkedPlayers} player link${linkedPlayers === 1 ? '' : 's'} refreshed${createdPlayers ? `; ${createdPlayers} new player${createdPlayers === 1 ? '' : 's'} created` : ''}. Schedule and roster uploads can be added later, but this result is ready now.`
 }
 
 function getContributorBadges(verifiedImportCount: number, accuracyScore: number) {

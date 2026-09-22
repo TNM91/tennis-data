@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
@@ -25,6 +26,8 @@ import {
   formatDateTime,
   readLocalArray,
 } from '@/lib/captain-formatters'
+import { useCaptainMatchWeekDraft } from '@/lib/use-captain-match-week-draft'
+import { useCaptainMatchWeekReadiness } from '@/lib/use-captain-match-week-readiness'
 
 type MatchRow = {
   id: string
@@ -92,8 +95,11 @@ export default function CaptainTeamBriefPage() {
 }
 
 function CaptainTeamBriefContent() {
-  const { role, entitlements, authResolved } = useAuth()
-  const { isTablet, isSmallMobile } = useViewportBreakpoints()
+  const router = useRouter()
+  const auth = useAuth()
+  const { role, entitlements, authResolved } = auth
+  const { session } = auth
+  const { isTablet, isSmallMobile, isMobile } = useViewportBreakpoints()
   const initialContext = readInitialContext()
 
   const [loading, setLoading] = useState(false)
@@ -120,8 +126,8 @@ function CaptainTeamBriefContent() {
       return
     }
     const next = encodeURIComponent('/captain/team-brief')
-    window.location.href = `/login?next=${next}`
-  }, [authResolved, role])
+    router.replace(`/login?plan=captain&next=${next}`)
+  }, [authResolved, role, router])
 
   useEffect(() => {
     if (!authResolved || role === 'public') return
@@ -232,7 +238,7 @@ function CaptainTeamBriefContent() {
     [currentMatch?.match_date, eventDate, flight, league, team]
   )
 
-  const lineupRows = useMemo(
+  const localLineupRows = useMemo(
     () => readLocalArray<LineupAssignment>(WEEKLY_LINEUPS_STORAGE_KEY).filter((row) => row.event_key === eventKey),
     [eventKey]
   )
@@ -240,8 +246,46 @@ function CaptainTeamBriefContent() {
     () => readLocalArray<WeeklyResponse>(WEEKLY_RESPONSES_STORAGE_KEY).filter((row) => row.event_key === eventKey),
     [eventKey]
   )
-  const eventDetail =
+  const localEventDetail =
     readLocalArray<EventDetail>(WEEKLY_EVENT_DETAILS_STORAGE_KEY).find((row) => safeText(row.key) === eventKey) ?? null
+
+  const matchWeekDraftScope = useMemo(() => ({
+    competitionLayer,
+    teamName: team,
+    leagueName: league,
+    flight,
+    matchDate: safeText(eventDate || currentMatch?.match_date).slice(0, 10),
+    opponentTeam: resolvedOpponent,
+  }), [competitionLayer, currentMatch?.match_date, eventDate, flight, league, resolvedOpponent, team])
+  const { matchWeek, status: matchWeekCloudStatus } = useCaptainMatchWeekDraft({
+    accessToken: session?.access_token,
+    enabled: authResolved && role !== 'public' && access.canUseCaptainWorkflow,
+    scope: matchWeekDraftScope,
+  })
+  const lineupRows = useMemo<LineupAssignment[]>(() => matchWeek
+    ? matchWeek.courts.map((court) => ({
+        id: court.id,
+        event_key: eventKey,
+        court_label: court.label,
+        slot_type: court.slotType,
+        players: court.players,
+      }))
+    : localLineupRows, [eventKey, localLineupRows, matchWeek])
+  const eventDetail = matchWeek
+    ? { key: eventKey, ...matchWeek.details }
+    : localEventDetail
+  const { readiness: cloudReadiness, status: cloudReadinessStatus } = useCaptainMatchWeekReadiness({
+    accessToken: session?.access_token,
+    enabled: authResolved && role !== 'public' && access.canUseCaptainWorkflow,
+    scope: {
+      competitionLayer,
+      teamName: team,
+      leagueName: league,
+      flight,
+      matchDate: safeText(eventDate || currentMatch?.match_date).slice(0, 10),
+      opponentTeam: resolvedOpponent,
+    },
+  })
 
   const lineupSummaryText = useMemo(() => {
     if (!lineupRows.length) return 'Lineup assignments are still being finalized.'
@@ -254,19 +298,30 @@ function CaptainTeamBriefContent() {
     let late = 0
     let noResponse = 0
     let needSub = 0
+    let maybe = 0
+    let unavailable = 0
 
     for (const row of responseRows) {
       if (row.status === 'running-late') late += 1
-      if (row.status === 'no-response') noResponse += 1
+      if (!cloudReadiness && row.status === 'no-response') noResponse += 1
       if (row.status === 'need-sub') needSub += 1
     }
 
-    return { late, noResponse, needSub }
-  }, [responseRows])
+    if (cloudReadiness) {
+      const selectedPeople = cloudReadiness.summary.people.filter((person) => person.selected)
+      noResponse = cloudReadiness.summary.selectedWaiting?.length ?? cloudReadiness.summary.waiting
+      maybe = selectedPeople.filter((person) => person.status === 'maybe').length
+      unavailable = selectedPeople.filter((person) => person.status === 'unavailable').length
+    }
+
+    return { late, noResponse, needSub, maybe, unavailable }
+  }, [cloudReadiness, responseRows])
 
   const alertLines = [
     responseRiskSummary.late ? `${responseRiskSummary.late} player${responseRiskSummary.late === 1 ? '' : 's'} flagged as running late.` : '',
     responseRiskSummary.noResponse ? `${responseRiskSummary.noResponse} player${responseRiskSummary.noResponse === 1 ? '' : 's'} still have no response.` : '',
+    responseRiskSummary.maybe ? `${responseRiskSummary.maybe} selected player${responseRiskSummary.maybe === 1 ? '' : 's'} replied maybe.` : '',
+    responseRiskSummary.unavailable ? `${responseRiskSummary.unavailable} selected player${responseRiskSummary.unavailable === 1 ? '' : 's'} can’t play.` : '',
     responseRiskSummary.needSub ? `${responseRiskSummary.needSub} substitution issue${responseRiskSummary.needSub === 1 ? '' : 's'} still need attention.` : '',
   ].filter(Boolean)
   const readyForTeam = lineupRows.length > 0 && !!(eventDetail?.arrivalTime || eventDetail?.location) && !alertLines.length
@@ -276,6 +331,32 @@ function CaptainTeamBriefContent() {
     : alertLines.length
       ? 'Handle alerts before this goes out.'
       : 'Add lineup or logistics before sharing.'
+  const hasMatchPlan = Boolean(
+    (eventDate || currentMatch?.match_date)
+    && resolvedOpponent
+    && eventDetail?.location
+    && eventDetail?.arrivalTime,
+  )
+  const teamBriefReadiness = [
+    {
+      label: 'Match plan',
+      value: hasMatchPlan ? 'Ready' : 'Need details',
+      detail: hasMatchPlan ? 'Opponent, arrival, and location set' : 'Add the match details',
+      tone: hasMatchPlan ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Courts',
+      value: lineupRows.length ? `${lineupRows.length} set` : 'Open',
+      detail: lineupRows.length ? 'Assignments ready to share' : 'Build the lineup first',
+      tone: lineupRows.length ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Risk watch',
+      value: alertLines.length ? `${alertLines.length} open` : 'Clear',
+      detail: alertLines.length ? 'Follow up before sending' : 'Selected players are clear',
+      tone: alertLines.length ? 'attention' : 'ready',
+    },
+  ]
 
   const generatedTeamMessage = [
     `Team update for ${formatDate(eventDate || currentMatch?.match_date)}${resolvedOpponent ? ` vs ${resolvedOpponent}` : ''}.`,
@@ -322,6 +403,40 @@ function CaptainTeamBriefContent() {
     date: eventDate,
     opponent: resolvedOpponent,
   })
+  const nextMove = !team || !league || !flight
+    ? {
+        title: 'Choose the team week',
+        detail: 'Set the team, league, and flight before building a match-day plan.',
+        href: '/captain',
+        cta: 'Choose team scope',
+      }
+    : !lineupRows.length
+      ? {
+          title: 'Build the current courts',
+          detail: 'Set the lineup first so the team receives a clear, usable plan.',
+          href: lineupBuilderHref,
+          cta: 'Open lineup builder',
+        }
+      : alertLines.length
+        ? {
+            title: 'Resolve availability',
+            detail: `${alertLines.length} response risk${alertLines.length === 1 ? '' : 's'} still need attention before sending.`,
+            href: availabilityHref,
+            cta: 'Open availability',
+          }
+        : !hasMatchPlan
+          ? {
+              title: 'Add match logistics',
+              detail: 'Confirm the opponent, arrival time, and location before sharing the plan.',
+              href: weeklyBriefHref,
+              cta: 'Open captain brief',
+            }
+          : {
+              title: 'Share the match plan',
+              detail: 'Your lineup, logistics, and readiness are in place. Send the team update now.',
+              href: '',
+              cta: 'Copy team message',
+            }
 
   function updateWeekStatus(nextStatus: CaptainWeekStatus) {
     setWeekStatusState({
@@ -336,8 +451,18 @@ function CaptainTeamBriefContent() {
     return new Date(row.updated_at).getTime() > new Date(latest).getTime() ? row.updated_at : latest
   }, null)
   const lineupUpdatedLabel = lineupRows.length ? `${lineupRows.length} assignments ready` : 'No lineup saved yet'
-  const eventUpdatedLabel = eventDetail ? 'Event details saved' : 'No event details saved'
-  const responseUpdatedLabel = latestResponseUpdate ? formatDateTime(latestResponseUpdate) : 'No response updates yet'
+  const eventUpdatedLabel = matchWeekCloudStatus === 'loading'
+    ? 'Syncing Match Week'
+    : matchWeek
+      ? 'Match Week synced'
+      : eventDetail
+        ? 'Phone backup loaded'
+        : 'No event details saved'
+  const responseUpdatedLabel = cloudReadinessStatus === 'loading'
+    ? 'Checking cloud replies'
+    : cloudReadiness
+      ? `Replies synced ${formatDateTime(cloudReadiness.checkedAt)}`
+      : latestResponseUpdate ? formatDateTime(latestResponseUpdate) : 'No response updates yet'
 
   async function handleCopyMessage() {
     if (typeof navigator === 'undefined' || !navigator.clipboard) {
@@ -381,7 +506,7 @@ function CaptainTeamBriefContent() {
   return (
     <main style={pageStyle}>
       <div style={contentStyle}>
-          <CaptainSuitePanel active="team-brief" teamLabel={team || 'Team week'} />
+          {!isMobile ? <CaptainSuitePanel active="team-brief" teamLabel={team || 'Team week'} /> : null}
           <section style={heroCard} aria-label="Team brief controls">
             <span aria-hidden="true" style={watermarkStyle} />
             <div style={heroTopRow}>
@@ -416,7 +541,27 @@ function CaptainTeamBriefContent() {
               </div>
             </div>
 
-            <div style={signalGridStyle}>
+            {isMobile ? (
+              <div style={mobileReadinessRailStyle} aria-label="Team send readiness">
+                {teamBriefReadiness.map((item) => (
+                  <div
+                    key={item.label}
+                    style={{
+                      ...mobileReadinessCardStyle,
+                      ...(item.tone === 'ready'
+                        ? mobileReadinessCardReadyStyle
+                        : item.tone === 'attention'
+                          ? mobileReadinessCardAttentionStyle
+                          : mobileReadinessCardWaitingStyle),
+                    }}
+                  >
+                    <span style={mobileReadinessLabelStyle}>{item.label}</span>
+                    <strong style={mobileReadinessValueStyle}>{item.value}</strong>
+                    <small style={mobileReadinessDetailStyle}>{item.detail}</small>
+                  </div>
+                ))}
+              </div>
+            ) : <div style={signalGridStyle}>
               <div style={signalCardStyle}>
                 <div style={signalLabelStyle}>When</div>
                 <div style={signalValueStyle}>{formatDate(eventDate || currentMatch?.match_date)}</div>
@@ -435,10 +580,23 @@ function CaptainTeamBriefContent() {
               <div style={signalCardStyle}>
                 <div style={signalLabelStyle}>Alerts</div>
                 <div style={signalValueStyle}>{alertLines.length ? String(alertLines.length) : 'Clear'}</div>
-                <div style={signalNoteStyle}>{alertLines.length ? 'Follow up before sending' : 'No saved response risks'}</div>
+                <div style={signalNoteStyle}>{alertLines.length ? 'Follow up before sending' : 'Selected players are clear'}</div>
               </div>
-            </div>
+            </div>}
 
+          </section>
+
+          <section style={nextMoveCardStyle} aria-label="Next match-day action">
+            <div style={nextMoveCopyStyle}>
+              <p style={sectionKicker}>Next move</p>
+              <h2 style={nextMoveTitleStyle}>{nextMove.title}</h2>
+              <p style={nextMoveDetailStyle}>{nextMove.detail}</p>
+            </div>
+            {nextMove.href ? (
+              <Link href={nextMove.href} style={primaryButton}>{nextMove.cta}</Link>
+            ) : (
+              <PrimaryBtn onClick={() => void handleCopyMessage()}>{nextMove.cta}</PrimaryBtn>
+            )}
           </section>
 
           {error ? <section style={errorCard}>{error}</section> : null}
@@ -572,7 +730,7 @@ function CaptainTeamBriefContent() {
               </div>
             ) : (
               <div style={mutedCallout}>
-                No current late-arrival, substitution, or no-response alerts are saved for this event.
+                No selected player is waiting, late, unavailable, or asking for a substitute.
               </div>
             )}
 
@@ -648,8 +806,8 @@ const watermarkStyle: CSSProperties = {
   right: 'clamp(-92px, -7vw, -34px)',
   bottom: 'clamp(-112px, -10vw, -52px)',
   width: 'clamp(230px, 30vw, 420px)',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }
@@ -678,6 +836,18 @@ const signalCardStyle: CSSProperties = { padding: 18, borderRadius: 22, border: 
 const signalLabelStyle: CSSProperties = { color: 'var(--brand-blue-2)', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', overflowWrap: 'anywhere' }
 const signalValueStyle: CSSProperties = { marginTop: 10, color: 'var(--foreground-strong)', fontSize: '1.24rem', fontWeight: 900, letterSpacing: 0, overflowWrap: 'anywhere' }
 const signalNoteStyle: CSSProperties = { marginTop: 8, color: 'rgba(224,234,247,0.74)', fontSize: '.94rem', lineHeight: 1.6, overflowWrap: 'anywhere' }
+const nextMoveCardStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap', padding: '18px 20px', borderRadius: 24, border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)', background: 'linear-gradient(115deg, color-mix(in srgb, var(--brand-green) 13%, var(--shell-panel-bg-strong) 87%), var(--shell-panel-bg-strong))', boxShadow: 'var(--shadow-soft)', minWidth: 0 }
+const nextMoveCopyStyle: CSSProperties = { display: 'grid', gap: 5, minWidth: 0, flex: '1 1 260px' }
+const nextMoveTitleStyle: CSSProperties = { margin: 0, color: 'var(--foreground-strong)', fontSize: 'clamp(1.15rem, 2.5vw, 1.45rem)', lineHeight: 1.08, letterSpacing: 0, overflowWrap: 'anywhere' }
+const nextMoveDetailStyle: CSSProperties = { margin: 0, color: 'rgba(224,234,247,0.78)', fontSize: 14, lineHeight: 1.55, overflowWrap: 'anywhere' }
+const mobileReadinessRailStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 7, minWidth: 0 }
+const mobileReadinessCardStyle: CSSProperties = { display: 'grid', gap: 4, minWidth: 0, padding: '10px 8px', borderRadius: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
+const mobileReadinessCardReadyStyle: CSSProperties = { borderColor: 'color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)', background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)' }
+const mobileReadinessCardWaitingStyle: CSSProperties = { borderColor: 'color-mix(in srgb, var(--brand-blue-2) 25%, var(--shell-panel-border) 75%)' }
+const mobileReadinessCardAttentionStyle: CSSProperties = { borderColor: 'rgba(245,158,11,0.30)', background: 'rgba(92,40,10,0.22)' }
+const mobileReadinessLabelStyle: CSSProperties = { color: 'var(--brand-blue-2)', fontSize: 9, lineHeight: 1.1, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', overflowWrap: 'anywhere' }
+const mobileReadinessValueStyle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 14, lineHeight: 1.1, fontWeight: 950, overflowWrap: 'anywhere' }
+const mobileReadinessDetailStyle: CSSProperties = { color: 'rgba(224,234,247,0.72)', fontSize: 10, lineHeight: 1.3, fontWeight: 700, overflowWrap: 'anywhere' }
 const metricCard: CSSProperties = { padding: 16, borderRadius: 22, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', minWidth: 0 }
 const metricCardAccent: CSSProperties = { ...metricCard, border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)', background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)' }
 const metricLabel: CSSProperties = { color: 'rgba(197,213,234,0.86)', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800, overflowWrap: 'anywhere' }

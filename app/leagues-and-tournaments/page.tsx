@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import JsonLd from '@/app/components/json-ld'
 import {
   CommandHero,
@@ -9,8 +9,7 @@ import {
   TrustStrip,
   pageWrapStyle,
 } from '@/app/components/public-command-center'
-import { TiqActionCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
+import TrackedProductLink from '@/app/components/tracked-product-link'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
@@ -32,167 +31,229 @@ export default function LeaguesAndTournamentsPage() {
         <CommandHero
           eyebrow="Leagues & Tournaments"
           title="Run competition with less admin work."
-          body={`${PRODUCT_MOTTO} means organizers, captains, players, and guests can find schedules, entries, scores, standings, draws, and next actions without chasing spreadsheets or scattered texts.`}
+          body="Keep schedules, entries, scores, standings, draws, and updates in one competition home."
           primary={{ href: '/leagues', label: 'Find Leagues' }}
           secondary={{ href: '/tournaments', label: 'Find Tournaments' }}
-          searchPlaceholder="Search leagues, tournaments, schedules, draws, standings, scores, or organizer tools"
+          searchPlaceholder="Search tools"
+          searchCompact
+          showSearchResults={false}
+          showBoard={false}
+          visual="league"
         />
 
-        <section style={organizerQuickPathStyle} aria-labelledby="organizer-quick-path-title">
-          <div style={organizerQuickPathHeaderStyle}>
+        <section className="organizerQuickPath" style={organizerQuickPathStyle} aria-labelledby="organizer-quick-path-title">
+          <div className="organizerQuickPathHeader" style={organizerQuickPathHeaderStyle}>
             <p style={organizerQuickPathEyebrowStyle}>Organizer quick path</p>
             <h2 id="organizer-quick-path-title" style={organizerQuickPathTitleStyle}>
               What needs organizing first?
             </h2>
-            <p style={organizerQuickPathTextStyle}>
-              Pick the tennis need in front of you, then open the path for schedules, players, scores, events, or source review.
+            <p className="organizerQuickPathText" style={organizerQuickPathTextStyle}>
+              Open the tool for the job in front of you.
             </p>
           </div>
-          <div style={organizerQuickPathGridStyle}>
+          <div className="organizerQuickPathGrid" style={organizerQuickPathGridStyle}>
             {organizerQuickPaths.map((path) => (
               <Link
                 key={path.job}
                 href={path.href}
+                className="organizerQuickPathCard"
                 style={organizerQuickPathCardStyle}
                 aria-label={`${path.cta}: ${path.question}`}
                 data-organizer-path-job={path.job}
               >
-                <span style={organizerQuickPathQuestionStyle}>{path.question}</span>
-                <strong style={organizerQuickPathCtaStyle}>{path.cta}</strong>
+                <span className="organizerQuickPathQuestion" style={organizerQuickPathQuestionStyle}>{path.question}</span>
+                <strong className="organizerQuickPathCta" style={organizerQuickPathCtaStyle}>{path.cta}</strong>
               </Link>
             ))}
           </div>
         </section>
 
-        <section style={sectionStyle} aria-labelledby="organizer-paths-title">
+        <section className="organizerToolsSection" style={sectionStyle} aria-labelledby="organizer-paths-title">
           <SectionHeader
-            eyebrow="Organizer work path"
-            title="Set up, schedule, score, publish."
-            body="Start with the organizer need in front of you: organize schedules, manage players or teams, track scores, publish updates, and reduce admin work."
+            eyebrow="Organizer tools"
+            title="Open the desk, then move the season."
+            body="Use League Office, Tournament Desk, or Data Assist for setup, event day, scores, or updates."
             titleId="organizer-paths-title"
           />
-          <div style={gridStyle}>
-            {organizerActions.map((action) => (
-              <TiqActionCard
-                key={action.title}
-                eyebrow={action.eyebrow}
-                title={action.title}
-                body={action.body}
-                metrics={[...action.metrics]}
-                href={action.href}
-                cta={action.cta}
-                event={action.event}
-                trust={[...action.trust]}
-              >
-                <p style={organizerQuestionStyle}>{action.question}</p>
-              </TiqActionCard>
-            ))}
+          <div className="organizerCommandBoard" style={organizerCommandBoardStyle}>
+            <article className="organizerCommandDesk" style={organizerCommandDeskStyle}>
+              <div style={organizerCommandDeskTopStyle}>
+                <span style={organizerCommandBadgeStyle}>Competition desk</span>
+                <TrackedProductLink
+                  href="/league-coordinator"
+                  style={organizerCommandTopLinkStyle}
+                  event={{
+                    eventName: 'league_office_clicked',
+                    surface: 'leagues',
+                    metadata: { location: 'leagues_tournaments_command', job: 'organize_season' },
+                  }}
+                >
+                  Open League Office
+                </TrackedProductLink>
+              </div>
+              <h3 className="organizerCommandDeskTitle" style={organizerCommandDeskTitleStyle}>Run the work behind play.</h3>
+              <p className="organizerCommandDeskText" style={organizerCommandDeskTextStyle}>
+                Set up competition, review scores, publish updates, and keep players pointed to one place.
+              </p>
+              <div className="organizerCommandMetricGrid" style={organizerCommandMetricGridStyle}>
+                <MetricTile label="Setup" value="Players + teams" />
+                <MetricTile label="Desk" value="Draws + courts" />
+                <MetricTile label="Publish" value="Scores + updates" accent />
+              </div>
+              <div className="organizerCommandActionRow" style={organizerCommandActionRowStyle}>
+                <TrackedProductLink
+                  href="/league-coordinator/tournaments"
+                  style={organizerCommandGhostLinkStyle}
+                  event={{
+                    eventName: 'tournament_desk_clicked',
+                    surface: 'tournaments',
+                    metadata: { location: 'leagues_tournaments_command', job: 'run_event_day' },
+                  }}
+                >
+                  Open Tournament Desk
+                </TrackedProductLink>
+                <TrackedProductLink
+                  href="/data-assist?intent=upload-source&context=Leagues%20and%20Tournaments"
+                  style={organizerCommandGhostLinkStyle}
+                  event={{
+                    eventName: 'data_assist_opened',
+                    surface: 'data_assist',
+                    metadata: { location: 'leagues_tournaments_command', job: 'review_source_data' },
+                  }}
+                >
+                  Open Data Assist
+                </TrackedProductLink>
+              </div>
+            </article>
+            <OrganizerDetailsSection
+              eyebrow="More organizer paths"
+              title="Setup, event, score, and publish paths."
+              cue="Show paths"
+            >
+              <div style={organizerCommandStepListStyle}>
+                {organizerActions.map((action, index) => (
+                  <OrganizerCommandStep key={action.title} action={action} step={index + 1} />
+                ))}
+              </div>
+            </OrganizerDetailsSection>
           </div>
         </section>
 
-        <section style={sectionStyle} aria-labelledby="organizer-preview-title">
-          <SectionHeader
-            eyebrow="What gets simpler"
-            title="One competition home, clear next actions."
-            body="League and tournament pages should quickly answer who is playing, when they play, where scores go, and what needs review."
-            titleId="organizer-preview-title"
+        <OrganizerDetailsSection
+          eyebrow="Data quality"
+          title="Know how organizer updates are checked."
+          cue="Show trust signals"
+        >
+          <TrustStrip
+            context="Leagues and tournaments hub trust strip"
+            signals={[
+              { label: 'Source', value: 'Organizer updates', tone: 'info' },
+              { label: 'Freshness', value: 'Changes stay visible', tone: 'info' },
+              { label: 'Confidence', value: 'Review before standings move', tone: 'warn' },
+              { label: 'Status', value: 'Next action clear', tone: 'good' },
+            ]}
           />
-          <div style={gridStyle}>
-            <TiqWorkspacePreview
-              eyebrow="League Office"
-              title="Season schedule and standings"
-              body="Keep players or teams, match dates, score tracking, standings, and corrections moving together."
-              metrics={[
-                { label: 'Schedule', value: 'Visible' },
-                { label: 'Scores', value: 'Tracked' },
-                { label: 'Standings', value: 'Current' },
-              ]}
-              href="/league-coordinator"
-              cta="Open League Office"
-              event={{
-                eventName: 'league_office_clicked',
-                surface: 'leagues',
-                metadata: { location: 'leagues_tournaments_preview', job: 'organize_season' },
-              }}
-            />
-            <TiqWorkspacePreview
-              eyebrow="Tournament Desk"
-              title="Entries, draws, courts, results"
-              body="Move from setup to draw building, court assignments, score entry, winner publishing, and alerts."
-              metrics={[
-                { label: 'Entries', value: 'Managed' },
-                { label: 'Draws', value: 'Built' },
-                { label: 'Results', value: 'Publish' },
-              ]}
-              href="/tournaments#desk"
-              cta="Open Tournament Desk"
-              event={{
-                eventName: 'tournament_desk_clicked',
-                surface: 'tournaments',
-                metadata: { location: 'leagues_tournaments_preview', job: 'run_event_day' },
-              }}
-            />
-            <TiqWorkspacePreview
-              eyebrow="Data Assist"
-              title="Source review before public changes"
-              body="Use uploads and corrections when schedules, scorecards, rosters, teams, players, or standings need a trusted source."
-              metrics={[
-                { label: 'Upload', value: 'Source' },
-                { label: 'Review', value: 'Required' },
-                { label: 'Status', value: 'Clear' },
-              ]}
-              href="/data-assist?intent=upload-source&context=Leagues%20and%20Tournaments"
-              cta="Open Data Assist"
-              event={{
-                eventName: 'data_assist_opened',
-                surface: 'data_assist',
-                metadata: { location: 'leagues_tournaments_preview', job: 'review_source_data' },
-              }}
-            />
-          </div>
-        </section>
-
-        <TrustStrip
-          context="Leagues and tournaments hub trust strip"
-          signals={[
-            { label: 'Source', value: 'Organizer updates', tone: 'info' },
-            { label: 'Freshness', value: 'Changes stay visible', tone: 'info' },
-            { label: 'Confidence', value: 'Review before standings move', tone: 'warn' },
-            { label: 'Status', value: 'Next action clear', tone: 'good' },
-          ]}
-        />
+        </OrganizerDetailsSection>
       </main>
     </PublicPageShell>
   )
 }
 
+type OrganizerAction = (typeof organizerActions)[number]
+
+function OrganizerDetailsSection({
+  eyebrow,
+  title,
+  cue,
+  children,
+}: {
+  eyebrow: string
+  title: string
+  cue: string
+  children: ReactNode
+}) {
+  return (
+    <details className="organizerDetailsSection" style={organizerDetailsSectionStyle}>
+      <summary style={organizerDetailsSummaryStyle}>
+        <span style={organizerDetailsSummaryCopyStyle}>
+          <span style={organizerDetailsEyebrowStyle}>{eyebrow}</span>
+          <strong style={organizerDetailsTitleStyle}>{title}</strong>
+        </span>
+        <span style={organizerDetailsCueStyle}>{cue}</span>
+      </summary>
+      <div className="organizerDetailsBody" style={organizerDetailsContentStyle}>{children}</div>
+    </details>
+  )
+}
+
+function OrganizerCommandStep({ action, step }: { action: OrganizerAction; step: number }) {
+  return (
+    <article style={organizerCommandStepStyle}>
+      <span style={organizerCommandStepNumberStyle}>{step}</span>
+      <div style={organizerCommandStepCopyStyle}>
+        <div style={organizerCommandStepTopStyle}>
+          <span style={organizerCommandStepEyebrowStyle}>{action.eyebrow}</span>
+          <TrackedProductLink href={action.href} style={organizerCommandStepLinkStyle} event={action.event}>
+            {action.cta}
+          </TrackedProductLink>
+        </div>
+        <h3 style={organizerCommandStepTitleStyle}>{action.title}</h3>
+        <p style={organizerCommandStepBodyStyle}>{action.body}</p>
+        <p style={organizerQuestionStyle}>{action.question}</p>
+        <div style={organizerCommandStepMetricRowStyle}>
+          {action.metrics.map((metric) => (
+            <span key={metric.label} style={organizerCommandMetricPillStyle}>
+              {metric.label}: {metric.value}
+            </span>
+          ))}
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function MetricTile({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div style={{ ...organizerCommandMetricTileStyle, ...(accent ? organizerCommandMetricTileAccentStyle : null) }}>
+      <span style={organizerCommandMetricLabelStyle}>{label}</span>
+      <strong style={organizerCommandMetricValueStyle}>{value}</strong>
+    </div>
+  )
+}
+
 const organizerQuickPaths = [
   {
-    question: 'How do I organize schedules?',
-    cta: 'Open Schedule Setup',
+    question: 'Run club tennis',
+    cta: 'Open Club',
+    href: '/clubs',
+    job: 'run_club_tennis',
+  },
+  {
+    question: 'Schedule season',
+    cta: 'Open setup',
     href: '/league-coordinator',
     job: 'organize_schedules',
   },
   {
-    question: 'How do I manage players or teams?',
+    question: 'Manage teams',
     cta: 'Open League Office',
     href: '/league-coordinator',
     job: 'manage_players_teams',
   },
   {
-    question: 'How do I track scores?',
+    question: 'Track scores',
     cta: 'Open Results',
     href: '/league-coordinator/results',
     job: 'track_scores',
   },
   {
-    question: 'How do I run the event desk?',
+    question: 'Event desk',
     cta: 'Open Tournament Desk',
     href: '/league-coordinator/tournaments',
     job: 'run_event_desk',
   },
   {
-    question: 'What needs source review?',
+    question: 'Review source data',
     cta: 'Open Data Assist',
     href: '/data-assist?intent=upload-source&context=Leagues%20and%20Tournaments%20quick%20path',
     job: 'review_source_data',
@@ -217,10 +278,6 @@ const organizerActions = [
       surface: 'leagues',
       metadata: { location: 'leagues_tournaments_hub', job: 'organize_season' },
     },
-    trust: [
-      { label: 'Status', value: 'Organizer path', tone: 'good' },
-      { label: 'Admin', value: 'Less cleanup', tone: 'info' },
-    ],
   },
   {
     eyebrow: 'Event',
@@ -239,10 +296,6 @@ const organizerActions = [
       surface: 'tournaments',
       metadata: { location: 'leagues_tournaments_hub', job: 'run_event_day' },
     },
-    trust: [
-      { label: 'Status', value: 'Event path', tone: 'good' },
-      { label: 'Desk', value: 'Tournament', tone: 'info' },
-    ],
   },
   {
     eyebrow: 'Scores',
@@ -261,10 +314,6 @@ const organizerActions = [
       surface: 'leagues',
       metadata: { location: 'leagues_tournaments_hub', job: 'track_scores' },
     },
-    trust: [
-      { label: 'Freshness', value: 'Results path', tone: 'info' },
-      { label: 'Status', value: 'Ready to post', tone: 'good' },
-    ],
   },
   {
     eyebrow: 'Publish',
@@ -283,10 +332,6 @@ const organizerActions = [
       surface: 'leagues',
       metadata: { location: 'leagues_tournaments_hub', job: 'publish_updates' },
     },
-    trust: [
-      { label: 'Source', value: 'Public pages', tone: 'info' },
-      { label: 'Confidence', value: 'Shared view', tone: 'good' },
-    ],
   },
 ] as const
 
@@ -294,6 +339,68 @@ const sectionStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
   minWidth: 0,
+}
+
+const organizerDetailsSectionStyle: CSSProperties = {
+  display: 'block',
+  gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const organizerDetailsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  padding: '12px 14px',
+  borderRadius: 8,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  listStyle: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const organizerDetailsSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const organizerDetailsEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const organizerDetailsTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const organizerDetailsCueStyle: CSSProperties = {
+  flex: '0 0 auto',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const organizerDetailsContentStyle: CSSProperties = {
+  display: 'grid',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const organizerQuickPathStyle: CSSProperties = {
@@ -344,18 +451,18 @@ const organizerQuickPathTextStyle: CSSProperties = {
 
 const organizerQuickPathGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 175px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 128px), 1fr))',
   gap: 10,
   minWidth: 0,
 }
 
 const organizerQuickPathCardStyle: CSSProperties = {
   display: 'grid',
-  gap: 8,
-  minHeight: 104,
+  gap: 6,
+  minHeight: 70,
   minWidth: 0,
   alignContent: 'space-between',
-  padding: 13,
+  padding: 11,
   borderRadius: 8,
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
   background: 'color-mix(in srgb, var(--shell-chip-bg) 78%, var(--brand-blue-2) 22%)',
@@ -365,7 +472,7 @@ const organizerQuickPathCardStyle: CSSProperties = {
 
 const organizerQuickPathQuestionStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 15,
+  fontSize: 14,
   lineHeight: 1.25,
   fontWeight: 950,
   overflowWrap: 'anywhere',
@@ -379,11 +486,242 @@ const organizerQuickPathCtaStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const gridStyle: CSSProperties = {
+const organizerCommandBoardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
-  gap: 14,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
+  gap: 10,
+  alignItems: 'start',
   minWidth: 0,
+  padding: 'clamp(12px, 2.2vw, 16px)',
+  borderRadius: 8,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
+  background:
+    'linear-gradient(145deg, color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%), rgba(8,16,34,0.78))',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const organizerCommandDeskStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 8,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background:
+    'linear-gradient(150deg, color-mix(in srgb, var(--brand-green) 11%, transparent), rgba(7,17,33,0.84) 48%, rgba(8,16,34,0.92))',
+  overflow: 'hidden',
+}
+
+const organizerCommandDeskTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const organizerCommandBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 26,
+  padding: '0 9px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 11%, var(--shell-chip-bg) 89%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const organizerCommandTopLinkStyle: CSSProperties = {
+  ...organizerQuickPathCtaStyle,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 34,
+  padding: '0 11px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  background: 'rgba(7,17,33,0.66)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+}
+
+const organizerCommandDeskTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.45rem, 2.4vw, 2rem)',
+  lineHeight: 1.05,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const organizerCommandDeskTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.52,
+  fontWeight: 740,
+  overflowWrap: 'anywhere',
+}
+
+const organizerCommandMetricGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 118px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const organizerCommandMetricTileStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  alignContent: 'start',
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.62)',
+}
+
+const organizerCommandMetricTileAccentStyle: CSSProperties = {
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, rgba(7,17,33,0.62) 90%)',
+}
+
+const organizerCommandMetricLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  lineHeight: 1.15,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const organizerCommandMetricValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.15,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const organizerCommandActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const organizerCommandGhostLinkStyle: CSSProperties = {
+  ...organizerCommandTopLinkStyle,
+  color: 'var(--brand-green)',
+}
+
+const organizerCommandStepListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const organizerCommandStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '32px minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'start',
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.58)',
+}
+
+const organizerCommandStepNumberStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 32,
+  height: 32,
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 11%, var(--shell-chip-bg) 89%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+}
+
+const organizerCommandStepCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const organizerCommandStepTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const organizerCommandStepEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const organizerCommandStepLinkStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+  textDecoration: 'none',
+  borderBottom: '1px solid color-mix(in srgb, var(--brand-green) 46%, transparent)',
+}
+
+const organizerCommandStepTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const organizerCommandStepBodyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.42,
+  fontWeight: 730,
+  overflowWrap: 'anywhere',
+}
+
+const organizerCommandStepMetricRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 6,
+  minWidth: 0,
+}
+
+const organizerCommandMetricPillStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 24,
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(8,16,34,0.66)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
 }
 
 const organizerQuestionStyle: CSSProperties = {

@@ -3,8 +3,10 @@
 import Link from 'next/link'
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
+import { buildProductAccessState, hasPlanAccess } from '@/lib/access-model'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
 import { getPlanDestinationHref, getPlanUnlockHref } from '@/lib/plan-intent'
+import { PAID_CHECKOUT_ENABLED, PAID_CHECKOUT_PAUSED_MESSAGE } from '@/lib/paid-checkout'
 import { buildUpgradePricingSnapshot, type UpgradeRequestRecord } from '@/lib/upgrade-requests'
 
 type UpgradePromptProps = {
@@ -18,7 +20,14 @@ type UpgradePromptProps = {
   secondaryHref?: string
   footnote?: string
   compact?: boolean
+  summaryOnly?: boolean
   children?: ReactNode
+  unlockSteps?: ReadonlyArray<UpgradePromptUnlockStep>
+}
+
+type UpgradePromptUnlockStep = {
+  title: string
+  body: string
 }
 
 export default function UpgradePrompt({
@@ -32,18 +41,34 @@ export default function UpgradePrompt({
   secondaryHref,
   footnote,
   compact = false,
+  summaryOnly = false,
   children,
+  unlockSteps,
 }: UpgradePromptProps) {
-  const { session, authResolved } = useAuth()
+  const { session, authResolved, role, entitlements } = useAuth()
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
   const plan = getPricingPlan(planId)
+  const access = buildProductAccessState(role, entitlements)
+  const alreadyHasPlan = Boolean(
+    authResolved &&
+    session?.user?.id &&
+    hasPlanAccess(access.activePlanIds, planId),
+  )
   const resolvedResult = result || plan.outcome
   const isSignedIn = Boolean(session?.user?.id)
-  const canStartDirectCheckout = !ctaHref && authResolved && isSignedIn && planId !== 'free'
+  const canStartDirectCheckout = PAID_CHECKOUT_ENABLED && !ctaHref && authResolved && isSignedIn && planId !== 'free'
   const resolvedCtaHref = ctaHref || getPlanUnlockHref(planId)
+  const resolvedCtaLabel = !PAID_CHECKOUT_ENABLED && planId !== 'free'
+    ? 'Join early access'
+    : ctaLabel || plan.ctaLabel
   const resolvedSecondaryHref = secondaryHref || '/pricing'
-  const unlockSteps = getUnlockSteps(planId)
+  const resolvedUnlockSteps = unlockSteps ?? getUnlockSteps(planId)
+  const visibleUnlockSteps = resolvedUnlockSteps.slice(0, compact ? 2 : resolvedUnlockSteps.length)
+  const showDetailedGuidance = !summaryOnly
+  const accessPending = isSignedIn && (!authResolved || entitlements === null)
+
+  if (accessPending || alreadyHasPlan) return null
 
   async function startCheckout() {
     if (checkoutSubmitting || !session?.access_token || planId === 'free') return
@@ -126,23 +151,25 @@ export default function UpgradePrompt({
         ...(planId === 'league' ? leagueWrapStyle : null),
       }}
     >
-      <div style={contentStyle}>
+      <div style={{ ...contentStyle, ...(compact ? compactContentStyle : null) }}>
         <div style={labelRowStyle}>
           <span style={eyebrowStyle}>{plan.name}</span>
           {plan.badge ? <span style={badgeStyle}>{plan.badge}</span> : null}
         </div>
 
-        <h3 style={titleStyle}>{headline}</h3>
-        <p style={bodyStyle}>{body}</p>
-        {planId !== 'free' ? (
-          <p style={entitlementNoteStyle}>
-            Creating an account starts Free access. This tier unlocks after the plan is active.
+        <h2 style={titleStyle}>{headline}</h2>
+        <p style={{ ...bodyStyle, ...(compact ? compactBodyStyle : null) }}>{body}</p>
+        {planId !== 'free' && showDetailedGuidance ? (
+          <p style={{ ...entitlementNoteStyle, ...(compact ? compactEntitlementNoteStyle : null) }}>
+            {PAID_CHECKOUT_ENABLED
+              ? 'Creating an account starts Free access. This tier unlocks after the plan is active.'
+              : PAID_CHECKOUT_PAUSED_MESSAGE}
           </p>
         ) : null}
 
-        <div style={resultWrapStyle}>
+        <div style={{ ...resultWrapStyle, ...(compact ? compactResultWrapStyle : null) }}>
           <span style={resultLabelStyle}>Result</span>
-          <span style={resultTextStyle}>{resolvedResult}</span>
+          <span style={{ ...resultTextStyle, ...(compact ? compactResultTextStyle : null) }}>{resolvedResult}</span>
         </div>
 
         <div style={planMetaStyle}>
@@ -151,28 +178,34 @@ export default function UpgradePrompt({
           {plan.alternatePriceNote ? <span style={noteStyle}>{plan.alternatePriceNote}</span> : null}
         </div>
 
-        <div style={valueListStyle}>
-          {plan.valueProps.slice(0, compact ? 3 : 4).map((valueProp) => (
-            <span key={valueProp} style={valuePillStyle}>
-              {valueProp}
-            </span>
-          ))}
-        </div>
-
-        <div style={unlockPathStyle}>
-          <div style={unlockPathLabelStyle}>Best next unlock</div>
-          <div style={unlockStepGridStyle}>
-            {unlockSteps.map((step, index) => (
-              <div key={step.title} style={unlockStepStyle}>
-                <span style={unlockStepNumberStyle}>{index + 1}</span>
-                <span style={unlockStepTextStyle}>
-                  <strong style={unlockStepTitleStyle}>{step.title}</strong>
-                  <span style={unlockStepBodyStyle}>{step.body}</span>
-                </span>
-              </div>
+        {showDetailedGuidance ? (
+          <div style={{ ...valueListStyle, ...(compact ? compactValueListStyle : null) }}>
+            {plan.valueProps.slice(0, compact ? 2 : 4).map((valueProp) => (
+              <span key={valueProp} style={{ ...valuePillStyle, ...(compact ? compactValuePillStyle : null) }}>
+                {valueProp}
+              </span>
             ))}
           </div>
-        </div>
+        ) : null}
+
+        {showDetailedGuidance ? (
+          <div style={{ ...unlockPathStyle, ...(compact ? compactUnlockPathStyle : null) }}>
+            <div style={unlockPathLabelStyle}>Best next unlock</div>
+            <div style={unlockStepGridStyle}>
+              {visibleUnlockSteps.map((step, index) => (
+                <div key={step.title} style={{ ...unlockStepStyle, ...(compact ? compactUnlockStepStyle : null) }}>
+                  <span style={unlockStepNumberStyle}>{index + 1}</span>
+                  <span style={unlockStepTextStyle}>
+                    <strong style={unlockStepTitleStyle}>{step.title}</strong>
+                    <span style={{ ...unlockStepBodyStyle, ...(compact ? compactUnlockStepBodyStyle : null) }}>
+                      {step.body}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {children}
 
@@ -191,11 +224,11 @@ export default function UpgradePrompt({
               ...(checkoutSubmitting ? disabledActionStyle : null),
             }}
           >
-            {checkoutSubmitting ? 'Opening checkout...' : ctaLabel || plan.ctaLabel}
+            {checkoutSubmitting ? 'Opening checkout...' : resolvedCtaLabel}
           </button>
         ) : (
           <Link href={resolvedCtaHref} style={primaryActionStyle}>
-            {ctaLabel || plan.ctaLabel}
+            {resolvedCtaLabel}
           </Link>
         )}
         {resolvedSecondaryHref ? (
@@ -251,7 +284,7 @@ function getUnlockSteps(planId: PricingPlanId) {
 
   return [
     { title: 'Find', body: 'Search public players, teams, leagues, and rankings.' },
-    { title: 'Learn', body: 'Use the profile paths to understand the tennis landscape.' },
+    { title: 'Learn', body: 'Open a player, team, league, ranking, or tournament.' },
     { title: 'Upgrade when useful', body: 'Add My Lab, Team Hub, or League Office only when they help.' },
   ]
 }
@@ -284,6 +317,10 @@ const leagueWrapStyle: CSSProperties = {
 const contentStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
+}
+
+const compactContentStyle: CSSProperties = {
+  gap: 10,
 }
 
 const labelRowStyle: CSSProperties = {
@@ -339,6 +376,11 @@ const bodyStyle: CSSProperties = {
   maxWidth: 760,
 }
 
+const compactBodyStyle: CSSProperties = {
+  fontSize: 13,
+  lineHeight: 1.5,
+}
+
 const entitlementNoteStyle: CSSProperties = {
   margin: 0,
   padding: '10px 12px',
@@ -351,6 +393,13 @@ const entitlementNoteStyle: CSSProperties = {
   fontWeight: 800,
 }
 
+const compactEntitlementNoteStyle: CSSProperties = {
+  padding: '8px 10px',
+  borderRadius: 12,
+  fontSize: 12,
+  lineHeight: 1.42,
+}
+
 const resultWrapStyle: CSSProperties = {
   display: 'grid',
   gap: 6,
@@ -358,6 +407,12 @@ const resultWrapStyle: CSSProperties = {
   borderRadius: 16,
   border: '1px solid rgba(116, 190, 255, 0.12)',
   background: 'rgba(255, 255, 255, 0.04)',
+}
+
+const compactResultWrapStyle: CSSProperties = {
+  gap: 4,
+  padding: '9px 11px',
+  borderRadius: 14,
 }
 
 const resultLabelStyle: CSSProperties = {
@@ -373,6 +428,11 @@ const resultTextStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.55,
   fontWeight: 700,
+}
+
+const compactResultTextStyle: CSSProperties = {
+  fontSize: 12,
+  lineHeight: 1.4,
 }
 
 const planMetaStyle: CSSProperties = {
@@ -410,6 +470,10 @@ const valueListStyle: CSSProperties = {
   gap: 8,
 }
 
+const compactValueListStyle: CSSProperties = {
+  gap: 6,
+}
+
 const valuePillStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -423,6 +487,12 @@ const valuePillStyle: CSSProperties = {
   border: '1px solid rgba(116, 190, 255, 0.12)',
 }
 
+const compactValuePillStyle: CSSProperties = {
+  minHeight: '28px',
+  padding: '0 10px',
+  fontSize: 11,
+}
+
 const unlockPathStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
@@ -430,6 +500,12 @@ const unlockPathStyle: CSSProperties = {
   borderRadius: 18,
   border: '1px solid rgba(155, 225, 29, 0.12)',
   background: 'rgba(155, 225, 29, 0.05)',
+}
+
+const compactUnlockPathStyle: CSSProperties = {
+  gap: 8,
+  padding: 10,
+  borderRadius: 16,
 }
 
 const unlockPathLabelStyle: CSSProperties = {
@@ -457,6 +533,12 @@ const unlockStepStyle: CSSProperties = {
   border: '1px solid rgba(255, 255, 255, 0.07)',
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const compactUnlockStepStyle: CSSProperties = {
+  gap: 8,
+  padding: '8px 9px',
+  borderRadius: 12,
 }
 
 const unlockStepNumberStyle: CSSProperties = {
@@ -490,6 +572,11 @@ const unlockStepBodyStyle: CSSProperties = {
   fontSize: 12,
   lineHeight: 1.45,
   fontWeight: 600,
+}
+
+const compactUnlockStepBodyStyle: CSSProperties = {
+  fontSize: 11,
+  lineHeight: 1.35,
 }
 
 const footnoteStyle: CSSProperties = {

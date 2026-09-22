@@ -7,9 +7,13 @@ import {
 } from '@/lib/competition-layers'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 
-const LEAGUE_SUMMARY_PAGE_SIZE = 2000
-const LEAGUE_SUMMARY_FETCH_LIMIT = 20000
-const LEAGUE_SUMMARY_TIMEOUT_MS = 20000
+// The public directory must stay responsive while historical imports are active.
+// Recent match context and the dedicated team directories provide the useful view
+// without re-scanning the entire match table on each cache refresh.
+const LEAGUE_SUMMARY_PAGE_SIZE = 500
+const LEAGUE_SUMMARY_FETCH_LIMIT = 3000
+const LEAGUE_SUMMARY_TEAM_CONTEXT_LIMIT = 5000
+const LEAGUE_SUMMARY_TIMEOUT_MS = 7000
 
 type MatchLeagueRow = {
   id: string
@@ -32,6 +36,12 @@ type TeamSummaryLeagueRow = {
   usta_section: string | null
   district_area: string | null
   source?: string | null
+}
+
+type TennisRecordTeamContextRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
 }
 
 export type LeagueCard = {
@@ -382,6 +392,10 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
       if ((data || []).length < LEAGUE_SUMMARY_PAGE_SIZE) {
         break
       }
+
+      if (offset + LEAGUE_SUMMARY_PAGE_SIZE >= LEAGUE_SUMMARY_FETCH_LIMIT) {
+        notice = `Showing the most recent ${totalMatches.toLocaleString()} parent matches for a fast public directory. Older team context remains available in the team directory.`
+      }
     } catch (error) {
       if ((error as Error).name === 'AbortError') {
         notice = `Loaded the most recent ${totalMatches.toLocaleString()} parent matches before the server summary timeout. Older season rows may still exist outside this summary window.`
@@ -397,11 +411,27 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
   const { data: summaryTeamRows, error: summaryTeamError } = await supabase
     .from('team_summary_teams')
     .select('team_name, league_name, flight, usta_section, district_area, source')
-    .limit(LEAGUE_SUMMARY_FETCH_LIMIT)
+    .limit(LEAGUE_SUMMARY_TEAM_CONTEXT_LIMIT)
 
   if (!summaryTeamError) {
     for (const row of (summaryTeamRows || []) as TeamSummaryLeagueRow[]) {
       addLeagueSummaryTeam(leagueMap, row)
+    }
+  }
+
+  const { data: tennisRecordTeamRows, error: tennisRecordTeamError } = await supabase
+    .from('tennisrecord_public_team_context')
+    .select('team_name, league_name, flight')
+    .limit(LEAGUE_SUMMARY_TEAM_CONTEXT_LIMIT)
+
+  if (!tennisRecordTeamError) {
+    for (const row of (tennisRecordTeamRows || []) as TennisRecordTeamContextRow[]) {
+      addLeagueSummaryTeam(leagueMap, {
+        ...row,
+        usta_section: null,
+        district_area: null,
+        source: 'tennisrecord',
+      })
     }
   }
 

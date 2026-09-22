@@ -45,34 +45,71 @@ describe('TIQ product preview cards', () => {
   })
 
   it('powers the homepage product preview grid with named tennis cards', () => {
-    expect(commandCenterSource).toContain('TiqMatchupCard')
-    expect(commandCenterSource).toContain('TiqLineupPreview')
-    expect(commandCenterSource).toContain('TiqCoachAssignmentCard')
-    expect(commandCenterSource).toContain('TiqTournamentDrawCard')
-    expect(commandCenterSource).toContain('TiqLeagueStandingCard')
-    expect(commandCenterSource).toContain('renderPreviewCard(card)')
+    expect(commandCenterSource).toContain('const previewBoardStyle: CSSProperties')
+    expect(commandCenterSource).toContain('const previewProofRowStyle: CSSProperties')
+    expect(commandCenterSource).toContain("card.metrics.map((metric) => `${metric.label}: ${metric.value}`).join(' / ')")
+    expect(commandCenterSource).toContain('Proof before the click.')
+    expect(commandCenterSource).not.toContain('renderPreviewCard(card)')
+    expect(commandCenterSource).not.toContain('previewBodyStyle')
+  })
+
+  it('uses product-path preview language instead of sample record names', () => {
+    for (const copy of [
+      'Scout the next match',
+      'Build the team week',
+      'Assign the next drill',
+      'Run the event desk',
+      'Keep standings current',
+    ]) {
+      expect(commandCenterSource).toContain(copy)
+      expect(source).toContain(copy)
+    }
+
+    expect(commandCenterSource).toContain('Proof before the click.')
+    expect(commandCenterSource).toContain('Each row gives you the decision, the signal, and the next action without making the homepage another tour.')
+    expect(commandCenterSource).toContain('Tool proof')
+
+    for (const staleCopy of [
+      'Rivera vs Brooks',
+      'Saturday vs West County',
+      'Ava M.',
+      'Summer Doubles Classic',
+      'Spring Ladder',
+      'Useful tennis tools for the next action.',
+      'Preview cards keep each tool concrete',
+      'See what each path actually does.',
+      'Each preview shows the decision it supports, the signal it reads, and the next tennis action.',
+    ]) {
+      expect(commandCenterSource).not.toContain(staleCopy)
+      expect(source).not.toContain(staleCopy)
+    }
   })
 
   it('keeps the public command-center cards compact instead of overly rounded', () => {
     expect(commandCenterSource).toContain('const actionCardStyle: CSSProperties')
     expect(commandCenterSource).toContain('const heroCopyStyle: CSSProperties')
     expect(commandCenterSource).toContain('const heroPanelStyle: CSSProperties')
-    expect(commandCenterSource).toContain('const miniCourtStyle: CSSProperties')
+    expect(commandCenterSource).not.toContain('const miniCourtStyle: CSSProperties')
     expect(commandCenterSource).toContain('borderRadius: 8')
     expect(commandCenterSource).not.toContain('borderRadius: 22')
     expect(commandCenterSource).not.toContain('borderRadius: 28')
   })
 
-  it('turns the homepage hero panel into an action board instead of an empty court frame', () => {
+  it('turns the homepage hero panel into a concise action board instead of a repetitive path preview', () => {
     expect(commandCenterSource).toContain('const heroBoardActions')
-    expect(commandCenterSource).toContain('Platform paths')
-    expect(commandCenterSource).toContain('Start with the tennis need you have today.')
+    expect(commandCenterSource).toContain('Quick actions')
+    expect(commandCenterSource).toContain('Pick the job, then move.')
+    expect(commandCenterSource).toContain('Search when you know the name.')
+    expect(commandCenterSource).not.toContain('Platform paths')
+    expect(commandCenterSource).not.toContain('Explore, improve, compete, manage, or fix tennis context.')
     expect(commandCenterSource).not.toContain('Start with what you need to do.')
-    expect(commandCenterSource).toContain('Explore, improve, compete, manage, or fix tennis context.')
-    expect(commandCenterSource).toContain("{ label: 'Fix Tennis Info', detail: 'Scorecards, schedules, rosters', href: DATA_ASSIST_STORY.href }")
+    expect(commandCenterSource).toContain("{ label: 'Video Review', detail: 'Record clips and coach feedback', href: '/video-review' }")
+    expect(commandCenterSource).toContain("{ label: 'Captain', detail: 'Team week and lineups', href: '/captain' }")
+    expect(commandCenterSource).toContain("{ label: 'Fix Data', detail: 'Scorecards and rosters', href: DATA_ASSIST_STORY.href }")
+    expect(commandCenterSource).not.toContain("{ label: 'Manage', detail: 'Teams and events', href: '/manage' }")
     expect(commandCenterSource).toContain('heroBoardGridStyle')
     expect(commandCenterSource).toContain('heroBoardActionStyle')
-    expect(commandCenterSource).toContain('aria-label="TenAceIQ portal board preview"')
-    expect(commandCenterSource).not.toContain('<div style={miniCourtStyle} aria-hidden="true">')
+    expect(commandCenterSource).not.toContain('aria-label="TenAceIQ portal board preview"')
+    expect(commandCenterSource).not.toContain('<div style={miniCourtStyle}')
   })
 })

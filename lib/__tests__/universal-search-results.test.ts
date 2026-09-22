@@ -12,7 +12,6 @@ describe('universal search result model', () => {
       "'Leagues'",
       "'Tournaments'",
       "'Coaches'",
-      "'Courts / clubs'",
       "'Resources'",
       "'Actions'",
     ]) {
@@ -34,9 +33,8 @@ describe('universal search result model', () => {
       'Request data review',
       'Prep a matchup',
       'Scout a team',
-      'Find a place to play',
       'Captain match week',
-      'Run a league or tournament',
+      'Open organizer tools',
     ]) {
       expect(source).toContain(phrase)
     }
@@ -45,6 +43,7 @@ describe('universal search result model', () => {
   it('recognizes natural tennis search intents', () => {
     for (const keyword of [
       '4.0 league near me',
+      'find players',
       'doubles partner',
       'scorecard upload',
       'captain lineup',
@@ -53,7 +52,6 @@ describe('universal search result model', () => {
       'scout team',
       'rating level',
       'request review',
-      'play tennis near me',
       'captain match week',
       'organizer hub',
       'leagues and tournaments',
@@ -63,13 +61,18 @@ describe('universal search result model', () => {
   })
 
   it('routes organizer searches to the combined leagues and tournaments hub', () => {
-    expect(source).toContain("title: 'Run a league or tournament'")
+    expect(source).toContain("title: 'Open organizer tools'")
     expect(source).toContain("href: '/leagues-and-tournaments'")
-    expect(source).toContain('Open the organizer hub when schedules, standings, draws, players, teams, scores, and event work overlap.')
+    expect(source).toContain('Manage schedules, standings, draws, players, teams, scores, and event work.')
     expect(source).toContain("keywords: ['run a league or tournament', 'organizer hub', 'league tournament', 'leagues and tournaments', 'event organizer', 'reduce admin work']")
+    expect(source).not.toContain("title: 'Run a league or tournament'")
   })
 
   it('preserves typed queries when users click a result card', () => {
+    expect(source).toContain('function scoreSearchResult')
+    expect(source).toContain('keywordExact ? 12 : 0')
+    expect(source).toContain('titleDirect ? 8 : 0')
+    expect(source).toContain('detailDirect ? 2 : 0')
     expect(source).toContain('function buildResultHref')
     expect(source).toContain('function appendSearchQuery')
     expect(source).toContain('href={buildResultHref(item, query, Boolean(session?.user))}')
@@ -110,5 +113,22 @@ describe('universal search result model', () => {
     expect(source).toContain('showResults?: boolean')
     expect(source).toContain('showResults && !compact')
     expect(source).toContain('{showResults ? (')
+  })
+
+  it('keeps search submission resilient when compact results are hidden', () => {
+    expect(source).toContain('action="/explore/search"')
+    expect(source).toContain('method="get"')
+    expect(source).toContain('name="q"')
+    expect(source).toContain('new FormData(event.currentTarget)')
+    expect(source).toContain("formData.get('q')")
+    expect(source).toContain("typeof submittedQuery === 'string' ? submittedQuery : query")
+  })
+
+  it('offers live player-name autocomplete before someone has to leave the search field', () => {
+    expect(source).toContain("supabase.rpc('search_public_players'")
+    expect(source).toContain('Player name suggestions')
+    expect(source).toContain('Player matches')
+    expect(source).toContain('aria-autocomplete="list"')
+    expect(source).toContain('aria-expanded={showPlayerSuggestions}')
   })
 })

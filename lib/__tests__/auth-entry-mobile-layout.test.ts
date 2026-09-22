@@ -2,11 +2,17 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const authEntryFiles = [
+const authPageFiles = [
   'app/login/page.tsx',
   'app/join/page.tsx',
   'app/reset-password/page.tsx',
   'app/forget-password/page.tsx',
+]
+
+const authEntryFiles = [
+  ...authPageFiles,
+  'app/components/site-shell.tsx',
+  'app/globals.css',
 ]
 
 const sources = new Map(
@@ -36,7 +42,13 @@ describe('auth entry mobile layout guards', () => {
     expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
     expect(source).toContain('const { role, entitlements, authResolved } = useAuth()')
     expect(source).toContain('const authLoading = !authResolved')
-    expect(source).toContain("if (!authResolved || role === 'public') return")
+    expect(source).toContain('const [redirecting, setRedirecting] = useState(false)')
+    expect(source).toContain('const hasRedirectedRef = useRef(false)')
+    expect(source).toContain("if (role === 'public')")
+    expect(source).toContain('setRedirecting(true)')
+    expect(source).toContain("if (authLoading || redirecting || role !== 'public')")
+    expect(source).toContain('Opening your TenAceIQ home...')
+    expect(source).not.toContain("if (role !== 'public') return null")
     expect(source).toContain('const signedInRedirectRoute = requestedNextRoute ? selectedNextRoute : getDefaultSignedInRoute(role, entitlements)')
     expect(source).toContain('router.replace(signedInRedirectRoute)')
     expect(source).toContain("if (access.currentPlanId === 'coach') return '/coach'")
@@ -66,8 +78,8 @@ describe('auth entry mobile layout guards', () => {
 
   it('keeps Login return-path copy tied to the selected tennis tool', () => {
     const source = sources.get('app/login/page.tsx')!
-    expect(source).toContain('Open the tennis map.')
-    expect(source).toContain('Sign in, search the tennis map, and choose the right tools when your tennis needs more support.')
+    expect(source).toContain('Sign in to TenAceIQ.')
+    expect(source).toContain('Open your saved tennis work.')
     expect(source).toContain('Continue to My Lab.')
     expect(source).toContain('Sign in to pick up your player home, matchup prep, follows, and messages.')
     expect(source).toContain('Continue to Coach Hub.')
@@ -102,7 +114,7 @@ describe('auth entry mobile layout guards', () => {
     expect(source).toContain('this coach setup lands on the right player profile')
   })
 
-  it('preserves invited emails from account creation into sign in', () => {
+  it('preserves invited emails and return paths through confirmation signup', () => {
     const source = sources.get('app/join/page.tsx')!
 
     expect(source).toContain("const requestedEmail = searchParams.get('email')?.trim() ?? ''")
@@ -114,11 +126,13 @@ describe('auth entry mobile layout guards', () => {
     expect(source).toContain('const cleanEmail = email.trim()')
     expect(source).toContain("if (cleanEmail) loginParams.set('email', cleanEmail)")
     expect(source).toContain('const signInHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, email || requestedEmail)')
-    expect(source).toContain('const postSignupLoginHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, trimmedEmail)')
-    expect(source).toContain('const emailRedirectTo = typeof window !==')
-    expect(source).toContain('new URL(postSignupLoginHref, window.location.origin).toString()')
-    expect(source).toContain('options: emailRedirectTo ? { emailRedirectTo } : undefined')
-    expect(source).toContain('router.push(postSignupLoginHref)')
+    expect(source).toContain("fetch('/api/auth/signup'")
+    expect(source).toContain('email: trimmedEmail')
+    expect(source).toContain('nextHref: selectedNextRoute')
+    expect(source).toContain('captainPilot: isCaptainPilotSignup')
+    expect(source).toContain('Check your email to confirm your account.')
+    expect(source).not.toContain('supabase.auth.signUp')
+    expect(source).not.toContain('router.push(postSignupLoginHref)')
     expect(source).toContain('href={signInHref}')
   })
 
@@ -151,7 +165,7 @@ describe('auth entry mobile layout guards', () => {
       expect(source, file).not.toContain("? '1fr'")
     }
 
-    for (const file of authEntryFiles) {
+    for (const file of authPageFiles) {
       const source = sources.get(file)!
       expect(source).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
       expect(source).not.toContain(
@@ -167,7 +181,8 @@ describe('auth entry mobile layout guards', () => {
   })
 
   it('keeps auth shell, panel, and form containers shrinkable', () => {
-    for (const [file, source] of sources) {
+    for (const file of authPageFiles) {
+      const source = sources.get(file)!
       for (const styleName of ['heroShell', 'formCard']) {
         expect(styleBlock(source, styleName), `${file} ${styleName}`).toContain('minWidth: 0')
       }
@@ -196,6 +211,28 @@ describe('auth entry mobile layout guards', () => {
     expect(styleBlock(sources.get('app/join/page.tsx')!, 'authLoadingIconStyle')).toContain(
       'width: 32',
     )
+    expect(sources.get('app/components/site-shell.tsx')!).toContain(
+      "const authRoutes = new Set(['/login', '/join', '/forget-password', '/reset-password'])",
+    )
+    expect(sources.get('app/components/site-shell.tsx')!).toContain(
+      "return 'brand-atmosphere-mark brand-atmosphere-mark--auth'",
+    )
+    expect(sources.get('app/globals.css')!).toContain('.brand-atmosphere-mark--auth')
+    expect(sources.get('app/globals.css')!).toContain('opacity: 0.055;')
+    expect(sources.get('app/globals.css')!).toContain('width: min(52vw, 560px);')
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'watermarkStyle')).toContain('right: 0')
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'watermarkStyle')).toContain("width: 'min(310px, 62vw)'")
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'watermarkStyle')).not.toContain("right: '-110px'")
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'watermarkStyle')).toContain('right: 0')
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'watermarkStyle')).toContain("width: 'min(380px, 58vw)'")
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'watermarkStyle')).toContain('opacity: 0.14')
+    expect(styleBlock(sources.get('app/login/page.tsx')!, 'watermarkStyle')).not.toContain('clamp(-42px')
+
+    for (const file of ['app/reset-password/page.tsx', 'app/forget-password/page.tsx']) {
+      expect(styleBlock(sources.get(file)!, 'watermarkStyle')).toContain('right: 0')
+      expect(styleBlock(sources.get(file)!, 'watermarkStyle')).toContain("width: 'min(310px, 62vw)'")
+      expect(styleBlock(sources.get(file)!, 'watermarkStyle')).not.toContain('clamp(-90px')
+    }
 
     for (const file of ['app/reset-password/page.tsx', 'app/forget-password/page.tsx']) {
       const source = sources.get(file)!
@@ -207,14 +244,74 @@ describe('auth entry mobile layout guards', () => {
     expect(styleBlock(sources.get('app/forget-password/page.tsx')!, 'formPanelGlow')).toContain('inset: 0')
   })
 
+  it('keeps Join account creation before optional selected-plan details', () => {
+    const source = sources.get('app/join/page.tsx')!
+    const formIndex = source.indexOf('<form onSubmit={handleSubmit}')
+    const selectedPlanIndex = source.indexOf('<details className="authOptionalDetailsSection" style={selectedPlanCardStyle}>')
+
+    expect(formIndex).toBeGreaterThanOrEqual(0)
+    expect(selectedPlanIndex).toBeGreaterThanOrEqual(0)
+    expect(formIndex).toBeLessThan(selectedPlanIndex)
+    expect(source).toContain('<form onSubmit={handleSubmit} noValidate')
+    expect(source).toContain('className="authOptionalDetailsBody"')
+    expect(sources.get('app/globals.css')!).toContain(
+      '.authOptionalDetailsSection:not([open]) > .authOptionalDetailsBody',
+    )
+    expect(source).toContain('Create your free account.')
+    expect(source).toContain('Search tennis now. Add paid tools only when they help.')
+    expect(source).toContain('<div style={formLabel}>{selectedIntent.eyebrow}</div>')
+  })
+
+  it('keeps Login sign-in before optional return-path details', () => {
+    const source = sources.get('app/login/page.tsx')!
+    const formIndex = source.indexOf('<form onSubmit={handleSubmit}')
+    const contextIndex = source.indexOf('<details className="authReturnDetailsSection" style={loginContextStyle}>')
+
+    expect(formIndex).toBeGreaterThanOrEqual(0)
+    expect(contextIndex).toBeGreaterThanOrEqual(0)
+    expect(formIndex).toBeLessThan(contextIndex)
+    expect(source).toContain('Show return path')
+    expect(source).toContain('className="authReturnDetailsBody"')
+    expect(sources.get('app/globals.css')!).toContain(
+      '.authReturnDetailsSection:not([open]) > .authReturnDetailsBody',
+    )
+  })
+
+  it('keeps password recovery forms before optional path details', () => {
+    const forgotPassword = sources.get('app/forget-password/page.tsx')!
+    const resetPassword = sources.get('app/reset-password/page.tsx')!
+
+    expect(forgotPassword.indexOf('<form onSubmit={handleSubmit}')).toBeLessThan(
+      forgotPassword.indexOf('<details className="authOptionalDetailsSection" style={recoveryContextStyle}>'),
+    )
+    expect(resetPassword.indexOf('<form onSubmit={handleSubmit}')).toBeLessThan(
+      resetPassword.indexOf('<details className="authOptionalDetailsSection" style={resetContextStyle}>'),
+    )
+    expect(forgotPassword).toContain('Show recovery path')
+    expect(resetPassword).toContain('Show sign-in path')
+    expect(forgotPassword).toContain('className="authOptionalDetailsBody"')
+    expect(resetPassword).toContain('className="authOptionalDetailsBody"')
+    expect(sources.get('app/globals.css')!).toContain(
+      '.authOptionalDetailsSection:not([open]) > .authOptionalDetailsBody',
+    )
+  })
+
   it('wraps long auth labels, notices, and action text instead of forcing overflow', () => {
-    for (const [file, source] of sources) {
+    for (const file of ['app/reset-password/page.tsx', 'app/forget-password/page.tsx']) {
+      const source = sources.get(file)!
       for (const styleName of ['heroTitle', 'heroText', 'formTitle', 'inputLabel', 'submitButton', 'successBanner', 'errorBanner', 'inlineLink']) {
         expect(styleBlock(source, styleName), `${file} ${styleName}`).toContain("overflowWrap: 'anywhere'")
       }
     }
 
-    for (const file of ['app/login/page.tsx', 'app/join/page.tsx', 'app/reset-password/page.tsx', 'app/forget-password/page.tsx']) {
+    for (const file of ['app/login/page.tsx', 'app/join/page.tsx']) {
+      const source = sources.get(file)!
+      for (const styleName of ['formTitle', 'formIntroStyle', 'inputLabel', 'submitButton', 'successBanner', 'errorBanner', 'inlineLink']) {
+        expect(styleBlock(source, styleName), `${file} ${styleName}`).toContain("overflowWrap: 'anywhere'")
+      }
+    }
+
+    for (const file of ['app/reset-password/page.tsx', 'app/forget-password/page.tsx']) {
       const eyebrowBlock = styleBlock(sources.get(file)!, 'eyebrow')
       expect(eyebrowBlock).toContain("maxWidth: '100%'")
       expect(eyebrowBlock).toContain("whiteSpace: 'normal'")
@@ -235,10 +332,10 @@ describe('auth entry mobile layout guards', () => {
       "gridTemplateColumns: 'minmax(0, 1fr)'",
     )
     expect(styleBlock(sources.get('app/login/page.tsx')!, 'mobilePrimaryAuthLink')).toContain(
-      "minHeight: 42",
+      "minHeight: 44",
     )
     expect(styleBlock(sources.get('app/login/page.tsx')!, 'mobileSecondaryAuthLink')).toContain(
-      "minHeight: 42",
+      "minHeight: 44",
     )
     expect(styleBlock(sources.get('app/login/page.tsx')!, 'mobileFooterPrompt')).toContain(
       "justifyItems: 'center'",
@@ -246,11 +343,8 @@ describe('auth entry mobile layout guards', () => {
     expect(styleBlock(sources.get('app/login/page.tsx')!, 'authLoadingIconStyle')).not.toContain(
       'boxShadow',
     )
-    expect(styleBlock(sources.get('app/join/page.tsx')!, 'identityCueStyle')).toContain(
+    expect(styleBlock(sources.get('app/join/page.tsx')!, 'formIntroStyle')).toContain(
       "overflowWrap: 'anywhere'",
-    )
-    expect(styleBlock(sources.get('app/join/page.tsx')!, 'identityCueStyle')).toContain(
-      "gridTemplateColumns: 'minmax(0, 36px) minmax(0, 1fr)'",
     )
     expect(styleBlock(sources.get('app/reset-password/page.tsx')!, 'togglePasswordButton')).toContain(
       "overflowWrap: 'anywhere'",

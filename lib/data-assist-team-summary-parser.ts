@@ -1,4 +1,10 @@
 import type { DataAssistOcrProvider, DataAssistOcrScreenshotInput } from './data-assist-ocr'
+import {
+  inferLeagueAgeDivision,
+  inferMixedPairRole,
+  type MixedPairRole,
+  type PlayerRatingSource,
+} from './player-eligibility'
 
 export type DataAssistTeamSummaryParsedTeam = {
   name: string
@@ -10,10 +16,25 @@ export type DataAssistTeamSummaryParsedPlayer = {
   name: string
   ntrp: number | null
   teamName: string
+  phone?: string
+  email?: string
+  ustaNumber?: string
+  ratingSource?: PlayerRatingSource
+  mixedPairRole?: MixedPairRole
+  ageDivision?: string | null
+}
+
+export type DataAssistTeamSummaryParsedContact = {
+  name: string
+  phone: string
+  email: string
+  role: 'Player' | 'Captain' | 'Co-Captain'
+  isCaptain: boolean
 }
 
 export type DataAssistTeamSummaryParsedDraft = {
   draftKind: 'team_summary'
+  rosterSource?: 'team_summary' | 'player_roster'
   rosterTeamName: string
   leagueName: string
   flight: string
@@ -21,7 +42,9 @@ export type DataAssistTeamSummaryParsedDraft = {
   districtArea: string
   teams: DataAssistTeamSummaryParsedTeam[]
   players: DataAssistTeamSummaryParsedPlayer[]
+  contacts: DataAssistTeamSummaryParsedContact[]
   playerCount: number
+  contactCount: number
   teamCount: number
   parserWarnings: string[]
   rawTextPreview: string
@@ -44,47 +67,41 @@ const JUNK_PLAYER_TERMS = [
   'league adult',
 ]
 
-const KNOWN_TEAM_SUMMARY_ROSTERS: Record<string, DataAssistTeamSummaryParsedPlayer[]> = {
-  'meinert the other guys s': [
-    { name: 'Nathan Meinert', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'David Cabrera', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Benjamin Strate', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Rj Tovonian', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Andy Horton', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Jon Tchen', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Brendan Czaicki', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Connor Zielonko', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Dragos Enea', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'CHRISTOPHER KRIEGER', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Richard McQueen', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Scott Hornung', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Takeshi Yoshimatsu', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Michael Thompson', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Michael Ho', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Nathan Easley', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Diego Mateluna', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Carson Fisher', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Jorge Lopez', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    { name: 'Martin Damm', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-  ],
-}
-
 export function buildTeamSummaryOcrDraftFromText(
   rawText: string,
   screenshots: DataAssistOcrScreenshotInput[],
   provider: DataAssistOcrProvider,
 ): DataAssistTeamSummaryParsedDraft {
+  const rosterSource = /Usta#?[\s\S]*\bExpiry Date\b[\s\S]*\bPhone no\b/i.test(rawText)
+    ? 'player_roster' as const
+    : 'team_summary' as const
   const normalizedText = normalizeWhitespace(rawText)
   const rosterTeamName = cleanTeamName(
     extractFirst(rawText, /\bTeam:\s*([^\n]+)/i) ||
     extractFirst(rawText, /\b([A-Z][A-Za-z' /.-]+\/[A-Z][A-Za-z' /.-]+\s*\(S\))/),
   )
-  const leagueName = cleanText(extractFirst(rawText, /\b(20\d{2}\s+(?:Adult|Mixed|Combo|Tri-Level)[^\n]{0,80}?(?:Spring|Summer|Fall|Winter))\b/i))
-  const flight = cleanText(extractFirst(rawText, /\b((?:Men|Women|Mixed)\s*\d\.?[05])\b/i)).replace(/([a-z])\s*(\d)([05])$/i, '$1 $2.$3')
+  const leagueName = cleanText(
+    extractFirst(rawText, /^League:\s*([^\n]+)/im) ||
+    extractFirst(rawText, /\b(20\d{2}\s+(?:Adult|Mixed|Combo|Tri-Level)[^\n]{0,80}?(?:Spring|Summer|Fall|Winter))\b/i),
+  )
+  const flight = cleanText(
+    extractFirst(rawText, /^Flight:\s*([^\n]+)/im) ||
+    extractFirst(rawText, /\b((?:Men|Women|Mixed)\s*\d\.?[05])\b/i),
+  ).replace(/([a-z])\s*(\d)([05])$/i, '$1 $2.$3')
   const ustaSection = /missouri valley/i.test(normalizedText) ? 'USTA/MISSOURI VALLEY' : ''
   const districtArea = /st\.?\s*louis/i.test(normalizedText) ? 'ST. LOUIS - St. Louis Local Leagues' : ''
   const teams = parseTeams(rawText)
-  const players = applyKnownRosterRepair(parsePlayers(rawText, rosterTeamName), rosterTeamName, rawText)
+  const parsedPlayers = parsePlayers(rawText, rosterTeamName)
+  const namedContacts = parseContacts(rawText)
+  const rosterMixedPairRole = inferMixedPairRole(leagueName, flight)
+  const rosterAgeDivision = inferLeagueAgeDivision(leagueName, flight)
+  const players = mergePlayerContacts(parsedPlayers, namedContacts).map((player) => ({
+    ...player,
+    ratingSource: player.ntrp === null ? 'unknown' as const : 'verified' as const,
+    mixedPairRole: rosterMixedPairRole,
+    ageDivision: rosterAgeDivision,
+  }))
+  const contacts = buildRosterContacts(players, namedContacts)
   const parserWarnings: string[] = []
 
   if (!rosterTeamName) parserWarnings.push('Roster team needs review.')
@@ -104,6 +121,7 @@ export function buildTeamSummaryOcrDraftFromText(
 
   return {
     draftKind: 'team_summary',
+    rosterSource,
     rosterTeamName,
     leagueName,
     flight,
@@ -111,7 +129,9 @@ export function buildTeamSummaryOcrDraftFromText(
     districtArea,
     teams,
     players,
+    contacts,
     playerCount: players.length,
+    contactCount: contacts.length,
     teamCount: teams.length,
     parserWarnings,
     rawTextPreview: rawText.trim().slice(0, 4000),
@@ -119,6 +139,14 @@ export function buildTeamSummaryOcrDraftFromText(
     provider,
     confidenceScore,
   }
+}
+
+export function isTeamSummaryDraftReadyForImport(parsedDraft: DataAssistTeamSummaryParsedDraft) {
+  return Boolean(
+    parsedDraft.rosterTeamName.trim() &&
+    parsedDraft.players.length > 0 &&
+    parsedDraft.players.every((player) => player.name.trim() && player.ntrp !== null),
+  )
 }
 
 function parsePlayers(rawText: string, rosterTeamName: string): DataAssistTeamSummaryParsedPlayer[] {
@@ -130,13 +158,15 @@ function parsePlayers(rawText: string, rosterTeamName: string): DataAssistTeamSu
     .map((line) => line.trim())
     .filter(Boolean)
 
-  for (const line of lines) {
-    const structuredPlayer = parseStructuredPlayerLine(line, rosterTeamName)
-    if (structuredPlayer) {
-      addPlayer(players, seen, structuredPlayer)
-      continue
-    }
+  const structuredPlayers = lines
+    .map((line) => parseStructuredPlayerLine(line, rosterTeamName))
+    .filter((player): player is DataAssistTeamSummaryParsedPlayer => Boolean(player))
+  if (structuredPlayers.length) {
+    for (const player of structuredPlayers) addPlayer(players, seen, player)
+    return players
+  }
 
+  for (const line of lines) {
     const mobilePlayer = parseMobileRosterPlayerLine(line, lines, rosterTeamName)
     if (mobilePlayer) {
       addPlayer(players, seen, mobilePlayer)
@@ -183,15 +213,83 @@ function parseMobileRosterPlayerLine(
 }
 
 function parseStructuredPlayerLine(line: string, rosterTeamName: string): DataAssistTeamSummaryParsedPlayer | null {
-  const match = line.match(/^Roster player\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*$/i)
-  if (!match) return null
-  const name = cleanPlayerName(match[1])
+  const cells = line.split('|').map((cell) => cell.trim())
+  if (!/^Roster player$/i.test(cells[0] || '') || cells.length < 3) return null
+  const name = cleanPlayerName(cells[1])
   if (!name || isJunkPlayerName(name)) return null
+  const phone = normalizePhone(cells[3])
+  const email = normalizeEmail(cells[4])
+  const ustaNumber = normalizeUstaNumber(cells[5])
   return {
     name,
-    ntrp: normalizeRatingToken(match[2]),
+    ntrp: normalizeRatingToken(cells[2]),
     teamName: rosterTeamName,
+    ...(phone ? { phone } : {}),
+    ...(email ? { email } : {}),
+    ...(ustaNumber ? { ustaNumber } : {}),
   }
+}
+
+function parseContacts(rawText: string): DataAssistTeamSummaryParsedContact[] {
+  const contacts: DataAssistTeamSummaryParsedContact[] = []
+  for (const line of rawText.replace(/\r/g, '\n').split('\n')) {
+    const cells = line.split('|').map((cell) => cell.trim())
+    if (!/^Roster contact$/i.test(cells[0] || '') || cells.length < 5) continue
+    const name = cleanPlayerName(cells[2])
+    if (!name || isJunkPlayerName(name)) continue
+    const role = /^Co-Captain$/i.test(cells[1]) ? 'Co-Captain' : 'Captain'
+    contacts.push({
+      name,
+      phone: normalizePhone(cells[3]),
+      email: normalizeEmail(cells[4]),
+      role,
+      isCaptain: true,
+    })
+  }
+  return contacts
+}
+
+function mergePlayerContacts(
+  players: DataAssistTeamSummaryParsedPlayer[],
+  contacts: DataAssistTeamSummaryParsedContact[],
+) {
+  const contactByName = new Map(contacts.map((contact) => [normalizeKey(contact.name), contact]))
+  return players.map((player) => {
+    const contact = contactByName.get(normalizeKey(player.name))
+    const phone = player.phone || contact?.phone || ''
+    const email = player.email || contact?.email || ''
+    return {
+      ...player,
+      ...(phone ? { phone } : {}),
+      ...(email ? { email } : {}),
+    }
+  })
+}
+
+function buildRosterContacts(
+  players: DataAssistTeamSummaryParsedPlayer[],
+  namedContacts: DataAssistTeamSummaryParsedContact[],
+) {
+  const contactsByName = new Map<string, DataAssistTeamSummaryParsedContact>()
+  for (const player of players) {
+    if (!player.phone && !player.email) continue
+    contactsByName.set(normalizeKey(player.name), {
+      name: player.name,
+      phone: player.phone || '',
+      email: player.email || '',
+      role: 'Player',
+      isCaptain: false,
+    })
+  }
+  for (const contact of namedContacts) {
+    const existing = contactsByName.get(normalizeKey(contact.name))
+    contactsByName.set(normalizeKey(contact.name), {
+      ...contact,
+      phone: contact.phone || existing?.phone || '',
+      email: contact.email || existing?.email || '',
+    })
+  }
+  return Array.from(contactsByName.values())
 }
 
 function addPlayer(
@@ -209,27 +307,6 @@ function addPlayer(
   })
 }
 
-function applyKnownRosterRepair(
-  players: DataAssistTeamSummaryParsedPlayer[],
-  rosterTeamName: string,
-  rawText: string,
-): DataAssistTeamSummaryParsedPlayer[] {
-  const rosterKey = normalizeKey(rosterTeamName)
-  const knownRoster = KNOWN_TEAM_SUMMARY_ROSTERS[rosterKey]
-  if (!knownRoster) return players
-
-  const textKey = normalizeKey(rawText)
-  const hasTeamSummarySignals = textKey.includes('team summary') && textKey.includes('players')
-  const missingRatings = players.some((player) => player.ntrp === null)
-  const likelyColumnOcrDamage = players.length < Math.round(knownRoster.length * 0.75) || missingRatings
-  if (!hasTeamSummarySignals || !likelyColumnOcrDamage) return players
-
-  return knownRoster.map((player) => ({
-    ...player,
-    teamName: rosterTeamName || player.teamName,
-  }))
-}
-
 function parseTeams(rawText: string): DataAssistTeamSummaryParsedTeam[] {
   const seen = new Set<string>()
   const teams: DataAssistTeamSummaryParsedTeam[] = []
@@ -240,6 +317,17 @@ function parseTeams(rawText: string): DataAssistTeamSummaryParsedTeam[] {
     .filter(Boolean)
 
   for (const line of lines) {
+    const structuredMatch = line.match(/^Team standing\s*\|\s*([^|]+?)\s*\|\s*(\d{1,2})\s*\|\s*(\d{1,2})\s*$/i)
+    if (structuredMatch) {
+      const name = cleanTeamName(structuredMatch[1])
+      const key = normalizeKey(name)
+      if (name && !seen.has(key) && !isJunkPlayerName(name)) {
+        seen.add(key)
+        teams.push({ name, wins: Number(structuredMatch[2]), losses: Number(structuredMatch[3]) })
+      }
+      continue
+    }
+
     const match = line.match(/\b([A-Z][A-Za-z' /.-]+?\(S\)|[A-Z][A-Za-z' /.-]+?)\s+(\d{1,2})\s+(\d{1,2})\b/)
     if (!match) continue
     const name = cleanTeamName(match[1])
@@ -326,6 +414,21 @@ function normalizeRatingToken(value: string): number | null {
   if (!Number.isFinite(rating)) return null
   if (rating >= 2 && rating <= 5) return rating
   return null
+}
+
+function normalizePhone(value: string | undefined) {
+  const phone = cleanText(value).replace(/[^\d+(). -]/g, '').trim()
+  return phone.replace(/\D/g, '').length >= 10 ? phone : ''
+}
+
+function normalizeEmail(value: string | undefined) {
+  const email = cleanText(value).toLowerCase()
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : ''
+}
+
+function normalizeUstaNumber(value: string | undefined) {
+  const ustaNumber = cleanText(value).replace(/\D/g, '')
+  return /^\d{9,10}$/.test(ustaNumber) ? ustaNumber : ''
 }
 
 function isJunkPlayerName(value: string) {

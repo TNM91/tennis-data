@@ -1,10 +1,12 @@
+import { COACH_TACTICS_BOARD_HREF } from './tactics-hrefs'
+
 export const PRODUCT_NORTH_STAR =
-  'TenAceIQ helps players, captains, coaches, leagues, and tournament organizers spend less time searching, guessing, and coordinating, and more time playing, improving, coaching, captaining, and enjoying tennis.'
+  'TenAceIQ helps players, captains, coaches, clubs, leagues, and tournament organizers spend less time searching, guessing, and coordinating, and more time playing, improving, coaching, captaining, and enjoying tennis.'
 
 export const PRODUCT_MOTTO = 'More Tennis. Less Chaos.'
 
 export const PLATFORM_POSITIONING =
-  'The tennis platform that gives players, captains, coaches, leagues, and tournaments the context, tools, and resources to play, improve, and run competition with less friction.'
+  'The tennis platform that gives players, captains, coaches, clubs, leagues, and tournaments the context and tools to play, improve, and run tennis with less friction.'
 
 export const PLATFORM_MISSION =
   'Help the tennis community spend less time searching, guessing, and coordinating, and more time playing, improving, and enjoying the sport.'
@@ -15,7 +17,7 @@ export const PRODUCT_LANGUAGE_SYSTEM = {
   mission:
     'Spend less time searching, guessing, and coordinating. Spend more time playing, improving, and enjoying tennis.',
   umbrellaTerms: ['tools', 'toolkit', 'resources', 'tennis context', 'support', 'competition'] as const,
-  roleTerms: ['My Lab', 'Coach Hub', 'Team Hub', 'League Office', 'Tournament Desk', 'Full-Court'] as const,
+  roleTerms: ['My Lab', 'Coach Hub', 'Team Hub', 'Club', 'League Office', 'Tournament Desk', 'Full-Court'] as const,
   discouragedPublicTerms: ['home base', 'tennis job', 'workspace', 'suite', 'platform-first language'] as const,
   competitionTerms: {
     league: 'season',
@@ -28,32 +30,32 @@ export const PLATFORM_PILLARS = [
   {
     id: 'improve',
     title: 'Improve',
-    promise: 'Know what to work on next.',
+    promise: 'Turn player context into court work.',
     body:
-      'Use player development paths, ratings, progress signals, drills, skills, strategy, coach connection, and training resources to turn guesswork into focused court work.',
+      'Pick one focus, find the right drill or resource, and connect the next practice to the player in front of you.',
     href: '/player-development',
     cta: 'Level Up My Game',
-    proof: ['Player development', 'Drills and skills', 'Coach connection'],
+    proof: ['Player path', 'Drill focus', 'Coach handoff'],
   },
   {
     id: 'compete',
     title: 'Compete',
-    promise: 'Prepare for the matchup in front of you.',
+    promise: 'Turn matchup context into a plan.',
     body:
-      'Use matchup insight, scouting, lineup strategy, match preparation, performance tracking, and player or team intelligence to compete with a clearer plan.',
+      'Compare the matchup, scout the pressure points, and walk onto the court knowing what to watch first.',
     href: '/compete',
     cta: 'Prepare to Compete',
-    proof: ['Matchup insight', 'Scouting', 'Performance tracking'],
+    proof: ['Matchup read', 'Opponent scout', 'Court plan'],
   },
   {
     id: 'manage',
-    title: 'Manage',
-    promise: 'Keep teams, leagues, and events organized.',
+    title: 'Captain',
+    promise: 'Turn team context into a cleaner match week.',
     body:
-      'Use captain tools, scheduling, availability, communication, league setup, tournament setup, score tracking, rosters, and match organization to reduce admin work.',
-    href: '/manage',
-    cta: 'Manage My Team',
-    proof: ['Availability', 'Schedules and scores', 'Roster organization'],
+      'Collect availability, build lineups, scout opponents, send the team note, and close the week with a quick recap.',
+    href: '/captain',
+    cta: 'Open Captain',
+    proof: ['Availability', 'Lineups', 'Team messages'],
   },
 ] as const
 
@@ -68,7 +70,7 @@ export const PLATFORM_AUDIENCE_PATHS = [
     audience: 'Captains',
     question: 'Who is available, what lineup gives us the best chance, and what needs to be sent?',
     href: '/captain',
-    cta: 'Manage My Team',
+    cta: 'Open Captain',
   },
   {
     audience: 'Coaches',
@@ -80,7 +82,13 @@ export const PLATFORM_AUDIENCE_PATHS = [
     audience: 'Leagues and tournaments',
     question: 'How do we organize schedules, teams, players, scores, and results with less admin work?',
     href: '/leagues-and-tournaments',
-    cta: 'Run a League or Tournament',
+    cta: 'Open Organizer Tools',
+  },
+  {
+    audience: 'Clubs',
+    question: 'How do we connect our players, coaches, clinics, teams, leagues, tournaments, and club identity?',
+    href: '/clubs',
+    cta: 'Open Club',
   },
 ] as const
 
@@ -97,7 +105,63 @@ export const PRODUCT_PRINCIPLES = [
   'Connected development workflows for coaches',
   'Team decision support for captains',
   'Competition tools for league and tournament organizers',
+  'One connected club experience for players, coaches, programs, teams, leagues, and tournaments',
 ] as const
+
+export const CLUB_PLAN_STORY = {
+  starter: {
+    id: 'club_starter',
+    name: 'Club Starter',
+    priceLabel: '$99/month',
+    workspaceLimit: 1,
+    coachStaffLimit: 10,
+    connectedPlayerLimit: 150,
+    capacityLabel: 'Up to 10 coaches or staff and 150 connected players',
+    scopeLabel: 'One branded Club workspace',
+    audience: 'Clubs bringing their core tennis experience together',
+    shortPromise: 'Give the club one connected tennis home.',
+    description:
+      'Connect the club brand, staff, players, clinics, teams, leagues, and tournaments without replacing the club’s registration or payment system.',
+    valueProps: [
+      'Branded public club home and member portal',
+      'Clinic Hub for schedules, rosters, waitlists, plans, attendance, and updates',
+      'Connected Coach, Player, League, Tournament, and optional Captain experiences',
+      'External registration links back to the club’s current system',
+      'Up to 10 coaches or staff and 150 connected players',
+    ],
+  },
+  unlimited: {
+    id: 'club_unlimited',
+    name: 'Club Unlimited',
+    priceLabel: '$149/month',
+    workspaceLimit: 1,
+    coachStaffLimit: null,
+    connectedPlayerLimit: null,
+    capacityLabel: 'Unlimited coaches, staff, and connected players',
+    scopeLabel: 'One branded Club workspace',
+    audience: 'Clubs supporting tennis across every coach and player',
+    shortPromise: 'Extend the connected club experience to everyone.',
+    description:
+      'Everything in Club Starter with unlimited coaches and players, built for a club-wide rollout across programs and competition.',
+    valueProps: [
+      'Unlimited coaches and connected players',
+      'Unlimited clinics, camps, development groups, and teams',
+      'Reusable club league and tournament setups',
+      'One club identity across every applicable TenAceIQ tool',
+      'Club-wide onboarding and role-based home views',
+    ],
+  },
+  boundary:
+    'TenAceIQ does not replace court booking, member registration, point-of-sale, or payment systems. Club links can send registration and payment back to the system the club already uses.',
+  workspaceBoundary:
+    'Each Club subscription activates one branded Club workspace. Separate workspaces are scoped separately.',
+} as const
+
+export type ClubPlanStory = typeof CLUB_PLAN_STORY.starter | typeof CLUB_PLAN_STORY.unlimited
+
+export function getClubPlanStory(planId: string): ClubPlanStory {
+  return planId === CLUB_PLAN_STORY.unlimited.id ? CLUB_PLAN_STORY.unlimited : CLUB_PLAN_STORY.starter
+}
 
 export const PRODUCT_AVOID_LIST = [
   'Vague SaaS language',
@@ -142,14 +206,15 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
   free: {
     id: 'free',
     name: 'Free',
-    shortPromise: 'Find the tennis landscape.',
+    shortPromise: 'Search tennis in one place.',
     audience: 'Players, captains, and fans getting oriented',
     upgradeCue: 'Start with public tennis intelligence.',
     description:
-      'Explore players, teams, leagues, rankings, tournaments, and tennis context for free.',
+      'Explore players, teams, leagues, rankings, tournaments, and public tennis context for free, with collaboration for every connected USTA or TIQ team.',
     valueProps: [
       'Search players, teams, leagues, and rankings',
       'View public tennis context',
+      'Open linked team rosters, schedules, stats, and Team Chat',
       'Contribute TennisLink exports through Data Assist',
       'Understand the landscape before upgrading',
     ],
@@ -161,10 +226,12 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     audience: 'Players who want clearer prep and a personalized tennis home',
     upgradeCue: 'Unlock My Lab, Level Up, data refreshes, matchups, and messages.',
     description:
-      'Unlock My Lab, Level Up training cards, Tactics Tools, refreshed tennis context, matchup prep, and tennis messages together.',
+      'Keep Free team access, then add My Lab, Level Up training cards, Tactics Tools, refreshed tennis context, matchup prep, and tennis messages.',
     valueProps: [
+      'Keep linked team access from Free',
       'Unlock My Lab',
       'Use Level Up cards and Tactics Tools to improve your game',
+      'Save serve and stroke clips for coach review',
       'Improve the data behind your tennis read',
       'Prep matchups before you play',
       'Review tennis messages in one place',
@@ -182,6 +249,7 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
       'Plan lessons and practice blocks',
       'Track player development and training groups',
       'Assign drills, proof, and next steps',
+      'Review player video with timestamped notes and markups',
       'Use TIQ Tactical Studio for drill boards',
       'Communicate with Player students',
     ],
@@ -221,22 +289,45 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
   full_court: {
     id: 'full_court',
     name: 'Full-Court',
-    shortPromise: 'Unlock the complete TenAceIQ toolkit.',
+    shortPromise: 'Support every tennis role.',
     audience: 'Coaches, captains, clubs, and organizers supporting players, teams, leagues, and tournaments',
     upgradeCue: 'Unlock My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk tools.',
     description:
-      'Use the complete TenAceIQ toolkit for player development, coaching, team decisions, leagues, ladders, tournaments, and event follow-through.',
+      'Use My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk runs for player development, coaching, team decisions, leagues, ladders, tournaments, and event follow-through.',
     valueProps: [
       'My Lab, Coach Hub, Team Hub, and League Office together',
       'Unlimited Tournament Desk tools for events',
       'Shared scheduling, results, standings, and rankings',
       'Team and player books across competition',
-      'One connected toolkit for coaches, captains, coordinators, and organizers',
+      'One connected tennis path for coaches, captains, coordinators, and organizers',
     ],
   },
 } as const
 
 export const MEMBERSHIP_TIER_ORDER: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
+
+export const CLUB_PLANS = {
+  starter: {
+    id: 'starter',
+    name: 'Club Starter',
+    priceLabel: '$99/month',
+    locationLimit: 1,
+    coachStaffLimit: 10,
+    playerProfileLimit: 150,
+    scaleLabel: '1 location - Up to 10 coaches/staff - Up to 150 player profiles',
+    outcome: 'Launch one connected club experience with the complete TenAceIQ club toolset.',
+  },
+  unlimited: {
+    id: 'unlimited',
+    name: 'Club Unlimited',
+    priceLabel: '$149/month',
+    locationLimit: null,
+    coachStaffLimit: null,
+    playerProfileLimit: null,
+    scaleLabel: 'All locations - Unlimited coaches/staff - Unlimited player profiles',
+    outcome: 'Scale the same connected experience across the entire racquet organization.',
+  },
+} as const
 
 export const PRODUCT_PROOF_POINTS = [
   'Less guessing',
@@ -329,11 +420,13 @@ export type TierHomepageStory = {
 export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = {
   free: {
     stage: 'Start here',
-    headline: 'Start free. Find the tennis landscape.',
-    copy: 'Explore players, teams, leagues, rankings, tournaments, and tennis context before choosing paid tools.',
+    headline: 'Explore tennis for free.',
+    copy: 'Explore public tennis context and use roster, schedule, stats, and Team Chat for every linked team.',
     bullets: [
       'Search players, teams, leagues, and rankings',
+      'Use roster, schedule, stats, and Team Chat for every linked team',
       'Find public tennis context fast',
+      'Open linked team rosters, schedules, stats, and team chat',
       'Understand the landscape before upgrading',
     ],
     primaryCta: { label: 'Get Started Free', href: '/join' },
@@ -342,10 +435,11 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   player_plus: {
     stage: 'Player unlock',
     headline: 'Make TenAceIQ personal.',
-    copy: 'Unlock My Lab, improve the data behind your tennis read, prep matchups, and keep messages together.',
+    copy: 'Keep Free team access, then add My Lab, Level Up, richer matchup prep, and personalized improvement tools.',
     bullets: [
       'Make My Lab your tennis home',
       'Use Level Up to choose and track focused court work',
+      'Capture serve and stroke clips for review',
       'Refresh player and match context',
       'Prep matchups before you play',
     ],
@@ -359,10 +453,11 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
     bullets: [
       'Build lesson plans and drill assignments',
       'Track player development and review proof',
+      'Return video feedback with timestamped notes',
       'Use TIQ Tactical Studio for practical court work',
     ],
     primaryCta: { label: 'Unlock Coach', href: '/pricing#coach' },
-    secondaryCta: { label: 'Open Tactical Studio', href: '/tactics' },
+    secondaryCta: { label: 'Open Tactical Studio', href: COACH_TACTICS_BOARD_HREF },
     featuredNote: 'Best for coaches who teach players, groups, clinics, or school practices.',
   },
   captain: {
@@ -392,7 +487,7 @@ export const TIER_HOMEPAGE_STORY: Record<MembershipTierId, TierHomepageStory> = 
   },
   full_court: {
     stage: 'Full-Court unlock',
-    headline: 'Unlock the complete TenAceIQ toolkit.',
+    headline: 'Support every tennis role.',
     copy: 'Combine My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk tools so players, lessons, teams, leagues, ladders, and events stay connected.',
     bullets: [
       'Unlock My Lab, Coach Hub, Team Hub, and League Office together',
@@ -524,9 +619,9 @@ export const LEAGUE_COORDINATOR_STORY = {
   draftUpgradeHeadline: 'Need this draft to become active League Office tools?',
   draftUpgradeBody:
     'League Office turns setup into season tools where requests, scheduling, results, and standings stay together.',
-  registryTitle: 'Current TIQ league definitions',
+  registryTitle: 'Saved league seasons',
   registryBody:
-    'Manage the league records that power participants, uploaded schedules, score tracking, standings, and organizer follow-through.',
+    'Manage the seasons that power participants, uploaded schedules, score tracking, standings, and organizer follow-through.',
   finalUpgradeHeadline: 'Ready to run the season without spreadsheet cleanup?',
   finalUpgradeBody:
     'League Office turns league records into one cleaner system for schedules, participants, scores, standings, and league-wide clarity.',

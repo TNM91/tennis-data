@@ -1,4 +1,5 @@
 import { buildSupportMessageHref } from './message-links'
+import { CLUB_PLAN_STORY } from './product-story'
 
 export const BILLING_SUPPORT_PATH = buildSupportMessageHref({
   category: 'billing',
@@ -21,6 +22,18 @@ export const MONTHLY_SUBSCRIPTION_POLICY = {
     'Monthly subscription charges are generally non-refundable after the billing period begins.',
     'Refunds may be issued for duplicate charges, billing errors, accidental same-day purchases, or other support-approved exceptions.',
     'Past-due, unpaid, disputed, or canceled subscriptions may be downgraded until billing is resolved.',
+  ],
+} as const
+
+export const CLUB_SUBSCRIPTION_POLICY = {
+  title: 'Club monthly subscriptions',
+  summary:
+    `Club Starter is ${CLUB_PLAN_STORY.starter.priceLabel}; Club Unlimited is ${CLUB_PLAN_STORY.unlimited.priceLabel}. Both renew monthly and activate ${CLUB_PLAN_STORY.starter.scopeLabel.toLowerCase()}.`,
+  bullets: [
+    `${CLUB_PLAN_STORY.starter.name} includes ${CLUB_PLAN_STORY.starter.capacityLabel.toLowerCase()}.`,
+    `${CLUB_PLAN_STORY.unlimited.name} includes ${CLUB_PLAN_STORY.unlimited.capacityLabel.toLowerCase()}.`,
+    CLUB_PLAN_STORY.workspaceBoundary,
+    'Canceling stops future renewals. Club access normally continues through the period already paid for.',
   ],
 } as const
 

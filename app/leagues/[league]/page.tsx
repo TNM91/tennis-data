@@ -10,6 +10,8 @@ import SiteShell from '@/app/components/site-shell'
 import DataTrustPanel from '@/app/components/data-trust-panel'
 import PublicDetailState from '@/app/components/public-detail-state'
 import FollowButton from '@/app/components/follow-button'
+import { useAuth } from '@/app/components/auth-provider'
+import { buildProductAccessState } from '@/lib/access-model'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import {
   getCompetitionLayerLabel,
@@ -19,9 +21,11 @@ import {
   type LeagueFormat,
 } from '@/lib/competition-layers'
 import { formatDate, cleanText } from '@/lib/captain-formatters'
-import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { CAPTAIN_STORY, DATA_ASSIST_STORY } from '@/lib/product-story'
+import { getPlanUnlockHref } from '@/lib/plan-intent'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 type LeagueMatchRow = {
   id: string
@@ -57,8 +61,14 @@ type LeagueScopeDiagnostic = {
   leagueNames: string[]
 }
 
+type LeagueMatchActivity = 'all' | 'scheduled' | 'results'
+
 function normalizeCompareText(value: string | null | undefined): string {
   return (value || '').trim().toLowerCase()
+}
+
+function isCompletedLeagueMatch(row: LeagueMatchRow) {
+  return Boolean(row.winner_side || cleanText(row.score) || row.status === 'completed')
 }
 
 function buildTeamHref(teamName: string, leagueName: string, flight: string, competitionLayer: string) {
@@ -72,13 +82,26 @@ function buildTeamHref(teamName: string, leagueName: string, flight: string, com
   return `/teams/${encodeTeamRouteSegment(teamName)}${query ? `?${query}` : ''}`
 }
 
-function buildLeagueScopeHref(leagueName: string, flight: string, section: string, district: string) {
+function buildLeagueScopeHref(
+  leagueName: string,
+  flight: string,
+  section: string,
+  district: string,
+  format = '',
+  team = 'all',
+  view = 'cards',
+  activity: LeagueMatchActivity = 'all',
+) {
   const params = new URLSearchParams()
 
   if (leagueName) params.set('league', leagueName)
   if (flight) params.set('flight', flight)
   if (section) params.set('section', section)
   if (district) params.set('district', district)
+  if (format) params.set('format', format)
+  if (team !== 'all') params.set('team', team)
+  if (view !== 'cards') params.set('view', view)
+  if (activity !== 'all') params.set('activity', activity)
 
   const query = params.toString()
   return `/leagues/${encodeURIComponent(leagueName || 'league')}${query ? `?${query}` : ''}`
@@ -90,6 +113,14 @@ function getParamValue(value: string | string[] | undefined) {
 }
 
 export default function LeagueDetailPage() {
+  return (
+    <SiteShell active="/leagues">
+      <LeagueDetailContent />
+    </SiteShell>
+  )
+}
+
+function LeagueDetailContent() {
   const params = useParams()
   const searchParams = useSearchParams()
 
@@ -104,10 +135,32 @@ export default function LeagueDetailPage() {
   const [nearbyRows, setNearbyRows] = useState<LeagueMatchRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [teamFilter, setTeamFilter] = useState('all')
+  const [teamFilter, setTeamFilter] = useState(() => searchParams.get('team') || 'all')
   const [teamFilterFocused, setTeamFilterFocused] = useState(false)
-  const [standingsView, setStandingsView] = useState<'cards' | 'table'>('cards')
+  const [standingsView, setStandingsView] = useState<'cards' | 'table'>(() => searchParams.get('view') === 'table' ? 'table' : 'cards')
+  const [matchActivity, setMatchActivity] = useState<LeagueMatchActivity>(() => {
+    const activity = searchParams.get('activity')
+    return activity === 'scheduled' || activity === 'results' ? activity : 'all'
+  })
+  const [showAllTeams, setShowAllTeams] = useState(false)
+  const [showFullMatchHistory, setShowFullMatchHistory] = useState(false)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { userId, authResolved, role, entitlements } = useAuth()
+  const access = useMemo(() => buildProductAccessState(authResolved || !userId ? role : 'member', entitlements), [authResolved, entitlements, role, userId])
+  const exploreResumeHref = buildLeagueScopeHref(
+    leagueFromRoute,
+    flight,
+    section,
+    district,
+    formatHint,
+    teamFilter,
+    standingsView,
+    matchActivity,
+  )
+
+  useEffect(() => {
+    window.history.replaceState(null, '', exploreResumeHref)
+  }, [exploreResumeHref])
 
   const loadLeagueMatches = useCallback(async () => {
     setLoading(true)
@@ -285,7 +338,7 @@ export default function LeagueDetailPage() {
       away.matches += 1
       away.awayMatches += 1
 
-      const isCompleted = Boolean(row.winner_side || cleanText(row.score) || row.status === 'completed')
+      const isCompleted = isCompletedLeagueMatch(row)
       if (isCompleted) {
         home.completedMatches += 1
         away.completedMatches += 1
@@ -340,7 +393,26 @@ export default function LeagueDetailPage() {
       return home === teamFilter || away === teamFilter
     })
   }, [validRows, teamFilter])
+  const scheduledMatches = useMemo(
+    () => filteredMatches.filter((row) => !isCompletedLeagueMatch(row)),
+    [filteredMatches],
+  )
+  const completedMatches = useMemo(
+    () => filteredMatches.filter(isCompletedLeagueMatch),
+    [filteredMatches],
+  )
+  const activityMatches =
+    matchActivity === 'scheduled'
+      ? scheduledMatches
+      : matchActivity === 'results'
+        ? completedMatches
+        : filteredMatches
   const hasActiveTeamFilter = teamFilter !== 'all'
+  const standingsPreviewLimit = isMobile ? 6 : 12
+  const visibleTeamSummaries = showAllTeams ? teamSummaries : teamSummaries.slice(0, standingsPreviewLimit)
+  const matchPreviewLimit = isMobile ? 4 : 8
+  const visibleMatches = showFullMatchHistory ? activityMatches : activityMatches.slice(0, matchPreviewLimit)
+  const canUseCaptainTools = authResolved && access.canUseCaptainWorkflow
 
   const stats = useMemo(() => {
     const singles = validRows.filter((row) => row.match_type === 'singles').length
@@ -371,6 +443,7 @@ export default function LeagueDetailPage() {
       missingScorecards,
     }
   }, [validRows, teamSummaries])
+  const hasLeagueData = validRows.length > 0
 
   const [topPerformers, setTopPerformers] = useState<Array<{ id: string; name: string; wins: number; losses: number; appearances: number }>>([])
 
@@ -430,6 +503,11 @@ export default function LeagueDetailPage() {
   }, [validRows])
 
   const leagueLeader = teamSummaries[0] ?? null
+  const leagueChaser = teamSummaries[1] ?? null
+  const completedTeamMatches = useMemo(
+    () => teamSummaries.reduce((total, team) => total + team.completedMatches, 0) / 2,
+    [teamSummaries],
+  )
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
@@ -557,11 +635,6 @@ export default function LeagueDetailPage() {
       note: `Track ${stats.teams} active ${leagueFormat === 'team' ? 'teams' : 'players'} and prepare for the next match.`,
     },
   ]
-  const competeHref = buildCaptainScopedHref('/compete/leagues', {
-    competitionLayer,
-    league: leagueInfo.leagueName,
-    flight: leagueInfo.flight,
-  })
   const captainActionLinks =
     leagueFormat === 'team'
       ? [
@@ -599,8 +672,20 @@ export default function LeagueDetailPage() {
           },
         ]
       : []
+  const leagueOfficeHref = authResolved && !access.canUseLeagueTools
+    ? getPlanUnlockHref('league', '/league-coordinator')
+    : '/league-coordinator'
+  const captainTeaseHref = authResolved && !access.canUseCaptainWorkflow && captainActionLinks.length > 1
+    ? getPlanUnlockHref('captain', captainActionLinks[1].href)
+    : '/captain'
   return (
-    <SiteShell active="/leagues">
+    <>
+      <ExploreResumeTracker
+        surface="league"
+        label="league"
+        href={exploreResumeHref}
+        contextLabel={[leagueFromRoute, flight].filter(Boolean).join(' / ')}
+      />
       <section style={pageContent}>
         <section style={dynamicHeroShell}>
           <span aria-hidden="true" style={watermarkStyle} />
@@ -631,7 +716,9 @@ export default function LeagueDetailPage() {
                 subtitle={subtitleParts.join(' | ')}
               />
               <GhostLink href="/leagues">Back to Leagues</GhostLink>
-              <GhostLink href={competeHref}>Open League Office</GhostLink>
+              <GhostLink href={leagueOfficeHref}>
+                {authResolved && !access.canUseLeagueTools ? 'Unlock League Office' : 'Open League Office'}
+              </GhostLink>
             </div>
           </div>
 
@@ -650,7 +737,7 @@ export default function LeagueDetailPage() {
               {leagueInfo.section ? <span style={miniPillSlate}>{leagueInfo.section}</span> : null}
               {leagueInfo.district ? <span style={miniPillGreen}>{leagueInfo.district}</span> : null}
             </div>
-            {captainActionLinks.length > 0 ? (
+            {canUseCaptainTools && captainActionLinks.length > 0 ? (
               <div style={seasonToolsQuickActionGrid}>
                 {captainActionLinks.map((action) => (
                   <Link key={action.href} href={action.href} style={seasonQuickActionButton}>
@@ -662,17 +749,29 @@ export default function LeagueDetailPage() {
           </div>
         </section>
 
-        <DataTrustPanel
-          title="League data trust"
-          body="League pages combine reviewed schedule rows, scorecards, team summaries, and public tennis context when available. Use Data Assist when standings, teams, or scorecards need review."
-          signals={[
-            { label: 'Source', value: 'Schedules, scorecards, team summaries' },
-            { label: 'Freshness', value: 'Refreshes as reviewed league uploads connect' },
-            { label: 'Confidence', value: 'Higher when schedule and scorecards agree' },
-            { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
-          ]}
-        />
+        <details style={detailDrawerStyle}>
+          <summary style={detailDrawerSummaryStyle}>
+            <span style={detailDrawerCopyStyle}>
+              <span style={sectionKicker}>Data quality</span>
+              <strong style={detailDrawerTitleStyle}>Show how this league page is checked</strong>
+            </span>
+            <span style={miniPillGreen}>Details</span>
+          </summary>
+          <div style={detailDrawerContentStyle}>
+            <DataTrustPanel
+              title="League data trust"
+              body="League pages combine reviewed schedules, scorecards, Player Rosters, and public tennis context when available. Use Data Assist when standings, teams, or scorecards need review."
+              signals={[
+                { label: 'Source', value: 'Schedules, scorecards, Player Rosters' },
+                { label: 'Freshness', value: 'Refreshes as reviewed league uploads connect' },
+                { label: 'Confidence', value: 'Higher when schedule and scorecards agree' },
+                { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
+              ]}
+            />
+          </div>
+        </details>
 
+        {hasLeagueData ? (
         <div style={dynamicMetricGrid}>
           <MetricCard label="Completed" value={String(stats.completed)} />
           <MetricCard label="Scheduled" value={String(stats.scheduled)} />
@@ -680,6 +779,7 @@ export default function LeagueDetailPage() {
           <MetricCard label="Teams" value={String(stats.teams)} />
           <MetricCard label="Latest Match" value={formatDate(stats.latest)} accent />
         </div>
+        ) : null}
 
         {matchQualityStats.total > 0 ? (
           <div style={matchQualityRowStyle}>
@@ -697,6 +797,7 @@ export default function LeagueDetailPage() {
           </div>
         ) : null}
 
+        {hasLeagueData ? (
         <section style={signalGridStyle(isSmallMobile)}>
           {leagueSignals.map((signal) => (
             <article key={signal.label} style={signalCardStyle}>
@@ -706,6 +807,7 @@ export default function LeagueDetailPage() {
             </article>
           ))}
         </section>
+        ) : null}
 
         <article style={panelCard} id="league-teams">
           {loading ? (
@@ -714,6 +816,8 @@ export default function LeagueDetailPage() {
               title="Opening season context."
               titleAs="h2"
               body="Checking teams, schedules, scorecards, standings, and correction paths for this league segment."
+              tone="loading"
+              visual="league"
               signals={[
                 { label: 'Source', value: 'Schedules, scorecards, standings' },
                 { label: 'Freshness', value: 'Latest reviewed rows first' },
@@ -731,12 +835,11 @@ export default function LeagueDetailPage() {
             <div style={stateBox}>
               Match data is not available for this league segment yet.
               <div style={stateHelperText}>
-                This usually means the season scope exists, but reviewed match rows do not yet include both team names
-                for this exact league, flight, or district slice.
+                The season is here, but reviewed match rows do not include both team names for this exact league, flight, or district yet.
               </div>
               {nearbyScopeDiagnostic ? (
                 <div style={{ ...stateHelperText, marginTop: 12 }}>
-                  I did find {nearbyScopeDiagnostic.totalRows} nearby rows in the same flight/section/district scope.
+                  Found {nearbyScopeDiagnostic.totalRows} nearby rows in the same flight, section, or district.
                   {nearbyScopeDiagnostic.leagueNames.length > 0
                     ? ` Nearby league names: ${nearbyScopeDiagnostic.leagueNames.slice(0, 5).join(' | ')}`
                     : ' Those rows are also missing a visible league name.'}
@@ -784,12 +887,47 @@ export default function LeagueDetailPage() {
               ) : null}
 
               <section>
+                {isMobile && leagueLeader && leagueLeader.completedMatches > 0 ? (
+                  <div style={leaguePulseStyle} aria-label="League standings pulse">
+                    <div style={leaguePulseHeaderStyle}>
+                      <div>
+                        <div style={sectionKicker}>League pulse</div>
+                        <div style={leaguePulseTitleStyle}>The race at a glance</div>
+                      </div>
+                      <span style={leaguePulseRankStyle}>#1</span>
+                    </div>
+
+                    <Link
+                      href={buildTeamHref(leagueLeader.name, leagueInfo.leagueName, leagueInfo.flight, competitionLayer)}
+                      style={leaguePulseLeaderStyle}
+                    >
+                      <span style={leaguePulseLeaderLabelStyle}>Current leader</span>
+                      <span style={leaguePulseLeaderNameStyle}>{leagueLeader.name}</span>
+                      <span style={leaguePulseLeaderRecordStyle}>
+                        {leagueLeader.wins}-{leagueLeader.losses} record
+                        {leagueLeader.completedMatches > 0 ? ` · ${Math.round(leagueLeader.winPct * 100)}% win` : ''}
+                      </span>
+                    </Link>
+
+                    <div style={leaguePulseFactsStyle}>
+                      <div style={leaguePulseFactStyle}>
+                        <span style={leaguePulseFactLabelStyle}>Next in line</span>
+                        <span style={leaguePulseFactValueStyle}>{leagueChaser ? leagueChaser.name : 'Standings building'}</span>
+                      </div>
+                      <div style={leaguePulseFactStyle}>
+                        <span style={leaguePulseFactLabelStyle}>Completed</span>
+                        <span style={leaguePulseFactValueStyle}>{Math.round(completedTeamMatches)} matches</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
                 <div style={dynamicSectionHead}>
                   <div>
-                    <div style={sectionKicker}>Team Summary</div>
-                    <h2 style={sectionTitle}>Teams</h2>
+                    <div style={sectionKicker}>Team overview</div>
+                    <h2 style={sectionTitle}>Standings</h2>
                     <div style={sectionSub}>
-                      Standings-style season snapshot for each team in this league.
+                      Season record and recent activity for every team in this flight.
                     </div>
                   </div>
                   <div style={standingsViewToggleRowStyle}>
@@ -811,13 +949,24 @@ export default function LeagueDetailPage() {
                     <table style={standingsTableStyle}>
                       <thead>
                         <tr>
-                          {['#', 'Team', 'W', 'L', 'Win %', 'Completed', 'Scheduled', 'Missing scorecards', 'Last match', 'Actions'].map((h) => (
+                          {[
+                            '#',
+                            'Team',
+                            'W',
+                            'L',
+                            'Win %',
+                            'Completed',
+                            'Scheduled',
+                            'Missing scorecards',
+                            'Last match',
+                            ...(canUseCaptainTools ? ['Lineup'] : []),
+                          ].map((h) => (
                             <th key={h} style={standingsTableHeaderCellStyle}>{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {teamSummaries.map((team, index) => {
+                        {visibleTeamSummaries.map((team, index) => {
                           const winPct = Math.round(team.winPct * 100)
                           const isLeader = team.name === leagueLeader?.name
                           const teamHref = buildTeamHref(team.name, leagueInfo.leagueName, leagueInfo.flight, competitionLayer)
@@ -845,11 +994,13 @@ export default function LeagueDetailPage() {
                               <td style={standingsTableMutedCellStyle}>{team.scheduledMatches}</td>
                               <td style={team.missingScorecards > 0 ? standingsTableLossCellStyle : standingsTableMutedCellStyle}>{team.missingScorecards}</td>
                               <td style={standingsTableDateCellStyle}>{formatDate(team.latestMatchDate)}</td>
-                              <td style={standingsTableCellStyle}>
-                                <Link href={teamLineupHref} style={tableActionLink}>
-                                  Lineup
-                                </Link>
-                              </td>
+                              {canUseCaptainTools ? (
+                                <td style={standingsTableCellStyle}>
+                                  <Link href={teamLineupHref} style={tableActionLink}>
+                                    Lineup
+                                  </Link>
+                                </td>
+                              ) : null}
                             </tr>
                           )
                         })}
@@ -859,7 +1010,7 @@ export default function LeagueDetailPage() {
                 ) : null}
 
                 {standingsView === 'cards' ? <div style={dynamicTeamGrid}>
-                  {teamSummaries.map((team, index) => {
+                  {visibleTeamSummaries.map((team, index) => {
                     const winPct = Math.round(team.winPct * 100)
                     const isLeader = team.name === leagueLeader?.name
                     const teamHref = buildTeamHref(team.name, leagueInfo.leagueName, leagueInfo.flight, competitionLayer)
@@ -892,9 +1043,11 @@ export default function LeagueDetailPage() {
                           <PrimaryLink href={teamHref}>
                             Team Page
                           </PrimaryLink>
-                          <GhostLink href={teamLineupHref}>
-                            Lineup
-                          </GhostLink>
+                          {canUseCaptainTools ? (
+                            <GhostLink href={teamLineupHref}>
+                              Lineup
+                            </GhostLink>
+                          ) : null}
                         </div>
                       </div>
 
@@ -920,7 +1073,34 @@ export default function LeagueDetailPage() {
                     </div>
                   )})}
                 </div> : null}
+
+                {teamSummaries.length > standingsPreviewLimit ? (
+                  <div style={leaguePreviewControlRowStyle}>
+                    <button
+                      type="button"
+                      onClick={() => setShowAllTeams((current) => !current)}
+                      style={leaguePreviewButtonStyle}
+                    >
+                      {showAllTeams
+                        ? 'Show standings preview'
+                        : `Show all ${teamSummaries.length} teams`}
+                    </button>
+                  </div>
+                ) : null}
               </section>
+
+              {!canUseCaptainTools && leagueFormat === 'team' ? (
+                <section style={captainAccessTeaseStyle} aria-label="Captain tools">
+                  <div style={captainAccessCopyStyle}>
+                    <div style={sectionKicker}>{CAPTAIN_STORY.eyebrow}</div>
+                    <h2 style={captainAccessTitleStyle}>Get the lineup ready before match day.</h2>
+                    <div style={captainAccessTextStyle}>
+                      Availability, pairings, and team messaging stay in one weekly flow.
+                    </div>
+                  </div>
+                  <GhostLink href={captainTeaseHref}>{CAPTAIN_STORY.upgradeCta}</GhostLink>
+                </section>
+              ) : null}
 
               <section style={{ marginTop: '24px' }}>
                 <div style={dynamicSectionHead}>
@@ -928,7 +1108,7 @@ export default function LeagueDetailPage() {
                     <div style={sectionKicker}>Season Matches</div>
                     <h2 style={sectionTitle}>Match History</h2>
                     <div style={sectionSub}>
-                      Filter the season list by team to narrow the schedule and results.
+                      Start with the schedule or finished results, then open the rest of the season when you need it.
                     </div>
                   </div>
 
@@ -939,7 +1119,10 @@ export default function LeagueDetailPage() {
                     <select
                       id="teamFilter"
                       value={teamFilter}
-                      onChange={(e) => setTeamFilter(e.target.value)}
+                      onChange={(e) => {
+                        setTeamFilter(e.target.value)
+                        setShowFullMatchHistory(false)
+                      }}
                       onFocus={() => setTeamFilterFocused(true)}
                       onBlur={() => setTeamFilterFocused(false)}
                       style={{
@@ -957,7 +1140,10 @@ export default function LeagueDetailPage() {
                     {hasActiveTeamFilter ? (
                       <button
                         type="button"
-                        onClick={() => setTeamFilter('all')}
+                        onClick={() => {
+                          setTeamFilter('all')
+                          setShowFullMatchHistory(false)
+                        }}
                         style={clearFilterButton}
                       >
                         Clear team filter
@@ -966,18 +1152,41 @@ export default function LeagueDetailPage() {
                   </div>
                 </div>
 
-                {filteredMatches.length === 0 ? (
+                {isMobile ? (
+                  <div style={leagueMatchActivityFilterStyle} aria-label="League match activity filter">
+                    {([
+                      ['all', 'All ' + filteredMatches.length],
+                      ['scheduled', 'Schedule ' + scheduledMatches.length],
+                      ['results', 'Results ' + completedMatches.length],
+                    ] as const).map(([activity, label]) => (
+                      <button
+                        key={activity}
+                        type="button"
+                        onClick={() => {
+                          setMatchActivity(activity)
+                          setShowFullMatchHistory(false)
+                        }}
+                        style={leagueMatchActivityButtonStyle(matchActivity === activity)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                {activityMatches.length === 0 ? (
                   <div style={stateBox}>
-                    No matches matched the selected team filter.
+                    No {matchActivity === 'scheduled' ? 'scheduled matches' : matchActivity === 'results' ? 'results' : 'matches'} matched the selected filters.
                     <div style={stateHelperText}>
-                      Clear the active filter to return to the full season view, or choose another team from the season
-                      summary above.
+                      {hasActiveTeamFilter
+                        ? 'Clear the team filter to return to the full season view.'
+                        : 'Choose another match view to return to the full season activity.'}
                     </div>
                   </div>
                 ) : null}
 
                 <div style={matchList}>
-                  {filteredMatches.map((row) => {
+                  {visibleMatches.map((row) => {
                     const home = cleanText(row.home_team)
                     const away = cleanText(row.away_team)
                     if (!home || !away) return null
@@ -1010,17 +1219,33 @@ export default function LeagueDetailPage() {
                           <div style={subMeta}>
                             {[leagueInfo.flight, leagueInfo.district].filter(Boolean).join(' | ')}
                           </div>
+                          <Link href={`/matches/${encodeURIComponent(row.id)}`} style={matchDetailLinkStyle}>
+                            View match →
+                          </Link>
                         </div>
                       </div>
                     )
                   })}
                 </div>
+                {activityMatches.length > matchPreviewLimit ? (
+                  <div style={leaguePreviewControlRowStyle}>
+                    <button
+                      type="button"
+                      onClick={() => setShowFullMatchHistory((current) => !current)}
+                      style={leaguePreviewButtonStyle}
+                    >
+                      {showFullMatchHistory
+                        ? 'Show recent match preview'
+                        : 'Show all ' + activityMatches.length + ' matches'}
+                    </button>
+                  </div>
+                ) : null}
               </section>
             </>
           )}
         </article>
       </section>
-    </SiteShell>
+    </>
   )
 }
 
@@ -1089,11 +1314,11 @@ const heroShell: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-110px',
+  right: 0,
   top: '-118px',
-  width: '310px',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  width: 'min(100%, 310px)',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }
@@ -1326,6 +1551,47 @@ const metricGrid: CSSProperties = {
   minWidth: 0,
 }
 
+const detailDrawerStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const detailDrawerSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  borderRadius: '28px',
+  padding: '20px',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(8, 13, 28, 0.66)',
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const detailDrawerCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const detailDrawerTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '16px',
+  lineHeight: 1.2,
+  overflowWrap: 'anywhere',
+}
+
+const detailDrawerContentStyle: CSSProperties = {
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const signalGridStyle = (isSmallMobile: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
@@ -1514,7 +1780,7 @@ const teamCard: CSSProperties = {
 const cardGlow: CSSProperties = {
   position: 'absolute',
   top: '-70px',
-  right: '-50px',
+  right: 0,
   width: 'min(100%, 180px)',
   height: '180px',
   borderRadius: '999px',
@@ -1540,8 +1806,181 @@ const teamCardActionRow: CSSProperties = {
   minWidth: 0,
 }
 
+const leaguePreviewControlRowStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'center',
+  marginTop: '16px',
+  minWidth: 0,
+}
+
+const leaguePreviewButtonStyle: CSSProperties = {
+  minHeight: '44px',
+  padding: '0 18px',
+  borderRadius: '999px',
+  border: '1px solid rgba(125, 211, 252, 0.22)',
+  background: 'rgba(15, 23, 42, 0.72)',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 850,
+  cursor: 'pointer',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const captainAccessTeaseStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '18px',
+  flexWrap: 'wrap',
+  marginTop: '24px',
+  padding: '20px',
+  borderRadius: '24px',
+  border: '1px solid rgba(155, 225, 29, 0.22)',
+  background: 'linear-gradient(135deg, rgba(155, 225, 29, 0.10), rgba(8, 13, 28, 0.72) 56%)',
+  minWidth: 0,
+}
+
+const captainAccessCopyStyle: CSSProperties = {
+  minWidth: 0,
+  maxWidth: '620px',
+}
+
+const captainAccessTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: '22px',
+  lineHeight: 1.2,
+  fontWeight: 900,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const captainAccessTextStyle: CSSProperties = {
+  marginTop: '8px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: '14px',
+  lineHeight: 1.6,
+  fontWeight: 500,
+  overflowWrap: 'anywhere',
+}
+
 const teamCardCopyStyle: CSSProperties = {
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePulseStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  marginBottom: 18,
+  padding: '16px',
+  borderRadius: 20,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-panel-bg) 88%), var(--shell-panel-bg))',
+  boxShadow: '0 16px 34px rgba(0,0,0,0.16)',
+  minWidth: 0,
+}
+
+const leaguePulseHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+}
+
+const leaguePulseTitleStyle: CSSProperties = {
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.15,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePulseRankStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flex: '0 0 auto',
+  minWidth: 36,
+  minHeight: 32,
+  padding: '4px 9px',
+  borderRadius: 999,
+  color: 'var(--brand-lime)',
+  background: 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  fontSize: 14,
+  lineHeight: 1,
+  fontWeight: 900,
+}
+
+const leaguePulseLeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  padding: '13px 14px',
+  borderRadius: 16,
+  color: 'inherit',
+  textDecoration: 'none',
+  background: 'rgba(5, 14, 31, 0.54)',
+  border: '1px solid rgba(255,255,255,0.09)',
+  minWidth: 0,
+}
+
+const leaguePulseLeaderLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  letterSpacing: '0.09em',
+  textTransform: 'uppercase',
+}
+
+const leaguePulseLeaderNameStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePulseLeaderRecordStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.35,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const leaguePulseFactsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const leaguePulseFactStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const leaguePulseFactLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.15,
+  fontWeight: 800,
+  letterSpacing: '0.07em',
+  textTransform: 'uppercase',
+}
+
+const leaguePulseFactValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.25,
+  fontWeight: 800,
   overflowWrap: 'anywhere',
 }
 
@@ -1955,6 +2394,35 @@ const matchList: CSSProperties = {
   minWidth: 0,
 }
 
+const leagueMatchActivityFilterStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8,
+  marginBottom: 14,
+  minWidth: 0,
+}
+
+function leagueMatchActivityButtonStyle(active: boolean): CSSProperties {
+  return {
+    minWidth: 0,
+    minHeight: 40,
+    padding: '8px 7px',
+    borderRadius: 14,
+    cursor: 'pointer',
+    color: active ? 'var(--foreground-strong)' : 'var(--shell-copy-muted)',
+    background: active
+      ? 'color-mix(in srgb, var(--brand-blue-2) 16%, var(--shell-panel-bg) 84%)'
+      : 'rgba(8, 13, 28, 0.48)',
+    border: '1px solid ' + (active
+      ? 'color-mix(in srgb, var(--brand-blue-2) 38%, var(--shell-panel-border) 62%)'
+      : 'rgba(125, 211, 252, 0.14)'),
+    fontSize: 12,
+    lineHeight: 1.15,
+    fontWeight: 850,
+    overflowWrap: 'anywhere',
+  }
+}
+
 const matchCard: CSSProperties = {
   borderRadius: '24px',
   padding: '18px',
@@ -2030,6 +2498,14 @@ const scoreText: CSSProperties = {
   lineHeight: 1.2,
   fontWeight: 900,
   overflowWrap: 'anywhere',
+}
+
+const matchDetailLinkStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 14,
+  fontWeight: 800,
+  textDecoration: 'underline',
+  textUnderlineOffset: 3,
 }
 
 const subMeta: CSSProperties = {

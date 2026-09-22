@@ -8,8 +8,9 @@ describe('Coach Hub support path', () => {
   it('answers the core coach questions with practical action paths', () => {
     expect(source).toContain('COACH_SUPPORT_PATHS')
     expect(source).toContain('Coach support path')
-    expect(source).toContain('PRODUCT_MOTTO')
+    expect(source).toContain('Choose the coaching question to move next.')
     expect(source).toContain('Start with the coaching question that keeps a player moving between sessions.')
+    expect(source).toContain('aria-label="Coach tools"')
 
     expect(source).toContain("question: 'How can I assign drills?'")
     expect(source).toContain("question: 'How can I track player development?'")
@@ -39,7 +40,8 @@ describe('Coach Hub support path', () => {
     expect(source).toContain('mobileBenchPickerStyle')
     expect(source).toContain('mobileBenchPlayerButtonStyle(active)')
     expect(source).toContain('renderMobileBenchCommandCenter(activeMobileBenchCard)')
-    expect(source).toContain('Active player workspace for')
+    expect(source).toContain('Active player tools for')
+    expect(source).not.toContain('Active player workspace for')
     expect(source).toContain('Mobile coach Player ID handoff for')
     expect(source).toContain('coachBenchHandoffGridStyle')
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 118px), 1fr))'")

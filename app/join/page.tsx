@@ -6,18 +6,20 @@ import {
   CSSProperties,
   FormEvent,
   useEffect,
+  useRef,
   useState,
 } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
 import { type UserRole } from '@/lib/roles'
 import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
-import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
 import { getPlanDestinationHref, getPlanUnlockHref, isSafeLocalNextHref } from '@/lib/plan-intent'
+import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
+import { getAvailabilityEntry } from '@/lib/availability-onboarding'
+import { getCaptainPilotSourceFromHref } from '@/lib/captain-pilot-source'
 
 const JOIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 
@@ -32,10 +34,10 @@ const JOIN_INTENT_COPY: Record<MembershipTierId, {
 }> = {
   free: {
     eyebrow: 'Create your account',
-    mobileTitle: 'Start free.',
-    desktopTitle: 'Start free. Pick the tennis tools later.',
-    mobileText: 'Create an account and search the tennis map.',
-    desktopText: 'Search players, teams, leagues, rankings, and tennis context first. Upgrade only when a specific tennis need calls for more support.',
+    mobileTitle: 'Create your free account.',
+    desktopTitle: 'Create your free account.',
+    mobileText: 'Search tennis now. Add tools only when they help.',
+    desktopText: 'Search tennis now. Add paid tools only when they help.',
     formCue: 'Create the free account first. Choose My Lab, Coach Hub, Team Hub, League Office, or Full-Court when you need the right tools.',
     success: 'Account created. Sign in, then explore the tennis map.',
   },
@@ -77,12 +79,12 @@ const JOIN_INTENT_COPY: Record<MembershipTierId, {
   },
   full_court: {
     eyebrow: 'Full-Court path',
-    mobileTitle: 'Set up the full toolkit.',
-    desktopTitle: 'Create your account. Unlock the full toolkit.',
+    mobileTitle: 'Support every tennis role.',
+    desktopTitle: 'Create your account. Support every tennis role.',
     mobileText: 'Create the free account first. Full-Court unlocks after the plan is active.',
-    desktopText: 'Full-Court starts with a free account, then unlocks My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations after the plan is active.',
-    formCue: 'Signup creates Free access. Activate Full-Court next, then open one connected tennis operation.',
-    success: 'Free account created. Sign in, then activate Full-Court to unlock the full toolkit.',
+    desktopText: 'Full-Court starts with a free account, then opens My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk runs after the plan is active.',
+    formCue: 'Signup creates Free access. Activate Full-Court next, then support players, teams, leagues, and events from one account.',
+    success: 'Free account created. Sign in, then activate Full-Court to support every tennis role.',
   },
 }
 
@@ -92,7 +94,7 @@ const JOIN_SELECTED_PLAN_COPY: Record<MembershipTierId, string> = {
   coach: 'Coach starts from Free, then opens Coach Hub for lessons, assignments, player proof, and follow-through.',
   captain: 'Captain starts from Free, then opens Team Hub for availability, lineups, scouting, and team messages.',
   league: 'League starts from Free, then opens League Office for one season of schedules, scores, and standings.',
-  full_court: 'Full-Court starts from Free, then opens the complete toolkit plus unlimited Tournament Desk operations.',
+  full_court: 'Full-Court starts from Free, then opens every role path plus unlimited Tournament Desk runs.',
 }
 
 function getJoinNextRoute(planId: MembershipTierId) {
@@ -135,30 +137,61 @@ function JoinContent() {
   const searchParams = useSearchParams()
   const { role, entitlements, authResolved } = useAuth()
 
+  const [firstName, setFirstName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [redirecting, setRedirecting] = useState(false)
   const [submitHovered, setSubmitHovered] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
-  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+  const hasRedirectedRef = useRef(false)
+  const { isMobile } = useViewportBreakpoints()
   const requestedPlan = searchParams.get('plan')
   const requestedEmail = searchParams.get('email')?.trim() ?? ''
   const selectedPlanId: MembershipTierId = JOIN_PLAN_IDS.includes(requestedPlan as MembershipTierId)
     ? (requestedPlan as MembershipTierId)
     : 'free'
-  const selectedIntent = JOIN_INTENT_COPY[selectedPlanId]
   const selectedTier = getMembershipTier(selectedPlanId)
   const requestedNextRoute = searchParams.get('next')
   const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, getJoinNextRoute(selectedPlanId))
+  const availabilityEntry = selectedPlanId === 'free' ? getAvailabilityEntry(selectedNextRoute) : null
+  const isCaptainPilotSignup = selectedPlanId === 'captain' && selectedNextRoute.startsWith('/captain-pilot')
+  const captainPilotSource = getCaptainPilotSourceFromHref(selectedNextRoute)
+  const selectedIntent = isCaptainPilotSignup ? {
+    ...JOIN_INTENT_COPY.captain,
+    eyebrow: 'Captain offer · Create your account',
+    mobileTitle: 'Start your 3 months free.',
+    desktopTitle: 'Start your 3 months free.',
+    mobileText: 'Create your account and confirm your email. Then activate your Captain trial and follow the guided team setup.',
+    desktopText: 'Create your account and confirm your email. Then activate your Captain trial and follow the guided team setup.',
+  } : availabilityEntry ? {
+    ...JOIN_INTENT_COPY.free,
+    eyebrow: 'Team availability · Free account',
+    mobileTitle: 'Join your team in TiQ.',
+    desktopTitle: 'Join your team in TiQ.',
+    mobileText: `Create your free account for ${availabilityEntry.team}. Confirm your email, connect your player, then mark when you can play. No payment card needed.`,
+    desktopText: `Create your free account for ${availabilityEntry.team}. Confirm your email, connect your player, then mark when you can play. No payment card needed.`,
+  } : JOIN_INTENT_COPY[selectedPlanId]
+  const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
   const signInHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, email || requestedEmail)
   const authLoading = !authResolved
 
   useEffect(() => {
-    if (!authResolved || role === 'public') return
+    if (!authResolved) return
+
+    if (role === 'public') {
+      hasRedirectedRef.current = false
+      setRedirecting(false)
+      return
+    }
+
+    if (hasRedirectedRef.current) return
+    hasRedirectedRef.current = true
+    setRedirecting(true)
     const signedInRedirectRoute = requestedNextRoute ? selectedNextRoute : getDefaultSignedInRoute(role, entitlements)
     router.replace(signedInRedirectRoute)
   }, [authResolved, entitlements, requestedNextRoute, role, router, selectedNextRoute])
@@ -187,7 +220,7 @@ function JoinContent() {
       return
     }
 
-    if (password !== confirmPassword) {
+    if (!availabilityEntry && password !== confirmPassword) {
       setError('Passwords do not match.')
       return
     }
@@ -202,22 +235,27 @@ function JoinContent() {
     setMessage('')
 
     try {
-      const postSignupLoginHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, trimmedEmail)
-      const emailRedirectTo = typeof window !== 'undefined'
-        ? new URL(postSignupLoginHref, window.location.origin).toString()
-        : undefined
-      const { error } = await supabase.auth.signUp({
-        email: trimmedEmail,
-        password,
-        options: emailRedirectTo ? { emailRedirectTo } : undefined,
+      const signupResponse = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName,
+          email: trimmedEmail,
+          password,
+          planId: selectedPlanId,
+          nextHref: selectedNextRoute,
+          captainPilot: isCaptainPilotSignup,
+          acquisitionSource: isCaptainPilotSignup ? captainPilotSource : undefined,
+        }),
       })
+      const signupResult = await signupResponse.json().catch(() => null) as { ok?: boolean; message?: string } | null
+      if (!signupResponse.ok || !signupResult?.ok) throw new Error(signupResult?.message || 'Unable to create account.')
 
-      if (error) throw new Error(error.message)
-
-      setMessage(selectedIntent.success)
-      setTimeout(() => {
-        router.push(postSignupLoginHref)
-      }, 1000)
+      setMessage(availabilityEntry
+        ? `Check ${trimmedEmail} and confirm your email. We’ll bring you back to ${availabilityEntry.team} to connect your player and answer. Your match request is saved in the confirmation link.`
+        : isCaptainPilotSignup
+        ? 'Check your email to confirm your account. Your Captain Pilot welcome will guide you to the short team form and card-free activation.'
+        : 'Check your email to confirm your account. Your personal TenAceiQ welcome will show you the right next step.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account.')
     } finally {
@@ -229,25 +267,21 @@ function JoinContent() {
     ...heroShell,
     width: isMobile ? 'min(100% - 20px, 680px)' : 'min(720px, calc(100% - clamp(24px, 5vw, 40px)))',
     gridTemplateColumns: 'minmax(0, 1fr)',
-    padding: isMobile ? '18px' : '24px',
-    gap: isMobile ? '12px' : '14px',
+    padding: isMobile ? '12px' : '16px',
+    gap: '10px',
   }
 
   const loginPanelResponsive: CSSProperties = {
     ...loginPanel,
-    ...(isMobile
-      ? {
-          border: 'none',
-          background: 'transparent',
-          boxShadow: 'none',
-          borderRadius: 0,
-        }
-      : {}),
+    border: 'none',
+    background: 'transparent',
+    boxShadow: 'none',
+    borderRadius: 0,
   }
 
   const loginPanelInnerResponsive: CSSProperties = {
     ...loginPanelInner,
-    padding: isMobile ? 0 : '22px',
+    padding: 0,
   }
 
   const selectedPlanActionRowResponsive: CSSProperties = {
@@ -264,13 +298,13 @@ function JoinContent() {
     ...(isMobile ? mobileHelperRow : null),
   }
 
-  if (authLoading) {
+  if (authLoading || redirecting || role !== 'public') {
     return (
       <section style={loadingShell}>
         <div style={loadingCard}>
           <span style={authLoadingIconStyle}>
             <Image
-              src="/tiq/logo/tiq-app-icon.png"
+              src="/brand/icons/app-icon-1024.png"
               alt=""
               width={512}
               height={512}
@@ -278,58 +312,44 @@ function JoinContent() {
               style={authLoadingImageStyle}
             />
           </span>
-          Checking account status...
+          {authLoading ? 'Checking account status...' : 'Opening your TenAceIQ home...'}
         </div>
       </section>
     )
   }
 
-  if (role !== 'public') return null
-
   return (
     <section style={heroShellResponsive}>
         <span aria-hidden="true" style={watermarkStyle} />
-        <div style={joinCopyRailStyle}>
-          <div style={eyebrow}>{selectedIntent.eyebrow}</div>
-          <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '30px' : isMobile ? '34px' : '42px' }}>
-            {isMobile ? selectedIntent.mobileTitle : selectedIntent.desktopTitle}
-          </h1>
-          <p style={{ ...heroText, fontSize: isSmallMobile ? '15px' : '16px' }}>
-            {isMobile ? selectedIntent.mobileText : selectedIntent.desktopText}
-          </p>
-
-          <div style={selectedPlanCardStyle}>
-            <div style={selectedPlanLabelStyle}>Selected start</div>
-            <div style={selectedPlanTitleStyle}>{selectedTier.name}</div>
-            <div style={selectedPlanTextStyle}>
-              {JOIN_SELECTED_PLAN_COPY[selectedPlanId]}
-            </div>
-            {selectedPlanId !== 'free' ? (
-              <div style={entitlementNoticeStyle}>
-                Account creation starts Free access first.
-              </div>
-            ) : null}
-            <div style={selectedPlanActionRowResponsive}>
-              <Link href="/pricing" style={selectedPlanLinkResponsive}>
-                Compare tiers
-              </Link>
-              <Link href={selectedNextRoute} style={selectedPlanLinkResponsive}>
-                Preview next step
-              </Link>
-            </div>
-          </div>
-        </div>
-
         <div style={loginPanelResponsive}>
           <div style={loginPanelGlow} />
           <div style={loginPanelInnerResponsive}>
-            <form onSubmit={handleSubmit} style={isMobile ? formCardMobile : formCard}>
-              <div style={formLabel}>More Tennis. Less Chaos.</div>
-              <h2 style={isMobile ? formTitleMobile : formTitle}>Create your account</h2>
-              <div style={identityCueStyle}>
-                <TiqFeatureIcon name="accountSecurity" size="sm" variant="ghost" />
-                <span>{selectedIntent.formCue}</span>
-              </div>
+            <form onSubmit={handleSubmit} noValidate style={isMobile ? formCardMobile : formCard}>
+              <div style={formLabel}>{selectedIntent.eyebrow}</div>
+              <h1 style={isMobile ? formTitleMobile : formTitle}>
+                {isMobile ? selectedIntent.mobileTitle : selectedIntent.desktopTitle}
+              </h1>
+              <p style={formIntroStyle}>
+                {isMobile ? selectedIntent.mobileText : selectedIntent.desktopText}
+              </p>
+
+              {!availabilityEntry ? <><label htmlFor="firstName" style={inputLabel}>
+                First name <span style={optionalFieldLabel}>(optional)</span>
+              </label>
+              <input
+                id="firstName"
+                type="text"
+                autoComplete="given-name"
+                maxLength={60}
+                value={firstName}
+                onChange={(e) => {
+                  setFirstName(e.target.value)
+                  setError('')
+                  setMessage('')
+                }}
+                placeholder="So we can welcome you personally"
+                style={inputStyle}
+              /></> : null}
 
               <label htmlFor="email" style={inputLabel}>
                 Email
@@ -373,7 +393,7 @@ function JoinContent() {
                 style={inputStyle}
               />
 
-              <label htmlFor="confirmPassword" style={inputLabel}>
+              {!availabilityEntry ? <><label htmlFor="confirmPassword" style={inputLabel}>
                 Confirm password
               </label>
               <input
@@ -392,7 +412,7 @@ function JoinContent() {
                 }}
                 placeholder="Re-enter your password"
                 style={inputStyle}
-              />
+              /></> : null}
 
               <label style={termsRow}>
                 <input
@@ -423,7 +443,7 @@ function JoinContent() {
                 onClick={() => setShowPassword((v) => !v)}
                 style={togglePasswordButton}
               >
-                {showPassword ? 'Hide passwords' : 'Show passwords'}
+                {availabilityEntry ? showPassword ? 'Hide password' : 'Show password' : showPassword ? 'Hide passwords' : 'Show passwords'}
               </button>
 
               <button
@@ -440,10 +460,18 @@ function JoinContent() {
                   transition: 'transform 140ms ease, box-shadow 140ms ease',
                 }}
               >
-                {submitting ? 'Creating account...' : selectedPlanId === 'free' ? 'Create free account' : 'Create free account first'}
+                {submitting
+                  ? 'Creating account...'
+                  : availabilityEntry
+                    ? 'Create account & continue'
+                    : isCaptainPilotSignup
+                    ? 'Create account to start 3 months free'
+                    : selectedPlanId === 'free'
+                      ? 'Create free account'
+                      : 'Create free account first'}
               </button>
 
-              {message ? <div role="status" aria-live="polite" style={successBanner}>{message}</div> : null}
+              {message ? <div role="status" aria-live="polite" style={successBanner}>{message} <Link href={signInHref} style={successBannerLink}>Already confirmed? Sign in.</Link></div> : null}
               {error ? <div id="join-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
 
               <div style={helperRowResponsive}>
@@ -455,6 +483,45 @@ function JoinContent() {
             </form>
           </div>
         </div>
+
+        {!availabilityEntry && (selectedPlanId !== 'free' || nextIntent) ? <details className="authOptionalDetailsSection" style={selectedPlanCardStyle}>
+          <summary style={selectedPlanSummaryStyle}>
+            <span style={selectedPlanSummaryTextStyle}>
+              <span style={selectedPlanLabelStyle}>Selected start</span>
+              <span style={selectedPlanTitleStyle}>{selectedTier.name}</span>
+            </span>
+            <span style={selectedPlanSummaryActionStyle}>Show plan path</span>
+          </summary>
+          <div className="authOptionalDetailsBody" style={selectedPlanDetailBodyStyle}>
+            <div style={selectedPlanTextStyle}>
+              {isCaptainPilotSignup
+                ? 'Create your account, then complete the short Captain Pilot form. Your three free months activate immediately—no card required.'
+                : JOIN_SELECTED_PLAN_COPY[selectedPlanId]}
+            </div>
+            {selectedPlanId !== 'free' ? (
+              <div style={entitlementNoticeStyle}>
+                {isCaptainPilotSignup
+                  ? 'Account creation gives you Free access. The next step activates your 3-month Captain pilot at $0.'
+                  : 'Account creation starts Free access first.'}
+              </div>
+            ) : null}
+            {nextIntent ? (
+              <div aria-label="Join next action" style={nextIntentStyle}>
+                <div style={nextIntentLabelStyle}>{nextIntent.label}</div>
+                <div style={nextIntentTitleStyle}>{nextIntent.title}</div>
+                <div style={nextIntentBodyStyle}>{nextIntent.body}</div>
+              </div>
+            ) : null}
+            <div style={selectedPlanActionRowResponsive}>
+              <Link href="/pricing" style={selectedPlanLinkResponsive}>
+                Compare tiers
+              </Link>
+              <Link href={selectedNextRoute} style={selectedPlanLinkResponsive}>
+                Preview next step
+              </Link>
+            </div>
+          </div>
+        </details> : null}
     </section>
   )
 }
@@ -476,71 +543,65 @@ const heroShell: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-110px',
-  top: '-118px',
-  width: 'clamp(220px, 24vw, 310px)',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  right: 0,
+  top: '-72px',
+  width: 'min(310px, 62vw)',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }
 
-const eyebrow: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  alignSelf: 'flex-start',
-  maxWidth: '100%',
-  minHeight: '38px',
-  padding: '8px 14px',
-  borderRadius: '999px',
-  border: '1px solid rgba(125, 211, 252, 0.24)',
-  background: 'rgba(15, 23, 42, 0.66)',
-  color: 'var(--home-eyebrow-color)',
-  fontWeight: 800,
-  fontSize: '15px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  marginBottom: '4px',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-}
-
-const heroTitle: CSSProperties = {
-  margin: '0 0 12px',
-  color: 'var(--foreground-strong)',
-  fontWeight: 900,
-  lineHeight: 0.98,
-  letterSpacing: 0,
-  maxWidth: '760px',
-  fontSize: '58px',
-  overflowWrap: 'anywhere',
-}
-
-const heroText: CSSProperties = {
-  margin: '0 0 16px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '18px',
-  lineHeight: 1.45,
-  maxWidth: '760px',
-  overflowWrap: 'anywhere',
-}
-
-const joinCopyRailStyle: CSSProperties = {
-  display: 'grid',
-  gap: 8,
-  minWidth: 0,
-}
-
 const selectedPlanCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: '6px',
+  display: 'block',
   width: '100%',
   minWidth: 0,
-  margin: '2px 0 0',
-  padding: '12px',
+  margin: 0,
+  padding: '10px 12px',
   borderRadius: '18px',
   border: '1px solid rgba(155,225,29,0.24)',
   background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(34,211,238,0.08))',
+  boxSizing: 'border-box',
+}
+
+const selectedPlanSummaryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
+  gap: '10px',
+  minWidth: 0,
+  alignItems: 'center',
+  listStyle: 'none',
+  cursor: 'pointer',
+}
+
+const selectedPlanSummaryTextStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+}
+
+const selectedPlanSummaryActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: '32px',
+  maxWidth: '100%',
+  padding: '0 10px',
+  borderRadius: '999px',
+  border: '1px solid rgba(125, 211, 252, 0.18)',
+  background: 'rgba(15, 23, 42, 0.66)',
+  color: 'var(--foreground-strong)',
+  fontSize: '12px',
+  fontWeight: 900,
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const selectedPlanDetailBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minWidth: 0,
+  paddingTop: '10px',
 }
 
 const selectedPlanLabelStyle: CSSProperties = {
@@ -575,6 +636,44 @@ const entitlementNoticeStyle: CSSProperties = {
   fontSize: '12px',
   lineHeight: 1.5,
   fontWeight: 800,
+}
+
+const nextIntentStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  marginTop: '2px',
+  padding: '10px',
+  borderRadius: '16px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  boxSizing: 'border-box',
+}
+
+const nextIntentLabelStyle: CSSProperties = {
+  color: 'var(--home-eyebrow-color)',
+  fontSize: '11px',
+  fontWeight: 900,
+  lineHeight: 1.2,
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  fontWeight: 900,
+  lineHeight: 1.18,
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  fontWeight: 700,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
 
 const selectedPlanActionRowStyle: CSSProperties = {
@@ -688,19 +787,11 @@ const formTitleMobile: CSSProperties = {
   fontSize: '24px',
 }
 
-const identityCueStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 36px) minmax(0, 1fr)',
-  gap: '10px',
-  minWidth: 0,
-  alignItems: 'center',
-  padding: '10px 12px',
-  borderRadius: '16px',
-  border: '1px solid rgba(155,225,29,0.2)',
-  background: 'rgba(155,225,29,0.08)',
+const formIntroStyle: CSSProperties = {
+  margin: '-2px 0 2px',
   color: 'var(--shell-copy-muted)',
-  fontSize: '13px',
-  fontWeight: 800,
+  fontSize: 13,
+  fontWeight: 720,
   lineHeight: 1.4,
   overflowWrap: 'anywhere',
 }
@@ -711,6 +802,11 @@ const inputLabel: CSSProperties = {
   fontWeight: 700,
   marginTop: '2px',
   overflowWrap: 'anywhere',
+}
+
+const optionalFieldLabel: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontWeight: 600,
 }
 
 const inputStyle: CSSProperties = {
@@ -789,6 +885,12 @@ const successBanner: CSSProperties = {
   fontWeight: 700,
   fontSize: '14px',
   overflowWrap: 'anywhere',
+}
+
+const successBannerLink: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  textDecoration: 'underline',
 }
 
 const errorBanner: CSSProperties = {

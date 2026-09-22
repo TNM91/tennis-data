@@ -1,8 +1,18 @@
+import { useId } from 'react'
 import type { ArrowType, DrillArrow, DrillMarker, DrillOverlay, DrillPlayer, DrillZone, PlayerTeam } from './types'
 
 type TiqCourtOverlayProps = {
   overlay?: DrillOverlay
   showLabels?: boolean
+}
+
+type OverlayDefinitionIds = {
+  glow: string
+  labelShadow: string
+  playerHead: string
+  ballMarker: string
+  coneMarker: string
+  arrowHeads: Record<ArrowType, string>
 }
 
 const arrowColor: Record<ArrowType, string> = {
@@ -26,7 +36,21 @@ const teamColor: Record<PlayerTeam, string> = {
 }
 
 export default function TiqCourtOverlay({ overlay, showLabels = true }: TiqCourtOverlayProps) {
+  const definitionPrefix = `tiq-overlay-${useId().replace(/:/g, '')}`
   if (!overlay) return null
+
+  const definitionIds: OverlayDefinitionIds = {
+    glow: `${definitionPrefix}-glow`,
+    labelShadow: `${definitionPrefix}-label-shadow`,
+    playerHead: `${definitionPrefix}-player-head`,
+    ballMarker: `${definitionPrefix}-ball-marker`,
+    coneMarker: `${definitionPrefix}-cone-marker`,
+    arrowHeads: {
+      ball: `${definitionPrefix}-arrow-head-ball`,
+      movement: `${definitionPrefix}-arrow-head-movement`,
+      recovery: `${definitionPrefix}-arrow-head-recovery`,
+    },
+  }
 
   return (
     <svg
@@ -36,55 +60,41 @@ export default function TiqCourtOverlay({ overlay, showLabels = true }: TiqCourt
       viewBox="0 0 100 100"
     >
       <defs>
-        <filter id="tiq-overlay-glow" x="-30%" y="-30%" width="160%" height="160%">
+        <filter id={definitionIds.glow} x="-30%" y="-30%" width="160%" height="160%">
           <feDropShadow dx="0" dy="0" stdDeviation="1.2" floodColor="#9be11d" floodOpacity="0.55" />
         </filter>
+        <filter id={definitionIds.labelShadow} x="-30%" y="-40%" width="160%" height="180%">
+          <feDropShadow dx="0" dy="0.35" stdDeviation="0.45" floodColor="#020814" floodOpacity="0.82" />
+        </filter>
         {Object.entries(arrowColor).map(([type, color]) => (
-          <marker id={`tiq-arrow-head-${type}`} key={type} markerHeight="4" markerWidth="4" orient="auto" refX="3.2" refY="2" viewBox="0 0 4 4">
+          <marker id={definitionIds.arrowHeads[type as ArrowType]} key={type} markerHeight="4" markerWidth="4" orient="auto" refX="3.2" refY="2" viewBox="0 0 4 4">
             <path d="M0 0 4 2 0 4Z" fill={color} />
           </marker>
         ))}
-        <symbol id="tiq-player-head" viewBox="-6 -6 12 12">
+        <symbol id={definitionIds.playerHead} viewBox="-6 -6 12 12">
           <circle cx="0" cy="0" fill="#07101e" r="5.1" stroke="currentColor" strokeWidth="0.95" />
           <path d="M-4.8 0.2C-2.6 -3.15 0 -2.45 2.05 0.25C3.25 1.8 4.55 1.85 5.2 0.55" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.05" />
         </symbol>
-        <symbol id="tiq-ball-marker" viewBox="-5 -5 10 10">
+        <symbol id={definitionIds.ballMarker} viewBox="-5 -5 10 10">
           <image height="10" href="/tiq/tokens/tennis-ball-reference.png" preserveAspectRatio="xMidYMid meet" width="10" x="-5" y="-5" />
         </symbol>
-        <symbol id="tiq-cone-marker" viewBox="-5 -5 10 10">
+        <symbol id={definitionIds.coneMarker} viewBox="-5 -5 10 10">
           <path d="M0 -3.8L3.35 3.2H-3.35Z" fill="#ffc257" stroke="#07101e" strokeLinejoin="round" strokeWidth="0.7" />
           <path d="M-4.1 3.2H4.1" stroke="#9be11d" strokeLinecap="round" strokeWidth="0.7" />
         </symbol>
-        <marker id="tiq-arrow-head" markerHeight="4" markerWidth="4" orient="auto" refX="3.2" refY="2" viewBox="0 0 4 4">
-          <path d="M0 0 4 2 0 4Z" fill="#9be11d" />
-        </marker>
       </defs>
-      {overlay.zones?.map((zone) => <Zone key={zone.id} zone={zone} showLabel={showLabels} />)}
-      {overlay.arrows?.map((arrow) => <Arrow key={arrow.id} arrow={arrow} showLabel={showLabels} />)}
-      {overlay.markers?.map((marker) => <Marker key={marker.id} marker={marker} showLabel={showLabels} />)}
-      {overlay.players?.map((player) => <Player key={player.id} player={player} showLabel={showLabels} />)}
+      {overlay.zones?.map((zone) => <Zone definitionIds={definitionIds} key={zone.id} zone={zone} showLabel={showLabels} />)}
+      {overlay.arrows?.map((arrow) => <Arrow definitionIds={definitionIds} key={arrow.id} arrow={arrow} showLabel={showLabels} />)}
+      {overlay.markers?.map((marker) => <Marker definitionIds={definitionIds} key={marker.id} marker={marker} showLabel={showLabels} />)}
+      {overlay.players?.map((player) => <Player definitionIds={definitionIds} key={player.id} player={player} showLabel={showLabels} />)}
       {showLabels && overlay.labels?.map((label) => (
-        <text
-          fill={label.tone === 'danger' ? '#ffc257' : label.tone === 'muted' ? 'rgba(248,251,255,0.72)' : '#f8fbff'}
-          fontSize="2.8"
-          fontWeight="800"
-          key={label.id}
-          paintOrder="stroke"
-          stroke="rgba(2,8,18,0.78)"
-          strokeLinejoin="round"
-          strokeWidth="0.7"
-          textAnchor="middle"
-          x={label.x}
-          y={label.y}
-        >
-          {label.text}
-        </text>
+        <Label definitionIds={definitionIds} key={label.id} text={label.text} tone={label.tone} x={label.x} y={label.y} />
       ))}
     </svg>
   )
 }
 
-function Zone({ zone, showLabel }: { zone: DrillZone; showLabel: boolean }) {
+function Zone({ definitionIds, zone, showLabel }: { definitionIds: OverlayDefinitionIds; zone: DrillZone; showLabel: boolean }) {
   const centerX = zone.x + zone.width / 2
   const centerY = zone.y + zone.height / 2
   const fill = {
@@ -110,23 +120,21 @@ function Zone({ zone, showLabel }: { zone: DrillZone; showLabel: boolean }) {
         x={zone.x}
         y={zone.y}
       />
-      {zone.marker === 'cone' ? <use href="#tiq-cone-marker" height="7" width="7" x={centerX - 3.5} y={centerY - 3.5} /> : null}
+      {zone.marker === 'cone' ? <use href={`#${definitionIds.coneMarker}`} height="7" width="7" x={centerX - 3.5} y={centerY - 3.5} /> : null}
       {zone.marker === 'target' ? (
-        <g filter="url(#tiq-overlay-glow)">
+        <g filter={`url(#${definitionIds.glow})`}>
           <circle cx={centerX} cy={centerY} fill="none" r="3.6" stroke="#9be11d" strokeWidth="0.7" />
           <circle cx={centerX} cy={centerY} fill="rgba(155,225,29,0.18)" r="1.6" stroke="#dfff73" strokeWidth="0.5" />
         </g>
       ) : null}
       {showLabel && zone.label ? (
-        <text fill="#dff8c2" fontSize="2.35" fontWeight="800" textAnchor="middle" x={centerX} y={centerY}>
-          {zone.label}
-        </text>
+        <Label definitionIds={definitionIds} text={zone.label} tone={zone.tone === 'blue' ? 'muted' : 'default'} x={centerX} y={centerY} />
       ) : null}
     </g>
   )
 }
 
-function Arrow({ arrow, showLabel }: { arrow: DrillArrow; showLabel: boolean }) {
+function Arrow({ definitionIds, arrow, showLabel }: { definitionIds: OverlayDefinitionIds; arrow: DrillArrow; showLabel: boolean }) {
   const type = arrow.type ?? 'movement'
   const color = arrowColor[type]
   const midX = (arrow.from.x + arrow.to.x) / 2
@@ -135,12 +143,12 @@ function Arrow({ arrow, showLabel }: { arrow: DrillArrow; showLabel: boolean }) 
   const path = `M ${arrow.from.x} ${arrow.from.y} Q ${midX} ${midY + curveY} ${arrow.to.x} ${arrow.to.y}`
 
   return (
-    <g filter={type === 'ball' ? 'url(#tiq-overlay-glow)' : undefined}>
+    <g filter={type === 'ball' ? `url(#${definitionIds.glow})` : undefined}>
       {arrow.curved ? (
         <path
           d={path}
           fill="none"
-          markerEnd={`url(#tiq-arrow-head-${type})`}
+          markerEnd={`url(#${definitionIds.arrowHeads[type]})`}
           stroke={color}
           strokeDasharray={arrowDash[type]}
           strokeLinecap="round"
@@ -148,7 +156,7 @@ function Arrow({ arrow, showLabel }: { arrow: DrillArrow; showLabel: boolean }) 
         />
       ) : (
         <line
-          markerEnd={`url(#tiq-arrow-head-${type})`}
+          markerEnd={`url(#${definitionIds.arrowHeads[type]})`}
           stroke={color}
           strokeDasharray={arrowDash[type]}
           strokeLinecap="round"
@@ -159,33 +167,29 @@ function Arrow({ arrow, showLabel }: { arrow: DrillArrow; showLabel: boolean }) 
           y2={arrow.to.y}
         />
       )}
-      {type === 'ball' ? <use href="#tiq-ball-marker" height="4.6" width="4.6" x={arrow.to.x - 2.3} y={arrow.to.y - 2.3} /> : null}
+      {type === 'ball' ? <use href={`#${definitionIds.ballMarker}`} height="4.6" width="4.6" x={arrow.to.x - 2.3} y={arrow.to.y - 2.3} /> : null}
       {showLabel && arrow.label ? (
-        <text fill={color} fontSize="2.35" fontWeight="800" paintOrder="stroke" stroke="rgba(2,8,18,0.82)" strokeWidth="0.6" textAnchor="middle" x={midX} y={midY + (arrow.curved ? curveY : -1.5)}>
-          {arrow.label}
-        </text>
+        <Label definitionIds={definitionIds} color={color} compact text={arrow.label} x={midX} y={midY + (arrow.curved ? curveY : -1.5)} />
       ) : null}
     </g>
   )
 }
 
-function Marker({ marker, showLabel }: { marker: DrillMarker; showLabel: boolean }) {
+function Marker({ definitionIds, marker, showLabel }: { definitionIds: OverlayDefinitionIds; marker: DrillMarker; showLabel: boolean }) {
   const size = marker.size ?? (marker.type === 'ball' ? 5 : 7)
-  const symbol = marker.type === 'ball' ? '#tiq-ball-marker' : '#tiq-cone-marker'
+  const symbol = marker.type === 'ball' ? `#${definitionIds.ballMarker}` : `#${definitionIds.coneMarker}`
 
   return (
-    <g filter="url(#tiq-overlay-glow)">
+    <g filter={`url(#${definitionIds.glow})`}>
       <use href={symbol} height={size} width={size} x={marker.x - size / 2} y={marker.y - size / 2} />
       {showLabel && marker.label ? (
-        <text fill="#f8fbff" fontSize="2.15" fontWeight="800" paintOrder="stroke" stroke="rgba(2,8,18,0.86)" strokeWidth="0.55" textAnchor="middle" x={marker.x} y={marker.y + size / 2 + 3}>
-          {marker.label}
-        </text>
+        <Label definitionIds={definitionIds} compact text={marker.label} x={marker.x} y={marker.y + size / 2 + 3} />
       ) : null}
     </g>
   )
 }
 
-function Player({ player, showLabel }: { player: DrillPlayer; showLabel: boolean }) {
+function Player({ definitionIds, player, showLabel }: { definitionIds: OverlayDefinitionIds; player: DrillPlayer; showLabel: boolean }) {
   const stroke = teamColor[player.team ?? 'A']
   const handednessScale = player.handedness === 'lefty' ? -1 : 1
   const pose = player.pose ?? 'ready'
@@ -204,10 +208,10 @@ function Player({ player, showLabel }: { player: DrillPlayer; showLabel: boolean
   }[pose]
 
   return (
-    <g color={stroke} filter="url(#tiq-overlay-glow)" transform={`translate(${player.x} ${player.y}) scale(${size})`}>
+    <g color={stroke} filter={`url(#${definitionIds.glow})`} transform={`translate(${player.x} ${player.y}) scale(${size})`}>
       <ellipse cx="0" cy="2.4" fill={stroke} opacity="0.25" rx="4.2" ry="1" />
       <g transform={`scale(${handednessScale} 1)`}>
-        <use href="#tiq-player-head" height="5.8" width="5.8" x="-2.9" y="-7.1" />
+        <use href={`#${definitionIds.playerHead}`} height="5.8" width="5.8" x="-2.9" y="-7.1" />
         <path d={posePath} fill="none" stroke="#07101e" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.55" />
         <path d={racquet.handle} fill="none" stroke="#07101e" strokeLinecap="round" strokeWidth="1.12" />
         <circle cx={racquet.cx} cy={racquet.cy} fill="none" r="1.15" stroke="#07101e" strokeWidth="1.02" />
@@ -216,10 +220,66 @@ function Player({ player, showLabel }: { player: DrillPlayer; showLabel: boolean
         <circle cx={racquet.cx} cy={racquet.cy} fill="none" r="1.15" stroke={stroke} strokeWidth="0.48" />
       </g>
       {showLabel ? (
-        <text fill="#f8fbff" fontSize="2.15" fontWeight="800" paintOrder="stroke" stroke="rgba(2,8,18,0.86)" strokeWidth="0.55" textAnchor="middle" y="7.4">
-          {player.label}
-        </text>
+        <Label definitionIds={definitionIds} compact text={player.label} y="7.9" />
       ) : null}
+    </g>
+  )
+}
+
+function Label({
+  definitionIds,
+  color,
+  compact = false,
+  text,
+  tone = 'default',
+  x = 0,
+  y,
+}: {
+  definitionIds: OverlayDefinitionIds
+  color?: string
+  compact?: boolean
+  text?: string
+  tone?: 'default' | 'muted' | 'danger'
+  x?: number | string
+  y: number | string
+}) {
+  if (!text) return null
+
+  const fill = color ?? (tone === 'danger' ? '#ffc257' : tone === 'muted' ? '#d9f2ff' : '#f8fbff')
+  const estimatedWidth = Math.max(8.2, Math.min(24, text.length * (compact ? 1.42 : 1.58) + 3.8))
+  const height = compact ? 4.4 : 5.2
+  const numericX = typeof x === 'number' ? x : Number(x)
+  const numericY = typeof y === 'number' ? y : Number(y)
+  const canDrawPill = Number.isFinite(numericX) && Number.isFinite(numericY)
+
+  return (
+    <g filter={`url(#${definitionIds.labelShadow})`}>
+      {canDrawPill ? (
+        <rect
+          fill="rgba(2,8,18,0.72)"
+          height={height}
+          rx={height / 2}
+          stroke="rgba(248,251,255,0.18)"
+          strokeWidth="0.22"
+          width={estimatedWidth}
+          x={numericX - estimatedWidth / 2}
+          y={numericY - height + 1.25}
+        />
+      ) : null}
+      <text
+        fill={fill}
+        fontSize={compact ? '2.05' : '2.45'}
+        fontWeight="850"
+        paintOrder="stroke"
+        stroke="rgba(2,8,18,0.7)"
+        strokeLinejoin="round"
+        strokeWidth="0.38"
+        textAnchor="middle"
+        x={x}
+        y={y}
+      >
+        {text}
+      </text>
     </g>
   )
 }

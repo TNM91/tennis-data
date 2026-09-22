@@ -153,15 +153,15 @@ export default function AdminImportQueuePage() {
           />
 
           <AdminReviewPanel
-            ariaLabel="Admin import outcome proof cue"
+            ariaLabel="Import outcome check"
             style={{ marginTop: 18 }}
           >
             <div style={{ display: 'grid', gap: 8 }}>
               <div style={{ color: 'var(--foreground)', fontSize: '1rem', fontWeight: 900 }}>
-                Admin import outcome proof cue
+                Import outcome check
               </div>
               <p className="subtle-text" style={{ margin: 0 }}>
-                Prove what changed and what stayed guarded before imported tennis data becomes trusted.
+                Review what changed and what stayed guarded before imported tennis data becomes trusted.
               </p>
             </div>
             <div

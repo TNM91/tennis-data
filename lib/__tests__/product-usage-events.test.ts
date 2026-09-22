@@ -1,11 +1,34 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 import {
+  PRODUCT_USAGE_EVENT_NAMES,
+  PRODUCT_USAGE_EVENT_SURFACES,
   buildProductUsageEventInsert,
   normalizeProductUsageEventInput,
 } from '../product-usage-events'
 
 describe('product usage events', () => {
+  it('keeps production event and surface constraints aligned with the application registry', () => {
+    const followMigration = readFileSync(join(process.cwd(), 'supabase/migrations/20260921000200_add_follow_journey_usage_events.sql'), 'utf8')
+    const migration = [
+      '20260901000200_add_product_tour_conversion_usage_events.sql',
+      '20260904000200_add_signup_funnel_usage_event.sql',
+      '20260909000500_add_conversion_funnel_usage_events.sql',
+      '20260910000200_add_card_free_captain_pilot.sql',
+      '20260921000200_add_follow_journey_usage_events.sql',
+    ].map((file) => readFileSync(join(process.cwd(), `supabase/migrations/${file}`), 'utf8')).join('\n')
+
+    for (const eventName of PRODUCT_USAGE_EVENT_NAMES) {
+      expect(migration).toContain(`'${eventName}'`)
+      expect(followMigration).toContain(`'${eventName}'`)
+    }
+    for (const surface of PRODUCT_USAGE_EVENT_SURFACES) {
+      expect(migration).toContain(`'${surface}'`)
+    }
+  })
+
   it('normalizes supported event input', () => {
     expect(normalizeProductUsageEventInput({
       eventName: 'mylab_match_plan_action',
@@ -57,6 +80,18 @@ describe('product usage events', () => {
     })
   })
 
+  it('accepts captain default-team saves', () => {
+    expect(normalizeProductUsageEventInput({
+      eventName: 'captain_default_team_saved',
+      surface: 'captain',
+      planId: 'captain',
+      metadata: {
+        team: 'Northside',
+        source: 'cloud',
+      },
+    })?.eventName).toBe('captain_default_team_saved')
+  })
+
   it('accepts upgrade checkout starts', () => {
     expect(buildProductUsageEventInsert('user-2', {
       eventName: 'upgrade_checkout_started',
@@ -76,6 +111,24 @@ describe('product usage events', () => {
         nextHref: '/captain',
       },
     })
+  })
+
+  it('accepts signup confirmation funnel events', () => {
+    expect(buildProductUsageEventInsert('user-signup', {
+      eventName: 'signup_confirmation_sent',
+      surface: 'public_site',
+      planId: 'captain',
+      metadata: { signup_intent: 'captain' },
+    })?.event_name).toBe('signup_confirmation_sent')
+  })
+
+  it('accepts Club upgrade checkout plan ids', () => {
+    expect(normalizeProductUsageEventInput({
+      eventName: 'upgrade_checkout_started',
+      surface: 'upgrade',
+      planId: 'club_unlimited',
+      metadata: { nextHref: '/clubs' },
+    })?.planId).toBe('club_unlimited')
   })
 
   it('accepts profile cloud sync repair observability', () => {
@@ -153,6 +206,24 @@ describe('product usage events', () => {
           : 'matchup',
         metadata: {
           source: 'test',
+        },
+      })?.eventName).toBe(eventName)
+    }
+  })
+
+  it('accepts portal personalization and lane-use analytics', () => {
+    for (const eventName of [
+      'portal_personalization_opened',
+      'portal_personalization_saved',
+      'portal_personalization_save_blocked',
+      'portal_lane_opened',
+      'portal_shortcut_opened',
+    ] as const) {
+      expect(normalizeProductUsageEventInput({
+        eventName,
+        surface: 'portal',
+        metadata: {
+          pinnedLanes: ['find', 'you', 'team', 'club'],
         },
       })?.eventName).toBe(eventName)
     }

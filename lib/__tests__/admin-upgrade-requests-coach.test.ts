@@ -22,6 +22,7 @@ describe('admin upgrade request Coach queue support', () => {
     expect(source).not.toContain("'Captain workflow'")
     expect(source).not.toContain("'Coordinator tools'")
     expect(source).not.toContain('Coach activation includes Player+ access plus coach-player planning and follow-through.')
-    expect(source).toContain("'Full-Court activation unlocks every current paid workspace for the account.'")
+    expect(source).toContain("'Full-Court activation unlocks every current paid tool for the account.'")
+    expect(source).not.toContain("'Full-Court activation unlocks every current paid workspace for the account.'")
   })
 })

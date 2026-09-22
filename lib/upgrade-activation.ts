@@ -1,20 +1,28 @@
-import type { PricingPlanId } from '@/lib/pricing-plans'
+import type { BillablePricingPlanId } from '@/lib/pricing-plans'
 
-export type UpgradeActivationPayload = Record<string, boolean | string>
+export type UpgradeActivationPayload = Record<string, boolean | string | null>
 export type UpgradeActivationRequestStatus = 'pending' | 'contacted' | 'converted' | 'closed'
 
 export type UpgradeActivationRequestSource = {
   id: string
-  planId: PricingPlanId | string | null
+  planId: BillablePricingPlanId | string | null
   userId?: string | null
   status?: UpgradeActivationRequestStatus | string | null
 }
 
 export type UpgradeActivationTarget =
-  | { ok: true; requestId: string; planId: PricingPlanId; userId: string }
+  | { ok: true; requestId: string; planId: BillablePricingPlanId; userId: string }
   | { ok: false; status: number; message: string }
 
-const ACTIVATABLE_PLAN_IDS: PricingPlanId[] = ['player_plus', 'coach', 'captain', 'league', 'full_court']
+const ACTIVATABLE_PLAN_IDS: BillablePricingPlanId[] = [
+  'player_plus',
+  'coach',
+  'captain',
+  'league',
+  'full_court',
+  'club_starter',
+  'club_unlimited',
+]
 
 export function resolveUpgradeActivationTarget(
   request: UpgradeActivationRequestSource | null | undefined,
@@ -49,37 +57,44 @@ export function resolveUpgradeActivationTarget(
   }
 }
 
-export function buildProfileActivationPayload(planId: PricingPlanId): UpgradeActivationPayload {
+export function buildProfileActivationPayload(planId: BillablePricingPlanId): UpgradeActivationPayload {
+  if (planId === 'club_starter' || planId === 'club_unlimited') return {}
+
   if (planId === 'league') {
     return {
       tiq_team_league_entry_enabled: true,
       tiq_individual_league_creator_enabled: true,
+      league_access_expires_at: null,
     }
   }
 
   const payload: UpgradeActivationPayload = {
     player_plus_subscription_active: true,
     player_plus_subscription_status: 'active',
+    player_plus_access_expires_at: null,
   }
 
   if (planId === 'captain' || planId === 'full_court') {
     payload.captain_subscription_active = true
     payload.captain_subscription_status = 'active'
+    payload.captain_access_expires_at = null
   }
 
   if (planId === 'coach' || planId === 'full_court') {
     payload.coach_subscription_active = true
     payload.coach_subscription_status = 'active'
+    payload.coach_access_expires_at = null
   }
 
   if (planId === 'full_court') {
     payload.tiq_team_league_entry_enabled = true
     payload.tiq_individual_league_creator_enabled = true
+    payload.league_access_expires_at = null
   }
 
   return payload
 }
 
-function isActivatablePlanId(value: unknown): value is PricingPlanId {
-  return typeof value === 'string' && ACTIVATABLE_PLAN_IDS.includes(value as PricingPlanId)
+function isActivatablePlanId(value: unknown): value is BillablePricingPlanId {
+  return typeof value === 'string' && ACTIVATABLE_PLAN_IDS.includes(value as BillablePricingPlanId)
 }

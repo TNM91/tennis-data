@@ -4,7 +4,7 @@ export default function Loading() {
   return (
     <RouteLoadingShell
       label="Preparing Data Assist..."
-      detail="Preparing upload review, import history, and tennis record refresh."
+      detail="Preparing upload review, import history, and data refresh."
       pattern="upload"
     />
   )

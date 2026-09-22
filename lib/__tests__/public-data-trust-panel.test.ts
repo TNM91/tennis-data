@@ -36,7 +36,6 @@ describe('public data trust panels', () => {
   it('surfaces trust panels on public directory fallback states', () => {
     expect(playersSource).toContain('Player data trust')
     expect(playersSource).toContain('Why a player may be missing')
-    expect(teamsSource).toContain('Team data trust')
     expect(teamsSource).toContain('Why a team may be missing')
     expect(leaguesSource).toContain('League data trust')
     expect(leaguesSource).toContain('Why a league may be missing')

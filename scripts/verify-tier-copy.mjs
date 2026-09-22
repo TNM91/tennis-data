@@ -46,7 +46,7 @@ for (const planId of ['player_plus', 'coach', 'captain', 'league']) {
 
 expectContains(sources.accessModelCore, "activePlanIds.includes('full_court')", files.accessModelCore, 'full_court access override')
 expectContains(sources.accessModelCore, 'FULL_COURT_PRICE_LABEL', files.accessModelCore, 'full court price label')
-expectContains(sources.pricingPlans, "badge: 'Complete Toolkit'", files.pricingPlans, 'full court pricing badge')
+expectContains(sources.pricingPlans, "badge: 'All Roles'", files.pricingPlans, 'full court pricing badge')
 expectContains(sources.productStory, 'Connected development workflows for coaches', files.productStory, 'coach principle')
 expectContains(sources.productStory, 'Competition tools for league and tournament organizers', files.productStory, 'league principle')
 

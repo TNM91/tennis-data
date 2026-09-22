@@ -61,7 +61,7 @@ export type StripeSubscriptionProfileUpdate = {
   subscriptionId: string
   customerId: string
   planId: SubscriptionPricingPlanId
-  payload: Record<string, boolean | string>
+  payload: Record<string, boolean | string | null>
 }
 
 export const STRIPE_SUBSCRIPTION_LIFECYCLE_EVENTS = [
@@ -69,6 +69,12 @@ export const STRIPE_SUBSCRIPTION_LIFECYCLE_EVENTS = [
   'customer.subscription.updated',
   'customer.subscription.deleted',
   'invoice.payment_failed',
+] as const
+
+export const STRIPE_ONE_TIME_REVERSAL_EVENTS = [
+  'charge.refunded',
+  'charge.dispute.created',
+  'refund.created',
 ] as const
 
 type SubscriptionPricingPlanId = Extract<PaidPricingPlanId, 'player_plus' | 'coach' | 'captain' | 'full_court'>
@@ -99,6 +105,12 @@ export function buildStripeBillingProfilePayload(session: StripeBillingCheckoutS
 export function isStripeSubscriptionLifecycleEvent(event: StripeSubscriptionLifecycleEvent) {
   return STRIPE_SUBSCRIPTION_LIFECYCLE_EVENTS.includes(
     event.type as (typeof STRIPE_SUBSCRIPTION_LIFECYCLE_EVENTS)[number],
+  )
+}
+
+export function isStripeOneTimeReversalEvent(event: StripeSubscriptionLifecycleEvent) {
+  return STRIPE_ONE_TIME_REVERSAL_EVENTS.includes(
+    event.type as (typeof STRIPE_ONE_TIME_REVERSAL_EVENTS)[number],
   )
 }
 
@@ -264,24 +276,28 @@ function buildSubscriptionEntitlementPayload(
   status: SubscriptionEntitlementStatus,
 ) {
   const active = status === 'active' || status === 'trial'
-  const payload: Record<string, boolean | string> = {
+  const payload: Record<string, boolean | string | null> = {
     player_plus_subscription_active: active,
     player_plus_subscription_status: status,
+    player_plus_access_expires_at: null,
   }
 
   if (planId === 'coach' || planId === 'full_court') {
     payload.coach_subscription_active = active
     payload.coach_subscription_status = status
+    payload.coach_access_expires_at = null
   }
 
   if (planId === 'captain' || planId === 'full_court') {
     payload.captain_subscription_active = active
     payload.captain_subscription_status = status
+    payload.captain_access_expires_at = null
   }
 
   if (planId === 'full_court') {
     payload.tiq_team_league_entry_enabled = active
     payload.tiq_individual_league_creator_enabled = active
+    payload.league_access_expires_at = null
   }
 
   return payload

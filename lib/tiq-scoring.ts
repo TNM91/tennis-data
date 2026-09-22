@@ -218,12 +218,26 @@ export function compareTiqTeamStandings(
   left: TiqTeamStandingSortShape,
   right: TiqTeamStandingSortShape,
   scoringMode: TiqLeagueScoringMode,
+  standingsRule: 'auto' | 'match_wins' | 'line_wins' | 'points' = 'auto',
 ) {
-  if (scoringMode === 'dynamic_points') {
+  const resolvedRule = standingsRule === 'auto'
+    ? scoringMode === 'dynamic_points' ? 'points' : 'match_wins'
+    : standingsRule
+
+  if (resolvedRule === 'points') {
     return (
       right.points - left.points ||
       right.wins - left.wins ||
       right.lineWins - left.lineWins ||
+      left.teamName.localeCompare(right.teamName)
+    )
+  }
+
+  if (resolvedRule === 'line_wins') {
+    return (
+      right.lineWins - left.lineWins ||
+      right.wins - left.wins ||
+      right.points - left.points ||
       left.teamName.localeCompare(right.teamName)
     )
   }

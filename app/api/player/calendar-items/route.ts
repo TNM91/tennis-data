@@ -1,17 +1,22 @@
 import { getSignedInPlayerApiAuth } from '@/lib/player-api-auth'
+import { apiServerError } from '@/lib/api-error-response'
 import {
   buildPlayerCalendarItemPayload,
   mapPlayerCalendarItemRow,
   type PlayerCalendarItemInput,
   type PlayerCalendarItemRow,
 } from '@/lib/player-calendar-items'
+import { loadPlayerCompetitionSchedule } from '@/lib/player-competition-schedule'
+import { loadAllPlayerCalendarItems } from '@/lib/player-calendar-storage'
+import { applyCalendarVenueLocations } from '@/lib/venue-calendar-storage'
 
 export const runtime = 'nodejs'
 
-const calendarItemSelect = 'id,player_user_id,title,scheduled_date,scheduled_time,location,kind,recurrence_rule,availability_status,created_at,updated_at'
+const calendarItemSelect = 'id,player_user_id,title,scheduled_date,scheduled_time,location,kind,recurrence_rule,availability_status,created_at,updated_at,venue_directory_id,venue_preference_id'
 
 type SaveCalendarItemBody = {
   item?: PlayerCalendarItemInput
+  items?: PlayerCalendarItemInput[]
 }
 
 function cleanText(value: unknown) {
@@ -22,21 +27,27 @@ export async function GET(request: Request) {
   const auth = await getSignedInPlayerApiAuth(request)
   if (!auth.ok) return auth.response
 
-  const { data, error } = await auth.supabase
-    .from('player_calendar_items')
-    .select(calendarItemSelect)
-    .eq('player_user_id', auth.userId)
-    .order('scheduled_date', { ascending: true })
-    .order('scheduled_time', { ascending: true })
-    .limit(100)
+  const [personalResult, competitionResult] = await Promise.all([
+    loadAllPlayerCalendarItems(auth.supabase, auth.userId)
+      .then((data) => ({ data, error: null }))
+      .catch((error: unknown) => ({ data: [], error })),
+    loadPlayerCompetitionSchedule(auth.supabase, auth.userId)
+      .then((items) => ({ items, error: null }))
+      .catch((error: unknown) => ({
+        items: [],
+        error: error instanceof Error ? error : new Error('Competition dates could not be loaded.'),
+      })),
+  ])
 
-  if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+  if (personalResult.error) {
+    return apiServerError('Could not load player calendar', personalResult.error, 'Your calendar could not be loaded completely. Please retry.')
   }
 
   return Response.json({
     ok: true,
-    items: ((data ?? []) as PlayerCalendarItemRow[]).map(mapPlayerCalendarItemRow),
+    items: ((personalResult.data ?? []) as PlayerCalendarItemRow[]).map(mapPlayerCalendarItemRow),
+    competitionItems: competitionResult.items,
+    competitionWarning: competitionResult.error?.message ?? '',
   })
 }
 
@@ -51,22 +62,40 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'Invalid calendar item request.' }, { status: 400 })
   }
 
-  const payload = buildPlayerCalendarItemPayload(body.item ?? {}, auth.userId)
-  if (!payload) {
-    return Response.json({ ok: false, message: 'Calendar title and date are required.' }, { status: 400 })
+  const requestedItems = Array.isArray(body.items)
+    ? body.items.slice(0, 100)
+    : body.item
+      ? [body.item]
+      : []
+  let payloads = requestedItems
+    .map((item) => buildPlayerCalendarItemPayload(item, auth.userId))
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+
+  if (!payloads.length) {
+    return Response.json({ ok: false, message: 'Each calendar item needs a title and date.' }, { status: 400 })
   }
+
+  try { payloads = await applyCalendarVenueLocations(auth.supabase,auth.userId,payloads) }
+  catch { return Response.json({ok:false,message:'A venue could not be verified for your calendar. Retry the location confirmation.'},{status:400}) }
 
   const { data, error } = await auth.supabase
     .from('player_calendar_items')
-    .upsert(payload, { onConflict: 'id' })
+    .upsert(payloads, { onConflict: 'id' })
     .select(calendarItemSelect)
-    .single()
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return apiServerError('Could not save player calendar item', error, 'The calendar item could not be saved.')
   }
 
-  return Response.json({ ok: true, item: mapPlayerCalendarItemRow(data as PlayerCalendarItemRow) })
+  const items = ((data ?? []) as PlayerCalendarItemRow[]).map(mapPlayerCalendarItemRow)
+
+  return Response.json({
+    ok: true,
+    item: items[0] ?? null,
+    items,
+    savedCount: payloads.length,
+    skippedCount: requestedItems.length - payloads.length,
+  })
 }
 
 export async function DELETE(request: Request) {
@@ -83,7 +112,7 @@ export async function DELETE(request: Request) {
     .eq('player_user_id', auth.userId)
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return apiServerError('Could not delete player calendar item', error, 'The calendar item could not be deleted.')
   }
 
   return Response.json({ ok: true })

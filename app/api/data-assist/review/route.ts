@@ -1,4 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
+import { scheduleDataAssistRatingRefresh } from '@/lib/data-assist-rating-refresh'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
   runDataAssistScheduleImportAction,
@@ -9,16 +11,17 @@ import {
   type DataAssistTeamSummaryImportActionResult,
 } from '@/lib/data-assist-import-runner'
 import type { DataAssistScorecardParsedDraft } from '@/lib/data-assist-ocr'
-import type { DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
+import { getScheduleMatchReviewNotes, type DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
 import type { DataAssistTeamSummaryParsedDraft } from '@/lib/data-assist-team-summary-parser'
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
+export const maxDuration = 300
 
 type ReviewRequestBody = {
   batchId?: unknown
   draftId?: unknown
   decision?: unknown
+  parsedDraft?: unknown
 }
 
 type DataAssistStatsBatchRow = {
@@ -81,8 +84,8 @@ export async function POST(request: Request) {
       .maybeSingle(),
   ])
 
-  if (batchResult.error) return Response.json({ ok: false, message: batchResult.error.message }, { status: 500 })
-  if (draftResult.error) return Response.json({ ok: false, message: draftResult.error.message }, { status: 500 })
+  if (batchResult.error) return apiServerError('Could not load Data Assist review batch', batchResult.error, 'That Data Assist review is temporarily unavailable.')
+  if (draftResult.error) return apiServerError('Could not load Data Assist review draft', draftResult.error, 'That Data Assist review is temporarily unavailable.')
 
   const batch = batchResult.data as { submitted_by_user_id?: string | null; status?: string | null } | null
   const draft = draftResult.data as {
@@ -107,9 +110,12 @@ export async function POST(request: Request) {
   const draftLabel = getParsedDraftLabel(draft.parsed_payload)
 
   if (decision === 'confirmed') {
-    const parsedDraft = toParsedDraft(draft.parsed_payload)
+    const parsedDraft = toReviewedParsedDraft(draft.parsed_payload, body.parsedDraft)
     if (!parsedDraft) {
       return Response.json({ ok: false, message: 'This OCR draft does not have a complete parsed payload to import.' }, { status: 400 })
+    }
+    if (isScheduleParsedDraft(parsedDraft) && !isScheduleDraftReadyForImport(parsedDraft)) {
+      return Response.json({ ok: false, message: 'Complete the highlighted schedule details before importing.' }, { status: 400 })
     }
 
     const parsedLineCount = getParsedLineCount(parsedDraft)
@@ -132,6 +138,7 @@ export async function POST(request: Request) {
         .from('data_assist_drafts')
         .update({
           status: 'verified',
+          parsed_payload: parsedDraft,
           review_note: verifiedNote,
           reviewed_by_user_id: requester.userId,
           reviewed_at: reviewedAt,
@@ -139,8 +146,8 @@ export async function POST(request: Request) {
         .eq('id', draftId),
     ])
 
-    if (batchUpdate.error) return Response.json({ ok: false, message: batchUpdate.error.message }, { status: 500 })
-    if (draftUpdate.error) return Response.json({ ok: false, message: draftUpdate.error.message }, { status: 500 })
+    if (batchUpdate.error) return apiServerError('Could not approve Data Assist review batch', batchUpdate.error, 'The Data Assist review could not be approved.')
+    if (draftUpdate.error) return apiServerError('Could not approve Data Assist review draft', draftUpdate.error, 'The Data Assist review could not be approved.')
 
     const autoImport = await runConfirmedReviewImport({
       supabase,
@@ -150,6 +157,11 @@ export async function POST(request: Request) {
       reviewedBy: requester.userId,
       validationSummary: draft.validation_summary,
     })
+
+    const scorecardImport = !isTeamSummaryParsedDraft(parsedDraft) && !isScheduleParsedDraft(parsedDraft)
+    if (autoImport.ok && scorecardImport) {
+      scheduleDataAssistRatingRefresh(supabase)
+    }
 
     if (!autoImport.ok) {
       const exceptionNote = `Confirmed read, but import paused: ${autoImport.message}`
@@ -179,8 +191,8 @@ export async function POST(request: Request) {
           .eq('id', draftId),
       ])
 
-      if (exceptionBatchUpdate.error) return Response.json({ ok: false, message: exceptionBatchUpdate.error.message }, { status: 500 })
-      if (exceptionDraftUpdate.error) return Response.json({ ok: false, message: exceptionDraftUpdate.error.message }, { status: 500 })
+      if (exceptionBatchUpdate.error) return apiServerError('Could not save Data Assist review exception batch', exceptionBatchUpdate.error, 'The Data Assist review exception could not be saved.')
+      if (exceptionDraftUpdate.error) return apiServerError('Could not save Data Assist review exception draft', exceptionDraftUpdate.error, 'The Data Assist review exception could not be saved.')
     }
 
     await refreshContributorStats(supabase, requester.userId)
@@ -190,7 +202,7 @@ export async function POST(request: Request) {
       status: autoImport.ok ? 'imported' : 'needs_review',
       autoImport,
       message: autoImport.ok
-        ? autoImport.message
+        ? `${autoImport.message}${scorecardImport ? ' Ratings are refreshing in the background.' : ''}`
         : `Read confirmed, but TenAceIQ needs one exception check before import: ${autoImport.message}`,
     })
   }
@@ -217,8 +229,8 @@ export async function POST(request: Request) {
       .eq('id', draftId),
   ])
 
-  if (batchUpdate.error) return Response.json({ ok: false, message: batchUpdate.error.message }, { status: 500 })
-  if (draftUpdate.error) return Response.json({ ok: false, message: draftUpdate.error.message }, { status: 500 })
+  if (batchUpdate.error) return apiServerError('Could not reject Data Assist review batch', batchUpdate.error, 'The Data Assist review could not be rejected.')
+  if (draftUpdate.error) return apiServerError('Could not reject Data Assist review draft', draftUpdate.error, 'The Data Assist review could not be rejected.')
 
   await refreshContributorStats(supabase, requester.userId)
 
@@ -279,12 +291,14 @@ async function runConfirmedReviewImport(input: {
         ...(input.validationSummary || {}),
         memberConfirmedAt: new Date().toISOString(),
       },
+      deferRatingRecalculation: true,
     })
   } catch (error) {
+    console.error('Confirmed Data Assist import failed', error)
     return {
       ok: false,
       action: 'commit',
-      message: error instanceof Error ? error.message : 'Confirmed Data Assist import failed.',
+      message: 'Confirmed Data Assist import failed.',
     }
   }
 }
@@ -391,6 +405,27 @@ function toParsedDraft(value: unknown): DataAssistScorecardParsedDraft | DataAss
   const draft = value as Partial<DataAssistScorecardParsedDraft>
   if (!draft.externalMatchId || !draft.matchDate || !draft.homeTeam || !draft.awayTeam || !Array.isArray(draft.lines)) return null
   return draft as DataAssistScorecardParsedDraft
+}
+
+function toReviewedParsedDraft(
+  storedValue: unknown,
+  submittedValue: unknown,
+): DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft | null {
+  if (isScheduleParsedDraft(submittedValue)) {
+    return {
+      ...submittedValue,
+      matches: submittedValue.matches.map((match) => ({
+        ...match,
+        reviewNotes: getScheduleMatchReviewNotes(match),
+      })),
+      matchCount: submittedValue.matches.length,
+    }
+  }
+  return toParsedDraft(storedValue)
+}
+
+function isScheduleDraftReadyForImport(draft: DataAssistScheduleParsedDraft) {
+  return draft.matches.length > 0 && draft.matches.every((match) => match.reviewNotes.length === 0)
 }
 
 function getParsedLineCount(value: unknown) {

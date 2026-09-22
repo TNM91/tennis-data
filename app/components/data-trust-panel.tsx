@@ -84,7 +84,7 @@ const panelStyle: CSSProperties = {
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'rgba(7,17,33,0.64)',
   minWidth: 0,
-  overflowWrap: 'anywhere',
+  overflowWrap: 'break-word',
 }
 
 const copyStyle: CSSProperties = {
@@ -131,6 +131,9 @@ const chipStyle: CSSProperties = {
 const chipLabelStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 950,
+  flexShrink: 0,
+  overflowWrap: 'normal',
+  wordBreak: 'normal',
 }
 
 const actionRowStyle: CSSProperties = {

@@ -2,6 +2,20 @@
 
 import Link from 'next/link'
 import { useEffect, useState, type CSSProperties } from 'react'
+import { useAuth } from '@/app/components/auth-provider'
+import {
+  buildCaptainPracticeInviteText,
+  buildCaptainPracticeSmsHref,
+  extractCaptainPracticeFocus,
+} from '@/lib/captain-practice-invite'
+import { practiceRsvpPath } from '@/lib/captain-practice-rsvp'
+import {
+  isStreetLocation,
+  venueLocation,
+  venueText,
+  type VenuePreference,
+  type VerifiedVenue,
+} from '@/lib/venue-directory'
 import {
   createCaptainPracticeThread,
   createTiqLeagueScheduleThread,
@@ -27,6 +41,7 @@ export default function ScheduleMessageComposer({
   flight = '',
   defaultDate = '',
   defaultTime = '',
+  defaultEndTime = '',
   defaultFacility = '',
   defaultNotes = '',
 }: {
@@ -45,15 +60,19 @@ export default function ScheduleMessageComposer({
   flight?: string
   defaultDate?: string
   defaultTime?: string
+  defaultEndTime?: string
   defaultFacility?: string
   defaultNotes?: string
 }) {
+  const { session } = useAuth()
   const [open, setOpen] = useState(false)
   const [scheduledDate, setScheduledDate] = useState(defaultDate)
   const [scheduledTime, setScheduledTime] = useState(defaultTime)
+  const [scheduledEndTime, setScheduledEndTime] = useState(defaultEndTime)
   const [facility, setFacility] = useState(defaultFacility)
   const [recurrenceRule, setRecurrenceRule] = useState('')
   const [notes, setNotes] = useState('')
+  const [capacity, setCapacity] = useState('')
   const [saving, setSaving] = useState(false)
   const [conversationId, setConversationId] = useState('')
   const [status, setStatus] = useState('')
@@ -65,21 +84,29 @@ export default function ScheduleMessageComposer({
     unlinkedRosterNames: string[]
   } | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+  const [practiceDelivery, setPracticeDelivery] = useState<{
+    responseUrl: string
+    inviteText: string
+    postedToTeamChat: boolean
+  } | null>(null)
 
   useEffect(() => {
     if (!open) {
       setScheduledDate(defaultDate)
       setScheduledTime(defaultTime)
+      setScheduledEndTime(defaultEndTime)
       setFacility(defaultFacility)
       setRecurrenceRule('')
       setNotes(defaultNotes)
+      setCapacity('')
       setConversationId('')
       setStatus('')
       setError('')
       setRecipientPreview(null)
       setPreviewLoading(false)
+      setPracticeDelivery(null)
     }
-  }, [defaultDate, defaultFacility, defaultNotes, defaultTime, open])
+  }, [defaultDate, defaultEndTime, defaultFacility, defaultNotes, defaultTime, open])
 
   useEffect(() => {
     if (!open || mode !== 'captain-practice' || !teamName) return
@@ -133,27 +160,74 @@ export default function ScheduleMessageComposer({
         setStatus(result.warning || 'Match scheduled and message thread opened.')
       } else {
         if (!teamName) throw new Error('Choose a team before scheduling practice.')
+        if (scheduledEndTime && !scheduledTime) throw new Error('Choose a start time before the end time.')
+        if (scheduledTime && scheduledEndTime && scheduledEndTime <= scheduledTime) throw new Error('End time must be later than start time.')
         const result = await createCaptainPracticeThread({
           teamName,
           leagueName,
           flight,
           scheduledDate,
           scheduledTime,
+          scheduledEndTime,
           facility,
           recurrenceRule,
           notes,
+          capacity: capacity ? Number(capacity) : null,
         })
         setConversationId(result.conversationId)
+        const responseUrl = `${window.location.origin}${practiceRsvpPath(result.publicToken)}`
+        const inviteText = buildCaptainPracticeInviteText({
+          teamName,
+          scheduledDate,
+          scheduledTime,
+          scheduledEndTime,
+          facility,
+          capacity: capacity ? Number(capacity) : null,
+          practiceFocus: extractCaptainPracticeFocus(notes),
+          responseUrl,
+        })
+        let postedToTeamChat = false
+        if (session?.access_token) {
+          const teamRoomResponse = await fetch('/api/team-rooms', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              action: 'send',
+              teamName,
+              leagueName,
+              flight,
+              body: inviteText,
+              announcement: true,
+            }),
+          }).catch(() => null)
+          postedToTeamChat = Boolean(teamRoomResponse?.ok)
+        }
+        setPracticeDelivery({ responseUrl, inviteText, postedToTeamChat })
         setStatus(
-          result.linkedParticipantCount > 0
-            ? `Practice thread opened for ${result.linkedParticipantCount} linked player account${result.linkedParticipantCount === 1 ? '' : 's'}.`
-            : 'Practice thread opened. Link player profiles to capture individual RSVPs.',
+          postedToTeamChat
+            ? `Practice posted to Team Chat for ${result.linkedParticipantCount} linked player account${result.linkedParticipantCount === 1 ? '' : 's'}.`
+            : result.linkedParticipantCount > 0
+              ? `Practice RSVP opened for ${result.linkedParticipantCount} linked player account${result.linkedParticipantCount === 1 ? '' : 's'}. Share it with the team below.`
+              : 'Practice RSVP opened. Share the link below; teammates and guest players can add their own response.',
         )
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Schedule could not be created.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function copyPracticeInvite() {
+    if (!practiceDelivery) return
+    try {
+      await navigator.clipboard.writeText(practiceDelivery.inviteText)
+      setStatus('Practice invite copied. Paste it into your group text.')
+    } catch {
+      setError('The invite could not be copied. Use Text group instead.')
     }
   }
 
@@ -198,10 +272,13 @@ export default function ScheduleMessageComposer({
                       {' '}from {recipientPreview.rosterCount} roster player{recipientPreview.rosterCount === 1 ? '' : 's'}
                     </strong>
                     {recipientPreview.unlinkedRosterNames.length ? (
-                      <p>
-                        Needs account links: {recipientPreview.unlinkedRosterNames.slice(0, 4).join(', ')}
-                        {recipientPreview.unlinkedRosterNames.length > 4 ? `, +${recipientPreview.unlinkedRosterNames.length - 4} more` : ''}
-                      </p>
+                      <>
+                        <p>
+                          Not linked in TiQ: {recipientPreview.unlinkedRosterNames.slice(0, 4).join(', ')}
+                          {recipientPreview.unlinkedRosterNames.length > 4 ? `, +${recipientPreview.unlinkedRosterNames.length - 4} more` : ''}
+                        </p>
+                        <p>They can still RSVP from the group-text link.</p>
+                      </>
                     ) : (
                       <p>Every roster player found for this scope has a linked TenAceIQ account.</p>
                     )}
@@ -218,25 +295,55 @@ export default function ScheduleMessageComposer({
                 <input type="date" value={scheduledDate} onChange={(event) => setScheduledDate(event.target.value)} style={inputStyle} />
               </label>
               <label style={fieldStyle}>
-                <span style={labelStyle}>Time</span>
+                <span style={labelStyle}>Start time</span>
                 <input type="time" value={scheduledTime} onChange={(event) => setScheduledTime(event.target.value)} style={inputStyle} />
               </label>
+              {mode === 'captain-practice' ? (
+                <label style={fieldStyle}>
+                  <span style={labelStyle}>End time</span>
+                  <input type="time" min={scheduledTime || undefined} value={scheduledEndTime} onChange={(event) => setScheduledEndTime(event.target.value)} style={inputStyle} />
+                </label>
+              ) : null}
             </div>
 
             <label style={fieldStyle}>
               <span style={labelStyle}>Site</span>
               <input value={facility} onChange={(event) => setFacility(event.target.value)} placeholder="Court, club, or address" style={inputStyle} />
             </label>
+            {mode === 'captain-practice' && session?.access_token ? (
+              <PracticeVenueFinder
+                facility={facility}
+                context={['practice', teamName, leagueName, flight].filter(Boolean).join(':')}
+                token={session.access_token}
+                disabled={saving}
+                onChoose={setFacility}
+              />
+            ) : null}
 
             {mode === 'captain-practice' ? (
-              <label style={fieldStyle}>
-                <span style={labelStyle}>Repeats</span>
-                <select value={recurrenceRule} onChange={(event) => setRecurrenceRule(event.target.value)} style={inputStyle}>
-                  <option value="">One time</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="biweekly">Every other week</option>
-                </select>
-              </label>
+              <div style={fieldGridStyle}>
+                <label style={fieldStyle}>
+                  <span style={labelStyle}>Repeats</span>
+                  <select value={recurrenceRule} onChange={(event) => setRecurrenceRule(event.target.value)} style={inputStyle}>
+                    <option value="">One time</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="biweekly">Every other week</option>
+                  </select>
+                </label>
+                <label style={fieldStyle}>
+                  <span style={labelStyle}>Player limit</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    inputMode="numeric"
+                    value={capacity}
+                    onChange={(event) => setCapacity(event.target.value)}
+                    placeholder="No limit"
+                    style={inputStyle}
+                  />
+                </label>
+              </div>
             ) : null}
 
             <label style={fieldStyle}>
@@ -251,14 +358,28 @@ export default function ScheduleMessageComposer({
                 disabled={saving || !scheduledDate}
                 style={{ ...primaryStyle, ...((saving || !scheduledDate) ? disabledStyle : {}) }}
               >
-                {saving ? 'Scheduling...' : 'Create schedule thread'}
+                {saving ? 'Sending...' : mode === 'captain-practice' ? 'Send practice invite' : 'Create schedule thread'}
               </button>
-              <Link href="/messages" style={secondaryStyle}>Open Messages</Link>
+              <Link href={conversationId ? `/messages?thread=${encodeURIComponent(conversationId)}#message-schedule-panel` : '/messages'} style={secondaryStyle}>
+                {conversationId ? 'Open RSVP roster' : 'Open Messages'}
+              </Link>
             </div>
 
             {status ? (
-              <div style={successStyle}>
-                {status} {conversationId ? <Link href={`/messages?thread=${encodeURIComponent(conversationId)}`} style={inlineLinkStyle}>View thread</Link> : null}
+              <div style={successStyle}>{status}</div>
+            ) : null}
+            {practiceDelivery ? (
+              <div style={deliveryPanelStyle} aria-label="Share practice invite">
+                <div style={deliveryHeaderStyle}>
+                  <span style={kickerStyle}>Practice ready</span>
+                  <strong>{practiceDelivery.postedToTeamChat ? 'Posted to Team Chat' : 'Ready to share'}</strong>
+                </div>
+                <div style={deliveryActionsStyle}>
+                  <Link href={`/messages?thread=${encodeURIComponent(conversationId)}#message-schedule-panel`} style={primaryStyle}>View RSVPs</Link>
+                  <a href={buildCaptainPracticeSmsHref(practiceDelivery.inviteText)} style={primaryStyle}>Text group</a>
+                  <button type="button" onClick={() => void copyPracticeInvite()} style={ghostActionStyle}>Copy invite</button>
+                </div>
+                <p style={deliveryHintStyle}>No account needed. Teammates choose their name; guest players add theirs. Everyone can RSVP, see who is coming, and add practice to their calendar.</p>
               </div>
             ) : null}
             {error ? <div style={errorStyle}>{error}</div> : null}
@@ -269,11 +390,148 @@ export default function ScheduleMessageComposer({
   )
 }
 
+function PracticeVenueFinder({
+  facility,
+  context,
+  token,
+  disabled,
+  onChoose,
+}: {
+  facility: string
+  context: string
+  token: string
+  disabled: boolean
+  onChoose: (location: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [working, setWorking] = useState(false)
+  const [venues, setVenues] = useState<VerifiedVenue[]>([])
+  const [city, setCity] = useState('')
+  const [state, setState] = useState('')
+  const [street, setStreet] = useState('')
+  const [error, setError] = useState('')
+  const [confirmedLocation, setConfirmedLocation] = useState('')
+  const locationConfirmed = Boolean(confirmedLocation && confirmedLocation === facility)
+
+  async function findLocation() {
+    if (!facility.trim() || loading || disabled) return
+    setLoading(true)
+    setError('')
+    try {
+      const params = new URLSearchParams({ name: facility, context })
+      const response = await fetch(`/api/player/venue-locations?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(30000),
+      })
+      const result = await response.json() as {
+        message?: string
+        venues?: VerifiedVenue[]
+        preference?: VenuePreference | null
+      }
+      if (!response.ok) throw new Error(result.message || 'Locations could not be loaded.')
+      setVenues(result.venues || [])
+      setOpen(true)
+      if (result.preference) {
+        setCity(result.preference.city)
+        setState(result.preference.state_code)
+        setStreet(result.preference.street_address)
+        const savedVenue = (result.venues || []).find((venue) => venue.id === result.preference?.directory_id)
+        const location = venueLocation(savedVenue || result.preference)
+        setConfirmedLocation(location)
+        onChoose(location)
+        setOpen(false)
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Locations could not be loaded.')
+      setOpen(true)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function saveLocation(venue?: VerifiedVenue) {
+    if (working || disabled) return
+    setWorking(true)
+    setError('')
+    try {
+      const response = await fetch('/api/player/venue-locations', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(30000),
+        body: JSON.stringify({
+          facilityName: facility,
+          context,
+          directoryId: venue?.id,
+          city,
+          state,
+          streetAddress: street,
+        }),
+      })
+      const result = await response.json() as {
+        message?: string
+        directory?: VerifiedVenue | null
+        preference?: VenuePreference
+      }
+      if (!response.ok || !result.preference) throw new Error(result.message || 'Location could not be saved.')
+      const location = venueLocation(result.directory || result.preference)
+      setConfirmedLocation(location)
+      onChoose(location)
+      setOpen(false)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Location could not be saved.')
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  const mapQuery = [facility, city, state].filter(Boolean).join(', ')
+  return (
+    <div style={venueFinderStyle}>
+      <div style={venueFinderHeaderStyle}>
+        <div style={venueStatusStyle}>
+          <span aria-hidden="true">{locationConfirmed ? '✓' : '⌖'}</span>
+          <span>{locationConfirmed ? 'Location confirmed' : 'Recognize this location for players'}</span>
+        </div>
+        <button type="button" style={venueFinderButtonStyle} disabled={disabled || loading || !facility.trim()} onClick={() => void findLocation()}>
+          {loading ? 'Searching…' : locationConfirmed ? 'Check another' : 'Find location'}
+        </button>
+      </div>
+      {open ? (
+        <div style={venueResultsStyle}>
+          {venues.length ? (
+            <>
+              <p style={venueHelpStyle}>Choose the correct club so every player gets the same address and directions.</p>
+              {venues.map((venue) => (
+                <button key={venue.id} type="button" style={venueChoiceStyle} disabled={working || disabled} onClick={() => void saveLocation(venue)}>
+                  <strong>{venue.facility_name}</strong>
+                  <span>{venue.street_address}, {venue.city}, {venue.state_code}</span>
+                </button>
+              ))}
+            </>
+          ) : <p style={venueHelpStyle}>No saved match yet. Find it in Maps, then confirm the playing address once.</p>}
+          <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`} target="_blank" rel="noopener noreferrer" style={venueMapsLinkStyle}>Find in Google Maps ↗</a>
+          <div style={venueFieldGridStyle}>
+            <label style={fieldStyle}><span style={labelStyle}>City</span><input value={city} maxLength={100} onChange={(event) => setCity(event.target.value)} style={inputStyle} /></label>
+            <label style={fieldStyle}><span style={labelStyle}>State</span><input value={state} maxLength={2} placeholder="MO" onChange={(event) => setState(event.target.value.toUpperCase())} style={inputStyle} /></label>
+          </div>
+          <label style={fieldStyle}><span style={labelStyle}>Street address</span><input value={street} maxLength={160} placeholder="123 Main St" onChange={(event) => setStreet(event.target.value)} style={inputStyle} /></label>
+          <button type="button" style={{ ...primaryStyle, ...((working || !isStreetLocation(street) || !venueText(city) || state.length !== 2) ? disabledStyle : {}) }} disabled={working || disabled || !isStreetLocation(street) || !venueText(city) || state.length !== 2} onClick={() => void saveLocation()}>
+            {working ? 'Confirming…' : 'Use this location'}
+          </button>
+          {error ? <div style={errorStyle}>{error}</div> : null}
+        </div>
+      ) : error ? <div style={errorStyle}>{error}</div> : null}
+    </div>
+  )
+}
+
 const triggerStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: 34,
+  minHeight: 44,
   padding: '0 12px',
   borderRadius: 999,
   border: '1px solid rgba(155,225,29,0.22)',
@@ -293,6 +551,90 @@ const overlayStyle: CSSProperties = {
   justifyContent: 'flex-end',
   background: 'rgba(2,8,18,0.62)',
   backdropFilter: 'blur(10px)',
+}
+
+const venueFinderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(7,17,33,0.5)',
+}
+
+const venueFinderHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+}
+
+const venueStatusStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+  color: '#dbeafe',
+  fontSize: 13,
+  fontWeight: 850,
+  overflowWrap: 'anywhere',
+}
+
+const venueFinderButtonStyle: CSSProperties = {
+  minHeight: 40,
+  padding: '0 12px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.28)',
+  background: 'rgba(116,190,255,0.09)',
+  color: '#dbeafe',
+  fontWeight: 900,
+  cursor: 'pointer',
+}
+
+const venueResultsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  paddingTop: 10,
+  borderTop: '1px solid rgba(116,190,255,0.13)',
+}
+
+const venueHelpStyle: CSSProperties = {
+  margin: 0,
+  color: '#aebed3',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const venueChoiceStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 13,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.07)',
+  color: '#f8fbff',
+  textAlign: 'left',
+  lineHeight: 1.4,
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const venueMapsLinkStyle: CSSProperties = {
+  color: '#93c5fd',
+  fontSize: 13,
+  fontWeight: 900,
+  textDecoration: 'none',
+}
+
+const venueFieldGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(88px, 0.42fr)',
+  gap: 10,
+  minWidth: 0,
 }
 
 const drawerStyle: CSSProperties = {
@@ -332,8 +674,8 @@ const titleStyle: CSSProperties = {
 }
 
 const closeButtonStyle: CSSProperties = {
-  width: 38,
-  height: 38,
+  width: 44,
+  height: 44,
   borderRadius: 999,
   border: '1px solid rgba(116,190,255,0.16)',
   background: 'rgba(255,255,255,0.05)',
@@ -419,13 +761,18 @@ const actionRowStyle: CSSProperties = {
 }
 
 const primaryStyle: CSSProperties = {
-  minHeight: 42,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 44,
   padding: '0 14px',
   borderRadius: 999,
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
   color: 'var(--foreground-strong)',
   fontWeight: 950,
+  textAlign: 'center',
+  textDecoration: 'none',
   cursor: 'pointer',
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
 }
@@ -436,15 +783,13 @@ const disabledStyle: CSSProperties = {
 }
 
 const secondaryStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 44,
   color: '#dbeafe',
   fontSize: 13,
   fontWeight: 850,
   textDecoration: 'none',
-}
-
-const inlineLinkStyle: CSSProperties = {
-  color: '#dffad5',
-  fontWeight: 950,
 }
 
 const successStyle: CSSProperties = {
@@ -459,4 +804,40 @@ const errorStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.5,
   fontWeight: 900,
+}
+
+const deliveryPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.3)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(116,190,255,0.08))',
+}
+
+const deliveryHeaderStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  color: '#f8fbff',
+}
+
+const deliveryActionsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 120px), 1fr))',
+  gap: 8,
+}
+
+const ghostActionStyle: CSSProperties = {
+  ...primaryStyle,
+  borderColor: 'rgba(116,190,255,0.22)',
+  background: 'rgba(7,17,33,0.7)',
+  color: '#dbeafe',
+}
+
+const deliveryHintStyle: CSSProperties = {
+  margin: 0,
+  color: '#cbd5e1',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 750,
 }

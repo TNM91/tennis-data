@@ -25,7 +25,11 @@ import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { cleanText, normalizeTeamName, parseDisplayDate } from '@/lib/captain-formatters'
+import { isPublicTeamDirectoryMatch, isPublicTeamDirectoryName, isScheduleTeamSource } from '@/lib/team-directory'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
+import { useProductAccess } from '@/lib/use-product-access'
+import { MY_LAB_STORY } from '@/lib/product-story'
 
 type SearchScope = 'players' | 'teams' | 'leagues' | 'flight' | 'area'
 
@@ -36,6 +40,11 @@ type PlayerSearchRow = {
   overall_rating?: number | null
   overall_dynamic_rating?: number | null
   overall_usta_dynamic_rating?: number | null
+}
+
+type PlayerSearchResponse = {
+  players: PlayerSearchRow[]
+  usedSpellingHelp: boolean
 }
 
 type TeamMatchRow = {
@@ -55,6 +64,14 @@ type TeamSearchResult = {
   flight: string | null
   matchCount: number
   latestMatchDate: string | null
+  source?: 'canonical' | 'tennisrecord'
+}
+
+type TennisRecordTeamContextRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+  last_seen_at: string | null
 }
 
 type MatchupSuggestion = {
@@ -119,9 +136,9 @@ const scopeCommandCards: Array<{
   title: string
   icon: TiqFeatureIconName
 }> = [
-  { scope: 'players', label: 'Players', title: 'Profile and rating context', icon: 'playerRatings' },
-  { scope: 'teams', label: 'Teams', title: 'Roster and match context', icon: 'teamRankings' },
-  { scope: 'leagues', label: 'Leagues', title: 'Season and flight layer', icon: 'reports' },
+  { scope: 'players', label: 'Players', title: 'Ratings and recent context', icon: 'playerRatings' },
+  { scope: 'teams', label: 'Teams', title: 'Rosters and match clues', icon: 'teamRankings' },
+  { scope: 'leagues', label: 'Leagues', title: 'Seasons, flights, and standings', icon: 'reports' },
   { scope: 'flight', label: 'Flight', title: 'Rating-level lane', icon: 'matchupAnalysis' },
   { scope: 'area', label: 'Area', title: 'Local league map', icon: 'opponentScouting' },
 ]
@@ -129,7 +146,24 @@ const scopeCommandCards: Array<{
 const SEARCH_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const SEARCH_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(SEARCH_PLAYER_IDENTITY)
 const SEARCH_LEVEL_UP_HREF = `/level-up/${SEARCH_PLAYER_IDENTITY.slug}#level-up-flow`
-const SEARCH_PLAYER_DEVELOPMENT_HREF = `/player-development/${SEARCH_PLAYER_IDENTITY.slug}`
+const SEARCH_TIMEOUT_MS = 8_000
+
+async function runWithSearchTimeout<T>(operation: Promise<T>): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_resolve, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error('Search is taking longer than expected. Please try again.'))
+        }, SEARCH_TIMEOUT_MS)
+      }),
+    ])
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
+  }
+}
 
 function formatCompactDate(value: string | null | undefined) {
   if (!value) return 'No recent match date'
@@ -159,8 +193,10 @@ export default function ExploreSearchPage() {
 
 function ExploreSearchContent() {
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { access, authResolved } = useProductAccess()
 
   const [query, setQuery] = useState('')
+  const [submittedQuery, setSubmittedQuery] = useState('')
   const [scope, setScope] = useState<SearchScope>('players')
   const [ratingBand, setRatingBand] = useState<'all' | '2.5' | '3.0' | '3.5' | '4.0' | '4.5+'>('all')
   const [yearFilter, setYearFilter] = useState('all')
@@ -170,9 +206,11 @@ function ExploreSearchContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [players, setPlayers] = useState<PlayerSearchRow[]>([])
+  const [usedSpellingHelp, setUsedSpellingHelp] = useState(false)
   const [teams, setTeams] = useState<TeamSearchResult[]>([])
   const [leagues, setLeagues] = useState<LeagueCard[]>([])
   const [searchReady, setSearchReady] = useState(false)
+  const [searchAttempt, setSearchAttempt] = useState(0)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -180,6 +218,7 @@ function ExploreSearchContent() {
     const nextScope = params.get('scope')
 
     setQuery(nextQuery)
+    setSubmittedQuery(nextQuery)
     setScope(
       nextScope === 'players' ||
         nextScope === 'teams' ||
@@ -189,16 +228,39 @@ function ExploreSearchContent() {
         ? nextScope
         : 'players',
     )
+    setRatingBand((params.get('rating') as typeof ratingBand) || 'all')
+    setYearFilter(params.get('year') || 'all')
+    setSeasonFilter(params.get('season') || 'all')
+    setGenderFilter(params.get('gender') || 'all')
+    setLeagueRatingFilter(params.get('leagueRating') || 'all')
     setSearchReady(true)
   }, [])
+
+  const resumeHref = useMemo(() => {
+    const params = new URLSearchParams()
+    if (submittedQuery.trim()) params.set('q', submittedQuery.trim())
+    params.set('scope', scope)
+    if (ratingBand !== 'all') params.set('rating', ratingBand)
+    if (yearFilter !== 'all') params.set('year', yearFilter)
+    if (seasonFilter !== 'all') params.set('season', seasonFilter)
+    if (genderFilter !== 'all') params.set('gender', genderFilter)
+    if (leagueRatingFilter !== 'all') params.set('leagueRating', leagueRatingFilter)
+    return `/explore/search?${params.toString()}`
+  }, [genderFilter, leagueRatingFilter, ratingBand, scope, seasonFilter, submittedQuery, yearFilter])
+
+  useEffect(() => {
+    if (!searchReady) return
+    window.history.replaceState(null, '', resumeHref)
+  }, [resumeHref, searchReady])
 
   useEffect(() => {
     if (!searchReady) return
 
-    const trimmedQuery = query.trim()
+    const trimmedQuery = submittedQuery.trim()
 
     if (!trimmedQuery) {
       setPlayers([])
+      setUsedSpellingHelp(false)
       setTeams([])
       setLeagues([])
       setError('')
@@ -211,17 +273,25 @@ function ExploreSearchContent() {
     async function runSearch() {
       setLoading(true)
       setError('')
+      setUsedSpellingHelp(false)
 
       try {
-        const [playersResult, teamsResult, leagueResult] = await Promise.all([
-          searchPlayers(trimmedQuery),
-          searchTeams(trimmedQuery),
-          searchLeagues(trimmedQuery, scope),
-        ])
+        let playersResult: PlayerSearchResponse = { players: [], usedSpellingHelp: false }
+        let teamsResult: TeamSearchResult[] = []
+        let leagueResult: LeagueCard[] = []
+
+        if (scope === 'players') {
+          playersResult = await runWithSearchTimeout(searchPlayers(trimmedQuery))
+        } else if (scope === 'teams') {
+          teamsResult = await runWithSearchTimeout(searchTeams(trimmedQuery))
+        } else {
+          leagueResult = await runWithSearchTimeout(searchLeagues(trimmedQuery, scope))
+        }
 
         if (!active) return
 
-        setPlayers(playersResult)
+        setPlayers(playersResult.players)
+        setUsedSpellingHelp(playersResult.usedSpellingHelp)
         setTeams(teamsResult)
         setLeagues(leagueResult)
       } catch (err) {
@@ -233,25 +303,37 @@ function ExploreSearchContent() {
       }
     }
 
-    void runSearch()
+    // Only a submitted query (or an incoming search link) can start network work.
+    // This keeps typing responsive and prevents stale requests from piling up.
+    const timeout = window.setTimeout(() => {
+      void runSearch()
+    }, 260)
 
     return () => {
       active = false
+      window.clearTimeout(timeout)
     }
-  }, [query, scope, searchReady])
+  }, [scope, searchAttempt, searchReady, submittedQuery])
 
   function syncUrl(nextQuery: string, nextScope: SearchScope) {
-    const params = new URLSearchParams()
+    const params = new URLSearchParams(resumeHref.split('?')[1] || '')
     if (nextQuery.trim()) params.set('q', nextQuery.trim())
+    else params.delete('q')
     params.set('scope', nextScope)
-    const nextSearch = params.toString()
-    window.history.replaceState(null, '', nextSearch ? `?${nextSearch}` : window.location.pathname)
+    window.history.replaceState(null, '', `/explore/search?${params.toString()}`)
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    syncUrl(query, scope)
-    setQuery((current) => current.trimStart())
+    const nextQuery = query.trim()
+    setQuery(nextQuery)
+    setSubmittedQuery(nextQuery)
+    syncUrl(nextQuery, scope)
+    setSearchAttempt((current) => current + 1)
+  }
+
+  function retrySearch() {
+    setSearchAttempt((current) => current + 1)
   }
 
   const matchedFlights = useMemo(() => {
@@ -316,7 +398,7 @@ function ExploreSearchContent() {
 
   const selectedScopeLabel = searchScopes.find((item) => item.value === scope)?.label ?? 'Player name'
   const selectedScopeGuide = scopeGuides[scope]
-  const hasQuery = Boolean(query.trim())
+  const hasQuery = Boolean(submittedQuery.trim())
   const showPlayerResults = scope === 'players'
   const showTeamResults = scope === 'teams'
   const showLeagueResults = scope === 'leagues' || scope === 'flight' || scope === 'area'
@@ -325,32 +407,56 @@ function ExploreSearchContent() {
     (showTeamResults ? teams.length : 0) +
     (showLeagueResults ? filteredLeagues.length : 0)
   const topPlayerResult = showPlayerResults ? filteredPlayers[0] : null
-  const searchStarterRead = [
-    { label: 'Train first', value: SEARCH_PLAYER_IDENTITY_READ.trainingPriority },
-    { label: 'Proof target', value: SEARCH_PLAYER_IDENTITY_READ.proofTarget },
-    { label: 'Match test', value: SEARCH_PLAYER_IDENTITY_READ.matchTrigger },
-  ] as const
-  const playerIdSearchTrailSignals = [
+  const shouldOfferPlayerUnlock = authResolved && !access.canUseAdvancedPlayerInsights && Boolean(topPlayerResult)
+  const playerUnlockHref = `/upgrade?plan=player_plus&next=${encodeURIComponent(resumeHref)}&source=explore_search`
+  const searchNextActions = [
     {
-      label: 'Search job',
-      value: hasQuery ? selectedScopeLabel : selectedScopeGuide.eyebrow,
+      label: 'Open profile',
+      value: topPlayerResult?.name || 'Find the record',
       body: hasQuery
-        ? 'Use search to find the public record before deciding what to compare, follow, or fix.'
-        : 'Start with the tennis clue you have: player, team, league, flight, or area.',
+        ? 'Open the public player page when the right record appears.'
+        : 'Start with a player, team, league, flight, or area clue.',
+      href: topPlayerResult ? `/players/${encodeURIComponent(topPlayerResult.id)}` : '/explore/players',
+      cta: topPlayerResult ? 'Open Player ID' : 'Browse players',
     },
     {
-      label: 'Player ID handoff',
-      value: topPlayerResult?.name || 'Open the record',
-      body: topPlayerResult
-        ? 'Open this Player ID, then move into Matchup, My Lab, or Level Up with context.'
-        : 'Player records become the anchor for ratings, matchup prep, follows, and Level Up work.',
+      label: 'Compare matchup',
+      value: 'Know the next edge',
+      body: 'Use two player records to prep the rating gap, why it matters, and what to watch.',
+      href: '/matchup',
+      cta: 'Open Matchup',
     },
     {
-      label: 'Starter read',
+      label: 'Build practice plan',
       value: SEARCH_PLAYER_IDENTITY_READ.label,
       body: SEARCH_PLAYER_IDENTITY_READ.levelUpNudge,
+      href: SEARCH_LEVEL_UP_HREF,
+      cta: 'Start Level Up',
     },
   ] as const
+  const searchNextActionsPanel = (
+    <section style={searchNextActionsStyle} aria-label="Search next actions">
+      <div style={isMobile ? compactSearchNextActionsHeaderStyle : searchNextActionsHeaderStyle}>
+        {!isMobile ? <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" /> : null}
+        <div style={searchNextActionsCopyStyle}>
+          <span style={searchNextActionsKickerStyle}>After search</span>
+          <h2 style={searchNextActionsTitleStyle}>Open the record, then act on it.</h2>
+        </div>
+      </div>
+      <div style={isMobile ? compactSearchNextActionsGridStyle : searchNextActionsGridStyle}>
+        {searchNextActions.map((action) => (
+          <article key={action.label} style={isMobile ? compactSearchNextActionCardStyle : searchNextActionCardStyle}>
+            <span style={searchNextActionsLabelStyle}>{action.label}</span>
+            <strong style={searchNextActionsValueStyle}>{action.value}</strong>
+            {!isMobile ? <span style={searchNextActionsTextStyle}>{action.body}</span> : null}
+            <Link href={action.href} style={isMobile ? compactSearchNextActionLinkStyle : searchNextActionLinkStyle}>
+              {action.cta}
+            </Link>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
 
   return (
     <div
@@ -359,14 +465,23 @@ function ExploreSearchContent() {
           display: 'grid',
           gap: isMobile ? 18 : 24,
           paddingTop: isMobile ? 14 : 20,
+          minWidth: 0,
+          overflowX: 'clip',
         }}
       >
+        <ExploreResumeTracker
+          surface="search"
+          label="search"
+          href={resumeHref}
+          contextLabel={submittedQuery.trim() ? `${scope}: ${submittedQuery.trim()}` : scope}
+          enabled={searchReady}
+        />
         <section
           style={{
             ...surfaceCardStrong,
-            padding: isSmallMobile ? 18 : isMobile ? 22 : 28,
+            padding: hasQuery ? (isSmallMobile ? 10 : isMobile ? 12 : 18) : (isSmallMobile ? 12 : isMobile ? 14 : 28),
             display: 'grid',
-            gap: isMobile ? 14 : 16,
+            gap: hasQuery ? 8 : isMobile ? 9 : 16,
             overflow: 'hidden',
             position: 'relative',
             border: '1px solid rgba(116,190,255,0.15)',
@@ -375,15 +490,17 @@ function ExploreSearchContent() {
           }}
         >
           <div aria-hidden="true" style={watermarkStyle} />
-          <SearchCommandPanel
-            activeScope={scope}
-            query={query}
-            totalResults={totalResults}
-            onScopeChange={(nextScope) => {
-              setScope(nextScope)
-              syncUrl(query, nextScope)
-            }}
-          />
+          {!hasQuery ? (
+            <SearchCommandPanel
+              activeScope={scope}
+              query={query}
+              totalResults={totalResults}
+              onScopeChange={(nextScope) => {
+                setScope(nextScope)
+                syncUrl(submittedQuery, nextScope)
+              }}
+            />
+          ) : null}
 
           <form
             onSubmit={handleSubmit}
@@ -391,37 +508,47 @@ function ExploreSearchContent() {
               position: 'relative',
               zIndex: 1,
               display: 'grid',
-              gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : isTablet ? 'minmax(0, 1fr)' : 'minmax(min(100%, 172px), 196px) minmax(0, 1fr) minmax(0, auto)',
+              gridTemplateColumns: hasQuery
+                ? isMobile
+                  ? 'minmax(0, 1fr) minmax(96px, auto)'
+                  : 'minmax(0, 1fr) minmax(128px, auto)'
+                : isMobile
+                  ? 'minmax(0, 1fr)'
+                  : isTablet
+                    ? 'minmax(0, 1fr)'
+                    : 'minmax(min(100%, 172px), 196px) minmax(0, 1fr) minmax(0, auto)',
               gap: 10,
               minWidth: 0,
               overflowWrap: 'anywhere',
-              alignItems: isMobile ? 'stretch' : 'end',
+              alignItems: hasQuery ? 'end' : isMobile ? 'stretch' : 'end',
             }}
           >
-            <label style={{ display: 'grid', gap: 6, minWidth: 0 }}>
-              <span style={searchLabelStyle}>Search by</span>
-              <select
-                className="tiq-focus-ring"
-                value={scope}
-                onChange={(event) => {
-                  const nextScope = event.target.value as SearchScope
-                  setScope(nextScope)
-                  syncUrl(query, nextScope)
-                }}
-                style={getSearchSelectStyle()}
-                aria-label="Search by scope"
-              >
-                {searchScopes.map((item) => (
-                  <option key={item.value} value={item.value} style={getSearchOptionStyle()}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {!hasQuery ? (
+              <label style={{ display: 'grid', gap: isMobile ? 4 : 6, minWidth: 0 }}>
+                <span style={searchLabelStyle}>Search by</span>
+                <select
+                  className="tiq-focus-ring"
+                  value={scope}
+                  onChange={(event) => {
+                    const nextScope = event.target.value as SearchScope
+                    setScope(nextScope)
+                    syncUrl(submittedQuery, nextScope)
+                  }}
+                  style={getSearchSelectStyle(isMobile)}
+                  aria-label="Search by scope"
+                >
+                  {searchScopes.map((item) => (
+                    <option key={item.value} value={item.value} style={getSearchOptionStyle()}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
 
-            <label style={{ display: 'grid', gap: 6, minWidth: 0 }}>
-              <span style={searchLabelStyle}>Search term</span>
-              <div style={getSearchInputWrapStyle()}>
+            <label style={{ display: 'grid', gap: isMobile ? 4 : 6, minWidth: 0 }}>
+              <span style={searchLabelStyle}>{hasQuery ? selectedScopeLabel : 'Search term'}</span>
+              <div style={getSearchInputWrapStyle(isMobile)}>
                 <SearchIcon />
                 <input
                   className="tiq-focus-ring"
@@ -429,7 +556,7 @@ function ExploreSearchContent() {
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder={selectedScopeGuide.placeholder}
                   aria-label={`Search ${selectedScopeLabel.toLowerCase()}`}
-                  style={getSearchInputStyle()}
+                  style={getSearchInputStyle(isMobile)}
                 />
               </div>
             </label>
@@ -438,10 +565,10 @@ function ExploreSearchContent() {
               type="submit"
               style={{
                 ...buttonPrimary,
-                minHeight: isSmallMobile ? 52 : 56,
+                minHeight: hasQuery || isMobile ? 42 : 56,
                 minWidth: 0,
                 maxWidth: '100%',
-                width: isMobile ? '100%' : undefined,
+                width: hasQuery ? undefined : isMobile ? '100%' : undefined,
                 border: 'none',
                 overflowWrap: 'anywhere',
               }}
@@ -450,7 +577,7 @@ function ExploreSearchContent() {
             </button>
           </form>
 
-          {scope === 'players' && players.length > 0 ? (
+          {!hasQuery && scope === 'players' && players.length > 0 ? (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' as const, minWidth: 0, marginTop: 12 }}>
               <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700, alignSelf: 'center', overflowWrap: 'anywhere' }}>Rating band:</span>
               {(['all', '2.5', '3.0', '3.5', '4.0', '4.5+'] as const).map((band) => (
@@ -466,7 +593,7 @@ function ExploreSearchContent() {
             </div>
           ) : null}
 
-          {leagues.length > 0 ? (
+          {!hasQuery && leagues.length > 0 ? (
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(min(100%, 150px), 1fr))', gap: 10, minWidth: 0, marginTop: 12 }}>
               <FilterSelect label="Year" value={yearFilter} onChange={setYearFilter} options={leagueYears} />
               <FilterSelect label="Season" value={seasonFilter} onChange={setSeasonFilter} options={leagueSeasons} />
@@ -475,6 +602,7 @@ function ExploreSearchContent() {
             </div>
           ) : null}
 
+          {!hasQuery ? (
           <div
             style={{
               position: 'relative',
@@ -491,62 +619,39 @@ function ExploreSearchContent() {
             {hasQuery && showLeagueResults ? <span style={badgeGreen}>{filteredLeagues.length} leagues</span> : null}
             {hasQuery && showPlayerResults ? <span style={badgeGreen}>{matchupSuggestions.length} My Lab actions</span> : null}
             <span style={{ color: 'var(--muted-strong)', fontSize: 13, fontWeight: 700, overflowWrap: 'anywhere' }}>
-              {hasQuery ? `${totalResults} results for "${query.trim()}"` : 'Ready to search'}
+              {hasQuery ? `${totalResults} results for "${submittedQuery.trim()}"` : 'Ready to search'}
             </span>
           </div>
+          ) : null}
         </section>
 
-        <section style={playerIdSearchTrailStyle} aria-label="Search Player ID trail">
-          <div style={playerIdSearchTrailHeaderStyle}>
-            <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />
-            <div style={playerIdSearchTrailCopyStyle}>
-              <span style={playerIdSearchTrailKickerStyle}>Player ID search trail</span>
-              <h2 style={playerIdSearchTrailTitleStyle}>Turn a search into the next tennis action.</h2>
+        {!hasQuery ? searchNextActionsPanel : null}
+
+        <section style={hasQuery ? { ...sectionStack, gap: isMobile ? 12 : 16 } : sectionStack}>
+          {!hasQuery ? (
+            <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
+              <div style={sectionKicker}>Search results</div>
+              <h2 style={sectionTitle}>{selectedScopeGuide.eyebrow}</h2>
             </div>
-          </div>
-          <div style={playerIdSearchTrailGridStyle}>
-            {playerIdSearchTrailSignals.map((signal) => (
-              <article key={signal.label} style={playerIdSearchTrailCardStyle}>
-                <span style={playerIdSearchTrailLabelStyle}>{signal.label}</span>
-                <strong style={playerIdSearchTrailValueStyle}>{signal.value}</strong>
-                <span style={playerIdSearchTrailTextStyle}>{signal.body}</span>
-              </article>
-            ))}
-          </div>
-          <div style={playerIdStarterReadGridStyle} aria-label="Search Player ID starter read">
-            {searchStarterRead.map((item) => (
-              <article key={item.label} style={playerIdStarterReadCardStyle}>
-                <span style={playerIdSearchTrailLabelStyle}>{item.label}</span>
-                <strong style={playerIdSearchTrailTextStyle}>{item.value}</strong>
-              </article>
-            ))}
-          </div>
-          <div style={playerIdSearchTrailActionRowStyle}>
-            {topPlayerResult ? (
-              <Link href={`/players/${encodeURIComponent(topPlayerResult.id)}`} style={playerIdSearchTrailActionStyle}>
-                Open Player ID
-              </Link>
-            ) : null}
-            <Link href={SEARCH_LEVEL_UP_HREF} style={playerIdSearchTrailActionStyle}>
-              Start Level Up
-            </Link>
-            <Link href={SEARCH_PLAYER_DEVELOPMENT_HREF} style={playerIdSearchTrailActionStyle}>
-              Read Player ID
-            </Link>
-          </div>
-        </section>
-
-        <section style={sectionStack}>
-          <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
-            <div style={sectionKicker}>Search results</div>
-            <h2 style={sectionTitle}>
-              {query.trim() ? 'Open the match.' : selectedScopeGuide.eyebrow}
-            </h2>
-          </div>
+          ) : null}
 
           {error ? (
-            <section style={{ ...portalInsetCardStyle, padding: 18, color: '#fecaca', borderColor: 'rgba(248,113,113,0.3)', overflowWrap: 'anywhere' }}>
-              {error}
+            <section
+              style={{
+                ...portalInsetCardStyle,
+                padding: 18,
+                color: '#fecaca',
+                borderColor: 'rgba(248,113,113,0.3)',
+                display: 'grid',
+                gap: 12,
+                justifyItems: 'start',
+                overflowWrap: 'anywhere',
+              }}
+            >
+              <span>{error}</span>
+              <button type="button" onClick={retrySearch} style={{ ...buttonGhost, minHeight: 40 }}>
+                Try search again
+              </button>
             </section>
           ) : null}
 
@@ -554,12 +659,16 @@ function ExploreSearchContent() {
             <section style={{ ...portalInsetCardStyle, padding: 18 }}>
               <div style={sectionKicker}>Searching</div>
               <div style={{ color: 'var(--foreground-strong)', fontSize: 20, fontWeight: 900, overflowWrap: 'anywhere' }}>
-                Pulling players, teams, leagues, and My Lab prep paths together...
+                {scope === 'players'
+                  ? 'Finding player records...'
+                  : scope === 'teams'
+                    ? 'Finding team records...'
+                    : 'Finding league records...'}
               </div>
             </section>
           ) : null}
 
-          {!loading && query.trim().length === 0 ? (
+          {!loading && submittedQuery.trim().length === 0 ? (
             <section style={emptyStateStyle}>
               <div style={sectionKicker}>{selectedScopeGuide.eyebrow}</div>
               <div style={emptyTitleStyle}>{selectedScopeGuide.emptyTitle}</div>
@@ -570,6 +679,7 @@ function ExploreSearchContent() {
                     type="button"
                     onClick={() => {
                       setQuery(example)
+                      setSubmittedQuery(example)
                       syncUrl(example, scope)
                     }}
                     style={exampleSearchButtonStyle}
@@ -581,7 +691,7 @@ function ExploreSearchContent() {
             </section>
           ) : null}
 
-          {!loading && query.trim().length > 0 ? (
+          {!loading && submittedQuery.trim().length > 0 ? (
             <>
               {showPlayerResults ? (
               <div
@@ -598,48 +708,53 @@ function ExploreSearchContent() {
                   emptyMessage="No player matches yet. Try broadening the name or switching scope."
                   ctaHref="/explore/players"
                   ctaLabel="Open player directory"
+                  compact={hasQuery}
                 >
+                  {usedSpellingHelp ? (
+                    <div style={spellingHelpStyle} role="status">
+                      <strong>Closest name matches</strong>
+                      <span>We could not find an exact spelling, so these are the nearest player records.</span>
+                    </div>
+                  ) : null}
                   {filteredPlayers.map((player) => (
-                    <Link key={player.id} href={`/players/${player.id}`} style={getResultCardStyle()}>
-                      <div style={resultHeaderStyle}>
-                        <div style={resultPrimaryStyle}>
-                          <div style={resultTitleStyle}>{player.name}</div>
-                          <div style={resultMetaStyle}>{cleanText(player.location) || 'Player profile'}</div>
-                        </div>
-                        <div style={resultBadgeWrapStyle}>
-                          {typeof player.overall_usta_dynamic_rating === 'number' ? (
-                            <span style={miniBadgeBlue}>USTA {player.overall_usta_dynamic_rating.toFixed(2)}</span>
-                          ) : null}
-                          {typeof player.overall_dynamic_rating === 'number' ? (
-                            <span style={miniBadgeGreen}>TIQ {player.overall_dynamic_rating.toFixed(2)}</span>
-                          ) : null}
-                          {(() => {
-                            const base = player.overall_rating
-                            const usta = player.overall_usta_dynamic_rating
-                            if (typeof base !== 'number' || typeof usta !== 'number') return null
-                            const diff = usta - base
-                            const status = diff >= 0.15 ? 'Bump Up Pace' : diff >= 0.07 ? 'Trending Up' : diff > -0.07 ? 'Holding' : diff > -0.15 ? 'At Risk' : 'Drop Watch'
-                            const style: CSSProperties = diff >= 0.07
-                              ? { ...miniBadgeGreen, background: 'rgba(155,225,29,0.12)', color: '#d9f84a', border: '1px solid rgba(155,225,29,0.22)' }
-                              : diff <= -0.07
-                                ? { ...miniBadgeBlue, background: 'rgba(239,68,68,0.10)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.18)' }
-                                : { ...miniBadgeBlue }
-                            return <span style={style}>{status}</span>
-                          })()}
-                        </div>
+                    <Link key={player.id} href={`/players/${player.id}`} style={getPlayerSearchResultStyle()}>
+                      <TiqFeatureIcon name="playerRatings" size="sm" variant="surface" />
+                      <div style={playerSearchIdentityStyle}>
+                        <div style={resultTitleStyle}>{player.name}</div>
+                        <div style={resultMetaStyle}>{cleanText(player.location) || 'Player profile'}</div>
+                        <span style={playerSearchContextStyle}>
+                          {typeof player.overall_usta_dynamic_rating === 'number'
+                            ? `USTA ${player.overall_usta_dynamic_rating.toFixed(2)} baseline`
+                            : 'Public player record'}
+                        </span>
+                      </div>
+                      <div style={playerSearchRatingStyle}>
+                        <span style={playerSearchRatingLabelStyle}>TIQ overall</span>
+                        <strong style={playerSearchRatingValueStyle}>{typeof (player.overall_dynamic_rating ?? player.overall_rating) === 'number' ? (player.overall_dynamic_rating ?? player.overall_rating)!.toFixed(2) : '—'}</strong>
+                        <small style={playerSearchRatingActionStyle}>View profile</small>
                       </div>
                     </Link>
                   ))}
                 </ResultGroup>
 
                 <ResultGroup
-                  title="My Lab shortcuts"
-                  count={matchupSuggestions.length}
+                  title={shouldOfferPlayerUnlock ? 'Make it yours' : 'My Lab shortcuts'}
+                  count={shouldOfferPlayerUnlock ? 1 : matchupSuggestions.length}
                   emptyMessage="Once at least two player results match, Player comparison actions show up here."
-                  ctaHref="/mylab"
-                  ctaLabel="Open My Lab"
+                  ctaHref={shouldOfferPlayerUnlock ? playerUnlockHref : '/mylab'}
+                  ctaLabel={shouldOfferPlayerUnlock ? 'See Player plan' : 'Open My Lab'}
+                  compact={hasQuery}
                 >
-                  {matchupSuggestions.map((item) => (
+                  {shouldOfferPlayerUnlock ? (
+                    <Link href={playerUnlockHref} style={searchPlayerUnlockCardStyle}>
+                      <span style={searchPlayerUnlockKickerStyle}>Player unlock</span>
+                      <strong style={searchPlayerUnlockTitleStyle}>Turn this search into your tennis.</strong>
+                      <span style={searchPlayerUnlockTextStyle}>
+                        {topPlayerResult?.name ? `${topPlayerResult.name} stays public. ` : ''}{MY_LAB_STORY.upgradeBody}
+                      </span>
+                      <span style={searchPlayerUnlockActionStyle}>{MY_LAB_STORY.upgradeCta}</span>
+                    </Link>
+                  ) : matchupSuggestions.map((item) => (
                     <Link key={item.key} href={item.href} style={getResultCardStyle()}>
                       <div style={resultTitleStyle}>{item.title}</div>
                       <div style={resultMetaStyle}>{item.text}</div>
@@ -664,6 +779,7 @@ function ExploreSearchContent() {
                   emptyMessage="No team matches found yet. Try a league or broader team search."
                   ctaHref="/explore/teams"
                   ctaLabel="Open teams"
+                  compact={hasQuery}
                 >
                   {showTeamResults ? teams.map((team) => (
                     <Link
@@ -678,7 +794,7 @@ function ExploreSearchContent() {
                         <div style={resultPrimaryStyle}>
                           <div style={resultTitleStyle}>{team.team}</div>
                           <div style={resultMetaStyle}>
-                            {[team.league, team.flight, `${team.matchCount} matches`].filter(Boolean).join(' - ')}
+                            {[team.league, team.flight, team.source === 'tennisrecord' ? 'Team context ready' : `${team.matchCount} matches`].filter(Boolean).join(' - ')}
                           </div>
                         </div>
                         <span style={miniBadgeBlue}>{formatCompactDate(team.latestMatchDate)}</span>
@@ -693,6 +809,7 @@ function ExploreSearchContent() {
                   emptyMessage="No league matches found yet. Try a section, district, area, or different league name."
                   ctaHref="/explore/leagues"
                   ctaLabel="Open leagues"
+                  compact={hasQuery}
                 >
                   {showLeagueResults ? filteredLeagues.map((league) => (
                     <Link key={league.key} href={buildExploreLeagueHref(league)} style={getResultCardStyle()}>
@@ -752,26 +869,36 @@ function ExploreSearchContent() {
           ) : null}
         </section>
 
+        {hasQuery ? searchNextActionsPanel : null}
+
     </div>
   )
 }
 
-async function searchPlayers(term: string): Promise<PlayerSearchRow[]> {
-  const { data, error } = await supabase
-    .from('players')
-    .select('id, name, location, overall_rating, overall_dynamic_rating, overall_usta_dynamic_rating')
-    .order('name', { ascending: true })
-    .limit(250)
+async function searchPlayers(term: string): Promise<PlayerSearchResponse> {
+  // This RPC is backed by the players_name_trigram_search_idx migration. Keep it
+  // as the first and only public lookup so a large imported player table never
+  // makes every search wait on unindexed ILIKE scans.
+  const { data, error } = await supabase.rpc('search_public_players', {
+    search_text: term.trim(),
+    result_limit: 8,
+  })
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    // Search still works while an older deployment is waiting on the database migration.
+    if (error.message.toLowerCase().includes('search_public_players')) {
+      return { players: [], usedSpellingHelp: false }
+    }
+    throw new Error(error.message)
+  }
 
-  const normalizedTerm = term.toLowerCase()
-  return (((data || []) as PlayerSearchRow[]) || [])
-    .filter((row) => {
-      const haystack = [row.name, row.location || ''].join(' ').toLowerCase()
-      return haystack.includes(normalizedTerm)
-    })
-    .slice(0, 8)
+  const players = (data || []) as PlayerSearchRow[]
+  const normalizedTerm = term.trim().toLocaleLowerCase()
+  const hasDirectNameMatch = players.some((player) =>
+    player.name.toLocaleLowerCase().includes(normalizedTerm),
+  )
+
+  return { players, usedSpellingHelp: players.length > 0 && !hasDirectNameMatch }
 }
 
 async function searchTeams(term: string): Promise<TeamSearchResult[]> {
@@ -789,7 +916,7 @@ async function searchTeams(term: string): Promise<TeamSearchResult[]> {
   const allowedTeamsByScope = new Map<string, Set<string>>()
 
   for (const row of ((data || []) as TeamMatchRow[]) || []) {
-    if (!/\bschedule\b/i.test(cleanText(row.source))) continue
+    if (!isScheduleTeamSource(row.source)) continue
     const scopeKey = buildTeamKey('', cleanText(row.league_name), cleanText(row.flight))
     if (!allowedTeamsByScope.has(scopeKey)) allowedTeamsByScope.set(scopeKey, new Set<string>())
     const allowed = allowedTeamsByScope.get(scopeKey)!
@@ -802,9 +929,15 @@ async function searchTeams(term: string): Promise<TeamSearchResult[]> {
   for (const row of ((data || []) as TeamMatchRow[]) || []) {
     const league = cleanText(row.league_name) || null
     const flight = cleanText(row.flight) || null
+    if (!isPublicTeamDirectoryMatch({
+      homeTeam: row.home_team,
+      awayTeam: row.away_team,
+      league,
+      source: row.source,
+    })) continue
     const allowedTeams = allowedTeamsByScope.get(buildTeamKey('', league, flight))
     for (const teamName of [cleanText(row.home_team), cleanText(row.away_team)]) {
-      if (!teamName) continue
+      if (!isPublicTeamDirectoryName(teamName, league)) continue
       if (allowedTeams?.size && !allowedTeams.has(normalizeTeamName(teamName))) continue
       const haystack = [teamName, league || '', flight || ''].join(' ').toLowerCase()
       if (!haystack.includes(normalizedTerm)) continue
@@ -825,8 +958,39 @@ async function searchTeams(term: string): Promise<TeamSearchResult[]> {
           flight,
           matchCount: 1,
           latestMatchDate: row.match_date || null,
+          source: 'canonical',
         })
       }
+    }
+  }
+
+  const { data: tennisRecordContext, error: tennisRecordContextError } = await supabase
+    .from('tennisrecord_public_team_context')
+    .select('team_name, league_name, flight, last_seen_at')
+    .limit(700)
+
+  if (!tennisRecordContextError) {
+    for (const row of (tennisRecordContext || []) as TennisRecordTeamContextRow[]) {
+      const teamName = cleanText(row.team_name)
+      const league = cleanText(row.league_name) || null
+      const flight = cleanText(row.flight) || null
+      if (!teamName || !isPublicTeamDirectoryName(teamName, league)) continue
+
+      const haystack = [teamName, league || '', flight || ''].join(' ').toLowerCase()
+      if (!haystack.includes(normalizedTerm)) continue
+
+      const key = buildTeamKey(teamName, league, flight)
+      if (teamMap.has(key)) continue
+
+      teamMap.set(key, {
+        key,
+        team: teamName,
+        league,
+        flight,
+        matchCount: 0,
+        latestMatchDate: row.last_seen_at || null,
+        source: 'tennisrecord',
+      })
     }
   }
 
@@ -875,8 +1039,8 @@ function SearchCommandPanel({
       <div style={searchCommandHeaderStyle}>
         <TiqFeatureIcon name="opponentScouting" size="md" variant="surface" />
         <div style={searchCommandHeaderCopyStyle}>
-          <div style={searchCommandEyebrowStyle}>Search path</div>
-          <h1 style={searchCommandTitleStyle}>Choose a scope.</h1>
+          <div style={searchCommandEyebrowStyle}>Search</div>
+          <h1 style={searchCommandTitleStyle}>What are you looking for?</h1>
           {query.trim() ? (
             <p style={searchCommandTextStyle}>
               {totalResults} result{totalResults === 1 ? '' : 's'}
@@ -886,7 +1050,7 @@ function SearchCommandPanel({
       </div>
 
       <div style={searchCommandGridStyle}>
-        {scopeCommandCards.map((card, index) => {
+        {scopeCommandCards.map((card) => {
           const selected = card.scope === activeScope
           return (
             <button
@@ -898,7 +1062,6 @@ function SearchCommandPanel({
                 ...(selected ? searchCommandCardActiveStyle : null),
               }}
             >
-              <span style={searchCommandNumberStyle}>{index + 1}</span>
               <TiqFeatureIcon name={card.icon} size="sm" variant={selected ? 'surface' : 'ghost'} />
               <span style={searchCommandCardCopyStyle}>
                 <span style={searchCommandLabelStyle}>{card.label}</span>
@@ -950,6 +1113,7 @@ function ResultGroup({
   emptyMessage,
   ctaHref,
   ctaLabel,
+  compact = false,
   children,
 }: {
   title: string
@@ -957,18 +1121,28 @@ function ResultGroup({
   emptyMessage: string
   ctaHref: string
   ctaLabel: string
+  compact?: boolean
   children: ReactNode
 }) {
   return (
-    <section style={resultGroupStyle}>
+    <section style={compact ? compactResultGroupStyle : resultGroupStyle}>
       <div style={resultGroupHeaderStyle}>
         <div style={resultGroupCopyStyle}>
-          <div style={sectionKicker}>{title}</div>
-          <div style={resultGroupTitleStyle}>
-            {count} {title.toLowerCase()} found
-          </div>
+          {compact ? (
+            <div style={compactResultTabStyle}>
+              <span>{title}</span>
+              <span style={compactResultTabCountStyle}>{count}</span>
+            </div>
+          ) : (
+            <>
+              <div style={sectionKicker}>{title}</div>
+              <div style={resultGroupTitleStyle}>
+                {count} {title.toLowerCase()} found
+              </div>
+            </>
+          )}
         </div>
-        <Link href={ctaHref} style={resultGroupActionStyle}>
+        <Link href={ctaHref} style={compact ? compactResultGroupActionStyle : resultGroupActionStyle}>
           {ctaLabel}
         </Link>
       </div>
@@ -1059,17 +1233,17 @@ const portalInsetCardStyle: CSSProperties = {
 
 const searchCommandGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 176px), 1fr))',
-  gap: 10,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 154px), 1fr))',
+  gap: 8,
   minWidth: 0,
 }
 
 const searchCommandCardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '28px 32px minmax(0, 1fr)',
+  gridTemplateColumns: '32px minmax(0, 1fr)',
   gap: 9,
   alignItems: 'center',
-  minHeight: 62,
+  minHeight: 58,
   padding: '9px 10px',
   borderRadius: 15,
   border: '1px solid rgba(116,190,255,0.13)',
@@ -1084,18 +1258,6 @@ const searchCommandCardStyle: CSSProperties = {
 const searchCommandCardActiveStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
   background: 'linear-gradient(135deg, rgba(155,225,29,0.18), rgba(125,211,252,0.08))',
-}
-
-const searchCommandNumberStyle: CSSProperties = {
-  width: 26,
-  height: 26,
-  borderRadius: 999,
-  display: 'grid',
-  placeItems: 'center',
-  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg) 88%)',
-  color: 'var(--foreground-strong)',
-  fontSize: 11,
-  fontWeight: 950,
 }
 
 const searchCommandCardCopyStyle: CSSProperties = {
@@ -1128,16 +1290,16 @@ const searchLabelStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-function getSearchSelectStyle(): CSSProperties {
+function getSearchSelectStyle(compact = false): CSSProperties {
   return {
     ...surfaceCard,
     minWidth: 0,
-    minHeight: 56,
-    padding: '0 14px',
+    minHeight: compact ? 42 : 56,
+    padding: compact ? '0 10px' : '0 14px',
     border: '1px solid var(--home-input-border)',
     background: 'var(--home-input-bg)',
     color: 'var(--foreground-strong)',
-    fontSize: 14,
+    fontSize: compact ? 13 : 14,
     fontWeight: 700,
     outline: '2px solid transparent',
     outlineOffset: 2,
@@ -1157,15 +1319,15 @@ function getSearchOptionStyle(): CSSProperties {
   }
 }
 
-function getSearchInputWrapStyle(): CSSProperties {
+function getSearchInputWrapStyle(compact = false): CSSProperties {
   return {
     ...surfaceCard,
     minWidth: 0,
-    minHeight: 56,
-    padding: '0 16px',
+    minHeight: compact ? 42 : 56,
+    padding: compact ? '0 11px' : '0 16px',
     display: 'flex',
     alignItems: 'center',
-    gap: 12,
+    gap: compact ? 8 : 12,
     border: '1px solid var(--home-input-border)',
     background: 'var(--home-input-bg)',
     color: 'var(--muted-strong)',
@@ -1173,14 +1335,14 @@ function getSearchInputWrapStyle(): CSSProperties {
   }
 }
 
-function getSearchInputStyle(): CSSProperties {
+function getSearchInputStyle(compact = false): CSSProperties {
   return {
     flex: 1,
     minWidth: 0,
     border: 'none',
     background: 'transparent',
     color: 'var(--foreground-strong)',
-    fontSize: 15,
+    fontSize: compact ? 14 : 15,
     outline: '2px solid transparent',
     outlineOffset: 2,
   }
@@ -1219,7 +1381,7 @@ const exampleSearchButtonStyle: CSSProperties = {
   cursor: 'pointer',
 }
 
-const playerIdSearchTrailStyle: CSSProperties = {
+const searchNextActionsStyle: CSSProperties = {
   ...portalInsetCardStyle,
   display: 'grid',
   gap: 12,
@@ -1230,7 +1392,7 @@ const playerIdSearchTrailStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const playerIdSearchTrailHeaderStyle: CSSProperties = {
+const searchNextActionsHeaderStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 10,
@@ -1238,14 +1400,19 @@ const playerIdSearchTrailHeaderStyle: CSSProperties = {
   flexWrap: 'wrap',
 }
 
-const playerIdSearchTrailCopyStyle: CSSProperties = {
+const compactSearchNextActionsHeaderStyle: CSSProperties = {
+  ...searchNextActionsHeaderStyle,
+  gap: 6,
+}
+
+const searchNextActionsCopyStyle: CSSProperties = {
   display: 'grid',
   gap: 3,
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
-const playerIdSearchTrailKickerStyle: CSSProperties = {
+const searchNextActionsKickerStyle: CSSProperties = {
   color: 'var(--brand-green)',
   fontSize: 11,
   fontWeight: 950,
@@ -1254,7 +1421,7 @@ const playerIdSearchTrailKickerStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const playerIdSearchTrailTitleStyle: CSSProperties = {
+const searchNextActionsTitleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
   fontSize: '1rem',
@@ -1264,23 +1431,22 @@ const playerIdSearchTrailTitleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const playerIdSearchTrailGridStyle: CSSProperties = {
+const searchNextActionsGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: 10,
   minWidth: 0,
 }
 
-const playerIdStarterReadGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 168px), 1fr))',
-  gap: 10,
-  minWidth: 0,
+const compactSearchNextActionsGridStyle: CSSProperties = {
+  ...searchNextActionsGridStyle,
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 6,
 }
 
-const playerIdSearchTrailCardStyle: CSSProperties = {
+const searchNextActionCardStyle: CSSProperties = {
   display: 'grid',
-  gap: 5,
+  gap: 7,
   minWidth: 0,
   padding: 12,
   borderRadius: 16,
@@ -1289,34 +1455,35 @@ const playerIdSearchTrailCardStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const playerIdStarterReadCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: 5,
-  minWidth: 0,
-  padding: 12,
-  borderRadius: 16,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 18%, rgba(116,190,255,0.13) 82%)',
-  background: 'rgba(7,17,33,0.52)',
-  overflowWrap: 'anywhere',
+const compactSearchNextActionCardStyle: CSSProperties = {
+  ...searchNextActionCardStyle,
+  gap: 4,
+  padding: 8,
+  borderRadius: 12,
+  minHeight: 94,
 }
 
-const playerIdSearchTrailActionRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 10,
-  minWidth: 0,
-}
-
-const playerIdSearchTrailActionStyle: CSSProperties = {
+const searchNextActionLinkStyle: CSSProperties = {
   ...buttonGhost,
-  minHeight: 40,
+  justifySelf: 'start',
+  minHeight: 36,
   maxWidth: '100%',
-  paddingInline: 14,
+  paddingInline: 12,
+  marginTop: 2,
+  fontSize: 12,
   overflowWrap: 'anywhere',
   whiteSpace: 'normal',
 }
 
-const playerIdSearchTrailLabelStyle: CSSProperties = {
+const compactSearchNextActionLinkStyle: CSSProperties = {
+  ...searchNextActionLinkStyle,
+  minHeight: 30,
+  paddingInline: 8,
+  fontSize: 10,
+  justifySelf: 'stretch',
+}
+
+const searchNextActionsLabelStyle: CSSProperties = {
   color: 'var(--brand-blue-2)',
   fontSize: 11,
   fontWeight: 950,
@@ -1325,7 +1492,7 @@ const playerIdSearchTrailLabelStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const playerIdSearchTrailValueStyle: CSSProperties = {
+const searchNextActionsValueStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 14,
   lineHeight: 1.2,
@@ -1333,11 +1500,61 @@ const playerIdSearchTrailValueStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const playerIdSearchTrailTextStyle: CSSProperties = {
+const searchNextActionsTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
   lineHeight: 1.45,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const searchPlayerUnlockCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 34%, var(--shell-panel-border) 66%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 13%, var(--shell-panel-bg) 87%), var(--shell-panel-bg))',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const searchPlayerUnlockKickerStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: '0.05em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const searchPlayerUnlockTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '1rem',
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const searchPlayerUnlockTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const searchPlayerUnlockActionStyle: CSSProperties = {
+  justifySelf: 'start',
+  maxWidth: '100%',
+  borderRadius: 999,
+  padding: '7px 11px',
+  background: 'var(--brand-lime)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 
@@ -1346,6 +1563,12 @@ const resultGroupStyle: CSSProperties = {
   padding: 18,
   display: 'grid',
   gap: 14,
+  minWidth: 0,
+}
+
+const compactResultGroupStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
   minWidth: 0,
 }
 
@@ -1365,6 +1588,34 @@ const resultGroupCopyStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const compactResultTabStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 7,
+  minHeight: 32,
+  padding: '6px 9px 6px 12px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-chip-bg) 86%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  lineHeight: 1,
+  overflowWrap: 'anywhere',
+}
+
+const compactResultTabCountStyle: CSSProperties = {
+  display: 'inline-grid',
+  placeItems: 'center',
+  minWidth: 20,
+  minHeight: 20,
+  padding: '0 5px',
+  borderRadius: 999,
+  background: 'rgba(7,17,33,0.78)',
+  color: '#d9f84a',
+  fontSize: 11,
+}
+
 const resultGroupTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 20,
@@ -1382,6 +1633,14 @@ const resultGroupActionStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const compactResultGroupActionStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  fontWeight: 800,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
 const resultGroupEmptyStyle: CSSProperties = {
   color: 'var(--muted-strong)',
   fontSize: 13,
@@ -1393,6 +1652,19 @@ const resultGroupListStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
   minWidth: 0,
+}
+
+const spellingHelpStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: '12px 14px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  borderRadius: 14,
+  color: 'var(--shell-copy-muted)',
+  background: 'rgba(155,225,29,0.06)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
 }
 
 function getResultCardStyle(): CSSProperties {
@@ -1408,6 +1680,22 @@ function getResultCardStyle(): CSSProperties {
   }
 }
 
+function getPlayerSearchResultStyle(): CSSProperties {
+  return {
+    ...portalInsetCardStyle,
+    display: 'grid',
+    gridTemplateColumns: '32px minmax(0, 1fr) auto',
+    gap: 10,
+    alignItems: 'center',
+    minWidth: 0,
+    maxWidth: '100%',
+    padding: '12px 13px',
+    textDecoration: 'none',
+    border: '1px solid color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-border) 82%)',
+    background: 'rgba(7,17,33,0.78)',
+  }
+}
+
 const resultHeaderStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -1420,6 +1708,51 @@ const resultHeaderStyle: CSSProperties = {
 const resultPrimaryStyle: CSSProperties = {
   minWidth: 0,
   maxWidth: '100%',
+}
+
+const playerSearchIdentityStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const playerSearchContextStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 850,
+  lineHeight: 1.2,
+  overflowWrap: 'anywhere',
+}
+
+const playerSearchRatingStyle: CSSProperties = {
+  display: 'grid',
+  justifyItems: 'end',
+  gap: 1,
+  minWidth: 54,
+  paddingLeft: 10,
+  borderLeft: '1px solid rgba(116,190,255,0.14)',
+}
+
+const playerSearchRatingLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 9,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const playerSearchRatingValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  fontWeight: 950,
+  letterSpacing: '-0.05em',
+  lineHeight: 1,
+}
+
+const playerSearchRatingActionStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 10,
+  fontWeight: 850,
 }
 
 const resultTitleStyle: CSSProperties = {
@@ -1502,11 +1835,11 @@ const filterJumpStyle: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-86px',
+  right: 0,
   top: '-108px',
   width: '340px',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }

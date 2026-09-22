@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import TiqCourtBoard from './TiqCourtBoard'
 import TiqToolbar from './TiqToolbar'
@@ -25,8 +26,19 @@ const COURT_ASSET_HEIGHT = 1086
 const INLINE_TOKEN_TOOLS: TacticalTokenType[] = ['player', 'ball', 'cone', 'x', 'o']
 const INLINE_PATH_TOOLS: TacticalPathKind[] = ['ball', 'move', 'recover']
 const BOARD_TOOL_MODES = ['add', 'lines', 'snap', 'edit'] as const
+const TACTICAL_TEMPLATE_KEYS: TacticalTemplateKey[] = ['basicDoubles', 'poach', 'australian', 'crosscourt', 'coachProgression']
+const TACTICAL_ROLES: TacticalRole[] = ['captain', 'coach', 'player']
 
 type BoardToolMode = (typeof BOARD_TOOL_MODES)[number]
+type TacticalEntryIntent = {
+  role: TacticalRole
+  source: string | null
+  templateKey: TacticalTemplateKey
+  identitySlug: string | null
+  identityLabel: string | null
+  cardId: string | null
+  cardTitle: string | null
+}
 
 export default function TiqTacticalStudio() {
   const [templateKey, setTemplateKey] = useState<TacticalTemplateKey>('basicDoubles')
@@ -51,6 +63,7 @@ export default function TiqTacticalStudio() {
   const [cloudStatus, setCloudStatus] = useState('Sign in to save scenarios across devices.')
   const [lastClearedScenario, setLastClearedScenario] = useState<TacticalScenario | null>(null)
   const [undoStack, setUndoStack] = useState<TacticalScenario[]>([])
+  const [entryIntent, setEntryIntent] = useState<TacticalEntryIntent | null>(null)
   const [toast, setToast] = useState('')
   const autoBoardFocusApplied = useRef(false)
   const draftReady = useRef(false)
@@ -62,6 +75,13 @@ export default function TiqTacticalStudio() {
   }), [scenario, stepIndex])
   const boardStatus = getBoardStatus(placementType, drawingKind, selected)
   const canUndoBoardAction = undoStack.length > 0 || scenario.paths.length > 0
+  const entryIdentityLabel = entryIntent?.identityLabel ?? 'Player ID'
+  const entryCardTitle = entryIntent?.cardTitle ?? 'Crosscourt pattern card'
+  const hasEntryLevelUpCard = Boolean(entryIntent?.cardId || entryIntent?.cardTitle)
+  const entryIntentLabel = hasEntryLevelUpCard ? 'My Lab proof board' : 'Improve starter'
+  const entryProofReturnCopy = hasEntryLevelUpCard
+    ? `Return ${entryCardTitle} proof to My Lab after saving this board.`
+    : 'Save the board, copy the brief, or send the proof back to My Lab.'
 
   const getAccessToken = useCallback(async () => {
     const { data } = await supabase.auth.getSession()
@@ -92,6 +112,9 @@ export default function TiqTacticalStudio() {
   }, [getAccessToken])
 
   useEffect(() => {
+    const nextEntryIntent = readTacticalEntryIntent()
+    setEntryIntent(nextEntryIntent)
+
     try {
       const stored = window.localStorage.getItem(LOCAL_LIBRARY_KEY)
       const parsed = stored ? JSON.parse(stored) : []
@@ -102,13 +125,25 @@ export default function TiqTacticalStudio() {
     try {
       const storedDraft = window.localStorage.getItem(LOCAL_DRAFT_KEY)
       const parsedDraft = storedDraft ? JSON.parse(storedDraft) : null
-      if (isTacticalScenario(parsedDraft)) {
+      if (!nextEntryIntent && isTacticalScenario(parsedDraft)) {
         scenarioRef.current = parsedDraft
         setScenario(parsedDraft)
         notify('Draft restored')
       }
     } catch {
       window.localStorage.removeItem(LOCAL_DRAFT_KEY)
+    }
+    if (nextEntryIntent) {
+      const nextScenario = createTacticalTemplate(nextEntryIntent.templateKey)
+      const hasLevelUpCardIntent = Boolean(nextEntryIntent.cardId || nextEntryIntent.cardTitle)
+      scenarioRef.current = nextScenario
+      setTemplateKey(nextEntryIntent.templateKey)
+      setScenario(nextScenario)
+      setRole(nextEntryIntent.role)
+      setBriefingRole(nextEntryIntent.role)
+      setSelected({ type: 'scenario', id: 'scenario' })
+      setStepIndex(99)
+      notify(getEntryReadyToast(nextEntryIntent, hasLevelUpCardIntent))
     }
     draftReady.current = true
     void loadCloudLibrary()
@@ -697,6 +732,42 @@ export default function TiqTacticalStudio() {
               <div className={styles.scenarioTitleLabel}>Scenario</div>
               <div className={styles.scenarioTitle}>{scenario.name}</div>
               <div className={styles.scenarioNote}>{scenario.note}</div>
+              {entryIntent?.source === 'improve' ? (
+                <div className={styles.entryCallout}>
+                  <div>
+                    <strong>{entryIntentLabel}</strong>
+                    <span>{entryIdentityLabel} sent {entryCardTitle} into {scenario.name}. {entryProofReturnCopy}</span>
+                  </div>
+                  <div className={styles.entryCalloutActions}>
+                    <Link href="/player-development" className={styles.entryCalloutLink}>Improve</Link>
+                    <Link href="/mylab#level-up-proof" className={styles.entryCalloutLink}>My Lab proof</Link>
+                  </div>
+                </div>
+              ) : null}
+              {entryIntent?.source === 'coach' ? (
+                <div className={styles.entryCallout}>
+                  <div>
+                    <strong>Coach lesson board</strong>
+                    <span>Coach Hub opened {scenario.name} with teaching cues ready. Map the drill, copy the brief, then assign the next step.</span>
+                  </div>
+                  <div className={styles.entryCalloutActions}>
+                    <Link href="/coach" className={styles.entryCalloutLink}>Coach Hub</Link>
+                    <Link href="/player-development" className={styles.entryCalloutLink}>Development paths</Link>
+                  </div>
+                </div>
+              ) : null}
+              {entryIntent?.source === 'captain' ? (
+                <div className={styles.entryCallout}>
+                  <div>
+                    <strong>Captain match-week board</strong>
+                    <span>Team Hub opened {scenario.name} for a clean doubles picture. Set the pattern, name the assignments, then send the team plan.</span>
+                  </div>
+                  <div className={styles.entryCalloutActions}>
+                    <Link href="/captain" className={styles.entryCalloutLink}>Team Hub</Link>
+                    <Link href="/captain/lineup-builder" className={styles.entryCalloutLink}>Lineup builder</Link>
+                  </div>
+                </div>
+              ) : null}
               <div className={styles.roleBoardCallout}>
                 <strong>{role} view</strong>
                 <span>{getRoleBoardCopy(role)}</span>
@@ -704,6 +775,135 @@ export default function TiqTacticalStudio() {
               <div className={styles.activeToolPill}>
                 {boardStatus}
               </div>
+              {entryIntent?.source === 'improve' ? (
+                <div className={styles.entryStarterStrip} aria-label="Improve starter board steps">
+                  <div className={styles.entryStarterContext} aria-label="Improve board handoff context">
+                    <article>
+                      <span>Player ID</span>
+                      <strong>{entryIdentityLabel}</strong>
+                    </article>
+                    <article>
+                      <span>Level Up card</span>
+                      <strong>{entryCardTitle}</strong>
+                    </article>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>1</span>
+                    <strong>Read the pattern</strong>
+                    <p>Heavy cross, recover through middle, attack the short ball.</p>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>2</span>
+                    <strong>Adjust the court</strong>
+                    <p>Drag the attacker, defender, target window, or path handles to match your next rep.</p>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>3</span>
+                    <strong>Capture proof</strong>
+                    <p>{entryProofReturnCopy}</p>
+                  </div>
+                  <div className={styles.entryStarterActions}>
+                    <button className={styles.entryStarterButton} onClick={() => setBoardFocusMode(true)} type="button">
+                      Court mode
+                    </button>
+                    <button className={styles.entryStarterButton} onClick={() => copyText(scenarioBriefing(scenario, briefingRole))} type="button">
+                      Copy brief
+                    </button>
+                    <button className={styles.entryStarterButton} onClick={saveScenarioLocal} type="button">
+                      Save board
+                    </button>
+                    <Link href="/mylab#level-up-proof" className={styles.entryStarterButton}>
+                      My Lab proof
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
+              {entryIntent?.source === 'coach' ? (
+                <div className={styles.entryStarterStrip} aria-label="Coach lesson board steps">
+                  <div className={styles.entryStarterContext} aria-label="Coach board handoff context">
+                    <article>
+                      <span>Coach focus</span>
+                      <strong>{scenario.focus}</strong>
+                    </article>
+                    <article>
+                      <span>Lesson board</span>
+                      <strong>{scenario.name}</strong>
+                    </article>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>1</span>
+                    <strong>Teach the constraint</strong>
+                    <p>Use the board to show feed, recovery, attack lane, and finish before the first live rep.</p>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>2</span>
+                    <strong>Score the rep</strong>
+                    <p>Keep the point simple: recover before attacking, then finish balanced through the target.</p>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>3</span>
+                    <strong>Assign the next step</strong>
+                    <p>Copy the brief back to Coach Hub or a player-development path after the board is saved.</p>
+                  </div>
+                  <div className={styles.entryStarterActions}>
+                    <button className={styles.entryStarterButton} onClick={() => setBoardFocusMode(true)} type="button">
+                      Court mode
+                    </button>
+                    <button className={styles.entryStarterButton} onClick={() => copyText(scenarioBriefing(scenario, briefingRole))} type="button">
+                      Copy coach brief
+                    </button>
+                    <button className={styles.entryStarterButton} onClick={saveScenarioLocal} type="button">
+                      Save lesson board
+                    </button>
+                    <Link href="/coach" className={styles.entryStarterButton}>
+                      Coach Hub
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
+              {entryIntent?.source === 'captain' ? (
+                <div className={styles.entryStarterStrip} aria-label="Captain match-week board steps">
+                  <div className={styles.entryStarterContext} aria-label="Captain board handoff context">
+                    <article>
+                      <span>Team focus</span>
+                      <strong>{scenario.focus}</strong>
+                    </article>
+                    <article>
+                      <span>Match board</span>
+                      <strong>{scenario.name}</strong>
+                    </article>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>1</span>
+                    <strong>Name the pattern</strong>
+                    <p>Show the serve, first move, recovery lane, and target so the doubles pair has one picture.</p>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>2</span>
+                    <strong>Confirm assignments</strong>
+                    <p>Use captain view to keep role labels, pattern purpose, and match-readiness visible.</p>
+                  </div>
+                  <div className={styles.entryStarterStep}>
+                    <span>3</span>
+                    <strong>Send the plan</strong>
+                    <p>Save the board, copy the brief, then send it with the weekly lineup or practice plan.</p>
+                  </div>
+                  <div className={styles.entryStarterActions}>
+                    <button className={styles.entryStarterButton} onClick={() => setBoardFocusMode(true)} type="button">
+                      Court mode
+                    </button>
+                    <button className={styles.entryStarterButton} onClick={() => copyText(scenarioBriefing(scenario, briefingRole))} type="button">
+                      Copy team brief
+                    </button>
+                    <button className={styles.entryStarterButton} onClick={saveScenarioLocal} type="button">
+                      Save match board
+                    </button>
+                    <Link href="/captain/messaging" className={styles.entryStarterButton}>
+                      Send plan
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
             </div>
             <div className={styles.metaGrid}>
               <Meta label="Duration" value={scenario.duration} />
@@ -1134,7 +1334,7 @@ function BoardToolDock({
 
 function BoardToolIcon({ type }: { type: TacticalTokenType }) {
   if (type === 'player') {
-    return <Image alt="" aria-hidden="true" className={styles.paletteQIcon} height={34} src="/tiq/logo/tiq-app-icon.png" width={34} />
+    return <Image alt="" aria-hidden="true" className={styles.paletteQIcon} height={34} src="/brand/icons/app-icon-1024.png" width={34} />
   }
 
   return <MarkerIcon type={type} />
@@ -1189,15 +1389,15 @@ function BrandLockup() {
       <Image
         alt=""
         height={1024}
-        src="/tiq/logo/tiq-app-icon.png"
+        src="/brand/icons/app-icon-1024.png"
         width={1024}
         className={styles.brandIcon}
       />
       <Image
         alt="TenAceIQ"
-        height={537}
-        src="/tiq/logo/tiq-lockup-light.png"
-        width={2048}
+        height={1947}
+        src="/brand/web/header-logo-transparent.png"
+        width={6118}
         className={styles.brandLockup}
       />
     </div>
@@ -1208,6 +1408,50 @@ function getRoleBoardCopy(role: TacticalRole) {
   if (role === 'coach') return 'Coach view shows teaching cues and full role labels for instruction.'
   if (role === 'player') return 'Player view strips the board down to readable movement, ball intent, and teammate labels.'
   return 'Captain view keeps assignments, pattern purpose, and match-readiness visible.'
+}
+
+function getEntryReadyToast(entryIntent: TacticalEntryIntent, hasLevelUpCardIntent: boolean) {
+  if (hasLevelUpCardIntent) return 'My Lab proof board ready'
+  if (entryIntent.source === 'coach') return 'Coach lesson board ready'
+  if (entryIntent.source === 'captain') return 'Captain match-week board ready'
+  if (entryIntent.source === 'improve') return 'Improve board ready'
+  return 'Starter board ready'
+}
+
+function readTacticalEntryIntent(): TacticalEntryIntent | null {
+  const params = new URLSearchParams(window.location.search)
+  const source = params.get('source')
+  const template = params.get('template')
+  const role = params.get('role')
+  const identitySlug = params.get('identity')
+  const identityLabel = params.get('identityLabel')
+  const cardId = params.get('card')
+  const cardTitle = params.get('cardTitle')
+  if (!source && !template && !role && !identitySlug && !identityLabel && !cardId && !cardTitle) return null
+
+  return {
+    role: isTacticalRole(role) ? role : 'player',
+    source,
+    templateKey: isTacticalTemplateKey(template) ? template : 'crosscourt',
+    identitySlug: cleanEntryIntentValue(identitySlug),
+    identityLabel: cleanEntryIntentValue(identityLabel),
+    cardId: cleanEntryIntentValue(cardId),
+    cardTitle: cleanEntryIntentValue(cardTitle),
+  }
+}
+
+function cleanEntryIntentValue(value: string | null) {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+  return trimmed.slice(0, 80)
+}
+
+function isTacticalTemplateKey(value: string | null): value is TacticalTemplateKey {
+  return Boolean(value && TACTICAL_TEMPLATE_KEYS.includes(value as TacticalTemplateKey))
+}
+
+function isTacticalRole(value: string | null): value is TacticalRole {
+  return Boolean(value && TACTICAL_ROLES.includes(value as TacticalRole))
 }
 
 function ScenarioThumbnail({ scenario }: { scenario: TacticalScenario }) {
@@ -1259,7 +1503,7 @@ async function exportScenarioPng(
 
   const [court, qIcon, ballIcon] = await Promise.all([
     loadCanvasImage('/tiq/courts/tiq-court-master.png'),
-    loadCanvasImage('/tiq/logo/tiq-app-icon.png'),
+    loadCanvasImage('/brand/icons/app-icon-1024.png'),
     loadCanvasImage('/tiq/tokens/tennis-ball-reference.png'),
   ])
 

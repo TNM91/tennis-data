@@ -11,7 +11,7 @@ import {
 } from '@/app/admin/_components/admin-review-ui'
 import AdminGate from '@/app/components/admin-gate'
 import { buildSupportMessageHref } from '@/lib/message-links'
-import { getMembershipTier } from '@/lib/product-story'
+import { CLUB_PLAN_STORY, getMembershipTier } from '@/lib/product-story'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
 import {
@@ -22,7 +22,7 @@ import {
   type UpgradeRequestStatus,
 } from '@/lib/upgrade-requests'
 
-type StatusFilter = 'all' | 'player_plus' | 'coach' | 'captain' | 'league' | 'full_court'
+type StatusFilter = 'all' | 'player_plus' | 'coach' | 'captain' | 'league' | 'full_court' | 'club_starter' | 'club_unlimited'
 type SetupStatus = {
   upgradeRequestsTable: boolean
   playerPlusEntitlements: boolean
@@ -36,6 +36,21 @@ export default function AdminUpgradeRequestsPage() {
   const [filter, setFilter] = useState<StatusFilter>('all')
   const [activatingId, setActivatingId] = useState<string | null>(null)
   const [setupStatus, setSetupStatus] = useState<SetupStatus>(null)
+
+  useEffect(() => {
+    const requestedPlan = new URLSearchParams(window.location.search).get('plan')
+    if (requestedPlan && ['player_plus', 'coach', 'captain', 'league', 'full_court', 'club_starter', 'club_unlimited'].includes(requestedPlan)) {
+      setFilter(requestedPlan as StatusFilter)
+    }
+  }, [])
+
+  function selectFilter(nextFilter: StatusFilter) {
+    setFilter(nextFilter)
+    const url = new URL(window.location.href)
+    if (nextFilter === 'all') url.searchParams.delete('plan')
+    else url.searchParams.set('plan', nextFilter)
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+  }
 
   const loadRequests = useCallback(async () => {
     const localRequests = readStoredRequests()
@@ -76,6 +91,8 @@ export default function AdminUpgradeRequestsPage() {
   const captainCount = requests.filter((request) => request.planId === 'captain').length
   const leagueCount = requests.filter((request) => request.planId === 'league').length
   const playerCount = requests.filter((request) => request.planId === 'player_plus').length
+  const clubStarterCount = requests.filter((request) => request.planId === 'club_starter').length
+  const clubUnlimitedCount = requests.filter((request) => request.planId === 'club_unlimited').length
   const localCount = requests.filter((request) => request.source === 'local').length
   const readyToActivateCount = requests.filter(canActivateRequest).length
   const needsAccountCount = requests.filter((request) =>
@@ -224,6 +241,8 @@ export default function AdminUpgradeRequestsPage() {
               <Metric label="Captain" value={String(captainCount)} />
               <Metric label="League" value={String(leagueCount)} />
               <Metric label="Player" value={String(playerCount)} />
+              <Metric label="Club Starter" value={String(clubStarterCount)} />
+              <Metric label="Club Unlimited" value={String(clubUnlimitedCount)} />
             </div>
           </AdminReviewPanel>
 
@@ -284,11 +303,13 @@ export default function AdminUpgradeRequestsPage() {
                   ['captain', 'Captain'],
                   ['league', 'League'],
                   ['player_plus', 'Player'],
+                  ['club_starter', 'Club Starter'],
+                  ['club_unlimited', 'Club Unlimited'],
                 ].map(([value, label]) => (
                   <button
                     key={value}
                     type="button"
-                    onClick={() => setFilter(value as StatusFilter)}
+                    onClick={() => selectFilter(value as StatusFilter)}
                     style={filter === value ? activeFilterButtonStyle : filterButtonStyle}
                   >
                     {label}
@@ -338,7 +359,7 @@ export default function AdminUpgradeRequestsPage() {
                       {request.email}
                     </span>
                     {request.organization ? (
-                      <div style={metaLineStyle}>Team or league: {request.organization}</div>
+                      <div style={metaLineStyle}>Player, team, or league: {request.organization}</div>
                     ) : null}
                     <PricingSnapshot request={request} />
                     {request.userId ? (
@@ -420,6 +441,17 @@ function getActivateButtonLabel(request: UpgradeRequestRecord) {
 }
 
 function getActivationCue(request: UpgradeRequestRecord) {
+  if (request.planId === 'club_starter' || request.planId === 'club_unlimited') {
+    const clubPlan = request.planId === 'club_unlimited' ? CLUB_PLAN_STORY.unlimited : CLUB_PLAN_STORY.starter
+    return {
+      title: clubPlan.name,
+      summary: clubPlan.shortPromise,
+      grants: [clubPlan.scopeLabel, clubPlan.capacityLabel],
+      excludes: ['Court booking', 'Registration and point-of-sale'],
+      note: `${CLUB_PLAN_STORY.workspaceBoundary} ${CLUB_PLAN_STORY.boundary}`,
+    }
+  }
+
   const tier = getMembershipTier(request.planId)
   const playerTier = getMembershipTier('player_plus')
 
@@ -439,7 +471,7 @@ function getActivationCue(request: UpgradeRequestRecord) {
       summary: tier.shortPromise,
       grants: ['My Lab', 'Coach Hub', 'Team Hub', 'League Office'],
       excludes: ['Nothing in the current paid suite'],
-      note: 'Full-Court activation unlocks every current paid workspace for the account.',
+      note: 'Full-Court activation unlocks every current paid tool for the account.',
     }
   }
 

@@ -20,7 +20,27 @@ export type DataAssistImportPreview = {
     matchDate: string
     homeTeam: string
     awayTeam: string
+    hasChanges: boolean
   }
+}
+
+export function buildScorecardImportFingerprint(row: ScorecardImportRow) {
+  return JSON.stringify({
+    externalMatchId: clean(row.externalMatchId),
+    matchDate: clean(row.matchDate),
+    homeTeam: normalizeName(row.homeTeam),
+    awayTeam: normalizeName(row.awayTeam),
+    lines: row.lines
+      .map((line) => ({
+        lineNumber: line.lineNumber,
+        matchType: line.matchType,
+        sideAPlayers: line.sideAPlayers.map(normalizeName),
+        sideBPlayers: line.sideBPlayers.map(normalizeName),
+        winnerSide: line.winnerSide,
+        score: normalizeName(line.score || line.rawScoreText || ''),
+      }))
+      .sort((left, right) => left.lineNumber - right.lineNumber),
+  })
 }
 
 export function buildDataAssistScorecardImportRow(
@@ -38,6 +58,7 @@ export function buildDataAssistScorecardImportRow(
   return {
     row: {
       externalMatchId: draft.externalMatchId,
+      leagueName: draft.leagueName || null,
       matchDate: draft.matchDate,
       homeTeam: draft.homeTeam,
       awayTeam: draft.awayTeam,
@@ -100,6 +121,7 @@ function toScorecardImportLine(line: DataAssistScorecardParsedLine, index: numbe
   return {
     lineNumber: lineMeta.lineNumber,
     matchType: lineMeta.matchType,
+    ntrp: line.ntrp ?? null,
     sideAPlayers: line.homePlayers,
     sideBPlayers: line.awayPlayers,
     winnerSide: toWinnerSide(line.winner),
@@ -148,6 +170,10 @@ function uniqueStrings(values: string[]) {
     result.push(cleaned)
   }
   return result
+}
+
+function clean(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
 }
 
 function normalizeName(value: string) {

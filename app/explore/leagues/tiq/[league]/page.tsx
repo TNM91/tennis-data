@@ -8,7 +8,9 @@ import { useParams, useSearchParams } from 'next/navigation'
 import FollowButton from '@/app/components/follow-button'
 import QuickMessageComposer from '@/app/components/quick-message-composer'
 import ScheduleMessageComposer from '@/app/components/schedule-message-composer'
+import CompetitionResponseSummary from '@/app/components/competition-response-summary'
 import SiteShell from '@/app/components/site-shell'
+import EntityDetailLink from '@/app/components/entity-detail-link'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
@@ -42,10 +44,11 @@ import {
   type TiqIndividualCompetitionFormat,
 } from '@/lib/tiq-individual-format'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
-import { listPlayerDirectoryOptions, type PlayerDirectoryOption } from '@/lib/player-directory'
 import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
+import { buildPlayerDetailHref } from '@/lib/entity-routes'
 import { supabase } from '@/lib/supabase'
 import { listTeamDirectoryOptions, type TeamDirectoryOption } from '@/lib/team-directory'
+import { buildTeamProfileHref } from '@/lib/team-routes'
 import {
   getTiqLeagueScoringSystemDescription,
   getTiqLeagueScoringSystemLabel,
@@ -56,6 +59,12 @@ import {
   type TiqLeagueRecord,
 } from '@/lib/tiq-league-registry'
 import { buildScheduleCalendarDays } from '@/lib/tiq-league-schedule-calendar'
+import {
+  buildCompetitionScheduleResponseSummary,
+  loadCompetitionScheduleResponses,
+  sendCompetitionScheduleReminders,
+  type CompetitionScheduleResponse,
+} from '@/lib/competition-schedule-responses'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { buildIndividualResultCue, buildTeamResultCue } from '@/lib/league-result-cues'
 import {
@@ -80,6 +89,7 @@ import {
 import {
   listTiqLeagueScheduleItems,
   saveTiqLeagueScheduleItem,
+  updateTiqLeagueScheduleItem,
   updateTiqLeagueScheduleStatus,
   type TiqLeagueScheduleItem,
   type TiqLeagueScheduleSource,
@@ -90,6 +100,17 @@ import {
   validateTiqTennisMatchScore,
 } from '@/lib/tiq-scoring'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import CompeteResumeTracker from '@/app/compete/_components/compete-resume-tracker'
+import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
+import {
+  assessPlayerEligibility,
+  buildPlayerEligibilityRequirement,
+  type PlayerEligibilityEvidence,
+} from '@/lib/player-eligibility'
+import {
+  loadRegistrationPlayerEvidence,
+  type RegistrationPlayerEvidence,
+} from '@/lib/registration-player-evidence'
 
 function formatDateTime(value: string | null | undefined) {
   const parsed = value ? new Date(value) : null
@@ -406,10 +427,10 @@ function TiqLeagueDetailContent() {
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
   const [saving, setSaving] = useState(false)
+  const [addingAnotherTeam, setAddingAnotherTeam] = useState(false)
   const [entryValue, setEntryValue] = useState('')
   const [selectedTeamKey, setSelectedTeamKey] = useState('')
   const [teamOptions, setTeamOptions] = useState<TeamDirectoryOption[]>([])
-  const [playerOptions, setPlayerOptions] = useState<PlayerDirectoryOption[]>([])
   const [teamEntries, setTeamEntries] = useState<TiqTeamLeagueEntryRecord[]>([])
   const [playerEntries, setPlayerEntries] = useState<TiqPlayerLeagueEntryRecord[]>([])
   const [individualStandings, setIndividualStandings] = useState<IndividualStanding[]>([])
@@ -418,7 +439,11 @@ function TiqLeagueDetailContent() {
   const [resultStorageSource, setResultStorageSource] = useState<TiqResultStorageSource>('local')
   const [savedSuggestions, setSavedSuggestions] = useState<TiqIndividualSuggestionRecord[]>([])
   const [suggestionStorageSource, setSuggestionStorageSource] = useState<TiqSuggestionStorageSource>('local')
-  const [selectedPlayerId, setSelectedPlayerId] = useState('')
+  const [registrationPlayer, setRegistrationPlayer] = useState<RegistrationPlayerEvidence | null>(null)
+  const [registrationPlayerLoading, setRegistrationPlayerLoading] = useState(false)
+  const [entryRating, setEntryRating] = useState('3.5')
+  const [entryAgeAttested, setEntryAgeAttested] = useState(false)
+  const [entryDivisionAttested, setEntryDivisionAttested] = useState(false)
   const [resultPlayerA, setResultPlayerA] = useState('')
   const [resultPlayerB, setResultPlayerB] = useState('')
   const [resultWinner, setResultWinner] = useState('')
@@ -438,6 +463,8 @@ function TiqLeagueDetailContent() {
   const [matchEventLinesLoading, setMatchEventLinesLoading] = useState<Record<string, boolean>>({})
   const [teamStandings, setTeamStandings] = useState<TiqTeamStandingRow[]>([])
   const [scheduleItems, setScheduleItems] = useState<TiqLeagueScheduleItem[]>([])
+  const [scheduleResponses, setScheduleResponses] = useState<CompetitionScheduleResponse[]>([])
+  const [canReviewScheduleResponses, setCanReviewScheduleResponses] = useState(false)
   const [scheduleSource, setScheduleSource] = useState<TiqLeagueScheduleSource>('local')
   const [scheduleStatus, setScheduleStatus] = useState('')
   const [scheduleSaving, setScheduleSaving] = useState(false)
@@ -447,6 +474,7 @@ function TiqLeagueDetailContent() {
   const [scheduleTime, setScheduleTime] = useState('')
   const [scheduleFacility, setScheduleFacility] = useState('')
   const [scheduleNotes, setScheduleNotes] = useState('')
+  const [scheduleEditingItemId, setScheduleEditingItemId] = useState('')
   const [scheduleDisplayMode, setScheduleDisplayMode] = useState<ScheduleDisplayMode>('calendar')
   const { role, userId, entitlements, authResolved, session } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
@@ -460,16 +488,14 @@ function TiqLeagueDetailContent() {
       setError('')
 
       try {
-        const [leagueResult, loadedTeamOptions, loadedPlayerOptions] = await Promise.all([
+        const [leagueResult, loadedTeamOptions] = await Promise.all([
           getTiqLeagueById(leagueIdParam || routeSlug),
           listTeamDirectoryOptions().catch(() => []),
-          listPlayerDirectoryOptions().catch(() => []),
         ])
 
         if (!active) return
 
         setTeamOptions(loadedTeamOptions)
-        setPlayerOptions(loadedPlayerOptions)
         setStorageSource(leagueResult.source)
         setStorageWarning(leagueResult.warning || '')
 
@@ -490,7 +516,9 @@ function TiqLeagueDetailContent() {
             : '',
         )
         setSelectedTeamKey('')
-        setSelectedPlayerId('')
+        setAddingAnotherTeam(false)
+        setEntryAgeAttested(false)
+        setEntryDivisionAttested(false)
       } catch (err) {
         if (!active) return
         setError(err instanceof Error ? err.message : 'Failed to load this TIQ league.')
@@ -505,6 +533,47 @@ function TiqLeagueDetailContent() {
       active = false
     }
   }, [leagueIdParam, routeSlug])
+
+  useEffect(() => {
+    if (!authResolved) return
+    let active = true
+    if (!userId) {
+      const timeoutId = window.setTimeout(() => {
+        if (!active) return
+        setRegistrationPlayer(null)
+        setRegistrationPlayerLoading(false)
+      }, 0)
+      return () => {
+        active = false
+        window.clearTimeout(timeoutId)
+      }
+    }
+    const timeoutId = window.setTimeout(() => {
+      if (!active) return
+      setRegistrationPlayerLoading(true)
+      void loadRegistrationPlayerEvidence(userId)
+        .then((player) => {
+          if (!active) return
+          setRegistrationPlayer(player)
+          if (player && typeof player.evidence.rating === 'number') {
+            setEntryRating(player.evidence.rating.toFixed(1))
+          }
+        })
+        .finally(() => {
+          if (active) setRegistrationPlayerLoading(false)
+        })
+    }, 0)
+    return () => {
+      active = false
+      window.clearTimeout(timeoutId)
+    }
+  }, [authResolved, userId])
+
+  useEffect(() => {
+    if (league?.leagueFormat !== 'individual' || !registrationPlayer) return
+    const timeoutId = window.setTimeout(() => setEntryValue(registrationPlayer.name), 0)
+    return () => window.clearTimeout(timeoutId)
+  }, [league?.leagueFormat, registrationPlayer])
 
   useEffect(() => {
     if (!league || league.leagueFormat === 'team' || entryValue.trim()) return
@@ -595,13 +664,26 @@ function TiqLeagueDetailContent() {
     async function loadScheduleItems() {
       if (!league) {
         if (active) setScheduleItems([])
+        if (active) setScheduleResponses([])
+        if (active) setCanReviewScheduleResponses(false)
         return
       }
 
-      const result = await listTiqLeagueScheduleItems(league.id)
+      const [result, responseResult] = await Promise.all([
+        listTiqLeagueScheduleItems(league.id),
+        userId
+          ? loadCompetitionScheduleResponses({
+              competitionKind: 'league',
+              competitionId: league.id,
+              userId,
+            })
+          : Promise.resolve({ authorized: false, responses: [] }),
+      ])
       if (!active) return
       setScheduleItems(result.items)
       setScheduleSource(result.source)
+      setScheduleResponses(responseResult.responses)
+      setCanReviewScheduleResponses(responseResult.authorized)
       if (result.warning) {
         setStorageWarning((current) => current || result.warning || '')
       }
@@ -612,7 +694,7 @@ function TiqLeagueDetailContent() {
     return () => {
       active = false
     }
-  }, [league])
+  }, [league, userId])
 
   useEffect(() => {
     if (!league) return
@@ -656,12 +738,60 @@ function TiqLeagueDetailContent() {
   const individualFormatExperience = getTiqIndividualCompetitionFormatExperience(
     league?.individualCompetitionFormat,
   )
+  const yourTeamEntries = useMemo(() => {
+    if (!league || league.leagueFormat !== 'team' || !userId) return []
+    return teamEntries.filter((entry) => entry.createdByUserId === userId)
+  }, [league, teamEntries, userId])
+  const yourActiveTeamEntries = yourTeamEntries.filter((entry) => entry.entryStatus === 'active')
+  const yourPendingTeamEntries = yourTeamEntries.filter((entry) => entry.entryStatus === 'pending')
+  const hasExistingTiqTeamEntry = yourTeamEntries.length > 0
+  const showTeamEntryForm = league?.leagueFormat !== 'team' || !hasExistingTiqTeamEntry || addingAnotherTeam
   const entryEnabled = league?.leagueFormat === 'team' ? access.canEnterTiqTeamLeague : access.canJoinTiqIndividualLeague
-  const entryLabel = league?.leagueFormat === 'team' ? 'Request Team Entry' : 'Request to Join'
+  const entryLabel = league?.leagueFormat === 'team'
+    ? hasExistingTiqTeamEntry ? 'Request Another Team' : 'Request Team Entry'
+    : 'Request to Join'
   const entryPlaceholder =
     league?.leagueFormat === 'team' ? 'North Dallas Aces' : deriveDefaultParticipantName(userEmail) || 'Player name'
   const entryMessage =
     league?.leagueFormat === 'team' ? access.teamLeagueMessage : access.individualLeagueMessage
+  const entryRequirement = useMemo(
+    () => buildPlayerEligibilityRequirement(league?.leagueName, league?.flight, league?.notes),
+    [league?.flight, league?.leagueName, league?.notes],
+  )
+  const entryEvidence = useMemo<PlayerEligibilityEvidence>(() => {
+    const profileEvidence = registrationPlayer?.evidence || {}
+    const profileAgeDivisions = profileEvidence.ageDivisions || []
+    const profileRoleMatches = entryRequirement.mixedPairRole === 'unknown'
+      || profileEvidence.mixedPairRole === entryRequirement.mixedPairRole
+    return {
+      ...profileEvidence,
+      playerId: registrationPlayer?.id || null,
+      rating: typeof profileEvidence.rating === 'number' ? profileEvidence.rating : Number.parseFloat(entryRating),
+      ratingSource: registrationPlayer && typeof profileEvidence.rating === 'number' ? profileEvidence.ratingSource : 'self',
+      mixedPairRole: entryRequirement.mixedPairRole !== 'unknown' && entryDivisionAttested && !profileRoleMatches
+        ? entryRequirement.mixedPairRole
+        : profileEvidence.mixedPairRole,
+      mixedPairRoleSource: entryRequirement.mixedPairRole !== 'unknown' && entryDivisionAttested && !profileRoleMatches
+        ? 'self'
+        : profileEvidence.mixedPairRoleSource,
+      ageDivisions: entryRequirement.ageDivision && entryAgeAttested && !profileAgeDivisions.includes(entryRequirement.ageDivision)
+        ? [...profileAgeDivisions, entryRequirement.ageDivision]
+        : profileAgeDivisions,
+      ageDivisionSource: entryRequirement.ageDivision && entryAgeAttested && !profileAgeDivisions.includes(entryRequirement.ageDivision)
+        ? 'self'
+        : profileEvidence.ageDivisionSource,
+    }
+  }, [entryAgeAttested, entryDivisionAttested, entryRating, entryRequirement, registrationPlayer])
+  const entryEligibility = useMemo(
+    () => assessPlayerEligibility(entryRequirement, entryEvidence),
+    [entryEvidence, entryRequirement],
+  )
+  const entryHasAgeEvidence = !entryRequirement.ageDivision
+    || Boolean(entryEvidence.ageDivisions?.includes(entryRequirement.ageDivision))
+  const entryHasDivisionEvidence = entryRequirement.mixedPairRole === 'unknown'
+    || entryEvidence.mixedPairRole === entryRequirement.mixedPairRole
+  const individualEntryBlocked = league?.leagueFormat === 'individual'
+    && (entryEligibility.status === 'ineligible' || !entryHasAgeEvidence || !entryHasDivisionEvidence)
   const canLogIndividualResults = league?.leagueFormat === 'individual' && access.canCreateTiqIndividualLeague
   const resultEntryDisabled = resultSaving || !canLogIndividualResults
   const seasonWindowText =
@@ -681,19 +811,34 @@ function TiqLeagueDetailContent() {
       sourceLeagueName: '',
       sourceFlight: '',
       entryStatus: 'active' as const,
+      createdByUserId: '',
     }))
   }, [league, teamEntries])
   const availableTeamOptions = useMemo(() => {
     if (!league || league.leagueFormat !== 'team') return []
 
-    return teamOptions.filter((option) => {
-      if (visibleTeamEntries.some((entry) => entry.teamName.toLowerCase() === option.team.toLowerCase())) {
-        return false
-      }
-
+    const listedByLeagueOffice = visibleTeamEntries
+      .filter((entry) => !entry.createdByUserId && !entry.teamEntityId)
+      .map((entry) => ({
+      key: `league-entry:${entry.teamEntityId || entry.teamName.toLowerCase()}`,
+      team: entry.teamName,
+      league: entry.sourceLeagueName || league.leagueName || null,
+      flight: entry.sourceFlight || league.flight || null,
+      matchCount: 0,
+      mostRecentMatchDate: null,
+      source: 'canonical' as const,
+      }))
+    const listedTeamKeys = new Set(
+      listedByLeagueOffice.map((option) => `${option.team.toLowerCase()}__${option.league || ''}__${option.flight || ''}`),
+    )
+    const enteredTeamNames = new Set(visibleTeamEntries.map((entry) => entry.teamName.toLowerCase()))
+    const directoryOptions = teamOptions.filter((option) => {
       if (league.flight && option.flight && option.flight !== league.flight) return false
-      return true
+      if (enteredTeamNames.has(option.team.toLowerCase())) return false
+      return !listedTeamKeys.has(`${option.team.toLowerCase()}__${option.league || ''}__${option.flight || ''}`)
     })
+
+    return [...listedByLeagueOffice, ...directoryOptions]
   }, [league, teamOptions, visibleTeamEntries])
   const visiblePlayerEntries = useMemo(() => {
     if (!league || league.leagueFormat !== 'individual') return []
@@ -709,16 +854,6 @@ function TiqLeagueDetailContent() {
       entryStatus: 'active' as const,
     }))
   }, [league, playerEntries])
-  const availablePlayerOptions = useMemo(() => {
-    if (!league || league.leagueFormat !== 'individual') return []
-
-    return playerOptions.filter((option) => {
-      if (visiblePlayerEntries.some((entry) => entry.playerName.toLowerCase() === option.name.toLowerCase())) {
-        return false
-      }
-      return true
-    })
-  }, [league, playerOptions, visiblePlayerEntries])
   const scheduleParticipantOptions = useMemo<ResultParticipantOption[]>(() => {
     if (!league) return []
 
@@ -798,8 +933,7 @@ function TiqLeagueDetailContent() {
           },
         ]
       : []
-  const selectedTeamOption = teamOptions.find((item) => item.key === selectedTeamKey) || null
-  const selectedPlayerOption = playerOptions.find((item) => item.id === selectedPlayerId) || null
+  const selectedTeamOption = availableTeamOptions.find((item) => item.key === selectedTeamKey) || null
   const resultPlayerAOption =
     resultParticipantOptions.find((option) => option.value === resultPlayerA) || null
   const resultPlayerBOption =
@@ -1606,22 +1740,22 @@ function TiqLeagueDetailContent() {
 
   function handleSelectExistingTeam(nextKey: string) {
     setSelectedTeamKey(nextKey)
-    const option = teamOptions.find((item) => item.key === nextKey)
+    const option = availableTeamOptions.find((item) => item.key === nextKey)
     if (!option) return
     setEntryValue(option.team)
   }
 
-  function handleSelectExistingPlayer(nextId: string) {
-    setSelectedPlayerId(nextId)
-    const option = playerOptions.find((item) => item.id === nextId)
-    if (!option) return
-    setEntryValue(option.name)
-  }
-
   async function refreshScheduleItems(leagueId: string) {
-    const latest = await listTiqLeagueScheduleItems(leagueId)
+    const [latest, responseResult] = await Promise.all([
+      listTiqLeagueScheduleItems(leagueId),
+      userId
+        ? loadCompetitionScheduleResponses({ competitionKind: 'league', competitionId: leagueId, userId })
+        : Promise.resolve({ authorized: false, responses: [] }),
+    ])
     setScheduleItems(latest.items)
     setScheduleSource(latest.source)
+    setScheduleResponses(responseResult.responses)
+    setCanReviewScheduleResponses(responseResult.authorized)
     setStorageWarning((current) => current || latest.warning || '')
   }
 
@@ -1652,28 +1786,42 @@ function TiqLeagueDetailContent() {
     setScheduleStatus('')
 
     try {
-      const result = await saveTiqLeagueScheduleItem({
-        leagueId: league.id,
-        leagueFormat: league.leagueFormat,
-        participantAName: scheduleParticipantAOption.playerName,
-        participantAId: scheduleParticipantAOption.playerId,
-        participantBName: scheduleParticipantBOption.playerName,
-        participantBId: scheduleParticipantBOption.playerId,
-        scheduledDate: scheduleDate,
-        scheduledTime: scheduleTime,
-        facility: scheduleFacility || league.defaultFacility,
-        status: league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools ? 'coordinator_set' : 'proposed',
-        notes: scheduleNotes,
-      })
+      const result = scheduleEditingItemId
+        ? await updateTiqLeagueScheduleItem({
+            scheduleItemId: scheduleEditingItemId,
+            scheduledDate: scheduleDate,
+            scheduledTime: scheduleTime,
+            facility: scheduleFacility || league.defaultFacility,
+            notes: scheduleNotes,
+            status: league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
+              ? 'coordinator_set'
+              : undefined,
+          })
+        : await saveTiqLeagueScheduleItem({
+            leagueId: league.id,
+            leagueFormat: league.leagueFormat,
+            participantAName: scheduleParticipantAOption.playerName,
+            participantAId: scheduleParticipantAOption.playerId,
+            participantBName: scheduleParticipantBOption.playerName,
+            participantBId: scheduleParticipantBOption.playerId,
+            scheduledDate: scheduleDate,
+            scheduledTime: scheduleTime,
+            facility: scheduleFacility || league.defaultFacility,
+            status: league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools ? 'coordinator_set' : 'proposed',
+            notes: scheduleNotes,
+          })
 
       await refreshScheduleItems(league.id)
       setScheduleSource(result.source)
       setStorageWarning((current) => current || result.warning || '')
       setScheduleStatus(
-        league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
+        scheduleEditingItemId
+          ? 'Updated this match. Players with an earlier reply will be asked again.'
+          : league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
           ? 'Published this match slot to the league schedule.'
           : 'Proposed this match time. A coordinator or participant can confirm it.',
       )
+      setScheduleEditingItemId('')
       setScheduleParticipantA('')
       setScheduleParticipantB('')
       setScheduleDate('')
@@ -1685,6 +1833,28 @@ function TiqLeagueDetailContent() {
     } finally {
       setScheduleSaving(false)
     }
+  }
+
+  function handleAdjustScheduleItem(item: TiqLeagueScheduleItem) {
+    const participantA = scheduleParticipantOptions.find((option) =>
+      (item.participantAId && option.playerId === item.participantAId)
+      || option.playerName.toLocaleLowerCase() === item.participantAName.toLocaleLowerCase(),
+    )
+    const participantB = scheduleParticipantOptions.find((option) =>
+      (item.participantBId && option.playerId === item.participantBId)
+      || option.playerName.toLocaleLowerCase() === item.participantBName.toLocaleLowerCase(),
+    )
+    setScheduleEditingItemId(item.id)
+    setScheduleParticipantA(participantA?.value || '')
+    setScheduleParticipantB(participantB?.value || '')
+    setScheduleDate(item.scheduledDate)
+    setScheduleTime(item.scheduledTime)
+    setScheduleFacility(item.facility || league?.defaultFacility || '')
+    setScheduleNotes(item.notes)
+    setScheduleStatus('Update the date, time, or site, then save changes.')
+    window.requestAnimationFrame(() => {
+      document.getElementById('league-schedule-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
 
   async function handleScheduleStatusChange(
@@ -1957,13 +2127,14 @@ function TiqLeagueDetailContent() {
       return
     }
 
+    if (individualEntryBlocked) {
+      setStatus('Complete the eligibility check before sending this request to League Office.')
+      return
+    }
+
     const currentList = league.leagueFormat === 'team' ? league.teams : league.players
-    if (currentList.some((item) => item.toLowerCase() === normalizedEntry.toLowerCase())) {
-      setStatus(
-        league.leagueFormat === 'team'
-          ? `${normalizedEntry} is already entered in this TIQ team league.`
-          : `${normalizedEntry} is already part of this TIQ individual league.`,
-      )
+    if (league.leagueFormat !== 'team' && currentList.some((item) => item.toLowerCase() === normalizedEntry.toLowerCase())) {
+      setStatus(`${normalizedEntry} is already part of this TIQ individual league.`)
       return
     }
 
@@ -1978,6 +2149,11 @@ function TiqLeagueDetailContent() {
     }
     if (existingRequest?.entryStatus === 'rejected') {
       setStatus(`${normalizedEntry} was previously declined. Contact the coordinator before requesting again.`)
+      return
+    }
+
+    if (league.leagueFormat === 'team' && existingRequest?.entryStatus === 'active') {
+      setStatus(`${normalizedEntry} is already connected to another team entry. Ask League Office to update the team contact if that should be yours.`)
       return
     }
 
@@ -2004,8 +2180,9 @@ function TiqLeagueDetailContent() {
           : await addTiqPlayerLeagueEntry({
               leagueId: league.id,
               playerName: normalizedEntry,
-              playerId: selectedPlayerOption?.id || '',
-              playerLocation: selectedPlayerOption?.location || '',
+              playerId: registrationPlayer?.id || '',
+              playerLocation: registrationPlayer?.location || '',
+              eligibilityEvidence: entryEvidence,
             })
 
       if (result.record) {
@@ -2015,7 +2192,7 @@ function TiqLeagueDetailContent() {
       setStorageWarning(result.warning || '')
       setStatus(
         league.leagueFormat === 'team'
-          ? `${normalizedEntry} requested entry. The coordinator must approve it before the team appears in this league.`
+          ? `${normalizedEntry} requested entry. After League Office approves it, the team appears in My Teams.`
           : `${normalizedEntry} requested entry. The coordinator must approve it before the player appears in this league.`,
       )
       if (league.leagueFormat === 'individual') {
@@ -2083,6 +2260,22 @@ function TiqLeagueDetailContent() {
           ? 'Completed'
           : item.status
     const isCompact = mode === 'calendar'
+    const responseSummary = league.leagueFormat === 'individual'
+      && canReviewScheduleResponses
+      && item.status !== 'proposed'
+      && item.status !== 'cancelled'
+      && item.status !== 'completed'
+      ? buildCompetitionScheduleResponseSummary({
+          eventId: `league:${league.id}:${item.id}`,
+          expectedPlayerNames: [item.participantAName, item.participantBName],
+          responses: scheduleResponses,
+          currentSnapshot: {
+            date: item.scheduledDate,
+            time: item.scheduledTime,
+            location: item.facility || league.defaultFacility || league.locationLabel,
+          },
+        })
+      : null
 
     return (
       <div key={item.id} style={isCompact ? scheduleCalendarItemStyle : scheduleRowStyle}>
@@ -2104,6 +2297,21 @@ function TiqLeagueDetailContent() {
             <div style={{ ...listMeta, color: '#bbf7d0', marginTop: 6 }}>
               Result: {scheduleOutcomeText}
             </div>
+          ) : null}
+          {responseSummary ? (
+            <CompetitionResponseSummary
+              summary={responseSummary}
+              onAdjust={() => handleAdjustScheduleItem(item)}
+              onRemind={session?.access_token ? () => sendCompetitionScheduleReminders({
+                accessToken: session.access_token,
+                competitionKind: 'league',
+                competitionId: league.id,
+                eventId: `league:${league.id}:${item.id}`,
+                expectedPlayerNames: [item.participantAName, item.participantBName],
+              }) : undefined}
+              rosterHref="#league-participants"
+              compact={isCompact}
+            />
           ) : null}
         </div>
         <div style={isCompact ? scheduleCalendarActionsStyle : scheduleRowActionsStyle}>
@@ -2184,6 +2392,19 @@ function TiqLeagueDetailContent() {
           </div>
         ) : (
           <>
+            <CompeteResumeTracker
+              surface="leagues"
+              label="league"
+              href={`/explore/leagues/tiq/${encodeURIComponent(routeSlug)}${leagueIdParam ? `?league_id=${encodeURIComponent(leagueIdParam)}` : ''}`}
+              leagueId={league.id}
+              leagueName={league.leagueName}
+            />
+            <ExploreResumeTracker
+              surface="league"
+              label="league"
+              href={`/explore/leagues/tiq/${encodeURIComponent(routeSlug)}${leagueIdParam ? `?league_id=${encodeURIComponent(leagueIdParam)}` : ''}`}
+              contextLabel={league.leagueName}
+            />
             <section style={dynamicHeroCard}>
               <span aria-hidden="true" style={watermarkStyle} />
               <div style={dynamicHeroGrid}>
@@ -2316,8 +2537,8 @@ function TiqLeagueDetailContent() {
                   <div style={sectionEyebrow}>Season pulse</div>
                   <h2 style={sectionTitle}>Check the table. See what changed. Know what to play next.</h2>
                   <p style={sectionText}>
-                    This page should feel like the league scoreboard first. Admin controls stay nearby, but results,
-                    standings, schedule, and the next useful tennis move lead the experience.
+                    Start with the scoreboard. Results, standings, schedule, and the next useful tennis move stay up front,
+                    with admin controls nearby when you need them.
                   </p>
                 </div>
                 <div style={leagueHubScoreStyle}>
@@ -2462,11 +2683,13 @@ function TiqLeagueDetailContent() {
                 </div>
               </div>
 
-              <div style={scheduleActionPanelStyle}>
+              <div id="league-schedule-editor" style={scheduleActionPanelStyle}>
                 <div style={leagueHubHeaderStyle}>
                   <div style={leagueHubHeaderCopyStyle}>
-                    <div style={formatCalloutTitle}>
-                      {league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
+                  <div style={formatCalloutTitle}>
+                      {scheduleEditingItemId
+                        ? 'Adjust this match'
+                        : league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
                         ? 'Publish a match slot'
                         : 'Propose a match time'}
                     </div>
@@ -2488,7 +2711,7 @@ function TiqLeagueDetailContent() {
                       value={scheduleParticipantA}
                       onChange={(event) => setScheduleParticipantA(event.target.value)}
                       style={inputStyle}
-                      disabled={scheduleSaving}
+                      disabled={scheduleSaving || Boolean(scheduleEditingItemId)}
                     >
                       <option value="">Choose participant A</option>
                       {scheduleParticipantOptions.map((option) => (
@@ -2505,7 +2728,7 @@ function TiqLeagueDetailContent() {
                       value={scheduleParticipantB}
                       onChange={(event) => setScheduleParticipantB(event.target.value)}
                       style={inputStyle}
-                      disabled={scheduleSaving}
+                      disabled={scheduleSaving || Boolean(scheduleEditingItemId)}
                     >
                       <option value="">Choose participant B</option>
                       {scheduleParticipantOptions.map((option) => (
@@ -2575,10 +2798,30 @@ function TiqLeagueDetailContent() {
                   >
                     {scheduleSaving
                       ? 'Saving schedule...'
-                      : league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
+                      : scheduleEditingItemId
+                        ? 'Save Changes'
+                        : league.schedulingMode === 'coordinator_fixed' && access.canUseLeagueTools
                         ? 'Publish Match Slot'
                         : 'Propose Match Time'}
                   </button>
+                  {scheduleEditingItemId ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setScheduleEditingItemId('')
+                        setScheduleParticipantA('')
+                        setScheduleParticipantB('')
+                        setScheduleDate('')
+                        setScheduleTime(league.defaultMatchTime || '')
+                        setScheduleFacility(league.defaultFacility || '')
+                        setScheduleNotes('')
+                        setScheduleStatus('')
+                      }}
+                      style={ghostActionButton}
+                    >
+                      Cancel edit
+                    </button>
+                  ) : null}
                   {scheduleParticipantAOption && scheduleParticipantBOption ? (
                     <ScheduleMessageComposer
                       mode="tiq-league-match"
@@ -2692,46 +2935,90 @@ function TiqLeagueDetailContent() {
 
             <div style={dynamicContentGrid}>
               <section id="league-requests" style={dynamicPanelCard}>
-                <div style={sectionEyebrow}>Entry workflow</div>
+                <div style={sectionEyebrow}>{hasExistingTiqTeamEntry ? 'Your team access' : 'Entry request'}</div>
                 <h2 style={sectionTitle}>
                   {league.leagueFormat === 'team'
-                    ? 'Request team entry'
+                    ? hasExistingTiqTeamEntry ? 'Add another team' : 'Request team entry'
                     : 'Request to join'}
                 </h2>
                 <p style={sectionText}>
                   {league.leagueFormat === 'team'
-                    ? 'Submit your team for League Office approval. Approved teams appear in participants, schedules, results, and standings.'
+                    ? hasExistingTiqTeamEntry
+                      ? 'Your current team access is shown below. Add another team only when you manage a second team in this league.'
+                      : 'Select or type the team you manage. If League Office listed it first, request it here to connect it to your account after approval.'
                     : `Submit your player entry for League Office approval. ${getTiqIndividualCompetitionFormatDescription(league.individualCompetitionFormat)}`}
                 </p>
 
+                {league.leagueFormat === 'team' && !hasExistingTiqTeamEntry ? (
+                  <div style={teamEntryPathStyle} aria-label="How team entry works">
+                    <strong style={teamEntryPathTitleStyle}>How this becomes your team in TiQ</strong>
+                    <div style={teamEntryPathStepsStyle}>
+                      <span>1. Request this team</span>
+                      <span>2. League Office approves it</span>
+                      <span>3. It appears in My Teams</span>
+                    </div>
+                  </div>
+                ) : null}
+
+                {yourPendingTeamEntries.map((entry) => (
+                  <div key={`pending-${entry.teamEntityId || entry.teamName}`} style={teamEntryPendingStatusStyle} aria-live="polite">
+                    <strong>{entry.teamName} is waiting for League Office approval.</strong>
+                    <span>Once it is approved, the team will appear in My Teams with Team Chat and captain tools.</span>
+                  </div>
+                ))}
+
+                {yourActiveTeamEntries.map((entry) => (
+                  <div key={`active-${entry.teamEntityId || entry.teamName}`} style={teamEntryReadyStatusStyle} aria-live="polite">
+                    <div>
+                      <strong>{entry.teamName} is ready in My Teams.</strong>
+                      <span>Open it to manage the roster, schedule, lineup, and Team Chat.</span>
+                    </div>
+                    <Link href="/compete/teams" style={teamEntryReadyLinkStyle}>Open My Teams</Link>
+                  </div>
+                ))}
+
+                {league.leagueFormat === 'individual' ? (
+                  <div style={entryRequirementRailStyle} aria-label="Entry requirements">
+                    <span style={entryRequirementItemStyle}>{entryRequirement.ratingLevel ? `${entryRequirement.ratingLevel.toFixed(1)} division` : 'Open rating or format review'}</span>
+                    <span style={entryRequirementItemStyle}>{entryRequirement.ageDivision || 'No age restriction detected'}</span>
+                    <span style={entryRequirementItemStyle}>{entryRequirement.mixedPairRole === 'unknown' ? 'Open division' : `${entryRequirement.mixedPairRole === 'man' ? "Men's" : "Women's"} division`}</span>
+                  </div>
+                ) : null}
+
+                {showTeamEntryForm ? <>
                 <label style={fieldLabel}>
                   <span>{league.leagueFormat === 'team' ? 'Team name' : 'Player name'}</span>
                   <input
                     value={entryValue}
-                    onChange={(event) => setEntryValue(event.target.value)}
+                    onChange={(event) => {
+                      setEntryValue(event.target.value)
+                      if (league.leagueFormat === 'team') setSelectedTeamKey('')
+                    }}
                     placeholder={entryPlaceholder}
                     style={inputStyle}
-                    disabled={saving}
+                    disabled={saving || Boolean(league.leagueFormat === 'individual' && registrationPlayer)}
                   />
                 </label>
 
                 {league.leagueFormat === 'team' ? (
                   <label style={fieldLabel}>
-                    <span>Choose an existing TenAceIQ team</span>
+                    <span>Choose a team already in TiQ</span>
                     <select
                       value={selectedTeamKey}
                       onChange={(event) => handleSelectExistingTeam(event.target.value)}
                       style={inputStyle}
                       disabled={saving}
                     >
-                      <option value="">Use a custom team name</option>
+                      <option value="">Type a custom team name</option>
                       {availableTeamOptions.map((option) => (
                         <option key={option.key} value={option.key}>
                           {[
                             option.team,
                             option.league || null,
                             option.flight || null,
-                            `${option.matchCount} matches`,
+                            option.key.startsWith('league-entry:')
+                              ? 'Listed by League Office'
+                              : `${option.matchCount} matches`,
                           ]
                             .filter(Boolean)
                             .join(' | ')}
@@ -2740,22 +3027,71 @@ function TiqLeagueDetailContent() {
                     </select>
                   </label>
                 ) : (
-                  <label style={fieldLabel}>
-                    <span>Choose an existing TenAceIQ player</span>
-                    <select
-                      value={selectedPlayerId}
-                      onChange={(event) => handleSelectExistingPlayer(event.target.value)}
-                      style={inputStyle}
-                      disabled={saving}
-                    >
-                      <option value="">Use a custom player name</option>
-                      {availablePlayerOptions.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <div style={entryEvidenceStackStyle}>
+                    <div style={entryProfileCardStyle}>
+                      <div>
+                        <span style={entryProfileEyebrowStyle}>{registrationPlayer ? 'Your TIQ player is connected' : 'Player profile'}</span>
+                        <strong style={entryProfileTitleStyle}>
+                          {registrationPlayerLoading
+                            ? 'Checking your player profile...'
+                            : registrationPlayer
+                              ? registrationPlayer.name
+                              : 'Link your player profile for faster approval.'}
+                        </strong>
+                        <small style={entryProfileMetaStyle}>
+                          {registrationPlayer
+                            ? [registrationPlayer.location, typeof registrationPlayer.evidence.rating === 'number' ? `${registrationPlayer.evidence.rating.toFixed(1)} ${registrationPlayer.evidence.ratingSource === 'verified' ? 'verified' : 'self-rated'}` : 'Rating not saved'].filter(Boolean).join(' | ')
+                            : 'A self-rating can be submitted now. League Office will confirm it.'}
+                        </small>
+                      </div>
+                      {!registrationPlayer && !registrationPlayerLoading ? (
+                        <GhostLink href={`/profile?next=${encodeURIComponent(`/explore/leagues/tiq/${league.id}#league-requests`)}`}>
+                          Set up profile
+                        </GhostLink>
+                      ) : null}
+                    </div>
+
+                    <label style={fieldLabel}>
+                      <span>{registrationPlayer && typeof registrationPlayer.evidence.rating === 'number' ? 'Profile rating' : 'Self-rating'}</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="7"
+                        step="0.1"
+                        value={entryRating}
+                        onChange={(event) => setEntryRating(event.target.value)}
+                        style={inputStyle}
+                        disabled={saving || Boolean(registrationPlayer && typeof registrationPlayer.evidence.rating === 'number')}
+                      />
+                    </label>
+
+                    {entryRequirement.ageDivision && !registrationPlayer?.evidence.ageDivisions?.includes(entryRequirement.ageDivision) ? (
+                      <label style={entryEvidenceToggleStyle}>
+                        <input
+                          type="checkbox"
+                          checked={entryAgeAttested}
+                          onChange={(event) => setEntryAgeAttested(event.target.checked)}
+                        />
+                        <span>I meet the {entryRequirement.ageDivision} requirement.</span>
+                      </label>
+                    ) : null}
+
+                    {entryRequirement.mixedPairRole !== 'unknown' && registrationPlayer?.evidence.mixedPairRole !== entryRequirement.mixedPairRole ? (
+                      <label style={entryEvidenceToggleStyle}>
+                        <input
+                          type="checkbox"
+                          checked={entryDivisionAttested}
+                          onChange={(event) => setEntryDivisionAttested(event.target.checked)}
+                        />
+                        <span>I am eligible for the {entryRequirement.mixedPairRole === 'man' ? "men's" : "women's"} division.</span>
+                      </label>
+                    ) : null}
+
+                    <div style={entryEligibilityStatusStyle} data-status={entryEligibility.status}>
+                      <strong>{entryEligibility.label}</strong>
+                      <span>{entryEligibility.detail}</span>
+                    </div>
+                  </div>
                 )}
 
                 {status ? <div style={statusBanner}>{status}</div> : null}
@@ -2778,10 +3114,10 @@ function TiqLeagueDetailContent() {
                   <button
                     type="button"
                     onClick={handleEntrySubmit}
-                    disabled={!entryEnabled || saving}
+                    disabled={!entryEnabled || saving || registrationPlayerLoading || Boolean(individualEntryBlocked)}
                     style={{
                       ...primaryButton,
-                      ...(!entryEnabled || saving ? disabledButton : {}),
+                      ...(!entryEnabled || saving || registrationPlayerLoading || individualEntryBlocked ? disabledButton : {}),
                     }}
                   >
                     {saving ? 'Saving...' : entryLabel}
@@ -2790,6 +3126,24 @@ function TiqLeagueDetailContent() {
                     <GhostLink href="/league-coordinator">Manage TIQ Seasons</GhostLink>
                   ) : null}
                 </div>
+                </> : league.leagueFormat === 'team' ? (
+                  <div style={actionRow}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddingAnotherTeam(true)
+                        setEntryValue('')
+                        setSelectedTeamKey('')
+                        setStatus('')
+                      }}
+                      disabled={!entryEnabled}
+                      style={{ ...primaryButton, ...(!entryEnabled ? disabledButton : {}) }}
+                    >
+                      Add another team
+                    </button>
+                    <GhostLink href="/league-coordinator">Manage TIQ Seasons</GhostLink>
+                  </div>
+                ) : null}
               </section>
 
               <section id="league-participants" style={dynamicPanelCard}>
@@ -2828,14 +3182,27 @@ function TiqLeagueDetailContent() {
                       ? visibleTeamEntries.map((entry, index) => (
                           <div key={`${entry.teamName}-${index}`} style={dynamicListCard}>
                             <div>
-                              <div style={listTitle}>{entry.teamName}</div>
+                              <EntityDetailLink
+                                href={buildTeamProfileHref(entry.teamName, {
+                                  layer: 'tiq',
+                                  league: entry.sourceLeagueName || league.leagueName,
+                                  flight: entry.sourceFlight || league.flight,
+                                })}
+                                style={listTitle}
+                              >
+                                {entry.teamName}
+                              </EntityDetailLink>
                               <div style={listMeta}>
                                 {[entry.sourceLeagueName, entry.sourceFlight, 'Team participant']
                                   .filter(Boolean)
                                   .join(' | ')}
                               </div>
                             </div>
-                            <GhostLink href={`/team/${encodeURIComponent(entry.teamName)}?layer=tiq&league=${encodeURIComponent(entry.sourceLeagueName || league.leagueName)}${entry.sourceFlight || league.flight ? `&flight=${encodeURIComponent(entry.sourceFlight || league.flight || '')}` : ''}`}>
+                            <GhostLink href={buildTeamProfileHref(entry.teamName, {
+                              layer: 'tiq',
+                              league: entry.sourceLeagueName || league.leagueName,
+                              flight: entry.sourceFlight || league.flight,
+                            })}>
                               Team Page
                             </GhostLink>
                           </div>
@@ -2843,7 +3210,12 @@ function TiqLeagueDetailContent() {
                       : visiblePlayerEntries.map((entry, index) => (
                       <div key={`${entry.playerName}-${index}`} style={dynamicListCard}>
                         <div>
-                          <div style={listTitle}>{entry.playerName}</div>
+                          <EntityDetailLink
+                            href={buildPlayerDetailHref(entry.playerId, entry.playerName)}
+                            style={listTitle}
+                          >
+                            {entry.playerName}
+                          </EntityDetailLink>
                           <div style={listMeta}>
                             {[entry.playerLocation, 'Individual participant'].filter(Boolean).join(' | ')}
                           </div>
@@ -2910,7 +3282,12 @@ function TiqLeagueDetailContent() {
                             <div style={standingHeader}>
                               <div>
                                 <div style={standingNameRowStyle}>
-                                  <div style={listTitle}>{entry.playerName}</div>
+                                  <EntityDetailLink
+                                    href={buildPlayerDetailHref(entry.playerId, entry.playerName)}
+                                    style={listTitle}
+                                  >
+                                    {entry.playerName}
+                                  </EntityDetailLink>
                                   {(() => {
                                     const status = getLeagueRatingStatus(entry.ratingGap)
                                     if (!status) return null
@@ -3155,7 +3532,7 @@ function TiqLeagueDetailContent() {
             {league.leagueFormat === 'individual' ? (
               <section style={dynamicPanelCard}>
                 <div style={sectionEyebrow}>Saved prompts</div>
-                <h2 style={sectionTitle}>Track TIQ suggestions as real workflow objects.</h2>
+                <h2 style={sectionTitle}>Save TIQ suggestions as next tennis moves.</h2>
                 <p style={sectionText}>
                   Saved TIQ prompts let the app remember which ladder targets, round-robin gaps, and
                   challenge peers you wanted to act on, even before a result is logged.
@@ -3164,7 +3541,7 @@ function TiqLeagueDetailContent() {
                 {savedSuggestions.length === 0 ? (
                   <div style={emptyCard}>
                     Save a prompt from the recommendation cards to keep that TIQ opportunity visible
-                    across your workflow surfaces.
+                    across your player and league tools.
                   </div>
                 ) : (
                   <div style={listWrap}>
@@ -3265,7 +3642,7 @@ function TiqLeagueDetailContent() {
                     ctaHref="/pricing"
                     secondaryLabel="Open Player Results"
                     secondaryHref={`/league-coordinator/individual-results?leagueId=${encodeURIComponent(league.id)}`}
-                    footnote="Players can still read standings, results, and prompts from this page."
+                    footnote="Players can still read standings, results, and prompts here."
                   />
                 ) : null}
 
@@ -3410,8 +3787,13 @@ function TiqLeagueDetailContent() {
                       <div key={result.id} style={dynamicListCard}>
                         <div>
                           <div style={listTitle}>
-                            {result.winnerPlayerName} def.{' '}
-                            {opponentName}
+                            <EntityDetailLink href={buildPlayerDetailHref(result.winnerPlayerId, result.winnerPlayerName)}>
+                              {result.winnerPlayerName}
+                            </EntityDetailLink>{' '}
+                            def.{' '}
+                            <EntityDetailLink href={buildPlayerDetailHref(opponentId, opponentName)}>
+                              {opponentName}
+                            </EntityDetailLink>
                           </div>
                           <div style={listMeta}>
                             {[result.score, formatDateTime(result.resultDate), result.notes].filter(Boolean).join(' | ')}
@@ -3497,7 +3879,17 @@ function TiqLeagueDetailContent() {
                         return (
                           <tr key={row.teamName} style={{ background: isLeader ? 'rgba(155,225,29,0.04)' : undefined }}>
                             <td style={teamStandingsRankCellStyle}>{i + 1}</td>
-                            <td style={isLeader ? teamStandingsLeaderNameCellStyle : teamStandingsTeamNameCellStyle}>{row.teamName}</td>
+                            <td style={isLeader ? teamStandingsLeaderNameCellStyle : teamStandingsTeamNameCellStyle}>
+                              <EntityDetailLink
+                                href={buildTeamProfileHref(row.teamName, {
+                                  layer: 'tiq',
+                                  league: league.leagueName,
+                                  flight: league.flight,
+                                })}
+                              >
+                                {row.teamName}
+                              </EntityDetailLink>
+                            </td>
                             {league.scoringSystem === 'dynamic_points' ? (
                               <td style={teamStandingsAccentCellStyle}>{row.points}</td>
                             ) : null}
@@ -3592,7 +3984,25 @@ function TiqLeagueDetailContent() {
                             <div style={teamResultHeaderRowStyle}>
                               <div style={teamResultHeaderCopyStyle}>
                                 <div style={listTitle}>
-                                  {event.teamAName} <span style={versusTextStyle}>vs</span> {event.teamBName}
+                                  <EntityDetailLink
+                                    href={buildTeamProfileHref(event.teamAName, {
+                                      layer: 'tiq',
+                                      league: league.leagueName,
+                                      flight: league.flight,
+                                    })}
+                                  >
+                                    {event.teamAName}
+                                  </EntityDetailLink>{' '}
+                                  <span style={versusTextStyle}>vs</span>{' '}
+                                  <EntityDetailLink
+                                    href={buildTeamProfileHref(event.teamBName, {
+                                      layer: 'tiq',
+                                      league: league.leagueName,
+                                      flight: league.flight,
+                                    })}
+                                  >
+                                    {event.teamBName}
+                                  </EntityDetailLink>
                                 </div>
                                 <div style={listMeta}>
                                   {[formatDateTime(event.matchDate), event.facility].filter(Boolean).join(' | ')}
@@ -3725,11 +4135,11 @@ const heroCard: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-110px',
+  right: 0,
   top: '-118px',
-  width: '310px',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  width: 'min(100%, 310px)',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }
@@ -3988,6 +4398,74 @@ const statusBanner: CSSProperties = {
   fontWeight: 700,
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const teamEntryPathStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  padding: '12px',
+  borderRadius: '14px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'linear-gradient(135deg, rgba(78,130,27,0.16), rgba(8,13,28,0.52))',
+  minWidth: 0,
+}
+
+const teamEntryPathTitleStyle: CSSProperties = {
+  color: '#efffe9',
+  fontSize: 13,
+  lineHeight: 1.25,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const teamEntryPathStepsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 7,
+  minWidth: 0,
+  color: '#cbd5e1',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 750,
+}
+
+const teamEntryPendingStatusStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  padding: '12px 14px',
+  borderRadius: '14px',
+  border: '1px solid rgba(251,191,36,0.34)',
+  background: 'rgba(251,191,36,0.09)',
+  color: '#fef3c7',
+  fontSize: 13,
+  lineHeight: 1.4,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamEntryReadyStatusStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  padding: '12px 14px',
+  borderRadius: '14px',
+  border: '1px solid rgba(155,225,29,0.32)',
+  background: 'rgba(155,225,29,0.09)',
+  color: '#efffe9',
+  minWidth: 0,
+}
+
+const teamEntryReadyLinkStyle: CSSProperties = {
+  ...ghostButton,
+  width: 'auto',
+  minHeight: 40,
+  padding: '9px 12px',
+  borderColor: 'rgba(155,225,29,0.44)',
+  background: 'rgba(155,225,29,0.13)',
+  color: '#efffe9',
+  flex: '0 0 auto',
 }
 
 const leagueHubPanelStyle: CSSProperties = {
@@ -4537,6 +5015,102 @@ const formatCalloutText: CSSProperties = {
   color: 'rgba(229,238,251,0.76)',
   fontSize: '13px',
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
+}
+
+const entryRequirementRailStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const entryRequirementItemStyle: CSSProperties = {
+  minWidth: 0,
+  padding: '9px 10px',
+  borderRadius: 12,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(7,17,33,0.46)',
+  color: 'rgba(229,238,251,0.82)',
+  fontSize: 12,
+  fontWeight: 850,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const entryEvidenceStackStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+}
+
+const entryProfileCardStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(116,190,255,0.07)',
+}
+
+const entryProfileEyebrowStyle: CSSProperties = {
+  display: 'block',
+  color: '#8bc9ff',
+  fontSize: 10,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const entryProfileTitleStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 4,
+  color: '#f8fbff',
+  fontSize: 15,
+  lineHeight: 1.25,
+  overflowWrap: 'anywhere',
+}
+
+const entryProfileMetaStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 4,
+  color: 'rgba(214,228,246,0.72)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const entryEvidenceToggleStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'min-content minmax(0, 1fr)',
+  gap: 9,
+  alignItems: 'start',
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(255,206,116,0.24)',
+  background: 'rgba(255,206,116,0.07)',
+  color: '#f8fbff',
+  fontSize: 13,
+  fontWeight: 850,
+  lineHeight: 1.4,
+}
+
+const entryEligibilityStatusStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.07)',
+  color: '#f8fbff',
+  fontSize: 12,
+  lineHeight: 1.45,
   overflowWrap: 'anywhere',
 }
 

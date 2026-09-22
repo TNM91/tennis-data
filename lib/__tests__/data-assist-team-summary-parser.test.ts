@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildTeamSummaryOcrDraftFromText } from '../data-assist-team-summary-parser'
+import { buildTeamSummaryOcrDraftFromText, isTeamSummaryDraftReadyForImport } from '../data-assist-team-summary-parser'
 
 describe('buildTeamSummaryOcrDraftFromText', () => {
   it('parses roster players and ratings from TennisLink team summary OCR text', () => {
@@ -21,9 +21,9 @@ describe('buildTeamSummaryOcrDraftFromText', () => {
     expect(draft.leagueName).toBe('2026 Adult 18 & Over Spring')
     expect(draft.flight).toBe('Men 4.5')
     expect(draft.players).toEqual([
-      { name: 'Nathan Meinert', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-      { name: 'David Cabrera', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-      { name: 'Eric Abramson', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' },
+      { name: 'Nathan Meinert', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)', ratingSource: 'verified', mixedPairRole: 'man', ageDivision: '18 & Over' },
+      { name: 'David Cabrera', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)', ratingSource: 'verified', mixedPairRole: 'man', ageDivision: '18 & Over' },
+      { name: 'Eric Abramson', ntrp: 4, teamName: 'Meinert/The Other Guys (S)', ratingSource: 'verified', mixedPairRole: 'man', ageDivision: '18 & Over' },
     ])
     expect(draft.parserWarnings).toEqual([])
   })
@@ -47,15 +47,15 @@ describe('buildTeamSummaryOcrDraftFromText', () => {
     )
 
     expect(draft.players).toEqual(expect.arrayContaining([
-      { name: 'Nathan Meinert', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-      { name: 'David Cabrera', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-      { name: 'Connor Zielonko', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' },
-      { name: 'Nathan Easley', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
+      expect.objectContaining({ name: 'Nathan Meinert', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' }),
+      expect.objectContaining({ name: 'David Cabrera', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' }),
+      expect.objectContaining({ name: 'Connor Zielonko', ntrp: 4, teamName: 'Meinert/The Other Guys (S)' }),
+      expect.objectContaining({ name: 'Nathan Easley', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' }),
     ]))
     expect(draft.parserWarnings).toEqual([])
   })
 
-  it('repairs the visible Meinert roster when full-page OCR damages the roster columns', () => {
+  it('does not substitute hard-coded players or ratings when OCR damages roster columns', () => {
     const draft = buildTeamSummaryOcrDraftFromText(
       [
         'Team: Meinert/The Other Guys (S)',
@@ -80,12 +80,20 @@ describe('buildTeamSummaryOcrDraftFromText', () => {
       'tesseract',
     )
 
-    expect(draft.players).toHaveLength(20)
-    expect(draft.players.slice(0, 3)).toEqual([
-      { name: 'Nathan Meinert', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-      { name: 'David Cabrera', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-      { name: 'Benjamin Strate', ntrp: 4.5, teamName: 'Meinert/The Other Guys (S)' },
-    ])
-    expect(draft.parserWarnings).toEqual([])
+    expect(draft.players).toEqual([])
+    expect(draft.parserWarnings).toContain('No roster players were safely read from this screenshot.')
+    expect(isTeamSummaryDraftReadyForImport(draft)).toBe(false)
+  })
+
+  it('does not mark an unlinked roster as ready to import', () => {
+    const draft = buildTeamSummaryOcrDraftFromText(
+      'Roster player | Nathan Meinert | 4.5',
+      [],
+      'tennislink_export',
+    )
+
+    expect(draft.players).toHaveLength(1)
+    expect(draft.rosterTeamName).toBe('')
+    expect(isTeamSummaryDraftReadyForImport(draft)).toBe(false)
   })
 })

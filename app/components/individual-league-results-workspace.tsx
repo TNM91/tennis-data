@@ -4,11 +4,22 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
+import EntityDetailLink from '@/app/components/entity-detail-link'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import LeagueSuitePanel from '@/app/components/league-suite-panel'
 import { AuthProvider, useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
+import {
+  chooseLatestLeagueCoordinatorResumeState,
+  loadLeagueCoordinatorResumeStateFromCloud,
+  readLeagueCoordinatorResumeState,
+  syncLeagueCoordinatorResumeState,
+  writeLeagueCoordinatorResumeState,
+  type LeagueCoordinatorResumeState,
+} from '@/lib/league-coordinator-memory'
+import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'
 import { buildIndividualResultCue } from '@/lib/league-result-cues'
+import type { MembershipTierId } from '@/lib/product-story'
 import {
   getTiqLeagueById,
   listTiqLeagues,
@@ -32,7 +43,7 @@ import {
 } from '@/lib/tiq-individual-format'
 import { validateTiqTennisMatchScore } from '@/lib/tiq-scoring'
 import { formatDate } from '@/lib/captain-formatters'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
+import { buildPlayerDetailHref } from '@/lib/entity-routes'
 
 type ResultParticipantOption = {
   value: string
@@ -74,7 +85,7 @@ const pageWrap: CSSProperties = {
   overflowX: 'clip',
   boxSizing: 'border-box',
 }
-const heading: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 32, fontWeight: 900, marginBottom: 8, letterSpacing: 0, overflowWrap: 'anywhere' }
+const heading: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 32, fontWeight: 900, margin: 0, marginBottom: 8, letterSpacing: 0, overflowWrap: 'anywhere' }
 const subheading: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 15, lineHeight: 1.55, marginBottom: 0, maxWidth: 700, overflowWrap: 'anywhere' }
 const introCard: CSSProperties = {
   background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
@@ -227,9 +238,49 @@ const resultPathIntro: CSSProperties = {
   maxWidth: 520,
   overflowWrap: 'anywhere',
 }
+const resultPathCommandStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+const resultPathStatusPanelStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  minHeight: 112,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(180deg, rgba(155,225,29,0.1), rgba(8,18,36,0.86))',
+  color: 'var(--shell-copy-muted)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  overflowWrap: 'anywhere',
+}
+const resultPathStatusGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+const resultPathStatusItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 78,
+  padding: '9px 10px',
+  borderRadius: 14,
+  border: '1px solid rgba(223,248,194,0.12)',
+  background: 'rgba(255,255,255,0.04)',
+  color: '#dbeafe',
+  fontSize: 12,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
 const resultPathGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
   gap: 12,
   minWidth: 0,
 }
@@ -237,7 +288,7 @@ const resultPathCard: CSSProperties = {
   display: 'grid',
   gap: 7,
   minWidth: 0,
-  minHeight: 142,
+  minHeight: 112,
   padding: 14,
   borderRadius: 18,
   border: '1px solid rgba(223,248,194,0.13)',
@@ -269,66 +320,6 @@ const resultPathCta: CSSProperties = {
   color: 'var(--brand-green)',
   fontSize: 12,
   fontWeight: 950,
-  overflowWrap: 'anywhere',
-}
-const readinessPanel: CSSProperties = {
-  display: 'grid',
-  gap: 14,
-  background: 'rgba(8, 16, 34, 0.7)',
-  border: '1px solid rgba(116,190,255,0.13)',
-  borderRadius: 24,
-  padding: 18,
-  boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
-  minWidth: 0,
-}
-const readinessKicker: CSSProperties = {
-  color: '#93b7ea',
-  fontSize: 11,
-  fontWeight: 900,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  overflowWrap: 'anywhere',
-}
-const readinessTitle: CSSProperties = {
-  color: '#f8fbff',
-  fontSize: 20,
-  lineHeight: 1.16,
-  fontWeight: 950,
-  marginTop: 5,
-  overflowWrap: 'anywhere',
-}
-const readinessText: CSSProperties = {
-  color: '#b8c7dc',
-  fontSize: 13,
-  lineHeight: 1.55,
-  marginTop: 6,
-  overflowWrap: 'anywhere',
-}
-const readinessGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
-  gap: 10,
-  minWidth: 0,
-}
-const readinessItem: CSSProperties = {
-  display: 'grid',
-  gap: 8,
-  minHeight: 86,
-  padding: 12,
-  borderRadius: 14,
-  border: '1px solid rgba(125,211,252,0.12)',
-  background: 'rgba(8, 16, 34, 0.72)',
-  minWidth: 0,
-}
-const readinessItemComplete: CSSProperties = {
-  ...readinessItem,
-  border: '1px solid rgba(155,225,29,0.18)',
-  background: 'rgba(155,225,29,0.08)',
-}
-const readinessItemText: CSSProperties = {
-  color: '#e2e8f0',
-  fontSize: 13,
-  lineHeight: 1.35,
   overflowWrap: 'anywhere',
 }
 const listWrap: CSSProperties = { display: 'grid', gap: 10, minWidth: 0 }
@@ -459,13 +450,82 @@ const emptyResultAction: CSSProperties = {
   whiteSpace: 'normal',
   textDecoration: 'none',
 }
-const reviewToolbar: CSSProperties = {
-  ...card,
+const reviewPanelStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
-  gap: 10,
+  gap: 12,
+  padding: 16,
+  borderRadius: 22,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(8, 16, 34, 0.68)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
+}
+const reviewPanelHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+const reviewPanelTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+const reviewCommandGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+const reviewCommandItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 48,
+  padding: '9px 10px',
+  borderRadius: 14,
+  border: '1px solid rgba(125,211,252,0.12)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  overflow: 'hidden',
+}
+const reviewCommandCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+const reviewFilterGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 8,
   alignItems: 'end',
   minWidth: 0,
+}
+const reviewActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  minWidth: 0,
+}
+const reviewCountStyle: CSSProperties = {
+  color: '#94a3b8',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 function Field({ label, children, wide = false }: { label: string; children: React.ReactNode; wide?: boolean }) {
@@ -497,6 +557,10 @@ function EmptyIndividualResultsPanel() {
 
 function resultOpponentName(result: TiqIndividualLeagueResultRecord) {
   return result.winnerPlayerName === result.playerAName ? result.playerBName : result.playerAName
+}
+
+function resultOpponentId(result: TiqIndividualLeagueResultRecord) {
+  return result.winnerPlayerId === result.playerAId ? result.playerBId : result.playerAId
 }
 
 function buildCurrentLoginNextHref(fallbackHref: string) {
@@ -668,12 +732,23 @@ function fallbackEntriesForLeague(league: TiqLeagueRecord | null): TiqPlayerLeag
     playerId: '',
     playerLocation: '',
     entryStatus: 'active' as const,
+    eligibilityStatus: 'needs_confirmation' as const,
+    eligibilityReviewNote: '',
+    eligibilityEvidence: {},
+    eligibility: {
+      status: 'needs_confirmation' as const,
+      label: 'Confirm eligibility',
+      detail: 'Player evidence has not been checked against this division yet.',
+      issues: [],
+      requirement: { ratingLevel: null, ageDivision: null, mixedPairRole: 'unknown' as const },
+    },
   }))
 }
 
 type IndividualLeagueResultsWorkspaceProps = {
   activeRoute?: string
   loginNextHref?: string
+  loginPlanId?: MembershipTierId
   resultsHref?: string
 }
 
@@ -688,11 +763,12 @@ export function IndividualLeagueResultsWorkspace(props: IndividualLeagueResultsW
 function IndividualLeagueResultsWorkspaceInner({
   activeRoute = '/league-coordinator',
   loginNextHref = '/league-coordinator/individual-results',
+  loginPlanId = 'league',
   resultsHref = '/league-coordinator/individual-results',
 }: IndividualLeagueResultsWorkspaceProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { role, userId, entitlements, authResolved } = useAuth()
+  const { role, userId, entitlements, authResolved, session } = useAuth()
   const initialLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
   const suggestedResultPlayerA =
     searchParams.get('suggest_player_a') || searchParams.get('playerA') || searchParams.get('player_a') || ''
@@ -723,6 +799,7 @@ function IndividualLeagueResultsWorkspaceInner({
   const [resultStorageSource, setResultStorageSource] = useState<TiqResultStorageSource>('local')
   const [resultFormOpen, setResultFormOpen] = useState(false)
   const [appliedSuggestedResultKey, setAppliedSuggestedResultKey] = useState('')
+  const [coordinatorResumeResolved, setCoordinatorResumeResolved] = useState(false)
   const access = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
   const canEditResults = access.canCreateTiqIndividualLeague
   const accessMessage = access.individualLeagueMessage
@@ -827,6 +904,32 @@ function IndividualLeagueResultsWorkspaceInner({
   const activeParticipantCount = selectedLeague
     ? visiblePlayerEntries.length
     : leagues.reduce((sum, league) => sum + (league.players || []).length, 0)
+  const reviewCommandItems = [
+    {
+      label: 'Shown',
+      value: `${visibleResults.length}/${results.length}`,
+      detail: activeResultFilterCount ? `${activeResultFilterCount} review filter${activeResultFilterCount === 1 ? '' : 's'} active.` : 'Full player result book in view.',
+      ready: visibleResults.length > 0,
+    },
+    {
+      label: 'Clean',
+      value: `${Math.max(0, results.length - editedResultsCount)}/${results.length}`,
+      detail: results.length ? 'Original entries are separated from corrections.' : 'Log the first player result.',
+      ready: results.length > 0 && editedResultsCount === 0,
+    },
+    {
+      label: 'Corrections',
+      value: String(editedResultsCount),
+      detail: editedResultsCount ? 'Review edited results before sharing standings.' : 'No edited results in this book.',
+      ready: editedResultsCount === 0,
+    },
+    {
+      label: 'Players',
+      value: String(activeParticipantCount),
+      detail: selectedLeague ? 'Players available for result entry.' : 'Players across individual leagues.',
+      ready: activeParticipantCount > 1,
+    },
+  ]
   const individualResultCue = buildIndividualResultCue({
     leagueCount: leagues.length,
     selectedLeagueName: selectedLeague?.leagueName,
@@ -839,9 +942,98 @@ function IndividualLeagueResultsWorkspaceInner({
     if (!authResolved) return
 
     if (!userId) {
-      router.replace(`/login?next=${encodeURIComponent(buildCurrentLoginNextHref(loginNextHref))}`)
+      router.replace(buildAuthEntryHref('/login', loginPlanId, buildCurrentLoginNextHref(loginNextHref), true))
     }
-  }, [authResolved, loginNextHref, router, userId])
+  }, [authResolved, loginNextHref, loginPlanId, router, userId])
+
+  useEffect(() => {
+    if (!authResolved) return
+
+    const accessToken = session?.access_token || ''
+    let active = true
+    void (async () => {
+      const localState = readLeagueCoordinatorResumeState(userId)
+      const cloudState = accessToken ? await loadLeagueCoordinatorResumeStateFromCloud(accessToken) : null
+      const resumeState = chooseLatestLeagueCoordinatorResumeState(localState, cloudState)
+      if (!active) return
+      if (resumeState) writeLeagueCoordinatorResumeState(resumeState, userId)
+
+      const draft = resumeState?.lastSurface === 'individual-results'
+        ? resumeState.individualResultDraft
+        : null
+      if (draft && (!initialLeagueId || !draft.leagueId || draft.leagueId === initialLeagueId)) {
+        setFormLeagueId(draft.leagueId || initialLeagueId)
+        setFilterLeagueId(draft.leagueId || initialLeagueId)
+        setResultPlayerA(draft.playerA || '')
+        setResultPlayerB(draft.playerB || '')
+        setResultWinner(draft.winner || '')
+        setResultScore(draft.score || '')
+        setResultDate(draft.resultDate || new Date().toISOString().slice(0, 10))
+        setResultNotes(draft.notes || '')
+        setEditingResultId(draft.editingResultId || '')
+        setResultFormOpen(Boolean(draft.formOpen))
+      }
+    })().finally(() => {
+      if (active) setCoordinatorResumeResolved(true)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [authResolved, initialLeagueId, session?.access_token, userId])
+
+  useEffect(() => {
+    if (!coordinatorResumeResolved || !userId || !canEditResults) return
+
+    const league = leagues.find((item) => item.id === formLeagueId) || null
+    if (!league) return
+    const hasDraft = Boolean(
+      resultFormOpen || resultPlayerA || resultPlayerB || resultWinner || resultScore.trim() || resultNotes.trim() || editingResultId,
+    )
+    const href = `${resultsHref}?leagueId=${encodeURIComponent(league.id)}${hasDraft ? '#player-result-entry' : ''}`
+    const nextState: LeagueCoordinatorResumeState = {
+      leagueId: league.id,
+      leagueName: league.leagueName,
+      leagueFormat: 'individual',
+      lastSurface: 'individual-results',
+      lastSurfaceLabel: hasDraft ? 'Player Result Draft' : 'Player Results',
+      lastHref: href,
+      individualResultDraft: hasDraft
+        ? {
+            leagueId: league.id,
+            playerA: resultPlayerA,
+            playerB: resultPlayerB,
+            winner: resultWinner,
+            score: resultScore,
+            resultDate,
+            notes: resultNotes,
+            editingResultId,
+            formOpen: resultFormOpen,
+          }
+        : undefined,
+    }
+    const timeout = window.setTimeout(() => {
+      writeLeagueCoordinatorResumeState(nextState, userId)
+      void syncLeagueCoordinatorResumeState(nextState, userId, session?.access_token)
+    }, 350)
+    return () => window.clearTimeout(timeout)
+  }, [
+    canEditResults,
+    coordinatorResumeResolved,
+    editingResultId,
+    formLeagueId,
+    leagues,
+    resultDate,
+    resultFormOpen,
+    resultNotes,
+    resultPlayerA,
+    resultPlayerB,
+    resultScore,
+    resultWinner,
+    resultsHref,
+    session?.access_token,
+    userId,
+  ])
 
   const refreshResults = useCallback(async (leagueId: string) => {
     const result = await listTiqIndividualLeagueResults({ leagueId: leagueId || null })
@@ -1083,6 +1275,7 @@ function IndividualLeagueResultsWorkspaceInner({
         }.${scheduleCompletion ? ' Scheduled match marked complete.' : ''}`,
       )
       resetResultForm()
+      setResultFormOpen(false)
     } catch (saveError) {
       setStatus(saveError instanceof Error ? saveError.message : 'Unable to save this TIQ result.')
     } finally {
@@ -1221,133 +1414,112 @@ function IndividualLeagueResultsWorkspaceInner({
   return (
     <SiteShell active={activeRoute}>
       <div style={pageWrap}>
-        <LeagueSuitePanel active="player-results" leagueLabel={selectedLeague?.leagueName || 'League season'} />
-        <div style={introCard}>
-          <span aria-hidden="true" style={portalWatermarkStyle} />
-          <div style={portalPanelContentStyle}>
-            <div style={heading}>Enter player results.</div>
-            <div style={subheading}>
-              Pick the league, choose both players, save the scoreline, and keep standings current.
-            </div>
-            <div style={scorekeeperGrid}>
-              <div style={scorekeeperTile}>
-                <div style={tileLabel}>Individual leagues</div>
-                <div style={tileValue}>{leagues.length}</div>
-                <div style={tileText}>Available result groups</div>
-              </div>
-              <div style={scorekeeperTile}>
-                <div style={tileLabel}>Results</div>
-                <div style={tileValue}>{visibleResults.length}</div>
-                <div style={tileText}>
-                  {activeResultFilterCount ? `${results.length} total in scope` : 'All recorded player results'}
-                </div>
-              </div>
-              <div style={scorekeeperTile}>
-                <div style={tileLabel}>Latest</div>
-                <div style={tileValue}>{latestResult ? formatDate(latestResult.resultDate) : '-'}</div>
-                <div style={tileText}>
-                  {latestResult ? `${latestResult.winnerPlayerName} def. ${resultOpponentName(latestResult)}` : 'Log the first result'}
-                </div>
-              </div>
-              <div style={scorekeeperTile}>
-                <div style={tileLabel}>Leader</div>
-                <div style={tileValue}>{selectedSummary?.leaderName || '-'}</div>
-                <div style={tileText}>{selectedSummary ? `${selectedSummary.leaderRecord} ${selectedSummary.leaderRecentForm}` : `${activeParticipantCount} players tracked`}</div>
-              </div>
-              <div style={scorekeeperTile}>
-                <div style={tileLabel}>Corrections</div>
-                <div style={tileValue}>{editedResultsCount}</div>
-                <div style={tileText}>{editedResultsCount === 1 ? 'Edited player result' : 'Edited player results'}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <section style={resultPathStyle} aria-labelledby="player-result-path-title">
           <div style={resultPathHeader}>
             <div>
               <div style={tileLabel}>Player Results path</div>
-              <h2 id="player-result-path-title" style={resultPathTitle}>{PRODUCT_MOTTO}</h2>
+              <h1 id="player-result-path-title" style={resultPathTitle}>Log or review player results</h1>
             </div>
             <p style={resultPathIntro}>
-              Start with the scorekeeper question, then open the smallest action that keeps standings moving.
+              Choose players, save scores, check standings, or upload scorecards.
             </p>
           </div>
-          <div style={resultPathGrid}>
-            <button
-              type="button"
-              style={resultPathButton}
-              onClick={() => nextPairing ? handleUsePairing(nextPairing[0], nextPairing[1]) : handleOpenPlayerResultEntry()}
-              disabled={!selectedLeague}
-              data-player-result-path-job="log_result"
-              aria-label="Log player result: What result needs to be entered first?"
-            >
-              <span style={resultPathQuestion}>What result needs to be entered first?</span>
-              <strong style={resultPathCardTitle}>Log the next player result</strong>
-              <span>Choose the league, players, winner, score, and date so standings can update from one result book.</span>
-              <span style={resultPathCta}>{nextPairing ? 'Use next pairing' : 'Log result'}</span>
-            </button>
-            <Link
-              href="#player-result-review"
-              style={resultPathCard}
-              data-player-result-path-job="review_standings"
-              aria-label="Review standings: What changed?"
-            >
-              <span style={resultPathQuestion}>What changed?</span>
-              <strong style={resultPathCardTitle}>Review standings and gaps</strong>
-              <span>Check leaders, next useful pairings, edited results, and missing head-to-head coverage.</span>
-              <span style={resultPathCta}>Review standings</span>
-            </Link>
-            <Link
-              href={dataAssistIndividualResultsHref}
-              style={resultPathCard}
-              data-player-result-path-job="upload_scorecard"
-              aria-label="Upload scorecard: How do I avoid retyping scores?"
-            >
-              <span style={resultPathQuestion}>How do I avoid retyping scores?</span>
-              <strong style={resultPathCardTitle}>Upload a reviewed scorecard</strong>
-              <span>Use Data Assist when source scorecards should be reviewed before League Office standings move.</span>
-              <span style={resultPathCta}>Upload scorecard</span>
-            </Link>
-          </div>
-        </section>
-
-        <section style={readinessPanel}>
-          <div>
-            <div style={readinessKicker}>Result entry readiness</div>
-            <div style={readinessTitle}>{individualResultCue.title}</div>
-            <div style={readinessText}>{individualResultCue.detail}</div>
-            <div style={actionRow}>
+          <div style={resultPathCommandStyle} aria-label="Player result command center">
+            <div style={resultPathGrid}>
+              <button
+                type="button"
+                style={resultPathButton}
+                onClick={() => nextPairing ? handleUsePairing(nextPairing[0], nextPairing[1]) : handleOpenPlayerResultEntry()}
+                disabled={!selectedLeague}
+                data-player-result-path-job="log_result"
+                aria-label="Log player result"
+              >
+                <span style={resultPathQuestion}>Log</span>
+                <strong style={resultPathCardTitle}>Add result</strong>
+                <span>Choose players, winner, score, and date so standings update.</span>
+                <span style={resultPathCta}>{nextPairing ? 'Use next pairing' : 'Log result'}</span>
+              </button>
+              <Link
+                href="#player-result-review"
+                style={resultPathCard}
+                data-player-result-path-job="review_standings"
+                aria-label="Review standings"
+              >
+                <span style={resultPathQuestion}>Review</span>
+                <strong style={resultPathCardTitle}>Check standings</strong>
+                <span>Scan leaders, useful pairings, corrections, and missing head-to-heads.</span>
+                <span style={resultPathCta}>Review standings</span>
+              </Link>
+              <Link
+                href={dataAssistIndividualResultsHref}
+                style={resultPathCard}
+                data-player-result-path-job="upload_scorecard"
+                aria-label="Upload scorecard"
+              >
+                <span style={resultPathQuestion}>Upload</span>
+                <strong style={resultPathCardTitle}>Use Data Assist</strong>
+                <span>Send source scorecards through review before standings move.</span>
+                <span style={resultPathCta}>Upload scorecard</span>
+              </Link>
               {canEditResults ? (
                 <button
                   type="button"
-                  style={btnPrimary}
+                  style={resultPathButton}
                   onClick={() =>
                     nextPairing ? handleUsePairing(nextPairing[0], nextPairing[1]) : handleOpenPlayerResultEntry()
                   }
                   disabled={!selectedLeague}
+                  data-player-result-path-job="next_best_action"
+                  aria-label="Open next player result action"
                 >
-                  {nextPairing ? 'Use next pairing' : 'Log player result'}
+                  <span style={resultPathQuestion}>Next</span>
+                  <strong style={resultPathCardTitle}>{nextPairing ? 'Use pairing' : 'Start entry'}</strong>
+                  <span>{nextPairing ? 'Preload the next useful matchup.' : 'Open the player result form.'}</span>
+                  <span style={resultPathCta}>{nextPairing ? 'Use next pairing' : 'Log player result'}</span>
                 </button>
               ) : null}
               {selectedLeague ? (
-                <Link href={`/explore/leagues/tiq/${encodeURIComponent(selectedLeague.id)}?league_id=${encodeURIComponent(selectedLeague.id)}`} style={btnSecondary}>
-                  View league
+                <Link
+                  href={`/explore/leagues/tiq/${encodeURIComponent(selectedLeague.id)}?league_id=${encodeURIComponent(selectedLeague.id)}`}
+                  style={resultPathCard}
+                  data-player-result-path-job="view_league"
+                  aria-label="View selected league"
+                >
+                  <span style={resultPathQuestion}>League</span>
+                  <strong style={resultPathCardTitle}>Public view</strong>
+                  <span>Check what players see after results and standings settle.</span>
+                  <span style={resultPathCta}>View league</span>
                 </Link>
               ) : (
-                <Link href="/league-coordinator#league-setup-form" style={btnSecondary}>
-                  Set up league
+                <Link
+                  href="/league-coordinator#league-setup-form"
+                  style={resultPathCard}
+                  data-player-result-path-job="set_up_league"
+                  aria-label="Set up league"
+                >
+                  <span style={resultPathQuestion}>League</span>
+                  <strong style={resultPathCardTitle}>Set up first</strong>
+                  <span>Create an individual league before player results can connect to standings.</span>
+                  <span style={resultPathCta}>Set up league</span>
                 </Link>
               )}
             </div>
-          </div>
-          <div style={readinessGrid}>
-            {individualResultCue.items.map((item) => (
-              <div key={item.label} style={item.complete ? readinessItemComplete : readinessItem}>
-                <span style={item.complete ? pillGreen : pill}>{item.label}</span>
-                <strong style={readinessItemText}>{item.detail}</strong>
+            <details style={resultPathStatusPanelStyle}>
+              <summary style={detailsSummary}>
+                <span style={resultPathQuestion}>Result book scan</span>
+                <span style={pill}>Open when needed</span>
+              </summary>
+              <strong style={resultPathCardTitle}>{individualResultCue.title}</strong>
+              <span>{individualResultCue.detail}</span>
+              <div style={resultPathStatusGridStyle} aria-label="Player result readiness scan">
+                {individualResultCue.items.map((item) => (
+                  <div key={item.label} style={resultPathStatusItemStyle}>
+                    <span style={item.complete ? pillGreen : pill}>{item.label}</span>
+                    <strong>{item.detail}</strong>
+                  </div>
+                ))}
               </div>
-            ))}
+            </details>
           </div>
         </section>
 
@@ -1521,7 +1693,12 @@ function IndividualLeagueResultsWorkspaceInner({
                   <div key={`${entry.playerName}-${entry.playerId || entry.rank}`} style={standingRow}>
                     <div style={standingRank}>{entry.rank}</div>
                     <div style={standingCopy}>
-                      <div style={standingName}>{entry.playerName}</div>
+                      <EntityDetailLink
+                        href={buildPlayerDetailHref(entry.playerId, entry.playerName)}
+                        style={standingName}
+                      >
+                        {entry.playerName}
+                      </EntityDetailLink>
                       <div style={standingSubtext}>
                         {entry.uniqueOpponents}/{entry.possibleOpponents} opponents
                         {entry.recentForm.length ? ` - ${entry.recentForm.join('')}` : ''}
@@ -1542,7 +1719,13 @@ function IndividualLeagueResultsWorkspaceInner({
             {nextPairing ? (
               <>
                 <div style={resultTitle}>
-                  {nextPairing[0].playerName} vs {nextPairing[1].playerName}
+                  <EntityDetailLink href={buildPlayerDetailHref(nextPairing[0].playerId, nextPairing[0].playerName)}>
+                    {nextPairing[0].playerName}
+                  </EntityDetailLink>{' '}
+                  vs{' '}
+                  <EntityDetailLink href={buildPlayerDetailHref(nextPairing[1].playerId, nextPairing[1].playerName)}>
+                    {nextPairing[1].playerName}
+                  </EntityDetailLink>
                 </div>
                 <div style={resultMeta}>
                   Prioritizes players with fewer logged results and missing head-to-head coverage.
@@ -1563,73 +1746,100 @@ function IndividualLeagueResultsWorkspaceInner({
           </section>
         </div>
 
-        <div style={sectionTitle}>Recorded player results</div>
-        <div style={reviewToolbar}>
-          <Field label="Find result">
-            <input
-              value={resultSearch}
-              onChange={(event) => setResultSearch(event.target.value)}
-              placeholder="Player, score, note..."
-              style={inputStyle}
-            />
-          </Field>
-          <Field label="League">
-            <select
-              style={inputStyle}
-              value={filterLeagueId}
-              onChange={(event) => void handleFilterChange(event.target.value)}
-            >
-              <option value="">All leagues</option>
-              {leagues.map((league) => (
-                <option key={league.id} value={league.id}>{league.leagueName}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Review">
-            <select
-              style={inputStyle}
-              value={resultReviewFilter}
-              onChange={(event) => setResultReviewFilter(event.target.value as ResultReviewFilter)}
-            >
-              <option value="all">All results</option>
-              <option value="edited">Corrections only</option>
-              <option value="clean">Original entries</option>
-            </select>
-          </Field>
-          <Field label="Date">
-            <select
-              style={inputStyle}
-              value={resultDateFilter}
-              onChange={(event) => setResultDateFilter(event.target.value as ResultDateFilter)}
-            >
-              <option value="all">Any date</option>
-              <option value="week">Last 7 days</option>
-              <option value="month">Last 30 days</option>
-            </select>
-          </Field>
-          <button type="button" onClick={() => void handleClearResultFilters()} style={btnSecondary}>
-            Clear
-          </button>
-          <button
-            type="button"
-            onClick={handleExportResults}
-            disabled={visibleResults.length === 0}
-            style={{ ...btnSecondary, ...(visibleResults.length === 0 ? disabledButton : {}) }}
-          >
-            Export CSV
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleCopyResultSummary()}
-            disabled={visibleResults.length === 0}
-            style={{ ...btnSecondary, ...(visibleResults.length === 0 ? disabledButton : {}) }}
-          >
-            Copy Summary
-          </button>
-          <div style={{ color: '#94a3b8', fontSize: 13, gridColumn: '1 / -1' }}>
-            Showing {visibleResults.length} of {results.length} result{results.length === 1 ? '' : 's'}.
+        <section style={reviewPanelStyle} aria-labelledby="player-result-book-title">
+          <div style={reviewPanelHeaderStyle}>
+            <div>
+              <div style={tileLabel}>Result book</div>
+              <h2 id="player-result-book-title" style={reviewPanelTitleStyle}>Recorded player results</h2>
+            </div>
+            <span style={activeResultFilterCount ? pillGreen : pill}>
+              {activeResultFilterCount ? `${activeResultFilterCount} active` : 'All results'}
+            </span>
           </div>
-        </div>
+
+          <div style={reviewCommandGridStyle} aria-label="Player result review status">
+            {reviewCommandItems.map((item) => (
+              <div key={item.label} style={reviewCommandItemStyle}>
+                <span style={item.ready ? readinessDotReady : readinessDotWaiting} aria-hidden="true" />
+                <span style={reviewCommandCopyStyle}>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <em>{item.value}</em>
+              </div>
+            ))}
+          </div>
+
+          <div style={reviewFilterGridStyle} aria-label="Player result review filters">
+            <Field label="Find result">
+              <input
+                value={resultSearch}
+                onChange={(event) => setResultSearch(event.target.value)}
+                placeholder="Player, score, note..."
+                style={inputStyle}
+              />
+            </Field>
+            <Field label="League">
+              <select
+                style={inputStyle}
+                value={filterLeagueId}
+                onChange={(event) => void handleFilterChange(event.target.value)}
+              >
+                <option value="">All leagues</option>
+                {leagues.map((league) => (
+                  <option key={league.id} value={league.id}>{league.leagueName}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Review">
+              <select
+                style={inputStyle}
+                value={resultReviewFilter}
+                onChange={(event) => setResultReviewFilter(event.target.value as ResultReviewFilter)}
+              >
+                <option value="all">All results</option>
+                <option value="edited">Corrections only</option>
+                <option value="clean">Original entries</option>
+              </select>
+            </Field>
+            <Field label="Date">
+              <select
+                style={inputStyle}
+                value={resultDateFilter}
+                onChange={(event) => setResultDateFilter(event.target.value as ResultDateFilter)}
+              >
+                <option value="all">Any date</option>
+                <option value="week">Last 7 days</option>
+                <option value="month">Last 30 days</option>
+              </select>
+            </Field>
+          </div>
+
+          <div style={reviewActionRowStyle}>
+            <button type="button" onClick={() => void handleClearResultFilters()} style={btnSecondary}>
+              Clear filters
+            </button>
+            <button
+              type="button"
+              onClick={handleExportResults}
+              disabled={visibleResults.length === 0}
+              style={{ ...btnSecondary, ...(visibleResults.length === 0 ? disabledButton : {}) }}
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleCopyResultSummary()}
+              disabled={visibleResults.length === 0}
+              style={{ ...btnSecondary, ...(visibleResults.length === 0 ? disabledButton : {}) }}
+            >
+              Copy Summary
+            </button>
+            <span style={reviewCountStyle}>
+              Showing {visibleResults.length} of {results.length} result{results.length === 1 ? '' : 's'}.
+            </span>
+          </div>
+        </section>
 
         {loading ? (
           <p style={{ color: '#94a3b8' }}>Loading...</p>
@@ -1663,7 +1873,13 @@ function IndividualLeagueResultsWorkspaceInner({
                 <div key={result.id} style={resultCard}>
                   <div style={resultCopy}>
                     <div style={resultTitle}>
-                      {result.winnerPlayerName} def. {resultOpponentName(result)}
+                      <EntityDetailLink href={buildPlayerDetailHref(result.winnerPlayerId, result.winnerPlayerName)}>
+                        {result.winnerPlayerName}
+                      </EntityDetailLink>{' '}
+                      def.{' '}
+                      <EntityDetailLink href={buildPlayerDetailHref(resultOpponentId(result), resultOpponentName(result))}>
+                        {resultOpponentName(result)}
+                      </EntityDetailLink>
                     </div>
                     <div style={resultMeta}>
                       {metaParts.join(' - ')}
@@ -1705,6 +1921,61 @@ function IndividualLeagueResultsWorkspaceInner({
             })}
           </div>
         )}
+
+        <LeagueSuitePanel active="player-results" leagueLabel={selectedLeague?.leagueName || 'League season'} />
+        <details style={introCard}>
+          <summary style={detailsSummary}>
+            <div>
+              <div style={heading}>Season snapshot</div>
+              <div style={subheading}>Open this when you want counts, leader, and correction status.</div>
+            </div>
+            <span style={pill}>Details</span>
+          </summary>
+          <span aria-hidden="true" style={portalWatermarkStyle} />
+          <div style={portalPanelContentStyle}>
+            <div style={scorekeeperGrid}>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Individual leagues</div>
+                <div style={tileValue}>{leagues.length}</div>
+                <div style={tileText}>Available result groups</div>
+              </div>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Results</div>
+                <div style={tileValue}>{visibleResults.length}</div>
+                <div style={tileText}>
+                  {activeResultFilterCount ? `${results.length} total in scope` : 'All recorded player results'}
+                </div>
+              </div>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Latest</div>
+                <div style={tileValue}>{latestResult ? formatDate(latestResult.resultDate) : '-'}</div>
+                <div style={tileText}>
+                  {latestResult ? (
+                    <>
+                      <EntityDetailLink href={buildPlayerDetailHref(latestResult.winnerPlayerId, latestResult.winnerPlayerName)}>
+                        {latestResult.winnerPlayerName}
+                      </EntityDetailLink>{' '}
+                      def.{' '}
+                      <EntityDetailLink href={buildPlayerDetailHref(resultOpponentId(latestResult), resultOpponentName(latestResult))}>
+                        {resultOpponentName(latestResult)}
+                      </EntityDetailLink>
+                    </>
+                  ) : 'Log the first result'}
+                </div>
+              </div>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Leader</div>
+                <div style={tileValue}>{selectedSummary?.leaderName || '-'}</div>
+                <div style={tileText}>{selectedSummary ? `${selectedSummary.leaderRecord} ${selectedSummary.leaderRecentForm}` : `${activeParticipantCount} players tracked`}</div>
+              </div>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Corrections</div>
+                <div style={tileValue}>{editedResultsCount}</div>
+                <div style={tileText}>{editedResultsCount === 1 ? 'Edited player result' : 'Edited player results'}</div>
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
     </SiteShell>
   )

@@ -1,10 +1,11 @@
 import type { Metadata } from 'next'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import Link from 'next/link'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import InfoPage from '@/app/components/info-page'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import { PUBLIC_EMAIL_CONTACTS } from '@/lib/contact-details'
 import { SUPPORT_THREAD_ASSURANCE, buildSupportMessageHref } from '@/lib/message-links'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
@@ -82,7 +83,7 @@ export default function ContactPage() {
       <InfoPage
         kicker="Contact"
         title="Questions, support, or data issues."
-        intro={`If you need help with an account, want to report a data problem, or have a partnership or product question, this page is the best place to start. ${SUPPORT_THREAD_ASSURANCE}`}
+        intro={`Choose the support path that matches what you need. ${SUPPORT_THREAD_ASSURANCE}`}
       >
         <div style={contactGridStyle}>
           {contactCards.map((card) => (
@@ -97,44 +98,79 @@ export default function ContactPage() {
           ))}
         </div>
 
-        <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>General support</h2>
-          <p>
+        <section aria-labelledby="contact-email-heading" style={emailSectionStyle}>
+          <div style={emailSectionHeadingStyle}>
+            <span style={contactSummaryKickerStyle}>Email TenAceIQ</span>
+            <h2 id="contact-email-heading" className="section-title" style={emailSectionTitleStyle}>
+              Prefer email? Choose the right inbox.
+            </h2>
+            <p style={emailSectionIntroStyle}>
+              Send your message directly and we will route it to the right person.
+            </p>
+          </div>
+
+          <div style={emailGridStyle}>
+            {PUBLIC_EMAIL_CONTACTS.map((contact) => (
+              <a key={contact.key} href={contact.href} style={emailCardStyle}>
+                <strong>{contact.title}</strong>
+                <span style={emailDescriptionStyle}>{contact.description}</span>
+                <span style={emailAddressStyle}>{contact.address}</span>
+              </a>
+            ))}
+          </div>
+        </section>
+
+        <ContactDetails title="What to include" summary="Show support tips">
+          <ContactHelpItem title="General support">
             Open a <Link href={generalSupportHref}>TenAceIQ support thread</Link> for
             membership questions, billing questions, account issues, or help choosing where your tennis need belongs.
-          </p>
-        </div>
+          </ContactHelpItem>
 
-        <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Data quality and import help</h2>
-          <p>
+          <ContactHelpItem title="Data quality and import help">
             If a schedule, league, team, or scorecard looks wrong, include the league name, date,
-            match identifier when available, and a short description of the issue. That makes it
-            much easier to trace Data Assist upload or review problems and correct the affected records.
-            <br />
+            match identifier when available, and a short description of the issue. That helps us
+            trace Data Assist upload or review problems and correct the affected records.{' '}
             <Link href={dataSupportHref}>Open a data support thread</Link>.
-          </p>
-        </div>
+          </ContactHelpItem>
 
-        <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Business and partnership inquiries</h2>
-          <p>
+          <ContactHelpItem title="Business and partnership inquiries">
             For partnerships, club or league rollouts, or product collaboration, open a{' '}
             <Link href={partnershipSupportHref}>TenAceIQ support thread</Link>{' '}
             so the conversation stays inside TenAceIQ Messages.
-          </p>
-        </div>
+          </ContactHelpItem>
 
-        <div>
-          <h2 className="section-title" style={{ fontSize: '1.2rem' }}>What helps the team respond faster</h2>
-          <p>
-            Include the page you were on, the feature you were using, what you expected to happen,
-            and what happened instead. Screenshots and exact match or player references are also
-            helpful when the issue involves imported tennis data.
-          </p>
-        </div>
+          <ContactHelpItem title="What helps us respond faster">
+            Include the page you were on, the tennis tool you were using, what you expected to happen,
+            and what happened instead. Screenshots and exact match or player references help when the
+            issue involves imported tennis data.
+          </ContactHelpItem>
+        </ContactDetails>
       </InfoPage>
     </SiteShell>
+  )
+}
+
+function ContactDetails({ title, summary, children }: { title: string; summary: string; children: ReactNode }) {
+  return (
+    <details className="publicInfoDetailsSection" style={contactDetailsStyle}>
+      <summary style={contactSummaryStyle}>
+        <span style={contactSummaryCopyStyle}>
+          <span style={contactSummaryKickerStyle}>Support details</span>
+          <strong>{title}</strong>
+        </span>
+        <span style={contactSummaryActionStyle}>{summary}</span>
+      </summary>
+      <div style={contactDetailsBodyStyle}>{children}</div>
+    </details>
+  )
+}
+
+function ContactHelpItem({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section style={contactHelpItemStyle}>
+      <h2 className="section-title" style={contactHelpTitleStyle}>{title}</h2>
+      <p style={contactHelpTextStyle}>{children}</p>
+    </section>
   )
 }
 
@@ -142,6 +178,63 @@ const contactGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
   gap: 12,
+}
+
+const emailSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.055)',
+}
+
+const emailSectionHeadingStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+}
+
+const emailSectionTitleStyle: CSSProperties = {
+  margin: 0,
+  fontSize: '1.2rem',
+}
+
+const emailSectionIntroStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-muted)',
+}
+
+const emailGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
+  gap: 10,
+}
+
+const emailCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  padding: 13,
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'rgba(7,17,33,0.48)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const emailDescriptionStyle: CSSProperties = {
+  color: 'var(--foreground-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const emailAddressStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 14,
+  fontWeight: 900,
 }
 
 const contactCardStyle: CSSProperties = {
@@ -166,4 +259,79 @@ const contactCardCopyStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   lineHeight: 1.25,
   overflowWrap: 'anywhere',
+}
+
+const contactDetailsStyle: CSSProperties = {
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.58)',
+  overflow: 'hidden',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const contactSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minHeight: 62,
+  padding: '12px 14px',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const contactSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const contactSummaryKickerStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const contactSummaryActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 34,
+  padding: '0 12px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 900,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+}
+
+const contactDetailsBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  padding: '0 14px 14px',
+}
+
+const contactHelpItemStyle: CSSProperties = {
+  minWidth: 0,
+  padding: '12px',
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.035)',
+}
+
+const contactHelpTitleStyle: CSSProperties = {
+  fontSize: '1.05rem',
+  marginBottom: 6,
+}
+
+const contactHelpTextStyle: CSSProperties = {
+  margin: 0,
 }

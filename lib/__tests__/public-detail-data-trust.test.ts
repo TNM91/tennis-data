@@ -29,7 +29,7 @@ describe('public detail data trust panels', () => {
   it('surfaces reviewable team trust signals on team detail pages', () => {
     expect(teamDetailSource).toContain("import DataTrustPanel from '@/app/components/data-trust-panel'")
     expect(teamDetailSource).toContain('Team data trust')
-    expect(teamDetailSource).toContain('Team pages combine reviewed team summaries')
+    expect(teamDetailSource).toContain('Team pages combine reviewed Player Rosters')
     expect(teamDetailSource).toContain("label: 'Source'")
     expect(teamDetailSource).toContain("label: 'Freshness'")
     expect(teamDetailSource).toContain("label: 'Confidence'")
@@ -40,7 +40,7 @@ describe('public detail data trust panels', () => {
   it('surfaces reviewable league trust signals on league detail pages', () => {
     expect(leagueDetailSource).toContain("import DataTrustPanel from '@/app/components/data-trust-panel'")
     expect(leagueDetailSource).toContain('League data trust')
-    expect(leagueDetailSource).toContain('League pages combine reviewed schedule rows')
+    expect(leagueDetailSource).toContain('League pages combine reviewed schedules, scorecards, Player Rosters')
     expect(leagueDetailSource).toContain("label: 'Source'")
     expect(leagueDetailSource).toContain("label: 'Freshness'")
     expect(leagueDetailSource).toContain("label: 'Confidence'")
@@ -69,5 +69,19 @@ describe('public detail data trust panels', () => {
     expect(styleBlock(tournamentDetailSource, 'entryInputStyle')).toContain("outline: '2px solid transparent'")
     expect(styleBlock(tournamentDetailSource, 'entryInputStyle')).toContain('outlineOffset: 2')
     expect(styleBlock(tournamentDetailSource, 'entryInputStyle')).not.toContain("outline: 'none'")
+  })
+
+  it('keeps public detail watermarks inside phone-width heroes', () => {
+    for (const source of [teamDetailSource, leagueDetailSource]) {
+      const watermark = styleBlock(source, 'watermarkStyle')
+      expect(watermark).toContain('right: 0')
+      expect(watermark).toContain("width: 'min(100%, 310px)'")
+      expect(watermark).not.toContain("right: '-110px'")
+    }
+
+    const tournamentWatermark = styleBlock(tournamentDetailSource, 'watermarkStyle')
+    expect(tournamentWatermark).toContain('right: 0')
+    expect(tournamentWatermark).toContain("width: 'min(100%, 320px)'")
+    expect(tournamentWatermark).not.toContain("right: '-110px'")
   })
 })

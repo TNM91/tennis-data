@@ -5,6 +5,7 @@ import SiteShell from '@/app/components/site-shell'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import type { PricingPlanId } from '@/lib/pricing-plans'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import TennisStateArt, { type TennisStateVisual } from '@/app/components/tennis-state-art'
 
 type LockedPlanPageProps = {
   active?: string
@@ -34,10 +35,14 @@ export default function LockedPlanPage({
   const content = (
     <div style={pageWrapStyle}>
       <section style={previewShellStyle}>
-        <div style={previewHeroStyle}>
-          <div style={previewEyebrowStyle}>{preview.eyebrow}</div>
-          <h1 style={previewTitleStyle}>{preview.title}</h1>
-          <p style={previewBodyStyle}>{preview.body}</p>
+        <TennisStateArt compact visual={preview.visual} />
+        <div style={previewHeroRowStyle}>
+          <TiqFeatureIcon name={preview.heroIcon} size="lg" variant="surface" />
+          <div style={previewHeroStyle}>
+            <div style={previewEyebrowStyle}>{preview.eyebrow}</div>
+            <h1 style={previewTitleStyle}>{preview.title}</h1>
+            <p style={previewBodyStyle}>{preview.body}</p>
+          </div>
         </div>
 
         <div style={previewGridStyle}>
@@ -75,6 +80,8 @@ function getLockedPreview(planId: PricingPlanId): {
   eyebrow: string
   title: string
   body: string
+  visual: TennisStateVisual
+  heroIcon: TiqFeatureIconName
   cards: Array<{ label: string; title: string; text: string; icon: TiqFeatureIconName }>
 } {
   if (planId === 'captain') {
@@ -82,6 +89,8 @@ function getLockedPreview(planId: PricingPlanId): {
       eyebrow: 'Team unlock preview',
       title: 'This is where the team week gets easier.',
       body: 'Team turns scattered availability, lineup thinking, and follow-up messages into one repeatable flow.',
+      visual: 'captain',
+      heroIcon: 'captainDashboard',
       cards: [
         {
           label: 'Step 1',
@@ -110,6 +119,8 @@ function getLockedPreview(planId: PricingPlanId): {
       eyebrow: 'Coach unlock preview',
       title: 'Help players leave with the next step.',
       body: 'Coach turns lesson plans, tactical boards, drill assignments, development tracking, reviews, resources, and scheduling into one practical flow.',
+      visual: 'coach',
+      heroIcon: 'coachTennis',
       cards: [
         {
           label: 'Plan',
@@ -138,6 +149,8 @@ function getLockedPreview(planId: PricingPlanId): {
       eyebrow: 'League unlock preview',
       title: 'Run the season with less admin work.',
       body: 'League keeps participants, schedules, scores, standings, member clarity, and league visibility organized.',
+      visual: 'league',
+      heroIcon: 'leagueTennis',
       cards: [
         {
           label: 'Setup',
@@ -165,6 +178,8 @@ function getLockedPreview(planId: PricingPlanId): {
     eyebrow: 'Player unlock preview',
     title: 'Make TenAceIQ personal.',
     body: 'Player unlocks My Lab, data refreshes, matchup prep, and tennis messages.',
+    visual: 'player',
+    heroIcon: 'myLab',
     cards: [
       {
         label: 'You',
@@ -218,6 +233,16 @@ const previewHeroStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const previewHeroRowStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)',
+  gap: 14,
+  alignItems: 'start',
+  minWidth: 0,
+}
+
 const previewEyebrowStyle: CSSProperties = {
   color: 'var(--brand-green)',
   fontSize: 12,
@@ -242,6 +267,8 @@ const previewBodyStyle: CSSProperties = {
 }
 
 const previewGridStyle: CSSProperties = {
+  position: 'relative',
+  zIndex: 1,
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: 12,

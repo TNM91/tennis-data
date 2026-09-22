@@ -6,7 +6,7 @@ const source = readFileSync(join(process.cwd(), 'app/manage/page.tsx'), 'utf8')
 
 describe('Manage hub organizer path', () => {
   it('keeps the Manage hub connected to the combined leagues and tournaments path', () => {
-    expect(source).toContain("secondary={{ href: '/leagues-and-tournaments', label: 'Run a League or Tournament' }}")
+    expect(source).toContain("secondary={{ href: '/leagues-and-tournaments', label: 'Open Organizer Tools' }}")
     expect(source).toContain("eyebrow: 'Organizer hub'")
     expect(source).toContain('Choose the right league or tournament path')
     expect(source).toContain('Use the combined organizer hub')

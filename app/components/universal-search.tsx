@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useId, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useId, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/app/components/auth-provider'
 import { getPlanUnlockHref } from '@/lib/plan-intent'
@@ -9,6 +9,7 @@ import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import type { ProductUsageEventName, ProductUsageEventSurface } from '@/lib/product-usage-events'
 import type { PricingPlanId } from '@/lib/pricing-plans'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { supabase } from '@/lib/supabase'
 
 type SearchGroup =
   | 'Players'
@@ -16,7 +17,6 @@ type SearchGroup =
   | 'Leagues'
   | 'Tournaments'
   | 'Coaches'
-  | 'Courts / clubs'
   | 'Resources'
   | 'Actions'
 
@@ -29,13 +29,20 @@ type SearchResult = {
   requiredPlan?: PricingPlanId
 }
 
+type PlayerSuggestion = {
+  id: string
+  name: string
+  location?: string | null
+  overall_dynamic_rating?: number | null
+}
+
 const results: SearchResult[] = [
   {
     group: 'Players',
     title: 'Find a player',
     detail: 'Search names, cities, ratings, teams, leagues, and recent context.',
     href: '/explore/players',
-    keywords: ['player', 'name', 'rating', 'rating level', '4.0', '4.5', 'rankings', 'singles', 'doubles', 'doubles partner', 'opponent'],
+    keywords: ['player', 'players', 'find players', 'name', 'rating', 'rating level', '4.0', '4.5', 'rankings', 'singles', 'doubles', 'doubles partner', 'opponent'],
   },
   {
     group: 'Teams',
@@ -66,13 +73,6 @@ const results: SearchResult[] = [
     keywords: ['coach', 'lesson', 'drill', 'serve practice', 'development'],
   },
   {
-    group: 'Courts / clubs',
-    title: 'Find courts and clubs',
-    detail: 'Use resources to find places to play, clubs, ladders, and open play.',
-    href: '/resources',
-    keywords: ['court', 'club', 'open play', 'near me', 'city', 'location'],
-  },
-  {
     group: 'Resources',
     title: 'Tennis Resource Hub',
     detail: 'Find drills, skills, strategy, match prep, captain tools, coach tools, and event resources.',
@@ -82,14 +82,14 @@ const results: SearchResult[] = [
   {
     group: 'Actions',
     title: 'Open Data Assist',
-    detail: 'Fix tennis context with scorecard uploads, schedule uploads, team summaries, corrections, and review requests.',
+    detail: 'Fix tennis context with scorecards, schedules, Player Rosters, corrections, and review requests.',
     href: '/data-assist?intent=upload-source&context=Universal%20search',
     keywords: ['open data assist', 'data assist', 'fix data', 'upload source'],
   },
   {
     group: 'Actions',
     title: 'Upload a scorecard',
-    detail: 'Open Data Assist to upload scorecards, schedules, team summaries, and corrections.',
+    detail: 'Open Data Assist to upload scorecards, schedules, Player Rosters, and corrections.',
     href: '/data-assist?intent=upload-source&context=Universal%20search',
     keywords: ['scorecard upload', 'fix data', 'upload scorecard', 'data assist'],
   },
@@ -130,13 +130,6 @@ const results: SearchResult[] = [
   },
   {
     group: 'Actions',
-    title: 'Find a place to play',
-    detail: 'Open Resource Hub paths for teams, leagues, tournaments, courts, clubs, ladders, and open play.',
-    href: '/resources',
-    keywords: ['find a place to play', 'places to play', 'open play', 'find courts', 'find clubs', 'play tennis near me', 'join tennis'],
-  },
-  {
-    group: 'Actions',
     title: 'Captain match week',
     detail: 'Open Teams for availability, lineup ideas, opponent scouting, communication, and scorecard reminders.',
     href: '/teams',
@@ -144,8 +137,8 @@ const results: SearchResult[] = [
   },
   {
     group: 'Actions',
-    title: 'Run a league or tournament',
-    detail: 'Open the organizer hub when schedules, standings, draws, players, teams, scores, and event work overlap.',
+    title: 'Open organizer tools',
+    detail: 'Manage schedules, standings, draws, players, teams, scores, and event work.',
     href: '/leagues-and-tournaments',
     keywords: ['run a league or tournament', 'organizer hub', 'league tournament', 'leagues and tournaments', 'event organizer', 'reduce admin work'],
   },
@@ -196,40 +189,65 @@ const groupOrder: SearchGroup[] = [
   'Leagues',
   'Tournaments',
   'Coaches',
-  'Courts / clubs',
   'Resources',
   'Actions',
 ]
 
 export default function UniversalSearch({
   compact = false,
-  placeholder = 'Search a player, team, league, city, court, coach, tournament, or tennis resource',
+  placeholder = 'Search a player, team, league, coach, tournament, or tennis resource',
   showResults = true,
+  stackOnMobile = false,
 }: {
   compact?: boolean
   placeholder?: string
   showResults?: boolean
+  stackOnMobile?: boolean
 }) {
   const [query, setQuery] = useState('')
   const [activeGroup, setActiveGroup] = useState<SearchGroup | 'All'>('All')
   const [inputFocused, setInputFocused] = useState(false)
   const [focusedControl, setFocusedControl] = useState<string | null>(null)
+  const [playerSuggestions, setPlayerSuggestions] = useState<PlayerSuggestion[]>([])
+  const [playerSuggestionLoading, setPlayerSuggestionLoading] = useState(false)
   const { isMobile } = useViewportBreakpoints()
   const searchId = useId()
   const resultRegionId = `${searchId}-results`
   const router = useRouter()
   const { session } = useAuth()
 
+  useEffect(() => {
+    const trimmedQuery = query.trim()
+    if (trimmedQuery.length < 2) {
+      return
+    }
+
+    let active = true
+    const timeout = window.setTimeout(() => {
+      void (async () => {
+        setPlayerSuggestionLoading(true)
+        const { data, error } = await supabase.rpc('search_public_players', {
+          search_text: trimmedQuery,
+          result_limit: 5,
+        })
+
+        if (!active) return
+        setPlayerSuggestions(error ? [] : ((data || []) as PlayerSuggestion[]))
+        setPlayerSuggestionLoading(false)
+      })()
+    }, 180)
+
+    return () => {
+      active = false
+      window.clearTimeout(timeout)
+    }
+  }, [query])
+
   const visibleResults = useMemo(() => {
     const q = query.trim().toLowerCase()
     const scored = results
       .map((result) => {
-        const haystack = [result.title, result.detail, ...result.keywords].join(' ').toLowerCase()
-        const direct = haystack.includes(q)
-        const tokenHits = q
-          ? q.split(/\s+/).filter((token) => haystack.includes(token)).length
-          : 0
-        return { result, score: !q ? 1 : direct ? 3 + tokenHits : tokenHits }
+        return { result, score: scoreSearchResult(result, q) }
       })
       .filter((item) => item.score > 0)
       .sort((left, right) => right.score - left.score)
@@ -238,7 +256,11 @@ export default function UniversalSearch({
       ? scored
       : scored.filter((item) => item.result.group === activeGroup)
 
-    return filtered.map((item) => item.result).slice(0, compact ? 6 : 10)
+    const intentFiltered = isLikelyPlayerLookupQuery(q)
+      ? filtered.filter((item) => item.result.group !== 'Actions')
+      : filtered
+
+    return intentFiltered.map((item) => item.result).slice(0, compact ? 6 : 10)
   }, [activeGroup, compact, query])
 
   const availableGroups = groupOrder.filter((group) =>
@@ -251,10 +273,13 @@ export default function UniversalSearch({
       items: visibleResults.filter((result) => result.group === group),
     }))
     .filter((group) => group.items.length > 0)
+  const showPlayerSuggestions = query.trim().length >= 2 && (inputFocused || playerSuggestions.length > 0 || playerSuggestionLoading)
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const q = query.trim()
+    const formData = new FormData(event.currentTarget)
+    const submittedQuery = formData.get('q')
+    const q = (typeof submittedQuery === 'string' ? submittedQuery : query).trim()
     if (!q) {
       void trackProductUsageEvent({
         eventName: 'search_submitted',
@@ -265,10 +290,11 @@ export default function UniversalSearch({
       return
     }
 
-    const first = visibleResults[0]
+    const shouldOpenPlayerSearch = isLikelyPlayerLookupQuery(q)
+    const first = shouldOpenPlayerSearch ? undefined : visibleResults[0]
     const destination = first
       ? buildResultHref(first, q, Boolean(session?.user))
-      : `/explore/search?q=${encodeURIComponent(q)}`
+      : buildFreePlayerSearchHref(q)
     const searchEvent = getSearchIntentEvent(q, first?.group)
     void trackProductUsageEvent({
       eventName: visibleResults.length ? searchEvent.eventName : 'zero_result_seen',
@@ -281,6 +307,14 @@ export default function UniversalSearch({
       },
     })
     router.push(destination)
+  }
+
+  function handleQueryChange(nextQuery: string) {
+    setQuery(nextQuery)
+    if (nextQuery.trim().length < 2) {
+      setPlayerSuggestions([])
+      setPlayerSuggestionLoading(false)
+    }
   }
 
   function trackResultClick(item: SearchResult) {
@@ -324,20 +358,27 @@ export default function UniversalSearch({
 
   return (
     <div style={searchShellStyle}>
-      <form onSubmit={handleSubmit} role="search" aria-label="Search TenAceIQ" style={formStyle(isMobile)}>
+      <form action="/explore/search" method="get" onSubmit={handleSubmit} role="search" aria-label="Search TenAceIQ" style={formStyle(isMobile, stackOnMobile)}>
         <label htmlFor={`tiq-universal-search-${searchId}`} style={srOnlyStyle}>
           Search tennis
         </label>
         <input
           id={`tiq-universal-search-${searchId}`}
+          name="q"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => handleQueryChange(event.target.value)}
           onBlur={() => setInputFocused(false)}
           onFocus={() => setInputFocused(true)}
           placeholder={placeholder}
           aria-controls={resultRegionId}
+          role="combobox"
+          aria-haspopup="listbox"
+          aria-autocomplete="list"
+          aria-expanded={showPlayerSuggestions}
+          suppressHydrationWarning
           style={{
             ...inputStyle,
+            ...(isMobile ? mobileInputStyle : null),
             ...(inputFocused ? inputFocusStyle : null),
           }}
         />
@@ -355,6 +396,30 @@ export default function UniversalSearch({
           {isMobile ? 'Search' : 'Search Tennis'}
         </button>
       </form>
+      {showPlayerSuggestions ? (
+        <section style={playerSuggestionPanelStyle} aria-label="Player name suggestions" aria-live="polite" role="listbox">
+          <div style={playerSuggestionHeaderStyle}>
+            <strong>Player matches</strong>
+            <span>{playerSuggestionLoading ? 'Searching names…' : 'Pick a player or keep searching'}</span>
+          </div>
+          {playerSuggestions.length > 0 ? (
+            <div style={playerSuggestionListStyle}>
+              {playerSuggestions.map((player) => (
+                <Link key={player.id} href={`/players/${encodeURIComponent(player.id)}`} style={playerSuggestionLinkStyle} role="option">
+                  <span style={playerSuggestionNameStyle}>{player.name}</span>
+                  <span style={playerSuggestionMetaStyle}>
+                    {[player.location, typeof player.overall_dynamic_rating === 'number' ? `TIQ ${player.overall_dynamic_rating.toFixed(2)}` : null]
+                      .filter(Boolean)
+                      .join(' · ') || 'Open player profile'}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : !playerSuggestionLoading ? (
+            <div style={playerSuggestionEmptyStyle}>No close player name yet. Press Search to widen the tennis lookup.</div>
+          ) : null}
+        </section>
+      ) : null}
       {showResults && !compact ? (
         <div style={categoryRowStyle} aria-label="Search categories">
           {(['All', ...availableGroups] as Array<SearchGroup | 'All'>).map((group) => (
@@ -428,6 +493,35 @@ export default function UniversalSearch({
   )
 }
 
+function scoreSearchResult(result: SearchResult, query: string) {
+  const q = query.trim().toLowerCase()
+  if (!q) return 1
+
+  const title = result.title.toLowerCase()
+  const detail = result.detail.toLowerCase()
+  const keywords = result.keywords.map((keyword) => keyword.toLowerCase())
+  const keywordText = keywords.join(' ')
+  const tokens = q.split(/\s+/).filter(Boolean)
+
+  const keywordExact = keywords.some((keyword) => keyword === q)
+  const titleDirect = title.includes(q)
+  const keywordDirect = keywordText.includes(q)
+  const detailDirect = detail.includes(q)
+  const titleTokenHits = tokens.filter((token) => title.includes(token)).length
+  const keywordTokenHits = tokens.filter((token) => keywordText.includes(token)).length
+  const detailTokenHits = tokens.filter((token) => detail.includes(token)).length
+
+  return (
+    (keywordExact ? 12 : 0) +
+    (titleDirect ? 8 : 0) +
+    (keywordDirect ? 6 : 0) +
+    (detailDirect ? 2 : 0) +
+    titleTokenHits * 3 +
+    keywordTokenHits * 2 +
+    detailTokenHits
+  )
+}
+
 function getSearchIntentEvent(query: string, group?: SearchGroup | null): { eventName: ProductUsageEventName; surface: ProductUsageEventSurface } {
   const q = query.toLowerCase()
 
@@ -466,17 +560,40 @@ function appendSearchQuery(href: string, query: string) {
   return `${pathWithSearch}${separator}q=${encodeURIComponent(q)}${hash ? `#${hash}` : ''}`
 }
 
+function buildFreePlayerSearchHref(query: string) {
+  return `/explore/search?scope=players&q=${encodeURIComponent(query.trim())}`
+}
+
+function isLikelyPlayerLookupQuery(query: string) {
+  const q = query.trim().toLowerCase()
+  if (q.length < 2 || !/^[a-z][a-z .'-]*$/.test(q)) return false
+
+  const topicTerms = [
+    'player', 'team', 'league', 'tournament', 'coach', 'resource', 'matchup', 'compare',
+    'captain', 'lineup', 'scorecard', 'upload', 'report', 'issue', 'data', 'review',
+    'schedule', 'standing', 'ranking', 'draw', 'practice', 'drill', 'improve', 'lab',
+  ]
+
+  return !topicTerms.some((term) => q.includes(term))
+}
+
 const searchShellStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   width: '100%',
   minWidth: 0,
+  maxWidth: '100%',
+  overflowX: 'clip',
 }
 
-const formStyle = (isMobile: boolean): CSSProperties => ({
+const formStyle = (isMobile: boolean, stackOnMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr) minmax(84px, auto)' : 'minmax(0, 1fr) minmax(120px, auto)',
-  gap: isMobile ? 8 : 10,
+  gridTemplateColumns: isMobile && stackOnMobile
+    ? 'minmax(0, 1fr)'
+    : isMobile
+      ? 'minmax(0, 1fr) minmax(78px, auto)'
+      : 'minmax(0, 1fr) minmax(120px, auto)',
+  gap: 10,
   minWidth: 0,
 })
 
@@ -494,6 +611,13 @@ const inputStyle: CSSProperties = {
   outlineOffset: 2,
   minWidth: 0,
   boxShadow: 'var(--home-control-shadow)',
+}
+
+const mobileInputStyle: CSSProperties = {
+  minHeight: 48,
+  borderRadius: 16,
+  padding: '0 13px',
+  fontSize: 14,
 }
 
 const inputFocusStyle: CSSProperties = {
@@ -518,6 +642,9 @@ const buttonStyle: CSSProperties = {
 const mobileButtonStyle: CSSProperties = {
   width: '100%',
   justifyContent: 'center',
+  minHeight: 48,
+  padding: '0 14px',
+  fontSize: 13,
 }
 
 const buttonFocusStyle: CSSProperties = {
@@ -556,6 +683,68 @@ const resultGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: 10,
   minWidth: 0,
+}
+
+const playerSuggestionPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  minWidth: 0,
+  maxWidth: '100%',
+  padding: 12,
+  border: '1px solid rgba(155,225,29,0.24)',
+  borderRadius: 18,
+  background: 'var(--home-dropdown-bg)',
+  boxShadow: 'var(--home-dropdown-shadow)',
+  overflow: 'hidden',
+}
+
+const playerSuggestionHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+}
+
+const playerSuggestionListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const playerSuggestionLinkStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+  padding: '10px 12px',
+  borderRadius: 12,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(255,255,255,0.035)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const playerSuggestionNameStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  fontWeight: 900,
+}
+
+const playerSuggestionMetaStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const playerSuggestionEmptyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
 }
 
 const resultGroupStyle: CSSProperties = {

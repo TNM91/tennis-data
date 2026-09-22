@@ -40,6 +40,7 @@ server-*.log
 # local rollout artifacts
 /backups/
 /screenshots-*.png
+/tmp/
 /tmp-screenshots/
 /app.zip
 /lint-errors.txt
@@ -49,6 +50,7 @@ server-*.log
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel/
@@ -56,9 +58,24 @@ test-results/
 
 # local agent/tooling skills
 .agents/
+.codex-worktrees/
+.codex-archive/
+.codex-audits/
+.codex-deck/
+.codex/
+.codex-*.log
 .claude/skills/
+.claude/settings.local.json
 skills-lock.json
+
+# generated review, rendering, and export workspaces
+/artifacts/
+/deliverables/
+/output/
+/design-qa.md
+/docs/audits/
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.vercel

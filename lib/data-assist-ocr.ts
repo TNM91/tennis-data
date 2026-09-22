@@ -6,6 +6,7 @@ export type DataAssistOcrStatus = 'not_started' | 'queued' | 'processed' | 'fail
 
 export type DataAssistScorecardDraftFields = {
   externalMatchId: string
+  leagueName?: string
   homeTeam: string
   awayTeam: string
   matchDate: string
@@ -35,6 +36,7 @@ export type DataAssistOcrScreenshotInput = {
 
 export type DataAssistScorecardParsedLine = {
   lineLabel: string
+  ntrp?: number | null
   homePlayers: string[]
   awayPlayers: string[]
   score: string
@@ -142,6 +144,7 @@ export function getServerDataAssistOcrReadiness(env: Record<string, string | und
 export function buildEmptyScorecardDraftFields(): DataAssistScorecardDraftFields {
   return {
     externalMatchId: '',
+    leagueName: '',
     homeTeam: '',
     awayTeam: '',
     matchDate: '',

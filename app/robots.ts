@@ -25,7 +25,7 @@ export default function robots(): MetadataRoute.Robots {
         '/upgrade',
       ],
     },
-    sitemap: 'https://tenaceiq.com/sitemap.xml',
-    host: 'https://tenaceiq.com',
+    sitemap: 'https://www.tenaceiq.com/sitemap.xml',
+    host: 'https://www.tenaceiq.com',
   }
 }

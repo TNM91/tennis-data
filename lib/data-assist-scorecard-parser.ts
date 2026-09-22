@@ -9,7 +9,7 @@ type ScorecardSet = NonNullable<DataAssistScorecardParsedLine['sets']>[number]
 const SCORE_PATTERN = /\b\d{1,2}\s*-\s*\d{1,2}(?:\s*\(\s*\d{1,2}\s*\))?/g
 const DATE_PATTERN = /\b(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|[A-Z][a-z]{2,9}\s+\d{1,2},?\s+\d{4})\b/
 const MATCH_ID_PATTERN = /\b(?:match\s*(?:id|number|#)?|scorecard\s*(?:id|#)|tennislink\s+match)\s*[:#-]?\s*([A-Z0-9][A-Z0-9-]{4,})\b/i
-const LINE_START_PATTERN = /^(?:(?:court|line)\s*)?([1-5]\s*#?\s*(?:singles|doubles|s|d)|\d+\s*#?\s*(?:singles|doubles)?)\b[:.\-\s]*/i
+const LINE_START_PATTERN = /^(?:(?:court|line)\s*)?((?:[1-7](?:\.[05])\s*(?:singles|doubles)\s*#\s*[1-5])|(?:[1-5]\s*#?\s*(?:singles|doubles|s|d))|(?:\d+\s*#?\s*(?:singles|doubles)))\b[:.\-\s]*/i
 const TEAM_SEPARATOR_PATTERN = /\s+(?:vs\.?|v\.?|at|@)\s+/i
 const RESULT_SEPARATOR_PATTERN = /\s+(def\.?|d\.?|defeated|bt\.?|beat|beats|over|lost\s+to)\s+/i
 
@@ -18,6 +18,7 @@ export function parseDataAssistScorecardText(rawText: string): DataAssistScoreca
   const lines = text.split('\n').map((line) => line.trim()).filter(Boolean)
   const parserWarnings: string[] = []
   const matchId = extractMatchId(text)
+  const leagueName = extractScorecardLeagueName(text)
   const matchDate = extractMatchDate(text)
   const teams = extractTeams(lines)
   const parsedLines = extractScorecardLines(lines)
@@ -36,6 +37,7 @@ export function parseDataAssistScorecardText(rawText: string): DataAssistScoreca
 
   return {
     externalMatchId: matchId,
+    leagueName,
     homeTeam: teams.homeTeam,
     awayTeam: teams.awayTeam,
     matchDate,
@@ -53,6 +55,24 @@ export function parseDataAssistScorecardText(rawText: string): DataAssistScoreca
       parsedLines: fallbackLines,
     }),
   }
+}
+
+export function extractScorecardLeagueName(value: string | null | undefined) {
+  const source = (value || '').replace(/\r/g, '\n').trim()
+  if (!source) return ''
+
+  const labeled = source.match(/\bLeague\s*:\s*(.+?)(?=\n|\s+(?:Status|Today's Date|Date Match Played|Home Team)\s*:|$)/i)?.[1]
+  const embedded = source.match(/\bfor\s+Match\s*#\s*[A-Z0-9-]+\s+in\s+(.+?)(?=\n|\s+(?:Status|Today's Date|Date Match Played|Home Team)\s*:|$)/i)?.[1]
+  const candidate = cleanText(labeled || embedded || source)
+    .replace(/\s*[|/•·]\s*$/, '')
+    .trim()
+
+  if (!candidate) return ''
+  if (/^(singles|doubles)$/i.test(candidate)) return ''
+  if (/^#?\s*\d+\s*#?\s*(singles|doubles)$/i.test(candidate)) return ''
+  if (candidate.length > 160) return ''
+  if (/\b(?:Scorecard for Match|Date Match Played|Home Team|Visiting Team|winner marker)\b/i.test(candidate)) return ''
+  return candidate
 }
 
 export function normalizeOcrText(rawText: string) {
@@ -162,6 +182,7 @@ function extractScorecardLines(lines: string[]): DataAssistScorecardParsedLine[]
 
     parsedLines.push(withExtensionScoreMetadata({
       lineLabel: normalizeLineLabel(lineMatch[1]),
+      ntrp: extractLineNtrp(lineMatch[1]),
       homePlayers: leftPlayers,
       awayPlayers: rightPlayers,
       score,
@@ -234,6 +255,7 @@ function parseTennisLinkTableLine(lineLabel: string, value: string, score: strin
 
   return withExtensionScoreMetadata({
     lineLabel: normalizeLineLabel(lineLabel),
+    ntrp: extractLineNtrp(lineLabel),
     homePlayers,
     awayPlayers,
     score,
@@ -346,12 +368,15 @@ function withExtensionScoreMetadata(line: DataAssistScorecardParsedLine): DataAs
   const sets = extractSetPairsFromText(line.score)
   const score = formatSetsAsScore(sets) || line.score
   const setWinnerSide = determineWinnerSideFromSets(sets)
+  const winner = line.winner === 'unknown' && setWinnerSide ? setWinnerSide : line.winner
   const scoreEventType = classifyScoreEventType(score, sets)
   const parseNotes = buildLineParseNotes(line, sets, scoreEventType)
 
   return {
     ...line,
     score,
+    winner,
+    winnerSource: winner !== line.winner ? 'set_math' : line.winnerSource,
     sets,
     setWinnerSide,
     scoreEventType,
@@ -473,6 +498,8 @@ function splitPlayers(value: string) {
 
 function normalizeLineLabel(value: string) {
   const compact = value.toUpperCase().replace(/\s+/g, '')
+  const triLevel = value.match(/\b[1-7](?:\.[05])\s*(Singles|Doubles)\s*#\s*([1-5])/i)
+  if (triLevel) return `${triLevel[2]} ${triLevel[1]}`
   if (/^[1-5]S$/.test(compact)) return `${compact[0]} Singles`
   if (/^[1-5]D$/.test(compact)) return `${compact[0]} Doubles`
   const number = compact.match(/\d/)?.[0] || value.trim()
@@ -481,6 +508,13 @@ function normalizeLineLabel(value: string) {
   if (compact.includes('D')) return `${number} Doubles`
   if (compact.includes('S')) return `${number} Singles`
   return `Line ${number}`
+}
+
+function extractLineNtrp(value: string): number | null {
+  const match = value.match(/\b([1-7](?:\.[05]))\s*(?:Singles|Doubles)\s*#/i)
+  if (!match) return null
+  const rating = Number(match[1])
+  return Number.isFinite(rating) ? rating : null
 }
 
 function normalizeScoreSet(value: string) {

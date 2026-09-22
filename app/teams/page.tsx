@@ -6,20 +6,20 @@ import AdsenseSlot from '@/app/components/adsense-slot'
 import DataTrustPanel from '@/app/components/data-trust-panel'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
-import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
 import TiqTrustStrip from '@/app/components/tiq-trust-strip'
-import { TiqActionCard, TiqLineupPreview, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
+import { TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
 import TrackedProductLink from '@/app/components/tracked-product-link'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
-import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { supabase } from '@/lib/supabase'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatShortDate, uniqueSorted, cleanText, normalizeTeamName } from '@/lib/captain-formatters'
+import { isPublicTeamDirectoryMatch, isPublicTeamDirectoryName, isScheduleTeamSource, shouldRestrictTeamDirectoryToLocalRoster } from '@/lib/team-directory'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
+import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 type MatchRow = {
   id: string
@@ -51,33 +51,45 @@ type MatchPlayerRow = {
     | null
 }
 
+type TennisRecordTeamContextRow = {
+  team_name: string | null
+  league_name: string | null
+  flight: string | null
+  last_seen_at: string | null
+}
+
+type TennisRecordTeamRosterCountRow = {
+  normalized_team_name: string | null
+  listed_player_count: number | null
+}
+
 type TeamDirectoryEntry = {
   key: string
   team: string
   league: string | null
   flight: string | null
+  season: string | null
   matchCount: number
   wins: number
   losses: number
   recentForm: Array<'W' | 'L'>
   playerIds: Set<string>
+  sourceRosterCount: number
   mostRecentMatchDate: string | null
+  source: 'canonical' | 'tennisrecord'
 }
 
 type SortKey = 'team' | 'matches' | 'players' | 'recent' | 'winpct'
 
 const TEAMS_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_TEAMS_INLINE || null
+const TEAM_DEFAULT_CARD_LIMIT = 8
 
-function buildTeamKey(team: string, league: string | null, flight: string | null) {
-  return `${team}__${league || ''}__${flight || ''}`
+function buildTeamKey(team: string, league: string | null, flight: string | null, season: string | null = null) {
+  return `${team}__${league || ''}__${flight || ''}__${season || ''}`
 }
 
 function buildScopeKey(league: string | null, flight: string | null) {
   return `${(league || '').toLowerCase()}__${(flight || '').toLowerCase()}`
-}
-
-function isScheduleLikeMatch(match: MatchRow) {
-  return /\bschedule\b/i.test(cleanText(match.source))
 }
 
 function compareNullableDatesDesc(left: string | null, right: string | null) {
@@ -93,6 +105,10 @@ function compareNullableDatesDesc(left: string | null, right: string | null) {
   if (Number.isNaN(rightTime)) return -1
 
   return rightTime - leftTime
+}
+
+function getDirectoryPlayerCount(row: TeamDirectoryEntry) {
+  return Math.max(row.playerIds.size, row.sourceRosterCount)
 }
 
 
@@ -113,11 +129,16 @@ export default function TeamsPage() {
   const [search, setSearch] = useState('')
   const [leagueFilter, setLeagueFilter] = useState('')
   const [flightFilter, setFlightFilter] = useState('')
+  const [seasonFilter, setSeasonFilter] = useState('')
   const [sortBy, setSortBy] = useState<SortKey>('matches')
   const [browseAll, setBrowseAll] = useState(false)
+  const [showAllTeams, setShowAllTeams] = useState(false)
   const [focusedDirectoryControl, setFocusedDirectoryControl] = useState<string | null>(null)
+  const [directoryReady, setDirectoryReady] = useState(false)
 
-  const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { screenWidth, isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const isTinyMobile = screenWidth < 360
+  const compactIntroCards = isMobile
   const { access, authResolved } = useProductAccess()
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
 
@@ -132,8 +153,10 @@ export default function TeamsPage() {
         setSearch('')
         setLeagueFilter('')
         setFlightFilter('')
+        setSeasonFilter('')
         setSortBy('matches')
         setBrowseAll(false)
+        setShowAllTeams(false)
       }
     }
     document.addEventListener('keydown', handleKeyDown)
@@ -145,22 +168,58 @@ export default function TeamsPage() {
     const nextSearch = params.get('q')?.trim() || ''
     const nextLeague = params.get('league')?.trim() || ''
     const nextFlight = params.get('flight')?.trim() || ''
+    const nextSeason = params.get('season')?.trim() || ''
     setSearch(nextSearch)
     setLeagueFilter(nextLeague)
     setFlightFilter(nextFlight)
-    setBrowseAll(Boolean(nextSearch || nextLeague || nextFlight))
+    setSeasonFilter(nextSeason)
+    setBrowseAll(Boolean(nextSearch || nextLeague || nextFlight || nextSeason))
+    const nextSort = params.get('sort') as SortKey | null
+    if (nextSort === 'team' || nextSort === 'matches' || nextSort === 'players' || nextSort === 'recent' || nextSort === 'winpct') setSortBy(nextSort)
+    setDirectoryReady(true)
   }, [])
+
+  const exploreResumeHref = useMemo(() => {
+    const params = new URLSearchParams()
+    if (search.trim()) params.set('q', search.trim())
+    if (leagueFilter) params.set('league', leagueFilter)
+    if (flightFilter) params.set('flight', flightFilter)
+    if (seasonFilter) params.set('season', seasonFilter)
+    if (sortBy !== 'matches') params.set('sort', sortBy)
+    const query = params.toString()
+    return `/explore/teams${query ? `?${query}` : ''}`
+  }, [flightFilter, leagueFilter, search, seasonFilter, sortBy])
+
+  useEffect(() => {
+    if (!directoryReady) return
+    window.history.replaceState(null, '', exploreResumeHref)
+  }, [directoryReady, exploreResumeHref])
 
   async function loadTeams() {
     setLoading(true)
     setError('')
 
     try {
-      const { data: matchData, error: matchError } = await supabase
-        .from('matches')
-        .select('id, match_date, home_team, away_team, league_name, flight, line_number, winner_side, source, status, score')
-        .is('line_number', null)
-        .order('match_date', { ascending: false })
+      const [
+        { data: matchData, error: matchError },
+        { data: tennisRecordContext, error: tennisRecordContextError },
+        { data: tennisRecordRosterCounts, error: tennisRecordRosterCountsError },
+      ] = await Promise.all([
+        supabase
+          .from('matches')
+          .select('id, match_date, home_team, away_team, league_name, flight, line_number, winner_side, source, status, score')
+          .is('line_number', null)
+          .order('match_date', { ascending: false })
+          .limit(10000),
+        supabase
+          .from('tennisrecord_public_team_context')
+          .select('team_name, league_name, flight, last_seen_at')
+          .limit(10000),
+        supabase
+          .from('tennisrecord_public_team_roster_counts')
+          .select('normalized_team_name, listed_player_count')
+          .limit(10000),
+      ])
 
       if (matchError) throw new Error(matchError.message)
 
@@ -168,10 +227,29 @@ export default function TeamsPage() {
         const homeTeam = cleanText(row.home_team)
         const awayTeam = cleanText(row.away_team)
 
-        return Boolean(homeTeam && awayTeam)
+        return isPublicTeamDirectoryMatch({
+          homeTeam,
+          awayTeam,
+          league: row.league_name,
+          source: row.source,
+        })
       })
 
-      if (!matches.length) {
+      const sourceContexts = tennisRecordContextError
+        ? []
+        : (tennisRecordContext || []) as TennisRecordTeamContextRow[]
+      const sourceRosterCounts = tennisRecordRosterCountsError
+        ? []
+        : (tennisRecordRosterCounts || []) as TennisRecordTeamRosterCountRow[]
+
+      const sourceRosterCountByTeam = new Map<string, number>()
+      for (const row of sourceRosterCounts) {
+        const normalizedTeam = normalizeTeamName(row.normalized_team_name)
+        if (!normalizedTeam) continue
+        sourceRosterCountByTeam.set(normalizedTeam, Math.max(0, Number(row.listed_player_count) || 0))
+      }
+
+      if (!matches.length && !sourceContexts.length) {
         setRows([])
         return
       }
@@ -195,7 +273,7 @@ export default function TeamsPage() {
       }
 
       for (const match of matches) {
-        if (!isScheduleLikeMatch(match)) continue
+        if (!isScheduleTeamSource(match.source)) continue
         const league = cleanText(match.league_name)
         const flight = cleanText(match.flight)
         const scopeKey = buildScopeKey(league, flight)
@@ -211,21 +289,23 @@ export default function TeamsPage() {
         const homeTeam = cleanText(match.home_team)
         const awayTeam = cleanText(match.away_team)
 
-        if (!homeTeam || !awayTeam) continue
+        if (!isPublicTeamDirectoryMatch({ homeTeam, awayTeam, league: match.league_name, source: match.source })) continue
 
         const league = cleanText(match.league_name)
         const flight = cleanText(match.flight)
         const scopeKey = buildScopeKey(league, flight)
         const allowedTeams = scheduleTeamsByScope.get(scopeKey) ?? rosterTeamsByScope.get(scopeKey)
         if (
+          shouldRestrictTeamDirectoryToLocalRoster(match.source) &&
           allowedTeams?.size &&
           (!allowedTeams.has(normalizeTeamName(homeTeam)) || !allowedTeams.has(normalizeTeamName(awayTeam)))
         ) {
           continue
         }
 
-        const homeKey = buildTeamKey(homeTeam, league, flight)
-        const awayKey = buildTeamKey(awayTeam, league, flight)
+        const season = cleanText(match.match_date)?.slice(0, 4) || null
+        const homeKey = buildTeamKey(homeTeam, league, flight, season)
+        const awayKey = buildTeamKey(awayTeam, league, flight, season)
 
         if (!directoryMap.has(homeKey)) {
           directoryMap.set(homeKey, {
@@ -233,12 +313,15 @@ export default function TeamsPage() {
             team: homeTeam,
             league,
             flight,
+            season,
             matchCount: 0,
             wins: 0,
             losses: 0,
             recentForm: [],
             playerIds: new Set<string>(),
+            sourceRosterCount: sourceRosterCountByTeam.get(normalizeTeamName(homeTeam)) || 0,
             mostRecentMatchDate: null,
+            source: 'canonical',
           })
         }
 
@@ -248,12 +331,15 @@ export default function TeamsPage() {
             team: awayTeam,
             league,
             flight,
+            season,
             matchCount: 0,
             wins: 0,
             losses: 0,
             recentForm: [],
             playerIds: new Set<string>(),
+            sourceRosterCount: sourceRosterCountByTeam.get(normalizeTeamName(awayTeam)) || 0,
             mostRecentMatchDate: null,
+            source: 'canonical',
           })
         }
 
@@ -321,6 +407,7 @@ export default function TeamsPage() {
         {
           league: string | null
           flight: string | null
+          season: string | null
           homeTeam: string
           awayTeam: string
         }
@@ -329,11 +416,12 @@ export default function TeamsPage() {
       for (const match of matches) {
         const homeTeam = cleanText(match.home_team)
         const awayTeam = cleanText(match.away_team)
-        if (!homeTeam || !awayTeam) continue
+        if (!isPublicTeamDirectoryMatch({ homeTeam, awayTeam, league: match.league_name, source: match.source })) continue
 
         matchMetaById.set(match.id, {
           league: cleanText(match.league_name),
           flight: cleanText(match.flight),
+          season: cleanText(match.match_date)?.slice(0, 4) || null,
           homeTeam,
           awayTeam,
         })
@@ -346,7 +434,7 @@ export default function TeamsPage() {
         if (!matchMeta) continue
 
         const teamName = row.side === 'A' ? matchMeta.homeTeam : matchMeta.awayTeam
-        const teamKey = buildTeamKey(teamName, matchMeta.league, matchMeta.flight)
+        const teamKey = buildTeamKey(teamName, matchMeta.league, matchMeta.flight, matchMeta.season)
         const expectedSide = teamSideByMatchAndTeam.get(`${row.match_id}__${teamKey}`)
 
         if (!expectedSide || expectedSide !== row.side) continue
@@ -360,6 +448,32 @@ export default function TeamsPage() {
         if (!playerId) continue
 
         entry.playerIds.add(playerId)
+      }
+
+      for (const context of sourceContexts) {
+        const team = cleanText(context.team_name)
+        const league = cleanText(context.league_name)
+        const flight = cleanText(context.flight)
+        if (!team || !isPublicTeamDirectoryName(team, league)) continue
+
+        const key = buildTeamKey(team, league, flight)
+        if (directoryMap.has(key)) continue
+
+        directoryMap.set(key, {
+          key,
+          team,
+          league,
+          flight,
+          season: null,
+          matchCount: 0,
+          wins: 0,
+          losses: 0,
+          recentForm: [],
+          playerIds: new Set<string>(),
+          sourceRosterCount: sourceRosterCountByTeam.get(normalizeTeamName(team)) || 0,
+          mostRecentMatchDate: cleanText(context.last_seen_at),
+          source: 'tennisrecord',
+        })
       }
 
       setRows(
@@ -392,6 +506,7 @@ export default function TeamsPage() {
   }
 
   const leagueOptions = useMemo(() => uniqueSorted(rows.map((row) => row.league)), [rows])
+  const seasonOptions = useMemo(() => uniqueSorted(rows.map((row) => row.season)), [rows])
   const flightOptions = useMemo(() => {
     const scopedRows = leagueFilter ? rows.filter((row) => row.league === leagueFilter) : rows
     return uniqueSorted(scopedRows.map((row) => row.flight))
@@ -403,6 +518,7 @@ export default function TeamsPage() {
     const next = rows.filter((row) => {
       if (leagueFilter && row.league !== leagueFilter) return false
       if (flightFilter && row.flight !== flightFilter) return false
+      if (seasonFilter && row.season !== seasonFilter) return false
 
       if (!searchText) return true
 
@@ -410,10 +526,34 @@ export default function TeamsPage() {
       return haystack.includes(searchText)
     })
 
-    next.sort((left, right) => {
+    // Keep the default directory as the dynasty view. A selected season exposes
+    // that season's distinct roster and performance without duplicating teams by year.
+    const displayRows = seasonFilter
+      ? next
+      : Array.from(next.reduce((map, row) => {
+          const dynastyKey = buildTeamKey(row.team, row.league, row.flight)
+          const existing = map.get(dynastyKey)
+          if (!existing) {
+            map.set(dynastyKey, { ...row, key: dynastyKey, season: null, playerIds: new Set(row.playerIds) })
+            return map
+          }
+
+          existing.matchCount += row.matchCount
+          existing.wins += row.wins
+          existing.losses += row.losses
+          existing.sourceRosterCount = Math.max(existing.sourceRosterCount, row.sourceRosterCount)
+          for (const playerId of row.playerIds) existing.playerIds.add(playerId)
+          if (compareNullableDatesDesc(row.mostRecentMatchDate, existing.mostRecentMatchDate) < 0) {
+            existing.mostRecentMatchDate = row.mostRecentMatchDate
+            existing.recentForm = row.recentForm
+          }
+          return map
+        }, new Map<string, TeamDirectoryEntry>()).values())
+
+    displayRows.sort((left, right) => {
       if (sortBy === 'team') return left.team.localeCompare(right.team)
       if (sortBy === 'players') {
-        const diff = right.playerIds.size - left.playerIds.size
+        const diff = getDirectoryPlayerCount(right) - getDirectoryPlayerCount(left)
         if (diff !== 0) return diff
         return left.team.localeCompare(right.team)
       }
@@ -435,19 +575,27 @@ export default function TeamsPage() {
       return left.team.localeCompare(right.team)
     })
 
-    return next
-  }, [flightFilter, leagueFilter, rows, search, sortBy])
+    return displayRows
+  }, [flightFilter, leagueFilter, rows, search, seasonFilter, sortBy])
   const hasActiveFilters =
-    search.trim().length > 0 || leagueFilter.length > 0 || flightFilter.length > 0 || sortBy !== 'matches'
+    search.trim().length > 0 || leagueFilter.length > 0 || flightFilter.length > 0 || seasonFilter.length > 0 || sortBy !== 'matches'
   const shouldShowTeamResults = hasActiveFilters || browseAll
-  const visibleRows = shouldShowTeamResults ? filteredRows : []
+  const visibleRows = shouldShowTeamResults
+    ? showAllTeams
+      ? filteredRows
+      : filteredRows.slice(0, TEAM_DEFAULT_CARD_LIMIT)
+    : []
+  const hasMoreTeams = shouldShowTeamResults && filteredRows.length > TEAM_DEFAULT_CARD_LIMIT
+  const filterActionStyle = isMobile
+    ? { ...clearFilterButton, ...compactFilterActionStyle }
+    : clearFilterButton
 
   const totals = useMemo(() => {
     const rowsForTotals = shouldShowTeamResults ? filteredRows : rows
     const uniqueTeams = new Set(rowsForTotals.map((row) => row.key))
     const leagues = new Set(rowsForTotals.map((row) => row.league).filter(Boolean))
     const flights = new Set(rowsForTotals.map((row) => row.flight).filter(Boolean))
-    const players = rowsForTotals.reduce((sum, row) => sum + row.playerIds.size, 0)
+    const players = rowsForTotals.reduce((sum, row) => sum + getDirectoryPlayerCount(row), 0)
 
     return {
       teams: uniqueTeams.size,
@@ -459,184 +607,45 @@ export default function TeamsPage() {
 
   return (
     <SiteShell active="teams">
+      <ExploreResumeTracker
+        surface="teams"
+        label="team directory"
+        href={exploreResumeHref}
+        contextLabel={search.trim() || leagueFilter || flightFilter || seasonFilter || 'Teams'}
+        enabled={directoryReady}
+      />
       <main style={pageWrap}>
         <JsonLd id="teams-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Teams', '/teams')} />
         <section style={contentWrap}>
-          <article style={publicIntroCard}>
-            <div style={publicIntroCopy}>
-              <p style={sectionKicker}>Teams</p>
-              <h1 style={publicIntroTitle}>Team tennis without the group-text chaos.</h1>
-              <p style={publicIntroText}>
-                Find teams, follow rosters, scout opponents, collect availability, build lineups, and keep match week organized.
-              </p>
-              <div style={publicIntroActions}>
-                <button
-                  type="button"
-                  style={primaryIntroButton}
-                  onClick={() => {
-                    void trackProductUsageEvent({
-                      eventName: 'team_search_submitted',
-                      surface: 'teams',
-                      metadata: {
-                        location: 'teams_intro',
-                      },
-                    })
-                    document.getElementById('team-directory-search')?.focus()
-                  }}
-                >
-                  Find Teams
-                </button>
-                <TrackedProductLink
-                  href="/captain"
-                  style={secondaryIntroButton}
-                  event={{
-                    eventName: 'captain_tools_clicked',
-                    surface: 'teams',
-                    metadata: {
-                      location: 'teams_intro',
-                      label: 'Open Captain Tools',
-                    },
-                  }}
-                >
-                  Open Captain Tools
-                </TrackedProductLink>
-              </div>
-            </div>
-            <div style={publicIntroGrid}>
-              <IntroMiniCard title="For players" body="Find your team, follow the schedule, see rosters, and stay connected." />
-              <IntroMiniCard title="For captains" body="Collect availability, build smarter lineups, scout opponents, and prepare each court." />
-              <IntroMiniCard title="For opponents" body="Scout team strength, recent results, roster depth, and matchup context." />
-              <IntroMiniCard title="For leagues" body="Keep rosters, schedules, captains, scorecards, and team visibility easier to manage." />
-            </div>
-          </article>
-        </section>
-        <section style={contentWrap}>
-          <section style={filtersCard}>
-            <div style={sectionHeader}>
-              <div>
-                <p style={sectionKicker}>Captain decision path</p>
-                <h2 style={sectionTitle}>Who can play, where they fit, and what gets sent?</h2>
-                <p style={sectionText}>
-                  Teams are public. Captain Tools help captains reduce match-week chaos by turning availability, lineup choices, pairings, and team communication into one clear path.
-                </p>
-              </div>
-            </div>
-            <div style={teamNextActionGrid}>
-              {teamNextActions.map((action) => (
-                <TiqActionCard
-                  key={action.title}
-                  eyebrow={action.eyebrow}
-                  title={action.title}
-                  body={action.body}
-                  metrics={[...action.metrics]}
-                  href={action.href}
-                  cta={action.cta}
-                  event={action.event}
-                  trust={[...action.trust]}
-                />
-              ))}
-            </div>
-          </section>
-        </section>
-        <section style={contentWrap}>
-          <section style={filtersCard}>
-            <div style={sectionHeader}>
-              <div>
-                <p style={sectionKicker}>Team Hub preview</p>
-                <h2 style={sectionTitle}>Availability, lineup, scouting, and match week.</h2>
-                <p style={sectionText}>
-                  Team Hub is the public team object plus Captain Tools for the person organizing who can play, where they fit, and what the week needs.
-                </p>
-              </div>
-            </div>
-            <div style={teamHubPreviewGrid}>
-              <TiqWorkspacePreview
-                eyebrow="Availability"
-                title="Saturday vs West County"
-                body="Collect who is in, out, or on the bubble before lineup lock."
-                metrics={[
-                  { label: 'Available', value: '8/10' },
-                  { label: 'Bubble', value: '2' },
-                  { label: 'Deadline', value: 'Thu' },
-                ]}
-                href="/captain/availability"
-                cta="Check Availability"
-                event={{
-                  eventName: 'availability_clicked',
-                  surface: 'teams',
-                  metadata: {
-                    location: 'team_hub_preview',
-                  },
-                }}
-              />
-              <TiqLineupPreview
-                title="Suggested lineup"
-                body="Compare projected courts, player availability, and team edge before match day."
-                metrics={[
-                  { label: 'Available', value: '8/10' },
-                  { label: 'Team edge', value: '71%' },
-                  { label: 'Risk', value: 'D1 swap' },
-                ]}
-                href="/captain/lineup-builder"
-                cta="Build Lineup"
-                event={{
-                  eventName: 'lineup_preview_clicked',
-                  surface: 'teams',
-                  metadata: {
-                    location: 'team_hub_preview',
-                  },
-                }}
-              />
-              <TiqWorkspacePreview
-                eyebrow="Opponent scouting"
-                title="West County roster read"
-                body="Scan roster depth, recent results, and matchup context before assigning courts."
-                metrics={[
-                  { label: 'Roster', value: '12' },
-                  { label: 'Recent', value: '3-1' },
-                  { label: 'Watch', value: 'Doubles' },
-                ]}
-                href="/matchup"
-                cta="Scout Opponent"
-                event={{
-                  eventName: 'matchup_started',
-                  surface: 'matchup',
-                  metadata: {
-                    location: 'team_hub_preview',
-                  },
-                }}
-              />
-            </div>
-          </section>
-        </section>
-        <section style={contentWrap}>
-          <section style={filtersCard}>
+          <section style={{ ...filtersCard, padding: isMobile ? 12 : filtersCard.padding }}>
             <div aria-hidden="true" style={watermarkStyle} />
             <div style={sectionHeader}>
               <div>
                 <p style={sectionKicker}>Team discovery</p>
-                <h2 style={sectionTitle}>Find a team.</h2>
-                <p style={sectionText}>
+                <h1 style={sectionTitle}>Find a team.</h1>
+                <p style={{ ...sectionText, display: isMobile ? 'none' : undefined }}>
                   Search by team name, league, or flight, then open the team record.
                 </p>
               </div>
 
               <button
                 type="button"
-                style={resetButton}
+                style={{ ...resetButton, ...(isMobile ? compactFilterActionStyle : null) }}
                 onClick={() => {
                   setSearch('')
                   setLeagueFilter('')
                   setFlightFilter('')
+                  setSeasonFilter('')
                   setSortBy('matches')
                   setBrowseAll(false)
+                  setShowAllTeams(false)
                 }}
               >
                 Reset
               </button>
             </div>
 
-            <div style={summaryRow(isSmallMobile)}>
+            <div style={summaryRow(isSmallMobile, isMobile)}>
               <StatPill label="Teams" value={loading ? 'Refreshing' : String(totals.teams)} />
               <StatPill label="Leagues" value={loading ? 'Starter' : String(totals.leagues)} />
               <StatPill label="Flights" value={loading ? 'Reviewing' : String(totals.flights)} />
@@ -645,23 +654,27 @@ export default function TeamsPage() {
 
             <div style={filtersGrid(isMobile)}>
               <div>
-                <label htmlFor="team-directory-search" style={labelStyle}>Search</label>
+                <label htmlFor="team-directory-search" style={{ ...labelStyle, marginBottom: isMobile ? 6 : labelStyle.marginBottom }}>Search</label>
                 <input
                   id="team-directory-search"
                   value={search}
-                  onChange={(event) => setSearch(event.target.value)}
+                  onChange={(event) => {
+                    setSearch(event.target.value)
+                    setShowAllTeams(false)
+                  }}
                   onFocus={() => setFocusedDirectoryControl('search')}
                   onBlur={() => setFocusedDirectoryControl(null)}
                   placeholder="Search teams"
                   style={{
                     ...inputStyle,
+                    ...(isMobile ? compactDirectoryControlStyle : null),
                     ...(focusedDirectoryControl === 'search' ? directoryControlFocusStyle : null),
                   }}
                 />
               </div>
 
               <div>
-                <label htmlFor="team-directory-league" style={labelStyle}>League</label>
+                <label htmlFor="team-directory-league" style={{ ...labelStyle, marginBottom: isMobile ? 6 : labelStyle.marginBottom }}>League</label>
                 <select
                   id="team-directory-league"
                   value={leagueFilter}
@@ -670,9 +683,11 @@ export default function TeamsPage() {
                   onChange={(event) => {
                     setLeagueFilter(event.target.value)
                     setFlightFilter('')
+                    setShowAllTeams(false)
                   }}
                   style={{
                     ...inputStyle,
+                    ...(isMobile ? compactDirectoryControlStyle : null),
                     borderColor: leagueFilter ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)' : undefined,
                     boxShadow: leagueFilter ? 'var(--home-control-shadow)' : undefined,
                     ...(focusedDirectoryControl === 'league' ? directoryControlFocusStyle : null),
@@ -688,15 +703,19 @@ export default function TeamsPage() {
               </div>
 
               <div>
-                <label htmlFor="team-directory-flight" style={labelStyle}>Flight</label>
+                <label htmlFor="team-directory-flight" style={{ ...labelStyle, marginBottom: isMobile ? 6 : labelStyle.marginBottom }}>Flight</label>
                 <select
                   id="team-directory-flight"
                   value={flightFilter}
                   onFocus={() => setFocusedDirectoryControl('flight')}
                   onBlur={() => setFocusedDirectoryControl(null)}
-                  onChange={(event) => setFlightFilter(event.target.value)}
+                  onChange={(event) => {
+                    setFlightFilter(event.target.value)
+                    setShowAllTeams(false)
+                  }}
                   style={{
                     ...inputStyle,
+                    ...(isMobile ? compactDirectoryControlStyle : null),
                     borderColor: flightFilter ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)' : undefined,
                     boxShadow: flightFilter ? 'var(--home-control-shadow)' : undefined,
                     ...(focusedDirectoryControl === 'flight' ? directoryControlFocusStyle : null),
@@ -712,15 +731,45 @@ export default function TeamsPage() {
               </div>
 
               <div>
-                <label htmlFor="team-directory-sort" style={labelStyle}>Sort</label>
+                <label htmlFor="team-directory-season" style={{ ...labelStyle, marginBottom: isMobile ? 6 : labelStyle.marginBottom }}>Season</label>
+                <select
+                  id="team-directory-season"
+                  value={seasonFilter}
+                  onFocus={() => setFocusedDirectoryControl('season')}
+                  onBlur={() => setFocusedDirectoryControl(null)}
+                  onChange={(event) => {
+                    setSeasonFilter(event.target.value)
+                    setShowAllTeams(false)
+                  }}
+                  style={{
+                    ...inputStyle,
+                    ...(isMobile ? compactDirectoryControlStyle : null),
+                    borderColor: seasonFilter ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)' : undefined,
+                    boxShadow: seasonFilter ? 'var(--home-control-shadow)' : undefined,
+                    ...(focusedDirectoryControl === 'season' ? directoryControlFocusStyle : null),
+                  }}
+                >
+                  <option value="">All seasons (Dynasty)</option>
+                  {seasonOptions.map((option) => (
+                    <option key={option} value={option}>{option} season</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="team-directory-sort" style={{ ...labelStyle, marginBottom: isMobile ? 6 : labelStyle.marginBottom }}>Sort</label>
                 <select
                   id="team-directory-sort"
                   value={sortBy}
                   onFocus={() => setFocusedDirectoryControl('sort')}
                   onBlur={() => setFocusedDirectoryControl(null)}
-                  onChange={(event) => setSortBy(event.target.value as SortKey)}
+                  onChange={(event) => {
+                    setSortBy(event.target.value as SortKey)
+                    setShowAllTeams(false)
+                  }}
                   style={{
                     ...inputStyle,
+                    ...(isMobile ? compactDirectoryControlStyle : null),
                     borderColor: sortBy !== 'matches' ? 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)' : undefined,
                     boxShadow: sortBy !== 'matches' ? 'var(--home-control-shadow)' : undefined,
                     ...(focusedDirectoryControl === 'sort' ? directoryControlFocusStyle : null),
@@ -740,71 +789,60 @@ export default function TeamsPage() {
                 disabled={loading}
                 style={{
                   ...clearFilterButton,
+                  ...(isMobile ? compactFilterActionStyle : null),
                   ...(browseAll ? browseAllButtonActiveStyle : null),
                   ...(loading ? disabledButtonStyle : null),
                 }}
                 onClick={() => {
                   setBrowseAll(true)
                   setSortBy('matches')
+                  setShowAllTeams(false)
                 }}
               >
                 Browse teams
               </button>
+              <TrackedProductLink
+                href="/captain"
+                style={{ ...filterActionStyle, textDecoration: 'none' }}
+                event={{
+                  eventName: 'captain_tools_clicked',
+                  surface: 'teams',
+                  metadata: {
+                    location: 'teams_filters',
+                    label: 'Captain Tools',
+                  },
+                }}
+              >
+                Open Captain tools
+              </TrackedProductLink>
               {hasActiveFilters || browseAll ? (
                 <button
                   type="button"
-                  style={clearFilterButton}
+                  style={filterActionStyle}
                   onClick={() => {
                     setSearch('')
                     setLeagueFilter('')
                     setFlightFilter('')
+                    setSeasonFilter('')
                     setSortBy('matches')
                     setBrowseAll(false)
+                    setShowAllTeams(false)
                   }}
                 >
-                  Clear active filters
-                </button>
-              ) : null}
+                Clear active filters
+              </button>
+            ) : null}
             </div>
+            {loading ? (
+              <div style={{ ...loadingInlineStyle, ...(isMobile ? compactLoadingInlineStyle : null) }}>
+                <strong>Team records are loading.</strong>
+                <span>Search, filter, or open Captain tools while the reviewed team list refreshes.</span>
+              </div>
+            ) : null}
           </section>
 
           {loading ? (
-            <section style={surfaceCard}>
-              <div style={sectionKicker}>Team discovery</div>
-              <div style={emptyTitle}>Search for a team or browse by league.</div>
-              <p style={emptyText}>
-                Team pages help players, captains, opponents, and league organizers understand the week. The live directory is refreshing behind this starter view.
-              </p>
-              <DataTrustPanel
-                title="Team data trust"
-                signals={[
-                  { label: 'Source', value: 'Scorecards, rosters, team summaries' },
-                  { label: 'Freshness', value: 'Recent matches first' },
-                  { label: 'Confidence', value: 'Higher with reviewed scorecards' },
-                  { label: 'Status', value: 'Needs review when disputed' },
-                ]}
-              />
-              <TiqDirectoryFallbackCard
-                eyebrow="Featured team path"
-                title="Scout the next team before match week."
-                body="Start with a team name, league, or flight. Team pages help players and captains see roster context, recent form, and where Captain Tools can make the week cleaner."
-                chips={['Roster context', 'Recent results', 'Captain Tools']}
-                actions={[
-                  { href: '/captain', label: 'Open Captain Tools' },
-                  { href: DATA_ASSIST_STORY.href, label: DATA_ASSIST_STORY.cta },
-                ]}
-              />
-              <div style={teamStartGridStyle}>
-                <button type="button" style={teamStartActionStyle} onClick={() => setBrowseAll(true)}>
-                  <strong>Browse teams</strong>
-                  <span>Open the reviewed team board when it is ready.</span>
-                </button>
-                <Link href="/captain" style={{ ...teamStartActionStyle, textDecoration: 'none' }}>
-                  <strong>Captain Tools</strong>
-                  <span>Collect availability and build the week.</span>
-                </Link>
-              </div>
-            </section>
+            null
           ) : error ? (
             <section style={surfaceCard}>
               <div style={sectionKicker}>Directory error</div>
@@ -813,26 +851,7 @@ export default function TeamsPage() {
               <GhostBtn onClick={() => { void loadTeams() }}>Retry team load</GhostBtn>
             </section>
           ) : !shouldShowTeamResults ? (
-            <section style={teamStartPanelStyle}>
-              <div style={teamStartGridStyle}>
-                <button type="button" style={teamStartActionStyle} onClick={() => document.getElementById('team-directory-search')?.focus()}>
-                  <strong>Team name</strong>
-                  <span>Jump to search.</span>
-                </button>
-                <button type="button" style={teamStartActionStyle} onClick={() => setSortBy('winpct')}>
-                  <strong>Best win %</strong>
-                  <span>Results signal.</span>
-                </button>
-                <button type="button" style={teamStartActionStyle} onClick={() => setSortBy('recent')}>
-                  <strong>Most recent</strong>
-                  <span>Active context.</span>
-                </button>
-                <button type="button" style={teamStartActionStyle} onClick={() => setBrowseAll(true)}>
-                  <strong>Browse</strong>
-                  <span>Full board.</span>
-                </button>
-              </div>
-            </section>
+            null
           ) : visibleRows.length === 0 ? (
             <section style={surfaceCard}>
               <div style={sectionKicker}>Directory reset</div>
@@ -840,10 +859,18 @@ export default function TeamsPage() {
               <p style={emptyText}>
                 Public discovery only shows reviewed team context. Try widening your filters, clearing the search box, or use Data Assist if this league and flight should already exist.
               </p>
-              <DataTrustPanel
-                title="Why a team may be missing"
-                body="Team pages need reviewed roster, scorecard, league, or team-summary context before they appear in public discovery."
-              />
+              <TeamsDetailsSection
+                eyebrow="Why a team may be missing"
+                title="Reviewed team context is needed."
+                compactTitle="Why no team?"
+                cue="Show reason"
+                compact={isMobile}
+              >
+                <DataTrustPanel
+                  title="Why a team may be missing"
+                  body="Team pages need reviewed roster, scorecard, league, or team-summary context before they appear in public discovery."
+                />
+              </TeamsDetailsSection>
               <div style={emptyActionRow}>
                 <button
                   type="button"
@@ -854,6 +881,7 @@ export default function TeamsPage() {
                     setFlightFilter('')
                     setSortBy('matches')
                     setBrowseAll(false)
+                    setShowAllTeams(false)
                   }}
                 >
                   Reset team filters
@@ -864,13 +892,26 @@ export default function TeamsPage() {
               </div>
             </section>
           ) : (
-            <section style={cardsGrid(isTablet, isMobile)}>
-              {visibleRows.map((row) => {
+            <section style={teamDiscoveryResultsStyle}>
+              <TeamPulseFeature
+                href={{
+                  pathname: `/teams/${encodeTeamRouteSegment(visibleRows[0].team)}`,
+                  query: {
+                    ...(visibleRows[0].league ? { league: visibleRows[0].league } : {}),
+                    ...(visibleRows[0].flight ? { flight: visibleRows[0].flight } : {}),
+                    ...(visibleRows[0].season ? { season: visibleRows[0].season } : {}),
+                  },
+                }}
+                row={visibleRows[0]}
+              />
+              <section style={cardsGrid(isTablet, isMobile)}>
+              {visibleRows.slice(1).map((row) => {
                 const teamHref = {
                   pathname: `/teams/${encodeTeamRouteSegment(row.team)}`,
                   query: {
                     ...(row.league ? { league: row.league } : {}),
                     ...(row.flight ? { flight: row.flight } : {}),
+                    ...(row.season ? { season: row.season } : {}),
                   },
                 }
 
@@ -883,8 +924,90 @@ export default function TeamsPage() {
                   />
                 )
               })}
+              {hasMoreTeams || showAllTeams ? (
+                <div style={teamBoardLimitRowStyle}>
+                  <span style={teamBoardLimitTextStyle}>
+                    Showing {visibleRows.length} of {filteredRows.length} teams.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowAllTeams((current) => !current)}
+                    style={clearFilterButton}
+                  >
+                    {showAllTeams ? 'Show top teams' : 'Show full directory'}
+                  </button>
+                </div>
+              ) : null}
+              </section>
+              <CaptainDiscoveryTease />
             </section>
           )}
+        </section>
+        <section style={contentWrap}>
+          <TeamsDetailsSection
+            eyebrow="Team paths"
+            title="Players, captains, opponents, and leagues."
+            compactTitle="Open the right team path."
+            cue="Show team paths"
+            compact={isMobile}
+          >
+            <div style={publicIntroGridStyle(isTinyMobile)}>
+              <IntroMiniCard title="For players" body="Find your team, follow the schedule, see rosters, and stay connected." compact={compactIntroCards} />
+              <IntroMiniCard title="For captains" body="Collect availability, build smarter lineups, scout opponents, and prepare each court." compact={compactIntroCards} />
+              <IntroMiniCard title="For opponents" body="Scout team strength, recent results, roster depth, and matchup context." compact={compactIntroCards} />
+              <IntroMiniCard title="For leagues" body="Keep rosters, schedules, captains, scorecards, and team visibility easier to manage." compact={compactIntroCards} />
+            </div>
+          </TeamsDetailsSection>
+        </section>
+        <section style={contentWrap}>
+          <TeamsDetailsSection
+            eyebrow="Team Hub preview"
+            title="Availability, lineup, scouting, and team message."
+            compactTitle="Open Team Hub tools."
+            cue="Show Team Hub preview"
+            compact={isMobile}
+          >
+            <section style={filtersCard}>
+              <div style={sectionHeader}>
+                <div>
+                  <p style={sectionKicker}>Captain decision path</p>
+                  <h2 style={sectionTitle}>Who can play, where they fit, and what gets sent?</h2>
+                  <p style={sectionText}>
+                    Team Hub connects the public team record with Captain Tools, so availability, lineup choices, scouting, and the final team note reduce match-week chaos in one path.
+                  </p>
+                </div>
+              </div>
+              <div style={teamWeekBoardStyle(isMobile, isTablet)}>
+                <div style={teamWeekLeftStackStyle}>
+                  <TeamWeekSpotlight />
+                  <TiqWorkspacePreview
+                    eyebrow="Opponent scouting"
+                    title="West County roster read"
+                    body="Scan roster depth, recent results, and matchup context before assigning courts."
+                    metrics={[
+                      { label: 'Roster', value: '12' },
+                      { label: 'Recent', value: '3-1' },
+                      { label: 'Watch', value: 'Doubles' },
+                    ]}
+                    href="/matchup"
+                    cta="Scout Opponent"
+                    event={{
+                      eventName: 'matchup_started',
+                      surface: 'matchup',
+                      metadata: {
+                        location: 'team_hub_preview',
+                      },
+                    }}
+                  />
+                </div>
+                <div style={teamWeekStepListStyle}>
+                  {teamNextActions.map((action, index) => (
+                    <TeamWeekStep key={action.title} action={action} step={index + 1} />
+                  ))}
+                </div>
+              </div>
+            </section>
+          </TeamsDetailsSection>
         </section>
       </main>
       {shouldShowAds ? (
@@ -991,8 +1114,224 @@ const teamNextActions = [
   },
 ] as const
 
+type TeamNextAction = (typeof teamNextActions)[number]
+
+function TeamsDetailsSection({
+  eyebrow,
+  title,
+  compactTitle,
+  cue,
+  compact = false,
+  children,
+}: {
+  eyebrow: string
+  title: string
+  compactTitle?: string
+  cue: string
+  compact?: boolean
+  children: ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  const summaryStyle = compact
+    ? { ...teamsDetailsSummaryStyle, flexWrap: 'nowrap' as const, gap: 8, padding: '10px 11px' }
+    : teamsDetailsSummaryStyle
+  const titleStyle = compact
+    ? { ...teamsDetailsTitleStyle, fontSize: 13, lineHeight: 1.15 }
+    : teamsDetailsTitleStyle
+  const cueStyle = compact
+    ? { ...teamsDetailsCueStyle, fontSize: 11 }
+    : teamsDetailsCueStyle
+
+  return (
+    <details style={teamsDetailsSectionStyle} open={open} onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary style={summaryStyle}>
+        <span style={teamsDetailsSummaryCopyStyle}>
+          <span style={teamsDetailsEyebrowStyle}>{eyebrow}</span>
+          <strong style={titleStyle}>{compact && compactTitle ? compactTitle : title}</strong>
+        </span>
+        <span style={cueStyle}>{compact ? 'Open' : cue}</span>
+      </summary>
+      <div style={open ? teamsDetailsContentStyle : teamsDetailsContentClosedStyle}>{children}</div>
+    </details>
+  )
+}
+
+function TeamWeekSpotlight() {
+  return (
+    <article style={teamWeekSpotlightStyle}>
+      <div style={teamWeekSpotlightTopStyle}>
+        <span style={teamWeekBadgeStyle}>Team Hub preview</span>
+        <TrackedProductLink
+          href="/captain/lineup-builder"
+          style={teamWeekSpotlightLinkStyle}
+          event={{
+            eventName: 'lineup_preview_clicked',
+            surface: 'teams',
+            metadata: {
+              location: 'team_hub_preview',
+            },
+          }}
+        >
+          Build Lineup
+        </TrackedProductLink>
+      </div>
+      <h3 style={teamWeekSpotlightTitleStyle}>Saturday vs West County</h3>
+      <p style={teamWeekSupportLineStyle}>Availability, lineup, scouting, and match week.</p>
+      <p style={teamWeekSpotlightTextStyle}>
+        Check availability, choose the lineup, watch doubles risk, and send the team plan before match day.
+      </p>
+      <div style={teamWeekMetricGridStyle}>
+        <Metric label="Available" value="8/10" />
+        <Metric label="Team edge" value="71%" />
+        <Metric label="Risk" value="D1 swap" />
+      </div>
+      <div style={teamWeekSpotlightActionRowStyle}>
+        <TrackedProductLink
+          href="/captain/availability"
+          style={secondaryIntroButton}
+          event={{
+            eventName: 'availability_clicked',
+            surface: 'teams',
+            metadata: {
+              location: 'team_hub_preview',
+            },
+          }}
+        >
+          Check Availability
+        </TrackedProductLink>
+        <TrackedProductLink
+          href="/captain/messaging"
+          style={secondaryIntroButton}
+          event={{
+            eventName: 'captain_tools_clicked',
+            surface: 'teams',
+            metadata: {
+              location: 'team_hub_preview',
+            },
+          }}
+        >
+          Send Team Plan
+        </TrackedProductLink>
+      </div>
+    </article>
+  )
+}
+
+function TeamWeekStep({ action, step }: { action: TeamNextAction; step: number }) {
+  return (
+    <article style={teamWeekStepStyle}>
+      <div style={teamWeekStepNumberStyle}>{step}</div>
+      <div style={teamWeekStepCopyStyle}>
+        <div style={teamWeekStepTopStyle}>
+          <span style={teamWeekStepEyebrowStyle}>{action.eyebrow}</span>
+          <TrackedProductLink href={action.href} style={teamWeekStepLinkStyle} event={action.event}>
+            {action.cta}
+          </TrackedProductLink>
+        </div>
+        <h3 style={teamWeekStepTitleStyle}>{action.title}</h3>
+        <p style={teamWeekStepBodyStyle}>{action.body}</p>
+        <div style={teamWeekStepMetricsStyle}>
+          {action.metrics.map((metric) => (
+            <span key={metric.label} style={teamWeekStepMetricPillStyle}>
+              {metric.label}: {metric.value}
+            </span>
+          ))}
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function TeamPulseFeature({ href, row }: { href: object; row: TeamDirectoryEntry }) {
+  const totalDecisions = row.wins + row.losses
+  const record = totalDecisions > 0 ? `${row.wins}-${row.losses}` : 'New'
+  const rosterCount = getDirectoryPlayerCount(row)
+  const formLabel = totalDecisions > 0
+    ? row.wins >= row.losses ? 'Winning form' : 'Competitive form'
+    : 'Fresh team context'
+
+  return (
+    <article style={teamPulseFeatureStyle}>
+      <div style={teamPulseFeatureTopStyle}>
+        <div style={teamPulseFeatureCopyStyle}>
+          <span style={teamPulseEyebrowStyle}>Team pulse</span>
+          <Link href={href as Parameters<typeof Link>[0]['href']} style={teamPulseTitleStyle}>{row.team}</Link>
+          <div style={teamPulseMetaStyle}>
+            {row.league ? <span>{row.league}</span> : null}
+            {row.flight ? <span style={teamPulseFlightStyle}>{row.flight} flight</span> : null}
+            {row.season ? <span>{row.season} season</span> : null}
+          </div>
+        </div>
+        <span style={teamPulseSourceStyle}>{row.source === 'tennisrecord' ? 'Team context ready' : 'Team record ready'}</span>
+      </div>
+
+      <div style={teamPulseMainStyle}>
+        <div style={teamPulseRecordStyle}>
+          <strong style={teamPulseRecordValueStyle}>{record}</strong>
+          <span style={teamPulseRecordLabelStyle}>{totalDecisions > 0 ? `Last ${totalDecisions} decisions` : 'Ready to explore'}</span>
+        </div>
+        <div style={teamPulseFormStyle}>
+          <span style={teamPulseEyebrowStyle}>{formLabel}</span>
+          <strong style={teamPulseFormTitleStyle}>{totalDecisions > 0 ? `${Math.round((row.wins / totalDecisions) * 100)}% win rate` : 'League and flight added'}</strong>
+          {row.recentForm.length ? (
+            <div style={teamPulseBadgesStyle} aria-label={`${row.team} recent form`}>
+              {row.recentForm.map((result, index) => (
+                <span key={`${result}-${index}`} style={{ ...recentFormBadgeBase, background: result === 'W' ? 'rgba(155,225,29,0.15)' : 'rgba(239,68,68,0.12)', color: result === 'W' ? '#d9f84a' : '#fca5a5', border: `1px solid ${result === 'W' ? 'rgba(155,225,29,0.3)' : 'rgba(239,68,68,0.24)'}` }}>{result}</span>
+              ))}
+            </div>
+          ) : <span style={teamPulseSupportStyle}>Results appear as reviewed scorecards connect.</span>}
+        </div>
+      </div>
+
+      <div style={teamPulseSignalGridStyle} aria-label={`${row.team} scouting signals`}>
+        <TeamPulseSignal label="Roster" value={rosterCount > 0 ? `${rosterCount} listed` : 'Building'} />
+        <TeamPulseSignal label="Match record" value={row.matchCount > 0 ? `${row.matchCount} logged` : 'New'} />
+        <TeamPulseSignal label="Latest" value={formatShortDate(row.mostRecentMatchDate, 'Pending')} />
+      </div>
+
+      <div style={teamPulseFooterStyle}>
+        <span style={teamPulseSupportStyle}>{row.mostRecentMatchDate ? `Updated ${formatShortDate(row.mostRecentMatchDate, 'recently')}` : 'League context is ready to explore.'}</span>
+        <Link href={href as Parameters<typeof Link>[0]['href']} style={teamPulseActionStyle}>Open team</Link>
+      </div>
+    </article>
+  )
+}
+
+function TeamPulseSignal({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={teamPulseSignalStyle}>
+      <span>{label}</span>
+      <strong style={teamPulseSignalValueStyle}>{value}</strong>
+    </div>
+  )
+}
+
+function CaptainDiscoveryTease() {
+  return (
+    <section style={captainDiscoveryTeaseStyle}>
+      <div style={captainDiscoveryTeaseCopyStyle}>
+        <span style={teamPulseEyebrowStyle}>For captains</span>
+        <strong>Claim your team when you are ready to lead it.</strong>
+        <span>Unlock lineup preparation, availability, and opponent scouting while public team discovery stays free.</span>
+      </div>
+      <TrackedProductLink
+        href="/captain"
+        style={captainDiscoveryTeaseActionStyle}
+        event={{
+          eventName: 'captain_tools_clicked',
+          surface: 'teams',
+          metadata: { location: 'team_discovery_tease' },
+        }}
+      >
+        Explore Captain tools
+      </TrackedProductLink>
+    </section>
+  )
+}
+
 function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry; awards: TiqAwardRecord[] }) {
   const [hovered, setHovered] = useState(false)
+  const isTennisRecordContext = row.source === 'tennisrecord'
 
   return (
     <article
@@ -1017,6 +1356,7 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
               <div style={metaRow}>
                 {row.league ? <span style={metaPillBlue}>{row.league}</span> : null}
                 {row.flight ? <span style={metaPillGreen}>{row.flight}</span> : null}
+                {row.season ? <span style={metaPillBlue}>{row.season} season</span> : null}
               </div>
             ) : null}
           </div>
@@ -1039,45 +1379,64 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
           const total = row.wins + row.losses
           const winPct = Math.round((row.wins / total) * 100)
           return (
-            <div style={teamRecordBarWrap}>
+            <div style={teamSnapshotStyle} aria-label={`${row.team} team form`}>
+              <div style={teamSnapshotHeadingStyle}>
+                <span>Team form</span>
+                <strong>{row.wins}W - {row.losses}L</strong>
+              </div>
               <div style={teamRecordBar}>
-                <div style={{ width: `${winPct}%`, background: 'linear-gradient(90deg,rgba(155,225,29,0.65),rgba(74,222,128,0.65))', minWidth: winPct > 0 ? 4 : 0, transition: 'width 400ms ease' }} />
-                <div style={{ flex: 1, background: 'rgba(239,68,68,0.22)' }} />
+                <div style={{ width: `${winPct}%`, background: 'linear-gradient(90deg,rgba(155,225,29,0.72),rgba(74,222,128,0.72))', minWidth: winPct > 0 ? 4 : 0, transition: 'width 400ms ease' }} />
+                <div style={{ flex: 1, background: 'rgba(239,68,68,0.24)' }} />
               </div>
-              <div style={teamRecordLegend}>
-                <span style={teamRecordWinText}>{row.wins}W · {winPct}%</span>
-                <span style={teamRecordLossText}>{row.losses}L</span>
-              </div>
+              <span style={teamRecordWinText}>{winPct}% win rate</span>
+
+              {row.recentForm.length > 0 ? (
+                <div style={recentFormRow}>
+                  <span style={recentFormLabel}>Last five</span>
+                  {row.recentForm.map((r, i) => (
+                    <span key={i} style={{ ...recentFormBadgeBase, background: r === 'W' ? 'rgba(155,225,29,0.12)' : 'rgba(239,68,68,0.10)', color: r === 'W' ? '#d9f84a' : '#fca5a5', border: `1px solid ${r === 'W' ? 'rgba(155,225,29,0.22)' : 'rgba(239,68,68,0.18)'}` }}>
+                      {r}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
           )
         })() : null}
 
-        {row.recentForm.length > 0 ? (
-          <div style={recentFormRow}>
-            <span style={recentFormLabel}>Form</span>
-            {row.recentForm.map((r, i) => (
-              <span key={i} style={{ ...recentFormBadgeBase, background: r === 'W' ? 'rgba(155,225,29,0.12)' : 'rgba(239,68,68,0.10)', color: r === 'W' ? '#d9f84a' : '#fca5a5', border: `1px solid ${r === 'W' ? 'rgba(155,225,29,0.22)' : 'rgba(239,68,68,0.18)'}` }}>
-                {r}
-              </span>
-            ))}
-          </div>
-        ) : null}
-
         <div style={metricsGrid}>
-          <Metric label="Matches" value={String(row.matchCount)} />
-          <Metric label="Players" value={String(row.playerIds.size)} />
-          <Metric label="Last match" value={formatShortDate(row.mostRecentMatchDate, '—')} />
+          {isTennisRecordContext ? (
+            <>
+              <Metric label="Team context" value="Ready" />
+              <Metric label="Players listed" value={String(getDirectoryPlayerCount(row) || '--')} />
+              <Metric label="Updated" value={formatShortDate(row.mostRecentMatchDate, '--')} />
+            </>
+          ) : (
+            <>
+              <Metric label="Matches" value={String(row.matchCount)} />
+              <Metric label="Players" value={String(getDirectoryPlayerCount(row))} />
+              <Metric label="Last match" value={formatShortDate(row.mostRecentMatchDate, '--')} />
+            </>
+          )}
         </div>
-        <TiqTrustStrip
-          label={`${row.team} data trust signals`}
-          signals={[
-            { label: 'Source', value: 'Scorecards / rosters', tone: 'info' },
-            { label: 'Freshness', value: row.mostRecentMatchDate ? formatShortDate(row.mostRecentMatchDate, 'Review pending') : 'Review pending', tone: row.mostRecentMatchDate ? 'good' : 'warn' },
-            { label: 'Confidence', value: row.matchCount >= 5 ? 'High' : row.matchCount >= 2 ? 'Medium' : 'Limited', tone: row.matchCount >= 5 ? 'good' : row.matchCount >= 2 ? 'warn' : 'info' },
-            { label: 'Status', value: 'Reviewable', tone: 'good' },
-          ]}
-          reviewContext={`Team ${row.team}`}
-        />
+        <details style={teamCardTrustDetailsStyle}>
+          <summary style={teamCardTrustSummaryStyle}>
+            <span>Data check</span>
+            <strong>{isTennisRecordContext ? 'Team context' : row.mostRecentMatchDate ? 'Match context' : 'Review pending'}</strong>
+          </summary>
+          <div style={teamCardTrustBodyStyle}>
+            <TiqTrustStrip
+              label={`${row.team} data trust signals`}
+              signals={[
+                { label: 'Source', value: isTennisRecordContext ? 'League and flight context' : 'Scorecards / rosters', tone: 'info' },
+                { label: 'Freshness', value: row.mostRecentMatchDate ? formatShortDate(row.mostRecentMatchDate, 'Review pending') : 'Review pending', tone: row.mostRecentMatchDate ? 'good' : 'warn' },
+                { label: 'Confidence', value: row.matchCount >= 5 ? 'High' : row.matchCount >= 2 ? 'Medium' : 'Limited', tone: row.matchCount >= 5 ? 'good' : row.matchCount >= 2 ? 'warn' : 'info' },
+                { label: 'Status', value: isTennisRecordContext ? 'Ready to explore' : 'Reviewable', tone: 'good' },
+              ]}
+              reviewContext={`Team ${row.team}`}
+            />
+          </div>
+        </details>
     </article>
   )
 }
@@ -1111,9 +1470,9 @@ function StatPill({ label, value }: { label: string; value: string }) {
   )
 }
 
-function IntroMiniCard({ title, body }: { title: string; body: string }) {
+function IntroMiniCard({ title, body, compact = false }: { title: string; body: string; compact?: boolean }) {
   return (
-    <div style={introMiniCardStyle}>
+    <div style={introMiniCardStyle(compact)}>
       <strong>{title}</strong>
       <span>{body}</span>
     </div>
@@ -1143,73 +1502,89 @@ const contentWrap: CSSProperties = {
   minWidth: 0,
 }
 
-const publicIntroCard: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-  gap: 18,
-  alignItems: 'stretch',
-  borderRadius: 26,
-  border: '1px solid rgba(116,190,255,0.15)',
-  background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(7,20,40,0.88))',
-  boxShadow: '0 30px 86px rgba(2, 8, 23, 0.40), inset 0 1px 0 rgba(255,255,255,0.05)',
-  padding: 20,
+const teamsDetailsSectionStyle: CSSProperties = {
+  display: 'block',
+  gap: 10,
   minWidth: 0,
-}
-
-const publicIntroCopy: CSSProperties = {
-  display: 'grid',
-  alignContent: 'center',
-  gap: 12,
-  minWidth: 0,
-}
-
-const publicIntroTitle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: 'clamp(2rem, 4vw, 4rem)',
-  lineHeight: 0.98,
-  fontWeight: 950,
-  letterSpacing: 0,
   overflowWrap: 'anywhere',
 }
 
-const publicIntroText: CSSProperties = {
-  margin: 0,
-  maxWidth: 720,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 'clamp(1rem, 1.3vw, 1.15rem)',
-  lineHeight: 1.7,
-  fontWeight: 700,
-}
-
-const publicIntroActions: CSSProperties = {
+const teamsDetailsSummaryStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
-  gap: 10,
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
   minWidth: 0,
+  padding: '12px 14px',
+  borderRadius: 8,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  listStyle: 'none',
+  overflowWrap: 'anywhere',
 }
 
-const primaryIntroButton: CSSProperties = {
+const teamsDetailsSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamsDetailsEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const teamsDetailsTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const teamsDetailsCueStyle: CSSProperties = {
+  flex: '0 0 auto',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const teamsDetailsContentStyle: CSSProperties = {
+  display: 'grid',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamsDetailsContentClosedStyle: CSSProperties = {
+  display: 'none',
+}
+
+const secondaryIntroButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
   minHeight: 44,
   padding: '0 16px',
   borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
-  background: 'linear-gradient(180deg, #eaff9e 0%, #9be11d 100%)',
-  color: '#071226',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(7,17,33,0.72)',
+  color: 'var(--foreground-strong)',
   textDecoration: 'none',
   fontSize: 13,
   fontWeight: 950,
   cursor: 'pointer',
-}
-
-const secondaryIntroButton: CSSProperties = {
-  ...primaryIntroButton,
-  background: 'rgba(7,17,33,0.72)',
-  color: 'var(--foreground-strong)',
-  border: '1px solid rgba(116,190,255,0.16)',
+  maxWidth: '100%',
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
 }
 
 const publicIntroGrid: CSSProperties = {
@@ -1219,57 +1594,258 @@ const publicIntroGrid: CSSProperties = {
   minWidth: 0,
 }
 
-const teamHubPreviewGrid: CSSProperties = {
+const publicIntroGridStyle = (isTinyMobile: boolean): CSSProperties => ({
+  ...publicIntroGrid,
+  gridTemplateColumns: isTinyMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
+  gap: isTinyMobile ? 8 : publicIntroGrid.gap,
+})
+
+const teamWeekBoardStyle = (isMobile: boolean, isTablet: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : isTablet ? 'minmax(0, 1fr)' : 'minmax(320px, 0.9fr) minmax(0, 1.1fr)',
+  gap: isMobile ? 12 : 14,
+  alignItems: 'start',
+  minWidth: 0,
+  marginTop: 18,
+})
+
+const teamWeekLeftStackStyle: CSSProperties = {
+  display: 'grid',
   gap: 12,
   minWidth: 0,
 }
 
-const teamNextActionGrid: CSSProperties = {
+const teamWeekSpotlightStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
-  gap: 12,
-  minWidth: 0,
-}
-
-const introMiniCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: 7,
   alignContent: 'start',
-  minHeight: 132,
-  padding: 14,
-  borderRadius: 18,
-  border: '1px solid rgba(116,190,255,0.13)',
-  background: 'rgba(255,255,255,0.045)',
-  color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.55,
-  fontWeight: 720,
+  alignSelf: 'start',
+  gap: 14,
   minWidth: 0,
+  minHeight: 0,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 12%, transparent), rgba(8,16,34,0.86) 48%, rgba(7,17,33,0.92))',
+  padding: 16,
+  overflow: 'hidden',
+}
+
+const teamWeekSpotlightTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const teamWeekBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 28,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const teamWeekSpotlightLinkStyle: CSSProperties = {
+  ...secondaryIntroButton,
+  minHeight: 34,
+  padding: '0 12px',
+  fontSize: 12,
+}
+
+const teamWeekSpotlightTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.45rem, 2.2vw, 2rem)',
+  lineHeight: 1.05,
+  fontWeight: 950,
+  letterSpacing: 0,
   overflowWrap: 'anywhere',
 }
 
-const summaryRow = (isSmallMobile: boolean): CSSProperties => ({
+const teamWeekSpotlightTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  fontWeight: 740,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekSupportLineStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekMetricGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const teamWeekSpotlightActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const teamWeekStepListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const teamWeekStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '32px minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'start',
+  minWidth: 0,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(255,255,255,0.04)',
+  padding: 12,
+}
+
+const teamWeekStepNumberStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 32,
+  height: 32,
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+}
+
+const teamWeekStepCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const teamWeekStepTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const teamWeekStepEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const teamWeekStepLinkStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  textDecoration: 'none',
+  borderBottom: '1px solid color-mix(in srgb, var(--brand-green) 46%, transparent)',
+}
+
+const teamWeekStepTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.15,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekStepBodyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 720,
+  overflowWrap: 'anywhere',
+}
+
+const teamWeekStepMetricsStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 6,
+  minWidth: 0,
+}
+
+const teamWeekStepMetricPillStyle: CSSProperties = {
+  display: 'inline-flex',
+  minHeight: 24,
+  alignItems: 'center',
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(7,17,33,0.62)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 780,
+  overflowWrap: 'anywhere',
+}
+
+const introMiniCardStyle = (compact: boolean): CSSProperties => ({
+  display: 'grid',
+  gap: compact ? 5 : 7,
+  alignContent: 'start',
+  minHeight: compact ? 84 : 132,
+  padding: compact ? 10 : 14,
+  borderRadius: compact ? 8 : 18,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: compact ? 12 : 13,
+  lineHeight: compact ? 1.42 : 1.55,
+  fontWeight: 720,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+})
+
+const summaryRow = (isSmallMobile: boolean, isMobile: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isSmallMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
-  gap: '12px',
-  marginTop: '18px',
+  gap: isMobile ? '6px' : '8px',
+  marginTop: isMobile ? '10px' : '14px',
   minWidth: 0,
 })
 
 const statPill: CSSProperties = {
-  borderRadius: '20px',
+  borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(8,16,34,0.7)',
-  padding: '16px 18px',
+  padding: '11px 12px',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
 const statValue: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: '28px',
+  fontSize: '20px',
+  lineHeight: 1.05,
   fontWeight: 900,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
@@ -1288,11 +1864,11 @@ const statLabel: CSSProperties = {
 const filtersCard: CSSProperties = {
   position: 'relative',
   overflow: 'hidden',
-  borderRadius: '26px',
+  borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.15)',
   background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
   boxShadow: '0 30px 86px rgba(2, 8, 23, 0.46), inset 0 1px 0 rgba(255,255,255,0.05)',
-  padding: '20px',
+  padding: '16px',
   minWidth: 0,
 }
 
@@ -1359,6 +1935,27 @@ const filtersActionRow: CSSProperties = {
   minWidth: 0,
 }
 
+const compactLoadingInlineStyle: CSSProperties = {
+  marginTop: 10,
+  padding: '8px 10px',
+  fontSize: 12,
+}
+
+const loadingInlineStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  marginTop: 12,
+  padding: '10px 12px',
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.35,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const clearFilterButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -1376,6 +1973,13 @@ const clearFilterButton: CSSProperties = {
   whiteSpace: 'normal',
   overflowWrap: 'anywhere',
   textAlign: 'center',
+}
+
+const compactFilterActionStyle: CSSProperties = {
+  minHeight: 36,
+  padding: '0 12px',
+  borderRadius: '12px',
+  fontSize: 12,
 }
 
 const browseAllButtonActiveStyle: CSSProperties = {
@@ -1428,10 +2032,10 @@ function GhostBtn({ onClick, children }: { onClick: () => void; children: ReactN
 
 const filtersGrid = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))',
-  gap: '14px',
+  gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))',
+  gap: isMobile ? '8px' : '10px',
   minWidth: 0,
-  marginTop: '18px',
+  marginTop: isMobile ? '10px' : '14px',
 })
 
 const labelStyle: CSSProperties = {
@@ -1459,6 +2063,13 @@ const inputStyle: CSSProperties = {
   colorScheme: 'dark',
 }
 
+const compactDirectoryControlStyle: CSSProperties = {
+  height: '42px',
+  borderRadius: '10px',
+  padding: '0 10px',
+  fontSize: '13px',
+}
+
 const directoryControlFocusStyle: CSSProperties = {
   borderColor: 'color-mix(in srgb, var(--brand-green) 44%, var(--shell-panel-border) 56%)',
   outline: '2px solid color-mix(in srgb, var(--brand-green) 48%, transparent)',
@@ -1472,40 +2083,6 @@ const surfaceCard: CSSProperties = {
   background: 'rgba(8,16,34,0.74)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
   padding: '22px',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const teamStartPanelStyle: CSSProperties = {
-  ...surfaceCard,
-  position: 'relative',
-  overflow: 'hidden',
-  padding: '24px',
-  border: '1px solid rgba(155,225,29,0.20)',
-  background:
-    'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(8,16,34,0.78) 42%, rgba(8,16,34,0.86))',
-}
-
-const teamStartGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
-  gap: 12,
-  minWidth: 0,
-  marginTop: 16,
-}
-
-const teamStartActionStyle: CSSProperties = {
-  display: 'grid',
-  gap: 6,
-  minHeight: 112,
-  padding: 15,
-  borderRadius: 18,
-  border: '1px solid rgba(116,190,255,0.13)',
-  background: 'rgba(255,255,255,0.045)',
-  color: 'var(--foreground-strong)',
-  textAlign: 'left',
-  cursor: 'pointer',
-  font: 'inherit',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -1543,6 +2120,99 @@ const emptyActionRow: CSSProperties = {
   minWidth: 0,
 }
 
+const teamDiscoveryResultsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  marginTop: 18,
+  minWidth: 0,
+}
+
+const teamPulseFeatureStyle: CSSProperties = {
+  display: 'grid',
+  gap: 18,
+  minWidth: 0,
+  padding: 'clamp(18px, 4vw, 30px)',
+  borderRadius: 24,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 12%, rgba(8,16,34,0.94) 88%), rgba(7,17,33,0.94) 64%)',
+  boxShadow: '0 24px 70px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.06)',
+  overflow: 'hidden',
+}
+
+const teamPulseFeatureTopStyle: CSSProperties = {
+  display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, minWidth: 0,
+}
+
+const teamPulseFeatureCopyStyle: CSSProperties = { display: 'grid', gap: 6, minWidth: 0 }
+
+const teamPulseEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase',
+}
+
+const teamPulseTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)', fontSize: 'clamp(1.8rem, 6vw, 3.2rem)', lineHeight: 0.98, letterSpacing: '-0.04em', fontWeight: 950, textDecoration: 'none', overflowWrap: 'anywhere',
+}
+
+const teamPulseMetaStyle: CSSProperties = {
+  display: 'flex', flexWrap: 'wrap', gap: 8, color: 'var(--shell-copy-muted)', fontSize: 13, fontWeight: 760, overflowWrap: 'anywhere',
+}
+
+const teamPulseFlightStyle: CSSProperties = { color: 'var(--brand-lime)' }
+
+const teamPulseSourceStyle: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', minHeight: 28, padding: '0 10px', borderRadius: 999, border: '1px solid rgba(116,190,255,0.2)', background: 'rgba(7,17,33,0.58)', color: 'var(--foreground-strong)', fontSize: 11, fontWeight: 820, maxWidth: '100%', overflowWrap: 'anywhere',
+}
+
+const teamPulseMainStyle: CSSProperties = {
+  display: 'grid', gridTemplateColumns: 'minmax(130px, 0.72fr) minmax(0, 1.28fr)', gap: 16, alignItems: 'stretch', minWidth: 0,
+}
+
+const teamPulseRecordStyle: CSSProperties = {
+  display: 'grid', alignContent: 'center', gap: 4, minWidth: 0, padding: '16px', borderRadius: 18, border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)', background: 'rgba(5,14,29,0.56)', color: 'var(--brand-lime)',
+}
+
+const teamPulseRecordValueStyle: CSSProperties = { fontSize: 'clamp(2.5rem, 9vw, 4.6rem)', lineHeight: 0.9, letterSpacing: '-0.07em', fontWeight: 950 }
+const teamPulseRecordLabelStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 820, textTransform: 'uppercase', letterSpacing: '0.08em' }
+
+const teamPulseFormStyle: CSSProperties = { display: 'grid', alignContent: 'center', gap: 7, minWidth: 0, padding: '16px 4px' }
+const teamPulseFormTitleStyle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 'clamp(1.25rem, 4vw, 2rem)', lineHeight: 1.04, fontWeight: 930, overflowWrap: 'anywhere' }
+const teamPulseBadgesStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 6, minWidth: 0 }
+const teamPulseSupportStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 12, lineHeight: 1.45, fontWeight: 700, overflowWrap: 'anywhere' }
+
+const teamPulseSignalGridStyle: CSSProperties = {
+  display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, minWidth: 0,
+}
+
+const teamPulseSignalStyle: CSSProperties = {
+  display: 'grid', gap: 4, minWidth: 0, padding: '10px', borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.13)', background: 'rgba(7,17,33,0.5)', overflowWrap: 'anywhere',
+  color: 'var(--shell-copy-muted)', fontSize: 10, fontWeight: 850, letterSpacing: '0.06em', textTransform: 'uppercase',
+}
+
+const teamPulseSignalValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)', fontSize: 13, lineHeight: 1.1, fontWeight: 950, letterSpacing: 0, textTransform: 'none',
+}
+
+const teamPulseFooterStyle: CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, minWidth: 0, paddingTop: 14, borderTop: '1px solid rgba(116,190,255,0.14)',
+}
+
+const teamPulseActionStyle: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 42, padding: '0 16px', borderRadius: 999, background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)', color: 'var(--foreground-strong)', fontSize: 13, fontWeight: 950, textDecoration: 'none',
+}
+
+const captainDiscoveryTeaseStyle: CSSProperties = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14, minWidth: 0, padding: '18px', borderRadius: 20, border: '1px solid color-mix(in srgb, var(--brand-blue-2) 32%, var(--shell-panel-border) 68%)', background: 'linear-gradient(135deg, rgba(38,120,255,0.13), rgba(7,17,33,0.78))',
+}
+
+const captainDiscoveryTeaseCopyStyle: CSSProperties = {
+  display: 'grid', gap: 5, minWidth: 0, maxWidth: 660, color: 'var(--shell-copy-muted)', fontSize: 13, lineHeight: 1.5, fontWeight: 700,
+}
+
+const captainDiscoveryTeaseActionStyle: CSSProperties = {
+  ...secondaryIntroButton, flex: '0 0 auto', borderColor: 'color-mix(in srgb, var(--brand-blue-2) 38%, var(--shell-panel-border) 62%)',
+}
+
 const cardsGrid = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : isTablet ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))',
@@ -1550,6 +2220,27 @@ const cardsGrid = (isTablet: boolean, isMobile: boolean): CSSProperties => ({
   marginTop: '18px',
   minWidth: 0,
 })
+
+const teamBoardLimitRowStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+  padding: '14px',
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.72)',
+}
+
+const teamBoardLimitTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
 
 const teamCard: CSSProperties = {
   height: '100%',
@@ -1670,9 +2361,27 @@ const teamAwardPillStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const teamRecordBarWrap: CSSProperties = {
-  marginBottom: 10,
+const teamSnapshotStyle: CSSProperties = {
+  marginTop: 16,
+  padding: '12px',
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.09), rgba(116,190,255,0.06))',
   minWidth: 0,
+}
+
+const teamSnapshotHeadingStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: 8,
+  marginBottom: 8,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  flexWrap: 'wrap',
 }
 
 const teamRecordBar: CSSProperties = {
@@ -1681,15 +2390,7 @@ const teamRecordBar: CSSProperties = {
   overflow: 'hidden',
   height: 7,
   background: 'color-mix(in srgb, var(--foreground-strong) 6%, transparent)',
-  marginBottom: 5,
-  minWidth: 0,
-}
-
-const teamRecordLegend: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: 8,
-  flexWrap: 'wrap',
+  marginBottom: 7,
   minWidth: 0,
 }
 
@@ -1700,18 +2401,11 @@ const teamRecordWinText: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const teamRecordLossText: CSSProperties = {
-  fontSize: 11,
-  fontWeight: 700,
-  color: '#fca5a5',
-  overflowWrap: 'anywhere',
-}
-
 const recentFormRow: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 6,
-  marginBottom: 10,
+  marginTop: 10,
   flexWrap: 'wrap',
   minWidth: 0,
 }
@@ -1746,6 +2440,38 @@ const metricsGrid: CSSProperties = {
   minWidth: 0,
 }
 
+const teamCardTrustDetailsStyle: CSSProperties = {
+  minWidth: 0,
+  marginTop: '12px',
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.46)',
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const teamCardTrustSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  minHeight: 42,
+  padding: '0 12px',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  fontSize: 12,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  flexWrap: 'wrap',
+  overflowWrap: 'anywhere',
+}
+
+const teamCardTrustBodyStyle: CSSProperties = {
+  padding: '0 10px 10px',
+  minWidth: 0,
+}
+
 const metricCard: CSSProperties = {
   borderRadius: '16px',
   border: '1px solid rgba(116,190,255,0.13)',
@@ -1774,11 +2500,11 @@ const metricLabel: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-86px',
+  right: 0,
   top: '-108px',
-  width: '340px',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
-  opacity: 0.14,
+  width: 'min(280px, 58vw)',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/player-profile/player-id-court.png") center / cover no-repeat',
+  opacity: 0.18,
   pointerEvents: 'none',
 }

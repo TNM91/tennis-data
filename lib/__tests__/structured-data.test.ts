@@ -46,7 +46,7 @@ describe('structured data', () => {
       '@context': 'https://schema.org',
       '@type': 'Organization',
       name: 'TenAceIQ',
-      url: 'https://tenaceiq.com',
+      url: 'https://www.tenaceiq.com',
       slogan: 'More Tennis. Less Chaos.',
     })
 
@@ -56,7 +56,7 @@ describe('structured data', () => {
       name: 'TenAceIQ',
       potentialAction: {
         '@type': 'SearchAction',
-        target: 'https://tenaceiq.com/explore?q={search_term_string}',
+        target: 'https://www.tenaceiq.com/explore?q={search_term_string}',
         'query-input': 'required name=search_term_string',
       },
     })
@@ -89,7 +89,7 @@ describe('structured data', () => {
     expect(layoutSource).toContain('tenaceiq-organization-jsonld')
     expect(layoutSource).toContain('tenaceiq-website-jsonld')
     expect(resourcesSource).toContain('resources-breadcrumb-jsonld')
-    expect(resourcesSource).toContain('resources-faq-jsonld')
+    expect(resourcesSource).toContain("buildPublicSectionBreadcrumbJsonLd('Help', '/resources')")
     expect(teamsSource).toContain('teams-breadcrumb-jsonld')
     expect(leaguesSource).toContain('leagues-breadcrumb-jsonld')
     expect(pricingSource).toContain('pricing-breadcrumb-jsonld')

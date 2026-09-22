@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
 import CaptainSuitePanel from '@/app/components/captain-suite-panel'
@@ -22,12 +22,31 @@ import { supabase } from '@/lib/supabase'
 import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
+  appendLevelUpChallengeHref,
+  buildCaptainLevelUpCardHref,
+  buildCaptainLevelUpChallenge,
+  getCaptainLevelUpCardDetails,
+  type CaptainLevelUpChallenge,
+} from '@/lib/captain-level-up-challenge'
+import {
+  buildCaptainWeekChallengeHistoryHref,
+  buildCaptainWeekChallengeTeamRoomHref,
+  recommendCaptainWeekChallengeFollowUp,
+  selectCaptainCompletedWeekChallenge,
+  selectCaptainWeekChallenge,
+  type CaptainWeekChallenge,
+  type CaptainWeekChallengeHistoryItem,
+} from '@/lib/captain-week-challenge'
+import { buildConsumedWorkflowHref } from '@/lib/workflow-return'
+import {
   formatWeekdayDate as formatDate,
   cleanText as safeText,
   safeKey,
   readLocalArray,
   readLocalItem as readLocalObject,
 } from '@/lib/captain-formatters'
+import { useCaptainMatchWeekDraft } from '@/lib/use-captain-match-week-draft'
+import { useCaptainMatchWeekReadiness } from '@/lib/use-captain-match-week-readiness'
 
 type MatchRow = {
   id: string
@@ -125,8 +144,12 @@ export default function CaptainWeeklyBriefPage() {
 
 function CaptainWeeklyBriefContent() {
   const router = useRouter()
-  const { role, entitlements, authResolved } = useAuth()
-  const { isTablet, isSmallMobile } = useViewportBreakpoints()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const auth = useAuth()
+  const { role, entitlements, authResolved } = auth
+  const { session } = auth
+  const { isTablet, isSmallMobile, isMobile } = useViewportBreakpoints()
   const initialContext = readInitialBriefContext()
 
   const [loading, setLoading] = useState(false)
@@ -146,14 +169,33 @@ function CaptainWeeklyBriefContent() {
   const [eventDate, setEventDate] = useState(initialContext.eventDate)
   const [opponentTeam, setOpponentTeam] = useState(initialContext.opponentTeam)
   const [matches, setMatches] = useState<MatchRow[]>([])
+  const incomingLevelUpChallenge = useMemo(
+    () => buildCaptainLevelUpChallenge(searchParams.get('levelUpChallenge') || '', searchParams.get('card') || ''),
+    [searchParams],
+  )
+  const [levelUpChallenge, setLevelUpChallenge] = useState<CaptainLevelUpChallenge | null>(incomingLevelUpChallenge)
+  const [connectedWeekChallenge, setConnectedWeekChallenge] = useState<CaptainWeekChallenge | null>(null)
+  const [completedWeekChallenge, setCompletedWeekChallenge] = useState<CaptainWeekChallenge | null>(null)
 
   useEffect(() => {
     if (!authResolved || role !== 'public' || typeof window === 'undefined') {
       return
     }
-    const next = encodeURIComponent('/captain/weekly-brief')
-    window.location.href = `/login?next=${next}`
-  }, [authResolved, role])
+    const next = encodeURIComponent(`${pathname}${searchParams.size ? `?${searchParams.toString()}` : ''}`)
+    router.replace(`/login?plan=captain&next=${next}`)
+  }, [authResolved, pathname, role, router, searchParams])
+
+  useEffect(() => {
+    if (!authResolved || role === 'public' || !incomingLevelUpChallenge) return
+
+    const consumedHref = buildConsumedWorkflowHref(
+      pathname,
+      searchParams,
+      ['levelUpChallenge', 'card'],
+      window.location.hash,
+    )
+    if (consumedHref) router.replace(consumedHref, { scroll: false })
+  }, [authResolved, incomingLevelUpChallenge, pathname, role, router, searchParams])
 
   useEffect(() => {
     if (!authResolved || role === 'public') return
@@ -241,6 +283,68 @@ function CaptainWeeklyBriefContent() {
     [eventDate, matches]
   )
 
+  useEffect(() => {
+    if (!authResolved || role === 'public' || !session?.access_token || !team || !league || !flight) {
+      return
+    }
+
+    let active = true
+    const scope = { teamName: team, leagueName: league, flight }
+    const selectedDate = eventDate || currentMatch?.match_date || ''
+
+    async function loadConnectedWeekChallenge() {
+      try {
+        const response = await fetch(buildCaptainWeekChallengeHistoryHref(scope), {
+          headers: { Authorization: `Bearer ${session?.access_token || ''}` },
+          cache: 'no-store',
+        })
+        const result = await response.json() as {
+          history?: CaptainWeekChallengeHistoryItem[]
+        }
+        if (!response.ok || !active) return
+        const history = result.history ?? []
+        const selected = selectCaptainWeekChallenge(history, selectedDate)
+        const challenge = selected ? buildCaptainLevelUpChallenge(selected.challengeId) : null
+        setConnectedWeekChallenge(selected && challenge ? {
+          challenge,
+          history: selected,
+          teamRoomHref: buildCaptainWeekChallengeTeamRoomHref(scope, selected.messageId),
+        } : null)
+        const completed = selectCaptainCompletedWeekChallenge(history, selectedDate)
+        const completedChallenge = completed ? buildCaptainLevelUpChallenge(completed.challengeId) : null
+        setCompletedWeekChallenge(completed && completedChallenge ? {
+          challenge: completedChallenge,
+          history: completed,
+          teamRoomHref: buildCaptainWeekChallengeTeamRoomHref(scope, completed.messageId),
+        } : null)
+      } catch {
+        if (active) {
+          setConnectedWeekChallenge(null)
+          setCompletedWeekChallenge(null)
+        }
+      }
+    }
+
+    void loadConnectedWeekChallenge()
+    return () => {
+      active = false
+    }
+  }, [authResolved, currentMatch?.match_date, eventDate, flight, league, role, session?.access_token, team])
+
+  const storedWeekChallenge = completedWeekChallenge ?? connectedWeekChallenge
+  const completedWeekChallengeFollowUp = useMemo(
+    () => completedWeekChallenge
+      ? recommendCaptainWeekChallengeFollowUp(completedWeekChallenge.history)
+      : null,
+    [completedWeekChallenge],
+  )
+  const displayedLevelUpChallenge = levelUpChallenge ?? storedWeekChallenge?.challenge ?? null
+  const displayedChallengeHistory = levelUpChallenge ? null : storedWeekChallenge?.history ?? null
+  const displayedTeamRoomHref = storedWeekChallenge
+    && storedWeekChallenge.challenge.id === displayedLevelUpChallenge?.id
+    ? storedWeekChallenge.teamRoomHref
+    : ''
+
   const resolvedOpponent =
     opponentTeam ||
     (currentMatch
@@ -254,13 +358,39 @@ function CaptainWeeklyBriefContent() {
     [currentMatch?.match_date, eventDate, flight, league, team]
   )
 
-  const lineupRows = useMemo(
+  const localLineupRows = useMemo(
     () => readLocalArray<LineupAssignment>(WEEKLY_LINEUPS_STORAGE_KEY).filter((row) => row.event_key === eventKey),
     [eventKey]
   )
 
-  const eventDetail =
+  const localEventDetail =
     readLocalArray<EventDetail>(WEEKLY_EVENT_DETAILS_STORAGE_KEY).find((row) => safeText(row.key) === eventKey) ?? null
+
+  const matchWeekDraftScope = useMemo(() => ({
+    competitionLayer,
+    teamName: team,
+    leagueName: league,
+    flight,
+    matchDate: safeText(eventDate || currentMatch?.match_date).slice(0, 10),
+    opponentTeam: resolvedOpponent,
+  }), [competitionLayer, currentMatch?.match_date, eventDate, flight, league, resolvedOpponent, team])
+  const { matchWeek, status: matchWeekCloudStatus } = useCaptainMatchWeekDraft({
+    accessToken: session?.access_token,
+    enabled: authResolved && role !== 'public' && access.canUseCaptainWorkflow,
+    scope: matchWeekDraftScope,
+  })
+  const lineupRows = useMemo<LineupAssignment[]>(() => matchWeek
+    ? matchWeek.courts.map((court) => ({
+        id: court.id,
+        event_key: eventKey,
+        court_label: court.label,
+        slot_type: court.slotType,
+        players: court.players,
+      }))
+    : localLineupRows, [eventKey, localLineupRows, matchWeek])
+  const eventDetail = matchWeek
+    ? { key: eventKey, ...matchWeek.details }
+    : localEventDetail
 
   const selectedScenario = readLocalObject<StoredScenario>(SELECTED_SCENARIO_STORAGE_KEY)
   const sharedNotes = readCaptainWeekNotes({
@@ -287,6 +417,19 @@ function CaptainWeeklyBriefContent() {
   )
   const weekStatusMeta = useMemo(() => getCaptainWeekStatusMeta(weekStatus), [weekStatus])
 
+  const { readiness: cloudReadiness, status: cloudReadinessStatus } = useCaptainMatchWeekReadiness({
+    accessToken: session?.access_token,
+    enabled: authResolved && role !== 'public' && access.canUseCaptainWorkflow,
+    scope: {
+      competitionLayer,
+      teamName: team,
+      leagueName: league,
+      flight,
+      matchDate: safeText(eventDate || currentMatch?.match_date).slice(0, 10),
+      opponentTeam: resolvedOpponent,
+    },
+  })
+
   const availabilityRows = useMemo(
     () => readLocalArray<WeeklyAvailability>(WEEKLY_AVAILABILITY_STORAGE_KEY).filter((row) => row.event_key === eventKey),
     [eventKey]
@@ -296,7 +439,7 @@ function CaptainWeeklyBriefContent() {
     [eventKey]
   )
 
-  const availabilitySummary = useMemo(() => {
+  const localAvailabilitySummary = useMemo(() => {
     const counts = {
       available: 0,
       tentative: 0,
@@ -314,7 +457,16 @@ function CaptainWeeklyBriefContent() {
     return counts
   }, [availabilityRows])
 
-  const responseSummary = useMemo(() => {
+  const availabilitySummary = cloudReadiness
+    ? {
+        available: cloudReadiness.summary.available,
+        tentative: cloudReadiness.summary.maybe,
+        unavailable: cloudReadiness.summary.unavailable,
+        noResponse: cloudReadiness.summary.waiting,
+      }
+    : localAvailabilitySummary
+
+  const localResponseSummary = useMemo(() => {
     const counts = {
       confirmed: 0,
       late: 0,
@@ -330,6 +482,14 @@ function CaptainWeeklyBriefContent() {
     return counts
   }, [responseRows])
 
+  const responseSummary = cloudReadiness
+    ? {
+        confirmed: Math.max(0, cloudReadiness.summary.roster - cloudReadiness.summary.waiting),
+        late: localResponseSummary.late,
+        noResponse: cloudReadiness.summary.waiting,
+      }
+    : localResponseSummary
+
   const availabilityTotal =
     availabilitySummary.available +
     availabilitySummary.tentative +
@@ -342,12 +502,43 @@ function CaptainWeeklyBriefContent() {
   const responseReadyPercent = responseTotal ? Math.round((responseSummary.confirmed / responseTotal) * 100) : 0
   const lineupTarget = Math.max(lineupRows.length, 5)
   const lineupReadyPercent = lineupRows.length ? Math.min(100, Math.round((lineupRows.length / lineupTarget) * 100)) : 0
-  const openRiskCount =
-    availabilitySummary.tentative +
-    availabilitySummary.noResponse +
-    responseSummary.late +
-    responseSummary.noResponse +
-    (lineupRows.length ? 0 : 1)
+  const openRiskCount = cloudReadiness
+    ? availabilitySummary.tentative + availabilitySummary.unavailable + availabilitySummary.noResponse + responseSummary.late + (lineupRows.length ? 0 : 1)
+    : availabilitySummary.tentative + availabilitySummary.noResponse + responseSummary.late + responseSummary.noResponse + (lineupRows.length ? 0 : 1)
+  const missingReplyCount = cloudReadiness
+    ? cloudReadiness.summary.waiting
+    : availabilitySummary.noResponse + responseSummary.noResponse
+  const captainDecision = openRiskCount === 0
+    ? 'Your week is ready. Confirm the lineup, then send the team brief.'
+    : missingReplyCount > 0
+      ? `Clear ${missingReplyCount} missing response${missingReplyCount === 1 ? '' : 's'} before locking courts.`
+      : !lineupRows.length
+        ? 'Build the first lineup scenario before you make match-day calls.'
+        : 'Review tentative availability before confirming the final courts.'
+  const mobileWeekPulse = [
+    {
+      label: 'Courts',
+      value: lineupRows.length ? `${lineupRows.length} set` : 'Open',
+      detail: lineupRows.length ? `${lineupReadyPercent}% lineup read` : 'Build the lineup first',
+      tone: lineupRows.length ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Available',
+      value: String(availabilitySummary.available),
+      detail: availabilitySummary.tentative + availabilitySummary.noResponse
+        ? `${availabilitySummary.tentative + availabilitySummary.noResponse} to clear`
+        : 'No reply gaps',
+      tone: availabilityReadyPercent >= 75 ? 'ready' : 'waiting',
+    },
+    {
+      label: 'Replies',
+      value: String(responseSummary.confirmed),
+      detail: responseSummary.late + responseSummary.noResponse
+        ? `${responseSummary.late + responseSummary.noResponse} to chase`
+        : 'Replies steady',
+      tone: responseReadyPercent >= 75 ? 'ready' : 'waiting',
+    },
+  ]
 
   const readinessItems = [
     {
@@ -391,6 +582,14 @@ function CaptainWeeklyBriefContent() {
     date: eventDate,
     opponent: resolvedOpponent,
   })
+  const availabilityHref = buildCaptainScopedHref('/captain/availability', {
+    competitionLayer,
+    team,
+    league,
+    flight,
+    date: eventDate,
+    opponent: resolvedOpponent,
+  })
   const analyticsHref = buildCaptainScopedHref('/captain/analytics', {
     competitionLayer,
     team,
@@ -407,11 +606,38 @@ function CaptainWeeklyBriefContent() {
     date: eventDate,
     opponent: resolvedOpponent,
   })
+  const nextTeamChallengeHref = completedWeekChallengeFollowUp
+    ? appendLevelUpChallengeHref(
+        `${buildCaptainScopedHref('/captain', {
+          competitionLayer,
+          team,
+          league,
+          flight,
+          date: eventDate,
+          opponent: resolvedOpponent,
+        })}#captain-level-up-challenge`,
+        completedWeekChallengeFollowUp.challenge.id,
+      )
+    : ''
   const nextAction = !lineupRows.length
     ? { label: 'Build lineup', href: lineupBuilderHref }
-    : openRiskCount > 0
+    : availabilitySummary.tentative + availabilitySummary.noResponse > 0
+      ? { label: 'Check availability', href: availabilityHref }
+      : openRiskCount > 0
       ? { label: 'Send follow-up', href: messagingHref }
       : { label: 'Open team brief', href: teamBriefHref }
+  const weekReadinessPercent = Math.round(
+    (readinessItems.filter((item) => item.done).length / readinessItems.length) * 100,
+  )
+  const matchWeekPulseDetail = !lineupRows.length
+    ? 'Set the courts before the rest of the week gets harder.'
+    : availabilitySummary.tentative + availabilitySummary.noResponse > 0
+      ? 'Clear the player pool before you lock the plan.'
+      : responseSummary.late + responseSummary.noResponse > 0
+        ? 'Close the reply gaps, then send the team plan.'
+        : !eventDetail?.arrivalTime && !eventDetail?.location
+          ? 'Add the match details so everyone arrives ready.'
+          : 'The essentials are set. Review the team brief before match day.'
 
   function updateWeekStatus(nextStatus: CaptainWeekStatus) {
     setWeekStatusState({
@@ -454,7 +680,7 @@ function CaptainWeeklyBriefContent() {
   return (
     <main style={pageStyle}>
       <div style={contentStyle}>
-          <CaptainSuitePanel active="brief" teamLabel={team || 'Team week'} />
+          {!isMobile ? <CaptainSuitePanel active="brief" teamLabel={team || 'Team week'} /> : null}
           <section style={heroCard} aria-label="Weekly brief controls">
             <span aria-hidden="true" style={watermarkStyle} />
             <div style={heroTopRow}>
@@ -463,14 +689,20 @@ function CaptainWeeklyBriefContent() {
                 <h1 style={heroTitle}>{resolvedOpponent ? `Week vs ${resolvedOpponent}` : 'Match week readout'}</h1>
               </div>
 
-              <div style={heroButtonRow}>
-                <PrimaryLink href={nextAction.href}>{nextAction.label}</PrimaryLink>
-                <SecondaryLink href={teamBriefHref}>Team brief</SecondaryLink>
-                <SecondaryBtn onClick={handlePrint}>Print</SecondaryBtn>
-              </div>
+              {!isMobile ? (
+                <div style={heroButtonRow}>
+                  <PrimaryLink href={nextAction.href}>{nextAction.label}</PrimaryLink>
+                  <SecondaryLink href={teamBriefHref}>Team brief</SecondaryLink>
+                  <SecondaryBtn onClick={handlePrint}>Print</SecondaryBtn>
+                </div>
+              ) : null}
             </div>
 
             <div style={briefBoardStyle}>
+              <div style={{ ...briefStatusStyle, gridColumn: '1 / -1' }}>
+                <span style={briefStatusPillStyle}>Captain call</span>
+                <div style={statusValue}>{captainDecision}</div>
+              </div>
               <div style={briefStatusStyle}>
                 <span style={briefStatusPillStyle}>{openRiskCount ? `${openRiskCount} open risk${openRiskCount === 1 ? '' : 's'}` : 'Ready'}</span>
                 <div style={statusValue}>{weekStatusMeta.label}</div>
@@ -479,6 +711,16 @@ function CaptainWeeklyBriefContent() {
                   <span>{formatDate(eventDate || currentMatch?.match_date)}</span>
                   <span>{team || 'Team not set'}</span>
                   <span>{eventDetail?.arrivalTime || 'Arrival pending'}</span>
+                </div>
+                <div style={briefMetaRowStyle}>
+                  <span>{selectedScenario?.scenario_name || 'Scenario pending'}</span>
+                  <span>{resolvedOpponent ? `Opponent: ${resolvedOpponent}` : 'Opponent pending'}</span>
+                  <span>{matchWeekCloudStatus === 'loading' ? 'Syncing Match Week'
+                    : matchWeek ? 'Match Week synced'
+                      : 'Phone backup'}</span>
+                  <span>{cloudReadinessStatus === 'loading' ? 'Checking replies'
+                    : cloudReadiness ? 'Replies synced'
+                      : 'Phone reply backup'}</span>
                 </div>
               </div>
               <div style={statusButtonRow}>
@@ -494,7 +736,42 @@ function CaptainWeeklyBriefContent() {
               </div>
             </div>
 
-            <div style={briefSignalGridStyle}>
+            {isMobile ? (
+              <div style={mobileWeekPulseShellStyle} aria-label="Captain match week pulse">
+                <div style={mobileWeekPulseSummaryStyle}>
+                  <div>
+                    <p style={mobileWeekPulseKickerStyle}>Match Week Pulse</p>
+                    <strong style={mobileWeekPulseHeadlineStyle}>{weekReadinessPercent}% ready</strong>
+                  </div>
+                  <span style={mobileWeekPulseRiskStyle}>
+                    {openRiskCount ? `${openRiskCount} to clear` : 'On track'}
+                  </span>
+                </div>
+                <div style={mobileWeekPulseStyle}>
+                  {mobileWeekPulse.map((item) => (
+                    <div
+                      key={item.label}
+                      style={{
+                        ...mobileWeekPulseCardStyle,
+                        ...(item.tone === 'ready' ? mobileWeekPulseCardReadyStyle : mobileWeekPulseCardWaitingStyle),
+                      }}
+                    >
+                      <span style={mobileWeekPulseLabelStyle}>{item.label}</span>
+                      <strong style={mobileWeekPulseValueStyle}>{item.value}</strong>
+                      <small style={mobileWeekPulseDetailStyle}>{item.detail}</small>
+                    </div>
+                  ))}
+                </div>
+                <div style={mobileWeekPulseNextStyle}>
+                  <div style={mobileWeekPulseNextCopyStyle}>
+                    <span style={mobileWeekPulseNextLabelStyle}>Next move</span>
+                    <strong style={mobileWeekPulseNextTitleStyle}>{nextAction.label}</strong>
+                    <small style={mobileWeekPulseNextDetailStyle}>{matchWeekPulseDetail}</small>
+                  </div>
+                  <PrimaryLink href={nextAction.href}>{nextAction.label}</PrimaryLink>
+                </div>
+              </div>
+            ) : <div style={briefSignalGridStyle}>
               <BriefSignal
                 label="Lineup"
                 value={lineupRows.length ? `${lineupRows.length} courts` : 'Not loaded'}
@@ -516,9 +793,56 @@ function CaptainWeeklyBriefContent() {
                 percent={responseReadyPercent}
                 accent={responseReadyPercent >= 75}
               />
-            </div>
+            </div>}
 
           </section>
+
+          {displayedLevelUpChallenge ? (
+            <section style={surfaceCard} aria-label="Level Up challenge loaded into weekly brief">
+              <div style={sectionHeaderStyle}>
+                <div>
+                  <p style={sectionKicker}>
+                    {displayedChallengeHistory?.status === 'closed'
+                      ? 'Challenge recap'
+                      : displayedChallengeHistory?.status === 'scheduled' ? "This week's team challenge" : displayedChallengeHistory ? 'Challenge in progress' : 'Challenge loaded'}
+                  </p>
+                  <h2 style={sectionTitle}>{displayedLevelUpChallenge.title}</h2>
+                </div>
+                <span style={pillStyle}>
+                  {displayedChallengeHistory?.status === 'active'
+                    ? `${displayedChallengeHistory.completedCount}/${displayedChallengeHistory.connectedCount} complete`
+                    : displayedChallengeHistory?.status === 'closed'
+                      ? `${displayedChallengeHistory.completedCount}/${displayedChallengeHistory.connectedCount} complete`
+                    : `${displayedLevelUpChallenge.cardIds.length} cards`}
+                </span>
+              </div>
+              <div style={{ ...mutedCallout, display: 'grid', gap: 6 }}>
+                <strong>{displayedLevelUpChallenge.focus}</strong>
+                <span>{displayedLevelUpChallenge.detail}</span>
+                <span>Team progress stays aggregate. Player proof and notes stay private.</span>
+                {displayedChallengeHistory?.status === 'closed' && completedWeekChallengeFollowUp ? (
+                  <>
+                    <strong>Next: {completedWeekChallengeFollowUp.challenge.title}</strong>
+                    <span>{completedWeekChallengeFollowUp.reason}</span>
+                  </>
+                ) : null}
+              </div>
+              <div style={actionRow}>
+                {displayedChallengeHistory?.status === 'closed' && nextTeamChallengeHref ? (
+                  <PrimaryLink href={nextTeamChallengeHref}>Plan next challenge</PrimaryLink>
+                ) : null}
+                {displayedTeamRoomHref ? (
+                  displayedChallengeHistory?.status === 'closed'
+                    ? <SecondaryLink href={displayedTeamRoomHref}>Open Team Room</SecondaryLink>
+                    : <PrimaryLink href={displayedTeamRoomHref}>Open Team Room</PrimaryLink>
+                ) : null}
+                {getCaptainLevelUpCardDetails(displayedLevelUpChallenge).map((card) => (
+                  <SecondaryLink key={card.id} href={buildCaptainLevelUpCardHref(card.id)}>{card.title}</SecondaryLink>
+                ))}
+                {levelUpChallenge ? <SecondaryBtn onClick={() => setLevelUpChallenge(null)}>Done</SecondaryBtn> : null}
+              </div>
+            </section>
+          ) : null}
 
           {error ? <section style={errorCard}>{error}</section> : null}
 
@@ -777,8 +1101,8 @@ const watermarkStyle: CSSProperties = {
   right: 'clamp(-92px, -7vw, -34px)',
   bottom: 'clamp(-112px, -10vw, -52px)',
   width: 'clamp(230px, 30vw, 420px)',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }
@@ -883,6 +1207,151 @@ const briefSignalGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
   gap: 14,
   minWidth: 0,
+}
+
+const mobileWeekPulseShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  position: 'relative',
+  zIndex: 1,
+  minWidth: 0,
+}
+
+const mobileWeekPulseSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+}
+
+const mobileWeekPulseKickerStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--brand-blue-2)',
+  fontSize: 10,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseHeadlineStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.05,
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseRiskStyle: CSSProperties = {
+  flex: '0 1 auto',
+  maxWidth: '100%',
+  borderRadius: 999,
+  padding: '6px 9px',
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 26%, var(--shell-panel-border) 74%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 10,
+  fontWeight: 900,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 7,
+  position: 'relative',
+  zIndex: 1,
+  minWidth: 0,
+}
+
+const mobileWeekPulseCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: '10px 8px',
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+}
+
+const mobileWeekPulseCardReadyStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
+}
+
+const mobileWeekPulseCardWaitingStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+}
+
+const mobileWeekPulseLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 9,
+  lineHeight: 1.1,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  lineHeight: 1.3,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseNextStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: 10,
+  minWidth: 0,
+  padding: '11px 12px',
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg) 88%), var(--shell-panel-bg))',
+}
+
+const mobileWeekPulseNextCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+}
+
+const mobileWeekPulseNextLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 9,
+  fontWeight: 950,
+  letterSpacing: '0.07em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseNextTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const mobileWeekPulseNextDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.35,
+  fontWeight: 700,
+  overflowWrap: 'anywhere',
 }
 
 const briefSignalCardStyle: CSSProperties = {

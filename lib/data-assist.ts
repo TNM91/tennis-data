@@ -11,6 +11,7 @@ import {
 } from './data-assist-ocr'
 import type { DataAssistScheduleParsedDraft } from './data-assist-schedule-parser'
 import type { DataAssistTeamSummaryParsedDraft } from './data-assist-team-summary-parser'
+import type { TeamDataRefreshComparison } from './team-data-refresh'
 import type { DataAssistImportPreview } from './data-assist-import'
 import type { RunImportSuccess } from './ingestion/runImport'
 import { supabase } from './supabase'
@@ -65,6 +66,7 @@ export type DataAssistSaveResult = {
   batchId: string
   draftId: string
   screenshotCount: number
+  exactDuplicate?: boolean
 }
 
 export type DataAssistOcrVerificationResult = {
@@ -85,6 +87,9 @@ export type DataAssistImportActionResult = {
   message: string
   importPreview?: DataAssistImportPreview
   importResult?: Extract<RunImportSuccess, { kind: 'scorecard' | 'schedule' | 'team_summary' }>
+  importedContactCount?: number
+  contactWarning?: string
+  refreshComparison?: TeamDataRefreshComparison
 }
 
 export type DataAssistAdminBatch = {
@@ -567,14 +572,31 @@ export function getDataAssistContributionValue(importType: DataAssistImportType)
 }
 
 export function validateDataAssistFiles(files: File[]) {
+  return validateDataAssistFilesForType(files, 'scorecard')
+}
+
+export function validateDataAssistFilesForType(
+  files: File[],
+  requestedImportType: DataAssistImportType,
+  ocrReadiness = getDataAssistOcrReadiness(),
+) {
   if (!files.length) return 'Choose a TennisLink Excel export.'
   if (files.length > MAX_BATCH_SIZE) return `Upload ${MAX_BATCH_SIZE} TennisLink exports or fewer in one batch.`
 
-  const unsupported = files.find((file) => !isSupportedTennisLinkExport(file))
-  if (unsupported) return 'Data Assist now accepts TennisLink Excel exports only. Use Send To Excel, then upload the .xls file.'
+  const unsupported = files.find((file) => !isSupportedDataAssistFile(file, requestedImportType, ocrReadiness))
+  if (unsupported) {
+    if (isImageFile(unsupported) && requestedImportType === 'scorecard' && !ocrReadiness.canRun) {
+      return 'Scorecard photos are not enabled yet. Use the verified scorecard form or upload the TennisLink Excel export.'
+    }
+    return requestedImportType === 'scorecard'
+      ? 'Data Assist accepts TennisLink Excel exports. A clear scorecard photo is also available when scorecard reading is enabled.'
+      : 'Data Assist now accepts TennisLink Excel exports only. Use Send To Excel, then upload the .xls file.'
+  }
 
   const tooLarge = files.find((file) => file.size > MAX_SCREENSHOT_BYTES)
-  if (tooLarge) return 'Each TennisLink export needs to be 10 MB or smaller.'
+  if (tooLarge) return requestedImportType === 'scorecard'
+    ? 'Each scorecard export or photo needs to be 10 MB or smaller.'
+    : 'Each TennisLink export needs to be 10 MB or smaller.'
 
   return ''
 }
@@ -583,7 +605,8 @@ export async function prepareDataAssistBatch(
   files: File[],
   requestedImportType: DataAssistImportType,
 ): Promise<DataAssistBatchSummary> {
-  const validation = validateDataAssistFiles(files)
+  const ocrReadiness = getDataAssistOcrReadiness()
+  const validation = validateDataAssistFilesForType(files, requestedImportType, ocrReadiness)
   if (validation) {
     return {
       requestedImportType,
@@ -597,7 +620,7 @@ export async function prepareDataAssistBatch(
   }
 
   const screenshots = await Promise.all(
-    files.map(async (file, index) => prepareDataAssistScreenshot(file, index + 1, requestedImportType)),
+    files.map(async (file, index) => prepareDataAssistScreenshot(file, index + 1, requestedImportType, ocrReadiness)),
   )
   return summarizeDataAssistBatch(requestedImportType, screenshots)
 }
@@ -652,11 +675,19 @@ export function reorderDataAssistScreenshots(
   return nextScreenshots.map((screenshot, index) => ({ ...screenshot, uploadOrder: index + 1 }))
 }
 
-export async function saveDataAssistDraftBatch(summary: DataAssistBatchSummary): Promise<DataAssistSaveResult> {
+export async function saveDataAssistDraftBatch(
+  summary: DataAssistBatchSummary,
+  options: { allowExactDuplicate?: boolean } = {},
+): Promise<DataAssistSaveResult> {
   const authState = await getClientAuthState()
   const userId = authState.user?.id?.trim()
   if (!userId) throw new Error('Sign in to import with Data Assist.')
   if (summary.status === 'rejected') throw new Error(summary.rejectionReason || 'This batch is not supported.')
+
+  if (!options.allowExactDuplicate && summary.requestedImportType !== 'scorecard' && summary.screenshots.length === 1) {
+    const duplicate = await findExactImportedDataAssistUpload(userId, summary)
+    if (duplicate) return { ...duplicate, screenshotCount: 1, exactDuplicate: true }
+  }
 
   const { data: batch, error: batchError } = await supabase
     .from('data_assist_batches')
@@ -744,6 +775,47 @@ export async function saveDataAssistDraftBatch(summary: DataAssistBatchSummary):
   return { batchId, draftId, screenshotCount: uploadedScreenshots.length }
 }
 
+async function findExactImportedDataAssistUpload(userId: string, summary: DataAssistBatchSummary) {
+  const screenshot = summary.screenshots[0]
+  if (!screenshot?.clientFingerprint) return null
+  const screenshotResult = await supabase
+    .from('data_assist_screenshots')
+    .select('batch_id')
+    .eq('submitted_by_user_id', userId)
+    .eq('client_fingerprint', screenshot.clientFingerprint)
+    .eq('file_size_bytes', screenshot.fileSizeBytes)
+    .eq('mime_type', screenshot.mimeType)
+    .order('created_at', { ascending: false })
+    .limit(20)
+  if (screenshotResult.error) return null
+  const candidateIds = Array.from(new Set((screenshotResult.data || [])
+    .map((row) => cleanText((row as { batch_id?: string | null }).batch_id))
+    .filter(Boolean)))
+  if (!candidateIds.length) return null
+
+  const batchResult = await supabase
+    .from('data_assist_batches')
+    .select('id')
+    .in('id', candidateIds)
+    .eq('submitted_by_user_id', userId)
+    .eq('requested_import_type', summary.requestedImportType)
+    .eq('status', 'imported')
+  if (batchResult.error) return null
+  const importedIds = new Set((batchResult.data || []).map((row) => cleanText((row as { id?: string | null }).id)).filter(Boolean))
+  const batchId = candidateIds.find((id) => importedIds.has(id)) || ''
+  if (!batchId) return null
+
+  const draftResult = await supabase
+    .from('data_assist_drafts')
+    .select('id')
+    .eq('batch_id', batchId)
+    .eq('submitted_by_user_id', userId)
+    .maybeSingle()
+  if (draftResult.error) return null
+  const draftId = cleanText((draftResult.data as { id?: string | null } | null)?.id)
+  return draftId ? { batchId, draftId } : null
+}
+
 export async function listMyDataAssistSubmissions() {
   const authState = await getClientAuthState()
   const userId = authState.user?.id?.trim()
@@ -807,6 +879,7 @@ export async function reviewMyDataAssistOcrDraft(input: {
   batchId: string
   draftId: string
   decision: DataAssistOcrReviewDecision
+  parsedDraft?: DataAssistScheduleParsedDraft
 }) {
   const normalizedBatchId = cleanText(input.batchId)
   const normalizedDraftId = cleanText(input.draftId)
@@ -830,6 +903,7 @@ export async function reviewMyDataAssistOcrDraft(input: {
       batchId: normalizedBatchId,
       draftId: normalizedDraftId,
       decision: input.decision,
+      parsedDraft: input.parsedDraft,
     }),
   })
   const result = (await response.json().catch(() => null)) as {
@@ -1360,6 +1434,7 @@ async function prepareDataAssistScreenshot(
   file: File,
   uploadOrder: number,
   requestedImportType: DataAssistImportType,
+  ocrReadiness = getDataAssistOcrReadiness(),
 ): Promise<DataAssistPreparedScreenshot> {
   if (isSupportedTennisLinkExport(file)) {
     const visualSignals = ['TennisLink Excel export', 'HTML table export']
@@ -1393,8 +1468,8 @@ async function prepareDataAssistScreenshot(
   const previewUrl = URL.createObjectURL(preparedFile)
   const dimensions = prepared.dimensions
   const visualSignals = detectVisualSignals(preparedFile, dimensions)
-  const layoutSignals = detectLayoutSignals(file, requestedImportType)
-  const rejectionReason = buildScreenshotRejectionReason(preparedFile, dimensions)
+  const layoutSignals = detectLayoutSignals(file, requestedImportType, ocrReadiness)
+  const rejectionReason = buildScreenshotRejectionReason(preparedFile, dimensions, requestedImportType, ocrReadiness)
   const confidenceScore = rejectionReason ? 0 : calculateConfidence(visualSignals, layoutSignals)
   const detectionStatus: DataAssistScreenshotStatus = rejectionReason
     ? 'rejected'
@@ -1514,7 +1589,25 @@ function isSupportedTennisLinkExport(file: File) {
   return lowerName.endsWith('.xls') || lowerName.endsWith('.html') || ALLOWED_EXPORT_TYPES.has(file.type)
 }
 
-function detectLayoutSignals(file: File, requestedImportType: DataAssistImportType) {
+function isImageFile(file: File) {
+  const lowerName = (file.name || '').toLowerCase()
+  return String(file.type || '').startsWith('image/') || /\.(?:jpe?g|png|webp)$/i.test(lowerName)
+}
+
+function isSupportedDataAssistFile(
+  file: File,
+  requestedImportType: DataAssistImportType,
+  ocrReadiness: ReturnType<typeof getDataAssistOcrReadiness>,
+) {
+  return isSupportedTennisLinkExport(file)
+    || (requestedImportType === 'scorecard' && ocrReadiness.canRun && isImageFile(file))
+}
+
+function detectLayoutSignals(
+  file: File,
+  requestedImportType: DataAssistImportType,
+  ocrReadiness = getDataAssistOcrReadiness(),
+) {
   const lowerName = file.name.toLowerCase()
   const signals = FILE_HINTS[requestedImportType]
     .filter((hint) => lowerName.includes(hint))
@@ -1522,6 +1615,9 @@ function detectLayoutSignals(file: File, requestedImportType: DataAssistImportTy
 
   if (isTrustedTennisLinkFilename(lowerName) && signals.length === 0) {
     signals.push(`${getDataAssistImportTypeLabel(requestedImportType)} selected from TennisLink export`)
+  }
+  if (requestedImportType === 'scorecard' && ocrReadiness.canRun && isImageFile(file)) {
+    signals.push('Scorecard photo selected for verified OCR review')
   }
 
   return signals
@@ -1532,8 +1628,17 @@ export function isTrustedTennisLinkFilename(fileName: string) {
   return lowerName.includes('tennislink.usta.com') || lowerName.includes('tennislink') || lowerName.includes('usta')
 }
 
-function buildScreenshotRejectionReason(file: File, dimensions: { width: number; height: number }) {
-  if (!isSupportedTennisLinkExport(file)) return 'Upload the TennisLink Excel export for this page.'
+function buildScreenshotRejectionReason(
+  file: File,
+  dimensions: { width: number; height: number },
+  requestedImportType: DataAssistImportType,
+  ocrReadiness = getDataAssistOcrReadiness(),
+) {
+  if (!isSupportedDataAssistFile(file, requestedImportType, ocrReadiness)) {
+    return requestedImportType === 'scorecard' && isImageFile(file)
+      ? 'Scorecard photo reading is not enabled yet.'
+      : 'Upload the TennisLink Excel export for this page.'
+  }
   if (file.size > MAX_SCREENSHOT_BYTES) return 'This export is over 10 MB.'
   if (!dimensions.width || !dimensions.height) return 'This image could not be read as a screenshot.'
   if (dimensions.width < 280 || dimensions.height < 280) return 'This image is too small to safely review.'

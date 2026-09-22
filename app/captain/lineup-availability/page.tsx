@@ -216,7 +216,7 @@ function LineupAvailabilityContent() {
 
   useEffect(() => {
     if (!authResolved || role !== 'public') return
-    router.replace('/login?next=/captain/lineup-availability')
+    router.replace('/login?plan=captain&next=%2Fcaptain%2Flineup-availability')
   }, [authResolved, role, router])
 
   useEffect(() => {
@@ -1060,7 +1060,7 @@ function LineupAvailabilityContent() {
           <section style={surfaceCard}>
             <h3 style={sectionTitleSmall}>Start by selecting a league and team</h3>
             <p style={mutedTextStyle}>
-              Once selected, this page will load the roster usage history and let you set availability for the chosen match date.
+              Choose a league and team to load roster usage history and set availability for the match date.
             </p>
           </section>
         ) : rosterLoading ? (

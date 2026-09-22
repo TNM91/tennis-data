@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { createClient } from '@supabase/supabase-js'
 
-const DEFAULT_IMAGE = '/tenaceiq/logos/tenaceiq-social-preview.png'
+const DEFAULT_IMAGE = '/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1'
 let metadataSupabase: ReturnType<typeof createClient> | null = null
 
 function getMetadataSupabase() {
@@ -53,8 +53,8 @@ export function buildRouteMetadata({
       images: [
         {
           url: DEFAULT_IMAGE,
-          width: 1731,
-          height: 909,
+          width: 1200,
+          height: 630,
           alt: title,
         },
       ],
@@ -141,6 +141,69 @@ export async function getTeamMetadataByName(team: string): Promise<Metadata> {
     title,
     description,
     path: `/teams/${encodeURIComponent(team)}`,
+  })
+}
+
+type MatchMetadataRow = {
+  external_match_id: string | null
+  line_number: string | null
+  match_type: string | null
+  match_date: string | null
+  league_name: string | null
+  home_team: string | null
+  away_team: string | null
+  score: string | null
+}
+
+export async function getMatchMetadataById(id: string): Promise<Metadata> {
+  const path = `/matches/${encodeURIComponent(id)}`
+  const { data } = await getMetadataSupabase()
+    .from('matches')
+    .select('external_match_id,line_number,match_type,match_date,league_name,home_team,away_team,score')
+    .eq('id', id)
+    .maybeSingle()
+  const match = data as MatchMetadataRow | null
+
+  if (!match) {
+    return buildRouteMetadata({
+      title: 'Match Scorecard',
+      description: 'Review a tennis match result, line scores, and linked players on TenAceIQ.',
+      path,
+    })
+  }
+
+  type MatchTeamContext = Pick<MatchMetadataRow, 'home_team' | 'away_team' | 'league_name'>
+  let parent: MatchTeamContext | null = null
+  if (match.line_number && match.external_match_id?.includes('::line:')) {
+    const parentExternalId = match.external_match_id.split('::line:')[0]
+    const { data: parentData } = await getMetadataSupabase()
+      .from('matches')
+      .select('home_team,away_team,league_name')
+      .eq('external_match_id', parentExternalId)
+      .is('line_number', null)
+      .limit(1)
+      .maybeSingle()
+    parent = parentData as MatchTeamContext | null
+  }
+
+  const home = parent?.home_team || match.home_team
+  const away = parent?.away_team || match.away_team
+  const matchup = home && away
+    ? `${home} vs ${away}`
+    : match.match_type === 'singles' ? 'Singles Match' : match.match_type === 'doubles' ? 'Doubles Match' : 'Match Scorecard'
+  const title = joinParts([matchup, match.line_number ? `Line ${match.line_number}` : null, match.score ? `Score ${match.score}` : null], ' · ')
+  const date = match.match_date
+    ? new Date(`${match.match_date.slice(0, 10)}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+    : null
+  const context = joinParts([date, parent?.league_name || match.league_name], ' · ')
+  const detail = match.line_number
+    ? `Open line ${match.line_number} in the match scorecard with linked players and the full result.`
+    : 'Review the match score, line results, and linked players.'
+
+  return buildRouteMetadata({
+    title,
+    description: `${context ? `${context}. ` : ''}${detail}`,
+    path,
   })
 }
 

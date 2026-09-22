@@ -4,9 +4,10 @@ import { join } from 'node:path'
 const args = new Set(process.argv.slice(2))
 const includeLive = args.has('--live')
 const baseUrl = cleanBaseUrl(process.env.SEO_SHARE_QA_BASE_URL || 'https://www.tenaceiq.com')
-const canonicalBaseUrl = 'https://tenaceiq.com'
-const previewImagePath = '/tenaceiq/logos/tenaceiq-social-preview.png'
-const previewImageFile = join(process.cwd(), 'public', 'tenaceiq', 'logos', 'tenaceiq-social-preview.png')
+const canonicalBaseUrl = 'https://www.tenaceiq.com'
+const previewImagePath = '/brand/social/og-image-1200x630.png'
+const previewImageUrl = `${previewImagePath}?v=20260827-ace-v6`
+const previewImageFile = join(process.cwd(), 'public', 'brand', 'social', 'og-image-1200x630.png')
 const maxPreviewBytes = 5 * 1024 * 1024
 
 const publicRoutes = [
@@ -81,7 +82,7 @@ function runLocalChecks() {
   const manifestSource = read('app/manifest.ts')
   const structuredDataSource = read('lib/structured-data.ts')
 
-  assertIncludes(layoutSource, "metadataBase: new URL('https://tenaceiq.com')", 'root metadataBase')
+  assertIncludes(layoutSource, "metadataBase: new URL('https://www.tenaceiq.com')", 'root metadataBase')
   assertIncludes(layoutSource, previewImagePath, 'root social preview image')
   assertIncludes(layoutSource, 'openGraph', 'root Open Graph metadata')
   assertIncludes(layoutSource, 'twitter', 'root Twitter metadata')
@@ -94,7 +95,7 @@ function runLocalChecks() {
   assertIncludes(homeSource, 'twitter', 'homepage Twitter metadata')
   assertIncludes(homeSource, previewImagePath, 'homepage social preview image')
 
-  assertIncludes(routeMetadataSource, `DEFAULT_IMAGE = '${previewImagePath}'`, 'shared route social preview')
+  assertIncludes(routeMetadataSource, `DEFAULT_IMAGE = '${previewImageUrl}'`, 'shared route social preview')
   assertIncludes(routeMetadataSource, 'alternates', 'shared route canonical metadata')
   assertIncludes(routeMetadataSource, 'openGraph', 'shared route Open Graph metadata')
   assertIncludes(routeMetadataSource, 'twitter', 'shared route Twitter metadata')
@@ -105,8 +106,8 @@ function runLocalChecks() {
 
   assertIncludes(manifestSource, "name: 'TenAceIQ'", 'manifest app name')
   assertIncludes(manifestSource, 'PRODUCT_MOTTO', 'manifest product story language')
-  assertIncludes(manifestSource, "'/tenaceiq-icon-512.png'", 'manifest 512 icon')
-  assertIncludes(manifestSource, "'/tenaceiq/logos/tenaceiq-brand-preview.png'", 'manifest screenshot')
+  assertIncludes(manifestSource, '/brand/icons/pwa-512.png?v=${PWA_ICON_VERSION}', 'manifest 512 icon')
+  assertIncludes(manifestSource, "'/brand/social/og-image-1200x630.png?v=20260827-ace-v6'", 'manifest screenshot')
 
   for (const route of publicRoutes) {
     if (route === '/') continue

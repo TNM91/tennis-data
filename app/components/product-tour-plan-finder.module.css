@@ -1,0 +1,264 @@
+.finder {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  padding: clamp(18px, 3vw, 28px);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 92% 8%, rgba(116, 190, 255, 0.12), transparent 28%),
+    linear-gradient(145deg, rgba(8, 20, 40, 0.96), rgba(5, 14, 31, 0.92));
+  box-shadow: 0 24px 68px rgba(2, 8, 23, 0.28);
+}
+
+.heading {
+  display: grid;
+  gap: 8px;
+  max-width: 820px;
+}
+
+.heading > span,
+.recommendationTop > div > span {
+  color: var(--brand-green);
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.heading h2,
+.heading p,
+.recommendation h3,
+.recommendation p {
+  margin: 0;
+}
+
+.heading h2 {
+  color: var(--foreground-strong);
+  font-size: clamp(1.45rem, 3vw, 2.35rem);
+  line-height: 1.05;
+}
+
+.heading p,
+.recommendation p {
+  color: var(--shell-copy-muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.1fr);
+  gap: 16px;
+  min-width: 0;
+}
+
+.roleList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  min-width: 0;
+}
+
+.roleButton,
+.roleButtonActive {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 82px;
+  padding: 10px;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--shell-chip-bg) 92%, transparent);
+  color: var(--foreground-strong);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.roleButtonActive {
+  border-color: color-mix(in srgb, var(--brand-green) 62%, var(--shell-panel-border) 38%);
+  background: color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%);
+  box-shadow: inset 3px 0 0 var(--brand-green);
+}
+
+.roleButton:hover,
+.roleButtonActive:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--brand-green) 50%, var(--shell-panel-border) 50%);
+}
+
+.roleButton > span:last-child,
+.roleButtonActive > span:last-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.roleButton strong,
+.roleButtonActive strong {
+  font-size: 0.82rem;
+  font-weight: 950;
+}
+
+.roleButton small,
+.roleButtonActive small {
+  color: var(--shell-copy-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.recommendation {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: clamp(16px, 2.4vw, 24px);
+  border: 1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--shell-panel-bg) 92%, transparent);
+}
+
+.recommendationTop {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.recommendationTop > div:not(.price) {
+  display: grid;
+  gap: 3px;
+}
+
+.recommendation h3 {
+  color: var(--foreground-strong);
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  line-height: 1;
+}
+
+.price {
+  display: grid;
+  gap: 2px;
+  justify-items: end;
+  text-align: right;
+}
+
+.price strong {
+  color: var(--brand-green);
+  font-size: clamp(1.15rem, 2.4vw, 1.6rem);
+  font-weight: 950;
+}
+
+.price small {
+  color: var(--shell-copy-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.recommendationCopy {
+  display: grid;
+  gap: 8px;
+}
+
+.recommendationCopy > strong {
+  color: var(--foreground-strong);
+  font-size: 1rem;
+}
+
+.recommendationCopy ul {
+  display: grid;
+  gap: 7px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recommendationCopy li {
+  position: relative;
+  padding-left: 21px;
+  color: var(--foreground);
+  font-size: 0.78rem;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.recommendationCopy li::before {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: var(--brand-green);
+  content: '✓';
+  font-weight: 950;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: auto;
+}
+
+.primaryAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, var(--brand-green) 48%, transparent);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #eaff9e 0%, #9be11d 100%);
+  color: #071226;
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-align: center;
+  text-decoration: none;
+}
+
+@media (max-width: 880px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .finder {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .roleList {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .roleButton,
+  .roleButtonActive {
+    min-height: 70px;
+  }
+
+  .recommendationTop {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .price {
+    grid-column: 1 / -1;
+    justify-items: start;
+    text-align: left;
+  }
+
+  .actions,
+  .actions > * {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roleButton,
+  .roleButtonActive {
+    transition: none;
+  }
+}

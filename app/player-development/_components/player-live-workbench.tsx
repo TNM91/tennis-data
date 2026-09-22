@@ -1,12 +1,48 @@
 'use client'
 
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useAuth } from '@/app/components/auth-provider'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
+import type { LevelUpSessionJson } from '@/lib/level-up-sessions'
+import {
+  LEVEL_UP_QUEST_HANDOFF_KEY,
+  buildLevelUpQuestHandoff,
+  buildLevelUpTennisStreak,
+  parseLevelUpQuestHandoff,
+  updateLevelUpQuestHandoffMessage,
+  type LevelUpQuestHandoff,
+} from '@/lib/level-up/quest-handoff'
+import { buildWeeklyLevelUpRecap } from '@/lib/level-up/weekly-recap'
+import {
+  buildWeeklyLevelUpPlan,
+  completeWeeklyLevelUpPlanFocus,
+  getWeeklyLevelUpPlanProgress,
+  getWeeklyLevelUpPlanReps,
+  getWeeklyLevelUpPlanStorageKey,
+  getWeeklyLevelUpPlanWeekStart,
+  parseWeeklyLevelUpPlan,
+  setWeeklyLevelUpPlanShared,
+  toggleWeeklyLevelUpPlanRep,
+  type WeeklyLevelUpPlan,
+} from '@/lib/level-up/weekly-plan'
+import { isPersonalQuestOwner } from '@/lib/personal-quest'
+import {
+  buildPlayerImproveLevelUpHref,
+  chooseLatestPlayerImproveResumeState,
+  loadPlayerImproveResumeStateFromCloud,
+  readPlayerImproveResumeState,
+  syncPlayerImproveResumeState,
+  writePlayerImproveResumeState,
+  type PlayerImproveResumeState,
+} from '@/lib/player-improve-memory'
+import type { PlayerDevelopmentIdentityCourtsideRead } from '@/lib/player-development'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { supabase } from '@/lib/supabase'
 import styles from './player-development.module.css'
+import WeeklyPlanCoachResponse from './weekly-plan-coach-response'
 
 type TrainingRow = string[]
 
@@ -24,6 +60,139 @@ type PlayerFeeling = 'ready' | 'tight' | 'tired' | 'nervous'
 type PlayerReadiness = 'fresh' | 'okay' | 'tired'
 type AccessMode = 'coach_invited' | 'player_plus' | 'free_preview'
 type EditingStep = 'focus' | 'setup' | 'work' | null
+type SessionDraft = {
+  rating: number | null
+  feeling: PlayerFeeling
+  note: string
+  sharedWithCoach: boolean
+}
+type RecapCopyStatus = 'idle' | 'copied' | 'manual' | 'shared' | 'unsent'
+type RecapMode = 'text' | 'full'
+type WakeLockStatus = 'off' | 'active' | 'unsupported' | 'blocked'
+type SavedNextCueId = 'smart' | 'repeat' | 'pressure' | 'coach' | 'finish'
+type SavedProofMomentId = 'practice' | 'thirty' | 'break' | 'tiebreak'
+type SavedCoachAskId = 'next' | 'repeat' | 'fix' | 'film'
+
+type SavedNextCue = {
+  id: SavedNextCueId
+  label: string
+  value: string
+  recap: string
+}
+
+type SavedProofMoment = {
+  id: SavedProofMomentId
+  label: string
+  value: string
+  recap: string
+}
+
+type SavedCoachAsk = {
+  id: SavedCoachAskId
+  label: string
+  value: string
+  recap: string
+}
+
+type SavedRecapCheck = {
+  label: string
+  value: string
+  state: 'ready' | 'missing'
+}
+
+type SavedCoachBriefLine = {
+  label: 'Changed' | 'Leaked' | 'Next'
+  value: string
+  state: 'strong' | 'watch' | 'next'
+}
+
+function formatFocusTitle(title: string) {
+  return title.replace(' Development', '').replace(' Section', '')
+}
+
+type SmartNextAction = {
+  title: string
+  copy: string
+  decision: 'Add pressure' | 'Repeat clean' | 'Recover' | 'Finish'
+  reason: string
+  load: string
+  primaryLabel: string
+}
+
+type LiveCourtsideCommand = {
+  now: string
+  count: string
+  stop: string
+}
+
+type CourtsideResumeItem = {
+  label: string
+  value: string
+  state: 'active' | 'ready' | 'done'
+}
+
+type ActiveSessionResumeStrip = {
+  title: string
+  detail: string
+  action: 'score' | 'drill'
+  actionLabel: string
+  state: 'draft' | 'timer' | 'proof'
+}
+
+type TodayCloseoutRead = {
+  bestProof: string
+  pressureProof: string
+  tomorrow: string
+  starterFocusId: string
+  starterFocusTitle: string
+  starterWorkType: WorkType
+  starterContext: TrainingContext
+  starterDrillTitle: string
+  starterReason: string
+}
+
+type TomorrowStarterPlan = {
+  focusId: string
+  focusTitle: string
+  workType: WorkType
+  context: TrainingContext
+  drillId: string
+  drillTitle: string
+  cue: string
+  reason: string
+  createdAt: string
+}
+
+type TomorrowStarterCheck = {
+  drillTitle: string
+  mode: TomorrowStarterCheckMode
+  label: string
+  scoreLabel: string
+  cue: string
+  proof: string
+  stopRule: string
+}
+
+type TomorrowStarterCheckMode = 'first' | 'volume' | 'repeat'
+
+type TomorrowStarterCompletion = {
+  drillTitle: string
+  rating: number
+  next: string
+  actionLabel: string
+  restoredPlan: TomorrowStarterPlan
+}
+
+type LevelUpWakeLockSentinel = EventTarget & {
+  released: boolean
+  release: () => Promise<void>
+}
+
+type LevelUpWakeLockNavigator = Navigator & {
+  wakeLock?: {
+    request: (type: 'screen') => Promise<LevelUpWakeLockSentinel>
+  }
+}
 
 type DrillOption = {
   id: string
@@ -40,6 +209,7 @@ type DrillOption = {
 
 type SavedSession = {
   id: string
+  cardId?: string
   focusId: string
   focusTitle: string
   workType: WorkType
@@ -55,6 +225,16 @@ type SavedSession = {
   assignmentId?: string
   studentLinkId?: string
   assignmentTitle?: string
+  starterRead?: SavedSessionStarterRead
+}
+
+type SavedSessionStarterRead = Pick<
+  PlayerDevelopmentIdentityCourtsideRead,
+  'starterRep' | 'starterProofCue' | 'starterLeakWatch' | 'starterSmartNext'
+>
+
+type SavedStarterCoachRead = SavedSessionStarterRead & {
+  starterProof: string | null
 }
 
 type RemoteLevelUpSession = SavedSession & {
@@ -63,6 +243,7 @@ type RemoteLevelUpSession = SavedSession & {
   studentLinkId: string | null
   assignmentId: string | null
   identitySlug: string
+  sessionJson: LevelUpSessionJson
   createdAt: string
   updatedAt: string
 }
@@ -90,6 +271,7 @@ type PlayerLiveWorkbenchProps = {
   identitySlug: string
   identityTitle: string
   mantra: string
+  identityCourtsideRead: PlayerDevelopmentIdentityCourtsideRead
   focuses: LiveFocus[]
   solo: TrainingRow[]
   partner: TrainingRow[]
@@ -160,9 +342,9 @@ const accessModes: Record<AccessMode, { label: string; title: string; copy: stri
   },
 }
 
-const emptyDraft = {
-  rating: null as number | null,
-  feeling: 'ready' as PlayerFeeling,
+const emptyDraft: SessionDraft = {
+  rating: null,
+  feeling: 'ready',
   note: '',
   sharedWithCoach: true,
 }
@@ -171,6 +353,7 @@ export default function PlayerLiveWorkbench({
   identitySlug,
   identityTitle,
   mantra,
+  identityCourtsideRead,
   focuses,
   solo,
   partner,
@@ -178,10 +361,15 @@ export default function PlayerLiveWorkbench({
   performance,
 }: PlayerLiveWorkbenchProps) {
   const searchParams = useSearchParams()
+  const { userId, authResolved, session } = useAuth()
   const activityRef = useRef<HTMLElement | null>(null)
   const trackerRef = useRef<HTMLElement | null>(null)
+  const trainingFlowRef = useRef<HTMLDivElement | null>(null)
   const savedRef = useRef<HTMLDivElement | null>(null)
+  const nextActionRef = useRef<HTMLDivElement | null>(null)
   const finishRef = useRef<HTMLDivElement | null>(null)
+  const starterCheckRef = useRef<HTMLDivElement | null>(null)
+  const didHashAnchorScrollRef = useRef(false)
   const didMobileAutoScrollRef = useRef(false)
   const saveReceiptLockRef = useRef(false)
   const queuedSyncTimersRef = useRef<Map<string, number>>(new Map())
@@ -190,12 +378,14 @@ export default function PlayerLiveWorkbench({
   const assignmentTitle = searchParams.get('assignmentTitle')?.trim() || searchParams.get('title')?.trim() || ''
   const assignmentFocus = searchParams.get('assignmentFocus')?.trim() || searchParams.get('focus')?.trim() || ''
   const assignmentWorkType = normalizeAssignmentWorkType(searchParams.get('workType'))
+  const requestedFocusId = searchParams.get('focus')?.trim() ?? ''
+  const requestedDrillId = searchParams.get('drill')?.trim() ?? ''
   const requestedCardId = searchParams.get('card')?.trim() ?? ''
   const customQuestId = searchParams.get('quest')?.trim() ?? ''
   const requestedCard = LEVEL_UP_CARDS.find((card) => card.id === requestedCardId)
   const requestedContext = normalizeTrainingContext(searchParams.get('context'))
   const hasCoachAssignment = Boolean(assignmentId || studentLinkId || searchParams.get('coach') === '1')
-  const hasQuickStart = !hasCoachAssignment && Boolean(requestedCardId || customQuestId || searchParams.get('focus') || searchParams.get('workType') || searchParams.get('context'))
+  const hasQuickStart = !hasCoachAssignment && Boolean(requestedCardId || requestedDrillId || customQuestId || requestedFocusId || searchParams.get('workType') || searchParams.get('context'))
   const playableFocuses = useMemo(
     () => focuses.filter((focus) => focus.id !== 'accountability'),
     [focuses],
@@ -205,16 +395,22 @@ export default function PlayerLiveWorkbench({
     () => findAssignmentFocus(playableFocuses, assignmentFocus),
     [assignmentFocus, playableFocuses],
   )
-  const initialFocusId = assignmentFocusMatch?.id ?? defaultFocusId
+  const requestedFocusMatch = playableFocuses.find((focus) => focus.id === requestedFocusId)
+  const requestedCardFocusMatch = useMemo(
+    () => requestedCard ? findCardFocus(playableFocuses, requestedCard) : undefined,
+    [playableFocuses, requestedCard],
+  )
+  const initialFocusId = assignmentFocusMatch?.id ?? requestedFocusMatch?.id ?? requestedCardFocusMatch?.id ?? defaultFocusId
   const initialWorkType = requestedCard ? getCardLiveWorkType(requestedCard) : assignmentWorkType ?? 'court'
   const initialContext = hasCoachAssignment && requestedCard ? 'coach' : requestedContext ?? (requestedCard ? getCardLiveContext(requestedCard, initialWorkType) : 'alone')
   const [activeFocusId, setActiveFocusId] = useState(initialFocusId)
   const [context, setContext] = useState<TrainingContext>(hasCoachAssignment ? 'coach' : initialContext)
   const [workType, setWorkType] = useState<WorkType>(initialWorkType)
   const [accessMode, setAccessMode] = useState<AccessMode>('coach_invited')
-  const [activeDrillId, setActiveDrillId] = useState(requestedCard ? `card-${requestedCard.id}` : hasCoachAssignment ? `${initialFocusId}-coach-${initialWorkType}` : '')
+  const [activeDrillId, setActiveDrillId] = useState(requestedDrillId || (requestedCard ? `card-${requestedCard.id}` : hasCoachAssignment ? `${initialFocusId}-coach-${initialWorkType}` : ''))
+  const [sessionDockActive, setSessionDockActive] = useState(hasCoachAssignment || hasQuickStart)
   const [editingStep, setEditingStep] = useState<EditingStep>(hasCoachAssignment || hasQuickStart ? null : 'focus')
-  const [draft, setDraft] = useState(emptyDraft)
+  const [draft, setDraft] = useState(() => getEmptySessionDraft(true))
   const [lastSavedSession, setLastSavedSession] = useState<SavedSession | null>(null)
   const [undoSession, setUndoSession] = useState<SavedSession | null>(null)
   const [finishSummary, setFinishSummary] = useState<SavedSession[] | null>(null)
@@ -222,10 +418,36 @@ export default function PlayerLiveWorkbench({
   const [scoringDrillId, setScoringDrillId] = useState('')
   const [syncState, setSyncState] = useState<SyncState>({ status: 'idle', message: '' })
   const [questCreditMessage, setQuestCreditMessage] = useState('')
+  const [questHandoff, setQuestHandoff] = useState<LevelUpQuestHandoff | null>(null)
   const [activeTimerSnapshot, setActiveTimerSnapshot] = useState<DrillTimerSnapshot | null>(null)
+  const [proofCounter, setProofCounter] = useState(0)
+  const [resumeResolved, setResumeResolved] = useState(false)
+  const [recapCopyStatus, setRecapCopyStatus] = useState<RecapCopyStatus>('idle')
+  const [recapMode, setRecapMode] = useState<RecapMode>('text')
+  const [selectedNextCueId, setSelectedNextCueId] = useState<SavedNextCueId>('smart')
+  const [selectedProofMomentId, setSelectedProofMomentId] = useState<SavedProofMomentId>('practice')
+  const [selectedCoachAskId, setSelectedCoachAskId] = useState<SavedCoachAskId>('next')
   const [timerResetSignal, setTimerResetSignal] = useState(0)
+  const [timerStartSignal, setTimerStartSignal] = useState(0)
+  const [pressureRepeatCue, setPressureRepeatCue] = useState('')
   const storageKey = `tenaceiq:level-up:${identitySlug}`
-  const [sessions, setSessions] = useState<SavedSession[]>(() => readSavedSessions(storageKey))
+  const sentProofRecapStorageKey = `tenaceiq:level-up-recap-sent:${identitySlug}`
+  const tomorrowStarterStorageKey = `tenaceiq:level-up-tomorrow:${identitySlug}`
+  const weeklyPlanWeekStart = getWeeklyLevelUpPlanWeekStart()
+  const weeklyPlanStorageKey = getWeeklyLevelUpPlanStorageKey(identitySlug, weeklyPlanWeekStart, userId || '')
+  const [sessions, setSessions] = useState<SavedSession[]>([])
+  const [weeklyPlan, setWeeklyPlan] = useState<WeeklyLevelUpPlan | null>(null)
+  const [weeklyPlanMessage, setWeeklyPlanMessage] = useState('')
+  const [weeklyPlanSyncing, setWeeklyPlanSyncing] = useState(false)
+  const [sentProofRecapIds, setSentProofRecapIds] = useState<string[]>([])
+  const [tomorrowStarterPlan, setTomorrowStarterPlan] = useState<TomorrowStarterPlan | null>(null)
+  const [tomorrowStarterCheck, setTomorrowStarterCheck] = useState<TomorrowStarterCheck | null>(null)
+  const [tomorrowStarterCompletion, setTomorrowStarterCompletion] = useState<TomorrowStarterCompletion | null>(null)
+  const [activeTomorrowStarterMode, setActiveTomorrowStarterMode] = useState<TomorrowStarterCheckMode | null>(null)
+  const canOpenPersonalQuest = isPersonalQuestOwner({
+    id: session?.user.id ?? userId,
+    email: session?.user.email,
+  })
 
   const activeFocus = playableFocuses.find((focus) => focus.id === activeFocusId) ?? playableFocuses[0]
   const drillOptions = useMemo(
@@ -243,20 +465,47 @@ export default function PlayerLiveWorkbench({
       : drillOptions
   const activeDrill = visibleDrills.find((drill) => drill.id === activeDrillId) ?? visibleDrills[0]
   const activeDrillSteps = activeDrill.sourceCard?.routine.slice(0, 3).map(shortenDrillStep) ?? getDrillActionSteps(activeDrill.summary)
+  const proofTarget = activeDrill ? getProofCounterTarget(activeDrill) : 10
+  const activeCourtsideCommand = getLiveCourtsideCommand(activeDrill, activeDrillSteps, proofTarget, readiness)
+  const quickNoteChips = getQuickNoteChips(activeDrill)
   const contextOptions = contextOptionsByWorkType[workType]
   const recentSessions = sessions.slice(0, 4)
   const todaySessions = sessions.filter(isSessionFromToday).slice(0, 4)
+  const todayCloseoutRead = getTodayCloseoutRead(todaySessions)
+  const tomorrowStarterSaved = Boolean(
+    todayCloseoutRead &&
+    tomorrowStarterPlan &&
+    tomorrowStarterPlan.drillTitle === todayCloseoutRead.starterDrillTitle &&
+    tomorrowStarterPlan.cue === todayCloseoutRead.tomorrow,
+  )
   const drillDayStreak = getDrillDayStreak(sessions, activeDrill?.title ?? '')
   const activeTimerSeconds = activeTimerSnapshot?.drillId === activeDrill?.id ? activeTimerSnapshot.elapsedSeconds : 0
   const progress = getProgressSummary(sessions, playableFocuses)
+  const weeklyRecap = useMemo(() => buildWeeklyLevelUpRecap({
+    identitySlug,
+    sessions: sessions.map((savedSession) => ({ ...savedSession, identitySlug })),
+    focuses: playableFocuses.map((focus) => ({
+      id: focus.id,
+      title: focus.title,
+      identitySlug,
+    })),
+  }), [identitySlug, playableFocuses, sessions])
+  const weeklyPlanProgress = getWeeklyLevelUpPlanProgress(weeklyPlan)
+  const weeklyPlanReps = weeklyPlan ? getWeeklyLevelUpPlanReps(weeklyPlan) : []
   const activeAccess = accessModes[accessMode]
   const suggestedNextDrill = lastSavedSession ? getNextDrillAfterSession(lastSavedSession, visibleDrills) : null
-  const smartNextAction = lastSavedSession ? getSmartNextAction(lastSavedSession, suggestedNextDrill, readiness) : null
+  const smartNextAction = lastSavedSession ? getSmartNextAction(lastSavedSession, suggestedNextDrill, readiness, todaySessions) : null
   const finishStats = finishSummary ? getFinishSummaryStats(finishSummary) : null
+  const savedPressureProof = lastSavedSession ? getSavedPressureProofValue(lastSavedSession) : null
+  const savedStarterProof = lastSavedSession ? getSavedStarterProofValue(lastSavedSession) : null
+  const savedStarterCoachRead = lastSavedSession ? getSavedStarterCoachRead(lastSavedSession) : null
   const savedIdentitySignals = lastSavedSession
     ? [
         { label: 'Identity', value: identityTitle.replace(/^The /, '') },
         { label: 'Player ID signal', value: `${lastSavedSession.rating}/5 ${lastSavedSession.focusTitle}` },
+        ...(savedStarterCoachRead ? [{ label: 'Starter cue', value: shortenCoachBriefValue(savedStarterCoachRead.starterProofCue) }] : []),
+        ...(savedPressureProof ? [{ label: 'Pressure proof', value: shortenCoachBriefValue(savedPressureProof) }] : []),
+        ...(savedStarterProof ? [{ label: 'Starter proof', value: savedStarterProof }] : []),
         { label: 'Next use', value: lastSavedSession.sharedWithCoach ? 'Coach-ready proof' : 'My Lab proof trail' },
       ]
     : []
@@ -266,7 +515,60 @@ export default function PlayerLiveWorkbench({
   const savedNextSteps = lastSavedSession
     ? getSavedNextSteps(lastSavedSession, smartNextAction)
     : []
+  const savedNextCueOptions = lastSavedSession ? getSavedNextCueOptions(lastSavedSession, smartNextAction) : []
+  const selectedSavedNextCue = savedNextCueOptions.find((cue) => cue.id === selectedNextCueId) ?? savedNextCueOptions[0] ?? null
+  const savedProofMomentOptions = lastSavedSession ? getSavedProofMomentOptions(lastSavedSession) : []
+  const selectedSavedProofMoment = savedProofMomentOptions.find((moment) => moment.id === selectedProofMomentId) ?? savedProofMomentOptions[0] ?? null
+  const savedCoachAskOptions = lastSavedSession ? getSavedCoachAskOptions(lastSavedSession) : []
+  const selectedSavedCoachAsk = savedCoachAskOptions.find((ask) => ask.id === selectedCoachAskId) ?? savedCoachAskOptions[0] ?? null
+  const savedCoachBrief = lastSavedSession ? getSavedCoachBrief(lastSavedSession, selectedSavedNextCue, selectedSavedCoachAsk) : []
+  const savedRecapChecklist = lastSavedSession
+    ? getSavedRecapChecklist(lastSavedSession, selectedSavedNextCue, selectedSavedProofMoment, selectedSavedCoachAsk)
+    : []
+  const savedProofFullRecap = lastSavedSession ? buildSavedProofRecap(lastSavedSession, selectedSavedNextCue, selectedSavedProofMoment, selectedSavedCoachAsk, savedCoachBrief) : ''
+  const savedProofTextRecap = lastSavedSession ? buildSavedProofTextRecap(lastSavedSession, selectedSavedNextCue, selectedSavedProofMoment, selectedSavedCoachAsk, savedCoachBrief) : ''
+  const savedProofRecap = recapMode === 'text' ? savedProofTextRecap : savedProofFullRecap
+  const savedProofTextHref = savedProofRecap ? buildSavedProofTextHref(savedProofRecap) : ''
+  const savedProofRecapSent = lastSavedSession ? sentProofRecapIds.includes(lastSavedSession.id) : false
   const hasActiveSaveReceipt = Boolean(lastSavedSession)
+  const hasUnsavedSessionDraft = !hasActiveSaveReceipt && !isEmptySessionDraft(draft, accessMode)
+  const drillJourneyStage = editingStep === 'setup'
+    ? 'setup'
+    : hasActiveSaveReceipt
+    ? 'next'
+    : scoringDrillId === activeDrill.id
+      ? 'score'
+      : (activeTimerSnapshot?.drillId === activeDrill.id && (activeTimerSnapshot.running || activeTimerSnapshot.elapsedSeconds > 0)) || proofCounter > 0
+        ? 'run'
+        : 'setup'
+  const courtsideResumeItems = getCourtsideResumeItems(
+    activeDrill,
+    activeTimerSeconds,
+    proofCounter,
+    proofTarget,
+    scoringDrillId === activeDrill.id,
+    hasUnsavedSessionDraft,
+    lastSavedSession,
+    savedProofRecapSent,
+  )
+  const courtsideResumeStatus = getCourtsideResumeStatus(
+    activeTimerSeconds,
+    proofCounter,
+    proofTarget,
+    scoringDrillId === activeDrill.id,
+    hasUnsavedSessionDraft,
+    lastSavedSession,
+    savedProofRecapSent,
+  )
+  const activeResumeStrip = getActiveSessionResumeStrip(
+    activeDrill,
+    activeTimerSeconds,
+    proofCounter,
+    proofTarget,
+    hasUnsavedSessionDraft,
+    scoringDrillId === activeDrill.id,
+    hasActiveSaveReceipt,
+  )
 
   const handleTimerSnapshotChange = useCallback((snapshot: DrillTimerSnapshot) => {
     setActiveTimerSnapshot((current) => {
@@ -302,10 +604,155 @@ export default function PlayerLiveWorkbench({
   }, [assignmentFocusMatch, assignmentWorkType, defaultFocusId, hasCoachAssignment, requestedCard])
 
   useEffect(() => {
+    if (hasCoachAssignment || !hasQuickStart) return
+
+    const quickStartFocusId = requestedFocusMatch?.id ?? requestedCardFocusMatch?.id
+    const quickStartWorkType = requestedCard ? getCardLiveWorkType(requestedCard) : assignmentWorkType
+    const quickStartContext = requestedContext ?? (requestedCard && quickStartWorkType ? getCardLiveContext(requestedCard, quickStartWorkType) : undefined)
+    const quickStartDrillId = requestedCard ? `card-${requestedCard.id}` : requestedDrillId
+
+    saveReceiptLockRef.current = false
+    if (quickStartFocusId) setActiveFocusId(quickStartFocusId)
+    if (quickStartWorkType) setWorkType(quickStartWorkType)
+    if (quickStartContext) setContext(quickStartContext)
+    if (quickStartDrillId) setActiveDrillId(quickStartDrillId)
+    setLastSavedSession(null)
+    setFinishSummary(null)
+    setScoringDrillId('')
+    setEditingStep(null)
+    setSessionDockActive(true)
+  }, [
+    assignmentWorkType,
+    hasCoachAssignment,
+    hasQuickStart,
+    requestedCard,
+    requestedCardFocusMatch?.id,
+    requestedContext,
+    requestedDrillId,
+    requestedFocusMatch?.id,
+  ])
+
+  useEffect(() => {
+    if (!authResolved) return
+    if (!userId) {
+      setResumeResolved(true)
+      return
+    }
+
+    setResumeResolved(false)
+    const accessToken = session?.access_token || ''
+    let active = true
+    void (async () => {
+      const localState = readPlayerImproveResumeState(userId)
+      const cloudState = accessToken ? await loadPlayerImproveResumeStateFromCloud(accessToken) : null
+      const latest = chooseLatestPlayerImproveResumeState(localState, cloudState)
+      if (!active || !latest) return
+      if (latest.identitySlug && latest.identitySlug !== identitySlug) return
+      if (assignmentId && latest.assignmentId && latest.assignmentId !== assignmentId) return
+      if (requestedCardId && latest.cardId && latest.cardId !== requestedCardId) return
+      if (requestedDrillId && latest.drillId && latest.drillId !== requestedDrillId) return
+      if (latest.lastSurface !== 'level-up' && latest.lastSurface !== 'assignment') return
+
+      writePlayerImproveResumeState(latest, userId)
+      if (latest.focusId && playableFocuses.some((focus) => focus.id === latest.focusId)) {
+        setActiveFocusId(latest.focusId)
+      }
+      if (latest.workType) setWorkType(latest.workType)
+      if (hasCoachAssignment) {
+        setContext('coach')
+        setAccessMode('coach_invited')
+      } else {
+        if (latest.trainingContext) setContext(latest.trainingContext)
+        if (latest.sessionDraft?.accessMode) setAccessMode(latest.sessionDraft.accessMode)
+      }
+      if (latest.drillId) {
+        const restoredDraft: SessionDraft = {
+          rating: latest.sessionDraft?.rating ?? null,
+          feeling: latest.sessionDraft?.feeling ?? 'ready',
+          note: latest.sessionDraft?.note ?? '',
+          sharedWithCoach: hasCoachAssignment || latest.sessionDraft?.sharedWithCoach === true,
+        }
+        window.sessionStorage.setItem(levelUpDraftStorageKey(latest.drillId), JSON.stringify(restoredDraft))
+        if ((latest.sessionDraft?.elapsedSeconds ?? 0) > 0) {
+          window.sessionStorage.setItem(timerStorageKey(latest.drillId), String(latest.sessionDraft?.elapsedSeconds))
+        }
+        if ((latest.sessionDraft?.proofCounter ?? 0) > 0) {
+          window.sessionStorage.setItem(proofCounterStorageKey(latest.drillId), String(latest.sessionDraft?.proofCounter))
+        }
+        setActiveDrillId(latest.drillId)
+        setDraft(restoredDraft)
+        setProofCounter(latest.sessionDraft?.proofCounter ?? 0)
+        setReadiness(latest.sessionDraft?.readiness ?? 'okay')
+        setScoringDrillId(latest.sessionDraft?.scoring ? latest.drillId : '')
+        setEditingStep(null)
+        setSessionDockActive(true)
+      }
+    })().finally(() => {
+      if (active) setResumeResolved(true)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [
+    assignmentId,
+    authResolved,
+    hasCoachAssignment,
+    identitySlug,
+    playableFocuses,
+    requestedCardId,
+    requestedDrillId,
+    session?.access_token,
+    userId,
+  ])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const updateSessionDock = () => {
+      const flowAnchor = document.getElementById('level-up-flow')
+      const flowAnchorTop = flowAnchor?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY
+      const flowIsInView = flowAnchorTop <= window.innerHeight * 0.2
+      setSessionDockActive(window.location.hash === '#level-up-flow' || flowIsInView || hasCoachAssignment || hasQuickStart)
+    }
+
+    updateSessionDock()
+    const animationId = window.requestAnimationFrame(updateSessionDock)
+    const timeoutId = window.setTimeout(updateSessionDock, 260)
+    window.addEventListener('hashchange', updateSessionDock)
+    window.addEventListener('scroll', updateSessionDock, { passive: true })
+    return () => {
+      window.cancelAnimationFrame(animationId)
+      window.clearTimeout(timeoutId)
+      window.removeEventListener('hashchange', updateSessionDock)
+      window.removeEventListener('scroll', updateSessionDock)
+    }
+  }, [hasCoachAssignment, hasQuickStart])
+
+  useEffect(() => {
+    if (didHashAnchorScrollRef.current) return
+    if (typeof window === 'undefined') return
+    if (window.location.hash !== '#level-up-flow') return
+    didHashAnchorScrollRef.current = true
+
+    const scrollToFlow = () => {
+      document.getElementById('level-up-flow')?.scrollIntoView({ block: 'start' })
+    }
+    const animationId = window.requestAnimationFrame(scrollToFlow)
+    const timeoutId = window.setTimeout(scrollToFlow, 240)
+
+    return () => {
+      window.cancelAnimationFrame(animationId)
+      window.clearTimeout(timeoutId)
+    }
+  }, [])
+
+  useEffect(() => {
     if (!hasCoachAssignment && !hasQuickStart) return
     if (didMobileAutoScrollRef.current) return
     if (typeof window === 'undefined') return
     if (!window.matchMedia('(max-width: 860px)').matches) return
+    if (window.location.hash === '#level-up-flow') return
     didMobileAutoScrollRef.current = true
 
     const id = window.setTimeout(() => {
@@ -314,6 +761,124 @@ export default function PlayerLiveWorkbench({
 
     return () => window.clearTimeout(id)
   }, [hasCoachAssignment, hasQuickStart])
+
+  useEffect(() => {
+    setSessions(readSavedSessions(storageKey))
+  }, [storageKey])
+
+  useEffect(() => {
+    setSentProofRecapIds(readSentProofRecapIds(sentProofRecapStorageKey))
+  }, [sentProofRecapStorageKey])
+
+  useEffect(() => {
+    setTomorrowStarterPlan(readTomorrowStarterPlan(tomorrowStarterStorageKey))
+  }, [tomorrowStarterStorageKey])
+
+  useEffect(() => {
+    if (!activeDrill) {
+      setProofCounter(0)
+      return
+    }
+
+    setProofCounter(getProofCounter(activeDrill.id))
+  }, [activeDrill])
+
+  useEffect(() => {
+    if (!activeDrill || lastSavedSession) return
+
+    setDraft(readSessionDraft(levelUpDraftStorageKey(activeDrill.id), accessMode === 'coach_invited'))
+  }, [activeDrill, lastSavedSession, accessMode])
+
+  useEffect(() => {
+    if (!activeDrill || lastSavedSession) return
+
+    const key = levelUpDraftStorageKey(activeDrill.id)
+    if (isEmptySessionDraft(draft, accessMode)) {
+      window.sessionStorage.removeItem(key)
+      return
+    }
+
+    window.sessionStorage.setItem(key, JSON.stringify(draft))
+  }, [activeDrill, accessMode, draft, lastSavedSession])
+
+  const resumeTimerSeconds = activeTimerSnapshot?.running
+    ? Math.floor(activeTimerSeconds / 15) * 15
+    : activeTimerSeconds
+
+  useEffect(() => {
+    if (!resumeResolved || !userId || !activeFocus || !activeDrill) return
+
+    const timeout = window.setTimeout(() => {
+      void (async () => {
+        const accessToken = session?.access_token || ''
+        const current = readPlayerImproveResumeState(userId)
+        const hasActiveDraft = !isEmptySessionDraft(draft, accessMode) || resumeTimerSeconds > 0 || proofCounter > 0 || scoringDrillId === activeDrill.id
+        const nextState: PlayerImproveResumeState = {
+          ...current,
+          identitySlug,
+          identityTitle,
+          focusId: activeFocus.id,
+          workType,
+          trainingContext: context,
+          drillId: activeDrill.id,
+          cardId: activeDrill.sourceCard?.id || '',
+          questId: customQuestId,
+          assignmentId,
+          assignmentTitle,
+          assignmentFocus,
+          studentLinkId,
+          conversationId: '',
+          conversationDraft: '',
+          lastSurface: hasCoachAssignment ? 'assignment' : 'level-up',
+          lastSurfaceLabel: hasCoachAssignment
+            ? assignmentTitle || `Coach challenge: ${activeDrill.title}`
+            : activeDrill.title,
+          lastVisitedAt: new Date().toISOString(),
+          sessionDraft: hasActiveDraft
+            ? {
+                rating: draft.rating,
+                feeling: draft.feeling,
+                note: draft.note,
+                sharedWithCoach: draft.sharedWithCoach,
+                proofCounter,
+                elapsedSeconds: resumeTimerSeconds,
+                readiness,
+                accessMode,
+                scoring: scoringDrillId === activeDrill.id,
+              }
+            : {},
+        }
+        nextState.lastHref = buildPlayerImproveLevelUpHref(nextState)
+        writePlayerImproveResumeState(nextState, userId)
+        void syncPlayerImproveResumeState(nextState, userId, accessToken)
+      })()
+    }, 350)
+
+    return () => window.clearTimeout(timeout)
+  }, [
+    accessMode,
+    activeDrill,
+    activeFocus,
+    activeTimerSnapshot?.running,
+    assignmentFocus,
+    assignmentId,
+    assignmentTitle,
+    context,
+    customQuestId,
+    draft,
+    hasCoachAssignment,
+    identitySlug,
+    identityTitle,
+    proofCounter,
+    readiness,
+    resumeResolved,
+    resumeTimerSeconds,
+    scoringDrillId,
+    session?.access_token,
+    studentLinkId,
+    userId,
+    workType,
+  ])
 
   useEffect(() => {
     if (!lastSavedSession) return
@@ -361,6 +926,79 @@ export default function PlayerLiveWorkbench({
   }, [identitySlug, storageKey])
 
   useEffect(() => {
+    let active = true
+    const deviceKey = getWeeklyLevelUpPlanStorageKey(identitySlug, weeklyPlanWeekStart)
+    const localPlan = parseWeeklyLevelUpPlan(
+      window.localStorage.getItem(weeklyPlanStorageKey) || window.localStorage.getItem(deviceKey),
+    )
+    setWeeklyPlan(localPlan)
+    if (localPlan) {
+      window.localStorage.setItem(weeklyPlanStorageKey, JSON.stringify(localPlan))
+    }
+
+    const token = session?.access_token
+    if (!token) return () => { active = false }
+
+    const loadRemotePlan = async () => {
+      try {
+        const currentLocalPlan = parseWeeklyLevelUpPlan(window.localStorage.getItem(weeklyPlanStorageKey)) ?? localPlan
+        const params = new URLSearchParams({ identitySlug, weekStart: weeklyPlanWeekStart })
+        const response = await fetch(`/api/player/level-up-weekly-plan?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const json = (await response.json()) as { ok?: boolean; plans?: WeeklyLevelUpPlan[] }
+        const remotePlan = json.plans?.[0] ?? null
+        if (!active || !response.ok || !json.ok) return
+        if (!remotePlan) {
+          if (currentLocalPlan) void syncWeeklyPlan(currentLocalPlan, 'Your saved week is synced.')
+          return
+        }
+        const latestPlan = !currentLocalPlan || new Date(remotePlan.updatedAt).getTime() >= new Date(currentLocalPlan.updatedAt).getTime()
+          ? remotePlan
+          : currentLocalPlan
+        setWeeklyPlan(latestPlan)
+        window.localStorage.setItem(weeklyPlanStorageKey, JSON.stringify(latestPlan))
+        if (latestPlan === currentLocalPlan) void syncWeeklyPlan(latestPlan, 'Your saved week is synced.')
+      } catch {
+        if (active && localPlan) setWeeklyPlanMessage('Your week is saved on this device.')
+      }
+    }
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void loadRemotePlan()
+    }
+    void loadRemotePlan()
+    window.addEventListener('focus', loadRemotePlan)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+
+    return () => {
+      active = false
+      window.removeEventListener('focus', loadRemotePlan)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  // syncWeeklyPlan intentionally reads the current auth token and storage key.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identitySlug, session?.access_token, weeklyPlanStorageKey, weeklyPlanWeekStart])
+
+  useEffect(() => {
+    if (!weeklyPlan || !sessions.length) return
+    const createdAt = new Date(weeklyPlan.createdAt).getTime()
+    let nextPlan = weeklyPlan
+    const eligibleSessions = sessions
+      .filter((savedSession) => new Date(savedSession.completedAt).getTime() >= createdAt)
+      .slice()
+      .sort((a, b) => new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime())
+
+    for (const savedSession of eligibleSessions) {
+      nextPlan = completeWeeklyLevelUpPlanFocus(nextPlan, identitySlug, savedSession.focusId, savedSession.completedAt)
+    }
+    if (nextPlan === weeklyPlan) return
+    persistWeeklyPlan(nextPlan)
+    void syncWeeklyPlan(nextPlan, 'Your latest proof updated this week.')
+  // Persist helpers are stable component functions; this effect is driven by plan and proof changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [identitySlug, sessions, weeklyPlan])
+
+  useEffect(() => {
     const timers = queuedSyncTimersRef.current
     return () => {
       timers.forEach((timerId) => window.clearTimeout(timerId))
@@ -369,17 +1007,34 @@ export default function PlayerLiveWorkbench({
   }, [])
 
   function chooseFocus(focusId: string) {
+    clearActiveSessionDraft()
+    setPressureRepeatCue('')
+    setTomorrowStarterCheck(null)
+    setActiveTomorrowStarterMode(null)
+    setTomorrowStarterCompletion(null)
     setActiveFocusId(focusId)
     setActiveDrillId('')
-    setDraft(emptyDraft)
+    setDraft(getEmptySessionDraft(accessMode === 'coach_invited'))
     setSyncState({ status: 'idle', message: '' })
     setQuestCreditMessage('')
     setFinishSummary(null)
     setScoringDrillId('')
-    setEditingStep('work')
+    openEditingStep('work')
+  }
+
+  function openEditingStep(step: Exclude<EditingStep, null>) {
+    setEditingStep(step)
+    window.setTimeout(() => {
+      trainingFlowRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }, 0)
   }
 
   function chooseContext(nextContext: TrainingContext) {
+    clearActiveSessionDraft()
+    setPressureRepeatCue('')
+    setTomorrowStarterCheck(null)
+    setActiveTomorrowStarterMode(null)
+    setTomorrowStarterCompletion(null)
     setContext(nextContext)
     if (nextContext === 'coach') setWorkType('court')
     if (nextContext === 'doubles') setWorkType('court')
@@ -391,6 +1046,11 @@ export default function PlayerLiveWorkbench({
   }
 
   function chooseWorkType(nextWorkType: WorkType) {
+    clearActiveSessionDraft()
+    setPressureRepeatCue('')
+    setTomorrowStarterCheck(null)
+    setActiveTomorrowStarterMode(null)
+    setTomorrowStarterCompletion(null)
     const nextContextOptions = contextOptionsByWorkType[nextWorkType]
     setWorkType(nextWorkType)
     if (!nextContextOptions.includes(context)) {
@@ -404,17 +1064,22 @@ export default function PlayerLiveWorkbench({
   }
 
   function chooseAccessMode(nextMode: AccessMode) {
+    clearActiveSessionDraft()
+    setPressureRepeatCue('')
+    setTomorrowStarterCheck(null)
+    setActiveTomorrowStarterMode(null)
+    setTomorrowStarterCompletion(null)
     setAccessMode(nextMode)
     if (nextMode === 'coach_invited') {
-      setDraft({ ...draft, sharedWithCoach: true })
+      setDraft((current) => ({ ...current, sharedWithCoach: true }))
       setContext('coach')
     }
     if (nextMode === 'player_plus') {
-      setDraft({ ...draft, sharedWithCoach: false })
+      setDraft((current) => ({ ...current, sharedWithCoach: false }))
       if (context === 'coach') setContext('alone')
     }
     if (nextMode === 'free_preview') {
-      setDraft({ ...draft, sharedWithCoach: false })
+      setDraft((current) => ({ ...current, sharedWithCoach: false }))
       if (context === 'coach') setContext('alone')
     }
     setActiveDrillId('')
@@ -428,6 +1093,30 @@ export default function PlayerLiveWorkbench({
     setDraft((current) => ({ ...current, feeling: readinessFeeling[nextReadiness] }))
   }
 
+  function addQuickNoteChip(note: string) {
+    setDraft((current) => ({
+      ...current,
+      note: appendQuickNote(current.note, note),
+    }))
+  }
+
+  function changeProofCounter(delta: number) {
+    if (!activeDrill) return
+
+    setProofCounter((current) => {
+      const next = Math.max(0, Math.min(99, current + delta))
+      window.sessionStorage.setItem(proofCounterStorageKey(activeDrill.id), String(next))
+      return next
+    })
+  }
+
+  function resetProofCounter() {
+    if (!activeDrill) return
+
+    setProofCounter(0)
+    window.sessionStorage.removeItem(proofCounterStorageKey(activeDrill.id))
+  }
+
   function saveSession() {
     if (draft.rating === null) return
     saveSessionWithRating(draft.rating)
@@ -437,6 +1126,16 @@ export default function PlayerLiveWorkbench({
     saveReceiptLockRef.current = false
   }
 
+  function updateQuestCredit(sessionId: string, message: string) {
+    const current = parseLevelUpQuestHandoff(window.localStorage.getItem(LEVEL_UP_QUEST_HANDOFF_KEY))
+    if (current?.sessionId !== sessionId) return
+
+    const next = updateLevelUpQuestHandoffMessage(current, message)
+    window.localStorage.setItem(LEVEL_UP_QUEST_HANDOFF_KEY, JSON.stringify(next))
+    setQuestHandoff(next)
+    setQuestCreditMessage(message)
+  }
+
   function saveSessionWithRating(rating: number) {
     if (!activeFocus || !activeDrill || hasActiveSaveReceipt || saveReceiptLockRef.current) return
     saveReceiptLockRef.current = true
@@ -444,34 +1143,90 @@ export default function PlayerLiveWorkbench({
     const nextDraft = { ...draft, rating }
     const savedSourceCard = activeDrill.sourceCard
     const savedElapsedSeconds = getTimerSeconds(activeDrill.id)
+    const savedProofCounter = proofCounter
+    const savedProofNote = savedProofCounter > 0 ? getProofCounterNote(savedProofCounter, proofTarget) : ''
+    const savedPressureProofNote = pressureRepeatCue ? getPressureProofNote(pressureRepeatCue) : ''
+    const completedTomorrowStarter = tomorrowStarterPlan && isTomorrowStarterMatch(tomorrowStarterPlan, activeDrill)
+      ? tomorrowStarterPlan
+      : null
+    const savedStarterProofNote = completedTomorrowStarter ? getStarterProofNote(activeTomorrowStarterMode ?? 'first') : ''
+    const savedStarterReadNotes = getStarterReadNotes(identityCourtsideRead)
     const nextSession: SavedSession = {
       id: `${Date.now()}-${activeFocus.id}-${activeDrill.id}`,
+      cardId: savedSourceCard?.id,
       focusId: activeFocus.id,
-      focusTitle: activeFocus.title.replace(' Development', ''),
+      focusTitle: formatFocusTitle(activeFocus.title),
       workType,
       context,
       drillTitle: activeDrill.title,
       rating,
       feeling: nextDraft.feeling,
       accessMode,
-      note: nextDraft.note.trim(),
+      note: mergeProofNotes(nextDraft.note.trim(), savedProofNote, savedPressureProofNote, savedStarterProofNote, ...savedStarterReadNotes),
       elapsedSeconds: savedElapsedSeconds,
       sharedWithCoach: nextDraft.sharedWithCoach,
       completedAt: new Date().toISOString(),
       assignmentId: assignmentId || undefined,
       studentLinkId: studentLinkId || undefined,
       assignmentTitle: assignmentTitle || undefined,
+      starterRead: {
+        starterRep: identityCourtsideRead.starterRep,
+        starterProofCue: identityCourtsideRead.starterProofCue,
+        starterLeakWatch: identityCourtsideRead.starterLeakWatch,
+        starterSmartNext: identityCourtsideRead.starterSmartNext,
+      },
     }
     const nextSessions = [nextSession, ...sessions].slice(0, 40)
+    const nextRep = getNextDrillAfterSession(nextSession, visibleDrills)
+    const nextQuestHandoff = buildLevelUpQuestHandoff({
+      sessionId: nextSession.id,
+      identitySlug,
+      focusId: nextSession.focusId,
+      focusTitle: nextSession.focusTitle,
+      drillTitle: nextSession.drillTitle,
+      rating: nextSession.rating,
+      completedAt: nextSession.completedAt,
+      tennisStreakDays: buildLevelUpTennisStreak(nextSessions.map((session) => session.completedAt)),
+      nextRepTitle: nextRep?.title ?? nextSession.drillTitle,
+      nextRepCardId: nextRep?.sourceCard?.id,
+      questCardId: savedSourceCard?.id,
+      customQuestId,
+    })
     setSessions(nextSessions)
     window.localStorage.setItem(storageKey, JSON.stringify(nextSessions))
+    window.localStorage.setItem(LEVEL_UP_QUEST_HANDOFF_KEY, JSON.stringify(nextQuestHandoff))
+    setQuestHandoff(nextQuestHandoff)
+    if (weeklyPlan) {
+      const completedPlan = completeWeeklyLevelUpPlanFocus(weeklyPlan, identitySlug, nextSession.focusId, nextSession.completedAt)
+      if (completedPlan !== weeklyPlan) {
+        persistWeeklyPlan(completedPlan)
+        void syncWeeklyPlan(completedPlan, 'Proof saved. Weekly plan updated.')
+      }
+    }
+    if (savedSourceCard) appendPortalCompletion(savedSourceCard, nextSession)
     if (customQuestId && savedSourceCard) setQuestCreditMessage('Quest XP queued.')
     setLastSavedSession(nextSession)
     setUndoSession(nextSession)
+    setRecapCopyStatus('idle')
+    setRecapMode('text')
+    setSelectedNextCueId('smart')
+    setSelectedProofMomentId('practice')
+    setSelectedCoachAskId('next')
+    if (completedTomorrowStarter) {
+      window.localStorage.removeItem(tomorrowStarterStorageKey)
+      setTomorrowStarterPlan(null)
+      setTomorrowStarterCheck(null)
+      setActiveTomorrowStarterMode(null)
+      setTomorrowStarterCompletion(getTomorrowStarterCompletion(completedTomorrowStarter, rating))
+    }
+    setPressureRepeatCue('')
     setFinishSummary(null)
-    setDraft(emptyDraft)
+    setDraft(getEmptySessionDraft(accessMode === 'coach_invited'))
     setScoringDrillId('')
     window.sessionStorage.removeItem(timerStorageKey(activeDrill.id))
+    window.sessionStorage.removeItem(proofCounterStorageKey(activeDrill.id))
+    window.sessionStorage.removeItem(levelUpDraftStorageKey(activeDrill.id))
+    setProofCounter(0)
     setTimerResetSignal((signal) => signal + 1)
     setActiveTimerSnapshot({
       drillId: activeDrill.id,
@@ -480,13 +1235,21 @@ export default function PlayerLiveWorkbench({
       targetSeconds: activeDrill.timerSeconds,
     })
     setSyncState({ status: 'local', message: 'Saved on this device. Undo is available briefly; sync queues next.' })
+    window.setTimeout(() => {
+      nextActionRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }, 0)
 
     const syncTimerId = window.setTimeout(() => {
       queuedSyncTimersRef.current.delete(nextSession.id)
       setUndoSession((current) => current?.id === nextSession.id ? null : current)
-      if (savedSourceCard) appendPortalCompletion(savedSourceCard, nextSession)
       if (customQuestId && savedSourceCard) {
-        void syncCustomQuestCompletion(customQuestId, nextSession, savedSourceCard, identitySlug, setQuestCreditMessage)
+        void syncCustomQuestCompletion(
+          customQuestId,
+          nextSession,
+          savedSourceCard,
+          identitySlug,
+          (message) => updateQuestCredit(nextSession.id, message),
+        )
       }
       setSyncState({ status: 'syncing', message: 'Saved on this device. Syncing now...' })
       void syncLevelUpSession(nextSession)
@@ -494,7 +1257,69 @@ export default function PlayerLiveWorkbench({
     queuedSyncTimersRef.current.set(nextSession.id, syncTimerId)
   }
 
+  function persistWeeklyPlan(nextPlan: WeeklyLevelUpPlan) {
+    setWeeklyPlan(nextPlan)
+    window.localStorage.setItem(weeklyPlanStorageKey, JSON.stringify(nextPlan))
+  }
+
+  async function syncWeeklyPlan(nextPlan: WeeklyLevelUpPlan, successMessage: string) {
+    const token = session?.access_token
+    if (!token) {
+      setWeeklyPlanMessage('Saved on this device. Sign in to sync it across devices.')
+      return false
+    }
+
+    setWeeklyPlanSyncing(true)
+    try {
+      const response = await fetch('/api/player/level-up-weekly-plan', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan: nextPlan }),
+      })
+      const json = (await response.json()) as { ok?: boolean; plan?: WeeklyLevelUpPlan; message?: string; code?: string }
+      if (!response.ok || !json.ok || !json.plan) {
+        setWeeklyPlanMessage(json.message || 'Saved on this device. Cloud sync is not available yet.')
+        return false
+      }
+      persistWeeklyPlan(json.plan)
+      setWeeklyPlanMessage(successMessage)
+      return true
+    } catch {
+      setWeeklyPlanMessage('Saved on this device. Cloud sync will be available when you reconnect.')
+      return false
+    } finally {
+      setWeeklyPlanSyncing(false)
+    }
+  }
+
+  function saveThisWeek() {
+    const nextPlan = buildWeeklyLevelUpPlan(weeklyRecap, identitySlug)
+    if (!nextPlan) return
+    persistWeeklyPlan(nextPlan)
+    setWeeklyPlanMessage('Week saved. Start with rep one.')
+    void syncWeeklyPlan(nextPlan, 'Week saved and synced.')
+  }
+
+  function toggleWeeklyRep(repId: string) {
+    if (!weeklyPlan) return
+    const nextPlan = toggleWeeklyLevelUpPlanRep(weeklyPlan, repId)
+    persistWeeklyPlan(nextPlan)
+    void syncWeeklyPlan(nextPlan, 'Weekly progress synced.')
+  }
+
+  function toggleWeeklyCoachShare() {
+    if (!weeklyPlan) return
+    if (!session?.access_token) {
+      setWeeklyPlanMessage('Sign in and connect a coach before sharing this week.')
+      return
+    }
+    const nextPlan = setWeeklyLevelUpPlanShared(weeklyPlan, !weeklyPlan.sharedWithCoach)
+    void syncWeeklyPlan(nextPlan, nextPlan.sharedWithCoach ? 'Your linked coach can now see this week.' : 'This week is private again.')
+  }
+
   function goToScore() {
+    setEditingStep(null)
+    setTomorrowStarterCheck(null)
     setScoringDrillId(activeDrill.id)
     window.setTimeout(() => {
       trackerRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
@@ -509,12 +1334,122 @@ export default function PlayerLiveWorkbench({
     }, 0)
   }
 
+  function startDrillJourney() {
+    setEditingStep(null)
+    setScoringDrillId('')
+    setTimerStartSignal((signal) => signal + 1)
+    window.setTimeout(() => {
+      activityRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }, 0)
+  }
+
+  function showSavedRecap() {
+    savedRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }
+
+  function showNextAction() {
+    nextActionRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  }
+
+  function saveTomorrowStarterPlan() {
+    if (!todayCloseoutRead) return
+
+    const plannedDrill = drillOptions.find((drill) => drill.title === todayCloseoutRead.starterDrillTitle)
+    const nextPlan: TomorrowStarterPlan = {
+      focusId: todayCloseoutRead.starterFocusId,
+      focusTitle: todayCloseoutRead.starterFocusTitle,
+      workType: todayCloseoutRead.starterWorkType,
+      context: todayCloseoutRead.starterContext,
+      drillId: plannedDrill?.id ?? activeDrill.id,
+      drillTitle: todayCloseoutRead.starterDrillTitle,
+      cue: todayCloseoutRead.tomorrow,
+      reason: todayCloseoutRead.starterReason,
+      createdAt: new Date().toISOString(),
+    }
+
+    window.localStorage.setItem(tomorrowStarterStorageKey, JSON.stringify(nextPlan))
+    setTomorrowStarterPlan(nextPlan)
+    setActiveTomorrowStarterMode(null)
+  }
+
+  function loadTomorrowStarterPlan() {
+    if (!tomorrowStarterPlan) return
+
+    unlockProofSave()
+    setLastSavedSession(null)
+    setFinishSummary(null)
+    setRecapCopyStatus('idle')
+    setSelectedNextCueId('smart')
+    setSelectedProofMomentId('practice')
+    setSelectedCoachAskId('next')
+    setPressureRepeatCue('')
+    setActiveFocusId(tomorrowStarterPlan.focusId)
+    setWorkType(tomorrowStarterPlan.workType)
+    setContext(tomorrowStarterPlan.context)
+    setActiveDrillId(tomorrowStarterPlan.drillId)
+    setTomorrowStarterCheck(getTomorrowStarterCheck(tomorrowStarterPlan))
+    setActiveTomorrowStarterMode('first')
+    setScoringDrillId('')
+    window.requestAnimationFrame(() => {
+      starterCheckRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    })
+  }
+
+  function clearTomorrowStarterPlan() {
+    window.localStorage.removeItem(tomorrowStarterStorageKey)
+    setTomorrowStarterPlan(null)
+    setTomorrowStarterCheck(null)
+    setActiveTomorrowStarterMode(null)
+  }
+
+  function restoreTomorrowStarterPlan() {
+    if (!tomorrowStarterCompletion) return
+
+    const restoredPlan = tomorrowStarterCompletion.restoredPlan
+    window.localStorage.setItem(tomorrowStarterStorageKey, JSON.stringify(restoredPlan))
+    setTomorrowStarterPlan(restoredPlan)
+    setActiveTomorrowStarterMode(null)
+    setTomorrowStarterCompletion(null)
+  }
+
+  function runTomorrowStarterAgain() {
+    if (!tomorrowStarterCompletion) return
+
+    const restoredPlan = tomorrowStarterCompletion.restoredPlan
+    window.localStorage.setItem(tomorrowStarterStorageKey, JSON.stringify(restoredPlan))
+    unlockProofSave()
+    setLastSavedSession(null)
+    setFinishSummary(null)
+    setRecapCopyStatus('idle')
+    setSelectedNextCueId('smart')
+    setSelectedProofMomentId('practice')
+    setSelectedCoachAskId('next')
+    setPressureRepeatCue('')
+    setActiveFocusId(restoredPlan.focusId)
+    setWorkType(restoredPlan.workType)
+    setContext(restoredPlan.context)
+    setActiveDrillId(restoredPlan.drillId)
+    setTomorrowStarterPlan(restoredPlan)
+    const starterMode = tomorrowStarterCompletion.rating >= 4 ? 'volume' : 'repeat'
+    setTomorrowStarterCheck(getTomorrowStarterCheck(restoredPlan, starterMode))
+    setActiveTomorrowStarterMode(starterMode)
+    setTomorrowStarterCompletion(null)
+    setScoringDrillId('')
+    window.requestAnimationFrame(() => {
+      starterCheckRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    })
+  }
+
   function chooseDrillOption(drillId: string) {
     if (drillId === activeDrill.id) return
     if (activeTimerSnapshot?.drillId === activeDrill.id && activeTimerSnapshot.running) {
       const shouldSwitch = window.confirm('Switch drills? The current timer will reset to 0:00.')
       if (!shouldSwitch) return
     }
+    clearActiveSessionDraft()
+    setPressureRepeatCue('')
+    setTomorrowStarterCheck(null)
+    setActiveTomorrowStarterMode(null)
     setActiveDrillId(drillId)
     setScoringDrillId('')
     window.requestAnimationFrame(() => {
@@ -525,8 +1460,13 @@ export default function PlayerLiveWorkbench({
   function repeatActivity() {
     unlockProofSave()
     setLastSavedSession(null)
-    setDraft(emptyDraft)
+    setRecapCopyStatus('idle')
+    setSelectedNextCueId('smart')
+    setSelectedProofMomentId('practice')
+    setSelectedCoachAskId('next')
+    setDraft(getEmptySessionDraft(accessMode === 'coach_invited'))
     setScoringDrillId('')
+    setPressureRepeatCue('')
     setQuestCreditMessage('')
     setFinishSummary(null)
     activityRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
@@ -535,29 +1475,84 @@ export default function PlayerLiveWorkbench({
   function pickNewFocus() {
     unlockProofSave()
     setLastSavedSession(null)
-    setDraft(emptyDraft)
+    setRecapCopyStatus('idle')
+    setSelectedNextCueId('smart')
+    setSelectedProofMomentId('practice')
+    setSelectedCoachAskId('next')
+    setDraft(getEmptySessionDraft(accessMode === 'coach_invited'))
     setActiveDrillId('')
     setScoringDrillId('')
+    setPressureRepeatCue('')
     setQuestCreditMessage('')
     setFinishSummary(null)
-    setEditingStep('focus')
-    window.setTimeout(() => {
-      document.getElementById('level-up-flow')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
-    }, 0)
+    openEditingStep('focus')
   }
 
   function moveToSuggestedDrill() {
     if (!suggestedNextDrill) return
     unlockProofSave()
     setLastSavedSession(null)
+    setRecapCopyStatus('idle')
+    setSelectedNextCueId('smart')
+    setSelectedProofMomentId('practice')
+    setSelectedCoachAskId('next')
+    setPressureRepeatCue('')
     setFinishSummary(null)
     chooseDrillOption(suggestedNextDrill.id)
+  }
+
+  function startPressureRepeat() {
+    unlockProofSave()
+    setLastSavedSession(null)
+    setRecapCopyStatus('idle')
+    setSelectedNextCueId('smart')
+    setSelectedProofMomentId('practice')
+    setSelectedCoachAskId('next')
+    setDraft(getEmptySessionDraft(accessMode === 'coach_invited'))
+    setScoringDrillId('')
+    setPressureRepeatCue(getPressureRepeatCue(activeDrill, readiness))
+    setQuestCreditMessage('')
+    setFinishSummary(null)
+    setProofCounter(0)
+    window.sessionStorage.removeItem(proofCounterStorageKey(activeDrill.id))
+    window.setTimeout(() => {
+      activityRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }, 0)
+  }
+
+  function runSmartNextPrimary() {
+    if (!smartNextAction) {
+      repeatActivity()
+      return
+    }
+
+    if (smartNextAction.decision === 'Add pressure') {
+      if (suggestedNextDrill) {
+        moveToSuggestedDrill()
+        return
+      }
+
+      startPressureRepeat()
+      return
+    }
+
+    if (smartNextAction.decision === 'Recover' || smartNextAction.decision === 'Finish') {
+      finishToday()
+      return
+    }
+
+    repeatActivity()
   }
 
   function finishToday() {
     unlockProofSave()
     setFinishSummary(sessions.filter(isSessionFromToday).slice(0, 6))
     setLastSavedSession(null)
+    setRecapCopyStatus('idle')
+    setSelectedNextCueId('smart')
+    setSelectedProofMomentId('practice')
+    setSelectedCoachAskId('next')
+    setPressureRepeatCue('')
     setQuestCreditMessage('')
     window.setTimeout(() => {
       finishRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })
@@ -581,11 +1576,131 @@ export default function PlayerLiveWorkbench({
       return next
     })
     removePortalCompletion(sessionId)
+    setQuestHandoff((current) => {
+      if (current?.sessionId !== sessionId) return current
+      window.localStorage.removeItem(LEVEL_UP_QUEST_HANDOFF_KEY)
+      return null
+    })
+    setSentProofRecapIds((current) => {
+      const next = current.filter((id) => id !== sessionId)
+      window.localStorage.setItem(sentProofRecapStorageKey, JSON.stringify(next))
+      return next
+    })
     setUndoSession(null)
     setFinishSummary(null)
+    setRecapCopyStatus('idle')
+    setSelectedNextCueId('smart')
+    setSelectedProofMomentId('practice')
+    setSelectedCoachAskId('next')
+    setPressureRepeatCue('')
     setQuestCreditMessage('')
     setLastSavedSession((current) => current?.id === sessionId ? null : current)
     setSyncState({ status: 'local', message: 'Last log undone before sync.' })
+  }
+
+  function clearActiveSessionDraft() {
+    if (!activeDrill) return
+    window.sessionStorage.removeItem(levelUpDraftStorageKey(activeDrill.id))
+  }
+
+  function discardSessionDraft() {
+    clearActiveSessionDraft()
+    setDraft(getEmptySessionDraft(accessMode === 'coach_invited'))
+    setSyncState({ status: 'idle', message: 'Draft cleared on this phone.' })
+  }
+
+  async function copySavedProofRecap() {
+    if (!savedProofRecap) return
+
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable')
+      await navigator.clipboard.writeText(savedProofRecap)
+      setRecapCopyStatus('copied')
+    } catch {
+      setRecapCopyStatus('manual')
+    }
+  }
+
+  async function shareSavedProofRecap() {
+    if (!savedProofRecap) return
+
+    if (typeof navigator.share === 'function') {
+      try {
+        setRecapCopyStatus('shared')
+        await navigator.share({
+          title: 'Level Up proof recap',
+          text: savedProofRecap,
+        })
+        return
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          setRecapCopyStatus('idle')
+          return
+        }
+      }
+    }
+
+    await copySavedProofRecap()
+  }
+
+  function chooseSavedNextCue(cueId: SavedNextCueId) {
+    setSelectedNextCueId(cueId)
+    setRecapCopyStatus('idle')
+    clearSentMarkerForLastSavedSession()
+  }
+
+  function chooseSavedProofMoment(momentId: SavedProofMomentId) {
+    setSelectedProofMomentId(momentId)
+    setRecapCopyStatus('idle')
+    clearSentMarkerForLastSavedSession()
+  }
+
+  function chooseSavedCoachAsk(askId: SavedCoachAskId) {
+    setSelectedCoachAskId(askId)
+    setRecapCopyStatus('idle')
+    clearSentMarkerForLastSavedSession()
+  }
+
+  function chooseRecapMode(nextMode: RecapMode) {
+    setRecapMode(nextMode)
+    setRecapCopyStatus('idle')
+    clearSentMarkerForLastSavedSession()
+  }
+
+  function clearSentMarkerForLastSavedSession() {
+    if (!lastSavedSession) return
+    setSentProofRecapIds((current) => {
+      if (!current.includes(lastSavedSession.id)) return current
+
+      const next = current.filter((id) => id !== lastSavedSession.id)
+      window.localStorage.setItem(sentProofRecapStorageKey, JSON.stringify(next))
+      return next
+    })
+  }
+
+  function markSavedProofRecapSent() {
+    if (!lastSavedSession) return
+
+    setSentProofRecapIds((current) => {
+      if (current.includes(lastSavedSession.id)) return current
+
+      const next = [lastSavedSession.id, ...current].slice(0, 60)
+      window.localStorage.setItem(sentProofRecapStorageKey, JSON.stringify(next))
+      return next
+    })
+  }
+
+  function undoSavedProofRecapSent() {
+    if (!lastSavedSession) return
+
+    setSentProofRecapIds((current) => {
+      if (!current.includes(lastSavedSession.id)) return current
+
+      const next = current.filter((id) => id !== lastSavedSession.id)
+      window.localStorage.setItem(sentProofRecapStorageKey, JSON.stringify(next))
+      return next
+    })
+    setRecapCopyStatus('unsent')
   }
 
   async function syncLevelUpSession(session: SavedSession) {
@@ -676,7 +1791,12 @@ export default function PlayerLiveWorkbench({
     : []
 
   return (
-    <section className={styles.liveWorkbench} data-assignment={hasCoachAssignment ? 'true' : 'false'} aria-labelledby="live-workbench-title">
+    <section
+      className={styles.liveWorkbench}
+      data-assignment={hasCoachAssignment ? 'true' : 'false'}
+      data-quick-start={hasQuickStart && !hasCoachAssignment ? 'true' : 'false'}
+      aria-labelledby="live-workbench-title"
+    >
       <div className={styles.liveWorkbenchHero}>
         <div>
           <span>Level Up</span>
@@ -689,20 +1809,161 @@ export default function PlayerLiveWorkbench({
         </div>
       </div>
 
+      <div id="level-up-flow" className={styles.liveFlowAnchor} aria-hidden="true" />
+
+      {hasQuickStart && !hasCoachAssignment ? (
+        <section className={styles.liveDirectExecution} aria-labelledby="direct-execution-title">
+          <div className={styles.liveDirectExecutionHeader}>
+            <div>
+              <span>Ready to run</span>
+              <h3 id="direct-execution-title">{activeDrill.title}</h3>
+              <p>{activeDrill.summary}</p>
+            </div>
+            <div className={styles.liveDirectExecutionTime}>
+              <span>Time</span>
+              <strong>{activeDrill.duration}</strong>
+            </div>
+          </div>
+          <div className={styles.liveDirectExecutionReads} aria-label="Drill cues">
+            <article data-state="now">
+              <span>Do</span>
+              <strong>{activeCourtsideCommand.now}</strong>
+            </article>
+            <article data-state="count">
+              <span>Count</span>
+              <strong>{activeCourtsideCommand.count}</strong>
+            </article>
+            <article data-state="proof">
+              <span>Proof</span>
+              <strong>{shortenDrillStep(activeDrill.proof)}</strong>
+            </article>
+          </div>
+          <ol className={styles.liveDirectExecutionSteps} aria-label="Drill instructions">
+            {activeDrillSteps.map((step, index) => (
+              <li key={`${activeDrill.id}-ready-${step}`}>
+                <span>{index + 1}</span>
+                <strong>{step}</strong>
+              </li>
+            ))}
+          </ol>
+          <div className={styles.liveDirectExecutionActions}>
+            <button type="button" className="button-primary" onClick={startDrillJourney}>
+              {activeTimerSeconds > 0 ? 'Resume timer' : 'Start timer'}
+            </button>
+            <button type="button" className="button-secondary" onClick={goToScore}>
+              Score proof
+            </button>
+            <button type="button" className="button-secondary" onClick={() => openEditingStep('focus')}>
+              Change rep
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {activeResumeStrip ? (
+        <div className={styles.liveActiveResumeStrip} data-state={activeResumeStrip.state} aria-label="Active courtside session resume">
+          <div>
+            <span>Resume session</span>
+            <strong>{activeResumeStrip.title}</strong>
+            <p>{activeResumeStrip.detail}</p>
+          </div>
+          <button
+            type="button"
+            className={activeResumeStrip.action === 'score' ? 'button-primary' : 'button-secondary'}
+            onClick={activeResumeStrip.action === 'score' ? goToScore : showActivity}
+          >
+            {activeResumeStrip.actionLabel}
+          </button>
+        </div>
+      ) : tomorrowStarterPlan ? (
+        <div className={styles.liveActiveResumeStrip} data-state="starter" aria-label="Saved starter courtside resume">
+          <div>
+            <span>Saved starter</span>
+            <strong>{tomorrowStarterPlan.drillTitle}</strong>
+            <p>{tomorrowStarterPlan.cue}</p>
+          </div>
+          <button type="button" className="button-primary" onClick={loadTomorrowStarterPlan}>
+            Load rep
+          </button>
+        </div>
+      ) : null}
+
       <div className={styles.liveCompactSummary} aria-label="Current Level Up path">
         <span>{hasCoachAssignment ? 'Coach challenge' : 'Ready now'}</span>
-        <strong>{hasCoachAssignment ? assignmentTitle || activeDrill.title : activeFocus.title.replace(' Development', '')}</strong>
+        <strong>{hasCoachAssignment ? assignmentTitle || activeDrill.title : formatFocusTitle(activeFocus.title)}</strong>
         <p>{workTypeLabels[workType]} / {contextLabels[context]}</p>
         <div className={styles.liveCompactEdits} aria-label="Change Level Up choices">
-          <button type="button" data-active={editingStep === 'focus' ? 'true' : 'false'} onClick={() => setEditingStep('focus')}>
+          <button type="button" data-active={editingStep === 'focus' ? 'true' : 'false'} onClick={() => openEditingStep('focus')}>
             Focus
           </button>
-          <button type="button" data-active={editingStep === 'work' ? 'true' : 'false'} onClick={() => setEditingStep('work')}>
+          <button type="button" data-active={editingStep === 'work' ? 'true' : 'false'} onClick={() => openEditingStep('work')}>
             Work
           </button>
-          <button type="button" data-active={editingStep === 'setup' ? 'true' : 'false'} onClick={() => setEditingStep('setup')}>
+          <button type="button" data-active={editingStep === 'setup' ? 'true' : 'false'} onClick={() => openEditingStep('setup')}>
             Setup
           </button>
+        </div>
+      </div>
+
+      <div className={styles.liveIdentityCourtRead} aria-label="Player ID courtside read">
+        <article>
+          <span>First rep</span>
+          <strong>{identityCourtsideRead.starterRep}</strong>
+        </article>
+        <article>
+          <span>Score it when</span>
+          <strong>{identityCourtsideRead.starterProofCue}</strong>
+        </article>
+        <article data-state="watch">
+          <span>Leak watch</span>
+          <strong>{identityCourtsideRead.starterLeakWatch}</strong>
+        </article>
+        <article data-state="next">
+          <span>Smart next</span>
+          <strong>{identityCourtsideRead.starterSmartNext}</strong>
+        </article>
+      </div>
+
+      <div className={styles.liveCourtsideResume} data-state={hasActiveSaveReceipt ? 'saved' : scoringDrillId === activeDrill.id ? 'scoring' : 'active'} aria-label="Courtside resume card">
+        <div>
+          <span>Courtside resume</span>
+          <strong>{hasActiveSaveReceipt ? 'Proof saved. Choose repeat or new focus.' : activeDrill.title}</strong>
+          <p>{shortenDrillStep(activeDrill.proof)}</p>
+          <small className={styles.liveCourtsideResumeStatus} role="status" aria-live="polite">
+            {courtsideResumeStatus}
+          </small>
+        </div>
+        <div className={styles.liveCourtsideResumeGrid}>
+          {courtsideResumeItems.map((item) => (
+            <article key={item.label} data-state={item.state}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </article>
+          ))}
+        </div>
+        <div className={styles.liveCourtsideResumeActions}>
+          {hasActiveSaveReceipt ? (
+            <>
+              <button type="button" className="button-primary" onClick={repeatActivity}>
+                Repeat
+              </button>
+              <button type="button" className="button-secondary" onClick={pickNewFocus}>
+                New focus
+              </button>
+              <button type="button" className="button-secondary" onClick={showSavedRecap}>
+                {savedProofRecapSent ? 'Sent recap' : 'Recap'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="button-secondary" onClick={showActivity}>
+                Drill
+              </button>
+              <button type="button" className="button-primary" onClick={goToScore}>
+                Score
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -740,6 +2001,10 @@ export default function PlayerLiveWorkbench({
             <strong>{todaySessions.length}</strong>
           </article>
           <article>
+            <span>Clean</span>
+            <strong>{proofCounter}/{proofTarget}</strong>
+          </article>
+          <article>
             <span>Next</span>
             <strong>{smartNextAction ? 'Ready' : 'Start'}</strong>
           </article>
@@ -755,9 +2020,207 @@ export default function PlayerLiveWorkbench({
             Finish
           </button>
         </div>
+        {todayCloseoutRead ? (
+          <div className={styles.liveTodayCloseoutRead} aria-label="Today closeout read">
+            <span>Today read</span>
+            <div>
+              <article>
+                <span>Best proof</span>
+                <strong>{todayCloseoutRead.bestProof}</strong>
+              </article>
+              <article data-state={todayCloseoutRead.pressureProof === 'No pressure proof yet' ? 'quiet' : 'pressure'}>
+                <span>Pressure</span>
+                <strong>{todayCloseoutRead.pressureProof}</strong>
+              </article>
+              <article>
+                <span>Tomorrow</span>
+                <strong>{todayCloseoutRead.tomorrow}</strong>
+              </article>
+            </div>
+            <div className={styles.liveTodayCloseoutActions}>
+              <button type="button" className="button-primary" disabled={tomorrowStarterSaved} onClick={saveTomorrowStarterPlan}>
+                {tomorrowStarterSaved ? 'Saved starter' : 'Save starter'}
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {tomorrowStarterPlan ? (
+          <div className={styles.liveTomorrowStarterPlan} aria-label="Saved tomorrow starter">
+            <div>
+              <span>Tomorrow starter</span>
+              <strong>{tomorrowStarterPlan.drillTitle}</strong>
+              <p>{tomorrowStarterPlan.cue}</p>
+              <small>{tomorrowStarterPlan.reason}</small>
+            </div>
+            <div className={styles.liveTomorrowStarterActions}>
+              <button type="button" className="button-primary" onClick={loadTomorrowStarterPlan}>
+                Load rep
+              </button>
+              <button type="button" className="button-secondary" onClick={clearTomorrowStarterPlan}>
+                Clear
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {tomorrowStarterCheck ? (
+          <div ref={starterCheckRef} className={styles.liveTomorrowStarterCheck} aria-label="Loaded starter first rep check">
+            <div>
+              <span>{tomorrowStarterCheck.label}</span>
+              <strong>{tomorrowStarterCheck.drillTitle}</strong>
+            </div>
+            <div className={styles.liveTomorrowStarterCheckGrid}>
+              <article>
+                <span>Cue</span>
+                <strong>{tomorrowStarterCheck.cue}</strong>
+              </article>
+              <article>
+                <span>Proof</span>
+                <strong>{tomorrowStarterCheck.proof}</strong>
+              </article>
+              <article>
+                <span>Stop</span>
+                <strong>{tomorrowStarterCheck.stopRule}</strong>
+              </article>
+            </div>
+            <div className={styles.liveTomorrowStarterCheckActions}>
+              <button type="button" className="button-primary" onClick={goToScore}>
+                {tomorrowStarterCheck.scoreLabel}
+              </button>
+              <button type="button" className="button-secondary" onClick={() => setTomorrowStarterCheck(null)}>
+                Hide
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {tomorrowStarterCompletion ? (
+          <div className={styles.liveTomorrowStarterDone} aria-label="Tomorrow starter completed">
+            <div>
+              <span>Starter done</span>
+              <strong>{tomorrowStarterCompletion.drillTitle} {tomorrowStarterCompletion.rating}/5</strong>
+              <p>{tomorrowStarterCompletion.next}</p>
+            </div>
+            <div className={styles.liveTomorrowStarterDoneActions}>
+              <button type="button" className="button-primary" onClick={runTomorrowStarterAgain}>
+                {tomorrowStarterCompletion.actionLabel}
+              </button>
+              <button type="button" className="button-secondary" onClick={restoreTomorrowStarterPlan}>
+                Restore starter
+              </button>
+              <button type="button" className="button-secondary" onClick={() => setTomorrowStarterCompletion(null)}>
+                Clear
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
-      <nav className={styles.liveSessionDock} aria-label="Level Up bottom session dock">
+      <details className={styles.liveWeeklyRecap} aria-label="Weekly Level Up progress recap">
+        <summary className={styles.liveWeeklyMomentum}>
+          <div>
+            <span>7-day momentum</span>
+            <strong>
+              {weeklyPlan
+                ? `${weeklyPlanProgress.completed} of ${weeklyPlanProgress.total} planned reps complete`
+                : `${weeklyRecap.proofCount} proof · ${weeklyRecap.activeDays} active day${weeklyRecap.activeDays === 1 ? '' : 's'}`}
+            </strong>
+            <small>{weeklyRecap.strongestFocus}</small>
+          </div>
+          <div className={styles.liveWeeklyRecapScore} data-trend={weeklyRecap.proofTrend}>
+            <span>{weeklyPlan ? 'Plan' : 'Average'}</span>
+            <strong>{weeklyPlan ? `${weeklyPlanProgress.completed}/${weeklyPlanProgress.total}` : weeklyRecap.proofCount ? `${weeklyRecap.averageRating.toFixed(1)}/5` : '—'}</strong>
+          </div>
+          <em>View week</em>
+        </summary>
+        <div className={styles.liveWeeklyRecapBody}>
+          <div className={styles.liveWeeklyRecapHeader}>
+          <div>
+            <span>Last 7 days</span>
+            <strong>{weeklyRecap.proofCount ? 'Your tennis week, simplified.' : 'Start this tennis week.'}</strong>
+            <p>{weeklyRecap.summary}</p>
+          </div>
+          </div>
+          <div className={styles.liveWeeklyRecapReads} aria-label="Weekly proof, activity, streak, and strongest focus">
+          <article data-trend={weeklyRecap.proofTrend}>
+            <span>Proof</span>
+            <strong>{weeklyRecap.proofCount}</strong>
+            <small>{weeklyRecap.proofTrendLabel}</small>
+          </article>
+          <article data-trend={weeklyRecap.activeDayTrend}>
+            <span>Active days</span>
+            <strong>{weeklyRecap.activeDays}</strong>
+            <small>{weeklyRecap.activeDayTrendLabel}</small>
+          </article>
+          <article data-trend={weeklyRecap.tennisStreakDays ? 'up' : 'steady'}>
+            <span>Tennis streak</span>
+            <strong>{weeklyRecap.tennisStreakDays} day{weeklyRecap.tennisStreakDays === 1 ? '' : 's'}</strong>
+            <small>{weeklyRecap.tennisStreakDays ? 'Keep one clean rep alive.' : 'One proof starts it.'}</small>
+          </article>
+          <article data-trend="focus">
+            <span>Strongest focus</span>
+            <strong>{weeklyRecap.strongestFocus}</strong>
+            <small>{weeklyRecap.strongestFocusRead}</small>
+          </article>
+          </div>
+          {weeklyPlan ? (
+          <div className={styles.liveWeeklyPlanStatus}>
+            <div>
+              <strong>{weeklyPlanProgress.complete ? 'Week complete.' : `Next: ${weeklyPlanProgress.nextRep?.title ?? 'Keep building'}`}</strong>
+              <span>{weeklyPlanProgress.completed} of {weeklyPlanProgress.total} reps complete</span>
+            </div>
+            <div className={styles.liveWeeklyPlanActions}>
+              <button type="button" disabled={weeklyPlanSyncing} onClick={toggleWeeklyCoachShare}>
+                {weeklyPlan.sharedWithCoach ? 'Shared with coach' : 'Share with coach'}
+              </button>
+            </div>
+          </div>
+        ) : weeklyRecap.nextReps.length ? (
+          <div className={styles.liveWeeklySavePrompt}>
+            <span>Three reps. One clear week.</span>
+            <button type="button" onClick={saveThisWeek}>Save this week</button>
+          </div>
+          ) : null}
+          {weeklyPlan ? (
+          <WeeklyPlanCoachResponse
+            key={weeklyPlan.coachResponse?.updatedAt ?? weeklyPlan.id}
+            plan={weeklyPlan}
+            accessToken={session?.access_token ?? ''}
+            onSaved={persistWeeklyPlan}
+          />
+          ) : null}
+          {(weeklyPlan ? weeklyPlanReps : weeklyRecap.nextReps).length ? (
+          <div className={styles.liveWeeklyRepPlan} aria-label="Three recommended Level Up reps">
+            {(weeklyPlan ? weeklyPlanReps : weeklyRecap.nextReps).map((rep, index) => {
+              const completed = 'completedAt' in rep && Boolean(rep.completedAt)
+              return (
+                <article key={rep.id} data-kind={rep.kind} data-primary={index === 0 ? 'true' : 'false'} data-complete={completed ? 'true' : 'false'}>
+                  <span>{completed ? 'Done' : `${index + 1} · ${rep.label}`}</span>
+                  <strong>{rep.title}</strong>
+                  <small>{rep.detail}</small>
+                  <div>
+                    <Link href={rep.href}>{completed ? 'Open again' : index === 0 ? 'Start rep' : 'Open rep'}</Link>
+                    {weeklyPlan ? (
+                      <button type="button" onClick={() => toggleWeeklyRep(rep.id)}>
+                        {completed ? 'Undo' : 'Mark done'}
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+          ) : null}
+          {weeklyPlanMessage ? (
+          <p className={styles.liveWeeklyPlanMessage} role="status">
+            {weeklyPlanMessage}
+            {weeklyPlanMessage.toLowerCase().includes('connect a coach') ? (
+              <> <Link href="/mylab#coach-assignments">Open My Lab</Link></>
+            ) : null}
+          </p>
+          ) : null}
+        </div>
+      </details>
+
+      <nav className={styles.liveSessionDock} data-active={sessionDockActive ? 'true' : 'false'} aria-label="Level Up bottom session dock">
         <a href="#level-up-flow">Today</a>
         <button type="button" onClick={showActivity}>Drill</button>
         <button type="button" onClick={goToScore}>Score</button>
@@ -874,7 +2337,56 @@ export default function PlayerLiveWorkbench({
         <span>Go</span>
       </div>
 
-      <div id="level-up-flow" className={styles.liveTrainingFlow}>
+      <nav
+        className={styles.liveDrillJourney}
+        data-stage={drillJourneyStage}
+        data-visible={editingStep === 'focus' || editingStep === 'work' ? 'false' : 'true'}
+        aria-label="Drill flow"
+      >
+        <button
+          type="button"
+          data-state={drillJourneyStage === 'setup' ? 'current' : 'done'}
+          aria-current={drillJourneyStage === 'setup' ? 'step' : undefined}
+          onClick={() => openEditingStep('setup')}
+        >
+          <span>1</span>
+          <strong>Setup</strong>
+          <small>{contextLabels[activeDrill.context]} · {activeDrill.duration}</small>
+        </button>
+        <button
+          type="button"
+          data-state={drillJourneyStage === 'setup' ? 'upcoming' : drillJourneyStage === 'run' ? 'current' : 'done'}
+          aria-current={drillJourneyStage === 'run' ? 'step' : undefined}
+          onClick={startDrillJourney}
+        >
+          <span>2</span>
+          <strong>Run the rep</strong>
+          <small>{activeTimerSeconds > 0 ? formatClock(activeTimerSeconds) : `${proofTarget} clean reps`}</small>
+        </button>
+        <button
+          type="button"
+          data-state={drillJourneyStage === 'score' ? 'current' : drillJourneyStage === 'next' ? 'done' : 'upcoming'}
+          aria-current={drillJourneyStage === 'score' ? 'step' : undefined}
+          onClick={goToScore}
+        >
+          <span>3</span>
+          <strong>Score proof</strong>
+          <small>{lastSavedSession ? `${lastSavedSession.rating}/5 saved` : 'Honest 0–5'}</small>
+        </button>
+        <button
+          type="button"
+          data-state={drillJourneyStage === 'next' ? 'current' : 'upcoming'}
+          aria-current={drillJourneyStage === 'next' ? 'step' : undefined}
+          disabled={!lastSavedSession}
+          onClick={showNextAction}
+        >
+          <span>4</span>
+          <strong>Next action</strong>
+          <small>{smartNextAction?.decision ?? 'Unlock after proof'}</small>
+        </button>
+      </nav>
+
+      <div ref={trainingFlowRef} className={styles.liveTrainingFlow}>
         <div className={styles.liveStepPanel} data-collapsed={editingStep !== 'focus' ? 'true' : 'false'}>
           <span>1. Focus</span>
           <strong>Choose today&apos;s target.</strong>
@@ -887,7 +2399,7 @@ export default function PlayerLiveWorkbench({
                 data-active={focus.id === activeFocus.id ? 'true' : 'false'}
                 onClick={() => chooseFocus(focus.id)}
               >
-                <strong>{focus.title.replace(' Development', '')}</strong>
+                <strong>{formatFocusTitle(focus.title)}</strong>
                 <span>{focus.cue}</span>
               </button>
             ))}
@@ -946,6 +2458,20 @@ export default function PlayerLiveWorkbench({
             <span>{workTypeLabels[activeDrill.workType]} / {contextLabels[activeDrill.context]}</span>
             <h3>{activeDrill.title}</h3>
             <p>{activeDrill.summary}</p>
+            <div className={styles.liveCourtsideCommand} aria-label="Current courtside command">
+              <article data-state="now">
+                <span>Now</span>
+                <strong>{activeCourtsideCommand.now}</strong>
+              </article>
+              <article data-state="count">
+                <span>Count</span>
+                <strong>{activeCourtsideCommand.count}</strong>
+              </article>
+              <article data-state="stop">
+                <span>Stop</span>
+                <strong>{activeCourtsideCommand.stop}</strong>
+              </article>
+            </div>
             <div className={styles.liveDrillSteps} aria-label="Drill actions">
               {activeDrillSteps.map((step, index) => (
                 <div key={`${activeDrill.id}-${step}`}>
@@ -959,35 +2485,94 @@ export default function PlayerLiveWorkbench({
               <strong>{activeDrill.sourceCard?.cue ?? activeFocus.tracker[0] ?? 'Proof rating'}</strong>
               {activeDrill.sourceCard ? <p>{activeDrill.sourceCard.reward}</p> : null}
             </div>
-            {activeDrill.sourceCard ? (
-              <div className={styles.liveQualityGrid} aria-label="Quality standards for this activity">
+            <details className={styles.liveDrillDetails} aria-label="Drill details and choices">
+              <summary className={styles.liveDrillDetailsSummary}>
                 <div>
-                  <span>Work block</span>
-                  <strong>{getCardWorkBlock(activeDrill.sourceCard)}</strong>
+                  <span>More drill help</span>
+                  <strong>Standards, adjustments, and choices.</strong>
                 </div>
-                <div>
-                  <span>Counts when</span>
-                  <strong>{getCardQualityStandard(activeDrill.sourceCard)}</strong>
+                <small>Open</small>
+              </summary>
+              <div className={styles.liveDrillDetailsBody}>
+                {activeDrill.sourceCard ? (
+                  <div className={styles.liveQualityGrid} aria-label="Quality standards for this activity">
+                    <div>
+                      <span>Work block</span>
+                      <strong>{getCardWorkBlock(activeDrill.sourceCard)}</strong>
+                    </div>
+                    <div>
+                      <span>Counts when</span>
+                      <strong>{getCardQualityStandard(activeDrill.sourceCard)}</strong>
+                    </div>
+                    <div>
+                      <span>Fix first</span>
+                      <strong>{getCardCommonMiss(activeDrill.sourceCard)}</strong>
+                    </div>
+                  </div>
+                ) : null}
+                {activeDrill.sourceCard ? (
+                  <div className={styles.liveAdjustmentPanel}>
+                    <div>
+                      <span>Level up</span>
+                      <p>{activeDrill.sourceCard.progression}</p>
+                    </div>
+                    <div>
+                      <span>Scale down</span>
+                      <p>{activeDrill.sourceCard.regression}</p>
+                    </div>
+                    {activeDrill.sourceCard.safetyNote ? <small>{activeDrill.sourceCard.safetyNote}</small> : null}
+                  </div>
+                ) : null}
+                <div className={styles.liveDrillChoices}>
+                  {visibleDrills.map((drill) => (
+                    <button
+                      type="button"
+                      key={drill.id}
+                      data-active={drill.id === activeDrill.id ? 'true' : 'false'}
+                      onClick={() => chooseDrillOption(drill.id)}
+                    >
+                      <strong>{drill.title}</strong>
+                      <span>{drill.duration}</span>
+                      <small>{shortenDrillStep(drill.proof)}</small>
+                    </button>
+                  ))}
                 </div>
-                <div>
-                  <span>Fix first</span>
-                  <strong>{getCardCommonMiss(activeDrill.sourceCard)}</strong>
+                <div className={styles.liveActionLinks}>
+                  <a className="button-primary" href={activeDrill.href}>Guide</a>
+                  <a className="button-secondary" href="/mylab#coach-assignments">Send to coach</a>
                 </div>
               </div>
-            ) : null}
-            {activeDrill.sourceCard ? (
-              <div className={styles.liveAdjustmentPanel}>
+            </details>
+            {pressureRepeatCue ? (
+              <div className={styles.livePressureRepeatCue} aria-label="Pressure repeat cue">
                 <div>
-                  <span>Level up</span>
-                  <p>{activeDrill.sourceCard.progression}</p>
+                  <span>Pressure repeat</span>
+                  <strong>{pressureRepeatCue}</strong>
+                  <p>Run one score-pressure rep, then save the next proof.</p>
                 </div>
-                <div>
-                  <span>Scale down</span>
-                  <p>{activeDrill.sourceCard.regression}</p>
-                </div>
-                {activeDrill.sourceCard.safetyNote ? <small>{activeDrill.sourceCard.safetyNote}</small> : null}
+                <button type="button" className="button-secondary" onClick={goToScore}>
+                  Score it
+                </button>
               </div>
             ) : null}
+            <div className={styles.liveProofCounter} data-complete={proofCounter >= proofTarget ? 'true' : 'false'} aria-label="One-thumb proof counter">
+              <div>
+                <span>Proof counter</span>
+                <strong>{proofCounter}/{proofTarget} clean</strong>
+                <p>Tap +1 only when the proof behavior shows up. The count is saved into the proof note.</p>
+              </div>
+              <div className={styles.liveProofCounterActions}>
+                <button type="button" className="button-secondary" disabled={proofCounter === 0} onClick={() => changeProofCounter(-1)} aria-label="Remove one clean proof rep">
+                  -1
+                </button>
+                <button type="button" className="button-primary" onClick={() => changeProofCounter(1)} aria-label="Add one clean proof rep">
+                  +1
+                </button>
+                <button type="button" className="button-secondary" disabled={proofCounter === 0} onClick={resetProofCounter}>
+                  Reset
+                </button>
+              </div>
+            </div>
             <div className={styles.liveActionGuide}>
               <strong>Time</strong>
               <p>{activeDrill.duration}</p>
@@ -997,6 +2582,7 @@ export default function PlayerLiveWorkbench({
               drillTitle={activeDrill.title}
               targetSeconds={activeDrill.timerSeconds}
               resetSignal={timerResetSignal}
+              startSignal={timerStartSignal}
               onDone={goToScore}
               onSnapshotChange={handleTimerSnapshotChange}
             />
@@ -1009,29 +2595,11 @@ export default function PlayerLiveWorkbench({
                 Score now
               </button>
             </div>
-            <div className={styles.liveDrillChoices}>
-              {visibleDrills.map((drill) => (
-                <button
-                  type="button"
-                  key={drill.id}
-                  data-active={drill.id === activeDrill.id ? 'true' : 'false'}
-                  onClick={() => chooseDrillOption(drill.id)}
-                >
-                  <strong>{drill.title}</strong>
-                  <span>{drill.duration}</span>
-                  <small>{shortenDrillStep(drill.proof)}</small>
-                </button>
-              ))}
-            </div>
-            <div className={styles.liveActionLinks}>
-              <a className="button-primary" href={activeDrill.href}>Guide</a>
-              <a className="button-secondary" href="/mylab#coach-assignments">Send to coach</a>
-            </div>
           </article>
 
           <aside ref={trackerRef} className={styles.liveTracker} aria-label="Quick tracking">
-            <span>3. Submit</span>
-            <strong>Score and save.</strong>
+            <span>3. Score proof</span>
+            <strong>Bank one honest score.</strong>
             <div className={styles.liveQuickScoreDock} aria-label="One tap score and save">
               <div>
                 <span>Quick score</span>
@@ -1049,58 +2617,92 @@ export default function PlayerLiveWorkbench({
                 </button>
               ))}
             </div>
-            <div className={styles.liveProofRubric} aria-label="Proof rating guide">
-              {getLiveProofRubric(activeDrill.sourceCard).map((item) => (
-                <div key={item.value}>
-                  <span>{item.value}</span>
-                  <strong>{item.label}</strong>
+            <details className={styles.liveScoreDetails} aria-label="Manual scoring options">
+              <summary className={styles.liveDrillDetailsSummary}>
+                <div>
+                  <span>More scoring</span>
+                  <strong>Rating guide, note, and share choice.</strong>
                 </div>
-              ))}
-            </div>
-            <div className={styles.liveFeelingGrid} aria-label="How do you feel right now?">
-              {(Object.keys(feelingLabels) as PlayerFeeling[]).map((feeling) => (
-                <button
-                  type="button"
-                  key={feeling}
-                  data-active={draft.feeling === feeling ? 'true' : 'false'}
-                  onClick={() => setDraft({ ...draft, feeling })}
-                >
-                  {feelingLabels[feeling]}
-                </button>
-              ))}
-            </div>
-            <div className={styles.liveRatingButtons} aria-label="Rate this work from 0 to 5">
-              {[0, 1, 2, 3, 4, 5].map((value) => (
-                <button
-                  type="button"
-                  key={value}
-                  data-active={draft.rating === value ? 'true' : 'false'}
-                  onClick={() => setDraft({ ...draft, rating: value })}
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
-            <textarea
-              value={draft.note}
-              maxLength={220}
-              onChange={(event) => setDraft({ ...draft, note: event.target.value })}
-              placeholder="Optional: what helped, what to repeat."
-              aria-label="Tiny tracking note"
-            />
-            <label className={styles.liveShareToggle}>
-              <input
-                type="checkbox"
-                checked={accessMode === 'coach_invited' ? draft.sharedWithCoach : false}
-                disabled={accessMode !== 'coach_invited'}
-                onChange={(event) => setDraft({ ...draft, sharedWithCoach: event.target.checked })}
-              />
-              <span>{accessMode === 'coach_invited' ? 'Share this recap with my coach when linked' : 'Coach sharing unlocks when invited by a coach'}</span>
-            </label>
-            <button type="button" className="button-primary" disabled={draft.rating === null || hasActiveSaveReceipt} onClick={saveSession}>
-              {hasActiveSaveReceipt ? 'Saved' : syncState.status === 'syncing' ? 'Saving...' : draft.rating === null ? 'Pick rating' : `Save ${draft.rating}/5`}
-            </button>
-            <small>{hasActiveSaveReceipt ? 'Use Repeat or New focus before logging another proof.' : draft.rating === null ? 'Pick a 0-5 rating before saving.' : 'It saves locally first, then syncs when your access path is connected.'}</small>
+                <small>Open</small>
+              </summary>
+              <div className={styles.liveScoreDetailsBody}>
+                <div className={styles.liveProofRubric} aria-label="Proof rating guide">
+                  {getLiveProofRubric(activeDrill.sourceCard).map((item) => (
+                    <div key={item.value}>
+                      <span>{item.value}</span>
+                      <strong>{item.label}</strong>
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.liveFeelingGrid} aria-label="How do you feel right now?">
+                  {(Object.keys(feelingLabels) as PlayerFeeling[]).map((feeling) => (
+                    <button
+                      type="button"
+                      key={feeling}
+                      data-active={draft.feeling === feeling ? 'true' : 'false'}
+                      onClick={() => setDraft({ ...draft, feeling })}
+                    >
+                      {feelingLabels[feeling]}
+                    </button>
+                  ))}
+                </div>
+                <div className={styles.liveRatingButtons} aria-label="Rate this work from 0 to 5">
+                  {[0, 1, 2, 3, 4, 5].map((value) => (
+                    <button
+                      type="button"
+                      key={value}
+                      data-active={draft.rating === value ? 'true' : 'false'}
+                      onClick={() => setDraft({ ...draft, rating: value })}
+                    >
+                      {value}
+                    </button>
+                  ))}
+                </div>
+                <div className={styles.liveQuickNoteChips} aria-label="One tap tracking notes">
+                  <span>Tap note</span>
+                  <div>
+                    {quickNoteChips.map((chip) => (
+                      <button
+                        type="button"
+                        key={chip}
+                        className="button-secondary"
+                        data-active={draft.note.includes(chip) ? 'true' : 'false'}
+                        onClick={() => addQuickNoteChip(chip)}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <textarea
+                  value={draft.note}
+                  maxLength={220}
+                  onChange={(event) => setDraft({ ...draft, note: event.target.value })}
+                  placeholder="Optional: what helped, what to repeat."
+                  aria-label="Tiny tracking note"
+                />
+                <label className={styles.liveShareToggle}>
+                  <input
+                    type="checkbox"
+                    checked={accessMode === 'coach_invited' ? draft.sharedWithCoach : false}
+                    disabled={accessMode !== 'coach_invited'}
+                    onChange={(event) => setDraft({ ...draft, sharedWithCoach: event.target.checked })}
+                  />
+                  <span>{accessMode === 'coach_invited' ? 'Share this recap with my coach when linked' : 'Coach sharing unlocks when invited by a coach'}</span>
+                </label>
+                <div className={styles.liveDraftActions}>
+                  <button type="button" className="button-primary" disabled={draft.rating === null || hasActiveSaveReceipt} onClick={saveSession}>
+                    {hasActiveSaveReceipt ? 'Saved' : syncState.status === 'syncing' ? 'Saving...' : draft.rating === null ? 'Pick rating' : `Save ${draft.rating}/5`}
+                  </button>
+                  {hasUnsavedSessionDraft && !hasActiveSaveReceipt ? (
+                    <button type="button" className="button-secondary" aria-label="Clear saved scoring draft" onClick={discardSessionDraft}>
+                      Clear draft
+                    </button>
+                  ) : null}
+                </div>
+                <small>{hasActiveSaveReceipt ? 'Use Repeat or New focus before logging another proof.' : draft.rating === null ? 'Pick a 0-5 rating before saving.' : 'It saves locally first, then syncs when your access path is connected.'}</small>
+              </div>
+            </details>
           </aside>
         </div>
       </div>
@@ -1126,15 +2728,29 @@ export default function PlayerLiveWorkbench({
             </button>
           </div>
           {smartNextAction ? (
-            <div className={styles.liveNextActionCard} aria-label="Next best action">
+            <div ref={nextActionRef} className={styles.liveNextActionCard} aria-label="Next best action">
               <div>
                 <span>Next best action</span>
                 <strong>{smartNextAction.title}</strong>
                 <p>{smartNextAction.copy}</p>
+                <div className={styles.liveNextActionSignals} aria-label="Next action decision signals">
+                  <article data-state={smartNextAction.decision.toLowerCase().replace(' ', '-')}>
+                    <span>Decision</span>
+                    <strong>{smartNextAction.decision}</strong>
+                  </article>
+                  <article>
+                    <span>Why</span>
+                    <strong>{smartNextAction.reason}</strong>
+                  </article>
+                  <article>
+                    <span>Load</span>
+                    <strong>{smartNextAction.load}</strong>
+                  </article>
+                </div>
               </div>
               <div className={styles.liveNextActionButtons}>
-                <button type="button" className="button-primary" onClick={repeatActivity}>
-                  Repeat
+                <button type="button" className="button-primary" onClick={runSmartNextPrimary}>
+                  {smartNextAction.primaryLabel}
                 </button>
                 {suggestedNextDrill ? (
                   <button type="button" className="button-secondary" onClick={moveToSuggestedDrill}>
@@ -1147,20 +2763,86 @@ export default function PlayerLiveWorkbench({
               </div>
             </div>
           ) : null}
-          <div ref={savedRef} className={styles.liveSavedBanner} role="status">
-            <div>
-              <span>Saved</span>
-              <strong>{lastSavedSession.focusTitle}: {lastSavedSession.drillTitle}</strong>
-              <p>
-                {lastSavedSession.rating}/5, {formatClock(lastSavedSession.elapsedSeconds)}, feeling {feelingLabels[lastSavedSession.feeling].toLowerCase()}.
-                {' '}
-                {syncState.message || (lastSavedSession.accessMode === 'coach_invited' && lastSavedSession.sharedWithCoach
-                  ? 'Ready to sync to your coach when linked.'
-                  : lastSavedSession.accessMode === 'player_plus'
-                    ? `Ready for ${PLAYER_TIER_NAME} history and trends.`
-                    : 'Kept as a local preview for now.')}
-                {questCreditMessage ? ` ${questCreditMessage}` : ''}
-              </p>
+          {questHandoff?.sessionId === lastSavedSession.id ? (
+            <section className={styles.liveQuestHandoff} aria-label="Level Up quest handoff">
+              <div className={styles.liveQuestHandoffCopy}>
+                <span>Quest handoff</span>
+                <strong>{canOpenPersonalQuest ? 'Proof is ready in My Quest.' : 'Proof is ready for your quest.'}</strong>
+                <small>{questHandoff.questMessage}</small>
+              </div>
+              <div className={styles.liveQuestHandoffStats} aria-label="Saved proof, tennis streak, and next rep">
+                <article>
+                  <span>Proof</span>
+                  <strong>{questHandoff.rating}/5</strong>
+                </article>
+                <article>
+                  <span>Tennis streak</span>
+                  <strong>{questHandoff.tennisStreakDays} day{questHandoff.tennisStreakDays === 1 ? '' : 's'}</strong>
+                </article>
+                <article>
+                  <span>Next</span>
+                  <strong>{questHandoff.nextRepTitle}</strong>
+                </article>
+              </div>
+              <div className={styles.liveQuestHandoffActions}>
+                {canOpenPersonalQuest ? (
+                  <Link className="button-primary" href="/level-up/my-quest#tennis-proof">
+                    Open My Quest
+                  </Link>
+                ) : null}
+                {!customQuestId ? (
+                  <Link className={canOpenPersonalQuest ? 'button-secondary' : 'button-primary'} href={questHandoff.questBuilderHref}>
+                    Add to quest
+                  </Link>
+                ) : null}
+                <Link className="button-secondary" href={questHandoff.nextRepHref}>
+                  Next rep
+                </Link>
+              </div>
+            </section>
+          ) : null}
+          <section ref={savedRef} className={styles.liveProofReceipt} aria-label="Saved proof receipt">
+            <div className={styles.liveProofReceiptTop}>
+              <div className={styles.liveProofReceiptCopy}>
+                <span>Proof banked</span>
+                <strong>{lastSavedSession.focusTitle}: {lastSavedSession.drillTitle}</strong>
+                <p>{selectedSavedNextCue ? `Carry forward: ${selectedSavedNextCue.value}` : 'Your score and next cue are ready.'}</p>
+              </div>
+              <div className={styles.liveProofReceiptStats} aria-label="Saved proof score, time, and feel">
+                <article>
+                  <span>Proof</span>
+                  <strong>{lastSavedSession.rating}/5</strong>
+                </article>
+                <article>
+                  <span>Time</span>
+                  <strong>{formatClock(lastSavedSession.elapsedSeconds)}</strong>
+                </article>
+                <article>
+                  <span>Feel</span>
+                  <strong>{feelingLabels[lastSavedSession.feeling]}</strong>
+                </article>
+              </div>
+              <a className="button-secondary" href={lastSavedSession.accessMode === 'player_plus' ? '/pricing' : '/mylab#coach-assignments'}>
+                {lastSavedSession.accessMode === 'player_plus' ? PLAYER_TIER_NAME : 'Open My Lab'}
+              </a>
+            </div>
+            <details className={styles.liveProofReceiptDetails}>
+              <summary className={styles.liveProofReceiptSummary}>
+                <div>
+                  <span>Coach handoff</span>
+                  <strong>Review the cue, match moment, and share-ready recap.</strong>
+                </div>
+                <em aria-hidden="true" />
+              </summary>
+              <div className={styles.liveProofReceiptBody}>
+                <p className={styles.liveProofReceiptSync}>
+                  {syncState.message || (lastSavedSession.accessMode === 'coach_invited' && lastSavedSession.sharedWithCoach
+                    ? 'Ready to sync to your coach when linked.'
+                    : lastSavedSession.accessMode === 'player_plus'
+                      ? `Ready for ${PLAYER_TIER_NAME} history and trends.`
+                      : 'Kept as a local preview for now.')}
+                  {questCreditMessage ? ` ${questCreditMessage}` : ''}
+                </p>
               <div className={styles.liveSavedIdentitySignals} aria-label="Saved proof identity signals">
                 {savedIdentitySignals.map((signal) => (
                   <article key={signal.label}>
@@ -1177,6 +2859,88 @@ export default function PlayerLiveWorkbench({
                   </article>
                 ))}
               </div>
+              {selectedSavedNextCue ? (
+                <div className={styles.liveSavedCueRail} aria-label="Choose next rep cue">
+                  <div>
+                    <span>Next cue</span>
+                    <strong>{selectedSavedNextCue.label}</strong>
+                    <p>{selectedSavedNextCue.value}</p>
+                  </div>
+                  <div className={styles.liveSavedCueButtons}>
+                    {savedNextCueOptions.map((cue) => (
+                      <button
+                        type="button"
+                        key={cue.id}
+                        className={cue.id === selectedSavedNextCue.id ? 'button-primary' : 'button-secondary'}
+                        data-active={cue.id === selectedSavedNextCue.id ? 'true' : 'false'}
+                        aria-pressed={cue.id === selectedSavedNextCue.id}
+                        onClick={() => chooseSavedNextCue(cue.id)}
+                      >
+                        {cue.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {selectedSavedProofMoment ? (
+                <div className={styles.liveSavedMomentRail} aria-label="Tag proof match moment">
+                  <div>
+                    <span>Moment</span>
+                    <strong>{selectedSavedProofMoment.label}</strong>
+                    <p>{selectedSavedProofMoment.value}</p>
+                  </div>
+                  <div className={styles.liveSavedMomentButtons}>
+                    {savedProofMomentOptions.map((moment) => (
+                      <button
+                        type="button"
+                        key={moment.id}
+                        className={moment.id === selectedSavedProofMoment.id ? 'button-primary' : 'button-secondary'}
+                        data-active={moment.id === selectedSavedProofMoment.id ? 'true' : 'false'}
+                        aria-pressed={moment.id === selectedSavedProofMoment.id}
+                        onClick={() => chooseSavedProofMoment(moment.id)}
+                      >
+                        {moment.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {selectedSavedCoachAsk ? (
+                <div className={styles.liveSavedAskRail} aria-label="Choose coach question">
+                  <div>
+                    <span>Coach ask</span>
+                    <strong>{selectedSavedCoachAsk.label}</strong>
+                    <p>{selectedSavedCoachAsk.value}</p>
+                  </div>
+                  <div className={styles.liveSavedAskButtons}>
+                    {savedCoachAskOptions.map((ask) => (
+                      <button
+                        type="button"
+                        key={ask.id}
+                        className={ask.id === selectedSavedCoachAsk.id ? 'button-primary' : 'button-secondary'}
+                        data-active={ask.id === selectedSavedCoachAsk.id ? 'true' : 'false'}
+                        aria-pressed={ask.id === selectedSavedCoachAsk.id}
+                        onClick={() => chooseSavedCoachAsk(ask.id)}
+                      >
+                        {ask.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {savedRecapChecklist.length ? (
+                <div className={styles.liveSavedChecklist} aria-label="Coach recap send checklist">
+                  <span>Send check</span>
+                  <div>
+                    {savedRecapChecklist.map((item) => (
+                      <article key={item.label} data-state={item.state}>
+                        <span>{item.label}</span>
+                        <strong>{item.value}</strong>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className={styles.liveSavedNextSteps} aria-label="Saved proof next steps">
                 {savedNextSteps.map((step) => (
                   <article key={step.label}>
@@ -1186,19 +2950,58 @@ export default function PlayerLiveWorkbench({
                   </article>
                 ))}
               </div>
-            </div>
-            <div className={styles.liveSavedActions}>
-              <button type="button" className="button-primary" onClick={repeatActivity}>
-                Repeat
-              </button>
-              <button type="button" className="button-secondary" onClick={pickNewFocus}>
-                New focus
-              </button>
-              <a className="button-secondary" href={lastSavedSession.accessMode === 'player_plus' ? '/pricing' : '/mylab#coach-assignments'}>
-                {lastSavedSession.accessMode === 'player_plus' ? PLAYER_TIER_NAME : 'My Lab'}
-              </a>
-            </div>
-          </div>
+              <div className={styles.liveSavedProofRecap} data-copy-status={recapCopyStatus} data-sent={savedProofRecapSent ? 'true' : 'false'} aria-label="Copyable saved proof recap">
+                <div>
+                  <span>Coach-ready recap</span>
+                  <strong>{savedProofRecapSent ? 'Marked sent' : recapMode === 'text' ? 'Text-short recap ready' : lastSavedSession.sharedWithCoach ? 'Ready to send back' : 'Ready for Player ID notes'}</strong>
+                  <div className={styles.liveSavedRecapMode} aria-label="Choose recap length">
+                    <button type="button" data-active={recapMode === 'text' ? 'true' : 'false'} aria-pressed={recapMode === 'text'} onClick={() => chooseRecapMode('text')}>
+                      Text
+                    </button>
+                    <button type="button" data-active={recapMode === 'full' ? 'true' : 'false'} aria-pressed={recapMode === 'full'} onClick={() => chooseRecapMode('full')}>
+                      Full
+                    </button>
+                  </div>
+                  <div className={styles.liveSavedCoachBrief} aria-label="Coach text proof brief">
+                    {savedCoachBrief.map((line) => (
+                      <article key={line.label} data-state={line.state}>
+                        <span>{line.label}</span>
+                        <strong>{line.value}</strong>
+                      </article>
+                    ))}
+                  </div>
+                  <p>{savedProofRecap}</p>
+                  <small>{recapMode === 'text' ? 'Compact SMS version.' : 'Full coach context.'} {savedProofRecap.length} chars.</small>
+                  {recapCopyStatus === 'manual' ? <small>Clipboard is blocked here. The recap is still visible.</small> : null}
+                  {recapCopyStatus === 'copied' ? <small>Recap copied.</small> : null}
+                  {recapCopyStatus === 'shared' ? <small>Share sheet opened.</small> : null}
+                  {recapCopyStatus === 'unsent' ? <small>Sent marker cleared. Check the recap, then send again.</small> : null}
+                  {savedProofRecapSent ? <small>Sent marker saved on this phone.</small> : null}
+                </div>
+                <div className={styles.liveSavedProofRecapActions}>
+                  <a className="button-secondary" href={savedProofTextHref}>
+                    Text recap
+                  </a>
+                  <button type="button" className="button-primary" onClick={shareSavedProofRecap}>
+                    {recapCopyStatus === 'shared' ? 'Shared' : 'Share'}
+                  </button>
+                  <button type="button" className="button-secondary" onClick={copySavedProofRecap}>
+                    {recapCopyStatus === 'copied' ? 'Copied' : 'Copy recap'}
+                  </button>
+                  {savedProofRecapSent ? (
+                    <button type="button" className="button-secondary" onClick={undoSavedProofRecapSent}>
+                      Undo sent
+                    </button>
+                  ) : (
+                    <button type="button" className="button-secondary" onClick={markSavedProofRecapSent}>
+                      Mark sent
+                    </button>
+                  )}
+                </div>
+              </div>
+              </div>
+            </details>
+          </section>
         </>
       ) : null}
 
@@ -1234,27 +3037,32 @@ export default function PlayerLiveWorkbench({
         </div>
       ) : null}
 
-      <aside className={styles.liveSyncProofPanel} aria-label="Level Up local sync proof">
-        <div>
-          <span>Level Up local sync proof</span>
-          <strong>Know what follows you.</strong>
+      <details className={styles.liveSyncProofPanel} aria-label="Level Up save and sync details">
+        <summary className={styles.liveSyncProofSummary}>
+          <div>
+            <span>Save and sync</span>
+            <strong>Know what stays on this phone.</strong>
+          </div>
+          <em>Details</em>
+        </summary>
+        <div className={styles.liveSyncProofBody}>
           <p>Level Up saves the court work first, then syncs only when the access path is connected.</p>
+          <div className={styles.liveSyncProofGrid}>
+            <article>
+              <span>Saved first</span>
+              <p>Rating, tiny note, timer, focus, and proof history stay in this browser immediately.</p>
+            </article>
+            <article>
+              <span>Syncs when connected</span>
+              <p>{PLAYER_TIER_NAME} history or coach-invited proof can reach Level Up sessions after sign-in.</p>
+            </article>
+            <article>
+              <span>Local-only in v1</span>
+              <p>Favorites and copied coach-update sent markers stay on this device for now.</p>
+            </article>
+          </div>
         </div>
-        <div className={styles.liveSyncProofGrid}>
-          <article>
-            <span>Saved first</span>
-            <p>Rating, tiny note, timer, focus, and proof history stay in this browser immediately.</p>
-          </article>
-          <article>
-            <span>Syncs when connected</span>
-            <p>{PLAYER_TIER_NAME} history or coach-invited proof can reach Level Up sessions after sign-in.</p>
-          </article>
-          <article>
-            <span>Local-only in v1</span>
-            <p>Favorites and copied coach-update sent markers stay on this device for now.</p>
-          </article>
-        </div>
-      </aside>
+      </details>
 
       <div className={styles.liveProgressPanel} aria-label="Training progress summary">
         <article>
@@ -1302,7 +3110,7 @@ export default function PlayerLiveWorkbench({
           {recentSessions.map((session) => (
             <article key={session.id}>
               <strong>{session.focusTitle}: {session.drillTitle}</strong>
-              <p>{session.rating}/5 {formatClock(session.elapsedSeconds)} {feelingLabels[session.feeling] ?? 'Ready'} {accessModes[session.accessMode]?.label ?? 'Level Up'} {session.sharedWithCoach ? 'shared with coach' : 'private'}{session.note ? ` - ${session.note}` : ''}</p>
+              <p>{getRecentSessionDetail(session)}</p>
             </article>
           ))}
         </div>
@@ -1316,6 +3124,7 @@ function DrillTimer({
   drillTitle,
   targetSeconds,
   resetSignal,
+  startSignal,
   onDone,
   onSnapshotChange,
 }: {
@@ -1323,16 +3132,21 @@ function DrillTimer({
   drillTitle: string
   targetSeconds: number
   resetSignal: number
+  startSignal: number
   onDone: () => void
   onSnapshotChange: (snapshot: DrillTimerSnapshot) => void
 }) {
   const timerRef = useRef<HTMLDivElement>(null)
+  const wakeLockRef = useRef<LevelUpWakeLockSentinel | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [running, setRunning] = useState(false)
+  const [keepAwakeEnabled, setKeepAwakeEnabled] = useState(false)
+  const [wakeLockStatus, setWakeLockStatus] = useState<WakeLockStatus>('off')
   const progress = targetSeconds > 0 ? Math.min(100, Math.round((elapsedSeconds / targetSeconds) * 100)) : 0
   const targetLabel = targetSeconds > 0 ? formatClock(targetSeconds) : 'Open'
   const timerState = running ? 'running' : elapsedSeconds > 0 ? 'paused' : 'idle'
   const showStickyDock = running || elapsedSeconds > 0
+  const wakeLockLabel = getWakeLockLabel(wakeLockStatus, keepAwakeEnabled, running)
 
   useEffect(() => {
     const id = window.requestAnimationFrame(() => {
@@ -1355,6 +3169,17 @@ function DrillTimer({
   }, [drillId, resetSignal])
 
   useEffect(() => {
+    if (startSignal === 0) return
+
+    const id = window.requestAnimationFrame(() => {
+      setRunning(true)
+      timerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+
+    return () => window.cancelAnimationFrame(id)
+  }, [startSignal])
+
+  useEffect(() => {
     onSnapshotChange({ drillId, elapsedSeconds, running, targetSeconds })
   }, [drillId, elapsedSeconds, onSnapshotChange, running, targetSeconds])
 
@@ -1371,6 +3196,54 @@ function DrillTimer({
 
     return () => window.clearInterval(id)
   }, [drillId, running])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function requestWakeLock() {
+      if (!keepAwakeEnabled || !running) {
+        const sentinel = wakeLockRef.current
+        wakeLockRef.current = null
+        await releaseWakeLock(sentinel)
+        setWakeLockStatus('off')
+        return
+      }
+
+      const wakeLockNavigator = navigator as LevelUpWakeLockNavigator
+      if (!wakeLockNavigator.wakeLock?.request) {
+        setWakeLockStatus('unsupported')
+        return
+      }
+
+      try {
+        const sentinel = await wakeLockNavigator.wakeLock.request('screen')
+        if (cancelled) {
+          await releaseWakeLock(sentinel)
+          return
+        }
+
+        wakeLockRef.current = sentinel
+        setWakeLockStatus('active')
+        sentinel.addEventListener('release', () => {
+          if (wakeLockRef.current === sentinel) {
+            wakeLockRef.current = null
+            setWakeLockStatus((current) => current === 'active' ? 'off' : current)
+          }
+        }, { once: true })
+      } catch {
+        if (!cancelled) setWakeLockStatus('blocked')
+      }
+    }
+
+    void requestWakeLock()
+
+    return () => {
+      cancelled = true
+      const sentinel = wakeLockRef.current
+      wakeLockRef.current = null
+      void releaseWakeLock(sentinel)
+    }
+  }, [keepAwakeEnabled, running])
 
   function resetTimer(event?: MouseEvent<HTMLButtonElement>) {
     event?.preventDefault()
@@ -1392,6 +3265,14 @@ function DrillTimer({
     })
   }
 
+  function toggleKeepAwake() {
+    setKeepAwakeEnabled((enabled) => {
+      const next = !enabled
+      if (!next) setWakeLockStatus('off')
+      return next
+    })
+  }
+
   function finishTimer() {
     setRunning(false)
     onDone()
@@ -1407,6 +3288,15 @@ function DrillTimer({
         </div>
         <div className={styles.liveTimerTrack} aria-hidden="true">
           <i style={{ width: `${progress}%` }} />
+        </div>
+        <div className={styles.liveWakeLockControl} data-status={wakeLockStatus} data-enabled={keepAwakeEnabled ? 'true' : 'false'} aria-label="Keep phone screen awake">
+          <div>
+            <span>Phone screen</span>
+            <strong>{wakeLockLabel}</strong>
+          </div>
+          <button type="button" className={keepAwakeEnabled ? 'button-primary' : 'button-secondary'} onClick={toggleKeepAwake}>
+            {keepAwakeEnabled ? 'Awake on' : 'Keep awake'}
+          </button>
         </div>
         {!running && elapsedSeconds > 0 ? (
           <div className={styles.liveTimerResumePrompt} role="status">
@@ -1453,6 +3343,24 @@ function DrillTimer({
       </div>
     </>
   )
+}
+
+async function releaseWakeLock(sentinel: LevelUpWakeLockSentinel | null) {
+  if (!sentinel || sentinel.released) return
+
+  try {
+    await sentinel.release()
+  } catch {
+    // The browser can release a wake lock before our cleanup runs.
+  }
+}
+
+function getWakeLockLabel(status: WakeLockStatus, enabled: boolean, running: boolean) {
+  if (status === 'active') return 'Screen awake'
+  if (status === 'unsupported') return 'Not supported'
+  if (status === 'blocked') return 'Tap after unlock'
+  if (enabled && !running) return 'Ready on start'
+  return 'Sleep allowed'
 }
 
 function buildDrillOptions(
@@ -1656,9 +3564,143 @@ function readSavedSessions(storageKey: string): SavedSession[] {
   }
 }
 
+function readSentProofRecapIds(storageKey: string): string[] {
+  if (typeof window === 'undefined') return []
+
+  const saved = window.localStorage.getItem(storageKey)
+  if (!saved) return []
+
+  try {
+    const parsed = JSON.parse(saved) as unknown
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+function readTomorrowStarterPlan(storageKey: string): TomorrowStarterPlan | null {
+  if (typeof window === 'undefined') return null
+
+  const saved = window.localStorage.getItem(storageKey)
+  if (!saved) return null
+
+  try {
+    const parsed = JSON.parse(saved) as Partial<TomorrowStarterPlan>
+    if (!parsed || typeof parsed !== 'object') return null
+    if (
+      typeof parsed.focusId !== 'string' ||
+      typeof parsed.focusTitle !== 'string' ||
+      !isWorkType(parsed.workType) ||
+      !isTrainingContext(parsed.context) ||
+      typeof parsed.drillId !== 'string' ||
+      typeof parsed.drillTitle !== 'string' ||
+      typeof parsed.cue !== 'string' ||
+      typeof parsed.reason !== 'string' ||
+      typeof parsed.createdAt !== 'string'
+    ) {
+      return null
+    }
+
+    return {
+      focusId: parsed.focusId,
+      focusTitle: parsed.focusTitle.slice(0, 80),
+      workType: parsed.workType,
+      context: parsed.context,
+      drillId: parsed.drillId,
+      drillTitle: parsed.drillTitle.slice(0, 80),
+      cue: parsed.cue.slice(0, 160),
+      reason: parsed.reason.slice(0, 120),
+      createdAt: parsed.createdAt,
+    }
+  } catch {
+    return null
+  }
+}
+
+function getTomorrowStarterCheck(plan: TomorrowStarterPlan, mode: TomorrowStarterCheckMode = 'first'): TomorrowStarterCheck {
+  const title = plan.drillTitle.toLowerCase()
+  const isServe = title.includes('serve') || plan.cue.toLowerCase().includes('serve')
+  const firstCue = isServe
+    ? 'Call target and plus-one before the toss.'
+    : plan.context === 'doubles'
+      ? 'Call the partner read before the point starts.'
+      : plan.workType === 'mental'
+        ? 'Say the reset cue before the next score moment.'
+        : 'Name the behavior before the first rep.'
+  const firstProof = isServe
+    ? 'Score only if the serve target and next ball stayed clear.'
+    : plan.context === 'doubles'
+      ? 'Score only if the call happened early enough to help the point.'
+      : plan.workType === 'physical'
+        ? 'Score only if posture stayed clean through the last rep.'
+        : 'Score only if the same cue showed up under pressure.'
+  const firstStopRule = plan.workType === 'physical'
+    ? 'Stop if posture breaks twice.'
+    : plan.context === 'doubles'
+      ? 'Stop after one clean service game.'
+      : 'Stop after one honest score.'
+
+  if (mode === 'volume') {
+    return {
+      drillTitle: plan.drillTitle,
+      mode,
+      label: 'Add volume check',
+      scoreLabel: 'Score volume rep',
+      cue: isServe ? 'Add serves only while the target call stays automatic.' : 'Add reps only while the same cue stays clean.',
+      proof: 'Score only if the cue survives the added volume.',
+      stopRule: 'Stop when the cue slips twice.',
+    }
+  }
+
+  if (mode === 'repeat') {
+    return {
+      drillTitle: plan.drillTitle,
+      mode,
+      label: 'Repeat slower check',
+      scoreLabel: 'Score slower rep',
+      cue: isServe ? 'Slow the routine, call target, then toss.' : 'Drop speed 20%, name the cue, then run one rep.',
+      proof: 'Score only if the cue returns cleaner than the last save.',
+      stopRule: 'Stop after one slower honest score.',
+    }
+  }
+
+  return {
+    drillTitle: plan.drillTitle,
+    mode,
+    label: 'First rep check',
+    scoreLabel: 'Score first rep',
+    cue: firstCue,
+    proof: firstProof,
+    stopRule: firstStopRule,
+  }
+}
+
+function getStarterProofLabel(mode: TomorrowStarterCheckMode) {
+  if (mode === 'volume') return 'Add volume check'
+  if (mode === 'repeat') return 'Repeat slower check'
+  return 'First rep check'
+}
+
+function isTomorrowStarterMatch(plan: TomorrowStarterPlan, drill: DrillOption) {
+  return plan.drillId === drill.id || plan.drillTitle === drill.title
+}
+
+function getTomorrowStarterCompletion(plan: TomorrowStarterPlan, rating: number): TomorrowStarterCompletion {
+  return {
+    drillTitle: plan.drillTitle,
+    rating,
+    next: rating >= 4
+      ? 'Starter banked. Add volume only if the same cue stays clean.'
+      : 'Starter exposed a leak. Repeat once slower before adding volume.',
+    actionLabel: rating >= 4 ? 'Add volume' : 'Repeat slower',
+    restoredPlan: plan,
+  }
+}
+
 function remoteToSavedSession(session: RemoteLevelUpSession): SavedSession {
   return {
     id: session.id,
+    cardId: session.sessionJson.cardId,
     focusId: session.focusId,
     focusTitle: session.focusTitle,
     workType: session.workType,
@@ -1673,6 +3715,7 @@ function remoteToSavedSession(session: RemoteLevelUpSession): SavedSession {
     completedAt: session.completedAt,
     assignmentId: session.assignmentId ?? undefined,
     studentLinkId: session.studentLinkId ?? undefined,
+    starterRead: session.starterRead ?? undefined,
   }
 }
 
@@ -1684,6 +3727,30 @@ function findAssignmentFocus(focuses: LiveFocus[], assignmentFocus: string) {
     const title = focus.title.toLowerCase()
     return normalized.includes(focus.id.toLowerCase()) || normalized.includes(title.replace(' development', '')) || title.includes(normalized)
   }) ?? null
+}
+
+function findCardFocus(focuses: LiveFocus[], card: LevelUpCard) {
+  const cardTerms = getFocusMatchTerms([card.title, card.tennisGoal, card.cue, ...card.tags].join(' '))
+  let bestMatch: { focus: LiveFocus; score: number } | null = null
+
+  for (const focus of focuses) {
+    const focusTerms = getFocusMatchTerms([focus.id, focus.title, focus.cue, ...focus.tracker].join(' '))
+    const score = focusTerms.reduce((total, focusTerm) => (
+      total + (cardTerms.some((cardTerm) => cardTerm === focusTerm || (cardTerm.length >= 5 && focusTerm.length >= 5 && cardTerm.slice(0, 5) === focusTerm.slice(0, 5))) ? 1 : 0)
+    ), 0)
+    if (!bestMatch || score > bestMatch.score) bestMatch = { focus, score }
+  }
+
+  return bestMatch && bestMatch.score > 0 ? bestMatch.focus : undefined
+}
+
+function getFocusMatchTerms(value: string) {
+  const ignored = new Set(['about', 'after', 'before', 'court', 'development', 'first', 'from', 'into', 'only', 'player', 'point', 'score', 'tennis', 'that', 'the', 'this', 'through', 'when', 'with', 'your'])
+  return value
+    .toLowerCase()
+    .replaceAll('+', ' plus ')
+    .split(/[^a-z0-9]+/)
+    .filter((term) => term.length >= 4 && !ignored.has(term))
 }
 
 function normalizeAssignmentWorkType(value: string | null): WorkType | null {
@@ -1711,6 +3778,104 @@ function getTimerSeconds(drillId: string) {
   const saved = window.sessionStorage.getItem(timerStorageKey(drillId))
   const parsed = saved ? Number.parseInt(saved, 10) : 0
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function proofCounterStorageKey(drillId: string) {
+  return `tenaceiq:level-up-proof-counter:${drillId}`
+}
+
+function getProofCounter(drillId: string) {
+  if (typeof window === 'undefined') return 0
+  const saved = window.sessionStorage.getItem(proofCounterStorageKey(drillId))
+  const parsed = saved ? Number.parseInt(saved, 10) : 0
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0
+}
+
+function levelUpDraftStorageKey(drillId: string) {
+  return `tenaceiq:level-up-draft:${drillId}`
+}
+
+function getEmptySessionDraft(sharedWithCoachDefault: boolean): SessionDraft {
+  return { ...emptyDraft, sharedWithCoach: sharedWithCoachDefault }
+}
+
+function readSessionDraft(storageKey: string, sharedWithCoachDefault: boolean): SessionDraft {
+  if (typeof window === 'undefined') return getEmptySessionDraft(sharedWithCoachDefault)
+
+  try {
+    const saved = window.sessionStorage.getItem(storageKey)
+    if (!saved) return getEmptySessionDraft(sharedWithCoachDefault)
+
+    const parsed = JSON.parse(saved) as Partial<SessionDraft>
+    const rating = typeof parsed.rating === 'number' && parsed.rating >= 0 && parsed.rating <= 5 ? parsed.rating : null
+    const feeling = isPlayerFeeling(parsed.feeling) ? parsed.feeling : 'ready'
+    const note = typeof parsed.note === 'string' ? parsed.note.slice(0, 220) : ''
+    const sharedWithCoach = typeof parsed.sharedWithCoach === 'boolean' ? parsed.sharedWithCoach : sharedWithCoachDefault
+
+    return { rating, feeling, note, sharedWithCoach }
+  } catch {
+    return getEmptySessionDraft(sharedWithCoachDefault)
+  }
+}
+
+function isEmptySessionDraft(draft: SessionDraft, accessMode: AccessMode) {
+  return draft.rating === null &&
+    draft.feeling === 'ready' &&
+    draft.note.trim() === '' &&
+    draft.sharedWithCoach === (accessMode === 'coach_invited')
+}
+
+function isPlayerFeeling(value: unknown): value is PlayerFeeling {
+  return value === 'ready' || value === 'tight' || value === 'tired' || value === 'nervous'
+}
+
+function isWorkType(value: unknown): value is WorkType {
+  return value === 'court' || value === 'physical' || value === 'mental'
+}
+
+function isTrainingContext(value: unknown): value is TrainingContext {
+  return value === 'alone' || value === 'partner' || value === 'singles' || value === 'doubles' || value === 'coach'
+}
+
+function getProofCounterTarget(drill: DrillOption) {
+  if (drill.sourceCard?.tags.includes('serve-target') || drill.sourceCard?.tags.includes('serve-routine')) return 6
+  if (drill.sourceCard?.tags.includes('doubles') || drill.sourceCard?.tags.includes('doubles-communication')) return 8
+  if (drill.sourceCard?.category === 'mental-routine') return 3
+  if (drill.workType === 'physical') return 6
+  if (drill.workType === 'mental') return 3
+  return 10
+}
+
+function getProofCounterNote(count: number, target: number) {
+  return `Clean proof reps: ${count}/${target}.`
+}
+
+function getPressureProofNote(cue: string) {
+  return `[Pressure proof: ${cue.replace(/\s+/g, ' ').trim()}]`
+}
+
+function getStarterProofNote(mode: TomorrowStarterCheckMode) {
+  return `[Starter proof: ${getStarterProofLabel(mode)}]`
+}
+
+function getStarterReadNotes(starterRead: SavedSessionStarterRead) {
+  return [
+    getStarterReadNote('Starter rep', starterRead.starterRep),
+    getStarterReadNote('Starter cue', starterRead.starterProofCue),
+    getStarterReadNote('Starter leak watch', starterRead.starterLeakWatch),
+    getStarterReadNote('Starter smart next', starterRead.starterSmartNext),
+  ]
+}
+
+function getStarterReadNote(label: string, value: string) {
+  return `[${label}: ${value.replace(/\s+/g, ' ').replace(/\]/g, '').trim()}]`
+}
+
+function mergeProofNotes(note: string, ...systemNotes: string[]) {
+  const cleanedSystemNotes = systemNotes.map((systemNote) => systemNote.trim()).filter(Boolean)
+  const cleanedNote = note.trim()
+
+  return [...cleanedSystemNotes, cleanedNote].filter(Boolean).join(' ')
 }
 
 function formatClock(totalSeconds: number) {
@@ -1765,38 +3930,101 @@ function getNextDrillAfterSession(session: SavedSession, drills: DrillOption[]) 
   return drills[(currentIndex + 1) % drills.length] ?? null
 }
 
-function getSmartNextAction(session: SavedSession, suggestedNextDrill: DrillOption | null, readiness: PlayerReadiness) {
-  if (readiness === 'tired') {
+function getSmartNextAction(
+  session: SavedSession,
+  suggestedNextDrill: DrillOption | null,
+  readiness: PlayerReadiness,
+  todaySessions: SavedSession[],
+): SmartNextAction {
+  const todayAverage = todaySessions.length
+    ? todaySessions.reduce((total, savedSession) => total + savedSession.rating, 0) / todaySessions.length
+    : session.rating
+  const tightOrTiredCount = todaySessions.filter((savedSession) => savedSession.feeling === 'tight' || savedSession.feeling === 'tired').length
+  const lowScoreCount = todaySessions.filter((savedSession) => savedSession.rating <= 3).length
+  const todayProofLabel = todaySessions.length > 1 ? `${todaySessions.length} logs today` : 'First log today'
+  const pressureProofValue = getSavedPressureProofValue(session)
+
+  if (pressureProofValue && session.rating >= 4) {
     return {
-      title: 'Bank it or scale down',
-      copy: suggestedNextDrill
-        ? `You logged the work while tired. Keep the next rep light or use ${suggestedNextDrill.title} only if form stays clean.`
-        : 'You logged the work while tired. Finish today or repeat at a lower speed with clean posture.',
+      title: 'Bank the pressure proof',
+      copy: 'You tested the same cue under score pressure. Save the signal and leave the next rep clean.',
+      decision: 'Finish',
+      reason: 'Pressure proof logged.',
+      load: 'Done or one easy rep',
+      primaryLabel: 'Finish',
     }
   }
 
-  if (session.rating >= 5) {
+  if (readiness === 'tired' || session.feeling === 'tired') {
     return {
-      title: suggestedNextDrill ? `Level up into ${suggestedNextDrill.title}` : 'Level up the same drill',
+      title: 'Recover before more reps',
       copy: suggestedNextDrill
-        ? 'You scored this clean. Take the next paired drill while the movement pattern is warm.'
-        : 'You scored this clean. Repeat it once with a pressure layer or finish for today.',
+        ? `You logged this while tired. Skip pressure unless posture is clean; ${suggestedNextDrill.title} can wait.`
+        : 'You logged this while tired. Finish today or repeat at lower speed with clean posture.',
+      decision: 'Recover',
+      reason: `${todayProofLabel}; tired signal logged.`,
+      load: 'Light or done',
+      primaryLabel: 'Recover',
     }
   }
 
-  if (session.rating <= 3) {
+  if (session.rating >= 5 && readiness === 'fresh' && tightOrTiredCount === 0) {
     return {
-      title: 'Repeat or scale down',
+      title: suggestedNextDrill ? `Add pressure with ${suggestedNextDrill.title}` : 'Add pressure to this proof',
+      copy: suggestedNextDrill
+        ? 'Clean proof plus fresh readiness. Take the paired drill while the pattern is warm.'
+        : 'Clean proof plus fresh readiness. Repeat it once with a pressure score.',
+      decision: 'Add pressure',
+      reason: `${session.rating}/5 and fresh.`,
+      load: todayAverage >= 4.5 ? 'Pressure rep' : 'Controlled pressure',
+      primaryLabel: 'Add pressure',
+    }
+  }
+
+  if (session.rating <= 3 || lowScoreCount >= 2) {
+    return {
+      title: 'Repeat clean before pressure',
       copy: 'Keep the same drill and make the next rep cleaner before adding speed or pressure.',
+      decision: 'Repeat clean',
+      reason: lowScoreCount >= 2 ? `${lowScoreCount} lower scores today.` : `${session.rating}/5 proof needs one cleaner rep.`,
+      load: 'Same drill, simpler cue',
+      primaryLabel: 'Repeat clean',
+    }
+  }
+
+  if (tightOrTiredCount >= 2 || todaySessions.length >= 3) {
+    return {
+      title: 'Bank it and finish strong',
+      copy: 'You have enough signal for today. Save the proof trail and leave the next rep clean.',
+      decision: 'Finish',
+      reason: tightOrTiredCount >= 2 ? `${tightOrTiredCount} tight/tired signals today.` : `${todaySessions.length} proof logs banked today.`,
+      load: 'Done or one easy rep',
+      primaryLabel: 'Repeat easy',
     }
   }
 
   return {
-    title: suggestedNextDrill ? `Move to ${suggestedNextDrill.title}` : 'Bank it and finish strong',
+    title: suggestedNextDrill ? `Repeat, then try ${suggestedNextDrill.title}` : 'Repeat once or finish strong',
     copy: suggestedNextDrill
-      ? 'Good work logged. Move to the paired drill or repeat this one if you want a cleaner score.'
+      ? 'Good work logged. Repeat this once if you want a cleaner score, then move to the paired drill.'
       : 'Good work logged. Repeat once or finish today with a clean proof trail.',
+    decision: 'Repeat clean',
+    reason: `${session.rating}/5 with ${feelingLabels[session.feeling].toLowerCase()} feel.`,
+    load: todayAverage >= 4 ? 'Moderate' : 'Keep it simple',
+    primaryLabel: 'Repeat clean',
   }
+}
+
+function getPressureRepeatCue(drill: DrillOption, readiness: PlayerReadiness) {
+  if (readiness === 'tired') return 'One easy pressure rep only. Stop if form fades.'
+
+  const title = drill.title.toLowerCase()
+  if (title.includes('serve')) return 'Play one 30-30 serve point. Same target, no extra motion.'
+  if (drill.context === 'doubles') return 'Play one 30-30 doubles point with the same call.'
+  if (drill.workType === 'mental') return 'Use one miss or 30-30 point. Reset first, then score it.'
+  if (drill.workType === 'physical') return 'One controlled pressure set. Stop before posture breaks.'
+
+  return 'Run one 30-30 point or one clean pressure rep with the same cue.'
 }
 
 function getSavedDeliverySteps(session: SavedSession, syncState: SyncState, inUndoWindow: boolean) {
@@ -1855,12 +4083,399 @@ function getSavedNextSteps(session: SavedSession, smartNextAction: ReturnType<ty
   ]
 }
 
+function getSavedNextCueOptions(session: SavedSession, smartNextAction: ReturnType<typeof getSmartNextAction> | null): SavedNextCue[] {
+  const coachLinked = Boolean(session.assignmentId || (session.accessMode === 'coach_invited' && session.sharedWithCoach))
+  const smartRecap = smartNextAction?.title ?? 'Repeat once or finish with a clean proof trail'
+  const pressureCopy = session.rating >= 4
+    ? 'Run the same proof at 30-30, one serve, or one clean pressure point.'
+    : 'Keep the same drill, slow the setup down, then score the proof again.'
+
+  return [
+    {
+      id: 'smart',
+      label: 'Smart next',
+      value: smartNextAction?.copy ?? 'Use the score, readiness, and drill history to choose the next move.',
+      recap: smartRecap,
+    },
+    {
+      id: 'repeat',
+      label: 'Repeat',
+      value: 'Run one more proof rep before changing the drill.',
+      recap: 'Repeat the same drill once and chase one cleaner proof score',
+    },
+    {
+      id: 'pressure',
+      label: session.rating >= 4 ? 'Add pressure' : 'Slow down',
+      value: pressureCopy,
+      recap: session.rating >= 4 ? 'Add a pressure rep before moving on' : 'Slow the setup down and repeat the proof',
+    },
+    coachLinked
+      ? {
+          id: 'coach',
+          label: 'Ask coach',
+          value: 'Send the recap and ask for the next assigned rep.',
+          recap: 'Send this to coach and ask for the next assigned rep',
+        }
+      : {
+          id: 'finish',
+          label: 'Finish clean',
+          value: 'Bank the proof and keep the next Player ID read honest.',
+          recap: 'Finish clean and keep this proof attached to the next Player ID read',
+        },
+  ]
+}
+
+function getSavedProofMomentOptions(session: SavedSession): SavedProofMoment[] {
+  const tiebreakLabel = session.context === 'doubles' ? 'Doubles TB' : 'Tiebreak'
+  const tiebreakValue = session.context === 'doubles'
+    ? 'Use this when the behavior showed up in a tight doubles tiebreak or 10-point breaker.'
+    : 'Use this when the proof came from a tiebreak, breaker, or match-play finish.'
+  const tiebreakRecap = session.context === 'doubles' ? 'Doubles tiebreak' : 'Tiebreak pressure'
+
+  return [
+    {
+      id: 'practice',
+      label: 'Practice',
+      value: 'Clean practice block, warm-up, lesson, or basket rep.',
+      recap: 'Practice block',
+    },
+    {
+      id: 'thirty',
+      label: '30-30',
+      value: 'Use this when the behavior held up at a tight game score.',
+      recap: '30-30 pressure',
+    },
+    {
+      id: 'break',
+      label: 'Break point',
+      value: 'Use this when the proof connected to a break-point chance or save.',
+      recap: 'Break-point moment',
+    },
+    {
+      id: 'tiebreak',
+      label: tiebreakLabel,
+      value: tiebreakValue,
+      recap: tiebreakRecap,
+    },
+  ]
+}
+
+function getSavedCoachAskOptions(session: SavedSession): SavedCoachAsk[] {
+  const fixValue = session.rating >= 4
+    ? 'Ask what should get harder next, not what went wrong.'
+    : 'Ask which miss to clean up before adding more pressure.'
+  const fixRecap = session.rating >= 4
+    ? 'What should I make harder next?'
+    : 'What should I fix first?'
+
+  return [
+    {
+      id: 'next',
+      label: 'Next rep',
+      value: 'Ask for the next assigned rep or the next match-use cue.',
+      recap: 'What should I run next?',
+    },
+    {
+      id: 'repeat',
+      label: 'Repeat?',
+      value: 'Ask whether this proof should repeat or progress.',
+      recap: 'Should I repeat this or progress?',
+    },
+    {
+      id: 'fix',
+      label: 'Fix first',
+      value: fixValue,
+      recap: fixRecap,
+    },
+    {
+      id: 'film',
+      label: 'Film',
+      value: 'Ask what short clip would help the coach read the next rep.',
+      recap: 'What should I film next time?',
+    },
+  ]
+}
+
+function getSavedRecapChecklist(
+  session: SavedSession,
+  selectedNextCue: SavedNextCue | null,
+  selectedProofMoment: SavedProofMoment | null,
+  selectedCoachAsk: SavedCoachAsk | null,
+): SavedRecapCheck[] {
+  const starterRead = getSavedStarterCoachRead(session)
+
+  return [
+    {
+      label: 'Score',
+      value: `${session.rating}/5 proof`,
+      state: 'ready',
+    },
+    {
+      label: 'Starter',
+      value: starterRead ? 'Captured' : 'Legacy log',
+      state: starterRead ? 'ready' : 'missing',
+    },
+    {
+      label: 'Moment',
+      value: selectedProofMoment?.label ?? 'Pick moment',
+      state: selectedProofMoment ? 'ready' : 'missing',
+    },
+    {
+      label: 'Next',
+      value: selectedNextCue?.label ?? 'Pick cue',
+      state: selectedNextCue ? 'ready' : 'missing',
+    },
+    {
+      label: 'Ask',
+      value: selectedCoachAsk?.label ?? 'Pick ask',
+      state: selectedCoachAsk ? 'ready' : 'missing',
+    },
+  ]
+}
+
+function getSavedCoachBrief(
+  session: SavedSession,
+  selectedNextCue: SavedNextCue | null,
+  selectedCoachAsk: SavedCoachAsk | null,
+): SavedCoachBriefLine[] {
+  const cleanProofValue = getSavedProofCounterValue(session)
+  const pressureProofValue = getSavedPressureProofValue(session)
+  const starterProofValue = getSavedStarterProofValue(session)
+  const starterRead = getSavedStarterCoachRead(session)
+  const playerNote = getPlayerProofNote(session.note)
+  const pressureProofBrief = pressureProofValue ? pressureProofValue.replace(/[.!?]+$/, '') : ''
+  const starterProofBrief = starterRead
+    ? `${starterRead.starterRep} ${starterProofValue ? `${starterProofValue} ` : ''}scored ${session.rating}/5 in ${session.drillTitle}${cleanProofValue ? ` (${cleanProofValue} clean)` : ''}${pressureProofBrief ? ` under pressure: ${pressureProofBrief}` : ''}.`
+    : starterProofValue
+    ? `${starterProofValue} scored ${session.rating}/5 in ${session.drillTitle}${cleanProofValue ? ` (${cleanProofValue} clean)` : ''}${pressureProofBrief ? ` under pressure: ${pressureProofBrief}` : ''}.`
+    : ''
+  const starterLeakBrief = starterRead && session.rating < 4
+    ? starterRead.starterLeakWatch
+    : starterProofValue && session.rating < 4
+    ? `${starterProofValue} still needs a cleaner rep before pressure.`
+    : ''
+  const changed = starterProofBrief || (session.rating >= 4
+    ? `${session.focusTitle} held up in ${session.drillTitle}${cleanProofValue ? ` (${cleanProofValue} clean)` : ''}${pressureProofBrief ? ` under pressure: ${pressureProofBrief}` : ''}.`
+    : `${session.focusTitle} got a live proof read in ${session.drillTitle}.`)
+  const leaked = playerNote
+    ? shortenCoachBriefValue(playerNote)
+    : starterLeakBrief
+      ? starterLeakBrief
+    : session.feeling === 'ready'
+      ? 'No major leak logged; test it under pressure next.'
+      : `${feelingLabels[session.feeling]} showed up. Watch setup speed before adding pressure.`
+  const next = selectedNextCue
+    ? selectedNextCue.recap
+    : selectedCoachAsk
+      ? 'Ask for the next assigned rep'
+      : starterRead
+      ? starterRead.starterSmartNext
+      : 'Repeat once, then ask for the next rep.'
+
+  return [
+    { label: 'Changed', value: shortenCoachBriefValue(changed), state: 'strong' },
+    { label: 'Leaked', value: shortenCoachBriefValue(leaked), state: session.rating >= 4 && session.feeling === 'ready' && !playerNote ? 'strong' : 'watch' },
+    { label: 'Next', value: shortenCoachBriefValue(next), state: 'next' },
+  ]
+}
+
+function getCourtsideResumeItems(
+  drill: DrillOption,
+  activeTimerSeconds: number,
+  proofCounter: number,
+  proofTarget: number,
+  isScoring: boolean,
+  hasUnsavedSessionDraft: boolean,
+  lastSavedSession: SavedSession | null,
+  savedProofRecapSent: boolean,
+): CourtsideResumeItem[] {
+  const hasActiveSaveReceipt = Boolean(lastSavedSession)
+  const savedCleanProofValue = lastSavedSession ? getSavedProofCounterValue(lastSavedSession) : null
+  const nextTap = hasActiveSaveReceipt
+    ? savedProofRecapSent
+      ? 'Sent recap'
+      : 'Repeat or new'
+    : isScoring
+      ? 'Pick score'
+      : hasUnsavedSessionDraft
+        ? 'Finish score'
+      : proofCounter >= proofTarget
+        ? 'Score now'
+        : activeTimerSeconds > 0 || proofCounter > 0
+          ? '+1 proof'
+          : 'Start work'
+
+  return [
+    {
+      label: 'Clock',
+      value: activeTimerSeconds > 0 ? formatClock(activeTimerSeconds) : drill.duration,
+      state: activeTimerSeconds > 0 ? 'active' : 'ready',
+    },
+    {
+      label: 'Clean',
+      value: savedCleanProofValue ?? (lastSavedSession ? 'Saved' : `${proofCounter}/${proofTarget}`),
+      state: lastSavedSession || proofCounter >= proofTarget ? 'done' : proofCounter > 0 ? 'active' : 'ready',
+    },
+    {
+      label: 'Next tap',
+      value: nextTap,
+      state: hasActiveSaveReceipt || proofCounter >= proofTarget ? 'done' : isScoring || hasUnsavedSessionDraft ? 'active' : 'ready',
+    },
+  ]
+}
+
+function getCourtsideResumeStatus(
+  activeTimerSeconds: number,
+  proofCounter: number,
+  proofTarget: number,
+  isScoring: boolean,
+  hasUnsavedSessionDraft: boolean,
+  lastSavedSession: SavedSession | null,
+  savedProofRecapSent: boolean,
+) {
+  if (lastSavedSession) {
+    if (savedProofRecapSent) return 'Recap marked sent on this phone. Repeat or change focus when ready.'
+
+    const savedCleanProofValue = getSavedProofCounterValue(lastSavedSession)
+    return savedCleanProofValue
+      ? `${lastSavedSession.rating}/5 proof saved with ${savedCleanProofValue} clean. Repeat, change focus, or send the recap.`
+      : `${lastSavedSession.rating}/5 proof saved. Repeat, change focus, or send the recap.`
+  }
+  if (isScoring && hasUnsavedSessionDraft) return 'Draft restored. Finish the proof rating, then save.'
+  if (isScoring) return 'Score panel is open. Pick the honest proof rating.'
+  if (hasUnsavedSessionDraft) return 'Draft saved on this phone. Tap Score to finish.'
+  if (proofCounter >= proofTarget) return 'Proof target hit. Score this block before adding more.'
+  if (proofCounter > 0) return `${proofCounter} clean proof ${proofCounter === 1 ? 'rep' : 'reps'} logged. Keep the same standard.`
+  if (activeTimerSeconds > 0) return `${formatClock(activeTimerSeconds)} in. Count only the reps that match the cue.`
+  return 'Ready courtside. Run the rep, then log clean proof.'
+}
+
+function getActiveSessionResumeStrip(
+  drill: DrillOption,
+  activeTimerSeconds: number,
+  proofCounter: number,
+  proofTarget: number,
+  hasUnsavedSessionDraft: boolean,
+  isScoring: boolean,
+  hasActiveSaveReceipt: boolean,
+): ActiveSessionResumeStrip | null {
+  if (hasActiveSaveReceipt) return null
+
+  if (hasUnsavedSessionDraft) {
+    return {
+      title: drill.title,
+      detail: isScoring
+        ? 'Draft score is open. Finish the proof save.'
+        : `Draft score saved on this phone. ${proofCounter}/${proofTarget} clean.`,
+      action: 'score',
+      actionLabel: isScoring ? 'Keep scoring' : 'Resume score',
+      state: 'draft',
+    }
+  }
+
+  if (activeTimerSeconds > 0) {
+    return {
+      title: drill.title,
+      detail: `${formatClock(activeTimerSeconds)} running here. ${proofCounter}/${proofTarget} clean.`,
+      action: 'drill',
+      actionLabel: 'Resume drill',
+      state: 'timer',
+    }
+  }
+
+  if (proofCounter > 0) {
+    return {
+      title: drill.title,
+      detail: `${proofCounter}/${proofTarget} clean proof ${proofCounter === 1 ? 'rep' : 'reps'} logged.`,
+      action: proofCounter >= proofTarget ? 'score' : 'drill',
+      actionLabel: proofCounter >= proofTarget ? 'Score now' : 'Resume drill',
+      state: 'proof',
+    }
+  }
+
+  return null
+}
+
+function getSavedProofCounterValue(session: SavedSession) {
+  const match = session.note.match(/Clean proof reps: (\d+)\/(\d+)\./)
+  return match ? `${match[1]}/${match[2]}` : null
+}
+
+function getSavedPressureProofValue(session: SavedSession) {
+  const match = session.note.match(/\[Pressure proof: ([^\]]+)\]/)
+  return match?.[1]?.trim() || null
+}
+
+function getSavedStarterProofValue(session: SavedSession) {
+  const match = session.note.match(/\[Starter proof: ([^\]]+)\]/)
+  return match?.[1]?.trim() || null
+}
+
+function getSavedStarterCoachRead(session: SavedSession): SavedStarterCoachRead | null {
+  const starterRead = session.starterRead ?? getSavedStarterReadFromNote(session.note)
+  if (!starterRead) return null
+
+  return {
+    ...starterRead,
+    starterProof: getSavedStarterProofValue(session),
+  }
+}
+
+function getSavedStarterReadFromNote(note: string): SavedSessionStarterRead | null {
+  const starterRep = getSavedStarterReadMarkerValue(note, 'Starter rep')
+  const starterProofCue = getSavedStarterReadMarkerValue(note, 'Starter cue')
+    || getSavedStarterReadMarkerValue(note, 'Starter proof cue')
+  const starterLeakWatch = getSavedStarterReadMarkerValue(note, 'Starter leak watch')
+  const starterSmartNext = getSavedStarterReadMarkerValue(note, 'Starter smart next')
+
+  if (!starterRep || !starterProofCue || !starterLeakWatch || !starterSmartNext) return null
+
+  return { starterRep, starterProofCue, starterLeakWatch, starterSmartNext }
+}
+
+function getSavedStarterReadMarkerValue(note: string, label: string) {
+  const match = note.match(new RegExp(`\\[${label}: ([^\\]]+)\\]`))
+  return match?.[1]?.trim() || ''
+}
+
+function getPlayerProofNote(note: string) {
+  return note
+    .replace(/Clean proof reps: \d+\/\d+\./g, '')
+    .replace(/\[Pressure proof: [^\]]+\]/g, '')
+    .replace(/\[Starter proof: [^\]]+\]/g, '')
+    .replace(/\[Starter rep: [^\]]+\]/g, '')
+    .replace(/\[Starter cue: [^\]]+\]/g, '')
+    .replace(/\[Starter proof cue: [^\]]+\]/g, '')
+    .replace(/\[Starter leak watch: [^\]]+\]/g, '')
+    .replace(/\[Starter smart next: [^\]]+\]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function getRecentSessionDetail(session: SavedSession) {
+  const pressureProof = getSavedPressureProofValue(session)
+  const starterProof = getSavedStarterProofValue(session)
+  const playerNote = getPlayerProofNote(session.note)
+  const baseDetail = `${session.rating}/5 ${formatClock(session.elapsedSeconds)} ${feelingLabels[session.feeling] ?? 'Ready'} ${accessModes[session.accessMode]?.label ?? 'Level Up'} ${session.sharedWithCoach ? 'shared with coach' : 'private'}`
+
+  return `${baseDetail}${starterProof ? ` starter proof: ${starterProof}` : ''}${pressureProof ? ` pressure proof: ${pressureProof}` : ''}${playerNote ? ` - ${playerNote}` : ''}`
+}
+
+function shortenCoachBriefValue(value: string) {
+  const cleaned = value.replace(/\s+/g, ' ').trim()
+  return cleaned.length > 96 ? `${cleaned.slice(0, 93).trim()}...` : cleaned
+}
+
 function buildSavedCoachFollowUpHref(session: SavedSession) {
+  const pressureProof = getSavedPressureProofValue(session)
+  const starterProof = getSavedStarterProofValue(session)
+  const starterRead = getSavedStarterCoachRead(session)
+  const playerNote = getPlayerProofNote(session.note)
   const params = new URLSearchParams({
     compose: 'direct',
     recipient: 'Coach',
     subject: `Player ID follow-up: ${session.assignmentTitle || session.drillTitle}`,
-    body: `Player ID read: ${session.focusTitle}. Train first: ${session.drillTitle}. Proof target: ${session.rating}/5${session.note ? ` - ${session.note}` : ''}. Coach question: What should I run next?`,
+    body: `Player ID read: ${session.focusTitle}. Train first: ${starterRead?.starterRep ?? session.drillTitle}. Proof target: ${starterRead?.starterProofCue ?? `${session.rating}/5`}. Score: ${session.rating}/5${starterProof ? `. Starter proof: ${starterProof}` : ''}${pressureProof ? `. Pressure proof: ${pressureProof}` : ''}${starterRead ? `. Leak watch: ${starterRead.starterLeakWatch}. Smart next: ${starterRead.starterSmartNext}` : ''}${playerNote ? ` - ${playerNote}` : ''}. Coach question: What should I run next?`,
   })
   if (session.studentLinkId) {
     params.set('entityType', 'coach_player_link')
@@ -1870,6 +4485,103 @@ function buildSavedCoachFollowUpHref(session: SavedSession) {
   if (session.assignmentTitle) params.set('assignmentTitle', session.assignmentTitle)
   params.set('assignmentFocus', session.focusTitle)
   return `/messages?${params.toString()}`
+}
+
+function buildSavedProofRecap(
+  session: SavedSession,
+  selectedNextCue: SavedNextCue | null,
+  selectedProofMoment: SavedProofMoment | null,
+  selectedCoachAsk: SavedCoachAsk | null,
+  coachBrief: SavedCoachBriefLine[],
+) {
+  const pressureProof = getSavedPressureProofValue(session)
+  const starterProof = getSavedStarterProofValue(session)
+  const starterRead = getSavedStarterCoachRead(session)
+  const playerNote = getPlayerProofNote(session.note)
+
+  return [
+    `Level Up proof: ${session.focusTitle}.`,
+    `Drill: ${session.drillTitle}.`,
+    `Score: ${session.rating}/5; time: ${formatClock(session.elapsedSeconds)}; feeling: ${feelingLabels[session.feeling].toLowerCase()}.`,
+    starterRead ? `Starter rep: ${starterRead.starterRep}` : '',
+    starterRead ? `Starter cue: ${starterRead.starterProofCue}` : '',
+    starterRead ? `Leak watch: ${starterRead.starterLeakWatch}` : '',
+    starterRead ? `Smart next: ${starterRead.starterSmartNext}` : '',
+    starterProof ? `Starter: ${starterProof}` : '',
+    pressureProof ? `Pressure: ${pressureProof}` : '',
+    ...coachBrief.map((line) => `${line.label}: ${line.value}`),
+    selectedProofMoment ? `Moment: ${selectedProofMoment.recap}.` : '',
+    playerNote ? `Note: ${playerNote}` : '',
+    session.assignmentTitle ? `Assignment: ${session.assignmentTitle}.` : '',
+    selectedNextCue ? `Next: ${selectedNextCue.recap}.` : starterRead ? `Next: ${starterRead.starterSmartNext}` : 'Next: repeat once or finish with a clean proof trail.',
+    selectedCoachAsk ? `Coach ask: ${selectedCoachAsk.recap}` : 'Coach ask: What should I run next?',
+  ].filter(Boolean).join(' ')
+}
+
+function buildSavedProofTextRecap(
+  session: SavedSession,
+  selectedNextCue: SavedNextCue | null,
+  selectedProofMoment: SavedProofMoment | null,
+  selectedCoachAsk: SavedCoachAsk | null,
+  coachBrief: SavedCoachBriefLine[],
+) {
+  const cleanProof = getSavedProofCounterValue(session)
+  const pressureProof = getSavedPressureProofValue(session)
+  const starterProof = getSavedStarterProofValue(session)
+  const starterRead = getSavedStarterCoachRead(session)
+  const changed = coachBrief.find((line) => line.label === 'Changed')?.value
+  const leaked = coachBrief.find((line) => line.label === 'Leaked')?.value
+  const next = coachBrief.find((line) => line.label === 'Next')?.value
+  return [
+    `${session.focusTitle}: ${session.drillTitle}`,
+    `${session.rating}/5`,
+    cleanProof ? `${cleanProof} clean` : '',
+    starterRead ? `Starter rep: ${starterRead.starterRep}` : starterProof ? `Starter: ${starterProof}` : '',
+    starterRead ? `Cue: ${starterRead.starterProofCue}` : '',
+    starterRead ? `Smart: ${starterRead.starterSmartNext}` : '',
+    pressureProof ? `Pressure: ${pressureProof}` : '',
+    selectedProofMoment?.label ?? '',
+    changed ? `Changed: ${changed}` : '',
+    leaked ? `Leaked: ${leaked}` : '',
+    next ? `Next: ${next}` : selectedNextCue ? `Next: ${selectedNextCue.recap}` : 'Next: repeat once',
+    selectedCoachAsk ? `Ask: ${selectedCoachAsk.recap}` : 'Ask: next rep?',
+  ].filter(Boolean).join(' | ')
+}
+
+function buildSavedProofTextHref(recap: string) {
+  return `sms:?&body=${encodeURIComponent(recap)}`
+}
+
+function appendQuickNote(currentNote: string, nextNote: string) {
+  const cleanedCurrent = currentNote.trim()
+  const cleanedNext = nextNote.trim()
+  if (!cleanedNext || cleanedCurrent.includes(cleanedNext)) return cleanedCurrent
+
+  const sentence = /[.!?]$/.test(cleanedNext) ? cleanedNext : `${cleanedNext}.`
+  const combined = cleanedCurrent ? `${cleanedCurrent} ${sentence}` : sentence
+  return combined.length > 220 ? combined.slice(0, 220).trim() : combined
+}
+
+function getQuickNoteChips(drill: DrillOption) {
+  const profile = `${drill.title} ${drill.summary} ${drill.proof} ${drill.sourceCard?.tags.join(' ') ?? ''} ${drill.sourceCard?.category ?? ''}`.toLowerCase()
+
+  if (profile.includes('serve') || profile.includes('target')) {
+    return ['Target stayed clear.', 'Routine rushed.', 'Missed long under pressure.', 'Repeat same target.']
+  }
+
+  if (profile.includes('double') || profile.includes('partner')) {
+    return ['Partner call was early.', 'Late switch call.', 'Net player stayed active.', 'Repeat poach read.']
+  }
+
+  if (drill.workType === 'mental' || profile.includes('reset') || profile.includes('breath')) {
+    return ['Reset worked.', 'Breathing rushed.', 'Cue stayed simple.', 'Repeat under score.']
+  }
+
+  if (drill.workType === 'physical' || profile.includes('warm-up') || profile.includes('mobility')) {
+    return ['Body felt ready.', 'Footwork got heavy.', 'Posture stayed clean.', 'Scale load down.']
+  }
+
+  return ['Split step was on time.', 'First move was late.', 'Recovery was clean.', 'Repeat with pressure.']
 }
 
 function getFinishSummaryStats(sessions: SavedSession[]) {
@@ -1889,6 +4601,34 @@ function getFinishSummaryStats(sessions: SavedSession[]) {
   }
 }
 
+function getTodayCloseoutRead(sessions: SavedSession[]): TodayCloseoutRead | null {
+  if (sessions.length < 2) return null
+
+  const bestSession = sessions.reduce<SavedSession>((best, session) => {
+    if (session.rating !== best.rating) return session.rating > best.rating ? session : best
+    return session.elapsedSeconds >= best.elapsedSeconds ? session : best
+  }, sessions[0])
+  const pressureSession = sessions.find((session) => getSavedPressureProofValue(session))
+  const pressureProof = pressureSession ? getSavedPressureProofValue(pressureSession) : null
+  const starterSession = pressureSession ?? bestSession
+  const tomorrowDrill = starterSession.drillTitle
+  const tomorrowFocus = starterSession.focusTitle
+
+  return {
+    bestProof: `${bestSession.drillTitle} ${bestSession.rating}/5`,
+    pressureProof: pressureProof ? shortenCoachBriefValue(pressureProof) : 'No pressure proof yet',
+    tomorrow: pressureProof
+      ? `Repeat ${tomorrowDrill} once before adding volume.`
+      : `Start with ${tomorrowFocus}: ${tomorrowDrill}.`,
+    starterFocusId: starterSession.focusId,
+    starterFocusTitle: starterSession.focusTitle,
+    starterWorkType: starterSession.workType,
+    starterContext: starterSession.context,
+    starterDrillTitle: starterSession.drillTitle,
+    starterReason: pressureProof ? 'Pressure proof becomes the first rep.' : 'Best proof becomes the first rep.',
+  }
+}
+
 function getDrillActionSteps(summary: string) {
   const cleaned = summary
     .replace(/\s+/g, ' ')
@@ -1898,6 +4638,57 @@ function getDrillActionSteps(summary: string) {
     .slice(0, 3)
 
   return cleaned.length ? cleaned : ['Start the drill', 'Track the target', 'Score the work']
+}
+
+function getLiveCourtsideCommand(
+  drill: DrillOption,
+  steps: string[],
+  proofTarget: number,
+  readiness: PlayerReadiness,
+): LiveCourtsideCommand {
+  const card = drill.sourceCard
+  const profile = `${drill.title} ${drill.summary} ${drill.proof} ${card?.tags.join(' ') ?? ''} ${card?.category ?? ''}`.toLowerCase()
+  const firstStep = steps[0] ?? shortenDrillStep(drill.summary)
+  const qualityStandard = card ? getCardQualityStandard(card) : getDrillQualityStandard(profile)
+  const commonMiss = card ? getCardCommonMiss(card) : getDrillCommonMiss(profile)
+  const countTarget = Math.max(3, Math.min(proofTarget, readiness === 'tired' ? 5 : proofTarget))
+
+  let now = firstStep
+  if (profile.includes('serve')) now = 'Call target before the toss, then run the first-ball idea.'
+  else if (profile.includes('recover')) now = 'Hit, recover to ready, then judge the shot.'
+  else if (profile.includes('return')) now = 'Name the return job before the toss.'
+  else if (profile.includes('doubles') || profile.includes('partner')) now = 'Say the plan early enough for your partner to move.'
+  else if (profile.includes('mobility') || profile.includes('stretch') || profile.includes('reset')) now = 'Move slowly enough that breath and posture stay clean.'
+  else if (profile.includes('conditioning') || profile.includes('fatigue') || profile.includes('stability')) now = 'Keep tennis posture before adding speed or volume.'
+
+  return {
+    now,
+    count: `Tap +1 when: ${qualityStandard}`,
+    stop:
+      readiness === 'tired'
+        ? `Score after ${countTarget} clean reps or the first form break.`
+        : `Score at ${countTarget} clean reps, or stop when: ${commonMiss}`,
+  }
+}
+
+function getDrillQualityStandard(profile: string) {
+  if (profile.includes('serve')) return 'Target is named before the motion and the next ball stays clear.'
+  if (profile.includes('recover')) return 'Recovery happens before watching the shot.'
+  if (profile.includes('return')) return 'The return job is clear before the toss.'
+  if (profile.includes('doubles') || profile.includes('partner')) return 'The call is early enough for the partner to act.'
+  if (profile.includes('mobility') || profile.includes('stretch') || profile.includes('reset')) return 'Breath and posture stay controlled.'
+  if (profile.includes('conditioning') || profile.includes('fatigue') || profile.includes('stability')) return 'Tennis posture holds while effort rises.'
+  return 'The main cue shows up without needing a reminder.'
+}
+
+function getDrillCommonMiss(profile: string) {
+  if (profile.includes('serve')) return 'The target call or first-ball idea disappears.'
+  if (profile.includes('recover')) return 'Watching the shot before getting back to ready.'
+  if (profile.includes('return')) return 'Reacting late because the return job was vague.'
+  if (profile.includes('doubles') || profile.includes('partner')) return 'The plan comes too late for the partner to use.'
+  if (profile.includes('mobility') || profile.includes('stretch') || profile.includes('reset')) return 'Range is forced instead of controlled.'
+  if (profile.includes('conditioning') || profile.includes('fatigue') || profile.includes('stability')) return 'Effort rises after posture quality drops.'
+  return 'Adding volume before the habit is clean.'
 }
 
 function getCardWorkBlock(card: LevelUpCard) {
@@ -2006,12 +4797,12 @@ function getProgressSummary(sessions: SavedSession[], focuses: LiveFocus[]) {
   const top = [...focusCounts.entries()].sort((a, b) => b[1] - a[1])[0]
   const low = focuses
     .filter((focus) => focus.id !== 'accountability')
-    .map((focus) => [focus.id, focus.title.replace(' Development', ''), focusCounts.get(focus.id) ?? 0] as const)
+    .map((focus) => [focus.id, formatFocusTitle(focus.title), focusCounts.get(focus.id) ?? 0] as const)
     .sort((a, b) => a[2] - b[2])[0]
 
   return {
     average,
-    topFocus: top ? focuses.find((focus) => focus.id === top[0])?.title.replace(' Development', '') : '',
+    topFocus: top ? formatFocusTitle(focuses.find((focus) => focus.id === top[0])?.title ?? '') : '',
     lowFocus: low?.[2] === 0 || sessions.length > 2 ? low?.[1] : '',
     sharedCount: sessions.filter((session) => session.sharedWithCoach).length,
     nextMove: low?.[1] ? `Level up ${low[1]}` : 'Calendar-ready later',

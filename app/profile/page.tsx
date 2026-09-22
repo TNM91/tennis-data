@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
+import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
@@ -22,6 +24,9 @@ import {
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadTiqAwardsForPlayer, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import { normalizeMixedPairRole, type MixedPairRole } from '@/lib/player-eligibility'
+import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
+import { addWorkflowResult, getSafeWorkflowReturnTo } from '@/lib/workflow-return'
 
 type PreferredRole = 'singles' | 'doubles' | 'both'
 type AvailabilityDefault = 'ask-weekly' | 'usually-available' | 'limited'
@@ -41,6 +46,7 @@ type PlayerRow = {
   singles_usta_dynamic_rating?: number | null
   doubles_usta_dynamic_rating?: number | null
   rating_source?: string | null
+  mixed_pair_role?: MixedPairRole | string | null
 }
 
 type ProfileLinkApiResponse = {
@@ -106,7 +112,8 @@ const PROFILE_PLAYER_SELECT_BASE = `
 
 const PROFILE_PLAYER_SELECT_WITH_SOURCE = `
   ${PROFILE_PLAYER_SELECT_BASE},
-  rating_source
+  rating_source,
+  mixed_pair_role
 `
 
 function readProfilePrefs(): ProfilePrefs {
@@ -163,7 +170,7 @@ async function loadProfilePlayers(): Promise<PlayerRow[]> {
   return ((base.data || []) as PlayerRow[]).map((player) => ({ ...player, rating_source: null }))
 }
 
-async function createSelfRatedPlayer(name: string, rating: number): Promise<PlayerRow | null> {
+async function createSelfRatedPlayer(name: string, rating: number, mixedPairRole: MixedPairRole): Promise<PlayerRow | null> {
   const basePayload = {
     name,
     singles_rating: rating,
@@ -176,12 +183,13 @@ async function createSelfRatedPlayer(name: string, rating: number): Promise<Play
   const selfRatedPayload = {
     ...basePayload,
     rating_source: 'self',
+    mixed_pair_role: mixedPairRole,
   }
 
   const insertWithSource = await supabase
     .from('players')
     .insert(selfRatedPayload)
-    .select('id,name,location,flight,overall_rating,singles_rating,doubles_rating,overall_dynamic_rating,singles_dynamic_rating,doubles_dynamic_rating,overall_usta_dynamic_rating,singles_usta_dynamic_rating,doubles_usta_dynamic_rating,rating_source')
+    .select('id,name,location,flight,overall_rating,singles_rating,doubles_rating,overall_dynamic_rating,singles_dynamic_rating,doubles_dynamic_rating,overall_usta_dynamic_rating,singles_usta_dynamic_rating,doubles_usta_dynamic_rating,rating_source,mixed_pair_role')
     .maybeSingle()
 
   if (!insertWithSource.error) return insertWithSource.data as PlayerRow
@@ -219,6 +227,7 @@ async function saveProfileIdentityViaApi(input: {
   linkedPlayerId?: string
   playerName?: string
   selfRating?: number
+  mixedPairRole?: MixedPairRole
 }) {
   const {
     data: { session },
@@ -255,6 +264,7 @@ export default function ProfilePage() {
 }
 
 function ProfilePageInner() {
+  const router = useRouter()
   const { role, entitlements, session, userId, authResolved } = useAuth()
   const { isTablet, isMobile } = useViewportBreakpoints()
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
@@ -266,12 +276,14 @@ function ProfilePageInner() {
   const [selectedPlayerId, setSelectedPlayerId] = useState('')
   const [typedPlayerName, setTypedPlayerName] = useState('')
   const [selfRating, setSelfRating] = useState('3.5')
+  const [mixedPairRole, setMixedPairRole] = useState<MixedPairRole>('unknown')
   const [prefs, setPrefs] = useState<ProfilePrefs>(DEFAULT_PREFS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [syncingProfile, setSyncingProfile] = useState(false)
   const [billingPortalOpening, setBillingPortalOpening] = useState(false)
   const [billingMessage, setBillingMessage] = useState('')
+  const [captainSetupEntry, setCaptainSetupEntry] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [profileAwards, setProfileAwards] = useState<TiqAwardRecord[]>([])
@@ -279,7 +291,9 @@ function ProfilePageInner() {
 
   useEffect(() => {
     setPrefs(readProfilePrefs())
-    if (new URLSearchParams(window.location.search).get('billing') === 'returned') {
+    const params = new URLSearchParams(window.location.search)
+    setCaptainSetupEntry(params.get('setup') === 'captain')
+    if (params.get('billing') === 'returned') {
       setBillingMessage('Billing management closed. Your access will reflect the latest Stripe updates.')
     }
   }, [])
@@ -316,6 +330,7 @@ function ProfilePageInner() {
       setProfileSource(profileRes.source)
       setSelectedPlayerId(nextProfile?.linked_player_id || '')
       setTypedPlayerName(nextProfile?.linked_player_id ? '' : nextProfile?.linked_player_name || '')
+      setMixedPairRole(normalizeMixedPairRole(playersRes.find((player) => player.id === nextProfile?.linked_player_id)?.mixed_pair_role))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load your profile.')
     } finally {
@@ -335,6 +350,14 @@ function ProfilePageInner() {
     }
     void loadProfile()
   }, [authResolved, loadProfile, userId])
+
+  useEffect(() => subscribeToTeamConnectionsChanged(() => {
+    if (!userId) return
+    void loadUserProfileLink(userId).then((result) => {
+      setProfile(result.data)
+      setProfileSource(result.source)
+    })
+  }), [userId])
 
   const playerMap = useMemo(() => new Map(players.map((player) => [player.id, player])), [players])
   const selectedPlayer = selectedPlayerId ? playerMap.get(selectedPlayerId) || null : null
@@ -456,8 +479,8 @@ function ProfilePageInner() {
       try {
         apiResult = await saveProfileIdentityViaApi(
           nextPlayer
-            ? { linkedPlayerId: nextPlayer.id }
-            : { playerName: typedPlayerNameClean, selfRating: selfRatingNumber },
+            ? { linkedPlayerId: nextPlayer.id, mixedPairRole }
+            : { playerName: typedPlayerNameClean, selfRating: selfRatingNumber, mixedPairRole },
         )
       } catch (err) {
         apiSaveError = err instanceof Error ? err : new Error('Cloud profile sync failed.')
@@ -471,7 +494,7 @@ function ProfilePageInner() {
       }
 
       if (!nextPlayer && typedPlayerNameClean) {
-        const created = await createSelfRatedPlayer(typedPlayerNameClean, selfRatingNumber)
+        const created = await createSelfRatedPlayer(typedPlayerNameClean, selfRatingNumber, mixedPairRole)
         nextPlayer = created
       }
 
@@ -483,9 +506,9 @@ function ProfilePageInner() {
       const payload: UserProfileLink & { linked_team_at: string } = {
         linked_player_id: nextPlayer?.id || null,
         linked_player_name: nextPlayer?.name || typedPlayerNameClean || null,
-        linked_team_name: null,
-        linked_league_name: null,
-        linked_flight: null,
+        linked_team_name: profile?.linked_team_name || null,
+        linked_league_name: profile?.linked_league_name || null,
+        linked_flight: profile?.linked_flight || nextPlayer?.flight || null,
         linked_team_at: new Date().toISOString(),
       }
 
@@ -529,6 +552,14 @@ function ProfilePageInner() {
             teamCount: selectedPlayerTeams.length,
           },
         })
+      }
+      const currentParams = new URLSearchParams(window.location.search)
+      const returnTo = getSafeWorkflowReturnTo(
+        currentParams.get('returnTo'),
+        currentParams.get('setup') === 'captain' ? '/captain' : '',
+      )
+      if (returnTo) {
+        router.replace(addWorkflowResult(returnTo, 'player-linked'))
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to save your profile.')
@@ -658,6 +689,9 @@ function ProfilePageInner() {
   const signedIn = Boolean(userId || session?.user?.id)
   const authPending = !authResolved && !signedIn
   const primaryRating = linkedPlayer || selectedPlayer
+  const hasRatingIdentity = Boolean(primaryRating || typedProfileActive)
+  const profilePlayerId = profile?.linked_player_id || selectedPlayerId
+  const profileHasMatchData = Boolean(profilePlayerId && matchPlayers.some((row) => row.player_id === profilePlayerId))
   const detectedLeagueCount = new Set(
     selectedPlayerTeams
       .map((team) => [team.league, team.flight].filter(Boolean).join(' - '))
@@ -672,18 +706,23 @@ function ProfilePageInner() {
   )
   const profileDisplayName = profile?.linked_player_name || selectedPlayer?.name || typedPlayerNameClean || 'Choose player'
   const selfRatingValue = normalizeSelfRating(selfRating)
-  const ratingSourceLabel = (primaryRating?.rating_source === 'self' || typedProfileActive) ? 'Self-rated S' : 'Verified'
+  const isSelfRatedProfile = primaryRating?.rating_source === 'self' || typedProfileActive
+  const hasInferredAdultFlightBaseline = primaryRating?.rating_source === 'inferred' && !typedProfileActive
+  const ratingSourceLabel = !hasRatingIdentity
+    ? ''
+    : isSelfRatedProfile ? 'Self-rated S' : hasInferredAdultFlightBaseline ? 'Adult-flight inferred' : 'Verified'
   const tiqOverallValue = typedProfileActive ? selfRatingValue : getTiqRating(primaryRating, 'overall')
   const tiqSinglesValue = typedProfileActive ? selfRatingValue : getTiqRating(primaryRating, 'singles')
   const tiqDoublesValue = typedProfileActive ? selfRatingValue : getTiqRating(primaryRating, 'doubles')
   const ratingTiles = [
-    { label: 'TIQ', value: `${formatRating(tiqOverallValue)}${ratingSourceLabel === 'Self-rated S' ? ' S' : ''}` },
-    { label: 'USTA', value: ratingSourceLabel === 'Self-rated S' ? 'Pending' : formatRating(getUstaRating(primaryRating, 'overall')) },
-    { label: 'Singles', value: `${formatRating(tiqSinglesValue)}${ratingSourceLabel === 'Self-rated S' ? ' S' : ''}` },
-    { label: 'Doubles', value: `${formatRating(tiqDoublesValue)}${ratingSourceLabel === 'Self-rated S' ? ' S' : ''}` },
+    { label: 'TIQ', value: `${formatRating(tiqOverallValue)}${isSelfRatedProfile ? ' S' : ''}` },
+    { label: 'USTA', value: isSelfRatedProfile ? 'Pending' : formatRating(getUstaRating(primaryRating, 'overall')) },
+    { label: 'Singles', value: `${formatRating(tiqSinglesValue)}${isSelfRatedProfile ? ' S' : ''}` },
+    { label: 'Doubles', value: `${formatRating(tiqDoublesValue)}${isSelfRatedProfile ? ' S' : ''}` },
     { label: 'Source', value: ratingSourceLabel },
   ]
   const dataAssistProfileHref = '/data-assist?intent=upload-source&context=Profile'
+  const captainTeamSetupHref = '/data-assist?intent=upload-source&context=Team%20Hub#upload'
   const firstTiqMoves = [
     { title: 'Upload scorecard', href: dataAssistProfileHref, icon: 'reports' },
     { title: 'Local leagues', href: '/explore/leagues', icon: 'schedule' },
@@ -711,7 +750,11 @@ function ProfilePageInner() {
     },
     {
       label: 'Public profile',
-      title: ratingSourceLabel === 'Self-rated S' ? 'Self-rated starts now; verified data can replace it later.' : 'Verified data can power public and private tools.',
+      title: isSelfRatedProfile
+        ? 'Self-rated starts now; verified data can replace it later.'
+        : hasInferredAdultFlightBaseline
+          ? 'Your Adult-flight baseline is ready while the official C or S designation is pending.'
+          : 'Verified data can power public and private tools.',
       detail: 'TenAceIQ keeps the player record clear before it feeds matchup, team, and league work.',
       icon: 'playerRatings',
     },
@@ -721,7 +764,7 @@ function ProfilePageInner() {
     { label: 'Proof target', value: PROFILE_PLAYER_IDENTITY_READ.proofTarget },
     { label: 'Match test', value: PROFILE_PLAYER_IDENTITY_READ.matchTrigger },
   ] as const
-  const profileIdentityTitle = profileComplete ? profileDisplayName : 'Set your player identity'
+  const profileIdentityTitle = profileComplete ? profileDisplayName : 'Connect your player'
   const profileSyncText = profileSource === 'cloud'
     ? 'Cloud synced. This player should follow you across devices.'
     : profileSource === 'local'
@@ -730,20 +773,27 @@ function ProfilePageInner() {
   const heroTitle = authPending
     ? 'Checking your account.'
     : profileComplete
-    ? `${profileDisplayName} is your player.`
+    ? captainSetupEntry
+      ? `${profileDisplayName} is connected.`
+      : `${profileDisplayName} is your player.`
     : signedIn
-      ? 'Set your player identity.'
+      ? 'Your tennis profile.'
       : 'Sign in to set up your profile.'
   const heroCopy = authPending
     ? 'Give TenAceIQ a moment to confirm your access.'
     : profileComplete
-    ? 'My Lab, Matchup, Team, and League now start from this identity.'
+    ? captainSetupEntry
+      ? 'Player ID setup is complete. Next, connect your active team.'
+      : 'My Lab, Matchup, Team, and League now start from this identity.'
     : signedIn
       ? 'Type your name, self-rate if needed, or choose an existing public record.'
       : 'Sign in once, then choose or create the player identity that powers your tennis tools.'
+  const showProfileIntro = !signedIn || profileComplete
+  const showTennisSetupChecklist = signedIn && profileComplete
 
   return (
     <section style={pageStyle}>
+      {showProfileIntro ? (
         <section style={profileIntroStyle(isTablet, isMobile)}>
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={profileIntroCopyStyle}>
@@ -752,10 +802,17 @@ function ProfilePageInner() {
           </div>
           <div style={profileIntroActionsStyle}>
             {profileComplete ? (
-              <>
-                <Link href="/mylab" style={primaryButtonStyle}>Open My Lab</Link>
-                <Link href={profileMatchupHref} style={secondaryButtonStyle}>Open Matchup</Link>
-              </>
+              captainSetupEntry ? (
+                <>
+                  <Link href={captainTeamSetupHref} style={primaryButtonStyle}>Connect active team</Link>
+                  <Link href="/captain" style={secondaryButtonStyle}>Back to Captain</Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/mylab" style={primaryButtonStyle}>Open My Lab</Link>
+                  <Link href={profileMatchupHref} style={secondaryButtonStyle}>Open Matchup</Link>
+                </>
+              )
             ) : authPending ? (
               <span style={secondaryButtonStyle}>Checking access</span>
             ) : signedIn ? (
@@ -766,13 +823,26 @@ function ProfilePageInner() {
           </div>
           {billingMessage ? <div style={billingMessageStyle}>{billingMessage}</div> : null}
         </section>
+      ) : null}
 
+          {showTennisSetupChecklist ? (
+            <TennisSetupChecklist
+              hasPlayer={profileComplete}
+              hasTeam={Boolean(profile?.linked_team_name || selectedPlayerTeams.length)}
+              hasMatchData={profileHasMatchData}
+            />
+          ) : null}
+
+          {signedIn ? (
           <section style={contentGridStyle}>
-            <div id="profile-identity" style={surfaceStyle}>
+            <div id="profile-identity" style={surfaceStyle(isMobile)}>
               <div style={sectionHeaderStyle}>
                 <div>
-                  <h2 style={sectionTitleStyle}>{profileIdentityTitle}</h2>
-                  <p style={sectionTextStyle}>
+                  {!profileComplete ? <span style={identitySetupEyebrowStyle}>Get started · Step 1 of 3</span> : null}
+                  {profileComplete
+                    ? <h2 style={sectionTitleStyle}>{profileIdentityTitle}</h2>
+                    : <h1 style={sectionTitleStyle}>{profileIdentityTitle}</h1>}
+                  <p style={sectionTextStyle(isMobile)}>
                     {profileComplete
                       ? 'Ratings, teams, leagues, and prep now start from this record.'
                       : 'Type your name, or choose an existing public record. Self-rated profiles show an S until verified data replaces it.'}
@@ -808,7 +878,10 @@ function ProfilePageInner() {
                     value={selectedPlayerId}
                     onChange={(event) => {
                       setSelectedPlayerId(event.target.value)
-                      if (event.target.value) setTypedPlayerName('')
+                      if (event.target.value) {
+                        setTypedPlayerName('')
+                        setMixedPairRole(normalizeMixedPairRole(playerMap.get(event.target.value)?.mixed_pair_role))
+                      }
                       setMessage('')
                       setError('')
                     }}
@@ -857,23 +930,26 @@ function ProfilePageInner() {
                 </div>
               </div>
 
-              <div style={ratingTileGridStyle}>
+              {hasRatingIdentity ? <div style={ratingTileGridStyle(isMobile)}>
                 {ratingTiles.map((tile) => (
                   <div key={tile.label} style={ratingTileStyle}>
                     <span>{tile.label}</span>
                     <strong>{tile.value}</strong>
                   </div>
                 ))}
-              </div>
+              </div> : null}
 
-              <div style={playerIdPowersStyle}>
-                <div style={playerIdPowersHeaderStyle}>
+              <details className="profileDetailsSection" style={playerIdPowersStyle}>
+                <summary style={profileDetailsSummaryStyle}>
+                  <span style={playerIdPowersHeaderStyle}>
                   <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />
                   <div style={playerIdPowersHeaderCopyStyle}>
                     <strong>Player ID powers</strong>
                     <span>One tennis identity keeps Level Up, My Lab, matchup prep, and public records aligned.</span>
                   </div>
-                </div>
+                  </span>
+                  <span style={profileDetailsCueStyle}>Show why</span>
+                </summary>
                 <div style={playerIdPowersGridStyle}>
                   {profilePlayerIdBenefits.map((benefit) => (
                     <div key={benefit.label} style={playerIdPowerCardStyle}>
@@ -909,7 +985,7 @@ function ProfilePageInner() {
                     </Link>
                   </div>
                 </div>
-              </div>
+              </details>
 
               {profileAwards.length ? (
                 <div style={profileAwardStripStyle}>
@@ -948,29 +1024,46 @@ function ProfilePageInner() {
                 <div style={nextMovePathStyle}>
                   <div style={newPlayerPathHeaderStyle}>
                     <TiqFeatureIcon name="myLab" size="sm" variant="ghost" />
-                    <div>
-                      <strong>Next move</strong>
+                    <div style={playerIdPowersHeaderCopyStyle}>
+                      <strong>{captainSetupEntry ? 'Player ID connected' : 'Next move'}</strong>
                       <span>
-                        {ratingSourceLabel === 'Self-rated S'
+                        {captainSetupEntry
+                          ? 'Step 1 is complete. Connect your active team to finish Captain setup.'
+                          : isSelfRatedProfile
                           ? 'Self-rated is live. Add a scorecard or match signal when you are ready.'
+                          : hasInferredAdultFlightBaseline
+                            ? 'Your Adult-flight baseline is live. The official USTA designation can be confirmed when it is available.'
                           : 'Your player identity is ready across the portal.'}
                       </span>
                     </div>
                   </div>
                   <div style={newPlayerActionGridStyle}>
-                    {profileNextMoves.map((move) => (
-                      <Link key={move.href} href={move.href} style={newPlayerActionCardStyle}>
-                        <TiqFeatureIcon name={move.icon} size="sm" variant="ghost" />
-                        <span>{move.title}</span>
-                      </Link>
-                    ))}
+                    {captainSetupEntry ? (
+                      <>
+                        <Link href={captainTeamSetupHref} style={newPlayerActionCardStyle}>
+                          <TiqFeatureIcon name="reports" size="sm" variant="ghost" />
+                          <span>Connect active team</span>
+                        </Link>
+                        <Link href="/captain" style={newPlayerActionCardStyle}>
+                          <TiqFeatureIcon name="captainDashboard" size="sm" variant="ghost" />
+                          <span>Back to Captain</span>
+                        </Link>
+                      </>
+                    ) : (
+                      profileNextMoves.map((move) => (
+                        <Link key={move.href} href={move.href} style={newPlayerActionCardStyle}>
+                          <TiqFeatureIcon name={move.icon} size="sm" variant="ghost" />
+                          <span>{move.title}</span>
+                        </Link>
+                      ))
+                    )}
                   </div>
                 </div>
               ) : (
                 <div style={newPlayerPathStyle}>
                   <div style={newPlayerPathHeaderStyle}>
                     <TiqFeatureIcon name="myLab" size="sm" variant="ghost" />
-                    <div>
+                    <div style={playerIdPowersHeaderCopyStyle}>
                       <strong>Start your TIQ</strong>
                       <span>Save your name, then add the first verified tennis signal.</span>
                     </div>
@@ -1017,6 +1110,23 @@ function ProfilePageInner() {
                     <option value="usually-available">Usually available</option>
                     <option value="limited">Limited</option>
                   </select>
+                </label>
+
+                <label style={fieldStyle}>
+                  <span style={labelStyle}>Mixed team eligibility</span>
+                  <select
+                    value={mixedPairRole}
+                    onChange={(event) => {
+                      setMixedPairRole(normalizeMixedPairRole(event.target.value))
+                      setMessage('')
+                    }}
+                    style={inputStyle}
+                  >
+                    <option value="unknown">Not set</option>
+                    <option value="man">Man</option>
+                    <option value="woman">Woman</option>
+                  </select>
+                  <span style={hintStyle}>Only used to check Mixed doubles lineups. TIQ never guesses this from your name.</span>
                 </label>
               </div>
 
@@ -1082,6 +1192,40 @@ function ProfilePageInner() {
               {error ? <div style={errorStyle}>{error}</div> : null}
             </div>
           </section>
+          ) : !authPending ? (
+            <section style={contentGridStyle}>
+              <div id="profile-identity" style={surfaceStyle(isMobile)}>
+                <div style={sectionHeaderStyle}>
+                  <div>
+                    <h2 style={sectionTitleStyle}>Set up your player after sign in.</h2>
+                    <p style={sectionTextStyle(isMobile)}>
+                      Sign in once, then choose your public player record or create a self-rated profile.
+                    </p>
+                  </div>
+                  <TiqFeatureIcon name="accountSecurity" size="md" variant="ghost" />
+                </div>
+                <div style={newPlayerPathStyle}>
+                  <div style={newPlayerPathHeaderStyle}>
+                    <TiqFeatureIcon name="myLab" size="sm" variant="ghost" />
+                    <div style={playerIdPowersHeaderCopyStyle}>
+                      <strong>Your player tools start here</strong>
+                      <span>Profile powers My Lab, Matchup, Team, and League context.</span>
+                    </div>
+                  </div>
+                  <div style={newPlayerActionGridStyle}>
+                    <Link href="/login?next=%2Fprofile" style={newPlayerActionCardStyle}>
+                      <TiqFeatureIcon name="accountSecurity" size="sm" variant="ghost" />
+                      <span>Sign in</span>
+                    </Link>
+                    <Link href="/explore/players" style={newPlayerActionCardStyle}>
+                      <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />
+                      <span>Find players</span>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </section>
+          ) : null}
     </section>
   )
 }
@@ -1125,11 +1269,11 @@ const profileIntroStyle = (isTablet: boolean, isMobile: boolean): CSSProperties 
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: 'clamp(-86px, -7vw, -32px)',
+  right: 0,
   bottom: 'clamp(-120px, -11vw, -54px)',
   width: 'clamp(210px, 29vw, 390px)',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }
@@ -1248,16 +1392,16 @@ const contentGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const surfaceStyle: CSSProperties = {
+const surfaceStyle = (isMobile: boolean): CSSProperties => ({
   borderRadius: 24,
   border: '1px solid rgba(125,211,252,0.14)',
   background: 'rgba(8,13,28,0.64)',
-  padding: '18px 20px',
+  padding: isMobile ? '14px 12px' : '18px 20px',
   display: 'grid',
-  gap: 16,
+  gap: isMobile ? 12 : 16,
   minWidth: 0,
   boxShadow: '0 18px 45px rgba(2,8,23,0.30)',
-}
+})
 
 const profileLoadingNoticeStyle: CSSProperties = {
   padding: '10px 12px',
@@ -1280,6 +1424,15 @@ const sectionHeaderStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const identitySetupEyebrowStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '.08em',
+  textTransform: 'uppercase',
+}
+
 const sectionTitleStyle: CSSProperties = {
   margin: '6px 0 0',
   color: 'var(--foreground-strong)',
@@ -1289,12 +1442,13 @@ const sectionTitleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const sectionTextStyle: CSSProperties = {
+const sectionTextStyle = (isMobile: boolean): CSSProperties => ({
+  display: isMobile ? 'none' : 'block',
   margin: '8px 0 0',
   color: 'var(--shell-copy-muted)',
   lineHeight: 1.6,
   overflowWrap: 'anywhere',
-}
+})
 
 const formGridStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
@@ -1313,7 +1467,7 @@ const identityGridStyle = (isMobile: boolean): CSSProperties => ({
 
 const autoContextStripStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: isMobile ? 8 : 10,
   minWidth: 0,
 })
@@ -1408,12 +1562,12 @@ const errorStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const ratingTileGridStyle: CSSProperties = {
+const ratingTileGridStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   gap: 10,
   minWidth: 0,
-}
+})
 
 const ratingTileStyle: CSSProperties = {
   borderRadius: 16,
@@ -1434,6 +1588,28 @@ const playerIdPowersStyle: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.18)',
   background: 'rgba(155,225,29,0.07)',
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const profileDetailsSummaryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
+  alignItems: 'center',
+  gap: 10,
+  cursor: 'pointer',
+  listStyle: 'none',
+  minWidth: 0,
+}
+
+const profileDetailsCueStyle: CSSProperties = {
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(116,190,255,0.08)',
+  color: 'var(--shell-copy-muted)',
+  padding: '6px 9px',
+  fontSize: 11,
+  fontWeight: 850,
+  lineHeight: 1.1,
   overflowWrap: 'anywhere',
 }
 

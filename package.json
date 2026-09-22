@@ -7,15 +7,19 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build --webpack",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint --max-warnings=0",
     "typecheck": "tsc --noEmit --incremental false",
     "test": "vitest --pool=threads --no-file-parallelism",
     "test:e2e": "playwright test",
+    "test:e2e:captain-week": "playwright test tests/e2e/captain-weekly-continuity.e2e.ts --project=mobile-chrome",
     "test:e2e:ui": "playwright test --ui",
     "check:extension": "node --check tenaceiq-capture-extension/content_script.js",
     "audit:artifacts": "node scripts/audit-artifacts.mjs",
+    "audit:import-ratings": "node --env-file=.env.local scripts/audit-import-rating-integrity.mjs",
+    "audit:tiq-ratings": "tsx --env-file=.env.local scripts/repair-imported-trilevel-ratings.ts",
+    "repair:import-ratings": "tsx --env-file=.env.local scripts/repair-imported-trilevel-ratings.ts --apply",
     "verify:closeout:inventory": "node scripts/verify-platform-closeout-inventory.mjs",
     "verify:closeout": "node scripts/verify-platform-closeout.mjs",
     "verify:closeout:live": "node scripts/verify-platform-closeout.mjs --live",
@@ -90,29 +94,40 @@
     "qa:launch": "node scripts/customer-journey-launch-readiness.mjs",
     "qa:seo-share": "node scripts/seo-share-readiness-smoke.mjs",
     "qa:adsense-live": "node scripts/adsense-live-readiness-smoke.mjs",
+    "qa:shell": "node scripts/site-shell-layout-smoke.mjs",
     "qa:stripe-live-mode": "node scripts/stripe-checkout-mode-smoke.mjs --expect=live",
+    "audit:stripe-promotions": "node scripts/stripe-deactivate-active-promotions.mjs",
+    "deactivate:stripe-promotions": "node scripts/stripe-deactivate-active-promotions.mjs --apply",
     "qa:stripe-live-readiness": "node scripts/stripe-live-readiness.mjs",
     "qa:stripe-live-catalog": "node scripts/stripe-live-catalog-audit.mjs",
     "qa:stripe-live-cutover": "node scripts/stripe-live-cutover-packet.mjs",
+    "qa:data-reset-plan": "node scripts/launch-data-reset-plan.mjs",
+    "qa:rls-recursion": "node scripts/audit-rls-policy-recursion.mjs",
     "qa:vercel-branch": "node scripts/vercel-production-branch-smoke.mjs",
     "qa:prod-logs": "node scripts/vercel-production-log-smoke.mjs",
     "verify": "npm run lint && npm run typecheck && npm test && npm run check:extension && npm run build",
+    "verify:video-review": "node scripts/verify-video-review.mjs",
     "db:migrations": "supabase migration list",
     "db:push:dry": "supabase db push --dry-run",
     "db:push": "supabase db push",
     "db:audit:tiq": "node scripts/audit-tiq-league-schema.mjs"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "@supabase/supabase-js": "^2.108.2",
     "@types/qrcode": "^1.5.6",
+    "@types/web-push": "^3.6.4",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/functions": "^3.9.5",
     "@vercel/speed-insights": "^2.0.0",
     "framer-motion": "^12.38.0",
-    "next": "16.2.9",
+    "next": "16.3.0",
     "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "tesseract.js": "^7.0.0"
+    "svix": "^2.1.0",
+    "tesseract.js": "^7.0.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
@@ -121,15 +136,15 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "eslint-config-next": "16.3.0",
     "supabase": "^2.98.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5",
     "vitest": "^4.1.5"
   },
   "overrides": {
-    "next": {
-      "postcss": "8.5.16"
-    }
+    "postcss": "8.5.23",
+    "nanoid": "3.3.18"
   }
 }

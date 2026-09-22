@@ -29,6 +29,8 @@ describe('Captain scenario builder mobile layout guards', () => {
       'toolControlButtonRowStyle',
       'compactPillRowStyle',
       'captainReadCard',
+      'scenarioQuickReadShellStyle',
+      'scenarioQuickReadCardStyle',
       'contentWrap',
       'surfaceCardStrong',
       'surfaceCard',
@@ -48,6 +50,10 @@ describe('Captain scenario builder mobile layout guards', () => {
     expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
     expect(source).not.toContain("? '1fr'")
     expect(styleBlock('toolControlTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(source).toContain("{!isMobile ? <CaptainSuitePanel active=\"scenario\" teamLabel={teamFilter || 'Team week'} /> : null}")
+    expect(source.indexOf('toolControlShellResponsive(isTablet, isMobile)')).toBeLessThan(
+      source.indexOf('contentWrap'),
+    )
   })
 
   it('keeps verdict, compare panels, filters, form controls, and tables resilient', () => {
@@ -114,5 +120,16 @@ describe('Captain scenario builder mobile layout guards', () => {
     expect(styleBlock('finalizeLabelStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('finalizeValueStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('finalizeTextStyle')).toContain("overflowWrap: 'anywhere'")
+  })
+
+  it('puts the scenario decision into one compact, mobile-safe quick read', () => {
+    expect(source).toContain('const scenarioQuickRead = useMemo')
+    expect(source).toContain('aria-label="Scenario quick read"')
+    expect(source).toContain("label: 'Lead plan'")
+    expect(source).toContain("label: 'Win edge'")
+    expect(source).toContain("label: 'Swing court'")
+    expect(source).toContain("label: 'Next move'")
+    expect(styleBlock('scenarioQuickReadShellStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))'")
+    expect(styleBlock('scenarioQuickReadCardStyle')).toContain('minWidth: 0')
   })
 })

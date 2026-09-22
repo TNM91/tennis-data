@@ -537,6 +537,15 @@ function collectTeamSummaryValidationIssues(rows: TeamSummaryImportRow[], schedu
       const playerName = normalizeImportName(player.name)
       const playerKey = playerName.toLowerCase()
       if (!playerName) issues.push('Blank roster player name')
+      if (
+        typeof player.ntrp !== 'number' ||
+        !Number.isFinite(player.ntrp) ||
+        player.ntrp < 1 ||
+        player.ntrp > 7 ||
+        Math.abs(player.ntrp * 2 - Math.round(player.ntrp * 2)) >= Number.EPSILON
+      ) {
+        issues.push(`Missing or invalid official NTRP rating: ${playerName || 'unnamed player'}`)
+      }
       if (rosterNames.has(playerKey)) issues.push(`Duplicate roster player: ${playerName}`)
       rosterNames.add(playerKey)
 

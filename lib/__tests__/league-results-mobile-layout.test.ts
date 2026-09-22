@@ -15,7 +15,7 @@ function styleBlock(source: string, styleName: string) {
 describe('League result workspace mobile layout guards', () => {
   it('keeps team result entry forms and scorekeeper cards mobile-safe', () => {
     expect(teamSource).toContain("import { AuthProvider, useAuth } from '@/app/components/auth-provider'")
-    expect(teamSource).toContain('const { role, userId, entitlements, authResolved } = useAuth()')
+    expect(teamSource).toContain('const { role, userId, entitlements, authResolved, session } = useAuth()')
     expect(teamSource).toContain('if (!authResolved)')
     expect(teamSource).toContain('buildProductAccessState(role, entitlements)')
     expect(teamSource).not.toContain('getClientAuthState')
@@ -33,12 +33,12 @@ describe('League result workspace mobile layout guards', () => {
       'lineTypeRow',
       'scorekeeperGrid',
       'scorekeeperTile',
-      'actionRow',
       'detailsCard',
       'detailsSummary',
-      'readinessPanel',
-      'readinessGrid',
-      'readinessItem',
+      'resultPathCommandStyle',
+      'resultPathStatusPanelStyle',
+      'resultPathStatusGridStyle',
+      'resultPathStatusItemStyle',
       'emptyResultPanel',
       'emptyResultCopy',
       'emptyResultActions',
@@ -62,6 +62,10 @@ describe('League result workspace mobile layout guards', () => {
     expect(styleBlock(teamSource, 'btnPrimary')).toContain('color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)')
     expect(styleBlock(teamSource, 'lineCard')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(teamSource, 'scorekeeperTile')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(teamSource, 'resultPathCommandStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))'")
+    expect(styleBlock(teamSource, 'resultPathGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))'")
+    expect(styleBlock(teamSource, 'resultPathStatusGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))'")
+    expect(styleBlock(teamSource, 'resultPathStatusItemStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(teamSource, 'pill')).toContain("whiteSpace: 'normal'")
     expect(styleBlock(teamSource, 'emptyResultActions')).toContain("flexWrap: 'wrap'")
     expect(styleBlock(teamSource, 'emptyResultAction')).toContain("maxWidth: '100%'")
@@ -72,7 +76,7 @@ describe('League result workspace mobile layout guards', () => {
 
   it('keeps individual result forms, standings, and review cards mobile-safe', () => {
     expect(individualSource).toContain("import { AuthProvider, useAuth } from '@/app/components/auth-provider'")
-    expect(individualSource).toContain('const { role, userId, entitlements, authResolved } = useAuth()')
+    expect(individualSource).toContain('const { role, userId, entitlements, authResolved, session } = useAuth()')
     expect(individualSource).toContain('if (!authResolved)')
     expect(individualSource).toContain('buildProductAccessState(role, entitlements)')
     expect(individualSource).not.toContain('getClientAuthState')
@@ -87,9 +91,10 @@ describe('League result workspace mobile layout guards', () => {
       'inputStyle',
       'scorekeeperGrid',
       'scorekeeperTile',
-      'readinessPanel',
-      'readinessGrid',
-      'readinessItem',
+      'resultPathCommandStyle',
+      'resultPathStatusPanelStyle',
+      'resultPathStatusGridStyle',
+      'resultPathStatusItemStyle',
       'listWrap',
       'resultCard',
       'actionRow',
@@ -101,7 +106,10 @@ describe('League result workspace mobile layout guards', () => {
       'emptyResultPanel',
       'emptyResultCopy',
       'emptyResultActions',
-      'reviewToolbar',
+      'reviewPanelStyle',
+      'reviewCommandGridStyle',
+      'reviewFilterGridStyle',
+      'reviewActionRowStyle',
     ]) {
       expect(styleBlock(individualSource, styleName)).toContain('minWidth: 0')
     }
@@ -113,6 +121,10 @@ describe('League result workspace mobile layout guards', () => {
     expect(styleBlock(individualSource, 'btnPrimary')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(individualSource, 'btnPrimary')).toContain("color: 'var(--foreground-strong)'")
     expect(styleBlock(individualSource, 'scorekeeperTile')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock(individualSource, 'resultPathCommandStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))'")
+    expect(styleBlock(individualSource, 'resultPathGrid')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))'")
+    expect(styleBlock(individualSource, 'resultPathStatusGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))'")
+    expect(styleBlock(individualSource, 'resultPathStatusItemStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(individualSource, 'btnSecondary')).toContain("whiteSpace: 'normal'")
     expect(styleBlock(individualSource, 'resultCard')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(individualSource, 'resultTitle')).toContain("overflowWrap: 'anywhere'")

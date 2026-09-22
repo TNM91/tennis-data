@@ -12,7 +12,7 @@ export async function GET() {
     const summary = await getCachedLeagueSummary()
     return Response.json(summary)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to load league summary.'
-    return Response.json({ error: message }, { status: 500 })
+    console.error('League summary failed', error)
+    return Response.json({ error: 'League summary could not be loaded.' }, { status: 500 })
   }
 }

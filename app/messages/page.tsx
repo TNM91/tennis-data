@@ -1,21 +1,27 @@
 'use client'
 
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import { useAuth } from '@/app/components/auth-provider'
 import {
   cancelInternalScheduleEvent,
+  listCaptainPracticeRoster,
   listInternalScheduleEventsForConversation,
   listInternalScheduleResponses,
   saveInternalScheduleResponse,
+  setCaptainPracticeInviteeConfirmed,
+  setCaptainPracticeInviteeStatus,
   updateInternalScheduleEvent,
   type InternalScheduleEvent,
   type InternalScheduleResponse,
   type InternalScheduleResponseStatus,
+  type CaptainPracticeRosterOverview,
 } from '@/lib/internal-scheduling'
+import { practiceRsvpPath, type PracticeDisplayStatus } from '@/lib/captain-practice-rsvp'
+import { buildCaptainPracticeInviteText, buildCaptainPracticeSmsHref } from '@/lib/captain-practice-invite'
 import {
   listInternalNotifications,
   markAllInternalNotificationsRead,
@@ -51,15 +57,30 @@ import {
   detectCalendarQuickAddCandidate,
   type CalendarQuickAddCandidate,
 } from '@/lib/message-calendar-quick-add'
+import { buildTeamRoomHref } from '@/lib/team-room'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { CoachStudentLink } from '@/lib/coach-storage'
+import { syncCoachResumeState, writeCoachResumeState } from '@/lib/coach-memory'
+import {
+  chooseLatestPlayerImproveResumeState,
+  loadPlayerImproveResumeStateFromCloud,
+  readPlayerImproveResumeState,
+  syncPlayerImproveResumeState,
+  writePlayerImproveResumeState,
+  type PlayerImproveResumeState,
+} from '@/lib/player-improve-memory'
+import { buildProductAccessState } from '@/lib/access-model'
+import {
+  syncLeagueCoordinatorResumeState,
+  writeLeagueCoordinatorResumeState,
+} from '@/lib/league-coordinator-memory'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 type ComposeMode = 'support' | 'direct'
 type SupportFilter = 'all' | 'billing' | 'league' | 'result' | 'data' | 'account' | 'general'
-type InboxFilter = 'all' | 'pinned' | 'needs_reply' | 'assignment' | 'calendar' | 'unread' | 'support' | 'direct' | 'league' | 'schedule'
+type InboxFilter = 'all' | 'pinned' | 'needs_reply' | 'assignment' | 'calendar' | 'unread' | 'support' | 'direct' | 'team' | 'league' | 'schedule'
 type AlertFilter = 'all' | 'unread' | 'message' | 'support' | 'schedule' | 'system'
 
 const PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name
@@ -93,6 +114,7 @@ type MessagePrefill = {
   assignmentFocus: string
   assignmentCardId: string
   threadId: string
+  scheduleEventId: string
 }
 
 type CoachMessageContact = {
@@ -165,8 +187,10 @@ function formatMessageTime(value: string) {
   }
 }
 
-function conversationTypeLabel(type: InternalConversation['conversationType']) {
+function conversationTypeLabel(type: InternalConversation['conversationType'], roomType = '') {
   if (type === 'support') return 'Support'
+  if (type === 'team') return 'Team'
+  if (type === 'league' && roomType === 'team') return 'Team'
   if (type === 'league') return 'League'
   if (type === 'system') return 'System'
   return 'Direct'
@@ -240,6 +264,7 @@ function conversationMatchesInboxFilter(
   if (filter === 'unread') return conversation.isUnread
   if (filter === 'support') return conversation.conversationType === 'support'
   if (filter === 'direct') return conversation.conversationType === 'direct'
+  if (filter === 'team') return conversation.conversationType === 'team'
   if (filter === 'league') return conversation.conversationType === 'league'
   if (filter === 'schedule') return isScheduleConversation(conversation)
   return true
@@ -256,7 +281,7 @@ function conversationMatchesThreadSearch(
   const searchable = [
     conversation.subject,
     conversation.lastMessageBody,
-    conversationTypeLabel(conversation.conversationType),
+    conversationTypeLabel(conversation.conversationType, conversation.metadata.roomType),
     statusLabel(conversation.status),
     conversation.conversationType === 'support' ? supportCategoryLabel(conversation.relatedEntityType) : '',
     conversation.conversationType === 'support' ? supportStatusCopy(conversation, identity.role) : '',
@@ -282,6 +307,7 @@ function inboxFilterLabel(filter: InboxFilter) {
   if (filter === 'unread') return 'Unread'
   if (filter === 'support') return 'Support'
   if (filter === 'direct') return 'Direct'
+  if (filter === 'team') return 'Teams'
   if (filter === 'league') return 'League'
   if (filter === 'schedule') return 'Scheduling'
   return 'All'
@@ -306,6 +332,7 @@ function replyPlaceholder(conversation: InternalConversation | null) {
   if (!conversation) return 'Write a reply...'
   if (conversation.conversationType === 'support') return 'Reply to this support request...'
   if (conversation.conversationType === 'league') return 'Message this league room...'
+  if (conversation.conversationType === 'team') return 'Message this team room...'
   if (isScheduleConversation(conversation)) return 'Add a schedule note...'
   return 'Write a message...'
 }
@@ -375,6 +402,13 @@ function getQuickReplyActions(
       { label: 'Time works', body: 'That time works for me.' },
       { label: 'Need alternate', body: 'I need an alternate time. I can make:' },
       { label: 'Site note', body: 'Quick site note:' },
+    ]
+  }
+  if (conversation.conversationType === 'team') {
+    return [
+      { label: 'Availability', body: 'My availability for the next match is:' },
+      { label: 'Saw it', body: 'I saw the team update. Thanks.' },
+      { label: 'Ride check', body: 'I need a ride / have room in my car:' },
     ]
   }
   if (conversation.conversationType === 'league') {
@@ -536,6 +570,13 @@ function buildConversationContextHref(conversation: InternalConversation | null,
   if (entityType === 'tiq_league') {
     return `/explore/leagues/tiq/${encodeURIComponent(entityId)}?league_id=${encodeURIComponent(entityId)}`
   }
+  if (entityType === 'team_room') {
+    return buildTeamRoomHref({
+      teamName: conversation.metadata.teamName,
+      leagueName: conversation.metadata.leagueName,
+      flight: conversation.metadata.flight,
+    })
+  }
   if (entityType === 'tiq_individual_result') return '/compete/results'
   if (entityType === 'tiq_schedule_item' || entityType === 'schedule_match') return '/compete/schedule'
   if (entityType === 'coach_player_link') {
@@ -659,10 +700,19 @@ function buildConversationContextPresentation(conversation: InternalConversation
   const entityId = conversation.metadata.entityId || conversation.relatedEntityId
 
   if (conversation.conversationType === 'league') {
+    const isTeamRoom = conversation.metadata.roomType === 'team'
     return {
-      label: 'League context',
-      text: conversation.metadata.leagueName || conversation.relatedEntityId || 'League conversation',
-      cta: 'Open league',
+      label: isTeamRoom ? 'Team context' : 'League context',
+      text: conversation.metadata.teamName || conversation.metadata.leagueName || conversation.relatedEntityId || (isTeamRoom ? 'Team conversation' : 'League conversation'),
+      cta: isTeamRoom ? 'Open team' : 'Open league',
+    }
+  }
+
+  if (conversation.conversationType === 'team') {
+    return {
+      label: 'Team Room',
+      text: conversation.metadata.teamName || conversation.subject,
+      cta: 'Open Team Room',
     }
   }
 
@@ -1016,6 +1066,7 @@ function MessagesPageContent() {
     assignmentFocus: searchParams.get('assignmentFocus') || '',
     assignmentCardId: searchParams.get('assignmentCardId') || '',
     threadId: searchParams.get('thread') || '',
+    scheduleEventId: searchParams.get('event') || '',
   }), [searchParams])
 
   return (
@@ -1038,14 +1089,17 @@ function MessagesLoadingShell() {
 }
 
 function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
-  const { userId, authResolved, session } = useAuth()
+  const router = useRouter()
+  const { userId, authResolved, session, role, entitlements } = useAuth()
   const { isTablet, isMobile } = useViewportBreakpoints()
+  const productAccess = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
   const [identity, setIdentity] = useState<InternalIdentity | null>(null)
   const [conversations, setConversations] = useState<InternalConversation[]>([])
   const [selectedId, setSelectedId] = useState('')
   const [messages, setMessages] = useState<InternalMessage[]>([])
   const [scheduleEvents, setScheduleEvents] = useState<InternalScheduleEvent[]>([])
   const [scheduleResponses, setScheduleResponses] = useState<InternalScheduleResponse[]>([])
+  const [practiceRosterOverview, setPracticeRosterOverview] = useState<CaptainPracticeRosterOverview | null>(null)
   const [notifications, setNotifications] = useState<InternalNotification[]>([])
   const [notificationPreferences, setNotificationPreferences] = useState<InternalNotificationPreferences | null>(null)
   const [coachContacts, setCoachContacts] = useState<CoachMessageContact[]>([])
@@ -1069,6 +1123,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [subject, setSubject] = useState(prefill.subject || (prefill.mode === 'support' ? 'Support request' : ''))
   const [body, setBody] = useState('')
   const [replyBody, setReplyBody] = useState('')
+  const [playerResumeConversationResolvedId, setPlayerResumeConversationResolvedId] = useState('')
   const [draftThreadIds, setDraftThreadIds] = useState<Set<string>>(() => new Set())
   const [pinnedThreadIds, setPinnedThreadIds] = useState<Set<string>>(() => new Set())
   const [loading, setLoading] = useState(true)
@@ -1080,6 +1135,9 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   const [preferenceSaving, setPreferenceSaving] = useState('')
   const [conversationActionSaving, setConversationActionSaving] = useState('')
   const [scheduleActionSaving, setScheduleActionSaving] = useState('')
+  const [practiceReminderSaving, setPracticeReminderSaving] = useState(false)
+  const [practiceConfirmationSaving, setPracticeConfirmationSaving] = useState('')
+  const [practiceRosterSaving, setPracticeRosterSaving] = useState('')
   const [calendarQuickAddSaving, setCalendarQuickAddSaving] = useState('')
   const [calendarQuickAddedItemIds, setCalendarQuickAddedItemIds] = useState<Set<string>>(() => new Set())
   const [highlightedCalendarCueTargetId, setHighlightedCalendarCueTargetId] = useState('')
@@ -1096,7 +1154,57 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     () => conversations.find((conversation) => conversation.id === selectedId) ?? null,
     [conversations, selectedId],
   )
-  const selectedScheduleEvent = scheduleEvents[0] ?? null
+  const selectedCoachStudent = useMemo(
+    () => {
+      if (!selectedConversation || selectedConversation.relatedEntityType !== 'coach_player_link') return null
+      const studentLinkId = selectedConversation.metadata.entityId || selectedConversation.relatedEntityId
+      return coachContacts.find((contact) => contact.relationship === 'student' && contact.linkId === studentLinkId) ?? null
+    }, [coachContacts, selectedConversation],
+  )
+  const selectedCoachContact = useMemo(
+    () => {
+      if (!selectedConversation) return null
+      const entityType = selectedConversation.metadata.entityType || selectedConversation.relatedEntityType
+      const linkId = selectedConversation.metadata.entityId || selectedConversation.relatedEntityId
+      if (entityType !== 'coach_player_link' || !linkId) return null
+      return coachContacts.find((contact) => contact.relationship === 'coach' && contact.linkId === linkId) ?? null
+    }, [coachContacts, selectedConversation],
+  )
+  const selectedScheduleEvent = scheduleEvents.find((event) => event.id === prefill.scheduleEventId) ?? scheduleEvents[0] ?? null
+  const selectedScheduleResponses = useMemo(
+    () => selectedScheduleEvent
+      ? scheduleResponses.filter((response) => response.eventId === selectedScheduleEvent.id)
+      : [],
+    [scheduleResponses, selectedScheduleEvent],
+  )
+  const practiceRosterGroups = useMemo(() => {
+    const groups = new Map<PracticeDisplayStatus, string[]>([
+      ['in', []],
+      ['waitlist', []],
+      ['maybe', []],
+      ['out', []],
+      ['unanswered', []],
+    ])
+    if (practiceRosterOverview) {
+      for (const player of practiceRosterOverview.roster) {
+        if (player.playerName) groups.get(player.displayStatus)?.push(player.playerName)
+      }
+      return groups
+    }
+    for (const response of selectedScheduleResponses) {
+      const name = response.profileName.trim()
+      if (name) groups.get(response.responseStatus)?.push(name)
+    }
+    return groups
+  }, [practiceRosterOverview, selectedScheduleResponses])
+  const practiceConfirmedPlayers = useMemo(
+    () => practiceRosterOverview?.roster.filter((player) => player.captainConfirmed) || [],
+    [practiceRosterOverview],
+  )
+  const practiceSignedUpPlayers = useMemo(
+    () => practiceRosterOverview?.roster.filter((player) => player.responseStatus === 'in') || [],
+    [practiceRosterOverview],
+  )
   const canManageSchedule = Boolean(
     identity &&
       selectedScheduleEvent &&
@@ -1172,7 +1280,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   )
   const inboxFilters = useMemo(() => {
     if (!identity) return [] as Array<{ key: InboxFilter; label: string; count: number }>
-    return (['all', 'pinned', 'needs_reply', 'assignment', 'calendar', 'unread', 'support', 'direct', 'league', 'schedule'] as InboxFilter[]).map((filter) => ({
+    return (['all', 'pinned', 'needs_reply', 'assignment', 'calendar', 'unread', 'support', 'direct', 'team', 'league', 'schedule'] as InboxFilter[]).map((filter) => ({
       key: filter,
       label: inboxFilterLabel(filter),
       count: conversations.filter((conversation) =>
@@ -1419,10 +1527,111 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
   }, [selectedConversation])
 
   useEffect(() => {
+    setPlayerResumeConversationResolvedId('')
+    if (!userId || !selectedConversation || !selectedCoachContact) return
+
+    const accessToken = session?.access_token || ''
+    let active = true
+    void (async () => {
+      const localState = readPlayerImproveResumeState(userId)
+      const cloudState = accessToken ? await loadPlayerImproveResumeStateFromCloud(accessToken) : null
+      const latest = chooseLatestPlayerImproveResumeState(localState, cloudState)
+      if (!active) return
+      if (latest) writePlayerImproveResumeState(latest, userId)
+      if (latest?.conversationId !== selectedConversation.id || !latest.conversationDraft) return
+      setReplyBody((current) => {
+        if (current.trim()) return current
+        writeMessageDraft(selectedConversation.id, latest.conversationDraft || '')
+        return latest.conversationDraft || ''
+      })
+    })().finally(() => {
+      if (active) setPlayerResumeConversationResolvedId(selectedConversation.id)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [selectedCoachContact, selectedConversation, session?.access_token, userId])
+
+  useEffect(() => {
+    if (!userId || !selectedConversation || !selectedCoachContact) return
+    if (playerResumeConversationResolvedId !== selectedConversation.id) return
+
+    const timeout = window.setTimeout(() => {
+      const playerIdentity = getPlayerDevelopmentIdentity(selectedCoachContact.identitySlug)
+      const assignmentId = selectedConversation.metadata.assignmentId || ''
+      const assignmentTitle = selectedConversation.metadata.assignmentTitle || ''
+      const assignmentFocus = selectedConversation.metadata.assignmentFocus || ''
+      const nextState: PlayerImproveResumeState = {
+        ...(readPlayerImproveResumeState(userId) || {}),
+        identitySlug: selectedCoachContact.identitySlug || playerIdentity.slug,
+        identityTitle: playerIdentity.title.replace(/^The /, ''),
+        studentLinkId: selectedCoachContact.linkId,
+        assignmentId,
+        assignmentTitle,
+        assignmentFocus,
+        conversationId: selectedConversation.id,
+        conversationDraft: replyBody,
+        lastSurface: 'conversation',
+        lastSurfaceLabel: assignmentTitle ? `Coach note: ${assignmentTitle}` : 'Coach conversation',
+        lastHref: `/messages?thread=${encodeURIComponent(selectedConversation.id)}`,
+        lastVisitedAt: new Date().toISOString(),
+        sessionDraft: {},
+      }
+      writePlayerImproveResumeState(nextState, userId)
+      void syncPlayerImproveResumeState(nextState, userId, session?.access_token)
+    }, 350)
+
+    return () => window.clearTimeout(timeout)
+  }, [
+    playerResumeConversationResolvedId,
+    replyBody,
+    selectedCoachContact,
+    selectedConversation,
+    session?.access_token,
+    userId,
+  ])
+
+  useEffect(() => {
+    if (!userId || !selectedConversation || !selectedCoachStudent) return
+
+    const nextState = {
+      studentLinkId: selectedCoachStudent.linkId,
+      playerName: selectedCoachStudent.name,
+      identitySlug: selectedCoachStudent.identitySlug,
+      conversationId: selectedConversation.id,
+      lastSurface: 'conversation' as const,
+      lastSurfaceLabel: 'Player Conversation',
+      lastHref: `/messages?thread=${encodeURIComponent(selectedConversation.id)}`,
+    }
+    writeCoachResumeState(nextState, userId)
+    void syncCoachResumeState(nextState, userId, session?.access_token)
+  }, [selectedCoachStudent, selectedConversation, session?.access_token, userId])
+
+  useEffect(() => {
+    if (!userId || !selectedConversation || !productAccess.canUseLeagueTools) return
+    if (selectedConversation.conversationType !== 'league') return
+
+    const leagueId = selectedConversation.metadata.entityId || selectedConversation.relatedEntityId
+    const leagueName = selectedConversation.metadata.leagueName || selectedConversation.subject
+    const nextState = {
+      ...(leagueId ? { leagueId } : {}),
+      ...(leagueName ? { leagueName } : {}),
+      conversationId: selectedConversation.id,
+      lastSurface: 'conversation' as const,
+      lastSurfaceLabel: 'League Conversation',
+      lastHref: `/messages?thread=${encodeURIComponent(selectedConversation.id)}`,
+    }
+    writeLeagueCoordinatorResumeState(nextState, userId)
+    void syncLeagueCoordinatorResumeState(nextState, userId, session?.access_token)
+  }, [productAccess.canUseLeagueTools, selectedConversation, session?.access_token, userId])
+
+  useEffect(() => {
     if (!selectedId) {
       setMessages([])
       setScheduleEvents([])
       setScheduleResponses([])
+      setPracticeRosterOverview(null)
       setScheduleEditOpen(false)
       return
     }
@@ -1454,9 +1663,15 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     listInternalScheduleEventsForConversation(selectedId)
       .then(async (events) => {
         const responses = await listInternalScheduleResponses(events.map((event) => event.id))
+        const practiceEvent = events.find((event) => event.id === prefill.scheduleEventId && event.eventType === 'captain_practice')
+          ?? events.find((event) => event.eventType === 'captain_practice')
+        const practiceRoster = practiceEvent && practiceEvent.createdByUserId === identity?.userId
+          ? await listCaptainPracticeRoster(practiceEvent.id)
+          : null
         if (!active) return
         setScheduleEvents(events)
         setScheduleResponses(responses)
+        setPracticeRosterOverview(practiceRoster)
       })
       .catch(() => {
         if (!active) {
@@ -1464,6 +1679,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         }
         setScheduleEvents([])
         setScheduleResponses([])
+        setPracticeRosterOverview(null)
       })
       .finally(() => {
         if (active) setScheduleLoading(false)
@@ -1472,7 +1688,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     return () => {
       active = false
     }
-  }, [identity?.userId, selectedId])
+  }, [identity?.userId, prefill.scheduleEventId, selectedId])
 
   useEffect(() => {
     if (!selectedScheduleEvent) {
@@ -1491,6 +1707,19 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     setScheduleDraftNotes('')
     setScheduleCancelReason('')
   }, [selectedScheduleEvent])
+
+  useEffect(() => {
+    if (
+      !selectedScheduleEvent ||
+      selectedScheduleEvent.eventType !== 'captain_practice' ||
+      selectedScheduleEvent.createdByUserId !== identity?.userId
+    ) return
+    const refresh = () => {
+      void listCaptainPracticeRoster(selectedScheduleEvent.id).then(setPracticeRosterOverview)
+    }
+    const interval = window.setInterval(refresh, 20000)
+    return () => window.clearInterval(interval)
+  }, [identity?.userId, selectedScheduleEvent])
 
   async function resolveRecipient() {
     setRecipient(null)
@@ -1867,6 +2096,9 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
         conversationId: selectedConversation.id,
       })
       setScheduleResponses(await listInternalScheduleResponses(scheduleEvents.map((event) => event.id)))
+      if (selectedScheduleEvent?.eventType === 'captain_practice' && selectedScheduleEvent.createdByUserId === identity.userId) {
+        setPracticeRosterOverview(await listCaptainPracticeRoster(selectedScheduleEvent.id))
+      }
       setMessages(await listInternalMessages(selectedConversation.id))
       setConversations(await listInternalConversations(identity))
       setMessage(`RSVP saved as ${responseStatus === 'in' ? 'In' : responseStatus === 'out' ? 'Out' : responseStatus === 'maybe' ? 'Maybe' : 'Unanswered'}.`)
@@ -1875,6 +2107,94 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     } finally {
       setResponseSaving('')
     }
+  }
+
+  async function remindPracticeWaiting() {
+    if (!selectedScheduleEvent || !session?.access_token || practiceReminderSaving) return
+    setPracticeReminderSaving(true)
+    setError('')
+    setMessage('')
+    try {
+      const response = await fetch(`/api/captain/practices/${encodeURIComponent(selectedScheduleEvent.id)}/remind`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const result = await response.json() as {
+        message?: string
+        count?: number
+        phoneCount?: number
+        reminderBody?: string
+        smsHref?: string
+      }
+      if (!response.ok) throw new Error(result.message || 'Practice reminders could not be prepared.')
+      if (result.smsHref) {
+        window.location.href = result.smsHref
+        setMessage(`${result.message} Messages opened for ${result.phoneCount} saved phone number${result.phoneCount === 1 ? '' : 's'}.`)
+      } else if (result.reminderBody) {
+        await navigator.clipboard.writeText(result.reminderBody)
+        setMessage(`${result.message} The reminder was copied; add any players without saved phone numbers.`)
+      } else {
+        setMessage(result.message || 'Everyone has replied.')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Practice reminders could not be prepared.')
+    } finally {
+      setPracticeReminderSaving(false)
+    }
+  }
+
+  async function togglePracticePlayerConfirmation(playerId: string, confirmed: boolean) {
+    if (!selectedScheduleEvent || practiceConfirmationSaving) return
+    setPracticeConfirmationSaving(playerId)
+    setError('')
+    setMessage('')
+    try {
+      await setCaptainPracticeInviteeConfirmed({
+        eventId: selectedScheduleEvent.id,
+        inviteeId: playerId,
+        confirmed,
+      })
+      setPracticeRosterOverview(await listCaptainPracticeRoster(selectedScheduleEvent.id))
+      setMessage(confirmed ? 'Player confirmed for practice.' : 'Practice confirmation removed.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Practice confirmation could not be saved.')
+    } finally {
+      setPracticeConfirmationSaving('')
+    }
+  }
+
+  async function updatePracticePlayerStatus(playerId: string, status: 'out' | 'unanswered') {
+    if (!selectedScheduleEvent || practiceRosterSaving || practiceConfirmationSaving || !canManageSchedule) return
+    setPracticeRosterSaving(playerId)
+    setError('')
+    setMessage('')
+    try {
+      await setCaptainPracticeInviteeStatus({ eventId: selectedScheduleEvent.id, inviteeId: playerId, status })
+      setPracticeRosterOverview(await listCaptainPracticeRoster(selectedScheduleEvent.id))
+      setScheduleResponses(await listInternalScheduleResponses(scheduleEvents.map((event) => event.id)))
+      setMessage(status === 'out' ? 'Player moved off the practice roster.' : 'The player can reply again from the practice invite.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The practice roster could not be updated.')
+    } finally {
+      setPracticeRosterSaving('')
+    }
+  }
+
+  function textPracticeGroup() {
+    if (!selectedScheduleEvent || !practiceRosterOverview?.publicToken) return
+    const metadata = selectedScheduleEvent.metadata
+    const responseUrl = `${window.location.origin}${practiceRsvpPath(practiceRosterOverview.publicToken)}`
+    const inviteText = buildCaptainPracticeInviteText({
+      teamName: metadata.teamName || selectedScheduleEvent.title.replace(/ practice$/i, ''),
+      scheduledDate: selectedScheduleEvent.scheduledDate,
+      scheduledTime: selectedScheduleEvent.scheduledTime,
+      scheduledEndTime: metadata.practiceEndTime || metadata.scheduleEndTime,
+      facility: selectedScheduleEvent.facility,
+      practiceFocus: metadata.practiceNotes,
+      capacity: practiceRosterOverview.capacity,
+      responseUrl,
+    })
+    window.location.href = buildCaptainPracticeSmsHref(inviteText)
   }
 
   async function openNotification(notification: InternalNotification) {
@@ -1891,6 +2211,8 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
       }
       if (notification.conversationId) {
         selectConversation(notification.conversationId)
+      } else if (notification.href) {
+        router.push(notification.href)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Alert could not be opened.')
@@ -2362,7 +2684,7 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
                     <small style={threadTypePillStyle}>
                       {conversation.conversationType === 'support'
                         ? supportCategoryLabel(conversation.relatedEntityType)
-                        : conversationTypeLabel(conversation.conversationType)}
+                        : conversationTypeLabel(conversation.conversationType, conversation.metadata.roomType)}
                     </small>
                     {isScheduleConversation(conversation) ? <small style={threadTypePillStyle}>Schedule</small> : null}
                     {isCoachAssignmentConversation(conversation) ? <small style={assignmentPillStyle}>Assignment</small> : null}
@@ -2647,17 +2969,126 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
               </div>
 
               <div style={rsvpSummaryStyle(isMobile)}>
-                {(['in', 'maybe', 'out', 'unanswered'] as InternalScheduleResponseStatus[]).map((status) => (
+                {(selectedScheduleEvent?.eventType === 'captain_practice'
+                  ? (['in', 'waitlist', 'maybe', 'out', 'unanswered'] as PracticeDisplayStatus[])
+                  : (['in', 'maybe', 'out', 'unanswered'] as PracticeDisplayStatus[])
+                ).map((status) => (
                   <div key={status} style={rsvpStatStyle}>
-                    <strong>{scheduleResponses.filter((response) => response.responseStatus === status).length}</strong>
-                    <span>{status === 'in' ? 'In' : status === 'out' ? 'Out' : status === 'maybe' ? 'Maybe' : 'Waiting'}</span>
+                    <strong>{practiceRosterOverview && selectedScheduleEvent?.eventType === 'captain_practice'
+                      ? practiceRosterGroups.get(status as PracticeDisplayStatus)?.length || 0
+                      : selectedScheduleResponses.filter(
+                        (response) => response.responseStatus === (status as InternalScheduleResponseStatus),
+                      ).length}</strong>
+                    <span>{status === 'in' ? 'In' : status === 'waitlist' ? 'Waitlist' : status === 'out' ? 'Out' : status === 'maybe' ? 'Maybe' : 'Waiting'}</span>
                   </div>
                 ))}
               </div>
 
+              {selectedScheduleEvent?.eventType === 'captain_practice' ? (
+                <div style={practiceRosterStyle} aria-label="Practice roster">
+                  <div style={practiceRosterHeadlineStyle}>
+                    <span style={labelStyle}>Practice roster</span>
+                    <strong>
+                      {practiceConfirmedPlayers.length
+                        ? `${practiceConfirmedPlayers.map((player) => player.playerName).join(', ')} confirmed`
+                        : 'No players captain-confirmed yet.'}
+                    </strong>
+                    <span style={copyStyle}>
+                      {practiceSignedUpPlayers.length} signed up · {practiceConfirmedPlayers.length} captain-confirmed
+                      {practiceRosterOverview?.capacity
+                        ? ` · ${practiceRosterOverview.capacity} spots`
+                        : ''}
+                        {(practiceRosterGroups.get('waitlist')?.length || 0) > 0
+                          ? ` · ${practiceRosterGroups.get('waitlist')!.length} waitlisted`
+                          : ''}
+                    </span>
+                  </div>
+                  {canManageSchedule && practiceSignedUpPlayers.length ? (
+                    <div style={practiceConfirmationListStyle} aria-label="Confirm practice participants">
+                      {practiceSignedUpPlayers.map((player) => (
+                        <div key={player.id} style={practiceConfirmationRowStyle}>
+                          <div style={practiceConfirmationCopyStyle}>
+                            <strong>{player.playerName}</strong>
+                            <span>{player.captainConfirmed ? 'Captain confirmed' : player.displayStatus === 'waitlist' ? 'Waitlisted signup' : 'Signed up · needs confirmation'}</span>
+                          </div>
+                          <div style={rsvpActionRowStyle}>
+                            <button
+                              type="button"
+                              onClick={() => void togglePracticePlayerConfirmation(player.id, !player.captainConfirmed)}
+                              disabled={Boolean(practiceConfirmationSaving || practiceRosterSaving)}
+                              style={player.captainConfirmed ? ghostButtonStyle : primaryButtonStyle}
+                            >
+                              {practiceConfirmationSaving === player.id
+                                ? 'Saving...'
+                                : player.captainConfirmed
+                                  ? 'Undo confirm'
+                                  : 'Confirm spot'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void updatePracticePlayerStatus(player.id, 'out')}
+                              disabled={Boolean(practiceConfirmationSaving || practiceRosterSaving)}
+                              style={ghostButtonStyle}
+                              aria-label={`Mark ${player.playerName} unavailable for practice`}
+                            >{practiceRosterSaving === player.id ? 'Saving...' : 'Mark unavailable'}</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  {canManageSchedule && practiceRosterOverview?.roster.some((player) => player.responseStatus === 'out') ? (
+                    <details style={practiceReplyDetailsStyle}>
+                      <summary>Unavailable players · {practiceRosterOverview.roster.filter((player) => player.responseStatus === 'out').length}</summary>
+                      <div style={practiceConfirmationListStyle}>
+                        {practiceRosterOverview.roster.filter((player) => player.responseStatus === 'out').map((player) => (
+                          <div key={player.id} style={practiceConfirmationRowStyle}>
+                            <strong>{player.playerName}</strong>
+                            <button
+                              type="button"
+                              onClick={() => void updatePracticePlayerStatus(player.id, 'unanswered')}
+                              disabled={Boolean(practiceConfirmationSaving || practiceRosterSaving)}
+                              style={ghostButtonStyle}
+                            >{practiceRosterSaving === player.id ? 'Saving...' : 'Reopen RSVP'}</button>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  ) : null}
+                  <details style={practiceReplyDetailsStyle}>
+                    <summary>See every reply</summary>
+                    <div style={practiceReplyListStyle}>
+                      {(['in', 'waitlist', 'maybe', 'out', 'unanswered'] as PracticeDisplayStatus[]).map((status) => (
+                        <div key={status} style={practiceReplyRowStyle}>
+                          <b>{status === 'in' ? 'In' : status === 'waitlist' ? 'Waitlist' : status === 'out' ? 'Out' : status === 'maybe' ? 'Maybe' : 'Waiting'}</b>
+                          <span>{practiceRosterGroups.get(status)?.join(', ') || 'None'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                  {canManageSchedule && practiceRosterOverview?.publicToken ? (
+                    <div style={rsvpActionRowStyle}>
+                      <Link href={practiceRsvpPath(practiceRosterOverview.publicToken)} style={ghostButtonStyle}>
+                        Open signup page
+                      </Link>
+                      <button type="button" onClick={textPracticeGroup} style={primaryButtonStyle}>Text group</button>
+                      <button
+                        type="button"
+                        onClick={() => void remindPracticeWaiting()}
+                        disabled={practiceReminderSaving || !(practiceRosterGroups.get('unanswered')?.length)}
+                        style={primaryButtonStyle}
+                      >
+                        {practiceReminderSaving ? 'Preparing...' : practiceRosterGroups.get('unanswered')?.length
+                          ? `Remind ${practiceRosterGroups.get('unanswered')!.length} waiting`
+                          : 'Everyone replied'}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
               <div style={rsvpActionRowStyle}>
                 {(['in', 'out', 'maybe'] as InternalScheduleResponseStatus[]).map((status) => {
-                  const active = scheduleResponses.some(
+                  const active = selectedScheduleResponses.some(
                     (response) => response.profileId === identity.userId && response.eventId === selectedScheduleEvent?.id && response.responseStatus === status,
                   )
                   return (
@@ -3281,11 +3712,11 @@ const hiddenPanelStyle: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-92px',
+  right: 0,
   top: '-108px',
   width: 'clamp(230px, 28vw, 380px)',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }
@@ -4019,6 +4450,78 @@ const rsvpStatStyle: CSSProperties = {
   fontWeight: 850,
   textTransform: 'uppercase',
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const practiceRosterStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 12,
+  borderRadius: 15,
+  border: '1px solid rgba(155,225,29,0.2)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.1), rgba(7,17,33,0.35))',
+  minWidth: 0,
+}
+
+const practiceRosterHeadlineStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
+const practiceReplyDetailsStyle: CSSProperties = {
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 850,
+}
+
+const practiceReplyListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  marginTop: 10,
+}
+
+const practiceReplyRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '72px minmax(0, 1fr)',
+  gap: 8,
+  borderTop: '1px solid rgba(125,211,252,0.12)',
+  paddingTop: 8,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
+const practiceConfirmationListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const practiceConfirmationRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 13,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(3,12,26,0.42)',
+}
+
+const practiceConfirmationCopyStyle: CSSProperties = {
+  display: 'grid',
+  flex: '1 1 160px',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
   overflowWrap: 'anywhere',
 }
 

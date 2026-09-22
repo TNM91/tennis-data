@@ -14,6 +14,7 @@ describe('Data Assist export detection', () => {
     expect(detectImportTypeFromFileName('Scorecard_582026.xls')).toBe('scorecard')
     expect(detectImportTypeFromFileName('MatchSchedule_582026.xls')).toBe('schedule')
     expect(detectImportTypeFromFileName('TeamSummary_582026.xls')).toBe('team_summary')
+    expect(detectImportTypeFromFileName('PlayerRoster_812026.xls')).toBe('team_summary')
   })
 
   it('detects scorecard exports from table content when the filename is generic', () => {
@@ -45,6 +46,12 @@ describe('Data Assist export detection', () => {
     `)).toBe('team_summary')
   })
 
+  it('detects Player Roster exports from their contact-aware columns', () => {
+    expect(detectImportTypeFromExportText(`
+      <table><tr><td>Usta#</td><td>Expiry Date</td><td>Player</td><td>Phone no</td><td>NTRP/Rating Date</td></tr></table>
+    `)).toBe('team_summary')
+  })
+
   it('uses content detection before filename hints', async () => {
     const file = exportFile('download.xls', `
       <table>
@@ -55,6 +62,17 @@ describe('Data Assist export detection', () => {
     await expect(detectDataAssistExportType([file], 'scorecard')).resolves.toEqual({
       importType: 'schedule',
       mixed: false,
+      recognized: true,
+    })
+  })
+
+  it('marks unknown exports for a manual fallback instead of guessing silently', async () => {
+    const file = exportFile('download.xls', '<table><tr><td>Unknown export</td></tr></table>')
+
+    await expect(detectDataAssistExportType([file], 'team_summary')).resolves.toEqual({
+      importType: 'team_summary',
+      mixed: false,
+      recognized: false,
     })
   })
 
@@ -65,6 +83,7 @@ describe('Data Assist export detection', () => {
     await expect(detectDataAssistExportType([scorecard, roster], 'scorecard')).resolves.toEqual({
       importType: 'scorecard',
       mixed: true,
+      recognized: true,
     })
   })
 })

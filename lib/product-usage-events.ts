@@ -1,14 +1,29 @@
-import type { PricingPlanId } from './pricing-plans'
+import type { BillablePricingPlanId } from './pricing-plans'
 
 export const PRODUCT_USAGE_EVENT_NAMES = [
   'billing_portal_opened',
+  'signup_confirmation_sent',
+  'upgrade_page_viewed',
+  'upgrade_checkout_clicked',
   'upgrade_checkout_started',
+  'upgrade_checkout_failed',
+  'follow_upgrade_clicked',
+  'follow_intent_completed',
+  'captain_pilot_viewed',
+  'captain_pilot_cta_clicked',
+  'captain_pilot_team_preview_viewed',
+  'captain_pilot_claimed',
+  'captain_pilot_card_free_activated',
+  'captain_pilot_activation_failed',
+  'captain_pilot_billing_clicked',
   'profile_player_linked',
   'profile_cloud_sync_repair',
   'mylab_match_plan_action',
   'mylab_goal_template_applied',
+  'matchup_prep_saved',
   'captain_closeout_action',
   'captain_team_scope_selected',
+  'captain_default_team_saved',
   'search_submitted',
   'search_result_clicked',
   'search_category_selected',
@@ -40,6 +55,16 @@ export const PRODUCT_USAGE_EVENT_NAMES = [
   'schedule_upload_started',
   'team_summary_upload_started',
   'data_issue_reported',
+  'portal_personalization_opened',
+  'portal_personalization_saved',
+  'portal_personalization_save_blocked',
+  'portal_lane_opened',
+  'portal_shortcut_opened',
+  'product_tour_started',
+  'product_tour_progressed',
+  'product_tour_completed',
+  'product_tour_cta_clicked',
+  'product_tour_role_selected',
 ] as const
 
 export const PRODUCT_USAGE_EVENT_SURFACES = [
@@ -56,6 +81,7 @@ export const PRODUCT_USAGE_EVENT_SURFACES = [
   'tournaments',
   'leagues',
   'data_assist',
+  'portal',
 ] as const
 
 export type ProductUsageEventName = (typeof PRODUCT_USAGE_EVENT_NAMES)[number]
@@ -64,7 +90,7 @@ export type ProductUsageEventSurface = (typeof PRODUCT_USAGE_EVENT_SURFACES)[num
 export type ProductUsageEventInput = {
   eventName: ProductUsageEventName
   surface: ProductUsageEventSurface
-  planId?: Extract<PricingPlanId, 'player_plus' | 'coach' | 'captain' | 'league' | 'full_court'> | null
+  planId?: Exclude<BillablePricingPlanId, 'free'> | null
   metadata?: Record<string, unknown>
 }
 
@@ -90,7 +116,7 @@ export function normalizeProductUsageEventInput(input: RawProductUsageEventInput
   const surface = PRODUCT_USAGE_EVENT_SURFACES.includes(input.surface as ProductUsageEventSurface)
     ? input.surface as ProductUsageEventSurface
     : null
-  const planId = input.planId === 'player_plus' || input.planId === 'coach' || input.planId === 'captain' || input.planId === 'league' || input.planId === 'full_court'
+  const planId = input.planId === 'player_plus' || input.planId === 'coach' || input.planId === 'captain' || input.planId === 'league' || input.planId === 'full_court' || input.planId === 'club_starter' || input.planId === 'club_unlimited'
     ? input.planId
     : null
   const metadata = sanitizeUsageMetadata(input.metadata)

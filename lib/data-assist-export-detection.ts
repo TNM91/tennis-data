@@ -3,6 +3,7 @@ import type { DataAssistImportType } from './data-assist'
 export type DataAssistExportDetection = {
   importType: DataAssistImportType
   mixed: boolean
+  recognized: boolean
 }
 
 export async function detectDataAssistExportType(
@@ -14,10 +15,14 @@ export async function detectDataAssistExportType(
   ).filter(Boolean))) as DataAssistImportType[]
 
   if (detectedTypes.length > 1) {
-    return { importType: fallback, mixed: true }
+    return { importType: fallback, mixed: true, recognized: true }
   }
 
-  return { importType: detectedTypes[0] || fallback, mixed: false }
+  return {
+    importType: detectedTypes[0] || fallback,
+    mixed: false,
+    recognized: detectedTypes.length === 1,
+  }
 }
 
 export async function detectImportTypeFromFile(file: File): Promise<DataAssistImportType | null> {
@@ -67,6 +72,7 @@ export function detectImportTypeFromExportText(text: string): DataAssistImportTy
 
   if (
     normalized.includes('team summary') ||
+    (normalized.includes('usta#') && normalized.includes('expiry date') && normalized.includes('phone no') && normalized.includes('ntrp/rating date')) ||
     normalized.includes('team standings') ||
     normalized.includes('championship advancements') ||
     (normalized.includes('player name') && normalized.includes('ntrp')) ||

@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { CSSProperties, useEffect, useId, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import DataTrustPanel from '@/app/components/data-trust-panel'
@@ -13,16 +14,18 @@ import SiteShell from '@/app/components/site-shell'
 import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import TiqTrustStrip from '@/app/components/tiq-trust-strip'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
-import { DATA_ASSIST_STORY, MATCHUP_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, MATCHUP_STORY } from '@/lib/product-story'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatDate, formatRating } from '@/lib/captain-formatters'
 import { useProductAccess } from '@/lib/use-product-access'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { getMatchupStaleSelectionNotice, normalizeMatchupPlayerOptions } from '@/lib/matchup-player-options'
+import { buildMatchupPrepHref } from '@/lib/matchup-prep-note'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import CompeteResumeTracker from '@/app/compete/_components/compete-resume-tracker'
 
 const dataAssistMatchupHref = '/data-assist?intent=request-review&context=Matchup'
 
@@ -252,6 +255,7 @@ export default function MatchupPage() {
   })
   const { access, user, authResolved } = useProductAccess()
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
+  const canUseCaptainTools = authResolved && access.canUseCaptainWorkflow
 
   useEffect(() => {
     void loadPlayers()
@@ -1433,26 +1437,151 @@ export default function MatchupPage() {
       status: `${selectionCount}/${selectionTarget}`,
     }
   }, [comparison, matchType, projection?.expectedOutcome, selectionCount, selectionTarget])
-  const labTakeawayHref = comparison
-    ? `/mylab#player-notebook`
-    : '/mylab'
+  const playerMatchPrep = useMemo(() => {
+    if (!projection || !comparison) return null
+
+    const formRead =
+      formScores.left === null && formScores.right === null
+        ? 'Recent form will sharpen as more scored matches are reviewed.'
+        : `${comparison.leftLabel} ${formScores.left === null ? 'has no recent form signal' : `${formScores.left > 0 ? '+' : ''}${formScores.left.toFixed(2)} over the last 5`}; ${comparison.rightLabel} ${formScores.right === null ? 'has no recent form signal' : `${formScores.right > 0 ? '+' : ''}${formScores.right.toFixed(2)} over the last 5`}.`
+    const historyRead = !headToHead
+      ? 'Checking past meetings…'
+      : headToHead.total === 0
+        ? 'No recorded head-to-head yet. Let current form set the plan.'
+        : `${headToHead.total} past meeting${headToHead.total === 1 ? '' : 's'}: ${comparison.leftLabel} ${headToHead.winsA} - ${headToHead.winsB} ${comparison.rightLabel}.`
+    const courtPlan = projection.isSwingMatch
+      ? 'Treat the opening four games as the test: protect serve patterns, notice the first repeatable opening, then commit to it.'
+      : `${projection.favoriteLabel} has the current edge. Start with the highest-percentage pattern and make the other side earn every change.`
+
+    return {
+      context: `${projection.favoriteEdgeText} - ${projection.confidenceLabel} confidence`,
+      formRead,
+      historyRead,
+      courtPlan,
+    }
+  }, [comparison, formScores.left, formScores.right, headToHead, projection])
+  const matchupPrepId = matchType === 'singles'
+    ? `singles:${playerAId}:${playerBId}`
+    : `doubles:${teamA1Id}:${teamA2Id}:${teamB1Id}:${teamB2Id}`
+  const isPersonalMatchup = Boolean(
+    profilePlayer?.id &&
+      (matchType === 'singles'
+        ? [playerAId, playerBId].includes(profilePlayer.id)
+        : [teamA1Id, teamA2Id, teamB1Id, teamB2Id].includes(profilePlayer.id)),
+  )
+  const playerMatchPrepKicker = isPersonalMatchup
+    ? 'Player-only read - Your Player view'
+    : 'Player-only read - Player scouting'
+  const playerMatchPrepTitle = isPersonalMatchup ? 'Your Match Prep' : 'Match Prep'
+  const labTakeawayHref = comparison && playerMatchPrep
+    ? buildMatchupPrepHref({
+        id: matchupPrepId,
+        title: `Match prep: ${comparison.leftLabel} vs ${comparison.rightLabel}`,
+        context: playerMatchPrep.context,
+        evidence: `${playerMatchPrep.formRead} ${playerMatchPrep.historyRead}`,
+        courtPlan: playerMatchPrep.courtPlan,
+      })
+    : '/mylab#player-notebook'
   const labTakeawayText = projection
-    ? `Log ${projection.favoriteLabel} vs ${projection.underdogLabel}: ${projection.confidenceLabel.toLowerCase()} confidence, ${projection.matchTier.toLowerCase()}.`
-    : 'Compare, then log the one thing you want to test next.'
+    ? `Save ${projection.favoriteLabel} vs ${projection.underdogLabel}: ${projection.confidenceLabel.toLowerCase()} confidence, ${projection.matchTier.toLowerCase()}.`
+    : 'Compare, then save the one thing you want to test next.'
+  const mobileQuickReadItems = projection
+    ? [
+        {
+          label: 'Edge',
+          value: projection.favoriteEdgeText,
+          detail: projection.confidenceLabel,
+        },
+        {
+          label: 'Gap',
+          value: projection.ratingDiffText,
+          detail: `${capitalize(ratingView)} TIQ`,
+        },
+        {
+          label: 'Watch',
+          value: projection.isSwingMatch ? 'Swing court' : projection.matchTier,
+          detail: projection.upsetIndicator,
+        },
+      ]
+    : []
 
   const dynamicToolbarTop: CSSProperties = {
     ...toolbarTop,
     flexDirection: isMobile ? 'column' : 'row',
     alignItems: isMobile ? 'flex-start' : 'center',
+    gap: isMobile ? '12px' : toolbarTop.gap,
+    marginBottom: isMobile ? '14px' : toolbarTop.marginBottom,
+  }
+
+  const dynamicControlsCard: CSSProperties = {
+    ...controlsCard,
+    padding: isMobile ? '8px' : controlsCard.padding,
+    borderRadius: isMobile ? '16px' : controlsCard.borderRadius,
+  }
+
+  const dynamicToolHeaderStyle: CSSProperties = {
+    ...toolHeaderStyle,
+    paddingBottom: isMobile ? '5px' : toolHeaderStyle.paddingBottom,
+    marginBottom: isMobile ? '7px' : toolHeaderStyle.marginBottom,
+    gap: isMobile ? '8px' : toolHeaderStyle.gap,
+  }
+  const dynamicToolHeaderTitleStyle: CSSProperties = {
+    ...toolHeaderTitleStyle,
+    fontSize: isMobile ? '1.12rem' : toolHeaderTitleStyle.fontSize,
+    lineHeight: isMobile ? 1.08 : toolHeaderTitleStyle.lineHeight,
+  }
+
+  const dynamicSelectionProgressCard: CSSProperties = {
+    ...selectionProgressCard,
+    width: isMobile ? 'auto' : selectionProgressCard.width,
+    padding: isMobile ? '6px 8px' : selectionProgressCard.padding,
+    borderRadius: isMobile ? '999px' : selectionProgressCard.borderRadius,
+    display: isMobile ? 'flex' : selectionProgressCard.display,
+    alignItems: isMobile ? 'center' : undefined,
+    gap: isMobile ? 6 : undefined,
+  }
+
+  const dynamicSelectionProgressLabel: CSSProperties = {
+    ...selectionProgressLabel,
+    marginBottom: isMobile ? 3 : selectionProgressLabel.marginBottom,
+    fontSize: isMobile ? '10px' : selectionProgressLabel.fontSize,
+  }
+
+  const dynamicSelectionProgressValue: CSSProperties = {
+    ...selectionProgressValue,
+    marginBottom: isMobile ? 0 : selectionProgressValue.marginBottom,
+    fontSize: isMobile ? '13px' : selectionProgressValue.fontSize,
   }
 
   const dynamicSelectorGrid: CSSProperties = {
     ...selectorGrid,
+    gap: isMobile ? '8px' : selectorGrid.gap,
+    marginBottom: isMobile ? '9px' : selectorGrid.marginBottom,
     gridTemplateColumns: isSmallMobile
       ? 'minmax(0, 1fr)'
       : matchType === 'singles'
         ? 'repeat(2, minmax(0, 1fr))'
         : 'repeat(2, minmax(0, 1fr))',
+  }
+
+  const dynamicToggleStack: CSSProperties = {
+    ...toggleStack,
+    gap: isMobile ? 4 : toggleStack.gap,
+  }
+
+  const dynamicToggleGroup: CSSProperties = {
+    ...toggleGroup,
+    gap: isMobile ? 3 : toggleGroup.gap,
+    padding: isMobile ? 3 : toggleGroup.padding,
+    borderRadius: isMobile ? 12 : toggleGroup.borderRadius,
+  }
+
+  const dynamicToggleButton: CSSProperties = {
+    ...toggleButton,
+    minHeight: 44,
+    borderRadius: isMobile ? 9 : toggleButton.borderRadius,
+    padding: isMobile ? '7px 8px' : toggleButton.padding,
+    fontSize: isMobile ? '11px' : toggleButton.fontSize,
   }
 
   const dynamicCompareGrid: CSSProperties = {
@@ -1498,92 +1627,192 @@ export default function MatchupPage() {
     gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : identitySetupStripStyle.gridTemplateColumns,
   }
 
+  const dynamicEmptyState: CSSProperties = isMobile
+    ? {
+        ...emptyState,
+        borderRadius: 14,
+        padding: 12,
+        fontSize: '13px',
+        lineHeight: 1.45,
+      }
+    : emptyState
+
+  const matchupUpgradePrompt = (
+    <UpgradePrompt
+      planId="player_plus"
+      compact
+      headline={isMobile ? 'Unlock Matchup.' : MATCHUP_STORY.upgradeHeadline}
+      body={isMobile ? 'Compare players, read the edge, and keep the result with your tennis context.' : MATCHUP_STORY.upgradeBody}
+      ctaLabel={MATCHUP_STORY.upgradeCta}
+      secondaryLabel={isMobile ? 'Plan' : MATCHUP_STORY.upgradeSecondary}
+      footnote={isMobile ? undefined : MATCHUP_STORY.upgradeFootnote}
+      summaryOnly={isMobile}
+    />
+  )
+  const demoMatchupPreview = isMobile ? (
+    null
+  ) : (
+    <DemoMatchupCard />
+  )
+  const matchupDataTrust = (
+    <DataTrustPanel
+      title="Matchup data trust"
+      body="Matchup reads combine TIQ ratings, public tennis context, reviewed uploads, and recent match evidence when available. Use the edge as a preparation signal, not a guaranteed outcome."
+      signals={[
+        { label: 'Source', value: 'TIQ ratings, public data, reviewed uploads' },
+        { label: 'Freshness', value: 'Refreshes as reviewed matches connect' },
+        { label: 'Confidence', value: 'Limited until enough match context exists' },
+        { label: 'Status', value: 'Report or request review through Data Assist' },
+      ]}
+    />
+  )
+  const matchupPrepPathPanel = (
+    <section style={matchupPrepPathStyle}>
+      <div style={matchupPrepIntroStyle}>
+        <p style={matchupPrepTextStyle}>
+          Pick the court, read the lean, then choose the next tennis action.
+        </p>
+      </div>
+      <div style={matchupPrepGridStyle(isSmallMobile)}>
+        {matchupPrepPath.map((item) => (
+          <article key={item.question} style={matchupPrepCardStyle} data-matchup-prep-job={item.job}>
+            <span style={matchupPrepQuestionStyle}>{item.question}</span>
+            <strong style={matchupPrepCardTitleStyle}>{item.title}</strong>
+            <span style={matchupPrepCardTextStyle}>{item.body}</span>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+  const matchupPlayerIdTrailPanel = (
+    <section style={matchupPlayerIdTrailStyle}>
+      <div style={matchupPlayerIdTrailHeaderStyle}>
+        <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />
+        <div style={matchupPlayerIdTrailCopyStyle}>
+          <span style={matchupPlayerIdTrailKickerStyle}>Player ID matchup trail</span>
+          <h2 style={matchupPlayerIdTrailTitleStyle}>Save the read to your player record.</h2>
+        </div>
+      </div>
+      <div style={matchupPlayerIdTrailGridStyle}>
+        {matchupPlayerIdSignals.map((signal) => (
+          <article key={signal.label} style={matchupPlayerIdSignalStyle}>
+            <span style={matchupPlayerIdSignalLabelStyle}>{signal.label}</span>
+            <strong style={matchupPlayerIdSignalValueStyle}>{signal.value}</strong>
+            <span style={matchupPlayerIdSignalBodyStyle}>{signal.body}</span>
+          </article>
+        ))}
+      </div>
+      <div style={matchupPlayerIdStarterStyle}>
+        <div style={matchupPlayerIdStarterCopyStyle}>
+          <span style={matchupPlayerIdSignalLabelStyle}>Player ID matchup starter</span>
+          <strong style={matchupPlayerIdSignalValueStyle}>{MATCHUP_PLAYER_IDENTITY_READ.label}</strong>
+          <span style={matchupPlayerIdSignalBodyStyle}>{MATCHUP_PLAYER_IDENTITY_READ.levelUpNudge}</span>
+        </div>
+        <div style={matchupPlayerIdStarterGridStyle} aria-label="Matchup Player ID starter read">
+          {matchupPlayerIdStarterRead.map((item) => (
+            <span key={item.label} style={matchupPlayerIdStarterItemStyle}>
+              <em>{item.label}</em>
+              <b>{item.value}</b>
+            </span>
+          ))}
+        </div>
+        <div style={matchupPlayerIdStarterActionRowStyle}>
+          <Link href={MATCHUP_LEVEL_UP_HREF} style={matchupPlayerIdStarterLinkStyle}>
+            Start Level Up
+          </Link>
+          <Link href={MATCHUP_PLAYER_DEVELOPMENT_HREF} style={matchupPlayerIdStarterSecondaryLinkStyle}>
+            Read Player ID
+          </Link>
+        </div>
+      </div>
+    </section>
+  )
+  const matchupSupportDetails = isMobile ? (
+    <MatchupDetailsSection
+      eyebrow="Matchup help"
+      title="Prep path and player context."
+      cue="Show help"
+      ariaLabel="Matchup help"
+    >
+      <div style={matchupMobileSupportStackStyle}>
+        {matchupPrepPathPanel}
+        {matchupPlayerIdTrailPanel}
+        {matchupDataTrust}
+        <DemoMatchupCard />
+      </div>
+    </MatchupDetailsSection>
+  ) : (
+    <>
+      <MatchupDetailsSection
+        eyebrow="Matchup prep"
+        title="Know what matters before match time."
+        cue="Prep steps"
+        ariaLabel="Matchup prep path"
+      >
+        {matchupPrepPathPanel}
+      </MatchupDetailsSection>
+
+      <MatchupDetailsSection
+        eyebrow="Player ID matchup trail"
+        title="Make the read part of the player record."
+        cue="Player context"
+        ariaLabel="Matchup player ID trail"
+        icon={<TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />}
+      >
+        {matchupPlayerIdTrailPanel}
+      </MatchupDetailsSection>
+    </>
+  )
+
+  const matchupResumeHref = buildMatchupResumeHref({
+    matchType,
+    playerAId,
+    playerBId,
+    teamA1Id,
+    teamA2Id,
+    teamB1Id,
+    teamB2Id,
+  })
+  const matchupResumeLabel = comparison
+    ? `${comparison.leftLabel} vs ${comparison.rightLabel}`
+    : matchType === 'doubles' ? 'Doubles matchup' : 'Singles matchup'
+
   return (
     <SiteShell active="/matchup">
+      <CompeteResumeTracker surface="matchup" label="matchup" href={matchupResumeHref} matchupLabel={matchupResumeLabel} />
       <JsonLd id="matchup-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Matchup', '/matchup')} />
       <section style={contentWrap}>
-        <PlayerSuitePanel active="matchup" playerLabel={profileLink?.linked_player_name || 'Player prep'} />
-        <article style={controlsCard}>
-          <div style={toolHeaderStyle}>
+        {!isMobile ? <PlayerSuitePanel active="matchup" playerLabel={profileLink?.linked_player_name || 'Player prep'} /> : null}
+        {matchType === 'singles' && profilePlayer && playerB ? (
+          <section
+            aria-label="Personal matchup handoff"
+            style={{ display: 'grid', gap: 4, marginBottom: 12, padding: '12px 14px', borderRadius: 16, border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)', background: 'color-mix(in srgb, var(--brand-lime) 8%, var(--shell-chip-bg) 92%)' }}
+          >
+            <span style={{ color: 'var(--brand-lime)', fontSize: 10, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase' }}>Your matchup</span>
+            <strong style={{ color: 'var(--foreground-strong)', fontSize: 16 }}>{profilePlayer.name} vs {playerB.name}</strong>
+            <span style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 700, lineHeight: 1.4 }}>Your Player ID is locked into this read. Switch the opponent below whenever the matchup changes.</span>
+          </section>
+        ) : null}
+        <article style={dynamicControlsCard}>
+          <div style={dynamicToolHeaderStyle}>
             <div style={toolHeaderTitleClusterStyle}>
-              <TiqFeatureIcon name={matchType === 'doubles' ? 'lineupBuilder' : 'matchupAnalysis'} size="md" variant="surface" />
+              <TiqFeatureIcon name={matchType === 'doubles' ? 'lineupBuilder' : 'matchupAnalysis'} size={isMobile ? 'sm' : 'md'} variant="surface" />
               <div style={headerCopyStyle}>
                 <div style={toolHeaderKickerStyle}>Build the matchup</div>
-                <h1 style={toolHeaderTitleStyle}>
+                <h1 style={dynamicToolHeaderTitleStyle}>
                   {matchType === 'doubles' ? 'Choose both sides.' : 'Choose two players.'}
                 </h1>
               </div>
             </div>
-            <div style={toolHeaderTextStyle}>{MATCHUP_STORY.proof.join(' - ')}</div>
+            {!isMobile ? <div style={toolHeaderTextStyle}>{MATCHUP_STORY.proof.join(' - ')}</div> : null}
           </div>
-
-          <section style={matchupPrepPathStyle} aria-label="Matchup prep path">
-            <div style={matchupPrepIntroStyle}>
-              <div style={matchupPrepMottoStyle}>{PRODUCT_MOTTO}</div>
-              <h2 style={matchupPrepTitleStyle}>Know what matters before match time.</h2>
-              <p style={matchupPrepTextStyle}>
-                Matchup is a quick prep read: pick the court, understand the lean, then choose the next tennis action.
-              </p>
-            </div>
-            <div style={matchupPrepGridStyle(isSmallMobile)}>
-              {matchupPrepPath.map((item) => (
-                <article key={item.question} style={matchupPrepCardStyle} data-matchup-prep-job={item.job}>
-                  <span style={matchupPrepQuestionStyle}>{item.question}</span>
-                  <strong style={matchupPrepCardTitleStyle}>{item.title}</strong>
-                  <span style={matchupPrepCardTextStyle}>{item.body}</span>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section style={matchupPlayerIdTrailStyle} aria-label="Matchup player ID trail">
-            <div style={matchupPlayerIdTrailHeaderStyle}>
-              <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" />
-              <div style={matchupPlayerIdTrailCopyStyle}>
-                <span style={matchupPlayerIdTrailKickerStyle}>Player ID matchup trail</span>
-                <h2 style={matchupPlayerIdTrailTitleStyle}>Make the read part of the player record.</h2>
-              </div>
-            </div>
-            <div style={matchupPlayerIdTrailGridStyle}>
-              {matchupPlayerIdSignals.map((signal) => (
-                <article key={signal.label} style={matchupPlayerIdSignalStyle}>
-                  <span style={matchupPlayerIdSignalLabelStyle}>{signal.label}</span>
-                  <strong style={matchupPlayerIdSignalValueStyle}>{signal.value}</strong>
-                  <span style={matchupPlayerIdSignalBodyStyle}>{signal.body}</span>
-                </article>
-              ))}
-            </div>
-            <div style={matchupPlayerIdStarterStyle}>
-              <div style={matchupPlayerIdStarterCopyStyle}>
-                <span style={matchupPlayerIdSignalLabelStyle}>Player ID matchup starter</span>
-                <strong style={matchupPlayerIdSignalValueStyle}>{MATCHUP_PLAYER_IDENTITY_READ.label}</strong>
-                <span style={matchupPlayerIdSignalBodyStyle}>{MATCHUP_PLAYER_IDENTITY_READ.levelUpNudge}</span>
-              </div>
-              <div style={matchupPlayerIdStarterGridStyle} aria-label="Matchup Player ID starter read">
-                {matchupPlayerIdStarterRead.map((item) => (
-                  <span key={item.label} style={matchupPlayerIdStarterItemStyle}>
-                    <em>{item.label}</em>
-                    <b>{item.value}</b>
-                  </span>
-                ))}
-              </div>
-              <div style={matchupPlayerIdStarterActionRowStyle}>
-                <Link href={MATCHUP_LEVEL_UP_HREF} style={matchupPlayerIdStarterLinkStyle}>
-                  Start Level Up
-                </Link>
-                <Link href={MATCHUP_PLAYER_DEVELOPMENT_HREF} style={matchupPlayerIdStarterSecondaryLinkStyle}>
-                  Read Player ID
-                </Link>
-              </div>
-            </div>
-          </section>
 
           {needsProfileSetup ? (
             <article style={dynamicIdentitySetupStripStyle}>
               <TiqFeatureIcon name="accountSecurity" size="md" variant="surface" />
               <div style={identitySetupCopyStyle}>
                 <div style={identitySetupKickerStyle}>Finish personalization</div>
-                <h3 style={identitySetupTitleStyle}>Set your profile before running your own matchups.</h3>
+                <h2 style={identitySetupTitleStyle}>Set your profile before running your own matchups.</h2>
                 <p style={identitySetupTextStyle}>
                   You can still explore any players here, but choosing or creating your identity lets Matchup start with you and lets My Lab save the read back to your game.
                 </p>
@@ -1593,16 +1822,16 @@ export default function MatchupPage() {
           ) : null}
 
           <div style={dynamicToolbarTop}>
-            <div style={toggleStack}>
+            <div style={dynamicToggleStack}>
               <div style={toggleLabel}>Match type</div>
-              <div style={toggleGroup}>
+              <div style={dynamicToggleGroup}>
                 <button
                   onClick={() => {
                     setMatchType('singles')
                     setRatingView('singles')
                   }}
                   style={{
-                    ...toggleButton,
+                    ...dynamicToggleButton,
                     ...(matchType === 'singles' ? toggleButtonGreen : {}),
                   }}
                 >
@@ -1614,7 +1843,7 @@ export default function MatchupPage() {
                     setRatingView('doubles')
                   }}
                   style={{
-                    ...toggleButton,
+                    ...dynamicToggleButton,
                     ...(matchType === 'doubles' ? toggleButtonGreen : {}),
                   }}
                 >
@@ -1623,13 +1852,13 @@ export default function MatchupPage() {
               </div>
             </div>
 
-            <div style={toggleStack}>
+            <div style={dynamicToggleStack}>
               <div style={toggleLabel}>Display ratings</div>
-              <div style={toggleGroup}>
+              <div style={dynamicToggleGroup}>
                 <button
                   onClick={() => setRatingView('overall')}
                   style={{
-                    ...toggleButton,
+                    ...dynamicToggleButton,
                     ...(ratingView === 'overall' ? toggleButtonBlue : {}),
                   }}
                 >
@@ -1638,7 +1867,7 @@ export default function MatchupPage() {
                 <button
                   onClick={() => setRatingView('singles')}
                   style={{
-                    ...toggleButton,
+                    ...dynamicToggleButton,
                     ...(ratingView === 'singles' ? toggleButtonBlue : {}),
                   }}
                 >
@@ -1647,7 +1876,7 @@ export default function MatchupPage() {
                 <button
                   onClick={() => setRatingView('doubles')}
                   style={{
-                    ...toggleButton,
+                    ...dynamicToggleButton,
                     ...(ratingView === 'doubles' ? toggleButtonBlue : {}),
                   }}
                 >
@@ -1656,11 +1885,11 @@ export default function MatchupPage() {
               </div>
             </div>
 
-            <div style={selectionProgressCard}>
+            <div style={dynamicSelectionProgressCard}>
               <TiqFeatureIcon name="scenarioBuilder" size="sm" variant="ghost" />
-              <div style={selectionProgressLabel}>Setup</div>
-              <div style={selectionProgressValue}>{selectionProgressText}</div>
-              <div style={selectionProgressTextStyle}>{selectionGuidance}</div>
+              <div style={dynamicSelectionProgressLabel}>Setup</div>
+              <div style={dynamicSelectionProgressValue}>{selectionProgressText}</div>
+              {!isMobile ? <div style={selectionProgressTextStyle}>{selectionGuidance}</div> : null}
             </div>
           </div>
 
@@ -1890,6 +2119,10 @@ export default function MatchupPage() {
             </>
           )}
 
+          <div style={matchupDetailsStackStyle}>
+            {matchupSupportDetails}
+          </div>
+
           {matchType === 'singles' && playerA && !playerB ? (
             <article style={prefillPromptCard}>
               <div style={headerCopyStyle}>
@@ -1941,20 +2174,20 @@ export default function MatchupPage() {
             <Link href="/explore/leagues" style={exploreNavLink}>Leagues</Link>
           </div>
 
-          <DataTrustPanel
-            title="Matchup data trust"
-            body="Matchup reads combine TIQ ratings, public tennis context, reviewed uploads, and recent match evidence when available. Use the edge as a preparation signal, not a guaranteed outcome."
-            signals={[
-              { label: 'Source', value: 'TIQ ratings, public data, reviewed uploads' },
-              { label: 'Freshness', value: 'Refreshes as reviewed matches connect' },
-              { label: 'Confidence', value: 'Limited until enough match context exists' },
-              { label: 'Status', value: 'Report or request review through Data Assist' },
-            ]}
-          />
+          {isMobile ? null : (
+            <MatchupDetailsSection
+              eyebrow="Data trust"
+              title="Check what powers this read."
+              cue="Show trust"
+              ariaLabel="Matchup data trust"
+            >
+              {matchupDataTrust}
+            </MatchupDetailsSection>
+          )}
 
           {authResolved && !access.canUseAdvancedPlayerInsights ? (
             <div
-              style={{ marginBottom: 16 }}
+              style={{ marginBottom: isMobile ? 10 : 16 }}
               onClickCapture={() => {
                 void trackProductUsageEvent({
                   eventName: 'matchup_unlock_clicked',
@@ -1966,15 +2199,16 @@ export default function MatchupPage() {
                 })
               }}
             >
-              <UpgradePrompt
-                planId="player_plus"
-                compact
-                headline={MATCHUP_STORY.upgradeHeadline}
-                body={MATCHUP_STORY.upgradeBody}
-                ctaLabel={MATCHUP_STORY.upgradeCta}
-                secondaryLabel={MATCHUP_STORY.upgradeSecondary}
-                footnote={MATCHUP_STORY.upgradeFootnote}
-              />
+              {isMobile ? (
+                <MatchupDetailsSection
+                  eyebrow="Player"
+                  title="Unlock the full read."
+                  cue="Open plan"
+                  ariaLabel="Matchup upgrade plan"
+                >
+                  {matchupUpgradePrompt}
+                </MatchupDetailsSection>
+              ) : matchupUpgradePrompt}
             </div>
           ) : null}
 
@@ -2003,44 +2237,56 @@ export default function MatchupPage() {
           ) : null}
 
           {loading ? (
-            <div style={emptyState}>
-              <DemoMatchupCard />
+            <div style={dynamicEmptyState}>
               <div style={emptyStateHint}>
                 Search Player A and Player B above. The live player list is refreshing behind this public preview.
               </div>
+              {demoMatchupPreview}
             </div>
           ) : !players.length && !error ? (
-            <div style={emptyState}>
-              <DemoMatchupCard />
+            <div style={dynamicEmptyState}>
+              <div style={emptyStateTitle}>Player list needs review</div>
               <div style={emptyStateText}>
-                Matchup can still show the product shape before live data is ready. {DATA_ASSIST_STORY.shortCue} Once reviewed players have ratings, they will appear here for comparison.
+                {DATA_ASSIST_STORY.shortCue} Once reviewed players have ratings, they will appear here for comparison.
               </div>
               <Link href={dataAssistMatchupHref} style={retryLinkStyle}>
                 {DATA_ASSIST_STORY.cta}
               </Link>
+              {demoMatchupPreview}
             </div>
           ) : !comparison ? (
-            <div style={emptyState}>
-              <DemoMatchupCard />
+            <div style={dynamicEmptyState}>
               <div style={emptyStateTitle}>Build the matchup first</div>
               <div style={emptyStateText}>
-                {insufficientDataMessage ||
-                  (matchType === 'singles'
-                    ? profilePlayer
-                      ? `${profilePlayer.name} is already in Player A. Choose Player B to compare.`
-                      : 'Select two different players to compare.'
-                    : 'Select four different players to compare doubles teams.')}
+                {isMobile
+                  ? insufficientDataMessage ||
+                    (matchType === 'singles'
+                      ? profilePlayer
+                        ? `Choose Player B for ${profilePlayer.name}.`
+                        : 'Choose two different players.'
+                      : 'Choose four different players.')
+                  : insufficientDataMessage ||
+                    (matchType === 'singles'
+                      ? profilePlayer
+                        ? `${profilePlayer.name} is already in Player A. Choose Player B to compare.`
+                        : 'Select two different players to compare.'
+                      : 'Select four different players to compare doubles teams.')}
               </div>
+              {!isMobile ? (
+                <div style={emptyStateHint}>
+                  {matchType === 'singles' && profilePlayer
+                    ? 'Tip: use this from My Lab when you want a quick read on who to play next, then save the takeaway in your goals or notes.'
+                    : matchType === 'doubles'
+                      ? 'Tip: start with your likely partner on Your side, then test opponent pairings before court time.'
+                      : 'Tip: start with your projected court assignment, then use the probability and swing-match signals to decide whether you need a safer or higher-upside option.'}
+                </div>
+              ) : null}
               <div style={emptyStateHint}>
-                {matchType === 'singles' && profilePlayer
-                  ? 'Tip: use this from My Lab when you want a quick read on who to play next, then save the takeaway in your goals or notes.'
-                  : matchType === 'doubles'
-                    ? 'Tip: start with your likely partner on Your side, then test opponent pairings before court time.'
-                    : 'Tip: start with your projected court assignment, then use the probability and swing-match signals to decide whether you need a safer or higher-upside option.'}
+                {isMobile
+                  ? 'Free preview: gap, form, and one watch item. Player unlocks the full read.'
+                  : 'Free preview: rating gap, recent form signal, and one watch item. Player unlocks full notes, split detail, confidence, upset risk, history, and Save to My Lab.'}
               </div>
-              <div style={emptyStateHint}>
-                Free preview: rating gap, recent form signal, and one watch item. Player unlocks full notes, split detail, confidence, upset risk, history, and Save to My Lab.
-              </div>
+              {demoMatchupPreview}
               <button
                 type="button"
                 style={resetButton}
@@ -2074,21 +2320,67 @@ export default function MatchupPage() {
                     <div style={decisionPill}>{projection.upsetIndicator}</div>
 
                     <div style={decisionCtaRow}>
-                      <Link href={labTakeawayHref} style={ctaPrimary}>
-                        Log in My Lab
-                      </Link>
-                      <Link href="/captain/lineup-builder" style={ctaPrimary}>
-                        Build lineup
-                      </Link>
-                      <Link href="/captain/messaging" style={ctaSecondary}>
-                        Send to team
-                      </Link>
+                      {access.canUseAdvancedPlayerInsights ? (
+                        <Link href={labTakeawayHref} style={ctaPrimary}>
+                          Save to My Lab
+                        </Link>
+                      ) : authResolved ? (
+                        <Link href="/pricing" style={ctaPrimary}>
+                          Unlock full Matchup
+                        </Link>
+                      ) : null}
+                      {canUseCaptainTools ? (
+                        <>
+                          <Link href="/captain/lineup-builder" style={ctaPrimary}>
+                            Build lineup
+                          </Link>
+                          <Link href="/captain/messaging" style={ctaSecondary}>
+                            Send to team
+                          </Link>
+                        </>
+                      ) : (
+                        <Link href="/explore/players" style={ctaSecondary}>
+                          Open player records
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </div>
               ) : null}
 
-              {projection ? (
+              {access.canUseAdvancedPlayerInsights && playerMatchPrep ? (
+                <section style={playerMatchPrepCardStyle} aria-labelledby="player-match-prep-title">
+                  <div style={playerMatchPrepHeaderStyle}>
+                    <div>
+                      <div style={playerMatchPrepKickerStyle}>{playerMatchPrepKicker}</div>
+                      <h2 id="player-match-prep-title" style={playerMatchPrepTitleStyle}>{playerMatchPrepTitle}</h2>
+                    </div>
+                    <Link href={labTakeawayHref} style={playerMatchPrepSaveStyle}>
+                      Save focus
+                    </Link>
+                  </div>
+                  <div style={playerMatchPrepGridStyle(isSmallMobile)}>
+                    <article style={playerMatchPrepItemStyle}>
+                      <span style={playerMatchPrepLabelStyle}>Current context</span>
+                      <strong style={playerMatchPrepValueStyle}>{playerMatchPrep.context}</strong>
+                    </article>
+                    <article style={playerMatchPrepItemStyle}>
+                      <span style={playerMatchPrepLabelStyle}>Recent evidence</span>
+                      <p style={playerMatchPrepTextStyle}>{playerMatchPrep.formRead}</p>
+                    </article>
+                    <article style={playerMatchPrepItemStyle}>
+                      <span style={playerMatchPrepLabelStyle}>Past meetings</span>
+                      <p style={playerMatchPrepTextStyle}>{playerMatchPrep.historyRead}</p>
+                    </article>
+                  </div>
+                  <div style={playerMatchPrepPlanStyle}>
+                    <span style={playerMatchPrepLabelStyle}>Court plan</span>
+                    <strong style={playerMatchPrepPlanTextStyle}>{playerMatchPrep.courtPlan}</strong>
+                  </div>
+                </section>
+              ) : null}
+
+              {projection && !isMobile ? (
                 <div style={prepReadGrid}>
                   <div style={prepReadCardAccent}>
                     <div style={prepReadLabel}>Who has the edge?</div>
@@ -2111,6 +2403,18 @@ export default function MatchupPage() {
                     <div style={prepReadText}>{labTakeawayText}</div>
                   </Link>
                 </div>
+              ) : null}
+
+              {projection && isMobile ? (
+                <section style={mobileQuickReadGridStyle(isSmallMobile)} aria-label="Matchup quick read">
+                  {mobileQuickReadItems.map((item) => (
+                    <article key={item.label} style={mobileQuickReadItemStyle}>
+                      <span style={mobileQuickReadLabelStyle}>{item.label}</span>
+                      <strong style={mobileQuickReadValueStyle}>{item.value}</strong>
+                      <span style={mobileQuickReadDetailStyle}>{item.detail}</span>
+                    </article>
+                  ))}
+                </section>
               ) : null}
 
               <div style={dynamicCompareGrid}>
@@ -2401,6 +2705,90 @@ export default function MatchupPage() {
   )
 }
 
+function buildMatchupResumeHref({
+  matchType,
+  playerAId,
+  playerBId,
+  teamA1Id,
+  teamA2Id,
+  teamB1Id,
+  teamB2Id,
+}: {
+  matchType: MatchType
+  playerAId: string
+  playerBId: string
+  teamA1Id: string
+  teamA2Id: string
+  teamB1Id: string
+  teamB2Id: string
+}) {
+  const params = new URLSearchParams({ type: matchType })
+  if (matchType === 'singles') {
+    if (playerAId) params.set('playerA', playerAId)
+    if (playerBId) params.set('playerB', playerBId)
+  } else {
+    if (teamA1Id) params.set('a1', teamA1Id)
+    if (teamA2Id) params.set('a2', teamA2Id)
+    if (teamB1Id) params.set('b1', teamB1Id)
+    if (teamB2Id) params.set('b2', teamB2Id)
+  }
+  return `/matchup?${params.toString()}`
+}
+
+function MatchupDetailsSection({
+  eyebrow,
+  title,
+  cue,
+  ariaLabel,
+  icon,
+  children,
+}: {
+  eyebrow: string
+  title: string
+  cue: string
+  ariaLabel: string
+  icon?: ReactNode
+  children: ReactNode
+}) {
+  const { isMobile } = useViewportBreakpoints()
+  const dynamicSummaryStyle: CSSProperties = {
+    ...matchupDetailsSummaryStyle,
+    display: isMobile ? 'grid' : matchupDetailsSummaryStyle.display,
+    gridTemplateColumns: isMobile ? 'minmax(0, 1fr) minmax(0, auto)' : undefined,
+    gap: isMobile ? 8 : matchupDetailsSummaryStyle.gap,
+    padding: isMobile ? '8px 9px' : matchupDetailsSummaryStyle.padding,
+    borderRadius: isMobile ? 12 : matchupDetailsSummaryStyle.borderRadius,
+  }
+  const dynamicTitleStyle: CSSProperties = {
+    ...matchupDetailsTitleStyle,
+    fontSize: isMobile ? 13 : matchupDetailsTitleStyle.fontSize,
+  }
+  const dynamicEyebrowStyle: CSSProperties = {
+    ...matchupDetailsEyebrowStyle,
+    fontSize: isMobile ? 10 : matchupDetailsEyebrowStyle.fontSize,
+  }
+  const dynamicCueStyle: CSSProperties = {
+    ...matchupDetailsCueStyle,
+    fontSize: isMobile ? 10 : matchupDetailsCueStyle.fontSize,
+  }
+
+  return (
+    <details className="matchupDetailsSection" style={matchupDetailsSectionStyle} aria-label={ariaLabel}>
+      <summary style={dynamicSummaryStyle}>
+        <span style={matchupDetailsSummaryLeftStyle}>
+          {icon}
+          <span style={matchupDetailsSummaryCopyStyle}>
+            <span style={dynamicEyebrowStyle}>{eyebrow}</span>
+            <strong style={dynamicTitleStyle}>{title}</strong>
+          </span>
+        </span>
+        <span style={dynamicCueStyle}>{isMobile ? 'Open' : cue}</span>
+      </summary>
+      <div className="matchupDetailsBody" style={matchupDetailsContentStyle}>{children}</div>
+    </details>
+  )
+}
+
 function DemoMatchupCard() {
   return (
     <article style={demoMatchupCardStyle} aria-label="Sample matchup preview">
@@ -2652,6 +3040,7 @@ function SelectField({
 }) {
   const selectId = useId()
   const [focused, setFocused] = useState(false)
+  const { isMobile } = useViewportBreakpoints()
   const hasActiveSelection = !value || options.some((player) => player.id === value)
   const selectedValue = hasActiveSelection ? value : ''
   const placeholder = options.length
@@ -2659,10 +3048,22 @@ function SelectField({
       ? 'Select player'
       : 'Selected player unavailable'
     : 'Players appear after review'
+  const dynamicInputLabel: CSSProperties = {
+    ...inputLabel,
+    marginBottom: isMobile ? 5 : inputLabel.marginBottom,
+    fontSize: isMobile ? '11px' : inputLabel.fontSize,
+  }
+  const dynamicSelectStyle: CSSProperties = {
+    ...selectStyle,
+    height: isMobile ? '46px' : selectStyle.height,
+    borderRadius: isMobile ? '14px' : selectStyle.borderRadius,
+    padding: isMobile ? '0 10px' : selectStyle.padding,
+    fontSize: isMobile ? '13px' : selectStyle.fontSize,
+  }
 
   return (
     <div style={selectFieldStyle}>
-      <label htmlFor={selectId} style={inputLabel}>{label}</label>
+      <label htmlFor={selectId} style={dynamicInputLabel}>{label}</label>
       <select
         id={selectId}
         value={selectedValue}
@@ -2670,7 +3071,7 @@ function SelectField({
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         style={{
-          ...selectStyle,
+          ...dynamicSelectStyle,
           ...(focused ? selectFocusStyle : null),
         }}
         aria-invalid={!hasActiveSelection}
@@ -2900,7 +3301,7 @@ const exploreNavLink: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '36px',
+  minHeight: '44px',
   padding: '0 13px',
   borderRadius: '999px',
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
@@ -2979,11 +3380,98 @@ const toolHeaderTextStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const matchupDetailsStackStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  marginBottom: 16,
+  overflowWrap: 'anywhere',
+}
+
+const matchupDetailsSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const matchupDetailsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  padding: '12px 14px',
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  listStyle: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const matchupDetailsSummaryLeftStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const matchupDetailsSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const matchupDetailsEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const matchupDetailsTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const matchupDetailsCueStyle: CSSProperties = {
+  flex: '0 1 auto',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  textAlign: 'right',
+  overflowWrap: 'anywhere',
+}
+
+const matchupDetailsContentStyle: CSSProperties = {
+  display: 'grid',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const matchupMobileSupportStackStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
 const matchupPrepPathStyle: CSSProperties = {
   display: 'grid',
   gap: '14px',
   minWidth: 0,
-  marginBottom: 18,
   padding: 16,
   borderRadius: 22,
   border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
@@ -2995,24 +3483,6 @@ const matchupPrepIntroStyle: CSSProperties = {
   display: 'grid',
   gap: 5,
   minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const matchupPrepMottoStyle: CSSProperties = {
-  color: 'var(--brand-lime)',
-  fontSize: 12,
-  fontWeight: 950,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
-
-const matchupPrepTitleStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: '1.22rem',
-  lineHeight: 1.15,
-  fontWeight: 950,
-  letterSpacing: 0,
   overflowWrap: 'anywhere',
 }
 
@@ -3074,7 +3544,6 @@ const matchupPlayerIdTrailStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   minWidth: 0,
-  marginBottom: 18,
   padding: 16,
   borderRadius: 20,
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
@@ -3211,7 +3680,7 @@ const matchupPlayerIdStarterLinkStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '40px',
+  minHeight: '44px',
   padding: '0 14px',
   borderRadius: '999px',
   border: '1px solid var(--shell-panel-border)',
@@ -3283,7 +3752,7 @@ const identitySetupButtonStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: 42,
+  minHeight: 44,
   padding: '0 15px',
   borderRadius: 999,
   background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%)',
@@ -3344,6 +3813,7 @@ const toggleButton: CSSProperties = {
   background: 'transparent',
   color: 'var(--foreground)',
   padding: '12px 18px',
+  minHeight: 44,
   fontSize: '14px',
   fontWeight: 800,
   cursor: 'pointer',
@@ -4041,6 +4511,115 @@ const prepReadGrid: CSSProperties = {
   minWidth: 0,
 }
 
+const playerMatchPrepCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  marginBottom: 14,
+  padding: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  borderRadius: 20,
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%), var(--shell-panel-bg))',
+  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+  minWidth: 0,
+  overflow: 'hidden',
+}
+
+const playerMatchPrepHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+}
+
+const playerMatchPrepKickerStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const playerMatchPrepTitleStyle: CSSProperties = {
+  margin: '3px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.25rem, 3vw, 1.65rem)',
+  lineHeight: 1.05,
+}
+
+const playerMatchPrepSaveStyle: CSSProperties = {
+  flex: '0 0 auto',
+  padding: '8px 11px',
+  border: '1px solid color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
+  borderRadius: 999,
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 900,
+  textDecoration: 'none',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const playerMatchPrepGridStyle = (isSmallMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
+  gap: 10,
+  minWidth: 0,
+})
+
+const playerMatchPrepItemStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 6,
+  padding: 12,
+  border: '1px solid color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+  borderRadius: 14,
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 82%, transparent)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const playerMatchPrepLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.09em',
+  textTransform: 'uppercase',
+}
+
+const playerMatchPrepValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '0.98rem',
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const playerMatchPrepTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: '0.88rem',
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const playerMatchPrepPlanStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  padding: 14,
+  borderRadius: 14,
+  background: 'color-mix(in srgb, var(--brand-green) 8%, transparent)',
+  borderLeft: '3px solid var(--brand-green)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const playerMatchPrepPlanTextStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '0.98rem',
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
 const prepReadCard: CSSProperties = {
   display: 'grid',
   gap: '8px',
@@ -4090,6 +4669,50 @@ const prepReadText: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.6,
   fontWeight: 600,
+  overflowWrap: 'anywhere',
+}
+
+const mobileQuickReadGridStyle = (isSmallMobile: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
+  gap: '8px',
+  marginBottom: '12px',
+  minWidth: 0,
+})
+
+const mobileQuickReadItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  padding: '11px 10px',
+  borderRadius: '14px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  overflowWrap: 'anywhere',
+}
+
+const mobileQuickReadLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: '10px',
+  fontWeight: 900,
+  letterSpacing: '0.09em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const mobileQuickReadValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '15px',
+  lineHeight: 1.15,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const mobileQuickReadDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '11px',
+  fontWeight: 750,
+  lineHeight: 1.3,
   overflowWrap: 'anywhere',
 }
 

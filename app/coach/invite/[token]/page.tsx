@@ -442,6 +442,7 @@ function CoachInviteContent() {
       : ''
   const acceptButtonDisabled = accepting || Boolean(acceptBlockedMessage)
   const readyToAccept = authResolved && !loading && Boolean(userId) && invite?.status === 'pending' && !acceptBlockedMessage
+  const inviteUnavailable = authResolved && !loading && !invite
 
   const loadInvite = useCallback(async () => {
     if (!token) return
@@ -498,13 +499,18 @@ function CoachInviteContent() {
   }
 
   const studentName = student?.playerName || 'Player'
-  const statusLabel = getInviteStatusLabel(invite?.status)
-  const nextStep = getInviteNextStep({
-    authResolved,
-    loading,
-    status: invite?.status,
-    userId,
-  })
+  const statusLabel = inviteUnavailable ? 'Unavailable' : getInviteStatusLabel(invite?.status)
+  const nextStep = inviteUnavailable
+    ? {
+        title: 'Ask your coach for a new invite.',
+        copy: 'This link is invalid, expired, or no longer available. No coach connection can be accepted from it.',
+      }
+    : getInviteNextStep({
+        authResolved,
+        loading,
+        status: invite?.status,
+        userId,
+      })
 
   return (
     <main style={pageStyles.shell} className="coach-invite-shell">
@@ -515,7 +521,7 @@ function CoachInviteContent() {
             <span>TenAceIQ Coach Connect</span>
           </div>
           <span style={{ color: '#9be11d', fontSize: 12, fontWeight: 900, letterSpacing: '.14em', textTransform: 'uppercase' }}>
-            Coach-linked workflow
+            Coach-linked setup
           </span>
         </div>
 
@@ -553,7 +559,7 @@ function CoachInviteContent() {
               </p>
             ) : null}
 
-            {authResolved && !loading ? (
+            {authResolved && !loading && invite ? (
               <div style={pageStyles.setupCheckCard} aria-label="Coach invite mobile setup check">
                 <span style={pageStyles.eyebrow}>Setup check</span>
                 <div style={pageStyles.setupCheckGrid}>
@@ -616,6 +622,15 @@ function CoachInviteContent() {
             <div style={pageStyles.actions} className="coach-invite-actions">
               {!authResolved || loading ? (
                 <span style={pageStyles.secondaryButton}>Loading invite</span>
+              ) : inviteUnavailable ? (
+                <>
+                  <Link href="/player-development" style={pageStyles.primaryButton}>
+                    Open development paths
+                  </Link>
+                  <Link href="/contact" style={pageStyles.secondaryButton}>
+                    Contact TenAceIQ
+                  </Link>
+                </>
               ) : !userId ? (
                 <>
                   <Link href={loginHref} style={pageStyles.primaryButton}>
@@ -688,7 +703,7 @@ function CoachInviteContent() {
             <div style={pageStyles.card}>
               <div style={pageStyles.stat}>
                 <span style={pageStyles.label}>Player</span>
-                <span style={pageStyles.value}>{loading ? 'Loading' : studentName}</span>
+                <span style={pageStyles.value}>{loading ? 'Loading' : inviteUnavailable ? 'Unavailable' : studentName}</span>
               </div>
               <div style={pageStyles.stat}>
                 <span style={pageStyles.label}>Invite status</span>
@@ -696,7 +711,7 @@ function CoachInviteContent() {
               </div>
               <div style={pageStyles.stat}>
                 <span style={pageStyles.label}>Invited email</span>
-                <span style={pageStyles.value}>{invite?.inviteEmail || 'Open invite'}</span>
+                <span style={pageStyles.value}>{inviteUnavailable ? 'Unavailable' : invite?.inviteEmail || 'Open invite'}</span>
               </div>
               <div style={{ ...pageStyles.stat, borderBottom: 0 }}>
                 <span style={pageStyles.label}>Development lane</span>
@@ -736,8 +751,8 @@ function CoachInviteContent() {
               </ul>
             </div>
 
-            <div style={{ ...pageStyles.card, marginTop: 18 }} aria-label="Coach invite account proof cue">
-              <span style={pageStyles.eyebrow}>Account proof cue</span>
+            <div style={{ ...pageStyles.card, marginTop: 18 }} aria-label="Coach invite account check">
+              <span style={pageStyles.eyebrow}>Account check</span>
               <h2 style={{ margin: '8px 0 10px', color: '#ffffff', fontSize: 22, lineHeight: 1.12 }}>
                 Confirm the account before accepting.
               </h2>
@@ -758,8 +773,8 @@ function CoachInviteContent() {
             </div>
 
             <p style={{ ...pageStyles.copy, marginTop: 18, fontSize: 14 }}>
-              The printed workbook remains a standalone development tool. Your coach invite unlocks assigned work and
-              check-ins from that coach; Player unlocks the full self-guided layer across your own training.
+              Your coach invite unlocks assigned Level Up work and check-ins from that coach. Player unlocks the
+              full self-guided layer across your own training; print backups stay available when paper helps.
             </p>
           </aside>
         </div>

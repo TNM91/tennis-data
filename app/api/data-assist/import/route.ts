@@ -1,10 +1,12 @@
 import { createClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
+import { scheduleDataAssistRatingRefresh } from '@/lib/data-assist-rating-refresh'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import { runDataAssistScorecardImportAction } from '@/lib/data-assist-import-runner'
 import type { DataAssistScorecardParsedDraft } from '@/lib/data-assist-ocr'
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
+export const maxDuration = 300
 
 type ImportRequestBody = {
   batchId?: unknown
@@ -13,6 +15,7 @@ type ImportRequestBody = {
 }
 
 export async function POST(request: Request) {
+  const startedAt = Date.now()
   const token = getBearerToken(request)
   if (!token) {
     return Response.json({ ok: false, message: 'Sign in required.' }, { status: 401 })
@@ -67,8 +70,8 @@ export async function POST(request: Request) {
       .maybeSingle(),
   ])
 
-  if (batchResult.error) return Response.json({ ok: false, message: batchResult.error.message }, { status: 500 })
-  if (draftResult.error) return Response.json({ ok: false, message: draftResult.error.message }, { status: 500 })
+  if (batchResult.error) return apiServerError('Could not load Data Assist import batch', batchResult.error, 'That Data Assist import is temporarily unavailable.')
+  if (draftResult.error) return apiServerError('Could not load Data Assist import draft', draftResult.error, 'That Data Assist import is temporarily unavailable.')
 
   const batch = batchResult.data as { submitted_by_user_id?: string | null; status?: string | null } | null
   const draft = draftResult.data as {
@@ -99,21 +102,66 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'This Data Assist draft does not have a parsed scorecard payload.' }, { status: 400 })
   }
 
-  const importResult = await runDataAssistScorecardImportAction({
-    supabase,
-    parsedDraft,
+  console.info('[api/data-assist/import] started', {
+    action,
     batchId,
     draftId,
-    reviewedBy: requester.userId,
-    action,
-    validationSummary: draft.validation_summary,
+    userId: requester.userId,
   })
 
-  if (!importResult.ok) {
-    return Response.json(importResult, { status: 400 })
-  }
+  try {
+    const importResult = await runDataAssistScorecardImportAction({
+      supabase,
+      parsedDraft,
+      batchId,
+      draftId,
+      reviewedBy: requester.userId,
+      action,
+      validationSummary: draft.validation_summary,
+      deferRatingRecalculation: action === 'commit',
+    })
 
-  return Response.json(importResult)
+    if (!importResult.ok) {
+      console.warn('[api/data-assist/import] rejected', {
+        action,
+        batchId,
+        draftId,
+        durationMs: Date.now() - startedAt,
+        message: importResult.message,
+      })
+      return Response.json(importResult, { status: 400 })
+    }
+
+    if (action === 'commit') {
+      scheduleDataAssistRatingRefresh(supabase)
+    }
+
+    console.info('[api/data-assist/import] completed', {
+      action,
+      batchId,
+      draftId,
+      durationMs: Date.now() - startedAt,
+    })
+
+    return Response.json({
+      ...importResult,
+      message: action === 'commit'
+        ? `${importResult.message} Ratings are refreshing in the background.`
+        : importResult.message,
+    })
+  } catch (error) {
+    console.error('[api/data-assist/import] failed', {
+      action,
+      batchId,
+      draftId,
+      durationMs: Date.now() - startedAt,
+      message: error instanceof Error ? error.message : String(error),
+    })
+    return Response.json(
+      { ok: false, message: 'Import could not finish. Your upload is still saved—refresh Saved uploads before trying again.' },
+      { status: 500 },
+    )
+  }
 }
 
 async function getRequester(token: string): Promise<

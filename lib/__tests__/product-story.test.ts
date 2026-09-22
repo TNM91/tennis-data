@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { COACH_TACTICS_BOARD_HREF } from '../tactics-hrefs'
 import {
   DATA_ASSIST_STORY,
   HOME_HERO_STORY,
@@ -28,23 +29,30 @@ describe('product story guardrails', () => {
   it('keeps Free distinct from paid unlock tiers', () => {
     expect(MEMBERSHIP_TIERS.free.description).toContain('tennis context for free')
     expect(MEMBERSHIP_TIERS.free.description).toContain('tournaments')
-    expect(TIER_HOMEPAGE_STORY.free.copy).toContain('before choosing paid tools')
+    expect(MEMBERSHIP_TIERS.free.description).toContain('every connected USTA or TIQ team')
+    expect(MEMBERSHIP_TIERS.free.valueProps).toContain('Open linked team rosters, schedules, stats, and Team Chat')
+    expect(TIER_HOMEPAGE_STORY.free.copy).toContain('every linked team')
+    expect(MEMBERSHIP_TIERS.player_plus.description).toContain('Keep Free team access')
+    expect(MEMBERSHIP_TIERS.player_plus.valueProps).toContain('Keep linked team access from Free')
+    expect(TIER_HOMEPAGE_STORY.player_plus.copy).toContain('Keep Free team access')
     expect(MEMBERSHIP_TIERS.player_plus.valueProps).toContain('Unlock My Lab')
     expect(MEMBERSHIP_TIERS.coach.description).toContain('Use Player features plus Coach Hub')
     expect(MEMBERSHIP_TIERS.captain.description).toContain('Use Player features plus Team Hub and Captain Tools')
     expect(MEMBERSHIP_TIERS.league.valueProps).toContain('Use Data Assist uploads for schedules, rosters, and official scorecards')
-    expect(MEMBERSHIP_TIERS.full_court.shortPromise).toBe('Unlock the complete TenAceIQ toolkit.')
+    expect(MEMBERSHIP_TIERS.full_court.shortPromise).toBe('Support every tennis role.')
     expect(MEMBERSHIP_TIERS.full_court.audience).toContain('players, teams, leagues, and tournaments')
     expect(MEMBERSHIP_TIERS.full_court.upgradeCue).toContain('Coach Hub, Team Hub, League Office')
-    expect(MEMBERSHIP_TIERS.full_court.description).toContain('complete TenAceIQ toolkit')
+    expect(MEMBERSHIP_TIERS.full_court.description).toContain('unlimited Tournament Desk runs')
     expect(MEMBERSHIP_TIERS.full_court.description).toContain('tournaments')
     expect(MEMBERSHIP_TIERS.full_court.valueProps).toContain('My Lab, Coach Hub, Team Hub, and League Office together')
-    expect(MEMBERSHIP_TIERS.full_court.valueProps).toContain('One connected toolkit for coaches, captains, coordinators, and organizers')
-    expect(TIER_HOMEPAGE_STORY.full_court.headline).toBe('Unlock the complete TenAceIQ toolkit.')
+    expect(MEMBERSHIP_TIERS.full_court.valueProps).toContain('One connected tennis path for coaches, captains, coordinators, and organizers')
+    expect(TIER_HOMEPAGE_STORY.full_court.headline).toBe('Support every tennis role.')
     expect(TIER_HOMEPAGE_STORY.full_court.copy).toContain('Tournament Desk tools')
+    expect(TIER_HOMEPAGE_STORY.coach.secondaryCta?.href).toBe(COACH_TACTICS_BOARD_HREF)
     expect(Object.values(MEMBERSHIP_TIERS).map((tier) => tier.description).join(' ')).not.toContain('Player plus')
     expect(`${MEMBERSHIP_TIERS.free.description} ${TIER_HOMEPAGE_STORY.free.copy}`).not.toContain('personal workspace')
     expect(`${MEMBERSHIP_TIERS.full_court.description} ${TIER_HOMEPAGE_STORY.full_court.copy}`).not.toContain('suite')
+    expect(`${MEMBERSHIP_TIERS.full_court.shortPromise} ${MEMBERSHIP_TIERS.full_court.description} ${TIER_HOMEPAGE_STORY.full_court.headline}`).not.toContain('complete TenAceIQ toolkit')
     expect(`${MEMBERSHIP_TIERS.full_court.audience} ${MEMBERSHIP_TIERS.full_court.valueProps.join(' ')} ${TIER_HOMEPAGE_STORY.full_court.headline}`).not.toContain('full tennis operation')
     expect(`${TIER_HOMEPAGE_STORY.full_court.headline} ${TIER_HOMEPAGE_STORY.full_court.copy}`).not.toContain('Run the whole tennis operation')
   })
@@ -68,7 +76,7 @@ describe('product story guardrails', () => {
   })
 
   it('keeps the clarified platform why centralized', () => {
-    expect(PRODUCT_NORTH_STAR).toContain('players, captains, coaches, leagues, and tournament organizers')
+    expect(PRODUCT_NORTH_STAR).toContain('players, captains, coaches, clubs, leagues, and tournament organizers')
     expect(PRODUCT_NORTH_STAR).toContain('spend less time searching, guessing, and coordinating')
     expect(PRODUCT_NORTH_STAR).toContain('more time playing, improving, coaching, captaining, and enjoying tennis')
     expect(PLATFORM_MISSION).toContain('more time playing, improving, and enjoying the sport')
@@ -78,15 +86,34 @@ describe('product story guardrails', () => {
     expect(HOME_HERO_STORY.body).not.toContain('tennis job')
     expect(HOME_HERO_STORY.body).not.toContain('home base')
     expect(PLATFORM_POSITIONING).toBe(
-      'The tennis platform that gives players, captains, coaches, leagues, and tournaments the context, tools, and resources to play, improve, and run competition with less friction.',
+      'The tennis platform that gives players, captains, coaches, clubs, leagues, and tournaments the context and tools to play, improve, and run tennis with less friction.',
     )
-    expect(PLATFORM_PILLARS.map((pillar) => pillar.title)).toEqual(['Improve', 'Compete', 'Manage'])
-    expect(PLATFORM_PILLARS.map((pillar) => pillar.href)).toEqual(['/player-development', '/compete', '/manage'])
+    expect(PLATFORM_PILLARS.map((pillar) => pillar.title)).toEqual(['Improve', 'Compete', 'Captain'])
+    expect(PLATFORM_PILLARS.map((pillar) => pillar.href)).toEqual(['/player-development', '/compete', '/captain'])
+    expect(PLATFORM_PILLARS.map((pillar) => pillar.promise)).toEqual([
+      'Turn player context into court work.',
+      'Turn matchup context into a plan.',
+      'Turn team context into a cleaner match week.',
+    ])
+    expect(PLATFORM_PILLARS.flatMap((pillar) => pillar.proof)).toEqual([
+      'Player path',
+      'Drill focus',
+      'Coach handoff',
+      'Matchup read',
+      'Opponent scout',
+      'Court plan',
+      'Availability',
+      'Lineups',
+      'Team messages',
+    ])
+    expect(PLATFORM_PILLARS.map((pillar) => pillar.body).join(' ')).not.toContain('player development paths, ratings, progress signals')
+    expect(PLATFORM_PILLARS.map((pillar) => pillar.body).join(' ')).not.toContain('lineup strategy, match preparation, performance tracking')
     expect(PLATFORM_AUDIENCE_PATHS.map((path) => path.audience)).toEqual([
       'Players',
       'Captains',
       'Coaches',
       'Leagues and tournaments',
+      'Clubs',
     ])
   })
 

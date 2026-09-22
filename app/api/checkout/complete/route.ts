@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { buildClubBillingCheckoutPayload, isClubPricingPlanId } from '@/lib/club-billing'
 import { buildProfileActivationPayload, resolveUpgradeActivationTarget } from '@/lib/upgrade-activation'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
@@ -70,13 +71,7 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'Checkout confirmation is not configured.' }, { status: 500 })
   }
 
-  const supabase = createClient(supabaseUrl, serviceKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-  })
+  const supabase = createServiceSupabaseClient(serviceKey)
   const { data: requestRow, error: requestLoadError } = await supabase
     .from('upgrade_requests')
     .select('id, plan_id, requester_user_id, status')
@@ -84,7 +79,8 @@ export async function POST(request: Request) {
     .maybeSingle()
 
   if (requestLoadError) {
-    return Response.json({ ok: false, message: requestLoadError.message }, { status: 500 })
+    console.error('Checkout confirmation request lookup failed', requestLoadError)
+    return Response.json({ ok: false, message: 'Checkout confirmation could not load the purchase.' }, { status: 500 })
   }
 
   const activationTarget = resolveUpgradeActivationTarget(toActivationRequestSource(requestRow as UpgradeRequestActivationRow | null))
@@ -114,6 +110,32 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'Paid checkout session was not found yet.' }, { status: 409 })
   }
 
+  if (isClubPricingPlanId(activationTarget.planId)) {
+    const { error: clubBillingError } = await supabase
+      .from('club_billing_accounts')
+      .upsert(
+        buildClubBillingCheckoutPayload(stripeSession, activationTarget.userId, activationTarget.planId),
+        { onConflict: 'owner_user_id' },
+      )
+
+    if (clubBillingError) {
+      return Response.json({ ok: false, message: clubBillingError.message }, { status: 500 })
+    }
+
+    const { error: requestError } = await supabase
+      .from('upgrade_requests')
+      .update({ status: 'converted' })
+      .eq('id', activationTarget.requestId)
+
+    if (requestError) {
+      return Response.json({ ok: false, message: requestError.message }, { status: 500 })
+    }
+
+    await markCaptainPilotRedemptionConverted(supabase, activationTarget.requestId)
+
+    return Response.json({ ok: true, activated: activationTarget.planId, sessionId: stripeSession.id })
+  }
+
   const profilePayload = {
     ...buildProfileActivationPayload(activationTarget.planId),
     ...buildStripeBillingProfilePayload(stripeSession),
@@ -125,7 +147,8 @@ export async function POST(request: Request) {
   )
 
   if (profileError) {
-    return Response.json({ ok: false, message: profileError.message }, { status: 500 })
+    console.error('Checkout confirmation entitlement update failed', profileError)
+    return Response.json({ ok: false, message: 'Checkout confirmation could not activate access.' }, { status: 500 })
   }
 
   const { error: requestError } = await supabase
@@ -134,10 +157,37 @@ export async function POST(request: Request) {
     .eq('id', activationTarget.requestId)
 
   if (requestError) {
-    return Response.json({ ok: false, message: requestError.message }, { status: 500 })
+    console.error('Checkout confirmation request update failed', requestError)
+    return Response.json({ ok: false, message: 'Checkout confirmation could not finalize the purchase.' }, { status: 500 })
   }
 
+  await markCaptainPilotRedemptionConverted(supabase, activationTarget.requestId)
+
   return Response.json({ ok: true, activated: activationTarget.planId, sessionId: stripeSession.id })
+}
+
+async function markCaptainPilotRedemptionConverted(supabase: ReturnType<typeof createServiceSupabaseClient>, requestId: string) {
+  const { error } = await supabase
+    .from('captain_pilot_redemptions')
+    .update({
+      status: 'converted',
+      billing_status: 'collected',
+      billing_collected_at: new Date().toISOString(),
+      converted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('upgrade_request_id', requestId)
+  if (error) console.error('Captain Pilot redemption conversion update failed', error)
+}
+
+function createServiceSupabaseClient(serviceKey: string) {
+  return createClient(supabaseUrl, serviceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  })
 }
 
 async function findVerifiedStripeSession({
@@ -187,7 +237,7 @@ function stripeHeaders(stripeSecretKey: string) {
 async function updateProfileWithBillingFallback(
   supabase: SupabaseProfileUpdater,
   userId: string,
-  payload: Record<string, boolean | string>,
+  payload: Record<string, boolean | string | null>,
 ) {
   const { error } = await supabase
     .from('profiles')

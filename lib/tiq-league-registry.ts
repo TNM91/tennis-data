@@ -16,6 +16,18 @@ import {
 } from './tiq-individual-format'
 import { normalizeSeasonLabel } from './season-labels'
 import { getDynamicPointsRulesSummary } from './tiq-scoring'
+import {
+  normalizeTeamMatchFormatId,
+  type TeamMatchFormatId,
+} from './competition-format-registry'
+import {
+  normalizeTeamCompetitionRulesOverride,
+  type TeamCompetitionRulesOverride,
+} from './competition-rules'
+import {
+  normalizeClubCompetitionResultMode,
+  type ClubCompetitionResultMode,
+} from './club-competition'
 
 export const TIQ_LEAGUE_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_league_registry'
 
@@ -26,11 +38,16 @@ export type TiqLeagueVisibility = 'public' | 'private'
 
 export type TiqLeagueRecord = {
   id: string
+  clubId?: string
+  clubGroupId?: string
+  resultMode?: ClubCompetitionResultMode
   competitionLayer: CompetitionLayer
   leagueFormat: LeagueFormat
   individualCompetitionFormat: TiqIndividualCompetitionFormat
+  teamMatchFormatId: TeamMatchFormatId
   scoringSystem: TiqLeagueScoringSystem
   thirdSetRule: TiqLeagueThirdSetRule
+  competitionRules: TeamCompetitionRulesOverride
   leagueName: string
   seasonLabel: string
   seasonStatus: TiqLeagueSeasonStatus
@@ -57,10 +74,15 @@ export type TiqLeagueRecord = {
 }
 
 export type TiqLeagueDraft = {
+  clubId?: string
+  clubGroupId?: string
+  resultMode?: ClubCompetitionResultMode
   leagueFormat: LeagueFormat
   individualCompetitionFormat: TiqIndividualCompetitionFormat
+  teamMatchFormatId: TeamMatchFormatId
   scoringSystem: TiqLeagueScoringSystem
   thirdSetRule: TiqLeagueThirdSetRule
+  competitionRules: TeamCompetitionRulesOverride
   leagueName: string
   seasonLabel: string
   seasonStatus: TiqLeagueSeasonStatus
@@ -210,10 +232,15 @@ function buildRegistryId(input: {
 
 function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
   return {
+    clubId: cleanText(input.clubId),
+    clubGroupId: cleanText(input.clubGroupId),
+    resultMode: normalizeClubCompetitionResultMode(input.resultMode),
     leagueFormat: input.leagueFormat,
     individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(input.individualCompetitionFormat),
+    teamMatchFormatId: normalizeTeamMatchFormatId(input.teamMatchFormatId),
     scoringSystem: normalizeTiqLeagueScoringSystem(input.scoringSystem),
     thirdSetRule: normalizeTiqLeagueThirdSetRule(input.thirdSetRule),
+    competitionRules: normalizeTeamCompetitionRulesOverride(input.competitionRules),
     leagueName: cleanText(input.leagueName),
     seasonLabel: normalizeSeasonLabel(input.seasonLabel),
     seasonStatus: normalizeTiqLeagueSeasonStatus(input.seasonStatus),
@@ -251,11 +278,16 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
     .filter((record) => record && typeof record === 'object')
     .map((record): TiqLeagueRecord => ({
       ...record,
+      clubId: cleanText(record.clubId),
+      clubGroupId: cleanText(record.clubGroupId),
+      resultMode: normalizeClubCompetitionResultMode(record.resultMode),
       competitionLayer: 'tiq',
       leagueFormat: record.leagueFormat === 'individual' ? 'individual' : 'team',
       individualCompetitionFormat: normalizeTiqIndividualCompetitionFormat(record.individualCompetitionFormat),
+      teamMatchFormatId: normalizeTeamMatchFormatId(record.teamMatchFormatId),
       scoringSystem: normalizeTiqLeagueScoringSystem(record.scoringSystem),
       thirdSetRule: normalizeTiqLeagueThirdSetRule(record.thirdSetRule),
+      competitionRules: normalizeTeamCompetitionRulesOverride(record.competitionRules),
       leagueName: cleanText(record.leagueName),
       seasonLabel: normalizeSeasonLabel(record.seasonLabel),
       seasonStatus: normalizeTiqLeagueSeasonStatus(record.seasonStatus),
@@ -309,11 +341,16 @@ export function upsertTiqLeagueRecord(draft: TiqLeagueDraft, existingId?: string
 
   const nextRecord: TiqLeagueRecord = {
     id: nextId,
+    clubId: normalized.clubId,
+    clubGroupId: normalized.clubGroupId,
+    resultMode: normalizeClubCompetitionResultMode(normalized.resultMode),
     competitionLayer: 'tiq',
     leagueFormat: normalized.leagueFormat,
     individualCompetitionFormat: normalized.individualCompetitionFormat,
+    teamMatchFormatId: normalized.teamMatchFormatId,
     scoringSystem: normalized.scoringSystem,
     thirdSetRule: normalized.thirdSetRule,
+    competitionRules: normalized.competitionRules,
     leagueName: normalized.leagueName,
     seasonLabel: normalized.seasonLabel,
     seasonStatus: normalized.seasonStatus,

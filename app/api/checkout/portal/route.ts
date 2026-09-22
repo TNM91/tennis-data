@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
   findStripeCustomerIdForUser,
@@ -16,6 +17,19 @@ type SupabaseProfileReader = {
   from(table: 'profiles'): {
     select(columns: 'stripe_customer_id'): {
       eq(column: 'id', value: string): {
+        maybeSingle(): PromiseLike<{
+          data: ProfileBillingRow | null
+          error: { code?: string; message?: string } | null
+        }>
+      }
+    }
+  }
+}
+
+type SupabaseClubBillingReader = {
+  from(table: 'club_billing_accounts'): {
+    select(columns: 'stripe_customer_id'): {
+      eq(column: 'owner_user_id', value: string): {
         maybeSingle(): PromiseLike<{
           data: ProfileBillingRow | null
           error: { code?: string; message?: string } | null
@@ -61,22 +75,26 @@ export async function POST(request: Request) {
       detectSessionInUrl: false,
     },
   }) as unknown as SupabaseProfileReader
-  let profileCustomerId = ''
+  let storedCustomerId = ''
   try {
-    profileCustomerId = await getStoredStripeCustomerId(supabase, userResult.userId)
+    storedCustomerId = await getStoredStripeCustomerId(supabase, userResult.userId)
+    if (!storedCustomerId) {
+      storedCustomerId = await getStoredClubStripeCustomerId(
+        supabase as unknown as SupabaseClubBillingReader,
+        userResult.userId,
+      )
+    }
   } catch (error) {
-    return Response.json(
-      { ok: false, message: error instanceof Error ? error.message : 'Billing profile could not be loaded.' },
-      { status: 500 },
-    )
+    console.error('Billing profile lookup failed', error)
+    return Response.json({ ok: false, message: 'Billing profile could not be loaded.' }, { status: 500 })
   }
-  const fallbackCustomerId = profileCustomerId
+  const fallbackCustomerId = storedCustomerId
     ? ''
     : findStripeCustomerIdForUser(
         await listRecentStripeCheckoutSessions(stripeSecretKey),
         { userId: userResult.userId, email: userResult.email },
       )
-  const customerId = profileCustomerId || fallbackCustomerId
+  const customerId = storedCustomerId || fallbackCustomerId
 
   if (!customerId) {
     return Response.json(
@@ -103,10 +121,7 @@ export async function POST(request: Request) {
     | null
 
   if (!response.ok || !stripeBody?.url) {
-    return Response.json(
-      { ok: false, message: stripeBody?.error?.message || 'Stripe billing portal could not be opened.' },
-      { status: response.ok ? 500 : response.status },
-    )
+    return apiServerError('Stripe billing portal request failed', stripeBody, 'Stripe billing portal could not be opened.')
   }
 
   return Response.json({ ok: true, url: stripeBody.url })
@@ -127,6 +142,20 @@ async function getStoredStripeCustomerId(
   }
 
   return ((data ?? null) as ProfileBillingRow | null)?.stripe_customer_id?.trim() ?? ''
+}
+
+async function getStoredClubStripeCustomerId(
+  supabase: SupabaseClubBillingReader,
+  userId: string,
+) {
+  const { data, error } = await supabase
+    .from('club_billing_accounts')
+    .select('stripe_customer_id')
+    .eq('owner_user_id', userId)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  return data?.stripe_customer_id?.trim() ?? ''
 }
 
 async function listRecentStripeCheckoutSessions(stripeSecretKey: string) {

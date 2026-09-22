@@ -2,10 +2,14 @@
 
 import Link from 'next/link'
 import { CSSProperties, FormEvent, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/app/components/auth-provider'
 import SiteShell from '@/app/components/site-shell'
 import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import { isSafeLocalNextHref } from '@/lib/plan-intent'
+import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
+import { buildAuthEntryHref, getAuthEntryPlanId } from '@/lib/auth-entry-hrefs'
 
 export default function ForgotPasswordPage() {
   return (
@@ -16,6 +20,7 @@ export default function ForgotPasswordPage() {
 }
 
 function ForgotPasswordContent() {
+  const searchParams = useSearchParams()
   const { authResolved } = useAuth()
   const [email, setEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -23,6 +28,14 @@ function ForgotPasswordContent() {
   const [error, setError] = useState('')
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const authLoading = !authResolved
+  const selectedPlanId = getAuthEntryPlanId(searchParams.get('plan'))
+  const requestedNextRoute = searchParams.get('next')
+  const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, '/login')
+  const hasSafeRequestedNext = !!requestedNextRoute && selectedNextRoute === requestedNextRoute
+  const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
+  const resetPasswordHref = buildAuthEntryHref('/reset-password', selectedPlanId, selectedNextRoute, hasSafeRequestedNext)
+  const loginHref = buildAuthEntryHref('/login', selectedPlanId, selectedNextRoute, hasSafeRequestedNext)
+  const joinHref = buildAuthEntryHref('/join', selectedPlanId, selectedNextRoute, hasSafeRequestedNext)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -41,7 +54,7 @@ function ForgotPasswordContent() {
     try {
       const redirectTo =
         typeof window !== 'undefined'
-          ? `${window.location.origin}/reset-password`
+          ? new URL(resetPasswordHref, window.location.origin).toString()
           : undefined
 
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
@@ -99,10 +112,6 @@ function ForgotPasswordContent() {
         <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '30px' : isMobile ? '34px' : '42px' }}>
           Get back to your tennis account.
         </h1>
-        <p style={{ ...heroText, fontSize: isSmallMobile ? '15px' : '16px' }}>
-          Enter your email and TenAceIQ will send a secure link back to your saved tennis work.
-        </p>
-        <div style={destinationPillStyle}>Next step: check your inbox</div>
       </div>
 
       <div style={formPanelResponsive}>
@@ -134,23 +143,42 @@ function ForgotPasswordContent() {
             />
 
             <button type="submit" disabled={submitting} style={submitting ? submitButtonDisabled : submitButton}>
-              {submitting ? 'Sending...' : 'Send reset link'}
+              {submitting ? 'Sending...' : 'Send secure link'}
             </button>
 
             {message ? <div id="reset-message" role="status" aria-live="polite" style={successBanner}>{message}</div> : null}
             {error ? <div id="reset-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
 
             <div style={helperRow}>
-              <Link href="/login" style={inlineLink}>
+              <Link href={loginHref} style={inlineLink}>
                 Back to login
               </Link>
-              <Link href="/join" style={inlineLinkMuted}>
+              <Link href={joinHref} style={inlineLinkMuted}>
                 Create free account
               </Link>
             </div>
           </form>
         </div>
       </div>
+
+      <details className="authOptionalDetailsSection" style={recoveryContextStyle}>
+        <summary style={recoveryContextSummaryStyle}>
+          <span>Show recovery path</span>
+        </summary>
+        <div className="authOptionalDetailsBody" style={recoveryContextBodyStyle}>
+          <p style={{ ...recoveryContextTextStyle, fontSize: isSmallMobile ? '15px' : '16px' }}>
+            Enter your email and TenAceIQ will send a secure link back to your saved tennis work.
+          </p>
+          <div style={destinationPillStyle}>Next step: check your inbox</div>
+          {nextIntent ? (
+            <div aria-label="Password recovery next action" style={nextIntentStyle}>
+              <div style={nextIntentLabelStyle}>{nextIntent.label}</div>
+              <div style={nextIntentTitleStyle}>{nextIntent.title}</div>
+              <div style={nextIntentBodyStyle}>{nextIntent.body}</div>
+            </div>
+          ) : null}
+        </div>
+      </details>
     </section>
   )
 }
@@ -172,11 +200,11 @@ const heroShell: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: 'clamp(-90px, -7vw, -34px)',
-  bottom: 'clamp(-120px, -10vw, -46px)',
-  width: 'clamp(220px, 31vw, 430px)',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  right: 0,
+  bottom: '-12px',
+  width: 'min(310px, 62vw)',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }
@@ -227,6 +255,42 @@ const heroText: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const recoveryContextStyle: CSSProperties = {
+  display: 'block',
+  minWidth: 0,
+  width: '100%',
+  borderRadius: '18px',
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(15,23,42,0.48)',
+  boxSizing: 'border-box',
+}
+
+const recoveryContextSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  minHeight: '42px',
+  maxWidth: '100%',
+  padding: '0 13px',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
+  listStyle: 'none',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const recoveryContextBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minWidth: 0,
+  padding: '0 12px 12px',
+}
+
+const recoveryContextTextStyle: CSSProperties = {
+  ...heroText,
+  margin: 0,
+}
+
 const destinationPillStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -242,6 +306,45 @@ const destinationPillStyle: CSSProperties = {
   fontWeight: 900,
   overflowWrap: 'anywhere',
   whiteSpace: 'normal',
+}
+
+const nextIntentStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  alignSelf: 'flex-start',
+  maxWidth: '560px',
+  padding: '10px 12px',
+  borderRadius: '16px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  boxSizing: 'border-box',
+}
+
+const nextIntentLabelStyle: CSSProperties = {
+  color: 'var(--home-eyebrow-color)',
+  fontSize: '11px',
+  fontWeight: 900,
+  lineHeight: 1.2,
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  fontWeight: 900,
+  lineHeight: 1.18,
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  fontWeight: 700,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
 
 const formPanel: CSSProperties = {

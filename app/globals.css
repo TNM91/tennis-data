@@ -3,6 +3,12 @@
 @keyframes tenaceiq-spin {
   to { transform: rotate(360deg); }
 }
+
+@media (max-width: 760px) {
+  body:has(#profile-overview) [aria-label='TenAceIQ platform navigation'] {
+    display: none !important;
+  }
+}
 @keyframes tenaceiq-pulse {
   0%, 100% { opacity: 0.35; }
   50% { opacity: 1; }
@@ -42,7 +48,7 @@
   --text-dark: #08111d;
   --error-text: #ffd7bf;
 
-  --brand-navy: #081a31;
+  --brand-navy: #06172F;
   --brand-navy-2: #102347;
   --brand-blue: #255be3;
   --brand-blue-2: #5d9fe8;
@@ -51,7 +57,7 @@
   --brand-green-3: #c7f36b;
   --brand-green-rgb: 155, 225, 29;
   --brand-white: #ffffff;
-  --tenaceiq-navy: #0D1B2A;
+  --tenaceiq-navy: #06172F;
   --tenaceiq-lime: #9BE11D;
   --tenaceiq-white: #FFFFFF;
 
@@ -323,34 +329,206 @@ footer {
   overflow-x: clip;
 }
 
+[data-portal-rail='true'] {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+[data-portal-rail='true']::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.site-header-brand-picture {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 168px;
+  height: 54px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 819px) {
+  .site-header-brand-picture {
+    width: 150px;
+    height: 48px;
+  }
+}
+
+[data-mobile-portal-palette] {
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
+  -ms-overflow-style: none;
+}
+
+[data-mobile-portal-palette]::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 .brand-atmosphere-mark {
   position: fixed;
   right: clamp(24px, 4vw, 72px);
   bottom: clamp(58px, 8vh, 120px);
-  width: min(76vw, 980px);
-  aspect-ratio: 1045 / 490;
+  width: min(60vw, 720px);
+  aspect-ratio: 1552 / 1614;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.17;
-  background-image: url("/tiq/logo/tiq-mark-light.png");
+  opacity: 0.15;
+  background-image: url("/brand/web/header-iq-compact.png");
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
-  mix-blend-mode: screen;
 }
 
 .brand-atmosphere-mark--hub {
-  opacity: 0.2;
-  width: min(80vw, 1060px);
+  opacity: 0.16;
+  width: min(64vw, 776px);
   right: clamp(20px, 3.6vw, 64px);
   bottom: clamp(54px, 7vh, 112px);
 }
 
+.brand-atmosphere-mark--home {
+  display: none;
+}
+
 .brand-atmosphere-mark--quiet {
-  opacity: 0.12;
-  width: min(68vw, 860px);
+  opacity: 0.11;
+  width: min(56vw, 680px);
   right: clamp(28px, 4.5vw, 76px);
   bottom: clamp(64px, 9vh, 128px);
+}
+
+.brand-atmosphere-mark--auth {
+  opacity: 0.055;
+  width: min(52vw, 560px);
+  right: clamp(18px, 3vw, 52px);
+  bottom: clamp(24px, 4vh, 58px);
+}
+
+.brand-atmosphere-mark--athlete,
+.brand-atmosphere-mark--strategy {
+  right: 0;
+  bottom: clamp(36px, 6vh, 84px);
+  width: min(92vw, 1420px);
+  aspect-ratio: 1896 / 830;
+  opacity: 0.26;
+  background-position: right bottom;
+  background-size: contain;
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.18) 22%, #000 56%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.18) 22%, #000 56%);
+}
+
+.brand-atmosphere-mark--athlete {
+  background-image: url('/player-profile/journey-hero.png');
+}
+
+.brand-atmosphere-mark--strategy {
+  width: min(76vw, 1180px);
+  aspect-ratio: 1648 / 900;
+  opacity: 0.2;
+  background-image: url('/player-profile/player-id-court.png');
+  background-position: right center;
+}
+
+.brand-atmosphere-mark--quiet.brand-atmosphere-mark--athlete,
+.brand-atmosphere-mark--quiet.brand-atmosphere-mark--strategy {
+  opacity: 0.12;
+}
+
+.brand-atmosphere-mark--hub.brand-atmosphere-mark--athlete {
+  width: min(96vw, 1480px);
+  opacity: 0.3;
+}
+
+.brand-atmosphere-mark--hub.brand-atmosphere-mark--strategy {
+  width: min(82vw, 1240px);
+  opacity: 0.24;
+}
+
+.brand-atmosphere-mark--area-explore.brand-atmosphere-mark--strategy {
+  right: -3vw;
+  width: min(72vw, 1080px);
+  opacity: 0.075;
+  background-position: right 42%;
+}
+
+.brand-atmosphere-mark--area-compete.brand-atmosphere-mark--strategy {
+  right: 1vw;
+  width: min(78vw, 1220px);
+  opacity: 0.22;
+  background-position: right 56%;
+}
+
+.brand-atmosphere-mark--area-captain.brand-atmosphere-mark--strategy {
+  right: 4vw;
+  width: min(74vw, 1140px);
+  opacity: 0.095;
+  background-position: right 48%;
+}
+
+.brand-atmosphere-mark--area-league.brand-atmosphere-mark--strategy {
+  right: 1vw;
+  width: min(86vw, 1280px);
+  opacity: 0.105;
+  background-position: right 62%;
+}
+
+.brand-atmosphere-mark--area-club.brand-atmosphere-mark--strategy {
+  right: 6vw;
+  width: min(82vw, 1200px);
+  opacity: 0.085;
+  background-position: right 52%;
+}
+
+.brand-atmosphere-mark--area-improve.brand-atmosphere-mark--athlete {
+  right: -1vw;
+  width: min(94vw, 1460px);
+  opacity: 0.28;
+}
+
+.brand-atmosphere-mark--area-coach.brand-atmosphere-mark--athlete {
+  right: -8vw;
+  width: min(98vw, 1500px);
+  opacity: 0.24;
+  background-position: right 42%;
+}
+
+.brand-atmosphere-mark--detail.brand-atmosphere-mark--strategy {
+  right: clamp(-72px, -3vw, -24px);
+  bottom: clamp(10px, 2vh, 28px);
+  width: min(68vw, 1080px);
+  aspect-ratio: 1426 / 1118;
+  opacity: 0.135;
+  background-image: url('/tiq/courts/tiq-court-master.png');
+  background-position: right bottom;
+  background-size: contain;
+  mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.28) 24%, #000 56%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.28) 24%, #000 56%);
+}
+
+.brand-atmosphere-mark--detail.brand-atmosphere-mark--quiet.brand-atmosphere-mark--strategy {
+  opacity: 0.095;
+}
+
+.brand-atmosphere-mark--detail.brand-atmosphere-mark--area-explore.brand-atmosphere-mark--strategy {
+  right: -6vw;
+  width: min(62vw, 940px);
+  opacity: 0.055;
+}
+
+.brand-atmosphere-mark--detail.brand-atmosphere-mark--area-compete.brand-atmosphere-mark--strategy {
+  right: -2vw;
+  width: min(72vw, 1120px);
+  opacity: 0.155;
+}
+
+.brand-atmosphere-mark--detail.brand-atmosphere-mark--area-captain.brand-atmosphere-mark--strategy,
+.brand-atmosphere-mark--detail.brand-atmosphere-mark--area-league.brand-atmosphere-mark--strategy {
+  right: -1vw;
+  width: min(70vw, 1080px);
+  opacity: 0.075;
 }
 
 .admin-shell {
@@ -452,6 +630,16 @@ footer {
     background 0.18s ease;
 }
 
+/* Google marks inventory it cannot fill after the slot has rendered. Collapse
+   that empty canvas while leaving the compact TenAceIQ sponsor card visible. */
+.adsbygoogle[data-ad-status='unfilled'] {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  max-height: 0 !important;
+  overflow: hidden !important;
+}
+
 .panel-pad {
   padding: 20px;
 }
@@ -548,10 +736,13 @@ footer {
 
 .metric-grid {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
   gap: 16px;
+  min-width: 0;
 }
 
 .metric-card {
+  min-width: 0;
   border-radius: 20px;
   border: 1px solid var(--card-border-soft);
   background: linear-gradient(180deg, rgba(20, 42, 78, 0.62) 0%, rgba(11, 25, 48, 0.82) 100%);
@@ -585,6 +776,8 @@ footer {
 }
 
 .metric-label {
+  min-width: 0;
+  overflow-wrap: break-word;
   font-size: 0.82rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -593,11 +786,21 @@ footer {
 }
 
 .metric-value {
+  min-width: 0;
+  overflow-wrap: break-word;
   margin-top: 8px;
   font-size: clamp(1.5rem, 2vw, 2rem);
   font-weight: 850;
   line-height: 1;
   color: #ffffff;
+}
+
+@media (max-width: 767px) {
+  .card-grid.two,
+  .card-grid.three,
+  .card-grid.four {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .metric-help,
@@ -700,7 +903,8 @@ footer {
   min-width: 0;
   max-width: 100%;
   text-align: center;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease,
@@ -1163,9 +1367,6 @@ hr {
     padding: 28px;
   }
 
-  .metric-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 @media (min-width: 1024px) {
@@ -1231,9 +1432,54 @@ hr {
     position: static;
     top: auto;
   }
+
+  .brand-atmosphere-mark {
+    width: min(68vw, 620px);
+  }
+
+  .brand-atmosphere-mark--hub {
+    width: min(72vw, 680px);
+  }
+
+  .brand-atmosphere-mark--quiet {
+    width: min(64vw, 600px);
+  }
+
+  .brand-atmosphere-mark--athlete {
+    width: min(112vw, 1100px);
+    right: -8vw;
+  }
+
+  .brand-atmosphere-mark--strategy {
+    width: min(94vw, 860px);
+    right: -4vw;
+  }
+
+  .brand-atmosphere-mark--detail.brand-atmosphere-mark--strategy {
+    right: -12vw;
+    width: min(88vw, 780px);
+    opacity: 0.12;
+  }
 }
 
 @media (max-width: 767px) {
+  /* Mobile text safety contract: UI must reflow before it clips or forces words vertically. */
+  #main-content,
+  #main-content * {
+    min-inline-size: 0;
+  }
+
+  #main-content :is(button, a, label, [role='button'], input, select, textarea) {
+    max-inline-size: 100%;
+  }
+
+  #main-content :is(button, a, label, [role='button']) {
+    white-space: normal;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
+  }
+
   h1,
   h2,
   h3,
@@ -1244,7 +1490,9 @@ hr {
   span,
   a,
   button {
-    overflow-wrap: anywhere;
+    overflow-wrap: normal;
+    word-break: normal;
+    hyphens: none;
   }
 
   .form-grid.two,
@@ -1264,6 +1512,41 @@ hr {
     padding-bottom: calc(56px + var(--safe-bottom));
   }
 
+  /* Admin uses dense operational controls. Preserve readable line lengths by
+     collapsing the few desktop-only splits before any label can be squeezed. */
+  .admin-review-frame {
+    padding: 14px 0 30px !important;
+  }
+
+  .admin-review-frame .hero-panel,
+  .admin-review-frame .surface-card {
+    min-width: 0;
+  }
+
+  .admin-review-frame .hero-panel {
+    padding: 18px !important;
+  }
+
+  .admin-review-frame :is(input, select, textarea) {
+    min-inline-size: 0 !important;
+    max-inline-size: 100%;
+  }
+
+  .admin-review-frame :is(.metric-value, strong, .metric-label, .subtle-text) {
+    max-inline-size: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .admin-review-split-grid,
+  .admin-promotion-code-row {
+    grid-template-columns: minmax(0, 1fr) !important;
+    align-items: stretch !important;
+  }
+
+  .admin-promotion-code-row > .button-ghost {
+    justify-self: stretch;
+  }
+
   .brand-atmosphere-mark {
     top: auto;
     right: 16px;
@@ -1273,10 +1556,10 @@ hr {
   }
 
   .brand-atmosphere-mark--hub {
-    width: min(94vw, 560px);
-    right: 10px;
+    width: min(86vw, 520px);
+    right: 16px;
     bottom: 102px;
-    opacity: 0.19;
+    opacity: 0.1;
   }
 
   .brand-atmosphere-mark--quiet {
@@ -1284,6 +1567,59 @@ hr {
     right: 18px;
     bottom: 112px;
     opacity: 0.12;
+  }
+
+  .brand-atmosphere-mark--athlete,
+  .brand-atmosphere-mark--hub.brand-atmosphere-mark--athlete {
+    right: -64vw;
+    bottom: 104px;
+    width: 164vw;
+    opacity: 0.13;
+    mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.12) 22%, #000 58%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.12) 22%, #000 58%);
+  }
+
+  .brand-atmosphere-mark--strategy,
+  .brand-atmosphere-mark--hub.brand-atmosphere-mark--strategy {
+    right: -30vw;
+    bottom: 112px;
+    width: 128vw;
+    opacity: 0.12;
+  }
+
+  .brand-atmosphere-mark--area-explore.brand-atmosphere-mark--strategy {
+    right: -40vw;
+    width: 142vw;
+    opacity: 0.09;
+  }
+
+  .brand-atmosphere-mark--area-compete.brand-atmosphere-mark--strategy,
+  .brand-atmosphere-mark--area-captain.brand-atmosphere-mark--strategy,
+  .brand-atmosphere-mark--area-league.brand-atmosphere-mark--strategy,
+  .brand-atmosphere-mark--area-club.brand-atmosphere-mark--strategy {
+    right: -34vw;
+    width: 134vw;
+  }
+
+  .brand-atmosphere-mark--area-improve.brand-atmosphere-mark--athlete,
+  .brand-atmosphere-mark--area-coach.brand-atmosphere-mark--athlete {
+    right: -68vw;
+    width: 170vw;
+  }
+
+  .brand-atmosphere-mark--detail.brand-atmosphere-mark--strategy,
+  .brand-atmosphere-mark--detail.brand-atmosphere-mark--area-explore.brand-atmosphere-mark--strategy,
+  .brand-atmosphere-mark--detail.brand-atmosphere-mark--area-compete.brand-atmosphere-mark--strategy,
+  .brand-atmosphere-mark--detail.brand-atmosphere-mark--area-captain.brand-atmosphere-mark--strategy,
+  .brand-atmosphere-mark--detail.brand-atmosphere-mark--area-league.brand-atmosphere-mark--strategy {
+    right: -72vw;
+    bottom: 72px;
+    width: 190vw;
+    opacity: 0.085;
+    background-image: url('/player-profile/player-id-court.png');
+    background-position: right bottom;
+    mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.18) 28%, #000 58%);
+    -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.18) 28%, #000 58%);
   }
 
   .hero-panel {
@@ -1384,6 +1720,405 @@ hr {
   .page-reveal {
     animation: none !important;
   }
+}
+
+.tournamentDetailsSection:not([open]) > .tournamentDetailsContent {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .tournamentFindSection,
+  .tournamentNextActionSection,
+  .tournamentDeskSection {
+    gap: 8px !important;
+  }
+
+  .tournamentFindSection > div:first-child,
+  .tournamentNextActionSection > div:first-child,
+  .tournamentDeskSection > div:first-child {
+    gap: 4px !important;
+  }
+
+  .tournamentFindSection > div:first-child > h2,
+  .tournamentNextActionSection > div:first-child > h2,
+  .tournamentDeskSection > div:first-child > h2 {
+    font-size: 1.3rem !important;
+    line-height: 1.06 !important;
+  }
+
+  .tournamentFindSection > div:first-child > p,
+  .tournamentNextActionSection > div:first-child > p,
+  .tournamentDeskSection > div:first-child > p,
+  .tournamentDiscoveryBody,
+  .tournamentCommandText,
+  .tournamentCommandMetricGrid {
+    display: none !important;
+  }
+
+  .tournamentDiscoveryGrid {
+    gap: 8px !important;
+  }
+
+  .tournamentDiscoveryCard,
+  .tournamentCommandBoard,
+  .tournamentCommandDesk,
+  .tournamentDeskQuick {
+    gap: 8px !important;
+    padding: 10px !important;
+    box-shadow: none !important;
+  }
+
+  .tournamentCommandTitle {
+    font-size: 1.25rem !important;
+    line-height: 1.06 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .tournamentDiscoveryCard {
+    min-height: 54px !important;
+    padding: 8px !important;
+  }
+
+  .tournamentDiscoveryTitle {
+    font-size: 14px !important;
+    line-height: 1.12 !important;
+  }
+
+  .tournamentDiscoveryCta {
+    font-size: 11px !important;
+    line-height: 1.15 !important;
+  }
+
+  .tournamentCommandActionRow > a,
+  .tournamentDeskQuick > a {
+    flex: 1 1 130px !important;
+    min-height: 44px !important;
+    padding: 0 10px !important;
+  }
+
+  .tournamentDetailsSection > summary {
+    padding: 8px 10px !important;
+  }
+
+  .tournamentDetailsSection > summary strong {
+    font-size: 13px !important;
+    line-height: 1.15 !important;
+  }
+}
+
+.tournamentAlertDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+.pricingDetailsSection:not([open]) > .pricingDetailsBody,
+.pricingPlanDetails:not([open]) > .pricingPlanDetailsBody {
+  display: none !important;
+}
+
+.rankingDetailsSection:not([open]) > .rankingDetailsBody {
+  display: none !important;
+}
+
+.coachDetailsSection:not([open]) > .coachDetailsBody {
+  display: none !important;
+}
+
+@media (max-width: 1024px) {
+  .coachQuickPath {
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  .coachQuickPathHeader {
+    gap: 4px !important;
+  }
+
+  .coachQuickPathText {
+    display: none !important;
+  }
+
+  .coachQuickPathGrid {
+    gap: 8px !important;
+  }
+
+  .coachQuickPathCard {
+    min-height: 62px !important;
+    padding: 9px !important;
+  }
+
+  .coachQuickPathQuestion {
+    font-size: 13px !important;
+    line-height: 1.18 !important;
+  }
+
+  .coachQuickPathCta {
+    font-size: 11px !important;
+    line-height: 1.18 !important;
+  }
+
+  .coachDetailsSummary {
+    min-height: 0 !important;
+    padding: 10px 12px !important;
+    gap: 6px 10px !important;
+  }
+
+  .coachDetailsSummaryTitle {
+    font-size: 15px !important;
+    line-height: 1.12 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .coachQuickPath {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+    padding: 10px !important;
+  }
+
+  .coachQuickPathGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .coachQuickPathCard {
+    min-height: 58px !important;
+  }
+
+  .coachDetailsSummary {
+    padding: 9px 10px !important;
+  }
+
+  .coachDetailsSummaryTitle {
+    font-size: 13px !important;
+  }
+}
+
+.organizerDetailsSection:not([open]) > .organizerDetailsBody {
+  display: none !important;
+}
+
+@media (max-width: 1024px) {
+  .organizerQuickPath {
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  .organizerQuickPathText,
+  .organizerCommandDeskText,
+  .organizerCommandMetricGrid {
+    display: none !important;
+  }
+
+  .organizerCommandBoard,
+  .organizerCommandDesk {
+    gap: 8px !important;
+    padding: 10px !important;
+    box-shadow: none !important;
+  }
+
+  .organizerCommandDeskTitle {
+    font-size: 1.25rem !important;
+    line-height: 1.06 !important;
+  }
+
+  .organizerToolsSection {
+    gap: 8px !important;
+  }
+
+  .organizerToolsSection > div:first-child {
+    gap: 4px !important;
+  }
+
+  .organizerToolsSection > div:first-child > h2 {
+    font-size: 1.3rem !important;
+    line-height: 1.06 !important;
+  }
+
+  .organizerToolsSection > div:first-child > p {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .organizerQuickPath {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 7px !important;
+    padding: 9px !important;
+  }
+
+  .organizerQuickPathHeader {
+    gap: 3px !important;
+  }
+
+  .organizerQuickPathHeader > p {
+    display: none !important;
+  }
+
+  .organizerQuickPathHeader > h2 {
+    font-size: 19px !important;
+    line-height: 1.04 !important;
+  }
+
+  .organizerQuickPathGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+  }
+
+  .organizerQuickPathCard {
+    min-height: 50px !important;
+    padding: 8px !important;
+  }
+
+  .organizerQuickPathQuestion {
+    font-size: 12px !important;
+    line-height: 1.18 !important;
+  }
+
+  .organizerQuickPathCta {
+    font-size: 11px !important;
+    line-height: 1.18 !important;
+  }
+
+  .organizerCommandActionRow > a {
+    flex: 1 1 130px !important;
+    min-height: 44px !important;
+    padding: 0 10px !important;
+  }
+
+  .organizerDetailsSection > summary {
+    padding: 8px 10px !important;
+  }
+
+  .organizerDetailsSection > summary strong {
+    font-size: 13px !important;
+    line-height: 1.15 !important;
+  }
+}
+
+.leagueDetailsSection:not([open]) > .leagueDetailsBody {
+  display: none !important;
+}
+
+.matchupDetailsSection:not([open]) > .matchupDetailsBody {
+  display: none !important;
+}
+
+.dataAssistDetailsSection:not([open]) > .dataAssistDetailsBody {
+  display: none !important;
+}
+
+.myLabDetailsSection:not([open]) > .myLabDetailsBody {
+  display: none !important;
+}
+
+.authReturnDetailsSection:not([open]) > .authReturnDetailsBody {
+  display: none !important;
+}
+
+.authOptionalDetailsSection:not([open]) > .authOptionalDetailsBody {
+  display: none !important;
+}
+
+.leagueCoordinatorDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+.tournamentBuilderDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+.manageDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+.profileDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+.publicInfoDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+@media (max-width: 1024px) {
+  .resourceNeedPath {
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  .resourceNeedPathHeader {
+    gap: 4px !important;
+  }
+
+  .resourceNeedPathText {
+    display: none !important;
+  }
+
+  .resourceNeedPathGrid {
+    gap: 8px !important;
+  }
+
+  .resourceNeedPathCard {
+    min-height: 60px !important;
+    padding: 9px !important;
+  }
+
+  .resourceNeedPathQuestion {
+    font-size: 13px !important;
+    line-height: 1.18 !important;
+  }
+
+  .resourceNeedPathCta {
+    font-size: 11px !important;
+    line-height: 1.18 !important;
+  }
+
+  .resourceDetailsSummary {
+    min-height: 0 !important;
+    padding: 10px 12px !important;
+    gap: 8px !important;
+  }
+
+  .resourceDetailsSummaryTitle {
+    font-size: 15px !important;
+    line-height: 1.12 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .resourceNeedPath {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 7px !important;
+    padding: 9px !important;
+  }
+
+  .resourceNeedPathCard {
+    min-height: 50px !important;
+    padding: 8px !important;
+  }
+
+  .resourceNeedPathQuestion {
+    font-size: 12px !important;
+  }
+
+  .resourceDetailsSummary {
+    padding: 8px 10px !important;
+  }
+
+  .resourceDetailsSummaryTitle {
+    font-size: 13px !important;
+  }
+}
+
+.upgradeDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+.competeDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
+}
+
+.exploreDetailsSection:not([open]) > :not(summary) {
+  display: none !important;
 }
 
 @media print {

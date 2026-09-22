@@ -32,7 +32,7 @@ export default function DataPolicyPage() {
       <LegalPage title="Data Source & Fair Use Policy" effectiveDate="April 10, 2026">
         <p>
           TenAceIQ uses, organizes, and analyzes tennis-related information in order to deliver
-          enhanced workflows, analytics, and decision-support tools.
+          tennis tools, analytics, and decision-support features.
         </p>
 
         <div>
@@ -49,7 +49,7 @@ export default function DataPolicyPage() {
           <h2 className="section-title" style={{ fontSize: '1.2rem' }}>2. Transformative use</h2>
           <p>
             TenAceIQ is designed to add value through aggregation, organization, analytics,
-            interpretation, and workflow enhancement. The goal is not to replicate another
+            interpretation, and better tennis decision support. The goal is not to replicate another
             platform, but to create new utility and insight.
           </p>
         </div>

@@ -1,5 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { extractScorecardLeagueName } from '../data-assist-scorecard-parser'
 import { buildLeagueEntityId, buildTeamEntityId } from '../entity-ids'
+import {
+  normalizeLeagueAgeDivision,
+  normalizeMixedPairRole,
+  normalizePlayerRatingSource,
+  type MixedPairRole,
+  type PlayerRatingSource,
+} from '../player-eligibility'
 
 export type MatchSide = 'A' | 'B'
 export type MatchType = 'singles' | 'doubles'
@@ -22,6 +30,9 @@ export type TeamSummaryPlayerRow = {
   name: string
   ntrp?: number | null
   teamName?: string | null
+  ratingSource?: PlayerRatingSource | string | null
+  mixedPairRole?: MixedPairRole | string | null
+  ageDivision?: string | null
 }
 
 export type TeamSummaryImportRow = {
@@ -48,6 +59,9 @@ type TeamRosterMembership = {
   districtArea: string | null
   source: string | null
   ntrp: number | null
+  ratingSource: PlayerRatingSource
+  mixedPairRole: MixedPairRole
+  ageDivision: string | null
 }
 
 type TeamSummaryTeamRecord = {
@@ -80,6 +94,7 @@ export type ScheduleImportRow = {
 export type ScorecardLineImportRow = {
   lineNumber: number
   matchType: MatchType
+  ntrp?: number | null
   sideAPlayers: string[]
   sideBPlayers: string[]
   winnerSide: MatchSide | null
@@ -528,31 +543,84 @@ function buildParentMatchScore(row: ScorecardImportRow): string | null {
   return `${sideAWins}-${sideBWins}`
 }
 
-function parseRatingSeed(...values: Array<string | null | undefined>): number | null {
-  for (const value of values) {
-    const cleaned = cleanString(value)
-    if (!cleaned) continue
+function isValidOfficialNtrp(value: unknown): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    value >= 1 &&
+    value <= 7 &&
+    Math.abs(value * 2 - Math.round(value * 2)) < Number.EPSILON
+  )
+}
 
-    const match = cleaned.match(/(?:^|\b)([1-7](?:\.[05])?)(?:\b|$)/)
-    if (!match) continue
-
-    const parsed = Number(match[1])
-    if (Number.isFinite(parsed)) return parsed
-  }
-
+export function inferPlayerBaselineFromRow(row: ScorecardImportRow): number | null {
+  // A scorecard flight describes the court being played, not a player's
+  // official USTA level. Players can play up, particularly in Tri-Level,
+  // so it must never be used to seed or replace a player baseline.
+  void row
   return null
 }
 
-function inferPlayerBaselineFromRow(row: ScorecardImportRow): number {
-  return (
-    parseRatingSeed(
-      nullableString(row.flight),
-      nullableString(row.leagueName),
-      nullableString(row.ustaSection),
-      nullableString(row.districtArea),
-      nullableString(row.source),
-    ) ?? DEFAULT_PLAYER_BASELINE
-  )
+export function buildScorecardPlayerRatingSeedMap(row: ScorecardImportRow): Record<string, number> {
+  const ratings = new Map<string, { name: string; rating: number }>()
+
+  const addRating = (nameValue: unknown, ratingValue: unknown, source: string) => {
+    const name = cleanString(nameValue)
+    if (!name) return
+    if (!isValidOfficialNtrp(ratingValue)) {
+      throw new Error(`Invalid official NTRP rating for ${name} from ${source}`)
+    }
+
+    const key = normalizeName(name)
+    const current = ratings.get(key)
+    if (current && current.rating !== ratingValue) {
+      throw new Error(
+        `Conflicting official NTRP ratings for ${name}: ${current.rating.toFixed(1)} and ${ratingValue.toFixed(1)}`,
+      )
+    }
+    ratings.set(key, { name, rating: ratingValue })
+  }
+
+  for (const [name, rating] of Object.entries(row.playerRatingSeeds ?? {})) {
+    addRating(name, rating, 'player rating seed')
+  }
+
+  // Court NTRP is match context, not official player evidence. Only an
+  // explicitly supplied per-player rating may update an existing baseline.
+
+  return Object.fromEntries([...ratings].map(([key, value]) => [key, value.rating]))
+}
+
+export function buildVerifiedPlayerRatingUpdate(
+  player: Pick<
+    PlayerResolution,
+    | 'singlesRating'
+    | 'doublesRating'
+    | 'overallRating'
+    | 'singlesDynamicRating'
+    | 'doublesDynamicRating'
+    | 'overallDynamicRating'
+  >,
+  rating: number,
+): Record<string, number> {
+  if (!isValidOfficialNtrp(rating)) throw new Error(`Invalid official NTRP rating: ${rating}`)
+
+  const oldBaseline = player.overallRating ?? player.singlesRating ?? player.doublesRating
+  const update: Record<string, number> = {
+    singles_rating: rating,
+    doubles_rating: rating,
+    overall_rating: rating,
+  }
+  if (player.singlesDynamicRating === null || player.singlesDynamicRating === oldBaseline || player.singlesDynamicRating === DEFAULT_PLAYER_BASELINE) {
+    update.singles_dynamic_rating = rating
+  }
+  if (player.doublesDynamicRating === null || player.doublesDynamicRating === oldBaseline || player.doublesDynamicRating === DEFAULT_PLAYER_BASELINE) {
+    update.doubles_dynamic_rating = rating
+  }
+  if (player.overallDynamicRating === null || player.overallDynamicRating === oldBaseline || player.overallDynamicRating === DEFAULT_PLAYER_BASELINE) {
+    update.overall_dynamic_rating = rating
+  }
+  return update
 }
 
 function nullableRatingValue(value: unknown): number | null {
@@ -711,7 +779,7 @@ function mergeScorecardRowWithExistingMatch(
     matchDate: normalizeDateInput(row.matchDate) || normalizeDateInput(existingMatch.match_date ?? ''),
     matchTime: nullableString(row.matchTime) ?? nullableString(existingMatch.match_time),
     facility: nullableString(row.facility) ?? nullableString(existingMatch.facility),
-    leagueName: normalizeScorecardLeagueName(row.leagueName) ?? nullableString(existingMatch.league_name),
+    leagueName: normalizeScorecardLeagueName(row.leagueName) ?? normalizeScorecardLeagueName(existingMatch.league_name),
     flight: nullableString(row.flight) ?? nullableString(existingMatch.flight),
     ustaSection: nullableString(row.ustaSection) ?? nullableString(existingMatch.usta_section),
     districtArea: nullableString(row.districtArea) ?? nullableString(existingMatch.district_area),
@@ -720,11 +788,7 @@ function mergeScorecardRowWithExistingMatch(
 }
 
 function normalizeScorecardLeagueName(value: string | null | undefined): string | null {
-  const cleaned = nullableString(value)
-  if (!cleaned) return null
-  if (/^(singles|doubles)$/i.test(cleaned)) return null
-  if (/^#?\s*\d+\s*#?\s*(singles|doubles)$/i.test(cleaned)) return null
-  return cleaned
+  return nullableString(extractScorecardLeagueName(value))
 }
 
 function buildLinePlayerNames(line: ScorecardLineImportRow): { side: MatchSide; seat: number; name: string }[] {
@@ -1011,10 +1075,11 @@ export class ImportEngine {
         let createdPlayerNames: string[] = []
 
         try {
+          const playerRatingSeeds = buildScorecardPlayerRatingSeedMap(hydratedRow)
           const batch = await this.resolvePlayersBatch(
             uniquePlayerNames,
             inferPlayerBaselineFromRow(hydratedRow),
-            hydratedRow.playerRatingSeeds,
+            playerRatingSeeds,
           )
           resolvedPlayers = batch.map
           createdPlayerNames = batch.created
@@ -1552,7 +1617,7 @@ export class ImportEngine {
           entity_name: leagueName,
           subtitle: [flight, ustaSection, districtArea].filter(Boolean).join(' • ') || null,
           title: `New result posted in ${leagueName}`,
-          body: `${cleanString(row.homeTeam)} vs ${cleanString(row.awayTeam)} • ${scoreSummary}`,
+          body: `${cleanString(row.homeTeam)} vs ${cleanString(row.awayTeam)} • ${scoreSummary}${row.matchDate ? ` on ${normalizeDateInput(row.matchDate)}` : ''}`,
         })
       }
 
@@ -1792,7 +1857,7 @@ export class ImportEngine {
 
   private async resolvePlayersBatch(
     names: string[],
-    baselineRating = DEFAULT_PLAYER_BASELINE,
+    baselineRating: number | null = null,
     playerRatingSeeds?: Record<string, number>,
   ): Promise<{
     map: Map<string, PlayerResolution>
@@ -1803,6 +1868,34 @@ export class ImportEngine {
     const created: string[] = []
 
     if (unique.length === 0) return { map, created }
+
+    const getEvidenceRating = (name: string): number | null => {
+      const cleanedName = cleanString(name)
+      const candidate =
+        playerRatingSeeds?.[normalizeName(cleanedName)] ??
+        playerRatingSeeds?.[cleanedName] ??
+        baselineRating
+      return isValidOfficialNtrp(candidate) ? candidate : null
+    }
+
+    const addResolvedPlayer = (row: PlayerRecord, keyValue: string) => {
+      const key = normalizeName(keyValue || row.name)
+      const current = map.get(key)
+      if (current && current.id !== row.id) {
+        throw new Error(`Duplicate player records found for ${row.name}; resolve the identity conflict before importing`)
+      }
+      map.set(key, {
+        id: row.id,
+        name: row.name,
+        wasCreated: false,
+        singlesRating: nullableRatingValue(row.singles_rating),
+        doublesRating: nullableRatingValue(row.doubles_rating),
+        overallRating: nullableRatingValue(row.overall_rating),
+        singlesDynamicRating: nullableRatingValue(row.singles_dynamic_rating),
+        doublesDynamicRating: nullableRatingValue(row.doubles_dynamic_rating),
+        overallDynamicRating: nullableRatingValue(row.overall_dynamic_rating),
+      })
+    }
 
     if (this.options.hasNormalizedPlayerNameColumn) {
       const normalizedNames = unique.map(normalizeName)
@@ -1819,18 +1912,7 @@ export class ImportEngine {
         })
       } else {
         for (const row of (data ?? []) as PlayerRecord[]) {
-          const key = normalizeName(row.normalized_name || row.name)
-          map.set(key, {
-            id: row.id,
-            name: row.name,
-            wasCreated: false,
-            singlesRating: nullableRatingValue(row.singles_rating),
-            doublesRating: nullableRatingValue(row.doubles_rating),
-            overallRating: nullableRatingValue(row.overall_rating),
-            singlesDynamicRating: nullableRatingValue(row.singles_dynamic_rating),
-            doublesDynamicRating: nullableRatingValue(row.doubles_dynamic_rating),
-            overallDynamicRating: nullableRatingValue(row.overall_dynamic_rating),
-          })
+          addResolvedPlayer(row, row.normalized_name || row.name)
         }
       }
     }
@@ -1850,32 +1932,24 @@ export class ImportEngine {
         })
       } else {
         for (const row of (data ?? []) as PlayerRecord[]) {
-          const key = normalizeName(row.name)
-          map.set(key, {
-            id: row.id,
-            name: row.name,
-            wasCreated: false,
-            singlesRating: nullableRatingValue(row.singles_rating),
-            doublesRating: nullableRatingValue(row.doubles_rating),
-            overallRating: nullableRatingValue(row.overall_rating),
-            singlesDynamicRating: nullableRatingValue(row.singles_dynamic_rating),
-            doublesDynamicRating: nullableRatingValue(row.doubles_dynamic_rating),
-            overallDynamicRating: nullableRatingValue(row.overall_dynamic_rating),
-          })
+          addResolvedPlayer(row, row.name)
         }
       }
     }
 
     const missing = unique.filter((name) => !map.has(normalizeName(name)))
+    const missingRatingEvidence = missing.filter((name) => getEvidenceRating(name) === null)
+    if (missingRatingEvidence.length > 0) {
+      throw new Error(
+        `Missing official NTRP evidence for new player${missingRatingEvidence.length === 1 ? '' : 's'}: ${missingRatingEvidence.join(', ')}`,
+      )
+    }
 
     if (missing.length > 0) {
       const insertPayload: Record<string, unknown>[] = missing.map((name) => {
         const cleanedName = cleanString(name)
         const normalized = normalizeName(cleanedName)
-        const seededRating =
-          playerRatingSeeds?.[normalized] ??
-          playerRatingSeeds?.[cleanedName] ??
-          baselineRating
+        const seededRating = getEvidenceRating(cleanedName)
 
         const payload: Record<string, unknown> = {
           name: cleanedName,
@@ -1924,7 +1998,29 @@ export class ImportEngine {
       }
     }
 
-    await this.markPlayersVerified([...map.values()].map((player) => player.id))
+    const verifiedPlayerIds: string[] = []
+    for (const name of unique) {
+      const rating = getEvidenceRating(name)
+      const player = map.get(normalizeName(name))
+      if (rating === null || !player) continue
+      verifiedPlayerIds.push(player.id)
+
+      if (player.wasCreated) continue
+
+      const update = buildVerifiedPlayerRatingUpdate(player, rating)
+
+      const { error } = await this.supabase.from('players').update(update).eq('id', player.id)
+      if (error) throw new Error(`Failed to apply official NTRP ${rating.toFixed(1)} for ${player.name}: ${error.message}`)
+
+      player.singlesRating = rating
+      player.doublesRating = rating
+      player.overallRating = rating
+      if (update.singles_dynamic_rating !== undefined) player.singlesDynamicRating = rating
+      if (update.doubles_dynamic_rating !== undefined) player.doublesDynamicRating = rating
+      if (update.overall_dynamic_rating !== undefined) player.overallDynamicRating = rating
+    }
+
+    await this.markPlayersVerified(verifiedPlayerIds)
 
     return { map, created }
   }
@@ -2082,9 +2178,15 @@ export class ImportEngine {
     // Collect all roster players (deduplicated by normalised name). Some team
     // summary captures list roster members without an NTRP; those players still
     // need player records so captain roster tools can show them.
-    const playerMap = new Map<string, { name: string; ntrp: number | null }>()
+    const playerMap = new Map<string, {
+      name: string
+      ntrp: number | null
+      ratingSource: PlayerRatingSource
+      mixedPairRole: MixedPairRole
+    }>()
     const teamSummaryTeams = new Map<string, TeamSummaryTeamRecord>()
     const rosterMembershipByKey = new Map<string, Omit<TeamRosterMembership, 'playerId'>>()
+    const ratingConflicts: Array<{ name: string; ratings: [number, number] }> = []
     for (const row of rows) {
       for (const team of row.teams ?? []) {
         const teamName = cleanString(team.name)
@@ -2116,11 +2218,22 @@ export class ImportEngine {
         const name = cleanString(player.name)
         if (!name) continue
         const ntrp = typeof player.ntrp === 'number' && Number.isFinite(player.ntrp) ? player.ntrp : null
+        const ratingSource = normalizePlayerRatingSource(player.ratingSource ?? (ntrp === null ? 'unknown' : 'verified'))
+        const mixedPairRole = normalizeMixedPairRole(player.mixedPairRole)
         const key = normalizeName(name)
         if (!playerMap.has(key)) {
-          playerMap.set(key, { name, ntrp })
-        } else if (ntrp !== null && playerMap.get(key)?.ntrp === null) {
-          playerMap.set(key, { name, ntrp })
+          playerMap.set(key, { name, ntrp, ratingSource, mixedPairRole })
+        } else {
+          const current = playerMap.get(key)!
+          if (current.ntrp !== null && ntrp !== null && current.ntrp !== ntrp) {
+            ratingConflicts.push({ name, ratings: [current.ntrp, ntrp] })
+          }
+          playerMap.set(key, {
+            name,
+            ntrp: current.ntrp ?? ntrp,
+            ratingSource: current.ratingSource === 'verified' ? current.ratingSource : ratingSource,
+            mixedPairRole: current.mixedPairRole === 'unknown' ? mixedPairRole : current.mixedPairRole,
+          })
         }
 
         const teamName = cleanString(player.teamName) || cleanString(row.rosterTeamName) || inferSingleTeamSummaryTeam(row)
@@ -2141,6 +2254,9 @@ export class ImportEngine {
               districtArea: cleanString(row.districtArea) || null,
               source: cleanString(row.source) || null,
               ntrp,
+              ratingSource,
+              mixedPairRole,
+              ageDivision: normalizeLeagueAgeDivision(player.ageDivision),
             })
           }
         }
@@ -2152,7 +2268,7 @@ export class ImportEngine {
         if (typeof ntrp !== 'number' || !Number.isFinite(ntrp)) continue
         const key = normalizeName(name)
         if (!playerMap.has(key)) {
-          playerMap.set(key, { name, ntrp })
+          playerMap.set(key, { name, ntrp, ratingSource: 'verified', mixedPairRole: 'unknown' })
         }
       }
     }
@@ -2160,6 +2276,38 @@ export class ImportEngine {
     result.totalPlayers = playerMap.size
 
     const allEntries = [...playerMap.values()]
+    const playersWithoutValidRatings = allEntries.filter(({ ntrp }) => !isValidOfficialNtrp(ntrp))
+    if (playersWithoutValidRatings.length > 0 || ratingConflicts.length > 0) {
+      for (const { name, ntrp } of playersWithoutValidRatings) {
+        result.failedCount += 1
+        result.players.push({
+          name,
+          status: 'failed',
+          ntrp,
+          message: 'Official NTRP rating is missing or invalid; no player data was written',
+        })
+        result.errors.push({
+          rowIndex: 0,
+          code: 'INVALID_ROW',
+          message: `${name}: official NTRP rating is missing or invalid`,
+        })
+      }
+      for (const conflict of ratingConflicts) {
+        result.failedCount += 1
+        result.players.push({
+          name: conflict.name,
+          status: 'failed',
+          ntrp: null,
+          message: `Conflicting official NTRP ratings: ${conflict.ratings[0].toFixed(1)} and ${conflict.ratings[1].toFixed(1)}; no player data was written`,
+        })
+        result.errors.push({
+          rowIndex: 0,
+          code: 'INVALID_ROW',
+          message: `${conflict.name}: conflicting official NTRP ratings ${conflict.ratings[0].toFixed(1)} and ${conflict.ratings[1].toFixed(1)}`,
+        })
+      }
+      return result
+    }
     const allNormalizedNames = allEntries.map(({ name }) => normalizeName(name))
 
     // Single batch lookup — one round-trip regardless of player count
@@ -2172,6 +2320,8 @@ export class ImportEngine {
       singles_dynamic_rating: number | null
       doubles_dynamic_rating: number | null
       overall_dynamic_rating: number | null
+      rating_source: string | null
+      mixed_pair_role: string | null
     }
 
     const fetchExistingPlayers = async (): Promise<Map<string, ExistingPlayerRow>> => {
@@ -2180,12 +2330,17 @@ export class ImportEngine {
       if (this.options.hasNormalizedPlayerNameColumn) {
         const { data, error } = await this.supabase
             .from('players')
-            .select('id, name, normalized_name, singles_rating, doubles_rating, overall_rating, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating')
+            .select('id, name, normalized_name, singles_rating, doubles_rating, overall_rating, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating, rating_source, mixed_pair_role')
             .in('normalized_name', allNormalizedNames)
 
         if (!error) {
           for (const row of (data ?? []) as Array<ExistingPlayerRow & { normalized_name?: string | null }>) {
-            byNormalizedName.set(normalizeName(row.normalized_name || row.name), row)
+            const key = normalizeName(row.normalized_name || row.name)
+            const current = byNormalizedName.get(key)
+            if (current && current.id !== row.id) {
+              throw new Error(`Duplicate player records found for ${row.name}; resolve the identity conflict before importing`)
+            }
+            byNormalizedName.set(key, row)
           }
         }
       }
@@ -2197,12 +2352,17 @@ export class ImportEngine {
       if (unresolvedNames.length > 0) {
         const { data, error } = await this.supabase
           .from('players')
-          .select('id, name, singles_rating, doubles_rating, overall_rating, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating')
+          .select('id, name, singles_rating, doubles_rating, overall_rating, singles_dynamic_rating, doubles_dynamic_rating, overall_dynamic_rating, rating_source, mixed_pair_role')
           .in('name', unresolvedNames)
 
         if (!error) {
           for (const row of (data ?? []) as ExistingPlayerRow[]) {
-            byNormalizedName.set(normalizeName(row.name), row)
+            const key = normalizeName(row.name)
+            const current = byNormalizedName.get(key)
+            if (current && current.id !== row.id) {
+              throw new Error(`Duplicate player records found for ${row.name}; resolve the identity conflict before importing`)
+            }
+            byNormalizedName.set(key, row)
           }
         }
       }
@@ -2238,21 +2398,21 @@ export class ImportEngine {
     // Commit mode: batch lookup → batch insert for new → targeted updates for existing
     const existingByNorm = await fetchExistingPlayers()
 
-    const toInsert: Array<{ name: string; ntrp: number | null }> = []
-    const toUpdate: Array<{ name: string; ntrp: number | null; existing: ExistingPlayerRow }> = []
+    const toInsert: Array<{ name: string; ntrp: number | null; ratingSource: PlayerRatingSource; mixedPairRole: MixedPairRole }> = []
+    const toUpdate: Array<{ name: string; ntrp: number | null; ratingSource: PlayerRatingSource; mixedPairRole: MixedPairRole; existing: ExistingPlayerRow }> = []
 
-    for (const { name, ntrp } of allEntries) {
+    for (const { name, ntrp, ratingSource, mixedPairRole } of allEntries) {
       const existing = existingByNorm.get(normalizeName(name))
       if (existing) {
-        toUpdate.push({ name, ntrp, existing })
+        toUpdate.push({ name, ntrp, ratingSource, mixedPairRole, existing })
       } else {
-        toInsert.push({ name, ntrp })
+        toInsert.push({ name, ntrp, ratingSource, mixedPairRole })
       }
     }
 
     // Batch insert all new players in one query
     if (toInsert.length > 0) {
-      const insertPayload = toInsert.map(({ name, ntrp }) => {
+      const insertPayload = toInsert.map(({ name, ntrp, ratingSource, mixedPairRole }) => {
         const ratingSeed = ntrp ?? DEFAULT_PLAYER_BASELINE
         const roundedNtrp = Math.round(ratingSeed * 1000) / 1000
         return {
@@ -2264,7 +2424,8 @@ export class ImportEngine {
           singles_dynamic_rating: roundedNtrp,
           doubles_dynamic_rating: roundedNtrp,
           overall_dynamic_rating: roundedNtrp,
-          rating_source: 'verified',
+          rating_source: ratingSource === 'unknown' ? (ntrp === null ? 'self' : 'verified') : ratingSource,
+          mixed_pair_role: mixedPairRole,
         }
       })
 
@@ -2274,6 +2435,7 @@ export class ImportEngine {
         const fallbackPayload = insertPayload.map((payload) => {
           const next: Record<string, unknown> = { ...payload }
           delete next.rating_source
+          delete next.mixed_pair_role
           return next
         })
         const fallback = await this.supabase.from('players').insert(fallbackPayload)
@@ -2313,9 +2475,18 @@ export class ImportEngine {
 
     // Individual updates — must stay serial because each player's conditional
     // logic reads their current dynamic ratings from the batch fetch result.
-    for (const { name, ntrp, existing } of toUpdate) {
+    for (const { name, ntrp, ratingSource, mixedPairRole, existing } of toUpdate) {
       try {
         if (ntrp === null) {
+          if (mixedPairRole !== 'unknown') {
+            const mixedRoleUpdate = await this.supabase
+              .from('players')
+              .update({ mixed_pair_role: mixedPairRole })
+              .eq('id', existing.id)
+            if (mixedRoleUpdate.error && !isMissingRatingSourceError(mixedRoleUpdate.error.message)) {
+              throw new Error(mixedRoleUpdate.error.message)
+            }
+          }
           result.updatedCount += 1
           result.players.push({
             name,
@@ -2339,8 +2510,9 @@ export class ImportEngine {
           singles_rating: roundedNtrp,
           doubles_rating: roundedNtrp,
           overall_rating: roundedNtrp,
-          rating_source: 'verified',
+          rating_source: ratingSource === 'unknown' ? 'verified' : ratingSource,
         }
+        if (mixedPairRole !== 'unknown') update.mixed_pair_role = mixedPairRole
         if (singlesWasDefault) update.singles_dynamic_rating = roundedNtrp
         if (doublesWasDefault) update.doubles_dynamic_rating = roundedNtrp
         if (overallWasDefault) update.overall_dynamic_rating = roundedNtrp
@@ -2353,6 +2525,7 @@ export class ImportEngine {
         if (updateError && isMissingRatingSourceError(updateError.message)) {
           const fallbackUpdate: Record<string, unknown> = { ...update }
           delete fallbackUpdate.rating_source
+          delete fallbackUpdate.mixed_pair_role
           const fallback = await this.supabase
             .from('players')
             .update(fallbackUpdate)
@@ -2402,6 +2575,12 @@ export class ImportEngine {
       district_area: row.districtArea,
       source: row.source,
       ntrp: row.ntrp,
+      rating_source: row.ratingSource,
+      mixed_pair_role: row.mixedPairRole,
+      age_division: row.ageDivision,
+      eligibility_verified_at: row.ratingSource === 'verified' || row.mixedPairRole !== 'unknown' || row.ageDivision
+        ? new Date().toISOString()
+        : null,
     }))
 
     const { error } = await this.supabase

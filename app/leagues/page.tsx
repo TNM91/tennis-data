@@ -10,8 +10,7 @@ import FollowButton from '@/app/components/follow-button'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-card'
-import TiqTrustStrip from '@/app/components/tiq-trust-strip'
-import { TiqActionCard, TiqLeagueStandingCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
+import TiqTrustStrip, { type TiqTrustSignal } from '@/app/components/tiq-trust-strip'
 import TrackedProductLink from '@/app/components/tracked-product-link'
 import {
   getCompetitionLayerLabel,
@@ -27,6 +26,7 @@ import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 const LEAGUE_SUMMARY_TIMEOUT_MS = 12000
+const LEAGUE_DEFAULT_CARD_LIMIT = 3
 const LEAGUES_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_LEAGUES_INLINE || null
 const dataAssistLeagueOfficeHref = '/data-assist?intent=request-review&context=League%20Office'
 
@@ -73,8 +73,12 @@ export default function LeaguesPage() {
   const [seasonFilter, setSeasonFilter] = useState('all')
   const [genderFilter, setGenderFilter] = useState('all')
   const [ratingFilter, setRatingFilter] = useState('all')
+  const [showAllLeagues, setShowAllLeagues] = useState(false)
   const [focusedDirectoryControl, setFocusedDirectoryControl] = useState<string | null>(null)
-  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { screenWidth, isMobile, isSmallMobile } = useViewportBreakpoints()
+  const isTinyMobile = screenWidth < 360
+  const compactIntroCards = isMobile
+  const compactLeagueCommandBoard = isMobile || screenWidth < 1180
   const { access, authResolved } = useProductAccess()
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
 
@@ -160,6 +164,10 @@ export default function LeaguesPage() {
     })
   }, [leagues, search, flightFilter, yearFilter, seasonFilter, genderFilter, ratingFilter])
 
+  useEffect(() => {
+    setShowAllLeagues(false)
+  }, [search, flightFilter, yearFilter, seasonFilter, genderFilter, ratingFilter])
+
   const hasActiveFilters =
     search.trim().length > 0 ||
     flightFilter !== 'all' ||
@@ -171,6 +179,14 @@ export default function LeaguesPage() {
   const visibleMatchCount = useMemo(() => {
     return filteredLeagues.reduce((sum, league) => sum + league.matchCount, 0)
   }, [filteredLeagues])
+
+  const visibleLeagueCardLimit = isMobile ? 1 : LEAGUE_DEFAULT_CARD_LIMIT
+
+  const displayedLeagues = useMemo(() => {
+    return showAllLeagues ? filteredLeagues : filteredLeagues.slice(0, visibleLeagueCardLimit)
+  }, [filteredLeagues, showAllLeagues, visibleLeagueCardLimit])
+
+  const hasMoreLeagues = filteredLeagues.length > visibleLeagueCardLimit
 
   const summary = useMemo(() => {
     return {
@@ -195,32 +211,148 @@ export default function LeaguesPage() {
     gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
   }
 
+  const responsivePanelCard: CSSProperties = isMobile
+    ? {
+        ...panelCard,
+        borderRadius: 20,
+        padding: 12,
+        marginBottom: 10,
+      }
+    : panelCard
+
+  const responsivePanelHead: CSSProperties = isMobile
+    ? {
+        ...panelHead,
+        gap: 8,
+        marginBottom: 10,
+      }
+    : panelHead
+
   const dynamicCardGrid: CSSProperties = {
     ...cardGrid,
     gridTemplateColumns: isSmallMobile ? 'minmax(0, 1fr)' : 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+    gap: isMobile ? 10 : cardGrid.gap,
   }
 
   const dynamicLeagueDetailGrid: CSSProperties = {
     ...leagueDetailGrid,
-    gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gap: isMobile ? 8 : leagueDetailGrid.gap,
   }
 
   const dynamicLeagueTop: CSSProperties = {
     ...leagueTop,
     flexDirection: isMobile ? 'column' : 'row',
     alignItems: isMobile ? 'stretch' : 'flex-start',
+    gap: isMobile ? 8 : leagueTop.gap,
+    marginBottom: isMobile ? 10 : leagueTop.marginBottom,
   }
+
+  const missingLeagueNameNotice = isMobile
+    ? 'Some imported matches need league names before they appear here.'
+    : `${diagnostics.missingLeagueNameCount} reviewed parent matches are missing a visible league name, so they will not appear as league cards yet.`
+  const responsiveLeagueDetailsSummaryStyle = isMobile
+    ? { ...leagueDetailsSummaryStyle, ...compactLeagueDetailsSummaryStyle }
+    : leagueDetailsSummaryStyle
+  const responsiveLeagueDetailsCueStyle = isMobile
+    ? { ...leagueDetailsCueStyle, display: 'none' }
+    : leagueDetailsCueStyle
+  const filterButtonStyle = isMobile
+    ? { ...clearFilterButton, ...compactLeagueFilterButtonStyle }
+    : clearFilterButton
+
+  const clearFilters = () => {
+    setSearch('')
+    setFlightFilter('all')
+    setYearFilter('all')
+    setSeasonFilter('all')
+    setGenderFilter('all')
+    setRatingFilter('all')
+  }
+
+  const filterActions = (
+    <div style={filterActionRow}>
+      <button type="button" onClick={() => void loadLeagueSummary()} style={filterButtonStyle}>
+        {loading ? 'Refreshing...' : 'Refresh league summary'}
+      </button>
+      {hasActiveFilters ? (
+        <button
+          type="button"
+          onClick={clearFilters}
+          style={filterButtonStyle}
+        >
+          Clear active filters
+        </button>
+      ) : null}
+    </div>
+  )
+
+  const searchControl = (
+    <div>
+      <label htmlFor="league-search" style={{ ...inputLabel, marginBottom: isMobile ? 6 : inputLabel.marginBottom }}>Search</label>
+      <div style={searchWrap}>
+        <div style={searchIconWrap}>
+          <SearchIcon />
+        </div>
+        <input
+          id="league-search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onFocus={() => setFocusedDirectoryControl('search')}
+          onBlur={() => setFocusedDirectoryControl(null)}
+          placeholder="Search by league, flight, section, or district"
+          style={{
+            ...searchInput,
+            ...(isMobile ? compactLeagueSearchControlStyle : null),
+            ...(focusedDirectoryControl === 'search' ? directoryControlFocusStyle : null),
+          }}
+        />
+      </div>
+    </div>
+  )
+
+  const filterControls = (
+    <>
+      <FilterSelect id="league-year-filter" label="Year" value={yearFilter} onChange={setYearFilter} options={years} focused={focusedDirectoryControl === 'year'} onFocus={() => setFocusedDirectoryControl('year')} onBlur={() => setFocusedDirectoryControl(null)} compact={isMobile} />
+      <FilterSelect id="league-season-filter" label="Season" value={seasonFilter} onChange={setSeasonFilter} options={seasons} focused={focusedDirectoryControl === 'season'} onFocus={() => setFocusedDirectoryControl('season')} onBlur={() => setFocusedDirectoryControl(null)} compact={isMobile} />
+      <FilterSelect id="league-gender-filter" label="Male/Female" value={genderFilter} onChange={setGenderFilter} options={genders} focused={focusedDirectoryControl === 'gender'} onFocus={() => setFocusedDirectoryControl('gender')} onBlur={() => setFocusedDirectoryControl(null)} compact={isMobile} />
+      <FilterSelect id="league-rating-filter" label="Rating / Flight" value={ratingFilter} onChange={setRatingFilter} options={ratings} focused={focusedDirectoryControl === 'rating'} onFocus={() => setFocusedDirectoryControl('rating')} onBlur={() => setFocusedDirectoryControl(null)} compact={isMobile} />
+
+      <div>
+        <label htmlFor="league-flight-filter" style={{ ...inputLabel, marginBottom: isMobile ? 6 : inputLabel.marginBottom }}>Flight</label>
+        <select
+          id="league-flight-filter"
+          value={flightFilter}
+          onChange={(e) => setFlightFilter(e.target.value)}
+          onFocus={() => setFocusedDirectoryControl('flight')}
+          onBlur={() => setFocusedDirectoryControl(null)}
+          style={{
+            ...selectStyle,
+            ...(isMobile ? compactLeagueDirectoryControlStyle : null),
+            ...(focusedDirectoryControl === 'flight' ? directoryControlFocusStyle : null),
+          }}
+        >
+          <option value="all">All Flights</option>
+          {flights.map((flight) => (
+            <option key={flight} value={flight}>
+              {flight}
+            </option>
+          ))}
+        </select>
+      </div>
+    </>
+  )
 
   return (
     <SiteShell active="leagues">
       <JsonLd id="leagues-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Leagues', '/leagues')} />
       <section style={contentWrap}>
-        <article style={publicIntroCard}>
-          <div style={publicIntroCopy}>
+        <article style={publicIntroCardStyle(isMobile)}>
+          <div style={publicIntroCopyStyle(isMobile)}>
             <div style={sectionKicker}>Leagues</div>
-            <h1 style={publicIntroTitle}>Run the season without the spreadsheet chaos.</h1>
-            <p style={publicIntroText}>
-              Organize players or teams, publish schedules, track scores, update standings, and keep everyone informed from one league home.
+            <h1 style={publicIntroTitleStyle(isMobile, isSmallMobile)}>Run the season without the spreadsheet chaos.</h1>
+            <p style={{ ...publicIntroTextStyle(isMobile), display: isMobile ? 'none' : undefined }}>
+              Organize schedules, scores, standings, and league updates in one place.
             </p>
             <div style={publicIntroActions}>
               <button
@@ -255,237 +387,208 @@ export default function LeaguesPage() {
               </TrackedProductLink>
             </div>
           </div>
-          <div style={publicIntroGrid}>
-            <IntroMiniCard title="League discovery" body="Find existing season context, flights, standings, schedules, and results." />
-            <IntroMiniCard title="League setup" body="Create players or teams, formats, schedules, score rules, standings, and messages." />
-            <IntroMiniCard title="Corrections" body="Use Data Assist for schedules, scorecards, rosters, and reviewed changes before public context moves." />
-            <IntroMiniCard title="Formats" body="Support leagues, ladders, round robins, and tournament-style seasons from one office." />
-          </div>
+          {!isMobile ? (
+            <details className="leagueDetailsSection" style={leagueDetailsSectionStyle} aria-label="League page options">
+              <summary style={responsiveLeagueDetailsSummaryStyle}>
+                <span style={leagueDetailsSummaryCopyStyle}>
+                  <span style={leagueDetailsEyebrowStyle}>League paths</span>
+                  <strong style={leagueDetailsTitleStyle}>What you can do here</strong>
+                </span>
+                <span style={leagueDetailsCueStyle}>Discovery, setup, corrections, formats</span>
+              </summary>
+              <div className="leagueDetailsBody" style={leagueDetailsContentStyle}>
+                <div style={publicIntroGridStyle(isTinyMobile)}>
+                  <IntroMiniCard title="League discovery" body="Find existing season context, flights, standings, schedules, and results." compact={compactIntroCards} />
+                  <IntroMiniCard title="League setup" body="Create players or teams, formats, schedules, score rules, standings, and messages." compact={compactIntroCards} />
+                  <IntroMiniCard title="Corrections" body="Use Data Assist for schedules, scorecards, rosters, and reviewed changes before public context moves." compact={compactIntroCards} />
+                  <IntroMiniCard title="Formats" body="Support leagues, ladders, round robins, and tournament-style seasons from one office." compact={compactIntroCards} />
+                </div>
+              </div>
+            </details>
+          ) : null}
         </article>
       </section>
       <section style={contentWrap}>
-        <article style={panelCard}>
-          <div style={panelHead}>
-            <div>
-              <div style={sectionKicker}>League next actions</div>
-              <h2 style={panelTitle}>Pick the season need, then open the right path.</h2>
-              <p style={panelIntro}>
-                League pages should help players and organizers move from discovery to schedules, scores, standings, or corrections without hunting through a spreadsheet.
-              </p>
-            </div>
-          </div>
-          <div style={leagueNextActionGrid}>
-            {leagueNextActions.map((action) => (
-              <TiqActionCard
-                key={action.title}
-                eyebrow={action.eyebrow}
-                title={action.title}
-                body={action.body}
-                metrics={[...action.metrics]}
-                href={action.href}
-                cta={action.cta}
-                event={action.event}
-                trust={[...action.trust]}
-              />
-            ))}
-          </div>
-        </article>
-      </section>
-      <section style={contentWrap}>
-        <article style={panelCard}>
-          <div style={panelHead}>
-            <div>
-              <div style={sectionKicker}>League Office preview</div>
-              <h2 style={panelTitle}>Schedules, scores, standings, and corrections.</h2>
-              <p style={panelIntro}>
-                League Office turns a season into a practical home: organize participants, publish the schedule, collect scores, update standings, manage corrections, and hand reviewed data back to Data Assist.
-              </p>
-            </div>
-          </div>
-          <div style={leagueOfficePreviewGrid}>
-            <TiqWorkspacePreview
-              eyebrow="Schedule"
-              title="Spring Ladder schedule"
-              body="Publish court windows, team dates, round-robin blocks, and schedule change notes."
-              metrics={[
-                { label: 'Matches', value: '36' },
-                { label: 'Courts', value: '6' },
-                { label: 'Changes', value: '2' },
-              ]}
-              href="/league-coordinator"
-              cta="Schedule Preview"
-              event={{
-                eventName: 'schedule_preview_clicked',
-                surface: 'leagues',
-                metadata: {
-                  location: 'league_office_preview',
-                },
-              }}
-            />
-            <TiqLeagueStandingCard
-              title="Spring Ladder standings"
-              body="Standings update after reviewed scores, tiebreakers, and corrections."
-              metrics={[
-                { label: 'Teams', value: '10' },
-                { label: 'Matches', value: '36' },
-                { label: 'Pending', value: '3' },
-              ]}
-              href="/league-coordinator"
-              cta="Standings Preview"
-              event={{
-                eventName: 'standings_preview_clicked',
-                surface: 'leagues',
-                metadata: {
-                  location: 'league_office_preview',
-                },
-              }}
-            />
-            <TiqWorkspacePreview
-              eyebrow="Data Assist handoff"
-              title="Corrections queue"
-              body="Schedules, scorecards, rosters, and disputed results move through review before public context changes."
-              metrics={[
-                { label: 'Source', value: 'Uploads' },
-                { label: 'Status', value: 'Review' },
-                { label: 'Office', value: 'League' },
-              ]}
-              href={dataAssistLeagueOfficeHref}
-              cta="Open Data Assist"
-              event={{
-                eventName: 'data_assist_opened',
-                surface: 'data_assist',
-                metadata: {
-                  location: 'league_office_preview',
-                },
-              }}
-            />
-          </div>
-        </article>
-      </section>
-      <section style={contentWrap}>
-        <article style={panelCard}>
-          <div style={panelHead}>
+        <article style={responsivePanelCard}>
+          <div style={responsivePanelHead}>
             <div>
               <div style={sectionKicker}>League discovery</div>
               <h2 style={panelTitle}>Find a league.</h2>
-              <p style={panelIntro}>
-                Search by league, flight, section, or district, then open the season view.
-              </p>
+              {!isMobile ? (
+                <p style={panelIntro}>
+                  Search by league, flight, section, or district, then open the season view.
+                </p>
+              ) : null}
             </div>
-            <div style={filterActionRow}>
-              <button type="button" onClick={() => void loadLeagueSummary()} style={clearFilterButton}>
-                {loading ? 'Refreshing...' : 'Refresh league summary'}
-              </button>
+            {!isMobile ? filterActions : null}
+          </div>
+
+          {isMobile ? (
+            <div style={mobileFinderStackStyle}>
+              {searchControl}
+              <details className="leagueDetailsSection" style={leagueDetailsSectionStyle} aria-label="League filters">
+                <summary style={leagueDetailsSummaryStyle}>
+                  <span style={leagueDetailsSummaryCopyStyle}>
+                    <span style={leagueDetailsEyebrowStyle}>Filters</span>
+                    <strong style={leagueDetailsTitleStyle}>Narrow the league list</strong>
+                  </span>
+                <span style={responsiveLeagueDetailsCueStyle}>Year, season, rating, flight</span>
+                </summary>
+                <div className="leagueDetailsBody" style={mobileFilterDetailsContentStyle}>
+                  {filterControls}
+                </div>
+              </details>
               {hasActiveFilters ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearch('')
-                    setFlightFilter('all')
-                    setYearFilter('all')
-                    setSeasonFilter('all')
-                    setGenderFilter('all')
-                    setRatingFilter('all')
-                  }}
-                  style={clearFilterButton}
-                >
-                  Clear active filters
+                <button type="button" onClick={clearFilters} style={filterButtonStyle}>
+                  Clear filters
                 </button>
               ) : null}
             </div>
-          </div>
+          ) : (
+            <div style={dynamicFilterGrid}>
+              {searchControl}
+              {filterControls}
+            </div>
+          )}
 
-          <div style={dynamicSummaryGrid}>
-            <MetricCard label="Visible leagues" value={loading ? 'Refreshing' : String(summary.totalLeagues)} />
-            <MetricCard label="League matches" value={loading ? 'Reviewing' : String(summary.totalMatches)} />
-            <MetricCard label="Flights" value={loading ? 'Starter' : String(summary.totalFlights)} />
-            <MetricCard label="Latest match" value={loading ? 'Refreshing' : formatDate(summary.latestMatch)} accent />
-          </div>
+          {isMobile ? (
+            <div role="status" aria-live="polite" style={mobileSummaryStatusStyle}>
+              {loading
+                ? 'Updating league results...'
+                : `${summary.totalLeagues} leagues · ${summary.totalMatches} matches · Latest ${formatDate(summary.latestMatch)}`}
+            </div>
+          ) : (
+            <div style={dynamicSummaryGrid}>
+              <MetricCard label="Visible leagues" value={loading ? 'Refreshing' : String(summary.totalLeagues)} />
+              <MetricCard label="League matches" value={loading ? 'Reviewing' : String(summary.totalMatches)} />
+              <MetricCard label="Flights" value={loading ? 'Starter' : String(summary.totalFlights)} />
+              <MetricCard label="Latest match" value={loading ? 'Refreshing' : formatDate(summary.latestMatch)} accent />
+            </div>
+          )}
 
-          <div style={dynamicFilterGrid}>
-            <div>
-              <label htmlFor="league-search" style={inputLabel}>Search</label>
-              <div style={searchWrap}>
-                <div style={searchIconWrap}>
-                  <SearchIcon />
+          <details className="leagueDetailsSection" style={leagueDetailsSectionStyle} aria-label="Season control board">
+            <summary style={responsiveLeagueDetailsSummaryStyle}>
+              <span style={leagueDetailsSummaryCopyStyle}>
+                <span style={leagueDetailsEyebrowStyle}>Season control board</span>
+                <strong style={leagueDetailsTitleStyle}>Find the season, then keep it moving.</strong>
+              </span>
+              <span style={responsiveLeagueDetailsCueStyle}>League Office, standings, corrections</span>
+            </summary>
+            <div className="leagueDetailsBody" style={leagueDetailsContentStyle}>
+              <p style={leagueDetailsIntroStyle}>
+                Start with the public league record. When the season needs work, move into the tools for schedules, scores, standings, organizer planning, or reviewed corrections.
+              </p>
+              <div style={leagueCommandBoardStyle(compactLeagueCommandBoard)}>
+                <article style={leagueCommandSpotlightStyle}>
+                  <div style={leagueCommandTopStyle}>
+                    <span style={leagueCommandBadgeStyle}>League Office</span>
+                    <TrackedProductLink
+                      href="/league-coordinator"
+                      style={leagueCommandTopLinkStyle}
+                      event={{
+                        eventName: 'league_office_clicked',
+                        surface: 'leagues',
+                        metadata: {
+                          location: 'league_command_board',
+                        },
+                      }}
+                    >
+                      Open Office
+                    </TrackedProductLink>
+                  </div>
+                  <h3 style={leagueCommandTitleStyle}>One place for the season.</h3>
+                  <p style={leagueCommandTextStyle}>
+                    Build the schedule, collect scores, publish standings, and send changes through review before players rely on them.
+                  </p>
+                  <p style={leagueCommandSupportLineStyle}>Useful for coordinators, captains, and players</p>
+                  <div style={leagueCommandMetricGridStyle}>
+                    <MetricCard label="Matches" value="36" />
+                    <MetricCard label="Teams" value="10" />
+                    <MetricCard label="Pending" value="3" accent />
+                  </div>
+                  <div style={leagueCommandActionRowStyle}>
+                    <TrackedProductLink
+                      href="/league-coordinator"
+                      style={secondaryIntroButton}
+                      event={{
+                        eventName: 'schedule_preview_clicked',
+                        surface: 'leagues',
+                        metadata: {
+                          location: 'league_command_board',
+                        },
+                      }}
+                    >
+                      Review Schedule
+                    </TrackedProductLink>
+                    <TrackedProductLink
+                      href={dataAssistLeagueOfficeHref}
+                      style={secondaryIntroButton}
+                      event={{
+                        eventName: 'data_assist_opened',
+                        surface: 'data_assist',
+                        metadata: {
+                          location: 'league_command_board',
+                        },
+                      }}
+                    >
+                      Send Correction
+                    </TrackedProductLink>
+                  </div>
+                </article>
+                <div style={leagueCommandStepListStyle}>
+                  {leagueNextActions.map((action, index) => (
+                    <LeagueCommandStep key={action.title} action={action} step={index + 1} />
+                  ))}
                 </div>
-                <input
-                  id="league-search"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  onFocus={() => setFocusedDirectoryControl('search')}
-                  onBlur={() => setFocusedDirectoryControl(null)}
-                  placeholder="Search by league, flight, section, or district"
-                  style={{
-                    ...searchInput,
-                    ...(focusedDirectoryControl === 'search' ? directoryControlFocusStyle : null),
-                  }}
-                />
               </div>
             </div>
-
-            <FilterSelect id="league-year-filter" label="Year" value={yearFilter} onChange={setYearFilter} options={years} focused={focusedDirectoryControl === 'year'} onFocus={() => setFocusedDirectoryControl('year')} onBlur={() => setFocusedDirectoryControl(null)} />
-            <FilterSelect id="league-season-filter" label="Season" value={seasonFilter} onChange={setSeasonFilter} options={seasons} focused={focusedDirectoryControl === 'season'} onFocus={() => setFocusedDirectoryControl('season')} onBlur={() => setFocusedDirectoryControl(null)} />
-            <FilterSelect id="league-gender-filter" label="Male/Female" value={genderFilter} onChange={setGenderFilter} options={genders} focused={focusedDirectoryControl === 'gender'} onFocus={() => setFocusedDirectoryControl('gender')} onBlur={() => setFocusedDirectoryControl(null)} />
-            <FilterSelect id="league-rating-filter" label="Rating / Flight" value={ratingFilter} onChange={setRatingFilter} options={ratings} focused={focusedDirectoryControl === 'rating'} onFocus={() => setFocusedDirectoryControl('rating')} onBlur={() => setFocusedDirectoryControl(null)} />
-
-            <div>
-              <label htmlFor="league-flight-filter" style={inputLabel}>Flight</label>
-              <select
-                id="league-flight-filter"
-                value={flightFilter}
-                onChange={(e) => setFlightFilter(e.target.value)}
-                onFocus={() => setFocusedDirectoryControl('flight')}
-                onBlur={() => setFocusedDirectoryControl(null)}
-                style={{
-                  ...selectStyle,
-                  ...(focusedDirectoryControl === 'flight' ? directoryControlFocusStyle : null),
-                }}
-              >
-                <option value="all">All Flights</option>
-                {flights.map((flight) => (
-                  <option key={flight} value={flight}>
-                    {flight}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          </details>
 
           {loading ? (
             <div style={stateBox}>
               <div style={sectionKicker}>League discovery</div>
               <div>Choose a league path.</div>
               <div style={stateHelperTextStyle}>
-                Find existing league context or create a TIQ League Office tool. The live league layer is refreshing behind this starter view.
+                Find existing league context or create a TIQ League Office tool while the live league layer refreshes.
               </div>
-              <DataTrustPanel
-                title="League data trust"
-                signals={[
-                  { label: 'Source', value: 'Schedules, scorecards, standings' },
-                  { label: 'Freshness', value: 'Season refresh pending' },
-                  { label: 'Confidence', value: 'Higher after score review' },
-                  { label: 'Status', value: 'League names normalized' },
-                ]}
-              />
-              <TiqDirectoryFallbackCard
-                eyebrow="Featured league path"
-                title="Find or run the season from one office."
-                body="Search an existing league, flight, section, or district. If the season is not public yet, League Office and Data Assist give coordinators a cleaner path to schedules, standings, and corrections."
-                chips={['League Office', 'Schedules', 'Standings']}
-                actions={[
-                  { href: '/league-coordinator', label: 'Open League Office' },
-                  { href: DATA_ASSIST_STORY.href, label: DATA_ASSIST_STORY.cta },
-                ]}
-              />
               <div style={emptyActionRow}>
-                <Link href="/leagues" style={clearFilterButton}>
+                <Link href="/leagues" style={filterButtonStyle}>
                   Find Leagues
                 </Link>
-                <Link href="/league-coordinator" style={clearFilterButton}>
+                <Link href="/league-coordinator" style={filterButtonStyle}>
                   Open League Office
                 </Link>
               </div>
+              <details className="leagueDetailsSection" style={leagueDetailsSectionStyle} aria-label="League data trust and starter path">
+                <summary style={leagueDetailsSummaryStyle}>
+                  <span style={leagueDetailsSummaryCopyStyle}>
+                    <span style={leagueDetailsEyebrowStyle}>League data trust</span>
+                    <strong style={leagueDetailsTitleStyle}>What is refreshing</strong>
+                  </span>
+                  <span style={leagueDetailsCueStyle}>Show source checks</span>
+                </summary>
+                <div className="leagueDetailsBody" style={leagueDetailsContentStyle}>
+                  <DataTrustPanel
+                    title="League data trust"
+                    signals={[
+                      { label: 'Source', value: 'Schedules, scorecards, standings' },
+                      { label: 'Freshness', value: 'Season refresh pending' },
+                      { label: 'Confidence', value: 'Higher after score review' },
+                      { label: 'Status', value: 'League names normalized' },
+                    ]}
+                  />
+                  <TiqDirectoryFallbackCard
+                    eyebrow="Featured league path"
+                    title="Find or run the season from one office."
+                    body="Search an existing league, flight, section, or district. If the season is not public yet, League Office and Data Assist give coordinators a cleaner path to schedules, standings, and corrections."
+                    chips={['League Office', 'Schedules', 'Standings']}
+                    actions={[
+                      { href: '/league-coordinator', label: 'Open League Office' },
+                      { href: DATA_ASSIST_STORY.href, label: DATA_ASSIST_STORY.cta },
+                    ]}
+                  />
+                </div>
+              </details>
             </div>
           ) : error ? (
             <div style={errorBox}>
@@ -495,7 +598,7 @@ export default function LeaguesPage() {
                 Refresh the league summary to try again without leaving the page.
               </div>
               <div style={{ marginTop: 12 }}>
-                <button type="button" onClick={() => void loadLeagueSummary()} style={clearFilterButton}>
+                <button type="button" onClick={() => void loadLeagueSummary()} style={filterButtonStyle}>
                   Retry league load
                 </button>
               </div>
@@ -511,10 +614,6 @@ export default function LeaguesPage() {
                   ? 'Clear the active filters to widen the season view, or try a broader search term across league, flight, section, or district.'
                   : 'League cards only appear when reviewed uploads include a real league name, so this usually means more season data still needs to be uploaded through Data Assist or normalized.'}
               </div>
-              <DataTrustPanel
-                title="Why a league may be missing"
-                body="League Office needs reviewed schedules, results, standings, or Data Assist uploads with clear league and flight names before public cards can be trusted."
-              />
               {!hasActiveFilters ? (
                 <div style={emptyActionRow}>
                   <Link href={DATA_ASSIST_STORY.href} style={clearFilterButton}>
@@ -522,41 +621,67 @@ export default function LeaguesPage() {
                   </Link>
                 </div>
               ) : null}
-              {!hasActiveFilters && diagnostics.totalParentMatches > 0 ? (
-                <div style={diagnosticWrap}>
-                  <div style={diagnosticTitle}>Import diagnostics</div>
-                  <div style={diagnosticText}>
-                    I can see {diagnostics.totalParentMatches} parent matches in the dataset, but only {diagnostics.namedParentMatches} currently have a visible league name.
-                  </div>
-                  <div style={diagnosticChipRow}>
-                    <span style={diagnosticChip}>
-                      Missing league names: {diagnostics.missingLeagueNameCount}
-                    </span>
-                    <span style={diagnosticChip}>
-                      Missing team names: {diagnostics.missingTeamCount}
-                    </span>
-                  </div>
-                  {diagnostics.sampleMissingLeagueRows.length > 0 ? (
-                    <div style={diagnosticSampleList}>
-                      {diagnostics.sampleMissingLeagueRows.map((row) => (
-                        <div key={row.externalMatchId} style={diagnosticSampleCard}>
-                          <div style={diagnosticSampleTitle}>
-                            {row.homeTeam || 'Home team not set'} vs {row.awayTeam || 'Away team not set'}
-                          </div>
-                          <div style={diagnosticSampleMeta}>
-                            Match ID: {row.externalMatchId}
-                          </div>
-                          <div style={diagnosticSampleMeta}>
-                            Scope: {[row.flight, row.ustaSection, row.districtArea].filter(Boolean).join(' | ') || 'No scope fields'}
-                          </div>
-                          <div style={diagnosticSampleMeta}>
-                            Source: {row.source || 'Source pending review'}{row.matchDate ? ` | ${formatDate(row.matchDate)}` : ''}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
+              <details className="leagueDetailsSection" style={leagueDetailsSectionStyle} aria-label="Why a league may be missing">
+                <summary style={responsiveLeagueDetailsSummaryStyle}>
+                  <span style={leagueDetailsSummaryCopyStyle}>
+                    <span style={leagueDetailsEyebrowStyle}>Data trust</span>
+                    <strong style={leagueDetailsTitleStyle}>Why a league may be missing</strong>
+                  </span>
+                  <span style={responsiveLeagueDetailsCueStyle}>Show source needs</span>
+                </summary>
+                <div className="leagueDetailsBody" style={leagueDetailsContentStyle}>
+                  <DataTrustPanel
+                    title="Why a league may be missing"
+                    body="League Office needs reviewed schedules, results, standings, or Data Assist uploads with clear league and flight names before public cards can be trusted."
+                  />
                 </div>
+              </details>
+              {!hasActiveFilters && diagnostics.totalParentMatches > 0 ? (
+                <details className="leagueDetailsSection" style={leagueDetailsSectionStyle} aria-label="Import diagnostics">
+              <summary style={responsiveLeagueDetailsSummaryStyle}>
+                    <span style={leagueDetailsSummaryCopyStyle}>
+                      <span style={leagueDetailsEyebrowStyle}>Import diagnostics</span>
+                      <strong style={leagueDetailsTitleStyle}>Source rows need league names</strong>
+                    </span>
+                <span style={responsiveLeagueDetailsCueStyle}>Show diagnostics</span>
+                  </summary>
+                  <div className="leagueDetailsBody" style={leagueDetailsContentStyle}>
+                    <div style={diagnosticWrap}>
+                      <div style={diagnosticTitle}>Import diagnostics</div>
+                      <div style={diagnosticText}>
+                        I can see {diagnostics.totalParentMatches} parent matches in the dataset, but only {diagnostics.namedParentMatches} currently have a visible league name.
+                      </div>
+                      <div style={diagnosticChipRow}>
+                        <span style={diagnosticChip}>
+                          Missing league names: {diagnostics.missingLeagueNameCount}
+                        </span>
+                        <span style={diagnosticChip}>
+                          Missing team names: {diagnostics.missingTeamCount}
+                        </span>
+                      </div>
+                      {diagnostics.sampleMissingLeagueRows.length > 0 ? (
+                        <div style={diagnosticSampleList}>
+                          {diagnostics.sampleMissingLeagueRows.map((row) => (
+                            <div key={row.externalMatchId} style={diagnosticSampleCard}>
+                              <div style={diagnosticSampleTitle}>
+                                {row.homeTeam || 'Home team not set'} vs {row.awayTeam || 'Away team not set'}
+                              </div>
+                              <div style={diagnosticSampleMeta}>
+                                Match ID: {row.externalMatchId}
+                              </div>
+                              <div style={diagnosticSampleMeta}>
+                                Scope: {[row.flight, row.ustaSection, row.districtArea].filter(Boolean).join(' | ') || 'No scope fields'}
+                              </div>
+                              <div style={diagnosticSampleMeta}>
+                                Source: {row.source || 'Source pending review'}{row.matchDate ? ` | ${formatDate(row.matchDate)}` : ''}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </details>
               ) : null}
             </div>
           ) : (
@@ -564,17 +689,32 @@ export default function LeaguesPage() {
               {notice ? <div style={noticeBox}>{notice}</div> : null}
               {diagnostics.missingLeagueNameCount > 0 ? (
                 <div style={noticeBox}>
-                  {diagnostics.missingLeagueNameCount} reviewed parent matches are missing a visible league name, so they will not appear as league cards yet.
+                  {missingLeagueNameNotice}
                 </div>
               ) : null}
 
               <div style={summaryBadgeRow}>
-                <span style={heroHintPill}>{filteredLeagues.length} visible leagues</span>
-                <span style={heroHintPill}>{visibleMatchCount} visible league matches</span>
+                {isMobile ? (
+                  <span style={heroHintPill}>
+                    {hasMoreLeagues && !showAllLeagues
+                      ? `${displayedLeagues.length} of ${filteredLeagues.length} leagues`
+                      : `${filteredLeagues.length} leagues`}{' '}
+                    | {visibleMatchCount} matches
+                  </span>
+                ) : (
+                  <>
+                    <span style={heroHintPill}>
+                      {hasMoreLeagues && !showAllLeagues
+                        ? `${displayedLeagues.length} of ${filteredLeagues.length} visible leagues`
+                        : `${filteredLeagues.length} visible leagues`}
+                    </span>
+                    <span style={heroHintPill}>{visibleMatchCount} visible league matches</span>
+                  </>
+                )}
               </div>
 
               <div style={dynamicCardGrid}>
-                {filteredLeagues.map((league) => (
+                {displayedLeagues.map((league) => (
                   <LeagueCardItem
                     key={league.key}
                     league={league}
@@ -584,6 +724,22 @@ export default function LeaguesPage() {
                   />
                 ))}
               </div>
+              {hasMoreLeagues ? (
+                <div style={leagueBoardLimitStyle}>
+                  <span style={leagueBoardLimitTextStyle}>
+                    {isMobile
+                      ? showAllLeagues
+                        ? `All ${filteredLeagues.length} leagues shown.`
+                        : `${displayedLeagues.length} of ${filteredLeagues.length} leagues shown.`
+                      : showAllLeagues
+                        ? `Showing all ${filteredLeagues.length} leagues.`
+                        : `Showing the first ${displayedLeagues.length} leagues. Use filters or show the full board.`}
+                  </span>
+                  <button type="button" onClick={() => setShowAllLeagues((current) => !current)} style={leagueBoardLimitButtonStyle}>
+                    {showAllLeagues ? 'Show top leagues' : 'Show all leagues'}
+                  </button>
+                </div>
+              ) : null}
             </>
           )}
         </article>
@@ -616,10 +772,6 @@ const leagueNextActions = [
         location: 'league_next_actions',
       },
     },
-    trust: [
-      { label: 'Source', value: 'Public league layer', tone: 'info' },
-      { label: 'Status', value: 'Discovery ready', tone: 'good' },
-    ],
   },
   {
     eyebrow: 'Schedule',
@@ -639,10 +791,6 @@ const leagueNextActions = [
         location: 'league_next_actions',
       },
     },
-    trust: [
-      { label: 'Source', value: 'League Office', tone: 'info' },
-      { label: 'Freshness', value: 'Coordinator updated', tone: 'good' },
-    ],
   },
   {
     eyebrow: 'Standings',
@@ -662,10 +810,6 @@ const leagueNextActions = [
         location: 'league_next_actions',
       },
     },
-    trust: [
-      { label: 'Confidence', value: 'Higher after review', tone: 'warn' },
-      { label: 'Status', value: 'Reviewable', tone: 'good' },
-    ],
   },
   {
     eyebrow: 'Organize',
@@ -686,10 +830,6 @@ const leagueNextActions = [
         job: 'organize_competition',
       },
     },
-    trust: [
-      { label: 'Status', value: 'Public organizer path', tone: 'good' },
-      { label: 'Source', value: 'TenAceIQ hub', tone: 'info' },
-    ],
   },
   {
     eyebrow: 'Fix data',
@@ -709,12 +849,35 @@ const leagueNextActions = [
         location: 'league_next_actions',
       },
     },
-    trust: [
-      { label: 'Source', value: 'User upload', tone: 'info' },
-      { label: 'Status', value: 'Review before public use', tone: 'warn' },
-    ],
   },
 ] as const
+
+type LeagueNextAction = (typeof leagueNextActions)[number]
+
+function LeagueCommandStep({ action, step }: { action: LeagueNextAction; step: number }) {
+  return (
+    <article style={leagueCommandStepStyle}>
+      <div style={leagueCommandStepNumberStyle}>{step}</div>
+      <div style={leagueCommandStepCopyStyle}>
+        <div style={leagueCommandStepTopStyle}>
+          <span style={leagueCommandStepEyebrowStyle}>{action.eyebrow}</span>
+          <TrackedProductLink href={action.href} style={leagueCommandStepLinkStyle} event={action.event}>
+            {action.cta}
+          </TrackedProductLink>
+        </div>
+        <h3 style={leagueCommandStepTitleStyle}>{action.title}</h3>
+        <p style={leagueCommandStepBodyStyle}>{action.body}</p>
+        <div style={leagueCommandStepMetricsStyle}>
+          {action.metrics.map((metric) => (
+            <span key={metric.label} style={leagueCommandStepMetricPillStyle}>
+              {metric.label}: {metric.value}
+            </span>
+          ))}
+        </div>
+      </div>
+    </article>
+  )
+}
 
 function uniqueSorted(values: Array<string | null | undefined>) {
   return Array.from(new Set(values.map((value) => safeText(value)).filter(Boolean))).sort((a, b) =>
@@ -729,6 +892,7 @@ function FilterSelect({
   onChange,
   options,
   focused = false,
+  compact = false,
   onFocus,
   onBlur,
 }: {
@@ -738,12 +902,13 @@ function FilterSelect({
   onChange: (value: string) => void
   options: string[]
   focused?: boolean
+  compact?: boolean
   onFocus?: () => void
   onBlur?: () => void
 }) {
   return (
     <div>
-      <label htmlFor={id} style={inputLabel}>{label}</label>
+      <label htmlFor={id} style={{ ...inputLabel, marginBottom: compact ? 6 : inputLabel.marginBottom }}>{label}</label>
       <select
         id={id}
         value={value}
@@ -752,6 +917,7 @@ function FilterSelect({
         onBlur={onBlur}
         style={{
           ...selectStyle,
+          ...(compact ? compactLeagueDirectoryControlStyle : null),
           ...(focused ? directoryControlFocusStyle : null),
         }}
       >
@@ -768,6 +934,7 @@ function FilterSelect({
 
 function LeagueCardItem({
   league,
+  isMobile,
   dynamicLeagueTop,
   dynamicLeagueDetailGrid,
 }: {
@@ -778,13 +945,26 @@ function LeagueCardItem({
 }) {
   const [hovered, setHovered] = useState(false)
   const subtitle = buildLeagueSubtitle(league)
+  const responsiveLeagueCard: CSSProperties = isMobile
+    ? {
+        ...leagueCard,
+        borderRadius: 18,
+        padding: 14,
+      }
+    : leagueCard
+  const trustSignals: TiqTrustSignal[] = [
+    { label: 'Source', value: getCompetitionLayerLabel(league.competitionLayer), tone: league.competitionLayer === 'tiq' ? 'good' : 'info' },
+    { label: 'Freshness', value: league.latestMatchDate ? formatDate(league.latestMatchDate) : 'Review pending', tone: league.latestMatchDate ? 'good' : 'warn' },
+    { label: 'Confidence', value: league.matchCount >= 10 ? 'High' : league.matchCount >= 3 ? 'Medium' : 'Limited', tone: league.matchCount >= 10 ? 'good' : league.matchCount >= 3 ? 'warn' : 'info' },
+    { label: 'Status', value: 'Reviewable', tone: 'good' },
+  ]
 
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        ...leagueCard,
+        ...responsiveLeagueCard,
         borderColor: hovered ? 'rgba(125, 211, 252, 0.44)' : 'rgba(125, 211, 252, 0.18)',
         transform: hovered ? 'translateY(-3px)' : 'none',
         boxShadow: 'var(--shadow-soft)',
@@ -821,28 +1001,46 @@ function LeagueCardItem({
         </div>
       </div>
 
-      <div style={dynamicLeagueDetailGrid}>
-        <DetailCard label="USTA Section" value={league.ustaSection} hideWhenEmpty />
-        <DetailCard label="District / Area" value={league.districtArea} hideWhenEmpty />
-        <DetailCard label="Matches" value={String(league.matchCount)} />
-        <DetailCard label="Teams Seen" value={String(league.teamCount)} />
+      <div style={leagueSeasonPulseStyle} aria-label={`${league.leagueName} season pulse`}>
+        <div style={leagueSeasonPulseHeadingStyle}>
+          <span>Season pulse</span>
+          <strong>{league.latestMatchDate ? 'Active record' : 'Record building'}</strong>
+        </div>
+        <div style={leaguePulseGridStyle}>
+          <LeaguePulseMetric label="Matches" value={String(league.matchCount)} />
+          <LeaguePulseMetric label="Teams" value={String(league.teamCount)} />
+          <LeaguePulseMetric label="Latest" value={formatDate(league.latestMatchDate)} />
+        </div>
       </div>
 
-      <div style={leagueBottom}>
-        <span style={leagueBottomMeta}>
-          Latest match: <strong>{formatDate(league.latestMatchDate)}</strong>
-        </span>
-      </div>
-      <TiqTrustStrip
-        label={`${league.leagueName} data trust signals`}
-        signals={[
-          { label: 'Source', value: getCompetitionLayerLabel(league.competitionLayer), tone: league.competitionLayer === 'tiq' ? 'good' : 'info' },
-          { label: 'Freshness', value: league.latestMatchDate ? formatDate(league.latestMatchDate) : 'Review pending', tone: league.latestMatchDate ? 'good' : 'warn' },
-          { label: 'Confidence', value: league.matchCount >= 10 ? 'High' : league.matchCount >= 3 ? 'Medium' : 'Limited', tone: league.matchCount >= 10 ? 'good' : league.matchCount >= 3 ? 'warn' : 'info' },
-          { label: 'Status', value: 'Reviewable', tone: 'good' },
-        ]}
-        reviewContext={`League ${league.leagueName}`}
-      />
+      {(safeText(league.ustaSection) || safeText(league.districtArea)) ? (
+        <div style={dynamicLeagueDetailGrid}>
+          <DetailCard label="USTA Section" value={league.ustaSection} hideWhenEmpty />
+          <DetailCard label="District / Area" value={league.districtArea} hideWhenEmpty />
+        </div>
+      ) : null}
+      <details className="leagueDetailsSection" style={leagueCardDetailsStyle} aria-label={`${league.leagueName} data check`}>
+        <summary style={leagueCardDetailsSummaryStyle}>
+          <span>Data check</span>
+          <strong>{league.latestMatchDate ? 'Match context' : 'Review pending'}</strong>
+        </summary>
+        <div className="leagueDetailsBody" style={leagueCardDetailsContentStyle}>
+          <TiqTrustStrip
+            label={`${league.leagueName} data trust signals`}
+            signals={trustSignals}
+            reviewContext={`League ${league.leagueName}`}
+          />
+        </div>
+      </details>
+    </div>
+  )
+}
+
+function LeaguePulseMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={leaguePulseMetricStyle}>
+      <span style={leaguePulseMetricLabelStyle}>{label}</span>
+      <strong style={leaguePulseMetricValueStyle}>{value}</strong>
     </div>
   )
 }
@@ -913,9 +1111,9 @@ function DetailCard({
   )
 }
 
-function IntroMiniCard({ title, body }: { title: string; body: string }) {
+function IntroMiniCard({ title, body, compact = false }: { title: string; body: string; compact?: boolean }) {
   return (
-    <div style={introMiniCardStyle}>
+    <div style={introMiniCardStyle(compact)}>
       <strong>{title}</strong>
       <span>{body}</span>
     </div>
@@ -971,12 +1169,25 @@ const publicIntroCard: CSSProperties = {
   marginBottom: 16,
 }
 
+const publicIntroCardStyle = (isMobile: boolean): CSSProperties => ({
+  ...publicIntroCard,
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : publicIntroCard.gridTemplateColumns,
+  gap: isMobile ? 12 : publicIntroCard.gap,
+  borderRadius: isMobile ? 20 : publicIntroCard.borderRadius,
+  padding: isMobile ? 15 : publicIntroCard.padding,
+})
+
 const publicIntroCopy: CSSProperties = {
   display: 'grid',
   alignContent: 'center',
   gap: 12,
   minWidth: 0,
 }
+
+const publicIntroCopyStyle = (isMobile: boolean): CSSProperties => ({
+  ...publicIntroCopy,
+  gap: isMobile ? 9 : publicIntroCopy.gap,
+})
 
 const publicIntroTitle: CSSProperties = {
   margin: 0,
@@ -988,6 +1199,12 @@ const publicIntroTitle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const publicIntroTitleStyle = (isMobile: boolean, isSmallMobile: boolean): CSSProperties => ({
+  ...publicIntroTitle,
+  fontSize: isSmallMobile ? '1.8rem' : isMobile ? '2.05rem' : publicIntroTitle.fontSize,
+  lineHeight: isMobile ? 1.04 : publicIntroTitle.lineHeight,
+})
+
 const publicIntroText: CSSProperties = {
   margin: 0,
   maxWidth: 720,
@@ -997,11 +1214,128 @@ const publicIntroText: CSSProperties = {
   fontWeight: 700,
 }
 
+const publicIntroTextStyle = (isMobile: boolean): CSSProperties => ({
+  ...publicIntroText,
+  fontSize: isMobile ? '0.95rem' : publicIntroText.fontSize,
+  lineHeight: isMobile ? 1.5 : publicIntroText.lineHeight,
+})
+
 const publicIntroActions: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 10,
   minWidth: 0,
+}
+
+const leagueDetailsSectionStyle: CSSProperties = {
+  display: 'block',
+  gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leagueDetailsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  padding: '12px 14px',
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  listStyle: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const compactLeagueDetailsSummaryStyle: CSSProperties = {
+  flexWrap: 'nowrap',
+  gap: 8,
+  padding: '10px 11px',
+  borderRadius: 8,
+}
+
+const leagueDetailsSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leagueDetailsEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const leagueDetailsTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const leagueDetailsCueStyle: CSSProperties = {
+  flex: '0 1 auto',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  textAlign: 'right',
+  overflowWrap: 'anywhere',
+}
+
+const leagueDetailsContentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  paddingTop: 10,
+  overflowWrap: 'anywhere',
+}
+
+const leagueDetailsIntroStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.55,
+  fontWeight: 720,
+  overflowWrap: 'anywhere',
+}
+
+const mobileFinderStackStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  marginBottom: 10,
+  minWidth: 0,
+}
+
+const mobileFilterDetailsContentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  paddingTop: 10,
+  minWidth: 0,
+}
+
+const mobileSummaryStatusStyle: CSSProperties = {
+  display: 'block',
+  marginBottom: 12,
+  minHeight: 34,
+  padding: '9px 11px',
+  borderRadius: 10,
+  border: '1px solid rgba(125, 211, 252, 0.14)',
+  background: 'rgba(15, 23, 42, 0.46)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 800,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
 const primaryIntroButton: CSSProperties = {
@@ -1034,36 +1368,227 @@ const publicIntroGrid: CSSProperties = {
   minWidth: 0,
 }
 
-const leagueOfficePreviewGrid: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-  gap: 12,
-  minWidth: 0,
-}
+const publicIntroGridStyle = (isTinyMobile: boolean): CSSProperties => ({
+  ...publicIntroGrid,
+  gridTemplateColumns: isTinyMobile ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
+  gap: isTinyMobile ? 8 : publicIntroGrid.gap,
+})
 
-const leagueNextActionGrid: CSSProperties = {
+const leagueCommandBoardStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
-  gap: 12,
+  gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'minmax(0, 0.86fr) minmax(0, 1.14fr)',
+  gap: isMobile ? 10 : 14,
+  alignItems: 'stretch',
   minWidth: 0,
-}
+})
 
-const introMiniCardStyle: CSSProperties = {
+const leagueCommandSpotlightStyle: CSSProperties = {
   display: 'grid',
-  gap: 7,
   alignContent: 'start',
-  minHeight: 132,
-  padding: 14,
-  borderRadius: 18,
+  gap: 12,
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background:
+    'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 12%, transparent), rgba(8,16,34,0.86) 48%, rgba(7,17,33,0.92))',
+  padding: 16,
+  minWidth: 0,
+  overflow: 'hidden',
+}
+
+const leagueCommandTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const leagueCommandBadgeStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 28,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const leagueCommandTopLinkStyle: CSSProperties = {
+  ...secondaryIntroButton,
+  minHeight: 34,
+  padding: '0 12px',
+  fontSize: 12,
+}
+
+const leagueCommandTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.45rem, 2.2vw, 2rem)',
+  lineHeight: 1.05,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leagueCommandTextStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  fontWeight: 740,
+  overflowWrap: 'anywhere',
+}
+
+const leagueCommandSupportLineStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leagueCommandMetricGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const leagueCommandActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const leagueCommandStepListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const leagueCommandStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '32px minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'start',
+  minWidth: 0,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(255,255,255,0.04)',
+  padding: 12,
+}
+
+const leagueCommandStepNumberStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 32,
+  height: 32,
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+}
+
+const leagueCommandStepCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const leagueCommandStepTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const leagueCommandStepEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+}
+
+const leagueCommandStepLinkStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  textDecoration: 'none',
+  borderBottom: '1px solid color-mix(in srgb, var(--brand-green) 46%, transparent)',
+}
+
+const leagueCommandStepTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.15,
+  fontWeight: 950,
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leagueCommandStepBodyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 720,
+  overflowWrap: 'anywhere',
+}
+
+const leagueCommandStepMetricsStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 6,
+  minWidth: 0,
+}
+
+const leagueCommandStepMetricPillStyle: CSSProperties = {
+  display: 'inline-flex',
+  minHeight: 24,
+  alignItems: 'center',
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(7,17,33,0.62)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 780,
+  overflowWrap: 'anywhere',
+}
+
+const introMiniCardStyle = (compact: boolean): CSSProperties => ({
+  display: 'grid',
+  gap: compact ? 5 : 7,
+  alignContent: 'start',
+  minHeight: compact ? 104 : 132,
+  padding: compact ? 11 : 14,
+  borderRadius: compact ? 14 : 18,
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(255,255,255,0.045)',
   color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.55,
+  fontSize: compact ? 12 : 13,
+  lineHeight: compact ? 1.42 : 1.55,
   fontWeight: 720,
   minWidth: 0,
   overflowWrap: 'anywhere',
-}
+})
 
 const summaryGrid: CSSProperties = {
   display: 'grid',
@@ -1209,7 +1734,7 @@ const clearFilterButton: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: '38px',
+  minHeight: '44px',
   padding: '0 14px',
   borderRadius: '999px',
   border: '1px solid rgba(125, 211, 252, 0.18)',
@@ -1225,9 +1750,16 @@ const clearFilterButton: CSSProperties = {
   textAlign: 'center',
 }
 
+const compactLeagueFilterButtonStyle: CSSProperties = {
+  minHeight: '44px',
+  padding: '0 12px',
+  borderRadius: '12px',
+  fontSize: '12px',
+}
+
 const filterActionRow: CSSProperties = {
   display: 'flex',
-  gap: 10,
+  gap: 8,
   flexWrap: 'wrap',
   justifyContent: 'flex-end',
   minWidth: 0,
@@ -1246,6 +1778,18 @@ const selectStyle: CSSProperties = {
   outline: '2px solid transparent',
   outlineOffset: 2,
   colorScheme: 'dark',
+}
+
+const compactLeagueDirectoryControlStyle: CSSProperties = {
+  height: '44px',
+  borderRadius: '10px',
+  padding: '0 10px',
+  fontSize: '13px',
+}
+
+const compactLeagueSearchControlStyle: CSSProperties = {
+  ...compactLeagueDirectoryControlStyle,
+  padding: '0 10px 0 38px',
 }
 
 const directoryControlFocusStyle: CSSProperties = {
@@ -1395,6 +1939,42 @@ const summaryBadgeRow: CSSProperties = {
   minWidth: 0,
 }
 
+const leagueBoardLimitStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  marginTop: 14,
+  padding: '12px 14px',
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leagueBoardLimitTextStyle: CSSProperties = {
+  flex: '1 1 180px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 760,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leagueBoardLimitButtonStyle: CSSProperties = {
+  ...secondaryIntroButton,
+  minHeight: 44,
+  padding: '0 13px',
+  fontSize: 12,
+  maxWidth: '100%',
+  minWidth: 0,
+  whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
 const emptyActionRow: CSSProperties = {
   display: 'flex',
   justifyContent: 'center',
@@ -1425,8 +2005,8 @@ const leagueCard: CSSProperties = {
 const cardGlow: CSSProperties = {
   position: 'absolute',
   top: '-70px',
-  right: '-50px',
-  width: 'min(100%, 180px)',
+  right: 0,
+  width: 'min(42vw, 180px)',
   height: '180px',
   borderRadius: '999px',
   background: 'radial-gradient(circle, rgba(78,178,255,0.24), rgba(78,178,255,0) 70%)',
@@ -1460,12 +2040,12 @@ const leagueMetaRow: CSSProperties = {
 const leagueMetaPillBase: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
-  minHeight: '28px',
-  padding: '0 10px',
+  minHeight: '24px',
+  padding: '0 8px',
   borderRadius: '999px',
-  fontSize: '12px',
+  fontSize: '11px',
   fontWeight: 800,
-  letterSpacing: '0.06em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
   maxWidth: '100%',
   minWidth: 0,
@@ -1493,7 +2073,7 @@ const leagueMetaSlatePill: CSSProperties = {
 
 const leagueTitle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: '28px',
+  fontSize: '24px',
   lineHeight: 1.1,
   fontWeight: 900,
   letterSpacing: 0,
@@ -1501,10 +2081,10 @@ const leagueTitle: CSSProperties = {
 }
 
 const leagueFlight: CSSProperties = {
-  marginTop: '8px',
+  marginTop: '6px',
   color: 'var(--brand-blue-2)',
-  fontSize: '15px',
-  lineHeight: 1.5,
+  fontSize: '14px',
+  lineHeight: 1.35,
   fontWeight: 800,
   overflowWrap: 'anywhere',
 }
@@ -1530,7 +2110,7 @@ const primaryButton: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   minHeight: '44px',
-  padding: '0 16px',
+  padding: '0 14px',
   borderRadius: '999px',
   background: 'linear-gradient(135deg, rgba(155,225,29,0.32), rgba(34,211,238,0.16))',
   color: 'var(--foreground-strong)',
@@ -1553,9 +2133,64 @@ const leagueDetailGrid: CSSProperties = {
   minWidth: 0,
 }
 
+const leagueSeasonPulseStyle: CSSProperties = {
+  position: 'relative',
+  marginBottom: 12,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(56,189,248,0.07))',
+  minWidth: 0,
+}
+
+const leagueSeasonPulseHeadingStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: 8,
+  marginBottom: 10,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  flexWrap: 'wrap',
+}
+
+const leaguePulseGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const leaguePulseMetricStyle: CSSProperties = {
+  minWidth: 0,
+}
+
+const leaguePulseMetricLabelStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 800,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const leaguePulseMetricValueStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 3,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.15,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
 const detailCard: CSSProperties = {
-  borderRadius: '18px',
-  padding: '14px',
+  borderRadius: '12px',
+  padding: '10px',
   border: '1px solid rgba(125, 211, 252, 0.16)',
   background: 'rgba(15, 23, 42, 0.62)',
   minWidth: 0,
@@ -1572,23 +2207,38 @@ const detailLabel: CSSProperties = {
 
 const detailValue: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: '16px',
-  lineHeight: 1.45,
+  fontSize: '14px',
+  lineHeight: 1.35,
   fontWeight: 800,
   wordBreak: 'break-word',
 }
 
-const leagueBottom: CSSProperties = {
-  marginTop: '16px',
-  paddingTop: '16px',
-  borderTop: '1px solid rgba(125, 211, 252, 0.14)',
+const leagueCardDetailsStyle: CSSProperties = {
+  marginTop: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
 }
 
-const leagueBottomMeta: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '14px',
-  lineHeight: 1.6,
-  fontWeight: 600,
+const leagueCardDetailsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 10,
+  padding: '8px 10px',
+  borderRadius: 8,
+  border: '1px solid rgba(125, 211, 252, 0.14)',
+  background: 'rgba(15, 23, 42, 0.54)',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  fontSize: 12,
+  fontWeight: 900,
+  listStyle: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const leagueCardDetailsContentStyle: CSSProperties = {
+  paddingTop: 10,
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 

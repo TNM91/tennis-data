@@ -1,22 +1,31 @@
 import type { MetadataRoute } from 'next'
 import { PRODUCT_LANGUAGE_SYSTEM, PRODUCT_MOTTO } from '@/lib/product-story'
 
-const PWA_ICON = '/tenaceiq-icon-192.png'
+const PWA_ICON_VERSION = '20260831-final-svg-v1'
+const PWA_ICON = `/brand/icons/pwa-192.png?v=${PWA_ICON_VERSION}`
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'TenAceIQ',
     short_name: 'TenAceIQ',
+    id: '/',
     description:
       `${PRODUCT_MOTTO} ${PRODUCT_LANGUAGE_SYSTEM.coreLine}`,
     start_url: '/',
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#08111d',
-    theme_color: '#081a31',
+    background_color: '#06172F',
+    theme_color: '#06172F',
     categories: ['sports', 'productivity', 'utilities'],
     shortcuts: [
+      {
+        name: 'Open Team Room',
+        short_name: 'Team Room',
+        description: 'Open your default team conversation and match-week updates.',
+        url: '/team-room',
+        icons: [{ src: PWA_ICON, sizes: '192x192', type: 'image/png' }],
+      },
       {
         name: 'Start Level Up drill',
         short_name: 'Level Up',
@@ -62,39 +71,28 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     icons: [
       {
-        src: '/favicon.ico',
-        sizes: 'any',
-        type: 'image/x-icon',
-      },
-      {
-        src: '/tiq/logo/tiq-app-icon.png',
-        sizes: '512x512',
-        type: 'image/png',
-        purpose: 'any',
-      },
-      {
         src: PWA_ICON,
         sizes: '192x192',
         type: 'image/png',
         purpose: 'any',
       },
       {
-        src: '/tenaceiq-icon-512.png',
-        sizes: '512x512',
-        type: 'image/png',
-        purpose: 'any',
-      },
-      {
-        src: '/tenaceiq-icon-512.png',
+        src: `/brand/icons/pwa-maskable-512.png?v=${PWA_ICON_VERSION}`,
         sizes: '512x512',
         type: 'image/png',
         purpose: 'maskable',
       },
+      {
+        src: `/brand/icons/pwa-512.png?v=${PWA_ICON_VERSION}`,
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any',
+      },
     ],
     screenshots: [
       {
-        src: '/tenaceiq/logos/tenaceiq-brand-preview.png',
-        sizes: '1600x1000',
+        src: '/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1',
+        sizes: '1200x630',
         type: 'image/png',
       },
     ],

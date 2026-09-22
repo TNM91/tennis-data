@@ -1,5 +1,8 @@
 import type { TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import { COACH_TACTICS_BOARD_HREF } from './tactics-hrefs'
 import { getPlayerDevelopmentIdentity } from './player-development'
+
+export { COACH_TACTICS_BOARD_HREF } from './tactics-hrefs'
 
 export type CoachWorkspaceCommand = {
   title: string
@@ -51,7 +54,7 @@ export const COACH_WORKSPACE_COMMANDS: CoachWorkspaceCommand[] = [
   {
     title: 'Map the drill',
     detail: 'Create reusable court boards, paths, zones, and coaching cues in TIQ Tactical Studio.',
-    href: '/tactics',
+    href: COACH_TACTICS_BOARD_HREF,
     cta: 'Open tactics',
     icon: 'scenarioBuilder',
   },
@@ -61,6 +64,13 @@ export const COACH_WORKSPACE_COMMANDS: CoachWorkspaceCommand[] = [
     href: '/messages?compose=direct&subject=Coach%20assignment%20follow-up&body=Here%27s%20the%20assignment%20from%20today%27s%20lesson%3A%20',
     cta: 'Draft assignment',
     icon: 'messagingCenter',
+  },
+  {
+    title: 'Review court video',
+    detail: 'Open serve, stroke, and footwork clips with timestamped notes, lines, arrows, and circles.',
+    href: '/video-review?mode=coach',
+    cta: 'Open video queue',
+    icon: 'reports',
   },
   {
     title: 'Schedule next session',

@@ -1,12 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { useEffect, useState, type CSSProperties, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { loadTiqTournamentRecord, type TiqTournamentRecord } from '@/lib/tiq-tournament-registry'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import CompeteResumeTracker from '@/app/compete/_components/compete-resume-tracker'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +21,26 @@ const tournamentAlertPlayerIdActions = [
   { href: TOURNAMENT_ALERT_PLAYER_DEVELOPMENT_HREF, label: 'Read Player ID' },
   { href: '/matchup', label: 'Prep matchup' },
 ] as const
+const alertCommandItems = [
+  {
+    label: 'Court alerts',
+    title: 'Know where to go next.',
+    body: 'Court changes and schedule updates point you back to the tournament page.',
+    value: 'Schedule',
+  },
+  {
+    label: 'Result updates',
+    title: 'See what changed after play.',
+    body: 'Score, winner, and recap messages help you follow the event without refreshing the draw.',
+    value: 'Results',
+  },
+  {
+    label: 'Control',
+    title: 'Keep the choice with you.',
+    body: 'Turn tournament texts on or off for this event only.',
+    value: 'This event',
+  },
+] as const
 
 export default function TournamentPreferencesPage() {
   return (
@@ -30,32 +52,31 @@ export default function TournamentPreferencesPage() {
 
 function TournamentPreferencesInner() {
   const params = useParams<{ id: string }>()
+  const searchParams = useSearchParams()
   const tournamentId = decodeURIComponent(params?.id || '')
+  const preferenceToken = searchParams.get('token')?.trim() || ''
+  const { isMobile } = useViewportBreakpoints()
   const [record, setRecord] = useState<TiqTournamentRecord | null>(null)
   const [loading, setLoading] = useState(true)
-  const [playerName, setPlayerName] = useState('')
-  const [phone, setPhone] = useState('')
   const [smsOptIn, setSmsOptIn] = useState(false)
   const [saving, setSaving] = useState(false)
   const [notice, setNotice] = useState('')
-  const [focusedField, setFocusedField] = useState<string | null>(null)
   const [preferenceReceipt, setPreferenceReceipt] = useState<{
     status: 'on' | 'off'
     phone: string
     savedAt: string
   } | null>(null)
-  const phoneReady = phone.trim().length >= 7
-  const nameReady = playerName.trim().length > 1
+  const tokenReady = preferenceToken.length >= 32
   const consentSteps = [
     {
-      label: 'Name',
-      value: nameReady ? 'Matched' : 'Needed',
-      ready: nameReady,
+      label: 'Private link',
+      value: tokenReady ? 'Verified' : 'Needed',
+      ready: tokenReady,
     },
     {
-      label: 'Phone',
-      value: phoneReady ? 'Ready' : 'Needed',
-      ready: phoneReady,
+      label: 'Event',
+      value: record ? 'Ready' : 'Loading',
+      ready: Boolean(record),
     },
     {
       label: 'Choice',
@@ -84,6 +105,10 @@ function TournamentPreferencesInner() {
 
   async function submitPreference(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (!tokenReady) {
+      setNotice('Use the private alert link provided after tournament entry.')
+      return
+    }
     setSaving(true)
     setNotice('')
 
@@ -93,17 +118,16 @@ function TournamentPreferencesInner() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tournamentId,
-          playerName,
-          phone,
+          token: preferenceToken,
           smsOptIn,
         }),
       })
-      const body = (await response.json().catch(() => null)) as { ok?: boolean; message?: string } | null
+      const body = (await response.json().catch(() => null)) as { ok?: boolean; message?: string; phoneLastFour?: string } | null
       if (!response.ok || !body?.ok) throw new Error(body?.message || 'Preference could not be saved.')
       setNotice(body.message || 'Preference saved.')
       setPreferenceReceipt({
         status: smsOptIn ? 'on' : 'off',
-        phone,
+        phone: body.phoneLastFour ? `•••• ${body.phoneLastFour}` : 'Phone on entry',
         savedAt: new Date().toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
       })
     } catch (error) {
@@ -114,98 +138,63 @@ function TournamentPreferencesInner() {
   }
 
   return (
-    <main style={pageStyle}>
-      <section style={panelStyle}>
+    <main style={{ ...pageStyle, padding: isMobile ? '12px' : pageStyle.padding }}>
+      <CompeteResumeTracker
+        surface="tournament-alerts"
+        label="tournament alerts"
+        href={`/tournaments/${encodeURIComponent(tournamentId)}/preferences`}
+        tournamentId={tournamentId}
+        tournamentName={record?.name}
+        enabled={!loading && Boolean(record)}
+      />
+      <section
+        style={{
+          ...panelStyle,
+          gap: isMobile ? 12 : panelStyle.gap,
+          padding: isMobile ? 14 : panelStyle.padding,
+          borderRadius: isMobile ? 18 : panelStyle.borderRadius,
+        }}
+      >
         <span aria-hidden="true" style={watermarkStyle} />
         <div style={headerStyle}>
           <TiqFeatureIcon name="messagingCenter" size="lg" variant="surface" />
           <div>
             <div style={eyebrowStyle}>Tournament Alerts</div>
-            <h1 style={titleStyle}>{loading ? 'Loading preferences.' : record?.name || 'Manage text alerts.'}</h1>
-            <p style={textStyle}>Use the same name and phone number from your tournament entry. Changes are saved for this tournament only.</p>
+            <h1 style={{ ...titleStyle, ...(isMobile ? compactTitleStyle : null) }}>{loading ? 'Loading preferences.' : record?.name || 'Manage text alerts.'}</h1>
+            <p style={{ ...textStyle, display: isMobile ? 'none' : undefined }}>Use the private link created with your tournament entry. Changes apply to this event only.</p>
           </div>
         </div>
 
-        <div style={consentGridStyle} aria-label="Text alert consent checklist">
+        <div
+          style={{
+            ...consentGridStyle,
+            gridTemplateColumns: isMobile ? 'repeat(3, minmax(0, 1fr))' : consentGridStyle.gridTemplateColumns,
+            gap: isMobile ? 6 : consentGridStyle.gap,
+          }}
+          aria-label="Text alert consent checklist"
+        >
           {consentSteps.map((step) => (
-            <div key={step.label} style={consentStepStyle}>
+            <div key={step.label} style={{ ...consentStepStyle, ...(isMobile ? compactConsentStepStyle : null) }}>
               <span style={step.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} />
               <strong>{step.label}</strong>
-              <em>{step.value}</em>
+              <em style={{ display: isMobile ? 'none' : undefined }}>{step.value}</em>
             </div>
           ))}
         </div>
 
-        <section style={alertPlayerIdStyle} aria-label="Tournament alerts Player ID follow-through">
-          <div style={alertPlayerIdCopyStyle}>
-            <span style={alertPlayerIdEyebrowStyle}>Alerts to Player ID</span>
-            <strong style={alertPlayerIdTitleStyle}>Texts tell you what changed. Player ID tells you what to train next.</strong>
-            <span style={alertPlayerIdTextStyle}>
-              {TOURNAMENT_ALERT_PLAYER_IDENTITY_READ.levelUpNudge} After court alerts or results land, keep one pressure cue ready.
-            </span>
-          </div>
-          <div style={alertPlayerIdSignalGridStyle} aria-label="Tournament alerts Player ID starter read">
-            <span style={alertPlayerIdSignalStyle}>
-              <em>Read</em>
-              <strong>{TOURNAMENT_ALERT_PLAYER_IDENTITY_READ.matchTrigger}</strong>
-            </span>
-            <span style={alertPlayerIdSignalStyle}>
-              <em>Proof</em>
-              <strong>{TOURNAMENT_ALERT_PLAYER_IDENTITY_READ.proofTarget}</strong>
-            </span>
-          </div>
-          <div style={alertPlayerIdActionRowStyle}>
-            {tournamentAlertPlayerIdActions.map((action, index) => (
-              <Link
-                key={action.href}
-                href={action.href}
-                style={index === 0 ? { ...alertPlayerIdActionStyle, ...alertPlayerIdPrimaryActionStyle } : alertPlayerIdActionStyle}
-              >
-                {action.label}
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <form style={formStyle} onSubmit={submitPreference}>
-          <label style={fieldStyle}>
-            Name
-            <input
-              value={playerName}
-              onChange={(event) => setPlayerName(event.target.value)}
-              onFocus={() => setFocusedField('name')}
-              onBlur={() => setFocusedField(null)}
-              style={{
-                ...inputStyle,
-                ...(focusedField === 'name' ? inputFocusStyle : null),
-              }}
-            />
-          </label>
-          <label style={fieldStyle}>
-            Phone
-            <input
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              onFocus={() => setFocusedField('phone')}
-              onBlur={() => setFocusedField(null)}
-              placeholder="(555) 555-5555"
-              style={{
-                ...inputStyle,
-                ...(focusedField === 'phone' ? inputFocusStyle : null),
-              }}
-            />
-          </label>
-          <label style={toggleStyle}>
+        <form style={{ ...formStyle, gap: isMobile ? 9 : formStyle.gap }} onSubmit={submitPreference}>
+          {!tokenReady ? <div style={noticeStyle}>Open the private alert link supplied after you enter the tournament.</div> : null}
+          <label style={{ ...toggleStyle, ...(isMobile ? compactToggleStyle : null) }}>
             <input type="checkbox" checked={smsOptIn} onChange={(event) => setSmsOptIn(event.target.checked)} />
             <span style={toggleCopyStyle}>
               <strong>{smsOptIn ? 'Alerts on' : 'Alerts off'}</strong>
-              <small>{smsOptIn ? 'Court alerts, rules, schedule changes, and recaps may arrive by text.' : 'Save this way to stop tournament texts.'}</small>
+              <small style={{ display: isMobile ? 'none' : undefined }}>{smsOptIn ? 'Court alerts, rules, schedule changes, and recaps may arrive by text.' : 'Save this way to stop tournament texts.'}</small>
             </span>
           </label>
-          <div style={complianceNoteStyle}>
+          <div style={{ ...complianceNoteStyle, display: isMobile ? 'none' : undefined }}>
             Every text includes a TenAceIQ link and opt-out language. Reply STOP anytime.
           </div>
-          <button type="submit" disabled={saving} style={{ ...buttonStyle, ...(saving ? disabledButtonStyle : null) }}>
+          <button type="submit" disabled={saving || !tokenReady} style={{ ...buttonStyle, ...(isMobile ? compactButtonStyle : null), ...(saving || !tokenReady ? disabledButtonStyle : null) }}>
             {saving ? 'Saving...' : smsOptIn ? 'Turn alerts on' : 'Turn alerts off'}
           </button>
           {notice ? <div style={noticeStyle}>{notice}</div> : null}
@@ -227,6 +216,75 @@ function TournamentPreferencesInner() {
             </div>
           </div>
         ) : null}
+
+        <details className="tournamentAlertDetailsSection" style={alertDetailsSectionStyle}>
+          <summary style={{ ...alertDetailsSummaryStyle, ...(isMobile ? compactAlertDetailsSummaryStyle : null) }}>
+            <span style={alertDetailsSummaryCopyStyle}>
+              <span style={eyebrowStyle}>Event-day alert settings</span>
+              <strong style={isMobile ? compactAlertDetailsTitleStyle : alertCommandTitleStyle}>{isMobile ? 'Text alerts for match day.' : 'Choose the texts that help you get to the next match.'}</strong>
+            </span>
+            <span style={{ ...alertDetailsCueStyle, display: isMobile ? 'none' : undefined }}>Show alert types</span>
+          </summary>
+          <section style={alertCommandBoardStyle} aria-label="Event-day alert command board">
+            <div style={alertCommandIntroStyle}>
+              <div style={eyebrowStyle}>Event-day alert settings</div>
+              <strong style={alertCommandTitleStyle}>Choose the texts that help you get to the next match.</strong>
+              <span style={alertCommandTextStyle}>
+                Tournament alerts are practical: court moves, schedule changes, result updates, and a clear way to stop messages.
+              </span>
+            </div>
+            <div style={alertCommandGridStyle}>
+              {alertCommandItems.map((item) => (
+                <article key={item.label} style={alertCommandCardStyle}>
+                  <span style={alertCommandLabelStyle}>{item.label}</span>
+                  <strong>{item.title}</strong>
+                  <span>{item.body}</span>
+                  <em>{item.value}</em>
+                </article>
+              ))}
+            </div>
+          </section>
+        </details>
+
+        <details className="tournamentAlertDetailsSection" style={alertDetailsSectionStyle}>
+          <summary style={{ ...alertDetailsSummaryStyle, ...(isMobile ? compactAlertDetailsSummaryStyle : null) }}>
+            <span style={alertDetailsSummaryCopyStyle}>
+              <span style={alertPlayerIdEyebrowStyle}>Alerts to Player ID</span>
+              <strong style={isMobile ? compactAlertDetailsTitleStyle : alertPlayerIdTitleStyle}>{isMobile ? 'Player ID after alerts.' : 'Texts tell you what changed. Player ID tells you what to train next.'}</strong>
+            </span>
+            <span style={{ ...alertDetailsCueStyle, display: isMobile ? 'none' : undefined }}>Show Player ID prep</span>
+          </summary>
+          <section style={alertPlayerIdStyle} aria-label="Tournament alerts Player ID follow-through">
+            <div style={alertPlayerIdCopyStyle}>
+              <span style={alertPlayerIdEyebrowStyle}>Alerts to Player ID</span>
+              <strong style={alertPlayerIdTitleStyle}>Texts tell you what changed. Player ID tells you what to train next.</strong>
+              <span style={alertPlayerIdTextStyle}>
+                {TOURNAMENT_ALERT_PLAYER_IDENTITY_READ.levelUpNudge} After court alerts or results land, keep one pressure cue ready.
+              </span>
+            </div>
+            <div style={alertPlayerIdSignalGridStyle} aria-label="Tournament alerts Player ID starter read">
+              <span style={alertPlayerIdSignalStyle}>
+                <em>Read</em>
+                <strong>{TOURNAMENT_ALERT_PLAYER_IDENTITY_READ.matchTrigger}</strong>
+              </span>
+              <span style={alertPlayerIdSignalStyle}>
+                <em>Proof</em>
+                <strong>{TOURNAMENT_ALERT_PLAYER_IDENTITY_READ.proofTarget}</strong>
+              </span>
+            </div>
+            <div style={alertPlayerIdActionRowStyle}>
+              {tournamentAlertPlayerIdActions.map((action, index) => (
+                <Link
+                  key={action.href}
+                  href={action.href}
+                  style={index === 0 ? { ...alertPlayerIdActionStyle, ...alertPlayerIdPrimaryActionStyle } : alertPlayerIdActionStyle}
+                >
+                  {action.label}
+                </Link>
+              ))}
+            </div>
+          </section>
+        </details>
 
         <div style={footerActionStyle}>
           <Link href={`/tournaments/${encodeURIComponent(tournamentId)}`} style={secondaryButtonStyle}>
@@ -261,11 +319,11 @@ const panelStyle: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: -80,
+  right: 0,
   bottom: -120,
-  width: 320,
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  width: 'min(100%, 320px)',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }
@@ -293,6 +351,12 @@ const titleStyle: CSSProperties = {
   letterSpacing: 0,
 }
 
+const compactTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  fontSize: '30px',
+  lineHeight: 1,
+}
+
 const textStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
@@ -305,6 +369,133 @@ const formStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
   gap: 12,
+}
+
+const alertDetailsSectionStyle: CSSProperties = {
+  position: 'relative',
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const alertDetailsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  padding: '12px 14px',
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(15,23,42,0.52)',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  listStyle: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const compactAlertDetailsSummaryStyle: CSSProperties = {
+  flexWrap: 'nowrap',
+  gap: 8,
+  padding: '9px 10px',
+  borderRadius: 10,
+}
+
+const alertDetailsSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const alertDetailsCueStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const compactAlertDetailsTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.15,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const alertCommandBoardStyle: CSSProperties = {
+  position: 'relative',
+  display: 'grid',
+  gridTemplateColumns: '1fr',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(116,190,255,0.055))',
+  overflow: 'hidden',
+}
+
+const alertCommandIntroStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  alignContent: 'start',
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(7,17,33,0.52)',
+  overflowWrap: 'anywhere',
+}
+
+const alertCommandTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.18,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const alertCommandTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 820,
+  overflowWrap: 'anywhere',
+}
+
+const alertCommandGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 128px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const alertCommandCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+  minHeight: 112,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(15,23,42,0.46)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.38,
+  fontWeight: 820,
+  overflowWrap: 'anywhere',
+}
+
+const alertCommandLabelStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  letterSpacing: 0,
+  overflowWrap: 'anywhere',
 }
 
 const consentGridStyle: CSSProperties = {
@@ -329,6 +520,14 @@ const consentStepStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 900,
   overflowWrap: 'anywhere',
+}
+
+const compactConsentStepStyle: CSSProperties = {
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 6,
+  padding: 8,
+  borderRadius: 10,
+  fontSize: 11,
 }
 
 const alertPlayerIdStyle: CSSProperties = {
@@ -447,37 +646,6 @@ const readinessDotWaitingStyle: CSSProperties = {
   boxShadow: '0 0 0 4px rgba(116,190,255,0.08)',
 }
 
-const fieldStyle: CSSProperties = {
-  display: 'grid',
-  gap: 7,
-  color: 'var(--accent-blue)',
-  fontSize: 12,
-  fontWeight: 950,
-  textTransform: 'uppercase',
-}
-
-const inputStyle: CSSProperties = {
-  width: '100%',
-  minWidth: 0,
-  minHeight: 48,
-  padding: '0 14px',
-  borderRadius: 14,
-  border: '1px solid rgba(116,190,255,0.18)',
-  background: 'rgba(15,23,42,0.72)',
-  color: 'var(--foreground-strong)',
-  fontSize: 15,
-  fontWeight: 850,
-  outline: '2px solid transparent',
-  outlineOffset: 2,
-  boxSizing: 'border-box',
-}
-
-const inputFocusStyle: CSSProperties = {
-  borderColor: 'rgba(155,225,29,0.45)',
-  outline: '2px solid rgba(155,225,29,0.42)',
-  boxShadow: '0 0 0 5px rgba(155,225,29,0.12)',
-}
-
 const toggleStyle: CSSProperties = {
   display: 'flex',
   gap: 10,
@@ -490,6 +658,12 @@ const toggleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 13,
   fontWeight: 850,
+}
+
+const compactToggleStyle: CSSProperties = {
+  gap: 8,
+  padding: 9,
+  borderRadius: 10,
 }
 
 const toggleCopyStyle: CSSProperties = {
@@ -541,6 +715,12 @@ const buttonStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 950,
   cursor: 'pointer',
+}
+
+const compactButtonStyle: CSSProperties = {
+  minHeight: 40,
+  padding: '0 14px',
+  borderRadius: 12,
 }
 
 const disabledButtonStyle: CSSProperties = {

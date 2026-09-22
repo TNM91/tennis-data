@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
+  getHeaderResumeShortcutLabel,
   getSiteHeaderCompactBreakpoint,
   shouldUseCompactSiteHeader,
 } from '../site-header-responsive'
@@ -9,25 +10,26 @@ import {
 const siteHeaderSource = readFileSync(join(process.cwd(), 'app/components/site-header.tsx'), 'utf8')
 
 describe('site header responsive rules', () => {
-  it('keeps breakpoint constants documented for future wide-header tuning', () => {
-    expect(getSiteHeaderCompactBreakpoint('admin', true)).toBe(1680)
-    expect(getSiteHeaderCompactBreakpoint('member', true)).toBe(1480)
-    expect(getSiteHeaderCompactBreakpoint('public', false)).toBe(1200)
+  it('keeps the compact breakpoint shared across auth states', () => {
+    expect(getSiteHeaderCompactBreakpoint('admin', true)).toBe(10000)
+    expect(getSiteHeaderCompactBreakpoint('member', true)).toBe(10000)
+    expect(getSiteHeaderCompactBreakpoint('public', false)).toBe(10000)
   })
 
-  it('uses the full action nav when the viewport can support it', () => {
-    expect(shouldUseCompactSiteHeader({ role: 'admin', authenticated: true, screenWidth: 1720 })).toBe(false)
-    expect(shouldUseCompactSiteHeader({ role: 'captain', authenticated: true, screenWidth: 1440 })).toBe(true)
-    expect(shouldUseCompactSiteHeader({ role: 'captain', authenticated: true, screenWidth: 1520 })).toBe(false)
+  it('keeps the top header compact for guests and members on real device widths', () => {
+    expect(shouldUseCompactSiteHeader({ role: 'admin', authenticated: true, screenWidth: 1199 })).toBe(true)
+    expect(shouldUseCompactSiteHeader({ role: 'captain', authenticated: true, screenWidth: 1280 })).toBe(true)
+    expect(shouldUseCompactSiteHeader({ role: 'member', authenticated: true, screenWidth: 1920 })).toBe(true)
     expect(shouldUseCompactSiteHeader({ role: 'public', authenticated: false, screenWidth: 1100 })).toBe(true)
-    expect(shouldUseCompactSiteHeader({ role: 'public', authenticated: false, screenWidth: 1280 })).toBe(false)
+    expect(shouldUseCompactSiteHeader({ role: 'public', authenticated: false, screenWidth: 1920 })).toBe(true)
   })
 
-  it('does not show public account CTAs while auth is still resolving', () => {
+  it('keeps signed-in menu navigation available while access refreshes in the background', () => {
     expect(siteHeaderSource).toContain('const authPending = !authResolved')
-    expect(siteHeaderSource).toContain("authPending ? (")
+    expect(siteHeaderSource).toContain("authPending ? 'Checking access'")
     expect(siteHeaderSource).toContain('Checking access')
-    expect(siteHeaderSource).toContain('{authPending ? null : authenticated ? (')
+    expect(siteHeaderSource).toContain('{authenticated ? (')
+    expect(siteHeaderSource).not.toContain('{authPending ? null : authenticated ? (')
   })
 
   it('labels League plan access as League instead of Coordinator', () => {
@@ -37,20 +39,18 @@ describe('site header responsive rules', () => {
   })
 
   it('adds one role-aware workspace shortcut for signed-in users', () => {
-    expect(siteHeaderSource).toContain('function getHeaderWorkspaceShortcut')
-    expect(siteHeaderSource).toContain("if (access.canUseLeagueTools) return { href: '/league-coordinator', label: 'League Office' }")
-    expect(siteHeaderSource).toContain("if (access.canUseCaptainWorkflow) return { href: '/captain', label: 'Team Hub' }")
-    expect(siteHeaderSource).toContain("if (access.canUseCoachWorkflow) return { href: '/coach', label: 'Coach Hub' }")
-    expect(siteHeaderSource).toContain("if (access.canUseAdvancedPlayerInsights) return { href: '/mylab', label: 'My Lab' }")
-    expect(siteHeaderSource).toContain("return { href: '/explore', label: 'Find tennis' }")
+    expect(siteHeaderSource).toContain("import { getHeaderWorkspaceShortcut } from '@/lib/site-header-workspace-shortcut'")
     expect(siteHeaderSource).toContain('const workspaceShortcut = getHeaderWorkspaceShortcut(access, authenticated)')
-    expect(siteHeaderSource).toContain('const workspaceShortcutStyle')
+    expect(siteHeaderSource).toContain('const desktopMenuHighlightLinkStyle')
     expect(siteHeaderSource).toContain('const mobileWorkspaceItemStyle')
   })
 
   it('keeps shared header controls readable across themes', () => {
     expect(siteHeaderSource).toContain('const primaryCtaStyle')
     expect(siteHeaderSource).toContain('const utilityButtonStyle')
+    expect(siteHeaderSource).toContain('const desktopNavRailStyle')
+    expect(siteHeaderSource).toContain('const desktopMenuButtonStyle')
+    expect(siteHeaderSource).toContain('const desktopMenuPanelStyle')
     expect(siteHeaderSource).toContain('const headerSearchPanelStyle')
     expect(siteHeaderSource).toContain('const mobileSearchWrapStyle')
     expect(siteHeaderSource).toContain("accessPending ? 'Account' : authenticated ? roleLabel || 'Account' : 'Menu'")
@@ -63,11 +63,64 @@ describe('site header responsive rules', () => {
   it('keeps the compact phone header short enough for the sticky portal', () => {
     expect(siteHeaderSource).toContain("padding: isMobile ? '5px 2px'")
     expect(siteHeaderSource).toContain("padding: isMobile ? '5px 6px'")
-    expect(siteHeaderSource).toContain("width: '36px'")
-    expect(siteHeaderSource).toContain("height: '36px'")
+    expect(siteHeaderSource).toContain("width: '44px'")
+    expect(siteHeaderSource).toContain("height: '44px'")
+    expect(siteHeaderSource).toContain('const railHeaderMenuButtonStyle')
+    expect(siteHeaderSource).toContain('style={useRailHeader ? railHeaderMenuButtonStyle : menuButtonStyle}')
+    expect(siteHeaderSource).toContain('{useRailHeader ? <span>Menu</span> : null}')
+    expect(siteHeaderSource).toContain('{authenticated && resumePrimary && !isMobile ? (')
+    expect(siteHeaderSource).toContain('data-site-resume-shortcut="true"')
+    expect(siteHeaderSource).toContain("maxWidth: isMobile ? (screenWidth < 380 ? 70 : 110)")
+    expect(siteHeaderSource).toContain("resumePrimary?.status === 'unfinished' ? 'Needs attention'")
     expect(readFileSync(join(process.cwd(), 'app/components/brand-wordmark.tsx'), 'utf8')).toContain(
       'top ? (siteHeaderCompact ? 42 : 64)',
     )
+  })
+
+  it('keeps phone resume copy compact without hiding the full task from wider screens', () => {
+    expect(getHeaderResumeShortcutLabel({
+      status: 'unfinished',
+      actionLabel: 'Finish lineup',
+      lane: 'Captain',
+      isMobile: true,
+      screenWidth: 360,
+      compact: true,
+    })).toBe('Next')
+    expect(getHeaderResumeShortcutLabel({
+      status: 'unfinished',
+      actionLabel: 'Finish lineup',
+      lane: 'Captain',
+      isMobile: true,
+      screenWidth: 390,
+      compact: true,
+    })).toBe('Finish lineup')
+    expect(getHeaderResumeShortcutLabel({
+      status: 'recent',
+      actionLabel: 'Continue Captain',
+      lane: 'Captain',
+      isMobile: true,
+      screenWidth: 390,
+      compact: true,
+    })).toBe('Continue')
+    expect(getHeaderResumeShortcutLabel({
+      status: 'recent',
+      actionLabel: 'Open match day',
+      lane: 'Captain',
+      handoff: true,
+      isMobile: true,
+      screenWidth: 390,
+      compact: true,
+    })).toBe('Open match day')
+  })
+
+  it('locks the header in place when the desktop/tablet rail is active', () => {
+    expect(siteHeaderSource).toContain("data-site-header={useRailHeader ? 'rail-fixed' : 'flow'}")
+    expect(siteHeaderSource).toContain("position: useRailHeader ? 'fixed' : 'sticky'")
+    expect(siteHeaderSource).toContain("left: useRailHeader ? 0 : undefined")
+    expect(siteHeaderSource).toContain("right: useRailHeader ? 0 : undefined")
+    expect(siteHeaderSource).toContain("width: useRailHeader ? '100%' : undefined")
+    expect(siteHeaderSource).toContain('const railHeaderSpacerStyle')
+    expect(siteHeaderSource).toContain("height: 'var(--header-height)'")
   })
 
   it('puts universal search in the header and compact menu', () => {
@@ -78,10 +131,16 @@ describe('site header responsive rules', () => {
     expect(siteHeaderSource).toContain('role="dialog"')
     expect(siteHeaderSource).toContain('aria-modal="false"')
     expect(siteHeaderSource).toContain('aria-labelledby="site-header-search-title"')
+    expect(siteHeaderSource).toContain('aria-labelledby="site-header-desktop-menu-title"')
     expect(siteHeaderSource).toContain('aria-label="Close site search"')
     expect(siteHeaderSource).toContain("event.key === 'Escape'")
     expect(siteHeaderSource).toContain('const headerSearchPanelHeaderStyle')
     expect(siteHeaderSource).toContain('const searchCloseButtonStyle')
     expect(siteHeaderSource).toContain('<UniversalSearch compact placeholder="Search TenAceIQ" showResults={false} />')
+  })
+
+  it('does not prefetch the full site when the menu opens on a phone', () => {
+    expect(siteHeaderSource).toContain('enabled: !isMobile && authenticated && authResolved')
+    expect(siteHeaderSource.match(/prefetch=\{false\}/g)?.length).toBeGreaterThanOrEqual(14)
   })
 })

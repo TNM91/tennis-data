@@ -126,7 +126,7 @@ export async function GET(
       'Content-Disposition': `inline; filename="tenaceiq-coach-${studentLinkId}.ics"`,
     })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Coach/student calendar feed could not be generated.'
-    return calendarResponse(message, 500)
+    console.error('Coach/student calendar feed failed', error)
+    return calendarResponse('Coach/student calendar feed could not be generated.', 500)
   }
 }

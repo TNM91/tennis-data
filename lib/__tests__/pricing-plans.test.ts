@@ -15,6 +15,16 @@ describe('pricing plans', () => {
     })
 
     expect(getPricingPlan('player_plus')).toMatchObject({
+      priceLabel: '$1.99/month',
+      billing: {
+        amountCents: 199,
+        interval: 'month',
+        checkoutMode: 'subscription',
+        quantityMode: 'account',
+      },
+    })
+
+    expect(getPricingPlan('captain')).toMatchObject({
       priceLabel: '$4.99/month',
       billing: {
         amountCents: 499,
@@ -24,20 +34,10 @@ describe('pricing plans', () => {
       },
     })
 
-    expect(getPricingPlan('captain')).toMatchObject({
-      priceLabel: '$9.99/month',
-      billing: {
-        amountCents: 999,
-        interval: 'month',
-        checkoutMode: 'subscription',
-        quantityMode: 'account',
-      },
-    })
-
     expect(getPricingPlan('league')).toMatchObject({
-      priceLabel: '$14.99/season',
+      priceLabel: '$25/season',
       billing: {
-        amountCents: 1499,
+        amountCents: 2500,
         interval: 'season',
         checkoutMode: 'one_time',
         quantityMode: 'league',
@@ -49,9 +49,9 @@ describe('pricing plans', () => {
     expect(getPricingPlan('free').outcome).not.toContain('workspace makes your tennis life easier')
 
     expect(getPricingPlan('coach')).toMatchObject({
-      priceLabel: '$9.99/month',
+      priceLabel: '$4.99/month',
       billing: {
-        amountCents: 999,
+        amountCents: 499,
         interval: 'month',
         checkoutMode: 'subscription',
         quantityMode: 'account',
@@ -59,18 +59,39 @@ describe('pricing plans', () => {
     })
 
     expect(getPricingPlan('full_court')).toMatchObject({
-      priceLabel: '$19.99/month',
-      badge: 'Complete Toolkit',
+      priceLabel: '$9.99/month',
+      badge: 'All Roles',
       outcome: 'Keep every tennis role connected, with unlimited Tournament Desk room.',
       billing: {
-        amountCents: 1999,
+        amountCents: 999,
         interval: 'month',
         checkoutMode: 'subscription',
         quantityMode: 'account',
       },
     })
     expect(getPricingPlan('full_court').badge).not.toBe('Full Suite')
+    expect(getPricingPlan('full_court').badge).not.toBe('Complete Toolkit')
     expect(getPricingPlan('full_court').outcome).not.toContain('Run every TenAceIQ workspace')
+
+    expect(getPricingPlan('club_starter')).toMatchObject({
+      priceLabel: '$99/month',
+      billing: {
+        amountCents: 9900,
+        interval: 'month',
+        checkoutMode: 'subscription',
+        quantityMode: 'account',
+      },
+    })
+
+    expect(getPricingPlan('club_unlimited')).toMatchObject({
+      priceLabel: '$149/month',
+      billing: {
+        amountCents: 14900,
+        interval: 'month',
+        checkoutMode: 'subscription',
+        quantityMode: 'account',
+      },
+    })
   })
 
   it('keeps Captain, League, and Full-Court entitlement grants clear', () => {
@@ -81,6 +102,8 @@ describe('pricing plans', () => {
       leagueCoordinator: false,
       tiqTeamLeagueEntry: false,
       tiqIndividualLeagueCreator: false,
+      clubStarter: false,
+      clubUnlimited: false,
     })
 
     expect(getPricingPlan('league').entitlementGrant).toEqual({
@@ -90,6 +113,8 @@ describe('pricing plans', () => {
       leagueCoordinator: true,
       tiqTeamLeagueEntry: true,
       tiqIndividualLeagueCreator: true,
+      clubStarter: false,
+      clubUnlimited: false,
     })
 
     expect(getPricingPlan('full_court').entitlementGrant).toEqual({
@@ -99,6 +124,17 @@ describe('pricing plans', () => {
       leagueCoordinator: true,
       tiqTeamLeagueEntry: true,
       tiqIndividualLeagueCreator: true,
+      clubStarter: false,
+      clubUnlimited: false,
+    })
+
+    expect(getPricingPlan('club_starter').entitlementGrant).toMatchObject({
+      clubStarter: true,
+      clubUnlimited: false,
+    })
+    expect(getPricingPlan('club_unlimited').entitlementGrant).toMatchObject({
+      clubStarter: true,
+      clubUnlimited: true,
     })
   })
 
@@ -109,12 +145,15 @@ describe('pricing plans', () => {
     expect(getPricingBillingCue('captain')).toBe('Monthly subscription')
     expect(getPricingBillingCue('league')).toBe('Season fee')
     expect(getPricingBillingCue('full_court')).toBe('Monthly subscription')
+    expect(getPricingBillingCue('club_starter')).toBe('Monthly subscription')
+    expect(getPricingBillingCue('club_unlimited')).toBe('Monthly subscription')
   })
 
   it('keeps role upgrade proof concrete instead of everything-language', () => {
     const roleUpgrade = WHY_TENACEIQ_POINTS.find((point) => point.title === 'Upgrade by role')
 
-    expect(roleUpgrade?.text).toContain('Full-Court connects the complete tennis toolkit.')
+    expect(roleUpgrade?.text).toContain('Full-Court keeps every tennis role connected.')
     expect(roleUpgrade?.text).not.toContain('Full-Court unlocks everything')
+    expect(roleUpgrade?.text).not.toContain('complete tennis toolkit')
   })
 })

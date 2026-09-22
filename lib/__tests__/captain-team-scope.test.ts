@@ -54,5 +54,28 @@ describe('captain team scope helpers', () => {
     expect(buildCaptainTeamScopeKey(team)).toBe('Profile Team__Dallas__4.0')
     expect(getCaptainTeamScopeSource(team, [...map.values()])).toBe('profile')
     expect(getCaptainTeamScopeSourceLabel('profile')).toBe('your profile team')
+    expect(getCaptainTeamScopeSourceLabel('connection')).toBe('a team you linked')
+  })
+
+  it('prefers a consented team connection before roster-only history', () => {
+    expect(
+      chooseCaptainTeamOption({
+        options,
+        current: null,
+        scopes: [
+          { team: 'Roster Team', league: 'Dallas', flight: '4.0', source: 'roster' },
+          { team: 'High Match Count', league: 'Dallas', flight: '4.0', source: 'connection' },
+        ],
+      })?.team,
+    ).toBe('High Match Count')
+  })
+
+  it('prefers the most recently active team when scope priority is equal', () => {
+    const recentOptions: CaptainTeamOption[] = [
+      { team: 'Older Team', league: 'Dallas', flight: '4.0', matches: 12, lastMatchDate: '2025-05-01' },
+      { team: 'Recent Team', league: 'Dallas', flight: '4.0', matches: 2, lastMatchDate: '2026-05-01' },
+    ]
+
+    expect(chooseCaptainTeamOption({ options: recentOptions, scopes: [] })?.team).toBe('Recent Team')
   })
 })

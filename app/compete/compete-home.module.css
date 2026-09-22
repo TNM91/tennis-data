@@ -1,0 +1,63 @@
+.moreTools {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--shell-panel-border);
+  border-radius: 22px;
+  background: var(--shell-panel-bg);
+  box-shadow: var(--shadow-card);
+}
+
+.moreToolsSummary {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto);
+  gap: 12px;
+  align-items: center;
+  min-height: 58px;
+  padding: 14px 16px;
+  color: var(--foreground-strong);
+  cursor: pointer;
+  list-style: none;
+}
+
+.moreToolsSummary::-webkit-details-marker {
+  display: none;
+}
+
+.moreToolsSummary span {
+  color: var(--brand-blue-2);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.moreToolsSummary strong {
+  min-width: 0;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.moreToolsSummary em {
+  padding: 7px 9px;
+  border: 1px solid rgba(155, 225, 29, 0.22);
+  border-radius: 999px;
+  color: var(--shell-copy-muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.moreToolsBody {
+  padding: 0 14px 14px;
+}
+
+@media (max-width: 760px) {
+  .moreToolsSummary {
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  }
+
+  .moreToolsSummary strong {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}

@@ -1,0 +1,974 @@
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { getCache } from '@vercel/functions'
+import { supabaseKey, supabaseUrl } from '@/lib/supabase'
+import {
+  buildTeamConnectionScopeKey,
+  buildTeamConnections,
+  getPrimaryTeamConnectionRole,
+  mapRosterContactCandidate,
+  mapRosterMembershipCandidate,
+  mergeTeamConnectionRoles,
+  normalizeTeamConnectionRoles,
+  type TeamConnection,
+  type TeamConnectionContactRow,
+  type TeamConnectionRosterRow,
+  type TeamProfileLinkRow,
+} from '@/lib/team-profile-links'
+
+export const runtime = 'nodejs'
+
+const TEAM_LINK_SELECT =
+  'id,team_name,normalized_team_name,league_name,flight,team_role,team_roles,declined_roles,role_accepted_at,matched_player_id,source_type,source_record_id,status,is_default,archived_at,accepted_at,updated_at'
+const TEAM_CONNECTIONS_CACHE_TTL_SECONDS = 45
+
+type TeamConnectionAction = 'accept' | 'decline' | 'unlink' | 'relink' | 'restore_roles' | 'set_default' | 'accept_import'
+
+type TeamConnectionActionBody = {
+  action?: unknown
+  connectionId?: unknown
+  importBatchId?: unknown
+}
+
+type ProfileConnectionRow = {
+  linked_player_id?: string | null
+  linked_player_name?: string | null
+  linked_team_name?: string | null
+  linked_league_name?: string | null
+  linked_flight?: string | null
+}
+
+type TiqTeamEntryConnectionRow = {
+  id?: string | null
+  league_id?: string | null
+  team_name?: string | null
+  source_league_name?: string | null
+  source_flight?: string | null
+}
+
+type TiqLeagueConnectionRow = {
+  id?: string | null
+  league_name?: string | null
+  flight?: string | null
+}
+
+type TeamConnectionsCachedResponse = {
+  ok?: boolean
+  pending?: TeamConnection[]
+  connections?: TeamConnection[]
+}
+
+export async function GET(request: Request) {
+  const startedAt = Date.now()
+  const auth = await getTeamConnectionAuth(request)
+  if (!auth.ok) return auth.response
+  const searchParams = new URL(request.url).searchParams
+  const forceRefresh = searchParams.get('refresh') === '1'
+  const cache = getCache({ namespace: 'team-connections' })
+  const cacheKey = auth.userId
+
+  try {
+    if (!forceRefresh) {
+      const cached = await cache.get(cacheKey) as TeamConnectionsCachedResponse | undefined
+      if (cached?.ok && Array.isArray(cached.connections) && Array.isArray(cached.pending)) {
+        console.info('[api/team-connections] cache hit', {
+          durationMs: Date.now() - startedAt,
+          connectionCount: cached.connections.length,
+        })
+        return Response.json(cached)
+      }
+    }
+  } catch {
+    // Runtime Cache is an optimization; a cache outage must not block teams.
+  }
+
+  try {
+    const result = await loadTeamConnections(auth.service, auth.userId, auth.email)
+    if (!result.ok) {
+      console.error('[api/team-connections] load failed', { durationMs: Date.now() - startedAt, message: result.message })
+      return Response.json({ ok: false, message: result.message }, { status: 500 })
+    }
+
+    console.info('[api/team-connections] loaded', {
+      durationMs: Date.now() - startedAt,
+      pendingCount: result.pending.length,
+      connectionCount: result.connections.length,
+    })
+    const payload = {
+      ok: true,
+      pending: result.pending,
+      connections: result.connections,
+    }
+    try {
+      await cache.set(cacheKey, payload, {
+        ttl: TEAM_CONNECTIONS_CACHE_TTL_SECONDS,
+        tags: [`team-connections:${auth.userId}`],
+        name: 'team-connections',
+      })
+    } catch {
+      // The direct response remains authoritative if Runtime Cache is unavailable.
+    }
+    return Response.json(payload)
+  } catch (error) {
+    console.error('[api/team-connections] unexpected failure', {
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return Response.json({ ok: false, message: 'Team connections could not be loaded.' }, { status: 500 })
+  }
+}
+
+export async function POST(request: Request) {
+  const auth = await getTeamConnectionAuth(request)
+  if (!auth.ok) return auth.response
+
+  async function savedConnectionResponse(connection: TeamConnection | null) {
+    try {
+      await getCache({ namespace: 'team-connections' }).expireTag(`team-connections:${auth.userId}`)
+    } catch {
+      // Saving succeeded. The client also bypasses cached reads after a mutation.
+      console.warn('[api/team-connections] saved connection cache invalidation unavailable')
+    }
+    return Response.json({ ok: true, connection }, { headers: { 'Cache-Control': 'private, no-store' } })
+  }
+
+  let body: TeamConnectionActionBody
+  try {
+    body = (await request.json()) as TeamConnectionActionBody
+  } catch {
+    return Response.json({ ok: false, message: 'Invalid team connection request.' }, { status: 400 })
+  }
+
+  const action = normalizeAction(body.action)
+  const connectionId = cleanText(body.connectionId)
+  if (!action) {
+    return Response.json({ ok: false, message: 'Choose a team connection action.' }, { status: 400 })
+  }
+
+  if (action === 'accept_import') {
+    const importBatchId = cleanText(body.importBatchId)
+    if (!importBatchId) {
+      return Response.json({ ok: false, message: 'Choose the imported team to connect.' }, { status: 400 })
+    }
+    const importedResult = await acceptImportedCaptainTeam({
+      service: auth.service,
+      userId: auth.userId,
+      batchId: importBatchId,
+    })
+    if (!importedResult.ok) {
+      return Response.json({ ok: false, message: importedResult.message }, { status: importedResult.status })
+    }
+    return savedConnectionResponse(importedResult.connection)
+  }
+
+  if (!connectionId) {
+    return Response.json({ ok: false, message: 'Choose a team connection action.' }, { status: 400 })
+  }
+
+  if (action === 'unlink' || action === 'relink' || action === 'restore_roles' || action === 'set_default') {
+    const savedResult = await updateSavedConnection({
+      service: auth.service,
+      userId: auth.userId,
+      connectionId,
+      action,
+    })
+    if (!savedResult.ok) {
+      return Response.json({ ok: false, message: savedResult.message }, { status: savedResult.status })
+    }
+    return savedConnectionResponse(savedResult.connection)
+  }
+
+  const candidateResult = await resolveDiscoveredCandidate({
+    service: auth.service,
+    userId: auth.userId,
+    email: auth.email,
+    candidateId: connectionId,
+  })
+  if (!candidateResult.ok) {
+    return Response.json({ ok: false, message: candidateResult.message }, { status: candidateResult.status })
+  }
+
+  // The invitation combines verified roster membership and contact roles.
+  // Save that same scope, not just the contact row named by its candidate ID:
+  // an email-matched captain contact can lack the name needed by the contact's
+  // player lookup, even though the account's linked player is on this roster.
+  const discovery = await loadTeamConnections(auth.service, auth.userId, auth.email)
+  if (!discovery.ok) return Response.json({ ok: false, message: discovery.message }, { status: 500 })
+  const candidateScope = buildTeamConnectionScopeKey(candidateResult.candidate)
+  const candidate = discovery.pending.find((item) => buildTeamConnectionScopeKey(item) === candidateScope)
+    || candidateResult.candidate
+  const now = new Date().toISOString()
+  const normalizedTeamName = normalizeKey(candidate.teamName)
+  const { data: existingData, error: existingError } = await auth.service
+    .from('team_profile_links')
+    .select(TEAM_LINK_SELECT)
+    .eq('profile_user_id', auth.userId)
+    .eq('normalized_team_name', normalizedTeamName)
+    .eq('league_name', candidate.leagueName)
+    .eq('flight', candidate.flight)
+    .maybeSingle()
+  if (existingError) return Response.json({ ok: false, message: existingError.message }, { status: 500 })
+
+  const existing = existingData as (TeamProfileLinkRow & { accepted_at?: string | null }) | null
+  const existingRoles = existing
+    ? normalizeTeamConnectionRoles(existing.team_roles, existing.team_role)
+    : []
+  const existingDeclinedRoles = existing?.declined_roles?.length
+    ? normalizeTeamConnectionRoles(existing.declined_roles)
+    : []
+  const discoveredRoles = candidate.roles
+
+  if (action === 'decline' && existing?.status === 'accepted') {
+    const newDeclinedRoles = discoveredRoles.filter((role) => !existingRoles.includes(role))
+    const declinedRoles = mergeTeamConnectionRoles(existingDeclinedRoles, newDeclinedRoles)
+      .filter((role) => !existingRoles.includes(role))
+    const { data, error } = await auth.service
+      .from('team_profile_links')
+      .update({ declined_roles: declinedRoles, updated_at: now })
+      .eq('id', existing.id)
+      .eq('profile_user_id', auth.userId)
+      .select(TEAM_LINK_SELECT)
+      .single()
+    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    const connection = buildTeamConnections({ savedLinks: [data as TeamProfileLinkRow] }).connections[0] ?? null
+    return savedConnectionResponse(connection)
+  }
+
+  const acceptedRoles = action === 'accept'
+    ? mergeTeamConnectionRoles(existingRoles, discoveredRoles)
+    : discoveredRoles
+  const declinedRoles = existingDeclinedRoles.filter((role) => !acceptedRoles.includes(role))
+  const roleAcceptedAt = { ...(existing?.role_accepted_at || {}) } as Record<string, string>
+  if (action === 'accept') {
+    for (const role of acceptedRoles) {
+      if (!existingRoles.includes(role) || !roleAcceptedAt[role]) roleAcceptedAt[role] = now
+    }
+  }
+  const payload = {
+    profile_user_id: auth.userId,
+    source_actor_user_id: candidateResult.sourceActorUserId || null,
+    team_name: candidate.teamName,
+    normalized_team_name: normalizedTeamName,
+    league_name: candidate.leagueName,
+    flight: candidate.flight,
+    team_role: getPrimaryTeamConnectionRole(acceptedRoles),
+    team_roles: acceptedRoles,
+    declined_roles: declinedRoles,
+    role_accepted_at: roleAcceptedAt,
+    matched_player_id: candidateResult.matchedPlayerId || candidate.matchedPlayerId || null,
+    source_type: candidate.sourceType,
+    source_record_id: candidate.sourceRecordId || null,
+    status: action === 'accept' ? 'accepted' : 'declined',
+    archived_at: action === 'accept' ? null : existing?.archived_at || null,
+    accepted_at: action === 'accept' ? existing?.accepted_at || now : null,
+    unlinked_at: null,
+    updated_at: now,
+  }
+
+  const { data, error } = await auth.service
+    .from('team_profile_links')
+    .upsert(payload, {
+      onConflict: 'profile_user_id,normalized_team_name,league_name,flight',
+    })
+    .select(TEAM_LINK_SELECT)
+    .single()
+
+  if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+
+  if (action === 'accept') {
+    await linkAcceptedTeamToProfile({
+      service: auth.service,
+      userId: auth.userId,
+      candidate,
+      matchedPlayerId: candidateResult.matchedPlayerId || candidate.matchedPlayerId,
+      matchedPlayerName: candidateResult.matchedPlayerName,
+    })
+    const reconcileResult = await reconcileDefaultTeam(auth.service, auth.userId, cleanText((data as TeamProfileLinkRow).id))
+    if (!reconcileResult.ok) {
+      return Response.json({ ok: false, message: reconcileResult.message }, { status: reconcileResult.status })
+    }
+  }
+
+  const { data: refreshedData } = await auth.service
+    .from('team_profile_links')
+    .select(TEAM_LINK_SELECT)
+    .eq('id', cleanText((data as TeamProfileLinkRow).id))
+    .maybeSingle()
+  const connections = buildTeamConnections({ savedLinks: [(refreshedData || data) as TeamProfileLinkRow] }).connections
+  return savedConnectionResponse(connections[0] ?? null)
+}
+
+async function loadTeamConnections(service: SupabaseClient, userId: string, email: string) {
+  // An accepted team link is the account's durable, user-approved connection.
+  // Keep saved decisions while discovering additional teams and seasons.
+  const { data: savedData, error: savedError } = await service
+    .from('team_profile_links')
+    .select(TEAM_LINK_SELECT)
+    .eq('profile_user_id', userId)
+    .order('updated_at', { ascending: false })
+    .limit(100)
+
+  if (savedError) return { ok: false as const, message: savedError.message }
+  let savedLinks = (savedData || []) as TeamProfileLinkRow[]
+  const syncedTiqEntries = await syncOwnedActiveTiqTeamEntries(service, userId, savedLinks)
+  if (syncedTiqEntries) {
+    const { data: refreshedLinks, error: refreshError } = await service
+      .from('team_profile_links')
+      .select(TEAM_LINK_SELECT)
+      .eq('profile_user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(100)
+    if (refreshError) return { ok: false as const, message: refreshError.message }
+    savedLinks = (refreshedLinks || []) as TeamProfileLinkRow[]
+  }
+  // Existing connections must not prevent discovery of a new team or season.
+  // Match candidates by verified email/player identity and leave acceptance explicit.
+
+  const { data: profileData, error: profileError } = await service
+    .from('profiles')
+    .select('linked_player_id')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (profileError) return { ok: false as const, message: profileError.message }
+  const linkedPlayerId = cleanText((profileData as ProfileConnectionRow | null)?.linked_player_id)
+
+  const [contactsResult, rosterResult, savedResult] = await Promise.all([
+    email
+      ? service
+          .from('captain_roster_contacts')
+          .select('id,captain_user_id,team_name,normalized_team_name,league_name,flight,role,email,normalized_name,updated_at')
+          .eq('email', email)
+          .limit(100)
+      : Promise.resolve({ data: [], error: null }),
+    linkedPlayerId
+      ? service
+          .from('team_roster_members')
+          .select('id,team_name,normalized_team_name,league_name,flight,player_id,player_name,updated_at')
+          .eq('player_id', linkedPlayerId)
+          .limit(100)
+      : Promise.resolve({ data: [], error: null }),
+    Promise.resolve({ data: savedLinks, error: null }),
+  ])
+
+  const error = contactsResult.error || rosterResult.error || savedResult.error
+  if (error) return { ok: false as const, message: error.message }
+
+  const rosterMemberships = (rosterResult.data || []) as TeamConnectionRosterRow[]
+  const rosterNames = [...new Set(rosterMemberships.map((row) => normalizeKey(row.player_name)).filter(Boolean))]
+  const roleContactsResult = rosterNames.length
+    ? await service
+        .from('captain_roster_contacts')
+        .select('id,captain_user_id,team_name,normalized_team_name,league_name,flight,role,email,normalized_name,updated_at')
+        .in('normalized_name', rosterNames)
+        .limit(200)
+    : { data: [], error: null }
+  if (roleContactsResult.error) return { ok: false as const, message: roleContactsResult.error.message }
+
+  const rosterIdentityScopes = new Set(rosterMemberships.map(buildRosterIdentityScopeKey))
+  const identityContacts = ((roleContactsResult.data || []) as TeamConnectionContactRow[])
+    .filter((contact) => rosterIdentityScopes.has(buildContactIdentityScopeKey(contact)))
+  const contactsById = new Map<string, TeamConnectionContactRow>()
+  for (const contact of [...((contactsResult.data || []) as TeamConnectionContactRow[]), ...identityContacts]) {
+    const id = cleanText(contact.id)
+    if (id) contactsById.set(id, contact)
+  }
+
+  const built = buildTeamConnections({
+    contacts: [...contactsById.values()],
+    rosterMemberships,
+    savedLinks: (savedResult.data || []) as TeamProfileLinkRow[],
+  })
+
+  return { ok: true as const, ...built }
+}
+
+async function syncOwnedActiveTiqTeamEntries(
+  service: SupabaseClient,
+  userId: string,
+  savedLinks: TeamProfileLinkRow[],
+) {
+  try {
+    const { data: entryData, error: entryError } = await service
+      .from('tiq_team_league_entries')
+      .select('id,league_id,team_name,source_league_name,source_flight')
+      .eq('created_by_user_id', userId)
+      .eq('entry_status', 'active')
+      .limit(100)
+    if (entryError) return false
+
+    const entries = (entryData || []) as TiqTeamEntryConnectionRow[]
+    const leagueIds = [...new Set(entries.map((entry) => cleanText(entry.league_id)).filter(Boolean))]
+    const { data: leagueData, error: leagueError } = leagueIds.length
+      ? await service
+          .from('tiq_leagues')
+          .select('id,league_name,flight')
+          .in('id', leagueIds)
+          .limit(100)
+      : { data: [], error: null }
+    if (leagueError) return false
+
+    const leaguesById = new Map(
+      ((leagueData || []) as TiqLeagueConnectionRow[]).map((league) => [cleanText(league.id), league]),
+    )
+    const savedScopes = new Set(savedLinks.map((link) => buildTeamConnectionScopeKey({
+      teamName: link.team_name,
+      leagueName: link.league_name,
+      flight: link.flight,
+    })))
+    const now = new Date().toISOString()
+    const additions = entries.flatMap((entry) => {
+      const teamName = cleanText(entry.team_name)
+      const entryId = cleanText(entry.id)
+      const league = leaguesById.get(cleanText(entry.league_id))
+      const leagueName = cleanText(entry.source_league_name) || cleanText(league?.league_name)
+      const flight = cleanText(entry.source_flight) || cleanText(league?.flight)
+      const scope = buildTeamConnectionScopeKey({ teamName, leagueName, flight })
+      if (!teamName || !entryId || savedScopes.has(scope)) return []
+      savedScopes.add(scope)
+      return [{
+        profile_user_id: userId,
+        source_actor_user_id: userId,
+        team_name: teamName,
+        normalized_team_name: normalizeKey(teamName),
+        league_name: leagueName,
+        flight,
+        team_role: 'captain',
+        team_roles: ['captain'],
+        declined_roles: [],
+        role_accepted_at: { captain: now },
+        matched_player_id: null,
+        source_type: 'tiq_entry',
+        source_record_id: entryId,
+        status: 'accepted',
+        archived_at: null,
+        accepted_at: now,
+        unlinked_at: null,
+        updated_at: now,
+      }]
+    })
+    if (!additions.length) return false
+
+    const { error: saveError } = await service
+      .from('team_profile_links')
+      .upsert(additions, {
+        onConflict: 'profile_user_id,normalized_team_name,league_name,flight',
+        ignoreDuplicates: true,
+      })
+    if (saveError) return false
+
+    await reconcileDefaultTeam(service, userId)
+    return true
+  } catch {
+    // Team links remain available from roster and import sources if TIQ entry
+    // synchronization is temporarily unavailable.
+    return false
+  }
+}
+
+async function resolveDiscoveredCandidate(input: {
+  service: SupabaseClient
+  userId: string
+  email: string
+  candidateId: string
+}) {
+  const [sourceType, sourceRecordId] = input.candidateId.split(':', 2)
+  if (!sourceRecordId) {
+    return { ok: false as const, status: 400, message: 'This team connection is invalid.' }
+  }
+
+  if (sourceType === 'roster_contact') {
+    const { data, error } = await input.service
+      .from('captain_roster_contacts')
+      .select('id,captain_user_id,team_name,normalized_team_name,league_name,flight,role,email,normalized_name,updated_at')
+      .eq('id', sourceRecordId)
+      .maybeSingle()
+
+    if (error) return { ok: false as const, status: 500, message: error.message }
+    const row = data as TeamConnectionContactRow | null
+    const ownsByEmail = Boolean(row && cleanText(row.email).toLowerCase() === input.email)
+    const ownsByLinkedPlayer = row
+      ? await contactMatchesLinkedPlayer(input.service, input.userId, row)
+      : false
+    if (!row || (!ownsByEmail && !ownsByLinkedPlayer)) {
+      return { ok: false as const, status: 403, message: 'This team connection belongs to another account.' }
+    }
+
+    let candidate = mapRosterContactCandidate(row)
+    if (!candidate) return { ok: false as const, status: 404, message: 'This team connection is no longer available.' }
+    const playerMatch = await findRosterPlayerForContact(input.service, row)
+    if (playerMatch.playerId) {
+      candidate = withCandidateRoles(candidate, mergeTeamConnectionRoles(candidate.roles, ['player']))
+    }
+    return {
+      ok: true as const,
+      candidate,
+      sourceActorUserId: cleanText(row.captain_user_id),
+      matchedPlayerId: playerMatch.playerId,
+      matchedPlayerName: playerMatch.playerName,
+    }
+  }
+
+  if (sourceType === 'roster_membership') {
+    const [{ data: profileData, error: profileError }, { data, error }] = await Promise.all([
+      input.service.from('profiles').select('linked_player_id').eq('id', input.userId).maybeSingle(),
+      input.service
+        .from('team_roster_members')
+        .select('id,team_name,normalized_team_name,league_name,flight,player_id,player_name,updated_at')
+        .eq('id', sourceRecordId)
+        .maybeSingle(),
+    ])
+    if (profileError || error) {
+      return { ok: false as const, status: 500, message: profileError?.message || error?.message || 'Team connection failed.' }
+    }
+    const row = data as (TeamConnectionRosterRow & { player_name?: string | null }) | null
+    const profilePlayerId = cleanText((profileData as ProfileConnectionRow | null)?.linked_player_id)
+    if (!row || !profilePlayerId || cleanText(row.player_id) !== profilePlayerId) {
+      return { ok: false as const, status: 403, message: 'This roster membership belongs to another player.' }
+    }
+    let candidate = mapRosterMembershipCandidate(row)
+    if (!candidate) return { ok: false as const, status: 404, message: 'This roster membership is no longer available.' }
+    const teamRoles = await findRosterRolesForMembership(input.service, row)
+    candidate = withCandidateRoles(candidate, mergeTeamConnectionRoles(candidate.roles, teamRoles.roles))
+    return {
+      ok: true as const,
+      candidate,
+      sourceActorUserId: teamRoles.sourceActorUserId,
+      matchedPlayerId: profilePlayerId,
+      matchedPlayerName: cleanText(row.player_name),
+    }
+  }
+
+  return { ok: false as const, status: 400, message: 'This team connection type is not supported.' }
+}
+
+async function findRosterPlayerForContact(service: SupabaseClient, contact: TeamConnectionContactRow) {
+  const normalizedName = cleanText(contact.normalized_name)
+  const normalizedTeamName = cleanText(contact.normalized_team_name) || normalizeKey(contact.team_name)
+  if (!normalizedName || !normalizedTeamName) return { playerId: '', playerName: '' }
+
+  const { data } = await service
+    .from('team_roster_members')
+    .select('player_id,player_name')
+    .eq('normalized_team_name', normalizedTeamName)
+    .eq('league_name', cleanText(contact.league_name))
+    .eq('flight', cleanText(contact.flight))
+    .limit(100)
+
+  const match = ((data || []) as Array<{ player_id?: string | null; player_name?: string | null }>).find(
+    (row) => normalizeKey(row.player_name) === normalizedName,
+  )
+  return {
+    playerId: cleanText(match?.player_id),
+    playerName: cleanText(match?.player_name),
+  }
+}
+
+async function contactMatchesLinkedPlayer(
+  service: SupabaseClient,
+  userId: string,
+  contact: TeamConnectionContactRow,
+) {
+  const { data: profile } = await service
+    .from('profiles')
+    .select('linked_player_id')
+    .eq('id', userId)
+    .maybeSingle()
+  const linkedPlayerId = cleanText((profile as ProfileConnectionRow | null)?.linked_player_id)
+  if (!linkedPlayerId) return false
+
+  const normalizedTeamName = cleanText(contact.normalized_team_name) || normalizeKey(contact.team_name)
+  const { data } = await service
+    .from('team_roster_members')
+    .select('player_name')
+    .eq('player_id', linkedPlayerId)
+    .eq('normalized_team_name', normalizedTeamName)
+    .eq('league_name', cleanText(contact.league_name))
+    .eq('flight', cleanText(contact.flight))
+    .limit(20)
+
+  return ((data || []) as Array<{ player_name?: string | null }>).some(
+    (row) => normalizeKey(row.player_name) === cleanText(contact.normalized_name),
+  )
+}
+
+async function findRosterRolesForMembership(
+  service: SupabaseClient,
+  membership: TeamConnectionRosterRow & { player_name?: string | null },
+) {
+  const normalizedName = normalizeKey(membership.player_name)
+  const normalizedTeamName = cleanText(membership.normalized_team_name) || normalizeKey(membership.team_name)
+  if (!normalizedName || !normalizedTeamName) return { roles: [] as TeamConnection['roles'], sourceActorUserId: '' }
+
+  const { data } = await service
+    .from('captain_roster_contacts')
+    .select('captain_user_id,role')
+    .eq('normalized_name', normalizedName)
+    .eq('normalized_team_name', normalizedTeamName)
+    .eq('league_name', cleanText(membership.league_name))
+    .eq('flight', cleanText(membership.flight))
+    .limit(20)
+
+  const rows = (data || []) as Array<{ captain_user_id?: string | null; role?: string | null }>
+  const roles = normalizeTeamConnectionRoles(rows.map((row) => row.role)).filter((role) => role !== 'player')
+  return { roles, sourceActorUserId: cleanText(rows[0]?.captain_user_id) }
+}
+
+function withCandidateRoles(candidate: TeamConnection, roles: TeamConnection['roles']) {
+  return { ...candidate, roles, role: getPrimaryTeamConnectionRole(roles) }
+}
+
+function buildRosterIdentityScopeKey(row: TeamConnectionRosterRow) {
+  return `${buildTeamConnectionScopeKey({ teamName: row.team_name, leagueName: row.league_name, flight: row.flight })}__${normalizeKey(row.player_name)}`
+}
+
+function buildContactIdentityScopeKey(row: TeamConnectionContactRow) {
+  return `${buildTeamConnectionScopeKey({ teamName: row.team_name, leagueName: row.league_name, flight: row.flight })}__${normalizeKey(row.normalized_name)}`
+}
+
+async function updateSavedConnection(input: {
+  service: SupabaseClient
+  userId: string
+  connectionId: string
+  action: 'unlink' | 'relink' | 'restore_roles' | 'set_default'
+}) {
+  const { data: existing, error: loadError } = await input.service
+    .from('team_profile_links')
+    .select(TEAM_LINK_SELECT)
+    .eq('id', input.connectionId)
+    .eq('profile_user_id', input.userId)
+    .maybeSingle()
+
+  if (loadError) return { ok: false as const, status: 500, message: loadError.message }
+  if (!existing) return { ok: false as const, status: 404, message: 'Team connection was not found.' }
+
+  const now = new Date().toISOString()
+  const existingLink = existing as TeamProfileLinkRow
+  if (input.action === 'set_default') {
+    if (existingLink.status !== 'accepted') {
+      return { ok: false as const, status: 400, message: 'Link this team before making it your default.' }
+    }
+    const reconcileResult = await reconcileDefaultTeam(input.service, input.userId, input.connectionId, true)
+    if (!reconcileResult.ok) return reconcileResult
+    const { data: refreshed, error: refreshError } = await input.service
+      .from('team_profile_links')
+      .select(TEAM_LINK_SELECT)
+      .eq('id', input.connectionId)
+      .eq('profile_user_id', input.userId)
+      .single()
+    if (refreshError) return { ok: false as const, status: 500, message: refreshError.message }
+    const connection = buildTeamConnections({ savedLinks: [refreshed as TeamProfileLinkRow] }).connections[0] ?? null
+    return { ok: true as const, connection }
+  }
+  const currentRoles = normalizeTeamConnectionRoles(existingLink.team_roles, existingLink.team_role)
+  const declinedRoles = existingLink.declined_roles?.length
+    ? normalizeTeamConnectionRoles(existingLink.declined_roles)
+    : []
+  const restoredRoles = input.action === 'restore_roles'
+    ? mergeTeamConnectionRoles(currentRoles, declinedRoles)
+    : currentRoles
+  const status = input.action === 'unlink' ? 'unlinked' : 'accepted'
+  const update = input.action === 'relink' || input.action === 'restore_roles'
+    ? {
+        status,
+        accepted_at: now,
+        team_role: getPrimaryTeamConnectionRole(restoredRoles),
+        team_roles: restoredRoles,
+        declined_roles: input.action === 'restore_roles' ? [] : declinedRoles,
+        role_accepted_at: Object.fromEntries(
+          restoredRoles.map((role) => [
+            role,
+            input.action === 'relink' || declinedRoles.includes(role)
+              ? now
+              : typeof existingLink.role_accepted_at?.[role] === 'string'
+                ? existingLink.role_accepted_at[role]
+                : now,
+          ]),
+        ),
+        unlinked_at: null,
+        updated_at: now,
+      }
+    : { status, is_default: false, unlinked_at: now, updated_at: now }
+  const { data, error } = await input.service
+    .from('team_profile_links')
+    .update(update)
+    .eq('id', input.connectionId)
+    .eq('profile_user_id', input.userId)
+    .select(TEAM_LINK_SELECT)
+    .single()
+
+  if (error) return { ok: false as const, status: 500, message: error.message }
+
+  const connection = buildTeamConnections({ savedLinks: [data as TeamProfileLinkRow] }).connections[0] ?? null
+  if ((input.action === 'relink' || input.action === 'restore_roles') && connection) {
+    await linkAcceptedTeamToProfile({ service: input.service, userId: input.userId, candidate: connection })
+  }
+  const reconcileResult = await reconcileDefaultTeam(
+    input.service,
+    input.userId,
+    input.action === 'relink' || input.action === 'restore_roles' ? input.connectionId : undefined,
+  )
+  if (!reconcileResult.ok) return reconcileResult
+  const { data: refreshed } = await input.service
+    .from('team_profile_links')
+    .select(TEAM_LINK_SELECT)
+    .eq('id', input.connectionId)
+    .maybeSingle()
+  const refreshedConnection = refreshed
+    ? buildTeamConnections({ savedLinks: [refreshed as TeamProfileLinkRow] }).connections[0] ?? connection
+    : connection
+  return { ok: true as const, connection: refreshedConnection }
+}
+
+async function acceptImportedCaptainTeam(input: {
+  service: SupabaseClient
+  userId: string
+  batchId: string
+}) {
+  const [{ data: batch, error: batchError }, { data: draft, error: draftError }] = await Promise.all([
+    input.service
+      .from('data_assist_batches')
+      .select('id,submitted_by_user_id,status,requested_import_type')
+      .eq('id', input.batchId)
+      .eq('submitted_by_user_id', input.userId)
+      .maybeSingle(),
+    input.service
+      .from('data_assist_drafts')
+      .select('status,parsed_payload')
+      .eq('batch_id', input.batchId)
+      .maybeSingle(),
+  ])
+
+  const loadError = batchError || draftError
+  if (loadError) return { ok: false as const, status: 500, message: loadError.message }
+  const batchRow = batch as {
+    status?: string | null
+    requested_import_type?: string | null
+  } | null
+  const draftRow = draft as {
+    status?: string | null
+    parsed_payload?: Record<string, unknown> | null
+  } | null
+  if (!batchRow || !draftRow) {
+    return { ok: false as const, status: 404, message: 'Imported team was not found.' }
+  }
+  if (batchRow.status !== 'imported' || draftRow.status !== 'imported') {
+    return { ok: false as const, status: 409, message: 'Finish the import before connecting this team.' }
+  }
+  const payload = draftRow.parsed_payload || {}
+  if (payload.draftKind !== 'schedule' && payload.draftKind !== 'team_summary') {
+    return { ok: false as const, status: 400, message: 'This upload does not contain a captain team.' }
+  }
+  const teamName = cleanText(payload.draftKind === 'schedule' ? payload.teamName : payload.rosterTeamName)
+  const leagueName = cleanText(payload.leagueName)
+  const flight = cleanText(payload.flight)
+  if (!teamName) {
+    return { ok: false as const, status: 409, message: 'Confirm the imported team name before continuing.' }
+  }
+
+  const now = new Date().toISOString()
+  const normalizedTeamName = normalizeKey(teamName)
+  const { data: profile } = await input.service
+    .from('profiles')
+    .select('linked_player_id')
+    .eq('id', input.userId)
+    .maybeSingle()
+  const linkedPlayerId = cleanText((profile as ProfileConnectionRow | null)?.linked_player_id)
+  let playsOnTeam = false
+  if (linkedPlayerId) {
+    const { data: memberships } = await input.service
+      .from('team_roster_members')
+      .select('id')
+      .eq('player_id', linkedPlayerId)
+      .eq('normalized_team_name', normalizedTeamName)
+      .eq('league_name', leagueName)
+      .eq('flight', flight)
+      .limit(1)
+    playsOnTeam = Boolean(memberships?.length)
+  }
+  if (!playsOnTeam) {
+    return {
+      ok: false as const,
+      status: 403,
+      message: 'Only a roster that includes your linked player can be connected to your Captain profile.',
+    }
+  }
+  const { data: existing } = await input.service
+    .from('team_profile_links')
+    .select(TEAM_LINK_SELECT)
+    .eq('profile_user_id', input.userId)
+    .eq('normalized_team_name', normalizedTeamName)
+    .eq('league_name', leagueName)
+    .eq('flight', flight)
+    .maybeSingle()
+  const existingLink = existing as TeamProfileLinkRow | null
+  const existingRoles = existingLink
+    ? normalizeTeamConnectionRoles(existingLink.team_roles, existingLink.team_role)
+    : []
+  const roles = mergeTeamConnectionRoles(
+    existingRoles,
+    ['captain'],
+    playsOnTeam ? ['player'] : [],
+  )
+  const roleAcceptedAt = Object.fromEntries(roles.map((role) => [role, now]))
+  const { data: saved, error: saveError } = await input.service
+    .from('team_profile_links')
+    .upsert({
+      profile_user_id: input.userId,
+      source_actor_user_id: input.userId,
+      team_name: teamName,
+      normalized_team_name: normalizedTeamName,
+      league_name: leagueName,
+      flight,
+      team_role: getPrimaryTeamConnectionRole(roles),
+      team_roles: roles,
+      declined_roles: [],
+      role_accepted_at: roleAcceptedAt,
+      matched_player_id: linkedPlayerId || null,
+      source_type: 'data_assist_import',
+      source_record_id: input.batchId,
+      status: 'accepted',
+      archived_at: null,
+      accepted_at: now,
+      unlinked_at: null,
+      updated_at: now,
+    }, {
+      onConflict: 'profile_user_id,normalized_team_name,league_name,flight',
+    })
+    .select(TEAM_LINK_SELECT)
+    .single()
+
+  if (saveError) return { ok: false as const, status: 500, message: saveError.message }
+  const savedId = cleanText((saved as TeamProfileLinkRow).id)
+  const defaultResult = await reconcileDefaultTeam(input.service, input.userId, savedId)
+  if (!defaultResult.ok) return defaultResult
+
+  const { data: refreshed } = await input.service
+    .from('team_profile_links')
+    .select(TEAM_LINK_SELECT)
+    .eq('id', savedId)
+    .maybeSingle()
+  const connection = buildTeamConnections({ savedLinks: [(refreshed || saved) as TeamProfileLinkRow] }).connections[0] ?? null
+  return { ok: true as const, connection }
+}
+
+async function linkAcceptedTeamToProfile(input: {
+  service: SupabaseClient
+  userId: string
+  candidate: TeamConnection
+  matchedPlayerId?: string
+  matchedPlayerName?: string
+}) {
+  const { data } = await input.service
+    .from('profiles')
+    .select('linked_player_id,linked_player_name,linked_team_name,linked_league_name,linked_flight')
+    .eq('id', input.userId)
+    .maybeSingle()
+
+  const profile = (data || {}) as ProfileConnectionRow
+  const update: Record<string, string | null> = {}
+  if (!cleanText(profile.linked_player_id) && cleanText(input.matchedPlayerId)) {
+    update.linked_player_id = cleanText(input.matchedPlayerId)
+    update.linked_player_name = cleanText(input.matchedPlayerName) || null
+  }
+  if (Object.keys(update).length) await input.service.from('profiles').update(update).eq('id', input.userId)
+}
+
+async function reconcileDefaultTeam(
+  service: SupabaseClient,
+  userId: string,
+  preferredConnectionId?: string,
+  forcePreferred = false,
+) {
+  const { data, error } = await service
+    .from('team_profile_links')
+    .select(TEAM_LINK_SELECT)
+    .eq('profile_user_id', userId)
+    .eq('status', 'accepted')
+    .order('is_default', { ascending: false })
+    .order('updated_at', { ascending: false })
+    .limit(100)
+  if (error) return { ok: false as const, status: 500, message: error.message }
+
+  const links = (data || []) as TeamProfileLinkRow[]
+  const preferred = links.find((link) => cleanText(link.id) === preferredConnectionId)
+  const current = links.find((link) => link.is_default === true)
+  const chosen = forcePreferred ? preferred : current || preferred || links[0]
+
+  const { error: clearError } = await service
+    .from('team_profile_links')
+    .update({ is_default: false })
+    .eq('profile_user_id', userId)
+    .eq('is_default', true)
+  if (clearError) return { ok: false as const, status: 500, message: clearError.message }
+
+  if (chosen?.id) {
+    const { error: defaultError } = await service
+      .from('team_profile_links')
+      .update({ is_default: true })
+      .eq('id', chosen.id)
+      .eq('profile_user_id', userId)
+    if (defaultError) return { ok: false as const, status: 500, message: defaultError.message }
+  }
+
+  const { error: profileError } = await service.from('profiles').update({
+    linked_team_name: chosen?.team_name || null,
+    linked_league_name: chosen?.league_name || null,
+    linked_flight: chosen?.flight || null,
+    linked_team_at: chosen ? new Date().toISOString() : null,
+  }).eq('id', userId)
+  if (profileError) return { ok: false as const, status: 500, message: profileError.message }
+  return { ok: true as const }
+}
+
+async function getTeamConnectionAuth(request: Request) {
+  const token = getBearerToken(request)
+  if (!token) {
+    return { ok: false as const, response: Response.json({ ok: false, message: 'Sign in to review team connections.' }, { status: 401 }) }
+  }
+
+  const authClient = createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  })
+  const { data, error } = await authClient.auth.getClaims(token)
+  const userId = typeof data?.claims.sub === 'string' ? data.claims.sub : ''
+  if (error || !userId) {
+    return { ok: false as const, response: Response.json({ ok: false, message: 'Sign in to review team connections.' }, { status: 401 }) }
+  }
+
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  if (!serviceKey) {
+    return { ok: false as const, response: Response.json({ ok: false, message: 'Team connections are not configured yet.' }, { status: 503 }) }
+  }
+
+  const service = createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  })
+  return {
+    ok: true as const,
+    service,
+    userId,
+    email: cleanText(data?.claims.email).toLowerCase(),
+  }
+}
+
+function normalizeAction(value: unknown): TeamConnectionAction | null {
+  return value === 'accept' || value === 'decline' || value === 'unlink' || value === 'relink' || value === 'restore_roles' || value === 'set_default' || value === 'accept_import'
+    ? value
+    : null
+}
+
+function getBearerToken(request: Request) {
+  const authHeader = request.headers.get('authorization')
+  return authHeader?.toLowerCase().startsWith('bearer ')
+    ? authHeader.slice('bearer '.length).trim()
+    : ''
+}
+
+function normalizeKey(value: string | null | undefined) {
+  return cleanText(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+
+function cleanText(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
+}

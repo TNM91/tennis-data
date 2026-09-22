@@ -1,0 +1,84 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+import { buildDataAssistSignInHref } from '../data-assist-navigation'
+import { buildAuthEntryHref } from '../auth-entry-hrefs'
+import { CAPTAIN_PILOT_FIRST_WIN_HREF, CAPTAIN_QUICK_START_HREF } from '../captain-quick-start'
+import { isSafeLocalNextHref } from '../plan-intent'
+
+const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
+
+describe('Captain first-run handoffs', () => {
+  it('keeps the offer attached across sign-in, signup, and password recovery', () => {
+    for (const page of ['/login', '/join', '/forget-password']) {
+      const url = new URL(buildAuthEntryHref(page, 'captain', '/captain-pilot', true), 'https://tenaceiq.test')
+      expect(url.searchParams.get('plan')).toBe('captain')
+      expect(url.searchParams.get('next')).toBe('/captain-pilot')
+    }
+  })
+
+  it('shows an offer action before the benefit list and sends activation to guided setup', () => {
+    const page = source('app/captain-pilot/captain-pilot-client.tsx')
+    expect(page.indexOf('styles.heroActions')).toBeLessThan(page.indexOf('styles.benefitGrid'))
+    expect(page).toContain("session?.user ? '#pilot-preview' : joinHref")
+    expect(page).toContain('Preview my first match week')
+    expect(page).toContain('captain_pilot_team_preview_viewed')
+    expect(page).toContain('nextHref: CAPTAIN_PILOT_FIRST_WIN_HREF')
+    expect(page).toContain('Continue my first match week')
+    expect(CAPTAIN_PILOT_FIRST_WIN_HREF).toContain('source=captain-pilot')
+    expect(isSafeLocalNextHref(CAPTAIN_QUICK_START_HREF, '/captain')).toBe(CAPTAIN_QUICK_START_HREF)
+  })
+
+  it('activates the Captain Pilot without a card and explains optional billing', () => {
+    const pilot = source('app/captain-pilot/captain-pilot-client.tsx')
+    const upgrade = source('app/upgrade/page.tsx')
+    expect(pilot).toContain('A calmer match week')
+    expect(pilot).toContain('Activate free · no card')
+    expect(pilot).toContain('What happens after three months?')
+    expect(pilot).toContain('Add billing later only if you want to continue')
+    expect(pilot).toContain("trackPilotCta('activate_card_free')")
+    expect(upgrade).toContain("eventName: 'upgrade_checkout_clicked'")
+    expect(upgrade).toContain("eventName: 'upgrade_checkout_started'")
+    expect(upgrade).not.toContain('autoCheckoutStarted')
+  })
+
+  it('shows the real Captain workflow before activation', () => {
+    const pilot = source('app/captain-pilot/captain-pilot-client.tsx')
+    expect(pilot).toContain('See Captain in action')
+    expect(pilot).toContain('videoId="captain"')
+    expect(pilot).toContain('source="captain-pilot"')
+    expect(pilot).toContain("ctaHref={captainPilotActivated ? hasCaptainAccess ? CAPTAIN_PILOT_FIRST_WIN_HREF : '#pilot-claim' : session?.user ? '#pilot-claim' : joinHref}")
+    expect(pilot.indexOf('styles.tourCard')).toBeLessThan(pilot.indexOf('id="pilot-claim"'))
+  })
+
+  it('keeps signup and sign-in copy specific to the offer without replacing normal tier entry', () => {
+    expect(source('app/join/page.tsx')).toContain("mobileTitle: 'Start your 3 months free.'")
+    expect(source('app/join/page.tsx')).toContain('} : JOIN_INTENT_COPY[selectedPlanId]')
+    expect(source('app/login/page.tsx')).toContain('Continue your Captain offer.')
+    expect(source('app/login/page.tsx')).toContain('} : LOGIN_INTENT_COPY[selectedPlanId]')
+    expect(source('app/welcome/page.tsx')).toContain('Follow the guided team setup')
+  })
+
+  it('preserves import type, team context, and nested return fragment through auth', () => {
+    const query = new URLSearchParams({ intent: 'upload-source', type: 'team_summary', context: 'Add my team', returnTo: CAPTAIN_QUICK_START_HREF }).toString()
+    const login = new URL(buildDataAssistSignInHref(query), 'https://tenaceiq.test')
+    const next = login.searchParams.get('next')!
+    const upload = new URL(next, login.origin)
+    expect(upload.pathname).toBe('/data-assist')
+    expect(upload.hash).toBe('#upload')
+    expect(upload.searchParams.get('type')).toBe('team_summary')
+    expect(upload.searchParams.get('context')).toBe('Add my team')
+    expect(upload.searchParams.get('returnTo')).toBe(CAPTAIN_QUICK_START_HREF)
+    for (const authPath of ['/join', '/forget-password']) {
+      expect(new URL(buildAuthEntryHref(authPath, 'free', next, true), login.origin).searchParams.get('next')).toBe(next)
+    }
+    expect(isSafeLocalNextHref(next, '/explore')).toBe(next)
+  })
+
+  it('returns history sign-ins to history and handles an ordinary upload entry', () => {
+    expect(new URL(buildDataAssistSignInHref('', 'history'), 'https://tenaceiq.test').searchParams.get('next')).toBe('/data-assist#history')
+    expect(new URL(buildDataAssistSignInHref(''), 'https://tenaceiq.test').searchParams.get('next')).toBe('/data-assist#upload')
+    expect(source('app/data-assist/page.tsx')).not.toContain('/login?redirect=/data-assist')
+    expect(source('app/data-assist/page.tsx').match(/<DataAssistSignInLink/g)).toHaveLength(3)
+  })
+})

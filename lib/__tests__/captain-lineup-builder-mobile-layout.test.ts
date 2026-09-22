@@ -3,6 +3,9 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
+const matchWeekRail = readFileSync(join(process.cwd(), 'app/components/captain-match-week-rail.tsx'), 'utf8')
+const intelligence = readFileSync(join(process.cwd(), 'app/components/captain-lineup-intelligence.tsx'), 'utf8')
+const intelligenceStyles = readFileSync(join(process.cwd(), 'app/components/captain-lineup-intelligence.module.css'), 'utf8')
 
 function styleBlock(styleName: string) {
   const start = source.indexOf(`const ${styleName}`)
@@ -22,6 +25,7 @@ describe('Captain lineup builder mobile layout guards', () => {
       'columnStyle',
       'surfaceCardStrong',
       'surfaceCard',
+      'opponentCourtSetupChoiceStyle',
       'sectionHeaderStyle',
       'filtersGridStyle',
       'contextSummaryGridStyle',
@@ -44,6 +48,8 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('primaryButton')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('ghostButton')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('ghostButtonSmallButton')).toContain("overflowWrap: 'anywhere'")
+    expect(source).toContain("{!isMobile ? <CaptainSuitePanel active=\"lineup\" teamLabel={teamName || 'Team week'} /> : null}")
+    expect(source.indexOf('builderControlShellStyle(isMobile)')).toBeLessThan(source.indexOf('decisionBoardShellStyle'))
   })
 
   it('keeps saved scenarios, slot editors, and lineup rows mobile-safe', () => {
@@ -69,6 +75,27 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain("style={{ minWidth: 0, overflowWrap: 'anywhere' }}")
     expect(styleBlock('slotLabelInputStyle')).toContain("width: 'min(100%, 180px)'")
     expect(styleBlock('slotLabelInputStyle')).toContain('minWidth: 0')
+    for (const styleName of [
+      'slotEditorBodyStyle',
+      'compactCourtTriggerStyle',
+      'compactCourtTriggerHeaderStyle',
+      'compactCourtTriggerFooterStyle',
+      'slotHeaderActionsStyle',
+    ]) {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+    expect(source).toContain('const [expandedTeamSlotId, setExpandedTeamSlotId] = useState(\'\')')
+    expect(source).toContain('aria-controls={`captain-lineup-slot-editor-${slot.id}`}')
+    expect(source).toContain('Edit court')
+    expect(source).toContain('>Done</GhostSmallBtn>')
+  })
+
+  it('moves a complete pair between courts without rebuilding each player spot', () => {
+    expect(source).toContain('Move or swap court')
+    expect(source).toContain("Move this {slot.slotType === 'doubles' ? 'pair' : 'player'}…")
+    expect(source).toContain('Swap with {targetSlot.label}')
+    expect(source).toContain('swapCaptainLineupCourtAssignments(teamSlots, sourceSlotId, targetSlotId)')
+    expect(source).toContain('Player replies and locks stayed with each player.')
   })
 
   it('keeps decision, projection, and lock panels resilient on narrow screens', () => {
@@ -110,5 +137,259 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(styleBlock('bannerBlueStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('bannerGreenStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('warningCardStyle')).toContain("overflowWrap: 'anywhere'")
+  })
+
+  it('turns a missing roster into upload, export-help, and manual-entry actions', () => {
+    expect(source).toContain('Add your players to build this lineup.')
+    expect(source).toContain('Upload Team Summary')
+    expect(source).toContain('Enter players manually')
+    expect(source).toContain('How to export a Team Summary from TennisLink')
+    expect(source).toContain('Choose <strong>Send To Excel</strong>')
+    expect(source).toContain('Watch the 1-minute Team Summary video guide')
+    expect(source).toContain('href="/resources/usta-upload#quick-guide"')
+    expect(source).toContain("type: 'team_summary'")
+    expect(source).toContain("help: '1'")
+    expect(source).toContain('returnTo: context.returnTo')
+    expect(source).toContain('function addManualRosterPlayers()')
+    expect(source).toContain('Upload the Team Summary for ratings, then add Player Roster later if you want team contacts.')
+    expect(styleBlock('rosterRecoveryCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock('rosterRecoveryActionGridStyle')).toContain("repeat(auto-fit, minmax(min(100%, 210px), 1fr))")
+    expect(styleBlock('manualRosterEntryStyle')).toContain('minWidth: 0')
+  })
+
+  it('treats an absent opponent roster as a compact recovery choice, not a failure', () => {
+    expect(source).toContain('aria-label="Opponent roster options"')
+    expect(source).toContain('has not been added yet.')
+    expect(source).toContain('Enter names now, or add its TennisLink Team Summary for TiQ ratings.')
+    expect(source).toContain('Upload TennisLink roster')
+    expect(source).toContain('function addManualOpponentRosterPlayers()')
+    expect(source).toContain('const scopedManualOpponentRosterPlayers = useMemo(')
+    expect(source).toContain('const opponentSummaryUploadHref = useMemo(')
+    expect(source).not.toContain('No opponent roster is available for {opponentTeam} yet.')
+    expect(styleBlock('opponentRosterRecoveryStyle')).toContain('minWidth: 0')
+    expect(styleBlock('opponentRosterManualEntryStyle')).toContain("gridColumn: '1 / -1'")
+  })
+
+  it('confirms when opponent players are ready and opens the opponent courts directly', () => {
+    expect(source).toContain('aria-label="Opponent roster ready"')
+    expect(source).toContain('TiQ ratings are available where matched.')
+    expect(source).toContain('Set opponent courts')
+    expect(source).toContain("document.getElementById('opponent-lineup')?.scrollIntoView")
+    expect(source).toContain('<section id="opponent-lineup" style={surfaceCardStrong}>')
+    expect(styleBlock('opponentRosterReadyStyle')).toContain('minWidth: 0')
+  })
+
+  it('keeps manual opponent names available after a Builder refresh or upload return', () => {
+    expect(source).toContain('function restoreManualRosterPlayers(')
+    expect(source).toContain('const persistedManualRosterDraft = persistedDirectCourtTextHandoff?.builderDraft ?? persistedDeviceBuilderDraft')
+    expect(source).toContain('manualRosterEntries: manualRosterPlayers.slice(-80).map((player) => ({')
+    expect(source).toContain('const restoredManualRosterPlayers = restoreManualRosterPlayers(storedDraft)')
+  })
+
+  it('keeps a missing mobile number in the Builder instead of sending the captain to another screen', () => {
+    expect(source).toContain('Add {player.playerName.split(\' \')[0]}’s mobile number')
+    expect(source).toContain('Save mobile & prepare Ask')
+    expect(source).toContain("await askProposedCourtPlayers(slot, invitedPlayer, { contactPhone: phone })")
+    expect(source).toContain("fetch('/api/captain/team-contacts'")
+    expect(source).toContain('Sign in again before saving this mobile number.')
+    expect(source).toContain('const existingContact = captainRosterContactsForTeam.find')
+    expect(styleBlock('courtAskControlStyle')).toContain('minWidth: 0')
+    expect(styleBlock('courtPhoneFormStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
+    expect(styleBlock('courtPhoneLabelStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(styleBlock('inputStyle')).toContain("boxSizing: 'border-box'")
+    expect(styleBlock('mobileSelectInputStyle')).toContain("textOverflow: 'ellipsis'")
+    expect(styleBlock('mobileReplacementHandoffActionsStyle')).toContain("width: '100%'")
+    expect(styleBlock('mobileCourtAskControlStyle')).toContain("width: '100%'")
+    expect(styleBlock('mobileCourtPhoneFormStyle')).toContain("boxSizing: 'border-box'")
+    expect(styleBlock('mobileSmsFallbackLinkStyle')).toContain("width: '100%'")
+    expect(source).toContain('fullWidth={isMobileLayout}')
+    expect(source).toContain('>Team contacts</GhostLink>')
+  })
+
+  it('keeps hands-on building focused while making matchup insights a compact optional action', () => {
+    expect(source).toContain("const [builderMode, setBuilderMode] = useState<BuilderMode>('manual')")
+    expect(source).toContain('Scouting &amp; matchup forecast')
+    expect(source).toContain('Open matchup insights')
+    expect(source).toContain('Back to my lineup')
+    expect(source).toContain("<details id=\"captain-lineup-insights\" open={builderMode === 'insights'} style={surfaceCardStrong}>")
+    expect(source).toContain('Opponent + insights')
+    expect(source).toContain("{builderMode === 'insights' ? <div style={columnStyle}>")
+    for (const styleName of ['builderInsightToggleStyle', 'builderInsightCopyStyle', 'builderInsightButtonStyle']) {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+    expect(styleBlock('builderInsightButtonStyle')).toContain("width: '100%'")
+    expect(source).toContain("document.getElementById('captain-lineup-insights')?.scrollIntoView")
+  })
+
+  it('keeps linked captain teams obvious and safe to switch on every screen size', () => {
+    expect(source).toContain("import { fetchTeamConnections } from '@/lib/team-profile-links-client'")
+    expect(source).toContain("import { isCaptainTeamConnection, type TeamConnection } from '@/lib/team-profile-links'")
+    expect(source).toContain("const [linkedCaptainTeams, setLinkedCaptainTeams] = useState<LinkedCaptainTeam[]>([])")
+    expect(source).toContain("connection.status !== 'accepted' || !isCaptainTeamConnection(connection.roles)")
+    expect(source).toContain('aria-label="Switch lineup builder team"')
+    expect(source).toContain('function selectLinkedCaptainTeam(nextScopeKey: string)')
+    const switchHandler = source.slice(source.indexOf('function selectLinkedCaptainTeam('), source.indexOf('async function saveAndConfirmPotentialLineupAvailability('))
+    expect(switchHandler).toContain('if (!switchingScope) return')
+    expect(switchHandler).toContain("router.push(buildCaptainScopedHref('/captain/lineup-builder', {")
+    expect(switchHandler).toContain("competitionLayer: nextTeam.sourceType === 'tiq_entry' ? 'tiq' : 'usta'")
+    expect(switchHandler).toContain('team: nextTeam.teamName')
+    expect(switchHandler).toContain('league: nextTeam.leagueName')
+    expect(switchHandler).toContain('flight: nextTeam.flight')
+    expect(switchHandler).not.toContain('setTeamName(')
+    expect(switchHandler).not.toContain('scenarioId:')
+    expect(switchHandler).not.toContain('matchId:')
+    expect(switchHandler).toContain('if (!shouldSwitch) return')
+    expect(source).toContain('Save this version first if you want to keep editing it.')
+    expect(source).toContain('<LineupBuilderContent key={builderContextKey} routeSearch={routeSearch} />')
+    for (const styleName of [
+      'linkedTeamSwitcherStyle',
+      'linkedTeamSwitcherCopyStyle',
+      'linkedTeamSwitcherSelectWrapStyle',
+      'linkedTeamSwitcherSelectStyle',
+    ]) {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+    expect(styleBlock('linkedTeamSwitcherStyle')).toContain("gridTemplateColumns: isMobile ? 'minmax(0, 1fr)'")
+  })
+
+  it('puts future match selection in the primary match-week flow', () => {
+    expect(source).toContain('const uniqueScopedMatchOptions = useMemo(() =>')
+    expect(source).toContain("const key = [match.match_date || match.id, normalizeTeamName(opponent)].join('|')")
+    expect(source).toContain('const currentDetail = Number(Boolean(current.match_time)) + Number(Boolean(current.facility))')
+    expect(source).toContain('const orderedScopedMatchOptions = useMemo(() =>')
+    expect(source).toContain('const matchWeekChoices = useMemo(() =>')
+    expect(source).toContain('function selectScheduledMatch(nextMatchId: string)')
+    expect(source).toContain('matchChoices={matchWeekChoices}')
+    expect(source).toContain('onMatchChange={selectScheduledMatch}')
+    expect(source).toContain('onChange={(e) => selectScheduledMatch(e.target.value)}')
+    expect(source).toContain('window.localStorage.setItem(getCaptainLineupDraftStorageKey(userId, currentBuilderDraft)')
+    expect(source).toContain("router.push(buildCaptainScopedHref('/captain/lineup-builder', {")
+    expect(matchWeekRail).toContain('aria-label="Choose match to build"')
+    expect(matchWeekRail).toContain('Change match')
+    expect(matchWeekRail).toContain('title="Earlier match"')
+    expect(matchWeekRail).toContain('title="Next match"')
+    expect(matchWeekRail).toContain("gridTemplateColumns: '44px minmax(0, 1fr) 44px'")
+    expect(matchWeekRail).toContain("minWidth: 0")
+  })
+
+  it('turns future matches into a compact planning queue with actionable readiness signals', () => {
+    expect(source).toContain("fetch('/api/captain/lineup-drafts?view=summary'")
+    expect(source).toContain('const [lineupDraftSummaries, setLineupDraftSummaries]')
+    expect(source).toContain("label: 'Players'")
+    expect(source).toContain("label: 'Opponent'")
+    expect(source).toContain("label: 'Lineup'")
+    expect(source).toContain("? 'Final'")
+    expect(source).toContain("? 'Draft'")
+    expect(source).toContain(": 'Not started'")
+    expect(matchWeekRail).toContain('Plan ahead')
+    expect(matchWeekRail).toContain('Upcoming matches')
+    expect(matchWeekRail).toContain('aria-label="Upcoming match planning"')
+    expect(matchWeekRail).toContain('Building now')
+    expect(matchWeekRail).toContain('Open lineup')
+    expect(matchWeekRail).toContain('onResumeLineup')
+    expect(matchWeekRail).toContain('activeLineupSummary')
+    expect(matchWeekRail).toContain("gridAutoColumns: 'minmax(214px, 76%)'")
+    expect(matchWeekRail).toContain("overflowX: 'auto'")
+    expect(matchWeekRail).toContain("scrollSnapType: 'x proximity'")
+  })
+
+  it('keeps phone auto-build to one primary action and puts optimizer detail behind disclosures', () => {
+    expect(source).toContain('>Auto-build my lineup</PrimaryBtn>')
+    expect(source).toContain('>Build options</p>')
+    expect(source).toContain('Locks, opponent, and alternates')
+    expect(source).toContain('>Rebuild around locks</GhostBtn>')
+    expect(source).toContain('>Auto-fill opponent</GhostBtn>')
+    expect(source).toContain('>Match insight</p>')
+    expect(source).toContain('How to win this match')
+  })
+
+  it('starts completed match setup collapsed while keeping its match summary visible', () => {
+    expect(source).toContain('const [matchSetupOpen, setMatchSetupOpen] = useState(')
+    expect(source).toContain('() => !(initialTeamName && initialOpponentTeam && initialMatchDate)')
+    expect(source).toContain('const didAutoCollapseMatchSetupRef = useRef(false)')
+    expect(source).toContain('if (!hasCoreContext || didAutoCollapseMatchSetupRef.current) return')
+    expect(source).toContain('setMatchSetupOpen(false)')
+    expect(source).toContain('const matchSetupSummary = hasCoreContext')
+    expect(source).toContain('open={matchSetupOpen}')
+    expect(source).toContain('onToggle={(event) => setMatchSetupOpen(event.currentTarget.open)}')
+    expect(source).toContain("{hasCoreContext ? 'Ready' : 'Needs match'}")
+  })
+
+  it('makes optimizer changes visible and keeps Tri-Level on three rating-specific doubles courts', () => {
+    expect(source).toContain('This is a potential lineup. Review it, then confirm each player')
+    expect(source).toContain('role="status" aria-live="polite"')
+    expect(source).toContain('id="captain-lineup-applied-next"')
+    expect(source).toContain('<strong>Next: ask your players</strong>')
+    expect(source).toContain('Saves this lineup, then opens messages with the players and match details ready.')
+    expect(source).toContain('{resolvedMatchFormat.label} · {matchFormatSummary.courts} courts')
+    expect(source).toContain("resolvedMatchFormat.id === 'tri_level' || resolvedMatchFormat.id === 'mixed_tri_level'")
+    expect(source).toContain('isPlayerEligibleForSlot(player, slot, competitionRules)')
+    expect(source).toContain('isCompetitionPairRatingEligible')
+    expect(source).toContain('fixedFormat={isFixedLineupFormat}')
+    expect(source).toContain('<section id="captain-lineup-courts" style={{ ...surfaceCardStrong, scrollMarginTop: 132 }}>')
+    expect(source.indexOf('id="captain-lineup-courts"')).toBeLessThan(source.indexOf('<p style={sectionKicker}>Your lineup</p>'))
+    expect(styleBlock('appliedLineupNoticeStyle')).toContain('minWidth: 0')
+    expect(styleBlock('appliedLineupActionStyle')).toContain('flexWrap: \'wrap\'')
+    expect(styleBlock('triLevelFormatStyle')).toContain('minWidth: 0')
+    expect(source).toContain('aria-label="Lineup next decision"')
+    expect(source).toContain('const teamCourtProgress = useMemo(() =>')
+    expect(source).toContain('const teamLineupComplete = completedTeamCourtCount === teamCourtProgress.length')
+    expect(source).toContain('Scout opponent &amp; forecast')
+    expect(source).toContain('const recentHistoricalLineup = useMemo<HistoricalLineupSuggestion | null>(() =>')
+    expect(source).toContain('Use recent lineup')
+    expect(source).toContain('fills open spots only')
+    expect(source).toContain('Your existing court choices stayed in place.')
+    expect(source).toContain('no recent players were added')
+    expect(source).toContain('<CaptainLineupIntelligence')
+    expect(source).toContain('onAutoBuild={(strategy) => applyOptimizedPlan(strategy, false)}')
+    expect(source).toContain('onEditCourt={(courtId) => focusTeamCourts(teamSlots, courtId)}')
+    expect(source).toContain("<PrimaryBtn onClick={() => applyOptimizedPlan('best')}>")
+    expect(source).toContain('<PrimaryBtn onClick={() => focusTeamCourts()}>Build lineup</PrimaryBtn>')
+    expect(intelligence).toContain('aria-label="Court outlook"')
+    expect(intelligence).toContain('Build my best lineup')
+    expect(intelligence).toContain('Best odds')
+    expect(intelligence).toContain('Safer floor')
+    expect(intelligence).toContain('More upside')
+    expect(intelligence).toContain('Court position tendency')
+    expect(intelligence).toContain('Win score distribution')
+    expect(intelligenceStyles).toContain('grid-template-columns: repeat(var(--court-count), minmax(0, 1fr))')
+    expect(intelligenceStyles).toContain('min-height: 44px')
+    expect(source).toContain('function focusTeamCourts(nextSlots: LineupSlot[] = teamSlots, preferredCourtId = \'\')')
+    expect(source).toContain('function focusTeamCourtsAfterBuild(nextSlots: LineupSlot[] = teamSlots)')
+    expect(source).toContain('setExpandedTeamSlotId(courtToOpen)')
+    expect(source).toContain('document.getElementById(`captain-lineup-slot-${courtToOpen}`)')
+    expect(source).toContain("?.scrollIntoView({ behavior: 'smooth', block: 'start' })")
+    expect(source).toContain('style={isMobile ? hiddenMobileContextStyle : surfaceCard}')
+  })
+
+  it('gives mobile captains a clear final lineup check before they send the team update', () => {
+    expect(source).toContain('aria-label="Continue lineup workflow"')
+    expect(source).toContain('Lineup built')
+    expect(source).toContain('Save lineup & check replies')
+    expect(source).toContain('Post to Team Chat')
+    expect(source).toContain('Create image + text team')
+    expect(source).toContain('Print lineup / scorecard')
+    expect(source).toContain('aria-label="Current lineup actions"')
+    expect(source).toContain('Working lineup')
+    expect(source).toContain('Open lineup')
+    expect(source).toContain('Refresh replies')
+    expect(source).toContain('firstReplyAttentionCourtId')
+    expect(source).toContain('Ready to send.')
+    expect(source).toContain('Send lineup to Team Chat')
+    for (const styleName of [
+      'mobileLineupActionsCardStyle',
+      'mobileLineupResumeCopyStyle',
+      'mobileLineupResumeActionsStyle',
+      'lineupTransitionCopyStyle',
+      'lineupTransitionActionsStyle',
+    ]) {
+      expect(styleBlock(styleName)).toContain('minWidth: 0')
+    }
+    expect(styleBlock('lineupTransitionCardStyle')).toContain("repeat(auto-fit, minmax(min(100%, 250px), 1fr))")
+    expect(styleBlock('mobileLineupActionsCardStyle')).not.toContain("position: 'fixed'")
+    expect(styleBlock('mobileLineupActionsCardStyle')).not.toContain("position: 'sticky'")
+    expect(styleBlock('mobileLineupActionsCardStyle')).toContain("width: '100%'")
+    expect(styleBlock('mobileLineupResumeActionsStyle')).toContain("repeat(2, minmax(0, 1fr))")
+    expect(styleBlock('slotCardStyle')).toContain('scrollMarginTop: 132')
   })
 })

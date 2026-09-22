@@ -78,7 +78,7 @@ describe('My Lab mobile layout guards', () => {
       'performanceCardStyle',
       'matchupQueueCardStyle',
       'matchupQueueCopyStyle',
-      'workshopMatchRowStyle',
+      'matchbookRowStyle',
       'workshopRowCopyStyle',
       'nextActionCardStyle',
       'compactSignalCopyStyle',
@@ -87,6 +87,7 @@ describe('My Lab mobile layout guards', () => {
       'myLabRefreshProofCardStyle',
       'myLabPlayerIdProofRailStyle',
       'myLabPlayerIdProofCardStyle',
+      'optionalContextSummaryCopyStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain('minWidth: 0')
     }
@@ -111,7 +112,7 @@ describe('My Lab mobile layout guards', () => {
       'followNameStyle',
       'followMetaStyle',
       'matchupQueueCardStyle',
-      'workshopMatchRowStyle',
+      'matchbookRowStyle',
       'nextActionCardStyle',
       'myLabRefreshProofLabelStyle',
       'myLabRefreshProofTextStyle',
@@ -129,6 +130,7 @@ describe('My Lab mobile layout guards', () => {
     expect(source).toContain('<div style={matchupQueueCopyStyle}>')
     expect(source).toContain('<div style={workshopRowCopyStyle}>')
     expect(source).toContain('<div style={compactSignalCopyStyle}>')
+    expect(source).toContain('<span style={optionalContextSummaryCopyStyle}>')
     expect(styleBlock('quickStartTextStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('quickStartButtonRowStyle')).toContain('minWidth: 0')
     expect(styleBlock('matchupQueueCopyStyle')).toContain("maxWidth: '100%'")
@@ -144,7 +146,7 @@ describe('My Lab mobile layout guards', () => {
       "gridTemplateColumns: 'minmax(0, 64px) minmax(0, 1fr)'",
     )
     expect(source).not.toContain("gridTemplateColumns: '64px minmax(0, 1fr)'")
-    for (const styleName of ['matchupQueueCardStyle', 'workshopMatchRowStyle', 'nextActionCardStyle']) {
+    for (const styleName of ['matchupQueueCardStyle', 'matchbookRowStyle', 'nextActionCardStyle']) {
       expect(styleBlock(styleName), styleName).toContain("'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)'")
       expect(styleBlock(styleName), styleName).not.toContain("'auto minmax(0, 1fr) auto'")
     }

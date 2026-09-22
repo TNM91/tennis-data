@@ -7,6 +7,7 @@ export default function LeagueCoordinatorResultsPage() {
     <TeamLeagueResultsWorkspace
       activeRoute="/league-coordinator"
       loginNextHref="/league-coordinator/results"
+      loginPlanId="league"
     />
   )
 }

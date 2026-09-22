@@ -143,8 +143,8 @@ describe('My Lab coach check-in guide', () => {
     expect(myLabSource).toContain('calendarFeedLastUsedAt')
     expect(myLabSource).toContain('personalCalendarFeedUrl')
     expect(myLabSource).toContain('revokePersonalCalendarFeedLink')
-    expect(myLabSource).toContain('Your tennis week, plus shared coach dates.')
-    expect(myLabSource).toContain('Add personal reminders here while coach lessons and assignment due dates flow in from Coach Hub.')
+    expect(myLabSource).toContain('Your tennis week, connected.')
+    expect(myLabSource).toContain('Approved league and tournament dates flow in with coach dates and your own reminders.')
   })
 
   it('only syncs player assignment status for assignments linked to that player', () => {

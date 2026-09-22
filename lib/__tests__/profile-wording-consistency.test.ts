@@ -23,12 +23,21 @@ describe('profile wording consistency', () => {
   it('keeps My Lab and Captain setup prompts aligned with profile creation', () => {
     const myLab = source('app/mylab/page.tsx')
     const captain = source('app/captain/page.tsx')
+    const checklist = source('app/components/tennis-setup-checklist.tsx')
+    const profile = source('app/profile/page.tsx')
 
     expect(myLab).toContain('Set your profile to unlock recommendations')
-    expect(myLab).toContain('Set your player profile once.')
+    expect(myLab).toContain('<TennisSetupChecklist')
+    expect(checklist).toContain('Connect your player.')
+    expect(checklist).toContain('Find my player')
     expect(myLab).not.toContain('Improve your profile')
     expect(captain).toContain('Set profile')
     expect(captain).not.toContain('Link profile</Link>')
+    expect(profile).toContain('const showProfileIntro = !signedIn || profileComplete')
+    expect(profile).toContain('const showTennisSetupChecklist = signedIn && profileComplete')
+    expect(profile).toContain("profileComplete ? profileDisplayName : 'Connect your player'")
+    expect(profile).toContain('Get started · Step 1 of 3')
+    expect(profile).toContain(': <h1 style={sectionTitleStyle}>{profileIdentityTitle}</h1>')
   })
 
   it('keeps Matchup and league fallbacks on set-profile language while paid upgrade handoff stays product-led', () => {

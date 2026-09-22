@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
     .order('updated_at', { ascending: false })
     .limit(500)
 
-  if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+  if (error) return apiServerError('Could not load profile sync reviews', error, 'Profile sync reviews are temporarily unavailable.')
   return Response.json({ ok: true, reviews: data || [] })
 }
 
@@ -79,7 +80,7 @@ export async function PATCH(request: Request) {
     .eq('id', eventId)
     .maybeSingle()
 
-  if (eventError) return Response.json({ ok: false, message: eventError.message }, { status: 500 })
+  if (eventError) return apiServerError('Could not load profile sync review event', eventError, 'That profile sync review is temporarily unavailable.')
   if (!event || cleanText((event as { event_name?: string | null }).event_name) !== 'profile_cloud_sync_repair') {
     return Response.json({ ok: false, message: 'Profile sync repair event was not found.' }, { status: 404 })
   }
@@ -98,7 +99,7 @@ export async function PATCH(request: Request) {
     .select(REVIEW_SELECT)
     .single()
 
-  if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+  if (error) return apiServerError('Could not update profile sync review', error, 'The profile sync review could not be saved.')
   return Response.json({ ok: true, review: data })
 }
 

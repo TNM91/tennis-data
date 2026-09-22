@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
 import {
   canAcceptCoachInviteEmail,
   isCoachInviteExpired,
@@ -62,7 +63,7 @@ export async function GET(request: Request, context: { params: Promise<{ token: 
     .eq('invite_token', token)
     .maybeSingle()
 
-  if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+  if (error) return apiServerError('Could not load coach invite', error, 'That invite is temporarily unavailable.')
   if (!data) return Response.json({ ok: false, message: 'Coach invite was not found.' }, { status: 404 })
 
   const row = data as unknown as InviteDetailRow
@@ -108,7 +109,7 @@ export async function POST(request: Request, context: { params: Promise<{ token:
     .eq('invite_token', token)
     .maybeSingle()
 
-  if (inviteError) return Response.json({ ok: false, message: inviteError.message }, { status: 500 })
+  if (inviteError) return apiServerError('Could not load coach invite for acceptance', inviteError, 'That invite is temporarily unavailable.')
   const invite = inviteData as InviteAcceptanceRow | null
   if (!invite) return Response.json({ ok: false, message: 'Coach invite was not found.' }, { status: 404 })
   if (invite.status !== 'pending') return Response.json({ ok: false, message: 'This coach invite is no longer pending.' }, { status: 409 })
@@ -127,7 +128,7 @@ export async function POST(request: Request, context: { params: Promise<{ token:
       .update({ player_user_id: user.id, setup_status: 'linked', status: 'active', updated_at: new Date().toISOString() })
       .eq('id', invite.student_link_id)
 
-    if (linkError) return Response.json({ ok: false, message: linkError.message }, { status: 500 })
+    if (linkError) return apiServerError('Could not create coach student link', linkError, 'The coach connection could not be created.')
   }
 
   const { error: acceptError } = await service
@@ -140,7 +141,7 @@ export async function POST(request: Request, context: { params: Promise<{ token:
     })
     .eq('id', invite.id)
 
-  if (acceptError) return Response.json({ ok: false, message: acceptError.message }, { status: 500 })
+  if (acceptError) return apiServerError('Could not mark coach invite accepted', acceptError, 'The invite could not be accepted.')
 
   return Response.json({ ok: true })
 }

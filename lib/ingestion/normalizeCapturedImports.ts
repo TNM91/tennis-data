@@ -572,7 +572,8 @@ function normalizeDistrict(record: UnknownRecord): string | null {
 
 function normalizeFacility(record: UnknownRecord): string | null {
   const direct = nullableString(pickFirst(record, ['facility', 'site', 'location', 'club']))
-  if (direct) return direct
+  const address = nullableString(pickFirst(record, ['facilityAddress', 'facility_address', 'venueAddress', 'venue_address']))
+  if (direct) return address && !direct.includes(address) ? `${direct} — ${address}` : direct
 
   const nested = nullableString(
     pickNested(record, [
@@ -614,7 +615,6 @@ function normalizeTime(record: UnknownRecord): string | null {
 
 function normalizeTeamToken(value: string): string {
   return cleanString(value)
-    .replace(/\(\s*F\s*\)?/gi, ' ')
     .replace(/\s*\/\s*/g, '/')
     .replace(/\s+/g, ' ')
     .trim()
@@ -656,18 +656,7 @@ function extractTeamsFromScheduleFields(record: UnknownRecord): { home: string; 
     }
   }
 
-  const flagParts = combined
-    .split(/\(\s*F\s*\)?/i)
-    .map((part) => normalizeTeamToken(part))
-    .filter(Boolean)
-
-  if (flagParts.length >= 2) {
-    return {
-      home: flagParts[0] || rawHome,
-      away: flagParts[1] || rawAway,
-    }
-  }
-
+  // (F) is part of a Fall team name, not a separator between opponents.
   const vsMatch = combined.match(/^(.+?)\s+(?:vs\.?|v\.?)\s+(.+)$/i)
   if (vsMatch) {
     return {
@@ -850,6 +839,9 @@ function normalizeScorecardLine(
   return {
     lineNumber: numericLineNumber,
     matchType,
+    ntrp: normalizeSeedRatingValue(
+      pickFirst(line, ['ntrp', 'lineNtrp', 'line_ntrp', 'rating', 'level']),
+    ),
     sideAPlayers,
     sideBPlayers,
     winnerSide,

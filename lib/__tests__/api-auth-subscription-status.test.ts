@@ -10,6 +10,7 @@ describe('API auth subscription status normalization', () => {
     for (const source of [coachAuth, playerAuth]) {
       expect(source).toContain('normalizeSubscriptionStatus')
       expect(source).toContain('./access-model-core')
+      expect(source).toContain('./subscription-status')
       expect(source).not.toMatch(/from ['"]\.\/access-model['"]/)
       expect(source).not.toContain('function normalizeApiSubscriptionStatus')
       expect(source).not.toContain("subscription_status === 'active' ? 'active' : 'inactive'")

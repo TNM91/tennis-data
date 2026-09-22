@@ -3,9 +3,12 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const aboutSource = readFileSync(join(process.cwd(), 'app/about/page.tsx'), 'utf8')
+const contactSource = readFileSync(join(process.cwd(), 'app/contact/page.tsx'), 'utf8')
 const faqSource = readFileSync(join(process.cwd(), 'app/faq/page.tsx'), 'utf8')
 const howItWorksSource = readFileSync(join(process.cwd(), 'app/how-it-works/page.tsx'), 'utf8')
 const methodologySource = readFileSync(join(process.cwd(), 'app/methodology/page.tsx'), 'utf8')
+const resourcesSource = readFileSync(join(process.cwd(), 'app/resources/page.tsx'), 'utf8')
+const globalsSource = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
 const advertisingSource = readFileSync(join(process.cwd(), 'app/advertising-disclosure/page.tsx'), 'utf8')
 
 describe('public info product story copy', () => {
@@ -39,11 +42,11 @@ describe('public info product story copy', () => {
   })
 
   it('uses public workspace names on the How It Works explainer', () => {
-    expect(howItWorksSource).toContain('repeatable tennis tools when the need grows')
-    expect(howItWorksSource).toContain('before choosing the right paid tools')
-    expect(howItWorksSource).toContain('Team Hub and Captain Tools')
-    expect(howItWorksSource).toContain('Team Hub is built around actual weekly operations')
-    expect(howItWorksSource).toContain('League Office is for organizers')
+    expect(howItWorksSource).toContain('Start free. Add tools when you need them.')
+    expect(howItWorksSource).toContain('Explore tennis for free.')
+    expect(howItWorksSource).toContain('Captain your team')
+    expect(howItWorksSource).toContain('Team Hub keeps availability')
+    expect(howItWorksSource).toContain('Organize competition')
     expect(howItWorksSource).toContain('matchup context, team pages, or Team Hub')
     expect(howItWorksSource).not.toContain('repeatable workspaces when the work grows')
     expect(howItWorksSource).not.toContain('before the next tennis job needs a hub')
@@ -60,7 +63,7 @@ describe('public info product story copy', () => {
     expect(faqSource).toContain('Tournament Desk')
     expect(faqSource).toContain('changes tennis context')
     expect(faqSource).toContain('Common questions about TenAceIQ.')
-    expect(faqSource).toContain('so the tennis need, account, and data context stay together.')
+    expect(faqSource).toContain('Start with the tennis need, account, and data context together.')
     expect(faqSource).toContain('League Office gives leagues, ladders, and tournaments organized competition tools.')
     expect(faqSource).not.toContain('Captain leads')
     expect(faqSource).not.toContain('League operates')
@@ -71,8 +74,10 @@ describe('public info product story copy', () => {
     expect(faqSource).not.toContain('so account and data context stays together.')
     expect(faqSource).not.toContain('season home base')
 
-    expect(advertisingSource).toContain('Team Hub workflow screens')
-    expect(advertisingSource).toContain('tennis tools, and private user workflows')
+    expect(advertisingSource).toContain('Team Hub screens')
+    expect(advertisingSource).toContain('tennis tools, and private user areas')
+    expect(advertisingSource).not.toContain('Team Hub workflow screens')
+    expect(advertisingSource).not.toContain('private user workflows')
     expect(advertisingSource).toContain('Ads are not intended for admin tools')
     expect(advertisingSource).not.toContain('captain workflow screens')
     expect(advertisingSource).not.toContain('navigation, workspaces, and private user workflows')
@@ -82,5 +87,15 @@ describe('public info product story copy', () => {
   it('keeps methodology review copy tied to tennis context', () => {
     expect(methodologySource).toContain('changing tennis context unchecked')
     expect(methodologySource).not.toContain('changing the platform unchecked')
+  })
+
+  it('keeps optional public info copy out of closed mobile layout', () => {
+    for (const source of [aboutSource, contactSource, faqSource, howItWorksSource, methodologySource]) {
+      expect(source).toContain('className="publicInfoDetailsSection"')
+    }
+
+    expect(resourcesSource).toContain('<ActionGrid cards={resourceActions} />')
+    expect(resourcesSource).not.toContain('className="publicInfoDetailsSection"')
+    expect(globalsSource).toContain('.publicInfoDetailsSection:not([open]) > :not(summary)')
   })
 })

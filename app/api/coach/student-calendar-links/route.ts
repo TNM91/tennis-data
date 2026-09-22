@@ -1,4 +1,5 @@
 import { createCalendarFeedToken, hashCalendarFeedToken } from '@/lib/calendar-feed-tokens'
+import { apiServerError } from '@/lib/api-error-response'
 import { getCoachApiAuth } from '@/lib/coach-api-auth'
 
 export const runtime = 'nodejs'
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
     .limit(100)
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    return apiServerError('Could not load coach calendar links', error, 'Calendar links are temporarily unavailable.')
   }
 
   const rows = (data ?? []) as CoachStudentCalendarFeedStatusRow[]
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
     .eq('coach_user_id', auth.userId)
     .maybeSingle()
 
-  if (studentError) return Response.json({ ok: false, message: studentError.message }, { status: 500 })
+  if (studentError) return apiServerError('Could not load coach student calendar target', studentError, 'That student calendar is temporarily unavailable.')
 
   const student = studentData as CoachStudentCalendarLinkRow | null
   if (!student?.id) {
@@ -98,7 +99,7 @@ export async function POST(request: Request) {
     .eq('status', 'active')
 
   if (revokeError) {
-    return Response.json({ ok: false, message: revokeError.message }, { status: 500 })
+    return apiServerError('Could not revoke coach calendar link', revokeError, 'The calendar link could not be refreshed.')
   }
 
   const { error: insertError } = await auth.supabase
@@ -114,7 +115,7 @@ export async function POST(request: Request) {
     })
 
   if (insertError) {
-    return Response.json({ ok: false, message: insertError.message }, { status: 500 })
+    return apiServerError('Could not create coach calendar link', insertError, 'The calendar link could not be created.')
   }
 
   const calendarUrl = new URL(
@@ -147,7 +148,7 @@ export async function DELETE(request: Request) {
     .eq('coach_user_id', auth.userId)
     .maybeSingle()
 
-  if (studentError) return Response.json({ ok: false, message: studentError.message }, { status: 500 })
+  if (studentError) return apiServerError('Could not load coach student calendar target', studentError, 'That student calendar is temporarily unavailable.')
 
   const student = studentData as CoachStudentCalendarLinkRow | null
   if (!student?.id) {
@@ -163,7 +164,7 @@ export async function DELETE(request: Request) {
     .eq('status', 'active')
 
   if (revokeError) {
-    return Response.json({ ok: false, message: revokeError.message }, { status: 500 })
+    return apiServerError('Could not revoke coach calendar link', revokeError, 'The calendar link could not be revoked.')
   }
 
   return Response.json({ ok: true })

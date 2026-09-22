@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
 import { supabaseUrl } from '@/lib/supabase'
 
 export const runtime = 'nodejs'
@@ -52,7 +53,7 @@ export async function DELETE(
     .eq('id', batchId)
     .maybeSingle()
 
-  if (batchError) return Response.json({ ok: false, message: batchError.message }, { status: 500 })
+  if (batchError) return apiServerError('Could not load Data Assist submission', batchError, 'That Data Assist submission is temporarily unavailable.')
   const batchRow = batch as { submitted_by_user_id?: string | null; status?: string | null } | null
   if (!batchRow) {
     return Response.json({ ok: false, message: 'Data Assist draft was not found.' }, { status: 404 })
@@ -71,7 +72,7 @@ export async function DELETE(
     .from('data_assist_screenshots')
     .select('storage_bucket, storage_path')
     .eq('batch_id', batchId)
-  if (screenshotError) return Response.json({ ok: false, message: screenshotError.message }, { status: 500 })
+  if (screenshotError) return apiServerError('Could not load Data Assist submission screenshots', screenshotError, 'Submission screenshots are temporarily unavailable.')
 
   const pathsByBucket = ((screenshots || []) as ScreenshotStorageRow[]).reduce<Record<string, string[]>>((acc, row) => {
     const bucket = cleanText(row.storage_bucket) || DATA_ASSIST_SCREENSHOT_BUCKET
@@ -90,7 +91,7 @@ export async function DELETE(
     .from('data_assist_batches')
     .delete()
     .eq('id', batchId)
-  if (deleteError) return Response.json({ ok: false, message: deleteError.message }, { status: 500 })
+  if (deleteError) return apiServerError('Could not delete Data Assist submission', deleteError, 'The Data Assist submission could not be deleted.')
 
   return Response.json({ ok: true, message: 'Data Assist draft removed.' })
 }

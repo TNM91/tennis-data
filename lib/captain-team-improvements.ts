@@ -1,0 +1,73 @@
+export type CaptainTeamImprovementId = 'roster' | 'contacts' | 'schedule' | 'ratings' | 'scorecard'
+
+export type CaptainTeamImprovement = {
+  id: CaptainTeamImprovementId
+  title: string
+  state: string
+  detail: string
+  cta: string
+}
+
+export function buildCaptainTeamImprovements(input: {
+  rosterCount: number
+  phoneReadyCount: number
+  missingPhoneCount: number
+  missingRatingCount: number
+  scheduleCount: number
+  appearanceCount: number
+}): CaptainTeamImprovement[] {
+  const improvements: CaptainTeamImprovement[] = []
+
+  if (input.rosterCount === 0) {
+    improvements.push({
+      id: 'roster',
+      title: 'Add your players',
+      state: 'Roster missing',
+      detail: 'Upload the Team Summary to connect the team, player names, ratings, and standings. Add Player Roster later for team contacts.',
+      cta: 'Upload Team Summary',
+    })
+  } else if (input.missingPhoneCount > 0) {
+    const hasImportedPhones = input.phoneReadyCount > 0
+    improvements.push({
+      id: 'contacts',
+      title: hasImportedPhones ? 'Finish team phone numbers' : 'Add team phone numbers',
+      state: `${input.missingPhoneCount} missing`,
+      detail: hasImportedPhones
+        ? `${input.phoneReadyCount} phone number${input.phoneReadyCount === 1 ? ' is' : 's are'} ready from your Player Roster. Review the ${input.missingPhoneCount} still missing.`
+        : `Upload the Player Roster to add phone numbers for ${input.missingPhoneCount} roster player${input.missingPhoneCount === 1 ? '' : 's'}.`,
+      cta: hasImportedPhones ? 'Review contacts' : 'Upload Player Roster',
+    })
+  }
+
+  if (input.scheduleCount === 0) {
+    improvements.push({
+      id: 'schedule',
+      title: 'Add match dates and opponents',
+      state: 'Schedule missing',
+      detail: 'Upload the TennisLink schedule so availability, lineups, and messages open with the right match.',
+      cta: 'Upload Schedule',
+    })
+  }
+
+  if (input.rosterCount > 0 && input.missingRatingCount > 0) {
+    improvements.push({
+      id: 'ratings',
+      title: 'Complete player ratings',
+      state: `${input.missingRatingCount} missing`,
+      detail: `Refresh the Team Summary to add rating context for ${input.missingRatingCount} player${input.missingRatingCount === 1 ? '' : 's'}.`,
+      cta: 'Refresh Team Summary',
+    })
+  }
+
+  if (input.scheduleCount > 0 && input.rosterCount > 0 && input.appearanceCount === 0) {
+    improvements.push({
+      id: 'scorecard',
+      title: 'Add recent match results',
+      state: 'No results yet',
+      detail: 'Upload a recent scorecard to add results, court history, and pairing context.',
+      cta: 'Upload Scorecard',
+    })
+  }
+
+  return improvements
+}

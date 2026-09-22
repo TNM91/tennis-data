@@ -2194,9 +2194,26 @@ if (awayHits > homeHits) return 'away';
     return null;
   }
 
+  function inferNtrpFromRenderedLabel(label) {
+    const match = normalizeWhitespace(label).match(/\b([1-7](?:\.[05]))\s*(?:singles|doubles)\s*#\s*[1-5]\b/i);
+    if (!match) return null;
+    const rating = Number(match[1]);
+    return Number.isFinite(rating) ? rating : null;
+  }
+
+  function isRenderedScorecardLineLabel(label) {
+    const text = normalizeWhitespace(label);
+    return (
+      /\b\d+\s*#\s*(singles|doubles)\b/i.test(text) ||
+      /\b[1-7](?:\.[05])\s*(singles|doubles)\s*#\s*[1-5]\b/i.test(text)
+    );
+  }
+
   function inferLineNumberFromRenderedLabel(label) {
     const text = normalizeWhitespace(label);
-    const match = text.match(/(\d+)/);
+    const triLevelMatch = text.match(/\b[1-7](?:\.[05])\s*(?:singles|doubles)\s*#\s*([1-5])\b/i);
+    if (triLevelMatch) return Number(triLevelMatch[1]);
+    const match = text.match(/\b(\d+)\s*#\s*(?:singles|doubles)\b/i);
     return match ? Number(match[1]) : null;
   }
 
@@ -2345,6 +2362,7 @@ if (awayHits > homeHits) return 'away';
       const cleanLine = {
         lineNumber: line.lineNumber,
         matchType: line.matchType,
+        ntrp: Number.isFinite(Number(line.ntrp)) ? Number(line.ntrp) : null,
         homePlayers: safeArray(line.homePlayers).filter(Boolean),
         awayPlayers: safeArray(line.awayPlayers).filter(Boolean),
         sets: safeArray(line.sets).filter(Boolean),
@@ -2362,6 +2380,7 @@ if (awayHits > homeHits) return 'away';
       const key = JSON.stringify({
         lineNumber: cleanLine.lineNumber,
         matchType: cleanLine.matchType,
+        ntrp: cleanLine.ntrp,
         homePlayers: cleanLine.homePlayers,
         awayPlayers: cleanLine.awayPlayers,
         sets: cleanLine.sets,
@@ -2419,7 +2438,7 @@ if (awayHits > homeHits) return 'away';
       let labelText = '';
 
       for (let i = 0; i < cellTexts.length; i += 1) {
-        if (/\b\d+\s*#\s*(singles|doubles)\b/i.test(cellTexts[i])) {
+        if (isRenderedScorecardLineLabel(cellTexts[i])) {
           labelIndex = i;
           labelText = cellTexts[i];
           break;
@@ -2430,7 +2449,8 @@ if (awayHits > homeHits) return 'away';
 
       const rawLineNumber = inferLineNumberFromRenderedLabel(labelText);
       const matchType = inferMatchTypeFromRenderedLabel(labelText);
-      const lineNumber = normalizeLineNumber(rawLineNumber, matchType);
+      const ntrp = inferNtrpFromRenderedLabel(labelText);
+      const lineNumber = ntrp === null ? normalizeLineNumber(rawLineNumber, matchType) : rawLineNumber;
 
       if (lineNumber === null || !matchType) return;
 
@@ -2519,6 +2539,7 @@ if (awayHits > homeHits) return 'away';
       lines.push({
         lineNumber,
         matchType,
+        ntrp,
         homePlayers,
         awayPlayers,
         sets: normalizedSets,
@@ -2544,11 +2565,12 @@ if (awayHits > homeHits) return 'away';
 
     for (let i = 0; i < allLines.length; i += 1) {
       const label = allLines[i];
-      if (!/\b\d+\s*#\s*(singles|doubles)\b/i.test(label)) continue;
+      if (!isRenderedScorecardLineLabel(label)) continue;
 
       const rawLineNumber = inferLineNumberFromRenderedLabel(label);
       const matchType = inferMatchTypeFromRenderedLabel(label);
-      const lineNumber = normalizeLineNumber(rawLineNumber, matchType);
+      const ntrp = inferNtrpFromRenderedLabel(label);
+      const lineNumber = ntrp === null ? normalizeLineNumber(rawLineNumber, matchType) : rawLineNumber;
       if (lineNumber === null || !matchType) continue;
 
       const block = [];
@@ -2557,7 +2579,7 @@ if (awayHits > homeHits) return 'away';
       while (j < allLines.length) {
         const nextLine = allLines[j];
 
-        if (/\b\d+\s*#\s*(singles|doubles)\b/i.test(nextLine)) break;
+        if (isRenderedScorecardLineLabel(nextLine)) break;
         if (/^total team score:?$/i.test(nextLine)) break;
         if (/^\*game winning %:?$/i.test(nextLine)) break;
         if (/^learn more$/i.test(nextLine)) break;
@@ -2608,6 +2630,7 @@ if (awayHits > homeHits) return 'away';
           results.push({
             lineNumber,
             matchType,
+            ntrp,
             homePlayers,
             awayPlayers,
             sets,

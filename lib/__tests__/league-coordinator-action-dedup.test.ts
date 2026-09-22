@@ -12,24 +12,25 @@ describe('league coordinator action deduplication', () => {
     expect(source).toContain('sharedSchedulerNextMove')
     expect(source).toContain('sharedCalendarNextMoveStyle')
     expect(source).toContain('sharedCalendarStepGridStyle')
-    expect(source).toContain('leagueOpsCheckGridStyle')
+    expect(source).toContain('leagueOfficeOperationProofStyle')
     expect(source).toContain('<GhostLink href="#league-setup-form">Pending dates</GhostLink>')
     expect(source).toContain('<GhostLink href="/compete/schedule">Confirmed calendar</GhostLink>')
     expect(source).toContain('<GhostLink href={resultEntryHref}>Post results</GhostLink>')
 
     const sharedSchedulerSection = source.slice(
       source.indexOf('<section id="shared-calendar"'),
-      source.indexOf('<details style={dataAssistOpsPanelStyle}>'),
+      source.indexOf('<details className="leagueCoordinatorDetailsSection" style={dataAssistOpsPanelStyle}>'),
     )
-    const seasonReadinessSection = source.slice(
-      source.indexOf('<section style={leagueOpsPanelStyle}>'),
-      source.indexOf('<div style={responsiveLayoutGrid}>'),
-    )
+    const seasonReadinessSection = source.slice(source.indexOf('<details className="leagueCoordinatorDetailsSection" style={leagueOpsPanelStyle}>'))
 
     expect(sharedSchedulerSection).not.toContain('responsiveHeroActionRowStyle')
     expect(sharedSchedulerSection).not.toContain('<GhostLink href="/compete/leagues">View leagues</GhostLink>')
     expect(sharedSchedulerSection).not.toContain('<GhostLink href="/explore/rankings">View rankings</GhostLink>')
     expect(seasonReadinessSection).not.toContain('responsiveHeroActionRowStyle')
+    expect(seasonReadinessSection).not.toContain('leagueOpsChecks.map')
+    expect(source.indexOf('<div style={responsiveLayoutGrid}>')).toBeLessThan(
+      source.indexOf('<section style={leaguePathStyle}'),
+    )
   })
 
   it('keeps the empty league registry actionable', () => {
@@ -47,6 +48,72 @@ describe('league coordinator action deduplication', () => {
     expect(source).toContain('emptyRegistryPanelStyle')
     expect(source).toContain('emptyRegistryActionRowStyle')
     expect(source).toContain('emptyRegistryActionStyle')
+  })
+
+  it('keeps the league setup form oriented before the long field list', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'),
+      'utf8',
+    )
+
+    expect(source).toContain('setupFocusItems')
+    expect(source).toContain('aria-label="League setup focus"')
+    expect(source).toContain('Setup focus')
+    expect(source).toContain('Build only what the season needs next.')
+    expect(source).toContain('Review the league before updating it.')
+    expect(source).toContain("label: 'Format'")
+    expect(source).toContain("label: 'Season'")
+    expect(source).toContain("label: 'Schedule'")
+    expect(source).toContain('draftParticipantCount')
+    expect(source).toContain('setupFocusPanelStyle')
+    expect(source).toContain('setupFocusGridStyle')
+    expect(source).toContain('setupFocusItemReadyStyle')
+  })
+
+  it('keeps saved league cards scannable with a registry snapshot', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'),
+      'utf8',
+    )
+
+    expect(source).toContain('registrySnapshotGridStyle')
+    expect(source).toContain('registrySnapshotItemStyle')
+    expect(source).toContain('aria-label={`${record.leagueName} league snapshot`}')
+    expect(source).toContain("const scheduleLabel =")
+    expect(source).toContain("const formatLabel =")
+    expect(source).toContain("const locationLabel =")
+    expect(source).toContain("const publicLabel =")
+    expect(source).toContain('Needs capacity review')
+    expect(source).toContain("record.leagueFormat === 'team' ? 'Teams' : 'Players'")
+    const registryCardSection = source.slice(
+      source.indexOf('{records.map((record) => {'),
+      source.indexOf('{leagueCards.length > 0 ? ('),
+    )
+    expect(registryCardSection).not.toContain(".join(' | ')}")
+  })
+
+  it('groups league card actions without mixing setup and share commands', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'),
+      'utf8',
+    )
+
+    expect(source).toContain('leagueActionRowStyle')
+    expect(source).toContain('leagueActionGroupStyle')
+    expect(source).toContain('leagueAdminActionGroupStyle')
+    expect(source).toContain('aria-label={`${league.leagueName} actions`}')
+    expect(source).toContain('aria-label={`${league.leagueName} setup actions`}')
+    expect(source).toContain('<GhostBtn onClick={() => void onCopyShare(league)}>Copy share link</GhostBtn>')
+
+    const leagueActionRowSection = source.slice(
+      source.indexOf('function LeagueActionRow({'),
+      source.indexOf('function EmptyLeagueRegistryPanel()'),
+    )
+    expect(leagueActionRowSection).toContain('<div style={responsiveLeagueActionGroupStyle}>')
+    expect(leagueActionRowSection).toContain('<div style={responsiveLeagueAdminActionGroupStyle}')
+    expect(leagueActionRowSection.indexOf('Copy share link')).toBeLessThan(
+      leagueActionRowSection.indexOf('{children ? ('),
+    )
   })
 
   it('keeps public page empty readiness actionable', () => {
@@ -83,6 +150,13 @@ describe('league coordinator action deduplication', () => {
       'utf8',
     )
 
+    expect(source).toContain('aria-label="Join request approval summary"')
+    expect(source).toContain('entryRequestSummaryGridStyle')
+    expect(source).toContain('entryRequestSummaryItemStyle')
+    expect(source).toContain('Queue is clear')
+    expect(source).toContain('Need approval')
+    expect(source).toContain('Team requests')
+    expect(source).toContain('Player requests')
     expect(source).toContain('function EmptyJoinRequestPanel')
     expect(source).toContain('No join requests are waiting.')
     expect(source).toContain('Check public pages')

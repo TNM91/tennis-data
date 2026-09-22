@@ -1,7 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
 const PORT = Number(process.env.PORT || 3000)
-const baseURL = `http://localhost:${PORT}`
+const externalBaseURL = process.env.PLAYWRIGHT_BASE_URL?.trim()
+const baseURL = externalBaseURL || `http://localhost:${PORT}`
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -16,12 +17,14 @@ export default defineConfig({
     baseURL,
     trace: 'on-first-retry',
   },
-  webServer: {
-    command: `npm run dev -- --port ${PORT}`,
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  webServer: externalBaseURL
+    ? undefined
+    : {
+        command: `npm run dev -- --port ${PORT}`,
+        url: baseURL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+      },
   projects: [
     {
       name: 'chromium',

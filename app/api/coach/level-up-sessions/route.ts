@@ -1,10 +1,11 @@
 import { getCoachApiAuth } from '@/lib/coach-api-auth'
+import { apiServerError } from '@/lib/api-error-response'
 import { mapLevelUpSessionRow, type LevelUpSessionRow } from '@/lib/level-up-sessions'
 
 export const runtime = 'nodejs'
 
 const sessionSelect =
-  'id,player_user_id,coach_user_id,student_link_id,assignment_id,identity_slug,focus_id,focus_title,work_type,training_context,drill_title,rating,feeling,access_mode,note,elapsed_seconds,shared_with_coach,completed_at,created_at,updated_at'
+  'id,player_user_id,coach_user_id,student_link_id,assignment_id,identity_slug,focus_id,focus_title,work_type,training_context,drill_title,rating,feeling,access_mode,note,elapsed_seconds,shared_with_coach,session_json,completed_at,created_at,updated_at'
 
 export async function GET(request: Request) {
   const auth = await getCoachApiAuth(request)
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
   }
 
   const { data, error } = await query
-  if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+  if (error) return apiServerError('Could not load coach Level Up sessions', error, 'Level Up sessions are temporarily unavailable.')
 
   const sessions = ((data ?? []) as LevelUpSessionRow[]).map(mapLevelUpSessionRow)
   return Response.json({ ok: true, sessions })

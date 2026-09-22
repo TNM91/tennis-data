@@ -4,11 +4,23 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
+import EntityDetailLink from '@/app/components/entity-detail-link'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import LeagueSuitePanel from '@/app/components/league-suite-panel'
 import { AuthProvider, useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
+import {
+  chooseLatestLeagueCoordinatorResumeState,
+  loadLeagueCoordinatorResumeStateFromCloud,
+  readLeagueCoordinatorResumeState,
+  syncLeagueCoordinatorResumeState,
+  writeLeagueCoordinatorResumeState,
+  type LeagueCoordinatorResumeState,
+  type LeagueCoordinatorTeamResultDraft,
+} from '@/lib/league-coordinator-memory'
+import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'
 import { buildTeamResultCue } from '@/lib/league-result-cues'
+import type { MembershipTierId } from '@/lib/product-story'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
 import type { TiqLeagueRecord, TiqLeagueScoringSystem } from '@/lib/tiq-league-registry'
 import {
@@ -24,13 +36,18 @@ import {
 import { updateTiqLeagueScheduleStatus } from '@/lib/tiq-league-schedule-service'
 import { supabase } from '@/lib/supabase'
 import { formatDate } from '@/lib/captain-formatters'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
+import { buildPlayerDetailHref } from '@/lib/entity-routes'
+import { buildTeamProfileHref } from '@/lib/team-routes'
 import {
   formatDynamicPointsForSides,
   getDynamicPointsRulesSummary,
   getDynamicPointsValidationMessage,
   validateTiqTennisMatchScore,
 } from '@/lib/tiq-scoring'
+import {
+  getTeamMatchFormatSummary,
+  resolveTeamMatchFormat,
+} from '@/lib/competition-format-registry'
 
 type PlayerOption = { id: string; name: string }
 type MatchLineSummary = {
@@ -63,7 +80,7 @@ const pageWrap: CSSProperties = {
   overflowX: 'clip',
   boxSizing: 'border-box',
 }
-const heading: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 32, fontWeight: 900, marginBottom: 8, letterSpacing: 0, overflowWrap: 'anywhere' }
+const heading: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 32, fontWeight: 900, margin: 0, marginBottom: 8, letterSpacing: 0, overflowWrap: 'anywhere' }
 const subheading: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 15, lineHeight: 1.55, marginBottom: 0, maxWidth: 640, overflowWrap: 'anywhere' }
 const introCard: CSSProperties = {
   background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
@@ -88,7 +105,6 @@ const portalWatermarkStyle: CSSProperties = {
   pointerEvents: 'none',
 }
 const portalPanelContentStyle: CSSProperties = { position: 'relative', zIndex: 1, minWidth: 0 }
-const sectionTitle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 16, fontWeight: 800, marginBottom: 14, marginTop: 28, overflowWrap: 'anywhere' }
 const card: CSSProperties = {
   background: 'rgba(8, 16, 34, 0.74)',
   border: '1px solid rgba(125,211,252,0.13)',
@@ -157,7 +173,6 @@ const scorekeeperTile: CSSProperties = {
 const tileLabel: CSSProperties = { color: '#93b7ea', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', overflowWrap: 'anywhere' }
 const tileValue: CSSProperties = { color: '#f8fbff', fontSize: 24, fontWeight: 950, marginTop: 5, lineHeight: 1.05, overflowWrap: 'anywhere' }
 const tileText: CSSProperties = { color: '#b8c7dc', fontSize: 13, lineHeight: 1.5, marginTop: 6, overflowWrap: 'anywhere' }
-const actionRow: CSSProperties = { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 12, minWidth: 0 }
 const resultPathStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
@@ -193,9 +208,49 @@ const resultPathIntro: CSSProperties = {
   maxWidth: 520,
   overflowWrap: 'anywhere',
 }
+const resultPathCommandStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+const resultPathStatusPanelStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  minHeight: 112,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(180deg, rgba(155,225,29,0.1), rgba(8,18,36,0.86))',
+  color: 'var(--shell-copy-muted)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
+  overflowWrap: 'anywhere',
+}
+const resultPathStatusGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 130px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+const resultPathStatusItemStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  minHeight: 78,
+  padding: '9px 10px',
+  borderRadius: 14,
+  border: '1px solid rgba(223,248,194,0.12)',
+  background: 'rgba(255,255,255,0.04)',
+  color: '#dbeafe',
+  fontSize: 12,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
 const resultPathGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
   gap: 12,
   minWidth: 0,
 }
@@ -203,7 +258,7 @@ const resultPathCard: CSSProperties = {
   display: 'grid',
   gap: 7,
   minWidth: 0,
-  minHeight: 142,
+  minHeight: 112,
   padding: 14,
   borderRadius: 18,
   border: '1px solid rgba(223,248,194,0.13)',
@@ -248,64 +303,80 @@ const detailsSummary: CSSProperties = {
   flexWrap: 'wrap',
   minWidth: 0,
 }
-const readinessPanel: CSSProperties = {
+const reviewPanelStyle: CSSProperties = {
   display: 'grid',
-  gap: 14,
-  background: 'rgba(8, 16, 34, 0.7)',
+  gap: 12,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 22,
   border: '1px solid rgba(116,190,255,0.13)',
-  borderRadius: 24,
-  padding: 18,
-  boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
+  background: 'rgba(8, 16, 34, 0.68)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+const reviewPanelHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  flexWrap: 'wrap',
   minWidth: 0,
 }
-const readinessKicker: CSSProperties = {
-  color: '#93b7ea',
-  fontSize: 11,
-  fontWeight: 900,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  overflowWrap: 'anywhere',
-}
-const readinessTitle: CSSProperties = {
-  color: '#f8fbff',
-  fontSize: 20,
-  lineHeight: 1.16,
+const reviewPanelTitleStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.1,
   fontWeight: 950,
-  marginTop: 5,
+  letterSpacing: 0,
   overflowWrap: 'anywhere',
 }
-const readinessText: CSSProperties = {
-  color: '#b8c7dc',
-  fontSize: 13,
-  lineHeight: 1.55,
-  marginTop: 6,
-  overflowWrap: 'anywhere',
-}
-const readinessGrid: CSSProperties = {
+const reviewCommandGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
-  gap: 10,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 8,
   minWidth: 0,
 }
-const readinessItem: CSSProperties = {
+const reviewCommandItemStyle: CSSProperties = {
   display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  alignItems: 'center',
   gap: 8,
-  minHeight: 86,
-  padding: 12,
+  minWidth: 0,
+  minHeight: 48,
+  padding: '9px 10px',
   borderRadius: 14,
   border: '1px solid rgba(125,211,252,0.12)',
-  background: 'rgba(8, 16, 34, 0.72)',
+  background: 'rgba(255,255,255,0.04)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  overflow: 'hidden',
+}
+const reviewCommandCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+const reviewFilterGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 8,
   minWidth: 0,
 }
-const readinessItemComplete: CSSProperties = {
-  ...readinessItem,
-  border: '1px solid rgba(155,225,29,0.18)',
-  background: 'rgba(155,225,29,0.08)',
+const reviewActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  minWidth: 0,
 }
-const readinessItemText: CSSProperties = {
-  color: '#e2e8f0',
+const reviewCountStyle: CSSProperties = {
+  color: '#94a3b8',
   fontSize: 13,
-  lineHeight: 1.35,
+  lineHeight: 1.4,
+  fontWeight: 700,
   overflowWrap: 'anywhere',
 }
 const eventFollowThroughGrid: CSSProperties = {
@@ -449,9 +520,9 @@ type LineFormState = {
   score: string
 }
 
-const emptyLine = (lineNumber = ''): LineFormState => ({
+const emptyLine = (lineNumber = '', matchType: 'singles' | 'doubles' = 'singles'): LineFormState => ({
   lineNumber,
-  matchType: 'singles',
+  matchType,
   sideAPlayer1Id: '',
   sideAPlayer2Id: '',
   sideBPlayer1Id: '',
@@ -466,6 +537,7 @@ function LineForm({
   scoringSystem,
   existingLine,
   defaultLineNumber = '',
+  defaultMatchType = 'singles',
   onSaved,
   onCancel,
 }: {
@@ -474,6 +546,7 @@ function LineForm({
   scoringSystem: TiqLeagueScoringSystem
   existingLine?: TiqTeamMatchLineRecord
   defaultLineNumber?: string
+  defaultMatchType?: 'singles' | 'doubles'
   onSaved: (line: TiqTeamMatchLineRecord) => void
   onCancel: () => void
 }) {
@@ -489,7 +562,7 @@ function LineForm({
           winnerSide: existingLine.winnerSide ?? '',
           score: existingLine.score,
         }
-      : emptyLine(defaultLineNumber)
+      : emptyLine(defaultLineNumber, defaultMatchType)
   )
   const [saving, setSaving] = useState(false)
   const [warning, setWarning] = useState('')
@@ -687,6 +760,7 @@ function EventCard({
   startLineEntry = false,
   lineSummary,
   scoringSystem,
+  league,
   onDeleted,
 }: {
   event: TiqTeamMatchEventRecord
@@ -695,6 +769,7 @@ function EventCard({
   startLineEntry?: boolean
   lineSummary?: MatchLineSummary
   scoringSystem: TiqLeagueScoringSystem
+  league: TiqLeagueRecord | null
   onDeleted: (id: string) => void
 }) {
   const [expanded, setExpanded] = useState(startLineEntry)
@@ -704,6 +779,13 @@ function EventCard({
   const [editingLine, setEditingLine] = useState<TiqTeamMatchLineRecord | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [warning, setWarning] = useState('')
+  const teamMatchFormat = resolveTeamMatchFormat({
+    leagueName: league?.leagueName,
+    flight: league?.flight,
+    explicitFormatId: league?.teamMatchFormatId,
+  })
+  const teamMatchFormatSummary = getTeamMatchFormatSummary(teamMatchFormat)
+  const maxFormatLines = teamMatchFormat.id === 'custom' ? 20 : teamMatchFormat.slots.length
 
   const loadLines = useCallback(async () => {
     const { lines: l } = await listTiqTeamMatchLines(event.id)
@@ -748,7 +830,7 @@ function EventCard({
 
   function nextOpenLineNumberForLines(matchLines: TiqTeamMatchLineRecord[]) {
     const usedLines = new Set(matchLines.map((line) => line.lineNumber))
-    for (let lineNumber = 1; lineNumber <= 20; lineNumber += 1) {
+    for (let lineNumber = 1; lineNumber <= maxFormatLines; lineNumber += 1) {
       if (!usedLines.has(lineNumber)) return String(lineNumber)
     }
     return ''
@@ -785,6 +867,7 @@ function EventCard({
   const displayTeamAPoints = linesLoaded ? dynamicPoints.teamAPoints : lineSummary?.teamAPoints ?? 0
   const displayTeamBPoints = linesLoaded ? dynamicPoints.teamBPoints : lineSummary?.teamBPoints ?? 0
   const defaultLineNumber = nextOpenLineNumber()
+  const defaultMatchType = teamMatchFormat.slots[Number(defaultLineNumber) - 1]?.discipline || 'singles'
   const eventFollowThroughItems = [
     {
       label: 'Lines',
@@ -813,10 +896,15 @@ function EventCard({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', minWidth: 0 }}>
         <div style={eventHeaderCopy}>
           <div style={eventTitleText}>
-            {event.teamAName} <span style={{ color: '#64748b' }}>vs</span> {event.teamBName}
+            <EntityDetailLink href={buildTeamProfileHref(event.teamAName)}>{event.teamAName}</EntityDetailLink>{' '}
+            <span style={{ color: '#64748b' }}>vs</span>{' '}
+            <EntityDetailLink href={buildTeamProfileHref(event.teamBName)}>{event.teamBName}</EntityDetailLink>
           </div>
           <div style={eventMetaText}>
             {formatDate(event.matchDate)}{event.facility ? ` - ${event.facility}` : ''}
+          </div>
+          <div style={{ marginTop: 6 }}>
+            <span style={pill}>{teamMatchFormat.label} · {teamMatchFormatSummary.courts} lines</span>
           </div>
           {displayTotalLines > 0 && (
             <div style={{ marginTop: 6, fontSize: 13 }}>
@@ -882,7 +970,7 @@ function EventCard({
           ) : lines.length === 0 ? (
             <div style={emptyLinePanel}>
               <strong>Start the line card.</strong>
-              <span>Add singles or doubles lines, then record winners and scores as they finish.</span>
+              <span>{teamMatchFormat.slots.map((slot) => slot.label).join(' · ') || 'Add the scorecard lines required for this match.'}</span>
             </div>
           ) : (
             <div style={lineGrid}>
@@ -911,8 +999,18 @@ function EventCard({
                       </div>
                     </div>
                     <div style={linePlayerText}>
-                      <div>A: {line.sideAPlayer1Name}{line.sideAPlayer2Name ? ` / ${line.sideAPlayer2Name}` : ''}</div>
-                      <div>B: {line.sideBPlayer1Name}{line.sideBPlayer2Name ? ` / ${line.sideBPlayer2Name}` : ''}</div>
+                      <div>
+                        A: <EntityDetailLink href={buildPlayerDetailHref(line.sideAPlayer1Id, line.sideAPlayer1Name)}>{line.sideAPlayer1Name}</EntityDetailLink>
+                        {line.sideAPlayer2Name ? (
+                          <> / <EntityDetailLink href={buildPlayerDetailHref(line.sideAPlayer2Id, line.sideAPlayer2Name)}>{line.sideAPlayer2Name}</EntityDetailLink></>
+                        ) : null}
+                      </div>
+                      <div>
+                        B: <EntityDetailLink href={buildPlayerDetailHref(line.sideBPlayer1Id, line.sideBPlayer1Name)}>{line.sideBPlayer1Name}</EntityDetailLink>
+                        {line.sideBPlayer2Name ? (
+                          <> / <EntityDetailLink href={buildPlayerDetailHref(line.sideBPlayer2Id, line.sideBPlayer2Name)}>{line.sideBPlayer2Name}</EntityDetailLink></>
+                        ) : null}
+                      </div>
                     </div>
                     {line.score && <div style={lineScoreText}>{line.score}</div>}
                     {showDynamicPoints && line.winnerSide && line.score && (
@@ -954,6 +1052,7 @@ function EventCard({
                 players={players}
                 scoringSystem={scoringSystem}
                 defaultLineNumber={defaultLineNumber}
+                defaultMatchType={defaultMatchType}
                 onSaved={(savedLine) => handleLineSaved(savedLine, true)}
                 onCancel={() => setAddingLine(false)}
               />
@@ -1134,11 +1233,13 @@ function NewEventForm({
   leagues,
   defaultLeagueId,
   scheduledDefaults,
+  onDraftChange,
   onCreated,
 }: {
   leagues: TiqLeagueRecord[]
   defaultLeagueId: string
   scheduledDefaults?: Partial<EventFormState>
+  onDraftChange?: (draft: LeagueCoordinatorTeamResultDraft) => void
   onCreated: (event: TiqTeamMatchEventRecord) => void
 }) {
   const [form, setForm] = useState<EventFormState>(() =>
@@ -1152,6 +1253,10 @@ function NewEventForm({
     [form.leagueId, leagues],
   )
   const teamOptions = useMemo(() => teamOptionsForLeague(selectedLeague), [selectedLeague])
+
+  useEffect(() => {
+    onDraftChange?.(form)
+  }, [form, onDraftChange])
 
   async function handleCreate() {
     if (!form.leagueId || !form.teamAName || !form.teamBName || !form.matchDate) {
@@ -1182,8 +1287,8 @@ function NewEventForm({
     if (event) {
       setMessage(
         scheduleCompletion
-          ? 'Match created and schedule marked complete. Expand below to add lines.'
-          : 'Match created. Expand below to add lines.',
+          ? 'Match created and schedule marked complete. Open the match card to add lines.'
+          : 'Match created. Open the match card to add lines.',
       )
       setForm(defaultEventForLeague(leagues, defaultLeagueId))
       onCreated(event)
@@ -1268,6 +1373,7 @@ function NewEventForm({
 type TeamLeagueResultsWorkspaceProps = {
   activeRoute?: string
   loginNextHref?: string
+  loginPlanId?: MembershipTierId
   resultsHref?: string
 }
 
@@ -1282,11 +1388,12 @@ export function TeamLeagueResultsWorkspace(props: TeamLeagueResultsWorkspaceProp
 function TeamLeagueResultsWorkspaceInner({
   activeRoute = '/league-coordinator',
   loginNextHref = '/league-coordinator/results',
+  loginPlanId = 'league',
   resultsHref = '/league-coordinator/results',
 }: TeamLeagueResultsWorkspaceProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { role, userId, entitlements, authResolved } = useAuth()
+  const { role, userId, entitlements, authResolved, session } = useAuth()
   const initialLeagueId = searchParams.get('leagueId') || searchParams.get('league_id') || ''
   const scheduledEventItemId = searchParams.get('scheduleItemId') || searchParams.get('schedule_item_id') || ''
   const scheduledTeamA = searchParams.get('teamA') || searchParams.get('team_a') || ''
@@ -1308,6 +1415,8 @@ function TeamLeagueResultsWorkspaceInner({
   const [dateFilter, setDateFilter] = useState<TeamResultDateFilter>('all')
   const [newMatchFormOpen, setNewMatchFormOpen] = useState(false)
   const [activeEntryEventId, setActiveEntryEventId] = useState('')
+  const [resumeTeamResultDraft, setResumeTeamResultDraft] = useState<LeagueCoordinatorTeamResultDraft | null>(null)
+  const [coordinatorResumeResolved, setCoordinatorResumeResolved] = useState(false)
   const access = useMemo(() => buildProductAccessState(role, entitlements), [entitlements, role])
   const canEditResults = access.canEnterTiqTeamLeague
   const accessResolved = authResolved && Boolean(userId)
@@ -1362,6 +1471,26 @@ function TeamLeagueResultsWorkspaceInner({
   }).length
   const totalLineCount = Array.from(lineSummaries.values()).reduce((sum, summary) => sum + summary.total, 0)
   const completedLineCount = Array.from(lineSummaries.values()).reduce((sum, summary) => sum + summary.completed, 0)
+  const reviewCommandItems = [
+    {
+      label: 'Shown',
+      value: `${visibleEvents.length}/${events.length}`,
+      detail: activeReviewFilterCount ? `${activeReviewFilterCount} review filter${activeReviewFilterCount === 1 ? '' : 's'} active.` : 'Full result book in view.',
+      ready: visibleEvents.length > 0,
+    },
+    {
+      label: 'Complete',
+      value: `${completeEventCount}/${events.length}`,
+      detail: events.length ? 'Finished matches can feed standings.' : 'Create the first team match.',
+      ready: events.length > 0 && completeEventCount === events.length,
+    },
+    {
+      label: 'Lines',
+      value: `${completedLineCount}/${totalLineCount}`,
+      detail: totalLineCount ? 'Line cards show what still needs a score.' : 'Add lines after the match shell.',
+      ready: totalLineCount > 0 && completedLineCount === totalLineCount,
+    },
+  ]
   const teamResultCue = buildTeamResultCue({
     leagueCount: leagues.length,
     selectedLeagueName: selectedFilterLeague?.leagueName,
@@ -1398,9 +1527,76 @@ function TeamLeagueResultsWorkspaceInner({
     if (!authResolved) return
 
     if (!userId) {
-      router.replace(`/login?next=${encodeURIComponent(buildCurrentLoginNextHref(loginNextHref))}`)
+      router.replace(buildAuthEntryHref('/login', loginPlanId, buildCurrentLoginNextHref(loginNextHref), true))
     }
-  }, [authResolved, loginNextHref, router, userId])
+  }, [authResolved, loginNextHref, loginPlanId, router, userId])
+
+  useEffect(() => {
+    if (!authResolved) return
+
+    const accessToken = session?.access_token || ''
+    let active = true
+    void (async () => {
+      const localState = readLeagueCoordinatorResumeState(userId)
+      const cloudState = accessToken ? await loadLeagueCoordinatorResumeStateFromCloud(accessToken) : null
+      const resumeState = chooseLatestLeagueCoordinatorResumeState(localState, cloudState)
+      if (!active) return
+      if (resumeState) writeLeagueCoordinatorResumeState(resumeState, userId)
+
+      const draft = resumeState?.lastSurface === 'team-results' ? resumeState.teamResultDraft : null
+      if (draft && !scheduledEventItemId && (!initialLeagueId || !draft.leagueId || draft.leagueId === initialLeagueId)) {
+        setResumeTeamResultDraft(draft)
+        setFilterLeagueId(draft.leagueId || initialLeagueId)
+        setNewMatchFormOpen(true)
+      }
+    })().finally(() => {
+      if (active) setCoordinatorResumeResolved(true)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [authResolved, initialLeagueId, scheduledEventItemId, session?.access_token, userId])
+
+  useEffect(() => {
+    if (!coordinatorResumeResolved || !userId || !canEditResults) return
+
+    const leagueId = resumeTeamResultDraft?.leagueId || filterLeagueId
+    const league = leagues.find((item) => item.id === leagueId) || null
+    if (!league) return
+    const hasDraft = Boolean(
+      newMatchFormOpen && resumeTeamResultDraft && (
+        resumeTeamResultDraft.teamAName || resumeTeamResultDraft.teamBName || resumeTeamResultDraft.matchDate ||
+        resumeTeamResultDraft.facility || resumeTeamResultDraft.notes
+      ),
+    )
+    const nextState: LeagueCoordinatorResumeState = {
+      leagueId: league.id,
+      leagueName: league.leagueName,
+      leagueFormat: 'team',
+      eventId: activeEntryEventId || undefined,
+      lastSurface: 'team-results',
+      lastSurfaceLabel: activeEntryEventId ? 'Team Match Lines' : hasDraft ? 'Team Match Draft' : 'Team Results',
+      lastHref: `${resultsHref}?leagueId=${encodeURIComponent(league.id)}${newMatchFormOpen ? '#team-match-entry' : ''}`,
+      teamResultDraft: hasDraft ? resumeTeamResultDraft || undefined : undefined,
+    }
+    const timeout = window.setTimeout(() => {
+      writeLeagueCoordinatorResumeState(nextState, userId)
+      void syncLeagueCoordinatorResumeState(nextState, userId, session?.access_token)
+    }, 350)
+    return () => window.clearTimeout(timeout)
+  }, [
+    activeEntryEventId,
+    canEditResults,
+    coordinatorResumeResolved,
+    filterLeagueId,
+    leagues,
+    newMatchFormOpen,
+    resultsHref,
+    resumeTeamResultDraft,
+    session?.access_token,
+    userId,
+  ])
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -1614,117 +1810,110 @@ function TeamLeagueResultsWorkspaceInner({
   return (
     <SiteShell active={activeRoute}>
       <div style={pageWrap}>
-        <LeagueSuitePanel active="team-results" leagueLabel={selectedFilterLeague?.leagueName || 'League season'} />
-        <div style={introCard}>
-          <span aria-hidden="true" style={portalWatermarkStyle} />
-          <div style={portalPanelContentStyle}>
-            <div style={heading}>Enter team results.</div>
-            <div style={subheading}>Create the match, add each line, and keep standings current without spreadsheet cleanup.</div>
-            <div style={scorekeeperGrid}>
-              <div style={scorekeeperTile}>
-                <div style={tileLabel}>Leagues</div>
-                <div style={tileValue}>{leagues.length}</div>
-                <div style={tileText}>Available result groups</div>
-              </div>
-              <div style={scorekeeperTile}>
-                <div style={tileLabel}>Matches</div>
-                <div style={tileValue}>{visibleEvents.length}</div>
-                <div style={tileText}>
-                  {activeReviewFilterCount ? `${events.length} total in scope` : 'All recorded events'}
-                </div>
-              </div>
-              <div style={scorekeeperTile}>
-                <div style={tileLabel}>Latest</div>
-                <div style={tileValue}>{latestEvent ? formatDate(latestEvent.matchDate) : '-'}</div>
-                <div style={tileText}>{latestEvent ? `${latestEvent.teamAName} vs ${latestEvent.teamBName}` : 'Create the first match'}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <section style={resultPathStyle} aria-labelledby="team-result-path-title">
           <div style={resultPathHeader}>
             <div>
               <div style={tileLabel}>Team Results path</div>
-              <h2 id="team-result-path-title" style={resultPathTitle}>{PRODUCT_MOTTO}</h2>
+              <h1 id="team-result-path-title" style={resultPathTitle}>Add or review team results</h1>
             </div>
             <p style={resultPathIntro}>
-              Start with the scorekeeper question, then open the smallest action that keeps standings moving.
+              Create the match, add lines, check the book, or upload scorecards.
             </p>
           </div>
-          <div style={resultPathGrid}>
-            <button
-              type="button"
-              style={resultPathButton}
-              onClick={handleOpenTeamMatchEntry}
-              disabled={leagues.length === 0}
-              data-team-result-path-job="add_match"
-              aria-label="Add match: What result needs to be entered first?"
-            >
-              <span style={resultPathQuestion}>What result needs to be entered first?</span>
-              <strong style={resultPathCardTitle}>Create the match</strong>
-              <span>Add the teams, date, and match shell before line scores or standings can update.</span>
-              <span style={resultPathCta}>Add match</span>
-            </button>
-            <Link
-              href="#team-match-review"
-              style={resultPathCard}
-              data-team-result-path-job="review_matches"
-              aria-label="Review matches: What needs attention?"
-            >
-              <span style={resultPathQuestion}>What needs attention?</span>
-              <strong style={resultPathCardTitle}>Review match status</strong>
-              <span>Filter incomplete events, finish missing lines, and copy or export the current result book.</span>
-              <span style={resultPathCta}>Review matches</span>
-            </Link>
-            <Link
-              href={dataAssistTeamResultsHref}
-              style={resultPathCard}
-              data-team-result-path-job="upload_scorecard"
-              aria-label="Upload scorecard: How do I avoid retyping scores?"
-            >
-              <span style={resultPathQuestion}>How do I avoid retyping scores?</span>
-              <strong style={resultPathCardTitle}>Upload a reviewed scorecard</strong>
-              <span>Use Data Assist when source scorecards should be reviewed before League Office standings move.</span>
-              <span style={resultPathCta}>Upload scorecard</span>
-            </Link>
-          </div>
-        </section>
-
-        <section style={readinessPanel}>
-          <div>
-            <div style={readinessKicker}>Result entry readiness</div>
-            <div style={readinessTitle}>{teamResultCue.title}</div>
-            <div style={readinessText}>{teamResultCue.detail}</div>
-            <div style={actionRow}>
+          <div style={resultPathCommandStyle} aria-label="Team result command center">
+            <div style={resultPathGrid}>
+              <button
+                type="button"
+                style={resultPathButton}
+                onClick={handleOpenTeamMatchEntry}
+                disabled={leagues.length === 0}
+                data-team-result-path-job="add_match"
+                aria-label="Add match"
+              >
+                <span style={resultPathQuestion}>Add</span>
+                <strong style={resultPathCardTitle}>Create match</strong>
+                <span>Add the teams, date, and match shell before line scores update.</span>
+                <span style={resultPathCta}>Add match</span>
+              </button>
+              <Link
+                href="#team-match-review"
+                style={resultPathCard}
+                data-team-result-path-job="review_matches"
+                aria-label="Review matches"
+              >
+                <span style={resultPathQuestion}>Review</span>
+                <strong style={resultPathCardTitle}>Check book</strong>
+                <span>Filter incomplete events, finish lines, then copy or export the current view.</span>
+                <span style={resultPathCta}>Review matches</span>
+              </Link>
+              <Link
+                href={dataAssistTeamResultsHref}
+                style={resultPathCard}
+                data-team-result-path-job="upload_scorecard"
+                aria-label="Upload scorecard"
+              >
+                <span style={resultPathQuestion}>Upload</span>
+                <strong style={resultPathCardTitle}>Use Data Assist</strong>
+                <span>Send source scorecards through review before standings move.</span>
+                <span style={resultPathCta}>Upload scorecard</span>
+              </Link>
               {canEditResults ? (
                 <button
                   type="button"
-                  style={btnPrimary}
+                  style={resultPathButton}
                   onClick={events.length > 0 ? handleReviewTeamMatches : handleOpenTeamMatchEntry}
                   disabled={leagues.length === 0}
+                  data-team-result-path-job="next_best_action"
+                  aria-label="Open next team result action"
                 >
-                  {events.length > 0 ? 'Review matches' : 'Create match'}
+                  <span style={resultPathQuestion}>Next</span>
+                  <strong style={resultPathCardTitle}>{events.length > 0 ? 'Return to review' : 'Start entry'}</strong>
+                  <span>{events.length > 0 ? 'Jump to the filtered result book.' : 'Open the first match form.'}</span>
+                  <span style={resultPathCta}>{events.length > 0 ? 'Review matches' : 'Create match'}</span>
                 </button>
               ) : null}
               {selectedFilterLeague ? (
-                <Link href={`/explore/leagues/tiq/${encodeURIComponent(selectedFilterLeague.id)}?league_id=${encodeURIComponent(selectedFilterLeague.id)}`} style={btnSecondary}>
-                  View league
+                <Link
+                  href={`/explore/leagues/tiq/${encodeURIComponent(selectedFilterLeague.id)}?league_id=${encodeURIComponent(selectedFilterLeague.id)}`}
+                  style={resultPathCard}
+                  data-team-result-path-job="view_league"
+                  aria-label="View selected league"
+                >
+                  <span style={resultPathQuestion}>League</span>
+                  <strong style={resultPathCardTitle}>Public view</strong>
+                  <span>Check what players and captains see after results settle.</span>
+                  <span style={resultPathCta}>View league</span>
                 </Link>
               ) : (
-                <Link href="/league-coordinator#league-setup-form" style={btnSecondary}>
-                  Set up league
+                <Link
+                  href="/league-coordinator#league-setup-form"
+                  style={resultPathCard}
+                  data-team-result-path-job="set_up_league"
+                  aria-label="Set up league"
+                >
+                  <span style={resultPathQuestion}>League</span>
+                  <strong style={resultPathCardTitle}>Set up first</strong>
+                  <span>Create the league before match results can connect to standings.</span>
+                  <span style={resultPathCta}>Set up league</span>
                 </Link>
               )}
             </div>
-          </div>
-          <div style={readinessGrid}>
-            {teamResultCue.items.map((item) => (
-              <div key={item.label} style={item.complete ? readinessItemComplete : readinessItem}>
-                <span style={item.complete ? pillGreen : pill}>{item.label}</span>
-                <strong style={readinessItemText}>{item.detail}</strong>
+            <details style={resultPathStatusPanelStyle}>
+              <summary style={detailsSummary}>
+                <span style={resultPathQuestion}>Scorekeeper scan</span>
+                <span style={pill}>Open when needed</span>
+              </summary>
+              <strong style={resultPathCardTitle}>{teamResultCue.title}</strong>
+              <span>{teamResultCue.detail}</span>
+              <div style={resultPathStatusGridStyle} aria-label="Team result readiness scan">
+                {teamResultCue.items.map((item) => (
+                  <div key={item.label} style={resultPathStatusItemStyle}>
+                    <span style={item.complete ? pillGreen : pill}>{item.label}</span>
+                    <strong>{item.detail}</strong>
+                  </div>
+                ))}
               </div>
-            ))}
+            </details>
           </div>
         </section>
 
@@ -1747,11 +1936,14 @@ function TeamLeagueResultsWorkspaceInner({
           </summary>
           {canEditResults ? (
             <NewEventForm
-              key={`${filterLeagueId || 'all-leagues'}::${scheduledEventItemId || 'manual'}`}
+              key={`${filterLeagueId || resumeTeamResultDraft?.leagueId || 'all-leagues'}::${scheduledEventItemId || 'manual'}`}
               leagues={leagues}
               defaultLeagueId={filterLeagueId}
-              scheduledDefaults={scheduledEventDefaults}
+              scheduledDefaults={scheduledEventItemId ? scheduledEventDefaults : resumeTeamResultDraft || scheduledEventDefaults}
+              onDraftChange={setResumeTeamResultDraft}
               onCreated={(event) => {
+                setResumeTeamResultDraft(null)
+                setNewMatchFormOpen(false)
                 setActiveEntryEventId(event.id)
                 setLineSummaries((prev) => new Map(prev).set(event.id, { total: 0, completed: 0, teamAWins: 0, teamBWins: 0, teamAPoints: 0, teamBPoints: 0 }))
                 setEvents((prev) => [event, ...prev])
@@ -1760,66 +1952,92 @@ function TeamLeagueResultsWorkspaceInner({
           ) : null}
         </details>
 
-        <div id="team-match-review" style={sectionTitle}>Recorded matches</div>
+        <section id="team-match-review" style={reviewPanelStyle} aria-labelledby="team-match-review-title">
+          <div style={reviewPanelHeaderStyle}>
+            <div>
+              <div style={tileLabel}>Result book</div>
+              <h2 id="team-match-review-title" style={reviewPanelTitleStyle}>Recorded matches</h2>
+            </div>
+            <span style={activeReviewFilterCount ? pillGreen : pill}>
+              {activeReviewFilterCount ? `${activeReviewFilterCount} active` : 'All results'}
+            </span>
+          </div>
 
-        <div style={{ ...row, marginBottom: 14 }}>
-          <input
-            style={{ ...inputStyle, maxWidth: 260 }}
-            value={resultSearch}
-            onChange={(event) => setResultSearch(event.target.value)}
-            placeholder="Team, facility, note..."
-          />
-          <select
-            style={{ ...selectStyle, maxWidth: 260 }}
-            value={filterLeagueId}
-            onChange={(e) => void handleFilterChange(e.target.value)}
-          >
-            <option value="">All leagues</option>
-            {leagues.map((l) => (
-              <option key={l.id} value={l.id}>{l.leagueName}</option>
+          <div style={reviewCommandGridStyle} aria-label="Team result review status">
+            {reviewCommandItems.map((item) => (
+              <div key={item.label} style={reviewCommandItemStyle}>
+                <span style={item.ready ? readinessDotReady : readinessDotWaiting} aria-hidden="true" />
+                <span style={reviewCommandCopyStyle}>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <em>{item.value}</em>
+              </div>
             ))}
-          </select>
-          <select
-            style={{ ...selectStyle, maxWidth: 180 }}
-            value={completionFilter}
-            onChange={(event) => setCompletionFilter(event.target.value as TeamResultCompletionFilter)}
-          >
-            <option value="all">All statuses</option>
-            <option value="complete">Complete only</option>
-            <option value="incomplete">Needs lines</option>
-          </select>
-          <select
-            style={{ ...selectStyle, maxWidth: 180 }}
-            value={dateFilter}
-            onChange={(event) => setDateFilter(event.target.value as TeamResultDateFilter)}
-          >
-            <option value="all">Any date</option>
-            <option value="week">Last 7 days</option>
-            <option value="month">Last 30 days</option>
-          </select>
-          <button type="button" style={btnSecondary} onClick={() => void handleClearReviewFilters()}>
-            Clear
-          </button>
-          <button
-            type="button"
-            style={{ ...btnSecondary, ...(visibleEvents.length === 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
-            onClick={handleExportResults}
-            disabled={visibleEvents.length === 0}
-          >
-            Export CSV
-          </button>
-          <button
-            type="button"
-            style={{ ...btnSecondary, ...(visibleEvents.length === 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
-            onClick={() => void handleCopyResultSummary()}
-            disabled={visibleEvents.length === 0}
-          >
-            Copy Summary
-          </button>
-          <span style={{ color: '#94a3b8', fontSize: 13 }}>
-            Showing {visibleEvents.length} of {events.length} team match{events.length === 1 ? '' : 'es'}.
-          </span>
-        </div>
+          </div>
+
+          <div style={reviewFilterGridStyle} aria-label="Team result review filters">
+            <input
+              style={inputStyle}
+              value={resultSearch}
+              onChange={(event) => setResultSearch(event.target.value)}
+              placeholder="Team, facility, note..."
+            />
+            <select
+              style={selectStyle}
+              value={filterLeagueId}
+              onChange={(e) => void handleFilterChange(e.target.value)}
+            >
+              <option value="">All leagues</option>
+              {leagues.map((l) => (
+                <option key={l.id} value={l.id}>{l.leagueName}</option>
+              ))}
+            </select>
+            <select
+              style={selectStyle}
+              value={completionFilter}
+              onChange={(event) => setCompletionFilter(event.target.value as TeamResultCompletionFilter)}
+            >
+              <option value="all">All statuses</option>
+              <option value="complete">Complete only</option>
+              <option value="incomplete">Needs lines</option>
+            </select>
+            <select
+              style={selectStyle}
+              value={dateFilter}
+              onChange={(event) => setDateFilter(event.target.value as TeamResultDateFilter)}
+            >
+              <option value="all">Any date</option>
+              <option value="week">Last 7 days</option>
+              <option value="month">Last 30 days</option>
+            </select>
+          </div>
+
+          <div style={reviewActionRowStyle}>
+            <button type="button" style={btnSecondary} onClick={() => void handleClearReviewFilters()}>
+              Clear filters
+            </button>
+            <button
+              type="button"
+              style={{ ...btnSecondary, ...(visibleEvents.length === 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
+              onClick={handleExportResults}
+              disabled={visibleEvents.length === 0}
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              style={{ ...btnSecondary, ...(visibleEvents.length === 0 ? { opacity: 0.6, cursor: 'not-allowed' } : {}) }}
+              onClick={() => void handleCopyResultSummary()}
+              disabled={visibleEvents.length === 0}
+            >
+              Copy Summary
+            </button>
+            <span style={reviewCountStyle}>
+              Showing {visibleEvents.length} of {events.length} team match{events.length === 1 ? '' : 'es'}.
+            </span>
+          </div>
+        </section>
 
         {loading ? (
           <p style={{ color: '#94a3b8' }}>Loading...</p>
@@ -1837,10 +2055,52 @@ function TeamLeagueResultsWorkspaceInner({
               startLineEntry={event.id === activeEntryEventId}
               lineSummary={lineSummaries.get(event.id)}
               scoringSystem={leagues.find((league) => league.id === event.leagueId)?.scoringSystem ?? 'standard'}
+              league={leagues.find((league) => league.id === event.leagueId) ?? null}
               onDeleted={(id) => setEvents((prev) => prev.filter((e) => e.id !== id))}
             />
           ))
         )}
+
+        <LeagueSuitePanel active="team-results" leagueLabel={selectedFilterLeague?.leagueName || 'League season'} />
+        <details style={introCard}>
+          <summary style={detailsSummary}>
+            <div>
+              <div style={heading}>Season snapshot</div>
+              <div style={subheading}>Open this when you want the quick count before making changes.</div>
+            </div>
+            <span style={pill}>Details</span>
+          </summary>
+          <span aria-hidden="true" style={portalWatermarkStyle} />
+          <div style={portalPanelContentStyle}>
+            <div style={scorekeeperGrid}>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Leagues</div>
+                <div style={tileValue}>{leagues.length}</div>
+                <div style={tileText}>Available result groups</div>
+              </div>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Matches</div>
+                <div style={tileValue}>{visibleEvents.length}</div>
+                <div style={tileText}>
+                  {activeReviewFilterCount ? `${events.length} total in scope` : 'All recorded events'}
+                </div>
+              </div>
+              <div style={scorekeeperTile}>
+                <div style={tileLabel}>Latest</div>
+                <div style={tileValue}>{latestEvent ? formatDate(latestEvent.matchDate) : '-'}</div>
+                <div style={tileText}>
+                  {latestEvent ? (
+                    <>
+                      <EntityDetailLink href={buildTeamProfileHref(latestEvent.teamAName)}>{latestEvent.teamAName}</EntityDetailLink>{' '}
+                      vs{' '}
+                      <EntityDetailLink href={buildTeamProfileHref(latestEvent.teamBName)}>{latestEvent.teamBName}</EntityDetailLink>
+                    </>
+                  ) : 'Create the first match'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
     </SiteShell>
   )

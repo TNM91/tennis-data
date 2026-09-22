@@ -3,24 +3,28 @@ import Script from 'next/script'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import JsonLd from '@/app/components/json-ld'
+import NavigationScrollManager from '@/app/components/navigation-scroll-manager'
+import SeasonPrivacyBoundary from '@/app/components/season-privacy-boundary'
 import { ThemeProvider } from '@/app/components/theme-provider'
 import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
 import { buildOrganizationJsonLd, buildWebSiteJsonLd } from '@/lib/structured-data'
 import './globals.css'
 
 const SITE_DESCRIPTION = `${PRODUCT_MOTTO} ${PLATFORM_POSITIONING}`
-const SOCIAL_BRAND_IMAGE = '/tenaceiq/logos/tenaceiq-social-preview.png'
+const SOCIAL_BRAND_IMAGE = '/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1'
+const BRAND_ICON_VERSION = '20260831-final-svg-v1'
+const VERCEL_OBSERVABILITY_ENABLED = process.env.VERCEL === '1'
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#081a31',
+  themeColor: '#06172F',
   colorScheme: 'dark',
 }
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://tenaceiq.com'),
+  metadataBase: new URL('https://www.tenaceiq.com'),
   title: {
     default: `TenAceIQ | ${PRODUCT_MOTTO}`,
     template: '%s | TenAceIQ',
@@ -74,15 +78,15 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://tenaceiq.com',
+    url: 'https://www.tenaceiq.com',
     siteName: 'TenAceIQ',
     title: `TenAceIQ | ${PRODUCT_MOTTO}`,
     description: SITE_DESCRIPTION,
     images: [
       {
         url: SOCIAL_BRAND_IMAGE,
-        width: 1731,
-        height: 909,
+        width: 1200,
+        height: 630,
         alt: 'TenAceIQ: More Tennis. Less Chaos.',
       },
     ],
@@ -96,13 +100,19 @@ export const metadata: Metadata = {
   manifest: '/manifest.webmanifest',
   icons: {
     icon: [
-      { url: '/favicon.ico', sizes: 'any', type: 'image/x-icon' },
-      { url: '/tiq/logo/tiq-app-icon.png', sizes: '512x512', type: 'image/png' },
-      { url: '/tenaceiq-icon-192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/tenaceiq-icon-512.png', sizes: '512x512', type: 'image/png' },
+      { url: `/favicon.ico?v=${BRAND_ICON_VERSION}`, sizes: 'any', type: 'image/x-icon' },
+      { url: `/favicon-32x32.png?v=${BRAND_ICON_VERSION}`, sizes: '32x32', type: 'image/png' },
+      { url: `/favicon-16x16.png?v=${BRAND_ICON_VERSION}`, sizes: '16x16', type: 'image/png' },
+      { url: `/brand/icons/favicon-32.png?v=${BRAND_ICON_VERSION}`, sizes: '32x32', type: 'image/png' },
+      { url: `/brand/icons/favicon-16.png?v=${BRAND_ICON_VERSION}`, sizes: '16x16', type: 'image/png' },
+      { url: `/brand/icons/favicon-256.png?v=${BRAND_ICON_VERSION}`, sizes: '256x256', type: 'image/png' },
+      { url: `/brand/icons/favicon-512.png?v=${BRAND_ICON_VERSION}`, sizes: '512x512', type: 'image/png' },
     ],
-    shortcut: '/favicon.ico',
-    apple: '/tenaceiq-icon-180.png',
+    shortcut: `/favicon.ico?v=${BRAND_ICON_VERSION}`,
+    apple: [
+      { url: `/apple-touch-icon.png?v=${BRAND_ICON_VERSION}`, sizes: '180x180', type: 'image/png' },
+      { url: `/brand/icons/apple-touch-icon.png?v=${BRAND_ICON_VERSION}`, sizes: '180x180', type: 'image/png' },
+    ],
   },
 }
 
@@ -133,14 +143,20 @@ export default function RootLayout({
         `}</Script>
         <JsonLd id="tenaceiq-organization-jsonld" data={buildOrganizationJsonLd()} />
         <JsonLd id="tenaceiq-website-jsonld" data={buildWebSiteJsonLd()} />
+        <NavigationScrollManager />
         <ThemeProvider>{children}</ThemeProvider>
-        <Analytics />
-        <SpeedInsights />
+        <SeasonPrivacyBoundary>{VERCEL_OBSERVABILITY_ENABLED ? (
+          <>
+            <Analytics />
+            <SpeedInsights />
+          </>
+        ) : null}
         <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789"
           crossOrigin="anonymous"
         />
+        </SeasonPrivacyBoundary>
       </body>
     </html>
   )

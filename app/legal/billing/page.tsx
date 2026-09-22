@@ -7,6 +7,7 @@ import LegalPage from '@/app/components/legal-page'
 import {
   BILLING_POLICY_NOTES,
   BILLING_SUPPORT_PATH,
+  CLUB_SUBSCRIPTION_POLICY,
   LEAGUE_SEASON_POLICY,
   MONTHLY_SUBSCRIPTION_POLICY,
 } from '@/lib/billing-policy'
@@ -33,6 +34,11 @@ export default function BillingPolicyPage() {
         <PolicySection title={MONTHLY_SUBSCRIPTION_POLICY.title}>
           <p>{MONTHLY_SUBSCRIPTION_POLICY.summary}</p>
           <PolicyList items={MONTHLY_SUBSCRIPTION_POLICY.bullets} />
+        </PolicySection>
+
+        <PolicySection title={CLUB_SUBSCRIPTION_POLICY.title}>
+          <p>{CLUB_SUBSCRIPTION_POLICY.summary}</p>
+          <PolicyList items={CLUB_SUBSCRIPTION_POLICY.bullets} />
         </PolicySection>
 
         <PolicySection title={LEAGUE_SEASON_POLICY.title}>

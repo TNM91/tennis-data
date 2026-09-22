@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
   mapUpgradeRequestRecordToInsert,
@@ -6,7 +6,9 @@ import {
   type UpgradeRequestRecord,
   type UpgradeRequestRow,
 } from '@/lib/upgrade-requests'
-import type { PricingPlanId } from '@/lib/pricing-plans'
+import type { BillablePricingPlanId } from '@/lib/pricing-plans'
+import { isSafeLocalNextHref } from '@/lib/plan-intent'
+import { PAID_CHECKOUT_ENABLED } from '@/lib/paid-checkout'
 
 export const runtime = 'nodejs'
 
@@ -15,7 +17,15 @@ type ClaimRequestBody = {
   requestId?: unknown
 }
 
-const PAID_PLAN_IDS: PricingPlanId[] = ['player_plus', 'coach', 'captain', 'league', 'full_court']
+const PAID_PLAN_IDS: BillablePricingPlanId[] = [
+  'player_plus',
+  'coach',
+  'captain',
+  'league',
+  'full_court',
+  'club_starter',
+  'club_unlimited',
+]
 const UPGRADE_REQUEST_SELECT =
   'id, plan_id, plan_name, price_label, billing_amount_cents, billing_currency, billing_interval, checkout_mode, quantity_mode, entitlement_grant, discount_rules, requester_name, requester_email, requester_user_id, organization, goal, next_href, status, source, created_at, updated_at'
 
@@ -45,16 +55,19 @@ export async function POST(request: Request) {
   }
 
   const token = getBearerToken(request)
+  const requesterUserId = await getRequesterUserId(token)
+  const nextHref = sanitizeNextHref(body.nextHref)
+  const dedupeActive = !PAID_CHECKOUT_ENABLED && Boolean(requesterUserId)
   const record: UpgradeRequestRecord = {
     id: '',
     planId,
     planName: cleanString(body.planName) || planId,
     name: cleanString(body.name),
     email,
-    userId: await getRequesterUserId(token),
+    userId: requesterUserId,
     organization: cleanString(body.organization),
     goal,
-    nextHref: sanitizeNextHref(body.nextHref),
+    nextHref,
     createdAt: '',
     status: 'pending',
     source: 'supabase',
@@ -69,23 +82,52 @@ export async function POST(request: Request) {
     )
   }
 
+  if (dedupeActive && requesterUserId) {
+    const { data: existing, error: lookupError } = await findActiveRequest(supabase, requesterUserId, planId, nextHref)
+    if (lookupError) {
+      return Response.json({ ok: false, message: 'Upgrade request could not be checked.' }, { status: 500 })
+    }
+    if (existing) {
+      return Response.json({ ok: true, request: mapUpgradeRequestRow(existing as UpgradeRequestRow), alreadyRequested: true })
+    }
+  }
+
   const { data, error } = await supabase
     .from('upgrade_requests')
-    .insert(mapUpgradeRequestRecordToInsert(record))
+    .insert({ ...mapUpgradeRequestRecordToInsert(record), ...(dedupeActive ? { dedupe_active: true } : {}) })
     .select(UPGRADE_REQUEST_SELECT)
     .single()
 
   if (error) {
+    if (dedupeActive && requesterUserId && error.code === '23505' && error.message.includes('upgrade_requests_active_dedupe_idx')) {
+      const { data: existing, error: lookupError } = await findActiveRequest(supabase, requesterUserId, planId, nextHref)
+      if (!lookupError && existing) {
+        return Response.json({ ok: true, request: mapUpgradeRequestRow(existing as UpgradeRequestRow), alreadyRequested: true })
+      }
+    }
     return Response.json(
       {
         ok: false,
-        message: error.message || 'Upgrade request could not be saved.',
+        message: 'Upgrade request could not be saved.',
       },
       { status: 500 },
     )
   }
 
   return Response.json({ ok: true, request: mapUpgradeRequestRow(data as UpgradeRequestRow) })
+}
+
+function findActiveRequest(supabase: SupabaseClient, userId: string, planId: BillablePricingPlanId, nextHref: string) {
+  return supabase
+    .from('upgrade_requests')
+    .select(UPGRADE_REQUEST_SELECT)
+    .eq('requester_user_id', userId)
+    .eq('plan_id', planId)
+    .eq('next_href', nextHref)
+    .in('status', ['pending', 'contacted'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 }
 
 export async function PATCH(request: Request) {
@@ -127,7 +169,8 @@ export async function PATCH(request: Request) {
     .maybeSingle()
 
   if (loadError) {
-    return Response.json({ ok: false, message: loadError.message }, { status: 500 })
+    console.error('Upgrade request link lookup failed', loadError)
+    return Response.json({ ok: false, message: 'Upgrade request could not be loaded.' }, { status: 500 })
   }
 
   if (!existing) {
@@ -151,7 +194,8 @@ export async function PATCH(request: Request) {
     .single()
 
   if (error) {
-    return Response.json({ ok: false, message: error.message }, { status: 500 })
+    console.error('Upgrade request link failed', error)
+    return Response.json({ ok: false, message: 'Upgrade request could not be linked.' }, { status: 500 })
   }
 
   return Response.json({ ok: true, request: mapUpgradeRequestRow(data as UpgradeRequestRow) })
@@ -215,7 +259,5 @@ function cleanString(value: unknown) {
 
 function sanitizeNextHref(value: unknown) {
   const candidate = cleanString(value)
-  if (!candidate.startsWith('/')) return ''
-  if (candidate.startsWith('//')) return ''
-  return candidate.slice(0, 240)
+  return isSafeLocalNextHref(candidate.slice(0, 240), '')
 }

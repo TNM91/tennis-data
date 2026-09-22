@@ -7,6 +7,7 @@ describe('buildProfileActivationPayload', () => {
     expect(buildProfileActivationPayload('player_plus')).toEqual({
       player_plus_subscription_active: true,
       player_plus_subscription_status: 'active',
+      player_plus_access_expires_at: null,
     })
   })
 
@@ -14,8 +15,10 @@ describe('buildProfileActivationPayload', () => {
     expect(buildProfileActivationPayload('captain')).toEqual({
       player_plus_subscription_active: true,
       player_plus_subscription_status: 'active',
+      player_plus_access_expires_at: null,
       captain_subscription_active: true,
       captain_subscription_status: 'active',
+      captain_access_expires_at: null,
     })
   })
 
@@ -23,6 +26,7 @@ describe('buildProfileActivationPayload', () => {
     expect(buildProfileActivationPayload('league')).toEqual({
       tiq_team_league_entry_enabled: true,
       tiq_individual_league_creator_enabled: true,
+      league_access_expires_at: null,
     })
   })
 
@@ -30,8 +34,10 @@ describe('buildProfileActivationPayload', () => {
     expect(buildProfileActivationPayload('coach')).toEqual({
       player_plus_subscription_active: true,
       player_plus_subscription_status: 'active',
+      player_plus_access_expires_at: null,
       coach_subscription_active: true,
       coach_subscription_status: 'active',
+      coach_access_expires_at: null,
     })
   })
 
@@ -39,13 +45,22 @@ describe('buildProfileActivationPayload', () => {
     expect(buildProfileActivationPayload('full_court')).toEqual({
       player_plus_subscription_active: true,
       player_plus_subscription_status: 'active',
+      player_plus_access_expires_at: null,
       coach_subscription_active: true,
       coach_subscription_status: 'active',
+      coach_access_expires_at: null,
       captain_subscription_active: true,
       captain_subscription_status: 'active',
+      captain_access_expires_at: null,
       tiq_team_league_entry_enabled: true,
       tiq_individual_league_creator_enabled: true,
+      league_access_expires_at: null,
     })
+  })
+
+  it('keeps Club billing activation separate from profile entitlements', () => {
+    expect(buildProfileActivationPayload('club_starter')).toEqual({})
+    expect(buildProfileActivationPayload('club_unlimited')).toEqual({})
   })
 })
 
@@ -61,6 +76,20 @@ describe('resolveUpgradeActivationTarget', () => {
       requestId: 'request-1',
       planId: 'captain',
       userId: 'user-1',
+    })
+  })
+
+  it('accepts Club requests as account billing targets', () => {
+    expect(resolveUpgradeActivationTarget({
+      id: 'request-club',
+      planId: 'club_unlimited',
+      userId: 'club-owner',
+      status: 'pending',
+    })).toEqual({
+      ok: true,
+      requestId: 'request-club',
+      planId: 'club_unlimited',
+      userId: 'club-owner',
     })
   })
 

@@ -1,0 +1,202 @@
+import { randomUUID } from 'node:crypto'
+import { getClubApiAuth } from '@/lib/club-api-auth'
+import { cleanClubText, isClubManager, normalizeClubRoles } from '@/lib/club-workspace'
+
+export const runtime = 'nodejs'
+
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+export async function POST(request: Request, context: { params: Promise<{ clubId: string; groupId: string }> }) {
+  const auth = await getClubApiAuth(request)
+  if (!auth.ok) return auth.response
+  const { clubId, groupId } = await context.params
+  if (!uuidPattern.test(clubId) || !uuidPattern.test(groupId)) {
+    return Response.json({ ok: false, message: 'Choose a valid Club program.' }, { status: 400 })
+  }
+
+  const [managerResult, groupResult] = await Promise.all([
+    auth.supabase
+      .from('club_memberships')
+      .select('roles')
+      .eq('club_id', clubId)
+      .eq('user_id', auth.userId)
+      .eq('status', 'active')
+      .maybeSingle(),
+    auth.supabase
+      .from('club_groups')
+      .select('id,name,season_label,is_active,renewals_finalized_at')
+      .eq('id', groupId)
+      .eq('club_id', clubId)
+      .eq('is_active', true)
+      .maybeSingle(),
+  ])
+  if (!managerResult.data || !isClubManager(normalizeClubRoles(managerResult.data.roles, []))) {
+    return Response.json({ ok: false, message: 'Club manager access is required to request player decisions.' }, { status: 403 })
+  }
+  if (!groupResult.data) return Response.json({ ok: false, message: 'That active Club program was not found.' }, { status: 404 })
+
+  const [reviewResult, existingResult] = await Promise.all([
+    auth.supabase
+      .from('club_group_members')
+      .select('membership_id')
+      .eq('group_id', groupId)
+      .eq('status', 'waitlist'),
+    auth.supabase
+      .from('club_group_renewals')
+      .select('id,membership_id,status,expires_at')
+      .eq('group_id', groupId),
+  ])
+  if (reviewResult.error || existingResult.error) {
+    return Response.json({ ok: false, message: 'Returning players could not be opened.' }, { status: 400 })
+  }
+
+  const existingMembershipIds = new Set((existingResult.data ?? []).map((row) => cleanClubText(row.membership_id)))
+  const reviewMembershipIds = Array.from(new Set((reviewResult.data ?? []).map((row) => cleanClubText(row.membership_id)).filter(Boolean))).slice(0, 200)
+  const finalized = Boolean(groupResult.data.renewals_finalized_at)
+  const missingMembershipIds = finalized ? [] : reviewMembershipIds.filter((membershipId) => !existingMembershipIds.has(membershipId))
+  if (!reviewMembershipIds.length && !existingMembershipIds.size) {
+    return Response.json({ ok: false, message: 'No returning players are waiting for a decision in this program.' }, { status: 409 })
+  }
+
+  if (missingMembershipIds.length) {
+    const { error } = await auth.supabase.from('club_group_renewals').insert(missingMembershipIds.map((membershipId) => ({
+      club_id: clubId,
+      group_id: groupId,
+      membership_id: membershipId,
+      created_by_user_id: auth.userId,
+    })))
+    if (error) return Response.json({ ok: false, message: 'Renewal links could not be prepared.' }, { status: 400 })
+  }
+
+  const expiredPendingRenewals = finalized ? [] : (existingResult.data ?? []).filter((renewal) => cleanClubText(renewal.status) === 'pending' && Date.parse(cleanClubText(renewal.expires_at, 80)) <= Date.now())
+  if (expiredPendingRenewals.length) {
+    const expiresAt = new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString()
+    const refreshResults = await Promise.all(expiredPendingRenewals.map((renewal) => auth.supabase
+      .from('club_group_renewals')
+      .update({ response_token: randomUUID(), expires_at: expiresAt })
+      .eq('id', renewal.id)))
+    if (refreshResults.some((result) => result.error)) {
+      return Response.json({ ok: false, message: 'Expired renewal links could not be refreshed.' }, { status: 400 })
+    }
+  }
+
+  const { data: renewalRows, error: renewalError } = await auth.supabase
+    .from('club_group_renewals')
+    .select('membership_id,response_token,status,expires_at,responded_at')
+    .eq('group_id', groupId)
+    .order('status')
+    .order('created_at')
+  if (renewalError || !renewalRows?.length) {
+    return Response.json({ ok: false, message: 'Renewal links could not be opened.' }, { status: 400 })
+  }
+
+  const membershipIds = renewalRows.map((row) => cleanClubText(row.membership_id)).filter(Boolean)
+  const { data: memberships, error: membershipError } = await auth.supabase
+    .from('club_memberships')
+    .select('id,display_name,email,phone,status')
+    .eq('club_id', clubId)
+    .in('id', membershipIds)
+  if (membershipError) return Response.json({ ok: false, message: 'Returning player contacts could not be opened.' }, { status: 400 })
+  const membershipsById = new Map((memberships ?? []).map((membership) => [cleanClubText(membership.id), membership]))
+
+  return Response.json({
+    ok: true,
+    group: {
+      id: cleanClubText(groupResult.data.id),
+      name: cleanClubText(groupResult.data.name),
+      seasonLabel: cleanClubText(groupResult.data.season_label),
+    },
+    renewals: renewalRows.map((renewal) => {
+      const membership = membershipsById.get(cleanClubText(renewal.membership_id))
+      return {
+        membershipId: cleanClubText(renewal.membership_id),
+        playerName: cleanClubText(membership?.display_name) || cleanClubText(membership?.email, 180) || 'Player',
+        email: cleanClubText(membership?.email, 180),
+        phone: cleanClubText(membership?.phone, 40),
+        responseToken: cleanClubText(renewal.response_token),
+        status: cleanClubText(renewal.status),
+        expiresAt: cleanClubText(renewal.expires_at, 80),
+        respondedAt: cleanClubText(renewal.responded_at, 80),
+      }
+    }),
+  })
+}
+
+export async function PATCH(request: Request, context: { params: Promise<{ clubId: string; groupId: string }> }) {
+  const auth = await getClubApiAuth(request)
+  if (!auth.ok) return auth.response
+  const { clubId, groupId } = await context.params
+  const body = await request.json().catch(() => ({})) as { action?: unknown }
+  const action = cleanClubText(body.action) || 'finalize'
+  if (!uuidPattern.test(clubId) || !uuidPattern.test(groupId)) {
+    return Response.json({ ok: false, message: 'Choose a valid Club program.' }, { status: 400 })
+  }
+
+  const [managerResult, groupResult] = await Promise.all([
+    auth.supabase
+      .from('club_memberships')
+      .select('roles')
+      .eq('club_id', clubId)
+      .eq('user_id', auth.userId)
+      .eq('status', 'active')
+      .maybeSingle(),
+    auth.supabase
+      .from('club_groups')
+      .select('id,name,renewals_finalized_at,renewal_target_roster_size,renewal_fill_completed_at')
+      .eq('id', groupId)
+      .eq('club_id', clubId)
+      .eq('is_active', true)
+      .maybeSingle(),
+  ])
+  if (!managerResult.data || !isClubManager(normalizeClubRoles(managerResult.data.roles, []))) {
+    return Response.json({ ok: false, message: 'Club manager access is required to finalize this roster.' }, { status: 403 })
+  }
+  if (!groupResult.data) return Response.json({ ok: false, message: 'That active Club program was not found.' }, { status: 404 })
+  if (action === 'complete-fill') {
+    if (!groupResult.data.renewals_finalized_at) {
+      return Response.json({ ok: false, message: 'Finalize renewal decisions before closing open spots.' }, { status: 409 })
+    }
+    const { error: completeError } = await auth.supabase
+      .from('club_groups')
+      .update({ renewal_fill_completed_at: new Date().toISOString() })
+      .eq('id', groupId)
+      .eq('club_id', clubId)
+    if (completeError) return Response.json({ ok: false, message: 'Open spots could not be closed.' }, { status: 400 })
+    return Response.json({ ok: true, message: `${cleanClubText(groupResult.data.name)} will use its current roster.` })
+  }
+  if (action !== 'finalize') return Response.json({ ok: false, message: 'Choose a valid roster action.' }, { status: 400 })
+  if (groupResult.data.renewals_finalized_at) {
+    return Response.json({ ok: true, message: `${cleanClubText(groupResult.data.name)} is already finalized.` })
+  }
+
+  const [renewalResult, activeMemberResult] = await Promise.all([
+    auth.supabase
+      .from('club_group_renewals')
+      .select('status')
+      .eq('group_id', groupId),
+    auth.supabase
+      .from('club_group_members')
+      .select('membership_id', { count: 'exact', head: true })
+      .eq('group_id', groupId)
+      .eq('status', 'active'),
+  ])
+  const renewals = renewalResult.data
+  if (renewalResult.error || activeMemberResult.error) return Response.json({ ok: false, message: 'Renewal responses could not be checked.' }, { status: 400 })
+  if (!renewals?.length) return Response.json({ ok: false, message: 'There are no renewal responses to finalize.' }, { status: 409 })
+  const pendingCount = renewals.filter((renewal) => cleanClubText(renewal.status) === 'pending').length
+  if (pendingCount) {
+    return Response.json({ ok: false, message: `${pendingCount} ${pendingCount === 1 ? 'player still needs' : 'players still need'} to answer.` }, { status: 409 })
+  }
+
+  const finalizedAt = new Date().toISOString()
+  const targetRosterSize = Math.max(renewals.length, activeMemberResult.count ?? 0)
+  const { error: finalizeError } = await auth.supabase
+    .from('club_groups')
+    .update({ renewals_finalized_at: finalizedAt, renewal_target_roster_size: targetRosterSize, renewal_fill_completed_at: null })
+    .eq('id', groupId)
+    .eq('club_id', clubId)
+    .is('renewals_finalized_at', null)
+  if (finalizeError) return Response.json({ ok: false, message: 'The roster could not be finalized.' }, { status: 400 })
+
+  return Response.json({ ok: true, finalizedAt, targetRosterSize, message: `${cleanClubText(groupResult.data.name)} roster finalized.` })
+}

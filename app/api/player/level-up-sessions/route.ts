@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { apiServerError } from '@/lib/api-error-response'
 import {
   buildPlayerAssignmentPackCardCompletion,
   getCoachAssignmentPackProgress,
@@ -11,6 +12,7 @@ import {
   normalizeAccessMode,
   type LevelUpSessionInput,
   type LevelUpSessionRow,
+  type LevelUpSessionStarterRead,
 } from '@/lib/level-up-sessions'
 import { getSignedInPlayerApiAuth, loadPlayerAccess } from '@/lib/player-api-auth'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
@@ -19,7 +21,7 @@ import { supabaseUrl } from '@/lib/supabase'
 export const runtime = 'nodejs'
 
 const sessionSelect =
-  'id,player_user_id,coach_user_id,student_link_id,assignment_id,identity_slug,focus_id,focus_title,work_type,training_context,drill_title,rating,feeling,access_mode,note,elapsed_seconds,shared_with_coach,completed_at,created_at,updated_at'
+  'id,player_user_id,coach_user_id,student_link_id,assignment_id,identity_slug,focus_id,focus_title,work_type,training_context,drill_title,rating,feeling,access_mode,note,elapsed_seconds,shared_with_coach,session_json,completed_at,created_at,updated_at'
 
 const PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name
 
@@ -38,6 +40,8 @@ type AssignmentSyncResult = {
   progressLabel: string
 }
 
+type LevelUpSessionPayload = NonNullable<ReturnType<typeof buildLevelUpSessionPayload>>
+
 export async function GET(request: Request) {
   const auth = await getSignedInPlayerApiAuth(request)
   if (!auth.ok) return auth.response
@@ -49,7 +53,7 @@ export async function GET(request: Request) {
     .order('completed_at', { ascending: false })
     .limit(80)
 
-  if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+  if (error) return apiServerError('Could not load player Level Up sessions', error, 'Level Up sessions are temporarily unavailable.')
 
   const sessions = ((data ?? []) as LevelUpSessionRow[]).map(mapLevelUpSessionRow)
   return Response.json({ ok: true, sessions })
@@ -110,7 +114,7 @@ export async function POST(request: Request) {
     .select(sessionSelect)
     .single()
 
-  if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+  if (error) return apiServerError('Could not save player Level Up session', error, 'The Level Up session could not be saved.')
 
   const assignmentSync = accessMode === 'coach_invited' && payload.assignment_id && link
     ? await completeLinkedAssignment(client, payload.assignment_id, link.id, {
@@ -118,7 +122,7 @@ export async function POST(request: Request) {
       levelUpSessionId: payload.id,
       rating: payload.rating,
       completedAt: payload.completed_at,
-      recap: `${payload.focus_title}: ${payload.drill_title} (${payload.rating}/5, ${payload.feeling}, ${formatClock(payload.elapsed_seconds)})${payload.note ? ` - ${payload.note}` : ''}`,
+      recap: buildLevelUpAssignmentRecap(payload),
       evidence: 'Level Up training log',
     })
     : null
@@ -229,4 +233,38 @@ function formatClock(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
   return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
+function buildLevelUpAssignmentRecap(payload: LevelUpSessionPayload) {
+  const base = `${payload.focus_title}: ${payload.drill_title} (${payload.rating}/5, ${payload.feeling}, ${formatClock(payload.elapsed_seconds)})${payload.note ? ` - ${payload.note}` : ''}`
+  const starterRead = getPayloadStarterRead(payload.session_json)
+  if (!starterRead) return base
+
+  return [
+    base,
+    `Trained: ${starterRead.starterRep}`,
+    `Counted: ${starterRead.starterProofCue}`,
+    `Leaked: ${starterRead.starterLeakWatch}`,
+    `Next: ${starterRead.starterSmartNext}`,
+  ].join(' ')
+}
+
+function getPayloadStarterRead(sessionJson: unknown): LevelUpSessionStarterRead | null {
+  if (!sessionJson || typeof sessionJson !== 'object' || Array.isArray(sessionJson)) return null
+
+  const starterRead = (sessionJson as { starterRead?: unknown }).starterRead
+  if (!starterRead || typeof starterRead !== 'object' || Array.isArray(starterRead)) return null
+
+  const candidate = starterRead as Partial<Record<keyof LevelUpSessionStarterRead, unknown>>
+  return typeof candidate.starterRep === 'string' &&
+    typeof candidate.starterProofCue === 'string' &&
+    typeof candidate.starterLeakWatch === 'string' &&
+    typeof candidate.starterSmartNext === 'string'
+    ? {
+        starterRep: candidate.starterRep,
+        starterProofCue: candidate.starterProofCue,
+        starterLeakWatch: candidate.starterLeakWatch,
+        starterSmartNext: candidate.starterSmartNext,
+      }
+    : null
 }

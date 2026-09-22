@@ -4,7 +4,7 @@ import type { CSSProperties, ReactNode } from 'react'
 
 export function AdminReviewFrame({ children }: { children: ReactNode }) {
   return (
-    <section style={adminReviewFrameStyle}>
+    <section className="admin-review-frame" style={adminReviewFrameStyle}>
       {children}
     </section>
   )

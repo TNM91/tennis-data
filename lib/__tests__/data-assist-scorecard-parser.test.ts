@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeOcrText, parseDataAssistScorecardText } from '../data-assist-scorecard-parser'
+import { extractScorecardLeagueName, normalizeOcrText, parseDataAssistScorecardText } from '../data-assist-scorecard-parser'
 
 describe('Data Assist scorecard OCR text parser', () => {
   it('extracts core scorecard fields from labeled TennisLink-style text', () => {
@@ -71,6 +71,7 @@ describe('Data Assist scorecard OCR text parser', () => {
     `)
 
     expect(parsed.externalMatchId).toBe('1011650664')
+    expect(parsed.leagueName).toBe('2026 Adult 18 & Over Spring')
     expect(parsed.matchDate).toBe('1/18/2026')
     expect(parsed.homeTeam).toBe('Schnellaveria (S)')
     expect(parsed.awayTeam).toBe("Gontarz/Wild William's Wily Wolverines (S)")
@@ -92,6 +93,15 @@ describe('Data Assist scorecard OCR text parser', () => {
       { homeGames: 7, awayGames: 6 },
       { homeGames: 6, awayGames: 1 },
     ])
+  })
+
+  it('recovers a canonical league name from a previously flattened scorecard identity', () => {
+    expect(extractScorecardLeagueName(
+      "Export 1: Scorecard.xls for Match # 1012101422 in 2026 STL Tri-Level 18 & Over Status: Confirmed Today's Date: 08/08/2026 Home Team: Suddarth",
+    )).toBe('2026 STL Tri-Level 18 & Over')
+    expect(extractScorecardLeagueName(
+      'Scorecard for Match # 1012101422 in 2026 STL Tri-Level 18 & Over /',
+    )).toBe('2026 STL Tri-Level 18 & Over')
   })
 
   it('recovers match identity and review rows from full-page TennisLink screenshot OCR', () => {

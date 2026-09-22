@@ -8,17 +8,23 @@ import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { BILLING_SUPPORT_PATH } from '@/lib/billing-policy'
 import { getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
-import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { PAID_CHECKOUT_ENABLED, PAID_CHECKOUT_PAUSED_MESSAGE } from '@/lib/paid-checkout'
+import { CLUB_PLAN_STORY, DATA_ASSIST_STORY } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import {
   getPricingBillingCue,
   getPricingPlan,
-  PRICING_PLANS,
+  CLUB_PRICING_PLANS,
+  CORE_PRICING_PLANS,
+  type CorePricingPlanId,
   type PricingPlanId,
 } from '@/lib/pricing-plans'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import ProductTourVideoButton from '@/app/components/product-tour-video'
+import { PRICING_PLAN_VIDEO_IDS } from '@/lib/product-tour-videos'
 
-const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
+const PLAN_ICON_BY_ID: Record<CorePricingPlanId, TiqFeatureIconName> = {
   free: 'playerRatings',
   player_plus: 'myLab',
   coach: 'scenarioBuilder',
@@ -27,16 +33,25 @@ const PLAN_ICON_BY_ID: Record<PricingPlanId, TiqFeatureIconName> = {
   full_court: 'teamRankings',
 }
 
-const PLAN_PUBLIC_NAMES: Record<PricingPlanId, string> = {
-  free: 'Free - Find the tennis landscape',
+const PLAN_PUBLIC_NAMES: Record<CorePricingPlanId, string> = {
+  free: 'Free - Search tennis in one place',
   player_plus: 'Player - My Lab for your game',
   coach: 'Coach - Coach Hub for player development',
   captain: 'Captain - Team Hub for match week',
   league: 'League - League Office for a season',
-  full_court: 'Full-Court - Complete toolkit, including Tournament Desk',
+  full_court: 'Full-Court - Every tennis role, including Tournament Desk',
 }
 
-const PLAN_JOB_FIT: Record<PricingPlanId, string> = {
+const PLAN_MOBILE_NAMES: Record<CorePricingPlanId, string> = {
+  free: 'Free',
+  player_plus: 'Player',
+  coach: 'Coach',
+  captain: 'Captain',
+  league: 'League',
+  full_court: 'Full-Court',
+}
+
+const PLAN_JOB_FIT: Record<CorePricingPlanId, string> = {
   free: 'You need to scan players, teams, leagues, rankings, and tennis context before choosing paid tools.',
   player_plus: 'You want My Lab to track your game, sharpen matchup prep, and keep your tennis context close.',
   coach: 'You need Coach Hub to plan lessons, assign drills, review proof, and support players between sessions.',
@@ -45,8 +60,18 @@ const PLAN_JOB_FIT: Record<PricingPlanId, string> = {
   full_court: 'You support more than one tennis role and need My Lab, Coach Hub, Team Hub, League Office, and Tournament Desk connected.',
 }
 
+const MOBILE_ROLE_SHORTCUTS: Array<{
+  planId: CorePricingPlanId
+  label: string
+  detail: string
+}> = [
+  { planId: 'free', label: 'Explore', detail: 'Public tennis' },
+  { planId: 'player_plus', label: 'Player', detail: 'My Lab' },
+  { planId: 'captain', label: 'Captain', detail: 'Team Hub' },
+]
+
 const WORKSPACE_PREVIEWS: Array<{
-  planId: PricingPlanId
+  planId: CorePricingPlanId
   title: string
   body: string
   chips: string[]
@@ -84,7 +109,7 @@ const WORKSPACE_PREVIEWS: Array<{
   {
     planId: 'full_court',
     title: 'Full-Court',
-    body: 'Connect My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk operations from one account.',
+    body: 'Use My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk runs from one account.',
     chips: ['My Lab', 'Coach Hub', 'Team Hub', 'Tournament Desk'],
   },
 ]
@@ -111,44 +136,6 @@ const FULL_COURT_WORKSPACE_PASS = [
     proof: 'Competition tools',
   },
 ]
-
-const FULL_COURT_WORKSPACE_FIT_PROOF = [
-  {
-    label: 'Player need',
-    body: 'Use My Lab when the question is personal goals, follows, matchup prep, or Level Up return state.',
-  },
-  {
-    label: 'Coach need',
-    body: 'Use Coach Hub for students, assignments, proof review, or the next lesson focus.',
-  },
-  {
-    label: 'Captain need',
-    body: 'Use Team Hub when match-week availability, lineups, scouting, and team updates drive the decision.',
-  },
-  {
-    label: 'League or event need',
-    body: 'Use League Office when structure, schedules, results, standings, and member visibility need one organized competition tool.',
-  },
-] as const
-
-const FULL_COURT_ROLE_SWITCHING_PROOF = [
-  {
-    label: 'Start',
-    body: 'Begin on Pricing with the Full-Court plan marked active and the access pass visible.',
-  },
-  {
-    label: 'Open',
-    body: 'Visit My Lab, Coach Hub, Team Hub, and League Office from the pass without upgrade prompts.',
-  },
-  {
-    label: 'Check',
-    body: 'Confirm each tool opens for the role it supports and does not show stale locks.',
-  },
-  {
-    label: 'Return',
-    body: 'Come back to Pricing and choose the next role path without role-switching confusion.',
-  },
-] as const
 
 const JOB_CHOOSER: Array<{
   job: string
@@ -187,8 +174,8 @@ const JOB_CHOOSER: Array<{
     href: getPlanUnlockHref('league'),
   },
   {
-    job: 'Use the full toolkit',
-    cue: 'All role tools plus unlimited Tournament Desk operations.',
+    job: 'Support every tennis role',
+    cue: 'My Lab, Coach Hub, Team Hub, League Office, and unlimited Tournament Desk runs.',
     planId: 'full_court',
     href: getPlanUnlockHref('full_court'),
   },
@@ -269,6 +256,7 @@ export default function PricingPage() {
 }
 
 function PricingContent() {
+  const { isMobile } = useViewportBreakpoints()
   const { role, userId, entitlements, authResolved } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
@@ -279,81 +267,200 @@ function PricingContent() {
 
   return (
     <main style={pageWrapStyle}>
-      <section style={heroStyle}>
+      <section style={isMobile ? compactHeroStyle : heroStyle}>
         <div style={eyebrowStyle}>Pricing</div>
-        <h1 style={heroTitleStyle}>Choose your role.</h1>
-        <p style={heroTextStyle}>
-          Start free, then unlock the right TenAceIQ tools: My Lab, Coach Hub, Team Hub, League Office, or Full-Court.
+        <h1 style={isMobile ? compactHeroTitleStyle : heroTitleStyle}>Choose the tools you need.</h1>
+        <p style={isMobile ? compactHeroTextStyle : heroTextStyle}>
+          {isMobile
+            ? 'Start free. Add a role when it helps.'
+            : 'Start free. Add Player, Coach, Captain, League, or Full-Court when it helps.'}
         </p>
+        <p style={smallTextStyle}>Running a club? Club Starter and Club Unlimited add one premium branded Club workspace.</p>
+        {!PAID_CHECKOUT_ENABLED ? (
+          <div role="status" style={checkoutPauseStyle}>{PAID_CHECKOUT_PAUSED_MESSAGE}</div>
+        ) : null}
         <div style={heroActionRowStyle}>
           <Link href={getPlanSignupHref('free')} style={primaryButtonStyle}>Start Free</Link>
-          <Link href="#compare" style={secondaryButtonStyle}>Compare what unlocks</Link>
+          <Link href="#choose" style={secondaryButtonStyle}>See plans</Link>
         </div>
-      </section>
-
-      <section id="job-chooser" style={sectionStyle} aria-labelledby="job-chooser-title">
-        <SectionHeader
-          eyebrow="Choose by tennis need"
-          title="Start from what you are trying to do."
-          body="The fastest pricing decision is not a feature hunt. Pick the tennis need, then open the matching tool."
-        />
-        <div style={jobChooserGridStyle}>
-          {JOB_CHOOSER.map((item) => {
-            const plan = getPricingPlan(item.planId)
-            return (
-              <Link key={item.job} href={item.href} style={jobChooserCardStyle}>
-                <span style={workspaceLabelStyle}>{plan.name}</span>
-                <strong style={jobChooserTitleStyle}>{item.job}</strong>
-                <span style={jobChooserCueStyle}>{item.cue}</span>
-                <span style={jobChooserPriceStyle}>{plan.priceLabel}</span>
-              </Link>
-            )
-          })}
-        </div>
+        {isMobile ? (
+          <nav aria-label="Choose a tennis path" style={mobileRoleShortcutsStyle}>
+            <span style={mobileRoleShortcutsLabelStyle}>Start with your role</span>
+            <div style={mobileRoleShortcutGridStyle}>
+              {MOBILE_ROLE_SHORTCUTS.map((shortcut) => (
+                <Link key={shortcut.planId} href={`#${shortcut.planId}`} style={mobileRoleShortcutStyle}>
+                  <strong>{shortcut.label}</strong>
+                  <span style={mobileRoleShortcutDetailStyle}>{shortcut.detail}</span>
+                </Link>
+              ))}
+            </div>
+          </nav>
+        ) : null}
       </section>
 
       <section id="choose" style={sectionStyle} aria-labelledby="choose-title">
-        <SectionHeader eyebrow="Choose your role" title="Pick the tennis support you need." body="Each tier is role-based. Free stays useful for discovery; paid plans unlock the right tools when the work gets specific." />
-        <div style={planGridStyle}>
-          {PRICING_PLANS.map((plan) => {
+        <SectionHeader
+          eyebrow="Plans"
+          title="Plans and prices."
+          body="Choose a role to see what it includes."
+        />
+        <div style={isMobile ? compactPlanGridStyle : planGridStyle}>
+          {CORE_PRICING_PLANS.map((plan) => {
             const active = !accessPending && isPlanActive(plan.id, access)
             const recommended = !accessPending && !active && recommendedPlanId === plan.id
+            const planCta = (
+              <Link
+                href={accessPending ? '#choose' : getPlanHref(plan.id, active)}
+                style={
+                  plan.id === 'captain'
+                    ? isMobile ? compactPrimaryPlanButtonStyle : primaryButtonStyle
+                    : isMobile ? compactSecondaryPlanButtonStyle : secondaryButtonStyle
+                }
+              >
+                {accessPending ? 'View tiers' : isMobile ? getCompactPlanCta(plan.id, active) : getPlanCta(plan.id, active)}
+              </Link>
+            )
 
             return (
-              <article key={plan.id} id={plan.id} style={{ ...planCardStyle, ...(recommended ? recommendedCardStyle : null), ...(active ? activeCardStyle : null) }}>
-                <div style={planTopStyle}>
-                  <TiqFeatureIcon name={PLAN_ICON_BY_ID[plan.id]} size="lg" variant="surface" />
+              <article key={plan.id} id={plan.id} style={{ ...(isMobile ? compactPlanCardStyle : planCardStyle), ...(recommended ? recommendedCardStyle : null), ...(active ? activeCardStyle : null) }}>
+                <div style={isMobile ? compactPlanTopStyle : planTopStyle}>
+                  <TiqFeatureIcon name={PLAN_ICON_BY_ID[plan.id]} size={isMobile ? 'md' : 'lg'} variant="surface" />
                   <div style={planBadgeRowStyle}>
-                    <span style={planNameStyle}>{PLAN_PUBLIC_NAMES[plan.id]}</span>
+                    <span style={planNameStyle}>{isMobile ? PLAN_MOBILE_NAMES[plan.id] : PLAN_PUBLIC_NAMES[plan.id]}</span>
                     {recommended ? <span style={badgeStyle}>Recommended</span> : null}
                     {active ? <span style={badgeStyle}>Active</span> : null}
                     {accessPending ? <span style={badgeStyle}>Checking access</span> : null}
                   </div>
                 </div>
-                <div style={priceStyle}>{accessPending ? plan.priceLabel : active ? 'Unlocked' : plan.priceLabel}</div>
-                {!active ? <div style={billingCueStyle}>{getPricingBillingCue(plan.id)}</div> : null}
+                <div style={isMobile ? compactPriceStyle : priceStyle}>{accessPending ? plan.priceLabel : active ? 'Unlocked' : plan.priceLabel}</div>
+                {!active && !isMobile ? <div style={billingCueStyle}>{getPricingBillingCue(plan.id)}</div> : null}
                 <p style={cardTextStyle}>{plan.outcome}</p>
-                <div style={fitBoxStyle}>
-                  <strong>Best for</strong>
-                  <span>{PLAN_JOB_FIT[plan.id]}</span>
-                </div>
-                <ul style={featureListStyle}>
-                  {plan.valueProps.slice(0, 3).map((valueProp) => (
-                    <li key={valueProp}>{valueProp}</li>
-                  ))}
-                </ul>
-                <Link href={accessPending ? '#pricing-plans' : getPlanHref(plan.id, active)} style={plan.id === 'captain' ? primaryButtonStyle : secondaryButtonStyle}>
-                  {accessPending ? 'View tiers' : getPlanCta(plan.id, active)}
-                </Link>
+                {isMobile ? (
+                  <ul style={compactFeatureListStyle}>
+                    {plan.valueProps.slice(0, 2).map((valueProp) => (
+                      <li key={valueProp}>{valueProp}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                {isMobile ? (
+                  <div style={compactPlanActionStackStyle}>
+                    {isMobile ? planCta : null}
+                    <ProductTourVideoButton
+                      videoId={PRICING_PLAN_VIDEO_IDS[plan.id]}
+                      variant="compact"
+                      label={`Watch ${plan.name} overview`}
+                      source={`pricing-${plan.id}`}
+                    />
+                  </div>
+                ) : null}
+                {!isMobile ? (
+                  <details className="pricingPlanDetails" style={planDetailsStyle}>
+                    <summary style={planDetailsSummaryStyle}>Best for and what opens</summary>
+                    <div className="pricingPlanDetailsBody" style={planDetailsBodyStyle}>
+                      <div style={fitBoxStyle}>
+                        <strong>Best for</strong>
+                        <span>{PLAN_JOB_FIT[plan.id]}</span>
+                      </div>
+                      <ul style={featureListStyle}>
+                        {plan.valueProps.slice(0, 3).map((valueProp) => (
+                          <li key={valueProp}>{valueProp}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </details>
+                ) : null}
+                {!isMobile ? (
+                  <div style={planActionStackStyle}>
+                    {!isMobile ? planCta : null}
+                    <ProductTourVideoButton
+                      videoId={PRICING_PLAN_VIDEO_IDS[plan.id]}
+                      variant="secondary"
+                      label={`Watch ${plan.name} overview`}
+                      source={`pricing-${plan.id}`}
+                    />
+                  </div>
+                ) : null}
               </article>
             )
           })}
         </div>
       </section>
 
-      <section id="workspace" style={sectionStyle} aria-labelledby="workspace-title">
-        <SectionHeader eyebrow="See the tools" title="Know what opens before you upgrade." body="TenAceIQ pricing is easier when each tier names the tennis support it unlocks." />
-        <div style={workspaceGridStyle}>
+      <section id="club" style={sectionStyle} aria-labelledby="club-title">
+        <SectionHeader
+          eyebrow="For clubs"
+          title="One club experience. Two simple options."
+          body="Club is its own TenAceIQ tier. It connects players, coaches, clinics, teams, leagues, tournaments, people, and branding without replacing registration or payments."
+        />
+        <div style={isMobile ? compactPlanGridStyle : { ...planGridStyle, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+          {CLUB_PRICING_PLANS.map((plan) => {
+            const story = plan.id === 'club_unlimited' ? CLUB_PLAN_STORY.unlimited : CLUB_PLAN_STORY.starter
+            return <article key={plan.id} id={plan.id} style={isMobile ? compactPlanCardStyle : planCardStyle}>
+              <div style={isMobile ? compactPlanTopStyle : planTopStyle}>
+                <TiqFeatureIcon name="teamRankings" size={isMobile ? 'md' : 'lg'} variant="surface" />
+                <span style={planNameStyle}>{plan.name}</span>
+                {plan.id === 'club_unlimited' ? (
+                  <span style={isMobile ? compactBadgeStyle : badgeStyle}>Best for full-club rollout</span>
+                ) : null}
+              </div>
+              <div style={isMobile ? compactPriceStyle : priceStyle}>{plan.priceLabel}</div>
+              <strong style={{ fontSize: isMobile ? 13 : 15 }}>{story.capacityLabel}</strong>
+              <p style={cardTextStyle}>{plan.solution}</p>
+              <ul style={isMobile ? compactFeatureListStyle : featureListStyle}>
+                {plan.valueProps.slice(0, isMobile ? 3 : 5).map((valueProp) => <li key={valueProp}>{valueProp}</li>)}
+              </ul>
+              <Link href={getPlanUnlockHref(plan.id)} style={plan.id === 'club_unlimited' ? primaryButtonStyle : secondaryButtonStyle}>
+                {PAID_CHECKOUT_ENABLED ? plan.ctaLabel : 'Join early access'}
+              </Link>
+            </article>
+          })}
+        </div>
+        <p style={{ ...smallTextStyle, marginTop: 14 }}>{CLUB_PLAN_STORY.workspaceBoundary} {CLUB_PLAN_STORY.boundary}</p>
+        <div style={clubVideoCalloutStyle}>
+          <div style={clubVideoCopyStyle}>
+            <strong>See the connected Club experience.</strong>
+            <span>Watch how Club brings staff, players, programs, teams, leagues, and events together.</span>
+          </div>
+          <ProductTourVideoButton
+            videoId="club"
+            variant="secondary"
+            label="Watch Club overview"
+            source="pricing-club-plans"
+          />
+        </div>
+      </section>
+
+      <details id="job-chooser" className="pricingDetailsSection" style={isMobile ? compactDetailsSectionStyle : detailsSectionStyle} aria-labelledby="job-chooser-title">
+        <summary style={isMobile ? compactDetailsSummaryStyle : detailsSummaryStyle}>
+          {!isMobile ? <span style={sectionEyebrowStyle}>Choose by tennis need</span> : null}
+          <strong id="job-chooser-title" style={detailsSummaryTitleStyle}>{isMobile ? 'Need help choosing?' : 'Not sure which plan fits?'}</strong>
+          <span style={detailsSummaryCueStyle}>Show plan helper</span>
+        </summary>
+        <div className="pricingDetailsBody" style={detailsBodyStyle}>
+          <p style={sectionBodyStyle}>Start from what you are trying to do. Open the matching plan when you are ready.</p>
+          <div style={jobChooserGridStyle}>
+            {JOB_CHOOSER.map((item) => {
+              const plan = getPricingPlan(item.planId)
+              return (
+                <Link key={item.job} href={item.href} style={jobChooserCardStyle}>
+                  <span style={workspaceLabelStyle}>{plan.name}</span>
+                  <strong style={jobChooserTitleStyle}>{item.job}</strong>
+                  <span style={jobChooserCueStyle}>{item.cue}</span>
+                  <span style={jobChooserPriceStyle}>{plan.priceLabel}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      </details>
+
+      <details id="workspace" className="pricingDetailsSection" style={isMobile ? compactDetailsSectionStyle : detailsSectionStyle} aria-labelledby="workspace-title">
+        <summary style={isMobile ? compactDetailsSummaryStyle : detailsSummaryStyle}>
+          {!isMobile ? <span style={sectionEyebrowStyle}>See the tools</span> : null}
+          <strong id="workspace-title" style={detailsSummaryTitleStyle}>{isMobile ? 'See what opens.' : 'Know what opens before you upgrade.'}</strong>
+          <span style={detailsSummaryCueStyle}>Show tool guide</span>
+        </summary>
+        <div className="pricingDetailsBody" style={workspaceGridStyle}>
           {WORKSPACE_PREVIEWS.map((preview) => (
             <article key={preview.planId} style={workspaceCardStyle}>
               <span style={workspaceLabelStyle}>{getPricingPlan(preview.planId).name}</span>
@@ -365,15 +472,15 @@ function PricingContent() {
             </article>
           ))}
         </div>
-      </section>
+      </details>
 
       {fullCourtActive ? (
         <section id="full-court-access-pass" style={fullCourtPassStyle} aria-labelledby="full-court-access-pass-title">
           <div>
-            <div style={sectionEyebrowStyle}>Full-Court access pass</div>
-            <h2 id="full-court-access-pass-title" style={billingTitleStyle}>All paid tools are active.</h2>
+            <div style={sectionEyebrowStyle}>Full-Court</div>
+            <h2 id="full-court-access-pass-title" style={billingTitleStyle}>Your tools are ready.</h2>
             <p style={heroTextStyle}>
-              Use this pass to capture My Lab, Coach Hub, Team Hub, and League Office without stale locks or repeated upgrade prompts.
+              Open the role you need.
             </p>
           </div>
           <div style={fullCourtPassGridStyle}>
@@ -384,40 +491,16 @@ function PricingContent() {
               </Link>
             ))}
           </div>
-          <div style={fullCourtWorkspaceFitProofStyle} aria-label="Full-Court tool fit proof cue">
-            <div style={fullCourtWorkspaceFitHeaderStyle}>
-              <span style={sectionEyebrowStyle}>Full-Court tool fit proof cue</span>
-              <strong>Pick the right tool for the tennis need.</strong>
-            </div>
-            <div style={fullCourtWorkspaceFitGridStyle}>
-              {FULL_COURT_WORKSPACE_FIT_PROOF.map((item) => (
-                <article key={item.label} style={fullCourtWorkspaceFitCardStyle}>
-                  <strong>{item.label}</strong>
-                  <span>{item.body}</span>
-                </article>
-              ))}
-            </div>
-          </div>
-          <div style={fullCourtRoleSwitchingProofStyle} aria-label="Full-Court role switching proof cue">
-            <div style={fullCourtWorkspaceFitHeaderStyle}>
-              <span style={sectionEyebrowStyle}>Full-Court role switching proof cue</span>
-              <strong>Prove every paid tool opens without stale locks.</strong>
-            </div>
-            <div style={fullCourtRoleSwitchingProofGridStyle}>
-              {FULL_COURT_ROLE_SWITCHING_PROOF.map((item) => (
-                <article key={item.label} style={fullCourtRoleSwitchingProofCardStyle}>
-                  <strong>{item.label}</strong>
-                  <span>{item.body}</span>
-                </article>
-              ))}
-            </div>
-          </div>
         </section>
       ) : null}
 
-      <section id="compare" style={sectionStyle} aria-labelledby="compare-title">
-        <SectionHeader eyebrow="Compare what unlocks" title="Compare by tennis need, not feature noise." body="Full-Court includes all focused tools and unlimited Tournament Desk operations." />
-        <div style={tableWrapStyle}>
+      <details id="compare" className="pricingDetailsSection" style={isMobile ? compactDetailsSectionStyle : detailsSectionStyle} aria-labelledby="compare-title">
+        <summary style={isMobile ? compactDetailsSummaryStyle : detailsSummaryStyle}>
+          {!isMobile ? <span style={sectionEyebrowStyle}>Compare what unlocks</span> : null}
+          <strong id="compare-title" style={detailsSummaryTitleStyle}>{isMobile ? 'Compare plans.' : 'Compare by tennis need.'}</strong>
+          <span style={detailsSummaryCueStyle}>Compare</span>
+        </summary>
+        <div className="pricingDetailsBody" style={tableWrapStyle}>
           <table style={compareTableStyle}>
             <thead>
               <tr>
@@ -445,38 +528,32 @@ function PricingContent() {
             </tbody>
           </table>
         </div>
-      </section>
+      </details>
 
-      <section id="billing" style={billingBandStyle} aria-label="Billing clarity">
-        <div>
-          <div style={sectionEyebrowStyle}>Billing clarity</div>
-          <h2 style={billingTitleStyle}>Monthly plans renew until canceled. League is a season fee.</h2>
+      <details id="billing" className="pricingDetailsSection" style={isMobile ? compactDetailsSectionStyle : detailsSectionStyle} aria-labelledby="billing-title">
+        <summary style={isMobile ? compactDetailsSummaryStyle : detailsSummaryStyle}>
+          {!isMobile ? <span style={sectionEyebrowStyle}>Billing clarity</span> : null}
+          <strong id="billing-title" style={detailsSummaryTitleStyle}>{isMobile ? 'Billing basics.' : 'Monthly plans renew until canceled. League is a season fee.'}</strong>
+          <span style={detailsSummaryCueStyle}>Show billing</span>
+        </summary>
+        <div className="pricingDetailsBody" style={billingDetailsBodyStyle}>
           <p style={heroTextStyle}>
-            Player, Coach, Captain, and Full-Court are monthly subscriptions. League is $14.99 per season for one bounded league, ladder, or tournament.
+            Player, Coach, Captain, and Full-Court are monthly subscriptions. League is $25 per season for one bounded league, ladder, or tournament.
           </p>
+          <p style={heroTextStyle}>Club Starter and Club Unlimited are monthly subscriptions for one branded Club workspace.</p>
           <p style={heroTextStyle}>
             Creating an account opens Free access for public tennis intelligence and data contributions. My Lab, Coach Hub, Team Hub, League Office, and Full-Court open only after the matching plan is active.
           </p>
+          <p style={smallTextStyle}>{CLUB_PLAN_STORY.workspaceBoundary} Starter supports up to 10 coaches or staff and 150 connected players; Unlimited removes those people limits.</p>
           <p style={smallTextStyle}>{DATA_ASSIST_STORY.shortCue}</p>
           <p style={smallTextStyle}>Data Assist uploads refresh tennis context and move through review before they shape TenAceIQ.</p>
+          <div style={heroActionRowStyle}>
+            <Link href="/legal/billing" style={secondaryButtonStyle}>Billing and refunds</Link>
+            <Link href={BILLING_SUPPORT_PATH} style={secondaryButtonStyle}>Open support thread</Link>
+          </div>
         </div>
-        <div style={heroActionRowStyle}>
-          <Link href="/legal/billing" style={secondaryButtonStyle}>Billing and refunds</Link>
-          <Link href={BILLING_SUPPORT_PATH} style={secondaryButtonStyle}>Open support thread</Link>
-        </div>
-      </section>
+      </details>
 
-      <section id="start" style={finalCtaStyle}>
-        <div>
-          <div style={sectionEyebrowStyle}>Start free / upgrade</div>
-          <h2 style={billingTitleStyle}>Find first. Upgrade when the tennis work gets specific.</h2>
-          <p style={heroTextStyle}>Search the tennis landscape for free, then choose the right tools when your game, team, players, league, or tournament needs more support.</p>
-        </div>
-        <div style={heroActionRowStyle}>
-          <Link href={getPlanSignupHref('free')} style={primaryButtonStyle}>Start Free</Link>
-          <Link href={getPlanSignupHref(recommendedPlanId)} style={secondaryButtonStyle}>Upgrade</Link>
-        </div>
-      </section>
     </main>
   )
 }
@@ -495,7 +572,7 @@ function SectionHeader({ eyebrow, title, body }: { eyebrow: string; title: strin
   )
 }
 
-function isPlanActive(planId: PricingPlanId, access: ReturnType<typeof buildProductAccessState>) {
+function isPlanActive(planId: CorePricingPlanId, access: ReturnType<typeof buildProductAccessState>) {
   if (planId === 'free') return access.currentPlanId === 'free'
   if (planId === 'player_plus') return access.canUseAdvancedPlayerInsights
   if (planId === 'coach') return access.canUseCoachWorkflow
@@ -504,12 +581,12 @@ function isPlanActive(planId: PricingPlanId, access: ReturnType<typeof buildProd
   return access.currentPlanId === 'full_court'
 }
 
-function getPlanHref(planId: PricingPlanId, active: boolean) {
+function getPlanHref(planId: CorePricingPlanId, active: boolean) {
   if (active) return getPlanDestinationHref(planId)
   return planId === 'free' ? getPlanSignupHref(planId) : getPlanUnlockHref(planId)
 }
 
-function getPlanCta(planId: PricingPlanId, active: boolean) {
+function getPlanCta(planId: CorePricingPlanId, active: boolean) {
   if (active) {
     if (planId === 'coach') return 'Open Coach Hub'
     if (planId === 'captain') return 'Open Team Hub'
@@ -520,11 +597,19 @@ function getPlanCta(planId: PricingPlanId, active: boolean) {
   }
 
   if (planId === 'free') return 'Start free'
+  if (!PAID_CHECKOUT_ENABLED) return 'Join early access'
   if (planId === 'player_plus') return 'Unlock Player'
   if (planId === 'coach') return 'Unlock Coach'
   if (planId === 'captain') return 'Unlock Captain'
   if (planId === 'league') return 'Unlock League'
   return 'Unlock Full-Court'
+}
+
+function getCompactPlanCta(planId: CorePricingPlanId, active: boolean) {
+  if (active) return 'Open'
+  if (planId === 'free') return 'Start'
+  if (!PAID_CHECKOUT_ENABLED) return 'Early access'
+  return 'Unlock'
 }
 
 const pageWrapStyle: CSSProperties = {
@@ -547,6 +632,13 @@ const heroStyle: CSSProperties = {
   boxShadow: '0 24px 70px rgba(2, 8, 23, 0.42)',
 }
 
+const compactHeroStyle: CSSProperties = {
+  ...heroStyle,
+  gap: 10,
+  padding: 18,
+  borderRadius: 20,
+}
+
 const eyebrowStyle: CSSProperties = {
   width: 'fit-content',
   color: 'var(--brand-blue-2)',
@@ -566,6 +658,12 @@ const heroTitleStyle: CSSProperties = {
   letterSpacing: 0,
 }
 
+const compactHeroTitleStyle: CSSProperties = {
+  ...heroTitleStyle,
+  fontSize: 'clamp(2.15rem, 10vw, 2.55rem)',
+  lineHeight: 1.04,
+}
+
 const heroTextStyle: CSSProperties = {
   margin: 0,
   maxWidth: 860,
@@ -580,6 +678,62 @@ const heroActionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
   gap: 10,
   alignItems: 'center',
+  minWidth: 0,
+}
+
+const mobileRoleShortcutsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  paddingTop: 5,
+  borderTop: '1px solid rgba(116,190,255,0.14)',
+}
+
+const mobileRoleShortcutsLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const mobileRoleShortcutGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+const mobileRoleShortcutStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+  minHeight: 54,
+  padding: '9px 8px',
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
+  background: 'rgba(7,17,33,0.62)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const mobileRoleShortcutDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 750,
+  lineHeight: 1.15,
+}
+
+const checkoutPauseStyle: CSSProperties = {
+  width: 'min(680px, 100%)',
+  padding: '10px 12px',
+  border: '1px solid rgba(163, 230, 53, 0.28)',
+  borderRadius: 14,
+  background: 'rgba(20, 83, 45, 0.24)',
+  color: '#d9f99d',
+  fontSize: 13,
+  lineHeight: 1.5,
+  fontWeight: 700,
 }
 
 const primaryButtonStyle: CSSProperties = {
@@ -608,6 +762,103 @@ const sectionStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
   minWidth: 0,
+}
+
+const planActionStackStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 9,
+  alignItems: 'center',
+}
+
+const compactPlanActionStackStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 7,
+  minWidth: 0,
+}
+
+const clubVideoCalloutStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 14,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-panel-bg) 94%)',
+}
+
+const clubVideoCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  flex: '1 1 420px',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  lineHeight: 1.5,
+}
+
+const detailsSectionStyle: CSSProperties = {
+  ...sectionStyle,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,16,34,0.58)',
+  overflowWrap: 'anywhere',
+}
+
+const compactDetailsSectionStyle: CSSProperties = {
+  ...detailsSectionStyle,
+  padding: 9,
+  borderRadius: 14,
+}
+
+const detailsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  cursor: 'pointer',
+  listStyle: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const compactDetailsSummaryStyle: CSSProperties = {
+  ...detailsSummaryStyle,
+  gap: 6,
+}
+
+const detailsSummaryTitleStyle: CSSProperties = {
+  flex: '1 1 320px',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2.4vw, 2rem)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const detailsSummaryCueStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 30,
+  padding: '0 9px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.28)',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+  flexShrink: 0,
+  overflowWrap: 'normal',
+  wordBreak: 'normal',
 }
 
 const sectionHeaderStyle: CSSProperties = {
@@ -649,6 +900,19 @@ const planGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const compactPlanGridStyle: CSSProperties = {
+  ...planGridStyle,
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 8,
+}
+
+const detailsBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  paddingTop: 12,
+}
+
 const jobChooserGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
@@ -660,9 +924,9 @@ const jobChooserCardStyle: CSSProperties = {
   display: 'grid',
   gap: 9,
   alignContent: 'start',
-  minHeight: 174,
-  padding: 16,
-  borderRadius: 20,
+  minHeight: 142,
+  padding: 14,
+  borderRadius: 14,
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'rgba(8,16,34,0.74)',
   color: 'inherit',
@@ -710,6 +974,13 @@ const planCardStyle: CSSProperties = {
   scrollMarginTop: 120,
 }
 
+const compactPlanCardStyle: CSSProperties = {
+  ...planCardStyle,
+  gap: 12,
+  padding: 16,
+  borderRadius: 18,
+}
+
 const recommendedCardStyle: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.36)',
   background: 'linear-gradient(180deg, rgba(155,225,29,0.10), rgba(8, 13, 28, 0.72))',
@@ -724,18 +995,27 @@ const planTopStyle: CSSProperties = {
   gap: 9,
 }
 
+const compactPlanTopStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '48px minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'center',
+  minWidth: 0,
+}
+
 const planBadgeRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   gap: 8,
   alignItems: 'center',
+  minWidth: 0,
 }
 
 const planNameStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 13,
+  fontSize: 12,
   fontWeight: 950,
-  letterSpacing: '0.05em',
+  letterSpacing: 0,
   textTransform: 'uppercase',
 }
 
@@ -752,6 +1032,15 @@ const badgeStyle: CSSProperties = {
   fontWeight: 950,
 }
 
+const compactBadgeStyle: CSSProperties = {
+  ...badgeStyle,
+  gridColumn: '1 / -1',
+  justifySelf: 'start',
+  maxWidth: '100%',
+  overflowWrap: 'normal',
+  wordBreak: 'normal',
+}
+
 const priceStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 32,
@@ -759,10 +1048,18 @@ const priceStyle: CSSProperties = {
   fontWeight: 950,
 }
 
+const compactPriceStyle: CSSProperties = {
+  ...priceStyle,
+  fontSize: 17,
+  lineHeight: 1.1,
+  whiteSpace: 'nowrap',
+}
+
 const billingCueStyle: CSSProperties = {
   color: 'rgba(226,232,240,0.78)',
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: 850,
+  lineHeight: 1.3,
 }
 
 const cardTextStyle: CSSProperties = {
@@ -771,11 +1068,37 @@ const cardTextStyle: CSSProperties = {
   fontSize: 14,
   lineHeight: 1.65,
   fontWeight: 700,
+  overflowWrap: 'anywhere',
+}
+
+const compactHeroTextStyle: CSSProperties = {
+  ...heroTextStyle,
+  fontSize: 14,
+  lineHeight: 1.5,
+}
+
+const compactPrimaryPlanButtonStyle: CSSProperties = {
+  ...primaryButtonStyle,
+  width: '100%',
+  minHeight: 44,
+  padding: '0 14px',
+  borderRadius: 14,
+  fontSize: 13,
+}
+
+const compactSecondaryPlanButtonStyle: CSSProperties = {
+  ...secondaryButtonStyle,
+  width: '100%',
+  minHeight: 44,
+  padding: '0 14px',
+  borderRadius: 14,
+  fontSize: 13,
 }
 
 const fitBoxStyle: CSSProperties = {
   display: 'grid',
   gap: 4,
+  margin: '0 12px',
   padding: 12,
   borderRadius: 16,
   border: '1px solid rgba(116,190,255,0.13)',
@@ -785,8 +1108,36 @@ const fitBoxStyle: CSSProperties = {
   lineHeight: 1.5,
 }
 
+const planDetailsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  borderRadius: 16,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(15,23,42,0.42)',
+  overflow: 'hidden',
+}
+
+const planDetailsBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+}
+
+const planDetailsSummaryStyle: CSSProperties = {
+  minHeight: 40,
+  padding: '10px 12px',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  fontSize: 13,
+  fontWeight: 950,
+  lineHeight: 1.25,
+  listStyle: 'none',
+  overflowWrap: 'anywhere',
+}
+
 const featureListStyle: CSSProperties = {
-  margin: 0,
+  margin: '0 12px 12px',
   paddingLeft: 18,
   color: 'var(--foreground)',
   fontSize: 14,
@@ -862,65 +1213,6 @@ const fullCourtPassLinkStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const fullCourtWorkspaceFitProofStyle: CSSProperties = {
-  display: 'grid',
-  gap: 12,
-  gridColumn: '1 / -1',
-  minWidth: 0,
-  padding: 14,
-  borderRadius: 16,
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
-  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
-  overflowWrap: 'anywhere',
-}
-
-const fullCourtWorkspaceFitHeaderStyle: CSSProperties = {
-  display: 'grid',
-  gap: 5,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const fullCourtWorkspaceFitGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
-  gap: 8,
-  minWidth: 0,
-}
-
-const fullCourtWorkspaceFitCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: 6,
-  minWidth: 0,
-  padding: 10,
-  borderRadius: 12,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.42,
-  fontWeight: 750,
-  overflowWrap: 'anywhere',
-}
-
-const fullCourtRoleSwitchingProofStyle: CSSProperties = {
-  ...fullCourtWorkspaceFitProofStyle,
-  border: '1px solid rgba(155,225,29,0.18)',
-  background: 'rgba(155,225,29,0.06)',
-}
-
-const fullCourtRoleSwitchingProofGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
-  gap: 8,
-  minWidth: 0,
-}
-
-const fullCourtRoleSwitchingProofCardStyle: CSSProperties = {
-  ...fullCourtWorkspaceFitCardStyle,
-  background: 'rgba(5,11,22,0.28)',
-}
-
 const chipRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
@@ -990,16 +1282,20 @@ const tableMutedCellStyle: CSSProperties = {
   color: 'rgba(226,232,240,0.38)',
 }
 
-const billingBandStyle: CSSProperties = {
+const compactFeatureListStyle: CSSProperties = {
+  ...featureListStyle,
+  margin: 0,
+  paddingLeft: 20,
+  fontSize: 13,
+  lineHeight: 1.55,
+}
+
+const billingDetailsBodyStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-  gap: 16,
-  alignItems: 'center',
+  gap: 10,
   minWidth: 0,
-  padding: 22,
-  borderRadius: 24,
-  border: '1px solid rgba(155,225,29,0.24)',
-  background: 'rgba(155,225,29,0.08)',
+  paddingTop: 14,
+  overflowWrap: 'anywhere',
 }
 
 const billingTitleStyle: CSSProperties = {
@@ -1016,9 +1312,4 @@ const smallTextStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.6,
   fontWeight: 750,
-}
-
-const finalCtaStyle: CSSProperties = {
-  ...billingBandStyle,
-  background: 'linear-gradient(135deg, rgba(155,225,29,0.12), rgba(116,190,255,0.08))',
 }

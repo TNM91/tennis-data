@@ -54,10 +54,11 @@ describe('route loading shells', () => {
     expect(readAppFile('app/components/TiqLoader.tsx')).not.toContain('text-white/70')
   })
 
-  it('uses the supplied TenAceIQ Q and ball asset without an extra drawn loading badge', () => {
+  it('uses the supplied high-contrast TenAceIQ Q and ball asset without an extra drawn loading badge', () => {
     for (const file of ['components/TiqLoader.tsx', 'app/components/TiqLoader.tsx']) {
       const source = readAppFile(file)
-      expect(source).toContain('src="/tiq/logo/tiq-app-icon.png"')
+      expect(source).toContain('src="/brand/web/header-iq-compact.png"')
+      expect(source).toContain('Math.round(config.icon * 0.9)')
       expect(source).toContain('objectFit: "contain"')
       expect(source).toContain('grid place-items-center')
       expect(source).not.toContain('rounded-[28%]')
@@ -66,16 +67,18 @@ describe('route loading shells', () => {
     }
   })
 
-  it('keeps the global desktop brand watermark fully on-screen and more readable', () => {
+  it('keeps the global desktop and tablet watermark within the supplied raster density', () => {
     const source = readAppFile('app/globals.css')
 
     expect(source).toContain('.brand-atmosphere-mark')
     expect(source).toContain('right: clamp(24px, 4vw, 72px);')
     expect(source).toContain('bottom: clamp(58px, 8vh, 120px);')
-    expect(source).toContain('width: min(76vw, 980px);')
-    expect(source).toContain('opacity: 0.17;')
+    expect(source).toContain('width: min(60vw, 720px);')
+    expect(source).toContain('opacity: 0.15;')
+    expect(source).toContain('width: min(64vw, 776px);')
+    expect(source).toContain('width: min(72vw, 680px);')
     expect(source).toContain('right: clamp(20px, 3.6vw, 64px);')
-    expect(source).toContain('opacity: 0.2;')
+    expect(source).toContain('opacity: 0.16;')
     expect(source).not.toContain('right: max(-300px, -16vw)')
     expect(source).not.toContain('bottom: max(-180px, -10vw)')
   })

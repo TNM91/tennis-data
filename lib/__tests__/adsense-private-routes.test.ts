@@ -6,6 +6,16 @@ import { ADSENSE_IMPLEMENTATION_GUIDELINES } from '../adsense-guidelines'
 import { isAdSafePath } from '../adsense'
 
 describe('AdSense private route exclusions', () => {
+  it('collapses an unfilled ad canvas without removing the sponsor fallback', () => {
+    const slotSource = readFileSync(join(process.cwd(), 'app/components/adsense-slot.tsx'), 'utf8')
+    const globalCss = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
+
+    expect(slotSource).toContain('TenAceIQ partner placement')
+    expect(globalCss).toContain(".adsbygoogle[data-ad-status='unfilled']")
+    expect(globalCss).toContain('min-height: 0 !important')
+    expect(globalCss).toContain('max-height: 0 !important')
+  })
+
   it('keeps Coach and Tactical Studio surfaces ad-free', () => {
     expect(isAdSafePath('/coach')).toBe(false)
     expect(isAdSafePath('/coach/invite/test-token')).toBe(false)

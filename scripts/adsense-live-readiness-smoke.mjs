@@ -68,7 +68,7 @@ results.policyFiles.adsTxt = { status: adsTxt.status, publisherLinePresent: true
 
 const robots = await fetchText('/robots.txt')
 assertOk(robots.status, '/robots.txt')
-assertIncludes(robots.text, 'Sitemap: https://tenaceiq.com/sitemap.xml', '/robots.txt sitemap')
+assertIncludes(robots.text, 'Sitemap: https://www.tenaceiq.com/sitemap.xml', '/robots.txt sitemap')
 for (const privatePath of ['/admin', '/coach/', '/captain/', '/mylab', '/api', '/login', '/join', '/upgrade']) {
   assertIncludes(robots.text, `Disallow: ${privatePath}`, `/robots.txt ${privatePath}`)
 }

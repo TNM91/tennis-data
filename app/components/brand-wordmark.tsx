@@ -5,8 +5,8 @@ import Image from 'next/image'
 type BrandWordmarkProps = {
   compact?: boolean
   footer?: boolean
-  legacyNav?: boolean
   onLight?: boolean
+  responsiveHeader?: boolean
   siteHeaderCompact?: boolean
   top?: boolean
 }
@@ -18,67 +18,55 @@ type BrandAsset = {
 }
 
 const BRAND_ASSETS = {
-  legacyPrimary: {
-    src: '/tenaceiq/logos/tenaceiq-primary-horizontal.svg',
-    width: 1600,
-    height: 420,
+  header: {
+    src: '/brand/web/header-logo-transparent.png',
+    width: 6118,
+    height: 1947,
   },
-  legacyPrimaryReverse: {
-    src: '/tenaceiq/logos/tenaceiq-primary-horizontal-reverse.svg',
-    width: 1600,
-    height: 420,
+  headerOnLight: {
+    src: '/brand/web/header-logo-light-bg.png',
+    width: 6118,
+    height: 1947,
   },
-  legacySymbol: {
-    src: '/tenaceiq/logos/tenaceiq-symbol.svg',
-    width: 1045,
-    height: 490,
+  compact: {
+    src: '/brand/web/header-iq-compact.png',
+    width: 1552,
+    height: 1614,
   },
-  legacySymbolReverse: {
-    src: '/tenaceiq/logos/tenaceiq-symbol-reverse.svg',
-    width: 1045,
-    height: 490,
+  compactOnLight: {
+    src: '/brand/web/header-iq-light-bg.png',
+    width: 1552,
+    height: 1614,
   },
-  primary: {
-    src: '/tiq/logo/tiq-lockup-dark.png',
-    width: 2048,
-    height: 537,
+  footer: {
+    src: '/brand/web/footer-logo-dark-bg.png',
+    width: 6118,
+    height: 1947,
   },
-  primaryReverse: {
-    src: '/tiq/logo/tiq-lockup-light.png',
-    width: 2048,
-    height: 537,
-  },
-  symbol: {
-    src: '/tiq/logo/tiq-q-icon-dark.png',
-    width: 1024,
-    height: 1024,
-  },
-  symbolReverse: {
-    src: '/tiq/logo/tiq-app-icon.png',
-    width: 1024,
-    height: 1024,
+  footerOnLight: {
+    src: '/brand/web/footer-logo-light-bg.png',
+    width: 6118,
+    height: 1947,
   },
 } satisfies Record<string, BrandAsset>
 
-function getBrandAsset({ compact, footer, legacyNav, onLight }: BrandWordmarkProps) {
-  if (legacyNav) {
-    if (compact) return onLight ? BRAND_ASSETS.legacySymbol : BRAND_ASSETS.legacySymbolReverse
-    return onLight ? BRAND_ASSETS.legacyPrimary : BRAND_ASSETS.legacyPrimaryReverse
-  }
-  if (compact) return onLight ? BRAND_ASSETS.symbol : BRAND_ASSETS.symbolReverse
-  if (footer) return BRAND_ASSETS.primaryReverse
-  return onLight ? BRAND_ASSETS.primary : BRAND_ASSETS.primaryReverse
+function getBrandAsset({ compact, footer, onLight }: BrandWordmarkProps) {
+  if (compact) return onLight ? BRAND_ASSETS.compactOnLight : BRAND_ASSETS.compact
+  if (footer) return onLight ? BRAND_ASSETS.footerOnLight : BRAND_ASSETS.footer
+  return onLight ? BRAND_ASSETS.headerOnLight : BRAND_ASSETS.header
 }
 
 export default function BrandWordmark({
   compact = false,
   footer = false,
-  legacyNav = false,
   onLight = false,
+  responsiveHeader = false,
   siteHeaderCompact = false,
   top = false,
 }: BrandWordmarkProps) {
-  const asset = getBrandAsset({ compact, footer, legacyNav, onLight, top })
+  if (responsiveHeader) return <ResponsiveHeaderBrand />
+
+  const asset = getBrandAsset({ compact, footer, onLight, top })
   const height = compact ? (top ? 36 : 34) : footer ? 42 : top ? (siteHeaderCompact ? 42 : 64) : 48
   const width = Math.round((asset.width / asset.height) * height)
 
@@ -106,6 +94,29 @@ export default function BrandWordmark({
         style={{
           display: 'block',
           width: 'auto',
+          height: '100%',
+          objectFit: 'contain',
+          objectPosition: 'left center',
+        }}
+      />
+    </span>
+  )
+}
+
+function ResponsiveHeaderBrand() {
+  return (
+    <span className="site-header-brand-picture">
+      <Image
+        src={BRAND_ASSETS.header.src}
+        alt="TenAceIQ"
+        width={BRAND_ASSETS.header.width}
+        height={BRAND_ASSETS.header.height}
+        loading="eager"
+        fetchPriority="high"
+        sizes="(max-width: 819px) 150px, 168px"
+        style={{
+          display: 'block',
+          width: '100%',
           height: '100%',
           objectFit: 'contain',
           objectPosition: 'left center',

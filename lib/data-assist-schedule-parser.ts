@@ -192,17 +192,28 @@ export function buildScheduleOcrDraftFromText(
   provider: DataAssistOcrProvider,
 ): DataAssistScheduleParsedDraft {
   const text = normalizeWhitespace(rawText)
-  const structuredRows = parseStructuredScheduleRows(rawText)
-  const fallbackRows = parseRawScheduleRows(rawText)
-  const teamName = cleanTeamName(extractFirst(rawText, /\bTeam:\s*([^\n]+)/i))
-  const matches = filterTeamScheduleRows(
+  // Table exports are source data, not OCR. Never apply remembered team names,
+  // Spring suffixes, match IDs, or historical fixture repairs to their cells.
+  const preserveSource = provider === 'tennislink_export'
+  const structuredRows = parseStructuredScheduleRows(rawText, preserveSource)
+  const fallbackRows = preserveSource ? [] : parseRawScheduleRows(rawText)
+  const teamName = (preserveSource ? cleanText : cleanTeamName)(extractLabeledValue(rawText, 'Team'))
+  const matches = preserveSource ? uniqueMatches(structuredRows) : filterTeamScheduleRows(
     uniqueMatches([...structuredRows, ...fallbackRows]).map((match) => applyKnownScheduleRowRepair(match, teamName)),
     teamName,
   )
-  const leagueName = cleanText(extractFirst(rawText, /\b(20\d{2}\s+Adult\s+18\s*&\s*Over\s+Spring)\b/i))
-  const flight = cleanText(extractFirst(rawText, /\b(Men\s*4\.?5)\b/i)).replace(/45$/, '4.5')
-  const ustaSection = /missouri valley/i.test(text) ? 'USTA/MISSOURI VALLEY' : ''
-  const districtArea = /st\.?\s*louis/i.test(text) ? 'ST. LOUIS - St. Louis Local Leagues' : ''
+  const leagueName = cleanText(
+    extractLabeledValue(rawText, 'League') ||
+    extractFirst(rawText, /\b(20\d{2}\s+Adult\s+18\s*&\s*Over\s+Spring)\b/i),
+  )
+  const flight = cleanText(
+    extractLabeledValue(rawText, 'Flight') ||
+    extractFirst(rawText, /\b(Men\s*4\.?5)\b/i),
+  ).replace(/45$/, '4.5')
+  const ustaSection = cleanText(extractLabeledValue(rawText, 'USTA Section')) ||
+    (/missouri valley/i.test(text) ? 'USTA/MISSOURI VALLEY' : '')
+  const districtArea = cleanText(extractLabeledValue(rawText, 'District/Area')) ||
+    (/st\.?\s*louis/i.test(text) ? 'ST. LOUIS - St. Louis Local Leagues' : '')
   const warnings: string[] = []
 
   if (!teamName) warnings.push('Team name needs review.')
@@ -232,7 +243,7 @@ export function buildScheduleOcrDraftFromText(
   }
 }
 
-function parseStructuredScheduleRows(rawText: string): DataAssistScheduleParsedMatch[] {
+function parseStructuredScheduleRows(rawText: string, preserveSource = false): DataAssistScheduleParsedMatch[] {
   return rawText
     .split('\n')
     .map((line) => line.trim())
@@ -242,6 +253,7 @@ function parseStructuredScheduleRows(rawText: string): DataAssistScheduleParsedM
         .split('|')
         .map((part) => part.trim())
       const rowText = rowTextParts.join(' ')
+      if (preserveSource) return buildMatch({ externalMatchId, matchDate, matchTime, homeTeam, awayTeam, facility }, true)
       const fallbackTeams = inferKnownTeams(rowText || `${homeTeam} ${awayTeam}`)
       const cleanedHome = cleanTeamName(homeTeam)
       const cleanedAway = cleanTeamName(awayTeam)
@@ -249,8 +261,8 @@ function parseStructuredScheduleRows(rawText: string): DataAssistScheduleParsedM
         externalMatchId,
         matchDate: `${matchDate} ${rowText}`,
         matchTime: `${rowText} ${matchTime}`,
-        homeTeam: isKnownScheduleTeam(cleanedHome) ? cleanedHome : fallbackTeams.homeTeam,
-        awayTeam: isKnownScheduleTeam(cleanedAway) ? cleanedAway : fallbackTeams.awayTeam,
+        homeTeam: cleanedHome || fallbackTeams.homeTeam,
+        awayTeam: cleanedAway || fallbackTeams.awayTeam,
         facility: facility || findKnownFacility(rowText),
       })
     })
@@ -299,16 +311,16 @@ function buildMatch(input: {
   homeTeam: string
   awayTeam: string
   facility: string
-}): DataAssistScheduleParsedMatch | null {
-  const externalMatchId = normalizeExternalMatchId(input.externalMatchId)
+}, preserveSource = false): DataAssistScheduleParsedMatch | null {
+  const externalMatchId = preserveSource ? cleanText(input.externalMatchId) : normalizeExternalMatchId(input.externalMatchId)
   if (externalMatchId.length < 8) return null
   const matchDate = normalizeDateToken(input.matchDate)
   const matchTime = normalizeTimeToken(input.matchTime)
-  const homeTeam = cleanTeamName(input.homeTeam)
-  const awayTeam = cleanTeamName(input.awayTeam)
-  const facility = cleanFacility(input.facility)
+  const homeTeam = (preserveSource ? cleanText : cleanTeamName)(input.homeTeam)
+  const awayTeam = (preserveSource ? cleanText : cleanTeamName)(input.awayTeam)
+  const facility = (preserveSource ? cleanText : cleanFacility)(input.facility)
   const reviewNotes: string[] = []
-  reviewNotes.push(...buildReviewNotes({ externalMatchId, matchDate, matchTime, homeTeam, awayTeam, facility }))
+  reviewNotes.push(...getScheduleMatchReviewNotes({ externalMatchId, matchDate, matchTime, homeTeam, awayTeam, facility }))
 
   const confidenceScore = roundConfidence(
     0.2 +
@@ -331,7 +343,7 @@ function buildMatch(input: {
   }
 }
 
-function buildReviewNotes(input: {
+export function getScheduleMatchReviewNotes(input: {
   externalMatchId: string
   matchDate: string
   matchTime: string
@@ -379,11 +391,6 @@ function inferKnownTeams(value: string) {
   }
 
   return { homeTeam: '', awayTeam: '' }
-}
-
-function isKnownScheduleTeam(value: string) {
-  const key = normalizeTeamKey(value)
-  return KNOWN_TEAM_NAMES.some((team) => key.includes(normalizeTeamKey(team)))
 }
 
 function normalizeExternalMatchId(value: string) {
@@ -436,7 +443,7 @@ function applyKnownScheduleRowRepair(match: DataAssistScheduleParsedMatch, teamN
   }
   return {
     ...merged,
-    reviewNotes: buildReviewNotes(merged),
+    reviewNotes: getScheduleMatchReviewNotes(merged),
     confidenceScore: roundConfidence(Math.max(match.confidenceScore, 0.88)),
   }
 }
@@ -475,7 +482,7 @@ function cleanFacility(value: string) {
 }
 
 function normalizeDateToken(value: string) {
-  const direct = cleanText(value).match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](2026)\b/)
+  const direct = cleanText(value).match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](20\d{2})\b/)
   if (direct) return `${Number(direct[1])}/${Number(direct[2])}/${direct[3]}`
   const compact = cleanText(value).match(/\b(\d{5,8})\b/)
   const digits = compact?.[1] || value.replace(/\D/g, '')
@@ -495,6 +502,11 @@ function normalizeTimeToken(value: string) {
 
 function extractFirst(value: string, pattern: RegExp) {
   return value.match(pattern)?.[1] || ''
+}
+
+function extractLabeledValue(value: string, label: string) {
+  const escapedLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return value.match(new RegExp(`^${escapedLabel}:\\s*(.+)$`, 'im'))?.[1] || ''
 }
 
 function normalizeWhitespace(value: string) {

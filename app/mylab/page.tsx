@@ -3,10 +3,16 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import React from 'react'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
+import ActiveTeamChallengeCard from '@/app/components/active-team-challenge-card'
+import MyLabCommandCenter from './my-lab-command-center'
 import { useAuth } from '@/app/components/auth-provider'
+import ClubContextBanner from '@/app/components/club-context-banner'
+import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import {
@@ -21,10 +27,19 @@ import {
 } from '@/lib/competition-layers'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import {
+  getTeamConnectionRolesLabel,
+  getTeamConnectionSourceLabel,
+  isCaptainTeamConnection,
+  type TeamConnection,
+} from '@/lib/team-profile-links'
+import { fetchTeamConnections, updateTeamConnection } from '@/lib/team-profile-links-client'
+import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
+import {
   buildScopedLeagueEntityId,
   buildScopedTeamEntityId,
 } from '@/lib/entity-ids'
 import { supabase } from '@/lib/supabase'
+import { createFollow, removeFollow as deleteFollow } from '@/lib/follow-feeds'
 import { listTiqIndividualLeagueResults, type TiqIndividualLeagueResultRecord } from '@/lib/tiq-individual-results-service'
 import { buildTiqIndividualLeagueSummaries } from '@/lib/tiq-individual-results-summary'
 import {
@@ -42,21 +57,37 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
+import { dedupeLeagueResultFeed, formatUpcomingWatchlistDate, hasWatchlistResult, isLeagueWatchlistEvent, isUpcomingWatchlistMatch, matchIdsForResultEvents, overlappingLeagueResultIds, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
+import type { ClubRole } from '@/lib/club-workspace'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
-import { DATA_ASSIST_STORY, MY_LAB_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
+import { VIDEO_REVIEW_ROUTE } from '@/lib/video-review'
 import { loadTiqAwardsForPlayer, readTiqAwardsRegistry, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
+import { buildPlayerTrophyBadges } from '@/lib/player-trophy-badges'
+import { readMatchupPrepDraft } from '@/lib/matchup-prep-note'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
+import { buildMatchIntelligenceRead } from '@/lib/player-match-intelligence'
+import { filterMatchbookEntries, getMatchbookFilterLabel, type MatchbookFilter } from '@/lib/player-matchbook'
+import { buildPlayerRatingJourneyRead, type RatingJourneySnapshot } from '@/lib/player-rating-journey'
+import type { PlayerCompetitionScheduleEvent } from '@/lib/player-competition-schedule'
 import {
   PLAYER_DEVELOPMENT_IDENTITIES,
   getPlayerDevelopmentIdentity,
   getPlayerDevelopmentIdentityActionRead,
 } from '@/lib/player-development'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
+import {
+  buildMyLabWeeklyImprovementPlan,
+  mergeMyLabLevelUpProofRecords,
+  type MyLabLevelUpProofRecord,
+  type MyLabWeeklyImprovementPlan,
+} from '@/lib/level-up/mylab-proof-continuity'
 import { buildLevelUpHabitPaths } from '@/lib/level-up/quest-builder'
 import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
+import type { LevelUpSession } from '@/lib/level-up-sessions'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import {
   getCoachAssignmentDueState,
@@ -84,15 +115,20 @@ type FollowItem = {
   created_at?: string | null
 }
 
+const CLUB_PLAYER_SPONSORED_ROLES: ClubRole[] = ['owner', 'admin', 'director', 'coach', 'captain', 'coordinator', 'player', 'guardian']
+
 type FeedItem = {
   id: string
+  matchId?: string
   type: FeedType
   title: string
   body: string
   entityType: EntityType | 'community'
   entityId: string | null
   entityName: string
-  createdAt: string
+  createdAt: string | null
+  freshnessLabel?: string
+  upcoming?: boolean
   score: number
   badge: string
   accent: 'blue' | 'green' | 'violet'
@@ -115,6 +151,8 @@ type PlayerRow = {
 type MatchRow = {
   id: string
   match_date: string | null
+  match_time?: string | null
+  facility?: string | null
   score: string | null
   flight: string | null
   league_name: string | null
@@ -141,7 +179,12 @@ type PersonalMatchRow = {
   score: string | null
   result: 'W' | 'L' | '-'
   opponent: string
+  opponents: Array<{ id: string; name: string }>
 }
+
+type RatingSnapshotRow = RatingJourneySnapshot
+
+const MATCHBOOK_FILTERS: MatchbookFilter[] = ['all', 'singles', 'doubles']
 
 type PersonalParticipantRow = MatchPlayerRow & {
   players?: { id: string; name: string } | { id: string; name: string }[] | null
@@ -260,6 +303,15 @@ type MyLabLevelUpProof = {
   note: string
   completedAt: string
   timeLabel: string
+  rating: number | null
+  source: MyLabLevelUpProofRecord['source']
+  sourceLabel: string
+  sharedWithCoach: boolean
+}
+
+type LevelUpProofSyncState = {
+  status: 'device' | 'syncing' | 'account' | 'fallback'
+  message: string
 }
 
 const LOCAL_FOLLOW_KEY = 'tenaceiq-my-lab-follows-v2'
@@ -281,79 +333,6 @@ const EMPTY_LAB_GOAL: LabGoalState = {
   updatedAt: null,
 }
 
-const MY_LAB_ONBOARDING_GOALS: Array<{ label: string; template: GoalTemplate }> = [
-  {
-    label: 'Win more singles',
-    template: {
-      goal: 'Win more singles',
-      progressUpdate: 'Track one pattern from each singles match.',
-      doingWell: 'Name the point pattern that is already holding up.',
-      improveNext: 'Choose one serve plus first-ball pattern to test.',
-      notes: 'Next singles test:\nPattern to repeat:\nPattern to clean up:',
-    },
-  },
-  {
-    label: 'Improve doubles',
-    template: {
-      goal: 'Improve doubles',
-      progressUpdate: 'Track positioning, return pressure, and partner patterns.',
-      doingWell: 'Name one team pattern that creates easy balls.',
-      improveNext: 'Choose one poach, lob, or return target to practice.',
-      notes: 'Doubles partner:\nBest pattern:\nNext court habit:',
-    },
-  },
-  {
-    label: 'Get ready for 4.0 / 4.5',
-    template: {
-      goal: 'Get ready for 4.0 / 4.5',
-      progressUpdate: 'Use match evidence to test whether the next rating band is getting closer.',
-      doingWell: 'Name the level-up skill that already travels under pressure.',
-      improveNext: 'Pick one pressure pattern to repeat for two weeks.',
-      notes: 'Target level:\nPressure skill:\nEvidence to upload:',
-    },
-  },
-  {
-    label: 'Prepare for playoffs',
-    template: {
-      goal: 'Prepare for playoffs',
-      progressUpdate: 'Scout likely opponents and choose one reliable match plan.',
-      doingWell: 'Name what you can trust late in sets.',
-      improveNext: 'Choose one matchup risk to practice before playoffs.',
-      notes: 'Likely opponent:\nCourt plan:\nWatch item:',
-    },
-  },
-  {
-    label: 'Captain a team',
-    template: {
-      goal: 'Captain a team',
-      progressUpdate: 'Use team context to reduce availability, lineup, and scouting friction.',
-      doingWell: 'Name the part of match week that is already organized.',
-      improveNext: 'Choose one captain workflow to move into Team Hub.',
-      notes: 'Team:\nAvailability gap:\nLineup question:',
-    },
-  },
-  {
-    label: 'Find a coach',
-    template: {
-      goal: 'Find a coach',
-      progressUpdate: 'Bring one match pattern and one question into the next lesson.',
-      doingWell: 'Name what you want a coach to keep.',
-      improveNext: 'Choose the first measurable assignment to ask for.',
-      notes: 'Coach question:\nMatch evidence:\nAssignment idea:',
-    },
-  },
-  {
-    label: 'Build a practice routine',
-    template: {
-      goal: 'Build a practice routine',
-      progressUpdate: 'Turn match evidence into one repeatable weekly practice block.',
-      doingWell: 'Name one skill that responds well to repetition.',
-      improveNext: 'Choose a practice routine you can repeat twice this week.',
-      notes: 'Routine:\nFrequency:\nEvidence after practice:',
-    },
-  },
-]
-
 function safeDate(value: string | null | undefined) {
   if (!value) return 'Recently'
   const d = new Date(value)
@@ -366,6 +345,7 @@ function timeAgo(value: string | null | undefined) {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return 'Recently'
   const diffMs = Date.now() - d.getTime()
+  if (diffMs < 0) return safeDate(value)
   const minutes = Math.floor(diffMs / 60000)
   if (minutes < 60) return `${Math.max(minutes, 1)}m ago`
   const hours = Math.floor(minutes / 60)
@@ -565,25 +545,31 @@ function readLocalLevelUpCompletions(): LevelUpCompletion[] {
   }
 }
 
-function buildMyLabLevelUpProofs(completions: LevelUpCompletion[]): MyLabLevelUpProof[] {
-  return completions.map((completion) => {
-    const card = LEVEL_UP_CARDS.find((candidate) => candidate.id === completion.cardId)
-    const proofRating = typeof completion.proofRating === 'number' ? completion.proofRating : null
-    const primaryIdentitySlug = card?.identitySlugs?.[0] || PLAYER_DEVELOPMENT_IDENTITIES[0]?.slug || 'relentless-competitor-4-0'
+function buildMyLabLevelUpProofs(records: MyLabLevelUpProofRecord[]): MyLabLevelUpProof[] {
+  return records.map((record) => {
+    const proofRating = record.rating
 
     return {
-      id: completion.id,
-      cardId: completion.cardId,
-      cardTitle: card?.title || 'Level Up card',
+      id: record.id,
+      cardId: record.cardId,
+      cardTitle: record.cardTitle,
       proofLabel: proofRating === null ? 'Proof logged' : `${proofRating}/5 proof`,
-      nextAction: getMyLabLevelUpNextAction(proofRating),
-      nextHref: `/player-development/${primaryIdentitySlug}/level-up?card=${encodeURIComponent(completion.cardId)}`,
-      questHref: `/level-up/${primaryIdentitySlug}?questCard=${encodeURIComponent(completion.cardId)}#quest-builder`,
-      note: completion.note?.trim() || '',
-      completedAt: completion.completedAt,
-      timeLabel: timeAgo(completion.completedAt),
+      nextAction: record.nextCue || getMyLabLevelUpNextAction(proofRating),
+      nextHref: `/level-up/${record.identitySlug}?card=${encodeURIComponent(record.cardId)}#level-up-flow`,
+      questHref: `/level-up/${record.identitySlug}?questCard=${encodeURIComponent(record.cardId)}#quest-builder`,
+      note: record.note,
+      completedAt: record.completedAt,
+      timeLabel: timeAgo(record.completedAt),
+      rating: proofRating,
+      source: record.source,
+      sourceLabel: getMyLabLevelUpProofSourceLabel(record.source),
+      sharedWithCoach: record.sharedWithCoach,
     }
   })
+}
+
+function getMyLabLevelUpProofSourceLabel(source: MyLabLevelUpProofRecord['source']) {
+  return source === 'device' ? 'This device' : 'Account synced'
 }
 
 function getMyLabLevelUpNextAction(rating: number | null) {
@@ -661,6 +647,23 @@ function buildSinglesMatchupHref(linkedPlayerId: string | null | undefined, oppo
   if (linkedPlayerId) params.set('playerA', linkedPlayerId)
   if (opponentId) params.set('playerB', opponentId)
   return `/matchup?${params.toString()}`
+}
+
+function buildMyLabTacticsBoardHref(identitySlug: string, identityLabel: string, card?: LevelUpCard, proof?: MyLabLevelUpProof) {
+  const params = new URLSearchParams({
+    source: 'improve',
+    template: 'crosscourt',
+    role: 'player',
+    identity: identitySlug,
+    identityLabel,
+  })
+  const cardId = proof?.cardId || card?.id
+  const cardTitle = proof?.cardTitle || card?.title
+
+  if (cardId) params.set('card', cardId)
+  if (cardTitle) params.set('cardTitle', cardTitle)
+
+  return `/tactics?${params.toString()}`
 }
 
 const MY_LAB_NOTEBOOK_HREF = '/mylab#player-notebook'
@@ -753,6 +756,63 @@ function buildTeamHrefFromEntityId(entityId: string) {
   if (flight) params.set('flight', flight)
   const query = params.toString()
   return `/teams/${encodeURIComponent(teamName)}${query ? `?${query}` : ''}`
+}
+
+function buildTeamConnectionHref(connection: TeamConnection) {
+  const params = new URLSearchParams()
+  const competitionLayer = connection.sourceType === 'tiq_entry' ? 'tiq' : 'usta'
+  params.set('layer', competitionLayer)
+  if (connection.leagueName) params.set('league', connection.leagueName)
+  if (connection.flight) params.set('flight', connection.flight)
+  const query = params.toString()
+  return `/teams/${encodeURIComponent(connection.teamName)}${query ? `?${query}` : ''}`
+}
+
+function buildTeamConnectionCaptainHref(connection: TeamConnection) {
+  return buildCaptainScopedHref('/captain', {
+    competitionLayer: connection.sourceType === 'tiq_entry' ? 'tiq' : 'usta',
+    team: connection.teamName,
+    league: connection.leagueName,
+    flight: connection.flight,
+  })
+}
+
+function findNextTeamMatch(connection: TeamConnection, matches: MatchRow[]) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const teamKey = normalizeTeamConnectionName(connection.teamName)
+  return matches
+    .filter((match) => {
+      const matchTime = match.match_date ? new Date(`${match.match_date}T00:00:00`).getTime() : Number.NaN
+      const teamMatches = [match.home_team, match.away_team].some((team) => normalizeTeamConnectionName(team) === teamKey)
+      const leagueMatches = !connection.leagueName || normalizeTeamConnectionName(match.league_name) === normalizeTeamConnectionName(connection.leagueName)
+      const flightMatches = !connection.flight || normalizeTeamConnectionName(match.flight) === normalizeTeamConnectionName(connection.flight)
+      return teamMatches && leagueMatches && flightMatches && matchTime >= today.getTime()
+    })
+    .sort((left, right) => Date.parse(left.match_date || '') - Date.parse(right.match_date || ''))[0] || null
+}
+
+function getTeamMatchOpponent(connection: TeamConnection, match: MatchRow) {
+  return normalizeTeamConnectionName(match.home_team) === normalizeTeamConnectionName(connection.teamName)
+    ? match.away_team || 'TBD'
+    : match.home_team || 'TBD'
+}
+
+function formatTeamMatchDate(value: string | null) {
+  if (!value) return 'Date TBD'
+  const date = new Date(`${value}T00:00:00`)
+  if (!Number.isFinite(date.getTime())) return value
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date)
+}
+
+function formatTeamConnectionDate(value: string) {
+  const date = new Date(value)
+  if (!Number.isFinite(date.getTime())) return 'recently'
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date)
+}
+
+function normalizeTeamConnectionName(value: string | null | undefined) {
+  return (value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }
 
 function buildLeagueHrefFromEntityId(entityId: string) {
@@ -854,11 +914,15 @@ export default function MyLabPage() {
 
 function MyLabPageInner() {
   const { userId, authResolved, role, entitlements, session } = useAuth()
+  const searchParams = useSearchParams()
 
   const [players, setPlayers] = useState<PlayerRow[]>([])
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayerRow[]>([])
   const [personalMatches, setPersonalMatches] = useState<PersonalMatchRow[]>([])
+  const [ratingSnapshots, setRatingSnapshots] = useState<RatingSnapshotRow[]>([])
+  const [matchbookFilter, setMatchbookFilter] = useState<MatchbookFilter>('all')
+  const [showFullMatchbook, setShowFullMatchbook] = useState(false)
   const [scenarios, setScenarios] = useState<ScenarioRow[]>([])
   const [cloudFeedRows, setCloudFeedRows] = useState<MyLabFeedRow[]>([])
   const [follows, setFollows] = useState<FollowItem[]>([])
@@ -878,6 +942,7 @@ function MyLabPageInner() {
   const [coachCalendarFeedStatusByStudentId, setCoachCalendarFeedStatusByStudentId] = useState<Record<string, CoachCalendarFeedStatus>>({})
   const [coachCalendarLinkLoadingId, setCoachCalendarLinkLoadingId] = useState('')
   const [personalCalendarItems, setPersonalCalendarItems] = useState<PersonalCalendarItem[]>([])
+  const [competitionCalendarItems, setCompetitionCalendarItems] = useState<PlayerCompetitionScheduleEvent[]>([])
   const [personalCalendarSyncLabel, setPersonalCalendarSyncLabel] = useState('Browser calendar')
   const [personalCalendarFeedUrl, setPersonalCalendarFeedUrl] = useState('')
   const [personalCalendarFeedLoading, setPersonalCalendarFeedLoading] = useState(false)
@@ -887,6 +952,10 @@ function MyLabPageInner() {
     lastUsedAt: null,
   })
   const [profileLink, setProfileLink] = useState<ProfileLinkRow | null>(null)
+  const [teamConnections, setTeamConnections] = useState<TeamConnection[]>([])
+  const [teamConnectionsError, setTeamConnectionsError] = useState('')
+  const [teamConnectionWorkingId, setTeamConnectionWorkingId] = useState('')
+  const [teamConnectionMessage, setTeamConnectionMessage] = useState('')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | EntityType>('all')
   const [feedFilter, setFeedFilter] = useState<'all' | FeedType>('all')
@@ -895,20 +964,63 @@ function MyLabPageInner() {
   const [error, setError] = useState<string | null>(null)
   const [goals, setGoals] = useState<LabGoalState[]>([EMPTY_LAB_GOAL])
   const [activeGoalId, setActiveGoalId] = useState(EMPTY_LAB_GOAL.id)
+  const [matchupPrepSaved, setMatchupPrepSaved] = useState('')
   const [notebookSavedLabel, setNotebookSavedLabel] = useState('All changes saved')
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [savedToCloud, setSavedToCloud] = useState(false)
   const [refreshTick, setRefreshTick] = useState(0)
+  const matchupPrepHandledRef = useRef(false)
   const [tiqAwards, setTiqAwards] = useState<TiqAwardRecord[]>([])
-  const [levelUpCompletions, setLevelUpCompletions] = useState<LevelUpCompletion[]>([])
-  const { isTablet } = useViewportBreakpoints()
+  const [localLevelUpCompletions, setLocalLevelUpCompletions] = useState<LevelUpCompletion[]>([])
+  const [remoteLevelUpSessions, setRemoteLevelUpSessions] = useState<LevelUpSession[]>([])
+  const [levelUpProofSyncState, setLevelUpProofSyncState] = useState<LevelUpProofSyncState>({
+    status: 'device',
+    message: 'Recent proof from this device.',
+  })
+  const { isMobile, isTablet } = useViewportBreakpoints()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
-  const accessPending = !authResolved || (Boolean(userId) && entitlements === null)
+  const requestedClubId = searchParams.get('clubId') || ''
+  const clubAccess = useClubSponsoredAccess(requestedClubId, CLUB_PLAYER_SPONSORED_ROLES)
+  const canUseAdvancedPlayerInsights = access.canUseAdvancedPlayerInsights || clubAccess.allowed
+  const accessPending = !authResolved || (Boolean(userId) && entitlements === null) || (Boolean(requestedClubId) && clubAccess.checking && !access.canUseAdvancedPlayerInsights)
+  const showLockedMobileMyLabPreview = isMobile && !accessPending && !canUseAdvancedPlayerInsights
   const canOpenPersonalQuest = isPersonalQuestOwner({
     id: session?.user?.id ?? userId,
     email: session?.user?.email,
   })
+
+  useEffect(() => {
+    if (!authResolved) return
+    const accessToken = session?.access_token || ''
+    if (!accessToken) {
+      setTeamConnections([])
+      setTeamConnectionsError('')
+      return
+    }
+
+    let active = true
+    setTeamConnectionsError('')
+    void fetchTeamConnections(accessToken)
+      .then((result) => {
+        if (!active) return
+        setTeamConnections(result.connections)
+      })
+      .catch((teamError) => {
+        if (!active) return
+        setTeamConnections([])
+        setTeamConnectionsError(teamError instanceof Error ? teamError.message : 'Team links could not be loaded.')
+      })
+
+    return () => {
+      active = false
+    }
+  }, [authResolved, refreshTick, session?.access_token])
+
+  useEffect(
+    () => subscribeToTeamConnectionsChanged(() => setRefreshTick((current) => current + 1)),
+    [],
+  )
 
   useEffect(() => {
     const nextGoals = readLocalGoals(userId, profileLink?.linked_player_id)
@@ -919,11 +1031,76 @@ function MyLabPageInner() {
   }, [userId, profileLink?.linked_player_id])
 
   useEffect(() => {
+    if (
+      matchupPrepHandledRef.current ||
+      loading ||
+      !authResolved ||
+      !canUseAdvancedPlayerInsights ||
+      !profileLink?.linked_player_id
+    ) return
+
+    const draft = readMatchupPrepDraft(searchParams.get('matchupPrep'))
+    if (!draft) return
+
+    matchupPrepHandledRef.current = true
+    const now = new Date().toISOString()
+    const prepGoal: LabGoalState = {
+      id: `matchup-prep-${draft.id}`,
+      goal: draft.title,
+      progressStatus: 'in-progress',
+      progressUpdate: draft.context,
+      doingWell: draft.evidence,
+      improveNext: draft.courtPlan,
+      notes: `Saved Match Prep\n\n${draft.evidence}\n\nCourt plan: ${draft.courtPlan}`,
+      updatedAt: now,
+    }
+    const existing = goals.find((goal) => goal.id === prepGoal.id)
+    const hasOnlyEmptyGoal =
+      goals.length === 1 &&
+      !goals[0].goal.trim() &&
+      !goals[0].progressUpdate.trim() &&
+      !goals[0].doingWell.trim() &&
+      !goals[0].improveNext.trim() &&
+      !goals[0].notes.trim()
+    const nextGoals = existing
+      ? goals.map((goal) => (goal.id === prepGoal.id ? prepGoal : goal))
+      : hasOnlyEmptyGoal
+        ? [prepGoal]
+        : [prepGoal, ...goals]
+
+    persistGoalList(nextGoals, prepGoal.id, 'Match prep saved')
+    setActiveGoalId(prepGoal.id)
+    setMatchupPrepSaved(draft.title)
+    void trackProductUsageEvent({
+      eventName: 'matchup_prep_saved',
+      surface: 'mylab',
+      planId: 'player_plus',
+      metadata: { matchupPrepId: draft.id },
+    })
+
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('matchupPrep')
+      window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+    }
+  // The URL payload is consumed once; the ref prevents duplicate notebook writes as goals update.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    authResolved,
+    canUseAdvancedPlayerInsights,
+    goals,
+    loading,
+    profileLink?.linked_player_id,
+    searchParams,
+  ])
+
+  useEffect(() => {
     if (!authResolved) return
 
     const localItems = readLocalPersonalCalendarItems(userId, profileLink?.linked_player_id)
     if (!session?.access_token) {
       setPersonalCalendarItems(localItems)
+      setCompetitionCalendarItems([])
       setPersonalCalendarSyncLabel('Browser calendar')
       return
     }
@@ -936,7 +1113,12 @@ function MyLabPageInner() {
         const response = await fetch('/api/player/calendar-items', {
           headers: { Authorization: `Bearer ${session.access_token}` },
         })
-        const json = (await response.json()) as { ok?: boolean; items?: PersonalCalendarItem[]; message?: string }
+        const json = (await response.json()) as {
+          ok?: boolean
+          items?: PersonalCalendarItem[]
+          competitionItems?: PlayerCompetitionScheduleEvent[]
+          message?: string
+        }
         if (!response.ok || !json.ok) {
           throw new Error(json.message || 'Could not load calendar items.')
         }
@@ -944,11 +1126,13 @@ function MyLabPageInner() {
         if (!active) return
         const items = (json.items ?? []).sort((left, right) => getPersonalCalendarSortKey(left).localeCompare(getPersonalCalendarSortKey(right)))
         setPersonalCalendarItems(items.length ? items : localItems)
+        setCompetitionCalendarItems(json.competitionItems ?? [])
         writeLocalPersonalCalendarItems(userId, profileLink?.linked_player_id, items.length ? items : localItems)
         setPersonalCalendarSyncLabel('Account calendar')
       } catch {
         if (!active) return
         setPersonalCalendarItems(localItems)
+        setCompetitionCalendarItems([])
         setPersonalCalendarSyncLabel('Browser calendar')
       }
     })()
@@ -1020,16 +1204,61 @@ function MyLabPageInner() {
   }, [])
 
   useEffect(() => {
-    setLevelUpCompletions(readLocalLevelUpCompletions())
+    setLocalLevelUpCompletions(readLocalLevelUpCompletions())
 
     function handleStorage(event: StorageEvent) {
       if (event.key && event.key !== LEVEL_UP_COMPLETIONS_KEY) return
-      setLevelUpCompletions(readLocalLevelUpCompletions())
+      setLocalLevelUpCompletions(readLocalLevelUpCompletions())
     }
 
     window.addEventListener('storage', handleStorage)
     return () => window.removeEventListener('storage', handleStorage)
   }, [])
+
+  useEffect(() => {
+    if (!authResolved) return
+
+    const accessToken = session?.access_token || ''
+    if (!accessToken) {
+      setRemoteLevelUpSessions([])
+      setLevelUpProofSyncState({ status: 'device', message: 'Recent proof from this device.' })
+      return
+    }
+
+    let active = true
+    setLevelUpProofSyncState({ status: 'syncing', message: 'Refreshing Level Up proof...' })
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/player/level-up-sessions', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        const json = (await response.json()) as { ok?: boolean; sessions?: LevelUpSession[]; message?: string }
+        if (!response.ok || !json.ok) {
+          throw new Error(json.message || 'Could not refresh Level Up proof.')
+        }
+
+        if (!active) return
+        const sessions = json.sessions ?? []
+        setRemoteLevelUpSessions(sessions)
+        setLevelUpProofSyncState({
+          status: 'account',
+          message: sessions.length ? 'Account proof is current across devices.' : 'Account history is connected.',
+        })
+      } catch {
+        if (!active) return
+        setRemoteLevelUpSessions([])
+        setLevelUpProofSyncState({
+          status: 'fallback',
+          message: 'Account proof is unavailable. Showing this device instead.',
+        })
+      }
+    })()
+
+    return () => {
+      active = false
+    }
+  }, [authResolved, refreshTick, session?.access_token])
 
   useEffect(() => {
     const linkedPlayerId = profileLink?.linked_player_id || ''
@@ -1075,7 +1304,7 @@ function MyLabPageInner() {
       loadMyLabPlayers(),
       supabase
         .from('matches')
-        .select('id,match_date,score,flight,league_name,usta_section,district_area,home_team,away_team,winner_side,line_number')
+        .select('id,match_date,match_time,facility,score,flight,league_name,usta_section,district_area,home_team,away_team,winner_side,line_number')
         .is('line_number', null)
         .order('match_date', { ascending: false })
         .limit(160),
@@ -1148,16 +1377,46 @@ function MyLabPageInner() {
     }
 
     if (linkedPlayerIdForWorkshop) {
+      const ratingSnapshotsRequest = supabase
+        .from('rating_snapshots')
+        .select('id, snapshot_date, dynamic_rating, delta')
+        .eq('player_id', linkedPlayerIdForWorkshop)
+        .eq('rating_type', 'overall')
+        .eq('track', 'tiq')
+        .order('snapshot_date', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(12)
       const { data: playerMatchRefs } = await supabase
         .from('match_players')
         .select('match_id')
         .eq('player_id', linkedPlayerIdForWorkshop)
         .limit(80)
+      const { data: ratingSnapshotRows, error: ratingSnapshotsError } = await ratingSnapshotsRequest
+
+      if (ratingSnapshotsError) {
+        console.warn('Rating Journey snapshots unavailable:', ratingSnapshotsError.message)
+      }
+      setRatingSnapshots(
+        ((ratingSnapshotRows || []) as Array<{
+          id: string
+          snapshot_date: string | null
+          dynamic_rating: number | null
+          delta: number | null
+        }>).map((snapshot) => ({
+          id: snapshot.id,
+          snapshotDate: snapshot.snapshot_date,
+          dynamicRating: snapshot.dynamic_rating,
+          delta: snapshot.delta,
+        })),
+      )
 
       const personalMatchIds = [...new Set((playerMatchRefs || []).map((row) => row.match_id).filter(Boolean))]
 
       if (personalMatchIds.length) {
-        const [{ data: personalMatchRows }, { data: personalParticipantRows }] = await Promise.all([
+        const [
+          { data: personalMatchRows },
+          { data: personalParticipantRows },
+        ] = await Promise.all([
           supabase
             .from('matches')
             .select('id, match_date, match_type, league_name, score, winner_side')
@@ -1195,7 +1454,10 @@ function MyLabPageInner() {
               .sort((a, b) => (a.seat ?? 0) - (b.seat ?? 0))
               .map((participant) => {
                 const player = Array.isArray(participant.players) ? participant.players[0] : participant.players
-                return player?.name || 'Player'
+                return {
+                  id: participant.player_id,
+                  name: player?.name || 'Player',
+                }
               })
             const result =
               playerSide && match.winner_side
@@ -1211,15 +1473,18 @@ function MyLabPageInner() {
               matchType: match.match_type,
               score: match.score,
               result,
-              opponent: opponents.join(' / ') || 'Opponent',
+              opponent: opponents.map((opponent) => opponent.name).join(' / ') || 'Opponent',
+              opponents,
             }
           }),
         )
       } else {
         setPersonalMatches([])
+        setRatingSnapshots([])
       }
     } else {
       setPersonalMatches([])
+      setRatingSnapshots([])
     }
 
     if (!followsRes.error && Array.isArray(followsRes.data) && followsRes.data.length) {
@@ -1570,6 +1835,33 @@ function MyLabPageInner() {
     [profileLink?.linked_player_id, session?.access_token, userId],
   )
 
+  const respondToCompetitionSchedule = useCallback(
+    async (eventId: string, response: 'available' | 'unavailable') => {
+      if (!session?.access_token) throw new Error('Sign in to send your availability.')
+
+      const result = await fetch('/api/player/competition-schedule-response', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ eventId, response }),
+      })
+      const body = (await result.json()) as { ok?: boolean; message?: string }
+      if (!result.ok || !body.ok) throw new Error(body.message || 'Availability could not be sent.')
+
+      setCompetitionCalendarItems((current) => current.map((item) => item.id === eventId
+        ? {
+            ...item,
+            responseStatus: response,
+            responseUpdatedAt: new Date().toISOString(),
+            responseIsStale: false,
+          }
+        : item))
+    },
+    [session?.access_token],
+  )
+
   const coachLinkMapForCalendar = useMemo(() => new Map(coachLinks.map((link) => [link.id, link])), [coachLinks])
   const sharedCoachCalendarEvents = useMemo(
     () => buildPlayerCoachLessonEvents(coachAssignments, coachLinkMapForCalendar).slice(0, 6),
@@ -1886,12 +2178,14 @@ function MyLabPageInner() {
 
   const feed = useMemo<FeedItem[]>(() => {
     const items: FeedItem[] = []
+    const visibleMatchResults: MatchRow[] = []
+    const linkedResultMatches = matchIdsForResultEvents(cloudFeedRows, matches)
     const followedKeySet = new Set(follows.map((f) => `${f.entity_type}:${f.entity_id}`))
     const followPlayers = follows.filter((f) => f.entity_type === 'player')
     const followTeams = follows.filter((f) => f.entity_type === 'team')
     const followLeagues = follows.filter((f) => f.entity_type === 'league')
 
-    for (const row of cloudFeedRows) {
+    for (const row of dedupeLeagueResultFeed(cloudFeedRows)) {
       const key = `${row.entity_type}:${row.entity_id}`
       if (!followedKeySet.has(key)) continue
 
@@ -1902,7 +2196,7 @@ function MyLabPageInner() {
             ? 'achievement'
             : row.event_type === 'team'
               ? 'team'
-              : row.event_type === 'league'
+            : isLeagueWatchlistEvent(row.event_type)
                 ? 'league'
                 : row.event_type === 'community'
                   ? 'community'
@@ -1910,6 +2204,7 @@ function MyLabPageInner() {
 
       items.push({
         id: `cloud-${row.id}`,
+        matchId: linkedResultMatches.get(row.id),
         type: mappedType,
         title: row.title,
         body: row.body || row.subtitle || 'Update available.',
@@ -1918,7 +2213,7 @@ function MyLabPageInner() {
         entityName: row.entity_name,
         createdAt: row.created_at,
         score: 120,
-        badge: row.event_type[0].toUpperCase() + row.event_type.slice(1),
+        badge: row.event_type === 'league_result_posted' ? 'League result' : row.event_type[0].toUpperCase() + row.event_type.slice(1),
         accent: accentForType(mappedType),
       })
     }
@@ -1934,7 +2229,8 @@ function MyLabPageInner() {
         entityType: 'player',
         entityId: player.id,
         entityName: player.name,
-        createdAt: new Date().toISOString(),
+        createdAt: null,
+        freshnessLabel: 'Current rating',
         score: 98,
         badge: 'Ratings',
         accent: accentForType('rating'),
@@ -1996,11 +2292,17 @@ function MyLabPageInner() {
         .map((mp) => playerMap.get(mp.player_id)?.name)
         .filter(Boolean) as string[]
 
+      const upcoming = isUpcomingWatchlistMatch(match.match_date, match.score)
+      if (!upcoming && !hasWatchlistResult(match.score)) continue
+      if (!upcoming) visibleMatchResults.push(match)
       items.push({
         id: `match-${match.id}`,
+        matchId: match.id,
         type: 'match',
         title: `${homeTeam || 'Team A'} vs ${awayTeam || 'Team B'}`,
-        body: `${leagueName || 'League match'}${flight ? ` - ${flight}` : ''}. Score: ${match.score || 'Pending'}. Players: ${spotlightPlayers.join(', ') || 'Lineups unavailable'}.`,
+        body: upcoming
+          ? `${leagueName || 'League match'}${flight ? ` - ${flight}` : ''}. ${spotlightPlayers.length ? `Players: ${spotlightPlayers.join(', ')}.` : 'Lineups are not available yet.'}`
+          : `${leagueName || 'League match'}${flight ? ` - ${flight}` : ''}. Score: ${match.score || 'Pending'}. Players: ${spotlightPlayers.join(', ') || 'Lineups unavailable'}.`,
         entityType: containsFollowedLeague ? 'league' : containsFollowedTeam ? 'team' : 'player',
         entityId: containsFollowedLeague
           ? getFollowedEntityId(followLeagues, 'league', [leagueId])
@@ -2008,9 +2310,11 @@ function MyLabPageInner() {
             ? getFollowedEntityId(followTeams, 'team', [homeTeamId, awayTeamId])
             : (playersInMatch[0]?.player_id ?? null),
         entityName: leagueName || homeTeam || 'Watched match',
-        createdAt: match.match_date || new Date().toISOString(),
+        createdAt: match.match_date,
+        upcoming,
+        freshnessLabel: 'Match date unavailable',
         score: 94,
-        badge: 'Match',
+        badge: upcoming ? 'Upcoming' : 'Match',
         accent: accentForType('match'),
       })
     }
@@ -2055,34 +2359,13 @@ function MyLabPageInner() {
         entityType: scenarioTeamId ? 'team' : 'league',
         entityId: scenarioTeamId || scenarioLeagueId,
         entityName: scenario.team_name || scenario.league_name || 'Scenario',
-        createdAt: scenario.match_date || new Date().toISOString(),
+        createdAt: null,
+        freshnessLabel: scenario.match_date ? `For ${safeDate(scenario.match_date)}` : 'Saved scenario',
         score: 87,
         badge: 'Lineup',
         accent: accentForType('team'),
       })
     }
-
-    const streakPlayers = players
-      .filter((player) => typeof player.overall_dynamic_rating === 'number')
-      .sort((a, b) => (b.overall_dynamic_rating ?? 0) - (a.overall_dynamic_rating ?? 0))
-      .slice(0, 8)
-
-    streakPlayers.forEach((player, index) => {
-      if (!followPlayers.some((f) => f.entity_id === player.id)) return
-      items.push({
-        id: `achievement-${player.id}`,
-        type: 'achievement',
-        title: `${player.name} is trending up`,
-        body: `${player.name} is sitting near the top of your followed players by overall dynamic rating at ${formatRating(player.overall_dynamic_rating)}.`,
-        entityType: 'player',
-        entityId: player.id,
-        entityName: player.name,
-        createdAt: new Date(Date.now() - index * 3600 * 1000).toISOString(),
-        score: 85 - index,
-        badge: 'Achievement',
-        accent: accentForType('achievement'),
-      })
-    })
 
     followedTiqIndividualParticipations.slice(0, 24).forEach((entry, index) => {
       const leagueEntityId = buildScopedLeagueEntityId({
@@ -2101,7 +2384,8 @@ function MyLabPageInner() {
         entityType: 'league',
         entityId: leagueEntityId,
         entityName: entry.leagueName,
-        createdAt: new Date(Date.now() - index * 2700 * 1000).toISOString(),
+        createdAt: null,
+        freshnessLabel: 'Current entry',
         score: 89 - index,
         badge: 'TIQ League',
         accent: accentForType('league'),
@@ -2209,7 +2493,8 @@ function MyLabPageInner() {
         entityType: 'community',
         entityId: null,
         entityName: 'Community',
-        createdAt: new Date().toISOString(),
+        createdAt: null,
+        freshnessLabel: 'Start here',
         score: 999,
         badge: 'Welcome',
         accent: accentForType('community'),
@@ -2221,13 +2506,17 @@ function MyLabPageInner() {
       if (!deduped.has(item.id)) deduped.set(item.id, item)
     }
 
-    return Array.from(deduped.values())
-      .filter((item) => feedFilter === 'all' || item.type === feedFilter)
-      .sort(
-        (a, b) =>
-          b.score - a.score || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      )
-      .slice(0, 30)
+    const overlappingResultIds = feedFilter === 'all'
+      ? overlappingLeagueResultIds(cloudFeedRows, visibleMatchResults)
+      : new Set<string>()
+    const filtered = Array.from(deduped.values()).filter((item) =>
+      (feedFilter === 'all' || item.type === feedFilter) &&
+      !(item.id.startsWith('cloud-') && overlappingResultIds.has(item.id.slice(6))),
+    )
+    return [
+      ...sortUpcomingWatchlistFeed(filtered.filter((item) => item.upcoming)).slice(0, 3),
+      ...sortWatchlistFeed(filtered.filter((item) => !item.upcoming)).slice(0, 5),
+    ]
   }, [
     follows,
     players,
@@ -2246,6 +2535,7 @@ function MyLabPageInner() {
     followedPlayerNameSet,
     tiqLeagueContextById,
   ])
+  const upcomingFeedCount = feed.filter((item) => item.upcoming).length
 
   const followedPlayerSignals = useMemo(() => {
     return follows
@@ -2268,41 +2558,19 @@ function MyLabPageInner() {
   }, [follows, playerMap])
 
   async function persistFollows(next: FollowItem[]) {
-    setFollows(next)
-    writeLocalFollows(next)
-
     try {
       if (!userId) {
-        setSavedToCloud(false)
-        return
+        throw new Error('Sign in to save follows.')
       }
-
-      const { error: deleteError } = await supabase.from('user_follows').delete().eq('user_id', userId)
-
-      if (deleteError && !/relation .* does not exist/i.test(deleteError.message)) {
-        throw deleteError
-      }
-
-      if (next.length) {
-        const payload = next.map((item) => ({
-          user_id: userId,
-          entity_type: item.entity_type,
-          entity_id: item.entity_id,
-          entity_name: item.entity_name,
-          subtitle: item.subtitle,
-        }))
-
-        const { error: insertError } = await supabase.from('user_follows').insert(payload)
-
-        if (insertError && !/relation .* does not exist/i.test(insertError.message)) {
-          throw insertError
-        }
-
-        if (!insertError) setSavedToCloud(true)
-      } else {
-        setSavedToCloud(true)
-      }
-    } catch {
+      const added = next.filter((item) => !followContainsEntity(follows, item.entity_type, item.entity_id))
+      const removed = follows.filter((item) => !followContainsEntity(next, item.entity_type, item.entity_id))
+      for (const item of added) await createFollow(item)
+      for (const item of removed) await deleteFollow(item)
+      setFollows(next)
+      writeLocalFollows(next)
+      setSavedToCloud(true)
+    } catch (error) {
+      console.error('Failed to save follows', error)
       setSavedToCloud(false)
     }
   }
@@ -2333,6 +2601,23 @@ function MyLabPageInner() {
         ),
     )
     await persistFollows(next)
+  }
+
+  async function followMatchOpponents(match: PersonalMatchRow) {
+    const newOpponentFollows = match.opponents
+      .filter((opponent) => opponent.id && !followContainsEntity(follows, 'player', opponent.id))
+      .map((opponent) => ({
+        id: `player-${opponent.id}`,
+        entity_type: 'player' as const,
+        entity_id: opponent.id,
+        entity_name: opponent.name,
+        subtitle: [match.leagueName, match.matchType].filter(Boolean).join(' · ') || 'Recent opponent',
+        created_at: new Date().toISOString(),
+      }))
+
+    if (!newOpponentFollows.length) return
+
+    await persistFollows([...newOpponentFollows, ...follows])
   }
 
   function persistGoalList(nextGoals: LabGoalState[], nextActiveGoalId = activeGoalId, label = 'Saved just now') {
@@ -2435,9 +2720,28 @@ function MyLabPageInner() {
   const linkedPlayer = profileLink?.linked_player_id ? playerMap.get(profileLink.linked_player_id) || null : null
   const isSelfRatedProfile = linkedPlayer?.rating_source === 'self'
   const isNewSelfRatedProfile = Boolean(isSelfRatedProfile && !personalMatches.length)
-  const levelUpProofs = useMemo(() => buildMyLabLevelUpProofs(levelUpCompletions), [levelUpCompletions])
+  const levelUpProofRecords = useMemo(
+    () => mergeMyLabLevelUpProofRecords(localLevelUpCompletions, remoteLevelUpSessions),
+    [localLevelUpCompletions, remoteLevelUpSessions],
+  )
+  const weeklyImprovementPlan = useMemo(
+    () => buildMyLabWeeklyImprovementPlan(levelUpProofRecords),
+    [levelUpProofRecords],
+  )
+  const levelUpProofs = useMemo(() => buildMyLabLevelUpProofs(levelUpProofRecords), [levelUpProofRecords])
   const latestLevelUpProof = levelUpProofs[0]
   const fallbackLevelUpIdentitySlug = PLAYER_DEVELOPMENT_IDENTITIES[0]?.slug || 'relentless-competitor-4-0'
+  const latestLevelUpProofCard = latestLevelUpProof
+    ? LEVEL_UP_CARDS.find((card) => card.id === latestLevelUpProof.cardId)
+    : undefined
+  const pathPanelTacticsIdentitySlug = latestLevelUpProofCard?.identitySlugs?.[0] || fallbackLevelUpIdentitySlug
+  const pathPanelTacticsIdentity = getPlayerDevelopmentIdentity(pathPanelTacticsIdentitySlug)
+  const pathPanelTacticsHref = buildMyLabTacticsBoardHref(
+    pathPanelTacticsIdentitySlug,
+    pathPanelTacticsIdentity.title.replace(/^The /, ''),
+    latestLevelUpProofCard,
+    latestLevelUpProof,
+  )
   const courtModeHref = latestLevelUpProof?.nextHref || `/player-development/${fallbackLevelUpIdentitySlug}/level-up`
   const earnedAwardCards = useMemo(() => {
     const profileNames = new Set(
@@ -2460,6 +2764,7 @@ function MyLabPageInner() {
   }, [linkedPlayer?.name, profileLink?.linked_player_name, tiqAwards])
   const firstName = (profileLink?.linked_player_name || linkedPlayer?.name || '').split(' ')[0] || ''
   const welcomeLine = firstName ? `${firstName}, start with the next useful move.` : 'Start with the next useful move.'
+  const myLabTitle = isProfileConfirmed ? welcomeLine : 'My Lab.'
   const recentDecisionMatches = personalMatches.filter((match) => match.result === 'W' || match.result === 'L')
   const recentWins = recentDecisionMatches.filter((match) => match.result === 'W').length
   const recentLosses = recentDecisionMatches.filter((match) => match.result === 'L').length
@@ -2467,6 +2772,12 @@ function MyLabPageInner() {
   const recentWinRate = recentDecisionMatches.length ? Math.round((recentWins / recentDecisionMatches.length) * 100) : 0
   const lastMatch = personalMatches[0] || null
   const lastMatchSummary = lastMatch ? `Last: ${lastMatch.result} vs ${compactOpponentLabel(lastMatch.opponent)}` : 'Recent results appear as imports connect.'
+  const filteredMatchbookMatches = useMemo(
+    () => filterMatchbookEntries(personalMatches, matchbookFilter),
+    [matchbookFilter, personalMatches],
+  )
+  const matchbookMatches = filteredMatchbookMatches.slice(0, showFullMatchbook ? 12 : 5)
+  const hasMoreMatchbookMatches = filteredMatchbookMatches.length > matchbookMatches.length
   const personalSinglesCount = personalMatches.filter((match) => (match.matchType || '').toLowerCase().includes('singles')).length
   const personalDoublesCount = personalMatches.filter((match) => (match.matchType || '').toLowerCase().includes('doubles')).length
   const currentTiq = linkedPlayer?.overall_dynamic_rating ?? null
@@ -2513,6 +2824,17 @@ function MyLabPageInner() {
     if (match.result !== 'W') break
     currentWinStreak += 1
   }
+  const firstServeFocusComplete = Boolean(
+    (goals.find((goal) => goal.id === activeGoalId) || goals[0] || EMPTY_LAB_GOAL).goal.trim(),
+  )
+  const trophyBadges = buildPlayerTrophyBadges({
+    verifiedHonors: earnedAwardCards.length,
+    reviewedMatches: recentDecisionMatches.length,
+    longestWinStreak: bestWinStreak,
+    firstServeProgress: [isProfileConfirmed, firstServeFocusComplete, Boolean(latestLevelUpProof)].filter(Boolean).length,
+  })
+  const earnedTrophyBadges = trophyBadges.filter((badge) => badge.earned)
+  const nextTrophyBadge = trophyBadges.find((badge) => !badge.earned) || null
   const seasonRecords = new Map<string, { wins: number; losses: number }>()
   const leagueRecords = new Map<string, { wins: number; losses: number }>()
   recentDecisionMatches.forEach((match) => {
@@ -2575,6 +2897,37 @@ function MyLabPageInner() {
   const topMatchupCandidate = matchupCandidates[0] || null
   const matchupQueue = matchupCandidates.slice(0, 3)
   const matchupHref = linkedPlayer ? buildSinglesMatchupHref(linkedPlayer.id, topMatchupCandidate?.player.id) : '/matchup'
+  const todayDateKey = getLocalDateKey(new Date())
+  const nextCourtEvent = [
+    ...competitionCalendarItems
+      .filter((item) => item.eventType === 'match' && item.date >= todayDateKey)
+      .map((item) => ({
+        title: item.title || item.competitionName,
+        date: item.date,
+        time: item.time,
+        dateLabel: formatPlayerCoachCalendarDate(item.time ? `${item.date}T${item.time}` : item.date),
+        detail: [item.detail, item.location].filter(Boolean).join(' - ') || item.competitionName,
+        href: item.href || '/mylab#player-workshop',
+        cta: 'Open match details',
+        readiness: item.responseStatus === 'unavailable'
+          ? 'Marked unavailable'
+          : item.responseStatus === 'available' && !item.responseIsStale
+            ? 'Availability confirmed'
+            : 'Availability needs a reply',
+      })),
+    ...personalCalendarItems
+      .filter((item) => item.kind === 'match' && item.date >= todayDateKey)
+      .map((item) => ({
+        title: item.title || 'Personal match',
+        date: item.date,
+        time: item.time,
+        dateLabel: formatPersonalCalendarItemDate(item),
+        detail: item.location || 'Personal calendar match',
+        href: '/mylab#my-calendar',
+        cta: 'Open calendar',
+        readiness: item.availabilityStatus === 'unavailable' ? 'Marked unavailable' : 'Personal calendar',
+      })),
+  ].sort((left, right) => getPlayerCoachCalendarSortKey(left).localeCompare(getPlayerCoachCalendarSortKey(right)))[0] || null
   const matchupGapScore = topMatchupCandidate ? topMatchupCandidate.fitScore : 0
   const matchupReadLabel = topMatchupCandidate?.read || (isNewSelfRatedProfile ? 'Start the signal' : 'Set profile')
   const matchupPreviewCards = [
@@ -2599,6 +2952,9 @@ function MyLabPageInner() {
     },
   ]
   const activeGoal = goals.find((goal) => goal.id === activeGoalId) || goals[0] || EMPTY_LAB_GOAL
+  const matchPrepGoals = goals.filter((goal) => goal.id.startsWith('matchup-prep-'))
+  const matchPrepHeld = matchPrepGoals.filter((goal) => goal.progressUpdate.includes('plan held')).length
+  const matchPrepAdjusted = matchPrepGoals.filter((goal) => goal.progressUpdate.includes('adjust the plan')).length
   const activeGoals = goals.filter((goal) => goal.progressStatus !== 'completed')
   const completedGoals = goals.filter((goal) => goal.progressStatus === 'completed')
   const goalReadinessChecks = goalReadinessChecksFor(activeGoal)
@@ -2721,7 +3077,17 @@ function MyLabPageInner() {
       cta: 'Find drills',
       job: 'find_resources',
     },
+    {
+      question: 'What did my stroke look like?',
+      title: 'Send a video review',
+      body: 'Record a serve, return, rally, or footwork clip and keep coach feedback tied to the exact timestamp.',
+      href: VIDEO_REVIEW_ROUTE,
+      cta: 'Open Video Review',
+      job: 'video_review',
+    },
   ] as const
+  const visiblePersonalLabPathCards = isMobile ? personalLabPathCards.slice(0, 2) : personalLabPathCards
+  const extraPersonalLabPathCards = isMobile ? personalLabPathCards.slice(2) : []
   const focusTemplates: Array<{ label: string } & GoalTemplate> = [
     {
       label: 'Next match plan',
@@ -2850,7 +3216,7 @@ function MyLabPageInner() {
       label: 'Fix tennis context',
       value: isNewSelfRatedProfile ? 'First signal' : 'Refresh',
       note: isNewSelfRatedProfile
-        ? 'Upload a scorecard or team summary to replace the starter signal.'
+        ? 'Upload a scorecard or Player Roster to replace the starter signal.'
         : 'Upload, report, or correct the tennis context behind your read.',
       href: dataAssistMyLabHref,
       cta: 'Open Data Assist',
@@ -2867,6 +3233,14 @@ function MyLabPageInner() {
       href: matchupHref,
       cta: 'Open Matchup',
       icon: 'matchupAnalysis' as TiqFeatureIconName,
+    },
+    {
+      label: 'Video review',
+      value: 'Court clip',
+      note: 'Record or upload a stroke clip, then send it into the coach review flow.',
+      href: VIDEO_REVIEW_ROUTE,
+      cta: 'Capture clip',
+      icon: 'reports' as TiqFeatureIconName,
     },
     ...(canOpenPersonalQuest
       ? [{
@@ -2947,6 +3321,25 @@ function MyLabPageInner() {
         }
       })
     : []
+  const acceptedPlayerTeamConnections = teamConnections
+    .filter((connection) => connection.status === 'accepted' && connection.roles.includes('player'))
+    .sort((left, right) => left.isDefault === right.isDefault
+      ? (Date.parse(right.updatedAt) || 0) - (Date.parse(left.updatedAt) || 0)
+      : left.isDefault ? -1 : 1)
+  async function makeDefaultTeam(connection: TeamConnection) {
+    const accessToken = session?.access_token || ''
+    if (!accessToken || teamConnectionWorkingId) return
+    setTeamConnectionWorkingId(connection.id)
+    setTeamConnectionMessage('')
+    try {
+      await updateTeamConnection({ accessToken, connectionId: connection.id, action: 'set_default' })
+      setTeamConnectionMessage(`${connection.teamName} will open first across My Lab and Captain.`)
+    } catch (connectionError) {
+      setTeamConnectionMessage(connectionError instanceof Error ? connectionError.message : 'Default team could not be saved.')
+    } finally {
+      setTeamConnectionWorkingId('')
+    }
+  }
   const confirmedLeagueCount = new Set(
     linkedPlayerTeamSummaries
       .map((team) => [team.league, team.flight].filter(Boolean).join(' - '))
@@ -3005,20 +3398,28 @@ function MyLabPageInner() {
       display: `${formatRating(linkedPlayer?.doubles_dynamic_rating ?? null)}${isSelfRatedProfile ? ' S' : ''}`,
     },
   ]
-  const scorecardSummaryCards = [
-    { label: 'Recent record', value: recentRecordLabel, note: `${recentDecisionMatches.length} connected decisions` },
-    { label: 'Win rate', value: recentDecisionMatches.length ? `${recentWinRate}%` : 'New', note: lastMatchSummary },
-    {
-      label: 'Matchup read',
-      value: matchupReadLabel,
-      note: topMatchupCandidate ? `${topMatchupCandidate.player.name} - gap ${topMatchupCandidate.gap.toFixed(2)}` : 'Use Matchup to compare',
-    },
-    { label: 'Current focus', value: activeGoal.goal || 'Optional', note: activeGoal.progressUpdate || 'Add a goal only when it helps' },
-  ]
+  const matchIntelligence = buildMatchIntelligenceRead({
+    matches: personalMatches,
+    activeFocus: activeGoal.goal,
+    activeFocusNote: activeGoal.improveNext || activeGoal.progressUpdate,
+  })
+  const ratingJourney = buildPlayerRatingJourneyRead({
+    snapshots: ratingSnapshots,
+    decidedMatches: recentDecisionMatches.length,
+  })
+  const ratingJourneyValues = [currentTiq, ...ratingJourney.snapshotPoints.map((point) => point.rating)]
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+  const ratingJourneyMin = ratingJourneyValues.length ? Math.min(...ratingJourneyValues) : 0
+  const ratingJourneyMax = ratingJourneyValues.length ? Math.max(...ratingJourneyValues) : 0
+  const ratingJourneyRange = Math.max(0.02, ratingJourneyMax - ratingJourneyMin)
+  const ratingJourneyPoints = ratingJourney.snapshotPoints.map((point) => ({
+    ...point,
+    position: Math.max(8, Math.min(100, ((point.rating - ratingJourneyMin) / ratingJourneyRange) * 92 + 8)),
+  }))
   const starterActionCards = [
     {
       title: 'Upload scores',
-      text: 'Use a scorecard or team summary to replace the starter rating with verified match context.',
+      text: 'Use a scorecard or Player Roster to replace the starter rating with verified match context.',
       href: dataAssistMyLabHref,
     },
     {
@@ -3064,185 +3465,196 @@ function MyLabPageInner() {
       note: bestLeague ? `${bestLeague.wins}W-${bestLeague.losses}L - ${bestLeague.winRate}% win rate` : 'League finishes appear from match history',
     },
   ]
-  return (
-    <section style={pageStyle}>
-      {!accessPending && !access.canUseAdvancedPlayerInsights ? (
+  const commandCenterPlayerName = linkedPlayer?.name || profileLink?.linked_player_name || ''
+  const commandCenterCompletedSessions = weeklyImprovementPlan.completedSessions
+  const hasMyLabFocus = Boolean(activeGoal.goal.trim())
+  const commandCenterRepTitle = !isProfileConfirmed
+    ? 'Find your player record'
+    : !hasMyLabFocus
+      ? 'Choose one tennis focus'
+      : weeklyImprovementPlan.cardTitle
+        || latestLevelUpProofCard?.title
+        || activeGoal.goal.trim()
+        || (topMatchupCandidate ? 'Sharpen the first four shots' : 'Choose one focused court rep')
+  const commandCenterRepNote = !isProfileConfirmed
+    ? 'Connect your tennis so every read, matchup, and rep belongs to you.'
+    : !hasMyLabFocus
+      ? 'Name the one thing you want to improve before you step on court.'
+      : latestLevelUpProof
+        ? weeklyImprovementPlan.nextAction
+        : latestLevelUpProofCard?.cue
+        || activeGoal.improveNext.trim()
+        || (topMatchupCandidate
+          ? `Build one repeatable pattern before you play ${topMatchupCandidate.player.name}.`
+          : 'Turn one clear intention into evidence you can use next time.')
+  const commandCenterRepHref = !isProfileConfirmed
+    ? '/profile'
+    : !hasMyLabFocus
+      ? MY_LAB_GOAL_PROGRESS_HREF
+      : latestLevelUpProof
+        ? weeklyImprovementPlan.nextHref
+        : courtModeHref
+  const commandCenterRepCta = !isProfileConfirmed
+    ? 'Find yourself'
+    : !hasMyLabFocus
+      ? 'Choose my focus'
+      : latestLevelUpProof
+        ? 'Repeat this rep'
+        : 'Start today\'s rep'
+  const firstServeSteps = !isProfileConfirmed || (hasMyLabFocus && latestLevelUpProof)
+    ? []
+    : [
+        {
+          title: 'Connect your player',
+          description: isProfileConfirmed
+            ? commandCenterPlayerName || 'Your player record is connected.'
+            : 'Find your record or create a self-rated profile.',
+          href: '/profile',
+          action: 'Find yourself',
+          complete: isProfileConfirmed,
+        },
+        {
+          title: 'Choose one focus',
+          description: hasMyLabFocus ? activeGoal.goal : 'Name the one thing you want to improve next.',
+          href: !isProfileConfirmed ? '/profile' : hasMyLabFocus ? '/mylab#player-tools' : MY_LAB_GOAL_PROGRESS_HREF,
+          action: isProfileConfirmed ? 'Set my focus' : 'Connect player first',
+          complete: hasMyLabFocus,
+        },
+        {
+          title: 'Finish your first rep',
+          description: latestLevelUpProof
+            ? `${latestLevelUpProof.cardTitle}: ${latestLevelUpProof.proofLabel}`
+            : 'Take one short court card and leave proof behind.',
+          href: isProfileConfirmed ? courtModeHref : '/profile',
+          action: 'Start my rep',
+          complete: Boolean(latestLevelUpProof),
+        },
+      ]
+  const postRepReturn = latestLevelUpProof
+    ? {
+        cardTitle: latestLevelUpProof.cardTitle,
+        proofLabel: latestLevelUpProof.proofLabel,
+        timeLabel: latestLevelUpProof.timeLabel,
+        note: latestLevelUpProof.note,
+        nextAction: !isProfileConfirmed
+          ? 'Connect your player record so this proof stays with your tennis.'
+          : !hasMyLabFocus
+            ? 'Tie this proof to one focus for your next match or practice.'
+            : weeklyImprovementPlan.nextAction,
+        nextHref: !isProfileConfirmed
+          ? '/profile'
+          : !hasMyLabFocus
+            ? MY_LAB_GOAL_PROGRESS_HREF
+            : weeklyImprovementPlan.nextHref,
+        nextCta: !isProfileConfirmed
+          ? 'Connect player'
+          : !hasMyLabFocus
+            ? 'Choose focus'
+            : weeklyImprovementPlan.nextCta,
+        syncLabel: latestLevelUpProof.sourceLabel,
+        planLabel: weeklyImprovementPlan.modeLabel,
+        planWhy: weeklyImprovementPlan.why,
+        proofTarget: weeklyImprovementPlan.proofTarget,
+        trendLabel: weeklyImprovementPlan.trendLabel,
+      }
+    : null
+
+  if (!accessPending && !userId && !canUseAdvancedPlayerInsights) {
+    return (
+      <section style={pageStyle}>
         <UpgradePrompt
           planId="player_plus"
-          headline={MY_LAB_STORY.upgradeHeadline}
-          body={MY_LAB_STORY.upgradeBody}
+          headline={isMobile ? 'Unlock My Lab.' : MY_LAB_STORY.upgradeHeadline}
+          body={isMobile ? 'Open progress, matchup prep, and cleaner tennis messages.' : MY_LAB_STORY.upgradeBody}
           ctaLabel={MY_LAB_STORY.upgradeCta}
-          secondaryLabel={MY_LAB_STORY.upgradeSecondary}
-          footnote={MY_LAB_STORY.upgradeFootnote}
+          secondaryLabel={isMobile ? 'Plans' : MY_LAB_STORY.upgradeSecondary}
+          footnote={isMobile ? undefined : MY_LAB_STORY.upgradeFootnote}
           compact
+          summaryOnly={isMobile}
+        />
+        <MyLabCommandCenter
+          firstName=""
+          playerId=""
+          playerName=""
+          repTitle="Connect your player record"
+          repNote="Create a free account, then connect your tennis before starting your first rep."
+          repDuration={null}
+          repHref="/join?next=%2Fmylab"
+          repCta="Create free account"
+          completedSessions={0}
+          sessionTarget={4}
+          progressHref="/join?next=%2Fmylab"
+          firstServeSteps={[]}
+          postRepReturn={null}
+          matchup={null}
+          nextCourtEvent={null}
+        />
+      </section>
+    )
+  }
+
+  const collapseLegacyWorkspace = isMobile && isProfileConfirmed
+  const PlayerWorkshopShell: 'details' | 'section' = collapseLegacyWorkspace ? 'details' : 'section'
+
+  return (
+    <section style={pageStyle}>
+      {clubAccess.workspace ? (
+        <ClubContextBanner
+          workspace={clubAccess.workspace}
+          surface="Player experience"
+          detail="Goals, coach work, matches, programs, and the next useful step stay connected to the club."
+        />
+      ) : null}
+      {!accessPending && !canUseAdvancedPlayerInsights ? (
+        <UpgradePrompt
+          planId="player_plus"
+          headline={isMobile ? 'Unlock My Lab.' : MY_LAB_STORY.upgradeHeadline}
+          body={isMobile ? 'Open progress, matchup prep, and cleaner tennis messages.' : MY_LAB_STORY.upgradeBody}
+          ctaLabel={MY_LAB_STORY.upgradeCta}
+          secondaryLabel={isMobile ? 'Plans' : MY_LAB_STORY.upgradeSecondary}
+          footnote={isMobile ? undefined : MY_LAB_STORY.upgradeFootnote}
+          compact
+          summaryOnly={isMobile}
         />
       ) : null}
 
-      <section id="player-workshop" style={profileLinkSectionStyle}>
-        <div style={profileLinkCardStyle}>
-          <span aria-hidden="true" style={watermarkStyle} />
-          <div style={sectionHeaderStyle}>
-            <div style={sectionTitleClusterStyle}>
-              <TiqFeatureIcon name="myLab" size="lg" variant="surface" />
-              <div>
-                <p style={sectionKickerStyle}>You hub</p>
-                <h1 style={sectionTitleStyle}>{welcomeLine}</h1>
-                <p style={sectionTextStyle}>
-                  My Lab answers what to work on, how you are improving, which matchups matter, and which drill or resource should come next.
-                </p>
-              </div>
-            </div>
-            <Link href={matchupHref} style={secondaryButtonStyle}>
-              Open Matchup
-            </Link>
-          </div>
+      <MyLabCommandCenter
+        firstName={firstName}
+        playerId={linkedPlayer?.id || profileLink?.linked_player_id || ''}
+        playerName={commandCenterPlayerName}
+        repTitle={commandCenterRepTitle}
+        repNote={commandCenterRepNote}
+        repDuration={isProfileConfirmed && hasMyLabFocus ? latestLevelUpProofCard?.durationMinutes || 10 : null}
+        repHref={commandCenterRepHref}
+        repCta={commandCenterRepCta}
+        completedSessions={commandCenterCompletedSessions}
+        sessionTarget={4}
+        progressHref={MY_LAB_GOAL_PROGRESS_HREF}
+        firstServeSteps={firstServeSteps}
+        postRepReturn={postRepReturn}
+        matchup={topMatchupCandidate ? {
+          opponentId: topMatchupCandidate.player.id,
+          opponentName: topMatchupCandidate.player.name,
+          opponentMeta: [topMatchupCandidate.player.location, `TIQ ${formatRating(topMatchupCandidate.rating)}`].filter(Boolean).join(' · '),
+          read: `${topMatchupCandidate.read} · ${topMatchupCandidate.gap.toFixed(2)} gap`,
+          href: matchupHref,
+        } : null}
+        nextCourtEvent={nextCourtEvent}
+      />
 
-          <section style={personalLabPathStyle} aria-label="My Lab next action path">
-            <div style={personalLabPathHeaderStyle}>
-              <div style={sectionHeaderCopyStyle}>
-                <p style={sectionKickerStyle}>Personal lab path</p>
-                <h2 style={personalLabPathTitleStyle}>{PRODUCT_MOTTO}</h2>
-                <p style={sectionTextStyle}>Start with the one question that gets you back to useful tennis fastest.</p>
-              </div>
-            </div>
-            <div style={personalLabPathGridStyle(isTablet)}>
-              {personalLabPathCards.map((card) => (
-                <Link
-                  key={card.question}
-                  href={card.href}
-                  style={personalLabPathCardStyle}
-                  aria-label={`${card.cta}: ${card.question}`}
-                  data-my-lab-path-job={card.job}
-                >
-                  <span style={personalLabPathQuestionStyle}>{card.question}</span>
-                  <strong style={personalLabPathCardTitleStyle}>{card.title}</strong>
-                  <span style={personalLabPathCardTextStyle}>{card.body}</span>
-                  <span style={miniActionLinkStyle}>{card.cta}</span>
-                </Link>
-              ))}
-            </div>
-          </section>
-
-          <section style={youHubPanelStyle}>
-            <div style={personalCommandGridStyle(isTablet)}>
-              {youHubCards.map((card) => (
-                <Link key={card.label} href={card.href} style={personalCommandCardStyle}>
-                  <TiqFeatureIcon name={card.icon} size="md" variant="surface" />
-                  <div style={metricLabelStyle}>{card.label}</div>
-                  <div style={personalHomeTitleStyle}>{card.value}</div>
-                  <div style={metricNoteStyle}>{card.note}</div>
-                  <span style={miniActionLinkStyle}>{card.cta}</span>
-                </Link>
-              ))}
-            </div>
-          </section>
-
-          <section style={onboardingPanelStyle}>
-            <div style={sectionHeaderStyle}>
-              <div style={sectionHeaderCopyStyle}>
-                <p style={sectionKickerStyle}>First My Lab read</p>
-                <h2 style={compactSectionTitleStyle}>Find yourself, choose one focus, open the next useful card.</h2>
-                <p style={sectionTextStyle}>
-                  My Lab works best when setup feels like a tennis next step: connect your player record, name the focus, then act.
-                </p>
-              </div>
-              <Link href={isProfileConfirmed ? nextMoveHref : '/profile'} style={matchupPrimaryLinkStyle}>
-                {isProfileConfirmed ? 'Open first read' : 'Find yourself'}
-              </Link>
-            </div>
-
-            <div style={onboardingStepGridStyle(isTablet)}>
-              <div style={onboardingStepCardStyle}>
-                <span style={setupStepNumberStyle}>1</span>
-                <strong>Find yourself</strong>
-                <p>{isProfileConfirmed ? profileLink?.linked_player_name || linkedPlayer?.name || 'Player profile linked.' : 'Search for your player record or create a self-rated profile.'}</p>
-                <Link href="/profile" style={smallInlineLinkStyle}>{isProfileConfirmed ? 'Review profile' : 'Set profile'}</Link>
-              </div>
-
-              <div style={onboardingStepCardStyle}>
-                <span style={setupStepNumberStyle}>2</span>
-                <strong>Choose your tennis goal</strong>
-                <p>{activeGoal.goal.trim() || 'Pick one focus for the next two weeks.'}</p>
-                <div style={onboardingGoalGridStyle}>
-                  {MY_LAB_ONBOARDING_GOALS.map((option) => (
-                    <button
-                      key={option.label}
-                      type="button"
-                      onClick={() => applyGoalTemplate(option.template)}
-                      style={activeGoal.goal === option.template.goal ? onboardingGoalButtonActiveStyle : onboardingGoalButtonStyle}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div style={onboardingStepCardStyle}>
-                <span style={setupStepNumberStyle}>3</span>
-                <strong>Open your first read</strong>
-                <p>
-                  {topMatchupCandidate
-                    ? `Try the matchup read vs ${topMatchupCandidate.player.name}.`
-                    : isProfileConfirmed
-                      ? 'Upload data, follow a team, or build a matchup to sharpen the read.'
-                      : 'Set your profile first, then My Lab can suggest the next card.'}
-                </p>
-                <div style={onboardingReadListStyle}>
-                  <Link href={courtModeHref} style={miniActionPillStyle}>Open court mode</Link>
-                  <Link href={nextMoveHref} style={miniActionPillStyle}>{nextMoveCta}</Link>
-                  <Link href={dataAssistMyLabHref} style={smallInlineLinkStyle}>Upload data</Link>
-                  <Link href="/coaches" style={smallInlineLinkStyle}>Find a coach</Link>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section style={personalReadPanelStyle}>
-            <div style={personalReadHeaderStyle}>
-              <div style={sectionHeaderCopyStyle}>
-                <p style={sectionKickerStyle}>Today&apos;s next move</p>
-                <h3 style={personalReadTitleStyle}>
-                  {linkedPlayer ? `${linkedPlayer.name}: ${nextMoveCta}` : 'Set your profile to unlock your read'}
-                </h3>
-              </div>
-              <Link href={nextMoveHref} style={matchupPrimaryLinkStyle}>
-                {nextMoveCta}
-              </Link>
-            </div>
-            <div style={personalReadGridStyle(isTablet)}>
-              {personalReadCards.map((card) => (
-                card.href ? (
-                  <Link key={card.label} href={card.href} style={personalReadCardLinkStyle}>
-                    <div style={metricLabelStyle}>{card.label}</div>
-                    <div style={personalReadValueStyle}>{card.value}</div>
-                    <div style={metricNoteStyle}>{card.note}</div>
-                  </Link>
-                ) : (
-                  <div key={card.label} style={personalReadCardStyle}>
-                    <div style={metricLabelStyle}>{card.label}</div>
-                    <div style={personalReadValueStyle}>{card.value}</div>
-                    <div style={metricNoteStyle}>{card.note}</div>
-                  </div>
-                )
-              ))}
-            </div>
-          </section>
-
-          <PlayerDevelopmentPathPanel
-            linkedPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
-            currentGoal={activeGoal?.goal || ''}
-          />
-
-          <LevelUpReturnStatePanel
-            proofs={levelUpProofs}
-            signedIn={Boolean(session?.access_token)}
-            playerLabel={linkedPlayer?.name || profileLink?.linked_player_name || ''}
-            nextMoveLabel={nextMoveCta}
-          />
-
+      <details className="myLabDetailsSection" style={labDrawerDetailsStyle}>
+        <summary style={labDrawerSummaryStyle}>
+          <span style={labDrawerSummaryCopyStyle}>
+            <strong>My Calendar</strong>
+            <em style={labDrawerSummaryHintStyle}>Saved matches, Apple, Google, and your tennis week.</em>
+          </span>
+          <span style={optionalContextCountStyle}>Open</span>
+        </summary>
+        <div className="myLabDetailsBody" style={labDrawerContentStyle}>
           <MyLabCalendarPanel
             personalItems={personalCalendarItems}
             sharedCoachEvents={sharedCoachCalendarEvents}
+            competitionItems={competitionCalendarItems}
             syncLabel={personalCalendarSyncLabel}
             calendarFeedUrl={personalCalendarFeedUrl}
             calendarFeedActive={personalCalendarFeedStatus.active}
@@ -3254,20 +3666,306 @@ function MyLabPageInner() {
             onRevokeCalendarFeed={revokePersonalCalendarFeedLink}
             onAddPersonalItem={addPersonalCalendarItem}
             onRemovePersonalItem={removePersonalCalendarItem}
+            onRespondToCompetition={respondToCompetitionSchedule}
           />
+        </div>
+      </details>
 
-          <PlayerCoachAssignmentsPanel
-            assignments={coachAssignments}
-            coachLinks={coachLinks}
-            loading={coachAssignmentsLoading}
-            message={coachAssignmentsMessage}
-            onComplete={completeCoachAssignment}
-            calendarLinksByStudentId={coachCalendarLinkByStudentId}
-            calendarFeedStatusByStudentId={coachCalendarFeedStatusByStudentId}
-            calendarLinkLoadingId={coachCalendarLinkLoadingId}
-            onCreateCalendarLink={createPlayerCoachCalendarLink}
-            onRevokeCalendarLink={revokePlayerCoachCalendarLink}
-          />
+      <PlayerWorkshopShell
+        id="player-workshop"
+        style={collapseLegacyWorkspace ? mobileMyLabExtrasDetailsStyle : profileLinkSectionStyle}
+      >
+        {collapseLegacyWorkspace ? (
+          <summary style={mobileMyLabExtrasSummaryStyle}>
+            <span style={labDrawerSummaryCopyStyle}>
+              <strong>More in My Lab</strong>
+              <em style={labDrawerSummaryHintStyle}>Teams, tools, goals, and calendar.</em>
+            </span>
+            <span style={optionalContextCountStyle}>Open</span>
+          </summary>
+        ) : null}
+        <div style={profileLinkCardStyle}>
+          <span aria-hidden="true" style={watermarkStyle} />
+          <div style={sectionHeaderStyle}>
+            <div style={sectionTitleClusterStyle}>
+              <TiqFeatureIcon name="myLab" size="lg" variant="surface" />
+              <div>
+                <p style={sectionKickerStyle}>Your tennis hub</p>
+                <h1 style={sectionTitleStyle}>{myLabTitle}</h1>
+                <p style={sectionTextStyle}>
+                  {isProfileConfirmed
+                    ? isMobile
+                      ? 'Pick the next move, then keep the proof connected.'
+                      : 'My Lab answers what to work on, how you are improving, which matchups matter, and which drill or resource should come next.'
+                    : 'Your progress, matchups, and next work live here.'}
+                </p>
+              </div>
+            </div>
+            {isProfileConfirmed ? (
+              <Link href={matchupHref} style={secondaryButtonStyle}>
+                Open Matchup
+              </Link>
+            ) : null}
+          </div>
+
+          {acceptedPlayerTeamConnections.length ? (
+            <section style={linkedTeamsPanelStyle} aria-label="Teams linked to My Lab">
+              <div style={sectionHeaderStyle}>
+                <div style={sectionHeaderCopyStyle}>
+                  <p style={sectionKickerStyle}>Your teams</p>
+                  <h2 style={compactSectionTitleStyle}>
+                    {acceptedPlayerTeamConnections.length === 1
+                      ? `${acceptedPlayerTeamConnections[0]?.teamName || 'Your team'} is connected.`
+                      : `${acceptedPlayerTeamConnections.length} teams are connected.`}
+                  </h2>
+                  <p style={sectionTextStyle}>Your roster link and player tools now use the same team context.</p>
+                </div>
+                <Link href="/team-connections" style={smallInlineLinkStyle}>Manage teams</Link>
+              </div>
+              <div style={linkedTeamsGridStyle}>
+                {acceptedPlayerTeamConnections.map((connection) => {
+                  const nextMatch = findNextTeamMatch(connection, matches)
+                  return <article key={connection.id} style={linkedTeamCardStyle}>
+                    <div style={linkedTeamCardCopyStyle}>
+                      <span style={linkedTeamRoleStyle}>{connection.isDefault ? 'Default team' : getTeamConnectionRolesLabel(connection.roles)}</span>
+                      <strong style={teamPrepTitleStyle}>{connection.teamName}</strong>
+                      <span style={teamPrepMetaStyle}>
+                        {[connection.leagueName, connection.flight].filter(Boolean).join(' - ') || 'Team linked to your profile'}
+                      </span>
+                      <span style={teamPrepMetaStyle}>
+                        {nextMatch
+                          ? `Next match: ${formatTeamMatchDate(nextMatch.match_date)} vs ${getTeamMatchOpponent(connection, nextMatch)}`
+                          : 'Schedule not connected'}
+                      </span>
+                      <span style={teamConnectionHealthStyle}>
+                        {getTeamConnectionSourceLabel(connection.sourceType)} · Updated {formatTeamConnectionDate(connection.updatedAt)}
+                      </span>
+                    </div>
+                    <div style={teamPrepActionRowStyle}>
+                      <Link href={buildTeamConnectionHref(connection)} style={miniActionPillStyle}>View team</Link>
+                      {isCaptainTeamConnection(connection.roles) && access.canUseCaptainWorkflow ? (
+                        <Link href={buildTeamConnectionCaptainHref(connection)} style={smallInlineLinkStyle}>Open Captain</Link>
+                      ) : null}
+                      {!connection.isDefault ? (
+                        <button
+                          type="button"
+                          onClick={() => void makeDefaultTeam(connection)}
+                          disabled={Boolean(teamConnectionWorkingId)}
+                          style={miniActionButtonStyle}
+                        >
+                          {teamConnectionWorkingId === connection.id ? 'Saving' : 'Make default'}
+                        </button>
+                      ) : null}
+                      {!nextMatch ? <Link href="/data-assist?intent=upload-source&context=Team%20Hub&type=schedule#upload" style={smallInlineLinkStyle}>Add schedule</Link> : null}
+                    </div>
+                  </article>
+                })}
+              </div>
+              {teamConnectionMessage ? <p style={warningNoteStyle} role="status" aria-live="polite">{teamConnectionMessage}</p> : null}
+            </section>
+          ) : teamConnectionsError ? (
+            <div style={warningNoteStyle} role="status">
+              Team links could not load here. <Link href="/team-connections" style={smallInlineLinkStyle}>Review team links</Link>
+            </div>
+          ) : null}
+
+          <ActiveTeamChallengeCard />
+
+          {!isProfileConfirmed ? (
+            <TennisSetupChecklist
+              hasPlayer={false}
+              hasTeam={acceptedPlayerTeamConnections.length > 0}
+              hasMatchData={personalMatches.length > 0}
+              teamHref="/data-assist?intent=upload-source&context=My%20Lab&type=team_summary#upload"
+              matchDataHref={dataAssistMyLabHref}
+            />
+          ) : (
+          <section style={personalLabPathStyle} aria-label="My Lab next action path">
+            <div style={personalLabPathHeaderStyle}>
+              <div style={sectionHeaderCopyStyle}>
+                <p style={sectionKickerStyle}>My Lab tools</p>
+                <h2 style={personalLabPathTitleStyle}>Choose your next tennis move.</h2>
+                {!isMobile ? (
+                  <p style={sectionTextStyle}>Start with the tool that gets you back to useful tennis fastest.</p>
+                ) : null}
+              </div>
+            </div>
+            <div style={personalLabPathGridStyle(isTablet, isMobile)}>
+              {visiblePersonalLabPathCards.map((card) => (
+                <Link
+                  key={card.question}
+                  href={card.href}
+                  style={isMobile ? mobilePersonalLabPathCardStyle : personalLabPathCardStyle}
+                  aria-label={`${card.cta}: ${card.question}`}
+                  data-my-lab-path-job={card.job}
+                >
+                  <span style={personalLabPathQuestionStyle}>{card.question}</span>
+                  <strong style={personalLabPathCardTitleStyle}>{card.title}</strong>
+                  {!isMobile ? <span style={personalLabPathCardTextStyle}>{card.body}</span> : null}
+                  <span style={miniActionLinkStyle}>{card.cta}</span>
+                </Link>
+              ))}
+            </div>
+            {extraPersonalLabPathCards.length ? (
+              <details className="myLabDetailsSection" style={mobileLabMoveDetailsStyle}>
+                <summary style={mobileLabMoveSummaryStyle}>
+                  <span style={labDrawerSummaryCopyStyle}>
+                    <strong>More lab moves</strong>
+                    <em style={labDrawerSummaryHintStyle}>Matchup, drills, video.</em>
+                  </span>
+                  <span style={optionalContextCountStyle}>{extraPersonalLabPathCards.length} moves</span>
+                </summary>
+                <div className="myLabDetailsBody" style={mobileLabMoveGridStyle}>
+                  {extraPersonalLabPathCards.map((card) => (
+                    <Link
+                      key={card.question}
+                      href={card.href}
+                      style={personalLabPathCardStyle}
+                      aria-label={`${card.cta}: ${card.question}`}
+                      data-my-lab-path-job={card.job}
+                    >
+                      <span style={personalLabPathQuestionStyle}>{card.question}</span>
+                      <strong style={personalLabPathCardTitleStyle}>{card.title}</strong>
+                      <span style={personalLabPathCardTextStyle}>{card.body}</span>
+                      <span style={miniActionLinkStyle}>{card.cta}</span>
+                    </Link>
+                  ))}
+                </div>
+              </details>
+            ) : null}
+          </section>
+          )}
+
+          {isProfileConfirmed && !showLockedMobileMyLabPreview ? (
+            <details className="myLabDetailsSection" style={labDrawerDetailsStyle}>
+              <summary style={labDrawerSummaryStyle}>
+                <span style={labDrawerSummaryCopyStyle}>
+                  <strong>Need help?</strong>
+                  <em style={labDrawerSummaryHintStyle}>Review your player, goal, and first read.</em>
+                </span>
+                <span style={optionalContextCountStyle}>Open</span>
+              </summary>
+              <div className="myLabDetailsBody" style={labDrawerContentStyle}>
+                <section style={youHubPanelStyle}>
+                  <div style={personalCommandGridStyle(isTablet)}>
+                    {youHubCards.map((card) => (
+                      <Link key={card.label} href={card.href} style={personalCommandCardStyle}>
+                        <TiqFeatureIcon name={card.icon} size="md" variant="surface" />
+                        <div style={metricLabelStyle}>{card.label}</div>
+                        <div style={personalHomeTitleStyle}>{card.value}</div>
+                        <div style={metricNoteStyle}>{card.note}</div>
+                        <span style={miniActionLinkStyle}>{card.cta}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+
+                <section style={personalReadPanelStyle}>
+                  <div style={personalReadHeaderStyle}>
+                    <div style={sectionHeaderCopyStyle}>
+                      <p style={sectionKickerStyle}>Today&apos;s next move</p>
+                      <h3 style={personalReadTitleStyle}>
+                        {linkedPlayer ? `${linkedPlayer.name}: ${nextMoveCta}` : 'Set your profile to unlock your read'}
+                      </h3>
+                    </div>
+                    <Link href={nextMoveHref} style={matchupPrimaryLinkStyle}>
+                      {nextMoveCta}
+                    </Link>
+                  </div>
+                  <div style={personalReadGridStyle(isTablet)}>
+                    {personalReadCards.map((card) => (
+                      card.href ? (
+                        <Link key={card.label} href={card.href} style={personalReadCardLinkStyle}>
+                          <div style={metricLabelStyle}>{card.label}</div>
+                          <div style={personalReadValueStyle}>{card.value}</div>
+                          <div style={metricNoteStyle}>{card.note}</div>
+                        </Link>
+                      ) : (
+                        <div key={card.label} style={personalReadCardStyle}>
+                          <div style={metricLabelStyle}>{card.label}</div>
+                          <div style={personalReadValueStyle}>{card.value}</div>
+                          <div style={metricNoteStyle}>{card.note}</div>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                </section>
+              </div>
+            </details>
+          ) : null}
+
+          {isProfileConfirmed ? (isMobile ? (
+            !showLockedMobileMyLabPreview ? (
+              <details className="myLabDetailsSection" style={labDrawerDetailsStyle}>
+                <summary style={labDrawerSummaryStyle}>
+                  <span style={labDrawerSummaryCopyStyle}>
+                    <strong>More tools</strong>
+                    <em style={labDrawerSummaryHintStyle}>Progress and coach.</em>
+                  </span>
+                  <span style={optionalContextCountStyle}>Open</span>
+                </summary>
+                <div className="myLabDetailsBody" style={labDrawerContentStyle}>
+                  <PlayerDevelopmentPathPanel
+                    linkedPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
+                    currentGoal={activeGoal?.goal || ''}
+                    tacticsBoardHref={pathPanelTacticsHref}
+                  />
+
+                  <LevelUpReturnStatePanel
+                    proofs={levelUpProofs}
+                    plan={weeklyImprovementPlan}
+                    signedIn={Boolean(session?.access_token)}
+                    syncState={levelUpProofSyncState}
+                    playerLabel={linkedPlayer?.name || profileLink?.linked_player_name || ''}
+                    nextMoveLabel={nextMoveCta}
+                  />
+
+                  <PlayerCoachAssignmentsPanel
+                    assignments={coachAssignments}
+                    coachLinks={coachLinks}
+                    loading={coachAssignmentsLoading}
+                    message={coachAssignmentsMessage}
+                    onComplete={completeCoachAssignment}
+                    calendarLinksByStudentId={coachCalendarLinkByStudentId}
+                    calendarFeedStatusByStudentId={coachCalendarFeedStatusByStudentId}
+                    calendarLinkLoadingId={coachCalendarLinkLoadingId}
+                    onCreateCalendarLink={createPlayerCoachCalendarLink}
+                    onRevokeCalendarLink={revokePlayerCoachCalendarLink}
+                  />
+                </div>
+              </details>
+            ) : null
+          ) : (
+            <>
+              <PlayerDevelopmentPathPanel
+                linkedPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
+                currentGoal={activeGoal?.goal || ''}
+                tacticsBoardHref={pathPanelTacticsHref}
+              />
+
+              <LevelUpReturnStatePanel
+                proofs={levelUpProofs}
+                plan={weeklyImprovementPlan}
+                signedIn={Boolean(session?.access_token)}
+                syncState={levelUpProofSyncState}
+                playerLabel={linkedPlayer?.name || profileLink?.linked_player_name || ''}
+                nextMoveLabel={nextMoveCta}
+              />
+
+              <PlayerCoachAssignmentsPanel
+                assignments={coachAssignments}
+                coachLinks={coachLinks}
+                loading={coachAssignmentsLoading}
+                message={coachAssignmentsMessage}
+                onComplete={completeCoachAssignment}
+                calendarLinksByStudentId={coachCalendarLinkByStudentId}
+                calendarFeedStatusByStudentId={coachCalendarFeedStatusByStudentId}
+                calendarLinkLoadingId={coachCalendarLinkLoadingId}
+                onCreateCalendarLink={createPlayerCoachCalendarLink}
+                onRevokeCalendarLink={revokePlayerCoachCalendarLink}
+              />
+            </>
+          )) : null}
 
           {linkedPlayer ? (
             <>
@@ -3320,6 +4018,63 @@ function MyLabPageInner() {
                 </div>
               </section>
 
+              {canUseAdvancedPlayerInsights ? (
+                <section style={ratingJourneyPanelStyle} aria-label="Rating Journey">
+                  <div style={ratingJourneyHeaderStyle}>
+                    <div style={sectionTitleClusterStyle}>
+                      <TiqFeatureIcon name="playerRatings" size="md" variant="surface" />
+                      <div>
+                        <p style={sectionKickerStyle}>Rating Journey</p>
+                        <h3 style={compactSectionTitleStyle}>See the evidence behind your TIQ read.</h3>
+                        <p style={sectionTextStyle}>{ratingJourney.explainer}</p>
+                      </div>
+                    </div>
+                    <Link href={MY_LAB_RECENT_MATCHES_HREF} style={smallInlineLinkStyle}>Open Matchbook</Link>
+                  </div>
+                  <div style={ratingJourneyGridStyle(isTablet)}>
+                    <div style={ratingJourneyCardStyle}>
+                      <div style={metricLabelStyle}>TIQ overall</div>
+                      <div style={ratingJourneyValueStyle}>{formatRating(currentTiq)}</div>
+                      <div style={metricNoteStyle}>{ratingJourney.movementLabel} · {ratingJourney.movementNote}</div>
+                    </div>
+                    <div style={ratingJourneyCardStyle}>
+                      <div style={metricLabelStyle}>Evidence</div>
+                      <div style={todayReadValueStyle}>{ratingJourney.evidenceLabel}</div>
+                      <div style={metricNoteStyle}>{ratingJourney.evidenceNote}</div>
+                    </div>
+                    <div style={ratingJourneyCardStyle}>
+                      <div style={metricLabelStyle}>Latest TIQ update</div>
+                      <div style={todayReadValueStyle}>{ratingJourney.latestDeltaLabel}</div>
+                      <div style={metricNoteStyle}>{ustaBase == null ? 'Add your USTA context to compare your current starting point.' : `USTA reference: ${ustaBase.toFixed(1)}.`}</div>
+                    </div>
+                  </div>
+                  <div style={ratingJourneyTrendStyle}>
+                    <div style={ratingJourneyTrendHeaderStyle}>
+                      <div>
+                        <div style={metricLabelStyle}>Recent TIQ checkpoints</div>
+                        <div style={metricNoteStyle}>Up to four of your latest overall rating updates.</div>
+                      </div>
+                      <span style={ratingJourney.hasSnapshotTrend ? pillBlueStyle : pillSlateStyle}>{ratingJourney.hasSnapshotTrend ? 'Trend connected' : 'Trend building'}</span>
+                    </div>
+                    {ratingJourneyPoints.length ? (
+                      <div style={ratingJourneyPlotStyle} aria-label="Recent TIQ rating checkpoints">
+                        {ratingJourneyPoints.map((point) => (
+                          <div key={point.id} style={ratingJourneyPlotPointStyle}>
+                            <strong style={ratingJourneyPlotValueStyle}>{point.rating.toFixed(2)}</strong>
+                            <div style={ratingJourneyPlotRailStyle}>
+                              <span style={ratingJourneyPlotFillStyle(point.position)} />
+                            </div>
+                            <small style={ratingJourneyPlotDateStyle}>{safeDate(point.date)}</small>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={ratingJourneyEmptyStyle}>Your first TIQ checkpoint appears as scored results are reconciled to your player record.</div>
+                    )}
+                  </div>
+                </section>
+              ) : null}
+
               {isNewSelfRatedProfile ? (
                 <section style={starterPanelStyle}>
                   <div style={sectionHeaderStyle}>
@@ -3345,21 +4100,147 @@ function MyLabPageInner() {
                 </section>
               ) : null}
 
-              <section style={todayReadPanelStyle}>
-                <div style={workshopContextRowStyle}>
-                  <span>Today&apos;s read</span>
-                  <strong>{linkedPlayer?.name || profileLink?.linked_player_name || 'Player profile'}</strong>
-                </div>
-                <div style={todayReadGridStyle(isTablet)}>
-                  {scorecardSummaryCards.map((item) => (
-                    <div key={item.label} style={todayReadCardStyle}>
-                      <div style={metricLabelStyle}>{item.label}</div>
-                      <div style={todayReadValueStyle}>{item.value}</div>
-                      <div style={metricNoteStyle}>{item.note}</div>
+              {canUseAdvancedPlayerInsights ? (
+                <section style={matchIntelligencePanelStyle} aria-label="Match Intelligence">
+                  <div style={matchIntelligenceHeaderStyle}>
+                    <div style={sectionTitleClusterStyle}>
+                      <TiqFeatureIcon name="playerRatings" size="md" variant="surface" />
+                      <div>
+                        <p style={sectionKickerStyle}>Match Intelligence</p>
+                        <h3 style={compactSectionTitleStyle}>A clearer read on your tennis.</h3>
+                        <p style={sectionTextStyle}>{matchIntelligence.evidenceNote}</p>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </section>
+                    <Link href={MY_LAB_RECENT_MATCHES_HREF} style={smallInlineLinkStyle}>Open match history</Link>
+                  </div>
+                  <div style={matchIntelligenceGridStyle(isTablet)}>
+                    <div style={matchIntelligenceCardStyle}>
+                      <div style={metricLabelStyle}>Rating evidence</div>
+                      <div style={todayReadValueStyle}>{matchIntelligence.confidenceLabel}</div>
+                      <div style={metricNoteStyle}>{matchIntelligence.confidenceNote}</div>
+                    </div>
+                    <div style={matchIntelligenceCardStyle}>
+                      <div style={metricLabelStyle}>{matchIntelligence.patternLabel}</div>
+                      <div style={todayReadValueStyle}>{matchIntelligence.record}</div>
+                      <div style={metricNoteStyle}>Last five: {matchIntelligence.pattern}</div>
+                    </div>
+                    <div style={matchIntelligenceCardStyle}>
+                      <div style={metricLabelStyle}>Singles / doubles</div>
+                      <div style={todayReadValueStyle}>{matchIntelligence.courtMixLabel}</div>
+                      <div style={metricNoteStyle}>{matchIntelligence.courtMixNote}</div>
+                    </div>
+                    <Link href={MY_LAB_NOTEBOOK_HREF} style={matchIntelligenceFocusCardStyle}>
+                      <div style={metricLabelStyle}>Your next focus</div>
+                      <div style={todayReadValueStyle}>{matchIntelligence.focusTitle}</div>
+                      <div style={metricNoteStyle}>{matchIntelligence.focusNote}</div>
+                    </Link>
+                  </div>
+                </section>
+              ) : null}
+
+              {canUseAdvancedPlayerInsights ? (
+                <section id="recent-matches" style={matchbookPanelStyle} aria-label="Player Matchbook">
+                  <div style={matchbookHeaderStyle}>
+                    <div style={sectionTitleClusterStyle}>
+                      <TiqFeatureIcon name="reports" size="md" variant="surface" />
+                      <div>
+                        <p style={sectionKickerStyle}>Your Matchbook</p>
+                        <h3 style={compactSectionTitleStyle}>Results without the clutter.</h3>
+                        <p style={sectionTextStyle}>Scan the score, opponent, and court—then reflect only when a match gives you something useful.</p>
+                      </div>
+                    </div>
+                    <div style={matchbookFilterStyle} aria-label="Matchbook filter">
+                      {MATCHBOOK_FILTERS.map((filter) => (
+                        <button
+                          key={filter}
+                          type="button"
+                          onClick={() => {
+                            setMatchbookFilter(filter)
+                            setShowFullMatchbook(false)
+                          }}
+                          style={matchbookFilter === filter ? tabActiveStyle : tabButtonStyle}
+                        >
+                          {getMatchbookFilterLabel(filter)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={matchbookListStyle}>
+                    {matchbookMatches.length ? matchbookMatches.map((match) => {
+                      const existingReport = myMatchReportByMatchId.get(match.id) || null
+                      const watchableOpponents = match.opponents.filter((opponent) => Boolean(opponent.id))
+                      const opponentsAlreadyFollowed = watchableOpponents.length > 0 && watchableOpponents.every(
+                        (opponent) => followContainsEntity(follows, 'player', opponent.id),
+                      )
+                      return (
+                        <article key={match.id} style={matchbookRowStyle(isTablet)}>
+                          <span style={match.result === 'W' ? pillGreenStyle : match.result === 'L' ? pillRedStyle : pillSlateStyle}>
+                            {match.result}
+                          </span>
+                          <div style={matchbookCopyStyle}>
+                            <div style={matchbookDateStyle}>{[safeDate(match.date), match.matchType || 'Match'].filter(Boolean).join(' · ')}</div>
+                            <div style={matchbookOpponentStyle}>
+                              <strong>vs {compactOpponentLabel(match.opponent)}</strong>
+                              <span>{[match.leagueName, match.score].filter(Boolean).join(' · ') || 'Score pending'}</span>
+                            </div>
+                          </div>
+                          <div style={matchbookActionStyle(isTablet)}>
+                            {existingReport ? (
+                              <span style={existingReport.status === 'resolved' ? pillGreenStyle : existingReport.status === 'rejected' ? pillRedStyle : existingReport.status === 'reviewing' ? pillBlueStyle : pillSlateStyle}>
+                                {getReportStatusLabel(existingReport.status)}
+                              </span>
+                            ) : (
+                              <MatchAccuracyReportButton
+                                matchId={match.id}
+                                reporterPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
+                                matchLabel={`${match.result} vs ${compactOpponentLabel(match.opponent)}${match.score ? ` - ${match.score}` : ''}`}
+                                context={{
+                                  surface: 'mylab_matchbook',
+                                  linkedPlayerId: profileLink?.linked_player_id || '',
+                                  leagueName: match.leagueName || '',
+                                  matchType: match.matchType || '',
+                                  matchDate: match.date || '',
+                                  opponent: match.opponent,
+                                  result: match.result,
+                                }}
+                                onSubmitted={() => void refreshMyMatchReports()}
+                              />
+                            )}
+                            {watchableOpponents.length ? (
+                              <button
+                                type="button"
+                                onClick={() => void followMatchOpponents(match)}
+                                disabled={opponentsAlreadyFollowed}
+                                style={opponentsAlreadyFollowed ? matchbookWatchDoneButtonStyle : matchbookWatchButtonStyle}
+                              >
+                                {opponentsAlreadyFollowed
+                                  ? 'Watching'
+                                  : watchableOpponents.length === 1
+                                    ? 'Watch opponent'
+                                    : 'Watch opponents'}
+                              </button>
+                            ) : null}
+                            <button type="button" onClick={() => reflectOnMatch(match)} style={matchReflectButtonStyle}>Reflect</button>
+                          </div>
+                        </article>
+                      )
+                    }) : (
+                      <div style={emptyStateStyle}>
+                        {personalMatches.length
+                          ? `No ${getMatchbookFilterLabel(matchbookFilter).toLowerCase()} are connected yet.`
+                          : `${DATA_ASSIST_STORY.shortCue} Reviewed results will appear here once they connect to your player record.`}
+                      </div>
+                    )}
+                  </div>
+                  {hasMoreMatchbookMatches ? (
+                    <button type="button" onClick={() => setShowFullMatchbook(true)} style={matchbookMoreButtonStyle}>
+                      Show {Math.min(7, filteredMatchbookMatches.length - matchbookMatches.length)} more matches
+                    </button>
+                  ) : showFullMatchbook && filteredMatchbookMatches.length > 5 ? (
+                    <button type="button" onClick={() => setShowFullMatchbook(false)} style={matchbookMoreButtonStyle}>Show fewer matches</button>
+                  ) : null}
+                </section>
+              ) : null}
 
               <section style={matchupSpotlightStyle}>
                 <div style={matchupSpotlightHeroStyle(isTablet)}>
@@ -3429,7 +4310,7 @@ function MyLabPageInner() {
                 )}
               </section>
 
-              <details style={labDrawerDetailsStyle}>
+              <details className="myLabDetailsSection" style={labDrawerDetailsStyle}>
                 <summary style={labDrawerSummaryStyle}>
                   <span style={labDrawerSummaryCopyStyle}>
                     <strong>Deeper lab read</strong>
@@ -3541,6 +4422,25 @@ function MyLabPageInner() {
                         <em>{trophyRoomCards.length - earnedAwardCards.length}</em>
                       </div>
                     </div>
+                    <div style={trophyBadgeHeaderStyle}>
+                      <div>
+                        <div style={metricLabelStyle}>Earned badges</div>
+                        <strong style={trophyBadgeTitleStyle}>{earnedTrophyBadges.length} collected</strong>
+                      </div>
+                      {nextTrophyBadge ? <span style={trophyNextBadgeStyle}>Next: {nextTrophyBadge.label} · {nextTrophyBadge.progressLabel}</span> : <span style={trophyNextBadgeStyle}>Full collection</span>}
+                    </div>
+                    <div style={trophyBadgeGridStyle} aria-label="Player trophy badges">
+                      {trophyBadges.map((badge) => (
+                        <div key={badge.key} style={{ ...trophyBadgeCardStyle, opacity: badge.earned ? 1 : 0.58 }} data-earned={badge.earned}>
+                          <TiqFeatureIcon name={badge.icon} size="sm" variant="surface" />
+                          <div>
+                            <strong style={trophyBadgeNameStyle}>{badge.label}</strong>
+                            <span style={trophyBadgeProgressStyle}>{badge.earned ? 'Earned' : badge.progressLabel}</span>
+                            <small style={metricNoteStyle}>{badge.detail}</small>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                     <div style={trophyRoomGridStyle(isTablet)}>
                       {trophyRoomCards.map((record) => (
                         <div key={record.label} style={trophyCardStyle}>
@@ -3559,47 +4459,9 @@ function MyLabPageInner() {
                 </div>
               </details>
             </>
-          ) : (
-            <section style={setupPanelStyle(isTablet)}>
-              <div style={setupHeroStyle}>
-                <TiqFeatureIcon name="accountSecurity" size="lg" variant="surface" />
-                <div>
-                  <p style={sectionKickerStyle}>Finish setup</p>
-                  <h3 style={setupTitleStyle}>Set your player profile once.</h3>
-                  <p style={sectionTextStyle}>
-                    My Lab becomes your scorecard after your account knows which player is you.
-                  </p>
-                </div>
-              </div>
-              <div style={setupStepGridStyle(isTablet)}>
-                <div style={setupStepCardStyle}>
-                  <span style={setupStepNumberStyle}>1</span>
-                  <strong>Match identity</strong>
-                  <p>Choose your player record in Profile.</p>
-                </div>
-                <div style={setupStepCardStyle}>
-                  <span style={setupStepNumberStyle}>2</span>
-                  <strong>Pull tennis context</strong>
-                  <p>Ratings, teams, leagues, and history connect automatically.</p>
-                </div>
-                <div style={setupStepCardStyle}>
-                  <span style={setupStepNumberStyle}>3</span>
-                  <strong>Open your lab</strong>
-                  <p>Scorecard, matchup queue, goals, and recent matches unlock here.</p>
-                </div>
-              </div>
-              <div style={setupActionRowStyle}>
-                <Link href="/profile" style={matchupPrimaryLinkStyle}>
-                  Set profile
-                </Link>
-                <Link href="/explore/players" style={secondaryButtonStyle}>
-                  Find player
-                </Link>
-              </div>
-            </section>
-          )}
+          ) : null}
         </div>
-      </section>
+      </PlayerWorkshopShell>
 
       {tiqPlayerParticipationWarning ? (
         <div style={warningNoteStyle}>
@@ -3608,16 +4470,16 @@ function MyLabPageInner() {
       ) : null}
 
       {linkedPlayer ? (
-        <details id="player-tools" style={labDrawerDetailsStyle}>
+        <details id="player-tools" className="myLabDetailsSection" style={labDrawerDetailsStyle} open={!hasMyLabFocus}>
           <summary style={labDrawerSummaryStyle}>
             <span style={labDrawerSummaryCopyStyle}>
               <strong>Notebook and match history</strong>
-              <em style={labDrawerSummaryHintStyle}>Open for notes, reports, and wider tennis context.</em>
+              <em style={labDrawerSummaryHintStyle}>Notes, reports, tennis context.</em>
             </span>
             <span style={optionalContextCountStyle}>Open</span>
           </summary>
 
-          <section style={profileLinkSectionStyle}>
+          <section className="myLabDetailsBody" style={profileLinkSectionStyle}>
           <div style={profileLinkCardStyle}>
             <div style={sectionHeaderStyle}>
               <div style={sectionHeaderCopyStyle}>
@@ -3778,6 +4640,17 @@ function MyLabPageInner() {
                 </div>
               </div>
               <div id="player-notebook" style={goalWorkspaceStyle}>
+                {matchPrepGoals.length ? <section style={matchPrepHistoryStyle} aria-label="Match Prep history">
+                  <span><small>Prep notes</small><strong>{matchPrepGoals.length}</strong></span>
+                  <span><small>Plans held</small><strong>{matchPrepHeld}</strong></span>
+                  <span><small>Adjusted</small><strong>{matchPrepAdjusted}</strong></span>
+                </section> : null}
+                {matchupPrepSaved ? (
+                  <div role="status" style={matchupPrepSavedStyle}>
+                    <strong>Match Prep saved</strong>
+                    <span>{matchupPrepSaved} is ready in your private notebook.</span>
+                  </div>
+                ) : null}
                 <div style={goalListStyle}>
                   {goals.map((goal, index) => (
                     <button
@@ -3798,9 +4671,32 @@ function MyLabPageInner() {
                   ))}
                 </div>
 
-                <details style={goalEditorDetailsStyle}>
+                <details className="myLabDetailsSection" style={goalEditorDetailsStyle}>
                   <summary style={collapsibleSummaryStyle}>+ Update goals and notes</summary>
-                  <div style={goalEditorStyle}>
+                  <div className="myLabDetailsBody" style={goalEditorStyle}>
+                    {activeGoal.id.startsWith('matchup-prep-') ? (
+                      <section style={matchPrepReviewStyle(isTablet)} aria-labelledby="match-prep-review-title">
+                        <div>
+                          <p style={sectionKickerStyle}>After play</p>
+                          <h3 id="match-prep-review-title" style={compactSectionTitleStyle}>Did the plan hold up?</h3>
+                          <p style={metricNoteStyle}>Keep the useful pattern, or name the adjustment for your next court.</p>
+                        </div>
+                        <div style={matchPrepReviewActionsStyle}>
+                          <button type="button" style={saveNotebookButtonStyle} onClick={() => updateGoal(activeGoal.id, {
+                            progressStatus: 'improving',
+                            progressUpdate: 'Match Prep reviewed: the plan held up. Carry the same pattern into the next match.',
+                          })}>
+                            Plan held
+                          </button>
+                          <button type="button" style={smallGhostButtonStyle} onClick={() => updateGoal(activeGoal.id, {
+                            progressStatus: 'in-progress',
+                            progressUpdate: 'Match Prep reviewed: adjust the plan before the next match.',
+                          })}>
+                            Adjust plan
+                          </button>
+                        </div>
+                      </section>
+                    ) : null}
                     <div style={inputWrapStyle}>
                       <label style={labelStyle} htmlFor={`my-lab-goal-${activeGoal.id}`}>Goal</label>
                       <input
@@ -3888,64 +4784,6 @@ function MyLabPageInner() {
             </section>
 
             <div style={workshopGridStyle(isTablet)}>
-              <div id="recent-matches" style={workshopPanelStyle}>
-                <div style={sectionKickerStyle}>Recent matches</div>
-                <div style={workshopListStyle}>
-                  {personalMatches.length ? (
-                    personalMatches.slice(0, 5).map((match) => {
-                      const existingReport = myMatchReportByMatchId.get(match.id) || null
-                      return (
-                        <div key={match.id} style={workshopMatchRowStyle}>
-                          <span style={match.result === 'W' ? pillGreenStyle : match.result === 'L' ? pillRedStyle : pillSlateStyle}>
-                            {match.result}
-                          </span>
-                          <div style={workshopRowCopyStyle}>
-                            <div style={workshopRowTitleStyle}>{match.opponent}</div>
-                            <div style={workshopRowMetaStyle}>
-                              {[safeDate(match.date), match.leagueName, match.matchType, match.score].filter(Boolean).join(' - ')}
-                            </div>
-                          </div>
-                          <div style={matchActionStackStyle}>
-                            {existingReport ? (
-                              <span style={existingReport.status === 'resolved' ? pillGreenStyle : existingReport.status === 'rejected' ? pillRedStyle : existingReport.status === 'reviewing' ? pillBlueStyle : pillSlateStyle}>
-                                {getReportStatusLabel(existingReport.status)}
-                              </span>
-                            ) : (
-                              <MatchAccuracyReportButton
-                                matchId={match.id}
-                                reporterPlayerName={linkedPlayer?.name || profileLink?.linked_player_name || ''}
-                                matchLabel={`${match.result} vs ${compactOpponentLabel(match.opponent)}${match.score ? ` - ${match.score}` : ''}`}
-                                context={{
-                                  surface: 'mylab_recent_matches',
-                                  linkedPlayerId: profileLink?.linked_player_id || '',
-                                  leagueName: match.leagueName || '',
-                                  matchType: match.matchType || '',
-                                  matchDate: match.date || '',
-                                  opponent: match.opponent,
-                                  result: match.result,
-                                }}
-                                onSubmitted={() => void refreshMyMatchReports()}
-                              />
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => reflectOnMatch(match)}
-                              style={matchReflectButtonStyle}
-                            >
-                              Reflect
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    })
-                  ) : (
-                    <div style={emptyStateStyle}>
-                      {isProfileConfirmed ? `${DATA_ASSIST_STORY.shortCue} Reviewed results will appear here once they connect to your player record.` : 'Set up your profile to unlock your personal match history.'}
-                    </div>
-                  )}
-                </div>
-              </div>
-
               <div id="match-report-status" style={workshopPanelStyle}>
                 <div style={sectionHeaderStyle}>
                   <div style={sectionHeaderCopyStyle}>
@@ -4013,21 +4851,22 @@ function MyLabPageInner() {
         </details>
       ) : null}
 
-      <details style={optionalContextDetailsStyle}>
-        <summary style={optionalContextSummaryStyle}>
-          <span>
-            <strong>Watchlist</strong>
-            <em>Follows and updates when you want the wider picture.</em>
-          </span>
-          <span style={optionalContextCountStyle}>
-            {follows.length} follows
-          </span>
-        </summary>
+      {isProfileConfirmed && !showLockedMobileMyLabPreview ? (
+        <details className="myLabDetailsSection" style={optionalContextDetailsStyle}>
+          <summary style={optionalContextSummaryStyle}>
+            <span style={optionalContextSummaryCopyStyle}>
+              <strong>Watchlist</strong>
+              <em>Follows and updates.</em>
+            </span>
+            <span style={optionalContextCountStyle}>
+              {follows.length} follows
+            </span>
+          </summary>
 
-        <section style={contentGridStyle(isTablet)}>
-          <div style={leftColumnStyle}>
-            {followedPlayerSignals.length > 0 ? (
-              <section style={compactSignalsPanelStyle}>
+          <section className="myLabDetailsBody" style={contentGridStyle(isTablet)}>
+            <div style={leftColumnStyle}>
+              {followedPlayerSignals.length > 0 ? (
+                <section style={compactSignalsPanelStyle}>
                 <div style={compactSignalsHeaderStyle}>
                   <span>Player signals</span>
                   <strong>{followedPlayerSignals.length}</strong>
@@ -4054,8 +4893,8 @@ function MyLabPageInner() {
                     )
                   })}
                 </div>
-              </section>
-            ) : null}
+                </section>
+              ) : null}
 
           <section style={surfaceStrongStyle}>
             <div style={sectionHeaderStyle}>
@@ -4067,7 +4906,7 @@ function MyLabPageInner() {
                 </p>
               </div>
               <span style={savedToCloud ? pillGreenStyle : pillSlateStyle}>
-                {savedToCloud ? 'Cloud synced' : 'Saved on device'}
+                {savedToCloud ? 'Cloud synced' : userId ? 'Sync failed' : 'Sign in to save'}
               </span>
             </div>
 
@@ -4134,8 +4973,8 @@ function MyLabPageInner() {
           <section style={surfaceStyle}>
             <div style={sectionHeaderStyle}>
               <div>
-                <p style={sectionKickerStyle}>Watchlist updates</p>
-                <h2 style={sectionTitleStyle}>What changed around your watchlist</h2>
+                <p style={sectionKickerStyle}>Your watchlist</p>
+                <h2 style={sectionTitleStyle}>Coming up and latest updates</h2>
               </div>
               <div style={filterRowStyle}>
                 <GhostButton onClick={() => setRefreshTick((current) => current + 1)}>
@@ -4174,31 +5013,39 @@ function MyLabPageInner() {
               </div>
             ) : (
               <div style={feedListStyle}>
-                {feed.slice(0, 5).map((item) => (
-                  <article key={item.id} style={feedCardStyle(item.accent)}>
-                    <div style={feedTopRowStyle}>
-                      <span style={badgeForAccent(item.accent)}>{item.badge}</span>
-                      <span style={feedTimeStyle}>{timeAgo(item.createdAt)}</span>
-                    </div>
-                    <h3 style={feedTitleStyle}>{item.title}</h3>
-                    <p style={feedBodyStyle}>{item.body}</p>
-                    <div style={feedMetaRowStyle}>
-                      <span style={pillSlateStyle}>{item.entityName}</span>
-                      {item.entityType === 'player' && item.entityId ? (
-                        <Link href={`/players/${item.entityId}`} style={feedLinkStyle}>
-                          Open
-                        </Link>
-                      ) : item.entityType === 'team' && item.entityId ? (
-                        <Link href={buildTeamHrefFromEntityId(item.entityId)} style={feedLinkStyle}>
-                          Open
-                        </Link>
-                      ) : item.entityType === 'league' && item.entityId ? (
-                        <Link href={buildLeagueHrefFromEntityId(item.entityId)} style={feedLinkStyle}>
-                          Open
-                        </Link>
-                      ) : null}
-                    </div>
-                  </article>
+                {feed.map((item, index) => (
+                  <React.Fragment key={item.id}>
+                    {index === 0 && item.upcoming ? <h3 style={sectionTitleStyle}>Coming up</h3> : null}
+                    {index === upcomingFeedCount && !item.upcoming ? <h3 style={sectionTitleStyle}>Latest updates</h3> : null}
+                    <article style={feedCardStyle(item.accent)}>
+                      <div style={feedTopRowStyle}>
+                        <span style={badgeForAccent(item.accent)}>{item.badge}</span>
+                        <span style={feedTimeStyle}>{item.upcoming ? formatUpcomingWatchlistDate(item.createdAt) : item.createdAt ? timeAgo(item.createdAt) : item.freshnessLabel || 'Current context'}</span>
+                      </div>
+                      <h3 style={feedTitleStyle}>{item.title}</h3>
+                      <p style={feedBodyStyle}>{item.body}</p>
+                      <div style={feedMetaRowStyle}>
+                        <span style={pillSlateStyle}>{item.entityName}</span>
+                        {item.matchId ? (
+                          <Link href={`/matches/${encodeURIComponent(item.matchId)}`} style={feedLinkStyle}>
+                            View match
+                          </Link>
+                        ) : item.entityType === 'player' && item.entityId ? (
+                          <Link href={`/players/${item.entityId}`} style={feedLinkStyle}>
+                            Open
+                          </Link>
+                        ) : item.entityType === 'team' && item.entityId ? (
+                          <Link href={buildTeamHrefFromEntityId(item.entityId)} style={feedLinkStyle}>
+                            Open
+                          </Link>
+                        ) : item.entityType === 'league' && item.entityId ? (
+                          <Link href={buildLeagueHrefFromEntityId(item.entityId)} style={feedLinkStyle}>
+                            Open
+                          </Link>
+                        ) : null}
+                      </div>
+                    </article>
+                  </React.Fragment>
                 ))}
               </div>
             )}
@@ -4280,9 +5127,10 @@ function MyLabPageInner() {
               </div>
             ) : null}
           </section>
-        </div>
-        </section>
-      </details>
+            </div>
+          </section>
+        </details>
+      ) : null}
     </section>
   )
 }
@@ -4315,9 +5163,11 @@ function GhostButton({ onClick, children }: { onClick: () => void; children: Rea
 function PlayerDevelopmentPathPanel({
   linkedPlayerName,
   currentGoal,
+  tacticsBoardHref,
 }: {
   linkedPlayerName: string
   currentGoal: string
+  tacticsBoardHref: string
 }) {
   const primaryIdentity = PLAYER_DEVELOPMENT_IDENTITIES[0]
   const featuredIdentities = PLAYER_DEVELOPMENT_IDENTITIES.slice(0, 4)
@@ -4360,7 +5210,8 @@ function PlayerDevelopmentPathPanel({
       <div style={developmentActionRowStyle}>
         <Link href={`/level-up/${primaryIdentity.slug}`} style={miniActionLinkStyle}>Level Up now</Link>
         <Link href="/player-development" style={miniActionLinkStyle}>Open paths</Link>
-        <Link href="/tactics" style={miniActionLinkStyle}>Tactics Tools</Link>
+        <Link href={VIDEO_REVIEW_ROUTE} style={miniActionLinkStyle}>Video review</Link>
+        <Link href={tacticsBoardHref} style={miniActionLinkStyle}>Build tactic board</Link>
         <Link href={MY_LAB_GOAL_PROGRESS_HREF} style={miniActionLinkStyle}>Update My Lab goal</Link>
       </div>
     </section>
@@ -4369,12 +5220,16 @@ function PlayerDevelopmentPathPanel({
 
 function LevelUpReturnStatePanel({
   proofs,
+  plan,
   signedIn,
+  syncState,
   playerLabel,
   nextMoveLabel,
 }: {
   proofs: MyLabLevelUpProof[]
+  plan: MyLabWeeklyImprovementPlan
   signedIn: boolean
+  syncState: LevelUpProofSyncState
   playerLabel: string
   nextMoveLabel: string
 }) {
@@ -4398,6 +5253,12 @@ function LevelUpReturnStatePanel({
     || (todayHabitCard ? `/level-up/${todayHabitIdentitySlug}?card=${encodeURIComponent(todayHabitCard.id)}#level-up-flow` : '/level-up')
   const todayHabitTitle = latestProof?.cardTitle || todayHabitCard?.title || 'Choose one Level Up card'
   const todayHabitProof = todayHabitCard?.proof || latestProof?.proofLabel || 'Score one useful proof.'
+  const myLabTacticsBoardHref = buildMyLabTacticsBoardHref(
+    todayHabitIdentitySlug,
+    todayHabitIdentity.title.replace(/^The /, ''),
+    todayHabitCard,
+    latestProof,
+  )
   const todayLevelUpStreak = getMyLabLevelUpStreak(proofs)
   const todayLevelUpStreakLabel = todayLevelUpStreak ? `${todayLevelUpStreak} day${todayLevelUpStreak === 1 ? '' : 's'}` : 'Start today'
   const latestProofScoreLabel = latestProof?.proofLabel || 'No proof yet'
@@ -4435,7 +5296,7 @@ function LevelUpReturnStatePanel({
     },
     {
       label: 'After court',
-      body: signedIn ? 'Sync history can support Player or coach-linked follow-up.' : 'Sign in before expecting proof to follow this phone.',
+      body: signedIn ? syncState.message : 'Sign in before expecting proof to follow this phone.',
     },
   ]
   const proofHandoffItems = [
@@ -4456,10 +5317,19 @@ function LevelUpReturnStatePanel({
       action: 'Build habit',
     },
     {
+      label: 'Board',
+      title: `Map ${todayHabitTitle}`,
+      body: 'Open the starter tactic board with this Player ID and Level Up card already attached.',
+      href: myLabTacticsBoardHref,
+      action: 'Build board',
+    },
+    {
       label: 'Coach',
       title: signedIn ? 'Share the useful signal' : 'Sign in before handoff',
       body: signedIn
-        ? 'Coach-linked proof can support assignment recaps and the next lesson ask.'
+        ? latestProof?.sharedWithCoach
+          ? 'This proof is synced and ready for coach-linked follow-up.'
+          : 'Account proof can support the next lesson ask when coach sharing is on.'
         : 'Local proof stays on this device until Player or coach invite sync is available.',
       href: signedIn ? '/mylab#coach-assignments' : '/login',
       action: signedIn ? 'Coach work' : 'Sign in',
@@ -4483,8 +5353,12 @@ function LevelUpReturnStatePanel({
     {
       label: 'Refresh boundary',
       body: latestProof
-        ? 'Recent Level Up proof appears from this browser cache; sync depends on signed-in Player or coach link.'
-        : 'No Level Up proof is shown unless this browser has saved it.',
+        ? latestProof.source === 'device'
+          ? 'This rep is on this device. Signed-in account proof takes priority when available.'
+          : 'The newest account proof follows you across signed-in devices.'
+        : signedIn
+          ? 'Account history is connected. Finish a Level Up rep to start the proof trail.'
+          : 'No Level Up proof is shown unless this browser has saved it.',
     },
   ]
   const playerIdProofSignals = [
@@ -4511,6 +5385,23 @@ function LevelUpReturnStatePanel({
       note: latestProof ? 'Use this signal for My Lab progress, matchup prep, or coach follow-up.' : todayIdentityRead.coachPrompt,
     },
   ]
+  const weeklyPlanSteps = [
+    {
+      label: 'Train',
+      title: plan.modeLabel,
+      body: plan.nextAction,
+    },
+    {
+      label: 'Prove',
+      title: plan.proofTarget,
+      body: 'Save one honest 0-5 score. Keep a note only when it changes the next rep.',
+    },
+    {
+      label: 'Adjust',
+      title: plan.trendLabel,
+      body: `${nextMoveLabel || 'The next My Lab move'} updates after the next scored rep.`,
+    },
+  ]
 
   return (
     <section id="level-up-proof" style={levelUpReturnPanelStyle} aria-label="My Lab Level Up proof return state">
@@ -4518,19 +5409,78 @@ function LevelUpReturnStatePanel({
         <div style={sectionTitleClusterStyle}>
           <TiqFeatureIcon name="matchPrep" size="md" variant="surface" />
           <div style={sectionHeaderCopyStyle}>
-            <p style={sectionKickerStyle}>Level Up return state</p>
+            <p style={sectionKickerStyle}>This week</p>
             <h3 style={compactSectionTitleStyle}>
-              {latestProof ? `${latestProof.cardTitle}: ${latestProof.proofLabel}` : 'No Level Up proof in this browser yet'}
+              {plan.cardTitle}: {plan.modeLabel}
             </h3>
             <p style={sectionTextStyle}>
-              My Lab pulls recent Level Up proof forward so the next practice starts with one clear court action.
+              One plan built from your latest proof. Score the next rep and My Lab will adjust it again.
             </p>
           </div>
         </div>
-        <Link href={latestProof?.nextHref || '/level-up'} style={quickStartButtonStyle}>
-          {latestProof ? 'Repeat in Level Up' : 'Open court mode'}
+        <Link href={plan.nextHref} style={quickStartButtonStyle}>
+          {plan.nextCta}
         </Link>
       </div>
+
+      <div style={myLabLevelUpTodayCardStyle} aria-label="My Lab weekly improvement plan">
+        <div style={myLabTodayFeedHeaderStyle}>
+          <div>
+            <span style={metricLabelStyle}>{plan.focusLabel}</span>
+            <strong style={levelUpReturnStorageNoteStrongStyle}>{plan.why}</strong>
+          </div>
+          <span style={weeklyImprovementPlanStatusStyle}>{plan.modeLabel}</span>
+        </div>
+
+        <div style={levelUpReturnGridStyle}>
+          <div style={levelUpReturnPrimaryStyle}>
+            <div style={metricLabelStyle}>Next court action</div>
+            <strong style={levelUpReturnPrimaryTitleStyle}>{plan.nextAction}</strong>
+            <span style={levelUpReturnPrimaryTextStyle}>Proof: {plan.proofTarget}</span>
+            <Link href={plan.nextHref} style={miniActionPillStyle}>{plan.nextCta}</Link>
+          </div>
+          <div style={levelUpTodayHabitStyle}>
+            <div style={myLabTodayFeedHeaderStyle}>
+              <span style={metricLabelStyle}>Weekly proof</span>
+              <strong style={levelUpReturnStorageNoteStrongStyle}>{plan.progressLabel}</strong>
+            </div>
+            <div style={weeklyImprovementProgressTrackStyle} aria-label={`${plan.progressLabel} complete`}>
+              <span style={weeklyImprovementProgressFillStyle(plan.progressPercent)} />
+            </div>
+            <span style={levelUpReturnPrimaryTextStyle}>{plan.trendLabel}</span>
+          </div>
+        </div>
+
+        <div style={myLabTodayFeedGridStyle} aria-label="Weekly improvement plan steps">
+          {weeklyPlanSteps.map((step) => (
+            <article key={step.label} style={myLabTodayFeedCardStyle}>
+              <span style={myLabRefreshProofLabelStyle}>{step.label}</span>
+              <strong style={levelUpReturnPrimaryTitleStyle}>{step.title}</strong>
+              <p style={myLabRefreshProofTextStyle}>{step.body}</p>
+            </article>
+          ))}
+        </div>
+
+        <div style={weeklyImprovementCoachSummaryStyle}>
+          <div style={weeklyImprovementCoachSummaryCopyStyle}>
+            <span style={myLabRefreshProofLabelStyle}>Coach-ready summary</span>
+            <strong>{plan.coachSummary}</strong>
+          </div>
+          <Link href={signedIn ? '/mylab#coach-assignments' : '/login'} style={miniActionLinkStyle}>
+            {signedIn ? 'Coach follow-up' : 'Sign in'}
+          </Link>
+        </div>
+      </div>
+
+      <details style={labDrawerDetailsStyle}>
+        <summary style={labDrawerSummaryStyle}>
+          <span style={labDrawerSummaryCopyStyle}>
+            <strong>Proof history and handoffs</strong>
+            <em style={labDrawerSummaryHintStyle}>Recent scores, habits, coach sharing, and sync details.</em>
+          </span>
+          <span style={optionalContextCountStyle}>{proofs.length ? `${proofs.length} proofs` : 'Open'}</span>
+        </summary>
+        <div style={labDrawerContentStyle}>
 
       <div style={myLabCourtHandoffStyle} aria-label="Level Up court handoff">
         {courtHandoffItems.map((item) => (
@@ -4655,24 +5605,22 @@ function LevelUpReturnStatePanel({
         </div>
 
         <div style={levelUpReturnMetricGridStyle}>
-          <SummaryCard label="Proofs cached" value={proofCountLabel} note="Recent Level Up work on this device" />
+          <SummaryCard label="Proof history" value={proofCountLabel} note={signedIn ? 'Account and device proof merged' : 'Recent work on this device'} />
           <SummaryCard label="Latest score" value={latestProof?.proofLabel || 'Not yet'} note={latestProof?.cardTitle || 'Score one Level Up card'} />
           <SummaryCard label="Next card" value={nextProof?.cardTitle || latestProof?.cardTitle || 'Choose'} note={nextProof?.nextAction || 'Repeat what is useful'} />
         </div>
       </div>
 
       <div style={levelUpReturnStorageNoteStyle}>
-        <strong style={levelUpReturnStorageNoteStrongStyle}>{signedIn ? 'Signed-in sync check' : 'Local-only proof'}</strong>
-        <span>
-          {signedIn
-            ? 'This panel shows the Level Up cache on this device. Signed-in Player or coach-linked proof can sync history, but private windows may clear unsynced work.'
-            : 'This panel is reading this browser only. Private windows can forget it; sign in through Player or a coach invite before expecting proof to follow you across devices.'}
-        </span>
+        <strong style={levelUpReturnStorageNoteStrongStyle}>
+          {signedIn ? (syncState.status === 'account' ? 'Account proof connected' : 'Account proof fallback') : 'Local-only proof'}
+        </strong>
+        <span>{signedIn ? syncState.message : 'This panel is reading this browser only. Sign in before expecting proof to follow you across devices.'}</span>
       </div>
 
-      <div style={myLabRefreshProofCueStyle} aria-label="My Lab refresh proof cue">
+      <div style={myLabRefreshProofCueStyle} aria-label="My Lab refresh check">
         <div style={myLabRefreshProofHeaderStyle}>
-          <span style={metricLabelStyle}>My Lab refresh proof cue</span>
+          <span style={metricLabelStyle}>Refresh check</span>
           <strong style={levelUpReturnStorageNoteStrongStyle}>What should still be clear after refresh?</strong>
         </div>
         <div style={myLabRefreshProofGridStyle}>
@@ -4684,6 +5632,8 @@ function LevelUpReturnStatePanel({
           ))}
         </div>
       </div>
+        </div>
+      </details>
     </section>
   )
 }
@@ -4691,6 +5641,7 @@ function LevelUpReturnStatePanel({
 function MyLabCalendarPanel({
   personalItems,
   sharedCoachEvents,
+  competitionItems,
   syncLabel,
   calendarFeedUrl,
   calendarFeedActive,
@@ -4702,9 +5653,11 @@ function MyLabCalendarPanel({
   onRevokeCalendarFeed,
   onAddPersonalItem,
   onRemovePersonalItem,
+  onRespondToCompetition,
 }: {
   personalItems: PersonalCalendarItem[]
   sharedCoachEvents: PlayerCoachCalendarPreviewEvent[]
+  competitionItems: PlayerCompetitionScheduleEvent[]
   syncLabel: string
   calendarFeedUrl: string
   calendarFeedActive: boolean
@@ -4716,6 +5669,7 @@ function MyLabCalendarPanel({
   onRevokeCalendarFeed: () => Promise<void>
   onAddPersonalItem: (input: Pick<PersonalCalendarItem, 'title' | 'date' | 'time' | 'location' | 'kind' | 'recurrenceRule' | 'availabilityStatus'> & { id?: string }) => Promise<boolean>
   onRemovePersonalItem: (itemId: string) => Promise<void>
+  onRespondToCompetition: (eventId: string, response: 'available' | 'unavailable') => Promise<void>
 }) {
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
@@ -4728,6 +5682,30 @@ function MyLabCalendarPanel({
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  const calendarPanelRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    let frame: number | undefined
+    const revealCalendar = () => {
+      if (window.location.hash !== '#my-calendar') return
+      const panel = calendarPanelRef.current
+      if (!panel) return
+      for (let parent = panel.parentElement; parent; parent = parent.parentElement) {
+        if (parent instanceof HTMLDetailsElement) parent.open = true
+      }
+      if (frame !== undefined) window.cancelAnimationFrame(frame)
+      frame = window.requestAnimationFrame(() => {
+        panel.scrollIntoView({ block: 'start' })
+        panel.focus({ preventScroll: true })
+      })
+    }
+    revealCalendar()
+    window.addEventListener('hashchange', revealCalendar)
+    return () => {
+      if (frame !== undefined) window.cancelAnimationFrame(frame)
+      window.removeEventListener('hashchange', revealCalendar)
+    }
+  }, [])
+  const [responseSavingId, setResponseSavingId] = useState('')
   const conflictKeys = useMemo(() => {
     const counts = new Map<string, number>()
     for (const item of personalItems) {
@@ -4740,8 +5718,13 @@ function MyLabCalendarPanel({
       const key = `${item.date}T${item.time}`
       counts.set(key, (counts.get(key) ?? 0) + 1)
     }
+    for (const item of competitionItems) {
+      if (!item.date || !item.time) continue
+      const key = `${item.date}T${item.time}`
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
     return new Set(Array.from(counts.entries()).filter(([, count]) => count > 1).map(([key]) => key))
-  }, [personalItems, sharedCoachEvents])
+  }, [competitionItems, personalItems, sharedCoachEvents])
   const conflictCount = conflictKeys.size
   const availabilityItems = useMemo(
     () => personalItems.filter((item) => item.kind === 'availability').slice(0, 4),
@@ -4749,6 +5732,22 @@ function MyLabCalendarPanel({
   )
   const mergedItems = useMemo(
     () => [
+      ...competitionItems.map((item) => ({
+        id: item.id,
+        title: item.title,
+        date: item.date,
+        time: item.time,
+        dateLabel: [safeDate(item.date), item.time].filter(Boolean).join(' · '),
+        sortKey: `${item.date || '9999-12-31'}T${item.time || '23:59'}`,
+        source: 'competition' as const,
+        location: item.location,
+        detail: item.detail,
+        href: item.href,
+        kind: item.kind,
+        responseStatus: item.responseStatus || '',
+        responseIsStale: Boolean(item.responseIsStale),
+        hasConflict: item.time ? conflictKeys.has(`${item.date}T${item.time}`) : false,
+      })),
       ...sharedCoachEvents.map((item) => ({
         ...item,
         hasConflict: item.time ? conflictKeys.has(`${item.date}T${item.time}`) : false,
@@ -4768,14 +5767,14 @@ function MyLabCalendarPanel({
         hasConflict: item.time ? conflictKeys.has(`${item.date}T${item.time}`) : false,
       })),
     ].sort((left, right) => left.sortKey.localeCompare(right.sortKey)).slice(0, 8),
-    [conflictKeys, personalItems, sharedCoachEvents],
+    [competitionItems, conflictKeys, personalItems, sharedCoachEvents],
   )
   const webcalFeedUrl = calendarFeedUrl ? toWebcalUrl(calendarFeedUrl) : ''
   const feedStatusLabel = calendarFeedUrl
     ? 'New feed link ready.'
     : calendarFeedActive
-      ? `Subscribed${calendarFeedLastUsedAt ? `, calendar app last fetched ${safeDate(calendarFeedLastUsedAt)}` : '. Create a new link to copy it again.'}`
-      : 'Not subscribed yet.'
+      ? `Calendar link active${calendarFeedLastUsedAt ? `, calendar app last fetched ${safeDate(calendarFeedLastUsedAt)}` : '. Finish adding it in your calendar app.'}`
+      : 'No calendar link created yet.'
 
   const createFeedLink = async () => {
     setMessage('')
@@ -4833,14 +5832,14 @@ function MyLabCalendarPanel({
   }
 
   return (
-    <section id="my-calendar" style={myCalendarPanelStyle}>
+    <section id="my-calendar" ref={calendarPanelRef} tabIndex={-1} style={{ ...myCalendarPanelStyle, scrollMarginTop: 24 }}>
       <div style={developmentPathHeaderStyle}>
         <div style={sectionTitleClusterStyle}>
           <TiqFeatureIcon name="schedule" size="md" variant="surface" />
           <div style={sectionHeaderCopyStyle}>
             <p style={sectionKickerStyle}>My calendar</p>
-            <h3 style={compactSectionTitleStyle}>Your tennis week, plus shared coach dates.</h3>
-            <p style={sectionTextStyle}>Add personal reminders here while coach lessons and assignment due dates flow in from Coach Hub.</p>
+            <h3 style={compactSectionTitleStyle}>Your tennis week, connected.</h3>
+            <p style={sectionTextStyle}>Approved league and tournament dates flow in with coach dates and your own reminders.</p>
             <span style={metricNoteStyle}>{syncLabel}</span>
             <span style={metricNoteStyle}>{feedStatusLabel}</span>
           </div>
@@ -4852,7 +5851,7 @@ function MyLabCalendarPanel({
             disabled={calendarFeedLoading}
             style={coachCheckInButtonStyle}
           >
-            {calendarFeedLoading ? 'Creating' : calendarFeedUrl || calendarFeedActive ? 'Replace link' : 'Subscribe calendar'}
+            {calendarFeedLoading ? 'Creating' : calendarFeedUrl || calendarFeedActive ? 'Create another link' : 'Subscribe calendar'}
           </button>
           {calendarFeedUrl ? (
             <a href={calendarFeedUrl} style={coachCheckInGhostLinkStyle}>
@@ -4871,7 +5870,7 @@ function MyLabCalendarPanel({
               disabled={calendarFeedLoading}
               style={coachCheckInGhostButtonStyle}
             >
-              Revoke feed
+              Disconnect all calendar links
             </button>
           ) : null}
           <button type="button" onClick={() => setHelpOpen((current) => !current)} style={coachCheckInGhostButtonStyle}>
@@ -4889,7 +5888,7 @@ function MyLabCalendarPanel({
             </div>
             <div style={calendarHelpItemStyle}>
               <strong>Google Calendar</strong>
-              <span>Open the feed, copy the URL, then add it under Other calendars by URL.</span>
+              <span>On a computer, open Google Calendar, choose Other calendars → From URL, and paste your private feed link. New links keep existing subscriptions working.</span>
             </div>
             <div style={calendarHelpItemStyle}>
               <strong>Outlook</strong>
@@ -4997,11 +5996,54 @@ function MyLabCalendarPanel({
         <div style={myCalendarGridStyle}>
           {mergedItems.map((item) => (
             <div key={`${item.source}:${item.id}`} style={myCalendarItemStyle(item.source)}>
-              <div style={metricLabelStyle}>{item.source === 'shared' ? 'Shared' : item.kind}</div>
+              <div style={metricLabelStyle}>
+                {item.source === 'competition' ? 'Competition' : item.source === 'shared' ? 'Coach' : item.kind}
+              </div>
               <strong>{item.title}</strong>
               <span>{item.dateLabel}</span>
               {item.hasConflict ? <span style={calendarConflictPillStyle}>Conflict</span> : null}
               {'location' in item && item.location ? <span>{item.location}</span> : null}
+              {item.source === 'competition' ? (
+                <>
+                  {item.detail ? <span>{item.detail}</span> : null}
+                  {item.responseIsStale ? <span style={calendarConflictPillStyle}>Schedule changed — answer again</span> : null}
+                  <div style={calendarCompetitionResponseStyle}>
+                    <button
+                      type="button"
+                      disabled={responseSavingId === item.id}
+                      aria-pressed={item.responseStatus === 'available'}
+                      onClick={() => {
+                        setResponseSavingId(item.id)
+                        setMessage('')
+                        void onRespondToCompetition(item.id, 'available')
+                          .then(() => setMessage('Available sent to the organizer.'))
+                          .catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Availability could not be sent.'))
+                          .finally(() => setResponseSavingId(''))
+                      }}
+                      style={calendarResponseButtonStyle(item.responseStatus === 'available')}
+                    >
+                      Available
+                    </button>
+                    <button
+                      type="button"
+                      disabled={responseSavingId === item.id}
+                      aria-pressed={item.responseStatus === 'unavailable'}
+                      onClick={() => {
+                        setResponseSavingId(item.id)
+                        setMessage('')
+                        void onRespondToCompetition(item.id, 'unavailable')
+                          .then(() => setMessage('Can’t play sent to the organizer.'))
+                          .catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Availability could not be sent.'))
+                          .finally(() => setResponseSavingId(''))
+                      }}
+                      style={calendarResponseButtonStyle(item.responseStatus === 'unavailable')}
+                    >
+                      Can’t play
+                    </button>
+                  </div>
+                  <Link href={item.href} style={smallInlineLinkStyle}>Open competition</Link>
+                </>
+              ) : null}
               {item.source === 'personal' ? (
                 <>
                   {item.recurrenceRule ? <span>{formatCalendarRecurrence(item.recurrenceRule)}</span> : null}
@@ -5033,7 +6075,7 @@ function MyLabCalendarPanel({
           ))}
         </div>
       ) : (
-        <div style={emptyStateStyle}>No calendar items yet. Add one tennis reminder or connect a coach lesson.</div>
+        <div style={emptyStateStyle}>No dates yet. Approved competitions, coach dates, and your reminders will appear here.</div>
       )}
       {message ? <div style={coachCheckInMessageStyle}>{message}</div> : null}
     </section>
@@ -5351,6 +6393,7 @@ function PlayerCoachAssignmentsPanel({
           </div>
           <div style={coachReviewNextPlanActionsStyle}>
             <Link href={latestCoachFeedbackHref} style={miniActionPillStyle}>Run coach response</Link>
+            <Link href={`${VIDEO_REVIEW_ROUTE}?mode=player`} style={miniActionLinkStyle}>Record video</Link>
             <Link
               href={buildPlayerCoachMessageHref(
                 coachLinkMap.get(latestCoachFeedback.assignment.studentLinkId),
@@ -5377,7 +6420,7 @@ function PlayerCoachAssignmentsPanel({
             <strong>Coach connection is ready.</strong>
             <span>
               You are linked to {activeCoachLink.playerName}. Ask for one measurable assignment so My Lab can track the work,
-              recap, and coach feedback in this section.
+              recap, and coach feedback here.
             </span>
           </div>
           <div style={coachInviteLandingStepGridStyle} aria-label="Coach invite accepted next steps">
@@ -5397,6 +6440,7 @@ function PlayerCoachAssignmentsPanel({
             <Link href={firstAssignmentRequestHref} style={miniActionLinkStyle}>
               Request first assignment
             </Link>
+            <Link href={`${VIDEO_REVIEW_ROUTE}?mode=player`} style={miniActionLinkStyle}>Record video</Link>
             <Link href="/level-up" style={miniActionLinkStyle}>Open Level Up</Link>
           </div>
         </div>
@@ -6034,6 +7078,13 @@ function getPlayerCoachCalendarSortKey(event: { date: string; time?: string }) {
   return `${event.date || '9999-12-31'}T${event.time || '23:59'}`
 }
 
+function getLocalDateKey(value: Date) {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function formatPlayerCoachCalendarDate(value: string) {
   const normalized = value.includes('T') ? value : `${value}T12:00:00`
   const parsed = new Date(normalized)
@@ -6067,8 +7118,7 @@ function toWebcalUrl(value: string) {
   try {
     const url = new URL(value)
     if (url.protocol === 'https:' || url.protocol === 'http:') {
-      url.protocol = 'webcal:'
-      return url.toString()
+      return url.toString().replace(/^https?:/, 'webcal:')
     }
   } catch {
     return value
@@ -6576,6 +7626,59 @@ const myLabLevelUpTodayCardStyle: CSSProperties = {
     'radial-gradient(circle at 88% 18%, rgba(155,225,29,0.18), transparent 34%), linear-gradient(135deg, rgba(155,225,29,0.13), rgba(116,190,255,0.07))',
 }
 
+const weeklyImprovementPlanStatusStyle: CSSProperties = {
+  display: 'inline-flex',
+  minHeight: 32,
+  alignItems: 'center',
+  padding: '0 11px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-chip-bg) 82%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+  whiteSpace: 'nowrap',
+}
+
+const weeklyImprovementProgressTrackStyle: CSSProperties = {
+  height: 9,
+  overflow: 'hidden',
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%)',
+}
+
+const weeklyImprovementProgressFillStyle = (progressPercent: number): CSSProperties => ({
+  display: 'block',
+  width: `${Math.max(0, Math.min(100, progressPercent))}%`,
+  height: '100%',
+  borderRadius: 999,
+  background: 'linear-gradient(90deg, var(--brand-blue-2), var(--brand-lime))',
+})
+
+const weeklyImprovementCoachSummaryStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg) 92%)',
+}
+
+const weeklyImprovementCoachSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  flex: '1 1 320px',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
 const myLabLevelUpTodayMetricGridStyle: CSSProperties = {
   ...levelUpReturnMetricGridStyle,
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
@@ -6811,8 +7914,8 @@ const myCalendarGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
-function myCalendarItemStyle(source: 'shared' | 'personal'): CSSProperties {
-  const shared = source === 'shared'
+function myCalendarItemStyle(source: 'competition' | 'shared' | 'personal'): CSSProperties {
+  const shared = source !== 'personal'
   return {
     display: 'grid',
     gap: 5,
@@ -6841,6 +7944,36 @@ const calendarConflictPillStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 11,
   fontWeight: 950,
+}
+
+const calendarCompetitionResponseStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 6,
+  minWidth: 0,
+  marginTop: 3,
+}
+
+function calendarResponseButtonStyle(active: boolean): CSSProperties {
+  return {
+    appearance: 'none',
+    minWidth: 0,
+    minHeight: 34,
+    cursor: 'pointer',
+    borderRadius: 10,
+    border: active
+      ? '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)'
+      : '1px solid var(--shell-panel-border)',
+    background: active
+      ? 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)'
+      : 'var(--shell-chip-bg)',
+    color: 'var(--foreground-strong)',
+    padding: '6px 8px',
+    font: 'inherit',
+    fontSize: 11,
+    fontWeight: 900,
+    overflowWrap: 'anywhere',
+  }
 }
 
 const calendarItemActionRowStyle: CSSProperties = {
@@ -7576,6 +8709,33 @@ const profileLinkSectionStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const mobileMyLabExtrasDetailsStyle: CSSProperties = {
+  width: '100%',
+  margin: '0 0 14px',
+  minWidth: 0,
+  overflow: 'hidden',
+  border: '1px solid rgba(116,190,255,0.16)',
+  borderRadius: 20,
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 88%, transparent)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const mobileMyLabExtrasSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  minHeight: 58,
+  padding: '10px 14px',
+  cursor: 'pointer',
+  color: 'var(--foreground-strong)',
+  fontWeight: 950,
+  listStyle: 'none',
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const warningNoteStyle: CSSProperties = {
   margin: '0 0 18px',
   padding: '12px 14px',
@@ -7604,11 +8764,11 @@ const profileLinkCardStyle: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: 'clamp(-92px, -7vw, -34px)',
+  right: 0,
   top: 'clamp(-112px, -10vw, -52px)',
-  width: 'clamp(230px, 30vw, 420px)',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  width: 'min(280px, 58vw)',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }
@@ -7629,79 +8789,6 @@ const personalReadPanelStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   boxShadow: '0 18px 45px rgba(2,8,23,0.28)',
-  minWidth: 0,
-}
-
-const onboardingPanelStyle: CSSProperties = {
-  borderRadius: 22,
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 26%, var(--shell-panel-border) 74%)',
-  background: 'linear-gradient(135deg, rgba(155,225,29,0.11), rgba(116,190,255,0.07), rgba(8,13,28,0.62))',
-  padding: 16,
-  display: 'grid',
-  gap: 14,
-  boxShadow: '0 18px 45px rgba(2,8,23,0.26)',
-  minWidth: 0,
-  overflow: 'hidden',
-}
-
-const onboardingStepGridStyle = (isTablet: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'repeat(3, minmax(0, 1fr))',
-  gap: 12,
-  minWidth: 0,
-})
-
-const onboardingStepCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: 9,
-  alignContent: 'start',
-  minHeight: 210,
-  padding: 14,
-  borderRadius: 18,
-  border: '1px solid rgba(125,211,252,0.14)',
-  background: 'rgba(7,17,33,0.62)',
-  color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.55,
-  fontWeight: 750,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const onboardingGoalGridStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 7,
-  minWidth: 0,
-}
-
-const onboardingGoalButtonStyle: CSSProperties = {
-  minHeight: 34,
-  borderRadius: 999,
-  border: '1px solid rgba(116,190,255,0.14)',
-  background: 'rgba(255,255,255,0.045)',
-  color: 'var(--foreground-strong)',
-  padding: '0 10px',
-  fontSize: 12,
-  fontWeight: 900,
-  cursor: 'pointer',
-  maxWidth: '100%',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-}
-
-const onboardingGoalButtonActiveStyle: CSSProperties = {
-  ...onboardingGoalButtonStyle,
-  border: '1px solid rgba(155,225,29,0.34)',
-  background: 'rgba(155,225,29,0.14)',
-}
-
-const onboardingReadListStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 9,
-  alignItems: 'center',
-  marginTop: 'auto',
   minWidth: 0,
 }
 
@@ -7909,86 +8996,23 @@ const quickProfileValueStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const setupPanelStyle = (isTablet: boolean): CSSProperties => ({
-  borderRadius: 24,
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
-  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
-  padding: isTablet ? 18 : 22,
-  display: 'grid',
-  gap: 18,
-  boxShadow: 'var(--shadow-soft)',
-  minWidth: 0,
-})
-
-const setupHeroStyle: CSSProperties = {
-  display: 'flex',
-  gap: 14,
-  alignItems: 'center',
-  flexWrap: 'wrap',
-  minWidth: 0,
-}
-
-const setupTitleStyle: CSSProperties = {
-  margin: '4px 0 8px',
-  color: 'var(--foreground-strong)',
-  fontSize: '1.55rem',
-  lineHeight: 1.06,
-  fontWeight: 950,
-  overflowWrap: 'anywhere',
-}
-
-const setupStepGridStyle = (isTablet: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isTablet
-    ? 'minmax(0, 1fr)'
-    : 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
-  gap: 12,
-  minWidth: 0,
-})
-
-const setupStepCardStyle: CSSProperties = {
-  borderRadius: 16,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  padding: 14,
-  display: 'grid',
-  gap: 8,
-  minHeight: 138,
-  alignContent: 'start',
-  color: 'var(--foreground-strong)',
-  minWidth: 0,
-}
-
-const setupStepNumberStyle: CSSProperties = {
-  width: 32,
-  height: 32,
-  borderRadius: '50%',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-chip-bg) 78%)',
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 42%, var(--shell-panel-border) 58%)',
-  color: 'var(--foreground-strong)',
-  fontSize: 13,
-  fontWeight: 950,
-  boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
-}
-
-const setupActionRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 10,
-  minWidth: 0,
-}
-
-const todayReadPanelStyle: CSSProperties = {
+const matchIntelligencePanelStyle: CSSProperties = {
   borderRadius: 22,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-panel-border) 72%)',
+  background: 'linear-gradient(135deg, rgba(116,190,255,0.1), rgba(155,225,29,0.055))',
   padding: 18,
   display: 'grid',
   gap: 12,
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const matchIntelligenceHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  flexWrap: 'wrap',
   minWidth: 0,
 }
 
@@ -8025,7 +9049,7 @@ const starterCardStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const todayReadGridStyle = (isTablet: boolean): CSSProperties => ({
+const matchIntelligenceGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
     ? 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'
@@ -8034,16 +9058,286 @@ const todayReadGridStyle = (isTablet: boolean): CSSProperties => ({
   minWidth: 0,
 })
 
-const todayReadCardStyle: CSSProperties = {
+const matchIntelligenceCardStyle: CSSProperties = {
   borderRadius: 14,
   border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 90%, rgba(116,190,255,0.10) 10%)',
   padding: 12,
   minHeight: 106,
   display: 'grid',
   gap: 6,
   alignContent: 'start',
   minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const matchIntelligenceFocusCardStyle: CSSProperties = {
+  ...matchIntelligenceCardStyle,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%)',
+  color: 'inherit',
+  textDecoration: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyPanelStyle: CSSProperties = {
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 32%, var(--shell-panel-border) 68%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg) 88%), var(--shell-panel-bg))',
+  padding: 18,
+  display: 'grid',
+  gap: 14,
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const ratingJourneyHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const ratingJourneyGridStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet
+    ? 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'
+    : 'repeat(3, minmax(0, 1fr))',
+  gap: 10,
+  minWidth: 0,
+})
+
+const ratingJourneyCardStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg-strong) 86%, transparent)',
+  padding: 14,
+  minHeight: 118,
+  display: 'grid',
+  alignContent: 'start',
+  gap: 7,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(2rem, 5vw, 2.8rem)',
+  lineHeight: 0.94,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyTrendStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'rgba(4, 12, 28, 0.42)',
+  padding: 14,
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+}
+
+const ratingJourneyTrendHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 10,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const ratingJourneyPlotStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 72px), 1fr))',
+  alignItems: 'end',
+  gap: 8,
+  minHeight: 126,
+  minWidth: 0,
+}
+
+const ratingJourneyPlotPointStyle: CSSProperties = {
+  minWidth: 0,
+  display: 'grid',
+  gridTemplateRows: 'auto 72px auto',
+  justifyItems: 'center',
+  alignItems: 'end',
+  gap: 7,
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyPlotValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1,
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyPlotRailStyle: CSSProperties = {
+  width: '100%',
+  height: 72,
+  display: 'flex',
+  alignItems: 'flex-end',
+  borderRadius: 10,
+  padding: 3,
+  background: 'color-mix(in srgb, var(--foreground-strong) 8%, var(--shell-chip-bg) 92%)',
+  overflow: 'hidden',
+  minWidth: 0,
+}
+
+const ratingJourneyPlotFillStyle = (position: number): CSSProperties => ({
+  display: 'block',
+  width: '100%',
+  height: `${position}%`,
+  minHeight: 9,
+  borderRadius: 7,
+  background: 'linear-gradient(180deg, var(--brand-lime), var(--brand-blue-2))',
+  boxShadow: '0 0 18px color-mix(in srgb, var(--brand-lime) 34%, transparent)',
+})
+
+const ratingJourneyPlotDateStyle: CSSProperties = {
+  maxWidth: '100%',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 800,
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const ratingJourneyEmptyStyle: CSSProperties = {
+  borderRadius: 12,
+  border: '1px dashed var(--shell-panel-border)',
+  padding: 12,
+  color: 'var(--shell-copy-muted)',
+  fontWeight: 800,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const matchbookPanelStyle: CSSProperties = {
+  borderRadius: 22,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-panel-bg) 94%)',
+  padding: 18,
+  display: 'grid',
+  gap: 12,
+  boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const matchbookHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'flex-start',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const matchbookFilterStyle: CSSProperties = {
+  display: 'flex',
+  gap: 6,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const matchbookListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const matchbookRowStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet
+    ? 'minmax(0, auto) minmax(0, 1fr)'
+    : 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
+  gap: 10,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  overflowWrap: 'anywhere',
+})
+
+const matchbookCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  maxWidth: '100%',
+  overflowWrap: 'anywhere',
+}
+
+const matchbookDateStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 800,
+  overflowWrap: 'anywhere',
+}
+
+const matchbookOpponentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const matchbookActionStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'flex',
+  gridColumn: isTablet ? '1 / -1' : undefined,
+  justifyContent: isTablet ? 'flex-start' : 'flex-end',
+  alignItems: 'center',
+  gap: 7,
+  flexWrap: 'wrap',
+  minWidth: 0,
+})
+
+const matchbookWatchButtonStyle: CSSProperties = {
+  maxWidth: '100%',
+  minWidth: 0,
+  minHeight: 34,
+  padding: '0 11px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-green) 13%, var(--shell-chip-bg) 87%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: 'pointer',
+  whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const matchbookWatchDoneButtonStyle: CSSProperties = {
+  ...matchbookWatchButtonStyle,
+  minWidth: 0,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--shell-copy-muted)',
+  cursor: 'default',
+}
+
+const matchbookMoreButtonStyle: CSSProperties = {
+  justifySelf: 'start',
+  maxWidth: '100%',
+  minWidth: 0,
+  minHeight: 36,
+  padding: '0 12px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-lime) 30%, var(--shell-panel-border) 70%)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 900,
+  cursor: 'pointer',
+  whiteSpace: 'normal',
   overflowWrap: 'anywhere',
 }
 
@@ -8360,6 +9654,61 @@ const trophyRoomGridStyle = (isTablet: boolean): CSSProperties => ({
   minWidth: 0,
 })
 
+const trophyBadgeHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'end',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+}
+
+const trophyBadgeTitleStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--foreground-strong)',
+  fontSize: '1.05rem',
+  fontWeight: 950,
+}
+
+const trophyNextBadgeStyle: CSSProperties = {
+  color: 'var(--foreground-muted)',
+  fontSize: 12,
+  fontWeight: 800,
+}
+
+const trophyBadgeGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const trophyBadgeCardStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 15,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
+}
+
+const trophyBadgeNameStyle: CSSProperties = {
+  display: 'block',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  fontWeight: 900,
+}
+
+const trophyBadgeProgressStyle: CSSProperties = {
+  display: 'block',
+  marginTop: 2,
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 900,
+}
+
 const trophyProofGridStyle = (isTablet: boolean): CSSProperties => ({
   display: 'grid',
   gridTemplateColumns: isTablet
@@ -8442,10 +9791,10 @@ const personalCommandGridStyle = (isTablet: boolean): CSSProperties => ({
 
 const personalLabPathStyle: CSSProperties = {
   display: 'grid',
-  gap: 14,
+  gap: 10,
   minWidth: 0,
-  padding: 16,
-  borderRadius: 22,
+  padding: 12,
+  borderRadius: 18,
   border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
   background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-chip-bg) 93%)',
   overflowWrap: 'anywhere',
@@ -8462,21 +9811,23 @@ const personalLabPathHeaderStyle: CSSProperties = {
 }
 
 const personalLabPathTitleStyle: CSSProperties = {
-  margin: '6px 0 0',
+  margin: '4px 0 0',
   color: 'var(--foreground-strong)',
-  fontSize: '1.28rem',
+  fontSize: '1.16rem',
   lineHeight: 1.15,
   fontWeight: 950,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
 }
 
-const personalLabPathGridStyle = (isTablet: boolean): CSSProperties => ({
+const personalLabPathGridStyle = (isTablet: boolean, isMobile = false): CSSProperties => ({
   display: 'grid',
-  gridTemplateColumns: isTablet
-    ? 'minmax(0, 1fr)'
-    : 'repeat(4, minmax(0, 1fr))',
-  gap: 10,
+  gridTemplateColumns: isMobile
+    ? 'repeat(2, minmax(0, 1fr))'
+    : isTablet
+      ? 'minmax(0, 1fr)'
+      : 'repeat(4, minmax(0, 1fr))',
+  gap: isMobile ? 7 : 10,
   minWidth: 0,
 })
 
@@ -8495,9 +9846,17 @@ const personalLabPathCardStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const mobilePersonalLabPathCardStyle: CSSProperties = {
+  ...personalLabPathCardStyle,
+  gridTemplateRows: 'auto auto auto',
+  gap: 5,
+  minHeight: 98,
+  padding: 9,
+}
+
 const personalLabPathQuestionStyle: CSSProperties = {
   color: 'var(--brand-lime)',
-  fontSize: 11,
+  fontSize: 10,
   fontWeight: 950,
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
@@ -8506,8 +9865,8 @@ const personalLabPathQuestionStyle: CSSProperties = {
 
 const personalLabPathCardTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 15,
-  lineHeight: 1.25,
+  fontSize: 13,
+  lineHeight: 1.16,
   fontWeight: 950,
   overflowWrap: 'anywhere',
 }
@@ -8518,6 +9877,38 @@ const personalLabPathCardTextStyle: CSSProperties = {
   lineHeight: 1.45,
   fontWeight: 700,
   overflowWrap: 'anywhere',
+}
+
+const mobileLabMoveDetailsStyle: CSSProperties = {
+  marginTop: 8,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 78%, transparent)',
+  overflow: 'hidden',
+  minWidth: 0,
+}
+
+const mobileLabMoveSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  padding: '9px 10px',
+  minHeight: 44,
+  cursor: 'pointer',
+  color: 'var(--foreground-strong)',
+  fontWeight: 950,
+  listStyle: 'none',
+  flexWrap: 'wrap',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const mobileLabMoveGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: '0 12px 12px',
+  minWidth: 0,
 }
 
 const personalCommandCardStyle: CSSProperties = {
@@ -8642,6 +10033,53 @@ const teamPrepRailStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   minWidth: 0,
+}
+
+const linkedTeamsPanelStyle: CSSProperties = {
+  ...teamPrepRailStyle,
+  marginTop: 16,
+}
+
+const linkedTeamsGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const linkedTeamCardStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  padding: 14,
+  display: 'grid',
+  gap: 12,
+  minHeight: 0,
+  alignContent: 'space-between',
+  minWidth: 0,
+}
+
+const linkedTeamCardCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+}
+
+const linkedTeamRoleStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 950,
+  lineHeight: 1.2,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const teamConnectionHealthStyle: CSSProperties = {
+  color: 'var(--shell-copy-faint)',
+  fontSize: 11,
+  fontWeight: 750,
+  lineHeight: 1.4,
 }
 
 const teamPrepGridStyle = (isTablet: boolean): CSSProperties => ({
@@ -8917,6 +10355,43 @@ const goalWorkspaceStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const matchPrepHistoryStyle: CSSProperties = {
+  display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, padding: 12,
+  borderRadius: 14, background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg) 92%)', minWidth: 0,
+}
+
+const matchPrepReviewStyle = (isTablet: boolean): CSSProperties => ({
+  display: 'grid',
+  gridTemplateColumns: isTablet ? 'minmax(0, 1fr)' : 'minmax(0, 1fr) auto',
+  gap: 14,
+  alignItems: 'center',
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg) 92%)',
+  minWidth: 0,
+})
+
+const matchPrepReviewActionsStyle: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  minWidth: 0,
+}
+
+const matchupPrepSavedStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: '12px 14px',
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
+  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-panel-bg) 91%)',
+  color: 'var(--foreground-strong)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
 const goalListStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
@@ -9023,27 +10498,6 @@ const goalEditorStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   marginTop: 14,
-  minWidth: 0,
-}
-
-const workshopMatchRowStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
-  gap: 10,
-  alignItems: 'center',
-  borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  padding: '10px 12px',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const matchActionStackStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'flex-end',
-  gap: 8,
   minWidth: 0,
 }
 
@@ -9169,6 +10623,11 @@ const miniActionPillStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const miniActionButtonStyle: CSSProperties = {
+  ...miniActionPillStyle,
+  cursor: 'pointer',
+}
+
 const notebookFooterStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -9243,8 +10702,8 @@ const optionalContextDetailsStyle: CSSProperties = {
 }
 
 const labDrawerDetailsStyle: CSSProperties = {
-  marginTop: 14,
-  borderRadius: 22,
+  marginTop: 10,
+  borderRadius: 16,
   border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
   background: 'color-mix(in srgb, var(--shell-panel-bg) 82%, transparent)',
   padding: 0,
@@ -9257,8 +10716,9 @@ const labDrawerSummaryStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: 14,
-  padding: '14px 16px',
+  gap: 8,
+  padding: '10px 12px',
+  minHeight: 44,
   cursor: 'pointer',
   color: 'var(--foreground-strong)',
   fontWeight: 950,
@@ -9276,7 +10736,7 @@ const labDrawerSummaryCopyStyle: CSSProperties = {
 
 const labDrawerSummaryHintStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
-  fontSize: 13,
+  fontSize: 12,
   fontStyle: 'normal',
   fontWeight: 800,
   lineHeight: 1.35,
@@ -9284,8 +10744,8 @@ const labDrawerSummaryHintStyle: CSSProperties = {
 
 const labDrawerContentStyle: CSSProperties = {
   display: 'grid',
-  gap: 14,
-  padding: '0 14px 14px',
+  gap: 10,
+  padding: '0 12px 12px',
   minWidth: 0,
 }
 
@@ -9293,8 +10753,8 @@ const optionalContextSummaryStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: 14,
-  padding: '16px 18px',
+  gap: 8,
+  padding: '12px 14px',
   cursor: 'pointer',
   color: 'var(--foreground-strong)',
   fontWeight: 900,
@@ -9302,6 +10762,12 @@ const optionalContextSummaryStyle: CSSProperties = {
   flexWrap: 'wrap',
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const optionalContextSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
 }
 
 const optionalContextCountStyle: CSSProperties = {

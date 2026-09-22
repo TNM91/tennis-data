@@ -6,6 +6,9 @@ const source = readFileSync(
   join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'),
   'utf8',
 )
+const globalsSource = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
+const shellSmokeSource = readFileSync(join(process.cwd(), 'scripts/site-shell-layout-smoke.mjs'), 'utf8')
+const productStorySource = readFileSync(join(process.cwd(), 'lib/product-story.ts'), 'utf8')
 
 function styleBlock(sourceText: string, styleName: string) {
   const start = sourceText.indexOf(`const ${styleName}: CSSProperties = {`)
@@ -17,7 +20,7 @@ function styleBlock(sourceText: string, styleName: string) {
 describe('League Coordinator mobile layout guards', () => {
   it('stacks setup and action controls on mobile', () => {
     expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
-    expect(source).toContain('const { role, userId, entitlements, authResolved } = useAuth()')
+    expect(source).toContain('const { role, userId, entitlements, authResolved, session } = useAuth()')
     expect(source).toContain("const resolvedRole = authResolved || !userId ? role : 'member'")
     expect(source).toContain('buildProductAccessState(resolvedRole, entitlements)')
     expect(source).not.toContain('getClientAuthState')
@@ -30,9 +33,24 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain('mobileStackedActionRowStyle')
     expect(source).toContain('mobileParticipantBuilderStyle')
     expect(source).toContain('mobileNextActionCardStyle')
+    expect(source).toContain('function LeagueSecondaryToolsGroup')
+    expect(source).toContain('<LeagueSecondaryToolsGroup isMobile={isMobile}>')
+    expect(source).toContain('Open public pages, result books, awards, and readiness.')
+    expect(styleBlock(source, 'leagueSecondaryToolsDetailsStyle')).toContain('overflow: \'hidden\'')
+    expect(styleBlock(source, 'leagueSecondaryToolsSummaryStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)'")
+    expect(styleBlock(source, 'leagueSecondaryToolsBodyStyle')).toContain('minWidth: 0')
+    expect(source).toContain('<RoleActionHome')
+    expect(source).toContain('quickActions={canUseLeagueTools ? leagueHomeQuickActions : LEAGUE_HOME_LOCKED_ACTIONS}')
+    expect(source).toContain("title: 'Unlock League Office'")
+    expect(source).toContain("title: 'Explore leagues'")
+    expect(source).toContain('summaryOnly={isMobile}')
+    expect(shellSmokeSource).toContain("type: 'league-mobile-summary-repeated-guidance'")
+    expect(shellSmokeSource).toContain("type: 'league-mobile-role-home-missing-or-too-tall'")
+    expect(shellSmokeSource).toContain("type: 'league-mobile-unlock-action-missing'")
+    expect(shellSmokeSource).toContain('[aria-label="League home"]')
   })
 
-  it('keeps the setup form Data Assist upload workflow visible', () => {
+  it('keeps the setup form Data Assist upload path visible', () => {
     expect(source).toContain('Use uploads to refresh the season.')
     expect(source).toContain('Data Assist brings in schedules, rosters, players, teams, and official scorecards when the season changes.')
     expect(source).toContain('paste reviewed roster names from Data Assist')
@@ -41,16 +59,34 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).not.toContain('USTA API')
   })
 
-  it('keeps first-screen workflow guidance progressive and mobile-safe', () => {
+  it('keeps first-screen guidance progressive and mobile-safe', () => {
+    expect(productStorySource).toContain('Saved league seasons')
+    expect(productStorySource).not.toContain('Current TIQ league definitions')
+    expect(source).toContain('your season list')
+    expect(source).not.toContain('TIQ season registry')
+    expect(source).toContain('data-league-start-panel')
     expect(source).toContain('sharedCalendarStripStyle')
     expect(source).toContain('sharedCalendarReadinessGridStyle')
     expect(source).toContain('sharedCalendarStepGridStyle')
     expect(source).toContain('Player-arranged scheduling preview')
     expect(source).toContain('League Office-published schedule preview')
-    expect(source).toContain('Your next League Office move is ready.')
+    expect(source).toContain('Set up League in three steps')
+    expect(source).toContain('Need help with League setup?')
     expect(source).toContain('League Office sets schedule')
     expect(source).toContain('League Office approval required')
     expect(source).toContain('League Office approval keeps join requests')
+    expect(source).toContain('const leagueDeskContent = (')
+    expect(source).toContain('const leagueMobileSeasonPulse = hasSavedLeague && isMobile ? (')
+    expect(source).toContain('aria-label="League season pulse"')
+    expect(source).toContain('Season pulse')
+    expect(source).toContain('Keep the season moving.')
+    expect(source).toContain('leagueDeskCompleteCount')
+    expect(source).toContain('leagueMobilePulseGridStyle')
+    expect(source).toContain('{leagueMobileSeasonPulse}')
+    expect(source).toContain('<section style={leaguePathStyle} aria-labelledby="league-office-desk-title">')
+    expect(source.indexOf('{leagueMobileSeasonPulse}')).toBeLessThan(
+      source.indexOf('{canUseLeagueTools ? <OrganizerScheduleAttention /> : null}'),
+    )
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))'")
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))'")
     expect(source).toContain("overflowWrap: 'anywhere'")
@@ -93,26 +129,32 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))'")
   })
 
-  it('keeps source-to-public proof visible before sharing league pages', () => {
+  it('keeps source-to-public checks visible before sharing league pages', () => {
     expect(source).toContain('SOURCE_TO_PUBLIC_PROOF_STEPS')
     expect(source).toContain('Use a safe fixture')
     expect(source).toContain('Open the public league page and compare schedule, result, and standings context against the source screen.')
     expect(source).toContain('Private League Office controls must stay off public pages')
-    expect(source).toContain('aria-label="League source to public proof cue"')
+    expect(source).toContain('aria-label="League source to public check"')
     expect(source).toContain('sourceToPublicProofStyle')
     expect(source).toContain('sourceToPublicProofStepStyle')
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))'")
   })
 
-  it('keeps the full League Office operation proof visible before the setup form', () => {
+  it('keeps League Office member-view checks available on demand after the setup form', () => {
     expect(source).toContain('LEAGUE_OFFICE_OPERATION_PROOF_STEPS')
-    expect(source).toContain('League Office operation proof cue')
-    expect(source).toContain('Prove the office changes the same season reality members see.')
+    expect(source).toContain('<details className="leagueCoordinatorDetailsSection" style={leagueOpsPanelStyle}>')
+    expect(source).not.toContain('<section style={leagueOpsPanelStyle}>')
+    expect(source.indexOf('<div style={responsiveLayoutGrid}>')).toBeLessThan(
+      source.indexOf('<details className="leagueCoordinatorDetailsSection" style={leagueOpsPanelStyle}>'),
+    )
+    expect(globalsSource).toContain('.leagueCoordinatorDetailsSection:not([open]) > :not(summary)')
+    expect(source).toContain('Member-view check')
+    expect(source).toContain('Make sure League Office changes match what members see.')
     expect(source).toContain('Season shell')
     expect(source).toContain('Result source')
     expect(source).toContain('Member context')
     expect(source).toContain('Private boundary')
-    expect(source).toContain('aria-label="League Office operation proof cue"')
+    expect(source).toContain('aria-label="League Office member-view check"')
     expect(source).toContain('leagueOfficeOperationProofStyle')
     expect(source).toContain('leagueOfficeOperationProofGridStyle')
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))'")
@@ -163,15 +205,29 @@ describe('League Coordinator mobile layout guards', () => {
       'leagueOpsHeaderCopyStyle',
       'leagueOpsScoreStyle',
       'leagueOpsTrackStyle',
+      'leagueActionRowStyle',
+      'leagueActionGroupStyle',
+      'leagueAdminActionGroupStyle',
       'leagueOfficeOperationProofStyle',
       'leagueOfficeOperationProofHeaderStyle',
       'leagueOfficeOperationProofGridStyle',
       'leagueOfficeOperationProofStepStyle',
-      'startCardGridStyle',
-      'leagueOpsCheckGridStyle',
+      'leaguePathGridStyle',
+      'leaguePathCardStyle',
+      'leagueMobilePulseStyle',
+      'leagueMobilePulseHeaderStyle',
+      'leagueMobilePulseGridStyle',
+      'leagueMobilePulseItemStyle',
+      'leagueMobilePulseItemCopyStyle',
+      'leagueSecondaryToolsDetailsStyle',
+      'leagueSecondaryToolsSummaryStyle',
+      'leagueSecondaryToolsBodyStyle',
       'detailsSummary',
       'fieldGrid',
       'outcomeInfoGrid',
+      'setupFocusPanelStyle',
+      'setupFocusGridStyle',
+      'setupFocusItemStyle',
       'calendarGridStyle',
       'fileInputStyle',
       'textareaStyle',
@@ -187,7 +243,11 @@ describe('League Coordinator mobile layout guards', () => {
       'emptyJoinRequestPanelStyle',
       'emptyJoinRequestCopyStyle',
       'emptyJoinRequestActionRowStyle',
+      'entryRequestSummaryGridStyle',
+      'entryRequestSummaryItemStyle',
       'registryCard',
+      'registrySnapshotGridStyle',
+      'registrySnapshotItemStyle',
       'noteCard',
     ]) {
       expect(styleBlock(source, styleName)).toContain('minWidth: 0')
@@ -197,7 +257,6 @@ describe('League Coordinator mobile layout guards', () => {
   it('keeps coordinator labels, pills, controls, and dense copy wrap-safe', () => {
     for (const styleName of [
       'pillBase',
-      'commandLabel',
       'commandValue',
       'dataAssistOpsCardStyle',
       'publicReadinessFilterButtonStyle',
@@ -210,9 +269,13 @@ describe('League Coordinator mobile layout guards', () => {
       'leagueOfficeOperationProofHeaderStyle',
       'leagueOfficeOperationProofStepStyle',
       'startActionLabelStyle',
-      'startCardCtaStyle',
-      'leagueOpsCheckStyle',
+      'leaguePathCopyStyle',
+      'leagueSecondaryToolsDetailsStyle',
+      'leagueSecondaryToolsSummaryStyle',
+      'leagueSecondaryToolsBodyStyle',
       'sectionEyebrow',
+      'setupFocusPanelStyle',
+      'setupFocusItemStyle',
       'setupAssistTitleStyle',
       'setupAssistTextStyle',
       'calendarWeekStyle',
@@ -230,11 +293,16 @@ describe('League Coordinator mobile layout guards', () => {
       'emptyPublicReadinessActionStyle',
       'emptyJoinRequestCopyStyle',
       'emptyJoinRequestActionStyle',
+      'entryRequestSummaryItemStyle',
       'registryCard',
+      'registrySnapshotItemStyle',
       'noteCard',
     ]) {
       expect(styleBlock(source, styleName)).toContain("overflowWrap: 'anywhere'")
     }
+
+    expect(styleBlock(source, 'commandLabel')).toContain("overflowWrap: 'normal'")
+    expect(styleBlock(source, 'commandLabel')).toContain("wordBreak: 'normal'")
 
     expect(styleBlock(source, 'pillBase')).toContain("whiteSpace: 'normal'")
     expect(styleBlock(source, 'publicReadinessFilterButtonStyle')).toContain("whiteSpace: 'normal'")
@@ -251,6 +319,10 @@ describe('League Coordinator mobile layout guards', () => {
     expect(styleBlock(source, 'emptyJoinRequestActionRowStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock(source, 'emptyJoinRequestActionStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock(source, 'emptyJoinRequestActionStyle')).toContain("whiteSpace: 'normal'")
+    expect(styleBlock(source, 'leagueActionRowStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(source, 'leagueActionGroupStyle')).toContain("flexWrap: 'wrap'")
+    expect(styleBlock(source, 'leagueAdminActionGroupStyle')).toContain("borderLeft: '1px solid var(--shell-panel-border)'")
+    expect(source).toContain("borderTop: '1px solid var(--shell-panel-border)'")
   })
 
   it('uses responsive grid tracks for coordinator-heavy surfaces', () => {
@@ -262,10 +334,12 @@ describe('League Coordinator mobile layout guards', () => {
       'publicReadinessGridStyle',
       'resultBookGridStyle',
       'resultBookMetricRowStyle',
-      'startCardGridStyle',
-      'leagueOpsCheckGridStyle',
+      'leaguePathGridStyle',
       'fieldGrid',
       'outcomeInfoGrid',
+      'setupFocusGridStyle',
+      'entryRequestSummaryGridStyle',
+      'registrySnapshotGridStyle',
       'calendarGridStyle',
     ]) {
       expect(styleBlock(source, styleName)).toContain('minmax(min(100%,')

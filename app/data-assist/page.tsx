@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import PlayerSuitePanel from '@/app/components/player-suite-panel'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqLoader from '@/components/TiqLoader'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import {
   getMyDataAssistContributorStats,
   getDataAssistImportTypeLabel,
@@ -27,23 +28,41 @@ import {
   type DataAssistPreparedScreenshot,
   type DataAssistSubmission,
 } from '@/lib/data-assist'
-import { type DataAssistAutoAssessment } from '@/lib/data-assist-ocr'
+import { getDataAssistOcrReadiness, type DataAssistAutoAssessment } from '@/lib/data-assist-ocr'
+import { buildDataAssistSignInHref } from '@/lib/data-assist-navigation'
 import type { DataAssistScorecardParsedDraft } from '@/lib/data-assist-ocr'
 import { detectDataAssistExportType } from '@/lib/data-assist-export-detection'
-import type { DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
-import type { DataAssistTeamSummaryParsedDraft } from '@/lib/data-assist-team-summary-parser'
+import { getScheduleMatchReviewNotes, type DataAssistScheduleParsedDraft } from '@/lib/data-assist-schedule-parser'
+import {
+  buildTeamScheduleCalendarItems,
+  getTeamScheduleCalendarItemId,
+  normalizeScheduleCalendarDate,
+} from '@/lib/team-schedule-calendar'
+import { isTeamSummaryDraftReadyForImport, type DataAssistTeamSummaryParsedDraft } from '@/lib/data-assist-team-summary-parser'
+import type { TeamDataRefreshComparison } from '@/lib/team-data-refresh'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
+import { buildScheduleCalendarHref } from '@/lib/schedule-calendar-href'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { buildSupportMessageHref } from '@/lib/message-links'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
+import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import {
+  isCaptainImportDraft,
+} from '@/lib/captain-import-handoff'
+import {
+  buildCaptainScorecardPhotoPrefill,
+  captainScorecardPhotoPrefillStorageKey,
+  getCaptainScorecardPhotoPrefillIssue,
+} from '@/lib/captain-scorecard-photo-prefill'
 
 const DATA_ASSIST_OCR_TIMEOUT_MS = 100_000
+const DATA_ASSIST_BULK_OCR_TIMEOUT_MS = 45_000
+const DATA_ASSIST_CONFIRM_TIMEOUT_MS = 45_000
 const DATA_ASSIST_MAX_BULK_SCORECARDS = 10
 const newPlayerActions = [
-  { href: '/data-assist#upload', label: 'Upload scores', detail: 'Scorecard or team summary' },
+  { href: '/data-assist#upload', label: 'Upload tennis data', detail: 'Scorecard, schedule, or Team Summary' },
   { href: '/explore/leagues', label: 'Local leagues', detail: 'Find a first match lane' },
   { href: '/league-coordinator', label: 'Create TIQ league', detail: 'Start your own group' },
   { href: '/explore/players', label: 'Find players', detail: 'Build your tennis map' },
@@ -66,7 +85,7 @@ const dataAssistPlayerIdSignalPath = [
   {
     label: 'Player ID',
     title: 'Match the source to the right tennis identity.',
-    body: 'Scorecards and team summaries should strengthen the correct player profile, not create mystery records.',
+    body: 'Scorecards and team exports should strengthen the correct player profile, not create mystery records.',
   },
   {
     label: 'Reviewed signal',
@@ -84,7 +103,7 @@ const dataAssistReviewFlow = [
   {
     step: '1',
     title: 'Upload source',
-    body: 'Add a scorecard, schedule, team summary, roster, or correction source.',
+    body: 'Add a scorecard, schedule, Team Summary, or correction source.',
   },
   {
     step: '2',
@@ -131,64 +150,58 @@ const dataAssistPlayerIdStarterRead = [
 const dataAssistSourcePathJobs = [
   {
     id: 'scorecard',
+    icon: 'dataUpload',
     question: 'What result should update first?',
-    title: 'Upload a scorecard',
+    title: 'Scorecard',
     body: 'Use after match day so scores, winners, players, teams, and standings can move from one reviewed source.',
-    cta: 'Choose scorecard',
+    cta: 'Match result and line scores',
   },
   {
     id: 'schedule',
+    icon: 'schedule',
     question: 'What is the season schedule?',
-    title: 'Add match dates',
+    title: 'Schedule',
     body: 'Use the schedule export when teams, courts, dates, times, and sites need one cleaner place to live.',
-    cta: 'Choose schedule',
+    cta: 'Dates, courts, and sites',
   },
   {
     id: 'team_summary',
+    icon: 'lineupBuilder',
     question: 'Who is on the roster?',
-    title: 'Add team summary',
-    body: 'Use the team summary export when roster names and starting ratings need to connect to player context.',
-    cta: 'Choose roster',
+    title: 'Team Summary',
+    body: 'Start here for any team: team, league, flight, player roster, official ratings, and standings. Captains can add Player Roster later for phone and email contacts.',
+    cta: 'Start here: roster and ratings',
   },
-] as const
+] as const satisfies ReadonlyArray<{
+  id: DataAssistImportType
+  icon: TiqFeatureIconName
+  question: string
+  title: string
+  body: string
+  cta: string
+}>
 
 const importTypes: Array<{
   id: DataAssistImportType
   label: string
-  detail: string
-  updates: string
-  exportHint: string
-  cadence: string
-  badge?: string
 }> = [
   {
     id: 'scorecard',
     label: 'Scorecard',
-    detail: 'Weekly results or catch-up',
-    updates: 'Players, scores, winners, and team result',
-    exportHint: 'Score Card > Send To Excel',
-    cadence: 'Use after each match. Select several scorecards when catching up.',
-    badge: 'Recommended',
   },
   {
     id: 'schedule',
     label: 'Schedule',
-    detail: 'Season setup',
-    updates: 'Match IDs, dates, teams, times, and sites',
-    exportHint: 'Match Schedule > Send To Excel',
-    cadence: 'Usually once per season, unless you are loading history.',
   },
   {
     id: 'team_summary',
-    label: 'Team summary',
-    detail: 'Roster setup',
-    updates: 'Roster players and baseline USTA ratings',
-    exportHint: 'Team Summary > Send To Excel',
-    cadence: 'Usually once per season after rosters are set.',
+    label: 'Team Summary',
   },
 ]
 
 type BulkScorecardResult = {
+  batchId: string
+  draftId: string
   fileName: string
   status: 'pending' | 'imported' | 'duplicate' | 'review' | 'failed'
   detail: string
@@ -198,6 +211,16 @@ type BulkScorecardResult = {
 }
 
 type DataAssistIntent = 'upload-source' | 'report-issue' | 'request-review'
+
+type DataAssistOutcome = {
+  tone: 'success' | 'review' | 'duplicate'
+  title: string
+  detail: string
+  batchId?: string
+  target: 'history' | 'latest-read'
+  teamConnectionHref?: string
+  calendarHref?: string
+}
 
 function getDataAssistIntent(value: string | null): DataAssistIntent | null {
   if (value === 'upload-source' || value === 'report-issue' || value === 'request-review') return value
@@ -210,6 +233,39 @@ function getDataAssistContext(value: string | null): string {
 
 function getDataAssistQuery(value: string | null): string {
   return (value || '').trim().slice(0, 120)
+}
+
+function getRequestedImportType(value: string | null): DataAssistImportType | null {
+  if (value === 'scorecard' || value === 'schedule' || value === 'team_summary') return value
+  return null
+}
+
+function getSafeDataAssistReturnTo(value: string | null): string {
+  const path = (value || '').trim()
+  if (!path || path.length > 500 || path.startsWith('//')) return ''
+  if (path === '/captain' || path.startsWith('/captain/')) return path
+  if (path === '/team-room' || path.startsWith('/team-room?')) return path
+  if (path === '/clubs' || path.startsWith('/clubs?')) return path
+  if (path.startsWith('/teams/')) return path
+  return ''
+}
+
+function buildScorecardImportReturnHref(returnTo: string, externalMatchId: string) {
+  const safeReturnTo = getSafeDataAssistReturnTo(returnTo)
+  if (!safeReturnTo) return ''
+  const url = new URL(safeReturnTo, 'https://tenaceiq.local')
+  url.searchParams.set('result', 'updated')
+  if (externalMatchId.trim()) url.searchParams.set('resultMatch', externalMatchId.trim())
+  return `${url.pathname}${url.search}${url.hash}`
+}
+
+function getCaptainScorecardReturnContext(returnTo: string) {
+  const safeReturnTo = getSafeDataAssistReturnTo(returnTo)
+  if (!safeReturnTo) return null
+  const url = new URL(safeReturnTo, 'https://tenaceiq.local')
+  if (url.pathname !== '/captain/record-result') return null
+  const teamName = url.searchParams.get('team')?.trim() || ''
+  return teamName ? { href: safeReturnTo, teamName } : null
 }
 
 function buildDataAssistIssueHref(context = '', query = '') {
@@ -236,31 +292,51 @@ export default function DataAssistPage() {
   )
 }
 
+function DataAssistSignInLink({ style, section = 'upload' }: { style: CSSProperties; section?: 'upload' | 'history' }) {
+  const searchParams = useSearchParams()
+  return <Link href={buildDataAssistSignInHref(searchParams.toString(), section)} style={style}>Sign in</Link>
+}
+
 function DataAssistWorkspace() {
-  const { userId, authResolved } = useAuth()
+  const { userId, authResolved, session } = useAuth()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const { isTablet, isMobile } = useViewportBreakpoints()
   const intent = getDataAssistIntent(searchParams.get('intent'))
   const intentContext = getDataAssistContext(searchParams.get('context'))
   const intentQuery = getDataAssistQuery(searchParams.get('q'))
-  const [importType, setImportType] = useState<DataAssistImportType>('scorecard')
+  const requestedImportType = getRequestedImportType(searchParams.get('type'))
+  const contactImportRequested = searchParams.get('contactImport') === '1'
+  const teamSetupRequested = !contactImportRequested && requestedImportType === 'team_summary' && intentContext.toLowerCase().includes('team')
+  const exportHelpRequested = searchParams.get('help') === '1'
+  const scorecardCameraRequested = searchParams.get('capture') === 'camera'
+  const returnTo = getSafeDataAssistReturnTo(searchParams.get('returnTo'))
+  const captainScorecardReturn = getCaptainScorecardReturnContext(returnTo)
+  const [importType, setImportType] = useState<DataAssistImportType>(requestedImportType || 'scorecard')
+  const [typeOverrideActive, setTypeOverrideActive] = useState(false)
   const [summary, setSummary] = useState<DataAssistBatchSummary | null>(null)
   const [preparing, setPreparing] = useState(false)
-  const [selectedFileCount, setSelectedFileCount] = useState(0)
+  const [, setSelectedFileCount] = useState(0)
   const [saving, setSaving] = useState(false)
   const [savedBatchId, setSavedBatchId] = useState('')
+  const [exactDuplicate, setExactDuplicate] = useState<{ batchId: string; draftId: string } | null>(null)
   const [submissions, setSubmissions] = useState<DataAssistSubmission[]>([])
   const [contributorStats, setContributorStats] = useState<DataAssistContributorStats | null>(null)
   const [submissionsLoading, setSubmissionsLoading] = useState(false)
   const [submissionsError, setSubmissionsError] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [outcome, setOutcome] = useState<DataAssistOutcome | null>(null)
   const [bulkScorecardResults, setBulkScorecardResults] = useState<BulkScorecardResult[]>([])
+  const [focusedSubmissionId, setFocusedSubmissionId] = useState('')
   const [reviewingSubmissionId, setReviewingSubmissionId] = useState('')
   const [importingSubmissionId, setImportingSubmissionId] = useState('')
   const [deletingSubmissionId, setDeletingSubmissionId] = useState('')
   const [bulkDeletingHistory, setBulkDeletingHistory] = useState(false)
   const [importResultsBySubmission, setImportResultsBySubmission] = useState<Record<string, DataAssistImportActionResult>>({})
+  const [calendarSavingKey, setCalendarSavingKey] = useState('')
+  const [calendarSavedItemIds, setCalendarSavedItemIds] = useState<Set<string>>(() => new Set())
+  const [calendarMessage, setCalendarMessage] = useState('')
   const [latestScan, setLatestScan] = useState<{
     batchId: string
     draftId: string
@@ -269,7 +345,9 @@ function DataAssistWorkspace() {
     autoImport?: DataAssistImportActionResult
   } | null>(null)
   const scanRunRef = useRef(0)
+  const submissionsRefreshRef = useRef(0)
   const latestReadRef = useRef<HTMLElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const hasPreparedScreenshots = Boolean(summary?.screenshots.length)
   const showUploadStep = !hasPreparedScreenshots && !saving && !latestScan
@@ -278,22 +356,122 @@ function DataAssistWorkspace() {
   const showLatestReviewStep = Boolean(latestScan)
   const showHistoryStep = !hasPreparedScreenshots && !saving && !latestScan
   const showBulkScorecardResults = !hasPreparedScreenshots && !latestScan && bulkScorecardResults.length > 0
-  const activeImportType = importTypes.find((item) => item.id === importType) || importTypes[0]
-  const scorecardImportType = importTypes.find((item) => item.id === 'scorecard') || importTypes[0]
-  const seasonSetupImportTypes = importTypes.filter((item) => item.id !== 'scorecard')
   const scorecardUploadsPaused = contributorStats?.canUploadScorecards === false
   const scorecardUploadPausedMessage =
     contributorStats?.uploadSuspensionReason || 'Scorecard uploads are paused while admins review recent match accuracy reports.'
-  const scorecardUploadBlocked = importType === 'scorecard' && scorecardUploadsPaused
+  const scorecardUploadBlocked = typeOverrideActive && importType === 'scorecard' && scorecardUploadsPaused
   const summaryScorecardUploadBlocked = summary?.requestedImportType === 'scorecard' && scorecardUploadsPaused
+  const scorecardPhotoReaderReady = importType === 'scorecard' && getDataAssistOcrReadiness().canRun
+  const acceptedUploadTypes = scorecardPhotoReaderReady
+    ? '.xls,.html,application/vnd.ms-excel,text/html,image/jpeg,image/png,image/webp'
+    : '.xls,.html,application/vnd.ms-excel,text/html'
+  const isCompactViewport = isMobile || isTablet
+  const scorecardCaptureReady = scorecardCameraRequested && scorecardPhotoReaderReady
+  const scorecardCaptureUnavailable = scorecardCameraRequested && !scorecardPhotoReaderReady
+  const scorecardCaptureButtonLabel = isCompactViewport ? 'Take scorecard photo' : 'Choose scorecard photo'
+  const isScorecardPhotoScan = Boolean(summary && scorecardCameraRequested && isScorecardPhotoSummary(summary))
+  const dynamicPanelStyle = isCompactViewport ? compactPanelStyle : panelStyle
+  const dynamicSectionHeaderStyle = isCompactViewport ? compactSectionHeaderStyle : sectionHeaderStyle
+  const dynamicImportTypeSelectWrapStyle = isCompactViewport ? compactImportTypeSelectWrapStyle : importTypeSelectWrapStyle
+  const dynamicImportTypeSelectStyle = isCompactViewport ? compactImportTypeSelectStyle : importTypeSelectStyle
+  const dynamicImportTypeSelectHintStyle = isCompactViewport ? compactImportTypeSelectHintStyle : importTypeSelectHintStyle
+  const latestScorecardDraft = latestScan && isScorecardParsedDraft(latestScan.parsedDraft)
+    ? latestScan.parsedDraft
+    : null
+  const focusedHistoryFilter: DataAssistHistoryFilter = outcome?.tone === 'success' || outcome?.tone === 'duplicate'
+    ? 'imported'
+    : 'needs_review'
+
+  async function finishCaptainImport(input: {
+    batchId: string
+    parsedDraft: DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft
+    result?: DataAssistImportActionResult
+  }) {
+    if (!returnTo || !isCaptainImportDraft(input.parsedDraft)) return false
+    // Keep the successful schedule receipt and calendar action visible instead
+    // of silently navigating away as soon as the import finishes.
+    if (isScheduleParsedDraft(input.parsedDraft)) return false
+    // A team summary may belong to an opponent. Importing it must never grant
+    // Captain access or replace the team already selected in Captain.
+    const hashIndex = returnTo.indexOf('#')
+    const hash = hashIndex >= 0 ? returnTo.slice(hashIndex) : ''
+    const pathAndQuery = hashIndex >= 0 ? returnTo.slice(0, hashIndex) : returnTo
+    const separator = pathAndQuery.includes('?') ? '&' : '?'
+    router.replace(`${pathAndQuery}${separator}rosterImport=${encodeURIComponent(input.batchId)}${hash}`)
+    return true
+  }
+
+  function finishScorecardImport(parsedDraft: DataAssistScorecardParsedDraft) {
+    const href = buildScorecardImportReturnHref(returnTo, parsedDraft.externalMatchId)
+    if (!href) return false
+    router.replace(href)
+    return true
+  }
+
+  function openVerifiedCaptainScorecard(input: {
+    batchId: string
+    draftId: string
+    parsedDraft: DataAssistScorecardParsedDraft
+  }) {
+    if (!captainScorecardReturn) return
+    const prefillInput = {
+      teamName: captainScorecardReturn.teamName,
+      dataAssistBatchId: input.batchId,
+      dataAssistDraftId: input.draftId,
+      parsedDraft: input.parsedDraft,
+    }
+    const prefillIssue = getCaptainScorecardPhotoPrefillIssue(prefillInput)
+    if (prefillIssue) {
+      setError(prefillIssue)
+      return
+    }
+    const prefill = buildCaptainScorecardPhotoPrefill(prefillInput)
+    if (!prefill) {
+      setError('TiQ could not prepare that photo read for a captain scorecard. Check the team and court names, then try again.')
+      return
+    }
+
+    try {
+      window.sessionStorage.setItem(captainScorecardPhotoPrefillStorageKey(prefill.dataAssistBatchId), JSON.stringify(prefill))
+      const url = new URL(captainScorecardReturn.href, window.location.origin)
+      url.searchParams.set('scorecardDraft', prefill.dataAssistBatchId)
+      router.push(`${url.pathname}${url.search}${url.hash}`)
+    } catch {
+      setError('TiQ could not carry the photo read into the verified scorecard. Try again from this device.')
+    }
+  }
+
   function resetUploadFlow() {
     scanRunRef.current += 1
+    setPreparing(false)
+    setSelectedFileCount(0)
+    setSaving(false)
     setSummary(null)
     setLatestScan(null)
     setSavedBatchId('')
+    setExactDuplicate(null)
     setMessage('')
     setError('')
+    setOutcome(null)
     setBulkScorecardResults([])
+    setFocusedSubmissionId('')
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  function completeUploadFlow(completionMessage = 'Upload complete.', nextOutcome: DataAssistOutcome | null = null) {
+    setPreparing(false)
+    setSelectedFileCount(0)
+    setSaving(false)
+    setSummary(null)
+    setLatestScan(null)
+    setSavedBatchId('')
+    setExactDuplicate(null)
+    setBulkScorecardResults([])
+    setFocusedSubmissionId(nextOutcome?.calendarHref ? '' : nextOutcome?.batchId || '')
+    setError('')
+    setMessage(completionMessage)
+    setOutcome(nextOutcome)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   function updateImportType(nextType: DataAssistImportType) {
@@ -304,17 +482,35 @@ function DataAssistWorkspace() {
         importType: nextType,
       },
     })
+    setTypeOverrideActive(true)
     setImportType(nextType)
     setSummary((current) => current ? summarizeDataAssistBatch(nextType, current.screenshots) : null)
     setSavedBatchId('')
+    setExactDuplicate(null)
     setMessage('')
     setError('')
+    setOutcome(null)
     setBulkScorecardResults([])
+    setFocusedSubmissionId('')
+  }
+
+  function chooseImportType(nextType: DataAssistImportType) {
+    updateImportType(nextType)
+    if (nextType === 'scorecard' && scorecardUploadsPaused) {
+      setError(scorecardUploadPausedMessage)
+      return
+    }
+    fileInputRef.current?.click()
   }
 
   async function refreshSubmissions() {
+    const refreshId = submissionsRefreshRef.current + 1
+    submissionsRefreshRef.current = refreshId
+
     if (!authResolved || !userId) {
-      setSubmissions([])
+      if (refreshId === submissionsRefreshRef.current) {
+        setSubmissions([])
+      }
       return
     }
 
@@ -325,12 +521,16 @@ function DataAssistWorkspace() {
         listMyDataAssistSubmissions(),
         getMyDataAssistContributorStats(),
       ])
+      if (refreshId !== submissionsRefreshRef.current) return
       setSubmissions(nextSubmissions)
       setContributorStats(nextStats)
     } catch (err) {
+      if (refreshId !== submissionsRefreshRef.current) return
       setSubmissionsError(err instanceof Error ? err.message : 'Your Data Assist submissions could not be loaded.')
     } finally {
-      setSubmissionsLoading(false)
+      if (refreshId === submissionsRefreshRef.current) {
+        setSubmissionsLoading(false)
+      }
     }
   }
 
@@ -340,12 +540,31 @@ function DataAssistWorkspace() {
   }, [authResolved, userId])
 
   useEffect(() => {
+    if (!requestedImportType) return
+
+    scanRunRef.current += 1
+    setTypeOverrideActive(true)
+    setImportType(requestedImportType)
+    setSummary(null)
+    setLatestScan(null)
+    setSavedBatchId('')
+    setExactDuplicate(null)
+    setMessage('')
+    setError('')
+    setOutcome(null)
+    setBulkScorecardResults([])
+    setFocusedSubmissionId('')
+  }, [requestedImportType])
+
+  useEffect(() => {
     void trackProductUsageEvent({
       eventName: 'data_assist_opened',
       surface: 'data_assist',
-      metadata: intent || intentContext || intentQuery ? { intent, context: intentContext, query: intentQuery } : undefined,
+      metadata: intent || requestedImportType || intentContext || intentQuery
+        ? { intent, importType: requestedImportType, context: intentContext, query: intentQuery }
+        : undefined,
     })
-  }, [intent, intentContext, intentQuery])
+  }, [intent, intentContext, intentQuery, requestedImportType])
 
   useEffect(() => {
     if (!latestScan) return
@@ -357,11 +576,14 @@ function DataAssistWorkspace() {
   async function handleFiles(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || [])
     if (!files.length) return
+    const sourceLabel = scorecardCameraRequested ? 'scorecard photo' : 'TennisLink export'
     setSelectedFileCount(files.length)
     setPreparing(true)
     setSavedBatchId('')
-    setMessage(`Checking ${files.length} TennisLink export${files.length === 1 ? '' : 's'}...`)
+    setExactDuplicate(null)
+    setMessage(`Checking ${files.length} ${sourceLabel}${files.length === 1 ? '' : 's'}...`)
     setError('')
+    setOutcome(null)
     setBulkScorecardResults([])
 
     const detected = await detectDataAssistExportType(files, importType)
@@ -373,14 +595,21 @@ function DataAssistWorkspace() {
       return
     }
     if (files.length > 1 && detected.importType !== 'scorecard') {
-      setError('Choose one schedule or team summary export at a time. You can select several scorecard exports when catching up on match results.')
+      setError('Choose one schedule or Team Summary export at a time. You can select several scorecard exports when catching up on match results.')
       setPreparing(false)
       setSelectedFileCount(0)
       event.target.value = ''
       return
     }
     if (detected.mixed) {
-      setError('These look like different TennisLink export types. Upload scorecards together, but keep schedules and team summaries separate.')
+      setError('These look like different TennisLink export types. Upload scorecards together, but keep schedules and Team Summary exports separate.')
+      setPreparing(false)
+      setSelectedFileCount(0)
+      event.target.value = ''
+      return
+    }
+    if (!detected.recognized && !typeOverrideActive) {
+      setError('TenAceIQ could not identify this export. Open “Having trouble?” below, choose the file type, then upload it again.')
       setPreparing(false)
       setSelectedFileCount(0)
       event.target.value = ''
@@ -401,6 +630,7 @@ function DataAssistWorkspace() {
       return
     }
     const changedType = detected.importType !== importType
+    if (detected.recognized) setTypeOverrideActive(false)
     void trackProductUsageEvent({
       eventName: detected.importType === 'schedule'
         ? 'schedule_upload_started'
@@ -422,7 +652,10 @@ function DataAssistWorkspace() {
       await importScorecardExports(files)
       return
     }
-    setMessage(`Preparing ${getShortImportTypeLabel(detected.importType)} export...`)
+    const preparedSourceLabel = scorecardCameraRequested && detected.importType === 'scorecard'
+      ? 'scorecard photo'
+      : `${getShortImportTypeLabel(detected.importType)} export`
+    setMessage(`Preparing ${preparedSourceLabel}...`)
 
     try {
       await new Promise<void>((resolve) => window.setTimeout(resolve, 0))
@@ -436,12 +669,11 @@ function DataAssistWorkspace() {
       if (nextSummary.status === 'rejected') {
         setError(nextSummary.rejectionReason)
       } else {
-        const exportLabel = 'TennisLink export'
         if (userId) {
-          setMessage(`${exportLabel} ${changedType ? 'auto-detected' : 'detected'} as ${getShortImportTypeLabel(detected.importType)}. TenAceIQ is importing from the table data now.`)
+          setMessage(`${preparedSourceLabel} ${changedType ? 'auto-detected' : 'detected'} as ${getShortImportTypeLabel(detected.importType)}. TenAceIQ is reading it now.`)
           window.setTimeout(() => void saveDraft(nextSummary), 0)
         } else {
-          setMessage(`${exportLabel} ${changedType ? 'auto-detected' : 'detected'} as ${getShortImportTypeLabel(detected.importType)}. Sign in to import it.`)
+          setMessage(`${preparedSourceLabel} ${changedType ? 'auto-detected' : 'detected'} as ${getShortImportTypeLabel(detected.importType)}. Sign in to import it.`)
         }
       }
     } catch (err) {
@@ -473,6 +705,8 @@ function DataAssistWorkspace() {
     setSavedBatchId('')
     setError('')
     const pendingResults = files.map((file): BulkScorecardResult => ({
+      batchId: '',
+      draftId: '',
       fileName: file.name,
       status: 'pending',
       detail: 'Waiting to import',
@@ -492,12 +726,15 @@ function DataAssistWorkspace() {
         if (scanRunRef.current !== scanRunId) return
         const file = files[index]
         setMessage(`Importing scorecard ${index + 1} of ${files.length}...`)
+        let saved: { batchId: string; draftId: string } | null = null
         try {
           const preparedSummary = await prepareDataAssistBatch([file], 'scorecard')
           const nextSummary = summarizeDataAssistBatch('scorecard', preparedSummary.screenshots)
           if (nextSummary.status === 'rejected') {
             failedCount += 1
             updateBulkScorecardResult(index, {
+              batchId: '',
+              draftId: '',
               fileName: file.name,
               status: 'failed',
               detail: nextSummary.rejectionReason || 'TenAceIQ could not read this export.',
@@ -508,33 +745,39 @@ function DataAssistWorkspace() {
             continue
           }
 
-          const saved = await withTimeout(
+          saved = await withTimeout(
             saveDataAssistDraftBatch(nextSummary),
             30_000,
             'Saving a scorecard export is taking longer than expected. Check your connection and try again.',
           )
+          void refreshSubmissions()
           const ocrResult = await withTimeout(
             queueDataAssistOcrVerification({
               batchId: saved.batchId,
               draftId: saved.draftId,
             }),
-            DATA_ASSIST_OCR_TIMEOUT_MS,
-            'Scorecard reading is taking longer than expected. The upload was saved; try it again from history in a moment.',
+            DATA_ASSIST_BULK_OCR_TIMEOUT_MS,
+            'Scorecard reading is taking longer than expected. The export was saved; TenAceIQ is moving to the next scorecard.',
           )
 
           if (ocrResult.autoImport?.ok) {
             importedCount += 1
             const matchMeta = getBulkScorecardMatchMeta(ocrResult.parsedDraft)
             updateBulkScorecardResult(index, {
+              batchId: saved.batchId,
+              draftId: saved.draftId,
               fileName: file.name,
               status: 'imported',
               detail: ocrResult.autoImport.message || 'Imported',
               ...matchMeta,
             })
+            if (files.length === 1 && isScorecardParsedDraft(ocrResult.parsedDraft) && finishScorecardImport(ocrResult.parsedDraft)) return
           } else if (ocrResult.autoImport?.importPreview?.duplicateMatch) {
             duplicateCount += 1
             const matchMeta = getBulkScorecardMatchMeta(ocrResult.parsedDraft)
             updateBulkScorecardResult(index, {
+              batchId: saved.batchId,
+              draftId: saved.draftId,
               fileName: file.name,
               status: 'duplicate',
               detail: ocrResult.autoImport.message || 'Already imported',
@@ -544,18 +787,24 @@ function DataAssistWorkspace() {
             reviewCount += 1
             const matchMeta = getBulkScorecardMatchMeta(ocrResult.parsedDraft)
             updateBulkScorecardResult(index, {
+              batchId: saved.batchId,
+              draftId: saved.draftId,
               fileName: file.name,
               status: 'review',
-              detail: 'Saved for review',
+              detail: 'Check the highlighted names and scores, then confirm. League stats update only after confirmation.',
               ...matchMeta,
             })
           }
         } catch (err) {
           failedCount += 1
           updateBulkScorecardResult(index, {
+            batchId: saved?.batchId || '',
+            draftId: saved?.draftId || '',
             fileName: file.name,
             status: 'failed',
-            detail: err instanceof Error ? err.message : 'Import failed',
+            detail: saved
+              ? `${err instanceof Error ? err.message : 'Import failed'} Open the saved upload from history to retry it.`
+              : err instanceof Error ? err.message : 'Import failed',
             matchId: '',
             matchDate: '',
             matchup: '',
@@ -564,13 +813,28 @@ function DataAssistWorkspace() {
       }
 
       if (scanRunRef.current !== scanRunId) return
-      setMessage(buildBulkScorecardMessage({
-        total: files.length,
-        importedCount,
-        duplicateCount,
-        reviewCount,
-        failedCount,
-      }))
+      if (reviewCount === 0 && failedCount === 0) {
+        const duplicateOnly = duplicateCount === files.length
+        completeUploadFlow(
+          duplicateOnly ? 'Already uploaded. No changes were needed.' : 'Upload complete.',
+          {
+            tone: duplicateOnly ? 'duplicate' : 'success',
+            title: duplicateOnly ? 'Scorecards already in TiQ' : `${importedCount} scorecard${importedCount === 1 ? '' : 's'} imported`,
+            detail: duplicateOnly
+              ? 'Every scorecard matched a saved result, so TiQ protected the existing records.'
+              : 'The completed batch is saved below with each scorecard and its final status.',
+            target: 'history',
+          },
+        )
+      } else {
+        setMessage(buildBulkScorecardMessage({
+          total: files.length,
+          importedCount,
+          duplicateCount,
+          reviewCount,
+          failedCount,
+        }))
+      }
       await refreshSubmissions()
     } finally {
       if (scanRunRef.current === scanRunId) {
@@ -586,6 +850,14 @@ function DataAssistWorkspace() {
     )))
   }
 
+  function openBulkScorecardReview(submissionId: string) {
+    setFocusedSubmissionId(submissionId)
+    window.setTimeout(() => {
+      const target = document.getElementById(submissionId ? `data-assist-submission-${submissionId}` : 'history')
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 120)
+  }
+
   function moveScreenshot(fromIndex: number, direction: -1 | 1) {
     if (!summary) return
     const toIndex = fromIndex + direction
@@ -593,6 +865,7 @@ function DataAssistWorkspace() {
     const nextScreenshots = reorderDataAssistScreenshots(summary.screenshots, fromIndex, toIndex)
     setSummary(summarizeDataAssistBatch(importType, nextScreenshots))
     setSavedBatchId('')
+    setExactDuplicate(null)
   }
 
   function removeScreenshot(id: string) {
@@ -602,9 +875,21 @@ function DataAssistWorkspace() {
       .map((screenshot, index) => ({ ...screenshot, uploadOrder: index + 1 }))
     setSummary(summarizeDataAssistBatch(importType, nextScreenshots))
     setSavedBatchId('')
+    setExactDuplicate(null)
   }
 
-  async function saveDraft(summaryOverride?: DataAssistBatchSummary) {
+  function useSavedExactImport() {
+    if (!exactDuplicate) return
+    completeUploadFlow('No duplicate created.', {
+      tone: 'duplicate',
+      title: 'Exact file already imported',
+      detail: 'TiQ kept the saved import. Upload a newer export when players or team details change.',
+      batchId: exactDuplicate.batchId,
+      target: 'history',
+    })
+  }
+
+  async function saveDraft(summaryOverride?: DataAssistBatchSummary, allowExactDuplicate = false) {
     const draftSummary = summaryOverride || summary
     if (!draftSummary || saving) return
     const scanRunId = scanRunRef.current + 1
@@ -613,13 +898,20 @@ function DataAssistWorkspace() {
     setError('')
     setMessage('')
     setLatestScan(null)
+    setExactDuplicate(null)
 
     try {
       const result = await withTimeout(
-        saveDataAssistDraftBatch(draftSummary),
+        saveDataAssistDraftBatch(draftSummary, { allowExactDuplicate }),
         30_000,
         'Saving the export is taking longer than expected. Check your connection and try again.',
       )
+      if (result.exactDuplicate) {
+        setExactDuplicate({ batchId: result.batchId, draftId: result.draftId })
+        setFocusedSubmissionId(result.batchId)
+        return
+      }
+      setExactDuplicate(null)
       setSavedBatchId(result.batchId)
       if (draftSummary.requestedImportType === 'scorecard' || draftSummary.requestedImportType === 'schedule' || draftSummary.requestedImportType === 'team_summary') {
         const readingLabel = draftSummary.requestedImportType === 'schedule'
@@ -627,7 +919,8 @@ function DataAssistWorkspace() {
           : draftSummary.requestedImportType === 'team_summary'
             ? 'team roster'
             : 'scorecard'
-        setMessage(`${result.screenshotCount} export${result.screenshotCount === 1 ? '' : 's'} uploaded. TenAceIQ is reading the ${readingLabel} now.`)
+        const sourceLabel = isScorecardPhotoSummary(draftSummary) ? 'scorecard photo' : 'export'
+        setMessage(`${result.screenshotCount} ${sourceLabel}${result.screenshotCount === 1 ? '' : 's'} uploaded. TenAceIQ is reading the ${readingLabel} now.`)
         const ocrResult = await withTimeout(
           queueDataAssistOcrVerification({
             batchId: result.batchId,
@@ -640,6 +933,35 @@ function DataAssistWorkspace() {
         if (ocrResult.effectiveImportType && ocrResult.effectiveImportType !== draftSummary.requestedImportType) {
           setImportType(ocrResult.effectiveImportType)
         }
+        const typeCorrection = ocrResult.effectiveImportType && ocrResult.effectiveImportType !== draftSummary.requestedImportType
+          ? `TenAceIQ detected this as a ${getShortImportTypeLabel(ocrResult.effectiveImportType)} export. `
+          : ''
+        if (ocrResult.autoImport?.ok) {
+          const didReturn = isScorecardParsedDraft(ocrResult.parsedDraft)
+            ? finishScorecardImport(ocrResult.parsedDraft)
+            : isCaptainImportDraft(ocrResult.parsedDraft)
+              ? await finishCaptainImport({
+                  batchId: result.batchId,
+                  parsedDraft: ocrResult.parsedDraft,
+                  result: ocrResult.autoImport,
+                })
+              : false
+          if (didReturn) return
+          completeUploadFlow(
+            'Upload complete.',
+            buildImportedDataAssistOutcome(ocrResult.parsedDraft, result.batchId),
+          )
+          void refreshSubmissions()
+          return
+        }
+        if (ocrResult.autoImport?.importPreview?.duplicateMatch) {
+          completeUploadFlow(
+            'Already uploaded. No changes were needed.',
+            buildImportedDataAssistOutcome(ocrResult.parsedDraft, result.batchId, true),
+          )
+          void refreshSubmissions()
+          return
+        }
         setLatestScan({
           batchId: result.batchId,
           draftId: result.draftId,
@@ -647,18 +969,12 @@ function DataAssistWorkspace() {
           autoAssessment: ocrResult.autoAssessment,
           autoImport: ocrResult.autoImport,
         })
-        const typeCorrection = ocrResult.effectiveImportType && ocrResult.effectiveImportType !== draftSummary.requestedImportType
-          ? `TenAceIQ detected this as a ${getShortImportTypeLabel(ocrResult.effectiveImportType)} export. `
-          : ''
+        setOutcome(buildReviewDataAssistOutcome(ocrResult.parsedDraft, result.batchId))
         setMessage(typeCorrection + (isScheduleParsedDraft(ocrResult.parsedDraft)
-          ? ocrResult.autoImport?.ok
-            ? ocrResult.autoImport.message || 'Team schedule imported.'
-            : 'Team schedule read complete. Review the visible matches before import.'
+          ? 'Team schedule read complete. Review the visible matches before import.'
           : isTeamSummaryParsedDraft(ocrResult.parsedDraft)
-            ? ocrResult.autoImport?.ok
-              ? ocrResult.autoImport.message || 'Team roster imported.'
-              : 'Team summary read complete. Review the roster before import.'
-          : getAutoAssessmentMessage(ocrResult.autoAssessment, ocrResult.autoImport)))
+            ? 'Team Summary read complete. Review the players before import.'
+            : getAutoAssessmentMessage(ocrResult.autoAssessment, ocrResult.autoImport)))
         window.setTimeout(() => {
           document.getElementById('latest-data-assist-read')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
         }, 120)
@@ -677,25 +993,66 @@ function DataAssistWorkspace() {
     }
   }
 
-  async function reviewLatestScan(decision: 'confirmed' | 'flagged') {
+  async function reviewLatestScan(decision: 'confirmed' | 'flagged', parsedDraft?: DataAssistScheduleParsedDraft) {
     if (!latestScan || reviewingSubmissionId) return
-    const reviewLabel = getParsedDraftReviewLabel(latestScan.parsedDraft)
+    const reviewedDraft = parsedDraft || latestScan.parsedDraft
+    const reviewLabel = getParsedDraftReviewLabel(reviewedDraft)
     setReviewingSubmissionId(latestScan.batchId)
     setMessage('')
     setError('')
 
     try {
-      const result = await reviewMyDataAssistOcrDraft({
-        batchId: latestScan.batchId,
-        draftId: latestScan.draftId,
-        decision,
-      })
+      const result = await withTimeout(
+        reviewMyDataAssistOcrDraft({
+          batchId: latestScan.batchId,
+          draftId: latestScan.draftId,
+          decision,
+          parsedDraft,
+        }),
+        DATA_ASSIST_CONFIRM_TIMEOUT_MS,
+        'Confirmation is taking longer than expected. Your scorecard may still finish saving; open Saved uploads and refresh before trying again.',
+      )
       setMessage(result.message || (decision === 'confirmed'
         ? `${reviewLabel} confirmed. TenAceIQ is preparing this upload.`
         : `Thanks. This ${reviewLabel.toLowerCase()} is marked for a closer look.`))
-      setLatestScan(null)
+      if (decision === 'confirmed' && result.autoImport?.ok) {
+        const didReturn = isScorecardParsedDraft(reviewedDraft)
+          ? finishScorecardImport(reviewedDraft)
+          : isCaptainImportDraft(reviewedDraft)
+            ? await finishCaptainImport({
+                batchId: latestScan.batchId,
+                parsedDraft: reviewedDraft,
+                result: result.autoImport,
+              })
+            : false
+        if (didReturn) return
+        completeUploadFlow(
+          'Upload complete.',
+          buildImportedDataAssistOutcome(reviewedDraft, latestScan.batchId),
+        )
+        await refreshSubmissions()
+        return
+      } else {
+        setLatestScan(null)
+      }
       setSummary(null)
       setSavedBatchId('')
+      setFocusedSubmissionId(latestScan.batchId)
+      setOutcome({
+        tone: 'review',
+        title: decision === 'flagged'
+          ? `${reviewLabel} sent for review`
+          : result.autoImport && !result.autoImport.ok
+            ? `${reviewLabel} import paused`
+            : `${reviewLabel} review saved`,
+        detail: decision === 'flagged'
+          ? 'TiQ saved your note for a closer check. This upload will not change records until it is resolved.'
+          : result.autoImport && !result.autoImport.ok
+            ? `${result.autoImport.message || 'TiQ could not finish importing this upload.'} Open the import record to review its status and next steps.`
+            : 'Your review is saved. Open the upload below whenever you need to check its status.',
+        batchId: latestScan.batchId,
+        target: 'history',
+      })
       await refreshSubmissions()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update this Data Assist review.')
@@ -704,7 +1061,7 @@ function DataAssistWorkspace() {
     }
   }
 
-  async function reviewSubmission(submission: DataAssistSubmission, decision: 'confirmed' | 'flagged') {
+  async function reviewSubmission(submission: DataAssistSubmission, decision: 'confirmed' | 'flagged', parsedDraft?: DataAssistScheduleParsedDraft) {
     if (!submission.draftId || reviewingSubmissionId) return
     const reviewLabel = getDataAssistImportTypeLabel(submission.requestedImportType)
     setReviewingSubmissionId(submission.id)
@@ -712,14 +1069,34 @@ function DataAssistWorkspace() {
     setError('')
 
     try {
-      const result = await reviewMyDataAssistOcrDraft({
-        batchId: submission.id,
-        draftId: submission.draftId,
-        decision,
-      })
+      const result = await withTimeout(
+        reviewMyDataAssistOcrDraft({
+          batchId: submission.id,
+          draftId: submission.draftId,
+          decision,
+          parsedDraft,
+        }),
+        DATA_ASSIST_CONFIRM_TIMEOUT_MS,
+        'Confirmation is taking longer than expected. Your scorecard may still finish saving; refresh Saved uploads before trying again.',
+      )
       setMessage(result.message || (decision === 'confirmed'
         ? `${reviewLabel} confirmed. Contribution credit updated.`
         : `Thanks. This ${reviewLabel.toLowerCase()} is marked for a closer look.`))
+      if (decision === 'confirmed' && result.autoImport?.ok) {
+        const didReturn = isScorecardParsedDraft(submission.parsedPayload)
+          ? finishScorecardImport(submission.parsedPayload)
+          : isCaptainImportDraft(submission.parsedPayload)
+            ? await finishCaptainImport({
+                batchId: submission.id,
+                parsedDraft: submission.parsedPayload,
+                result: result.autoImport,
+              })
+            : false
+        if (didReturn) return
+        if (isScheduleParsedDraft(submission.parsedPayload)) {
+          completeUploadFlow('Schedule imported.', buildImportedDataAssistOutcome(submission.parsedPayload, submission.id))
+        }
+      }
       await refreshSubmissions()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not review this Data Assist draft.')
@@ -735,17 +1112,39 @@ function DataAssistWorkspace() {
     setError('')
 
     try {
-      const result = await runMyDataAssistImport({
-        batchId: submission.id,
-        draftId: submission.draftId,
-        action,
-      })
+      const result = await withTimeout(
+        runMyDataAssistImport({
+          batchId: submission.id,
+          draftId: submission.draftId,
+          action,
+        }),
+        action === 'commit' ? DATA_ASSIST_CONFIRM_TIMEOUT_MS : 30_000,
+        action === 'commit'
+          ? 'Confirmation is taking longer than expected. Your scorecard may still finish saving; refresh Saved uploads before trying again.'
+          : 'Preview is taking longer than expected. Try again in a moment.',
+      )
       setImportResultsBySubmission((current) => ({
         ...current,
         [submission.id]: result,
       }))
       setMessage(result.message)
-      if (action === 'commit') await refreshSubmissions()
+      if (action === 'commit' && result.ok) {
+        void refreshSubmissions()
+        const didReturn = isScorecardParsedDraft(submission.parsedPayload)
+          ? finishScorecardImport(submission.parsedPayload)
+          : isCaptainImportDraft(submission.parsedPayload)
+            ? await finishCaptainImport({
+                batchId: submission.id,
+                parsedDraft: submission.parsedPayload,
+                result,
+              })
+            : false
+        if (didReturn) return
+        if (isScheduleParsedDraft(submission.parsedPayload)) {
+          completeUploadFlow('Schedule imported.', buildImportedDataAssistOutcome(submission.parsedPayload, submission.id))
+        }
+      }
+      if (action === 'commit') void refreshSubmissions()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not run this Data Assist import.')
     } finally {
@@ -800,110 +1199,99 @@ function DataAssistWorkspace() {
     }
   }
 
+  async function saveScheduleToMyCalendar(parsedDraft: DataAssistScheduleParsedDraft, match?: DataAssistScheduleParsedDraft['matches'][number]) {
+    if (!session?.access_token) {
+      setError('Sign in to add this schedule to My Calendar.')
+      return
+    }
+
+    const allItems = buildTeamScheduleCalendarItems({ ...parsedDraft, calendarOwnerId: userId || '' })
+    const items = match
+      ? allItems.filter((item) => item.id === getTeamScheduleCalendarItemId(parsedDraft.teamName, match, parsedDraft.matches.indexOf(match), userId || ''))
+      : allItems
+    if (!items.length) {
+      setError(match
+        ? 'This match needs a valid date before it can be added to your calendar.'
+        : 'The reviewed schedule needs at least one valid match date before it can be added to your calendar.')
+      return
+    }
+
+    const savingKey = match ? items[0].id : `schedule:${parsedDraft.teamName}:${parsedDraft.leagueName}`
+    setCalendarSavingKey(savingKey)
+    setCalendarMessage('')
+    setError('')
+    try {
+      const response = await fetch('/api/player/calendar-items', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ items }),
+      })
+      const body = (await response.json()) as { ok?: boolean; message?: string; savedCount?: number; skippedCount?: number }
+      if (!response.ok || !body.ok) throw new Error(body.message || 'Could not add this schedule to My Calendar.')
+
+      setCalendarSavedItemIds((current) => new Set([...current, ...items.map((item) => item.id)]))
+      const skipped = body.skippedCount ? ` ${body.skippedCount} item${body.skippedCount === 1 ? '' : 's'} without a valid date skipped.` : ''
+      setCalendarMessage(match
+        ? 'Match added to My Calendar.'
+        : `${body.savedCount ?? items.length} match${(body.savedCount ?? items.length) === 1 ? '' : 'es'} added to My Calendar.${skipped}`)
+    } catch (calendarError) {
+      setError(calendarError instanceof Error ? calendarError.message : 'Could not add this schedule to My Calendar.')
+    } finally {
+      setCalendarSavingKey('')
+    }
+  }
+
   return (
     <section style={pageStyle(isMobile)}>
-      <PlayerSuitePanel active="refresh" playerLabel="Data refresh" />
-      <section style={newPlayerActionPanelStyle} aria-label="New player next steps">
-        <div style={newPlayerActionCopyStyle}>
-          <strong>New player path</strong>
-          <span>Get enough verified tennis context for a useful TIQ read.</span>
-        </div>
-        <div style={newPlayerActionGridStyle}>
-          {newPlayerActions.map((action) => (
-            <Link key={action.href} href={action.href} style={newPlayerActionLinkStyle}>
-              <strong>{action.label}</strong>
-              <span>{action.detail}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-      {!showOrderStep && message ? <div style={successStyle}>{message}</div> : null}
+      {!showOrderStep && message && !outcome ? <div style={successStyle}>{message}</div> : null}
       {!showOrderStep && error ? <UploadIssueNotice message={error} onStartOver={resetUploadFlow} /> : null}
-      {intent ? <DataAssistIntentPanel intent={intent} context={intentContext} query={intentQuery} /> : null}
+      {intent && !teamSetupRequested ? <DataAssistIntentPanel intent={intent} context={intentContext} query={intentQuery} /> : null}
+      {outcome ? <DataAssistOutcomePanel outcome={outcome} onUploadAnother={resetUploadFlow} /> : null}
+      {importType === 'schedule' && !outcome && !preparing ? (
+        <section style={calendarAddPanelStyle} aria-label="Use an existing team schedule">
+          <strong>Schedule already in TiQ?</strong>
+          <p style={copyStyle}>Open your team’s season calendar to add its matches to Apple, Google, or TiQ. No new upload is needed if your dates are already there.</p>
+          <Link href={buildScheduleCalendarHref(searchParams.get('team') || '', searchParams.get('league') || '', searchParams.get('flight') || '')} style={primaryButtonStyle}>Open team calendars</Link>
+          <p style={copyStyle}>Use the upload below only for missing dates or an updated schedule.</p>
+        </section>
+      ) : null}
       {showBulkScorecardResults ? (
         <BulkScorecardResultsPanel
           results={bulkScorecardResults}
           onStartOver={resetUploadFlow}
+          onReviewNow={openBulkScorecardReview}
         />
       ) : null}
 
       <section style={workspaceStyle()}>
         {showUploadStep ? (
-          <section id="upload" style={panelStyle}>
-            <DataAssistSourcePathPanel
-              onSelectImportType={updateImportType}
-              issueHref={buildDataAssistIssueHref(intentContext, intentQuery)}
-            />
-            <DataAssistTrustEnginePanel />
-            <DataAssistReviewFlowPanel />
-
-            <div style={sectionHeaderStyle}>
+          <section id="upload" style={dynamicPanelStyle}>
+            <div style={dynamicSectionHeaderStyle}>
               <div style={headerCopyStyle}>
-                <StepBadge step={1} label="Select type" />
-                <h2 style={sectionTitleStyle}>Choose your import.</h2>
-                <p style={copyStyle}>Most weeks, upload scorecards. Add schedule and roster once per season for richer context.</p>
+                <StepBadge step={1} label={teamSetupRequested ? 'Add a team' : contactImportRequested ? 'Team contacts' : 'Data Assist'} />
+                <h1 style={sectionTitleStyle}>{teamSetupRequested ? 'Add your team.' : contactImportRequested ? 'Add team contacts.' : 'Upload tennis data.'}</h1>
+                <p style={copyStyle}>{teamSetupRequested
+                  ? 'Choose the Team Summary export from TennisLink.'
+                  : contactImportRequested
+                    ? 'Choose the Player Roster export from TennisLink.'
+                    : scorecardPhotoReaderReady
+                      ? 'Pick what you have. TiQ reads it before anything changes.'
+                      : 'Pick the TennisLink export you have.'}</p>
               </div>
-              <span style={pillStyle}>{authResolved && userId ? 'Signed in' : 'Sign in needed'}</span>
+              {!isCompactViewport ? <span style={pillStyle}>{userId ? 'Account ready' : authResolved ? 'Sign in needed' : 'Checking account'}</span> : null}
             </div>
 
-            <div style={uploadChoiceStackStyle}>
-              <button
-                type="button"
-                onClick={() => updateImportType(scorecardImportType.id)}
-                style={primaryTypeOptionStyle(importType === scorecardImportType.id)}
-              >
-                <span style={typeButtonHeaderStyle}>
-                  <strong>{scorecardImportType.label}</strong>
-                  <span style={typeBadgeRowStyle}>
-                    {scorecardUploadsPaused ? <small style={typePausedBadgeStyle}>Paused</small> : null}
-                    {scorecardImportType.badge ? <small style={typeRecommendedBadgeStyle}>{scorecardImportType.badge}</small> : null}
-                  </span>
-                </span>
-                <span>{scorecardImportType.detail}</span>
-                <small>{scorecardImportType.updates}</small>
-                <em style={typeCadenceStyle}>{scorecardUploadsPaused ? 'Scorecard uploads are temporarily paused for this account.' : scorecardImportType.cadence}</em>
-              </button>
+            <UploadJourneyRail importType={importType} teamSetupRequested={teamSetupRequested} contactImportRequested={contactImportRequested} />
 
-              <div style={seasonSetupGroupStyle}>
-                <div style={seasonSetupHeaderStyle}>
-                  <strong>Season setup</strong>
-                  <span>Usually once every few months</span>
-                </div>
-                <div style={typeOptionGridStyle}>
-                  {seasonSetupImportTypes.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => updateImportType(item.id)}
-                      style={typeOptionStyle(importType === item.id)}
-                    >
-                      <span style={typeButtonHeaderStyle}>
-                        <strong>{item.label}</strong>
-                        {item.badge ? <small style={typeRecommendedBadgeStyle}>{item.badge}</small> : null}
-                      </span>
-                      <span>{item.detail}</span>
-                      <small>{item.updates}</small>
-                      <em style={typeCadenceStyle}>{item.cadence}</em>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div style={seasonGuideStyle}>
-              <strong>Scorecards can stand alone</strong>
-              <span>A scorecard import will not break if schedule or roster setup is missing. TenAceIQ links what it can and creates the missing player/match context it needs.</span>
-            </div>
-
-            <div style={stepDividerStyle}>
-              <StepBadge step={2} label="Upload export" />
-              <strong>{activeImportType.exportHint}</strong>
-            </div>
+            {!teamSetupRequested && !isCompactViewport ? <DataAssistWalkthroughHelp /> : null}
 
             {authResolved && !userId ? (
               <div style={noticeStyle}>
                 Sign in first, then choose the supported export. Data Assist saves it to your TenAceIQ account for review.
-                <Link href="/login?redirect=/data-assist" style={inlineLinkStyle}>Sign in</Link>
+                <DataAssistSignInLink style={inlineLinkStyle} />
               </div>
             ) : null}
 
@@ -911,27 +1299,112 @@ function DataAssistWorkspace() {
               <ScorecardUploadPausedPanel message={scorecardUploadPausedMessage} />
             ) : null}
 
-            <label style={dropzoneStyle(scorecardUploadBlocked ? 'paused' : summary?.status || '')}>
-              <input
-                type="file"
-                multiple={importType === 'scorecard'}
-                accept=".xls,.html,application/vnd.ms-excel,text/html"
-                onChange={(event) => void handleFiles(event)}
-                disabled={scorecardUploadBlocked}
-                style={fileInputStyle}
-              />
-              <span style={dropzoneKickerStyle}>Supported Excel exports</span>
-              <strong>{scorecardUploadBlocked ? 'Scorecard uploads paused' : preparing ? `Preparing ${selectedFileCount || ''} export${selectedFileCount === 1 ? '' : 's'}...` : getDropzoneTitle(importType)}</strong>
-              <small>{scorecardUploadBlocked ? 'Schedules and team summaries can still be uploaded while admins review scorecard access.' : `${getUploadHint(importType)} Standard filenames are detected automatically.`}</small>
-            </label>
+            {scorecardCameraRequested ? (
+              <section id="capture-scorecard" style={scorecardCapturePanelStyle} aria-labelledby="scorecard-capture-title">
+                <div style={headerCopyStyle}>
+                  <span style={dropzoneKickerStyle}>Scorecard camera</span>
+                  <h2 id="scorecard-capture-title" style={capturePanelTitleStyle}>
+                    {scorecardCaptureReady ? 'Ready to capture.' : 'Use the verified scorecard.'}
+                  </h2>
+                  <p style={copyStyle}>
+                    {scorecardCaptureReady
+                      ? 'Take a clear, straight-on photo of the completed scorecard. TiQ reads it first, then you review every court before it changes a match.'
+                      : 'Photo reading is not enabled here yet. Record final scores manually or upload a TennisLink scorecard export.'}
+                  </p>
+                </div>
+                {scorecardCaptureReady ? (
+                  <button
+                    type="button"
+                    style={{ ...primaryButtonStyle, ...(scorecardUploadBlocked || preparing ? disabledStyle : {}) }}
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={scorecardUploadBlocked || preparing}
+                  >
+                    {preparing ? 'Preparing…' : scorecardCaptureButtonLabel}
+                  </button>
+                ) : scorecardCaptureUnavailable && returnTo ? (
+                  <Link href={returnTo} style={secondaryButtonStyle}>Record results</Link>
+                ) : null}
+              </section>
+            ) : null}
+
+            <DataAssistSourcePathPanel
+              selectedImportType={importType}
+              onSelectImportType={chooseImportType}
+              issueHref={buildDataAssistIssueHref(intentContext, intentQuery)}
+              contactImportRequested={contactImportRequested}
+              teamSetupRequested={teamSetupRequested}
+            />
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={scorecardCaptureReady ? 'image/jpeg,image/png,image/webp' : acceptedUploadTypes}
+              capture={scorecardPhotoReaderReady && scorecardCameraRequested ? 'environment' : undefined}
+              onChange={(event) => void handleFiles(event)}
+              style={hiddenFileInputStyle}
+            />
+
+            {!isCompactViewport && !teamSetupRequested && !contactImportRequested ? <details style={typeOverrideDetailsStyle}>
+              <summary style={typeOverrideSummaryStyle}>
+                <span>Having trouble?</span>
+                <strong>Choose file type</strong>
+              </summary>
+              <label style={dynamicImportTypeSelectWrapStyle}>
+                <span style={dropzoneKickerStyle}>File type override</span>
+                <select
+                  value={importType}
+                  onChange={(event) => updateImportType(event.target.value as DataAssistImportType)}
+                  style={dynamicImportTypeSelectStyle}
+                >
+                  {importTypes.map((item) => (
+                    <option key={item.id} value={item.id}>{item.label}</option>
+                  ))}
+                </select>
+                <small style={dynamicImportTypeSelectHintStyle}>
+                  {scorecardUploadBlocked ? 'Scorecard uploads are temporarily paused.' : 'Only use this when TenAceIQ cannot identify the export.'}
+                </small>
+              </label>
+            </details> : null}
 
             {!hasPreparedScreenshots ? (
-              <>
-                <div style={simpleHelpStyle}>
-                  <strong>{getUploadHelpTitle(importType)}</strong>
-                  <span>{getUploadHelpText(importType)}</span>
+              isCompactViewport ? (
+                <div style={mobileUploadHelpStackStyle}>
+                  <ExportHelpPanel importType={importType} defaultOpen={exportHelpRequested} contactImportRequested={contactImportRequested} />
                 </div>
-                <ExportHelpPanel importType={importType} />
+              ) : (
+                <>
+                  <div style={simpleHelpStyle}>
+                    <strong>{getUploadHelpTitle(importType, contactImportRequested)}</strong>
+                    <span>{getUploadHelpText(importType, contactImportRequested)}</span>
+                  </div>
+                  {!exportHelpRequested ? (
+                    <div style={seasonGuideStyle}>
+                      <strong>Scorecards can stand alone</strong>
+                      <span>A scorecard import will not break if schedule or roster setup is missing. TenAceIQ links what it can and creates the missing player/match context it needs.</span>
+                    </div>
+                  ) : null}
+                  <ExportHelpPanel importType={importType} defaultOpen={exportHelpRequested} contactImportRequested={contactImportRequested} />
+                </>
+              )
+            ) : null}
+
+            {!isCompactViewport ? (
+              <>
+                <DataAssistDetailsSection
+                  eyebrow="Review-first upload"
+                  title="What happens after an upload?"
+                  cue="Show review steps"
+                >
+                  <DataAssistReviewFlowPanel />
+                </DataAssistDetailsSection>
+                <DataAssistDetailsSection
+                  eyebrow="Trust signals"
+                  title="Know what changes records."
+                  cue="Show data-quality details"
+                >
+                  <DataAssistTrustEnginePanel />
+                </DataAssistDetailsSection>
               </>
             ) : null}
 
@@ -941,29 +1414,37 @@ function DataAssistWorkspace() {
       </section>
 
       {showOrderStep ? (
-      <section style={panelStyle}>
+      <section style={dynamicPanelStyle}>
         <div style={sectionHeaderStyle}>
           <div style={headerCopyStyle}>
-            <StepBadge step={3} label="Scan setup" />
-            <h2 style={sectionTitleStyle}>Ready to scan.</h2>
-            <p style={copyStyle}>{summary ? getScanSetupText(summary.requestedImportType, summary.screenshots.length) : 'TennisLink exports are ready.'}</p>
+            <StepBadge step={3} label={isScorecardPhotoScan ? 'Photo check' : 'Scan setup'} />
+            <h2 style={sectionTitleStyle}>{isScorecardPhotoScan ? 'Check your scorecard photo.' : 'Ready to scan.'}</h2>
+            <p style={copyStyle}>{summary ? getScanSetupText(summary.requestedImportType, summary.screenshots.length, isScorecardPhotoScan) : 'TennisLink exports are ready.'}</p>
           </div>
-          {summary ? <span style={pillStyle}>{summary.screenshots.length} export{summary.screenshots.length === 1 ? '' : 's'}</span> : null}
+          {summary ? <span style={pillStyle}>{summary.screenshots.length} {isScorecardPhotoScan ? 'photo' : `export${summary.screenshots.length === 1 ? '' : 's'}`}</span> : null}
         </div>
 
-        <label style={compactDropzoneStyle}>
-          <input
-            type="file"
-            multiple={summary?.requestedImportType === 'scorecard'}
-            accept=".xls,.html,application/vnd.ms-excel,text/html"
+        <label style={replaceExportPickerStyle}>
+            <input
+              type="file"
+              multiple={isScorecardPhotoScan ? false : summary?.requestedImportType === 'scorecard'}
+              accept={isScorecardPhotoScan ? 'image/jpeg,image/png,image/webp' : acceptedUploadTypes}
+              capture={scorecardCaptureReady && isScorecardPhotoScan ? 'environment' : undefined}
             onChange={(event) => void handleFiles(event)}
             disabled={summaryScorecardUploadBlocked}
-            style={fileInputStyle}
+            style={replaceExportInputStyle}
           />
-          <span style={dropzoneKickerStyle}>Replace export</span>
-          <strong>{summaryScorecardUploadBlocked ? 'Scorecard uploads paused' : preparing ? 'Preparing...' : 'Choose a different supported export'}</strong>
-          <small>{summaryScorecardUploadBlocked ? 'Start over and choose Schedule or Team summary, or wait for admins to restore scorecard upload access.' : summary?.requestedImportType === 'scorecard' ? `You can also choose up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecard exports to catch up.` : 'Use a separate upload for each schedule or roster export.'}</small>
+          <span style={dropzoneKickerStyle}>{isScorecardPhotoScan ? 'Retake photo' : 'Replace export'}</span>
+          <strong>{summaryScorecardUploadBlocked ? 'Scorecard uploads paused' : preparing ? 'Preparing...' : isScorecardPhotoScan ? 'Take a clearer scorecard photo' : 'Choose a different supported export'}</strong>
+          <small>{summaryScorecardUploadBlocked ? 'Start over and choose Schedule or Team Summary, or wait for admins to restore scorecard upload access.' : isScorecardPhotoScan ? 'Use a straight-on photo with every completed court visible.' : summary?.requestedImportType === 'scorecard' ? `You can also choose up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecard exports to catch up.` : 'Use a separate upload for each schedule, Team Summary, or Player Roster export.'}</small>
         </label>
+
+        {isScorecardPhotoScan ? (
+          <div style={readyImportNoteStyle}>
+            <strong>Nothing changes until you confirm.</strong>
+            <span>TiQ reads the photo first. Review every court before the result becomes verified.</span>
+          </div>
+        ) : null}
 
         {summary?.screenshots.length ? (
           <div style={screenshotGridStyle(isTablet)}>
@@ -975,6 +1456,7 @@ function DataAssistWorkspace() {
                 total={summary.screenshots.length}
                 onMove={moveScreenshot}
                 onRemove={removeScreenshot}
+                showOrdering={!isScorecardPhotoScan}
               />
             ))}
           </div>
@@ -984,21 +1466,35 @@ function DataAssistWorkspace() {
           </div>
         )}
 
-        <div style={draftActionRowStyle}>
-          <button
-            type="button"
-            onClick={() => void saveDraft()}
-            disabled={!summary || !userId || saving || summary.status === 'rejected' || !summary.screenshots.length}
-            style={{
-              ...primaryButtonStyle,
-              ...((!summary || !userId || saving || summary.status === 'rejected' || !summary.screenshots.length) ? disabledStyle : {}),
-            }}
-          >
-              {saving ? `Reading ${summary?.requestedImportType === 'schedule' ? 'schedule' : summary?.requestedImportType === 'team_summary' ? 'roster' : 'scorecard'}...` : 'Import now'}
-          </button>
-          <button type="button" onClick={resetUploadFlow} style={secondaryButtonStyle}>Start over</button>
-          <span style={hintStyle}>Clean exports import automatically. Anything uncertain stops here for review.</span>
-        </div>
+        {exactDuplicate ? (
+          <div style={teamSummaryImportActionStyle}>
+            <div style={headerCopyStyle}>
+              <strong>This exact file is already imported.</strong>
+              <span style={hintStyle}>No second copy is needed. A newer export with added players or updated details will refresh normally.</span>
+            </div>
+            <div style={draftActionRowStyle}>
+              <button type="button" onClick={useSavedExactImport} style={primaryButtonStyle}>Use saved import</button>
+              <button type="button" onClick={() => void saveDraft(undefined, true)} style={secondaryButtonStyle}>Import again anyway</button>
+              <button type="button" onClick={resetUploadFlow} style={secondaryButtonStyle}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <div style={draftActionRowStyle}>
+            <button
+              type="button"
+              onClick={() => void saveDraft()}
+              disabled={!summary || !userId || saving || summary.status === 'rejected' || !summary.screenshots.length}
+              style={{
+                ...primaryButtonStyle,
+                ...((!summary || !userId || saving || summary.status === 'rejected' || !summary.screenshots.length) ? disabledStyle : {}),
+              }}
+            >
+                {saving ? `Reading ${summary?.requestedImportType === 'schedule' ? 'schedule' : summary?.requestedImportType === 'team_summary' ? 'roster' : 'scorecard'}...` : isScorecardPhotoScan ? 'Read scorecard' : 'Import now'}
+            </button>
+            <button type="button" onClick={resetUploadFlow} style={secondaryButtonStyle}>Cancel upload</button>
+            <span style={hintStyle}>Clean exports import automatically. Anything uncertain stops here for review.</span>
+          </div>
+        )}
 
         {saving ? (
           <div style={scanLoadingStyle}>
@@ -1018,12 +1514,13 @@ function DataAssistWorkspace() {
       ) : null}
 
       {showScanStep ? (
-        <section style={panelStyle}>
+        <section style={dynamicPanelStyle}>
           <div style={scanLoadingStyle}>
             <TiqLoader label="Preparing review" size="sm" />
             <p style={scanLoadingCopyStyle}>
               TenAceIQ is reading the export and importing table data.
             </p>
+            <button type="button" onClick={resetUploadFlow} style={secondaryButtonStyle}>Cancel upload</button>
           </div>
         </section>
       ) : null}
@@ -1053,9 +1550,24 @@ function DataAssistWorkspace() {
               </span>
             </div>
             {isTeamSummaryParsedDraft(latestScan.parsedDraft) && latestScan.autoImport?.ok ? (
-              <TeamSummaryImportedPanel result={latestScan.autoImport} parsedDraft={latestScan.parsedDraft} />
+              <TeamSummaryImportedPanel
+                result={latestScan.autoImport}
+                parsedDraft={latestScan.parsedDraft}
+                context={intentContext}
+                returnTo={returnTo}
+              />
             ) : isScheduleParsedDraft(latestScan.parsedDraft) && latestScan.autoImport?.ok ? (
-              <ScheduleImportedSummaryPanel result={latestScan.autoImport} parsedDraft={latestScan.parsedDraft} />
+              <ScheduleImportedSummaryPanel
+                result={latestScan.autoImport}
+                parsedDraft={latestScan.parsedDraft}
+                context={intentContext}
+                calendarSavingKey={calendarSavingKey}
+                calendarSavedItemIds={calendarSavedItemIds}
+                calendarMessage={calendarMessage}
+                calendarOwnerId={userId || ''}
+                onAddScheduleToCalendar={(schedule) => void saveScheduleToMyCalendar(schedule)}
+                onAddMatchToCalendar={(schedule, match) => void saveScheduleToMyCalendar(schedule, match)}
+              />
             ) : latestScan.autoImport?.importPreview?.duplicateMatch && isScorecardParsedDraft(latestScan.parsedDraft) ? (
               <ImportedSummaryPanel
                 summary={{
@@ -1067,20 +1579,46 @@ function DataAssistWorkspace() {
                   duplicate: true,
                 }}
                 parsedDraft={latestScan.parsedDraft}
+                returnTo={returnTo}
               />
             ) : isScheduleParsedDraft(latestScan.parsedDraft) ? (
-              <ScheduleReviewPanel parsedDraft={latestScan.parsedDraft} />
-            ) : isTeamSummaryParsedDraft(latestScan.parsedDraft) ? (
-              <TeamSummaryReviewPanel parsedDraft={latestScan.parsedDraft} />
-            ) : (
-              <ScorecardReviewPanel
+              <ScheduleReviewPanel
                 parsedDraft={latestScan.parsedDraft}
-                canReview={Boolean(latestScan.autoAssessment?.memberConfirmationRequired && canConfirmScorecardRead(latestScan.parsedDraft))}
+                busy={reviewingSubmissionId === latestScan.batchId}
+                onConfirm={(draft) => void reviewLatestScan('confirmed', draft)}
+              />
+            ) : isTeamSummaryParsedDraft(latestScan.parsedDraft) ? (
+              <TeamSummaryReviewPanel
+                parsedDraft={latestScan.parsedDraft}
+                busy={reviewingSubmissionId === latestScan.batchId}
+                onImport={() => void reviewLatestScan('confirmed')}
+                refreshComparison={latestScan.autoImport?.refreshComparison}
+              />
+            ) : latestScorecardDraft ? (
+              <ScorecardReviewPanel
+                parsedDraft={latestScorecardDraft}
+                canReview={Boolean(latestScan.autoAssessment?.memberConfirmationRequired && canConfirmScorecardRead(latestScorecardDraft))}
                 busy={reviewingSubmissionId === latestScan.batchId}
                 onConfirm={() => void reviewLatestScan('confirmed')}
                 onFlag={() => void reviewLatestScan('flagged')}
+                captainScorecardHandoffIssue={captainScorecardReturn ? getCaptainScorecardPhotoPrefillIssue({
+                  teamName: captainScorecardReturn.teamName,
+                  dataAssistBatchId: latestScan.batchId,
+                  dataAssistDraftId: latestScan.draftId,
+                  parsedDraft: latestScorecardDraft,
+                }) : undefined}
+                onOpenCaptainScorecard={captainScorecardReturn && !getCaptainScorecardPhotoPrefillIssue({
+                  teamName: captainScorecardReturn.teamName,
+                  dataAssistBatchId: latestScan.batchId,
+                  dataAssistDraftId: latestScan.draftId,
+                  parsedDraft: latestScorecardDraft,
+                }) ? () => openVerifiedCaptainScorecard({
+                  batchId: latestScan.batchId,
+                  draftId: latestScan.draftId,
+                  parsedDraft: latestScorecardDraft,
+                }) : undefined}
               />
-            )}
+            ) : null}
             <div style={draftActionRowStyle}>
               <button type="button" onClick={resetUploadFlow} style={primaryButtonStyle}>Upload another</button>
             </div>
@@ -1089,6 +1627,7 @@ function DataAssistWorkspace() {
 
       {showHistoryStep ? (
       <MySubmissionsPanel
+        key={focusedSubmissionId || (outcome ? `data-assist-history-${outcome.tone}` : 'data-assist-history')}
         authResolved={authResolved}
         userId={userId}
         submissions={submissions}
@@ -1097,7 +1636,7 @@ function DataAssistWorkspace() {
         error={submissionsError}
         onRefresh={() => void refreshSubmissions()}
         reviewingSubmissionId={reviewingSubmissionId}
-        onReviewSubmission={(submission, decision) => void reviewSubmission(submission, decision)}
+        onReviewSubmission={(submission, decision, parsedDraft) => void reviewSubmission(submission, decision, parsedDraft)}
         importingSubmissionId={importingSubmissionId}
         deletingSubmissionId={deletingSubmissionId}
         bulkDeleting={bulkDeletingHistory}
@@ -1105,9 +1644,99 @@ function DataAssistWorkspace() {
         onRunImport={(submission, action) => void runSubmissionImport(submission, action)}
         onDeleteSubmission={(submission) => void deleteSubmission(submission)}
         onDeleteAllDrafts={() => void deleteAllDraftSubmissions()}
+        calendarSavingKey={calendarSavingKey}
+        calendarSavedItemIds={calendarSavedItemIds}
+        calendarMessage={calendarMessage}
+        calendarOwnerId={userId || ''}
+        onAddScheduleToCalendar={(schedule) => void saveScheduleToMyCalendar(schedule)}
+        onAddMatchToCalendar={(schedule, match) => void saveScheduleToMyCalendar(schedule, match)}
+        focusedSubmissionId={focusedSubmissionId}
+        forceHistoryOpen={Boolean(outcome)}
+        initialHistoryFilter={focusedHistoryFilter}
+        isMobile={isMobile}
+        returnTo={returnTo}
       />
       ) : null}
+      {showUploadStep && !teamSetupRequested ? (
+        <DataAssistDetailsSection
+          eyebrow="Player tools"
+          title="Want the player path around this data?"
+          cue="Show player paths"
+        >
+          <PlayerSuitePanel active="refresh" playerLabel="Data refresh" />
+          <section style={newPlayerActionPanelStyle} aria-label="New player next steps">
+            <div style={newPlayerActionCopyStyle}>
+              <strong>New player path</strong>
+              <span>Get enough verified tennis context for a useful TIQ read.</span>
+            </div>
+            <div style={newPlayerActionGridStyle}>
+              {newPlayerActions.map((action) => (
+                <Link key={action.href} href={action.href} style={newPlayerActionLinkStyle}>
+                  <strong>{action.label}</strong>
+                  <span>{action.detail}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        </DataAssistDetailsSection>
+      ) : null}
     </section>
+  )
+}
+
+function DataAssistDetailsSection({
+  eyebrow,
+  title,
+  cue,
+  defaultOpen = false,
+  children,
+}: {
+  eyebrow: string
+  title: string
+  cue: string
+  defaultOpen?: boolean
+  children: ReactNode
+}) {
+  const { isMobile, isTablet } = useViewportBreakpoints()
+  const [open, setOpen] = useState(defaultOpen)
+  const isCompactViewport = isMobile || isTablet
+  const dynamicSummaryStyle: CSSProperties = {
+    ...dataAssistDetailsSummaryStyle,
+    display: isCompactViewport ? 'grid' : dataAssistDetailsSummaryStyle.display,
+    gridTemplateColumns: isCompactViewport ? 'minmax(0, 1fr) minmax(0, auto)' : undefined,
+    gap: isCompactViewport ? 7 : dataAssistDetailsSummaryStyle.gap,
+    padding: isCompactViewport ? '7px 8px' : dataAssistDetailsSummaryStyle.padding,
+    borderRadius: isCompactViewport ? 10 : dataAssistDetailsSummaryStyle.borderRadius,
+  }
+  const dynamicEyebrowStyle: CSSProperties = {
+    ...dataAssistDetailsEyebrowStyle,
+    fontSize: isCompactViewport ? 9 : dataAssistDetailsEyebrowStyle.fontSize,
+  }
+  const dynamicTitleStyle: CSSProperties = {
+    ...dataAssistDetailsTitleStyle,
+    fontSize: isCompactViewport ? 13 : dataAssistDetailsTitleStyle.fontSize,
+  }
+  const dynamicCueStyle: CSSProperties = {
+    ...dataAssistDetailsCueStyle,
+    fontSize: isCompactViewport ? 10 : dataAssistDetailsCueStyle.fontSize,
+  }
+
+  return (
+    <details
+      className="dataAssistDetailsSection"
+      style={dataAssistDetailsSectionStyle}
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary style={dynamicSummaryStyle}>
+        <span style={dataAssistDetailsSummaryCopyStyle}>
+          <span style={dynamicEyebrowStyle}>{eyebrow}</span>
+          <strong style={dynamicTitleStyle}>{title}</strong>
+        </span>
+        <span style={dynamicCueStyle}>{isCompactViewport ? 'Open' : cue}</span>
+      </summary>
+      <div className="dataAssistDetailsBody" style={dataAssistDetailsContentStyle}>{children}</div>
+    </details>
   )
 }
 
@@ -1118,7 +1747,7 @@ function DataAssistTrustEnginePanel() {
         <span style={trustEngineEyebrowStyle}>Fix Data / Data Assist</span>
         <h2 id="data-assist-trust-title" style={trustEngineTitleStyle}>Help keep TenAceIQ accurate.</h2>
         <p style={copyStyle}>
-          Upload scorecards, schedules, rosters, team summaries, and corrections. Reviewed data can improve player profiles,
+          Upload scorecards, schedules, Team Summaries, and corrections. Reviewed data can improve player profiles,
           teams, leagues, rankings, matchup reads, and My Lab.
         </p>
       </div>
@@ -1218,65 +1847,170 @@ function DataAssistTrustEnginePanel() {
 }
 
 function DataAssistSourcePathPanel({
+  selectedImportType,
   onSelectImportType,
   issueHref,
+  contactImportRequested = false,
+  teamSetupRequested = false,
 }: {
+  selectedImportType: DataAssistImportType
   onSelectImportType: (importType: DataAssistImportType) => void
   issueHref: string
+  contactImportRequested?: boolean
+  teamSetupRequested?: boolean
 }) {
+  const { isMobile, isTablet } = useViewportBreakpoints()
+  const isCompactViewport = isMobile || isTablet
+  const dynamicPanelStyle = isCompactViewport ? compactSourcePathPanelStyle : sourcePathPanelStyle
+  const dynamicHeaderStyle = isCompactViewport ? compactSourcePathHeaderStyle : sourcePathHeaderStyle
+  const dynamicTitleStyle = isCompactViewport ? compactSourcePathTitleStyle : sourcePathTitleStyle
+  const dynamicGridStyle = isCompactViewport ? compactSourcePathGridStyle : sourcePathGridStyle
+  const dynamicCardStyle = isCompactViewport ? compactSourcePathCardStyle : sourcePathCardStyle
+  const visibleJobs = contactImportRequested || teamSetupRequested
+    ? dataAssistSourcePathJobs.filter((job) => job.id === 'team_summary')
+    : dataAssistSourcePathJobs
+  const nextStep = contactImportRequested
+    ? 'Review the contacts, then return to your team.'
+    : teamSetupRequested
+      ? 'Review the team, then connect it to My Teams.'
+      : selectedImportType === 'schedule'
+        ? 'Review the dates, then open your season calendar.'
+        : selectedImportType === 'team_summary'
+          ? 'Review the roster, then connect the team.'
+          : 'Review the read, then import the match.'
+
   return (
-    <section style={sourcePathPanelStyle} aria-labelledby="data-assist-source-path-title">
-      <div style={sourcePathHeaderStyle}>
+    <section style={dynamicPanelStyle} aria-labelledby="data-assist-source-path-title">
+      <div style={dynamicHeaderStyle}>
         <div>
-          <span style={sourcePathEyebrowStyle}>Source refresh path</span>
-          <h2 id="data-assist-source-path-title" style={sourcePathTitleStyle}>{PRODUCT_MOTTO}</h2>
+          <span style={sourcePathEyebrowStyle}>{contactImportRequested ? 'Player Roster' : teamSetupRequested ? 'Team Summary' : 'Choose a file'}</span>
+          <h2 id="data-assist-source-path-title" style={dynamicTitleStyle}>{contactImportRequested ? 'Choose your Player Roster.' : teamSetupRequested ? 'Choose your Team Summary.' : 'What are you uploading?'}</h2>
         </div>
-        <p style={sourcePathIntroStyle}>
-          Choose the tennis need first. Data Assist will keep the upload review-first before records change.
-        </p>
+        {!isCompactViewport ? <p style={sourcePathIntroStyle}>
+          {contactImportRequested
+            ? 'Upload your TennisLink Player Roster for private phone and email details, then connect the team to your profile. Your Team Summary stays in place.'
+            : teamSetupRequested
+              ? 'This adds the team record, league, flight, and roster. After import, review your private team link so it appears in My Teams. Add the schedule and optional contacts later.'
+            : 'For your own team, import Team Summary, Match Schedule, then Player Roster. TiQ reviews every source before records change.'}
+        </p> : null}
       </div>
-      <div style={sourcePathGridStyle}>
-        {dataAssistSourcePathJobs.map((job) => (
-          <button
-            key={job.id}
-            type="button"
-            style={sourcePathCardStyle}
-            onClick={() => onSelectImportType(job.id)}
-            data-data-assist-source-path-job={job.id}
-            aria-label={`${job.cta}: ${job.question}`}
-          >
-            <span style={sourcePathQuestionStyle}>{job.question}</span>
-            <strong style={sourcePathCardTitleStyle}>{job.title}</strong>
-            <span>{job.body}</span>
-            <span style={sourcePathCtaStyle}>{job.cta}</span>
-          </button>
-        ))}
-        <Link
-          href={issueHref}
-          style={sourcePathLinkCardStyle}
-          data-data-assist-source-path-job="report_or_review"
-          aria-label="Report or request review: What looks wrong?"
-          onClick={() => {
-            void trackProductUsageEvent({
-              eventName: 'data_issue_reported',
-              surface: 'data_assist',
-              metadata: {
-                location: 'data_assist_source_path',
-              },
-            })
-          }}
-        >
-          <span style={sourcePathQuestionStyle}>What looks wrong?</span>
-          <strong style={sourcePathCardTitleStyle}>Report or request review</strong>
-          <span>Use this when a player, score, rating, team, draw, or source label needs a closer look.</span>
-          <span style={sourcePathCtaStyle}>Open support report</span>
-        </Link>
+      {!isCompactViewport ? <div style={sourcePathDefaultCueStyle}>
+        <strong>{contactImportRequested ? 'Captain contacts: use Player Roster.' : teamSetupRequested ? 'Your team path: Import Team Summary → review team link → My Teams.' : 'Team setup: Team Summary → schedule → Player Roster.'}</strong>
+        <span>{contactImportRequested
+          ? 'This adds contact details only. After import, approve the team connection so it appears in My Teams.'
+          : teamSetupRequested
+            ? 'A Team Summary does not automatically connect the team to you. That protects teams imported by someone else; you approve your own connection after import.'
+          : 'The Player Roster adds captain contact details. After it imports, approve your team once to add it to My Teams.'}</span>
+      </div> : null}
+      <div style={dynamicGridStyle}>
+        {visibleJobs.map((job) => {
+          const selected = selectedImportType === job.id
+          const recommended = job.id === 'team_summary'
+          const title = contactImportRequested && job.id === 'team_summary' ? 'Player Roster contacts' : job.title
+          const question = contactImportRequested && job.id === 'team_summary' ? 'Need private captain contacts?' : job.question
+          const cta = contactImportRequested && job.id === 'team_summary'
+            ? 'Phones and email for match week'
+            : teamSetupRequested && job.id === 'team_summary'
+              ? 'Choose Team Summary file'
+              : job.cta
+          const body = contactImportRequested && job.id === 'team_summary'
+            ? 'For your team only: import the TennisLink Player Roster to save its contact details, then approve the team connection. Your Team Summary is not replaced.'
+            : job.body
+          const compactDetail = contactImportRequested && job.id === 'team_summary'
+            ? 'Adds phones and email'
+            : job.id === 'team_summary'
+              ? 'Adds team, roster, ratings and flight'
+              : job.id === 'schedule'
+                ? 'Adds dates, times and locations'
+                : 'Adds the match result and line scores'
+          return (
+            <button
+              key={job.id}
+              type="button"
+              style={{ ...dynamicCardStyle, ...(selected ? sourcePathSelectedCardStyle : {}) }}
+              onClick={() => onSelectImportType(job.id)}
+              data-data-assist-source-path-job={job.id}
+              aria-label={`Upload ${title}: ${cta}`}
+              aria-pressed={selected}
+            >
+              {isCompactViewport ? (
+                <span style={compactSourcePathCardRowStyle}>
+                  <TiqFeatureIcon name={job.icon} size="sm" variant="ghost" />
+                  <span style={compactSourcePathCardCopyStyle}>
+                    <strong style={sourcePathCardTitleStyle}>{title}</strong>
+                    <span style={compactSourcePathDetailStyle}>{compactDetail}</span>
+                  </span>
+                  <span style={selected ? compactSourcePathActionStyle : sourcePathReadyPillStyle}>
+                    Choose file
+                  </span>
+                </span>
+              ) : (
+                <>
+                  <span style={sourcePathCardTopStyle}>
+                    <TiqFeatureIcon name={job.icon} size="sm" variant="ghost" />
+                    <span style={selected ? sourcePathSelectedPillStyle : sourcePathReadyPillStyle}>
+                      {selected ? 'Selected' : recommended ? 'Start here' : 'Upload'}
+                    </span>
+                  </span>
+                  <span style={sourcePathQuestionStyle}>{question}</span>
+                  <strong style={sourcePathCardTitleStyle}>{title}</strong>
+                  <span style={sourcePathCtaStyle}>{cta}</span>
+                  <span>{body}</span>
+                </>
+              )}
+            </button>
+          )
+        })}
       </div>
+      {isCompactViewport ? (
+        <div style={sourcePathNextStyle}>
+          <span>Next</span>
+          <strong>{nextStep}</strong>
+        </div>
+      ) : null}
+      {isCompactViewport && (teamSetupRequested || contactImportRequested) ? (
+        <details style={sourcePathSafetyDetailsStyle}>
+          <summary style={sourcePathSafetySummaryStyle}>Why review before connecting?</summary>
+          <span style={sourcePathSafetyCopyStyle}>It prevents an opponent’s upload from becoming one of your teams.</span>
+        </details>
+      ) : null}
+      <Link
+        href={issueHref}
+        style={sourcePathSupportLinkStyle}
+        onClick={() => {
+          void trackProductUsageEvent({
+            eventName: 'data_issue_reported',
+            surface: 'data_assist',
+            metadata: {
+              location: 'data_assist_source_path',
+            },
+          })
+        }}
+      >
+        Something looks wrong? Report a data issue <span aria-hidden="true">→</span>
+      </Link>
     </section>
   )
 }
 
 function DataAssistReviewFlowPanel() {
+  const { isMobile, isTablet } = useViewportBreakpoints()
+  const isCompactViewport = isMobile || isTablet
+  const dynamicUploadStateProofStyle: CSSProperties = isCompactViewport
+    ? {
+        ...uploadStateProofStyle,
+        gridTemplateColumns: 'minmax(0, 1fr)',
+        gap: 12,
+        padding: 12,
+      }
+    : uploadStateProofStyle
+  const dynamicUploadStateProofGridStyle: CSSProperties = isCompactViewport
+    ? {
+        ...uploadStateProofGridStyle,
+        gridTemplateColumns: 'minmax(0, 1fr)',
+      }
+    : uploadStateProofGridStyle
+
   return (
     <section style={reviewFlowPanelStyle} aria-labelledby="data-assist-review-flow-title">
       <div style={reviewFlowHeaderStyle}>
@@ -1295,12 +2029,12 @@ function DataAssistReviewFlowPanel() {
           </article>
         ))}
       </div>
-      <div style={uploadStateProofStyle} aria-label="Data Assist upload state proof cue">
+      <div style={dynamicUploadStateProofStyle} aria-label="Upload review status">
         <div style={uploadStateProofHeaderStyle}>
-          <span style={reviewFlowEyebrowStyle}>Upload state proof cue</span>
+          <span style={reviewFlowEyebrowStyle}>Upload review status</span>
           <strong style={uploadStateProofTitleStyle}>Know what changed and what did not.</strong>
         </div>
-        <div style={uploadStateProofGridStyle}>
+        <div style={dynamicUploadStateProofGridStyle}>
           {dataAssistUploadStateProof.map((item) => (
             <article key={item.label} style={uploadStateProofCardStyle}>
               <span style={uploadStateProofLabelStyle}>{item.label}</span>
@@ -1331,10 +2065,10 @@ function DataAssistIntentPanel({ intent, context, query }: { intent: DataAssistI
         </strong>
         <p style={intentTextStyle}>
           {isUploadSource
-            ? 'Upload a scorecard, schedule, team summary, roster, or correction source so TenAceIQ can connect it to the right player, team, league, tournament, or ranking.'
+            ? 'Upload a scorecard, schedule, Team Summary, or correction source so TenAceIQ can connect it to the right player, team, league, tournament, or ranking.'
             : isReportIssue
               ? 'Use the support path for wrong players, teams, scores, ratings, draws, standings, or source labels.'
-              : 'Upload a scorecard, schedule, team summary, or correction source so the data can move through review.'}
+              : 'Upload a scorecard, schedule, Team Summary, or correction source so the data can move through review.'}
         </p>
         {context ? <span style={intentContextStyle}>From: {context}</span> : null}
         {query ? <span style={intentContextStyle}>Search: {query}</span> : null}
@@ -1371,6 +2105,53 @@ function DataAssistIntentPanel({ intent, context, query }: { intent: DataAssistI
   )
 }
 
+function DataAssistOutcomePanel({
+  outcome,
+  onUploadAnother,
+}: {
+  outcome: DataAssistOutcome
+  onUploadAnother: () => void
+}) {
+  const receiptRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (!outcome.calendarHref) return
+    const frame = window.requestAnimationFrame(() => {
+      receiptRef.current?.scrollIntoView({ block: 'start' })
+      receiptRef.current?.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [outcome.calendarHref, outcome.batchId])
+  const targetId = outcome.target === 'latest-read' ? 'latest-data-assist-read' : 'history'
+  const actionLabel = outcome.target === 'latest-read'
+    ? 'Review this upload'
+    : outcome.batchId && !outcome.calendarHref
+      ? 'Open import record'
+      : 'Open import history'
+
+  return (
+    <section ref={receiptRef} tabIndex={-1} style={dataAssistOutcomeStyle(outcome.tone)} aria-live="polite" data-data-assist-outcome={outcome.tone}>
+      <div style={dataAssistOutcomeHeaderStyle}>
+        <div style={headerCopyStyle}>
+          <span style={dataAssistOutcomeEyebrowStyle}>{outcome.tone === 'review' ? 'Your next action' : 'Import complete'}</span>
+          <h2 style={dataAssistOutcomeTitleStyle}>{outcome.title}</h2>
+          <p style={dataAssistOutcomeCopyStyle}>{outcome.detail}</p>
+        </div>
+        <span style={dataAssistOutcomePillStyle(outcome.tone)}>
+          {outcome.tone === 'review' ? 'Needs review' : outcome.tone === 'duplicate' ? 'No duplicate created' : 'Saved'}
+        </span>
+      </div>
+      <div style={dataAssistOutcomeActionRowStyle}>
+        {outcome.teamConnectionHref ? (
+          <Link href={outcome.teamConnectionHref} style={primaryButtonStyle}>Review &amp; link this team</Link>
+        ) : null}
+        {outcome.calendarHref ? <Link href={outcome.calendarHref} style={primaryButtonStyle}>Add season to Apple / Google Calendar</Link> : null}
+        <a href={`#${targetId}`} style={outcome.teamConnectionHref || outcome.calendarHref ? secondaryButtonStyle : primaryButtonStyle}>{actionLabel}</a>
+        <button type="button" onClick={onUploadAnother} style={secondaryButtonStyle}>Upload another</button>
+      </div>
+    </section>
+  )
+}
+
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   return new Promise((resolve, reject) => {
     const timeout = window.setTimeout(() => reject(new Error(message)), timeoutMs)
@@ -1397,7 +2178,7 @@ function getAutoAssessmentMessage(
     return `Scorecard read complete, but automatic import paused: ${autoImport.message}`
   }
   if (!assessment) {
-    return 'Scorecard read complete. Review the parsed export before any import is committed.'
+  return 'Scorecard read complete. Review the parsed export before it changes your tennis records.'
   }
   if (assessment.decision === 'auto_ready') {
     return 'Scorecard read complete. This scorecard passed auto-checks; no public records change until the import check finishes.'
@@ -1409,6 +2190,73 @@ function getAutoAssessmentMessage(
     return 'Scorecard read complete. Some details need a closer look before import.'
   }
   return 'TenAceIQ could not safely read this scorecard export. Upload the TennisLink Score Card Excel file again.'
+}
+
+function buildImportedDataAssistOutcome(
+  parsedDraft: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft,
+  batchId: string,
+  duplicate = false,
+): DataAssistOutcome {
+  if (isTeamSummaryParsedDraft(parsedDraft)) {
+    return {
+      tone: duplicate ? 'duplicate' : 'success',
+      title: duplicate ? 'Roster already in TiQ' : 'Roster imported',
+      detail: `${parsedDraft.rosterTeamName || 'Your team'}: ${parsedDraft.playerCount} player${parsedDraft.playerCount === 1 ? '' : 's'} ${duplicate ? 'already saved. No duplicate was created.' : 'saved.'} Next, review your team link to add it to My Teams. Uploading a roster does not make you a member or captain. If this is an opponent, no team link is needed.`,
+      batchId,
+      target: 'history',
+      teamConnectionHref: buildTeamConnectionReviewHref(parsedDraft),
+    }
+  }
+
+  if (isScheduleParsedDraft(parsedDraft)) {
+    return {
+      tone: duplicate ? 'duplicate' : 'success',
+      title: duplicate ? 'Schedule already in TiQ' : 'Schedule imported',
+      detail: `${parsedDraft.teamName || 'Your team'}: ${parsedDraft.matchCount} scheduled match${parsedDraft.matchCount === 1 ? '' : 'es'} ${duplicate ? 'already saved' : 'saved'}. Next, choose Apple, Google, or TiQ on your season calendar. Importing a schedule does not add it to your phone automatically.`,
+      batchId,
+      target: 'history',
+      calendarHref: buildScheduleCalendarHref(parsedDraft.teamName, parsedDraft.leagueName, parsedDraft.flight),
+    }
+  }
+
+  if (duplicate) {
+    return {
+      tone: 'duplicate',
+      title: `${getDataAssistImportTypeLabel(getParsedDraftImportType(parsedDraft))} already in TiQ`,
+      detail: 'TiQ kept the existing record and saved this upload in your history as proof. No duplicate was created.',
+      batchId,
+      target: 'history',
+    }
+  }
+
+  return {
+    tone: 'success',
+    title: 'Scorecard imported',
+    detail: 'The result is saved and ready to support player, team, and league context.',
+    batchId,
+    target: 'history',
+  }
+}
+
+function buildReviewDataAssistOutcome(
+  parsedDraft: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft,
+  batchId: string,
+): DataAssistOutcome {
+  return {
+    tone: 'review',
+    title: `${getDataAssistImportTypeLabel(getParsedDraftImportType(parsedDraft))} review ready`,
+    detail: 'TiQ saved the upload but will not change player, team, league, or rating records until the visible details are checked.',
+    batchId,
+    target: 'latest-read',
+  }
+}
+
+function getParsedDraftImportType(
+  parsedDraft: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft,
+): DataAssistImportType {
+  if (isTeamSummaryParsedDraft(parsedDraft)) return 'team_summary'
+  if (isScheduleParsedDraft(parsedDraft)) return 'schedule'
+  return 'scorecard'
 }
 
 function buildBulkScorecardMessage({
@@ -1427,28 +2275,17 @@ function buildBulkScorecardMessage({
   const parts = [
     importedCount ? `${importedCount} imported` : '',
     duplicateCount ? `${duplicateCount} already in TenAceIQ` : '',
-    reviewCount ? `${reviewCount} saved for review` : '',
+    reviewCount ? `${reviewCount} need your confirmation` : '',
     failedCount ? `${failedCount} need another try` : '',
   ].filter(Boolean)
   return `Scorecard batch complete: ${parts.join(', ') || `${total} processed`}.`
-}
-
-function getUploadHint(importType: DataAssistImportType) {
-  if (importType === 'schedule') return 'Use Match Schedule, then Send To Excel.'
-  if (importType === 'team_summary') return 'Use Team Summary, then Send To Excel.'
-  return `Use Score Card, then Send To Excel. Select up to ${DATA_ASSIST_MAX_BULK_SCORECARDS} scorecards.`
-}
-
-function getDropzoneTitle(importType: DataAssistImportType) {
-  if (importType === 'scorecard') return 'Tap to choose scorecard .xls exports'
-  return 'Tap to choose .xls export'
 }
 
 function getBulkScorecardStatusLabel(status: BulkScorecardResult['status']) {
   if (status === 'pending') return 'Pending'
   if (status === 'imported') return 'Imported'
   if (status === 'duplicate') return 'Already in'
-  if (status === 'review') return 'Review'
+  if (status === 'review') return 'Confirm to import'
   return 'Retry'
 }
 
@@ -1479,27 +2316,36 @@ function getBulkScorecardResultDetail(result: BulkScorecardResult) {
 
 function getShortImportTypeLabel(importType: DataAssistImportType) {
   if (importType === 'schedule') return 'schedule'
-  if (importType === 'team_summary') return 'team summary'
+  if (importType === 'team_summary') return 'Team Summary'
   return 'scorecard'
 }
 
-function getUploadHelpTitle(importType: DataAssistImportType) {
+function isScorecardPhotoSummary(summary: DataAssistBatchSummary) {
+  return summary.requestedImportType === 'scorecard'
+    && summary.screenshots.length === 1
+    && summary.screenshots.every((screenshot) => screenshot.mimeType.startsWith('image/'))
+}
+
+function getUploadHelpTitle(importType: DataAssistImportType, contactImportRequested = false) {
   if (importType === 'schedule') return 'Flight or team schedule export'
-  if (importType === 'team_summary') return 'Team summary export'
+  if (importType === 'team_summary') return contactImportRequested ? 'Player Roster contact export' : 'Team Summary export'
   return 'Scorecard export'
 }
 
-function getUploadHelpText(importType: DataAssistImportType) {
+function getUploadHelpText(importType: DataAssistImportType, contactImportRequested = false) {
   if (importType === 'schedule') {
     return 'Open the Match Schedule tab and choose Send To Excel. This is season setup; most teams only need it once.'
   }
   if (importType === 'team_summary') {
-    return 'Open Team Summary and choose Send To Excel. This imports roster players and base ratings for the season.'
+    if (contactImportRequested) {
+      return 'In TennisLink, open your team’s Player Roster and choose Send To Excel. TiQ adds the phone and email details included there without replacing your Team Summary.'
+    }
+    return 'Start with Team Summary and choose Send To Excel. It imports the team, league, flight, roster, official ratings, and standings. If you manage the team, add Player Roster later for phone and email details.'
   }
   return 'Open each Score Card and choose Send To Excel. Import one match after play or select several scorecards to catch up.'
 }
 
-function getExportHelpSteps(importType: DataAssistImportType) {
+function getExportHelpSteps(importType: DataAssistImportType, contactImportRequested = false) {
   if (importType === 'schedule') {
     return [
       'Open TennisLink and go to the Match Schedule tab.',
@@ -1508,10 +2354,19 @@ function getExportHelpSteps(importType: DataAssistImportType) {
     ]
   }
   if (importType === 'team_summary') {
+    if (contactImportRequested) {
+      return [
+        'Open TennisLink and select your own league team.',
+        'Open Player Roster, then choose Send To Excel.',
+        'Upload the PlayerRoster .xls file here.',
+        'Return to the team roster to see what is text-ready or still missing.',
+      ]
+    }
     return [
       'Open TennisLink and go to Team Summary.',
       'Choose Send To Excel.',
       'Upload the TeamSummary .xls file here.',
+      'Optional for captains: add your PlayerRoster .xls later to save the contact details TennisLink provides.',
     ]
   }
   return [
@@ -1521,15 +2376,38 @@ function getExportHelpSteps(importType: DataAssistImportType) {
   ]
 }
 
-function getExportFileExample(importType: DataAssistImportType) {
+function getExportFileExample(importType: DataAssistImportType, contactImportRequested = false) {
   if (importType === 'schedule') return 'MatchSchedule_582026.xls'
-  if (importType === 'team_summary') return 'TeamSummary_582026.xls'
+  if (importType === 'team_summary') return contactImportRequested ? 'PlayerRoster_812026.xls' : 'TeamSummary_812026.xls'
   return 'Scorecard_582026.xls'
 }
 
-function ExportHelpPanel({ importType }: { importType: DataAssistImportType }) {
-  const [open, setOpen] = useState(false)
-  const steps = getExportHelpSteps(importType)
+function DataAssistWalkthroughHelp() {
+  return (
+    <aside style={walkthroughHelpStyle} aria-labelledby="data-assist-walkthrough-title">
+      <div style={walkthroughHelpCopyStyle}>
+        <span style={walkthroughHelpKickerStyle}>New to TennisLink exports?</span>
+        <strong id="data-assist-walkthrough-title">Watch the phone walkthrough first.</strong>
+        <small>See where to tap in USTA, confirm each download, choose the file on your phone, and review it in TenAceIQ.</small>
+      </div>
+      <Link href="/resources/usta-upload" style={secondaryButtonStyle}>
+        Watch walkthrough
+      </Link>
+    </aside>
+  )
+}
+
+function ExportHelpPanel({
+  importType,
+  defaultOpen = false,
+  contactImportRequested = false,
+}: {
+  importType: DataAssistImportType
+  defaultOpen?: boolean
+  contactImportRequested?: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  const steps = getExportHelpSteps(importType, contactImportRequested)
 
   return (
     <div style={exportHelpStyle}>
@@ -1546,7 +2424,7 @@ function ExportHelpPanel({ importType }: { importType: DataAssistImportType }) {
             </div>
           ))}
           <div style={exportHelpExampleStyle}>
-            Expected file: <strong>{getExportFileExample(importType)}</strong>
+            Expected file: <strong>{getExportFileExample(importType, contactImportRequested)}</strong>
           </div>
         </div>
       ) : null}
@@ -1561,14 +2439,14 @@ function UploadIssueNotice({
   message: string
   onStartOver: () => void
 }) {
-  const mixedExportIssue = /one at a time|one TennisLink Excel export|different TennisLink export types|scorecards, schedules, and team summaries|schedules and team summaries|up to \d+ scorecard/i.test(message)
+  const mixedExportIssue = /one at a time|one TennisLink Excel export|different TennisLink export types|scorecards, schedules, and (?:team summaries|Player Rosters)|schedules and (?:team summaries|Player Rosters)|up to \d+ scorecard/i.test(message)
   return (
     <div style={uploadIssueStyle}>
       <div style={headerCopyStyle}>
         <strong>{mixedExportIssue ? 'Use one export type per import' : 'Upload needs attention'}</strong>
         <p style={uploadIssueCopyStyle}>
           {mixedExportIssue
-            ? `Scorecards can be selected together in batches of ${DATA_ASSIST_MAX_BULK_SCORECARDS}. Schedules and team summaries should be uploaded one at a time.`
+            ? `Scorecards can be selected together in batches of ${DATA_ASSIST_MAX_BULK_SCORECARDS}. Schedules, Team Summaries, and Player Rosters should be uploaded one at a time.`
             : message}
         </p>
         {mixedExportIssue ? <small style={hintStyle}>This keeps season setup clean while still supporting scorecard catch-up batches.</small> : null}
@@ -1588,7 +2466,7 @@ function ScorecardUploadPausedPanel({ message }: { message: string }) {
       <div style={headerCopyStyle}>
         <strong>Scorecard uploads are paused</strong>
         <p style={uploadIssueCopyStyle}>{message}</p>
-        <small style={hintStyle}>Schedule and team summary uploads still work. Admins can restore scorecard upload access after review.</small>
+        <small style={hintStyle}>Schedule, Team Summary, and Player Roster uploads still work. Admins can restore scorecard upload access after review.</small>
       </div>
       <Link href="/messages?compose=support&category=data&subject=Scorecard%20upload%20access" style={secondaryButtonStyle}>
         Contact support
@@ -1600,9 +2478,11 @@ function ScorecardUploadPausedPanel({ message }: { message: string }) {
 function BulkScorecardResultsPanel({
   results,
   onStartOver,
+  onReviewNow,
 }: {
   results: BulkScorecardResult[]
   onStartOver: () => void
+  onReviewNow: (submissionId: string) => void
 }) {
   const importedCount = results.filter((result) => result.status === 'imported').length
   const duplicateCount = results.filter((result) => result.status === 'duplicate').length
@@ -1615,40 +2495,81 @@ function BulkScorecardResultsPanel({
       <div style={sectionHeaderStyle}>
         <div style={headerCopyStyle}>
           <StepBadge step={4} label="Batch results" />
-          <h2 style={sectionTitleStyle}>Scorecards processed.</h2>
-          <p style={copyStyle}>{pendingCount ? 'Each export is being saved and read as its own match.' : 'Each export was saved and read as its own match.'}</p>
+          <h2 style={sectionTitleStyle}>
+            {reviewCount ? `${reviewCount} scorecard${reviewCount === 1 ? '' : 's'} need your confirmation.` : 'Scorecards processed.'}
+          </h2>
+          <p style={copyStyle}>
+            {pendingCount
+              ? 'Each export is saved and read as its own match. A slow read moves on so the rest of your batch can continue.'
+              : reviewCount
+                ? 'Open each review, check the highlighted names and scores, then confirm. Until then, the result will not appear in league stats.'
+                : 'Each export was saved and read as its own match.'}
+          </p>
         </div>
-        <span style={pendingCount || failedCount ? pillAmberStyle : pillGreenStyle}>{pendingCount ? 'Working' : failedCount ? 'Needs attention' : 'Complete'}</span>
+        <span style={pendingCount || failedCount || reviewCount ? pillAmberStyle : pillGreenStyle}>
+          {pendingCount ? 'Working' : failedCount || reviewCount ? 'Action needed' : 'Complete'}
+        </span>
       </div>
+      {reviewCount ? (
+        <div role="alert" style={bulkResultReviewCalloutStyle}>
+          <div style={headerCopyStyle}>
+            <strong>One last step before the scoreboard moves</strong>
+            <span>Confirmation imports the scorecard and updates player, team, and league records.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onReviewNow(results.find((result) => result.status === 'review')?.batchId || '')}
+            style={primaryButtonStyle}
+          >
+            Review scorecards now
+          </button>
+        </div>
+      ) : null}
       <div style={scorecardHeaderGridStyle}>
         <ReviewFact label="Pending" value={String(pendingCount)} />
         <ReviewFact label="Imported" value={String(importedCount)} />
         <ReviewFact label="Already in" value={String(duplicateCount)} />
-        <ReviewFact label="Review" value={String(reviewCount)} />
+        <ReviewFact label="Needs confirmation" value={String(reviewCount)} />
         <ReviewFact label="Retry" value={String(failedCount)} />
       </div>
       <div style={bulkResultListStyle}>
         {results.map((result) => (
-          <div key={`${result.fileName}-${result.status}-${result.matchId}-${result.matchDate}`} style={bulkResultRowStyle(result.status)}>
-            <div style={headerCopyStyle}>
+          <div key={`${result.batchId}-${result.fileName}-${result.status}-${result.matchId}-${result.matchDate}`} style={bulkResultRowStyle(result.status)}>
+            <div style={bulkResultContentStyle}>
               <strong>{getBulkScorecardResultTitle(result)}</strong>
-              <p>{getBulkScorecardResultDetail(result)}</p>
+              <span>{getBulkScorecardResultDetail(result)}</span>
+              {result.status === 'review' ? <small>{result.detail}</small> : null}
             </div>
-            <span style={bulkResultStatusStyle}>{getBulkScorecardStatusLabel(result.status)}</span>
+            <div style={bulkResultActionStyle}>
+              <span style={bulkResultStatusStyle}>{getBulkScorecardStatusLabel(result.status)}</span>
+              {result.status === 'review' ? (
+                <button type="button" onClick={() => onReviewNow(result.batchId)} style={smallButtonStyle}>
+                  Review now
+                </button>
+              ) : null}
+              {result.status === 'failed' && result.batchId ? (
+                <button type="button" onClick={() => onReviewNow(result.batchId)} style={smallButtonStyle}>
+                  Open saved upload
+                </button>
+              ) : null}
+            </div>
           </div>
         ))}
       </div>
       <div style={draftActionRowStyle}>
-        <button type="button" onClick={onStartOver} style={primaryButtonStyle}>Upload more scorecards</button>
+        <button type="button" onClick={onStartOver} style={primaryButtonStyle}>
+          {pendingCount ? 'Stop waiting and upload separately' : 'Upload more scorecards'}
+        </button>
       </div>
     </section>
   )
 }
 
-function getScanSetupText(importType: DataAssistImportType, screenshotCount: number) {
+function getScanSetupText(importType: DataAssistImportType, screenshotCount: number, scorecardPhoto = false) {
+  if (scorecardPhoto) return 'Your scorecard photo is ready. TiQ reads it first, then you verify every court before the result is saved.'
   const plural = screenshotCount === 1 ? 'export' : 'exports'
   if (importType === 'schedule') return `${screenshotCount} ${plural} ready. TenAceIQ will import schedule rows from the table.`
-  if (importType === 'team_summary') return `${screenshotCount} ${plural} ready. TenAceIQ will import roster names and ratings.`
+  if (importType === 'team_summary') return `${screenshotCount} ${plural} ready. TenAceIQ will import roster names, ratings, and available contacts.`
   return `${screenshotCount} ${plural} ready. TenAceIQ will import the match result, line players, scores, and winners.`
 }
 
@@ -1666,13 +2587,13 @@ function getLatestReadTitle(scan: {
   autoImport?: DataAssistImportActionResult
 }) {
   if (scan.autoImport?.ok) {
-    if (isTeamSummaryParsedDraft(scan.parsedDraft)) return 'Team roster imported'
+    if (isTeamSummaryParsedDraft(scan.parsedDraft)) return scan.parsedDraft.rosterSource === 'player_roster' ? 'Player Roster imported' : 'Team Summary imported'
     if (isScheduleParsedDraft(scan.parsedDraft)) return 'Team schedule imported'
     return 'Scorecard imported'
   }
   if (scan.autoImport?.importPreview?.duplicateMatch) return 'Scorecard already imported'
   if (isScheduleParsedDraft(scan.parsedDraft)) return 'Check the team schedule'
-  if (isTeamSummaryParsedDraft(scan.parsedDraft)) return 'Check the team roster'
+  if (isTeamSummaryParsedDraft(scan.parsedDraft)) return scan.parsedDraft.rosterSource === 'player_roster' ? 'Check the Player Roster' : 'Check the Team Summary'
   return 'Check the scorecard read'
 }
 
@@ -1682,7 +2603,9 @@ function getLatestReadDescription(scan: {
 }) {
   if (scan.autoImport?.ok) {
     if (isTeamSummaryParsedDraft(scan.parsedDraft)) {
-      return 'Roster names and starting ratings are now available across TenAceIQ.'
+      return scan.parsedDraft.rosterSource === 'player_roster'
+        ? 'Roster names, ratings, and available contacts are ready for captain work.'
+        : 'Team, roster, ratings, and standings are ready for captain work. Add Player Roster later for contacts.'
     }
     if (isScheduleParsedDraft(scan.parsedDraft)) {
       return 'Visible schedule rows are now available for team and captain planning.'
@@ -1696,7 +2619,9 @@ function getLatestReadDescription(scan: {
     return 'TenAceIQ found a team schedule export. Review the match rows before importing.'
   }
   if (isTeamSummaryParsedDraft(scan.parsedDraft)) {
-    return 'TenAceIQ found a team summary export. Review roster names and ratings before importing.'
+    return scan.parsedDraft.rosterSource === 'player_roster'
+      ? 'TenAceIQ found a Player Roster export. Review the team and players before importing.'
+      : 'TenAceIQ found a Team Summary export. Review the team and players before importing.'
   }
   return getScorecardReviewLead(scan.parsedDraft)
 }
@@ -1715,12 +2640,14 @@ function ScreenshotCard({
   total,
   onMove,
   onRemove,
+  showOrdering = true,
 }: {
   screenshot: DataAssistPreparedScreenshot
   index: number
   total: number
   onMove: (fromIndex: number, direction: -1 | 1) => void
   onRemove: (id: string) => void
+  showOrdering?: boolean
 }) {
   const supported = screenshot.detectionStatus === 'supported'
   const rejected = screenshot.detectionStatus === 'rejected'
@@ -1754,12 +2681,16 @@ function ScreenshotCard({
           ))}
         </div>
         <div style={cardActionRowStyle}>
-          <button type="button" onClick={() => onMove(index, -1)} disabled={index === 0} style={smallButtonStyle}>
-            Up
-          </button>
-          <button type="button" onClick={() => onMove(index, 1)} disabled={index === total - 1} style={smallButtonStyle}>
-            Down
-          </button>
+          {showOrdering ? (
+            <>
+              <button type="button" onClick={() => onMove(index, -1)} disabled={index === 0} style={smallButtonStyle}>
+                Up
+              </button>
+              <button type="button" onClick={() => onMove(index, 1)} disabled={index === total - 1} style={smallButtonStyle}>
+                Down
+              </button>
+            </>
+          ) : null}
           <button type="button" onClick={() => onRemove(screenshot.id)} style={smallDangerButtonStyle}>
             Remove
           </button>
@@ -1786,6 +2717,17 @@ function MySubmissionsPanel({
   onRunImport,
   onDeleteSubmission,
   onDeleteAllDrafts,
+  calendarSavingKey,
+  calendarSavedItemIds,
+  calendarMessage,
+  calendarOwnerId,
+  onAddScheduleToCalendar,
+  onAddMatchToCalendar,
+  focusedSubmissionId,
+  forceHistoryOpen,
+  initialHistoryFilter,
+  isMobile,
+  returnTo,
 }: {
   authResolved: boolean
   userId: string | null
@@ -1795,7 +2737,7 @@ function MySubmissionsPanel({
   error: string
   onRefresh: () => void
   reviewingSubmissionId: string
-  onReviewSubmission: (submission: DataAssistSubmission, decision: 'confirmed' | 'flagged') => void
+  onReviewSubmission: (submission: DataAssistSubmission, decision: 'confirmed' | 'flagged', parsedDraft?: DataAssistScheduleParsedDraft) => void
   importingSubmissionId: string
   deletingSubmissionId: string
   bulkDeleting: boolean
@@ -1803,33 +2745,97 @@ function MySubmissionsPanel({
   onRunImport: (submission: DataAssistSubmission, action: 'preview' | 'commit') => void
   onDeleteSubmission: (submission: DataAssistSubmission) => void
   onDeleteAllDrafts: () => void
+  calendarSavingKey: string
+  calendarSavedItemIds: Set<string>
+  calendarMessage: string
+  calendarOwnerId: string
+  onAddScheduleToCalendar: (schedule: DataAssistScheduleParsedDraft) => void
+  onAddMatchToCalendar: (schedule: DataAssistScheduleParsedDraft, match: DataAssistScheduleParsedDraft['matches'][number]) => void
+  focusedSubmissionId: string
+  forceHistoryOpen: boolean
+  initialHistoryFilter: DataAssistHistoryFilter
+  isMobile: boolean
+  returnTo: string
 }) {
-  const [historyOpen, setHistoryOpen] = useState(false)
-  const [historyFilter, setHistoryFilter] = useState<DataAssistHistoryFilter>('all')
-  const pendingCount = contributorStats?.pendingReviewCount ?? submissions.filter((submission) => submission.status !== 'verified' && submission.status !== 'imported' && submission.status !== 'rejected').length
+  const [historyOpen, setHistoryOpen] = useState(Boolean(focusedSubmissionId) || forceHistoryOpen)
+  const [historyFilter, setHistoryFilter] = useState<DataAssistHistoryFilter>(focusedSubmissionId ? initialHistoryFilter : 'all')
+  // The review action and its filter must read the same current list. The
+  // contributor aggregate is useful for badges, but can lag behind a just
+  // completed OCR or import update.
+  const pendingCount = filterDataAssistSubmissions(submissions, 'needs_review').length
   const verifiedCount = contributorStats?.verifiedImportCount ?? submissions.filter((submission) => submission.status === 'verified' || submission.status === 'imported').length
+  const importedCount = submissions.filter((submission) => submission.status === 'imported').length
   const accuracyScore = Math.round((contributorStats?.contributionAccuracyScore ?? 0) * 100)
   const removableCount = submissions.filter((submission) => submission.status !== 'imported').length
   const filteredSubmissions = filterDataAssistSubmissions(submissions, historyFilter)
 
-  return (
-    <section id="history" style={panelStyle}>
+  useEffect(() => {
+    if (!focusedSubmissionId || !historyOpen) return
+    const timeout = window.setTimeout(() => {
+      document.getElementById(`data-assist-submission-${focusedSubmissionId}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    }, 80)
+    return () => window.clearTimeout(timeout)
+  }, [focusedSubmissionId, historyOpen, submissions])
+
+  function openHistory(filter: DataAssistHistoryFilter = 'all') {
+    setHistoryFilter(filter)
+    setHistoryOpen(true)
+    window.setTimeout(() => document.getElementById('data-assist-history-records')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
+  }
+
+  if ((!authResolved || !userId) && isMobile) {
+    return (
+      <section id="history" style={mobileHistoryShellStyle}>
+        <DataAssistDetailsSection
+          eyebrow="History"
+          title="Saved uploads"
+          cue="Show history"
+        >
+          <div style={noticeStyle}>
+            Sign in to keep Data Assist uploads tied to your profile across devices.{' '}
+            <DataAssistSignInLink style={noticeLinkStyle} section="history" />
+          </div>
+        </DataAssistDetailsSection>
+      </section>
+    )
+  }
+
+  const panelContent = (
+    <>
       <div style={sectionHeaderStyle}>
         <div style={headerCopyStyle}>
-          <div className="section-kicker">History</div>
-          <h2 style={sectionTitleStyle}>Saved Data Assist uploads.</h2>
+          <div className="section-kicker">Upload activity</div>
+          <h2 style={sectionTitleStyle}>Know what happened next.</h2>
         </div>
         <div style={cardActionRowStyle}>
+          {authResolved && userId ? (
+            <Link href="/team-connections" style={smallButtonStyle}>Link a team</Link>
+          ) : null}
           <button type="button" onClick={() => setHistoryOpen((current) => !current)} style={smallButtonStyle}>
             {historyOpen ? 'Hide history' : `Show history${submissions.length ? ` (${submissions.length})` : ''}`}
           </button>
         </div>
       </div>
 
+      {authResolved && userId ? (
+          <DataAssistOperationsPanel
+            pendingCount={pendingCount}
+            importedCount={importedCount}
+            totalCount={submissions.length}
+            latestSubmission={submissions[0] ?? null}
+            onStartUpload={() => document.getElementById('upload')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+            onOpenReview={() => openHistory('needs_review')}
+            onOpenHistory={() => openHistory('all')}
+          />
+      ) : null}
+
       {!authResolved || !userId ? (
         <div style={noticeStyle}>
           Sign in to keep Data Assist uploads tied to your profile across devices.{' '}
-          <Link href="/login?redirect=/data-assist" style={noticeLinkStyle}>Sign in</Link>
+          <DataAssistSignInLink style={noticeLinkStyle} section="history" />
         </div>
       ) : !historyOpen ? (
         <div style={historyCollapsedStyle}>
@@ -1838,7 +2844,7 @@ function MySubmissionsPanel({
             : 'No saved uploads yet.'}
         </div>
       ) : submissions.length ? (
-        <>
+        <div id="data-assist-history-records" style={historyRecordsStyle}>
           <div style={historyManagementStyle}>
             <span>Imported uploads stay as references. Drafts and review items can be removed.</span>
             <div style={cardActionRowStyle}>
@@ -1885,13 +2891,20 @@ function MySubmissionsPanel({
                   importResult={importResultsBySubmission[submission.id]}
                   onRunImport={onRunImport}
                   onDelete={onDeleteSubmission}
+                  calendarSavingKey={calendarSavingKey}
+                  calendarSavedItemIds={calendarSavedItemIds}
+                  calendarMessage={calendarMessage}
+                  calendarOwnerId={calendarOwnerId}
+                  onAddScheduleToCalendar={onAddScheduleToCalendar}
+                  onAddMatchToCalendar={onAddMatchToCalendar}
+                  returnTo={returnTo}
                 />
               ))}
             </div>
           ) : (
             <div style={emptyStateStyle}>No uploads match this filter.</div>
           )}
-        </>
+        </div>
       ) : loading ? (
         <div style={emptyStateStyle}>Loading your submissions...</div>
       ) : (
@@ -1899,8 +2912,24 @@ function MySubmissionsPanel({
       )}
 
       {error ? <div style={errorStyle}>{error}</div> : null}
-    </section>
+    </>
   )
+
+  if (isMobile && !forceHistoryOpen) {
+    return (
+      <section id="history" style={mobileHistoryShellStyle}>
+        <DataAssistDetailsSection
+          eyebrow="Your uploads"
+          title={pendingCount ? `${pendingCount} need review` : `${submissions.length} saved · all clear`}
+          cue="Open upload activity"
+        >
+          {panelContent}
+        </DataAssistDetailsSection>
+      </section>
+    )
+  }
+
+  return <section id="history" style={panelStyle}>{panelContent}</section>
 }
 
 function EmptyDataAssistHistory() {
@@ -1908,7 +2937,7 @@ function EmptyDataAssistHistory() {
     <div style={emptyHistoryStyle}>
       <div style={emptyHistoryCopyStyle}>
         <strong>First signal starts here.</strong>
-        <span>Upload a scorecard, schedule, or team summary. After review, it feeds your profile, teams, and league tools.</span>
+        <span>Upload a scorecard, schedule, or Team Summary. After review, it feeds your profile, teams, and league tools.</span>
       </div>
       <div style={emptyHistoryActionRowStyle}>
         {emptyHistoryActions.map((action) => (
@@ -1919,6 +2948,103 @@ function EmptyDataAssistHistory() {
       </div>
     </div>
   )
+}
+
+function DataAssistOperationsPanel({
+  pendingCount,
+  importedCount,
+  totalCount,
+  latestSubmission,
+  onStartUpload,
+  onOpenReview,
+  onOpenHistory,
+}: {
+  pendingCount: number
+  importedCount: number
+  totalCount: number
+  latestSubmission: DataAssistSubmission | null
+  onStartUpload: () => void
+  onOpenReview: () => void
+  onOpenHistory: () => void
+}) {
+  const latestActivity = getDataAssistLatestActivity(latestSubmission)
+  const openLatestActivity = latestActivity.action === 'upload'
+    ? onStartUpload
+    : latestActivity.action === 'review'
+      ? onOpenReview
+      : onOpenHistory
+
+  return (
+    <section style={dataAssistOperationsStyle} aria-label="Upload operations">
+      <button type="button" onClick={openLatestActivity} style={dataAssistOperationCardStyle(latestActivity.tone)} data-data-assist-operation="latest">
+        <span style={dataAssistOperationLabelStyle}>{latestActivity.label}</span>
+        <strong style={dataAssistOperationTitleStyle}>{latestActivity.title}</strong>
+        <small style={dataAssistOperationDetailStyle}>{latestActivity.detail}</small>
+      </button>
+      <button type="button" onClick={onOpenReview} style={dataAssistOperationCardStyle(pendingCount > 0 ? 'review' : 'clear')} data-data-assist-operation="review">
+        <span style={dataAssistOperationLabelStyle}>Needs your review</span>
+        <strong style={dataAssistOperationValueStyle}>{pendingCount}</strong>
+        <small style={dataAssistOperationDetailStyle}>
+          {pendingCount ? 'Open the review queue' : 'Nothing waiting on you'}
+        </small>
+      </button>
+      <button type="button" onClick={onOpenHistory} style={dataAssistOperationCardStyle('history')} data-data-assist-operation="history">
+        <span style={dataAssistOperationLabelStyle}>Import history</span>
+        <strong style={dataAssistOperationValueStyle}>{totalCount}</strong>
+        <small style={dataAssistOperationDetailStyle}>
+          {importedCount ? `${importedCount} imported record${importedCount === 1 ? '' : 's'} saved` : 'Open saved uploads'}
+        </small>
+      </button>
+    </section>
+  )
+}
+
+function getDataAssistLatestActivity(submission: DataAssistSubmission | null) {
+  if (!submission) {
+    return {
+      label: 'Next step',
+      title: 'Start team setup',
+      detail: 'Upload a Team Summary for roster, ratings, flight, and standings.',
+      action: 'upload' as const,
+      tone: 'start' as const,
+    }
+  }
+
+  const source = getShortImportTypeLabel(submission.requestedImportType)
+  if (submission.status === 'imported') {
+    return {
+      label: 'Latest import',
+      title: `${source} imported`,
+      detail: `Saved ${formatDate(submission.updatedAt || submission.createdAt)}. Open import history for the details.`,
+      action: 'history' as const,
+      tone: 'imported' as const,
+    }
+  }
+  if (submission.status === 'rejected') {
+    return {
+      label: 'Latest import',
+      title: `${source} needs attention`,
+      detail: 'Open import history to see what needs a better source or correction.',
+      action: 'history' as const,
+      tone: 'review' as const,
+    }
+  }
+  if (submission.status === 'verified') {
+    return {
+      label: 'Latest import',
+      title: `${source} reviewed`,
+      detail: 'Its read is saved. Open import history for the result and next option.',
+      action: 'history' as const,
+      tone: 'clear' as const,
+    }
+  }
+  return {
+    label: 'Next step',
+    title: `${source} needs review`,
+    detail: 'Open the review queue to confirm the visible team or match details.',
+    action: 'review' as const,
+    tone: 'review' as const,
+  }
 }
 
 type DataAssistHistoryFilter = 'all' | 'imported' | 'needs_review' | DataAssistImportType
@@ -1977,6 +3103,42 @@ function StepBadge({ step, label }: { step: number; label: string }) {
   )
 }
 
+function UploadJourneyRail({
+  importType,
+  teamSetupRequested = false,
+  contactImportRequested = false,
+}: {
+  importType: DataAssistImportType
+  teamSetupRequested?: boolean
+  contactImportRequested?: boolean
+}) {
+  const finalLabel = teamSetupRequested
+    ? 'Connect'
+    : contactImportRequested
+      ? 'Return'
+      : importType === 'schedule'
+        ? 'Calendar'
+        : importType === 'team_summary'
+          ? 'Connect'
+          : 'Import'
+  const steps = [
+    { step: '1', label: 'Choose file', active: true },
+    { step: '2', label: 'Review', active: false },
+    { step: '3', label: finalLabel, active: false },
+  ] as const
+
+  return (
+    <div aria-label="Upload progress" style={uploadJourneyRailStyle}>
+      {steps.map((item) => (
+        <span key={item.step} style={item.active ? uploadJourneyActiveStepStyle : uploadJourneyStepStyle}>
+          <strong style={uploadJourneyStepNumberStyle}>{item.step}</strong>
+          <span>{item.label}</span>
+        </span>
+      ))}
+    </div>
+  )
+}
+
 function SubmissionStat({ label, value }: { label: string; value: number | string }) {
   return (
     <div style={submissionStatStyle}>
@@ -2024,16 +3186,31 @@ function SubmissionCard({
   importResult,
   onRunImport,
   onDelete,
+  calendarSavingKey,
+  calendarSavedItemIds,
+  calendarMessage,
+  calendarOwnerId,
+  onAddScheduleToCalendar,
+  onAddMatchToCalendar,
+  returnTo,
 }: {
   submission: DataAssistSubmission
   busy: boolean
-  onReview: (submission: DataAssistSubmission, decision: 'confirmed' | 'flagged') => void
+  onReview: (submission: DataAssistSubmission, decision: 'confirmed' | 'flagged', parsedDraft?: DataAssistScheduleParsedDraft) => void
   importing: boolean
   deleting: boolean
   importResult?: DataAssistImportActionResult
   onRunImport: (submission: DataAssistSubmission, action: 'preview' | 'commit') => void
   onDelete: (submission: DataAssistSubmission) => void
+  calendarSavingKey: string
+  calendarSavedItemIds: Set<string>
+  calendarMessage: string
+  calendarOwnerId: string
+  onAddScheduleToCalendar: (schedule: DataAssistScheduleParsedDraft) => void
+  onAddMatchToCalendar: (schedule: DataAssistScheduleParsedDraft, match: DataAssistScheduleParsedDraft['matches'][number]) => void
+  returnTo: string
 }) {
+  const router = useRouter()
   const status = getSubmissionStatusCopy(submission)
   const reviewNote = submission.draftReviewNote || submission.reviewNote || submission.rejectionReason
   const parsedDraft = toScorecardParsedDraft(submission.parsedPayload)
@@ -2055,7 +3232,7 @@ function SubmissionCard({
   const canDelete = !isImported
 
   return (
-    <article style={submissionCardStyle}>
+    <article id={`data-assist-submission-${submission.id}`} style={submissionCardStyle}>
       <div style={submissionCardTopStyle}>
         <div style={headerCopyStyle}>
           <strong>{getDataAssistImportTypeLabel(submission.requestedImportType)}</strong>
@@ -2090,13 +3267,58 @@ function SubmissionCard({
               busy={busy}
               onConfirm={() => onReview(submission, 'confirmed')}
               onFlag={() => onReview(submission, 'flagged')}
+              captainScorecardHandoffIssue={returnTo.startsWith('/captain/record-result') ? getCaptainScorecardPhotoPrefillIssue({
+                teamName: getCaptainScorecardReturnContext(returnTo)?.teamName || '',
+                dataAssistBatchId: submission.id,
+                dataAssistDraftId: submission.draftId,
+                parsedDraft,
+              }) : undefined}
+              onOpenCaptainScorecard={returnTo.startsWith('/captain/record-result') && !getCaptainScorecardPhotoPrefillIssue({
+                teamName: getCaptainScorecardReturnContext(returnTo)?.teamName || '',
+                dataAssistBatchId: submission.id,
+                dataAssistDraftId: submission.draftId,
+                parsedDraft,
+              }) ? () => {
+                const context = getCaptainScorecardReturnContext(returnTo)
+                if (!context) return
+                const prefillInput = {
+                  teamName: context.teamName,
+                  dataAssistBatchId: submission.id,
+                  dataAssistDraftId: submission.draftId,
+                  parsedDraft,
+                }
+                if (getCaptainScorecardPhotoPrefillIssue(prefillInput)) return
+                const prefill = buildCaptainScorecardPhotoPrefill(prefillInput)
+                if (!prefill) return
+                try {
+                  window.sessionStorage.setItem(captainScorecardPhotoPrefillStorageKey(prefill.dataAssistBatchId), JSON.stringify(prefill))
+                  const url = new URL(context.href, window.location.origin)
+                  url.searchParams.set('scorecardDraft', prefill.dataAssistBatchId)
+                  router.push(`${url.pathname}${url.search}${url.hash}`)
+                } catch {
+                  // Keep the generic review actions available if browser storage is unavailable.
+                }
+              } : undefined}
             />
           ) : null}
           {parsedSchedule && !isImported ? (
-            <ScheduleReviewPanel parsedDraft={parsedSchedule} />
+            <ScheduleReviewPanel
+              parsedDraft={parsedSchedule}
+              busy={busy}
+              onConfirm={submission.draftId && submission.draftOcrStatus === 'processed' && (submission.status === 'ready_to_import' || submission.status === 'needs_review')
+                ? (draft) => onReview(submission, 'confirmed', draft)
+                : undefined}
+            />
           ) : null}
           {parsedTeamSummary && !isImported ? (
-            <TeamSummaryReviewPanel parsedDraft={parsedTeamSummary} />
+            <TeamSummaryReviewPanel
+              parsedDraft={parsedTeamSummary}
+              busy={busy}
+              refreshComparison={readTeamDataRefreshComparison(submission.validationSummary)}
+              onImport={submission.draftId && submission.draftOcrStatus === 'processed' && (submission.status === 'ready_to_import' || submission.status === 'needs_review')
+                ? () => onReview(submission, 'confirmed')
+                : undefined}
+            />
           ) : null}
           {isImported && parsedTeamSummary ? (
             <TeamSummaryImportedPanel
@@ -2115,9 +3337,15 @@ function SubmissionCard({
                 message: importSummary.message,
               }}
               parsedDraft={parsedSchedule}
+              calendarSavingKey={calendarSavingKey}
+              calendarSavedItemIds={calendarSavedItemIds}
+              calendarMessage={calendarMessage}
+              calendarOwnerId={calendarOwnerId}
+              onAddScheduleToCalendar={onAddScheduleToCalendar}
+              onAddMatchToCalendar={onAddMatchToCalendar}
             />
           ) : isImported ? (
-            <ImportedSummaryPanel summary={importSummary} parsedDraft={parsedDraft} />
+            <ImportedSummaryPanel summary={importSummary} parsedDraft={parsedDraft} returnTo={returnTo} />
           ) : null}
           {parsedDraft && canPreviewImport ? (
             <ImportPreviewPanel
@@ -2167,7 +3395,8 @@ function ImportPreviewPanel({
   const unresolvedWinnerCount = preview?.unresolvedWinnerCount ?? 0
   const newPlayers = preview?.playerMappings.filter((mapping) => mapping.status === 'unknown').length ?? 0
   const likelyPlayers = preview?.playerMappings.filter((mapping) => mapping.status === 'likely').length ?? 0
-  const isDuplicate = Boolean(preview?.duplicateMatch)
+  const isCorrection = Boolean(preview?.duplicateMatch?.hasChanges)
+  const isDuplicate = Boolean(preview?.duplicateMatch && !preview.duplicateMatch.hasChanges)
   const commitBlocked = unresolvedWinnerCount > 0 || !canCommit
 
   return (
@@ -2185,13 +3414,19 @@ function ImportPreviewPanel({
         <>
           <div style={scorecardHeaderGridStyle}>
             <ReviewFact label="Lines" value={String(preview.row.lines.length)} />
-            <ReviewFact label="Status" value={isDuplicate ? 'Already imported' : unresolvedWinnerCount ? `${unresolvedWinnerCount} unresolved` : 'Ready'} />
+            <ReviewFact label="Status" value={isDuplicate ? 'Already imported' : isCorrection ? 'Ready to update' : unresolvedWinnerCount ? `${unresolvedWinnerCount} unresolved` : 'Ready'} />
             <ReviewFact label="Players" value={newPlayers ? `${newPlayers} new` : likelyPlayers ? `${likelyPlayers} likely` : 'Matched'} />
           </div>
           {isDuplicate ? (
             <div style={readyImportNoteStyle}>
               <strong>Duplicate found</strong>
               <span>This TennisLink match is already in TenAceIQ. Import will not create a second result.</span>
+            </div>
+          ) : null}
+          {isCorrection ? (
+            <div style={readyImportNoteStyle}>
+              <strong>Correction found</strong>
+              <span>Importing updates the saved result and Team Chat without creating another match.</span>
             </div>
           ) : null}
           <div style={parsedLineListStyle}>
@@ -2215,11 +3450,11 @@ function ImportPreviewPanel({
           {importing ? 'Running...' : 'Preview import'}
         </button>
         <button type="button" onClick={onCommit} disabled={importing || commitBlocked} style={{ ...smallButtonStyle, ...(importing || commitBlocked ? disabledStyle : {}) }}>
-          Commit import
+          Import confirmed scorecard
         </button>
       </div>
       {commitBlocked && preview ? (
-        <p style={warningStyle}>Commit unlocks after winners are resolved and the parsed read is confirmed.</p>
+        <p style={warningStyle}>Import unlocks after winners are resolved and the parsed read is confirmed.</p>
       ) : null}
     </div>
   )
@@ -2228,9 +3463,11 @@ function ImportPreviewPanel({
 function ImportedSummaryPanel({
   summary,
   parsedDraft,
+  returnTo = '',
 }: {
   summary: SubmissionImportSummary
   parsedDraft: DataAssistScorecardParsedDraft | null
+  returnTo?: string
 }) {
   const lineCount = summary.lineCount || parsedDraft?.lineCount || parsedDraft?.lines.length || 0
   const teamScore = parsedDraft ? getParsedTeamScore(parsedDraft) : null
@@ -2266,7 +3503,7 @@ function ImportedSummaryPanel({
           : 'Schedule and roster uploads can enrich this later, but this result is ready now.')}</span>
       </div>
       <PostImportActions
-        actions={buildScorecardPostImportActions(parsedDraft)}
+        actions={buildScorecardPostImportActions(parsedDraft, returnTo)}
       />
     </div>
   )
@@ -2290,25 +3527,62 @@ function DuplicateImportBanner({
   )
 }
 
-function ScheduleReviewPanel({ parsedDraft }: { parsedDraft: DataAssistScheduleParsedDraft }) {
-  const needsCheckCount = parsedDraft.matches.filter((match) => match.reviewNotes.length).length
+function ScheduleReviewPanel({
+  parsedDraft,
+  busy = false,
+  onConfirm,
+}: {
+  parsedDraft: DataAssistScheduleParsedDraft
+  busy?: boolean
+  onConfirm?: (draft: DataAssistScheduleParsedDraft) => void
+}) {
+  const [reviewedDraft, setReviewedDraft] = useState(parsedDraft)
+  const needsCheckCount = reviewedDraft.matches.filter((match) => match.reviewNotes.length).length
+  const canConfirm = reviewedDraft.matches.length > 0 && needsCheckCount === 0
+
+  useEffect(() => {
+    setReviewedDraft(parsedDraft)
+  }, [parsedDraft])
+
+  function updateMatchDate(matchIndex: number, dateValue: string) {
+    const matchDate = formatScheduleDraftDate(dateValue)
+    setReviewedDraft((current) => ({
+      ...current,
+      matches: current.matches.map((match, index) => index === matchIndex
+        ? { ...match, matchDate, reviewNotes: getScheduleMatchReviewNotes({ ...match, matchDate }) }
+        : match),
+    }))
+  }
 
   return (
     <div style={scorecardReviewStyle}>
       <div style={scorecardHeaderGridStyle}>
-        <ReviewFact label="Team" value={parsedDraft.teamName || 'Check team'} />
-        <ReviewFact label="League" value={parsedDraft.leagueName || 'Check league'} />
-        <ReviewFact label="Flight" value={parsedDraft.flight || 'Check flight'} />
-        <ReviewFact label="Matches" value={String(parsedDraft.matchCount)} />
+        <ReviewFact label="Team" value={reviewedDraft.teamName || 'Check team'} />
+        <ReviewFact label="League" value={reviewedDraft.leagueName || 'Check league'} />
+        <ReviewFact label="Flight" value={reviewedDraft.flight || 'Check flight'} />
+        <ReviewFact label="Matches" value={String(reviewedDraft.matchCount)} />
       </div>
       <p style={copyStyle}>
         This is a team schedule read. TenAceIQ is capturing the visible match IDs, dates, times, opponents, and sites for this team.
       </p>
-      <ScheduleRowsList parsedDraft={parsedDraft} />
+      <ScheduleRowsList parsedDraft={reviewedDraft} onChangeMatchDate={updateMatchDate} />
       <div style={needsCheckCount ? reviewChecklistStyle : readyImportNoteStyle}>
-        <strong>{needsCheckCount ? 'Before importing' : 'Schedule ready'}</strong>
-        <span>{needsCheckCount ? `${needsCheckCount} visible match row${needsCheckCount === 1 ? '' : 's'} need review.` : 'Visible team schedule rows are captured for one final check.'}</span>
+        <strong>{needsCheckCount ? 'Fix highlighted dates' : 'Schedule ready to import'}</strong>
+        <span>{needsCheckCount ? `Use the date fields on the highlighted row${needsCheckCount === 1 ? '' : 's'}, then confirm the schedule.` : 'All visible match details are ready. Confirm once to import the full schedule.'}</span>
       </div>
+      {onConfirm ? (
+        <div style={draftActionRowStyle}>
+          <button
+            type="button"
+            onClick={() => onConfirm(reviewedDraft)}
+            disabled={!canConfirm || busy}
+            style={{ ...primaryButtonStyle, ...((!canConfirm || busy) ? disabledStyle : {}) }}
+          >
+            {busy ? 'Importing schedule...' : `Confirm & import ${reviewedDraft.matches.length} matches`}
+          </button>
+          {!canConfirm ? <span style={compactListHintStyle}>Finish the highlighted checks to unlock import.</span> : null}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -2316,13 +3590,27 @@ function ScheduleReviewPanel({ parsedDraft }: { parsedDraft: DataAssistScheduleP
 function ScheduleImportedSummaryPanel({
   result,
   parsedDraft,
+  context = '',
+  calendarSavingKey,
+  calendarSavedItemIds,
+  calendarMessage,
+  calendarOwnerId,
+  onAddMatchToCalendar,
 }: {
   result: DataAssistImportActionResult
   parsedDraft: DataAssistScheduleParsedDraft
+  context?: string
+  calendarSavingKey: string
+  calendarSavedItemIds: Set<string>
+  calendarMessage: string
+  calendarOwnerId: string
+  onAddScheduleToCalendar: (schedule: DataAssistScheduleParsedDraft) => void
+  onAddMatchToCalendar: (schedule: DataAssistScheduleParsedDraft, match: DataAssistScheduleParsedDraft['matches'][number]) => void
 }) {
   const scheduleResult = result.importResult?.kind === 'schedule' ? result.importResult.result : null
   const imported = scheduleResult ? scheduleResult.successCount + scheduleResult.updatedCount : parsedDraft.matchCount
   const updated = scheduleResult?.updatedCount ?? 0
+  const calendarItems = buildTeamScheduleCalendarItems({ ...parsedDraft, calendarOwnerId })
 
   return (
     <div style={importPanelStyle}>
@@ -2341,20 +3629,49 @@ function ScheduleImportedSummaryPanel({
         <ReviewFact label="Updated" value={String(updated)} />
         <ReviewFact label="League" value={parsedDraft.leagueName || 'Imported'} />
       </div>
-      <ScheduleRowsList parsedDraft={parsedDraft} />
+      <section style={calendarAddPanelStyle} aria-label="Add this team schedule to your calendar">
+        <div style={headerCopyStyle}>
+          <strong>{calendarItems.length} matches ready for your calendar</strong>
+          <p style={copyStyle}>Your full season is ready. Choose Apple, Google, or TiQ next. No new upload is needed.</p>
+        </div>
+        <div style={cardActionRowStyle}>
+          <Link href={buildScheduleCalendarHref(parsedDraft.teamName, parsedDraft.leagueName, parsedDraft.flight)} style={primaryButtonStyle}>Choose calendar · all {calendarItems.length} matches</Link>
+        </div>
+        {calendarMessage ? <p style={calendarAddMessageStyle} aria-live="polite">{calendarMessage}</p> : null}
+      </section>
+      <details>
+        <summary style={compactListHintStyle}>Review {parsedDraft.matches.length} imported matches</summary>
+        <ScheduleRowsList
+          parsedDraft={parsedDraft}
+          calendarSavedItemIds={calendarSavedItemIds}
+          calendarSavingKey={calendarSavingKey}
+          calendarOwnerId={calendarOwnerId}
+          onAddMatchToCalendar={onAddMatchToCalendar}
+        />
+      </details>
       <div style={readyImportNoteStyle}>
         <strong>All set</strong>
         <span>{result.message || 'Team schedule imported to TenAceIQ.'}</span>
       </div>
-      <PostImportActions
-        actions={buildSchedulePostImportActions(parsedDraft)}
-      />
+      <details><summary style={compactListHintStyle}>More team tools</summary><PostImportActions actions={buildSchedulePostImportActions(parsedDraft, context)} /></details>
     </div>
   )
 }
 
-function TeamSummaryReviewPanel({ parsedDraft }: { parsedDraft: DataAssistTeamSummaryParsedDraft }) {
+function TeamSummaryReviewPanel({
+  parsedDraft,
+  busy,
+  onImport,
+  refreshComparison,
+}: {
+  parsedDraft: DataAssistTeamSummaryParsedDraft
+  busy: boolean
+  onImport?: () => void
+  refreshComparison?: TeamDataRefreshComparison
+}) {
   const missingRatingCount = parsedDraft.players.filter((player) => player.ntrp === null).length
+  const isPlayerRoster = parsedDraft.rosterSource === 'player_roster'
+  const readyToImport = isTeamSummaryDraftReadyForImport(parsedDraft)
 
   return (
     <div style={scorecardReviewStyle}>
@@ -2363,15 +3680,54 @@ function TeamSummaryReviewPanel({ parsedDraft }: { parsedDraft: DataAssistTeamSu
         <ReviewFact label="League" value={parsedDraft.leagueName || 'Check league'} />
         <ReviewFact label="Flight" value={parsedDraft.flight || 'Check flight'} />
         <ReviewFact label="Players" value={String(parsedDraft.playerCount)} />
+        <ReviewFact label="Contacts" value={String(parsedDraft.contactCount || 0)} />
       </div>
       <p style={copyStyle}>
-        TenAceIQ is capturing roster player names and starting NTRP ratings for team and captain workflows.
+        {isPlayerRoster
+          ? 'TenAceIQ found the private phone or email details included by TennisLink. This contact import will not change your Team Summary, ratings, or standings.'
+          : 'TenAceIQ found the team, league, flight, roster players, official ratings, and standings. Add your Player Roster later if you want captain contact details.'}
       </p>
+      {refreshComparison && refreshComparison.existingPlayerCount > 0 ? (
+        <div style={refreshComparison.needsConfirmation ? reviewChecklistStyle : readyImportNoteStyle}>
+          <strong>{refreshComparison.needsConfirmation ? 'Check this team refresh' : 'Safe team refresh'}</strong>
+          <span>{refreshComparison.summary}</span>
+          {refreshComparison.addedPlayerNames.length ? (
+            <span>Adding: {refreshComparison.addedPlayerNames.slice(0, 4).join(', ')}{refreshComparison.addedPlayerNames.length > 4 ? ` +${refreshComparison.addedPlayerNames.length - 4} more` : ''}</span>
+          ) : null}
+          {refreshComparison.preservedPlayerNames.length ? (
+            <span>Keeping from TiQ: {refreshComparison.preservedPlayerNames.slice(0, 4).join(', ')}{refreshComparison.preservedPlayerNames.length > 4 ? ` +${refreshComparison.preservedPlayerNames.length - 4} more` : ''}</span>
+          ) : null}
+        </div>
+      ) : null}
       <RosterPlayersList parsedDraft={parsedDraft} />
       <div style={missingRatingCount ? reviewChecklistStyle : readyImportNoteStyle}>
-        <strong>{missingRatingCount ? 'Before importing' : 'Roster ready'}</strong>
-        <span>{missingRatingCount ? `${missingRatingCount} player rating${missingRatingCount === 1 ? '' : 's'} need review.` : 'Roster names and ratings are captured for import.'}</span>
+        <strong>{missingRatingCount ? 'Before importing' : isPlayerRoster ? 'Contacts ready' : 'Team Summary ready'}</strong>
+        <span>{missingRatingCount
+          ? `${missingRatingCount} player rating${missingRatingCount === 1 ? '' : 's'} need review.`
+          : isPlayerRoster
+            ? `${parsedDraft.contactCount || 0} contact${parsedDraft.contactCount === 1 ? '' : 's'} will be ready for captain messages without changing your Team Summary.`
+            : 'Player and rating context is ready. Player contacts remain optional.'}</span>
       </div>
+      {onImport ? <section style={teamSummaryImportActionStyle} aria-label="Import this team summary">
+        <div style={headerCopyStyle}>
+          <strong>{isPlayerRoster ? 'Import team contacts' : 'Import Team Summary'}</strong>
+          <p style={copyStyle}>
+            {readyToImport
+              ? isPlayerRoster
+                ? 'Save these private contacts now. Next, choose whether to link this team to My Teams.'
+                : 'Save this roster now. Next, review and link the team to My Teams, Team Chat, and Captain.'
+              : 'This export is missing required roster details. Upload a complete Team Summary with player ratings before importing.'}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onImport}
+          disabled={busy || !readyToImport}
+          style={{ ...primaryButtonStyle, ...(busy || !readyToImport ? disabledStyle : {}) }}
+        >
+          {busy ? 'Importing...' : refreshComparison?.needsConfirmation ? 'Confirm safe refresh' : isPlayerRoster ? 'Import team contacts' : 'Import Team Summary'}
+        </button>
+      </section> : null}
     </div>
   )
 }
@@ -2379,36 +3735,62 @@ function TeamSummaryReviewPanel({ parsedDraft }: { parsedDraft: DataAssistTeamSu
 function TeamSummaryImportedPanel({
   result,
   parsedDraft,
+  context = '',
+  returnTo = '',
 }: {
   result: DataAssistImportActionResult
   parsedDraft: DataAssistTeamSummaryParsedDraft
+  context?: string
+  returnTo?: string
 }) {
   const rosterResult = result.importResult?.kind === 'team_summary' ? result.importResult.result : null
+  const isPlayerRoster = parsedDraft.rosterSource === 'player_roster'
+  const teamConnectionReviewHref = buildTeamConnectionReviewHref(parsedDraft)
 
   return (
     <div style={importPanelStyle}>
       <div style={submissionCardTopStyle}>
         <div style={headerCopyStyle}>
-          <strong>Roster imported</strong>
+          <strong>{isPlayerRoster ? 'Team contacts imported' : 'Team Summary imported'}</strong>
           <p style={copyStyle}>
-            Team roster records and starting ratings are now available for player profiles, team pages, and Team Hub.
+            {isPlayerRoster
+              ? 'Private phone and email details from the Player Roster are ready for captain asks and team messages. Your Team Summary stays in place.'
+              : 'Players, official ratings, league context, and standings are now connected to player profiles, team pages, and Team Hub.'}
           </p>
         </div>
         <span style={pillGreenStyle}>Done</span>
       </div>
       <div style={scorecardHeaderGridStyle}>
         <ReviewFact label="Team" value={parsedDraft.rosterTeamName || 'Team roster'} />
-        <ReviewFact label="Players" value={String(rosterResult?.totalPlayers ?? parsedDraft.playerCount)} />
-        <ReviewFact label="Created" value={String(rosterResult?.createdCount ?? 0)} />
-        <ReviewFact label="Updated" value={String(rosterResult?.updatedCount ?? 0)} />
+        {isPlayerRoster ? <>
+          <ReviewFact label="Roster checked" value={String(parsedDraft.playerCount)} />
+          <ReviewFact label="Contacts saved" value={String(result.importedContactCount ?? parsedDraft.contactCount ?? 0)} />
+          <ReviewFact label="Team record" value="Merged — no duplicate" />
+        </> : <>
+          <ReviewFact label="Players" value={String(rosterResult?.totalPlayers ?? parsedDraft.playerCount)} />
+          <ReviewFact label="Created" value={String(rosterResult?.createdCount ?? 0)} />
+          <ReviewFact label="Updated" value={String(rosterResult?.updatedCount ?? 0)} />
+          <ReviewFact label="Contacts" value={String(result.importedContactCount ?? parsedDraft.contactCount ?? 0)} />
+        </>}
       </div>
-      <RosterPlayersList parsedDraft={parsedDraft} />
       <div style={readyImportNoteStyle}>
-        <strong>All set</strong>
-        <span>{result.message || 'Team roster imported to TenAceIQ.'}</span>
+        <strong>{isPlayerRoster ? 'Contacts ready' : 'All set'}</strong>
+        <span>{result.message || (isPlayerRoster ? 'Team contacts are ready for match week.' : 'Team roster imported to TenAceIQ.')}</span>
       </div>
+      <section style={teamConnectionNextStepStyle} aria-label="Connect your imported team">
+        <div style={headerCopyStyle}>
+          <strong>{isPlayerRoster ? 'Make this your team' : 'Add this to My Teams'}</strong>
+          <p style={copyStyle}>
+            {isPlayerRoster
+              ? 'We found your captain contact in this Player Roster. Approve the team once to add it to My Teams, Team Chat, and Captain.'
+              : 'If this is your team, review the private team connection next. TiQ checks it against your player profile before it appears in My Teams.'}
+          </p>
+        </div>
+        <Link href={teamConnectionReviewHref} style={primaryButtonStyle}>{isPlayerRoster ? 'Link this team' : 'Review & link this team'}</Link>
+      </section>
+      {!isPlayerRoster ? <RosterPlayersList parsedDraft={parsedDraft} /> : null}
       <PostImportActions
-        actions={buildRosterPostImportActions(parsedDraft)}
+        actions={buildRosterPostImportActions(parsedDraft, { context, returnTo })}
       />
     </div>
   )
@@ -2426,8 +3808,15 @@ function PostImportActions({ actions }: { actions: Array<{ label: string; href: 
   )
 }
 
-function buildScorecardPostImportActions(parsedDraft: DataAssistScorecardParsedDraft | null) {
+function buildScorecardPostImportActions(parsedDraft: DataAssistScorecardParsedDraft | null, returnTo = '') {
   const actions: Array<{ label: string; href: string }> = []
+  if (returnTo) {
+    const scorecardReturnHref = buildScorecardImportReturnHref(returnTo, parsedDraft?.externalMatchId || '')
+    actions.push({
+      label: returnTo.startsWith('/team-room') ? 'Return to Team Chat' : 'Continue Captain',
+      href: scorecardReturnHref || returnTo,
+    })
+  }
   const homeHref = parsedDraft?.homeTeam ? buildTeamHref(parsedDraft.homeTeam, {}) : ''
   const awayHref = parsedDraft?.awayTeam ? buildTeamHref(parsedDraft.awayTeam, {}) : ''
   if (homeHref) actions.push({ label: 'Home team', href: homeHref })
@@ -2437,8 +3826,11 @@ function buildScorecardPostImportActions(parsedDraft: DataAssistScorecardParsedD
   return actions
 }
 
-function buildSchedulePostImportActions(parsedDraft: DataAssistScheduleParsedDraft) {
+function buildSchedulePostImportActions(parsedDraft: DataAssistScheduleParsedDraft, context = '') {
   const actions: Array<{ label: string; href: string }> = []
+  if (/\b(?:captain|team hub)\b/i.test(context)) {
+    actions.push({ label: 'Continue Captain setup', href: buildCaptainImportScopeHref(parsedDraft) })
+  }
   const teamHref = parsedDraft.teamName ? buildTeamHref(parsedDraft.teamName, parsedDraft) : ''
   if (teamHref) actions.push({ label: 'View team', href: teamHref })
   actions.push({ label: 'Open League Office', href: '/league-coordinator#league-registry' })
@@ -2446,13 +3838,50 @@ function buildSchedulePostImportActions(parsedDraft: DataAssistScheduleParsedDra
   return actions
 }
 
-function buildRosterPostImportActions(parsedDraft: DataAssistTeamSummaryParsedDraft) {
+function buildRosterPostImportActions(
+  parsedDraft: DataAssistTeamSummaryParsedDraft,
+  options: { context?: string; returnTo?: string } = {},
+) {
   const actions: Array<{ label: string; href: string }> = []
+  if (parsedDraft.rosterSource === 'player_roster') {
+    actions.push({ label: 'Link this team', href: buildTeamConnectionReviewHref(parsedDraft) })
+  }
+  if (options.returnTo) {
+    actions.push({
+      label: options.returnTo.startsWith('/clubs')
+        ? 'Return to Club People'
+        : options.returnTo.startsWith('/teams/')
+          ? 'Return to Team contacts'
+          : options.returnTo.startsWith('/captain/lineup-builder')
+            ? 'Return to Build Lineup'
+            : 'Continue Captain setup',
+      href: options.returnTo,
+    })
+  } else if (/\b(?:captain|team hub)\b/i.test(options.context || '')) {
+    actions.push({ label: 'Continue Captain setup', href: buildCaptainImportScopeHref(parsedDraft) })
+  }
   const teamHref = parsedDraft.rosterTeamName ? buildTeamHref(parsedDraft.rosterTeamName, parsedDraft) : ''
   if (teamHref) actions.push({ label: 'View team', href: teamHref })
   actions.push({ label: 'Open League Office', href: '/league-coordinator#league-setup-form' })
   actions.push({ label: 'Find players', href: buildPlayerSearchHref(parsedDraft.players[0]?.name || parsedDraft.rosterTeamName) })
   return actions
+}
+
+function buildCaptainImportScopeHref(input: Pick<DataAssistScheduleParsedDraft, 'teamName' | 'leagueName' | 'flight'> | Pick<DataAssistTeamSummaryParsedDraft, 'rosterTeamName' | 'leagueName' | 'flight'>) {
+  return buildCaptainScopedHref('/captain', {
+    team: 'teamName' in input ? input.teamName : input.rosterTeamName,
+    league: input.leagueName,
+    flight: input.flight,
+  })
+}
+
+function buildTeamConnectionReviewHref(parsedDraft: Pick<DataAssistTeamSummaryParsedDraft, 'rosterTeamName' | 'leagueName' | 'flight'>) {
+  const params = new URLSearchParams()
+  if (parsedDraft.rosterTeamName) params.set('team', parsedDraft.rosterTeamName)
+  if (parsedDraft.leagueName) params.set('league', parsedDraft.leagueName)
+  if (parsedDraft.flight) params.set('flight', parsedDraft.flight)
+  const query = params.toString()
+  return `/team-connections${query ? `?${query}` : ''}#pending-team-links`
 }
 
 function buildTeamHref(
@@ -2474,9 +3903,28 @@ function buildPlayerSearchHref(query: string) {
   return cleanQuery ? `/explore/search?scope=players&q=${encodeURIComponent(cleanQuery)}` : '/explore/players'
 }
 
-function ScheduleRowsList({ parsedDraft }: { parsedDraft: DataAssistScheduleParsedDraft }) {
+function ScheduleRowsList({
+  parsedDraft,
+  calendarSavedItemIds,
+  calendarSavingKey,
+  calendarOwnerId = '',
+  onAddMatchToCalendar,
+  onChangeMatchDate,
+}: {
+  parsedDraft: DataAssistScheduleParsedDraft
+  calendarSavedItemIds?: Set<string>
+  calendarSavingKey?: string
+  calendarOwnerId?: string
+  onAddMatchToCalendar?: (schedule: DataAssistScheduleParsedDraft, match: DataAssistScheduleParsedDraft['matches'][number]) => void
+  onChangeMatchDate?: (matchIndex: number, dateValue: string) => void
+}) {
   const [expanded, setExpanded] = useState(false)
-  const visibleMatches = expanded ? parsedDraft.matches : parsedDraft.matches.slice(0, 8)
+  const priorityMatches = onChangeMatchDate
+    ? parsedDraft.matches.filter((match) => match.reviewNotes.length)
+    : []
+  const visibleMatches = expanded
+    ? parsedDraft.matches
+    : Array.from(new Set([...parsedDraft.matches.slice(0, 8), ...priorityMatches]))
   const hiddenCount = parsedDraft.matches.length - visibleMatches.length
 
   return (
@@ -2484,7 +3932,14 @@ function ScheduleRowsList({ parsedDraft }: { parsedDraft: DataAssistSchedulePars
       {hiddenCount > 0 ? (
         <p style={compactListHintStyle}>Showing the first {visibleMatches.length} of {parsedDraft.matches.length} matches.</p>
       ) : null}
-      {visibleMatches.map((match) => (
+      {visibleMatches.map((match, index) => {
+        const matchIndex = parsedDraft.matches.indexOf(match)
+        const calendarItemId = getTeamScheduleCalendarItemId(parsedDraft.teamName, match, matchIndex >= 0 ? matchIndex : index, calendarOwnerId)
+        const matchSaved = calendarSavedItemIds?.has(calendarItemId)
+        const matchSaving = calendarSavingKey === calendarItemId
+        const canAddMatch = Boolean(onAddMatchToCalendar && normalizeScheduleCalendarDate(match.matchDate))
+
+        return (
         <div key={match.externalMatchId} style={scheduleMatchRowStyle}>
           <div style={parsedLineMainStyle}>
             <span style={lineHeaderStyle}>
@@ -2494,13 +3949,37 @@ function ScheduleRowsList({ parsedDraft }: { parsedDraft: DataAssistSchedulePars
             <strong style={lineScoreStyle}>{match.matchDate || 'Check date'}</strong>
           </div>
           <div style={scheduleMatchGridStyle}>
+            {onChangeMatchDate && match.reviewNotes.includes('Check date') ? (
+              <label style={scheduleDateFieldStyle}>
+                <span>Confirm date</span>
+                <input
+                  type="date"
+                  value={toScheduleDateInputValue(match.matchDate)}
+                  onChange={(event) => onChangeMatchDate(matchIndex >= 0 ? matchIndex : index, event.target.value)}
+                  style={scheduleDateInputStyle}
+                />
+              </label>
+            ) : null}
             <ReviewFact label="Time" value={match.matchTime || 'Check time'} />
             <ReviewFact label="Home" value={match.homeTeam || 'Check home team'} />
             <ReviewFact label="Visiting" value={match.awayTeam || 'Check visiting team'} />
             <ReviewFact label="Site" value={match.facility || 'Check site'} />
           </div>
+          {onAddMatchToCalendar ? (
+            <div style={cardActionRowStyle}>
+              <button
+                type="button"
+                onClick={() => onAddMatchToCalendar(parsedDraft, match)}
+                disabled={!canAddMatch || matchSaving}
+                style={{ ...smallButtonStyle, ...((!canAddMatch || matchSaving) ? disabledStyle : {}) }}
+              >
+                {matchSaving ? 'Adding...' : matchSaved ? 'In My Calendar' : 'Add this match'}
+              </button>
+            </div>
+          ) : null}
         </div>
-      ))}
+        )
+      })}
       {hiddenCount > 0 ? (
         <button type="button" onClick={() => setExpanded(true)} style={showMoreButtonStyle}>
           Show {hiddenCount} more match{hiddenCount === 1 ? '' : 'es'}
@@ -2557,12 +4036,16 @@ function ScorecardReviewPanel({
   busy,
   onConfirm,
   onFlag,
+  onOpenCaptainScorecard,
+  captainScorecardHandoffIssue,
 }: {
   parsedDraft: DataAssistScorecardParsedDraft
   canReview: boolean
   busy: boolean
   onConfirm: () => void
   onFlag: () => void
+  onOpenCaptainScorecard?: () => void
+  captainScorecardHandoffIssue?: string | null
 }) {
   const reviewItems = getScorecardReviewItems(parsedDraft)
   const winnerCount = parsedDraft.lines.filter((line) => line.winner === 'home' || line.winner === 'away').length
@@ -2632,13 +4115,30 @@ function ScorecardReviewPanel({
           <span>Players, scores, and line winners are captured. Give the read one final check.</span>
         </div>
       ) : null}
+      {onOpenCaptainScorecard ? (
+        <div style={readyImportNoteStyle}>
+          <strong>Use the verified captain scorecard</strong>
+          <span>Bring this read into your match form, make any correction, then save it as the higher-confidence local result.</span>
+          <button type="button" onClick={onOpenCaptainScorecard} style={primaryButtonStyle}>
+            Review in verified scorecard
+          </button>
+        </div>
+      ) : null}
+      {captainScorecardHandoffIssue ? (
+        <div style={reviewChecklistStyle}>
+          <strong>Photo needs one more check</strong>
+          <span>{captainScorecardHandoffIssue}</span>
+        </div>
+      ) : null}
       {canReview ? (
         <div style={cardActionRowStyle}>
-          <button type="button" onClick={onConfirm} disabled={busy} style={{ ...smallButtonStyle, ...(busy ? disabledStyle : {}) }}>
-            {busy ? 'Importing...' : 'Looks right - import'}
-          </button>
+          {!onOpenCaptainScorecard ? (
+            <button type="button" onClick={onConfirm} disabled={busy} style={{ ...smallButtonStyle, ...(busy ? disabledStyle : {}) }}>
+              {busy ? 'Importing...' : 'Looks right - import'}
+            </button>
+          ) : null}
           <button type="button" onClick={onFlag} disabled={busy} style={{ ...smallDangerButtonStyle, ...(busy ? disabledStyle : {}) }}>
-            Needs fix
+            {onOpenCaptainScorecard ? 'Retake or flag photo' : 'Needs fix'}
           </button>
         </div>
       ) : getBlockingScorecardReviewItems(parsedDraft).length ? (
@@ -2762,8 +4262,20 @@ function isScorecardParsedDraft(value: unknown): value is DataAssistScorecardPar
 
 function isParsedDraftReady(value: DataAssistScorecardParsedDraft | DataAssistScheduleParsedDraft | DataAssistTeamSummaryParsedDraft) {
   if (isScheduleParsedDraft(value)) return value.matches.length > 0 && value.matches.every((match) => match.reviewNotes.length === 0)
-  if (isTeamSummaryParsedDraft(value)) return value.players.length > 0 && value.players.every((player) => player.name && player.ntrp !== null)
+  if (isTeamSummaryParsedDraft(value)) return isTeamSummaryDraftReadyForImport(value)
   return getBlockingScorecardReviewItems(value).length === 0
+}
+
+function toScheduleDateInputValue(value: string) {
+  const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(20\d{2})$/)
+  if (!match) return ''
+  return `${match[3]}-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}`
+}
+
+function formatScheduleDraftDate(value: string) {
+  const match = value.trim().match(/^(20\d{2})-(\d{2})-(\d{2})$/)
+  if (!match) return ''
+  return `${Number(match[2])}/${Number(match[3])}/${match[1]}`
 }
 
 function toScorecardParsedDraft(value: DataAssistSubmission['parsedPayload']): DataAssistScorecardParsedDraft | null {
@@ -2772,6 +4284,7 @@ function toScorecardParsedDraft(value: DataAssistSubmission['parsedPayload']): D
   if (!Array.isArray(draft.lines) || !draft.lines.length) return null
   return {
     externalMatchId: typeof draft.externalMatchId === 'string' ? draft.externalMatchId : '',
+    leagueName: typeof draft.leagueName === 'string' ? draft.leagueName : '',
     homeTeam: typeof draft.homeTeam === 'string' ? draft.homeTeam : '',
     awayTeam: typeof draft.awayTeam === 'string' ? draft.awayTeam : '',
     matchDate: typeof draft.matchDate === 'string' ? draft.matchDate : '',
@@ -2820,7 +4333,9 @@ function toTeamSummaryParsedDraft(value: DataAssistSubmission['parsedPayload']):
     districtArea: typeof value.districtArea === 'string' ? value.districtArea : '',
     teams: Array.isArray(value.teams) ? value.teams : [],
     players: value.players,
+    contacts: Array.isArray(value.contacts) ? value.contacts : [],
     playerCount: typeof value.playerCount === 'number' ? value.playerCount : value.players.length,
+    contactCount: typeof value.contactCount === 'number' ? value.contactCount : Array.isArray(value.contacts) ? value.contacts.length : 0,
     teamCount: typeof value.teamCount === 'number' ? value.teamCount : Array.isArray(value.teams) ? value.teams.length : 0,
     parserWarnings: Array.isArray(value.parserWarnings)
       ? value.parserWarnings.filter((warning): warning is string => typeof warning === 'string')
@@ -2881,14 +4396,14 @@ function getSubmissionStatusCopy(submission: DataAssistSubmission) {
   if (submission.status === 'imported') {
     return {
       label: 'Imported',
-      detail: 'Done. This result is now available to match, player, team, and rating workflows.',
+      detail: 'Done. This result is now available for matches, players, teams, and ratings.',
       tone: 'green' as const,
     }
   }
   if (submission.status === 'verified') {
     return {
       label: 'Ready to import',
-      detail: 'The read is confirmed. Preview or commit the import when you are ready.',
+      detail: 'The read is confirmed. Review it or import it when you are ready.',
       tone: 'green' as const,
     }
   }
@@ -2961,6 +4476,13 @@ const sourcePathPanelStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const compactSourcePathPanelStyle: CSSProperties = {
+  ...sourcePathPanelStyle,
+  borderRadius: 14,
+  padding: 9,
+  gap: 8,
+}
+
 const sourcePathHeaderStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'flex-end',
@@ -2968,6 +4490,12 @@ const sourcePathHeaderStyle: CSSProperties = {
   gap: 12,
   flexWrap: 'wrap',
   minWidth: 0,
+}
+
+const compactSourcePathHeaderStyle: CSSProperties = {
+  ...sourcePathHeaderStyle,
+  display: 'grid',
+  gap: 6,
 }
 
 const sourcePathEyebrowStyle: CSSProperties = {
@@ -2989,6 +4517,12 @@ const sourcePathTitleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const compactSourcePathTitleStyle: CSSProperties = {
+  ...sourcePathTitleStyle,
+  fontSize: 18,
+  lineHeight: 1.12,
+}
+
 const sourcePathIntroStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
@@ -2999,11 +4533,31 @@ const sourcePathIntroStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const sourcePathDefaultCueStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: '10px 12px',
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
+  background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
 const sourcePathGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
   gap: 10,
   minWidth: 0,
+}
+
+const compactSourcePathGridStyle: CSSProperties = {
+  ...sourcePathGridStyle,
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 7,
 }
 
 const sourcePathCardBaseStyle: CSSProperties = {
@@ -3029,8 +4583,148 @@ const sourcePathCardStyle: CSSProperties = {
   cursor: 'pointer',
 }
 
-const sourcePathLinkCardStyle: CSSProperties = {
-  ...sourcePathCardBaseStyle,
+const compactSourcePathCardStyle: CSSProperties = {
+  ...sourcePathCardStyle,
+  minHeight: 76,
+  borderRadius: 12,
+  padding: 9,
+  gap: 0,
+}
+
+function readTeamDataRefreshComparison(validationSummary: Record<string, unknown>): TeamDataRefreshComparison | undefined {
+  const autoImport = validationSummary.autoImport
+  if (!autoImport || typeof autoImport !== 'object' || Array.isArray(autoImport)) return undefined
+  const comparison = (autoImport as Record<string, unknown>).refreshComparison
+  if (!comparison || typeof comparison !== 'object' || Array.isArray(comparison)) return undefined
+  const value = comparison as Partial<TeamDataRefreshComparison>
+  if (!Number.isFinite(value.existingPlayerCount) || !Number.isFinite(value.incomingPlayerCount) || typeof value.summary !== 'string') return undefined
+  return {
+    existingPlayerCount: Number(value.existingPlayerCount),
+    incomingPlayerCount: Number(value.incomingPlayerCount),
+    addedPlayerNames: Array.isArray(value.addedPlayerNames) ? value.addedPlayerNames.filter((name): name is string => typeof name === 'string') : [],
+    preservedPlayerNames: Array.isArray(value.preservedPlayerNames) ? value.preservedPlayerNames.filter((name): name is string => typeof name === 'string') : [],
+    existingDetailCount: Number(value.existingDetailCount) || 0,
+    incomingDetailCount: Number(value.incomingDetailCount) || 0,
+    preservedDetailCount: Number(value.preservedDetailCount) || 0,
+    needsConfirmation: value.needsConfirmation === true,
+    summary: value.summary,
+  }
+}
+
+const compactSourcePathCardRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  alignItems: 'center',
+  gap: 9,
+  minWidth: 0,
+}
+
+const compactSourcePathCardCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  textAlign: 'left',
+}
+
+const compactSourcePathDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.25,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const sourcePathSelectedCardStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 66%, var(--shell-panel-border) 34%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%), color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%))',
+  boxShadow: '0 12px 28px color-mix(in srgb, var(--brand-green) 10%, transparent), inset 0 1px 0 rgba(255,255,255,0.08)',
+}
+
+const sourcePathCardTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+}
+
+const sourcePathReadyPillStyle: CSSProperties = {
+  minHeight: 26,
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10,
+  fontWeight: 900,
+}
+
+const sourcePathSelectedPillStyle: CSSProperties = {
+  ...sourcePathReadyPillStyle,
+  borderColor: 'color-mix(in srgb, var(--brand-green) 52%, var(--shell-panel-border) 48%)',
+  background: 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-panel-bg) 84%)',
+  color: 'var(--brand-green)',
+}
+
+const compactSourcePathActionStyle: CSSProperties = {
+  ...sourcePathSelectedPillStyle,
+  minHeight: 34,
+  padding: '0 10px',
+  whiteSpace: 'nowrap',
+}
+
+const sourcePathSupportLinkStyle: CSSProperties = {
+  minHeight: 42,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 10,
+  padding: '0 4px',
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 850,
+  textDecoration: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const sourcePathNextStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+  padding: '9px 10px',
+  borderRadius: 11,
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const sourcePathSafetyDetailsStyle: CSSProperties = {
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  lineHeight: 1.4,
+}
+
+const sourcePathSafetySummaryStyle: CSSProperties = {
+  minHeight: 34,
+  display: 'flex',
+  alignItems: 'center',
+  color: 'var(--brand-blue-2)',
+  fontWeight: 850,
+  cursor: 'pointer',
+}
+
+const sourcePathSafetyCopyStyle: CSSProperties = {
+  display: 'block',
+  padding: '0 4px 6px',
+  overflowWrap: 'anywhere',
 }
 
 const sourcePathQuestionStyle: CSSProperties = {
@@ -3053,6 +4747,69 @@ const sourcePathCtaStyle: CSSProperties = {
   color: 'var(--brand-green)',
   fontSize: 12,
   fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistDetailsSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistDetailsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+  padding: '12px 14px',
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  listStyle: 'none',
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistDetailsSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistDetailsEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistDetailsTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistDetailsCueStyle: CSSProperties = {
+  flex: '0 0 auto',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistDetailsContentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
   overflowWrap: 'anywhere',
 }
 
@@ -3483,6 +5240,12 @@ const sectionHeaderStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const compactSectionHeaderStyle: CSSProperties = {
+  ...sectionHeaderStyle,
+  display: 'grid',
+  gap: 7,
+}
+
 const headerCopyStyle: CSSProperties = {
   display: 'grid',
   gap: 4,
@@ -3499,85 +5262,133 @@ const sectionTitleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const typeOptionGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
-  gap: 10,
-  minWidth: 0,
-}
-
-const uploadChoiceStackStyle: CSSProperties = {
-  display: 'grid',
+const compactPanelStyle: CSSProperties = {
+  ...panelStyle,
+  borderRadius: 18,
+  padding: 12,
   gap: 12,
-  minWidth: 0,
 }
 
-const primaryTypeOptionStyle = (selected: boolean): CSSProperties => ({
-  ...typeOptionStyle(selected),
-  minHeight: 142,
-  padding: 16,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-  border: selected
-    ? '1px solid color-mix(in srgb, var(--brand-green) 68%, var(--shell-panel-border) 32%)'
-    : '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
-  background: selected
-    ? 'color-mix(in srgb, var(--brand-green) 16%, var(--shell-chip-bg) 84%)'
-    : 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-chip-bg) 92%)',
-})
-
-const seasonSetupGroupStyle: CSSProperties = {
-  borderRadius: 16,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'color-mix(in srgb, var(--shell-chip-bg) 82%, transparent)',
-  padding: 10,
+const uploadJourneyRailStyle: CSSProperties = {
   display: 'grid',
-  gap: 10,
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 6,
   minWidth: 0,
 }
 
-const seasonSetupHeaderStyle: CSSProperties = {
+const uploadJourneyStepStyle: CSSProperties = {
+  minHeight: 48,
   display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+  padding: '6px 7px',
+  borderRadius: 12,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'color-mix(in srgb, var(--shell-chip-bg) 86%, transparent)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 10.5,
+  lineHeight: 1.15,
+  fontWeight: 850,
+  textAlign: 'left',
+  overflowWrap: 'anywhere',
+}
+
+const uploadJourneyActiveStepStyle: CSSProperties = {
+  ...uploadJourneyStepStyle,
+  borderColor: 'color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-green) 11%, var(--shell-chip-bg) 89%)',
+  color: 'var(--foreground-strong)',
+}
+
+const uploadJourneyStepNumberStyle: CSSProperties = {
+  width: 22,
+  height: 22,
+  flex: '0 0 auto',
+  display: 'grid',
+  placeItems: 'center',
+  borderRadius: 999,
+  background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-bg) 82%)',
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 950,
+}
+
+const typeOverrideDetailsStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
+  overflow: 'hidden',
+}
+
+const typeOverrideSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
   justifyContent: 'space-between',
   gap: 10,
-  flexWrap: 'wrap',
+  minHeight: 44,
+  padding: '9px 12px',
   color: 'var(--shell-copy-muted)',
   fontSize: 12,
-  lineHeight: 1.35,
   fontWeight: 850,
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const importTypeSelectWrapStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
   minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-chip-bg)',
   overflowWrap: 'anywhere',
 }
 
-const typeOptionStyle = (selected: boolean): CSSProperties => ({
-  borderRadius: 16,
-  border: selected
-    ? '1px solid color-mix(in srgb, var(--brand-green) 58%, var(--shell-panel-border) 42%)'
-    : '1px solid var(--shell-panel-border)',
-  background: selected
-    ? 'color-mix(in srgb, var(--brand-green) 13%, var(--shell-chip-bg) 87%)'
-    : 'var(--shell-chip-bg)',
-  color: 'var(--foreground-strong)',
-  padding: 13,
-  minHeight: 128,
-  display: 'grid',
-  gap: 7,
-  alignContent: 'start',
-  textAlign: 'left',
-  cursor: 'pointer',
-  boxShadow: selected ? '0 14px 28px rgba(20, 184, 116, 0.16)' : 'none',
-  font: 'inherit',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-})
+const compactImportTypeSelectWrapStyle: CSSProperties = {
+  ...importTypeSelectWrapStyle,
+  gap: 5,
+  padding: 8,
+  borderRadius: 12,
+}
 
-const typeCadenceStyle: CSSProperties = {
+const importTypeSelectStyle: CSSProperties = {
+  width: '100%',
+  minWidth: 0,
+  minHeight: 44,
+  borderRadius: 12,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 30%, var(--shell-panel-border) 70%)',
+  background: 'var(--shell-panel-bg)',
+  color: 'var(--foreground-strong)',
+  padding: '0 12px',
+  fontSize: 15,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
+const compactImportTypeSelectStyle: CSSProperties = {
+  ...importTypeSelectStyle,
+  minHeight: 40,
+  borderRadius: 10,
+  padding: '0 10px',
+  fontSize: 14,
+}
+
+const importTypeSelectHintStyle: CSSProperties = {
+  minWidth: 0,
   color: 'var(--shell-copy-muted)',
-  fontSize: 11,
-  lineHeight: 1.35,
-  fontStyle: 'normal',
+  fontSize: 12,
+  lineHeight: 1.4,
   fontWeight: 850,
   overflowWrap: 'anywhere',
+}
+
+const compactImportTypeSelectHintStyle: CSSProperties = {
+  ...importTypeSelectHintStyle,
+  fontSize: 11,
+  lineHeight: 1.3,
 }
 
 const seasonGuideStyle: CSSProperties = {
@@ -3595,12 +5406,9 @@ const seasonGuideStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const stepDividerStyle: CSSProperties = {
-  borderTop: '1px solid var(--shell-panel-border)',
-  paddingTop: 14,
+const mobileUploadHelpStackStyle: CSSProperties = {
   display: 'grid',
-  gap: 8,
-  color: 'var(--foreground-strong)',
+  gap: 10,
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -3634,81 +5442,36 @@ const stepBadgeNumberStyle: CSSProperties = {
   fontSize: 12,
 }
 
-const typeButtonHeaderStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 8,
-  flexWrap: 'wrap',
-  minWidth: 0,
+const hiddenFileInputStyle: CSSProperties = {
+  display: 'none',
 }
 
-const typeBadgeRowStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 6,
-  flexWrap: 'wrap',
-  minWidth: 0,
-}
-
-const typeRecommendedBadgeStyle: CSSProperties = {
-  borderRadius: 999,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 35%, var(--shell-panel-border) 65%)',
-  background: 'color-mix(in srgb, var(--brand-green) 14%, var(--shell-panel-bg) 86%)',
-  color: 'var(--foreground-strong)',
-  padding: '3px 7px',
-  fontSize: 10,
-  fontWeight: 950,
-  maxWidth: '100%',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-}
-
-const typePausedBadgeStyle: CSSProperties = {
-  ...typeRecommendedBadgeStyle,
-  border: '1px solid rgba(248,113,113,0.26)',
-  background: 'rgba(239,68,68,0.10)',
-  color: '#fecaca',
-}
-
-const dropzoneStyle = (status: string): CSSProperties => ({
-  minHeight: 150,
-  borderRadius: 16,
-  border: status === 'rejected' || status === 'paused'
-    ? '1px dashed rgba(248,113,113,0.55)'
-    : '1px dashed color-mix(in srgb, var(--brand-blue-2) 42%, var(--shell-panel-border) 58%)',
-  background: status === 'paused'
-    ? 'rgba(239,68,68,0.08)'
-    : 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
-  color: 'var(--foreground-strong)',
-  padding: 18,
-  display: 'grid',
-  placeItems: 'center',
-  textAlign: 'center',
-  gap: 8,
-  cursor: status === 'paused' ? 'not-allowed' : 'pointer',
-  opacity: status === 'paused' ? 0.82 : 1,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-})
-
-const compactDropzoneStyle: CSSProperties = {
-  ...dropzoneStyle(''),
+const replaceExportPickerStyle: CSSProperties = {
+  position: 'relative',
   minHeight: 92,
   padding: 12,
+  display: 'grid',
+  placeItems: 'center',
+  gap: 6,
   minWidth: 0,
+  overflow: 'hidden',
   overflowWrap: 'anywhere',
+  textAlign: 'center',
+  cursor: 'pointer',
+  borderRadius: 16,
+  border: '1px dashed color-mix(in srgb, var(--brand-blue-2) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+  color: 'var(--foreground-strong)',
 }
 
-const fileInputStyle: CSSProperties = {
+const replaceExportInputStyle: CSSProperties = {
+  position: 'absolute',
+  zIndex: 2,
+  inset: 0,
   width: '100%',
-  maxWidth: 360,
-  minWidth: 0,
-  minHeight: 44,
-  color: 'var(--foreground-strong)',
-  fontSize: 14,
-  fontWeight: 850,
-  overflowWrap: 'anywhere',
+  height: '100%',
+  opacity: 0,
+  cursor: 'pointer',
 }
 
 const dropzoneKickerStyle: CSSProperties = {
@@ -3770,6 +5533,7 @@ const submissionListStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
   gap: 12,
+  alignItems: 'start',
   minWidth: 0,
 }
 
@@ -3780,6 +5544,7 @@ const submissionCardStyle: CSSProperties = {
   padding: 14,
   display: 'grid',
   gap: 10,
+  alignSelf: 'start',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -3814,6 +5579,81 @@ const historyCollapsedStyle: CSSProperties = {
   padding: 12,
   fontSize: 13,
   fontWeight: 800,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistOperationsStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const dataAssistOperationCardStyle = (tone: 'review' | 'clear' | 'history' | 'imported' | 'start'): CSSProperties => ({
+  display: 'grid',
+  gap: 4,
+  minHeight: 118,
+  alignContent: 'center',
+  textAlign: 'left',
+  cursor: 'pointer',
+  padding: '15px 16px',
+  borderRadius: 18,
+  border: tone === 'review'
+    ? '1px solid rgba(251, 191, 36, 0.46)'
+    : tone === 'clear' || tone === 'imported' || tone === 'start'
+      ? '1px solid rgba(155, 225, 29, 0.28)'
+      : '1px solid rgba(125, 211, 252, 0.25)',
+  background: tone === 'review'
+    ? 'linear-gradient(135deg, rgba(120, 53, 15, 0.30), rgba(15, 23, 42, 0.92))'
+    : tone === 'clear' || tone === 'imported' || tone === 'start'
+      ? 'linear-gradient(135deg, rgba(71, 129, 25, 0.18), rgba(15, 23, 42, 0.92))'
+      : 'linear-gradient(135deg, rgba(30, 87, 153, 0.16), rgba(15, 23, 42, 0.92))',
+  color: 'var(--foreground-strong)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.07), 0 10px 24px rgba(2,8,23,0.16)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+})
+
+const dataAssistOperationLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: '.08em',
+  textTransform: 'uppercase',
+}
+
+const dataAssistOperationValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 32,
+  lineHeight: 1,
+  fontWeight: 950,
+}
+
+const dataAssistOperationTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistOperationDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 800,
+  lineHeight: 1.35,
+}
+
+const historyRecordsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+  scrollMarginTop: 18,
+}
+
+const mobileHistoryShellStyle: CSSProperties = {
+  display: 'grid',
   minWidth: 0,
   overflowWrap: 'anywhere',
 }
@@ -3898,6 +5738,25 @@ const importPanelStyle: CSSProperties = {
   border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const calendarAddPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 14,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 26%, var(--shell-panel-border) 74%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+  overflowWrap: 'anywhere',
+}
+
+const calendarAddMessageStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 850,
+  lineHeight: 1.45,
 }
 
 const scorecardHeaderGridStyle: CSSProperties = {
@@ -4062,8 +5921,62 @@ const scheduleMatchGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const scheduleDateFieldStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 850,
+}
+
+const scheduleDateInputStyle: CSSProperties = {
+  width: '100%',
+  minWidth: 0,
+  minHeight: 40,
+  borderRadius: 10,
+  border: '1px solid color-mix(in srgb, #fbbf24 42%, var(--shell-panel-border) 58%)',
+  background: 'var(--shell-panel-bg-strong)',
+  color: 'var(--foreground-strong)',
+  padding: '0 10px',
+  font: 'inherit',
+  fontSize: 13,
+  fontWeight: 850,
+}
+
 const bulkResultListStyle: CSSProperties = {
   display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const bulkResultReviewCalloutStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 12,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, #fbbf24 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, #fbbf24 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const bulkResultContentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const bulkResultActionStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-start',
+  flexWrap: 'wrap',
   gap: 8,
   minWidth: 0,
 }
@@ -4084,10 +5997,10 @@ const bulkResultRowStyle = (status: BulkScorecardResult['status']): CSSPropertie
       : status === 'pending'
         ? 'var(--shell-chip-bg)'
         : 'color-mix(in srgb, var(--brand-green) 6%, var(--shell-chip-bg) 94%)',
-  padding: 11,
+  padding: 12,
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 8rem)',
-  gap: 10,
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 12,
   alignItems: 'center',
   color: 'var(--foreground-strong)',
   fontSize: 12,
@@ -4222,6 +6135,36 @@ const simpleHelpStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const walkthroughHelpStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%)',
+}
+
+const walkthroughHelpCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  flex: '1 1 260px',
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const walkthroughHelpKickerStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 10,
+  fontWeight: 950,
+  letterSpacing: 0,
+  textTransform: 'uppercase',
+}
+
 const exportHelpStyle: CSSProperties = {
   borderRadius: 14,
   border: '1px solid var(--shell-panel-border)',
@@ -4297,6 +6240,26 @@ const readyImportNoteStyle: CSSProperties = {
   fontWeight: 850,
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const teamSummaryImportActionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 38%, var(--shell-panel-border) 62%)',
+  background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)',
+  minWidth: 0,
+}
+
+const teamConnectionNextStepStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: 14,
+  borderRadius: 16,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  minWidth: 0,
 }
 
 const duplicateBannerStyle: CSSProperties = {
@@ -4597,6 +6560,26 @@ const noticeStyle: CSSProperties = {
   background: 'var(--shell-chip-bg)',
 }
 
+const scorecardCapturePanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  padding: 16,
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 42%, var(--shell-panel-border) 58%)',
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg) 88%), var(--shell-panel-bg))',
+}
+
+const capturePanelTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  letterSpacing: '-0.025em',
+  overflowWrap: 'anywhere',
+}
+
 const noticeLinkStyle: CSSProperties = {
   color: 'var(--portal-you)',
   fontWeight: 950,
@@ -4690,6 +6673,87 @@ const emptyHistoryActionStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 950,
   overflowWrap: 'anywhere',
+}
+
+const dataAssistOutcomeStyle = (tone: DataAssistOutcome['tone']): CSSProperties => ({
+  display: 'grid',
+  gap: 14,
+  padding: '18px',
+  borderRadius: 22,
+  border: tone === 'review'
+    ? '1px solid rgba(251, 191, 36, 0.48)'
+    : tone === 'duplicate'
+      ? '1px solid rgba(125, 211, 252, 0.30)'
+      : '1px solid rgba(155, 225, 29, 0.42)',
+  background: tone === 'review'
+    ? 'linear-gradient(135deg, rgba(120, 53, 15, 0.28), rgba(8, 16, 31, 0.95))'
+    : tone === 'duplicate'
+      ? 'linear-gradient(135deg, rgba(17, 70, 103, 0.23), rgba(8, 16, 31, 0.95))'
+      : 'linear-gradient(135deg, rgba(70, 119, 25, 0.24), rgba(8, 16, 31, 0.95))',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08), 0 18px 42px rgba(2,8,23,0.18)',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+})
+
+const dataAssistOutcomeHeaderStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const dataAssistOutcomeEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: '.12em',
+  textTransform: 'uppercase',
+}
+
+const dataAssistOutcomeTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(22px, 5.6vw, 34px)',
+  lineHeight: 1.04,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistOutcomeCopyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  fontWeight: 700,
+  maxWidth: 720,
+  overflowWrap: 'anywhere',
+}
+
+const dataAssistOutcomePillStyle = (tone: DataAssistOutcome['tone']): CSSProperties => ({
+  width: 'fit-content',
+  maxWidth: '100%',
+  padding: '7px 10px',
+  borderRadius: 999,
+  border: tone === 'review'
+    ? '1px solid rgba(251, 191, 36, 0.55)'
+    : '1px solid rgba(155, 225, 29, 0.50)',
+  background: tone === 'review' ? 'rgba(120, 53, 15, 0.30)' : 'rgba(70, 119, 25, 0.26)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+  letterSpacing: '.06em',
+  textTransform: 'uppercase',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+})
+
+const dataAssistOutcomeActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
 }
 
 const successStyle: CSSProperties = {

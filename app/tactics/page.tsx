@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 export default function TacticsPage() {
   return (
-    <SiteShell active="captain">
+    <SiteShell active="you">
       <TiqTacticalStudioGate />
     </SiteShell>
   )

@@ -1,19 +1,18 @@
 import type { Metadata } from 'next'
 import {
-  ActionGrid,
-  AudiencePathGrid,
   CommandHero,
-  HomeCtaGrid,
-  PlatformPillarGrid,
-  ProductPreviewGrid,
+  GuestTierPreview,
   PublicPageShell,
   pageWrapStyle,
 } from '@/app/components/public-command-center'
-import { HOME_HERO_STORY, PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
+import ActiveTeamChallengeCard from '@/app/components/active-team-challenge-card'
+import ClubCommunicationAttentionCard from '@/app/components/club-communication-attention-card'
+import { ProductTourHomeSpotlight } from '@/app/components/product-tour-video'
+import { HOME_HERO_STORY, PRODUCT_MOTTO } from '@/lib/product-story'
 
 const homeDescription =
   'TenAceIQ helps the tennis community improve, compete, and manage the game with less friction.'
-const socialBrandImage = '/tenaceiq/logos/tenaceiq-social-preview.png'
+const socialBrandImage = '/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1'
 
 export const metadata: Metadata = {
   title: PRODUCT_MOTTO,
@@ -28,8 +27,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: socialBrandImage,
-        width: 1731,
-        height: 909,
+        width: 1200,
+        height: 630,
         alt: 'TenAceIQ: More Tennis. Less Chaos.',
       },
     ],
@@ -46,34 +45,21 @@ export default function HomePage() {
   return (
     <PublicPageShell active="home">
       <main style={pageWrapStyle}>
+        <ClubCommunicationAttentionCard />
+        <ActiveTeamChallengeCard />
         <CommandHero
           title={`${HOME_HERO_STORY.headlineTop} ${HOME_HERO_STORY.headlineBottom}`}
-          body={`${HOME_HERO_STORY.body} ${PLATFORM_POSITIONING}`}
+          body="Search players, teams, leagues, rankings, and tournaments for free. Add the right tools when you want help with your game, team, players, competition, or club."
           primary={{ href: '/explore', label: 'Start Exploring' }}
-          secondary={{ href: '/explore/players', label: 'Find Player Insights' }}
-          searchPlaceholder="Search players, teams, leagues, tournaments, coaches, resources, or tennis actions"
-          showBoard
+          secondary={{ href: '/pricing', label: 'See Plans' }}
+          searchPlaceholder="Search players, teams, leagues, tournaments, or coaches"
+          searchCompact
+          showSearchResults={false}
+          showBoard={false}
         />
-        <p style={homeTierPromiseStyle}>
-          Start free, then unlock My Lab, Coach Hub, Team Hub, League Office, or Full-Court when your game, team, players, league, or tournament needs more support.
-        </p>
-        <HomeCtaGrid />
-        <PlatformPillarGrid />
-        <AudiencePathGrid />
-        <div id="what-next">
-          <ActionGrid />
-        </div>
-        <ProductPreviewGrid />
+        <ProductTourHomeSpotlight />
+        <GuestTierPreview />
       </main>
     </PublicPageShell>
   )
-}
-
-const homeTierPromiseStyle = {
-  margin: '-8px 0 0',
-  color: 'var(--muted-strong)',
-  fontSize: 14,
-  lineHeight: 1.55,
-  fontWeight: 760,
-  maxWidth: 860,
 }

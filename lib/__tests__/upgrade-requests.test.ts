@@ -22,8 +22,8 @@ describe('upgrade request pricing snapshots', () => {
     })).toMatchObject({
       plan_id: 'league',
       plan_name: 'League',
-      price_label: '$14.99/season',
-      billing_amount_cents: 1499,
+      price_label: '$25/season',
+      billing_amount_cents: 2500,
       billing_currency: 'usd',
       billing_interval: 'season',
       checkout_mode: 'one_time',
@@ -58,8 +58,8 @@ describe('upgrade request pricing snapshots', () => {
 
     expect(mapUpgradeRequestRow(row)).toMatchObject({
       planId: 'captain',
-      priceLabel: '$9.99/month',
-      billingAmountCents: 999,
+      priceLabel: '$4.99/month',
+      billingAmountCents: 499,
       billingCurrency: 'usd',
       billingInterval: 'month',
       checkoutMode: 'subscription',
@@ -75,8 +75,8 @@ describe('upgrade request pricing snapshots', () => {
   it('builds the same snapshot used by local fallback requests', () => {
     expect(buildUpgradePricingSnapshot('player_plus')).toMatchObject({
       planName: 'Player',
-      priceLabel: '$4.99/month',
-      billingAmountCents: 499,
+      priceLabel: '$1.99/month',
+      billingAmountCents: 199,
       billingInterval: 'month',
       checkoutMode: 'subscription',
       quantityMode: 'account',
@@ -86,8 +86,8 @@ describe('upgrade request pricing snapshots', () => {
   it('captures Coach as a Player plan plus coaching workflow snapshot', () => {
     expect(buildUpgradePricingSnapshot('coach')).toMatchObject({
       planName: 'Coach',
-      priceLabel: '$9.99/month',
-      billingAmountCents: 999,
+      priceLabel: '$4.99/month',
+      billingAmountCents: 499,
       billingInterval: 'month',
       checkoutMode: 'subscription',
       quantityMode: 'account',
@@ -103,8 +103,8 @@ describe('upgrade request pricing snapshots', () => {
   it('captures Full-Court as the full-suite pricing snapshot', () => {
     expect(buildUpgradePricingSnapshot('full_court')).toMatchObject({
       planName: 'Full-Court',
-      priceLabel: '$19.99/month',
-      billingAmountCents: 1999,
+      priceLabel: '$9.99/month',
+      billingAmountCents: 999,
       billingInterval: 'month',
       checkoutMode: 'subscription',
       quantityMode: 'account',
@@ -115,6 +115,33 @@ describe('upgrade request pricing snapshots', () => {
         leagueCoordinator: true,
         tiqTeamLeagueEntry: true,
         tiqIndividualLeagueCreator: true,
+      },
+    })
+  })
+
+  it('captures both Club account subscriptions with their exact monthly prices', () => {
+    expect(buildUpgradePricingSnapshot('club_starter')).toMatchObject({
+      planName: 'Club Starter',
+      priceLabel: '$99/month',
+      billingAmountCents: 9900,
+      billingInterval: 'month',
+      checkoutMode: 'subscription',
+      quantityMode: 'account',
+      entitlementGrant: {
+        clubStarter: true,
+        clubUnlimited: false,
+      },
+    })
+    expect(buildUpgradePricingSnapshot('club_unlimited')).toMatchObject({
+      planName: 'Club Unlimited',
+      priceLabel: '$149/month',
+      billingAmountCents: 14900,
+      billingInterval: 'month',
+      checkoutMode: 'subscription',
+      quantityMode: 'account',
+      entitlementGrant: {
+        clubStarter: true,
+        clubUnlimited: true,
       },
     })
   })

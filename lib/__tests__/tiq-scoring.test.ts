@@ -144,4 +144,18 @@ describe('compareTiqTeamStandings', () => {
       oneWinTeam,
     ])
   })
+
+  it('honors a saved line-wins standings override', () => {
+    expect([oneWinTeam, noWinTeam].sort((a, b) => compareTiqTeamStandings(a, b, 'standard', 'line_wins'))).toEqual([
+      noWinTeam,
+      oneWinTeam,
+    ])
+  })
+
+  it('can keep match wins first even when scoring uses dynamic points', () => {
+    expect([noWinTeam, oneWinTeam].sort((a, b) => compareTiqTeamStandings(a, b, 'dynamic_points', 'match_wins'))).toEqual([
+      oneWinTeam,
+      noWinTeam,
+    ])
+  })
 })

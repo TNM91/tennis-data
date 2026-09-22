@@ -40,6 +40,10 @@ describe('Captain brief mobile layout guards', () => {
     expect(styleBlock(teamBriefSource, 'pillStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock(teamBriefSource, 'primaryButton')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(teamBriefSource, 'secondaryButton')).toContain("overflowWrap: 'anywhere'")
+    expect(teamBriefSource).toContain("{!isMobile ? <CaptainSuitePanel active=\"team-brief\" teamLabel={team || 'Team week'} /> : null}")
+    expect(teamBriefSource.indexOf('aria-label="Team brief controls"')).toBeLessThan(
+      teamBriefSource.indexOf('Loading team brief data'),
+    )
   })
 
   it('keeps Weekly Brief boards, cards, and actions mobile-safe', () => {
@@ -67,5 +71,9 @@ describe('Captain brief mobile layout guards', () => {
     expect(styleBlock(weeklyBriefSource, 'courtPill')).toContain("whiteSpace: 'normal'")
     expect(styleBlock(weeklyBriefSource, 'primaryButton')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(weeklyBriefSource, 'secondaryButton')).toContain("overflowWrap: 'anywhere'")
+    expect(weeklyBriefSource).toContain("{!isMobile ? <CaptainSuitePanel active=\"brief\" teamLabel={team || 'Team week'} /> : null}")
+    expect(weeklyBriefSource.indexOf('aria-label="Weekly brief controls"')).toBeLessThan(
+      weeklyBriefSource.indexOf('Loading weekly brief data'),
+    )
   })
 })

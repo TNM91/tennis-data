@@ -311,7 +311,8 @@ describe('TIQ tournament registry helpers', () => {
     expect(publicPage).toContain('Player check-in')
     expect(publicPage).toContain('Court board')
     expect(publicPage).toContain('Match-day actions')
-    expect(publicPage).toContain('Alert settings')
+    expect(publicPage).toContain('Save your private alert-settings link')
+    expect(publicPage).toContain("value: 'Set on entry'")
     expect(publicPage).toContain('Find yours')
     expect(publicPage).toContain('playerRailCardStyle')
     expect(publicPage).toContain('id="podium"')
@@ -361,14 +362,15 @@ describe('TIQ tournament registry helpers', () => {
     expect(workspace).toContain('getTiqTournamentMessagingProviderState')
     expect(workspace).toContain('providerState.blocker')
     expect(workspace).toContain('Preference changes from tournament links will appear here.')
-    expect(workspace).toContain('/preferences')
+    expect(workspace).not.toContain('/preferences')
+    expect(publicPage).toContain('setEntryPreferenceHref(result.preferenceHref || \'\')')
     expect(preferencesPage).toContain('Turn alerts off')
     expect(preferencesPage).toContain('Court alerts')
     expect(preferencesPage).toContain('Reply STOP anytime')
     expect(preferencesPage).toContain('Back to tournament')
     expect(preferencesPage).toContain('consentGridStyle')
     expect(preferencesPage).toContain('secondaryButtonStyle')
-    expect(preferencesApi).toContain('Participant opted out from tournament link.')
+    expect(preferencesApi).toContain('Participant opted out from a private tournament link.')
     expect(preferencesApi).toContain('tiq_tournament_preference_events')
     expect(preferencesApi).toContain("action: smsOptIn ? 'opt_in' : 'opt_out'")
     expect(alertPreviewApi).toContain('providerState.mode')
@@ -529,7 +531,13 @@ describe('TIQ tournament registry helpers', () => {
       record: updated!,
       kind: 'rules',
       siteUrl: 'https://www.tenaceiq.com/tournaments/city-open',
-    })).toContain('Manage alerts: https://www.tenaceiq.com/tournaments/city-open/preferences')
+    })).not.toContain('Manage alerts:')
+    expect(buildTiqTournamentAlertDraft({
+      record: updated!,
+      kind: 'rules',
+      siteUrl: 'https://www.tenaceiq.com/tournaments/city-open',
+      preferencesUrl: 'https://www.tenaceiq.com/tournaments/city-open/preferences?token=private-token',
+    })).toContain('Manage alerts: https://www.tenaceiq.com/tournaments/city-open/preferences?token=private-token')
   })
 
   it('links tournament entrants to TIQ player profiles', () => {

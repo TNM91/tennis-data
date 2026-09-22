@@ -10,7 +10,6 @@ import {
   pageWrapStyle,
 } from '@/app/components/public-command-center'
 import { TiqActionCard, TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
@@ -40,20 +39,24 @@ export default function ManagePage() {
         <CommandHero
           eyebrow="Manage"
           title="Run tennis with fewer loose ends."
-          body={`${PRODUCT_MOTTO} means availability, schedules, lineups, rosters, results, and messages should be easy to find and easy to act on from a phone.`}
+          body="Keep availability, schedules, lineups, rosters, results, and messages close to the next action."
           primary={{ href: '/captain', label: 'Manage My Team' }}
-          secondary={{ href: '/leagues-and-tournaments', label: 'Run a League or Tournament' }}
+          secondary={{ href: '/leagues-and-tournaments', label: 'Open Organizer Tools' }}
+          searchCompact
+          showSearchResults={false}
+          showBoard={false}
           searchPlaceholder="Search teams, leagues, tournaments, schedules, scorecards, or captain tools"
+          visual="manage"
         />
 
         <section style={quickPathStyle} aria-labelledby="manage-quick-path-title">
           <div style={quickPathHeaderStyle}>
             <p style={quickPathEyebrowStyle}>Pick your path</p>
             <h2 id="manage-quick-path-title" style={quickPathTitleStyle}>
-              What are you trying to organize right now?
+              What do you need to run?
             </h2>
             <p style={quickPathBodyStyle}>
-              Choose the closest path, then TenAceIQ keeps the next step focused on less admin and more tennis.
+              Open the tool for the job in front of you.
             </p>
           </div>
           <div style={quickPathGridStyle}>
@@ -72,68 +75,81 @@ export default function ManagePage() {
           </div>
         </section>
 
-        <section style={managePlayerIdTrailStyle} aria-label="Manage Player ID starter path">
-          <div style={managePlayerIdHeaderStyle}>
-            <p style={managePlayerIdEyebrowStyle}>Player ID to operations</p>
-            <h2 style={managePlayerIdTitleStyle}>Use player proof before team, league, or event decisions get messy.</h2>
-            <p style={managePlayerIdTextStyle}>
-              {MANAGE_PLAYER_IDENTITY_READ.levelUpNudge}
-            </p>
+        <details className="manageDetailsSection" style={managePlayerIdTrailStyle} aria-label="Manage Player ID starter path">
+          <summary style={manageDetailsSummaryStyle}>
+            <div style={managePlayerIdHeaderStyle}>
+              <span style={managePlayerIdEyebrowStyle}>Player ID to operations</span>
+              <strong style={managePlayerIdTitleStyle}>Use player proof before decisions get messy.</strong>
+            </div>
+            <span style={manageDetailsSummaryCueStyle}>Show context</span>
+          </summary>
+          <div style={manageDetailsContentStyle}>
+            <div style={managePlayerIdHeaderStyle}>
+              <p style={managePlayerIdTextStyle}>
+                {MANAGE_PLAYER_IDENTITY_READ.levelUpNudge}
+              </p>
+            </div>
+            <div style={managePlayerIdGridStyle} aria-label="Manage Player ID starter read">
+              {managePlayerIdStarterRead.map((item) => (
+                <article key={item.label} style={managePlayerIdCardStyle}>
+                  <span style={managePlayerIdLabelStyle}>{item.label}</span>
+                  <strong style={managePlayerIdValueStyle}>{item.value}</strong>
+                </article>
+              ))}
+            </div>
+            <div style={managePlayerIdActionRowStyle}>
+              <Link href={MANAGE_LEVEL_UP_HREF} style={managePlayerIdActionStyle}>
+                Start Level Up
+              </Link>
+              <Link href={MANAGE_PLAYER_DEVELOPMENT_HREF} style={managePlayerIdActionStyle}>
+                Read Player ID
+              </Link>
+              <Link href="/captain" style={managePlayerIdActionStyle}>
+                Open Team Hub
+              </Link>
+            </div>
           </div>
-          <div style={managePlayerIdGridStyle} aria-label="Manage Player ID starter read">
-            {managePlayerIdStarterRead.map((item) => (
-              <article key={item.label} style={managePlayerIdCardStyle}>
-                <span style={managePlayerIdLabelStyle}>{item.label}</span>
-                <strong style={managePlayerIdValueStyle}>{item.value}</strong>
-              </article>
-            ))}
-          </div>
-          <div style={managePlayerIdActionRowStyle}>
-            <Link href={MANAGE_LEVEL_UP_HREF} style={managePlayerIdActionStyle}>
-              Start Level Up
-            </Link>
-            <Link href={MANAGE_PLAYER_DEVELOPMENT_HREF} style={managePlayerIdActionStyle}>
-              Read Player ID
-            </Link>
-            <Link href="/captain" style={managePlayerIdActionStyle}>
-              Open Team Hub
-            </Link>
-          </div>
-        </section>
+        </details>
 
-        <section style={sectionStyle} aria-labelledby="manage-actions-title">
-          <SectionHeader
-            eyebrow="Manage paths"
-            title="Start with the need that is causing the chaos."
-            body="TenAceIQ keeps team, league, and tournament work tied to the next practical tennis action."
-            titleId="manage-actions-title"
-          />
-          <div style={gridStyle}>
-            {manageActions.map((action) => (
-              <TiqActionCard
-                key={action.title}
-                eyebrow={action.eyebrow}
-                title={action.title}
-                body={action.body}
-                metrics={[...action.metrics]}
-                href={action.href}
-                cta={action.cta}
-                event={action.event}
-                trust={[...action.trust]}
-              >
-                <p style={actionQuestionStyle}>{action.question}</p>
-              </TiqActionCard>
-            ))}
+        <details className="manageDetailsSection" style={detailsSectionStyle} aria-labelledby="manage-actions-title">
+          <summary style={detailsSectionSummaryStyle}>
+            <span style={managePlayerIdEyebrowStyle}>Manage paths</span>
+            <strong id="manage-actions-title" style={detailsSectionTitleStyle}>Need more detail before choosing?</strong>
+            <span style={manageDetailsSummaryCueStyle}>Show paths</span>
+          </summary>
+          <div style={manageDetailsContentStyle}>
+            <SectionHeader
+              eyebrow="Manage paths"
+              title="Open the right tool."
+              body="Use these when you want more detail before choosing."
+              titleId="manage-actions-detail-title"
+            />
+            <div style={gridStyle}>
+              {manageActions.map((action) => (
+                <TiqActionCard
+                  key={action.title}
+                  eyebrow={action.eyebrow}
+                  title={action.title}
+                  body={action.body}
+                  metrics={[...action.metrics]}
+                  href={action.href}
+                  cta={action.cta}
+                  event={action.event}
+                  trust={[...action.trust]}
+                >
+                  <p style={actionQuestionStyle}>{action.question}</p>
+                </TiqActionCard>
+              ))}
+            </div>
           </div>
-        </section>
+        </details>
 
-        <section style={sectionStyle} aria-labelledby="manage-preview-title">
-          <SectionHeader
-            eyebrow="What gets simpler"
-            title="The same tennis week, with fewer scattered tools."
-            body="Captains, coordinators, and tournament directors should be able to answer the most important questions in seconds."
-            titleId="manage-preview-title"
-          />
+        <details className="manageDetailsSection" style={detailsSectionStyle} aria-labelledby="manage-preview-title">
+          <summary style={detailsSectionSummaryStyle}>
+            <span style={managePlayerIdEyebrowStyle}>What gets simpler</span>
+            <strong id="manage-preview-title" style={detailsSectionTitleStyle}>What gets simpler?</strong>
+            <span style={manageDetailsSummaryCueStyle}>Show examples</span>
+          </summary>
           <div style={gridStyle}>
             <TiqWorkspacePreview
               eyebrow="Captain"
@@ -187,7 +203,7 @@ export default function ManagePage() {
               }}
             />
           </div>
-        </section>
+        </details>
 
         <TrustStrip
           context="Manage hub trust strip"
@@ -206,29 +222,29 @@ export default function ManagePage() {
 const manageQuickPaths = [
   {
     role: 'Captain',
-    question: 'Who is available and what lineup should I send?',
+    question: 'Set lineup and message',
     cta: 'Manage My Team',
     href: '/captain',
     job: 'manage_team_week',
   },
   {
     role: 'League coordinator',
-    question: 'How do I organize schedules, teams, scores, and standings?',
+    question: 'Run league season',
     cta: 'Open League Office',
     href: '/league-coordinator',
     job: 'run_league_season',
   },
   {
     role: 'Tournament director',
-    question: 'How do I keep entries, courts, draws, and results moving?',
+    question: 'Run event desk',
     cta: 'Open Tournament Desk',
     href: '/tournaments#desk',
     job: 'run_event_desk',
   },
   {
     role: 'Data helper',
-    question: 'What scorecard, roster, or schedule needs review?',
-    cta: 'Refresh Tennis Context',
+    question: 'Review score or roster',
+    cta: 'Open Data Assist',
     href: '/data-assist?intent=upload-source&context=Manage%20quick%20path',
     job: 'refresh_management_context',
   },
@@ -330,7 +346,7 @@ const manageActions = [
     eyebrow: 'Data Assist',
     title: 'Fix the source of confusion',
     question: 'What source needs review before it shapes the tennis context?',
-    body: 'Upload scorecards, schedules, rosters, team summaries, or corrections when the tennis context needs review.',
+    body: 'Upload scorecards, schedules, Player Rosters, or corrections when the tennis context needs review.',
     metrics: [
       { label: 'Upload', value: 'Source' },
       { label: 'Review', value: 'Needed' },
@@ -349,12 +365,6 @@ const manageActions = [
     ],
   },
 ] as const
-
-const sectionStyle: CSSProperties = {
-  display: 'grid',
-  gap: 14,
-  minWidth: 0,
-}
 
 const quickPathStyle: CSSProperties = {
   display: 'grid',
@@ -405,7 +415,7 @@ const quickPathBodyStyle: CSSProperties = {
 
 const quickPathGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))',
   gap: 10,
   minWidth: 0,
 }
@@ -415,10 +425,10 @@ const quickPathCardStyle: CSSProperties = {
   gap: 8,
   alignContent: 'space-between',
   minWidth: 0,
-  minHeight: 138,
+  minHeight: 82,
   border: '1px solid rgba(255, 255, 255, 0.13)',
   borderRadius: 14,
-  padding: 14,
+  padding: 11,
   color: 'inherit',
   textDecoration: 'none',
   background: 'rgba(5, 12, 25, 0.72)',
@@ -449,7 +459,7 @@ const quickPathCtaStyle: CSSProperties = {
 }
 
 const managePlayerIdTrailStyle: CSSProperties = {
-  display: 'grid',
+  display: 'block',
   gap: 14,
   minWidth: 0,
   border: '1px solid color-mix(in srgb, var(--brand-green) 20%, var(--shell-panel-border) 80%)',
@@ -457,6 +467,41 @@ const managePlayerIdTrailStyle: CSSProperties = {
   padding: 'clamp(14px, 3vw, 20px)',
   background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
   overflowWrap: 'anywhere',
+}
+
+const manageDetailsSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  cursor: 'pointer',
+  listStyle: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const manageDetailsSummaryCueStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 34,
+  padding: '0 11px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 10%, var(--shell-chip-bg) 90%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+  whiteSpace: 'normal',
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const manageDetailsContentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  minWidth: 0,
+  marginTop: 14,
 }
 
 const managePlayerIdHeaderStyle: CSSProperties = {
@@ -550,6 +595,32 @@ const managePlayerIdActionStyle: CSSProperties = {
   fontWeight: 950,
   textDecoration: 'none',
   whiteSpace: 'normal',
+  overflowWrap: 'anywhere',
+}
+
+const detailsSectionStyle: CSSProperties = {
+  display: 'block',
+  gap: 14,
+  minWidth: 0,
+  border: '1px solid rgba(116,190,255,0.14)',
+  borderRadius: 14,
+  padding: 'clamp(14px, 3vw, 20px)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 88%, transparent)',
+  overflowWrap: 'anywhere',
+}
+
+const detailsSectionSummaryStyle: CSSProperties = {
+  ...manageDetailsSummaryStyle,
+  alignItems: 'flex-start',
+}
+
+const detailsSectionTitleStyle: CSSProperties = {
+  flex: '1 1 260px',
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(20px, 2.6vw, 28px)',
+  lineHeight: 1.08,
+  fontWeight: 950,
   overflowWrap: 'anywhere',
 }
 

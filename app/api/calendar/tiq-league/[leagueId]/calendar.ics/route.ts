@@ -145,7 +145,7 @@ export async function GET(
       'Content-Disposition': `inline; filename="tenaceiq-${leagueId}.ics"`,
     })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Calendar feed could not be generated.'
-    return calendarResponse(message, 500)
+    console.error('League calendar feed failed', error)
+    return calendarResponse('Calendar feed could not be generated.', 500)
   }
 }

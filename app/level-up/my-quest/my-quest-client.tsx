@@ -1,7 +1,30 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
+import WeeklyPlanCoachResponse from '@/app/player-development/_components/weekly-plan-coach-response'
+import {
+  LEVEL_UP_QUEST_HANDOFF_KEY,
+  buildLevelUpQuestHandoffFromSessions,
+  chooseLatestLevelUpQuestHandoff,
+  parseLevelUpQuestHandoff,
+  type LevelUpQuestHandoff,
+} from '@/lib/level-up/quest-handoff'
+import {
+  buildWeeklyLevelUpRecap,
+  type WeeklyLevelUpRecap,
+  type WeeklyLevelUpSessionRead,
+} from '@/lib/level-up/weekly-recap'
+import {
+  getWeeklyLevelUpPlanProgress,
+  getWeeklyLevelUpPlanStorageKey,
+  getWeeklyLevelUpPlanWeekStart,
+  parseWeeklyLevelUpPlan,
+  selectWeeklyLevelUpPlanForMyQuest,
+  type WeeklyLevelUpPlan,
+} from '@/lib/level-up/weekly-plan'
+import type { LevelUpSession } from '@/lib/level-up-sessions'
 import {
   PERSONAL_DAILY_QUESTS,
   PERSONAL_QUEST_PHOTO_BUCKET,
@@ -234,15 +257,35 @@ export default function MyQuestClient() {
   const [celebration, setCelebration] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [levelUpHandoff, setLevelUpHandoff] = useState<LevelUpQuestHandoff | null>(null)
+  const [levelUpWeeklyRecap, setLevelUpWeeklyRecap] = useState<WeeklyLevelUpRecap | null>(null)
+  const [levelUpWeeklyPlan, setLevelUpWeeklyPlan] = useState<WeeklyLevelUpPlan | null>(null)
 
   const authUser = session?.user ?? null
   const ownerAllowed = isPersonalQuestOwner({ id: authUser?.id ?? userId, email: authUser?.email })
   const accessDenied = authResolved && (!(authUser?.id ?? userId) || !ownerAllowed)
+  const levelUpHandoffStatus = levelUpHandoff?.questState === 'credited'
+    ? 'Credited'
+    : levelUpHandoff?.questState === 'pending'
+      ? 'Queued'
+      : levelUpHandoff?.questState === 'sync_issue'
+        ? 'Check'
+        : 'Ready'
+  const levelUpWeeklyPlanProgress = getWeeklyLevelUpPlanProgress(levelUpWeeklyPlan)
+  const levelUpCoachUpdate = levelUpWeeklyPlan?.coachResponse ?? null
+  const showLevelUpCoachUpdate = Boolean(levelUpCoachUpdate && !levelUpCoachUpdate.playerReply)
   const today = useMemo(() => getTodayKey(), [])
   const repairDate = useMemo(() => getDateOffsetKey(today, -1), [today])
   const weekStart = useMemo(() => getWeekStartKey(), [])
   const weekEnd = useMemo(() => getWeekEndKey(weekStart), [weekStart])
   const isSunday = useMemo(() => new Date(`${today}T00:00:00`).getDay() === 0, [today])
+
+  const persistMyQuestWeeklyPlan = useCallback((plan: WeeklyLevelUpPlan) => {
+    setLevelUpWeeklyPlan(plan)
+    const ownerId = authUser?.id ?? userId ?? ''
+    const storageKey = getWeeklyLevelUpPlanStorageKey(plan.identitySlug, plan.weekStart, ownerId)
+    window.localStorage.setItem(storageKey, JSON.stringify(plan))
+  }, [authUser?.id, userId])
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setCurrentHour(new Date().getHours()), 60_000)
@@ -1089,7 +1132,7 @@ export default function MyQuestClient() {
 
     await supabase.from('personal_quest_profiles').upsert({
       user_id: ownerId,
-      season_slug: 'operation-visible-abs',
+      season_slug: 'tennis-season',
       display_name: 'Nathan',
       weekly_rule: (profileResult.data as { weekly_rule?: string } | null)?.weekly_rule || getDefaultPersonalQuestRule(),
       updated_at: new Date().toISOString(),
@@ -1129,6 +1172,105 @@ export default function MyQuestClient() {
 
     return () => window.clearTimeout(timeout)
   }, [authResolved, authUser?.id, loadDashboard, ownerAllowed, setQuestError, userId])
+
+  useEffect(() => {
+    const ownerId = authUser?.id ?? userId
+    if (!authResolved || !ownerId || !ownerAllowed) return
+
+    const localHandoff = parseLevelUpQuestHandoff(window.localStorage.getItem(LEVEL_UP_QUEST_HANDOFF_KEY))
+    const localSessions = readLocalLevelUpWeeklySessions()
+    const localWeeklyRecap = buildWeeklyLevelUpRecap({
+      sessions: localSessions,
+      identitySlug: localHandoff?.identitySlug,
+    })
+    const localTimer = window.setTimeout(() => {
+      setLevelUpHandoff(localHandoff)
+      setLevelUpWeeklyRecap(localWeeklyRecap)
+    }, 0)
+
+    const accessToken = session?.access_token ?? ''
+    if (!accessToken) return () => window.clearTimeout(localTimer)
+
+    const controller = new AbortController()
+    void fetch('/api/player/level-up-sessions', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: controller.signal,
+    })
+      .then(async (response) => response.ok ? response.json() as Promise<{ sessions?: LevelUpSession[] }> : null)
+      .then((payload) => {
+        if (!payload) return
+        const remoteSessions = Array.isArray(payload.sessions) ? payload.sessions : []
+        const remoteHandoff = buildLevelUpQuestHandoffFromSessions(remoteSessions)
+        const latest = chooseLatestLevelUpQuestHandoff(localHandoff, remoteHandoff)
+        const mergedSessions = mergeLevelUpWeeklySessions(remoteSessions, localSessions)
+        setLevelUpHandoff(latest)
+        setLevelUpWeeklyRecap(buildWeeklyLevelUpRecap({
+          sessions: mergedSessions,
+          identitySlug: latest?.identitySlug,
+        }))
+        if (latest) window.localStorage.setItem(LEVEL_UP_QUEST_HANDOFF_KEY, JSON.stringify(latest))
+      })
+      .catch((fetchError: unknown) => {
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') return
+      })
+
+    return () => {
+      window.clearTimeout(localTimer)
+      controller.abort()
+    }
+  }, [authResolved, authUser?.id, ownerAllowed, session?.access_token, userId])
+
+  useEffect(() => {
+    const identitySlug = levelUpHandoff?.identitySlug
+    const planWeekStart = getWeeklyLevelUpPlanWeekStart()
+    const ownerId = authUser?.id ?? userId ?? ''
+    const storageKey = identitySlug ? getWeeklyLevelUpPlanStorageKey(identitySlug, planWeekStart, ownerId) : ''
+    const localPlan = storageKey ? parseWeeklyLevelUpPlan(window.localStorage.getItem(storageKey)) : null
+    const localTimer = window.setTimeout(() => {
+      if (localPlan) setLevelUpWeeklyPlan(localPlan)
+    }, 0)
+
+    const accessToken = session?.access_token
+    if (!accessToken) return () => window.clearTimeout(localTimer)
+    const controller = new AbortController()
+    const params = new URLSearchParams()
+    if (identitySlug) params.set('identitySlug', identitySlug)
+    let loadingRemotePlan = false
+    const loadRemotePlan = async () => {
+      if (loadingRemotePlan) return
+      loadingRemotePlan = true
+      try {
+        const response = await fetch(`/api/player/level-up-weekly-plan?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          signal: controller.signal,
+        })
+        if (!response.ok) return
+        const payload = await response.json() as { plans?: WeeklyLevelUpPlan[] }
+        const remotePlan = selectWeeklyLevelUpPlanForMyQuest(payload.plans ?? [], planWeekStart)
+        if (!remotePlan) return
+        persistMyQuestWeeklyPlan(remotePlan)
+      } catch (fetchError) {
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') return
+      } finally {
+        loadingRemotePlan = false
+      }
+    }
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void loadRemotePlan()
+    }
+    void loadRemotePlan()
+    const refreshInterval = window.setInterval(() => void loadRemotePlan(), 60_000)
+    window.addEventListener('focus', refreshWhenVisible)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+
+    return () => {
+      window.clearTimeout(localTimer)
+      window.clearInterval(refreshInterval)
+      window.removeEventListener('focus', refreshWhenVisible)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+      controller.abort()
+    }
+  }, [authUser?.id, levelUpHandoff?.identitySlug, persistMyQuestWeeklyPlan, session?.access_token, userId])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -1635,7 +1777,7 @@ export default function MyQuestClient() {
       .from('personal_quest_profiles')
       .upsert({
         user_id: ownerId,
-        season_slug: 'operation-visible-abs',
+        season_slug: 'tennis-season',
         display_name: 'Nathan',
         weekly_rule: cleanRule,
         updated_at: new Date().toISOString(),
@@ -1765,7 +1907,13 @@ export default function MyQuestClient() {
     setPhoneCompact(false)
 
     window.setTimeout(() => {
-      document.getElementById(sectionId)?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      const section = document.getElementById(sectionId)
+      let parentDrawer = section?.closest('details')
+      while (parentDrawer) {
+        parentDrawer.open = true
+        parentDrawer = parentDrawer.parentElement?.closest('details') ?? null
+      }
+      section?.scrollIntoView({ block: 'start', behavior: 'smooth' })
     }, 0)
   }
 
@@ -1795,24 +1943,15 @@ export default function MyQuestClient() {
     <section className={styles.pageShell} data-phone-mode={phoneCompact ? 'pocket' : 'full'}>
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}>Level Up: My Quest</p>
-          <h1>Operation Visible Abs</h1>
-          <p className={styles.heroText}>Season 1 private quest board. Stack the habits, keep the streak alive, and beat the weekly bosses.</p>
+          <p className={styles.eyebrow}>Player plan</p>
+          <h1>My Quest</h1>
+          <p className={styles.heroText}>Your private daily plan. Complete today&apos;s habits, protect the week, and review progress when you need it.</p>
           <div className={styles.heroActions}>
-            <a href="#lock-screen">Lock</a>
             <a href="#today-quests">Today</a>
-            <a href="#boss-warnings">Boss</a>
-            <a href="#month-view">Month</a>
-            <a href="#repair-day">Repair</a>
-            <a href="#season-timeline">Timeline</a>
-            <a href="#season-map">Season</a>
-            <a href="#momentum">Momentum</a>
+            <a href="#weekly-plan">This week</a>
             <a href="#trend-strip">Trends</a>
-            <a href="#private-coach">Coach</a>
-            <a href="#weekly-review">Review</a>
             <a href="#photo-compare">Photos</a>
-            <a href="#phone-mode">Phone</a>
-            <a href="#private-ops">Ops</a>
+            <a href="#quest-history">History</a>
           </div>
         </div>
         <div className={styles.levelPanel}>
@@ -1828,9 +1967,32 @@ export default function MyQuestClient() {
         </div>
       </section>
 
+      {levelUpWeeklyPlan && showLevelUpCoachUpdate ? (
+        <section id="level-up-coach-update" className={styles.coachReplyCommand} data-action={levelUpCoachUpdate?.action} aria-label="New Level Up coach update">
+          <div className={styles.coachReplyCommandHeader}>
+            <div>
+              <span>{levelUpCoachUpdate?.action === 'answered' ? 'Coach replied' : 'Coach update'}</span>
+              <strong>{levelUpCoachUpdate?.action === 'answered' ? 'Your answer is ready.' : 'Your weekly plan changed.'}</strong>
+              <small>Read it, reply if needed, then get back on court.</small>
+            </div>
+            {levelUpWeeklyPlanProgress.nextRep ? (
+              <Link href={levelUpWeeklyPlanProgress.nextRep.href}>Start next rep</Link>
+            ) : (
+              <Link href={`/level-up/${encodeURIComponent(levelUpWeeklyPlan.identitySlug)}`}>Open Level Up</Link>
+            )}
+          </div>
+          <WeeklyPlanCoachResponse
+            key={levelUpCoachUpdate?.updatedAt ?? levelUpWeeklyPlan.id}
+            plan={levelUpWeeklyPlan}
+            accessToken={session?.access_token ?? ''}
+            onSaved={persistMyQuestWeeklyPlan}
+          />
+        </section>
+      ) : null}
+
       <section className={styles.mobileTodayFocus} aria-label="My Quest iPhone today focus">
         <div>
-          <span>Today focus</span>
+          <span>My Quest | Today focus</span>
           <strong>{todayFocusQuest?.shortTitle ?? 'Board cleared'}</strong>
           <small>{todayFocusQuest ? `${todayRemainingCount} left | +${todayFocusQuest.xp} XP next` : `${todayXp} XP banked today`}</small>
         </div>
@@ -1853,6 +2015,55 @@ export default function MyQuestClient() {
             <strong>{weeklyGrade.grade}</strong>
           </div>
         </div>
+        {levelUpHandoff ? (
+          <section id="tennis-proof" className={styles.mobileTennisHandoff} aria-label="Level Up tennis proof handoff">
+            <div className={styles.mobileTennisHandoffCopy}>
+              <span>Tennis proof · {levelUpHandoffStatus}</span>
+              <strong>{levelUpHandoff.focusTitle}: {levelUpHandoff.drillTitle}</strong>
+              <small>{levelUpHandoff.rating}/5 banked · {levelUpHandoff.tennisStreakDays} day{levelUpHandoff.tennisStreakDays === 1 ? '' : 's'} tennis streak</small>
+              <small>{levelUpHandoff.questMessage}</small>
+            </div>
+            <div className={styles.mobileTennisHandoffActions}>
+              <Link href={levelUpHandoff.nextRepHref}>Next rep</Link>
+              <Link href={levelUpHandoff.questBuilderHref}>Quest builder</Link>
+            </div>
+            {levelUpWeeklyRecap ? (
+              <div className={styles.mobileTennisWeek} aria-label="My Quest tennis week recap">
+                <article>
+                  <span>7-day proof</span>
+                  <strong>{levelUpWeeklyRecap.proofCount}</strong>
+                  <small>{levelUpWeeklyRecap.proofTrendLabel}</small>
+                </article>
+                <article>
+                  <span>Active days</span>
+                  <strong>{levelUpWeeklyRecap.activeDays}</strong>
+                  <small>{levelUpWeeklyRecap.activeDayTrendLabel}</small>
+                </article>
+                <article>
+                  <span>Strongest</span>
+                  <strong>{levelUpWeeklyRecap.strongestFocus}</strong>
+                  <small>{levelUpWeeklyRecap.strongestFocusRead}</small>
+                </article>
+                {levelUpWeeklyPlan ? (
+                  <article>
+                    <span>Weekly plan</span>
+                    <strong>{levelUpWeeklyPlanProgress.completed}/{levelUpWeeklyPlanProgress.total}</strong>
+                    <small>
+                      {levelUpWeeklyPlan.coachResponse?.playerReply?.action === 'question'
+                        ? 'Question sent · '
+                        : levelUpWeeklyPlan.coachResponse?.playerReply?.action === 'acknowledged'
+                          ? 'Coach notified · '
+                          : levelUpWeeklyPlan.coachResponse?.action === 'answered'
+                            ? 'Coach answered · '
+                            : levelUpWeeklyPlan.coachResponse ? 'Coach updated · ' : ''}
+                      {levelUpWeeklyPlanProgress.complete ? 'Week complete' : `Next: ${levelUpWeeklyPlanProgress.nextRep?.title ?? 'Open Level Up'}`}
+                    </small>
+                  </article>
+                ) : null}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
         <div className={styles.mobileQuestRail} aria-label="My Quest iPhone quick quest rail">
           {mobileFocusQuests.map((quest) => {
             const complete = completedToday.has(quest.id)
@@ -1889,32 +2100,6 @@ export default function MyQuestClient() {
               </button>
             )
           })}
-        </div>
-        <div id="phone-mode-control" className={styles.mobilePocketToggle} aria-label="My Quest iPhone pocket mode">
-          <div>
-            <span>Phone mode</span>
-            <strong>{phoneCompact ? 'Pocket dashboard' : 'Full dashboard'}</strong>
-          </div>
-          <div>
-            <button
-              type="button"
-              data-active={phoneCompact ? 'true' : 'false'}
-              onClick={() => {
-                writePhoneModePreference('pocket')
-                setPhoneCompact(true)
-                setIntelOpen(false)
-                setSupportOpen(false)
-              }}
-            >
-              Pocket
-            </button>
-            <button type="button" data-active={!phoneCompact ? 'true' : 'false'} onClick={() => {
-              writePhoneModePreference('full')
-              setPhoneCompact(false)
-            }}>
-              Full
-            </button>
-          </div>
         </div>
         <div className={styles.mobilePocketPulse} data-tone={mobilePocketPulse.tone} aria-label="My Quest iPhone coach pulse">
           <div>
@@ -2038,8 +2223,34 @@ export default function MyQuestClient() {
               </button>
             ))}
           </div>
-        </details>
-        <div className={styles.mobileModeRail} aria-label="Today focus mode">
+          <div id="phone-mode-control" className={styles.mobilePocketToggle} aria-label="My Quest iPhone pocket mode">
+            <div>
+              <span>Phone view</span>
+              <strong>{phoneCompact ? 'Today only' : 'Full dashboard'}</strong>
+            </div>
+            <div>
+              <button
+                type="button"
+                data-active={phoneCompact ? 'true' : 'false'}
+                onClick={() => {
+                  writePhoneModePreference('pocket')
+                  setPhoneCompact(true)
+                  setIntelOpen(false)
+                  setSupportOpen(false)
+                }}
+              >
+                Today
+              </button>
+              <button type="button" data-active={!phoneCompact ? 'true' : 'false'} onClick={() => {
+                writePhoneModePreference('full')
+                setPhoneCompact(false)
+              }}>
+                Full
+              </button>
+            </div>
+          </div>
+          <div className={styles.mobilePocketSettings}>
+          <div className={styles.mobileModeRail} aria-label="Today focus mode">
           <button type="button" data-active={mode === 'morning' ? 'true' : 'false'} onClick={() => setMode('morning')}>
             Morning
           </button>
@@ -2089,6 +2300,8 @@ export default function MyQuestClient() {
             <strong>{mobileOfflineConfidence.detail}</strong>
           </div>
         ) : null}
+          </div>
+        </details>
         <div className={styles.mobilePocketStateLabel} data-tone={mobilePocketStateLabel.tone} aria-label="My Quest iPhone pocket state label">
           <span>{mobilePocketStateLabel.label}</span>
           <strong>{mobilePocketStateLabel.detail}</strong>
@@ -2244,295 +2457,6 @@ export default function MyQuestClient() {
           </button>
         </div>
       </section>
-
-      <section className={styles.gamePlanPanel}>
-        <div className={styles.sectionHeader}>
-          <div>
-            <p className={styles.eyebrow}>Today&apos;s Game Plan</p>
-            <h2>Win the day clean</h2>
-          </div>
-          <span className={styles.scorePill}>{mode === 'morning' ? 'Morning plan' : 'Evening close'}</span>
-        </div>
-        <div className={styles.planGrid}>
-          <div className={styles.planCard}>
-            <span>Win condition</span>
-            <strong>{gamePlan.winCondition}</strong>
-          </div>
-          <div className={styles.planCard}>
-            <span>Do not miss</span>
-            <strong>{gamePlan.doNotMiss}</strong>
-          </div>
-          <div className={styles.planCard}>
-            <span>Lowest effort XP</span>
-            <strong>{gamePlan.lowestEffortXp}</strong>
-          </div>
-          <div className={styles.planCard}>
-            <span>Boss danger</span>
-            <strong>{gamePlan.bossDanger}</strong>
-          </div>
-        </div>
-      </section>
-
-      <section id="private-coach" className={styles.coachPanel}>
-        <div className={styles.sectionHeader}>
-          <div>
-            <p className={styles.eyebrow}>Private Coach</p>
-            <h2>{coachNote.title}</h2>
-          </div>
-          <span className={styles.scorePill}>Nathan only</span>
-        </div>
-        <div className={styles.coachLayout}>
-          <div className={styles.coachCard}>
-            <span>Coach note</span>
-            <strong>{coachNote.detail}</strong>
-          </div>
-          <div className={styles.weeklyPlanGrid}>
-            <div className={styles.weeklyPlanCard}>
-              <span>Focus habit</span>
-              <strong>{weeklyPlan.focusHabit}</strong>
-            </div>
-            <div className={styles.weeklyPlanCard}>
-              <span>Boss to protect</span>
-              <strong>{weeklyPlan.bossToProtect}</strong>
-            </div>
-            <div className={styles.weeklyPlanCard}>
-              <span>Danger window</span>
-              <strong>{weeklyPlan.dangerWindow}</strong>
-            </div>
-            <div className={styles.weeklyPlanCard}>
-              <span>Minimum rule</span>
-              <strong>{weeklyPlan.minimumRule}</strong>
-            </div>
-          </div>
-        </div>
-        <div className={styles.patternGrid}>
-          {missPatterns.map((pattern) => (
-            <div key={pattern.id} className={styles.patternCard} data-tone={pattern.tone}>
-              <span>{pattern.title}</span>
-              <strong>{pattern.detail}</strong>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section id="boss-warnings" className={styles.warningPanel}>
-        <div className={styles.sectionHeader}>
-          <div>
-            <p className={styles.eyebrow}>Boss Warnings</p>
-            <h2>Week pressure</h2>
-          </div>
-          <span className={styles.scorePill}>{weeklyGrade.grade} grade</span>
-        </div>
-        <div className={styles.warningGrid}>
-          {bossWarnings.map((warning) => (
-            <div key={warning.key} className={styles.warningCard} data-tone={warning.tone}>
-              <span>{warning.title}</span>
-              <strong>{warning.message}</strong>
-              <small>{warning.cta}</small>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section id="momentum" className={styles.momentumPanel}>
-        <div className={styles.sectionHeader}>
-          <div>
-            <p className={styles.eyebrow}>Momentum Score</p>
-            <h2>{momentum.score}/100 | {momentum.label}</h2>
-          </div>
-          <span className={styles.scorePill}>{momentum.trend}</span>
-        </div>
-        <div className={styles.momentumLayout}>
-          <div className={styles.momentumMeter}>
-            <strong>{momentum.score}</strong>
-            <span>{momentum.detail}</span>
-            <ProgressBar value={momentum.score} label={`${momentum.score}% momentum`} />
-          </div>
-          <div className={styles.momentumDays}>
-            {momentum.days.map((day) => (
-              <div key={day.date} className={styles.momentumDay}>
-                <span style={{ height: `${Math.max(8, day.score)}%` }} />
-                <small>{day.label}</small>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className={styles.nudgeGrid}>
-          {momentumNudges.map((nudge) => (
-            <div key={nudge.id} className={styles.nudgeCard} data-tone={nudge.tone}>
-              <span>{nudge.title}</span>
-              <strong>{nudge.detail}</strong>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <details
-        className={styles.mobileIntelDrawer}
-        open={!phoneCompact || intelOpen}
-        onToggle={(event) => {
-          if (phoneCompact) setIntelOpen(event.currentTarget.open)
-        }}
-      >
-        <summary>
-          <span>More Quest Intel</span>
-          <strong>Month, season, recap</strong>
-        </summary>
-        <div className={styles.mobileIntelBody}>
-          <section id="month-view" className={styles.monthPanel}>
-            <div className={styles.sectionHeader}>
-              <div>
-                <p className={styles.eyebrow}>Month View</p>
-                <h2>{monthView.monthLabel}</h2>
-              </div>
-              <span className={styles.scorePill}>Quest calendar</span>
-            </div>
-            <div className={styles.monthWeekdays} aria-hidden="true">
-              <span>Sun</span>
-              <span>Mon</span>
-              <span>Tue</span>
-              <span>Wed</span>
-              <span>Thu</span>
-              <span>Fri</span>
-              <span>Sat</span>
-            </div>
-            <div className={styles.monthGrid} aria-label={`${monthView.monthLabel} quest calendar`}>
-              {monthView.days.map((day) => (
-                <div
-                  key={day.date}
-                  className={styles.monthDay}
-                  data-intensity={day.intensity}
-                  data-in-month={day.inMonth ? 'true' : 'false'}
-                  data-today={day.date === today ? 'true' : 'false'}
-                  title={`${day.date}: ${day.completedCount}/${day.totalCount} quests, ${day.xp} XP, ${day.ipaCount} IPAs${day.frozen ? ', freeze used' : ''}`}
-                >
-                  <span>{day.dayLabel}</span>
-                  <strong>{day.completedCount ? `${day.completedCount}/${day.totalCount}` : day.frozen ? 'Freeze' : '-'}</strong>
-                  <small>{day.ipaCount ? `${day.ipaCount} IPA` : `${day.xp} XP`}</small>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section id="season-map" className={styles.seasonPanel}>
-            <div className={styles.sectionHeader}>
-              <div>
-                <p className={styles.eyebrow}>Season Map</p>
-                <h2>Road to Six Pack Mode</h2>
-              </div>
-              <span className={styles.scorePill}>{stats.level.title}</span>
-            </div>
-            <div className={styles.seasonMap}>
-              {seasonMap.map((node) => (
-                <div key={node.title} className={styles.seasonNode} data-status={node.status}>
-                  <span>{node.xp.toLocaleString()} XP</span>
-                  <strong>{node.title}</strong>
-                  <ProgressBar value={node.progress} label={node.status} />
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section id="season-timeline" className={styles.timelinePanel}>
-            <div className={styles.sectionHeader}>
-              <div>
-                <p className={styles.eyebrow}>Season Timeline</p>
-                <h2>Season 1 chapters</h2>
-              </div>
-              <span className={styles.scorePill}>{stats.totalXp.toLocaleString()} XP</span>
-            </div>
-            <div className={styles.timelineGrid}>
-              {seasonTimeline.map((chapter) => (
-                <div key={chapter.week} className={styles.timelineCard} data-status={chapter.status}>
-                  <span>Week {chapter.week} | {chapter.target}</span>
-                  <strong>{chapter.title}</strong>
-                  <small>{chapter.detail}</small>
-                  <ProgressBar value={chapter.progress} label={`${chapter.progress}% chapter`} />
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section id="daily-recap" className={styles.recapPanel}>
-            <div className={styles.sectionHeader}>
-              <div>
-                <p className={styles.eyebrow}>Daily Recap</p>
-                <h2>{dailyRecap.title}</h2>
-              </div>
-              <span className={styles.scorePill}>{dailyRecap.xp} XP</span>
-            </div>
-            <div className={styles.recapGrid}>
-              <div className={styles.recapCard}>
-                <span>Board</span>
-                <strong>{dailyRecap.completedCount}/{dailyRecap.totalCount}</strong>
-                <small>{dailyRecap.streakStatus}</small>
-              </div>
-              <div className={styles.recapCard}>
-                <span>Boss misses</span>
-                <strong>{dailyRecap.bossMisses.length ? dailyRecap.bossMisses[0] : 'None'}</strong>
-                <small>{dailyRecap.bossMisses[1] ?? 'No extra pressure.'}</small>
-              </div>
-              <div className={styles.recapCard}>
-                <span>Tomorrow</span>
-                <strong>{dailyRecap.tomorrow}</strong>
-                <small>Next open.</small>
-              </div>
-            </div>
-            <div className={styles.recapToast} data-tone={recapToast.tone}>
-              <span>Private recap</span>
-              <strong>{recapToast.title}</strong>
-              <small>{recapToast.detail}</small>
-            </div>
-          </section>
-
-          <section className={styles.finalePanel} data-unlocked={finale.unlocked ? 'true' : 'false'}>
-            <div className={styles.sectionHeader}>
-              <div>
-                <p className={styles.eyebrow}>Season 1 Finale</p>
-                <h2>{finale.title}</h2>
-              </div>
-              <span className={styles.scorePill}>{finale.badge}</span>
-            </div>
-            <div className={styles.finaleBody}>
-              <div>
-                <strong>{finale.detail}</strong>
-                <p>{finale.challenge}</p>
-              </div>
-              <ProgressBar value={finale.progress} label={`${finale.progress}% finale progress`} />
-            </div>
-          </section>
-        </div>
-      </details>
-
-      <section id="trend-strip" className={styles.trendStrip}>
-        {trendCards.map((card) => (
-          <div key={card.label} className={styles.trendCard} data-tone={card.tone}>
-            <span>{card.label}</span>
-            <strong>{card.value}</strong>
-            <small>{card.detail}</small>
-          </div>
-        ))}
-      </section>
-
-      {isSunday ? (
-        <WeeklyReviewPanel
-          weeklyReview={weeklyReview}
-          statsWeeklyXp={stats.weeklyXp}
-          weeklyIpaCount={weeklyIpaCount}
-          weeklyChipFreeLunches={weeklyChipFreeLunches}
-          waistInput={waistInput}
-          reviewWin={reviewWin}
-          reviewMiss={reviewMiss}
-          reviewFocus={reviewFocus}
-          suggestedFocus={weeklyFocusSuggestion}
-          savingReview={savingReview}
-          setWaistInput={setWaistInput}
-          setReviewWin={setReviewWin}
-          setReviewMiss={setReviewMiss}
-          setReviewFocus={setReviewFocus}
-          saveWeeklyReview={saveWeeklyReview}
-        />
-      ) : null}
 
       <section id="today-quests" className={styles.todayCommand}>
         <div className={styles.todayHeader}>
@@ -2694,6 +2618,308 @@ export default function MyQuestClient() {
         </div>
       </section>
 
+      <details id="weekly-plan" className={styles.questWeeklyDrawer}>
+        <summary>
+          <div>
+            <span>This week</span>
+            <strong>{weeklyPlan.focusHabit}</strong>
+            <small>{weeklyGrade.grade} grade | {stats.weeklyXp.toLocaleString()} XP</small>
+          </div>
+          <em>Open plan</em>
+        </summary>
+        <div className={styles.questWeeklyBody}>
+      <section className={styles.gamePlanPanel}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Today&apos;s Game Plan</p>
+            <h2>Win the day clean</h2>
+          </div>
+          <span className={styles.scorePill}>{mode === 'morning' ? 'Morning plan' : 'Evening close'}</span>
+        </div>
+        <div className={styles.planGrid}>
+          <div className={styles.planCard}>
+            <span>Win condition</span>
+            <strong>{gamePlan.winCondition}</strong>
+          </div>
+          <div className={styles.planCard}>
+            <span>Do not miss</span>
+            <strong>{gamePlan.doNotMiss}</strong>
+          </div>
+          <div className={styles.planCard}>
+            <span>Lowest effort XP</span>
+            <strong>{gamePlan.lowestEffortXp}</strong>
+          </div>
+          <div className={styles.planCard}>
+            <span>Boss danger</span>
+            <strong>{gamePlan.bossDanger}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section id="private-coach" className={styles.coachPanel}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Private Coach</p>
+            <h2>{coachNote.title}</h2>
+          </div>
+          <span className={styles.scorePill}>Nathan only</span>
+        </div>
+        <div className={styles.coachLayout}>
+          <div className={styles.coachCard}>
+            <span>Coach note</span>
+            <strong>{coachNote.detail}</strong>
+          </div>
+          <div className={styles.weeklyPlanGrid}>
+            <div className={styles.weeklyPlanCard}>
+              <span>Focus habit</span>
+              <strong>{weeklyPlan.focusHabit}</strong>
+            </div>
+            <div className={styles.weeklyPlanCard}>
+              <span>Boss to protect</span>
+              <strong>{weeklyPlan.bossToProtect}</strong>
+            </div>
+            <div className={styles.weeklyPlanCard}>
+              <span>Danger window</span>
+              <strong>{weeklyPlan.dangerWindow}</strong>
+            </div>
+            <div className={styles.weeklyPlanCard}>
+              <span>Minimum rule</span>
+              <strong>{weeklyPlan.minimumRule}</strong>
+            </div>
+          </div>
+        </div>
+        <div className={styles.patternGrid}>
+          {missPatterns.map((pattern) => (
+            <div key={pattern.id} className={styles.patternCard} data-tone={pattern.tone}>
+              <span>{pattern.title}</span>
+              <strong>{pattern.detail}</strong>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="boss-warnings" className={styles.warningPanel}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Boss Warnings</p>
+            <h2>Week pressure</h2>
+          </div>
+          <span className={styles.scorePill}>{weeklyGrade.grade} grade</span>
+        </div>
+        <div className={styles.warningGrid}>
+          {bossWarnings.map((warning) => (
+            <div key={warning.key} className={styles.warningCard} data-tone={warning.tone}>
+              <span>{warning.title}</span>
+              <strong>{warning.message}</strong>
+              <small>{warning.cta}</small>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="momentum" className={styles.momentumPanel}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <p className={styles.eyebrow}>Momentum Score</p>
+            <h2>{momentum.score}/100 | {momentum.label}</h2>
+          </div>
+          <span className={styles.scorePill}>{momentum.trend}</span>
+        </div>
+        <div className={styles.momentumLayout}>
+          <div className={styles.momentumMeter}>
+            <strong>{momentum.score}</strong>
+            <span>{momentum.detail}</span>
+            <ProgressBar value={momentum.score} label={`${momentum.score}% momentum`} />
+          </div>
+          <div className={styles.momentumDays}>
+            {momentum.days.map((day) => (
+              <div key={day.date} className={styles.momentumDay}>
+                <span style={{ height: `${Math.max(8, day.score)}%` }} />
+                <small>{day.label}</small>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className={styles.nudgeGrid}>
+          {momentumNudges.map((nudge) => (
+            <div key={nudge.id} className={styles.nudgeCard} data-tone={nudge.tone}>
+              <span>{nudge.title}</span>
+              <strong>{nudge.detail}</strong>
+            </div>
+          ))}
+        </div>
+      </section>
+        </div>
+      </details>
+
+      <details
+        id="quest-history"
+        className={styles.mobileIntelDrawer}
+        open={intelOpen}
+        onToggle={(event) => {
+          setIntelOpen(event.currentTarget.open)
+        }}
+      >
+        <summary>
+          <span>More Quest Intel</span>
+          <strong>Month, season, recap</strong>
+        </summary>
+        <div className={styles.mobileIntelBody}>
+          <section id="month-view" className={styles.monthPanel}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <p className={styles.eyebrow}>Month View</p>
+                <h2>{monthView.monthLabel}</h2>
+              </div>
+              <span className={styles.scorePill}>Quest calendar</span>
+            </div>
+            <div className={styles.monthWeekdays} aria-hidden="true">
+              <span>Sun</span>
+              <span>Mon</span>
+              <span>Tue</span>
+              <span>Wed</span>
+              <span>Thu</span>
+              <span>Fri</span>
+              <span>Sat</span>
+            </div>
+            <div className={styles.monthGrid} aria-label={`${monthView.monthLabel} quest calendar`}>
+              {monthView.days.map((day) => (
+                <div
+                  key={day.date}
+                  className={styles.monthDay}
+                  data-intensity={day.intensity}
+                  data-in-month={day.inMonth ? 'true' : 'false'}
+                  data-today={day.date === today ? 'true' : 'false'}
+                  title={`${day.date}: ${day.completedCount}/${day.totalCount} quests, ${day.xp} XP, ${day.ipaCount} IPAs${day.frozen ? ', freeze used' : ''}`}
+                >
+                  <span>{day.dayLabel}</span>
+                  <strong>{day.completedCount ? `${day.completedCount}/${day.totalCount}` : day.frozen ? 'Freeze' : '-'}</strong>
+                  <small>{day.ipaCount ? `${day.ipaCount} IPA` : `${day.xp} XP`}</small>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section id="season-map" className={styles.seasonPanel}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <p className={styles.eyebrow}>Season Map</p>
+                <h2>Build your tennis season</h2>
+              </div>
+              <span className={styles.scorePill}>{stats.level.title}</span>
+            </div>
+            <div className={styles.seasonMap}>
+              {seasonMap.map((node) => (
+                <div key={node.title} className={styles.seasonNode} data-status={node.status}>
+                  <span>{node.xp.toLocaleString()} XP</span>
+                  <strong>{node.title}</strong>
+                  <ProgressBar value={node.progress} label={node.status} />
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section id="season-timeline" className={styles.timelinePanel}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <p className={styles.eyebrow}>Season Timeline</p>
+                <h2>Season 1 chapters</h2>
+              </div>
+              <span className={styles.scorePill}>{stats.totalXp.toLocaleString()} XP</span>
+            </div>
+            <div className={styles.timelineGrid}>
+              {seasonTimeline.map((chapter) => (
+                <div key={chapter.week} className={styles.timelineCard} data-status={chapter.status}>
+                  <span>Week {chapter.week} | {chapter.target}</span>
+                  <strong>{chapter.title}</strong>
+                  <small>{chapter.detail}</small>
+                  <ProgressBar value={chapter.progress} label={`${chapter.progress}% chapter`} />
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section id="daily-recap" className={styles.recapPanel}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <p className={styles.eyebrow}>Daily Recap</p>
+                <h2>{dailyRecap.title}</h2>
+              </div>
+              <span className={styles.scorePill}>{dailyRecap.xp} XP</span>
+            </div>
+            <div className={styles.recapGrid}>
+              <div className={styles.recapCard}>
+                <span>Board</span>
+                <strong>{dailyRecap.completedCount}/{dailyRecap.totalCount}</strong>
+                <small>{dailyRecap.streakStatus}</small>
+              </div>
+              <div className={styles.recapCard}>
+                <span>Boss misses</span>
+                <strong>{dailyRecap.bossMisses.length ? dailyRecap.bossMisses[0] : 'None'}</strong>
+                <small>{dailyRecap.bossMisses[1] ?? 'No extra pressure.'}</small>
+              </div>
+              <div className={styles.recapCard}>
+                <span>Tomorrow</span>
+                <strong>{dailyRecap.tomorrow}</strong>
+                <small>Next open.</small>
+              </div>
+            </div>
+            <div className={styles.recapToast} data-tone={recapToast.tone}>
+              <span>Private recap</span>
+              <strong>{recapToast.title}</strong>
+              <small>{recapToast.detail}</small>
+            </div>
+          </section>
+
+          <section className={styles.finalePanel} data-unlocked={finale.unlocked ? 'true' : 'false'}>
+            <div className={styles.sectionHeader}>
+              <div>
+                <p className={styles.eyebrow}>Season 1 Finale</p>
+                <h2>{finale.title}</h2>
+              </div>
+              <span className={styles.scorePill}>{finale.badge}</span>
+            </div>
+            <div className={styles.finaleBody}>
+              <div>
+                <strong>{finale.detail}</strong>
+                <p>{finale.challenge}</p>
+              </div>
+              <ProgressBar value={finale.progress} label={`${finale.progress}% finale progress`} />
+            </div>
+          </section>
+        </div>
+      </details>
+
+      <section id="trend-strip" className={styles.trendStrip}>
+        {trendCards.map((card) => (
+          <div key={card.label} className={styles.trendCard} data-tone={card.tone}>
+            <span>{card.label}</span>
+            <strong>{card.value}</strong>
+            <small>{card.detail}</small>
+          </div>
+        ))}
+      </section>
+
+      {isSunday ? (
+        <WeeklyReviewPanel
+          weeklyReview={weeklyReview}
+          statsWeeklyXp={stats.weeklyXp}
+          weeklyIpaCount={weeklyIpaCount}
+          weeklyChipFreeLunches={weeklyChipFreeLunches}
+          waistInput={waistInput}
+          reviewWin={reviewWin}
+          reviewMiss={reviewMiss}
+          reviewFocus={reviewFocus}
+          suggestedFocus={weeklyFocusSuggestion}
+          savingReview={savingReview}
+          setWaistInput={setWaistInput}
+          setReviewWin={setReviewWin}
+          setReviewMiss={setReviewMiss}
+          setReviewFocus={setReviewFocus}
+          saveWeeklyReview={saveWeeklyReview}
+        />
+      ) : null}
+
       <section id="repair-day" className={styles.repairPanel}>
         <div className={styles.sectionHeader}>
           <div>
@@ -2842,9 +3068,9 @@ export default function MyQuestClient() {
 
       <details
         className={styles.mobileSupportDrawer}
-        open={!phoneCompact || supportOpen}
+        open={supportOpen}
         onToggle={(event) => {
-          if (phoneCompact) setSupportOpen(event.currentTarget.open)
+          setSupportOpen(event.currentTarget.open)
         }}
       >
         <summary>
@@ -2868,8 +3094,8 @@ export default function MyQuestClient() {
           <section id="private-ops" className={styles.privateOpsPanel}>
             <div className={styles.sectionHeader}>
               <div>
-                <p className={styles.eyebrow}>Private Ops</p>
-                <h2>Sync and privacy health</h2>
+                <p className={styles.eyebrow}>Sync health</p>
+                <h2>Device and privacy check</h2>
               </div>
               <span className={styles.scorePill}>{syncingOffline ? 'Syncing' : 'Ready'}</span>
             </div>
@@ -3005,7 +3231,7 @@ export default function MyQuestClient() {
               <p className={styles.eyebrow}>Progress Photos</p>
               <h2>Private vault</h2>
             </div>
-            <span className={styles.scorePill}>Signed URLs</span>
+            <span className={styles.scorePill}>Private</span>
           </div>
           <div className={styles.photoButtons}>
             {PHOTO_TYPES.map((type) => (
@@ -3349,6 +3575,52 @@ function readPhoneModePreference() {
   } catch {
     return null
   }
+}
+
+function readLocalLevelUpWeeklySessions(): WeeklyLevelUpSessionRead[] {
+  if (typeof window === 'undefined') return []
+
+  const sessions: WeeklyLevelUpSessionRead[] = []
+  for (let index = 0; index < window.localStorage.length; index += 1) {
+    const key = window.localStorage.key(index)
+    if (!key?.startsWith('tenaceiq:level-up:')) continue
+
+    try {
+      const parsed: unknown = JSON.parse(window.localStorage.getItem(key) || '[]')
+      if (!Array.isArray(parsed)) continue
+      const identitySlug = key.slice('tenaceiq:level-up:'.length)
+      for (const value of parsed) {
+        if (!isWeeklyLevelUpSessionRead(value)) continue
+        sessions.push({ ...value, identitySlug: value.identitySlug || identitySlug })
+      }
+    } catch {
+      // One malformed identity history should not hide the rest of the tennis week.
+    }
+  }
+
+  return sessions
+}
+
+function mergeLevelUpWeeklySessions(
+  remoteSessions: WeeklyLevelUpSessionRead[],
+  localSessions: WeeklyLevelUpSessionRead[],
+) {
+  const merged = new Map<string, WeeklyLevelUpSessionRead>()
+  for (const savedSession of [...localSessions, ...remoteSessions]) merged.set(savedSession.id, savedSession)
+  return [...merged.values()]
+}
+
+function isWeeklyLevelUpSessionRead(value: unknown): value is WeeklyLevelUpSessionRead {
+  if (!value || typeof value !== 'object') return false
+  const savedSession = value as Partial<WeeklyLevelUpSessionRead>
+  return Boolean(
+    typeof savedSession.id === 'string' &&
+    typeof savedSession.focusId === 'string' &&
+    typeof savedSession.focusTitle === 'string' &&
+    typeof savedSession.drillTitle === 'string' &&
+    typeof savedSession.rating === 'number' &&
+    typeof savedSession.completedAt === 'string',
+  )
 }
 
 function writePhoneModePreference(preference: 'pocket' | 'full') {

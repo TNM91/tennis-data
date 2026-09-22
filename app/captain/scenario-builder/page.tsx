@@ -386,7 +386,7 @@ function ScenarioComparisonContent() {
     if (!authResolved || role !== 'public') {
       return
     }
-    router.replace('/login?next=/captain/scenario-builder')
+    router.replace('/login?plan=captain&next=%2Fcaptain%2Fscenario-builder')
   }, [authResolved, role, router])
 
   useEffect(() => {
@@ -531,6 +531,51 @@ function ScenarioComparisonContent() {
       : Math.abs(overallProjection - 0.5) >= 0.08
         ? 'Usable lean'
         : 'Tight call'
+  const scenarioQuickRead = useMemo(() => {
+    if (!leftScenario || !rightScenario) return []
+    const changedCourts = yourComparison.changedCount + opponentComparison.changedCount
+    const swingCourt = yourComparison.biggestSwing || opponentComparison.biggestSwing
+    const winningChance = Math.round(Math.max(overallProjection, 1 - overallProjection) * 100)
+    const nextMove = Math.abs(overallProjection - 0.5) >= 0.1 && yourComparison.changedCount <= 2
+      ? 'Carry it forward'
+      : 'Refine the winner'
+    return [
+      { label: 'Lead plan', value: winningScenarioName, detail: separationLabel },
+      { label: 'Win edge', value: `${winningChance}%`, detail: `${Math.abs(Math.round(overallProjection * 100) - Math.round((1 - overallProjection) * 100))} point spread` },
+      { label: 'Swing court', value: swingCourt?.label || 'No swing court', detail: swingCourt ? `${changedCourts} comparison changes` : 'Versions are nearly identical' },
+      { label: 'Next move', value: nextMove, detail: nextMove === 'Carry it forward' ? 'Open the winner or send the plan' : 'Check availability and court order' },
+    ]
+  }, [leftScenario, opponentComparison.biggestSwing, opponentComparison.changedCount, overallProjection, rightScenario, separationLabel, winningScenarioName, yourComparison.biggestSwing, yourComparison.changedCount])
+
+  const scenarioDecisionGuardrail = useMemo(() => {
+    if (!leftScenario || !rightScenario) return null
+
+    const changedCourts = yourComparison.changedCount + opponentComparison.changedCount
+    const swingCourt = yourComparison.biggestSwing || opponentComparison.biggestSwing
+
+    if (separationLabel === 'Tight call') {
+      return {
+        value: 'Keep both live',
+        detail: swingCourt
+          ? `The plans are close. Recheck ${swingCourt.label} with availability before you commit.`
+          : 'The plans are close. Let confirmed availability and captain judgment break the tie.',
+      }
+    }
+
+    if (changedCourts > 3) {
+      return {
+        value: 'Verify the swaps',
+        detail: `${changedCourts} court changes create a usable edge, but confirm every player is still in before sending it.`,
+      }
+    }
+
+    return {
+      value: 'Ready to carry forward',
+      detail: swingCourt
+        ? `${winningScenarioName} has the clearer edge. Start with ${swingCourt.label}, then open the winner in the builder.`
+        : `${winningScenarioName} has the clearer edge and is ready for a final captain review.`,
+    }
+  }, [leftScenario, opponentComparison.biggestSwing, opponentComparison.changedCount, rightScenario, separationLabel, winningScenarioName, yourComparison.biggestSwing, yourComparison.changedCount])
 
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
   const premiumEnabled = access.canUseCaptainWorkflow
@@ -563,6 +608,24 @@ function ScenarioComparisonContent() {
 
     return `/captain/messaging?${params.toString()}`
   }
+  const teamBriefHref = (scenario: ScenarioRow | null) => {
+    const params = new URLSearchParams()
+    const team = scenario?.team_name || teamFilter
+    const league = scenario?.league_name || leagueFilter
+    const flight = scenario?.flight || flightFilter
+    const eventDate = scenario?.match_date || dateFilter
+    const opponent = scenario?.opponent_team || opponentTeam
+
+    if (team) params.set('team', team)
+    if (league) params.set('league', league)
+    if (flight) params.set('flight', flight)
+    if (eventDate) params.set('date', eventDate)
+    if (opponent) params.set('opponent', opponent)
+    params.set('source', 'scenario_builder')
+
+    return `/captain/team-brief?${params.toString()}`
+  }
+  const winningScenario = overallProjection >= 0.5 ? leftScenario : rightScenario
   const winningBuilderHref =
     overallProjection >= 0.5
       ? (leftScenario ? builderHref(leftScenario.id) : '/captain/lineup-builder')
@@ -597,7 +660,7 @@ function ScenarioComparisonContent() {
 
   return (
     <section style={pageContentStyle}>
-         <CaptainSuitePanel active="scenario" teamLabel={teamFilter || 'Team week'} />
+         {!isMobile ? <CaptainSuitePanel active="scenario" teamLabel={teamFilter || 'Team week'} /> : null}
          <section style={toolControlShellResponsive(isTablet, isMobile)} aria-label="Scenario controls">
             <span aria-hidden="true" style={watermarkStyle} />
             <div>
@@ -641,6 +704,28 @@ function ScenarioComparisonContent() {
             </div>
           </div>
         </section>
+
+        {scenarioQuickRead.length ? (
+          <section style={scenarioQuickReadShellStyle} aria-label="Scenario quick read">
+            {scenarioQuickRead.map((item) => (
+              <div key={item.label} style={scenarioQuickReadCardStyle}>
+                <span style={scenarioQuickReadLabelStyle}>{item.label}</span>
+                <strong style={scenarioQuickReadValueStyle}>{item.value}</strong>
+                <span style={scenarioQuickReadDetailStyle}>{item.detail}</span>
+              </div>
+            ))}
+          </section>
+        ) : null}
+
+        {scenarioDecisionGuardrail ? (
+          <section style={scenarioQuickReadShellStyle} aria-label="Scenario decision guardrail">
+            <div style={scenarioQuickReadCardStyle}>
+              <span style={scenarioQuickReadLabelStyle}>Decision guardrail</span>
+              <strong style={scenarioQuickReadValueStyle}>{scenarioDecisionGuardrail.value}</strong>
+              <span style={scenarioQuickReadDetailStyle}>{scenarioDecisionGuardrail.detail}</span>
+            </div>
+          </section>
+        ) : null}
 
         <section style={contentWrap}>
           <details style={surfaceCardStrong}>
@@ -778,14 +863,12 @@ function ScenarioComparisonContent() {
                       </p>
                       <div style={actionRowStyle}>
                         <PrimarySmallLink href={winningBuilderHref}>Open winner in builder</PrimarySmallLink>
+                        <GhostLink href={teamBriefHref(winningScenario)}>Open team brief</GhostLink>
                         <GhostSmallBtn onClick={async () => {
                           if (!premiumEnabled) {
                             setError('Captain tier required to send the winning scenario to messaging.')
                             return
                           }
-
-                          const winningScenario =
-                            overallProjection >= 0.5 ? leftScenario : rightScenario
 
                           if (!winningScenario) return
 
@@ -809,7 +892,7 @@ function ScenarioComparisonContent() {
                             console.error('Failed to write scenario feed events', error)
                           }
 
-                          window.location.href = messagingHref(winningScenario)
+                          router.push(messagingHref(winningScenario))
                         }}>
                           Send to messaging
                         </GhostSmallBtn>
@@ -862,7 +945,7 @@ function ScenarioComparisonContent() {
                         <div style={changeDigestTextStyle}>
                           {yourComparison.changedCount === 0
                             ? 'Both saved versions use the same lineup on your side.'
-                            : 'These are the internal lineup shifts driving the difference between your compared versions.'}
+                            : 'These are the lineup shifts driving the difference between your compared versions.'}
                         </div>
                       </div>
 
@@ -1005,13 +1088,13 @@ function ScenarioComparisonContent() {
                       </div>
 
                       <div style={takeawayCardStyle}>
-                        <div style={takeawayLabelStyle}>Biggest internal change</div>
+                        <div style={takeawayLabelStyle}>Biggest lineup change</div>
                         <div style={takeawayValueStyle}>
                           {yourComparison.biggestSwing?.label || 'No major lineup swing'}
                         </div>
                         <div style={takeawayTextStyle}>
                           {yourComparison.biggestSwing
-                            ? 'This lineup slot creates the largest internal difference between your compared versions.'
+                            ? 'This lineup slot creates the largest difference between your compared versions.'
                             : 'The compared lineups are currently very similar across your own side.'}
                         </div>
                       </div>
@@ -1076,7 +1159,7 @@ function ScenarioComparisonContent() {
                   <section style={surfaceCard}>
                     <div style={tableHeaderStyle}>
                       <div>
-                        <p style={sectionKicker}>Finalize workflow</p>
+                        <p style={sectionKicker}>Finalize plan</p>
                         <h3 style={sectionTitleSmall}>Move from comparison to action</h3>
                       </div>
                       <span style={miniPillSlate}>
@@ -1115,7 +1198,7 @@ function ScenarioComparisonContent() {
                         <div style={finalizeLabelStyle}>Captain follow-through</div>
                         <div style={finalizeValueStyle}>Communicate the plan</div>
                         <div style={finalizeTextStyle}>
-                          Once you trust the winning scenario, carry it into your weekly messaging workflow so the team gets one clear version.
+                          Once you trust the winning scenario, carry it into weekly messaging so the team gets one clear version.
                         </div>
                       </div>
                     </div>
@@ -1159,7 +1242,7 @@ function ScenarioComparisonContent() {
                             console.error('Failed to write scenario feed events', error)
                           }
 
-                          window.location.href = messagingHref(winningScenario)
+                          router.push(messagingHref(winningScenario))
                         }}>
                         Send Winning Scenario
                       </GhostSmallBtn>
@@ -1313,7 +1396,7 @@ function ScenarioComparisonContent() {
                       </div>
 
                       <div style={scenarioCommandCardStyle}>
-                        <div style={scenarioCommandLabelStyle}>Team Hub workflow</div>
+                        <div style={scenarioCommandLabelStyle}>Team Hub path</div>
                         <div style={scenarioCommandValueStyle}>Compare {'->'} refine {'->'} send</div>
                         <div style={scenarioCommandTextStyle}>
                           Keep scenario work focused on decision clarity, then move the final version into weekly team messaging.
@@ -1360,7 +1443,7 @@ function ScenarioComparisonContent() {
                             console.error('Failed to write scenario feed events', error)
                           }
 
-                          window.location.href = `/captain/messaging?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}&flight=${encodeURIComponent(flight)}&source=scenario_builder`
+                          router.push(`/captain/messaging?team=${encodeURIComponent(team)}&league=${encodeURIComponent(league)}&flight=${encodeURIComponent(flight)}&source=scenario_builder`)
                         }}>
                         Open Messaging
                       </GhostSmallBtn>
@@ -1670,8 +1753,8 @@ const watermarkStyle: CSSProperties = {
   right: 'clamp(-92px, -7vw, -34px)',
   bottom: 'clamp(-112px, -10vw, -52px)',
   width: 'clamp(230px, 30vw, 420px)',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }
@@ -1728,6 +1811,45 @@ const captainReadTop: CSSProperties = {
   flexWrap: 'wrap',
   marginBottom: 16,
   minWidth: 0,
+}
+
+const scenarioQuickReadShellStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: '10px',
+  minWidth: 0,
+}
+
+const scenarioQuickReadCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: '7px',
+  minWidth: 0,
+  padding: '16px',
+  borderRadius: '18px',
+  border: '1px solid var(--shell-panel-border)',
+  background: 'linear-gradient(135deg, rgba(37, 152, 255, .11), var(--shell-chip-bg))',
+}
+
+const scenarioQuickReadLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '11px',
+  fontWeight: 900,
+  letterSpacing: '.09em',
+  textTransform: 'uppercase',
+}
+
+const scenarioQuickReadValueStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1rem, 3vw, 1.25rem)',
+  lineHeight: 1.1,
+  overflowWrap: 'anywhere',
+}
+
+const scenarioQuickReadDetailStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
 }
 
 const captainReadTitle: CSSProperties = {

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 const followButtonSource = readFileSync(join(process.cwd(), 'app/components/follow-button.tsx'), 'utf8')
 const tierPathwaySource = readFileSync(join(process.cwd(), 'app/components/tier-pathway.tsx'), 'utf8')
 const designSystemSource = readFileSync(join(process.cwd(), 'lib/design-system.ts'), 'utf8')
+const playerProfileSource = readFileSync(join(process.cwd(), 'app/players/[id]/page.tsx'), 'utf8')
 const shellAwareControlBackground = "background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)'"
 const shellAwareControlColor = "color: 'var(--foreground-strong)'"
 const filledControlFiles = [
@@ -12,7 +13,6 @@ const filledControlFiles = [
   'app/data-assist/page.tsx',
   'app/messages/page.tsx',
   'app/mylab/page.tsx',
-  'app/players/[id]/page.tsx',
   'app/players/page.tsx',
   'app/profile/page.tsx',
   'app/rankings/page.tsx',
@@ -93,6 +93,11 @@ describe('shared filled control contrast', () => {
       expect(source, file).toContain(shellAwareControlBackground)
       expect(source, file).toContain(shellAwareControlColor)
     }
+
+    expect(playerProfileSource).toContain(
+      "background: 'color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-chip-bg) 92%)'",
+    )
+    expect(playerProfileSource).toContain(shellAwareControlColor)
   })
 
   it('keeps public access and upgrade controls shell-aware', () => {

@@ -8,11 +8,18 @@ import {
   getStripeSubscriptionResultingStatus,
   getStripeObjectId,
   isStripeBillingProfileColumnError,
+  isStripeOneTimeReversalEvent,
   isStripeSubscriptionLifecycleEvent,
   removeStripeBillingProfileFields,
 } from '../stripe-billing'
 
 describe('Stripe billing helpers', () => {
+  it('recognizes one-time payment reversals that must revoke League access', () => {
+    expect(isStripeOneTimeReversalEvent({ type: 'charge.refunded' })).toBe(true)
+    expect(isStripeOneTimeReversalEvent({ type: 'charge.dispute.created' })).toBe(true)
+    expect(isStripeOneTimeReversalEvent({ type: 'checkout.session.completed' })).toBe(false)
+  })
+
   it('normalizes Stripe object references', () => {
     expect(getStripeObjectId('cus_123')).toBe('cus_123')
     expect(getStripeObjectId({ id: 'sub_123' })).toBe('sub_123')
@@ -100,8 +107,10 @@ describe('Stripe billing helpers', () => {
       payload: {
         player_plus_subscription_active: true,
         player_plus_subscription_status: 'active',
+        player_plus_access_expires_at: null,
         captain_subscription_active: true,
         captain_subscription_status: 'active',
+        captain_access_expires_at: null,
         stripe_customer_id: 'cus_123',
         stripe_subscription_id: 'sub_captain',
       },
@@ -133,8 +142,10 @@ describe('Stripe billing helpers', () => {
       payload: {
         player_plus_subscription_active: true,
         player_plus_subscription_status: 'active',
+        player_plus_access_expires_at: null,
         coach_subscription_active: true,
         coach_subscription_status: 'active',
+        coach_access_expires_at: null,
         stripe_customer_id: 'cus_coach',
         stripe_subscription_id: 'sub_coach',
       },
@@ -159,6 +170,7 @@ describe('Stripe billing helpers', () => {
     })?.payload).toEqual({
       player_plus_subscription_active: false,
       player_plus_subscription_status: 'canceled',
+      player_plus_access_expires_at: null,
       stripe_customer_id: 'cus_123',
       stripe_subscription_id: 'sub_player',
     })
@@ -185,8 +197,10 @@ describe('Stripe billing helpers', () => {
     })?.payload).toEqual({
       player_plus_subscription_active: false,
       player_plus_subscription_status: 'past_due',
+      player_plus_access_expires_at: null,
       captain_subscription_active: false,
       captain_subscription_status: 'past_due',
+      captain_access_expires_at: null,
       stripe_customer_id: 'cus_123',
       stripe_subscription_id: 'sub_captain',
     })
@@ -213,8 +227,10 @@ describe('Stripe billing helpers', () => {
     })?.payload).toEqual({
       player_plus_subscription_active: false,
       player_plus_subscription_status: 'past_due',
+      player_plus_access_expires_at: null,
       coach_subscription_active: false,
       coach_subscription_status: 'past_due',
+      coach_access_expires_at: null,
       stripe_customer_id: 'cus_coach',
       stripe_subscription_id: 'sub_coach',
     })

@@ -1,21 +1,16 @@
 import type { CSSProperties, ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
-import {
-  TiqCoachAssignmentCard,
-  TiqLeagueStandingCard,
-  TiqLineupPreview,
-  TiqMatchupCard,
-  TiqTournamentDrawCard,
-  TiqWorkspacePreview,
-} from '@/app/components/tiq-product-preview-cards'
 import TrackedProductLink, { type ProductLinkEvent } from '@/app/components/tracked-product-link'
 import UniversalSearch from '@/app/components/universal-search'
+import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import ContextualTennisVisual, { type ContextualTennisVisualName } from '@/app/components/contextual-tennis-visual'
+import { getPricingPlan, type BillablePricingPlanId } from '@/lib/pricing-plans'
 import {
+  CLUB_PLAN_STORY,
   DATA_ASSIST_STORY,
-  PLATFORM_AUDIENCE_PATHS,
+  MEMBERSHIP_TIERS,
   PLATFORM_PILLARS,
-  PLATFORM_POSITIONING,
-  PRODUCT_MOTTO,
+  PRODUCT_MODE_LANGUAGE,
 } from '@/lib/product-story'
 
 export type PublicActionCard = {
@@ -36,6 +31,23 @@ export type PreviewCard = {
   href: string
   cta: string
   trust?: TrustSignal[]
+}
+
+export type HomeSnapshotItem = {
+  label: string
+  title: string
+  body: string
+  signal: string
+  href: string
+  cta: string
+}
+
+export type HomeModeCard = {
+  label: string
+  title: string
+  detail: string
+  href: string
+  cta: string
 }
 
 export type TrustSignal = {
@@ -62,7 +74,7 @@ function getPublicLinkEvent(label: string, href: string, context: string): Produ
   if (target.includes('start exploring')) return { eventName: 'search_category_selected', surface: 'public_site', metadata }
   if (target.includes('find player insights')) return { eventName: 'search_result_clicked', surface: 'public_site', metadata }
   if (target.includes('level up my game')) return { eventName: 'search_result_clicked', surface: 'public_site', metadata }
-  if (target.includes('manage my team')) return { eventName: 'captain_tools_clicked', surface: 'captain', metadata }
+  if (target.includes('manage my team') || target.includes('open captain') || href === '/captain') return { eventName: 'captain_tools_clicked', surface: 'captain', metadata }
   if (target.includes('run a league or tournament')) return { eventName: 'run_tournament_clicked', surface: 'tournaments', metadata }
   if (target.includes('find teams')) return { eventName: 'team_search_submitted', surface: 'teams', metadata }
   if (target.includes('captain tools')) return { eventName: 'captain_tools_clicked', surface: 'teams', metadata }
@@ -87,7 +99,7 @@ function getPublicLinkEvent(label: string, href: string, context: string): Produ
 export const homeActionCards: PublicActionCard[] = [
   {
     title: 'Find Player Insights',
-    body: 'Search players, ratings, rankings, teams, and recent context so you can understand the tennis landscape fast.',
+    body: 'Search players, ratings, rankings, teams, and recent results in one place.',
     href: '/explore/players',
     cta: 'Find Player Insights',
     meta: 'Explore',
@@ -107,11 +119,11 @@ export const homeActionCards: PublicActionCard[] = [
     meta: 'Compete',
   },
   {
-    title: 'Manage My Team',
+    title: 'Open Captain',
     body: 'Collect availability, build lineups, scout opponents, communicate clearly, and reduce match-week chaos.',
     href: '/captain',
-    cta: 'Manage My Team',
-    meta: 'Manage',
+    cta: 'Open Captain',
+    meta: 'Captain',
   },
   {
     title: 'Find or Work With a Coach',
@@ -121,17 +133,17 @@ export const homeActionCards: PublicActionCard[] = [
     meta: 'Coach Hub',
   },
   {
-    title: 'Run a League or Tournament',
+    title: 'Open Organizer Tools',
     body: 'Organize schedules, manage players or teams, track scores, publish results, and reduce admin work.',
     href: '/leagues-and-tournaments',
-    cta: 'Run a League or Tournament',
+    cta: 'Open Organizer Tools',
     secondaryHref: '/tournaments',
     secondaryCta: 'Tournament Desk',
     meta: 'Leagues & Tournaments',
   },
   {
     title: 'Fix Tennis Context',
-    body: 'Upload scorecards, schedules, rosters, team summaries, and corrections when tennis context needs a cleaner source.',
+    body: 'Upload scorecards, schedules, Player Rosters, and corrections when tennis context needs a cleaner source.',
     href: DATA_ASSIST_STORY.href,
     cta: 'Open Data Assist',
     meta: 'Source review',
@@ -141,35 +153,35 @@ export const homeActionCards: PublicActionCard[] = [
 export const previewCards: PreviewCard[] = [
   {
     label: 'Matchup',
-    title: 'Rivera vs Brooks',
-    body: 'Watch Brooks return pressure on second serves.',
+    title: 'Scout the next match',
+    body: 'Compare players, read the edge, and know what to watch before first serve.',
     metrics: [
-      { label: 'Edge', value: 'Rivera +0.18' },
-      { label: 'Confidence', value: 'Medium' },
-      { label: 'Preview', value: '63%' },
+      { label: 'Edge', value: 'Rating + form' },
+      { label: 'Confidence', value: 'Context check' },
+      { label: 'Next', value: 'Match plan' },
     ],
     href: '/matchup',
     cta: 'Open Matchup',
   },
   {
     label: 'Captain Tools',
-    title: 'Saturday vs West County',
-    body: 'D1 changes if Brooks is unavailable.',
+    title: 'Build the team week',
+    body: 'Check availability, lineup options, and opponent context before you send the plan.',
     metrics: [
-      { label: 'Available', value: '8/10' },
-      { label: 'Team edge', value: '71%' },
-      { label: 'Risk', value: 'Line 1' },
+      { label: 'Available', value: 'In / bubble / out' },
+      { label: 'Team edge', value: 'Projected courts' },
+      { label: 'Risk', value: 'Lineup swaps' },
     ],
     href: '/captain/lineup-builder',
     cta: 'Build Lineup',
   },
   {
     label: 'Coach Hub',
-    title: 'Ava M.',
-    body: 'Serve target routine with evidence due Friday.',
+    title: 'Assign the next drill',
+    body: 'Turn a player goal into court work, proof, and follow-up between lessons.',
     metrics: [
-      { label: 'Assignment', value: 'Active' },
-      { label: 'Evidence', value: '3 points' },
+      { label: 'Assignment', value: 'Active plan' },
+      { label: 'Evidence', value: 'Player proof' },
       { label: 'Next', value: 'Review' },
     ],
     href: '/coaches',
@@ -177,24 +189,24 @@ export const previewCards: PreviewCard[] = [
   },
   {
     label: 'Tournament Desk',
-    title: 'Summer Doubles Classic',
-    body: 'Draws are drafted and six courts are assigned.',
+    title: 'Run the event desk',
+    body: 'Draft draws, assign courts, track results, and keep players updated from one event sheet.',
     metrics: [
-      { label: 'Entries', value: '28' },
-      { label: 'Draws', value: 'Draft' },
-      { label: 'Results', value: 'Clear' },
+      { label: 'Entries', value: 'Entrants' },
+      { label: 'Draws', value: 'Draft / live' },
+      { label: 'Results', value: 'Reviewable' },
     ],
     href: '/tournaments',
     cta: 'Open Tournament Desk',
   },
   {
     label: 'League Office',
-    title: 'Spring Ladder',
-    body: 'Standings are current and three scorecards need review.',
+    title: 'Keep standings current',
+    body: 'Publish schedules, collect scores, apply standings rules, and review data fixes.',
     metrics: [
-      { label: 'Teams', value: '10' },
-      { label: 'Matches', value: '36' },
-      { label: 'Freshness', value: 'Today' },
+      { label: 'Teams', value: 'Players or teams' },
+      { label: 'Scores', value: 'Reviewed' },
+      { label: 'Freshness', value: 'Current' },
     ],
     href: '/leagues',
     cta: 'Open League Office',
@@ -203,11 +215,127 @@ export const previewCards: PreviewCard[] = [
 
 const heroBoardActions = [
   { label: 'Explore', detail: 'Players, teams, leagues, events', href: '/explore' },
-  { label: 'Improve', detail: 'Drills, skills, development paths', href: '/player-development' },
-  { label: 'Compete', detail: 'Matchup insight and scouting', href: '/compete' },
-  { label: 'Manage', detail: 'Teams, leagues, tournaments', href: '/manage' },
-  { label: 'Fix Tennis Info', detail: 'Scorecards, schedules, rosters', href: DATA_ASSIST_STORY.href },
+  { label: 'Improve', detail: 'Drills and player plans', href: '/player-development' },
+  { label: 'Video Review', detail: 'Record clips and coach feedback', href: '/video-review' },
+  { label: 'Compete', detail: 'Matchups and scouting', href: '/compete' },
+  { label: 'Captain', detail: 'Team week and lineups', href: '/captain' },
+  { label: 'Fix Data', detail: 'Scorecards and rosters', href: DATA_ASSIST_STORY.href },
 ] as const
+
+const homeSnapshotItems: HomeSnapshotItem[] = [
+  {
+    label: 'Player read',
+    title: 'Know who a player is.',
+    body: 'Search ratings, recent context, teams, and public tennis signals before you decide what to do next.',
+    signal: 'Rating, form, teams',
+    href: '/explore/players',
+    cta: 'Find Player Insights',
+  },
+  {
+    label: 'Match prep',
+    title: 'See the next match clearly.',
+    body: 'Compare players, read the edge, and turn opponent context into what to watch before first serve.',
+    signal: 'Edge, confidence, plan',
+    href: PRODUCT_MODE_LANGUAGE.prep.route,
+    cta: 'Prep a Matchup',
+  },
+  {
+    label: 'Team week',
+    title: 'Spot the decision before match day.',
+    body: 'Move from roster noise to availability, lineup options, opponent scouting, and the note the team needs.',
+    signal: 'Availability, lineup, scout',
+    href: PRODUCT_MODE_LANGUAGE.team.route,
+    cta: 'Open Captain',
+  },
+  {
+    label: 'League pulse',
+    title: 'Keep competition context visible.',
+    body: 'Follow schedules, scores, standings, and event structure without chasing scattered updates.',
+    signal: 'Schedules, scores, standings',
+    href: '/leagues',
+    cta: 'Find Leagues',
+  },
+  {
+    label: 'Data trust',
+    title: 'Know when the source needs help.',
+    body: 'Upload or review scorecards, schedules, and Player Rosters when context needs a cleaner source.',
+    signal: 'Uploads, review, fixes',
+    href: DATA_ASSIST_STORY.href,
+    cta: DATA_ASSIST_STORY.cta,
+  },
+]
+
+const homeModeCards: HomeModeCard[] = [
+  {
+    label: MEMBERSHIP_TIERS.free.name,
+    title: MEMBERSHIP_TIERS.free.shortPromise,
+    detail: 'Search players, teams, leagues, rankings, and public tennis intelligence before choosing paid tools.',
+    href: PRODUCT_MODE_LANGUAGE.find.route,
+    cta: 'Start Exploring',
+  },
+  {
+    label: MEMBERSHIP_TIERS.player_plus.name,
+    title: MEMBERSHIP_TIERS.player_plus.shortPromise,
+    detail: 'Use Level Up, matchup prep, data refreshes, and My Lab when your tennis work needs one personal path.',
+    href: '/player-development',
+    cta: 'Level Up My Game',
+  },
+  {
+    label: MEMBERSHIP_TIERS.captain.name,
+    title: MEMBERSHIP_TIERS.captain.shortPromise,
+    detail: 'Build the team week with availability, lineup strategy, scouting, messaging, and weekly decisions.',
+    href: PRODUCT_MODE_LANGUAGE.team.route,
+    cta: 'Open Captain',
+  },
+  {
+    label: 'League/Admin',
+    title: MEMBERSHIP_TIERS.league.shortPromise,
+    detail: 'Run seasons, schedules, scores, standings, players, teams, and visibility with less admin work.',
+    href: '/leagues-and-tournaments',
+    cta: 'Open Organizer Tools',
+  },
+]
+
+const guestTierPreviews: Array<{
+  planId: BillablePricingPlanId
+  icon: TiqFeatureIconName
+  label: string
+  audienceOverride?: string
+}> = [
+  { planId: 'free', icon: 'exploreTennis', label: 'Explore' },
+  { planId: 'player_plus', icon: 'improveTennis', label: 'Player' },
+  { planId: 'captain', icon: 'captainTennis', label: 'Captain' },
+  { planId: 'coach', icon: 'coachTennis', label: 'Coach' },
+  { planId: 'full_court', icon: 'captainDashboard', label: 'Full-Court' },
+  { planId: 'league', icon: 'leagueTennis', label: 'League' },
+  {
+    planId: 'club_starter',
+    icon: 'clubTennis',
+    label: 'Club Starter',
+    audienceOverride: CLUB_PLAN_STORY.starter.capacityLabel,
+  },
+  {
+    planId: 'club_unlimited',
+    icon: 'clubTennis',
+    label: 'Club Unlimited',
+    audienceOverride: CLUB_PLAN_STORY.unlimited.capacityLabel,
+  },
+]
+
+const platformLaneCues = {
+  improve: {
+    label: 'Practice lane',
+    when: 'Use when the question is what to work on next.',
+  },
+  compete: {
+    label: 'Match lane',
+    when: 'Use when the next match needs a clearer read.',
+  },
+  manage: {
+    label: 'Captain lane',
+    when: 'Use when availability, lineups, team messages, or recaps need to move.',
+  },
+} as const
 
 export function PublicPageShell({ active, children }: { active?: string; children: ReactNode }) {
   return <SiteShell active={active}>{children}</SiteShell>
@@ -215,13 +343,16 @@ export function PublicPageShell({ active, children }: { active?: string; childre
 
 export function CommandHero({
   eyebrow = 'TenAceIQ',
-  title = PRODUCT_MOTTO,
+  title = 'Start with the tennis tool you need next.',
   body,
   primary,
   secondary,
   showSearch = true,
+  searchCompact = false,
+  showSearchResults = true,
   searchPlaceholder,
   showBoard = true,
+  visual,
 }: {
   eyebrow?: string
   title?: string
@@ -229,18 +360,32 @@ export function CommandHero({
   primary?: { href: string; label: string }
   secondary?: { href: string; label: string }
   showSearch?: boolean
+  searchCompact?: boolean
+  showSearchResults?: boolean
   searchPlaceholder?: string
   showBoard?: boolean
+  visual?: ContextualTennisVisualName
 }) {
   return (
     <section style={showBoard ? heroStyle : heroSingleColumnStyle}>
       <div style={heroCopyStyle}>
-        <span aria-hidden="true" style={heroCopyBrandMarkStyle} />
+        {visual ? (
+          <ContextualTennisVisual visual={visual} />
+        ) : (
+          <span aria-hidden="true" style={heroCopyBrandMarkStyle} />
+        )}
         <div style={heroCopyContentStyle}>
           <div style={eyebrowStyle}>{eyebrow}</div>
           <h1 style={heroTitleStyle}>{title}</h1>
           <p style={heroBodyStyle}>{body}</p>
-          {showSearch ? <UniversalSearch placeholder={searchPlaceholder} /> : null}
+          {showSearch ? (
+            <UniversalSearch
+              compact={searchCompact}
+              placeholder={searchPlaceholder}
+              showResults={showSearchResults}
+              stackOnMobile={searchCompact}
+            />
+          ) : null}
           {(primary || secondary) ? (
             <div style={actionRowStyle}>
               {primary ? (
@@ -261,18 +406,9 @@ export function CommandHero({
         <div style={heroPanelStyle}>
           <span aria-hidden="true" style={heroPanelBrandMarkStyle} />
           <div style={heroPanelHeaderStyle}>
-            <span style={panelKickerStyle}>Platform paths</span>
-            <strong style={panelTitleStyle}>Start with the tennis need you have today.</strong>
-            <p style={panelCopyStyle}>Search is the front door. These shortcuts move the tennis community toward the next action worth taking.</p>
-          </div>
-          <div style={miniCourtStyle} aria-label="TenAceIQ portal board preview">
-            <span aria-hidden="true" style={courtNetStyle} />
-            <span aria-hidden="true" style={courtServiceLineStyle('top')} />
-            <span aria-hidden="true" style={courtServiceLineStyle('bottom')} />
-            <div style={courtBoardStyle}>
-              <span style={courtBoardKickerStyle}>Today</span>
-              <strong style={courtBoardTitleStyle}>Explore, improve, compete, manage, or fix tennis context.</strong>
-            </div>
+            <span style={panelKickerStyle}>Quick actions</span>
+            <strong style={panelTitleStyle}>Pick the job, then move.</strong>
+            <p style={panelCopyStyle}>Search when you know the name. Use a lane when you know what needs doing next.</p>
           </div>
           <div style={heroBoardGridStyle}>
             {heroBoardActions.map((action) => (
@@ -288,44 +424,8 @@ export function CommandHero({
               </TrackedProductLink>
             ))}
           </div>
-          <p style={panelFooterStyle}>More Tennis. Less Chaos. means the next action should be easy from a phone.</p>
         </div>
       ) : null}
-    </section>
-  )
-}
-
-export function HomeCtaGrid() {
-  const ctas = [
-    { audience: 'New here', label: 'Start Exploring', href: '/explore', helper: 'Search players, teams, leagues, and rankings.' },
-    { audience: 'Players', label: 'Find Player Insights', href: '/explore/players', helper: 'Open ratings, teams, and matchup context.' },
-    { audience: 'Improve', label: 'Level Up My Game', href: '/player-development', helper: 'Find drills, skills, and training paths.' },
-    { audience: 'Captains', label: 'Manage My Team', href: '/captain', helper: 'Check availability, lineups, and messages.' },
-    { audience: 'Coaches', label: 'Explore Coaches', href: '/coaches', helper: 'Support lessons, assignments, and development.' },
-    { audience: 'Organizers', label: 'Run a League or Tournament', href: '/leagues-and-tournaments', helper: 'Organize schedules, scores, standings, and events.' },
-  ] as const
-
-  return (
-    <section style={homeCtaSectionStyle} aria-labelledby="home-quick-start-title">
-      <div style={homeCtaIntroStyle}>
-        <span style={panelKickerStyle}>Choose your path</span>
-        <h2 id="home-quick-start-title" style={homeCtaHeadingStyle}>Start with the tennis need you have today.</h2>
-      </div>
-      <div style={homeCtaGridStyle} aria-label="TenAceIQ quick starts">
-        {ctas.map((cta, index) => (
-          <TrackedProductLink
-            key={cta.href}
-            href={cta.href}
-            style={index === 0 ? homePrimaryCtaStyle : homeSecondaryCtaStyle}
-            ariaLabel={`${cta.audience}: ${cta.label}. ${cta.helper}`}
-            event={getPublicLinkEvent(cta.label, cta.href, 'homepage-quick-start')}
-          >
-            <span style={homeCtaAudienceStyle}>{cta.audience}</span>
-            <strong style={homeCtaTitleStyle}>{cta.label}</strong>
-            <span style={homeCtaHelperStyle}>{cta.helper}</span>
-          </TrackedProductLink>
-        ))}
-      </div>
     </section>
   )
 }
@@ -334,58 +434,177 @@ export function PlatformPillarGrid() {
   return (
     <section style={sectionStyle} aria-labelledby="platform-pillars-title">
       <SectionHeader
-        eyebrow="Platform pillars"
-        title="Improve. Compete. Manage."
-        body={PLATFORM_POSITIONING}
+        eyebrow="Tennis lanes"
+        title="Start with the problem in front of you."
+        body="Improve is for practice. Compete is for match prep. Captain is for the team week around the tennis."
         titleId="platform-pillars-title"
       />
-      <div style={pillarGridStyle}>
-        {PLATFORM_PILLARS.map((pillar) => (
-          <article key={pillar.id} style={pillarCardStyle}>
-            <span style={chipStyle}>{pillar.title}</span>
-            <h2 style={cardTitleStyle}>{pillar.promise}</h2>
-            <p style={cardBodyStyle}>{pillar.body}</p>
-            <div style={pillarProofGridStyle}>
-              {pillar.proof.map((item) => (
-                <span key={item} style={pillarProofStyle}>{item}</span>
-              ))}
-            </div>
-            <TrackedProductLink
-              href={pillar.href}
-              style={cardPrimaryLinkStyle}
-              event={getPublicLinkEvent(pillar.cta, pillar.href, `pillar-${pillar.id}`)}
-            >
-              {pillar.cta}
-            </TrackedProductLink>
-          </article>
-        ))}
+      <div style={pillarBoardStyle}>
+        <div style={pillarBoardIntroStyle}>
+          <span style={pillarBoardKickerStyle}>Three lanes</span>
+          <p style={pillarBoardIntroCopyStyle}>Pick the lane that matches today&apos;s tennis need, then move into the next useful step.</p>
+        </div>
+        <div role="list" style={pillarLaneListStyle}>
+          {PLATFORM_PILLARS.map((pillar) => (
+            <article key={pillar.id} role="listitem" style={pillarLaneRowStyle}>
+              <div style={pillarLaneHeaderStyle}>
+                <span style={pillarLaneBadgeStyle}>{platformLaneCues[pillar.id].label}</span>
+                <div style={pillarLaneCopyStyle}>
+                  <h3 style={pillarTitleStyle}>{pillar.title}</h3>
+                  <p style={pillarPromiseStyle}>{pillar.promise}</p>
+                </div>
+                <TrackedProductLink
+                  href={pillar.href}
+                  style={pillarLaneActionStyle}
+                  event={getPublicLinkEvent(pillar.cta, pillar.href, `pillar-${pillar.id}`)}
+                >
+                  {pillar.cta}
+                </TrackedProductLink>
+              </div>
+              <p style={pillarUseWhenStyle}>{platformLaneCues[pillar.id].when}</p>
+              <p aria-label={`${pillar.title} signals`} style={pillarProofLineStyle}>
+                <span style={pillarProofLabelStyle}>Signals</span>
+                {pillar.proof.join(' / ')}
+              </p>
+            </article>
+          ))}
+        </div>
       </div>
     </section>
   )
 }
 
-export function AudiencePathGrid() {
+export function HomeIntelligenceSnapshot({ items = homeSnapshotItems }: { items?: HomeSnapshotItem[] }) {
   return (
-    <section style={sectionStyle} aria-labelledby="audience-paths-title">
+    <details style={homeDisclosureStyle} aria-labelledby="home-intelligence-snapshot-title">
+      <summary style={homeDisclosureSummaryStyle}>
+        <span style={homeDisclosureCopyStyle}>
+          <span style={eyebrowStyle}>Tennis intelligence snapshot</span>
+          <strong id="home-intelligence-snapshot-title" style={homeDisclosureTitleStyle}>Open reads before you choose a tool.</strong>
+        </span>
+        <span style={homeDisclosureCueStyle}>Show reads</span>
+      </summary>
+      <div style={snapshotBoardStyle}>
+        <div style={snapshotHeaderStyle}>
+          <span style={snapshotKickerStyle}>Signals before tools</span>
+          <p style={snapshotCopyStyle}>Start with the signal, then open the next tennis action.</p>
+        </div>
+        <div role="list" style={snapshotListStyle}>
+          {items.map((item) => (
+            <article key={item.label} role="listitem" style={snapshotRowStyle} aria-label={`${item.label}: ${item.body}`}>
+              <div style={snapshotMainStyle}>
+                <span style={snapshotLabelStyle}>{item.label}</span>
+                <div style={snapshotCopyBlockStyle}>
+                  <h3 style={snapshotTitleStyle}>{item.title}</h3>
+                  <details style={compactDetailsStyle}>
+                    <summary style={compactSummaryStyle}>Use when</summary>
+                    <p style={snapshotBodyStyle}>{item.body}</p>
+                  </details>
+                </div>
+              </div>
+              <p aria-label={`${item.label} signals`} style={snapshotSignalStyle}>
+                <span style={snapshotSignalLabelStyle}>Signals</span>
+                {item.signal}
+              </p>
+              <TrackedProductLink
+                href={item.href}
+                style={snapshotActionStyle}
+                event={getPublicLinkEvent(item.cta, item.href, `home-snapshot-${item.label}`)}
+              >
+                {item.cta}
+              </TrackedProductLink>
+            </article>
+          ))}
+        </div>
+      </div>
+    </details>
+  )
+}
+
+export function HomeModeRouter({ modes = homeModeCards }: { modes?: HomeModeCard[] }) {
+  return (
+    <details style={homeDisclosureStyle} aria-labelledby="home-mode-router-title">
+      <summary style={homeDisclosureSummaryStyle}>
+        <span style={homeDisclosureCopyStyle}>
+          <span style={eyebrowStyle}>Choose your mode</span>
+          <strong id="home-mode-router-title" style={homeDisclosureTitleStyle}>Open role paths.</strong>
+        </span>
+        <span style={homeDisclosureCueStyle}>Show paths</span>
+      </summary>
+      <div style={modeRouterStyle}>
+        <div style={modeHeaderStyle}>
+          <span style={modeKickerStyle}>Role paths</span>
+          <p style={modeCopyStyle}>Open the right tool first. Details stay one tap away.</p>
+        </div>
+        <div role="list" style={modeGridStyle}>
+          {modes.map((mode) => (
+            <article key={mode.label} role="listitem" style={modeCardStyle}>
+              <div style={modeCardMainStyle}>
+                <span style={modeLabelStyle}>{mode.label}</span>
+                <h3 style={modeTitleStyle}>{mode.title}</h3>
+                <details style={compactDetailsStyle}>
+                  <summary style={compactSummaryStyle}>What opens</summary>
+                  <p style={modeDetailStyle}>{mode.detail}</p>
+                </details>
+              </div>
+              <TrackedProductLink
+                href={mode.href}
+                style={modeActionStyle}
+                event={getPublicLinkEvent(mode.cta, mode.href, `home-mode-${mode.label}`)}
+              >
+                {mode.cta}
+              </TrackedProductLink>
+            </article>
+          ))}
+        </div>
+      </div>
+    </details>
+  )
+}
+
+export function GuestTierPreview() {
+  return (
+    <section style={sectionStyle} aria-labelledby="guest-tier-preview-title">
       <SectionHeader
-        eyebrow="Who it helps"
-        title="One toolkit for the tennis community."
-        body="Every path explains who it helps and what action to take next."
-        titleId="audience-paths-title"
+        eyebrow="Choose your lane"
+        title="Start free. Add only what helps."
+        body="See what each lane opens, what it costs, and the tennis work it makes easier."
+        titleId="guest-tier-preview-title"
       />
-      <div style={audienceGridStyle}>
-        {PLATFORM_AUDIENCE_PATHS.map((path) => (
-          <TrackedProductLink
-            key={path.audience}
-            href={path.href}
-            style={audiencePathStyle}
-            event={getPublicLinkEvent(path.cta, path.href, `audience-${path.audience}`)}
-          >
-            <span style={heroBoardActionLabelStyle}>{path.audience}</span>
-            <span style={heroBoardActionDetailStyle}>{path.question}</span>
-            <strong style={audienceCtaStyle}>{path.cta}</strong>
-          </TrackedProductLink>
-        ))}
+      <div role="list" style={guestTierGridStyle}>
+        {guestTierPreviews.map(({ planId, icon, label, audienceOverride }) => {
+          const plan = getPricingPlan(planId)
+          const featured = planId === 'captain'
+          const href = planId === 'free' ? '/explore' : `/pricing#${planId}`
+
+          return (
+            <article key={planId} role="listitem" style={{ ...guestTierCardStyle, ...(featured ? guestTierFeaturedCardStyle : null) }}>
+              <div style={guestTierCardTopStyle}>
+                <span style={guestTierIconStyle}>
+                  <TiqFeatureIcon name={icon} size="sm" variant="surface" />
+                </span>
+                <span style={guestTierPriceStyle}>{plan.priceLabel}</span>
+              </div>
+              <div style={guestTierCardCopyStyle}>
+                <span style={guestTierLabelStyle}>{label}</span>
+                <h2 style={guestTierTitleStyle}>{plan.subtitle}</h2>
+                <p style={guestTierAudienceStyle}>{audienceOverride ?? plan.audience}</p>
+              </div>
+              <ul style={guestTierListStyle}>
+                {plan.valueProps.slice(0, 3).map((item) => (
+                  <li key={item} style={guestTierListItemStyle}>{item}</li>
+                ))}
+              </ul>
+              <TrackedProductLink
+                href={href}
+                style={featured ? primaryButtonStyle : guestTierActionStyle}
+                event={getPublicLinkEvent(plan.ctaLabel, href, `guest-tier-${planId}`)}
+              >
+                {planId === 'free' ? 'Explore Free' : plan.ctaLabel}
+              </TrackedProductLink>
+            </article>
+          )
+        })}
       </div>
     </section>
   )
@@ -393,26 +612,37 @@ export function AudiencePathGrid() {
 
 export function ActionGrid({ cards = homeActionCards }: { cards?: PublicActionCard[] }) {
   return (
-    <section style={sectionStyle}>
-      <SectionHeader eyebrow="Start here" title="Find value in seconds." body="TenAceIQ starts with tennis context, then points players, captains, coaches, leagues, and tournaments to the right tools." />
-      <div style={actionGridStyle}>
-        {cards.map((card) => (
-          <article key={card.title} style={actionCardStyle}>
-            {card.meta ? <span style={chipStyle}>{card.meta}</span> : null}
-            <h2 style={cardTitleStyle}>{card.title}</h2>
-            <p style={cardBodyStyle}>{card.body}</p>
-            <div style={cardActionRowStyle}>
-              <TrackedProductLink href={card.href} style={cardPrimaryLinkStyle} event={getPublicLinkEvent(card.cta, card.href, `action-${card.title}`)}>
-                {card.cta}
-              </TrackedProductLink>
-              {card.secondaryHref && card.secondaryCta ? (
-                <TrackedProductLink href={card.secondaryHref} style={cardGhostLinkStyle} event={getPublicLinkEvent(card.secondaryCta, card.secondaryHref, `action-${card.title}-secondary`)}>
-                  {card.secondaryCta}
+    <section style={sectionStyle} aria-labelledby="home-action-board-title">
+      <SectionHeader
+        eyebrow="Help topics"
+        title="What do you need help with?"
+        body="Choose a topic to continue."
+        titleId="home-action-board-title"
+      />
+      <div style={actionBoardStyle}>
+        <div role="list" style={actionListStyle}>
+          {cards.map((card) => (
+            <article key={card.title} role="listitem" style={actionRowCardStyle} aria-label={`${card.title}: ${card.body}`}>
+              <div style={actionRowMainStyle}>
+                {card.meta ? <span style={actionMetaStyle}>{card.meta}</span> : null}
+                <div style={actionRowCopyStyle}>
+                  <h3 style={actionRowTitleStyle}>{card.title}</h3>
+                  <p style={actionRowBodyStyle}>{card.body}</p>
+                </div>
+              </div>
+              <div style={actionRowLinkStyle}>
+                <TrackedProductLink href={card.href} style={cardPrimaryLinkStyle} event={getPublicLinkEvent(card.cta, card.href, `action-${card.title}`)}>
+                  {card.cta}
                 </TrackedProductLink>
-              ) : null}
-            </div>
-          </article>
-        ))}
+                {card.secondaryHref && card.secondaryCta ? (
+                  <TrackedProductLink href={card.secondaryHref} style={cardGhostLinkStyle} event={getPublicLinkEvent(card.secondaryCta, card.secondaryHref, `action-${card.title}-secondary`)}>
+                    {card.secondaryCta}
+                  </TrackedProductLink>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
       </div>
     </section>
   )
@@ -421,32 +651,65 @@ export function ActionGrid({ cards = homeActionCards }: { cards?: PublicActionCa
 export function ProductPreviewGrid({ cards = previewCards }: { cards?: PreviewCard[] }) {
   return (
     <section style={sectionStyle}>
-      <SectionHeader eyebrow="Product previews" title="Useful tennis tools for the next action." body="Preview cards keep each tool concrete, approachable, and tied to the next tennis action." />
-      <div style={previewGridStyle}>
-        {cards.map((card) => renderPreviewCard(card))}
+      <SectionHeader
+        eyebrow="Tool previews"
+        title="Proof before the click."
+        body="Each row gives you the decision, the signal, and the next action without making the homepage another tour."
+      />
+      <div style={previewBoardStyle}>
+        <div style={previewBoardHeaderStyle}>
+          <span style={previewBoardKickerStyle}>Tool proof</span>
+          <p style={previewBoardCopyStyle}>Use this as a quick scan before opening a deeper tennis tool.</p>
+        </div>
+        <div role="list" style={previewListStyle}>
+          {cards.map((card) => (
+            <article key={card.title} role="listitem" style={previewProofRowStyle}>
+              <div style={previewProofMainStyle}>
+                <span style={previewLabelStyle}>{card.label}</span>
+                <div style={previewProofCopyStyle}>
+                  <h3 style={previewTitleStyle}>{card.title}</h3>
+                </div>
+              </div>
+              <p aria-label={`${card.title} signals`} style={previewSignalLineStyle}>
+                <span style={previewSignalLabelStyle}>Signals</span>
+                {card.metrics.map((metric) => `${metric.label}: ${metric.value}`).join(' / ')}
+              </p>
+              <TrackedProductLink
+                href={card.href}
+                style={previewProofActionStyle}
+                event={getPublicLinkEvent(card.cta, card.href, `preview-${card.label}`)}
+              >
+                {card.cta}
+              </TrackedProductLink>
+            </article>
+          ))}
+        </div>
       </div>
     </section>
   )
 }
 
-function renderPreviewCard(card: PreviewCard) {
-  const props = {
-    title: card.title,
-    body: card.body,
-    metrics: card.metrics,
-    href: card.href,
-    cta: card.cta,
-    event: getPublicLinkEvent(card.cta, card.href, `preview-${card.label}`),
-    trust: card.trust,
-  }
-
-  if (card.label === 'Matchup') return <TiqMatchupCard key={card.title} {...props} />
-  if (card.label === 'Captain Tools') return <TiqLineupPreview key={card.title} {...props} />
-  if (card.label === 'Coach Hub') return <TiqCoachAssignmentCard key={card.title} {...props} />
-  if (card.label === 'Tournament Desk') return <TiqTournamentDrawCard key={card.title} {...props} />
-  if (card.label === 'League Office') return <TiqLeagueStandingCard key={card.title} {...props} />
-
-  return <TiqWorkspacePreview key={card.title} eyebrow={card.label} {...props} />
+export function HomeClosingBand() {
+  return (
+    <section style={closingBandStyle} aria-labelledby="home-closing-title">
+      <div style={closingCopyStyle}>
+        <span style={closingKickerStyle}>Keep moving</span>
+        <h2 id="home-closing-title" style={closingTitleStyle}>Start with tennis context, then act.</h2>
+        <p style={closingBodyStyle}>Search the public tennis map, prep a matchup, or move into the team week.</p>
+      </div>
+      <div style={closingActionRowStyle}>
+        <TrackedProductLink href="/explore" style={primaryButtonStyle} event={getPublicLinkEvent('Start Exploring', '/explore', 'home-closing')}>
+          Start Exploring
+        </TrackedProductLink>
+        <TrackedProductLink href="/matchup" style={ghostButtonStyle} event={getPublicLinkEvent('Prep a Matchup', '/matchup', 'home-closing')}>
+          Prep a Matchup
+        </TrackedProductLink>
+        <TrackedProductLink href="/captain" style={ghostButtonStyle} event={getPublicLinkEvent('Open Captain', '/captain', 'home-closing')}>
+          Open Captain
+        </TrackedProductLink>
+      </div>
+    </section>
+  )
 }
 
 export function TrustStrip({
@@ -548,16 +811,16 @@ export const pageWrapStyle: CSSProperties = {
   zIndex: 2,
   width: 'min(1280px, calc(100% - clamp(24px, 5vw, 40px)))',
   margin: '0 auto',
-  padding: '18px 0 64px',
+  padding: '18px 0 56px',
   display: 'grid',
-  gap: 22,
+  gap: 18,
   minWidth: 0,
 }
 
 const heroStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))',
-  gap: 18,
+  gap: 'clamp(12px, 2vw, 18px)',
   alignItems: 'stretch',
   minWidth: 0,
 }
@@ -572,11 +835,11 @@ const heroCopyStyle: CSSProperties = {
   containerType: 'inline-size',
   display: 'grid',
   alignContent: 'center',
-  gap: 14,
+  gap: 10,
   minWidth: 0,
   maxWidth: '100%',
   boxSizing: 'border-box',
-  padding: 'clamp(16px, 3vw, 24px)',
+  padding: 'clamp(14px, 4cqw, 22px)',
   borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.18)',
   background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(7,20,40,0.90))',
@@ -588,11 +851,10 @@ const heroCopyBrandMarkStyle: CSSProperties = {
   position: 'absolute',
   right: 'clamp(14px, 4vw, 36px)',
   bottom: 'clamp(12px, 4vw, 34px)',
-  width: 'min(58%, 420px)',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
-  opacity: 0.12,
-  mixBlendMode: 'screen',
+  width: 'min(48%, 560px)',
+  aspectRatio: '6118 / 1550',
+  background: 'url("/brand/web/home-watermark.png") center / contain no-repeat',
+  opacity: 0.065,
   pointerEvents: 'none',
   zIndex: 0,
 }
@@ -601,7 +863,7 @@ const heroCopyContentStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gap: 14,
+  gap: 10,
   minWidth: 0,
 }
 
@@ -609,16 +871,16 @@ const heroPanelStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
   alignContent: 'start',
-  gap: 14,
+  gap: 8,
   minWidth: 0,
   maxWidth: '100%',
   boxSizing: 'border-box',
-  padding: 22,
+  padding: 'clamp(14px, 3cqw, 16px)',
   borderRadius: 8,
   border: '1px solid rgba(155,225,29,0.22)',
   background: 'linear-gradient(160deg, rgba(155,225,29,0.12), rgba(116,190,255,0.08) 42%, rgba(8,16,34,0.84))',
   color: 'var(--shell-copy-muted)',
-  lineHeight: 1.65,
+  lineHeight: 1.55,
   fontWeight: 760,
   overflow: 'hidden',
 }
@@ -627,11 +889,10 @@ const heroPanelBrandMarkStyle: CSSProperties = {
   position: 'absolute',
   right: 'clamp(14px, 3vw, 28px)',
   top: 'clamp(26px, 5vw, 58px)',
-  width: 'min(70%, 430px)',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
-  opacity: 0.2,
-  mixBlendMode: 'screen',
+  width: 'min(64%, 580px)',
+  aspectRatio: '6118 / 1550',
+  background: 'url("/brand/web/home-watermark.png") center / contain no-repeat',
+  opacity: 0.08,
   pointerEvents: 'none',
   zIndex: 0,
 }
@@ -640,7 +901,7 @@ const heroPanelHeaderStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gap: 8,
+  gap: 6,
   minWidth: 0,
 }
 
@@ -655,7 +916,7 @@ const panelKickerStyle: CSSProperties = {
 
 const panelTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 22,
+  fontSize: 19,
   lineHeight: 1.05,
   fontWeight: 950,
   overflowWrap: 'anywhere',
@@ -665,7 +926,7 @@ const panelCopyStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
-  lineHeight: 1.55,
+  lineHeight: 1.36,
   fontWeight: 720,
 }
 
@@ -681,8 +942,8 @@ const eyebrowStyle: CSSProperties = {
 const heroTitleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 'clamp(2.45rem, 10cqw, 4rem)',
-  lineHeight: 0.95,
+  fontSize: 'clamp(2rem, 7cqw, 3.25rem)',
+  lineHeight: 1,
   fontWeight: 950,
   letterSpacing: 0,
   overflowWrap: 'anywhere',
@@ -692,15 +953,15 @@ const heroBodyStyle: CSSProperties = {
   margin: 0,
   maxWidth: 820,
   color: 'var(--shell-copy-muted)',
-  fontSize: 'clamp(0.98rem, 2.4cqw, 1.12rem)',
-  lineHeight: 1.7,
+  fontSize: 'clamp(0.9rem, 2.2cqw, 1.08rem)',
+  lineHeight: 1.48,
   fontWeight: 700,
 }
 
 const actionRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
-  gap: 10,
+  gap: 8,
   minWidth: 0,
 }
 
@@ -709,14 +970,14 @@ const primaryButtonStyle: CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   maxWidth: '100%',
-  minHeight: 46,
-  padding: '0 16px',
+  minHeight: 44,
+  padding: '0 14px',
   borderRadius: 999,
   border: '1px solid color-mix(in srgb, var(--brand-green) 38%, var(--shell-panel-border) 62%)',
   background: 'linear-gradient(180deg, #eaff9e 0%, #9be11d 100%)',
   color: '#071226',
   textDecoration: 'none',
-  fontSize: 13,
+  fontSize: 12.5,
   fontWeight: 950,
   textAlign: 'center',
   whiteSpace: 'normal',
@@ -732,13 +993,13 @@ const ghostButtonStyle: CSSProperties = {
 
 const sectionStyle: CSSProperties = {
   display: 'grid',
-  gap: 14,
+  gap: 12,
   minWidth: 0,
 }
 
 const sectionHeaderStyle: CSSProperties = {
   display: 'grid',
-  gap: 7,
+  gap: 6,
   maxWidth: 820,
   minWidth: 0,
 }
@@ -746,7 +1007,7 @@ const sectionHeaderStyle: CSSProperties = {
 const sectionTitleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 'clamp(1.65rem, 3vw, 2.6rem)',
+  fontSize: 'clamp(1.45rem, 2.6vw, 2.25rem)',
   lineHeight: 1.05,
   fontWeight: 950,
 }
@@ -755,22 +1016,139 @@ const sectionBodyStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
   fontSize: 15,
-  lineHeight: 1.7,
+  lineHeight: 1.55,
 }
 
-const actionGridStyle: CSSProperties = {
+const homeDisclosureStyle: CSSProperties = {
+  minWidth: 0,
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,16,34,0.70)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+  overflowWrap: 'anywhere',
+}
+
+const homeDisclosureSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 10,
+  minWidth: 0,
+  padding: 'clamp(12px, 2.2vw, 16px)',
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const homeDisclosureCopyStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-  gap: 14,
+  gap: 5,
+  flex: '1 1 220px',
+  minWidth: 0,
+}
+
+const homeDisclosureTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.15rem, 2.4vw, 1.55rem)',
+  lineHeight: 1.08,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const homeDisclosureCueStyle: CSSProperties = {
+  ...ghostButtonStyle,
+  minHeight: 34,
+  padding: '0 11px',
+}
+
+const actionBoardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 'clamp(12px, 2.2vw, 16px)',
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,16,34,0.70)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const actionListStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr)',
+  gap: 8,
+  minWidth: 0,
+}
+
+const actionRowCardStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.58)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const actionRowMainStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'start',
+  gap: 9,
+  minWidth: 0,
+}
+
+const actionMetaStyle: CSSProperties = {
+  width: 'fit-content',
+  display: 'inline-flex',
+  alignItems: 'center',
+  flex: '0 1 auto',
+  minHeight: 24,
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(116,190,255,0.07)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const actionRowCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  flex: '1 1 210px',
+  minWidth: 0,
+}
+
+const actionRowTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const actionRowLinkStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+  alignItems: 'center',
+  flex: '0 1 auto',
   minWidth: 0,
 }
 
 const actionCardStyle: CSSProperties = {
   display: 'grid',
-  gap: 10,
-  minHeight: 236,
+  gap: 9,
+  minHeight: 202,
   alignContent: 'start',
-  padding: 18,
+  padding: 16,
   borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.14)',
   background: 'rgba(8,16,34,0.74)',
@@ -778,25 +1156,10 @@ const actionCardStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const chipStyle: CSSProperties = {
-  width: 'fit-content',
-  display: 'inline-flex',
-  alignItems: 'center',
-  minHeight: 28,
-  padding: '0 10px',
-  borderRadius: 999,
-  border: '1px solid rgba(155,225,29,0.24)',
-  background: 'rgba(155,225,29,0.10)',
-  color: 'var(--foreground-strong)',
-  fontSize: 11,
-  fontWeight: 950,
-  textTransform: 'uppercase',
-}
-
 const cardTitleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 24,
+  fontSize: 22,
   lineHeight: 1.08,
   fontWeight: 950,
   overflowWrap: 'anywhere',
@@ -806,16 +1169,8 @@ const cardBodyStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
   fontSize: 14,
-  lineHeight: 1.65,
+  lineHeight: 1.5,
   fontWeight: 700,
-}
-
-const cardActionRowStyle: CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 8,
-  marginTop: 'auto',
-  minWidth: 0,
 }
 
 const cardPrimaryLinkStyle: CSSProperties = {
@@ -830,165 +1185,551 @@ const cardGhostLinkStyle: CSSProperties = {
   fontSize: 12,
 }
 
-const homeCtaSectionStyle: CSSProperties = {
+const pillarBoardStyle: CSSProperties = {
   display: 'grid',
-  gap: 12,
+  gap: 10,
+  minWidth: 0,
+  padding: 'clamp(12px, 2.2vw, 16px)',
+  borderRadius: 8,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background:
+    'linear-gradient(160deg, rgba(155,225,29,0.09), rgba(116,190,255,0.055) 42%, rgba(8,16,34,0.82))',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+}
+
+const pillarBoardIntroStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: 8,
   minWidth: 0,
 }
 
-const homeCtaIntroStyle: CSSProperties = {
-  display: 'grid',
-  gap: 5,
-  minWidth: 0,
-}
-
-const homeCtaHeadingStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: 'clamp(1.25rem, 2.2vw, 1.75rem)',
-  lineHeight: 1.08,
+const pillarBoardKickerStyle: CSSProperties = {
+  width: 'fit-content',
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 24,
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(116,190,255,0.07)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
   fontWeight: 950,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
+  textTransform: 'uppercase',
 }
 
-const homeCtaGridStyle: CSSProperties = {
+const pillarBoardIntroCopyStyle: CSSProperties = {
+  margin: 0,
+  flex: '1 1 340px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 760,
+}
+
+const pillarLaneListStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const pillarLaneRowStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.62)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const pillarLaneHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
   gap: 10,
   minWidth: 0,
 }
 
-const homePrimaryCtaStyle: CSSProperties = {
-  ...primaryButtonStyle,
-  flexDirection: 'column',
-  alignItems: 'flex-start',
-  minHeight: 50,
-  width: '100%',
-  boxSizing: 'border-box',
-  borderRadius: 8,
-  fontSize: 13,
-  gap: 4,
-  padding: '10px 12px',
-  textAlign: 'left',
+const pillarLaneBadgeStyle: CSSProperties = {
+  ...pillarBoardKickerStyle,
+  flex: '0 1 auto',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--foreground-strong)',
 }
 
-const homeSecondaryCtaStyle: CSSProperties = {
-  ...ghostButtonStyle,
-  flexDirection: 'column',
-  alignItems: 'flex-start',
-  minHeight: 50,
-  width: '100%',
-  boxSizing: 'border-box',
-  borderRadius: 8,
-  fontSize: 13,
-  gap: 4,
-  padding: '10px 12px',
-  textAlign: 'left',
+const pillarLaneCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  flex: '1 1 150px',
+  minWidth: 0,
 }
 
-const homeCtaAudienceStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  width: 'fit-content',
-  minHeight: 22,
-  padding: '0 7px',
-  borderRadius: 999,
-  border: '1px solid currentColor',
-  color: 'inherit',
-  opacity: 0.8,
-  fontSize: 10,
-  lineHeight: 1,
-  fontWeight: 950,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-}
-
-const homeCtaTitleStyle: CSSProperties = {
-  color: 'inherit',
-  fontSize: 13,
-  lineHeight: 1.12,
+const pillarTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 19,
+  lineHeight: 1.08,
   fontWeight: 950,
   overflowWrap: 'anywhere',
 }
 
-const homeCtaHelperStyle: CSSProperties = {
-  color: 'inherit',
-  opacity: 0.78,
-  fontSize: 11.5,
-  lineHeight: 1.25,
+const pillarPromiseStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.3,
+  fontWeight: 900,
+}
+
+const pillarUseWhenStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.38,
+  fontWeight: 760,
+}
+
+const pillarProofLineStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
   fontWeight: 760,
   overflowWrap: 'anywhere',
 }
 
-const pillarGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 290px), 1fr))',
-  gap: 14,
-  minWidth: 0,
+const pillarProofLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  marginRight: 7,
 }
 
-const pillarCardStyle: CSSProperties = {
-  ...actionCardStyle,
-  minHeight: 300,
-  border: '1px solid rgba(155,225,29,0.16)',
-  background:
-    'linear-gradient(160deg, rgba(155,225,29,0.08), rgba(116,190,255,0.055) 40%, rgba(8,16,34,0.84))',
+const pillarLaneActionStyle: CSSProperties = {
+  ...cardPrimaryLinkStyle,
+  flex: '0 1 auto',
+  minHeight: 38,
 }
 
-const pillarProofGridStyle: CSSProperties = {
-  display: 'grid',
-  gap: 7,
-  minWidth: 0,
-}
-
-const pillarProofStyle: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  minHeight: 32,
-  padding: '0 10px',
-  borderRadius: 8,
-  border: '1px solid rgba(116,190,255,0.13)',
-  background: 'rgba(7,17,33,0.58)',
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  fontWeight: 850,
-  overflowWrap: 'anywhere',
-}
-
-const audienceGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-  gap: 12,
-  minWidth: 0,
-}
-
-const audiencePathStyle: CSSProperties = {
+const previewBoardStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
-  minHeight: 166,
-  alignContent: 'start',
-  padding: 16,
+  minWidth: 0,
+  padding: 'clamp(12px, 2.2vw, 16px)',
   borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.14)',
-  background: 'rgba(8,16,34,0.74)',
-  color: 'var(--shell-copy-muted)',
-  textDecoration: 'none',
-  minWidth: 0,
+  background: 'rgba(8,16,34,0.72)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
 }
 
-const audienceCtaStyle: CSSProperties = {
+const previewBoardHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+}
+
+const previewBoardKickerStyle: CSSProperties = {
+  width: 'fit-content',
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 24,
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const previewBoardCopyStyle: CSSProperties = {
+  margin: 0,
+  flex: '1 1 340px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 760,
+}
+
+const previewListStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const previewProofRowStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.58)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const previewProofMainStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'start',
+  gap: 9,
+  minWidth: 0,
+}
+
+const previewLabelStyle: CSSProperties = {
+  ...previewBoardKickerStyle,
+  flex: '0 1 auto',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(116,190,255,0.07)',
+  color: 'var(--shell-copy-muted)',
+}
+
+const previewProofCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  flex: '1 1 190px',
+  minWidth: 0,
+}
+
+const previewTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const previewSignalLineStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const previewSignalLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  marginRight: 7,
+}
+
+const previewProofActionStyle: CSSProperties = {
+  ...cardPrimaryLinkStyle,
+  justifySelf: 'start',
+  minHeight: 38,
+}
+
+const snapshotBoardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: 'clamp(10px, 1.8vw, 14px)',
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(8,16,34,0.72)',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const snapshotHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+}
+
+const snapshotKickerStyle: CSSProperties = {
+  width: 'fit-content',
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 24,
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--foreground-strong)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const snapshotCopyStyle: CSSProperties = {
+  margin: 0,
+  flex: '1 1 340px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 760,
+}
+
+const snapshotListStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 270px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const snapshotRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateRows: 'auto minmax(0, auto) auto',
+  gap: 7,
+  minWidth: 0,
+  padding: 9,
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.58)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const snapshotMainStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'start',
+  gap: 9,
+  minWidth: 0,
+}
+
+const snapshotLabelStyle: CSSProperties = {
+  ...snapshotKickerStyle,
+  flex: '0 1 auto',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(116,190,255,0.07)',
+  color: 'var(--shell-copy-muted)',
+}
+
+const snapshotCopyBlockStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  flex: '1 1 160px',
+  minWidth: 0,
+}
+
+const snapshotTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 16,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const compactDetailsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const compactSummaryStyle: CSSProperties = {
+  width: 'fit-content',
+  cursor: 'pointer',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  lineHeight: 1.25,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const snapshotBodyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12.5,
+  lineHeight: 1.4,
+  fontWeight: 730,
+}
+
+const snapshotSignalStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const snapshotSignalLabelStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontWeight: 950,
+  textTransform: 'uppercase',
+  marginRight: 7,
+}
+
+const snapshotActionStyle: CSSProperties = {
+  ...cardPrimaryLinkStyle,
+  justifySelf: 'start',
+  minHeight: 44,
+}
+
+const modeRouterStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: 'clamp(10px, 1.8vw, 14px)',
+  borderRadius: 8,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background:
+    'linear-gradient(160deg, rgba(155,225,29,0.09), rgba(116,190,255,0.055) 42%, rgba(8,16,34,0.82))',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+}
+
+const modeHeaderStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'baseline',
+  justifyContent: 'space-between',
+  gap: 8,
+  minWidth: 0,
+}
+
+const modeKickerStyle: CSSProperties = {
+  width: 'fit-content',
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: 24,
+  padding: '0 8px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(116,190,255,0.07)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 950,
+  textTransform: 'uppercase',
+}
+
+const modeCopyStyle: CSSProperties = {
+  margin: 0,
+  flex: '1 1 340px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 760,
+}
+
+const modeGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 195px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const modeCardStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'space-between',
+  gap: 9,
+  minHeight: 138,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 8,
+  border: '1px solid rgba(116,190,255,0.13)',
+  background: 'rgba(7,17,33,0.62)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
+}
+
+const modeCardMainStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const modeLabelStyle: CSSProperties = {
+  ...modeKickerStyle,
+  background: 'rgba(155,225,29,0.10)',
+  color: 'var(--foreground-strong)',
+}
+
+const modeTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.08,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const modeDetailStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12.5,
+  lineHeight: 1.42,
+  fontWeight: 730,
+}
+
+const modeActionStyle: CSSProperties = {
+  ...cardPrimaryLinkStyle,
+  justifySelf: 'start',
+  minHeight: 44,
+}
+
+const closingBandStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 14,
+  minWidth: 0,
+  padding: 'clamp(14px, 2.4vw, 18px)',
+  borderRadius: 8,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.10), rgba(116,190,255,0.07) 46%, rgba(8,16,34,0.76))',
+  boxShadow: '0 18px 48px rgba(2,10,24,0.18), inset 0 1px 0 rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+}
+
+const closingCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  flex: '1 1 360px',
+  minWidth: 0,
+}
+
+const closingKickerStyle: CSSProperties = {
+  width: 'fit-content',
   color: 'var(--brand-green)',
   fontSize: 12,
   fontWeight: 950,
-  marginTop: 'auto',
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
 }
 
-const previewGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
-  gap: 14,
+const closingTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2.2vw, 2rem)',
+  lineHeight: 1.05,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const closingBodyStyle: CSSProperties = {
+  margin: 0,
+  maxWidth: 760,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 14,
+  lineHeight: 1.45,
+  fontWeight: 740,
+}
+
+const closingActionRowStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
+  gap: 8,
+  flex: '0 1 auto',
   minWidth: 0,
 }
 
@@ -1004,86 +1745,20 @@ const storyCardStyle: CSSProperties = {
   minHeight: 180,
 }
 
-const miniCourtStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  minHeight: 176,
-  borderRadius: 8,
-  border: '2px solid rgba(155,225,29,0.44)',
-  background:
-    'linear-gradient(135deg, rgba(32,75,52,0.82), rgba(12,40,48,0.74)), radial-gradient(circle at 18% 24%, rgba(255,255,255,0.12), transparent 26%)',
-  overflow: 'hidden',
-}
-
-const courtNetStyle: CSSProperties = {
-  position: 'absolute',
-  left: '50%',
-  top: 0,
-  bottom: 0,
-  width: 2,
-  transform: 'translateX(-50%)',
-  background: 'rgba(255,255,255,0.34)',
-}
-
-function courtServiceLineStyle(position: 'top' | 'bottom'): CSSProperties {
-  return {
-    position: 'absolute',
-    left: '12%',
-    right: '12%',
-    top: position === 'top' ? '34%' : undefined,
-    bottom: position === 'bottom' ? '34%' : undefined,
-    height: 2,
-    background: 'rgba(255,255,255,0.24)',
-  }
-}
-
-const courtBoardStyle: CSSProperties = {
-  position: 'absolute',
-  inset: 14,
-  display: 'grid',
-  alignContent: 'end',
-  gap: 8,
-  padding: 14,
-  borderRadius: 8,
-  border: '1px solid rgba(255,255,255,0.18)',
-  background: 'linear-gradient(180deg, transparent 4%, rgba(3,7,18,0.22) 56%, rgba(3,7,18,0.72) 100%)',
-  color: 'var(--foreground-strong)',
-}
-
-const courtBoardKickerStyle: CSSProperties = {
-  width: 'fit-content',
-  padding: '4px 8px',
-  borderRadius: 999,
-  border: '1px solid rgba(155,225,29,0.26)',
-  background: 'rgba(155,225,29,0.10)',
-  color: 'var(--brand-green)',
-  fontSize: 11,
-  lineHeight: 1,
-  fontWeight: 950,
-  textTransform: 'uppercase',
-}
-
-const courtBoardTitleStyle: CSSProperties = {
-  fontSize: 18,
-  lineHeight: 1.14,
-  fontWeight: 950,
-  overflowWrap: 'anywhere',
-}
-
 const heroBoardGridStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: 10,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 7,
   minWidth: 0,
 }
 
 const heroBoardActionStyle: CSSProperties = {
   display: 'grid',
-  gap: 5,
-  minHeight: 74,
-  padding: 12,
+  gap: 3,
+  minHeight: 50,
+  padding: 8,
   borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.16)',
   background: 'rgba(7,17,33,0.74)',
@@ -1095,28 +1770,17 @@ const heroBoardActionStyle: CSSProperties = {
 
 const heroBoardActionLabelStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
-  fontSize: 15,
+  fontSize: 13,
   lineHeight: 1.1,
   fontWeight: 950,
 }
 
 const heroBoardActionDetailStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  lineHeight: 1.35,
+  fontSize: 11.5,
+  lineHeight: 1.22,
   fontWeight: 760,
   overflowWrap: 'anywhere',
-}
-
-const panelFooterStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  margin: 0,
-  paddingTop: 2,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.55,
-  fontWeight: 780,
 }
 
 const trustWrapStyle: CSSProperties = {
@@ -1181,4 +1845,116 @@ const trustActionStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 950,
   textDecoration: 'none',
+}
+
+const actionRowBodyStyle: CSSProperties = {
+  margin: 0,
+  maxWidth: 620,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+}
+
+const guestTierGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
+  gap: 12,
+  minWidth: 0,
+}
+
+const guestTierCardStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 14,
+  minWidth: 0,
+  minHeight: 360,
+  padding: 18,
+  borderRadius: 14,
+  border: '1px solid var(--shell-panel-border)',
+  background: 'var(--shell-panel-bg)',
+  boxShadow: 'var(--shadow-soft)',
+  overflowWrap: 'anywhere',
+}
+
+const guestTierFeaturedCardStyle: CSSProperties = {
+  borderColor: 'color-mix(in srgb, var(--brand-green) 48%, var(--shell-panel-border) 52%)',
+  background:
+    'linear-gradient(160deg, color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%), var(--shell-panel-bg))',
+  boxShadow: '0 20px 48px rgba(155,225,29,0.10)',
+}
+
+const guestTierCardTopStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  minWidth: 0,
+}
+
+const guestTierIconStyle: CSSProperties = {
+  display: 'grid',
+  placeItems: 'center',
+  width: 42,
+  height: 42,
+}
+
+const guestTierPriceStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 15,
+  lineHeight: 1.1,
+  fontWeight: 950,
+  textAlign: 'right',
+}
+
+const guestTierCardCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 6,
+  minWidth: 0,
+}
+
+const guestTierLabelStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 12,
+  lineHeight: 1,
+  fontWeight: 950,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const guestTierTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 22,
+  lineHeight: 1.08,
+  fontWeight: 950,
+}
+
+const guestTierAudienceStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const guestTierListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  margin: 0,
+  padding: 0,
+  listStyle: 'none',
+}
+
+const guestTierListItemStyle: CSSProperties = {
+  paddingLeft: 14,
+  borderLeft: '2px solid color-mix(in srgb, var(--brand-green) 58%, var(--shell-panel-border) 42%)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.4,
+  fontWeight: 780,
+}
+
+const guestTierActionStyle: CSSProperties = {
+  ...ghostButtonStyle,
+  marginTop: 'auto',
+  width: 'fit-content',
 }

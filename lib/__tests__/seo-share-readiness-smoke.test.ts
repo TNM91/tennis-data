@@ -23,7 +23,7 @@ describe('SEO and share readiness smoke', () => {
       'application\\/ld\\+json',
       '/robots.txt',
       '/sitemap.xml',
-      '/tenaceiq/logos/tenaceiq-social-preview.png',
+      '/brand/social/og-image-1200x630.png',
       '/pricing',
       '/explore',
       '/players',

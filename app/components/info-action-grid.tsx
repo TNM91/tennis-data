@@ -16,7 +16,7 @@ export default function InfoActionGrid({ cards }: { cards: InfoActionCard[] }) {
       {cards.map((card) => {
         const content = (
           <>
-            <TiqFeatureIcon name={card.icon} size="md" variant="surface" />
+            <TiqFeatureIcon name={card.icon} size="sm" variant="surface" />
             <span style={copyStyle}>
               <strong>{card.title}</strong>
               <small>{card.text}</small>
@@ -41,20 +41,20 @@ export default function InfoActionGrid({ cards }: { cards: InfoActionCard[] }) {
 
 const gridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
-  gap: 12,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+  gap: 10,
   minWidth: 0,
 }
 
 const cardStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '48px minmax(0, 1fr)',
-  gap: 12,
+  gridTemplateColumns: '34px minmax(0, 1fr)',
+  gap: 8,
   alignItems: 'start',
   minWidth: 0,
-  minHeight: 148,
-  padding: 14,
-  borderRadius: 18,
+  minHeight: 78,
+  padding: 10,
+  borderRadius: 8,
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'rgba(255,255,255,0.045)',
   color: 'var(--foreground)',
@@ -64,7 +64,7 @@ const cardStyle: CSSProperties = {
 
 const copyStyle: CSSProperties = {
   display: 'grid',
-  gap: 6,
+  gap: 5,
   minWidth: 0,
   color: 'var(--foreground-strong)',
   lineHeight: 1.25,

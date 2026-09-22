@@ -12,6 +12,10 @@ import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { type MembershipTierId } from '@/lib/product-story'
+import { isSafeLocalNextHref } from '@/lib/plan-intent'
+import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
+import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'
+import { getAvailabilityEntry } from '@/lib/availability-onboarding'
 
 const DEFAULT_POST_LOGIN_ROUTE = FREE_POST_LOGIN_ROUTE
 const LOGIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
@@ -25,8 +29,8 @@ const LOGIN_INTENT_COPY: Record<MembershipTierId, {
 }> = {
   free: {
     eyebrow: 'TenAceIQ access',
-    title: 'Open the tennis map.',
-    body: 'Sign in, search the tennis map, and choose the right tools when your tennis needs more support.',
+    title: 'Sign in to TenAceIQ.',
+    body: 'Open your saved tennis work.',
     destination: 'Find',
   },
   player_plus: {
@@ -142,7 +146,25 @@ function LoginContent() {
 
   const { isMobile, isSmallMobile } = useViewportBreakpoints()
   const selectedPlanId = getLoginPlanIntent()
-  const selectedIntent = LOGIN_INTENT_COPY[selectedPlanId]
+  const requestedNextRoute = searchParams.get('next')
+  const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, DEFAULT_POST_LOGIN_ROUTE)
+  const availabilityEntry = selectedPlanId === 'free' ? getAvailabilityEntry(selectedNextRoute) : null
+  const isCaptainPilotLogin = selectedPlanId === 'captain' && selectedNextRoute.startsWith('/captain-pilot')
+  const selectedIntent = isCaptainPilotLogin ? {
+    eyebrow: 'Captain offer · Sign in',
+    title: 'Continue your Captain offer.',
+    body: 'Sign in to activate 3 months free. Already have Captain access? We’ll take you to your team setup options.',
+    destination: 'Captain offer',
+  } : availabilityEntry ? {
+    eyebrow: 'Team availability',
+    title: 'Back to your team.',
+    body: `Sign in to mark when you can play for ${availabilityEntry.team}. Your match and season request will open next. No paid plan needed.`,
+    destination: 'Your availability',
+  } : LOGIN_INTENT_COPY[selectedPlanId]
+  const hasSafeRequestedNext = !!requestedNextRoute && selectedNextRoute === requestedNextRoute
+  const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
+  const createAccountHref = buildAuthEntryHref('/join', selectedPlanId, selectedNextRoute, hasSafeRequestedNext)
+  const forgotPasswordHref = buildAuthEntryHref('/forget-password', selectedPlanId, selectedNextRoute, hasSafeRequestedNext)
   const emailPrefill = searchParams.get('email')?.trim() ?? ''
   const switchingAccount = searchParams.get('switchAccount') === '1'
   const coachSetupEmailLabel = emailPrefill || 'the invited email'
@@ -274,26 +296,22 @@ function canUseBrowserStorage() {
     ...heroShell,
     width: isMobile ? 'min(620px, calc(100% - 20px))' : 'min(620px, calc(100% - clamp(24px, 5vw, 40px)))',
     gridTemplateColumns: 'minmax(0, 1fr)',
-    padding: isMobile ? '18px' : '24px',
-    gap: isMobile ? '12px' : '14px',
+    padding: isMobile ? '12px' : '16px',
+    gap: '10px',
     margin: isMobile ? '10px auto 22px' : heroShell.margin,
   }
 
   const loginPanelResponsive: CSSProperties = {
     ...loginPanel,
-    ...(isMobile
-      ? {
-          border: 'none',
-          background: 'transparent',
-          boxShadow: 'none',
-          borderRadius: 0,
-        }
-      : {}),
+    border: 'none',
+    background: 'transparent',
+    boxShadow: 'none',
+    borderRadius: 0,
   }
 
   const loginPanelInnerResponsive: CSSProperties = {
     ...loginPanelInner,
-    padding: isMobile ? 0 : '22px',
+    padding: 0,
   }
 
   const helperRowResponsive: CSSProperties = {
@@ -312,7 +330,7 @@ function canUseBrowserStorage() {
         <div style={loadingCard}>
           <span style={authLoadingIconStyle}>
             <Image
-              src="/tiq/logo/tiq-app-icon.png"
+              src="/brand/icons/app-icon-1024.png"
               alt=""
               width={512}
               height={512}
@@ -329,24 +347,13 @@ function canUseBrowserStorage() {
   return (
     <section style={heroShellResponsive}>
         <span aria-hidden="true" style={watermarkStyle} />
-        <div style={loginCopyRailStyle}>
-          <div style={eyebrow}>{selectedIntent.eyebrow}</div>
-          <h1 style={{ ...heroTitle, fontSize: isSmallMobile ? '30px' : isMobile ? '34px' : '42px' }}>
-            {selectedIntent.title}
-          </h1>
-          <p style={{ ...heroText, fontSize: isSmallMobile ? '15px' : '16px' }}>
-            {selectedIntent.body}
-          </p>
-
-          <div style={destinationPillStyle}>Next tennis tool: {selectedIntent.destination}</div>
-        </div>
-
         <div style={loginPanelResponsive}>
           <div style={loginPanelGlow} />
           <div style={loginPanelInnerResponsive}>
             <form onSubmit={handleSubmit} style={isMobile ? formCardMobile : formCard}>
-              <div style={formLabel}>More Tennis. Less Chaos.</div>
-              <h2 style={isMobile ? formTitleMobile : formTitle}>Sign in</h2>
+              <div style={formLabel}>{selectedIntent.eyebrow}</div>
+              <h1 style={isMobile ? formTitleMobile : formTitle}>{selectedIntent.title}</h1>
+              <p style={formIntroStyle}>{selectedIntent.body}</p>
               {switchingAccount ? (
                 <div role="status" aria-live="polite" style={successBanner}>
                   {coachSetupNote}
@@ -425,25 +432,43 @@ function canUseBrowserStorage() {
 
               <div style={helperRowResponsive}>
                 <Link
-                  href={selectedPlanId === 'free' ? '/join' : `/join?plan=${selectedPlanId}`}
+                  href={createAccountHref}
                   style={isMobile ? mobilePrimaryAuthLink : inlineLink}
                 >
                   Create free account
                 </Link>
-                <Link href="/forget-password" style={isMobile ? mobileSecondaryAuthLink : inlineLinkMuted}>
+                <Link href={forgotPasswordHref} style={isMobile ? mobileSecondaryAuthLink : inlineLinkMuted}>
                   Forgot password?
                 </Link>
               </div>
             </form>
 
             <div style={footerPromptResponsive}>
-              Need the public experience first?{' '}
               <Link href="/explore" style={isMobile ? mobileInlineExploreLink : inlineLink}>
-                Explore TenAceIQ
+                Explore without signing in
               </Link>
             </div>
           </div>
         </div>
+
+        {selectedPlanId !== 'free' || nextIntent ? <details className="authReturnDetailsSection" style={loginContextStyle}>
+          <summary style={loginContextSummaryStyle}>
+            <span>Show return path</span>
+          </summary>
+          <div className="authReturnDetailsBody" style={loginContextBodyStyle}>
+            <p style={{ ...loginContextTextStyle, fontSize: isSmallMobile ? '15px' : '16px' }}>
+              {selectedIntent.body}
+            </p>
+            <div style={destinationPillStyle}>Next tennis tool: {selectedIntent.destination}</div>
+            {nextIntent ? (
+              <div aria-label="Login next action" style={nextIntentStyle}>
+                <div style={nextIntentLabelStyle}>{nextIntent.label}</div>
+                <div style={nextIntentTitleStyle}>{nextIntent.title}</div>
+                <div style={nextIntentBodyStyle}>{nextIntent.body}</div>
+              </div>
+            ) : null}
+          </div>
+        </details> : null}
     </section>
   )
 }
@@ -473,44 +498,13 @@ const heroShell: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: 'clamp(-42px, -4vw, -18px)',
-  bottom: 'clamp(-76px, -6vw, -30px)',
-  width: 'clamp(260px, 36vw, 500px)',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
-  opacity: 0.22,
+  right: 0,
+  bottom: '-12px',
+  width: 'min(380px, 58vw)',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
+  opacity: 0.14,
   pointerEvents: 'none',
-}
-
-const eyebrow: CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  alignSelf: 'flex-start',
-  maxWidth: '100%',
-  minHeight: '38px',
-  padding: '8px 14px',
-  borderRadius: '999px',
-  border: '1px solid var(--home-eyebrow-border)',
-  background: 'var(--home-eyebrow-bg)',
-  color: 'var(--home-eyebrow-color)',
-  fontWeight: 800,
-  fontSize: '15px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.04em',
-  marginBottom: '4px',
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-}
-
-const heroTitle: CSSProperties = {
-  margin: '0 0 12px',
-  color: 'var(--foreground-strong)',
-  fontWeight: 900,
-  lineHeight: 0.98,
-  letterSpacing: 0,
-  maxWidth: '760px',
-  fontSize: '58px',
-  overflowWrap: 'anywhere',
 }
 
 const heroText: CSSProperties = {
@@ -522,12 +516,40 @@ const heroText: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const loginCopyRailStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  display: 'grid',
-  gap: 8,
+const loginContextStyle: CSSProperties = {
+  display: 'block',
   minWidth: 0,
+  width: '100%',
+  borderRadius: '18px',
+  border: '1px solid rgba(125,211,252,0.16)',
+  background: 'rgba(15,23,42,0.48)',
+  boxSizing: 'border-box',
+}
+
+const loginContextSummaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  minHeight: '42px',
+  maxWidth: '100%',
+  padding: '0 13px',
+  color: 'var(--foreground-strong)',
+  fontSize: '13px',
+  fontWeight: 900,
+  listStyle: 'none',
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
+const loginContextBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: '8px',
+  minWidth: 0,
+  padding: '0 12px 12px',
+}
+
+const loginContextTextStyle: CSSProperties = {
+  ...heroText,
+  margin: 0,
 }
 
 const destinationPillStyle: CSSProperties = {
@@ -545,6 +567,45 @@ const destinationPillStyle: CSSProperties = {
   fontWeight: 900,
   overflowWrap: 'anywhere',
   whiteSpace: 'normal',
+}
+
+const nextIntentStyle: CSSProperties = {
+  display: 'grid',
+  gap: '4px',
+  minWidth: 0,
+  alignSelf: 'flex-start',
+  maxWidth: '560px',
+  padding: '10px 12px',
+  borderRadius: '16px',
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  boxSizing: 'border-box',
+}
+
+const nextIntentLabelStyle: CSSProperties = {
+  color: 'var(--home-eyebrow-color)',
+  fontSize: '11px',
+  fontWeight: 900,
+  lineHeight: 1.2,
+  textTransform: 'uppercase',
+  letterSpacing: '0.04em',
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: '14px',
+  fontWeight: 900,
+  lineHeight: 1.18,
+  overflowWrap: 'anywhere',
+}
+
+const nextIntentBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  fontWeight: 700,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
 
 const loginPanel: CSSProperties = {
@@ -613,6 +674,15 @@ const formTitle: CSSProperties = {
 const formTitleMobile: CSSProperties = {
   ...formTitle,
   fontSize: '24px',
+}
+
+const formIntroStyle: CSSProperties = {
+  margin: '-2px 0 2px',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  fontWeight: 720,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
 }
 
 const inputLabel: CSSProperties = {
@@ -755,7 +825,7 @@ const mobilePrimaryAuthLink: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: 42,
+  minHeight: 44,
   width: '100%',
   borderRadius: 14,
   border: '1px solid rgba(96,165,250,0.24)',
@@ -768,7 +838,7 @@ const mobileSecondaryAuthLink: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
-  minHeight: 42,
+  minHeight: 44,
   width: '100%',
   borderRadius: 14,
   border: '1px solid rgba(224,236,249,0.12)',
@@ -779,7 +849,7 @@ const mobileSecondaryAuthLink: CSSProperties = {
 const mobileInlineExploreLink: CSSProperties = {
   ...inlineLink,
   display: 'inline-flex',
-  minHeight: 32,
+  minHeight: 44,
   alignItems: 'center',
   justifyContent: 'center',
   textAlign: 'center',

@@ -12,12 +12,13 @@ const availabilitySource = readFileSync(join(process.cwd(), 'app/captain/availab
 const lineupAvailabilitySource = readFileSync(join(process.cwd(), 'app/captain/lineup-availability/page.tsx'), 'utf8')
 const messagingSource = readFileSync(join(process.cwd(), 'app/captain/messaging/page.tsx'), 'utf8')
 const lineupBuilderSource = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
+const seasonDashboardSource = readFileSync(join(process.cwd(), 'app/captain/season-dashboard/page.tsx'), 'utf8')
 
 describe('Captain shared auth access', () => {
   it('keeps the captain hub on shared auth before resolving team scope', () => {
     expect(captainHubSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
     expect(captainHubSource).toContain('<SiteShell active="/captain">')
-    expect(captainHubSource).toContain('const { userId, role, entitlements, authResolved } = useAuth()')
+    expect(captainHubSource).toContain('const { userId, role, entitlements, authResolved, session } = useAuth()')
     expect(captainHubSource).toContain("if (!authResolved || role === 'public') return")
     expect(captainHubSource).toContain('void loadCaptainTeamScopes(userId)')
     expect(captainHubSource).not.toContain("import { getClientAuthState } from '@/lib/auth'")
@@ -29,7 +30,7 @@ describe('Captain shared auth access', () => {
   it('keeps weekly and team brief access on the shared auth provider', () => {
     for (const source of [weeklyBriefSource, teamBriefSource]) {
       expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
-      expect(source).toContain('const { role, entitlements, authResolved } = useAuth()')
+      expect(source).toContain('const { role, entitlements, authResolved } =')
       expect(source).toContain('<SiteShell active="/captain">')
       expect(source).toContain('if (!authResolved || role === \'public\') return')
       expect(source).toContain('if (!authResolved)')
@@ -63,7 +64,7 @@ describe('Captain shared auth access', () => {
     for (const source of [analyticsSource, availabilitySource]) {
       expect(source).toContain("import { useAuth } from '@/app/components/auth-provider'")
       expect(source).toContain('<SiteShell active="/captain">')
-      expect(source).toContain('const { role, entitlements, authResolved } = useAuth()')
+      expect(source).toMatch(/const \{ role, entitlements, authResolved \} = (?:useAuth\(\)|auth)/)
       expect(source).toContain("if (!authResolved || role === 'public') return")
       expect(source).not.toContain("import { getClientAuthState } from '@/lib/auth'")
       expect(source).not.toContain('const [authLoading, setAuthLoading]')
@@ -86,7 +87,7 @@ describe('Captain shared auth access', () => {
   it('keeps captain messaging on shared auth before loading team communication data', () => {
     expect(messagingSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
     expect(messagingSource).toContain('<SiteShell active="/captain">')
-    expect(messagingSource).toContain('const { role, entitlements, authResolved } = useAuth()')
+    expect(messagingSource).toContain('const { role, entitlements, authResolved } =')
     expect(messagingSource).toContain("if (!authResolved || role === 'public') return")
     expect(messagingSource).not.toContain("import { getClientAuthState } from '@/lib/auth'")
     expect(messagingSource).not.toContain('const [authLoading, setAuthLoading]')
@@ -97,11 +98,30 @@ describe('Captain shared auth access', () => {
   it('keeps captain lineup builder on shared auth before loading builder data', () => {
     expect(lineupBuilderSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
     expect(lineupBuilderSource).toContain('<SiteShell active="/captain">')
-    expect(lineupBuilderSource).toContain('const { role, entitlements, authResolved } = useAuth()')
+    expect(lineupBuilderSource).toContain('const { role, entitlements, authResolved, userId, session } = useAuth()')
     expect(lineupBuilderSource).toContain("if (!authResolved || role === 'public') return")
     expect(lineupBuilderSource).not.toContain("import { getClientAuthState } from '@/lib/auth'")
     expect(lineupBuilderSource).not.toContain('const [authLoading, setAuthLoading]')
     expect(lineupBuilderSource).not.toContain("const [role, setRole] = useState<UserRole>('public')")
     expect(lineupBuilderSource).not.toContain('supabase.auth.onAuthStateChange')
+  })
+
+  it('recovers a briefly future-issued mobile token before showing the lineup load error', () => {
+    expect(lineupBuilderSource).toContain('function isFutureJwtError')
+    expect(lineupBuilderSource).toContain('supabase.auth.refreshSession()')
+    expect(lineupBuilderSource).toContain("setMessage('Securing your team data…')")
+    expect(lineupBuilderSource).toContain('futureJwtRefreshAttemptedRef')
+    expect(lineupBuilderSource).toContain('FUTURE_JWT_SETTLE_DELAY_MS = 3_000')
+    expect(lineupBuilderSource).toContain('MAX_FUTURE_JWT_RECOVERY_ATTEMPTS = 2')
+    expect(lineupBuilderSource).toContain('!recoveringSecureSession && !myPlayerPool.length')
+  })
+
+  it('keeps the Captain Season Dashboard on shared auth before loading team data', () => {
+    expect(seasonDashboardSource).toContain("import { useAuth } from '@/app/components/auth-provider'")
+    expect(seasonDashboardSource).toContain('<SiteShell active="/captain">')
+    expect(seasonDashboardSource).toMatch(/const \{ role, entitlements, authResolved \} = (?:useAuth\(\)|auth)/)
+    expect(seasonDashboardSource).toContain("if (!authResolved || role === 'public') return")
+    expect(seasonDashboardSource).not.toContain("import { getClientAuthState } from '@/lib/auth'")
+    expect(seasonDashboardSource).not.toContain('supabase.auth.onAuthStateChange')
   })
 })

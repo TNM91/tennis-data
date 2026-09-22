@@ -65,6 +65,13 @@ TenAceIQ now has a reusable owner-review announcement packet for public launch c
 - It prints short social copy, long social copy, email copy, tier talking points, copy guardrails, and post-launch checks.
 - Keep Stripe live paid-upgrade language deferred until live mode is intentionally opened.
 
+## 2026-08-06 Free-First Launch Kit
+
+- `npm run qa:announcement` now defaults to free-first launch copy while paid checkout is paused.
+- Use `npm run qa:announcement -- --paid` only after the Stripe live cutover and controlled purchase pass are complete.
+- Ready-to-post social, email, direct-invite, feedback, screenshot, and publishing guidance lives in `docs/free-first-launch-kit.md`.
+- Public/free screenshots are ready to capture now. Signed-in role screenshots remain dependent on private QA fixture credentials and should not be represented as newly verified until those authenticated passes run.
+
 ## Production State
 
 - Production domain: `https://www.tenaceiq.com`

@@ -8,11 +8,13 @@ import AdsenseSlot from '@/app/components/adsense-slot'
 import TrackedProductLink, { type ProductLinkEvent } from '@/app/components/tracked-product-link'
 import UniversalSearch from '@/app/components/universal-search'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
-import { DATA_ASSIST_STORY, getMembershipTier } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, getMembershipTier, PRODUCT_UPGRADE_MESSAGE } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
+import ExploreContinueCard from '@/app/explore/_components/explore-continue-card'
+import ContextualTennisVisual from '@/app/components/contextual-tennis-visual'
 
 const FIND_COMMAND_STEPS: Array<{
   href: string
@@ -56,6 +58,22 @@ const FIND_COMMAND_STEPS: Array<{
   },
 ]
 
+const EXPLORE_PRIMARY_COMMAND: {
+  href: string
+  label: string
+  title: string
+  body: string
+  icon: TiqFeatureIconName
+  event: ProductLinkEvent
+} = {
+  href: '/explore/search',
+  label: 'Search first',
+  title: 'Search all tennis.',
+  body: 'Search a player, team, league, city, rating, coach, or tournament.',
+  icon: 'opponentScouting',
+  event: { eventName: 'search_category_selected', surface: 'public_site', metadata: { location: 'explore_primary_command', job: 'search_first' } },
+}
+
 const EXPLORE_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_EXPLORE_INLINE || null
 const FREE_TIER_STORY = getMembershipTier('free')
 const PUBLIC_DISCOVERY_PROOF_STEPS: Array<{
@@ -75,7 +93,7 @@ const PUBLIC_DISCOVERY_PROOF_STEPS: Array<{
   {
     label: 'Public detail',
     title: 'Open reviewed context',
-    body: 'Player, team, league, and ranking pages should help before asking for an upgrade.',
+    body: 'Open player, team, league, and ranking pages before you upgrade.',
     href: '/explore/players',
     event: { eventName: 'search_result_clicked', surface: 'public_site', metadata: { location: 'public_discovery_proof', job: 'open_public_detail' } },
   },
@@ -96,21 +114,21 @@ const PUBLIC_DISCOVERY_PROOF_STEPS: Array<{
 ]
 
 export default function ExplorePage() {
-  const { isMobile, isSmallMobile } = useViewportBreakpoints()
+  const { isMobile, isSmallMobile, isTablet } = useViewportBreakpoints()
   const { access, authResolved } = useProductAccess()
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
 
   const dynamicHeroWrap: CSSProperties = {
     ...heroWrap,
-    padding: isMobile ? '16px 0 48px' : '20px 0 64px',
+    padding: isMobile ? '6px 0 12px' : '12px 0 36px',
     overflowX: 'clip',
     boxSizing: 'border-box',
   }
 
   const dynamicHeroShell: CSSProperties = {
     ...heroShell,
-    padding: isSmallMobile ? '24px 18px 22px' : isMobile ? '28px 20px 24px' : '30px',
-    borderRadius: isMobile ? '28px' : '30px',
+    padding: isSmallMobile ? '10px' : isMobile ? '12px' : '24px',
+    borderRadius: isMobile ? '16px' : '24px',
     background: 'linear-gradient(135deg, rgba(8,13,30,0.96), rgba(4,10,24,0.9))',
     border: '1px solid rgba(116,190,255,0.15)',
     boxShadow: '0 30px 86px rgba(2, 8, 23, 0.46), inset 0 1px 0 rgba(255,255,255,0.05)',
@@ -119,19 +137,21 @@ export default function ExplorePage() {
   const dynamicHeroContent: CSSProperties = {
     ...heroContent,
     gridTemplateColumns: 'minmax(0, 1fr)',
-    gap: isMobile ? '18px' : '22px',
+    gap: isMobile ? '8px' : '14px',
+    marginBottom: isMobile ? '8px' : '14px',
   }
 
   const dynamicHeroTitle: CSSProperties = {
     ...heroTitle,
-    fontSize: isSmallMobile ? '38px' : isMobile ? '50px' : '58px',
-    lineHeight: isMobile ? 1.02 : 0.98,
+    fontSize: isSmallMobile ? '26px' : isMobile ? '30px' : '48px',
+    lineHeight: isMobile ? 1.05 : 1,
     maxWidth: '760px',
   }
 
   const dynamicHeroText: CSSProperties = {
     ...heroText,
-    fontSize: isMobile ? '15px' : '18px',
+    fontSize: isMobile ? '14px' : '17px',
+    lineHeight: isMobile ? 1.5 : heroText.lineHeight,
     maxWidth: '640px',
   }
 
@@ -140,22 +160,30 @@ export default function ExplorePage() {
       <JsonLd id="explore-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Explore', '/explore')} />
       <section style={dynamicHeroWrap}>
         <div style={dynamicHeroShell}>
-          <div aria-hidden="true" style={watermarkStyle} />
+          <ContextualTennisVisual visual="explore" />
           <div style={dynamicHeroContent}>
             <div style={heroLeft}>
               <h1 style={dynamicHeroTitle}>
-                More Tennis. Less Chaos.
+                Find players, teams, leagues.
               </h1>
 
-              <p style={dynamicHeroText}>
-                Search a player, team, league, coach, tournament, city, court, resource, or tennis action.
-              </p>
-              <UniversalSearch compact />
+              {!isMobile ? (
+                <p style={dynamicHeroText}>
+                  Search by name, team, league, city, rating, coach, or tournament.
+                </p>
+              ) : null}
+              <UniversalSearch
+                compact
+                showResults={false}
+                stackOnMobile
+                placeholder="Search players, teams, leagues, and more"
+              />
+              <ExploreContinueCard />
             </div>
 
           </div>
 
-          <FindCommandPanel />
+          <FindCommandPanel compact={isTablet} mobile={isMobile} />
         </div>
       </section>
       {shouldShowAds ? (
@@ -167,53 +195,159 @@ export default function ExplorePage() {
   )
 }
 
-function FindCommandPanel() {
+function FindCommandPanel({ compact, mobile }: { compact: boolean; mobile: boolean }) {
+  const panelStyle = compact
+    ? { ...findCommandPanel, gap: mobile ? '6px' : '10px', marginBottom: 0, padding: mobile ? '7px' : '12px', borderRadius: mobile ? '12px' : '14px' }
+    : findCommandPanel
+  const workspaceStyle = compact
+    ? { ...findCommandWorkspace, gridTemplateColumns: 'minmax(0, 1fr)' }
+    : findCommandWorkspace
+  const shortcutGridStyle = compact
+    ? {
+        ...findCommandGrid,
+        gridTemplateColumns: mobile
+          ? 'repeat(2, minmax(0, 1fr))'
+          : 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+        gap: mobile ? '5px' : findCommandGrid.gap,
+      }
+    : findCommandGrid
+  const proofStyle = compact
+    ? { ...publicDiscoveryProofStyle, display: 'block', padding: mobile ? '8px' : '12px', borderRadius: '12px' }
+    : publicDiscoveryProofStyle
+  const proofGridStyle = compact
+    ? { ...publicDiscoveryProofGridStyle, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))' }
+    : publicDiscoveryProofGridStyle
+  const primaryCardStyle = compact
+    ? {
+        ...findCommandPrimaryCard,
+        minHeight: mobile ? 62 : 152,
+        gridTemplateRows: mobile ? 'auto auto' : findCommandPrimaryCard.gridTemplateRows,
+        gap: mobile ? '4px' : '10px',
+        padding: mobile ? '7px' : '12px',
+        borderRadius: mobile ? '12px' : '14px',
+      }
+    : findCommandPrimaryCard
+  const primaryTitleStyle = mobile
+    ? { ...findCommandPrimaryTitleStyle, fontSize: '0.95rem', lineHeight: 1.06 }
+    : findCommandPrimaryTitleStyle
+  const primaryCtaStyle = mobile
+    ? { ...findCommandPrimaryCtaStyle, padding: '5px 7px', fontSize: '10px' }
+    : findCommandPrimaryCtaStyle
+  const shortcutCardStyle = mobile
+    ? {
+        ...findCommandCard,
+        gridTemplateColumns: '32px minmax(0, 1fr)',
+        minHeight: 58,
+        padding: '8px',
+        gap: '7px',
+        alignItems: 'center',
+      }
+    : findCommandCard
+  const shortcutTitleStyle = mobile
+    ? { ...findCommandCardTitle, fontSize: '12px', lineHeight: 1.1 }
+    : findCommandCardTitle
+  const headerStyle = mobile
+    ? compactFindCommandHeader
+    : findCommandHeader
+  const titleStyle = mobile
+    ? compactFindCommandTitle
+    : findCommandTitle
+  const pillStyle = mobile
+    ? compactFindCommandPill
+    : findCommandPill
+  const proofSummaryStyle = mobile
+    ? compactPublicDiscoveryProofSummaryStyle
+    : publicDiscoveryProofSummaryStyle
+  const proofTitleStyle = mobile
+    ? compactPublicDiscoveryProofTitleStyle
+    : publicDiscoveryProofTitleStyle
+  const proofActionStyle = mobile
+    ? compactPublicDiscoveryProofSummaryActionStyle
+    : publicDiscoveryProofSummaryActionStyle
+
   return (
-    <section style={findCommandPanel} aria-label="Explore mode paths">
-      <div style={findCommandHeader}>
-        <TiqFeatureIcon name="opponentScouting" size="md" variant="surface" />
+    <section style={panelStyle} aria-label="Explore tennis search tools">
+      <div style={headerStyle}>
+        <TiqFeatureIcon name="opponentScouting" size={mobile ? 'sm' : 'md'} variant="surface" />
         <div style={findCommandCopy}>
-          <div style={findCommandEyebrow}>Explore mode</div>
-          <h2 style={findCommandTitle}>Choose a path.</h2>
+          <div style={findCommandEyebrow}>Explore</div>
+          <h2 style={titleStyle}>Popular searches.</h2>
         </div>
-        <Link href="/pricing#free" style={findCommandPill}>Free to start</Link>
+        <Link href="/pricing#free" style={pillStyle}>Free to start</Link>
       </div>
 
-      <div style={findCommandGrid}>
-        {FIND_COMMAND_STEPS.map((step, index) => (
-          <TrackedProductLink
-            key={step.href}
-            href={step.href}
-            style={findCommandCard}
-            ariaLabel={`${step.label}: ${step.title}. ${step.body}`}
-            event={step.event}
-          >
-            <span style={findCommandNumber}>{index + 1}</span>
-            <TiqFeatureIcon name={step.icon} size="sm" variant="ghost" />
+      <div style={workspaceStyle}>
+        <TrackedProductLink
+          href={EXPLORE_PRIMARY_COMMAND.href}
+          className="explore-primary-command"
+          style={primaryCardStyle}
+          ariaLabel={`${EXPLORE_PRIMARY_COMMAND.label}: ${EXPLORE_PRIMARY_COMMAND.title} ${EXPLORE_PRIMARY_COMMAND.body}`}
+          event={EXPLORE_PRIMARY_COMMAND.event}
+        >
+          {!mobile ? (
+            <span style={findCommandPrimaryIconStyle}>
+              <TiqFeatureIcon name={EXPLORE_PRIMARY_COMMAND.icon} size="md" variant="surface" />
+            </span>
+          ) : null}
+          <span style={findCommandCardCopy}>
+            <span style={findCommandLabel}>{EXPLORE_PRIMARY_COMMAND.label}</span>
+            <strong style={primaryTitleStyle}>{EXPLORE_PRIMARY_COMMAND.title}</strong>
+            {!mobile ? <span style={findCommandPrimaryBodyStyle}>{EXPLORE_PRIMARY_COMMAND.body}</span> : null}
+          </span>
+          <span style={primaryCtaStyle}>Open search</span>
+        </TrackedProductLink>
+
+        <div style={shortcutGridStyle} aria-label="Explore shortcuts">
+          {FIND_COMMAND_STEPS.map((step) => (
+            <TrackedProductLink
+              key={step.href}
+              href={step.href}
+              style={shortcutCardStyle}
+              ariaLabel={`${step.label}: ${step.title}. ${step.body}`}
+              event={step.event}
+            >
+              <TiqFeatureIcon name={step.icon} size="sm" variant="ghost" />
               <span style={findCommandCardCopy}>
                 <span style={findCommandLabel}>{step.label}</span>
-                <strong style={findCommandCardTitle}>{step.title}</strong>
-                <span style={findCommandCardBody}>{step.body}</span>
+                <strong style={shortcutTitleStyle}>{step.title}</strong>
               </span>
-          </TrackedProductLink>
-          ))}
-      </div>
-
-      <div style={publicDiscoveryProofStyle} aria-label="Public discovery proof cue">
-        <div style={publicDiscoveryProofHeaderStyle}>
-          <span style={findCommandEyebrow}>Public discovery proof cue</span>
-          <strong style={publicDiscoveryProofTitleStyle}>Useful before upgrade.</strong>
-        </div>
-        <div style={publicDiscoveryProofGridStyle}>
-          {PUBLIC_DISCOVERY_PROOF_STEPS.map((step) => (
-            <TrackedProductLink key={step.label} href={step.href} style={publicDiscoveryProofItemStyle} event={step.event}>
-              <span style={publicDiscoveryProofLabelStyle}>{step.label}</span>
-              <strong>{step.title}</strong>
-              <small>{step.body}</small>
             </TrackedProductLink>
           ))}
         </div>
       </div>
+
+      <div style={upgradeNudgeStyle}>
+        <div style={upgradeNudgeCopyStyle}>
+          <span style={findCommandEyebrow}>Explore stays free</span>
+          <strong style={upgradeNudgeTitleStyle}>Keep searching. Add the tools that help you act.</strong>
+          <span style={upgradeNudgeBodyStyle}>{PRODUCT_UPGRADE_MESSAGE}</span>
+        </div>
+        <TrackedProductLink
+          href="/pricing"
+          style={upgradeNudgeActionStyle}
+          event={{ eventName: 'search_category_selected', surface: 'public_site', metadata: { location: 'explore_upgrade_nudge', job: 'compare_tiers' } }}
+        >
+          Compare plans
+        </TrackedProductLink>
+      </div>
+
+      <details className="exploreDetailsSection" style={proofStyle} aria-label="What you can check free">
+        <summary style={proofSummaryStyle}>
+          <span style={publicDiscoveryProofHeaderStyle}>
+            <span style={findCommandEyebrow}>What you can check free</span>
+            <strong style={proofTitleStyle}>Useful before upgrade.</strong>
+          </span>
+          <span style={proofActionStyle}>Show free checks</span>
+        </summary>
+        <div style={{ ...proofGridStyle, gridColumn: '1 / -1' }}>
+          {PUBLIC_DISCOVERY_PROOF_STEPS.map((step) => (
+            <TrackedProductLink key={step.label} href={step.href} style={publicDiscoveryProofItemStyle} event={step.event}>
+              <span style={publicDiscoveryProofLabelStyle}>{step.label}</span>
+              <strong>{step.title}</strong>
+            </TrackedProductLink>
+          ))}
+        </div>
+      </details>
     </section>
   )
 }
@@ -249,7 +383,7 @@ const heroLeft: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'flex-start',
-  gap: '16px',
+  gap: '12px',
   minWidth: 0,
 }
 
@@ -273,13 +407,20 @@ const findCommandPanel: CSSProperties = {
   position: 'relative',
   zIndex: 1,
   display: 'grid',
-  gap: '14px',
-  marginBottom: '18px',
-  padding: '16px',
-  borderRadius: '22px',
+  gap: '12px',
+  marginBottom: '14px',
+  padding: '14px',
+  borderRadius: '18px',
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(8,16,34,0.7)',
   boxShadow: '0 18px 48px rgba(2,10,24,0.24), inset 0 1px 0 rgba(255,255,255,0.04)',
+  minWidth: 0,
+}
+
+const findCommandWorkspace: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(min(100%, 360px), 0.9fr) minmax(0, 1.1fr)',
+  gap: '12px',
   minWidth: 0,
 }
 
@@ -289,6 +430,12 @@ const findCommandHeader: CSSProperties = {
   gap: '12px',
   alignItems: 'center',
   minWidth: 0,
+}
+
+const compactFindCommandHeader: CSSProperties = {
+  ...findCommandHeader,
+  gridTemplateColumns: '32px minmax(0, 1fr) minmax(0, auto)',
+  gap: '7px',
 }
 
 const findCommandCopy: CSSProperties = {
@@ -314,6 +461,11 @@ const findCommandTitle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const compactFindCommandTitle: CSSProperties = {
+  ...findCommandTitle,
+  fontSize: '1rem',
+}
+
 const findCommandPill: CSSProperties = {
   justifySelf: 'end',
   minHeight: 34,
@@ -330,38 +482,134 @@ const findCommandPill: CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
+const compactFindCommandPill: CSSProperties = {
+  ...findCommandPill,
+  minHeight: 44,
+  padding: '0 10px',
+  fontSize: '11px',
+}
+
 const findCommandGrid: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
-  gap: '10px',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  alignContent: 'start',
+  gap: '8px',
   minWidth: 0,
+}
+
+const findCommandPrimaryCard: CSSProperties = {
+  display: 'grid',
+  gridTemplateRows: 'auto minmax(0, 1fr) auto',
+  gap: '12px',
+  minHeight: 220,
+  padding: '14px',
+  borderRadius: '16px',
+  border: '1px solid rgba(155,225,29,0.24)',
+  background:
+    'radial-gradient(circle at 92% 8%, rgba(155,225,29,0.18), transparent 34%), linear-gradient(135deg, rgba(116,190,255,0.1), transparent 44%), rgba(7,17,33,0.76)',
+  color: 'var(--foreground)',
+  textDecoration: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const findCommandPrimaryIconStyle: CSSProperties = {
+  display: 'inline-grid',
+  width: 'fit-content',
+}
+
+const upgradeNudgeStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  padding: '12px 14px',
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.20)',
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.11), rgba(116,190,255,0.06) 52%, rgba(7,17,33,0.52))',
+  minWidth: 0,
+}
+
+const upgradeNudgeCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  flex: '1 1 300px',
+  minWidth: 0,
+}
+
+const upgradeNudgeTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 15,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const upgradeNudgeBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12.5,
+  lineHeight: 1.45,
+  fontWeight: 740,
+  overflowWrap: 'anywhere',
+}
+
+const upgradeNudgeActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 40,
+  padding: '0 13px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.36)',
+  background: 'linear-gradient(180deg, #eaff9e 0%, #9be11d 100%)',
+  color: '#071226',
+  textDecoration: 'none',
+  fontSize: 12,
+  fontWeight: 950,
+  whiteSpace: 'nowrap',
+}
+
+const findCommandPrimaryTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 'clamp(1.35rem, 2.3vw, 2rem)',
+  lineHeight: 1.04,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const findCommandPrimaryBodyStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: '13px',
+  lineHeight: 1.45,
+  fontWeight: 760,
+  overflowWrap: 'anywhere',
+}
+
+const findCommandPrimaryCtaStyle: CSSProperties = {
+  width: 'fit-content',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.3)',
+  background: 'rgba(155,225,29,0.12)',
+  color: '#d8f7a4',
+  padding: '8px 10px',
+  fontSize: '12px',
+  fontWeight: 950,
 }
 
 const findCommandCard: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '28px 32px minmax(0, 1fr)',
+  gridTemplateColumns: '32px minmax(0, 1fr)',
   gap: '9px',
   alignItems: 'start',
-  minHeight: 106,
-  padding: '10px',
-  borderRadius: '15px',
+  minHeight: 64,
+  padding: '9px',
+  borderRadius: '12px',
   border: '1px solid rgba(116,190,255,0.13)',
   background: 'rgba(7,17,33,0.72)',
   color: 'var(--foreground)',
   textDecoration: 'none',
   minWidth: 0,
-}
-
-const findCommandNumber: CSSProperties = {
-  width: 26,
-  height: 26,
-  borderRadius: 999,
-  display: 'grid',
-  placeItems: 'center',
-  background: 'color-mix(in srgb, var(--brand-green) 12%, var(--shell-panel-bg) 88%)',
-  color: 'var(--foreground-strong)',
-  fontSize: 11,
-  fontWeight: 950,
 }
 
 const findCommandCardCopy: CSSProperties = {
@@ -385,19 +633,11 @@ const findCommandCardTitle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const findCommandCardBody: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '11px',
-  lineHeight: 1.35,
-  fontWeight: 720,
-  overflowWrap: 'anywhere',
-}
-
 const publicDiscoveryProofStyle: CSSProperties = {
-  display: 'grid',
-  gap: '12px',
-  padding: '14px',
-  borderRadius: '18px',
+  display: 'block',
+  alignItems: 'start',
+  padding: '12px',
+  borderRadius: '12px',
   border: '1px solid rgba(155,225,29,0.16)',
   background: 'rgba(5,11,22,0.34)',
   minWidth: 0,
@@ -409,6 +649,46 @@ const publicDiscoveryProofHeaderStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const publicDiscoveryProofSummaryStyle: CSSProperties = {
+  gridColumn: '1 / -1',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: '10px',
+  flexWrap: 'wrap',
+  minWidth: 0,
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
+const compactPublicDiscoveryProofSummaryStyle: CSSProperties = {
+  ...publicDiscoveryProofSummaryStyle,
+  gap: '6px',
+}
+
+const publicDiscoveryProofSummaryActionStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 30,
+  padding: '0 10px',
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  color: 'var(--brand-green)',
+  fontSize: 12,
+  fontWeight: 900,
+  textAlign: 'center',
+  whiteSpace: 'normal',
+}
+
+const compactPublicDiscoveryProofSummaryActionStyle: CSSProperties = {
+  ...publicDiscoveryProofSummaryActionStyle,
+  minHeight: 26,
+  padding: '0 8px',
+  fontSize: 10,
+}
+
 const publicDiscoveryProofTitleStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: '1rem',
@@ -416,10 +696,16 @@ const publicDiscoveryProofTitleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const compactPublicDiscoveryProofTitleStyle: CSSProperties = {
+  ...publicDiscoveryProofTitleStyle,
+  fontSize: '0.86rem',
+}
+
 const publicDiscoveryProofGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: '10px',
+  marginTop: '10px',
   minWidth: 0,
 }
 
@@ -427,8 +713,8 @@ const publicDiscoveryProofItemStyle: CSSProperties = {
   display: 'grid',
   alignContent: 'start',
   gap: '5px',
-  padding: '10px',
-  borderRadius: '14px',
+  padding: '9px',
+  borderRadius: '10px',
   border: '1px solid rgba(255,255,255,0.1)',
   background: 'rgba(7,17,33,0.62)',
   color: 'var(--foreground)',
@@ -443,15 +729,4 @@ const publicDiscoveryProofLabelStyle: CSSProperties = {
   fontWeight: 950,
   letterSpacing: 0,
   textTransform: 'uppercase',
-}
-
-const watermarkStyle: CSSProperties = {
-  position: 'absolute',
-  right: '-86px',
-  top: '-108px',
-  width: '340px',
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
-  opacity: 0.14,
-  pointerEvents: 'none',
 }

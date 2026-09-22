@@ -1,0 +1,329 @@
+'use client'
+
+import Image from 'next/image'
+import Link from 'next/link'
+import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
+import styles from './my-lab-command-center.module.css'
+
+type MatchupPreview = {
+  opponentId: string
+  opponentName: string
+  opponentMeta: string
+  read: string
+  href: string
+}
+
+type NextCourtEvent = {
+  title: string
+  dateLabel: string
+  detail: string
+  href: string
+  cta: string
+  readiness: string
+}
+
+type FirstServeStep = {
+  title: string
+  description: string
+  href: string
+  action: string
+  complete: boolean
+}
+
+type PostRepReturn = {
+  cardTitle: string
+  proofLabel: string
+  timeLabel: string
+  note: string
+  nextAction: string
+  nextHref: string
+  nextCta: string
+  syncLabel: string
+  planLabel: string
+  planWhy: string
+  proofTarget: string
+  trendLabel: string
+}
+
+type MyLabCommandCenterProps = {
+  firstName: string
+  playerId: string
+  playerName: string
+  repTitle: string
+  repNote: string
+  repDuration: number | null
+  repHref: string
+  repCta: string
+  completedSessions: number
+  sessionTarget: number
+  progressHref: string
+  matchup: MatchupPreview | null
+  nextCourtEvent: NextCourtEvent | null
+  firstServeSteps: FirstServeStep[]
+  postRepReturn: PostRepReturn | null
+}
+
+export default function MyLabCommandCenter({
+  firstName,
+  playerId,
+  playerName,
+  repTitle,
+  repNote,
+  repDuration,
+  repHref,
+  repCta,
+  completedSessions,
+  sessionTarget,
+  progressHref,
+  matchup,
+  nextCourtEvent,
+  firstServeSteps,
+  postRepReturn,
+}: MyLabCommandCenterProps) {
+  const greeting = firstName ? `Ready, ${firstName}.` : 'Your next move starts here.'
+  const safeCompletedSessions = Math.max(0, Math.min(sessionTarget, completedSessions))
+  const completedFirstServeSteps = firstServeSteps.filter((step) => step.complete).length
+  const nextFirstServeStep = firstServeSteps.findIndex((step) => !step.complete)
+  const dailyPulseItems = [
+    {
+      label: 'Court time',
+      value: repDuration ? `${repDuration} min` : 'Set rep',
+      note: repDuration ? 'Today\'s rep' : 'Choose a focus',
+      href: repHref,
+    },
+    {
+      label: 'This week',
+      value: `${safeCompletedSessions}/${sessionTarget}`,
+      note: `${safeCompletedSessions} session${safeCompletedSessions === 1 ? '' : 's'} complete`,
+      href: progressHref,
+    },
+    {
+      label: 'Matchup',
+      value: matchup ? 'Ready' : 'Build',
+      note: matchup?.opponentName || 'Find an opponent',
+      href: matchup?.href || '/matchup',
+    },
+  ]
+
+  return (
+    <section className={styles.commandCenter} aria-labelledby="my-lab-command-title">
+      <header className={styles.intro}>
+        <div>
+          <div className={styles.labSignature}>
+            <TiqFeatureIcon name="myLab" size="md" variant="surface" />
+            <span>
+              <strong>My Lab</strong>
+              <small>Player tools</small>
+            </span>
+          </div>
+          <h1 id="my-lab-command-title">{greeting}</h1>
+          <p className={styles.introCopy}>One useful tennis move, then the proof that it worked.</p>
+        </div>
+        {playerId && playerName ? (
+          <Link className={styles.playerLink} href={`/players/${encodeURIComponent(playerId)}`}>
+            <span>Active player</span>
+            <strong>{playerName}</strong>
+          </Link>
+        ) : (
+          <Link className={styles.playerLink} href="/profile">
+            <span>Active player</span>
+            <strong>Find yourself</strong>
+          </Link>
+        )}
+      </header>
+
+      {firstServeSteps.length ? (
+        <section className={styles.firstServe} aria-labelledby="first-serve-title">
+          <div className={styles.firstServeHeading}>
+            <div>
+              <p className={styles.cardEyebrow}>First serve</p>
+              <h2 id="first-serve-title">Build your player loop.</h2>
+              <p>Connect your tennis, choose the work, then record one useful rep.</p>
+            </div>
+            <span className={styles.firstServeProgress}>{completedFirstServeSteps} of {firstServeSteps.length} ready</span>
+          </div>
+          <div className={styles.firstServeGrid} data-has-current={nextFirstServeStep >= 0 ? 'true' : 'false'}>
+            {firstServeSteps.map((step, index) => {
+              const isCurrent = index === nextFirstServeStep
+
+              return (
+                <Link
+                  key={step.title}
+                  className={`${styles.firstServeStep} ${step.complete ? styles.firstServeStepComplete : ''} ${isCurrent ? styles.firstServeStepCurrent : ''} ${nextFirstServeStep >= 0 && !isCurrent ? styles.firstServeStepSecondary : ''}`}
+                  href={step.href}
+                  aria-current={isCurrent ? 'step' : undefined}
+                >
+                  <span className={styles.firstServeNumber} aria-hidden="true">
+                    {step.complete ? '✓' : index + 1}
+                  </span>
+                  <span className={styles.firstServeCopy}>
+                    <strong>{step.title}</strong>
+                    <small>{step.description}</small>
+                  </span>
+                  <span className={styles.firstServeAction}>{step.complete ? 'Review' : step.action} <span aria-hidden="true">→</span></span>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {postRepReturn ? (
+        <section className={styles.postRepReturn} aria-labelledby="post-rep-return-title">
+          <div className={styles.postRepProof}>
+            <span className={styles.postRepIcon} aria-hidden="true">✓</span>
+            <div>
+              <div className={styles.postRepTopline}>
+                <p className={styles.cardEyebrow}>Rep saved · {postRepReturn.timeLabel}</p>
+                <span className={styles.postRepSync}>{postRepReturn.syncLabel}</span>
+              </div>
+              <h2 id="post-rep-return-title">{postRepReturn.cardTitle} is in the books.</h2>
+              <div className={styles.postRepProofLine}>
+                <strong>{postRepReturn.proofLabel}</strong>
+                <span>{postRepReturn.note || 'Your proof is ready for the next cleaner rep.'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className={styles.postRepProgress}>
+            <div>
+              <p className={styles.supportEyebrow}>This week</p>
+              <strong>{safeCompletedSessions} of {sessionTarget}</strong>
+            </div>
+            <span className={styles.postRepTrack} aria-label={`${safeCompletedSessions} of ${sessionTarget} weekly reps complete`}>
+              <span style={{ width: `${sessionTarget ? Math.round((safeCompletedSessions / sessionTarget) * 100) : 0}%` }} />
+            </span>
+            <Link href={progressHref}>See progress</Link>
+          </div>
+
+          <div className={styles.postRepNext}>
+            <p className={styles.supportEyebrow}>Weekly plan · {postRepReturn.planLabel}</p>
+            <strong>{postRepReturn.nextAction}</strong>
+            <p className={styles.postRepWhy}>{postRepReturn.planWhy}</p>
+            <div className={styles.postRepPlanMeta}>
+              <span><small>Proof</small>{postRepReturn.proofTarget}</span>
+              <span><small>Trend</small>{postRepReturn.trendLabel}</span>
+            </div>
+            <Link href={postRepReturn.nextHref}>
+              {postRepReturn.nextCta} <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
+      {!postRepReturn ? (
+        <section className={styles.dailyPulse} aria-label="My Lab daily pulse">
+          {dailyPulseItems.map((item) => (
+            <Link key={item.label} className={styles.dailyPulseItem} href={item.href}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+              <small>{item.note}</small>
+            </Link>
+          ))}
+        </section>
+      ) : null}
+
+      {nextCourtEvent ? (
+        <Link className={styles.nextCourtEvent} href={nextCourtEvent.href} aria-label={`${nextCourtEvent.cta}: ${nextCourtEvent.title}`}>
+          <div className={styles.nextCourtEventCopy}>
+            <p className={styles.cardEyebrow}>Next on court</p>
+            <h2>{nextCourtEvent.title}</h2>
+            <p>{nextCourtEvent.detail}</p>
+          </div>
+          <div className={styles.nextCourtEventMeta}>
+            <strong>{nextCourtEvent.dateLabel}</strong>
+            <small>{nextCourtEvent.readiness}</small>
+            <span>{nextCourtEvent.cta} <i aria-hidden="true">→</i></span>
+          </div>
+        </Link>
+      ) : null}
+
+      <div className={`${styles.primaryGrid} ${postRepReturn ? styles.primaryGridAfterRep : ''}`}>
+        {!postRepReturn ? <article className={styles.repCard}>
+          <Image
+            className={styles.courtImage}
+            src="/tiq/courts/tiq-court-master.png"
+            alt=""
+            fill
+            sizes="(max-width: 760px) 100vw, 760px"
+            priority
+          />
+          <Image
+            className={styles.ballImage}
+            src="/tiq/tokens/tennis-ball-reference.png"
+            alt=""
+            width={220}
+            height={220}
+            priority
+          />
+          <div className={styles.repContent}>
+            <div className={styles.repTopline}>
+              <p className={styles.cardEyebrow}>Today&apos;s rep</p>
+              {repDuration ? (
+                <span className={styles.duration}>
+                  <TiqFeatureIcon name="schedule" size="sm" variant="ghost" />
+                  {repDuration} min
+                </span>
+              ) : null}
+            </div>
+            <h2>{repTitle}</h2>
+            <p className={styles.repNote}>{repNote}</p>
+            <Link className={styles.primaryAction} href={repHref}>
+              <span>{repCta}</span>
+              <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+        </article> : null}
+
+        <div className={`${styles.supportStack} ${postRepReturn ? styles.supportStackAfterRep : ''}`}>
+          {!postRepReturn ? <article className={styles.momentumCard}>
+            <div className={styles.cardHeadingRow}>
+              <div>
+                <p className={styles.supportEyebrow}>Weekly momentum</p>
+                <h2>{safeCompletedSessions} of {sessionTarget} sessions</h2>
+              </div>
+              <Link href={progressHref}>See progress</Link>
+            </div>
+            <div className={styles.sessionRail} aria-label={`${safeCompletedSessions} of ${sessionTarget} weekly sessions complete`}>
+              {Array.from({ length: sessionTarget }, (_, index) => (
+                <span
+                  key={index}
+                  className={index < safeCompletedSessions ? styles.sessionComplete : styles.sessionOpen}
+                  aria-hidden="true"
+                >
+                  {index < safeCompletedSessions ? '✓' : index + 1}
+                </span>
+              ))}
+            </div>
+          </article> : null}
+
+          <article className={styles.matchCard}>
+            <div className={styles.matchIcon}>
+              <TiqFeatureIcon name="matchupAnalysis" size="md" variant="ghost" />
+            </div>
+            <div className={styles.matchCopy}>
+              <p className={styles.supportEyebrow}>Next matchup</p>
+              {matchup ? (
+                <>
+                  <Link className={styles.entityLink} href={`/players/${encodeURIComponent(matchup.opponentId)}`}>
+                    {matchup.opponentName}
+                  </Link>
+                  <p>{matchup.opponentMeta}</p>
+                  <span className={styles.matchRead}>{matchup.read}</span>
+                </>
+              ) : (
+                <>
+                  <strong className={styles.emptyMatchTitle}>Build your first read</strong>
+                  <p>Connect a player record to surface a useful next test.</p>
+                </>
+              )}
+            </div>
+            <Link className={styles.matchAction} href={matchup?.href || '/matchup'}>
+              View matchup <span aria-hidden="true">→</span>
+            </Link>
+          </article>
+        </div>
+      </div>
+    </section>
+  )
+}

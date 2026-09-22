@@ -1,4 +1,5 @@
 import { createServerSupabaseClient, runAutoImport, type AutoImportPageType } from '@/lib/ingestion/autoImport'
+import { getAdminApiAuth } from '@/lib/server-api-auth'
 
 export const runtime = 'nodejs'
 
@@ -11,29 +12,16 @@ function isPageType(value: unknown): value is AutoImportPageType {
   return value === 'scorecard' || value === 'season_schedule' || value === 'team_summary'
 }
 
-function jsonResponse(body: unknown, init?: ResponseInit) {
-  return Response.json(body, {
-    ...init,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      ...(init?.headers ?? {}),
-    },
-  })
-}
-
-export async function OPTIONS() {
-  return jsonResponse({ ok: true })
-}
-
 export async function POST(request: Request) {
+  const adminAuth = await getAdminApiAuth(request)
+  if (!adminAuth.ok) return adminAuth.response
+
   let body: AutoImportBody
 
   try {
     body = (await request.json()) as AutoImportBody
   } catch {
-    return jsonResponse(
+    return Response.json(
       {
         status: 'failed',
         message: 'Import failed - invalid JSON body',
@@ -43,7 +31,7 @@ export async function POST(request: Request) {
   }
 
   if (!isPageType(body.pageType)) {
-    return jsonResponse(
+    return Response.json(
       {
         status: 'failed',
         message: 'Import failed - invalid pageType',
@@ -56,10 +44,11 @@ export async function POST(request: Request) {
   try {
     supabase = createServerSupabaseClient()
   } catch (error) {
-    return jsonResponse(
+    console.error('Auto-import service initialization failed', error)
+    return Response.json(
       {
         status: 'failed',
-        message: `Import failed - ${error instanceof Error ? error.message : 'server import configuration is missing'}`,
+        message: 'Import failed because the server is not ready.',
       },
       { status: 500 },
     )
@@ -71,5 +60,5 @@ export async function POST(request: Request) {
   })
 
   const statusCode = response.status === 'failed' ? 400 : 200
-  return jsonResponse(response, { status: statusCode })
+  return Response.json(response, { status: statusCode })
 }

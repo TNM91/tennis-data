@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const source = readFileSync(join(process.cwd(), 'app/captain/messaging/page.tsx'), 'utf8')
+const source = readFileSync(join(process.cwd(), 'app/captain/messaging/page.tsx'), 'utf8').replace(/\r\n/g, '\n')
 
 function styleBlock(styleName: string) {
   const start = source.indexOf(`const ${styleName}:`)
@@ -21,6 +21,15 @@ function functionBlock(functionName: string) {
 }
 
 describe('Captain messaging mobile layout guards', () => {
+  it('opens a focused contact task instead of burying the requested player', () => {
+    expect(source).toContain("const contactReviewMode = searchParams.get('contactView') === 'missing'")
+    expect(source).toContain("searchParams.get('missingContacts')")
+    expect(source).toContain('open={contactManagerRequested || undefined}')
+    expect(source).toContain("document.getElementById('captain-contact-manager')?.scrollIntoView")
+    expect(source).toContain("document.getElementById('draft-contact-phone')?.focus()")
+    expect(source).toContain('Add the phone number below. After you save it, full-team texts will be ready.')
+  })
+
   it('keeps hero, workflow, and command surfaces mobile-safe', () => {
     for (const styleName of [
       'pageContentStyle',
@@ -44,6 +53,14 @@ describe('Captain messaging mobile layout guards', () => {
     expect(source).not.toContain("gridTemplateColumns: isTablet ? '1fr'")
     expect(source).not.toContain("gridTemplateColumns: isSmallMobile ? '1fr'")
     expect(styleBlock('messageControlTitleStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(source).toContain("{!isMobile ? <CaptainSuitePanel active=\"messaging\" teamLabel={teamFilter || 'Team week'} /> : null}")
+    expect(source).toContain('<PrimaryLink href="#captain-message-composer">Review send</PrimaryLink>')
+    expect(source).toContain('const mobileSendPulse = [')
+    expect(source).toContain('aria-label="Captain message send pulse"')
+    expect(source).toContain('<section id="captain-message-composer" style={surfaceCard}>')
+    expect(source.indexOf('messageControlShellResponsive(isTablet, isMobile)')).toBeLessThan(
+      source.indexOf('messagePlaybookSurfaceStyle'),
+    )
   })
 
   it('keeps playbook, handoff, composer, and form controls from forcing overflow', () => {
@@ -76,6 +93,11 @@ describe('Captain messaging mobile layout guards', () => {
     expect(styleBlock('tableWrapStyle')).toContain("scrollbarWidth: 'thin'")
     expect(styleBlock('tableWrapStyle')).toContain("maxWidth: '100%'")
     expect(styleBlock('composerBodyPreviewStyle')).toContain("overflowWrap: 'anywhere'")
+    expect(functionBlock('messagePlaybookGridResponsive')).toContain("gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))'")
+    expect(functionBlock('messagePlaybookCardResponsive')).toContain('minHeight: isMobile ? 112')
+    expect(styleBlock('mobileSendPulseGridStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
+    expect(styleBlock('mobileSendPulseCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock('mobileWeekStatusButtonRowStyle')).toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
   })
 
   it('keeps tables, recipient controls, lineup cards, templates, and repeated grids mobile-safe', () => {
@@ -121,6 +143,17 @@ describe('Captain messaging mobile layout guards', () => {
     expect(styleBlock('singlePlayerGrid')).not.toContain("gridTemplateColumns: '1fr'")
     expect(styleBlock('statusButtonStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock('templateBodyStyle')).toContain("overflowWrap: 'anywhere'")
-    expect(source).not.toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
+    expect(source).toContain('<details open={!isMobile} style={potentialPlayerResponsesStyle}>')
+    expect(source).toContain('<GhostLink href="#captain-message-composer">Review &amp; send</GhostLink>')
+    expect(source).toContain('style={isMobile ? hiddenMobileHandoffStyle : builderHandoffSurfaceStyle}')
+    expect(styleBlock('potentialPlayerCardStyle')).toContain("contentVisibility: 'auto'")
+  })
+
+  it('uses readable contact cards on phones instead of compressing a desktop table', () => {
+    expect(source).toContain('{isMobile ? (\n                  <div style={contactCardListStyle} aria-label="Team contacts">')
+    expect(source).toContain("const contactCardListStyle: CSSProperties = { display: 'grid', gap: 10, minWidth: 0 }")
+    expect(styleBlock('contactCardStyle')).toContain('minWidth: 0')
+    expect(styleBlock('contactCardActionsStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr) auto'")
+    expect(source).toContain('Edit contact')
   })
 })

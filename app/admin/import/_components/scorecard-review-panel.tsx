@@ -375,6 +375,7 @@ export default function ScorecardReviewPanel({
       </div>
 
       <div
+        className="admin-review-split-grid"
         style={{
           display: 'grid',
           gridTemplateColumns: 'minmax(min(100%, 220px), 260px) minmax(0, 1fr)',

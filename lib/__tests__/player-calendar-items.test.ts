@@ -7,6 +7,14 @@ import {
 } from '../player-calendar-items'
 
 describe('player calendar items', () => {
+  it.each(['2026-02-30', '2026-02-29', '2026-04-31', '2026-13-01', '2026-00-01', '2026-01-00', '2100-02-29'])('rejects impossible personal calendar date %s before saving', (date) => {
+    expect(buildPlayerCalendarItemPayload({ title: 'Team match', date }, 'player-1')).toBeNull()
+  })
+
+  it.each(['2028-02-29', '2000-02-29', '2026-04-30'])('accepts valid personal calendar date %s', (date) => {
+    expect(buildPlayerCalendarItemPayload({ title: 'Team match', date }, 'player-1')).toMatchObject({ scheduled_date: date })
+  })
+
   it('normalizes calendar item kind values', () => {
     expect(normalizePlayerCalendarKind('practice')).toBe('practice')
     expect(normalizePlayerCalendarKind('match')).toBe('match')

@@ -1,13 +1,49 @@
 'use client'
 
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import ClubContextBanner from '@/app/components/club-context-banner'
+import CompetitionResponseSummary from '@/app/components/competition-response-summary'
+import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { buildProductAccessState } from '@/lib/access-model'
+import type { ClubRole } from '@/lib/club-workspace'
+import {
+  CLUB_COMPETITION_RESULT_MODE_OPTIONS,
+  getClubCompetitionResultModeDescription,
+  normalizeClubCompetitionResultMode,
+  type ClubCompetitionResultMode,
+} from '@/lib/club-competition'
+import {
+  chooseLatestLeagueCoordinatorResumeState,
+  loadLeagueCoordinatorResumeStateFromCloud,
+  readLeagueCoordinatorResumeState,
+  syncLeagueCoordinatorResumeState,
+  writeLeagueCoordinatorResumeState,
+  type LeagueCoordinatorResumeState,
+} from '@/lib/league-coordinator-memory'
 import { supabase } from '@/lib/supabase'
+import {
+  buildCompetitionScheduleResponseSummary,
+  loadCompetitionScheduleResponses,
+  sendCompetitionScheduleReminders,
+  type CompetitionScheduleResponse,
+} from '@/lib/competition-schedule-responses'
 import { getTiqTournamentMessagingProviderState } from '@/lib/tiq-tournament-messaging'
+import {
+  TOURNAMENT_DRAW_FORMATS,
+  getTournamentDrawFormatDefinition,
+} from '@/lib/competition-format-registry'
+import { getTournamentOperationsSummary } from '@/lib/competition-rules'
+import {
+  assessPlayerEligibility,
+  buildPlayerEligibilityRequirement,
+  type PlayerEligibilityAssessment,
+} from '@/lib/player-eligibility'
 import {
   buildTournamentPreview,
   buildRoundRobinStandings,
@@ -23,6 +59,7 @@ import {
   parseTournamentEntrantsInput,
   queueTiqTournamentAlertRecordForUser,
   readTiqTournamentRegistry,
+  requestTiqTournamentEntryInformation,
   saveTiqTournamentAlertRecordForUser,
   saveTiqTournamentRecord,
   summarizeTournamentResults,
@@ -49,9 +86,9 @@ import {
   type TiqAwardPlacement,
   type TiqAwardRecord,
 } from '@/lib/tiq-awards-registry'
-import { PRODUCT_MOTTO } from '@/lib/product-story'
 
 const sampleEntrants = ['Avery Stone', 'Blake Carter', 'Casey Nguyen', 'Drew Patel']
+const CLUB_TOURNAMENT_SPONSORED_ROLES: ClubRole[] = ['owner', 'admin', 'director', 'coordinator', 'coach']
 
 const lockedTournamentActions = [
   {
@@ -76,8 +113,9 @@ const tournamentDeskPaths = [
   {
     job: 'organize_schedules',
     question: 'How do I organize schedules?',
+    label: 'Schedule and courts',
     title: 'Build the room',
-    body: 'Name the event, choose the format, add the field, and save the tournament before court times start moving.',
+    body: 'Name it, choose the format, add the field, and save before court times move.',
     href: '#tournament-setup',
     cta: 'Set up event',
     icon: 'schedule',
@@ -85,8 +123,9 @@ const tournamentDeskPaths = [
   {
     job: 'manage_players_teams',
     question: 'How do I manage players or teams?',
+    label: 'Entries and profiles',
     title: 'Clear the entry queue',
-    body: 'Approve entries, connect participants to TIQ profiles, and keep the player or team list ready for the draw.',
+    body: 'Approve entries, connect TIQ profiles, and keep the field draw-ready.',
     href: '#tournament-entries',
     cta: 'Review entries',
     icon: 'teamRankings',
@@ -94,8 +133,9 @@ const tournamentDeskPaths = [
   {
     job: 'track_scores',
     question: 'How do I track scores?',
+    label: 'Scores and standings',
     title: 'Run the scorebook',
-    body: 'Add match slots, enter results, publish standings or brackets, and move the event toward awards.',
+    body: 'Add match slots, post results, publish standings, and finish awards.',
     href: '#tournament-scorebook',
     cta: 'Open scorebook',
     icon: 'reports',
@@ -103,8 +143,9 @@ const tournamentDeskPaths = [
   {
     job: 'reduce_admin_work',
     question: 'How do I reduce admin work?',
+    label: 'Alerts and recaps',
     title: 'Send the useful update',
-    body: 'Use alerts and preference history so court changes, rules, reminders, and recaps stay out of scattered texts.',
+    body: 'Draft court changes, reminders, rules, and recaps from one place.',
     href: '#tournament-alerts',
     cta: 'Prepare alerts',
     icon: 'alerts',
@@ -112,12 +153,21 @@ const tournamentDeskPaths = [
 ] as const
 
 export default function TournamentBuilderWorkspace() {
-  const { role, userId, entitlements, authResolved } = useAuth()
+  const searchParams = useSearchParams()
+  const { role, userId, entitlements, authResolved, session } = useAuth()
+  const { isMobile } = useViewportBreakpoints()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [entitlements, resolvedRole])
-  const canUseLeague = access.canUseLeagueTools
+  const requestedClubId = searchParams.get('clubId') || ''
+  const requestedClubGroupId = searchParams.get('groupId') || ''
+  const clubAccess = useClubSponsoredAccess(requestedClubId, CLUB_TOURNAMENT_SPONSORED_ROLES)
+  const canUseLeague = access.canUseLeagueTools || clubAccess.allowed
   const isFullCourt = access.currentPlanId === 'full_court'
+  const hasUnlimitedCompetition = isFullCourt || clubAccess.allowed
   const [records, setRecords] = useState<TiqTournamentRecord[]>([])
+  const [clubId, setClubId] = useState('')
+  const [clubGroupId, setClubGroupId] = useState('')
+  const [resultMode, setResultMode] = useState<ClubCompetitionResultMode>('tiq_rated')
   const [name, setName] = useState('Saturday Smash')
   const [format, setFormat] = useState<TiqTournamentFormat>('single_elimination')
   const [entrantType, setEntrantType] = useState<'players' | 'teams'>('players')
@@ -151,16 +201,23 @@ export default function TournamentBuilderWorkspace() {
   const [highlightedContact, setHighlightedContact] = useState('')
   const [profileSyncing, setProfileSyncing] = useState(false)
   const [entryRecords, setEntryRecords] = useState<TiqTournamentEntryRecord[]>([])
+  const [scheduleResponses, setScheduleResponses] = useState<CompetitionScheduleResponse[]>([])
+  const [canReviewScheduleResponses, setCanReviewScheduleResponses] = useState(false)
   const [entryCounts, setEntryCounts] = useState<Record<string, number>>({})
   const [awardCounts, setAwardCounts] = useState<Record<string, number>>({})
   const [alertCounts, setAlertCounts] = useState<Record<string, number>>({})
   const [entrySyncingId, setEntrySyncingId] = useState('')
+  const [entryInfoRequestId, setEntryInfoRequestId] = useState('')
+  const [entryInfoRequestNote, setEntryInfoRequestNote] = useState('')
   const [awardRecipients, setAwardRecipients] = useState<Record<TiqAwardPlacement, string>>({
     first: '',
     second: '',
     third: '',
   })
   const [awardRefresh, setAwardRefresh] = useState(0)
+  const [resumeTargetTournamentId, setResumeTargetTournamentId] = useState('')
+  const [appliedResumeTournamentId, setAppliedResumeTournamentId] = useState('')
+  const [coordinatorResumeResolved, setCoordinatorResumeResolved] = useState(false)
 
   const selectedRecord = records.find((record) => record.id === selectedId) || null
   const selectedRecordId = selectedRecord?.id || ''
@@ -175,12 +232,17 @@ export default function TournamentBuilderWorkspace() {
   const selectedStandings = selectedRecord?.format === 'round_robin' ? buildRoundRobinStandings(selectedRecord) : []
   const scheduledEvents = useMemo(() => buildTournamentScheduleEvents(records), [records])
   const calendarDays = useMemo(() => buildCalendarDays(calendarMonth, scheduledEvents), [calendarMonth, scheduledEvents])
+  const scheduledMonthEvents = useMemo(() => (
+    scheduledEvents
+      .filter((event) => event.date.startsWith(calendarMonth))
+      .sort((a, b) => `${a.date} ${a.time || '99:99'}`.localeCompare(`${b.date} ${b.time || '99:99'}`))
+      .slice(0, 6)
+  ), [calendarMonth, scheduledEvents])
   const alertDraft = selectedRecord ? buildTiqTournamentAlertDraft({
     record: selectedRecord,
     kind: alertKind,
     body: alertBody,
     siteUrl: `https://www.tenaceiq.com/tournaments/${encodeURIComponent(selectedRecord.id)}`,
-    preferencesUrl: `https://www.tenaceiq.com/tournaments/${encodeURIComponent(selectedRecord.id)}/preferences`,
   }) : ''
   const optedInCount = selectedRecord
     ? selectedRecord.entrants.filter((entrant) => selectedRecord.contacts[entrant]?.smsOptIn && selectedRecord.contacts[entrant]?.phone).length
@@ -221,6 +283,14 @@ export default function TournamentBuilderWorkspace() {
   const awardCandidates = selectedRecord ? buildTiqTournamentAwardCandidates(selectedRecord) : []
   const pendingEntries = entryRecords.filter((entry) => entry.status === 'pending')
   const recentEntries = entryRecords.filter((entry) => entry.status !== 'pending').slice(0, 4)
+  const tournamentEligibilityRequirement = useMemo(
+    () => buildPlayerEligibilityRequirement(selectedRecord?.name, selectedRecord?.directorNotes),
+    [selectedRecord?.directorNotes, selectedRecord?.name],
+  )
+  const entryEligibilityById = useMemo(() => new Map(entryRecords.map((entry) => [
+    entry.id,
+    assessPlayerEligibility(tournamentEligibilityRequirement, entry.eligibilityEvidence),
+  ])), [entryRecords, tournamentEligibilityRequirement])
   void awardRefresh
   const [cloudAwardRecords, setCloudAwardRecords] = useState<TiqAwardRecord[]>([])
   const awardRecords = selectedRecordId
@@ -284,7 +354,7 @@ export default function TournamentBuilderWorkspace() {
     alertCount: alertRecords.length,
   }) : []
   const activeCount = records.filter((record) => record.status !== 'completed').length
-  const canCreateMore = isFullCourt || activeCount < 1 || Boolean(selectedId)
+  const canCreateMore = hasUnlimitedCompetition || activeCount < 1 || Boolean(selectedId)
   const setupReadinessItems = [
     {
       label: 'Name',
@@ -307,6 +377,189 @@ export default function TournamentBuilderWorkspace() {
       ready: isPublic || draftEntrants.length >= 2,
     },
   ]
+  const setupPathItems = [
+    {
+      step: '1',
+      label: 'Name the room',
+      detail: name.trim() ? name.trim() : 'Add the tournament name.',
+      ready: Boolean(name.trim()),
+    },
+    {
+      step: '2',
+      label: 'Set the field',
+      detail: draftEntrants.length >= 2 ? `${draftEntrants.length} ${entrantType} in the draw.` : 'Add at least two entrants.',
+      ready: draftEntrants.length >= 2,
+    },
+    {
+      step: '3',
+      label: 'Save and schedule',
+      detail: startsOn ? 'Date is set. Save before assigning courts.' : 'Pick a date, then save the room.',
+      ready: Boolean(startsOn) && draftEntrants.length >= 2,
+    },
+  ]
+  const tournamentPathStatusItems = selectedRecord ? [
+    {
+      label: 'Active room',
+      value: selectedRecord.name,
+      detail: selectedRecord.isPublic ? 'Public entry page is open.' : 'Private field is loaded.',
+      ready: true,
+    },
+    {
+      label: 'Next move',
+      value: directorNextMove?.label || 'Review the event',
+      detail: directorNextMove?.detail || 'Open the saved room and choose the next section.',
+      ready: Boolean(directorNextMove),
+    },
+    {
+      label: 'Match flow',
+      value: `${completedMatchCount}/${totalMatchCount || selectedPreview.length}`,
+      detail: `${scheduledMatchCount} match${scheduledMatchCount === 1 ? '' : 'es'} scheduled.`,
+      ready: completedMatchCount > 0 || scheduledMatchCount > 0,
+    },
+  ] : [
+    {
+      label: 'Draft field',
+      value: `${draftEntrants.length} ${entrantType}`,
+      detail: draftEntrants.length >= 2 ? 'The draw can be previewed.' : 'Add at least two names.',
+      ready: draftEntrants.length >= 2,
+    },
+    {
+      label: 'Entry mode',
+      value: isPublic ? 'Public' : 'Private',
+      detail: isPublic ? 'Players can request a spot.' : 'Use the pasted field first.',
+      ready: isPublic || draftEntrants.length >= 2,
+    },
+    {
+      label: 'First save',
+      value: canCreateMore ? 'Available' : 'Limit reached',
+      detail: canCreateMore ? 'Save once, then run schedule, scores, alerts, and awards.' : 'Open an event or compare Full-Court.',
+      ready: canCreateMore,
+    },
+  ]
+  const tournamentPathActions = tournamentDeskPaths.map((path) => (
+    selectedRecord || path.href === '#tournament-setup'
+      ? path
+      : {
+          ...path,
+          href: '#tournament-setup',
+          cta: 'Save room first',
+        }
+  ))
+  const scorebookCommandItems = selectedRecord ? [
+    {
+      label: 'Schedule',
+      value: `${scheduledMatchCount}/${totalMatchCount}`,
+      detail: scheduledMatchCount ? 'Court slots have started.' : 'Add the first date, time, and court.',
+      href: '#tournament-scorebook',
+      ready: scheduledMatchCount > 0,
+    },
+    {
+      label: 'Results',
+      value: `${completedMatchCount}/${totalMatchCount}`,
+      detail: completedMatchCount ? 'Scores are moving.' : 'Record winners as matches finish.',
+      href: '#tournament-scorebook',
+      ready: completedMatchCount > 0,
+    },
+    {
+      label: 'Player update',
+      value: alertRecords.length ? `${alertRecords.length} drafts` : 'Draft next',
+      detail: alertRecords.length ? 'Alerts are ready to review.' : 'Prepare a schedule or recap alert.',
+      href: '#tournament-alerts',
+      ready: alertRecords.length > 0,
+    },
+  ] : []
+  const entryCommandItems = selectedRecord ? [
+    {
+      label: 'Registration',
+      value: selectedRecord.isPublic ? 'Public' : 'Private',
+      detail: selectedRecord.isPublic ? 'Review requests before they reach the draw.' : 'Open setup when you want public entry.',
+      href: selectedRecord.isPublic ? '#tournament-entries' : '#tournament-setup',
+      ready: selectedRecord.isPublic,
+    },
+    {
+      label: 'Entry queue',
+      value: pendingEntries.length ? `${pendingEntries.length} waiting` : 'Clear',
+      detail: pendingEntries.length ? 'Approve players into the field.' : 'No entry decisions are waiting.',
+      href: '#tournament-entries',
+      ready: pendingEntries.length === 0,
+    },
+    {
+      label: 'Player profiles',
+      value: `${profileReadyCount}/${selectedRecord.entrants.length}`,
+      detail: profileReadyCount === selectedRecord.entrants.length ? 'Profiles are linked.' : 'Create TIQ profiles for entrant follow-through.',
+      href: '#tournament-profiles',
+      ready: profileReadyCount === selectedRecord.entrants.length && selectedRecord.entrants.length > 0,
+    },
+  ] : []
+  const alertCommandItems = selectedRecord ? [
+    {
+      label: 'Contact list',
+      value: `${phoneReadyCount}/${selectedRecord.entrants.length}`,
+      detail: phoneReadyCount ? 'Phone numbers are started.' : 'Add phone numbers before queueing alerts.',
+      href: '#tournament-alerts',
+      ready: phoneReadyCount === selectedRecord.entrants.length && selectedRecord.entrants.length > 0,
+    },
+    {
+      label: 'Opt-ins',
+      value: `${optedInCount}/${selectedRecord.entrants.length}`,
+      detail: optedInCount ? 'Use confirmed consent only.' : 'Confirm opt-in before delivery review.',
+      href: '#tournament-alerts',
+      ready: optedInCount > 0,
+    },
+    {
+      label: 'Drafts',
+      value: alertRecords.length ? `${alertRecords.length} saved` : 'Start one',
+      detail: queuedAlertCount ? 'Queued drafts can be previewed.' : 'Write the useful court, schedule, or recap update.',
+      href: '#tournament-alerts',
+      ready: alertRecords.length > 0,
+    },
+  ] : []
+  const profileCommandItems = selectedRecord ? [
+    {
+      label: 'Profile links',
+      value: `${profileReadyCount}/${selectedRecord.entrants.length}`,
+      detail: profileReadyCount === selectedRecord.entrants.length ? 'Every entrant is TIQ-ready.' : 'Create profiles so results can follow each player.',
+      href: '#tournament-profiles',
+      ready: profileReadyCount === selectedRecord.entrants.length && selectedRecord.entrants.length > 0,
+    },
+    {
+      label: 'Rating source',
+      value: 'Self-rated',
+      detail: 'New profiles start with S until verified results improve the rating source.',
+      href: '#tournament-scorebook',
+      ready: completedMatchCount > 0,
+    },
+    {
+      label: 'Trophy cases',
+      value: awardRecords.length ? 'Linked' : 'Next',
+      detail: awardRecords.length ? 'Awards can land in player trophy cases.' : 'Issue awards after profiles and results are ready.',
+      href: '#tournament-awards',
+      ready: awardRecords.length > 0,
+    },
+  ] : []
+  const awardCommandItems = selectedRecord ? [
+    {
+      label: 'Results',
+      value: `${completedMatchCount}/${totalMatchCount}`,
+      detail: completedMatchCount ? 'Use completed matches to pick honors.' : 'Finish results before issuing podium awards.',
+      href: '#tournament-scorebook',
+      ready: completedMatchCount > 0,
+    },
+    {
+      label: 'Recipients',
+      value: `${awardCandidates.length} slots`,
+      detail: awardCandidates.length ? 'Confirm names before creating certificates.' : 'Complete the draw to unlock award slots.',
+      href: '#tournament-awards',
+      ready: awardCandidates.length > 0,
+    },
+    {
+      label: 'Award follow-through',
+      value: awardRecords.length ? `${awardRecords.length} issued` : 'Ready',
+      detail: awardRecords.length ? 'Print, email, or send the recap alert.' : 'Create awards, then send the recap.',
+      href: awardRecords.length ? '#tournament-alerts' : '#tournament-awards',
+      ready: awardRecords.length > 0,
+    },
+  ] : []
 
   useEffect(() => {
     let active = true
@@ -334,6 +587,135 @@ export default function TournamentBuilderWorkspace() {
   }, [authResolved, userId])
 
   useEffect(() => {
+    if (!authResolved) return
+
+    const accessToken = session?.access_token || ''
+    let active = true
+    void (async () => {
+      const localState = readLeagueCoordinatorResumeState(userId)
+      const cloudState = accessToken ? await loadLeagueCoordinatorResumeStateFromCloud(accessToken) : null
+      const resumeState = chooseLatestLeagueCoordinatorResumeState(localState, cloudState)
+      if (!active) return
+      if (resumeState) writeLeagueCoordinatorResumeState(resumeState, userId)
+
+      const requestParams = new URLSearchParams(window.location.search)
+      const requestedId = requestParams.get('tournamentId') || ''
+      const requestedClubTemplateId = requestParams.get('templateId') || ''
+      const requestedClubProgramId = requestParams.get('groupId') || ''
+      const targetId = requestedId || (resumeState?.lastSurface === 'tournament' ? resumeState.tournamentId || '' : '')
+      setResumeTargetTournamentId(targetId)
+      const draft = resumeState?.lastSurface === 'tournament' ? resumeState.tournamentDraft : null
+      if (!requestedId && (requestedClubTemplateId || requestedClubProgramId) && requestParams.get('clubId')) {
+        const requestedFormat = requestParams.get('format') || 'single_elimination'
+        setClubId(requestParams.get('clubId') || '')
+        setClubGroupId(requestedClubProgramId)
+        setSelectedId('')
+        setName(requestParams.get('templateName') || requestParams.get('program') || 'Club tournament')
+        if (TOURNAMENT_DRAW_FORMATS.some((item) => item.id === requestedFormat)) {
+          setFormat(requestedFormat as TiqTournamentFormat)
+        }
+        setEntrantType(requestParams.get('entrantType') === 'teams' ? 'teams' : 'players')
+        setLocationLabel(requestParams.get('facility') || requestParams.get('clubName') || '')
+        setDirectorNotes(requestParams.get('division') ? `${requestParams.get('division')} division` : '')
+        setEntrantsText('')
+        setAppliedResumeTournamentId(requestedClubProgramId ? `club-program:${requestedClubProgramId}` : `club-template:${requestedClubTemplateId}`)
+        setNotice(requestedClubProgramId
+          ? 'Club program connected. Add the date and entrants, then save the tournament.'
+          : 'Club setup applied. Add the date and entrants, then save the tournament.')
+      } else if (draft && (!targetId || !draft.tournamentId || draft.tournamentId === targetId)) {
+        setSelectedId(draft.tournamentId || targetId)
+        setName(draft.name || 'Saturday Smash')
+        if (draft.format && TOURNAMENT_DRAW_FORMATS.some((item) => item.id === draft.format)) {
+          setFormat(draft.format as TiqTournamentFormat)
+        }
+        setEntrantType(draft.entrantType || 'players')
+        setStartsOn(draft.startsOn || '')
+        setLocationLabel(draft.locationLabel || '')
+        setDirectorNotes(draft.directorNotes || '')
+        setEntrantsText(draft.entrantsText || sampleEntrants.join('\n'))
+        setIsPublic(Boolean(draft.isPublic))
+        setResultMode(normalizeClubCompetitionResultMode(draft.resultMode))
+        setAppliedResumeTournamentId(draft.tournamentId || targetId || 'new')
+      }
+    })().finally(() => {
+      if (active) setCoordinatorResumeResolved(true)
+    })
+
+    return () => {
+      active = false
+    }
+  }, [authResolved, session?.access_token, userId])
+
+  useEffect(() => {
+    if (!resumeTargetTournamentId || appliedResumeTournamentId) return
+    const record = records.find((item) => item.id === resumeTargetTournamentId)
+    if (!record) return
+    setSelectedId(record.id)
+    setClubId(record.clubId || '')
+    setClubGroupId(record.clubGroupId || '')
+    setResultMode(normalizeClubCompetitionResultMode(record.resultMode))
+    setName(record.name)
+    setFormat(record.format)
+    setEntrantType(record.entrantType)
+    setStartsOn(record.startsOn)
+    setLocationLabel(record.locationLabel)
+    setDirectorNotes(record.directorNotes)
+    setEntrantsText(record.entrants.join('\n'))
+    setIsPublic(record.isPublic)
+    setScoreInputs(buildScoreInputState(record))
+    setScheduleInputs(buildScheduleInputState(record))
+    setContactInputs(buildContactInputState(record))
+    setAwardRecipients(buildAwardRecipientState(record))
+    setAppliedResumeTournamentId(record.id)
+  }, [appliedResumeTournamentId, records, resumeTargetTournamentId])
+
+  useEffect(() => {
+    if (!coordinatorResumeResolved || !userId || !canUseLeague) return
+
+    const selected = records.find((record) => record.id === selectedId) || null
+    const nextState: LeagueCoordinatorResumeState = {
+      tournamentId: selectedId || undefined,
+      tournamentName: name.trim() || selected?.name || 'New tournament',
+      lastSurface: 'tournament',
+      lastSurfaceLabel: selectedId ? 'Tournament Desk' : 'Tournament Draft',
+      lastHref: `/league-coordinator/tournaments${selectedId ? `?tournamentId=${encodeURIComponent(selectedId)}` : ''}#tournament-setup`,
+      tournamentDraft: {
+        tournamentId: selectedId || undefined,
+        name,
+        format,
+        entrantType,
+        startsOn,
+        locationLabel,
+        directorNotes,
+        entrantsText,
+        isPublic,
+        resultMode,
+      },
+    }
+    const timeout = window.setTimeout(() => {
+      writeLeagueCoordinatorResumeState(nextState, userId)
+      void syncLeagueCoordinatorResumeState(nextState, userId, session?.access_token)
+    }, 350)
+    return () => window.clearTimeout(timeout)
+  }, [
+    canUseLeague,
+    coordinatorResumeResolved,
+    directorNotes,
+    entrantType,
+    entrantsText,
+    format,
+    isPublic,
+    resultMode,
+    locationLabel,
+    name,
+    records,
+    selectedId,
+    session?.access_token,
+    startsOn,
+    userId,
+  ])
+
+  useEffect(() => {
     let active = true
 
     async function loadEntries() {
@@ -347,6 +729,33 @@ export default function TournamentBuilderWorkspace() {
     }
 
     void loadEntries()
+
+    return () => {
+      active = false
+    }
+  }, [selectedRecordId, userId])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadScheduleResponses() {
+      if (!selectedRecordId || !userId) {
+        if (active) setScheduleResponses([])
+        if (active) setCanReviewScheduleResponses(false)
+        return
+      }
+
+      const result = await loadCompetitionScheduleResponses({
+        competitionKind: 'tournament',
+        competitionId: selectedRecordId,
+        userId,
+      })
+      if (!active) return
+      setScheduleResponses(result.responses)
+      setCanReviewScheduleResponses(result.authorized)
+    }
+
+    void loadScheduleResponses()
 
     return () => {
       active = false
@@ -501,6 +910,9 @@ export default function TournamentBuilderWorkspace() {
     }
 
     const saved = await upsertTiqTournamentRecordForUser({
+      clubId,
+      clubGroupId,
+      resultMode,
       name,
       format,
       entrantType,
@@ -514,7 +926,7 @@ export default function TournamentBuilderWorkspace() {
 
     refreshRecords(saved.data.id)
     setSyncNotice(saved.source === 'cloud' ? 'Tournament room synced.' : 'Saved on this device.')
-    setNotice(`${saved.data.name} is saved. The draw preview is ready for scheduling.`)
+    setNotice(`${saved.data.name} is saved${saved.data.clubGroupId ? ' and connected to its Club program' : ''}. The draw preview is ready for scheduling.`)
     if (saved.error) setNotice(saved.error.message)
   }
 
@@ -537,7 +949,11 @@ export default function TournamentBuilderWorkspace() {
     setScheduleInputs(buildScheduleInputState(updated))
     setAwardRecipients((current) => buildAwardRecipientState(updated, current))
     setSyncNotice(userId ? 'Tournament room synced.' : 'Saved on this device.')
-    setNotice(`${winner} advanced in ${updated.name}${score ? ` with ${score}` : ''}.`)
+    setNotice(
+      'syncWarning' in updated && typeof updated.syncWarning === 'string'
+        ? updated.syncWarning
+        : `${winner} advanced in ${updated.name}${score ? ` with ${score}` : ''}.`,
+    )
   }
 
   async function clearMatchResult(matchId: string) {
@@ -569,6 +985,15 @@ export default function TournamentBuilderWorkspace() {
 
     refreshRecords(updated.id)
     setScheduleInputs(buildScheduleInputState(updated))
+    if (userId) {
+      const responseResult = await loadCompetitionScheduleResponses({
+        competitionKind: 'tournament',
+        competitionId: updated.id,
+        userId,
+      })
+      setScheduleResponses(responseResult.responses)
+      setCanReviewScheduleResponses(responseResult.authorized)
+    }
     setSyncNotice(userId ? 'Tournament room synced.' : 'Saved on this device.')
     setNotice('Match schedule saved.')
   }
@@ -818,6 +1243,7 @@ export default function TournamentBuilderWorkspace() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          tournamentId: selectedRecord.id,
           entrants: selectedRecord.entrants,
           selfRating: 3.5,
         }),
@@ -843,6 +1269,14 @@ export default function TournamentBuilderWorkspace() {
 
   async function approveTournamentEntry(entry: TiqTournamentEntryRecord) {
     if (!selectedRecord || entrySyncingId) return
+    const eligibility = entryEligibilityById.get(entry.id) || assessPlayerEligibility(tournamentEligibilityRequirement, {
+      ...entry.eligibilityEvidence,
+      rating: entry.eligibilityEvidence.rating ?? entry.selfRating,
+    })
+    if (eligibility.status === 'ineligible') {
+      setNotice(`${entry.playerName} does not match this division. ${eligibility.detail}`)
+      return
+    }
     setEntrySyncingId(entry.id)
     setNotice('')
 
@@ -884,6 +1318,7 @@ export default function TournamentBuilderWorkspace() {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
+              tournamentId: selectedRecord.id,
               entrants: [entrantName],
               selfRating: entry.selfRating,
             }),
@@ -909,7 +1344,10 @@ export default function TournamentBuilderWorkspace() {
         profileWarning = 'Sign in again to create the linked TIQ profile.'
       }
 
-      const statusResult = await updateTiqTournamentEntryStatus(entry.id, 'approved', linkedPlayerId || null)
+      const statusResult = await updateTiqTournamentEntryStatus(entry.id, 'approved', linkedPlayerId || null, {
+        status: eligibility.status,
+        note: eligibility.detail,
+      })
       if (statusResult.error) throw statusResult.error
 
       refreshRecords(saved.data.id)
@@ -942,6 +1380,29 @@ export default function TournamentBuilderWorkspace() {
     }
   }
 
+  async function requestTournamentEntryInfo(entry: TiqTournamentEntryRecord) {
+    if (entrySyncingId) return
+    const requestNote = entryInfoRequestNote.trim()
+    if (!requestNote) {
+      setNotice('Tell the player what information is missing.')
+      return
+    }
+    setEntrySyncingId(entry.id)
+    setNotice('')
+    try {
+      const result = await requestTiqTournamentEntryInformation(entry.id, requestNote)
+      if (result.error) throw result.error
+      await refreshTournamentEntries(entry.tournamentId)
+      setEntryInfoRequestId('')
+      setEntryInfoRequestNote('')
+      setNotice(`${entry.playerName} was notified and can respond from Compete.`)
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'That information request could not be sent.')
+    } finally {
+      setEntrySyncingId('')
+    }
+  }
+
   function updateContactInput(entrant: string, key: 'phone' | 'smsOptIn' | 'consentNote', value: string | boolean) {
     setContactInputs((current) => ({
       ...current,
@@ -967,6 +1428,9 @@ export default function TournamentBuilderWorkspace() {
 
   function loadRecord(record: TiqTournamentRecord) {
     setSelectedId(record.id)
+    setClubId(record.clubId || '')
+    setClubGroupId(record.clubGroupId || '')
+    setResultMode(normalizeClubCompetitionResultMode(record.resultMode))
     setName(record.name)
     setFormat(record.format)
     setEntrantType(record.entrantType)
@@ -992,6 +1456,8 @@ export default function TournamentBuilderWorkspace() {
 
   function startNew() {
     setSelectedId('')
+    setClubGroupId('')
+    setResultMode('tiq_rated')
     setName('Saturday Smash')
     setFormat('single_elimination')
     setEntrantType('players')
@@ -1010,6 +1476,11 @@ export default function TournamentBuilderWorkspace() {
     setNotice('')
   }
 
+  const lockedPrimaryHref = role === 'public'
+    ? '/join?plan=full_court&next=%2Fleague-coordinator%2Ftournaments'
+    : '/pricing'
+  const lockedPrimaryLabel = role === 'public' ? 'Create account' : 'Compare Full-Court'
+
   async function removeRecord(record: TiqTournamentRecord) {
     const result = await deleteTiqTournamentRecordForUser(record.id, userId)
     refreshRecords(selectedId === record.id ? '' : selectedId)
@@ -1025,16 +1496,23 @@ export default function TournamentBuilderWorkspace() {
         <div style={eyebrowStyle}>Tournament Desk</div>
         <h1 style={titleStyle}>Run the event without the desk chaos.</h1>
         <p style={textStyle}>
-          Create player or team events, manage entries, build draws, schedule courts, enter scores, and publish results from one event desk.
+          Create the field, schedule courts, post scores, send alerts, and finish awards from one event desk.
         </p>
         <div style={statGridStyle}>
           <Stat label="Saved events" value={String(records.length)} />
-          <Stat label="Active room" value={isFullCourt ? 'Unlimited' : `${Math.max(0, 1 - activeCount)} left`} />
-          <Stat label="Preview" value={format === 'round_robin' ? 'Round robin' : 'Bracket'} />
+          <Stat label="Active room" value={hasUnlimitedCompetition ? 'Included' : `${Math.max(0, 1 - activeCount)} left`} />
+          <Stat label="Format" value={getTournamentDrawFormatDefinition(format).label} />
         </div>
+        {!canUseLeague && authResolved ? (
+          <div style={actionRowStyle}>
+            <Link href={lockedPrimaryHref} style={primaryButtonStyle}>{lockedPrimaryLabel}</Link>
+            <Link href="/pricing" style={secondaryButtonStyle}>View plans</Link>
+          </div>
+        ) : null}
         {syncNotice ? <div style={syncNoticeStyle}>{syncNotice}</div> : null}
       </div>
-      <div style={heroPanelStyle}>
+      <details className="tournamentBuilderDetailsSection" style={heroPanelStyle}>
+        <summary style={lockedPreviewDetailsSummaryStyle}>Full-Court tools</summary>
         <TiqFeatureIcon name="teamRankings" size="lg" variant="surface" />
         <div style={fullCourtPanelCopyStyle}>
           <strong>Full-Court tournament command.</strong>
@@ -1046,16 +1524,15 @@ export default function TournamentBuilderWorkspace() {
           <span>Participant alerts</span>
           <span>League + team actions</span>
         </div>
-      </div>
+      </details>
     </section>
   )
 
-  if (!canUseLeague && authResolved) {
-    const primaryHref = role === 'public'
-      ? '/join?plan=full_court&next=%2Fleague-coordinator%2Ftournaments'
-      : '/pricing'
-    const primaryLabel = role === 'public' ? 'Create account' : 'Compare Full-Court'
+  if (requestedClubId && clubAccess.checking && !access.canUseLeagueTools) {
+    return <main style={pageStyle}><section style={panelStyle}>Opening the club Tournament Desk...</section></main>
+  }
 
+  if (!canUseLeague && authResolved) {
     return (
       <main style={pageStyle}>
         {tournamentHero}
@@ -1066,6 +1543,7 @@ export default function TournamentBuilderWorkspace() {
           body="Unlimited tournament rooms, shared schedules, entrants, scorebooks, awards, and player alerts live inside Full-Court."
           ctaLabel="Unlock Full-Court"
           compact
+          summaryOnly
         />
 
         <section style={lockedPreviewStyle} aria-label="Tournament Desk preview">
@@ -1075,22 +1553,25 @@ export default function TournamentBuilderWorkspace() {
               <h2 style={sectionTitleStyle}>Run the event without a spreadsheet stack.</h2>
             </div>
             <div style={actionRowStyle}>
-              <Link href={primaryHref} style={primaryButtonStyle}>{primaryLabel}</Link>
+              <Link href={lockedPrimaryHref} style={primaryButtonStyle}>{lockedPrimaryLabel}</Link>
               <Link href="/pricing" style={secondaryButtonStyle}>View plans</Link>
             </div>
           </div>
 
-          <div style={lockedPreviewGridStyle}>
-            {lockedTournamentActions.map((action, index) => (
-              <article key={action.title} style={lockedPreviewCardStyle}>
-                <span style={lockedPreviewIndexStyle}>{index + 1}</span>
-                <div style={lockedPreviewCopyStyle}>
-                  <strong>{action.title}</strong>
-                  <span>{action.detail}</span>
-                </div>
-              </article>
-            ))}
-          </div>
+          <details className="tournamentBuilderDetailsSection" style={lockedPreviewDetailsStyle}>
+            <summary style={lockedPreviewDetailsSummaryStyle}>Show Tournament Desk preview</summary>
+            <div style={lockedPreviewGridStyle}>
+              {lockedTournamentActions.map((action, index) => (
+                <article key={action.title} style={lockedPreviewCardStyle}>
+                  <span style={lockedPreviewIndexStyle}>{index + 1}</span>
+                  <div style={lockedPreviewCopyStyle}>
+                    <strong>{action.title}</strong>
+                    <span>{action.detail}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </details>
         </section>
       </main>
     )
@@ -1098,97 +1579,88 @@ export default function TournamentBuilderWorkspace() {
 
   return (
     <main style={pageStyle}>
-      {tournamentHero}
-
+      {clubAccess.workspace ? (
+        <ClubContextBanner
+          workspace={clubAccess.workspace}
+          surface="Tournament Desk"
+          detail="Entrants, draws, courts, scores, alerts, and awards stay connected to the club."
+        />
+      ) : null}
       <section style={tournamentPathStyle} aria-labelledby="tournament-desk-path-title">
         <div style={tournamentPathHeaderStyle}>
           <div>
             <div style={sectionEyebrowStyle}>Tournament Desk path</div>
-            <h2 id="tournament-desk-path-title" style={tournamentPathTitleStyle}>{PRODUCT_MOTTO}</h2>
+            <h1 id="tournament-desk-path-title" style={tournamentPathTitleStyle}>Run or update a tournament</h1>
           </div>
           <p style={tournamentPathIntroStyle}>
-            Start with the event question, then open the tool that removes the most admin work.
+            Set up the room, review entries, schedule courts, post scores, or send updates.
           </p>
         </div>
-        <div style={tournamentPathGridStyle}>
-          {tournamentDeskPaths.map((path) => (
-            <a
-              key={path.job}
-              href={path.href}
-              style={tournamentPathCardStyle}
-              data-tournament-path-job={path.job}
-              aria-label={`${path.cta}: ${path.question}`}
-            >
-              <TiqFeatureIcon name={path.icon} size="sm" variant="ghost" />
-              <span style={tournamentPathCopyStyle}>
-                <em>{path.question}</em>
-                <strong>{path.title}</strong>
-                <span>{path.body}</span>
-                <span style={tournamentPathCtaStyle}>{path.cta}</span>
-              </span>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      <section style={calendarPanelStyle}>
-        <div style={panelHeaderStyle}>
-          <div>
-            <div style={sectionEyebrowStyle}>Shared calendar</div>
-            <h2 style={sectionTitleStyle}>{formatCalendarMonth(calendarMonth)}</h2>
-          </div>
-          <div style={calendarActionRowStyle}>
-            <button type="button" onClick={() => setCalendarMonth(shiftCalendarMonth(calendarMonth, -1))} style={ghostButtonStyle}>
-              Prev
-            </button>
-            <button type="button" onClick={() => setCalendarMonth(new Date().toISOString().slice(0, 7))} style={ghostButtonStyle}>
-              Today
-            </button>
-            <button type="button" onClick={() => setCalendarMonth(shiftCalendarMonth(calendarMonth, 1))} style={ghostButtonStyle}>
-              Next
-            </button>
-          </div>
-        </div>
-
-        <div style={weekdayGridStyle}>
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <span key={day}>{day}</span>
-          ))}
-        </div>
-        <div style={calendarGridStyle}>
-          {calendarDays.map((day) => (
-            <div key={day.date} style={{ ...calendarDayStyle, ...(day.inMonth ? null : mutedCalendarDayStyle) }}>
-              <div style={calendarDateStyle}>{Number(day.date.slice(-2))}</div>
-              <div style={calendarEventStackStyle}>
-                {day.events.slice(0, 3).map((event) => (
-                  <Link key={event.id} href={`/tournaments/${encodeURIComponent(event.tournamentId)}`} style={calendarEventStyle}>
-                    <strong>{event.time || 'TBD'}</strong>
-                    <span>{event.sideA} vs {event.sideB}</span>
-                    <small>{event.court || event.tournamentName}</small>
-                  </Link>
-                ))}
-                {day.events.length > 3 ? <span style={calendarMoreStyle}>+{day.events.length - 3} more</span> : null}
-              </div>
+        <div style={tournamentPathCommandStyle} aria-label="Tournament Desk command center">
+          {isMobile ? (
+            <div style={tournamentMobileActionRailStyle} aria-label="Tournament actions">
+              {tournamentPathActions.map((path) => (
+                <a
+                  key={path.job}
+                  href={path.href}
+                  style={tournamentMobileActionStyle}
+                  data-tournament-path-job={path.job}
+                  aria-label={`${path.cta}: ${path.question}`}
+                >
+                  <TiqFeatureIcon name={path.icon} size="sm" variant="ghost" />
+                  <span style={tournamentMobileActionCopyStyle}>
+                    <small>{path.label}</small>
+                    <strong>{path.cta}</strong>
+                  </span>
+                </a>
+              ))}
             </div>
-          ))}
+          ) : (
+            <div style={tournamentPathGridStyle}>
+              {tournamentPathActions.map((path) => (
+                <a
+                  key={path.job}
+                  href={path.href}
+                  style={tournamentPathCardStyle}
+                  data-tournament-path-job={path.job}
+                  aria-label={`${path.cta}: ${path.question}`}
+                >
+                  <TiqFeatureIcon name={path.icon} size="sm" variant="ghost" />
+                  <span style={tournamentPathCopyStyle}>
+                    <em>{path.label}</em>
+                    <strong>{path.title}</strong>
+                    <span>{path.body}</span>
+                  </span>
+                  <span style={tournamentPathCtaStyle}>{path.cta}</span>
+                </a>
+              ))}
+            </div>
+          )}
+          <details className="tournamentBuilderDetailsSection" style={tournamentPathStatusPanelStyle}>
+            <summary style={lockedPreviewDetailsSummaryStyle}>
+              <span style={sectionEyebrowStyle}>Room scan</span>
+              <span style={pillStyle}>Open when needed</span>
+            </summary>
+            <strong style={tournamentPathStatusTitleStyle}>
+              {selectedRecord ? 'Keep the event moving.' : 'Build the room first.'}
+            </strong>
+            <span style={tournamentPathStatusTextStyle}>
+              {selectedRecord
+                ? 'Use the live scan to see what is ready, then jump directly to entries, profiles, schedule, scores, alerts, or awards.'
+                : 'Set the field once, preview the draw, then save the room before courts and results start changing.'}
+            </span>
+            <div style={tournamentPathStatusGridStyle} aria-label="Tournament Desk status scan">
+              {tournamentPathStatusItems.map((item) => (
+                <div key={item.label} style={tournamentPathStatusItemStyle}>
+                  <span style={item.ready ? readinessDotReadyStyle : readinessDotBlockedStyle} />
+                  <strong>{item.label}</strong>
+                  <em>{item.value}</em>
+                  <span style={tournamentPathStatusDetailStyle}>{item.detail}</span>
+                </div>
+              ))}
+            </div>
+          </details>
         </div>
-
-        {!scheduledEvents.length ? (
-          <div style={calendarEmptyStateStyle}>
-            <div style={emptySavedRoomCopyStyle}>
-              <strong>Calendar fills from match slots.</strong>
-              <span>Save a tournament, open the scorebook, then add date, time, and court assignments so players know where to go.</span>
-            </div>
-            <div style={emptySavedRoomActionStyle}>
-              <a href={selectedRecord ? '#tournament-scorebook' : '#tournament-setup'} style={secondaryButtonStyle}>
-                {selectedRecord ? 'Open scorebook' : 'Build room'}
-              </a>
-              <a href="#tournament-setup" style={secondaryButtonStyle}>
-                Set up tournament
-              </a>
-            </div>
-          </div>
-        ) : null}
       </section>
 
       <section style={builderGridStyle}>
@@ -1211,6 +1683,18 @@ export default function TournamentBuilderWorkspace() {
             ))}
           </div>
 
+          <div style={setupPathStyle} aria-label="Event setup path">
+            {setupPathItems.map((item) => (
+              <div key={item.label} style={setupPathItemStyle}>
+                <span style={item.ready ? setupPathStepReadyStyle : setupPathStepStyle}>{item.step}</span>
+                <span style={setupPathCopyStyle}>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+              </div>
+            ))}
+          </div>
+
           <div style={fieldGridStyle}>
             <label style={fieldStyle}>
               Tournament name
@@ -1222,25 +1706,23 @@ export default function TournamentBuilderWorkspace() {
             </label>
           </div>
 
-          <div style={segmentedStyle} aria-label="Tournament format">
-            {[
-              ['single_elimination', 'Single elimination'],
-              ['round_robin', 'Round robin'],
-              ['compass_draw', 'Compass draw'],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setFormat(value as TiqTournamentFormat)}
-                style={{
-                  ...segmentButtonStyle,
-                  ...(format === value ? segmentActiveStyle : null),
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <label style={fieldStyle}>
+            Tournament format
+            <select
+              aria-label="Tournament format"
+              value={format}
+              onChange={(event) => setFormat(event.target.value as TiqTournamentFormat)}
+              style={inputStyle}
+            >
+              {TOURNAMENT_DRAW_FORMATS.map((option) => (
+                <option key={option.id} value={option.id}>{option.label}</option>
+              ))}
+            </select>
+            <span style={helperTextStyle}>
+              {getTournamentDrawFormatDefinition(format).description}{' '}
+              {getTournamentOperationsSummary(format)}
+            </span>
+          </label>
 
           <div style={segmentedStyle} aria-label="Entrant type">
             {[
@@ -1304,6 +1786,20 @@ export default function TournamentBuilderWorkspace() {
             </span>
           </label>
 
+          <label style={fieldStyle}>
+            How results count
+            <select
+              value={resultMode}
+              onChange={(event) => setResultMode(event.target.value as ClubCompetitionResultMode)}
+              style={inputStyle}
+            >
+              {CLUB_COMPETITION_RESULT_MODE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            <small>{getClubCompetitionResultModeDescription(resultMode)}</small>
+          </label>
+
           {notice ? <p style={noticeStyle}>{notice}</p> : null}
 
           <div style={actionRowStyle}>
@@ -1315,6 +1811,7 @@ export default function TournamentBuilderWorkspace() {
                 Open bracket
               </Link>
             ) : null}
+            {clubId && (clubGroupId || requestedClubGroupId) ? <Link href={`/clubs?${new URLSearchParams({ clubId, tab: 'home' }).toString()}`} style={secondaryButtonStyle}>Return to Club</Link> : null}
             <Link href="/compete/schedule" style={secondaryButtonStyle}>Open calendar</Link>
           </div>
         </form>
@@ -1353,6 +1850,134 @@ export default function TournamentBuilderWorkspace() {
           ) : null}
         </section>
       </section>
+
+      <details className="tournamentBuilderDetailsSection" style={heroStyle}>
+        <summary style={calendarSummaryStyle}>
+          <div>
+            <div style={eyebrowStyle}>Tournament Desk</div>
+            <h2 style={sectionTitleStyle}>Season and plan details</h2>
+          </div>
+          <span style={pillStyle}>Details</span>
+        </summary>
+        <span aria-hidden="true" style={watermarkStyle} />
+        <div style={heroCopyStyle}>
+          <h2 style={titleStyle}>Run the event without the desk chaos.</h2>
+          <p style={textStyle}>
+            Create the field, schedule courts, post scores, send alerts, and finish awards from one event desk.
+          </p>
+          <div style={statGridStyle}>
+            <Stat label="Saved events" value={String(records.length)} />
+            <Stat label="Active room" value={hasUnlimitedCompetition ? 'Included' : `${Math.max(0, 1 - activeCount)} left`} />
+            <Stat label="Format" value={getTournamentDrawFormatDefinition(format).label} />
+          </div>
+          {syncNotice ? <div style={syncNoticeStyle}>{syncNotice}</div> : null}
+        </div>
+        <div style={heroPanelStyle}>
+          <TiqFeatureIcon name="teamRankings" size="lg" variant="surface" />
+          <div style={fullCourtPanelCopyStyle}>
+            <strong>Full-Court tournament command.</strong>
+            <span>Unlimited tournament rooms plus the schedule, score, award, alert, league, and team actions around them.</span>
+          </div>
+          <div style={fullCourtFeatureGridStyle}>
+            <span>Unlimited events</span>
+            <span>Award studio</span>
+            <span>Participant alerts</span>
+            <span>League + team actions</span>
+          </div>
+        </div>
+      </details>
+
+      <details className="tournamentBuilderDetailsSection" style={calendarPanelStyle}>
+        <summary style={calendarSummaryStyle}>
+          <div>
+            <div style={sectionEyebrowStyle}>Shared calendar</div>
+            <h2 style={sectionTitleStyle}>{formatCalendarMonth(calendarMonth)}</h2>
+          </div>
+          <span style={pillStyle}>{scheduledMonthEvents.length ? `${scheduledMonthEvents.length} listed` : 'Open calendar'}</span>
+        </summary>
+
+        <div style={panelHeaderStyle}>
+          <div>
+            <div style={sectionEyebrowStyle}>Shared calendar</div>
+            <h2 style={sectionTitleStyle}>{formatCalendarMonth(calendarMonth)}</h2>
+          </div>
+          <div style={calendarActionRowStyle}>
+            <button type="button" onClick={() => setCalendarMonth(shiftCalendarMonth(calendarMonth, -1))} style={ghostButtonStyle}>
+              Prev
+            </button>
+            <button type="button" onClick={() => setCalendarMonth(new Date().toISOString().slice(0, 7))} style={ghostButtonStyle}>
+              Today
+            </button>
+            <button type="button" onClick={() => setCalendarMonth(shiftCalendarMonth(calendarMonth, 1))} style={ghostButtonStyle}>
+              Next
+            </button>
+          </div>
+        </div>
+
+        <div style={calendarShellStyle}>
+          <div style={calendarBoardStyle}>
+            <div style={weekdayGridStyle}>
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                <span key={day}>{day}</span>
+              ))}
+            </div>
+            <div style={calendarGridStyle}>
+              {calendarDays.map((day) => (
+                <div key={day.date} style={{ ...calendarDayStyle, ...(day.inMonth ? null : mutedCalendarDayStyle) }}>
+                  <div style={calendarDateStyle}>{Number(day.date.slice(-2))}</div>
+                  <div style={calendarEventStackStyle}>
+                    {day.events.slice(0, 3).map((event) => (
+                      <Link key={event.id} href={`/tournaments/${encodeURIComponent(event.tournamentId)}`} style={calendarEventStyle}>
+                        <strong>{event.time || 'TBD'}</strong>
+                        <span>{event.sideA} vs {event.sideB}</span>
+                        <small>{event.court || event.tournamentName}</small>
+                      </Link>
+                    ))}
+                    {day.events.length > 3 ? <span style={calendarMoreStyle}>+{day.events.length - 3} more</span> : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <aside style={calendarAgendaStyle} aria-label="Court agenda">
+            <div style={calendarAgendaHeaderStyle}>
+              <div>
+                <div style={sectionEyebrowStyle}>Court agenda</div>
+                <h3 style={calendarAgendaTitleStyle}>{scheduledMonthEvents.length ? 'Next scheduled matches' : 'Schedule from the scorebook'}</h3>
+              </div>
+              <span style={pillStyle}>{scheduledMonthEvents.length ? `${scheduledMonthEvents.length} listed` : 'No slots yet'}</span>
+            </div>
+            {scheduledMonthEvents.length ? (
+              <div style={calendarAgendaListStyle}>
+                {scheduledMonthEvents.map((event) => (
+                  <Link key={event.id} href={`/tournaments/${encodeURIComponent(event.tournamentId)}`} style={calendarAgendaEventStyle}>
+                    <span>{formatCalendarAgendaDate(event)}</span>
+                    <strong>{event.sideA} vs {event.sideB}</strong>
+                    <small>{event.court || event.tournamentName}</small>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div style={calendarEmptyStateStyle}>
+                <div style={emptySavedRoomCopyStyle}>
+                  <strong>Calendar fills from match slots.</strong>
+                  <span>Save a tournament, open the scorebook, then add date, time, and court assignments so players know where to go.</span>
+                </div>
+                <div style={emptySavedRoomActionStyle}>
+                  <a href={selectedRecord ? '#tournament-scorebook' : '#tournament-setup'} style={secondaryButtonStyle}>
+                    {selectedRecord ? 'Open scorebook' : 'Build room'}
+                  </a>
+                  <a href="#tournament-setup" style={secondaryButtonStyle}>
+                    Set up tournament
+                  </a>
+                </div>
+              </div>
+            )}
+          </aside>
+        </div>
+      </details>
+
 
       {selectedRecord ? (
         <section style={runSheetStyle} aria-label="Tournament run sheet">
@@ -1407,19 +2032,35 @@ export default function TournamentBuilderWorkspace() {
             <span style={pillStyle}>{selectedRecord.isPublic ? 'Public entry' : 'Private draw'}</span>
           </div>
 
+          <div style={entryCommandStyle} aria-label="Entry command">
+            {entryCommandItems.map((item) => (
+              <a key={item.label} href={item.href} style={entryCommandItemStyle}>
+                <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
+                <span style={entryCommandCopyStyle}>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <span style={entryCommandValueStyle}>{item.value}</span>
+              </a>
+            ))}
+          </div>
+
           {selectedRecord.isPublic ? (
             <div style={entryQueueGridStyle}>
-              {pendingEntries.length ? pendingEntries.map((entry) => (
-                <div key={entry.id} style={entryQueueCardStyle}>
+              {pendingEntries.length ? pendingEntries.map((entry) => {
+                const eligibility = entryEligibilityById.get(entry.id)
+                const cannotApprove = eligibility?.status === 'ineligible'
+                return <div key={entry.id} style={entryQueueCardStyle}>
                   <div style={entryQueueTopStyle}>
                     <div>
                       <strong>{entry.playerName}</strong>
                       <div style={smallNoteStyle}>
-                        Self-rated {entry.selfRating.toFixed(1)} S{entry.smsOptIn ? ' - SMS opt-in' : ''}
+                        {entry.linkedPlayerId ? 'TIQ profile' : 'Self-rated'} {Number(entry.eligibilityEvidence.rating ?? entry.selfRating).toFixed(1)}{entry.smsOptIn ? ' - SMS opt-in' : ''}
                       </div>
                     </div>
-                    <span style={pillStyle}>Pending</span>
+                    <span style={eligibilityStatusStyle(eligibility)}>{eligibility?.label || 'Review eligibility'}</span>
                   </div>
+                  {eligibility?.detail ? <div style={smallNoteStyle}>{eligibility.detail}</div> : null}
                   <div style={entryContactLineStyle}>
                     <span>{entry.email || 'No email'}</span>
                     <span>{entry.phone || 'No phone'}</span>
@@ -1428,10 +2069,10 @@ export default function TournamentBuilderWorkspace() {
                     <button
                       type="button"
                       onClick={() => approveTournamentEntry(entry)}
-                      disabled={Boolean(entrySyncingId)}
-                      style={{ ...secondaryButtonStyle, ...(entrySyncingId ? disabledButtonStyle : null) }}
+                      disabled={Boolean(entrySyncingId) || cannotApprove}
+                      style={{ ...secondaryButtonStyle, ...(entrySyncingId || cannotApprove ? disabledButtonStyle : null) }}
                     >
-                      {entrySyncingId === entry.id ? 'Approving...' : 'Approve'}
+                      {entrySyncingId === entry.id ? 'Approving...' : cannotApprove ? 'Does not match' : eligibility?.status === 'needs_confirmation' ? 'Confirm & approve' : 'Approve'}
                     </button>
                     <button
                       type="button"
@@ -1441,9 +2082,42 @@ export default function TournamentBuilderWorkspace() {
                     >
                       Decline
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEntryInfoRequestId(entry.id)
+                        setEntryInfoRequestNote(entry.playerRequestNote || eligibility?.detail || '')
+                      }}
+                      disabled={Boolean(entrySyncingId)}
+                      style={{ ...ghostButtonStyle, ...(entrySyncingId ? disabledButtonStyle : null) }}
+                    >
+                      Request info
+                    </button>
                   </div>
+                  {entryInfoRequestId === entry.id ? (
+                    <div style={entryInfoRequestStyle}>
+                      <label style={scoreFieldStyle}>
+                        <span>What does the player need to confirm?</span>
+                        <textarea
+                          value={entryInfoRequestNote}
+                          onChange={(event) => setEntryInfoRequestNote(event.target.value)}
+                          placeholder="Confirm your age division or current rating."
+                          rows={3}
+                          style={{ ...textareaStyle, minHeight: 76 }}
+                        />
+                      </label>
+                      <div style={actionRowStyle}>
+                        <button type="button" onClick={() => void requestTournamentEntryInfo(entry)} disabled={Boolean(entrySyncingId)} style={secondaryButtonStyle}>
+                          {entrySyncingId === entry.id ? 'Sending...' : 'Send request'}
+                        </button>
+                        <button type="button" onClick={() => { setEntryInfoRequestId(''); setEntryInfoRequestNote('') }} disabled={Boolean(entrySyncingId)} style={ghostButtonStyle}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-              )) : (
+              }) : (
                 <div style={tournamentActionEmptyStyle}>
                   <div style={emptySavedRoomCopyStyle}>
                     <strong>Entry queue is clear.</strong>
@@ -1506,6 +2180,19 @@ export default function TournamentBuilderWorkspace() {
             <Stat label="Open" value={String(selectedSummary?.openMatches ?? 0)} compact />
           </div>
 
+          <div style={scorebookCommandStyle} aria-label="Scorebook command">
+            {scorebookCommandItems.map((item) => (
+              <a key={item.label} href={item.href} style={scorebookCommandItemStyle}>
+                <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
+                <span style={scorebookCommandCopyStyle}>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <span style={scorebookCommandValueStyle}>{item.value}</span>
+              </a>
+            ))}
+          </div>
+
           {selectedStandings.length ? (
             <section style={standingsPanelStyle}>
               <div style={sectionEyebrowStyle}>Round-robin standings</div>
@@ -1555,6 +2242,24 @@ export default function TournamentBuilderWorkspace() {
                   : canRecord
                     ? 'Record winner'
                     : 'Await players'
+              const responseSummary = selectedRecord.entrantType === 'players'
+                && canReviewScheduleResponses
+                && canRecord
+                && matchScheduleReady
+                ? buildCompetitionScheduleResponseSummary({
+                    eventId: `tournament:${selectedRecord.id}:${match.id}`,
+                    expectedPlayerNames: [match.sideA, match.sideB],
+                    responses: scheduleResponses,
+                    currentSnapshot: {
+                      date: match.schedule?.date || '',
+                      time: match.schedule?.time || '',
+                      location: [
+                        selectedRecord.locationLabel,
+                        match.schedule?.court ? `Court ${match.schedule.court}` : '',
+                      ].filter(Boolean).join(' · '),
+                    },
+                  })
+                : null
               return (
                 <div key={match.id} style={scorebookMatchStyle}>
                   <span style={matchMetaStyle}>{match.label} - Court {match.court}</span>
@@ -1576,7 +2281,21 @@ export default function TournamentBuilderWorkspace() {
                     ))}
                     <span style={matchPrimaryActionStyle}>{matchPrimaryLabel}</span>
                   </div>
-                  <div style={scheduleGridStyle}>
+                  {responseSummary ? (
+                    <CompetitionResponseSummary
+                      summary={responseSummary}
+                      adjustHref={`#tournament-schedule-${match.id}`}
+                      onRemind={session?.access_token ? () => sendCompetitionScheduleReminders({
+                        accessToken: session.access_token,
+                        competitionKind: 'tournament',
+                        competitionId: selectedRecord.id,
+                        eventId: `tournament:${selectedRecord.id}:${match.id}`,
+                        expectedPlayerNames: [match.sideA, match.sideB],
+                      }) : undefined}
+                      rosterHref="#tournament-entries"
+                    />
+                  ) : null}
+                  <div id={`tournament-schedule-${match.id}`} style={scheduleGridStyle}>
                     <label style={compactFieldStyle}>
                       Date
                       <input
@@ -1668,6 +2387,19 @@ export default function TournamentBuilderWorkspace() {
               <h2 style={sectionTitleStyle}>{optedInCount}/{selectedRecord.entrants.length} opted in</h2>
             </div>
             <span style={pillStyle}>Draft only</span>
+          </div>
+
+          <div style={alertCommandStyle} aria-label="Alert command">
+            {alertCommandItems.map((item) => (
+              <a key={item.label} href={item.href} style={alertCommandItemStyle}>
+                <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
+                <span style={alertCommandCopyStyle}>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <span style={alertCommandValueStyle}>{item.value}</span>
+              </a>
+            ))}
           </div>
 
           <div style={sendReadinessStyle}>
@@ -1897,6 +2629,19 @@ export default function TournamentBuilderWorkspace() {
             </button>
           </div>
 
+          <div style={profileCommandStyle} aria-label="Profile command">
+            {profileCommandItems.map((item) => (
+              <a key={item.label} href={item.href} style={profileCommandItemStyle}>
+                <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
+                <span style={profileCommandCopyStyle}>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <span style={profileCommandValueStyle}>{item.value}</span>
+              </a>
+            ))}
+          </div>
+
           <div style={profileLinkGridStyle}>
             {selectedRecord.entrants.map((entrant) => {
               const playerId = selectedRecord.entrantPlayerIds[entrant]
@@ -1933,6 +2678,19 @@ export default function TournamentBuilderWorkspace() {
           <p style={smallNoteStyle}>
             Issue TenAceIQ-branded awards for podium finishers. Winners can print certificates, email them, and carry the badge into their trophy case.
           </p>
+
+          <div style={awardCommandStyle} aria-label="Award command">
+            {awardCommandItems.map((item) => (
+              <a key={item.label} href={item.href} style={awardCommandItemStyle}>
+                <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
+                <span style={awardCommandCopyStyle}>
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <span style={awardCommandValueStyle}>{item.value}</span>
+              </a>
+            ))}
+          </div>
 
           <div style={awardSetupGridStyle}>
             {awardCandidates.map((candidate) => (
@@ -2051,7 +2809,7 @@ export default function TournamentBuilderWorkspace() {
             <div style={sectionEyebrowStyle}>Tournament room</div>
             <h2 style={sectionTitleStyle}>Saved events</h2>
           </div>
-          <span style={pillStyle}>{getTournamentLimitSummary(isFullCourt)}</span>
+          <span style={pillStyle}>{getTournamentLimitSummary(hasUnlimitedCompetition)}</span>
         </div>
 
         <div style={recordGridStyle}>
@@ -2064,6 +2822,16 @@ export default function TournamentBuilderWorkspace() {
             const recordProfileReadyCount = record.entrants.filter((entrant) => record.entrantPlayerIds[entrant]).length
             const recordScheduledMatchCount = preview.filter((match) => match.schedule?.date || match.schedule?.time || match.schedule?.court).length
             const recordNextMove = buildDirectorNextMove({
+              record,
+              pendingEntriesCount: pendingEntryCount,
+              profileReadyCount: recordProfileReadyCount,
+              scheduledMatchCount: recordScheduledMatchCount,
+              completedMatchCount: summary.completedMatches,
+              totalMatchCount: summary.totalMatches,
+              awardCount: recordAwardCount,
+              alertCount: recordAlertCount,
+            })
+            const recordFinishChecklist = buildTournamentFinishChecklist({
               record,
               pendingEntriesCount: pendingEntryCount,
               profileReadyCount: recordProfileReadyCount,
@@ -2087,17 +2855,21 @@ export default function TournamentBuilderWorkspace() {
                     .filter(Boolean)
                     .join(' - ')}
                 </p>
-                <div style={recordMetricGridStyle}>
-                  <Stat label="Done" value={`${summary.completedMatches}/${summary.totalMatches}`} compact />
-                  <Stat label="Open" value={String(summary.openMatches)} compact />
-                </div>
-                <div style={recordMetricGridStyle}>
-                  <Stat label="Entrants" value={String(record.entrants.length)} compact />
-                  <Stat label={record.isPublic ? 'Queue' : 'Matches'} value={record.isPublic ? String(pendingEntryCount) : String(preview.length)} compact />
-                </div>
-                <div style={recordMetricGridStyle}>
-                  <Stat label="Awards" value={recordAwardCount ? String(recordAwardCount) : 'Ready'} compact />
-                  <Stat label="Alerts" value={recordAlertCount ? String(recordAlertCount) : userId ? '0' : 'Sign in'} compact />
+                <div style={recordReadinessRailStyle} aria-label={`${record.name} readiness`}>
+                  {recordFinishChecklist.map((item) => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => loadRecordSection(record, item.href.replace('#', ''))}
+                      style={recordReadinessItemStyle}
+                    >
+                      <span style={item.ready ? readinessDotReadyStyle : readinessDotWaitingStyle} aria-hidden="true" />
+                      <span style={recordReadinessCopyStyle}>
+                        <strong>{item.label}</strong>
+                        <small>{item.value}</small>
+                      </span>
+                    </button>
+                  ))}
                 </div>
                 <button
                   type="button"
@@ -2460,6 +3232,13 @@ function formatCalendarMonth(month: string) {
   return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(year, monthIndex - 1, 1))
 }
 
+function formatCalendarAgendaDate(event: TiqTournamentCalendarEvent) {
+  const [year, month, day] = event.date.split('-').map((part) => Number.parseInt(part, 10))
+  const date = new Date(year, month - 1, day)
+  const label = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date)
+  return event.time ? `${label} at ${event.time}` : `${label} time TBD`
+}
+
 function formatGameDiff(value: number) {
   if (value > 0) return `+${value}`
   return String(value)
@@ -2542,11 +3321,11 @@ const heroStyle: CSSProperties = {
   position: 'relative',
   overflow: 'hidden',
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-  gap: 16,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
+  gap: 12,
   alignItems: 'stretch',
-  padding: 22,
-  borderRadius: 28,
+  padding: 18,
+  borderRadius: 24,
   border: '1px solid rgba(116,190,255,0.16)',
   background: 'var(--portal-surface-bg)',
   boxShadow: '0 24px 70px rgba(2, 8, 23, 0.42)',
@@ -2555,11 +3334,11 @@ const heroStyle: CSSProperties = {
 
 const watermarkStyle: CSSProperties = {
   position: 'absolute',
-  right: '-110px',
-  top: '-120px',
-  width: 320,
-  aspectRatio: '1045 / 490',
-  background: 'url("/tiq/logo/tiq-mark-light.png") center / contain no-repeat',
+  right: 0,
+  top: '-84px',
+  width: 'min(100%, 320px)',
+  aspectRatio: '1552 / 1614',
+  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }
@@ -2567,7 +3346,7 @@ const watermarkStyle: CSSProperties = {
 const heroCopyStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  gap: 12,
+  gap: 10,
   alignContent: 'center',
   minWidth: 0,
 }
@@ -2583,7 +3362,7 @@ const eyebrowStyle: CSSProperties = {
 const titleStyle: CSSProperties = {
   margin: 0,
   color: 'var(--foreground-strong)',
-  fontSize: 'clamp(2rem, 4vw, 4.2rem)',
+  fontSize: 'clamp(1.9rem, 3.45vw, 3.45rem)',
   lineHeight: 0.98,
   fontWeight: 950,
   letterSpacing: 0,
@@ -2593,8 +3372,8 @@ const titleStyle: CSSProperties = {
 const textStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
-  fontSize: 15,
-  lineHeight: 1.7,
+  fontSize: 14,
+  lineHeight: 1.55,
   fontWeight: 750,
   maxWidth: 760,
 }
@@ -2615,11 +3394,11 @@ const syncNoticeStyle: CSSProperties = {
 const heroPanelStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  gap: 14,
+  gap: 10,
   alignContent: 'center',
   minWidth: 0,
-  padding: 18,
-  borderRadius: 20,
+  padding: 14,
+  borderRadius: 18,
   border: '1px solid rgba(155,225,29,0.30)',
   background: 'linear-gradient(145deg, rgba(155,225,29,0.12), rgba(116,190,255,0.07) 58%, rgba(15,23,42,0.62))',
   color: 'var(--foreground-strong)',
@@ -2652,16 +3431,16 @@ const fullCourtFeatureGridStyle: CSSProperties = {
 
 const statGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
-  gap: 10,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 132px), 1fr))',
+  gap: 8,
   minWidth: 0,
 }
 
 const statStyle: CSSProperties = {
   display: 'grid',
-  gap: 4,
-  padding: 12,
-  borderRadius: 16,
+  gap: 3,
+  padding: 10,
+  borderRadius: 14,
   border: '1px solid rgba(116,190,255,0.12)',
   background: 'rgba(255,255,255,0.045)',
   color: 'var(--shell-copy-muted)',
@@ -2707,21 +3486,121 @@ const tournamentPathIntroStyle: CSSProperties = {
   maxWidth: 500,
 }
 
-const tournamentPathGridStyle: CSSProperties = {
+const tournamentPathCommandStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
   gap: 12,
   minWidth: 0,
+}
+
+const tournamentPathStatusPanelStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 10,
+  minWidth: 0,
+  padding: 14,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'linear-gradient(180deg, rgba(14,35,57,0.78), rgba(7,17,33,0.88))',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.045)',
+  overflow: 'hidden',
+}
+
+const tournamentPathStatusTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 20,
+  lineHeight: 1.12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPathStatusTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  fontWeight: 780,
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPathStatusGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const tournamentPathStatusItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr) minmax(0, auto)',
+  gap: 7,
+  alignItems: 'center',
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(15,23,42,0.46)',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 820,
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPathStatusDetailStyle: CSSProperties = {
+  gridColumn: '2 / -1',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const tournamentPathGridStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  alignContent: 'start',
+  minWidth: 0,
+}
+
+const tournamentMobileActionRailStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const tournamentMobileActionStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '30px minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+  minHeight: 66,
+  border: '1px solid rgba(223,248,194,0.13)',
+  borderRadius: 14,
+  background: 'linear-gradient(180deg, rgba(18,39,70,0.72), rgba(8,18,36,0.9))',
+  color: 'var(--foreground-strong)',
+  padding: '9px',
+  textDecoration: 'none',
+  overflow: 'hidden',
+}
+
+const tournamentMobileActionCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.15,
+  fontWeight: 920,
+  overflowWrap: 'anywhere',
 }
 
 const tournamentPathCardStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '38px minmax(0, 1fr)',
-  gap: 11,
+  gap: 10,
+  alignItems: 'flex-start',
   minWidth: 0,
-  minHeight: 158,
-  padding: 14,
-  borderRadius: 18,
+  minHeight: 108,
+  padding: 12,
+  borderRadius: 16,
   border: '1px solid rgba(223,248,194,0.13)',
   background: 'linear-gradient(180deg, rgba(18,39,70,0.72), rgba(8,18,36,0.9))',
   color: 'var(--foreground-strong)',
@@ -2742,9 +3621,12 @@ const tournamentPathCopyStyle: CSSProperties = {
 }
 
 const tournamentPathCtaStyle: CSSProperties = {
+  gridColumn: '2 / -1',
   color: 'var(--brand-green)',
   fontSize: 12,
   fontWeight: 950,
+  textAlign: 'left',
+  overflowWrap: 'anywhere',
 }
 
 const lockedPreviewStyle: CSSProperties = {
@@ -2772,6 +3654,30 @@ const lockedPreviewGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
   gap: 10,
   minWidth: 0,
+}
+
+const lockedPreviewDetailsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+}
+
+const lockedPreviewDetailsSummaryStyle: CSSProperties = {
+  cursor: 'pointer',
+  listStyle: 'none',
+  width: 'fit-content',
+  maxWidth: '100%',
+  minHeight: 40,
+  display: 'inline-flex',
+  alignItems: 'center',
+  padding: '0 13px',
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(255,255,255,0.055)',
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
 }
 
 const lockedPreviewCardStyle: CSSProperties = {
@@ -3026,6 +3932,57 @@ const setupReadinessItemStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const setupPathStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 168px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const setupPathItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 9,
+  alignItems: 'start',
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(255,255,255,0.04)',
+  overflow: 'hidden',
+}
+
+const setupPathStepStyle: CSSProperties = {
+  display: 'inline-grid',
+  placeItems: 'center',
+  width: 26,
+  height: 26,
+  borderRadius: 999,
+  border: '1px solid rgba(116,190,255,0.18)',
+  background: 'rgba(116,190,255,0.08)',
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 950,
+}
+
+const setupPathStepReadyStyle: CSSProperties = {
+  ...setupPathStepStyle,
+  border: '1px solid rgba(155,225,29,0.32)',
+  background: 'rgba(155,225,29,0.12)',
+  color: 'var(--brand-lime)',
+}
+
+const setupPathCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
+}
+
 const fieldStyle: CSSProperties = {
   display: 'grid',
   gap: 6,
@@ -3033,6 +3990,13 @@ const fieldStyle: CSSProperties = {
   fontSize: 12,
   fontWeight: 900,
   minWidth: 0,
+}
+
+const helperTextStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 650,
+  lineHeight: 1.45,
 }
 
 const toggleFieldStyle: CSSProperties = {
@@ -3285,12 +4249,80 @@ const calendarPanelStyle: CSSProperties = {
   overflow: 'hidden',
 }
 
+const calendarSummaryStyle: CSSProperties = {
+  ...panelHeaderStyle,
+  cursor: 'pointer',
+  listStyle: 'none',
+}
+
 const calendarActionRowStyle: CSSProperties = {
   display: 'flex',
   flexWrap: 'wrap',
   justifyContent: 'flex-end',
   gap: 8,
   minWidth: 0,
+}
+
+const calendarShellStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
+  gap: 12,
+  alignItems: 'start',
+  minWidth: 0,
+}
+
+const calendarBoardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const calendarAgendaStyle: CSSProperties = {
+  display: 'grid',
+  alignContent: 'start',
+  gap: 12,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(155,225,29,0.16)',
+  background: 'rgba(8,16,34,0.48)',
+}
+
+const calendarAgendaHeaderStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 10,
+  alignItems: 'flex-start',
+  minWidth: 0,
+}
+
+const calendarAgendaTitleStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--foreground-strong)',
+  fontSize: 17,
+  lineHeight: 1.2,
+  fontWeight: 950,
+  overflowWrap: 'anywhere',
+}
+
+const calendarAgendaListStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+}
+
+const calendarAgendaEventStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: 10,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(255,255,255,0.045)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
 }
 
 const weekdayGridStyle: CSSProperties = {
@@ -3360,6 +4392,112 @@ const calendarMoreStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 10,
   fontWeight: 900,
+}
+
+const scorebookCommandStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 185px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const scorebookCommandItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr) auto',
+  gap: 9,
+  alignItems: 'center',
+  minWidth: 0,
+  minHeight: 64,
+  padding: 11,
+  borderRadius: 15,
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(15,23,42,0.48)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  overflow: 'hidden',
+}
+
+const scorebookCommandCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 820,
+  overflowWrap: 'anywhere',
+}
+
+const scorebookCommandValueStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 12,
+  fontWeight: 950,
+  textAlign: 'right',
+  overflowWrap: 'anywhere',
+}
+
+const entryCommandStyle: CSSProperties = {
+  ...scorebookCommandStyle,
+}
+
+const entryCommandItemStyle: CSSProperties = {
+  ...scorebookCommandItemStyle,
+}
+
+const entryCommandCopyStyle: CSSProperties = {
+  ...scorebookCommandCopyStyle,
+}
+
+const entryCommandValueStyle: CSSProperties = {
+  ...scorebookCommandValueStyle,
+}
+
+const alertCommandStyle: CSSProperties = {
+  ...scorebookCommandStyle,
+}
+
+const alertCommandItemStyle: CSSProperties = {
+  ...scorebookCommandItemStyle,
+}
+
+const alertCommandCopyStyle: CSSProperties = {
+  ...scorebookCommandCopyStyle,
+}
+
+const alertCommandValueStyle: CSSProperties = {
+  ...scorebookCommandValueStyle,
+}
+
+const profileCommandStyle: CSSProperties = {
+  ...scorebookCommandStyle,
+}
+
+const profileCommandItemStyle: CSSProperties = {
+  ...scorebookCommandItemStyle,
+}
+
+const profileCommandCopyStyle: CSSProperties = {
+  ...scorebookCommandCopyStyle,
+}
+
+const profileCommandValueStyle: CSSProperties = {
+  ...scorebookCommandValueStyle,
+}
+
+const awardCommandStyle: CSSProperties = {
+  ...scorebookCommandStyle,
+}
+
+const awardCommandItemStyle: CSSProperties = {
+  ...scorebookCommandItemStyle,
+}
+
+const awardCommandCopyStyle: CSSProperties = {
+  ...scorebookCommandCopyStyle,
+}
+
+const awardCommandValueStyle: CSSProperties = {
+  ...scorebookCommandValueStyle,
 }
 
 const scorebookMatchStyle: CSSProperties = {
@@ -3449,6 +4587,16 @@ const entryQueueGridStyle: CSSProperties = {
   minWidth: 0,
 }
 
+function eligibilityStatusStyle(assessment?: PlayerEligibilityAssessment): CSSProperties {
+  if (assessment?.status === 'verified') {
+    return { ...pillStyle, color: '#d9ff8f', borderColor: 'rgba(151, 225, 48, 0.52)', background: 'rgba(91, 128, 32, 0.22)' }
+  }
+  if (assessment?.status === 'ineligible') {
+    return { ...pillStyle, color: '#ffd6d6', borderColor: 'rgba(235, 87, 87, 0.52)', background: 'rgba(120, 28, 42, 0.28)' }
+  }
+  return { ...pillStyle, color: '#ffe4a6', borderColor: 'rgba(225, 176, 71, 0.5)', background: 'rgba(111, 78, 22, 0.24)' }
+}
+
 const entryQueueCardStyle: CSSProperties = {
   display: 'grid',
   gap: 10,
@@ -3459,6 +4607,15 @@ const entryQueueCardStyle: CSSProperties = {
   background: 'rgba(255,255,255,0.045)',
   color: 'var(--foreground-strong)',
   overflowWrap: 'anywhere',
+}
+
+const entryInfoRequestStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: 11,
+  borderRadius: 14,
+  border: '1px solid rgba(116,190,255,0.22)',
+  background: 'rgba(7,17,36,0.72)',
 }
 
 const entryQueueTopStyle: CSSProperties = {
@@ -4082,6 +5239,40 @@ const recordMetricGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: 8,
   minWidth: 0,
+}
+
+const recordReadinessRailStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 104px), 1fr))',
+  gap: 7,
+  minWidth: 0,
+}
+
+const recordReadinessItemStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  gap: 7,
+  alignItems: 'center',
+  minWidth: 0,
+  minHeight: 42,
+  padding: '8px 9px',
+  borderRadius: 13,
+  border: '1px solid rgba(116,190,255,0.12)',
+  background: 'rgba(15,23,42,0.42)',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  textAlign: 'left',
+  overflow: 'hidden',
+}
+
+const recordReadinessCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 2,
+  minWidth: 0,
+  fontSize: 11,
+  lineHeight: 1.15,
+  fontWeight: 900,
+  overflowWrap: 'anywhere',
 }
 
 const recordActionGridStyle: CSSProperties = {
