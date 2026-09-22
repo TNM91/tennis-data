@@ -8,10 +8,11 @@ import { supabase } from '@/lib/supabase'
 import { readPrivateClientSnapshot, writePrivateClientSnapshot } from '@/lib/private-client-snapshot'
 
 type Status = {
-  settings: { enabled?: boolean; bootstrap_region?: string; automation_state?: 'manual' | 'bootstrap' | 'weekly'; active_campaign_id?: string | null; max_requests_per_run?: number; bootstrap_started_at?: string | null; bootstrap_completed_at?: string | null; weekly_refresh_started_at?: string | null } | null
+  settings: { enabled?: boolean; bootstrap_region?: string; automation_state?: 'manual' | 'bootstrap' | 'weekly'; current_refresh_enabled?: boolean; active_campaign_id?: string | null; max_requests_per_run?: number; bootstrap_started_at?: string | null; bootstrap_completed_at?: string | null; weekly_refresh_started_at?: string | null } | null
   lastRun: Record<string, unknown> | null
   automationCadenceMinutes: number
   safetyThrottle: { active: boolean; reason: string | null; resumesAt: string | null }
+  sourceOutage: { level: number; cooldownUntil: string | null; lastFailureAt: string | null }
   pipelineHealth: { state: 'healthy' | 'attention' | 'cooling_down' | 'paused'; message: string; lastSuccessfulCollectorAt: string | null }
   pendingPages: number
   campaignProgress: { pending: number; completed: number; running: number; review: number; blocked: number; errors: number }
@@ -126,6 +127,9 @@ export default function TennisRecordAdminPage() {
   const checkpointLimit = Math.max(1, status?.settings?.max_requests_per_run || 8)
   const checkpointIntervalMinutes = Math.max(1, status?.automationCadenceMinutes || 5)
   const safetyThrottle = status?.safetyThrottle
+  const sourceOutage = status?.sourceOutage
+  const sourceUnavailable = Boolean(sourceOutage?.level)
+  const currentRefreshEnabled = Boolean(status?.settings?.current_refresh_enabled)
   const campaignForecast = status?.campaignForecast
   const weeklyForecast = status?.weeklyForecast
   const checkpointsRemaining = campaignForecast?.checkpointsRemaining ?? (progress ? Math.ceil((progress.pending + progress.running) / checkpointLimit) : 0)
@@ -134,7 +138,9 @@ export default function TennisRecordAdminPage() {
   const campaignPaceDetail = campaignForecast?.paceSource === 'recent_completed_checkpoints'
     ? `recent completed checkpoint pace (${campaignForecast.paceSampleCount} samples)`
     : 'scheduled checkpoint cadence while live pace builds'
-  const estimatedRemaining = status?.frontier.status === 'ready_to_seed'
+  const estimatedRemaining = sourceUnavailable
+    ? 'Waiting for source'
+    : status?.frontier.status === 'ready_to_seed'
     ? 'Ready to seed'
     : status?.frontier.status === 'needs_admin_seed'
       ? 'Needs approved seed pages'
@@ -149,7 +155,13 @@ export default function TennisRecordAdminPage() {
   const weeklyPercent = weeklyKnownPages > 0 ? Math.min(100, Math.round((weeklySettledPages / weeklyKnownPages) * 100)) : 0
   const weeklyCheckpointsRemaining = weeklyForecast?.checkpointsRemaining ?? (weekly ? Math.ceil((weekly.pending + weekly.running) / checkpointLimit) : 0)
   const weeklyEstimatedMinutes = weeklyForecast?.estimatedMinutesRemaining ?? weeklyCheckpointsRemaining * checkpointIntervalMinutes
-  const weeklyEstimatedRemaining = automationState !== 'weekly'
+  const weeklyEstimatedRemaining = sourceUnavailable
+    ? 'Waiting for source'
+    : currentRefreshEnabled && weeklyCheckpointsRemaining === 0
+      ? 'Current-season checks scheduled'
+    : currentRefreshEnabled
+      ? weeklyEstimatedMinutes < 60 ? `About ${weeklyEstimatedMinutes} min remaining` : `About ${Math.ceil(weeklyEstimatedMinutes / 60)} hr remaining`
+    : automationState !== 'weekly'
     ? 'Starts after historical import'
     : !weekly?.startedAt
       ? 'Waiting for the next refresh'
@@ -167,16 +179,41 @@ export default function TennisRecordAdminPage() {
     : ratingProgress?.cadence === 'Wednesday'
       ? 'Wednesday refresh'
       : 'Paused'
+  const historicalTitle = statusLoading ? 'Checking live importer status'
+    : statusDelayed ? 'Status refresh delayed'
+    : sourceUnavailable ? 'Historical source import stalled'
+    : status?.frontier.status === 'ready_to_seed' ? 'Missouri history starts automatically'
+    : status?.frontier.status === 'needs_admin_seed' ? 'Needs approved seed pages'
+    : automationState === 'bootstrap' ? `Importing ${activeCampaign?.region_label || '2025 match history'}`
+    : status?.settings?.bootstrap_completed_at ? '2025 history imported' : 'Import paused'
+  const historicalDetail = statusLoading ? 'Connecting to the live collector. This is not a pause.'
+    : statusDelayed ? 'The live status check was delayed. The collector keeps its last confirmed automation setting.'
+    : sourceUnavailable ? `${activeCampaign?.region_label || 'This campaign'} is waiting for a source response. ${(progress?.pending || 0).toLocaleString()} pages are currently queued in this campaign; paused campaigns retain their own backlog. Saved-page replay does not mean new pages were imported. Next automatic source test after ${formatDateTime(sourceOutage?.cooldownUntil)}.`
+    : status?.frontier.status === 'ready_to_seed' ? `${activeCampaign?.availableSeedPages || 0} public 2025-current Missouri history pages are waiting for the next automatic checkpoint.`
+    : automationState === 'bootstrap' ? `Started ${formatDateTime(status?.settings?.bootstrap_started_at)}. Forecast uses ${campaignPaceDetail}: ${campaignForecast?.pagesPerCheckpoint || checkpointLimit} pages about every ${campaignCheckpointMinutes} minutes; newly discovered public match pages can extend the queue.${safetyThrottle?.active ? ` Safety cooldown: ${safetyThrottle.reason} Resume after ${formatDateTime(safetyThrottle.resumesAt)}.` : ''}`
+    : 'Historical source records remain auditable without replacing verified local scorecards.'
+  const weeklyTitle = statusLoading ? 'Checking schedule'
+    : statusDelayed ? 'Status refresh delayed'
+    : sourceUnavailable ? 'Recent pulls waiting for source'
+    : currentRefreshEnabled ? 'Current-season refresh active'
+    : automationState === 'weekly' && weekly?.startedAt ? weeklyCheckpointsRemaining ? 'Refreshing recent tennis activity' : 'Weekly refresh complete'
+    : automationState === 'weekly' ? 'Next refresh: Wednesday' : 'Weekly refresh queued'
+  const weeklyDetail = statusLoading ? 'Connecting to the live collector schedule.'
+    : sourceUnavailable ? `Recent-data pulls are enabled but cannot reach TennisRecord. The next automatic source test is after ${formatDateTime(sourceOutage?.cooldownUntil)}.`
+    : currentRefreshEnabled ? 'Current-season pages refresh alongside historical imports. Successful source responses are required before recent results can advance.'
+    : weekly?.startedAt ? `Started ${formatDateTime(weekly.startedAt)}. Forecast uses ${weeklyForecast?.paceSource === 'recent_completed_checkpoints' ? `recent weekly checkpoint pace (${weeklyForecast.paceSampleCount} samples)` : 'the scheduled checkpoint cadence while weekly pace builds'}. This scan refreshes recent match, player, and team context from the prior Wednesday-to-Wednesday window.`
+    : 'After the historical mission, this starts every Wednesday and continues in small checkpoints until the weekly queue is clear.'
   return (
     <SiteShell active="/admin"><AdminGate><AdminReviewFrame>
       <AdminReviewHero kicker="Source ingestion" title="TennisRecord backfill">
-        Historical collection runs automatically in small, resumable checkpoints. After the 2025 mission, each Wednesday refreshes the prior seven days without replacing verified local scorecards.
+        Historical collection runs in resumable checkpoints. Current-season refreshes run alongside it when source access is available, without replacing verified local scorecards.
       </AdminReviewHero>
       {statusDelayed || statusRefreshDelayed ? <p className="subtle-text" style={{ margin: '14px 0 0' }}>{statusRefreshDelayed && status ? 'Showing the last confirmed collector status while the live refresh reconnects.' : 'Collector status is taking longer than usual to load. The previous status is not being treated as paused.'}</p> : null}
+      {sourceUnavailable ? <p role="status" style={{ margin: '14px 0 0', color: 'var(--foreground-strong)' }}>Source access is stalled. The progress percentage counts settled queue pages, not new pages fetched. Safety cooldown: next automatic test after {formatDateTime(sourceOutage?.cooldownUntil)}.</p> : null}
       <section className="surface-card" style={{ marginTop: 20, padding: 20 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 14, marginBottom: 18 }}>
-          <ProgressTracker ariaLabel="Historical import progress" label="2025 historical mission" title={statusLoading ? 'Checking live importer status' : statusDelayed ? 'Status refresh delayed' : status?.frontier.status === 'ready_to_seed' ? 'Missouri history starts automatically' : status?.frontier.status === 'needs_admin_seed' ? 'Needs approved seed pages' : automationState === 'bootstrap' ? `Importing ${activeCampaign?.region_label || '2025 match history'}` : status?.settings?.bootstrap_completed_at ? '2025 history imported' : 'Import paused'} percent={progressPercent} processed={settledPages} total={knownPages} eta={statusLoading ? 'Checking' : statusDelayed ? 'Refresh delayed' : automationState === 'bootstrap' ? estimatedRemaining : status?.settings?.bootstrap_completed_at ? 'Complete' : 'Paused'} detail={statusLoading ? 'Connecting to the live collector. This is not a pause.' : statusDelayed ? 'The live status check was delayed. The collector keeps its last confirmed automation setting.' : status?.frontier.status === 'ready_to_seed' ? `${activeCampaign?.availableSeedPages || 0} public 2025-current Missouri history pages are waiting for the next automatic checkpoint.` : automationState === 'bootstrap' ? `Started ${formatDateTime(status?.settings?.bootstrap_started_at)}. Forecast uses ${campaignPaceDetail}: ${campaignForecast?.pagesPerCheckpoint || checkpointLimit} pages about every ${campaignCheckpointMinutes} minutes; newly discovered public match pages can extend the queue.${safetyThrottle?.active ? ` Safety cooldown: ${safetyThrottle.reason} Resume after ${formatDateTime(safetyThrottle.resumesAt)}.` : ''}` : 'Historical source records remain auditable without replacing verified local scorecards.'} />
-          <ProgressTracker ariaLabel="Weekly refresh progress" label="Weekly seven-day refresh" title={statusLoading ? 'Checking schedule' : statusDelayed ? 'Status refresh delayed' : automationState === 'weekly' && weekly?.startedAt ? weeklyCheckpointsRemaining ? 'Refreshing recent tennis activity' : 'Weekly refresh complete' : automationState === 'weekly' ? 'Next refresh: Wednesday' : 'Weekly refresh queued'} percent={weeklyPercent} processed={weeklySettledPages} total={weeklyKnownPages} eta={statusLoading ? 'Checking' : weeklyEstimatedRemaining} detail={statusLoading ? 'Connecting to the live collector schedule.' : weekly?.startedAt ? `Started ${formatDateTime(weekly.startedAt)}. Forecast uses ${weeklyForecast?.paceSource === 'recent_completed_checkpoints' ? `recent weekly checkpoint pace (${weeklyForecast.paceSampleCount} samples)` : 'the scheduled checkpoint cadence while weekly pace builds'}. This scan refreshes recent match, player, and team context from the prior Wednesday-to-Wednesday window.` : 'After the historical mission, this starts every Wednesday and continues in small checkpoints until the weekly queue is clear.'} />
+          <ProgressTracker ariaLabel="Historical import progress" label="2025 historical mission" title={historicalTitle} percent={progressPercent} processed={settledPages} total={knownPages} eta={statusLoading ? 'Checking' : statusDelayed ? 'Refresh delayed' : automationState === 'bootstrap' ? estimatedRemaining : status?.settings?.bootstrap_completed_at ? 'Complete' : 'Paused'} detail={historicalDetail} />
+          <ProgressTracker ariaLabel="Weekly refresh progress" label="Weekly seven-day refresh" title={weeklyTitle} percent={weeklyPercent} processed={weeklySettledPages} total={weeklyKnownPages} eta={statusLoading ? 'Checking' : weeklyEstimatedRemaining} detail={weeklyDetail} />
         </div>
         <section aria-label="TennisRecord campaign path" style={{ display: 'grid', gap: 12, marginBottom: 18, padding: 16, borderRadius: 18, border: '1px solid rgba(116,190,255,0.2)', background: 'rgba(11, 31, 55, 0.42)' }}>
           <div style={{ display: 'grid', gap: 4 }}>
@@ -188,16 +225,17 @@ export default function TennisRecordAdminPage() {
             <CampaignStep label="Next" title={status?.nextCampaign?.region_label || 'Weekly refresh'} detail={status?.nextCampaign ? `${status.nextCampaign.name} starts automatically when the active queue clears.` : 'Starts after historical campaigns are complete.'} />
             <CampaignStep label="Then" title="Weekly seven-day refresh" detail="Runs every Wednesday and collects only the prior week’s eligible public activity." />
           </div>
-          <span className="subtle-text">Time remaining reflects the currently known queue and {campaignPaceDetail}. The estimate updates automatically as public pages reveal additional eligible matches.</span>
+          <span className="subtle-text">{sourceUnavailable ? 'No completion estimate is reliable while source requests are failing.' : `Time remaining reflects the currently known queue and ${campaignPaceDetail}. The estimate updates automatically as public pages reveal additional eligible matches.`}</span>
           <span className="subtle-text">Evidence review pages were captured safely but did not contain a complete court result. They do not pause collection or enter production matches.</span>
         </section>
         <div className="metric-grid">
           <Metric label="Collector" value={status?.settings?.enabled ? 'Enabled' : 'Disabled'} />
           <Metric label="Automation" value={automationState === 'bootstrap' ? 'Regional seed' : automationState === 'weekly' ? 'Weekly sync' : 'Paused'} />
           <Metric label="Checkpoint pace" value={campaignForecast?.paceSource === 'recent_completed_checkpoints' ? `About ${campaignCheckpointMinutes} min` : `Scheduled ${checkpointIntervalMinutes} min`} />
-          <Metric label="Safety throttle" value={safetyThrottle?.active ? 'Cooling down' : 'Clear'} />
+          <Metric label="Safety throttle" value={sourceUnavailable || safetyThrottle?.active ? 'Cooling down' : 'Clear'} />
           <Metric label="Import health" value={pipelineHealth?.state === 'healthy' ? 'On pace' : pipelineHealth?.state === 'cooling_down' ? 'Safety pause' : pipelineHealth?.state === 'attention' ? 'Needs review' : 'Paused'} />
-          <Metric label="Last successful import" value={formatDateTime(pipelineHealth?.lastSuccessfulCollectorAt)} />
+          <Metric label="Last completed checkpoint" value={formatDateTime(pipelineHealth?.lastSuccessfulCollectorAt)} />
+          <Metric label="Next source test" value={sourceUnavailable ? formatDateTime(sourceOutage?.cooldownUntil) : '—'} />
           <Metric label="Historical campaign" value={activeCampaign?.region_label || 'Not selected'} />
           <Metric label="Pending pages" value={status?.pendingPages ?? '—'} />
           <Metric label="Conflicts" value={status?.conflicts ?? '—'} />

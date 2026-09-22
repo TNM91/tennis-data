@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { isTennisRecordBlock } from './reconcile'
-import { reportSourceAttempt, sourceTransportFailure, type SourceAttemptSample } from './telemetry'
+import { reportSourceAttempt, sourceTransportCodes, sourceTransportFailure, type SourceAttemptSample } from './telemetry'
 
 const allowedHosts = new Set(['tennisrecord.com', 'www.tennisrecord.com'])
 const MAX_TRANSIENT_FETCH_ATTEMPTS = 2
@@ -64,7 +64,7 @@ export async function fetchTennisRecordPage(input: string, minIntervalMs: number
         transientRetries: attempt,
       }
     } catch (error) {
-      reportSourceAttempt(onAttempt, { attempt: attempt + 1, outcome: sourceTransportFailure(error), status: null, pacing_ms: pacingMs, fetch_ms: Math.max(0, Math.round(performance.now() - fetchStarted)) })
+      reportSourceAttempt(onAttempt, { attempt: attempt + 1, outcome: sourceTransportFailure(error), status: null, pacing_ms: pacingMs, fetch_ms: Math.max(0, Math.round(performance.now() - fetchStarted)), transport_codes: sourceTransportCodes(error) })
       if (deadlineAt !== undefined && Date.now() >= deadlineAt) throw new TennisRecordCheckpointBudgetError()
       if (attempt === MAX_TRANSIENT_FETCH_ATTEMPTS - 1) throw error
     }

@@ -6,16 +6,41 @@ export type SourceAttemptSample = {
   status: number | null
   pacing_ms: number
   fetch_ms: number
+  transport_codes?: string[]
+}
+
+const SAFE_TRANSPORT_CODES = new Set([
+  'ETIMEDOUT', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT',
+  'ENOTFOUND', 'EAI_AGAIN', 'ECONNRESET', 'ECONNREFUSED', 'ECONNABORTED', 'EPIPE',
+  'ENETUNREACH', 'EHOSTUNREACH', 'UND_ERR_SOCKET', 'UND_ERR_CONNECT',
+  'CERT_HAS_EXPIRED', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+  'ERR_TLS_CERT_ALTNAME_INVALID', 'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR',
+])
+
+/** Inspect wrapped and aggregate fetch causes, but emit only known Node error codes. */
+export function sourceTransportCodes(error: unknown): string[] {
+  const found = new Set<string>()
+  const seen = new Set<object>()
+  const inspect = (value: unknown, depth: number) => {
+    if (!value || typeof value !== 'object' || seen.has(value) || depth > 3) return
+    seen.add(value)
+    const item = value as { code?: unknown; cause?: unknown; errors?: unknown }
+    if (typeof item.code === 'string' && SAFE_TRANSPORT_CODES.has(item.code)) found.add(item.code)
+    inspect(item.cause, depth + 1)
+    if (Array.isArray(item.errors)) item.errors.slice(0, 4).forEach(child => inspect(child, depth + 1))
+  }
+  inspect(error, 0)
+  return [...found]
 }
 
 /** Allowlisted categories only: never log error messages, URLs or source bodies. */
 export function sourceTransportFailure(error: unknown): SourceAttemptSample['outcome'] {
-  const item = error as { name?: string; code?: string; cause?: { code?: string } } | null
-  const code = item?.cause?.code || item?.code
+  const item = error as { name?: string } | null
+  const code = sourceTransportCodes(error)[0]
   if (item?.name === 'TimeoutError' || item?.name === 'AbortError' || ['ETIMEDOUT', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT'].includes(code || '')) return 'timeout'
   if (['ENOTFOUND', 'EAI_AGAIN'].includes(code || '')) return 'dns'
-  if (['ECONNRESET', 'ECONNREFUSED', 'EPIPE', 'UND_ERR_SOCKET'].includes(code || '')) return 'connection'
-  if (['CERT_HAS_EXPIRED', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'ERR_TLS_CERT_ALTNAME_INVALID'].includes(code || '')) return 'tls'
+  if (['ECONNRESET', 'ECONNREFUSED', 'ECONNABORTED', 'EPIPE', 'ENETUNREACH', 'EHOSTUNREACH', 'UND_ERR_SOCKET', 'UND_ERR_CONNECT'].includes(code || '')) return 'connection'
+  if (['CERT_HAS_EXPIRED', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'ERR_TLS_CERT_ALTNAME_INVALID', 'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR'].includes(code || '')) return 'tls'
   return 'network'
 }
 

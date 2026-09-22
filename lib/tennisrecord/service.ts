@@ -641,6 +641,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     lastRun: lastRun.data,
     automationCadenceMinutes: TENNISRECORD_AUTOMATION_INTERVAL_MINUTES,
     safetyThrottle,
+    sourceOutage: sourceOutageFromSettings(collectorSettings),
     pipelineHealth: {
       ...tennisRecordPipelineHealth({
         enabled: Boolean(collectorSettings?.enabled),
