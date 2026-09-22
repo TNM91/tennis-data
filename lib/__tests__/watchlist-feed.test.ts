@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hasWatchlistResult, isUpcomingWatchlistMatch, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
+import { formatUpcomingWatchlistDate, hasWatchlistResult, isUpcomingWatchlistMatch, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
 
 describe('watchlist feed ordering', () => {
   it('shows dated results before standing snapshots, regardless of editorial score', () => {
@@ -37,6 +37,7 @@ describe('watchlist feed ordering', () => {
     expect(hasWatchlistResult('6-4 6-2')).toBe(true)
     expect(hasWatchlistResult('Pending')).toBe(false)
     expect(hasWatchlistResult(null)).toBe(false)
+    expect(formatUpcomingWatchlistDate('2026-09-21')).toBe(new Date(2026, 8, 21, 12).toLocaleDateString())
     expect(sortUpcomingWatchlistFeed([
       { createdAt: '2026-10-06', score: 94 },
       { createdAt: '2026-09-27', score: 94 },

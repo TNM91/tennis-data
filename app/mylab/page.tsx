@@ -57,7 +57,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
-import { hasWatchlistResult, isUpcomingWatchlistMatch, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
+import { formatUpcomingWatchlistDate, hasWatchlistResult, isUpcomingWatchlistMatch, sortUpcomingWatchlistFeed, sortWatchlistFeed } from '@/lib/watchlist-feed'
 import type { ClubRole } from '@/lib/club-workspace'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
@@ -5008,7 +5008,7 @@ function MyLabPageInner() {
                     <article style={feedCardStyle(item.accent)}>
                       <div style={feedTopRowStyle}>
                         <span style={badgeForAccent(item.accent)}>{item.badge}</span>
-                        <span style={feedTimeStyle}>{item.createdAt ? timeAgo(item.createdAt) : item.freshnessLabel || 'Current context'}</span>
+                        <span style={feedTimeStyle}>{item.upcoming ? formatUpcomingWatchlistDate(item.createdAt) : item.createdAt ? timeAgo(item.createdAt) : item.freshnessLabel || 'Current context'}</span>
                       </div>
                       <h3 style={feedTitleStyle}>{item.title}</h3>
                       <p style={feedBodyStyle}>{item.body}</p>
