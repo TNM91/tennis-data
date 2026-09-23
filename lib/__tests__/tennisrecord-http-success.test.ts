@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { canonicalTennisRecordFingerprint } from '../tennisrecord/reconcile'
 import { fetchTennisRecordPage } from '../tennisrecord/collector'
 import { parseTennisRecordMatchPage } from '../tennisrecord/parser'
-import { isSuccessfulTennisRecordHttpStatus, runAutomaticTennisRecordSync, runScheduledTennisRecordSync, runTennisRecordSync, tennisRecordCadenceSafetyStatus, tennisRecordDeferredRetryAt, tennisRecordFailureDisposition, tennisRecordPipelineHealth, tennisRecordTransientRetryAt } from '../tennisrecord/service'
+import { isSuccessfulTennisRecordHttpStatus, isTennisRecordRatingReservationWindow, runAutomaticTennisRecordSync, runScheduledTennisRecordSync, runTennisRecordSync, tennisRecordCadenceSafetyStatus, tennisRecordDeferredRetryAt, tennisRecordFailureDisposition, tennisRecordPipelineHealth, tennisRecordTransientRetryAt } from '../tennisrecord/service'
 
 vi.mock('../tennisrecord/collector', async original => ({
   ...await original<typeof import('../tennisrecord/collector')>(), fetchTennisRecordPage: vi.fn(),
@@ -20,7 +20,7 @@ type Op = { name: string; args: unknown[] }
 type Call = { table: string; ops: Op[] }
 const op = (call: Call, name: string) => call.ops.find(o => o.name === name)
 
-function fixture(options: { eventAliases?: string[]; eventEvidence?: Row[]; priorPlayer?: Row; kind?: string; retryCount?: number; deferredCount?: number; replay?: Row[]; failSave?: boolean; outage?: Row; lockedOutage?: Row; jobCount?: number; failOutageSave?: boolean; failCapture?: boolean; staleRun?: boolean } = {}) {
+function fixture(options: { eventAliases?: string[]; eventEvidence?: Row[]; priorPlayer?: Row; kind?: string; retryCount?: number; deferredCount?: number; replay?: Row[]; failSave?: boolean; outage?: Row; lockedOutage?: Row; jobCount?: number; failOutageSave?: boolean; failCapture?: boolean; staleRun?: boolean; ratingRefreshRequested?: boolean; ratingPending?: boolean } = {}) {
   const calls: Call[] = []
   let selections = 0
   let outage = options.outage || {}
@@ -38,9 +38,10 @@ function fixture(options: { eventAliases?: string[]; eventEvidence?: Row[]; prio
       if (op(call, 'insert') || op(call, 'upsert') || update) return { data: { id: 'saved-evidence' }, error: null }
       if (options.eventEvidence && table === 'tennisrecord_staged_matches' && op(call, 'range')) return { data: options.eventEvidence, error: null }
       if (options.eventAliases && table === 'tennisrecord_canonical_matches') return { data: op(call, 'range') ? options.eventAliases.map(fingerprint => ({ fingerprint })) : { canonical_match_id: 'existing-result' }, error: null }
+      if (options.ratingPending && table === 'tennisrecord_canonical_matches' && op(call, 'limit')) return { data: [{ fingerprint: 'pending-rating' }], error: null }
       if (options.priorPlayer && table === 'tennisrecord_staged_players') return { data: [options.priorPlayer], error: null }
       if (options.staleRun && table === 'tennisrecord_sync_runs' && op(call, 'lt')) return { data: [{ id: 'stale-run' }], error: null }
-      if (table === 'tennisrecord_collector_settings') return { data: { automation_state: 'bootstrap', source_outage_state: op(call, 'select')?.args[0] === 'source_outage_state' ? options.lockedOutage || outage : outage, enabled: true, current_refresh_enabled: true, current_refresh_seeded_at: new Date(now).toISOString(), min_request_interval_ms: 3000, max_requests_per_run: options.jobCount || 1 } }
+      if (table === 'tennisrecord_collector_settings') return { data: { automation_state: 'bootstrap', source_outage_state: op(call, 'select')?.args[0] === 'source_outage_state' ? options.lockedOutage || outage : outage, enabled: true, current_refresh_enabled: true, current_refresh_seeded_at: new Date(now).toISOString(), min_request_interval_ms: 3000, max_requests_per_run: options.jobCount || 1, rating_recalculation_requested_at: options.ratingRefreshRequested ? new Date(now).toISOString() : null } }
       if (table === 'tennisrecord_crawl_queue' && String(op(call, 'select')?.args[0]).startsWith('id,source_url,page_kind')) return { data: ++selections <= (options.jobCount || 1) && !options.replay ? { id: `queue-${selections}`, source_url: url, page_kind: options.kind || 'player', retry_count: options.retryCount || 0, deferred_retry_count: options.deferredCount || 0 } : null }
       if (table === 'tennisrecord_source_pages') return { data: options.replay || [] }
       return { data: [], error: null }
@@ -63,6 +64,25 @@ function response(status: number, blockReason = '') {
   vi.mocked(parseTennisRecordMatchPage).mockReturnValue({ players: [], teams: [], leagues: [], teamMembers: [], matches: [], discoveredUrls: [] })
 }
 afterEach(() => { vi.useRealTimers(); vi.resetAllMocks() })
+
+describe('scheduled rating lock reservation', () => {
+  it('reserves the collector slot immediately before each quarter-hour rating cron', () => {
+    for (const minute of [0, 1, 15, 16, 30, 31, 45, 46]) {
+      expect(isTennisRecordRatingReservationWindow(new Date(`2026-09-05T17:${String(minute).padStart(2, '0')}:00Z`))).toBe(true)
+    }
+    for (const minute of [2, 3, 14, 17, 29, 32, 44, 47, 59]) {
+      expect(isTennisRecordRatingReservationWindow(new Date(`2026-09-05T17:${String(minute).padStart(2, '0')}:00Z`))).toBe(false)
+    }
+  })
+
+  it.each([{ ratingRefreshRequested: true }, { ratingPending: true }])('yields an import checkpoint when ratings are queued: %j', async options => {
+    response(200)
+    const f = fixture(options)
+    expect(await runAutomaticTennisRecordSync(f.db)).toMatchObject({ status: 'skipped', reason: 'ratings_window', pagesAttempted: 0 })
+    expect(fetchTennisRecordPage).not.toHaveBeenCalled()
+    expect(f.calls.some(c => op(c, 'insert') || op(c, 'update') || op(c, 'upsert'))).toBe(false)
+  })
+})
 
 describe('source-event guard runs before import writes', () => {
   async function collisionFixture() {
