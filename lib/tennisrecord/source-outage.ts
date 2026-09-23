@@ -2,6 +2,7 @@
 export type SourceOutageState = {
   failedQueueIds: string[]
   lastFailureAt: string | null
+  lastFailureSignal: string | null
   lastFreshHttpAt: string | null
   cooldownUntil: string | null
   level: number
@@ -15,6 +16,7 @@ export function readSourceOutageState(value: unknown): SourceOutageState {
   return {
     failedQueueIds: Array.isArray(state.failedQueueIds) ? [...new Set(state.failedQueueIds.filter(id => typeof id === 'string'))].slice(-3) : [],
     lastFailureAt: typeof state.lastFailureAt === 'string' ? state.lastFailureAt : null,
+    lastFailureSignal: typeof state.lastFailureSignal === 'string' && /^(?:HTTP [45]\d{2}|(?:blocked|http_error|timeout|dns|connection|tls|network)(?: \([A-Z0-9_, ]{1,100}\))?)$/.test(state.lastFailureSignal) ? state.lastFailureSignal : null,
     lastFreshHttpAt: typeof state.lastFreshHttpAt === 'string' ? state.lastFreshHttpAt : null,
     cooldownUntil: typeof state.cooldownUntil === 'string' ? state.cooldownUntil : null,
     level: Number.isInteger(state.level) ? Math.max(0, Math.min(3, state.level!)) : 0,
@@ -27,7 +29,7 @@ export function sourceOutageIsCooling(value: unknown, now = Date.now()) {
 }
 
 /** Only call for a confirmed source-fetch failure, never a DB/parser error. */
-export function recordSourceOutageFailure(value: unknown, queueId: string, now = Date.now()): SourceOutageState {
+export function recordSourceOutageFailure(value: unknown, queueId: string, now = Date.now(), signal?: string | null): SourceOutageState {
   const state = readSourceOutageState(value)
   const recent = state.lastFailureAt && now - Date.parse(state.lastFailureAt) <= SOURCE_OUTAGE_WINDOW_MS
   const failedQueueIds = [...new Set([...(recent || state.level ? state.failedQueueIds : []), queueId])].slice(-3)
@@ -38,6 +40,7 @@ export function recordSourceOutageFailure(value: unknown, queueId: string, now =
   return {
     failedQueueIds,
     lastFailureAt: new Date(now).toISOString(),
+    lastFailureSignal: readSourceOutageState({ lastFailureSignal: signal }).lastFailureSignal || state.lastFailureSignal,
     lastFreshHttpAt: state.lastFreshHttpAt,
     cooldownUntil: opens ? new Date(now + COOLDOWN_MINUTES[level - 1] * 60_000).toISOString() : null,
     level,

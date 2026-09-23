@@ -29,6 +29,12 @@ describe('bounded shared source cooldown', () => {
     expect(readSourceOutageState(state).lastFreshHttpAt).toBe(lastFreshHttpAt)
   })
 
+  it('retains only classified failure evidence for the admin', () => {
+    const state = recordSourceOutageFailure({}, 'one', now, 'timeout (UND_ERR_CONNECT_TIMEOUT)')
+    expect(readSourceOutageState(state).lastFailureSignal).toBe('timeout (UND_ERR_CONNECT_TIMEOUT)')
+    expect(readSourceOutageState({ lastFailureSignal: 'private source URL' }).lastFailureSignal).toBeNull()
+  })
+
   it('bounds repeated outage probes at an hour and limits stored identities', () => {
     let state = readSourceOutageState({ level: 1 })
     for (let i = 0; i < 20; i++) state = recordSourceOutageFailure(state, String(i), now)

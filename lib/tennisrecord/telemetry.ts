@@ -62,6 +62,14 @@ export function reportSourceAttempt(observer: ((sample: SourceAttemptSample) => 
   try { observer?.(sample) } catch { /* instrumentation is not source work */ }
 }
 
+/** Persist only the classified result, never a fetch error message or endpoint. */
+export function sourceAttemptFailureSignal(sample: SourceAttemptSample | null): string | null {
+  if (!sample || sample.outcome === 'success') return null
+  if (sample.status !== null) return `HTTP ${sample.status}`
+  const codes = (sample.transport_codes || []).filter(isSafeTransportCode).slice(0, 2)
+  return codes.length ? `${sample.outcome} (${codes.join(', ')})` : sample.outcome
+}
+
 const elapsed = (start: number, end: number) => Math.max(0, Math.round(end - start))
 
 export function createRatingTimingObserver(runId: string, clock = () => performance.now(), emit = emitImporterTelemetry) {
