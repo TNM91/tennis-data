@@ -25,6 +25,13 @@ describe('workflow return', () => {
       .toBe('/captain?team=TIQ#captain-team-scope')
   })
 
+  it('returns a linked player to My Teams with a completion result', () => {
+    const profileHref = new URL('/profile?returnTo=%2Fcompete%2Fteams#profile-identity', 'https://tenaceiq.example')
+    const returnTo = getSafeWorkflowReturnTo(profileHref.searchParams.get('returnTo'))
+    expect(returnTo).toBe('/compete/teams')
+    expect(addWorkflowResult(returnTo, 'player-linked')).toBe('/compete/teams?setupResult=player-linked')
+  })
+
   it('consumes one-time Coach handoffs without dropping the selected player', () => {
     const params = new URLSearchParams('studentLinkId=student-1&firstAssignment=1&levelUpPack=doubles&card=poach')
     expect(buildConsumedWorkflowHref('/coach', params, ['firstAssignment'], '#coach-lesson-frame'))

@@ -23,13 +23,16 @@ describe('Teams experience simplification', () => {
 
   it('takes a first-time member to player setup or team discovery without an empty team-link detour', () => {
     expect(teamsHub).toContain("'Find your first team.'")
-    expect(teamsHub).toContain("pendingTeamCount > 0 ? '/team-connections' : '/profile#profile-identity'")
+    expect(teamsHub).toContain("const profileFromTeamsHref = '/profile?returnTo=%2Fcompete%2Fteams#profile-identity'")
+    expect(teamsHub).toContain("playerJustLinked ? dataAssistTeamsHref : profileFromTeamsHref")
     expect(teamsHub).toContain("pendingTeamCount > 0 ? dataAssistTeamsHref : '/teams'")
     expect(teamsHub).toContain("'Connect my player'")
     expect(teamsHub).toContain("'Find a team'")
     expect(teamsHub).toContain("'Upload team summary'")
     expect(teamsHub).toContain('authResolved && userId && groupedTeams.length > 0')
     expect(teamsHub).toContain('Connect your player above to check for team links, or find a team to explore.')
+    expect(teamsHub).toContain('Player connected. Add your team.')
+    expect(teamsHub).toContain('Import your team above, or find a public team to explore.')
   })
 
   it('keeps team sections legible without horizontal phone scrolling', () => {
