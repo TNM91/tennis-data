@@ -297,8 +297,8 @@ export default function UniversalSearch({
       : buildFreePlayerSearchHref(q)
     const searchEvent = getSearchIntentEvent(q, first?.group)
     void trackProductUsageEvent({
-      eventName: visibleResults.length ? searchEvent.eventName : 'zero_result_seen',
-      surface: visibleResults.length ? searchEvent.surface : 'search',
+      eventName: searchEvent.eventName,
+      surface: searchEvent.surface,
       metadata: {
         query: q,
         destination,

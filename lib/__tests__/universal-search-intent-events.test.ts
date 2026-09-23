@@ -30,10 +30,10 @@ describe('universal search intent events', () => {
     expect(source).toContain("q.includes('prepare for a match')")
   })
 
-  it('keeps generic searches and zero-result searches on the search surface', () => {
+  it('tracks submissions before the destination search resolves', () => {
     expect(source).toContain("return { eventName: 'search_submitted', surface: 'search' }")
-    expect(source).toContain("eventName: visibleResults.length ? searchEvent.eventName : 'zero_result_seen'")
-    expect(source).toContain("surface: visibleResults.length ? searchEvent.surface : 'search'")
+    expect(source).toContain('eventName: searchEvent.eventName')
+    expect(source).toContain('surface: searchEvent.surface')
     expect(source).toContain('function broadenZeroResultSearch')
     expect(source).toContain("eventName: 'zero_result_seen'")
     expect(source).toContain("recovery: 'all_categories'")
