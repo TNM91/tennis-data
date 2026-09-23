@@ -139,11 +139,18 @@ function TeamConnectionsContent() {
           <div style={copyBlockStyle}>
             <span style={eyebrowStyle}>Team linked</span>
             <strong style={panelTitleStyle}>{completedConnection.teamName} is now in My Teams.</strong>
-            <span style={copyStyle}>Open My Teams for the roster, schedule, and Team Chat.</span>
+            <span style={copyStyle}>Open the roster and schedule, or go straight to Team Chat.</span>
           </div>
-          <div style={cardActionsStyle}>
+          <div style={cardActionsStyle} className="team-connection-card-actions">
             <Link href="/compete/teams" style={primaryLinkStyle}>
               Open My Teams
+            </Link>
+            <Link href={buildTeamRoomHref({
+              teamName: completedConnection.teamName,
+              leagueName: completedConnection.leagueName,
+              flight: completedConnection.flight,
+            })} style={secondaryLinkStyle}>
+              Open Team Chat
             </Link>
             <Link href={buildTeamConnectionWorkspaceHref(completedConnection)} style={secondaryLinkStyle}>
               {isCaptainTeamConnection(completedConnection.roles) ? 'Open Captain' : 'Open My Lab'}
@@ -202,7 +209,7 @@ function TeamConnectionsContent() {
                         leagueName: connection.leagueName,
                         flight: connection.flight,
                       })} style={primaryLinkStyle}>
-                        Open Team Room
+                        Open Team Chat
                       </Link>
                       <Link href={buildTeamConnectionWorkspaceHref(connection)} style={primaryLinkStyle}>
                         {isCaptainTeamConnection(connection.roles) ? 'Open Captain' : 'Open My Lab'}

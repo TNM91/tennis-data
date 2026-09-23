@@ -115,7 +115,11 @@ describe('team connection flow', () => {
     expect(page).toContain('aria-label="Team link complete"')
     expect(page).toContain('is now in My Teams.')
     expect(page).toContain('Open My Teams')
-    expect(page).toContain('Open My Teams for the roster, schedule, and Team Chat.')
+    expect(page).toContain('Open the roster and schedule, or go straight to Team Chat.')
+    expect(page).toContain('teamName: completedConnection.teamName')
+    expect(page).toContain('leagueName: completedConnection.leagueName')
+    expect(page).toContain('flight: completedConnection.flight')
+    expect(page).toContain('Open Team Chat')
     expect(page).toContain("'Open Captain' : 'Open My Lab'")
   })
 
