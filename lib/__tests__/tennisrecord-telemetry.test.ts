@@ -1,13 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { X509Certificate } from 'node:crypto'
 import { Agent } from 'undici'
-import { createRatingTimingObserver, emitImporterTelemetry, sourceTransportCodes, sourceTransportFailure, type SourceAttemptSample } from '../tennisrecord/telemetry'
+import { createRatingTimingObserver, emitImporterTelemetry, sourceAttemptFailureSignal, sourceTransportCodes, sourceTransportFailure, type SourceAttemptSample } from '../tennisrecord/telemetry'
 import { fetchTennisRecordPage, TennisRecordCheckpointBudgetError } from '../tennisrecord/collector'
 import { GODADDY_TLS_ROOT_R1_PEM } from '../tennisrecord/godaddy-tls-root-r1'
 
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('sanitized source attempt timings', () => {
+  it('turns a failed attempt into a safe persistent signal', () => {
+    expect(sourceAttemptFailureSignal({ attempt: 2, outcome: 'timeout', status: null, pacing_ms: 1000, fetch_ms: 18000, transport_codes: ['UND_ERR_CONNECT_TIMEOUT', 'PRIVATE_URL'] })).toBe('timeout (UND_ERR_CONNECT_TIMEOUT)')
+    expect(sourceAttemptFailureSignal({ attempt: 1, outcome: 'http_error', status: 503, pacing_ms: 1000, fetch_ms: 100 })).toBe('HTTP 503')
+    expect(sourceAttemptFailureSignal(null)).toBeNull()
+  })
   it('uses the verified GoDaddy R1 root only through a scoped source dispatcher', () => {
     expect(new X509Certificate(GODADDY_TLS_ROOT_R1_PEM).fingerprint256).toBe('25:CF:3D:A8:E9:B9:7A:DD:BF:92:54:3C:2B:82:52:7C:8A:4E:2C:FF:20:62:A6:48:30:40:D4:B6:4A:CE:71:9F')
   })

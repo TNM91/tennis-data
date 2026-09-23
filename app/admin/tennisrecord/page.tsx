@@ -12,7 +12,7 @@ type Status = {
   lastRun: Record<string, unknown> | null
   automationCadenceMinutes: number
   safetyThrottle: { active: boolean; reason: string | null; resumesAt: string | null }
-  sourceOutage: { level: number; cooldownUntil: string | null; lastFailureAt: string | null }
+  sourceOutage: { level: number; cooldownUntil: string | null; lastFailureAt: string | null; lastFailureSignal: string | null }
   pipelineHealth: { state: 'healthy' | 'attention' | 'cooling_down' | 'paused'; message: string; lastSuccessfulCollectorAt: string | null; lastFreshSourceAt: string | null }
   pendingPages: number
   campaignProgress: { pending: number; completed: number; running: number; review: number; blocked: number; errors: number }
@@ -209,7 +209,7 @@ export default function TennisRecordAdminPage() {
         Historical collection runs in resumable checkpoints. Current-season refreshes run alongside it when source access is available, without replacing verified local scorecards.
       </AdminReviewHero>
       {statusDelayed || statusRefreshDelayed ? <p className="subtle-text" style={{ margin: '14px 0 0' }}>{statusRefreshDelayed && status ? 'Showing the last confirmed collector status while the live refresh reconnects.' : 'Collector status is taking longer than usual to load. The previous status is not being treated as paused.'}</p> : null}
-      {sourceUnavailable ? <p role="status" style={{ margin: '14px 0 0', color: 'var(--foreground-strong)' }}>Source access is stalled. The progress percentage counts settled queue pages, not new pages fetched. Safety cooldown: next automatic test after {formatDateTime(sourceOutage?.cooldownUntil)}.</p> : null}
+      {sourceUnavailable ? <p role="status" style={{ margin: '14px 0 0', color: 'var(--foreground-strong)' }}>Source access is stalled. The progress percentage counts settled queue pages, not new pages fetched. {sourceOutage?.lastFailureSignal ? `Last source failure: ${sourceOutage.lastFailureSignal}. ` : ''}Safety cooldown: next automatic test after {formatDateTime(sourceOutage?.cooldownUntil)}.</p> : null}
       <section className="surface-card" style={{ marginTop: 20, padding: 20 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 14, marginBottom: 18 }}>
           <ProgressTracker ariaLabel="Historical import progress" label="2025 historical mission" title={historicalTitle} percent={progressPercent} processed={settledPages} total={knownPages} eta={statusLoading ? 'Checking' : statusDelayed ? 'Refresh delayed' : automationState === 'bootstrap' ? estimatedRemaining : status?.settings?.bootstrap_completed_at ? 'Complete' : 'Paused'} detail={historicalDetail} />
@@ -236,6 +236,7 @@ export default function TennisRecordAdminPage() {
           <Metric label="Import health" value={pipelineHealth?.state === 'healthy' ? 'On pace' : pipelineHealth?.state === 'cooling_down' ? 'Safety pause' : pipelineHealth?.state === 'attention' ? 'Needs review' : 'Paused'} />
           <Metric label="Last completed checkpoint" value={formatDateTime(pipelineHealth?.lastSuccessfulCollectorAt)} />
           <Metric label="Last fresh source fetch" value={formatDateTime(pipelineHealth?.lastFreshSourceAt)} />
+          <Metric label="Last source failure" value={sourceOutage?.lastFailureSignal || 'Not classified yet'} />
           <Metric label="Next source test" value={sourceUnavailable ? formatDateTime(sourceOutage?.cooldownUntil) : '—'} />
           <Metric label="Historical campaign" value={activeCampaign?.region_label || 'Not selected'} />
           <Metric label="Pending pages" value={status?.pendingPages ?? '—'} />

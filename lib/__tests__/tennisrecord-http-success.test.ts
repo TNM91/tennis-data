@@ -260,6 +260,18 @@ describe('HTTP success is required for import completion', () => {
     expect(f.queueWrites().at(-1)).not.toHaveProperty('completed_at')
   })
 
+  it('persists a safe transport cause alongside the source cooldown', async () => {
+    vi.mocked(fetchTennisRecordPage).mockImplementation(async (_url, _interval, _deadline, onAttempt) => {
+      onAttempt?.({ attempt: 2, outcome: 'timeout', status: null, pacing_ms: 3000, fetch_ms: 18000, transport_codes: ['UND_ERR_CONNECT_TIMEOUT'] })
+      throw new TypeError('fetch failed')
+    })
+    const f = fixture({ jobCount: 3 })
+    const summary = await runTennisRecordSync(f.db, { triggerKind: 'weekly', currentSeason: true, recalculateRatings: false })
+    expect(summary.reason).toBe('source_cooldown')
+    expect(f.queueWrites().at(-1)).toMatchObject({ failure_reason: 'fetch failed [timeout (UND_ERR_CONNECT_TIMEOUT)]' })
+    expect(f.calls.some(c => (op(c, 'update')?.args[0] as Row)?.source_outage_state && ((op(c, 'update')!.args[0] as Row).source_outage_state as Row).lastFailureSignal === 'timeout (UND_ERR_CONNECT_TIMEOUT)')).toBe(true)
+  })
+
   it('extends an expired pause on the first failed probe without burning retries', async () => {
     response(503)
     const f = fixture({ jobCount: 8, retryCount: 3, deferredCount: 2, outage: { level: 1, cooldownUntil: '2026-09-05T16:59:00Z' } })

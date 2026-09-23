@@ -10,7 +10,7 @@ import { tennisRecordEventReviews } from './source-event-identity'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordCampaignCurrentEndOn, tennisRecordFrontierStatus } from './frontier'
 import type { TennisRecordRunSummary } from './types'
 import { currentSeasonDiscoveryUrls, nextCurrentRefreshAt, preferCurrentSeason } from './current-refresh'
-import { createRatingTimingObserver, emitImporterTelemetry } from './telemetry'
+import { createRatingTimingObserver, emitImporterTelemetry, sourceAttemptFailureSignal, type SourceAttemptSample } from './telemetry'
 import { readSourceOutageState, recordSourceOutageFailure, sourceOutageIsCooling, type SourceOutageState } from './source-outage'
 
 type AutomationState = 'manual' | 'bootstrap' | 'weekly'
@@ -937,8 +937,10 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
       if (!claimed.data) break
       summary.pagesAttempted += 1
       let sourceFailure = false
+      let lastSourceAttempt: SourceAttemptSample | null = null
       try {
         const page = await fetchTennisRecordPage(job.source_url, settings.min_request_interval_ms, sourceDeadlineAt, sample => {
+          lastSourceAttempt = sample
           emitImporterTelemetry({ event: 'tennisrecord_source_attempt', run_id: runId, queue_id: job.id, page_kind: job.page_kind, lane: input.currentSeason ? 'current' : input.triggerKind, ...sample })
         }).catch(error => {
           sourceFailure = !(error instanceof TennisRecordCheckpointBudgetError) && isTennisRecordTransientFailure(error instanceof Error ? error.message : '')
@@ -1032,14 +1034,16 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
           if (released.error) throw new Error(released.error.message)
           break
         }
+        const failureSignal = sourceAttemptFailureSignal(lastSourceAttempt)
         const failureReason = error instanceof Error ? error.message : 'Unknown collector failure'
+        const recordedFailureReason = sourceFailure && failureSignal ? `${failureReason} [${failureSignal}]` : failureReason
         if (sourceFailure) {
-          outage = recordSourceOutageFailure(outage, job.id)
+          outage = recordSourceOutageFailure(outage, job.id, Date.now(), failureSignal)
           // Persist the global pause before releasing the page. If either save
           // fails, stop visibly; stale-run recovery can reclaim a running row.
           await saveSourceOutage(service, outage)
           if (sourceOutageIsCooling(outage)) {
-            const released = await service.from('tennisrecord_crawl_queue').update({ status: 'pending', failure_reason: failureReason, last_error_at: new Date().toISOString(), deferred_retry_at: outage.cooldownUntil }).eq('id', job.id).eq('status', 'running')
+            const released = await service.from('tennisrecord_crawl_queue').update({ status: 'pending', failure_reason: recordedFailureReason, last_error_at: new Date().toISOString(), deferred_retry_at: outage.cooldownUntil }).eq('id', job.id).eq('status', 'running')
             if (released.error) throw new Error(released.error.message)
             summary.reason = 'source_cooldown'
             summary.retryAt = outage.cooldownUntil!
@@ -1057,7 +1061,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
         const savedFailure = await service.from('tennisrecord_crawl_queue').update({
           status: disposition === 'retry' ? 'pending' : 'error',
           retry_count: disposition === 'retry' ? (job.retry_count || 0) + 1 : job.retry_count || 0,
-          failure_reason: failureReason,
+          failure_reason: recordedFailureReason,
           last_error_at: new Date().toISOString(),
           deferred_retry_at: retryAt,
         }).eq('id', job.id)
