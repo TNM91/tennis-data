@@ -482,6 +482,11 @@ export function isTennisRecordRatingBatchDue(automationState: AutomationState, n
   return automationState === 'bootstrap' || automationState === 'weekly'
 }
 
+/** Rating cron fires at UTC minutes 2, 17, 32, 47. */
+export function isTennisRecordRatingReservationWindow(now = new Date()) {
+  return now.getUTCMinutes() % 15 < 2
+}
+
 export function tennisRecordPipelineHealth(input: {
   enabled: boolean
   automationState: AutomationState
@@ -1300,6 +1305,20 @@ export async function runAutomaticTennisRecordSync(service: SupabaseClient) {
     automationState = activated?.automation_state as AutomationState | undefined
   }
   if (automationState !== 'bootstrap' && automationState !== 'weekly') return emptySummary('skipped')
+  if (data?.enabled && isTennisRecordRatingReservationWindow()) {
+    let ratingWorkPending = Boolean(data.rating_recalculation_requested_at)
+    if (!ratingWorkPending) {
+      const { data: pendingRatings, error: pendingRatingsError } = await service
+        .from('tennisrecord_canonical_matches')
+        .select('fingerprint')
+        .not('canonical_match_id', 'is', null)
+        .is('rating_processed_at', null)
+        .limit(1)
+      if (pendingRatingsError) throw new Error(pendingRatingsError.message)
+      ratingWorkPending = Boolean(pendingRatings?.length)
+    }
+    if (ratingWorkPending) return { ...emptySummary('skipped'), reason: 'ratings_window' }
+  }
   if (sourceOutageIsCooling(sourceOutageFromSettings(data))) {
     // Captured pages can be reconciled without contacting the source. Use the
     // normal sync lock and bounded replay batch; leave the source cooldown
@@ -1348,6 +1367,9 @@ export async function runScheduledTennisRecordRatingBatch(service: SupabaseClien
     return { status: 'skipped', pendingMatches: 0, processedMatches: 0, reason: 'outside_rating_cadence' }
   }
 
+  // The collector yields the preceding slot. Ratings must reclaim a stale
+  // shared lock itself if an earlier serverless invocation was interrupted.
+  await reclaimStaleTennisRecordRuns(service)
   const { data: activeRun, error: activeRunError } = await service
     .from('tennisrecord_sync_runs')
     .select('id')
