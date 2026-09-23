@@ -8,6 +8,22 @@ import { GODADDY_TLS_ROOT_R1_PEM } from '../tennisrecord/godaddy-tls-root-r1'
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('sanitized source attempt timings', () => {
+  it('allows a bounded 30-second source response without exceeding the checkpoint deadline', async () => {
+    vi.useFakeTimers()
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => new AbortController().signal)
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response('<main>Available</main>')))
+    const normal = fetchTennisRecordPage('https://www.tennisrecord.com/adult/profile.aspx', 1000)
+    await vi.advanceTimersByTimeAsync(1001)
+    await normal
+    expect(timeout).toHaveBeenLastCalledWith(30_000)
+
+    const deadline = Date.now() + 8_000
+    const bounded = fetchTennisRecordPage('https://www.tennisrecord.com/adult/profile.aspx', 1000, deadline)
+    await vi.advanceTimersByTimeAsync(1001)
+    await bounded
+    expect(timeout).toHaveBeenLastCalledWith(7_000)
+  })
+
   it('turns a failed attempt into a safe persistent signal', () => {
     expect(sourceAttemptFailureSignal({ attempt: 2, outcome: 'timeout', status: null, pacing_ms: 1000, fetch_ms: 18000, transport_codes: ['UND_ERR_CONNECT_TIMEOUT', 'PRIVATE_URL'] })).toBe('timeout (UND_ERR_CONNECT_TIMEOUT)')
     expect(sourceAttemptFailureSignal({ attempt: 1, outcome: 'http_error', status: 503, pacing_ms: 1000, fetch_ms: 100 })).toBe('HTTP 503')

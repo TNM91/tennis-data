@@ -35,13 +35,13 @@ describe('bounded TennisRecord checkpoints', () => {
     expect(timeout).toHaveBeenCalledWith(4000)
   })
 
-  it('keeps the ordinary 20-second request timeout when enough budget remains', async () => {
+  it('keeps the bounded 30-second request timeout when enough budget remains', async () => {
     vi.useFakeTimers(); vi.setSystemTime(start)
     const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(new AbortController().signal)
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('Match')))
     const page = fetchTennisRecordPage(url, 1000, start + 180_000)
     await vi.advanceTimersByTimeAsync(1000); await page
-    expect(timeout).toHaveBeenCalledWith(20_000)
+    expect(timeout).toHaveBeenCalledWith(30_000)
   })
 
   it('yields instead of attempting an unpaced retry when the remaining budget is too small', async () => {
