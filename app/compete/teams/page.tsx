@@ -4,7 +4,7 @@ import Link from 'next/link'
 import TeamHomeCard from './team-home-card'
 import TeamAvailabilitySummary from './team-availability-summary'
 import homeStyles from './teams-home.module.css'
-import { useEffect, useMemo, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import CompetePageFrame, {
   CompeteCard,
@@ -21,6 +21,7 @@ import { buildTeamRoomHref } from '@/lib/team-room'
 import { buildTeamProfileHref } from '@/lib/team-routes'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import {
   listTiqTeamParticipations,
   type TiqTeamParticipationRecord,
@@ -151,6 +152,7 @@ function CompeteTeamsContent() {
   const [defaultTeamMessage, setDefaultTeamMessage] = useState('')
   const [savingDefaultTeamId, setSavingDefaultTeamId] = useState('')
   const [addTeamOpen, setAddTeamOpen] = useState(false)
+  const trackedConnectedTeamsFor = useRef('')
   const resolvedRole = authResolved || !userId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
   const accessToken = session?.access_token || ''
@@ -176,11 +178,17 @@ function CompeteTeamsContent() {
 
     async function loadConnections() {
       const cachedConnections = accessToken ? getCachedTeamConnections(accessToken, { userId }) : null
+      const trackConnectedTeamsOpen = (acceptedConnections: TeamConnection[]) => {
+        if (acceptedConnections.length === 0 || !userId || trackedConnectedTeamsFor.current === userId) return
+        trackedConnectedTeamsFor.current = userId
+        void trackProductUsageEvent({ eventName: 'connected_teams_opened', surface: 'teams' }, accessToken)
+      }
       setConnectionError('')
       setLoading(!cachedConnections)
 
       if (cachedConnections) {
         const acceptedConnections = cachedConnections.connections.filter((connection) => connection.status === 'accepted' && !connection.archivedAt)
+        trackConnectedTeamsOpen(acceptedConnections)
         setConnections(acceptedConnections)
         setPendingConnections(cachedConnections.pending)
         setLinkedPlayerFromTeams(cachedConnections.playerLinked)
@@ -195,6 +203,7 @@ function CompeteTeamsContent() {
         if (!active) return
 
         const acceptedConnections = connectionResult.connections.filter((connection) => connection.status === 'accepted' && !connection.archivedAt)
+        trackConnectedTeamsOpen(acceptedConnections)
         setConnections(acceptedConnections)
         setPendingConnections(connectionResult.pending)
         setLinkedPlayerFromTeams(connectionResult.playerLinked)

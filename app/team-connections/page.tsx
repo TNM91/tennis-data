@@ -18,6 +18,7 @@ import {
 import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
 
 export default function TeamConnectionsPage() {
   return (
@@ -80,6 +81,9 @@ function TeamConnectionsContent() {
     setMessage('')
     try {
       await updateTeamConnection({ accessToken, connectionId: connection.id, action })
+      if (action === 'accept') {
+        void trackProductUsageEvent({ eventName: 'team_connection_accepted', surface: 'teams' }, accessToken)
+      }
       const linked = action === 'accept' || action === 'relink' || action === 'restore_roles'
       if (linked) {
         setCompletedConnection({ ...connection, status: 'accepted' })

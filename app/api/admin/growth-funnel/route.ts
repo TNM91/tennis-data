@@ -131,6 +131,9 @@ export async function GET(request: Request) {
   const publicActions = new Set(events.filter((event) => event.event_name && !CONVERSION_EVENT_NAMES.has(event.event_name)).map((event) => event.user_id).filter(Boolean)).size
   const signupRequests = uniqueUsers(events, 'signup_confirmation_sent')
   const scorecardShares = uniqueUsers(events, 'scorecard_shared')
+  const playerLinks = uniqueUsers(events, 'profile_player_linked')
+  const teamConnections = uniqueUsers(events, 'team_connection_accepted')
+  const connectedTeamsOpens = uniqueUsers(events, 'connected_teams_opened')
   const checkoutClicks = uniqueUsers(events, 'upgrade_checkout_clicked')
   const checkoutStarts = uniqueUsers(events, 'upgrade_checkout_started')
   const checkoutFailures = uniqueUsers(events, 'upgrade_checkout_failed')
@@ -150,6 +153,9 @@ export async function GET(request: Request) {
       publicActions,
       signupRequests,
       scorecardShares,
+      playerLinks,
+      teamConnections,
+      connectedTeamsOpens,
       firstActions,
       checkoutClicks,
       checkoutStarts,
