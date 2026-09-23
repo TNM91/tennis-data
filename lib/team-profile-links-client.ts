@@ -4,6 +4,7 @@ export type TeamConnectionsResponse = {
   ok?: boolean
   pending?: TeamConnection[]
   connections?: TeamConnection[]
+  playerLinked?: boolean
   connection?: TeamConnection | null
   message?: string
 }
@@ -11,12 +12,13 @@ export type TeamConnectionsResponse = {
 export type TeamConnectionsResult = {
   pending: TeamConnection[]
   connections: TeamConnection[]
+  playerLinked: boolean
 }
 
 const TEAM_CONNECTIONS_CACHE_TTL_MS = 60_000
 const TEAM_CONNECTIONS_REQUEST_TIMEOUT_MS = 8_000
 const PERSISTED_TEAM_CONNECTIONS_CACHE_TTL_MS = 24 * 60 * 60 * 1000
-const TEAM_CONNECTIONS_CACHE_PREFIX = 'tenaceiq-team-connections:v1:'
+const TEAM_CONNECTIONS_CACHE_PREFIX = 'tenaceiq-team-connections:v2:'
 let teamConnectionsCache: {
   identityKey: string
   expiresAt: number
@@ -97,6 +99,7 @@ async function requestTeamConnections(accessToken: string, forceRefresh: boolean
     return {
       pending: json.pending || [],
       connections: json.connections || [],
+      playerLinked: json.playerLinked === true,
     }
   } catch (error) {
     if (controller.signal.aborted) {
