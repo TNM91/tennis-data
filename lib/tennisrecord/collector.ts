@@ -7,9 +7,13 @@ import { GODADDY_TLS_ROOT_R1_PEM } from './godaddy-tls-root-r1'
 
 const allowedHosts = new Set(['tennisrecord.com', 'www.tennisrecord.com'])
 const MAX_TRANSIENT_FETCH_ATTEMPTS = 2
-// Keep below the 20-second per-request deadline. The Undici default (10s)
-// expires first on slow source handshakes, even when AbortSignal allows longer.
+// Keep below the per-request deadline. The Undici default (10s) expires first
+// on slow source handshakes, even when AbortSignal allows longer.
 const TENNISRECORD_CONNECT_TIMEOUT_MS = 18_000
+// A connected source page twice exhausted the former 20-second window while
+// nearby pages returned HTTP 200. Allow slow responses a bounded extra window;
+// the checkpoint deadline still caps every request and the route remains 5 min.
+const TENNISRECORD_REQUEST_TIMEOUT_MS = 30_000
 
 // TennisRecord now presents GoDaddy's R1 chain, which Node 22 does not yet
 // trust by default. Extend the normal CA set only for this source; TLS hostname
@@ -66,13 +70,13 @@ export async function fetchTennisRecordPage(input: string, minIntervalMs: number
     await wait(intervalMs)
     const fetchStarted = performance.now()
     const pacingMs = Math.max(0, Math.round(fetchStarted - pacingStarted))
-    const remainingMs = deadlineAt === undefined ? 20_000 : Math.floor(deadlineAt - Date.now())
+    const remainingMs = deadlineAt === undefined ? TENNISRECORD_REQUEST_TIMEOUT_MS : Math.floor(deadlineAt - Date.now())
     if (remainingMs <= 0) throw new TennisRecordCheckpointBudgetError()
     try {
       const response = await fetch(url, {
         redirect: 'follow',
         headers: { 'user-agent': process.env.TENNISRECORD_USER_AGENT?.trim() || 'TenAceIQ collector (+contact@tenaceiq.com)', accept: 'text/html,application/xhtml+xml' },
-        signal: AbortSignal.timeout(Math.min(20_000, remainingMs)),
+        signal: AbortSignal.timeout(Math.min(TENNISRECORD_REQUEST_TIMEOUT_MS, remainingMs)),
         dispatcher: tennisRecordDispatcher,
       } as RequestInit & { dispatcher: Agent })
       const html = await response.text()
