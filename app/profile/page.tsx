@@ -27,7 +27,7 @@ import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } 
 import { normalizeMixedPairRole, type MixedPairRole } from '@/lib/player-eligibility'
 import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-events'
 import { addWorkflowResult, getSafeWorkflowReturnTo } from '@/lib/workflow-return'
-import { getScorecardClaimMatchId, getScorecardClaimPlayerId, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
+import { buildScorecardPlayerLoginHref, getScorecardClaimMatchId, getScorecardClaimPlayerId, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
 import { describeClaimResult, prioritizeClaimMatch, type ClaimResult } from '@/lib/scorecard-claim-welcome'
 
 type PreferredRole = 'singles' | 'doubles' | 'both'
@@ -762,6 +762,10 @@ function ProfilePageInner() {
   }
 
   const profileComplete = Boolean(profile?.linked_player_id || profile?.linked_player_name)
+  const scorecardClaimCandidate = !profileComplete && selectedPlayer?.id === scorecardClaimPlayerId ? selectedPlayer : null
+  const profileSignInHref = scorecardClaimPlayerId
+    ? buildScorecardPlayerLoginHref(scorecardClaimPlayerId, scorecardClaimMatchId || undefined)
+    : '/login?next=%2Fprofile'
   const showScorecardClaimWelcome = Boolean(connectedScorecardClaimId && !captainSetupEntry)
   const visibleClaimResults = prioritizeClaimMatch(claimResults, claimMatch)
   const signedIn = Boolean(userId || session?.user?.id)
@@ -896,10 +900,28 @@ function ProfilePageInner() {
             ) : signedIn ? (
               <a href="#profile-identity" style={primaryButtonStyle}>Set profile</a>
             ) : (
-              <Link href="/login?next=%2Fprofile" style={primaryButtonStyle}>Sign in</Link>
+              <Link href={profileSignInHref} style={primaryButtonStyle}>Sign in</Link>
             )}
           </div>
           {billingMessage ? <div style={billingMessageStyle}>{billingMessage}</div> : null}
+        </section>
+      ) : null}
+
+      {signedIn && scorecardClaimCandidate ? (
+        <section aria-labelledby="scorecard-claim-confirm-title" style={claimWelcomeStyle}>
+          <div>
+            <span style={identitySetupEyebrowStyle}>From your shared scorecard</span>
+            <h1 id="scorecard-claim-confirm-title" style={sectionTitleStyle}>Is {scorecardClaimCandidate.name} your player record?</h1>
+            <p style={heroTextStyle}>Connect this public record to your account to keep your results together.</p>
+          </div>
+          <div style={profileIntroActionsStyle}>
+            <button type="button" onClick={saveProfile} disabled={saving} style={primaryButtonStyle}>
+              {saving ? 'Connecting...' : `Yes, connect ${scorecardClaimCandidate.name}`}
+            </button>
+            <a href="#profile-identity" style={secondaryButtonStyle}>Choose a different player</a>
+            {scorecardClaimMatchId ? <Link href={`/matches/${encodeURIComponent(scorecardClaimMatchId)}`} style={secondaryButtonStyle}>Review scorecard</Link> : null}
+          </div>
+          {error ? <div role="alert" style={errorStyle}>{error}</div> : null}
         </section>
       ) : null}
 
@@ -955,7 +977,7 @@ function ProfilePageInner() {
               <div style={sectionHeaderStyle}>
                 <div>
                   {!profileComplete ? <span style={identitySetupEyebrowStyle}>Get started · Step 1 of 3</span> : null}
-                  {profileComplete
+                  {profileComplete || scorecardClaimCandidate
                     ? <h2 style={sectionTitleStyle}>{profileIdentityTitle}</h2>
                     : <h1 style={sectionTitleStyle}>{profileIdentityTitle}</h1>}
                   <p style={sectionTextStyle(isMobile)}>
@@ -1329,7 +1351,7 @@ function ProfilePageInner() {
                     </div>
                   </div>
                   <div style={newPlayerActionGridStyle}>
-                    <Link href="/login?next=%2Fprofile" style={newPlayerActionCardStyle}>
+                    <Link href={profileSignInHref} style={newPlayerActionCardStyle}>
                       <TiqFeatureIcon name="accountSecurity" size="sm" variant="ghost" />
                       <span>Sign in</span>
                     </Link>
