@@ -31,6 +31,10 @@ export function buildScorecardProfileClaimHref(playerId: string, matchId?: strin
   return `/profile?player=${encodeURIComponent(playerId)}${matchId ? `&match=${encodeURIComponent(matchId)}` : ''}`
 }
 
+export function buildScorecardPlayerLoginHref(playerId: string, matchId?: string) {
+  return `/login?next=${encodeURIComponent(buildScorecardProfileClaimHref(playerId, matchId))}`
+}
+
 export function buildScorecardPlayerClaimHref(playerId: string, matchId?: string) {
   const nextHref = buildScorecardProfileClaimHref(playerId, matchId)
   return `/join?plan=free&next=${encodeURIComponent(nextHref)}&source=${SCORECARD_SIGNUP_SOURCE}`
