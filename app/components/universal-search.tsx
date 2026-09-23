@@ -405,7 +405,17 @@ export default function UniversalSearch({
           {playerSuggestions.length > 0 ? (
             <div style={playerSuggestionListStyle}>
               {playerSuggestions.map((player) => (
-                <Link key={player.id} href={`/players/${encodeURIComponent(player.id)}`} style={playerSuggestionLinkStyle} role="option">
+                <Link
+                  key={player.id}
+                  href={`/players/${encodeURIComponent(player.id)}`}
+                  onClick={() => void trackProductUsageEvent({
+                    eventName: 'search_result_clicked',
+                    surface: 'search',
+                    metadata: { location: 'universal_player_suggestion', scope: 'players' },
+                  })}
+                  style={playerSuggestionLinkStyle}
+                  role="option"
+                >
                   <span style={playerSuggestionNameStyle}>{player.name}</span>
                   <span style={playerSuggestionMetaStyle}>
                     {[player.location, typeof player.overall_dynamic_rating === 'number' ? `TIQ ${player.overall_dynamic_rating.toFixed(2)}` : null]

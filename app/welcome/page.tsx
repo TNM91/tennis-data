@@ -90,6 +90,19 @@ const SCORECARD_WELCOME_STORY: WelcomeStory = {
   checklist: ['Find and connect your player record.', 'Review your public match and team history.', MY_LAB_STORY.upgradeBody],
 }
 
+const FREE_DISCOVERY_WELCOME_STORY: WelcomeStory = {
+  eyebrow: 'Your free account is ready',
+  title: (name) => name ? `Welcome, ${name}.` : 'Welcome to TenAceIQ.',
+  body: 'Start with a player, team, or league you know. Open the public record to see the tennis context that matters to you.',
+  access: 'You have Free access now. No card is required.',
+  primaryLabel: 'Find a player',
+  checklist: [
+    'Search a player by name.',
+    'Open the profile for ratings, teams, and recent match context.',
+    'Open the team or league that matters to your next match.',
+  ],
+}
+
 export default function WelcomePage() {
   return <SiteShell active="welcome"><WelcomeContent /></SiteShell>
 }
@@ -106,7 +119,9 @@ function WelcomeContent() {
   const fallbackHref = planId === 'free' ? '/explore' : `/upgrade?plan=${planId}`
   const nextHref = isSafeLocalNextHref(searchParams.get('next'), fallbackHref)
   const isScorecardSignup = isScorecardSignupIntent(searchParams.get('source'), planId, nextHref)
-  const story = isScorecardSignup ? SCORECARD_WELCOME_STORY : WELCOME_STORIES[storyKey]
+  const isDefaultFreeWelcome = planId === 'free' && nextHref === '/explore' && !isScorecardSignup
+  const story = isScorecardSignup ? SCORECARD_WELCOME_STORY : isDefaultFreeWelcome ? FREE_DISCOVERY_WELCOME_STORY : WELCOME_STORIES[storyKey]
+  const primaryHref = isDefaultFreeWelcome ? '/explore/search?scope=players' : nextHref
   const availabilityHref = planId === 'free' ? getAvailabilityEntry(nextHref)?.href || '' : ''
   const email = searchParams.get('email')?.trim() || ''
   const firstName = getFirstName(session?.user.user_metadata)
@@ -141,7 +156,13 @@ function WelcomeContent() {
         <ol style={steps}>
           {story.checklist.map((step, index) => <li key={step} style={stepRow}><span style={stepNumber}>{index + 1}</span><span>{step}</span></li>)}
         </ol>
-        <Link href={nextHref} style={primaryCta}>{story.primaryLabel}</Link>
+        <Link href={primaryHref} style={primaryCta}>{story.primaryLabel}</Link>
+        {isDefaultFreeWelcome ? (
+          <div style={freeChoiceRow} aria-label="Other ways to start exploring">
+            <Link href="/explore/search?scope=teams" style={freeChoiceLink}>Find a team</Link>
+            <Link href="/explore/search?scope=leagues" style={freeChoiceLink}>Find a league</Link>
+          </div>
+        ) : null}
         {planId !== 'free' ? <Link href="/explore" style={secondaryCta}>Explore Free first</Link> : null}
         <p style={finePrint}>{isCaptainPilot ? 'Your feedback will help shape the Captain experience for local teams.' : `${tier.name} is always there when you are ready. Start with the next useful tennis action.`}</p>
       </div>
@@ -168,5 +189,7 @@ const stepRow: CSSProperties = { display: 'grid', gridTemplateColumns: '28px min
 const stepNumber: CSSProperties = { display: 'grid', placeItems: 'center', width: 26, height: 26, borderRadius: 999, background: 'var(--brand-green)', color: '#071226', fontSize: 12, fontWeight: 900 }
 const primaryCta: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 52, borderRadius: 15, padding: '0 20px', background: 'var(--brand-green)', color: '#071226', textDecoration: 'none', fontWeight: 900, fontSize: 16 }
 const secondaryCta: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, color: 'var(--foreground)', textDecoration: 'none', fontWeight: 800, fontSize: 14 }
+const freeChoiceRow: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 10 }
+const freeChoiceLink: CSSProperties = { ...secondaryCta, flex: '1 1 180px', padding: '0 12px', border: '1px solid rgba(125,211,252,0.24)', borderRadius: 12 }
 const finePrint: CSSProperties = { margin: 0, color: 'var(--shell-copy-muted)', fontSize: 13, lineHeight: 1.45, textAlign: 'center' }
 const loadingShell: CSSProperties = { width: 'min(760px, calc(100% - clamp(20px, 5vw, 28px)))', margin: '48px auto', padding: '22px', borderRadius: 20, color: 'var(--foreground-strong)', background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(125,211,252,0.16)', fontWeight: 800 }
