@@ -21,12 +21,15 @@ describe('Teams experience simplification', () => {
     )
   })
 
-  it('gives a first-time captain two distinct team entry paths without duplicating them below', () => {
-    expect(teamsHub).toContain("'Add or link your first team.'")
+  it('takes a first-time member to player setup or team discovery without an empty team-link detour', () => {
+    expect(teamsHub).toContain("'Find your first team.'")
+    expect(teamsHub).toContain("pendingTeamCount > 0 ? '/team-connections' : '/profile#profile-identity'")
+    expect(teamsHub).toContain("pendingTeamCount > 0 ? dataAssistTeamsHref : '/teams'")
+    expect(teamsHub).toContain("'Connect my player'")
+    expect(teamsHub).toContain("'Find a team'")
     expect(teamsHub).toContain("'Upload team summary'")
-    expect(teamsHub).toContain("'Link existing team'")
     expect(teamsHub).toContain('authResolved && userId && groupedTeams.length > 0')
-    expect(teamsHub).toContain('Use the team actions above to upload your Team Summary or link a team already in TiQ.')
+    expect(teamsHub).toContain('Connect your player above to check for team links, or find a team to explore.')
   })
 
   it('keeps team sections legible without horizontal phone scrolling', () => {
