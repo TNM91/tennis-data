@@ -55,6 +55,7 @@ type TeamConnectionsCachedResponse = {
   ok?: boolean
   pending?: TeamConnection[]
   connections?: TeamConnection[]
+  playerLinked?: boolean
 }
 
 export async function GET(request: Request) {
@@ -69,7 +70,7 @@ export async function GET(request: Request) {
   try {
     if (!forceRefresh) {
       const cached = await cache.get(cacheKey) as TeamConnectionsCachedResponse | undefined
-      if (cached?.ok && Array.isArray(cached.connections) && Array.isArray(cached.pending)) {
+      if (cached?.ok && Array.isArray(cached.connections) && Array.isArray(cached.pending) && typeof cached.playerLinked === 'boolean') {
         console.info('[api/team-connections] cache hit', {
           durationMs: Date.now() - startedAt,
           connectionCount: cached.connections.length,
@@ -97,6 +98,7 @@ export async function GET(request: Request) {
       ok: true,
       pending: result.pending,
       connections: result.connections,
+      playerLinked: result.playerLinked,
     }
     try {
       await cache.set(cacheKey, payload, {
@@ -379,7 +381,7 @@ async function loadTeamConnections(service: SupabaseClient, userId: string, emai
     savedLinks: (savedResult.data || []) as TeamProfileLinkRow[],
   })
 
-  return { ok: true as const, ...built }
+  return { ok: true as const, ...built, playerLinked: Boolean(linkedPlayerId) }
 }
 
 async function syncOwnedActiveTiqTeamEntries(

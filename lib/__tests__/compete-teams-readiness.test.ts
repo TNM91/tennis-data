@@ -161,7 +161,7 @@ describe('compete teams readiness', () => {
     expect(source).not.toContain('context=League%20Office%20teams')
     expect(source).toContain('Register Free')
     expect(source).toContain('Connect my player')
-    expect(source).toContain("pendingTeamCount > 0 ? '/team-connections' : playerJustLinked ? dataAssistTeamsHref : profileFromTeamsHref")
+    expect(source).toContain("pendingTeamCount > 0 ? '/team-connections' : playerLinked ? dataAssistTeamsHref : profileFromTeamsHref")
     expect(source).toContain('Browse public teams')
     expect(source).toContain('Explore public teams now.')
     expect(source).toContain('Check rosters, records, standings, and recent results without an account.')

@@ -83,6 +83,26 @@ async function discover() {
 }
 
 describe('additional team discovery', () => {
+  it('reports player setup independently of whether a team is connected', async () => {
+    tables.team_profile_links = []
+    tables.team_roster_members = []
+    expect((await discover()).playerLinked).toBe(true)
+
+    tables.profiles[0].linked_player_id = null
+    expect((await discover()).playerLinked).toBe(false)
+  })
+
+  it('refreshes an older team cache entry without player setup state', async () => {
+    mocks.cacheGet.mockResolvedValueOnce({ ok: true, pending: [], connections: [] })
+    const response = await GET(new Request('http://localhost/api/team-connections', {
+      headers: { Authorization: 'Bearer test-token' },
+    }))
+    expect(response.status).toBe(200)
+    expect((await response.json()).playerLinked).toBe(true)
+    expect(mocks.cacheSet).toHaveBeenCalled()
+  })
+
+
   it('saves both displayed roles when the captain email matches but the contact has no normalized player name', async () => {
     tables.team_profile_links[0] = {
       ...tables.team_profile_links[0], team_name: 'Fall Team', normalized_team_name: 'fall team', league_name: 'Fall',

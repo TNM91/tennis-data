@@ -24,7 +24,8 @@ describe('Teams experience simplification', () => {
   it('takes a first-time member to player setup or team discovery without an empty team-link detour', () => {
     expect(teamsHub).toContain("'Find your first team.'")
     expect(teamsHub).toContain("const profileFromTeamsHref = '/profile?returnTo=%2Fcompete%2Fteams#profile-identity'")
-    expect(teamsHub).toContain("playerJustLinked ? dataAssistTeamsHref : profileFromTeamsHref")
+    expect(teamsHub).toContain("playerLinked ? dataAssistTeamsHref : profileFromTeamsHref")
+    expect(teamsHub).toContain('const playerLinked = linkedPlayerFromTeams || playerJustLinked')
     expect(teamsHub).toContain("pendingTeamCount > 0 ? dataAssistTeamsHref : '/teams'")
     expect(teamsHub).toContain("'Connect my player'")
     expect(teamsHub).toContain("'Find a team'")

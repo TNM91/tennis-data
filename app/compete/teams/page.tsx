@@ -141,6 +141,7 @@ function CompeteTeamsContent() {
   const [participations, setParticipations] = useState<TiqTeamParticipationRecord[]>([])
   const [connections, setConnections] = useState<TeamConnection[]>([])
   const [pendingConnections, setPendingConnections] = useState<TeamConnection[]>([])
+  const [linkedPlayerFromTeams, setLinkedPlayerFromTeams] = useState(false)
   const [teamDirectory, setTeamDirectory] = useState<TeamDirectoryOption[]>([])
   const [lineupSummaries, setLineupSummaries] = useState<CaptainLineupDraftSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -157,6 +158,7 @@ function CompeteTeamsContent() {
   const routeSearch = useSyncExternalStore(subscribeTeamsRoute, readTeamsRoute, () => '')
   const pilotHandoff = new URLSearchParams(routeSearch).get('source') === 'captain-pilot'
   const playerJustLinked = new URLSearchParams(routeSearch).get('setupResult') === 'player-linked'
+  const playerLinked = linkedPlayerFromTeams || playerJustLinked
 
   useEffect(() => {
     let active = true
@@ -166,6 +168,7 @@ function CompeteTeamsContent() {
       // Supabase restores a mobile session. Once auth resolves this effect
       // runs again and fetches the connected teams automatically.
       setLoading(false)
+      setLinkedPlayerFromTeams(false)
       return () => {
         active = false
       }
@@ -180,19 +183,21 @@ function CompeteTeamsContent() {
         const acceptedConnections = cachedConnections.connections.filter((connection) => connection.status === 'accepted' && !connection.archivedAt)
         setConnections(acceptedConnections)
         setPendingConnections(cachedConnections.pending)
+        setLinkedPlayerFromTeams(cachedConnections.playerLinked)
         void loadSupportingTeamContext(acceptedConnections)
       }
 
       try {
         const connectionResult = accessToken
           ? await fetchTeamConnections(accessToken, { force: Boolean(cachedConnections) || connectionRefresh > 0, userId })
-          : { pending: [], connections: [], offers: null }
+          : { pending: [], connections: [], playerLinked: false }
 
         if (!active) return
 
         const acceptedConnections = connectionResult.connections.filter((connection) => connection.status === 'accepted' && !connection.archivedAt)
         setConnections(acceptedConnections)
         setPendingConnections(connectionResult.pending)
+        setLinkedPlayerFromTeams(connectionResult.playerLinked)
         void loadSupportingTeamContext(acceptedConnections)
       } catch (error) {
         if (!active) return
@@ -346,7 +351,7 @@ function CompeteTeamsContent() {
           signedIn={Boolean(userId)}
           linkedTeamCount={connections.length}
           pendingTeamCount={pendingConnections.length}
-          playerJustLinked={playerJustLinked}
+          playerLinked={playerLinked}
           playerToolsActive={access.canUseAdvancedPlayerInsights}
           captainToolsActive={access.canUseCaptainWorkflow}
           isMobile={isMobile}
@@ -368,7 +373,7 @@ function CompeteTeamsContent() {
             : groupedTeams.length > 0
               ? `${groupedTeams.length} ${groupedTeams.length === 1 ? 'team' : 'teams'} connected`
               : userId
-                ? playerJustLinked
+                ? playerLinked
                   ? 'Your player is connected. Add your team to open its roster, schedule, and Team Chat.'
                   : 'Accept a team connection or connect your player profile to bring your teams here.'
                 : 'Public team pages are open now. Accepted team connections appear here after registration.'}
@@ -411,7 +416,7 @@ function CompeteTeamsContent() {
         ) : loading ? (
           <TeamListLoadingState />
         ) : groupedTeams.length === 0 ? (
-          <EmptyTeamsState signedIn={Boolean(userId)} pendingTeamCount={pendingConnections.length} playerJustLinked={playerJustLinked} />
+          <EmptyTeamsState signedIn={Boolean(userId)} pendingTeamCount={pendingConnections.length} playerLinked={playerLinked} />
         ) : (
           <div className={homeStyles.teamGrid}>
             {groupedTeams.map((group) => {
@@ -497,7 +502,7 @@ function CompeteTeamsContent() {
           signedIn
           linkedTeamCount={connections.length}
           pendingTeamCount={pendingConnections.length}
-          playerJustLinked={playerJustLinked}
+          playerLinked={playerLinked}
           playerToolsActive={access.canUseAdvancedPlayerInsights}
           captainToolsActive={access.canUseCaptainWorkflow}
           isMobile={isMobile}
@@ -710,7 +715,7 @@ function TeamAccountAccessPanel({
   signedIn,
   linkedTeamCount,
   pendingTeamCount,
-  playerJustLinked,
+  playerLinked,
   playerToolsActive,
   captainToolsActive,
   isMobile,
@@ -719,7 +724,7 @@ function TeamAccountAccessPanel({
   signedIn: boolean
   linkedTeamCount: number
   pendingTeamCount: number
-  playerJustLinked: boolean
+  playerLinked: boolean
   playerToolsActive: boolean
   captainToolsActive: boolean
   isMobile: boolean
@@ -732,7 +737,7 @@ function TeamAccountAccessPanel({
         ? `${linkedTeamCount} team${linkedTeamCount === 1 ? '' : 's'} connected.`
         : pendingTeamCount > 0
           ? `${pendingTeamCount} team connection${pendingTeamCount === 1 ? '' : 's'} waiting.`
-          : playerJustLinked ? 'Player connected. Add your team.' : 'Find your first team.'
+          : playerLinked ? 'Player connected. Add your team.' : 'Find your first team.'
 
   return (
     <section
@@ -752,7 +757,7 @@ function TeamAccountAccessPanel({
             ? 'A Free account includes every accepted team’s roster, schedule, stats, and private Team Chat.'
             : pendingTeamCount > 0
               ? 'Review the team link waiting for you. Once accepted, its roster, schedule, and Team Chat appear here.'
-              : playerJustLinked
+              : playerLinked
                 ? 'Team access is included. Upload a TennisLink Team Summary if your team is not here yet, or find a public team to explore.'
                 : 'Team access is included. Connect your player to check for teams on your roster, find a public team, or upload a TennisLink Team Summary.'}
         </span>
@@ -770,13 +775,13 @@ function TeamAccountAccessPanel({
           </>
         ) : (
           <>
-            <Link href={pendingTeamCount > 0 ? '/team-connections' : playerJustLinked ? dataAssistTeamsHref : profileFromTeamsHref} style={teamPrimaryActionStyle}>
-              {pendingTeamCount > 0 ? 'Review team links' : playerJustLinked ? 'Upload team summary' : 'Connect my player'}
+            <Link href={pendingTeamCount > 0 ? '/team-connections' : playerLinked ? dataAssistTeamsHref : profileFromTeamsHref} style={teamPrimaryActionStyle}>
+              {pendingTeamCount > 0 ? 'Review team links' : playerLinked ? 'Upload team summary' : 'Connect my player'}
             </Link>
             <Link href={pendingTeamCount > 0 ? dataAssistTeamsHref : '/teams'} style={teamSecondaryLinkStyle}>
               {pendingTeamCount > 0 ? 'Upload team summary' : 'Find a team'}
             </Link>
-            {pendingTeamCount > 0 || !playerJustLinked ? (
+            {pendingTeamCount > 0 || !playerLinked ? (
               <Link href={pendingTeamCount > 0 ? '/explore/leagues?layer=tiq' : dataAssistTeamsHref} style={teamSecondaryLinkStyle}>
                 {pendingTeamCount > 0 ? 'Find TIQ league' : 'Upload team summary'}
               </Link>
@@ -788,7 +793,7 @@ function TeamAccountAccessPanel({
   )
 }
 
-function EmptyTeamsState({ signedIn, pendingTeamCount, playerJustLinked }: { signedIn: boolean; pendingTeamCount: number; playerJustLinked: boolean }) {
+function EmptyTeamsState({ signedIn, pendingTeamCount, playerLinked }: { signedIn: boolean; pendingTeamCount: number; playerLinked: boolean }) {
   return (
     <div style={emptyTeamsStyle}>
       <div style={emptyTeamsCopyStyle}>
@@ -797,7 +802,7 @@ function EmptyTeamsState({ signedIn, pendingTeamCount, playerJustLinked }: { sig
           {signedIn
             ? pendingTeamCount > 0
               ? 'Review the team link above, then its Team Chat and team tools will open here.'
-              : playerJustLinked
+              : playerLinked
                 ? 'Import your team above, or find a public team to explore.'
                 : 'Connect your player above to check for team links, or find a team to explore.'
             : 'Check rosters, records, standings, and recent results without an account.'}

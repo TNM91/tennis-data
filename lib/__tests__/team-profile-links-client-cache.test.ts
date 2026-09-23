@@ -34,6 +34,16 @@ describe('team connections client cache', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps player setup state with the team connection response', async () => {
+    mockStorage()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(reply({ pending: [], connections: [], playerLinked: true })))
+    const { fetchTeamConnections, getCachedTeamConnections } = await import('@/lib/team-profile-links-client')
+    const result = await fetchTeamConnections(tokenFor('player-a'), { userId: 'player-a' })
+    expect(result.playerLinked).toBe(true)
+    expect(getCachedTeamConnections(tokenFor('player-a'), { userId: 'player-a' })?.playerLinked).toBe(true)
+  })
+
+
   it.each(['accept', 'decline', 'unlink', 'relink', 'restore_roles', 'set_default'] as const)('clears persisted invitations and bypasses server cache after %s', async (action) => {
     const storage = mockStorage()
     const fetchMock = vi.fn()
