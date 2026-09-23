@@ -171,7 +171,7 @@ export type RatingRecalculationOptions = {
    */
   replaceSnapshots?: boolean
   /** Opt-in bounded writes for disjoint, deduplicated snapshot batches. */
-  snapshotWriteConcurrency?: 1 | 2
+  snapshotWriteConcurrency?: 1 | 2 | 4
 }
 
 export type RatingRecalculationResult = {
@@ -463,25 +463,26 @@ async function fetchMatches(client: SupabaseClient): Promise<MatchRow[]> {
 
 async function fetchMatchPlayers(client: SupabaseClient): Promise<MatchPlayerRow[]> {
   const rows: MatchPlayerRow[] = []
-  for (let start = 0; ; start += DATABASE_PAGE_SIZE) {
-    const { data, error } = await client
+  let cursor: string | null = null
+  for (;;) {
+    let query = client
       .from('match_players')
       .select(`
+        id,
         match_id,
         player_id,
         side,
         seat
       `)
-      .order('match_id', { ascending: true })
-      .order('player_id', { ascending: true })
-      .order('side', { ascending: true })
-      .order('seat', { ascending: true })
-      .range(start, start + DATABASE_PAGE_SIZE - 1)
+      .order('id', { ascending: true })
+    if (cursor) query = query.gt('id', cursor)
+    const { data, error } = await query.range(0, DATABASE_PAGE_SIZE - 1)
 
     if (error) throw new Error(`Failed to fetch match participants: ${error.message}`)
-    const page = (data ?? []) as MatchPlayerRow[]
+    const page = (data ?? []) as Array<MatchPlayerRow & { id: string }>
     rows.push(...page)
     if (page.length < DATABASE_PAGE_SIZE) return rows
+    cursor = page[page.length - 1].id
   }
 }
 
@@ -773,7 +774,7 @@ async function replaceRatingSnapshots(
   snapshotRows: RatingSnapshotInsert[],
   client: SupabaseClient,
   replaceExisting: boolean,
-  concurrency: 1 | 2 = 1,
+  concurrency: 1 | 2 | 4 = 1,
 ) {
   if (replaceExisting) {
     const { error: deleteError } = await client
