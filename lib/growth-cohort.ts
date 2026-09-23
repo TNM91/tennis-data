@@ -15,6 +15,8 @@ export type StripeBillingEvent = {
 const FIRST_VALUE_EVENTS = new Set([
   'search_result_clicked',
   'profile_player_linked',
+  'team_connection_accepted',
+  'connected_teams_opened',
   'mylab_goal_template_applied',
   'matchup_prep_saved',
   'lineup_preview_clicked',

@@ -30,6 +30,9 @@ type Funnel = {
   publicActions: number
   signupRequests: number
   scorecardShares: number
+  playerLinks: number
+  teamConnections: number
+  connectedTeamsOpens: number
   firstActions: number
   checkoutClicks: number
   checkoutStarts: number
@@ -482,6 +485,26 @@ export default function AdminGrowthPage() {
                     </Link>
                   ))}
                 </div>
+
+                <section style={{ marginTop: 18 }} aria-label="Team setup activity">
+                  <h3 style={{ margin: '0 0 8px' }}>Player and team setup</h3>
+                  <p className="subtle-text" style={{ margin: '0 0 12px' }}>
+                    Unique members who completed each action in the last {period} days. These are activity counts, not one signup cohort.
+                  </p>
+                  <div style={adminFactGridStyle}>
+                    {([
+                      { label: 'Players connected', value: funnel.playerLinks, event: 'profile_player_linked' },
+                      { label: 'Team invitations accepted', value: funnel.teamConnections, event: 'team_connection_accepted' },
+                      { label: 'Connected teams opened', value: funnel.connectedTeamsOpens, event: 'connected_teams_opened' },
+                    ] as const).map((item) => (
+                      <Link key={item.event} href={`/admin/product-events?search=${item.event}`} style={{ ...adminSubPanelStyle, textDecoration: 'none' }}>
+                        <span className="metric-label">{item.label}</span>
+                        <strong style={{ fontSize: '2rem', lineHeight: 1 }}>{item.value.toLocaleString()}</strong>
+                        <span className="subtle-text">Members with this recorded action.</span>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
 
                 {followJourney ? (
                   <section style={{ marginTop: 18 }} aria-label="Follow with Player journey">

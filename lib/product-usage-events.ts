@@ -17,6 +17,8 @@ export const PRODUCT_USAGE_EVENT_NAMES = [
   'captain_pilot_activation_failed',
   'captain_pilot_billing_clicked',
   'profile_player_linked',
+  'team_connection_accepted',
+  'connected_teams_opened',
   'profile_cloud_sync_repair',
   'mylab_match_plan_action',
   'mylab_goal_template_applied',

@@ -34,4 +34,12 @@ describe('growth cohort', () => {
       { user_id: 'new-player', event_name: 'follow_intent_completed', created_at: '2026-09-21T10:20:00Z' },
     ], [])).toMatchObject({ signupRequests: 1, firstActions: 1 })
   })
+
+  it('counts opening a connected team as first value after signup', () => {
+    expect(buildGrowthCohort([
+      { user_id: 'member', event_name: 'signup_confirmation_sent', created_at: '2026-09-21T10:00:00Z' },
+      { user_id: 'member', event_name: 'team_connection_accepted', created_at: '2026-09-21T10:10:00Z' },
+      { user_id: 'member', event_name: 'connected_teams_opened', created_at: '2026-09-21T10:11:00Z' },
+    ], [])).toMatchObject({ signupRequests: 1, firstActions: 1 })
+  })
 })
