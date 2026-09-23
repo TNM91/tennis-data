@@ -3,9 +3,9 @@
 export async function saveRatingSnapshotBatches<T>(
   batches: T[],
   save: (batch: T) => Promise<void>,
-  concurrency: 1 | 2 = 1,
+  concurrency: 1 | 2 | 4 = 1,
 ) {
-  const width = concurrency === 2 ? 2 : 1
+  const width = concurrency === 2 || concurrency === 4 ? concurrency : 1
   for (let start = 0; start < batches.length; start += width) {
     const settled = await Promise.allSettled(
       batches.slice(start, start + width).map(async batch => save(batch)),

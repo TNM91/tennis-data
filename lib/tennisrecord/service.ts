@@ -1378,7 +1378,7 @@ export async function runScheduledTennisRecordRatingBatch(service: SupabaseClien
   if (locked.error || !locked.data?.id) throw new Error(locked.error?.message || 'Could not lock rating batch.')
   const timing = createRatingTimingObserver(locked.data.id)
   try {
-    await recalculateDynamicRatings(timing.onPhase, service, { replaceSnapshots: false, snapshotWriteConcurrency: 2 })
+    await recalculateDynamicRatings(timing.onPhase, service, { replaceSnapshots: false, snapshotWriteConcurrency: 4 })
     timing.finish('completed')
     let processedMatches = 0
     if (pendingMatchCount) {

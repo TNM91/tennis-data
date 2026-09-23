@@ -51,6 +51,17 @@ it.each<Mode>(['modern', 'metrics-missing', 'constraint-missing', 'both-missing'
   expect(paired.active()).toBe(0)
 })
 
+it('preserves the full rating and snapshot payload with four bounded writes', async () => {
+  const sequential = fixture('modern'), parallel = fixture('modern')
+  const options = { now: Date.parse('2026-09-05T00:00:00Z'), replaceSnapshots: false }
+  const expected = await recalculateDynamicRatings(undefined, sequential.client, options)
+  const actual = await recalculateDynamicRatings(undefined, parallel.client, { ...options, snapshotWriteConcurrency: 4 })
+  expect(actual).toEqual(expected)
+  expect(parallel.inventory()).toEqual(sequential.inventory())
+  expect(parallel.maximum()).toBe(4)
+  expect(parallel.active()).toBe(0)
+})
+
 it('performs no snapshot writes during a dry run even when paired writes are requested', async () => {
   const data = fixture('modern')
   const result = await recalculateDynamicRatings(undefined, data.client, { dryRun: true, snapshotWriteConcurrency: 2 })
