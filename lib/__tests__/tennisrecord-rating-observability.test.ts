@@ -25,5 +25,7 @@ describe('TennisRecord rating observability', () => {
   it('distinguishes a deliberate safety pause from a missed bootstrap checkpoint', () => {
     expect(tennisRecordPipelineHealth({ enabled: true, automationState: 'bootstrap', lastSuccessfulCollectorAt: '2026-08-25T12:00:00.000Z', safetyThrottle: { active: true, reason: 'source retry pressure', resumesAt: '2026-08-25T12:15:00.000Z' } }, Date.parse('2026-08-25T12:30:00.000Z')).state).toBe('cooling_down')
     expect(tennisRecordPipelineHealth({ enabled: true, automationState: 'bootstrap', lastSuccessfulCollectorAt: '2026-08-25T12:00:00.000Z', safetyThrottle: { active: false, reason: null, resumesAt: null } }, Date.parse('2026-08-25T12:30:00.000Z')).state).toBe('attention')
+    expect(tennisRecordPipelineHealth({ enabled: true, automationState: 'bootstrap', lastSuccessfulCollectorAt: '2026-08-25T12:29:00.000Z', safetyThrottle: { active: false, reason: null, resumesAt: null }, sourceOutage: { lastFreshHttpAt: '2026-08-25T12:00:00.000Z' } }, Date.parse('2026-08-25T12:30:00.000Z')).state).toBe('attention')
+    expect(tennisRecordPipelineHealth({ enabled: true, automationState: 'bootstrap', lastSuccessfulCollectorAt: null, safetyThrottle: { active: false, reason: null, resumesAt: null }, sourceOutage: { lastFreshHttpAt: '2026-08-25T12:29:00.000Z' } }, Date.parse('2026-08-25T12:30:00.000Z')).state).toBe('healthy')
   })
 })

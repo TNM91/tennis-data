@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { rootCertificates } from 'node:tls'
 import { Agent } from 'undici'
 import { isTennisRecordBlock } from './reconcile'
-import { reportSourceAttempt, sourceTransportCodes, sourceTransportFailure, type SourceAttemptSample } from './telemetry'
+import { emitImporterTelemetry, reportSourceAttempt, sourceTransportCodes, sourceTransportFailure, type SourceAttemptSample } from './telemetry'
 import { GODADDY_TLS_ROOT_R1_PEM } from './godaddy-tls-root-r1'
 
 const allowedHosts = new Set(['tennisrecord.com', 'www.tennisrecord.com'])
@@ -16,6 +16,15 @@ const TENNISRECORD_CONNECT_TIMEOUT_MS = 18_000
 // and certificate verification remain enabled. Never use a global dispatcher.
 const tennisRecordDispatcher = new Agent({
   connect: { ca: [...rootCertificates, GODADDY_TLS_ROOT_R1_PEM], timeout: TENNISRECORD_CONNECT_TIMEOUT_MS },
+})
+
+// These events belong to this source-only Agent. Report connection outcomes
+// and allowlisted codes, never origins, resolved addresses, headers or bodies.
+tennisRecordDispatcher.on('connect', () => {
+  emitImporterTelemetry({ event: 'tennisrecord_connection', outcome: 'connected' })
+})
+tennisRecordDispatcher.on('connectionError', (_origin, _targets, error) => {
+  emitImporterTelemetry({ event: 'tennisrecord_connection', outcome: 'failed', category: sourceTransportFailure(error), transport_codes: sourceTransportCodes(error) })
 })
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))

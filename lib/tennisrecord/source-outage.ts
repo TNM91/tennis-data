@@ -2,6 +2,7 @@
 export type SourceOutageState = {
   failedQueueIds: string[]
   lastFailureAt: string | null
+  lastFreshHttpAt: string | null
   cooldownUntil: string | null
   level: number
 }
@@ -14,6 +15,7 @@ export function readSourceOutageState(value: unknown): SourceOutageState {
   return {
     failedQueueIds: Array.isArray(state.failedQueueIds) ? [...new Set(state.failedQueueIds.filter(id => typeof id === 'string'))].slice(-3) : [],
     lastFailureAt: typeof state.lastFailureAt === 'string' ? state.lastFailureAt : null,
+    lastFreshHttpAt: typeof state.lastFreshHttpAt === 'string' ? state.lastFreshHttpAt : null,
     cooldownUntil: typeof state.cooldownUntil === 'string' ? state.cooldownUntil : null,
     level: Number.isInteger(state.level) ? Math.max(0, Math.min(3, state.level!)) : 0,
   }
@@ -36,6 +38,7 @@ export function recordSourceOutageFailure(value: unknown, queueId: string, now =
   return {
     failedQueueIds,
     lastFailureAt: new Date(now).toISOString(),
+    lastFreshHttpAt: state.lastFreshHttpAt,
     cooldownUntil: opens ? new Date(now + COOLDOWN_MINUTES[level - 1] * 60_000).toISOString() : null,
     level,
   }

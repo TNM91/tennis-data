@@ -23,6 +23,12 @@ describe('bounded shared source cooldown', () => {
     expect(state.level).toBe(0)
   })
 
+  it('retains the last verified fresh HTTP time across later source failures', () => {
+    const lastFreshHttpAt = '2026-09-05T16:30:00.000Z'
+    const state = recordSourceOutageFailure({ lastFreshHttpAt }, 'one', now)
+    expect(readSourceOutageState(state).lastFreshHttpAt).toBe(lastFreshHttpAt)
+  })
+
   it('bounds repeated outage probes at an hour and limits stored identities', () => {
     let state = readSourceOutageState({ level: 1 })
     for (let i = 0; i < 20; i++) state = recordSourceOutageFailure(state, String(i), now)
