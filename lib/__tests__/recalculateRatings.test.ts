@@ -54,6 +54,7 @@ describe('recalculateDynamicRatings pagination', () => {
       matches: [],
       match_players: [],
     }
+    const participantCursors: string[] = []
     const rows = {
       players: Array.from({ length: 1001 }, (_, index) => ({
         id: `player-${index}`,
@@ -67,6 +68,7 @@ describe('recalculateDynamicRatings pagination', () => {
       })),
       matches: [],
       match_players: Array.from({ length: 1001 }, (_, index) => ({
+        id: `participant-${String(index).padStart(4, '0')}`,
         match_id: `match-${index}`,
         player_id: `player-${index}`,
         side: 'A',
@@ -76,14 +78,20 @@ describe('recalculateDynamicRatings pagination', () => {
 
     const client = {
       from(table: keyof typeof rows) {
+        let afterId: string | null = null
         const builder = {
           select: () => builder,
           not: () => builder,
           eq: () => builder,
           order: () => builder,
+          gt: (_column: string, value: string) => { afterId = value; participantCursors.push(value); return builder },
           range: (from: number, to: number) => {
             calls[table].push([from, to])
-            return Promise.resolve({ data: rows[table].slice(from, to + 1), error: null })
+            const cursor = afterId
+            const page = table === 'match_players' && cursor
+              ? rows.match_players.filter(row => row.id > cursor)
+              : rows[table]
+            return Promise.resolve({ data: page.slice(from, to + 1), error: null })
           },
         }
         return builder
@@ -95,7 +103,8 @@ describe('recalculateDynamicRatings pagination', () => {
     expect(result.dryRun).toBe(true)
     expect(result.playerCount).toBe(1001)
     expect(calls.players).toEqual([[0, 999], [1000, 1999]])
-    expect(calls.match_players).toEqual([[0, 999], [1000, 1999]])
+    expect(calls.match_players).toEqual([[0, 999], [0, 999]])
+    expect(participantCursors).toEqual(['participant-0999'])
   })
 })
 
