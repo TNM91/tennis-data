@@ -30,6 +30,7 @@ import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } 
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 import { useProductAccess } from '@/lib/use-product-access'
 import { MY_LAB_STORY } from '@/lib/product-story'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
 
 type SearchScope = 'players' | 'teams' | 'leagues' | 'flight' | 'area'
 
@@ -211,6 +212,7 @@ function ExploreSearchContent() {
   const [leagues, setLeagues] = useState<LeagueCard[]>([])
   const [searchReady, setSearchReady] = useState(false)
   const [searchAttempt, setSearchAttempt] = useState(0)
+  const [completedSearch, setCompletedSearch] = useState<{ query: string; scope: SearchScope; count: number } | null>(null)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -259,6 +261,7 @@ function ExploreSearchContent() {
     const trimmedQuery = submittedQuery.trim()
 
     if (!trimmedQuery) {
+      setCompletedSearch(null)
       setPlayers([])
       setUsedSpellingHelp(false)
       setTeams([])
@@ -269,6 +272,7 @@ function ExploreSearchContent() {
     }
 
     let active = true
+    setCompletedSearch(null)
 
     async function runSearch() {
       setLoading(true)
@@ -294,6 +298,15 @@ function ExploreSearchContent() {
         setUsedSpellingHelp(playersResult.usedSpellingHelp)
         setTeams(teamsResult)
         setLeagues(leagueResult)
+        const resultCount = scope === 'players' ? playersResult.players.length : scope === 'teams' ? teamsResult.length : leagueResult.length
+        setCompletedSearch({ query: trimmedQuery, scope, count: resultCount })
+        if (resultCount === 0) {
+          void trackProductUsageEvent({
+            eventName: 'zero_result_seen',
+            surface: 'search',
+            metadata: { query: trimmedQuery, scope, resultCount },
+          })
+        }
       } catch (err) {
         if (!active) return
         setError(err instanceof Error ? err.message : 'Search failed.')
@@ -406,6 +419,7 @@ function ExploreSearchContent() {
     (showPlayerResults ? filteredPlayers.length + matchupSuggestions.length : 0) +
     (showTeamResults ? teams.length : 0) +
     (showLeagueResults ? filteredLeagues.length : 0)
+  const noRecordsFound = hasQuery && !loading && !error && completedSearch?.query === submittedQuery.trim() && completedSearch.scope === scope && completedSearch.count === 0
   const topPlayerResult = showPlayerResults ? filteredPlayers[0] : null
   const shouldOfferPlayerUnlock = authResolved && !access.canUseAdvancedPlayerInsights && Boolean(topPlayerResult)
   const playerUnlockHref = `/upgrade?plan=player_plus&next=${encodeURIComponent(resumeHref)}&source=explore_search`
@@ -664,6 +678,22 @@ function ExploreSearchContent() {
                   : scope === 'teams'
                     ? 'Finding team records...'
                     : 'Finding league records...'}
+              </div>
+            </section>
+          ) : null}
+
+          {noRecordsFound ? (
+            <section style={{ ...portalInsetCardStyle, padding: 18, display: 'grid', gap: 12 }} role="status">
+              <div style={sectionKicker}>No records found</div>
+              <div style={{ color: 'var(--foreground-strong)', fontSize: 20, fontWeight: 900, overflowWrap: 'anywhere' }}>
+                Try a shorter name or search a different record.
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {searchScopes.filter((item) => item.value !== scope && (item.value === 'players' || item.value === 'teams' || item.value === 'leagues')).map((item) => (
+                  <button key={item.value} type="button" onClick={() => { setScope(item.value); syncUrl(submittedQuery, item.value) }} style={{ ...buttonGhost, minHeight: 40 }}>
+                    Search {item.label.toLowerCase()}
+                  </button>
+                ))}
               </div>
             </section>
           ) : null}
