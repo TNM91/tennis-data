@@ -282,13 +282,15 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
             ) : isOpen ? (
               <>
                 <Link
-                  href={session?.user ? '#pilot-preview' : joinHref}
+                  href={session?.user ? '#pilot-claim' : joinHref}
                   className={styles.primaryAction}
-                  onClick={() => trackPilotCta(session?.user ? 'view_match_week_preview' : 'create_account')}
+                  onClick={() => trackPilotCta(session?.user ? 'activate_from_hero' : 'create_account')}
                 >
-                  {session?.user ? 'Preview my first match week' : 'Start 3 months free'}
+                  {session?.user ? 'Activate 3 months free' : 'Start 3 months free'}
                 </Link>
-                {!session?.user ? <Link href={loginHref} className={styles.secondaryAction}>Already have an account? Sign in</Link> : null}
+                {session?.user
+                  ? <Link href="#pilot-preview" className={styles.secondaryAction} onClick={() => trackPilotCta('preview_from_hero')}>Preview match week</Link>
+                  : <Link href={loginHref} className={styles.secondaryAction}>Already have an account? Sign in</Link>}
               </>
             ) : <p className={styles.status}>Pilot enrollment has closed.</p>}
           </div>

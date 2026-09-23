@@ -10,6 +10,7 @@ import { isSafeLocalNextHref } from '@/lib/plan-intent'
 import { CAPTAIN_PILOT_PRICE_LABEL } from '@/lib/captain-pilot'
 import { getAvailabilityEntry } from '@/lib/availability-onboarding'
 import { isScorecardSignupIntent } from '@/lib/scorecard-signup'
+import { getCaptainPilotClaimHref } from '@/lib/captain-pilot-source'
 
 const PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 
@@ -76,8 +77,8 @@ const WELCOME_STORIES: Record<MembershipTierId | 'captain-pilot', WelcomeStory> 
     title: (name) => name ? `Welcome, ${name}. Your captain’s chair is ready.` : 'Your captain’s chair is ready.',
     body: `Your account is confirmed. Complete the short team form to activate three months of Captain at $0—no card required. Add billing later only if you want to continue at ${CAPTAIN_PILOT_PRICE_LABEL}.`,
     access: 'Your account has Free access until the Captain Pilot activation is complete.',
-    primaryLabel: 'Start my Captain Pilot',
-    checklist: ['Tell us about your team and the captain problem you want to solve.', 'Activate three free months with no card.', 'Follow the guided team setup to add your team and prepare your first lineup.'],
+    primaryLabel: 'Activate 3 months free',
+    checklist: ['Confirm your name and team.', 'Activate three free months with no card.', 'Follow the guided team setup to add your team and prepare your first lineup.'],
   },
 }
 
@@ -113,15 +114,16 @@ function WelcomeContent() {
   const { authResolved, session } = useAuth()
   const planParam = searchParams.get('plan')
   const planId: MembershipTierId = PLAN_IDS.includes(planParam as MembershipTierId) ? planParam as MembershipTierId : 'free'
-  const isCaptainPilot = planId === 'captain' && searchParams.get('next')?.startsWith('/captain-pilot')
-  const storyKey = isCaptainPilot ? 'captain-pilot' : planId
   const tier = getMembershipTier(planId)
   const fallbackHref = planId === 'free' ? '/explore' : `/upgrade?plan=${planId}`
   const nextHref = isSafeLocalNextHref(searchParams.get('next'), fallbackHref)
+  const pilotClaimHref = planId === 'captain' ? getCaptainPilotClaimHref(nextHref) : null
+  const isCaptainPilot = Boolean(pilotClaimHref)
+  const storyKey = isCaptainPilot ? 'captain-pilot' : planId
   const isScorecardSignup = isScorecardSignupIntent(searchParams.get('source'), planId, nextHref)
   const isDefaultFreeWelcome = planId === 'free' && nextHref === '/explore' && !isScorecardSignup
   const story = isScorecardSignup ? SCORECARD_WELCOME_STORY : isDefaultFreeWelcome ? FREE_DISCOVERY_WELCOME_STORY : WELCOME_STORIES[storyKey]
-  const primaryHref = isDefaultFreeWelcome ? '/explore/search?scope=players' : nextHref
+  const primaryHref = pilotClaimHref ?? (isDefaultFreeWelcome ? '/explore/search?scope=players' : nextHref)
   const availabilityHref = planId === 'free' ? getAvailabilityEntry(nextHref)?.href || '' : ''
   const email = searchParams.get('email')?.trim() || ''
   const firstName = getFirstName(session?.user.user_metadata)
