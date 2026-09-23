@@ -349,6 +349,14 @@ function ExploreSearchContent() {
     setSearchAttempt((current) => current + 1)
   }
 
+  function trackOpenedRecord(recordScope: 'players' | 'teams' | 'leagues') {
+    void trackProductUsageEvent({
+      eventName: 'search_result_clicked',
+      surface: 'search',
+      metadata: { location: 'explore_search', scope: recordScope },
+    })
+  }
+
   const matchedFlights = useMemo(() => {
     return Array.from(
       new Set(leagues.map((league) => cleanText(league.flight)).filter(Boolean)),
@@ -747,7 +755,7 @@ function ExploreSearchContent() {
                     </div>
                   ) : null}
                   {filteredPlayers.map((player) => (
-                    <Link key={player.id} href={`/players/${player.id}`} style={getPlayerSearchResultStyle()}>
+                    <Link key={player.id} href={`/players/${player.id}`} onClick={() => trackOpenedRecord('players')} style={getPlayerSearchResultStyle()}>
                       <TiqFeatureIcon name="playerRatings" size="sm" variant="surface" />
                       <div style={playerSearchIdentityStyle}>
                         <div style={resultTitleStyle}>{player.name}</div>
@@ -818,6 +826,7 @@ function ExploreSearchContent() {
                         ...(team.league ? { league: team.league } : {}),
                         ...(team.flight ? { flight: team.flight } : {}),
                       }).toString()}` : ''}`}
+                      onClick={() => trackOpenedRecord('teams')}
                       style={getResultCardStyle()}
                     >
                       <div style={resultHeaderStyle}>
@@ -842,7 +851,7 @@ function ExploreSearchContent() {
                   compact={hasQuery}
                 >
                   {showLeagueResults ? filteredLeagues.map((league) => (
-                    <Link key={league.key} href={buildExploreLeagueHref(league)} style={getResultCardStyle()}>
+                    <Link key={league.key} href={buildExploreLeagueHref(league)} onClick={() => trackOpenedRecord('leagues')} style={getResultCardStyle()}>
                       <div style={resultHeaderStyle}>
                         <div style={resultPrimaryStyle}>
                           <div style={resultTitleStyle}>{league.leagueName}</div>
