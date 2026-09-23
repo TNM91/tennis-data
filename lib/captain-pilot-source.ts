@@ -37,3 +37,8 @@ export function getCaptainPilotSourceFromHref(href: string | null | undefined): 
 export function buildCaptainPilotHref(source: CaptainPilotSource) {
   return source === 'direct' ? '/captain-pilot' : `/captain-pilot?src=${source}`
 }
+
+export function getCaptainPilotClaimHref(href: string): string | null {
+  if (!/^\/captain-pilot(?:[?#]|$)/.test(href)) return null
+  return `${href.split('#')[0]}#pilot-claim`
+}

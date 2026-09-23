@@ -5,6 +5,7 @@ import { buildDataAssistSignInHref } from '../data-assist-navigation'
 import { buildAuthEntryHref } from '../auth-entry-hrefs'
 import { CAPTAIN_PILOT_FIRST_WIN_HREF, CAPTAIN_QUICK_START_HREF } from '../captain-quick-start'
 import { isSafeLocalNextHref } from '../plan-intent'
+import { getCaptainPilotClaimHref } from '../captain-pilot-source'
 
 const source = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
 
@@ -20,13 +21,20 @@ describe('Captain first-run handoffs', () => {
   it('shows an offer action before the benefit list and sends activation to guided setup', () => {
     const page = source('app/captain-pilot/captain-pilot-client.tsx')
     expect(page.indexOf('styles.heroActions')).toBeLessThan(page.indexOf('styles.benefitGrid'))
-    expect(page).toContain("session?.user ? '#pilot-preview' : joinHref")
-    expect(page).toContain('Preview my first match week')
+    expect(page).toContain("session?.user ? '#pilot-claim' : joinHref")
+    expect(page).toContain('Activate 3 months free')
+    expect(page).toContain('Preview match week')
     expect(page).toContain('captain_pilot_team_preview_viewed')
     expect(page).toContain('nextHref: CAPTAIN_PILOT_FIRST_WIN_HREF')
     expect(page).toContain('Continue my first match week')
     expect(CAPTAIN_PILOT_FIRST_WIN_HREF).toContain('source=captain-pilot')
     expect(isSafeLocalNextHref(CAPTAIN_QUICK_START_HREF, '/captain')).toBe(CAPTAIN_QUICK_START_HREF)
+  })
+
+  it('takes confirmed Pilot signups straight to activation while preserving their source', () => {
+    expect(getCaptainPilotClaimHref('/captain-pilot?src=flyer')).toBe('/captain-pilot?src=flyer#pilot-claim')
+    expect(getCaptainPilotClaimHref('/captain-pilot#pilot-preview')).toBe('/captain-pilot#pilot-claim')
+    expect(getCaptainPilotClaimHref('/captain-pilot/flyer')).toBeNull()
   })
 
   it('activates the Captain Pilot without a card and explains optional billing', () => {
