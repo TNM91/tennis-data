@@ -21,6 +21,23 @@ it('runs only two disjoint batches per wave and waits before starting another', 
   expect(save.mock.calls.flat()).toEqual([0, 1, 2, 3, 4])
 })
 
+it('runs at most four batches and drains the wave before reporting a failure', async () => {
+  const pending = [deferred(), deferred(), deferred(), deferred()]
+  const failure = new Error('write failed')
+  const save = vi.fn((batch: number) => pending[batch]?.promise ?? Promise.resolve())
+  const job = saveRatingSnapshotBatches([0, 1, 2, 3, 4], save, 4)
+  const assertion = expect(job).rejects.toBe(failure)
+  expect(save.mock.calls.flat()).toEqual([0, 1, 2, 3])
+  pending[0].reject(failure)
+  pending[1].resolve()
+  pending[2].resolve()
+  await Promise.resolve()
+  expect(save.mock.calls.flat()).toEqual([0, 1, 2, 3])
+  pending[3].resolve()
+  await assertion
+  expect(save.mock.calls.flat()).toEqual([0, 1, 2, 3])
+})
+
 it('drains a sibling write before rejecting and never starts the next wave', async () => {
   const sibling = deferred(), failure = new Error('write failed')
   const save = vi.fn((batch: number) => batch === 0 ? Promise.reject(failure) : sibling.promise)
