@@ -45,6 +45,8 @@ describe('TennisRecord Admin import progress', () => {
     expect(adminPage).toContain('newly discovered public match pages can extend the queue.')
     expect(adminPage).toContain('aria-label="TennisRecord campaign path"')
     expect(adminPage).toContain('Automatic campaign path')
+    expect(adminPage).toContain('label="Priority" title="Missouri current-season refresh"')
+    expect(adminPage).toContain('Due Missouri pages refresh first, alongside historical imports.')
     expect(adminPage).toContain('Time remaining reflects the currently known queue')
     expect(adminPage).toContain('Evidence review pages were captured safely')
     expect(adminPage).toContain('Checkpoint pace')
