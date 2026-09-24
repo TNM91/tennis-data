@@ -17,6 +17,8 @@ const FIRST_VALUE_EVENTS = new Set([
   'profile_player_linked',
   'team_connection_accepted',
   'connected_teams_opened',
+  'team_chat_opened',
+  'team_chat_message_sent',
   'mylab_goal_template_applied',
   'matchup_prep_saved',
   'lineup_preview_clicked',

@@ -134,6 +134,8 @@ export async function GET(request: Request) {
   const playerLinks = uniqueUsers(events, 'profile_player_linked')
   const teamConnections = uniqueUsers(events, 'team_connection_accepted')
   const connectedTeamsOpens = uniqueUsers(events, 'connected_teams_opened')
+  const teamChatOpens = uniqueUsers(events, 'team_chat_opened')
+  const teamChatSenders = uniqueUsers(events, 'team_chat_message_sent')
   const checkoutClicks = uniqueUsers(events, 'upgrade_checkout_clicked')
   const checkoutStarts = uniqueUsers(events, 'upgrade_checkout_started')
   const checkoutFailures = uniqueUsers(events, 'upgrade_checkout_failed')
@@ -156,6 +158,8 @@ export async function GET(request: Request) {
       playerLinks,
       teamConnections,
       connectedTeamsOpens,
+      teamChatOpens,
+      teamChatSenders,
       firstActions,
       checkoutClicks,
       checkoutStarts,

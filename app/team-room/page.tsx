@@ -63,6 +63,7 @@ import {
   type TeamRoomArrivalTextReturn,
 } from '@/lib/team-room-arrival'
 import { supabase } from '@/lib/supabase'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import { getTeamRoomMessageLinkLabel, tokenizeTeamRoomMessageBody } from '@/lib/team-room-message-links'
 import styles from './team-room.module.css'
 
@@ -403,6 +404,7 @@ function TeamRoomSession() {
   const draftPendingRef = useRef(false)
   const arrivalMessagePreparedRef = useRef('')
   const matchDraftSeedRef = useRef('')
+  const trackedRoomOpenRef = useRef('')
   const accessToken = session?.access_token || ''
   const requestedQuery = useMemo(() => {
     const params = new URLSearchParams()
@@ -730,6 +732,14 @@ function TeamRoomSession() {
   }, [accessToken, matchDraft.facility, matchDraft.matchDate, matchDraft.matchTime, matchDraft.opponent, pinnedMessage?.card?.facility, pinnedMessage?.card?.matchDate, pinnedMessage?.card?.matchTime, pinnedMessage?.card?.opponent, room?.flight, room?.id, room?.leagueName, room?.teamName, roomResumeResolved, userId])
 
   useEffect(() => {
+    if (!roomResumeResolved || !room?.id || !userId || !accessToken) return
+    const roomKey = `${userId}:${room.id}`
+    if (trackedRoomOpenRef.current === roomKey) return
+    trackedRoomOpenRef.current = roomKey
+    void trackProductUsageEvent({ eventName: 'team_chat_opened', surface: 'teams' }, accessToken)
+  }, [accessToken, room?.id, roomResumeResolved, userId])
+
+  useEffect(() => {
     if (!accessToken || !room?.id || !userId) return
     const scheduleRefresh = () => {
       if (realtimeRefreshRef.current !== null) window.clearTimeout(realtimeRefreshRef.current)
@@ -909,6 +919,7 @@ function TeamRoomSession() {
       } else {
         await postAction({ action: 'send', body: messageBody, announcement, replyToMessageId: replyTo?.id || '' })
       }
+      void trackProductUsageEvent({ eventName: 'team_chat_message_sent', surface: 'teams' }, accessToken)
       setMessageBody('')
       setAnnouncement(false)
       setReplyTo(null)
