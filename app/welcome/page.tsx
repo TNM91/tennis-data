@@ -82,7 +82,7 @@ const WELCOME_STORIES: Record<MembershipTierId | 'captain-pilot', WelcomeStory> 
   },
 }
 
-const SCORECARD_WELCOME_STORY: WelcomeStory = {
+const PLAYER_CONNECTION_WELCOME_STORY: WelcomeStory = {
   eyebrow: 'Your free account is ready',
   title: (name) => name ? `${name}, connect your player.` : 'Connect your player.',
   body: 'Your account is confirmed. Connect your player record to keep your tennis context together, then explore the matches and teams that matter to you.',
@@ -121,8 +121,9 @@ function WelcomeContent() {
   const isCaptainPilot = Boolean(pilotClaimHref)
   const storyKey = isCaptainPilot ? 'captain-pilot' : planId
   const isScorecardSignup = isScorecardSignupIntent(searchParams.get('source'), planId, nextHref)
+  const isPlayerConnectionWelcome = planId === 'free' && nextHref === '/profile#profile-identity'
   const isDefaultFreeWelcome = planId === 'free' && nextHref === '/explore' && !isScorecardSignup
-  const story = isScorecardSignup ? SCORECARD_WELCOME_STORY : isDefaultFreeWelcome ? FREE_DISCOVERY_WELCOME_STORY : WELCOME_STORIES[storyKey]
+  const story = isScorecardSignup || isPlayerConnectionWelcome ? PLAYER_CONNECTION_WELCOME_STORY : isDefaultFreeWelcome ? FREE_DISCOVERY_WELCOME_STORY : WELCOME_STORIES[storyKey]
   const primaryHref = pilotClaimHref ?? (isDefaultFreeWelcome ? '/explore/search?scope=players' : nextHref)
   const availabilityHref = planId === 'free' ? getAvailabilityEntry(nextHref)?.href || '' : ''
   const email = searchParams.get('email')?.trim() || ''

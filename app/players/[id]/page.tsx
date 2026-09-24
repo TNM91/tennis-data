@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
+import { track } from '@vercel/analytics'
 import React from 'react'
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
@@ -337,6 +338,7 @@ function PlayerProfileContent() {
   const [playerAwards, setPlayerAwards] = useState<TiqAwardRecord[]>([])
   const [detailReady, setDetailReady] = useState(false)
   const [profileShareStatus, setProfileShareStatus] = useState<'idle' | 'shared' | 'copied'>('idle')
+  const [isSharedVisit, setIsSharedVisit] = useState(false)
   const [featuredAchievementKeys, setFeaturedAchievementKeys] = useState<string[]>([])
   const [activeProfileSection, setActiveProfileSection] = useState<ProfileNavSection>('overview')
   const [achievementEditorOpen, setAchievementEditorOpen] = useState(false)
@@ -351,30 +353,39 @@ function PlayerProfileContent() {
 
   const sharePlayerProfile = useCallback(async () => {
     if (!player) return
-    const url = window.location.href
+    const url = new URL(`/players/${encodeURIComponent(player.id)}`, window.location.origin)
+    url.searchParams.set('via', 'player-share')
     const shareData = {
       title: `${player.name} on TenAceIQ`,
       text: `See ${player.name}'s TenAceIQ player profile.`,
-      url,
+      url: url.toString(),
+    }
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData)
+        track('Player Profile Share', { action: 'native_share' })
+        setProfileShareStatus('shared')
+        window.setTimeout(() => setProfileShareStatus('idle'), 2400)
+        return
+      } catch (shareError) {
+        if (shareError instanceof DOMException && shareError.name === 'AbortError') return
+      }
     }
 
     try {
-      if (navigator.share) {
-        await navigator.share(shareData)
-        setProfileShareStatus('shared')
-      } else {
-        await navigator.clipboard.writeText(url)
-        setProfileShareStatus('copied')
-      }
+      await navigator.clipboard.writeText(url.toString())
+      track('Player Profile Share', { action: 'copy_link' })
+      setProfileShareStatus('copied')
       window.setTimeout(() => setProfileShareStatus('idle'), 2400)
-    } catch (shareError) {
-      if (shareError instanceof DOMException && shareError.name === 'AbortError') return
+    } catch {
       setProfileShareStatus('idle')
     }
   }, [player])
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search)
+    setIsSharedVisit(query.get('via') === 'player-share')
     const nextRating = query.get('rating')
     if (nextRating === 'singles' || nextRating === 'doubles' || nextRating === 'overall') setRatingView(nextRating)
     const nextWindow = query.get('window')
@@ -382,6 +393,10 @@ function PlayerProfileContent() {
     setHistoryMode(query.get('history') === 'table' ? 'table' : 'chart')
     setDetailReady(true)
   }, [])
+
+  useEffect(() => {
+    if (player?.id && isSharedVisit) track('Player Profile Share Visit', { kind: 'player' })
+  }, [isSharedVisit, player?.id])
 
   const exploreResumeHref = useMemo(() => {
     const query = new URLSearchParams()
@@ -2005,16 +2020,25 @@ function PlayerProfileContent() {
                       entityName={player.name}
                       subtitle={player.location || ''}
                     />
-                    {hasPersonalPlayerExperience ? (
-                      <button
-                        type="button"
-                        className={`${profileStory.quietAction} ${profileStory.mobileOnlyAction}`}
-                        onClick={() => void sharePlayerProfile()}
-                      >
-                        {profileShareStatus === 'copied' ? 'Link copied' : profileShareStatus === 'shared' ? 'Shared' : 'Share profile'}
-                      </button>
-                    ) : null}
+                    <button
+                      type="button"
+                      className={profileStory.quietAction}
+                      onClick={() => void sharePlayerProfile()}
+                    >
+                      {profileShareStatus === 'copied' ? 'Link copied' : profileShareStatus === 'shared' ? 'Shared' : 'Share profile'}
+                    </button>
                   </div>
+                  {isSharedVisit && authResolved && !currentUserId ? (
+                    <div className={profileStory.playerAccessHint}>
+                      <span>Find your own player record and connect it to a free account.</span>
+                      <Link
+                        href="/join?plan=free&next=%2Fprofile%23profile-identity"
+                        onClick={() => track('Player Profile Join Click', { source: 'shared_link' })}
+                      >
+                        Connect my player
+                      </Link>
+                    </div>
+                  ) : null}
                   {shouldShowPlayerAccessHint ? (
                     <div className={profileStory.playerAccessHint}>
                       <span>Unlock Player for My Lab, saved reads, and personal coaching.</span>
