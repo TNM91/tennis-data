@@ -160,6 +160,7 @@ function JoinContent() {
   const requestedNextRoute = searchParams.get('next')
   const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, getJoinNextRoute(selectedPlanId))
   const isScorecardSignup = isScorecardSignupIntent(searchParams.get('source'), selectedPlanId, selectedNextRoute)
+  const isPlayerConnectionSignup = selectedPlanId === 'free' && selectedNextRoute === '/profile#profile-identity'
   const availabilityEntry = selectedPlanId === 'free' ? getAvailabilityEntry(selectedNextRoute) : null
   const isCaptainPilotSignup = selectedPlanId === 'captain' && selectedNextRoute.startsWith('/captain-pilot')
   const captainPilotSource = getCaptainPilotSourceFromHref(selectedNextRoute)
@@ -177,7 +178,7 @@ function JoinContent() {
     desktopTitle: 'Join your team in TiQ.',
     mobileText: `Create your free account for ${availabilityEntry.team}. Confirm your email, connect your player, then mark when you can play. No payment card needed.`,
     desktopText: `Create your free account for ${availabilityEntry.team}. Confirm your email, connect your player, then mark when you can play. No payment card needed.`,
-  } : isScorecardSignup ? {
+  } : isScorecardSignup || isPlayerConnectionSignup ? {
     ...JOIN_INTENT_COPY.free,
     eyebrow: 'Your player record',
     mobileTitle: 'Connect your player.',
@@ -264,7 +265,7 @@ function JoinContent() {
         ? `Check ${trimmedEmail} and confirm your email. We’ll bring you back to ${availabilityEntry.team} to connect your player and answer. Your match request is saved in the confirmation link.`
         : isCaptainPilotSignup
         ? 'Check your email to confirm your account. Your Captain Pilot welcome will guide you to the short team form and card-free activation.'
-        : isScorecardSignup
+        : isScorecardSignup || isPlayerConnectionSignup
         ? 'Check your email to confirm your account. Your player setup is next.'
         : 'Check your email to confirm your account. Your personal TenAceiQ welcome will show you the right next step.')
     } catch (err) {
