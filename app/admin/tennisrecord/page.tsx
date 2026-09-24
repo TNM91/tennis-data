@@ -19,6 +19,7 @@ type Status = {
   campaignForecast: { pagesPerCheckpoint: number; checkpointsRemaining: number; estimatedMinutesRemaining: number; checkpointMinutes: number; paceSampleCount: number; paceSource: 'recent_completed_checkpoints' | 'scheduled_cadence'; estimateBasis: 'known_queue' }
   nextCampaign: { id: string; name: string; region_label: string; starts_on: string; ends_on: string; status: string } | null
   weeklyProgress: { startedAt: string | null; pending: number; completed: number; running: number; review: number; blocked: number; errors: number }
+  currentRefreshLanes?: { missouri: { pending: number; oldestDueAt: string | null }; nationwide: { pending: number; oldestDueAt: string | null } }
   weeklyForecast: { pagesPerCheckpoint: number; checkpointsRemaining: number; estimatedMinutesRemaining: number; checkpointMinutes: number; paceSampleCount: number; paceSource: 'recent_completed_checkpoints' | 'scheduled_cadence'; estimateBasis: 'known_queue' }
   ratingProgress: { pending: number; baselineRefreshPending: boolean; baselineRefreshRequestedAt: string | null; lastRecalculatedAt: string | null; cadence: 'overnight' | 'Wednesday' | 'paused' }
   ratingEvidence: { observations: number; computerRated: number; selfRated: number; datedObservations: number; playersWithMultipleYears: number; paired2025To2026: number } | null
@@ -170,6 +171,10 @@ export default function TennisRecordAdminPage() {
         : weeklyEstimatedMinutes < 60
           ? `About ${weeklyEstimatedMinutes} min remaining`
           : `About ${Math.ceil(weeklyEstimatedMinutes / 60)} hr remaining`
+  const missouriOldestDueAt = status?.currentRefreshLanes?.missouri.oldestDueAt
+  const missouriWeeklyBehind = missouriOldestDueAt && Date.now() - Date.parse(missouriOldestDueAt) > 7 * 86_400_000
+  const nationwideOldestDueAt = status?.currentRefreshLanes?.nationwide.oldestDueAt
+  const nationwideWeeklyBehind = nationwideOldestDueAt && Date.now() - Date.parse(nationwideOldestDueAt) > 7 * 86_400_000
   const ratingProgress = status?.ratingProgress
   const ratingEvidence = status?.ratingEvidence
   const ratingAlignment = status?.ratingAlignment
@@ -195,12 +200,12 @@ export default function TennisRecordAdminPage() {
   const weeklyTitle = statusLoading ? 'Checking schedule'
     : statusDelayed ? 'Status refresh delayed'
     : sourceUnavailable ? 'Recent pulls waiting for source'
-    : currentRefreshEnabled ? 'Missouri current-season refresh active'
+    : currentRefreshEnabled ? 'Missouri-first nationwide refresh active'
     : automationState === 'weekly' && weekly?.startedAt ? weeklyCheckpointsRemaining ? 'Refreshing recent tennis activity' : 'Weekly refresh complete'
     : automationState === 'weekly' ? 'Next refresh: Wednesday' : 'Weekly refresh queued'
   const weeklyDetail = statusLoading ? 'Connecting to the live collector schedule.'
     : sourceUnavailable ? `Recent-data pulls are enabled but cannot reach TennisRecord. The next automatic source test is after ${formatDateTime(sourceOutage?.cooldownUntil)}.`
-    : currentRefreshEnabled ? 'Due Missouri pages refresh first, alongside historical imports. Successful source responses are required before recent results can advance.'
+    : currentRefreshEnabled ? 'Due Missouri pages get priority. Known current-season league, team, and match pages across the U.S. use the remaining weekly capacity alongside historical imports.'
     : weekly?.startedAt ? `Started ${formatDateTime(weekly.startedAt)}. Forecast uses ${weeklyForecast?.paceSource === 'recent_completed_checkpoints' ? `recent weekly checkpoint pace (${weeklyForecast.paceSampleCount} samples)` : 'the scheduled checkpoint cadence while weekly pace builds'}. This scan refreshes recent match, player, and team context from the prior Wednesday-to-Wednesday window.`
     : 'After the historical mission, this starts every Wednesday and continues in small checkpoints until the weekly queue is clear.'
   return (
@@ -210,6 +215,8 @@ export default function TennisRecordAdminPage() {
       </AdminReviewHero>
       {statusDelayed || statusRefreshDelayed ? <p className="subtle-text" style={{ margin: '14px 0 0' }}>{statusRefreshDelayed && status ? 'Showing the last confirmed collector status while the live refresh reconnects.' : 'Collector status is taking longer than usual to load. The previous status is not being treated as paused.'}</p> : null}
       {sourceUnavailable ? <p role="status" style={{ margin: '14px 0 0', color: 'var(--foreground-strong)' }}>Source access is stalled. The progress percentage counts settled queue pages, not new pages fetched. {sourceOutage?.lastFailureSignal ? `Last source failure: ${sourceOutage.lastFailureSignal}. ` : ''}Safety cooldown: next automatic test after {formatDateTime(sourceOutage?.cooldownUntil)}.</p> : null}
+      {missouriWeeklyBehind ? <p role="status" style={{ margin: '14px 0 0', color: 'var(--foreground-strong)' }}>Missouri weekly work is more than seven days behind. Review source health and queue growth.</p> : null}
+      {nationwideWeeklyBehind ? <p role="status" style={{ margin: '14px 0 0', color: 'var(--foreground-strong)' }}>Nationwide weekly work is more than seven days behind. Missouri stays first; review source health and queue growth before expanding the crawl.</p> : null}
       <section className="surface-card" style={{ marginTop: 20, padding: 20 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 14, marginBottom: 18 }}>
           <ProgressTracker ariaLabel="Historical import progress" label="2025 historical mission" title={historicalTitle} percent={progressPercent} processed={settledPages} total={knownPages} eta={statusLoading ? 'Checking' : statusDelayed ? 'Refresh delayed' : automationState === 'bootstrap' ? estimatedRemaining : status?.settings?.bootstrap_completed_at ? 'Complete' : 'Paused'} detail={historicalDetail} />
@@ -221,7 +228,7 @@ export default function TennisRecordAdminPage() {
             <span className="subtle-text">The collector advances only after the active queue is clear; no daily action is required.</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: 12 }}>
-            {currentRefreshEnabled ? <CampaignStep label="Priority" title="Missouri current-season refresh" detail="Due pages run alongside history and return on a seven-day cadence." tone="active" /> : null}
+            {currentRefreshEnabled ? <CampaignStep label="Priority" title="Missouri-first nationwide refresh" detail="Missouri due pages lead; known U.S. competition and result pages share the weekly lane." tone="active" /> : null}
             <CampaignStep label="Now" title={activeCampaign?.region_label || 'Historical campaign'} detail={automationState === 'bootstrap' ? `${status?.pendingPages ?? 0} queued pages · ${checkpointsRemaining} checkpoint${checkpointsRemaining === 1 ? '' : 's'} at about ${campaignCheckpointMinutes} minutes each` : 'Waiting for historical collection'} tone="active" />
             <CampaignStep label="Next" title={status?.nextCampaign?.region_label || 'Weekly refresh'} detail={status?.nextCampaign ? `${status.nextCampaign.name} starts automatically when the active queue clears.` : 'Starts after historical campaigns are complete.'} />
             {!currentRefreshEnabled ? <CampaignStep label="Then" title="Weekly seven-day refresh" detail="Runs every Wednesday and collects only the prior week’s eligible public activity." /> : null}
@@ -240,6 +247,10 @@ export default function TennisRecordAdminPage() {
           <Metric label="Last source failure" value={sourceOutage?.lastFailureSignal || 'Not classified yet'} />
           <Metric label="Next source test" value={sourceUnavailable ? formatDateTime(sourceOutage?.cooldownUntil) : '—'} />
           <Metric label="Historical campaign" value={activeCampaign?.region_label || 'Not selected'} />
+          {currentRefreshEnabled ? <Metric label="Missouri weekly queued" value={status?.currentRefreshLanes?.missouri.pending ?? '—'} /> : null}
+          {currentRefreshEnabled ? <Metric label="Missouri oldest queued" value={status?.currentRefreshLanes ? formatQueuedAge(status.currentRefreshLanes.missouri.oldestDueAt) : '—'} /> : null}
+          {currentRefreshEnabled ? <Metric label="Nationwide weekly queued" value={status?.currentRefreshLanes?.nationwide.pending ?? '—'} /> : null}
+          {currentRefreshEnabled ? <Metric label="Nationwide oldest queued" value={status?.currentRefreshLanes ? formatQueuedAge(status.currentRefreshLanes.nationwide.oldestDueAt) : '—'} /> : null}
           <Metric label="Pending pages" value={status?.pendingPages ?? '—'} />
           <Metric label="Conflicts" value={status?.conflicts ?? '—'} />
           <Metric label="Last status" value={String(run.status || 'Never')} />
@@ -393,4 +404,12 @@ function formatDateTime(value?: string | null) {
   if (!value) return 'not yet'
   const date = new Date(value)
   return Number.isNaN(date.valueOf()) ? 'not yet' : date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+}
+
+function formatQueuedAge(value?: string | null) {
+  if (!value) return 'Clear'
+  const hours = Math.max(0, Math.floor((Date.now() - Date.parse(value)) / 3_600_000))
+  if (!Number.isFinite(hours)) return 'Unknown'
+  if (hours < 1) return 'Under 1 hr'
+  return hours < 24 ? `${hours} hr` : `${Math.floor(hours / 24)} d ${hours % 24} hr`
 }

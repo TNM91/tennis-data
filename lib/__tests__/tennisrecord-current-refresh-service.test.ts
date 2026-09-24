@@ -80,6 +80,24 @@ describe('current refresh preparation', () => {
     expect(calls.some(c => c.table === 'tennisrecord_staged_players')).toBe(false)
     expect(calls[0].ops[0].args).toEqual([{ p_run_id: 'run', p_seed: false }])
   })
+
+  it('gradually enrolls known nationwide current-year competition pages without player histories', async () => {
+    const year = new Date().getUTCFullYear()
+    const candidate = (page_kind: string, path: string) => ({ page_kind, source_url: `https://www.tennisrecord.com/adult/${path}?year=${year}` })
+    const rows = [candidate('league', 'league/leaguetype.aspx'), candidate('team', 'teamprofile.aspx'), candidate('match', 'matchresults.aspx'), candidate('history', 'matchhistory.aspx')]
+    const { db, calls } = fakeDb(call => {
+      if (call.table === 'tennisrecord_campaigns') return { data: { id: op(call, 'eq')?.args[1] === 'us-2025-current' ? 'us' : 'mo' } }
+      if (call.table === 'tennisrecord_crawl_queue' && op(call, 'select')) return { data: rows }
+      return { data: [], error: null }
+    })
+    expect(await prepareCurrentSeasonRefresh(db, 'run', { ...settings, current_refresh_seeded_at: new Date().toISOString() })).toBe('mo')
+    const enrollment = calls.find(call => call.table === 'tennisrecord_crawl_queue' && op(call, 'select'))!
+    expect(op(enrollment, 'eq')?.args).toEqual(['campaign_id', 'us'])
+    expect(op(enrollment, 'in')?.args).toEqual(['status', ['pending', 'done']])
+    expect(op(enrollment, 'limit')?.args).toEqual([48])
+    const marked = calls.find(call => call.table === 'tennisrecord_crawl_queue' && op(call, 'update'))!
+    expect(op(marked, 'in')?.args).toEqual(['source_url', rows.slice(0, 3).map(row => row.source_url)])
+  })
 })
 
 describe('rating/import mutual exclusion', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { currentSeasonDiscoveryUrls, hasMissouriPageEvidence, isMissouriCompetition, nextCurrentRefreshAt, preferCurrentSeason } from '../tennisrecord/current-refresh'
+import { currentSeasonDiscoveryUrls, currentSeasonPreferredScope, hasMissouriPageEvidence, isMissouriCompetition, nationalCurrentSeasonUrl, nextCurrentRefreshAt, preferCurrentSeason } from '../tennisrecord/current-refresh'
 import { isTennisRecordCampaignDiscoveryAllowed } from '../tennisrecord/frontier'
 import type { ParsedTennisRecordPage } from '../tennisrecord/types'
 
@@ -20,6 +20,17 @@ describe('independent current-season refresh', () => {
     const urls = [base + 'matchhistory.aspx?year=2026', base + 'matchhistory.aspx?year=2027', base + 'profile.aspx?playername=A', 'https://evil.example/?year=2027', 'bad']
     expect(currentSeasonDiscoveryUrls(urls, new Date('2027-01-01T00:00:00Z'))).toEqual([urls[1]])
     expect(nextCurrentRefreshAt(new Date('2026-12-28T09:00:00Z'))).toBe('2027-01-04T09:00:00.000Z')
+  })
+
+  it('limits nationwide weekly work to current competition and result pages', () => {
+    const now = new Date('2026-09-24T00:00:00Z')
+    expect(nationalCurrentSeasonUrl(base + 'league/leaguetype.aspx?year=2026', 'league', now)).toBe(true)
+    expect(nationalCurrentSeasonUrl(base + 'teamprofile.aspx?teamname=A&year=2026', 'team', now)).toBe(true)
+    expect(nationalCurrentSeasonUrl(base + 'matchresults.aspx?mid=1&year=2026', 'match', now)).toBe(true)
+    expect(nationalCurrentSeasonUrl(base + 'matchhistory.aspx?year=2026', 'history', now)).toBe(false)
+    expect(nationalCurrentSeasonUrl(base + 'matchresults.aspx?mid=1&year=2025', 'match', now)).toBe(false)
+    expect(nationalCurrentSeasonUrl('https://example.com/matchresults.aspx?year=2026', 'match', now)).toBe(false)
+    expect([0, 1, 2, 3, 4, 5].map(currentSeasonPreferredScope)).toEqual(['missouri', 'missouri', 'national', 'missouri', 'missouri', 'national'])
   })
 
   it('distinguishes Missouri district from the multi-state section', () => {

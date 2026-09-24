@@ -27,6 +27,17 @@ export function currentSeasonDiscoveryUrls(urls: string[], now = new Date()) {
   })
 }
 
+/** Nationwide freshness follows competition and result pages, not every
+ * historical player profile. The latter cannot fit a seven-day source budget. */
+export function nationalCurrentSeasonUrl(url: string, pageKind: string | null, now = new Date()) {
+  return Boolean(pageKind && ['league', 'team', 'match'].includes(pageKind) && currentSeasonDiscoveryUrls([url], now).length > 0)
+}
+
+/** Reserve two of every three current-season claims for Missouri when due. */
+export function currentSeasonPreferredScope(index: number) {
+  return index % 3 === 2 ? 'national' as const : 'missouri' as const
+}
+
 /** Alternate successful checkpoint opportunities, not wall-clock slots that
  * a long-running job could repeatedly miss. Ratings runs do not affect fairness. */
 export function preferCurrentSeason(state: 'manual' | 'bootstrap' | 'weekly', lastTrigger?: string | null) {
