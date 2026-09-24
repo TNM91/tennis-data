@@ -27,6 +27,14 @@ describe('profile identity first actions', () => {
     expect(source).toContain('Find players')
   })
 
+  it('searches player records as names are typed and puts the connection action beside identity selection', () => {
+    expect(source).toContain("players.ilike('name', `%${input.name}%`)")
+    expect(source).toContain("playerIds.map((playerId) => loadProfilePlayers({ playerId }))")
+    expect(source).toContain('Is one of these you?')
+    expect(source).toContain('Create my player')
+    expect(source.indexOf('style={identityActionStyle}')).toBeLessThan(source.indexOf('Player ID powers'))
+  })
+
   it('keeps completed profiles on a useful next-move path', () => {
     expect(source).toContain('const profileNextMoves = [')
     expect(source).toContain("title: 'Start Level Up'")
