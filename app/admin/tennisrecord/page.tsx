@@ -195,12 +195,12 @@ export default function TennisRecordAdminPage() {
   const weeklyTitle = statusLoading ? 'Checking schedule'
     : statusDelayed ? 'Status refresh delayed'
     : sourceUnavailable ? 'Recent pulls waiting for source'
-    : currentRefreshEnabled ? 'Current-season refresh active'
+    : currentRefreshEnabled ? 'Missouri current-season refresh active'
     : automationState === 'weekly' && weekly?.startedAt ? weeklyCheckpointsRemaining ? 'Refreshing recent tennis activity' : 'Weekly refresh complete'
     : automationState === 'weekly' ? 'Next refresh: Wednesday' : 'Weekly refresh queued'
   const weeklyDetail = statusLoading ? 'Connecting to the live collector schedule.'
     : sourceUnavailable ? `Recent-data pulls are enabled but cannot reach TennisRecord. The next automatic source test is after ${formatDateTime(sourceOutage?.cooldownUntil)}.`
-    : currentRefreshEnabled ? 'Current-season pages refresh alongside historical imports. Successful source responses are required before recent results can advance.'
+    : currentRefreshEnabled ? 'Due Missouri pages refresh first, alongside historical imports. Successful source responses are required before recent results can advance.'
     : weekly?.startedAt ? `Started ${formatDateTime(weekly.startedAt)}. Forecast uses ${weeklyForecast?.paceSource === 'recent_completed_checkpoints' ? `recent weekly checkpoint pace (${weeklyForecast.paceSampleCount} samples)` : 'the scheduled checkpoint cadence while weekly pace builds'}. This scan refreshes recent match, player, and team context from the prior Wednesday-to-Wednesday window.`
     : 'After the historical mission, this starts every Wednesday and continues in small checkpoints until the weekly queue is clear.'
   return (
@@ -221,9 +221,10 @@ export default function TennisRecordAdminPage() {
             <span className="subtle-text">The collector advances only after the active queue is clear; no daily action is required.</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))', gap: 12 }}>
+            {currentRefreshEnabled ? <CampaignStep label="Priority" title="Missouri current-season refresh" detail="Due pages run alongside history and return on a seven-day cadence." tone="active" /> : null}
             <CampaignStep label="Now" title={activeCampaign?.region_label || 'Historical campaign'} detail={automationState === 'bootstrap' ? `${status?.pendingPages ?? 0} queued pages · ${checkpointsRemaining} checkpoint${checkpointsRemaining === 1 ? '' : 's'} at about ${campaignCheckpointMinutes} minutes each` : 'Waiting for historical collection'} tone="active" />
             <CampaignStep label="Next" title={status?.nextCampaign?.region_label || 'Weekly refresh'} detail={status?.nextCampaign ? `${status.nextCampaign.name} starts automatically when the active queue clears.` : 'Starts after historical campaigns are complete.'} />
-            <CampaignStep label="Then" title="Weekly seven-day refresh" detail="Runs every Wednesday and collects only the prior week’s eligible public activity." />
+            {!currentRefreshEnabled ? <CampaignStep label="Then" title="Weekly seven-day refresh" detail="Runs every Wednesday and collects only the prior week’s eligible public activity." /> : null}
           </div>
           <span className="subtle-text">{sourceUnavailable ? 'No completion estimate is reliable while source requests are failing.' : `Time remaining reflects the currently known queue and ${campaignPaceDetail}. The estimate updates automatically as public pages reveal additional eligible matches.`}</span>
           <span className="subtle-text">Evidence review pages were captured safely but did not contain a complete court result. They do not pause collection or enter production matches.</span>
