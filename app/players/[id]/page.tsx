@@ -329,7 +329,7 @@ function PlayerProfileContent() {
   const [tiqParticipationWarning, setTiqParticipationWarning] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [linkedPlayerId, setLinkedPlayerId] = useState<string | null>(null)
+  const [playerLink, setPlayerLink] = useState<{ userId: string; playerId: string | null } | null>(null)
   const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
   const [ratingView, setRatingView] = useState<RatingView>('overall')
   const [chartWindow, setChartWindow] = useState<'all' | '90d' | '30d'>('all')
@@ -351,6 +351,8 @@ function PlayerProfileContent() {
   const { screenWidth, isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const useSplitProfileHero = screenWidth >= 1180
   const { role, userId: currentUserId, entitlements, authResolved } = useAuth()
+  const playerLinkResolved = !currentUserId || playerLink?.userId === currentUserId
+  const linkedPlayerId = playerLink?.userId === currentUserId ? playerLink.playerId : null
   const resolvedRole = authResolved || !currentUserId ? role : 'member'
   const access = useMemo(() => buildProductAccessState(resolvedRole, entitlements), [resolvedRole, entitlements])
 
@@ -423,7 +425,7 @@ function PlayerProfileContent() {
   useEffect(() => {
     if (!authResolved) return
     if (!currentUserId) {
-      setLinkedPlayerId(null)
+      setPlayerLink(null)
       setMyMatchReports([])
       return
     }
@@ -433,7 +435,7 @@ function PlayerProfileContent() {
     void (async () => {
       const result = await loadUserProfileLink(currentUserId)
       if (!active) return
-      setLinkedPlayerId(result.data?.linked_player_id || null)
+      setPlayerLink({ userId: currentUserId, playerId: result.data?.linked_player_id || null })
     })()
 
     return () => {
@@ -2045,6 +2047,17 @@ function PlayerProfileContent() {
                       <Link
                         href={`/join?plan=free&next=%2Fprofile%23profile-identity&source=${isSharedVisit ? PLAYER_PROFILE_SHARE_SOURCE : PLAYER_PROFILE_SOURCE}`}
                         onClick={() => track('Player Profile Join Click', { source: isSharedVisit ? PLAYER_PROFILE_SHARE_SOURCE : PLAYER_PROFILE_SOURCE })}
+                      >
+                        Connect my player
+                      </Link>
+                    </div>
+                  ) : null}
+                  {authResolved && currentUserId && playerLinkResolved && !linkedPlayerId ? (
+                    <div className={profileStory.playerAccessHint}>
+                      <span>Find your own player record to make your account personal.</span>
+                      <Link
+                        href="/profile#profile-identity"
+                        onClick={() => track('Player Profile Connect Click', { source: isSharedVisit ? PLAYER_PROFILE_SHARE_SOURCE : PLAYER_PROFILE_SOURCE })}
                       >
                         Connect my player
                       </Link>
