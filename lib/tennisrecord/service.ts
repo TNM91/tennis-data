@@ -9,7 +9,7 @@ import { findExistingProductionMatch, type ProductionMatch, type CanonicalPartic
 import { tennisRecordEventReviews } from './source-event-identity'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordCampaignCurrentEndOn, tennisRecordFrontierStatus } from './frontier'
 import type { TennisRecordRunSummary } from './types'
-import { currentSeasonDiscoveryUrls, nextCurrentRefreshAt, preferCurrentSeason } from './current-refresh'
+import { currentSeasonDiscoveryUrls, currentSeasonPreferredScope, nationalCurrentSeasonUrl, nextCurrentRefreshAt, preferCurrentSeason } from './current-refresh'
 import { createRatingTimingObserver, emitImporterTelemetry, sourceAttemptFailureSignal, type SourceAttemptSample } from './telemetry'
 import { readSourceOutageState, recordSourceOutageFailure, sourceOutageIsCooling, type SourceOutageState } from './source-outage'
 
@@ -164,6 +164,7 @@ export type RatingBaselineAlignment = {
 // the route's existing five-minute limit remains the final safety boundary.
 const BOOTSTRAP_TENNISRECORD_BATCH_LIMIT = 18
 const WEEKLY_TENNISRECORD_BATCH_LIMIT = 3
+const NATIONAL_CURRENT_SEED_BATCH_LIMIT = 12
 // Replaying already-captured pages does not contact the source. Six local-only
 // pages per checkpoint recover stated NTRP evidence from existing profiles
 // without increasing external request pressure, while leaving the external
@@ -595,9 +596,24 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
   if (attentionItems.error) throw new Error('TennisRecord attention queue is unavailable.')
   const weeklyStartedAt = (settings.data as Settings | null)?.weekly_refresh_started_at || null
   const independentRefresh = Boolean((settings.data as Settings | null)?.current_refresh_enabled)
+  const currentSeason = new Date().getUTCFullYear()
+  const currentLane = async (slug: string) => {
+    const id = (campaigns.data || []).find(campaign => campaign.slug === slug)?.id
+    if (!independentRefresh || !id) return { pending: 0, oldestDueAt: null as string | null }
+    const [pending, oldest] = await Promise.all([
+      service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', 'pending').eq('refresh_season', currentSeason).eq('campaign_id', id),
+      service.from('tennisrecord_crawl_queue').select('refresh_due_at').eq('status', 'pending').eq('refresh_season', currentSeason).eq('campaign_id', id).not('refresh_due_at', 'is', null).order('refresh_due_at').limit(1),
+    ])
+    if (pending.error || oldest.error) throw new Error('TennisRecord current-season lane status is unavailable.')
+    return { pending: pending.count || 0, oldestDueAt: oldest.data?.[0]?.refresh_due_at || null }
+  }
+  const [missouriRefresh, nationwideRefresh] = await Promise.all([
+    currentLane('missouri-2025-current'),
+    currentLane('us-2025-current'),
+  ])
   const countWeeklyPages = (status: string, timestampColumn: 'last_seen_at' | 'completed_at') => {
     if (independentRefresh) {
-      let current = service.from('tennisrecord_crawl_queue').select('id', TENNISRECORD_STATUS_COUNT).eq('status', status).eq('refresh_season', new Date().getUTCFullYear())
+      let current = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true }).eq('status', status).eq('refresh_season', currentSeason)
       if (status === 'done') current = current.not('current_refreshed_at', 'is', null)
       return current
     }
@@ -694,6 +710,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
       blocked: weeklyBlocked.count || 0,
       errors: weeklyErrors.count || 0,
     },
+    currentRefreshLanes: { missouri: missouriRefresh, nationwide: nationwideRefresh },
     ratingProgress: {
       pending: ratingPending.count || 0,
       baselineRefreshPending: Boolean(collectorSettings?.rating_recalculation_requested_at),
@@ -814,15 +831,42 @@ async function markCurrentSeasonUrls(service: SupabaseClient, urls: string[]) {
   }
 }
 
+async function enrollKnownNationalCurrentSeasonPages(service: SupabaseClient) {
+  const campaign = await service.from('tennisrecord_campaigns').select('id').eq('slug', 'us-2025-current').maybeSingle()
+  if (campaign.error) throw new Error(campaign.error.message)
+  if (!campaign.data?.id) return 0
+  const season = new Date().getUTCFullYear()
+  // The historical U.S. frontier supplies known public URLs. Enroll a small
+  // batch per checkpoint; never reseed every player history or bypass pacing.
+  const candidates = await service.from('tennisrecord_crawl_queue')
+    .select('source_url,page_kind')
+    .eq('campaign_id', campaign.data.id)
+    .in('status', ['pending', 'done'])
+    .in('page_kind', ['league', 'team', 'match'])
+    .like('source_url', `%year=${season}%`)
+    .or(`refresh_season.is.null,refresh_season.neq.${season}`)
+    .order('first_seen_at')
+    .limit(NATIONAL_CURRENT_SEED_BATCH_LIMIT * 4)
+  if (candidates.error) throw new Error(candidates.error.message)
+  const urls = (candidates.data || [])
+    .filter(row => nationalCurrentSeasonUrl(row.source_url, row.page_kind))
+    .slice(0, NATIONAL_CURRENT_SEED_BATCH_LIMIT)
+    .map(row => row.source_url)
+  if (urls.length) await markCurrentSeasonUrls(service, urls)
+  return urls.length
+}
+
 export async function prepareCurrentSeasonRefresh(service: SupabaseClient, runId: string, settings: Settings) {
   if (!settings.current_refresh_enabled) throw new Error('Current-season refresh is not enabled.')
   const lastSeed = settings.current_refresh_seeded_at
   const seedDue = !lastSeed || isWeeklyTennisRecordRefreshDue(lastSeed) || new Date(lastSeed).getUTCFullYear() !== new Date().getUTCFullYear()
   let seedComplete = seedDue
+  let missouriCampaignId: string | null = null
   if (seedDue) {
     const campaign = await service.from('tennisrecord_campaigns').select('id,slug').eq('slug', 'missouri-2025-current').maybeSingle()
     if (campaign.error) throw new Error(campaign.error.message)
     if (campaign.data) {
+      missouriCampaignId = campaign.data.id
       const year = String(new Date().getUTCFullYear())
       const seeds = getTennisRecordCampaignSeedUrls({ slug: campaign.data.slug, startsOn: year + '-01-01', endsOn: year + '-12-31' })
       await enqueueTennisRecordUrls(service, seeds, campaign.data.id)
@@ -849,6 +893,13 @@ export async function prepareCurrentSeasonRefresh(service: SupabaseClient, runId
   if (prepared.error) throw new Error(prepared.error.message)
   const recorded = await service.from('tennisrecord_collector_settings').update({ weekly_refresh_started_at: new Date().toISOString() }).eq('id', true).is('weekly_refresh_started_at', null)
   if (recorded.error) throw new Error(recorded.error.message)
+  await enrollKnownNationalCurrentSeasonPages(service)
+  if (!missouriCampaignId) {
+    const campaign = await service.from('tennisrecord_campaigns').select('id').eq('slug', 'missouri-2025-current').maybeSingle()
+    if (campaign.error) throw new Error(campaign.error.message)
+    missouriCampaignId = campaign.data?.id || null
+  }
+  return missouriCampaignId
 }
 
 function sourceOutageFromSettings(settings: unknown) {
@@ -903,7 +954,9 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
       return lockedCooling
     }
     let outage = sourceOutageFromSettings(outageRead.data)
-    if (input.currentSeason && !input.replayOnly) await prepareCurrentSeasonRefresh(service, runId, settings)
+    const missouriCurrentCampaignId = input.currentSeason && !input.replayOnly
+      ? await prepareCurrentSeasonRefresh(service, runId, settings)
+      : null
     if (!input.replayOnly) summary.transientRetries += await requeueDueDeferredTennisRecordRetries(service, input.campaignId)
     const campaign = input.campaignId
       ? await service.from('tennisrecord_campaigns').select('slug').eq('id', input.campaignId).maybeSingle()
@@ -926,7 +979,8 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
     for (let index = 0; index < requestedLimit; index += 1) {
       if (!hasTennisRecordFetchBudget(sourceDeadlineAt, settings.min_request_interval_ms)) break
       const preferredKinds = input.pageKindPlan?.[index] || input.pageKinds || []
-      const job = await selectNextTennisRecordQueueJob(service, input, preferredKinds)
+      const preferredScope = input.currentSeason && missouriCurrentCampaignId ? currentSeasonPreferredScope(index) : 'any'
+      const job = await selectNextTennisRecordQueueJob(service, input, preferredKinds, preferredScope, missouriCurrentCampaignId)
         || (input.pageKindPlan ? await selectNextTennisRecordQueueJob(service, input, input.pageKinds || []) : null)
       if (!job) break
       // Queue selection can itself take time. Do not claim another row once
@@ -1012,7 +1066,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
           ? await service.from('tennisrecord_campaigns').select('slug').eq('id', job.campaign_id).single()
           : { data: { slug: campaignSlug }, error: null }
         if (jobCampaign.error) throw new Error(jobCampaign.error.message)
-        const staged = await stageParsedPage(service, parsed, page.url, sourcePageId, job.campaign_id, jobCampaign.data?.slug, TENNISRECORD_PARSER_REVISION, settings.current_refresh_enabled)
+        const staged = await stageParsedPage(service, parsed, page.url, sourcePageId, job.campaign_id, jobCampaign.data?.slug, TENNISRECORD_PARSER_REVISION, settings.current_refresh_enabled, input.currentSeason)
         baselineChanged = baselineChanged || staged.baselineChanged
         for (const sourceMatchKey of staged.sourceMatchKeys) {
           touchedSourceMatchKeys.add(sourceMatchKey)
@@ -1244,15 +1298,21 @@ async function completeActiveTennisRecordCampaign(service: SupabaseClient, activ
   if (settingsError) throw new Error(settingsError.message)
 }
 
-async function selectNextTennisRecordQueueJob(service: SupabaseClient, input: SyncInput, pageKinds: readonly string[]) {
-  let query = service.from('tennisrecord_crawl_queue').select('id,source_url,page_kind,campaign_id,retry_count,deferred_retry_count,deferred_retry_at').eq('status', 'pending')
-  query = query.or(`deferred_retry_at.is.null,deferred_retry_at.lte.${new Date().toISOString()}`)
-  if (pageKinds.length) query = query.in('page_kind', pageKinds)
-  if (input.campaignId) query = query.eq('campaign_id', input.campaignId)
-  if (input.currentSeason) query = query.eq('refresh_season', new Date().getUTCFullYear())
-  const { data, error } = await query.order('first_seen_at').limit(1).maybeSingle()
-  if (error) throw new Error(error.message)
-  return data as QueueRow | null
+async function selectNextTennisRecordQueueJob(service: SupabaseClient, input: SyncInput, pageKinds: readonly string[], preferredScope: 'missouri' | 'national' | 'any' = 'any', missouriCampaignId: string | null = null) {
+  const find = async (scope: typeof preferredScope) => {
+    let query = service.from('tennisrecord_crawl_queue').select('id,source_url,page_kind,campaign_id,retry_count,deferred_retry_count,deferred_retry_at').eq('status', 'pending')
+    query = query.or(`deferred_retry_at.is.null,deferred_retry_at.lte.${new Date().toISOString()}`)
+    if (pageKinds.length) query = query.in('page_kind', pageKinds)
+    if (input.campaignId) query = query.eq('campaign_id', input.campaignId)
+    if (input.currentSeason) query = query.eq('refresh_season', new Date().getUTCFullYear())
+    if (missouriCampaignId && scope === 'missouri') query = query.eq('campaign_id', missouriCampaignId)
+    if (missouriCampaignId && scope === 'national') query = query.neq('campaign_id', missouriCampaignId)
+    if (input.currentSeason) query = query.order('refresh_due_at', { ascending: true, nullsFirst: false })
+    const { data, error } = await query.order('first_seen_at').limit(1).maybeSingle()
+    if (error) throw new Error(error.message)
+    return data as QueueRow | null
+  }
+  return (await find(preferredScope)) || (preferredScope === 'any' ? null : await find('any'))
 }
 
 async function requeueDueDeferredTennisRecordRetries(service: SupabaseClient, campaignId?: string | null) {
@@ -1603,7 +1663,7 @@ async function associatedSourceEventReview(service: SupabaseClient, court: { fin
   return (await tennisRecordEventReviews(service, [court], associated)).get(court.fingerprint)
 }
 
-async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeof parseTennisRecordMatchPage>, sourceUrl: string, pageId?: string, campaignId?: string | null, campaignSlug?: string, parserRevision = TENNISRECORD_PARSER_REVISION, currentRefreshEnabled = false) {
+async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeof parseTennisRecordMatchPage>, sourceUrl: string, pageId?: string, campaignId?: string | null, campaignSlug?: string, parserRevision = TENNISRECORD_PARSER_REVISION, currentRefreshEnabled = false, currentSeason = false) {
   if (parsed.reviewReason) throw new Error(parsed.reviewReason)
   let savedSourceMatchKeys: string[] = []
   const sourcePlayerKeys = [...new Set(parsed.players.map((player) => player.sourcePlayerKey).filter(Boolean))]
@@ -1831,6 +1891,10 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
   if (currentRefreshEnabled && campaignSlug === 'missouri-2025-current') {
     const ownPageAllowed = isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, sourceUrl, parsed)
     await markCurrentSeasonUrls(service, currentSeasonDiscoveryUrls([...scopedDiscoveryUrls, ...(ownPageAllowed ? [sourceUrl] : [])]))
+  }
+  if (currentRefreshEnabled && currentSeason && campaignSlug === 'us-2025-current') {
+    const urls = [...scopedDiscoveryUrls, sourceUrl].filter(url => nationalCurrentSeasonUrl(url, tennisRecordRecordPageKind(url)))
+    await markCurrentSeasonUrls(service, urls)
   }
   return { sourceMatchKeys: savedSourceMatchKeys, sourcePlayerKeys, baselineChanged }
 }
