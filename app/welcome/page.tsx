@@ -160,10 +160,16 @@ function WelcomeContent() {
         </ol>
         <Link href={primaryHref} style={primaryCta}>{story.primaryLabel}</Link>
         {isDefaultFreeWelcome ? (
-          <div style={freeChoiceRow} aria-label="Other ways to start exploring">
-            <Link href="/explore/search?scope=teams" style={freeChoiceLink}>Find a team</Link>
-            <Link href="/explore/search?scope=leagues" style={freeChoiceLink}>Find a league</Link>
-          </div>
+          <>
+            <div style={freeChoiceRow} aria-label="Other ways to start exploring">
+              <Link href="/explore/search?scope=teams" style={freeChoiceLink}>Find a team</Link>
+              <Link href="/explore/search?scope=leagues" style={freeChoiceLink}>Find a league</Link>
+            </div>
+            <Link href="/profile#profile-identity" style={connectPlayerLink}>
+              <strong>Connect my player</strong>
+              <span>Bring your ratings, teams, and match history together.</span>
+            </Link>
+          </>
         ) : null}
         {planId !== 'free' ? <Link href="/explore" style={secondaryCta}>Explore Free first</Link> : null}
         <p style={finePrint}>{isCaptainPilot ? 'Your feedback will help shape the Captain experience for local teams.' : `${tier.name} is always there when you are ready. Start with the next useful tennis action.`}</p>
@@ -193,5 +199,6 @@ const primaryCta: CSSProperties = { display: 'inline-flex', alignItems: 'center'
 const secondaryCta: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, color: 'var(--foreground)', textDecoration: 'none', fontWeight: 800, fontSize: 14 }
 const freeChoiceRow: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 10 }
 const freeChoiceLink: CSSProperties = { ...secondaryCta, flex: '1 1 180px', padding: '0 12px', border: '1px solid rgba(125,211,252,0.24)', borderRadius: 12 }
+const connectPlayerLink: CSSProperties = { display: 'grid', gap: 3, padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(155,225,29,0.32)', background: 'rgba(155,225,29,0.08)', color: 'var(--foreground)', textDecoration: 'none', fontSize: 14 }
 const finePrint: CSSProperties = { margin: 0, color: 'var(--shell-copy-muted)', fontSize: 13, lineHeight: 1.45, textAlign: 'center' }
 const loadingShell: CSSProperties = { width: 'min(760px, calc(100% - clamp(20px, 5vw, 28px)))', margin: '48px auto', padding: '22px', borderRadius: 20, color: 'var(--foreground-strong)', background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(125,211,252,0.16)', fontWeight: 800 }
