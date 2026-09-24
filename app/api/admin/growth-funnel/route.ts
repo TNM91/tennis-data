@@ -23,6 +23,7 @@ import {
   type ScorecardSignupIdentity,
   type ScorecardSignupProfile,
 } from '@/lib/scorecard-growth-funnel'
+import { buildPlayerProfileAcquisitionFunnel, getPlayerProfileSignupIds } from '@/lib/player-profile-growth-funnel'
 
 export const runtime = 'nodejs'
 
@@ -103,15 +104,17 @@ export async function GET(request: Request) {
   const unclaimedSignupProfileIds = getCaptainPilotUnclaimedSignupProfileIds(events, captainPilotRows)
   const signupIdentities = await loadCaptainPilotSignupIdentities(service, unclaimedSignupProfileIds)
   const scorecardSignupIds = getScorecardSignupIds(events)
-  const scorecardSignupRows = await loadScorecardSignupRows(service, scorecardSignupIds)
-  if (!scorecardSignupRows) {
-    return Response.json({ ok: false, message: 'Scorecard signup progress could not be loaded.' }, { status: 500 })
+  const playerProfileSignupIds = getPlayerProfileSignupIds(events)
+  const signupRows = await loadScorecardSignupRows(service, [...new Set([...scorecardSignupIds, ...playerProfileSignupIds])])
+  if (!signupRows) {
+    return Response.json({ ok: false, message: 'Signup progress could not be loaded.' }, { status: 500 })
   }
   const scorecardSignup = buildScorecardSignupFunnel(
     scorecardSignupIds,
-    scorecardSignupRows.identities,
-    scorecardSignupRows.profiles,
+    signupRows.identities,
+    signupRows.profiles,
   )
+  const playerProfileAcquisition = buildPlayerProfileAcquisitionFunnel(events, signupRows.identities, signupRows.profiles)
   const activatedProfileIds = [...new Set(
     captainPilotRows
       .filter((row) => row.status === 'converted')
@@ -171,6 +174,7 @@ export async function GET(request: Request) {
       captainPilotFollowUpCount: allCaptainPilotFollowUps.length,
       captainPilotActivation: captainPilotActivation.value,
       scorecardSignup,
+      playerProfileAcquisition,
     },
   })
 }
@@ -206,7 +210,7 @@ async function loadScorecardSignupRows(
       identities.push(...batch)
     }
   } catch (error) {
-    console.error('Scorecard signup progress could not be loaded.', error)
+    console.error('Signup progress could not be loaded.', error)
     return null
   }
 

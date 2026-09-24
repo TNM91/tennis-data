@@ -50,6 +50,7 @@ import {
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 import profileStory from './player-profile-story.module.css'
 import { usePlayerProfilePreview } from './player-profile-preview-context'
+import { PLAYER_PROFILE_SHARE_SOURCE, PLAYER_PROFILE_SOURCE } from '@/lib/player-profile-acquisition'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type ProfileNavSection = 'overview' | 'rating' | 'performance' | 'player-id' | 'teams'
@@ -399,6 +400,11 @@ function PlayerProfileContent() {
   useEffect(() => {
     if (player?.id && isSharedVisit) track('Player Profile Share Visit', { kind: 'player' })
   }, [isSharedVisit, player?.id])
+
+  useEffect(() => {
+    if (!detailReady || !player?.id) return
+    track('Player Profile Visit', { source: isSharedVisit ? PLAYER_PROFILE_SHARE_SOURCE : PLAYER_PROFILE_SOURCE })
+  }, [detailReady, isSharedVisit, player?.id])
 
   const exploreResumeHref = useMemo(() => {
     const query = new URLSearchParams()
@@ -2037,8 +2043,8 @@ function PlayerProfileContent() {
                     <div className={profileStory.playerAccessHint}>
                       <span>Find your own player record and connect it to a free account.</span>
                       <Link
-                        href="/join?plan=free&next=%2Fprofile%23profile-identity"
-                        onClick={() => track('Player Profile Join Click', { source: isSharedVisit ? 'shared_link' : 'public_profile' })}
+                        href={`/join?plan=free&next=%2Fprofile%23profile-identity&source=${isSharedVisit ? PLAYER_PROFILE_SHARE_SOURCE : PLAYER_PROFILE_SOURCE}`}
+                        onClick={() => track('Player Profile Join Click', { source: isSharedVisit ? PLAYER_PROFILE_SHARE_SOURCE : PLAYER_PROFILE_SOURCE })}
                       >
                         Connect my player
                       </Link>

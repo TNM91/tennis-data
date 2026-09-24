@@ -3,6 +3,7 @@ import { isSafeLocalNextHref } from '@/lib/plan-intent'
 import { type MembershipTierId } from '@/lib/product-story'
 import { getCaptainPilotSourceFromHref, normalizeCaptainPilotSource } from '@/lib/captain-pilot-source'
 import { getScorecardClaimPlayerId, isScorecardSignupIntent, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
+import { getPlayerProfileAcquisitionSource } from '@/lib/player-profile-acquisition'
 import {
   buildSignupConfirmationEmail,
   isSignupEmailIntent,
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
   const fallbackNextHref = getDefaultNextHref(planId, intent)
   const nextHref = isSafeLocalNextHref(typeof body.nextHref === 'string' ? body.nextHref : null, fallbackNextHref)
   const isScorecardSignup = isScorecardSignupIntent(body.acquisitionSource, planId, nextHref)
+  const playerProfileSource = getPlayerProfileAcquisitionSource(body.acquisitionSource, planId, nextHref)
   const scorecardClaimPlayerId = isScorecardSignup ? getScorecardClaimPlayerId(nextHref) : null
   const hrefSource = getCaptainPilotSourceFromHref(nextHref)
   const acquisitionSource = hrefSource === 'direct'
@@ -83,6 +85,7 @@ export async function POST(request: Request) {
         selected_plan: planId,
         ...(intent === 'captain-pilot' ? { acquisition_source: acquisitionSource } : {}),
         ...(isScorecardSignup ? { acquisition_source: SCORECARD_SIGNUP_SOURCE } : {}),
+        ...(playerProfileSource ? { acquisition_source: playerProfileSource } : {}),
         ...(scorecardClaimPlayerId ? { scorecard_claim_player_id: scorecardClaimPlayerId } : {}),
         ...(firstName ? { first_name: firstName } : {}),
       },
@@ -129,6 +132,7 @@ export async function POST(request: Request) {
         signup_intent: intent,
         ...(intent === 'captain-pilot' ? { acquisitionSource } : {}),
         ...(isScorecardSignup ? { acquisitionSource: SCORECARD_SIGNUP_SOURCE } : {}),
+        ...(playerProfileSource ? { acquisitionSource: playerProfileSource } : {}),
         ...(scorecardClaimPlayerId ? { scorecardClaimPlayerId } : {}),
       },
     })
