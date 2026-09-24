@@ -1,6 +1,10 @@
 import type { MetadataRoute } from 'next'
+import { getPlayerSitemapCount } from '@/lib/public-player-sitemaps'
 
-export default function robots(): MetadataRoute.Robots {
+export const revalidate = 86400
+
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const playerSitemapCount = await getPlayerSitemapCount()
   return {
     rules: {
       userAgent: '*',
@@ -25,7 +29,10 @@ export default function robots(): MetadataRoute.Robots {
         '/upgrade',
       ],
     },
-    sitemap: 'https://www.tenaceiq.com/sitemap.xml',
+    sitemap: [
+      'https://www.tenaceiq.com/sitemap.xml',
+      ...Array.from({ length: playerSitemapCount }, (_, id) => `https://www.tenaceiq.com/players/sitemap/${id}.xml`),
+    ],
     host: 'https://www.tenaceiq.com',
   }
 }
