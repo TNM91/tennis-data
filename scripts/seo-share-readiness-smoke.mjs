@@ -6,7 +6,7 @@ const includeLive = args.has('--live')
 const baseUrl = cleanBaseUrl(process.env.SEO_SHARE_QA_BASE_URL || 'https://www.tenaceiq.com')
 const canonicalBaseUrl = 'https://www.tenaceiq.com'
 const previewImagePath = '/brand/social/og-image-1200x630.png'
-const previewImageUrl = `${previewImagePath}?v=20260827-ace-v6`
+const previewImageUrl = `${previewImagePath}?v=20260831-final-svg-v1`
 const previewImageFile = join(process.cwd(), 'public', 'brand', 'social', 'og-image-1200x630.png')
 const maxPreviewBytes = 5 * 1024 * 1024
 
@@ -107,7 +107,7 @@ function runLocalChecks() {
   assertIncludes(manifestSource, "name: 'TenAceIQ'", 'manifest app name')
   assertIncludes(manifestSource, 'PRODUCT_MOTTO', 'manifest product story language')
   assertIncludes(manifestSource, '/brand/icons/pwa-512.png?v=${PWA_ICON_VERSION}', 'manifest 512 icon')
-  assertIncludes(manifestSource, "'/brand/social/og-image-1200x630.png?v=20260827-ace-v6'", 'manifest screenshot')
+  assertIncludes(manifestSource, "'/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1'", 'manifest screenshot')
 
   for (const route of publicRoutes) {
     if (route === '/') continue
@@ -121,7 +121,8 @@ function runLocalChecks() {
     }
   }
 
-  assertIncludes(robotsSource, `sitemap: '${canonicalBaseUrl}/sitemap.xml'`, 'robots sitemap URL')
+  assertIncludes(robotsSource, `'${canonicalBaseUrl}/sitemap.xml'`, 'robots sitemap URL')
+  assertIncludes(robotsSource, '/players/sitemap/${id}.xml', 'player sitemap URLs')
   assertIncludes(robotsSource, `host: '${canonicalBaseUrl}'`, 'robots host URL')
 
   if (!existsSync(previewImageFile)) {
@@ -161,6 +162,7 @@ async function runLiveChecks() {
   const robots = await fetchText('/robots.txt')
   assertOk(robots.status, '/robots.txt')
   assertIncludes(robots.text, `Sitemap: ${canonicalBaseUrl}/sitemap.xml`, '/robots.txt sitemap')
+  assertIncludes(robots.text, `Sitemap: ${canonicalBaseUrl}/players/sitemap/0.xml`, '/robots.txt player sitemap')
   for (const route of privateRoutes) {
     assertIncludes(robots.text, `Disallow: ${route}`, `/robots.txt ${route}`)
   }
@@ -177,6 +179,10 @@ async function runLiveChecks() {
       stop(`/sitemap.xml includes private route ${route}.`)
     }
   }
+
+  const playerSitemap = await fetchText('/players/sitemap/0.xml')
+  assertOk(playerSitemap.status, '/players/sitemap/0.xml')
+  assertIncludes(playerSitemap.text, `<loc>${canonicalBaseUrl}/players/`, 'player sitemap profile URLs')
 
   const preview = await fetchBinary(previewImagePath)
   assertOk(preview.status, previewImagePath)
@@ -195,6 +201,7 @@ async function runLiveChecks() {
     policyFiles: {
       robotsTxt: { status: robots.status },
       sitemapXml: { status: sitemap.status },
+      playerSitemapXml: { status: playerSitemap.status },
       previewImage: {
         status: preview.status,
         contentType: preview.contentType,
