@@ -52,6 +52,7 @@ describe('TennisRecord Admin import progress', () => {
     expect(adminPage).toContain('Nationwide weekly work is more than seven days behind.')
     expect(service).toContain('currentRefreshLanes: { missouri: missouriRefresh, nationwide: nationwideRefresh }')
     expect(service).toContain("select('id', { count: 'exact', head: true }).eq('status', 'pending').eq('refresh_season', currentSeason)")
+    expect(service).toContain("query.order('refresh_due_at', { ascending: true, nullsFirst: false })")
     expect(adminPage).toContain('Time remaining reflects the currently known queue')
     expect(adminPage).toContain('Evidence review pages were captured safely')
     expect(adminPage).toContain('Checkpoint pace')

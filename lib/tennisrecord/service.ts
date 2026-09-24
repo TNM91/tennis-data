@@ -1307,6 +1307,7 @@ async function selectNextTennisRecordQueueJob(service: SupabaseClient, input: Sy
     if (input.currentSeason) query = query.eq('refresh_season', new Date().getUTCFullYear())
     if (missouriCampaignId && scope === 'missouri') query = query.eq('campaign_id', missouriCampaignId)
     if (missouriCampaignId && scope === 'national') query = query.neq('campaign_id', missouriCampaignId)
+    if (input.currentSeason) query = query.order('refresh_due_at', { ascending: true, nullsFirst: false })
     const { data, error } = await query.order('first_seen_at').limit(1).maybeSingle()
     if (error) throw new Error(error.message)
     return data as QueueRow | null
