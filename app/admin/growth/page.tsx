@@ -23,6 +23,7 @@ import type {
   CaptainPilotSourceBreakdown,
 } from '@/lib/admin-growth-funnel'
 import type { ScorecardSignupFunnel } from '@/lib/scorecard-growth-funnel'
+import type { PlayerProfileAcquisitionFunnel } from '@/lib/player-profile-growth-funnel'
 import styles from './growth.module.css'
 
 type Period = 7 | 30 | 90
@@ -46,6 +47,7 @@ type Funnel = {
   captainPilotFollowUpCount: number
   captainPilotActivation: CaptainPilotActivation
   scorecardSignup: ScorecardSignupFunnel
+  playerProfileAcquisition: PlayerProfileAcquisitionFunnel
 }
 type FollowJourney = {
   intentClicks: number
@@ -379,6 +381,48 @@ export default function AdminGrowthPage() {
                   </div>
                 ) : null}
               </>
+            ) : null}
+          </AdminReviewPanel>
+
+          <AdminReviewPanel style={{ marginTop: 18 }} ariaLabel="Player profile signup funnel">
+            <div className="section-kicker">Public player profiles</div>
+            <h2 className="section-title" style={{ marginTop: 6 }}>From player profile to connected player</h2>
+            <p className="subtle-text">
+              People who requested a Free account from a public or shared player profile in the last {period} days. Each account counts once per source. Visit and join click counts are in Vercel Analytics.
+            </p>
+            {loading ? <p className="subtle-text">Loading player profile signups...</p> : null}
+            {!loading && funnel ? (
+              <>
+                <div style={{ ...adminFactGridStyle, marginTop: 18 }}>
+                  {([
+                    { label: 'Signup requests', value: funnel.playerProfileAcquisition.total.signupRequests, href: '/admin/product-events?search=signup_confirmation_sent' },
+                    { label: 'Accounts confirmed', value: funnel.playerProfileAcquisition.total.confirmedAccounts, href: '/admin/access' },
+                    { label: 'Players connected', value: funnel.playerProfileAcquisition.total.connectedPlayers, href: '/admin/product-events?search=profile_player_linked' },
+                    { label: 'Paid Player access', value: funnel.playerProfileAcquisition.total.paidPlayerMemberships, href: '/admin/access?billing=stripe' },
+                  ] as const).map((stage) => (
+                    <Link key={stage.label} href={stage.href} style={{ ...adminSubPanelStyle, textDecoration: 'none' }}>
+                      <span className="metric-label">{stage.label}</span>
+                      <strong style={{ fontSize: '2rem', lineHeight: 1 }}>{stage.value.toLocaleString()}</strong>
+                      <span className="subtle-text">{formatPercent(ratio(stage.value, funnel.playerProfileAcquisition.total.signupRequests))} of profile-sourced signup requests</span>
+                    </Link>
+                  ))}
+                </div>
+                <div style={{ ...adminFactGridStyle, marginTop: 18 }}>
+                  {([
+                    { label: 'Public profile', source: funnel.playerProfileAcquisition.publicProfile },
+                    { label: 'Shared profile', source: funnel.playerProfileAcquisition.sharedProfile },
+                  ] as const).map(({ label, source }) => (
+                    <div key={label} style={adminSubPanelStyle}>
+                      <span className="metric-label">{label}</span>
+                      <strong style={{ fontSize: '1.4rem', lineHeight: 1.2 }}>{source.signupRequests} requested · {source.connectedPlayers} connected</strong>
+                      <span className="subtle-text">{source.confirmedAccounts} confirmed · {source.paidPlayerMemberships} with paid Player access</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : null}
+            {!loading && funnel && funnel.playerProfileAcquisition.total.signupRequests === 0 ? (
+              <p className="subtle-text" style={{ marginTop: 12 }}>No profile-sourced signup requests yet. Check profile visits and join clicks in site analytics.</p>
             ) : null}
           </AdminReviewPanel>
 

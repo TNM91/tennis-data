@@ -29,6 +29,7 @@ import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-even
 import { addWorkflowResult, getSafeWorkflowReturnTo } from '@/lib/workflow-return'
 import { buildScorecardPlayerLoginHref, getScorecardClaimMatchId, getScorecardClaimPlayerId, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
 import { describeClaimResult, prioritizeClaimMatch, type ClaimResult } from '@/lib/scorecard-claim-welcome'
+import { getPlayerProfileAcquisitionSource } from '@/lib/player-profile-acquisition'
 
 type PreferredRole = 'singles' | 'doubles' | 'both'
 type AvailabilityDefault = 'ask-weekly' | 'usually-available' | 'limited'
@@ -642,6 +643,7 @@ function ProfilePageInner() {
       }
       if (nextPlayer?.id) {
         const scorecardClaimPlayerId = getScorecardClaimPlayerId(`/profile${window.location.search}`)
+        const playerProfileSource = getPlayerProfileAcquisitionSource(session?.user.user_metadata?.acquisition_source, 'free', '/profile#profile-identity')
         void trackProductUsageEvent({
           eventName: 'profile_player_linked',
           surface: 'profile',
@@ -653,7 +655,7 @@ function ProfilePageInner() {
             ...(scorecardClaimPlayerId === nextPlayer.id ? {
               acquisitionSource: SCORECARD_SIGNUP_SOURCE,
               scorecardClaimPlayerId,
-            } : {}),
+            } : playerProfileSource ? { acquisitionSource: playerProfileSource } : {}),
           },
         })
       }
