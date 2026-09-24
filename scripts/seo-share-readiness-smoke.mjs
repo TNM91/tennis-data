@@ -183,6 +183,15 @@ async function runLiveChecks() {
   const playerSitemap = await fetchText('/players/sitemap/0.xml')
   assertOk(playerSitemap.status, '/players/sitemap/0.xml')
   assertIncludes(playerSitemap.text, `<loc>${canonicalBaseUrl}/players/`, 'player sitemap profile URLs')
+  const firstPlayerUrl = playerSitemap.text.match(/<loc>([^<]+)<\/loc>/)?.[1]
+  if (!firstPlayerUrl) stop('Player sitemap has no profile URL.')
+  const firstPlayerPath = new URL(firstPlayerUrl).pathname
+  const firstPlayer = await fetchText(firstPlayerPath)
+  assertOk(firstPlayer.status, firstPlayerPath)
+  const firstPlayerHeading = firstPlayer.text.match(/<h1[^>]*>([^<]+)<\/h1>/)?.[1]
+  if (!firstPlayerHeading?.endsWith(' player profile')) {
+    stop(`${firstPlayerPath} did not server-render the player name in its main heading.`)
+  }
 
   const preview = await fetchBinary(previewImagePath)
   assertOk(preview.status, previewImagePath)
@@ -202,6 +211,7 @@ async function runLiveChecks() {
       robotsTxt: { status: robots.status },
       sitemapXml: { status: sitemap.status },
       playerSitemapXml: { status: playerSitemap.status },
+      playerProfile: { status: firstPlayer.status, path: firstPlayerPath },
       previewImage: {
         status: preview.status,
         contentType: preview.contentType,

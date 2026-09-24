@@ -49,6 +49,7 @@ import {
 } from '@/lib/tiq-awards-registry'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 import profileStory from './player-profile-story.module.css'
+import { usePlayerProfilePreview } from './player-profile-preview-context'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type ProfileNavSection = 'overview' | 'rating' | 'performance' | 'player-id' | 'teams'
@@ -316,6 +317,7 @@ export default function PlayerProfilePage() {
 function PlayerProfileContent() {
   const params = useParams()
   const playerId = String(params.id)
+  const initialPreview = usePlayerProfilePreview()
 
   const [player, setPlayer] = useState<Player | null>(null)
   const [matches, setMatches] = useState<MatchRecord[]>([])
@@ -1752,12 +1754,15 @@ function PlayerProfileContent() {
     },
   ]
   if (loading) {
+    const previewName = initialPreview?.name !== 'Player Profile' ? initialPreview?.name : null
     return (
       <section style={dynamicHeroWrap}>
         <PublicDetailState
           eyebrow="Player scorecard"
-          title="Opening player context."
-          body="Checking ratings, recent matches, team context, awards, and review signals so this profile starts with useful tennis evidence."
+          title={previewName ? `${previewName} player profile` : 'Opening player context.'}
+          body={previewName
+            ? `${initialPreview?.location ? `${initialPreview.location}. ` : ''}Explore ratings, recent matches, and team context for ${previewName} on TenAceIQ.`
+            : 'Checking ratings, recent matches, team context, awards, and review signals so this profile starts with useful tennis evidence.'}
           tone="loading"
           visual="player"
           signals={[
@@ -2028,12 +2033,12 @@ function PlayerProfileContent() {
                       {profileShareStatus === 'copied' ? 'Link copied' : profileShareStatus === 'shared' ? 'Shared' : 'Share profile'}
                     </button>
                   </div>
-                  {isSharedVisit && authResolved && !currentUserId ? (
+                  {authResolved && !currentUserId ? (
                     <div className={profileStory.playerAccessHint}>
                       <span>Find your own player record and connect it to a free account.</span>
                       <Link
                         href="/join?plan=free&next=%2Fprofile%23profile-identity"
-                        onClick={() => track('Player Profile Join Click', { source: 'shared_link' })}
+                        onClick={() => track('Player Profile Join Click', { source: isSharedVisit ? 'shared_link' : 'public_profile' })}
                       >
                         Connect my player
                       </Link>
