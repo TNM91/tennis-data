@@ -42,4 +42,11 @@ describe('growth cohort', () => {
       { user_id: 'member', event_name: 'connected_teams_opened', created_at: '2026-09-21T10:11:00Z' },
     ], [])).toMatchObject({ signupRequests: 1, firstActions: 1 })
   })
+
+  it('counts a successful Team Chat message as first value after signup', () => {
+    expect(buildGrowthCohort([
+      { user_id: 'member', event_name: 'signup_confirmation_sent', created_at: '2026-09-23T10:00:00Z' },
+      { user_id: 'member', event_name: 'team_chat_message_sent', created_at: '2026-09-23T10:10:00Z' },
+    ], [])).toMatchObject({ signupRequests: 1, firstActions: 1 })
+  })
 })

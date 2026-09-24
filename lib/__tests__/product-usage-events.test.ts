@@ -11,7 +11,7 @@ import {
 
 describe('product usage events', () => {
   it('keeps production event and surface constraints aligned with the application registry', () => {
-    const registryMigration = readFileSync(join(process.cwd(), 'supabase/migrations/20260923000100_add_team_setup_usage_events.sql'), 'utf8')
+    const registryMigration = readFileSync(join(process.cwd(), 'supabase/migrations/20260923000200_add_team_chat_usage_events.sql'), 'utf8')
     const migration = [
       '20260901000200_add_product_tour_conversion_usage_events.sql',
       '20260904000200_add_signup_funnel_usage_event.sql',
@@ -20,6 +20,7 @@ describe('product usage events', () => {
       '20260921000200_add_follow_journey_usage_events.sql',
       '20260922000100_add_scorecard_shared_usage_event.sql',
       '20260923000100_add_team_setup_usage_events.sql',
+      '20260923000200_add_team_chat_usage_events.sql',
     ].map((file) => readFileSync(join(process.cwd(), `supabase/migrations/${file}`), 'utf8')).join('\n')
 
     for (const eventName of PRODUCT_USAGE_EVENT_NAMES) {
