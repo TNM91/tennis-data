@@ -161,32 +161,23 @@ function isMissingRatingSourceError(message: string) {
   return normalized.includes('rating_source') || normalized.includes('schema cache') || normalized.includes('column')
 }
 
-async function loadProfilePlayers(requestedPlayerId?: string | null): Promise<PlayerRow[]> {
-  const withSource = await supabase
-    .from('players')
-    .select(PROFILE_PLAYER_SELECT_WITH_SOURCE)
-    .order('name', { ascending: true })
+async function loadProfilePlayers(input: { playerId?: string; name?: string }): Promise<PlayerRow[]> {
+  if (!input.playerId && !input.name) return []
 
-  let select = PROFILE_PLAYER_SELECT_WITH_SOURCE
-  let players: PlayerRow[]
-  if (!withSource.error) {
-    players = (withSource.data || []) as PlayerRow[]
-  } else {
-    if (!isMissingRatingSourceError(withSource.error.message)) throw new Error(withSource.error.message)
-    const base = await supabase
-      .from('players')
-      .select(PROFILE_PLAYER_SELECT_BASE)
-      .order('name', { ascending: true })
-    if (base.error) throw new Error(base.error.message)
-    select = PROFILE_PLAYER_SELECT_BASE
-    players = ((base.data || []) as PlayerRow[]).map((player) => ({ ...player, rating_source: null }))
+  const query = async (select: string) => {
+    const players = supabase.from('players').select(select)
+    return input.playerId
+      ? await players.eq('id', input.playerId).limit(1)
+      : await players.ilike('name', `%${input.name}%`).order('name', { ascending: true }).limit(12)
   }
 
-  if (!requestedPlayerId || players.some((player) => player.id === requestedPlayerId)) return players
-  const requested = await supabase.from('players').select(select).eq('id', requestedPlayerId).maybeSingle()
-  if (requested.error) throw new Error(requested.error.message)
-  const player = requested.data as PlayerRow | null
-  return player ? [...players, select === PROFILE_PLAYER_SELECT_BASE ? { ...player, rating_source: null } : player] : players
+  const withSource = await query(PROFILE_PLAYER_SELECT_WITH_SOURCE)
+  if (!withSource.error) return (withSource.data || []) as unknown as PlayerRow[]
+  if (!isMissingRatingSourceError(withSource.error.message)) throw new Error(withSource.error.message)
+
+  const base = await query(PROFILE_PLAYER_SELECT_BASE)
+  if (base.error) throw new Error(base.error.message)
+  return ((base.data || []) as unknown as PlayerRow[]).map((player) => ({ ...player, rating_source: null }))
 }
 
 async function createSelfRatedPlayer(name: string, rating: number, mixedPairRole: MixedPairRole): Promise<PlayerRow | null> {
@@ -289,6 +280,8 @@ function ProfilePageInner() {
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
 
   const [players, setPlayers] = useState<PlayerRow[]>([])
+  const [playerSearchLoading, setPlayerSearchLoading] = useState(false)
+  const [playerSearchError, setPlayerSearchError] = useState(false)
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayerRow[]>([])
   const [profile, setProfile] = useState<UserProfileLink | null>(null)
@@ -299,6 +292,7 @@ function ProfilePageInner() {
   const [prefs, setPrefs] = useState<ProfilePrefs>(DEFAULT_PREFS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [justConnectedPlayer, setJustConnectedPlayer] = useState(false)
   const [syncingProfile, setSyncingProfile] = useState(false)
   const [billingPortalOpening, setBillingPortalOpening] = useState(false)
   const [billingMessage, setBillingMessage] = useState('')
@@ -331,8 +325,7 @@ function ProfilePageInner() {
 
     try {
       const requestedPlayerId = getScorecardClaimPlayerId(`/profile${window.location.search}`)
-      const [playersRes, matchesRes, matchPlayersRes, profileRes] = await Promise.all([
-        loadProfilePlayers(requestedPlayerId),
+      const [matchesRes, matchPlayersRes, profileRes] = await Promise.all([
         supabase
           .from('matches')
           .select('id, flight, league_name, home_team, away_team')
@@ -351,7 +344,13 @@ function ProfilePageInner() {
       }
 
       const nextProfile = profileRes.data
-      setPlayers(playersRes)
+      const playerIds = [...new Set([requestedPlayerId, nextProfile?.linked_player_id].filter((id): id is string => Boolean(id)))]
+      const playersRes = (await Promise.all(playerIds.map((playerId) => loadProfilePlayers({ playerId })))).flat()
+      setPlayers((current) => {
+        const byId = new Map(current.map((player) => [player.id, player]))
+        for (const player of playersRes) byId.set(player.id, player)
+        return [...byId.values()]
+      })
       setMatches((matchesRes.data || []) as MatchRow[])
       setMatchPlayers((matchPlayersRes.data || []) as MatchPlayerRow[])
       setProfile(nextProfile)
@@ -435,6 +434,34 @@ function ProfilePageInner() {
   const linkedPlayer = profile?.linked_player_id ? playerMap.get(profile.linked_player_id) || null : null
   const typedPlayerNameClean = cleanText(typedPlayerName)
   const typedProfileActive = Boolean(!selectedPlayerId && typedPlayerNameClean)
+  useEffect(() => {
+    const query = typedPlayerNameClean.replace(/[%_\\]/g, '').slice(0, 80)
+    if (!userId || query.length < 2 || selectedPlayerId) {
+      setPlayerSearchLoading(false)
+      setPlayerSearchError(false)
+      return
+    }
+
+    let active = true
+    setPlayerSearchLoading(true)
+    setPlayerSearchError(false)
+    const timer = window.setTimeout(() => {
+      void loadProfilePlayers({ name: query }).then((results) => {
+        if (!active) return
+        setPlayers((current) => {
+          const byId = new Map(current.map((player) => [player.id, player]))
+          for (const player of results) byId.set(player.id, player)
+          return [...byId.values()]
+        })
+        setPlayerSearchLoading(false)
+      }).catch(() => {
+        if (!active) return
+        setPlayerSearchError(true)
+        setPlayerSearchLoading(false)
+      })
+    }, 250)
+    return () => { active = false; window.clearTimeout(timer) }
+  }, [selectedPlayerId, typedPlayerNameClean, userId])
   const matchingPlayers = useMemo(() => {
     const query = typedPlayerNameClean.toLowerCase()
     const selected = selectedPlayerId ? playerMap.get(selectedPlayerId) || null : null
@@ -604,6 +631,7 @@ function ProfilePageInner() {
         profile_photo_url: nextProfile?.profile_photo_url ?? profile?.profile_photo_url ?? null,
         message_display_name: nextProfile?.message_display_name ?? profile?.message_display_name ?? payload.linked_player_name ?? null,
       })
+      setJustConnectedPlayer(!profileComplete)
       setMessage(
         saveSource === 'local'
           ? 'Profile saved on this device. Cloud sync will catch up when profile storage is available.'
@@ -1043,7 +1071,9 @@ function ProfilePageInner() {
                     {selectedPlayerId
                       ? 'Using a public player record.'
                       : typedPlayerNameClean
-                        ? matchingPlayers.length
+                        ? playerSearchLoading
+                          ? 'Searching player records...'
+                          : matchingPlayers.length
                           ? 'Pick a match only if it is clearly you.'
                           : 'No clear match yet. Saving creates your player profile.'
                         : 'Start with your name. Existing records appear only when they look relevant.'}
@@ -1067,6 +1097,43 @@ function ProfilePageInner() {
                   <Metric label="Role" value={prefs.preferredRole === 'both' ? 'Both' : prefs.preferredRole} />
                 </div>
               </div>
+
+              {!profileComplete ? (
+                <div style={identityActionStyle}>
+                  {typedPlayerNameClean.length >= 2 && !selectedPlayerId && matchingPlayers.length ? (
+                    <div style={identityMatchesStyle} aria-label="Possible player records">
+                      <strong>Is one of these you?</strong>
+                      {matchingPlayers.slice(0, 5).map((player) => (
+                        <button
+                          key={player.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedPlayerId(player.id)
+                            setTypedPlayerName('')
+                            setMixedPairRole(normalizeMixedPairRole(player.mixed_pair_role))
+                            setError('')
+                          }}
+                          style={identityMatchButtonStyle}
+                        >
+                          {player.name}{player.location ? ` · ${player.location}` : ''}{player.flight ? ` · ${player.flight}` : ''}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  {playerSearchError ? <span role="alert" style={hintStyle}>Player search is unavailable. You can try again or save a new self-rated player.</span> : null}
+                  <button
+                    type="button"
+                    onClick={saveProfile}
+                    disabled={saving || !userId || playerSearchLoading || (!selectedPlayerId && !typedPlayerNameClean)}
+                    style={primaryButtonStyle}
+                  >
+                    {saving ? 'Connecting...' : selectedPlayer ? `Connect ${selectedPlayer.name}` : 'Create my player'}
+                  </button>
+                  {message ? <div role="status" style={successStyle}>{message}</div> : null}
+                  {error ? <div role="alert" style={errorStyle}>{error}</div> : null}
+                </div>
+              ) : null}
+              {profileComplete && justConnectedPlayer && message ? <div role="status" style={successStyle}>{message}</div> : null}
 
               {hasRatingIdentity ? <div style={ratingTileGridStyle(isMobile)}>
                 {ratingTiles.map((tile) => (
@@ -1269,9 +1336,9 @@ function ProfilePageInner() {
               </div>
 
               <div style={actionRowStyle}>
-                <button type="button" onClick={saveProfile} disabled={saving || !userId} style={primaryButtonStyle}>
-                  {saving ? 'Saving...' : profileComplete ? 'Update profile' : 'Save profile'}
-                </button>
+                {profileComplete ? <button type="button" onClick={saveProfile} disabled={saving || !userId} style={primaryButtonStyle}>
+                  {saving ? 'Saving...' : 'Update profile'}
+                </button> : null}
                 {profileComplete && profileSource === 'local' ? (
                   <button
                     type="button"
@@ -1325,9 +1392,9 @@ function ProfilePageInner() {
                   ) : null}
                 </div>
               ) : null}
-              {message ? <div style={successStyle}>{message}</div> : null}
+              {profileComplete && !justConnectedPlayer && message ? <div role="status" style={successStyle}>{message}</div> : null}
               {profileComplete && profileSyncText ? <div style={profileSyncStatusStyle(profileSource)}>{profileSyncText}</div> : null}
-              {error ? <div style={errorStyle}>{error}</div> : null}
+              {profileComplete && error ? <div role="alert" style={errorStyle}>{error}</div> : null}
             </div>
           </section>
           ) : !authPending ? (
@@ -1637,6 +1704,10 @@ const identityGridStyle = (isMobile: boolean): CSSProperties => ({
   alignItems: 'end',
   minWidth: 0,
 })
+
+const identityActionStyle: CSSProperties = { display: 'grid', justifyItems: 'start', gap: 12, minWidth: 0 }
+const identityMatchesStyle: CSSProperties = { display: 'grid', gap: 7, width: '100%', minWidth: 0, color: 'var(--foreground-strong)', fontSize: 14 }
+const identityMatchButtonStyle: CSSProperties = { ...secondaryButtonStyle, justifyContent: 'flex-start', width: '100%', borderRadius: 12, textAlign: 'left' }
 
 const autoContextStripStyle = (isMobile: boolean): CSSProperties => ({
   display: 'grid',
