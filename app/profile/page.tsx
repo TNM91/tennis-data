@@ -326,20 +326,7 @@ function ProfilePageInner() {
 
     try {
       const requestedPlayerId = getScorecardClaimPlayerId(`/profile${window.location.search}`)
-      const [matchesRes, matchPlayersRes, profileRes] = await Promise.all([
-        supabase
-          .from('matches')
-          .select('id, flight, league_name, home_team, away_team')
-          .limit(5000),
-        supabase
-          .from('match_players')
-          .select('match_id, player_id, side')
-          .limit(12000),
-        loadUserProfileLink(userId),
-      ])
-
-      if (matchesRes.error) throw new Error(matchesRes.error.message)
-      if (matchPlayersRes.error) throw new Error(matchPlayersRes.error.message)
+      const profileRes = await loadUserProfileLink(userId)
       if (profileRes.error && !profileRes.data) {
         throw new Error(profileRes.error.message)
       }
@@ -352,15 +339,13 @@ function ProfilePageInner() {
         for (const player of playersRes) byId.set(player.id, player)
         return [...byId.values()]
       })
-      setMatches((matchesRes.data || []) as MatchRow[])
-      setMatchPlayers((matchPlayersRes.data || []) as MatchPlayerRow[])
       setProfile(nextProfile)
       setProfileSource(profileRes.source)
       const requestedPlayer = !nextProfile?.linked_player_id && !nextProfile?.linked_player_name && requestedPlayerId
         ? playersRes.find((player) => player.id === requestedPlayerId) || null
         : null
       setSelectedPlayerId(nextProfile?.linked_player_id || requestedPlayer?.id || '')
-      setTypedPlayerName(nextProfile?.linked_player_id ? '' : nextProfile?.linked_player_name || '')
+      setTypedPlayerName((current) => nextProfile?.linked_player_id ? '' : current.trim() ? current : nextProfile?.linked_player_name || '')
       setMixedPairRole(normalizeMixedPairRole(playersRes.find((player) => player.id === nextProfile?.linked_player_id)?.mixed_pair_role))
       if (requestedPlayer) {
         setMessage(`${requestedPlayer.name} is ready from the shared scorecard. Confirm this is you, then save your player.`)
@@ -378,12 +363,46 @@ function ProfilePageInner() {
       setProfile(null)
       setProfileSource('none')
       setSelectedPlayerId('')
+      setTypedPlayerName('')
+      setMatches([])
+      setMatchPlayers([])
       setLoading(false)
       setError('')
       return
     }
+    setSelectedPlayerId('')
+    setTypedPlayerName('')
+    setMatches([])
+    setMatchPlayers([])
     void loadProfile()
   }, [authResolved, loadProfile, userId])
+
+  const hasSelectedPlayer = Boolean(selectedPlayerId)
+  useEffect(() => {
+    if (!authResolved || !userId || !hasSelectedPlayer) return
+
+    let active = true
+    void Promise.all([
+      supabase
+        .from('matches')
+        .select('id, flight, league_name, home_team, away_team')
+        .limit(5000),
+      supabase
+        .from('match_players')
+        .select('match_id, player_id, side')
+        .limit(12000),
+    ]).then(([matchesRes, matchPlayersRes]) => {
+      if (!active) return
+      if (!matchesRes.error) setMatches((matchesRes.data || []) as MatchRow[])
+      if (!matchPlayersRes.error) setMatchPlayers((matchPlayersRes.data || []) as MatchPlayerRow[])
+    }).catch(() => {
+      if (!active) return
+      setMatches([])
+      setMatchPlayers([])
+    })
+
+    return () => { active = false }
+  }, [authResolved, hasSelectedPlayer, userId])
 
   const connectedScorecardClaimId = profile?.linked_player_id === scorecardClaimPlayerId ? scorecardClaimPlayerId : null
 
