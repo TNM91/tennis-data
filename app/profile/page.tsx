@@ -30,6 +30,7 @@ import { addWorkflowResult, getSafeWorkflowReturnTo } from '@/lib/workflow-retur
 import { buildScorecardPlayerLoginHref, getScorecardClaimMatchId, getScorecardClaimPlayerId, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
 import { describeClaimResult, prioritizeClaimMatch, type ClaimResult } from '@/lib/scorecard-claim-welcome'
 import { getPlayerProfileAcquisitionSource } from '@/lib/player-profile-acquisition'
+import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 
 type PreferredRole = 'singles' | 'doubles' | 'both'
 type AvailabilityDefault = 'ask-weekly' | 'usually-available' | 'limited'
@@ -674,7 +675,7 @@ function ProfilePageInner() {
       setMessage(
         saveSource === 'local'
           ? 'Profile saved on this device. Cloud sync will catch up when profile storage is available.'
-          : 'Profile saved. My Lab, Matchup, Team, and League can use this context.',
+          : 'Profile saved. Your player identity is ready.',
       )
       if (saveError) {
         setError(saveError.message)
@@ -850,6 +851,17 @@ function ProfilePageInner() {
   const profileMatchupHref = profile?.linked_player_id || selectedPlayerId
     ? `/matchup?type=singles&playerA=${encodeURIComponent(profile?.linked_player_id || selectedPlayerId)}`
     : '/matchup'
+  const publicPlayerHref = profile?.linked_player_id
+    ? `/players/${encodeURIComponent(profile.linked_player_id)}`
+    : '/explore/players'
+  const publicPlayerActionLabel = profile?.linked_player_id ? 'View my player' : 'Find players'
+  const playerToolsActionLabel = `See ${MEMBERSHIP_TIERS.player_plus.name} tools`
+  const activationPrimary = access.canUseAdvancedPlayerInsights
+    ? { href: '/mylab', label: 'Open My Lab' }
+    : { href: publicPlayerHref, label: publicPlayerActionLabel }
+  const activationSecondary = access.canUseAdvancedPlayerInsights
+    ? { href: profileMatchupHref, label: 'Prep matchup' }
+    : { href: '/pricing#player_plus', label: playerToolsActionLabel }
   const canManageBilling = Boolean(
     userId &&
     (access.canUseAdvancedPlayerInsights || access.canUseCaptainWorkflow),
@@ -884,6 +896,12 @@ function ProfilePageInner() {
     { title: 'Open development path', href: PROFILE_PLAYER_DEVELOPMENT_HREF, icon: 'myLab' },
     { title: 'Prep matchup', href: profileMatchupHref, icon: 'matchPrep' },
     { title: 'Fix tennis info', href: dataAssistProfileHref, icon: 'reports' },
+  ] as const
+  const freeProfileNextMoves = [
+    { title: publicPlayerActionLabel, href: publicPlayerHref, icon: 'playerRatings' },
+    { title: 'Explore local leagues', href: '/explore/leagues', icon: 'schedule' },
+    { title: 'Add match data', href: dataAssistProfileHref, icon: 'reports' },
+    { title: playerToolsActionLabel, href: '/pricing#player_plus', icon: 'myLab' },
   ] as const
   const profilePlayerIdBenefits = [
     {
@@ -934,7 +952,9 @@ function ProfilePageInner() {
     : profileComplete
     ? captainSetupEntry
       ? 'Player ID setup is complete. Next, connect your active team.'
-      : 'My Lab, Matchup, Team, and League now start from this identity.'
+      : access.canUseAdvancedPlayerInsights
+        ? 'My Lab, Matchup, Team, and League now start from this identity.'
+        : 'Your player record is ready. Explore your public profile and find tennis around you.'
     : signedIn
       ? 'Type your name, self-rate if needed, or choose an existing public record.'
       : 'Sign in once, then choose or create the player identity that powers your tennis tools.'
@@ -959,8 +979,12 @@ function ProfilePageInner() {
                 </>
               ) : (
                 <>
-                  {showScorecardClaimWelcome ? <a href="#scorecard-claim-welcome" style={primaryButtonStyle}>See your results</a> : <Link href="/mylab" style={primaryButtonStyle}>Open My Lab</Link>}
-                  {showScorecardClaimWelcome ? null : <Link href={profileMatchupHref} style={secondaryButtonStyle}>Open Matchup</Link>}
+                  {showScorecardClaimWelcome
+                    ? <a href="#scorecard-claim-welcome" style={primaryButtonStyle}>See your results</a>
+                    : <Link href={activationPrimary.href} style={primaryButtonStyle}>{activationPrimary.label}</Link>}
+                  {showScorecardClaimWelcome
+                    ? null
+                    : <Link href={activationSecondary.href} style={secondaryButtonStyle}>{activationSecondary.label}</Link>}
                 </>
               )
             ) : authPending ? (
@@ -1175,7 +1199,17 @@ function ProfilePageInner() {
                   {error ? <div role="alert" style={errorStyle}>{error}</div> : null}
                 </div>
               ) : null}
-              {profileComplete && justConnectedPlayer && message ? <div role="status" style={successStyle}>{message}</div> : null}
+              {profileComplete && justConnectedPlayer && message ? (
+                <>
+                  <div role="status" style={successStyle}>{message}</div>
+                  {!captainSetupEntry && !showScorecardClaimWelcome ? (
+                    <div style={actionRowStyle}>
+                      <Link href={activationPrimary.href} style={primaryButtonStyle}>{activationPrimary.label}</Link>
+                      <Link href={activationSecondary.href} style={secondaryButtonStyle}>{activationSecondary.label}</Link>
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
 
               {hasRatingIdentity ? <div style={ratingTileGridStyle(isMobile)}>
                 {ratingTiles.map((tile) => (
@@ -1280,7 +1314,9 @@ function ProfilePageInner() {
                           ? 'Self-rated is live. Add a scorecard or match signal when you are ready.'
                           : hasInferredAdultFlightBaseline
                             ? 'Your Adult-flight baseline is live. The official USTA designation can be confirmed when it is available.'
-                          : 'Your player identity is ready across the portal.'}
+                          : access.canUseAdvancedPlayerInsights
+                            ? 'Your player identity is ready across the portal.'
+                            : `Explore your player record, find local tennis, or see what ${MEMBERSHIP_TIERS.player_plus.name} adds.`}
                       </span>
                     </div>
                   </div>
@@ -1297,7 +1333,7 @@ function ProfilePageInner() {
                         </Link>
                       </>
                     ) : (
-                      profileNextMoves.map((move) => (
+                      (access.canUseAdvancedPlayerInsights ? profileNextMoves : freeProfileNextMoves).map((move) => (
                         <Link key={move.href} href={move.href} style={newPlayerActionCardStyle}>
                           <TiqFeatureIcon name={move.icon} size="sm" variant="ghost" />
                           <span>{move.title}</span>
@@ -1397,8 +1433,8 @@ function ProfilePageInner() {
                 ) : null}
                 {profileComplete ? (
                   <>
-                    <Link href="/mylab" style={secondaryButtonStyle}>Open My Lab</Link>
-                    <Link href={profileMatchupHref} style={secondaryButtonStyle}>Compare matchup</Link>
+                    <Link href={activationPrimary.href} style={secondaryButtonStyle}>{activationPrimary.label}</Link>
+                    <Link href={activationSecondary.href} style={secondaryButtonStyle}>{activationSecondary.label}</Link>
                   </>
                 ) : (
                   <Link href="/explore/players" style={secondaryButtonStyle}>Find players</Link>
