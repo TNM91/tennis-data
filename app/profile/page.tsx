@@ -9,7 +9,6 @@ import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
 import { cleanText, formatRating } from '@/lib/captain-formatters'
-import { buildScopedTeamEntityId } from '@/lib/entity-ids'
 import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
 import { writeLocalProfileLink } from '@/lib/profile-link-storage'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
@@ -31,6 +30,7 @@ import { buildScorecardPlayerLoginHref, getScorecardClaimMatchId, getScorecardCl
 import { describeClaimResult, prioritizeClaimMatch, type ClaimResult } from '@/lib/scorecard-claim-welcome'
 import { getPlayerProfileAcquisitionSource } from '@/lib/player-profile-acquisition'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
+import { buildProfileTeamSummaries, type ProfileMatchContextRow } from '@/lib/profile-team-context'
 
 type PreferredRole = 'singles' | 'doubles' | 'both'
 type AvailabilityDefault = 'ask-weekly' | 'usually-available' | 'limited'
@@ -60,32 +60,11 @@ type ProfileLinkApiResponse = {
   profile?: UserProfileLink | null
 }
 
-type MatchRow = {
-  id: string
-  flight: string | null
-  league_name: string | null
-  home_team: string | null
-  away_team: string | null
-}
-
-type MatchPlayerRow = {
-  match_id: string
-  player_id: string
-  side: string | null
-}
-
 type ClaimResultRow = ClaimResult & {
   id: string
   match_date: string | null
   match_type: string | null
   score: string | null
-}
-
-type TeamSummary = {
-  id: string
-  name: string
-  league: string
-  flight: string
 }
 
 type ProfilePrefs = {
@@ -313,8 +292,7 @@ function ProfilePageInner() {
   const [playerSearchResults, setPlayerSearchResults] = useState<{ query: string; players: PlayerRow[] }>({ query: '', players: [] })
   const [playerSearchLoading, setPlayerSearchLoading] = useState(false)
   const [playerSearchError, setPlayerSearchError] = useState(false)
-  const [matches, setMatches] = useState<MatchRow[]>([])
-  const [matchPlayers, setMatchPlayers] = useState<MatchPlayerRow[]>([])
+  const [playerMatchContext, setPlayerMatchContext] = useState<{ playerId: string; rows: ProfileMatchContextRow[] } | null>(null)
   const [profile, setProfile] = useState<UserProfileLink | null>(null)
   const [selectedPlayerId, setSelectedPlayerId] = useState('')
   const [typedPlayerName, setTypedPlayerName] = useState('')
@@ -394,45 +372,38 @@ function ProfilePageInner() {
       setProfileSource('none')
       setSelectedPlayerId('')
       setTypedPlayerName('')
-      setMatches([])
-      setMatchPlayers([])
+      setPlayerMatchContext(null)
       setLoading(false)
       setError('')
       return
     }
     setSelectedPlayerId('')
     setTypedPlayerName('')
-    setMatches([])
-    setMatchPlayers([])
+    setPlayerMatchContext(null)
     void loadProfile()
   }, [authResolved, loadProfile, userId])
 
-  const hasSelectedPlayer = Boolean(selectedPlayerId)
   useEffect(() => {
-    if (!authResolved || !userId || !hasSelectedPlayer) return
+    if (!authResolved || !userId || !selectedPlayerId) return
 
     let active = true
-    void Promise.all([
-      supabase
-        .from('matches')
-        .select('id, flight, league_name, home_team, away_team')
-        .limit(5000),
-      supabase
-        .from('match_players')
-        .select('match_id, player_id, side')
-        .limit(12000),
-    ]).then(([matchesRes, matchPlayersRes]) => {
-      if (!active) return
-      if (!matchesRes.error) setMatches((matchesRes.data || []) as MatchRow[])
-      if (!matchPlayersRes.error) setMatchPlayers((matchPlayersRes.data || []) as MatchPlayerRow[])
-    }).catch(() => {
-      if (!active) return
-      setMatches([])
-      setMatchPlayers([])
-    })
+    void (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('match_players')
+          .select('side,matches!inner(id,flight,league_name,home_team,away_team)')
+          .eq('player_id', selectedPlayerId)
+          .limit(5000)
+        if (!active) return
+        setPlayerMatchContext({ playerId: selectedPlayerId, rows: error ? [] : (data || []) as unknown as ProfileMatchContextRow[] })
+      } catch {
+        if (!active) return
+        setPlayerMatchContext({ playerId: selectedPlayerId, rows: [] })
+      }
+    })()
 
     return () => { active = false }
-  }, [authResolved, hasSelectedPlayer, userId])
+  }, [authResolved, selectedPlayerId, userId])
 
   const connectedScorecardClaimId = profile?.linked_player_id === scorecardClaimPlayerId ? scorecardClaimPlayerId : null
 
@@ -552,44 +523,10 @@ function ProfilePageInner() {
     }
   }, [linkedPlayer?.name, profile?.linked_player_id, profile?.linked_player_name])
 
-  const matchPlayersByMatch = useMemo(() => {
-    const map = new Map<string, MatchPlayerRow[]>()
-    for (const row of matchPlayers) {
-      const existing = map.get(row.match_id) ?? []
-      existing.push(row)
-      map.set(row.match_id, existing)
-    }
-    return map
-  }, [matchPlayers])
-
-  const selectedPlayerTeams = useMemo<TeamSummary[]>(() => {
-    if (!selectedPlayerId) return []
-    const map = new Map<string, TeamSummary>()
-
-    for (const match of matches) {
-      const participants = matchPlayersByMatch.get(match.id) ?? []
-      const playerSide = participants.find((participant) => participant.player_id === selectedPlayerId)?.side
-      if (!playerSide) continue
-
-      const teamName = cleanText(playerSide === 'A' ? match.home_team : match.away_team)
-      const league = cleanText(match.league_name)
-      const flight = cleanText(match.flight)
-      if (!teamName) continue
-
-      const id = buildScopedTeamEntityId({
-        competitionLayer: '',
-        teamName,
-        leagueName: league,
-        flight,
-      })
-
-      if (!map.has(id)) {
-        map.set(id, { id, name: teamName, league, flight })
-      }
-    }
-
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
-  }, [matches, matchPlayersByMatch, selectedPlayerId])
+  const selectedPlayerTeams = useMemo(
+    () => buildProfileTeamSummaries(playerMatchContext?.playerId === selectedPlayerId ? playerMatchContext.rows : []),
+    [playerMatchContext, selectedPlayerId],
+  )
 
   async function saveProfile() {
     if (!userId) {
@@ -842,7 +779,7 @@ function ProfilePageInner() {
   const primaryRating = linkedPlayer || selectedPlayer
   const hasRatingIdentity = Boolean(primaryRating || typedProfileActive)
   const profilePlayerId = profile?.linked_player_id || selectedPlayerId
-  const profileHasMatchData = Boolean(profilePlayerId && matchPlayers.some((row) => row.player_id === profilePlayerId))
+  const profileHasMatchData = Boolean(profilePlayerId && playerMatchContext?.playerId === profilePlayerId && playerMatchContext.rows.length)
   const detectedLeagueCount = new Set(
     selectedPlayerTeams
       .map((team) => [team.league, team.flight].filter(Boolean).join(' - '))
