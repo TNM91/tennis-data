@@ -47,8 +47,13 @@ checkFileIncludes('app/api/checkout/session/route.ts', [
   "STRIPE_API_VERSION = '2026-04-22.dahlia'",
   "'Stripe-Version': STRIPE_API_VERSION",
   'https://api.stripe.com/v1/checkout/sessions',
+  'hasSafeProductionStripeKeys()',
   'Authorization: `Bearer ${stripeSecretKey}`',
 ], 'Checkout session route uses the pinned Stripe API version and server-side secret')
+checkFileIncludes('lib/stripe-checkout.ts', [
+  "secretKey.startsWith('sk_live_')",
+  "restrictedKey.startsWith('rk_live_')",
+], 'Production checkout rejects test-mode Stripe keys')
 checkFileIncludes('lib/stripe-webhook.ts', [
   'DEFAULT_SIGNATURE_TOLERANCE_SECONDS = 300',
   'timingSafeEqual',
