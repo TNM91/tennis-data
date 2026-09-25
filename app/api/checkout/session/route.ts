@@ -5,6 +5,7 @@ import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
   buildStripeCheckoutSessionParams,
   getStripePriceId,
+  hasSafeProductionStripeKeys,
   type PaidPricingPlanId,
 } from '@/lib/stripe-checkout'
 import { PAID_CHECKOUT_ENABLED, PAID_CHECKOUT_PAUSED_MESSAGE } from '@/lib/paid-checkout'
@@ -91,6 +92,14 @@ export async function POST(request: Request) {
     return Response.json(
       { ok: false, message: 'Checkout is not configured yet.' },
       { status: 500 },
+    )
+  }
+
+  if (!hasSafeProductionStripeKeys()) {
+    console.error('Production Stripe checkout keys are not configured for live mode')
+    return Response.json(
+      { ok: false, message: 'Checkout is temporarily unavailable.' },
+      { status: 503 },
     )
   }
 

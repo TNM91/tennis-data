@@ -6,9 +6,21 @@ import {
   buildStripeCheckoutSessionParams,
   getStripeCheckoutMode,
   getStripePriceId,
+  hasSafeProductionStripeKeys,
 } from '../stripe-checkout'
 
 describe('stripe checkout helpers', () => {
+  it('only allows live Stripe keys for production checkout, including the portal key', () => {
+    const live = { VERCEL_ENV: 'production', STRIPE_SECRET_KEY: 'sk_live_example' }
+    expect(hasSafeProductionStripeKeys(live)).toBe(true)
+    expect(hasSafeProductionStripeKeys({ ...live, STRIPE_RESTRICTED_KEY: 'rk_live_example' })).toBe(true)
+    expect(hasSafeProductionStripeKeys({ ...live, STRIPE_RESTRICTED_KEY: 'rk_test_example' })).toBe(false)
+    expect(hasSafeProductionStripeKeys({ ...live, STRIPE_SECRET_KEY: 'sk_test_example' })).toBe(false)
+    expect(hasSafeProductionStripeKeys({ VERCEL_ENV: 'production', STRIPE_RESTRICTED_KEY: 'rk_live_example' })).toBe(false)
+    expect(hasSafeProductionStripeKeys({ NODE_ENV: 'production', STRIPE_SECRET_KEY: 'sk_test_example' })).toBe(false)
+    expect(hasSafeProductionStripeKeys({ VERCEL_ENV: 'preview', NODE_ENV: 'production', STRIPE_SECRET_KEY: 'sk_test_example' })).toBe(true)
+  })
+
   it('maps paid plans to Stripe checkout modes', () => {
     expect(getStripeCheckoutMode('player_plus')).toBe('subscription')
     expect(getStripeCheckoutMode('coach')).toBe('subscription')

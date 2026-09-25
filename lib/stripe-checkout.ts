@@ -27,6 +27,15 @@ export const STRIPE_PRICE_ENV_BY_PLAN: Record<PaidPricingPlanId, string> = {
   club_unlimited: 'STRIPE_CLUB_UNLIMITED_PRICE_ID',
 }
 
+export function hasSafeProductionStripeKeys(env: Record<string, string | undefined> = process.env) {
+  const production = env.VERCEL_ENV === 'production' || (env.NODE_ENV === 'production' && !env.VERCEL_ENV)
+  if (!production) return true
+
+  const secretKey = env.STRIPE_SECRET_KEY?.trim() ?? ''
+  const restrictedKey = env.STRIPE_RESTRICTED_KEY?.trim() ?? ''
+  return secretKey.startsWith('sk_live_') && (!restrictedKey || restrictedKey.startsWith('rk_live_'))
+}
+
 export function getStripePriceId(planId: PaidPricingPlanId, env: Record<string, string | undefined> = process.env) {
   return env[STRIPE_PRICE_ENV_BY_PLAN[planId]]?.trim() ?? ''
 }

@@ -6,6 +6,7 @@ Use this checklist after billing changes, Stripe webhook configuration changes, 
 
 - Confirm the Stripe Dashboard is in test mode before creating or mutating test subscriptions.
 - Keep `NEXT_PUBLIC_PAID_CHECKOUT_ENABLED=false` in Production until the live catalog, webhook, and credentials are ready for one coordinated cutover.
+- Production checkout refuses to create sessions unless `STRIPE_SECRET_KEY` is live-mode and any `STRIPE_RESTRICTED_KEY` is also live-mode. This guard does not verify that the configured Prices or webhook belong to the same live account; complete the live-mode checks below before enabling checkout.
 - Confirm the local or deployed app points at test credentials before sending test events. Do not create, cancel, or force-fail live customer subscriptions for QA.
 - Keep the canonical production webhook endpoint as `https://www.tenaceiq.com/api/stripe/webhook`.
 - Keep these webhook events enabled: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, and `invoice.payment_failed`.
