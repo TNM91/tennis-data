@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { track } from '@vercel/analytics'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
@@ -31,6 +32,7 @@ import ExploreResumeTracker from '@/app/explore/_components/explore-resume-track
 import { useProductAccess } from '@/lib/use-product-access'
 import { MY_LAB_STORY } from '@/lib/product-story'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
+import { getPlayerSearchContextCoverage, getPlayerSearchCountBand, type PlayerSearchContextCoverage } from '@/lib/player-search-analytics'
 
 type SearchScope = 'players' | 'teams' | 'leagues' | 'flight' | 'area'
 
@@ -221,7 +223,7 @@ function ExploreSearchContent() {
   const [leagues, setLeagues] = useState<LeagueCard[]>([])
   const [searchReady, setSearchReady] = useState(false)
   const [searchAttempt, setSearchAttempt] = useState(0)
-  const [completedSearch, setCompletedSearch] = useState<{ query: string; scope: SearchScope; count: number } | null>(null)
+  const [completedSearch, setCompletedSearch] = useState<{ query: string; scope: SearchScope; count: number; contextCoverage?: PlayerSearchContextCoverage } | null>(null)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -311,7 +313,14 @@ function ExploreSearchContent() {
         setTeams(teamsResult)
         setLeagues(leagueResult)
         const resultCount = scope === 'players' ? playersResult.players.length : scope === 'teams' ? teamsResult.length : leagueResult.length
-        setCompletedSearch({ query: trimmedQuery, scope, count: resultCount })
+        const contextCoverage = scope === 'players' ? getPlayerSearchContextCoverage(playersResult.players.slice(0, 8)) : undefined
+        setCompletedSearch({ query: trimmedQuery, scope, count: resultCount, contextCoverage })
+        if (scope === 'players' && resultCount > 0) {
+          trackPlayerSearchEvent('Player Search Results Viewed', {
+            context: contextCoverage ?? 'none',
+            resultCount: getPlayerSearchCountBand(resultCount),
+          })
+        }
         if (resultCount === 0) {
           void trackProductUsageEvent({
             eventName: 'zero_result_seen',
@@ -361,12 +370,20 @@ function ExploreSearchContent() {
     setSearchAttempt((current) => current + 1)
   }
 
-  function trackOpenedRecord(recordScope: 'players' | 'teams' | 'leagues') {
+  function trackOpenedRecord(recordScope: 'players' | 'teams' | 'leagues', details: Record<string, unknown> = {}) {
     void trackProductUsageEvent({
       eventName: 'search_result_clicked',
       surface: 'search',
-      metadata: { location: 'explore_search', scope: recordScope },
+      metadata: { location: 'explore_search', scope: recordScope, ...details },
     })
+  }
+
+  function trackPlayerProfileOpen(player: PlayerSearchRow, rank: number, placement: 'result' | 'next_action') {
+    const context = player.recent_match_team ? 'shown' : 'absent'
+    const contextCoverage = completedSearch?.contextCoverage ?? 'none'
+    const position = getPlayerSearchCountBand(rank)
+    trackPlayerSearchEvent('Player Search Profile Opened', { context: contextCoverage, clickedContext: context, position, placement })
+    trackOpenedRecord('players', { context: contextCoverage, clickedContext: context, position, placement })
   }
 
   const matchedFlights = useMemo(() => {
@@ -486,7 +503,11 @@ function ExploreSearchContent() {
             <span style={searchNextActionsLabelStyle}>{action.label}</span>
             <strong style={searchNextActionsValueStyle}>{action.value}</strong>
             {!isMobile ? <span style={searchNextActionsTextStyle}>{action.body}</span> : null}
-            <Link href={action.href} style={isMobile ? compactSearchNextActionLinkStyle : searchNextActionLinkStyle}>
+            <Link
+              href={action.href}
+              onClick={action.label === 'Open profile' && topPlayerResult ? () => trackPlayerProfileOpen(topPlayerResult, 1, 'next_action') : undefined}
+              style={isMobile ? compactSearchNextActionLinkStyle : searchNextActionLinkStyle}
+            >
               {action.cta}
             </Link>
           </article>
@@ -769,8 +790,8 @@ function ExploreSearchContent() {
                       <span>We could not find an exact spelling, so these are the nearest player records.</span>
                     </div>
                   ) : null}
-                  {visiblePlayers.map((player) => (
-                    <Link key={player.id} href={`/players/${player.id}`} onClick={() => trackOpenedRecord('players')} style={getPlayerSearchResultStyle()}>
+                  {visiblePlayers.map((player, index) => (
+                    <Link key={player.id} href={`/players/${player.id}`} onClick={() => trackPlayerProfileOpen(player, index + 1, 'result')} style={getPlayerSearchResultStyle()}>
                       <TiqFeatureIcon name="playerRatings" size="sm" variant="surface" />
                       <div style={playerSearchIdentityStyle}>
                         <div style={resultTitleStyle}>{player.name}</div>
@@ -791,7 +812,14 @@ function ExploreSearchContent() {
                   {filteredPlayers.length > visiblePlayerCount ? (
                     <button
                       type="button"
-                      onClick={() => setVisiblePlayerCount((count) => count + 8)}
+                      onClick={() => {
+                        const nextVisibleCount = Math.min(visiblePlayerCount + 8, filteredPlayers.length)
+                        trackPlayerSearchEvent('Player Search More Viewed', {
+                          context: completedSearch?.contextCoverage ?? 'none',
+                          position: getPlayerSearchCountBand(nextVisibleCount),
+                        })
+                        setVisiblePlayerCount(nextVisibleCount)
+                      }}
                       style={{ ...buttonGhost, minHeight: 42, width: '100%' }}
                     >
                       Show more players ({visiblePlayers.length} of {filteredPlayers.length})
@@ -995,6 +1023,14 @@ function getPlayerSearchMeta(player: PlayerSearchRow): string {
   const team = cleanText(player.recent_match_team)
   const year = player.recent_match_date?.slice(0, 4)
   return [location, team ? `Recent match: ${team}${year ? ` (${year})` : ''}` : ''].filter(Boolean).join(' · ') || 'Player profile'
+}
+
+function trackPlayerSearchEvent(name: string, properties: Record<string, string>) {
+  try {
+    track(name, properties)
+  } catch {
+    // Analytics should never interrupt a search or profile opening.
+  }
 }
 
 async function searchTeams(term: string): Promise<TeamSearchResult[]> {
