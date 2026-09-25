@@ -51,7 +51,7 @@ describe('auth entry mobile layout guards', () => {
     expect(source).not.toContain("if (role !== 'public') return null")
     expect(source).toContain('const signedInRedirectRoute = requestedNextRoute ? selectedNextRoute : getDefaultSignedInRoute(role, entitlements)')
     expect(source).toContain('router.replace(signedInRedirectRoute)')
-    expect(source).toContain("if (access.currentPlanId === 'coach') return '/coach'")
+    expect(source).toContain('return getDefaultProductHomeRoute(role, entitlements)')
     expect(source).not.toContain('getClientAuthState')
     expect(source).not.toContain('const [role, setRole]')
     expect(source).not.toContain('supabase.auth.onAuthStateChange')

@@ -11,7 +11,8 @@ import {
 } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { type UserRole } from '@/lib/roles'
-import { buildProductAccessState, type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { type ProductEntitlementSnapshot } from '@/lib/access-model'
+import { getDefaultProductHomeRoute } from '@/lib/post-login-route'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -107,13 +108,7 @@ function getDefaultSignedInRoute(
   role: UserRole,
   entitlements?: ProductEntitlementSnapshot | null,
 ) {
-  const access = buildProductAccessState(role, entitlements)
-  if (access.currentPlanId === 'full_court') return '/league-coordinator'
-  if (access.currentPlanId === 'league') return '/league-coordinator'
-  if (access.currentPlanId === 'captain') return '/captain'
-  if (access.currentPlanId === 'coach') return '/coach'
-  if (access.canUseAdvancedPlayerInsights) return '/profile'
-  return '/mylab'
+  return getDefaultProductHomeRoute(role, entitlements)
 }
 
 function buildJoinLoginHref(planId: MembershipTierId, nextHref: string, email = '') {
