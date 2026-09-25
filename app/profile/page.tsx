@@ -963,7 +963,16 @@ function ProfilePageInner() {
             <button type="button" onClick={saveProfile} disabled={saving} style={primaryButtonStyle}>
               {saving ? 'Connecting...' : `Yes, connect ${connectionCandidate.name}`}
             </button>
-            <a href="#profile-identity" style={secondaryButtonStyle}>Choose a different player</a>
+            <a
+              href="#profile-identity"
+              onClick={() => {
+                setSelectedPlayerId('')
+                setTypedPlayerName('')
+                setMessage('')
+                setError('')
+              }}
+              style={secondaryButtonStyle}
+            >Choose a different player</a>
             {scorecardClaimMatchId ? <Link href={`/matches/${encodeURIComponent(scorecardClaimMatchId)}`} style={secondaryButtonStyle}>Review scorecard</Link> : null}
           </div>
           {error ? <div role="alert" style={errorStyle}>{error}</div> : null}
