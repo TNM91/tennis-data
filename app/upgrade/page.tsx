@@ -305,6 +305,8 @@ function UpgradeContent({
   const followContext = planId === 'player_plus' && followContextState?.path === nextHref && followContextState.userId === userId
     ? followContextState.intent
     : null
+  const earlyAccessReturnHref = followContext ? nextHref : planId === 'player_plus' ? '/profile' : '/'
+  const earlyAccessReturnLabel = followContext ? `View ${getFollowTargetLabel(followContext)}` : planId === 'player_plus' ? 'Back to profile' : 'Keep using Free'
   const nextIntent = followContext ? getFollowUpgradeNextIntent(followContext) : getUpgradeNextIntent(planId, nextHref)
   const successTitle = followContext ? 'Player is active. Your follow is next.' : successHandoff.title
   const successSteps = followContext
@@ -560,12 +562,8 @@ function UpgradeContent({
       }
 
       const userMetadata = session.user.user_metadata || {}
-      const displayName =
-        typeof userMetadata.name === 'string'
-          ? userMetadata.name
-          : typeof userMetadata.full_name === 'string'
-            ? userMetadata.full_name
-            : ''
+      const displayName = [userMetadata.name, userMetadata.full_name, userMetadata.first_name]
+        .find((value): value is string => typeof value === 'string' && Boolean(value.trim()))?.trim() || ''
       const record: UpgradeRequestRecord = {
         id: createClientRequestId(planId),
         planId,
@@ -573,7 +571,9 @@ function UpgradeContent({
         name: displayName,
         email: session.user.email,
         organization: followContext?.entityName ?? '',
-        goal: followRequestGoal || `Start ${plan.name} checkout from upgrade.`,
+        goal: followRequestGoal || (PAID_CHECKOUT_ENABLED
+          ? `Start ${plan.name} checkout from upgrade.`
+          : `Get early access to ${getPlanDestinationLabel(planId)} when ${plan.name} opens.`),
         nextHref,
         createdAt: new Date().toISOString(),
         status: 'pending',
@@ -1002,8 +1002,8 @@ function UpgradeContent({
                   {!PAID_CHECKOUT_ENABLED ? (
                     earlyAccessSaved ? (
                       <>
-                        <Link href={followContext ? nextHref : '/'} style={primaryButtonStyle}>
-                          {followContext ? `View ${getFollowTargetLabel(followContext)}` : 'Keep using Free'}
+                        <Link href={earlyAccessReturnHref} style={primaryButtonStyle}>
+                          {earlyAccessReturnLabel}
                         </Link>
                         <Link href={followContext ? '/' : '/pricing'} style={secondaryButtonStyle}>
                           {followContext ? 'Keep using Free' : 'Compare plans'}
