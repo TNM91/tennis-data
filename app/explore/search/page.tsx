@@ -38,6 +38,8 @@ type PlayerSearchRow = {
   id: string
   name: string
   location?: string | null
+  recent_match_team?: string | null
+  recent_match_date?: string | null
   overall_rating?: number | null
   overall_dynamic_rating?: number | null
   overall_usta_dynamic_rating?: number | null
@@ -46,6 +48,12 @@ type PlayerSearchRow = {
 type PlayerSearchResponse = {
   players: PlayerSearchRow[]
   usedSpellingHelp: boolean
+}
+
+type PlayerMatchContextRow = {
+  player_id: string
+  team_name: string | null
+  match_date: string | null
 }
 
 type TeamMatchRow = {
@@ -766,7 +774,7 @@ function ExploreSearchContent() {
                       <TiqFeatureIcon name="playerRatings" size="sm" variant="surface" />
                       <div style={playerSearchIdentityStyle}>
                         <div style={resultTitleStyle}>{player.name}</div>
-                        <div style={resultMetaStyle}>{cleanText(player.location) || 'Player profile'}</div>
+                        <div style={resultMetaStyle}>{getPlayerSearchMeta(player)}</div>
                         <span style={playerSearchContextStyle}>
                           {typeof player.overall_usta_dynamic_rating === 'number'
                             ? `USTA ${player.overall_usta_dynamic_rating.toFixed(2)} baseline`
@@ -956,7 +964,37 @@ async function searchPlayers(term: string): Promise<PlayerSearchResponse> {
     player.name.toLocaleLowerCase().includes(normalizedTerm),
   )
 
-  return { players, usedSpellingHelp: players.length > 0 && !hasDirectNameMatch }
+  const usedSpellingHelp = players.length > 0 && !hasDirectNameMatch
+  if (players.length === 0) return { players, usedSpellingHelp }
+
+  try {
+    const context = await supabase.rpc('get_public_player_search_match_context', {
+      player_ids: players.map((player) => player.id),
+    })
+    if (context.error) return { players, usedSpellingHelp }
+
+    const contextByPlayerId = new Map(
+      ((context.data || []) as PlayerMatchContextRow[]).map((row) => [row.player_id, row]),
+    )
+    return {
+      players: players.map((player) => {
+        const match = contextByPlayerId.get(player.id)
+        return match
+          ? { ...player, recent_match_team: match.team_name, recent_match_date: match.match_date }
+          : player
+      }),
+      usedSpellingHelp,
+    }
+  } catch {
+    return { players, usedSpellingHelp }
+  }
+}
+
+function getPlayerSearchMeta(player: PlayerSearchRow): string {
+  const location = cleanText(player.location)
+  const team = cleanText(player.recent_match_team)
+  const year = player.recent_match_date?.slice(0, 4)
+  return [location, team ? `Recent match: ${team}${year ? ` (${year})` : ''}` : ''].filter(Boolean).join(' · ') || 'Player profile'
 }
 
 async function searchTeams(term: string): Promise<TeamSearchResult[]> {
