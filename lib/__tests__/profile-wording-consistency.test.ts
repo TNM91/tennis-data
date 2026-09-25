@@ -36,7 +36,7 @@ describe('profile wording consistency', () => {
     expect(profile).toContain('const showProfileIntro = !signedIn || profileComplete')
     expect(profile).toContain('const showTennisSetupChecklist = signedIn && profileComplete')
     expect(profile).toContain("profileComplete ? profileDisplayName : 'Connect your player'")
-    expect(profile).toContain('Get started · Step 1 of 3')
+    expect(profile).toContain('Get started · Step 1 of 2')
     expect(profile).toContain(': <h1 style={sectionTitleStyle}>{profileIdentityTitle}</h1>')
   })
 
