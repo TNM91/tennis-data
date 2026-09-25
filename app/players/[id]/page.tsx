@@ -2051,7 +2051,10 @@ function PlayerProfileContent() {
                       >
                         Connect this record
                       </Link>
-                      <Link href="/explore/players">Find my player</Link>
+                      <Link
+                        href="/explore/players"
+                        onClick={() => track('Player Profile Find My Player Click', { source: isSharedVisit ? PLAYER_PROFILE_SHARE_SOURCE : PLAYER_PROFILE_SOURCE, audience: 'guest' })}
+                      >Find my player</Link>
                     </div>
                   ) : null}
                   {authResolved && currentUserId && playerLinkResolved && !linkedPlayerId ? (
@@ -2063,7 +2066,10 @@ function PlayerProfileContent() {
                       >
                         Connect this record
                       </Link>
-                      <Link href="/explore/players">Find my player</Link>
+                      <Link
+                        href="/explore/players"
+                        onClick={() => track('Player Profile Find My Player Click', { source: isSharedVisit ? PLAYER_PROFILE_SHARE_SOURCE : PLAYER_PROFILE_SOURCE, audience: 'member' })}
+                      >Find my player</Link>
                     </div>
                   ) : null}
                   {shouldShowPlayerAccessHint ? (

@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { track } from '@vercel/analytics'
 import { type UserRole } from '@/lib/roles'
 import { type ProductEntitlementSnapshot } from '@/lib/access-model'
 import { getDefaultProductHomeRoute } from '@/lib/post-login-route'
@@ -148,6 +149,7 @@ function JoinContent() {
   const [message, setMessage] = useState('')
   const [playerConnectRecord, setPlayerConnectRecord] = useState<{ name: string; location: string | null } | null>(null)
   const hasRedirectedRef = useRef(false)
+  const trackedPlayerSignupRef = useRef('')
   const { isMobile } = useViewportBreakpoints()
   const requestedPlan = searchParams.get('plan')
   const requestedEmail = searchParams.get('email')?.trim() ?? ''
@@ -209,6 +211,14 @@ function JoinContent() {
   useEffect(() => {
     if (requestedEmail && !email) setEmail(requestedEmail)
   }, [email, requestedEmail])
+
+  useEffect(() => {
+    if (!authResolved || role !== 'public' || !playerProfileSource) return
+    const entry = `${playerProfileSource}:${selectedNextRoute}`
+    if (trackedPlayerSignupRef.current === entry) return
+    trackedPlayerSignupRef.current = entry
+    track('Player Profile Signup Viewed', { source: playerProfileSource })
+  }, [authResolved, playerProfileSource, role, selectedNextRoute])
 
   useEffect(() => {
     let cancelled = false
@@ -365,7 +375,11 @@ function JoinContent() {
                   <span style={playerConnectRecordLabelStyle}>Record you opened</span>
                   <strong>{playerConnectRecord.name}{playerConnectRecord.location ? ` · ${playerConnectRecord.location}` : ''}</strong>
                   <span>After email confirmation, confirm this is you.</span>
-                  <Link href="/explore/players" style={playerConnectRecordLinkStyle}>Find my player instead</Link>
+                  <Link
+                    href="/explore/players"
+                    onClick={() => track('Player Profile Signup Find My Player Click', { source: playerProfileSource || 'direct' })}
+                    style={playerConnectRecordLinkStyle}
+                  >Find my player instead</Link>
                 </div>
               ) : null}
 

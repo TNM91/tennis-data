@@ -388,7 +388,7 @@ export default function AdminGrowthPage() {
             <div className="section-kicker">Public player profiles</div>
             <h2 className="section-title" style={{ marginTop: 6 }}>From player profile to connected player</h2>
             <p className="subtle-text">
-              People who requested a Free account from a public or shared player profile in the last {period} days. Each account counts once per source. Visit and join click counts are in Vercel Analytics.
+              People who requested a Free account from a public or shared player profile in the last {period} days. Each account counts once per source. Visits, join clicks, signup views, and Find my player choices are in Vercel Analytics.
             </p>
             {loading ? <p className="subtle-text">Loading player profile signups...</p> : null}
             {!loading && funnel ? (
