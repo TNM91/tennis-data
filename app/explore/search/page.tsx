@@ -207,6 +207,7 @@ function ExploreSearchContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [players, setPlayers] = useState<PlayerSearchRow[]>([])
+  const [visiblePlayerCount, setVisiblePlayerCount] = useState(8)
   const [usedSpellingHelp, setUsedSpellingHelp] = useState(false)
   const [teams, setTeams] = useState<TeamSearchResult[]>([])
   const [leagues, setLeagues] = useState<LeagueCard[]>([])
@@ -272,6 +273,7 @@ function ExploreSearchContent() {
     }
 
     let active = true
+    setVisiblePlayerCount(8)
     setCompletedSearch(null)
     setPlayers([])
     setTeams([])
@@ -388,6 +390,7 @@ function ExploreSearchContent() {
       return r >= 4.25
     })
   }, [players, ratingBand])
+  const visiblePlayers = filteredPlayers.slice(0, visiblePlayerCount)
 
   const matchupSuggestions = useMemo<MatchupSuggestion[]>(() => {
     if (filteredPlayers.length < 2) return []
@@ -758,7 +761,7 @@ function ExploreSearchContent() {
                       <span>We could not find an exact spelling, so these are the nearest player records.</span>
                     </div>
                   ) : null}
-                  {filteredPlayers.map((player) => (
+                  {visiblePlayers.map((player) => (
                     <Link key={player.id} href={`/players/${player.id}`} onClick={() => trackOpenedRecord('players')} style={getPlayerSearchResultStyle()}>
                       <TiqFeatureIcon name="playerRatings" size="sm" variant="surface" />
                       <div style={playerSearchIdentityStyle}>
@@ -777,6 +780,18 @@ function ExploreSearchContent() {
                       </div>
                     </Link>
                   ))}
+                  {filteredPlayers.length > visiblePlayerCount ? (
+                    <button
+                      type="button"
+                      onClick={() => setVisiblePlayerCount((count) => count + 8)}
+                      style={{ ...buttonGhost, minHeight: 42, width: '100%' }}
+                    >
+                      Show more players ({visiblePlayers.length} of {filteredPlayers.length})
+                    </button>
+                  ) : null}
+                  {players.length === 24 && visiblePlayerCount >= 24 ? (
+                    <span style={resultMetaStyle}>Try a full name to narrow these matches.</span>
+                  ) : null}
                 </ResultGroup>
 
                 <ResultGroup
@@ -924,7 +939,7 @@ async function searchPlayers(term: string): Promise<PlayerSearchResponse> {
   // makes every search wait on unindexed ILIKE scans.
   const { data, error } = await supabase.rpc('search_public_players', {
     search_text: term.trim(),
-    result_limit: 8,
+    result_limit: 24,
   })
 
   if (error) {
