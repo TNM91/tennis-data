@@ -11,6 +11,7 @@ import { CAPTAIN_PILOT_PRICE_LABEL } from '@/lib/captain-pilot'
 import { getAvailabilityEntry } from '@/lib/availability-onboarding'
 import { isScorecardSignupIntent } from '@/lib/scorecard-signup'
 import { getCaptainPilotClaimHref } from '@/lib/captain-pilot-source'
+import { getPlayerProfileConnectPlayerId } from '@/lib/player-profile-acquisition'
 
 const PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 
@@ -121,7 +122,7 @@ function WelcomeContent() {
   const isCaptainPilot = Boolean(pilotClaimHref)
   const storyKey = isCaptainPilot ? 'captain-pilot' : planId
   const isScorecardSignup = isScorecardSignupIntent(searchParams.get('source'), planId, nextHref)
-  const isPlayerConnectionWelcome = planId === 'free' && nextHref === '/profile#profile-identity'
+  const isPlayerConnectionWelcome = planId === 'free' && (nextHref === '/profile#profile-identity' || Boolean(getPlayerProfileConnectPlayerId(nextHref)))
   const isDefaultFreeWelcome = planId === 'free' && nextHref === '/explore' && !isScorecardSignup
   const story = isScorecardSignup || isPlayerConnectionWelcome ? PLAYER_CONNECTION_WELCOME_STORY : isDefaultFreeWelcome ? FREE_DISCOVERY_WELCOME_STORY : WELCOME_STORIES[storyKey]
   const primaryHref = pilotClaimHref ?? (isDefaultFreeWelcome ? '/explore/search?scope=players' : nextHref)

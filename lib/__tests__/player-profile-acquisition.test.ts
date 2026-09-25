@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getPlayerProfileAcquisitionSource, PLAYER_PROFILE_SHARE_SOURCE, PLAYER_PROFILE_SOURCE } from '@/lib/player-profile-acquisition'
+import { buildPlayerProfileConnectHref, getPlayerProfileAcquisitionSource, getPlayerProfileConnectPlayerId, PLAYER_PROFILE_SHARE_SOURCE, PLAYER_PROFILE_SOURCE } from '@/lib/player-profile-acquisition'
 import { buildPlayerProfileAcquisitionFunnel, getPlayerProfileSignupIds } from '@/lib/player-profile-growth-funnel'
 import type { GrowthEventRow } from '@/lib/admin-growth-funnel'
 import type { ScorecardSignupProfile } from '@/lib/scorecard-growth-funnel'
@@ -21,9 +21,21 @@ const profile = (id: string, linkedPlayerId: string | null): ScorecardSignupProf
 })
 
 describe('player profile acquisition', () => {
+  it('carries one valid player record through the connection path', () => {
+    const playerId = '9e7a8411-5443-47ef-bbab-99fcacd1389f'
+    const nextHref = buildPlayerProfileConnectHref(playerId)
+    expect(nextHref).toBe(`/profile?connectPlayer=${playerId}`)
+    expect(getPlayerProfileConnectPlayerId(nextHref)).toBe(playerId)
+    expect(getPlayerProfileConnectPlayerId('/profile?connectPlayer=not-a-player')).toBeNull()
+    expect(getPlayerProfileConnectPlayerId(`${nextHref}&returnTo=/admin`)).toBeNull()
+    expect(getPlayerProfileConnectPlayerId(`/profile?connectPlayer=${playerId}&connectPlayer=${playerId}`)).toBeNull()
+    expect(getPlayerProfileConnectPlayerId(`/profile?connectPlayer=${playerId}#other`)).toBeNull()
+  })
+
   it('accepts only profile connection sources for the Free player setup path', () => {
     expect(getPlayerProfileAcquisitionSource(PLAYER_PROFILE_SOURCE, 'free', '/profile#profile-identity')).toBe(PLAYER_PROFILE_SOURCE)
     expect(getPlayerProfileAcquisitionSource(PLAYER_PROFILE_SHARE_SOURCE, 'free', '/profile#profile-identity')).toBe(PLAYER_PROFILE_SHARE_SOURCE)
+    expect(getPlayerProfileAcquisitionSource(PLAYER_PROFILE_SOURCE, 'free', buildPlayerProfileConnectHref('9e7a8411-5443-47ef-bbab-99fcacd1389f'))).toBe(PLAYER_PROFILE_SOURCE)
     expect(getPlayerProfileAcquisitionSource(PLAYER_PROFILE_SOURCE, 'captain', '/profile#profile-identity')).toBeNull()
     expect(getPlayerProfileAcquisitionSource(PLAYER_PROFILE_SOURCE, 'free', '/explore')).toBeNull()
     expect(getPlayerProfileAcquisitionSource('scorecard_share', 'free', '/profile#profile-identity')).toBeNull()

@@ -28,7 +28,7 @@ import { subscribeToTeamConnectionsChanged } from '@/lib/team-profile-links-even
 import { addWorkflowResult, getSafeWorkflowReturnTo } from '@/lib/workflow-return'
 import { buildScorecardPlayerLoginHref, getScorecardClaimMatchId, getScorecardClaimPlayerId, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
 import { describeClaimResult, prioritizeClaimMatch, type ClaimResult } from '@/lib/scorecard-claim-welcome'
-import { getPlayerProfileAcquisitionSource } from '@/lib/player-profile-acquisition'
+import { buildPlayerProfileConnectHref, getPlayerProfileAcquisitionSource, getPlayerProfileConnectPlayerId } from '@/lib/player-profile-acquisition'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { buildProfileTeamSummaries, getProfileMatchDataState, type ProfileMatchContext } from '@/lib/profile-team-context'
 
@@ -312,6 +312,7 @@ function ProfilePageInner() {
   const [profileAwards, setProfileAwards] = useState<TiqAwardRecord[]>([])
   const [profileSource, setProfileSource] = useState<LoadUserProfileLinkResult['source']>('none')
   const [scorecardClaimPlayerId, setScorecardClaimPlayerId] = useState<string | null>(null)
+  const [profileConnectPlayerId, setProfileConnectPlayerId] = useState<string | null>(null)
   const [scorecardClaimMatchId, setScorecardClaimMatchId] = useState<string | null>(null)
   const [claimResults, setClaimResults] = useState<ClaimResultRow[]>([])
   const [claimMatch, setClaimMatch] = useState<ClaimResultRow | null>(null)
@@ -323,6 +324,7 @@ function ProfilePageInner() {
     const params = new URLSearchParams(window.location.search)
     setCaptainSetupEntry(params.get('setup') === 'captain')
     setScorecardClaimPlayerId(getScorecardClaimPlayerId(`/profile${window.location.search}`))
+    setProfileConnectPlayerId(getPlayerProfileConnectPlayerId(`/profile${window.location.search}${window.location.hash}`))
     setScorecardClaimMatchId(getScorecardClaimMatchId(`/profile${window.location.search}`))
     if (params.get('billing') === 'returned') {
       setBillingMessage('Billing management closed. Your access will reflect the latest Stripe updates.')
@@ -334,7 +336,8 @@ function ProfilePageInner() {
     setError('')
 
     try {
-      const requestedPlayerId = getScorecardClaimPlayerId(`/profile${window.location.search}`)
+      const scorecardPlayerId = getScorecardClaimPlayerId(`/profile${window.location.search}`)
+      const requestedPlayerId = scorecardPlayerId || getPlayerProfileConnectPlayerId(`/profile${window.location.search}${window.location.hash}`)
       const profileRes = await loadUserProfileLink(userId)
       if (profileRes.error && !profileRes.data) {
         throw new Error(profileRes.error.message)
@@ -357,7 +360,9 @@ function ProfilePageInner() {
       setTypedPlayerName((current) => nextProfile?.linked_player_id ? '' : current.trim() ? current : nextProfile?.linked_player_name || '')
       setMixedPairRole(normalizeMixedPairRole(playersRes.find((player) => player.id === nextProfile?.linked_player_id)?.mixed_pair_role))
       if (requestedPlayer) {
-        setMessage(`${requestedPlayer.name} is ready from the shared scorecard. Confirm this is you, then save your player.`)
+        setMessage(scorecardPlayerId
+          ? `${requestedPlayer.name} is ready from the shared scorecard. Confirm this is you, then save your player.`
+          : `${requestedPlayer.name} is ready from the profile you opened. Confirm this is you, then save your player.`)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load your profile.')
@@ -775,8 +780,12 @@ function ProfilePageInner() {
 
   const profileComplete = Boolean(profile?.linked_player_id || profile?.linked_player_name)
   const scorecardClaimCandidate = !profileComplete && selectedPlayer?.id === scorecardClaimPlayerId ? selectedPlayer : null
+  const profileConnectCandidate = !profileComplete && selectedPlayer?.id === profileConnectPlayerId ? selectedPlayer : null
+  const connectionCandidate = scorecardClaimCandidate || profileConnectCandidate
   const profileSignInHref = scorecardClaimPlayerId
     ? buildScorecardPlayerLoginHref(scorecardClaimPlayerId, scorecardClaimMatchId || undefined)
+    : profileConnectPlayerId
+      ? `/login?next=${encodeURIComponent(buildPlayerProfileConnectHref(profileConnectPlayerId))}`
     : '/login?next=%2Fprofile'
   const showScorecardClaimWelcome = Boolean(connectedScorecardClaimId && !captainSetupEntry)
   const visibleClaimResults = prioritizeClaimMatch(claimResults, claimMatch)
@@ -943,16 +952,16 @@ function ProfilePageInner() {
         </section>
       ) : null}
 
-      {signedIn && scorecardClaimCandidate ? (
+      {signedIn && connectionCandidate ? (
         <section aria-labelledby="scorecard-claim-confirm-title" style={claimWelcomeStyle}>
           <div>
-            <span style={identitySetupEyebrowStyle}>From your shared scorecard</span>
-            <h1 id="scorecard-claim-confirm-title" style={sectionTitleStyle}>Is {scorecardClaimCandidate.name} your player record?</h1>
-            <p style={heroTextStyle}>Connect this public record to your account to keep your results together.</p>
+            <span style={identitySetupEyebrowStyle}>{scorecardClaimCandidate ? 'From your shared scorecard' : 'From the player profile you opened'}</span>
+            <h1 id="scorecard-claim-confirm-title" style={sectionTitleStyle}>Is {connectionCandidate.name} your player record?</h1>
+            <p style={heroTextStyle}>Connect this public record to your account to keep your tennis together.</p>
           </div>
           <div style={profileIntroActionsStyle}>
             <button type="button" onClick={saveProfile} disabled={saving} style={primaryButtonStyle}>
-              {saving ? 'Connecting...' : `Yes, connect ${scorecardClaimCandidate.name}`}
+              {saving ? 'Connecting...' : `Yes, connect ${connectionCandidate.name}`}
             </button>
             <a href="#profile-identity" style={secondaryButtonStyle}>Choose a different player</a>
             {scorecardClaimMatchId ? <Link href={`/matches/${encodeURIComponent(scorecardClaimMatchId)}`} style={secondaryButtonStyle}>Review scorecard</Link> : null}
@@ -1022,7 +1031,7 @@ function ProfilePageInner() {
               <div style={sectionHeaderStyle}>
                 <div>
                   {!profileComplete ? <span style={identitySetupEyebrowStyle}>Get started · Step 1 of 3</span> : null}
-                  {profileComplete || scorecardClaimCandidate
+                  {profileComplete || connectionCandidate
                     ? <h2 style={sectionTitleStyle}>{profileIdentityTitle}</h2>
                     : <h1 style={sectionTitleStyle}>{profileIdentityTitle}</h1>}
                   <p style={sectionTextStyle(isMobile)}>
