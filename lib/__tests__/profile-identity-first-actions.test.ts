@@ -28,7 +28,9 @@ describe('profile identity first actions', () => {
   })
 
   it('searches player records as names are typed and puts the connection action beside identity selection', () => {
-    expect(source).toContain("players.ilike('name', `%${input.name}%`)")
+    expect(source).toContain("supabase.rpc('search_public_players'")
+    expect(source).toContain('playerSearchResults.query === playerSearchQuery')
+    expect(source).toContain('return loadProfilePlayers({ name })')
     expect(source).toContain("playerIds.map((playerId) => loadProfilePlayers({ playerId }))")
     expect(source).toContain('Is one of these you?')
     expect(source).toContain('Create my player')

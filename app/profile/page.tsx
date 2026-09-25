@@ -181,6 +181,34 @@ async function loadProfilePlayers(input: { playerId?: string; name?: string }): 
   return ((base.data || []) as unknown as PlayerRow[]).map((player) => ({ ...player, rating_source: null }))
 }
 
+async function searchProfilePlayers(name: string): Promise<PlayerRow[]> {
+  const { data, error } = await supabase.rpc('search_public_players', {
+    search_text: name,
+    result_limit: 8,
+  })
+  if (error) {
+    if (error.message.toLowerCase().includes('search_public_players')) return loadProfilePlayers({ name })
+    throw new Error(error.message)
+  }
+
+  const ids = ((data || []) as Array<{ id: string }>).map((player) => player.id)
+  if (!ids.length) return []
+  const query = async (select: string) => supabase.from('players').select(select).in('id', ids)
+  const withSource = await query(PROFILE_PLAYER_SELECT_WITH_SOURCE)
+  let players: PlayerRow[]
+  if (!withSource.error) {
+    players = (withSource.data || []) as unknown as PlayerRow[]
+  } else {
+    if (!isMissingRatingSourceError(withSource.error.message)) throw new Error(withSource.error.message)
+    const base = await query(PROFILE_PLAYER_SELECT_BASE)
+    if (base.error) throw new Error(base.error.message)
+    players = ((base.data || []) as unknown as PlayerRow[]).map((player) => ({ ...player, rating_source: null }))
+  }
+
+  const byId = new Map(players.map((player) => [player.id, player]))
+  return ids.flatMap((id) => { const player = byId.get(id); return player ? [player] : [] })
+}
+
 async function createSelfRatedPlayer(name: string, rating: number, mixedPairRole: MixedPairRole): Promise<PlayerRow | null> {
   const basePayload = {
     name,
@@ -281,6 +309,7 @@ function ProfilePageInner() {
   const access = useMemo(() => buildProductAccessState(role, entitlements), [role, entitlements])
 
   const [players, setPlayers] = useState<PlayerRow[]>([])
+  const [playerSearchResults, setPlayerSearchResults] = useState<{ query: string; players: PlayerRow[] }>({ query: '', players: [] })
   const [playerSearchLoading, setPlayerSearchLoading] = useState(false)
   const [playerSearchError, setPlayerSearchError] = useState(false)
   const [matches, setMatches] = useState<MatchRow[]>([])
@@ -454,8 +483,9 @@ function ProfilePageInner() {
   const linkedPlayer = profile?.linked_player_id ? playerMap.get(profile.linked_player_id) || null : null
   const typedPlayerNameClean = cleanText(typedPlayerName)
   const typedProfileActive = Boolean(!selectedPlayerId && typedPlayerNameClean)
+  const playerSearchQuery = typedPlayerNameClean.replace(/[%_\\]/g, '').slice(0, 80)
   useEffect(() => {
-    const query = typedPlayerNameClean.replace(/[%_\\]/g, '').slice(0, 80)
+    const query = playerSearchQuery
     if (!userId || query.length < 2 || selectedPlayerId) {
       setPlayerSearchLoading(false)
       setPlayerSearchError(false)
@@ -466,8 +496,9 @@ function ProfilePageInner() {
     setPlayerSearchLoading(true)
     setPlayerSearchError(false)
     const timer = window.setTimeout(() => {
-      void loadProfilePlayers({ name: query }).then((results) => {
+      void searchProfilePlayers(query).then((results) => {
         if (!active) return
+        setPlayerSearchResults({ query, players: results })
         setPlayers((current) => {
           const byId = new Map(current.map((player) => [player.id, player]))
           for (const player of results) byId.set(player.id, player)
@@ -476,29 +507,17 @@ function ProfilePageInner() {
         setPlayerSearchLoading(false)
       }).catch(() => {
         if (!active) return
+        setPlayerSearchResults({ query, players: [] })
         setPlayerSearchError(true)
         setPlayerSearchLoading(false)
       })
     }, 250)
     return () => { active = false; window.clearTimeout(timer) }
-  }, [selectedPlayerId, typedPlayerNameClean, userId])
+  }, [playerSearchQuery, selectedPlayerId, userId])
   const matchingPlayers = useMemo(() => {
-    const query = typedPlayerNameClean.toLowerCase()
     const selected = selectedPlayerId ? playerMap.get(selectedPlayerId) || null : null
-    const matches = query.length >= 2
-      ? players
-          .filter((player) => {
-            const name = cleanText(player.name).toLowerCase()
-            const location = cleanText(player.location).toLowerCase()
-            return name.includes(query) || location.includes(query)
-          })
-          .sort((a, b) => {
-            const aName = cleanText(a.name).toLowerCase()
-            const bName = cleanText(b.name).toLowerCase()
-            const aStarts = aName.startsWith(query) ? 0 : 1
-            const bStarts = bName.startsWith(query) ? 0 : 1
-            return aStarts - bStarts || a.name.localeCompare(b.name)
-          })
+    const matches = playerSearchQuery.length >= 2 && playerSearchResults.query === playerSearchQuery
+      ? playerSearchResults.players
       : []
 
     const merged = selected && !matches.some((player) => player.id === selected.id)
@@ -506,7 +525,7 @@ function ProfilePageInner() {
       : matches
 
     return merged.slice(0, 8)
-  }, [playerMap, players, selectedPlayerId, typedPlayerNameClean])
+  }, [playerMap, playerSearchQuery, playerSearchResults, selectedPlayerId])
 
   useEffect(() => {
     let active = true
@@ -1054,7 +1073,7 @@ function ProfilePageInner() {
                       setMessage('')
                       setError('')
                     }}
-                    placeholder="Type your name"
+                    placeholder="Type your full name"
                     style={inputStyle}
                   />
                 </label>
@@ -1095,7 +1114,9 @@ function ProfilePageInner() {
                         ? playerSearchLoading
                           ? 'Searching player records...'
                           : matchingPlayers.length
-                          ? 'Pick a match only if it is clearly you.'
+                          ? matchingPlayers.length >= 8
+                            ? 'Type your full name to narrow these matches. Pick a record only if it is clearly you.'
+                            : 'Pick a match only if it is clearly you.'
                           : 'No clear match yet. Saving creates your player profile.'
                         : 'Start with your name. Existing records appear only when they look relevant.'}
                   </span>
