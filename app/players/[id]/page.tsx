@@ -1170,10 +1170,11 @@ function PlayerProfileContent() {
   const matchupHref = linkedPlayerId && linkedPlayerId !== playerId
     ? `/matchup?type=singles&playerA=${encodeURIComponent(linkedPlayerId)}&playerB=${encodeURIComponent(playerId)}`
     : `/matchup?type=singles&playerA=${encodeURIComponent(playerId)}`
-  const primaryActionHref = hasPersonalPlayerExperience ? '/mylab' : isLinkedFreeProfile ? '/pricing' : matchupHref
-  const primaryActionLabel = hasPersonalPlayerExperience ? 'Open My Lab' : isLinkedFreeProfile ? 'Unlock Player' : linkedPlayerId ? 'Compare with me' : 'Open Matchup'
-  const secondaryActionHref = hasPersonalPlayerExperience ? '/matchup?type=singles' : matchupHref
-  const secondaryActionLabel = hasPersonalPlayerExperience ? 'Find a matchup' : linkedPlayerId ? 'Compare with me' : 'Open Matchup'
+  const ownPlayerDataHref = '/data-assist?intent=upload-source&type=scorecard&context=Profile'
+  const primaryActionHref = hasPersonalPlayerExperience ? '/mylab' : isLinkedFreeProfile ? ownPlayerDataHref : matchupHref
+  const primaryActionLabel = hasPersonalPlayerExperience ? 'Open My Lab' : isLinkedFreeProfile ? 'Add match data' : linkedPlayerId ? 'Compare with me' : 'Open Matchup'
+  const secondaryActionHref = hasPersonalPlayerExperience ? '/matchup?type=singles' : isLinkedFreeProfile ? '/explore/players' : matchupHref
+  const secondaryActionLabel = hasPersonalPlayerExperience ? 'Find a matchup' : isLinkedFreeProfile ? 'Explore players' : linkedPlayerId ? 'Compare with me' : 'Open Matchup'
   const playerPathActions = [
     {
       question: 'What should I work on?',
@@ -1493,7 +1494,7 @@ function PlayerProfileContent() {
   const profileNavItemCount = 3 + Number(hasPersonalPlayerExperience) + Number(hasTeamProfileContext)
   const featuredPlayerAwards = playerAwards.slice(0, 1)
   const hasPlayerHistoryData = chartPoints.length > 0 || filteredMatches.length > 0
-  const storyActionHref = hasTrackedMatches ? primaryActionHref : DATA_ASSIST_STORY.href
+  const storyActionHref = hasTrackedMatches ? primaryActionHref : isOwnProfile ? ownPlayerDataHref : DATA_ASSIST_STORY.href
   const storyActionLabel = hasTrackedMatches
     ? hasPersonalPlayerExperience
       ? 'Open My Lab'
@@ -1551,7 +1552,7 @@ function PlayerProfileContent() {
   const heroEyebrow = isPublicExplorerProfile ? 'Player snapshot' : 'Your tennis journey'
   const heroStoryTitle = isPublicExplorerProfile ? publicProfileTitle : storyChapter
   const heroStoryBody = isPublicExplorerProfile ? publicProfileBody : storyChapterBody
-  const heroPrimaryLabel = isPublicExplorerProfile && hasTrackedMatches ? 'Compare players' : storyActionLabel
+  const heroPrimaryLabel = isPublicExplorerProfile && hasTrackedMatches && !isOwnProfile ? 'Compare players' : storyActionLabel
   const heroSecondaryHref = '#profile-performance'
   const heroSecondaryLabel = isPublicExplorerProfile ? 'Review stats' : 'Recent matches'
   const ratingJourneyTitle = hasPersonalPlayerExperience
@@ -2707,7 +2708,7 @@ function PlayerProfileContent() {
                 </div>
                 <div style={dynamicFollowRow}>
                   <Link
-                    href={hasTrackedMatches ? primaryActionHref : DATA_ASSIST_STORY.href}
+                    href={hasTrackedMatches ? primaryActionHref : isOwnProfile ? ownPlayerDataHref : DATA_ASSIST_STORY.href}
                     style={playerPrimaryActionStyle}
                   >
                     {hasTrackedMatches ? primaryActionLabel : 'Add reviewed scorecard'}
