@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { CSSProperties, useEffect } from 'react'
+import { CSSProperties, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
@@ -12,6 +12,7 @@ import { getAvailabilityEntry } from '@/lib/availability-onboarding'
 import { isScorecardSignupIntent } from '@/lib/scorecard-signup'
 import { getCaptainPilotClaimHref } from '@/lib/captain-pilot-source'
 import { getPlayerProfileConnectPlayerId } from '@/lib/player-profile-acquisition'
+import { supabase } from '@/lib/supabase'
 
 const PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 
@@ -113,6 +114,7 @@ function WelcomeContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { authResolved, session } = useAuth()
+  const hasSession = Boolean(session)
   const planParam = searchParams.get('plan')
   const planId: MembershipTierId = PLAN_IDS.includes(planParam as MembershipTierId) ? planParam as MembershipTierId : 'free'
   const tier = getMembershipTier(planId)
@@ -122,13 +124,33 @@ function WelcomeContent() {
   const isCaptainPilot = Boolean(pilotClaimHref)
   const storyKey = isCaptainPilot ? 'captain-pilot' : planId
   const isScorecardSignup = isScorecardSignupIntent(searchParams.get('source'), planId, nextHref)
-  const isPlayerConnectionWelcome = planId === 'free' && (nextHref === '/profile#profile-identity' || Boolean(getPlayerProfileConnectPlayerId(nextHref)))
+  const selectedPlayerId = planId === 'free' ? getPlayerProfileConnectPlayerId(nextHref) : null
+  const [loadedPlayerRecord, setLoadedPlayerRecord] = useState<{ id: string; name: string; location: string | null } | null>(null)
+  const selectedPlayerRecord = loadedPlayerRecord?.id === selectedPlayerId ? loadedPlayerRecord : null
+  const isPlayerConnectionWelcome = planId === 'free' && (nextHref === '/profile#profile-identity' || Boolean(selectedPlayerId))
   const isDefaultFreeWelcome = planId === 'free' && nextHref === '/explore' && !isScorecardSignup
   const story = isScorecardSignup || isPlayerConnectionWelcome ? PLAYER_CONNECTION_WELCOME_STORY : isDefaultFreeWelcome ? FREE_DISCOVERY_WELCOME_STORY : WELCOME_STORIES[storyKey]
   const primaryHref = pilotClaimHref ?? (isDefaultFreeWelcome ? '/explore/search?scope=players' : nextHref)
   const availabilityHref = planId === 'free' ? getAvailabilityEntry(nextHref)?.href || '' : ''
   const email = searchParams.get('email')?.trim() || ''
   const firstName = getFirstName(session?.user.user_metadata)
+  const checklist = selectedPlayerRecord
+    ? ['Confirm this is your player record.', ...PLAYER_CONNECTION_WELCOME_STORY.checklist.slice(1)]
+    : story.checklist
+
+  useEffect(() => {
+    let cancelled = false
+    if (!authResolved || !hasSession || !selectedPlayerId) return
+
+    void supabase.from('players').select('name,location').eq('id', selectedPlayerId).maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data?.name?.trim()) {
+          setLoadedPlayerRecord({ id: selectedPlayerId, name: data.name.trim(), location: data.location?.trim() || null })
+        }
+      })
+
+    return () => { cancelled = true }
+  }, [authResolved, hasSession, selectedPlayerId])
 
   useEffect(() => {
     if (authResolved && !session) {
@@ -157,10 +179,18 @@ function WelcomeContent() {
 
       <div style={card}>
         <p style={cardLabel}>Your next three moves</p>
+        {selectedPlayerRecord ? (
+          <div aria-label="Player record to confirm" style={selectedPlayerRecordStyle}>
+            <span style={selectedPlayerRecordLabelStyle}>Record you opened</span>
+            <strong>{selectedPlayerRecord.name}{selectedPlayerRecord.location ? ` · ${selectedPlayerRecord.location}` : ''}</strong>
+            <span>Confirm this is you on the next page.</span>
+          </div>
+        ) : null}
         <ol style={steps}>
-          {story.checklist.map((step, index) => <li key={step} style={stepRow}><span style={stepNumber}>{index + 1}</span><span>{step}</span></li>)}
+          {checklist.map((step, index) => <li key={step} style={stepRow}><span style={stepNumber}>{index + 1}</span><span>{step}</span></li>)}
         </ol>
-        <Link href={primaryHref} style={primaryCta}>{story.primaryLabel}</Link>
+        <Link href={primaryHref} style={primaryCta}>{selectedPlayerRecord ? 'Confirm my player' : story.primaryLabel}</Link>
+        {selectedPlayerRecord ? <Link href="/profile#profile-identity" style={secondaryCta}>Choose a different player</Link> : null}
         {isDefaultFreeWelcome ? (
           <>
             <div style={freeChoiceRow} aria-label="Other ways to start exploring">
@@ -194,6 +224,8 @@ const body: CSSProperties = { margin: 0, maxWidth: 640, color: 'rgba(234,244,255
 const accessPill: CSSProperties = { display: 'inline-flex', marginTop: 20, padding: '9px 12px', borderRadius: 999, background: 'rgba(155,225,29,0.13)', border: '1px solid rgba(155,225,29,0.3)', color: '#ebffd0', fontWeight: 800, fontSize: 13 }
 const card: CSSProperties = { display: 'grid', gap: 16, padding: '28px 30px', borderRadius: 24, border: '1px solid rgba(125,211,252,0.16)', background: 'rgba(15,23,42,0.72)' }
 const cardLabel: CSSProperties = { margin: 0, color: 'var(--home-eyebrow-color)', fontSize: 12, fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase' }
+const selectedPlayerRecordStyle: CSSProperties = { display: 'grid', gap: 5, padding: '14px 16px', borderRadius: 14, border: '1px solid rgba(155,225,29,0.32)', background: 'rgba(155,225,29,0.08)', color: 'var(--foreground)', fontSize: 14 }
+const selectedPlayerRecordLabelStyle: CSSProperties = { color: 'var(--brand-green)', fontSize: 11, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }
 const steps: CSSProperties = { display: 'grid', gap: 12, padding: 0, margin: 0, listStyle: 'none' }
 const stepRow: CSSProperties = { display: 'grid', gridTemplateColumns: '28px minmax(0, 1fr)', gap: 11, alignItems: 'start', color: 'var(--foreground)', fontSize: 15, fontWeight: 650, lineHeight: 1.42 }
 const stepNumber: CSSProperties = { display: 'grid', placeItems: 'center', width: 26, height: 26, borderRadius: 999, background: 'var(--brand-green)', color: '#071226', fontSize: 12, fontWeight: 900 }
