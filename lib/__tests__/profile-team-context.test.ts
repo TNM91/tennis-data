@@ -30,4 +30,13 @@ describe('profile team context', () => {
       { side: 'X', matches: match },
     ])).toEqual([])
   })
+
+  it('links to the matching team season, including special characters in the name', () => {
+    const [team] = buildProfileTeamSummaries([{
+      side: 'A',
+      matches: { ...match, home_team: 'North / Aces' },
+    }])
+
+    expect(team.href).toBe('/teams/North%20~2F%20Aces?league=Spring+League&flight=4.0')
+  })
 })

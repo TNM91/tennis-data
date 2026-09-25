@@ -1395,10 +1395,11 @@ function ProfilePageInner() {
               {selectedPlayerId && selectedPlayerTeams.length ? (
                 <div style={teamContextListStyle}>
                   {selectedPlayerTeams.slice(0, 6).map((team) => (
-                    <div key={team.id} style={teamContextRowStyle}>
+                    <Link key={team.id} href={team.href} style={teamContextRowStyle}>
                       <span>{team.name}</span>
                       <strong>{[team.league, team.flight].filter(Boolean).join(' - ') || 'Team context'}</strong>
-                    </div>
+                      <span style={teamContextActionStyle}>View team →</span>
+                    </Link>
                   ))}
                   {selectedPlayerTeams.length > 6 ? (
                     <div style={hintStyle}>
@@ -1790,9 +1791,15 @@ const teamContextRowStyle: CSSProperties = {
   background: 'rgba(255,255,255,0.045)',
   padding: '11px 12px',
   color: 'var(--shell-copy-muted)',
+  textDecoration: 'none',
   fontSize: 13,
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const teamContextActionStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontWeight: 850,
 }
 
 const successStyle: CSSProperties = {
