@@ -15,6 +15,11 @@ export function getPlanUnlockHref(planId: BillablePricingPlanId, nextHref = getP
   return `/upgrade?plan=${planId}&next=${encodeURIComponent(nextHref)}`
 }
 
+export function getPlanCheckoutHref(planId: BillablePricingPlanId, nextHref = getPlanDestinationHref(planId)) {
+  if (planId === 'free') return nextHref
+  return `${getPlanUnlockHref(planId, nextHref)}&checkout=auto`
+}
+
 export function getPlanSignupHref(planId: BillablePricingPlanId, nextHref = getPlanUnlockHref(planId)) {
   return `/join?plan=${planId}&next=${encodeURIComponent(nextHref)}`
 }

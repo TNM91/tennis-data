@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref, isSafeLocalNextHref } from '../plan-intent'
+import { getPlanCheckoutHref, getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref, isSafeLocalNextHref } from '../plan-intent'
 
 describe('plan intent routing', () => {
+  it('keeps a paid choice through sign-in and opens checkout on return', () => {
+    expect(getPlanCheckoutHref('player_plus', '/mylab')).toBe('/upgrade?plan=player_plus&next=%2Fmylab&checkout=auto')
+  })
+
   it('routes Coach plan intent to the Coach workspace first', () => {
     expect(getPlanDestinationHref('coach')).toBe('/coach')
     expect(getPlanUnlockHref('coach')).toBe('/upgrade?plan=coach&next=%2Fcoach')

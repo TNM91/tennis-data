@@ -7,7 +7,7 @@ import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
 import { isActiveClubBillingStatus, type ClubBillingAccount } from '@/lib/club-billing'
-import { getPlanDestinationHref, isSafeLocalNextHref } from '@/lib/plan-intent'
+import { getPlanCheckoutHref, getPlanDestinationHref, isSafeLocalNextHref } from '@/lib/plan-intent'
 import { claimFollowIntentTracking, peekFollowIntent } from '@/lib/follow-intent'
 import {
   PAID_CHECKOUT_EARLY_ACCESS_SAVED_MESSAGE,
@@ -297,6 +297,9 @@ function UpgradeContent({
   const mobileCopy = MOBILE_UNLOCK_COPY[planId]
   const successHandoff = SUCCESS_HANDOFF_COPY[planId]
   const nextHref = isSafeLocalNextHref(getSearchParamValue(resolvedSearchParams.next), getPlanDestinationHref(planId))
+  const checkoutHref = getPlanCheckoutHref(planId, nextHref)
+  const loginCheckoutHref = `/login?plan=${planId}&next=${encodeURIComponent(checkoutHref)}`
+  const joinCheckoutHref = `/join?plan=${planId}&next=${encodeURIComponent(checkoutHref)}`
   const [followContextState, setFollowContextState] = useState<{
     intent: ReturnType<typeof peekFollowIntent>
     path: string
@@ -335,6 +338,7 @@ function UpgradeContent({
   const [clubBilling, setClubBilling] = useState<ClubBillingAccount | null>(null)
   const [clubBillingResolved, setClubBillingResolved] = useState(false)
   const trackedUpgradePageRef = useRef('')
+  const autoCheckoutStartedRef = useRef('')
   const checkoutReturnState = getSearchParamValue(resolvedSearchParams.checkout)
   const checkoutReturnRequestId = getSearchParamValue(resolvedSearchParams.request) ?? ''
   const checkoutReturnSessionId = getSearchParamValue(resolvedSearchParams.session_id) ?? ''
@@ -624,7 +628,11 @@ function UpgradeContent({
     (planId === 'club_unlimited' && clubBilling?.planId === 'club_unlimited' && isActiveClubBillingStatus(clubBilling.status))
   const isPublic = resolvedRole === 'public'
   const isPaidPlan = plan.billing.checkoutMode !== 'none'
-  const showAccessRequest = isPaidPlan && !hasAccess && (isPublic || !authLoading)
+  const readyToActivate = isPaidPlan && !hasAccess && (isPublic || !authLoading)
+  const showAccessRequest = readyToActivate && (
+    !PAID_CHECKOUT_ENABLED ||
+    (!isPublic && (checkoutSubmitting || Boolean(checkoutError) || checkoutReturnState === 'cancel'))
+  )
   const planChoiceCards = PLAN_IDS.map((choicePlanId) => {
     const choicePlan = getPricingPlan(choicePlanId)
     const choiceTier = getUpgradeTierStory(choicePlanId)
@@ -637,6 +645,23 @@ function UpgradeContent({
       href: `/upgrade?plan=${choicePlanId}&next=${encodeURIComponent(getPlanDestinationHref(choicePlanId))}`,
     }
   })
+
+  useEffect(() => {
+    if (!PAID_CHECKOUT_ENABLED || checkoutReturnState !== 'auto' || authLoading || !readyToActivate) return
+    const attemptKey = `${userId || 'public'}:${planId}:${nextHref}`
+    if (autoCheckoutStartedRef.current === attemptKey) return
+    autoCheckoutStartedRef.current = attemptKey
+
+    if (isPublic) {
+      window.location.replace(loginCheckoutHref)
+      return
+    }
+
+    const url = new URL(window.location.href)
+    url.searchParams.delete('checkout')
+    window.history.replaceState(window.history.state, '', url.toString())
+    void startSignedInCheckout()
+  }, [authLoading, checkoutReturnState, isPublic, loginCheckoutHref, nextHref, planId, readyToActivate, startSignedInCheckout, userId])
 
   useEffect(() => {
     if (authLoading || checkoutReturnState !== 'success' || !checkoutReturnRequestId || isPublic) return
@@ -840,23 +865,33 @@ function UpgradeContent({
             </p>
 
             <div style={actionRowStyle}>
-              {showAccessRequest ? (
-                <Link href={`/upgrade?plan=${planId}&next=${encodeURIComponent(nextHref)}#activation`} style={primaryButtonStyle}>
-                  {!PAID_CHECKOUT_ENABLED ? 'Join early access' : isPublic ? `Request ${getPlanDestinationLabel(planId)}` : copy.checkoutAction}
-                </Link>
+              {readyToActivate ? (
+                PAID_CHECKOUT_ENABLED ? (
+                  isPublic ? (
+                    <Link href={loginCheckoutHref} style={primaryButtonStyle}>Sign in to checkout</Link>
+                  ) : (
+                    <button type="button" onClick={() => void startSignedInCheckout()} disabled={checkoutSubmitting} style={primaryButtonStyle}>
+                      {checkoutSubmitting ? 'Opening checkout...' : copy.checkoutAction}
+                    </button>
+                  )
+                ) : (
+                  <Link href={`/upgrade?plan=${planId}&next=${encodeURIComponent(nextHref)}#activation`} style={primaryButtonStyle}>
+                    Join early access
+                  </Link>
+                )
               ) : (
                 <Link href={nextHref} style={primaryButtonStyle}>
                   {hasAccess ? `Open ${getPlanDestinationLabel(planId)}` : copy.action}
                 </Link>
               )}
               <Link
-                href={isPublic ? `/login?plan=${planId}&next=${encodeURIComponent(`/upgrade?plan=${planId}&next=${encodeURIComponent(nextHref)}`)}` : '/pricing'}
+                href={isPublic && PAID_CHECKOUT_ENABLED ? joinCheckoutHref : isPublic ? loginCheckoutHref : '/pricing'}
                 style={secondaryButtonStyle}
               >
-                {isPublic ? 'Sign in' : 'Compare plans'}
+                {isPublic && PAID_CHECKOUT_ENABLED ? 'Create account' : isPublic ? 'Sign in' : 'Compare plans'}
               </Link>
             </div>
-            {nextIntent ? (
+            {nextIntent && !(PAID_CHECKOUT_ENABLED && readyToActivate) ? (
               <div style={nextIntentStyle} aria-label="Upgrade next action">
                 <span style={labelStyle}>{nextIntent.label}</span>
                 <strong style={nextIntentTitleStyle}>{nextIntent.title}</strong>

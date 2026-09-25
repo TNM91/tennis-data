@@ -6,8 +6,9 @@ import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
+import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'
 import { BILLING_SUPPORT_PATH } from '@/lib/billing-policy'
-import { getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
+import { getPlanCheckoutHref, getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
 import { PAID_CHECKOUT_ENABLED, PAID_CHECKOUT_PAUSED_MESSAGE } from '@/lib/paid-checkout'
 import { CLUB_PLAN_STORY, DATA_ASSIST_STORY } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
@@ -310,7 +311,7 @@ function PricingContent() {
             const recommended = !accessPending && !active && recommendedPlanId === plan.id
             const planCta = (
               <Link
-                href={accessPending ? '#choose' : getPlanHref(plan.id, active)}
+                href={accessPending ? '#choose' : getPlanHref(plan.id, active, authenticated)}
                 style={
                   plan.id === 'captain'
                     ? isMobile ? compactPrimaryPlanButtonStyle : primaryButtonStyle
@@ -409,7 +410,7 @@ function PricingContent() {
               <ul style={isMobile ? compactFeatureListStyle : featureListStyle}>
                 {plan.valueProps.slice(0, isMobile ? 3 : 5).map((valueProp) => <li key={valueProp}>{valueProp}</li>)}
               </ul>
-              <Link href={getPlanUnlockHref(plan.id)} style={plan.id === 'club_unlimited' ? primaryButtonStyle : secondaryButtonStyle}>
+              <Link href={PAID_CHECKOUT_ENABLED ? getPlanCheckoutHref(plan.id) : getPlanUnlockHref(plan.id)} style={plan.id === 'club_unlimited' ? primaryButtonStyle : secondaryButtonStyle}>
                 {PAID_CHECKOUT_ENABLED ? plan.ctaLabel : 'Join early access'}
               </Link>
             </article>
@@ -581,9 +582,12 @@ function isPlanActive(planId: CorePricingPlanId, access: ReturnType<typeof build
   return access.currentPlanId === 'full_court'
 }
 
-function getPlanHref(planId: CorePricingPlanId, active: boolean) {
+function getPlanHref(planId: CorePricingPlanId, active: boolean, authenticated: boolean) {
   if (active) return getPlanDestinationHref(planId)
-  return planId === 'free' ? getPlanSignupHref(planId) : getPlanUnlockHref(planId)
+  if (planId === 'free') return getPlanSignupHref(planId)
+  if (!PAID_CHECKOUT_ENABLED) return getPlanUnlockHref(planId)
+  const checkoutHref = getPlanCheckoutHref(planId, planId === 'player_plus' ? '/mylab' : getPlanDestinationHref(planId))
+  return authenticated ? checkoutHref : buildAuthEntryHref('/login', planId, checkoutHref, true)
 }
 
 function getPlanCta(planId: CorePricingPlanId, active: boolean) {

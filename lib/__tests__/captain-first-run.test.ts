@@ -47,7 +47,8 @@ describe('Captain first-run handoffs', () => {
     expect(pilot).toContain("trackPilotCta('activate_card_free')")
     expect(upgrade).toContain("eventName: 'upgrade_checkout_clicked'")
     expect(upgrade).toContain("eventName: 'upgrade_checkout_started'")
-    expect(upgrade).not.toContain('autoCheckoutStarted')
+    expect(upgrade).toContain("checkoutReturnState !== 'auto'")
+    expect(pilot).not.toContain('checkout=auto')
   })
 
   it('shows the real Captain workflow before activation', () => {

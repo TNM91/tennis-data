@@ -7,6 +7,7 @@ import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { getMembershipTier, MY_LAB_STORY, type MembershipTierId } from '@/lib/product-story'
 import { isSafeLocalNextHref } from '@/lib/plan-intent'
+import { PAID_CHECKOUT_ENABLED } from '@/lib/paid-checkout'
 import { CAPTAIN_PILOT_PRICE_LABEL } from '@/lib/captain-pilot'
 import { getAvailabilityEntry } from '@/lib/availability-onboarding'
 import { isScorecardSignupIntent } from '@/lib/scorecard-signup'
@@ -120,6 +121,8 @@ function WelcomeContent() {
   const tier = getMembershipTier(planId)
   const fallbackHref = planId === 'free' ? '/explore' : `/upgrade?plan=${planId}`
   const nextHref = isSafeLocalNextHref(searchParams.get('next'), fallbackHref)
+  const checkoutIntent = PAID_CHECKOUT_ENABLED && planId !== 'free' && nextHref.startsWith('/upgrade?') &&
+    new URL(nextHref, 'https://tenaceiq.invalid').searchParams.get('checkout') === 'auto'
   const pilotClaimHref = planId === 'captain' ? getCaptainPilotClaimHref(nextHref) : null
   const isCaptainPilot = Boolean(pilotClaimHref)
   const storyKey = isCaptainPilot ? 'captain-pilot' : planId
@@ -159,14 +162,16 @@ function WelcomeContent() {
       router.replace(`/login?${params.toString()}`)
     } else if (authResolved && session && availabilityHref) {
       router.replace(availabilityHref)
+    } else if (authResolved && session && checkoutIntent) {
+      router.replace(nextHref)
     }
-  }, [authResolved, availabilityHref, email, nextHref, planId, router, session])
+  }, [authResolved, availabilityHref, checkoutIntent, email, nextHref, planId, router, session])
 
   if (!authResolved || !session) {
     return <section style={loadingShell}>Finishing your secure TenAceiQ welcome…</section>
   }
 
-  if (availabilityHref) return <section style={loadingShell}><div style={card}><h1 style={title}>Your account is ready.</h1><p style={body} role="status">Opening your team’s availability…</p><Link href={availabilityHref} style={primaryCta}>Continue to availability</Link></div></section>
+  if (availabilityHref || checkoutIntent) return <section style={loadingShell}><div style={card}><h1 style={title}>Your account is ready.</h1><p style={body} role="status">{checkoutIntent ? 'Opening secure checkout…' : 'Opening your team’s availability…'}</p><Link href={availabilityHref || nextHref} style={primaryCta}>{checkoutIntent ? 'Continue to checkout' : 'Continue to availability'}</Link></div></section>
 
   return (
     <section style={shell}>
