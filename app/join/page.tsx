@@ -19,6 +19,7 @@ import { useAuth } from '@/app/components/auth-provider'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
 import { getPlanDestinationHref, getPlanUnlockHref, isSafeLocalNextHref } from '@/lib/plan-intent'
+import { PAID_CHECKOUT_ENABLED } from '@/lib/paid-checkout'
 import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
 import { getAvailabilityEntry } from '@/lib/availability-onboarding'
 import { getCaptainPilotSourceFromHref } from '@/lib/captain-pilot-source'
@@ -159,6 +160,8 @@ function JoinContent() {
   const selectedTier = getMembershipTier(selectedPlanId)
   const requestedNextRoute = searchParams.get('next')
   const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, getJoinNextRoute(selectedPlanId))
+  const checkoutSignup = PAID_CHECKOUT_ENABLED && selectedPlanId !== 'free' && selectedNextRoute.startsWith('/upgrade?') &&
+    new URL(selectedNextRoute, 'https://tenaceiq.invalid').searchParams.get('checkout') === 'auto'
   const playerConnectId = selectedPlanId === 'free' ? getPlayerProfileConnectPlayerId(selectedNextRoute) : null
   const isScorecardSignup = isScorecardSignupIntent(searchParams.get('source'), selectedPlanId, selectedNextRoute)
   const isPlayerConnectionSignup = selectedPlanId === 'free' && (selectedNextRoute === '/profile#profile-identity' || Boolean(playerConnectId))
@@ -187,6 +190,12 @@ function JoinContent() {
     desktopTitle: 'Connect your player.',
     mobileText: 'Create a free account, confirm your email, then connect your player record. No card needed.',
     desktopText: 'Create a free account, confirm your email, then connect your player record. No card needed.',
+  } : checkoutSignup ? {
+    ...JOIN_INTENT_COPY[selectedPlanId],
+    mobileText: 'Create your account and confirm your email. Secure checkout opens next.',
+    desktopText: 'Create your account and confirm your email. Secure checkout opens next.',
+    formCue: 'Confirm your email to continue to secure checkout.',
+    success: 'Account created. Confirm your email to continue to secure checkout.',
   } : JOIN_INTENT_COPY[selectedPlanId]
   const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
   const signInHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, email || requestedEmail)
@@ -292,6 +301,8 @@ function JoinContent() {
         ? 'Check your email to confirm your account. Your Captain Pilot welcome will guide you to the short team form and card-free activation.'
         : isScorecardSignup || isPlayerConnectionSignup
         ? 'Check your email to confirm your account. Your player setup is next.'
+        : checkoutSignup
+        ? 'Check your email to confirm your account. Secure checkout opens after sign in.'
         : 'Check your email to confirm your account. Your personal TenAceiQ welcome will show you the right next step.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to create account.')

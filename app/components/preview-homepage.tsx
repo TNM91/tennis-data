@@ -23,7 +23,8 @@ import {
   surfaceCardStrong,
 } from '@/lib/design-system'
 import { buildProductAccessState, type ProductAccessState } from '@/lib/access-model'
-import { getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
+import { getPlanCheckoutHref, getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
+import { PAID_CHECKOUT_ENABLED } from '@/lib/paid-checkout'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
 import {
   HOME_HERO_STORY,
@@ -158,7 +159,7 @@ const commandModes: Array<{
     lane: 'You',
     action: 'Open your lab',
     label: 'My Lab, data, matchups, messages',
-    href: '/pricing#player_plus',
+    href: PAID_CHECKOUT_ENABLED ? getPlanCheckoutHref('player_plus', '/mylab') : '/pricing#player_plus',
     cta: 'Unlock Player',
     icon: 'improveTennis',
     proof: ['Linked player', 'Next matchup', 'Goal notes'],
@@ -168,7 +169,7 @@ const commandModes: Array<{
     lane: 'Coach',
     action: 'Develop players',
     label: 'Lessons, assignments, Tactical Studio',
-    href: '/pricing#coach',
+    href: PAID_CHECKOUT_ENABLED ? getPlanCheckoutHref('coach') : '/pricing#coach',
     cta: 'Unlock Coach',
     icon: 'coachTennis',
     proof: ['Students', 'Drill boards', 'Check-ins'],
@@ -178,7 +179,7 @@ const commandModes: Array<{
     lane: 'Team',
     action: 'Build the week',
     label: 'Availability, lineup, message status',
-    href: '/pricing#captain',
+    href: PAID_CHECKOUT_ENABLED ? getPlanCheckoutHref('captain') : '/pricing#captain',
     cta: 'Unlock Captain',
     icon: 'captainTennis',
     proof: ['8 / 10 available', 'Lineup ready', 'Message queued'],
@@ -198,7 +199,7 @@ const commandModes: Array<{
     lane: 'Full-Court',
     action: 'Support every tennis role',
     label: 'Players, teams, leagues, and unlimited tournaments',
-    href: '/pricing#full_court',
+    href: PAID_CHECKOUT_ENABLED ? getPlanCheckoutHref('full_court') : '/pricing#full_court',
     cta: 'Unlock Full-Court',
     icon: 'teamRankings',
     proof: ['Coach', 'Captain', 'League'],
