@@ -1,5 +1,6 @@
 import { cleanText } from './captain-formatters'
 import { buildScopedTeamEntityId } from './entity-ids'
+import { buildTeamProfileHref } from './team-routes'
 
 type ProfileMatch = {
   id: string
@@ -19,6 +20,7 @@ export type ProfileTeamSummary = {
   name: string
   league: string
   flight: string
+  href: string
 }
 
 export function buildProfileTeamSummaries(rows: ProfileMatchContextRow[]): ProfileTeamSummary[] {
@@ -39,7 +41,15 @@ export function buildProfileTeamSummaries(rows: ProfileMatchContextRow[]): Profi
       leagueName: league,
       flight,
     })
-    if (!teams.has(id)) teams.set(id, { id, name: teamName, league, flight })
+    if (!teams.has(id)) {
+      teams.set(id, {
+        id,
+        name: teamName,
+        league,
+        flight,
+        href: buildTeamProfileHref(teamName, { league, flight }),
+      })
+    }
   }
 
   return [...teams.values()].sort((a, b) => a.name.localeCompare(b.name))
