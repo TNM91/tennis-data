@@ -29,7 +29,8 @@ import { addWorkflowResult, getSafeWorkflowReturnTo } from '@/lib/workflow-retur
 import { buildScorecardPlayerLoginHref, getScorecardClaimMatchId, getScorecardClaimPlayerId, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
 import { describeClaimResult, prioritizeClaimMatch, type ClaimResult } from '@/lib/scorecard-claim-welcome'
 import { buildPlayerProfileConnectHref, getPlayerProfileAcquisitionSource, getPlayerProfileConnectPlayerId } from '@/lib/player-profile-acquisition'
-import { MEMBERSHIP_TIERS } from '@/lib/product-story'
+import { getPlanUnlockHref } from '@/lib/plan-intent'
+import { MEMBERSHIP_TIERS, MY_LAB_STORY } from '@/lib/product-story'
 import { buildProfileTeamSummaries, getProfileMatchDataState, type ProfileMatchContext } from '@/lib/profile-team-context'
 
 type PreferredRole = 'singles' | 'doubles' | 'both'
@@ -808,13 +809,14 @@ function ProfilePageInner() {
     ? `/players/${encodeURIComponent(profile.linked_player_id)}`
     : '/explore/players'
   const publicPlayerActionLabel = profile?.linked_player_id ? 'View my player' : 'Find players'
-  const playerToolsActionLabel = `See ${MEMBERSHIP_TIERS.player_plus.name} tools`
+  const playerToolsActionLabel = MY_LAB_STORY.upgradeCta
+  const playerUpgradeHref = getPlanUnlockHref('player_plus', '/mylab')
   const activationPrimary = access.canUseAdvancedPlayerInsights
     ? { href: '/mylab', label: 'Open My Lab' }
     : { href: publicPlayerHref, label: publicPlayerActionLabel }
   const activationSecondary = access.canUseAdvancedPlayerInsights
     ? { href: profileMatchupHref, label: 'Prep matchup' }
-    : { href: '/pricing#player_plus', label: playerToolsActionLabel }
+    : { href: playerUpgradeHref, label: playerToolsActionLabel }
   const canManageBilling = Boolean(
     userId &&
     (access.canUseAdvancedPlayerInsights || access.canUseCaptainWorkflow),
@@ -854,7 +856,7 @@ function ProfilePageInner() {
     { title: publicPlayerActionLabel, href: publicPlayerHref, icon: 'playerRatings' },
     { title: 'Explore local leagues', href: '/explore/leagues', icon: 'schedule' },
     { title: 'Add match data', href: dataAssistProfileHref, icon: 'reports' },
-    { title: playerToolsActionLabel, href: '/pricing#player_plus', icon: 'myLab' },
+    { title: playerToolsActionLabel, href: playerUpgradeHref, icon: 'myLab' },
   ] as const
   const profilePlayerIdBenefits = [
     {
@@ -1012,7 +1014,7 @@ function ProfilePageInner() {
             ) : (
               <Link href={`/players/${encodeURIComponent(connectedScorecardClaimId)}#profile-matches`} style={primaryButtonStyle}>See all public results</Link>
             )}
-            {access.canUseAdvancedPlayerInsights ? null : <Link href="/pricing#player_plus" style={secondaryButtonStyle}>See Player tools</Link>}
+            {access.canUseAdvancedPlayerInsights ? null : <Link href={playerUpgradeHref} style={secondaryButtonStyle}>{playerToolsActionLabel}</Link>}
           </div>
         </section>
       ) : null}

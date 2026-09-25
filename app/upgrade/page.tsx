@@ -1309,6 +1309,14 @@ function getFollowUpgradeNextIntent(context: NonNullable<ReturnType<typeof peekF
 
 function getUpgradeNextIntent(planId: PricingPlanId, nextHref: string): UpgradeNextIntent | null {
   const defaultDestination = getPlanDestinationHref(planId)
+  if (planId === 'player_plus' && nextHref === '/mylab') {
+    return {
+      label: 'After unlock',
+      title: 'Open My Lab with your player connected.',
+      body: 'Your player record stays connected as you move into matchup prep, follows, and your next development focus.',
+      action: 'Open My Lab',
+    }
+  }
   if (planId === 'player_plus' && nextHref.startsWith('/tactics') && nextHref.includes('source=improve')) {
     const cardTitle = getUpgradeNextParam(nextHref, 'cardTitle')
 
