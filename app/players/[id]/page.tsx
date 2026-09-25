@@ -2044,24 +2044,26 @@ function PlayerProfileContent() {
                   </div>
                   {authResolved && !currentUserId ? (
                     <div className={profileStory.playerAccessHint}>
-                      <span>Find your own player record and connect it to a free account.</span>
+                      <span>Is this your player record? Connect it to a free account.</span>
                       <Link
                         href={`/join?plan=free&next=${encodeURIComponent(buildPlayerProfileConnectHref(player.id))}&source=${isSharedVisit ? PLAYER_PROFILE_SHARE_SOURCE : PLAYER_PROFILE_SOURCE}`}
                         onClick={() => track('Player Profile Join Click', { source: isSharedVisit ? PLAYER_PROFILE_SHARE_SOURCE : PLAYER_PROFILE_SOURCE })}
                       >
-                        Connect my player
+                        Connect this record
                       </Link>
+                      <Link href="/explore/players">Find my player</Link>
                     </div>
                   ) : null}
                   {authResolved && currentUserId && playerLinkResolved && !linkedPlayerId ? (
                     <div className={profileStory.playerAccessHint}>
-                      <span>Find your own player record to make your account personal.</span>
+                      <span>Is this your player record? Add it to your account.</span>
                       <Link
                         href={buildPlayerProfileConnectHref(player.id)}
                         onClick={() => track('Player Profile Connect Click', { source: isSharedVisit ? PLAYER_PROFILE_SHARE_SOURCE : PLAYER_PROFILE_SOURCE })}
                       >
-                        Connect my player
+                        Connect this record
                       </Link>
+                      <Link href="/explore/players">Find my player</Link>
                     </div>
                   ) : null}
                   {shouldShowPlayerAccessHint ? (
