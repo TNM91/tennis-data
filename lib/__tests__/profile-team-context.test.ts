@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildProfileTeamSummaries, type ProfileMatchContextRow } from '../profile-team-context'
+import { buildProfileTeamSummaries, getProfileMatchDataState, type ProfileMatchContextRow } from '../profile-team-context'
 
 const match = {
   id: 'match-1',
@@ -38,5 +38,13 @@ describe('profile team context', () => {
     }])
 
     expect(team.href).toBe('/teams/North%20~2F%20Aces?league=Spring+League&flight=4.0')
+  })
+
+  it('does not treat an unfinished or failed match lookup as missing match data', () => {
+    expect(getProfileMatchDataState('player-1', null)).toBe('checking')
+    expect(getProfileMatchDataState('player-1', { playerId: 'player-2', status: 'ready', rows: [] })).toBe('checking')
+    expect(getProfileMatchDataState('player-1', { playerId: 'player-1', status: 'error', rows: [] })).toBe('error')
+    expect(getProfileMatchDataState('player-1', { playerId: 'player-1', status: 'ready', rows: [] })).toBe('missing')
+    expect(getProfileMatchDataState('player-1', { playerId: 'player-1', status: 'ready', rows: [{ side: 'A', matches: match }] })).toBe('present')
   })
 })

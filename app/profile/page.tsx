@@ -30,7 +30,7 @@ import { buildScorecardPlayerLoginHref, getScorecardClaimMatchId, getScorecardCl
 import { describeClaimResult, prioritizeClaimMatch, type ClaimResult } from '@/lib/scorecard-claim-welcome'
 import { getPlayerProfileAcquisitionSource } from '@/lib/player-profile-acquisition'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
-import { buildProfileTeamSummaries, type ProfileMatchContextRow } from '@/lib/profile-team-context'
+import { buildProfileTeamSummaries, getProfileMatchDataState, type ProfileMatchContext } from '@/lib/profile-team-context'
 
 type PreferredRole = 'singles' | 'doubles' | 'both'
 type AvailabilityDefault = 'ask-weekly' | 'usually-available' | 'limited'
@@ -292,7 +292,8 @@ function ProfilePageInner() {
   const [playerSearchResults, setPlayerSearchResults] = useState<{ query: string; players: PlayerRow[] }>({ query: '', players: [] })
   const [playerSearchLoading, setPlayerSearchLoading] = useState(false)
   const [playerSearchError, setPlayerSearchError] = useState(false)
-  const [playerMatchContext, setPlayerMatchContext] = useState<{ playerId: string; rows: ProfileMatchContextRow[] } | null>(null)
+  const [playerMatchContext, setPlayerMatchContext] = useState<ProfileMatchContext | null>(null)
+  const [matchContextRetry, setMatchContextRetry] = useState(0)
   const [profile, setProfile] = useState<UserProfileLink | null>(null)
   const [selectedPlayerId, setSelectedPlayerId] = useState('')
   const [typedPlayerName, setTypedPlayerName] = useState('')
@@ -387,6 +388,7 @@ function ProfilePageInner() {
     if (!authResolved || !userId || !selectedPlayerId) return
 
     let active = true
+    setPlayerMatchContext(null)
     void (async () => {
       try {
         const { data, error } = await supabase
@@ -395,15 +397,19 @@ function ProfilePageInner() {
           .eq('player_id', selectedPlayerId)
           .limit(5000)
         if (!active) return
-        setPlayerMatchContext({ playerId: selectedPlayerId, rows: error ? [] : (data || []) as unknown as ProfileMatchContextRow[] })
+        setPlayerMatchContext({
+          playerId: selectedPlayerId,
+          status: error ? 'error' : 'ready',
+          rows: error ? [] : (data || []) as unknown as ProfileMatchContext['rows'],
+        })
       } catch {
         if (!active) return
-        setPlayerMatchContext({ playerId: selectedPlayerId, rows: [] })
+        setPlayerMatchContext({ playerId: selectedPlayerId, status: 'error', rows: [] })
       }
     })()
 
     return () => { active = false }
-  }, [authResolved, selectedPlayerId, userId])
+  }, [authResolved, matchContextRetry, selectedPlayerId, userId])
 
   const connectedScorecardClaimId = profile?.linked_player_id === scorecardClaimPlayerId ? scorecardClaimPlayerId : null
 
@@ -779,7 +785,8 @@ function ProfilePageInner() {
   const primaryRating = linkedPlayer || selectedPlayer
   const hasRatingIdentity = Boolean(primaryRating || typedProfileActive)
   const profilePlayerId = profile?.linked_player_id || selectedPlayerId
-  const profileHasMatchData = Boolean(profilePlayerId && playerMatchContext?.playerId === profilePlayerId && playerMatchContext.rows.length)
+  const profileMatchDataState = getProfileMatchDataState(profilePlayerId, playerMatchContext)
+  const profileHasMatchData = profileMatchDataState === 'present'
   const detectedLeagueCount = new Set(
     selectedPlayerTeams
       .map((team) => [team.league, team.flight].filter(Boolean).join(' - '))
@@ -896,7 +903,7 @@ function ProfilePageInner() {
       ? 'Type your name, self-rate if needed, or choose an existing public record.'
       : 'Sign in once, then choose or create the player identity that powers your tennis tools.'
   const showProfileIntro = !signedIn || profileComplete
-  const showTennisSetupChecklist = signedIn && profileComplete
+  const showTennisSetupChecklist = signedIn && profileComplete && (profileMatchDataState === 'present' || profileMatchDataState === 'missing')
 
   return (
     <section style={pageStyle}>
@@ -992,6 +999,15 @@ function ProfilePageInner() {
         </section>
       ) : null}
 
+          {signedIn && profileComplete && profileMatchDataState === 'checking' ? (
+            <p role="status" style={profileLoadingNoticeStyle}>Checking your match history before suggesting the next step...</p>
+          ) : null}
+          {signedIn && profileComplete && profileMatchDataState === 'error' ? (
+            <div role="alert" style={matchContextNoticeStyle}>
+              <span>Match history could not load. Try again before adding a scorecard.</span>
+              <button type="button" onClick={() => setMatchContextRetry((current) => current + 1)} style={secondaryButtonStyle}>Retry match check</button>
+            </div>
+          ) : null}
           {showTennisSetupChecklist ? (
             <TennisSetupChecklist
               hasPlayer={profileComplete}
@@ -1795,6 +1811,14 @@ const teamContextRowStyle: CSSProperties = {
   fontSize: 13,
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+const matchContextNoticeStyle: CSSProperties = {
+  ...profileLoadingNoticeStyle,
+  display: 'flex',
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  gap: 12,
 }
 
 const teamContextActionStyle: CSSProperties = {

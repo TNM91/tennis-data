@@ -15,6 +15,22 @@ export type ProfileMatchContextRow = {
   matches: ProfileMatch | ProfileMatch[] | null
 }
 
+export type ProfileMatchContext = {
+  playerId: string
+  status: 'ready' | 'error'
+  rows: ProfileMatchContextRow[]
+}
+
+export function getProfileMatchDataState(
+  playerId: string,
+  context: ProfileMatchContext | null,
+): 'checking' | 'error' | 'present' | 'missing' {
+  if (!playerId) return 'missing'
+  if (!context || context.playerId !== playerId) return 'checking'
+  if (context.status === 'error') return 'error'
+  return context.rows.length ? 'present' : 'missing'
+}
+
 export type ProfileTeamSummary = {
   id: string
   name: string
