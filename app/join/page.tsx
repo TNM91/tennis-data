@@ -23,6 +23,7 @@ import { getAvailabilityEntry } from '@/lib/availability-onboarding'
 import { getCaptainPilotSourceFromHref } from '@/lib/captain-pilot-source'
 import { isScorecardSignupIntent, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
 import { getPlayerProfileAcquisitionSource, getPlayerProfileConnectPlayerId } from '@/lib/player-profile-acquisition'
+import { supabase } from '@/lib/supabase'
 
 const JOIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 
@@ -145,6 +146,7 @@ function JoinContent() {
   const [submitHovered, setSubmitHovered] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [playerConnectRecord, setPlayerConnectRecord] = useState<{ name: string; location: string | null } | null>(null)
   const hasRedirectedRef = useRef(false)
   const { isMobile } = useViewportBreakpoints()
   const requestedPlan = searchParams.get('plan')
@@ -155,8 +157,9 @@ function JoinContent() {
   const selectedTier = getMembershipTier(selectedPlanId)
   const requestedNextRoute = searchParams.get('next')
   const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, getJoinNextRoute(selectedPlanId))
+  const playerConnectId = selectedPlanId === 'free' ? getPlayerProfileConnectPlayerId(selectedNextRoute) : null
   const isScorecardSignup = isScorecardSignupIntent(searchParams.get('source'), selectedPlanId, selectedNextRoute)
-  const isPlayerConnectionSignup = selectedPlanId === 'free' && (selectedNextRoute === '/profile#profile-identity' || Boolean(getPlayerProfileConnectPlayerId(selectedNextRoute)))
+  const isPlayerConnectionSignup = selectedPlanId === 'free' && (selectedNextRoute === '/profile#profile-identity' || Boolean(playerConnectId))
   const playerProfileSource = getPlayerProfileAcquisitionSource(searchParams.get('source'), selectedPlanId, selectedNextRoute)
   const availabilityEntry = selectedPlanId === 'free' ? getAvailabilityEntry(selectedNextRoute) : null
   const isCaptainPilotSignup = selectedPlanId === 'captain' && selectedNextRoute.startsWith('/captain-pilot')
@@ -206,6 +209,21 @@ function JoinContent() {
   useEffect(() => {
     if (requestedEmail && !email) setEmail(requestedEmail)
   }, [email, requestedEmail])
+
+  useEffect(() => {
+    let cancelled = false
+    setPlayerConnectRecord(null)
+    if (!playerConnectId) return
+
+    void supabase.from('players').select('name,location').eq('id', playerConnectId).maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data?.name?.trim()) {
+          setPlayerConnectRecord({ name: data.name.trim(), location: data.location?.trim() || null })
+        }
+      })
+
+    return () => { cancelled = true }
+  }, [playerConnectId])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -341,6 +359,15 @@ function JoinContent() {
               <p style={formIntroStyle}>
                 {isMobile ? selectedIntent.mobileText : selectedIntent.desktopText}
               </p>
+
+              {playerConnectRecord ? (
+                <div aria-label="Player record to connect" style={playerConnectRecordStyle}>
+                  <span style={playerConnectRecordLabelStyle}>Record you opened</span>
+                  <strong>{playerConnectRecord.name}{playerConnectRecord.location ? ` · ${playerConnectRecord.location}` : ''}</strong>
+                  <span>After email confirmation, confirm this is you.</span>
+                  <Link href="/explore/players" style={playerConnectRecordLinkStyle}>Find my player instead</Link>
+                </div>
+              ) : null}
 
               {!availabilityEntry ? <><label htmlFor="firstName" style={inputLabel}>
                 First name <span style={optionalFieldLabel}>(optional)</span>
@@ -803,6 +830,31 @@ const formIntroStyle: CSSProperties = {
   fontWeight: 720,
   lineHeight: 1.4,
   overflowWrap: 'anywhere',
+}
+
+const playerConnectRecordStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: '12px 14px',
+  border: '1px solid rgba(155, 225, 29, 0.25)',
+  borderRadius: 14,
+  background: 'rgba(155, 225, 29, 0.07)',
+  color: 'var(--foreground-strong)',
+  fontSize: 13,
+  lineHeight: 1.4,
+}
+
+const playerConnectRecordLabelStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontSize: 11,
+  fontWeight: 900,
+  textTransform: 'uppercase',
+}
+
+const playerConnectRecordLinkStyle: CSSProperties = {
+  color: 'var(--brand-lime)',
+  fontWeight: 800,
+  width: 'fit-content',
 }
 
 const inputLabel: CSSProperties = {
