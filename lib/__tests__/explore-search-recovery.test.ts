@@ -25,4 +25,12 @@ describe('Explore search recovery', () => {
     expect(exploreSearch).toContain('setSubmittedQuery(nextQuery)')
     expect(exploreSearch).toContain('// Only a submitted query (or an incoming search link) can start network work.')
   })
+
+  it('hides old records as soon as a different search begins', () => {
+    const normalizedSource = exploreSearch.replace(/\r\n/g, '\n')
+    expect(normalizedSource).toContain('setCompletedSearch(null)\n    setPlayers([])\n    setTeams([])\n    setLeagues([])')
+    expect(normalizedSource).toContain('setLoading(true)\n\n    async function runSearch()')
+    expect(normalizedSource).toContain('const hasCurrentResults = hasQuery && !loading && !error && completedSearch?.query === submittedQuery.trim() && completedSearch.scope === scope')
+    expect(normalizedSource).toContain('{hasCurrentResults ? (')
+  })
 })

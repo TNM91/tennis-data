@@ -273,12 +273,14 @@ function ExploreSearchContent() {
 
     let active = true
     setCompletedSearch(null)
+    setPlayers([])
+    setTeams([])
+    setLeagues([])
+    setUsedSpellingHelp(false)
+    setError('')
+    setLoading(true)
 
     async function runSearch() {
-      setLoading(true)
-      setError('')
-      setUsedSpellingHelp(false)
-
       try {
         let playersResult: PlayerSearchResponse = { players: [], usedSpellingHelp: false }
         let teamsResult: TeamSearchResult[] = []
@@ -423,12 +425,14 @@ function ExploreSearchContent() {
   const showPlayerResults = scope === 'players'
   const showTeamResults = scope === 'teams'
   const showLeagueResults = scope === 'leagues' || scope === 'flight' || scope === 'area'
-  const totalResults =
+  const hasCurrentResults = hasQuery && !loading && !error && completedSearch?.query === submittedQuery.trim() && completedSearch.scope === scope
+  const totalResults = hasCurrentResults ? (
     (showPlayerResults ? filteredPlayers.length + matchupSuggestions.length : 0) +
     (showTeamResults ? teams.length : 0) +
     (showLeagueResults ? filteredLeagues.length : 0)
-  const noRecordsFound = hasQuery && !loading && !error && completedSearch?.query === submittedQuery.trim() && completedSearch.scope === scope && completedSearch.count === 0
-  const topPlayerResult = showPlayerResults ? filteredPlayers[0] : null
+  ) : 0
+  const noRecordsFound = hasCurrentResults && completedSearch?.count === 0
+  const topPlayerResult = hasCurrentResults && showPlayerResults ? filteredPlayers[0] : null
   const shouldOfferPlayerUnlock = authResolved && !access.canUseAdvancedPlayerInsights && Boolean(topPlayerResult)
   const playerUnlockHref = `/upgrade?plan=player_plus&next=${encodeURIComponent(resumeHref)}&source=explore_search`
   const searchNextActions = [
@@ -729,7 +733,7 @@ function ExploreSearchContent() {
             </section>
           ) : null}
 
-          {!loading && submittedQuery.trim().length > 0 ? (
+          {hasCurrentResults ? (
             <>
               {showPlayerResults ? (
               <div
