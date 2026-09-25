@@ -50,7 +50,7 @@ import {
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 import profileStory from './player-profile-story.module.css'
 import { usePlayerProfilePreview } from './player-profile-preview-context'
-import { PLAYER_PROFILE_SHARE_SOURCE, PLAYER_PROFILE_SOURCE } from '@/lib/player-profile-acquisition'
+import { buildPlayerProfileConnectHref, PLAYER_PROFILE_SHARE_SOURCE, PLAYER_PROFILE_SOURCE } from '@/lib/player-profile-acquisition'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type ProfileNavSection = 'overview' | 'rating' | 'performance' | 'player-id' | 'teams'
@@ -2046,7 +2046,7 @@ function PlayerProfileContent() {
                     <div className={profileStory.playerAccessHint}>
                       <span>Find your own player record and connect it to a free account.</span>
                       <Link
-                        href={`/join?plan=free&next=%2Fprofile%23profile-identity&source=${isSharedVisit ? PLAYER_PROFILE_SHARE_SOURCE : PLAYER_PROFILE_SOURCE}`}
+                        href={`/join?plan=free&next=${encodeURIComponent(buildPlayerProfileConnectHref(player.id))}&source=${isSharedVisit ? PLAYER_PROFILE_SHARE_SOURCE : PLAYER_PROFILE_SOURCE}`}
                         onClick={() => track('Player Profile Join Click', { source: isSharedVisit ? PLAYER_PROFILE_SHARE_SOURCE : PLAYER_PROFILE_SOURCE })}
                       >
                         Connect my player
@@ -2057,7 +2057,7 @@ function PlayerProfileContent() {
                     <div className={profileStory.playerAccessHint}>
                       <span>Find your own player record to make your account personal.</span>
                       <Link
-                        href="/profile#profile-identity"
+                        href={buildPlayerProfileConnectHref(player.id)}
                         onClick={() => track('Player Profile Connect Click', { source: isSharedVisit ? PLAYER_PROFILE_SHARE_SOURCE : PLAYER_PROFILE_SOURCE })}
                       >
                         Connect my player

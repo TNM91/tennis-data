@@ -22,7 +22,7 @@ import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
 import { getAvailabilityEntry } from '@/lib/availability-onboarding'
 import { getCaptainPilotSourceFromHref } from '@/lib/captain-pilot-source'
 import { isScorecardSignupIntent, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
-import { getPlayerProfileAcquisitionSource } from '@/lib/player-profile-acquisition'
+import { getPlayerProfileAcquisitionSource, getPlayerProfileConnectPlayerId } from '@/lib/player-profile-acquisition'
 
 const JOIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 
@@ -156,7 +156,7 @@ function JoinContent() {
   const requestedNextRoute = searchParams.get('next')
   const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, getJoinNextRoute(selectedPlanId))
   const isScorecardSignup = isScorecardSignupIntent(searchParams.get('source'), selectedPlanId, selectedNextRoute)
-  const isPlayerConnectionSignup = selectedPlanId === 'free' && selectedNextRoute === '/profile#profile-identity'
+  const isPlayerConnectionSignup = selectedPlanId === 'free' && (selectedNextRoute === '/profile#profile-identity' || Boolean(getPlayerProfileConnectPlayerId(selectedNextRoute)))
   const playerProfileSource = getPlayerProfileAcquisitionSource(searchParams.get('source'), selectedPlanId, selectedNextRoute)
   const availabilityEntry = selectedPlanId === 'free' ? getAvailabilityEntry(selectedNextRoute) : null
   const isCaptainPilotSignup = selectedPlanId === 'captain' && selectedNextRoute.startsWith('/captain-pilot')
