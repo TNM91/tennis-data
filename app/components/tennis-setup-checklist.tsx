@@ -35,14 +35,14 @@ export default function TennisSetupChecklist({
       href: playerHref,
       action: 'Find my player',
     },
-    {
+    ...(context === 'captain' ? [{
       complete: hasTeam,
       label: 'Team',
-      title: context === 'captain' ? 'Add your first team.' : 'Connect your team.',
+      title: 'Add your first team.',
       body: 'Upload a TennisLink Team Summary to bring in the team, roster, ratings, and standings. Add Player Roster later for team contacts.',
       href: teamHref,
       action: 'Upload Team Summary',
-    },
+    }] : []),
     {
       complete: hasMatchData,
       label: 'Matches',

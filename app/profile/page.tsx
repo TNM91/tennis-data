@@ -1039,7 +1039,7 @@ function ProfilePageInner() {
             <div id="profile-identity" style={surfaceStyle(isMobile)}>
               <div style={sectionHeaderStyle}>
                 <div>
-                  {!profileComplete ? <span style={identitySetupEyebrowStyle}>Get started · Step 1 of 3</span> : null}
+                  {!profileComplete ? <span style={identitySetupEyebrowStyle}>Get started · Step 1 of 2</span> : null}
                   {profileComplete || connectionCandidate
                     ? <h2 style={sectionTitleStyle}>{profileIdentityTitle}</h2>
                     : <h1 style={sectionTitleStyle}>{profileIdentityTitle}</h1>}
