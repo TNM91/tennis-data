@@ -13,6 +13,7 @@ import { useAuth } from '@/app/components/auth-provider'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { type MembershipTierId } from '@/lib/product-story'
 import { isSafeLocalNextHref } from '@/lib/plan-intent'
+import { PAID_CHECKOUT_ENABLED } from '@/lib/paid-checkout'
 import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
 import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'
 import { getAvailabilityEntry } from '@/lib/availability-onboarding'
@@ -148,6 +149,8 @@ function LoginContent() {
   const selectedPlanId = getLoginPlanIntent()
   const requestedNextRoute = searchParams.get('next')
   const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, DEFAULT_POST_LOGIN_ROUTE)
+  const checkoutLogin = PAID_CHECKOUT_ENABLED && selectedNextRoute.startsWith('/upgrade?') &&
+    new URL(selectedNextRoute, 'https://tenaceiq.invalid').searchParams.get('checkout') === 'auto'
   const availabilityEntry = selectedPlanId === 'free' ? getAvailabilityEntry(selectedNextRoute) : null
   const isCaptainPilotLogin = selectedPlanId === 'captain' && selectedNextRoute.startsWith('/captain-pilot')
   const selectedIntent = isCaptainPilotLogin ? {
@@ -160,6 +163,11 @@ function LoginContent() {
     title: 'Back to your team.',
     body: `Sign in to mark when you can play for ${availabilityEntry.team}. Your match and season request will open next. No paid plan needed.`,
     destination: 'Your availability',
+  } : checkoutLogin ? {
+    eyebrow: 'Secure checkout',
+    title: 'Continue to checkout.',
+    body: 'Your selected plan is saved. Secure checkout opens after sign in.',
+    destination: 'checkout',
   } : LOGIN_INTENT_COPY[selectedPlanId]
   const hasSafeRequestedNext = !!requestedNextRoute && selectedNextRoute === requestedNextRoute
   const nextIntent = getAuthEntryNextIntent(selectedNextRoute)
@@ -424,7 +432,7 @@ function canUseBrowserStorage() {
                   transition: 'transform 140ms ease, box-shadow 140ms ease',
                 }}
               >
-                {submitting ? 'Signing in...' : selectedPlanId === 'free' ? 'Sign in' : `Continue to ${selectedIntent.destination}`}
+                {submitting ? 'Signing in...' : checkoutLogin ? 'Continue to checkout' : selectedPlanId === 'free' ? 'Sign in' : `Continue to ${selectedIntent.destination}`}
               </button>
 
               {error ? <div id="login-error" role="alert" aria-live="assertive" style={errorBanner}>{error}</div> : null}
@@ -435,7 +443,7 @@ function canUseBrowserStorage() {
                   href={createAccountHref}
                   style={isMobile ? mobilePrimaryAuthLink : inlineLink}
                 >
-                  Create free account
+                  {checkoutLogin ? 'Create account' : 'Create free account'}
                 </Link>
                 <Link href={forgotPasswordHref} style={isMobile ? mobileSecondaryAuthLink : inlineLinkMuted}>
                   Forgot password?
