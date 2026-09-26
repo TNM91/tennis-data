@@ -583,7 +583,7 @@ function isPlanActive(planId: CorePricingPlanId, access: ReturnType<typeof build
 }
 
 function getPlanHref(planId: CorePricingPlanId, active: boolean, authenticated: boolean) {
-  if (active) return getPlanDestinationHref(planId)
+  if (active) return planId === 'player_plus' ? '/mylab' : getPlanDestinationHref(planId)
   if (planId === 'free') return getPlanSignupHref(planId)
   if (!PAID_CHECKOUT_ENABLED) return getPlanUnlockHref(planId)
   const checkoutHref = getPlanCheckoutHref(planId, planId === 'player_plus' ? '/mylab' : getPlanDestinationHref(planId))
