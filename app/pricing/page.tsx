@@ -24,6 +24,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import ProductTourVideoButton from '@/app/components/product-tour-video'
 import { PRICING_PLAN_VIDEO_IDS } from '@/lib/product-tour-videos'
+import PricingMobileLanes from './pricing-mobile-lanes'
 
 const PLAN_ICON_BY_ID: Record<CorePricingPlanId, TiqFeatureIconName> = {
   free: 'playerRatings',
@@ -60,16 +61,6 @@ const PLAN_JOB_FIT: Record<CorePricingPlanId, string> = {
   league: 'You need League Office to structure one season, publish schedules, collect scores, and keep standings clean.',
   full_court: 'You support more than one tennis role and need My Lab, Coach Hub, Team Hub, League Office, and Tournament Desk connected.',
 }
-
-const MOBILE_ROLE_SHORTCUTS: Array<{
-  planId: CorePricingPlanId
-  label: string
-  detail: string
-}> = [
-  { planId: 'free', label: 'Explore', detail: 'Public tennis' },
-  { planId: 'player_plus', label: 'Player', detail: 'My Lab' },
-  { planId: 'captain', label: 'Captain', detail: 'Team Hub' },
-]
 
 const WORKSPACE_PREVIEWS: Array<{
   planId: CorePricingPlanId
@@ -265,6 +256,9 @@ function PricingContent() {
   const accessPending = authenticated && (!authResolved || entitlements === null)
   const recommendedPlanId = access.recommendedUpgradePlanId ?? access.currentPlanId
   const fullCourtActive = !accessPending && access.currentPlanId === 'full_court'
+  const activePlanIds = accessPending
+    ? []
+    : CORE_PRICING_PLANS.filter((plan) => isPlanActive(plan.id, access)).map((plan) => plan.id)
 
   return (
     <main style={pageWrapStyle}>
@@ -284,19 +278,6 @@ function PricingContent() {
           <Link href={getPlanSignupHref('free')} style={primaryButtonStyle}>Start Free</Link>
           <Link href="#choose" style={secondaryButtonStyle}>See plans</Link>
         </div>
-        {isMobile ? (
-          <nav aria-label="Choose a tennis path" style={mobileRoleShortcutsStyle}>
-            <span style={mobileRoleShortcutsLabelStyle}>Start with your role</span>
-            <div style={mobileRoleShortcutGridStyle}>
-              {MOBILE_ROLE_SHORTCUTS.map((shortcut) => (
-                <Link key={shortcut.planId} href={`#${shortcut.planId}`} style={mobileRoleShortcutStyle}>
-                  <strong>{shortcut.label}</strong>
-                  <span style={mobileRoleShortcutDetailStyle}>{shortcut.detail}</span>
-                </Link>
-              ))}
-            </div>
-          </nav>
-        ) : null}
       </section>
 
       <section id="choose" style={sectionStyle} aria-labelledby="choose-title">
@@ -305,7 +286,14 @@ function PricingContent() {
           title="Plans and prices."
           body="Choose a role to see what it includes."
         />
-        <div style={isMobile ? compactPlanGridStyle : planGridStyle}>
+        {isMobile ? (
+          <PricingMobileLanes
+            accessPending={accessPending}
+            activePlanIds={activePlanIds}
+            recommendedPlanId={recommendedPlanId}
+          />
+        ) : (
+        <div style={planGridStyle}>
           {CORE_PRICING_PLANS.map((plan) => {
             const active = !accessPending && isPlanActive(plan.id, access)
             const recommended = !accessPending && !active && recommendedPlanId === plan.id
@@ -385,9 +373,10 @@ function PricingContent() {
             )
           })}
         </div>
+        )}
       </section>
 
-      <section id="club" style={sectionStyle} aria-labelledby="club-title">
+      {!isMobile ? <section id="club" style={sectionStyle} aria-labelledby="club-title">
         <SectionHeader
           eyebrow="For clubs"
           title="One club experience. Two simple options."
@@ -429,7 +418,7 @@ function PricingContent() {
             source="pricing-club-plans"
           />
         </div>
-      </section>
+      </section> : null}
 
       <details id="job-chooser" className="pricingDetailsSection" style={isMobile ? compactDetailsSectionStyle : detailsSectionStyle} aria-labelledby="job-chooser-title">
         <summary style={isMobile ? compactDetailsSummaryStyle : detailsSummaryStyle}>
@@ -683,49 +672,6 @@ const heroActionRowStyle: CSSProperties = {
   gap: 10,
   alignItems: 'center',
   minWidth: 0,
-}
-
-const mobileRoleShortcutsStyle: CSSProperties = {
-  display: 'grid',
-  gap: 7,
-  paddingTop: 5,
-  borderTop: '1px solid rgba(116,190,255,0.14)',
-}
-
-const mobileRoleShortcutsLabelStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 10,
-  fontWeight: 900,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-}
-
-const mobileRoleShortcutGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-  gap: 7,
-  minWidth: 0,
-}
-
-const mobileRoleShortcutStyle: CSSProperties = {
-  display: 'grid',
-  gap: 2,
-  minWidth: 0,
-  minHeight: 54,
-  padding: '9px 8px',
-  borderRadius: 12,
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)',
-  background: 'rgba(7,17,33,0.62)',
-  color: 'var(--foreground-strong)',
-  textDecoration: 'none',
-  overflowWrap: 'anywhere',
-}
-
-const mobileRoleShortcutDetailStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 10,
-  fontWeight: 750,
-  lineHeight: 1.15,
 }
 
 const checkoutPauseStyle: CSSProperties = {
