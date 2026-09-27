@@ -32,10 +32,14 @@ export default function AuthPlanContinuity({
   step,
 }: {
   planId: Exclude<BillablePricingPlanId, 'free'>
-  step: 'sign-in' | 'account'
+  step: 'sign-in' | 'account' | 'confirmation'
 }) {
   const plan = getPricingPlan(planId)
-  const stepLabel = step === 'sign-in' ? 'After sign in' : 'After account setup'
+  const stepLabel = step === 'sign-in'
+    ? 'After sign in'
+    : step === 'confirmation'
+      ? 'After confirmation'
+      : 'After account setup'
 
   return (
     <aside className={styles.card} aria-label={`${plan.name} selection saved`} data-auth-plan-continuity="true">

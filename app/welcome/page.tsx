@@ -16,6 +16,7 @@ import { isScorecardSignupIntent } from '@/lib/scorecard-signup'
 import { getCaptainPilotClaimHref } from '@/lib/captain-pilot-source'
 import { getPlayerProfileConnectPlayerId } from '@/lib/player-profile-acquisition'
 import { supabase } from '@/lib/supabase'
+import AuthPlanContinuity from '@/app/components/auth-plan-continuity'
 
 type WelcomeStory = {
   eyebrow: string
@@ -186,7 +187,7 @@ function WelcomeContent() {
     return <section style={loadingShell}>Finishing your secure TenAceiQ welcome…</section>
   }
 
-  if (availabilityHref || checkoutIntent) return <section style={loadingShell}><div style={card}><h1 style={title}>Your account is ready.</h1><p style={body} role="status">{checkoutIntent ? 'Opening secure checkout…' : 'Opening your team’s availability…'}</p><Link href={availabilityHref || nextHref} style={primaryCta}>{checkoutIntent ? 'Continue to checkout' : 'Continue to availability'}</Link></div></section>
+  if (availabilityHref || checkoutIntent) return <section style={loadingShell}><div style={card}><h1 style={title}>Your account is ready.</h1><p style={body} role="status">{checkoutIntent ? 'Opening secure checkout…' : 'Opening your team’s availability…'}</p>{checkoutIntent ? <AuthPlanContinuity planId={planId} step="confirmation" /> : null}<Link href={availabilityHref || nextHref} style={primaryCta}>{checkoutIntent ? 'Continue to checkout' : 'Continue to availability'}</Link></div></section>
 
   return (
     <section style={shell}>
@@ -194,6 +195,7 @@ function WelcomeContent() {
         <p style={eyebrow}>{story.eyebrow}</p>
         <h1 style={title}>{story.title(firstName)}</h1>
         <p style={body}>{story.body}</p>
+        {planId !== 'free' ? <AuthPlanContinuity planId={planId} step="confirmation" /> : null}
         <div style={accessPill}>{story.access}</div>
       </div>
 

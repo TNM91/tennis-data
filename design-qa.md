@@ -66,6 +66,36 @@ final result: passed
 
 ---
 
+# Mobile signup confirmation handoff QA — 2026-09-27
+
+- Source visual truth: the shipped phone-first Login → Create account plan-continuity treatment on `www.tenaceiq.com`.
+- Implementation evidence: local Club Unlimited confirmation state at a 390 × 844 CSS viewport.
+- State: account creation succeeded, confirmation email pending, selected plan and checkout destination preserved.
+
+## Findings
+
+No actionable P0, P1, or P2 differences remain.
+
+- Hierarchy: “One tap left” leads, the confirmation address follows, and the three required actions scan in order without competing with the saved-plan cue.
+- Continuity: Club Unlimited, $149/month, Club workspace, and “Stays selected” remain visible after the password form disappears.
+- Mobile fit: the complete confirmation handoff fits within one 390 × 844 viewport. Document width matched the 390 px viewport with no horizontal overflow.
+- Privacy: password fields are removed from the rendered success state and their values are cleared after account creation.
+- Interaction: “Already confirmed? Sign in” preserves the selected plan, nested checkout destination, and email. “Use a different email” returns to account creation without creating another account automatically.
+- Accessibility: the handoff uses a polite status region, an ordered three-step list, readable link/button labels, and text alongside every color cue.
+- Browser health: no console warnings or errors were reported.
+
+## Verification
+
+- Focused lint: passed.
+- Focused tests: 4 files, 30 tests passed.
+- Typecheck: passed.
+- Production build: passed; 280 routes generated.
+- Diff whitespace check: passed (line-ending warnings only).
+
+final result: passed
+
+---
+
 # Mobile auth plan continuity QA — 2026-09-26
 
 - Source visual truth: `C:/Users/nmein/tennis-data/.codex-worktrees/upgrade-handoff/artifacts/upgrade-handoff/05-upgrade-club-final.png`
