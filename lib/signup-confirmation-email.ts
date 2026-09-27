@@ -1,7 +1,7 @@
-import { MEMBERSHIP_TIERS, type MembershipTierId } from '@/lib/product-story'
+import { PRICING_PLANS, type BillablePricingPlanId } from '@/lib/pricing-plans'
 import { CAPTAIN_PILOT_PRICE_LABEL } from '@/lib/captain-pilot'
 
-export type SignupEmailIntent = MembershipTierId | 'captain-pilot'
+export type SignupEmailIntent = BillablePricingPlanId | 'captain-pilot'
 
 type SignupConfirmationEmailInput = {
   intent: SignupEmailIntent
@@ -91,6 +91,30 @@ const EMAIL_STORIES: Record<SignupEmailIntent, EmailStory> = {
     cta: 'Confirm and continue to Full-Court',
     note: 'Account confirmation starts Free access. Full-Court tools unlock only after you activate the plan.',
   },
+  club_starter: {
+    eyebrow: 'Your Club Starter path',
+    title: 'Bring your club into one connected workspace.',
+    lead: 'Confirm your TenAceIQ account, then continue to secure checkout for Club Starter and your branded club workspace.',
+    steps: [
+      'Confirm your email and sign in.',
+      'Complete secure checkout for Club Starter.',
+      'Open the Club workspace and start connecting staff, players, and programs.',
+    ],
+    cta: 'Confirm and continue to Club Starter',
+    note: 'Account confirmation starts Free access. Club Starter begins only after secure checkout.',
+  },
+  club_unlimited: {
+    eyebrow: 'Your Club Unlimited path',
+    title: 'Give the whole club one connected home.',
+    lead: 'Confirm your TenAceIQ account, then continue to secure checkout for Club Unlimited and your full branded club workspace.',
+    steps: [
+      'Confirm your email and sign in.',
+      'Complete secure checkout for Club Unlimited.',
+      'Open the Club workspace without staff or player caps.',
+    ],
+    cta: 'Confirm and continue to Club Unlimited',
+    note: 'Account confirmation starts Free access. Club Unlimited begins only after secure checkout.',
+  },
   'captain-pilot': {
     eyebrow: 'Fall Captain Pilot',
     title: 'Welcome to the captain’s chair.',
@@ -106,7 +130,7 @@ const EMAIL_STORIES: Record<SignupEmailIntent, EmailStory> = {
 }
 
 export function isSignupEmailIntent(value: unknown): value is SignupEmailIntent {
-  return value === 'captain-pilot' || (typeof value === 'string' && value in MEMBERSHIP_TIERS)
+  return value === 'captain-pilot' || PRICING_PLANS.some((plan) => plan.id === value)
 }
 
 export function buildSignupConfirmationEmail({ intent, firstName, confirmationUrl }: SignupConfirmationEmailInput) {

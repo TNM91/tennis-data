@@ -11,18 +11,18 @@ import { FREE_POST_LOGIN_ROUTE, getDefaultProductHomeRoute } from '@/lib/post-lo
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-import { type MembershipTierId } from '@/lib/product-story'
+import { type BillablePricingPlanId } from '@/lib/pricing-plans'
 import { isSafeLocalNextHref } from '@/lib/plan-intent'
 import { PAID_CHECKOUT_ENABLED } from '@/lib/paid-checkout'
 import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
-import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'
+import { buildAuthEntryHref, getAuthEntryPlanId } from '@/lib/auth-entry-hrefs'
 import { getAvailabilityEntry } from '@/lib/availability-onboarding'
+import AuthPlanContinuity from '@/app/components/auth-plan-continuity'
 
 const DEFAULT_POST_LOGIN_ROUTE = FREE_POST_LOGIN_ROUTE
-const LOGIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 const LOGIN_AUTH_TIMEOUT_MS = 8000
 
-const LOGIN_INTENT_COPY: Record<MembershipTierId, {
+const LOGIN_INTENT_COPY: Record<BillablePricingPlanId, {
   eyebrow: string
   title: string
   body: string
@@ -64,12 +64,23 @@ const LOGIN_INTENT_COPY: Record<MembershipTierId, {
     body: 'Sign in to move between My Lab, Coach Hub, Team Hub, League Office, and Tournament Desk.',
     destination: 'Full-Court',
   },
+  club_starter: {
+    eyebrow: 'Club path',
+    title: 'Continue to your club workspace.',
+    body: 'Sign in to keep Club Starter selected and continue to secure checkout.',
+    destination: 'Club workspace',
+  },
+  club_unlimited: {
+    eyebrow: 'Club path',
+    title: 'Continue to your club workspace.',
+    body: 'Sign in to keep Club Unlimited selected and continue to secure checkout.',
+    destination: 'Club workspace',
+  },
 }
 
 function getLoginPlanIntent() {
   if (typeof window === 'undefined') return 'free'
-  const plan = new URLSearchParams(window.location.search).get('plan')
-  return LOGIN_PLAN_IDS.includes(plan as MembershipTierId) ? (plan as MembershipTierId) : 'free'
+  return getAuthEntryPlanId(new URLSearchParams(window.location.search).get('plan'))
 }
 
 async function getDefaultPostLoginRoute(
@@ -362,6 +373,7 @@ function canUseBrowserStorage() {
               <div style={formLabel}>{selectedIntent.eyebrow}</div>
               <h1 style={isMobile ? formTitleMobile : formTitle}>{selectedIntent.title}</h1>
               <p style={formIntroStyle}>{selectedIntent.body}</p>
+              {selectedPlanId !== 'free' ? <AuthPlanContinuity planId={selectedPlanId} step="sign-in" /> : null}
               {switchingAccount ? (
                 <div role="status" aria-live="polite" style={successBanner}>
                   {coachSetupNote}
@@ -459,7 +471,7 @@ function canUseBrowserStorage() {
           </div>
         </div>
 
-        {selectedPlanId !== 'free' || nextIntent ? <details className="authReturnDetailsSection" style={loginContextStyle}>
+        {(!checkoutLogin && selectedPlanId !== 'free') || nextIntent ? <details className="authReturnDetailsSection" style={loginContextStyle}>
           <summary style={loginContextSummaryStyle}>
             <span>Show return path</span>
           </summary>

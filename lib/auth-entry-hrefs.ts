@@ -1,14 +1,23 @@
-import { type MembershipTierId } from '@/lib/product-story'
+import { type BillablePricingPlanId } from '@/lib/pricing-plans'
 
-export const AUTH_ENTRY_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
+export const AUTH_ENTRY_PLAN_IDS: BillablePricingPlanId[] = [
+  'free',
+  'player_plus',
+  'coach',
+  'captain',
+  'league',
+  'full_court',
+  'club_starter',
+  'club_unlimited',
+]
 
-export function getAuthEntryPlanId(candidate: string | null | undefined): MembershipTierId {
-  return AUTH_ENTRY_PLAN_IDS.includes(candidate as MembershipTierId) ? (candidate as MembershipTierId) : 'free'
+export function getAuthEntryPlanId(candidate: string | null | undefined): BillablePricingPlanId {
+  return AUTH_ENTRY_PLAN_IDS.includes(candidate as BillablePricingPlanId) ? (candidate as BillablePricingPlanId) : 'free'
 }
 
 export function buildAuthEntryHref(
   pathname: string,
-  planId: MembershipTierId,
+  planId: BillablePricingPlanId,
   nextHref: string,
   includeNextHref: boolean,
 ) {

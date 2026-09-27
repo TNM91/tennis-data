@@ -104,6 +104,7 @@ describe('auth entry next intent', () => {
     const nextHref = '/upgrade?plan=player_plus&next=%2Ftactics%3Fsource%3Dimprove%26template%3Dcrosscourt%26role%3Dplayer'
 
     expect(getAuthEntryPlanId('player_plus')).toBe('player_plus')
+    expect(getAuthEntryPlanId('club_unlimited')).toBe('club_unlimited')
     expect(getAuthEntryPlanId('bogus')).toBe('free')
     expect(buildAuthEntryHref('/forget-password', 'player_plus', nextHref, true)).toBe(
       '/forget-password?plan=player_plus&next=%2Fupgrade%3Fplan%3Dplayer_plus%26next%3D%252Ftactics%253Fsource%253Dimprove%2526template%253Dcrosscourt%2526role%253Dplayer',
