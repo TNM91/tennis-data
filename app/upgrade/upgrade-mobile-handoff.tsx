@@ -26,6 +26,7 @@ export default function UpgradeMobileHandoff({
   checkoutSubmitting,
   checkoutError,
   checkoutSuccessMessage,
+  successSteps,
   primaryAction,
   accountHref,
   accountLabel,
@@ -44,11 +45,59 @@ export default function UpgradeMobileHandoff({
   checkoutSubmitting: boolean
   checkoutError: string
   checkoutSuccessMessage: string
+  successSteps: string[]
   primaryAction: MobileUpgradeAction
   accountHref?: string
   accountLabel?: string
 }) {
   const statusCopy = checkoutSuccessMessage || checkoutError
+
+  if (checkoutSuccessMessage) {
+    return (
+      <section className={`${styles.shell} ${styles.receipt}`} data-upgrade-mobile-receipt="true" aria-labelledby="mobile-upgrade-title">
+        <div className={styles.planHeader}>
+          <TiqFeatureIcon name={icon} size="md" variant="surface" />
+          <div className={styles.planIdentity}>
+            <span>Plan active</span>
+            <strong>{planName}</strong>
+          </div>
+          <span className={styles.activeBadge}>Active</span>
+        </div>
+
+        <div className={styles.receiptHero}>
+          <span className={styles.receiptMark} aria-hidden="true">
+            <CheckCircleIcon size={30} weight="fill" />
+          </span>
+          <div className={styles.receiptCopy}>
+            <span>Payment confirmed</span>
+            <h1 id="mobile-upgrade-title">{title}</h1>
+            <p>{body}</p>
+          </div>
+        </div>
+
+        <div className={styles.readyNow}>
+          <strong>Ready now</strong>
+          <ol>
+            {successSteps.map((step, index) => (
+              <li key={step}>
+                <span>{index + 1}</span>
+                {step}
+              </li>
+            ))}
+          </ol>
+        </div>
+
+        {primaryAction.kind === 'link' ? (
+          <Link href={primaryAction.href} className={styles.primaryAction}>
+            {primaryAction.label}
+            <ArrowRightIcon aria-hidden="true" size={20} weight="bold" />
+          </Link>
+        ) : null}
+
+        <p className={styles.receiptMeta}>{priceLabel} plan confirmed. Your workspace will be here when you are ready.</p>
+      </section>
+    )
+  }
 
   return (
     <section className={styles.shell} data-upgrade-mobile-handoff="true" aria-labelledby="mobile-upgrade-title">

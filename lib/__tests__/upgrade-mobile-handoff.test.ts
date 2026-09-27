@@ -23,4 +23,17 @@ describe('mobile upgrade handoff', () => {
     expect(stylesSource).toContain('min-width: 0')
     expect(stylesSource).toContain("background: url('/tiq/courts/tiq-court-master.png')")
   })
+
+  it('turns a completed checkout into a stable mobile receipt', () => {
+    expect(pageSource).toContain('successSteps={successSteps}')
+    expect(pageSource).toContain("label: successHandoff.primaryAction")
+    expect(pageSource).toContain("url.searchParams.delete('session_id')")
+    expect(pageSource).not.toContain('window.location.replace(nextHref)')
+    expect(componentSource).toContain('data-upgrade-mobile-receipt="true"')
+    expect(componentSource).toContain('Payment confirmed')
+    expect(componentSource).toContain('Ready now')
+    expect(componentSource).toContain('{priceLabel} plan confirmed.')
+    expect(stylesSource).toContain('.receiptHero')
+    expect(stylesSource).toContain('grid-template-columns: auto minmax(0, 1fr)')
+  })
 })
