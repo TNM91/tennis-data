@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { getPlanCheckoutHref, getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref, isSafeLocalNextHref } from '../plan-intent'
+import { getPlanCheckoutConfirmationHref, getPlanCheckoutHref, getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref, isSafeLocalNextHref } from '../plan-intent'
 
 describe('plan intent routing', () => {
+  it('preserves the existing payment through sign-in instead of starting another checkout', () => {
+    const href = getPlanCheckoutConfirmationHref('player_plus', '/mylab?tab=goals#next', 'request&1', 'cs_live_123')
+    const params = new URL(href, 'https://tenaceiq.invalid').searchParams
+    expect(params.get('checkout')).toBe('success')
+    expect(params.get('next')).toBe('/mylab?tab=goals#next')
+    expect(params.get('request')).toBe('request&1')
+    expect(params.get('session_id')).toBe('cs_live_123')
+    expect(href).not.toContain('checkout=auto')
+  })
   it('keeps a paid choice through sign-in and opens checkout on return', () => {
     expect(getPlanCheckoutHref('player_plus', '/mylab')).toBe('/upgrade?plan=player_plus&next=%2Fmylab&checkout=auto')
   })
