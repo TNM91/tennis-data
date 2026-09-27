@@ -23,6 +23,7 @@ export default function UpgradeMobileHandoff({
   destinationLabel,
   active,
   checkoutEnabled,
+  confirmingPayment = false,
   checkoutSubmitting,
   checkoutError,
   checkoutSuccessMessage,
@@ -42,6 +43,7 @@ export default function UpgradeMobileHandoff({
   destinationLabel: string
   active: boolean
   checkoutEnabled: boolean
+  confirmingPayment?: boolean
   checkoutSubmitting: boolean
   checkoutError: string
   checkoutSuccessMessage: string
@@ -144,10 +146,12 @@ export default function UpgradeMobileHandoff({
           ? <CheckCircleIcon aria-hidden="true" size={20} weight="fill" />
           : <LockKeyIcon aria-hidden="true" size={20} weight="fill" />}
         <div>
-          <strong>{active ? `${destinationLabel} is ready` : checkoutEnabled ? 'Secure checkout' : 'Early access'}</strong>
+          <strong>{active ? `${destinationLabel} is ready` : confirmingPayment ? 'Payment confirmation' : checkoutEnabled ? 'Secure checkout' : 'Early access'}</strong>
           <span>
             {active
               ? `Open ${destinationLabel} with this plan.`
+              : confirmingPayment
+                ? 'We’ll verify your payment before opening your tools.'
               : checkoutEnabled
                 ? `Your ${planName} choice stays selected through Stripe.`
                 : 'Save this plan now. No payment information is collected.'}

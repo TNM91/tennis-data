@@ -20,6 +20,12 @@ export function getPlanCheckoutHref(planId: BillablePricingPlanId, nextHref = ge
   return `${getPlanUnlockHref(planId, nextHref)}&checkout=auto`
 }
 
+export function getPlanCheckoutConfirmationHref(planId: BillablePricingPlanId, nextHref: string, requestId: string, sessionId: string) {
+  const params = new URLSearchParams({ plan: planId, next: nextHref, checkout: 'success', request: requestId })
+  if (sessionId) params.set('session_id', sessionId)
+  return `/upgrade?${params.toString()}`
+}
+
 export function getPlanSignupHref(planId: BillablePricingPlanId, nextHref = getPlanUnlockHref(planId)) {
   return `/join?plan=${planId}&next=${encodeURIComponent(nextHref)}`
 }

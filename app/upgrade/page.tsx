@@ -8,7 +8,7 @@ import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
 import { isActiveClubBillingStatus, type ClubBillingAccount } from '@/lib/club-billing'
-import { getPlanCheckoutHref, getPlanDestinationHref, isSafeLocalNextHref } from '@/lib/plan-intent'
+import { getPlanCheckoutConfirmationHref, getPlanCheckoutHref, getPlanDestinationHref, isSafeLocalNextHref } from '@/lib/plan-intent'
 import { claimFollowIntentTracking, peekFollowIntent } from '@/lib/follow-intent'
 import {
   PAID_CHECKOUT_EARLY_ACCESS_SAVED_MESSAGE,
@@ -299,7 +299,6 @@ function UpgradeContent({
   const successHandoff = SUCCESS_HANDOFF_COPY[planId]
   const nextHref = isSafeLocalNextHref(getSearchParamValue(resolvedSearchParams.next), getPlanDestinationHref(planId))
   const checkoutHref = getPlanCheckoutHref(planId, nextHref)
-  const loginCheckoutHref = `/login?plan=${planId}&next=${encodeURIComponent(checkoutHref)}`
   const joinCheckoutHref = `/join?plan=${planId}&next=${encodeURIComponent(checkoutHref)}`
   const [followContextState, setFollowContextState] = useState<{
     intent: ReturnType<typeof peekFollowIntent>
@@ -333,6 +332,7 @@ function UpgradeContent({
   const [checkoutSubmitting, setCheckoutSubmitting] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
   const [checkoutSuccessMessage, setCheckoutSuccessMessage] = useState('')
+  const [confirmationAttempt, setConfirmationAttempt] = useState(0)
   const [earlyAccessSaved, setEarlyAccessSaved] = useState(false)
   const [requestStorageMode, setRequestStorageMode] = useState<'supabase' | 'local' | null>(null)
   const [requestLinkStatus, setRequestLinkStatus] = useState('')
@@ -343,6 +343,10 @@ function UpgradeContent({
   const checkoutReturnState = getSearchParamValue(resolvedSearchParams.checkout)
   const checkoutReturnRequestId = getSearchParamValue(resolvedSearchParams.request) ?? ''
   const checkoutReturnSessionId = getSearchParamValue(resolvedSearchParams.session_id) ?? ''
+  const loginReturnHref = checkoutReturnState === 'success'
+    ? getPlanCheckoutConfirmationHref(planId, nextHref, checkoutReturnRequestId, checkoutReturnSessionId)
+    : checkoutHref
+  const loginCheckoutHref = `/login?plan=${planId}&next=${encodeURIComponent(loginReturnHref)}`
 
   useEffect(() => {
     if (planId !== 'player_plus') {
@@ -522,7 +526,7 @@ function UpgradeContent({
   }, [nextHref, planId])
 
   const startCheckout = useCallback(async () => {
-    if (!submittedRequest?.id || checkoutSubmitting) return
+    if (!submittedRequest?.id || checkoutSubmitting || checkoutReturnState === 'success') return
 
     if (!PAID_CHECKOUT_ENABLED) {
       setEarlyAccessSaved(true)
@@ -547,10 +551,10 @@ function UpgradeContent({
       setCheckoutError(error instanceof Error ? error.message : 'Checkout could not be started.')
       setCheckoutSubmitting(false)
     }
-  }, [checkoutSubmitting, startCheckoutForRequest, submittedRequest?.id])
+  }, [checkoutReturnState, checkoutSubmitting, startCheckoutForRequest, submittedRequest?.id])
 
   const startSignedInCheckout = useCallback(async () => {
-    if (checkoutSubmitting || planId === 'free') return
+    if (checkoutSubmitting || planId === 'free' || checkoutReturnState === 'success') return
 
     setCheckoutSubmitting(true)
     setCheckoutError('')
@@ -613,7 +617,7 @@ function UpgradeContent({
       setCheckoutError(error instanceof Error ? error.message : 'Checkout could not be started.')
       setCheckoutSubmitting(false)
     }
-  }, [checkoutSubmitting, followContext?.entityName, followRequestGoal, nextHref, plan.name, planId, pricingSnapshot, startCheckoutForRequest])
+  }, [checkoutReturnState, checkoutSubmitting, followContext?.entityName, followRequestGoal, nextHref, plan.name, planId, pricingSnapshot, startCheckoutForRequest])
 
   const resolvedRole = authResolved || !userId ? role : 'member'
   const authLoading = !authResolved || (isClubPricingPlanId(planId) && !clubBillingResolved)
@@ -734,6 +738,7 @@ function UpgradeContent({
     checkoutReturnRequestId,
     checkoutReturnSessionId,
     checkoutReturnState,
+    confirmationAttempt,
     isPublic,
     nextHref,
     planId,
@@ -851,15 +856,18 @@ function UpgradeContent({
           planName={plan.name}
           priceLabel={plan.priceLabel}
           alternatePriceNote={plan.alternatePriceNote}
-          title={checkoutSuccessMessage ? successTitle : hasAccess ? `${plan.name} is already active.` : isMobile ? mobileCopy.title : copy.title}
+          title={checkoutSuccessMessage ? successTitle : hasAccess ? `${plan.name} is already active.` : checkoutReturnState === 'success' ? 'Confirm your payment.' : mobileCopy.title}
           body={checkoutSuccessMessage || (hasAccess
             ? `Your account already has the access needed for ${plan.name}. Open ${getPlanDestinationLabel(planId)} when you are ready.`
-            : plan.audience)}
+            : checkoutReturnState === 'success'
+              ? isPublic ? 'Sign in to confirm your payment and open your tools.' : 'We are checking your payment and refreshing your account access.'
+              : plan.audience)}
           benefits={plan.valueProps}
           outcome={plan.outcome}
           destinationLabel={getPlanDestinationLabel(planId)}
           active={hasAccess}
           checkoutEnabled={PAID_CHECKOUT_ENABLED}
+          confirmingPayment={checkoutReturnState === 'success'}
           checkoutSubmitting={checkoutSubmitting}
           checkoutError={checkoutError}
           checkoutSuccessMessage={checkoutSuccessMessage}
@@ -869,8 +877,13 @@ function UpgradeContent({
             : readyToActivate
             ? PAID_CHECKOUT_ENABLED
               ? isPublic
-                ? { kind: 'link', href: loginCheckoutHref, label: 'Sign in to continue' }
-                : {
+                ? { kind: 'link', href: loginCheckoutHref, label: checkoutReturnState === 'success' ? 'Sign in to confirm payment' : 'Sign in to continue' }
+                : checkoutReturnState === 'success' ? {
+                    kind: 'button',
+                    label: checkoutError ? 'Retry payment confirmation' : 'Confirming payment…',
+                    disabled: checkoutSubmitting || !checkoutError,
+                    onClick: () => setConfirmationAttempt((attempt) => attempt + 1),
+                  } : {
                     kind: 'button',
                     label: checkoutSubmitting ? 'Opening checkout…' : 'Continue to secure checkout',
                     disabled: checkoutSubmitting,
@@ -886,8 +899,8 @@ function UpgradeContent({
                 href: nextHref,
                 label: hasAccess ? `Open ${getPlanDestinationLabel(planId)}` : copy.action,
               }}
-          accountHref={isPublic && PAID_CHECKOUT_ENABLED ? joinCheckoutHref : undefined}
-          accountLabel={isPublic && PAID_CHECKOUT_ENABLED ? 'Create account' : undefined}
+          accountHref={isPublic && PAID_CHECKOUT_ENABLED && checkoutReturnState !== 'success' ? joinCheckoutHref : undefined}
+          accountLabel={isPublic && PAID_CHECKOUT_ENABLED && checkoutReturnState !== 'success' ? 'Create account' : undefined}
         />
       ) : (
         <section
@@ -901,7 +914,7 @@ function UpgradeContent({
           <span aria-hidden="true" style={watermarkStyle} />
           <div style={heroCopyStyle}>
             <div style={eyebrowStyle}>{copy.eyebrow}</div>
-            <h1 style={titleStyle}>{checkoutSuccessMessage ? successTitle : hasAccess ? `${plan.name} is already active.` : isMobile ? mobileCopy.title : copy.title}</h1>
+            <h1 style={titleStyle}>{checkoutSuccessMessage ? successTitle : hasAccess ? `${plan.name} is already active.` : checkoutReturnState === 'success' ? 'Confirm your payment.' : isMobile ? mobileCopy.title : copy.title}</h1>
             <p style={textStyle}>
               {hasAccess
                 ? checkoutSuccessMessage || `Your account already has the access needed for ${plan.name}. Open ${getPlanDestinationLabel(planId)} when you are ready.`
@@ -912,7 +925,11 @@ function UpgradeContent({
               {readyToActivate ? (
                 PAID_CHECKOUT_ENABLED ? (
                   isPublic ? (
-                    <Link href={loginCheckoutHref} style={primaryButtonStyle}>Sign in to checkout</Link>
+                    <Link href={loginCheckoutHref} style={primaryButtonStyle}>{checkoutReturnState === 'success' ? 'Sign in to confirm payment' : 'Sign in to checkout'}</Link>
+                  ) : checkoutReturnState === 'success' ? (
+                    <button type="button" onClick={() => setConfirmationAttempt((attempt) => attempt + 1)} disabled={checkoutSubmitting || !checkoutError} style={primaryButtonStyle}>
+                      {checkoutError ? 'Retry payment confirmation' : 'Confirming payment...'}
+                    </button>
                   ) : (
                     <button type="button" onClick={() => void startSignedInCheckout()} disabled={checkoutSubmitting} style={primaryButtonStyle}>
                       {checkoutSubmitting ? 'Opening checkout...' : copy.checkoutAction}
@@ -929,10 +946,10 @@ function UpgradeContent({
                 </Link>
               )}
               <Link
-                href={isPublic && PAID_CHECKOUT_ENABLED ? joinCheckoutHref : isPublic ? loginCheckoutHref : '/pricing'}
+                href={isPublic && PAID_CHECKOUT_ENABLED && checkoutReturnState !== 'success' ? joinCheckoutHref : isPublic ? loginCheckoutHref : '/pricing'}
                 style={secondaryButtonStyle}
               >
-                {isPublic && PAID_CHECKOUT_ENABLED ? 'Create account' : isPublic ? 'Sign in' : 'Compare plans'}
+                {isPublic && PAID_CHECKOUT_ENABLED && checkoutReturnState !== 'success' ? 'Create account' : isPublic ? 'Sign in' : 'Compare plans'}
               </Link>
             </div>
             {nextIntent && !(PAID_CHECKOUT_ENABLED && readyToActivate) ? (
@@ -1025,7 +1042,9 @@ function UpgradeContent({
                   : checkoutSuccessMessage
                     ? checkoutSuccessMessage
                     : checkoutError
-                      ? 'Checkout did not start. Try again below or use the plan page while we keep your account signed in.'
+                      ? checkoutReturnState === 'success'
+                        ? 'We could not confirm payment yet. Retry confirmation below.'
+                        : 'Checkout did not start. Try again below or use the plan page while we keep your account signed in.'
                       : 'We are opening secure Stripe Checkout. No extra request form needed.'}
               </p>
               <Link
@@ -1102,6 +1121,15 @@ function UpgradeContent({
                         <Link href="/pricing" style={secondaryButtonStyle}>Compare plans</Link>
                       </>
                     )
+                  ) : checkoutReturnState === 'success' && !checkoutSuccessMessage ? (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmationAttempt((attempt) => attempt + 1)}
+                      disabled={checkoutSubmitting || !checkoutError}
+                      style={primaryButtonStyle}
+                    >
+                      {checkoutError ? 'Retry payment confirmation' : 'Confirming payment...'}
+                    </button>
                   ) : checkoutSuccessMessage ? (
                     <>
                       <Link href={nextHref} style={primaryButtonStyle}>
