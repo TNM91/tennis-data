@@ -1,12 +1,10 @@
 import type { CSSProperties, ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import HomePlanLanes from '@/app/components/home-plan-lanes'
 import TrackedProductLink, { type ProductLinkEvent } from '@/app/components/tracked-product-link'
 import UniversalSearch from '@/app/components/universal-search'
-import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import ContextualTennisVisual, { type ContextualTennisVisualName } from '@/app/components/contextual-tennis-visual'
-import { getPricingPlan, type BillablePricingPlanId } from '@/lib/pricing-plans'
 import {
-  CLUB_PLAN_STORY,
   DATA_ASSIST_STORY,
   MEMBERSHIP_TIERS,
   PLATFORM_PILLARS,
@@ -296,32 +294,6 @@ const homeModeCards: HomeModeCard[] = [
   },
 ]
 
-const guestTierPreviews: Array<{
-  planId: BillablePricingPlanId
-  icon: TiqFeatureIconName
-  label: string
-  audienceOverride?: string
-}> = [
-  { planId: 'free', icon: 'exploreTennis', label: 'Explore' },
-  { planId: 'player_plus', icon: 'improveTennis', label: 'Player' },
-  { planId: 'captain', icon: 'captainTennis', label: 'Captain' },
-  { planId: 'coach', icon: 'coachTennis', label: 'Coach' },
-  { planId: 'full_court', icon: 'captainDashboard', label: 'Full-Court' },
-  { planId: 'league', icon: 'leagueTennis', label: 'League' },
-  {
-    planId: 'club_starter',
-    icon: 'clubTennis',
-    label: 'Club Starter',
-    audienceOverride: CLUB_PLAN_STORY.starter.capacityLabel,
-  },
-  {
-    planId: 'club_unlimited',
-    icon: 'clubTennis',
-    label: 'Club Unlimited',
-    audienceOverride: CLUB_PLAN_STORY.unlimited.capacityLabel,
-  },
-]
-
 const platformLaneCues = {
   improve: {
     label: 'Practice lane',
@@ -563,51 +535,7 @@ export function HomeModeRouter({ modes = homeModeCards }: { modes?: HomeModeCard
 }
 
 export function GuestTierPreview() {
-  return (
-    <section style={sectionStyle} aria-labelledby="guest-tier-preview-title">
-      <SectionHeader
-        eyebrow="Choose your lane"
-        title="Start free. Add only what helps."
-        body="See what each lane opens, what it costs, and the tennis work it makes easier."
-        titleId="guest-tier-preview-title"
-      />
-      <div role="list" style={guestTierGridStyle}>
-        {guestTierPreviews.map(({ planId, icon, label, audienceOverride }) => {
-          const plan = getPricingPlan(planId)
-          const featured = planId === 'captain'
-          const href = planId === 'free' ? '/explore' : `/pricing#${planId}`
-
-          return (
-            <article key={planId} role="listitem" style={{ ...guestTierCardStyle, ...(featured ? guestTierFeaturedCardStyle : null) }}>
-              <div style={guestTierCardTopStyle}>
-                <span style={guestTierIconStyle}>
-                  <TiqFeatureIcon name={icon} size="sm" variant="surface" />
-                </span>
-                <span style={guestTierPriceStyle}>{plan.priceLabel}</span>
-              </div>
-              <div style={guestTierCardCopyStyle}>
-                <span style={guestTierLabelStyle}>{label}</span>
-                <h2 style={guestTierTitleStyle}>{plan.subtitle}</h2>
-                <p style={guestTierAudienceStyle}>{audienceOverride ?? plan.audience}</p>
-              </div>
-              <ul style={guestTierListStyle}>
-                {plan.valueProps.slice(0, 3).map((item) => (
-                  <li key={item} style={guestTierListItemStyle}>{item}</li>
-                ))}
-              </ul>
-              <TrackedProductLink
-                href={href}
-                style={featured ? primaryButtonStyle : guestTierActionStyle}
-                event={getPublicLinkEvent(plan.ctaLabel, href, `guest-tier-${planId}`)}
-              >
-                {planId === 'free' ? 'Explore Free' : plan.ctaLabel}
-              </TrackedProductLink>
-            </article>
-          )
-        })}
-      </div>
-    </section>
-  )
+  return <HomePlanLanes />
 }
 
 export function ActionGrid({ cards = homeActionCards }: { cards?: PublicActionCard[] }) {
@@ -1853,108 +1781,4 @@ const actionRowBodyStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
   lineHeight: 1.5,
-}
-
-const guestTierGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
-  gap: 12,
-  minWidth: 0,
-}
-
-const guestTierCardStyle: CSSProperties = {
-  display: 'grid',
-  alignContent: 'start',
-  gap: 14,
-  minWidth: 0,
-  minHeight: 360,
-  padding: 18,
-  borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: 'var(--shadow-soft)',
-  overflowWrap: 'anywhere',
-}
-
-const guestTierFeaturedCardStyle: CSSProperties = {
-  borderColor: 'color-mix(in srgb, var(--brand-green) 48%, var(--shell-panel-border) 52%)',
-  background:
-    'linear-gradient(160deg, color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%), var(--shell-panel-bg))',
-  boxShadow: '0 20px 48px rgba(155,225,29,0.10)',
-}
-
-const guestTierCardTopStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 12,
-  minWidth: 0,
-}
-
-const guestTierIconStyle: CSSProperties = {
-  display: 'grid',
-  placeItems: 'center',
-  width: 42,
-  height: 42,
-}
-
-const guestTierPriceStyle: CSSProperties = {
-  color: 'var(--brand-green)',
-  fontSize: 15,
-  lineHeight: 1.1,
-  fontWeight: 950,
-  textAlign: 'right',
-}
-
-const guestTierCardCopyStyle: CSSProperties = {
-  display: 'grid',
-  gap: 6,
-  minWidth: 0,
-}
-
-const guestTierLabelStyle: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: 12,
-  lineHeight: 1,
-  fontWeight: 950,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-}
-
-const guestTierTitleStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: 22,
-  lineHeight: 1.08,
-  fontWeight: 950,
-}
-
-const guestTierAudienceStyle: CSSProperties = {
-  margin: 0,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.45,
-}
-
-const guestTierListStyle: CSSProperties = {
-  display: 'grid',
-  gap: 8,
-  margin: 0,
-  padding: 0,
-  listStyle: 'none',
-}
-
-const guestTierListItemStyle: CSSProperties = {
-  paddingLeft: 14,
-  borderLeft: '2px solid color-mix(in srgb, var(--brand-green) 58%, var(--shell-panel-border) 42%)',
-  color: 'var(--foreground-strong)',
-  fontSize: 13,
-  lineHeight: 1.4,
-  fontWeight: 780,
-}
-
-const guestTierActionStyle: CSSProperties = {
-  ...ghostButtonStyle,
-  marginTop: 'auto',
-  width: 'fit-content',
 }

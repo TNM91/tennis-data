@@ -4,30 +4,34 @@ import { describe, expect, it } from 'vitest'
 
 const homepageSource = readFileSync(join(process.cwd(), 'app/page.tsx'), 'utf8')
 const tierPreviewSource = readFileSync(join(process.cwd(), 'app/components/public-command-center.tsx'), 'utf8')
+const planLanesSource = readFileSync(join(process.cwd(), 'app/components/home-plan-lanes.tsx'), 'utf8')
+const pricingPlansSource = readFileSync(join(process.cwd(), 'lib/pricing-plans.ts'), 'utf8')
 
 describe('homepage Club pricing', () => {
-  it('shows every plan in one shared homepage pricing list', () => {
+  it('keeps one shared homepage plan entry point', () => {
     expect(homepageSource).toContain('GuestTierPreview,')
     expect(homepageSource).toContain('<GuestTierPreview />')
     expect(homepageSource).not.toContain('GuestTierPreviewGate')
     expect(homepageSource).not.toContain('HomeClubPricing')
   })
 
-  it('places both Club options at the end of the shared tier list', () => {
-    const fullCourtIndex = tierPreviewSource.indexOf("planId: 'full_court'")
-    const leagueIndex = tierPreviewSource.indexOf("planId: 'league'")
-    const starterIndex = tierPreviewSource.indexOf("planId: 'club_starter'")
-    const unlimitedIndex = tierPreviewSource.indexOf("planId: 'club_unlimited'")
+  it('keeps both Club options at the end of the canonical pricing list', () => {
+    const fullCourtIndex = pricingPlansSource.indexOf("id: 'full_court'")
+    const leagueIndex = pricingPlansSource.indexOf("id: 'league'")
+    const starterIndex = pricingPlansSource.indexOf("id: 'club_starter'")
+    const unlimitedIndex = pricingPlansSource.indexOf("id: 'club_unlimited'")
 
-    expect(fullCourtIndex).toBeGreaterThan(-1)
-    expect(leagueIndex).toBeGreaterThan(fullCourtIndex)
-    expect(starterIndex).toBeGreaterThan(leagueIndex)
+    expect(leagueIndex).toBeGreaterThan(-1)
+    expect(fullCourtIndex).toBeGreaterThan(leagueIndex)
+    expect(starterIndex).toBeGreaterThan(fullCourtIndex)
     expect(unlimitedIndex).toBeGreaterThan(starterIndex)
   })
 
-  it('shows the canonical Club capacity language in the shared cards', () => {
-    expect(tierPreviewSource).toContain('CLUB_PLAN_STORY.starter.capacityLabel')
-    expect(tierPreviewSource).toContain('CLUB_PLAN_STORY.unlimited.capacityLabel')
-    expect(tierPreviewSource).toContain('audienceOverride ?? plan.audience')
+  it('uses canonical Club plan data and links to the complete comparison', () => {
+    expect(pricingPlansSource).toContain('CLUB_PLAN_STORY.starter.capacityLabel')
+    expect(pricingPlansSource).toContain('CLUB_PLAN_STORY.unlimited.capacityLabel')
+    expect(planLanesSource).toContain("{ planId: 'club_starter', label: 'Club'")
+    expect(planLanesSource).toContain('href="/pricing"')
+    expect(tierPreviewSource).toContain('return <HomePlanLanes />')
   })
 })
