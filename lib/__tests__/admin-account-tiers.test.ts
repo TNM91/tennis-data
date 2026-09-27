@@ -25,7 +25,7 @@ describe('countAccountTiers', () => {
   })
 
   it('separates paid, trial, complimentary, past-due, and expiring access by tier', () => {
-    const now = Date.parse('2026-09-20T12:00:00Z')
+    const now = Date.parse('2099-09-20T12:00:00Z')
     const summary = summarizeAccountTiers([
       {
         role: 'member',
@@ -37,7 +37,7 @@ describe('countAccountTiers', () => {
         role: 'member',
         coach_subscription_active: true,
         coach_subscription_status: 'trial',
-        coach_access_expires_at: '2026-09-27T12:00:00Z',
+        coach_access_expires_at: '2099-09-27T12:00:00Z',
       },
       {
         role: 'captain',
