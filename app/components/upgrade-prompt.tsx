@@ -5,7 +5,8 @@ import { useState, type CSSProperties, type ReactNode } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState, hasPlanAccess } from '@/lib/access-model'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
-import { getPlanDestinationHref, getPlanUnlockHref } from '@/lib/plan-intent'
+import { getPlanDestinationHref } from '@/lib/plan-intent'
+import { getUpgradePromptHref } from '@/lib/upgrade-prompt-routing'
 import { PAID_CHECKOUT_ENABLED, PAID_CHECKOUT_PAUSED_MESSAGE } from '@/lib/paid-checkout'
 import { buildUpgradePricingSnapshot, type UpgradeRequestRecord } from '@/lib/upgrade-requests'
 
@@ -58,7 +59,7 @@ export default function UpgradePrompt({
   const resolvedResult = result || plan.outcome
   const isSignedIn = Boolean(session?.user?.id)
   const canStartDirectCheckout = PAID_CHECKOUT_ENABLED && !ctaHref && authResolved && isSignedIn && planId !== 'free'
-  const resolvedCtaHref = ctaHref || getPlanUnlockHref(planId)
+  const resolvedCtaHref = getUpgradePromptHref(planId, ctaHref, PAID_CHECKOUT_ENABLED, isSignedIn)
   const resolvedCtaLabel = !PAID_CHECKOUT_ENABLED && planId !== 'free'
     ? 'Join early access'
     : ctaLabel || plan.ctaLabel
@@ -77,7 +78,7 @@ export default function UpgradePrompt({
     setCheckoutError('')
 
     try {
-      const nextHref = getPlanDestinationHref(planId)
+      const nextHref = planId === 'player_plus' ? '/mylab' : getPlanDestinationHref(planId)
       const pricingSnapshot = buildUpgradePricingSnapshot(planId)
       const userMetadata = session.user.user_metadata || {}
       const displayName =
