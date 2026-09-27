@@ -13,9 +13,20 @@ describe('auth plan continuity', () => {
   it('keeps the selected paid plan visible while sign-in and account creation stay primary', () => {
     expect(loginSource).toContain('<AuthPlanContinuity planId={selectedPlanId} step="sign-in" />')
     expect(joinSource).toContain('<AuthPlanContinuity planId={selectedPlanId} step="account" />')
+    expect(joinSource).toContain('<AuthPlanContinuity planId={selectedPlanId} step="confirmation" />')
+    expect(welcomeSource).toContain('<AuthPlanContinuity planId={planId} step="confirmation" />')
     expect(componentSource).toContain('Plan saved')
     expect(componentSource).toContain('Stays selected')
     expect(componentSource).toContain('After account setup')
+    expect(componentSource).toContain('After confirmation')
+  })
+
+  it('replaces the signup form with a focused confirmation handoff', () => {
+    expect(joinSource).toContain('One tap left.')
+    expect(joinSource).toContain('Confirmation sent to')
+    expect(joinSource).toContain('Email confirmation steps')
+    expect(joinSource).toContain("setPassword('')")
+    expect(joinSource).toContain('Your plan and next step stay attached to the confirmation link.')
   })
 
   it('supports Club plans through confirmation instead of falling back to Free', () => {

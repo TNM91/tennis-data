@@ -168,6 +168,7 @@ function JoinContent() {
   const [submitHovered, setSubmitHovered] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [confirmationEmail, setConfirmationEmail] = useState('')
   const [playerConnectRecord, setPlayerConnectRecord] = useState<{ name: string; location: string | null } | null>(null)
   const hasRedirectedRef = useRef(false)
   const trackedPlayerSignupRef = useRef('')
@@ -313,6 +314,10 @@ function JoinContent() {
       const signupResult = await signupResponse.json().catch(() => null) as { ok?: boolean; message?: string } | null
       if (!signupResponse.ok || !signupResult?.ok) throw new Error(signupResult?.message || 'Unable to create account.')
 
+      setConfirmationEmail(trimmedEmail)
+      setPassword('')
+      setConfirmPassword('')
+      setAcceptedTerms(false)
       setMessage(availabilityEntry
         ? `Check ${trimmedEmail} and confirm your email. We’ll bring you back to ${availabilityEntry.team} to connect your player and answer. Your match request is saved in the confirmation link.`
         : isCaptainPilotSignup
@@ -379,6 +384,56 @@ function JoinContent() {
             />
           </span>
           {authLoading ? 'Checking account status...' : 'Opening your TenAceIQ home...'}
+        </div>
+      </section>
+    )
+  }
+
+  if (message) {
+    const confirmationNextStep = checkoutSignup
+      ? `${selectedTier.name} checkout opens after confirmation.`
+      : availabilityEntry
+        ? `Your saved ${availabilityEntry.team} request opens after confirmation.`
+        : isScorecardSignup || isPlayerConnectionSignup
+          ? 'Your player setup opens after confirmation.'
+          : 'Your saved TenAceIQ next step opens after confirmation.'
+
+    return (
+      <section style={heroShellResponsive}>
+        <span aria-hidden="true" style={watermarkStyle} />
+        <div style={loginPanelResponsive}>
+          <div style={loginPanelGlow} />
+          <div style={loginPanelInnerResponsive}>
+            <div role="status" aria-live="polite" style={isMobile ? formCardMobile : formCard}>
+              <div style={formLabel}>Account created · Check your email</div>
+              <h1 style={isMobile ? formTitleMobile : formTitle}>One tap left.</h1>
+              <p style={formIntroStyle}>{message}</p>
+              {selectedPlanId !== 'free' ? <AuthPlanContinuity planId={selectedPlanId} step="confirmation" /> : null}
+
+              <div style={confirmationEmailCardStyle}>
+                <span style={confirmationEmailLabelStyle}>Confirmation sent to</span>
+                <strong>{confirmationEmail}</strong>
+              </div>
+
+              <ol aria-label="Email confirmation steps" style={confirmationStepsStyle}>
+                <li style={confirmationStepStyle}><span style={confirmationStepNumberStyle}>1</span><span>Open the email from TenAceIQ.</span></li>
+                <li style={confirmationStepStyle}><span style={confirmationStepNumberStyle}>2</span><span>Tap <strong>Confirm account</strong>.</span></li>
+                <li style={confirmationStepStyle}><span style={confirmationStepNumberStyle}>3</span><span>{confirmationNextStep}</span></li>
+              </ol>
+
+              <Link href={signInHref} style={confirmationPrimaryLinkStyle}>Already confirmed? Sign in</Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setMessage('')
+                  setConfirmationEmail('')
+                  setError('')
+                }}
+                style={confirmationSecondaryButtonStyle}
+              >Use a different email</button>
+              <p style={confirmationFinePrintStyle}>Your plan and next step stay attached to the confirmation link.</p>
+            </div>
+          </div>
         </div>
       </section>
     )
@@ -998,6 +1053,92 @@ const successBannerLink: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontWeight: 900,
   textDecoration: 'underline',
+}
+
+const confirmationEmailCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+  padding: '13px 14px',
+  borderRadius: 15,
+  border: '1px solid rgba(125, 211, 252, 0.22)',
+  background: 'rgba(56, 189, 248, 0.08)',
+  color: 'var(--foreground-strong)',
+  overflowWrap: 'anywhere',
+}
+
+const confirmationEmailLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+}
+
+const confirmationStepsStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  margin: 0,
+  padding: 0,
+  listStyle: 'none',
+}
+
+const confirmationStepStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '26px minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'start',
+  color: 'var(--foreground)',
+  fontSize: 14,
+  fontWeight: 700,
+  lineHeight: 1.42,
+}
+
+const confirmationStepNumberStyle: CSSProperties = {
+  display: 'grid',
+  placeItems: 'center',
+  width: 26,
+  height: 26,
+  borderRadius: 999,
+  background: 'var(--brand-green)',
+  color: '#071226',
+  fontSize: 12,
+  fontWeight: 900,
+}
+
+const confirmationPrimaryLinkStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minHeight: 50,
+  padding: '0 16px',
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.38)',
+  background: 'color-mix(in srgb, var(--brand-green) 22%, var(--shell-chip-bg) 78%)',
+  color: 'var(--foreground-strong)',
+  textDecoration: 'none',
+  fontSize: 15,
+  fontWeight: 900,
+  textAlign: 'center',
+}
+
+const confirmationSecondaryButtonStyle: CSSProperties = {
+  minHeight: 44,
+  border: 0,
+  background: 'transparent',
+  color: 'var(--brand-blue-2)',
+  fontSize: 14,
+  fontWeight: 800,
+  cursor: 'pointer',
+}
+
+const confirmationFinePrintStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 700,
+  lineHeight: 1.45,
+  textAlign: 'center',
 }
 
 const errorBanner: CSSProperties = {
