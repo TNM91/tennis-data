@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { use, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import UpgradeMobileHandoff from './upgrade-mobile-handoff'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqFeatureIcon'
 import { buildProductAccessState } from '@/lib/access-model'
@@ -846,6 +847,48 @@ function UpgradeContent({
 
   return (
     <main style={pageStyle}>
+      {isMobile ? (
+        <UpgradeMobileHandoff
+          icon={PLAN_ICON_BY_ID[planId]}
+          planName={plan.name}
+          priceLabel={plan.priceLabel}
+          alternatePriceNote={plan.alternatePriceNote}
+          title={checkoutSuccessMessage ? successTitle : hasAccess ? `${plan.name} is already active.` : isMobile ? mobileCopy.title : copy.title}
+          body={hasAccess
+            ? checkoutSuccessMessage || `Your account already has the access needed for ${plan.name}. Open ${getPlanDestinationLabel(planId)} when you are ready.`
+            : plan.audience}
+          benefits={plan.valueProps}
+          outcome={plan.outcome}
+          destinationLabel={getPlanDestinationLabel(planId)}
+          active={hasAccess}
+          checkoutEnabled={PAID_CHECKOUT_ENABLED}
+          checkoutSubmitting={checkoutSubmitting}
+          checkoutError={checkoutError}
+          checkoutSuccessMessage={checkoutSuccessMessage}
+          primaryAction={readyToActivate
+            ? PAID_CHECKOUT_ENABLED
+              ? isPublic
+                ? { kind: 'link', href: loginCheckoutHref, label: 'Sign in to continue' }
+                : {
+                    kind: 'button',
+                    label: checkoutSubmitting ? 'Opening checkout…' : 'Continue to secure checkout',
+                    disabled: checkoutSubmitting,
+                    onClick: () => void startSignedInCheckout(),
+                  }
+              : {
+                  kind: 'link',
+                  href: `/upgrade?plan=${planId}&next=${encodeURIComponent(nextHref)}#activation`,
+                  label: 'Join early access',
+                }
+            : {
+                kind: 'link',
+                href: nextHref,
+                label: hasAccess ? `Open ${getPlanDestinationLabel(planId)}` : copy.action,
+              }}
+          accountHref={isPublic && PAID_CHECKOUT_ENABLED ? joinCheckoutHref : undefined}
+          accountLabel={isPublic && PAID_CHECKOUT_ENABLED ? 'Create account' : undefined}
+        />
+      ) : (
         <section
           style={{
             ...heroStyle,
@@ -956,6 +999,7 @@ function UpgradeContent({
             </details>
           </aside>
         </section>
+      )}
 
         {showAccessRequest ? (
           <section
@@ -1231,7 +1275,7 @@ function UpgradeContent({
           </section>
         ) : null}
 
-        <section style={tierMapStyle} aria-label="Choose TenAceIQ by tennis need">
+        {!isMobile ? <section style={tierMapStyle} aria-label="Choose TenAceIQ by tennis need">
           <details className="upgradeDetailsSection" style={tierMapDetailsStyle}>
             <summary style={tierMapSummaryStyle}>
               <span style={labelStyle}>{isMobile ? 'Need another tool?' : 'Switch tools'}</span>
@@ -1272,7 +1316,7 @@ function UpgradeContent({
               </div>
             </div>
           </details>
-        </section>
+        </section> : null}
     </main>
   )
 }
