@@ -6,6 +6,7 @@ const coachesSource = readFileSync(join(process.cwd(), 'app/coaches/page.tsx'), 
 const tournamentsSource = readFileSync(join(process.cwd(), 'app/tournaments/page.tsx'), 'utf8')
 const homePageSource = readFileSync(join(process.cwd(), 'app/page.tsx'), 'utf8')
 const commandCenterSource = readFileSync(join(process.cwd(), 'app/components/public-command-center.tsx'), 'utf8')
+const planLanesSource = readFileSync(join(process.cwd(), 'app/components/home-plan-lanes.tsx'), 'utf8')
 
 describe('public landing preview cards', () => {
   it('uses named coach preview cards with tracked product actions', () => {
@@ -170,8 +171,10 @@ describe('public landing preview cards', () => {
     expect(homePageSource).not.toContain('<HomeIntelligenceSnapshot />')
     expect(homePageSource).not.toContain('<HomeModeRouter />')
     expect(homePageSource).not.toContain('<HomeClosingBand />')
-    expect(commandCenterSource).toContain('Start free. Add only what helps.')
-    expect(commandCenterSource).toContain('See what each lane opens, what it costs, and the tennis work it makes easier.')
+    expect(commandCenterSource).toContain('return <HomePlanLanes />')
+    expect(planLanesSource).toContain('Choose your lane')
+    expect(planLanesSource).toContain('Pick your court.')
+    expect(planLanesSource).toContain('Same game. Different roles. Open the tools built for how you play tennis.')
     expect(homePageSource).not.toContain('<ActionGrid />')
     expect(homePageSource).not.toContain('<PlatformPillarGrid />')
     expect(homePageSource).not.toContain('<ProductPreviewGrid />')
