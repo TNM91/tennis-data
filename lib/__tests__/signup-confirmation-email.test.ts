@@ -39,6 +39,7 @@ describe('signup confirmation emails', () => {
   it('only accepts supported tier intents', () => {
     expect(isSignupEmailIntent('free')).toBe(true)
     expect(isSignupEmailIntent('captain-pilot')).toBe(true)
-    expect(isSignupEmailIntent('club_starter')).toBe(false)
+    expect(isSignupEmailIntent('club_starter')).toBe(true)
+    expect(isSignupEmailIntent('club_unlimited')).toBe(true)
   })
 })

@@ -5,7 +5,9 @@ import { CSSProperties, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
-import { getMembershipTier, MY_LAB_STORY, type MembershipTierId } from '@/lib/product-story'
+import { MY_LAB_STORY } from '@/lib/product-story'
+import { getPricingPlan, type BillablePricingPlanId } from '@/lib/pricing-plans'
+import { getAuthEntryPlanId } from '@/lib/auth-entry-hrefs'
 import { isSafeLocalNextHref } from '@/lib/plan-intent'
 import { PAID_CHECKOUT_ENABLED } from '@/lib/paid-checkout'
 import { CAPTAIN_PILOT_PRICE_LABEL } from '@/lib/captain-pilot'
@@ -14,8 +16,6 @@ import { isScorecardSignupIntent } from '@/lib/scorecard-signup'
 import { getCaptainPilotClaimHref } from '@/lib/captain-pilot-source'
 import { getPlayerProfileConnectPlayerId } from '@/lib/player-profile-acquisition'
 import { supabase } from '@/lib/supabase'
-
-const PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
 
 type WelcomeStory = {
   eyebrow: string
@@ -26,7 +26,7 @@ type WelcomeStory = {
   checklist: string[]
 }
 
-const WELCOME_STORIES: Record<MembershipTierId | 'captain-pilot', WelcomeStory> = {
+const WELCOME_STORIES: Record<BillablePricingPlanId | 'captain-pilot', WelcomeStory> = {
   free: {
     eyebrow: 'Your free account is ready',
     title: (name) => name ? `Welcome, ${name}.` : 'Welcome to TenAceiQ.',
@@ -75,6 +75,22 @@ const WELCOME_STORIES: Record<MembershipTierId | 'captain-pilot', WelcomeStory> 
     primaryLabel: 'Activate Full-Court',
     checklist: ['Activate Full-Court to connect every role path.', 'Move between player, coach, captain, league, and event needs.', 'Keep the next useful tennis decision in one place.'],
   },
+  club_starter: {
+    eyebrow: 'Your Club Starter path is ready',
+    title: (name) => name ? `${name}, connect your club in one place.` : 'Connect your club in one place.',
+    body: 'Your account is confirmed. Continue to secure checkout to open Club Starter and one branded workspace for staff, players, programs, and competition.',
+    access: 'You have Free access now. Club Starter begins after checkout.',
+    primaryLabel: 'Continue to Club Starter',
+    checklist: ['Continue to secure checkout.', 'Open your branded Club workspace.', 'Connect the staff, players, and programs that need one shared home.'],
+  },
+  club_unlimited: {
+    eyebrow: 'Your Club Unlimited path is ready',
+    title: (name) => name ? `${name}, give the whole club one connected home.` : 'Give the whole club one connected home.',
+    body: 'Your account is confirmed. Continue to secure checkout to open Club Unlimited without staff or player caps.',
+    access: 'You have Free access now. Club Unlimited begins after checkout.',
+    primaryLabel: 'Continue to Club Unlimited',
+    checklist: ['Continue to secure checkout.', 'Open your branded Club workspace.', 'Bring staff, players, programs, teams, and events into the same club view.'],
+  },
   'captain-pilot': {
     eyebrow: 'Fall Captain Pilot',
     title: (name) => name ? `Welcome, ${name}. Your captain’s chair is ready.` : 'Your captain’s chair is ready.',
@@ -116,9 +132,8 @@ function WelcomeContent() {
   const searchParams = useSearchParams()
   const { authResolved, session } = useAuth()
   const hasSession = Boolean(session)
-  const planParam = searchParams.get('plan')
-  const planId: MembershipTierId = PLAN_IDS.includes(planParam as MembershipTierId) ? planParam as MembershipTierId : 'free'
-  const tier = getMembershipTier(planId)
+  const planId = getAuthEntryPlanId(searchParams.get('plan'))
+  const tier = getPricingPlan(planId)
   const fallbackHref = planId === 'free' ? '/explore' : `/upgrade?plan=${planId}`
   const nextHref = isSafeLocalNextHref(searchParams.get('next'), fallbackHref)
   const checkoutIntent = PAID_CHECKOUT_ENABLED && planId !== 'free' && nextHref.startsWith('/upgrade?') &&

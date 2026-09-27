@@ -66,6 +66,58 @@ final result: passed
 
 ---
 
+# Mobile auth plan continuity QA — 2026-09-26
+
+- Source visual truth: `C:/Users/nmein/tennis-data/.codex-worktrees/upgrade-handoff/artifacts/upgrade-handoff/05-upgrade-club-final.png`
+- Login implementation: `artifacts/auth-plan-continuity/01-login-mobile.png`
+- Join implementation: `artifacts/auth-plan-continuity/02-join-mobile.png`
+- Side-by-side comparison: `artifacts/auth-plan-continuity/comparison-upgrade-login-join.png`
+- Viewport: 390 × 844 CSS pixels, device scale factor 1
+- Source pixels: 375 × 812; login pixels: 390 × 844; join full-page pixels: 375 × 1003
+- Density normalization: all captures are 1× browser renders; the source is narrower because its original browser capture used a 375 px content area. The comparison preserves native density and pads the three views on the same navy canvas.
+- State: Club Unlimited selected; signed out; secure checkout handoff; no fields filled or submitted.
+
+## Findings
+
+No actionable P0, P1, or P2 differences remain.
+
+- Fonts and typography: the auth card preserves the source's compact uppercase label, heavy plan name, green price treatment, and readable small supporting copy. The surrounding auth hierarchy remains dominant.
+- Spacing and layout rhythm: the card reuses the source's three-column structure, border radius, compact padding, and shrink-safe center column. Login fits one 390 × 844 viewport; Join extends naturally because its form has more fields.
+- Colors and visual tokens: navy surfaces, blue secondary copy, lime border, and green price map to the selected upgrade card without introducing new palette values.
+- Image quality and asset fidelity: the card uses the existing `TiqFeatureIcon` Club artwork; no logo or product artwork is redrawn or substituted.
+- Copy and content: plan name, `$149/month`, auth step, Club destination, and saved-selection status are visible together. Checkout is still the primary outcome; the card adds continuity rather than a competing action.
+- Interaction and responsiveness: Login → Create account and Join → Sign in both preserve the exact `plan=club_unlimited` and nested `next` checkout route. There is no horizontal overflow at 390 px or at the narrow-card breakpoint.
+- Accessibility: the card has a descriptive landmark label, decorative lock icon treatment, readable text contrast, and does not add a focus stop. Full keyboard and screen-reader behavior still requires dedicated assistive-technology testing.
+
+## Focused region comparison
+
+The selected-plan headers are readable in the full side-by-side comparison, so a separate crop is not needed. The repeated evidence is the plan icon, label, name, price, and saved-state line across all three screens.
+
+## Browser verification
+
+- Browser-rendered Login and Join were inspected at 390 × 844.
+- Primary auth links were verified to preserve both `plan` and `next`.
+- No forms were submitted and no checkout session was created.
+- Console errors checked: none.
+
+## Comparison history
+
+- First pass: Join's checkout action still read `Create free account first`, which weakened the forward path.
+- Fix: changed the checkout-intent action to `Create account & continue`.
+- Post-fix evidence: `artifacts/auth-plan-continuity/02-join-mobile.png` and the combined comparison show the revised action with no new wrapping or overflow.
+
+## Verification
+
+- Focused lint: passed.
+- Focused tests: 5 files, 32 tests passed.
+- Typecheck: passed.
+- Production build: passed; 280 routes generated.
+- Diff whitespace check: passed (line-ending warnings only).
+
+final result: passed
+
+---
+
 # Mobile action-label wrapping QA
 
 - Source visual truth paths: `C:\Users\nmein\.codex\codex-remote-attachments\01a097f7-f6d6-7610-b5e5-43c9af75cefe\C39DCDCB-6C61-4595-ABA9-3BEF4DDD61A3\1-Photo-1.jpg` and `C:\Users\nmein\.codex\codex-remote-attachments\01a097f7-f6d6-7610-b5e5-43c9af75cefe\C39DCDCB-6C61-4595-ABA9-3BEF4DDD61A3\2-Pasted-Image-2.jpg`.

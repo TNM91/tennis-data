@@ -17,7 +17,7 @@ import { getDefaultProductHomeRoute } from '@/lib/post-login-route'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
-import { getMembershipTier, type MembershipTierId } from '@/lib/product-story'
+import { getPricingPlan, type BillablePricingPlanId } from '@/lib/pricing-plans'
 import { getPlanDestinationHref, getPlanUnlockHref, isSafeLocalNextHref } from '@/lib/plan-intent'
 import { PAID_CHECKOUT_ENABLED } from '@/lib/paid-checkout'
 import { getAuthEntryNextIntent } from '@/lib/auth-entry-next-intent'
@@ -26,10 +26,10 @@ import { getCaptainPilotSourceFromHref } from '@/lib/captain-pilot-source'
 import { isScorecardSignupIntent, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
 import { getPlayerProfileAcquisitionSource, getPlayerProfileConnectPlayerId } from '@/lib/player-profile-acquisition'
 import { supabase } from '@/lib/supabase'
+import { getAuthEntryPlanId } from '@/lib/auth-entry-hrefs'
+import AuthPlanContinuity from '@/app/components/auth-plan-continuity'
 
-const JOIN_PLAN_IDS: MembershipTierId[] = ['free', 'player_plus', 'coach', 'captain', 'league', 'full_court']
-
-const JOIN_INTENT_COPY: Record<MembershipTierId, {
+const JOIN_INTENT_COPY: Record<BillablePricingPlanId, {
   eyebrow: string
   mobileTitle: string
   desktopTitle: string
@@ -92,18 +92,38 @@ const JOIN_INTENT_COPY: Record<MembershipTierId, {
     formCue: 'Signup creates Free access. Activate Full-Court next, then support players, teams, leagues, and events from one account.',
     success: 'Free account created. Sign in, then activate Full-Court to support every tennis role.',
   },
+  club_starter: {
+    eyebrow: 'Club path',
+    mobileTitle: 'Set up your club account.',
+    desktopTitle: 'Create your account. Then activate Club Starter.',
+    mobileText: 'Create your account first. Club Starter checkout opens after email confirmation.',
+    desktopText: 'Create your account first, then continue to secure checkout for one branded Club workspace.',
+    formCue: 'Confirm your email to continue to Club Starter checkout.',
+    success: 'Account created. Confirm your email to continue to Club Starter checkout.',
+  },
+  club_unlimited: {
+    eyebrow: 'Club path',
+    mobileTitle: 'Set up your club account.',
+    desktopTitle: 'Create your account. Then activate Club Unlimited.',
+    mobileText: 'Create your account first. Club Unlimited checkout opens after email confirmation.',
+    desktopText: 'Create your account first, then continue to secure checkout for your unlimited Club workspace.',
+    formCue: 'Confirm your email to continue to Club Unlimited checkout.',
+    success: 'Account created. Confirm your email to continue to Club Unlimited checkout.',
+  },
 }
 
-const JOIN_SELECTED_PLAN_COPY: Record<MembershipTierId, string> = {
+const JOIN_SELECTED_PLAN_COPY: Record<BillablePricingPlanId, string> = {
   free: 'Search the tennis map first. Upgrade only when a specific tennis need calls for more support.',
   player_plus: 'Player starts from Free, then opens My Lab for your game, matchup prep, follows, and messages.',
   coach: 'Coach starts from Free, then opens Coach Hub for lessons, assignments, player proof, and follow-through.',
   captain: 'Captain starts from Free, then opens Team Hub for availability, lineups, scouting, and team messages.',
   league: 'League starts from Free, then opens League Office for one season of schedules, scores, and standings.',
   full_court: 'Full-Court starts from Free, then opens every role path plus unlimited Tournament Desk runs.',
+  club_starter: 'Club Starter begins after secure checkout, then opens one branded Club workspace for staff and players.',
+  club_unlimited: 'Club Unlimited begins after secure checkout, then opens the full branded Club workspace without staff or player caps.',
 }
 
-function getJoinNextRoute(planId: MembershipTierId) {
+function getJoinNextRoute(planId: BillablePricingPlanId) {
   return getPlanUnlockHref(planId, getPlanDestinationHref(planId))
 }
 
@@ -114,7 +134,7 @@ function getDefaultSignedInRoute(
   return getDefaultProductHomeRoute(role, entitlements)
 }
 
-function buildJoinLoginHref(planId: MembershipTierId, nextHref: string, email = '') {
+function buildJoinLoginHref(planId: BillablePricingPlanId, nextHref: string, email = '') {
   const loginParams = new URLSearchParams({
     plan: planId,
     next: nextHref,
@@ -154,10 +174,8 @@ function JoinContent() {
   const { isMobile } = useViewportBreakpoints()
   const requestedPlan = searchParams.get('plan')
   const requestedEmail = searchParams.get('email')?.trim() ?? ''
-  const selectedPlanId: MembershipTierId = JOIN_PLAN_IDS.includes(requestedPlan as MembershipTierId)
-    ? (requestedPlan as MembershipTierId)
-    : 'free'
-  const selectedTier = getMembershipTier(selectedPlanId)
+  const selectedPlanId = getAuthEntryPlanId(requestedPlan)
+  const selectedTier = getPricingPlan(selectedPlanId)
   const requestedNextRoute = searchParams.get('next')
   const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, getJoinNextRoute(selectedPlanId))
   const checkoutSignup = PAID_CHECKOUT_ENABLED && selectedPlanId !== 'free' && selectedNextRoute.startsWith('/upgrade?') &&
@@ -380,6 +398,7 @@ function JoinContent() {
               <p style={formIntroStyle}>
                 {isMobile ? selectedIntent.mobileText : selectedIntent.desktopText}
               </p>
+              {selectedPlanId !== 'free' ? <AuthPlanContinuity planId={selectedPlanId} step="account" /> : null}
 
               {playerConnectRecord ? (
                 <div aria-label="Player record to connect" style={playerConnectRecordStyle}>
@@ -525,6 +544,8 @@ function JoinContent() {
                   ? 'Creating account...'
                   : availabilityEntry
                     ? 'Create account & continue'
+                    : checkoutSignup
+                      ? 'Create account & continue'
                     : isCaptainPilotSignup
                     ? 'Create account to start 3 months free'
                     : selectedPlanId === 'free'
@@ -545,7 +566,7 @@ function JoinContent() {
           </div>
         </div>
 
-        {!availabilityEntry && (selectedPlanId !== 'free' || nextIntent) ? <details className="authOptionalDetailsSection" style={selectedPlanCardStyle}>
+        {!availabilityEntry && ((!checkoutSignup && selectedPlanId !== 'free') || nextIntent) ? <details className="authOptionalDetailsSection" style={selectedPlanCardStyle}>
           <summary style={selectedPlanSummaryStyle}>
             <span style={selectedPlanSummaryTextStyle}>
               <span style={selectedPlanLabelStyle}>Selected start</span>

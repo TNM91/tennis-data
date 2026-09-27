@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { isSafeLocalNextHref } from '@/lib/plan-intent'
-import { type MembershipTierId } from '@/lib/product-story'
+import { getPricingPlan, type BillablePricingPlanId } from '@/lib/pricing-plans'
 import { getCaptainPilotSourceFromHref, normalizeCaptainPilotSource } from '@/lib/captain-pilot-source'
 import { getScorecardClaimPlayerId, isScorecardSignupIntent, SCORECARD_SIGNUP_SOURCE } from '@/lib/scorecard-signup'
 import { getPlayerProfileAcquisitionSource } from '@/lib/player-profile-acquisition'
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   const email = cleanEmail(body.email)
   const firstName = cleanFirstName(body.firstName)
   const password = typeof body.password === 'string' ? body.password : ''
-  const planId = isMembershipTierId(body.planId) ? body.planId : 'free'
+  const planId = isBillablePricingPlanId(body.planId) ? body.planId : 'free'
   const intent: SignupEmailIntent = body.captainPilot === true && planId === 'captain' ? 'captain-pilot' : planId
   const fallbackNextHref = getDefaultNextHref(planId, intent)
   const nextHref = isSafeLocalNextHref(typeof body.nextHref === 'string' ? body.nextHref : null, fallbackNextHref)
@@ -143,21 +143,26 @@ export async function POST(request: Request) {
   return Response.json({ ok: true })
 }
 
-function isMembershipTierId(value: unknown): value is MembershipTierId {
+function isBillablePricingPlanId(value: unknown): value is BillablePricingPlanId {
   return isSignupEmailIntent(value) && value !== 'captain-pilot'
 }
 
-function getDefaultNextHref(planId: MembershipTierId, intent: SignupEmailIntent) {
+function getDefaultNextHref(planId: BillablePricingPlanId, intent: SignupEmailIntent) {
   if (intent === 'captain-pilot') return '/captain-pilot'
   if (planId === 'free') return '/explore'
-  if (planId === 'player_plus') return '/upgrade?plan=player_plus&next=%2Fprofile'
-  if (planId === 'coach') return '/upgrade?plan=coach&next=%2Fcoach'
-  if (planId === 'captain') return '/upgrade?plan=captain&next=%2Fcaptain'
-  if (planId === 'league') return '/upgrade?plan=league&next=%2Fleague-coordinator'
-  return '/upgrade?plan=full_court&next=%2Fleague-coordinator'
+  const destination = planId === 'player_plus'
+    ? '/profile'
+    : planId === 'coach'
+      ? '/coach'
+      : planId === 'captain'
+        ? '/captain'
+        : planId === 'club_starter' || planId === 'club_unlimited'
+          ? '/clubs'
+          : '/league-coordinator'
+  return `/upgrade?plan=${planId}&next=${encodeURIComponent(destination)}&checkout=auto`
 }
 
-function buildConfirmationRedirect(planId: MembershipTierId, nextHref: string, email: string, isScorecardSignup = false) {
+function buildConfirmationRedirect(planId: BillablePricingPlanId, nextHref: string, email: string, isScorecardSignup = false) {
   const redirect = new URL('https://tenaceiq.com/welcome')
   redirect.searchParams.set('plan', planId)
   redirect.searchParams.set('next', nextHref)
@@ -169,7 +174,7 @@ function buildConfirmationRedirect(planId: MembershipTierId, nextHref: string, e
 function subjectForIntent(intent: SignupEmailIntent) {
   if (intent === 'captain-pilot') return 'Welcome to TenAceiQ — start your Captain Pilot'
   if (intent === 'free') return 'Welcome to TenAceiQ — confirm your free account'
-  return `Welcome to TenAceiQ — continue to ${intent === 'player_plus' ? 'Player' : intent === 'full_court' ? 'Full-Court' : intent[0].toUpperCase() + intent.slice(1)}`
+  return `Welcome to TenAceiQ — continue to ${getPricingPlan(intent).name}`
 }
 
 function cleanEmail(value: unknown) {

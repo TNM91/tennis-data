@@ -122,7 +122,7 @@ describe('auth entry mobile layout guards', () => {
     expect(source).toContain('const selectedNextRoute = isSafeLocalNextHref(requestedNextRoute, getJoinNextRoute(selectedPlanId))')
     expect(source).toContain('const signedInRedirectRoute = requestedNextRoute ? selectedNextRoute : getDefaultSignedInRoute(role, entitlements)')
     expect(source).toContain('router.replace(signedInRedirectRoute)')
-    expect(source).toContain('function buildJoinLoginHref(planId: MembershipTierId, nextHref: string, email = \'\')')
+    expect(source).toContain('function buildJoinLoginHref(planId: BillablePricingPlanId, nextHref: string, email = \'\')')
     expect(source).toContain('const cleanEmail = email.trim()')
     expect(source).toContain("if (cleanEmail) loginParams.set('email', cleanEmail)")
     expect(source).toContain('const signInHref = buildJoinLoginHref(selectedPlanId, selectedNextRoute, email || requestedEmail)')
