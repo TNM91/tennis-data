@@ -1,0 +1,294 @@
+.shell {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(155, 225, 29, 0.5);
+  border-radius: 20px;
+  background-color: rgba(5, 20, 37, 0.98);
+  box-shadow: 0 24px 64px rgba(2, 8, 23, 0.36);
+}
+
+.shell::after {
+  position: absolute;
+  right: -39%;
+  bottom: 50px;
+  width: 98%;
+  height: 50%;
+  content: '';
+  pointer-events: none;
+  opacity: 0.09;
+  background: url('/tiq/courts/tiq-court-master.png') right bottom / contain no-repeat;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 48%);
+}
+
+.planHeader,
+.copy,
+.benefits,
+.details,
+.checkoutSummary,
+.primaryAction,
+.status,
+.error,
+.secondaryActions {
+  position: relative;
+  z-index: 1;
+}
+
+.planHeader {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 14px;
+  background-color: rgba(8, 28, 50, 0.82);
+}
+
+.planIdentity {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.planIdentity span,
+.price small {
+  color: var(--brand-blue-2);
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.planIdentity strong {
+  overflow-wrap: anywhere;
+  color: var(--foreground-strong);
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.price {
+  display: grid;
+  gap: 2px;
+  justify-items: end;
+  min-width: 0;
+  text-align: right;
+}
+
+.price strong {
+  color: var(--brand-green);
+  font-size: 13px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.price small {
+  max-width: 110px;
+  overflow-wrap: anywhere;
+  color: var(--shell-copy-muted);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.copy {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 4px 3px 0;
+}
+
+.copy h1 {
+  max-width: 330px;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--foreground-strong);
+  font-size: clamp(1.85rem, 9vw, 2.3rem);
+  font-weight: 950;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+}
+
+.copy p {
+  max-width: 330px;
+  margin: 0;
+  color: var(--shell-copy-muted);
+  font-size: 13px;
+  font-weight: 720;
+  line-height: 1.42;
+}
+
+.benefits {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.benefits li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  min-width: 0;
+  color: var(--foreground-strong);
+  font-size: 12px;
+  font-weight: 820;
+  line-height: 1.35;
+}
+
+.benefits svg {
+  margin-top: 1px;
+  color: var(--brand-green);
+}
+
+.details {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(116, 190, 255, 0.14);
+  border-radius: 11px;
+  background-color: rgba(9, 25, 47, 0.66);
+}
+
+.details summary {
+  min-height: 42px;
+  padding: 12px;
+  color: var(--brand-blue-2);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 950;
+  list-style-position: inside;
+}
+
+.detailsBody {
+  display: grid;
+  gap: 8px;
+  padding: 0 12px 12px;
+  color: var(--shell-copy-muted);
+  font-size: 12px;
+  font-weight: 720;
+  line-height: 1.4;
+}
+
+.detailsBody p,
+.detailsBody ul {
+  margin: 0;
+}
+
+.detailsBody ul {
+  display: grid;
+  gap: 5px;
+  padding-left: 18px;
+}
+
+.checkoutSummary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(155, 225, 29, 0.18);
+  border-radius: 12px;
+  background-color: rgba(16, 57, 48, 0.54);
+  color: var(--brand-green);
+}
+
+.checkoutSummary > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.checkoutSummary strong {
+  color: var(--foreground-strong);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.checkoutSummary span {
+  overflow-wrap: anywhere;
+  color: var(--shell-copy-muted);
+  font-size: 10px;
+  font-weight: 720;
+  line-height: 1.35;
+}
+
+.primaryAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 50px;
+  padding: 0 16px;
+  border: 1px solid rgba(155, 225, 29, 0.78);
+  border-radius: 999px;
+  background-color: var(--brand-green);
+  box-shadow: 0 14px 28px rgba(155, 225, 29, 0.17);
+  color: #06172f;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 950;
+  text-align: center;
+  text-decoration: none;
+}
+
+.primaryAction:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.status,
+.error {
+  margin: -2px 4px 0;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  font-weight: 780;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.status { color: var(--shell-copy-muted); }
+.error { color: #fecaca; }
+
+.secondaryActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 16px;
+  min-width: 0;
+}
+
+.secondaryActions a {
+  min-height: 40px;
+  padding: 11px 2px;
+  color: var(--brand-blue-2);
+  font-size: 11px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.primaryAction:focus-visible,
+.secondaryActions a:focus-visible,
+.details summary:focus-visible {
+  outline: 2px solid rgba(155, 225, 29, 0.92);
+  outline-offset: 3px;
+}
+
+@media (max-width: 374px) {
+  .shell { padding: 10px; }
+  .planHeader { grid-template-columns: auto minmax(0, 1fr); }
+  .price { grid-column: 2; justify-items: start; text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryAction { scroll-behavior: auto; }
+}
