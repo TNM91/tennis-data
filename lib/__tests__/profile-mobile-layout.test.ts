@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/profile/page.tsx'), 'utf8')
+const planCardSource = readFileSync(join(process.cwd(), 'app/profile/profile-plan-card.tsx'), 'utf8')
+const planCardStyles = readFileSync(join(process.cwd(), 'app/profile/profile-plan-card.module.css'), 'utf8')
 const globalsSource = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
 
 function styleBlock(styleName: string) {
@@ -67,7 +69,6 @@ describe('Profile mobile layout guards', () => {
     for (const styleName of [
       'heroTitleStyle',
       'heroTextStyle',
-      'billingMessageStyle',
       'primaryButtonStyle',
       'secondaryButtonStyle',
       'metricLabelStyle',
@@ -116,5 +117,18 @@ describe('Profile mobile layout guards', () => {
     expect(source).not.toContain("'auto minmax(0, 1fr)'")
     expect(source).not.toContain("gridTemplateColumns: 'repeat(3, minmax(0, 1fr))'")
     expect(source).not.toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
+  })
+
+  it('keeps the active plan and secure Stripe handoff near the top on phones', () => {
+    expect(source).toContain('<ProfilePlanCard')
+    expect(source.indexOf('<ProfilePlanCard')).toBeLessThan(source.indexOf('id="profile-identity"'))
+    expect(source).toContain("billingPlanStatus === 'past_due'")
+    expect(source).toContain("billingPlanStatus === 'canceled'")
+    expect(planCardSource).toContain('data-profile-plan-card="true"')
+    expect(planCardSource).toContain('Payment methods, invoices, and cancellation open securely in Stripe.')
+    expect(planCardSource.match(/Manage billing/g)).toHaveLength(1)
+    expect(planCardStyles).toContain('min-height: 50px')
+    expect(planCardStyles).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))')
+    expect(planCardStyles).toContain('@media (max-width: 374px)')
   })
 })

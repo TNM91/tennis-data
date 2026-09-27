@@ -5,9 +5,10 @@ import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
+import ProfilePlanCard from './profile-plan-card'
 import { useAuth } from '@/app/components/auth-provider'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
-import { buildProductAccessState } from '@/lib/access-model'
+import { buildProductAccessState, normalizeSubscriptionStatus } from '@/lib/access-model'
 import { cleanText, formatRating } from '@/lib/captain-formatters'
 import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
 import { writeLocalProfileLink } from '@/lib/profile-link-storage'
@@ -30,6 +31,7 @@ import { buildScorecardPlayerLoginHref, getScorecardClaimMatchId, getScorecardCl
 import { describeClaimResult, prioritizeClaimMatch, type ClaimResult } from '@/lib/scorecard-claim-welcome'
 import { buildPlayerProfileConnectHref, getPlayerProfileAcquisitionSource, getPlayerProfileConnectPlayerId } from '@/lib/player-profile-acquisition'
 import { getPlanUnlockHref } from '@/lib/plan-intent'
+import { getPricingBillingCue, getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
 import { MEMBERSHIP_TIERS, MY_LAB_STORY } from '@/lib/product-story'
 import { buildProfileTeamSummaries, getProfileMatchDataState, type ProfileMatchContext } from '@/lib/profile-team-context'
 
@@ -84,6 +86,15 @@ const PROFILE_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competi
 const PROFILE_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(PROFILE_PLAYER_IDENTITY)
 const PROFILE_LEVEL_UP_HREF = `/level-up/${PROFILE_PLAYER_IDENTITY.slug}#level-up-flow`
 const PROFILE_PLAYER_DEVELOPMENT_HREF = `/player-development/${PROFILE_PLAYER_IDENTITY.slug}`
+
+const PROFILE_PLAN_DESTINATIONS: Record<PricingPlanId, { href: string; label: string }> = {
+  free: { href: '/explore', label: 'Explore' },
+  player_plus: { href: '/mylab', label: 'My Lab' },
+  coach: { href: '/coach', label: 'Coach Hub' },
+  captain: { href: '/captain', label: 'Team Hub' },
+  league: { href: '/league-coordinator', label: 'League Office' },
+  full_court: { href: '/manage', label: 'Full-Court' },
+}
 
 const PROFILE_PLAYER_SELECT_BASE = `
   id,
@@ -307,6 +318,7 @@ function ProfilePageInner() {
   const [syncingProfile, setSyncingProfile] = useState(false)
   const [billingPortalOpening, setBillingPortalOpening] = useState(false)
   const [billingMessage, setBillingMessage] = useState('')
+  const [billingMessageIsError, setBillingMessageIsError] = useState(false)
   const [captainSetupEntry, setCaptainSetupEntry] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -328,7 +340,8 @@ function ProfilePageInner() {
     setProfileConnectPlayerId(getPlayerProfileConnectPlayerId(`/profile${window.location.search}${window.location.hash}`))
     setScorecardClaimMatchId(getScorecardClaimMatchId(`/profile${window.location.search}`))
     if (params.get('billing') === 'returned') {
-      setBillingMessage('Billing management closed. Your access will reflect the latest Stripe updates.')
+      setBillingMessage('Back from Stripe. Your access will reflect any billing changes.')
+      setBillingMessageIsError(false)
     }
   }, [])
 
@@ -739,6 +752,7 @@ function ProfilePageInner() {
 
     setBillingPortalOpening(true)
     setBillingMessage('')
+    setBillingMessageIsError(false)
     setError('')
 
     try {
@@ -775,6 +789,7 @@ function ProfilePageInner() {
       window.location.assign(body.url)
     } catch (err) {
       setBillingMessage(err instanceof Error ? err.message : 'Billing portal could not be opened.')
+      setBillingMessageIsError(true)
       setBillingPortalOpening(false)
     }
   }
@@ -817,10 +832,63 @@ function ProfilePageInner() {
   const activationSecondary = access.canUseAdvancedPlayerInsights
     ? { href: profileMatchupHref, label: 'Prep matchup' }
     : { href: playerUpgradeHref, label: playerToolsActionLabel }
+  const playerBillingStatus = normalizeSubscriptionStatus(entitlements?.playerPlusSubscriptionStatus)
+  const coachBillingStatus = normalizeSubscriptionStatus(entitlements?.coachSubscriptionStatus)
+  const captainBillingStatus = normalizeSubscriptionStatus(entitlements?.captainSubscriptionStatus)
+  const hasFullCourtBillingTrail = [playerBillingStatus, coachBillingStatus, captainBillingStatus]
+    .every((status) => status !== 'inactive')
+  const billingPlanId: PricingPlanId = access.currentPlanId !== 'free'
+    ? access.currentPlanId
+    : hasFullCourtBillingTrail
+      ? 'full_court'
+      : captainBillingStatus !== 'inactive'
+        ? 'captain'
+        : coachBillingStatus !== 'inactive'
+          ? 'coach'
+          : playerBillingStatus !== 'inactive'
+            ? 'player_plus'
+            : 'free'
+  const billingPlan = getPricingPlan(billingPlanId)
+  const billingPlanStatus = billingPlanId === 'full_court' || billingPlanId === 'captain'
+    ? captainBillingStatus
+    : billingPlanId === 'coach'
+      ? coachBillingStatus
+      : billingPlanId === 'player_plus'
+        ? playerBillingStatus
+        : 'inactive'
+  const billingStatusLabel = billingPlan.billing.checkoutMode === 'none'
+    ? 'Free'
+    : billingPlan.billing.checkoutMode === 'one_time'
+      ? 'Active'
+      : billingPlanStatus === 'trial'
+        ? 'Trial'
+        : billingPlanStatus === 'past_due'
+          ? 'Payment needed'
+          : billingPlanStatus === 'canceled'
+            ? 'Canceled'
+            : 'Active'
+  const billingTone = billingPlanStatus === 'past_due' || billingPlanStatus === 'canceled'
+    ? 'attention' as const
+    : billingPlan.billing.checkoutMode === 'none'
+      ? 'neutral' as const
+      : 'active' as const
+  const billingSummary = billingPlan.billing.checkoutMode === 'none'
+    ? 'No card or subscription is required. Compare plans only when a paid tennis tool would help.'
+    : billingPlan.billing.checkoutMode === 'one_time'
+      ? 'This is a one-time season fee. New league entries and receipts stay tied to your account.'
+      : billingPlanStatus === 'trial'
+        ? 'Your trial is active. Stripe shows the first charge date, payment method, and invoices.'
+        : billingPlanStatus === 'past_due'
+          ? 'Payment needs attention. Open Stripe to update the payment method and restore paid access.'
+          : billingPlanStatus === 'canceled'
+            ? 'This subscription is canceled. Stripe keeps the final invoices and billing history.'
+            : 'Renews monthly through Stripe. Manage invoices, payment method, or cancellation securely.'
   const canManageBilling = Boolean(
     userId &&
-    (access.canUseAdvancedPlayerInsights || access.canUseCaptainWorkflow),
+    billingPlan.billing.checkoutMode === 'subscription' &&
+    billingPlanStatus !== 'inactive',
   )
+  const billingDestination = PROFILE_PLAN_DESTINATIONS[billingPlanId]
   const profileDisplayName = profile?.linked_player_name || selectedPlayer?.name || typedPlayerNameClean || 'Choose player'
   const selfRatingValue = normalizeSelfRating(selfRating)
   const isSelfRatedProfile = primaryRating?.rating_source === 'self' || typedProfileActive
@@ -950,8 +1018,25 @@ function ProfilePageInner() {
               <Link href={profileSignInHref} style={primaryButtonStyle}>Sign in</Link>
             )}
           </div>
-          {billingMessage ? <div style={billingMessageStyle}>{billingMessage}</div> : null}
         </section>
+      ) : null}
+
+      {signedIn ? (
+        <ProfilePlanCard
+          planName={billingPlan.name}
+          priceLabel={billingPlan.priceLabel}
+          billingLabel={getPricingBillingCue(billingPlanId)}
+          statusLabel={billingStatusLabel}
+          summary={billingSummary}
+          tone={billingTone}
+          destinationHref={billingDestination.href}
+          destinationLabel={billingDestination.label}
+          canManageBilling={canManageBilling}
+          billingPortalOpening={billingPortalOpening}
+          billingMessage={billingMessage}
+          billingMessageIsError={billingMessageIsError}
+          onManageBilling={() => void openBillingPortal()}
+        />
       ) : null}
 
       {signedIn && connectionCandidate ? (
@@ -1412,20 +1497,6 @@ function ProfilePageInner() {
                 ) : (
                   <Link href="/explore/players" style={secondaryButtonStyle}>Find players</Link>
                 )}
-                {canManageBilling ? (
-                  <button
-                    type="button"
-                    onClick={() => void openBillingPortal()}
-                    disabled={billingPortalOpening}
-                    style={{
-                      ...secondaryButtonStyle,
-                      opacity: billingPortalOpening ? 0.72 : 1,
-                      cursor: billingPortalOpening ? 'wait' : 'pointer',
-                    }}
-                  >
-                    {billingPortalOpening ? 'Opening billing...' : 'Manage billing'}
-                  </button>
-                ) : null}
               </div>
 
               {selectedPlayerId && selectedPlayerTeams.length ? (
@@ -1602,17 +1673,6 @@ const heroTextStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: '0.95rem',
   lineHeight: 1.5,
-  overflowWrap: 'anywhere',
-}
-
-const billingMessageStyle: CSSProperties = {
-  position: 'relative',
-  zIndex: 1,
-  marginTop: 12,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.45,
-  fontWeight: 750,
   overflowWrap: 'anywhere',
 }
 
