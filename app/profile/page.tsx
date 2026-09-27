@@ -87,13 +87,22 @@ const PROFILE_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(PROF
 const PROFILE_LEVEL_UP_HREF = `/level-up/${PROFILE_PLAYER_IDENTITY.slug}#level-up-flow`
 const PROFILE_PLAYER_DEVELOPMENT_HREF = `/player-development/${PROFILE_PLAYER_IDENTITY.slug}`
 
-const PROFILE_PLAN_DESTINATIONS: Record<PricingPlanId, { href: string; label: string }> = {
-  free: { href: '/explore', label: 'Explore' },
-  player_plus: { href: '/mylab', label: 'My Lab' },
-  coach: { href: '/coach', label: 'Coach Hub' },
-  captain: { href: '/captain', label: 'Team Hub' },
-  league: { href: '/league-coordinator', label: 'League Office' },
-  full_court: { href: '/manage', label: 'Full-Court' },
+const PROFILE_PLAN_DESTINATIONS: Record<PricingPlanId, { href: string; actionLabel: string }> = {
+  free: { href: '/explore', actionLabel: 'Explore tennis' },
+  player_plus: { href: '/mylab', actionLabel: 'Open My Lab' },
+  coach: { href: '/coach', actionLabel: 'Open Coach Hub' },
+  captain: { href: '/captain', actionLabel: 'Open Team Hub' },
+  league: { href: '/league-coordinator', actionLabel: 'Open League Office' },
+  full_court: { href: '/manage', actionLabel: 'Manage tennis' },
+}
+
+const PROFILE_PLAN_ACCESS_SUMMARIES: Record<PricingPlanId, string> = {
+  free: 'Explore public players, teams, leagues, rankings, and tennis intelligence.',
+  player_plus: 'My Lab, matchup insight, and your personalized player tools are unlocked.',
+  coach: 'My Lab and Coach Hub player-development tools are unlocked.',
+  captain: 'My Lab and Team Hub match-week tools are unlocked.',
+  league: 'League Office and competition tools are unlocked for this season.',
+  full_court: 'Player, coach, team, and league tools are unlocked.',
 }
 
 const PROFILE_PLAYER_SELECT_BASE = `
@@ -872,23 +881,30 @@ function ProfilePageInner() {
     : billingPlan.billing.checkoutMode === 'none'
       ? 'neutral' as const
       : 'active' as const
+  const planAccessSummary = PROFILE_PLAN_ACCESS_SUMMARIES[billingPlanId]
   const billingSummary = billingPlan.billing.checkoutMode === 'none'
-    ? 'No card or subscription is required. Compare plans only when a paid tennis tool would help.'
+    ? planAccessSummary
     : billingPlan.billing.checkoutMode === 'one_time'
-      ? 'This is a one-time season fee. New league entries and receipts stay tied to your account.'
+      ? `${planAccessSummary} This is a one-time season fee.`
       : billingPlanStatus === 'trial'
-        ? 'Your trial is active. Stripe shows the first charge date, payment method, and invoices.'
+        ? `${planAccessSummary} Trial billing details are in Stripe.`
         : billingPlanStatus === 'past_due'
           ? 'Payment needs attention. Open Stripe to update the payment method and restore paid access.'
           : billingPlanStatus === 'canceled'
             ? 'This subscription is canceled. Stripe keeps the final invoices and billing history.'
-            : 'Renews monthly through Stripe. Manage invoices, payment method, or cancellation securely.'
+            : planAccessSummary
   const canManageBilling = Boolean(
     userId &&
     billingPlan.billing.checkoutMode === 'subscription' &&
     billingPlanStatus !== 'inactive',
   )
-  const billingDestination = PROFILE_PLAN_DESTINATIONS[billingPlanId]
+  const billingDestination = billingPlanId === 'full_court'
+    ? access.role === 'captain'
+      ? PROFILE_PLAN_DESTINATIONS.captain
+      : access.role === 'member'
+        ? PROFILE_PLAN_DESTINATIONS.player_plus
+        : PROFILE_PLAN_DESTINATIONS.full_court
+    : PROFILE_PLAN_DESTINATIONS[billingPlanId]
   const profileDisplayName = profile?.linked_player_name || selectedPlayer?.name || typedPlayerNameClean || 'Choose player'
   const selfRatingValue = normalizeSelfRating(selfRating)
   const isSelfRatedProfile = primaryRating?.rating_source === 'self' || typedProfileActive
@@ -1030,7 +1046,8 @@ function ProfilePageInner() {
           summary={billingSummary}
           tone={billingTone}
           destinationHref={billingDestination.href}
-          destinationLabel={billingDestination.label}
+          destinationActionLabel={billingDestination.actionLabel}
+          isPaidPlan={billingPlan.billing.checkoutMode !== 'none'}
           canManageBilling={canManageBilling}
           billingPortalOpening={billingPortalOpening}
           billingMessage={billingMessage}

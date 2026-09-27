@@ -19,7 +19,8 @@ export default function ProfilePlanCard({
   summary,
   tone,
   destinationHref,
-  destinationLabel,
+  destinationActionLabel,
+  isPaidPlan,
   canManageBilling,
   billingPortalOpening,
   billingMessage,
@@ -33,7 +34,8 @@ export default function ProfilePlanCard({
   summary: string
   tone: PlanTone
   destinationHref: string
-  destinationLabel: string
+  destinationActionLabel: string
+  isPaidPlan: boolean
   canManageBilling: boolean
   billingPortalOpening: boolean
   billingMessage: string
@@ -41,6 +43,7 @@ export default function ProfilePlanCard({
   onManageBilling: () => void
 }) {
   const StatusIcon = tone === 'attention' ? WarningCircleIcon : CheckCircleIcon
+  const billingNeedsAttention = tone === 'attention' && canManageBilling
 
   return (
     <section className={styles.card} data-profile-plan-card="true" aria-labelledby="profile-plan-title">
@@ -70,19 +73,38 @@ export default function ProfilePlanCard({
       <p className={styles.summary}>{summary}</p>
 
       <div className={styles.actions}>
-        {canManageBilling ? (
+        {billingNeedsAttention ? (
           <button type="button" onClick={onManageBilling} disabled={billingPortalOpening}>
             <CreditCardIcon aria-hidden="true" size={19} weight="bold" />
             {billingPortalOpening ? 'Opening Stripe…' : 'Manage billing'}
             <ArrowRightIcon aria-hidden="true" size={18} weight="bold" />
           </button>
+        ) : isPaidPlan ? (
+          <Link href={destinationHref} className={styles.primaryLink}>
+            {destinationActionLabel}
+            <ArrowRightIcon aria-hidden="true" size={18} weight="bold" />
+          </Link>
         ) : (
           <Link href="/pricing" className={styles.primaryLink}>
             Compare plans
             <ArrowRightIcon aria-hidden="true" size={18} weight="bold" />
           </Link>
         )}
-        <Link href={destinationHref} className={styles.destinationLink}>Open {destinationLabel}</Link>
+        {billingNeedsAttention ? (
+          <Link href={destinationHref} className={styles.destinationLink}>{destinationActionLabel}</Link>
+        ) : canManageBilling ? (
+          <button
+            type="button"
+            className={styles.billingButton}
+            onClick={onManageBilling}
+            disabled={billingPortalOpening}
+          >
+            <CreditCardIcon aria-hidden="true" size={16} weight="bold" />
+            {billingPortalOpening ? 'Opening…' : 'Manage billing'}
+          </button>
+        ) : !isPaidPlan ? (
+          <Link href={destinationHref} className={styles.destinationLink}>{destinationActionLabel}</Link>
+        ) : null}
       </div>
 
       {billingMessage ? (
