@@ -630,7 +630,7 @@ function UpgradeContent({
   const isPublic = resolvedRole === 'public'
   const isPaidPlan = plan.billing.checkoutMode !== 'none'
   const readyToActivate = isPaidPlan && !hasAccess && (isPublic || !authLoading)
-  const showAccessRequest = readyToActivate && (
+  const showAccessRequest = !checkoutSuccessMessage && readyToActivate && (
     !PAID_CHECKOUT_ENABLED ||
     (!isPublic && (checkoutSubmitting || Boolean(checkoutError) || checkoutReturnState === 'cancel'))
   )
@@ -668,7 +668,6 @@ function UpgradeContent({
     if (authLoading || checkoutReturnState !== 'success' || !checkoutReturnRequestId || isPublic) return
 
     let active = true
-    let redirectTimeout: number | undefined
 
     void (async () => {
       setCheckoutSubmitting(true)
@@ -712,11 +711,13 @@ function UpgradeContent({
             if (planId === 'player_plus') followTarget = peekFollowIntent(window.sessionStorage, nextHref, userId)
           } catch {}
           setCheckoutSuccessMessage(followTarget
-            ? `Player is active. Returning to ${getFollowTargetLabel(followTarget)} to finish your follow...`
-            : `${successHandoff.body} Opening ${getPlanDestinationLabel(planId)}...`)
-          redirectTimeout = window.setTimeout(() => {
-            window.location.replace(nextHref)
-          }, 2800)
+            ? `Player is active. Open ${getFollowTargetLabel(followTarget)} to finish your follow.`
+            : successHandoff.body)
+          const url = new URL(window.location.href)
+          url.searchParams.delete('checkout')
+          url.searchParams.delete('request')
+          url.searchParams.delete('session_id')
+          window.history.replaceState(window.history.state, '', url.toString())
         }
       } catch (error) {
         if (!active) return
@@ -727,9 +728,6 @@ function UpgradeContent({
 
     return () => {
       active = false
-      if (redirectTimeout) {
-        window.clearTimeout(redirectTimeout)
-      }
     }
   }, [
     authLoading,
@@ -854,9 +852,9 @@ function UpgradeContent({
           priceLabel={plan.priceLabel}
           alternatePriceNote={plan.alternatePriceNote}
           title={checkoutSuccessMessage ? successTitle : hasAccess ? `${plan.name} is already active.` : isMobile ? mobileCopy.title : copy.title}
-          body={hasAccess
-            ? checkoutSuccessMessage || `Your account already has the access needed for ${plan.name}. Open ${getPlanDestinationLabel(planId)} when you are ready.`
-            : plan.audience}
+          body={checkoutSuccessMessage || (hasAccess
+            ? `Your account already has the access needed for ${plan.name}. Open ${getPlanDestinationLabel(planId)} when you are ready.`
+            : plan.audience)}
           benefits={plan.valueProps}
           outcome={plan.outcome}
           destinationLabel={getPlanDestinationLabel(planId)}
@@ -865,7 +863,10 @@ function UpgradeContent({
           checkoutSubmitting={checkoutSubmitting}
           checkoutError={checkoutError}
           checkoutSuccessMessage={checkoutSuccessMessage}
-          primaryAction={readyToActivate
+          successSteps={successSteps}
+          primaryAction={checkoutSuccessMessage
+            ? { kind: 'link', href: nextHref, label: successHandoff.primaryAction }
+            : readyToActivate
             ? PAID_CHECKOUT_ENABLED
               ? isPublic
                 ? { kind: 'link', href: loginCheckoutHref, label: 'Sign in to continue' }
