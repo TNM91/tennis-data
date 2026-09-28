@@ -847,7 +847,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
         width: '100%',
         boxSizing: 'border-box',
         padding: collapseMobilePortal
-          ? '0 max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left))'
+          ? '0 max(8px, env(safe-area-inset-right)) 4px max(8px, env(safe-area-inset-left))'
           : publicVisitor
             ? isMobile
               ? '10px 8px 8px'
@@ -868,7 +868,7 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
           margin: '0 auto',
           display: 'grid',
           gap: publicVisitor ? 10 : isMobile ? 14 : 12,
-          padding: collapseMobilePortal ? '5px 0 0' : publicVisitor ? (isSmallMobile ? 12 : 14) : isSmallMobile ? 16 : isMobile ? 18 : 14,
+          padding: collapseMobilePortal ? '3px 0 0' : publicVisitor ? (isSmallMobile ? 12 : 14) : isSmallMobile ? 16 : isMobile ? 18 : 14,
           borderRadius: collapseMobilePortal ? 0 : publicVisitor ? (isSmallMobile ? 18 : 20) : isSmallMobile ? 24 : 28,
           border: collapseMobilePortal ? '0' : '1px solid rgba(116,190,255,0.15)',
           background: collapseMobilePortal ? 'transparent' : portalSurfaceBackground,
@@ -2069,13 +2069,13 @@ const mobilePortalScrollbarThumbStyle: CSSProperties = {
 const mobilePortalTileStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  gridTemplateRows: '34px minmax(0, auto)',
+  gridTemplateRows: '32px minmax(0, auto)',
   justifyItems: 'center',
   alignContent: 'center',
-  gap: 3,
-  minHeight: 64,
-  padding: '6px 4px',
-  borderRadius: 12,
+  gap: 1,
+  minHeight: 50,
+  padding: '2px 3px',
+  borderRadius: 10,
   border: '1px solid rgba(116,190,255,0.20)',
   background: 'rgba(255,255,255,0.055)',
   color: 'var(--foreground-strong)',
