@@ -12,6 +12,25 @@ export const maxDuration = 20
 
 const CAPTAIN_LINEUP_CACHE_TTL_SECONDS = 30
 
+type ScopedRosterRow = {
+  team_name: string | null
+  normalized_team_name: string | null
+  player_id: string | null
+  player_name: string | null
+  league_name: string | null
+  flight: string | null
+  rating_source: string | null
+  mixed_pair_role: string | null
+  age_division: string | null
+}
+
+type CaptainRosterAliasRow = {
+  scheduled_team_name: string | null
+  normalized_scheduled_team_name: string | null
+  source_team_name: string | null
+  normalized_source_team_name: string | null
+}
+
 const PLAYER_ROSTER_SELECT = `
   id,
   name,
@@ -93,7 +112,7 @@ export async function GET(request: Request) {
     return Response.json({
       ok: true,
       players: [], matches: [], matchPlayers: [], historicalLineMatches: [], historicalLineMatchPlayers: [], rosterMembers: [], availability: [],
-      captainRosterContacts: [], captainMessageContacts: [], savedScenarios: [], tiqTeamLeagueFormats: [],
+      availableOpponentRosters: [], captainRosterContacts: [], captainMessageContacts: [], savedScenarios: [], tiqTeamLeagueFormats: [],
     })
   }
 
@@ -272,6 +291,25 @@ export async function GET(request: Request) {
   const opponentRosterKeys = [...new Set([opponentName, ...scheduledOpponentNames]
     .flatMap((name) => [normalizeTeamName(name), normalizeUstaRosterTeamName(name)])
     .filter(Boolean))]
+  const savedRosterAliases = leagueName && flight
+    ? await resolveOptionalQuery(
+      'captain roster aliases',
+      service
+        .from('captain_roster_aliases')
+        .select('scheduled_team_name,normalized_scheduled_team_name,source_team_name,normalized_source_team_name')
+        .eq('normalized_captain_team_name', normalizeTeamRoomKey(teamName))
+        .eq('league_name', leagueName)
+        .eq('flight', flight)
+        .then((result) => result.data || []),
+      [] as CaptainRosterAliasRow[],
+    )
+    : []
+  const savedRosterAliasByOpponent = new Map<string, string>()
+  for (const alias of savedRosterAliases) {
+    const scheduledName = normalizeTeamName(alias.normalized_scheduled_team_name || alias.scheduled_team_name)
+    const sourceName = normalizeTeamName(alias.normalized_source_team_name || alias.source_team_name)
+    if (scheduledName && sourceName) savedRosterAliasByOpponent.set(scheduledName, sourceName)
+  }
   const scopedOpponentRosterRows = opponentRosterKeys.length
     ? await resolveOptionalQuery(
       'scheduled opponent rosters',
@@ -287,19 +325,29 @@ export async function GET(request: Request) {
         .in('normalized_team_name', opponentRosterKeys))
         .limit(1000)
         .then((result) => result.data || []),
-      [] as Array<{
-        team_name: string | null
-        normalized_team_name: string | null
-        player_id: string | null
-        player_name: string | null
-        league_name: string | null
-        flight: string | null
-        rating_source: string | null
-        mixed_pair_role: string | null
-        age_division: string | null
-      }>,
+      [] as ScopedRosterRow[],
     )
     : []
+  const availableOpponentRosters = [...new Map(scopedOpponentRosterRows
+    .filter((row) => normalizeTeamName(row.normalized_team_name || row.team_name) !== normalizedTeam)
+    .map((row) => {
+      const normalizedSourceName = normalizeTeamName(row.normalized_team_name || row.team_name)
+      return [normalizedSourceName, {
+        teamName: cleanAvailabilityText(row.team_name, 160),
+        normalizedTeamName: normalizedSourceName,
+        playerCount: 0,
+      }] as const
+    }))
+    .values()]
+    .map((candidate) => ({
+      ...candidate,
+      playerCount: new Set(scopedOpponentRosterRows
+        .filter((row) => normalizeTeamName(row.normalized_team_name || row.team_name) === candidate.normalizedTeamName)
+        .map((row) => row.player_id || normalizeTeamName(row.player_name))
+        .filter(Boolean)).size,
+    }))
+    .filter((candidate) => candidate.teamName && candidate.normalizedTeamName && candidate.playerCount)
+    .sort((left, right) => left.teamName.localeCompare(right.teamName))
   const requestedOpponentNames = [...new Set([opponentName, ...scheduledOpponentNames].filter(Boolean))]
   const opponentRosterRows = [...new Map(requestedOpponentNames.flatMap((requestedName) => {
     const requestedKeys = new Set([
@@ -311,6 +359,16 @@ export async function GET(request: Request) {
       || requestedKeys.has(normalizeUstaRosterTeamName(row.team_name))
     ))
     if (exactRows.length) return exactRows
+
+    const savedSourceName = savedRosterAliasByOpponent.get(normalizeTeamName(requestedName))
+    if (savedSourceName) {
+      const savedRows = scopedOpponentRosterRows.filter((row) => (
+        normalizeTeamName(row.normalized_team_name || row.team_name) === savedSourceName
+      ))
+      if (savedRows.length) {
+        return savedRows.map((row) => ({ ...row, team_name: requestedName, source_team_name: row.team_name }))
+      }
+    }
 
     const resolution = resolveTeamRosterAlias(requestedName, scopedOpponentRosterRows.map((row) => ({
       teamName: cleanAvailabilityText(row.team_name, 160),
@@ -427,6 +485,7 @@ export async function GET(request: Request) {
     historicalLineMatches,
     historicalLineMatchPlayers: historicalLineMatchPlayersResult.data ?? [],
     rosterMembers,
+    availableOpponentRosters,
     availability: [...(availabilityResult.data ?? []), ...seasonAnswers],
     captainRosterContacts: contactsResult.error ? [] : contactsResult.data ?? [],
     // Player Roster is the single source of contact data. Keeping the legacy
@@ -453,15 +512,14 @@ export async function POST(request: Request) {
   if (!auth.ok) return auth.response
 
   const body = await request.json().catch(() => null) as Record<string, unknown> | null
+  const action = cleanAvailabilityText(body?.action, 60)
   const teamName = cleanAvailabilityText(body?.teamName, 160)
   const leagueName = cleanAvailabilityText(body?.leagueName, 160)
   const flight = cleanAvailabilityText(body?.flight, 120)
   const matchDate = cleanAvailabilityText(body?.matchDate, 10)
   const playerId = cleanAvailabilityText(body?.playerId, 80)
   const resetConfirmation = body?.status === 'pending'
-  if (!teamName || !/^\d{4}-\d{2}-\d{2}$/.test(matchDate) || !isUuid(playerId)) {
-    return Response.json({ ok: false, message: 'Choose a valid team, match, and roster player before confirming availability.' }, { status: 400 })
-  }
+  if (!teamName) return Response.json({ ok: false, message: 'Choose your captain team first.' }, { status: 400 })
 
   const service = getCaptainAvailabilityServiceClient()
   const { data: teamLinks, error: teamLinksError } = await service
@@ -480,6 +538,70 @@ export async function POST(request: Request) {
     return canManageTeamRoom(roles)
   })
   if (!canManageSelectedTeam) return Response.json({ ok: false, message: 'Captain access is required for this team.' }, { status: 403 })
+
+  if (action === 'link-opponent-roster') {
+    const opponentTeam = cleanAvailabilityText(body?.opponentTeam, 160)
+    const normalizedSourceTeamName = normalizeTeamName(cleanAvailabilityText(body?.normalizedSourceTeamName, 160))
+    if (!leagueName || !flight || !opponentTeam || !normalizedSourceTeamName) {
+      return Response.json({ ok: false, message: 'Choose an opponent roster from this league and flight.' }, { status: 400 })
+    }
+
+    const sourceRosterResult = await service
+      .from('team_roster_members')
+      .select('team_name,normalized_team_name,player_id,player_name')
+      .eq('league_name', leagueName)
+      .eq('flight', flight)
+      .eq('normalized_team_name', normalizedSourceTeamName)
+      .limit(250)
+    if (sourceRosterResult.error) {
+      console.error('[api/captain/lineup-builder] roster link source lookup failed', { message: sourceRosterResult.error.message })
+      return Response.json({ ok: false, message: 'That uploaded roster could not be checked.' }, { status: 500 })
+    }
+    const sourceRosterRows = sourceRosterResult.data ?? []
+    const sourceTeamName = cleanAvailabilityText(sourceRosterRows[0]?.team_name, 160)
+    const playerCount = new Set(sourceRosterRows
+      .map((row) => row.player_id || normalizeTeamName(row.player_name))
+      .filter(Boolean)).size
+    if (!sourceTeamName || !playerCount) {
+      return Response.json({ ok: false, message: 'That roster is no longer available in this league and flight.' }, { status: 409 })
+    }
+
+    const savedAlias = await service
+      .from('captain_roster_aliases')
+      .upsert({
+        normalized_captain_team_name: normalizeTeamRoomKey(teamName),
+        scheduled_team_name: opponentTeam,
+        normalized_scheduled_team_name: normalizeTeamName(opponentTeam),
+        source_team_name: sourceTeamName,
+        normalized_source_team_name: normalizedSourceTeamName,
+        league_name: leagueName,
+        flight,
+        created_by_user_id: auth.userId,
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'normalized_captain_team_name,normalized_scheduled_team_name,league_name,flight',
+      })
+      .select('scheduled_team_name,source_team_name,league_name,flight')
+      .single()
+    if (savedAlias.error) {
+      console.error('[api/captain/lineup-builder] roster link save failed', { message: savedAlias.error.message })
+      return Response.json({ ok: false, message: 'The roster link could not be saved.' }, { status: 500 })
+    }
+
+    try {
+      await getCache({ namespace: 'captain-lineup-builder' })
+        .expireTag(`captain-lineup:${auth.userId}:${normalizeTeamRoomKey(teamName)}`)
+    } catch {
+      // The saved link remains authoritative if Runtime Cache is unavailable.
+    }
+
+    console.info('[api/captain/lineup-builder] opponent roster linked', { playerCount })
+    return Response.json({ ok: true, rosterAlias: savedAlias.data, playerCount })
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(matchDate) || !isUuid(playerId)) {
+    return Response.json({ ok: false, message: 'Choose a valid team, match, and roster player before confirming availability.' }, { status: 400 })
+  }
 
   const updatedAt = new Date().toISOString()
   let data
