@@ -324,6 +324,7 @@ function ProfilePageInner() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [justConnectedPlayer, setJustConnectedPlayer] = useState(false)
+  const [profileEditorOpen, setProfileEditorOpen] = useState(false)
   const [syncingProfile, setSyncingProfile] = useState(false)
   const [billingPortalOpening, setBillingPortalOpening] = useState(false)
   const [billingMessage, setBillingMessage] = useState('')
@@ -650,6 +651,8 @@ function ProfilePageInner() {
       )
       if (saveError) {
         setError(saveError.message)
+      } else if (profileComplete) {
+        setProfileEditorOpen(false)
       }
       if (nextPlayer?.id) {
         const scorecardClaimPlayerId = getScorecardClaimPlayerId(`/profile${window.location.search}`)
@@ -813,6 +816,14 @@ function ProfilePageInner() {
       ? `/login?next=${encodeURIComponent(buildPlayerProfileConnectHref(profileConnectPlayerId))}`
     : '/login?next=%2Fprofile'
   const showScorecardClaimWelcome = Boolean(connectedScorecardClaimId && !captainSetupEntry)
+  const canUseCompactProfileSummary = Boolean(
+    isMobile &&
+    profileComplete &&
+    !captainSetupEntry &&
+    !showScorecardClaimWelcome &&
+    !justConnectedPlayer,
+  )
+  const showCompactProfileSummary = canUseCompactProfileSummary && !profileEditorOpen
   const visibleClaimResults = prioritizeClaimMatch(claimResults, claimMatch)
   const signedIn = Boolean(userId || session?.user?.id)
   const authPending = !authResolved && !signedIn
@@ -1158,6 +1169,46 @@ function ProfilePageInner() {
                 </div>
                 <TiqFeatureIcon name={profileComplete ? 'playerRatings' : 'accountSecurity'} size="md" variant={profileComplete ? 'surface' : 'ghost'} />
               </div>
+              {showCompactProfileSummary ? (
+                <div style={completedProfileSummaryStyle} aria-label="Connected player summary">
+                  <div style={completedProfileStatusStyle}>
+                    <span style={completedProfileStatusDotStyle} aria-hidden="true" />
+                    Player connected
+                  </div>
+                  <div style={completedProfileMetricGridStyle} aria-label="Player profile highlights">
+                    <Metric label="TIQ" value={formatRating(tiqOverallValue)} />
+                    <Metric label="Role" value={prefs.preferredRole === 'both' ? 'Both' : prefs.preferredRole} />
+                    <Metric label="Teams" value={selectedPlayerTeams.length ? String(selectedPlayerTeams.length) : 'Auto'} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setProfileEditorOpen(true)}
+                    aria-expanded="false"
+                    aria-controls="profile-identity-editor"
+                    style={completedProfileEditButtonStyle}
+                  >
+                    Edit profile
+                  </button>
+                  {message ? <div role="status" style={successStyle}>{message}</div> : null}
+                  {error ? <div role="alert" style={errorStyle}>{error}</div> : null}
+                </div>
+              ) : null}
+              <div
+                id="profile-identity-editor"
+                hidden={showCompactProfileSummary}
+                style={profileEditorBodyStyle}
+              >
+              {canUseCompactProfileSummary && profileEditorOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setProfileEditorOpen(false)}
+                  aria-expanded="true"
+                  aria-controls="profile-identity-editor"
+                  style={completedProfileEditButtonStyle}
+                >
+                  Close editor
+                </button>
+              ) : null}
               {loading ? (
                 <div style={profileLoadingNoticeStyle}>
                   Loading existing records. You can type your name now.
@@ -1538,6 +1589,7 @@ function ProfilePageInner() {
               {profileComplete && !justConnectedPlayer && message ? <div role="status" style={successStyle}>{message}</div> : null}
               {profileComplete && profileSyncText ? <div style={profileSyncStatusStyle(profileSource)}>{profileSyncText}</div> : null}
               {profileComplete && error ? <div role="alert" style={errorStyle}>{error}</div> : null}
+              </div>
             </div>
           </section>
           ) : !authPending ? (
@@ -1774,6 +1826,59 @@ const surfaceStyle = (isMobile: boolean): CSSProperties => ({
   minWidth: 0,
   boxShadow: '0 18px 45px rgba(2,8,23,0.30)',
 })
+
+const profileEditorBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  minWidth: 0,
+}
+
+const completedProfileSummaryStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  minWidth: 0,
+  padding: 12,
+  borderRadius: 18,
+  border: '1px solid rgba(125,211,252,0.14)',
+  background: 'rgba(255,255,255,0.035)',
+}
+
+const completedProfileStatusStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 900,
+  letterSpacing: '0.04em',
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const completedProfileStatusDotStyle: CSSProperties = {
+  width: 8,
+  height: 8,
+  flex: '0 0 8px',
+  borderRadius: 999,
+  background: 'var(--brand-green)',
+  boxShadow: '0 0 0 4px rgba(152,255,0,0.10)',
+}
+
+const completedProfileMetricGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 84px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const completedProfileEditButtonStyle: CSSProperties = {
+  ...secondaryButtonStyle,
+  width: '100%',
+  minHeight: 44,
+  justifyContent: 'center',
+  cursor: 'pointer',
+}
 
 const profileLoadingNoticeStyle: CSSProperties = {
   padding: '10px 12px',
