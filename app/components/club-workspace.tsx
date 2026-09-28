@@ -402,13 +402,14 @@ export default function ClubWorkspace() {
   async function shareClubPage() {
     if (!workspace || working) return
     const publicUrl = `${window.location.origin}/clubs/${workspace.club.slug}`
+    const shareText = `Open ${workspace.club.name} on TenAceIQ for programs, teams, leagues, events, and club updates.`
     const useNativeShare = typeof navigator.share === 'function'
     setWorking(true)
     try {
       if (useNativeShare) {
-        await navigator.share({ title: workspace.club.name, text: `Open ${workspace.club.name} on TenAceIQ.`, url: publicUrl })
+        await navigator.share({ title: `${workspace.club.name} club tennis`, text: shareText, url: publicUrl })
       } else {
-        await navigator.clipboard.writeText(publicUrl)
+        await navigator.clipboard.writeText(`${shareText}\n${publicUrl}`)
       }
       await request(`/api/clubs/${workspace.club.id}`, { method: 'PATCH', body: JSON.stringify({ action: 'complete_onboarding' }) })
       await refreshWorkspace()
@@ -426,13 +427,14 @@ export default function ClubWorkspace() {
   async function shareInvite(invite: ClubInvite) {
     const inviteUrl = `${window.location.origin}/clubs/invite/${invite.inviteToken}`
     const destination = invite.target.type === 'club' ? workspace?.club.name || 'the club' : invite.target.name
+    const inviteText = `You are invited to join ${destination} on TenAceIQ. Open your secure club invitation: ${inviteUrl}`
     try {
       if (typeof navigator.share === 'function') {
-        await navigator.share({ title: `Join ${destination}`, text: `You are invited to join ${destination} on TenAceIQ.`, url: inviteUrl })
+        await navigator.share({ title: `Join ${destination}`, text: inviteText })
         showMessage('Invitation shared.')
       } else {
-        await navigator.clipboard.writeText(inviteUrl)
-        showMessage('Invitation link copied. Send it by text or email.')
+        await navigator.clipboard.writeText(inviteText)
+        showMessage('Invitation message and link copied. Send it by text or email.')
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return

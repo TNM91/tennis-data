@@ -2256,10 +2256,11 @@ function MessagesWorkspace({ prefill }: { prefill: MessagePrefill }) {
     if (!selectedConversation) return
     setError('')
     const href = buildThreadShareUrl(selectedConversation.id)
+    const shareText = `TenAceIQ conversation: ${selectedConversation.subject || 'Shared tennis update'}\nOpen thread: ${href}`
     try {
-      await navigator.clipboard.writeText(href)
+      await navigator.clipboard.writeText(shareText)
       replaceThreadUrl(selectedConversation.id)
-      setMessage('Thread link copied.')
+      setMessage('Conversation context and link copied.')
     } catch {
       replaceThreadUrl(selectedConversation.id)
       setMessage('Thread link is ready in the address bar.')

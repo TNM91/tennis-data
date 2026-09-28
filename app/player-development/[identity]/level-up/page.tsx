@@ -4,6 +4,7 @@ import LevelUpPortal from '@/app/player-development/_components/level-up-portal'
 import styles from '@/app/player-development/_components/player-development.module.css'
 import { PLAYER_DEVELOPMENT_IDENTITIES, getPlayerDevelopmentIdentity } from '@/lib/player-development'
 import { buildRouteMetadata } from '@/lib/route-metadata'
+import { buildShareCardImageUrl } from '@/lib/share-card'
 
 type IdentityLevelUpPortalPageProps = {
   params: Promise<{ identity: string }>
@@ -22,6 +23,7 @@ export async function generateMetadata({ params }: IdentityLevelUpPortalPageProp
     description: `Coach-assigned, identity-recommended, and player-favorited Level Up tools for ${identity.title.replace(/^The /, '')}.`,
     path: `/player-development/${identity.slug}/level-up`,
     titleAbsolute: true,
+    image: buildShareCardImageUrl({ kind: 'development', title: identity.title, subtitle: 'Level Up court mode', detail: 'Assignment · Reps · Proof · Coach handoff' }),
   })
 }
 

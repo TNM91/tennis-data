@@ -24,6 +24,8 @@ describe('captain contextual share previews', () => {
   it('uses communication-specific copy, colors, and Open Graph images', () => {
     expect(getCaptainShareConfig('lineup').title).toBe('Your lineup is ready')
     expect(getCaptainShareConfig('final-result').title).toBe('The final result is in')
+    expect(getCaptainShareConfig('team-room').title).toBe('Your team conversation')
+    expect(getCaptainShareConfig('team-invite').title).toBe('Join your team on TenAceIQ')
     expect(getCaptainShareConfig('lineup').accent).not.toBe(getCaptainShareConfig('final-result').accent)
     expect(buildCaptainShareMetadata({ kind: 'practice' }).openGraph?.images).toEqual([
       expect.objectContaining({ url: '/share/captain/practice/opengraph-image' }),
@@ -37,7 +39,8 @@ describe('captain contextual share previews', () => {
 
     expect(sheet).toContain('createCaptainShortShareUrl({')
     expect(sheet).toContain("kind: 'lineup'")
-    expect(sheet).toContain('Open lineup: ${lineupShareUrl}')
+    expect(sheet).toContain("const lineupLabel = confirmedLineup ? 'Confirmed lineup' : 'Projected lineup'")
+    expect(sheet).toContain('Open ${lineupLabel.toLowerCase()}: ${lineupShareUrl}')
     expect(sheet).not.toContain("new URL(buildCaptainShareHref({")
     expect(scorecard).toContain("kind: 'final-result'")
     expect(scorecard).toContain('Open final scorecard: ${finalResultUrl}')

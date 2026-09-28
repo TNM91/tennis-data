@@ -6,6 +6,8 @@ export const CAPTAIN_SHARE_KINDS = [
   'availability',
   'practice',
   'live-scorecard',
+  'team-room',
+  'team-invite',
 ] as const
 
 export type CaptainShareKind = (typeof CAPTAIN_SHARE_KINDS)[number]
@@ -59,6 +61,22 @@ const SHARE_CONFIG: Record<CaptainShareKind, CaptainShareConfig> = {
     action: 'Open live scorecard',
     accent: '#FB7185',
     secondaryAccent: '#FECDD3',
+  },
+  'team-room': {
+    eyebrow: 'Team Room',
+    title: 'Your team conversation',
+    description: 'Open announcements, availability, lineup updates, and match-week conversation.',
+    action: 'Open Team Room',
+    accent: '#A78BFA',
+    secondaryAccent: '#DDD6FE',
+  },
+  'team-invite': {
+    eyebrow: 'Team invitation',
+    title: 'Join your team on TenAceIQ',
+    description: 'Accept the secure invitation to join the roster and Team Room.',
+    action: 'Accept invitation',
+    accent: '#F59E0B',
+    secondaryAccent: '#FDE68A',
   },
 }
 
