@@ -116,7 +116,7 @@ export default function ProfilePlanCard({
       {canManageBilling ? (
         <p className={styles.secureNote}>
           <LockKeyIcon aria-hidden="true" size={14} weight="fill" />
-          Payment methods, invoices, and cancellation open securely in Stripe.
+          Billing details open securely in Stripe.
         </p>
       ) : null}
     </section>

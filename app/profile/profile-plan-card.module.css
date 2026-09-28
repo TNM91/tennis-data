@@ -227,6 +227,64 @@
   outline-offset: 3px;
 }
 
+@media (max-width: 719px) {
+  .card {
+    gap: 8px;
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .header {
+    gap: 8px;
+  }
+
+  .status {
+    min-height: 28px;
+    padding: 0 8px;
+  }
+
+  .facts {
+    gap: 6px;
+  }
+
+  .facts > div {
+    gap: 2px;
+    padding: 7px 8px;
+    border-radius: 10px;
+  }
+
+  .facts strong {
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
+  .summary {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .actions {
+    gap: 6px;
+  }
+
+  .actions > button:not(.billingButton),
+  .primaryLink {
+    min-height: 48px;
+    padding: 0 14px;
+  }
+
+  .secureNote {
+    align-items: center;
+    margin: 0 2px;
+    font-size: 9.5px;
+    line-height: 1.2;
+  }
+
+  .secureNote svg {
+    margin-top: 0;
+  }
+}
+
 @media (min-width: 720px) {
   .card {
     grid-template-columns: minmax(0, 0.8fr) minmax(260px, 1.2fr);
