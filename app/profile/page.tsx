@@ -1576,20 +1576,47 @@ function ProfilePageInner() {
               </div>
 
               {selectedPlayerId && selectedPlayerTeams.length ? (
-                <div style={teamContextListStyle}>
-                  {selectedPlayerTeams.slice(0, 6).map((team) => (
-                    <Link key={team.id} href={team.href} style={teamContextRowStyle}>
-                      <span>{team.name}</span>
-                      <strong>{[team.league, team.flight].filter(Boolean).join(' - ') || 'Team context'}</strong>
-                      <span style={teamContextActionStyle}>View team →</span>
-                    </Link>
-                  ))}
-                  {selectedPlayerTeams.length > 6 ? (
-                    <div style={hintStyle}>
-                      +{selectedPlayerTeams.length - 6} more detected team context {selectedPlayerTeams.length - 6 === 1 ? 'entry' : 'entries'}.
+                isMobile ? (
+                  <details
+                    className="profileDetailsSection"
+                    data-profile-team-context="compact"
+                    style={teamContextDetailsStyle}
+                  >
+                    <summary style={teamContextSummaryStyle}>
+                      <span style={teamContextSummaryCopyStyle}>
+                        <strong>Team context</strong>
+                        <span>
+                          {selectedPlayerTeams.length} {selectedPlayerTeams.length === 1 ? 'team' : 'teams'} · {detectedLeagueCount} {detectedLeagueCount === 1 ? 'league' : 'leagues'}
+                        </span>
+                      </span>
+                      <span style={teamContextSummaryCueStyle}>View teams</span>
+                    </summary>
+                    <div style={teamContextDetailsBodyStyle}>
+                      {selectedPlayerTeams.map((team) => (
+                        <Link key={team.id} href={team.href} style={teamContextRowStyle}>
+                          <span>{team.name}</span>
+                          <strong>{[team.league, team.flight].filter(Boolean).join(' - ') || 'Team context'}</strong>
+                          <span style={teamContextActionStyle}>View team →</span>
+                        </Link>
+                      ))}
                     </div>
-                  ) : null}
-                </div>
+                  </details>
+                ) : (
+                  <div style={teamContextListStyle}>
+                    {selectedPlayerTeams.slice(0, 6).map((team) => (
+                      <Link key={team.id} href={team.href} style={teamContextRowStyle}>
+                        <span>{team.name}</span>
+                        <strong>{[team.league, team.flight].filter(Boolean).join(' - ') || 'Team context'}</strong>
+                        <span style={teamContextActionStyle}>View team →</span>
+                      </Link>
+                    ))}
+                    {selectedPlayerTeams.length > 6 ? (
+                      <div style={hintStyle}>
+                        +{selectedPlayerTeams.length - 6} more detected team context {selectedPlayerTeams.length - 6 === 1 ? 'entry' : 'entries'}.
+                      </div>
+                    ) : null}
+                  </div>
+                )
               ) : null}
               {profileComplete && !justConnectedPlayer && message ? <div role="status" style={successStyle}>{message}</div> : null}
               {profileComplete && profileSyncText ? <div style={profileSyncStatusStyle(profileSource)}>{profileSyncText}</div> : null}
@@ -2004,6 +2031,59 @@ const teamContextListStyle: CSSProperties = {
   display: 'grid',
   gap: 8,
   minWidth: 0,
+}
+
+const teamContextDetailsStyle: CSSProperties = {
+  borderRadius: 16,
+  border: '1px solid rgba(125,211,252,0.12)',
+  background: 'rgba(255,255,255,0.035)',
+  overflow: 'hidden',
+  minWidth: 0,
+}
+
+const teamContextSummaryStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)',
+  alignItems: 'center',
+  gap: 12,
+  minHeight: 64,
+  padding: '10px 12px',
+  color: 'var(--foreground-strong)',
+  cursor: 'pointer',
+  listStyle: 'none',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const teamContextSummaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  lineHeight: 1.35,
+  fontWeight: 750,
+  overflowWrap: 'anywhere',
+}
+
+const teamContextSummaryCueStyle: CSSProperties = {
+  borderRadius: 999,
+  border: '1px solid rgba(155,225,29,0.22)',
+  background: 'rgba(155,225,29,0.08)',
+  color: 'var(--brand-lime)',
+  padding: '6px 9px',
+  fontSize: 11,
+  fontWeight: 850,
+  lineHeight: 1.1,
+  textAlign: 'center',
+  overflowWrap: 'anywhere',
+}
+
+const teamContextDetailsBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: '0 10px 10px',
 }
 
 const teamContextRowStyle: CSSProperties = {

@@ -23,6 +23,18 @@ describe('Profile mobile layout guards', () => {
     expect(source).toContain('<strong>Start your TIQ</strong>')
   })
 
+  it('collapses detected team context on phones while keeping every team available', () => {
+    expect(source).toContain('data-profile-team-context="compact"')
+    expect(source).toContain('isMobile ? (')
+    expect(source).toContain('className="profileDetailsSection"')
+    expect(source).toContain('<strong>Team context</strong>')
+    expect(source).toContain('selectedPlayerTeams.length === 1')
+    expect(source).toContain('detectedLeagueCount === 1')
+    expect(source).toContain('selectedPlayerTeams.map((team) => (')
+    expect(source).toContain('selectedPlayerTeams.slice(0, 6).map((team) => (')
+    expect(styleBlock('teamContextSummaryStyle')).toContain('minHeight: 64')
+  })
+
   it('keeps profile hero, setup, and form grids minmax-safe on mobile', () => {
     expect(source).not.toContain("? '1fr'")
     expect(source).not.toContain("whiteSpace: 'nowrap'")
@@ -52,6 +64,10 @@ describe('Profile mobile layout guards', () => {
       'inputStyle',
       'actionRowStyle',
       'teamContextListStyle',
+      'teamContextDetailsStyle',
+      'teamContextSummaryStyle',
+      'teamContextSummaryCopyStyle',
+      'teamContextDetailsBodyStyle',
       'teamContextRowStyle',
       'ratingTileGridStyle',
       'ratingTileStyle',
@@ -91,6 +107,9 @@ describe('Profile mobile layout guards', () => {
       'labelStyle',
       'hintStyle',
       'teamContextRowStyle',
+      'teamContextSummaryStyle',
+      'teamContextSummaryCopyStyle',
+      'teamContextSummaryCueStyle',
       'successStyle',
       'errorStyle',
       'profileAwardPillStyle',
