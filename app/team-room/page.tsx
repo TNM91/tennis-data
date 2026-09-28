@@ -57,6 +57,7 @@ import {
   type TeamRoomArrivalTextReturn,
 } from '@/lib/team-room-arrival'
 import { supabase } from '@/lib/supabase'
+import { createCaptainShareLink } from '@/lib/captain-share-links'
 import styles from './team-room.module.css'
 
 type TeamOption = {
@@ -1423,23 +1424,45 @@ function TeamRoomSession() {
   }
 
   async function shareRoom() {
-    if (!room) return
-    const url = new URL(room.href, window.location.origin).toString()
-    await shareOrCopy({ title: `${room.teamName} Team Room`, text: `Open our ${room.teamName} Team Room in TenAceIQ.`, url })
-    setNotice('Team Room link ready to share.')
+    if (!room || !session?.access_token) return
+    setError('')
+    try {
+      const url = await createCaptainShareLink(session.access_token, {
+        kind: 'team-room',
+        targetHref: room.href,
+        teamName: room.teamName,
+        opponent: '',
+        matchDate: '',
+        detail: [room.leagueName, room.flight, 'Team conversation'].filter(Boolean).join(' · '),
+      })
+      await shareOrCopy({ title: `${room.teamName} Team Room`, text: `Open ${room.teamName}'s Team Room for announcements, availability, lineups, and match-week updates.`, url })
+      setNotice('Team Room preview ready to share.')
+    } catch (shareError) {
+      if (shareError instanceof DOMException && shareError.name === 'AbortError') return
+      setError(shareError instanceof Error ? shareError.message : 'The Team Room preview could not be prepared.')
+    }
   }
 
   async function inviteTeam() {
-    if (!room || sharing) return
+    if (!room || sharing || !session?.access_token) return
     setSharing(true)
     setError('')
     try {
       const payload = await postAction({ action: 'create_invite' })
       const inviteUrl = String(payload.inviteUrl || '')
+      const inviteTarget = new URL(inviteUrl, window.location.origin)
+      const shareUrl = await createCaptainShareLink(session.access_token, {
+        kind: 'team-invite',
+        targetHref: `${inviteTarget.pathname}${inviteTarget.search}${inviteTarget.hash}`,
+        teamName: room.teamName,
+        opponent: '',
+        matchDate: '',
+        detail: [room.leagueName, room.flight, 'Secure team invitation'].filter(Boolean).join(' · '),
+      })
       await shareOrCopy({
         title: `Join ${room.teamName}`,
-        text: `Join ${room.teamName} in TenAceIQ to use our Team Room and keep match-week communication together.`,
-        url: inviteUrl,
+        text: `Join ${room.teamName} in TenAceIQ to receive announcements, share availability, and keep match-week communication together.`,
+        url: shareUrl,
       })
       setNotice('Secure team invite ready to share. It expires in 30 days.')
     } catch (inviteError) {

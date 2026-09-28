@@ -352,9 +352,10 @@ function PlayerProfileContent() {
   const sharePlayerProfile = useCallback(async () => {
     if (!player) return
     const url = window.location.href
+    const text = `See ${player.name}'s TenAceIQ player profile — ratings, recent match history, and matchup context.`
     const shareData = {
       title: `${player.name} on TenAceIQ`,
-      text: `See ${player.name}'s TenAceIQ player profile.`,
+      text,
       url,
     }
 
@@ -363,7 +364,7 @@ function PlayerProfileContent() {
         await navigator.share(shareData)
         setProfileShareStatus('shared')
       } else {
-        await navigator.clipboard.writeText(url)
+        await navigator.clipboard.writeText(`${text}\n${url}`)
         setProfileShareStatus('copied')
       }
       window.setTimeout(() => setProfileShareStatus('idle'), 2400)
@@ -1999,6 +2000,12 @@ function PlayerProfileContent() {
                   <div className={profileStory.heroActions}>
                     <Link href={storyActionHref} className={profileStory.primaryAction}>{heroPrimaryLabel}</Link>
                     <Link href={heroSecondaryHref} className={profileStory.quietAction}>{heroSecondaryLabel}</Link>
+                    <FollowButton
+                      entityType="player"
+                      entityId={player.id}
+                      entityName={player.name}
+                      subtitle={player.location || ''}
+                    />
                     {hasPersonalPlayerExperience ? (
                       <button
                         type="button"
@@ -2498,12 +2505,6 @@ function PlayerProfileContent() {
               </div>
 
               <div style={dynamicFollowRow}>
-                <FollowButton
-                  entityType="player"
-                  entityId={player.id}
-                  entityName={player.name}
-                  subtitle={player.location || ''}
-                />
                 <Link href={primaryActionHref} style={playerPrimaryActionStyle}>{primaryActionLabel}</Link>
                 <MiniLink href={secondaryActionHref}>{secondaryActionLabel}</MiniLink>
                 <MiniLink href="/rankings">Browse rankings</MiniLink>

@@ -6,6 +6,9 @@ import { buildRouteMetadata } from '../route-metadata'
 const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
 const rootLayout = read('app/layout.tsx')
 const routeMetadataSource = read('lib/route-metadata.ts')
+const shareCardRoute = read('app/api/share-card/route.ts')
+const shareCardImage = read('lib/share-card-image.tsx')
+const shareCardSource = read('lib/share-card.ts')
 
 describe('public SEO metadata', () => {
   const metadataRoutePattern =
@@ -49,6 +52,25 @@ describe('public SEO metadata', () => {
       description: 'Find tennis coaching support and see how Coach Hub helps players and coaches keep development moving between lessons.',
       images: ['/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1'],
     })
+  })
+
+  it('supports unique public entity pictures instead of one generic social card', () => {
+    const image = '/api/share-card?kind=team&title=Aces'
+    const metadata = buildRouteMetadata({
+      title: 'Aces Team Intelligence',
+      description: 'Aces roster, recent form, and team context.',
+      path: '/teams/Aces',
+      image,
+    })
+
+    expect(metadata.openGraph).toMatchObject({ images: [{ url: image, width: 1200, height: 630 }] })
+    expect(metadata.twitter).toMatchObject({ images: [image] })
+    expect(routeMetadataSource).toContain('buildShareCardImageUrl')
+    for (const kind of ['player', 'team', 'league', 'tournament', 'club', 'development']) {
+      expect(shareCardSource).toContain(`${kind}:`)
+    }
+    expect(shareCardImage).toContain('EntityIllustration')
+    expect(shareCardRoute).toContain('renderTiqShareCard')
   })
 
   it('uses canonical Open Graph and Twitter metadata for core public routes', () => {

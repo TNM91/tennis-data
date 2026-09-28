@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import LevelUpPageContent from '../level-up-page-content'
 import { PLAYER_DEVELOPMENT_IDENTITIES } from '@/lib/player-development'
 import { buildRouteMetadata } from '@/lib/route-metadata'
+import { buildShareCardImageUrl } from '@/lib/share-card'
 import { isPlayerStyleSlug, PLAYER_STYLE_COOKIE } from '@/lib/player-identity-selection'
 
 type IdentityLevelUpPageProps = {
@@ -31,6 +32,7 @@ export async function generateMetadata({ params }: IdentityLevelUpPageProps): Pr
     description: `Choose a ${identity.title.replace(/^The /, '')} focus, start a drill, use the timer, and save a quick Level Up check-in.`,
     path: `/level-up/${identity.slug}`,
     titleAbsolute: true,
+    image: buildShareCardImageUrl({ kind: 'development', title: identity.title, subtitle: identity.ratingBand, detail: 'Level Up plan · Practice proof · Coach connection' }),
   })
 }
 

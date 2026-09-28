@@ -8,6 +8,7 @@ import { useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildTeamRoomHref } from '@/lib/team-room'
+import { createCaptainShareLink } from '@/lib/captain-share-links'
 import styles from './matchup-sheet.module.css'
 
 type MatchupCard = {
@@ -357,21 +358,33 @@ function MatchupSheetContent() {
 
   async function shareLineupImage() {
     if (!lineup.length || sharing) return
+    if (!session?.access_token) {
+      setShareNotice('Sign in again to share this lineup.')
+      return
+    }
     setSharing(true)
     setShareNotice('')
     try {
       const image = await createLineupImage({ teamName, leagueName, flight, matchDate, opponent, matchTime, facility, confirmed: confirmedLineup, lineup })
       const file = new File([image], `tenaceiq-${teamName || 'team'}-lineup.png`.replace(/[^a-z0-9._-]+/gi, '-'), { type: 'image/png' })
-      const teamChatUrl = new URL(teamChatHref, window.location.origin).toString()
+      const lineupLabel = confirmedLineup ? 'Confirmed lineup' : 'Projected lineup'
+      const shareUrl = await createCaptainShareLink(session.access_token, {
+        kind: 'lineup',
+        targetHref: teamChatHref,
+        teamName,
+        opponent,
+        matchDate,
+        detail: `${lineupLabel} · ${lineup.length} court${lineup.length === 1 ? '' : 's'}`,
+      })
       const shareText = [
-        confirmedLineup ? 'Final lineup confirmed.' : 'Match lineup.',
+        lineupLabel,
         `${teamName || 'Team'} vs ${opponent || 'Opponent to be confirmed'}.`,
         [formatDate(matchDate), matchTime, facility].filter(Boolean).join(' • '),
-        `Team Chat: ${teamChatUrl}`,
+        `Open ${lineupLabel.toLowerCase()}: ${shareUrl}`,
       ].filter(Boolean).join('\n')
       if (typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ title: `${teamName || 'Team'} ${confirmedLineup ? 'confirmed ' : ''}lineup`, text: shareText, files: [file] })
-        setShareNotice('Final lineup image and Team Chat link are ready to send.')
+        await navigator.share({ title: `${lineupLabel}: ${teamName || 'Team'}`, text: shareText, files: [file] })
+        setShareNotice(`${lineupLabel} image and matching link are ready to send.`)
       } else {
         const url = URL.createObjectURL(image)
         const download = document.createElement('a')
@@ -381,7 +394,8 @@ function MatchupSheetContent() {
         download.click()
         download.remove()
         URL.revokeObjectURL(url)
-        setShareNotice('Lineup image downloaded. Attach it to your team text, then use Team Chat for changes.')
+        await navigator.clipboard?.writeText(shareText)
+        setShareNotice(`${lineupLabel} image downloaded and its matching message copied.`)
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return

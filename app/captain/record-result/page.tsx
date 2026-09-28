@@ -11,6 +11,7 @@ import {
   isCaptainScorecardPhotoPrefill,
 } from '@/lib/captain-scorecard-photo-prefill'
 import { buildTeamRoomHref } from '@/lib/team-room'
+import { createCaptainShareLink } from '@/lib/captain-share-links'
 import styles from './record-result.module.css'
 
 type CourtDraft = {
@@ -402,21 +403,29 @@ function RecordResultContent() {
   }
 
   async function textFinalResult() {
-    if (!savedRecap) return
-    const teamChatUrl = new URL(updatedTeamRoomHref, window.location.origin).toString()
+    if (!savedRecap || !session?.access_token) return
     const scoreLine = `${teamName || 'Your team'} ${savedRecap.teamCourts}–${savedRecap.opponentCourts} ${opponentTeam || 'Opponent'}`
     const courtLines = savedRecap.lines.map((line) => `${line.label}: ${line.outcome === 'team' ? 'W' : 'L'} ${line.score}`).join('\n')
-    const message = ['Final result', scoreLine, matchDate ? `Match date: ${matchDate}` : '', courtLines, `Team Chat: ${teamChatUrl}`].filter(Boolean).join('\n')
     try {
+      setResultShareNotice('Preparing final result preview…')
+      const shareUrl = await createCaptainShareLink(session.access_token, {
+        kind: 'final-result',
+        targetHref: updatedTeamRoomHref,
+        teamName,
+        opponent: opponentTeam,
+        matchDate,
+        detail: `${teamName || 'Your team'} ${savedRecap.teamCourts}–${savedRecap.opponentCourts} ${opponentTeam || 'Opponent'}`,
+      })
+      const message = ['Final result', scoreLine, matchDate ? `Match date: ${matchDate}` : '', courtLines].filter(Boolean).join('\n')
       if (typeof navigator.share === 'function') {
-        await navigator.share({ title: `${teamName || 'Team'} final result`, text: message, url: teamChatUrl })
+        await navigator.share({ title: `Final result: ${teamName || 'Team'}`, text: message, url: shareUrl })
         setResultShareNotice('Choose Messages to text the final result to any player or captain.')
         return
       }
-      window.location.href = `sms:?&body=${encodeURIComponent(message)}`
+      window.location.href = `sms:?&body=${encodeURIComponent(`${message}\nOpen final result: ${shareUrl}`)}`
     } catch (shareError) {
       if (shareError instanceof DOMException && shareError.name === 'AbortError') return
-      window.location.href = `sms:?&body=${encodeURIComponent(message)}`
+      setResultShareNotice(shareError instanceof Error ? shareError.message : 'The final result preview could not be prepared.')
     }
   }
 

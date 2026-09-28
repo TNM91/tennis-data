@@ -4,6 +4,7 @@ import PlayerDevelopmentSystem from '../_components/player-development-system'
 import { PLAYER_DEVELOPMENT_IDENTITIES, getPlayerDevelopmentIdentity } from '@/lib/player-development'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildBreadcrumbJsonLd } from '@/lib/structured-data'
+import { buildShareCardImageUrl } from '@/lib/share-card'
 
 type IdentityPageProps = {
   params: Promise<{ identity: string }>
@@ -22,6 +23,7 @@ export async function generateMetadata({ params }: IdentityPageProps): Promise<M
     description: `${identity.ratingBand} phone-first Level Up path, courtside drills, proof scoring, and coach handoff for ${identity.title}.`,
     path: `/player-development/${identity.slug}`,
     titleAbsolute: true,
+    image: buildShareCardImageUrl({ kind: 'development', title: identity.title, subtitle: identity.ratingBand, detail: 'Level Up path · Courtside drills · Coach handoff' }),
   })
 }
 
