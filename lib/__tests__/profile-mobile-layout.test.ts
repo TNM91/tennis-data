@@ -25,6 +25,9 @@ describe('Profile mobile layout guards', () => {
 
   it('collapses detected team context on phones while keeping every team available', () => {
     expect(source).toContain('data-profile-team-context="compact"')
+    expect(source).toContain('const [teamContextOpen, setTeamContextOpen] = useState(false)')
+    expect(source).toContain('onToggle={(event) => setTeamContextOpen(event.currentTarget.open)}')
+    expect(source).toContain("teamContextOpen ? 'Hide teams' : 'View teams'")
     expect(source).toContain('isMobile ? (')
     expect(source).toContain('className="profileDetailsSection"')
     expect(source).toContain('<strong>Team context</strong>')
