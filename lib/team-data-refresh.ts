@@ -130,7 +130,7 @@ function buildRefreshSummary(input: {
   }
   if (input.addedPlayerCount) {
     return input.source === 'player_roster'
-      ? `${input.addedPlayerCount} new player contact${input.addedPlayerCount === 1 ? '' : 's'} will be added. Refresh Team Summary too if the official roster or ratings changed.`
+      ? `${input.addedPlayerCount} new player${input.addedPlayerCount === 1 ? '' : 's'} will be added with available contact details.`
       : `${input.addedPlayerCount} new player${input.addedPlayerCount === 1 ? '' : 's'} will be added; matching team records will refresh.`
   }
   return 'This team is already saved. Matching records will refresh without creating a duplicate team.'

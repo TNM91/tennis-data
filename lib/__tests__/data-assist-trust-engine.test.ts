@@ -128,14 +128,14 @@ describe('Data Assist trust engine', () => {
     expect(source).not.toContain('<label style={dropzoneStyle')
   })
 
-  it('gives captains a dedicated Player Roster contact import without replacing Team Summary', () => {
+  it('gives captains a Player Roster refresh for membership and private contacts', () => {
     expect(source).toContain("const contactImportRequested = searchParams.get('contactImport') === '1'")
     expect(source).toContain('Add team contacts.')
     expect(source).toContain('Captain contacts: use Player Roster.')
-    expect(source).toContain('Player Roster contacts')
-    expect(source).toContain('This adds contact details only. After import, approve the team connection so it appears in My Teams.')
-    expect(source).toContain('Player Roster contact export')
-    expect(source).toContain('Team contacts imported')
+    expect(source).toContain('Player Roster refresh')
+    expect(source).toContain('This refreshes the current player list and contact details. After import, approve the team connection so it appears in My Teams.')
+    expect(source).toContain('Player Roster export')
+    expect(source).toContain('Player Roster imported')
     expect(source).toContain('Make this your team')
     expect(source).toContain('function TeamSummaryReviewPanel({')
     expect(source).toContain('aria-label="Import this team summary"')

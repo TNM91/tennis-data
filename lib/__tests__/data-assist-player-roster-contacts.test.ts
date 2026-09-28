@@ -5,16 +5,15 @@ import { describe, expect, it } from 'vitest'
 const source = readFileSync(join(process.cwd(), 'lib/data-assist-import-runner.ts'), 'utf8')
 
 describe('Data Assist Player Roster contacts', () => {
-  it('branches Player Roster imports into the contact-only flow before Team Summary ingestion', () => {
+  it('imports Player Roster membership and contacts through the authoritative roster flow', () => {
     const actionStart = source.indexOf('export async function runDataAssistTeamSummaryImportAction')
-    const contactOnlyBranch = source.indexOf("if (input.parsedDraft.rosterSource === 'player_roster')")
     const teamSummaryImport = source.indexOf('const payload = buildDataAssistTeamSummaryPayload')
 
-    expect(contactOnlyBranch).toBeGreaterThan(actionStart)
-    expect(contactOnlyBranch).toBeLessThan(teamSummaryImport)
-    expect(source).toContain('runDataAssistPlayerRosterContactImportAction(input, refreshComparison)')
-    expect(source).toContain('will be saved without changing the Team Summary.')
-    expect(source).toContain('Your Team Summary was not changed.')
-    expect(source).not.toContain("import { syncAuthoritativeCaptainRoster, upsertCaptainRosterContacts } from './captain-roster-contacts'")
+    expect(teamSummaryImport).toBeGreaterThan(actionStart)
+    expect(source).toContain("import { syncAuthoritativeCaptainRoster, upsertCaptainRosterContacts } from './captain-roster-contacts'")
+    expect(source).toContain('await syncAuthoritativeCaptainRoster({')
+    expect(source).toContain('importedContactCount = await upsertCaptainRosterContacts({')
+    expect(source).not.toContain('runDataAssistPlayerRosterContactImportAction(input, refreshComparison)')
+    expect(source).not.toContain('Your Team Summary was not changed.')
   })
 })
