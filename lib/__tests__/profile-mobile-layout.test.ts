@@ -62,6 +62,10 @@ describe('Profile mobile layout guards', () => {
       'profilePlayerIdStarterItemStyle',
       'profilePlayerIdStarterActionRowStyle',
       'profileDetailsSummaryStyle',
+      'profileEditorBodyStyle',
+      'completedProfileSummaryStyle',
+      'completedProfileStatusStyle',
+      'completedProfileMetricGridStyle',
     ]) {
       expect(styleBlock(styleName)).toContain('minWidth: 0')
     }
@@ -152,5 +156,22 @@ describe('Profile mobile layout guards', () => {
     expect(source).toContain('See your results')
     expect(source).toContain('Set profile')
     expect(source).toContain('Sign in')
+  })
+
+  it('collapses completed mobile player details into an accessible summary', () => {
+    expect(source).toContain('const [profileEditorOpen, setProfileEditorOpen] = useState(false)')
+    expect(source).toContain('const canUseCompactProfileSummary = Boolean(')
+    expect(source).toContain('const showCompactProfileSummary = canUseCompactProfileSummary && !profileEditorOpen')
+    expect(source).toContain('!captainSetupEntry')
+    expect(source).toContain('!showScorecardClaimWelcome')
+    expect(source).toContain('!justConnectedPlayer')
+    expect(source).toContain('aria-label="Connected player summary"')
+    expect(source).toContain('aria-controls="profile-identity-editor"')
+    expect(source).toContain('id="profile-identity-editor"')
+    expect(source).toContain('hidden={showCompactProfileSummary}')
+    expect(source).toContain('Edit profile')
+    expect(source).toContain('Close editor')
+    expect(styleBlock('completedProfileEditButtonStyle')).toContain('minHeight: 44')
+    expect(styleBlock('completedProfileMetricGridStyle')).toContain('repeat(auto-fit, minmax(min(100%, 84px), 1fr))')
   })
 })
