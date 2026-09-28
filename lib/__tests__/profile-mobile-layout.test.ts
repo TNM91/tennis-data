@@ -15,6 +15,14 @@ function styleBlock(styleName: string) {
 }
 
 describe('Profile mobile layout guards', () => {
+  it('keeps routine completed-profile editing focused on profile fields', () => {
+    expect(source).toContain('const showCompletedProfileNextMove = Boolean(')
+    expect(source).toContain('!isMobile || captainSetupEntry || showScorecardClaimWelcome || justConnectedPlayer')
+    expect(source).toContain('showCompletedProfileNextMove ? (')
+    expect(source).toContain("<strong>{captainSetupEntry ? 'Player ID connected' : 'Next move'}</strong>")
+    expect(source).toContain('<strong>Start your TIQ</strong>')
+  })
+
   it('keeps profile hero, setup, and form grids minmax-safe on mobile', () => {
     expect(source).not.toContain("? '1fr'")
     expect(source).not.toContain("whiteSpace: 'nowrap'")
