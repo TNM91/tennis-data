@@ -1870,7 +1870,7 @@ function DataAssistSourcePathPanel({
     ? dataAssistSourcePathJobs.filter((job) => job.id === 'team_summary')
     : dataAssistSourcePathJobs
   const nextStep = contactImportRequested
-    ? 'Review the contacts, then return to your team.'
+    ? 'Review the roster and contacts, then return to your team.'
     : teamSetupRequested
       ? 'Review the team, then connect it to My Teams.'
       : selectedImportType === 'schedule'
@@ -1888,7 +1888,7 @@ function DataAssistSourcePathPanel({
         </div>
         {!isCompactViewport ? <p style={sourcePathIntroStyle}>
           {contactImportRequested
-            ? 'Upload your TennisLink Player Roster for private phone and email details, then connect the team to your profile. Your Team Summary stays in place.'
+            ? 'Upload your TennisLink Player Roster to refresh the current players and private contact details, then connect the team to your profile. Existing standings stay in place.'
             : teamSetupRequested
               ? 'This adds the team record, league, flight, and roster. After import, review your private team link so it appears in My Teams. Add the schedule and optional contacts later.'
             : 'For your own team, import Team Summary, Match Schedule, then Player Roster. TiQ reviews every source before records change.'}
@@ -1897,7 +1897,7 @@ function DataAssistSourcePathPanel({
       {!isCompactViewport ? <div style={sourcePathDefaultCueStyle}>
         <strong>{contactImportRequested ? 'Captain contacts: use Player Roster.' : teamSetupRequested ? 'Your team path: Import Team Summary → review team link → My Teams.' : 'Team setup: Team Summary → schedule → Player Roster.'}</strong>
         <span>{contactImportRequested
-          ? 'This adds contact details only. After import, approve the team connection so it appears in My Teams.'
+          ? 'This refreshes the current player list and contact details. After import, approve the team connection so it appears in My Teams.'
           : teamSetupRequested
             ? 'A Team Summary does not automatically connect the team to you. That protects teams imported by someone else; you approve your own connection after import.'
           : 'The Player Roster adds captain contact details. After it imports, approve your team once to add it to My Teams.'}</span>
@@ -1906,15 +1906,15 @@ function DataAssistSourcePathPanel({
         {visibleJobs.map((job) => {
           const selected = selectedImportType === job.id
           const recommended = job.id === 'team_summary'
-          const title = contactImportRequested && job.id === 'team_summary' ? 'Player Roster contacts' : job.title
-          const question = contactImportRequested && job.id === 'team_summary' ? 'Need private captain contacts?' : job.question
+          const title = contactImportRequested && job.id === 'team_summary' ? 'Player Roster refresh' : job.title
+          const question = contactImportRequested && job.id === 'team_summary' ? 'Need the current roster and private contacts?' : job.question
           const cta = contactImportRequested && job.id === 'team_summary'
             ? 'Phones and email for match week'
             : teamSetupRequested && job.id === 'team_summary'
               ? 'Choose Team Summary file'
               : job.cta
           const body = contactImportRequested && job.id === 'team_summary'
-            ? 'For your team only: import the TennisLink Player Roster to save its contact details, then approve the team connection. Your Team Summary is not replaced.'
+            ? 'For your team only: import the TennisLink Player Roster to refresh membership and save its contact details, then approve the team connection. Existing standings are not replaced.'
             : job.body
           const compactDetail = contactImportRequested && job.id === 'team_summary'
             ? 'Adds phones and email'
@@ -2328,7 +2328,7 @@ function isScorecardPhotoSummary(summary: DataAssistBatchSummary) {
 
 function getUploadHelpTitle(importType: DataAssistImportType, contactImportRequested = false) {
   if (importType === 'schedule') return 'Flight or team schedule export'
-  if (importType === 'team_summary') return contactImportRequested ? 'Player Roster contact export' : 'Team Summary export'
+  if (importType === 'team_summary') return contactImportRequested ? 'Player Roster export' : 'Team Summary export'
   return 'Scorecard export'
 }
 
@@ -2338,7 +2338,7 @@ function getUploadHelpText(importType: DataAssistImportType, contactImportReques
   }
   if (importType === 'team_summary') {
     if (contactImportRequested) {
-      return 'In TennisLink, open your team’s Player Roster and choose Send To Excel. TiQ adds the phone and email details included there without replacing your Team Summary.'
+      return 'In TennisLink, open your team’s Player Roster and choose Send To Excel. TiQ refreshes the current player list and saves the phone and email details without replacing standings.'
     }
     return 'Start with Team Summary and choose Send To Excel. It imports the team, league, flight, roster, official ratings, and standings. If you manage the team, add Player Roster later for phone and email details.'
   }
@@ -3684,7 +3684,7 @@ function TeamSummaryReviewPanel({
       </div>
       <p style={copyStyle}>
         {isPlayerRoster
-          ? 'TenAceIQ found the private phone or email details included by TennisLink. This contact import will not change your Team Summary, ratings, or standings.'
+          ? 'TenAceIQ found the current Player Roster, official ratings, and private contact details included by TennisLink. This import refreshes team membership without replacing standings.'
           : 'TenAceIQ found the team, league, flight, roster players, official ratings, and standings. Add your Player Roster later if you want captain contact details.'}
       </p>
       {refreshComparison && refreshComparison.existingPlayerCount > 0 ? (
@@ -3701,20 +3701,20 @@ function TeamSummaryReviewPanel({
       ) : null}
       <RosterPlayersList parsedDraft={parsedDraft} />
       <div style={missingRatingCount ? reviewChecklistStyle : readyImportNoteStyle}>
-        <strong>{missingRatingCount ? 'Before importing' : isPlayerRoster ? 'Contacts ready' : 'Team Summary ready'}</strong>
+        <strong>{missingRatingCount ? 'Before importing' : isPlayerRoster ? 'Player Roster ready' : 'Team Summary ready'}</strong>
         <span>{missingRatingCount
           ? `${missingRatingCount} player rating${missingRatingCount === 1 ? '' : 's'} need review.`
           : isPlayerRoster
-            ? `${parsedDraft.contactCount || 0} contact${parsedDraft.contactCount === 1 ? '' : 's'} will be ready for captain messages without changing your Team Summary.`
+            ? `${parsedDraft.playerCount} player${parsedDraft.playerCount === 1 ? '' : 's'} and ${parsedDraft.contactCount || 0} contact${parsedDraft.contactCount === 1 ? '' : 's'} will refresh together.`
             : 'Player and rating context is ready. Player contacts remain optional.'}</span>
       </div>
       {onImport ? <section style={teamSummaryImportActionStyle} aria-label="Import this team summary">
         <div style={headerCopyStyle}>
-          <strong>{isPlayerRoster ? 'Import team contacts' : 'Import Team Summary'}</strong>
+          <strong>{isPlayerRoster ? 'Import Player Roster' : 'Import Team Summary'}</strong>
           <p style={copyStyle}>
             {readyToImport
               ? isPlayerRoster
-                ? 'Save these private contacts now. Next, choose whether to link this team to My Teams.'
+                ? 'Refresh the team roster and save its private contacts. Next, choose whether to link this team to My Teams.'
                 : 'Save this roster now. Next, review and link the team to My Teams, Team Chat, and Captain.'
               : 'This export is missing required roster details. Upload a complete Team Summary with player ratings before importing.'}
           </p>
@@ -3725,7 +3725,7 @@ function TeamSummaryReviewPanel({
           disabled={busy || !readyToImport}
           style={{ ...primaryButtonStyle, ...(busy || !readyToImport ? disabledStyle : {}) }}
         >
-          {busy ? 'Importing...' : refreshComparison?.needsConfirmation ? 'Confirm safe refresh' : isPlayerRoster ? 'Import team contacts' : 'Import Team Summary'}
+          {busy ? 'Importing...' : refreshComparison?.needsConfirmation ? 'Confirm safe refresh' : isPlayerRoster ? 'Import Player Roster' : 'Import Team Summary'}
         </button>
       </section> : null}
     </div>
@@ -3751,10 +3751,10 @@ function TeamSummaryImportedPanel({
     <div style={importPanelStyle}>
       <div style={submissionCardTopStyle}>
         <div style={headerCopyStyle}>
-          <strong>{isPlayerRoster ? 'Team contacts imported' : 'Team Summary imported'}</strong>
+          <strong>{isPlayerRoster ? 'Player Roster imported' : 'Team Summary imported'}</strong>
           <p style={copyStyle}>
             {isPlayerRoster
-              ? 'Private phone and email details from the Player Roster are ready for captain asks and team messages. Your Team Summary stays in place.'
+              ? 'The current player list and private contact details are ready for team planning and messages. Existing standings stay in place.'
               : 'Players, official ratings, league context, and standings are now connected to player profiles, team pages, and Team Hub.'}
           </p>
         </div>
@@ -3774,8 +3774,8 @@ function TeamSummaryImportedPanel({
         </>}
       </div>
       <div style={readyImportNoteStyle}>
-        <strong>{isPlayerRoster ? 'Contacts ready' : 'All set'}</strong>
-        <span>{result.message || (isPlayerRoster ? 'Team contacts are ready for match week.' : 'Team roster imported to TenAceIQ.')}</span>
+        <strong>{isPlayerRoster ? 'Roster and contacts ready' : 'All set'}</strong>
+        <span>{result.message || (isPlayerRoster ? 'The team roster and contacts are ready for match week.' : 'Team roster imported to TenAceIQ.')}</span>
       </div>
       <section style={teamConnectionNextStepStyle} aria-label="Connect your imported team">
         <div style={headerCopyStyle}>
