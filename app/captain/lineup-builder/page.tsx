@@ -203,6 +203,12 @@ type TeamRosterMemberRow = {
   age_division: string | null
 }
 
+type AvailableOpponentRoster = {
+  teamName: string
+  normalizedTeamName: string
+  playerCount: number
+}
+
 type LinkedCaptainTeam = Pick<TeamConnection, 'teamName' | 'leagueName' | 'flight' | 'isDefault' | 'sourceType'>
 
 type TiqTeamLeagueFormatRow = {
@@ -448,6 +454,7 @@ type LineupBuilderPayload = {
   historicalLineMatches?: MatchTeamRow[]
   historicalLineMatchPlayers?: MatchPlayerLinkRow[]
   rosterMembers?: TeamRosterMemberRow[]
+  availableOpponentRosters?: AvailableOpponentRoster[]
   availability?: AvailabilityRow[]
   captainRosterContacts?: CaptainRosterContactRow[]
   captainMessageContacts?: CaptainMessageTextContactRow[]
@@ -1544,6 +1551,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const [historicalLineMatches, setHistoricalLineMatches] = useState<MatchTeamRow[]>([])
   const [historicalLineMatchPlayers, setHistoricalLineMatchPlayers] = useState<MatchPlayerLinkRow[]>([])
   const [rosterMembers, setRosterMembers] = useState<TeamRosterMemberRow[]>([])
+  const [availableOpponentRosters, setAvailableOpponentRosters] = useState<AvailableOpponentRoster[]>([])
   const [teamRosterPlayers, setTeamRosterPlayers] = useState<PlayerRow[]>([])
   const [scopedRosterPlayerIds, setScopedRosterPlayerIds] = useState<string[]>([])
   const [availability, setAvailability] = useState<AvailabilityRow[]>([])
@@ -1610,6 +1618,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   )
   const [manualRosterText, setManualRosterText] = useState('')
   const [manualRosterOpen, setManualRosterOpen] = useState(false)
+  const [rosterPickerOpen, setRosterPickerOpen] = useState(false)
+  const [selectedExistingRoster, setSelectedExistingRoster] = useState('')
+  const [linkingOpponentRoster, setLinkingOpponentRoster] = useState(false)
   const [manualOpponentRosterText, setManualOpponentRosterText] = useState('')
   const [manualOpponentRosterOpen, setManualOpponentRosterOpen] = useState(false)
   const [builderMode, setBuilderMode] = useState<BuilderMode>('manual')
@@ -1618,6 +1629,11 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     () => !(initialTeamName && initialOpponentTeam && initialMatchDate)
   )
   const didAutoCollapseMatchSetupRef = useRef(false)
+
+  useEffect(() => {
+    setRosterPickerOpen(false)
+    setSelectedExistingRoster('')
+  }, [opponentTeam])
 
   const [availabilityOnly, setAvailabilityOnly] = useState(initialContext.availabilityOnly)
   const [hideUnavailable, setHideUnavailable] = useState(false)
@@ -2319,6 +2335,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     setHistoricalLineMatches(result.historicalLineMatches ?? [])
     setHistoricalLineMatchPlayers(result.historicalLineMatchPlayers ?? [])
     setRosterMembers(result.rosterMembers ?? [])
+    setAvailableOpponentRosters(result.availableOpponentRosters ?? [])
     setTeamRosterPlayers(result.players ?? [])
     setAvailability(result.availability ?? [])
     setCaptainRosterContacts(result.captainRosterContacts ?? [])
@@ -3305,6 +3322,43 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     setManualRosterOpen(false)
     setError('')
     setMessage(`${newPlayers.length} player${newPlayers.length === 1 ? '' : 's'} added for this lineup. Upload the Team Summary for ratings, then add Player Roster later if you want team contacts.`)
+  }
+
+  async function linkExistingOpponentRoster() {
+    if (!teamName || !leagueName || !flight || !opponentTeam || !selectedExistingRoster) {
+      setError('Choose an uploaded roster from this league and flight.')
+      return
+    }
+
+    setLinkingOpponentRoster(true)
+    setError('')
+    try {
+      const accessToken = session?.access_token || (await supabase.auth.getSession()).data.session?.access_token
+      if (!accessToken) throw new Error('Sign in again before linking this roster.')
+      const response = await fetch('/api/captain/lineup-builder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({
+          action: 'link-opponent-roster',
+          teamName,
+          leagueName,
+          flight,
+          opponentTeam,
+          normalizedSourceTeamName: selectedExistingRoster,
+        }),
+      })
+      const result = await response.json() as { ok?: boolean; message?: string; playerCount?: number }
+      if (!response.ok || !result.ok) throw new Error(result.message || 'The roster link could not be saved.')
+
+      setRosterPickerOpen(false)
+      setSelectedExistingRoster('')
+      setMessage(`${result.playerCount || 'The'} opponent players are connected. This roster will be used for future matches with ${opponentTeam}.`)
+      setRefreshTick((current) => current + 1)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'The roster link could not be saved.')
+    } finally {
+      setLinkingOpponentRoster(false)
+    }
   }
 
   function addManualOpponentRosterPlayers() {
@@ -6503,6 +6557,31 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const lineupLiveScorecardHref = lineupLiveScorecardParams.size
     ? `${lineupLiveScorecardBaseHref}${lineupLiveScorecardBaseHref.includes('?') ? '&' : '?'}${lineupLiveScorecardParams.toString()}`
     : lineupLiveScorecardBaseHref
+  const existingRosterPicker = rosterPickerOpen ? (
+    <div id="existing-opponent-roster-picker" style={existingRosterPickerStyle}>
+      <label htmlFor="existing-opponent-roster" style={labelStyle}>Use an uploaded roster</label>
+      <select
+        id="existing-opponent-roster"
+        value={selectedExistingRoster}
+        onChange={(event) => setSelectedExistingRoster(event.target.value)}
+        style={mobileSelectInputStyle}
+      >
+        <option value="">Choose a roster</option>
+        {availableOpponentRosters.map((roster) => (
+          <option key={roster.normalizedTeamName} value={roster.normalizedTeamName}>
+            {roster.teamName} · {roster.playerCount} player{roster.playerCount === 1 ? '' : 's'}
+          </option>
+        ))}
+      </select>
+      <p style={subtleHelperTextStyle}>Only uploaded rosters from {leagueName || 'this league'} · {flight || 'this flight'} are shown.</p>
+      <div style={existingRosterPickerActionsStyle}>
+        <GhostBtn onClick={() => setRosterPickerOpen(false)} disabled={linkingOpponentRoster}>Cancel</GhostBtn>
+        <PrimaryBtn onClick={() => void linkExistingOpponentRoster()} disabled={!selectedExistingRoster || linkingOpponentRoster}>
+          {linkingOpponentRoster ? 'Connecting…' : 'Use this roster'}
+        </PrimaryBtn>
+      </div>
+    </div>
+  ) : null
   if (!authResolved) {
     return (
       <div style={pageWrap}>
@@ -6984,7 +7063,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             </details>
           </section>
         ) : null}
-        {opponentTeam && (!isMobile || (!opponentPlayerPool.length && manualOpponentRosterOpen)) ? (
+        {opponentTeam ? (
           opponentPlayerPool.length ? (
             <section
               style={{
@@ -6999,9 +7078,21 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 <span>{importedOpponentRosterCount ? 'TiQ ratings are available where matched.' : 'Names are ready now; upload the TennisLink Team Summary to connect TiQ ratings.'}</span>
               </div>
               <div style={opponentRosterRecoveryActionsStyle}>
+                {availableOpponentRosters.length ? (
+                  <button
+                    type="button"
+                    onClick={() => setRosterPickerOpen((current) => !current)}
+                    style={ghostButton}
+                    aria-expanded={rosterPickerOpen}
+                    aria-controls="existing-opponent-roster-picker"
+                  >
+                    {rosterPickerOpen ? 'Close roster picker' : 'Use a different roster'}
+                  </button>
+                ) : null}
                 {!importedOpponentRosterCount ? <Link href={opponentSummaryUploadHref} style={ghostButton}>Add TennisLink roster</Link> : null}
                 <button type="button" onClick={openOpponentCourts} style={primaryButton}>Set opponent courts</button>
               </div>
+              {existingRosterPicker}
             </section>
           ) : (
             <section
@@ -7017,6 +7108,17 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 <span>Enter names now, or add its TennisLink Team Summary for TiQ ratings.</span>
               </div>
               <div style={opponentRosterRecoveryActionsStyle}>
+                {availableOpponentRosters.length ? (
+                  <button
+                    type="button"
+                    onClick={() => setRosterPickerOpen((current) => !current)}
+                    style={ghostButton}
+                    aria-expanded={rosterPickerOpen}
+                    aria-controls="existing-opponent-roster-picker"
+                  >
+                    {rosterPickerOpen ? 'Close roster picker' : 'Use existing roster'}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => setManualOpponentRosterOpen((current) => !current)}
@@ -7028,6 +7130,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 </button>
                 <Link href={opponentSummaryUploadHref} style={primaryButton}>Upload TennisLink roster</Link>
               </div>
+              {existingRosterPicker}
               {manualOpponentRosterOpen ? (
                 <div id="manual-opponent-roster" style={opponentRosterManualEntryStyle}>
                   <label htmlFor="manual-opponent-roster-names" style={labelStyle}>Opponent names</label>
@@ -10879,6 +10982,24 @@ const opponentRosterRecoveryCopyStyle: CSSProperties = {
 }
 
 const opponentRosterRecoveryActionsStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  flexWrap: 'wrap',
+  gap: 8,
+  minWidth: 0,
+}
+
+const existingRosterPickerStyle: CSSProperties = {
+  display: 'grid',
+  gridColumn: '1 / -1',
+  gap: 9,
+  minWidth: 0,
+  paddingTop: 12,
+  borderTop: '1px solid rgba(147, 197, 253, 0.18)',
+}
+
+const existingRosterPickerActionsStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'flex-end',
