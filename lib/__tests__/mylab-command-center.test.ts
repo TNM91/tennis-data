@@ -97,9 +97,22 @@ describe('My Lab command center', () => {
   })
 
   it('keeps the active-player context compact on a phone', () => {
-    expect(styleSource).toContain('.playerLink {\n    display: flex;\n    width: fit-content;')
+    expect(styleSource).toContain('.playerLink {\n    display: flex;\n    grid-column: 2;')
+    expect(styleSource).toContain('grid-row: 1;\n    width: fit-content;')
     expect(styleSource).toContain('max-width: min(220px, 58vw);')
     expect(styleSource).toContain('font-size: clamp(2rem, 9.6vw, 2.8rem);')
+    expect(styleSource).toContain('grid-template-columns: minmax(0, 1fr) auto;')
+    expect(styleSource).toContain('.intro > div {\n    display: contents;')
+    expect(styleSource).toContain('grid-column: 1 / -1;')
+    expect(styleSource).toContain('.labSignature small,\n  .playerLink span {\n    display: none;')
+    expect(styleSource).toContain('white-space: nowrap;')
+  })
+
+  it('keeps the current first-serve action above the mobile fold', () => {
+    expect(styleSource).toContain('.firstServeHeading > div > p:last-child {\n    display: none;')
+    expect(styleSource).toContain('.firstServeHeading h2 {\n    margin-bottom: 0;')
+    expect(styleSource).toContain('padding: 14px;')
+    expect(styleSource).toContain('margin-bottom: 11px;')
   })
 
   it('uses a compact daily pulse instead of a second large weekly card on phones', () => {
