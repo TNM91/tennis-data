@@ -14,7 +14,7 @@ describe('award certificate page', () => {
     expect(source).toContain('buildAwardEmailHref')
     expect(source).toContain('navigator.share')
     expect(source).toContain('navigator.clipboard.writeText')
-    expect(source).toContain('Certificate link copied.')
+    expect(source).toContain('Certificate message and link copied.')
     expect(source).toContain('@page')
     expect(source).toContain('size: letter landscape')
     expect(source).toContain('tiq-award-certificate')
