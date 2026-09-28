@@ -13,6 +13,13 @@ describe('Data Assist exact upload protection', () => {
     expect(dataAssistSource).toContain('exactDuplicate: true')
   })
 
+  it('reprocesses legacy Player Rosters that previously saved contacts without membership', () => {
+    expect(dataAssistSource).toContain(".select('id, validation_summary, parsed_payload')")
+    expect(dataAssistSource).toContain("savedDraft?.parsed_payload?.rosterSource === 'player_roster'")
+    expect(dataAssistSource).toContain('savedDraft.validation_summary?.importSummary?.contactOnly === true')
+    expect(dataAssistSource).toContain('if (legacyContactOnlyPlayerRoster) return null')
+  })
+
   it('lets the user keep the saved import or deliberately import the same file again', () => {
     expect(pageSource).toContain('This exact file is already imported.')
     expect(pageSource).toContain('Use saved import')

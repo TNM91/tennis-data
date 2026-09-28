@@ -807,12 +807,22 @@ async function findExactImportedDataAssistUpload(userId: string, summary: DataAs
 
   const draftResult = await supabase
     .from('data_assist_drafts')
-    .select('id')
+    .select('id, validation_summary, parsed_payload')
     .eq('batch_id', batchId)
     .eq('submitted_by_user_id', userId)
     .maybeSingle()
   if (draftResult.error) return null
-  const draftId = cleanText((draftResult.data as { id?: string | null } | null)?.id)
+  const savedDraft = draftResult.data as {
+    id?: string | null
+    validation_summary?: { importSummary?: { contactOnly?: boolean } | null } | null
+    parsed_payload?: { rosterSource?: string | null } | null
+  } | null
+  const legacyContactOnlyPlayerRoster = summary.requestedImportType === 'team_summary'
+    && savedDraft?.parsed_payload?.rosterSource === 'player_roster'
+    && savedDraft.validation_summary?.importSummary?.contactOnly === true
+  if (legacyContactOnlyPlayerRoster) return null
+
+  const draftId = cleanText(savedDraft?.id)
   return draftId ? { batchId, draftId } : null
 }
 
