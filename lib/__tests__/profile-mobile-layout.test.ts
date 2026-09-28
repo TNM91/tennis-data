@@ -137,4 +137,16 @@ describe('Profile mobile layout guards', () => {
     expect(planCardStyles).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))')
     expect(planCardStyles).toContain('@media (max-width: 374px)')
   })
+
+  it('removes repeated completed-profile hero actions only on phones', () => {
+    expect(source).toContain(
+      'const showProfileIntroActions = !isMobile || !profileComplete || captainSetupEntry || showScorecardClaimWelcome',
+    )
+    expect(source).toContain('{showProfileIntroActions ? (')
+    expect(source).toContain('data-profile-intro-actions="true"')
+    expect(source).toContain('Connect active team')
+    expect(source).toContain('See your results')
+    expect(source).toContain('Set profile')
+    expect(source).toContain('Sign in')
+  })
 })

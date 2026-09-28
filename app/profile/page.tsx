@@ -998,6 +998,7 @@ function ProfilePageInner() {
       ? 'Type your name, self-rate if needed, or choose an existing public record.'
       : 'Sign in once, then choose or create the player identity that powers your tennis tools.'
   const showProfileIntro = !signedIn || profileComplete
+  const showProfileIntroActions = !isMobile || !profileComplete || captainSetupEntry || showScorecardClaimWelcome
   const showTennisSetupChecklist = signedIn && profileComplete && (profileMatchDataState === 'present' || profileMatchDataState === 'missing')
 
   return (
@@ -1009,31 +1010,33 @@ function ProfilePageInner() {
             <h1 style={heroTitleStyle}>{heroTitle}</h1>
             <p style={heroTextStyle}>{heroCopy}</p>
           </div>
-          <div style={profileIntroActionsStyle}>
-            {profileComplete ? (
-              captainSetupEntry ? (
-                <>
-                  <Link href={captainTeamSetupHref} style={primaryButtonStyle}>Connect active team</Link>
-                  <Link href="/captain" style={secondaryButtonStyle}>Back to Captain</Link>
-                </>
+          {showProfileIntroActions ? (
+            <div style={profileIntroActionsStyle} data-profile-intro-actions="true">
+              {profileComplete ? (
+                captainSetupEntry ? (
+                  <>
+                    <Link href={captainTeamSetupHref} style={primaryButtonStyle}>Connect active team</Link>
+                    <Link href="/captain" style={secondaryButtonStyle}>Back to Captain</Link>
+                  </>
+                ) : (
+                  <>
+                    {showScorecardClaimWelcome
+                      ? <a href="#scorecard-claim-welcome" style={primaryButtonStyle}>See your results</a>
+                      : <Link href={activationPrimary.href} style={primaryButtonStyle}>{activationPrimary.label}</Link>}
+                    {showScorecardClaimWelcome
+                      ? null
+                      : <Link href={activationSecondary.href} style={secondaryButtonStyle}>{activationSecondary.label}</Link>}
+                  </>
+                )
+              ) : authPending ? (
+                <span style={secondaryButtonStyle}>Checking access</span>
+              ) : signedIn ? (
+                <a href="#profile-identity" style={primaryButtonStyle}>Set profile</a>
               ) : (
-                <>
-                  {showScorecardClaimWelcome
-                    ? <a href="#scorecard-claim-welcome" style={primaryButtonStyle}>See your results</a>
-                    : <Link href={activationPrimary.href} style={primaryButtonStyle}>{activationPrimary.label}</Link>}
-                  {showScorecardClaimWelcome
-                    ? null
-                    : <Link href={activationSecondary.href} style={secondaryButtonStyle}>{activationSecondary.label}</Link>}
-                </>
-              )
-            ) : authPending ? (
-              <span style={secondaryButtonStyle}>Checking access</span>
-            ) : signedIn ? (
-              <a href="#profile-identity" style={primaryButtonStyle}>Set profile</a>
-            ) : (
-              <Link href={profileSignInHref} style={primaryButtonStyle}>Sign in</Link>
-            )}
-          </div>
+                <Link href={profileSignInHref} style={primaryButtonStyle}>Sign in</Link>
+              )}
+            </div>
+          ) : null}
         </section>
       ) : null}
 
