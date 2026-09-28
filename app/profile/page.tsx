@@ -816,6 +816,9 @@ function ProfilePageInner() {
       ? `/login?next=${encodeURIComponent(buildPlayerProfileConnectHref(profileConnectPlayerId))}`
     : '/login?next=%2Fprofile'
   const showScorecardClaimWelcome = Boolean(connectedScorecardClaimId && !captainSetupEntry)
+  const showCompletedProfileNextMove = Boolean(
+    !isMobile || captainSetupEntry || showScorecardClaimWelcome || justConnectedPlayer,
+  )
   const canUseCompactProfileSummary = Boolean(
     isMobile &&
     profileComplete &&
@@ -1431,7 +1434,8 @@ function ProfilePageInner() {
               ) : null}
 
               {profileComplete ? (
-                <div style={nextMovePathStyle}>
+                showCompletedProfileNextMove ? (
+                  <div style={nextMovePathStyle}>
                   <div style={newPlayerPathHeaderStyle}>
                     <TiqFeatureIcon name="myLab" size="sm" variant="ghost" />
                     <div style={playerIdPowersHeaderCopyStyle}>
@@ -1470,7 +1474,8 @@ function ProfilePageInner() {
                       ))
                     )}
                   </div>
-                </div>
+                  </div>
+                ) : null
               ) : (
                 <div style={newPlayerPathStyle}>
                   <div style={newPlayerPathHeaderStyle}>
