@@ -849,17 +849,36 @@
   }
 
   .intro {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    margin-bottom: 14px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 9px 12px;
+    margin-bottom: 12px;
+  }
+
+  .intro > div {
+    display: contents;
   }
 
   .labSignature {
+    grid-column: 1;
+    grid-row: 1;
     gap: 9px;
   }
 
+  .labSignature strong {
+    white-space: nowrap;
+  }
+
+  .labSignature small,
+  .playerLink span {
+    display: none;
+  }
+
   .intro h1 {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin-top: 1px;
     font-size: clamp(2rem, 9.6vw, 2.8rem);
   }
 
@@ -869,14 +888,16 @@
 
   .playerLink {
     display: flex;
+    grid-column: 2;
+    grid-row: 1;
     width: fit-content;
     min-width: 0;
     max-width: 100%;
     align-items: center;
     justify-content: flex-start;
-    gap: 12px;
+    gap: 0;
     min-height: 44px;
-    padding: 8px 11px;
+    padding: 7px 10px;
   }
 
   .playerLink strong {
@@ -976,23 +997,33 @@
   }
 
   .firstServe {
-    margin-bottom: 14px;
-    padding: 16px;
+    margin-bottom: 12px;
+    padding: 14px;
     border-radius: 20px;
   }
 
   .firstServeHeading {
     display: grid;
-    gap: 10px;
-    margin-bottom: 14px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 8px 12px;
+    margin-bottom: 11px;
+  }
+
+  .firstServeHeading h2 {
+    margin-bottom: 0;
+    font-size: 1.3rem;
   }
 
   .firstServeHeading > div > p:last-child {
-    font-size: 0.8rem;
+    display: none;
   }
 
   .firstServeProgress {
     width: fit-content;
+    margin-bottom: 1px;
+    padding: 6px 9px;
+    font-size: 0.66rem;
   }
 
   .firstServeStep {
