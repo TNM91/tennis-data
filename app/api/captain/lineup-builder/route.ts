@@ -5,6 +5,7 @@ import { normalizeTeamName, normalizeUstaRosterTeamName } from '@/lib/captain-fo
 import { normalizeCaptainRosterContactKey } from '@/lib/captain-roster-contacts'
 import { canManageTeamRoom, normalizeTeamRoomKey } from '@/lib/team-room'
 import { loadSeasonLineupAnswers } from '@/lib/season-kickoff-server'
+import { resolveTeamRosterAlias } from '@/lib/team-roster-alias'
 
 export const runtime = 'nodejs'
 export const maxDuration = 20
@@ -271,17 +272,24 @@ export async function GET(request: Request) {
   const opponentRosterKeys = [...new Set([opponentName, ...scheduledOpponentNames]
     .flatMap((name) => [normalizeTeamName(name), normalizeUstaRosterTeamName(name)])
     .filter(Boolean))]
-  const opponentRosterRows = opponentRosterKeys.length
+  const scopedOpponentRosterRows = opponentRosterKeys.length
     ? await resolveOptionalQuery(
       'scheduled opponent rosters',
-      service
+      (leagueName && flight
+        ? service
+          .from('team_roster_members')
+          .select('team_name,normalized_team_name,player_id,player_name,league_name,flight,rating_source,mixed_pair_role,age_division')
+          .eq('league_name', leagueName)
+          .eq('flight', flight)
+        : service
         .from('team_roster_members')
-        .select('team_name,player_id,player_name,league_name,flight,rating_source,mixed_pair_role,age_division')
-        .in('normalized_team_name', opponentRosterKeys)
+        .select('team_name,normalized_team_name,player_id,player_name,league_name,flight,rating_source,mixed_pair_role,age_division')
+        .in('normalized_team_name', opponentRosterKeys))
         .limit(1000)
         .then((result) => result.data || []),
       [] as Array<{
         team_name: string | null
+        normalized_team_name: string | null
         player_id: string | null
         player_name: string | null
         league_name: string | null
@@ -292,6 +300,33 @@ export async function GET(request: Request) {
       }>,
     )
     : []
+  const requestedOpponentNames = [...new Set([opponentName, ...scheduledOpponentNames].filter(Boolean))]
+  const opponentRosterRows = [...new Map(requestedOpponentNames.flatMap((requestedName) => {
+    const requestedKeys = new Set([
+      normalizeTeamName(requestedName),
+      normalizeUstaRosterTeamName(requestedName),
+    ].filter(Boolean))
+    const exactRows = scopedOpponentRosterRows.filter((row) => (
+      requestedKeys.has(normalizeTeamName(row.team_name))
+      || requestedKeys.has(normalizeUstaRosterTeamName(row.team_name))
+    ))
+    if (exactRows.length) return exactRows
+
+    const resolution = resolveTeamRosterAlias(requestedName, scopedOpponentRosterRows.map((row) => ({
+      teamName: cleanAvailabilityText(row.team_name, 160),
+      normalizedTeamName: cleanAvailabilityText(row.normalized_team_name, 160),
+    })))
+    if (!resolution) return []
+
+    return scopedOpponentRosterRows
+      .filter((row) => normalizeTeamName(row.normalized_team_name) === resolution.normalizedTeamName)
+      // Keep the database's canonical team name for history lookups while
+      // presenting the row under the scheduled alias used by Match Week.
+      .map((row) => ({ ...row, team_name: requestedName, source_team_name: row.team_name }))
+  }).map((row) => [
+    [normalizeTeamName(row.team_name), row.player_id || normalizeTeamName(row.player_name)].join('|'),
+    row,
+  ])).values()]
   const currentOpponentKeys = new Set([
     normalizeTeamName(opponentName),
     normalizeUstaRosterTeamName(opponentName),
@@ -308,7 +343,10 @@ export async function GET(request: Request) {
     opponentName,
     ...opponentRosterRows
       .filter((row) => currentOpponentKeys.has(normalizeTeamName(row.team_name)) || currentOpponentKeys.has(normalizeUstaRosterTeamName(row.team_name)))
-      .map((row) => cleanAvailabilityText(row.team_name, 160)),
+      .flatMap((row) => [
+        cleanAvailabilityText(row.team_name, 160),
+        cleanAvailabilityText('source_team_name' in row ? row.source_team_name : '', 160),
+      ]),
   ].filter(Boolean))]
   const opponentHistoricalTeamFilter = opponentHistoricalTeamNames
     .flatMap((name) => {
