@@ -177,6 +177,8 @@ function buildStructuredTeamSummaryMeta(rows: HtmlRow[]) {
     ? inferPlayerRosterTeamName(rows)
     : inferTeamSummaryRosterTeam(rows, standings.map((team) => team.name))
   if (rosterTeamName) lines.push(`Team: ${rosterTeamName}`)
+  const declaredRosterPlayers = hasPlayerRosterHeader ? inferPlayerRosterCount(rows) : null
+  if (declaredRosterPlayers !== null) lines.push(`Declared roster players: ${declaredRosterPlayers}`)
   for (const team of standings) {
     lines.push(['Team standing', team.name, team.wins, team.losses].join(' | '))
   }
@@ -273,7 +275,7 @@ function buildStructuredRosterLines(rows: HtmlRow[]) {
 
     for (const cells of rows.slice(playerRosterHeaderIndex + 1)) {
       const ustaNumber = cells[ustaIndex] || ''
-      if (!/^\d{9,10}$/.test(ustaNumber)) continue
+      if (!/^\d{8,10}$/.test(ustaNumber)) continue
       const name = cells[nameIndex] || ''
       const phone = cells[phoneIndex] || ''
       const email = emailIndex >= 0 ? cells[emailIndex] || '' : ''
@@ -350,6 +352,17 @@ function inferPlayerRosterTeamName(rows: HtmlRow[]) {
     return rows[rowIndex + 1]?.[teamNameIndex] || ''
   }
   return ''
+}
+
+function inferPlayerRosterCount(rows: HtmlRow[]) {
+  for (let rowIndex = 0; rowIndex < rows.length - 1; rowIndex += 1) {
+    const headings = rows[rowIndex]
+    const playerCountIndex = findCellIndex(headings, /^No\.?\s+Players$/i)
+    if (playerCountIndex < 0) continue
+    const value = rows[rowIndex + 1]?.[playerCountIndex] || ''
+    if (/^\d+$/.test(value)) return Number(value)
+  }
+  return null
 }
 
 function findCellIndex(cells: HtmlRow, pattern: RegExp) {

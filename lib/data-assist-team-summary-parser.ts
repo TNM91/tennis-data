@@ -102,6 +102,9 @@ export function buildTeamSummaryOcrDraftFromText(
     ageDivision: rosterAgeDivision,
   }))
   const contacts = buildRosterContacts(players, namedContacts)
+  const declaredRosterPlayers = rosterSource === 'player_roster'
+    ? parseDeclaredRosterPlayerCount(rawText)
+    : null
   const parserWarnings: string[] = []
 
   if (!rosterTeamName) parserWarnings.push('Roster team needs review.')
@@ -109,6 +112,9 @@ export function buildTeamSummaryOcrDraftFromText(
   if (!players.length) parserWarnings.push('No roster players were safely read from this screenshot.')
   const missingRatings = players.filter((player) => player.ntrp === null).length
   if (players.length && missingRatings) parserWarnings.push(`${missingRatings} roster player${missingRatings === 1 ? '' : 's'} need rating review.`)
+  if (declaredRosterPlayers !== null && declaredRosterPlayers !== players.length) {
+    parserWarnings.push(`Player Roster lists ${declaredRosterPlayers} players, but ${players.length} ${players.length === 1 ? 'was' : 'were'} safely read. Review the missing rows before importing.`)
+  }
 
   const confidenceScore = roundConfidence(
     0.2 +
@@ -428,7 +434,12 @@ function normalizeEmail(value: string | undefined) {
 
 function normalizeUstaNumber(value: string | undefined) {
   const ustaNumber = cleanText(value).replace(/\D/g, '')
-  return /^\d{9,10}$/.test(ustaNumber) ? ustaNumber : ''
+  return /^\d{8,10}$/.test(ustaNumber) ? ustaNumber : ''
+}
+
+function parseDeclaredRosterPlayerCount(rawText: string) {
+  const value = extractFirst(rawText, /^Declared roster players:\s*(\d+)\s*$/im)
+  return value ? Number(value) : null
 }
 
 function isJunkPlayerName(value: string) {

@@ -195,7 +195,7 @@ describe('parseTennisLinkExportFiles', () => {
         <tr><td>Alex Captain</td><td>314-555-0100</td><td>alex@example.com</td></tr>
         <tr><td>Casey Partner</td><td>314-555-0101</td><td>casey@example.com</td></tr>
         <tr><td>Usta#</td><td>Expiry Date</td><td>Player</td><td>Phone no</td><td>Email Address</td><td>NTRP/Rating Date</td><td>Local Matches Played</td><td>Champ Matches Played</td><td>Total Matches Played</td><td>Local Wins by Default</td><td>Champ Wins by Default</td><td>Total Wins by Default</td></tr>
-        <tr><td>1112223334</td><td>12/31/2026</td><td>Alex Captain</td><td>314-555-0100</td><td>alex@example.com</td><td>4.5 / 12/31/2025</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+        <tr><td>11122233</td><td>12/31/2026</td><td>Alex Captain</td><td>314-555-0100</td><td>alex@example.com</td><td>4.5 / 12/31/2025</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
         <tr><td>2223334445</td><td>12/31/2026</td><td>Casey Partner</td><td>314-555-0101</td><td>casey@example.com</td><td>3.5 / 12/31/2025</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
       </table>
     `
@@ -212,7 +212,7 @@ describe('parseTennisLinkExportFiles', () => {
       contactCount: 2,
     })
     expect(draft.players).toEqual([
-      expect.objectContaining({ name: 'Alex Captain', ntrp: 4.5, phone: '314-555-0100', email: 'alex@example.com', ratingSource: 'verified', mixedPairRole: 'man', ageDivision: '18 & Over' }),
+      expect.objectContaining({ name: 'Alex Captain', ntrp: 4.5, phone: '314-555-0100', email: 'alex@example.com', ustaNumber: '11122233', ratingSource: 'verified', mixedPairRole: 'man', ageDivision: '18 & Over' }),
       expect.objectContaining({ name: 'Casey Partner', ntrp: 3.5, phone: '314-555-0101', email: 'casey@example.com', ratingSource: 'verified', mixedPairRole: 'man', ageDivision: '18 & Over' }),
     ])
     expect(draft.contacts).toEqual([
@@ -220,6 +220,26 @@ describe('parseTennisLinkExportFiles', () => {
       expect.objectContaining({ name: 'Casey Partner', role: 'Co-Captain', isCaptain: true }),
     ])
     expect(draft.teams).toEqual([])
+    expect(draft.parserWarnings).toEqual([])
+  })
+
+  it('warns when the declared Player Roster count does not match readable rows', () => {
+    const html = `
+      <table>
+        <tr><td>Team Name</td><td>Team Number</td><td>No. Players</td></tr>
+        <tr><td>Example Aces</td><td>123456789</td><td>2</td></tr>
+        <tr><td>USTA Section</td><td>USTA District</td><td>Local League / League Type</td><td>Team NTRP/Gender</td><td>Flight Name</td></tr>
+        <tr><td>USTA/MISSOURI VALLEY</td><td>ST. LOUIS</td><td>2026 Adult 18 &amp; Over Fall</td><td>Men</td><td>Men 4.5</td></tr>
+        <tr><td>Usta#</td><td>Expiry Date</td><td>Player</td><td>Phone no</td><td>Email Address</td><td>NTRP/Rating Date</td></tr>
+        <tr><td>11122233</td><td>12/31/2026</td><td>Alex Captain</td><td>314-555-0100</td><td>alex@example.com</td><td>4.5 / 12/31/2025</td></tr>
+        <tr><td>1234567</td><td>12/31/2026</td><td>Unreadable Identifier</td><td>314-555-0101</td><td>unreadable@example.com</td><td>4.5 / 12/31/2025</td></tr>
+      </table>
+    `
+    const parsed = parseTennisLinkExportFiles([{ ...screenshot, fileName: 'PlayerRoster_812026.xls', fileBuffer: Buffer.from(html), mimeType: 'application/vnd.ms-excel' }])
+    const draft = buildTeamSummaryOcrDraftFromText(parsed.rawText, [screenshot], parsed.provider)
+
+    expect(draft.playerCount).toBe(1)
+    expect(draft.parserWarnings).toContain('Player Roster lists 2 players, but 1 was safely read. Review the missing rows before importing.')
   })
 
   it('links a Tri-Level Team Summary to the captain team named in standings', () => {
