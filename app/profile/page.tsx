@@ -325,6 +325,7 @@ function ProfilePageInner() {
   const [saving, setSaving] = useState(false)
   const [justConnectedPlayer, setJustConnectedPlayer] = useState(false)
   const [profileEditorOpen, setProfileEditorOpen] = useState(false)
+  const [teamContextOpen, setTeamContextOpen] = useState(false)
   const [syncingProfile, setSyncingProfile] = useState(false)
   const [billingPortalOpening, setBillingPortalOpening] = useState(false)
   const [billingMessage, setBillingMessage] = useState('')
@@ -1580,6 +1581,7 @@ function ProfilePageInner() {
                   <details
                     className="profileDetailsSection"
                     data-profile-team-context="compact"
+                    onToggle={(event) => setTeamContextOpen(event.currentTarget.open)}
                     style={teamContextDetailsStyle}
                   >
                     <summary style={teamContextSummaryStyle}>
@@ -1589,7 +1591,7 @@ function ProfilePageInner() {
                           {selectedPlayerTeams.length} {selectedPlayerTeams.length === 1 ? 'team' : 'teams'} · {detectedLeagueCount} {detectedLeagueCount === 1 ? 'league' : 'leagues'}
                         </span>
                       </span>
-                      <span style={teamContextSummaryCueStyle}>View teams</span>
+                      <span style={teamContextSummaryCueStyle}>{teamContextOpen ? 'Hide teams' : 'View teams'}</span>
                     </summary>
                     <div style={teamContextDetailsBodyStyle}>
                       {selectedPlayerTeams.map((team) => (
