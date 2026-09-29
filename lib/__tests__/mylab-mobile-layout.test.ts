@@ -92,6 +92,8 @@ describe('My Lab mobile layout guards', () => {
       'watchlistMobileFollowsStyle',
       'watchlistFeedActionsMobileStyle',
       'watchlistFeedFilterSelectStyle',
+      'watchlistSearchFollowActionStyle',
+      'watchlistSearchUnfollowActionStyle',
       'mobileUpcomingFeedCardStyle',
       'mobileUpcomingTopRowStyle',
       'mobileUpcomingFeedLinkStyle',
