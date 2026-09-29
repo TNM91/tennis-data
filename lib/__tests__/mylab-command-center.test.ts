@@ -214,6 +214,17 @@ describe('My Lab command center', () => {
     expect(pageSource).toContain('const watchlistManageActionStyle: CSSProperties = {')
   })
 
+  it('condenses Watchlist update filters into a phone-friendly selector', () => {
+    expect(pageSource).toContain('{isMobile ? (')
+    expect(pageSource).toContain('aria-label="Filter Watchlist updates"')
+    expect(pageSource).toContain('<option value="all">All updates</option>')
+    expect(pageSource).toContain('<option value="achievement">Achievements</option>')
+    expect(pageSource).toContain('style={watchlistRefreshButtonStyle}')
+    expect(pageSource).toContain('const watchlistFeedActionsMobileStyle: CSSProperties = {')
+    expect(pageSource).toContain('const watchlistFeedFilterSelectStyle: CSSProperties = {')
+    expect(pageSource).toContain("(['all', 'match', 'rating', 'achievement', 'team', 'league', 'community'] as const).map(")
+  })
+
   it('uses one consistent My Lab mark without a nested signature frame', () => {
     expect(iconSource).toContain('myLab: FlaskIcon')
     expect(iconSource).not.toContain("signature = name === 'myLab'")
