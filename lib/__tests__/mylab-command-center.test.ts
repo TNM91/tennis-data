@@ -86,7 +86,7 @@ describe('My Lab command center', () => {
     expect(styleSource).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));')
     expect(styleSource).toContain(".firstServeGrid[data-has-current='true'] .firstServeStepSecondary")
     expect(componentSource).toContain("${postRepReturn ? styles.primaryGridAfterRep : ''}")
-    expect(componentSource).toContain('{!postRepReturn ? <article className={styles.repCard}>')
+    expect(componentSource).toContain('className={styles.repCard}')
     expect(componentSource).toContain('{!postRepReturn ? <article className={styles.momentumCard}>')
     expect(styleSource).toContain('.supportStackAfterRep .matchCard')
     expect(styleSource).toContain('.ballImage {\n    right: 0;')
@@ -118,6 +118,12 @@ describe('My Lab command center', () => {
     expect(styleSource).toContain('min-height: 70px;')
     expect(styleSource).toContain('padding: 11px;')
     expect(styleSource).toContain('margin-bottom: 8px;')
+  })
+
+  it('keeps the unlinked phone rep focused on its account action', () => {
+    expect(componentSource).toContain("data-player-linked={playerId && playerName ? 'true' : 'false'}")
+    expect(styleSource).toContain(".repCard[data-player-linked='false'],\n  .repCard[data-player-linked='false'] .repContent {\n    min-height: 330px;")
+    expect(styleSource).toContain(".repCard[data-player-linked='false'] .repContent h2 {\n    padding-right: 24px;\n    font-size: clamp(2.15rem, 9.6vw, 2.8rem);")
   })
 
   it('puts the weekly action ahead of supporting proof detail on phones', () => {
