@@ -93,6 +93,9 @@ describe('My Lab mobile layout guards', () => {
       'watchlistMobileFollowsStyle',
       'watchlistFeedActionsMobileStyle',
       'watchlistFeedFilterSelectStyle',
+      'mobileUpcomingFeedCardStyle',
+      'mobileUpcomingTopRowStyle',
+      'mobileUpcomingFeedLinkStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain('minWidth: 0')
     }
@@ -122,6 +125,10 @@ describe('My Lab mobile layout guards', () => {
       'myLabRefreshProofLabelStyle',
       'myLabRefreshProofTextStyle',
       'myLabPlayerIdProofValueStyle',
+      'mobileUpcomingTitleStyle',
+      'mobileUpcomingContextStyle',
+      'mobileUpcomingBodyStyle',
+      'mobileUpcomingFeedLinkStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain("overflowWrap: 'anywhere'")
     }
@@ -134,6 +141,8 @@ describe('My Lab mobile layout guards', () => {
     expect(styleBlock('watchlistRefreshButtonStyle')).toContain('minHeight: 44')
     expect(styleBlock('watchlistFeedFilterSelectStyle')).toContain('minHeight: 44')
     expect(styleBlock('watchlistFeedFilterSelectStyle')).toContain("maxWidth: 180")
+    expect(styleBlock('mobileUpcomingFeedLinkStyle')).toContain('minHeight: 44')
+    expect(styleBlock('mobileUpcomingFeedLinkStyle')).toContain("width: '100%'")
     expect(styleBlock('feedLinkStyle')).toContain("maxWidth: '100%'")
     expect(source).toContain('<div style={matchupQueueCopyStyle}>')
     expect(source).toContain('<div style={workshopRowCopyStyle}>')
