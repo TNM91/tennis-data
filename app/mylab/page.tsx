@@ -3689,12 +3689,12 @@ function MyLabPageInner() {
       />
 
       <details className="myLabDetailsSection" style={labDrawerDetailsStyle}>
-        <summary style={labDrawerSummaryStyle}>
+        <summary aria-label="Open My Calendar to plan your tennis week" style={calendarDrawerSummaryStyle}>
           <span style={labDrawerSummaryCopyStyle}>
             <strong>My Calendar</strong>
-            <em style={labDrawerSummaryHintStyle}>Saved matches, Apple, Google, and your tennis week.</em>
+            <em style={labDrawerSummaryHintStyle}>Keep matches, practice, and availability in one place.</em>
           </span>
-          <span style={optionalContextCountStyle}>Open</span>
+          <span aria-hidden="true" style={calendarSummaryActionStyle}>Plan week <span>→</span></span>
         </summary>
         <div className="myLabDetailsBody" style={labDrawerContentStyle}>
           <MyLabCalendarPanel
@@ -3725,7 +3725,7 @@ function MyLabPageInner() {
           <summary style={mobileMyLabExtrasSummaryStyle}>
             <span style={labDrawerSummaryCopyStyle}>
               <strong>More in My Lab</strong>
-              <em style={labDrawerSummaryHintStyle}>Teams, tools, goals, and calendar.</em>
+              <em style={labDrawerSummaryHintStyle}>Teams, tools, goals, and coach work.</em>
             </span>
             <span style={optionalContextCountStyle}>Open</span>
           </summary>
@@ -10798,6 +10798,11 @@ const labDrawerSummaryStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const calendarDrawerSummaryStyle: CSSProperties = {
+  ...labDrawerSummaryStyle,
+  padding: '14px 12px',
+}
+
 const labDrawerSummaryCopyStyle: CSSProperties = {
   display: 'grid',
   gap: 4,
@@ -10854,6 +10859,17 @@ const optionalContextCountStyle: CSSProperties = {
   whiteSpace: 'normal',
   maxWidth: '100%',
   overflowWrap: 'anywhere',
+}
+
+const calendarSummaryActionStyle: CSSProperties = {
+  ...optionalContextCountStyle,
+  justifyContent: 'space-between',
+  gap: 12,
+  minHeight: 44,
+  minWidth: 116,
+  padding: '0 14px',
+  borderColor: 'color-mix(in srgb, var(--brand-blue-2) 38%, var(--shell-panel-border) 62%)',
+  color: 'var(--foreground-strong)',
 }
 
 const compactSignalsPanelStyle: CSSProperties = {
