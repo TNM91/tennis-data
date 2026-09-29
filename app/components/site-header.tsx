@@ -513,7 +513,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
           width: '100%',
           maxWidth: '1280px',
           margin: '0 auto',
-          padding: isMobile ? '5px 2px' : useRailHeader ? '7px 8px 5px' : isTablet ? '11px 4px' : '13px 8px',
+          padding: isMobile ? '2px 2px' : useRailHeader ? '7px 8px 5px' : isTablet ? '11px 4px' : '13px 8px',
         }}
       >
         <div
@@ -524,7 +524,7 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
               : 'minmax(0, auto) minmax(0, 1fr) minmax(0, auto)',
             alignItems: 'center',
             gap: isMobile ? '8px' : useCompactHeader ? '12px' : '14px',
-            padding: isMobile ? '5px 6px' : useRailHeader ? '4px 0' : useCompactHeader ? '8px 9px' : '8px 10px',
+            padding: isMobile ? '2px 6px' : useRailHeader ? '4px 0' : useCompactHeader ? '8px 9px' : '8px 10px',
             minWidth: 0,
             overflowWrap: 'anywhere',
             borderRadius: isMobile ? 18 : useCompactHeader ? 999 : 16,

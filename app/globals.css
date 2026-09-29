@@ -1671,7 +1671,7 @@ hr {
 
 @media (max-width: 640px) {
   :root {
-    --header-height: 58px;
+    --header-height: 56px;
   }
 
   .hero-insane {
