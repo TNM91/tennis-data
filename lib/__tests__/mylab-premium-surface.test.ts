@@ -44,6 +44,7 @@ describe('My Lab premium surface', () => {
     expect(source).toContain("body={isMobile ? 'Open progress, matchup prep, and cleaner tennis messages.' : MY_LAB_STORY.upgradeBody}")
     expect(source).toContain("secondaryLabel={isMobile ? 'Plans' : MY_LAB_STORY.upgradeSecondary}")
     expect(source).toContain("footnote={isMobile ? undefined : MY_LAB_STORY.upgradeFootnote}")
+    expect(source.match(/phoneGateway=\{isMobile\}/g)).toHaveLength(2)
     expect(source).toContain('Pick the next move, then keep the proof connected.')
     expect(source).toContain('My Lab answers what to work on, how you are improving, which matchups matter, and which drill or resource should come next.')
     expect(source).toContain("value: 'Next move'")
