@@ -108,11 +108,14 @@ describe('My Lab command center', () => {
     expect(styleSource).toContain('white-space: nowrap;')
   })
 
-  it('keeps the current first-serve action above the mobile fold', () => {
+  it('keeps the current first-serve action compact and above the mobile fold', () => {
+    expect(componentSource).toContain('aria-label="First serve setup"')
     expect(styleSource).toContain('.firstServeHeading > div > p:last-child {\n    display: none;')
-    expect(styleSource).toContain('.firstServeHeading h2 {\n    margin-bottom: 0;')
-    expect(styleSource).toContain('padding: 14px;')
-    expect(styleSource).toContain('margin-bottom: 11px;')
+    expect(styleSource).toContain('.firstServeHeading h2 {\n    display: none;')
+    expect(styleSource).toContain('.firstServeHeading .cardEyebrow {\n    margin: 0;')
+    expect(styleSource).toContain('min-height: 70px;')
+    expect(styleSource).toContain('padding: 11px;')
+    expect(styleSource).toContain('margin-bottom: 8px;')
   })
 
   it('uses a compact daily pulse instead of a second large weekly card on phones', () => {
