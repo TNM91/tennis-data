@@ -119,12 +119,17 @@ describe('My Lab command center', () => {
   })
 
   it('puts the weekly action ahead of supporting proof detail on phones', () => {
+    const weeklyActionIndex = componentSource.indexOf('<Link href={postRepReturn.nextHref}>')
+    const weeklyWhyIndex = componentSource.indexOf('<p className={styles.postRepWhy}>')
+    const weeklyMetaIndex = componentSource.indexOf('<div className={styles.postRepPlanMeta}>')
+
+    expect(weeklyActionIndex).toBeGreaterThanOrEqual(0)
+    expect(weeklyWhyIndex).toBeGreaterThan(weeklyActionIndex)
+    expect(weeklyMetaIndex).toBeGreaterThan(weeklyWhyIndex)
     expect(styleSource).toContain('.postRepReturn {\n    grid-template-columns: 1fr;\n    gap: 0;')
     expect(styleSource).toContain('.postRepProgress {\n    grid-template-columns: minmax(0, 1fr) auto;')
     expect(styleSource).toContain('.postRepProgress > a {\n    grid-column: 2;\n    grid-row: 2;')
-    expect(styleSource).toContain('.postRepNext > a {\n    order: 3;')
-    expect(styleSource).toContain('.postRepWhy {\n    order: 4;')
-    expect(styleSource).toContain('.postRepPlanMeta {\n    order: 5;\n    grid-template-columns: repeat(2, minmax(0, 1fr));')
+    expect(styleSource).toContain('.postRepPlanMeta {\n    grid-template-columns: repeat(2, minmax(0, 1fr));')
   })
 
   it('uses a compact daily pulse instead of a second large weekly card on phones', () => {
