@@ -5006,7 +5006,7 @@ function MyLabPageInner() {
                 </div>
                 <span style={optionalContextCountStyle}>{follows.length} saved</span>
               </div>
-              <FollowList items={follows} onRemove={removeFollow} />
+              <FollowList items={follows} onRemove={removeFollow} largeActions />
             </section>
           ) : null}
 
@@ -5072,7 +5072,9 @@ function MyLabPageInner() {
                           <button
                             type="button"
                             onClick={() => (existingFollow ? removeFollow(existingFollow) : addFollow(option))}
-                            style={existingFollow ? tabButtonStyle : primaryMiniButtonStyle}
+                            style={existingFollow
+                              ? isMobile ? watchlistSearchUnfollowActionStyle : tabButtonStyle
+                              : isMobile ? watchlistSearchFollowActionStyle : primaryMiniButtonStyle}
                           >
                             {existingFollow ? 'Unfollow' : 'Follow'}
                           </button>
@@ -5345,10 +5347,12 @@ function GhostButton({
   onClick,
   children,
   ariaLabel,
+  large,
 }: {
   onClick: () => void
   children: React.ReactNode
   ariaLabel?: string
+  large?: boolean
 }) {
   const [hovered, setHovered] = useState(false)
   return (
@@ -5360,6 +5364,7 @@ function GhostButton({
       onMouseLeave={() => setHovered(false)}
       style={{
         ...ghostMiniButtonStyle,
+        minHeight: large ? 44 : ghostMiniButtonStyle.minHeight,
         background: hovered
           ? 'color-mix(in srgb, var(--foreground-strong) 7%, var(--shell-chip-bg) 93%)'
           : ghostMiniButtonStyle.background,
@@ -7556,9 +7561,11 @@ function buildPlayerAssignmentCheckInDraft(
 function FollowList({
   items,
   onRemove,
+  largeActions = false,
 }: {
   items: FollowItem[]
   onRemove: (item: FollowItem) => void
+  largeActions?: boolean
 }) {
   if (!items.length) {
     return <div style={emptyStateStyle}>Nothing followed here yet.</div>
@@ -7576,6 +7583,7 @@ function FollowList({
           </div>
           <GhostButton
             ariaLabel={`Remove ${item.entity_name} from Watchlist`}
+            large={largeActions}
             onClick={() => onRemove(item)}
           >
             Remove
@@ -11364,6 +11372,18 @@ const ghostMiniButtonStyle: CSSProperties = {
   cursor: 'pointer',
   maxWidth: '100%',
   whiteSpace: 'normal',
+}
+
+const watchlistSearchFollowActionStyle: CSSProperties = {
+  ...primaryMiniButtonStyle,
+  minHeight: 44,
+  minWidth: 0,
+}
+
+const watchlistSearchUnfollowActionStyle: CSSProperties = {
+  ...tabButtonStyle,
+  minHeight: 44,
+  minWidth: 0,
 }
 
 const watchlistFeedActionsMobileStyle: CSSProperties = {
