@@ -84,6 +84,8 @@ export default function MyLabCommandCenter({
   const safeCompletedSessions = Math.max(0, Math.min(sessionTarget, completedSessions))
   const completedFirstServeSteps = firstServeSteps.filter((step) => step.complete).length
   const nextFirstServeStep = firstServeSteps.findIndex((step) => !step.complete)
+  const matchupActionHref = matchup?.href || (playerId ? '/matchup' : '/profile')
+  const matchupActionLabel = matchup ? 'View matchup' : playerId ? 'Build matchup' : 'Connect player record'
   const dailyPulseItems = [
     {
       label: 'Court time',
@@ -99,9 +101,9 @@ export default function MyLabCommandCenter({
     },
     {
       label: 'Matchup',
-      value: matchup ? 'Ready' : 'Build',
-      note: matchup?.opponentName || 'Find an opponent',
-      href: matchup?.href || '/matchup',
+      value: matchup ? 'Ready' : playerId ? 'Build' : 'Connect',
+      note: matchup?.opponentName || (playerId ? 'Find an opponent' : 'Find your player'),
+      href: matchupActionHref,
     },
   ]
 
@@ -321,13 +323,22 @@ export default function MyLabCommandCenter({
                 </>
               ) : (
                 <>
-                  <strong className={styles.emptyMatchTitle}>Build your first read</strong>
-                  <p>Connect a player record to surface a useful next test.</p>
+                  <strong className={styles.emptyMatchTitle}>
+                    {playerId ? 'Build your first read' : 'Connect your player record'}
+                  </strong>
+                  <p>
+                    {playerId
+                      ? 'Choose two players to surface a useful next test.'
+                      : 'Keep matchup insight tied to your tennis and surface a useful next test.'}
+                  </p>
                 </>
               )}
             </div>
-            <Link className={styles.matchAction} href={matchup?.href || '/matchup'}>
-              View matchup <span aria-hidden="true">→</span>
+            <Link
+              className={`${styles.matchAction} ${!matchup && !playerId ? styles.matchActionPrimary : ''}`}
+              href={matchupActionHref}
+            >
+              {matchupActionLabel} <span aria-hidden="true">→</span>
             </Link>
           </article>
         </div>
