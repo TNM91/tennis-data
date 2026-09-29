@@ -8,6 +8,7 @@ import {
 } from '../site-header-responsive'
 
 const siteHeaderSource = readFileSync(join(process.cwd(), 'app/components/site-header.tsx'), 'utf8')
+const globalsSource = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
 
 describe('site header responsive rules', () => {
   it('keeps the compact breakpoint shared across auth states', () => {
@@ -61,8 +62,9 @@ describe('site header responsive rules', () => {
   })
 
   it('keeps the compact phone header short enough for the sticky portal', () => {
-    expect(siteHeaderSource).toContain("padding: isMobile ? '5px 2px'")
-    expect(siteHeaderSource).toContain("padding: isMobile ? '5px 6px'")
+    expect(siteHeaderSource).toContain("padding: isMobile ? '2px 2px'")
+    expect(siteHeaderSource).toContain("padding: isMobile ? '2px 6px'")
+    expect(globalsSource).toMatch(/@media \(max-width: 640px\)[\s\S]*?--header-height: 56px;/)
     expect(siteHeaderSource).toContain("width: '44px'")
     expect(siteHeaderSource).toContain("height: '44px'")
     expect(siteHeaderSource).toContain('const railHeaderMenuButtonStyle')
