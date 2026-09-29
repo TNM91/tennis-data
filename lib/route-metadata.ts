@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { createClient } from '@supabase/supabase-js'
+import { buildShareCardImageUrl } from './share-card'
 
 const DEFAULT_IMAGE = '/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1'
 let metadataSupabase: ReturnType<typeof createClient> | null = null
@@ -31,11 +32,13 @@ export function buildRouteMetadata({
   description,
   path,
   titleAbsolute = false,
+  image = DEFAULT_IMAGE,
 }: {
   title: string
   description: string
   path: string
   titleAbsolute?: boolean
+  image?: string
 }): Metadata {
   return {
     title: titleAbsolute ? { absolute: title } : title,
@@ -52,7 +55,7 @@ export function buildRouteMetadata({
       url: path,
       images: [
         {
-          url: DEFAULT_IMAGE,
+          url: image,
           width: 1200,
           height: 630,
           alt: title,
@@ -63,7 +66,7 @@ export function buildRouteMetadata({
       card: 'summary_large_image',
       title,
       description,
-      images: [DEFAULT_IMAGE],
+      images: [image],
     },
   }
 }
@@ -110,6 +113,12 @@ export function getTournamentMetadataById(id: string): Metadata {
     description:
       'Open a TenAceIQ tournament page with event details, divisions, entries, draws, schedule context, and results.',
     path: `/tournaments/${encodeURIComponent(id)}`,
+    image: buildShareCardImageUrl({
+      kind: 'tournament',
+      title,
+      subtitle: 'Draws, schedule, entries, and results',
+      detail: 'Tournament desk · TenAceIQ',
+    }),
   })
 }
 
@@ -126,6 +135,12 @@ export async function getPlayerMetadataById(id: string): Promise<Metadata> {
     title,
     description,
     path: `/players/${encodeURIComponent(id)}`,
+    image: buildShareCardImageUrl({
+      kind: 'player',
+      title: name || 'Player profile',
+      subtitle: location || 'TenAceIQ player intelligence',
+      detail: 'Dynamic ratings · Match history · Matchup context',
+    }),
   })
 }
 
@@ -141,6 +156,12 @@ export async function getTeamMetadataByName(team: string): Promise<Metadata> {
     title,
     description,
     path: `/teams/${encodeURIComponent(team)}`,
+    image: buildShareCardImageUrl({
+      kind: 'team',
+      title: team,
+      subtitle: context || 'Team intelligence',
+      detail: 'Roster depth · Recent form · Team context',
+    }),
   })
 }
 
@@ -220,6 +241,12 @@ export async function getLeagueMetadataByName(league: string): Promise<Metadata>
     title,
     description,
     path: `/leagues/${encodeURIComponent(league)}`,
+    image: buildShareCardImageUrl({
+      kind: 'league',
+      title: leagueName,
+      subtitle: context || 'League season',
+      detail: 'Standings · Results · Season context',
+    }),
   })
 }
 

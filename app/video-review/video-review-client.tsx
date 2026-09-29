@@ -1879,11 +1879,12 @@ export default function VideoReviewClient() {
   async function copyHandoffLink(role: VideoReviewRole) {
     if (!activeClip) return
     const href = `${window.location.origin}${buildVideoReviewHandoffHref(activeClip.id, role)}`
+    const handoffText = `${role === 'coach' ? 'Coach review' : 'Player feedback'}: ${activeClip.title || activeClip.fileName || 'TenAceIQ video'}\nOpen on this device: ${href}`
     try {
-      await navigator.clipboard.writeText(href)
+      await navigator.clipboard.writeText(handoffText)
       setMessage(role === 'coach' ? 'Coach review link copied for this device.' : 'Player return link copied for this device.')
     } catch {
-      setMessage(`${role === 'coach' ? 'Coach review' : 'Player return'} link: ${href}`)
+      setMessage(handoffText)
     }
   }
 

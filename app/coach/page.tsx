@@ -1315,7 +1315,8 @@ function CoachContent() {
   async function copyCoachAssignmentCourtLink(href: string, playerName: string) {
     if (!href) return
 
-    await copyCoachText(href, `Court link copied for ${playerName}.`, `Court link is ready for ${playerName}: ${href}`)
+    const text = `Open ${playerName}'s TenAceIQ court assignment: ${href}`
+    await copyCoachText(text, `Court assignment message copied for ${playerName}.`, `Court assignment is ready for ${playerName}: ${href}`)
   }
 
   async function copyCoachText(text: string, copiedMessage: string, fallbackMessage: string) {

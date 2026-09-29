@@ -360,9 +360,10 @@ function PlayerProfileContent() {
     if (!player) return
     const url = new URL(`/players/${encodeURIComponent(player.id)}`, window.location.origin)
     url.searchParams.set('via', 'player-share')
+    const text = `See ${player.name}'s TenAceIQ player profile — ratings, recent match history, and matchup context.`
     const shareData = {
       title: `${player.name} on TenAceIQ`,
-      text: `See ${player.name}'s TenAceIQ player profile.`,
+      text,
       url: url.toString(),
     }
 
@@ -379,7 +380,7 @@ function PlayerProfileContent() {
     }
 
     try {
-      await navigator.clipboard.writeText(url.toString())
+      await navigator.clipboard.writeText(`${text}\n${url.toString()}`)
       track('Player Profile Share', { action: 'copy_link' })
       setProfileShareStatus('copied')
       window.setTimeout(() => setProfileShareStatus('idle'), 2400)

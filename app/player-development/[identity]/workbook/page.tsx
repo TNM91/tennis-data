@@ -4,6 +4,7 @@ import PlayerDevelopmentSystem from '../../_components/player-development-system
 import { PLAYER_DEVELOPMENT_IDENTITIES, getPlayerDevelopmentIdentity } from '@/lib/player-development'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildBreadcrumbJsonLd } from '@/lib/structured-data'
+import { buildShareCardImageUrl } from '@/lib/share-card'
 
 type IdentityWorkbookPageProps = {
   params: Promise<{ identity: string }>
@@ -22,6 +23,7 @@ export async function generateMetadata({ params }: IdentityWorkbookPageProps): P
     description: `Optional TenAceIQ print backup pages for ${identity.title}.`,
     path: `/player-development/${identity.slug}/workbook`,
     titleAbsolute: true,
+    image: buildShareCardImageUrl({ kind: 'development', title: identity.title, subtitle: 'Print backup', detail: 'Player development workbook · TenAceIQ' }),
   })
 }
 

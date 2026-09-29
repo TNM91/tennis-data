@@ -413,16 +413,17 @@ function MatchupSheetContent() {
         }),
       ])
       const file = new File([image], `tenaceiq-${teamName || 'team'}-lineup.png`.replace(/[^a-z0-9._-]+/gi, '-'), { type: 'image/png' })
+      const lineupLabel = confirmedLineup ? 'Confirmed lineup' : 'Projected lineup'
       const shareText = [
-        confirmedLineup ? 'Final lineup confirmed.' : 'Match lineup.',
+        lineupLabel,
         `${teamName || 'Team'} vs ${opponent || 'Opponent to be confirmed'}.`,
         [formatDate(matchDate), matchTime, facility].filter(Boolean).join(' • '),
         matchWeek?.details.directions ? `Directions: ${matchWeek.details.directions}` : '',
         matchWeek?.details.notes || '',
-        `Open lineup: ${lineupShareUrl}`,
+        `Open ${lineupLabel.toLowerCase()}: ${lineupShareUrl}`,
       ].filter(Boolean).join('\n')
       if (typeof navigator.share === 'function' && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ title: `${teamName || 'Team'} ${confirmedLineup ? 'confirmed ' : ''}lineup`, text: shareText, files: [file] })
+        await navigator.share({ title: `${lineupLabel}: ${teamName || 'Team'}`, text: shareText, files: [file] })
         setShareNotice('Final lineup image and Team Chat link are ready to send.')
       } else {
         const url = URL.createObjectURL(image)

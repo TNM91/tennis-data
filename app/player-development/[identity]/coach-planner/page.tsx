@@ -4,6 +4,7 @@ import PlayerDevelopmentSystem from '../../_components/player-development-system
 import { PLAYER_DEVELOPMENT_IDENTITIES, getPlayerDevelopmentIdentity } from '@/lib/player-development'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildBreadcrumbJsonLd } from '@/lib/structured-data'
+import { buildShareCardImageUrl } from '@/lib/share-card'
 
 type IdentityCoachPlannerPageProps = {
   params: Promise<{ identity: string }>
@@ -22,6 +23,7 @@ export async function generateMetadata({ params }: IdentityCoachPlannerPageProps
     description: `Optional TenAceIQ coach planner print pages for ${identity.title}.`,
     path: `/player-development/${identity.slug}/coach-planner`,
     titleAbsolute: true,
+    image: buildShareCardImageUrl({ kind: 'development', title: identity.title, subtitle: 'Coach planner', detail: 'Session plan · Cues · Player follow-through' }),
   })
 }
 

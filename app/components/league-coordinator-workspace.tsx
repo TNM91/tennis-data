@@ -1488,10 +1488,11 @@ export function LeagueCoordinatorWorkspace() {
       typeof window !== 'undefined'
         ? new URL(publicHref, window.location.origin).toString()
         : publicHref
+    const shareText = `Follow ${record.leagueName} on TenAceIQ for standings, schedule, results, and season context.\n${publicUrl}`
 
     try {
-      await navigator.clipboard.writeText(publicUrl)
-      setStatus(`Copied public link for ${record.leagueName}.`)
+      await navigator.clipboard.writeText(shareText)
+      setStatus(`Copied public league update for ${record.leagueName}.`)
     } catch {
       setStatus('Clipboard access was blocked by the browser.')
     }

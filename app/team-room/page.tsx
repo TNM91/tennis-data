@@ -39,6 +39,7 @@ import {
 import { buildMatchWeekGoogleCalendarHref } from '@/lib/captain-match-week-links'
 import { CAPTAIN_AVAILABILITY_REPLY_NOTICE } from '@/lib/captain-reply-alert'
 import { buildSmsHref, cleanPhone, prepareSmsBodyForNativeComposer } from '@/lib/captain-formatters'
+import { createCaptainShortShareUrl } from '@/lib/captain-share-preview'
 import {
   buildCaptainFinalLineupGroupText,
   buildCaptainLockedLineupId,
@@ -1542,10 +1543,26 @@ function TeamRoomSession() {
   }
 
   async function shareRoom() {
-    if (!room) return
-    const url = new URL(room.href, window.location.origin).toString()
-    await shareOrCopy({ title: `${room.teamName} Team Room`, text: `Open our ${room.teamName} Team Room in TenAceIQ.`, url })
-    setNotice('Team Room link ready to share.')
+    if (!room || !accessToken) return
+    setError('')
+    try {
+      const target = new URL(room.href, window.location.origin)
+      const url = await createCaptainShortShareUrl({
+        kind: 'team-room',
+        targetHref: `${target.pathname}${target.search}${target.hash}`,
+        accessToken,
+        teamName: room.teamName,
+        detail: [room.leagueName, room.flight, 'Team conversation and match-week updates'].filter(Boolean).join(' · '),
+      })
+      await shareOrCopy({
+        title: `${room.teamName} Team Room`,
+        text: `Open the ${room.teamName} Team Room for announcements, availability, lineups, and match-week updates.`,
+        url,
+      })
+      setNotice('Team Room preview ready to share.')
+    } catch (shareError) {
+      setError(shareError instanceof Error ? shareError.message : 'The Team Room preview could not be prepared.')
+    }
   }
 
   async function createTeamInviteUrl() {
@@ -1555,11 +1572,24 @@ function TeamRoomSession() {
     return inviteUrl
   }
 
+  async function createTeamInviteShareUrl() {
+    if (!room || !accessToken) throw new Error('Sign in before sharing a team invitation.')
+    const inviteUrl = await createTeamInviteUrl()
+    const target = new URL(inviteUrl, window.location.origin)
+    return createCaptainShortShareUrl({
+      kind: 'team-invite',
+      targetHref: `${target.pathname}${target.search}${target.hash}`,
+      accessToken,
+      teamName: room.teamName,
+      detail: [room.leagueName, room.flight, 'Secure team invitation'].filter(Boolean).join(' · '),
+    })
+  }
+
   async function prepareTeamInviteForText() {
     if (!room || sharing) throw new Error('Team invite is not ready yet.')
     setSharing(true)
     try {
-      return await createTeamInviteUrl()
+      return await createTeamInviteShareUrl()
     } finally {
       setSharing(false)
     }
@@ -1570,10 +1600,10 @@ function TeamRoomSession() {
     setSharing(true)
     setError('')
     try {
-      const inviteUrl = await createTeamInviteUrl()
+      const inviteUrl = await createTeamInviteShareUrl()
       await shareOrCopy({
         title: `Join ${room.teamName}`,
-        text: `Join ${room.teamName} in TenAceIQ to use our Team Room and keep match-week communication together.`,
+        text: `Join ${room.teamName} in TenAceIQ to receive announcements, share availability, and keep match-week communication together.`,
         url: inviteUrl,
       })
       setNotice('Secure team invite ready to share. It expires in 30 days.')

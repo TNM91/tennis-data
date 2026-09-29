@@ -79,8 +79,9 @@ function AwardCertificateInner() {
         return
       }
 
-      await navigator.clipboard.writeText(href)
-      setCopyNotice('Certificate link copied.')
+      const certificateText = award ? buildTiqAwardCertificateText(award) : 'Open this TenAceIQ award certificate.'
+      await navigator.clipboard.writeText(`${certificateText}\n\nCertificate: ${href}`)
+      setCopyNotice('Certificate message and link copied.')
     } catch {
       setCopyNotice('Use your browser address bar to copy this certificate link.')
     }

@@ -28,6 +28,7 @@ import { buildProductAccessState } from '@/lib/access-model'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { safeText, normalizeTeamName } from '@/lib/captain-formatters'
 import { buildCaptainAvailabilityRequestMessage } from '@/lib/captain-availability-share'
+import { createCaptainShortShareUrl } from '@/lib/captain-share-preview'
 import {
   buildCaptainAvailabilityResponseSignature,
   CAPTAIN_AVAILABILITY_REFRESH_MS,
@@ -595,19 +596,35 @@ function CaptainAvailabilityContent() {
   }, [availabilityLiveNotice])
 
   async function shareAvailabilityRequest() {
-    if (!availabilityRequestUrl || preparedRequestKey !== availabilityRequestKey) return
+    if (!availabilityRequestUrl || preparedRequestKey !== availabilityRequestKey || !session?.access_token) return
+    setShareFeedback('Preparing availability preview…')
+    setAvailabilityRequestError('')
+    const requestTarget = new URL(availabilityRequestUrl, window.location.origin)
+    const shareUrl = await createCaptainShortShareUrl({
+      accessToken: session.access_token,
+      kind: 'availability',
+      targetHref: `${requestTarget.pathname}${requestTarget.search}${requestTarget.hash}`,
+      teamName: selectedTeam,
+      opponent: selectedOpponent,
+      matchDate: selectedEventDate,
+      detail: `Availability check · ${players.length} player${players.length === 1 ? '' : 's'} invited`,
+    }).catch((nextError: unknown) => {
+      setAvailabilityRequestError(nextError instanceof Error ? nextError.message : 'The availability preview could not be prepared.')
+      return ''
+    })
+    if (!shareUrl) return
     const text = buildCaptainAvailabilityRequestMessage({
       teamName: selectedTeam,
       opponentTeam: selectedOpponent,
       matchDate: selectedEventDate,
       matchTime: selectedMatch?.match_time || '',
       facility: selectedMatch?.facility || '',
-      requestUrl: availabilityRequestUrl,
+      requestUrl: shareUrl,
     })
 
     try {
       if (typeof navigator.share === 'function') {
-        await navigator.share({ title: `${selectedTeam} availability`, text })
+        await navigator.share({ title: `Availability check: ${selectedTeam}`, text })
         setShareFeedback('Availability request shared.')
         return
       }
