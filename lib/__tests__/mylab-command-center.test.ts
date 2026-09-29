@@ -235,6 +235,15 @@ describe('My Lab command center', () => {
     expect(pageSource).toContain('const mobileUpcomingFeedLinkStyle: CSSProperties = {')
   })
 
+  it('turns recent league results into compact phone scorecards', () => {
+    expect(pageSource).toContain("const [mobileResultTitle, ...mobileResultDetailParts] = rowBody.split(' • ')")
+    expect(pageSource).toContain('mobileTitle: isLeagueResult ? mobileResultTitle : undefined')
+    expect(pageSource).toContain("const mobileLatestResult = isMobile && !item.upcoming && item.badge === 'League result'")
+    expect(pageSource).toContain("{item.mobileBody || 'Result posted.'}")
+    expect(pageSource).toContain('style={mobileLatestResultLinkStyle}')
+    expect(pageSource).toContain('View league')
+  })
+
   it('uses one consistent My Lab mark without a nested signature frame', () => {
     expect(iconSource).toContain('myLab: FlaskIcon')
     expect(iconSource).not.toContain("signature = name === 'myLab'")

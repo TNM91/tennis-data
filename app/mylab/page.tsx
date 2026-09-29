@@ -129,6 +129,7 @@ type FeedItem = {
   createdAt: string | null
   freshnessLabel?: string
   upcoming?: boolean
+  mobileTitle?: string
   mobileContext?: string
   mobileBody?: string
   score: number
@@ -2191,6 +2192,9 @@ function MyLabPageInner() {
     for (const row of dedupeLeagueResultFeed(cloudFeedRows)) {
       const key = `${row.entity_type}:${row.entity_id}`
       if (!followedKeySet.has(key)) continue
+      const rowBody = row.body || row.subtitle || 'Update available.'
+      const isLeagueResult = row.event_type === 'league_result_posted'
+      const [mobileResultTitle, ...mobileResultDetailParts] = rowBody.split(' • ')
 
       const mappedType: FeedType =
         row.event_type === 'rating'
@@ -2210,13 +2214,16 @@ function MyLabPageInner() {
         matchId: linkedResultMatches.get(row.id),
         type: mappedType,
         title: row.title,
-        body: row.body || row.subtitle || 'Update available.',
+        body: rowBody,
         entityType: row.entity_type,
         entityId: row.entity_id,
         entityName: row.entity_name,
         createdAt: row.created_at,
+        mobileTitle: isLeagueResult ? mobileResultTitle : undefined,
+        mobileContext: isLeagueResult ? row.entity_name : undefined,
+        mobileBody: isLeagueResult ? mobileResultDetailParts.join(' • ') || 'Result posted.' : undefined,
         score: 120,
-        badge: row.event_type === 'league_result_posted' ? 'League result' : row.event_type[0].toUpperCase() + row.event_type.slice(1),
+        badge: isLeagueResult ? 'League result' : row.event_type[0].toUpperCase() + row.event_type.slice(1),
         accent: accentForType(mappedType),
       })
     }
@@ -5140,16 +5147,19 @@ function MyLabPageInner() {
               </div>
             ) : (
               <div style={feedListStyle}>
-                {feed.map((item, index) => (
-                  <React.Fragment key={item.id}>
+                {feed.map((item, index) => {
+                  const mobileLatestResult = isMobile && !item.upcoming && item.badge === 'League result'
+
+                  return (
+                    <React.Fragment key={item.id}>
                     {index === 0 && item.upcoming ? <h3 style={sectionTitleStyle}>Coming up</h3> : null}
                     {index === upcomingFeedCount && !item.upcoming ? <h3 style={sectionTitleStyle}>Latest updates</h3> : null}
-                    <article style={isMobile && item.upcoming ? mobileUpcomingFeedCardStyle(item.accent) : feedCardStyle(item.accent)}>
-                      <div style={isMobile && item.upcoming ? mobileUpcomingTopRowStyle : feedTopRowStyle}>
+                    <article style={isMobile && item.upcoming ? mobileUpcomingFeedCardStyle(item.accent) : mobileLatestResult ? mobileLatestResultCardStyle(item.accent) : feedCardStyle(item.accent)}>
+                      <div style={isMobile && item.upcoming ? mobileUpcomingTopRowStyle : mobileLatestResult ? mobileLatestResultTopRowStyle : feedTopRowStyle}>
                         <span style={badgeForAccent(item.accent)}>{item.badge}</span>
                         <span style={feedTimeStyle}>{item.upcoming ? formatUpcomingWatchlistDate(item.createdAt) : item.createdAt ? timeAgo(item.createdAt) : item.freshnessLabel || 'Current context'}</span>
                       </div>
-                      <h3 style={isMobile && item.upcoming ? mobileUpcomingTitleStyle : feedTitleStyle}>{item.title}</h3>
+                      <h3 style={isMobile && item.upcoming ? mobileUpcomingTitleStyle : mobileLatestResult ? mobileLatestResultTitleStyle : feedTitleStyle}>{mobileLatestResult ? item.mobileTitle || item.title : item.title}</h3>
                       {isMobile && item.upcoming && item.matchId ? (
                         <>
                           <p style={mobileUpcomingContextStyle}>{item.mobileContext || item.entityName}</p>
@@ -5157,6 +5167,20 @@ function MyLabPageInner() {
                           <Link href={`/matches/${encodeURIComponent(item.matchId)}`} style={mobileUpcomingFeedLinkStyle}>
                             View match
                           </Link>
+                        </>
+                      ) : mobileLatestResult ? (
+                        <>
+                          <p style={mobileLatestResultScoreStyle}>{item.mobileBody || 'Result posted.'}</p>
+                          <p style={mobileLatestResultContextStyle}>{item.mobileContext || item.entityName}</p>
+                          {item.matchId ? (
+                            <Link href={`/matches/${encodeURIComponent(item.matchId)}`} style={mobileLatestResultLinkStyle}>
+                              View match
+                            </Link>
+                          ) : item.entityType === 'league' && item.entityId ? (
+                            <Link href={buildLeagueHrefFromEntityId(item.entityId)} style={mobileLatestResultLinkStyle}>
+                              View league
+                            </Link>
+                          ) : null}
                         </>
                       ) : (
                         <>
@@ -5184,8 +5208,9 @@ function MyLabPageInner() {
                         </>
                       )}
                     </article>
-                  </React.Fragment>
-                ))}
+                    </React.Fragment>
+                  )
+                })}
               </div>
             )}
           </section>
@@ -11402,6 +11427,13 @@ const mobileUpcomingFeedCardStyle = (accent: FeedItem['accent']): CSSProperties 
   minWidth: 0,
 })
 
+const mobileLatestResultCardStyle = (accent: FeedItem['accent']): CSSProperties => ({
+  ...feedCardStyle(accent),
+  borderRadius: 18,
+  padding: 14,
+  minWidth: 0,
+})
+
 const feedTopRowStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -11413,6 +11445,14 @@ const feedTopRowStyle: CSSProperties = {
 }
 
 const mobileUpcomingTopRowStyle: CSSProperties = {
+  ...feedTopRowStyle,
+  gap: 8,
+  marginBottom: 8,
+  flexWrap: 'nowrap',
+  minWidth: 0,
+}
+
+const mobileLatestResultTopRowStyle: CSSProperties = {
   ...feedTopRowStyle,
   gap: 8,
   marginBottom: 8,
@@ -11439,6 +11479,50 @@ const mobileUpcomingTitleStyle: CSSProperties = {
   ...feedTitleStyle,
   fontSize: 18,
   lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const mobileLatestResultTitleStyle: CSSProperties = {
+  ...feedTitleStyle,
+  fontSize: 18,
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const mobileLatestResultScoreStyle: CSSProperties = {
+  margin: '8px 0 0',
+  color: 'var(--brand-green)',
+  fontSize: 14,
+  fontWeight: 900,
+  lineHeight: 1.35,
+  overflowWrap: 'anywhere',
+}
+
+const mobileLatestResultContextStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 700,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
+const mobileLatestResultLinkStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '100%',
+  minWidth: 0,
+  minHeight: 44,
+  marginTop: 12,
+  padding: '0 12px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 13%, var(--shell-chip-bg) 87%)',
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  textDecoration: 'none',
+  textAlign: 'center',
   overflowWrap: 'anywhere',
 }
 
