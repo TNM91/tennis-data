@@ -107,7 +107,10 @@ export default function MyLabCommandCenter({
 
   return (
     <section className={styles.commandCenter} aria-labelledby="my-lab-command-title">
-      <header className={styles.intro}>
+      <header
+        className={styles.intro}
+        data-player-linked={playerId && playerName ? 'true' : 'false'}
+      >
         <div>
           <div className={styles.labSignature}>
             <TiqFeatureIcon name="myLab" size="md" variant="surface" />

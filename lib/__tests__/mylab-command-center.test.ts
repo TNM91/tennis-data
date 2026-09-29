@@ -97,6 +97,7 @@ describe('My Lab command center', () => {
   })
 
   it('keeps the active-player context compact on a phone', () => {
+    expect(componentSource).toContain("data-player-linked={playerId && playerName ? 'true' : 'false'}")
     expect(styleSource).toContain('.playerLink {\n    display: flex;\n    grid-column: 2;')
     expect(styleSource).toContain('grid-row: 1;\n    width: fit-content;')
     expect(styleSource).toContain('max-width: min(220px, 58vw);')
@@ -106,6 +107,7 @@ describe('My Lab command center', () => {
     expect(styleSource).toContain('grid-column: 1 / -1;')
     expect(styleSource).toContain('.labSignature small,\n  .playerLink span {\n    display: none;')
     expect(styleSource).toContain('white-space: nowrap;')
+    expect(styleSource).toContain(".intro[data-player-linked='false'] h1 {\n    font-size: clamp(1.65rem, 7.2vw, 2rem);")
   })
 
   it('keeps the current first-serve action compact and above the mobile fold', () => {
