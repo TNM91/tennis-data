@@ -977,7 +977,7 @@
   }
 
   .nextCourtEvent {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
     gap: 11px;
     margin-bottom: 12px;
     padding: 13px;
@@ -986,19 +986,33 @@
 
   .nextCourtEventCopy h2 {
     font-size: 1.1rem;
+    overflow-wrap: break-word;
   }
 
   .nextCourtEventMeta {
-    gap: 7px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    justify-items: start;
+    gap: 3px 8px;
+    text-align: left;
   }
 
   .nextCourtEventMeta strong {
+    grid-column: 1;
+    grid-row: 1;
     font-size: 0.7rem;
   }
 
+  .nextCourtEventMeta small {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
   .nextCourtEventMeta span {
-    min-height: 32px;
-    padding: 7px 9px;
+    grid-column: 2;
+    grid-row: 1 / 3;
+    min-height: 44px;
+    padding: 7px 10px;
     font-size: 0.63rem;
   }
 
