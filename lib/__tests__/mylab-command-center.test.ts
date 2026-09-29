@@ -127,11 +127,15 @@ describe('My Lab command center', () => {
     expect(styleSource).toContain(".repCard[data-player-linked='false'] .repContent h2 {\n    padding-right: 24px;\n    font-size: clamp(2.15rem, 9.6vw, 2.8rem);")
   })
 
-  it('puts the weekly action ahead of supporting proof detail on phones', () => {
+  it('puts the weekly plan ahead of supporting progress and proof detail on phones', () => {
+    const weeklyPlanIndex = componentSource.indexOf('<div className={styles.postRepNext}>')
+    const weeklyProgressIndex = componentSource.indexOf('<div className={styles.postRepProgress}>')
     const weeklyActionIndex = componentSource.indexOf('<Link href={postRepReturn.nextHref}>')
     const weeklyWhyIndex = componentSource.indexOf('<p className={styles.postRepWhy}>')
     const weeklyMetaIndex = componentSource.indexOf('<div className={styles.postRepPlanMeta}>')
 
+    expect(weeklyPlanIndex).toBeGreaterThanOrEqual(0)
+    expect(weeklyProgressIndex).toBeGreaterThan(weeklyPlanIndex)
     expect(weeklyActionIndex).toBeGreaterThanOrEqual(0)
     expect(weeklyWhyIndex).toBeGreaterThan(weeklyActionIndex)
     expect(weeklyMetaIndex).toBeGreaterThan(weeklyWhyIndex)
