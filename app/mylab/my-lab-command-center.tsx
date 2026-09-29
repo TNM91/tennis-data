@@ -242,41 +242,46 @@ export default function MyLabCommandCenter({
       ) : null}
 
       <div className={`${styles.primaryGrid} ${postRepReturn ? styles.primaryGridAfterRep : ''}`}>
-        {!postRepReturn ? <article className={styles.repCard}>
-          <Image
-            className={styles.courtImage}
-            src="/tiq/courts/tiq-court-master.png"
-            alt=""
-            fill
-            sizes="(max-width: 760px) 100vw, 760px"
-            priority
-          />
-          <Image
-            className={styles.ballImage}
-            src="/tiq/tokens/tennis-ball-reference.png"
-            alt=""
-            width={220}
-            height={220}
-            priority
-          />
-          <div className={styles.repContent}>
-            <div className={styles.repTopline}>
-              <p className={styles.cardEyebrow}>Today&apos;s rep</p>
-              {repDuration ? (
-                <span className={styles.duration}>
-                  <TiqFeatureIcon name="schedule" size="sm" variant="ghost" />
-                  {repDuration} min
-                </span>
-              ) : null}
+        {!postRepReturn ? (
+          <article
+            className={styles.repCard}
+            data-player-linked={playerId && playerName ? 'true' : 'false'}
+          >
+            <Image
+              className={styles.courtImage}
+              src="/tiq/courts/tiq-court-master.png"
+              alt=""
+              fill
+              sizes="(max-width: 760px) 100vw, 760px"
+              priority
+            />
+            <Image
+              className={styles.ballImage}
+              src="/tiq/tokens/tennis-ball-reference.png"
+              alt=""
+              width={220}
+              height={220}
+              priority
+            />
+            <div className={styles.repContent}>
+              <div className={styles.repTopline}>
+                <p className={styles.cardEyebrow}>Today&apos;s rep</p>
+                {repDuration ? (
+                  <span className={styles.duration}>
+                    <TiqFeatureIcon name="schedule" size="sm" variant="ghost" />
+                    {repDuration} min
+                  </span>
+                ) : null}
+              </div>
+              <h2>{repTitle}</h2>
+              <p className={styles.repNote}>{repNote}</p>
+              <Link className={styles.primaryAction} href={repHref}>
+                <span>{repCta}</span>
+                <span aria-hidden="true">→</span>
+              </Link>
             </div>
-            <h2>{repTitle}</h2>
-            <p className={styles.repNote}>{repNote}</p>
-            <Link className={styles.primaryAction} href={repHref}>
-              <span>{repCta}</span>
-              <span aria-hidden="true">→</span>
-            </Link>
-          </div>
-        </article> : null}
+          </article>
+        ) : null}
 
         <div className={`${styles.supportStack} ${postRepReturn ? styles.supportStackAfterRep : ''}`}>
           {!postRepReturn ? <article className={styles.momentumCard}>

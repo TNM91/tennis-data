@@ -1140,6 +1140,18 @@
     font-size: clamp(2.4rem, 13.6vw, 3.7rem);
   }
 
+  .repCard[data-player-linked='false'],
+  .repCard[data-player-linked='false'] .repContent {
+    min-height: 330px;
+  }
+
+  .repCard[data-player-linked='false'] .repContent h2 {
+    padding-right: 24px;
+    font-size: clamp(2.15rem, 9.6vw, 2.8rem);
+    line-height: 0.94;
+    letter-spacing: -0.05em;
+  }
+
   .repNote {
     margin-bottom: 17px;
     padding-right: 45px;
