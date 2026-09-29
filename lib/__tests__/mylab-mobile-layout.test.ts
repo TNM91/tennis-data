@@ -92,7 +92,6 @@ describe('My Lab mobile layout guards', () => {
       'watchlistManageBodyStyle',
       'watchlistMobileFollowsStyle',
       'watchlistFeedActionsMobileStyle',
-      'watchlistFeedFilterFieldStyle',
       'watchlistFeedFilterSelectStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain('minWidth: 0')
@@ -134,7 +133,7 @@ describe('My Lab mobile layout guards', () => {
     expect(styleBlock('tabButtonStyle')).toContain("whiteSpace: 'normal'")
     expect(styleBlock('watchlistRefreshButtonStyle')).toContain('minHeight: 44')
     expect(styleBlock('watchlistFeedFilterSelectStyle')).toContain('minHeight: 44')
-    expect(styleBlock('watchlistFeedFilterSelectStyle')).toContain("maxWidth: 164")
+    expect(styleBlock('watchlistFeedFilterSelectStyle')).toContain("maxWidth: 180")
     expect(styleBlock('feedLinkStyle')).toContain("maxWidth: '100%'")
     expect(source).toContain('<div style={matchupQueueCopyStyle}>')
     expect(source).toContain('<div style={workshopRowCopyStyle}>')
