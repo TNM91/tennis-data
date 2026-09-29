@@ -2240,6 +2240,9 @@ function MyLabPageInner() {
         entityId: player.id,
         entityName: player.name,
         createdAt: null,
+        mobileTitle: `${player.name} rating`,
+        mobileBody: `TIQ ${formatRating(player.overall_dynamic_rating)} · USTA ${formatRating(player.overall_usta_dynamic_rating)}`,
+        mobileContext: `Singles ${formatRating(player.singles_dynamic_rating)} · Doubles ${formatRating(player.doubles_dynamic_rating)}`,
         freshnessLabel: 'Current rating',
         score: 98,
         badge: 'Ratings',
@@ -2551,6 +2554,25 @@ function MyLabPageInner() {
     tiqLeagueContextById,
   ])
   const upcomingFeedCount = feed.filter((item) => item.upcoming).length
+  const emptyFeedCopy = feedFilter === 'rating'
+    ? {
+        title: 'No rating updates yet',
+        body: 'Follow a player to keep current TIQ and USTA rating reads here.',
+      }
+    : feedFilter === 'achievement'
+      ? {
+          title: 'No achievements yet',
+          body: 'Player milestones will appear here when someone you follow earns one.',
+        }
+      : feedFilter === 'match'
+        ? {
+            title: 'No match updates yet',
+            body: 'Upcoming matches and posted results from your follows will appear here.',
+          }
+        : {
+            title: 'No updates in this view',
+            body: 'Try all updates or adjust the players, teams, and leagues you follow.',
+          }
 
   const followedPlayerSignals = useMemo(() => {
     return follows
@@ -5145,21 +5167,33 @@ function MyLabPageInner() {
                   </GhostButton>
                 </div>
               </div>
+            ) : feed.length === 0 ? (
+              <div style={watchlistEmptyStateStyle} role="status">
+                <span style={watchlistEmptyKickerStyle}>{feedFilter === 'all' ? 'Watchlist' : feedFilter}</span>
+                <strong style={watchlistEmptyTitleStyle}>{emptyFeedCopy.title}</strong>
+                <p style={watchlistEmptyBodyStyle}>{emptyFeedCopy.body}</p>
+                {feedFilter !== 'all' ? (
+                  <button type="button" onClick={() => setFeedFilter('all')} style={watchlistEmptyActionStyle}>
+                    Show all updates
+                  </button>
+                ) : null}
+              </div>
             ) : (
               <div style={feedListStyle}>
                 {feed.map((item, index) => {
                   const mobileLatestResult = isMobile && !item.upcoming && item.badge === 'League result'
+                  const mobileSignalCard = isMobile && !item.upcoming && (item.type === 'rating' || item.type === 'achievement')
 
                   return (
                     <React.Fragment key={item.id}>
                     {index === 0 && item.upcoming ? <h3 style={sectionTitleStyle}>Coming up</h3> : null}
                     {index === upcomingFeedCount && !item.upcoming ? <h3 style={sectionTitleStyle}>Latest updates</h3> : null}
-                    <article style={isMobile && item.upcoming ? mobileUpcomingFeedCardStyle(item.accent) : mobileLatestResult ? mobileLatestResultCardStyle(item.accent) : feedCardStyle(item.accent)}>
-                      <div style={isMobile && item.upcoming ? mobileUpcomingTopRowStyle : mobileLatestResult ? mobileLatestResultTopRowStyle : feedTopRowStyle}>
+                    <article style={isMobile && item.upcoming ? mobileUpcomingFeedCardStyle(item.accent) : mobileLatestResult ? mobileLatestResultCardStyle(item.accent) : mobileSignalCard ? mobileSignalFeedCardStyle(item.accent) : feedCardStyle(item.accent)}>
+                      <div style={isMobile && item.upcoming ? mobileUpcomingTopRowStyle : mobileLatestResult ? mobileLatestResultTopRowStyle : mobileSignalCard ? mobileSignalTopRowStyle : feedTopRowStyle}>
                         <span style={badgeForAccent(item.accent)}>{item.badge}</span>
                         <span style={feedTimeStyle}>{item.upcoming ? formatUpcomingWatchlistDate(item.createdAt) : item.createdAt ? timeAgo(item.createdAt) : item.freshnessLabel || 'Current context'}</span>
                       </div>
-                      <h3 style={isMobile && item.upcoming ? mobileUpcomingTitleStyle : mobileLatestResult ? mobileLatestResultTitleStyle : feedTitleStyle}>{mobileLatestResult ? item.mobileTitle || item.title : item.title}</h3>
+                      <h3 style={isMobile && item.upcoming ? mobileUpcomingTitleStyle : mobileLatestResult ? mobileLatestResultTitleStyle : mobileSignalCard ? mobileSignalTitleStyle : feedTitleStyle}>{mobileLatestResult || mobileSignalCard ? item.mobileTitle || item.title : item.title}</h3>
                       {isMobile && item.upcoming && item.matchId ? (
                         <>
                           <p style={mobileUpcomingContextStyle}>{item.mobileContext || item.entityName}</p>
@@ -5178,6 +5212,24 @@ function MyLabPageInner() {
                             </Link>
                           ) : item.entityType === 'league' && item.entityId ? (
                             <Link href={buildLeagueHrefFromEntityId(item.entityId)} style={mobileLatestResultLinkStyle}>
+                              View league
+                            </Link>
+                          ) : null}
+                        </>
+                      ) : mobileSignalCard ? (
+                        <>
+                          <p style={mobileSignalValueStyle}>{item.mobileBody || item.body}</p>
+                          <p style={mobileSignalContextStyle}>{item.mobileContext || item.entityName}</p>
+                          {item.entityType === 'player' && item.entityId ? (
+                            <Link href={`/players/${item.entityId}`} style={mobileSignalLinkStyle}>
+                              View player
+                            </Link>
+                          ) : item.entityType === 'team' && item.entityId ? (
+                            <Link href={buildTeamHrefFromEntityId(item.entityId)} style={mobileSignalLinkStyle}>
+                              View team
+                            </Link>
+                          ) : item.entityType === 'league' && item.entityId ? (
+                            <Link href={buildLeagueHrefFromEntityId(item.entityId)} style={mobileSignalLinkStyle}>
                               View league
                             </Link>
                           ) : null}
@@ -11434,6 +11486,13 @@ const mobileLatestResultCardStyle = (accent: FeedItem['accent']): CSSProperties 
   minWidth: 0,
 })
 
+const mobileSignalFeedCardStyle = (accent: FeedItem['accent']): CSSProperties => ({
+  ...feedCardStyle(accent),
+  borderRadius: 18,
+  padding: 14,
+  minWidth: 0,
+})
+
 const feedTopRowStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -11460,6 +11519,14 @@ const mobileLatestResultTopRowStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const mobileSignalTopRowStyle: CSSProperties = {
+  ...feedTopRowStyle,
+  gap: 8,
+  marginBottom: 8,
+  flexWrap: 'nowrap',
+  minWidth: 0,
+}
+
 const feedTimeStyle: CSSProperties = {
   color: 'var(--shell-copy-muted)',
   fontSize: 13,
@@ -11475,6 +11542,57 @@ const feedTitleStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
+const watchlistEmptyStateStyle: CSSProperties = {
+  ...emptyStateStyle,
+  display: 'grid',
+  gap: 8,
+  minWidth: 0,
+  padding: 16,
+}
+
+const watchlistEmptyKickerStyle: CSSProperties = {
+  color: 'var(--brand-blue-2)',
+  fontSize: 11,
+  fontWeight: 900,
+  lineHeight: 1.2,
+  textTransform: 'uppercase',
+  overflowWrap: 'anywhere',
+}
+
+const watchlistEmptyTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.2,
+  overflowWrap: 'anywhere',
+}
+
+const watchlistEmptyBodyStyle: CSSProperties = {
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.5,
+  overflowWrap: 'anywhere',
+}
+
+const watchlistEmptyActionStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '100%',
+  minWidth: 0,
+  minHeight: 44,
+  marginTop: 4,
+  padding: '0 12px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 13%, var(--shell-chip-bg) 87%)',
+  color: 'var(--foreground-strong)',
+  font: 'inherit',
+  fontWeight: 900,
+  cursor: 'pointer',
+  overflowWrap: 'anywhere',
+}
+
 const mobileUpcomingTitleStyle: CSSProperties = {
   ...feedTitleStyle,
   fontSize: 18,
@@ -11486,6 +11604,50 @@ const mobileLatestResultTitleStyle: CSSProperties = {
   ...feedTitleStyle,
   fontSize: 18,
   lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const mobileSignalTitleStyle: CSSProperties = {
+  ...feedTitleStyle,
+  fontSize: 18,
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const mobileSignalValueStyle: CSSProperties = {
+  margin: '8px 0 0',
+  color: 'var(--foreground-strong)',
+  fontSize: 14,
+  fontWeight: 900,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
+const mobileSignalContextStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 700,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
+const mobileSignalLinkStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '100%',
+  minWidth: 0,
+  minHeight: 44,
+  marginTop: 12,
+  padding: '0 12px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 13%, var(--shell-chip-bg) 87%)',
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  textDecoration: 'none',
+  textAlign: 'center',
   overflowWrap: 'anywhere',
 }
 
