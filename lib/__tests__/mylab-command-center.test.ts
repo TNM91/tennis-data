@@ -195,6 +195,15 @@ describe('My Lab command center', () => {
     expect(pageSource).toContain('mobileMyLabExtrasDetailsStyle')
   })
 
+  it('turns the Watchlist summary into a clear mobile action', () => {
+    expect(pageSource).toContain("aria-label={follows.length ? 'Open Watchlist to review updates' : 'Open Watchlist to follow tennis context'}")
+    expect(pageSource).toContain("? `${follows.length} ${follows.length === 1 ? 'follow' : 'follows'} · Player, team, and league updates.`")
+    expect(pageSource).toContain("{follows.length ? 'Review updates' : 'Build watchlist'} <span>→</span>")
+    expect(pageSource).toContain('style={watchlistSummaryActionStyle}')
+    expect(pageSource).toContain('const watchlistSummaryActionStyle: CSSProperties = {')
+    expect(pageSource).toContain('minWidth: 140')
+  })
+
   it('uses one consistent My Lab mark without a nested signature frame', () => {
     expect(iconSource).toContain('myLab: FlaskIcon')
     expect(iconSource).not.toContain("signature = name === 'myLab'")
