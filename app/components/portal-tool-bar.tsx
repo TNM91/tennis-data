@@ -747,6 +747,30 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     return () => window.removeEventListener('resize', syncScrollState)
   }, [collapseMobilePortal, mobilePortalLaneId, pathname])
 
+  useEffect(() => {
+    if (!isMobile || mobilePortalLane || customizingPortalShortcuts) return
+
+    const palette = mobilePortalPaletteRef.current
+    const activeShortcuts = palette
+      ? Array.from(palette.querySelectorAll<HTMLElement>('[aria-current="page"]'))
+      : []
+    const activeShortcut = activeShortcuts.find((shortcut) => {
+      const href = shortcut.getAttribute('href')?.split(/[?#]/)[0]
+      return href === pathname
+    }) ?? activeShortcuts[0]
+    if (!palette || !activeShortcut) return
+
+    const frame = window.requestAnimationFrame(() => {
+      palette.scrollTo({ left: Math.max(0, activeShortcut.offsetLeft - 4), behavior: 'auto' })
+      setMobilePortalScroll({
+        left: palette.scrollLeft,
+        max: Math.max(0, palette.scrollWidth - palette.clientWidth),
+      })
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [customizingPortalShortcuts, currentHash, isMobile, mobilePortalLane, pathname, pinnedPortalShortcutIds])
+
   if (portalHidden) return null
   if (collapseMobilePortal && suppressed) return null
 
@@ -885,11 +909,17 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
             id={mobilePortalLane ? portalActionMenuId : portalMenuId}
             data-mobile-portal-palette={mobilePortalLane ? 'actions' : customizingPortalShortcuts ? 'edit' : 'shortcuts'}
             style={{
-              ...(mobilePortalLane ? mobilePortalActionPaletteStyle : mobilePortalPaletteStyle),
+              ...(mobilePortalLane || customizingPortalShortcuts
+                ? mobilePortalActionPaletteStyle
+                : isMobile
+                  ? mobilePortalShortcutStripStyle
+                  : mobilePortalPaletteStyle),
               gridTemplateColumns: isMobile
                 ? mobilePortalLane
                   ? 'repeat(3, minmax(0, 1fr))'
-                  : 'repeat(4, minmax(0, 1fr))'
+                  : customizingPortalShortcuts
+                    ? 'repeat(4, minmax(0, 1fr))'
+                    : mobilePortalShortcutStripStyle.gridTemplateColumns
                 : 'repeat(8, minmax(0, 1fr))',
               gap: isMobile ? 4 : 6,
             }}
@@ -2044,13 +2074,27 @@ const mobilePortalActionPaletteStyle: CSSProperties = {
   ...mobilePortalPaletteStyle,
 }
 
+const mobilePortalShortcutStripStyle: CSSProperties = {
+  ...mobilePortalPaletteStyle,
+  gridTemplateColumns: 'none',
+  gridAutoFlow: 'column',
+  gridAutoColumns: 'minmax(76px, 22.4%)',
+  overflowX: 'auto',
+  overflowY: 'hidden',
+  overscrollBehaviorX: 'contain',
+  scrollSnapType: 'x proximity',
+  scrollPaddingInline: 4,
+  WebkitOverflowScrolling: 'touch',
+  touchAction: 'pan-x',
+}
+
 const mobilePortalScrollbarStyle: CSSProperties = {
   position: 'relative',
   zIndex: 1,
-  display: 'none',
+  display: 'block',
   width: 'min(164px, 46%)',
-  height: 6,
-  margin: '-5px auto 0',
+  height: 3,
+  margin: '1px auto 0',
   overflow: 'hidden',
   borderRadius: 999,
   background: 'linear-gradient(90deg, rgba(116,190,255,0.14), rgba(155,225,29,0.12))',
