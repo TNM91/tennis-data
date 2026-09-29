@@ -118,6 +118,15 @@ describe('My Lab command center', () => {
     expect(styleSource).toContain('margin-bottom: 8px;')
   })
 
+  it('puts the weekly action ahead of supporting proof detail on phones', () => {
+    expect(styleSource).toContain('.postRepReturn {\n    grid-template-columns: 1fr;\n    gap: 0;')
+    expect(styleSource).toContain('.postRepProgress {\n    grid-template-columns: minmax(0, 1fr) auto;')
+    expect(styleSource).toContain('.postRepProgress > a {\n    grid-column: 2;\n    grid-row: 2;')
+    expect(styleSource).toContain('.postRepNext > a {\n    order: 3;')
+    expect(styleSource).toContain('.postRepWhy {\n    order: 4;')
+    expect(styleSource).toContain('.postRepPlanMeta {\n    order: 5;\n    grid-template-columns: repeat(2, minmax(0, 1fr));')
+  })
+
   it('uses a compact daily pulse instead of a second large weekly card on phones', () => {
     expect(componentSource).toContain('const dailyPulseItems = [')
     expect(componentSource).toContain("label: 'Court time'")
