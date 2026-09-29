@@ -5079,23 +5079,20 @@ function MyLabPageInner() {
                   >
                     {loading ? 'Refreshing...' : 'Refresh lab'}
                   </button>
-                  <label style={watchlistFeedFilterFieldStyle}>
-                    <span style={watchlistFeedFilterLabelStyle}>Show</span>
-                    <select
-                      aria-label="Filter Watchlist updates"
-                      value={feedFilter}
-                      onChange={(event) => setFeedFilter(event.target.value as 'all' | FeedType)}
-                      style={watchlistFeedFilterSelectStyle}
-                    >
-                      <option value="all">All updates</option>
-                      <option value="match">Matches</option>
-                      <option value="rating">Ratings</option>
-                      <option value="achievement">Achievements</option>
-                      <option value="team">Teams</option>
-                      <option value="league">Leagues</option>
-                      <option value="community">Community</option>
-                    </select>
-                  </label>
+                  <select
+                    aria-label="Filter Watchlist updates"
+                    value={feedFilter}
+                    onChange={(event) => setFeedFilter(event.target.value as 'all' | FeedType)}
+                    style={watchlistFeedFilterSelectStyle}
+                  >
+                    <option value="all">All updates</option>
+                    <option value="match">Matches</option>
+                    <option value="rating">Ratings</option>
+                    <option value="achievement">Achievements</option>
+                    <option value="team">Teams</option>
+                    <option value="league">Leagues</option>
+                    <option value="community">Community</option>
+                  </select>
                 </div>
               ) : (
                 <div style={filterRowStyle}>
@@ -11307,24 +11304,10 @@ const watchlistRefreshButtonStyle: CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
-const watchlistFeedFilterFieldStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'flex-end',
-  gap: 8,
-  minWidth: 0,
-}
-
-const watchlistFeedFilterLabelStyle: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: 12,
-  fontWeight: 800,
-}
-
 const watchlistFeedFilterSelectStyle: CSSProperties = {
   width: '100%',
   minWidth: 0,
-  maxWidth: 164,
+  maxWidth: 180,
   minHeight: 44,
   borderRadius: 999,
   border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
