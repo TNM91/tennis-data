@@ -22,6 +22,7 @@ type UpgradePromptProps = {
   footnote?: string
   compact?: boolean
   summaryOnly?: boolean
+  phoneGateway?: boolean
   children?: ReactNode
   unlockSteps?: ReadonlyArray<UpgradePromptUnlockStep>
 }
@@ -43,6 +44,7 @@ export default function UpgradePrompt({
   footnote,
   compact = false,
   summaryOnly = false,
+  phoneGateway = false,
   children,
   unlockSteps,
 }: UpgradePromptProps) {
@@ -148,18 +150,19 @@ export default function UpgradePrompt({
       style={{
         ...wrapStyle,
         ...(compact ? compactWrapStyle : null),
+        ...(phoneGateway ? phoneGatewayWrapStyle : null),
         ...(planId === 'captain' ? captainWrapStyle : null),
         ...(planId === 'league' ? leagueWrapStyle : null),
       }}
     >
-      <div style={{ ...contentStyle, ...(compact ? compactContentStyle : null) }}>
+      <div style={{ ...contentStyle, ...(compact ? compactContentStyle : null), ...(phoneGateway ? phoneGatewayContentStyle : null) }}>
         <div style={labelRowStyle}>
-          <span style={eyebrowStyle}>{plan.name}</span>
+          <span style={{ ...eyebrowStyle, ...(phoneGateway ? phoneGatewayEyebrowStyle : null) }}>{plan.name}</span>
           {plan.badge ? <span style={badgeStyle}>{plan.badge}</span> : null}
         </div>
 
-        <h2 style={titleStyle}>{headline}</h2>
-        <p style={{ ...bodyStyle, ...(compact ? compactBodyStyle : null) }}>{body}</p>
+        <h2 style={{ ...titleStyle, ...(phoneGateway ? phoneGatewayTitleStyle : null) }}>{headline}</h2>
+        <p style={{ ...bodyStyle, ...(compact ? compactBodyStyle : null), ...(phoneGateway ? phoneGatewayBodyStyle : null) }}>{body}</p>
         {planId !== 'free' && showDetailedGuidance ? (
           <p style={{ ...entitlementNoteStyle, ...(compact ? compactEntitlementNoteStyle : null) }}>
             {PAID_CHECKOUT_ENABLED
@@ -168,14 +171,16 @@ export default function UpgradePrompt({
           </p>
         ) : null}
 
-        <div style={{ ...resultWrapStyle, ...(compact ? compactResultWrapStyle : null) }}>
-          <span style={resultLabelStyle}>Result</span>
-          <span style={{ ...resultTextStyle, ...(compact ? compactResultTextStyle : null) }}>{resolvedResult}</span>
-        </div>
+        {!phoneGateway ? (
+          <div style={{ ...resultWrapStyle, ...(compact ? compactResultWrapStyle : null) }}>
+            <span style={resultLabelStyle}>Result</span>
+            <span style={{ ...resultTextStyle, ...(compact ? compactResultTextStyle : null) }}>{resolvedResult}</span>
+          </div>
+        ) : null}
 
-        <div style={planMetaStyle}>
-          <span style={priceStyle}>{plan.priceLabel}</span>
-          <span style={subtitleStyle}>{plan.subtitle}</span>
+        <div style={{ ...planMetaStyle, ...(phoneGateway ? phoneGatewayPlanMetaStyle : null) }}>
+          <span style={{ ...priceStyle, ...(phoneGateway ? phoneGatewayPriceStyle : null) }}>{plan.priceLabel}</span>
+          <span style={{ ...subtitleStyle, ...(phoneGateway ? phoneGatewaySubtitleStyle : null) }}>{plan.subtitle}</span>
           {plan.alternatePriceNote ? <span style={noteStyle}>{plan.alternatePriceNote}</span> : null}
         </div>
 
@@ -213,7 +218,7 @@ export default function UpgradePrompt({
         {footnote ? <div style={footnoteStyle}>{footnote}</div> : null}
       </div>
 
-      <div style={actionRowStyle}>
+      <div style={{ ...actionRowStyle, ...(phoneGateway ? phoneGatewayActionRowStyle : null) }}>
         {canStartDirectCheckout ? (
           <button
             type="button"
@@ -221,6 +226,7 @@ export default function UpgradePrompt({
             disabled={checkoutSubmitting}
             style={{
               ...primaryActionStyle,
+              ...(phoneGateway ? phoneGatewayPrimaryActionStyle : null),
               ...buttonActionStyle,
               ...(checkoutSubmitting ? disabledActionStyle : null),
             }}
@@ -228,12 +234,12 @@ export default function UpgradePrompt({
             {checkoutSubmitting ? 'Opening checkout...' : resolvedCtaLabel}
           </button>
         ) : (
-          <Link href={resolvedCtaHref} style={primaryActionStyle}>
+          <Link href={resolvedCtaHref} style={{ ...primaryActionStyle, ...(phoneGateway ? phoneGatewayPrimaryActionStyle : null) }}>
             {resolvedCtaLabel}
           </Link>
         )}
         {resolvedSecondaryHref ? (
-          <Link href={resolvedSecondaryHref} style={secondaryActionStyle}>
+          <Link href={resolvedSecondaryHref} style={{ ...secondaryActionStyle, ...(phoneGateway ? phoneGatewaySecondaryActionStyle : null) }}>
             {secondaryLabel}
           </Link>
         ) : (
@@ -306,6 +312,12 @@ const compactWrapStyle: CSSProperties = {
   gap: 14,
 }
 
+const phoneGatewayWrapStyle: CSSProperties = {
+  padding: 14,
+  gap: 10,
+  borderRadius: 20,
+}
+
 const captainWrapStyle: CSSProperties = {
   border: '1px solid rgba(155, 225, 29, 0.22)',
   boxShadow: '0 20px 52px rgba(155, 225, 29, 0.08)',
@@ -322,6 +334,10 @@ const contentStyle: CSSProperties = {
 
 const compactContentStyle: CSSProperties = {
   gap: 10,
+}
+
+const phoneGatewayContentStyle: CSSProperties = {
+  gap: 6,
 }
 
 const labelRowStyle: CSSProperties = {
@@ -344,6 +360,12 @@ const eyebrowStyle: CSSProperties = {
   color: '#dbeafe',
   background: 'rgba(37, 91, 227, 0.14)',
   border: '1px solid rgba(116, 190, 255, 0.18)',
+}
+
+const phoneGatewayEyebrowStyle: CSSProperties = {
+  minHeight: '24px',
+  padding: '0 9px',
+  fontSize: 10,
 }
 
 const badgeStyle: CSSProperties = {
@@ -369,6 +391,10 @@ const titleStyle: CSSProperties = {
   letterSpacing: 0,
 }
 
+const phoneGatewayTitleStyle: CSSProperties = {
+  fontSize: '1.2rem',
+}
+
 const bodyStyle: CSSProperties = {
   margin: 0,
   color: 'var(--shell-copy-muted)',
@@ -380,6 +406,10 @@ const bodyStyle: CSSProperties = {
 const compactBodyStyle: CSSProperties = {
   fontSize: 13,
   lineHeight: 1.5,
+}
+
+const phoneGatewayBodyStyle: CSSProperties = {
+  lineHeight: 1.4,
 }
 
 const entitlementNoteStyle: CSSProperties = {
@@ -443,6 +473,11 @@ const planMetaStyle: CSSProperties = {
   flexWrap: 'wrap',
 }
 
+const phoneGatewayPlanMetaStyle: CSSProperties = {
+  columnGap: 8,
+  rowGap: 3,
+}
+
 const priceStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
   fontSize: 24,
@@ -451,12 +486,21 @@ const priceStyle: CSSProperties = {
   letterSpacing: 0,
 }
 
+const phoneGatewayPriceStyle: CSSProperties = {
+  fontSize: 20,
+}
+
 const subtitleStyle: CSSProperties = {
   color: '#d9f84a',
   fontSize: 13,
   fontWeight: 800,
   letterSpacing: '0.04em',
   textTransform: 'uppercase',
+}
+
+const phoneGatewaySubtitleStyle: CSSProperties = {
+  fontSize: 10,
+  letterSpacing: '0.03em',
 }
 
 const noteStyle: CSSProperties = {
@@ -593,6 +637,13 @@ const actionRowStyle: CSSProperties = {
   flexWrap: 'wrap',
 }
 
+const phoneGatewayActionRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
+  gap: 8,
+  minWidth: 0,
+}
+
 const primaryActionStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -606,6 +657,15 @@ const primaryActionStyle: CSSProperties = {
   textDecoration: 'none',
   fontWeight: 900,
   boxShadow: 'inset 0 1px 0 color-mix(in srgb, var(--foreground-strong) 10%, transparent)',
+}
+
+const phoneGatewayPrimaryActionStyle: CSSProperties = {
+  minWidth: 0,
+  padding: '0 12px',
+  fontSize: 13,
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+  textAlign: 'center',
 }
 
 const buttonActionStyle: CSSProperties = {
@@ -632,6 +692,11 @@ const secondaryActionStyle: CSSProperties = {
   color: '#e7eefb',
   textDecoration: 'none',
   fontWeight: 800,
+}
+
+const phoneGatewaySecondaryActionStyle: CSSProperties = {
+  padding: '0 13px',
+  fontSize: 13,
 }
 
 const secondaryStaticStyle: CSSProperties = {

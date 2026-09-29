@@ -3615,6 +3615,7 @@ function MyLabPageInner() {
           footnote={isMobile ? undefined : MY_LAB_STORY.upgradeFootnote}
           compact
           summaryOnly={isMobile}
+          phoneGateway={isMobile}
         />
         <MyLabCommandCenter
           firstName=""
@@ -3659,6 +3660,7 @@ function MyLabPageInner() {
           footnote={isMobile ? undefined : MY_LAB_STORY.upgradeFootnote}
           compact
           summaryOnly={isMobile}
+          phoneGateway={isMobile}
         />
       ) : null}
 
