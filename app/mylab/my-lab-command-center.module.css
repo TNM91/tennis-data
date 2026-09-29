@@ -1039,6 +1039,7 @@
 
   .postRepReturn {
     grid-template-columns: 1fr;
+    gap: 0;
     margin-bottom: 14px;
     padding: 12px;
     border-radius: 20px;
@@ -1057,6 +1058,8 @@
   .postRepProof {
     grid-template-columns: 32px minmax(0, 1fr);
     gap: 10px;
+    padding-top: 8px;
+    padding-bottom: 10px;
   }
 
   .postRepIcon {
@@ -1071,6 +1074,52 @@
   .postRepProgress,
   .postRepNext {
     border-top: 1px solid rgba(116, 190, 255, 0.14);
+  }
+
+  .postRepProgress {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 12px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .postRepProgress > div {
+    grid-column: 1 / -1;
+  }
+
+  .postRepProgress > a {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .postRepTrack {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: center;
+  }
+
+  .postRepNext {
+    gap: 9px;
+    padding-top: 12px;
+  }
+
+  .postRepNext > a {
+    order: 3;
+  }
+
+  .postRepWhy {
+    order: 4;
+    margin-top: 1px;
+  }
+
+  .postRepPlanMeta {
+    order: 5;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .postRepPlanMeta > span {
+    padding: 8px;
   }
 
   .repCard,
