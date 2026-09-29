@@ -4909,13 +4909,20 @@ function MyLabPageInner() {
 
       {isProfileConfirmed && !showLockedMobileMyLabPreview ? (
         <details className="myLabDetailsSection" style={optionalContextDetailsStyle}>
-          <summary style={optionalContextSummaryStyle}>
-            <span style={optionalContextSummaryCopyStyle}>
+          <summary
+            aria-label={follows.length ? 'Open Watchlist to review updates' : 'Open Watchlist to follow tennis context'}
+            style={optionalContextSummaryStyle}
+          >
+            <span style={watchlistSummaryCopyStyle}>
               <strong>Watchlist</strong>
-              <em>Follows and updates.</em>
+              <em>
+                {follows.length
+                  ? `${follows.length} ${follows.length === 1 ? 'follow' : 'follows'} · Player, team, and league updates.`
+                  : 'Follow players, teams, and leagues.'}
+              </em>
             </span>
-            <span style={optionalContextCountStyle}>
-              {follows.length} follows
+            <span aria-hidden="true" style={watchlistSummaryActionStyle}>
+              {follows.length ? 'Review updates' : 'Build watchlist'} <span>→</span>
             </span>
           </summary>
 
@@ -10845,6 +10852,11 @@ const optionalContextSummaryCopyStyle: CSSProperties = {
   minWidth: 0,
 }
 
+const watchlistSummaryCopyStyle: CSSProperties = {
+  ...optionalContextSummaryCopyStyle,
+  flex: '1 1 150px',
+}
+
 const optionalContextCountStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -10879,6 +10891,12 @@ const mobileMyLabExtrasActionStyle: CSSProperties = {
   minHeight: 44,
   minWidth: 132,
   padding: '0 14px',
+}
+
+const watchlistSummaryActionStyle: CSSProperties = {
+  ...calendarSummaryActionStyle,
+  gap: 10,
+  minWidth: 140,
 }
 
 const compactSignalsPanelStyle: CSSProperties = {
