@@ -140,6 +140,7 @@ describe('My Lab command center', () => {
     expect(weeklyWhyIndex).toBeGreaterThan(weeklyActionIndex)
     expect(weeklyMetaIndex).toBeGreaterThan(weeklyWhyIndex)
     expect(styleSource).toContain('.postRepReturn {\n    grid-template-columns: 1fr;\n    gap: 0;')
+    expect(styleSource).toContain('.postRepNext {\n    gap: 7px;\n    padding-top: 6px;')
     expect(styleSource).toContain('.postRepProgress {\n    grid-template-columns: minmax(0, 1fr) auto;')
     expect(styleSource).toContain('.postRepProgress > a {\n    grid-column: 2;\n    grid-row: 1;')
     expect(styleSource).toContain('.postRepTrack {\n    grid-column: 1 / -1;\n    grid-row: 2;')
