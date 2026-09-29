@@ -129,6 +129,8 @@ type FeedItem = {
   createdAt: string | null
   freshnessLabel?: string
   upcoming?: boolean
+  mobileContext?: string
+  mobileBody?: string
   score: number
   badge: string
   accent: 'blue' | 'green' | 'violet'
@@ -2294,6 +2296,9 @@ function MyLabPageInner() {
         .filter(Boolean) as string[]
 
       const upcoming = isUpcomingWatchlistMatch(match.match_date, match.score)
+      const upcomingLineupRead = spotlightPlayers.length
+        ? `Players: ${spotlightPlayers.join(', ')}.`
+        : 'Lineups are not available yet.'
       if (!upcoming && !hasWatchlistResult(match.score)) continue
       if (!upcoming) visibleMatchResults.push(match)
       items.push({
@@ -2302,7 +2307,7 @@ function MyLabPageInner() {
         type: 'match',
         title: `${homeTeam || 'Team A'} vs ${awayTeam || 'Team B'}`,
         body: upcoming
-          ? `${leagueName || 'League match'}${flight ? ` - ${flight}` : ''}. ${spotlightPlayers.length ? `Players: ${spotlightPlayers.join(', ')}.` : 'Lineups are not available yet.'}`
+          ? `${leagueName || 'League match'}${flight ? ` - ${flight}` : ''}. ${upcomingLineupRead}`
           : `${leagueName || 'League match'}${flight ? ` - ${flight}` : ''}. Score: ${match.score || 'Pending'}. Players: ${spotlightPlayers.join(', ') || 'Lineups unavailable'}.`,
         entityType: containsFollowedLeague ? 'league' : containsFollowedTeam ? 'team' : 'player',
         entityId: containsFollowedLeague
@@ -2313,6 +2318,8 @@ function MyLabPageInner() {
         entityName: leagueName || homeTeam || 'Watched match',
         createdAt: match.match_date,
         upcoming,
+        mobileContext: upcoming ? `${leagueName || 'League match'}${flight ? ` · ${flight}` : ''}` : undefined,
+        mobileBody: upcoming ? upcomingLineupRead : undefined,
         freshnessLabel: 'Match date unavailable',
         score: 94,
         badge: upcoming ? 'Upcoming' : 'Match',
@@ -5137,33 +5144,45 @@ function MyLabPageInner() {
                   <React.Fragment key={item.id}>
                     {index === 0 && item.upcoming ? <h3 style={sectionTitleStyle}>Coming up</h3> : null}
                     {index === upcomingFeedCount && !item.upcoming ? <h3 style={sectionTitleStyle}>Latest updates</h3> : null}
-                    <article style={feedCardStyle(item.accent)}>
-                      <div style={feedTopRowStyle}>
+                    <article style={isMobile && item.upcoming ? mobileUpcomingFeedCardStyle(item.accent) : feedCardStyle(item.accent)}>
+                      <div style={isMobile && item.upcoming ? mobileUpcomingTopRowStyle : feedTopRowStyle}>
                         <span style={badgeForAccent(item.accent)}>{item.badge}</span>
                         <span style={feedTimeStyle}>{item.upcoming ? formatUpcomingWatchlistDate(item.createdAt) : item.createdAt ? timeAgo(item.createdAt) : item.freshnessLabel || 'Current context'}</span>
                       </div>
-                      <h3 style={feedTitleStyle}>{item.title}</h3>
-                      <p style={feedBodyStyle}>{item.body}</p>
-                      <div style={feedMetaRowStyle}>
-                        <span style={pillSlateStyle}>{item.entityName}</span>
-                        {item.matchId ? (
-                          <Link href={`/matches/${encodeURIComponent(item.matchId)}`} style={feedLinkStyle}>
+                      <h3 style={isMobile && item.upcoming ? mobileUpcomingTitleStyle : feedTitleStyle}>{item.title}</h3>
+                      {isMobile && item.upcoming && item.matchId ? (
+                        <>
+                          <p style={mobileUpcomingContextStyle}>{item.mobileContext || item.entityName}</p>
+                          <p style={mobileUpcomingBodyStyle}>{item.mobileBody || item.body}</p>
+                          <Link href={`/matches/${encodeURIComponent(item.matchId)}`} style={mobileUpcomingFeedLinkStyle}>
                             View match
                           </Link>
-                        ) : item.entityType === 'player' && item.entityId ? (
-                          <Link href={`/players/${item.entityId}`} style={feedLinkStyle}>
-                            Open
-                          </Link>
-                        ) : item.entityType === 'team' && item.entityId ? (
-                          <Link href={buildTeamHrefFromEntityId(item.entityId)} style={feedLinkStyle}>
-                            Open
-                          </Link>
-                        ) : item.entityType === 'league' && item.entityId ? (
-                          <Link href={buildLeagueHrefFromEntityId(item.entityId)} style={feedLinkStyle}>
-                            Open
-                          </Link>
-                        ) : null}
-                      </div>
+                        </>
+                      ) : (
+                        <>
+                          <p style={feedBodyStyle}>{item.body}</p>
+                          <div style={feedMetaRowStyle}>
+                            <span style={pillSlateStyle}>{item.entityName}</span>
+                            {item.matchId ? (
+                              <Link href={`/matches/${encodeURIComponent(item.matchId)}`} style={feedLinkStyle}>
+                                View match
+                              </Link>
+                            ) : item.entityType === 'player' && item.entityId ? (
+                              <Link href={`/players/${item.entityId}`} style={feedLinkStyle}>
+                                Open
+                              </Link>
+                            ) : item.entityType === 'team' && item.entityId ? (
+                              <Link href={buildTeamHrefFromEntityId(item.entityId)} style={feedLinkStyle}>
+                                Open
+                              </Link>
+                            ) : item.entityType === 'league' && item.entityId ? (
+                              <Link href={buildLeagueHrefFromEntityId(item.entityId)} style={feedLinkStyle}>
+                                Open
+                              </Link>
+                            ) : null}
+                          </div>
+                        </>
+                      )}
                     </article>
                   </React.Fragment>
                 ))}
@@ -11376,6 +11395,13 @@ const feedCardStyle = (accent: FeedItem['accent']): CSSProperties => ({
   overflowWrap: 'anywhere',
 })
 
+const mobileUpcomingFeedCardStyle = (accent: FeedItem['accent']): CSSProperties => ({
+  ...feedCardStyle(accent),
+  borderRadius: 18,
+  padding: 14,
+  minWidth: 0,
+})
+
 const feedTopRowStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
@@ -11383,6 +11409,14 @@ const feedTopRowStyle: CSSProperties = {
   gap: 12,
   marginBottom: 10,
   flexWrap: 'wrap',
+  minWidth: 0,
+}
+
+const mobileUpcomingTopRowStyle: CSSProperties = {
+  ...feedTopRowStyle,
+  gap: 8,
+  marginBottom: 8,
+  flexWrap: 'nowrap',
   minWidth: 0,
 }
 
@@ -11398,6 +11432,49 @@ const feedTitleStyle: CSSProperties = {
   fontWeight: 900,
   fontSize: 20,
   lineHeight: 1.2,
+  overflowWrap: 'anywhere',
+}
+
+const mobileUpcomingTitleStyle: CSSProperties = {
+  ...feedTitleStyle,
+  fontSize: 18,
+  lineHeight: 1.15,
+  overflowWrap: 'anywhere',
+}
+
+const mobileUpcomingContextStyle: CSSProperties = {
+  margin: '8px 0 0',
+  color: 'var(--foreground)',
+  fontSize: 12,
+  fontWeight: 800,
+  lineHeight: 1.4,
+  overflowWrap: 'anywhere',
+}
+
+const mobileUpcomingBodyStyle: CSSProperties = {
+  margin: '4px 0 0',
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+  overflowWrap: 'anywhere',
+}
+
+const mobileUpcomingFeedLinkStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '100%',
+  minWidth: 0,
+  minHeight: 44,
+  marginTop: 12,
+  padding: '0 12px',
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
+  background: 'color-mix(in srgb, var(--brand-green) 13%, var(--shell-chip-bg) 87%)',
+  color: 'var(--foreground-strong)',
+  fontWeight: 900,
+  textDecoration: 'none',
+  textAlign: 'center',
   overflowWrap: 'anywhere',
 }
 

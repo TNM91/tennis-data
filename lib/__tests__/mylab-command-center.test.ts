@@ -226,6 +226,15 @@ describe('My Lab command center', () => {
     expect(pageSource).toContain("(['all', 'match', 'rating', 'achievement', 'team', 'league', 'community'] as const).map(")
   })
 
+  it('turns upcoming Watchlist matches into compact phone briefs', () => {
+    expect(pageSource).toContain("mobileContext: upcoming ? `${leagueName || 'League match'}${flight ? ` · ${flight}` : ''}` : undefined")
+    expect(pageSource).toContain('mobileBody: upcoming ? upcomingLineupRead : undefined')
+    expect(pageSource).toContain('isMobile && item.upcoming && item.matchId ? (')
+    expect(pageSource).toContain('style={mobileUpcomingFeedLinkStyle}')
+    expect(pageSource).toContain('const mobileUpcomingFeedCardStyle =')
+    expect(pageSource).toContain('const mobileUpcomingFeedLinkStyle: CSSProperties = {')
+  })
+
   it('uses one consistent My Lab mark without a nested signature frame', () => {
     expect(iconSource).toContain('myLab: FlaskIcon')
     expect(iconSource).not.toContain("signature = name === 'myLab'")
