@@ -99,6 +99,11 @@ describe('My Lab mobile layout guards', () => {
       'mobileLatestResultCardStyle',
       'mobileLatestResultTopRowStyle',
       'mobileLatestResultLinkStyle',
+      'watchlistEmptyStateStyle',
+      'watchlistEmptyActionStyle',
+      'mobileSignalFeedCardStyle',
+      'mobileSignalTopRowStyle',
+      'mobileSignalLinkStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain('minWidth: 0')
     }
@@ -136,6 +141,14 @@ describe('My Lab mobile layout guards', () => {
       'mobileLatestResultScoreStyle',
       'mobileLatestResultContextStyle',
       'mobileLatestResultLinkStyle',
+      'watchlistEmptyKickerStyle',
+      'watchlistEmptyTitleStyle',
+      'watchlistEmptyBodyStyle',
+      'watchlistEmptyActionStyle',
+      'mobileSignalTitleStyle',
+      'mobileSignalValueStyle',
+      'mobileSignalContextStyle',
+      'mobileSignalLinkStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain("overflowWrap: 'anywhere'")
     }
@@ -152,6 +165,10 @@ describe('My Lab mobile layout guards', () => {
     expect(styleBlock('mobileUpcomingFeedLinkStyle')).toContain("width: '100%'")
     expect(styleBlock('mobileLatestResultLinkStyle')).toContain('minHeight: 44')
     expect(styleBlock('mobileLatestResultLinkStyle')).toContain("width: '100%'")
+    expect(styleBlock('watchlistEmptyActionStyle')).toContain('minHeight: 44')
+    expect(styleBlock('watchlistEmptyActionStyle')).toContain("width: '100%'")
+    expect(styleBlock('mobileSignalLinkStyle')).toContain('minHeight: 44')
+    expect(styleBlock('mobileSignalLinkStyle')).toContain("width: '100%'")
     expect(styleBlock('feedLinkStyle')).toContain("maxWidth: '100%'")
     expect(source).toContain('<div style={matchupQueueCopyStyle}>')
     expect(source).toContain('<div style={workshopRowCopyStyle}>')

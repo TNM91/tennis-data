@@ -244,6 +244,16 @@ describe('My Lab command center', () => {
     expect(pageSource).toContain('View league')
   })
 
+  it('keeps rating and achievement filters useful on phones', () => {
+    expect(pageSource).toContain("title: 'No rating updates yet'")
+    expect(pageSource).toContain("title: 'No achievements yet'")
+    expect(pageSource).toContain("onClick={() => setFeedFilter('all')}")
+    expect(pageSource).toContain('Show all updates')
+    expect(pageSource).toContain("const mobileSignalCard = isMobile && !item.upcoming && (item.type === 'rating' || item.type === 'achievement')")
+    expect(pageSource).toContain('mobileTitle: `${player.name} rating`')
+    expect(pageSource).toContain('style={mobileSignalLinkStyle}')
+  })
+
   it('uses one consistent My Lab mark without a nested signature frame', () => {
     expect(iconSource).toContain('myLab: FlaskIcon')
     expect(iconSource).not.toContain("signature = name === 'myLab'")
