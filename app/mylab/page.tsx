@@ -5070,23 +5070,52 @@ function MyLabPageInner() {
                 <p style={sectionKickerStyle}>Your watchlist</p>
                 <h2 style={sectionTitleStyle}>Coming up and latest updates</h2>
               </div>
-              <div style={filterRowStyle}>
-                <GhostButton onClick={() => setRefreshTick((current) => current + 1)}>
-                  {loading ? 'Refreshing...' : 'Refresh lab'}
-                </GhostButton>
-                {(['all', 'match', 'rating', 'achievement', 'team', 'league', 'community'] as const).map(
-                  (value) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setFeedFilter(value)}
-                      style={feedFilter === value ? tabActiveStyle : tabButtonStyle}
+              {isMobile ? (
+                <div style={watchlistFeedActionsMobileStyle}>
+                  <button
+                    type="button"
+                    onClick={() => setRefreshTick((current) => current + 1)}
+                    style={watchlistRefreshButtonStyle}
+                  >
+                    {loading ? 'Refreshing...' : 'Refresh lab'}
+                  </button>
+                  <label style={watchlistFeedFilterFieldStyle}>
+                    <span style={watchlistFeedFilterLabelStyle}>Show</span>
+                    <select
+                      aria-label="Filter Watchlist updates"
+                      value={feedFilter}
+                      onChange={(event) => setFeedFilter(event.target.value as 'all' | FeedType)}
+                      style={watchlistFeedFilterSelectStyle}
                     >
-                      {value === 'all' ? 'All' : value}
-                    </button>
-                  ),
-                )}
-              </div>
+                      <option value="all">All updates</option>
+                      <option value="match">Matches</option>
+                      <option value="rating">Ratings</option>
+                      <option value="achievement">Achievements</option>
+                      <option value="team">Teams</option>
+                      <option value="league">Leagues</option>
+                      <option value="community">Community</option>
+                    </select>
+                  </label>
+                </div>
+              ) : (
+                <div style={filterRowStyle}>
+                  <GhostButton onClick={() => setRefreshTick((current) => current + 1)}>
+                    {loading ? 'Refreshing...' : 'Refresh lab'}
+                  </GhostButton>
+                  {(['all', 'match', 'rating', 'achievement', 'team', 'league', 'community'] as const).map(
+                    (value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setFeedFilter(value)}
+                        style={feedFilter === value ? tabActiveStyle : tabButtonStyle}
+                      >
+                        {value === 'all' ? 'All' : value}
+                      </button>
+                    ),
+                  )}
+                </div>
+              )}
             </div>
 
             {loading ? (
@@ -11261,6 +11290,51 @@ const ghostMiniButtonStyle: CSSProperties = {
   cursor: 'pointer',
   maxWidth: '100%',
   whiteSpace: 'normal',
+}
+
+const watchlistFeedActionsMobileStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'auto minmax(0, 1fr)',
+  alignItems: 'center',
+  gap: 8,
+  width: '100%',
+  minWidth: 0,
+}
+
+const watchlistRefreshButtonStyle: CSSProperties = {
+  ...ghostMiniButtonStyle,
+  minHeight: 44,
+  whiteSpace: 'nowrap',
+}
+
+const watchlistFeedFilterFieldStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  gap: 8,
+  minWidth: 0,
+}
+
+const watchlistFeedFilterLabelStyle: CSSProperties = {
+  color: 'var(--shell-copy-muted)',
+  fontSize: 12,
+  fontWeight: 800,
+}
+
+const watchlistFeedFilterSelectStyle: CSSProperties = {
+  width: '100%',
+  minWidth: 0,
+  maxWidth: 164,
+  minHeight: 44,
+  borderRadius: 999,
+  border: '1px solid color-mix(in srgb, var(--brand-green) 24%, var(--shell-panel-border) 76%)',
+  background: 'color-mix(in srgb, var(--brand-green) 13%, var(--shell-chip-bg) 87%)',
+  color: 'var(--foreground-strong)',
+  padding: '0 12px',
+  fontSize: 14,
+  fontWeight: 800,
+  cursor: 'pointer',
+  outline: 'none',
 }
 
 const emptyInlineStyle: CSSProperties = {
