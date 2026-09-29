@@ -88,6 +88,9 @@ describe('My Lab mobile layout guards', () => {
       'myLabPlayerIdProofRailStyle',
       'myLabPlayerIdProofCardStyle',
       'optionalContextSummaryCopyStyle',
+      'watchlistManageDetailsStyle',
+      'watchlistManageBodyStyle',
+      'watchlistMobileFollowsStyle',
     ]) {
       expect(styleBlock(styleName), styleName).toContain('minWidth: 0')
     }

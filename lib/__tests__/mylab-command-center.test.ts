@@ -204,6 +204,16 @@ describe('My Lab command center', () => {
     expect(pageSource).toContain('minWidth: 140')
   })
 
+  it('keeps Watchlist updates visible while management stays one level deeper on phones', () => {
+    expect(pageSource).toContain("const WatchlistManageShell: 'details' | 'div' = isMobile ? 'details' : 'div'")
+    expect(pageSource).toContain('aria-label="Open Watchlist management"')
+    expect(pageSource).toContain('<strong>Manage watchlist</strong>')
+    expect(pageSource).toContain('Find or unfollow tennis context.')
+    expect(pageSource).toContain('<FollowList items={follows} onRemove={removeFollow} />')
+    expect(pageSource).toContain('{!isMobile ? <div style={rightColumnStyle}>')
+    expect(pageSource).toContain('const watchlistManageActionStyle: CSSProperties = {')
+  })
+
   it('uses one consistent My Lab mark without a nested signature frame', () => {
     expect(iconSource).toContain('myLab: FlaskIcon')
     expect(iconSource).not.toContain("signature = name === 'myLab'")
