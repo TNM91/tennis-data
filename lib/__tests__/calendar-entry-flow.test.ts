@@ -59,7 +59,7 @@ describe('season calendar handoff', () => {
     expect(source).toContain('Keep matches, practice, and availability in one place.')
     expect(source).toContain('style={calendarSummaryActionStyle}>Plan week')
     expect(source).toContain('minHeight: 44')
-    expect(source).toContain('Teams, tools, goals, and coach work.')
+    expect(source).not.toContain('Teams, tools, goals, and calendar.')
     expect(source).not.toContain('Saved matches, Apple, Google, and your tennis week.')
   })
 })
