@@ -133,7 +133,7 @@ export default function MyLabCommandCenter({
       </header>
 
       {firstServeSteps.length ? (
-        <section className={styles.firstServe} aria-labelledby="first-serve-title">
+        <section className={styles.firstServe} aria-label="First serve setup">
           <div className={styles.firstServeHeading}>
             <div>
               <p className={styles.cardEyebrow}>First serve</p>

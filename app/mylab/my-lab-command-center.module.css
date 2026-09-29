@@ -998,38 +998,39 @@
 
   .firstServe {
     margin-bottom: 12px;
-    padding: 14px;
+    padding: 11px;
     border-radius: 20px;
   }
 
   .firstServeHeading {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: end;
-    gap: 8px 12px;
-    margin-bottom: 11px;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
   }
 
   .firstServeHeading h2 {
-    margin-bottom: 0;
-    font-size: 1.3rem;
+    display: none;
   }
 
   .firstServeHeading > div > p:last-child {
     display: none;
   }
 
+  .firstServeHeading .cardEyebrow {
+    margin: 0;
+  }
+
   .firstServeProgress {
     width: fit-content;
-    margin-bottom: 1px;
+    margin-bottom: 0;
     padding: 6px 9px;
     font-size: 0.66rem;
   }
 
   .firstServeStep {
-    min-height: 76px;
+    min-height: 70px;
     align-items: center;
-    padding: 13px;
+    padding: 11px;
   }
 
   .firstServeGrid[data-has-current='true'] .firstServeStepSecondary {
