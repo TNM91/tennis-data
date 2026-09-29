@@ -199,14 +199,14 @@ export default function MyLabCommandCenter({
           <div className={styles.postRepNext}>
             <p className={styles.supportEyebrow}>Weekly plan · {postRepReturn.planLabel}</p>
             <strong>{postRepReturn.nextAction}</strong>
+            <Link href={postRepReturn.nextHref}>
+              {postRepReturn.nextCta} <span aria-hidden="true">→</span>
+            </Link>
             <p className={styles.postRepWhy}>{postRepReturn.planWhy}</p>
             <div className={styles.postRepPlanMeta}>
               <span><small>Proof</small>{postRepReturn.proofTarget}</span>
               <span><small>Trend</small>{postRepReturn.trendLabel}</span>
             </div>
-            <Link href={postRepReturn.nextHref}>
-              {postRepReturn.nextCta} <span aria-hidden="true">→</span>
-            </Link>
           </div>
         </section>
       ) : null}
