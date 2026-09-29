@@ -188,17 +188,6 @@ export default function MyLabCommandCenter({
             </div>
           </div>
 
-          <div className={styles.postRepProgress}>
-            <div>
-              <p className={styles.supportEyebrow}>This week</p>
-              <strong>{safeCompletedSessions} of {sessionTarget}</strong>
-            </div>
-            <span className={styles.postRepTrack} aria-label={`${safeCompletedSessions} of ${sessionTarget} weekly reps complete`}>
-              <span style={{ width: `${sessionTarget ? Math.round((safeCompletedSessions / sessionTarget) * 100) : 0}%` }} />
-            </span>
-            <Link href={progressHref}>See progress</Link>
-          </div>
-
           <div className={styles.postRepNext}>
             <p className={styles.supportEyebrow}>Weekly plan · {postRepReturn.planLabel}</p>
             <strong>{postRepReturn.nextAction}</strong>
@@ -210,6 +199,17 @@ export default function MyLabCommandCenter({
               <span><small>Proof</small>{postRepReturn.proofTarget}</span>
               <span><small>Trend</small>{postRepReturn.trendLabel}</span>
             </div>
+          </div>
+
+          <div className={styles.postRepProgress}>
+            <div>
+              <p className={styles.supportEyebrow}>This week</p>
+              <strong>{safeCompletedSessions} of {sessionTarget}</strong>
+            </div>
+            <span className={styles.postRepTrack} aria-label={`${safeCompletedSessions} of ${sessionTarget} weekly reps complete`}>
+              <span style={{ width: `${sessionTarget ? Math.round((safeCompletedSessions / sessionTarget) * 100) : 0}%` }} />
+            </span>
+            <Link href={progressHref}>See progress</Link>
           </div>
         </section>
       ) : null}
