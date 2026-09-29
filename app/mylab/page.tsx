@@ -3640,6 +3640,7 @@ function MyLabPageInner() {
 
   const collapseLegacyWorkspace = isMobile && isProfileConfirmed
   const PlayerWorkshopShell: 'details' | 'section' = collapseLegacyWorkspace ? 'details' : 'section'
+  const WatchlistManageShell: 'details' | 'div' = isMobile ? 'details' : 'div'
 
   return (
     <section style={pageStyle}>
@@ -4959,6 +4960,20 @@ function MyLabPageInner() {
                 </section>
               ) : null}
 
+          <WatchlistManageShell style={isMobile ? watchlistManageDetailsStyle : watchlistPassthroughStyle}>
+            {isMobile ? (
+              <summary aria-label="Open Watchlist management" style={watchlistManageSummaryStyle}>
+                <span style={labDrawerSummaryCopyStyle}>
+                  <strong>Manage watchlist</strong>
+                  <em style={labDrawerSummaryHintStyle}>Find or unfollow tennis context.</em>
+                </span>
+                <span aria-hidden="true" style={watchlistManageActionStyle}>Manage <span>→</span></span>
+              </summary>
+            ) : null}
+            <div
+              className={isMobile ? 'myLabDetailsBody' : undefined}
+              style={isMobile ? watchlistManageBodyStyle : watchlistPassthroughStyle}
+            >
           <section style={surfaceStrongStyle}>
             <div style={sectionHeaderStyle}>
               <div style={sectionHeaderCopyStyle}>
@@ -5032,6 +5047,22 @@ function MyLabPageInner() {
               )}
             </div>
           </section>
+
+          {isMobile ? (
+            <section style={watchlistMobileFollowsStyle}>
+              <div style={sectionHeaderStyle}>
+                <div style={sectionHeaderCopyStyle}>
+                  <p style={sectionKickerStyle}>Saved context</p>
+                  <h2 style={sectionTitleStyle}>Your follows</h2>
+                  <p style={sectionTextStyle}>Keep this list small enough to act on.</p>
+                </div>
+                <span style={optionalContextCountStyle}>{follows.length} saved</span>
+              </div>
+              <FollowList items={follows} onRemove={removeFollow} />
+            </section>
+          ) : null}
+            </div>
+          </WatchlistManageShell>
 
           <section style={surfaceStyle}>
             <div style={sectionHeaderStyle}>
@@ -5115,7 +5146,7 @@ function MyLabPageInner() {
           </section>
         </div>
 
-        <div style={rightColumnStyle}>
+        {!isMobile ? <div style={rightColumnStyle}>
           <section style={surfaceStyle}>
             <div style={sectionHeaderStyle}>
               <div>
@@ -5190,7 +5221,7 @@ function MyLabPageInner() {
               </div>
             ) : null}
           </section>
-            </div>
+            </div> : null}
           </section>
         </details>
       ) : null}
@@ -10899,6 +10930,39 @@ const watchlistSummaryActionStyle: CSSProperties = {
   minWidth: 140,
 }
 
+const watchlistPassthroughStyle: CSSProperties = {
+  display: 'contents',
+}
+
+const watchlistManageDetailsStyle: CSSProperties = {
+  borderRadius: 18,
+  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
+  background: 'color-mix(in srgb, var(--shell-panel-bg) 82%, transparent)',
+  overflow: 'hidden',
+  minWidth: 0,
+}
+
+const watchlistManageSummaryStyle: CSSProperties = {
+  ...labDrawerSummaryStyle,
+  padding: '12px 14px',
+}
+
+const watchlistManageActionStyle: CSSProperties = {
+  ...optionalContextCountStyle,
+  justifyContent: 'space-between',
+  gap: 10,
+  minHeight: 44,
+  minWidth: 104,
+  padding: '0 14px',
+}
+
+const watchlistManageBodyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: '0 10px 10px',
+  minWidth: 0,
+}
+
 const compactSignalsPanelStyle: CSSProperties = {
   borderRadius: 20,
   border: '1px solid var(--shell-panel-border)',
@@ -11001,6 +11065,12 @@ const surfaceStyle: CSSProperties = {
   border: '1px solid var(--shell-panel-border)',
   background: 'var(--shell-panel-bg)',
   boxShadow: 'var(--shadow-soft)',
+  minWidth: 0,
+}
+
+const watchlistMobileFollowsStyle: CSSProperties = {
+  ...surfaceStyle,
+  padding: 16,
   minWidth: 0,
 }
 
