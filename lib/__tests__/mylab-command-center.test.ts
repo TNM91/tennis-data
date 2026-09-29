@@ -115,8 +115,9 @@ describe('My Lab command center', () => {
     expect(styleSource).toContain('.firstServeHeading > div > p:last-child {\n    display: none;')
     expect(styleSource).toContain('.firstServeHeading h2 {\n    display: none;')
     expect(styleSource).toContain('.firstServeHeading .cardEyebrow {\n    margin: 0;')
-    expect(styleSource).toContain('min-height: 70px;')
-    expect(styleSource).toContain('padding: 11px;')
+    expect(styleSource).toContain('min-height: 56px;')
+    expect(styleSource).toContain('grid-template-columns: 26px minmax(0, 1fr) auto;')
+    expect(styleSource).toContain('.firstServeCopy small {\n    display: none;')
     expect(styleSource).toContain('margin-bottom: 8px;')
   })
 
@@ -136,7 +137,8 @@ describe('My Lab command center', () => {
     expect(weeklyMetaIndex).toBeGreaterThan(weeklyWhyIndex)
     expect(styleSource).toContain('.postRepReturn {\n    grid-template-columns: 1fr;\n    gap: 0;')
     expect(styleSource).toContain('.postRepProgress {\n    grid-template-columns: minmax(0, 1fr) auto;')
-    expect(styleSource).toContain('.postRepProgress > a {\n    grid-column: 2;\n    grid-row: 2;')
+    expect(styleSource).toContain('.postRepProgress > a {\n    grid-column: 2;\n    grid-row: 1;')
+    expect(styleSource).toContain('.postRepTrack {\n    grid-column: 1 / -1;\n    grid-row: 2;')
     expect(styleSource).toContain('.postRepPlanMeta {\n    grid-template-columns: repeat(2, minmax(0, 1fr));')
   })
 
