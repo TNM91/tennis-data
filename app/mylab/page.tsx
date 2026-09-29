@@ -3722,12 +3722,12 @@ function MyLabPageInner() {
         style={collapseLegacyWorkspace ? mobileMyLabExtrasDetailsStyle : profileLinkSectionStyle}
       >
         {collapseLegacyWorkspace ? (
-          <summary style={mobileMyLabExtrasSummaryStyle}>
+          <summary aria-label="Open more My Lab tools" style={mobileMyLabExtrasSummaryStyle}>
             <span style={labDrawerSummaryCopyStyle}>
               <strong>More in My Lab</strong>
-              <em style={labDrawerSummaryHintStyle}>Teams, tools, goals, and coach work.</em>
+              <em style={labDrawerSummaryHintStyle}>Go deeper on goals, coach work, and team tools.</em>
             </span>
-            <span style={optionalContextCountStyle}>Open</span>
+            <span aria-hidden="true" style={mobileMyLabExtrasActionStyle}>See all tools <span>→</span></span>
           </summary>
         ) : null}
         <div style={profileLinkCardStyle}>
@@ -10870,6 +10870,15 @@ const calendarSummaryActionStyle: CSSProperties = {
   padding: '0 14px',
   borderColor: 'color-mix(in srgb, var(--brand-blue-2) 38%, var(--shell-panel-border) 62%)',
   color: 'var(--foreground-strong)',
+}
+
+const mobileMyLabExtrasActionStyle: CSSProperties = {
+  ...optionalContextCountStyle,
+  justifyContent: 'space-between',
+  gap: 10,
+  minHeight: 44,
+  minWidth: 132,
+  padding: '0 14px',
 }
 
 const compactSignalsPanelStyle: CSSProperties = {

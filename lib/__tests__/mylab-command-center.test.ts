@@ -188,7 +188,10 @@ describe('My Lab command center', () => {
     expect(pageSource).toContain('const collapseLegacyWorkspace = isMobile && isProfileConfirmed')
     expect(pageSource).toContain("const PlayerWorkshopShell: 'details' | 'section'")
     expect(pageSource).toContain('<strong>More in My Lab</strong>')
-    expect(pageSource).toContain('Teams, tools, goals, and coach work.')
+    expect(pageSource).toContain('aria-label="Open more My Lab tools"')
+    expect(pageSource).toContain('Go deeper on goals, coach work, and team tools.')
+    expect(pageSource).toContain('style={mobileMyLabExtrasActionStyle}>See all tools')
+    expect(pageSource).toContain('const mobileMyLabExtrasActionStyle: CSSProperties = {')
     expect(pageSource).toContain('mobileMyLabExtrasDetailsStyle')
   })
 
