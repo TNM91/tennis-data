@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { unstable_cache } from 'next/cache'
 import { createClient } from '@supabase/supabase-js'
 import { buildShareCardImageUrl } from './share-card'
 
@@ -288,7 +289,7 @@ export async function getAwardMetadataById(id: string): Promise<Metadata> {
   }
 }
 
-export async function getPlayerSharePreview(id: string) {
+const getCachedPlayerSharePreview = unstable_cache(async (id: string) => {
   const { data } = await getMetadataSupabase()
     .from('players')
     .select('name, location')
@@ -300,6 +301,10 @@ export async function getPlayerSharePreview(id: string) {
     primary: row?.name?.trim() || 'Player Profile',
     secondary: row?.location?.trim() || 'TenAceIQ player intelligence',
   }
+}, ['player-share-preview'], { revalidate: 86400 })
+
+export async function getPlayerSharePreview(id: string) {
+  return getCachedPlayerSharePreview(id)
 }
 
 export async function getTeamSharePreview(team: string) {

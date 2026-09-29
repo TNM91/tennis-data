@@ -6,6 +6,8 @@ import { buildRouteMetadata } from '../route-metadata'
 const read = (path: string) => readFileSync(join(process.cwd(), path), 'utf8')
 const rootLayout = read('app/layout.tsx')
 const routeMetadataSource = read('lib/route-metadata.ts')
+const playerDetailLayout = read('app/players/[id]/layout.tsx')
+const playerOpenGraphImage = read('app/players/[id]/opengraph-image.tsx')
 const shareCardRoute = read('app/api/share-card/route.ts')
 const shareCardImage = read('lib/share-card-image.tsx')
 const shareCardSource = read('lib/share-card.ts')
@@ -21,6 +23,16 @@ describe('public SEO metadata', () => {
     expect(routeMetadataSource).toContain('function getMetadataSupabase()')
     expect(routeMetadataSource).toContain('metadataSupabase = createClient')
     expect(routeMetadataSource).not.toContain('const supabase = createClient')
+  })
+
+  it('caches public player metadata across crawler requests and deployments', () => {
+    expect(routeMetadataSource).toContain('unstable_cache')
+    expect(routeMetadataSource).toContain("['player-share-preview']")
+    expect(routeMetadataSource).toContain('revalidate: 86400')
+    expect(playerDetailLayout).toContain('export const revalidate = 86400')
+    expect(playerDetailLayout).toContain('export function generateStaticParams()')
+    expect(playerOpenGraphImage).toContain('export const revalidate = 86400')
+    expect(playerOpenGraphImage).not.toContain("width: 'fit-content'")
   })
 
   it('builds canonical and complete social metadata for shared public routes', () => {
