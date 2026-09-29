@@ -115,6 +115,10 @@ import {
 import { cleanText as safeText } from '@/lib/captain-formatters'
 import { mergeSeasonLabelOptions, normalizeSeasonLabel } from '@/lib/season-labels'
 import { formatDynamicPointsForSides } from '@/lib/tiq-scoring'
+import {
+  DEFAULT_LEAGUE_WEEKLY_SETTINGS,
+  normalizeLeagueWeeklySettings,
+} from '@/lib/league-weekly-format'
 import { buildTiqLeagueSchedulingPlanRows, getTiqLeagueSchedulingHandoffSummary } from '@/lib/tiq-league-calendar'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
@@ -145,6 +149,12 @@ const emptyJoinRequestActions = [
 ] as const
 
 const LEAGUE_HOME_QUICK_ACTIONS: readonly RoleHomeQuickAction[] = [
+  {
+    title: 'Run weekly play',
+    detail: 'Collect replies, set courts, and build the recap.',
+    href: '/league-coordinator/weekly',
+    icon: 'schedule',
+  },
   {
     title: 'Add league',
     detail: 'Create a team or player season.',
@@ -215,6 +225,7 @@ const EMPTY_DRAFT: TiqLeagueDraft = {
   photoUrl: '',
   captainTeamName: '',
   notes: '',
+  weeklySettings: { ...DEFAULT_LEAGUE_WEEKLY_SETTINGS },
   teams: [],
   players: [],
 }
@@ -1334,6 +1345,7 @@ export function LeagueCoordinatorWorkspace() {
       photoUrl: record.photoUrl,
       captainTeamName: record.captainTeamName,
       notes: record.notes,
+      weeklySettings: normalizeLeagueWeeklySettings(record.weeklySettings),
       teams: record.teams,
       players: record.players,
     })
@@ -2262,6 +2274,92 @@ export function LeagueCoordinatorWorkspace() {
                 </span>
               </label>
 
+              <div style={{ ...fieldLabel, gridColumn: '1 / -1' }}>
+                <div style={leagueOpsHeaderStyle}>
+                  <div style={leagueOpsHeaderCopyStyle}>
+                    <span>Weekly rotating doubles</span>
+                    <small style={fieldHelpText}>Optional tools for a recurring in-or-out roster, staggered courts, three partner rotations, and a league recap.</small>
+                  </div>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={draft.weeklySettings.enabled}
+                      onChange={(event) => setDraft((current) => ({
+                        ...current,
+                        weeklySettings: normalizeLeagueWeeklySettings({
+                          ...current.weeklySettings,
+                          enabled: event.target.checked,
+                        }),
+                      }))}
+                    />
+                    <span>{draft.weeklySettings.enabled ? 'On' : 'Off'}</span>
+                  </label>
+                </div>
+
+                {draft.weeklySettings.enabled ? (
+                  <div style={responsiveFieldGrid}>
+                    <label style={fieldLabel}>
+                      <span>Courts each week</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={24}
+                        value={draft.weeklySettings.courtCount}
+                        onChange={(event) => setDraft((current) => ({
+                          ...current,
+                          weeklySettings: normalizeLeagueWeeklySettings({
+                            ...current.weeklySettings,
+                            courtCount: Number(event.target.value),
+                          }),
+                        }))}
+                        style={inputStyle}
+                      />
+                      <span style={fieldHelpText}>{draft.weeklySettings.courtCount * 4} playing spots when every court is full.</span>
+                    </label>
+
+                    <label style={fieldLabel}>
+                      <span>Start-time waves</span>
+                      <input
+                        value={draft.weeklySettings.startTimes.join(', ')}
+                        onChange={(event) => setDraft((current) => ({
+                          ...current,
+                          weeklySettings: normalizeLeagueWeeklySettings({
+                            ...current.weeklySettings,
+                            startTimes: event.target.value.split(',').map((value) => value.trim()),
+                          }),
+                        }))}
+                        placeholder="08:00, 08:30"
+                        style={inputStyle}
+                      />
+                      <span style={fieldHelpText}>Use 24-hour times, separated by commas. Courts rotate through these waves.</span>
+                    </label>
+
+                    {[
+                      ['collectAvailability', 'Weekly in-or-out link', 'Players reply before the owner confirms the roster.'],
+                      ['autoGenerateCourts', 'Suggested court assignments', 'Build four-player courts with all three partner rotations.'],
+                      ['collectPlayerStories', 'Positive recap shares', 'Let players add a highlight, thank-you, or fun moment with scores.'],
+                      ['leagueChatEnabled', 'League chat', 'Give this league a shared conversation when chat is connected.'],
+                      ['emailRemindersEnabled', 'Weekly email reminders', 'Email linked members when replies open and again when courts are published.'],
+                    ].map(([key, title, detail]) => (
+                      <label key={key} style={{ ...fieldLabel, flexDirection: 'row', alignItems: 'flex-start' }}>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(draft.weeklySettings[key as keyof typeof draft.weeklySettings])}
+                          onChange={(event) => setDraft((current) => ({
+                            ...current,
+                            weeklySettings: normalizeLeagueWeeklySettings({
+                              ...current.weeklySettings,
+                              [key]: event.target.checked,
+                            }),
+                          }))}
+                        />
+                        <span><strong>{title}</strong><small style={{ ...fieldHelpText, display: 'block' }}>{detail}</small></span>
+                      </label>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
               <label style={fieldLabel}>
                 <span>Flight or tier</span>
                 <input
@@ -2971,6 +3069,7 @@ export function LeagueCoordinatorWorkspace() {
                         <span style={pillSlate}>{getTiqLeagueSchedulingModeLabel(record.schedulingMode)}</span>
                         <span style={pillSlate}>{getTiqLeagueScoringSystemLabel(record.scoringSystem)}</span>
                         <span style={pillSlate}>{getTiqLeagueThirdSetRuleLabel(record.thirdSetRule)}</span>
+                        {record.weeklySettings.enabled ? <span style={pillBlue}>Weekly play</span> : null}
                       </div>
 
                       <div style={registryTitle}>{record.leagueName}</div>
@@ -3007,6 +3106,9 @@ export function LeagueCoordinatorWorkspace() {
                           resultLabel={getLeagueResultEntryLabel(record)}
                           onCopyShare={copyPublicLeagueLink}
                         >
+                          {record.weeklySettings.enabled ? (
+                            <GhostLink href={`/league-coordinator/weekly?leagueId=${encodeURIComponent(record.id)}`}>Run this week</GhostLink>
+                          ) : null}
                           <GhostBtn onClick={() => startEditing(record)}>Edit</GhostBtn>
                           <DangerBtn onClick={() => removeRecord(record.id)}>Remove</DangerBtn>
                         </LeagueActionRow>

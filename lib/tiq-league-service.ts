@@ -32,6 +32,7 @@ import {
   type TiqLeagueSeasonStatus,
 } from '@/lib/tiq-league-limits'
 import { normalizeSeasonLabel } from '@/lib/season-labels'
+import { normalizeLeagueWeeklySettings } from '@/lib/league-weekly-format'
 import {
   assessPlayerEligibility,
   buildPlayerEligibilityRequirement,
@@ -140,6 +141,7 @@ type TiqLeagueRow = {
   photo_url?: string | null
   captain_team_name?: string | null
   notes?: string | null
+  weekly_settings?: unknown
   teams?: string[] | null
   players?: string[] | null
   teams_json?: string[] | null
@@ -205,6 +207,7 @@ type TiqLeagueRemotePayload = {
   photo_url: string
   captain_team_name: string
   notes: string
+  weekly_settings: ReturnType<typeof normalizeLeagueWeeklySettings>
   teams: string[]
   players: string[]
   created_at: string
@@ -297,6 +300,11 @@ function normalizeRow(row: TiqLeagueRow): TiqLeagueRecord {
     photoUrl: cleanText(row.photo_url),
     captainTeamName: cleanText(row.captain_team_name),
     notes: cleanText(row.notes),
+    weeklySettings: normalizeLeagueWeeklySettings(
+      row.weekly_settings && typeof row.weekly_settings === 'object'
+        ? row.weekly_settings as Parameters<typeof normalizeLeagueWeeklySettings>[0]
+        : null,
+    ),
     teams: normalizeList(row.teams ?? row.teams_json),
     players: normalizeList(row.players ?? row.players_json),
     createdAt: cleanText(row.created_at),
@@ -485,6 +493,7 @@ function buildRemotePayload(record: TiqLeagueRecord, userId: string): TiqLeagueR
     photo_url: record.photoUrl,
     captain_team_name: record.captainTeamName,
     notes: record.notes,
+    weekly_settings: normalizeLeagueWeeklySettings(record.weeklySettings),
     teams: record.teams,
     players: record.players,
     created_at: record.createdAt,

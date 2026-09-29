@@ -28,6 +28,10 @@ import {
   normalizeClubCompetitionResultMode,
   type ClubCompetitionResultMode,
 } from './club-competition'
+import {
+  normalizeLeagueWeeklySettings,
+  type LeagueWeeklySettings,
+} from './league-weekly-format'
 
 export const TIQ_LEAGUE_REGISTRY_STORAGE_KEY = 'tenaceiq_tiq_league_registry'
 
@@ -67,6 +71,7 @@ export type TiqLeagueRecord = {
   photoUrl: string
   captainTeamName: string
   notes: string
+  weeklySettings: LeagueWeeklySettings
   teams: string[]
   players: string[]
   createdAt: string
@@ -102,6 +107,7 @@ export type TiqLeagueDraft = {
   photoUrl: string
   captainTeamName: string
   notes: string
+  weeklySettings: LeagueWeeklySettings
   teams: string[]
   players: string[]
 }
@@ -260,6 +266,7 @@ function normalizeDraft(input: TiqLeagueDraft): TiqLeagueDraft {
     photoUrl: cleanText(input.photoUrl),
     captainTeamName: cleanText(input.captainTeamName),
     notes: cleanText(input.notes),
+    weeklySettings: normalizeLeagueWeeklySettings(input.weeklySettings),
     teams: normalizeList(input.teams),
     players: normalizeList(input.players),
   }
@@ -309,6 +316,7 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
       photoUrl: cleanText(record.photoUrl),
       captainTeamName: cleanText(record.captainTeamName),
       notes: cleanText(record.notes),
+      weeklySettings: normalizeLeagueWeeklySettings(record.weeklySettings),
       teams: normalizeList(Array.isArray(record.teams) ? record.teams : []),
       players: normalizeList(Array.isArray(record.players) ? record.players : []),
       createdAt: cleanText(record.createdAt),
@@ -370,6 +378,7 @@ export function upsertTiqLeagueRecord(draft: TiqLeagueDraft, existingId?: string
     photoUrl: normalized.photoUrl,
     captainTeamName: normalized.captainTeamName,
     notes: normalized.notes,
+    weeklySettings: normalized.weeklySettings,
     teams: normalized.teams,
     players: normalized.players,
     createdAt: registry.find((record) => record.id === nextId)?.createdAt || now,
