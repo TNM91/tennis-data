@@ -198,20 +198,26 @@ describe('My Lab command center', () => {
   it('turns the Watchlist summary into a clear mobile action', () => {
     expect(pageSource).toContain("aria-label={follows.length ? 'Open Watchlist to review updates' : 'Open Watchlist to follow tennis context'}")
     expect(pageSource).toContain("? `${follows.length} ${follows.length === 1 ? 'follow' : 'follows'} · Player, team, and league updates.`")
-    expect(pageSource).toContain("{follows.length ? 'Review updates' : 'Build watchlist'} <span>→</span>")
+    expect(pageSource).toContain("{follows.length ? 'Open watchlist' : 'Build watchlist'} <span>→</span>")
     expect(pageSource).toContain('style={watchlistSummaryActionStyle}')
     expect(pageSource).toContain('const watchlistSummaryActionStyle: CSSProperties = {')
     expect(pageSource).toContain('minWidth: 140')
   })
 
-  it('keeps Watchlist updates visible while management stays one level deeper on phones', () => {
-    expect(pageSource).toContain("const WatchlistManageShell: 'details' | 'div' = isMobile ? 'details' : 'div'")
-    expect(pageSource).toContain('aria-label="Open Watchlist management"')
-    expect(pageSource).toContain('<strong>Manage watchlist</strong>')
-    expect(pageSource).toContain('Find or unfollow tennis context.')
+  it('opens phone Watchlist management inline with saved follows before search', () => {
+    expect(pageSource).toContain('style={isMobile ? watchlistQuickManageStyle : watchlistPassthroughStyle}')
+    expect(pageSource).toContain('aria-labelledby="watchlist-follows-title"')
+    expect(pageSource).toContain('id="watchlist-follows-title"')
+    expect(pageSource).toContain('Remove anything you no longer need.')
     expect(pageSource).toContain('<FollowList items={follows} onRemove={removeFollow} />')
+    expect(pageSource.indexOf('id="watchlist-follows-title"')).toBeLessThan(pageSource.indexOf("{isMobile ? 'Add to Watchlist' : 'Follow tennis context'}"))
+    expect(pageSource).toContain("? 'Find a player, team, or league and follow it in one tap.'")
+    expect(pageSource).toContain('aria-label="Find a player, team, or league"')
+    expect(pageSource).toContain('ariaLabel={`Remove ${item.entity_name} from Watchlist`}')
+    expect(pageSource).toContain('{!isMobile || search.trim() ? (')
     expect(pageSource).toContain('{!isMobile ? <div style={rightColumnStyle}>')
-    expect(pageSource).toContain('const watchlistManageActionStyle: CSSProperties = {')
+    expect(pageSource).toContain('const watchlistQuickManageStyle: CSSProperties = {')
+    expect(pageSource).not.toContain('aria-label="Open Watchlist management"')
   })
 
   it('condenses Watchlist update filters into a phone-friendly selector', () => {
