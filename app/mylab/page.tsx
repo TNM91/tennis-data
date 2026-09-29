@@ -5077,7 +5077,7 @@ function MyLabPageInner() {
                     onClick={() => setRefreshTick((current) => current + 1)}
                     style={watchlistRefreshButtonStyle}
                   >
-                    {loading ? 'Refreshing...' : 'Refresh lab'}
+                    {loading ? 'Refreshing...' : 'Refresh'}
                   </button>
                   <select
                     aria-label="Filter Watchlist updates"
@@ -11301,6 +11301,7 @@ const watchlistFeedActionsMobileStyle: CSSProperties = {
 const watchlistRefreshButtonStyle: CSSProperties = {
   ...ghostMiniButtonStyle,
   minHeight: 44,
+  padding: '0 10px',
   whiteSpace: 'nowrap',
 }
 

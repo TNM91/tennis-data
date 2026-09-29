@@ -220,6 +220,7 @@ describe('My Lab command center', () => {
     expect(pageSource).toContain('<option value="all">All updates</option>')
     expect(pageSource).toContain('<option value="achievement">Achievements</option>')
     expect(pageSource).toContain('style={watchlistRefreshButtonStyle}')
+    expect(pageSource).toContain("{loading ? 'Refreshing...' : 'Refresh'}")
     expect(pageSource).toContain('const watchlistFeedActionsMobileStyle: CSSProperties = {')
     expect(pageSource).toContain('const watchlistFeedFilterSelectStyle: CSSProperties = {')
     expect(pageSource).toContain("(['all', 'match', 'rating', 'achievement', 'team', 'league', 'community'] as const).map(")
