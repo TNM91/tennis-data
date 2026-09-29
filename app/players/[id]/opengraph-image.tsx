@@ -7,6 +7,7 @@ export const size = {
 }
 
 export const contentType = 'image/png'
+export const revalidate = 86400
 
 export default async function Image({
   params,
@@ -44,7 +45,7 @@ export default async function Image({
             style={{
               display: 'flex',
               alignItems: 'center',
-              width: 'fit-content',
+              alignSelf: 'flex-start',
               borderRadius: '999px',
               padding: '10px 18px',
               background: 'rgba(74,163,255,0.16)',

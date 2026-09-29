@@ -191,6 +191,7 @@ const STALE_TENNISRECORD_RUN_MS = 6 * 60_000
 // source-request lane itself remains strictly sequential and paced by the
 // configured request interval.
 export const TENNISRECORD_AUTOMATION_INTERVAL_MINUTES = 3
+const TENNISRECORD_RATING_REFRESH_INTERVAL_MS = 20 * 60 * 60_000
 const TENNISRECORD_SOURCE_BLOCK_BACKOFF_MS = 30 * 60_000
 export const TENNISRECORD_SOURCE_PAGE_BUCKET = 'tennisrecord-source-pages'
 // Profiles and team pages carry factual location and roster context. They
@@ -478,14 +479,20 @@ export function isTennisRecordWeeklyWindowOpen(now = new Date()) {
  * Both lanes can finish results throughout the week. The existing rating cron
  * decides the invocation cadence; do not strand new evidence until Wednesday.
  */
-export function isTennisRecordRatingBatchDue(automationState: AutomationState, now = new Date()) {
-  void now
-  return automationState === 'bootstrap' || automationState === 'weekly'
+export function isTennisRecordRatingBatchDue(
+  automationState: AutomationState,
+  now = new Date(),
+  lastRecalculatedAt?: string | null,
+) {
+  if (automationState !== 'bootstrap' && automationState !== 'weekly') return false
+  const lastRecalculatedAtMs = Date.parse(lastRecalculatedAt || '')
+  return !Number.isFinite(lastRecalculatedAtMs)
+    || now.getTime() - lastRecalculatedAtMs >= TENNISRECORD_RATING_REFRESH_INTERVAL_MS
 }
 
-/** Rating cron fires at UTC minutes 2, 17, 32, 47. */
+/** Yield the collector slot immediately before the daily 08:17 UTC rating run. */
 export function isTennisRecordRatingReservationWindow(now = new Date()) {
-  return now.getUTCMinutes() % 15 < 2
+  return now.getUTCHours() === 8 && now.getUTCMinutes() >= 15 && now.getUTCMinutes() < 17
 }
 
 export function tennisRecordPipelineHealth(input: {
@@ -1427,7 +1434,7 @@ export async function runScheduledTennisRecordRatingBatch(service: SupabaseClien
 
   const settings = rawSettings as Pick<Settings, 'enabled' | 'automation_state' | 'rating_recalculation_requested_at' | 'rating_recalculated_at'> | null
   if (!settings?.enabled) return { status: 'disabled', pendingMatches: 0, processedMatches: 0, reason: 'collector_disabled' }
-  if (!isTennisRecordRatingBatchDue(settings.automation_state, now)) {
+  if (!isTennisRecordRatingBatchDue(settings.automation_state, now, settings.rating_recalculated_at)) {
     return { status: 'skipped', pendingMatches: 0, processedMatches: 0, reason: 'outside_rating_cadence' }
   }
 

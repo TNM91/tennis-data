@@ -1,4 +1,10 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "codex/**": false
+    }
+  },
   "crons": [
     {
       "path": "/api/team-rooms/reminders",
@@ -10,7 +16,7 @@
     },
     {
       "path": "/api/cron/tennisrecord-ratings",
-      "schedule": "2,17,32,47 * * * *"
+      "schedule": "17 8 * * *"
     }
   ]
 }

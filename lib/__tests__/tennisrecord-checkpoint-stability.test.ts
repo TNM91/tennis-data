@@ -31,8 +31,10 @@ describe('TennisRecord checkpoint stability', () => {
     expect(source).toContain('if (!pendingMatchCount && !baselineRefreshRequested)')
   })
 
-  it('allows rating catch-up throughout the week for both import lanes', () => {
+  it('allows one daily rating catch-up for both import lanes', () => {
     expect(isTennisRecordRatingBatchDue('bootstrap', new Date('2026-08-24T15:00:00Z'))).toBe(true)
+    expect(isTennisRecordRatingBatchDue('bootstrap', new Date('2026-08-24T15:00:00Z'), '2026-08-24T08:17:00Z')).toBe(false)
+    expect(isTennisRecordRatingBatchDue('bootstrap', new Date('2026-08-25T08:17:00Z'), '2026-08-24T08:17:00Z')).toBe(true)
     expect(isTennisRecordRatingBatchDue('weekly', new Date('2026-08-24T15:00:00Z'))).toBe(true)
     expect(isTennisRecordRatingBatchDue('weekly', new Date('2026-08-26T15:00:00Z'))).toBe(true)
   })

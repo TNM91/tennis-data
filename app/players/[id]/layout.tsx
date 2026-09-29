@@ -2,6 +2,14 @@ import type { Metadata } from 'next'
 import { getPlayerMetadataById, getPlayerSharePreview } from '@/lib/route-metadata'
 import { PlayerProfilePreviewProvider } from './player-profile-preview-context'
 
+export const revalidate = 86400
+
+// Generate player pages on first request, then serve them from ISR instead of
+// invoking a function again for every crawler or repeat visit.
+export function generateStaticParams() {
+  return []
+}
+
 export async function generateMetadata({
   params,
 }: {

@@ -17,6 +17,11 @@ export async function GET(request: Request) {
     return Response.json({ ok: true, summary: { status: 'disabled' }, message: 'Scheduled rating batch is paused by the collector circuit breaker.' })
   }
 
+  const ratingsFlag = process.env.TENNISRECORD_RATINGS_ENABLED?.trim().toLowerCase()
+  if (ratingsFlag === 'false' || ratingsFlag === '0' || ratingsFlag === 'off') {
+    return Response.json({ ok: true, summary: { status: 'disabled' }, message: 'Scheduled rating batch is paused by the rating circuit breaker.' })
+  }
+
   try {
     const service = createServerSupabaseClient()
     const summary = await runScheduledTennisRecordRatingBatch(service)

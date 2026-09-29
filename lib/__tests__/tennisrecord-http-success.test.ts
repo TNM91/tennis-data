@@ -66,17 +66,16 @@ function response(status: number, blockReason = '') {
 afterEach(() => { vi.useRealTimers(); vi.resetAllMocks() })
 
 describe('scheduled rating lock reservation', () => {
-  it('reserves the collector slot immediately before each quarter-hour rating cron', () => {
-    for (const minute of [0, 1, 15, 16, 30, 31, 45, 46]) {
-      expect(isTennisRecordRatingReservationWindow(new Date(`2026-09-05T17:${String(minute).padStart(2, '0')}:00Z`))).toBe(true)
-    }
-    for (const minute of [2, 3, 14, 17, 29, 32, 44, 47, 59]) {
-      expect(isTennisRecordRatingReservationWindow(new Date(`2026-09-05T17:${String(minute).padStart(2, '0')}:00Z`))).toBe(false)
-    }
+  it('reserves only the collector slot immediately before the daily rating cron', () => {
+    expect(isTennisRecordRatingReservationWindow(new Date('2026-09-05T08:15:00Z'))).toBe(true)
+    expect(isTennisRecordRatingReservationWindow(new Date('2026-09-05T08:16:59Z'))).toBe(true)
+    expect(isTennisRecordRatingReservationWindow(new Date('2026-09-05T08:17:00Z'))).toBe(false)
+    expect(isTennisRecordRatingReservationWindow(new Date('2026-09-05T17:15:00Z'))).toBe(false)
   })
 
   it.each([{ ratingRefreshRequested: true }, { ratingPending: true }])('yields an import checkpoint when ratings are queued: %j', async options => {
     response(200)
+    vi.setSystemTime(Date.parse('2026-09-05T08:15:00Z'))
     const f = fixture(options)
     expect(await runAutomaticTennisRecordSync(f.db)).toMatchObject({ status: 'skipped', reason: 'ratings_window', pagesAttempted: 0 })
     expect(fetchTennisRecordPage).not.toHaveBeenCalled()
