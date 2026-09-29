@@ -3676,7 +3676,6 @@ function MyLabPageInner() {
 
   const collapseLegacyWorkspace = isMobile && isProfileConfirmed
   const PlayerWorkshopShell: 'details' | 'section' = collapseLegacyWorkspace ? 'details' : 'section'
-  const WatchlistManageShell: 'details' | 'div' = isMobile ? 'details' : 'div'
 
   return (
     <section style={pageStyle}>
@@ -4959,7 +4958,7 @@ function MyLabPageInner() {
               </em>
             </span>
             <span aria-hidden="true" style={watchlistSummaryActionStyle}>
-              {follows.length ? 'Review updates' : 'Build watchlist'} <span>→</span>
+              {follows.length ? 'Open watchlist' : 'Build watchlist'} <span>→</span>
             </span>
           </summary>
 
@@ -4996,27 +4995,30 @@ function MyLabPageInner() {
                 </section>
               ) : null}
 
-          <WatchlistManageShell style={isMobile ? watchlistManageDetailsStyle : watchlistPassthroughStyle}>
-            {isMobile ? (
-              <summary aria-label="Open Watchlist management" style={watchlistManageSummaryStyle}>
-                <span style={labDrawerSummaryCopyStyle}>
-                  <strong>Manage watchlist</strong>
-                  <em style={labDrawerSummaryHintStyle}>Find or unfollow tennis context.</em>
-                </span>
-                <span aria-hidden="true" style={watchlistManageActionStyle}>Manage <span>→</span></span>
-              </summary>
-            ) : null}
-            <div
-              className={isMobile ? 'myLabDetailsBody' : undefined}
-              style={isMobile ? watchlistManageBodyStyle : watchlistPassthroughStyle}
-            >
+          <div style={isMobile ? watchlistQuickManageStyle : watchlistPassthroughStyle}>
+          {isMobile ? (
+            <section style={watchlistMobileFollowsStyle} aria-labelledby="watchlist-follows-title">
+              <div style={sectionHeaderStyle}>
+                <div style={sectionHeaderCopyStyle}>
+                  <p style={sectionKickerStyle}>Saved context</p>
+                  <h2 id="watchlist-follows-title" style={sectionTitleStyle}>Your follows</h2>
+                  <p style={sectionTextStyle}>Remove anything you no longer need.</p>
+                </div>
+                <span style={optionalContextCountStyle}>{follows.length} saved</span>
+              </div>
+              <FollowList items={follows} onRemove={removeFollow} />
+            </section>
+          ) : null}
+
           <section style={surfaceStrongStyle}>
             <div style={sectionHeaderStyle}>
               <div style={sectionHeaderCopyStyle}>
                 <p style={sectionKickerStyle}>Watchlist</p>
-                <h2 style={sectionTitleStyle}>Follow tennis context</h2>
+                <h2 style={sectionTitleStyle}>{isMobile ? 'Add to Watchlist' : 'Follow tennis context'}</h2>
                 <p style={sectionTextStyle}>
-                  Keep optional tennis context close without crowding your own lab.
+                  {isMobile
+                    ? 'Find a player, team, or league and follow it in one tap.'
+                    : 'Keep optional tennis context close without crowding your own lab.'}
                 </p>
               </div>
               <span style={savedToCloud ? pillGreenStyle : pillSlateStyle}>
@@ -5028,24 +5030,27 @@ function MyLabPageInner() {
               <div style={inputWrapStyle}>
                 <label style={labelStyle}>Search</label>
                 <input
+                  aria-label="Find a player, team, or league"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Find a player, team, or league"
                   style={inputStyle}
                 />
               </div>
-              <div style={filterRowStyle}>
-                {(['all', 'player', 'team', 'league'] as const).map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setFilter(value)}
-                    style={value === filter ? tabActiveStyle : tabButtonStyle}
-                  >
-                    {value === 'all' ? 'All' : value[0].toUpperCase() + value.slice(1)}
-                  </button>
-                ))}
-              </div>
+              {!isMobile || search.trim() ? (
+                <div style={filterRowStyle}>
+                  {(['all', 'player', 'team', 'league'] as const).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setFilter(value)}
+                      style={value === filter ? tabActiveStyle : tabButtonStyle}
+                    >
+                      {value === 'all' ? 'All' : value[0].toUpperCase() + value.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
 
               {search.trim() ? (
                 <div style={searchResultsStyle}>
@@ -5083,22 +5088,7 @@ function MyLabPageInner() {
               )}
             </div>
           </section>
-
-          {isMobile ? (
-            <section style={watchlistMobileFollowsStyle}>
-              <div style={sectionHeaderStyle}>
-                <div style={sectionHeaderCopyStyle}>
-                  <p style={sectionKickerStyle}>Saved context</p>
-                  <h2 style={sectionTitleStyle}>Your follows</h2>
-                  <p style={sectionTextStyle}>Keep this list small enough to act on.</p>
-                </div>
-                <span style={optionalContextCountStyle}>{follows.length} saved</span>
-              </div>
-              <FollowList items={follows} onRemove={removeFollow} />
-            </section>
-          ) : null}
-            </div>
-          </WatchlistManageShell>
+          </div>
 
           <section style={surfaceStyle}>
             <div style={sectionHeaderStyle}>
@@ -5351,11 +5341,20 @@ function MyLabPageInner() {
   )
 }
 
-function GhostButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+function GhostButton({
+  onClick,
+  children,
+  ariaLabel,
+}: {
+  onClick: () => void
+  children: React.ReactNode
+  ariaLabel?: string
+}) {
   const [hovered, setHovered] = useState(false)
   return (
     <button
       type="button"
+      aria-label={ariaLabel}
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -7575,7 +7574,12 @@ function FollowList({
               {item.entity_type.toUpperCase()} {item.subtitle ? ` - ${item.subtitle}` : ''}
             </div>
           </div>
-          <GhostButton onClick={() => onRemove(item)}>Remove</GhostButton>
+          <GhostButton
+            ariaLabel={`Remove ${item.entity_name} from Watchlist`}
+            onClick={() => onRemove(item)}
+          >
+            Remove
+          </GhostButton>
         </div>
       ))}
     </div>
@@ -11056,32 +11060,9 @@ const watchlistPassthroughStyle: CSSProperties = {
   display: 'contents',
 }
 
-const watchlistManageDetailsStyle: CSSProperties = {
-  borderRadius: 18,
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 18%, var(--shell-panel-border) 82%)',
-  background: 'color-mix(in srgb, var(--shell-panel-bg) 82%, transparent)',
-  overflow: 'hidden',
-  minWidth: 0,
-}
-
-const watchlistManageSummaryStyle: CSSProperties = {
-  ...labDrawerSummaryStyle,
-  padding: '12px 14px',
-}
-
-const watchlistManageActionStyle: CSSProperties = {
-  ...optionalContextCountStyle,
-  justifyContent: 'space-between',
-  gap: 10,
-  minHeight: 44,
-  minWidth: 104,
-  padding: '0 14px',
-}
-
-const watchlistManageBodyStyle: CSSProperties = {
+const watchlistQuickManageStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
-  padding: '0 10px 10px',
   minWidth: 0,
 }
 

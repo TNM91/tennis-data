@@ -499,7 +499,7 @@ describe('Explore responsive surfaces', () => {
     expect(myLabSource).toContain('summaryOnly={isMobile}')
     expect(myLabSource).not.toContain('setupCompactPanelStyle')
     expect(myLabSource).toContain('Player, team, and league updates.')
-    expect(myLabSource).toContain("{follows.length ? 'Review updates' : 'Build watchlist'}")
+    expect(myLabSource).toContain("{follows.length ? 'Open watchlist' : 'Build watchlist'}")
     expect(myLabSource).not.toContain('Follows and updates when you want the wider picture.')
     expect(styleBlock(myLabSource, 'mobileLabMoveDetailsStyle')).toContain('overflow: \'hidden\'')
     const needHelpIndex = myLabSource.indexOf('<strong>Need help?</strong>')
