@@ -813,6 +813,21 @@
   color: #baf33e;
 }
 
+.matchActionPrimary {
+  border: 1px solid #b9ef32;
+  border-radius: 14px;
+  background: #a9eb08;
+  color: #071426;
+  font-weight: 950;
+}
+
+.matchAction.matchActionPrimary:hover,
+.matchAction.matchActionPrimary:focus-visible {
+  outline: none;
+  background: #c2f63d;
+  color: #071426;
+}
+
 @media (max-width: 900px) {
   .postRepReturn {
     grid-template-columns: repeat(2, minmax(0, 1fr));

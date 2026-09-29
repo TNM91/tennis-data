@@ -69,9 +69,18 @@ describe('My Lab command center', () => {
   it('keeps player and opponent details navigable', () => {
     expect(componentSource).toContain('href={`/players/${encodeURIComponent(playerId)}`}')
     expect(componentSource).toContain('href={`/players/${encodeURIComponent(matchup.opponentId)}`}')
-    expect(componentSource).toContain('href={matchup?.href || \'/matchup\'}')
-    expect(componentSource).toContain('View matchup')
+    expect(componentSource).toContain("const matchupActionHref = matchup?.href || (playerId ? '/matchup' : '/profile')")
+    expect(componentSource).toContain("const matchupActionLabel = matchup ? 'View matchup' : playerId ? 'Build matchup' : 'Connect player record'")
+    expect(componentSource).toContain('href={matchupActionHref}')
     expect(componentSource).toContain('See progress')
+  })
+
+  it('gives unlinked players one clear path before matchup building', () => {
+    expect(componentSource).toContain("{playerId ? 'Build your first read' : 'Connect your player record'}")
+    expect(componentSource).toContain("? 'Choose two players to surface a useful next test.'")
+    expect(componentSource).toContain(": 'Keep matchup insight tied to your tennis and surface a useful next test.'")
+    expect(componentSource).toContain('!matchup && !playerId ? styles.matchActionPrimary :')
+    expect(styleSource).toContain('.matchActionPrimary {')
   })
 
   it('uses real TenAceIQ court assets and a mobile-safe hierarchy', () => {
