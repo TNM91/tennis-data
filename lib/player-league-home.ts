@@ -1,6 +1,7 @@
 import type { TiqIndividualLeagueResultRecord } from '@/lib/tiq-individual-results-service'
 import type { TiqLeagueRecord } from '@/lib/tiq-league-registry'
 import type { TiqPlayerParticipationRecord } from '@/lib/tiq-league-service'
+import type { LeagueWeeklyPlayerRecord } from '@/lib/league-weekly-player-records'
 
 export type PlayerLeagueCard = {
   leagueId: string
@@ -27,6 +28,7 @@ type BuildPlayerLeagueHomeInput = {
   participations: TiqPlayerParticipationRecord[]
   leagues: TiqLeagueRecord[]
   results: TiqIndividualLeagueResultRecord[]
+  weeklyRecords?: LeagueWeeklyPlayerRecord[]
   playerId: string
   playerName: string
   today?: string
@@ -94,6 +96,7 @@ function buildCard(
   playerId: string,
   playerName: string,
   today: string,
+  weeklyRecord?: LeagueWeeklyPlayerRecord,
 ): PlayerLeagueCard {
   const leagueResults = results.filter((result) => result.leagueId === league.id)
   const playerResults = leagueResults.filter((result) => resultBelongsToPlayer(result, playerId, playerName))
@@ -123,9 +126,13 @@ function buildCard(
     formatLabel: getFormatLabel(league),
     scheduleLabel: getScheduleLabel(league),
     locationLabel: league.defaultFacility || league.locationLabel || participation.locationLabel || 'Location pending',
-    playerRecord: playerResults.length ? `${wins}-${losses}` : 'New',
-    resultLabel: leagueResults.length ? `${leagueResults.length} ${leagueResults.length === 1 ? 'result' : 'results'}` : 'Results building',
-    leaderLabel: leader ? `${leader[0]} leads ${leader[1].wins}-${leader[1].losses}` : 'Standings building',
+    playerRecord: weeklyRecord ? `${weeklyRecord.wins}-${weeklyRecord.losses}` : playerResults.length ? `${wins}-${losses}` : 'New',
+    resultLabel: weeklyRecord
+      ? `${weeklyRecord.leagueSetCount} confirmed ${weeklyRecord.leagueSetCount === 1 ? 'set' : 'sets'}`
+      : leagueResults.length ? `${leagueResults.length} ${leagueResults.length === 1 ? 'result' : 'results'}` : 'Results building',
+    leaderLabel: weeklyRecord
+      ? `${weeklyRecord.leaderName} leads ${weeklyRecord.leaderWins}-${weeklyRecord.leaderLosses}`
+      : leader ? `${leader[0]} leads ${leader[1].wins}-${leader[1].losses}` : 'Standings building',
     href: `/explore/leagues/tiq/${encodeURIComponent(league.id)}`,
     cta: status.cta,
   }
@@ -135,13 +142,14 @@ export function buildPlayerLeagueHome(input: BuildPlayerLeagueHomeInput): Player
   const today = input.today || new Date().toISOString().slice(0, 10)
   const leaguesById = new Map(input.leagues.map((league) => [league.id, league]))
   const seenLeagueIds = new Set<string>()
+  const weeklyRecordsByLeagueId = new Map((input.weeklyRecords || []).map((record) => [record.leagueId, record]))
   const cards = input.participations.flatMap((participation) => {
     if (!participationBelongsToPlayer(participation, input.playerId, input.playerName)) return []
     if (seenLeagueIds.has(participation.leagueId)) return []
     const league = leaguesById.get(participation.leagueId)
     if (!league || league.leagueFormat !== 'individual') return []
     seenLeagueIds.add(participation.leagueId)
-    return [buildCard(participation, league, input.results, input.playerId, participation.playerName || input.playerName, today)]
+    return [buildCard(participation, league, input.results, input.playerId, participation.playerName || input.playerName, today, weeklyRecordsByLeagueId.get(league.id))]
   })
 
   return {
