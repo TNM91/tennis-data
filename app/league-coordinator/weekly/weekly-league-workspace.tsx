@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import QuickMessageComposer from '@/app/components/quick-message-composer'
+import LeagueOperationsSettings from './league-operations-settings'
 import { supabase } from '@/lib/supabase'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
 import {
@@ -243,6 +244,17 @@ export default function WeeklyLeagueWorkspace({ initialLeagueId }: { initialLeag
             </div>
             {status ? <p style={noticeStyle}>{status}</p> : null}
           </section>
+
+          {league && userId ? (
+            <LeagueOperationsSettings
+              key={league.id}
+              league={league}
+              userId={userId}
+              onLeagueUpdated={(updatedLeague) => {
+                setLeagues((current) => current.map((record) => record.id === updatedLeague.id ? updatedLeague : record))
+              }}
+            />
+          ) : null}
 
           {!session ? (
             <section style={panelStyle}>
