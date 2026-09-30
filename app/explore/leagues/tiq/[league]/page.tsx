@@ -102,6 +102,8 @@ import {
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import CompeteResumeTracker from '@/app/compete/_components/compete-resume-tracker'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
+import WeeklyLeagueResultsPanel from './weekly-league-results-panel'
+import type { LeagueWeeklyCompetitionView } from '@/lib/league-weekly-player-records'
 import {
   assessPlayerEligibility,
   buildPlayerEligibilityRequirement,
@@ -123,6 +125,12 @@ function formatDateTime(value: string | null | undefined) {
     hour: 'numeric',
     minute: '2-digit',
   })
+}
+
+function formatLeagueDate(value: string | null | undefined) {
+  const parsed = value ? new Date(`${value}T12:00:00`) : null
+  if (!parsed || Number.isNaN(parsed.getTime())) return value || 'Date pending'
+  return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function deriveDefaultParticipantName(email: string | null | undefined) {
@@ -435,6 +443,9 @@ function TiqLeagueDetailContent() {
   const [playerEntries, setPlayerEntries] = useState<TiqPlayerLeagueEntryRecord[]>([])
   const [individualStandings, setIndividualStandings] = useState<IndividualStanding[]>([])
   const [individualResults, setIndividualResults] = useState<TiqIndividualLeagueResultRecord[]>([])
+  const [weeklyCompetitionView, setWeeklyCompetitionView] = useState<LeagueWeeklyCompetitionView | null>(null)
+  const [weeklyCompetitionLoading, setWeeklyCompetitionLoading] = useState(false)
+  const [weeklyCompetitionError, setWeeklyCompetitionError] = useState('')
   const [leagueAwardsByPlayerKey, setLeagueAwardsByPlayerKey] = useState<Record<string, TiqAwardRecord[]>>({})
   const [resultStorageSource, setResultStorageSource] = useState<TiqResultStorageSource>('local')
   const [savedSuggestions, setSavedSuggestions] = useState<TiqIndividualSuggestionRecord[]>([])
@@ -533,6 +544,37 @@ function TiqLeagueDetailContent() {
       active = false
     }
   }, [leagueIdParam, routeSlug])
+
+  useEffect(() => {
+    if (!league?.weeklySettings.enabled || (!league.isPublic && !authResolved)) return
+    let active = true
+    const timeoutId = window.setTimeout(() => {
+      if (!active) return
+      setWeeklyCompetitionLoading(true)
+      setWeeklyCompetitionError('')
+      setWeeklyCompetitionView(null)
+      const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
+      void fetch(`/api/leagues/${encodeURIComponent(league.id)}/weekly-results`, { headers })
+        .then(async (response) => {
+          const payload = await response.json() as { ok?: boolean; view?: LeagueWeeklyCompetitionView; message?: string }
+          if (!response.ok || !payload.ok || !payload.view) throw new Error(payload.message || 'Weekly results could not be loaded.')
+          if (active) setWeeklyCompetitionView(payload.view)
+        })
+        .catch((weeklyError) => {
+          if (!active) return
+          setWeeklyCompetitionView(null)
+          setWeeklyCompetitionError(weeklyError instanceof Error ? weeklyError.message : 'Weekly results could not be loaded.')
+        })
+        .finally(() => {
+          if (active) setWeeklyCompetitionLoading(false)
+        })
+    }, 0)
+
+    return () => {
+      active = false
+      window.clearTimeout(timeoutId)
+    }
+  }, [authResolved, league?.id, league?.isPublic, league?.weeklySettings.enabled, session?.access_token])
 
   useEffect(() => {
     if (!authResolved) return
@@ -1281,18 +1323,24 @@ function TiqLeagueDetailContent() {
         detail: `${activeEntryCount} active`,
       },
       {
-        href: league.leagueFormat === 'team' ? '#league-team-results' : '#league-individual-results',
+        href: league.weeklySettings.enabled
+          ? '#weekly-league-results'
+          : league.leagueFormat === 'team' ? '#league-team-results' : '#league-individual-results',
         label: 'Results',
         detail:
-          league.leagueFormat === 'team'
+          league.weeklySettings.enabled
+            ? `${weeklyCompetitionView?.summary.acceptedSets || 0} sets`
+            : league.leagueFormat === 'team'
             ? `${teamMatchEvents.length} events`
             : `${individualResultBookStats.total} logged`,
       },
       {
-        href: '#league-standings',
+        href: league.weeklySettings.enabled ? '#weekly-league-results' : '#league-standings',
         label: 'Standings',
         detail:
-          league.leagueFormat === 'team'
+          league.weeklySettings.enabled
+            ? `${weeklyCompetitionView?.standings.length || 0} rows`
+            : league.leagueFormat === 'team'
             ? `${teamStandings.length} rows`
             : `${individualStandings.length} rows`,
       },
@@ -1312,6 +1360,8 @@ function TiqLeagueDetailContent() {
     teamMatchEvents.length,
     teamStandings.length,
     visibleScheduleItems.length,
+    weeklyCompetitionView?.standings.length,
+    weeklyCompetitionView?.summary.acceptedSets,
   ])
 
   const teamResultCue = useMemo(() => {
@@ -1354,12 +1404,27 @@ function TiqLeagueDetailContent() {
       : '/league-coordinator/results#team-match-entry'
   const individualLeader = league?.leagueFormat === 'individual' ? individualStandings[0] || null : null
   const teamLeader = league?.leagueFormat === 'team' ? teamStandings[0] || null : null
-  const leaderName = individualLeader?.playerName || teamLeader?.teamName || ''
+  const weeklyLeader = league?.weeklySettings.enabled ? weeklyCompetitionView?.standings[0] || null : null
+  const leaderName = weeklyLeader?.playerName || individualLeader?.playerName || teamLeader?.teamName || ''
+  const leagueResultsHref = league?.weeklySettings.enabled
+    ? '#weekly-league-results'
+    : league?.leagueFormat === 'team' ? '#league-team-results' : '#league-individual-results'
+  const leagueStandingsHref = league?.weeklySettings.enabled ? '#weekly-league-results' : '#league-standings'
   const scheduleSubscribeHref = league
     ? `/api/calendar/tiq-league/${encodeURIComponent(league.id)}/calendar.ics`
     : ''
   const leaderRows = useMemo<LeagueLeaderRow[]>(() => {
     if (!league) return []
+
+    if (league.weeklySettings.enabled) {
+      return (weeklyCompetitionView?.standings || []).slice(0, 5).map((entry) => ({
+        rank: entry.rank,
+        name: entry.playerName,
+        record: `${entry.wins}-${entry.losses}`,
+        detail: `${entry.setsPlayed} set${entry.setsPlayed === 1 ? '' : 's'} · ${entry.gameDifferential > 0 ? '+' : ''}${entry.gameDifferential} games`,
+        href: null,
+      }))
+    }
 
     if (league.leagueFormat === 'individual') {
       return individualStandings.slice(0, 5).map((entry) => ({
@@ -1384,7 +1449,7 @@ function TiqLeagueDetailContent() {
           : `${entry.lineWins} line win${entry.lineWins === 1 ? '' : 's'}`,
       href: `/team/${encodeURIComponent(entry.teamName)}?layer=tiq&league=${encodeURIComponent(league.leagueName)}`,
     }))
-  }, [individualStandings, league, teamStandings])
+  }, [individualStandings, league, teamStandings, weeklyCompetitionView?.standings])
   useEffect(() => {
     if (!league || league.leagueFormat !== 'individual') return
     if (!suggestedResultPlayerA || !suggestedResultPlayerB) return
@@ -1457,7 +1522,7 @@ function TiqLeagueDetailContent() {
     let active = true
 
     async function loadIndividualStandings() {
-      if (!league || league.leagueFormat !== 'individual') {
+      if (!league || league.leagueFormat !== 'individual' || league.weeklySettings.enabled) {
         if (active) setIndividualStandings([])
         return
       }
@@ -1686,7 +1751,7 @@ function TiqLeagueDetailContent() {
     let active = true
 
     async function loadIndividualResults() {
-      if (!league || league.leagueFormat !== 'individual') {
+      if (!league || league.leagueFormat !== 'individual' || league.weeklySettings.enabled) {
         if (active) {
           setIndividualResults([])
           setResultStorageSource('local')
@@ -1714,7 +1779,7 @@ function TiqLeagueDetailContent() {
     let active = true
 
     async function loadSuggestions() {
-      if (!league || league.leagueFormat !== 'individual') {
+      if (!league || league.leagueFormat !== 'individual' || league.weeklySettings.enabled) {
         if (active) {
           setSavedSuggestions([])
           setSuggestionStorageSource('local')
@@ -2414,7 +2479,9 @@ function TiqLeagueDetailContent() {
                   <div style={pillRow}>
                     <span style={pillGreen}>{getCompetitionLayerLabel('tiq')}</span>
                     <span style={pillSlate}>{getLeagueFormatLabel(league.leagueFormat)}</span>
-                    {league.leagueFormat === 'individual' ? (
+                    {league.weeklySettings.enabled ? (
+                      <span style={pillGreen}>Weekly doubles</span>
+                    ) : league.leagueFormat === 'individual' ? (
                       <span style={pillSlate}>
                         {getTiqIndividualCompetitionFormatLabel(league.individualCompetitionFormat)}
                       </span>
@@ -2477,14 +2544,14 @@ function TiqLeagueDetailContent() {
                     </div>
                   ) : (
                     <div style={sideText}>
-                      The table wakes up as soon as approved participants and results are in.
+                      {league.weeklySettings.enabled
+                        ? 'The table wakes up after the first confirmed or league-approved set.'
+                        : 'The table wakes up as soon as approved participants and results are in.'}
                     </div>
                   )}
                   <div style={actionRow}>
-                    <GhostLink href="#league-standings">Standings</GhostLink>
-                    <GhostLink href={league.leagueFormat === 'team' ? '#league-team-results' : '#league-individual-results'}>
-                      Results
-                    </GhostLink>
+                    <GhostLink href={leagueStandingsHref}>Standings</GhostLink>
+                    <GhostLink href={leagueResultsHref}>Results</GhostLink>
                     <QuickMessageComposer
                       mode="league"
                       triggerLabel="Message league"
@@ -2560,7 +2627,7 @@ function TiqLeagueDetailContent() {
                 <div style={seasonPulseWideCardStyle}>
                   <div style={seasonPulseCardHeaderStyle}>
                     <span style={pillGreen}>Leaders</span>
-                    <GhostLink href="#league-standings">Full table</GhostLink>
+                    <GhostLink href={leagueStandingsHref}>Full table</GhostLink>
                   </div>
                   {leaderRows.length > 0 ? (
                     <div style={leaderTableStyle}>
@@ -2584,12 +2651,16 @@ function TiqLeagueDetailContent() {
                 <div style={seasonPulseCardStyle}>
                   <span style={pillBlue}>Latest</span>
                   <strong>
-                    {league.leagueFormat === 'individual'
+                    {league.weeklySettings.enabled
+                      ? weeklyCompetitionView?.weeks[0] ? `${formatLeagueDate(weeklyCompetitionView.weeks[0].playOn)} scorecard` : 'No weekly scorecard yet'
+                      : league.leagueFormat === 'individual'
                       ? individualResultBookStats.latestResult?.winnerPlayerName || 'No result yet'
                       : teamMatchEvents[0]?.winnerTeamName || teamMatchEvents[0]?.teamAName || 'No team event yet'}
                   </strong>
                   <p>
-                    {league.leagueFormat === 'individual' && individualResultBookStats.latestResult
+                    {league.weeklySettings.enabled && weeklyCompetitionView?.weeks[0]
+                      ? `${weeklyCompetitionView.weeks[0].acceptedSetCount} accepted ${weeklyCompetitionView.weeks[0].acceptedSetCount === 1 ? 'set' : 'sets'} on the latest published week.`
+                      : league.leagueFormat === 'individual' && individualResultBookStats.latestResult
                       ? `def. ${resultOpponentName(individualResultBookStats.latestResult)}`
                       : league.leagueFormat === 'team' && teamMatchEvents[0]
                         ? `${teamMatchEvents.length} team events logged.`
@@ -3254,7 +3325,15 @@ function TiqLeagueDetailContent() {
               </section>
             </div>
 
-            {league.leagueFormat === 'individual' ? (
+            {league.weeklySettings.enabled ? (
+              <WeeklyLeagueResultsPanel
+                view={weeklyCompetitionView}
+                loading={weeklyCompetitionLoading}
+                error={weeklyCompetitionError}
+              />
+            ) : null}
+
+            {league.leagueFormat === 'individual' && !league.weeklySettings.enabled ? (
               <section id="league-standings" style={dynamicPanelCard}>
                 <div style={sectionEyebrow}>{individualFormatExperience.standingsEyebrow}</div>
                 <h2 style={sectionTitle}>{individualFormatExperience.standingsTitle}</h2>
@@ -3374,7 +3453,7 @@ function TiqLeagueDetailContent() {
               </section>
             ) : null}
 
-            {league.leagueFormat === 'individual' ? (
+            {league.leagueFormat === 'individual' && !league.weeklySettings.enabled ? (
               <section id="league-individual-results" style={dynamicPanelCard}>
                 <div style={sectionEyebrow}>Result book</div>
                 <h2 style={sectionTitle}>Current player-result status.</h2>
@@ -3467,7 +3546,7 @@ function TiqLeagueDetailContent() {
               </section>
             ) : null}
 
-            {league.leagueFormat === 'individual' ? (
+            {league.leagueFormat === 'individual' && !league.weeklySettings.enabled ? (
               <section style={dynamicPanelCard}>
                 <div style={sectionEyebrow}>Next actions</div>
                 <h2 style={sectionTitle}>What should move next in this format?</h2>
@@ -3529,7 +3608,7 @@ function TiqLeagueDetailContent() {
               </section>
             ) : null}
 
-            {league.leagueFormat === 'individual' ? (
+            {league.leagueFormat === 'individual' && !league.weeklySettings.enabled ? (
               <section style={dynamicPanelCard}>
                 <div style={sectionEyebrow}>Saved prompts</div>
                 <h2 style={sectionTitle}>Save TIQ suggestions as next tennis moves.</h2>
@@ -3623,7 +3702,7 @@ function TiqLeagueDetailContent() {
               </section>
             ) : null}
 
-            {league.leagueFormat === 'individual' ? (
+            {league.leagueFormat === 'individual' && !league.weeklySettings.enabled ? (
               <section style={panelCard}>
                 <div style={sectionEyebrow}>{individualFormatExperience.activityEyebrow}</div>
                 <h2 style={sectionTitle}>{individualFormatExperience.activityTitle}</h2>
