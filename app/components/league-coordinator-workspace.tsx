@@ -6,10 +6,8 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties, type Rea
 import UpgradePrompt from '@/app/components/upgrade-prompt'
 import ClubContextBanner from '@/app/components/club-context-banner'
 import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
-import RoleActionHome, {
-  type RoleHomeAction,
-  type RoleHomeQuickAction,
-} from '@/app/components/role-action-home'
+import type { RoleHomeAction, RoleHomeQuickAction } from '@/app/components/role-action-home'
+import LeagueOfficeHome from '@/app/components/league-office-home'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import OrganizerScheduleAttention from '@/app/components/organizer-schedule-attention'
 import { useAuth } from '@/app/components/auth-provider'
@@ -1063,36 +1061,6 @@ export function LeagueCoordinatorWorkspace() {
     isMobile && primaryLeagueDeskItem ? [primaryLeagueDeskItem] : leagueDeskItems
   const extraLeagueDeskItems =
     isMobile && primaryLeagueDeskItem ? leagueDeskItems.filter((item) => item.job !== primaryLeagueDeskItem.job) : []
-  const leagueDeskCompleteCount = leagueDeskItems.filter((item) => item.complete).length
-  const leagueMobileSeasonPulse = hasSavedLeague && isMobile ? (
-    <section style={leagueMobilePulseStyle} aria-label="League season pulse">
-      <div style={leagueMobilePulseHeaderStyle}>
-        <div style={leagueMobilePulseCopyStyle}>
-          <span style={sectionEyebrow}>Season pulse</span>
-          <strong>Keep the season moving.</strong>
-        </div>
-        <span style={leagueDeskCompleteCount === leagueDeskItems.length ? pillGreen : pillSlate}>
-          {leagueDeskCompleteCount}/{leagueDeskItems.length} ready
-        </span>
-      </div>
-      <div style={leagueMobilePulseGridStyle}>
-        {leagueDeskItems.map((item) => (
-          <Link
-            key={`mobile-pulse-${item.job}`}
-            href={item.href}
-            style={item.complete ? leagueMobilePulseItemReadyStyle : leagueMobilePulseItemStyle}
-            aria-label={`${item.label}: ${item.complete ? 'Ready' : item.cta}`}
-          >
-            <span style={item.complete ? leagueMobilePulseDotReadyStyle : leagueMobilePulseDotStyle} aria-hidden="true" />
-            <span style={leagueMobilePulseItemCopyStyle}>
-              <small>{item.label}</small>
-              <strong>{item.complete ? 'Ready' : item.cta}</strong>
-            </span>
-          </Link>
-        ))}
-      </div>
-    </section>
-  ) : null
   const leagueOpsChecks = [
     {
       label: 'Access',
@@ -1140,24 +1108,6 @@ export function LeagueCoordinatorWorkspace() {
   const leagueOpsCompleteCount = leagueOpsChecks.filter((item) => item.complete).length
   const leagueOpsReadinessScore = Math.round((leagueOpsCompleteCount / leagueOpsChecks.length) * 100)
   const nextLeagueOpsStep = leagueOpsChecks.find((item) => !item.complete) || leagueOpsChecks[leagueOpsChecks.length - 1]
-  const firstLeagueSteps = [
-    {
-      label: '1',
-      title: 'Name the league',
-      detail: 'Choose a team or player league, then add the season name and start date.',
-    },
-    {
-      label: '2',
-      title: 'Add competitors',
-      detail: 'Add the first teams or players now. You can update the list later.',
-    },
-    {
-      label: '3',
-      title: 'Save and continue',
-      detail: 'Once saved, League Office opens schedules, results, standings, and sharing.',
-    },
-  ] as const
-
   function resetDraft({ clearHandoff = true }: { clearHandoff?: boolean } = {}) {
     setDraft({
       ...EMPTY_DRAFT,
@@ -1756,6 +1706,64 @@ export function LeagueCoordinatorWorkspace() {
     if (saved) setCoordinatorResumeState(saved)
     void syncLeagueCoordinatorResumeState(nextState, userId, session?.access_token)
   }
+  const displayedLeagueHomeAction = coordinatorContinueAction || leagueHomeAction
+  const leagueHomeProgressBase = [
+    { label: 'Setup', complete: hasSavedLeague },
+    { label: latestRecord?.weeklySettings.enabled ? 'Roster' : 'Players', complete: activeParticipantCount > 0 },
+    { label: latestRecord?.weeklySettings.enabled ? 'Courts' : 'Schedule', complete: scheduleReadyLeagueCount > 0 },
+    { label: 'Scores', complete: teamResultEventCount + individualResultCount > 0 },
+    { label: 'Publish', complete: publicReadyLeagueCount > 0 },
+  ]
+  const leagueHomeCurrentProgressIndex = leagueHomeProgressBase.findIndex((item) => !item.complete)
+  const leagueHomeProgress = leagueHomeProgressBase.map((item, index) => ({
+    ...item,
+    current: index === (leagueHomeCurrentProgressIndex < 0 ? leagueHomeProgressBase.length - 1 : leagueHomeCurrentProgressIndex),
+  }))
+  const leagueHomePulse = [
+    {
+      label: latestRecord?.weeklySettings.enabled ? 'Weekly roster' : 'Competitors',
+      value: activeParticipantCount > 0 ? `${activeParticipantCount} active` : 'Not started',
+      detail: pendingEntryRequestCount > 0
+        ? `${pendingEntryRequestCount} waiting for approval`
+        : activeParticipantCount > 0
+          ? 'Roster is ready to review'
+          : 'Add the first players or teams',
+      href: canUseLeagueTools ? '#league-registry' : '/pricing#league',
+      icon: 'playerRatings' as const,
+      attention: pendingEntryRequestCount > 0,
+    },
+    {
+      label: 'Scores',
+      value: resultQueueItemCount > 0 ? `${resultQueueItemCount} to review` : hasResultReadyLeague ? 'Up to date' : 'Not started',
+      detail: resultQueueItemCount > 0 ? 'Clear score cues before standings move' : resultReadinessDetail,
+      href: canUseLeagueTools ? resultEntryHref : '/pricing#league',
+      icon: 'reports' as const,
+      attention: resultQueueItemCount > 0,
+    },
+    {
+      label: 'Member view',
+      value: publicReadyLeagueCount > 0 ? `${publicReadyLeagueCount} ready` : 'Needs review',
+      detail: publicPageNeedsWorkCount > 0
+        ? `${publicPageNeedsWorkCount} page${publicPageNeedsWorkCount === 1 ? '' : 's'} need work`
+        : 'Schedules and standings are ready to share',
+      href: canUseLeagueTools ? '#league-public-pages' : '/pricing#league',
+      icon: 'myLab' as const,
+      attention: publicPageNeedsWorkCount > 0,
+    },
+  ]
+  const leaguePlanLabel = access.currentPlanId === 'full_court'
+    ? 'Full-Court'
+    : access.currentPlanId === 'league'
+      ? 'League'
+      : clubAccess.allowed
+        ? 'Club access'
+        : 'League preview'
+  const leagueHomeName = coordinatorResumeLeague?.leagueName || latestRecord?.leagueName || (registryLoaded ? 'Create your first league' : 'Loading leagues')
+  const leagueHomeMeta = latestRecord
+    ? [latestRecord.seasonLabel || 'Active season', getLeagueFormatLabel(latestRecord.leagueFormat)].filter(Boolean).join(' · ')
+    : canUseLeagueTools
+      ? 'One season home for schedules, scores, and standings'
+      : 'Preview the season workflow'
   const participantOptions = draft.leagueFormat === 'team' ? knownTeamOptions : knownPlayerOptions
   const participantDatalistId = draft.leagueFormat === 'team' ? 'tiq-known-team-options' : 'tiq-known-player-options'
   const leagueDeskContent = (
@@ -1842,22 +1850,21 @@ export function LeagueCoordinatorWorkspace() {
         {storageWarning ? <div style={statusBanner}>{storageWarning}</div> : null}
 
         <div data-league-start-panel>
-          <RoleActionHome
-            roleLabel="League"
-            contextLabel="Current season"
-            contextValue={coordinatorResumeLeague?.leagueName || latestRecord?.leagueName || (registryLoaded ? 'No league selected' : 'Loading leagues')}
-            primaryAction={coordinatorContinueAction || leagueHomeAction}
+          <LeagueOfficeHome
+            planLabel={leaguePlanLabel}
+            leagueName={leagueHomeName}
+            leagueMeta={leagueHomeMeta}
+            leagueCount={records.length}
+            leagueHref={canUseLeagueTools ? '#league-registry' : '/compete/leagues'}
+            deskHref={canUseLeagueTools ? '#league-office-desk-title' : '/pricing#league'}
+            deskLabel={canUseLeagueTools ? 'View league desk' : 'See League plan'}
+            primaryAction={displayedLeagueHomeAction}
             quickActions={canUseLeagueTools ? leagueHomeQuickActions : LEAGUE_HOME_LOCKED_ACTIONS}
-            helpTitle={hasSavedLeague ? 'Need help with League setup?' : 'Set up League in three steps'}
-            steps={firstLeagueSteps}
-            showSteps={isFirstLeagueSetup}
-            resumeKey={userId ? `league:${userId}` : undefined}
-            preferPrimaryAction={Boolean(coordinatorContinueAction)}
+            progress={leagueHomeProgress}
+            pulse={leagueHomePulse}
             onAction={handleLeagueHomeAction}
           />
         </div>
-
-        {leagueMobileSeasonPulse}
 
         {canUseLeagueTools ? <OrganizerScheduleAttention /> : null}
 
@@ -4185,87 +4192,6 @@ const leaguePathStyle: CSSProperties = {
     'linear-gradient(135deg, rgba(155,225,29,0.08), rgba(116,190,255,0.045)), linear-gradient(180deg, rgba(11,25,48,0.9), rgba(6,15,30,0.95))',
   boxShadow: '0 18px 46px rgba(2,10,24,0.22)',
   overflow: 'hidden',
-}
-
-const leagueMobilePulseStyle: CSSProperties = {
-  display: 'grid',
-  gap: 10,
-  minWidth: 0,
-  padding: 14,
-  borderRadius: 20,
-  border: '1px solid color-mix(in srgb, var(--brand-blue-2) 22%, var(--shell-panel-border) 78%)',
-  background: 'linear-gradient(135deg, rgba(116,190,255,0.09), rgba(155,225,29,0.06)), rgba(7,19,38,0.9)',
-  boxShadow: '0 14px 34px rgba(2,10,24,0.18)',
-  overflowWrap: 'anywhere',
-}
-
-const leagueMobilePulseHeaderStyle: CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 10,
-  minWidth: 0,
-}
-
-const leagueMobilePulseCopyStyle: CSSProperties = {
-  display: 'grid',
-  gap: 3,
-  minWidth: 0,
-  color: 'var(--foreground-strong)',
-  fontSize: 15,
-  lineHeight: 1.2,
-  fontWeight: 920,
-  overflowWrap: 'anywhere',
-}
-
-const leagueMobilePulseGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: 8,
-  minWidth: 0,
-}
-
-const leagueMobilePulseItemStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '8px minmax(0, 1fr)',
-  alignItems: 'center',
-  gap: 8,
-  minWidth: 0,
-  minHeight: 62,
-  border: '1px solid rgba(116,190,255,0.18)',
-  borderRadius: 14,
-  background: 'rgba(5,15,31,0.44)',
-  color: 'var(--foreground-strong)',
-  padding: '9px 10px',
-  textDecoration: 'none',
-  overflowWrap: 'anywhere',
-}
-
-const leagueMobilePulseItemReadyStyle: CSSProperties = {
-  ...leagueMobilePulseItemStyle,
-  borderColor: 'color-mix(in srgb, var(--brand-green) 28%, var(--shell-panel-border) 72%)',
-  background: 'color-mix(in srgb, var(--brand-green) 8%, rgba(5,15,31,0.44))',
-}
-
-const leagueMobilePulseDotStyle: CSSProperties = {
-  width: 8,
-  height: 8,
-  borderRadius: 999,
-  background: 'var(--brand-lime)',
-  boxShadow: '0 0 0 4px rgba(155,225,29,0.09)',
-}
-
-const leagueMobilePulseDotReadyStyle: CSSProperties = {
-  ...leagueMobilePulseDotStyle,
-  background: 'var(--brand-green)',
-  boxShadow: '0 0 0 4px rgba(64,214,145,0.08)',
-}
-
-const leagueMobilePulseItemCopyStyle: CSSProperties = {
-  display: 'grid',
-  gap: 2,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
 }
 
 const leaguePathHeaderStyle: CSSProperties = {

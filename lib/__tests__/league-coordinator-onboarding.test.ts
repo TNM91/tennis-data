@@ -12,17 +12,16 @@ describe('League Coordinator first-use path', () => {
     expect(source).toContain('const [registryLoaded, setRegistryLoaded] = useState(false)')
     expect(source).toContain('setRegistryLoaded(true)')
     expect(source).toContain("title: 'Getting your leagues'")
-    expect(source).toContain("contextValue={coordinatorResumeLeague?.leagueName || latestRecord?.leagueName || (registryLoaded ? 'No league selected' : 'Loading leagues')}")
+    expect(source).toContain("const leagueHomeName = coordinatorResumeLeague?.leagueName || latestRecord?.leagueName || (registryLoaded ? 'Create your first league' : 'Loading leagues')")
     expect(source).toContain('const isFirstLeagueSetup = registryLoaded && canUseLeagueTools && !hasSavedLeague')
   })
 
   it('guides a new coordinator through one setup path', () => {
-    expect(source).toContain('roleLabel="League"')
-    expect(source).toContain("helpTitle={hasSavedLeague ? 'Need help with League setup?' : 'Set up League in three steps'}")
-    expect(source).toContain("title: 'Name the league'")
-    expect(source).toContain("title: 'Add competitors'")
-    expect(source).toContain("title: 'Save and continue'")
-    expect(source).toContain('showSteps={isFirstLeagueSetup}')
+    expect(source).toContain('<LeagueOfficeHome')
+    expect(source).toContain('const leagueHomeProgressBase = [')
+    expect(source).toContain("{ label: 'Setup', complete: hasSavedLeague }")
+    expect(source).toContain("{ label: latestRecord?.weeklySettings.enabled ? 'Roster' : 'Players', complete: activeParticipantCount > 0 }")
+    expect(source).toContain("title: sharedSchedulerNextMove.label")
     expect(source).toContain('open={setupOpen || !!editingId || isFirstLeagueSetup}')
   })
 
@@ -34,10 +33,11 @@ describe('League Coordinator first-use path', () => {
     expect(source).toContain('{!isFirstLeagueSetup ? <div style={setupFocusPanelStyle}')
   })
 
-  it('puts completed onboarding behind help for returning coordinators', () => {
-    expect(source).toContain('Need help with League setup?')
-    expect(source).toContain('steps={firstLeagueSteps}')
-    expect(source).toContain('showSteps={isFirstLeagueSetup}')
+  it('turns completed onboarding into a returning coordinator home', () => {
+    expect(source).toContain('const displayedLeagueHomeAction = coordinatorContinueAction || leagueHomeAction')
+    expect(source).toContain('leagueName={leagueHomeName}')
+    expect(source).toContain('progress={leagueHomeProgress}')
+    expect(source).toContain('pulse={leagueHomePulse}')
     expect(source).toContain('function dismissLeagueSetupConfirmation()')
     expect(source).toContain('onClick={dismissLeagueSetupConfirmation}')
     expect(source).toContain("setStatus('')")

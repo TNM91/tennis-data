@@ -535,7 +535,7 @@ try {
 
   const leagueMetrics = await leagueMobilePage.evaluate(() => {
     const bodyText = document.body.textContent || ''
-    const roleHome = document.querySelector('[aria-label="League home"]')
+    const roleHome = document.querySelector('[aria-label="League Office home"]')
     const roleHomeRect = roleHome?.getBoundingClientRect()
 
     return {
@@ -581,7 +581,7 @@ try {
     })
   }
 
-  if (!leagueMetrics.roleHome || leagueMetrics.roleHome.height > 700) {
+  if (!leagueMetrics.roleHome || leagueMetrics.roleHome.height > 900) {
     findings.push({
       viewport: 'mobile',
       type: 'league-mobile-role-home-missing-or-too-tall',
