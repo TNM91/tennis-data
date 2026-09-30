@@ -142,7 +142,13 @@ export default function LeagueLifecyclePanel({
         if (event.currentTarget.open && !loaded) void loadAccess()
       }}
     >
-      <summary style={summaryStyle}>Ownership and removal</summary>
+      <summary style={summaryStyle}>
+        <span style={summaryCopyStyle}>
+          <strong style={summaryTitleStyle}>Manage owner or delete league</strong>
+          <small style={summaryDetailStyle}>Transfer ownership or permanently remove this league.</small>
+        </span>
+        <span style={summaryActionStyle}>Owner tools</span>
+      </summary>
       <div style={bodyStyle}>
         <div style={sectionStyle}>
           <strong>Change league owner</strong>
@@ -185,7 +191,11 @@ export default function LeagueLifecyclePanel({
 }
 
 const panelStyle: CSSProperties = { marginTop: 12, borderRadius: 14, border: '1px solid var(--shell-panel-border)', background: 'color-mix(in srgb, var(--shell-panel-bg) 80%, transparent)', overflow: 'hidden' }
-const summaryStyle: CSSProperties = { minHeight: 44, display: 'flex', alignItems: 'center', padding: '0 12px', color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 900, cursor: 'pointer' }
+const summaryStyle: CSSProperties = { minHeight: 58, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 12px', color: 'var(--foreground-strong)', cursor: 'pointer' }
+const summaryCopyStyle: CSSProperties = { display: 'grid', gap: 2, minWidth: 0 }
+const summaryTitleStyle: CSSProperties = { fontSize: 13, fontWeight: 900, lineHeight: 1.3 }
+const summaryDetailStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 650, lineHeight: 1.35 }
+const summaryActionStyle: CSSProperties = { flex: '0 0 auto', borderRadius: 999, background: 'var(--shell-chip-bg)', color: 'var(--brand-green)', padding: '6px 9px', fontSize: 11, fontWeight: 900 }
 const bodyStyle: CSSProperties = { display: 'grid', gap: 12, padding: '0 12px 12px' }
 const sectionStyle: CSSProperties = { display: 'grid', gap: 9, padding: 12, borderRadius: 12, background: 'var(--shell-chip-bg)', color: 'var(--foreground-strong)' }
 const dangerSectionStyle: CSSProperties = { ...sectionStyle, border: '1px solid color-mix(in srgb, #ef4444 36%, var(--shell-panel-border) 64%)' }
