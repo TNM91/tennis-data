@@ -24,6 +24,30 @@ export type LeagueWeeklyPlayerScorecard = LeagueWeeklyPlayerStat & {
   currentWinStreak: number
 }
 
+export type LeagueWeeklyCourtPlanInsight = {
+  courtNumber: number
+  strengthIndex: number
+  trackedPlayers: number
+  freshConnections: number
+  repeatConnections: number
+  movedPlayers: string[]
+  lockedPlayers: string[]
+}
+
+export type LeagueWeeklyCourtPlan = {
+  strategy: 'balanced' | 'manual'
+  courts: LeagueWeeklyCourt[]
+  insights: LeagueWeeklyCourtPlanInsight[]
+  summary: {
+    trackedPlayers: number
+    lockedPlayers: number
+    movedPlayers: number
+    freshConnections: number
+    repeatConnections: number
+    strengthSpread: number
+  }
+}
+
 export function isAcceptedLeagueWeeklyResult(result: Pick<LeagueWeeklyReviewedResult, 'reviewStatus'>) {
   return result.reviewStatus === 'confirmed' || result.reviewStatus === 'approved'
 }
@@ -166,4 +190,112 @@ export function buildBalancedLeagueWeeklyCourts(input: {
     const [court] = buildLeagueWeeklyCourts(group, { ...settings, courtCount: 1, startTimes: [settings.startTimes[index % settings.startTimes.length]] })
     return { ...court, courtNumber: index + 1 }
   })
+}
+
+export function buildLeagueWeeklyCourtPlan(input: {
+  playerNames: string[]
+  settings: Partial<LeagueWeeklySettings>
+  scorecards: LeagueWeeklyPlayerScorecard[]
+  historyCourts: LeagueWeeklyCourt[][]
+  lockedCourts?: Record<string, number>
+  strategy?: 'balanced' | 'manual'
+}): LeagueWeeklyCourtPlan {
+  const strategy = input.strategy || 'balanced'
+  const courts = strategy === 'balanced'
+    ? buildBalancedLeagueWeeklyCourts(input)
+    : buildManualLeagueWeeklyCourts(input.playerNames, input.settings, input.lockedCourts)
+  const ratings = new Map(input.scorecards.map((scorecard) => [scorecard.playerName.toLowerCase(), (
+    scorecard.setWinPercentage + scorecard.gameDifferential / Math.max(1, scorecard.setsPlayed)
+  )]))
+  const latestCourt = new Map<string, number>()
+  const priorConnections = new Set<string>()
+  input.historyCourts.forEach((historyWeek, weekIndex) => historyWeek.forEach((court) => {
+    for (const player of court.players) {
+      const playerKey = player.toLowerCase()
+      if (weekIndex === 0 && !latestCourt.has(playerKey)) latestCourt.set(playerKey, court.courtNumber)
+    }
+    for (let left = 0; left < court.players.length; left += 1) {
+      for (let right = left + 1; right < court.players.length; right += 1) {
+        priorConnections.add(connectionKey(court.players[left], court.players[right]))
+      }
+    }
+  }))
+
+  const insights = courts.map((court): LeagueWeeklyCourtPlanInsight => {
+    let freshConnections = 0
+    let repeatConnections = 0
+    for (let left = 0; left < court.players.length; left += 1) {
+      for (let right = left + 1; right < court.players.length; right += 1) {
+        if (priorConnections.has(connectionKey(court.players[left], court.players[right]))) repeatConnections += 1
+        else freshConnections += 1
+      }
+    }
+    const trackedRatings = court.players.flatMap((player) => {
+      const rating = ratings.get(player.toLowerCase())
+      return rating === undefined ? [] : [rating]
+    })
+    return {
+      courtNumber: court.courtNumber,
+      strengthIndex: roundOne(court.players.reduce((total, player) => total + (ratings.get(player.toLowerCase()) ?? 50), 0) / court.players.length),
+      trackedPlayers: trackedRatings.length,
+      freshConnections,
+      repeatConnections,
+      movedPlayers: court.players.filter((player) => {
+        const previousCourt = latestCourt.get(player.toLowerCase())
+        return previousCourt !== undefined && previousCourt !== court.courtNumber
+      }),
+      lockedPlayers: court.players.filter((player) => input.lockedCourts?.[player] === court.courtNumber),
+    }
+  })
+  const strengths = insights.map((insight) => insight.strengthIndex)
+
+  return {
+    strategy,
+    courts,
+    insights,
+    summary: {
+      trackedPlayers: new Set(courts.flatMap((court) => court.players).filter((player) => ratings.has(player.toLowerCase()))).size,
+      lockedPlayers: insights.reduce((total, insight) => total + insight.lockedPlayers.length, 0),
+      movedPlayers: insights.reduce((total, insight) => total + insight.movedPlayers.length, 0),
+      freshConnections: insights.reduce((total, insight) => total + insight.freshConnections, 0),
+      repeatConnections: insights.reduce((total, insight) => total + insight.repeatConnections, 0),
+      strengthSpread: strengths.length ? roundOne(Math.max(...strengths) - Math.min(...strengths)) : 0,
+    },
+  }
+}
+
+function buildManualLeagueWeeklyCourts(
+  playerNames: string[],
+  settingsInput: Partial<LeagueWeeklySettings>,
+  lockedCourts: Record<string, number> = {},
+) {
+  const settings = normalizeLeagueWeeklySettings(settingsInput)
+  const players = Array.from(new Set(playerNames.map((name) => name.trim()).filter(Boolean)))
+  const courtTotal = Math.min(settings.courtCount, Math.floor(players.length / 4))
+  const eligiblePlayers = players.slice(0, courtTotal * 4)
+  const groups = Array.from({ length: courtTotal }, () => [] as string[])
+  const lockedPlayers = new Set<string>()
+  for (const player of eligiblePlayers) {
+    const courtNumber = lockedCourts[player]
+    if (!Number.isInteger(courtNumber) || courtNumber < 1 || courtNumber > courtTotal || groups[courtNumber - 1].length >= 4) continue
+    groups[courtNumber - 1].push(player)
+    lockedPlayers.add(player)
+  }
+  for (const player of eligiblePlayers) {
+    if (lockedPlayers.has(player)) continue
+    const group = groups.find((candidate) => candidate.length < 4)
+    if (group) group.push(player)
+  }
+  return groups.filter((group) => group.length === 4).map((group, index) => {
+    const [court] = buildLeagueWeeklyCourts(group, { ...settings, courtCount: 1, startTimes: [settings.startTimes[index % settings.startTimes.length]] })
+    return { ...court, courtNumber: index + 1 }
+  })
+}
+
+function connectionKey(left: string, right: string) {
+  return [left.trim().toLowerCase(), right.trim().toLowerCase()].sort().join('|')
+}
+
+function roundOne(value: number) {
+  return Math.round(value * 10) / 10
 }
