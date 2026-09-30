@@ -1504,6 +1504,14 @@ export function LeagueCoordinatorWorkspace() {
     setStatus('The league and its season data were permanently deleted.')
   }
 
+  function openLeagueDelete(leagueId: string) {
+    const ownerTools = document.getElementById(`league-owner-tools-${leagueId}`)
+    if (ownerTools instanceof HTMLDetailsElement) ownerTools.open = true
+    window.setTimeout(() => {
+      document.getElementById(`delete-league-${leagueId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 0)
+  }
+
   async function handleEntryRequestAction(
     league: TiqLeagueRecord,
     entryName: string,
@@ -3258,6 +3266,7 @@ export function LeagueCoordinatorWorkspace() {
                           ) : null}
                           {isLeagueOwner ? <GhostBtn onClick={() => startEditing(record, { scrollToForm: true })}>Edit setup</GhostBtn> : null}
                           {isLeagueOwner ? <GhostBtn onClick={() => startRenewing(record)}>Renew season</GhostBtn> : null}
+                          {isLeagueOwner ? <DangerBtn onClick={() => openLeagueDelete(record.id)}>Delete league</DangerBtn> : null}
                         </LeagueActionRow>
                       </div>
                       <LeagueLifecyclePanel

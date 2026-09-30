@@ -137,6 +137,7 @@ export default function LeagueLifecyclePanel({
 
   return (
     <details
+      id={`league-owner-tools-${league.id}`}
       style={panelStyle}
       onToggle={(event) => {
         if (event.currentTarget.open && !loaded) void loadAccess()
@@ -178,7 +179,7 @@ export default function LeagueLifecyclePanel({
           ) : <small style={mutedStyle}>Sync this device-only league before transferring ownership.</small>}
         </div>
 
-        <div style={dangerSectionStyle}>
+        <div id={`delete-league-${league.id}`} style={dangerSectionStyle}>
           <strong>Delete league</strong>
           <p style={copyStyle}>This permanently deletes the league, its schedule, entries, results, weekly responses, and recaps. This cannot be undone.</p>
           <label style={labelStyle}>Type <strong>{league.leagueName}</strong> to confirm<input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} autoComplete="off" style={inputStyle} /></label>
