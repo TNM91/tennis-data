@@ -11,6 +11,7 @@ import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
 import ActiveTeamChallengeCard from '@/app/components/active-team-challenge-card'
 import MyLabCommandCenter from './my-lab-command-center'
 import WeeklyLeagueActionCard from './weekly-league-action-card'
+import MyLeaguesPanel from './my-leagues-panel'
 import { useAuth } from '@/app/components/auth-provider'
 import ClubContextBanner from '@/app/components/club-context-banner'
 import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
@@ -73,6 +74,7 @@ import { formatRating, cleanText } from '@/lib/captain-formatters'
 import { buildMatchIntelligenceRead } from '@/lib/player-match-intelligence'
 import { filterMatchbookEntries, getMatchbookFilterLabel, type MatchbookFilter } from '@/lib/player-matchbook'
 import { buildPlayerRatingJourneyRead, type RatingJourneySnapshot } from '@/lib/player-rating-journey'
+import { buildPlayerLeagueHome } from '@/lib/player-league-home'
 import type { PlayerCompetitionScheduleEvent } from '@/lib/player-competition-schedule'
 import {
   PLAYER_DEVELOPMENT_IDENTITIES,
@@ -2799,6 +2801,13 @@ function MyLabPageInner() {
   const followedLeagues = follows.filter((item) => item.entity_type === 'league')
   const isProfileConfirmed = Boolean(profileLink?.linked_player_id || profileLink?.linked_player_name)
   const linkedPlayer = profileLink?.linked_player_id ? playerMap.get(profileLink.linked_player_id) || null : null
+  const myLeagueHome = useMemo(() => buildPlayerLeagueHome({
+    participations: tiqPlayerParticipations,
+    leagues: tiqLeagues,
+    results: tiqIndividualResults,
+    playerId: linkedPlayer?.id || profileLink?.linked_player_id || '',
+    playerName: linkedPlayer?.name || profileLink?.linked_player_name || '',
+  }), [linkedPlayer?.id, linkedPlayer?.name, profileLink?.linked_player_id, profileLink?.linked_player_name, tiqIndividualResults, tiqLeagues, tiqPlayerParticipations])
   const isSelfRatedProfile = linkedPlayer?.rating_source === 'self'
   const isNewSelfRatedProfile = Boolean(isSelfRatedProfile && !personalMatches.length)
   const levelUpProofRecords = useMemo(
@@ -3726,6 +3735,8 @@ function MyLabPageInner() {
       />
 
       <WeeklyLeagueActionCard userId={userId} authResolved={authResolved} />
+
+      {isProfileConfirmed ? <MyLeaguesPanel view={myLeagueHome} /> : null}
 
       <details className="myLabDetailsSection" style={labDrawerDetailsStyle}>
         <summary aria-label="Open My Calendar to plan your tennis week" style={calendarDrawerSummaryStyle}>
