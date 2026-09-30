@@ -42,6 +42,7 @@ export type TiqLeagueVisibility = 'public' | 'private'
 
 export type TiqLeagueRecord = {
   id: string
+  createdByUserId?: string
   clubId?: string
   clubGroupId?: string
   resultMode?: ClubCompetitionResultMode
@@ -285,6 +286,7 @@ export function readTiqLeagueRegistry(): TiqLeagueRecord[] {
     .filter((record) => record && typeof record === 'object')
     .map((record): TiqLeagueRecord => ({
       ...record,
+      createdByUserId: cleanText(record.createdByUserId),
       clubId: cleanText(record.clubId),
       clubGroupId: cleanText(record.clubGroupId),
       resultMode: normalizeClubCompetitionResultMode(record.resultMode),
@@ -349,6 +351,7 @@ export function upsertTiqLeagueRecord(draft: TiqLeagueDraft, existingId?: string
 
   const nextRecord: TiqLeagueRecord = {
     id: nextId,
+    createdByUserId: registry.find((record) => record.id === nextId)?.createdByUserId,
     clubId: normalized.clubId,
     clubGroupId: normalized.clubGroupId,
     resultMode: normalizeClubCompetitionResultMode(normalized.resultMode),
