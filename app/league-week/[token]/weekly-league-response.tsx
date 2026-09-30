@@ -11,7 +11,7 @@ type WeeklyPayload = {
     status: string
     roster: string[]
     assignments: LeagueWeeklyCourt[]
-    results: Array<{ court_number: number; set_number: number; side_a_games: number; side_b_games: number }>
+    results: Array<{ court_number: number; set_number: number; side_a_games: number; side_b_games: number; submitted_by_name: string; review_status: 'pending' | 'confirmed' | 'disputed' | 'approved' }>
   }
 }
 
@@ -85,7 +85,7 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
           {assignedCourt.sets.map((set) => {
             const key = `${assignedCourt.courtNumber}-${set.setNumber}`
             const saved = data.week.results.find((result) => result.court_number === assignedCourt.courtNumber && result.set_number === set.setNumber)
-            return <div key={key} style={scoreRowStyle}><div><strong>Set {set.setNumber}</strong><small style={smallStyle}>{set.sideA.join(' + ')} vs {set.sideB.join(' + ')}</small></div><input aria-label={`Set ${set.setNumber} first side games`} type="number" min={0} max={99} value={scores[key]?.a ?? saved?.side_a_games ?? ''} onChange={(event) => setScores((current) => ({ ...current, [key]: { a: event.target.value, b: current[key]?.b || '' } }))} style={scoreInputStyle} /><span>–</span><input aria-label={`Set ${set.setNumber} second side games`} type="number" min={0} max={99} value={scores[key]?.b ?? saved?.side_b_games ?? ''} onChange={(event) => setScores((current) => ({ ...current, [key]: { a: current[key]?.a || '', b: event.target.value } }))} style={scoreInputStyle} /><button disabled={busy} onClick={() => void submit({ action: 'score', courtNumber: assignedCourt.courtNumber, setNumber: set.setNumber, sideAGames: Number(scores[key]?.a ?? saved?.side_a_games), sideBGames: Number(scores[key]?.b ?? saved?.side_b_games), positiveShare })} style={smallButtonStyle}>Save</button></div>
+            return <div key={key} style={scoreRowStyle}><div><strong>Set {set.setNumber}</strong><small style={smallStyle}>{set.sideA.join(' + ')} vs {set.sideB.join(' + ')}</small>{saved ? <small style={saved.review_status === 'disputed' ? disputedStatusStyle : scoreStatusStyle}>{saved.review_status === 'confirmed' ? 'Players agree' : saved.review_status === 'approved' ? 'League approved' : saved.review_status === 'disputed' ? 'Needs league review' : `Submitted by ${saved.submitted_by_name}`}</small> : <small style={missingStatusStyle}>Score needed</small>}</div><input aria-label={`Set ${set.setNumber} first side games`} type="number" min={0} max={99} value={scores[key]?.a ?? saved?.side_a_games ?? ''} onChange={(event) => setScores((current) => ({ ...current, [key]: { a: event.target.value, b: current[key]?.b || '' } }))} style={scoreInputStyle} /><span>–</span><input aria-label={`Set ${set.setNumber} second side games`} type="number" min={0} max={99} value={scores[key]?.b ?? saved?.side_b_games ?? ''} onChange={(event) => setScores((current) => ({ ...current, [key]: { a: current[key]?.a || '', b: event.target.value } }))} style={scoreInputStyle} /><button disabled={busy} onClick={() => void submit({ action: 'score', courtNumber: assignedCourt.courtNumber, setNumber: set.setNumber, sideAGames: Number(scores[key]?.a ?? saved?.side_a_games), sideBGames: Number(scores[key]?.b ?? saved?.side_b_games), positiveShare })} style={smallButtonStyle}>{saved ? 'Confirm' : 'Submit'}</button></div>
           })}
           {data.league.weeklySettings.collectPlayerStories ? <label style={labelStyle}>Add a moment for the recap<textarea value={positiveShare} onChange={(event) => setPositiveShare(event.target.value)} style={textareaStyle} placeholder="Celebrate someone or share what made today fun" /></label> : null}
         </section>
@@ -114,3 +114,6 @@ const scoreRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'mi
 const scoreInputStyle: CSSProperties = { ...inputStyle, width: 58, padding: 8, textAlign: 'center' }
 const smallStyle: CSSProperties = { display: 'block', marginTop: 3, color: '#59655f', fontWeight: 500 }
 const messageStyle: CSSProperties = { position: 'sticky', bottom: 16, padding: 12, borderRadius: 12, background: '#12231d', color: '#fff', textAlign: 'center' }
+const scoreStatusStyle: CSSProperties = { ...smallStyle, color: '#126044', fontWeight: 750 }
+const disputedStatusStyle: CSSProperties = { ...scoreStatusStyle, color: '#9a3412' }
+const missingStatusStyle: CSSProperties = { ...scoreStatusStyle, color: '#64748b' }

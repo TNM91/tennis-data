@@ -5,17 +5,16 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import { useAuth } from '@/app/components/auth-provider'
 import QuickMessageComposer from '@/app/components/quick-message-composer'
 import LeagueOperationsSettings from './league-operations-settings'
+import WeeklyScoreIntelligencePanel from './weekly-score-intelligence-panel'
 import { supabase } from '@/lib/supabase'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
 import {
   buildLeagueWeeklyCourts,
-  buildLeagueWeeklyPlayerStats,
   buildLeagueWeeklyRecap,
   getLeagueWeeklyRosterSummary,
   type LeagueWeeklyCourt,
-  type LeagueWeeklyPlayerStat,
-  orderLeagueWeeklyPlayers,
 } from '@/lib/league-weekly-format'
+import { buildBalancedLeagueWeeklyCourts, buildLeagueWeeklySeasonScorecards, isAcceptedLeagueWeeklyResult, type LeagueWeeklyPlayerScorecard, type LeagueWeeklyReviewedResult } from '@/lib/league-weekly-intelligence'
 import type { TiqLeagueRecord } from '@/lib/tiq-league-registry'
 
 type WeeklyResponse = {
@@ -27,11 +26,16 @@ type WeeklyResponse = {
 }
 
 type WeeklyResult = {
+  session_id?: string
   court_number: number
   set_number: number
   side_a_games: number
   side_b_games: number
+  submitted_by_name: string
+  review_status: 'pending' | 'confirmed' | 'disputed' | 'approved'
 }
+
+type WeeklyScoreSubmissionRow = { court_number: number; set_number: number; side_a_games: number; side_b_games: number; submitted_by_name: string; submitted_at: string }
 
 type WeeklySession = {
   id: string
@@ -61,7 +65,10 @@ export default function WeeklyLeagueWorkspace({ initialLeagueId }: { initialLeag
   const [session, setSession] = useState<WeeklySession | null>(null)
   const [responses, setResponses] = useState<WeeklyResponse[]>([])
   const [results, setResults] = useState<WeeklyResult[]>([])
-  const [playerStats, setPlayerStats] = useState<LeagueWeeklyPlayerStat[]>([])
+  const [scoreSubmissions, setScoreSubmissions] = useState<WeeklyScoreSubmissionRow[]>([])
+  const [playerStats, setPlayerStats] = useState<LeagueWeeklyPlayerScorecard[]>([])
+  const [historyCourts, setHistoryCourts] = useState<LeagueWeeklyCourt[][]>([])
+  const [lockedCourts, setLockedCourts] = useState<Record<string, number>>({})
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
@@ -100,46 +107,43 @@ export default function WeeklyLeagueWorkspace({ initialLeagueId }: { initialLeag
     if (!nextSession) {
       setResponses([])
       setResults([])
+      setScoreSubmissions([])
       setBusy(false)
       return
     }
-    const [responseResult, scoreResult] = await Promise.all([
+    const [responseResult, scoreResult, submissionResult] = await Promise.all([
       supabase.from('tiq_league_weekly_responses').select('player_name,response_status,note,positive_share,responded_at').eq('session_id', nextSession.id).order('responded_at', { ascending: false }),
-      supabase.from('tiq_league_weekly_set_results').select('court_number,set_number,side_a_games,side_b_games').eq('session_id', nextSession.id).order('court_number').order('set_number'),
+      supabase.from('tiq_league_weekly_set_results').select('court_number,set_number,side_a_games,side_b_games,submitted_by_name,review_status').eq('session_id', nextSession.id).order('court_number').order('set_number'),
+      supabase.from('tiq_league_weekly_score_submissions').select('court_number,set_number,side_a_games,side_b_games,submitted_by_name,submitted_at').eq('session_id', nextSession.id).order('submitted_at'),
     ])
     setResponses((responseResult.data || []) as WeeklyResponse[])
     setResults((scoreResult.data || []) as WeeklyResult[])
+    setScoreSubmissions((submissionResult.data || []) as WeeklyScoreSubmissionRow[])
     const { data: historySessions } = await supabase
       .from('tiq_league_weekly_sessions')
-      .select('id,assignments')
+      .select('id,play_on,assignments')
       .eq('league_id', targetLeagueId)
       .in('status', ['published', 'completed'])
       .order('play_on', { ascending: false })
       .limit(20)
     const historyIds = (historySessions || []).map((item) => item.id)
     const { data: historyResults } = historyIds.length
-      ? await supabase.from('tiq_league_weekly_set_results').select('session_id,court_number,set_number,side_a_games,side_b_games').in('session_id', historyIds)
+      ? await supabase.from('tiq_league_weekly_set_results').select('session_id,court_number,set_number,side_a_games,side_b_games,submitted_by_name,review_status').in('session_id', historyIds)
       : { data: [] }
-    const historicalStats = (historySessions || []).flatMap((historicalSession) => buildLeagueWeeklyPlayerStats(
-      Array.isArray(historicalSession.assignments) ? historicalSession.assignments as LeagueWeeklyCourt[] : [],
-      (historyResults || []).filter((result) => result.session_id === historicalSession.id).map((result) => ({
+    const history = (historySessions || []).map((historicalSession) => ({
+      playOn: historicalSession.play_on,
+      courts: Array.isArray(historicalSession.assignments) ? historicalSession.assignments as LeagueWeeklyCourt[] : [],
+      results: (historyResults || []).filter((result) => result.session_id === historicalSession.id).map((result) => ({
         courtNumber: result.court_number,
         setNumber: result.set_number,
         sideAGames: result.side_a_games,
         sideBGames: result.side_b_games,
-      })),
-    ))
-    const combined = new Map<string, LeagueWeeklyPlayerStat>()
-    for (const stat of historicalStats) {
-      const current = combined.get(stat.playerName) || { playerName: stat.playerName, setsPlayed: 0, setsWon: 0, gamesWon: 0, gamesLost: 0, gameDifferential: 0 }
-      current.setsPlayed += stat.setsPlayed
-      current.setsWon += stat.setsWon
-      current.gamesWon += stat.gamesWon
-      current.gamesLost += stat.gamesLost
-      current.gameDifferential = current.gamesWon - current.gamesLost
-      combined.set(stat.playerName, current)
-    }
-    setPlayerStats(Array.from(combined.values()).sort((a, b) => b.setsWon - a.setsWon || b.gameDifferential - a.gameDifferential))
+        submittedByName: result.submitted_by_name,
+        reviewStatus: result.review_status,
+      } as LeagueWeeklyReviewedResult)),
+    }))
+    setPlayerStats(buildLeagueWeeklySeasonScorecards(history))
+    setHistoryCourts(history.filter((item) => item.playOn !== targetPlayOn).map((item) => item.courts))
     if (!nextSession.roster?.length) setSelectedPlayers((responseResult.data || []).filter((item) => item.response_status === 'in').map((item) => item.player_name))
     setStatus('')
     setBusy(false)
@@ -186,15 +190,16 @@ export default function WeeklyLeagueWorkspace({ initialLeagueId }: { initialLeag
 
   async function publishCourts() {
     if (!league || !session) return
-    const orderedPlayers = orderLeagueWeeklyPlayers(selectedPlayers, playerStats)
-    const assignments = buildLeagueWeeklyCourts(orderedPlayers, league.weeklySettings)
+    const assignments = league.weeklySettings.autoGenerateCourts
+      ? buildBalancedLeagueWeeklyCourts({ playerNames: selectedPlayers, settings: league.weeklySettings, scorecards: playerStats, historyCourts, lockedCourts })
+      : buildLeagueWeeklyCourts(selectedPlayers, league.weeklySettings)
     if (!assignments.length) {
       setStatus('Confirm at least four players before building courts.')
       return
     }
     setBusy(true)
     const { error } = await supabase.from('tiq_league_weekly_sessions').update({
-      roster: orderedPlayers,
+      roster: selectedPlayers,
       assignments,
       status: 'published',
     }).eq('id', session.id)
@@ -209,7 +214,7 @@ export default function WeeklyLeagueWorkspace({ initialLeagueId }: { initialLeag
       leagueName: league.leagueName,
       playOn,
       courts: session.assignments || [],
-      results: results.map((result) => ({
+      results: results.filter((result) => isAcceptedLeagueWeeklyResult({ reviewStatus: result.review_status })).map((result) => ({
         courtNumber: result.court_number,
         setNumber: result.set_number,
         sideAGames: result.side_a_games,
@@ -321,33 +326,39 @@ export default function WeeklyLeagueWorkspace({ initialLeagueId }: { initialLeag
                 <div style={playerGridStyle}>
                   {(league?.players || []).map((player) => {
                     const response = responses.find((item) => item.player_name === player)
-                    return <label key={player} style={playerStyle}><input type="checkbox" checked={selectedPlayers.includes(player)} onChange={() => togglePlayer(player)} /><span><strong>{player}</strong><small>{response?.response_status || 'No reply'}{response?.note ? ` · ${response.note}` : ''}</small></span></label>
+                    const selected = selectedPlayers.includes(player)
+                    return <div key={player} style={playerStyle}><input aria-label={`Select ${player}`} type="checkbox" checked={selected} onChange={() => togglePlayer(player)} /><span style={{ flex: 1 }}><strong>{player}</strong><small style={{ display: 'block' }}>{response?.response_status || 'No reply'}{response?.note ? ` · ${response.note}` : ''}</small></span>{selected ? <select aria-label={`Lock ${player} to a court`} value={lockedCourts[player] || 0} onChange={(event) => setLockedCourts((current) => ({ ...current, [player]: Number(event.target.value) }))} style={lockSelectStyle}><option value={0}>Auto court</option>{Array.from({ length: league?.weeklySettings.courtCount || 0 }, (_, index) => <option key={index + 1} value={index + 1}>Court {index + 1}</option>)}</select> : null}</div>
                   })}
                 </div>
-                <button onClick={() => void publishCourts()} disabled={busy} style={buttonStyle}>Confirm roster and publish courts</button>
+                <p style={{ color: '#52605a' }}>Court locks stay fixed. Everyone else is balanced using approved results, recent courtmates, and last week’s court.</p>
+                <button onClick={() => void publishCourts()} disabled={busy} style={buttonStyle}>{league?.weeklySettings.autoGenerateCourts ? 'Generate balanced courts and publish' : 'Confirm roster and publish courts'}</button>
               </section>
 
               {session.assignments?.length ? (
                 <section style={panelStyle}>
                   <p style={eyebrowStyle}>3 · Courts and scorecards</p>
-                  <div style={courtGridStyle}>{session.assignments.map((court) => <article key={court.courtNumber} style={courtStyle}><div style={headerStyle}><h3>Court {court.courtNumber}</h3><span style={pillStyle}>{court.startTime}</span></div>{court.sets.map((set) => <p key={set.setNumber}><strong>Set {set.setNumber}</strong><br />{set.sideA.join(' + ')} vs {set.sideB.join(' + ')}</p>)}</article>)}</div>
+                  <div style={courtGridStyle}>{session.assignments.map((court) => <article key={court.courtNumber} style={courtStyle}><div style={headerStyle}><h3>Court {court.courtNumber}</h3><span style={pillStyle}>{court.startTime}</span></div>{court.sets.map((set) => {
+                    const score = results.find((result) => result.court_number === court.courtNumber && result.set_number === set.setNumber)
+                    return <p key={set.setNumber}><strong>Set {set.setNumber}</strong><br />{set.sideA.join(' + ')} vs {set.sideB.join(' + ')}{score ? <small style={{ display: 'block', marginTop: 4, color: score.review_status === 'disputed' ? '#9a3412' : '#126044', fontWeight: 750 }}>{score.side_a_games}–{score.side_b_games} · {score.review_status}{score.submitted_by_name ? ` · recorded by ${score.submitted_by_name}` : ''}</small> : <small style={{ display: 'block', marginTop: 4, color: '#64748b' }}>Score missing</small>}</p>
+                  })}</article>)}</div>
                 </section>
               ) : null}
 
-              {playerStats.length ? (
-                <section style={panelStyle}>
-                  <p style={eyebrowStyle}>League scorecards</p>
-                  <h2>Performance that can guide next week</h2>
-                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr><th style={{ textAlign: 'left' }}>Player</th><th>Sets</th><th>Won</th><th>Games</th><th>Diff.</th></tr></thead><tbody>{playerStats.map((stat) => <tr key={stat.playerName}><td style={{ padding: '9px 0', fontWeight: 750 }}>{stat.playerName}</td><td style={{ textAlign: 'center' }}>{stat.setsPlayed}</td><td style={{ textAlign: 'center' }}>{stat.setsWon}</td><td style={{ textAlign: 'center' }}>{stat.gamesWon}–{stat.gamesLost}</td><td style={{ textAlign: 'center' }}>{stat.gameDifferential > 0 ? '+' : ''}{stat.gameDifferential}</td></tr>)}</tbody></table></div>
-                  <p style={subheadStyle}>Suggested courts start from these scorecards. You can still change the confirmed roster before publishing.</p>
-                </section>
-              ) : null}
+              {session.assignments?.length && league && authSession?.access_token ? <WeeklyScoreIntelligencePanel
+                sessionId={session.id}
+                courts={session.assignments}
+                results={results.map((result) => ({ courtNumber: result.court_number, setNumber: result.set_number, sideAGames: result.side_a_games, sideBGames: result.side_b_games, submittedByName: result.submitted_by_name, reviewStatus: result.review_status }))}
+                submissions={scoreSubmissions.map((submission) => ({ courtNumber: submission.court_number, setNumber: submission.set_number, sideAGames: submission.side_a_games, sideBGames: submission.side_b_games, submittedByName: submission.submitted_by_name, submittedAt: submission.submitted_at }))}
+                scorecards={playerStats}
+                accessToken={authSession.access_token}
+                onRefresh={() => loadSession(league.id, playOn)}
+              /> : null}
 
               {session.assignments?.length ? (
                 <section style={panelStyle}>
                   <p style={eyebrowStyle}>4 · Weekly recap</p>
                   <h2>Celebrate the week, then send it</h2>
-                  <p>{results.length} of {session.assignments.length * 3} set scores are in. Generate a starting draft from the scores and player shares, then make it yours.</p>
+                  <p>{results.filter((result) => isAcceptedLeagueWeeklyResult({ reviewStatus: result.review_status })).length} of {session.assignments.length * 3} set scores are official. Generate a starting draft from approved results and player shares, then make it yours.</p>
                   <div style={{ display: 'grid', gap: 12, margin: '16px 0' }}>
                     <label style={labelStyle}>Headline<input value={recapDraft.headline} maxLength={120} onChange={(event) => setRecapDraft((current) => ({ ...current, headline: event.target.value }))} style={inputStyle} placeholder="A competitive night on every court" /></label>
                     <label style={labelStyle}>Summary<textarea value={recapDraft.summary} maxLength={2000} rows={5} onChange={(event) => setRecapDraft((current) => ({ ...current, summary: event.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} placeholder="Share the results, standout performances, and what made the night memorable." /></label>
@@ -374,7 +385,6 @@ const headerStyle: CSSProperties = { display: 'flex', justifyContent: 'space-bet
 const eyebrowStyle: CSSProperties = { margin: '0 0 6px', color: '#23765b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 12 }
 const titleStyle: CSSProperties = { margin: 0, fontSize: 'clamp(2rem, 5vw, 4rem)', letterSpacing: '-.05em' }
 const heroSubheadStyle: CSSProperties = { maxWidth: 720, color: '#b8c8c0', lineHeight: 1.6 }
-const subheadStyle: CSSProperties = { maxWidth: 720, color: '#52605a', lineHeight: 1.6 }
 const panelStyle: CSSProperties = { border: '1px solid #dce4df', borderRadius: 20, background: '#fff', color: '#14231d', padding: 22, boxShadow: '0 10px 35px rgba(24,55,43,.06)' }
 const twoColumnStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }
 const labelStyle: CSSProperties = { display: 'grid', gap: 7, fontWeight: 750 }
@@ -387,6 +397,7 @@ const pillStyle: CSSProperties = { padding: '5px 9px', borderRadius: 999, backgr
 const shareRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 8 }
 const playerGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10, margin: '16px 0' }
 const playerStyle: CSSProperties = { display: 'flex', gap: 10, alignItems: 'flex-start', padding: 12, border: '1px solid #dce4df', borderRadius: 12 }
+const lockSelectStyle: CSSProperties = { minHeight: 34, maxWidth: 112, border: '1px solid #cbd8d1', borderRadius: 9, padding: '5px 7px', background: '#fff', color: '#14231d' }
 const courtGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(245px, 1fr))', gap: 12 }
 const courtStyle: CSSProperties = { padding: 16, borderRadius: 14, background: '#f4f8f5', border: '1px solid #dce4df' }
 const actionRowStyle: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }

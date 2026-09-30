@@ -1,5 +1,6 @@
 import { cleanAvailabilityText, getCaptainAvailabilityServiceClient, isUuid } from '@/lib/captain-availability-request-server'
 import { normalizeLeagueWeeklySettings, type LeagueWeeklyCourt } from '@/lib/league-weekly-format'
+import { deriveLeagueWeeklyOfficialScore, type LeagueWeeklyScoreSubmission } from '@/lib/league-weekly-intelligence'
 
 export const runtime = 'nodejs'
 
@@ -38,7 +39,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
   const assignments = Array.isArray(loaded.session.assignments) ? loaded.session.assignments as LeagueWeeklyCourt[] : []
   const published = ['published', 'completed'].includes(loaded.session.status)
   const { data: results } = published
-    ? await loaded.service.from('tiq_league_weekly_set_results').select('court_number,set_number,side_a_games,side_b_games,submitted_by_name').eq('session_id', loaded.session.id).order('court_number').order('set_number')
+    ? await loaded.service.from('tiq_league_weekly_set_results').select('court_number,set_number,side_a_games,side_b_games,submitted_by_name,review_status').eq('session_id', loaded.session.id).order('court_number').order('set_number')
     : { data: [] }
 
   return Response.json({
@@ -107,23 +108,57 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     if (![sideAGames, sideBGames].every((score) => Number.isInteger(score) && score >= 0 && score <= 99) || sideAGames === sideBGames) {
       return Response.json({ ok: false, message: 'Enter a completed set score with one winning side.' }, { status: 400 })
     }
-    const { error } = await loaded.service.from('tiq_league_weekly_set_results').upsert({
+    const submittedAt = new Date().toISOString()
+    const { error: submissionError } = await loaded.service.from('tiq_league_weekly_score_submissions').upsert({
+      session_id: loaded.session.id,
+      court_number: courtNumber,
+      set_number: setNumber,
+      side_a_games: sideAGames,
+      side_b_games: sideBGames,
+      submitted_by_name: canonicalPlayerName,
+      submitted_at: submittedAt,
+    }, { onConflict: 'session_id,court_number,set_number,submitted_by_name' })
+    if (submissionError) return Response.json({ ok: false, message: submissionError.message }, { status: 500 })
+    const [{ data: scoreSubmissions, error: submissionsError }, { data: existingResult }] = await Promise.all([
+      loaded.service.from('tiq_league_weekly_score_submissions').select('court_number,set_number,side_a_games,side_b_games,submitted_by_name,submitted_at').eq('session_id', loaded.session.id).eq('court_number', courtNumber).eq('set_number', setNumber),
+      loaded.service.from('tiq_league_weekly_set_results').select('review_status').eq('session_id', loaded.session.id).eq('court_number', courtNumber).eq('set_number', setNumber).maybeSingle(),
+    ])
+    if (submissionsError) return Response.json({ ok: false, message: submissionsError.message }, { status: 500 })
+    const official = deriveLeagueWeeklyOfficialScore(((scoreSubmissions || []) as Array<{ court_number: number; set_number: number; side_a_games: number; side_b_games: number; submitted_by_name: string; submitted_at: string }>).map((submission) => ({
+      courtNumber: submission.court_number,
+      setNumber: submission.set_number,
+      sideAGames: submission.side_a_games,
+      sideBGames: submission.side_b_games,
+      submittedByName: submission.submitted_by_name,
+      submittedAt: submission.submitted_at,
+    } satisfies LeagueWeeklyScoreSubmission)))
+    if (!official) return Response.json({ ok: false, message: 'That score submission could not be reviewed.' }, { status: 500 })
+    const ownerApproved = existingResult?.review_status === 'approved'
+    const { error } = ownerApproved ? { error: null } : await loaded.service.from('tiq_league_weekly_set_results').upsert({
       session_id: loaded.session.id,
       court_number: courtNumber,
       set_number: setNumber,
       side_a_players: set.sideA,
       side_b_players: set.sideB,
-      side_a_games: sideAGames,
-      side_b_games: sideBGames,
-      submitted_by_name: canonicalPlayerName,
-      submitted_at: new Date().toISOString(),
+      side_a_games: official.sideAGames,
+      side_b_games: official.sideBGames,
+      submitted_by_name: official.submittedByName,
+      submitted_at: submittedAt,
+      review_status: official.reviewStatus,
     }, { onConflict: 'session_id,court_number,set_number' })
     if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
     const positiveShare = cleanAvailabilityText(body.positiveShare, 800)
     if (positiveShare) {
       await loaded.service.from('tiq_league_weekly_responses').update({ positive_share: positiveShare }).eq('session_id', loaded.session.id).eq('player_name', canonicalPlayerName)
     }
-    return Response.json({ ok: true, message: `Court ${courtNumber}, set ${setNumber} is saved.` })
+    const message = ownerApproved
+      ? `Your score is recorded. The league-approved score remains official.`
+      : official.reviewStatus === 'confirmed'
+        ? `Court ${courtNumber}, set ${setNumber} is confirmed by matching submissions.`
+        : official.reviewStatus === 'disputed'
+          ? `Your score is recorded. The league owner will review the different submissions.`
+          : `Court ${courtNumber}, set ${setNumber} is saved and waiting for confirmation.`
+    return Response.json({ ok: true, reviewStatus: ownerApproved ? 'approved' : official.reviewStatus, message })
   }
 
   return Response.json({ ok: false, message: 'Choose a weekly league action.' }, { status: 400 })
