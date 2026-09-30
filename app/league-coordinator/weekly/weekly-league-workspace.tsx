@@ -57,11 +57,17 @@ function nextThursday() {
   return date.toISOString().slice(0, 10)
 }
 
-export default function WeeklyLeagueWorkspace({ initialLeagueId }: { initialLeagueId: string }) {
+export default function WeeklyLeagueWorkspace({
+  initialLeagueId,
+  initialPlayOn,
+}: {
+  initialLeagueId: string
+  initialPlayOn: string
+}) {
   const { authResolved, session: authSession, userId } = useAuth()
   const [leagues, setLeagues] = useState<TiqLeagueRecord[]>([])
   const [leagueId, setLeagueId] = useState(initialLeagueId)
-  const [playOn, setPlayOn] = useState(nextThursday)
+  const [playOn, setPlayOn] = useState(() => initialPlayOn || nextThursday())
   const [session, setSession] = useState<WeeklySession | null>(null)
   const [responses, setResponses] = useState<WeeklyResponse[]>([])
   const [results, setResults] = useState<WeeklyResult[]>([])

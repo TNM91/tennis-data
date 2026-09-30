@@ -40,6 +40,7 @@ describe('league coordinator memory', () => {
 
   it('builds exact league, tournament, and conversation resume destinations', () => {
     expect(buildLeagueCoordinatorHref('team-results', 'league 1')).toBe('/league-coordinator/results?leagueId=league%201')
+    expect(buildLeagueCoordinatorHref('weekly', 'league 1')).toBe('/league-coordinator/weekly?leagueId=league%201')
     expect(getLeagueCoordinatorResumeHref({
       lastSurface: 'tournament',
       tournamentId: 'event 1',

@@ -12,6 +12,7 @@ export type LeagueCoordinatorResumeSurface =
   | 'setup'
   | 'team-results'
   | 'individual-results'
+  | 'weekly'
   | 'tournament'
   | 'conversation'
 
@@ -72,6 +73,7 @@ const RESUME_SURFACES = new Set<LeagueCoordinatorResumeSurface>([
   'setup',
   'team-results',
   'individual-results',
+  'weekly',
   'tournament',
   'conversation',
 ])
@@ -202,6 +204,7 @@ export function buildLeagueCoordinatorHref(surface: LeagueCoordinatorResumeSurfa
   const query = id ? `?leagueId=${encodeURIComponent(id)}` : ''
   if (surface === 'team-results') return `/league-coordinator/results${query}`
   if (surface === 'individual-results') return `/league-coordinator/individual-results${query}`
+  if (surface === 'weekly') return `/league-coordinator/weekly${query}`
   if (surface === 'setup') return `/league-coordinator${query}#league-setup-form`
   return '/league-coordinator'
 }
