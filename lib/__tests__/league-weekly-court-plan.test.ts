@@ -12,5 +12,8 @@ describe('weekly league court plan', () => {
     expect(workspaceSource).toContain('Move ${player} to a court')
     expect(workspaceSource).toContain('Publish this court plan')
     expect(workspaceSource).toContain("strategy: league.weeklySettings.autoGenerateCourts ? 'balanced' : 'manual'")
+    expect(workspaceSource).toContain('TIQ doubles ratings set the starting point.')
+    expect(workspaceSource).toContain('TIQ-rated players')
+    expect(workspaceSource).toContain('TIQ profile not connected')
   })
 })

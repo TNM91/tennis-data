@@ -13,7 +13,7 @@ import {
   getLeagueWeeklyRosterSummary,
   type LeagueWeeklyCourt,
 } from '@/lib/league-weekly-format'
-import { buildLeagueWeeklyCourtPlan, buildLeagueWeeklySeasonScorecards, isAcceptedLeagueWeeklyResult, type LeagueWeeklyCourtPlan, type LeagueWeeklyPlayerScorecard, type LeagueWeeklyReviewedResult } from '@/lib/league-weekly-intelligence'
+import { buildLeagueWeeklyCourtPlan, buildLeagueWeeklySeasonScorecards, isAcceptedLeagueWeeklyResult, type LeagueWeeklyCourtPlan, type LeagueWeeklyPlayerBaseline, type LeagueWeeklyPlayerScorecard, type LeagueWeeklyReviewedResult } from '@/lib/league-weekly-intelligence'
 import type { TiqLeagueRecord } from '@/lib/tiq-league-registry'
 
 type WeeklyResponse = {
@@ -35,6 +35,8 @@ type WeeklyResult = {
 }
 
 type WeeklyScoreSubmissionRow = { court_number: number; set_number: number; side_a_games: number; side_b_games: number; submitted_by_name: string; submitted_at: string }
+type LeaguePlayerEntryRow = { player_id: string | null; player_name: string }
+type TiqRatingRow = { id: string; doubles_dynamic_rating: number | null; overall_dynamic_rating: number | null }
 
 type WeeklySession = {
   id: string
@@ -72,6 +74,7 @@ export default function WeeklyLeagueWorkspace({
   const [results, setResults] = useState<WeeklyResult[]>([])
   const [scoreSubmissions, setScoreSubmissions] = useState<WeeklyScoreSubmissionRow[]>([])
   const [playerStats, setPlayerStats] = useState<LeagueWeeklyPlayerScorecard[]>([])
+  const [playerBaselines, setPlayerBaselines] = useState<LeagueWeeklyPlayerBaseline[]>([])
   const [historyCourts, setHistoryCourts] = useState<LeagueWeeklyCourt[][]>([])
   const [lockedCourts, setLockedCourts] = useState<Record<string, number>>({})
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
@@ -89,10 +92,11 @@ export default function WeeklyLeagueWorkspace({
     playerNames: selectedPlayers,
     settings: league.weeklySettings,
     scorecards: playerStats,
+    playerBaselines,
     historyCourts,
     lockedCourts,
     strategy: league.weeklySettings.autoGenerateCourts ? 'balanced' : 'manual',
-  }) : null, [historyCourts, league, lockedCourts, playerStats, selectedPlayers])
+  }) : null, [historyCourts, league, lockedCourts, playerBaselines, playerStats, selectedPlayers])
 
   const loadSession = useCallback(async (targetLeagueId: string, targetPlayOn: string) => {
     if (!targetLeagueId || !targetPlayOn) return
@@ -178,6 +182,47 @@ export default function WeeklyLeagueWorkspace({
     const timeoutId = window.setTimeout(() => void loadSession(leagueId, playOn), 0)
     return () => window.clearTimeout(timeoutId)
   }, [authResolved, leagueId, loadSession, playOn, userId])
+
+  useEffect(() => {
+    if (!leagueId) return
+    let active = true
+    void (async () => {
+      try {
+        const { data: entryData, error: entryError } = await supabase
+          .from('tiq_player_league_entries')
+          .select('player_id,player_name')
+          .eq('league_id', leagueId)
+          .eq('entry_status', 'active')
+        if (entryError) throw entryError
+        const linkedEntries = ((entryData || []) as LeaguePlayerEntryRow[]).flatMap((entry) => {
+          const playerId = entry.player_id?.trim()
+          return playerId ? [{ playerId, playerName: entry.player_name }] : []
+        })
+        const playerIds = Array.from(new Set(linkedEntries.map((entry) => entry.playerId)))
+        if (!playerIds.length) {
+          if (active) setPlayerBaselines([])
+          return
+        }
+        const { data: playerData, error: playerError } = await supabase
+          .from('players')
+          .select('id,doubles_dynamic_rating,overall_dynamic_rating')
+          .in('id', playerIds)
+        if (playerError) throw playerError
+        const ratingById = new Map(((playerData || []) as TiqRatingRow[]).map((player) => [player.id, player.doubles_dynamic_rating ?? player.overall_dynamic_rating ?? null]))
+        const baselines = linkedEntries.map((entry) => ({
+          playerName: entry.playerName,
+          playerId: entry.playerId,
+          tiqDoublesRating: ratingById.get(entry.playerId) ?? null,
+        } satisfies LeagueWeeklyPlayerBaseline))
+        if (active) setPlayerBaselines(baselines)
+      } catch {
+        if (active) setPlayerBaselines([])
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [leagueId])
 
   async function createSession() {
     if (!league) return
@@ -368,7 +413,7 @@ export default function WeeklyLeagueWorkspace({
                     return <div key={player} style={playerStyle}><input aria-label={`Select ${player}`} type="checkbox" checked={selected} onChange={() => togglePlayer(player)} /><span style={{ flex: 1 }}><strong>{player}</strong><small style={{ display: 'block' }}>{response?.response_status || 'No reply'}{response?.note ? ` · ${response.note}` : ''}</small></span>{selected ? <select aria-label={`Lock ${player} to a court`} value={lockedCourts[player] || 0} onChange={(event) => lockPlayerToCourt(player, Number(event.target.value))} style={lockSelectStyle}><option value={0}>{league?.weeklySettings.autoGenerateCourts ? 'Auto court' : 'Roster order'}</option>{Array.from({ length: league?.weeklySettings.courtCount || 0 }, (_, index) => <option key={index + 1} value={index + 1}>Court {index + 1}</option>)}</select> : null}</div>
                   })}
                 </div>
-                <p style={{ color: '#52605a' }}>{league?.weeklySettings.autoGenerateCourts ? 'Court locks stay fixed. Everyone else is balanced using accepted results, recent courtmates, attendance, and last week’s court.' : 'Court locks and roster order build this plan. Move any player before publishing.'}</p>
+                <p style={{ color: '#52605a' }}>{league?.weeklySettings.autoGenerateCourts ? 'Court locks stay fixed. Everyone else is balanced using current TIQ doubles ratings, accepted league results, recent courtmates, attendance, and last week’s court.' : 'Court locks and roster order build this plan. Move any player before publishing.'}</p>
                 <CourtPlanPreview
                   plan={courtPlan}
                   courtCount={league?.weeklySettings.courtCount || 0}
@@ -450,7 +495,7 @@ function CourtPlanPreview({
           <p style={planKickerStyle}>{plan.strategy === 'balanced' ? 'TIQ recommendation' : 'Manual plan'}</p>
           <h3 style={planTitleStyle}>Preview before publishing</h3>
           <p style={planCopyStyle}>{plan.strategy === 'balanced'
-            ? 'A smaller performance spread means the courts are closer using accepted score history.'
+            ? 'TIQ doubles ratings set the starting point. Accepted league results carry more weight as each player builds history.'
             : 'Players without a court lock follow the roster order shown above.'}</p>
         </div>
         <span style={planModeStyle}>{plan.strategy === 'balanced' ? 'Balanced' : 'Roster order'}</span>
@@ -458,6 +503,7 @@ function CourtPlanPreview({
 
       <div style={planSummaryStyle}>
         <PlanMetric label="Performance spread" value={String(plan.summary.strengthSpread)} />
+        <PlanMetric label="TIQ-rated players" value={String(plan.summary.tiqRatedPlayers)} />
         <PlanMetric label="Players with history" value={String(plan.summary.trackedPlayers)} />
         <PlanMetric label="Fresh courtmates" value={String(plan.summary.freshConnections)} />
         <PlanMetric label="Moved courts" value={String(plan.summary.movedPlayers)} />
@@ -474,15 +520,16 @@ function CourtPlanPreview({
                 <span style={strengthStyle}>Index {insight?.strengthIndex ?? 50}</span>
               </div>
               <div style={planPlayerListStyle}>
-                {court.players.map((player) => (
-                  <label key={player} style={planPlayerStyle}>
-                    <span><strong style={planPlayerNameStyle}>{player}</strong>{lockedCourts[player] === court.courtNumber ? <small style={lockedStyle}>Locked here</small> : null}</span>
+                {court.players.map((player) => {
+                  const signal = insight?.playerSignals.find((item) => item.playerName === player)
+                  return <label key={player} style={planPlayerStyle}>
+                    <span><strong style={planPlayerNameStyle}>{player}</strong><small style={planPlayerSignalStyle}>{formatPlayerSignal(signal)}</small>{lockedCourts[player] === court.courtNumber ? <small style={lockedStyle}>Locked here</small> : null}</span>
                     <select aria-label={`Move ${player} to a court`} value={lockedCourts[player] || 0} onChange={(event) => onMovePlayer(player, Number(event.target.value))} style={planMoveSelectStyle}>
                       <option value={0}>{plan.strategy === 'balanced' ? 'TIQ pick' : 'Roster order'}</option>
                       {Array.from({ length: courtCount }, (_, index) => <option key={index + 1} value={index + 1}>Court {index + 1}</option>)}
                     </select>
                   </label>
-                ))}
+                })}
               </div>
               <p style={planReasonStyle}>
                 {insight?.trackedPlayers || 0}/4 with score history · {insight?.freshConnections || 0} fresh courtmate pairings
@@ -502,6 +549,14 @@ function CourtPlanPreview({
 
 function PlanMetric({ label, value }: { label: string; value: string }) {
   return <div style={planMetricStyle}><span>{label}</span><strong>{value}</strong></div>
+}
+
+function formatPlayerSignal(signal: LeagueWeeklyCourtPlan['insights'][number]['playerSignals'][number] | undefined) {
+  if (!signal) return 'TIQ profile not connected'
+  const acceptedSets = `${signal.acceptedSets} accepted ${signal.acceptedSets === 1 ? 'set' : 'sets'}`
+  if (signal.tiqRating !== null) return `TIQ ${signal.tiqRating.toFixed(2)} · ${acceptedSets}`
+  if (signal.acceptedSets) return `League form · ${acceptedSets}`
+  return 'TIQ profile not connected'
 }
 
 const pageStyle: CSSProperties = { maxWidth: 1180, margin: '0 auto', padding: '32px 20px 80px', display: 'grid', gap: 18 }
@@ -544,6 +599,7 @@ const strengthStyle: CSSProperties = { flex: '0 0 auto', padding: '5px 8px', bor
 const planPlayerListStyle: CSSProperties = { display: 'grid', gap: 6 }
 const planPlayerStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', gap: 8, minWidth: 0, padding: '7px 8px', borderRadius: 10, background: '#f4f8f5' }
 const planPlayerNameStyle: CSSProperties = { display: 'block', minWidth: 0, color: '#14231d', fontSize: 11, overflowWrap: 'anywhere' }
+const planPlayerSignalStyle: CSSProperties = { display: 'block', marginTop: 2, color: '#64748b', fontSize: 10, fontWeight: 700 }
 const lockedStyle: CSSProperties = { display: 'block', marginTop: 2, color: '#126044', fontSize: 9, fontWeight: 850 }
 const planMoveSelectStyle: CSSProperties = { minHeight: 32, maxWidth: 105, border: '1px solid #cbd8d1', borderRadius: 8, padding: '4px 6px', background: '#fff', color: '#14231d', fontSize: 10 }
 const planReasonStyle: CSSProperties = { margin: 0, color: '#65746d', fontSize: 10, lineHeight: 1.4 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildLeagueWeeklyCourts } from '../league-weekly-format'
-import { buildBalancedLeagueWeeklyCourts, buildLeagueWeeklyCourtPlan, buildLeagueWeeklyDashboard, buildLeagueWeeklyScoreReview, buildLeagueWeeklySeasonScorecards, deriveLeagueWeeklyOfficialScore } from '../league-weekly-intelligence'
+import { buildBalancedLeagueWeeklyCourts, buildLeagueWeeklyCourtPlan, buildLeagueWeeklyCourtSignals, buildLeagueWeeklyDashboard, buildLeagueWeeklyScoreReview, buildLeagueWeeklySeasonScorecards, deriveLeagueWeeklyOfficialScore } from '../league-weekly-intelligence'
 
 describe('weekly league score intelligence', () => {
   it('confirms matching submissions and flags conflicting ones', () => {
@@ -46,6 +46,22 @@ describe('weekly league score intelligence', () => {
     expect(courts.map((court) => court.startTime)).toEqual(['08:00', '08:30'])
   })
 
+  it('starts with TIQ doubles rating and shifts weight toward accepted league form', () => {
+    const baseline = [{ playerName: 'Alex', tiqDoublesRating: 4 }]
+    const scorecard = {
+      playerName: 'Alex', setsWon: 2, gamesWon: 24, gamesLost: 30, gameDifferential: -6,
+      weeksPlayed: 2, setWinPercentage: 33, currentWinStreak: 0,
+    }
+    const early = buildLeagueWeeklyCourtSignals(['Alex'], [{ ...scorecard, setsPlayed: 5 }], baseline)[0]
+    const established = buildLeagueWeeklyCourtSignals(['Alex'], [{ ...scorecard, setsPlayed: 15 }], baseline)[0]
+    const newPlayer = buildLeagueWeeklyCourtSignals(['Alex'], [], baseline)[0]
+
+    expect(newPlayer).toMatchObject({ tiqRating: 4, acceptedSets: 0, courtFitIndex: 60, basis: 'tiq' })
+    expect(early.basis).toBe('blended')
+    expect(early.courtFitIndex).toBeGreaterThan(established.courtFitIndex)
+    expect(established.acceptedSets).toBe(15)
+  })
+
   it('keeps overflow players on the waitlist when courts are full', () => {
     const players = ['A', 'B', 'C', 'D', 'E']
     const courts = buildBalancedLeagueWeeklyCourts({ playerNames: players, settings: { courtCount: 1 }, scorecards: [], historyCourts: [] })
@@ -63,6 +79,10 @@ describe('weekly league score intelligence', () => {
         { playerName: 'A', setsPlayed: 6, setsWon: 5, gamesWon: 35, gamesLost: 22, gameDifferential: 13, weeksPlayed: 2, setWinPercentage: 83, currentWinStreak: 2 },
         { playerName: 'H', setsPlayed: 6, setsWon: 1, gamesWon: 21, gamesLost: 36, gameDifferential: -15, weeksPlayed: 2, setWinPercentage: 17, currentWinStreak: 0 },
       ],
+      playerBaselines: [
+        { playerName: 'A', playerId: 'player-a', tiqDoublesRating: 4.1 },
+        { playerName: 'B', playerId: 'player-b', tiqDoublesRating: 3.7 },
+      ],
       historyCourts,
       lockedCourts: { A: 2 },
     })
@@ -70,7 +90,10 @@ describe('weekly league score intelligence', () => {
     expect(plan.strategy).toBe('balanced')
     expect(plan.courts).toHaveLength(2)
     expect(plan.courts[1].players).toContain('A')
-    expect(plan.summary).toMatchObject({ trackedPlayers: 2, lockedPlayers: 1 })
+    expect(plan.summary).toMatchObject({ trackedPlayers: 2, tiqRatedPlayers: 2, lockedPlayers: 1 })
+    expect(plan.insights.flatMap((insight) => insight.playerSignals)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ playerName: 'A', tiqRating: 4.1, basis: 'blended' }),
+    ]))
     expect(plan.summary.movedPlayers).toBeGreaterThan(0)
     expect(plan.summary.freshConnections + plan.summary.repeatConnections).toBe(12)
     expect(plan.insights).toEqual(expect.arrayContaining([
