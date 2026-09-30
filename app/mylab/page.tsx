@@ -75,6 +75,7 @@ import { buildMatchIntelligenceRead } from '@/lib/player-match-intelligence'
 import { filterMatchbookEntries, getMatchbookFilterLabel, type MatchbookFilter } from '@/lib/player-matchbook'
 import { buildPlayerRatingJourneyRead, type RatingJourneySnapshot } from '@/lib/player-rating-journey'
 import { buildPlayerLeagueHome } from '@/lib/player-league-home'
+import type { LeagueWeeklyPlayerRecord } from '@/lib/league-weekly-player-records'
 import type { PlayerCompetitionScheduleEvent } from '@/lib/player-competition-schedule'
 import {
   PLAYER_DEVELOPMENT_IDENTITIES,
@@ -937,6 +938,7 @@ function MyLabPageInner() {
   const [tiqIndividualSuggestions, setTiqIndividualSuggestions] = useState<TiqIndividualSuggestionRecord[]>([])
   const [tiqLeagues, setTiqLeagues] = useState<TiqLeagueRecord[]>([])
   const [tiqPlayerParticipations, setTiqPlayerParticipations] = useState<TiqPlayerParticipationRecord[]>([])
+  const [weeklyLeagueRecords, setWeeklyLeagueRecords] = useState<LeagueWeeklyPlayerRecord[]>([])
   const [tiqPlayerParticipationWarning, setTiqPlayerParticipationWarning] = useState<string | null>(null)
   const [myMatchReports, setMyMatchReports] = useState<MatchAccuracyReport[]>([])
   const [myMatchReportsLoading, setMyMatchReportsLoading] = useState(false)
@@ -1017,6 +1019,29 @@ function MyLabPageInner() {
         if (!active) return
         setTeamConnections([])
         setTeamConnectionsError(teamError instanceof Error ? teamError.message : 'Team links could not be loaded.')
+      })
+
+    return () => {
+      active = false
+    }
+  }, [authResolved, refreshTick, session?.access_token])
+
+  useEffect(() => {
+    if (!authResolved) return
+    const accessToken = session?.access_token || ''
+    if (!accessToken) return
+
+    let active = true
+    void fetch('/api/player/league-records', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+      .then(async (response) => {
+        const payload = await response.json() as { ok?: boolean; records?: LeagueWeeklyPlayerRecord[] }
+        if (!response.ok || !payload.ok) throw new Error('Weekly league records could not be loaded.')
+        if (active) setWeeklyLeagueRecords(payload.records || [])
+      })
+      .catch(() => {
+        if (active) setWeeklyLeagueRecords([])
       })
 
     return () => {
@@ -2805,9 +2830,10 @@ function MyLabPageInner() {
     participations: tiqPlayerParticipations,
     leagues: tiqLeagues,
     results: tiqIndividualResults,
+    weeklyRecords: session?.access_token ? weeklyLeagueRecords : [],
     playerId: linkedPlayer?.id || profileLink?.linked_player_id || '',
     playerName: linkedPlayer?.name || profileLink?.linked_player_name || '',
-  }), [linkedPlayer?.id, linkedPlayer?.name, profileLink?.linked_player_id, profileLink?.linked_player_name, tiqIndividualResults, tiqLeagues, tiqPlayerParticipations])
+  }), [linkedPlayer?.id, linkedPlayer?.name, profileLink?.linked_player_id, profileLink?.linked_player_name, session?.access_token, tiqIndividualResults, tiqLeagues, tiqPlayerParticipations, weeklyLeagueRecords])
   const isSelfRatedProfile = linkedPlayer?.rating_source === 'self'
   const isNewSelfRatedProfile = Boolean(isSelfRatedProfile && !personalMatches.length)
   const levelUpProofRecords = useMemo(

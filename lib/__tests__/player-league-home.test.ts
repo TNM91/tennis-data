@@ -30,6 +30,14 @@ describe('player league home', () => {
     expect(view.past[0]).toMatchObject({ statusLabel: 'Past season', cta: 'View season' })
   })
 
+  it('uses accepted weekly sets for the weekly league record and standings', () => {
+    const view = buildPlayerLeagueHome({
+      participations: [participation], leagues: [league()], results: [], playerId: 'player-1', playerName: 'Alex Player', today: '2026-09-30',
+      weeklyRecords: [{ leagueId: 'league-1', playerName: 'Alex Player', wins: 4, losses: 2, setsPlayed: 6, weeksPlayed: 2, leagueSetCount: 9, leaderName: 'Blair', leaderWins: 5, leaderLosses: 1 }],
+    })
+    expect(view.active[0]).toMatchObject({ playerRecord: '4-2', resultLabel: '9 confirmed sets', leaderLabel: 'Blair leads 5-1' })
+  })
+
   it('does not confuse followed players or team leagues with the linked player’s leagues', () => {
     const view = buildPlayerLeagueHome({
       participations: [participation, { ...participation, leagueId: 'league-2', playerId: 'someone-else', playerName: 'Other Player' }],
