@@ -20,6 +20,7 @@ export type LeagueWeeklyRecordSession = {
   id: string
   league_id: string
   status: string
+  play_on?: string
 }
 
 export type LeagueWeeklyRecordSetResult = {
@@ -29,6 +30,48 @@ export type LeagueWeeklyRecordSetResult = {
   side_a_games: number
   side_b_games: number
   review_status: string
+  court_number?: number
+  set_number?: number
+}
+
+export type LeagueWeeklyStanding = {
+  rank: number
+  playerName: string
+  wins: number
+  losses: number
+  setsPlayed: number
+  weeksPlayed: number
+  gamesWon: number
+  gamesLost: number
+  gameDifferential: number
+  winPercentage: number
+}
+
+export type LeagueWeeklyScorecardSet = {
+  setNumber: number
+  sideA: string[]
+  sideB: string[]
+  sideAGames: number
+  sideBGames: number
+}
+
+export type LeagueWeeklyScorecardCourt = {
+  courtNumber: number
+  sets: LeagueWeeklyScorecardSet[]
+}
+
+export type LeagueWeeklyScorecardWeek = {
+  sessionId: string
+  playOn: string
+  status: string
+  acceptedSetCount: number
+  courts: LeagueWeeklyScorecardCourt[]
+}
+
+export type LeagueWeeklyCompetitionView = {
+  summary: { weeks: number; acceptedSets: number; players: number; totalGames: number }
+  standings: LeagueWeeklyStanding[]
+  weeks: LeagueWeeklyScorecardWeek[]
 }
 
 function normalize(value: string | null | undefined) {
@@ -36,6 +79,15 @@ function normalize(value: string | null | undefined) {
 }
 
 type Standing = { name: string; wins: number; losses: number; sessionIds: Set<string> }
+
+function isAcceptedResult(result: LeagueWeeklyRecordSetResult, sessionsById: Map<string, LeagueWeeklyRecordSession>) {
+  const session = sessionsById.get(result.session_id)
+  if (!session || !['confirmed', 'approved'].includes(result.review_status)) return false
+  if (!Number.isFinite(result.side_a_games) || !Number.isFinite(result.side_b_games) || result.side_a_games === result.side_b_games) return false
+  const sideA = Array.isArray(result.side_a_players) ? result.side_a_players.filter((name) => normalize(name)) : []
+  const sideB = Array.isArray(result.side_b_players) ? result.side_b_players.filter((name) => normalize(name)) : []
+  return sideA.length > 0 && sideB.length > 0
+}
 
 export function buildLeagueWeeklyPlayerRecords(input: {
   participants: LeagueWeeklyRecordParticipant[]
@@ -52,8 +104,7 @@ export function buildLeagueWeeklyPlayerRecords(input: {
 
   for (const result of input.results) {
     const session = sessionsById.get(result.session_id)
-    if (!session || !['confirmed', 'approved'].includes(result.review_status)) continue
-    if (result.side_a_games === result.side_b_games) continue
+    if (!session || !isAcceptedResult(result, sessionsById)) continue
     const sideA = Array.isArray(result.side_a_players) ? result.side_a_players.filter((name) => normalize(name)) : []
     const sideB = Array.isArray(result.side_b_players) ? result.side_b_players.filter((name) => normalize(name)) : []
     if (!sideA.length || !sideB.length) continue
@@ -103,4 +154,111 @@ export function buildLeagueWeeklyPlayerRecords(input: {
       leaderLosses: leader?.losses || 0,
     }]
   })
+}
+
+export function buildLeagueWeeklyCompetitionView(input: {
+  leagueId: string
+  playerNames?: string[]
+  sessions: LeagueWeeklyRecordSession[]
+  results: LeagueWeeklyRecordSetResult[]
+}): LeagueWeeklyCompetitionView {
+  const sessions = input.sessions.filter((session) => (
+    session.league_id === input.leagueId && ['published', 'completed'].includes(session.status)
+  ))
+  const sessionsById = new Map(sessions.map((session) => [session.id, session]))
+  const acceptedResults = input.results.filter((result) => isAcceptedResult(result, sessionsById))
+  const standings = new Map<string, Standing & { gamesWon: number; gamesLost: number }>()
+
+  for (const playerName of input.playerNames || []) {
+    const key = normalize(playerName)
+    if (!key || standings.has(key)) continue
+    standings.set(key, {
+      name: playerName.trim(), wins: 0, losses: 0, gamesWon: 0, gamesLost: 0, sessionIds: new Set<string>(),
+    })
+  }
+
+  function addPlayer(playerName: string, won: boolean, gamesWon: number, gamesLost: number, sessionId: string) {
+    const key = normalize(playerName)
+    const current = standings.get(key) || {
+      name: playerName.trim(), wins: 0, losses: 0, gamesWon: 0, gamesLost: 0, sessionIds: new Set<string>(),
+    }
+    if (won) current.wins += 1
+    else current.losses += 1
+    current.gamesWon += gamesWon
+    current.gamesLost += gamesLost
+    current.sessionIds.add(sessionId)
+    standings.set(key, current)
+  }
+
+  for (const result of acceptedResults) {
+    const sideA = (result.side_a_players || []).filter((name) => normalize(name))
+    const sideB = (result.side_b_players || []).filter((name) => normalize(name))
+    const sideAWon = result.side_a_games > result.side_b_games
+    for (const playerName of sideA) addPlayer(playerName, sideAWon, result.side_a_games, result.side_b_games, result.session_id)
+    for (const playerName of sideB) addPlayer(playerName, !sideAWon, result.side_b_games, result.side_a_games, result.session_id)
+  }
+
+  const rankedStandings: LeagueWeeklyStanding[] = [...standings.values()]
+    .sort((left, right) => (
+      right.wins - left.wins ||
+      left.losses - right.losses ||
+      (right.gamesWon - right.gamesLost) - (left.gamesWon - left.gamesLost) ||
+      left.name.localeCompare(right.name)
+    ))
+    .map((standing, index) => {
+      const setsPlayed = standing.wins + standing.losses
+      return {
+        rank: index + 1,
+        playerName: standing.name,
+        wins: standing.wins,
+        losses: standing.losses,
+        setsPlayed,
+        weeksPlayed: standing.sessionIds.size,
+        gamesWon: standing.gamesWon,
+        gamesLost: standing.gamesLost,
+        gameDifferential: standing.gamesWon - standing.gamesLost,
+        winPercentage: setsPlayed ? Math.round((standing.wins / setsPlayed) * 100) : 0,
+      }
+    })
+
+  const weeks = sessions
+    .map((session): LeagueWeeklyScorecardWeek => {
+      const weekResults = acceptedResults.filter((result) => result.session_id === session.id)
+      const courts = new Map<number, LeagueWeeklyScorecardSet[]>()
+      for (const result of weekResults) {
+        const courtNumber = Number(result.court_number)
+        const setNumber = Number(result.set_number)
+        if (!Number.isInteger(courtNumber) || courtNumber < 1 || !Number.isInteger(setNumber) || setNumber < 1) continue
+        const sets = courts.get(courtNumber) || []
+        sets.push({
+          setNumber,
+          sideA: (result.side_a_players || []).map((name) => name.trim()).filter(Boolean),
+          sideB: (result.side_b_players || []).map((name) => name.trim()).filter(Boolean),
+          sideAGames: result.side_a_games,
+          sideBGames: result.side_b_games,
+        })
+        courts.set(courtNumber, sets)
+      }
+      return {
+        sessionId: session.id,
+        playOn: session.play_on || '',
+        status: session.status,
+        acceptedSetCount: weekResults.length,
+        courts: [...courts.entries()]
+          .sort(([left], [right]) => left - right)
+          .map(([courtNumber, sets]) => ({ courtNumber, sets: sets.sort((left, right) => left.setNumber - right.setNumber) })),
+      }
+    })
+    .sort((left, right) => right.playOn.localeCompare(left.playOn) || right.sessionId.localeCompare(left.sessionId))
+
+  return {
+    summary: {
+      weeks: weeks.length,
+      acceptedSets: acceptedResults.length,
+      players: rankedStandings.length,
+      totalGames: acceptedResults.reduce((total, result) => total + result.side_a_games + result.side_b_games, 0),
+    },
+    standings: rankedStandings,
+    weeks,
+  }
 }
