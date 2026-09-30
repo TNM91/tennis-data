@@ -63,7 +63,7 @@ export async function GET(request: Request) {
 
   const { data: sessions, error: sessionError } = await service
     .from('tiq_league_weekly_sessions')
-    .select('id,league_id,status')
+    .select('id,league_id,status,play_on')
     .in('league_id', participants.map((participant) => participant.leagueId))
     .in('status', ['published', 'completed'])
   if (sessionError) return Response.json({ ok: false, message: 'Weekly league sessions could not be loaded.' }, { status: 500 })
@@ -72,7 +72,7 @@ export async function GET(request: Request) {
 
   const { data: results, error: resultError } = await service
     .from('tiq_league_weekly_set_results')
-    .select('session_id,side_a_players,side_b_players,side_a_games,side_b_games,review_status')
+    .select('session_id,court_number,set_number,side_a_players,side_b_players,side_a_games,side_b_games,review_status')
     .in('session_id', sessionRows.map((session) => session.id))
     .in('review_status', ['confirmed', 'approved'])
   if (resultError) return Response.json({ ok: false, message: 'Weekly league scores could not be loaded.' }, { status: 500 })

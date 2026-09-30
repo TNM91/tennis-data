@@ -3762,7 +3762,7 @@ function MyLabPageInner() {
 
       <WeeklyLeagueActionCard userId={userId} authResolved={authResolved} />
 
-      {isProfileConfirmed ? <MyLeaguesPanel view={myLeagueHome} /> : null}
+      {isProfileConfirmed ? <MyLeaguesPanel view={myLeagueHome} insightsUnlocked={canUseAdvancedPlayerInsights} /> : null}
 
       <details className="myLabDetailsSection" style={labDrawerDetailsStyle}>
         <summary aria-label="Open My Calendar to plan your tennis week" style={calendarDrawerSummaryStyle}>

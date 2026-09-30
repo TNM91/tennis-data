@@ -17,6 +17,14 @@ export type PlayerLeagueCard = {
   leaderLabel: string
   href: string
   cta: string
+  weeklyPulse: {
+    winPercentage: number
+    gameDifferential: number
+    currentStreak: { outcome: 'W' | 'L'; count: number } | null
+    recentForm: Array<'W' | 'L'>
+    bestPartner: { playerName: string; wins: number; losses: number; setsPlayed: number } | null
+    latestWeek: { playOn: string; wins: number; losses: number; courtNumbers: number[] } | null
+  } | null
 }
 
 export type PlayerLeagueHomeView = {
@@ -135,6 +143,24 @@ function buildCard(
       : leader ? `${leader[0]} leads ${leader[1].wins}-${leader[1].losses}` : 'Standings building',
     href: `/explore/leagues/tiq/${encodeURIComponent(league.id)}`,
     cta: status.cta,
+    weeklyPulse: weeklyRecord ? {
+      winPercentage: weeklyRecord.winPercentage,
+      gameDifferential: weeklyRecord.gameDifferential,
+      currentStreak: weeklyRecord.currentStreak,
+      recentForm: weeklyRecord.recentForm,
+      bestPartner: weeklyRecord.bestPartner ? {
+        playerName: weeklyRecord.bestPartner.playerName,
+        wins: weeklyRecord.bestPartner.wins,
+        losses: weeklyRecord.bestPartner.losses,
+        setsPlayed: weeklyRecord.bestPartner.setsPlayed,
+      } : null,
+      latestWeek: weeklyRecord.latestWeek ? {
+        playOn: weeklyRecord.latestWeek.playOn,
+        wins: weeklyRecord.latestWeek.wins,
+        losses: weeklyRecord.latestWeek.losses,
+        courtNumbers: weeklyRecord.latestWeek.courtNumbers,
+      } : null,
+    } : null,
   }
 }
 

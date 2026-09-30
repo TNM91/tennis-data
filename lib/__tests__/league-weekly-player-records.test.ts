@@ -12,13 +12,14 @@ describe('weekly league player records', () => {
       participants: [{ leagueId: 'league-1', playerName: 'Alex Player' }],
       sessions,
       results: [
-        { session_id: 'week-1', side_a_players: ['Alex Player', 'Blair'], side_b_players: ['Casey', 'Devon'], side_a_games: 6, side_b_games: 3, review_status: 'confirmed' },
-        { session_id: 'week-2', side_a_players: ['Casey', 'Alex Player'], side_b_players: ['Blair', 'Devon'], side_a_games: 4, side_b_games: 6, review_status: 'approved' },
-        { session_id: 'week-2', side_a_players: ['Blair', 'Casey'], side_b_players: ['Alex Player', 'Devon'], side_a_games: 2, side_b_games: 6, review_status: 'confirmed' },
+        { session_id: 'week-1', court_number: 2, set_number: 1, side_a_players: ['Alex Player', 'Blair'], side_b_players: ['Casey', 'Devon'], side_a_games: 6, side_b_games: 3, review_status: 'confirmed' },
+        { session_id: 'week-2', court_number: 1, set_number: 1, side_a_players: ['Casey', 'Alex Player'], side_b_players: ['Blair', 'Devon'], side_a_games: 4, side_b_games: 6, review_status: 'approved' },
+        { session_id: 'week-2', court_number: 1, set_number: 2, side_a_players: ['Blair', 'Casey'], side_b_players: ['Alex Player', 'Devon'], side_a_games: 2, side_b_games: 6, review_status: 'confirmed' },
       ],
     })
 
-    expect(records).toEqual([{
+    expect(records).toHaveLength(1)
+    expect(records[0]).toMatchObject({
       leagueId: 'league-1',
       playerName: 'Alex Player',
       wins: 2,
@@ -29,7 +30,21 @@ describe('weekly league player records', () => {
       leaderName: 'Alex Player',
       leaderWins: 2,
       leaderLosses: 1,
-    }])
+      winPercentage: 67,
+      gameDifferential: 5,
+      currentStreak: { outcome: 'W', count: 1 },
+      recentForm: ['W', 'L', 'W'],
+      bestPartner: { playerName: 'Blair', wins: 1, losses: 0, setsPlayed: 1 },
+      latestWeek: {
+        sessionId: 'week-2',
+        playOn: '2026-09-24',
+        wins: 1,
+        losses: 1,
+        gameDifferential: 2,
+        courtNumbers: [1],
+        partners: ['Casey', 'Devon'],
+      },
+    })
   })
 
   it('excludes pending, disputed, and unpublished scores', () => {
