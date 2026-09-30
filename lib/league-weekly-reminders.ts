@@ -1,6 +1,27 @@
+import { addDaysToDateString } from './tiq-league-calendar'
 import type { LeagueWeeklyCourt } from './league-weekly-format'
 
 export type LeagueWeeklyDeliveryKind = 'availability_open' | 'court_plan'
+
+const WEEKDAY_INDEX: Record<string, number> = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
+}
+
+const SHORT_WEEKDAY_INDEX: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+}
 
 function localParts(now: Date, timeZone: string) {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -24,6 +45,22 @@ function daysBetween(from: string, to: string) {
   const fromTime = Date.parse(`${from}T00:00:00Z`)
   const toTime = Date.parse(`${to}T00:00:00Z`)
   return Number.isFinite(fromTime) && Number.isFinite(toTime) ? Math.round((toTime - fromTime) / 86_400_000) : -1
+}
+
+export function getLeagueWeeklyAutoSessionDate(input: {
+  now: Date
+  timeZone: string
+  matchDay: string
+  startsOn?: string | null
+  endsOn?: string | null
+}) {
+  const local = localParts(input.now, input.timeZone || 'America/Chicago')
+  const localDay = SHORT_WEEKDAY_INDEX[local.weekday]
+  const matchDay = WEEKDAY_INDEX[input.matchDay]
+  if (local.weekday !== 'Mon' || local.hour !== 8 || localDay === undefined || matchDay === undefined) return null
+  const playOn = addDaysToDateString(local.date, (matchDay - localDay + 7) % 7)
+  if (!playOn || (input.startsOn && playOn < input.startsOn) || (input.endsOn && playOn > input.endsOn)) return null
+  return playOn
 }
 
 export function getLeagueWeeklyDeliveryKind(input: {

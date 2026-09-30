@@ -1,8 +1,32 @@
 import { describe, expect, it } from 'vitest'
 import { buildLeagueWeeklyCourts } from '../league-weekly-format'
-import { buildLeagueWeeklyEmail, getLeagueWeeklyDeliveryKind } from '../league-weekly-reminders'
+import { buildLeagueWeeklyEmail, getLeagueWeeklyAutoSessionDate, getLeagueWeeklyDeliveryKind } from '../league-weekly-reminders'
 
 describe('weekly league reminders', () => {
+  it('automatically opens the upcoming match week on Monday morning', () => {
+    expect(getLeagueWeeklyAutoSessionDate({
+      now: new Date('2026-09-28T13:15:00Z'),
+      timeZone: 'America/Chicago',
+      matchDay: 'Thursday',
+      startsOn: '2026-09-01',
+      endsOn: '2026-11-30',
+    })).toBe('2026-10-01')
+  })
+
+  it('does not open sessions outside Monday morning or the season window', () => {
+    expect(getLeagueWeeklyAutoSessionDate({
+      now: new Date('2026-09-29T13:15:00Z'),
+      timeZone: 'America/Chicago',
+      matchDay: 'Thursday',
+    })).toBeNull()
+    expect(getLeagueWeeklyAutoSessionDate({
+      now: new Date('2026-09-28T13:15:00Z'),
+      timeZone: 'America/Chicago',
+      matchDay: 'Thursday',
+      endsOn: '2026-09-30',
+    })).toBeNull()
+  })
+
   it('opens replies Monday morning in the league time zone', () => {
     expect(getLeagueWeeklyDeliveryKind({
       now: new Date('2026-09-28T13:15:00Z'),
