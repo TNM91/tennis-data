@@ -1610,8 +1610,8 @@ export function LeagueCoordinatorWorkspace() {
   const responsivePageWrap = isMobile ? { ...pageWrap, ...mobilePageWrap } : pageWrap
   const responsivePanelCard = isCompactViewport ? { ...panelCard, ...mobilePanelCard, ...compactDetailsPanelStyle } : panelCard
   const responsiveRegistryPanel = isCompactViewport
-    ? { ...panelCard, ...mobilePanelCard, ...compactDetailsPanelStyle, ...mobileScrollablePanelStyle }
-    : panelCard
+    ? { ...panelCard, ...mobilePanelCard, ...compactDetailsPanelStyle, ...mobileScrollablePanelStyle, order: -1 }
+    : { ...panelCard, order: -1 }
   const responsiveCommandCard = isCompactViewport ? { ...commandCard, ...compactCommandCardStyle } : commandCard
   const responsiveResultBookPanel = isCompactViewport
     ? { ...resultBookPanelStyle, ...compactDetailsPanelStyle, ...mobileScrollablePanelStyle }
@@ -1783,6 +1783,7 @@ export function LeagueCoordinatorWorkspace() {
   const coordinatorResumeHref = getLeagueCoordinatorResumeHref(coordinatorResumeState)
   const coordinatorResumeIsAvailable = Boolean(
     coordinatorResumeHref &&
+    (coordinatorResumeState?.lastSurface !== 'setup' || !hasSavedLeague) &&
     (!coordinatorResumeState?.leagueId || coordinatorResumeLeague || coordinatorResumeState.lastSurface === 'tournament'),
   )
   const coordinatorContinueAction: RoleHomeAction | null =
@@ -1807,6 +1808,8 @@ export function LeagueCoordinatorWorkspace() {
       : null
 
   function handleLeagueHomeAction(action: Pick<RoleHomeAction, 'title' | 'href'>) {
+    if (action.href === '#league-registry') setSetupOpen(false)
+    if (action.href === '#league-setup-form') setSetupOpen(true)
     const surface: LeagueCoordinatorResumeSurface = action.href.includes('/messages')
       ? 'conversation'
       : action.href.includes('/league-coordinator/weekly')
@@ -2024,7 +2027,7 @@ export function LeagueCoordinatorWorkspace() {
                   Use only the fields needed to create the structure. Uploads, results, and rankings come after the league record is clear.
                 </p> : null}
               </div>
-              <span style={pillSlate}>{renewingFromLeagueId ? 'New season' : editingId ? 'Editing' : 'Open form'}</span>
+              <span style={pillSlate}>{renewingFromLeagueId ? 'New season' : editingId ? 'Editing' : setupOpen || isFirstLeagueSetup ? 'Close form' : 'Open form'}</span>
             </summary>
 
             {shouldShowLeagueUpgradePrompt ? (
