@@ -41,8 +41,10 @@ type WeeklySession = {
   status: 'collecting' | 'roster_confirmed' | 'published' | 'completed'
   roster: string[]
   assignments: LeagueWeeklyCourt[]
-  recap: { headline?: string; summary?: string; stories?: string[] }
+  recap: { headline?: string; summary?: string; stories?: string[]; sentAt?: string; sentCount?: number; emailCount?: number }
 }
+
+type RecapDraft = { headline: string; summary: string; stories: string[] }
 
 function nextThursday() {
   const date = new Date()
@@ -52,7 +54,7 @@ function nextThursday() {
 }
 
 export default function WeeklyLeagueWorkspace({ initialLeagueId }: { initialLeagueId: string }) {
-  const { authResolved, userId } = useAuth()
+  const { authResolved, session: authSession, userId } = useAuth()
   const [leagues, setLeagues] = useState<TiqLeagueRecord[]>([])
   const [leagueId, setLeagueId] = useState(initialLeagueId)
   const [playOn, setPlayOn] = useState(nextThursday)
@@ -63,6 +65,7 @@ export default function WeeklyLeagueWorkspace({ initialLeagueId }: { initialLeag
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
+  const [recapDraft, setRecapDraft] = useState<RecapDraft>({ headline: '', summary: '', stories: [] })
 
   const league = useMemo(() => leagues.find((record) => record.id === leagueId) || null, [leagueId, leagues])
   const inPlayers = useMemo(() => responses.filter((response) => response.response_status === 'in').map((response) => response.player_name), [responses])
@@ -88,6 +91,11 @@ export default function WeeklyLeagueWorkspace({ initialLeagueId }: { initialLeag
     }
     const nextSession = data as WeeklySession | null
     setSession(nextSession)
+    setRecapDraft({
+      headline: nextSession?.recap?.headline || '',
+      summary: nextSession?.recap?.summary || '',
+      stories: Array.isArray(nextSession?.recap?.stories) ? nextSession.recap.stories : [],
+    })
     setSelectedPlayers(Array.isArray(nextSession?.roster) ? nextSession.roster : [])
     if (!nextSession) {
       setResponses([])
@@ -209,11 +217,34 @@ export default function WeeklyLeagueWorkspace({ initialLeagueId }: { initialLeag
       })),
       stories: responses.map((response) => response.positive_share),
     })
+    setRecapDraft(recap)
+    await saveRecap('save', recap)
+  }
+
+  async function saveRecap(action: 'save' | 'send', draft = recapDraft) {
+    if (!league || !session || !authSession?.access_token) return
     setBusy(true)
-    const { error } = await supabase.from('tiq_league_weekly_sessions').update({ recap, status: 'completed' }).eq('id', session.id)
-    if (error) setStatus(error.message)
-    else await loadSession(league.id, playOn)
-    setBusy(false)
+    setStatus(action === 'send' ? 'Sending the approved recap…' : 'Saving recap draft…')
+    try {
+      const response = await fetch(`/api/leagues/weekly/sessions/${session.id}/recap`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authSession.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, recap: draft }),
+      })
+      const payload = await response.json() as { message?: string }
+      if (!response.ok) throw new Error(payload.message || 'The recap could not be saved.')
+      setStatus(payload.message || 'Recap saved.')
+      await loadSession(league.id, playOn)
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'The recap could not be saved.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function confirmAndSendRecap() {
+    if (!window.confirm('Send this recap to linked league players with email alerts turned on?')) return
+    void saveRecap('send')
   }
 
   const shareUrl = session && typeof window !== 'undefined' ? `${window.location.origin}/league-week/${session.public_token}` : ''
@@ -315,8 +346,19 @@ export default function WeeklyLeagueWorkspace({ initialLeagueId }: { initialLeag
               {session.assignments?.length ? (
                 <section style={panelStyle}>
                   <p style={eyebrowStyle}>4 · Weekly recap</p>
-                  {session.recap?.summary ? <><h2>{session.recap.headline}</h2><p>{session.recap.summary}</p>{session.recap.stories?.map((story) => <blockquote key={story}>“{story}”</blockquote>)}</> : <p>{results.length} of {session.assignments.length * 3} set scores are in. Player shares appear here with the tennis totals.</p>}
-                  <button onClick={() => void prepareRecap()} disabled={busy} style={buttonStyle}>Prepare recap</button>
+                  <h2>Celebrate the week, then send it</h2>
+                  <p>{results.length} of {session.assignments.length * 3} set scores are in. Generate a starting draft from the scores and player shares, then make it yours.</p>
+                  <div style={{ display: 'grid', gap: 12, margin: '16px 0' }}>
+                    <label style={labelStyle}>Headline<input value={recapDraft.headline} maxLength={120} onChange={(event) => setRecapDraft((current) => ({ ...current, headline: event.target.value }))} style={inputStyle} placeholder="A competitive night on every court" /></label>
+                    <label style={labelStyle}>Summary<textarea value={recapDraft.summary} maxLength={2000} rows={5} onChange={(event) => setRecapDraft((current) => ({ ...current, summary: event.target.value }))} style={{ ...inputStyle, resize: 'vertical' }} placeholder="Share the results, standout performances, and what made the night memorable." /></label>
+                    <label style={labelStyle}>Player moments<textarea value={recapDraft.stories.join('\n')} maxLength={6000} rows={4} onChange={(event) => setRecapDraft((current) => ({ ...current, stories: event.target.value.split('\n').map((story) => story.trim()).filter(Boolean).slice(0, 12) }))} style={{ ...inputStyle, resize: 'vertical' }} placeholder="One positive moment per line" /></label>
+                  </div>
+                  {session.recap?.sentAt ? <p style={sentNoticeStyle}>Shared with {session.recap.sentCount || 0} linked {session.recap.sentCount === 1 ? 'player' : 'players'} on {new Date(session.recap.sentAt).toLocaleDateString()}. {session.recap.emailCount || 0} received the email.</p> : null}
+                  <div style={actionRowStyle}>
+                    <button onClick={() => void prepareRecap()} disabled={busy} style={secondaryButtonStyle}>Generate draft</button>
+                    <button onClick={() => void saveRecap('save')} disabled={busy || !recapDraft.headline.trim() || !recapDraft.summary.trim()} style={secondaryButtonStyle}>Save draft</button>
+                    <button onClick={confirmAndSendRecap} disabled={busy || Boolean(session.recap?.sentAt) || !recapDraft.headline.trim() || !recapDraft.summary.trim()} style={buttonStyle}>{session.recap?.sentAt ? 'Recap sent' : 'Send recap'}</button>
+                  </div>
                 </section>
               ) : null}
             </>
@@ -347,3 +389,6 @@ const playerGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: '
 const playerStyle: CSSProperties = { display: 'flex', gap: 10, alignItems: 'flex-start', padding: 12, border: '1px solid #dce4df', borderRadius: 12 }
 const courtGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(245px, 1fr))', gap: 12 }
 const courtStyle: CSSProperties = { padding: 16, borderRadius: 14, background: '#f4f8f5', border: '1px solid #dce4df' }
+const actionRowStyle: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
+const secondaryButtonStyle: CSSProperties = { ...buttonStyle, background: '#e7f4ee', color: '#126044' }
+const sentNoticeStyle: CSSProperties = { padding: 12, borderRadius: 10, background: '#e7f4ee', color: '#126044', fontWeight: 700 }
