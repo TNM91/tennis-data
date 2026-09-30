@@ -166,8 +166,8 @@ const LEAGUE_HOME_QUICK_ACTIONS: readonly RoleHomeQuickAction[] = [
     icon: 'teamRankings',
   },
   {
-    title: 'Participants',
-    detail: 'Review teams, players, and requests.',
+    title: 'Manage leagues',
+    detail: 'Edit, renew, transfer, or delete a season.',
     href: '#league-registry',
     icon: 'playerRatings',
   },
@@ -3032,13 +3032,13 @@ export function LeagueCoordinatorWorkspace() {
           </details>
 
           {hasSavedLeague ? (
-            <details className="leagueCoordinatorDetailsSection" id="league-registry" style={responsiveRegistryPanel} open={!isCompactViewport}>
+            <details className="leagueCoordinatorDetailsSection" id="league-registry" style={responsiveRegistryPanel} open>
             <summary style={responsiveOptionalSummary}>
               <div style={leagueOpsHeaderCopyStyle}>
-                <div style={sectionEyebrow}>League registry</div>
-                <h2 style={responsiveSectionTitleStyle}>{LEAGUE_COORDINATOR_STORY.registryTitle}</h2>
+                <div style={sectionEyebrow}>League management</div>
+                <h2 style={responsiveSectionTitleStyle}>Manage saved leagues</h2>
               </div>
-              <span style={pillSlate}>{records.length} leagues</span>
+              <span style={pillSlate}>{records.length} saved</span>
             </summary>
             <div style={leagueOpsHeaderCopyStyle}>
               <div style={sectionEyebrow}>League registry</div>
