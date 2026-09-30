@@ -68,9 +68,36 @@ export type LeagueWeeklyScorecardWeek = {
   courts: LeagueWeeklyScorecardCourt[]
 }
 
+export type LeagueWeeklyPlayerPartner = {
+  playerName: string
+  setsPlayed: number
+  wins: number
+  losses: number
+  winPercentage: number
+  gameDifferential: number
+}
+
+export type LeagueWeeklyPlayerWeek = {
+  sessionId: string
+  playOn: string
+  wins: number
+  losses: number
+  gameDifferential: number
+  courtNumbers: number[]
+  partners: string[]
+}
+
+export type LeagueWeeklyPlayerInsight = LeagueWeeklyStanding & {
+  currentStreak: { outcome: 'W' | 'L'; count: number } | null
+  recentForm: Array<'W' | 'L'>
+  partners: LeagueWeeklyPlayerPartner[]
+  weeks: LeagueWeeklyPlayerWeek[]
+}
+
 export type LeagueWeeklyCompetitionView = {
   summary: { weeks: number; acceptedSets: number; players: number; totalGames: number }
   standings: LeagueWeeklyStanding[]
+  playerInsights: LeagueWeeklyPlayerInsight[]
   weeks: LeagueWeeklyScorecardWeek[]
 }
 
@@ -79,6 +106,17 @@ function normalize(value: string | null | undefined) {
 }
 
 type Standing = { name: string; wins: number; losses: number; sessionIds: Set<string> }
+
+type PlayerSetEvent = {
+  sessionId: string
+  playOn: string
+  setNumber: number
+  courtNumber: number
+  won: boolean
+  gamesWon: number
+  gamesLost: number
+  partners: string[]
+}
 
 function isAcceptedResult(result: LeagueWeeklyRecordSetResult, sessionsById: Map<string, LeagueWeeklyRecordSession>) {
   const session = sessionsById.get(result.session_id)
@@ -168,6 +206,7 @@ export function buildLeagueWeeklyCompetitionView(input: {
   const sessionsById = new Map(sessions.map((session) => [session.id, session]))
   const acceptedResults = input.results.filter((result) => isAcceptedResult(result, sessionsById))
   const standings = new Map<string, Standing & { gamesWon: number; gamesLost: number }>()
+  const eventsByPlayer = new Map<string, PlayerSetEvent[]>()
 
   for (const playerName of input.playerNames || []) {
     const key = normalize(playerName)
@@ -190,12 +229,36 @@ export function buildLeagueWeeklyCompetitionView(input: {
     standings.set(key, current)
   }
 
+  function addEvent(playerName: string, teammates: string[], result: LeagueWeeklyRecordSetResult, won: boolean, gamesWon: number, gamesLost: number) {
+    const key = normalize(playerName)
+    const session = sessionsById.get(result.session_id)
+    if (!session) return
+    const events = eventsByPlayer.get(key) || []
+    events.push({
+      sessionId: result.session_id,
+      playOn: session.play_on || '',
+      setNumber: Number.isInteger(Number(result.set_number)) ? Number(result.set_number) : 0,
+      courtNumber: Number.isInteger(Number(result.court_number)) ? Number(result.court_number) : 0,
+      won,
+      gamesWon,
+      gamesLost,
+      partners: teammates.filter((teammate) => normalize(teammate) !== key),
+    })
+    eventsByPlayer.set(key, events)
+  }
+
   for (const result of acceptedResults) {
     const sideA = (result.side_a_players || []).filter((name) => normalize(name))
     const sideB = (result.side_b_players || []).filter((name) => normalize(name))
     const sideAWon = result.side_a_games > result.side_b_games
-    for (const playerName of sideA) addPlayer(playerName, sideAWon, result.side_a_games, result.side_b_games, result.session_id)
-    for (const playerName of sideB) addPlayer(playerName, !sideAWon, result.side_b_games, result.side_a_games, result.session_id)
+    for (const playerName of sideA) {
+      addPlayer(playerName, sideAWon, result.side_a_games, result.side_b_games, result.session_id)
+      addEvent(playerName, sideA, result, sideAWon, result.side_a_games, result.side_b_games)
+    }
+    for (const playerName of sideB) {
+      addPlayer(playerName, !sideAWon, result.side_b_games, result.side_a_games, result.session_id)
+      addEvent(playerName, sideB, result, !sideAWon, result.side_b_games, result.side_a_games)
+    }
   }
 
   const rankedStandings: LeagueWeeklyStanding[] = [...standings.values()]
@@ -220,6 +283,82 @@ export function buildLeagueWeeklyCompetitionView(input: {
         winPercentage: setsPlayed ? Math.round((standing.wins / setsPlayed) * 100) : 0,
       }
     })
+
+  const playerInsights = rankedStandings.map((standing): LeagueWeeklyPlayerInsight => {
+    const events = [...(eventsByPlayer.get(normalize(standing.playerName)) || [])].sort((left, right) => (
+      left.playOn.localeCompare(right.playOn) ||
+      left.sessionId.localeCompare(right.sessionId) ||
+      left.setNumber - right.setNumber ||
+      left.courtNumber - right.courtNumber
+    ))
+    const lastEvent = events.at(-1)
+    let streakCount = 0
+    if (lastEvent) {
+      for (let index = events.length - 1; index >= 0 && events[index].won === lastEvent.won; index -= 1) streakCount += 1
+    }
+
+    const partners = new Map<string, { name: string; wins: number; losses: number; gamesWon: number; gamesLost: number }>()
+    const weeks = new Map<string, { playOn: string; wins: number; losses: number; gamesWon: number; gamesLost: number; courts: Set<number>; partners: Map<string, string> }>()
+    for (const event of events) {
+      const week = weeks.get(event.sessionId) || {
+        playOn: event.playOn,
+        wins: 0,
+        losses: 0,
+        gamesWon: 0,
+        gamesLost: 0,
+        courts: new Set<number>(),
+        partners: new Map<string, string>(),
+      }
+      if (event.won) week.wins += 1
+      else week.losses += 1
+      week.gamesWon += event.gamesWon
+      week.gamesLost += event.gamesLost
+      if (event.courtNumber > 0) week.courts.add(event.courtNumber)
+
+      for (const partnerName of event.partners) {
+        const partnerKey = normalize(partnerName)
+        if (!partnerKey) continue
+        week.partners.set(partnerKey, partnerName.trim())
+        const partner = partners.get(partnerKey) || { name: partnerName.trim(), wins: 0, losses: 0, gamesWon: 0, gamesLost: 0 }
+        if (event.won) partner.wins += 1
+        else partner.losses += 1
+        partner.gamesWon += event.gamesWon
+        partner.gamesLost += event.gamesLost
+        partners.set(partnerKey, partner)
+      }
+      weeks.set(event.sessionId, week)
+    }
+
+    return {
+      ...standing,
+      currentStreak: lastEvent ? { outcome: lastEvent.won ? 'W' : 'L', count: streakCount } : null,
+      recentForm: events.slice(-5).map((event) => event.won ? 'W' : 'L'),
+      partners: [...partners.values()]
+        .map((partner) => {
+          const setsPlayed = partner.wins + partner.losses
+          return {
+            playerName: partner.name,
+            setsPlayed,
+            wins: partner.wins,
+            losses: partner.losses,
+            winPercentage: setsPlayed ? Math.round((partner.wins / setsPlayed) * 100) : 0,
+            gameDifferential: partner.gamesWon - partner.gamesLost,
+          }
+        })
+        .sort((left, right) => right.setsPlayed - left.setsPlayed || right.wins - left.wins || left.playerName.localeCompare(right.playerName)),
+      weeks: [...weeks.entries()]
+        .map(([sessionId, week]) => ({
+          sessionId,
+          playOn: week.playOn,
+          wins: week.wins,
+          losses: week.losses,
+          gameDifferential: week.gamesWon - week.gamesLost,
+          courtNumbers: [...week.courts].sort((left, right) => left - right),
+          partners: [...week.partners.values()].sort((left, right) => left.localeCompare(right)),
+        }))
+        .sort((left, right) => right.playOn.localeCompare(left.playOn) || right.sessionId.localeCompare(left.sessionId)),
+    }
+  })
 
   const weeks = sessions
     .map((session): LeagueWeeklyScorecardWeek => {
@@ -259,6 +398,7 @@ export function buildLeagueWeeklyCompetitionView(input: {
       totalGames: acceptedResults.reduce((total, result) => total + result.side_a_games + result.side_b_games, 0),
     },
     standings: rankedStandings,
+    playerInsights,
     weeks,
   }
 }

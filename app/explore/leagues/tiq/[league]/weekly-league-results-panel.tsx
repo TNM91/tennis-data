@@ -1,5 +1,7 @@
-import type { CSSProperties } from 'react'
-import type { LeagueWeeklyCompetitionView } from '@/lib/league-weekly-player-records'
+'use client'
+
+import { useState, type CSSProperties } from 'react'
+import type { LeagueWeeklyCompetitionView, LeagueWeeklyPlayerInsight } from '@/lib/league-weekly-player-records'
 
 export default function WeeklyLeagueResultsPanel({
   view,
@@ -10,6 +12,10 @@ export default function WeeklyLeagueResultsPanel({
   loading: boolean
   error: string
 }) {
+  const [selectedPlayerName, setSelectedPlayerName] = useState('')
+  const playerInsights = view?.playerInsights || []
+  const selectedPlayer = playerInsights.find((player) => player.playerName === selectedPlayerName) || playerInsights[0] || null
+
   return (
     <section id="weekly-league-results" style={panelStyle} aria-labelledby="weekly-league-results-title">
       <div style={headerStyle}>
@@ -53,7 +59,17 @@ export default function WeeklyLeagueResultsPanel({
                     {view.standings.map((standing) => (
                       <tr key={standing.playerName}>
                         <td style={rankCellStyle}>{standing.rank}</td>
-                        <td style={playerCellStyle}>{standing.playerName}</td>
+                        <td style={playerCellStyle}>
+                          <button
+                            type="button"
+                            aria-pressed={selectedPlayer?.playerName === standing.playerName}
+                            aria-label={`View ${standing.playerName}'s league profile`}
+                            onClick={() => setSelectedPlayerName(standing.playerName)}
+                            style={selectedPlayer?.playerName === standing.playerName ? activePlayerButtonStyle : playerButtonStyle}
+                          >
+                            {standing.playerName}
+                          </button>
+                        </td>
                         <td style={winCellStyle}>{standing.wins}</td>
                         <td style={metricCellStyle}>{standing.losses}</td>
                         <td style={metricCellStyle}>{standing.setsPlayed}</td>
@@ -67,6 +83,8 @@ export default function WeeklyLeagueResultsPanel({
               </div>
             ) : <div style={emptyStyle}>Standings begin after the first confirmed set.</div>}
           </div>
+
+          {selectedPlayer ? <PlayerInsight player={selectedPlayer} /> : null}
 
           <div style={subsectionStyle}>
             <div style={subsectionHeaderStyle}>
@@ -114,6 +132,88 @@ export default function WeeklyLeagueResultsPanel({
   )
 }
 
+function PlayerInsight({ player }: { player: LeagueWeeklyPlayerInsight }) {
+  return (
+    <section style={playerInsightStyle} aria-labelledby="weekly-player-insight-title">
+      <div style={playerInsightHeaderStyle}>
+        <div>
+          <div style={eyebrowStyle}>Player spotlight</div>
+          <h3 id="weekly-player-insight-title" style={playerInsightTitleStyle}>{player.playerName}</h3>
+          <p style={subsectionBodyStyle}>Select another player in the standings to compare their league story.</p>
+        </div>
+        <span style={rankPillStyle}>Rank #{player.rank}</span>
+      </div>
+
+      <div style={playerMetricGridStyle}>
+        <PlayerMetric label="Record" value={`${player.wins}–${player.losses}`} />
+        <PlayerMetric label="Win rate" value={`${player.winPercentage}%`} />
+        <PlayerMetric label="Game +/-" value={formatDifferential(player.gameDifferential)} />
+        <PlayerMetric label="Current run" value={player.currentStreak ? `${player.currentStreak.count}${player.currentStreak.outcome}` : '—'} />
+      </div>
+
+      <div style={insightGridStyle}>
+        <div style={insightCardStyle}>
+          <div style={insightHeadingRowStyle}>
+            <div>
+              <strong style={insightTitleStyle}>Recent form</strong>
+              <small style={insightLabelStyle}>Last five accepted sets</small>
+            </div>
+            <div style={formRowStyle} aria-label={player.recentForm.length ? `Recent form ${player.recentForm.join(', ')}` : 'No recent form'}>
+              {player.recentForm.length ? player.recentForm.map((outcome, index) => (
+                <span key={`${outcome}-${index}`} style={outcome === 'W' ? winBadgeStyle : lossBadgeStyle}>{outcome}</span>
+              )) : <span style={mutedValueStyle}>No sets yet</span>}
+            </div>
+          </div>
+
+          <div style={dividerStyle} />
+          <strong style={insightTitleStyle}>Partner combinations</strong>
+          {player.partners.length ? (
+            <div style={partnerListStyle}>
+              {player.partners.map((partner) => (
+                <div key={partner.playerName} style={partnerRowStyle}>
+                  <span style={partnerNameStyle}>{partner.playerName}</span>
+                  <span style={partnerRecordStyle}>{partner.wins}–{partner.losses}</span>
+                  <span style={partnerMetaStyle}>{partner.setsPlayed} {partner.setsPlayed === 1 ? 'set' : 'sets'} · {partner.winPercentage}% · {formatDifferential(partner.gameDifferential)}</span>
+                </div>
+              ))}
+            </div>
+          ) : <div style={insightEmptyStyle}>Partner results appear after this player records a set.</div>}
+        </div>
+
+        <div style={insightCardStyle}>
+          <div>
+            <strong style={insightTitleStyle}>Weekly court history</strong>
+            <small style={insightLabelStyle}>Newest week first</small>
+          </div>
+          {player.weeks.length ? (
+            <div style={historyListStyle}>
+              {player.weeks.map((week) => (
+                <div key={week.sessionId} style={historyRowStyle}>
+                  <div>
+                    <strong style={historyDateStyle}>{formatPlayDate(week.playOn)}</strong>
+                    <small style={historyMetaStyle}>
+                      {week.courtNumbers.length ? week.courtNumbers.map((court) => `Court ${court}`).join(', ') : 'Court pending'}
+                      {week.partners.length ? ` · with ${week.partners.join(', ')}` : ''}
+                    </small>
+                  </div>
+                  <div style={historyResultStyle}>
+                    <strong>{week.wins}–{week.losses}</strong>
+                    <small>{formatDifferential(week.gameDifferential)} games</small>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : <div style={insightEmptyStyle}>Court history begins after this player records a set.</div>}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function PlayerMetric({ label, value }: { label: string; value: string }) {
+  return <div style={playerMetricStyle}><span>{label}</span><strong>{value}</strong></div>
+}
+
 function SummaryMetric({ label, value }: { label: string; value: number }) {
   return <div style={summaryCardStyle}><span>{label}</span><strong style={summaryValueStyle}>{value}</strong></div>
 }
@@ -148,6 +248,8 @@ const headerCellStyle: CSSProperties = { padding: '10px 11px', borderBottom: '1p
 const metricCellStyle: CSSProperties = { padding: '11px', borderBottom: '1px solid var(--shell-panel-border)', color: 'var(--foreground-strong)', fontSize: 12, fontWeight: 800, textAlign: 'center' }
 const rankCellStyle: CSSProperties = { ...metricCellStyle, width: 52, color: 'var(--brand-blue-2)', fontWeight: 950 }
 const playerCellStyle: CSSProperties = { ...metricCellStyle, minWidth: 180, textAlign: 'left', fontSize: 13, fontWeight: 950 }
+const playerButtonStyle: CSSProperties = { appearance: 'none', width: '100%', padding: '7px 9px', border: '1px solid transparent', borderRadius: 10, background: 'transparent', color: 'var(--foreground-strong)', font: 'inherit', fontWeight: 950, textAlign: 'left', cursor: 'pointer' }
+const activePlayerButtonStyle: CSSProperties = { ...playerButtonStyle, border: '1px solid color-mix(in srgb, var(--brand-green) 40%, var(--shell-panel-border) 60%)', background: 'color-mix(in srgb, var(--brand-green) 11%, var(--shell-panel-bg) 89%)', color: 'var(--brand-green)' }
 const winCellStyle: CSSProperties = { ...metricCellStyle, color: 'var(--brand-green)', fontWeight: 950 }
 const positiveCellStyle: CSSProperties = { ...metricCellStyle, color: 'var(--brand-green)' }
 const emptyStyle: CSSProperties = { padding: 16, borderRadius: 15, border: '1px dashed var(--shell-panel-border)', color: 'var(--shell-copy-muted)', fontSize: 13, lineHeight: 1.45 }
@@ -166,3 +268,30 @@ const setLabelStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSiz
 const sideStyle: CSSProperties = { minWidth: 0, color: 'var(--foreground-strong)', fontSize: 11, fontWeight: 750, lineHeight: 1.35, overflowWrap: 'anywhere' }
 const scoreStyle: CSSProperties = { minWidth: 38, color: 'var(--brand-green)', fontSize: 14, textAlign: 'center' }
 const weekEmptyStyle: CSSProperties = { padding: '0 13px 13px', color: 'var(--shell-copy-muted)', fontSize: 12 }
+const playerInsightStyle: CSSProperties = { display: 'grid', gap: 13, minWidth: 0, padding: 16, borderRadius: 18, border: '1px solid color-mix(in srgb, var(--brand-blue-2) 24%, var(--shell-panel-border) 76%)', background: 'linear-gradient(145deg, color-mix(in srgb, var(--brand-blue-2) 7%, var(--shell-chip-bg) 93%), var(--shell-panel-bg))' }
+const playerInsightHeaderStyle: CSSProperties = { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }
+const playerInsightTitleStyle: CSSProperties = { margin: 0, color: 'var(--foreground-strong)', fontSize: 21, lineHeight: 1.15 }
+const rankPillStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', minHeight: 30, padding: '0 11px', borderRadius: 999, background: 'color-mix(in srgb, var(--brand-blue-2) 14%, var(--shell-chip-bg) 86%)', color: 'var(--brand-blue-2)', fontSize: 11, fontWeight: 950, textTransform: 'uppercase' }
+const playerMetricGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 105px), 1fr))', gap: 8 }
+const playerMetricStyle: CSSProperties = { display: 'grid', gap: 3, minWidth: 0, padding: 11, borderRadius: 13, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--shell-copy-muted)', fontSize: 10, fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase' }
+const insightGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 10 }
+const insightCardStyle: CSSProperties = { display: 'grid', alignContent: 'start', gap: 10, minWidth: 0, padding: 13, borderRadius: 15, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)' }
+const insightHeadingRowStyle: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }
+const insightTitleStyle: CSSProperties = { display: 'block', color: 'var(--foreground-strong)', fontSize: 13 }
+const insightLabelStyle: CSSProperties = { display: 'block', marginTop: 2, color: 'var(--shell-copy-muted)', fontSize: 10, fontWeight: 750 }
+const formRowStyle: CSSProperties = { display: 'flex', gap: 5, alignItems: 'center' }
+const winBadgeStyle: CSSProperties = { display: 'inline-grid', width: 25, height: 25, placeItems: 'center', borderRadius: 999, background: 'color-mix(in srgb, var(--brand-green) 18%, var(--shell-panel-bg) 82%)', color: 'var(--brand-green)', fontSize: 11, fontWeight: 950 }
+const lossBadgeStyle: CSSProperties = { ...winBadgeStyle, background: 'color-mix(in srgb, #ef4444 13%, var(--shell-panel-bg) 87%)', color: '#dc2626' }
+const mutedValueStyle: CSSProperties = { color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 750 }
+const dividerStyle: CSSProperties = { height: 1, background: 'var(--shell-panel-border)' }
+const partnerListStyle: CSSProperties = { display: 'grid', gap: 7 }
+const partnerRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: '2px 10px', minWidth: 0, padding: '9px 10px', borderRadius: 11, background: 'var(--shell-panel-bg)' }
+const partnerNameStyle: CSSProperties = { minWidth: 0, color: 'var(--foreground-strong)', fontSize: 12, fontWeight: 900, overflowWrap: 'anywhere' }
+const partnerRecordStyle: CSSProperties = { color: 'var(--brand-green)', fontSize: 12, fontWeight: 950 }
+const partnerMetaStyle: CSSProperties = { gridColumn: '1 / -1', color: 'var(--shell-copy-muted)', fontSize: 10, fontWeight: 750 }
+const insightEmptyStyle: CSSProperties = { padding: 11, borderRadius: 11, border: '1px dashed var(--shell-panel-border)', color: 'var(--shell-copy-muted)', fontSize: 11, lineHeight: 1.4 }
+const historyListStyle: CSSProperties = { display: 'grid', gap: 7 }
+const historyRowStyle: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, minWidth: 0, padding: '9px 10px', borderRadius: 11, background: 'var(--shell-panel-bg)' }
+const historyDateStyle: CSSProperties = { display: 'block', color: 'var(--foreground-strong)', fontSize: 11 }
+const historyMetaStyle: CSSProperties = { display: 'block', marginTop: 3, color: 'var(--shell-copy-muted)', fontSize: 10, fontWeight: 700, lineHeight: 1.35, overflowWrap: 'anywhere' }
+const historyResultStyle: CSSProperties = { display: 'grid', flex: '0 0 auto', gap: 2, color: 'var(--brand-green)', fontSize: 12, fontWeight: 950, textAlign: 'right' }

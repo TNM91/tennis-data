@@ -80,6 +80,32 @@ describe('weekly league player records', () => {
     expect(view.summary).toEqual({ weeks: 2, acceptedSets: 2, players: 5, totalGames: 19 })
     expect(view.standings[0]).toMatchObject({ rank: 1, playerName: 'Blair', wins: 2, losses: 0, gamesWon: 12, gamesLost: 7, gameDifferential: 5, winPercentage: 100 })
     expect(view.standings.find((standing) => standing.playerName === 'Emery')).toMatchObject({ wins: 0, losses: 0, setsPlayed: 0, weeksPlayed: 0 })
+    expect(view.playerInsights.find((player) => player.playerName === 'Alex Player')).toMatchObject({
+      rank: 3,
+      wins: 1,
+      losses: 1,
+      currentStreak: { outcome: 'W', count: 1 },
+      recentForm: ['L', 'W'],
+      partners: [
+        { playerName: 'Blair', setsPlayed: 1, wins: 1, losses: 0, winPercentage: 100, gameDifferential: 2 },
+        { playerName: 'Casey', setsPlayed: 1, wins: 0, losses: 1, winPercentage: 0, gameDifferential: -3 },
+      ],
+      weeks: [{
+        sessionId: 'week-1',
+        playOn: '2026-09-17',
+        wins: 1,
+        losses: 1,
+        gameDifferential: -1,
+        courtNumbers: [2],
+        partners: ['Blair', 'Casey'],
+      }],
+    })
+    expect(view.playerInsights.find((player) => player.playerName === 'Emery')).toMatchObject({
+      currentStreak: null,
+      recentForm: [],
+      partners: [],
+      weeks: [],
+    })
     expect(view.weeks.map((week) => week.playOn)).toEqual(['2026-09-24', '2026-09-17'])
     expect(view.weeks[0]).toMatchObject({ acceptedSetCount: 0, courts: [] })
     expect(view.weeks[1].courts[0]).toMatchObject({ courtNumber: 2, sets: [{ setNumber: 1 }, { setNumber: 2 }] })
