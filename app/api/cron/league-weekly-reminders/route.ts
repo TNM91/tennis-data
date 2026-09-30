@@ -153,7 +153,7 @@ async function deliverSession(service: SupabaseClient, session: WeeklySessionRow
       recipient_profile_id: profileId,
       actor_user_id: league.created_by_user_id,
       notification_type: 'schedule',
-      title: email.heading,
+      title: `${league.league_name}: ${email.heading}`,
       body: email.body,
       href: `/league-week/${session.public_token}`,
     })
