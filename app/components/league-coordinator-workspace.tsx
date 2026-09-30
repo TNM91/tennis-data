@@ -117,7 +117,12 @@ import {
   DEFAULT_LEAGUE_WEEKLY_SETTINGS,
   normalizeLeagueWeeklySettings,
 } from '@/lib/league-weekly-format'
+import {
+  buildLeagueWeeklyHomeView,
+  type LeagueWeeklyHomeSnapshot,
+} from '@/lib/league-weekly-home'
 import { buildTiqLeagueSchedulingPlanRows, getTiqLeagueSchedulingHandoffSummary } from '@/lib/tiq-league-calendar'
+import { supabase } from '@/lib/supabase'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import {
   buildTiqAwardCertificateText,
@@ -438,6 +443,10 @@ export function LeagueCoordinatorWorkspace() {
   const [leagueAwardRefresh, setLeagueAwardRefresh] = useState(0)
   const [coordinatorResumeState, setCoordinatorResumeState] = useState<LeagueCoordinatorResumeState | null>(null)
   const [coordinatorResumeResolved, setCoordinatorResumeResolved] = useState(false)
+  const [weeklyHomeState, setWeeklyHomeState] = useState<{
+    leagueId: string
+    snapshot: LeagueWeeklyHomeSnapshot | null
+  } | null>(null)
 
   function dismissLeagueSetupConfirmation() {
     setLastSavedRecord(null)
@@ -755,6 +764,93 @@ export function LeagueCoordinatorWorkspace() {
   const latestRecord = [...records].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   )[0]
+  const coordinatorResumeLeague = coordinatorResumeState?.leagueId
+    ? records.find((record) => record.id === coordinatorResumeState.leagueId) || null
+    : null
+  const leagueHomeRecord = coordinatorResumeLeague || latestRecord || null
+  const weeklyHomeLeague = leagueHomeRecord?.weeklySettings.enabled ? leagueHomeRecord : null
+  const weeklyHomeLeagueId = weeklyHomeLeague?.id || ''
+
+  useEffect(() => {
+    if (!authResolved || !userId || !weeklyHomeLeagueId) return
+
+    let active = true
+    const targetLeagueId = weeklyHomeLeagueId
+
+    async function loadWeeklyHomeState() {
+      const oldestRelevantDate = new Date()
+      oldestRelevantDate.setDate(oldestRelevantDate.getDate() - 7)
+
+      const { data: sessionRow, error: sessionError } = await supabase
+        .from('tiq_league_weekly_sessions')
+        .select('id,play_on,status,roster,assignments,recap')
+        .eq('league_id', targetLeagueId)
+        .gte('play_on', oldestRelevantDate.toISOString().slice(0, 10))
+        .order('play_on', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (!active) return
+      if (sessionError || !sessionRow) {
+        setWeeklyHomeState({ leagueId: targetLeagueId, snapshot: null })
+        return
+      }
+
+      const [responseResult, scoreResult] = await Promise.all([
+        supabase
+          .from('tiq_league_weekly_responses')
+          .select('response_status,positive_share')
+          .eq('session_id', sessionRow.id),
+        supabase
+          .from('tiq_league_weekly_set_results')
+          .select('review_status')
+          .eq('session_id', sessionRow.id),
+      ])
+      if (!active) return
+
+      const responses = responseResult.data || []
+      const results = scoreResult.data || []
+      const roster = Array.isArray(sessionRow.roster) ? sessionRow.roster : []
+      const assignments = Array.isArray(sessionRow.assignments) ? sessionRow.assignments : []
+      const recap = sessionRow.recap && typeof sessionRow.recap === 'object' && !Array.isArray(sessionRow.recap)
+        ? sessionRow.recap as Record<string, unknown>
+        : {}
+      const expectedSetCount = assignments.reduce((total, court) => {
+        if (!court || typeof court !== 'object' || Array.isArray(court)) return total
+        const sets = (court as { sets?: unknown }).sets
+        return total + (Array.isArray(sets) ? sets.length : 0)
+      }, 0)
+
+      setWeeklyHomeState({
+        leagueId: targetLeagueId,
+        snapshot: {
+          leagueId: targetLeagueId,
+          playOn: sessionRow.play_on,
+          status: sessionRow.status,
+          inCount: responses.filter((response) => response.response_status === 'in').length,
+          outCount: responses.filter((response) => response.response_status === 'out').length,
+          rosterCount: roster.length,
+          courtCount: assignments.length,
+          acceptedSetCount: results.filter((result) => result.review_status === 'confirmed' || result.review_status === 'approved').length,
+          expectedSetCount,
+          storyCount: responses.filter((response) => typeof response.positive_share === 'string' && response.positive_share.trim()).length,
+          recapSent: typeof recap.sentAt === 'string' && Boolean(recap.sentAt.trim()),
+        },
+      })
+    }
+
+    void loadWeeklyHomeState()
+    return () => {
+      active = false
+    }
+  }, [authResolved, userId, weeklyHomeLeagueId])
+
+  const weeklyHomeSnapshot = weeklyHomeLeagueId && weeklyHomeState?.leagueId === weeklyHomeLeagueId
+    ? weeklyHomeState.snapshot
+    : null
+  const weeklyHomeView = weeklyHomeLeagueId && weeklyHomeState?.leagueId === weeklyHomeLeagueId
+    ? buildLeagueWeeklyHomeView(weeklyHomeLeagueId, weeklyHomeSnapshot)
+    : null
   const hasSavedLeague = records.length > 0
   const isFirstLeagueSetup = registryLoaded && canUseLeagueTools && !hasSavedLeague
   const knownTeamOptions = useMemo(
@@ -977,9 +1073,13 @@ export function LeagueCoordinatorWorkspace() {
     : '#league-setup-form'
   const leagueHomeQuickActions = useMemo(
     () => LEAGUE_HOME_QUICK_ACTIONS.map((action) => (
-      action.title === 'Results' ? { ...action, href: resultEntryHref } : action
+      action.title === 'Run weekly play' && weeklyHomeLeagueId
+        ? { ...action, href: weeklyHomeView?.href || `/league-coordinator/weekly?leagueId=${encodeURIComponent(weeklyHomeLeagueId)}` }
+        : action.title === 'Results'
+          ? { ...action, href: resultEntryHref }
+          : action
     )),
-    [resultEntryHref],
+    [resultEntryHref, weeklyHomeLeagueId, weeklyHomeView?.href],
   )
   const resultReadinessDetail =
     teamLeagues.length > 0 && individualLeagues.length > 0
@@ -1644,6 +1744,15 @@ export function LeagueCoordinatorWorkspace() {
           cta: 'See plan',
           icon: 'teamRankings',
         }
+      : weeklyHomeView
+        ? {
+            label: weeklyHomeView.label,
+            title: weeklyHomeView.title,
+            detail: weeklyHomeView.detail,
+            href: weeklyHomeView.href,
+            cta: weeklyHomeView.cta,
+            icon: 'schedule',
+          }
       : {
           label: isFirstLeagueSetup ? 'Start here' : 'Next up',
           title: sharedSchedulerNextMove.label,
@@ -1653,9 +1762,6 @@ export function LeagueCoordinatorWorkspace() {
           icon: resultQueueItemCount > 0 ? 'reports' : pendingEntryRequestCount > 0 ? 'alerts' : 'schedule',
         }
   const coordinatorResumeHref = getLeagueCoordinatorResumeHref(coordinatorResumeState)
-  const coordinatorResumeLeague = coordinatorResumeState?.leagueId
-    ? records.find((record) => record.id === coordinatorResumeState.leagueId) || null
-    : null
   const coordinatorResumeIsAvailable = Boolean(
     coordinatorResumeHref &&
     (!coordinatorResumeState?.leagueId || coordinatorResumeLeague || coordinatorResumeState.lastSurface === 'tournament'),
@@ -1684,6 +1790,8 @@ export function LeagueCoordinatorWorkspace() {
   function handleLeagueHomeAction(action: Pick<RoleHomeAction, 'title' | 'href'>) {
     const surface: LeagueCoordinatorResumeSurface = action.href.includes('/messages')
       ? 'conversation'
+      : action.href.includes('/league-coordinator/weekly')
+        ? 'weekly'
       : action.href.includes('/tournaments')
         ? 'tournament'
         : action.href.includes('/individual-results')
@@ -1693,7 +1801,7 @@ export function LeagueCoordinatorWorkspace() {
             : action.href.includes('league-setup-form')
               ? 'setup'
               : 'hub'
-    const league = coordinatorResumeLeague || latestRecord || null
+    const league = weeklyHomeLeague || coordinatorResumeLeague || latestRecord || null
     const nextState: LeagueCoordinatorResumeState = {
       ...(league
         ? { leagueId: league.id, leagueName: league.leagueName, leagueFormat: league.leagueFormat }
@@ -1706,32 +1814,41 @@ export function LeagueCoordinatorWorkspace() {
     if (saved) setCoordinatorResumeState(saved)
     void syncLeagueCoordinatorResumeState(nextState, userId, session?.access_token)
   }
-  const displayedLeagueHomeAction = coordinatorContinueAction || leagueHomeAction
+  const displayedLeagueHomeAction = weeklyHomeView ? leagueHomeAction : coordinatorContinueAction || leagueHomeAction
   const leagueHomeProgressBase = [
     { label: 'Setup', complete: hasSavedLeague },
-    { label: latestRecord?.weeklySettings.enabled ? 'Roster' : 'Players', complete: activeParticipantCount > 0 },
-    { label: latestRecord?.weeklySettings.enabled ? 'Courts' : 'Schedule', complete: scheduleReadyLeagueCount > 0 },
+    { label: 'Players', complete: activeParticipantCount > 0 },
+    { label: 'Schedule', complete: scheduleReadyLeagueCount > 0 },
     { label: 'Scores', complete: teamResultEventCount + individualResultCount > 0 },
     { label: 'Publish', complete: publicReadyLeagueCount > 0 },
   ]
   const leagueHomeCurrentProgressIndex = leagueHomeProgressBase.findIndex((item) => !item.complete)
-  const leagueHomeProgress = leagueHomeProgressBase.map((item, index) => ({
-    ...item,
-    current: index === (leagueHomeCurrentProgressIndex < 0 ? leagueHomeProgressBase.length - 1 : leagueHomeCurrentProgressIndex),
-  }))
+  const leagueHomeProgress = weeklyHomeView?.progress || leagueHomeProgressBase.map((item, index) => ({
+      ...item,
+      current: index === (leagueHomeCurrentProgressIndex < 0 ? leagueHomeProgressBase.length - 1 : leagueHomeCurrentProgressIndex),
+    }))
   const leagueHomePulse = [
-    {
-      label: latestRecord?.weeklySettings.enabled ? 'Weekly roster' : 'Competitors',
-      value: activeParticipantCount > 0 ? `${activeParticipantCount} active` : 'Not started',
-      detail: pendingEntryRequestCount > 0
-        ? `${pendingEntryRequestCount} waiting for approval`
-        : activeParticipantCount > 0
-          ? 'Roster is ready to review'
-          : 'Add the first players or teams',
-      href: canUseLeagueTools ? '#league-registry' : '/pricing#league',
-      icon: 'playerRatings' as const,
-      attention: pendingEntryRequestCount > 0,
-    },
+    weeklyHomeView
+      ? {
+          label: 'This league week',
+          value: weeklyHomeView.pulseValue,
+          detail: weeklyHomeView.pulseDetail,
+          href: weeklyHomeView.href,
+          icon: 'playerRatings' as const,
+          attention: !weeklyHomeSnapshot?.recapSent,
+        }
+      : {
+          label: 'Competitors',
+          value: activeParticipantCount > 0 ? `${activeParticipantCount} active` : 'Not started',
+          detail: pendingEntryRequestCount > 0
+            ? `${pendingEntryRequestCount} waiting for approval`
+            : activeParticipantCount > 0
+              ? 'Roster is ready to review'
+              : 'Add the first players or teams',
+          href: canUseLeagueTools ? '#league-registry' : '/pricing#league',
+          icon: 'playerRatings' as const,
+          attention: pendingEntryRequestCount > 0,
+        },
     {
       label: 'Scores',
       value: resultQueueItemCount > 0 ? `${resultQueueItemCount} to review` : hasResultReadyLeague ? 'Up to date' : 'Not started',
@@ -1758,9 +1875,9 @@ export function LeagueCoordinatorWorkspace() {
       : clubAccess.allowed
         ? 'Club access'
         : 'League preview'
-  const leagueHomeName = coordinatorResumeLeague?.leagueName || latestRecord?.leagueName || (registryLoaded ? 'Create your first league' : 'Loading leagues')
-  const leagueHomeMeta = latestRecord
-    ? [latestRecord.seasonLabel || 'Active season', getLeagueFormatLabel(latestRecord.leagueFormat)].filter(Boolean).join(' · ')
+  const leagueHomeName = leagueHomeRecord?.leagueName || (registryLoaded ? 'Create your first league' : 'Loading leagues')
+  const leagueHomeMeta = leagueHomeRecord
+    ? [leagueHomeRecord.seasonLabel || 'Active season', getLeagueFormatLabel(leagueHomeRecord.leagueFormat)].filter(Boolean).join(' · ')
     : canUseLeagueTools
       ? 'One season home for schedules, scores, and standings'
       : 'Preview the season workflow'
