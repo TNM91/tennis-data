@@ -21,9 +21,9 @@ describe('League Coordinator active-work continuity', () => {
     const workspace = readFileSync(join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'), 'utf8')
 
     expect(workspace).toContain("title: `Continue ${coordinatorResumeState?.lastSurfaceLabel || 'league work'}`")
-    expect(workspace).toContain('primaryAction={coordinatorContinueAction || leagueHomeAction}')
-    expect(workspace).toContain('preferPrimaryAction={Boolean(coordinatorContinueAction)}')
-    expect(workspace).toContain('contextValue={coordinatorResumeLeague?.leagueName || latestRecord?.leagueName')
+    expect(workspace).toContain('const displayedLeagueHomeAction = coordinatorContinueAction || leagueHomeAction')
+    expect(workspace).toContain('primaryAction={displayedLeagueHomeAction}')
+    expect(workspace).toContain('leagueName={leagueHomeName}')
   })
 
   it('restores team, individual, tournament, and league conversation work', () => {

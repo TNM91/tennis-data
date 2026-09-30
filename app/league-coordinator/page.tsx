@@ -5,7 +5,7 @@ import SiteShell from '@/app/components/site-shell'
 
 export default function LeagueCoordinatorPage() {
   return (
-    <SiteShell active="/league-coordinator">
+    <SiteShell active="/league-coordinator" showPortalToolBar={false}>
       <LeagueCoordinatorWorkspace />
     </SiteShell>
   )

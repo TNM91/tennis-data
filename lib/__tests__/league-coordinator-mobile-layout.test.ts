@@ -7,6 +7,8 @@ const source = readFileSync(
   'utf8',
 )
 const globalsSource = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
+const leagueHomeSource = readFileSync(join(process.cwd(), 'app/components/league-office-home.tsx'), 'utf8')
+const leagueHomeStyles = readFileSync(join(process.cwd(), 'app/components/league-office-home.module.css'), 'utf8')
 const shellSmokeSource = readFileSync(join(process.cwd(), 'scripts/site-shell-layout-smoke.mjs'), 'utf8')
 const productStorySource = readFileSync(join(process.cwd(), 'lib/product-story.ts'), 'utf8')
 
@@ -39,7 +41,7 @@ describe('League Coordinator mobile layout guards', () => {
     expect(styleBlock(source, 'leagueSecondaryToolsDetailsStyle')).toContain('overflow: \'hidden\'')
     expect(styleBlock(source, 'leagueSecondaryToolsSummaryStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr) minmax(0, auto)'")
     expect(styleBlock(source, 'leagueSecondaryToolsBodyStyle')).toContain('minWidth: 0')
-    expect(source).toContain('<RoleActionHome')
+    expect(source).toContain('<LeagueOfficeHome')
     expect(source).toContain('quickActions={canUseLeagueTools ? leagueHomeQuickActions : LEAGUE_HOME_LOCKED_ACTIONS}')
     expect(source).toContain("title: 'Unlock League Office'")
     expect(source).toContain("title: 'Explore leagues'")
@@ -47,7 +49,8 @@ describe('League Coordinator mobile layout guards', () => {
     expect(shellSmokeSource).toContain("type: 'league-mobile-summary-repeated-guidance'")
     expect(shellSmokeSource).toContain("type: 'league-mobile-role-home-missing-or-too-tall'")
     expect(shellSmokeSource).toContain("type: 'league-mobile-unlock-action-missing'")
-    expect(shellSmokeSource).toContain('[aria-label="League home"]')
+    expect(leagueHomeSource).toContain('aria-label="League Office home"')
+    expect(leagueHomeStyles).toContain('@media (max-width: 760px)')
   })
 
   it('keeps the setup form Data Assist upload path visible', () => {
@@ -70,21 +73,17 @@ describe('League Coordinator mobile layout guards', () => {
     expect(source).toContain('sharedCalendarStepGridStyle')
     expect(source).toContain('Player-arranged scheduling preview')
     expect(source).toContain('League Office-published schedule preview')
-    expect(source).toContain('Set up League in three steps')
-    expect(source).toContain('Need help with League setup?')
+    expect(leagueHomeSource).toContain('Your next league decision.')
+    expect(leagueHomeSource).toContain('Season pulse')
     expect(source).toContain('League Office sets schedule')
     expect(source).toContain('League Office approval required')
     expect(source).toContain('League Office approval keeps join requests')
     expect(source).toContain('const leagueDeskContent = (')
-    expect(source).toContain('const leagueMobileSeasonPulse = hasSavedLeague && isMobile ? (')
-    expect(source).toContain('aria-label="League season pulse"')
-    expect(source).toContain('Season pulse')
-    expect(source).toContain('Keep the season moving.')
-    expect(source).toContain('leagueDeskCompleteCount')
-    expect(source).toContain('leagueMobilePulseGridStyle')
-    expect(source).toContain('{leagueMobileSeasonPulse}')
+    expect(source).toContain('const leagueHomePulse = [')
+    expect(source).toContain('const leagueHomeProgressBase = [')
+    expect(source).toContain('pulse={leagueHomePulse}')
     expect(source).toContain('<section style={leaguePathStyle} aria-labelledby="league-office-desk-title">')
-    expect(source.indexOf('{leagueMobileSeasonPulse}')).toBeLessThan(
+    expect(source.indexOf('<LeagueOfficeHome')).toBeLessThan(
       source.indexOf('{canUseLeagueTools ? <OrganizerScheduleAttention /> : null}'),
     )
     expect(source).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))'")
@@ -214,11 +213,6 @@ describe('League Coordinator mobile layout guards', () => {
       'leagueOfficeOperationProofStepStyle',
       'leaguePathGridStyle',
       'leaguePathCardStyle',
-      'leagueMobilePulseStyle',
-      'leagueMobilePulseHeaderStyle',
-      'leagueMobilePulseGridStyle',
-      'leagueMobilePulseItemStyle',
-      'leagueMobilePulseItemCopyStyle',
       'leagueSecondaryToolsDetailsStyle',
       'leagueSecondaryToolsSummaryStyle',
       'leagueSecondaryToolsBodyStyle',

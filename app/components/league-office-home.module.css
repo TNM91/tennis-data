@@ -1,0 +1,417 @@
+.shell {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: clamp(18px, 3vw, 28px);
+  overflow: hidden;
+  border: 1px solid rgba(116, 190, 255, 0.22);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 94% 4%, rgba(155, 225, 29, 0.12), transparent 24%),
+    radial-gradient(circle at 6% 100%, rgba(116, 190, 255, 0.08), transparent 30%),
+    linear-gradient(145deg, rgba(7, 24, 47, 0.98), rgba(4, 16, 32, 0.96));
+  box-shadow: 0 32px 84px rgba(0, 6, 19, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.topline,
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.plan,
+.heading > span,
+.sectionHeading span,
+.leagueCopy small,
+.primaryCopy > span,
+.pulseCopy small {
+  color: var(--brand-blue-2);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.plan {
+  padding: 7px 10px;
+  border: 1px solid rgba(155, 225, 29, 0.27);
+  border-radius: 999px;
+  color: var(--brand-green);
+  background: rgba(155, 225, 29, 0.07);
+}
+
+.allLeagues,
+.sectionHeading a {
+  color: var(--brand-green);
+  font-size: 12px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.leagueSelector {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(116, 190, 255, 0.22);
+  border-radius: 18px;
+  color: var(--foreground-strong);
+  background: rgba(12, 35, 60, 0.7);
+  text-decoration: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.leagueMark,
+.primaryIcon,
+.pulseIcon,
+.pulseIconAttention {
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(116, 190, 255, 0.11);
+}
+
+.leagueMark {
+  width: 42px;
+  height: 42px;
+}
+
+.leagueCopy,
+.primaryCopy,
+.pulseCopy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.leagueCopy strong {
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leagueCopy > span,
+.pulseCopy > span {
+  color: var(--shell-copy-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.selectorCue {
+  color: var(--shell-copy-muted);
+  font-size: 18px;
+}
+
+.heading {
+  display: grid;
+  gap: 5px;
+  padding-top: 4px;
+}
+
+.heading h1,
+.sectionHeading h2 {
+  margin: 0;
+  color: var(--foreground-strong);
+  letter-spacing: -0.035em;
+}
+
+.heading h1 {
+  max-width: 620px;
+  font-size: clamp(2rem, 6vw, 3.5rem);
+  line-height: 0.98;
+}
+
+.primaryCard {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 15px;
+  align-items: center;
+  min-width: 0;
+  padding: 17px;
+  border: 1px solid rgba(155, 225, 29, 0.27);
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(13, 39, 60, 0.92), rgba(5, 20, 38, 0.82));
+  box-shadow: 0 18px 44px rgba(0, 5, 16, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.primaryIcon {
+  width: 52px;
+  height: 52px;
+  background: rgba(155, 225, 29, 0.1);
+}
+
+.primaryCopy strong {
+  color: var(--foreground-strong);
+  font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+  line-height: 1.15;
+}
+
+.primaryCopy p {
+  margin: 0;
+  color: var(--shell-copy-muted);
+  font-size: 13px;
+  line-height: 1.42;
+}
+
+.primaryAction {
+  min-width: 138px;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  border-radius: 999px;
+  color: var(--text-dark);
+  background: linear-gradient(135deg, var(--brand-green), var(--brand-green-3));
+  box-shadow: 0 13px 30px rgba(155, 225, 29, 0.16);
+  font-size: 13px;
+  font-weight: 950;
+  text-align: center;
+  text-decoration: none;
+}
+
+.progress {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  min-width: 0;
+  padding: 2px 4px 4px;
+}
+
+.progressItem {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--shell-copy-muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.progressItem:not(:last-child)::after {
+  position: absolute;
+  top: 13px;
+  left: calc(50% + 15px);
+  width: calc(100% - 30px);
+  height: 2px;
+  content: '';
+  background: rgba(116, 190, 255, 0.16);
+}
+
+.progressDot {
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--brand-blue-2);
+  background: #081c34;
+}
+
+.complete .progressDot {
+  color: var(--brand-green);
+}
+
+.complete:not(:last-child)::after {
+  background: rgba(155, 225, 29, 0.5);
+}
+
+.current {
+  color: var(--foreground-strong);
+}
+
+.current .progressDot {
+  box-shadow: 0 0 0 4px rgba(155, 225, 29, 0.09);
+}
+
+.sectionHeading {
+  align-items: end;
+  padding-top: 3px;
+}
+
+.sectionHeading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.sectionHeading h2 {
+  font-size: clamp(1.2rem, 3vw, 1.55rem);
+}
+
+.pulseGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pulseCard {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 11px;
+  align-items: start;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 18px;
+  color: var(--foreground-strong);
+  background: rgba(255, 255, 255, 0.035);
+  text-decoration: none;
+}
+
+.pulseIcon,
+.pulseIconAttention {
+  width: 40px;
+  height: 40px;
+}
+
+.pulseIconAttention {
+  background: rgba(244, 177, 31, 0.12);
+}
+
+.pulseCopy strong {
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.quickGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 2px;
+  border-top: 1px solid rgba(116, 190, 255, 0.11);
+}
+
+.quickAction {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  color: var(--foreground-strong);
+  font-size: 12px;
+  font-weight: 850;
+  text-align: center;
+  text-decoration: none;
+}
+
+.quickAction:hover,
+.leagueSelector:hover,
+.pulseCard:hover {
+  border-color: rgba(155, 225, 29, 0.34);
+  background-color: rgba(155, 225, 29, 0.055);
+}
+
+@media (max-width: 760px) {
+  .shell {
+    gap: 14px;
+    padding: 15px;
+    border-radius: 22px;
+  }
+
+  .heading h1 {
+    max-width: 330px;
+    font-size: clamp(2rem, 10vw, 2.55rem);
+  }
+
+  .primaryCard {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .primaryIcon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .primaryAction {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .progress {
+    padding-inline: 0;
+  }
+
+  .progressItem {
+    font-size: 9px;
+  }
+
+  .progressItem:not(:last-child)::after {
+    left: calc(50% + 13px);
+    width: calc(100% - 26px);
+  }
+
+  .progressDot {
+    width: 26px;
+    height: 26px;
+  }
+
+  .pulseGrid {
+    grid-template-columns: 1fr;
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid rgba(116, 190, 255, 0.16);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.025);
+  }
+
+  .pulseCard {
+    min-height: 62px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .pulseCard:not(:last-child) {
+    border-bottom: 1px solid rgba(116, 190, 255, 0.14);
+  }
+
+  .quickGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .quickAction {
+    min-height: 52px;
+    flex-direction: column;
+    gap: 3px;
+    padding: 5px 2px;
+    border: 0;
+    background: transparent;
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .allLeagues {
+    max-width: 110px;
+    text-align: right;
+  }
+
+  .leagueSelector {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    padding-inline: 11px;
+  }
+
+  .leagueMark {
+    width: 38px;
+    height: 38px;
+  }
+
+  .sectionHeading a {
+    max-width: 92px;
+    text-align: right;
+  }
+}

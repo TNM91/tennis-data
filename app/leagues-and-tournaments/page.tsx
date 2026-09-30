@@ -10,6 +10,7 @@ import {
   pageWrapStyle,
 } from '@/app/components/public-command-center'
 import TrackedProductLink from '@/app/components/tracked-product-link'
+import { CLUB_PLAN_STORY } from '@/lib/product-story'
 import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
@@ -67,6 +68,27 @@ export default function LeaguesAndTournamentsPage() {
             ))}
           </div>
         </section>
+
+        <aside style={clubBoundaryStyle} aria-label="Club product path">
+          <div style={clubBoundaryCopyStyle}>
+            <span style={clubBoundaryEyebrowStyle}>Run the whole club?</span>
+            <strong style={clubBoundaryTitleStyle}>{CLUB_PLAN_STORY.starter.shortPromise}</strong>
+            <p style={clubBoundaryTextStyle}>
+              Club is a separate home for your brand, staff, players, clinics, teams, leagues, and tournaments.
+            </p>
+          </div>
+          <TrackedProductLink
+            href="/clubs"
+            style={clubBoundaryLinkStyle}
+            event={{
+              eventName: 'portal_lane_opened',
+              surface: 'leagues',
+              metadata: { location: 'leagues_tournaments_boundary', job: 'run_club' },
+            }}
+          >
+            Explore Club
+          </TrackedProductLink>
+        </aside>
 
         <section className="organizerToolsSection" style={sectionStyle} aria-labelledby="organizer-paths-title">
           <SectionHeader
@@ -222,12 +244,6 @@ function MetricTile({ label, value, accent = false }: { label: string; value: st
 }
 
 const organizerQuickPaths = [
-  {
-    question: 'Run club tennis',
-    cta: 'Open Club',
-    href: '/clubs',
-    job: 'run_club_tennis',
-  },
   {
     question: 'Schedule season',
     cta: 'Open setup',
@@ -414,6 +430,61 @@ const organizerQuickPathStyle: CSSProperties = {
   padding: 'clamp(14px, 3vw, 20px)',
   background:
     'linear-gradient(135deg, color-mix(in srgb, var(--brand-green) 10%, var(--shell-panel-bg) 90%), color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg) 92%))',
+}
+
+const clubBoundaryStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: 18,
+  padding: '18px clamp(18px, 3vw, 26px)',
+  border: '1px solid rgba(155,225,29,0.24)',
+  borderRadius: 22,
+  background: 'linear-gradient(135deg, rgba(155,225,29,0.07), rgba(7,25,46,0.72))',
+}
+
+const clubBoundaryCopyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  minWidth: 0,
+}
+
+const clubBoundaryEyebrowStyle: CSSProperties = {
+  color: 'var(--brand-green)',
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+}
+
+const clubBoundaryTitleStyle: CSSProperties = {
+  color: 'var(--foreground-strong)',
+  fontSize: 18,
+  lineHeight: 1.2,
+}
+
+const clubBoundaryTextStyle: CSSProperties = {
+  maxWidth: 700,
+  margin: 0,
+  color: 'var(--shell-copy-muted)',
+  fontSize: 13,
+  lineHeight: 1.45,
+}
+
+const clubBoundaryLinkStyle: CSSProperties = {
+  minHeight: 44,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
+  padding: '0 18px',
+  border: '1px solid rgba(155,225,29,0.38)',
+  borderRadius: 999,
+  color: 'var(--brand-green)',
+  fontSize: 13,
+  fontWeight: 900,
+  textDecoration: 'none',
 }
 
 const organizerQuickPathHeaderStyle: CSSProperties = {
