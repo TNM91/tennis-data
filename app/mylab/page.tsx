@@ -10,6 +10,7 @@ import SiteShell from '@/app/components/site-shell'
 import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
 import ActiveTeamChallengeCard from '@/app/components/active-team-challenge-card'
 import MyLabCommandCenter from './my-lab-command-center'
+import WeeklyLeagueActionCard from './weekly-league-action-card'
 import { useAuth } from '@/app/components/auth-provider'
 import ClubContextBanner from '@/app/components/club-context-banner'
 import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
@@ -3723,6 +3724,8 @@ function MyLabPageInner() {
         } : null}
         nextCourtEvent={nextCourtEvent}
       />
+
+      <WeeklyLeagueActionCard userId={userId} authResolved={authResolved} />
 
       <details className="myLabDetailsSection" style={labDrawerDetailsStyle}>
         <summary aria-label="Open My Calendar to plan your tennis week" style={calendarDrawerSummaryStyle}>
