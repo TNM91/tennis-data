@@ -8,6 +8,7 @@ import ClubContextBanner from '@/app/components/club-context-banner'
 import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
 import type { RoleHomeAction, RoleHomeQuickAction } from '@/app/components/role-action-home'
 import LeagueOfficeHome from '@/app/components/league-office-home'
+import LeagueLifecyclePanel from '@/app/components/league-lifecycle-panel'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import OrganizerScheduleAttention from '@/app/components/organizer-schedule-attention'
 import { useAuth } from '@/app/components/auth-provider'
@@ -30,6 +31,7 @@ import {
   type LeagueCoordinatorResumeSurface,
 } from '@/lib/league-coordinator-memory'
 import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY } from '@/lib/product-story'
+import { buildTiqLeagueRenewalDraft } from '@/lib/league-lifecycle'
 import { getLeagueFormatLabel } from '@/lib/competition-layers'
 import {
   TEAM_MATCH_FORMATS,
@@ -102,7 +104,6 @@ import {
   listTiqLeagues,
   listTiqPlayerLeagueEntries,
   listTiqTeamLeagueEntries,
-  removeTiqLeague,
   requestTiqPlayerLeagueEntryInformation,
   saveTiqLeague,
   updateTiqLeagueEntryStatus,
@@ -415,6 +416,7 @@ export function LeagueCoordinatorWorkspace() {
   const [playerListInput, setPlayerListInput] = useState('')
   const [participantQuickAddInput, setParticipantQuickAddInput] = useState('')
   const [editingId, setEditingId] = useState('')
+  const [renewingFromLeagueId, setRenewingFromLeagueId] = useState('')
   const [setupOpen, setSetupOpen] = useState(false)
   const [registryLoaded, setRegistryLoaded] = useState(false)
   const [appliedEditHandoffId, setAppliedEditHandoffId] = useState('')
@@ -1219,6 +1221,7 @@ export function LeagueCoordinatorWorkspace() {
     setPlayerListInput('')
     setParticipantQuickAddInput('')
     setEditingId('')
+    setRenewingFromLeagueId('')
     setCustomSeasonLabelOpen(false)
     setPhotoUploadStatus('')
     if (clearHandoff) {
@@ -1229,6 +1232,7 @@ export function LeagueCoordinatorWorkspace() {
 
   function beginNewLeague(format: TiqLeagueDraft['leagueFormat']) {
     setEditingId('')
+    setRenewingFromLeagueId('')
     setDraft({
       ...EMPTY_DRAFT,
       clubId: requestedClubId,
@@ -1335,7 +1339,9 @@ export function LeagueCoordinatorWorkspace() {
     setLastSavedRecord(saved.record)
     setLastSavedFirstLeague(firstLeagueLaunch)
     setStatus(
-      editingId
+      renewingFromLeagueId
+        ? `${saved.record.leagueName} was renewed as ${saved.record.seasonLabel}. The prior season and results remain unchanged.`
+        : editingId
         ? `${saved.record.leagueName} was updated in your season list.`
         : `${saved.record.leagueName} was added to your season list.`,
     )
@@ -1367,6 +1373,7 @@ export function LeagueCoordinatorWorkspace() {
   const startEditing = useCallback((record: TiqLeagueRecord, options: { scrollToForm?: boolean } = {}) => {
     const normalizedSeason = normalizeSeasonLabel(record.seasonLabel)
     setEditingId(record.id)
+    setRenewingFromLeagueId('')
     setDraft({
       clubId: record.clubId,
       clubGroupId: record.clubGroupId,
@@ -1413,6 +1420,24 @@ export function LeagueCoordinatorWorkspace() {
       })
     }
   }, [seasonLabelOptions])
+
+  function startRenewing(record: TiqLeagueRecord) {
+    const renewalDraft = buildTiqLeagueRenewalDraft(record)
+    setEditingId('')
+    setRenewingFromLeagueId(record.id)
+    setDraft(renewalDraft)
+    setTeamListInput(record.teams.join('\n'))
+    setPlayerListInput(record.players.join('\n'))
+    setParticipantQuickAddInput('')
+    setCustomSeasonLabelOpen(false)
+    setLastSavedRecord(null)
+    setLastSavedFirstLeague(false)
+    setSetupOpen(true)
+    setStatus(`Renewing ${record.leagueName}. Add the new season name and start date; prior results will stay with ${record.seasonLabel}.`)
+    window.requestAnimationFrame(() => {
+      document.getElementById('league-setup-form')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    })
+  }
 
   useEffect(() => {
     if (
@@ -1468,21 +1493,15 @@ export function LeagueCoordinatorWorkspace() {
     userId,
   ])
 
-  async function removeRecord(id: string) {
-    const result = await removeTiqLeague(id)
-    await refreshRegistry()
+  function handleLeagueRemoved(id: string) {
+    setRecords((current) => current.filter((record) => record.id !== id))
     if (editingId === id) resetDraft()
+    if (renewingFromLeagueId === id) resetDraft()
     if (lastSavedRecord?.id === id) {
       setLastSavedRecord(null)
       setLastSavedFirstLeague(false)
     }
-    setStatus(
-      result.source === 'supabase'
-        ? 'The league was removed from your season list.'
-        : 'The league was removed from your local season list.',
-    )
-    setStorageSource(result.source)
-    setStorageWarning(result.warning || '')
+    setStatus('The league and its season data were permanently deleted.')
   }
 
   async function handleEntryRequestAction(
@@ -1997,15 +2016,15 @@ export function LeagueCoordinatorWorkspace() {
           >
             <summary style={responsiveDetailsSummary}>
               <div style={leagueOpsHeaderCopyStyle}>
-                <div style={sectionEyebrow}>{editingId ? 'Editing' : 'Setup'}</div>
+                <div style={sectionEyebrow}>{renewingFromLeagueId ? 'Renewing' : editingId ? 'Editing' : 'Setup'}</div>
                 <h2 style={responsiveSectionTitleStyle}>
-                  {editingId ? 'Edit league setup' : 'Add a league'}
+                  {renewingFromLeagueId ? 'Renew league season' : editingId ? 'Edit league setup' : 'Add a league'}
                 </h2>
                 {!isCompactViewport ? <p style={sectionText}>
                   Use only the fields needed to create the structure. Uploads, results, and rankings come after the league record is clear.
                 </p> : null}
               </div>
-              <span style={pillSlate}>{editingId ? 'Editing' : 'Open form'}</span>
+              <span style={pillSlate}>{renewingFromLeagueId ? 'New season' : editingId ? 'Editing' : 'Open form'}</span>
             </summary>
 
             {shouldShowLeagueUpgradePrompt ? (
@@ -2043,7 +2062,7 @@ export function LeagueCoordinatorWorkspace() {
                 <div style={leagueOpsHeaderCopyStyle}>
                   <div style={sectionEyebrow}>Setup focus</div>
                   <strong style={setupAssistTitleStyle}>
-                    {editingId ? 'Review the league before updating it.' : 'Build only what the season needs next.'}
+                    {renewingFromLeagueId ? 'Carry the league forward without carrying old results.' : editingId ? 'Review the league before updating it.' : 'Build only what the season needs next.'}
                   </strong>
                 </div>
                 <span style={canSaveCurrentDraft ? pillGreen : pillSlate}>
@@ -2984,7 +3003,7 @@ export function LeagueCoordinatorWorkspace() {
 
             <div style={responsiveButtonRowStyle}>
               <PrimaryBtn onClick={persistDraft} disabled={!canSaveCurrentDraft}>
-                {editingId ? 'Update league' : 'Save league'}
+                {renewingFromLeagueId ? 'Create renewed season' : editingId ? 'Update league' : 'Save league'}
               </PrimaryBtn>
               <GhostBtn onClick={resetDraft}>Clear form</GhostBtn>
             </div>
@@ -3149,6 +3168,7 @@ export function LeagueCoordinatorWorkspace() {
             ) : (
               <div style={stackList}>
                 {records.map((record) => {
+                  const isLeagueOwner = Boolean(userId && (!record.createdByUserId || record.createdByUserId === userId))
                   const participantLabel =
                     record.leagueFormat === 'team'
                       ? `${record.teams.length} teams`
@@ -3233,10 +3253,16 @@ export function LeagueCoordinatorWorkspace() {
                           {record.weeklySettings.enabled ? (
                             <GhostLink href={`/league-coordinator/weekly?leagueId=${encodeURIComponent(record.id)}`}>Run this week</GhostLink>
                           ) : null}
-                          <GhostBtn onClick={() => startEditing(record)}>Edit</GhostBtn>
-                          <DangerBtn onClick={() => removeRecord(record.id)}>Remove</DangerBtn>
+                          {isLeagueOwner ? <GhostBtn onClick={() => startEditing(record, { scrollToForm: true })}>Edit setup</GhostBtn> : null}
+                          {isLeagueOwner ? <GhostBtn onClick={() => startRenewing(record)}>Renew season</GhostBtn> : null}
                         </LeagueActionRow>
                       </div>
+                      <LeagueLifecyclePanel
+                        league={record}
+                        userId={userId}
+                        onRemoved={handleLeagueRemoved}
+                        onOwnershipChanged={refreshRegistry}
+                      />
                     </div>
                   )
                 })}

@@ -148,6 +148,7 @@ type TiqLeagueRow = {
   players_json?: string[] | null
   created_at?: string | null
   updated_at?: string | null
+  created_by_user_id?: string | null
 }
 
 type TiqTeamEntryRow = {
@@ -271,6 +272,7 @@ function normalizeEntryStatus(value: string | null | undefined): TiqLeagueEntryS
 function normalizeRow(row: TiqLeagueRow): TiqLeagueRecord {
   return {
     id: cleanText(row.id),
+    createdByUserId: cleanText(row.created_by_user_id),
     clubId: cleanText(row.club_id),
     clubGroupId: cleanText(row.club_group_id),
     resultMode: normalizeClubCompetitionResultMode(row.result_mode),
@@ -1219,33 +1221,77 @@ export async function requestTiqPlayerLeagueEntryInformation(input: {
 
 export async function removeTiqLeague(
   id: string,
-): Promise<{ source: TiqLeagueStorageSource; warning: string | null }> {
-  deleteTiqLeagueRecord(id)
-
+  options: { localOnly?: boolean } = {},
+): Promise<{ removed: boolean; source: TiqLeagueStorageSource; warning: string | null }> {
   try {
+    if (options.localOnly) {
+      deleteTiqLeagueRecord(id)
+      return { removed: true, source: 'local', warning: null }
+    }
+
     const userId = await getAuthenticatedUserId()
     if (!userId) {
+      deleteTiqLeagueRecord(id)
       return {
+        removed: true,
         source: 'local',
         warning:
           'Sign in as a captain to sync this TIQ league change across devices. It was removed on this device.',
       }
     }
 
-    const { error } = await supabase.from(TIQ_LEAGUES_TABLE).delete().eq('id', id)
+    const { data, error } = await supabase.from(TIQ_LEAGUES_TABLE).delete().eq('id', id).select('id').maybeSingle()
     if (error) throw error
+    if (!data?.id) {
+      return {
+        removed: false,
+        source: 'supabase',
+        warning: 'The league was not removed. Only its current owner can permanently delete it.',
+      }
+    }
+
+    deleteTiqLeagueRecord(id)
 
     return {
+      removed: true,
       source: 'supabase',
       warning: null,
     }
   } catch (error) {
     return {
-      source: 'local',
+      removed: false,
+      source: 'supabase',
       warning:
         error instanceof Error
-          ? 'TIQ league removed on this device. Cloud sync will retry later.'
-          : 'TIQ league removed on this device. Cloud sync will retry later.',
+          ? 'The league could not be removed. Nothing was deleted; try again in a moment.'
+          : 'The league could not be removed. Nothing was deleted; try again in a moment.',
+    }
+  }
+}
+
+export async function transferTiqLeagueOwnership(input: {
+  leagueId: string
+  newOwnerUserId: string
+}): Promise<{ transferred: boolean; warning: string | null }> {
+  const leagueId = cleanText(input.leagueId)
+  const newOwnerUserId = cleanText(input.newOwnerUserId)
+  if (!leagueId || !newOwnerUserId) return { transferred: false, warning: 'Choose a connected delegate before transferring ownership.' }
+
+  try {
+    const userId = await getAuthenticatedUserId()
+    if (!userId) return { transferred: false, warning: 'Sign in as the current league owner to transfer ownership.' }
+    const { error } = await supabase.rpc('transfer_tiq_league_ownership', {
+      target_league_id: leagueId,
+      new_owner_user_id: newOwnerUserId,
+    })
+    if (error) throw error
+    return { transferred: true, warning: null }
+  } catch (error) {
+    return {
+      transferred: false,
+      warning: error instanceof Error && error.message
+        ? error.message
+        : 'League ownership could not be transferred.',
     }
   }
 }
