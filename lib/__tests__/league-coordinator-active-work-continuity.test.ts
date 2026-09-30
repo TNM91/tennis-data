@@ -21,7 +21,8 @@ describe('League Coordinator active-work continuity', () => {
     const workspace = readFileSync(join(process.cwd(), 'app/components/league-coordinator-workspace.tsx'), 'utf8')
 
     expect(workspace).toContain("title: `Continue ${coordinatorResumeState?.lastSurfaceLabel || 'league work'}`")
-    expect(workspace).toContain('const displayedLeagueHomeAction = coordinatorContinueAction || leagueHomeAction')
+    expect(workspace).toContain('const displayedLeagueHomeAction = weeklyHomeView ? leagueHomeAction : coordinatorContinueAction || leagueHomeAction')
+    expect(workspace).toContain("action.href.includes('/league-coordinator/weekly')")
     expect(workspace).toContain('primaryAction={displayedLeagueHomeAction}')
     expect(workspace).toContain('leagueName={leagueHomeName}')
   })

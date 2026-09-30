@@ -12,7 +12,7 @@ describe('League Coordinator first-use path', () => {
     expect(source).toContain('const [registryLoaded, setRegistryLoaded] = useState(false)')
     expect(source).toContain('setRegistryLoaded(true)')
     expect(source).toContain("title: 'Getting your leagues'")
-    expect(source).toContain("const leagueHomeName = coordinatorResumeLeague?.leagueName || latestRecord?.leagueName || (registryLoaded ? 'Create your first league' : 'Loading leagues')")
+    expect(source).toContain("const leagueHomeName = leagueHomeRecord?.leagueName || (registryLoaded ? 'Create your first league' : 'Loading leagues')")
     expect(source).toContain('const isFirstLeagueSetup = registryLoaded && canUseLeagueTools && !hasSavedLeague')
   })
 
@@ -20,7 +20,8 @@ describe('League Coordinator first-use path', () => {
     expect(source).toContain('<LeagueOfficeHome')
     expect(source).toContain('const leagueHomeProgressBase = [')
     expect(source).toContain("{ label: 'Setup', complete: hasSavedLeague }")
-    expect(source).toContain("{ label: latestRecord?.weeklySettings.enabled ? 'Roster' : 'Players', complete: activeParticipantCount > 0 }")
+    expect(source).toContain("{ label: 'Players', complete: activeParticipantCount > 0 }")
+    expect(source).toContain('const leagueHomeProgress = weeklyHomeView?.progress || leagueHomeProgressBase.map')
     expect(source).toContain("title: sharedSchedulerNextMove.label")
     expect(source).toContain('open={setupOpen || !!editingId || isFirstLeagueSetup}')
   })
@@ -34,7 +35,7 @@ describe('League Coordinator first-use path', () => {
   })
 
   it('turns completed onboarding into a returning coordinator home', () => {
-    expect(source).toContain('const displayedLeagueHomeAction = coordinatorContinueAction || leagueHomeAction')
+    expect(source).toContain('const displayedLeagueHomeAction = weeklyHomeView ? leagueHomeAction : coordinatorContinueAction || leagueHomeAction')
     expect(source).toContain('leagueName={leagueHomeName}')
     expect(source).toContain('progress={leagueHomeProgress}')
     expect(source).toContain('pulse={leagueHomePulse}')
