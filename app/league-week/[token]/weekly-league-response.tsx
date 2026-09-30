@@ -1,7 +1,9 @@
 'use client'
 
+import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import type { LeagueWeeklyCourt } from '@/lib/league-weekly-format'
+import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 
 type WeeklyPayload = {
   league: { name: string; logoUrl: string; facility: string; players: string[]; weeklySettings: { collectPlayerStories: boolean } }
@@ -91,6 +93,17 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
         </section>
       ) : playerName ? <section style={cardStyle}><h2>You’re not on a court this week</h2><p>Check with the league owner if the roster changed.</p></section> : null}
 
+      <section style={playerPathStyle} aria-labelledby="weekly-player-path-title">
+        <p style={playerPathEyebrowStyle}>Your TIQ player path</p>
+        <h2 id="weekly-player-path-title" style={playerPathTitleStyle}>Keep this league connected to your game.</h2>
+        <p style={playerPathBodyStyle}>Connect your player profile so accepted sets can follow you into My TIQ Leagues. {MEMBERSHIP_TIERS.player_plus.upgradeCue}</p>
+        <div style={playerPathActionsStyle}>
+          <Link href="/profile" style={playerPathPrimaryStyle}>Connect your player profile</Link>
+          <Link href="/pricing#player_plus" style={playerPathSecondaryStyle}>See Player</Link>
+        </div>
+        <small style={playerPathNoteStyle}>Weekly replies, court assignments, scores, and basic standings stay part of your league experience.</small>
+      </section>
+
       {message ? <p style={messageStyle} role="status">{message}</p> : null}
     </main>
   )
@@ -117,3 +130,11 @@ const messageStyle: CSSProperties = { position: 'sticky', bottom: 16, padding: 1
 const scoreStatusStyle: CSSProperties = { ...smallStyle, color: '#126044', fontWeight: 750 }
 const disputedStatusStyle: CSSProperties = { ...scoreStatusStyle, color: '#9a3412' }
 const missingStatusStyle: CSSProperties = { ...scoreStatusStyle, color: '#64748b' }
+const playerPathStyle: CSSProperties = { display: 'grid', gap: 10, padding: 20, border: '1px solid #b9d8ca', borderRadius: 18, background: 'linear-gradient(135deg,#effbf5,#f6f9ff)', color: '#14231d', boxShadow: '0 10px 30px rgba(24,55,43,.06)' }
+const playerPathEyebrowStyle: CSSProperties = { margin: 0, color: '#126044', fontSize: 11, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase' }
+const playerPathTitleStyle: CSSProperties = { margin: 0, fontSize: 23, letterSpacing: '-.025em' }
+const playerPathBodyStyle: CSSProperties = { margin: 0, color: '#45554d', lineHeight: 1.55 }
+const playerPathActionsStyle: CSSProperties = { display: 'flex', gap: 9, flexWrap: 'wrap' }
+const playerPathPrimaryStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 42, padding: '0 16px', borderRadius: 999, background: '#126044', color: '#fff', fontWeight: 850, textDecoration: 'none' }
+const playerPathSecondaryStyle: CSSProperties = { ...playerPathPrimaryStyle, border: '1px solid #126044', background: '#fff', color: '#126044' }
+const playerPathNoteStyle: CSSProperties = { color: '#5b6b63', lineHeight: 1.45 }

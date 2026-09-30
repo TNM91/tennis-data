@@ -24,6 +24,21 @@ export type LeagueWeeklyPlayerScorecard = LeagueWeeklyPlayerStat & {
   currentWinStreak: number
 }
 
+export type LeagueWeeklyPlayerBaseline = {
+  playerName: string
+  playerId?: string
+  tiqDoublesRating: number | null
+}
+
+export type LeagueWeeklyCourtPlayerSignal = {
+  playerName: string
+  tiqRating: number | null
+  acceptedSets: number
+  leagueFormIndex: number | null
+  courtFitIndex: number
+  basis: 'tiq' | 'blended' | 'league' | 'untracked'
+}
+
 export type LeagueWeeklyCourtPlanInsight = {
   courtNumber: number
   strengthIndex: number
@@ -32,6 +47,7 @@ export type LeagueWeeklyCourtPlanInsight = {
   repeatConnections: number
   movedPlayers: string[]
   lockedPlayers: string[]
+  playerSignals: LeagueWeeklyCourtPlayerSignal[]
 }
 
 export type LeagueWeeklyCourtPlan = {
@@ -40,6 +56,7 @@ export type LeagueWeeklyCourtPlan = {
   insights: LeagueWeeklyCourtPlanInsight[]
   summary: {
     trackedPlayers: number
+    tiqRatedPlayers: number
     lockedPlayers: number
     movedPlayers: number
     freshConnections: number
@@ -143,6 +160,7 @@ export function buildBalancedLeagueWeeklyCourts(input: {
   playerNames: string[]
   settings: Partial<LeagueWeeklySettings>
   scorecards: LeagueWeeklyPlayerScorecard[]
+  playerBaselines?: LeagueWeeklyPlayerBaseline[]
   historyCourts: LeagueWeeklyCourt[][]
   lockedCourts?: Record<string, number>
 }) {
@@ -152,9 +170,10 @@ export function buildBalancedLeagueWeeklyCourts(input: {
   if (!courtTotal) return []
   const eligiblePlayers = players.slice(0, courtTotal * 4)
   const groups = Array.from({ length: courtTotal }, () => [] as string[])
-  const ratings = new Map(input.scorecards.map((scorecard) => [scorecard.playerName.toLowerCase(), scorecard.setWinPercentage + scorecard.gameDifferential / Math.max(1, scorecard.setsPlayed)]))
+  const playerSignals = buildLeagueWeeklyCourtSignals(players, input.scorecards, input.playerBaselines || [])
+  const ratings = new Map(playerSignals.map((signal) => [signal.playerName.toLowerCase(), signal.courtFitIndex]))
   const attendance = new Map(input.scorecards.map((scorecard) => [scorecard.playerName.toLowerCase(), scorecard.weeksPlayed]))
-  const targetRating = eligiblePlayers.reduce((total, player) => total + (ratings.get(player.toLowerCase()) || 50), 0) / eligiblePlayers.length
+  const targetRating = eligiblePlayers.reduce((total, player) => total + (ratings.get(player.toLowerCase()) ?? 50), 0) / eligiblePlayers.length
   const targetAttendance = eligiblePlayers.reduce((total, player) => total + (attendance.get(player.toLowerCase()) || 0), 0) / eligiblePlayers.length
   const teammateCounts = new Map<string, number>()
   const latestCourt = new Map<string, number>()
@@ -173,12 +192,12 @@ export function buildBalancedLeagueWeeklyCourts(input: {
       locked.add(player)
     }
   })
-  const remaining = eligiblePlayers.filter((player) => !locked.has(player)).sort((a, b) => (ratings.get(b.toLowerCase()) || 50) - (ratings.get(a.toLowerCase()) || 50))
+  const remaining = eligiblePlayers.filter((player) => !locked.has(player)).sort((a, b) => (ratings.get(b.toLowerCase()) ?? 50) - (ratings.get(a.toLowerCase()) ?? 50))
   for (const player of remaining) {
     const candidates = groups.map((group, index) => {
       if (group.length >= 4) return { index, penalty: Number.POSITIVE_INFINITY }
       const projected = [...group, player]
-      const ratingPenalty = Math.abs(projected.reduce((total, name) => total + (ratings.get(name.toLowerCase()) || 50), 0) - targetRating * projected.length)
+      const ratingPenalty = Math.abs(projected.reduce((total, name) => total + (ratings.get(name.toLowerCase()) ?? 50), 0) - targetRating * projected.length)
       const attendancePenalty = Math.abs(projected.reduce((total, name) => total + (attendance.get(name.toLowerCase()) || 0), 0) - targetAttendance * projected.length) * 2
       const repeatPenalty = group.reduce((total, other) => total + (teammateCounts.get([player.toLowerCase(), other.toLowerCase()].sort().join('|')) || 0) * 8, 0)
       const sameCourtPenalty = latestCourt.get(player.toLowerCase()) === index + 1 ? 6 : 0
@@ -196,6 +215,7 @@ export function buildLeagueWeeklyCourtPlan(input: {
   playerNames: string[]
   settings: Partial<LeagueWeeklySettings>
   scorecards: LeagueWeeklyPlayerScorecard[]
+  playerBaselines?: LeagueWeeklyPlayerBaseline[]
   historyCourts: LeagueWeeklyCourt[][]
   lockedCourts?: Record<string, number>
   strategy?: 'balanced' | 'manual'
@@ -204,9 +224,9 @@ export function buildLeagueWeeklyCourtPlan(input: {
   const courts = strategy === 'balanced'
     ? buildBalancedLeagueWeeklyCourts(input)
     : buildManualLeagueWeeklyCourts(input.playerNames, input.settings, input.lockedCourts)
-  const ratings = new Map(input.scorecards.map((scorecard) => [scorecard.playerName.toLowerCase(), (
-    scorecard.setWinPercentage + scorecard.gameDifferential / Math.max(1, scorecard.setsPlayed)
-  )]))
+  const playerSignals = buildLeagueWeeklyCourtSignals(input.playerNames, input.scorecards, input.playerBaselines || [])
+  const signalsByPlayer = new Map(playerSignals.map((signal) => [signal.playerName.toLowerCase(), signal]))
+  const ratings = new Map(playerSignals.map((signal) => [signal.playerName.toLowerCase(), signal.courtFitIndex]))
   const latestCourt = new Map<string, number>()
   const priorConnections = new Set<string>()
   input.historyCourts.forEach((historyWeek, weekIndex) => historyWeek.forEach((court) => {
@@ -231,8 +251,8 @@ export function buildLeagueWeeklyCourtPlan(input: {
       }
     }
     const trackedRatings = court.players.flatMap((player) => {
-      const rating = ratings.get(player.toLowerCase())
-      return rating === undefined ? [] : [rating]
+      const signal = signalsByPlayer.get(player.toLowerCase())
+      return signal && signal.acceptedSets > 0 ? [signal.courtFitIndex] : []
     })
     return {
       courtNumber: court.courtNumber,
@@ -245,6 +265,14 @@ export function buildLeagueWeeklyCourtPlan(input: {
         return previousCourt !== undefined && previousCourt !== court.courtNumber
       }),
       lockedPlayers: court.players.filter((player) => input.lockedCourts?.[player] === court.courtNumber),
+      playerSignals: court.players.map((player) => signalsByPlayer.get(player.toLowerCase()) || {
+        playerName: player,
+        tiqRating: null,
+        acceptedSets: 0,
+        leagueFormIndex: null,
+        courtFitIndex: 50,
+        basis: 'untracked',
+      }),
     }
   })
   const strengths = insights.map((insight) => insight.strengthIndex)
@@ -254,7 +282,8 @@ export function buildLeagueWeeklyCourtPlan(input: {
     courts,
     insights,
     summary: {
-      trackedPlayers: new Set(courts.flatMap((court) => court.players).filter((player) => ratings.has(player.toLowerCase()))).size,
+      trackedPlayers: new Set(courts.flatMap((court) => court.players).filter((player) => (signalsByPlayer.get(player.toLowerCase())?.acceptedSets || 0) > 0)).size,
+      tiqRatedPlayers: new Set(courts.flatMap((court) => court.players).filter((player) => typeof signalsByPlayer.get(player.toLowerCase())?.tiqRating === 'number')).size,
       lockedPlayers: insights.reduce((total, insight) => total + insight.lockedPlayers.length, 0),
       movedPlayers: insights.reduce((total, insight) => total + insight.movedPlayers.length, 0),
       freshConnections: insights.reduce((total, insight) => total + insight.freshConnections, 0),
@@ -262,6 +291,48 @@ export function buildLeagueWeeklyCourtPlan(input: {
       strengthSpread: strengths.length ? roundOne(Math.max(...strengths) - Math.min(...strengths)) : 0,
     },
   }
+}
+
+export function buildLeagueWeeklyCourtSignals(
+  playerNames: string[],
+  scorecards: LeagueWeeklyPlayerScorecard[],
+  playerBaselines: LeagueWeeklyPlayerBaseline[],
+): LeagueWeeklyCourtPlayerSignal[] {
+  const scorecardByPlayer = new Map(scorecards.map((scorecard) => [scorecard.playerName.trim().toLowerCase(), scorecard]))
+  const baselineByPlayer = new Map(playerBaselines.map((baseline) => [baseline.playerName.trim().toLowerCase(), baseline]))
+
+  return Array.from(new Set(playerNames.map((name) => name.trim()).filter(Boolean))).map((playerName) => {
+    const playerKey = playerName.toLowerCase()
+    const scorecard = scorecardByPlayer.get(playerKey)
+    const baseline = baselineByPlayer.get(playerKey)
+    const acceptedSets = scorecard?.setsPlayed || 0
+    const leagueFormIndex = scorecard
+      ? clampIndex(scorecard.setWinPercentage + scorecard.gameDifferential / Math.max(1, scorecard.setsPlayed))
+      : null
+    const tiqRating = typeof baseline?.tiqDoublesRating === 'number' && Number.isFinite(baseline.tiqDoublesRating)
+      ? baseline.tiqDoublesRating
+      : null
+    const tiqIndex = tiqRating === null ? null : clampIndex(50 + (tiqRating - 3.5) * 20)
+
+    if (tiqIndex !== null && leagueFormIndex !== null && acceptedSets > 0) {
+      const tiqWeight = acceptedSets <= 5 ? 0.75 : acceptedSets <= 14 ? 0.55 : 0.35
+      return {
+        playerName,
+        tiqRating,
+        acceptedSets,
+        leagueFormIndex: roundOne(leagueFormIndex),
+        courtFitIndex: roundOne(tiqIndex * tiqWeight + leagueFormIndex * (1 - tiqWeight)),
+        basis: 'blended',
+      }
+    }
+    if (tiqIndex !== null) {
+      return { playerName, tiqRating, acceptedSets, leagueFormIndex, courtFitIndex: roundOne(tiqIndex), basis: 'tiq' }
+    }
+    if (leagueFormIndex !== null) {
+      return { playerName, tiqRating, acceptedSets, leagueFormIndex: roundOne(leagueFormIndex), courtFitIndex: roundOne(leagueFormIndex), basis: 'league' }
+    }
+    return { playerName, tiqRating, acceptedSets, leagueFormIndex, courtFitIndex: 50, basis: 'untracked' }
+  })
 }
 
 function buildManualLeagueWeeklyCourts(
@@ -298,4 +369,8 @@ function connectionKey(left: string, right: string) {
 
 function roundOne(value: number) {
   return Math.round(value * 10) / 10
+}
+
+function clampIndex(value: number) {
+  return Math.min(100, Math.max(0, value))
 }
