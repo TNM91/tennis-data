@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { supabaseUrl } from '@/lib/supabase'
 import { normalizeLeagueWeeklySettings, type LeagueWeeklyCourt } from '@/lib/league-weekly-format'
-import { buildLeagueWeeklyEmail, findLeagueWeeklyPlayerCourt, getLeagueWeeklyDeliveryKind, type LeagueWeeklyDeliveryKind } from '@/lib/league-weekly-reminders'
+import { buildLeagueWeeklyEmail, findLeagueWeeklyPlayerCourt, getLeagueWeeklyAutoSessionDate, getLeagueWeeklyDeliveryKind, type LeagueWeeklyDeliveryKind } from '@/lib/league-weekly-reminders'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -27,6 +27,16 @@ type LeagueEntryRow = {
   player_name: string
 }
 
+type AutomatedLeagueRow = {
+  id: string
+  default_match_day: string
+  schedule_time_zone: string
+  starts_on: string | null
+  ends_on: string | null
+  weekly_settings: unknown
+  created_by_user_id: string | null
+}
+
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET?.trim()
   if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) {
@@ -36,6 +46,12 @@ export async function GET(request: Request) {
   if (!serviceKey) return Response.json({ ok: false, message: 'Weekly league reminders are not configured.' }, { status: 503 })
   const service = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })
   const now = new Date()
+  let opened = 0
+  try {
+    opened = await openMondaySessions(service, now)
+  } catch (openError) {
+    return Response.json({ ok: false, message: openError instanceof Error ? openError.message : 'Weekly sessions could not be opened.' }, { status: 500 })
+  }
   const start = new Date(now.getTime() - 86_400_000).toISOString().slice(0, 10)
   const end = new Date(now.getTime() + 7 * 86_400_000).toISOString().slice(0, 10)
   const { data, error } = await service
@@ -60,7 +76,36 @@ export async function GET(request: Request) {
     emails += result.emails
     skipped += result.skipped
   }
-  return Response.json({ ok: true, notifications, emails, skipped })
+  return Response.json({ ok: true, opened, notifications, emails, skipped })
+}
+
+async function openMondaySessions(service: SupabaseClient, now: Date) {
+  const { data, error } = await service
+    .from('tiq_leagues')
+    .select('id,default_match_day,schedule_time_zone,starts_on,ends_on,weekly_settings,created_by_user_id')
+    .eq('season_status', 'active')
+    .limit(500)
+  if (error) throw new Error(`Weekly leagues could not be checked: ${error.message}`)
+
+  const sessions = ((data || []) as AutomatedLeagueRow[]).flatMap((league) => {
+    const settings = normalizeLeagueWeeklySettings(league.weekly_settings as never)
+    if (!settings.enabled || !settings.emailRemindersEnabled || !league.created_by_user_id) return []
+    const playOn = getLeagueWeeklyAutoSessionDate({
+      now,
+      timeZone: league.schedule_time_zone,
+      matchDay: league.default_match_day,
+      startsOn: league.starts_on,
+      endsOn: league.ends_on,
+    })
+    return playOn ? [{ league_id: league.id, play_on: playOn, status: 'collecting', created_by_user_id: league.created_by_user_id }] : []
+  })
+  if (!sessions.length) return 0
+  const { data: opened, error: openError } = await service
+    .from('tiq_league_weekly_sessions')
+    .upsert(sessions, { onConflict: 'league_id,play_on', ignoreDuplicates: true })
+    .select('id')
+  if (openError) throw new Error(`Weekly sessions could not be opened: ${openError.message}`)
+  return opened?.length || 0
 }
 
 async function deliverSession(service: SupabaseClient, session: WeeklySessionRow, kind: LeagueWeeklyDeliveryKind, requestUrl: string) {
