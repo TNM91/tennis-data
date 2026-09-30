@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildLeagueWeeklyCourts } from '../league-weekly-format'
-import { buildBalancedLeagueWeeklyCourts, buildLeagueWeeklyDashboard, buildLeagueWeeklyScoreReview, buildLeagueWeeklySeasonScorecards, deriveLeagueWeeklyOfficialScore } from '../league-weekly-intelligence'
+import { buildBalancedLeagueWeeklyCourts, buildLeagueWeeklyCourtPlan, buildLeagueWeeklyDashboard, buildLeagueWeeklyScoreReview, buildLeagueWeeklySeasonScorecards, deriveLeagueWeeklyOfficialScore } from '../league-weekly-intelligence'
 
 describe('weekly league score intelligence', () => {
   it('confirms matching submissions and flags conflicting ones', () => {
@@ -51,5 +51,46 @@ describe('weekly league score intelligence', () => {
     const courts = buildBalancedLeagueWeeklyCourts({ playerNames: players, settings: { courtCount: 1 }, scorecards: [], historyCourts: [] })
     expect(courts).toHaveLength(1)
     expect(courts[0].players).toEqual(['A', 'B', 'C', 'D'])
+  })
+
+  it('explains a balanced recommendation using score history and recent courtmates', () => {
+    const players = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+    const historyCourts = [buildLeagueWeeklyCourts(players, { courtCount: 2 })]
+    const plan = buildLeagueWeeklyCourtPlan({
+      playerNames: players,
+      settings: { courtCount: 2, startTimes: ['08:00', '08:30'] },
+      scorecards: [
+        { playerName: 'A', setsPlayed: 6, setsWon: 5, gamesWon: 35, gamesLost: 22, gameDifferential: 13, weeksPlayed: 2, setWinPercentage: 83, currentWinStreak: 2 },
+        { playerName: 'H', setsPlayed: 6, setsWon: 1, gamesWon: 21, gamesLost: 36, gameDifferential: -15, weeksPlayed: 2, setWinPercentage: 17, currentWinStreak: 0 },
+      ],
+      historyCourts,
+      lockedCourts: { A: 2 },
+    })
+
+    expect(plan.strategy).toBe('balanced')
+    expect(plan.courts).toHaveLength(2)
+    expect(plan.courts[1].players).toContain('A')
+    expect(plan.summary).toMatchObject({ trackedPlayers: 2, lockedPlayers: 1 })
+    expect(plan.summary.movedPlayers).toBeGreaterThan(0)
+    expect(plan.summary.freshConnections + plan.summary.repeatConnections).toBe(12)
+    expect(plan.insights).toEqual(expect.arrayContaining([
+      expect.objectContaining({ courtNumber: 2, lockedPlayers: ['A'] }),
+    ]))
+  })
+
+  it('honors court locks in manual mode and fills open spots in roster order', () => {
+    const plan = buildLeagueWeeklyCourtPlan({
+      playerNames: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'],
+      settings: { courtCount: 2, startTimes: ['08:00', '08:30'] },
+      scorecards: [],
+      historyCourts: [],
+      lockedCourts: { A: 2 },
+      strategy: 'manual',
+    })
+
+    expect(plan.strategy).toBe('manual')
+    expect(plan.courts[0].players).toEqual(['B', 'C', 'D', 'E'])
+    expect(plan.courts[1].players).toEqual(['A', 'F', 'G', 'H'])
+    expect(plan.courts.map((court) => court.startTime)).toEqual(['08:00', '08:30'])
   })
 })

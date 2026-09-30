@@ -9,12 +9,11 @@ import WeeklyScoreIntelligencePanel from './weekly-score-intelligence-panel'
 import { supabase } from '@/lib/supabase'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
 import {
-  buildLeagueWeeklyCourts,
   buildLeagueWeeklyRecap,
   getLeagueWeeklyRosterSummary,
   type LeagueWeeklyCourt,
 } from '@/lib/league-weekly-format'
-import { buildBalancedLeagueWeeklyCourts, buildLeagueWeeklySeasonScorecards, isAcceptedLeagueWeeklyResult, type LeagueWeeklyPlayerScorecard, type LeagueWeeklyReviewedResult } from '@/lib/league-weekly-intelligence'
+import { buildLeagueWeeklyCourtPlan, buildLeagueWeeklySeasonScorecards, isAcceptedLeagueWeeklyResult, type LeagueWeeklyCourtPlan, type LeagueWeeklyPlayerScorecard, type LeagueWeeklyReviewedResult } from '@/lib/league-weekly-intelligence'
 import type { TiqLeagueRecord } from '@/lib/tiq-league-registry'
 
 type WeeklyResponse = {
@@ -86,6 +85,14 @@ export default function WeeklyLeagueWorkspace({
     () => getLeagueWeeklyRosterSummary(selectedPlayers, league?.weeklySettings || {}),
     [league?.weeklySettings, selectedPlayers],
   )
+  const courtPlan = useMemo(() => league ? buildLeagueWeeklyCourtPlan({
+    playerNames: selectedPlayers,
+    settings: league.weeklySettings,
+    scorecards: playerStats,
+    historyCourts,
+    lockedCourts,
+    strategy: league.weeklySettings.autoGenerateCourts ? 'balanced' : 'manual',
+  }) : null, [historyCourts, league, lockedCourts, playerStats, selectedPlayers])
 
   const loadSession = useCallback(async (targetLeagueId: string, targetPlayOn: string) => {
     if (!targetLeagueId || !targetPlayOn) return
@@ -189,16 +196,41 @@ export default function WeeklyLeagueWorkspace({
   }
 
   function togglePlayer(playerName: string) {
-    setSelectedPlayers((current) => current.includes(playerName)
-      ? current.filter((name) => name !== playerName)
-      : [...current, playerName])
+    const isSelected = selectedPlayers.includes(playerName)
+    setSelectedPlayers(isSelected
+      ? selectedPlayers.filter((name) => name !== playerName)
+      : [...selectedPlayers, playerName])
+    if (isSelected && lockedCourts[playerName]) {
+      setLockedCourts((current) => {
+        const next = { ...current }
+        delete next[playerName]
+        return next
+      })
+    }
+  }
+
+  function lockPlayerToCourt(playerName: string, courtNumber: number) {
+    if (courtNumber > 0) {
+      const lockedCount = Object.entries(lockedCourts).filter(([otherPlayer, lockedCourt]) => (
+        otherPlayer !== playerName && selectedPlayers.includes(otherPlayer) && lockedCourt === courtNumber
+      )).length
+      if (lockedCount >= 4) {
+        setStatus(`Court ${courtNumber} already has four locked players. Clear a lock first.`)
+        return
+      }
+    }
+    setLockedCourts((current) => {
+      const next = { ...current }
+      if (courtNumber > 0) next[playerName] = courtNumber
+      else delete next[playerName]
+      return next
+    })
+    setStatus('')
   }
 
   async function publishCourts() {
     if (!league || !session) return
-    const assignments = league.weeklySettings.autoGenerateCourts
-      ? buildBalancedLeagueWeeklyCourts({ playerNames: selectedPlayers, settings: league.weeklySettings, scorecards: playerStats, historyCourts, lockedCourts })
-      : buildLeagueWeeklyCourts(selectedPlayers, league.weeklySettings)
+    const assignments = courtPlan?.courts || []
     if (!assignments.length) {
       setStatus('Confirm at least four players before building courts.')
       return
@@ -333,11 +365,18 @@ export default function WeeklyLeagueWorkspace({
                   {(league?.players || []).map((player) => {
                     const response = responses.find((item) => item.player_name === player)
                     const selected = selectedPlayers.includes(player)
-                    return <div key={player} style={playerStyle}><input aria-label={`Select ${player}`} type="checkbox" checked={selected} onChange={() => togglePlayer(player)} /><span style={{ flex: 1 }}><strong>{player}</strong><small style={{ display: 'block' }}>{response?.response_status || 'No reply'}{response?.note ? ` · ${response.note}` : ''}</small></span>{selected ? <select aria-label={`Lock ${player} to a court`} value={lockedCourts[player] || 0} onChange={(event) => setLockedCourts((current) => ({ ...current, [player]: Number(event.target.value) }))} style={lockSelectStyle}><option value={0}>Auto court</option>{Array.from({ length: league?.weeklySettings.courtCount || 0 }, (_, index) => <option key={index + 1} value={index + 1}>Court {index + 1}</option>)}</select> : null}</div>
+                    return <div key={player} style={playerStyle}><input aria-label={`Select ${player}`} type="checkbox" checked={selected} onChange={() => togglePlayer(player)} /><span style={{ flex: 1 }}><strong>{player}</strong><small style={{ display: 'block' }}>{response?.response_status || 'No reply'}{response?.note ? ` · ${response.note}` : ''}</small></span>{selected ? <select aria-label={`Lock ${player} to a court`} value={lockedCourts[player] || 0} onChange={(event) => lockPlayerToCourt(player, Number(event.target.value))} style={lockSelectStyle}><option value={0}>{league?.weeklySettings.autoGenerateCourts ? 'Auto court' : 'Roster order'}</option>{Array.from({ length: league?.weeklySettings.courtCount || 0 }, (_, index) => <option key={index + 1} value={index + 1}>Court {index + 1}</option>)}</select> : null}</div>
                   })}
                 </div>
-                <p style={{ color: '#52605a' }}>Court locks stay fixed. Everyone else is balanced using approved results, recent courtmates, and last week’s court.</p>
-                <button onClick={() => void publishCourts()} disabled={busy} style={buttonStyle}>{league?.weeklySettings.autoGenerateCourts ? 'Generate balanced courts and publish' : 'Confirm roster and publish courts'}</button>
+                <p style={{ color: '#52605a' }}>{league?.weeklySettings.autoGenerateCourts ? 'Court locks stay fixed. Everyone else is balanced using accepted results, recent courtmates, attendance, and last week’s court.' : 'Court locks and roster order build this plan. Move any player before publishing.'}</p>
+                <CourtPlanPreview
+                  plan={courtPlan}
+                  courtCount={league?.weeklySettings.courtCount || 0}
+                  lockedCourts={lockedCourts}
+                  busy={busy}
+                  onMovePlayer={lockPlayerToCourt}
+                  onPublish={() => void publishCourts()}
+                />
               </section>
 
               {session.assignments?.length ? (
@@ -386,6 +425,85 @@ export default function WeeklyLeagueWorkspace({
   )
 }
 
+function CourtPlanPreview({
+  plan,
+  courtCount,
+  lockedCourts,
+  busy,
+  onMovePlayer,
+  onPublish,
+}: {
+  plan: LeagueWeeklyCourtPlan | null
+  courtCount: number
+  lockedCourts: Record<string, number>
+  busy: boolean
+  onMovePlayer: (playerName: string, courtNumber: number) => void
+  onPublish: () => void
+}) {
+  if (!plan?.courts.length) {
+    return <div style={planEmptyStyle}>Choose at least four players to preview the first court.</div>
+  }
+  return (
+    <div style={planPreviewStyle}>
+      <div style={planHeaderStyle}>
+        <div>
+          <p style={planKickerStyle}>{plan.strategy === 'balanced' ? 'TIQ recommendation' : 'Manual plan'}</p>
+          <h3 style={planTitleStyle}>Preview before publishing</h3>
+          <p style={planCopyStyle}>{plan.strategy === 'balanced'
+            ? 'A smaller performance spread means the courts are closer using accepted score history.'
+            : 'Players without a court lock follow the roster order shown above.'}</p>
+        </div>
+        <span style={planModeStyle}>{plan.strategy === 'balanced' ? 'Balanced' : 'Roster order'}</span>
+      </div>
+
+      <div style={planSummaryStyle}>
+        <PlanMetric label="Performance spread" value={String(plan.summary.strengthSpread)} />
+        <PlanMetric label="Players with history" value={String(plan.summary.trackedPlayers)} />
+        <PlanMetric label="Fresh courtmates" value={String(plan.summary.freshConnections)} />
+        <PlanMetric label="Moved courts" value={String(plan.summary.movedPlayers)} />
+        <PlanMetric label="Your locks" value={String(plan.summary.lockedPlayers)} />
+      </div>
+
+      <div style={planCourtGridStyle}>
+        {plan.courts.map((court) => {
+          const insight = plan.insights.find((item) => item.courtNumber === court.courtNumber)
+          return (
+            <article key={court.courtNumber} style={planCourtStyle}>
+              <div style={planCourtHeaderStyle}>
+                <div><strong>Court {court.courtNumber}</strong><small style={planCourtTimeStyle}>{court.startTime}</small></div>
+                <span style={strengthStyle}>Index {insight?.strengthIndex ?? 50}</span>
+              </div>
+              <div style={planPlayerListStyle}>
+                {court.players.map((player) => (
+                  <label key={player} style={planPlayerStyle}>
+                    <span><strong style={planPlayerNameStyle}>{player}</strong>{lockedCourts[player] === court.courtNumber ? <small style={lockedStyle}>Locked here</small> : null}</span>
+                    <select aria-label={`Move ${player} to a court`} value={lockedCourts[player] || 0} onChange={(event) => onMovePlayer(player, Number(event.target.value))} style={planMoveSelectStyle}>
+                      <option value={0}>{plan.strategy === 'balanced' ? 'TIQ pick' : 'Roster order'}</option>
+                      {Array.from({ length: courtCount }, (_, index) => <option key={index + 1} value={index + 1}>Court {index + 1}</option>)}
+                    </select>
+                  </label>
+                ))}
+              </div>
+              <p style={planReasonStyle}>
+                {insight?.trackedPlayers || 0}/4 with score history · {insight?.freshConnections || 0} fresh courtmate pairings
+                {insight?.movedPlayers.length ? ` · ${insight.movedPlayers.length} moved from last week` : ''}
+              </p>
+            </article>
+          )
+        })}
+      </div>
+      <div style={planActionStyle}>
+        <p style={planCopyStyle}>Nothing is shared until you publish this plan.</p>
+        <button onClick={onPublish} disabled={busy} style={buttonStyle}>{busy ? 'Publishing…' : 'Publish this court plan'}</button>
+      </div>
+    </div>
+  )
+}
+
+function PlanMetric({ label, value }: { label: string; value: string }) {
+  return <div style={planMetricStyle}><span>{label}</span><strong>{value}</strong></div>
+}
+
 const pageStyle: CSSProperties = { maxWidth: 1180, margin: '0 auto', padding: '32px 20px 80px', display: 'grid', gap: 18 }
 const headerStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }
 const eyebrowStyle: CSSProperties = { margin: '0 0 6px', color: '#23765b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 12 }
@@ -409,3 +527,24 @@ const courtStyle: CSSProperties = { padding: 16, borderRadius: 14, background: '
 const actionRowStyle: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
 const secondaryButtonStyle: CSSProperties = { ...buttonStyle, background: '#e7f4ee', color: '#126044' }
 const sentNoticeStyle: CSSProperties = { padding: 12, borderRadius: 10, background: '#e7f4ee', color: '#126044', fontWeight: 700 }
+const planEmptyStyle: CSSProperties = { padding: 14, borderRadius: 13, border: '1px dashed #b8c9c0', background: '#f8faf9', color: '#52605a', fontSize: 13, fontWeight: 700 }
+const planPreviewStyle: CSSProperties = { display: 'grid', gap: 14, minWidth: 0, marginTop: 14, padding: 16, borderRadius: 17, border: '1px solid #bfd8cd', background: 'linear-gradient(145deg, #f2f9f5, #fff)' }
+const planHeaderStyle: CSSProperties = { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }
+const planKickerStyle: CSSProperties = { margin: '0 0 4px', color: '#126044', fontSize: 10, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase' }
+const planTitleStyle: CSSProperties = { margin: 0, color: '#14231d', fontSize: 20 }
+const planCopyStyle: CSSProperties = { margin: '5px 0 0', color: '#52605a', fontSize: 12, lineHeight: 1.45 }
+const planModeStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', minHeight: 29, padding: '0 10px', borderRadius: 999, background: '#dff2e9', color: '#126044', fontSize: 10, fontWeight: 950, textTransform: 'uppercase' }
+const planSummaryStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 115px), 1fr))', gap: 8 }
+const planMetricStyle: CSSProperties = { display: 'grid', gap: 3, minWidth: 0, padding: 10, borderRadius: 11, border: '1px solid #dce4df', background: '#fff', color: '#65746d', fontSize: 9, fontWeight: 900, letterSpacing: '.04em', textTransform: 'uppercase' }
+const planCourtGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 10 }
+const planCourtStyle: CSSProperties = { display: 'grid', alignContent: 'start', gap: 10, minWidth: 0, padding: 13, borderRadius: 14, border: '1px solid #dce4df', background: '#fff' }
+const planCourtHeaderStyle: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }
+const planCourtTimeStyle: CSSProperties = { display: 'block', marginTop: 2, color: '#65746d', fontSize: 10, fontWeight: 750 }
+const strengthStyle: CSSProperties = { flex: '0 0 auto', padding: '5px 8px', borderRadius: 999, background: '#eef5ff', color: '#245f8f', fontSize: 10, fontWeight: 900 }
+const planPlayerListStyle: CSSProperties = { display: 'grid', gap: 6 }
+const planPlayerStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', gap: 8, minWidth: 0, padding: '7px 8px', borderRadius: 10, background: '#f4f8f5' }
+const planPlayerNameStyle: CSSProperties = { display: 'block', minWidth: 0, color: '#14231d', fontSize: 11, overflowWrap: 'anywhere' }
+const lockedStyle: CSSProperties = { display: 'block', marginTop: 2, color: '#126044', fontSize: 9, fontWeight: 850 }
+const planMoveSelectStyle: CSSProperties = { minHeight: 32, maxWidth: 105, border: '1px solid #cbd8d1', borderRadius: 8, padding: '4px 6px', background: '#fff', color: '#14231d', fontSize: 10 }
+const planReasonStyle: CSSProperties = { margin: 0, color: '#65746d', fontSize: 10, lineHeight: 1.4 }
+const planActionStyle: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }
