@@ -30,7 +30,7 @@ export async function POST(request: Request) {
       'svix-id': id,
       'svix-timestamp': timestamp,
       'svix-signature': signature,
-    }) as ResendEmailEvent
+    }) as unknown as ResendEmailEvent
   } catch {
     return Response.json({ ok: false, message: 'Invalid webhook signature.' }, { status: 400 })
   }
