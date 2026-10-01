@@ -22,4 +22,12 @@ describe('rotating-partner doubles league setup', () => {
     expect(publicLeagueSource).toContain("Third-set rule does not apply because each rotation is a separate set.")
     expect(publicLeagueSource).toContain('league.weeklySettings.enabled')
   })
+
+  it('allows the court count to be cleared before entering a replacement', () => {
+    const source = read('app/components/league-coordinator-workspace.tsx')
+
+    expect(source).toContain("value={draft.weeklySettings.courtCount || ''}")
+    expect(source).toContain("courtCount: event.target.value === '' ? 0 : Number(event.target.value)")
+    expect(source).toContain('weeklySettings: normalizeLeagueWeeklySettings(current.weeklySettings)')
+  })
 })

@@ -2474,13 +2474,17 @@ export function LeagueCoordinatorWorkspace() {
                         type="number"
                         min={1}
                         max={24}
-                        value={draft.weeklySettings.courtCount}
+                        value={draft.weeklySettings.courtCount || ''}
                         onChange={(event) => setDraft((current) => ({
                           ...current,
-                          weeklySettings: normalizeLeagueWeeklySettings({
+                          weeklySettings: {
                             ...current.weeklySettings,
-                            courtCount: Number(event.target.value),
-                          }),
+                            courtCount: event.target.value === '' ? 0 : Number(event.target.value),
+                          },
+                        }))}
+                        onBlur={() => setDraft((current) => ({
+                          ...current,
+                          weeklySettings: normalizeLeagueWeeklySettings(current.weeklySettings),
                         }))}
                         style={inputStyle}
                       />
