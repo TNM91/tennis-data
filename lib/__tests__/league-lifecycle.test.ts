@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildTiqLeagueRenewalDraft,
   canDeleteLeagueWithConfirmation,
+  canManageLeagueAsOwner,
   normalizeLeagueDeleteConfirmation,
 } from '../league-lifecycle'
 import type { TiqLeagueRecord } from '../tiq-league-registry'
@@ -55,6 +56,14 @@ describe('league lifecycle', () => {
     expect(canDeleteLeagueWithConfirmation('Thursday Doubles', 'thursday doubles')).toBe(true)
     expect(canDeleteLeagueWithConfirmation('Thursday Doubles', 'Thursday')).toBe(false)
     expect(canDeleteLeagueWithConfirmation('', '')).toBe(false)
+  })
+
+  it('keeps device-local leagues manageable while protecting cloud-owned leagues', () => {
+    expect(canManageLeagueAsOwner({ createdByUserId: undefined }, null)).toBe(true)
+    expect(canManageLeagueAsOwner({ createdByUserId: '' }, null)).toBe(true)
+    expect(canManageLeagueAsOwner(league, 'owner-1')).toBe(true)
+    expect(canManageLeagueAsOwner(league, null)).toBe(false)
+    expect(canManageLeagueAsOwner(league, 'delegate-1')).toBe(false)
   })
 
   it('renews league setup without carrying dates, status, or result identity forward', () => {
