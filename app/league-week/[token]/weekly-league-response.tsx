@@ -21,6 +21,27 @@ type WeeklyPayload = {
   }
 }
 
+const STORY_PROMPTS = [
+  'Teammate shoutout',
+  'Best point',
+  'Great sportsmanship',
+  'Fun moment',
+] as const
+
+function formatPlayDate(value: string) {
+  const parsed = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return value
+  return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(parsed)
+}
+
+function formatStartTime(value: string) {
+  const match = value.match(/^(\d{1,2}):(\d{2})/)
+  if (!match) return value
+  const hour = Number(match[1])
+  const minute = match[2]
+  return `${hour % 12 || 12}:${minute} ${hour >= 12 ? 'PM' : 'AM'}`
+}
+
 export default function WeeklyLeagueResponse({ token }: { token: string }) {
   const [data, setData] = useState<WeeklyPayload | null>(null)
   const [playerName, setPlayerName] = useState('')
@@ -136,9 +157,9 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
         </div>
         <div className={styles.weekHero}>
           <p className={styles.kicker}>Plan the week</p>
-          <h1><span>{weekDate.weekday},</span> {weekDate.monthDay}</h1>
+          <h1 aria-label={formatPlayDate(data.week.playOn)}><span>{weekDate.weekday},</span> {weekDate.monthDay}</h1>
           <div className={styles.weekMeta}>
-            <span><Clock size={22} weight="duotone" />{assignedCourt?.startTime || 'Thursday night'} · {data.league.facility || 'League site'}</span>
+            <span><Clock size={22} weight="duotone" />{assignedCourt ? formatStartTime(assignedCourt.startTime) : 'Thursday night'} · {data.league.facility || 'League site'}</span>
             <span><CalendarBlank size={22} weight="duotone" />{deadline}</span>
           </div>
         </div>
@@ -171,7 +192,7 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
         </section>
       ) : assignedCourt ? (
         <section className={styles.scorecard} aria-labelledby="weekly-scorecard-title">
-          <p className={styles.kicker}>Court {assignedCourt.courtNumber} · {assignedCourt.startTime}</p>
+          <p className={styles.kicker}>Court {assignedCourt.courtNumber} · {formatStartTime(assignedCourt.startTime)}</p>
           <h2 id="weekly-scorecard-title">Your three sets</h2>
           <p className={styles.rule}>{ROTATING_PARTNER_DOUBLES_FORMAT.scoringSummary} {ROTATING_PARTNER_DOUBLES_FORMAT.entrySummary}</p>
           <div className={styles.setList}>
@@ -181,7 +202,20 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
               return <div key={key} className={styles.setRow}><div><span>Set {set.setNumber}</span><strong>{set.sideA.join(' + ')} <small>vs</small> {set.sideB.join(' + ')}</strong>{saved ? <em data-tone={saved.review_status === 'disputed' ? 'warning' : 'success'}>{saved.review_status === 'confirmed' ? 'Players agree' : saved.review_status === 'approved' ? 'League approved' : saved.review_status === 'disputed' ? 'Needs league review' : `Submitted by ${saved.submitted_by_name}`}</em> : <em>Score needed</em>}</div><div className={styles.scoreInputs}><input aria-label={`Set ${set.setNumber} first side games`} type="number" inputMode="numeric" min={0} max={7} value={scores[key]?.a ?? saved?.side_a_games ?? ''} onChange={(event) => setScores((current) => ({ ...current, [key]: { a: event.target.value, b: current[key]?.b ?? String(saved?.side_b_games ?? '') } }))} /><span>–</span><input aria-label={`Set ${set.setNumber} second side games`} type="number" inputMode="numeric" min={0} max={7} value={scores[key]?.b ?? saved?.side_b_games ?? ''} onChange={(event) => setScores((current) => ({ ...current, [key]: { a: current[key]?.a ?? String(saved?.side_a_games ?? ''), b: event.target.value } }))} /></div></div>
             })}
           </div>
-          {data.league.weeklySettings.collectPlayerStories ? <label className={styles.storyField}>Add a moment for the recap<textarea value={positiveShare} onChange={(event) => setPositiveShare(event.target.value)} placeholder="Celebrate someone or share what made today fun" /></label> : null}
+          {data.league.weeklySettings.collectPlayerStories ? (
+            <div className={styles.storyCard}>
+              <div>
+                <strong>Share a highlight or shoutout</strong>
+                <p>Optional. Give League Office a positive moment for this week&apos;s recap.</p>
+              </div>
+              <div className={styles.storyPromptRow} aria-label="Recap prompt ideas">
+                {STORY_PROMPTS.map((prompt) => (
+                  <button key={prompt} type="button" onClick={() => setPositiveShare((current) => current.trim() ? current : `${prompt}: `)}>{prompt}</button>
+                ))}
+              </div>
+              <label className={styles.storyField}>Your moment<textarea value={positiveShare} onChange={(event) => setPositiveShare(event.target.value)} placeholder="What happened, and who deserves the credit?" /></label>
+            </div>
+          ) : null}
           <button disabled={busy} onClick={() => void submitScorecard(assignedCourt)} className={styles.saveButton}>{busy ? 'Saving scorecard…' : 'Submit all three set scores'}<ArrowRight size={20} /></button>
         </section>
       ) : playerName ? <section className={styles.emptyState}><h2>You’re not on a court this week</h2><p>Check with League Office if the roster changed.</p></section> : null}
@@ -189,7 +223,7 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
       <section className={styles.courtBoard} aria-label="This week at a glance">
         <div className={styles.courtImage}>
           <PremiumLeagueCourt />
-          <div className={styles.waveLabel}><span>Thursday night</span><strong>{assignedCourt?.startTime || '8:00 · 8:30'}</strong></div>
+          <div className={styles.waveLabel}><span>Thursday night</span><strong>{assignedCourt ? formatStartTime(assignedCourt.startTime) : '8:00 · 8:30'}</strong></div>
         </div>
         <div className={styles.publishNote}><UsersThree size={25} weight="duotone" /><div><strong>{assignedCourt ? `Court ${assignedCourt.courtNumber} is ready` : 'Two start waves'}</strong><span>{assignedCourt ? assignedCourt.players.join(' · ') : 'Court, partners, and start time publish Thursday morning.'}</span></div></div>
       </section>

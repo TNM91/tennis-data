@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { normalizeLeagueWeeklySettings, type LeagueWeeklySettings } from '@/lib/league-weekly-format'
 import {
   buildLeagueWeeklyCompetitionView,
+  type LeagueWeeklyPublicWeek,
   type LeagueWeeklyRecordSession,
   type LeagueWeeklyRecordSetResult,
 } from '@/lib/league-weekly-player-records'
@@ -19,6 +20,11 @@ type LeagueRow = {
 
 type ProfileRow = { linked_player_id?: string | null; linked_player_name?: string | null }
 type EntryRow = { player_id?: string | null; player_name?: string | null; entry_status?: string | null }
+type PublicSessionRow = LeagueWeeklyRecordSession & {
+  roster?: unknown
+  assignments?: unknown
+  recap?: unknown
+}
 
 export async function GET(request: Request, { params }: { params: Promise<{ leagueId: string }> }) {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
@@ -50,7 +56,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ leag
   const [{ data: sessions, error: sessionError }, { data: activeEntries, error: entryError }] = await Promise.all([
     service
       .from('tiq_league_weekly_sessions')
-      .select('id,league_id,status,play_on')
+      .select('id,league_id,status,play_on,roster,assignments,recap')
       .eq('league_id', leagueRow.id)
       .in('status', ['published', 'completed'])
       .order('play_on', { ascending: false }),
@@ -62,7 +68,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ leag
   ])
   if (sessionError) return Response.json({ ok: false, message: 'Weekly league scorecards could not be loaded.' }, { status: 500 })
   if (entryError) return Response.json({ ok: false, message: 'Weekly league standings could not be loaded.' }, { status: 500 })
-  const sessionRows = (sessions || []) as LeagueWeeklyRecordSession[]
+  const sessionRows = (sessions || []) as PublicSessionRow[]
   const activeEntryNames = ((activeEntries || []) as Array<{ player_name?: string | null }>)
     .map((entry) => cleanText(entry.player_name))
     .filter(Boolean)
@@ -82,12 +88,60 @@ export async function GET(request: Request, { params }: { params: Promise<{ leag
     resultRows = (results || []) as LeagueWeeklyRecordSetResult[]
   }
 
+  const today = new Date().toISOString().slice(0, 10)
+  const currentSession = [...sessionRows]
+    .filter((item) => item.status === 'published' && cleanText(item.play_on) >= today)
+    .sort((left, right) => cleanText(left.play_on).localeCompare(cleanText(right.play_on)))[0]
+    || sessionRows[0]
+    || null
+  const currentWeek = currentSession ? buildPublicWeek(currentSession, resultRows) : null
+
   return Response.json({
     ok: true,
     view: buildLeagueWeeklyCompetitionView({ leagueId: leagueRow.id, playerNames, sessions: sessionRows, results: resultRows }),
+    week: currentWeek,
   }, {
     headers: { 'Cache-Control': isPublic ? 'public, max-age=60, stale-while-revalidate=300' : 'private, no-store' },
   })
+}
+
+function buildPublicWeek(session: PublicSessionRow, results: LeagueWeeklyRecordSetResult[]): LeagueWeeklyPublicWeek {
+  const assignments = Array.isArray(session.assignments)
+    ? session.assignments.flatMap((item) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) return []
+        const court = item as { courtNumber?: unknown; startTime?: unknown; players?: unknown }
+        const players = Array.isArray(court.players) ? court.players.filter((name): name is string => typeof name === 'string' && Boolean(name.trim())) : []
+        if (!Number.isInteger(Number(court.courtNumber)) || players.length !== 4) return []
+        return [{
+          courtNumber: Number(court.courtNumber),
+          startTime: cleanText(court.startTime),
+          players: players as [string, string, string, string],
+        }]
+      })
+    : []
+  const roster = Array.isArray(session.roster) ? session.roster.filter((name) => typeof name === 'string' && Boolean(name.trim())) : []
+  const acceptedSetCount = results.filter((result) => result.session_id === session.id).length
+  const recap = session.status === 'completed' && session.recap && typeof session.recap === 'object' && !Array.isArray(session.recap)
+    ? normalizePublicRecap(session.recap as Record<string, unknown>)
+    : null
+  return {
+    playOn: cleanText(session.play_on),
+    status: session.status === 'completed' ? 'completed' : 'published',
+    rosterCount: roster.length,
+    assignments,
+    acceptedSetCount,
+    expectedSetCount: assignments.length * 3,
+    recap,
+  }
+}
+
+function normalizePublicRecap(recap: Record<string, unknown>) {
+  if (!cleanText(recap.sentAt)) return null
+  return {
+    headline: cleanText(recap.headline),
+    summary: cleanText(recap.summary),
+    stories: Array.isArray(recap.stories) ? recap.stories.map(cleanText).filter(Boolean).slice(0, 12) : [],
+  }
 }
 
 async function canReadPrivateLeague(request: Request, service: SupabaseClient, league: LeagueRow) {

@@ -14,6 +14,9 @@ describe('weekly league detail', () => {
     expect(routeSource).not.toContain("select('public_token")
     expect(routeSource).not.toContain('positive_share')
     expect(routeSource).not.toContain('review_note')
+    expect(routeSource).toContain(".select('id,league_id,status,play_on,roster,assignments,recap')")
+    expect(routeSource).toContain('week: currentWeek')
+    expect(routeSource).toContain("if (!cleanText(recap.sentAt)) return null")
   })
 
   it('protects private leagues and gives weekly doubles its own results surface', () => {
@@ -29,5 +32,18 @@ describe('weekly league detail', () => {
     expect(panelSource).toContain('Weekly court history')
     expect(panelSource).toContain("aria-pressed={selectedPlayer?.playerName === standing.playerName}")
     expect(panelSource).toContain('Week-by-week scorecards')
+  })
+
+  it('presents a role-aware, mobile-first weekly league home', () => {
+    expect(pageSource).toContain('id="league-this-week"')
+    expect(pageSource).toContain("supabase.rpc('can_manage_tiq_league'")
+    expect(pageSource).toContain("weeklyPublicWeek?.status === 'completed'")
+    expect(pageSource).toContain('Your court is ready')
+    expect(pageSource).toContain('Open weekly replies')
+    expect(pageSource).toContain('Subscribe calendar')
+    expect(pageSource).toContain('<details style={leagueRulesDetailsStyle}>')
+    expect(pageSource).toContain('Each court plays three sets so every player partners once.')
+    expect(panelSource).toContain('mobileStandingCardStyle')
+    expect(panelSource).toContain('useViewportBreakpoints')
   })
 })

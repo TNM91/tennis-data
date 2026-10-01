@@ -63,6 +63,12 @@
 .scoreInputs { display: grid; grid-template-columns: 50px auto 50px; align-items: center; gap: 7px; }
 .scoreInputs input { width: 50px; height: 48px; border: 1px solid rgba(167, 205, 246, 0.42); border-radius: 12px; background: #0b294a; color: #fff; font-size: 18px; font-weight: 950; text-align: center; }
 .storyField { margin-top: 18px; }
+.storyCard { display: grid; gap: 12px; margin-top: 18px; padding: 16px; border: 1px solid rgba(155, 225, 29, 0.24); border-radius: 16px; background: rgba(10, 41, 74, 0.62); }
+.storyCard strong { color: #fff; font-size: 14px; }
+.storyCard p { margin: 4px 0 0; color: var(--weekly-blue); font-size: 12px; line-height: 1.45; }
+.storyPromptRow { display: flex; flex-wrap: wrap; gap: 7px; }
+.storyPromptRow button { min-height: 36px; padding: 7px 11px; border: 1px solid rgba(167, 205, 246, 0.34); border-radius: 999px; background: rgba(6, 23, 47, 0.58); color: var(--weekly-blue); font-size: 11px; font-weight: 850; cursor: pointer; }
+.storyCard .storyField { margin-top: 0; }
 .courtBoard { overflow: hidden; border-inline: 1px solid var(--weekly-line); background: #06172f; }
 .courtImage { position: relative; min-height: clamp(300px, 85vw, 470px); overflow: hidden; border-top: 1px solid var(--weekly-line); border-bottom: 1px solid var(--weekly-line); background: #020912; }
 .courtImage::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6, 23, 47, 0.08), rgba(6, 23, 47, 0.08) 55%, rgba(6, 23, 47, 0.72)); pointer-events: none; }
