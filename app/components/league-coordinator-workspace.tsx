@@ -1508,7 +1508,9 @@ export function LeagueCoordinatorWorkspace() {
     const ownerTools = document.getElementById(`league-owner-tools-${leagueId}`)
     if (ownerTools instanceof HTMLDetailsElement) ownerTools.open = true
     window.setTimeout(() => {
-      document.getElementById(`delete-league-${leagueId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const action = document.getElementById(`delete-league-${leagueId}`)
+        || document.getElementById(`recover-league-${leagueId}`)
+      action?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }, 0)
   }
 
@@ -3267,6 +3269,7 @@ export function LeagueCoordinatorWorkspace() {
                           {isLeagueOwner ? <GhostBtn onClick={() => startEditing(record, { scrollToForm: true })}>Edit setup</GhostBtn> : null}
                           {isLeagueOwner ? <GhostBtn onClick={() => startRenewing(record)}>Renew season</GhostBtn> : null}
                           {isLeagueOwner ? <DangerBtn onClick={() => openLeagueDelete(record.id)}>Delete league</DangerBtn> : null}
+                          {!isLeagueOwner ? <GhostBtn onClick={() => openLeagueDelete(record.id)}>Restore owner access</GhostBtn> : null}
                         </LeagueActionRow>
                       </div>
                       <LeagueLifecyclePanel
