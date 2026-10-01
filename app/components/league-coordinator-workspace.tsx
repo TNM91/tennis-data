@@ -10,6 +10,7 @@ import type { RoleHomeAction, RoleHomeQuickAction } from '@/app/components/role-
 import LeagueOfficeHome from '@/app/components/league-office-home'
 import LeagueLifecyclePanel from '@/app/components/league-lifecycle-panel'
 import LocationDirectionsLink from '@/app/components/location-directions-link'
+import VenueLocationPicker from '@/app/components/venue-location-picker'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import OrganizerScheduleAttention from '@/app/components/organizer-schedule-attention'
 import { useAuth } from '@/app/components/auth-provider'
@@ -2411,26 +2412,21 @@ export function LeagueCoordinatorWorkspace() {
                 </span>
               </label>
 
-              <label style={fieldLabel}>
-                <span>Default site</span>
-                <input
-                  list="tiq-facility-options"
+              <div style={fieldLabel}>
+                <label htmlFor="tiq-league-default-site">Default site</label>
+                <VenueLocationPicker
+                  inputId="tiq-league-default-site"
                   value={draft.defaultFacility}
-                  onChange={(event) =>
-                    setDraft((current) => ({ ...current, defaultFacility: event.target.value }))
-                  }
-                  placeholder="Club name, court block, or TBD"
-                  style={inputStyle}
+                  onChange={(defaultFacility) => setDraft((current) => ({ ...current, defaultFacility }))}
+                  context={`tiq-league:${editingId || renewingFromLeagueId || 'setup'}`}
+                  token={session?.access_token || ''}
+                  disabled={!canUseLeagueTools || photoUploading}
+                  knownOptions={knownFacilityOptions}
                 />
-                <datalist id="tiq-facility-options">
-                  {knownFacilityOptions.map((option) => (
-                    <option key={option} value={option} />
-                  ))}
-                </datalist>
                 <span style={fieldHelpText}>
-                  Site, court block, or club instructions participants should see before scheduling.
+                  Search and confirm the playing address. Add court numbers or arrival instructions in schedule notes.
                 </span>
-              </label>
+              </div>
 
               <div style={{ ...fieldLabel, gridColumn: '1 / -1' }}>
                 <div style={leagueOpsHeaderStyle}>
