@@ -220,24 +220,24 @@ export default function LeagueOperationsSettings({
   )
 }
 
-const panelStyle: CSSProperties = { border: '1px solid #dce4df', borderRadius: 20, background: '#fff', color: '#14231d', padding: 22, boxShadow: '0 10px 35px rgba(24,55,43,.06)' }
+const panelStyle: CSSProperties = { border: '1px solid rgba(148,190,231,.22)', borderRadius: 22, background: 'linear-gradient(145deg,#0a2442,#071a31)', color: '#fff', padding: 22, boxShadow: '0 18px 55px rgba(0,12,29,.2)' }
 const headingStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }
-const eyebrowStyle: CSSProperties = { margin: '0 0 6px', color: '#23765b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 12 }
-const copyStyle: CSSProperties = { margin: '7px 0 0', color: '#52605a', lineHeight: 1.55 }
-const roleStyle: CSSProperties = { padding: '6px 10px', borderRadius: 999, background: '#e7f4ee', color: '#126044', fontSize: 12, fontWeight: 850 }
+const eyebrowStyle: CSSProperties = { margin: '0 0 6px', color: '#9be11d', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.12em', fontSize: 11 }
+const copyStyle: CSSProperties = { margin: '7px 0 0', color: '#a7cdf6', lineHeight: 1.55 }
+const roleStyle: CSSProperties = { padding: '6px 10px', borderRadius: 999, border: '1px solid rgba(155,225,29,.28)', background: 'rgba(155,225,29,.1)', color: '#9be11d', fontSize: 12, fontWeight: 850 }
 const settingsGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,320px),1fr))', gap: 14, marginTop: 16 }
-const identityCardStyle: CSSProperties = { display: 'grid', alignContent: 'start', gap: 13, padding: 16, border: '1px solid #dce4df', borderRadius: 16, background: '#f8faf9' }
+const identityCardStyle: CSSProperties = { display: 'grid', alignContent: 'start', gap: 13, padding: 16, border: '1px solid rgba(148,190,231,.2)', borderRadius: 16, background: 'rgba(6,23,47,.48)' }
 const logoRowStyle: CSSProperties = { display: 'flex', gap: 12, alignItems: 'center' }
-const logoStyle: CSSProperties = { width: 72, height: 72, borderRadius: 15, objectFit: 'cover', background: '#fff', border: '1px solid #dce4df' }
-const logoFallbackStyle: CSSProperties = { ...logoStyle, display: 'grid', placeItems: 'center', color: '#126044', fontSize: 24, fontWeight: 900 }
-const uploadButtonStyle: CSSProperties = { borderRadius: 999, padding: '9px 13px', border: '1px solid #b9cec3', color: '#126044', fontWeight: 850, cursor: 'pointer' }
-const labelStyle: CSSProperties = { display: 'grid', gap: 6, fontWeight: 800 }
-const inputStyle: CSSProperties = { width: '100%', minHeight: 44, border: '1px solid #cbd8d1', borderRadius: 10, padding: '9px 12px', background: '#fff', color: '#14231d', boxSizing: 'border-box' }
+const logoStyle: CSSProperties = { width: 72, height: 72, borderRadius: 15, objectFit: 'cover', background: '#071b34', border: '1px solid rgba(167,205,246,.28)' }
+const logoFallbackStyle: CSSProperties = { ...logoStyle, display: 'grid', placeItems: 'center', color: '#9be11d', fontSize: 24, fontWeight: 900 }
+const uploadButtonStyle: CSSProperties = { borderRadius: 999, padding: '9px 13px', border: '1px solid rgba(167,205,246,.34)', color: '#a7cdf6', fontWeight: 850, cursor: 'pointer' }
+const labelStyle: CSSProperties = { display: 'grid', gap: 6, color: '#fff', fontWeight: 800 }
+const inputStyle: CSSProperties = { width: '100%', minHeight: 44, border: '1px solid rgba(167,205,246,.28)', borderRadius: 10, padding: '9px 12px', background: '#0a294a', color: '#fff', colorScheme: 'dark', boxSizing: 'border-box' }
 const toggleStyle: CSSProperties = { display: 'flex', gap: 10, alignItems: 'flex-start' }
-const buttonStyle: CSSProperties = { width: 'fit-content', border: 0, borderRadius: 999, padding: '11px 16px', background: '#126044', color: '#fff', fontWeight: 850, cursor: 'pointer' }
-const quietButtonStyle: CSSProperties = { border: '1px solid #cbd8d1', borderRadius: 999, padding: '7px 10px', background: '#fff', color: '#126044', fontWeight: 800, cursor: 'pointer' }
+const buttonStyle: CSSProperties = { width: 'fit-content', border: 0, borderRadius: 999, padding: '11px 16px', background: '#9be11d', color: 'var(--foreground-strong)', fontWeight: 900, cursor: 'pointer' }
+const quietButtonStyle: CSSProperties = { border: '1px solid rgba(167,205,246,.28)', borderRadius: 999, padding: '7px 10px', background: '#0a294a', color: '#a7cdf6', fontWeight: 800, cursor: 'pointer' }
 const inviteRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 8 }
 const peopleListStyle: CSSProperties = { display: 'grid', gap: 8 }
-const personRowStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', paddingTop: 9, borderTop: '1px solid #e3eae6' }
+const personRowStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', paddingTop: 9, borderTop: '1px solid rgba(148,190,231,.18)' }
 const rowActionsStyle: CSSProperties = { display: 'flex', gap: 6 }
-const noticeStyle: CSSProperties = { margin: '14px 0 0', padding: 12, borderRadius: 10, background: '#e7f4ee', color: '#126044', fontWeight: 750 }
+const noticeStyle: CSSProperties = { margin: '14px 0 0', padding: 12, border: '1px solid rgba(155,225,29,.24)', borderRadius: 10, background: 'rgba(155,225,29,.1)', color: '#c8f478', fontWeight: 750 }

@@ -110,22 +110,22 @@ function Metric({ label, value }: { label: string; value: string | number }) {
   return <article style={metricStyle}><strong style={metricValueStyle}>{value}</strong><span style={metricLabelStyle}>{label}</span></article>
 }
 
-const panelStyle: CSSProperties = { border: '1px solid #dce4df', borderRadius: 20, background: '#fff', color: '#14231d', padding: 22, boxShadow: '0 10px 35px rgba(24,55,43,.06)' }
-const eyebrowStyle: CSSProperties = { margin: '0 0 6px', color: '#23765b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 12 }
+const panelStyle: CSSProperties = { border: '1px solid rgba(148,190,231,.22)', borderRadius: 22, background: 'linear-gradient(145deg,#0a2442,#071a31)', color: '#fff', padding: 22, boxShadow: '0 18px 55px rgba(0,12,29,.2)' }
+const eyebrowStyle: CSSProperties = { margin: '0 0 6px', color: '#9be11d', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.12em', fontSize: 11 }
 const metricGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10 }
-const metricStyle: CSSProperties = { display: 'grid', gap: 3, padding: 14, borderRadius: 14, background: '#f4f8f5', border: '1px solid #dce4df' }
-const metricValueStyle: CSSProperties = { fontSize: 25, color: '#126044' }
-const metricLabelStyle: CSSProperties = { color: '#52605a', fontSize: 12, fontWeight: 750 }
-const reviewCardStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: 14, borderRadius: 14, border: '1px solid #ead7c7', background: '#fffaf5' }
-const reviewCopyStyle: CSSProperties = { margin: '5px 0 0', color: '#6b5b4f', fontSize: 13 }
+const metricStyle: CSSProperties = { display: 'grid', gap: 3, padding: 14, borderRadius: 14, background: 'rgba(6,23,47,.56)', border: '1px solid rgba(148,190,231,.2)' }
+const metricValueStyle: CSSProperties = { fontSize: 25, color: '#9be11d' }
+const metricLabelStyle: CSSProperties = { color: '#8faed0', fontSize: 12, fontWeight: 750 }
+const reviewCardStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: 14, borderRadius: 14, border: '1px solid rgba(241,178,116,.3)', background: 'rgba(74,43,24,.24)' }
+const reviewCopyStyle: CSSProperties = { margin: '5px 0 0', color: '#c7d8ec', fontSize: 13 }
 const scoreControlStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }
-const scoreInputStyle: CSSProperties = { width: 58, minHeight: 40, border: '1px solid #cbd8d1', borderRadius: 9, padding: 7, textAlign: 'center' }
-const buttonStyle: CSSProperties = { border: 0, borderRadius: 999, padding: '10px 14px', background: '#126044', color: '#fff', fontWeight: 800, cursor: 'pointer' }
-const noticeStyle: CSSProperties = { padding: 11, borderRadius: 10, background: '#fff7dc', color: '#6e5510' }
-const successStyle: CSSProperties = { padding: 12, borderRadius: 10, background: '#e7f4ee', color: '#126044', fontWeight: 750 }
+const scoreInputStyle: CSSProperties = { width: 58, minHeight: 40, border: '1px solid rgba(167,205,246,.3)', borderRadius: 9, padding: 7, background: '#0a294a', color: '#fff', colorScheme: 'dark', textAlign: 'center' }
+const buttonStyle: CSSProperties = { border: 0, borderRadius: 999, padding: '10px 14px', background: '#9be11d', color: 'var(--foreground-strong)', fontWeight: 900, cursor: 'pointer' }
+const noticeStyle: CSSProperties = { padding: 11, border: '1px solid rgba(241,198,104,.28)', borderRadius: 10, background: 'rgba(110,85,16,.24)', color: '#f7dc8d' }
+const successStyle: CSSProperties = { padding: 12, border: '1px solid rgba(155,225,29,.24)', borderRadius: 10, background: 'rgba(155,225,29,.1)', color: '#c8f478', fontWeight: 750 }
 const leaderGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginTop: 14 }
-const leaderCardStyle: CSSProperties = { display: 'grid', gap: 4, padding: 14, border: '1px solid #dce4df', borderRadius: 14 }
-const rankStyle: CSSProperties = { color: '#23765b', fontWeight: 900, fontSize: 12 }
+const leaderCardStyle: CSSProperties = { display: 'grid', gap: 4, padding: 14, border: '1px solid rgba(148,190,231,.2)', borderRadius: 14, background: 'rgba(6,23,47,.44)' }
+const rankStyle: CSSProperties = { color: '#9be11d', fontWeight: 900, fontSize: 12 }
 const tableStyle: CSSProperties = { width: '100%', borderCollapse: 'collapse' }
 const leftCellStyle: CSSProperties = { textAlign: 'left' }
 const playerCellStyle: CSSProperties = { padding: '9px 0', fontWeight: 750 }
