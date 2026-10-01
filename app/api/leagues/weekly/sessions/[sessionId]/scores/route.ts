@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { cleanAvailabilityText } from '@/lib/captain-availability-request-server'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
-import type { LeagueWeeklyCourt } from '@/lib/league-weekly-format'
+import { validateLeagueWeeklySetScore, type LeagueWeeklyCourt } from '@/lib/league-weekly-format'
 
 export const runtime = 'nodejs'
 
@@ -38,9 +38,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ ses
   const assignments = Array.isArray(row.assignments) ? row.assignments as LeagueWeeklyCourt[] : []
   const set = assignments.find((court) => court.courtNumber === courtNumber)?.sets.find((item) => item.setNumber === setNumber)
   if (!set) return Response.json({ ok: false, message: 'Choose a set from this week’s court plan.' }, { status: 400 })
-  if (![sideAGames, sideBGames].every((score) => Number.isInteger(score) && score >= 0 && score <= 99) || sideAGames === sideBGames) {
-    return Response.json({ ok: false, message: 'Enter a completed set score with one winning side.' }, { status: 400 })
-  }
+  const scoreValidation = validateLeagueWeeklySetScore(sideAGames, sideBGames)
+  if (!scoreValidation.valid) return Response.json({ ok: false, message: scoreValidation.message }, { status: 400 })
   const { error } = await service.from('tiq_league_weekly_set_results').upsert({
     session_id: row.id,
     court_number: courtNumber,

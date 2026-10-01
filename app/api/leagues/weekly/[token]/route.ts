@@ -1,5 +1,5 @@
 import { cleanAvailabilityText, getCaptainAvailabilityServiceClient, isUuid } from '@/lib/captain-availability-request-server'
-import { normalizeLeagueWeeklySettings, type LeagueWeeklyCourt } from '@/lib/league-weekly-format'
+import { normalizeLeagueWeeklySettings, validateLeagueWeeklySetScore, type LeagueWeeklyCourt } from '@/lib/league-weekly-format'
 import { deriveLeagueWeeklyOfficialScore, type LeagueWeeklyScoreSubmission } from '@/lib/league-weekly-intelligence'
 
 export const runtime = 'nodejs'
@@ -105,9 +105,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     if (!court || !set || !court.players.includes(canonicalPlayerName)) return Response.json({ ok: false, message: 'Choose a set from your assigned court.' }, { status: 400 })
     const sideAGames = Number(body.sideAGames)
     const sideBGames = Number(body.sideBGames)
-    if (![sideAGames, sideBGames].every((score) => Number.isInteger(score) && score >= 0 && score <= 99) || sideAGames === sideBGames) {
-      return Response.json({ ok: false, message: 'Enter a completed set score with one winning side.' }, { status: 400 })
-    }
+    const scoreValidation = validateLeagueWeeklySetScore(sideAGames, sideBGames)
+    if (!scoreValidation.valid) return Response.json({ ok: false, message: scoreValidation.message }, { status: 400 })
     const submittedAt = new Date().toISOString()
     const { error: submissionError } = await loaded.service.from('tiq_league_weekly_score_submissions').upsert({
       session_id: loaded.session.id,

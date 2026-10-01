@@ -6,6 +6,7 @@ import {
   getLeagueWeeklyRosterSummary,
   normalizeLeagueWeeklySettings,
   orderLeagueWeeklyPlayers,
+  validateLeagueWeeklySetScore,
 } from '../league-weekly-format'
 
 describe('weekly doubles league format', () => {
@@ -34,6 +35,16 @@ describe('weekly doubles league format', () => {
       { setNumber: 2, sideA: ['A', 'C'], sideB: ['B', 'D'] },
       { setNumber: 3, sideA: ['A', 'D'], sideB: ['B', 'C'] },
     ])
+  })
+
+  it('accepts only first-to-six sets with a tiebreak at 6–6', () => {
+    for (const [winner, loser] of [[6, 0], [6, 4], [7, 5], [7, 6]]) {
+      expect(validateLeagueWeeklySetScore(winner, loser).valid).toBe(true)
+      expect(validateLeagueWeeklySetScore(loser, winner).valid).toBe(true)
+    }
+    for (const [left, right] of [[6, 5], [6, 6], [7, 4], [8, 6], [10, 8]]) {
+      expect(validateLeagueWeeklySetScore(left, right).valid).toBe(false)
+    }
   })
 
   it('cycles courts through staggered start waves and reports overflow', () => {

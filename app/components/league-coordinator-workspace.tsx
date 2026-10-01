@@ -116,6 +116,7 @@ import { mergeSeasonLabelOptions, normalizeSeasonLabel } from '@/lib/season-labe
 import { formatDynamicPointsForSides } from '@/lib/tiq-scoring'
 import {
   DEFAULT_LEAGUE_WEEKLY_SETTINGS,
+  ROTATING_PARTNER_DOUBLES_FORMAT,
   normalizeLeagueWeeklySettings,
 } from '@/lib/league-weekly-format'
 import {
@@ -2454,6 +2455,12 @@ export function LeagueCoordinatorWorkspace() {
 
                 {draft.weeklySettings.enabled ? (
                   <div style={responsiveFieldGrid}>
+                    <div style={{ ...noteCard, gridColumn: '1 / -1', margin: 0 }}>
+                      <div style={sectionEyebrow}>{ROTATING_PARTNER_DOUBLES_FORMAT.label}</div>
+                      <strong>{ROTATING_PARTNER_DOUBLES_FORMAT.courtSummary}</strong>
+                      <span style={fieldHelpText}>{ROTATING_PARTNER_DOUBLES_FORMAT.scoringSummary}</span>
+                      <span style={fieldHelpText}>{ROTATING_PARTNER_DOUBLES_FORMAT.entrySummary}</span>
+                    </div>
                     <label style={fieldLabel}>
                       <span>Courts each week</span>
                       <input

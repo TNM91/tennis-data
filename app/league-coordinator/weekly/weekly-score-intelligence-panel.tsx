@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, type CSSProperties } from 'react'
-import type { LeagueWeeklyCourt } from '@/lib/league-weekly-format'
+import { ROTATING_PARTNER_DOUBLES_FORMAT, validateLeagueWeeklySetScore, type LeagueWeeklyCourt } from '@/lib/league-weekly-format'
 import { buildLeagueWeeklyDashboard, buildLeagueWeeklyScoreReview, type LeagueWeeklyPlayerScorecard, type LeagueWeeklyReviewedResult, type LeagueWeeklyScoreSubmission } from '@/lib/league-weekly-intelligence'
 
 type ReviewSet = { courtNumber: number; setNumber: number }
@@ -31,8 +31,9 @@ export default function WeeklyScoreIntelligencePanel({ sessionId, courts, result
     const current = resultFor(set)
     const sideAGames = Number(drafts[key]?.a ?? current?.sideAGames)
     const sideBGames = Number(drafts[key]?.b ?? current?.sideBGames)
-    if (![sideAGames, sideBGames].every(Number.isInteger) || sideAGames === sideBGames) {
-      setMessage('Enter a completed score before approving this set.')
+    const validation = validateLeagueWeeklySetScore(sideAGames, sideBGames)
+    if (!validation.valid) {
+      setMessage(validation.message)
       return
     }
     setBusyKey(key)
@@ -56,6 +57,7 @@ export default function WeeklyScoreIntelligencePanel({ sessionId, courts, result
     <>
       <section style={panelStyle}>
         <p style={eyebrowStyle}>Score control</p>
+        <p style={reviewCopyStyle}>{ROTATING_PARTNER_DOUBLES_FORMAT.scoringSummary} {ROTATING_PARTNER_DOUBLES_FORMAT.entrySummary}</p>
         <div style={metricGridStyle}>
           <Metric label="Official sets" value={`${review.acceptedCount}/${review.expectedCount}`} />
           <Metric label="Missing" value={review.missing.length} />
@@ -72,9 +74,9 @@ export default function WeeklyScoreIntelligencePanel({ sessionId, courts, result
               return <article key={key} style={reviewCardStyle}>
                 <div><strong>Court {set.courtNumber} · Set {set.setNumber}</strong><p style={reviewCopyStyle}>{state}{setSubmissions.length ? ` · ${setSubmissions.map((submission) => `${submission.submittedByName}: ${submission.sideAGames}–${submission.sideBGames}`).join(' · ')}` : ''}</p></div>
                 <div style={scoreControlStyle}>
-                  <input aria-label={`Court ${set.courtNumber} set ${set.setNumber} first side games`} type="number" min={0} max={99} value={drafts[key]?.a ?? current?.sideAGames ?? ''} onChange={(event) => setDrafts((items) => ({ ...items, [key]: { a: event.target.value, b: items[key]?.b ?? String(current?.sideBGames ?? '') } }))} style={scoreInputStyle} />
+                  <input aria-label={`Court ${set.courtNumber} set ${set.setNumber} first side games`} type="number" inputMode="numeric" min={0} max={7} value={drafts[key]?.a ?? current?.sideAGames ?? ''} onChange={(event) => setDrafts((items) => ({ ...items, [key]: { a: event.target.value, b: items[key]?.b ?? String(current?.sideBGames ?? '') } }))} style={scoreInputStyle} />
                   <span>–</span>
-                  <input aria-label={`Court ${set.courtNumber} set ${set.setNumber} second side games`} type="number" min={0} max={99} value={drafts[key]?.b ?? current?.sideBGames ?? ''} onChange={(event) => setDrafts((items) => ({ ...items, [key]: { a: items[key]?.a ?? String(current?.sideAGames ?? ''), b: event.target.value } }))} style={scoreInputStyle} />
+                  <input aria-label={`Court ${set.courtNumber} set ${set.setNumber} second side games`} type="number" inputMode="numeric" min={0} max={7} value={drafts[key]?.b ?? current?.sideBGames ?? ''} onChange={(event) => setDrafts((items) => ({ ...items, [key]: { a: items[key]?.a ?? String(current?.sideAGames ?? ''), b: event.target.value } }))} style={scoreInputStyle} />
                   <button disabled={busyKey === key} onClick={() => void approve(set)} style={buttonStyle}>{busyKey === key ? 'Saving…' : current ? 'Approve score' : 'Enter score'}</button>
                 </div>
               </article>
