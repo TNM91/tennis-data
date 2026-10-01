@@ -17,6 +17,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import LocationDirectionsLink from '@/app/components/location-directions-link'
 
 const dataAssistScheduleHref = '/data-assist?intent=upload-source&context=League%20Office%20schedule'
 
@@ -547,6 +548,7 @@ function CompetitionScheduleRow({
             .filter(Boolean)
             .join(' · ')}
         </div>
+        <LocationDirectionsLink location={match.location} style={scheduleDirectionsStyle} />
         <div style={rowReadinessGridStyle}>
           {rowReadinessItems.map((item) => (
             <div key={item.label} style={rowReadinessItemStyle}>
@@ -1189,6 +1191,12 @@ const rowMetaStyle = {
   color: 'var(--shell-copy-muted)',
   fontSize: '13px',
   lineHeight: 1.55,
+} as const
+
+const scheduleDirectionsStyle = {
+  marginTop: '9px',
+  borderColor: 'var(--shell-panel-border)',
+  color: 'var(--brand-green)',
 } as const
 
 const rowReadinessGridStyle = {

@@ -6,6 +6,7 @@ import { track } from '@vercel/analytics'
 import { useEffect, useState, type CSSProperties } from 'react'
 import SiteShell from '@/app/components/site-shell'
 import PublicDetailState from '@/app/components/public-detail-state'
+import LocationDirectionsLink from '@/app/components/location-directions-link'
 import { useAuth } from '@/app/components/auth-provider'
 import { supabase } from '@/lib/supabase'
 import { MY_LAB_STORY } from '@/lib/product-story'
@@ -254,6 +255,7 @@ function MatchDetailContent() {
               <span role="status" style={metaStyle}>{shareStatus === 'copied' ? 'Link copied. Send it to your team.' : shareStatus === 'shared' ? 'Scorecard shared.' : shareStatus === 'error' ? 'Could not copy the link. Try again.' : ''}</span>
             </div>
             {match.facility ? <p style={venueStyle}>{match.facility}</p> : null}
+            <LocationDirectionsLink location={match.facility} style={matchDirectionsStyle} />
           </header>
 
           {showScorecardClaim ? (
@@ -364,6 +366,7 @@ const shareButtonStyle: CSSProperties = { border: '1px solid rgba(166, 217, 106,
 const scoreStyle: CSSProperties = { color: 'var(--foreground-strong)', fontSize: 'clamp(30px, 5vw, 52px)' }
 const winnerStyle: CSSProperties = { color: '#a6d96a', fontWeight: 800 }
 const venueStyle: CSSProperties = { margin: 0, color: 'var(--foreground-muted)' }
+const matchDirectionsStyle: CSSProperties = { borderColor: 'var(--shell-panel-border)', color: 'var(--brand-green)' }
 const surfaceStyle: CSSProperties = { padding: 'clamp(18px, 3vw, 28px)', border: '1px solid rgba(116,190,255,0.15)', borderRadius: 20, background: 'var(--portal-surface-bg)', display: 'grid', gap: 16 }
 const nextStepStyle: CSSProperties = { padding: 'clamp(18px, 3vw, 28px)', border: '1px solid rgba(166, 217, 106, 0.35)', borderRadius: 20, background: 'var(--portal-surface-bg)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 20 }
 const nextStepCopyStyle: CSSProperties = { display: 'grid', gap: 8, flex: '1 1 360px' }

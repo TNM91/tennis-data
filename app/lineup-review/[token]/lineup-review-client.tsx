@@ -8,6 +8,7 @@ import {
   type CaptainLineupReviewSlot,
 } from '@/lib/captain-lineup-review'
 import { buildSmsHref, formatDate } from '@/lib/captain-formatters'
+import LocationDirectionsLink from '@/app/components/location-directions-link'
 import styles from './lineup-review.module.css'
 
 type SubmitResult = {
@@ -122,6 +123,7 @@ export default function LineupReviewClient({ token }: { token: string }) {
           {review.matchTime ? <span>{review.matchTime}</span> : null}
           {review.facility ? <span>{review.facility}</span> : null}
         </div>
+        <LocationDirectionsLink location={review.facility} className={styles.secondaryAction} />
         <p className={styles.assurance}>Your edits create a separate suggestion. The captain&apos;s lineup does not change unless they apply it.</p>
       </section>
 

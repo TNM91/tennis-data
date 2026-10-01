@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/app/components/auth-provider'
+import LocationDirectionsLink from '@/app/components/location-directions-link'
 import { buildTeamSeasonCalendars, type TeamSeasonMatch } from '@/lib/team-season-calendar'
 import { appleSubscriptionUrl, googleMatchCalendarUrl, saveSeasonCalendarItems } from '@/lib/season-calendar-actions'
 import { seasonMatchLabel, type SeasonReply, type SeasonReplyStatus, type SeasonScope } from '@/lib/season-kickoff'
@@ -105,7 +106,7 @@ export default function SeasonAvailabilityClient({ responseToken, embedded = fal
         setStatuses(previous => ({ ...previous, ...Object.fromEntries(upcoming.map(match => [match.id, 'available' as const])) })); setDirty(upcoming.map(match => match.id)); setMessage('')
       }}>Available for all · then adjust</button> : null}</div>
       <p>Yes = available · No = unavailable. Not sure is fine. Unanswered dates never count as Yes.</p>
-      <ul className={styles.list}>{visibleMatches.map(match => <li className={styles.item} key={match.id}><strong>{seasonMatchLabel(match)}</strong><p>vs {match.home_team === data.scope.team ? match.away_team : match.home_team}{match.facility ? ` · ${match.facility}` : ''}</p>
+      <ul className={styles.list}>{visibleMatches.map(match => <li className={styles.item} key={match.id}><strong>{seasonMatchLabel(match)}</strong><p>vs {match.home_team === data.scope.team ? match.away_team : match.home_team}{match.facility ? ` · ${match.facility}` : ''}</p><LocationDirectionsLink location={match.facility} className={styles.secondary} label="Directions" />
         <div className={styles.statuses} role="group" aria-label={`Availability for ${match.match_date} vs ${match.home_team === data.scope.team ? match.away_team : match.home_team}`}>{(Object.keys(labels) as SeasonReplyStatus[]).map(status => <button className={styles.secondary} key={status} disabled={busy} aria-label={labels[status]} aria-pressed={statuses[match.id] === status} onClick={() => select(match.id, status)}>{status === 'available' ? 'Yes' : status === 'unavailable' ? 'No' : 'Not sure'}</button>)}</div>
         <p>{dirty.includes(match.id) ? 'Unsaved change' : statuses[match.id] ? `Saved: ${labels[statuses[match.id]]}` : 'Unanswered'}</p>
       </li>)}</ul>

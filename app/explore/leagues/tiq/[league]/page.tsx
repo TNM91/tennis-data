@@ -12,6 +12,7 @@ import CompetitionResponseSummary from '@/app/components/competition-response-su
 import SiteShell from '@/app/components/site-shell'
 import EntityDetailLink from '@/app/components/entity-detail-link'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import LocationDirectionsLink from '@/app/components/location-directions-link'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
@@ -2358,6 +2359,7 @@ function TiqLeagueDetailContent() {
               .filter(Boolean)
               .join(' | ')}
           </div>
+          <LocationDirectionsLink location={item.facility || league.defaultFacility} style={directionsLinkStyle} label="Directions" />
           {scheduleOutcomeText ? (
             <div style={{ ...listMeta, color: '#bbf7d0', marginTop: 6 }}>
               Result: {scheduleOutcomeText}
@@ -2515,6 +2517,7 @@ function TiqLeagueDetailContent() {
                     />
                     <GhostLink href="/explore/leagues">Back to Explore</GhostLink>
                     <GhostLink href="/league-coordinator">Open League Office</GhostLink>
+                    <LocationDirectionsLink location={league.defaultFacility || league.locationLabel} style={directionsLinkStyle} />
                   </div>
                 </div>
 
@@ -2683,6 +2686,7 @@ function TiqLeagueDetailContent() {
                                 .filter(Boolean)
                                 .join(' | ') || 'Time and site TBD'}
                             </span>
+                            <LocationDirectionsLink location={item.facility || league.defaultFacility} style={directionsLinkStyle} />
                           </div>
                           <span style={item.status === 'proposed' ? pillAmber : pillGreen}>
                             {item.status === 'coordinator_set' ? 'Published' : item.status}
@@ -2747,6 +2751,7 @@ function TiqLeagueDetailContent() {
                 <div style={scheduleMetaCardStyle}>
                   <span>Default site</span>
                   <strong>{league.defaultFacility || 'TBD'}</strong>
+                  <LocationDirectionsLink location={league.defaultFacility} style={directionsLinkStyle} />
                 </div>
                 <div style={scheduleMetaCardStyle}>
                   <span>Time zone</span>
@@ -2977,6 +2982,7 @@ function TiqLeagueDetailContent() {
                               .filter(Boolean)
                               .join(' | ')}
                           </div>
+                          <LocationDirectionsLink location={event.facility || league.defaultFacility} style={directionsLinkStyle} />
                         </div>
                         <span style={nextTeamEvent?.id === event.id ? pillGreen : metaPill}>
                           {nextTeamEvent?.id === event.id ? 'Next up' : 'Scheduled'}
@@ -4442,6 +4448,12 @@ const actionRow: CSSProperties = {
   gap: '10px',
   marginTop: '18px',
   minWidth: 0,
+}
+
+const directionsLinkStyle: CSSProperties = {
+  minHeight: 38,
+  borderColor: 'rgba(155,225,29,.42)',
+  color: 'var(--brand-green)',
 }
 
 const ghostButton: CSSProperties = {

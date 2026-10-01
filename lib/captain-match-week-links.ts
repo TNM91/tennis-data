@@ -1,4 +1,5 @@
 import { expandAvailabilityToken } from './availability-short-links'
+import { buildLocationDirectionsHref } from './location-directions'
 
 type CalendarLinkInput = {
   eventDate: string
@@ -27,8 +28,7 @@ export function buildMatchWeekGoogleCalendarHref(input: CalendarLinkInput) {
 }
 
 export function buildMatchWeekMapsHref(location: string) {
-  const query = location.trim()
-  return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : ''
+  return buildLocationDirectionsHref(location)
 }
 
 export function buildMatchWeekPhoneCalendarHref(requestUrl: string) {

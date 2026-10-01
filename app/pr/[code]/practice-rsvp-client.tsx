@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { buildPracticeGoogleCalendarHref, type PracticeDisplayStatus, type PracticeResponseStatus } from '@/lib/captain-practice-rsvp'
+import { buildLocationDirectionsHref } from '@/lib/location-directions'
 import styles from './practice-rsvp.module.css'
 
 type Payload = {
@@ -116,9 +117,7 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
   const captainConfirmedCount = captainConfirmedNames.length
   const calendarHref = buildPracticeGoogleCalendarHref(practice)
   const phoneCalendarHref = `/api/practice/${encodeURIComponent(token)}/calendar.ics`
-  const directionsHref = practice.facility
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(practice.facility)}`
-    : ''
+  const directionsHref = buildLocationDirectionsHref(practice.facility)
   const responseHeadline = savedStatus === 'waitlist'
     ? 'You’re on the waitlist.'
     : savedStatus === 'in'

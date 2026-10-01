@@ -17,6 +17,7 @@ import ClubContextBanner from '@/app/components/club-context-banner'
 import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import LocationDirectionsLink from '@/app/components/location-directions-link'
 import {
   getIssueTypeLabel,
   getReportStatusLabel,
@@ -6263,6 +6264,7 @@ function MyLabCalendarPanel({
               <span>{item.dateLabel}</span>
               {item.hasConflict ? <span style={calendarConflictPillStyle}>Conflict</span> : null}
               {'location' in item && item.location ? <span>{item.location}</span> : null}
+              {'location' in item ? <LocationDirectionsLink location={item.location} style={calendarDirectionsStyle} label="Directions" /> : null}
               {item.source === 'competition' ? (
                 <>
                   {item.detail ? <span>{item.detail}</span> : null}
@@ -8180,6 +8182,15 @@ const myCalendarGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
   gap: 10,
   minWidth: 0,
+}
+
+const calendarDirectionsStyle: CSSProperties = {
+  minHeight: 34,
+  marginTop: 3,
+  padding: '0 10px',
+  borderColor: 'var(--shell-panel-border)',
+  color: 'var(--brand-green)',
+  fontSize: 11,
 }
 
 function myCalendarItemStyle(source: 'competition' | 'shared' | 'personal'): CSSProperties {
