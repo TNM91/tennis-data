@@ -6,10 +6,22 @@ import {
   getLeagueWeeklyRosterSummary,
   normalizeLeagueWeeklySettings,
   orderLeagueWeeklyPlayers,
+  ROTATING_PARTNER_DOUBLES_COMPETITION_FORMAT,
+  ROTATING_PARTNER_DOUBLES_FORMAT,
   validateLeagueWeeklySetScore,
 } from '../league-weekly-format'
 
 describe('weekly doubles league format', () => {
+  it('publishes one setup choice with the local three-set scoring rules', () => {
+    expect(ROTATING_PARTNER_DOUBLES_COMPETITION_FORMAT).toBe('weekly_rotating_doubles')
+    expect(ROTATING_PARTNER_DOUBLES_FORMAT).toMatchObject({
+      label: 'Rotating partner doubles',
+      courtSummary: '4 players · 3 sets · every player partners once',
+      scoringSummary: 'First to 6, win by 2. At 6–6, play a 7-point tiebreak and record 7–6.',
+      entrySummary: 'Enter games won by each side. Do not enter tiebreak points.',
+    })
+  })
+
   it('normalizes owner-controlled feature switches and staggered starts', () => {
     expect(normalizeLeagueWeeklySettings({
       enabled: true,
