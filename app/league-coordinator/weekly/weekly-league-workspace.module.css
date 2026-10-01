@@ -1,0 +1,53 @@
+.hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+  min-height: 350px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 190, 231, 0.22);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(155, 225, 29, 0.1), transparent 28%),
+    linear-gradient(145deg, #06172f, #0a294a);
+  box-shadow: 0 28px 80px rgba(0, 12, 29, 0.3);
+}
+
+.heroCopy { position: relative; z-index: 2; align-self: center; padding: clamp(26px, 5vw, 54px); }
+.backLink { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 32px; color: #a7cdf6; font-size: 12px; font-weight: 850; text-decoration: none; }
+.heroMeta { display: flex; gap: 10px 20px; flex-wrap: wrap; margin-top: 24px; }
+.heroMeta span { display: inline-flex; align-items: center; gap: 8px; color: #fff; font-size: 12px; font-weight: 800; }
+.heroMeta svg { color: #9be11d; }
+.heroCourt { position: relative; min-height: 350px; background: #020913; }
+.heroCourt::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, #081f3b 0%, rgba(8, 31, 59, 0.15) 50%, rgba(6, 23, 47, 0.08)); pointer-events: none; }
+
+.phaseRail {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  padding: 16px 22px;
+  border: 1px solid rgba(148, 190, 231, 0.22);
+  border-radius: 18px;
+  background: rgba(6, 23, 47, 0.82);
+  box-shadow: 0 14px 36px rgba(0, 12, 29, 0.16);
+}
+.phaseRail > div { position: relative; display: flex; align-items: center; gap: 9px; color: #718dad; }
+.phaseRail > div:not(:last-child)::after { content: ''; position: absolute; top: 16px; right: 12px; width: calc(100% - 82px); height: 1px; background: rgba(148, 190, 231, 0.22); }
+.phaseRail span { position: relative; z-index: 1; display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border: 1px solid #4f739b; border-radius: 50%; background: #06172f; font-size: 11px; font-weight: 950; }
+.phaseRail strong { font-size: 11px; }
+.phaseRail [data-state='active'], .phaseRail [data-state='done'] { color: #9be11d; }
+.phaseRail [data-state='active'] span, .phaseRail [data-state='done'] span { border-color: #9be11d; background: #9be11d; color: #06172f; }
+.rosterHeadline { display: flex; align-items: center; gap: 12px; }
+.rosterHeadline svg { flex: 0 0 auto; color: #9be11d; }
+.rosterHeadline h2 { margin: 0; }
+
+@media (max-width: 720px) {
+  .hero { grid-template-columns: 1fr; min-height: 0; }
+  .heroCopy { padding: 26px 22px 18px; }
+  .backLink { margin-bottom: 24px; }
+  .heroCourt { min-height: 220px; }
+  .heroCourt::after { background: linear-gradient(180deg, #081f3b 0%, rgba(8, 31, 59, 0.05) 44%, rgba(6, 23, 47, 0.14)); }
+  .phaseRail { padding: 14px 10px; }
+  .phaseRail > div { display: grid; justify-items: center; gap: 6px; }
+  .phaseRail > div:not(:last-child)::after { top: 16px; left: calc(50% + 22px); right: auto; width: calc(100% - 44px); }
+  .phaseRail strong { font-size: 9px; }
+}

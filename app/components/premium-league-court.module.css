@@ -1,0 +1,33 @@
+.scene {
+  position: relative;
+  min-height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  background: #042a2c;
+}
+
+.courtArtwork {
+  object-fit: cover;
+  object-position: center;
+}
+
+.netWatermark {
+  position: absolute;
+  z-index: 2;
+  top: 35.5%;
+  left: 50%;
+  width: clamp(118px, 32%, 210px);
+  transform: translate(-50%, -50%);
+  opacity: 0.48;
+  pointer-events: none;
+}
+
+.netWatermark img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+@media (min-width: 760px) {
+  .netWatermark { top: 33%; }
+}

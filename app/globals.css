@@ -5,7 +5,8 @@
 }
 
 @media (max-width: 760px) {
-  body:has(#profile-overview) [aria-label='TenAceIQ platform navigation'] {
+  body:has(#profile-overview) [aria-label='TenAceIQ platform navigation'],
+  body:has([data-weekly-response-page]) [aria-label='TenAceIQ platform navigation'] {
     display: none !important;
   }
 }
