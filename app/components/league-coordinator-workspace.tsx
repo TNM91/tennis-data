@@ -118,6 +118,7 @@ import { mergeSeasonLabelOptions, normalizeSeasonLabel } from '@/lib/season-labe
 import { formatDynamicPointsForSides } from '@/lib/tiq-scoring'
 import {
   DEFAULT_LEAGUE_WEEKLY_SETTINGS,
+  ROTATING_PARTNER_DOUBLES_COMPETITION_FORMAT,
   ROTATING_PARTNER_DOUBLES_FORMAT,
   normalizeLeagueWeeklySettings,
 } from '@/lib/league-weekly-format'
@@ -1667,7 +1668,9 @@ export function LeagueCoordinatorWorkspace() {
       detail:
         draft.leagueFormat === 'team'
           ? 'Teams, match events, line winners, and team standings.'
-          : `${getTiqIndividualCompetitionFormatLabel(draft.individualCompetitionFormat)} with player standings.`,
+          : draft.weeklySettings.enabled
+            ? `${ROTATING_PARTNER_DOUBLES_FORMAT.label} with player standings by sets and games.`
+            : `${getTiqIndividualCompetitionFormatLabel(draft.individualCompetitionFormat)} with player standings.`,
       ready: true,
     },
     {
@@ -2438,13 +2441,20 @@ export function LeagueCoordinatorWorkspace() {
                     <input
                       type="checkbox"
                       checked={draft.weeklySettings.enabled}
-                      onChange={(event) => setDraft((current) => ({
-                        ...current,
-                        weeklySettings: normalizeLeagueWeeklySettings({
-                          ...current.weeklySettings,
-                          enabled: event.target.checked,
-                        }),
-                      }))}
+                      onChange={(event) => setDraft((current) => {
+                        const enabled = event.target.checked
+                        return {
+                          ...current,
+                          leagueFormat: enabled ? 'individual' : current.leagueFormat,
+                          individualCompetitionFormat: enabled ? 'standard' : current.individualCompetitionFormat,
+                          scoringSystem: enabled ? 'standard' : current.scoringSystem,
+                          schedulingMode: enabled ? 'coordinator_fixed' : current.schedulingMode,
+                          weeklySettings: normalizeLeagueWeeklySettings({
+                            ...current.weeklySettings,
+                            enabled,
+                          }),
+                        }
+                      })}
                     />
                     <span>{draft.weeklySettings.enabled ? 'On' : 'Off'}</span>
                   </label>
@@ -2628,22 +2638,29 @@ export function LeagueCoordinatorWorkspace() {
                 <label style={fieldLabel}>
                   <span>Individual competition format</span>
                   <select
-                    value={draft.individualCompetitionFormat}
-                    onChange={(event) =>
-                      setDraft((current) => ({
+                    value={draft.weeklySettings.enabled
+                      ? ROTATING_PARTNER_DOUBLES_COMPETITION_FORMAT
+                      : draft.individualCompetitionFormat}
+                    onChange={(event) => setDraft((current) => {
+                      const rotatingPartnerDoubles = event.target.value === ROTATING_PARTNER_DOUBLES_COMPETITION_FORMAT
+                      return {
                         ...current,
-                        individualCompetitionFormat:
-                          event.target.value === 'ladder'
-                            ? 'ladder'
-                            : event.target.value === 'round_robin'
-                              ? 'round_robin'
-                              : event.target.value === 'challenge'
-                                ? 'challenge'
-                                : 'standard',
-                      }))
-                    }
+                        individualCompetitionFormat: rotatingPartnerDoubles
+                          ? 'standard'
+                          : normalizeTiqIndividualCompetitionFormat(event.target.value),
+                        scoringSystem: rotatingPartnerDoubles ? 'standard' : current.scoringSystem,
+                        schedulingMode: rotatingPartnerDoubles ? 'coordinator_fixed' : current.schedulingMode,
+                        weeklySettings: normalizeLeagueWeeklySettings({
+                          ...current.weeklySettings,
+                          enabled: rotatingPartnerDoubles,
+                        }),
+                      }
+                    })}
                     style={inputStyle}
                   >
+                    <option value={ROTATING_PARTNER_DOUBLES_COMPETITION_FORMAT}>
+                      {ROTATING_PARTNER_DOUBLES_FORMAT.label}
+                    </option>
                     {TIQ_INDIVIDUAL_COMPETITION_FORMATS.map((format) => (
                       <option key={format} value={format}>
                         {getTiqIndividualCompetitionFormatLabel(format)}
@@ -2651,56 +2668,69 @@ export function LeagueCoordinatorWorkspace() {
                     ))}
                   </select>
                   <span style={fieldHelpText}>
-                    {getTiqIndividualCompetitionFormatDescription(draft.individualCompetitionFormat)}
+                    {draft.weeklySettings.enabled
+                      ? `${ROTATING_PARTNER_DOUBLES_FORMAT.courtSummary}. ${ROTATING_PARTNER_DOUBLES_FORMAT.scoringSummary}`
+                      : getTiqIndividualCompetitionFormatDescription(draft.individualCompetitionFormat)}
                   </span>
                 </label>
               ) : null}
 
-              <label style={fieldLabel}>
-                <span>Scoring system</span>
-                <select
-                  value={draft.scoringSystem}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      scoringSystem: event.target.value === 'dynamic_points' ? 'dynamic_points' : 'standard',
-                    }))
-                  }
-                  style={inputStyle}
-                >
-                  <option value="standard">Standard Score</option>
-                  <option value="dynamic_points">Dynamic points</option>
-                </select>
-                <span style={fieldHelpText}>
-                  {getTiqLeagueScoringSystemDescription(draft.scoringSystem)}
-                </span>
-              </label>
+              {draft.weeklySettings.enabled ? (
+                <div style={{ ...noteCard, gridColumn: '1 / -1', margin: 0 }}>
+                  <div style={sectionEyebrow}>Set scoring</div>
+                  <strong>{ROTATING_PARTNER_DOUBLES_FORMAT.scoringSummary}</strong>
+                  <span style={fieldHelpText}>{ROTATING_PARTNER_DOUBLES_FORMAT.entrySummary}</span>
+                  <span style={fieldHelpText}>Third-set rule does not apply. These are three separate rotating-partner sets.</span>
+                </div>
+              ) : (
+                <>
+                  <label style={fieldLabel}>
+                    <span>Scoring system</span>
+                    <select
+                      value={draft.scoringSystem}
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          scoringSystem: event.target.value === 'dynamic_points' ? 'dynamic_points' : 'standard',
+                        }))
+                      }
+                      style={inputStyle}
+                    >
+                      <option value="standard">Standard Score</option>
+                      <option value="dynamic_points">Dynamic points</option>
+                    </select>
+                    <span style={fieldHelpText}>
+                      {getTiqLeagueScoringSystemDescription(draft.scoringSystem)}
+                    </span>
+                  </label>
 
-              <label style={fieldLabel}>
-                <span>Third set rule</span>
-                <select
-                  value={draft.thirdSetRule}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      thirdSetRule:
-                        event.target.value === 'full_set'
-                          ? 'full_set'
-                          : event.target.value === 'match_tiebreak_10'
-                            ? 'match_tiebreak_10'
-                            : 'either',
-                    }))
-                  }
-                  style={inputStyle}
-                >
-                  <option value="either">Full set or 10-point tiebreak</option>
-                  <option value="full_set">Full third set</option>
-                  <option value="match_tiebreak_10">10-point match tiebreak</option>
-                </select>
-                <span style={fieldHelpText}>
-                  {getTiqLeagueThirdSetRuleDescription(draft.thirdSetRule)}
-                </span>
-              </label>
+                  <label style={fieldLabel}>
+                    <span>Third set rule</span>
+                    <select
+                      value={draft.thirdSetRule}
+                      onChange={(event) =>
+                        setDraft((current) => ({
+                          ...current,
+                          thirdSetRule:
+                            event.target.value === 'full_set'
+                              ? 'full_set'
+                              : event.target.value === 'match_tiebreak_10'
+                                ? 'match_tiebreak_10'
+                                : 'either',
+                        }))
+                      }
+                      style={inputStyle}
+                    >
+                      <option value="either">Full set or 10-point tiebreak</option>
+                      <option value="full_set">Full third set</option>
+                      <option value="match_tiebreak_10">10-point match tiebreak</option>
+                    </select>
+                    <span style={fieldHelpText}>
+                      {getTiqLeagueThirdSetRuleDescription(draft.thirdSetRule)}
+                    </span>
+                  </label>
+                </>
+              )}
             </div>
 
             {draft.leagueFormat === 'team' ? (
@@ -2849,10 +2879,16 @@ export function LeagueCoordinatorWorkspace() {
               <div style={infoCard}>
                 <div style={sectionEyebrow}>Score format</div>
                 <strong style={infoCardTitle}>
-                  {draft.scoringSystem === 'dynamic_points' ? 'Dynamic still uses tennis scores' : 'Standard Score records wins first'}
+                  {draft.weeklySettings.enabled
+                    ? 'Three independent rotating-partner sets'
+                    : draft.scoringSystem === 'dynamic_points'
+                      ? 'Dynamic still uses tennis scores'
+                      : 'Standard Score records wins first'}
                 </strong>
                 <p style={infoCardText}>
-                  Enter scores as best 2 of 3 sets: 6-4, 7-6, or 6-4, 4-6, 1-0. Third set rule: {getTiqLeagueThirdSetRuleLabel(draft.thirdSetRule)}.
+                  {draft.weeklySettings.enabled
+                    ? `${ROTATING_PARTNER_DOUBLES_FORMAT.scoringSummary} ${ROTATING_PARTNER_DOUBLES_FORMAT.entrySummary} Third-set rule does not apply.`
+                    : `Enter scores as best 2 of 3 sets: 6-4, 7-6, or 6-4, 4-6, 1-0. Third set rule: ${getTiqLeagueThirdSetRuleLabel(draft.thirdSetRule)}.`}
                 </p>
               </div>
               <div style={infoCard}>
@@ -3228,9 +3264,14 @@ export function LeagueCoordinatorWorkspace() {
                         <span style={pillSlate}>{record.seasonLabel || 'Season label missing'}</span>
                         <span style={pillSlate}>{getTiqLeagueSeasonSummary(record)}</span>
                         <span style={pillSlate}>{getTiqLeagueSchedulingModeLabel(record.schedulingMode)}</span>
-                        <span style={pillSlate}>{getTiqLeagueScoringSystemLabel(record.scoringSystem)}</span>
-                        <span style={pillSlate}>{getTiqLeagueThirdSetRuleLabel(record.thirdSetRule)}</span>
-                        {record.weeklySettings.enabled ? <span style={pillBlue}>Weekly play</span> : null}
+                        {record.weeklySettings.enabled ? (
+                          <span style={pillBlue}>{ROTATING_PARTNER_DOUBLES_FORMAT.label}</span>
+                        ) : (
+                          <>
+                            <span style={pillSlate}>{getTiqLeagueScoringSystemLabel(record.scoringSystem)}</span>
+                            <span style={pillSlate}>{getTiqLeagueThirdSetRuleLabel(record.thirdSetRule)}</span>
+                          </>
+                        )}
                       </div>
 
                       <div style={registryTitle}>{record.leagueName}</div>

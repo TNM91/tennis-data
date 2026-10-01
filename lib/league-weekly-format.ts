@@ -36,6 +36,8 @@ export const ROTATING_PARTNER_DOUBLES_FORMAT = {
   entrySummary: 'Enter games won by each side. Do not enter tiebreak points.',
 } as const
 
+export const ROTATING_PARTNER_DOUBLES_COMPETITION_FORMAT = 'weekly_rotating_doubles' as const
+
 export const DEFAULT_LEAGUE_WEEKLY_SETTINGS: LeagueWeeklySettings = {
   enabled: false,
   collectAvailability: true,

@@ -59,6 +59,7 @@ import {
   getTiqLeagueThirdSetRuleLabel,
   type TiqLeagueRecord,
 } from '@/lib/tiq-league-registry'
+import { ROTATING_PARTNER_DOUBLES_FORMAT } from '@/lib/league-weekly-format'
 import { buildScheduleCalendarDays } from '@/lib/tiq-league-schedule-calendar'
 import {
   buildCompetitionScheduleResponseSummary,
@@ -763,7 +764,9 @@ function TiqLeagueDetailContent() {
     league?.individualCompetitionFormat,
   )
   const scoringRulesText =
-    league?.scoringSystem === 'dynamic_points'
+    league?.weeklySettings.enabled
+      ? `${ROTATING_PARTNER_DOUBLES_FORMAT.courtSummary}. ${ROTATING_PARTNER_DOUBLES_FORMAT.scoringSummary} ${ROTATING_PARTNER_DOUBLES_FORMAT.entrySummary}`
+      : league?.scoringSystem === 'dynamic_points'
       ? getDynamicPointsRulesSummary()
       : getTiqLeagueScoringSystemDescription('standard')
   const thirdSetRulesText = league
@@ -2715,10 +2718,14 @@ function TiqLeagueDetailContent() {
 
             <section style={formatCallout}>
               <div style={formatCalloutTitle}>
-                Scoring: {getTiqLeagueScoringSystemLabel(league.scoringSystem)}
+                Scoring: {league.weeklySettings.enabled
+                  ? ROTATING_PARTNER_DOUBLES_FORMAT.label
+                  : getTiqLeagueScoringSystemLabel(league.scoringSystem)}
               </div>
               <div style={formatCalloutText}>
-                {scoringRulesText} Third set rule: {thirdSetRulesText}
+                {scoringRulesText}{league.weeklySettings.enabled
+                  ? ' Third-set rule does not apply because each rotation is a separate set.'
+                  : ` Third set rule: ${thirdSetRulesText}`}
               </div>
             </section>
 
