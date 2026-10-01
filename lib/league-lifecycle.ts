@@ -9,6 +9,12 @@ export function canDeleteLeagueWithConfirmation(leagueName: string, confirmation
   return expected.length >= 2 && normalizeLeagueDeleteConfirmation(confirmation) === expected
 }
 
+export function canManageLeagueAsOwner(league: Pick<TiqLeagueRecord, 'createdByUserId'>, userId: string | null) {
+  const cloudOwnerId = String(league.createdByUserId || '').trim()
+  if (!cloudOwnerId) return true
+  return Boolean(userId && cloudOwnerId === userId)
+}
+
 export function buildTiqLeagueRenewalDraft(league: TiqLeagueRecord): TiqLeagueDraft {
   return {
     clubId: league.clubId,

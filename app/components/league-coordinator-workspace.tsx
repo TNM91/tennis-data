@@ -31,7 +31,7 @@ import {
   type LeagueCoordinatorResumeSurface,
 } from '@/lib/league-coordinator-memory'
 import { DATA_ASSIST_STORY, LEAGUE_COORDINATOR_STORY } from '@/lib/product-story'
-import { buildTiqLeagueRenewalDraft } from '@/lib/league-lifecycle'
+import { buildTiqLeagueRenewalDraft, canManageLeagueAsOwner } from '@/lib/league-lifecycle'
 import { getLeagueFormatLabel } from '@/lib/competition-layers'
 import {
   TEAM_MATCH_FORMATS,
@@ -3179,7 +3179,7 @@ export function LeagueCoordinatorWorkspace() {
             ) : (
               <div style={stackList}>
                 {records.map((record) => {
-                  const isLeagueOwner = Boolean(userId && (!record.createdByUserId || record.createdByUserId === userId))
+                  const isLeagueOwner = canManageLeagueAsOwner(record, userId)
                   const participantLabel =
                     record.leagueFormat === 'team'
                       ? `${record.teams.length} teams`

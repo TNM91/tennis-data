@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState, type CSSProperties } from 'react'
 import {
   canDeleteLeagueWithConfirmation,
+  canManageLeagueAsOwner,
 } from '@/lib/league-lifecycle'
 import {
   isLeagueDelegateInviteExpired,
@@ -39,7 +40,7 @@ export default function LeagueLifecyclePanel({
   onRemoved: (leagueId: string) => void
   onOwnershipChanged: () => Promise<void>
 }) {
-  const isOwner = Boolean(userId && (!league.createdByUserId || league.createdByUserId === userId))
+  const isOwner = canManageLeagueAsOwner(league, userId)
   const [loaded, setLoaded] = useState(false)
   const [busy, setBusy] = useState(false)
   const [delegates, setDelegates] = useState<DelegateRow[]>([])
