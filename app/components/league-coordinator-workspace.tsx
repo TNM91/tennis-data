@@ -9,6 +9,7 @@ import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-acce
 import type { RoleHomeAction, RoleHomeQuickAction } from '@/app/components/role-action-home'
 import LeagueOfficeHome from '@/app/components/league-office-home'
 import LeagueLifecyclePanel from '@/app/components/league-lifecycle-panel'
+import LocationDirectionsLink from '@/app/components/location-directions-link'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import OrganizerScheduleAttention from '@/app/components/organizer-schedule-attention'
 import { useAuth } from '@/app/components/auth-provider'
@@ -3270,6 +3271,7 @@ export function LeagueCoordinatorWorkspace() {
                           resultLabel={getLeagueResultEntryLabel(record)}
                           onCopyShare={copyPublicLeagueLink}
                         >
+                          <LocationDirectionsLink location={record.defaultFacility || record.locationLabel} style={registryDirectionsStyle} />
                           {record.weeklySettings.enabled ? (
                             <GhostLink href={`/league-coordinator/weekly?leagueId=${encodeURIComponent(record.id)}`}>Run this week</GhostLink>
                           ) : null}
@@ -5821,6 +5823,12 @@ const registryText: CSSProperties = {
   fontSize: '14px',
   lineHeight: 1.65,
   overflowWrap: 'anywhere',
+}
+
+const registryDirectionsStyle: CSSProperties = {
+  minHeight: 38,
+  borderColor: 'var(--shell-panel-border)',
+  color: 'var(--brand-green)',
 }
 
 const registrySnapshotGridStyle: CSSProperties = {

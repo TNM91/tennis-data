@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import QuickMessageComposer from '@/app/components/quick-message-composer'
+import LocationDirectionsLink from '@/app/components/location-directions-link'
 import LeagueOperationsSettings from './league-operations-settings'
 import WeeklyScoreIntelligencePanel from './weekly-score-intelligence-panel'
 import { supabase } from '@/lib/supabase'
@@ -361,6 +362,7 @@ export default function WeeklyLeagueWorkspace({
               <label style={labelStyle}>League<select value={leagueId} onChange={(event) => setLeagueId(event.target.value)} style={inputStyle}>{leagues.map((record) => <option key={record.id} value={record.id}>{record.leagueName}</option>)}</select></label>
               <label style={labelStyle}>Play date<input type="date" value={playOn} onChange={(event) => setPlayOn(event.target.value)} style={inputStyle} /></label>
             </div>
+            <LocationDirectionsLink location={league?.defaultFacility || league?.locationLabel} style={weeklyDirectionsStyle} />
             {status ? <p style={noticeStyle}>{status}</p> : null}
           </section>
 
@@ -571,6 +573,7 @@ const inputStyle: CSSProperties = { width: '100%', minHeight: 44, border: '1px s
 const buttonStyle: CSSProperties = { border: 0, borderRadius: 999, padding: '11px 17px', background: '#126044', color: '#fff', fontWeight: 800, cursor: 'pointer' }
 const linkStyle: CSSProperties = { color: '#126044', fontWeight: 800 }
 const primaryLinkStyle: CSSProperties = { ...linkStyle, display: 'inline-block', marginTop: 8 }
+const weeklyDirectionsStyle: CSSProperties = { marginTop: 10, borderColor: '#9ac7b4', color: '#126044' }
 const noticeStyle: CSSProperties = { padding: 12, borderRadius: 10, background: '#fff7dc', color: '#6e5510' }
 const pillStyle: CSSProperties = { padding: '5px 9px', borderRadius: 999, background: '#e7f4ee', color: '#126044', fontSize: 12, fontWeight: 800 }
 const shareRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 8 }

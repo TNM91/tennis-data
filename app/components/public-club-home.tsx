@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useEffect, useState, type CSSProperties } from 'react'
 import { buildClubToolHref, getClubGroupTypeLabel, type Club, type ClubCompetitionTemplate, type ClubGroup } from '@/lib/club-workspace'
 import ContextualTennisVisual from '@/app/components/contextual-tennis-visual'
+import LocationDirectionsLink from '@/app/components/location-directions-link'
 import styles from './club-workspace.module.css'
 
 type PublicCompetition = { id: string; name: string; detail: string; type: 'league' | 'tournament'; href: string }
@@ -54,6 +55,7 @@ export default function PublicClubHome({ slug }: { slug: string }) {
           <span><strong>1</strong> connected player experience</span>
         </div>
         <div className={styles.heroActions}>
+          <LocationDirectionsLink location={club.locationLabel} className={styles.secondary} />
           <Link className={styles.primary} href={`/login?next=${encodeURIComponent(`/clubs?clubId=${club.id}&clubSlug=${club.slug}`)}`}>Member sign in</Link>
           {club.contactEmail ? <a className={styles.secondary} href={`mailto:${club.contactEmail}`}>Contact club</a> : null}
           <Link className={styles.secondary} href="/join">Join TenAceIQ</Link>

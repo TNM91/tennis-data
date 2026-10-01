@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import LocationDirectionsLink from '@/app/components/location-directions-link'
 import EntityDetailLink from '@/app/components/entity-detail-link'
 import DataTrustPanel from '@/app/components/data-trust-panel'
 import PublicDetailState from '@/app/components/public-detail-state'
@@ -383,6 +384,7 @@ function TournamentPublicInner() {
             <Stat label="Champion" value={summary?.champion || 'TBD'} />
           </div>
           <div style={actionRowStyle}>
+            <LocationDirectionsLink location={record.locationLabel} style={secondaryButtonStyle} />
             {record.isPublic ? <a href="#enter-tournament" style={primaryButtonStyle}>Enter tournament</a> : null}
             <a href="#draw" style={secondaryButtonStyle}>View draw</a>
             <span style={pillStyle}>{source === 'cloud' ? (record.isPublic ? 'Public' : 'Director view') : 'Device preview'}</span>

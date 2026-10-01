@@ -1,3 +1,5 @@
+import { buildLocationDirectionsHref } from './location-directions'
+
 export type TeamRoomMatchDayPhase = 'upcoming' | 'match_day' | 'post_match'
 
 export function getTeamRoomMatchDayPhase(input: {
@@ -13,10 +15,7 @@ export function getTeamRoomMatchDayPhase(input: {
 }
 
 export function buildTeamRoomMapsHref(facility: string) {
-  const query = cleanText(facility)
-  return query
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
-    : ''
+  return buildLocationDirectionsHref(facility)
 }
 
 function cleanDateKey(value: unknown) {

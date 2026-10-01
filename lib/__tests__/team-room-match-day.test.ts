@@ -25,9 +25,9 @@ describe('Team Room match-day handoff', () => {
     })).toBe('post_match')
   })
 
-  it('builds a safe one-tap maps search from the saved facility', () => {
+  it('builds safe one-tap directions from the saved facility', () => {
     expect(buildTeamRoomMapsHref('Forest Lake Tennis Club')).toBe(
-      'https://www.google.com/maps/search/?api=1&query=Forest%20Lake%20Tennis%20Club',
+      'https://www.google.com/maps/dir/?api=1&destination=Forest%20Lake%20Tennis%20Club',
     )
     expect(buildTeamRoomMapsHref('')).toBe('')
   })

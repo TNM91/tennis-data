@@ -8,6 +8,7 @@ import {
   type LeagueWeeklyCourt,
 } from '@/lib/league-weekly-format'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
+import LocationDirectionsLink from '@/app/components/location-directions-link'
 
 type WeeklyPayload = {
   league: { name: string; logoUrl: string; facility: string; players: string[]; weeklySettings: { collectPlayerStories: boolean } }
@@ -114,7 +115,7 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={data.league.logoUrl} alt="" style={logoStyle} />
         ) : null}
-        <div><p style={eyebrowStyle}>Weekly doubles · {data.week.playOn}</p><h1 style={titleStyle}>{data.league.name}</h1><p>{data.league.facility || 'League site'}</p></div>
+        <div><p style={eyebrowStyle}>Weekly doubles · {data.week.playOn}</p><h1 style={titleStyle}>{data.league.name}</h1><p>{data.league.facility || 'League site'}</p><LocationDirectionsLink location={data.league.facility} style={heroDirectionsStyle} /></div>
       </section>
 
       <section style={cardStyle}>
@@ -165,6 +166,7 @@ const heroStyle: CSSProperties = { display: 'flex', gap: 16, alignItems: 'center
 const logoStyle: CSSProperties = { width: 72, height: 72, borderRadius: 14, objectFit: 'cover', background: '#fff' }
 const eyebrowStyle: CSSProperties = { margin: '0 0 6px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 12 }
 const titleStyle: CSSProperties = { margin: 0, fontSize: 'clamp(2rem,8vw,3.5rem)', letterSpacing: '-.05em' }
+const heroDirectionsStyle: CSSProperties = { minHeight: 38, borderColor: 'rgba(255,255,255,.5)', color: '#fff' }
 const cardStyle: CSSProperties = { padding: 20, border: '1px solid #dce4df', borderRadius: 18, background: '#fff', color: '#14231d', boxShadow: '0 10px 30px rgba(24,55,43,.06)' }
 const labelStyle: CSSProperties = { display: 'grid', gap: 7, fontWeight: 750, marginBottom: 14 }
 const inputStyle: CSSProperties = { minHeight: 46, border: '1px solid #cbd8d1', borderRadius: 10, padding: '9px 12px', background: '#fff', color: '#14231d' }

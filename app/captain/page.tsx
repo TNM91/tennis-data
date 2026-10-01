@@ -16,6 +16,7 @@ import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import type { ClubRole } from '@/lib/club-workspace'
 import { getPlanUnlockHref } from '@/lib/plan-intent'
+import { buildLocationDirectionsHref } from '@/lib/location-directions'
 import {
   buildCaptainScopedHref,
   chooseLatestCaptainResumeState,
@@ -1402,10 +1403,7 @@ function buildCaptainSmsHref(phones: string[], body: string, userAgent?: string)
 }
 
 function buildCaptainMapsHref(location: string) {
-  const query = safeText(location, '')
-  if (!query) return ''
-
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
+  return buildLocationDirectionsHref(location)
 }
 
 function appendCaptainHrefQuery(href: string, values: Record<string, string | null | undefined>) {
