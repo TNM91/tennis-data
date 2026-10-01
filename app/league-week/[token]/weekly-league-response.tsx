@@ -1,14 +1,13 @@
 'use client'
 
+import { ArrowRight, CalendarBlank, CheckCircle, Clock, Flask, MapPin, UsersThree, XCircle } from '@phosphor-icons/react'
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
-import {
-  ROTATING_PARTNER_DOUBLES_FORMAT,
-  validateLeagueWeeklySetScore,
-  type LeagueWeeklyCourt,
-} from '@/lib/league-weekly-format'
-import { MEMBERSHIP_TIERS } from '@/lib/product-story'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import LocationDirectionsLink from '@/app/components/location-directions-link'
+import PremiumLeagueCourt from '@/app/components/premium-league-court'
+import { ROTATING_PARTNER_DOUBLES_FORMAT, validateLeagueWeeklySetScore, type LeagueWeeklyCourt } from '@/lib/league-weekly-format'
+import { MEMBERSHIP_TIERS } from '@/lib/product-story'
+import styles from './weekly-league-response.module.css'
 
 type WeeklyPayload = {
   league: { name: string; logoUrl: string; facility: string; players: string[]; weeklySettings: { collectPlayerStories: boolean } }
@@ -65,19 +64,37 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
     return () => window.clearTimeout(timeoutId)
   }, [refresh])
 
-  const assignedCourt = useMemo(() => data?.week.assignments.find((court) => court.players.includes(playerName)), [data?.week.assignments, playerName])
+  const assignedCourt = useMemo(
+    () => data?.week.assignments.find((court) => court.players.includes(playerName)),
+    [data?.week.assignments, playerName],
+  )
 
   async function submit(body: Record<string, unknown>) {
     setBusy(true)
-    const response = await fetch(`/api/leagues/weekly/${encodeURIComponent(token)}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ...body, playerName }),
-    })
-    const payload = await response.json()
-    setMessage(payload.message || (response.ok ? 'Saved.' : 'That update could not be saved.'))
-    if (response.ok) await refresh()
-    setBusy(false)
+    try {
+      const response = await fetch(`/api/leagues/weekly/${encodeURIComponent(token)}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...body, playerName }),
+      })
+      const payload = await response.json()
+      setMessage(payload.message || (response.ok ? 'Saved.' : 'That update could not be saved.'))
+      if (response.ok) await refresh()
+    } catch {
+      setMessage('That update could not be saved. Check your connection and try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function chooseResponse(nextStatus: 'in' | 'out') {
+    if (busy) return
+    setResponseStatus(nextStatus)
+    if (!playerName) {
+      setMessage('Choose your name first, then tap your response.')
+      return
+    }
+    void submit({ action: 'rsvp', responseStatus: nextStatus, note, positiveShare })
   }
 
   async function submitScorecard(court: LeagueWeeklyCourt) {
@@ -101,15 +118,7 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
       const responses = await Promise.all(scorecard.map((set) => fetch(`/api/leagues/weekly/${encodeURIComponent(token)}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          action: 'score',
-          playerName,
-          courtNumber: court.courtNumber,
-          setNumber: set.setNumber,
-          sideAGames: set.sideAGames,
-          sideBGames: set.sideBGames,
-          positiveShare,
-        }),
+        body: JSON.stringify({ action: 'score', playerName, courtNumber: court.courtNumber, setNumber: set.setNumber, sideAGames: set.sideAGames, sideBGames: set.sideBGames, positiveShare }),
       })))
       const payloads = await Promise.all(responses.map((response) => response.json() as Promise<{ message?: string }>))
       const failedIndex = responses.findIndex((response) => !response.ok)
@@ -125,117 +134,125 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
     }
   }
 
-  if (!data) return <main style={pageStyle}><section style={cardStyle}><h1>Weekly league</h1><p>{message || 'Opening this week…'}</p></section></main>
+  if (!data) return <main className={styles.page}><section className={styles.loading}><span className={styles.loadingBall} /><h1>Opening this week</h1><p>{message || 'Getting the court ready…'}</p></section></main>
+
   const collecting = data.week.status === 'collecting'
+  const weekDate = formatWeekDate(data.week.playOn)
+  const deadline = formatDeadline(data.week.responseDeadline)
+  const activeStep = collecting ? 0 : assignedCourt ? 2 : 1
 
   return (
-    <main style={pageStyle}>
-      <section style={heroStyle}>
-        {data.league.logoUrl ? (
-          // User-supplied league logos can be hosted on arbitrary domains.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={data.league.logoUrl} alt="" style={logoStyle} />
-        ) : null}
-        <div><p style={eyebrowStyle}>Weekly doubles · {formatPlayDate(data.week.playOn)}</p><h1 style={titleStyle}>{data.league.name}</h1><p>{data.league.facility || 'League site'}</p><LocationDirectionsLink location={data.league.facility} style={heroDirectionsStyle} /></div>
+    <main className={styles.page} data-weekly-response-page>
+      <section className={styles.hero} aria-labelledby="weekly-league-title">
+        <div className={styles.leagueBar}>
+          <div className={styles.leagueIdentity}>
+            {data.league.logoUrl ? (
+              // User-supplied league logos can be hosted on arbitrary domains.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={data.league.logoUrl} alt="" className={styles.leagueLogo} />
+            ) : <span className={styles.leagueMonogram}><UsersThree size={22} weight="fill" /></span>}
+            <div><span>TIQ League</span><strong id="weekly-league-title">{data.league.name}</strong></div>
+          </div>
+          <Link href="/my-leagues" className={styles.labLink}><Flask size={18} weight="duotone" />My TIQ Leagues<ArrowRight size={16} /></Link>
+        </div>
+        <div className={styles.weekHero}>
+          <p className={styles.kicker}>Plan the week</p>
+          <h1 aria-label={formatPlayDate(data.week.playOn)}><span>{weekDate.weekday},</span> {weekDate.monthDay}</h1>
+          <div className={styles.weekMeta}>
+            <span><Clock size={22} weight="duotone" />{assignedCourt ? formatStartTime(assignedCourt.startTime) : 'Thursday night'} · {data.league.facility || 'League site'}</span>
+            <span><CalendarBlank size={22} weight="duotone" />{deadline}</span>
+          </div>
+        </div>
       </section>
 
-      <section style={cardStyle}>
-        <label style={labelStyle}>Your name<select value={playerName} onChange={(event) => setPlayerName(event.target.value)} style={inputStyle}><option value="">Choose your name</option>{data.league.players.map((player) => <option key={player}>{player}</option>)}</select></label>
+      <section className={styles.identityBar}>
+        <label htmlFor="weekly-player-name">Playing as</label>
+        <select id="weekly-player-name" value={playerName} onChange={(event) => setPlayerName(event.target.value)}>
+          <option value="">Choose your name</option>
+          {data.league.players.map((player) => <option key={player}>{player}</option>)}
+        </select>
       </section>
 
       {collecting ? (
-        <section style={cardStyle}>
-          <p style={eyebrowStyle}>Reply for this week</p>
-          <div style={choiceRowStyle}><button onClick={() => setResponseStatus('in')} style={responseStatus === 'in' ? selectedChoiceStyle : choiceStyle}>I’m in</button><button onClick={() => setResponseStatus('out')} style={responseStatus === 'out' ? selectedChoiceStyle : choiceStyle}>I’m out</button></div>
-          <label style={labelStyle}>Note for the league owner (optional)<textarea value={note} onChange={(event) => setNote(event.target.value)} style={textareaStyle} placeholder="Timing or anything the owner should know" /></label>
-          {data.league.weeklySettings.collectPlayerStories ? <label style={labelStyle}>Positive share (optional)<textarea value={positiveShare} onChange={(event) => setPositiveShare(event.target.value)} style={textareaStyle} placeholder="A thank-you, great point, or fun moment for the weekly recap" /></label> : null}
-          <button disabled={busy || !playerName} onClick={() => void submit({ action: 'rsvp', responseStatus, note, positiveShare })} style={buttonStyle}>{busy ? 'Saving…' : `Save: I’m ${responseStatus}`}</button>
+        <section className={styles.decision} aria-labelledby="weekly-response-title">
+          <div className={styles.decisionHeading}><p className={styles.kicker}>Your response</p><h2 id="weekly-response-title">Are you playing?</h2><p>Same great people. More great tennis.</p></div>
+          <div className={styles.choiceRow}>
+            <button type="button" disabled={busy} aria-pressed={responseStatus === 'in'} onClick={() => chooseResponse('in')} className={responseStatus === 'in' ? styles.choiceSelected : styles.choice}><CheckCircle size={29} weight="fill" /><span>I’m in</span><ArrowRight size={20} /></button>
+            <button type="button" disabled={busy} aria-pressed={responseStatus === 'out'} onClick={() => chooseResponse('out')} className={responseStatus === 'out' ? styles.choiceSelected : styles.choice}><XCircle size={29} weight="duotone" /><span>I’m out</span><ArrowRight size={20} /></button>
+          </div>
+          <button type="button" className={styles.decideLater} onClick={() => setMessage('Nothing saved yet. Come back before the response deadline.')}><Clock size={19} />Decide later</button>
+          <details className={styles.responseDetails}>
+            <summary>Add a note or share a league moment</summary>
+            <div className={styles.detailFields}>
+              <label>Note for League Office<textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Timing or anything the coordinator should know" /></label>
+              {data.league.weeklySettings.collectPlayerStories ? <label>Positive share<textarea value={positiveShare} onChange={(event) => setPositiveShare(event.target.value)} placeholder="A thank-you, great point, or fun moment for the recap" /></label> : null}
+              <button disabled={busy || !playerName} onClick={() => void submit({ action: 'rsvp', responseStatus, note, positiveShare })} className={styles.saveButton}>{busy ? 'Saving…' : `Update response: I’m ${responseStatus}`}<ArrowRight size={20} /></button>
+            </div>
+          </details>
         </section>
       ) : assignedCourt ? (
-        <section style={cardStyle}>
-          <p style={eyebrowStyle}>Court {assignedCourt.courtNumber} · {formatStartTime(assignedCourt.startTime)}</p>
-          <h2>Your three sets</h2>
-          <p style={ruleStyle}>{ROTATING_PARTNER_DOUBLES_FORMAT.scoringSummary} {ROTATING_PARTNER_DOUBLES_FORMAT.entrySummary}</p>
-          {assignedCourt.sets.map((set) => {
-            const key = `${assignedCourt.courtNumber}-${set.setNumber}`
-            const saved = data.week.results.find((result) => result.court_number === assignedCourt.courtNumber && result.set_number === set.setNumber)
-            return <div key={key} style={scoreRowStyle}><div><strong>Set {set.setNumber}</strong><small style={smallStyle}>{set.sideA.join(' + ')} vs {set.sideB.join(' + ')}</small>{saved ? <small style={saved.review_status === 'disputed' ? disputedStatusStyle : scoreStatusStyle}>{saved.review_status === 'confirmed' ? 'Players agree' : saved.review_status === 'approved' ? 'League approved' : saved.review_status === 'disputed' ? 'Needs league review' : `Submitted by ${saved.submitted_by_name}`}</small> : <small style={missingStatusStyle}>Score needed</small>}</div><input aria-label={`Set ${set.setNumber} first side games`} type="number" inputMode="numeric" min={0} max={7} value={scores[key]?.a ?? saved?.side_a_games ?? ''} onChange={(event) => setScores((current) => ({ ...current, [key]: { a: event.target.value, b: current[key]?.b ?? String(saved?.side_b_games ?? '') } }))} style={scoreInputStyle} /><span>–</span><input aria-label={`Set ${set.setNumber} second side games`} type="number" inputMode="numeric" min={0} max={7} value={scores[key]?.b ?? saved?.side_b_games ?? ''} onChange={(event) => setScores((current) => ({ ...current, [key]: { a: current[key]?.a ?? String(saved?.side_a_games ?? ''), b: event.target.value } }))} style={scoreInputStyle} /></div>
-          })}
+        <section className={styles.scorecard} aria-labelledby="weekly-scorecard-title">
+          <p className={styles.kicker}>Court {assignedCourt.courtNumber} · {formatStartTime(assignedCourt.startTime)}</p>
+          <h2 id="weekly-scorecard-title">Your three sets</h2>
+          <p className={styles.rule}>{ROTATING_PARTNER_DOUBLES_FORMAT.scoringSummary} {ROTATING_PARTNER_DOUBLES_FORMAT.entrySummary}</p>
+          <div className={styles.setList}>
+            {assignedCourt.sets.map((set) => {
+              const key = `${assignedCourt.courtNumber}-${set.setNumber}`
+              const saved = data.week.results.find((result) => result.court_number === assignedCourt.courtNumber && result.set_number === set.setNumber)
+              return <div key={key} className={styles.setRow}><div><span>Set {set.setNumber}</span><strong>{set.sideA.join(' + ')} <small>vs</small> {set.sideB.join(' + ')}</strong>{saved ? <em data-tone={saved.review_status === 'disputed' ? 'warning' : 'success'}>{saved.review_status === 'confirmed' ? 'Players agree' : saved.review_status === 'approved' ? 'League approved' : saved.review_status === 'disputed' ? 'Needs league review' : `Submitted by ${saved.submitted_by_name}`}</em> : <em>Score needed</em>}</div><div className={styles.scoreInputs}><input aria-label={`Set ${set.setNumber} first side games`} type="number" inputMode="numeric" min={0} max={7} value={scores[key]?.a ?? saved?.side_a_games ?? ''} onChange={(event) => setScores((current) => ({ ...current, [key]: { a: event.target.value, b: current[key]?.b ?? String(saved?.side_b_games ?? '') } }))} /><span>–</span><input aria-label={`Set ${set.setNumber} second side games`} type="number" inputMode="numeric" min={0} max={7} value={scores[key]?.b ?? saved?.side_b_games ?? ''} onChange={(event) => setScores((current) => ({ ...current, [key]: { a: current[key]?.a ?? String(saved?.side_a_games ?? ''), b: event.target.value } }))} /></div></div>
+            })}
+          </div>
           {data.league.weeklySettings.collectPlayerStories ? (
-            <div style={storyCardStyle}>
+            <div className={styles.storyCard}>
               <div>
                 <strong>Share a highlight or shoutout</strong>
-                <p style={storyHelpStyle}>Optional. Give the league owner a positive moment for this week&apos;s recap.</p>
+                <p>Optional. Give League Office a positive moment for this week&apos;s recap.</p>
               </div>
-              <div style={storyPromptRowStyle} aria-label="Recap prompt ideas">
+              <div className={styles.storyPromptRow} aria-label="Recap prompt ideas">
                 {STORY_PROMPTS.map((prompt) => (
-                  <button
-                    key={prompt}
-                    type="button"
-                    onClick={() => setPositiveShare((current) => current.trim() ? current : `${prompt}: `)}
-                    style={storyPromptStyle}
-                  >
-                    {prompt}
-                  </button>
+                  <button key={prompt} type="button" onClick={() => setPositiveShare((current) => current.trim() ? current : `${prompt}: `)}>{prompt}</button>
                 ))}
               </div>
-              <label style={{ ...labelStyle, marginBottom: 0 }}>
-                Your moment
-                <textarea value={positiveShare} onChange={(event) => setPositiveShare(event.target.value)} style={textareaStyle} placeholder="What happened, and who deserves the credit?" />
-              </label>
+              <label className={styles.storyField}>Your moment<textarea value={positiveShare} onChange={(event) => setPositiveShare(event.target.value)} placeholder="What happened, and who deserves the credit?" /></label>
             </div>
           ) : null}
-          <button disabled={busy} onClick={() => void submitScorecard(assignedCourt)} style={buttonStyle}>{busy ? 'Saving scorecard…' : 'Submit all three set scores'}</button>
+          <button disabled={busy} onClick={() => void submitScorecard(assignedCourt)} className={styles.saveButton}>{busy ? 'Saving scorecard…' : 'Submit all three set scores'}<ArrowRight size={20} /></button>
         </section>
-      ) : playerName ? <section style={cardStyle}><h2>You’re not on a court this week</h2><p>Check with the league owner if the roster changed.</p></section> : null}
+      ) : playerName ? <section className={styles.emptyState}><h2>You’re not on a court this week</h2><p>Check with League Office if the roster changed.</p></section> : null}
 
-      <section style={playerPathStyle} aria-labelledby="weekly-player-path-title">
-        <p style={playerPathEyebrowStyle}>Your TIQ player path</p>
-        <h2 id="weekly-player-path-title" style={playerPathTitleStyle}>Keep this league connected to your game.</h2>
-        <p style={playerPathBodyStyle}>Connect your player profile so accepted sets can follow you into My TIQ Leagues. {MEMBERSHIP_TIERS.player_plus.upgradeCue}</p>
-        <div style={playerPathActionsStyle}>
-          <Link href="/profile" style={playerPathPrimaryStyle}>Connect your player profile</Link>
-          <Link href="/pricing#player_plus" style={playerPathSecondaryStyle}>See Player</Link>
+      <section className={styles.courtBoard} aria-label="This week at a glance">
+        <div className={styles.courtImage}>
+          <PremiumLeagueCourt />
+          <div className={styles.waveLabel}><span>Thursday night</span><strong>{assignedCourt ? formatStartTime(assignedCourt.startTime) : '8:00 · 8:30'}</strong></div>
         </div>
-        <small style={playerPathNoteStyle}>Weekly replies, court assignments, scores, and basic standings stay part of your league experience.</small>
+        <div className={styles.publishNote}><UsersThree size={25} weight="duotone" /><div><strong>{assignedCourt ? `Court ${assignedCourt.courtNumber} is ready` : 'Two start waves'}</strong><span>{assignedCourt ? assignedCourt.players.join(' · ') : 'Court, partners, and start time publish Thursday morning.'}</span></div></div>
       </section>
 
-      {message ? <p style={messageStyle} role="status">{message}</p> : null}
+      <section className={styles.locationRow}><MapPin size={29} weight="duotone" /><div><strong>{data.league.facility || 'League site'}</strong><span>Open the court location in your maps app.</span></div><LocationDirectionsLink location={data.league.facility} className={styles.directionsLink} /></section>
+
+      <nav className={styles.journey} aria-label="Weekly league journey">
+        {['Response', 'Court', 'Scores', 'Recap'].map((step, index) => <div key={step} data-state={index < activeStep ? 'done' : index === activeStep ? 'active' : 'next'}><span>{index < activeStep ? '✓' : index + 1}</span><strong>{step}</strong></div>)}
+      </nav>
+
+      <section className={styles.playerPath} aria-labelledby="weekly-player-path-title">
+        <div><p>Your TIQ player path</p><h2 id="weekly-player-path-title">Keep this league connected to your game.</h2><span>Connect your player profile so accepted sets can follow you into My TIQ Leagues. {MEMBERSHIP_TIERS.player_plus.upgradeCue}</span></div>
+        <div className={styles.playerPathActions}><Link href="/profile">Connect your player profile</Link><Link href="/pricing#player_plus">See Player</Link></div>
+        <small>Weekly replies, court assignments, scores, and basic standings stay part of your league experience.</small>
+      </section>
+      {message ? <p className={styles.message} role="status">{message}</p> : null}
     </main>
   )
 }
 
-const pageStyle: CSSProperties = { maxWidth: 760, margin: '0 auto', padding: '28px 16px 80px', display: 'grid', gap: 16 }
-const heroStyle: CSSProperties = { display: 'flex', gap: 16, alignItems: 'center', padding: 22, borderRadius: 22, color: '#fff', background: 'linear-gradient(135deg,#0a3b2b,#176d4f)' }
-const logoStyle: CSSProperties = { width: 72, height: 72, borderRadius: 14, objectFit: 'cover', background: '#fff' }
-const eyebrowStyle: CSSProperties = { margin: '0 0 6px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 12 }
-const titleStyle: CSSProperties = { margin: 0, fontSize: 'clamp(2rem,8vw,3.5rem)', letterSpacing: '-.05em' }
-const heroDirectionsStyle: CSSProperties = { minHeight: 38, borderColor: 'rgba(255,255,255,.5)', color: '#fff' }
-const cardStyle: CSSProperties = { padding: 20, border: '1px solid #dce4df', borderRadius: 18, background: '#fff', color: '#14231d', boxShadow: '0 10px 30px rgba(24,55,43,.06)' }
-const labelStyle: CSSProperties = { display: 'grid', gap: 7, fontWeight: 750, marginBottom: 14 }
-const inputStyle: CSSProperties = { minHeight: 46, border: '1px solid #cbd8d1', borderRadius: 10, padding: '9px 12px', background: '#fff', color: '#14231d' }
-const textareaStyle: CSSProperties = { ...inputStyle, minHeight: 84, resize: 'vertical' }
-const choiceRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, margin: '14px 0' }
-const choiceStyle: CSSProperties = { padding: 14, border: '1px solid #cbd8d1', borderRadius: 12, background: '#fff', fontWeight: 850 }
-const selectedChoiceStyle: CSSProperties = { ...choiceStyle, color: '#fff', background: '#126044', borderColor: '#126044' }
-const buttonStyle: CSSProperties = { width: '100%', padding: 13, border: 0, borderRadius: 999, background: '#126044', color: '#fff', fontWeight: 850 }
-const scoreRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 58px auto 58px', gap: 8, alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #e7ece9' }
-const scoreInputStyle: CSSProperties = { ...inputStyle, width: 58, padding: 8, textAlign: 'center' }
-const smallStyle: CSSProperties = { display: 'block', marginTop: 3, color: '#59655f', fontWeight: 500 }
-const ruleStyle: CSSProperties = { margin: '0 0 8px', padding: 12, borderRadius: 12, background: '#f4f8f5', color: '#425149', lineHeight: 1.5, fontSize: 13 }
-const messageStyle: CSSProperties = { position: 'sticky', bottom: 16, padding: 12, borderRadius: 12, background: '#12231d', color: '#fff', textAlign: 'center' }
-const scoreStatusStyle: CSSProperties = { ...smallStyle, color: '#126044', fontWeight: 750 }
-const disputedStatusStyle: CSSProperties = { ...scoreStatusStyle, color: '#9a3412' }
-const missingStatusStyle: CSSProperties = { ...scoreStatusStyle, color: '#64748b' }
-const storyCardStyle: CSSProperties = { display: 'grid', gap: 12, margin: '14px 0', padding: 14, borderRadius: 14, border: '1px solid #cfe5d9', background: '#f3faf6' }
-const storyHelpStyle: CSSProperties = { margin: '4px 0 0', color: '#526159', fontSize: 13, lineHeight: 1.45 }
-const storyPromptRowStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 7 }
-const storyPromptStyle: CSSProperties = { minHeight: 36, padding: '7px 11px', borderRadius: 999, border: '1px solid #b9d8ca', background: '#fff', color: '#126044', fontWeight: 800, cursor: 'pointer' }
-const playerPathStyle: CSSProperties = { display: 'grid', gap: 10, padding: 20, border: '1px solid #b9d8ca', borderRadius: 18, background: 'linear-gradient(135deg,#effbf5,#f6f9ff)', color: '#14231d', boxShadow: '0 10px 30px rgba(24,55,43,.06)' }
-const playerPathEyebrowStyle: CSSProperties = { margin: 0, color: '#126044', fontSize: 11, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase' }
-const playerPathTitleStyle: CSSProperties = { margin: 0, fontSize: 23, letterSpacing: '-.025em' }
-const playerPathBodyStyle: CSSProperties = { margin: 0, color: '#45554d', lineHeight: 1.55 }
-const playerPathActionsStyle: CSSProperties = { display: 'flex', gap: 9, flexWrap: 'wrap' }
-const playerPathPrimaryStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 42, padding: '0 16px', borderRadius: 999, background: '#126044', color: '#fff', fontWeight: 850, textDecoration: 'none' }
-const playerPathSecondaryStyle: CSSProperties = { ...playerPathPrimaryStyle, border: '1px solid #126044', background: '#fff', color: '#126044' }
-const playerPathNoteStyle: CSSProperties = { color: '#5b6b63', lineHeight: 1.45 }
+function formatWeekDate(value: string) {
+  const parsed = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return { weekday: 'This week', monthDay: value }
+  return { weekday: parsed.toLocaleDateString(undefined, { weekday: 'long' }), monthDay: parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }
+}
+
+function formatDeadline(value: string | null) {
+  if (!value) return 'Response deadline coming soon'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'Response deadline coming soon'
+  return `Respond by ${parsed.toLocaleDateString(undefined, { weekday: 'long' })} at ${parsed.toLocaleTimeString(undefined, { hour: 'numeric', minute: parsed.getMinutes() ? '2-digit' : undefined })}`
+}

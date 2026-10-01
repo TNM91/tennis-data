@@ -1,8 +1,10 @@
 'use client'
 
+import { ArrowLeft, CalendarBlank, CheckCircle, Copy, MapPin, UsersThree } from '@phosphor-icons/react'
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
+import PremiumLeagueCourt from '@/app/components/premium-league-court'
 import QuickMessageComposer from '@/app/components/quick-message-composer'
 import LocationDirectionsLink from '@/app/components/location-directions-link'
 import LeagueOperationsSettings from './league-operations-settings'
@@ -16,6 +18,7 @@ import {
 } from '@/lib/league-weekly-format'
 import { buildLeagueWeeklyCourtPlan, buildLeagueWeeklySeasonScorecards, isAcceptedLeagueWeeklyResult, type LeagueWeeklyCourtPlan, type LeagueWeeklyPlayerBaseline, type LeagueWeeklyPlayerScorecard, type LeagueWeeklyReviewedResult } from '@/lib/league-weekly-intelligence'
 import type { TiqLeagueRecord } from '@/lib/tiq-league-registry'
+import styles from './weekly-league-workspace.module.css'
 
 type WeeklyResponse = {
   player_name: string
@@ -337,17 +340,33 @@ export default function WeeklyLeagueWorkspace({
   }
 
   const shareUrl = session && typeof window !== 'undefined' ? `${window.location.origin}/league-week/${session.public_token}` : ''
+  const acceptedScoreCount = results.filter((result) => isAcceptedLeagueWeeklyResult({ reviewStatus: result.review_status })).length
+  const weeklyStage = !session ? 0 : !session.assignments?.length ? (responses.length ? 1 : 0) : acceptedScoreCount < session.assignments.length * 3 ? 2 : 3
 
   return (
     <main style={pageStyle}>
-      <div style={headerStyle}>
-        <div>
-          <p style={eyebrowStyle}>League Office</p>
-          <h1 style={titleStyle}>Run weekly play</h1>
-          <p style={heroSubheadStyle}>Collect the in list, confirm the roster, publish staggered courts, then turn scores and player moments into the recap.</p>
+      <section className={styles.hero}>
+        <div className={styles.heroCopy}>
+          <Link href="/league-coordinator" className={styles.backLink}><ArrowLeft size={17} />League Office</Link>
+          <p style={eyebrowStyle}>Plan the week</p>
+          <h1 style={titleStyle}>{formatWorkspaceDate(playOn)}</h1>
+          <p style={heroSubheadStyle}>Collect replies, shape the best courts, and publish one clear Thursday plan.</p>
+          <div className={styles.heroMeta}>
+            <span><CalendarBlank size={19} weight="duotone" />{playOn || 'Choose a play date'}</span>
+            <span><MapPin size={19} weight="duotone" />{league?.defaultFacility || league?.locationLabel || 'League site'}</span>
+          </div>
         </div>
-        <Link href="/league-coordinator" style={linkStyle}>Back to League Office</Link>
-      </div>
+        <div className={styles.heroCourt} aria-hidden="true"><PremiumLeagueCourt /></div>
+      </section>
+
+      <nav className={styles.phaseRail} aria-label="Weekly planning progress">
+        {['Replies', 'Roster', 'Courts', 'Recap'].map((label, index) => (
+          <div key={label} data-state={index < weeklyStage ? 'done' : index === weeklyStage ? 'active' : 'next'}>
+            <span>{index < weeklyStage ? <CheckCircle size={18} weight="fill" /> : index + 1}</span>
+            <strong>{label}</strong>
+          </div>
+        ))}
+      </nav>
 
       {!leagues.length ? (
         <section style={panelStyle}>
@@ -389,7 +408,7 @@ export default function WeeklyLeagueWorkspace({
               <section style={panelStyle}>
                 <p style={eyebrowStyle}>1 · Player replies</p>
                 <div style={headerStyle}><div><h2>{inPlayers.length} in · {responses.filter((item) => item.response_status === 'out').length} out</h2><p>Share one link with the league. The roster stays editable until you publish courts.</p></div><span style={pillStyle}>{session.status.replace('_', ' ')}</span></div>
-                <div style={shareRowStyle}><input readOnly value={shareUrl} style={inputStyle} /><button style={buttonStyle} onClick={() => void navigator.clipboard.writeText(shareUrl)}>Copy link</button></div>
+                <div style={shareRowStyle}><input readOnly value={shareUrl} style={inputStyle} /><button style={buttonStyle} onClick={() => void navigator.clipboard.writeText(shareUrl)}><Copy size={17} weight="bold" /> Copy link</button></div>
                 {league?.weeklySettings.leagueChatEnabled ? (
                   <div style={{ marginTop: 12 }}>
                     <QuickMessageComposer
@@ -407,7 +426,7 @@ export default function WeeklyLeagueWorkspace({
 
               <section style={panelStyle}>
                 <p style={eyebrowStyle}>2 · Confirm roster</p>
-                <h2>{rosterSummary.playingCount} playing · {rosterSummary.openSpots} open · {rosterSummary.waitlistCount} waiting</h2>
+                <div className={styles.rosterHeadline}><UsersThree size={30} weight="duotone" /><h2>{rosterSummary.playingCount} playing · {rosterSummary.openSpots} open · {rosterSummary.waitlistCount} waiting</h2></div>
                 <div style={playerGridStyle}>
                   {(league?.players || []).map((player) => {
                     const response = responses.find((item) => item.player_name === player)
@@ -415,7 +434,7 @@ export default function WeeklyLeagueWorkspace({
                     return <div key={player} style={playerStyle}><input aria-label={`Select ${player}`} type="checkbox" checked={selected} onChange={() => togglePlayer(player)} /><span style={{ flex: 1 }}><strong>{player}</strong><small style={{ display: 'block' }}>{response?.response_status || 'No reply'}{response?.note ? ` · ${response.note}` : ''}</small></span>{selected ? <select aria-label={`Lock ${player} to a court`} value={lockedCourts[player] || 0} onChange={(event) => lockPlayerToCourt(player, Number(event.target.value))} style={lockSelectStyle}><option value={0}>{league?.weeklySettings.autoGenerateCourts ? 'Auto court' : 'Roster order'}</option>{Array.from({ length: league?.weeklySettings.courtCount || 0 }, (_, index) => <option key={index + 1} value={index + 1}>Court {index + 1}</option>)}</select> : null}</div>
                   })}
                 </div>
-                <p style={{ color: '#52605a' }}>{league?.weeklySettings.autoGenerateCourts ? 'Court locks stay fixed. Everyone else is balanced using current TIQ doubles ratings, accepted league results, recent courtmates, attendance, and last week’s court.' : 'Court locks and roster order build this plan. Move any player before publishing.'}</p>
+                <p style={{ color: '#a7cdf6' }}>{league?.weeklySettings.autoGenerateCourts ? 'Court locks stay fixed. Everyone else is balanced using current TIQ doubles ratings, accepted league results, recent courtmates, attendance, and last week’s court.' : 'Court locks and roster order build this plan. Move any player before publishing.'}</p>
                 <CourtPlanPreview
                   plan={courtPlan}
                   courtCount={league?.weeklySettings.courtCount || 0}
@@ -561,49 +580,55 @@ function formatPlayerSignal(signal: LeagueWeeklyCourtPlan['insights'][number]['p
   return 'TIQ profile not connected'
 }
 
-const pageStyle: CSSProperties = { maxWidth: 1180, margin: '0 auto', padding: '32px 20px 80px', display: 'grid', gap: 18 }
+function formatWorkspaceDate(value: string) {
+  const parsed = new Date(`${value}T12:00:00`)
+  if (!value || Number.isNaN(parsed.getTime())) return 'Build the next league night.'
+  return parsed.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
+}
+
+const pageStyle: CSSProperties = { maxWidth: 1180, margin: '0 auto', padding: '26px 20px 88px', display: 'grid', gap: 16 }
 const headerStyle: CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }
-const eyebrowStyle: CSSProperties = { margin: '0 0 6px', color: '#23765b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 12 }
-const titleStyle: CSSProperties = { margin: 0, fontSize: 'clamp(2rem, 5vw, 4rem)', letterSpacing: '-.05em' }
-const heroSubheadStyle: CSSProperties = { maxWidth: 720, color: '#b8c8c0', lineHeight: 1.6 }
-const panelStyle: CSSProperties = { border: '1px solid #dce4df', borderRadius: 20, background: '#fff', color: '#14231d', padding: 22, boxShadow: '0 10px 35px rgba(24,55,43,.06)' }
+const eyebrowStyle: CSSProperties = { margin: '0 0 8px', color: '#9be11d', fontWeight: 950, textTransform: 'uppercase', letterSpacing: '.16em', fontSize: 11 }
+const titleStyle: CSSProperties = { margin: 0, color: '#fff', fontSize: 'clamp(2.5rem, 7vw, 5.5rem)', lineHeight: .96, letterSpacing: '-.065em' }
+const heroSubheadStyle: CSSProperties = { maxWidth: 590, margin: '14px 0 0', color: '#a7cdf6', fontSize: 16, lineHeight: 1.55 }
+const panelStyle: CSSProperties = { border: '1px solid rgba(148,190,231,.22)', borderRadius: 22, background: 'linear-gradient(145deg,#0a2442,#071a31)', color: '#fff', padding: 22, boxShadow: '0 18px 55px rgba(0,12,29,.2)' }
 const twoColumnStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }
-const labelStyle: CSSProperties = { display: 'grid', gap: 7, fontWeight: 750 }
-const inputStyle: CSSProperties = { width: '100%', minHeight: 44, border: '1px solid #cbd8d1', borderRadius: 10, padding: '9px 12px', background: '#fff', color: '#14231d' }
-const buttonStyle: CSSProperties = { border: 0, borderRadius: 999, padding: '11px 17px', background: '#126044', color: '#fff', fontWeight: 800, cursor: 'pointer' }
-const linkStyle: CSSProperties = { color: '#126044', fontWeight: 800 }
+const labelStyle: CSSProperties = { display: 'grid', gap: 7, color: '#a7cdf6', fontWeight: 850 }
+const inputStyle: CSSProperties = { width: '100%', minHeight: 46, border: '1px solid rgba(167,205,246,.28)', borderRadius: 12, padding: '9px 12px', background: '#0a294a', color: '#fff' }
+const buttonStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, border: 0, borderRadius: 13, padding: '12px 17px', background: '#9be11d', color: 'var(--foreground-strong)', fontWeight: 950, cursor: 'pointer' }
+const linkStyle: CSSProperties = { color: '#9be11d', fontWeight: 850 }
 const primaryLinkStyle: CSSProperties = { ...linkStyle, display: 'inline-block', marginTop: 8 }
-const weeklyDirectionsStyle: CSSProperties = { marginTop: 10, borderColor: '#9ac7b4', color: '#126044' }
+const weeklyDirectionsStyle: CSSProperties = { marginTop: 10, borderColor: 'rgba(167,205,246,.4)', color: '#a7cdf6' }
 const noticeStyle: CSSProperties = { padding: 12, borderRadius: 10, background: '#fff7dc', color: '#6e5510' }
-const pillStyle: CSSProperties = { padding: '5px 9px', borderRadius: 999, background: '#e7f4ee', color: '#126044', fontSize: 12, fontWeight: 800 }
+const pillStyle: CSSProperties = { padding: '5px 9px', borderRadius: 999, background: 'rgba(155,225,29,.12)', color: '#9be11d', fontSize: 11, fontWeight: 900, textTransform: 'uppercase' }
 const shareRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 8 }
 const playerGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10, margin: '16px 0' }
-const playerStyle: CSSProperties = { display: 'flex', gap: 10, alignItems: 'flex-start', padding: 12, border: '1px solid #dce4df', borderRadius: 12 }
-const lockSelectStyle: CSSProperties = { minHeight: 34, maxWidth: 112, border: '1px solid #cbd8d1', borderRadius: 9, padding: '5px 7px', background: '#fff', color: '#14231d' }
+const playerStyle: CSSProperties = { display: 'flex', gap: 10, alignItems: 'flex-start', padding: 12, border: '1px solid rgba(148,190,231,.2)', borderRadius: 13, background: 'rgba(6,23,47,.45)' }
+const lockSelectStyle: CSSProperties = { minHeight: 34, maxWidth: 112, border: '1px solid rgba(167,205,246,.28)', borderRadius: 9, padding: '5px 7px', background: '#0a294a', color: '#fff' }
 const courtGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(245px, 1fr))', gap: 12 }
-const courtStyle: CSSProperties = { padding: 16, borderRadius: 14, background: '#f4f8f5', border: '1px solid #dce4df' }
+const courtStyle: CSSProperties = { padding: 16, borderRadius: 15, background: 'rgba(6,23,47,.58)', border: '1px solid rgba(148,190,231,.22)' }
 const actionRowStyle: CSSProperties = { display: 'flex', gap: 8, flexWrap: 'wrap' }
-const secondaryButtonStyle: CSSProperties = { ...buttonStyle, background: '#e7f4ee', color: '#126044' }
-const sentNoticeStyle: CSSProperties = { padding: 12, borderRadius: 10, background: '#e7f4ee', color: '#126044', fontWeight: 700 }
-const planEmptyStyle: CSSProperties = { padding: 14, borderRadius: 13, border: '1px dashed #b8c9c0', background: '#f8faf9', color: '#52605a', fontSize: 13, fontWeight: 700 }
-const planPreviewStyle: CSSProperties = { display: 'grid', gap: 14, minWidth: 0, marginTop: 14, padding: 16, borderRadius: 17, border: '1px solid #bfd8cd', background: 'linear-gradient(145deg, #f2f9f5, #fff)' }
+const secondaryButtonStyle: CSSProperties = { ...buttonStyle, border: '1px solid rgba(167,205,246,.35)', background: '#0a294a', color: '#a7cdf6' }
+const sentNoticeStyle: CSSProperties = { padding: 12, borderRadius: 10, background: 'rgba(155,225,29,.12)', color: '#9be11d', fontWeight: 800 }
+const planEmptyStyle: CSSProperties = { padding: 14, borderRadius: 13, border: '1px dashed rgba(167,205,246,.32)', background: 'rgba(6,23,47,.42)', color: '#a7cdf6', fontSize: 13, fontWeight: 700 }
+const planPreviewStyle: CSSProperties = { display: 'grid', gap: 14, minWidth: 0, marginTop: 14, padding: 16, borderRadius: 18, border: '1px solid rgba(155,225,29,.28)', background: 'linear-gradient(145deg,rgba(155,225,29,.07),rgba(6,23,47,.64))' }
 const planHeaderStyle: CSSProperties = { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }
-const planKickerStyle: CSSProperties = { margin: '0 0 4px', color: '#126044', fontSize: 10, fontWeight: 950, letterSpacing: '.08em', textTransform: 'uppercase' }
-const planTitleStyle: CSSProperties = { margin: 0, color: '#14231d', fontSize: 20 }
-const planCopyStyle: CSSProperties = { margin: '5px 0 0', color: '#52605a', fontSize: 12, lineHeight: 1.45 }
-const planModeStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', minHeight: 29, padding: '0 10px', borderRadius: 999, background: '#dff2e9', color: '#126044', fontSize: 10, fontWeight: 950, textTransform: 'uppercase' }
+const planKickerStyle: CSSProperties = { margin: '0 0 4px', color: '#9be11d', fontSize: 10, fontWeight: 950, letterSpacing: '.1em', textTransform: 'uppercase' }
+const planTitleStyle: CSSProperties = { margin: 0, color: '#fff', fontSize: 20 }
+const planCopyStyle: CSSProperties = { margin: '5px 0 0', color: '#a7cdf6', fontSize: 12, lineHeight: 1.45 }
+const planModeStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', minHeight: 29, padding: '0 10px', borderRadius: 999, background: 'rgba(155,225,29,.12)', color: '#9be11d', fontSize: 10, fontWeight: 950, textTransform: 'uppercase' }
 const planSummaryStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 115px), 1fr))', gap: 8 }
-const planMetricStyle: CSSProperties = { display: 'grid', gap: 3, minWidth: 0, padding: 10, borderRadius: 11, border: '1px solid #dce4df', background: '#fff', color: '#65746d', fontSize: 9, fontWeight: 900, letterSpacing: '.04em', textTransform: 'uppercase' }
+const planMetricStyle: CSSProperties = { display: 'grid', gap: 3, minWidth: 0, padding: 10, borderRadius: 11, border: '1px solid rgba(148,190,231,.2)', background: 'rgba(6,23,47,.58)', color: '#8faed0', fontSize: 9, fontWeight: 900, letterSpacing: '.04em', textTransform: 'uppercase' }
 const planCourtGridStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 10 }
-const planCourtStyle: CSSProperties = { display: 'grid', alignContent: 'start', gap: 10, minWidth: 0, padding: 13, borderRadius: 14, border: '1px solid #dce4df', background: '#fff' }
+const planCourtStyle: CSSProperties = { display: 'grid', alignContent: 'start', gap: 10, minWidth: 0, padding: 13, borderRadius: 14, border: '1px solid rgba(148,190,231,.22)', background: '#071b34' }
 const planCourtHeaderStyle: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }
-const planCourtTimeStyle: CSSProperties = { display: 'block', marginTop: 2, color: '#65746d', fontSize: 10, fontWeight: 750 }
-const strengthStyle: CSSProperties = { flex: '0 0 auto', padding: '5px 8px', borderRadius: 999, background: '#eef5ff', color: '#245f8f', fontSize: 10, fontWeight: 900 }
+const planCourtTimeStyle: CSSProperties = { display: 'block', marginTop: 2, color: '#a7cdf6', fontSize: 10, fontWeight: 750 }
+const strengthStyle: CSSProperties = { flex: '0 0 auto', padding: '5px 8px', borderRadius: 999, background: 'rgba(167,205,246,.12)', color: '#a7cdf6', fontSize: 10, fontWeight: 900 }
 const planPlayerListStyle: CSSProperties = { display: 'grid', gap: 6 }
-const planPlayerStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', gap: 8, minWidth: 0, padding: '7px 8px', borderRadius: 10, background: '#f4f8f5' }
-const planPlayerNameStyle: CSSProperties = { display: 'block', minWidth: 0, color: '#14231d', fontSize: 11, overflowWrap: 'anywhere' }
-const planPlayerSignalStyle: CSSProperties = { display: 'block', marginTop: 2, color: '#64748b', fontSize: 10, fontWeight: 700 }
-const lockedStyle: CSSProperties = { display: 'block', marginTop: 2, color: '#126044', fontSize: 9, fontWeight: 850 }
-const planMoveSelectStyle: CSSProperties = { minHeight: 32, maxWidth: 105, border: '1px solid #cbd8d1', borderRadius: 8, padding: '4px 6px', background: '#fff', color: '#14231d', fontSize: 10 }
-const planReasonStyle: CSSProperties = { margin: 0, color: '#65746d', fontSize: 10, lineHeight: 1.4 }
+const planPlayerStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', gap: 8, minWidth: 0, padding: '7px 8px', borderRadius: 10, background: 'rgba(10,41,74,.76)' }
+const planPlayerNameStyle: CSSProperties = { display: 'block', minWidth: 0, color: '#fff', fontSize: 11, overflowWrap: 'anywhere' }
+const planPlayerSignalStyle: CSSProperties = { display: 'block', marginTop: 2, color: '#8faed0', fontSize: 10, fontWeight: 700 }
+const lockedStyle: CSSProperties = { display: 'block', marginTop: 2, color: '#9be11d', fontSize: 9, fontWeight: 850 }
+const planMoveSelectStyle: CSSProperties = { minHeight: 32, maxWidth: 105, border: '1px solid rgba(167,205,246,.3)', borderRadius: 8, padding: '4px 6px', background: 'var(--shell-chip-bg)', color: '#fff', fontSize: 10 }
+const planReasonStyle: CSSProperties = { margin: 0, color: '#8faed0', fontSize: 10, lineHeight: 1.4 }
 const planActionStyle: CSSProperties = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }
