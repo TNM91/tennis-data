@@ -9,8 +9,8 @@ import { ROTATING_PARTNER_DOUBLES_FORMAT, validateLeagueWeeklySetScore, type Lea
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import styles from './weekly-league-response.module.css'
 
-type WeeklyPayload = {
-  league: { name: string; logoUrl: string; facility: string; players: string[]; weeklySettings: { collectPlayerStories: boolean } }
+export type WeeklyPayload = {
+  league: { name: string; logoUrl: string; facility: string; players: string[]; weeklySettings: { collectPlayerStories: boolean; startTimes?: string[] } }
   week: {
     playOn: string
     responseDeadline: string | null
@@ -42,8 +42,8 @@ function formatStartTime(value: string) {
   return `${hour % 12 || 12}:${minute} ${hour >= 12 ? 'PM' : 'AM'}`
 }
 
-export default function WeeklyLeagueResponse({ token }: { token: string }) {
-  const [data, setData] = useState<WeeklyPayload | null>(null)
+export default function WeeklyLeagueResponse({ token, previewMode = false, initialData }: { token: string; previewMode?: boolean; initialData?: WeeklyPayload }) {
+  const [data, setData] = useState<WeeklyPayload | null>(initialData || null)
   const [playerName, setPlayerName] = useState('')
   const [responseStatus, setResponseStatus] = useState<'in' | 'out'>('in')
   const [note, setNote] = useState('')
@@ -53,11 +53,12 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
   const [busy, setBusy] = useState(false)
 
   const refresh = useCallback(async () => {
+    if (previewMode && initialData) return
     const response = await fetch(`/api/leagues/weekly/${encodeURIComponent(token)}`)
     const payload = await response.json()
     if (!response.ok) setMessage(payload.message || 'This weekly league link could not be opened.')
     else setData(payload)
-  }, [token])
+  }, [initialData, previewMode, token])
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => void refresh(), 0)
@@ -70,6 +71,10 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
   )
 
   async function submit(body: Record<string, unknown>) {
+    if (previewMode) {
+      setMessage('Preview mode is read-only. No league response was changed.')
+      return
+    }
     setBusy(true)
     try {
       const response = await fetch(`/api/leagues/weekly/${encodeURIComponent(token)}`, {
@@ -98,6 +103,7 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
   }
 
   async function submitScorecard(court: LeagueWeeklyCourt) {
+    if (previewMode) return
     const scorecard = court.sets.map((set) => {
       const key = `${court.courtNumber}-${set.setNumber}`
       const saved = data?.week.results.find((result) => result.court_number === court.courtNumber && result.set_number === set.setNumber)
@@ -134,15 +140,18 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
     }
   }
 
-  if (!data) return <main className={styles.page}><section className={styles.loading}><span className={styles.loadingBall} /><h1>Opening this week</h1><p>{message || 'Getting the court ready…'}</p></section></main>
+  if (!data) return <div className={styles.page}><section className={styles.loading}><span className={styles.loadingBall} /><h1>Opening this week</h1><p>{message || 'Getting the court ready…'}</p></section></div>
 
   const collecting = data.week.status === 'collecting'
   const weekDate = formatWeekDate(data.week.playOn)
   const deadline = formatDeadline(data.week.responseDeadline)
   const activeStep = collecting ? 0 : assignedCourt ? 2 : 1
+  const startWaves = [...new Set(data.league.weeklySettings.startTimes || [])]
+  const waveTimes = startWaves.map(formatStartTime).join(' · ')
 
   return (
-    <main className={styles.page} data-weekly-response-page>
+    <div className={styles.page} data-weekly-response-page>
+      {previewMode ? <div className={styles.previewBanner} role="status"><strong>Player preview</strong><span>Read-only · responses and scores cannot be submitted</span></div> : null}
       <section className={styles.hero} aria-labelledby="weekly-league-title">
         <div className={styles.leagueBar}>
           <div className={styles.leagueIdentity}>
@@ -159,7 +168,7 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
           <p className={styles.kicker}>Plan the week</p>
           <h1 aria-label={formatPlayDate(data.week.playOn)}><span>{weekDate.weekday},</span> {weekDate.monthDay}</h1>
           <div className={styles.weekMeta}>
-            <span><Clock size={22} weight="duotone" />{assignedCourt ? formatStartTime(assignedCourt.startTime) : 'Thursday night'} · {data.league.facility || 'League site'}</span>
+            <span><Clock size={22} weight="duotone" />{assignedCourt ? formatStartTime(assignedCourt.startTime) : waveTimes || 'Start time coming soon'} · {data.league.facility || 'League site'}</span>
             <span><CalendarBlank size={22} weight="duotone" />{deadline}</span>
           </div>
         </div>
@@ -177,8 +186,8 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
         <section className={styles.decision} aria-labelledby="weekly-response-title">
           <div className={styles.decisionHeading}><p className={styles.kicker}>Your response</p><h2 id="weekly-response-title">Are you playing?</h2><p>Same great people. More great tennis.</p></div>
           <div className={styles.choiceRow}>
-            <button type="button" disabled={busy} aria-pressed={responseStatus === 'in'} onClick={() => chooseResponse('in')} className={responseStatus === 'in' ? styles.choiceSelected : styles.choice}><CheckCircle size={29} weight="fill" /><span>I’m in</span><ArrowRight size={20} /></button>
-            <button type="button" disabled={busy} aria-pressed={responseStatus === 'out'} onClick={() => chooseResponse('out')} className={responseStatus === 'out' ? styles.choiceSelected : styles.choice}><XCircle size={29} weight="duotone" /><span>I’m out</span><ArrowRight size={20} /></button>
+            <button type="button" disabled={busy || previewMode} aria-pressed={responseStatus === 'in'} onClick={() => chooseResponse('in')} className={responseStatus === 'in' ? styles.choiceSelected : styles.choice}><CheckCircle size={29} weight="fill" /><span>I’m in</span><ArrowRight size={20} /></button>
+            <button type="button" disabled={busy || previewMode} aria-pressed={responseStatus === 'out'} onClick={() => chooseResponse('out')} className={responseStatus === 'out' ? styles.choiceSelected : styles.choice}><XCircle size={29} weight="duotone" /><span>I’m out</span><ArrowRight size={20} /></button>
           </div>
           <button type="button" className={styles.decideLater} onClick={() => setMessage('Nothing saved yet. Come back before the response deadline.')}><Clock size={19} />Decide later</button>
           <details className={styles.responseDetails}>
@@ -186,7 +195,7 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
             <div className={styles.detailFields}>
               <label>Note for League Office<textarea value={note} onChange={(event) => setNote(event.target.value)} placeholder="Timing or anything the coordinator should know" /></label>
               {data.league.weeklySettings.collectPlayerStories ? <label>Positive share<textarea value={positiveShare} onChange={(event) => setPositiveShare(event.target.value)} placeholder="A thank-you, great point, or fun moment for the recap" /></label> : null}
-              <button disabled={busy || !playerName} onClick={() => void submit({ action: 'rsvp', responseStatus, note, positiveShare })} className={styles.saveButton}>{busy ? 'Saving…' : `Update response: I’m ${responseStatus}`}<ArrowRight size={20} /></button>
+              <button disabled={busy || !playerName || previewMode} onClick={() => void submit({ action: 'rsvp', responseStatus, note, positiveShare })} className={styles.saveButton}>{previewMode ? 'Preview only' : busy ? 'Saving…' : `Update response: I’m ${responseStatus}`}<ArrowRight size={20} /></button>
             </div>
           </details>
         </section>
@@ -216,16 +225,16 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
               <label className={styles.storyField}>Your moment<textarea value={positiveShare} onChange={(event) => setPositiveShare(event.target.value)} placeholder="What happened, and who deserves the credit?" /></label>
             </div>
           ) : null}
-          <button disabled={busy} onClick={() => void submitScorecard(assignedCourt)} className={styles.saveButton}>{busy ? 'Saving scorecard…' : 'Submit all three set scores'}<ArrowRight size={20} /></button>
+          <button disabled={busy || previewMode} onClick={() => void submitScorecard(assignedCourt)} className={styles.saveButton}>{previewMode ? 'Preview only' : busy ? 'Saving scorecard…' : 'Submit all three set scores'}<ArrowRight size={20} /></button>
         </section>
       ) : playerName ? <section className={styles.emptyState}><h2>You’re not on a court this week</h2><p>Check with League Office if the roster changed.</p></section> : null}
 
       <section className={styles.courtBoard} aria-label="This week at a glance">
         <div className={styles.courtImage}>
           <PremiumLeagueCourt />
-          <div className={styles.waveLabel}><span>Thursday night</span><strong>{assignedCourt ? formatStartTime(assignedCourt.startTime) : '8:00 · 8:30'}</strong></div>
+          <div className={styles.waveLabel}><span>{weekDate.weekday} tennis</span><strong>{assignedCourt ? formatStartTime(assignedCourt.startTime) : waveTimes || 'Time coming soon'}</strong></div>
         </div>
-        <div className={styles.publishNote}><UsersThree size={25} weight="duotone" /><div><strong>{assignedCourt ? `Court ${assignedCourt.courtNumber} is ready` : 'Two start waves'}</strong><span>{assignedCourt ? assignedCourt.players.join(' · ') : 'Court, partners, and start time publish Thursday morning.'}</span></div></div>
+        <div className={styles.publishNote}><UsersThree size={25} weight="duotone" /><div><strong>{assignedCourt ? `Court ${assignedCourt.courtNumber} is ready` : startWaves.length > 1 ? `${startWaves.length} start waves` : 'Your league night'}</strong><span>{assignedCourt ? assignedCourt.players.join(' · ') : 'Court, partners, and start time appear here when League Office publishes the plan.'}</span></div></div>
       </section>
 
       <section className={styles.locationRow}><MapPin size={29} weight="duotone" /><div><strong>{data.league.facility || 'League site'}</strong><span>Open the court location in your maps app.</span></div><LocationDirectionsLink location={data.league.facility} className={styles.directionsLink} /></section>
@@ -240,7 +249,7 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
         <small>Weekly replies, court assignments, scores, and basic standings stay part of your league experience.</small>
       </section>
       {message ? <p className={styles.message} role="status">{message}</p> : null}
-    </main>
+    </div>
   )
 }
 

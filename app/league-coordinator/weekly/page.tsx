@@ -12,7 +12,7 @@ export default async function WeeklyLeaguePage({
   const playOn = /^\d{4}-\d{2}-\d{2}$/.test(requestedPlayOn) ? requestedPlayOn : ''
 
   return (
-    <SiteShell active="/league-coordinator">
+    <SiteShell active="/league-coordinator" showPortalToolBar={false}>
       <WeeklyLeagueWorkspace initialLeagueId={leagueId} initialPlayOn={playOn} />
     </SiteShell>
   )

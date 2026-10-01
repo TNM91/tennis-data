@@ -5,4 +5,5 @@ export function shouldUseFocusedSiteShell(pathname: string) {
     || pathname === '/join'
     || pathname === '/forget-password'
     || pathname === '/reset-password'
+    || pathname === '/league-coordinator/weekly'
 }

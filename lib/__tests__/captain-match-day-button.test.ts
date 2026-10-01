@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const page = readFileSync(join(process.cwd(), 'app/captain/page.tsx'), 'utf8')
-const styles = readFileSync(join(process.cwd(), 'app/captain/captain-mobile-command.module.css'), 'utf8')
+const styles = readFileSync(join(process.cwd(), 'app/captain/captain-mobile-command.module.css'), 'utf8').replace(/\r\n/g, '\n')
 
 describe('Captain Match Day button', () => {
   it('appears only for the local match date and opens the live tools', () => {

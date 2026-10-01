@@ -1,14 +1,15 @@
 'use client'
 
-import { ArrowLeft, CalendarBlank, CheckCircle, Copy, MapPin, UsersThree } from '@phosphor-icons/react'
+import { ArrowLeft, Bell, CalendarBlank, CaretLeft, CaretRight, CheckCircle, Copy, Eye, MapPin, PaperPlaneTilt, ShareNetwork, UserCheck, UsersThree } from '@phosphor-icons/react'
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import PremiumLeagueCourt from '@/app/components/premium-league-court'
 import QuickMessageComposer from '@/app/components/quick-message-composer'
 import LocationDirectionsLink from '@/app/components/location-directions-link'
 import LeagueOperationsSettings from './league-operations-settings'
 import WeeklyScoreIntelligencePanel from './weekly-score-intelligence-panel'
+import WeeklyLeagueResponse from '@/app/league-week/[token]/weekly-league-response'
 import { supabase } from '@/lib/supabase'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
 import {
@@ -18,6 +19,7 @@ import {
 } from '@/lib/league-weekly-format'
 import { buildLeagueWeeklyCourtPlan, buildLeagueWeeklySeasonScorecards, isAcceptedLeagueWeeklyResult, type LeagueWeeklyCourtPlan, type LeagueWeeklyPlayerBaseline, type LeagueWeeklyPlayerScorecard, type LeagueWeeklyReviewedResult } from '@/lib/league-weekly-intelligence'
 import type { TiqLeagueRecord } from '@/lib/tiq-league-registry'
+import type { WeeklyCommunicationKind } from '@/lib/league-weekly-communications'
 import styles from './weekly-league-workspace.module.css'
 
 type WeeklyResponse = {
@@ -59,7 +61,11 @@ function nextThursday() {
   const date = new Date()
   const distance = (4 - date.getDay() + 7) % 7
   date.setDate(date.getDate() + distance)
-  return date.toISOString().slice(0, 10)
+  return localDateKey(date)
+}
+
+function localDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 export default function WeeklyLeagueWorkspace({
@@ -84,6 +90,9 @@ export default function WeeklyLeagueWorkspace({
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
+  const playerPreviewRef = useRef<HTMLDialogElement>(null)
+  const sessionRequestRef = useRef(0)
   const [recapDraft, setRecapDraft] = useState<RecapDraft>({ headline: '', summary: '', stories: [] })
 
   const league = useMemo(() => leagues.find((record) => record.id === leagueId) || null, [leagueId, leagues])
@@ -104,13 +113,22 @@ export default function WeeklyLeagueWorkspace({
 
   const loadSession = useCallback(async (targetLeagueId: string, targetPlayOn: string) => {
     if (!targetLeagueId || !targetPlayOn) return
+    const request = ++sessionRequestRef.current
     setBusy(true)
+    setSession(null)
+    setResponses([])
+    setResults([])
+    setSelectedPlayers([])
+    setPlayerStats([])
+    setHistoryCourts([])
+    setScoreSubmissions([])
     const { data, error } = await supabase
       .from('tiq_league_weekly_sessions')
       .select('id,public_token,play_on,response_deadline,status,roster,assignments,recap')
       .eq('league_id', targetLeagueId)
       .eq('play_on', targetPlayOn)
       .maybeSingle()
+    if (request !== sessionRequestRef.current) return
     if (error) {
       setStatus(error.message.includes('schema cache') ? 'Weekly play needs the new database migration before sessions can sync.' : error.message)
       setSession(null)
@@ -137,6 +155,7 @@ export default function WeeklyLeagueWorkspace({
       supabase.from('tiq_league_weekly_set_results').select('court_number,set_number,side_a_games,side_b_games,submitted_by_name,review_status').eq('session_id', nextSession.id).order('court_number').order('set_number'),
       supabase.from('tiq_league_weekly_score_submissions').select('court_number,set_number,side_a_games,side_b_games,submitted_by_name,submitted_at').eq('session_id', nextSession.id).order('submitted_at'),
     ])
+    if (request !== sessionRequestRef.current) return
     setResponses((responseResult.data || []) as WeeklyResponse[])
     setResults((scoreResult.data || []) as WeeklyResult[])
     setScoreSubmissions((submissionResult.data || []) as WeeklyScoreSubmissionRow[])
@@ -151,6 +170,7 @@ export default function WeeklyLeagueWorkspace({
     const { data: historyResults } = historyIds.length
       ? await supabase.from('tiq_league_weekly_set_results').select('session_id,court_number,set_number,side_a_games,side_b_games,submitted_by_name,review_status').in('session_id', historyIds)
       : { data: [] }
+    if (request !== sessionRequestRef.current) return
     const history = (historySessions || []).map((historicalSession) => ({
       playOn: historicalSession.play_on,
       courts: Array.isArray(historicalSession.assignments) ? historicalSession.assignments as LeagueWeeklyCourt[] : [],
@@ -184,7 +204,10 @@ export default function WeeklyLeagueWorkspace({
   useEffect(() => {
     if (!authResolved || !userId || !leagueId) return
     const timeoutId = window.setTimeout(() => void loadSession(leagueId, playOn), 0)
-    return () => window.clearTimeout(timeoutId)
+    return () => {
+      window.clearTimeout(timeoutId)
+      sessionRequestRef.current += 1
+    }
   }, [authResolved, leagueId, loadSession, playOn, userId])
 
   useEffect(() => {
@@ -229,7 +252,7 @@ export default function WeeklyLeagueWorkspace({
   }, [leagueId])
 
   async function createSession() {
-    if (!league) return
+    if (!league || !userId) return
     setBusy(true)
     const deadline = new Date(`${playOn}T08:00:00`)
     deadline.setDate(deadline.getDate() - 1)
@@ -339,34 +362,96 @@ export default function WeeklyLeagueWorkspace({
     void saveRecap('send')
   }
 
+  function shiftWeek(days: number) {
+    const parsed = new Date(`${playOn}T12:00:00`)
+    if (Number.isNaN(parsed.getTime())) return
+    parsed.setDate(parsed.getDate() + days)
+    setPlayOn(localDateKey(parsed))
+  }
+
+  async function copyWeeklyLink() {
+    if (!shareUrl) return
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setLinkCopied(true)
+      window.setTimeout(() => setLinkCopied(false), 2400)
+    } catch {
+      setStatus('Select the player link below and copy it for your text thread.')
+    }
+  }
+
   const shareUrl = session && typeof window !== 'undefined' ? `${window.location.origin}/league-week/${session.public_token}` : ''
   const acceptedScoreCount = results.filter((result) => isAcceptedLeagueWeeklyResult({ reviewStatus: result.review_status })).length
   const weeklyStage = !session ? 0 : !session.assignments?.length ? (responses.length ? 1 : 0) : acceptedScoreCount < session.assignments.length * 3 ? 2 : 3
+  const outCount = responses.filter((response) => response.response_status === 'out').length
+  const responseCount = responses.length
+  const waitingResponseCount = Math.max(0, (league?.players.length || 0) - responseCount)
+  const responseDeadline = formatWorkspaceDeadline(session?.response_deadline || null)
+  const phaseItems = [
+    { label: 'Replies', detail: session ? `${responseCount}/${league?.players.length || responseCount}` : 'Not open', href: '#weekly-replies' },
+    { label: 'Roster', detail: `${selectedPlayers.length} selected`, href: session ? '#weekly-roster' : '#weekly-replies' },
+    { label: 'Courts', detail: `${session?.assignments?.length || 0} ready`, href: session?.assignments?.length ? '#weekly-courts' : session ? '#weekly-courts-plan' : '#weekly-replies' },
+    { label: 'Recap', detail: `${acceptedScoreCount} scores`, href: session?.assignments?.length ? '#weekly-recap' : '#weekly-replies' },
+  ]
+  const commandAction = !session
+    ? { label: 'Open player replies', href: '#weekly-replies' }
+    : !session.assignments?.length
+      ? { label: responseCount ? 'Review replies' : 'Share player link', href: '#weekly-replies' }
+      : weeklyStage === 2
+        ? { label: 'Review scores', href: '#weekly-courts' }
+        : { label: 'Finish recap', href: '#weekly-recap' }
 
   return (
-    <main style={pageStyle}>
-      <section className={styles.hero}>
+    <div style={pageStyle} className={styles.workspace}>
+      <section className={styles.hero} data-live={session ? 'true' : 'false'}>
         <div className={styles.heroCopy}>
           <Link href="/league-coordinator" className={styles.backLink}><ArrowLeft size={17} />League Office</Link>
-          <p style={eyebrowStyle}>Plan the week</p>
-          <h1 style={titleStyle}>{formatWorkspaceDate(playOn)}</h1>
-          <p style={heroSubheadStyle}>Collect replies, shape the best courts, and publish one clear Thursday plan.</p>
+          <p style={eyebrowStyle}>{session ? 'This week is live' : 'Plan the week'}</p>
+          <h1 style={titleStyle}>{session?.assignments?.length ? `${session.assignments.length} courts. Ready to play.` : session ? `${inPlayers.length} in. ${waitingResponseCount} waiting.` : formatWorkspaceDate(playOn)}</h1>
+          <p style={heroSubheadStyle}>{session ? `${league?.leagueName || 'Your league'} · ${formatWorkspaceDate(playOn)} · ${session.status === 'collecting' ? 'Replies open' : session.status === 'completed' ? 'Week complete' : 'Court plan published'}` : 'Collect replies, shape the best courts, and publish one clear league night.'}</p>
           <div className={styles.heroMeta}>
-            <span><CalendarBlank size={19} weight="duotone" />{playOn || 'Choose a play date'}</span>
+            <span><CalendarBlank size={19} weight="duotone" />{formatWorkspaceDate(playOn)}</span>
             <span><MapPin size={19} weight="duotone" />{league?.defaultFacility || league?.locationLabel || 'League site'}</span>
           </div>
+          {session ? (
+            <div className={styles.commandMetrics}>
+              <span><strong>{inPlayers.length}</strong> in</span>
+              <span><strong>{outCount}</strong> out</span>
+              <span><strong>{waitingResponseCount}</strong> waiting</span>
+              <span><strong>{rosterSummary.openSpots}</strong> spots</span>
+            </div>
+          ) : null}
+          <div className={styles.heroActions}>
+            <a href={commandAction.href} className={styles.heroPrimary}>{commandAction.label}<CaretRight size={18} weight="bold" /></a>
+            {league ? <button type="button" onClick={() => playerPreviewRef.current?.showModal()} className={styles.heroSecondary}><Eye size={18} />Preview as player</button> : null}
+          </div>
+          {session ? <p className={styles.deadlineLine}><Bell size={15} weight="fill" />{responseDeadline}</p> : null}
         </div>
         <div className={styles.heroCourt} aria-hidden="true"><PremiumLeagueCourt /></div>
       </section>
 
       <nav className={styles.phaseRail} aria-label="Weekly planning progress">
-        {['Replies', 'Roster', 'Courts', 'Recap'].map((label, index) => (
-          <div key={label} data-state={index < weeklyStage ? 'done' : index === weeklyStage ? 'active' : 'next'}>
+        {phaseItems.map((phase, index) => (
+          <a key={phase.label} href={phase.href} data-state={index < weeklyStage ? 'done' : index === weeklyStage ? 'active' : 'next'} aria-current={index === weeklyStage ? 'step' : undefined}>
             <span>{index < weeklyStage ? <CheckCircle size={18} weight="fill" /> : index + 1}</span>
-            <strong>{label}</strong>
-          </div>
+            <span className={styles.phaseCopy}><strong>{phase.label}</strong><small>{phase.detail}</small></span>
+          </a>
         ))}
       </nav>
+      {league ? (
+        <dialog ref={playerPreviewRef} className={styles.playerPreviewDialog} aria-label="Preview as player">
+          <div className={styles.previewToolbar}><strong>Player preview</strong><button type="button" onClick={() => playerPreviewRef.current?.close()}>Close preview</button></div>
+          <WeeklyLeagueResponse
+            key={`${league.id}-${playOn}-${session?.status || 'draft'}`}
+            token={session?.public_token || ''}
+            previewMode
+            initialData={{
+              league: { name: league.leagueName, logoUrl: league.photoUrl, facility: league.defaultFacility || league.locationLabel, players: league.players, weeklySettings: { collectPlayerStories: league.weeklySettings.collectPlayerStories, startTimes: league.weeklySettings.startTimes } },
+              week: { playOn, responseDeadline: session?.response_deadline || null, status: session?.status || 'collecting', roster: session?.roster || [], assignments: session?.assignments || [], results },
+            }}
+          />
+        </dialog>
+      ) : null}
 
       {!leagues.length ? (
         <section style={panelStyle}>
@@ -376,14 +461,23 @@ export default function WeeklyLeagueWorkspace({
         </section>
       ) : (
         <>
-          <section style={panelStyle}>
+          <section style={panelStyle} className={styles.weekPicker}>
+            <div className={styles.weekPickerHeader}>
+              <div><p style={eyebrowStyle}>League night</p><h2>{formatWorkspaceDate(playOn)}</h2></div>
+              <div className={styles.weekNav} aria-label="Change week">
+                <button type="button" onClick={() => shiftWeek(-7)} aria-label="Previous week"><CaretLeft size={20} weight="bold" /></button>
+                <button type="button" onClick={() => shiftWeek(7)} aria-label="Next week"><CaretRight size={20} weight="bold" /></button>
+              </div>
+            </div>
             <div style={twoColumnStyle}>
               <label style={labelStyle}>League<select value={leagueId} onChange={(event) => setLeagueId(event.target.value)} style={inputStyle}>{leagues.map((record) => <option key={record.id} value={record.id}>{record.leagueName}</option>)}</select></label>
-              <label style={labelStyle}>Play date<input type="date" value={playOn} onChange={(event) => setPlayOn(event.target.value)} style={inputStyle} /></label>
+              <label style={labelStyle}>Choose another date<input type="date" value={playOn} onChange={(event) => setPlayOn(event.target.value)} style={inputStyle} /></label>
             </div>
             <LocationDirectionsLink location={league?.defaultFacility || league?.locationLabel} style={weeklyDirectionsStyle} />
             {status ? <p style={noticeStyle}>{status}</p> : null}
           </section>
+
+          {league ? <WeeklyWaveSummary league={league} selectedCount={selectedPlayers.length || inPlayers.length} /> : null}
 
           {league && userId ? (
             <LeagueOperationsSettings
@@ -397,34 +491,23 @@ export default function WeeklyLeagueWorkspace({
           ) : null}
 
           {!session ? (
-            <section style={panelStyle}>
+            <section id="weekly-replies" style={panelStyle}>
               <p style={eyebrowStyle}>1 · Open replies</p>
               <h2>Create this week’s player link</h2>
               <p>Players choose in or out. Their optional note and positive share stay with this week.</p>
-              <button onClick={() => void createSession()} disabled={busy} style={buttonStyle}>{busy ? 'Opening…' : 'Open weekly replies'}</button>
+              {userId ? <button onClick={() => void createSession()} disabled={busy} style={buttonStyle}>{busy ? 'Loading this week…' : 'Open weekly replies'}</button> : <Link href="/login?next=%2Fleague-coordinator%2Fweekly" style={primaryLinkStyle}>Sign in to run the week</Link>}
             </section>
           ) : (
             <>
-              <section style={panelStyle}>
+              <section id="weekly-replies" style={panelStyle}>
                 <p style={eyebrowStyle}>1 · Player replies</p>
                 <div style={headerStyle}><div><h2>{inPlayers.length} in · {responses.filter((item) => item.response_status === 'out').length} out</h2><p>Share one link with the league. The roster stays editable until you publish courts.</p></div><span style={pillStyle}>{session.status.replace('_', ' ')}</span></div>
-                <div style={shareRowStyle}><input readOnly value={shareUrl} style={inputStyle} /><button style={buttonStyle} onClick={() => void navigator.clipboard.writeText(shareUrl)}><Copy size={17} weight="bold" /> Copy link</button></div>
-                {league?.weeklySettings.leagueChatEnabled ? (
-                  <div style={{ marginTop: 12 }}>
-                    <QuickMessageComposer
-                      mode="league"
-                      triggerLabel="Message league room"
-                      subject={`${league.leagueName} · ${playOn}`}
-                      body={`Weekly play is open for ${playOn}. Reply here: ${shareUrl}`}
-                      leagueId={league.id}
-                      leagueName={league.leagueName}
-                      participantNames={league.players}
-                    />
-                  </div>
-                ) : null}
+                <div style={shareRowStyle}><input readOnly value={shareUrl} style={inputStyle} /><button style={buttonStyle} onClick={() => void copyWeeklyLink()}><Copy size={17} weight="bold" />{linkCopied ? 'Copied — preview ready' : 'Copy player link'}</button></div>
+                <p className={styles.sharePreviewNote}><ShareNetwork size={18} weight="duotone" /><span><strong>League-branded text preview</strong>Your league logo, date, site, and “Are you in?” card appear when supported messaging apps unfurl this link.</span></p>
+                {league ? <WeeklyCommunicationCenter key={session.id} sessionId={session.id} sessionStatus={session.status} accessToken={authSession?.access_token || ''} league={league} playOn={playOn} shareUrl={shareUrl} responses={responses} selectedPlayers={session.roster || []} assignments={session.assignments || []} /> : null}
               </section>
 
-              <section style={panelStyle}>
+              <section id="weekly-roster" style={panelStyle}>
                 <p style={eyebrowStyle}>2 · Confirm roster</p>
                 <div className={styles.rosterHeadline}><UsersThree size={30} weight="duotone" /><h2>{rosterSummary.playingCount} playing · {rosterSummary.openSpots} open · {rosterSummary.waitlistCount} waiting</h2></div>
                 <div style={playerGridStyle}>
@@ -435,6 +518,7 @@ export default function WeeklyLeagueWorkspace({
                   })}
                 </div>
                 <p style={{ color: '#a7cdf6' }}>{league?.weeklySettings.autoGenerateCourts ? 'Court locks stay fixed. Everyone else is balanced using current TIQ doubles ratings, accepted league results, recent courtmates, attendance, and last week’s court.' : 'Court locks and roster order build this plan. Move any player before publishing.'}</p>
+                <div id="weekly-courts-plan" />
                 <CourtPlanPreview
                   plan={courtPlan}
                   courtCount={league?.weeklySettings.courtCount || 0}
@@ -446,7 +530,7 @@ export default function WeeklyLeagueWorkspace({
               </section>
 
               {session.assignments?.length ? (
-                <section style={panelStyle}>
+                <section id="weekly-courts" style={panelStyle}>
                   <p style={eyebrowStyle}>3 · Courts and scorecards</p>
                   <div style={courtGridStyle}>{session.assignments.map((court) => <article key={court.courtNumber} style={courtStyle}><div style={headerStyle}><h3>Court {court.courtNumber}</h3><span style={pillStyle}>{court.startTime}</span></div>{court.sets.map((set) => {
                     const score = results.find((result) => result.court_number === court.courtNumber && result.set_number === set.setNumber)
@@ -466,7 +550,7 @@ export default function WeeklyLeagueWorkspace({
               /> : null}
 
               {session.assignments?.length ? (
-                <section style={panelStyle}>
+                <section id="weekly-recap" style={panelStyle}>
                   <p style={eyebrowStyle}>4 · Weekly recap</p>
                   <h2>Celebrate the week, then send it</h2>
                   <p>{results.filter((result) => isAcceptedLeagueWeeklyResult({ reviewStatus: result.review_status })).length} of {session.assignments.length * 3} set scores are official. Generate a starting draft from approved results and player shares, then make it yours.</p>
@@ -487,7 +571,110 @@ export default function WeeklyLeagueWorkspace({
           )}
         </>
       )}
-    </main>
+    </div>
+  )
+}
+
+function WeeklyWaveSummary({ league, selectedCount }: { league: TiqLeagueRecord; selectedCount: number }) {
+  const capacity = league.weeklySettings.courtCount * 4
+  const waveCounts = league.weeklySettings.startTimes.map((time) => ({
+    time,
+    courts: Array.from({ length: league.weeklySettings.courtCount }, (_, index) => index + 1).filter((court) => (
+      league.weeklySettings.startTimes[(court - 1) % league.weeklySettings.startTimes.length] === time
+    )),
+  }))
+
+  return (
+    <section className={styles.waveSummary} aria-labelledby="weekly-wave-title">
+      <div className={styles.waveSummaryHeader}>
+        <div><p style={eyebrowStyle}>Thursday plan</p><h2 id="weekly-wave-title">Start waves at a glance</h2></div>
+        <span>{Math.min(selectedCount, capacity)} of {capacity} spots</span>
+      </div>
+      <div className={styles.waveCards}>
+        {waveCounts.map((wave) => (
+          <article key={wave.time}>
+            <strong>{formatWorkspaceTime(wave.time)}</strong>
+            <span>{formatCourtRange(wave.courts)}</span>
+            <small>{wave.courts.length * 4} player capacity</small>
+          </article>
+        ))}
+      </div>
+      <div className={styles.capacityTrack} aria-label={`${Math.min(selectedCount, capacity)} of ${capacity} weekly spots filled`}><span style={{ width: `${capacity ? Math.min(100, selectedCount / capacity * 100) : 0}%` }} /></div>
+      <p>{Math.max(0, capacity - selectedCount)} spots open across {league.weeklySettings.courtCount} courts.</p>
+    </section>
+  )
+}
+
+function WeeklyCommunicationCenter({
+  sessionId,
+  sessionStatus,
+  accessToken,
+  league,
+  playOn,
+  shareUrl,
+  responses,
+  selectedPlayers,
+  assignments,
+}: {
+  sessionId: string
+  sessionStatus: string
+  accessToken: string
+  league: TiqLeagueRecord
+  playOn: string
+  shareUrl: string
+  responses: WeeklyResponse[]
+  selectedPlayers: string[]
+  assignments: LeagueWeeklyCourt[]
+}) {
+  const [activeKind, setActiveKind] = useState<WeeklyCommunicationKind | null>(null)
+  const [draft, setDraft] = useState('')
+  const [sending, setSending] = useState(false)
+  const [notice, setNotice] = useState('')
+  const [receipts, setReceipts] = useState<Partial<Record<WeeklyCommunicationKind, { lastSent: string; count: number }>>>({})
+  useEffect(() => {
+    if (!accessToken) return
+    let active = true
+    void fetch(`/api/leagues/weekly/sessions/${sessionId}/communications`, { headers: { Authorization: `Bearer ${accessToken}` } }).then(async (response) => {
+      if (response.ok && active) setReceipts((await response.json()).receipts || {})
+    }).catch(() => {})
+    return () => { active = false }
+  }, [accessToken, sessionId])
+  const replied = new Set(responses.map((response) => response.player_name))
+  const waitingPlayers = league.players.filter((player) => !replied.has(player))
+  const courtLines = assignments.map((court) => `Court ${court.courtNumber} · ${formatWorkspaceTime(court.startTime)} · ${court.players.join(', ')}`).join('\n')
+  const published = ['published', 'completed'].includes(sessionStatus)
+  const actions: Array<{ kind: WeeklyCommunicationKind; title: string; detail: string; message: string; disabled: boolean; icon: typeof Bell }> = [
+    { kind: 'reminder', title: 'Remind nonresponders', detail: `${waitingPlayers.length} waiting`, message: `${league.leagueName}: are you in for ${formatWorkspaceDate(playOn)}? Reply here: ${shareUrl}`, disabled: sessionStatus !== 'collecting' || !waitingPlayers.length, icon: Bell },
+    { kind: 'roster', title: 'Send confirmed roster', detail: published ? `${selectedPlayers.length} confirmed` : 'Publish the court plan first', message: `${league.leagueName} · ${formatWorkspaceDate(playOn)}\nConfirmed roster: ${selectedPlayers.join(', ')}\n${shareUrl}`, disabled: !published, icon: UserCheck },
+    { kind: 'courts', title: 'Send court assignments', detail: published ? `${assignments.length} courts ready` : 'Publish the court plan first', message: `${league.leagueName} · ${formatWorkspaceDate(playOn)}\n${courtLines}\n${shareUrl}`, disabled: !published, icon: UsersThree },
+    { kind: 'change', title: 'Notify players of changes', detail: 'Update linked league players', message: `${league.leagueName}: the plan for ${formatWorkspaceDate(playOn)} has changed.\n\n${shareUrl}`, disabled: false, icon: ShareNetwork },
+  ]
+
+  async function sendUpdate() {
+    if (!activeKind || !accessToken || sending) return
+    setSending(true)
+    setNotice('')
+    try {
+      const response = await fetch(`/api/leagues/weekly/sessions/${sessionId}/communications`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: activeKind, message: draft }) })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.message || 'This update could not be sent.')
+      setNotice(payload.message)
+      if (payload.lastSent) setReceipts((current) => ({ ...current, [activeKind]: { lastSent: payload.lastSent, count: payload.count } }))
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'This update could not be sent.')
+    } finally { setSending(false) }
+  }
+
+  return (
+    <div className={styles.commsCenter}>
+      <div className={styles.commsHeading}><div><p style={eyebrowStyle}>Weekly communications</p><h3>Send the right update at the right time.</h3></div><PaperPlaneTilt size={26} weight="duotone" /></div>
+      <div className={styles.commsGrid}>
+        {actions.map((action) => <div key={action.kind}><action.icon size={21} weight="duotone" /><strong>{action.title}</strong><small>{action.detail}</small><button type="button" style={secondaryButtonStyle} disabled={action.disabled || sending} onClick={() => { setActiveKind(action.kind); setDraft(action.message); setNotice('') }}>Prepare update</button>{receipts[action.kind]?.lastSent ? <small>Last sent {new Date(receipts[action.kind]!.lastSent).toLocaleDateString()} · {receipts[action.kind]!.count} notified</small> : null}</div>)}
+      </div>
+      {activeKind ? <div className={styles.communicationDraft}><label style={labelStyle}>{actions.find((action) => action.kind === activeKind)?.title}<textarea style={{ ...inputStyle, minHeight: 130 }} value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={2000} /></label><p>Send a TiQ notification to eligible linked players, or copy this message for your group text.</p><div style={actionRowStyle}><button type="button" style={buttonStyle} disabled={sending || !accessToken || !draft.trim()} onClick={() => void sendUpdate()}>{sending ? 'Sending…' : 'Send in TiQ'}</button><button type="button" style={secondaryButtonStyle} onClick={() => void navigator.clipboard.writeText(draft).then(() => setNotice('Message copied. Paste it into your text thread.')).catch(() => setNotice('Select the message above to copy it.'))}>Copy text message</button><button type="button" style={secondaryButtonStyle} disabled={sending} onClick={() => setActiveKind(null)}>Close</button></div></div> : null}
+      {notice ? <p role="status" style={noticeStyle}>{notice}</p> : null}
+      {league.weeklySettings.leagueChatEnabled ? <div style={{ marginTop: 12 }}><QuickMessageComposer mode="league" triggerLabel="Open league room" subject={`${league.leagueName} · ${formatWorkspaceDate(playOn)}`} body={`Weekly play: ${shareUrl}`} leagueId={league.id} leagueName={league.leagueName} participantNames={league.players} /></div> : null}
+    </div>
   )
 }
 
@@ -584,6 +771,27 @@ function formatWorkspaceDate(value: string) {
   const parsed = new Date(`${value}T12:00:00`)
   if (!value || Number.isNaN(parsed.getTime())) return 'Build the next league night.'
   return parsed.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
+}
+
+function formatWorkspaceDeadline(value: string | null) {
+  if (!value) return 'Set the response deadline when replies open.'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'Response deadline coming soon.'
+  return `Replies due ${parsed.toLocaleDateString(undefined, { weekday: 'long' })} at ${parsed.toLocaleTimeString(undefined, { hour: 'numeric', minute: parsed.getMinutes() ? '2-digit' : undefined })}`
+}
+
+function formatWorkspaceTime(value: string) {
+  const match = value.match(/^(\d{1,2}):(\d{2})/)
+  if (!match) return value
+  const hour = Number(match[1])
+  return `${hour % 12 || 12}:${match[2]} ${hour >= 12 ? 'PM' : 'AM'}`
+}
+
+function formatCourtRange(courts: number[]) {
+  if (!courts.length) return 'No courts'
+  if (courts.length === 1) return `Court ${courts[0]}`
+  const consecutive = courts.every((court, index) => index === 0 || court === courts[index - 1] + 1)
+  return consecutive ? `Courts ${courts[0]}–${courts.at(-1)}` : `Courts ${courts.join(', ')}`
 }
 
 const pageStyle: CSSProperties = { maxWidth: 1180, margin: '0 auto', padding: '26px 20px 88px', display: 'grid', gap: 16 }
