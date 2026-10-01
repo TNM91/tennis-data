@@ -22,6 +22,27 @@ type WeeklyPayload = {
   }
 }
 
+const STORY_PROMPTS = [
+  'Teammate shoutout',
+  'Best point',
+  'Great sportsmanship',
+  'Fun moment',
+] as const
+
+function formatPlayDate(value: string) {
+  const parsed = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return value
+  return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(parsed)
+}
+
+function formatStartTime(value: string) {
+  const match = value.match(/^(\d{1,2}):(\d{2})/)
+  if (!match) return value
+  const hour = Number(match[1])
+  const minute = match[2]
+  return `${hour % 12 || 12}:${minute} ${hour >= 12 ? 'PM' : 'AM'}`
+}
+
 export default function WeeklyLeagueResponse({ token }: { token: string }) {
   const [data, setData] = useState<WeeklyPayload | null>(null)
   const [playerName, setPlayerName] = useState('')
@@ -115,7 +136,7 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={data.league.logoUrl} alt="" style={logoStyle} />
         ) : null}
-        <div><p style={eyebrowStyle}>Weekly doubles · {data.week.playOn}</p><h1 style={titleStyle}>{data.league.name}</h1><p>{data.league.facility || 'League site'}</p><LocationDirectionsLink location={data.league.facility} style={heroDirectionsStyle} /></div>
+        <div><p style={eyebrowStyle}>Weekly doubles · {formatPlayDate(data.week.playOn)}</p><h1 style={titleStyle}>{data.league.name}</h1><p>{data.league.facility || 'League site'}</p><LocationDirectionsLink location={data.league.facility} style={heroDirectionsStyle} /></div>
       </section>
 
       <section style={cardStyle}>
@@ -132,7 +153,7 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
         </section>
       ) : assignedCourt ? (
         <section style={cardStyle}>
-          <p style={eyebrowStyle}>Court {assignedCourt.courtNumber} · {assignedCourt.startTime}</p>
+          <p style={eyebrowStyle}>Court {assignedCourt.courtNumber} · {formatStartTime(assignedCourt.startTime)}</p>
           <h2>Your three sets</h2>
           <p style={ruleStyle}>{ROTATING_PARTNER_DOUBLES_FORMAT.scoringSummary} {ROTATING_PARTNER_DOUBLES_FORMAT.entrySummary}</p>
           {assignedCourt.sets.map((set) => {
@@ -140,7 +161,30 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
             const saved = data.week.results.find((result) => result.court_number === assignedCourt.courtNumber && result.set_number === set.setNumber)
             return <div key={key} style={scoreRowStyle}><div><strong>Set {set.setNumber}</strong><small style={smallStyle}>{set.sideA.join(' + ')} vs {set.sideB.join(' + ')}</small>{saved ? <small style={saved.review_status === 'disputed' ? disputedStatusStyle : scoreStatusStyle}>{saved.review_status === 'confirmed' ? 'Players agree' : saved.review_status === 'approved' ? 'League approved' : saved.review_status === 'disputed' ? 'Needs league review' : `Submitted by ${saved.submitted_by_name}`}</small> : <small style={missingStatusStyle}>Score needed</small>}</div><input aria-label={`Set ${set.setNumber} first side games`} type="number" inputMode="numeric" min={0} max={7} value={scores[key]?.a ?? saved?.side_a_games ?? ''} onChange={(event) => setScores((current) => ({ ...current, [key]: { a: event.target.value, b: current[key]?.b ?? String(saved?.side_b_games ?? '') } }))} style={scoreInputStyle} /><span>–</span><input aria-label={`Set ${set.setNumber} second side games`} type="number" inputMode="numeric" min={0} max={7} value={scores[key]?.b ?? saved?.side_b_games ?? ''} onChange={(event) => setScores((current) => ({ ...current, [key]: { a: current[key]?.a ?? String(saved?.side_a_games ?? ''), b: event.target.value } }))} style={scoreInputStyle} /></div>
           })}
-          {data.league.weeklySettings.collectPlayerStories ? <label style={labelStyle}>Add a moment for the recap<textarea value={positiveShare} onChange={(event) => setPositiveShare(event.target.value)} style={textareaStyle} placeholder="Celebrate someone or share what made today fun" /></label> : null}
+          {data.league.weeklySettings.collectPlayerStories ? (
+            <div style={storyCardStyle}>
+              <div>
+                <strong>Share a highlight or shoutout</strong>
+                <p style={storyHelpStyle}>Optional. Give the league owner a positive moment for this week&apos;s recap.</p>
+              </div>
+              <div style={storyPromptRowStyle} aria-label="Recap prompt ideas">
+                {STORY_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => setPositiveShare((current) => current.trim() ? current : `${prompt}: `)}
+                    style={storyPromptStyle}
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>
+                Your moment
+                <textarea value={positiveShare} onChange={(event) => setPositiveShare(event.target.value)} style={textareaStyle} placeholder="What happened, and who deserves the credit?" />
+              </label>
+            </div>
+          ) : null}
           <button disabled={busy} onClick={() => void submitScorecard(assignedCourt)} style={buttonStyle}>{busy ? 'Saving scorecard…' : 'Submit all three set scores'}</button>
         </section>
       ) : playerName ? <section style={cardStyle}><h2>You’re not on a court this week</h2><p>Check with the league owner if the roster changed.</p></section> : null}
@@ -183,6 +227,10 @@ const messageStyle: CSSProperties = { position: 'sticky', bottom: 16, padding: 1
 const scoreStatusStyle: CSSProperties = { ...smallStyle, color: '#126044', fontWeight: 750 }
 const disputedStatusStyle: CSSProperties = { ...scoreStatusStyle, color: '#9a3412' }
 const missingStatusStyle: CSSProperties = { ...scoreStatusStyle, color: '#64748b' }
+const storyCardStyle: CSSProperties = { display: 'grid', gap: 12, margin: '14px 0', padding: 14, borderRadius: 14, border: '1px solid #cfe5d9', background: '#f3faf6' }
+const storyHelpStyle: CSSProperties = { margin: '4px 0 0', color: '#526159', fontSize: 13, lineHeight: 1.45 }
+const storyPromptRowStyle: CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 7 }
+const storyPromptStyle: CSSProperties = { minHeight: 36, padding: '7px 11px', borderRadius: 999, border: '1px solid #b9d8ca', background: '#fff', color: '#126044', fontWeight: 800, cursor: 'pointer' }
 const playerPathStyle: CSSProperties = { display: 'grid', gap: 10, padding: 20, border: '1px solid #b9d8ca', borderRadius: 18, background: 'linear-gradient(135deg,#effbf5,#f6f9ff)', color: '#14231d', boxShadow: '0 10px 30px rgba(24,55,43,.06)' }
 const playerPathEyebrowStyle: CSSProperties = { margin: 0, color: '#126044', fontSize: 11, fontWeight: 900, letterSpacing: '.08em', textTransform: 'uppercase' }
 const playerPathTitleStyle: CSSProperties = { margin: 0, fontSize: 23, letterSpacing: '-.025em' }
