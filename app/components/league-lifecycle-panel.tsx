@@ -49,6 +49,7 @@ export default function LeagueLifecyclePanel({
   const [transferUserId, setTransferUserId] = useState('')
   const [transferConfirmation, setTransferConfirmation] = useState('')
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [recoveryConfirmation, setRecoveryConfirmation] = useState('')
   const [message, setMessage] = useState('')
 
   const activeInvites = useMemo(
@@ -58,6 +59,7 @@ export default function LeagueLifecyclePanel({
   const selectedDelegate = delegates.find((delegate) => delegate.user_id === transferUserId) || null
   const transferConfirmed = canDeleteLeagueWithConfirmation(league.leagueName, transferConfirmation)
   const deleteConfirmed = canDeleteLeagueWithConfirmation(league.leagueName, deleteConfirmation)
+  const recoveryConfirmed = canDeleteLeagueWithConfirmation(league.leagueName, recoveryConfirmation)
 
   const loadAccess = useCallback(async () => {
     if (!isOwner || !league.createdByUserId) {
@@ -134,7 +136,63 @@ export default function LeagueLifecyclePanel({
     setBusy(false)
   }
 
-  if (!isOwner) return null
+  async function recoverOwnership() {
+    if (!recoveryConfirmed) return
+    setBusy(true)
+    setMessage('')
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+    if (!token) {
+      setMessage('Sign in to restore owner access.')
+      setBusy(false)
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/leagues/${encodeURIComponent(league.id)}/ownership-recovery`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmation: recoveryConfirmation }),
+      })
+      const result = await response.json() as { ok?: boolean; message?: string }
+      if (!response.ok || !result.ok) {
+        setMessage(result.message || 'Owner access could not be restored.')
+      } else {
+        setMessage('Owner access restored. Loading your league controls…')
+        await onOwnershipChanged()
+        window.setTimeout(() => {
+          const ownerTools = document.getElementById(`league-owner-tools-${league.id}`)
+          if (ownerTools instanceof HTMLDetailsElement) ownerTools.open = true
+          document.getElementById(`delete-league-${league.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }, 0)
+      }
+    } catch {
+      setMessage('Owner access could not be restored. Try again in a moment.')
+    }
+    setBusy(false)
+  }
+
+  if (!isOwner) {
+    return (
+      <details id={`league-owner-tools-${league.id}`} style={recoveryPanelStyle}>
+        <summary style={summaryStyle}>
+          <span style={summaryCopyStyle}>
+            <strong style={summaryTitleStyle}>Created this league before?</strong>
+            <small style={summaryDetailStyle}>Restore owner access from an older TenAceIQ login.</small>
+          </span>
+          <span style={summaryActionStyle}>Restore access</span>
+        </summary>
+        <div style={bodyStyle}>
+          <div id={`recover-league-${league.id}`} style={sectionStyle}>
+            <p style={copyStyle}>If this is your league, type its full name. TenAceIQ will verify your account before changing ownership.</p>
+            <label style={labelStyle}>Type <strong>{league.leagueName}</strong> to confirm<input value={recoveryConfirmation} onChange={(event) => setRecoveryConfirmation(event.target.value)} autoComplete="off" style={inputStyle} /></label>
+            <button type="button" onClick={() => void recoverOwnership()} disabled={busy || !recoveryConfirmed} style={warningButtonStyle}>Restore owner access</button>
+          </div>
+          {message ? <p role="status" style={noticeStyle}>{message}</p> : null}
+        </div>
+      </details>
+    )
+  }
 
   return (
     <details
@@ -193,6 +251,7 @@ export default function LeagueLifecyclePanel({
 }
 
 const panelStyle: CSSProperties = { marginTop: 12, borderRadius: 14, border: '1px solid var(--shell-panel-border)', background: 'color-mix(in srgb, var(--shell-panel-bg) 80%, transparent)', overflow: 'hidden' }
+const recoveryPanelStyle: CSSProperties = { ...panelStyle, borderColor: 'color-mix(in srgb, #f59e0b 38%, var(--shell-panel-border) 62%)' }
 const summaryStyle: CSSProperties = { minHeight: 58, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '8px 12px', color: 'var(--foreground-strong)', cursor: 'pointer' }
 const summaryCopyStyle: CSSProperties = { display: 'grid', gap: 2, minWidth: 0 }
 const summaryTitleStyle: CSSProperties = { fontSize: 13, fontWeight: 900, lineHeight: 1.3 }

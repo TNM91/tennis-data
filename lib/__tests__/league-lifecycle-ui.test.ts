@@ -36,6 +36,11 @@ describe('league lifecycle UI and ownership', () => {
     expect(lifecycle).toContain('Type <strong>{league.leagueName}</strong> to confirm')
     expect(lifecycle).toContain('Permanently delete league')
     expect(lifecycle).toContain('They must accept before ownership can move.')
+    expect(workspace).toContain('>Restore owner access</GhostBtn>')
+    expect(lifecycle).toContain('Created this league before?')
+    expect(lifecycle).toContain('/ownership-recovery')
+    expect(lifecycle).toContain('id={`recover-league-${league.id}`}')
+    expect(lifecycle).toContain('document.getElementById(`delete-league-${league.id}`)?.scrollIntoView')
   })
 
   it('verifies a cloud delete and transfers ownership atomically', () => {
@@ -49,5 +54,14 @@ describe('league lifecycle UI and ownership', () => {
     expect(migration).toContain('The new owner must accept a delegate invitation')
     expect(migration).toContain("insert into public.tiq_league_delegates")
     expect(migration).toContain('update public.tiq_leagues')
+  })
+
+  it('guards legacy ownership recovery by identity and exact league name', () => {
+    const route = read('app/api/leagues/[leagueId]/ownership-recovery/route.ts')
+
+    expect(route).toContain('matchesLeagueNameConfirmation')
+    expect(route).toContain('canRecoverLegacyLeagueOwnership')
+    expect(route).toContain("requesterIsAdmin: (profileResult.data as { role?: string } | null)?.role === 'admin'")
+    expect(route).toContain("updateQuery.eq('created_by_user_id', league.created_by_user_id)")
   })
 })
