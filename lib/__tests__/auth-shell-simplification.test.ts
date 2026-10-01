@@ -11,6 +11,7 @@ describe('focused auth and admin shell', () => {
     expect(shouldUseFocusedSiteShell('/login')).toBe(true)
     expect(shouldUseFocusedSiteShell('/join')).toBe(true)
     expect(shouldUseFocusedSiteShell('/admin/clubs')).toBe(true)
+    expect(shouldUseFocusedSiteShell('/league-coordinator/weekly')).toBe(true)
     expect(shouldUseFocusedSiteShell('/captain')).toBe(false)
   })
 

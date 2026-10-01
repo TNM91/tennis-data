@@ -1,9 +1,19 @@
 .scene {
-  position: relative;
-  min-height: 100%;
+  position: absolute;
+  inset: 0;
+  container-type: size;
   overflow: hidden;
   isolation: isolate;
   background: #042a2c;
+}
+
+.artworkPlane {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100cqw, 80.0285cqh);
+  height: max(100cqh, 124.9554cqw);
+  transform: translate(-50%, -50%);
 }
 
 .courtArtwork {
@@ -14,7 +24,7 @@
 .netWatermark {
   position: absolute;
   z-index: 2;
-  top: 35.5%;
+  top: 43.8%;
   left: 50%;
   width: clamp(72px, 21%, 118px);
   transform: translate(-50%, -50%);
@@ -26,8 +36,4 @@
   width: 100%;
   height: auto;
   object-fit: contain;
-}
-
-@media (min-width: 760px) {
-  .netWatermark { top: 33%; }
 }

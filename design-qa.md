@@ -834,3 +834,55 @@ The expanded 390 px and 360 px captures show rank, names, pair rating, availabil
 - Diff whitespace check: passed (line-ending warnings only).
 
 final result: passed
+
+---
+
+# Weekly League Office design QA
+
+final result: passed
+
+## Evidence
+
+- Source visual truth: `C:/Users/nmein/.codex/visualizations/2026/09/29/01a0ef62-ba47-7300-9a29-16d0a697cee3/weekly-league-audit/01-open-replies-mobile.png`.
+- Implementation: `C:/Users/nmein/.codex/visualizations/2026/09/29/01a0ef62-ba47-7300-9a29-16d0a697cee3/weekly-command-mobile-final.png`.
+- Desktop: same evidence directory, `weekly-command-desktop-final.png`.
+- Player dialog: same evidence directory, `weekly-player-preview-mobile-final.png`.
+- Actual league share image: same evidence directory, `weekly-share-stl.png` (1200 × 630 PNG, STL Men's Finest uploaded logo).
+- Local production URL: `http://localhost:3001/league-coordinator/weekly`.
+- State: signed out, STL Men's Finest selected, October 1, 2026; no coordinator mutations or notifications were sent.
+- Phone target: 375 × 812 CSS viewport, device density 1. Source full-page image is 375 × 1680 pixels; final full-page capture is 375 pixels wide with increased content height for the added start-wave summary. No image-density resampling used. Desktop checked at 1280 × 900.
+
+The source and implementation were opened together for a full-view comparison. This is an enhancement of the existing design, not a literal clone: the focused shell, direct action buttons, start-wave summary, and sign-in guard are intentional changes. A separate before/after desktop comparison verified the watermark correction. Court and logo details are readable in the full-width desktop and phone captures; no additional image crop was necessary.
+
+## Findings and comparison history
+
+- [P2, resolved] The watermark drifted above the net in the tall desktop crop. Evidence: `weekly-command-desktop.png`. Fix: position the image and logo within the same source-aspect-ratio plane instead of using viewport-specific watermark offsets. Retest: `weekly-command-desktop-final.png` and `weekly-command-mobile-final.png` show the watermark on the net at both sizes.
+- No remaining actionable P0/P1/P2 visual findings in the inspected states.
+
+## Required surfaces
+
+- Typography: existing site family and hierarchy retained; friendly dates replace raw date strings; readable phase labels, clear form labels, and distinct CTA weights.
+- Spacing/layout: shorter court crop, no unrelated toolbar/footer in the focused weekly flow, 44-pixel week controls, full-width phone actions, sticky progress rail. Phone and desktop DOM checks found no horizontal overflow.
+- Colors/tokens: existing navy, lime, and blue language retained; no white dashboard cards introduced. Disabled controls remain distinguishable.
+- Images: approved brand artwork and the approved supplied court remain intact. The watermark follows the image geometry. The real league upload is used in the share card without recoloring or distortion.
+- Copy/content: tennis-specific, actionable language; player start times come from settings rather than hard-coded Thursday times. Read-only preview is explicitly labeled.
+- Accessibility/interactions: native modal opens and closes with focus management; In/Out and score submission are disabled in preview. Previous/next week, phase anchors, and directions links were checked. No production-preview console errors were logged.
+
+## Verification and residual gaps
+
+- Actual production-bundle share-image request succeeded; uploaded WebP conversion also passed a PNG-rendering test.
+- Owner/delegate authorization and unpublished-court notification guards covered by API tests; recipient targeting covered by pure behavior tests.
+- No live RSVP, court publishing, score submission, or notification send was performed against the real league. Authenticated coordinator states have code/test coverage but were not exercised through a signed-in browser session.
+- Messaging apps control preview caching and whether they unfurl a link; a public deployment is required for recipients to fetch the new image.
+
+## Implementation checklist
+
+- [x] Compare phone source and final implementation together.
+- [x] Resolve desktop watermark finding and recapture both sizes.
+- [x] Verify read-only player preview and week navigation.
+- [x] Verify actual league-specific share-image output.
+- [x] Check production preview console and horizontal overflow.
+
+## Follow-up polish
+
+None required for the inspected states.
