@@ -2,7 +2,11 @@
 
 import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
-import type { LeagueWeeklyCourt } from '@/lib/league-weekly-format'
+import {
+  ROTATING_PARTNER_DOUBLES_FORMAT,
+  validateLeagueWeeklySetScore,
+  type LeagueWeeklyCourt,
+} from '@/lib/league-weekly-format'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 
 type WeeklyPayload = {
@@ -54,6 +58,51 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
     setBusy(false)
   }
 
+  async function submitScorecard(court: LeagueWeeklyCourt) {
+    const scorecard = court.sets.map((set) => {
+      const key = `${court.courtNumber}-${set.setNumber}`
+      const saved = data?.week.results.find((result) => result.court_number === court.courtNumber && result.set_number === set.setNumber)
+      const rawA = scores[key]?.a ?? saved?.side_a_games ?? ''
+      const rawB = scores[key]?.b ?? saved?.side_b_games ?? ''
+      const sideAGames = rawA === '' ? Number.NaN : Number(rawA)
+      const sideBGames = rawB === '' ? Number.NaN : Number(rawB)
+      return { setNumber: set.setNumber, sideAGames, sideBGames, validation: validateLeagueWeeklySetScore(sideAGames, sideBGames) }
+    })
+    const invalid = scorecard.find((set) => !set.validation.valid)
+    if (invalid) {
+      setMessage(`Set ${invalid.setNumber}: ${invalid.validation.message}`)
+      return
+    }
+
+    setBusy(true)
+    try {
+      const responses = await Promise.all(scorecard.map((set) => fetch(`/api/leagues/weekly/${encodeURIComponent(token)}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'score',
+          playerName,
+          courtNumber: court.courtNumber,
+          setNumber: set.setNumber,
+          sideAGames: set.sideAGames,
+          sideBGames: set.sideBGames,
+          positiveShare,
+        }),
+      })))
+      const payloads = await Promise.all(responses.map((response) => response.json() as Promise<{ message?: string }>))
+      const failedIndex = responses.findIndex((response) => !response.ok)
+      if (failedIndex >= 0) setMessage(payloads[failedIndex]?.message || 'The scorecard could not be saved.')
+      else {
+        setMessage('All three set scores are saved.')
+        await refresh()
+      }
+    } catch {
+      setMessage('The scorecard could not be saved. Check your connection and try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (!data) return <main style={pageStyle}><section style={cardStyle}><h1>Weekly league</h1><p>{message || 'Opening this week…'}</p></section></main>
   const collecting = data.week.status === 'collecting'
 
@@ -84,12 +133,14 @@ export default function WeeklyLeagueResponse({ token }: { token: string }) {
         <section style={cardStyle}>
           <p style={eyebrowStyle}>Court {assignedCourt.courtNumber} · {assignedCourt.startTime}</p>
           <h2>Your three sets</h2>
+          <p style={ruleStyle}>{ROTATING_PARTNER_DOUBLES_FORMAT.scoringSummary} {ROTATING_PARTNER_DOUBLES_FORMAT.entrySummary}</p>
           {assignedCourt.sets.map((set) => {
             const key = `${assignedCourt.courtNumber}-${set.setNumber}`
             const saved = data.week.results.find((result) => result.court_number === assignedCourt.courtNumber && result.set_number === set.setNumber)
-            return <div key={key} style={scoreRowStyle}><div><strong>Set {set.setNumber}</strong><small style={smallStyle}>{set.sideA.join(' + ')} vs {set.sideB.join(' + ')}</small>{saved ? <small style={saved.review_status === 'disputed' ? disputedStatusStyle : scoreStatusStyle}>{saved.review_status === 'confirmed' ? 'Players agree' : saved.review_status === 'approved' ? 'League approved' : saved.review_status === 'disputed' ? 'Needs league review' : `Submitted by ${saved.submitted_by_name}`}</small> : <small style={missingStatusStyle}>Score needed</small>}</div><input aria-label={`Set ${set.setNumber} first side games`} type="number" min={0} max={99} value={scores[key]?.a ?? saved?.side_a_games ?? ''} onChange={(event) => setScores((current) => ({ ...current, [key]: { a: event.target.value, b: current[key]?.b || '' } }))} style={scoreInputStyle} /><span>–</span><input aria-label={`Set ${set.setNumber} second side games`} type="number" min={0} max={99} value={scores[key]?.b ?? saved?.side_b_games ?? ''} onChange={(event) => setScores((current) => ({ ...current, [key]: { a: current[key]?.a || '', b: event.target.value } }))} style={scoreInputStyle} /><button disabled={busy} onClick={() => void submit({ action: 'score', courtNumber: assignedCourt.courtNumber, setNumber: set.setNumber, sideAGames: Number(scores[key]?.a ?? saved?.side_a_games), sideBGames: Number(scores[key]?.b ?? saved?.side_b_games), positiveShare })} style={smallButtonStyle}>{saved ? 'Confirm' : 'Submit'}</button></div>
+            return <div key={key} style={scoreRowStyle}><div><strong>Set {set.setNumber}</strong><small style={smallStyle}>{set.sideA.join(' + ')} vs {set.sideB.join(' + ')}</small>{saved ? <small style={saved.review_status === 'disputed' ? disputedStatusStyle : scoreStatusStyle}>{saved.review_status === 'confirmed' ? 'Players agree' : saved.review_status === 'approved' ? 'League approved' : saved.review_status === 'disputed' ? 'Needs league review' : `Submitted by ${saved.submitted_by_name}`}</small> : <small style={missingStatusStyle}>Score needed</small>}</div><input aria-label={`Set ${set.setNumber} first side games`} type="number" inputMode="numeric" min={0} max={7} value={scores[key]?.a ?? saved?.side_a_games ?? ''} onChange={(event) => setScores((current) => ({ ...current, [key]: { a: event.target.value, b: current[key]?.b ?? String(saved?.side_b_games ?? '') } }))} style={scoreInputStyle} /><span>–</span><input aria-label={`Set ${set.setNumber} second side games`} type="number" inputMode="numeric" min={0} max={7} value={scores[key]?.b ?? saved?.side_b_games ?? ''} onChange={(event) => setScores((current) => ({ ...current, [key]: { a: current[key]?.a ?? String(saved?.side_a_games ?? ''), b: event.target.value } }))} style={scoreInputStyle} /></div>
           })}
           {data.league.weeklySettings.collectPlayerStories ? <label style={labelStyle}>Add a moment for the recap<textarea value={positiveShare} onChange={(event) => setPositiveShare(event.target.value)} style={textareaStyle} placeholder="Celebrate someone or share what made today fun" /></label> : null}
+          <button disabled={busy} onClick={() => void submitScorecard(assignedCourt)} style={buttonStyle}>{busy ? 'Saving scorecard…' : 'Submit all three set scores'}</button>
         </section>
       ) : playerName ? <section style={cardStyle}><h2>You’re not on a court this week</h2><p>Check with the league owner if the roster changed.</p></section> : null}
 
@@ -122,10 +173,10 @@ const choiceRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: '1
 const choiceStyle: CSSProperties = { padding: 14, border: '1px solid #cbd8d1', borderRadius: 12, background: '#fff', fontWeight: 850 }
 const selectedChoiceStyle: CSSProperties = { ...choiceStyle, color: '#fff', background: '#126044', borderColor: '#126044' }
 const buttonStyle: CSSProperties = { width: '100%', padding: 13, border: 0, borderRadius: 999, background: '#126044', color: '#fff', fontWeight: 850 }
-const smallButtonStyle: CSSProperties = { ...buttonStyle, width: 'auto', padding: '9px 13px' }
-const scoreRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 58px auto 58px auto', gap: 8, alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #e7ece9' }
+const scoreRowStyle: CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 58px auto 58px', gap: 8, alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #e7ece9' }
 const scoreInputStyle: CSSProperties = { ...inputStyle, width: 58, padding: 8, textAlign: 'center' }
 const smallStyle: CSSProperties = { display: 'block', marginTop: 3, color: '#59655f', fontWeight: 500 }
+const ruleStyle: CSSProperties = { margin: '0 0 8px', padding: 12, borderRadius: 12, background: '#f4f8f5', color: '#425149', lineHeight: 1.5, fontSize: 13 }
 const messageStyle: CSSProperties = { position: 'sticky', bottom: 16, padding: 12, borderRadius: 12, background: '#12231d', color: '#fff', textAlign: 'center' }
 const scoreStatusStyle: CSSProperties = { ...smallStyle, color: '#126044', fontWeight: 750 }
 const disputedStatusStyle: CSSProperties = { ...scoreStatusStyle, color: '#9a3412' }

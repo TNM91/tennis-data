@@ -11,5 +11,8 @@ describe('weekly league player path', () => {
     expect(source).toContain('MEMBERSHIP_TIERS.player_plus.upgradeCue')
     expect(source).toContain('Connect your player profile')
     expect(source).toContain('Weekly replies, court assignments, scores, and basic standings stay part of your league experience.')
+    expect(source).toContain('Submit all three set scores')
+    expect(source).toContain('validateLeagueWeeklySetScore')
+    expect(source).toContain('max={7}')
   })
 })

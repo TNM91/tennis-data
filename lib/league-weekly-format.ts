@@ -29,6 +29,13 @@ export type LeagueWeeklyPlayerStat = {
   gameDifferential: number
 }
 
+export const ROTATING_PARTNER_DOUBLES_FORMAT = {
+  label: 'Rotating partner doubles',
+  courtSummary: '4 players · 3 sets · every player partners once',
+  scoringSummary: 'First to 6, win by 2. At 6–6, play a 7-point tiebreak and record 7–6.',
+  entrySummary: 'Enter games won by each side. Do not enter tiebreak points.',
+} as const
+
 export const DEFAULT_LEAGUE_WEEKLY_SETTINGS: LeagueWeeklySettings = {
   enabled: false,
   collectAvailability: true,
@@ -103,6 +110,24 @@ export function getLeagueWeeklyRosterSummary(playerNames: string[], settings: Pa
   const waitlistCount = Math.max(0, playerCount - playingCount)
   const openSpots = Math.max(0, normalized.courtCount * 4 - playingCount)
   return { playerCount, playingCount, waitlistCount, openSpots, courtCount: Math.floor(playingCount / 4) }
+}
+
+export function validateLeagueWeeklySetScore(sideAGames: number, sideBGames: number) {
+  if (![sideAGames, sideBGames].every((score) => Number.isInteger(score) && score >= 0 && score <= 7)) {
+    return { valid: false, message: 'Enter games won from 0 to 7 for both sides.' }
+  }
+  if (sideAGames === sideBGames) {
+    return { valid: false, message: 'A completed set must have one winning side.' }
+  }
+
+  const winnerGames = Math.max(sideAGames, sideBGames)
+  const loserGames = Math.min(sideAGames, sideBGames)
+  const valid = (winnerGames === 6 && loserGames <= 4)
+    || (winnerGames === 7 && (loserGames === 5 || loserGames === 6))
+
+  return valid
+    ? { valid: true, message: '' }
+    : { valid: false, message: 'Use a completed score: 6–0 through 6–4, 7–5, or 7–6.' }
 }
 
 export function buildLeagueWeeklyRecap(input: {
