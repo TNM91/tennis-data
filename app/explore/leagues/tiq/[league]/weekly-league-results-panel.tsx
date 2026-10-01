@@ -2,6 +2,7 @@
 
 import { useState, type CSSProperties } from 'react'
 import type { LeagueWeeklyCompetitionView, LeagueWeeklyPlayerInsight } from '@/lib/league-weekly-player-records'
+import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 
 export default function WeeklyLeagueResultsPanel({
   view,
@@ -12,6 +13,7 @@ export default function WeeklyLeagueResultsPanel({
   loading: boolean
   error: string
 }) {
+  const { isMobile } = useViewportBreakpoints()
   const [selectedPlayerName, setSelectedPlayerName] = useState('')
   const playerInsights = view?.playerInsights || []
   const selectedPlayer = playerInsights.find((player) => player.playerName === selectedPlayerName) || playerInsights[0] || null
@@ -45,7 +47,29 @@ export default function WeeklyLeagueResultsPanel({
                 <p style={subsectionBodyStyle}>Every doubles set counts once for each player on the court.</p>
               </div>
             </div>
-            {view.standings.length ? (
+            {view.standings.length && isMobile ? (
+              <div style={mobileStandingListStyle}>
+                {view.standings.map((standing) => (
+                  <button
+                    key={standing.playerName}
+                    type="button"
+                    aria-pressed={selectedPlayer?.playerName === standing.playerName}
+                    onClick={() => setSelectedPlayerName(standing.playerName)}
+                    style={selectedPlayer?.playerName === standing.playerName ? mobileStandingCardActiveStyle : mobileStandingCardStyle}
+                  >
+                    <span style={mobileRankStyle}>#{standing.rank}</span>
+                    <span style={mobileStandingIdentityStyle}>
+                      <strong>{standing.playerName}</strong>
+                      <small>{standing.weeksPlayed} {standing.weeksPlayed === 1 ? 'week' : 'weeks'} · {standing.setsPlayed} sets</small>
+                    </span>
+                    <span style={mobileStandingRecordStyle}>
+                      <strong>{standing.wins}–{standing.losses}</strong>
+                      <small>{formatDifferential(standing.gameDifferential)} games</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : view.standings.length ? (
               <div style={tableScrollStyle}>
                 <table style={tableStyle}>
                   <thead>
@@ -252,6 +276,12 @@ const playerButtonStyle: CSSProperties = { appearance: 'none', width: '100%', pa
 const activePlayerButtonStyle: CSSProperties = { ...playerButtonStyle, border: '1px solid color-mix(in srgb, var(--brand-green) 40%, var(--shell-panel-border) 60%)', background: 'color-mix(in srgb, var(--brand-green) 11%, var(--shell-panel-bg) 89%)', color: 'var(--brand-green)' }
 const winCellStyle: CSSProperties = { ...metricCellStyle, color: 'var(--brand-green)', fontWeight: 950 }
 const positiveCellStyle: CSSProperties = { ...metricCellStyle, color: 'var(--brand-green)' }
+const mobileStandingListStyle: CSSProperties = { display: 'grid', gap: 8 }
+const mobileStandingCardStyle: CSSProperties = { appearance: 'none', width: '100%', display: 'grid', gridTemplateColumns: '38px minmax(0, 1fr) auto', alignItems: 'center', gap: 10, minWidth: 0, padding: 12, borderRadius: 14, border: '1px solid var(--shell-panel-border)', background: 'var(--shell-chip-bg)', color: 'var(--foreground-strong)', textAlign: 'left', cursor: 'pointer' }
+const mobileStandingCardActiveStyle: CSSProperties = { ...mobileStandingCardStyle, borderColor: 'color-mix(in srgb, var(--brand-green) 45%, var(--shell-panel-border) 55%)', background: 'color-mix(in srgb, var(--brand-green) 9%, var(--shell-chip-bg) 91%)' }
+const mobileRankStyle: CSSProperties = { color: 'var(--brand-blue-2)', fontSize: 12, fontWeight: 950 }
+const mobileStandingIdentityStyle: CSSProperties = { display: 'grid', gap: 3, minWidth: 0, overflowWrap: 'anywhere' }
+const mobileStandingRecordStyle: CSSProperties = { display: 'grid', gap: 3, color: 'var(--brand-green)', textAlign: 'right', fontSize: 13 }
 const emptyStyle: CSSProperties = { padding: 16, borderRadius: 15, border: '1px dashed var(--shell-panel-border)', color: 'var(--shell-copy-muted)', fontSize: 13, lineHeight: 1.45 }
 const errorStyle: CSSProperties = { ...emptyStyle, borderStyle: 'solid', borderColor: 'color-mix(in srgb, #f59e0b 45%, var(--shell-panel-border) 55%)', color: '#b45309' }
 const weekListStyle: CSSProperties = { display: 'grid', gap: 10 }

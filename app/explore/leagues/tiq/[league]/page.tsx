@@ -105,7 +105,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import CompeteResumeTracker from '@/app/compete/_components/compete-resume-tracker'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 import WeeklyLeagueResultsPanel from './weekly-league-results-panel'
-import type { LeagueWeeklyCompetitionView } from '@/lib/league-weekly-player-records'
+import type { LeagueWeeklyCompetitionView, LeagueWeeklyPublicWeek } from '@/lib/league-weekly-player-records'
 import {
   assessPlayerEligibility,
   buildPlayerEligibilityRequirement,
@@ -446,6 +446,7 @@ function TiqLeagueDetailContent() {
   const [individualStandings, setIndividualStandings] = useState<IndividualStanding[]>([])
   const [individualResults, setIndividualResults] = useState<TiqIndividualLeagueResultRecord[]>([])
   const [weeklyCompetitionView, setWeeklyCompetitionView] = useState<LeagueWeeklyCompetitionView | null>(null)
+  const [weeklyPublicWeek, setWeeklyPublicWeek] = useState<LeagueWeeklyPublicWeek | null>(null)
   const [weeklyCompetitionLoading, setWeeklyCompetitionLoading] = useState(false)
   const [weeklyCompetitionError, setWeeklyCompetitionError] = useState('')
   const [leagueAwardsByPlayerKey, setLeagueAwardsByPlayerKey] = useState<Record<string, TiqAwardRecord[]>>({})
@@ -489,6 +490,7 @@ function TiqLeagueDetailContent() {
   const [scheduleNotes, setScheduleNotes] = useState('')
   const [scheduleEditingItemId, setScheduleEditingItemId] = useState('')
   const [scheduleDisplayMode, setScheduleDisplayMode] = useState<ScheduleDisplayMode>('calendar')
+  const [canManageLeague, setCanManageLeague] = useState(false)
   const { role, userId, entitlements, authResolved, session } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const userEmail = session?.user.email || ''
@@ -558,13 +560,17 @@ function TiqLeagueDetailContent() {
       const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
       void fetch(`/api/leagues/${encodeURIComponent(league.id)}/weekly-results`, { headers })
         .then(async (response) => {
-          const payload = await response.json() as { ok?: boolean; view?: LeagueWeeklyCompetitionView; message?: string }
+          const payload = await response.json() as { ok?: boolean; view?: LeagueWeeklyCompetitionView; week?: LeagueWeeklyPublicWeek | null; message?: string }
           if (!response.ok || !payload.ok || !payload.view) throw new Error(payload.message || 'Weekly results could not be loaded.')
-          if (active) setWeeklyCompetitionView(payload.view)
+          if (active) {
+            setWeeklyCompetitionView(payload.view)
+            setWeeklyPublicWeek(payload.week || null)
+          }
         })
         .catch((weeklyError) => {
           if (!active) return
           setWeeklyCompetitionView(null)
+          setWeeklyPublicWeek(null)
           setWeeklyCompetitionError(weeklyError instanceof Error ? weeklyError.message : 'Weekly results could not be loaded.')
         })
         .finally(() => {
@@ -577,6 +583,26 @@ function TiqLeagueDetailContent() {
       window.clearTimeout(timeoutId)
     }
   }, [authResolved, league?.id, league?.isPublic, league?.weeklySettings.enabled, session?.access_token])
+
+  useEffect(() => {
+    const targetLeagueId = league?.id || ''
+    if (!targetLeagueId || !authResolved || !userId) {
+      const timeoutId = window.setTimeout(() => setCanManageLeague(false), 0)
+      return () => window.clearTimeout(timeoutId)
+    }
+    let active = true
+    void (async () => {
+      try {
+        const { data } = await supabase.rpc('can_manage_tiq_league', { target_league_id: targetLeagueId })
+        if (active) setCanManageLeague(Boolean(data))
+      } catch {
+        if (active) setCanManageLeague(false)
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [authResolved, league?.id, userId])
 
   useEffect(() => {
     if (!authResolved) return
@@ -765,7 +791,7 @@ function TiqLeagueDetailContent() {
   )
   const scoringRulesText =
     league?.weeklySettings.enabled
-      ? `${ROTATING_PARTNER_DOUBLES_FORMAT.courtSummary}. ${ROTATING_PARTNER_DOUBLES_FORMAT.scoringSummary} ${ROTATING_PARTNER_DOUBLES_FORMAT.entrySummary}`
+      ? `${ROTATING_PARTNER_DOUBLES_FORMAT.courtSummary}. ${ROTATING_PARTNER_DOUBLES_FORMAT.scoringSummary} ${ROTATING_PARTNER_DOUBLES_FORMAT.entrySummary} Third-set rule does not apply because each rotation is a separate set.`
       : league?.scoringSystem === 'dynamic_points'
       ? getDynamicPointsRulesSummary()
       : getTiqLeagueScoringSystemDescription('standard')
@@ -842,8 +868,8 @@ function TiqLeagueDetailContent() {
   const resultEntryDisabled = resultSaving || !canLogIndividualResults
   const seasonWindowText =
     league?.startsOn || league?.endsOn
-      ? [league.startsOn || 'Start TBD', league.endsOn || 'End TBD'].join(' to ')
-      : 'Season window not set'
+      ? formatLeagueDateRange(league.startsOn, league.endsOn)
+      : 'Season dates to be announced'
   const visibleTeamEntries = useMemo(() => {
     if (!league || league.leagueFormat !== 'team') return []
 
@@ -923,6 +949,18 @@ function TiqLeagueDetailContent() {
       : league?.leagueFormat === 'individual'
         ? visiblePlayerEntries.length
         : 0
+  const currentPlayerName = registrationPlayer?.name.trim() || ''
+  const currentWeeklyCourt = currentPlayerName && weeklyPublicWeek
+    ? weeklyPublicWeek.assignments.find((court) => court.players.some(
+        (player) => player.trim().toLowerCase() === currentPlayerName.toLowerCase(),
+      )) || null
+    : null
+  const currentWeeklyInsight = currentPlayerName
+    ? weeklyCompetitionView?.playerInsights.find((player) => player.playerName.trim().toLowerCase() === currentPlayerName.toLowerCase()) || null
+    : null
+  const isActiveLeaguePlayer = Boolean(currentPlayerName && visiblePlayerEntries.some(
+    (entry) => entry.playerName.trim().toLowerCase() === currentPlayerName.toLowerCase(),
+  ))
   const pendingEntries =
     league?.leagueFormat === 'team'
       ? teamEntries.filter((entry) => entry.entryStatus === 'pending')
@@ -1312,7 +1350,34 @@ function TiqLeagueDetailContent() {
   const hubNavItems = useMemo<HubNavItem[]>(() => {
     if (!league) return []
 
-    return [
+    if (league.weeklySettings.enabled) {
+      return [
+        {
+          href: '#league-this-week',
+          label: 'This Week',
+          detail: weeklyPublicWeek ? formatLeagueDate(weeklyPublicWeek.playOn) : 'Not published',
+        },
+        {
+          href: '#weekly-league-results',
+          label: 'Standings',
+          detail: weeklyCompetitionView?.summary.acceptedSets
+            ? `${weeklyCompetitionView.standings.length} players`
+            : 'Begins after play',
+        },
+        {
+          href: '#league-schedule',
+          label: 'Schedule',
+          detail: league.defaultMatchDay || 'Weekly play',
+        },
+        {
+          href: '#league-participants',
+          label: 'Players',
+          detail: `${activeEntryCount} active`,
+        },
+      ]
+    }
+
+    const items: HubNavItem[] = [
       {
         href: '#league-overview',
         label: 'Overview',
@@ -1360,14 +1425,12 @@ function TiqLeagueDetailContent() {
             ? `${teamStandings.length} rows`
             : `${individualStandings.length} rows`,
       },
-      {
-        href: '#league-settings',
-        label: 'Settings',
-        detail: getTiqLeagueSchedulingModeLabel(league.schedulingMode),
-      },
     ]
+    if (canManageLeague) items.push({ href: '#league-settings', label: 'Manage', detail: 'League Office' })
+    return items
   }, [
     activeEntryCount,
+    canManageLeague,
     competitionOpportunities.length,
     individualResultBookStats.total,
     individualStandings.length,
@@ -1378,6 +1441,7 @@ function TiqLeagueDetailContent() {
     visibleScheduleItems.length,
     weeklyCompetitionView?.standings.length,
     weeklyCompetitionView?.summary.acceptedSets,
+    weeklyPublicWeek,
   ])
 
   const teamResultCue = useMemo(() => {
@@ -1418,9 +1482,11 @@ function TiqLeagueDetailContent() {
     league?.leagueFormat === 'team'
       ? buildTeamResultEntryHref(league.id, teamMatchEvents.length > 0 ? 'team-match-review' : 'team-match-entry')
       : '/league-coordinator/results#team-match-entry'
-  const individualLeader = league?.leagueFormat === 'individual' ? individualStandings[0] || null : null
-  const teamLeader = league?.leagueFormat === 'team' ? teamStandings[0] || null : null
-  const weeklyLeader = league?.weeklySettings.enabled ? weeklyCompetitionView?.standings[0] || null : null
+  const individualLeader = league?.leagueFormat === 'individual' && individualResultBookStats.total > 0 ? individualStandings[0] || null : null
+  const teamLeader = league?.leagueFormat === 'team' && teamMatchEvents.some((event) => Boolean(event.winnerTeamName)) ? teamStandings[0] || null : null
+  const weeklyLeader = league?.weeklySettings.enabled && weeklyCompetitionView?.summary.acceptedSets
+    ? weeklyCompetitionView.standings[0] || null
+    : null
   const leaderName = weeklyLeader?.playerName || individualLeader?.playerName || teamLeader?.teamName || ''
   const leagueResultsHref = league?.weeklySettings.enabled
     ? '#weekly-league-results'
@@ -1429,11 +1495,12 @@ function TiqLeagueDetailContent() {
   const scheduleSubscribeHref = league
     ? `/api/calendar/tiq-league/${encodeURIComponent(league.id)}/calendar.ics`
     : ''
-  const leaderRows = useMemo<LeagueLeaderRow[]>(() => {
+  const leaderRows: LeagueLeaderRow[] = (() => {
     if (!league) return []
 
     if (league.weeklySettings.enabled) {
-      return (weeklyCompetitionView?.standings || []).slice(0, 5).map((entry) => ({
+      if (!weeklyCompetitionView?.summary.acceptedSets) return []
+      return weeklyCompetitionView.standings.slice(0, 5).map((entry) => ({
         rank: entry.rank,
         name: entry.playerName,
         record: `${entry.wins}-${entry.losses}`,
@@ -1465,7 +1532,7 @@ function TiqLeagueDetailContent() {
           : `${entry.lineWins} line win${entry.lineWins === 1 ? '' : 's'}`,
       href: `/team/${encodeURIComponent(entry.teamName)}?layer=tiq&league=${encodeURIComponent(league.leagueName)}`,
     }))
-  }, [individualStandings, league, teamStandings, weeklyCompetitionView?.standings])
+  })()
   useEffect(() => {
     if (!league || league.leagueFormat !== 'individual') return
     if (!suggestedResultPlayerA || !suggestedResultPlayerB) return
@@ -2557,12 +2624,12 @@ function TiqLeagueDetailContent() {
 
                   <div style={actionRow}>
                     {isMobile ? <GhostLink href="#league-schedule">See schedule</GhostLink> : null}
-                    <FollowButton
+                    {!isMobile ? <FollowButton
                       entityType="league"
                       entityId={`tiq__${league.id}`}
                       entityName={league.leagueName}
                       subtitle={[league.seasonLabel, league.flight].filter(Boolean).join(' | ')}
-                    />
+                    /> : null}
                     {!isMobile ? <GhostLink href="/explore/leagues">Back to Explore</GhostLink> : null}
                     {!isMobile ? <GhostLink href="/league-coordinator">Open League Office</GhostLink> : null}
                     <LocationDirectionsLink location={league.defaultFacility || league.locationLabel} style={directionsLinkStyle} />
@@ -2649,14 +2716,110 @@ function TiqLeagueDetailContent() {
               {storageWarning ? <div style={statusBanner}>{storageWarning}</div> : null}
             </section>
 
+            {league.weeklySettings.enabled ? (
+              <section id="league-this-week" style={weeklyNowPanelStyle} aria-labelledby="league-this-week-title">
+                <div style={leagueHubHeaderStyle}>
+                  <div style={leagueHubHeaderCopyStyle}>
+                    <div style={sectionEyebrow}>This week</div>
+                    <h2 id="league-this-week-title" style={sectionTitle}>
+                      {weeklyCompetitionLoading
+                        ? 'Checking the next league week…'
+                        : weeklyPublicWeek?.status === 'completed'
+                          ? weeklyPublicWeek.recap?.headline || 'This league week is complete.'
+                          : weeklyPublicWeek
+                            ? currentWeeklyCourt ? 'Your court is ready.' : 'Courts are published.'
+                            : 'The next court plan is not published yet.'}
+                    </h2>
+                    <p style={sectionText}>
+                      {weeklyPublicWeek?.status === 'completed'
+                        ? weeklyPublicWeek.recap?.summary || `${weeklyPublicWeek.acceptedSetCount} confirmed sets are in the scorecard.`
+                        : weeklyPublicWeek
+                          ? `${formatLeagueDate(weeklyPublicWeek.playOn)} · ${weeklyPublicWeek.rosterCount} playing · ${weeklyPublicWeek.assignments.length} courts.`
+                          : `Weekly replies and court assignments arrive through the private player link before ${league.defaultMatchDay || 'match day'}.`}
+                    </p>
+                  </div>
+                  <span style={weeklyPublicWeek ? pillGreen : pillSlate}>
+                    {weeklyPublicWeek?.status === 'completed' ? 'Week complete' : weeklyPublicWeek ? 'Court plan live' : 'Waiting to publish'}
+                  </span>
+                </div>
+
+                {currentWeeklyCourt ? (
+                  <div style={weeklyPlayerAssignmentStyle}>
+                    <div>
+                      <span style={sectionEyebrow}>Your assignment</span>
+                      <strong style={weeklyAssignmentTitleStyle}>Court {currentWeeklyCourt.courtNumber} · {formatLeagueTime(currentWeeklyCourt.startTime)}</strong>
+                      <span style={weeklyAssignmentMetaStyle}>With {currentWeeklyCourt.players.filter((player) => player.trim().toLowerCase() !== currentPlayerName.toLowerCase()).join(', ')}</span>
+                    </div>
+                    <LocationDirectionsLink location={league.defaultFacility || league.locationLabel} style={directionsLinkStyle} />
+                  </div>
+                ) : weeklyPublicWeek?.assignments.length ? (
+                  <div style={weeklyWaveGridStyle} aria-label="Published court waves">
+                    {Array.from(new Set(weeklyPublicWeek.assignments.map((court) => court.startTime))).map((startTime) => {
+                      const courts = weeklyPublicWeek.assignments.filter((court) => court.startTime === startTime)
+                      return (
+                        <div key={startTime} style={weeklyWaveCardStyle}>
+                          <span>{formatLeagueTime(startTime)}</span>
+                          <strong>{courts.length} {courts.length === 1 ? 'court' : 'courts'}</strong>
+                          <small>{courts.map((court) => `Court ${court.courtNumber}`).join(' · ')}</small>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : null}
+
+                {weeklyPublicWeek ? (
+                  <div style={weeklyProgressStyle}>
+                    <div style={weeklyMetricStyle}><span>Roster</span><strong>{weeklyPublicWeek.rosterCount || '—'}</strong></div>
+                    <div style={weeklyMetricStyle}><span>Courts</span><strong>{weeklyPublicWeek.assignments.length || '—'}</strong></div>
+                    <div style={weeklyMetricStyle}><span>Scores</span><strong>{weeklyPublicWeek.expectedSetCount ? `${weeklyPublicWeek.acceptedSetCount}/${weeklyPublicWeek.expectedSetCount}` : 'Waiting'}</strong></div>
+                  </div>
+                ) : null}
+
+                {weeklyPublicWeek?.recap?.stories.length ? (
+                  <div style={weeklyStoryGridStyle}>
+                    {weeklyPublicWeek.recap.stories.slice(0, 3).map((story) => <blockquote key={story} style={weeklyStoryStyle}>“{story}”</blockquote>)}
+                  </div>
+                ) : null}
+
+                <div style={actionRow}>
+                  {canManageLeague ? (
+                    <Link href={`/league-coordinator/weekly?leagueId=${encodeURIComponent(league.id)}`} style={primaryLinkButton}>
+                      {weeklyPublicWeek ? 'Manage this week' : 'Open weekly replies'}
+                    </Link>
+                  ) : isActiveLeaguePlayer && access.canUseAdvancedPlayerInsights ? (
+                    <GhostLink href="/mylab">Open your league in My Lab</GhostLink>
+                  ) : null}
+                  <GhostLink href="#league-schedule">Weekly schedule</GhostLink>
+                  <LocationDirectionsLink location={league.defaultFacility || league.locationLabel} style={directionsLinkStyle} />
+                </div>
+
+                {isMobile ? (
+                  <div style={weeklyPlayerValueStyle}>
+                    <div>
+                      <span style={sectionEyebrow}>{currentWeeklyInsight ? 'Your league' : 'Player connection'}</span>
+                      <strong>{currentWeeklyInsight ? `${currentWeeklyInsight.wins}–${currentWeeklyInsight.losses} in confirmed sets` : 'Keep this league connected to your tennis.'}</strong>
+                      <p>{currentWeeklyInsight ? `Rank #${currentWeeklyInsight.rank} · ${currentWeeklyInsight.gameDifferential >= 0 ? '+' : ''}${currentWeeklyInsight.gameDifferential} games.` : 'Player keeps your league, My Lab, matchup prep, and personal progress together.'}</p>
+                    </div>
+                    <FollowButton
+                      entityType="league"
+                      entityId={`tiq__${league.id}`}
+                      entityName={league.leagueName}
+                      subtitle={[league.seasonLabel, league.flight].filter(Boolean).join(' | ')}
+                    />
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+
             <section id="league-overview" style={leagueHubPanelStyle}>
               <div style={leagueHubHeaderStyle}>
                 <div style={leagueHubHeaderCopyStyle}>
-                  <div style={sectionEyebrow}>Season pulse</div>
-                  <h2 style={sectionTitle}>Check the table. See what changed. Know what to play next.</h2>
+                  <div style={sectionEyebrow}>{league.weeklySettings.enabled ? 'League pulse' : 'Season pulse'}</div>
+                  <h2 style={sectionTitle}>{league.weeklySettings.enabled ? 'Know what is ready.' : 'Check the table. See what changed. Know what to play next.'}</h2>
                   <p style={sectionText}>
-                    Start with the scoreboard. Results, standings, schedule, and the next useful tennis move stay up front,
-                    with admin controls nearby when you need them.
+                    {league.weeklySettings.enabled
+                      ? 'Confirmed scores, standings, and the next court plan stay together.'
+                      : 'Start with the scoreboard. Results, standings, schedule, and the next useful tennis move stay up front.'}
                   </p>
                 </div>
                 <div style={leagueHubScoreStyle}>
@@ -2753,37 +2916,40 @@ function TiqLeagueDetailContent() {
                 {authResolved && !access.canUseAdvancedPlayerInsights ? (
                   <div style={seasonPulseUpgradeStyle}>
                     <span style={pillAmber}>Player unlock</span>
-                    <strong>Want to climb from here?</strong>
-                    <p>Player adds My Lab, follows, and matchup insight so this table turns into better match prep.</p>
+                    <strong>Make this league personal.</strong>
+                    <p>Player connects your court, partners, league record, TiQ movement, and match prep in My Lab.</p>
                     <GhostLink href="/pricing#player_plus">Unlock Player</GhostLink>
                   </div>
                 ) : null}
               </div>
             </section>
 
-            <section style={formatCallout}>
-              <div style={formatCalloutTitle}>
-                Scoring: {league.weeklySettings.enabled
-                  ? ROTATING_PARTNER_DOUBLES_FORMAT.label
-                  : getTiqLeagueScoringSystemLabel(league.scoringSystem)}
-              </div>
-              <div style={formatCalloutText}>
-                {scoringRulesText}{league.weeklySettings.enabled
-                  ? ' Third-set rule does not apply because each rotation is a separate set.'
-                  : ` Third set rule: ${thirdSetRulesText}`}
-              </div>
-            </section>
+            {league.weeklySettings.enabled ? (
+              <details style={leagueRulesDetailsStyle}>
+                <summary style={leagueRulesSummaryStyle}>League rules · {ROTATING_PARTNER_DOUBLES_FORMAT.label}</summary>
+                <div style={formatCalloutText}>{scoringRulesText}</div>
+              </details>
+            ) : (
+              <section style={formatCallout}>
+                <div style={formatCalloutTitle}>Scoring: {getTiqLeagueScoringSystemLabel(league.scoringSystem)}</div>
+                <div style={formatCalloutText}>{scoringRulesText} Third set rule: {thirdSetRulesText}</div>
+              </section>
+            )}
 
             <section id="league-schedule" style={schedulePanelStyle}>
               <div style={leagueHubHeaderStyle}>
                 <div style={leagueHubHeaderCopyStyle}>
                   <div style={sectionEyebrow}>Schedule</div>
                   <h2 style={sectionTitle}>
-                    {league.schedulingMode === 'coordinator_fixed'
+                    {league.weeklySettings.enabled
+                      ? 'Weekly schedule'
+                      : league.schedulingMode === 'coordinator_fixed'
                       ? 'League Office-set schedule'
                       : 'Player-arranged schedule'}
                   </h2>
-                  <p style={sectionText}>{scheduleRulesText}</p>
+                  <p style={sectionText}>{league.weeklySettings.enabled
+                    ? `Play is scheduled for ${league.defaultMatchDay || 'the same day each week'}${league.defaultFacility ? ` at ${league.defaultFacility}` : ''}. Published court waves appear in This Week.`
+                    : scheduleRulesText}</p>
                 </div>
                 <div style={scheduleHeaderActionRowStyle}>
                   <span style={pillSlate}>{seasonWindowText}</span>
@@ -2793,24 +2959,25 @@ function TiqLeagueDetailContent() {
 
               <div style={scheduleMetaGridStyle}>
                 <div style={scheduleMetaCardStyle}>
-                  <span>Default day</span>
+                  <span>{league.weeklySettings.enabled ? 'Play day' : 'Default day'}</span>
                   <strong>{league.defaultMatchDay || 'TBD'}</strong>
                 </div>
                 <div style={scheduleMetaCardStyle}>
-                  <span>Default time</span>
-                  <strong>{league.defaultMatchTime || 'TBD'}</strong>
+                  <span>{league.weeklySettings.enabled ? 'First wave' : 'Default time'}</span>
+                  <strong>{formatLeagueTime(league.defaultMatchTime)}</strong>
                 </div>
                 <div style={scheduleMetaCardStyle}>
-                  <span>Default site</span>
+                  <span>{league.weeklySettings.enabled ? 'Courts' : 'Default site'}</span>
                   <strong>{league.defaultFacility || 'TBD'}</strong>
                   <LocationDirectionsLink location={league.defaultFacility} style={directionsLinkStyle} />
                 </div>
                 <div style={scheduleMetaCardStyle}>
                   <span>Time zone</span>
-                  <strong>{league.scheduleTimeZone || 'America/Chicago'}</strong>
+                  <strong>{formatLeagueTimeZone(league.scheduleTimeZone)}</strong>
                 </div>
               </div>
 
+              {(canManageLeague || league.schedulingMode === 'player_arranged') ? (
               <div id="league-schedule-editor" style={scheduleActionPanelStyle}>
                 <div style={leagueHubHeaderStyle}>
                   <div style={leagueHubHeaderCopyStyle}>
@@ -2973,6 +3140,7 @@ function TiqLeagueDetailContent() {
                   </span>
                 </div>
               </div>
+              ) : null}
 
               {visibleScheduleItems.length > 0 ? (
                 <div style={schedulePublishedPanelStyle}>
@@ -3075,7 +3243,9 @@ function TiqLeagueDetailContent() {
                     ? hasExistingTiqTeamEntry
                       ? 'Your current team access is shown below. Add another team only when you manage a second team in this league.'
                       : 'Select or type the team you manage. If League Office listed it first, request it here to connect it to your account after approval.'
-                    : `Submit your player entry for League Office approval. ${getTiqIndividualCompetitionFormatDescription(league.individualCompetitionFormat)}`}
+                    : league.weeklySettings.enabled
+                      ? 'Request a place in this rotating-partner doubles league. Each court plays three sets so every player partners once.'
+                      : `Submit your player entry for League Office approval. ${getTiqIndividualCompetitionFormatDescription(league.individualCompetitionFormat)}`}
                 </p>
 
                 {league.leagueFormat === 'team' && !hasExistingTiqTeamEntry ? (
@@ -4216,7 +4386,7 @@ function TiqLeagueDetailContent() {
               </section>
             ) : null}
 
-            <section id="league-settings" style={panelCard}>
+            {canManageLeague ? <section id="league-settings" style={panelCard}>
               <div style={sectionEyebrow}>League Office context</div>
               <h2 style={sectionTitle}>Run the next league action.</h2>
               <p style={sectionText}>
@@ -4237,7 +4407,7 @@ function TiqLeagueDetailContent() {
                   Individual TIQ leagues stay focused on participants, standings, prompts, and player results.
                 </div>
               )}
-            </section>
+            </section> : null}
           </>
         )}
     </section>
@@ -4286,6 +4456,33 @@ const heroGrid: CSSProperties = {
   gridTemplateColumns: 'minmax(0, 1.08fr) minmax(min(100%, 320px), 0.92fr)',
   gap: '20px',
   minWidth: 0,
+}
+
+function formatLeagueTime(value: string | null | undefined) {
+  const match = /^(\d{1,2}):(\d{2})/.exec(value || '')
+  if (!match) return value || 'Time to be announced'
+  return new Date(2026, 0, 1, Number(match[1]), Number(match[2])).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+function formatLeagueDateRange(startsOn: string, endsOn: string) {
+  if (!startsOn && !endsOn) return 'Season dates to be announced'
+  if (!startsOn || !endsOn) return formatLeagueDate(startsOn || endsOn)
+  const start = new Date(`${startsOn}T12:00:00`)
+  const end = new Date(`${endsOn}T12:00:00`)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return `${startsOn} – ${endsOn}`
+  const sameYear = start.getFullYear() === end.getFullYear()
+  return `${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: sameYear ? undefined : 'numeric' })}–${end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+}
+
+function formatLeagueTimeZone(value: string | null | undefined) {
+  if (!value || value === 'America/Chicago') return 'Central Time'
+  if (value === 'America/New_York') return 'Eastern Time'
+  if (value === 'America/Denver') return 'Mountain Time'
+  if (value === 'America/Los_Angeles') return 'Pacific Time'
+  return value.replaceAll('_', ' ')
 }
 
 const heroIdentityStyle: CSSProperties = {
@@ -4562,6 +4759,14 @@ const ghostButton: CSSProperties = {
   textAlign: 'center',
 }
 
+const primaryLinkButton: CSSProperties = {
+  ...ghostButton,
+  borderColor: 'rgba(155,225,29,0.5)',
+  background: 'var(--brand-green)',
+  color: '#07111f',
+  boxShadow: '0 12px 28px rgba(94,148,16,0.22)',
+}
+
 const ghostActionButton: CSSProperties = {
   ...ghostButton,
   cursor: 'pointer',
@@ -4654,6 +4859,104 @@ const leagueHubPanelStyle: CSSProperties = {
   border: '1px solid rgba(155,225,29,0.18)',
   background: 'rgba(8, 13, 28, 0.72)',
   boxShadow: '0 22px 48px rgba(2,10,24,0.24)',
+  minWidth: 0,
+}
+
+const weeklyNowPanelStyle: CSSProperties = {
+  ...leagueHubPanelStyle,
+  gap: 16,
+  borderColor: 'rgba(155,225,29,0.3)',
+  background: 'linear-gradient(145deg, rgba(17,48,53,0.96), rgba(8,18,36,0.98) 64%)',
+  boxShadow: '0 24px 56px rgba(2,10,24,0.32), inset 0 1px rgba(255,255,255,0.04)',
+}
+
+const weeklyPlayerAssignmentStyle: CSSProperties = {
+  display: 'grid',
+  gap: 9,
+  padding: '18px',
+  borderRadius: '20px',
+  border: '1px solid rgba(155,225,29,0.34)',
+  background: 'rgba(155,225,29,0.09)',
+  minWidth: 0,
+}
+
+const weeklyAssignmentTitleStyle: CSSProperties = {
+  color: '#f7ffe9',
+  fontSize: 'clamp(20px, 5vw, 27px)',
+  fontWeight: 950,
+  lineHeight: 1.08,
+  overflowWrap: 'anywhere',
+}
+
+const weeklyAssignmentMetaStyle: CSSProperties = {
+  margin: 0,
+  color: 'rgba(235,249,230,0.8)',
+  fontSize: 14,
+  lineHeight: 1.55,
+  overflowWrap: 'anywhere',
+}
+
+const weeklyWaveGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))',
+  gap: 10,
+  minWidth: 0,
+}
+
+const weeklyWaveCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 5,
+  padding: '14px',
+  borderRadius: '16px',
+  border: '1px solid rgba(116,190,255,0.16)',
+  background: 'rgba(255,255,255,0.045)',
+  color: '#f4f8ff',
+  minWidth: 0,
+  overflowWrap: 'anywhere',
+}
+
+const weeklyProgressStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(88px, 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const weeklyMetricStyle: CSSProperties = {
+  display: 'grid',
+  gap: 3,
+  minWidth: 0,
+  padding: '12px 14px',
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(7,17,33,0.46)',
+  color: 'rgba(229,238,251,0.74)',
+  fontSize: 12,
+}
+
+const weeklyStoryGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))',
+  gap: 8,
+  minWidth: 0,
+}
+
+const weeklyStoryStyle: CSSProperties = {
+  margin: 0,
+  padding: '14px 16px',
+  borderRadius: 16,
+  border: '1px solid rgba(155,225,29,0.18)',
+  background: 'rgba(155,225,29,0.06)',
+  color: '#efffe9',
+  fontSize: 13,
+  lineHeight: 1.55,
+  overflowWrap: 'anywhere',
+}
+
+const weeklyPlayerValueStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
+  gap: 8,
   minWidth: 0,
 }
 
@@ -5193,6 +5496,23 @@ const formatCalloutText: CSSProperties = {
   color: 'rgba(229,238,251,0.76)',
   fontSize: '13px',
   lineHeight: 1.65,
+  overflowWrap: 'anywhere',
+}
+
+const leagueRulesDetailsStyle: CSSProperties = {
+  borderRadius: '18px',
+  border: '1px solid rgba(116,190,255,0.14)',
+  background: 'rgba(10,21,41,0.72)',
+  overflow: 'hidden',
+  minWidth: 0,
+}
+
+const leagueRulesSummaryStyle: CSSProperties = {
+  padding: '14px 16px',
+  color: '#f8fbff',
+  fontSize: 13,
+  fontWeight: 850,
+  cursor: 'pointer',
   overflowWrap: 'anywhere',
 }
 

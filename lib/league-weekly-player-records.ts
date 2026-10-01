@@ -107,6 +107,20 @@ export type LeagueWeeklyCompetitionView = {
   weeks: LeagueWeeklyScorecardWeek[]
 }
 
+export type LeagueWeeklyPublicWeek = {
+  playOn: string
+  status: 'published' | 'completed'
+  rosterCount: number
+  assignments: Array<{
+    courtNumber: number
+    startTime: string
+    players: [string, string, string, string]
+  }>
+  acceptedSetCount: number
+  expectedSetCount: number
+  recap: { headline: string; summary: string; stories: string[] } | null
+}
+
 function normalize(value: string | null | undefined) {
   return (value || '').trim().toLowerCase()
 }
