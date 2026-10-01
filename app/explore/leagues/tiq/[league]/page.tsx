@@ -1037,8 +1037,20 @@ function TiqLeagueDetailContent() {
   }
   const dynamicHeroTitle: CSSProperties = {
     ...heroTitle,
-    fontSize: isSmallMobile ? '34px' : isMobile ? '42px' : '56px',
-    lineHeight: isMobile ? 1.02 : 0.98,
+    margin: isMobile ? 0 : heroTitle.margin,
+    fontSize: isSmallMobile ? '30px' : isMobile ? '36px' : '56px',
+    lineHeight: isMobile ? 1.08 : 0.98,
+  }
+  const dynamicHeroIdentityStyle: CSSProperties = {
+    ...heroIdentityStyle,
+    gridTemplateColumns: isMobile ? '72px minmax(0, 1fr)' : 'minmax(0, 1fr)',
+    alignItems: isMobile ? 'center' : 'stretch',
+    gap: isMobile ? '14px' : 0,
+  }
+  const dynamicHeroText: CSSProperties = {
+    ...heroText,
+    marginTop: isMobile ? '10px' : heroText.marginTop,
+    lineHeight: isMobile ? 1.45 : heroText.lineHeight,
   }
   const dynamicContentGrid: CSSProperties = {
     ...contentGrid,
@@ -2476,59 +2488,92 @@ function TiqLeagueDetailContent() {
               contextLabel={league.leagueName}
             />
             <section style={dynamicHeroCard}>
-              <span aria-hidden="true" style={watermarkStyle} />
+              {!isMobile ? <span aria-hidden="true" style={watermarkStyle} /> : null}
               <div style={dynamicHeroGrid}>
                 <div>
-                  <div style={eyebrow}>TIQ League</div>
-                  <h1 style={dynamicHeroTitle}>{league.leagueName}</h1>
-                  <div style={pillRow}>
-                    <span style={pillGreen}>{getCompetitionLayerLabel('tiq')}</span>
-                    <span style={pillSlate}>{getLeagueFormatLabel(league.leagueFormat)}</span>
-                    {league.weeklySettings.enabled ? (
-                      <span style={pillGreen}>Weekly doubles</span>
-                    ) : league.leagueFormat === 'individual' ? (
-                      <span style={pillSlate}>
-                        {getTiqIndividualCompetitionFormatLabel(league.individualCompetitionFormat)}
-                      </span>
+                  <div style={dynamicHeroIdentityStyle}>
+                    {isMobile ? (
+                      <div style={mobileLeagueLogoWrap}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={league.photoUrl || '/brand/web/header-iq-compact.png'}
+                          alt={league.photoUrl ? `${league.leagueName} logo` : 'TenAceIQ'}
+                          style={mobileLeagueLogo}
+                        />
+                      </div>
                     ) : null}
-                    <span style={pillSlate}>{getTiqLeagueSchedulingModeLabel(league.schedulingMode)}</span>
-                    <span style={pillSlate}>{getTiqLeagueScoringSystemLabel(league.scoringSystem)}</span>
-                    <span style={pillSlate}>{getTiqLeagueThirdSetRuleLabel(league.thirdSetRule)}</span>
-                    <span style={storageSource === 'supabase' ? pillGreen : pillBlue}>
-                      {storageSource === 'supabase' ? 'Live data' : 'Saved preview'}
-                    </span>
+                    <div style={heroIdentityCopyStyle}>
+                      <div style={eyebrow}>{isMobile ? 'League home' : 'TIQ League'}</div>
+                      <h1 style={dynamicHeroTitle}>{league.leagueName}</h1>
+                    </div>
                   </div>
-                  <p style={heroText}>
-                    {[league.seasonLabel, league.flight, league.locationLabel].filter(Boolean).join(' | ') ||
+
+                  <div style={isMobile ? mobilePillRow : pillRow}>
+                    {isMobile ? (
+                      <>
+                        <span style={pillGreen}>
+                          {league.weeklySettings.enabled
+                            ? 'Weekly doubles'
+                            : getLeagueFormatLabel(league.leagueFormat)}
+                        </span>
+                        {league.defaultMatchDay ? <span style={pillSlate}>{league.defaultMatchDay}</span> : null}
+                      </>
+                    ) : (
+                      <>
+                        <span style={pillGreen}>{getCompetitionLayerLabel('tiq')}</span>
+                        <span style={pillSlate}>{getLeagueFormatLabel(league.leagueFormat)}</span>
+                        {league.weeklySettings.enabled ? (
+                          <span style={pillGreen}>Weekly doubles</span>
+                        ) : league.leagueFormat === 'individual' ? (
+                          <span style={pillSlate}>
+                            {getTiqIndividualCompetitionFormatLabel(league.individualCompetitionFormat)}
+                          </span>
+                        ) : null}
+                        <span style={pillSlate}>{getTiqLeagueSchedulingModeLabel(league.schedulingMode)}</span>
+                        <span style={pillSlate}>{getTiqLeagueScoringSystemLabel(league.scoringSystem)}</span>
+                        {!league.weeklySettings.enabled ? (
+                          <span style={pillSlate}>{getTiqLeagueThirdSetRuleLabel(league.thirdSetRule)}</span>
+                        ) : null}
+                        <span style={storageSource === 'supabase' ? pillGreen : pillBlue}>
+                          {storageSource === 'supabase' ? 'Live data' : 'Saved preview'}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  <p style={dynamicHeroText}>
+                    {[league.seasonLabel, league.flight, league.locationLabel].filter(Boolean).join(' · ') ||
                       'TIQ competition details'}
                   </p>
 
                   <div style={heroHintRow}>
                     <span style={hintPill}>
-                      {activeEntryCount} {league.leagueFormat === 'team' ? 'active teams' : 'active players'}
+                      {activeEntryCount} active {league.leagueFormat === 'team'
+                        ? activeEntryCount === 1 ? 'team' : 'teams'
+                        : activeEntryCount === 1 ? 'player' : 'players'}
                     </span>
-                    {pendingEntryCount > 0 ? <span style={hintPill}>{pendingEntryCount} requests pending</span> : null}
-                    <span style={hintPill}>Updated {formatDateTime(league.updatedAt)}</span>
+                    {!isMobile && pendingEntryCount > 0 ? <span style={hintPill}>{pendingEntryCount} requests pending</span> : null}
+                    {!isMobile ? <span style={hintPill}>Updated {formatDateTime(league.updatedAt)}</span> : null}
                   </div>
 
                   <div style={actionRow}>
+                    {isMobile ? <GhostLink href="#league-schedule">See schedule</GhostLink> : null}
                     <FollowButton
                       entityType="league"
                       entityId={`tiq__${league.id}`}
                       entityName={league.leagueName}
                       subtitle={[league.seasonLabel, league.flight].filter(Boolean).join(' | ')}
                     />
-                    <GhostLink href="/explore/leagues">Back to Explore</GhostLink>
-                    <GhostLink href="/league-coordinator">Open League Office</GhostLink>
+                    {!isMobile ? <GhostLink href="/explore/leagues">Back to Explore</GhostLink> : null}
+                    {!isMobile ? <GhostLink href="/league-coordinator">Open League Office</GhostLink> : null}
                     <LocationDirectionsLink location={league.defaultFacility || league.locationLabel} style={directionsLinkStyle} />
                   </div>
                 </div>
 
-                <div style={sideCard}>
+                {!isMobile ? <div style={sideCard}>
                   {league.photoUrl ? (
                     <div style={leaguePhotoWrap}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={league.photoUrl} alt={`${league.leagueName} league`} style={leaguePhoto} />
+                      <img src={league.photoUrl} alt={`${league.leagueName} logo`} style={leaguePhoto} />
                     </div>
                   ) : null}
                   <div style={sideLabel}>League race</div>
@@ -2598,7 +2643,7 @@ function TiqLeagueDetailContent() {
                       entityId={league.id}
                     />
                   </div>
-                </div>
+                </div> : null}
               </div>
 
               {storageWarning ? <div style={statusBanner}>{storageWarning}</div> : null}
@@ -2622,7 +2667,7 @@ function TiqLeagueDetailContent() {
 
               <nav style={hubNavStyle} aria-label="TIQ league hub sections">
                 {hubNavItems.map((item) => (
-                  <a key={item.href} href={item.href} style={hubNavItemStyle}>
+                  <a key={`${item.href}-${item.label}`} href={item.href} style={hubNavItemStyle}>
                     <span>{item.label}</span>
                     <small>{item.detail}</small>
                   </a>
@@ -4243,6 +4288,35 @@ const heroGrid: CSSProperties = {
   minWidth: 0,
 }
 
+const heroIdentityStyle: CSSProperties = {
+  display: 'grid',
+  minWidth: 0,
+}
+
+const heroIdentityCopyStyle: CSSProperties = {
+  minWidth: 0,
+}
+
+const mobileLeagueLogoWrap: CSSProperties = {
+  width: '72px',
+  height: '72px',
+  display: 'grid',
+  placeItems: 'center',
+  padding: '7px',
+  boxSizing: 'border-box',
+  borderRadius: '18px',
+  border: '1px solid rgba(155,225,29,0.26)',
+  background: 'rgba(5, 15, 31, 0.82)',
+  overflow: 'hidden',
+}
+
+const mobileLeagueLogo: CSSProperties = {
+  width: '100%',
+  height: '100%',
+  display: 'block',
+  objectFit: 'contain',
+}
+
 const eyebrow: CSSProperties = {
   fontSize: '12px',
   fontWeight: 800,
@@ -4275,6 +4349,12 @@ const pillRow: CSSProperties = {
   gap: '10px',
   marginTop: '14px',
   minWidth: 0,
+}
+
+const mobilePillRow: CSSProperties = {
+  ...pillRow,
+  gap: '8px',
+  marginTop: '12px',
 }
 
 const pillBase: CSSProperties = {
@@ -4368,7 +4448,7 @@ const leaguePhoto: CSSProperties = {
   width: '100%',
   height: '100%',
   display: 'block',
-  objectFit: 'cover',
+  objectFit: 'contain',
 }
 
 const sideLabel: CSSProperties = {
