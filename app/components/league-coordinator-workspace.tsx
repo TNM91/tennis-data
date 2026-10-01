@@ -2420,7 +2420,7 @@ export function LeagueCoordinatorWorkspace() {
                   onChange={(defaultFacility) => setDraft((current) => ({ ...current, defaultFacility }))}
                   context={`tiq-league:${editingId || renewingFromLeagueId || 'setup'}`}
                   token={session?.access_token || ''}
-                  disabled={saving}
+                  disabled={!canUseLeagueTools || photoUploading}
                   knownOptions={knownFacilityOptions}
                 />
                 <span style={fieldHelpText}>
