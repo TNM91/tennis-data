@@ -8,6 +8,7 @@ export default function PremiumLeagueCourt({ className = '' }: { className?: str
         src="/brand/marketing/premium-league-night-court.png"
         alt=""
         fill
+        loading="eager"
         sizes="(max-width: 760px) 100vw, 760px"
         className={styles.courtArtwork}
       />

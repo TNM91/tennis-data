@@ -16,9 +16,9 @@
   z-index: 2;
   top: 35.5%;
   left: 50%;
-  width: clamp(118px, 32%, 210px);
+  width: clamp(72px, 21%, 118px);
   transform: translate(-50%, -50%);
-  opacity: 0.48;
+  opacity: 0.36;
   pointer-events: none;
 }
 

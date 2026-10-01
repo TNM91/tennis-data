@@ -66,6 +66,24 @@ final result: passed
 
 ---
 
+# Weekly League premium surface polish QA — 2026-10-01
+
+- Before: `C:/Users/nmein/.codex/visualizations/2026/09/29/01a0ef62-ba47-7300-9a29-16d0a697cee3/league-premium-polish/weekly-mobile-before.png`
+- After: `C:/Users/nmein/.codex/visualizations/2026/09/29/01a0ef62-ba47-7300-9a29-16d0a697cee3/league-premium-polish/weekly-mobile-after.png`
+- Viewport: 390 × 844 CSS pixels.
+
+## Outcome
+
+The TenAceIQ wordmark now sits inside the net as restrained venue branding instead of competing with the court. Its rendered width is reduced from 32% to 21% of the court and its opacity from 0.48 to 0.36.
+
+The League identity/access, score control, weekly intelligence, and season scorecard components no longer introduce light-theme white panels or inputs. Their outer surfaces, nested cards, metrics, form fields, review states, notices, and actions now use the same navy, blue, and lime tokens as the surrounding League Office.
+
+No P0, P1, or P2 visual issue remains in the requested scope. The 390 px page has no horizontal overflow, the watermark remains aligned with the net, focused lint passes, and the delegate/score regression suite passes.
+
+final result: passed
+
+---
+
 # Mobile signup confirmation handoff QA — 2026-09-27
 
 - Source visual truth: the shipped phone-first Login → Create account plan-continuity treatment on `www.tenaceiq.com`.
