@@ -70,3 +70,9 @@ Local production builds were attempted: Turbopack rejected an external dependenc
 The first PR preview build, schema audit and captain browser checks passed. Linux full tests passed 2,936 assertions with one existing reporting-date failure: access grants were evaluated using wall-clock time rather than the supplied summary date. This small bug is corrected by consistently passing the reporting date through access evaluation. The Missouri-priority revision passed 67 focused assertions; final CI must validate the updated commit.
 
 Direct browser access to TennisRecord fails certificate verification in this environment. Cloud collector captures provided fresh October 2 source evidence; no browser interstitial or TLS verification was bypassed.
+
+## Official reconciliation follow-up
+
+October 2 current audit: 1,122 known Missouri profiles, one enrolled profile fresh and 1,121 stale; 1,366 expected active history URLs missing from the Missouri campaign. Enrolled pages remain mostly fresh (1,085/1,086 histories, 517/519 matches). Statewide freshness is not established by these enrolled-page percentages. Collector runs permit eighteen requests per run and remain in bootstrap mode. The profile enrollment migration and Missouri-priority collector code are still required before claiming weekly coverage.
+
+Official USTA reconciliation and its read-only overlay are documented in docs/official-usta-evidence-audit-2026-10-02.md and docs/tiq-rating-v2-methodology.md. A complete official-source court capture differs from a validated complete rating replay. The current seventeen-court diagnostic is not a release candidate. Historical-year participation reports were experimentally shown to return newer rating dates; no independently verified multi-season annual outcome cohort has been established. Do not train on current labels substituted for past outcomes.
