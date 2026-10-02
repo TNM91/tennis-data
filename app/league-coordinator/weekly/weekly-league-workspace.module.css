@@ -84,6 +84,9 @@
 .commsDisabled { margin: 12px 0 0; color: #a7cdf6; font-size: 12px; line-height: 1.5; }
 .communicationDraft { display: grid; gap: 12px; margin-top: 16px; padding: 16px; border: 1px solid rgba(155, 225, 29, 0.3); border-radius: 16px; background: rgba(6, 23, 47, 0.76); }
 .communicationDraft p { margin: 0; color: #a7cdf6; font-size: 12px; line-height: 1.45; }
+.communicationDraft label { display: grid; gap: 8px; min-width: 0; color: #c7d8ec; }
+.communicationDraft select, .communicationDraft input[type="time"] { width: 100%; min-height: 44px; border: 1px solid rgba(167,205,246,.3); border-radius: 12px; padding: 10px; background: #0a294a; color: #fff; color-scheme: dark; }
+.communicationDraft button, .commsCenter > div > button { min-height: 44px; border: 0; border-radius: 999px; padding: 10px 16px; background: #9be11d; color: #071a31; font-weight: 900; }
 .workspace button:disabled { opacity: 0.5; cursor: not-allowed !important; }
 .workspace [id] { scroll-margin-top: 100px; }
 .playerPreviewDialog { width: min(720px, calc(100% - 20px)); max-height: calc(100dvh - 24px); padding: 0; overflow: auto; border: 1px solid rgba(167,205,246,0.4); border-radius: 24px; background: #06172f; color: #fff; }

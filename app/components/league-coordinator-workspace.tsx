@@ -1425,7 +1425,8 @@ export function LeagueCoordinatorWorkspace() {
     }
   }, [seasonLabelOptions])
 
-  function startRenewing(record: TiqLeagueRecord) {
+  const startRenewing = useCallback((record: TiqLeagueRecord) => {
+    if (record.createdByUserId !== userId) { setStatus('Only the league owner can renew this league.'); return }
     const renewalDraft = buildTiqLeagueRenewalDraft(record)
     setEditingId('')
     setRenewingFromLeagueId(record.id)
@@ -1441,11 +1442,12 @@ export function LeagueCoordinatorWorkspace() {
     window.requestAnimationFrame(() => {
       document.getElementById('league-setup-form')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
     })
-  }
+  }, [userId])
 
   useEffect(() => {
     if (
       !requestedEditLeagueId ||
+      (searchParams.get('action') === 'renew' && !userId) ||
       records.length === 0 ||
       editingId === requestedEditLeagueId ||
       appliedEditHandoffId === requestedEditLeagueId
@@ -1461,12 +1463,13 @@ export function LeagueCoordinatorWorkspace() {
         return
       }
 
-      startEditing(requestedRecord, { scrollToForm: true })
+      if (searchParams.get('action') === 'renew') startRenewing(requestedRecord)
+      else startEditing(requestedRecord, { scrollToForm: true })
       setAppliedEditHandoffId(requestedEditLeagueId)
     }, 0)
 
     return () => window.clearTimeout(timeoutId)
-  }, [appliedEditHandoffId, editingId, records, requestedEditLeagueId, startEditing])
+  }, [appliedEditHandoffId, editingId, records, requestedEditLeagueId, searchParams, startEditing, startRenewing, userId])
 
   useEffect(() => {
     if (!coordinatorResumeResolved || !userId || !editingId || !canUseLeagueTools) return
