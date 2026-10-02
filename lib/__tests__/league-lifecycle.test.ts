@@ -43,7 +43,7 @@ const league: TiqLeagueRecord = {
   photoUrl: '',
   captainTeamName: '',
   notes: 'Doubles only',
-  weeklySettings: { enabled: true, collectAvailability: true, autoGenerateCourts: true, collectPlayerStories: true, leagueChatEnabled: true, emailRemindersEnabled: true, courtCount: 4, startTimes: ['08:00', '08:30'] },
+  weeklySettings: { enabled: true, collectAvailability: true, autoGenerateCourts: true, showRankings: true, collectPlayerStories: true, leagueChatEnabled: true, emailRemindersEnabled: true, courtCount: 4, startTimes: ['08:00', '08:30'] },
   teams: [],
   players: ['Alex', 'Blair'],
   createdAt: '2026-08-01T00:00:00.000Z',

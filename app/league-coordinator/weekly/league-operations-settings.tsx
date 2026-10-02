@@ -39,6 +39,7 @@ export default function LeagueOperationsSettings({
   const [leagueName, setLeagueName] = useState(league.leagueName)
   const [logoUrl, setLogoUrl] = useState(league.photoUrl)
   const [chatEnabled, setChatEnabled] = useState(league.weeklySettings.leagueChatEnabled)
+  const [showRankings, setShowRankings] = useState(league.weeklySettings.showRankings !== false)
   const [owner, setOwner] = useState(false)
   const [delegates, setDelegates] = useState<DelegateRow[]>([])
   const [invites, setInvites] = useState<InviteRow[]>([])
@@ -86,17 +87,17 @@ export default function LeagueOperationsSettings({
       return
     }
     setBusy(true)
-    const weeklySettings = { ...league.weeklySettings, leagueChatEnabled: chatEnabled }
+    const weeklySettings = { ...league.weeklySettings, leagueChatEnabled: chatEnabled, showRankings }
     const { error } = await supabase.from('tiq_leagues').update({
       league_name: name,
       photo_url: logoUrl.trim(),
       weekly_settings: weeklySettings,
       updated_by_user_id: userId,
     }).eq('id', league.id)
-    if (error) setMessage('Only the league owner can change league identity and chat settings.')
+    if (error) setMessage('League settings could not be saved. Only the league owner can change them.')
     else {
       onLeagueUpdated({ ...league, leagueName: name, photoUrl: logoUrl.trim(), weeklySettings })
-      setMessage('League identity and chat settings saved.')
+      setMessage('League settings saved.')
     }
     setBusy(false)
   }
@@ -197,7 +198,8 @@ export default function LeagueOperationsSettings({
             <label style={labelStyle}>League name<input value={leagueName} maxLength={120} onChange={(event) => setLeagueName(event.target.value)} style={inputStyle} /></label>
             <label style={labelStyle}>Logo URL<input value={logoUrl} onChange={(event) => setLogoUrl(event.target.value)} placeholder="Optional hosted logo URL" style={inputStyle} /></label>
             <label style={toggleStyle}><input type="checkbox" checked={chatEnabled} onChange={(event) => setChatEnabled(event.target.checked)} /><span><strong>League chat</strong><small>Show the league-room message action with weekly links.</small></span></label>
-            <button type="button" onClick={() => void saveIdentity()} disabled={busy} style={buttonStyle}>Save league identity</button>
+            <label style={toggleStyle}><input type="checkbox" checked={showRankings} onChange={(event) => setShowRankings(event.target.checked)} /><span><strong>Show competitive rankings</strong><small>Off keeps win rates, player form, partnerships, and score-based court balancing without numbered standings or rank movement. TiQ rating settings are unchanged.</small></span></label>
+            <button type="button" onClick={() => void saveIdentity()} disabled={busy} style={buttonStyle}>Save league settings</button>
           </div>
 
           <div style={identityCardStyle}>

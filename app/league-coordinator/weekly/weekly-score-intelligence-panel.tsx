@@ -6,7 +6,7 @@ import { buildLeagueWeeklyDashboard, buildLeagueWeeklyScoreReview, type LeagueWe
 
 type ReviewSet = { courtNumber: number; setNumber: number }
 
-export default function WeeklyScoreIntelligencePanel({ sessionId, courts, results, submissions, scorecards, accessToken, onRefresh }: {
+export default function WeeklyScoreIntelligencePanel({ sessionId, courts, results, submissions, scorecards, accessToken, onRefresh, showRankings = true }: {
   sessionId: string
   courts: LeagueWeeklyCourt[]
   results: LeagueWeeklyReviewedResult[]
@@ -14,9 +14,11 @@ export default function WeeklyScoreIntelligencePanel({ sessionId, courts, result
   scorecards: LeagueWeeklyPlayerScorecard[]
   accessToken: string
   onRefresh: () => Promise<void>
+  showRankings?: boolean
 }) {
   const review = useMemo(() => buildLeagueWeeklyScoreReview(courts, results, submissions), [courts, results, submissions])
   const dashboard = useMemo(() => buildLeagueWeeklyDashboard(courts, results), [courts, results])
+  const visibleScorecards = showRankings ? scorecards : [...scorecards].sort((a, b) => a.playerName.localeCompare(b.playerName))
   const [drafts, setDrafts] = useState<Record<string, { a: string; b: string }>>({})
   const [message, setMessage] = useState('')
   const [busyKey, setBusyKey] = useState('')
@@ -94,13 +96,13 @@ export default function WeeklyScoreIntelligencePanel({ sessionId, courts, result
           <Metric label="Close sets" value={dashboard.closeSets} />
           <Metric label="Completed sets" value={dashboard.completedSets} />
         </div>
-        {dashboard.leaders.length ? <div style={leaderGridStyle}>{dashboard.leaders.map((leader, index) => <article key={leader.playerName} style={leaderCardStyle}><span style={rankStyle}>#{index + 1}</span><strong>{leader.playerName}</strong><small>{leader.setsWon} set wins · {leader.gameDifferential > 0 ? '+' : ''}{leader.gameDifferential} games</small></article>)}</div> : <p>Approved scores will surface this week’s leaders and closest sets.</p>}
+        {showRankings ? dashboard.leaders.length ? <div style={leaderGridStyle}>{dashboard.leaders.map((leader, index) => <article key={leader.playerName} style={leaderCardStyle}><span style={rankStyle}>#{index + 1}</span><strong>{leader.playerName}</strong><small>{leader.setsWon} set wins · {leader.gameDifferential > 0 ? '+' : ''}{leader.gameDifferential} games</small></article>)}</div> : <p>Approved scores will surface this week’s leaders and closest sets.</p> : <p>Scores guide balanced courts and player stats. Competitive rankings are off.</p>}
       </section>
 
       {scorecards.length ? <section style={panelStyle}>
         <p style={eyebrowStyle}>Season scorecards</p>
         <h2 style={{ marginTop: 0 }}>Form that can guide next week</h2>
-        <div style={{ overflowX: 'auto' }}><table style={tableStyle}><thead><tr><th style={leftCellStyle}>Player</th><th>Weeks</th><th>Sets</th><th>Win %</th><th>Games</th><th>Streak</th></tr></thead><tbody>{scorecards.map((scorecard) => <tr key={scorecard.playerName}><td style={playerCellStyle}>{scorecard.playerName}</td><td style={centerCellStyle}>{scorecard.weeksPlayed}</td><td style={centerCellStyle}>{scorecard.setsPlayed}</td><td style={centerCellStyle}>{scorecard.setWinPercentage}%</td><td style={centerCellStyle}>{scorecard.gameDifferential > 0 ? '+' : ''}{scorecard.gameDifferential}</td><td style={centerCellStyle}>{scorecard.currentWinStreak ? `${scorecard.currentWinStreak}W` : '—'}</td></tr>)}</tbody></table></div>
+        <div style={{ overflowX: 'auto' }}><table style={tableStyle}><thead><tr><th style={leftCellStyle}>Player</th><th>Weeks</th><th>Sets</th><th>Win %</th><th>Games</th><th>Streak</th></tr></thead><tbody>{visibleScorecards.map((scorecard) => <tr key={scorecard.playerName}><td style={playerCellStyle}>{scorecard.playerName}</td><td style={centerCellStyle}>{scorecard.weeksPlayed}</td><td style={centerCellStyle}>{scorecard.setsPlayed}</td><td style={centerCellStyle}>{scorecard.setWinPercentage}%</td><td style={centerCellStyle}>{scorecard.gameDifferential > 0 ? '+' : ''}{scorecard.gameDifferential}</td><td style={centerCellStyle}>{scorecard.currentWinStreak ? `${scorecard.currentWinStreak}W` : '—'}</td></tr>)}</tbody></table></div>
       </section> : null}
     </>
   )

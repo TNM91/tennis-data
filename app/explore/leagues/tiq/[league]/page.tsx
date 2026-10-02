@@ -1359,7 +1359,7 @@ function TiqLeagueDetailContent() {
         },
         {
           href: '#weekly-league-results',
-          label: 'Standings',
+          label: league.weeklySettings.showRankings ? 'Standings' : 'Stats',
           detail: weeklyCompetitionView?.summary.acceptedSets
             ? `${weeklyCompetitionView.standings.length} players`
             : 'Begins after play',
@@ -1484,10 +1484,11 @@ function TiqLeagueDetailContent() {
       : '/league-coordinator/results#team-match-entry'
   const individualLeader = league?.leagueFormat === 'individual' && individualResultBookStats.total > 0 ? individualStandings[0] || null : null
   const teamLeader = league?.leagueFormat === 'team' && teamMatchEvents.some((event) => Boolean(event.winnerTeamName)) ? teamStandings[0] || null : null
-  const weeklyLeader = league?.weeklySettings.enabled && weeklyCompetitionView?.summary.acceptedSets
+  const weeklyRankingsHidden = Boolean(league?.weeklySettings.enabled && !league.weeklySettings.showRankings)
+  const weeklyLeader = league?.weeklySettings.enabled && !weeklyRankingsHidden && weeklyCompetitionView?.summary.acceptedSets
     ? weeklyCompetitionView.standings[0] || null
     : null
-  const leaderName = weeklyLeader?.playerName || individualLeader?.playerName || teamLeader?.teamName || ''
+  const leaderName = weeklyRankingsHidden ? '' : weeklyLeader?.playerName || individualLeader?.playerName || teamLeader?.teamName || ''
   const leagueResultsHref = league?.weeklySettings.enabled
     ? '#weekly-league-results'
     : league?.leagueFormat === 'team' ? '#league-team-results' : '#league-individual-results'
@@ -1496,7 +1497,7 @@ function TiqLeagueDetailContent() {
     ? `/api/calendar/tiq-league/${encodeURIComponent(league.id)}/calendar.ics`
     : ''
   const leaderRows: LeagueLeaderRow[] = (() => {
-    if (!league) return []
+    if (!league || weeklyRankingsHidden) return []
 
     if (league.weeklySettings.enabled) {
       if (!weeklyCompetitionView?.summary.acceptedSets) return []
@@ -2643,8 +2644,8 @@ function TiqLeagueDetailContent() {
                       <img src={league.photoUrl} alt={`${league.leagueName} logo`} style={leaguePhoto} />
                     </div>
                   ) : null}
-                  <div style={sideLabel}>League race</div>
-                  <div style={sideValue}>{leaderRows.length > 0 ? 'Leaders' : 'Standings pending'}</div>
+                  <div style={sideLabel}>{weeklyRankingsHidden ? 'Your tennis' : 'League race'}</div>
+                  <div style={sideValue}>{weeklyRankingsHidden ? 'Player stats' : leaderRows.length > 0 ? 'Leaders' : 'Standings pending'}</div>
                   {leaderRows.length > 0 ? (
                     <div style={leaderTableStyle} aria-label="League leaders">
                       {leaderRows.slice(0, 5).map((row) => (
@@ -2662,13 +2663,13 @@ function TiqLeagueDetailContent() {
                     </div>
                   ) : (
                     <div style={sideText}>
-                      {league.weeklySettings.enabled
+                      {weeklyRankingsHidden ? 'Explore player form and partnerships without competitive rankings.' : league.weeklySettings.enabled
                         ? 'The table wakes up after the first confirmed or league-approved set.'
                         : 'The table wakes up as soon as approved participants and results are in.'}
                     </div>
                   )}
                   <div style={actionRow}>
-                    <GhostLink href={leagueStandingsHref}>Standings</GhostLink>
+                    <GhostLink href={leagueStandingsHref}>{weeklyRankingsHidden ? 'Stats' : 'Standings'}</GhostLink>
                     <GhostLink href={leagueResultsHref}>Results</GhostLink>
                     <QuickMessageComposer
                       mode="league"
@@ -2798,7 +2799,7 @@ function TiqLeagueDetailContent() {
                     <div>
                       <span style={sectionEyebrow}>{currentWeeklyInsight ? 'Your league' : 'Player connection'}</span>
                       <strong>{currentWeeklyInsight ? `${currentWeeklyInsight.wins}–${currentWeeklyInsight.losses} in confirmed sets` : 'Keep this league connected to your tennis.'}</strong>
-                      <p>{currentWeeklyInsight ? `Rank #${currentWeeklyInsight.rank} · ${currentWeeklyInsight.gameDifferential >= 0 ? '+' : ''}${currentWeeklyInsight.gameDifferential} games.` : 'Player keeps your league, My Lab, matchup prep, and personal progress together.'}</p>
+                      <p>{currentWeeklyInsight ? `${weeklyRankingsHidden ? `${currentWeeklyInsight.winPercentage}% set win rate` : `Rank #${currentWeeklyInsight.rank}`} · ${currentWeeklyInsight.gameDifferential >= 0 ? '+' : ''}${currentWeeklyInsight.gameDifferential} games.` : 'Player keeps your league, My Lab, matchup prep, and personal progress together.'}</p>
                     </div>
                     <FollowButton
                       entityType="league"
@@ -2818,7 +2819,7 @@ function TiqLeagueDetailContent() {
                   <h2 style={sectionTitle}>{league.weeklySettings.enabled ? 'Know what is ready.' : 'Check the table. See what changed. Know what to play next.'}</h2>
                   <p style={sectionText}>
                     {league.weeklySettings.enabled
-                      ? 'Confirmed scores, standings, and the next court plan stay together.'
+                      ? weeklyRankingsHidden ? 'Player stats, partnerships, and the next court plan stay together.' : 'Confirmed scores, standings, and the next court plan stay together.'
                       : 'Start with the scoreboard. Results, standings, schedule, and the next useful tennis move stay up front.'}
                   </p>
                 </div>
@@ -2840,8 +2841,8 @@ function TiqLeagueDetailContent() {
               <div style={seasonPulseGridStyle}>
                 <div style={seasonPulseWideCardStyle}>
                   <div style={seasonPulseCardHeaderStyle}>
-                    <span style={pillGreen}>Leaders</span>
-                    <GhostLink href={leagueStandingsHref}>Full table</GhostLink>
+                    <span style={pillGreen}>{weeklyRankingsHidden ? 'Player stats' : 'Leaders'}</span>
+                    <GhostLink href={leagueStandingsHref}>{weeklyRankingsHidden ? 'Explore stats' : 'Full table'}</GhostLink>
                   </div>
                   {leaderRows.length > 0 ? (
                     <div style={leaderTableStyle}>
@@ -2859,7 +2860,7 @@ function TiqLeagueDetailContent() {
                       ))}
                     </div>
                   ) : (
-                    <p>Log the first result to start the standings race.</p>
+                    <p>{weeklyRankingsHidden ? 'Explore win rates, recent form, and partnerships. Scores help plan balanced courts without a standings race.' : 'Log the first result to start the standings race.'}</p>
                   )}
                 </div>
                 <div style={seasonPulseCardStyle}>
@@ -3556,6 +3557,7 @@ function TiqLeagueDetailContent() {
             {league.weeklySettings.enabled ? (
               <WeeklyLeagueResultsPanel
                 view={weeklyCompetitionView}
+                showRankings={league.weeklySettings.showRankings}
                 loading={weeklyCompetitionLoading}
                 error={weeklyCompetitionError}
               />

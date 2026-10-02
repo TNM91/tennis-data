@@ -5,6 +5,7 @@ import {
   type LeagueWeeklyRecordSetResult,
 } from '@/lib/league-weekly-player-records'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
+import { normalizeLeagueWeeklySettings, type LeagueWeeklySettings } from '@/lib/league-weekly-format'
 
 export const runtime = 'nodejs'
 
@@ -61,11 +62,17 @@ export async function GET(request: Request) {
   const participants = [...entriesByLeague.entries()].map(([leagueId, entry]) => ({ leagueId, playerName: cleanText(entry.player_name) }))
   if (!participants.length) return privateJson({ ok: true, records: [] })
 
-  const { data: sessions, error: sessionError } = await service
-    .from('tiq_league_weekly_sessions')
-    .select('id,league_id,status,play_on')
-    .in('league_id', participants.map((participant) => participant.leagueId))
-    .in('status', ['published', 'completed'])
+  const [{ data: leagues, error: leagueError }, { data: sessions, error: sessionError }] = await Promise.all([
+    service.from('tiq_leagues').select('id,weekly_settings').in('id', participants.map(participant => participant.leagueId)),
+    service.from('tiq_league_weekly_sessions').select('id,league_id,status,play_on')
+      .in('league_id', participants.map(participant => participant.leagueId))
+      .in('status', ['published', 'completed']),
+  ])
+  if (leagueError) return Response.json({ ok: false, message: 'League settings could not be loaded.' }, { status: 500 })
+  const rankingsByLeague = new Map((leagues || []).map(league => [
+    league.id as string, normalizeLeagueWeeklySettings(league.weekly_settings as Partial<LeagueWeeklySettings> | null).showRankings,
+  ]))
+
   if (sessionError) return Response.json({ ok: false, message: 'Weekly league sessions could not be loaded.' }, { status: 500 })
   const sessionRows = (sessions || []) as LeagueWeeklyRecordSession[]
   if (!sessionRows.length) return privateJson({ ok: true, records: [] })
@@ -80,7 +87,7 @@ export async function GET(request: Request) {
   return privateJson({
     ok: true,
     records: buildLeagueWeeklyPlayerRecords({
-      participants,
+      participants: participants.map(participant => ({ ...participant, showRankings: rankingsByLeague.get(participant.leagueId) !== false })),
       sessions: sessionRows,
       results: (results || []) as LeagueWeeklyRecordSetResult[],
     }),

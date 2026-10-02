@@ -2511,6 +2511,7 @@ export function LeagueCoordinatorWorkspace() {
                     {[
                       ['collectAvailability', 'Weekly in-or-out link', 'Players reply before the owner confirms the roster.'],
                       ['autoGenerateCourts', 'Suggested court assignments', 'Build four-player courts with all three partner rotations.'],
+                      ['showRankings', 'Show competitive rankings', 'Turn off numbered standings and rank movement. Keep player stats, partnership records, and score-based court balancing. This does not change TiQ rating settings.'],
                       ['collectPlayerStories', 'Positive recap shares', 'Let players add a highlight, thank-you, or fun moment with scores.'],
                       ['leagueChatEnabled', 'League chat', 'Give this league a shared conversation when chat is connected.'],
                       ['emailRemindersEnabled', 'Weekly email reminders', 'Email linked members when replies open and again when courts are published.'],

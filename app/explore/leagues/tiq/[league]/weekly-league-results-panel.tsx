@@ -9,10 +9,12 @@ export default function WeeklyLeagueResultsPanel({
   view,
   loading,
   error,
+  showRankings = true,
 }: {
   view: LeagueWeeklyCompetitionView | null
   loading: boolean
   error: string
+  showRankings?: boolean
 }) {
   const { isMobile } = useViewportBreakpoints()
   const [selectedPlayerName, setSelectedPlayerName] = useState('')
@@ -24,8 +26,8 @@ export default function WeeklyLeagueResultsPanel({
       <div style={headerStyle}>
         <div>
           <div style={eyebrowStyle}>Weekly doubles</div>
-          <h2 id="weekly-league-results-title" style={titleStyle}>Standings and scorecards</h2>
-          <p style={bodyStyle}>Confirmed player scores and league-approved corrections build this table.</p>
+          <h2 id="weekly-league-results-title" style={titleStyle}>{showRankings ? 'Standings and scorecards' : 'Player stats and scorecards'}</h2>
+          <p style={bodyStyle}>{showRankings ? 'Confirmed player scores and league-approved corrections build this table.' : 'Enjoy player form and partnership records without competitive rankings.'}</p>
         </div>
         <span style={acceptedPillStyle}>Accepted sets only</span>
       </div>
@@ -34,9 +36,9 @@ export default function WeeklyLeagueResultsPanel({
       {!loading && error ? <div role="status" style={errorStyle}>{error}</div> : null}
       {!loading && !error && view ? (
         <>
-          <LeagueAnalytics view={view} />
+          <LeagueAnalytics view={view} showRankings={showRankings} />
           <details style={subsectionStyle}>
-          <summary style={subsectionTitleStyle}>Full standings and scorecards</summary>
+          <summary style={subsectionTitleStyle}>{showRankings ? 'Full standings and scorecards' : 'Full scorecards'}</summary>
           <div style={summaryGridStyle}>
             <SummaryMetric label="Weeks" value={view.summary.weeks} />
             <SummaryMetric label="Confirmed sets" value={view.summary.acceptedSets} />
@@ -44,7 +46,7 @@ export default function WeeklyLeagueResultsPanel({
             <SummaryMetric label="Games played" value={view.summary.totalGames} />
           </div>
 
-          <div style={subsectionStyle}>
+          {showRankings ? <><div style={subsectionStyle}>
             <div style={subsectionHeaderStyle}>
               <div>
                 <h3 style={subsectionTitleStyle}>Player standings</h3>
@@ -113,6 +115,7 @@ export default function WeeklyLeagueResultsPanel({
           </div>
 
           {selectedPlayer ? <PlayerInsight player={selectedPlayer} /> : null}
+          </> : null}
 
           <div style={subsectionStyle}>
             <div style={subsectionHeaderStyle}>

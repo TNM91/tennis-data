@@ -27,7 +27,7 @@ describe('weekly league delegate flow', () => {
     const workspace = source('app/league-coordinator/weekly/weekly-league-workspace.tsx')
     const settings = source('app/league-coordinator/weekly/league-operations-settings.tsx')
     expect(workspace).toContain('LeagueOperationsSettings')
-    expect(settings).toContain('Save league identity')
+    expect(settings).toContain('Save league settings')
     expect(settings).toContain('League chat')
     expect(settings).toContain('Delegate invitation link copied.')
   })

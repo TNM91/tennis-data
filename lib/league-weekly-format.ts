@@ -2,6 +2,7 @@ export type LeagueWeeklySettings = {
   enabled: boolean
   collectAvailability: boolean
   autoGenerateCourts: boolean
+  showRankings: boolean
   collectPlayerStories: boolean
   leagueChatEnabled: boolean
   emailRemindersEnabled: boolean
@@ -42,6 +43,7 @@ export const DEFAULT_LEAGUE_WEEKLY_SETTINGS: LeagueWeeklySettings = {
   enabled: false,
   collectAvailability: true,
   autoGenerateCourts: true,
+  showRankings: true,
   collectPlayerStories: true,
   leagueChatEnabled: false,
   emailRemindersEnabled: false,
@@ -71,6 +73,7 @@ export function normalizeLeagueWeeklySettings(
     enabled: normalizeBoolean(value?.enabled, false),
     collectAvailability: normalizeBoolean(value?.collectAvailability, true),
     autoGenerateCourts: normalizeBoolean(value?.autoGenerateCourts, true),
+    showRankings: normalizeBoolean(value?.showRankings, true),
     collectPlayerStories: normalizeBoolean(value?.collectPlayerStories, true),
     leagueChatEnabled: normalizeBoolean(value?.leagueChatEnabled, false),
     emailRemindersEnabled: normalizeBoolean(value?.emailRemindersEnabled, false),

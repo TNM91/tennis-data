@@ -337,7 +337,7 @@ export default function WeeklyLeagueWorkspace({
       })),
       stories: responses.map((response) => response.positive_share),
     })
-    const highlights = analyticsView ? buildWeeklyAnalytics(analyticsView, session.id).highlights : []
+    const highlights = analyticsView ? buildWeeklyAnalytics(analyticsView, session.id, league.weeklySettings.showRankings).highlights : []
     const enrichedRecap = { ...recap, summary: [recap.summary, ...highlights.map(item => `${item.title}: ${item.detail}`)].join('\n\n').slice(0, 2000) }
     setRecapDraft(enrichedRecap)
     await saveRecap('save', enrichedRecap)
@@ -546,13 +546,14 @@ export default function WeeklyLeagueWorkspace({
                 </section>
               ) : null}
 
-              {analyticsView && session.assignments?.length ? <LeagueAnalytics key={`${leagueId}-${session.id}`} view={analyticsView} initialSessionId={session.id} /> : null}
+              {analyticsView && session.assignments?.length ? <LeagueAnalytics key={`${leagueId}-${session.id}`} view={analyticsView} initialSessionId={session.id} showRankings={league?.weeklySettings.showRankings} /> : null}
               {session.assignments?.length && league && authSession?.access_token ? <WeeklyScoreIntelligencePanel
                 sessionId={session.id}
                 courts={session.assignments}
                 results={results.map((result) => ({ courtNumber: result.court_number, setNumber: result.set_number, sideAGames: result.side_a_games, sideBGames: result.side_b_games, submittedByName: result.submitted_by_name, reviewStatus: result.review_status }))}
                 submissions={scoreSubmissions.map((submission) => ({ courtNumber: submission.court_number, setNumber: submission.set_number, sideAGames: submission.side_a_games, sideBGames: submission.side_b_games, submittedByName: submission.submitted_by_name, submittedAt: submission.submitted_at }))}
                 scorecards={playerStats}
+                showRankings={league.weeklySettings.showRankings}
                 accessToken={authSession.access_token}
                 onRefresh={() => loadSession(league.id, playOn)}
               /> : null}

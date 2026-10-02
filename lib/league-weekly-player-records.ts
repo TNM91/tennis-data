@@ -20,6 +20,7 @@ export type LeagueWeeklyPlayerRecord = {
 export type LeagueWeeklyRecordParticipant = {
   leagueId: string
   playerName: string
+  showRankings?: boolean
 }
 
 export type LeagueWeeklyRecordSession = {
@@ -162,7 +163,7 @@ export function buildLeagueWeeklyPlayerRecords(input: {
     if (!view.summary.acceptedSets) return []
     const player = view.playerInsights.find((item) => normalize(item.playerName) === normalize(participant.playerName))
     if (!player) return []
-    const leader = view.standings[0]
+    const leader = participant.showRankings === false ? undefined : view.standings[0]
 
     return [{
       leagueId: participant.leagueId,

@@ -34,7 +34,7 @@ const normalize = (name: string) => name.trim().toLowerCase()
 const pairKey = (names: string[]) => JSON.stringify(names.map(normalize).sort())
 
 // Derive analytics from the already-authorized, accepted scorecards. No extra data fetch.
-export function buildWeeklyAnalytics(source: LeagueWeeklyCompetitionView, sessionId = ''): WeeklyAnalytics {
+export function buildWeeklyAnalytics(source: LeagueWeeklyCompetitionView, sessionId = '', showRankings = true): WeeklyAnalytics {
   const names = new Map(source.standings.map(player => [normalize(player.playerName), player.playerName]))
   const displayName = (name: string) => names.get(normalize(name)) || name.trim()
   const allWeeks = source.weeks.map(week => ({ ...week, courts: week.courts.map(court => ({
@@ -106,10 +106,16 @@ export function buildWeeklyAnalytics(source: LeagueWeeklyCompetitionView, sessio
     extra.repeatedPartners = player.partners.filter(partner => partner.setsPlayed > 1).length
     const before = previousActive.findIndex(item => normalize(item.playerName) === normalize(player.playerName))
     const after = currentActive.findIndex(item => normalize(item.playerName) === normalize(player.playerName))
-    if (before >= 0 && after >= 0 && latest?.courts.some(court => court.sets.some(set => [...set.sideA, ...set.sideB].some(name => normalize(name) === normalize(player.playerName))))) extra.rankMovement = before - after
+    if (showRankings && before >= 0 && after >= 0 && latest?.courts.some(court => court.sets.some(set => [...set.sideA, ...set.sideB].some(name => normalize(name) === normalize(player.playerName))))) extra.rankMovement = before - after
   }
   const pairList = [...pairs.values()].map(({ weekIds, ...pair }) => ({ ...pair, weeksPlayed: weekIds.size, gameDifferential: pair.gamesWon - pair.gamesLost, winPercentage: Math.round(pair.wins / pair.setsPlayed * 100) }))
     .sort((a, b) => b.wins - a.wins || a.losses - b.losses || b.gameDifferential - a.gameDifferential || a.key.localeCompare(b.key))
+  if (!showRankings) {
+    view.standings.sort((a, b) => a.playerName.localeCompare(b.playerName))
+    view.playerInsights.sort((a, b) => a.playerName.localeCompare(b.playerName))
+    view.playerInsights.forEach(player => player.partners.sort((a, b) => a.playerName.localeCompare(b.playerName)))
+    pairList.sort((a, b) => a.players.join(' + ').localeCompare(b.players.join(' + ')))
+  }
   const highlights: WeeklyAnalytics['highlights'] = []
   const unbeaten = view.standings.filter(player => player.setsPlayed >= 3 && player.losses === 0)
   if (unbeaten.length) highlights.push({ title: 'Clean sweep', detail: unbeaten.map(player => `${player.playerName} (${player.wins}–0)`).join(' · ') })
