@@ -1,3 +1,4 @@
+import { conflictsWithTennisRecordSourceIdentity } from './source-player-link'
 import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
@@ -1733,7 +1734,7 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
       const existing = await service.from('tennisrecord_player_identities').select('staged_player_id,canonical_player_id,status').in('staged_player_id', staged.map((player) => player.id))
       if (existing.error) throw new Error(existing.error.message)
       const alreadyMapped = new Set((existing.data || []).filter((row) => row.canonical_player_id || row.status === 'rejected').map((row) => row.staged_player_id))
-      const local = await service.from('players').select('id,normalized_name,name').in('normalized_name', staged.map((player) => player.normalized_name))
+      const local = await service.from('players').select('id,normalized_name,name,external_source,external_source_key').in('normalized_name', staged.map((player) => player.normalized_name))
       if (local.error) throw new Error(local.error.message)
       const localByName = new Map<string, string[]>()
       for (const player of local.data || []) {
@@ -1741,7 +1742,18 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
         localByName.set(name, [...(localByName.get(name) || []), player.id])
       }
       const collisions = staged.filter((player) => !alreadyMapped.has(player.id) && (localByName.get(player.normalized_name)?.length || 0) > 1)
-      const uniqueLocal = staged.filter((player) => !alreadyMapped.has(player.id) && (localByName.get(player.normalized_name)?.length || 0) === 1)
+      const localById = new Map((local.data || []).map(player => [player.id, player]))
+      const uniqueNameCandidates = staged.filter((player) => !alreadyMapped.has(player.id) && (localByName.get(player.normalized_name)?.length || 0) === 1)
+      const sourceCollisions = uniqueNameCandidates.filter(player => {
+        const canonical = localById.get(localByName.get(player.normalized_name)![0])
+        return canonical && conflictsWithTennisRecordSourceIdentity(canonical, player.source_player_key)
+      })
+      const blockedSourceIds = new Set(sourceCollisions.map(player => player.id))
+      const uniqueLocal = uniqueNameCandidates.filter(player => !blockedSourceIds.has(player.id))
+      if (sourceCollisions.length) {
+        const review = await service.from('tennisrecord_player_identities').upsert(sourceCollisions.map(player => ({ staged_player_id: player.id, status: 'ambiguous', confidence: 0, signals: ['same_name_different_tennisrecord_source_requires_review'] })), { onConflict: 'staged_player_id' })
+        if (review.error) throw new Error(review.error.message)
+      }
       const provisional = staged.filter((player) => !alreadyMapped.has(player.id) && !localByName.has(player.normalized_name))
       if (collisions.length) {
         const review = await service.from('tennisrecord_player_identities').upsert(collisions.map((player) => ({ staged_player_id: player.id, status: 'ambiguous', confidence: 0, signals: ['same_name_local_player_requires_review'] })), { onConflict: 'staged_player_id' })
@@ -1810,7 +1822,7 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
           if (mapped.error) throw new Error(mapped.error.message)
         }
       }
-      const mapped = await service.from('tennisrecord_player_identities').select('staged_player_id,canonical_player_id').in('staged_player_id', staged.map((player) => player.id)).not('canonical_player_id', 'is', null)
+      const mapped = await service.from('tennisrecord_player_identities').select('staged_player_id,canonical_player_id').in('staged_player_id', staged.map((player) => player.id)).eq('status', 'matched').not('canonical_player_id', 'is', null)
       if (mapped.error) throw new Error(mapped.error.message)
       const stagedIdBySourceKey = new Map(staged.map((player) => [player.source_player_key as string, player.id as string]))
       const canonicalIdByStagedId = new Map((mapped.data || []).map((identity) => [identity.staged_player_id as string, identity.canonical_player_id as string]))
@@ -2255,4 +2267,3 @@ async function promoteTennisRecordMatch(service: SupabaseClient, staged: Record<
 function emptySummary(status: TennisRecordRunSummary['status']): TennisRecordRunSummary {
   return { status, pagesAttempted: 0, pagesProcessed: 0, playersDiscovered: 0, teamsDiscovered: 0, matchesStaged: 0, canonicalMatchesCreated: 0, duplicatesDetected: 0, conflictsFound: 0, blockedRequests: 0, parserFailures: 0, transientRetries: 0, sourceFailures: 0 }
 }
-

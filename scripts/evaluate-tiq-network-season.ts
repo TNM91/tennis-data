@@ -1,9 +1,10 @@
+import { validateTennisRecordAnnualPair } from '../lib/tiq-annual-rating-pairs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { replayRatingNetwork, type NetworkCourt } from '../lib/tiq-rating-network'
 import { parseScoreMetrics } from '../lib/recalculateRatings'
 import { tiqV2Band, type V2Match, type V2Prior } from '../lib/tiq-rating-v2'
-type AnnualObservation = { canonical_player_id: string; ntrp: number; effective_date: string; designation: string }
+type AnnualObservation = { canonical_player_id: string; ntrp: number; effective_date: string; designation: string; source_url: string }
 async function main() {
   const inputPath = process.argv[2], out = process.argv[3]
   if (!inputPath || !out) throw new Error('Usage: evaluate-tiq-network-season.ts <frozen-input.json> <output.json>')
@@ -38,7 +39,7 @@ async function main() {
   if (!key) throw new Error('Service key required for read-only secondary annual outcome audit')
   for (let offset = 0; ; offset += 1000) {
     const url = new URL('https://pwxppfazbyourjrsutgx.supabase.co/rest/v1/tennisrecord_ntrp_observations')
-    url.search = new URLSearchParams({ select: 'canonical_player_id,ntrp,effective_date,designation', designation: 'eq.computer', effective_date: `eq.${graph.season}-12-31`, canonical_player_id: 'not.is.null', order: 'id', limit: '1000', offset: String(offset) }).toString()
+    url.search = new URLSearchParams({ select: 'canonical_player_id,ntrp,effective_date,designation,source_url', designation: 'eq.computer', effective_date: `eq.${graph.season}-12-31`, canonical_player_id: 'not.is.null', order: 'id', limit: '1000', offset: String(offset) }).toString()
     const response = await fetch(url, { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(30000) })
     if (!response.ok) throw new Error(`Annual outcome audit failed: ${response.status}`)
     const rows: AnnualObservation[] = await response.json(); observations.push(...rows)
@@ -48,9 +49,17 @@ async function main() {
   for (const observation of observations) {
     const values = endingGroups.get(observation.canonical_player_id) ?? new Set<number>(); values.add(Number(observation.ntrp)); endingGroups.set(observation.canonical_player_id, values)
   }
+  const quarantinedAnnualPairs: { playerId: string; reasons: string[] }[] = []
   const cohort = [...priors].flatMap(([playerId, startingLevel]) => {
     const ending = endingGroups.get(playerId), singles = network.states.get(`${playerId}:singles`), doubles = network.states.get(`${playerId}:doubles`), count = (singles?.matches ?? 0) + (doubles?.matches ?? 0)
     if (!ending || ending.size !== 1 || count < 3) return []
+    const startingSources = graph.priors.filter(p => p.playerId === playerId && p.season === graph.season - 1)
+    const endingSources = observations.filter(o => o.canonical_player_id === playerId)
+    const sourcePairs = startingSources.flatMap(start => endingSources.map(end => validateTennisRecordAnnualPair({ playerId, level: start.level, designation: 'computer', effectiveDate: `${graph.season - 1}-12-31`, sourceUrl: start.source }, { playerId, level: Number(end.ntrp), designation: end.designation, effectiveDate: end.effective_date, sourceUrl: end.source_url })))
+    if (!sourcePairs.length || sourcePairs.some(pair => !pair.admitted)) {
+      quarantinedAnnualPairs.push({ playerId, reasons: [...new Set(sourcePairs.flatMap(pair => pair.reasons))] })
+      return []
+    }
     const strength = ((singles?.strength ?? 0) * (singles?.matches ?? 0) + (doubles?.strength ?? 0) * (doubles?.matches ?? 0)) / count, endingLevel = [...ending][0]
     return [{ playerId, startingLevel, endingLevel, courts: count, strength, predictedBand: tiqV2Band(strength), actualMovement: Math.sign(endingLevel - startingLevel), predictedMovement: Math.sign(tiqV2Band(strength) - startingLevel) }]
   })
@@ -58,7 +67,7 @@ async function main() {
     const actual = cohort.filter(p => p.actualMovement === direction).length, predicted = cohort.filter(p => p.predictedMovement === direction).length, correct = cohort.filter(p => p.actualMovement === direction && p.predictedMovement === direction).length
     return { actual, predicted, correct, precision: predicted ? correct / predicted : null, recall: actual ? correct / actual : null }
   }
-  const report = { generatedAt: new Date().toISOString(), inputSHA256: createHash('sha256').update(bytes).digest('hex'), productionWrites: 0, releaseEligible: false, season: graph.season, cutoff, config: network.config, datedPriorPlayers: priors.size, conflictingPriorPlayers: [...groups.values()].filter(values => values.size > 1).length, loadedCourtRows: graph.matches.length, parsedCourts: courts.length, quarantinedAmbiguousCourtRows: ambiguous.size, usableCourts: network.predictions.length, unanchoredCourts: network.skippedUnanchored.length, gameShare: metrics(network.predictions), formatGroups: { singles: metrics(network.predictions.filter(p => p.format === 'singles')), doubles: metrics(network.predictions.filter(p => p.format === 'doubles')) }, anchorDistanceGroups: Object.fromEntries([0, 1, 2, 3].map(distance => [distance === 3 ? '3+' : String(distance), metrics(network.predictions.filter(p => distance === 3 ? p.maximumAnchorDistance >= 3 : p.maximumAnchorDistance === distance))])), laterGameShare: metrics(network.predictions.filter(p => p.date >= `${graph.season}-08-01`)), secondaryAnnualLabelCohort: { players: cohort.length, classificationAccuracy: cohort.length ? cohort.filter(p => p.predictedMovement === p.actualMovement).length / cohort.length : null, noMovementBaselineAccuracy: cohort.length ? cohort.filter(p => p.actualMovement === 0).length / cohort.length : null, bumps: movement(1), stays: movement(0), drops: movement(-1) }, cohort, limitations: ['Historical cross-season stress test, not an independently timestamped prospective forecast.', 'Configuration selected on 2026 data; reused unchanged on 2025.', 'Annual labels are copied from TennisRecord and are not independently verified official USTA outcomes.', 'October calendar cutoff and all reviewed playing-strength sources do not establish USTA championship-year eligibility.', 'Minimum three courts is a descriptive cohort rule, not calibrated confidence.', 'Annual band crossing is a diagnostic hypothesis, not a validated forecasting rule.', 'Rows may still have unknown provenance issues or incomplete source history.'] }
+  const report = { generatedAt: new Date().toISOString(), inputSHA256: createHash('sha256').update(bytes).digest('hex'), productionWrites: 0, releaseEligible: false, season: graph.season, cutoff, config: network.config, datedPriorPlayers: priors.size, conflictingPriorPlayers: [...groups.values()].filter(values => values.size > 1).length, loadedCourtRows: graph.matches.length, parsedCourts: courts.length, quarantinedAmbiguousCourtRows: ambiguous.size, usableCourts: network.predictions.length, unanchoredCourts: network.skippedUnanchored.length, gameShare: metrics(network.predictions), formatGroups: { singles: metrics(network.predictions.filter(p => p.format === 'singles')), doubles: metrics(network.predictions.filter(p => p.format === 'doubles')) }, anchorDistanceGroups: Object.fromEntries([0, 1, 2, 3].map(distance => [distance === 3 ? '3+' : String(distance), metrics(network.predictions.filter(p => distance === 3 ? p.maximumAnchorDistance >= 3 : p.maximumAnchorDistance === distance))])), laterGameShare: metrics(network.predictions.filter(p => p.date >= `${graph.season}-08-01`)), quarantinedAnnualPairs, secondaryAnnualLabelCohort: { players: cohort.length, classificationAccuracy: cohort.length ? cohort.filter(p => p.predictedMovement === p.actualMovement).length / cohort.length : null, noMovementBaselineAccuracy: cohort.length ? cohort.filter(p => p.actualMovement === 0).length / cohort.length : null, bumps: movement(1), stays: movement(0), drops: movement(-1) }, cohort, limitations: ['Historical cross-season stress test, not an independently timestamped prospective forecast.', 'Configuration selected on 2026 data; reused unchanged on 2025.', 'Annual labels are copied from TennisRecord and are not independently verified official USTA outcomes.', 'October calendar cutoff and all reviewed playing-strength sources do not establish USTA championship-year eligibility.', 'Minimum three courts is a descriptive cohort rule, not calibrated confidence.', 'Annual band crossing is a diagnostic hypothesis, not a validated forecasting rule.', 'Pairs with different source profile identities are quarantined; same-source pairs are still secondary evidence.','The earlier canonical-ID-only 55-player cohort is invalid for movement scoring.','Rows may still have unknown provenance issues or incomplete source history.'] }
   await writeFile(out, JSON.stringify(report, null, 2))
   console.log(JSON.stringify({ ...report, cohort: undefined }, null, 2))
 }
