@@ -5,6 +5,8 @@ export type NetworkCourt = {
   format: NetworkFormat
   participants: { playerId: string; side: 'A' | 'B' }[]
   actualGameShare: number
+  /** Individual Adult division context; never an official player rating. */
+  divisionLevel?: number
 }
 export type NetworkState = {
   strength: number
@@ -34,6 +36,7 @@ export const NETWORK_CONFIG = Object.freeze({
   processVariance: 0.0004,
   priorOffset: 0.25,
   repeatedPartnerWeight: 1,
+  divisionContextWeight: 0,
 })
 export type NetworkConfig = { [Key in keyof typeof NETWORK_CONFIG]: number }
 const bounded = (value: number) => Math.max(1.5, Math.min(7, value))
@@ -52,7 +55,7 @@ export function replayRatingNetwork(input: {
 }) {
   const config = { ...NETWORK_CONFIG, ...input.config }
   if (!validDate(input.startsOn) || !validDate(input.cutoff) || input.startsOn > input.cutoff) throw new Error('Invalid replay window')
-  if (Object.values(config).some(value => !Number.isFinite(value)) || config.response < 0 || config.unknownVariance <= 0 || config.priorVariance <= 0 || config.observationVariance <= 0 || config.processVariance < 0 || config.repeatedPartnerWeight <= 0 || config.repeatedPartnerWeight > 1) throw new Error('Invalid network configuration')
+  if (Object.values(config).some(value => !Number.isFinite(value)) || config.response < 0 || config.unknownVariance <= 0 || config.priorVariance <= 0 || config.observationVariance <= 0 || config.processVariance < 0 || config.repeatedPartnerWeight <= 0 || config.repeatedPartnerWeight > 1 || config.divisionContextWeight < 0 || config.divisionContextWeight > 1) throw new Error('Invalid network configuration')
   for (const level of input.priors.values()) if (!Number.isFinite(level) || level < 1.5 || level > 7 || !Number.isInteger(level * 2)) throw new Error('Invalid dated rating prior')
   for (const shift of input.priorStrengthShifts?.values() ?? []) if (!Number.isFinite(shift) || Math.abs(shift) > 1) throw new Error('Invalid prior sensitivity shift')
   const seen = new Set<string>(), days = new Map<string, NetworkCourt[]>()
@@ -63,6 +66,7 @@ export function replayRatingNetwork(input: {
     seen.add(court.id)
     const count = court.format === 'singles' ? 1 : court.format === 'doubles' ? 2 : 0
     if (!count || court.participants.length !== count * 2 || new Set(court.participants.map(p => p.playerId)).size !== count * 2 || court.participants.some(p => !p.playerId || !['A', 'B'].includes(p.side)) || ['A', 'B'].some(side => court.participants.filter(p => p.side === side).length !== count) || !Number.isFinite(court.actualGameShare) || court.actualGameShare < 0 || court.actualGameShare > 1) throw new Error('Invalid reviewed court')
+    if (court.divisionLevel !== undefined && (!Number.isFinite(court.divisionLevel) || court.divisionLevel < 1.5 || court.divisionLevel >= 6 || !Number.isInteger(court.divisionLevel * 2))) throw new Error('Invalid individual division context')
     days.set(court.date, [...(days.get(court.date) ?? []), court])
   }
   const states = new Map<string, NetworkState>(), predictions: NetworkPrediction[] = [], skippedUnanchored: string[] = []
@@ -77,7 +81,8 @@ export function replayRatingNetwork(input: {
     for (const court of courts) {
       const known = court.participants.map(p => states.get(key(p.playerId, court.format))).filter((state): state is NetworkState => !!state)
       if (!known.length) continue
-      const strength = known.reduce((sum, state) => sum + state.strength, 0) / known.length
+      const knownStrength = known.reduce((sum, state) => sum + state.strength, 0) / known.length
+      const strength = court.divisionLevel === undefined || config.divisionContextWeight === 0 ? knownStrength : (1 - config.divisionContextWeight) * knownStrength + config.divisionContextWeight * bounded(court.divisionLevel + config.priorOffset)
       const distance = Math.min(...known.map(state => state.anchorDistance)) + 1
       for (const player of court.participants) {
         const id = key(player.playerId, court.format)
