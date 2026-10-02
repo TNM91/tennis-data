@@ -9,7 +9,7 @@ import { findExistingProductionMatch, type ProductionMatch, type CanonicalPartic
 import { tennisRecordEventReviews } from './source-event-identity'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordCampaignCurrentEndOn, tennisRecordFrontierStatus } from './frontier'
 import type { TennisRecordRunSummary } from './types'
-import { activeChampionshipYears, currentPlayerRefreshUrls, currentRefreshPageKindPlan, currentSeasonDiscoveryUrls, futureScorecardRefreshAt, nextCurrentRefreshAt, preferCurrentSeason } from './current-refresh'
+import { activeChampionshipYears, currentPlayerRefreshUrls, currentRefreshPageKindPlan, currentSeasonDiscoveryUrls, currentSeasonPreferredScope, nationalCurrentSeasonUrl, futureScorecardRefreshAt, nextCurrentRefreshAt, preferCurrentSeason } from './current-refresh'
 import { createRatingTimingObserver, emitImporterTelemetry, sourceAttemptFailureSignal, type SourceAttemptSample } from './telemetry'
 import { readSourceOutageState, recordSourceOutageFailure, sourceOutageIsCooling, type SourceOutageState } from './source-outage'
 
@@ -2255,3 +2255,4 @@ async function promoteTennisRecordMatch(service: SupabaseClient, staged: Record<
 function emptySummary(status: TennisRecordRunSummary['status']): TennisRecordRunSummary {
   return { status, pagesAttempted: 0, pagesProcessed: 0, playersDiscovered: 0, teamsDiscovered: 0, matchesStaged: 0, canonicalMatchesCreated: 0, duplicatesDetected: 0, conflictsFound: 0, blockedRequests: 0, parserFailures: 0, transientRetries: 0, sourceFailures: 0 }
 }
+
