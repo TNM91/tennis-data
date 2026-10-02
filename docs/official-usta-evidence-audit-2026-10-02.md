@@ -44,3 +44,13 @@ No production ratings, player identities or official-source database rows were c
 
 USTA's current player-search instructions:
 https://customercare.usta.com/hc/en-us/articles/33967102119188-Searching-for-a-Player-and-View-their-NTRP-Rating
+
+## Authenticated retry succeeded
+
+User requested a retry after sign-in. Official player records are now accessible in the app browser. Nathan's identity is corroborated by Lake Saint Louis, MO and his registered Meinert/The Other Guys teams. Local captures preserve the rendered 2026 and 2027 Individual Player Records.
+
+The 2027 report confirms September 13 and September 20, 2026 doubles wins, with official team-match IDs 1012222932 and 1012222936. These IDs identify team scorecards; they are not unique court IDs. Preserve court position and participant identities when reconciling.
+
+The 2026 report contains 31 listed courts, including 19 played in calendar 2026. Combined with the two calendar-2026 courts in the 2027 report, this is 21 courts. It includes a September 30 win with Christopher Krieger against Trevor Neale/Eric Abramson, 5-7, 6-4, 1-0, #1 Doubles, team-match ID 1012101435. This court is absent from the earlier frozen v2 input graph, whose latest Nathan court is September 20. This establishes an additional snapshot completeness gap, not yet whether a subsequent production import has caught up.
+
+The 4.72 diagnostic remains based on 15/20 accepted courts in that earlier graph. Do not reinterpret it as a complete 21-court official-source replay. Official match dates, winner-first score orientation, incomplete timed scores, match tiebreak treatment, and championship-year assignment must be retained when comparing source evidence. No production writes were made by this retry.
