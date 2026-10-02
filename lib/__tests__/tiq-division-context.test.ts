@@ -6,7 +6,8 @@ const input = { startsOn: '2026-01-01', cutoff: '2026-10-02', priors: new Map([[
 describe('research individual division context', () => {
   it('preserves the reference when disabled', () => {
     const withContext = court('1', 'a', 'b')
-    const { divisionLevel: _, ...withoutContext } = withContext
+    const withoutContext = { ...withContext }
+    delete withoutContext.divisionLevel
     expect(replayRatingNetwork({ ...input, courts: [withContext] })).toEqual(replayRatingNetwork({ ...input, courts: [withoutContext] }))
   })
   it('blends only unknown initial strength and preserves evidence ancestry', () => {
@@ -33,3 +34,4 @@ describe('research individual division context', () => {
     expect(individualAdultDivisionLevel(name, 2026)).toBeNull()
   })
 })
+
