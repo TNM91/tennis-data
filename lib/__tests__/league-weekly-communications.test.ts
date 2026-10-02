@@ -20,7 +20,8 @@ describe('weekly communication recipients', () => {
     expect(getWeeklyCommunicationRecipients({ ...input, kind: 'courts' })).toEqual(['a', 'b', 'c', 'd'])
     expect(getWeeklyCommunicationRecipients({ ...input, assignments: [], kind: 'courts' })).toEqual([])
   })
-  it('deduplicates linked accounts and sends change notices to the league membership', () => {
-    expect(getWeeklyCommunicationRecipients({ ...input, entries: [...entries, entries[0]], kind: 'change' })).toEqual(['a', 'b', 'c', 'd'])
+  it('deduplicates linked accounts and limits changes to affected players', () => {
+    expect(getWeeklyCommunicationRecipients({ ...input, entries: [...entries, entries[0]], affectedNames: [' a ', 'B'], kind: 'change' })).toEqual(['a', 'b'])
+    expect(getWeeklyCommunicationRecipients({ ...input, kind: 'change' })).toEqual([])
   })
 })

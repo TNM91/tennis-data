@@ -32,18 +32,26 @@ async function loadWeeklySession(token: string) {
   return { ok: true as const, service, session: session as WeeklySessionRow, league }
 }
 
-export async function GET(_request: Request, { params }: { params: Promise<{ token: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
   const loaded = await loadWeeklySession(token)
   if (!loaded.ok) return loaded.response
   const assignments = Array.isArray(loaded.session.assignments) ? loaded.session.assignments as LeagueWeeklyCourt[] : []
   const published = ['published', 'completed'].includes(loaded.session.status)
+  const playerName = new URL(request.url).searchParams.get('playerName') || ''
+  const knownPlayers = Array.isArray(loaded.league.players) ? loaded.league.players.map(String) : []
+  const canonical = knownPlayers.find(name => name.toLowerCase() === playerName.toLowerCase())
+  const [reply, withdrawal] = canonical ? await Promise.all([
+    loaded.service.from('tiq_league_weekly_responses').select('response_status').eq('session_id', loaded.session.id).eq('player_name', canonical).maybeSingle(),
+    loaded.service.from('tiq_league_weekly_change_requests').select('status').eq('session_id', loaded.session.id).eq('player_name', canonical).maybeSingle(),
+  ]) : [{ data: null }, { data: null }]
   const { data: results } = published
     ? await loaded.service.from('tiq_league_weekly_set_results').select('court_number,set_number,side_a_games,side_b_games,submitted_by_name,review_status').eq('session_id', loaded.session.id).order('court_number').order('set_number')
     : { data: [] }
 
   return Response.json({
     ok: true,
+    player: canonical ? { name: canonical, responseStatus: reply.data?.response_status || null, withdrawalPending: withdrawal.data?.status === 'pending' } : null,
     league: {
       name: loaded.league.league_name,
       logoUrl: loaded.league.photo_url,
@@ -56,11 +64,11 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tok
       playOn: loaded.session.play_on,
       responseDeadline: loaded.session.response_deadline,
       status: loaded.session.status,
-      roster: published && Array.isArray(loaded.session.roster) ? loaded.session.roster : [],
+      roster: loaded.session.status !== 'collecting' && Array.isArray(loaded.session.roster) ? loaded.session.roster : [],
       assignments: published ? assignments : [],
       results: results || [],
     },
-  })
+  }, { headers: { 'Cache-Control': 'no-store' } })
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
@@ -81,6 +89,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
 
   if (body.action === 'rsvp') {
     if (loaded.session.status !== 'collecting') return Response.json({ ok: false, message: 'The roster is already confirmed for this week.' }, { status: 409 })
+    if (loaded.session.response_deadline && Date.parse(loaded.session.response_deadline) <= Date.now()) return Response.json({ ok: false, message: 'The reply deadline has passed. Contact League Office for a late place.' }, { status: 409 })
     const responseStatus = body.responseStatus === 'out' ? 'out' : body.responseStatus === 'in' ? 'in' : ''
     if (!responseStatus) return Response.json({ ok: false, message: 'Choose in or out for this week.' }, { status: 400 })
     const { error } = await loaded.service.from('tiq_league_weekly_responses').upsert({
@@ -95,6 +104,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     return Response.json({ ok: true, message: `You are marked ${responseStatus} for this week.` })
   }
 
+  if (body.action === 'withdraw') {
+    const courts = Array.isArray(loaded.session.assignments) ? loaded.session.assignments as LeagueWeeklyCourt[] : []
+    const roster = Array.isArray(loaded.session.roster) ? loaded.session.roster : []
+    if (!['published', 'roster_confirmed'].includes(loaded.session.status) || (!roster.includes(canonicalPlayerName) && !courts.some(court => court.players.includes(canonicalPlayerName)))) return Response.json({ ok: false, message: 'Withdrawal requests are available for confirmed players before the week is complete.' }, { status: 409 })
+    const { error } = await loaded.service.from('tiq_league_weekly_change_requests').upsert({ session_id: loaded.session.id, player_name: canonicalPlayerName, reason: cleanAvailabilityText(body.reason, 500), status: 'pending', requested_at: new Date().toISOString() }, { onConflict: 'session_id,player_name' })
+    if (error) return Response.json({ ok: false, message: 'The withdrawal request could not be saved. Contact League Office.' }, { status: 503 })
+    return Response.json({ ok: true, message: 'Withdrawal requested. Your court place stays reserved until League Office confirms a replacement.' })
+  }
+
   if (body.action === 'score') {
     if (!['published', 'completed'].includes(loaded.session.status)) return Response.json({ ok: false, message: 'Court assignments are not published yet.' }, { status: 409 })
     const assignments = Array.isArray(loaded.session.assignments) ? loaded.session.assignments as LeagueWeeklyCourt[] : []
@@ -103,8 +121,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     const court = assignments.find((item) => item.courtNumber === courtNumber)
     const set = court?.sets.find((item) => item.setNumber === setNumber)
     if (!court || !set || !court.players.includes(canonicalPlayerName)) return Response.json({ ok: false, message: 'Choose a set from your assigned court.' }, { status: 400 })
-    const sideAGames = Number(body.sideAGames)
-    const sideBGames = Number(body.sideBGames)
+    const sideAGames = typeof body.sideAGames === 'number' ? body.sideAGames : Number.NaN
+    const sideBGames = typeof body.sideBGames === 'number' ? body.sideBGames : Number.NaN
     const scoreValidation = validateLeagueWeeklySetScore(sideAGames, sideBGames)
     if (!scoreValidation.valid) return Response.json({ ok: false, message: scoreValidation.message }, { status: 400 })
     const submittedAt = new Date().toISOString()
@@ -145,7 +163,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       submitted_at: submittedAt,
       review_status: official.reviewStatus,
     }, { onConflict: 'session_id,court_number,set_number' })
-    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    if (error) {
+      if (error.message.includes('league-approved score remains official')) return Response.json({ ok: true, reviewStatus: 'approved', message: 'Your score is recorded. The league-approved score remains official.' })
+      return Response.json({ ok: false, message: error.message }, { status: 500 })
+    }
     const positiveShare = cleanAvailabilityText(body.positiveShare, 800)
     if (positiveShare) {
       await loaded.service.from('tiq_league_weekly_responses').update({ positive_share: positiveShare }).eq('session_id', loaded.session.id).eq('player_name', canonicalPlayerName)

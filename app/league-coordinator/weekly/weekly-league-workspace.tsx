@@ -8,6 +8,9 @@ import PremiumLeagueCourt from '@/app/components/premium-league-court'
 import QuickMessageComposer from '@/app/components/quick-message-composer'
 import LocationDirectionsLink from '@/app/components/location-directions-link'
 import LeagueOperationsSettings from './league-operations-settings'
+import WeeklyLateChanges from './weekly-late-changes'
+import LeagueLifecyclePanel from '@/app/components/league-lifecycle-panel'
+import { getWeeklyLaunchReadiness, getAffectedWeeklyPlayers } from '@/lib/league-weekly-operations'
 import WeeklyScoreIntelligencePanel from './weekly-score-intelligence-panel'
 import LeagueAnalytics from '@/app/components/league-analytics'
 import { buildLeagueWeeklyCompetitionView, type LeagueWeeklyCompetitionView } from '@/lib/league-weekly-player-records'
@@ -49,6 +52,7 @@ type TiqRatingRow = { id: string; doubles_dynamic_rating: number | null; overall
 
 type WeeklySession = {
   id: string
+  updated_at: string
   public_token: string
   play_on: string
   response_deadline: string | null
@@ -95,11 +99,19 @@ export default function WeeklyLeagueWorkspace({
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
+  const [deadlineDraft, setDeadlineDraft] = useState({ playOn: '', value: '' })
   const playerPreviewRef = useRef<HTMLDialogElement>(null)
   const sessionRequestRef = useRef(0)
   const [recapDraft, setRecapDraft] = useState<RecapDraft>({ headline: '', summary: '', stories: [] })
 
   const league = useMemo(() => leagues.find((record) => record.id === leagueId) || null, [leagueId, leagues])
+  const defaultDeadline = new Date(`${playOn}T18:00:00`)
+  defaultDeadline.setDate(defaultDeadline.getDate() - 1)
+  const deadlineValue = deadlineDraft.playOn === playOn ? deadlineDraft.value : Number.isNaN(defaultDeadline.getTime()) ? '' : `${localDateKey(defaultDeadline)}T18:00`
+  const deadlineDate = new Date(deadlineValue)
+  const deadlineIso = Number.isNaN(deadlineDate.getTime()) ? null : deadlineDate.toISOString()
+  const readiness = league ? getWeeklyLaunchReadiness({ name: league.leagueName, facility: league.defaultFacility, players: league.players, startTimes: league.weeklySettings.startTimes, courtCount: league.weeklySettings.courtCount, playOn, deadline: deadlineIso, seasonStatus: league.seasonStatus, startsOn: league.startsOn, endsOn: league.endsOn, timeZone: league.scheduleTimeZone }) : []
+  const readyToLaunch = readiness.length > 0 && readiness.every(item => item.ready)
   const inPlayers = useMemo(() => responses.filter((response) => response.response_status === 'in').map((response) => response.player_name), [responses])
   const rosterSummary = useMemo(
     () => getLeagueWeeklyRosterSummary(selectedPlayers, league?.weeklySettings || {}),
@@ -129,7 +141,7 @@ export default function WeeklyLeagueWorkspace({
     setScoreSubmissions([])
     const { data, error } = await supabase
       .from('tiq_league_weekly_sessions')
-      .select('id,public_token,play_on,response_deadline,status,roster,assignments,recap')
+      .select('id,updated_at,public_token,play_on,response_deadline,status,roster,assignments,recap')
       .eq('league_id', targetLeagueId)
       .eq('play_on', targetPlayOn)
       .maybeSingle()
@@ -257,14 +269,12 @@ export default function WeeklyLeagueWorkspace({
   }, [leagueId])
 
   async function createSession() {
-    if (!league || !userId) return
+    if (!league || !userId || !readyToLaunch) return
     setBusy(true)
-    const deadline = new Date(`${playOn}T08:00:00`)
-    deadline.setDate(deadline.getDate() - 1)
     const { error } = await supabase.from('tiq_league_weekly_sessions').insert({
       league_id: league.id,
       play_on: playOn,
-      response_deadline: deadline.toISOString(),
+      response_deadline: deadlineIso,
       created_by_user_id: userId,
     })
     if (error) setStatus(error.message)
@@ -307,18 +317,26 @@ export default function WeeklyLeagueWorkspace({
 
   async function publishCourts() {
     if (!league || !session) return
+    if (session.status === 'completed') { setStatus('This week is complete. Choose a new week to publish courts.'); return }
     const assignments = courtPlan?.courts || []
     if (!assignments.length) {
       setStatus('Confirm at least four players before building courts.')
       return
     }
+    const selectedOut = responses.filter(response => response.response_status === 'out' && assignments.some(court => court.players.includes(response.player_name)))
+    if (selectedOut.length && !window.confirm(`${selectedOut.map(response => response.player_name).join(', ')} replied out. Have you confirmed they can play before assigning a court?`)) return
+    if (session.status === 'published') {
+      const affected = getAffectedWeeklyPlayers(session.assignments, assignments)
+      if (affected.length && !window.confirm(`Update the published plan for ${affected.length} affected players? Submitted scores protect their courts. You can prepare a change notification after saving.`)) return
+    }
     setBusy(true)
-    const { error } = await supabase.from('tiq_league_weekly_sessions').update({
-      roster: selectedPlayers,
+    const { data: saved, error } = await supabase.from('tiq_league_weekly_sessions').update({
+      roster: assignments.flatMap(court => court.players),
       assignments,
       status: 'published',
-    }).eq('id', session.id)
+    }).eq('id', session.id).eq('updated_at', session.updated_at).select('id').maybeSingle()
     if (error) setStatus(error.message)
+    else if (!saved) setStatus('This week changed. Refresh before publishing your plan.')
     else await loadSession(league.id, playOn)
     setBusy(false)
   }
@@ -486,6 +504,8 @@ export default function WeeklyLeagueWorkspace({
 
           {league ? <WeeklyWaveSummary league={league} selectedCount={selectedPlayers.length || inPlayers.length} /> : null}
 
+          {league ? <section style={panelStyle}><p style={eyebrowStyle}>League and seasons</p><div style={actionRowStyle}><Link style={secondaryButtonStyle} href={`/league-coordinator?leagueId=${encodeURIComponent(league.id)}#league-setup-form`}>Edit league</Link>{league.createdByUserId === userId ? <Link style={secondaryButtonStyle} href={`/league-coordinator?leagueId=${encodeURIComponent(league.id)}&action=renew#league-setup-form`}>Renew for a new season</Link> : null}<button style={secondaryButtonStyle} disabled={busy} onClick={() => void loadSession(league.id, playOn)}>Refresh this week</button></div><details style={{ marginTop: 14 }}><summary>Past seasons</summary>{leagues.filter(record => record.id !== league.id && record.leagueName === league.leagueName).map(record => <p key={record.id}><Link href={`/explore/leagues/tiq/${encodeURIComponent(record.id)}`}>{record.seasonLabel} · {record.seasonStatus}</Link></p>)}<p>Prior results stay with their original season. Use the week arrows above to revisit this season’s weeks.</p></details>{userId ? <LeagueLifecyclePanel key={league.id} league={league} userId={userId} onRemoved={removedId => { setLeagues(current => current.filter(record => record.id !== removedId)); setLeagueId(''); setSession(null) }} onOwnershipChanged={async () => { const { records } = await listTiqLeagues(); setLeagues(records.filter(record => record.weeklySettings.enabled)) }} /> : null}</section> : null}
+
           {league && userId ? (
             <LeagueOperationsSettings
               key={league.id}
@@ -502,7 +522,9 @@ export default function WeeklyLeagueWorkspace({
               <p style={eyebrowStyle}>1 · Open replies</p>
               <h2>Create this week’s player link</h2>
               <p>Players choose in or out. Their optional note and positive share stay with this week.</p>
-              {userId ? <button onClick={() => void createSession()} disabled={busy} style={buttonStyle}>{busy ? 'Loading this week…' : 'Open weekly replies'}</button> : <Link href="/login?next=%2Fleague-coordinator%2Fweekly" style={primaryLinkStyle}>Sign in to run the week</Link>}
+              <label style={labelStyle}>Response deadline (your device time)<input type="datetime-local" value={deadlineValue} onChange={event => setDeadlineDraft({ playOn, value: event.target.value })} style={inputStyle} /></label>
+              <h3>Ready to launch</h3><ul>{readiness.map(item => <li key={item.key} style={{ marginBottom: 8 }}><strong>{item.ready ? '✓' : 'Needs attention:'} {item.label}</strong>{!item.ready ? <span> · {item.detail}</span> : null}</li>)}</ul>
+              {userId ? <button onClick={() => void createSession()} disabled={busy || !readyToLaunch} style={buttonStyle}>{busy ? 'Loading this week…' : 'Open weekly replies'}</button> : <Link href="/login?next=%2Fleague-coordinator%2Fweekly" style={primaryLinkStyle}>Sign in to run the week</Link>}
             </section>
           ) : (
             <>
@@ -511,10 +533,11 @@ export default function WeeklyLeagueWorkspace({
                 <div style={headerStyle}><div><h2>{inPlayers.length} in · {responses.filter((item) => item.response_status === 'out').length} out</h2><p>Share one link with the league. The roster stays editable until you publish courts.</p></div><span style={pillStyle}>{session.status.replace('_', ' ')}</span></div>
                 <div style={shareRowStyle}><input readOnly value={shareUrl} style={inputStyle} /><button style={buttonStyle} onClick={() => void copyWeeklyLink()}><Copy size={17} weight="bold" />{linkCopied ? 'Copied — preview ready' : 'Copy player link'}</button></div>
                 <p className={styles.sharePreviewNote}><ShareNetwork size={18} weight="duotone" /><span><strong>League-branded text preview</strong>Your league logo, date, site, and “Are you in?” card appear when supported messaging apps unfurl this link.</span></p>
-                {league ? <WeeklyCommunicationCenter key={session.id} sessionId={session.id} sessionStatus={session.status} accessToken={authSession?.access_token || ''} league={league} playOn={playOn} shareUrl={shareUrl} responses={responses} selectedPlayers={session.roster || []} assignments={session.assignments || []} /> : null}
+                {league ? <WeeklyCommunicationCenter key={`${session.id}-${session.updated_at}`} sessionId={session.id} sessionStatus={session.status} accessToken={authSession?.access_token || ''} league={league} playOn={playOn} shareUrl={shareUrl} responses={responses} selectedPlayers={session.roster || []} assignments={session.assignments || []} /> : null}
               </section>
 
               <section id="weekly-roster" style={panelStyle}>
+                {session.status === 'published' ? <WeeklyLateChanges key={`${session.id}-${session.updated_at}`} sessionId={session.id} updatedAt={session.updated_at} courts={session.assignments} players={league?.players || []} inPlayers={inPlayers} scoredCourts={[...new Set([...results, ...scoreSubmissions].map(result => result.court_number))]} onRefresh={() => loadSession(leagueId, playOn)} /> : null}
                 <p style={eyebrowStyle}>2 · Confirm roster</p>
                 <div className={styles.rosterHeadline}><UsersThree size={30} weight="duotone" /><h2>{rosterSummary.playingCount} playing · {rosterSummary.openSpots} open · {rosterSummary.waitlistCount} waiting</h2></div>
                 <div style={playerGridStyle}>
@@ -530,7 +553,7 @@ export default function WeeklyLeagueWorkspace({
                   plan={courtPlan}
                   courtCount={league?.weeklySettings.courtCount || 0}
                   lockedCourts={lockedCourts}
-                  busy={busy}
+                  busy={busy || session.status === 'completed'}
                   onMovePlayer={lockPlayerToCourt}
                   onPublish={() => void publishCourts()}
                 />
@@ -548,6 +571,7 @@ export default function WeeklyLeagueWorkspace({
 
               {analyticsView && session.assignments?.length ? <LeagueAnalytics key={`${leagueId}-${session.id}`} view={analyticsView} initialSessionId={session.id} showRankings={league?.weeklySettings.showRankings} /> : null}
               {session.assignments?.length && league && authSession?.access_token ? <WeeklyScoreIntelligencePanel
+                key={session.id}
                 sessionId={session.id}
                 courts={session.assignments}
                 results={results.map((result) => ({ courtNumber: result.court_number, setNumber: result.set_number, sideAGames: result.side_a_games, sideBGames: result.side_b_games, submittedByName: result.submitted_by_name, reviewStatus: result.review_status }))}
@@ -640,11 +664,12 @@ function WeeklyCommunicationCenter({
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState('')
   const [receipts, setReceipts] = useState<Partial<Record<WeeklyCommunicationKind, { lastSent: string; count: number }>>>({})
+  const [revision, setRevision] = useState<{ id: string; affected_names: string[] } | null>(null)
   useEffect(() => {
     if (!accessToken) return
     let active = true
     void fetch(`/api/leagues/weekly/sessions/${sessionId}/communications`, { headers: { Authorization: `Bearer ${accessToken}` } }).then(async (response) => {
-      if (response.ok && active) setReceipts((await response.json()).receipts || {})
+      if (response.ok && active) { const payload = await response.json(); setReceipts(payload.receipts || {}); setRevision(payload.revision || null) }
     }).catch(() => {})
     return () => { active = false }
   }, [accessToken, sessionId])
@@ -656,7 +681,7 @@ function WeeklyCommunicationCenter({
     { kind: 'reminder', title: 'Remind nonresponders', detail: `${waitingPlayers.length} waiting`, message: `${league.leagueName}: are you in for ${formatWorkspaceDate(playOn)}? Reply here: ${shareUrl}`, disabled: sessionStatus !== 'collecting' || !waitingPlayers.length, icon: Bell },
     { kind: 'roster', title: 'Send confirmed roster', detail: published ? `${selectedPlayers.length} confirmed` : 'Publish the court plan first', message: `${league.leagueName} · ${formatWorkspaceDate(playOn)}\nConfirmed roster: ${selectedPlayers.join(', ')}\n${shareUrl}`, disabled: !published, icon: UserCheck },
     { kind: 'courts', title: 'Send court assignments', detail: published ? `${assignments.length} courts ready` : 'Publish the court plan first', message: `${league.leagueName} · ${formatWorkspaceDate(playOn)}\n${courtLines}\n${shareUrl}`, disabled: !published, icon: UsersThree },
-    { kind: 'change', title: 'Notify players of changes', detail: 'Update linked league players', message: `${league.leagueName}: the plan for ${formatWorkspaceDate(playOn)} has changed.\n\n${shareUrl}`, disabled: false, icon: ShareNetwork },
+    { kind: 'change', title: 'Notify players of changes', detail: revision ? `${revision.affected_names.length} affected players only` : 'Save a court change first', message: `${league.leagueName}: the plan for ${formatWorkspaceDate(playOn)} has changed.\n${courtLines}\n${shareUrl}`, disabled: !revision, icon: ShareNetwork },
   ]
 
   async function sendUpdate() {
@@ -664,7 +689,7 @@ function WeeklyCommunicationCenter({
     setSending(true)
     setNotice('')
     try {
-      const response = await fetch(`/api/leagues/weekly/sessions/${sessionId}/communications`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: activeKind, message: draft }) })
+      const response = await fetch(`/api/leagues/weekly/sessions/${sessionId}/communications`, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: activeKind, message: draft, revisionId: revision?.id }) })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.message || 'This update could not be sent.')
       setNotice(payload.message)

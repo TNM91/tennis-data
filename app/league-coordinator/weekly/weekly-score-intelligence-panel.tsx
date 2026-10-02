@@ -22,7 +22,20 @@ export default function WeeklyScoreIntelligencePanel({ sessionId, courts, result
   const [drafts, setDrafts] = useState<Record<string, { a: string; b: string }>>({})
   const [message, setMessage] = useState('')
   const [busyKey, setBusyKey] = useState('')
-  const reviewSets = [...review.disputed, ...review.pending, ...review.missing]
+  const [correctionsOpen, setCorrectionsOpen] = useState(false)
+  const [reasons, setReasons] = useState<Record<string, string>>({})
+  const [history, setHistory] = useState<Array<{ court_number: number; set_number: number; changed_at: string; previous_score: { side_a_games: number; side_b_games: number } | null; next_score: { side_a_games: number; side_b_games: number; review_note?: string } }>>([])
+  const reviewSets = [...review.disputed, ...review.pending, ...review.missing, ...(correctionsOpen ? results.filter(result => ['confirmed', 'approved'].includes(result.reviewStatus || '')) : [])]
+
+  async function loadHistory() {
+    try {
+      const response = await fetch(`/api/leagues/weekly/sessions/${sessionId}/scores`, { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.message)
+      setHistory(payload.history || [])
+      if (!payload.history?.length) setMessage('No score changes have been recorded yet.')
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Score history could not be loaded.') }
+  }
 
   function resultFor(set: ReviewSet) {
     return results.find((result) => result.courtNumber === set.courtNumber && result.setNumber === set.setNumber)
@@ -31,8 +44,10 @@ export default function WeeklyScoreIntelligencePanel({ sessionId, courts, result
   async function approve(set: ReviewSet) {
     const key = `${set.courtNumber}-${set.setNumber}`
     const current = resultFor(set)
-    const sideAGames = Number(drafts[key]?.a ?? current?.sideAGames)
-    const sideBGames = Number(drafts[key]?.b ?? current?.sideBGames)
+    const rawA = drafts[key]?.a ?? current?.sideAGames
+    const rawB = drafts[key]?.b ?? current?.sideBGames
+    const sideAGames = rawA === '' ? Number.NaN : Number(rawA)
+    const sideBGames = rawB === '' ? Number.NaN : Number(rawB)
     const validation = validateLeagueWeeklySetScore(sideAGames, sideBGames)
     if (!validation.valid) {
       setMessage(validation.message)
@@ -43,7 +58,7 @@ export default function WeeklyScoreIntelligencePanel({ sessionId, courts, result
       const response = await fetch(`/api/leagues/weekly/sessions/${sessionId}/scores`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courtNumber: set.courtNumber, setNumber: set.setNumber, sideAGames, sideBGames }),
+        body: JSON.stringify({ courtNumber: set.courtNumber, setNumber: set.setNumber, sideAGames, sideBGames, reviewNote: reasons[key] || '', expectedScore: current ? { sideAGames: current.sideAGames, sideBGames: current.sideBGames, reviewStatus: current.reviewStatus } : null }),
       })
       const payload = await response.json() as { message?: string }
       setMessage(payload.message || (response.ok ? 'Score approved.' : 'That score could not be approved.'))
@@ -72,7 +87,8 @@ export default function WeeklyScoreIntelligencePanel({ sessionId, courts, result
               const key = `${set.courtNumber}-${set.setNumber}`
               const current = resultFor(set)
               const setSubmissions = submissions.filter((submission) => submission.courtNumber === set.courtNumber && submission.setNumber === set.setNumber)
-              const state = current?.reviewStatus === 'disputed' ? 'Different scores' : current?.reviewStatus === 'pending' ? 'One report' : 'Missing score'
+              const official = current && ['approved', 'confirmed'].includes(current.reviewStatus || '')
+              const state = official ? 'Official score · correction requires a reason' : current?.reviewStatus === 'disputed' ? 'Different scores' : current?.reviewStatus === 'pending' ? 'One report' : 'Missing score'
               return <article key={key} style={reviewCardStyle}>
                 <div><strong>Court {set.courtNumber} · Set {set.setNumber}</strong><p style={reviewCopyStyle}>{state}{setSubmissions.length ? ` · ${setSubmissions.map((submission) => `${submission.submittedByName}: ${submission.sideAGames}–${submission.sideBGames}`).join(' · ')}` : ''}</p></div>
                 <div style={scoreControlStyle}>
@@ -81,10 +97,13 @@ export default function WeeklyScoreIntelligencePanel({ sessionId, courts, result
                   <input aria-label={`Court ${set.courtNumber} set ${set.setNumber} second side games`} type="number" inputMode="numeric" min={0} max={7} value={drafts[key]?.b ?? current?.sideBGames ?? ''} onChange={(event) => setDrafts((items) => ({ ...items, [key]: { a: items[key]?.a ?? String(current?.sideAGames ?? ''), b: event.target.value } }))} style={scoreInputStyle} />
                   <button disabled={busyKey === key} onClick={() => void approve(set)} style={buttonStyle}>{busyKey === key ? 'Saving…' : current ? 'Approve score' : 'Enter score'}</button>
                 </div>
+                {official ? <label style={{ width: '100%' }}>Correction reason<input maxLength={500} value={reasons[key] || ''} onChange={event => setReasons(items => ({ ...items, [key]: event.target.value }))} style={{ ...scoreInputStyle, width: '100%', textAlign: 'left' }} /></label> : null}
               </article>
             })}
           </div>
         ) : <p style={successStyle}>Every published set has an official score.</p>}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 16 }}><button style={buttonStyle} onClick={() => setCorrectionsOpen(open => !open)} aria-expanded={correctionsOpen}>{correctionsOpen ? 'Hide official scores' : 'Correct an official score'}</button><button style={buttonStyle} onClick={() => void loadHistory()}>View score history</button></div>
+        {history.length ? <ol aria-label="Score correction history">{history.map((item, index) => <li key={`${item.changed_at}-${index}`} style={{ marginTop: 10 }}>Court {item.court_number}, set {item.set_number}: {item.previous_score ? `${item.previous_score.side_a_games}–${item.previous_score.side_b_games} → ` : 'First report: '}{item.next_score.side_a_games}–{item.next_score.side_b_games} · {new Date(item.changed_at).toLocaleString()}{item.next_score.review_note ? ` · ${item.next_score.review_note}` : ''}</li>)}</ol> : null}
         {message ? <p style={noticeStyle}>{message}</p> : null}
       </section>
 

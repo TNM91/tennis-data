@@ -12,6 +12,7 @@ export function getWeeklyCommunicationRecipients(input: {
   repliedNames: string[]
   roster: string[]
   assignments: LeagueWeeklyCourt[]
+  affectedNames?: string[]
 }) {
   const normalize = (name: string) => name.trim().toLowerCase()
   const replied = new Set(input.repliedNames.map(normalize))
@@ -23,7 +24,7 @@ export function getWeeklyCommunicationRecipients(input: {
     if (input.kind === 'reminder') return !replied.has(name)
     if (input.kind === 'courts') return assigned.has(name)
     if (input.kind === 'roster') return roster.has(name)
-    return true
+    return (input.affectedNames || []).some(affected => normalize(affected) === name)
   }).map((entry) => entry.created_by_user_id as string))]
 }
 

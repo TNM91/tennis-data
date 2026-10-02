@@ -106,6 +106,8 @@
 .loading h1, .loading p { margin: 0; }
 .loadingBall { width: 34px; height: 34px; border-radius: 50%; background: var(--weekly-green); box-shadow: 0 0 30px rgba(155, 225, 29, 0.35); }
 .emptyState p { color: var(--weekly-blue); }
+.personalStatus { padding-block: 18px; }
+.personalStatus h2 { font-size: 24px; letter-spacing: -.025em; }
 .previewBanner { position: sticky; z-index: 9; top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; padding: 11px 14px; border: 1px solid rgba(155, 225, 29, 0.46); border-radius: 14px; background: rgba(6, 23, 47, 0.95); color: #fff; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28); backdrop-filter: blur(14px); }
 .previewBanner strong { color: var(--weekly-green); font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; }
 .previewBanner span { color: var(--weekly-blue); font-size: 11px; font-weight: 800; text-align: right; }

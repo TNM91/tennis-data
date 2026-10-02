@@ -7,9 +7,11 @@ import LocationDirectionsLink from '@/app/components/location-directions-link'
 import PremiumLeagueCourt from '@/app/components/premium-league-court'
 import { ROTATING_PARTNER_DOUBLES_FORMAT, validateLeagueWeeklySetScore, type LeagueWeeklyCourt } from '@/lib/league-weekly-format'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
+import { getWeeklyPlayerStatus } from '@/lib/league-weekly-operations'
 import styles from './weekly-league-response.module.css'
 
 export type WeeklyPayload = {
+  player?: { name: string; responseStatus: string | null; withdrawalPending: boolean } | null
   league: { name: string; logoUrl: string; facility: string; players: string[]; weeklySettings: { collectPlayerStories: boolean; startTimes?: string[] } }
   week: {
     playOn: string
@@ -54,11 +56,11 @@ export default function WeeklyLeagueResponse({ token, previewMode = false, initi
 
   const refresh = useCallback(async () => {
     if (previewMode && initialData) return
-    const response = await fetch(`/api/leagues/weekly/${encodeURIComponent(token)}`)
+    const response = await fetch(`/api/leagues/weekly/${encodeURIComponent(token)}?playerName=${encodeURIComponent(playerName)}`, { cache: 'no-store' })
     const payload = await response.json()
     if (!response.ok) setMessage(payload.message || 'This weekly league link could not be opened.')
-    else setData(payload)
-  }, [initialData, previewMode, token])
+    else { setData(payload); if (payload.player?.responseStatus === 'in' || payload.player?.responseStatus === 'out') setResponseStatus(payload.player.responseStatus) }
+  }, [initialData, playerName, previewMode, token])
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => void refresh(), 0)
@@ -142,7 +144,9 @@ export default function WeeklyLeagueResponse({ token, previewMode = false, initi
 
   if (!data) return <div className={styles.page}><section className={styles.loading}><span className={styles.loadingBall} /><h1>Opening this week</h1><p>{message || 'Getting the court ready…'}</p></section></div>
 
-  const collecting = data.week.status === 'collecting'
+  const collecting = data.week.status === 'collecting' && (!data.week.responseDeadline || Date.parse(data.week.responseDeadline) > Date.now())
+  const savedResponseStatus = data.player?.name === playerName ? data.player.responseStatus : null
+  const personalStatus = getWeeklyPlayerStatus({ playerName, status: data.week.status, responseStatus: data.player?.name === playerName ? data.player.responseStatus : null, withdrawalPending: data.player?.name === playerName && data.player.withdrawalPending, roster: data.week.roster, assignments: data.week.assignments })
   const weekDate = formatWeekDate(data.week.playOn)
   const deadline = formatDeadline(data.week.responseDeadline)
   const activeStep = collecting ? 0 : assignedCourt ? 2 : 1
@@ -176,20 +180,24 @@ export default function WeeklyLeagueResponse({ token, previewMode = false, initi
 
       <section className={styles.identityBar}>
         <label htmlFor="weekly-player-name">Playing as</label>
-        <select id="weekly-player-name" value={playerName} onChange={(event) => setPlayerName(event.target.value)}>
+        <select id="weekly-player-name" disabled={busy} value={playerName} onChange={(event) => { setPlayerName(event.target.value); setScores({}); setNote(''); setPositiveShare(''); setMessage('') }}>
           <option value="">Choose your name</option>
           {data.league.players.map((player) => <option key={player}>{player}</option>)}
         </select>
       </section>
 
+      {playerName ? <section className={`${styles.emptyState} ${styles.personalStatus}`} aria-label="Your saved weekly status"><h2>{personalStatus.label}</h2><p>{personalStatus.detail}</p>{data.week.status === 'collecting' && !collecting ? <p>The reply deadline has passed. Contact League Office for a late place.</p> : null}
+        {assignedCourt && data.week.status === 'published' && !data.player?.withdrawalPending ? <details className={styles.responseDetails}><summary>Can’t make it? Request a substitute</summary><div className={styles.detailFields}><label>Note for League Office<textarea value={note} maxLength={500} onChange={event => setNote(event.target.value)} /></label><button className={styles.saveButton} disabled={busy || previewMode} onClick={() => { if (window.confirm('Request a withdrawal? League Office must confirm your substitute.')) void submit({ action: 'withdraw', reason: note }) }}>Request withdrawal</button></div></details> : null}
+      </section> : null}
+
       {collecting ? (
         <section className={styles.decision} aria-labelledby="weekly-response-title">
           <div className={styles.decisionHeading}><p className={styles.kicker}>Your response</p><h2 id="weekly-response-title">Are you playing?</h2><p>Same great people. More great tennis.</p></div>
           <div className={styles.choiceRow}>
-            <button type="button" disabled={busy || previewMode} aria-pressed={responseStatus === 'in'} onClick={() => chooseResponse('in')} className={responseStatus === 'in' ? styles.choiceSelected : styles.choice}><CheckCircle size={29} weight="fill" /><span>I’m in</span><ArrowRight size={20} /></button>
-            <button type="button" disabled={busy || previewMode} aria-pressed={responseStatus === 'out'} onClick={() => chooseResponse('out')} className={responseStatus === 'out' ? styles.choiceSelected : styles.choice}><XCircle size={29} weight="duotone" /><span>I’m out</span><ArrowRight size={20} /></button>
+            <button type="button" disabled={busy || previewMode} aria-pressed={savedResponseStatus === 'in'} onClick={() => chooseResponse('in')} className={savedResponseStatus === 'in' ? styles.choiceSelected : styles.choice}><CheckCircle size={29} weight="fill" /><span>I’m in</span><ArrowRight size={20} /></button>
+            <button type="button" disabled={busy || previewMode} aria-pressed={savedResponseStatus === 'out'} onClick={() => chooseResponse('out')} className={savedResponseStatus === 'out' ? styles.choiceSelected : styles.choice}><XCircle size={29} weight="duotone" /><span>I’m out</span><ArrowRight size={20} /></button>
           </div>
-          <button type="button" className={styles.decideLater} onClick={() => setMessage('Nothing saved yet. Come back before the response deadline.')}><Clock size={19} />Decide later</button>
+          <button type="button" className={styles.decideLater} onClick={() => setMessage(savedResponseStatus ? `Your saved response is ${savedResponseStatus}. You can change it before the deadline.` : 'Nothing saved yet. Come back before the response deadline.')}><Clock size={19} />Decide later</button>
           <details className={styles.responseDetails}>
             <summary>Add a note or share a league moment</summary>
             <div className={styles.detailFields}>
@@ -246,7 +254,7 @@ export default function WeeklyLeagueResponse({ token, previewMode = false, initi
       <section className={styles.playerPath} aria-labelledby="weekly-player-path-title">
         <div><p>Your TIQ player path</p><h2 id="weekly-player-path-title">Keep this league connected to your game.</h2><span>Connect your player profile so accepted sets can follow you into My TIQ Leagues. {MEMBERSHIP_TIERS.player_plus.upgradeCue}</span></div>
         <div className={styles.playerPathActions}><Link href="/profile">Connect your player profile</Link><Link href="/pricing#player_plus">See Player</Link></div>
-        <small>Weekly replies, court assignments, scores, and basic standings stay part of your league experience.</small>
+        <small>Weekly replies, court assignments, scores, and player stats stay part of your league experience.</small>
       </section>
       {message ? <p className={styles.message} role="status">{message}</p> : null}
     </div>
