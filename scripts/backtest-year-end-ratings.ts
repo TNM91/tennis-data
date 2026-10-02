@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { createClient } from '@supabase/supabase-js'
 import { annualLabelIndex, evaluateMovement, ratingMovementProbabilities, replayYearEndForecast, type AnnualLabel, type ForecastMatch, type Movement } from '../lib/year-end-forecast'
+import { MISSOURI_2025_TRILEVEL_POLICY, yearEndDiagnosticEligibility } from '../lib/year-end-eligibility'
 
 async function main() {
   const arg = (name: string) => process.argv.find(value => value.startsWith(`--${name}=`))?.slice(name.length + 3)
@@ -51,7 +52,7 @@ async function main() {
     const { data, error } = await db.from('matches').select('id,match_date,match_type,score,winner_side,match_source,rating_eligible,league_name,flight,match_players(player_id,side)').in('id', ids.slice(index, index + 100)).eq('rating_eligible', true).eq('match_source', 'usta').gte('match_date', startsOn).lte('match_date', cutoff)
     if (error) throw error
     for (const row of data) {
-      const sectionEligible = /\badult\b/i.test(row.league_name || '') && !/\b(?:mixed|tri[-\s]?level|combo|tournament)\b/i.test(row.league_name || '')
+      const sectionEligible = yearEndDiagnosticEligibility(row.league_name || '', season).eligible
       if (!['singles', 'doubles'].includes(row.match_type) || !['A', 'B'].includes(row.winner_side)) continue
       matches.push({ ...row, participants: row.match_players.map(p => ({ playerId: p.player_id, side: p.side })), sectionEligible } as ForecastMatch)
     }
@@ -95,6 +96,7 @@ async function main() {
       existing: evaluateMovement(threeWay.map(row => ({ actual: actual.get(row.playerId)!, probabilities: existingMap.get(row.playerId)!.probabilities }))),
     },
     releaseEligible: false,
+    eligibilityPolicySources: season === 2025 ? [MISSOURI_2025_TRILEVEL_POLICY] : [],
     limitations: [
       'Source-reported labels require independent USTA verification; official manifests explicitly override lower-authority labels.',
       'Retrospective event-time reconstruction uses facts recovered later and is not contemporaneous forecast accuracy.',
