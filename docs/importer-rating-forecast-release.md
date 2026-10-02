@@ -4,6 +4,8 @@
 
 Recurring refresh now includes verified owner profile URLs and both the current and next championship year's history during August–December. Identity parameters from the original profile URL are retained. Missouri boundaries and existing review holds remain enforced. Current checkpoints reserve opportunities for history, profile, team/directory and scorecard pages, ordered by refresh due date. Historical opportunities, source pacing, active-run locks and request ceilings are unchanged.
 
+Missouri is the startup priority: pending or overdue successful pages in its current campaign take the next source checkpoint, even when the preceding checkpoint was weekly. That checkpoint selects Missouri campaign rows explicitly. When no Missouri work is due, the existing current/national alternation resumes; unused checkpoints return to catch-up. Review holds, source cooldowns, request pacing and rating-job locks still apply. A seven-day scheduling target cannot guarantee source publication or statewide completeness.
+
 An additive estimate archive preserves the source page, immutable capture timestamp, estimate measurement date and explicitly stated TennisRecord projected level, when available. Current metadata is not used as a historical benchmark. Annual-label candidates retain conflicting evidence and explicitly expose which player-years must be excluded.
 
 The separate experimental forecast replay compares the existing engine with band-center initialization and symmetric score movement, without the playing-strength engine's downward floor. Replays initialize from prior-year annual labels, exclude later matches and unconfirmed match eligibility, and avoid future-relative recency and inactivity. The existing production rating calculation is unchanged apart from exporting its singles processor for reuse.
@@ -33,9 +35,14 @@ node --import tsx --env-file=.env.local scripts/backtest-year-end-ratings.ts --s
 node --import tsx --env-file=.env.local scripts/audit-held-tennisrecord-pages.ts
 node --env-file=.env.local scripts/repair-player-refresh.mjs '--player=Nathan Meinert'
 node --env-file=.env.local scripts/repair-history-discovery.mjs '--player=Nathan Meinert' --year=2026
+node --env-file=.env.local scripts/audit-missouri-freshness.mjs
 ```
 
 The repair script is dry-run by default; `--apply` performs the bounded reversible queue scheduling. It does not reopen review/blocked/error/running rows. Audit and comparison scripts only read production data and write local evidence. Supply `--official-labels=path.json` to the comparison command for independently verified primary USTA evidence.
+
+The read-only Missouri freshness audit paginates every known MO profile and campaign queue page. It exposes stale/missing profiles, missing active histories, held pages, and oldest overdue dates by page kind. October 2 evidence found 1,120 MO profiles, of which only one had a successful weekly profile capture; 1,363 active-year history references were absent from the Missouri campaign. In contrast, 517/519 enrolled match pages and 1,085/1,086 enrolled history pages were captured within seven days. Coverage gaps are campaign-specific and must not be mistaken for a complete statewide census. The profile/fall seed fixes address the missing enrollment.
+
+The public methodology now explains playing strength, official level and year-end forecast separately. The next half-point TiQ marker is not an official USTA bump threshold; match-volume confidence is not a bump probability. It discloses the protected starting level and why that can delay downward signals. Candidate forecasting remains experimental until independent holdout validation.
 
 Official manifest records use this shape (replace example identity and source with verified records):
 
@@ -57,5 +64,7 @@ Rolling back code can leave the additive evidence table in place. Restore backed
 The final full suite ran: 2,932 passed and four failed. All four failures are in unchanged files: one time-dependent account-tier test and three source-text tests affected by Windows CRLF checkout. After the upcoming-scorecard change, 62 focused importer assertions passed across three files. Forecast and estimate-date tests also passed. Final lint and type checks are recorded in the PR.
 
 Local production builds were attempted: Turbopack rejected an external dependency junction; installing dependencies inside the isolated checkout exhausted disk space; a Webpack build then exhausted the remaining space. Incomplete dependencies and generated build output were removed, leaving source intact. Local production compilation remains unverified. Linux CI with the repository's Node 22 runtime is required before release.
+
+The first PR preview build, schema audit and captain browser checks passed. Linux full tests passed 2,936 assertions with one existing reporting-date failure: access grants were evaluated using wall-clock time rather than the supplied summary date. This small bug is corrected by consistently passing the reporting date through access evaluation. The Missouri-priority revision passed 67 focused assertions; final CI must validate the updated commit.
 
 Direct browser access to TennisRecord fails certificate verification in this environment. Cloud collector captures provided fresh October 2 source evidence; no browser interstitial or TLS verification was bypassed.

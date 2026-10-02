@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 vi.mock('@/lib/recalculateRatings', () => ({ recalculateDynamicRatings: vi.fn() }))
 import { recalculateDynamicRatings } from '../recalculateRatings'
-import { prepareCurrentSeasonRefresh, runScheduledTennisRecordRatingBatch } from '../tennisrecord/service'
+import { hasOverdueCurrentRefresh, prepareCurrentSeasonRefresh, runScheduledTennisRecordRatingBatch } from '../tennisrecord/service'
 import { activeChampionshipYears } from '../tennisrecord/current-refresh'
 
 type Call = { table: string; ops: { name: string; args: unknown[] }[] }
@@ -27,6 +27,20 @@ function fakeDb(respond: (call: Call) => Result) {
   return { db: { from, rpc } as unknown as SupabaseClient, calls }
 }
 const op = (call: Call, name: string) => call.ops.find(o => o.name === name)
+describe('Missouri freshness before national catch-up', () => {
+  it('prioritizes pending and overdue successful pages without releasing held evidence', async () => {
+    const { db, calls } = fakeDb(() => ({ count: 3, error: null }))
+    expect(await hasOverdueCurrentRefresh(db, new Date('2026-10-02T12:00:00Z'), 'mo')).toBe(true)
+    expect(op(calls[0], 'eq')?.args).toEqual(['refresh_season', 2026])
+    expect(calls[0].ops).toContainEqual({ name: 'eq', args: ['campaign_id', 'mo'] })
+    expect(op(calls[0], 'or')?.args).toEqual(['status.eq.pending,and(status.eq.done,refresh_due_at.lte.2026-10-02T12:00:00.000Z)'])
+    expect(op(calls[0], 'update')).toBeUndefined()
+  })
+  it('gives unused capacity back and fails closed on an unavailable queue', async () => {
+    expect(await hasOverdueCurrentRefresh(fakeDb(() => ({ count: 0 })).db)).toBe(false)
+    await expect(hasOverdueCurrentRefresh(fakeDb(() => ({ error: { message: 'queue unavailable' } })).db)).rejects.toThrow('queue unavailable')
+  })
+})
 const settings: Parameters<typeof prepareCurrentSeasonRefresh>[2] = {
   enabled: true, current_refresh_enabled: true, current_refresh_seeded_at: null,
   min_request_interval_ms: 3000, max_requests_per_run: 18, weekly_lookback_days: 7,

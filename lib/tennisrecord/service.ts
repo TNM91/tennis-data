@@ -1305,6 +1305,16 @@ async function requeueDueDeferredTennisRecordRetries(service: SupabaseClient, ca
 }
 
 /** The single Pro cron route picks the automatic bootstrap or weekly cadence. */
+export async function hasOverdueCurrentRefresh(service: SupabaseClient, now = new Date(), campaignId?: string) {
+  let query = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true })
+    .eq('refresh_season', now.getUTCFullYear())
+    .or(`status.eq.pending,and(status.eq.done,refresh_due_at.lte.${now.toISOString()})`)
+  if (campaignId) query = query.eq('campaign_id', campaignId)
+  const due = await query
+  if (due.error) throw new Error(due.error.message)
+  return (due.count ?? 0) > 0
+}
+
 export async function runAutomaticTennisRecordSync(service: SupabaseClient) {
   const [settingsResult, recentRunResult] = await Promise.all([
     service.from('tennisrecord_collector_settings').select('*').eq('id', true).single(),
@@ -1329,11 +1339,20 @@ export async function runAutomaticTennisRecordSync(service: SupabaseClient) {
   const cooling = await sourceCooldownSummary(service, data)
   if (cooling) return cooling
   if (tennisRecordCadenceSafetyStatus(recentRunResult.data as TennisRecordRunSafetySample | null).active) return emptySummary('skipped')
-  if (data?.current_refresh_enabled && preferCurrentSeason(automationState, recentRunResult.data?.trigger_kind)) {
+  let missouriDueCampaignId: string | undefined
+  if (data?.current_refresh_enabled) {
+    const missouri = await service.from('tennisrecord_campaigns').select('id').eq('slug', 'missouri-2025-current').maybeSingle()
+    if (missouri.error) throw new Error(missouri.error.message)
+    if (missouri.data && await hasOverdueCurrentRefresh(service, new Date(), missouri.data.id)) missouriDueCampaignId = missouri.data.id
+  }
+  const currentPreferred = data?.current_refresh_enabled && (
+    Boolean(missouriDueCampaignId) || preferCurrentSeason(automationState, recentRunResult.data?.trigger_kind)
+  )
+  if (currentPreferred) {
     // Reuse the established checkpoint ceiling and deadline, not the legacy
     // three-page weekly cap. Pacing and the admin request limit stay unchanged.
     const limit = scheduledTennisRecordBatchLimit(data.max_requests_per_run, 'bootstrap')
-    const current = await runTennisRecordSync(service, { triggerKind: 'weekly', currentSeason: true, recalculateRatings: false, limit, pageKindPlan: currentRefreshPageKindPlan(limit) })
+    const current = await runTennisRecordSync(service, { triggerKind: 'weekly', currentSeason: true, campaignId: missouriDueCampaignId, recalculateRatings: false, limit, pageKindPlan: currentRefreshPageKindPlan(limit) })
     if (current.status !== 'completed' || current.pagesAttempted > 0 || automationState !== 'bootstrap') return current
     // Nothing due: give this opportunity back to historical work.
   }

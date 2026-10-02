@@ -74,13 +74,13 @@ export function summarizeAccountTiers(rows: AccountTierRow[], now = Date.now()):
     return acc
   }, {} as Record<MembershipTierId, AccountHealthCounts>)
   const healthTotals = emptyHealthCounts()
-  const counts = countAccountTiers(rows)
+  const counts = countAccountTiers(rows, now)
 
   for (const row of rows) {
     const role = normalizeUserRole(row.role)
     if (role === 'admin') continue
 
-    const tier = getAccountTier(row)
+    const tier = getAccountTier(row, now)
     const health = getAccountHealth(row, now)
     if (tier === 'free') {
       for (const key of ['pastDue', 'expiring'] as AccountHealthKey[]) {
@@ -101,7 +101,7 @@ export function summarizeAccountTiers(rows: AccountTierRow[], now = Date.now()):
   return { counts, healthByTier, healthTotals }
 }
 
-function getAccountTier(row: AccountTierRow): MembershipTierId {
+function getAccountTier(row: AccountTierRow, now = Date.now()): MembershipTierId {
   const role = normalizeUserRole(row.role)
   return buildProductAccessState(role, {
     playerPlusSubscriptionActive: Boolean(row.player_plus_subscription_active),
@@ -116,10 +116,10 @@ function getAccountTier(row: AccountTierRow): MembershipTierId {
     tiqTeamLeagueEntryEnabled: Boolean(row.tiq_team_league_entry_enabled),
     tiqIndividualLeagueCreatorEnabled: Boolean(row.tiq_individual_league_creator_enabled),
     leagueAccessExpiresAt: row.league_access_expires_at,
-  }).currentPlanId
+  }, now).currentPlanId
 }
 
-export function countAccountTiers(rows: AccountTierRow[]): AccountTierCounts {
+export function countAccountTiers(rows: AccountTierRow[], now = Date.now()): AccountTierCounts {
   const counts: AccountTierCounts = {
     total: 0,
     admins: 0,
@@ -140,7 +140,7 @@ export function countAccountTiers(rows: AccountTierRow[]): AccountTierCounts {
       continue
     }
 
-    const tier = getAccountTier(row)
+    const tier = getAccountTier(row, now)
     counts[tier] += 1
   }
 
