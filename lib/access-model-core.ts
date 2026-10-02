@@ -188,6 +188,7 @@ export function getRoleBackedEntitlements(role: UserRole): ProductEntitlementSna
 export function buildProductAccessState(
   role: UserRole,
   entitlements?: Partial<ProductEntitlementSnapshot> | null,
+  now = Date.now(),
 ): ProductAccessState {
   const fallback = getRoleBackedEntitlements(role)
   const snapshot: ProductEntitlementSnapshot = {
@@ -206,10 +207,10 @@ export function buildProductAccessState(
   }
 
   const signedInMember = isMember(role)
-  const playerGrantCurrent = isAccessGrantCurrent(snapshot.playerPlusAccessExpiresAt)
-  const coachGrantCurrent = isAccessGrantCurrent(snapshot.coachAccessExpiresAt)
-  const captainGrantCurrent = isAccessGrantCurrent(snapshot.captainAccessExpiresAt)
-  const leagueGrantCurrent = isAccessGrantCurrent(snapshot.leagueAccessExpiresAt)
+  const playerGrantCurrent = isAccessGrantCurrent(snapshot.playerPlusAccessExpiresAt, now)
+  const coachGrantCurrent = isAccessGrantCurrent(snapshot.coachAccessExpiresAt, now)
+  const captainGrantCurrent = isAccessGrantCurrent(snapshot.captainAccessExpiresAt, now)
+  const leagueGrantCurrent = isAccessGrantCurrent(snapshot.leagueAccessExpiresAt, now)
   const manualPlayerActive = snapshot.playerPlusSubscriptionActive && playerGrantCurrent
   const manualCoachActive = Boolean(snapshot.coachSubscriptionActive) && coachGrantCurrent
   const manualCaptainActive = snapshot.captainSubscriptionActive && captainGrantCurrent

@@ -12,7 +12,7 @@ const dataAssistMethodologyHref = '/data-assist?intent=request-review&context=Me
 export const metadata: Metadata = buildRouteMetadata({
   title: 'Methodology',
   description:
-    'How TenAceIQ calculates dynamic player ratings -- expected performance, game-score context, K-factors, and recency weighting.',
+    'Understand your TiQ playing strength, official USTA level, match evidence, and the limits of year-end movement forecasting.',
   path: '/methodology',
 })
 
@@ -86,6 +86,15 @@ export default function MethodologyPage() {
           </p>
         </section>
 
+        <section id="year-end-movement" style={ratingBasicsStyle} aria-labelledby="year-end-title">
+          <h2 id="year-end-title" className="section-title">Playing strength and year-end movement</h2>
+          <p>Your official USTA level determines the level you can enter. Your TiQ rating describes performance in the matches we have reviewed. A year-end forecast asks a different question: will your next official level move up, stay the same, or move down?</p>
+          <p>A TiQ 4.6 does not automatically mean a USTA bump from 4.5. The TiQ scale and its next half-point marker are playing-strength signals, not official USTA dynamic thresholds. The USTA-proximity view uses USTA results but is still a TenAceIQ calculation.</p>
+          <p>Computer-rated players begin at their stated level. Early downward movement is protected, then gradually allowed as evidence builds. This helps stabilize playing-strength ratings; it can also delay a drop signal. Match confidence describes how much evidence supports your rating, not the chance of a year-end bump.</p>
+          <p>Year-end forecasting is being evaluated against historical official movement. We will distinguish bump, stay, and drop probabilities only after testing them on seasons and players held out from model tuning. TennisRecord estimates are a separate comparison, never an input that sets your TiQ rating.</p>
+          <p>If a recent result is missing, check the match date and source and <a href={dataAssistMethodologyHref}>request a data review</a>. A fresh rating needs complete scores, the right players, and enough context about their competition.</p>
+        </section>
+
         <MethodologyDetails>
           <div>
             <h2 className="section-title" style={{ fontSize: '1.2rem' }}>The rating scale</h2>
@@ -104,8 +113,8 @@ export default function MethodologyPage() {
               Every player carries two parallel sets of dynamic ratings: a <strong>TIQ track</strong> that
               updates from all matches regardless of source, and a <strong>USTA track</strong> that updates
               only from eligible USTA results, including reviewed local uploads and factual USTA-match evidence.
-              TIQ ratings reflect full competitive activity across all leagues; USTA ratings mirror what
-              a USTA-only result set would produce. Both tracks maintain separate singles, doubles, and
+              TIQ ratings reflect full competitive activity across all leagues; the USTA-proximity view shows
+              our calculation from a USTA-only result set. It does not reproduce USTA&rsquo;s unpublished calculation. Both tracks maintain separate singles, doubles, and
               overall ratings -- six dynamic values per player in total.
             </p>
           </div>
