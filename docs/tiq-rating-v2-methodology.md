@@ -1,6 +1,6 @@
 # TiQ band methodology v2 — implementation contract
 
-Status: proposed shadow methodology. Production ratings are v1. No mass rebuild or published forecast is authorized by this document.
+Status: implemented experimental shadow engine (`lib/tiq-rating-v2.ts`); production ratings remain v1. The shadow engine does not write production ratings or publish annual probabilities.
 
 ## Player-facing scale
 
@@ -18,7 +18,7 @@ Self-rated, inferred, missing and appealed baselines need distinct evidence poli
 
 Rebuild from chronological complete matches, with consistent participants and source identity, duplicate reconciliation and score interpretation. Opponent and partner state must include preceding eligible history; isolated replay of Nathan's matches alone is not a calibrated counterfactual because opponents would be frozen or incompletely updated.
 
-Maintain separate singles, doubles and overall playing-strength estimates. The current experimental band-center replay implements overall only and is not a production replacement. A full v2 must test the format-specific estimates and the overall aggregation together.
+Maintain separate singles, doubles and overall playing-strength estimates. The new shadow engine has separate singles/doubles estimates for playing strength and the USTA-focused track, with overall weighted by processed format match counts. The older experimental annual band-center replay implements overall only. Neither is a validated production replacement.
 
 ## Movement and confidence
 
@@ -45,3 +45,18 @@ Report class support, bump and drop precision/recall, macro F1, Brier score, pro
 7. Snapshot v1 ratings and histories, publish a versioned v2 rebuild only after release review, and retain an independent rollback path. Incremental imports must then use the same v2 configuration as the rebuild.
 
 The result for Nathan should contain official level 4.5 C, a newly calculated v2 playing-strength estimate, source completeness and per-match explanations. Until validation is sufficient, annual probabilities should be unavailable rather than invented. No v2 number is established by the proposed midpoint or the TennisRecord display conversion.
+
+## Implemented shadow replay
+
+`scripts/shadow-tiq-v2.ts` reads all available eligible canonical matches in the selected calendar window, not only the target's matches. It reads prior-season computer-label evidence with conflict exclusions and accepts an explicit independently verified override manifest. Every doubles update uses all four pre-match estimates. Evidence gains depend on an experimental shrinking variance; response and variance constants have not been trained or calibrated. Defaults do not constitute verified confidence.
+
+The replay preserves source score text. For source-owned TennisRecord rows it may orient winner-first scores only when an exact, conflict-free winning source observation agrees with the score and declared winner. Already usable court-side scores are retained. Original and processed scores, observation identity, expected/actual game shares and pre/post estimates are included in target explanations. Current production's conservative win/loss fallback and snapshots are untouched.
+
+The read-only same-evidence comparison starts v1 and v2 from identical annual labels and feeds identical accepted courts, with no future-relative recency. Native v1 numbers are explicitly identified; they are not mapped blindly to v2. Full input graphs are retained locally with a capture timestamp and evidence hash; `--input` enables offline repeatability. Local evidence is not committed or exposed publicly.
+
+```powershell
+node --import tsx --env-file=.env.local scripts/shadow-tiq-v2.ts '--player=Nathan Meinert' --season=2026 --cutoff=2026-10-02
+node --import tsx scripts/shadow-tiq-v2.ts '--player=Nathan Meinert' --season=2026 --cutoff=2026-10-02 --input=artifacts/rating-evidence/tiq-v2-input-2026-2026-10-02.json --out=artifacts/rating-evidence/offline
+```
+
+Initial October 2 source-oriented replay: 70,266 available canonical records, 29,448 processed courts across the network. Nathan's 4.7333 overall shadow estimate used seven singles and one doubles result. His other twelve courts lacked supported participant priors; five further target-associated records were team summaries, not courts. This incomplete cohort cannot establish his final v2 rating or year-end forecast. His live v1 overall remained 4.412. The report explicitly keeps `releaseEligible=false` and annual probabilities null.
