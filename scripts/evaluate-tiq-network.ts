@@ -86,4 +86,3 @@ async function main() {
   console.log(JSON.stringify({ parsedCourts: courts.length, selected: summary(selected), partnerSelected: summary(partnerSelected), sameCourtLaterComparison: report.sameCourtLaterComparison, nathan: report.nathan, sensitivity, trGap: trReport.networkMeanAbsoluteDifference }, null, 2))
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })
-

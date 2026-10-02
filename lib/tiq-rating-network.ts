@@ -111,6 +111,3 @@ export function replayRatingNetwork(input: {
   }
   return { config, states, predictions, skippedUnanchored, confidenceCalibrated: false as const, movementForecastAvailable: false as const }
 }
-
-
-

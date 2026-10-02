@@ -47,4 +47,3 @@ export function summarizeRatingEvidence(input: {
     movementForecastAvailable: false as const,
   }
 }
-
