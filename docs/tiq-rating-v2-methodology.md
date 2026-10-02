@@ -60,3 +60,5 @@ node --import tsx scripts/shadow-tiq-v2.ts '--player=Nathan Meinert' --season=20
 ```
 
 Initial October 2 source-oriented replay: 70,266 available canonical records, 29,448 processed courts across the network. Nathan's 4.7333 overall shadow estimate used seven singles and one doubles result. His other twelve courts lacked supported participant priors; five further target-associated records were team summaries, not courts. This incomplete cohort cannot establish his final v2 rating or year-end forecast. His live v1 overall remained 4.412. The report explicitly keeps `releaseEligible=false` and annual probabilities null.
+
+On the exact eight accepted courts, v1 finished at 4.500 on its native scale. The live v1 4.412 has a different full-history calculation and must not be treated as an identical-cohort comparator. Nathan's last accepted shadow court is April 26, whereas an available court is September 20; 40% court coverage and missing recent evidence make the diagnostic explicitly incomplete. No shadow estimate may be presented as his current validated rating. Offline replay reproduced the same candidate and evidence hash without a database key.

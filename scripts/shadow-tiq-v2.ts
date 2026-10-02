@@ -100,6 +100,9 @@ async function main() {
     names.push(...rows.data)
   }
   const missingTargetPriors = names.filter(p => !replay.players.some(state => state.playerId === p.id))
+  const lastProcessedCourtDate = replay.explanations.filter(e => e.track === 'playing').at(-1)?.date ?? null
+  const lastAvailableCourtDate = targetCourts.map(m => m.match_date).sort().at(-1) ?? null
+  const targetEvidence = { availableCourts: targetCourts.length, usableCourts: candidate?.playing.overall.matches ?? 0, lastProcessedCourtDate, lastAvailableCourtDate, coverage: targetCourts.length ? (candidate?.playing.overall.matches ?? 0) / targetCourts.length : 0, latestCourtExcluded: Boolean(lastAvailableCourtDate && lastAvailableCourtDate !== lastProcessedCourtDate), status: replay.targetExclusions.some(e => targetCourts.some(m => m.id === e.matchId)) ? 'incomplete-shadow-evidence' : 'shadow-evidence-only' }
   const evidenceHash = createHash('sha256').update(JSON.stringify({ priors, matches })).digest('hex')
   const report = {
     generatedAt: new Date().toISOString(), inputCapturedAt: frozen?.capturedAt ?? new Date().toISOString(), frozenInput: Boolean(frozen), season, cutoff, version: replay.version, config: replay.config, evidenceHash,
@@ -108,7 +111,7 @@ async function main() {
     canonicalMatchesLoaded: matches.length, targetCourtsLoaded: targetCourts.length, targetNonCourtEvents: targetMatches.length - targetCourts.length, orientedScores, processedMatches: replay.processedMatches, skipped: replay.skipped, conflictingPriors: replay.conflictingPriors.length,
     player, candidate, legacySameEvidence: legacyTarget ? { singles: legacyTarget.singlesDynamic, doubles: legacyTarget.doublesDynamic, overall: legacyTarget.overallDynamic, matches: legacyTarget.matchesProcessed, scale: 'v1-native' } : null,
     legacyTargetSnapshots, proposedDisplay: candidate ? { overall: formatTiqV2Strength(candidate.playing.overall.strength), band: tiqV2Band(candidate.playing.overall.strength), singles: formatTiqV2Strength(candidate.playing.singles.strength), doubles: formatTiqV2Strength(candidate.playing.doubles.strength) } : null,
-    names, missingTargetPriors, explanations: replay.explanations, targetExclusions: replay.targetExclusions,
+    targetEvidence, names, missingTargetPriors, explanations: replay.explanations, targetExclusions: replay.targetExclusions,
     limitations: ['Experimental response/variance parameters are not trained or independently validated.', 'Source-reported prior labels are not independently verified USTA outcomes.', 'Calendar-window reconstruction is retrospective, not a verified championship-year forecast.', 'All available canonical matches are replayed, but missing imports, conflicting priors and excluded scores leave the network incomplete.', 'Overall is weighted by processed format match counts; its behavior requires validation.', 'No confidence category or bump probability is inferred from the model variance.'],
   }
   const out = arg('out') || 'artifacts/rating-evidence'
