@@ -486,7 +486,7 @@ async function fetchMatchPlayers(client: SupabaseClient): Promise<MatchPlayerRow
   }
 }
 
-function processSinglesMatch(
+export function processSinglesMatch(
   match: MatchRow,
   playerA: WorkingPlayer,
   playerB: WorkingPlayer,

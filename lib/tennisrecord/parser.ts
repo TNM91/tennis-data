@@ -280,12 +280,15 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
   if (tennisRecordRecordPageKind(sourceUrl) === 'player') {
     const name = profile.ownerName || ''
     const location = plain.match(/\(([A-Za-z .'-]+),\s*([A-Z]{2})\)/)
-    const rating = plain.match(/Estimated\s+Dynamic\s+Rating\s*([1-7]\.\d{1,4})/i)?.[1]
+    const estimate = plain.match(/Estimated\s+Dynamic\s+Rating\s*([1-7]\.\d{1,4})(?:\s+(\d{1,2}\/\d{1,2}\/20\d{2}))?/i)
+    const rating = estimate?.[1]
+    const publishedRatingDate = estimate?.[2] ? toIsoDate(estimate[2]) : undefined
+    const projectedYearEndLevel = plain.match(/Projected\s+Year\s+End\s+Rating\s+([1-7]\.[05])\b/i)?.[1]
     const statedNtrp = plain.match(new RegExp(`\\b(${STATED_NTRP_LEVEL_PATTERN}\\s*[A-Z]?)\\b(?:\\s+(\\d{1,2}\\/\\d{1,2}\\/20\\d{2}))?`))
     const ntrp = statedNtrp?.[1] || ''
     const ntrpEffectiveDate = statedNtrp?.[2] ? toIsoDate(statedNtrp[2]) : undefined
     const ntrpDesignation = tennisRecordStatedNtrpDesignation(ntrp)
-    if (name && name.length < 120) players.set(sourceKey('trp', sourceUrl), { sourcePlayerKey: sourceKey('trp', sourceUrl), name, city: location?.[1] || '', state: location?.[2] || '', ntrpLabel: ntrp, ...(ntrpDesignation === 'unknown' ? {} : { ntrpDesignation }), ...(ntrpEffectiveDate ? { ntrpEffectiveDate } : {}), ...(rating ? { publishedRating: Number(rating) } : {}), sourceUrl })
+    if (name && name.length < 120) players.set(sourceKey('trp', sourceUrl), { sourcePlayerKey: sourceKey('trp', sourceUrl), name, city: location?.[1] || '', state: location?.[2] || '', ntrpLabel: ntrp, ...(ntrpDesignation === 'unknown' ? {} : { ntrpDesignation }), ...(ntrpEffectiveDate ? { ntrpEffectiveDate } : {}), ...(rating ? { publishedRating: Number(rating) } : {}), ...(publishedRatingDate ? { publishedRatingDate } : {}), ...(projectedYearEndLevel ? { projectedYearEndLevel: Number(projectedYearEndLevel) } : {}), sourceUrl })
   }
   const seasonYear = Number(leagueName.match(/\b(20\d{2})\b/)?.[1]) || null
   const leagues: TennisRecordLeague[] = leagueName ? [{ sourceLeagueKey: sourceKey('trl', `${leagueName}::${flight}::${seasonYear || ''}`), name: leagueName, flight, seasonYear, sourceUrl }] : []

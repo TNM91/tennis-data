@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 vi.mock('@/lib/recalculateRatings', () => ({ recalculateDynamicRatings: vi.fn() }))
 import { recalculateDynamicRatings } from '../recalculateRatings'
 import { prepareCurrentSeasonRefresh, runScheduledTennisRecordRatingBatch } from '../tennisrecord/service'
+import { activeChampionshipYears } from '../tennisrecord/current-refresh'
 
 type Call = { table: string; ops: { name: string; args: unknown[] }[] }
 type Result = { data?: unknown; error?: { code?: string; message: string } | null; count?: number }
@@ -42,7 +43,7 @@ describe('current refresh preparation', () => {
       if (call.table === 'tennisrecord_campaigns') return { data: { id: 'mo', slug: 'missouri-2025-current' } }
       if (call.table === 'tennisrecord_staged_players') {
         pages++
-        return { data: Array.from({ length: pages === 1 ? 500 : 1 }, (_, i) => ({ id: String((pages - 1) * 500 + i).padStart(5, '0'), name: 'Fixture ' + ((pages - 1) * 500 + i) })) }
+        return { data: Array.from({ length: pages === 1 ? 500 : 1 }, (_, i) => ({ id: String((pages - 1) * 500 + i).padStart(5, '0'), name: 'Fixture ' + ((pages - 1) * 500 + i), source_url: 'https://www.tennisrecord.com/adult/profile.aspx?playername=Fixture%20' + ((pages - 1) * 500 + i) })) }
       }
       return { data: [], error: null }
     })
@@ -56,7 +57,7 @@ describe('current refresh preparation', () => {
     expect(profileCalls.every(c => c.ops.some(o => o.name === 'eq' && o.args[0] === 'state' && o.args[1] === 'MO'))).toBe(true)
     const batches = calls.filter(c => c.table === 'tennisrecord_crawl_queue' && op(c, 'upsert')).map(c => op(c, 'upsert')!.args[0] as { source_url: string }[])
     expect(batches.every(b => b.length <= 50)).toBe(true)
-    expect(batches.flat().filter(r => r.source_url.includes('Fixture'))).toHaveLength(501)
+    expect(batches.flat().filter(r => r.source_url.includes('Fixture'))).toHaveLength(501 * (1 + activeChampionshipYears().length))
     expect(calls.findLastIndex(c => c.table === 'prepare_tennisrecord_current_refresh')).toBeGreaterThan(calls.findLastIndex(c => c.table === 'tennisrecord_staged_players'))
   })
 
