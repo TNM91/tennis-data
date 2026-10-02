@@ -30,6 +30,14 @@ async function main() {
     cursor = page.data.at(-1)!.id
   }
   const manifest = arg('official-labels')
+  const sourcePriorsPath = arg('source-priors')
+  if (sourcePriorsPath) {
+    type CapturedPrior = V2Prior & { evidenceKind: string; sourcePageId: string; capturedAt: string }
+    const recovered = JSON.parse(await readFile(sourcePriorsPath, 'utf8')) as { priors: CapturedPrior[] }
+    if (!Array.isArray(recovered.priors) || recovered.priors.some(p => p.independentlyVerified !== false || p.season !== season - 1 || p.evidenceKind !== 'captured-owner-profile-prior' || !p.sourcePageId || !Number.isFinite(Date.parse(p.capturedAt)) || !p.playerId || !/^https:\/\/(?:www\.)?tennisrecord\.com\/adult\/profile\.aspx\?/.test(p.source) || !Number.isFinite(p.level) || !Number.isInteger(p.level * 2) || p.level < 1.5 || p.level > 7)) throw new Error('Invalid captured source-prior evidence')
+    // Append evidence; contradictions remain quarantined, never "latest wins".
+    priors.push(...recovered.priors)
+  }
   if (manifest) {
     const supplied = JSON.parse(await readFile(manifest, 'utf8')) as { playerId: string; season: number; level: number; designation: string; sourceUrl: string; verified: boolean }[]
     if (!Array.isArray(supplied) || supplied.some(p => !p.verified || p.designation !== 'computer' || p.season !== season - 1 || !p.playerId || !/^https:\/\//.test(p.sourceUrl) || !Number.isFinite(p.level) || !Number.isInteger(p.level * 2) || p.level < 1.5 || p.level > 7)) throw new Error('Invalid independently verified prior manifest')
