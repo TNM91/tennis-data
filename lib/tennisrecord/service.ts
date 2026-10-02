@@ -1306,13 +1306,13 @@ async function requeueDueDeferredTennisRecordRetries(service: SupabaseClient, ca
 
 /** The single Pro cron route picks the automatic bootstrap or weekly cadence. */
 export async function hasOverdueCurrentRefresh(service: SupabaseClient, now = new Date(), campaignId?: string) {
-  let query = service.from('tennisrecord_crawl_queue').select('id', { count: 'exact', head: true })
+  let query = service.from('tennisrecord_crawl_queue').select('id')
     .eq('refresh_season', now.getUTCFullYear())
     .or(`status.eq.pending,and(status.eq.done,refresh_due_at.lte.${now.toISOString()})`)
   if (campaignId) query = query.eq('campaign_id', campaignId)
-  const due = await query
+  const due = await query.limit(1).maybeSingle()
   if (due.error) throw new Error(due.error.message)
-  return (due.count ?? 0) > 0
+  return Boolean(due.data)
 }
 
 export async function runAutomaticTennisRecordSync(service: SupabaseClient) {
