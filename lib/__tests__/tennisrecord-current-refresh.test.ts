@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { currentSeasonDiscoveryUrls, hasMissouriPageEvidence, isMissouriCompetition, nextCurrentRefreshAt, preferCurrentSeason } from '../tennisrecord/current-refresh'
+import { activeChampionshipYears, currentPlayerRefreshUrls, currentRefreshPageKindPlan, currentSeasonDiscoveryUrls, futureScorecardRefreshAt, hasMissouriPageEvidence, isMissouriCompetition, nextCurrentRefreshAt, preferCurrentSeason } from '../tennisrecord/current-refresh'
+import { parseTennisRecordMatchPage } from '../tennisrecord/parser'
 import { isTennisRecordCampaignDiscoveryAllowed } from '../tennisrecord/frontier'
 import type { ParsedTennisRecordPage } from '../tennisrecord/types'
 
@@ -16,10 +17,32 @@ describe('independent current-season refresh', () => {
     expect(preferCurrentSeason('manual', 'bootstrap')).toBe(false)
   })
 
-  it('rolls discovery to the new year without recurring undated or prior-year history', () => {
+  it('rolls discovery to the new year and refreshes dated history and owner profiles', () => {
     const urls = [base + 'matchhistory.aspx?year=2026', base + 'matchhistory.aspx?year=2027', base + 'profile.aspx?playername=A', 'https://evil.example/?year=2027', 'bad']
-    expect(currentSeasonDiscoveryUrls(urls, new Date('2027-01-01T00:00:00Z'))).toEqual([urls[1]])
+    expect(currentSeasonDiscoveryUrls(urls, new Date('2027-01-01T00:00:00Z'))).toEqual([urls[1], urls[2]])
     expect(nextCurrentRefreshAt(new Date('2026-12-28T09:00:00Z'))).toBe('2027-01-04T09:00:00.000Z')
+  })
+
+  it('discovers next championship year during fall and retains profile identity parameters', () => {
+    const now = new Date('2026-10-02T12:00:00Z')
+    expect(activeChampionshipYears(now)).toEqual([2026, 2027])
+    expect(activeChampionshipYears(new Date('2026-07-01'))).toEqual([2026])
+    const urls = currentPlayerRefreshUrls(base + 'profile.aspx?playername=Nathan%20Meinert&s=7', now)
+    expect(urls).toHaveLength(3)
+    expect(new URL(urls[2]).searchParams.get('s')).toBe('7')
+    expect(new URL(urls[2]).searchParams.get('year')).toBe('2027')
+    expect(currentPlayerRefreshUrls('https://evil.example/adult/profile.aspx?playername=A', now)).toEqual([])
+    expect(currentRefreshPageKindPlan(4)).toEqual([['history'], ['player'], ['team', 'league'], ['match']])
+  })
+
+  it('revisits a complete scheduled event captured before play instead of quarantining it forever', () => {
+    const html = '<h1>Match Results</h1><p>2026 Tri-Level 18+ Missouri Valley Missouri St. Louis M 4.5 Scheduled Date: 09/14/2026</p><table><tr><th>Team Name</th></tr><tr><td>Gontarz</td></tr><tr><td>SuperSmash Bros/Pottebaum-Meinart</td></tr></table>'
+    const page = parseTennisRecordMatchPage(html, base + 'matchresults.aspx?year=2026&mid=295320')
+    expect(page.matches).toEqual([])
+    expect(futureScorecardRefreshAt(html, page, new Date('2026-08-29T03:25:19Z'))).toBe('2026-09-05T03:25:19.000Z')
+    expect(futureScorecardRefreshAt(html, page, new Date('2026-09-20T03:25:19Z'))).toBeNull()
+    expect(futureScorecardRefreshAt(html, { ...page, reviewReason: 'conflicting event' }, new Date('2026-08-29'))).toBeNull()
+    expect(futureScorecardRefreshAt(html, empty, new Date('2026-08-29'))).toBeNull()
   })
 
   it('distinguishes Missouri district from the multi-state section', () => {

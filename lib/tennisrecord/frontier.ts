@@ -1,5 +1,5 @@
 import type { ParsedTennisRecordPage } from './types'
-import { hasMissouriPageEvidence } from './current-refresh'
+import { activeChampionshipYears, hasMissouriPageEvidence } from './current-refresh'
 
 /**
  * Public, explicit-season history pages provide a bounded starting frontier.
@@ -91,7 +91,7 @@ export function isTennisRecordCampaignDiscoveryAllowed(campaignSlug: string | nu
     const candidate = new URL(candidateUrl)
     if (!['tennisrecord.com', 'www.tennisrecord.com'].includes(candidate.hostname) || !['http:', 'https:'].includes(candidate.protocol)) return false
     const year = candidate.searchParams.get('year')
-    if (campaignSlug === 'missouri-2025-current' && year && (!/^20\d{2}$/.test(year) || Number(year) < 2025 || Number(year) > new Date().getUTCFullYear())) return false
+    if (campaignSlug === 'missouri-2025-current' && year && (!/^20\d{2}$/.test(year) || Number(year) < 2025 || Number(year) > Math.max(...activeChampionshipYears()))) return false
     if (campaignSlug !== 'missouri-2025-current') return true
     const candidatePath = candidate.pathname.toLowerCase()
     if (candidatePath === '/adult/league/leaguetype.aspx' || candidatePath === '/adult/league/leaguesection.aspx') return true
