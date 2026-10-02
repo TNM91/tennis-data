@@ -37,6 +37,8 @@ export type TennisRecordPlayer = {
   ntrpDesignation?: TennisRecordNtrpDesignation
   ntrpEffectiveDate?: string
   publishedRating?: number
+  publishedRatingDate?: string
+  projectedYearEndLevel?: number
   sourceUrl: string
 }
 
