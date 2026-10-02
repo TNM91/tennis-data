@@ -138,8 +138,10 @@ function buildCard(
     resultLabel: weeklyRecord
       ? `${weeklyRecord.leagueSetCount} confirmed ${weeklyRecord.leagueSetCount === 1 ? 'set' : 'sets'}`
       : leagueResults.length ? `${leagueResults.length} ${leagueResults.length === 1 ? 'result' : 'results'}` : 'Results building',
-    leaderLabel: weeklyRecord
-      ? `${weeklyRecord.leaderName} leads ${weeklyRecord.leaderWins}-${weeklyRecord.leaderLosses}`
+    leaderLabel: league.weeklySettings.enabled && league.weeklySettings.showRankings === false
+      ? 'Player stats · no competitive rankings'
+      : weeklyRecord
+      ? weeklyRecord.leaderName ? `${weeklyRecord.leaderName} leads ${weeklyRecord.leaderWins}-${weeklyRecord.leaderLosses}` : 'Player stats'
       : leader ? `${leader[0]} leads ${leader[1].wins}-${leader[1].losses}` : 'Standings building',
     href: `/explore/leagues/tiq/${encodeURIComponent(league.id)}`,
     cta: status.cta,

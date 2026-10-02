@@ -6,6 +6,20 @@ const sessions = [
   { id: 'week-2', league_id: 'league-1', status: 'completed', play_on: '2026-09-24' },
 ]
 
+describe('stats-only player league records', () => {
+  it('removes league leaders while retaining personal results', () => {
+    const input = {
+      participants: [{ leagueId: 'league-1', playerName: 'Alex', showRankings: false }],
+      sessions,
+      results: [{ session_id: 'week-1', side_a_players: ['Alex', 'Ben'], side_b_players: ['Chris', 'Dan'], side_a_games: 7, side_b_games: 6, review_status: 'approved' }],
+    }
+    const [record] = buildLeagueWeeklyPlayerRecords(input)
+    expect(record).toMatchObject({ leaderName: '', leaderWins: 0, leaderLosses: 0, wins: 1, setsPlayed: 1, winPercentage: 100, gameDifferential: 1 })
+    expect(record.bestPartner?.playerName).toBe('Ben')
+    expect(buildLeagueWeeklyPlayerRecords({ ...input, participants: [{ leagueId: 'league-1', playerName: 'Alex' }] })[0].leaderName).toBe('Alex')
+  })
+})
+
 describe('weekly league player records', () => {
   it('builds player records and standings from confirmed and league-approved sets', () => {
     const records = buildLeagueWeeklyPlayerRecords({

@@ -13,6 +13,21 @@ function source(results: LeagueWeeklyRecordSetResult[]) {
   return buildLeagueWeeklyCompetitionView({ leagueId: 'l', playerNames: ['Not playing'], sessions, results })
 }
 describe('weekly league analytics', () => {
+  it('keeps stats and fun highlights without rank movement or performance-ordered lists', () => {
+    const input = source([1, 2, 3].flatMap(set => [result('w1', set, 2, 6), result('w2', set, 7, 6)]))
+    const snapshot = JSON.stringify(input)
+    const ranked = buildWeeklyAnalytics(input, 'w2')
+    const stats = buildWeeklyAnalytics(input, 'w2', false)
+    expect(stats.view.summary).toEqual(ranked.view.summary)
+    expect(stats.view.playerInsights.map(player => player.playerName)).toEqual(['Alex', 'Ben', 'Chris', 'Dan'])
+    expect(stats.pairs.map(pair => pair.players.join(' + '))).toEqual(['Alex + Ben', 'Chris + Dan'])
+    expect(stats.players.alex).toMatchObject({ rankMovement: null, tiebreaks: { wins: 3, losses: 0 }, repeatedPartners: 1 })
+    expect(stats.highlights.some(item => item.title === 'Moving up')).toBe(false)
+    expect(stats.highlights.map(item => item.title)).toContain('Clean sweep')
+    expect(stats.highlights.map(item => item.title)).toContain('Finding their stride')
+    expect(ranked.players.alex.rankMovement).not.toBeNull()
+    expect(JSON.stringify(input)).toBe(snapshot)
+  })
   it('counts league games once, each pair once, and each player once', () => {
     const data = buildWeeklyAnalytics(source([result('w1', 1, 7, 6)]))
     expect(data.view.summary.totalGames).toBe(13)

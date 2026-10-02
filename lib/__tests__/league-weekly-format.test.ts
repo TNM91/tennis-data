@@ -12,6 +12,15 @@ import {
 } from '../league-weekly-format'
 
 describe('weekly doubles league format', () => {
+  it('preserves legacy rankings by default and keeps court balancing independent', () => {
+    expect(normalizeLeagueWeeklySettings(null).showRankings).toBe(true)
+    expect(normalizeLeagueWeeklySettings({ enabled: true }).showRankings).toBe(true)
+    expect(normalizeLeagueWeeklySettings({ enabled: true, showRankings: false })).toMatchObject({
+      showRankings: false, autoGenerateCourts: true,
+    })
+    const names = ['A', 'B', 'C', 'D']
+    expect(buildLeagueWeeklyCourts(names, { showRankings: false })).toEqual(buildLeagueWeeklyCourts(names, { showRankings: true }))
+  })
   it('publishes one setup choice with the local three-set scoring rules', () => {
     expect(ROTATING_PARTNER_DOUBLES_COMPETITION_FORMAT).toBe('weekly_rotating_doubles')
     expect(ROTATING_PARTNER_DOUBLES_FORMAT).toMatchObject({

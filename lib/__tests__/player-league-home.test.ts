@@ -16,6 +16,13 @@ function league(overrides: Partial<TiqLeagueRecord> = {}): TiqLeagueRecord {
 const participation = { leagueId: 'league-1', leagueName: 'Thursday Doubles', seasonLabel: 'Fall 2026', leagueFlight: '', locationLabel: 'St. Louis', playerName: 'Alex Player', playerId: 'player-1', playerLocation: 'St. Louis' }
 
 describe('player league home', () => {
+  it('uses stats-only language when rankings are disabled, even before records arrive', () => {
+    const view = buildPlayerLeagueHome({
+      participations: [participation], leagues: [league({ weeklySettings: { enabled: true, showRankings: false } as TiqLeagueRecord['weeklySettings'] })],
+      results: [], playerId: 'player-1', playerName: 'Alex Player', today: '2026-09-30',
+    })
+    expect(view.active[0].leaderLabel).toBe('Player stats · no competitive rankings')
+  })
   it('shows an active player league with personal record and league context', () => {
     const view = buildPlayerLeagueHome({
       participations: [participation], leagues: [league()], playerId: 'player-1', playerName: 'Alex Player', today: '2026-09-30',
