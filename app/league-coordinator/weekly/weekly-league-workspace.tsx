@@ -9,6 +9,9 @@ import QuickMessageComposer from '@/app/components/quick-message-composer'
 import LocationDirectionsLink from '@/app/components/location-directions-link'
 import LeagueOperationsSettings from './league-operations-settings'
 import WeeklyScoreIntelligencePanel from './weekly-score-intelligence-panel'
+import LeagueAnalytics from '@/app/components/league-analytics'
+import { buildLeagueWeeklyCompetitionView, type LeagueWeeklyCompetitionView } from '@/lib/league-weekly-player-records'
+import { buildWeeklyAnalytics } from '@/lib/league-weekly-analytics'
 import WeeklyLeagueResponse from '@/app/league-week/[token]/weekly-league-response'
 import { supabase } from '@/lib/supabase'
 import { listTiqLeagues } from '@/lib/tiq-league-service'
@@ -84,6 +87,7 @@ export default function WeeklyLeagueWorkspace({
   const [results, setResults] = useState<WeeklyResult[]>([])
   const [scoreSubmissions, setScoreSubmissions] = useState<WeeklyScoreSubmissionRow[]>([])
   const [playerStats, setPlayerStats] = useState<LeagueWeeklyPlayerScorecard[]>([])
+  const [analyticsView, setAnalyticsView] = useState<LeagueWeeklyCompetitionView | null>(null)
   const [playerBaselines, setPlayerBaselines] = useState<LeagueWeeklyPlayerBaseline[]>([])
   const [historyCourts, setHistoryCourts] = useState<LeagueWeeklyCourt[][]>([])
   const [lockedCourts, setLockedCourts] = useState<Record<string, number>>({})
@@ -120,6 +124,7 @@ export default function WeeklyLeagueWorkspace({
     setResults([])
     setSelectedPlayers([])
     setPlayerStats([])
+    setAnalyticsView(null)
     setHistoryCourts([])
     setScoreSubmissions([])
     const { data, error } = await supabase
@@ -161,16 +166,16 @@ export default function WeeklyLeagueWorkspace({
     setScoreSubmissions((submissionResult.data || []) as WeeklyScoreSubmissionRow[])
     const { data: historySessions } = await supabase
       .from('tiq_league_weekly_sessions')
-      .select('id,play_on,assignments')
+      .select('id,league_id,status,play_on,assignments')
       .eq('league_id', targetLeagueId)
       .in('status', ['published', 'completed'])
       .order('play_on', { ascending: false })
-      .limit(20)
     const historyIds = (historySessions || []).map((item) => item.id)
     const { data: historyResults } = historyIds.length
-      ? await supabase.from('tiq_league_weekly_set_results').select('session_id,court_number,set_number,side_a_games,side_b_games,submitted_by_name,review_status').in('session_id', historyIds)
+      ? await supabase.from('tiq_league_weekly_set_results').select('session_id,court_number,set_number,side_a_players,side_b_players,side_a_games,side_b_games,submitted_by_name,review_status').in('session_id', historyIds)
       : { data: [] }
     if (request !== sessionRequestRef.current) return
+    setAnalyticsView(buildLeagueWeeklyCompetitionView({ leagueId: targetLeagueId, sessions: historySessions || [], results: historyResults || [] }))
     const history = (historySessions || []).map((historicalSession) => ({
       playOn: historicalSession.play_on,
       courts: Array.isArray(historicalSession.assignments) ? historicalSession.assignments as LeagueWeeklyCourt[] : [],
@@ -332,8 +337,10 @@ export default function WeeklyLeagueWorkspace({
       })),
       stories: responses.map((response) => response.positive_share),
     })
-    setRecapDraft(recap)
-    await saveRecap('save', recap)
+    const highlights = analyticsView ? buildWeeklyAnalytics(analyticsView, session.id).highlights : []
+    const enrichedRecap = { ...recap, summary: [recap.summary, ...highlights.map(item => `${item.title}: ${item.detail}`)].join('\n\n').slice(0, 2000) }
+    setRecapDraft(enrichedRecap)
+    await saveRecap('save', enrichedRecap)
   }
 
   async function saveRecap(action: 'save' | 'send', draft = recapDraft) {
@@ -539,6 +546,7 @@ export default function WeeklyLeagueWorkspace({
                 </section>
               ) : null}
 
+              {analyticsView && session.assignments?.length ? <LeagueAnalytics key={`${leagueId}-${session.id}`} view={analyticsView} initialSessionId={session.id} /> : null}
               {session.assignments?.length && league && authSession?.access_token ? <WeeklyScoreIntelligencePanel
                 sessionId={session.id}
                 courts={session.assignments}

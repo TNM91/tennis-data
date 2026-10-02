@@ -3,6 +3,7 @@
 import { useState, type CSSProperties } from 'react'
 import type { LeagueWeeklyCompetitionView, LeagueWeeklyPlayerInsight } from '@/lib/league-weekly-player-records'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import LeagueAnalytics from '@/app/components/league-analytics'
 
 export default function WeeklyLeagueResultsPanel({
   view,
@@ -33,6 +34,9 @@ export default function WeeklyLeagueResultsPanel({
       {!loading && error ? <div role="status" style={errorStyle}>{error}</div> : null}
       {!loading && !error && view ? (
         <>
+          <LeagueAnalytics view={view} />
+          <details style={subsectionStyle}>
+          <summary style={subsectionTitleStyle}>Full standings and scorecards</summary>
           <div style={summaryGridStyle}>
             <SummaryMetric label="Weeks" value={view.summary.weeks} />
             <SummaryMetric label="Confirmed sets" value={view.summary.acceptedSets} />
@@ -150,6 +154,7 @@ export default function WeeklyLeagueResultsPanel({
               </div>
             ) : <div style={emptyStyle}>Published weeks will appear here.</div>}
           </div>
+          </details>
         </>
       ) : null}
     </section>
