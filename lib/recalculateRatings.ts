@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { saveRatingSnapshotBatches } from './rating-snapshot-batches'
+import { loadRatingSnapshotDiff, type StoredRatingSnapshot } from './rating-snapshot-diff'
 
 type MatchType = 'singles' | 'doubles'
 export type MatchSide = 'A' | 'B'
@@ -176,6 +177,7 @@ export type RatingRecalculationOptions = {
   /** Opt-in bounded writes for disjoint, deduplicated snapshot batches. */
   snapshotWriteConcurrency?: 1 | 2 | 4 | 8
   snapshotWriteBatchSize?: 500 | 1000
+  snapshotDiff?: boolean
 }
 
 export type RatingRecalculationResult = {
@@ -370,21 +372,49 @@ export async function recalculateDynamicRatings(
   }
 
   if (!options.dryRun) {
+    const replaceExisting = options.replaceSnapshots ?? (engine === 'legacy')
+    const rowsToSave = networkPublication && !replaceExisting ? snapshotRows.filter(row => row.snapshot_date >= networkPublication.season + '-01-01') : snapshotRows
+    let storedSnapshots: StoredRatingSnapshot[] | undefined
+    let snapshotDiff: Awaited<ReturnType<typeof loadRatingSnapshotDiff>> | undefined
+    if (networkPublication && !replaceExisting && options.snapshotDiff !== false) {
+      const readStarted = Date.now()
+      try {
+        snapshotDiff = await loadRatingSnapshotDiff(client, rowsToSave, networkPublication.season, new Set(networkPublication.playerIds))
+        storedSnapshots = snapshotDiff.existingRows
+        console.info(JSON.stringify({ event: 'rating_snapshot_diff', read_ms: Date.now() - readStarted, existing: snapshotDiff.existing, desired: snapshotDiff.desired, changed: snapshotDiff.writes.length, unchanged: snapshotDiff.unchanged, removed: snapshotDiff.remove.length }))
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        // Older schemas retain the established full publication fallback. A
+        // timeout or incomplete inventory must fail before any rating writes.
+        if (!/delta|opponent_rating|win_probability|multiplier/.test(message) || !/does not exist|Could not find/i.test(message)) throw error
+        console.warn(JSON.stringify({ event: 'rating_snapshot_diff_legacy_schema', message }))
+      }
+    }
     onPhase?.('saving-ratings', `${players.length} players`)
     await persistPlayerRatings(recalculatedPlayers, client, engine === 'network' ? 4 : 1, engine === 'network')
 
     onPhase?.('saving-snapshots', `${snapshotRows.length} snapshots`)
     // Incremental upserts alone would leave excluded legacy courts in the new model's history.
-    const replaceExisting = options.replaceSnapshots ?? (engine === 'legacy')
-    if (networkPublication && !replaceExisting) {
+    if (networkPublication && !replaceExisting && !snapshotDiff) {
       const seasonStart = networkPublication.season + '-01-01'
       await saveRatingSnapshotBatches(chunkArray(networkPublication.playerIds, 200), async ids => {
         const { error } = await client.from('rating_snapshots').delete().eq('track', 'tiq').gte('snapshot_date', seasonStart).in('player_id', ids)
         if (error) throw new Error('Failed to replace current-season TIQ history: ' + error.message)
       }, 4)
     }
-    const rowsToSave = networkPublication && !replaceExisting ? snapshotRows.filter(row => row.snapshot_date >= networkPublication.season + '-01-01') : snapshotRows
-    await replaceRatingSnapshots(rowsToSave, client, replaceExisting, options.snapshotWriteConcurrency ?? (engine === 'network' ? 8 : 1), options.snapshotWriteBatchSize ?? (engine === 'network' ? 1000 : 500))
+    const writeStarted = Date.now()
+    await replaceRatingSnapshots(snapshotDiff?.writes ?? rowsToSave, client, replaceExisting, options.snapshotWriteConcurrency ?? (engine === 'network' ? 8 : 1), options.snapshotWriteBatchSize ?? (engine === 'network' ? 1000 : 500), snapshotDiff ? storedSnapshots : undefined)
+    const writeMs = Date.now() - writeStarted
+    const cleanupStarted = Date.now()
+    if (snapshotDiff) {
+      // Keep previous history available if a write fails. Delete only stale
+      // managed rows after every new/changed write has settled successfully.
+      await saveRatingSnapshotBatches(chunkArray(snapshotDiff.remove, 200), async ids => {
+        const { error } = await client.from('rating_snapshots').delete().in('id', ids)
+        if (error) throw new Error('Failed to remove stale TIQ history: ' + error.message)
+      }, 4)
+      console.info(JSON.stringify({ event: 'rating_snapshot_diff_saved', write_ms: writeMs, cleanup_ms: Date.now() - cleanupStarted, changed: snapshotDiff.writes.length, removed: snapshotDiff.remove.length }))
+    }
   }
 
   onPhase?.('done')
@@ -829,6 +859,7 @@ async function replaceRatingSnapshots(
   replaceExisting: boolean,
   concurrency: 1 | 2 | 4 | 8 = 1,
   batchSize: 500 | 1000 = 500,
+  existingRows?: StoredRatingSnapshot[],
 ) {
   if (replaceExisting) {
     const { error: deleteError } = await client
@@ -855,8 +886,24 @@ async function replaceRatingSnapshots(
 
   // Bound payloads as well as concurrency. Larger network batches reduce round trips;
   // keeping at most 1,000 unique match IDs also bounds foreign-key recovery reads.
+  const existingIds = new Map<string, string[]>()
+  for (const row of existingRows ?? []) {
+    const key = `${row.player_id}__${row.match_id}__${row.rating_type}__${row.track}`
+    const ids = existingIds.get(key) ?? []
+    ids.push(row.id)
+    existingIds.set(key, ids)
+  }
   await saveRatingSnapshotBatches(chunkArray(dedupedRows, batchSize === 1000 ? 1000 : 500), async chunk => {
-    await saveRatingSnapshotChunk(chunk, client)
+    const beforeInsert = existingRows ? async () => {
+      // Without an ON CONFLICT constraint, replace only the exact changed
+      // keys before the legacy insert fallback, avoiding duplicate histories.
+      const ids = chunk.flatMap(row => existingIds.get(`${row.player_id}__${row.match_id}__${row.rating_type}__${row.track}`) ?? [])
+      for (const batch of chunkArray(ids, 200)) {
+        const { error } = await client.from('rating_snapshots').delete().in('id', batch)
+        if (error) throw new Error('Failed to replace changed snapshot keys: ' + error.message)
+      }
+    } : undefined
+    await saveRatingSnapshotChunk(chunk, client, true, beforeInsert)
   }, concurrency)
 }
 
@@ -864,6 +911,7 @@ async function saveRatingSnapshotChunk(
   chunk: RatingSnapshotInsert[],
   client: SupabaseClient,
   retryMissingMatches = true,
+  beforeInsert?: () => Promise<void>,
 ) {
   const { error } = await client
     .from('rating_snapshots')
@@ -883,12 +931,13 @@ async function saveRatingSnapshotChunk(
         skippedSnapshotCount: chunk.length - retained.length,
         skippedMatchCount: new Set(chunk.filter(row => !retainedMatchIds.has(row.match_id)).map(row => row.match_id)).size,
       }))
-      if (retained.length) await saveRatingSnapshotChunk(retained, client, false)
+      if (retained.length) await saveRatingSnapshotChunk(retained, client, false, beforeInsert)
       return
     }
   }
 
   if (isMissingOnConflictConstraintError(error.message)) {
+    await beforeInsert?.()
     await insertRatingSnapshotChunk(chunk, client, retryMissingMatches)
     return
   }
@@ -903,11 +952,12 @@ async function saveRatingSnapshotChunk(
     if (fallbackError && retryMissingMatches && isRatingSnapshotMatchForeignKeyError(fallbackError.message)) {
       const retained = await retainSnapshotsForExistingMatches(chunk, client)
       if (retained.length < chunk.length) {
-        if (retained.length) await saveRatingSnapshotChunk(retained, client, false)
+        if (retained.length) await saveRatingSnapshotChunk(retained, client, false, beforeInsert)
         return
       }
     }
     if (fallbackError && isMissingOnConflictConstraintError(fallbackError.message)) {
+      await beforeInsert?.()
       await insertRatingSnapshotChunk(chunk, client, retryMissingMatches)
       return
     }
