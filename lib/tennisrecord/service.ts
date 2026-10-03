@@ -1,5 +1,5 @@
 import { isKnownMissouriPlayerHistory } from './current-refresh'
-import { assignMissouriPlayerRefreshPages } from './missouri-player-refresh'
+import { assignMissouriPlayerRefreshPages, enrollDiscoveredMissouriPlayers } from './missouri-player-refresh'
 import { conflictsWithTennisRecordSourceIdentity } from './source-player-link'
 import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -1094,6 +1094,11 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
         summary.parserFailures += unclearWinners
         const savedJob = await service.from('tennisrecord_crawl_queue').update({ status: unclearWinners ? 'review' : 'done', retry_count: 0, deferred_retry_at: null, failure_reason: unclearWinners ? 'Winner indicator is missing or conflicting. Source scorecards retained for review.' : '', completed_at: new Date().toISOString(), ...(input.currentSeason && !unclearWinners ? { current_refreshed_at: new Date().toISOString(), refresh_due_at: nextCurrentRefreshAt() } : {}) }).eq('id', job.id)
         if (savedJob.error) throw new Error(savedJob.error.message)
+        if (settings.current_refresh_enabled) {
+          // Transfer enrollment only after the claim is settled, so the source
+          // profile itself can join Missouri refresh without touching a running job.
+          await enrollDiscoveredMissouriPlayers(service, parsed.players, (urls, scope) => enqueueTennisRecordUrls(service, urls, scope))
+        }
       } catch (error) {
         if (error instanceof SourceOutagePersistenceError) throw error
         if (error instanceof TennisRecordCheckpointBudgetError) {
