@@ -22,6 +22,7 @@ type MatchSource = 'usta' | 'tiq_team' | 'tiq_individual' | 'tiq_tournament'
 export type MatchRow = {
   id: string
   external_match_id?: string | null
+  source?: string | null
   match_date: string
   match_type: MatchType
   score: string
@@ -338,9 +339,10 @@ export async function recalculateDynamicRatings(
   let recalculatedPlayers = [...playersById.values()]
   let networkPublication: { season: number; playerIds: string[] } | null = null
   if (networkInputs) {
-    const { calculateLiveNetwork, applyLiveNetworkPlayers } = networkInputs.adapter
+    const { calculateLiveNetwork, applyLiveNetworkPlayers, orientReviewedLiveScores } = networkInputs.adapter
     const { evidence } = networkInputs
-    const network = calculateLiveNetwork({ season, cutoff, matches, participants: matchPlayers, ...evidence })
+    const reviewedMatches = await orientReviewedLiveScores(client, matches.filter(match => match.match_date >= season + '-01-01' && match.match_date <= cutoff))
+    const network = calculateLiveNetwork({ season, cutoff, matches: reviewedMatches, participants: matchPlayers, ...evidence })
     recalculatedPlayers = applyLiveNetworkPlayers(recalculatedPlayers, network)
     const published = new Set(network.snapshots.map(row => row.player_id))
     networkPublication = { season, playerIds: [...published] }
@@ -357,14 +359,16 @@ export async function recalculateDynamicRatings(
 
     onPhase?.('saving-snapshots', `${snapshotRows.length} snapshots`)
     // Incremental upserts alone would leave excluded legacy courts in the new model's history.
-    if (networkPublication && options.replaceSnapshots === false) {
+    const replaceExisting = options.replaceSnapshots ?? (engine === 'legacy')
+    if (networkPublication && !replaceExisting) {
       const seasonStart = networkPublication.season + '-01-01'
       await saveRatingSnapshotBatches(chunkArray(networkPublication.playerIds, 200), async ids => {
         const { error } = await client.from('rating_snapshots').delete().eq('track', 'tiq').gte('snapshot_date', seasonStart).in('player_id', ids)
         if (error) throw new Error('Failed to replace current-season TIQ history: ' + error.message)
       }, 4)
     }
-    await replaceRatingSnapshots(snapshotRows, client, options.replaceSnapshots !== false, options.snapshotWriteConcurrency ?? (engine === 'network' ? 4 : 1))
+    const rowsToSave = networkPublication && !replaceExisting ? snapshotRows.filter(row => row.snapshot_date >= networkPublication.season + '-01-01') : snapshotRows
+    await replaceRatingSnapshots(rowsToSave, client, replaceExisting, options.snapshotWriteConcurrency ?? (engine === 'network' ? 4 : 1))
   }
 
   onPhase?.('done')
@@ -466,6 +470,8 @@ async function fetchMatches(client: SupabaseClient): Promise<MatchRow[]> {
       .from('matches')
       .select(`
         id,
+        external_match_id,
+        source,
         match_date,
         match_type,
         score,

@@ -36,3 +36,34 @@ describe('live network adapter', () => {
     expect(result.skippedMatches[0].reason).toBe('unanchored_network')
   })
 })
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { orientReviewedLiveScores } from '../tiq-live-network'
+function provenanceClient(observations: Record<string, unknown>[], aliases = [{ canonical_match_id: '1', winning_observation_id: 'o' }]) {
+  return { from(table: string) {
+    let rows: Record<string, unknown>[] = table === 'tennisrecord_canonical_matches' ? aliases : observations
+    const builder = {
+      select: () => builder,
+      in: (column: string, values: string[]) => { rows = rows.filter(row => values.includes(String(row[column]))); return builder },
+      eq: () => builder,
+      then: (resolve: (value: { data: Record<string, unknown>[]; error: null }) => unknown) => Promise.resolve(resolve({ data: rows, error: null })),
+    }
+    return builder
+  } } as unknown as SupabaseClient
+}
+describe('reviewed source score orientation', () => {
+  const source = { ...match('1', '2026-02-01', '6-3 6-3'), winner_side: 'B' as const, source: 'tennisrecord', external_match_id: 'tennisrecord:source-court' }
+  const observation = { id: 'o', source: 'tennisrecord', winner_side: 'B', score_text: '6-3 6-3' }
+  it('orients only an exact winning source receipt and preserves the original input', async () => {
+    const rows = await orientReviewedLiveScores(provenanceClient([observation]), [source])
+    expect(rows[0].score).toBe('3-6 3-6')
+    expect(rows[0].winner_side).toBe('B')
+    expect(source.score).toBe('6-3 6-3')
+  })
+  it.each([{ ...observation, source: 'captain' }, { ...observation, winner_side: 'A' }, { ...observation, score_text: '6-2 6-2' }])('does not guess orientation from conflicting evidence', async evidence => {
+    expect((await orientReviewedLiveScores(provenanceClient([evidence]), [source]))[0].score).toBe(source.score)
+  })
+  it('rejects missing and contradictory winning variants', async () => {
+    const aliases = [{ canonical_match_id: '1', winning_observation_id: 'o' }, { canonical_match_id: '1', winning_observation_id: 'missing' }]
+    expect((await orientReviewedLiveScores(provenanceClient([observation], aliases), [source]))[0].score).toBe(source.score)
+  })
+})

@@ -88,3 +88,29 @@ export function applyLiveNetworkPlayers(players: WorkingPlayer[], result: Return
 }
 
 
+/** Orient only an unchanged winner-first source score with conflict-free winning evidence. */
+export async function orientReviewedLiveScores(client: SupabaseClient, matches: MatchRow[]) {
+  const candidates = matches.filter(match => match.source === 'tennisrecord' && match.external_match_id?.startsWith('tennisrecord:') && match.winner_side === 'B' && !parseScoreMetrics(match.score, match.winner_side).parsed)
+  const oriented = new Map<string, string>(), normalize = (score: string) => score.replace(/;/g, ' ').replace(/\s+/g, ' ').trim()
+  const batches: MatchRow[][] = []
+  for (let start = 0; start < candidates.length; start += 100) batches.push(candidates.slice(start, start + 100))
+  const { saveRatingSnapshotBatches } = await import('./rating-snapshot-batches')
+  await saveRatingSnapshotBatches(batches, async batch => {
+    const aliases = await client.from('tennisrecord_canonical_matches').select('canonical_match_id,winning_observation_id').in('canonical_match_id', batch.map(m => m.id)).eq('winning_source', 'tennisrecord').eq('has_conflict', false)
+    if (aliases.error) throw new Error('Network score provenance: ' + aliases.error.message)
+    if (!aliases.data?.length || aliases.data.length >= 1000) return
+    const ids = [...new Set(aliases.data.map(a => a.winning_observation_id).filter(Boolean))]
+    if (!ids.length) return
+    const evidence = await client.from('tennisrecord_match_observations').select('id,source,score_text,winner_side').in('id', ids)
+    if (evidence.error) throw new Error('Network winning score evidence: ' + evidence.error.message)
+    const byId = new Map((evidence.data ?? []).map(e => [e.id, e]))
+    for (const match of batch) {
+      const rows = aliases.data.filter(a => a.canonical_match_id === match.id)
+      if (!rows.length || rows.some(a => { const e = byId.get(a.winning_observation_id); return !e || e.source !== 'tennisrecord' || e.winner_side !== 'B' || !e.score_text || normalize(e.score_text) !== normalize(match.score) })) continue
+      const score = match.score.replace(/\b(\d+)\s*-\s*(\d+)\b/g, '$2-$1')
+      if (parseScoreMetrics(score, 'B').parsed) oriented.set(match.id, score)
+    }
+  }, 4)
+  console.info(JSON.stringify({ event: 'tiq_network_score_orientation', candidates: candidates.length, oriented: oriented.size }))
+  return matches.map(match => oriented.has(match.id) ? { ...match, score: oriented.get(match.id)! } : match)
+}
