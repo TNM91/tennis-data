@@ -175,6 +175,7 @@ export type RatingRecalculationOptions = {
   replaceSnapshots?: boolean
   /** Opt-in bounded writes for disjoint, deduplicated snapshot batches. */
   snapshotWriteConcurrency?: 1 | 2 | 4 | 8
+  snapshotWriteBatchSize?: 500 | 1000
 }
 
 export type RatingRecalculationResult = {
@@ -383,7 +384,7 @@ export async function recalculateDynamicRatings(
       }, 4)
     }
     const rowsToSave = networkPublication && !replaceExisting ? snapshotRows.filter(row => row.snapshot_date >= networkPublication.season + '-01-01') : snapshotRows
-    await replaceRatingSnapshots(rowsToSave, client, replaceExisting, options.snapshotWriteConcurrency ?? (engine === 'network' ? 8 : 1))
+    await replaceRatingSnapshots(rowsToSave, client, replaceExisting, options.snapshotWriteConcurrency ?? (engine === 'network' ? 8 : 1), options.snapshotWriteBatchSize ?? (engine === 'network' ? 1000 : 500))
   }
 
   onPhase?.('done')
@@ -827,6 +828,7 @@ async function replaceRatingSnapshots(
   client: SupabaseClient,
   replaceExisting: boolean,
   concurrency: 1 | 2 | 4 | 8 = 1,
+  batchSize: 500 | 1000 = 500,
 ) {
   if (replaceExisting) {
     const { error: deleteError } = await client
@@ -851,7 +853,9 @@ async function replaceRatingSnapshots(
       .values(),
   )
 
-  await saveRatingSnapshotBatches(chunkArray(dedupedRows, 500), async chunk => {
+  // Bound payloads as well as concurrency. Larger network batches reduce round trips;
+  // keeping at most 1,000 unique match IDs also bounds foreign-key recovery reads.
+  await saveRatingSnapshotBatches(chunkArray(dedupedRows, batchSize === 1000 ? 1000 : 500), async chunk => {
     await saveRatingSnapshotChunk(chunk, client)
   }, concurrency)
 }

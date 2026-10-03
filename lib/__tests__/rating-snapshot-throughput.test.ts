@@ -34,8 +34,25 @@ function fixture(mode: Mode, failFirstSnapshot = false) {
   } } as unknown as SupabaseClient
   // Fallback requests can interleave; compare every request, not its completion order.
   const inventory = () => writes.map(row => JSON.stringify(row)).sort()
-  return { client, inventory, maximum: () => maximum, active: () => active, snapshotRequests: () => snapshotRequests }
+  return { client, inventory, writes, maximum: () => maximum, active: () => active, snapshotRequests: () => snapshotRequests }
 }
+
+it.each<Mode>(['modern', 'metrics-missing', 'constraint-missing', 'both-missing'])('larger bounded batches preserve every successful stored row (%s)', async mode => {
+  const small = fixture(mode), large = fixture(mode)
+  const options = { now: Date.parse('2026-09-05T00:00:00Z'), replaceSnapshots: false, snapshotWriteConcurrency: 2 as const }
+  const expected = await recalculateDynamicRatings(undefined, small.client, options)
+  const actual = await recalculateDynamicRatings(undefined, large.client, { ...options, snapshotWriteBatchSize: 1000 })
+  expect(actual).toEqual(expected)
+  const stored = (data: ReturnType<typeof fixture>) => data.writes.filter(w => w.table === 'rating_snapshots'
+    && (mode.includes('constraint') || mode === 'both-missing' ? w.operation === 'insert' : w.operation === 'upsert')
+    && (mode.includes('metrics') || mode === 'both-missing' ? !('delta' in (w.rows[0] as object)) : true))
+    .flatMap(w => w.rows.map(row => JSON.stringify(row))).sort()
+  expect(stored(large)).toEqual(stored(small))
+  expect(large.snapshotRequests()).toBeLessThan(small.snapshotRequests())
+  expect(large.writes.filter(w => w.table === 'rating_snapshots').every(w => w.rows.length <= 1000)).toBe(true)
+  expect(large.maximum()).toBe(2)
+  expect(large.active()).toBe(0)
+})
 
 it.each<Mode>(['modern', 'metrics-missing', 'constraint-missing', 'both-missing'])('preserves every rating, snapshot and request payload across multiple batches (%s)', async mode => {
   const sequential = fixture(mode), paired = fixture(mode)
