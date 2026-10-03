@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { MatchRow } from './recalculateRatings'
+import { parseScoreMetrics, type MatchRow } from './recalculateRatings'
 import { saveRatingSnapshotBatches } from './rating-snapshot-batches'
 
 type Participant = { match_id: string; player_id: string; side: 'A' | 'B' }
@@ -10,7 +10,12 @@ const normalizeScore = (score: string) => score.replace(/;/g, ' ').replace(/\s+/
 /** Exact source ownership on a retained winning receipt; never a name or rating match. */
 export function isSourceOwnedCourt(match: MatchRow, lineup: Participant[], receipt: Receipt, excluded: ReadonlySet<string>, owners: ReadonlyMap<string, string>) {
   if (match.source !== 'tennisrecord' || !match.external_match_id?.startsWith('tennisrecord:') || receipt.source !== 'tennisrecord') return false
-  if (!receipt.score_text || normalizeScore(match.score) !== normalizeScore(receipt.score_text) || match.winner_side !== receipt.winner_side) return false
+  if (!receipt.score_text || match.winner_side !== receipt.winner_side) return false
+  const rawScore = normalizeScore(receipt.score_text)
+  const winnerFirst = receipt.winner_side === 'B' && !parseScoreMetrics(rawScore, 'B').parsed
+  const sameScore = normalizeScore(match.score) === rawScore
+  const alreadyOriented = winnerFirst && parseScoreMetrics(match.score, 'B').parsed && normalizeScore(match.score) === rawScore.replace(/(\d+)-(\d+)/g, '$2-$1')
+  if (!sameScore && !alreadyOriented) return false
   const count = match.match_type === 'singles' ? 1 : match.match_type === 'doubles' ? 2 : 0
   const rows = receipt.participants
   if (!count || !Array.isArray(rows) || rows.length !== count * 2 || lineup.length !== count * 2) return false

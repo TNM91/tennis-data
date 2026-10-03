@@ -26,6 +26,11 @@ describe('source-owned court identity evidence', () => {
     expect(isSourceOwnedCourt(match, lineup, { ...receipt, winner_side: 'B' }, excluded, owners)).toBe(false)
     expect(isSourceOwnedCourt(match, lineup, { ...receipt, source: 'admin_verified' }, excluded, owners)).toBe(false)
   })
+  it('recognizes the same winner-first source score already oriented to court sides', () => {
+    const sideB = { ...match, winner_side: 'B' as const, score: '4-6 4-6' }
+    expect(isSourceOwnedCourt(sideB, lineup, { ...receipt, winner_side: 'B' }, excluded, owners)).toBe(true)
+    expect(isSourceOwnedCourt({ ...sideB, score: '3-6 4-6' }, lineup, { ...receipt, winner_side: 'B' }, excluded, owners)).toBe(false)
+  })
   it('rejects duplicate source identities and incomplete seats', () => {
     expect(isSourceOwnedCourt(match, lineup, { ...receipt, participants: [receipt.participants[0], { ...receipt.participants[1], sourcePlayerKey: 'primary' }] }, excluded, owners)).toBe(false)
     expect(isSourceOwnedCourt(match, lineup, { ...receipt, participants: [{ ...receipt.participants[0], seat: 0 }, receipt.participants[1]] }, excluded, owners)).toBe(false)
