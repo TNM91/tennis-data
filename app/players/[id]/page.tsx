@@ -1,6 +1,7 @@
 'use client'
 
-import { getTiqBandStatus, type TiqBandStatus } from '@/lib/tiq-band-status'
+import { getTiqBandStatus } from '@/lib/tiq-band-status'
+import { getCurrentRatingHistory, getPlayerRatingStatus, type PlayerRatingStatus } from '@/lib/player-rating-context'
 import Link from 'next/link'
 import Image from 'next/image'
 import { track } from '@vercel/analytics'
@@ -59,8 +60,7 @@ type ProfileNavSection = 'overview' | 'rating' | 'performance' | 'player-id' | '
 type MatchType = 'singles' | 'doubles'
 type MatchSide = 'A' | 'B'
 type TrendDirection = 'up' | 'down' | 'flat'
-type ConfidenceLevel = 'Low' | 'Medium' | 'High'
-type RatingStatus = TiqBandStatus
+type RatingStatus = PlayerRatingStatus
 
 type Player = {
   id: string
@@ -865,8 +865,8 @@ function PlayerProfileContent() {
 
   // Describe TIQ playing strength within its display band; this is not a USTA forecast.
   const ratingStatus = useMemo(
-    () => getTiqBandStatus(baseRating, selectedDynamicRating),
-    [baseRating, selectedDynamicRating],
+    () => getPlayerRatingStatus(baseRating, selectedDynamicRating, !hasPendingUstaBaseline),
+    [baseRating, selectedDynamicRating, hasPendingUstaBaseline],
   )
 
   const trendDirection = useMemo<TrendDirection>(
@@ -874,10 +874,13 @@ function PlayerProfileContent() {
     [chartPoints],
   )
 
-  const confidence = useMemo<ConfidenceLevel>(
-    () => getConfidence(totalMatches),
-    [totalMatches],
+  const ratingHistoryYear = new Date().getUTCFullYear()
+  const currentRatingHistory = useMemo(
+    () => getCurrentRatingHistory(snapshots, ratingView, ratingHistoryYear),
+    [snapshots, ratingView, ratingHistoryYear],
   )
+  const ratingHistoryCount = currentRatingHistory.length
+  const ratingHistoryLabel = `${ratingHistoryCount} rated result${ratingHistoryCount === 1 ? '' : 's'} · ${ratingHistoryYear}`
 
   const ratingDiff = useMemo(
     () => roundToTwo(selectedDynamicRating - baseRating),
@@ -1043,10 +1046,8 @@ function PlayerProfileContent() {
 
   // How many consecutive snapshots the current TIQ band status has held, reading snapshots newest to oldest.
   const statusStreakMatches = useMemo(() => {
-    const relevant = snapshots
-      .filter((s) => !s.rating_type || s.rating_type === ratingView)
-      .slice()
-      .reverse() // newest first
+    if (hasPendingUstaBaseline) return 0
+    const relevant = currentRatingHistory.slice().reverse() // newest first
     if (relevant.length === 0) return 0
     let count = 0
     for (const snap of relevant) {
@@ -1055,7 +1056,7 @@ function PlayerProfileContent() {
       else break
     }
     return count
-  }, [snapshots, baseRating, ratingStatus, ratingView])
+  }, [currentRatingHistory, baseRating, ratingStatus, hasPendingUstaBaseline])
 
   const percentile = useMemo(() => {
     if (playerRank === null || !totalPlayers) return null
@@ -1280,7 +1281,7 @@ function PlayerProfileContent() {
       ? 'Roster verified. The competitive story starts with the first reviewed scorecard.'
       : 'Baseline ready. Add match evidence to unlock form and opponent insight.'
   const profileReadBody = hasTrackedMatches
-    ? `TIQ ${ratingViewLabel.toLowerCase()} is ${formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)} with ${confidence.toLowerCase()} confidence. Use the next match to test ${playerPathIdentityRead.matchTrigger.toLowerCase()}.`
+    ? `TIQ ${ratingViewLabel.toLowerCase()} is ${formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)} with ${ratingHistoryLabel.toLowerCase()}. Use the next match to test ${playerPathIdentityRead.matchTrigger.toLowerCase()}.`
     : 'Ratings and team context are visible now. Win rate, current form, rating movement, and opponent patterns appear after reviewed results connect to this player.'
 
   const scoreBreakdown = useMemo(() => {
@@ -1541,7 +1542,7 @@ function PlayerProfileContent() {
     return () => observer.disconnect()
   }, [detailReady, hasPersonalPlayerExperience, hasTeamProfileContext, isPublicExplorerProfile])
   const publicProfileTitle = hasTrackedMatches
-    ? `${ratingStatus} based on ${totalMatches} reviewed match${totalMatches === 1 ? '' : 'es'}.`
+    ? `${ratingStatus}. ${ratingHistoryLabel}.`
     : isRosterOnlyProfile
       ? 'Rostered player. Match history is still building.'
       : 'Match history is still building.'
@@ -2086,7 +2087,7 @@ function PlayerProfileContent() {
             <div className={profileStory.storyFooter}>
               <div className={profileStory.ratingMeta} aria-label="Player rating context">
                 <div><span>{officialUstaShortRead}</span><strong>{hasPendingUstaBaseline ? 'Pending' : baseRating.toFixed(2)}</strong></div>
-                <div><span>Confidence</span><strong>{hasTrackedMatches ? confidence : 'Baseline'}</strong></div>
+                <div><span>Rating history</span><strong>{ratingHistoryLabel}</strong></div>
                 <div><span>Form</span><strong>{hasTrackedMatches ? trackedFormLabel : 'New'}</strong></div>
                 <div><span>Reviewed</span><strong>{totalMatches}</strong></div>
               </div>
@@ -2558,7 +2559,7 @@ function PlayerProfileContent() {
                     <span>Current form</span>
                     <strong style={playerScoreboardMetricValueStyle}>{trackedFormLabel}</strong>
                     <small style={playerScoreboardMetricHintStyle}>
-                      {hasTrackedMatches ? `${confidence} confidence` : 'Building match history'}
+                      {hasTrackedMatches ? ratingHistoryLabel : 'Building match history'}
                     </small>
                   </div>
                 </div>
@@ -2584,7 +2585,7 @@ function PlayerProfileContent() {
                   <span style={profileContextLabelStyle}>Profile depth</span>
                   <strong style={profileContextValueStyle}>
                     {hasTrackedMatches
-                      ? `${confidence} confidence`
+                      ? ratingHistoryLabel
                       : isRosterOnlyProfile
                         ? 'Roster verified'
                         : 'Baseline only'}
@@ -2599,16 +2600,16 @@ function PlayerProfileContent() {
 
                     <div style={meterStatusRow}>
                       <span style={dynamicStatusPill}>{hasTrackedMatches ? ratingStatus : 'Baseline'}</span>
-                      <span style={confidencePill}>{hasTrackedMatches ? `${confidence} confidence` : 'Awaiting match evidence'}</span>
+                      <span style={confidencePill}>{hasTrackedMatches ? ratingHistoryLabel : 'Awaiting match evidence'}</span>
                       {statusStreakMatches >= 3 ? (
-                        <span style={confidencePill}>{statusStreakMatches} match streak</span>
+                        <span style={confidencePill}>{statusStreakMatches} rating updates</span>
                       ) : null}
                     </div>
 
                     <div style={meterSubtext}>
                       {hasTrackedMatches
                         ? `USTA ${hasPendingUstaBaseline ? 'Pending' : formatRatingValue(baseRating)} - TIQ ${ratingViewLabel.toLowerCase()} rating ${formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}`
-                        : `Official baseline: ${hasPendingUstaBaseline ? 'USTA pending' : `USTA ${formatRatingValue(baseRating)}`}. TIQ starts at ${formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)} and gains confidence from reviewed results.`}
+                        : `Official baseline: ${hasPendingUstaBaseline ? 'USTA pending' : `USTA ${formatRatingValue(baseRating)}`}. TIQ starts at ${formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)} and is updated as eligible results are recorded.`}
                     </div>
 
                     {hasTrackedMatches ? (
@@ -2627,7 +2628,7 @@ function PlayerProfileContent() {
 
                   <div style={meterValueGroup}>
                     <div style={meterCurrent}>{formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}</div>
-                    <div style={meterTarget}>USTA {hasPendingUstaBaseline ? 'Pending' : baseRating.toFixed(2)} - Next {nextThreshold.toFixed(1)}</div>
+                    <div style={meterTarget}>{hasPendingUstaBaseline ? 'USTA comparison pending' : `USTA ${baseRating.toFixed(2)} - Next ${nextThreshold.toFixed(1)}`}</div>
                     <div style={meterDelta}>
                       {!hasTrackedMatches
                         ? 'Match movement not available yet'
@@ -2638,7 +2639,7 @@ function PlayerProfileContent() {
                   </div>
                 </div>
 
-                <div style={meterTrack}>
+                {!hasPendingUstaBaseline ? <><div style={meterTrack}>
                   <div style={dynamicMeterFill} />
                 </div>
 
@@ -2646,7 +2647,7 @@ function PlayerProfileContent() {
                   <span>{progressInfo.previous.toFixed(1)}</span>
                   <span>{progressInfo.remaining.toFixed(2)} to go</span>
                   <span>{nextThreshold.toFixed(1)}</span>
-                </div>
+                </div></> : null}
               </div>
             </div>
 
@@ -2668,7 +2669,7 @@ function PlayerProfileContent() {
                   <StatChip label="USTA-match estimate" value={hasPendingUstaBaseline ? 'Pending' : ustaDynamicRating.toFixed(2)} />
                   <StatChip label="USTA Base" value={hasPendingUstaBaseline ? 'Pending' : baseRating.toFixed(2)} />
                   <StatChip label="Trend" value={hasTrackedMatches ? getTrendShortLabel(trendDirection) : 'New'} />
-                  <StatChip label="Confidence" value={hasTrackedMatches ? confidence : 'Baseline'} />
+                  <StatChip label="Rating history" value={ratingHistoryLabel} />
                   <StatChip
                     label="Form last 5"
                     value={hasTrackedMatches && formScore !== null ? `${formScore >= 0 ? '+' : ''}${formScore.toFixed(3)}` : 'Awaiting results'}
@@ -2747,7 +2748,7 @@ function PlayerProfileContent() {
               signals={[
                 { label: 'Source', value: 'Player records, scorecards, teams, awards' },
                 { label: 'Freshness', value: stalenessLabel || 'Updates as reviewed data connects' },
-                { label: 'Confidence', value: `${confidence} from ${totalMatches} tracked matches` },
+                { label: 'Rating history', value: `${ratingHistoryLabel}. Stored TIQ results may include fallback estimates; this count is not an accuracy probability.` },
                 { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
               ]}
             />
@@ -3339,7 +3340,7 @@ function PlayerProfileContent() {
         ) : null}
 
         {access.canUseAdvancedPlayerInsights ? (() => {
-          const rec = buildPlayerRecommendation(ratingStatus, ratingDiff, confidence, statusStreakMatches, ratingView)
+          const rec = buildPlayerRecommendation(ratingStatus, ratingDiff, ratingHistoryCount, statusStreakMatches, ratingView)
           return (
             <article style={{ ...panelCard, marginBottom: 16, borderColor: meterTheme.pillBorder, boxShadow: `0 14px 34px rgba(0,0,0,0.12), inset 0 0 0 1px ${meterTheme.pillBorder}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' as const, minWidth: 0, overflowWrap: 'anywhere' }}>
@@ -4703,18 +4704,22 @@ function SimpleLineChart({ points, baseRating }: { points: ChartPoint[]; baseRat
 function buildPlayerRecommendation(
   status: RatingStatus,
   ratingDiff: number,
-  confidence: ConfidenceLevel,
+  ratingHistoryCount: number,
   statusStreak: number,
   ratingView: RatingView,
 ): { headline: string; body: string } {
+  if (status === 'USTA comparison pending') return {
+    headline: 'Your USTA comparison is pending.',
+    body: 'TIQ estimates your playing strength from recorded results. A verified published USTA level is needed to compare the two. Self-rated or inferred levels can provide starting context, but do not establish an official comparison. Review your scores and opponents to understand your rating history.',
+  }
   const view = ratingView === 'overall' ? 'overall' : ratingView
-  const streakNote = statusStreak >= 5 ? ` This signal has held for ${statusStreak} consecutive matches.` : ''
+  const streakNote = statusStreak >= 5 ? ` This signal has held for ${statusStreak} consecutive recorded rating updates.` : ''
   const diffStr = `${Math.abs(ratingDiff).toFixed(2)}`
-  const confNote = confidence === 'Low' ? 'More usable results will help sharpen this estimate.' : 'This estimate reflects the usable results in your match history.'
+  const evidenceNote = `Your selected format has ${ratingHistoryCount} recorded rating results this season. Stored results may include fallback estimates; their count does not measure prediction accuracy.`
   const headline = status === 'Next band' ? 'Playing in the next TIQ band.' : status === 'Upper band' ? 'Playing near the top of your TIQ band.' : status === 'Within band' ? 'Playing within your TIQ band.' : 'Playing below your current USTA level in TIQ.'
   return {
     headline,
-    body: `Your ${view} TIQ strength is ${diffStr} ${ratingDiff >= 0 ? 'above' : 'below'} your published USTA level.${streakNote} ${confNote} TIQ bands span half a point: 4.50 to below 5.00 belongs to the 4.5 band. These labels describe estimated playing strength and do not predict a USTA bump or drop. Review your recent scores and opponent strength to understand what is moving your estimate.`,
+    body: `Your ${view} TIQ strength is ${diffStr} ${ratingDiff >= 0 ? 'above' : 'below'} your published USTA level.${streakNote} ${evidenceNote} TIQ bands span half a point: 4.50 to below 5.00 belongs to the 4.5 band. These labels describe estimated playing strength and do not predict a USTA bump or drop. Review your recent scores and opponent strength to understand what is moving your estimate.`,
   }
 }
 
@@ -4843,12 +4848,6 @@ function getTrendDirection(points: Array<{ rating: number }>): TrendDirection {
   return 'flat'
 }
 
-function getConfidence(matches: number): ConfidenceLevel {
-  if (matches < 10) return 'Low'
-  if (matches < 30) return 'Medium'
-  return 'High'
-}
-
 function getRecentTrendDelta(points: Array<{ rating: number }>) {
   if (points.length < 2) return 0
   const recent = points.slice(-5)
@@ -4903,6 +4902,7 @@ function getMeterTheme(status: RatingStatus) {
         trendColor: '#a7f3d0',
         trendBorder: 'rgba(52,211,153,0.22)',
       }
+    case 'USTA comparison pending':
     case 'Within band':
       return {
         fill: 'linear-gradient(135deg, #60a5fa 0%, #3fa7ff 50%, #93c5fd 100%)',

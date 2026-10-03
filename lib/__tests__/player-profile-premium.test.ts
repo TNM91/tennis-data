@@ -18,7 +18,7 @@ describe('premium player profile', () => {
     expect(source).toContain('No reviewed results')
     expect(source).toContain('Starts after first result')
     expect(source).toContain('Building match history')
-    expect(source).toContain("value={hasTrackedMatches ? confidence : 'Baseline'}")
+    expect(source).toContain('<StatChip label="Rating history" value={ratingHistoryLabel} />')
     expect(source).toContain("'Awaiting results'")
   })
 
