@@ -31,6 +31,13 @@ describe('source-owned court identity evidence', () => {
     expect(isSourceOwnedCourt(sideB, lineup, { ...receipt, winner_side: 'B' }, excluded, owners)).toBe(true)
     expect(isSourceOwnedCourt({ ...sideB, score: '3-6 4-6' }, lineup, { ...receipt, winner_side: 'B' }, excluded, owners)).toBe(false)
   })
+  it('recognizes an already-oriented deciding tiebreak while preserving source ownership', () => {
+    const court = { ...match, winner_side: 'B' as const, score: '5-7 6-4 0-1' }
+    const source = { ...receipt, winner_side: 'B', score_text: '7-5 4-6 1-0' }
+    expect(isSourceOwnedCourt(court, lineup, source, excluded, owners)).toBe(true)
+    expect(isSourceOwnedCourt(court, lineup, source, excluded, new Map([['owner', 'namesake']]))).toBe(false)
+    expect(isSourceOwnedCourt({ ...court, score: '5-7 6-3 0-1' }, lineup, source, excluded, owners)).toBe(false)
+  })
   it('rejects duplicate source identities and incomplete seats', () => {
     expect(isSourceOwnedCourt(match, lineup, { ...receipt, participants: [receipt.participants[0], { ...receipt.participants[1], sourcePlayerKey: 'primary' }] }, excluded, owners)).toBe(false)
     expect(isSourceOwnedCourt(match, lineup, { ...receipt, participants: [{ ...receipt.participants[0], seat: 0 }, receipt.participants[1]] }, excluded, owners)).toBe(false)

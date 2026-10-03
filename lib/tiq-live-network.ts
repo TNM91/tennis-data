@@ -3,8 +3,9 @@ import { replayRatingNetwork, type NetworkCourt } from './tiq-rating-network'
 import { individualAdultDivisionLevel } from './tiq-division-context'
 import { selectComputerPriors, type ComputerPriorLabel } from './tiq-computer-priors'
 import { parseScoreMetrics, type MatchRow, type RatingSnapshotInsert, type WorkingPlayer } from './recalculateRatings'
+import { isWinnerFirstTennisRecordScore } from './tennisrecord-score-orientation'
 
-export const LIVE_NETWORK_MODEL = 'tiq-network-1.2'
+export const LIVE_NETWORK_MODEL = 'tiq-network-1.3'
 type Participant = { match_id: string; player_id: string; side: 'A' | 'B' }
 type Observation = { canonical_player_id: string | null; ntrp: number; designation: string; effective_date: string; source_url: string; tennisrecord_staged_players: { source_url: string; ntrp_label: string; tennisrecord_player_identities: { canonical_player_id: string | null; status: string } } | null }
 type Identity = { canonical_player_id: string | null; status: string }
@@ -97,7 +98,7 @@ export function applyLiveNetworkPlayers(players: WorkingPlayer[], result: Return
 
 /** Orient only an unchanged winner-first source score with conflict-free winning evidence. */
 export async function orientReviewedLiveScores(client: SupabaseClient, matches: MatchRow[]) {
-  const candidates = matches.filter(match => match.source === 'tennisrecord' && match.external_match_id?.startsWith('tennisrecord:') && match.winner_side === 'B' && !parseScoreMetrics(match.score, match.winner_side).parsed)
+  const candidates = matches.filter(match => match.source === 'tennisrecord' && match.external_match_id?.startsWith('tennisrecord:') && isWinnerFirstTennisRecordScore(match.score, match.winner_side))
   const oriented = new Map<string, string>(), normalize = (score: string) => score.replace(/;/g, ' ').replace(/\s+/g, ' ').trim()
   const batches: MatchRow[][] = []
   for (let start = 0; start < candidates.length; start += 100) batches.push(candidates.slice(start, start + 100))

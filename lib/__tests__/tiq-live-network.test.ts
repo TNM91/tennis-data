@@ -66,4 +66,12 @@ describe('reviewed source score orientation', () => {
     const aliases = [{ canonical_match_id: '1', winning_observation_id: 'o' }, { canonical_match_id: '1', winning_observation_id: 'missing' }]
     expect((await orientReviewedLiveScores(provenanceClient([observation], aliases), [source]))[0].score).toBe(source.score)
   })
+  it('orients a split-set deciding tiebreak only with the exact winning receipt', async () => {
+    const court = { ...source, score: '4-6 6-2 1-0' }
+    const evidence = { ...observation, score_text: court.score }
+    expect((await orientReviewedLiveScores(provenanceClient([evidence]), [court]))[0].score).toBe('6-4 2-6 0-1')
+    expect((await orientReviewedLiveScores(provenanceClient([{ ...evidence, score_text: '4-6 6-3 1-0' }]), [court]))[0].score).toBe(court.score)
+    const alreadyOriented = { ...court, score: '6-4 2-6 0-1' }
+    expect((await orientReviewedLiveScores(provenanceClient([evidence]), [alreadyOriented]))[0].score).toBe(alreadyOriented.score)
+  })
 })
