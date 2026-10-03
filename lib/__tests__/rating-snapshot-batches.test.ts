@@ -84,3 +84,19 @@ it('clamps unsupported runtime values to the sequential default', async () => {
   first.resolve()
   await job
 })
+
+it('bounds production waves at eight and drains failures before releasing the lock', async () => {
+  const pending = Array.from({ length: 8 }, () => deferred())
+  const failure = new Error('write failed')
+  const save = vi.fn((batch: number) => pending[batch]?.promise ?? Promise.resolve())
+  const job = saveRatingSnapshotBatches(Array.from({ length: 9 }, (_, i) => i), save, 8)
+  const assertion = expect(job).rejects.toBe(failure)
+  expect(save).toHaveBeenCalledTimes(8)
+  pending[0].reject(failure)
+  for (const item of pending.slice(1, 7)) item.resolve()
+  await Promise.resolve()
+  expect(save).toHaveBeenCalledTimes(8)
+  pending[7].resolve()
+  await assertion
+  expect(save).toHaveBeenCalledTimes(8)
+})

@@ -174,7 +174,7 @@ export type RatingRecalculationOptions = {
    */
   replaceSnapshots?: boolean
   /** Opt-in bounded writes for disjoint, deduplicated snapshot batches. */
-  snapshotWriteConcurrency?: 1 | 2 | 4
+  snapshotWriteConcurrency?: 1 | 2 | 4 | 8
 }
 
 export type RatingRecalculationResult = {
@@ -378,7 +378,7 @@ export async function recalculateDynamicRatings(
       }, 4)
     }
     const rowsToSave = networkPublication && !replaceExisting ? snapshotRows.filter(row => row.snapshot_date >= networkPublication.season + '-01-01') : snapshotRows
-    await replaceRatingSnapshots(rowsToSave, client, replaceExisting, options.snapshotWriteConcurrency ?? (engine === 'network' ? 4 : 1))
+    await replaceRatingSnapshots(rowsToSave, client, replaceExisting, options.snapshotWriteConcurrency ?? (engine === 'network' ? 8 : 1))
   }
 
   onPhase?.('done')
@@ -821,7 +821,7 @@ async function replaceRatingSnapshots(
   snapshotRows: RatingSnapshotInsert[],
   client: SupabaseClient,
   replaceExisting: boolean,
-  concurrency: 1 | 2 | 4 = 1,
+  concurrency: 1 | 2 | 4 | 8 = 1,
 ) {
   if (replaceExisting) {
     const { error: deleteError } = await client

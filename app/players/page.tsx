@@ -1,5 +1,6 @@
 'use client'
 
+import { getTiqBandStatus, type TiqBandStatus } from '@/lib/tiq-band-status'
 import Link from 'next/link'
 import { CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -12,7 +13,7 @@ import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-ca
 import TiqTrustStrip from '@/app/components/tiq-trust-strip'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
-import { getTiqRating, getUstaRating, getUstaDynamicRating } from '@/lib/player-rating-display'
+import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
 import { cleanText, formatRating } from '@/lib/captain-formatters'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -30,12 +31,7 @@ type FlightFilter = 'all' | '2.5' | '3.0' | '3.5' | '4.0' | '4.5+'
 type RatingView = 'overall' | 'singles' | 'doubles'
 type TrendDirection = 'up' | 'down' | 'flat'
 type ConfidenceLevel = 'Low' | 'Medium' | 'High'
-type RatingStatus =
-  | 'Bump Up Pace'
-  | 'Trending Up'
-  | 'Holding'
-  | 'At Risk'
-  | 'Drop Watch'
+type RatingStatus = TiqBandStatus
 
 type PlayerRow = {
   id: string
@@ -359,11 +355,10 @@ export default function PlayersPage() {
           const baseSingles = getBaseRating(player, 'singles')
           const baseDoubles = getBaseRating(player, 'doubles')
           const overallDynamic = getRating(player, 'overall')
-          const overallUstaDynamic = getUstaDynamicRating(player, 'overall')
           const overallSnapshots = snapshotsByPlayer.get(`${player.id}:overall`) ?? []
           const overallTrend = getTrendDirection(overallSnapshots)
           const overallTrendDelta = getRecentTrendDelta(overallSnapshots)
-          const overallStatus = getRatingStatus(baseOverall, overallUstaDynamic)
+          const overallStatus = getTiqBandStatus(baseOverall, overallDynamic)
           const confidence = getConfidence(matches)
           const overallDiff = roundToTwo(overallDynamic - baseOverall)
           const recentForm = (matchEvidenceByPlayer.get(player.id) || [])
@@ -407,8 +402,8 @@ export default function PlayersPage() {
 
       if (filterBy === 'with-matches') return player.matches > 0
       if (filterBy === 'high-rated') return getRating(player, 'overall') >= 4.0
-      if (filterBy === 'trending-up') return player.overallStatus === 'Trending Up' || player.overallStatus === 'Bump Up Pace'
-      if (filterBy === 'at-risk') return player.overallStatus === 'At Risk' || player.overallStatus === 'Drop Watch'
+      if (filterBy === 'trending-up') return player.overallStatus === 'Upper band' || player.overallStatus === 'Next band'
+      if (filterBy === 'at-risk') return player.overallStatus === 'Below band' || player.overallStatus === 'Lower band'
 
       if (flightFilter !== 'all') {
         const base = player.baseOverall
@@ -439,7 +434,7 @@ export default function PlayersPage() {
   const hasMorePlayers = shouldShowPlayerResults && filteredPlayers.length > visiblePlayers.length
   const playersWithMatches = useMemo(() => players.filter((player) => player.matches > 0).length, [players])
   const trendingPlayers = useMemo(
-    () => players.filter((player) => player.overallStatus === 'Trending Up' || player.overallStatus === 'Bump Up Pace').length,
+    () => players.filter((player) => player.overallStatus === 'Upper band' || player.overallStatus === 'Next band').length,
     [players],
   )
   const highRatedPlayers = useMemo(() => players.filter((player) => getRating(player, 'overall') >= 4).length, [players])
@@ -728,8 +723,8 @@ export default function PlayersPage() {
                 <option value="all">All players</option>
                 <option value="with-matches">With matches</option>
                 <option value="high-rated">4.0+ overall</option>
-                <option value="trending-up">Trending up</option>
-                <option value="at-risk">At risk</option>
+                <option value="trending-up">Upper band</option>
+                <option value="at-risk">Below band</option>
               </select>
             </div>
 
@@ -788,7 +783,7 @@ export default function PlayersPage() {
                 ...(filterBy === 'trending-up' ? quickFilterButtonActive : null),
               }}
             >
-              <span>Trending</span>
+              <span>Upper band</span>
               <strong>{loading ? '-' : trendingPlayers}</strong>
             </button>
             <button
@@ -1163,7 +1158,7 @@ export default function PlayersPage() {
                   onClick={() => setFilterBy('trending-up')}
                   style={dynamicFindStartActionStyle}
                 >
-                  <strong>Trending</strong>
+                  <strong>Upper band</strong>
                   {!isMobile ? <span>Players moving up.</span> : null}
                 </button>
                 <button
@@ -1337,16 +1332,6 @@ function getRecentTrendDelta(points: Array<{ dynamic_rating: number }>) {
   return roundToTwo(last - first)
 }
 
-function getRatingStatus(base: number, dynamic: number): RatingStatus {
-  const diff = dynamic - base
-
-  if (diff >= 0.15) return 'Bump Up Pace'
-  if (diff >= 0.07) return 'Trending Up'
-  if (diff > -0.07) return 'Holding'
-  if (diff > -0.15) return 'At Risk'
-  return 'Drop Watch'
-}
-
 function getConfidence(matches: number): ConfidenceLevel {
   if (matches < 5) return 'Low'
   if (matches < 10) return 'Medium'
@@ -1367,7 +1352,7 @@ function getTrendIcon(direction: TrendDirection) {
 
 function getMeterTheme(status: RatingStatus) {
   switch (status) {
-    case 'Bump Up Pace':
+    case 'Next band':
       return {
         pillBackground: 'color-mix(in srgb, var(--brand-lime) 18%, var(--shell-chip-bg) 82%)',
         pillColor: 'var(--foreground-strong)',
@@ -1376,7 +1361,7 @@ function getMeterTheme(status: RatingStatus) {
         trendColor: 'var(--foreground-strong)',
         trendBorder: 'color-mix(in srgb, var(--brand-lime) 28%, var(--shell-panel-border) 72%)',
       }
-    case 'Trending Up':
+    case 'Upper band':
       return {
         pillBackground: 'color-mix(in srgb, var(--brand-lime) 16%, var(--shell-chip-bg) 84%)',
         pillColor: 'var(--foreground-strong)',
@@ -1385,7 +1370,7 @@ function getMeterTheme(status: RatingStatus) {
         trendColor: 'var(--foreground-strong)',
         trendBorder: 'color-mix(in srgb, var(--brand-lime) 26%, var(--shell-panel-border) 74%)',
       }
-    case 'Holding':
+    case 'Within band':
       return {
         pillBackground: 'color-mix(in srgb, #60a5fa 14%, var(--shell-chip-bg) 86%)',
         pillColor: 'var(--foreground-strong)',
@@ -1394,7 +1379,7 @@ function getMeterTheme(status: RatingStatus) {
         trendColor: 'var(--foreground-strong)',
         trendBorder: 'color-mix(in srgb, #60a5fa 24%, var(--shell-panel-border) 76%)',
       }
-    case 'At Risk':
+    case 'Below band':
       return {
         pillBackground: 'color-mix(in srgb, #fb923c 16%, var(--shell-chip-bg) 84%)',
         pillColor: 'var(--foreground-strong)',
@@ -1403,7 +1388,7 @@ function getMeterTheme(status: RatingStatus) {
         trendColor: 'var(--foreground-strong)',
         trendBorder: 'color-mix(in srgb, #fb923c 26%, var(--shell-panel-border) 74%)',
       }
-    case 'Drop Watch':
+    case 'Lower band':
       return {
         pillBackground: 'color-mix(in srgb, #ef4444 15%, var(--shell-chip-bg) 85%)',
         pillColor: 'var(--foreground-strong)',
