@@ -35,7 +35,7 @@ import {
   type TiqLeagueStorageSource,
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
-import { formatDate } from '@/lib/captain-formatters'
+import { formatDate, parseDisplayDate } from '@/lib/captain-formatters'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { buildPlayerTrophyBadges } from '@/lib/player-trophy-badges'
@@ -4736,7 +4736,7 @@ function getSpreadIndices(total: number, count: number): number[] {
 }
 
 function formatChartDate(dateStr: string): string {
-  const d = new Date(dateStr)
+  const d = parseDisplayDate(dateStr)
   if (isNaN(d.getTime())) return dateStr.slice(5) // fallback: MM-DD
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
