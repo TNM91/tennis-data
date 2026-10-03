@@ -1,5 +1,6 @@
 'use client'
 
+import { getTiqBandStatus, type TiqBandStatus } from '@/lib/tiq-band-status'
 import Link from 'next/link'
 import Image from 'next/image'
 import { track } from '@vercel/analytics'
@@ -58,12 +59,7 @@ type MatchType = 'singles' | 'doubles'
 type MatchSide = 'A' | 'B'
 type TrendDirection = 'up' | 'down' | 'flat'
 type ConfidenceLevel = 'Low' | 'Medium' | 'High'
-type RatingStatus =
-  | 'Bump Up Pace'
-  | 'Trending Up'
-  | 'Holding'
-  | 'At Risk'
-  | 'Drop Watch'
+type RatingStatus = TiqBandStatus
 
 type Player = {
   id: string
@@ -865,10 +861,10 @@ function PlayerProfileContent() {
     [selectedDynamicRating, nextThreshold],
   )
 
-  // Status uses USTA dynamic; that's what USTA measures for bump/knockdown decisions.
+  // Describe TIQ playing strength within its display band; this is not a USTA forecast.
   const ratingStatus = useMemo(
-    () => getRatingStatus(baseRating, ustaDynamicRating),
-    [baseRating, ustaDynamicRating],
+    () => getTiqBandStatus(baseRating, selectedDynamicRating),
+    [baseRating, selectedDynamicRating],
   )
 
   const trendDirection = useMemo<TrendDirection>(
@@ -1043,21 +1039,21 @@ function PlayerProfileContent() {
   const playerPathLevelUpHref = `/level-up/${playerPathIdentity.slug}`
   const playerPathDevelopmentHref = `/player-development/${playerPathIdentity.slug}`
 
-  // How many consecutive matches the current USTA status has held, reading snapshots newest to oldest.
+  // How many consecutive snapshots the current TIQ band status has held, reading snapshots newest to oldest.
   const statusStreakMatches = useMemo(() => {
     const relevant = snapshots
-      .filter((s) => !s.rating_type || s.rating_type === 'overall')
+      .filter((s) => !s.rating_type || s.rating_type === ratingView)
       .slice()
       .reverse() // newest first
     if (relevant.length === 0) return 0
     let count = 0
     for (const snap of relevant) {
-      const snapStatus = getRatingStatus(baseRating, snap.dynamic_rating)
+      const snapStatus = getTiqBandStatus(baseRating, snap.dynamic_rating)
       if (snapStatus === ratingStatus) count++
       else break
     }
     return count
-  }, [snapshots, baseRating, ratingStatus])
+  }, [snapshots, baseRating, ratingStatus, ratingView])
 
   const percentile = useMemo(() => {
     if (playerRank === null || !totalPlayers) return null
@@ -1979,7 +1975,7 @@ function PlayerProfileContent() {
                   <strong>{formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}</strong>
                   <small>{hasTrackedMatches ? ratingStatus : tiqReadNote}</small>
                   {!isSelfRatedProfile ? (
-                    <div className={profileStory.ratingTrajectory} aria-label={`USTA ${baseRating.toFixed(1)} toward ${nextThreshold.toFixed(1)}`}>
+                    <div className={profileStory.ratingTrajectory} aria-label={`TIQ playing band toward ${nextThreshold.toFixed(1)}`}>
                       <span>{baseRating.toFixed(1)}</span>
                       <i><b style={{ width: `${storyNextLevelProgress}%` }} /></i>
                       <strong>{nextThreshold.toFixed(1)}</strong>
@@ -4710,34 +4706,11 @@ function buildPlayerRecommendation(
   const view = ratingView === 'overall' ? 'overall' : ratingView
   const streakNote = statusStreak >= 5 ? ` This signal has held for ${statusStreak} consecutive matches.` : ''
   const diffStr = `${Math.abs(ratingDiff).toFixed(2)}`
-  const confNote = confidence === 'Low' ? 'Sample is still building; more matches will sharpen this read.' : confidence === 'High' ? 'This is a high-confidence read based on your match history.' : 'Moderate sample; a few more results will lock this in.'
-
-  switch (status) {
-    case 'Bump Up Pace':
-      return {
-        headline: 'You\'re tracking ahead of your USTA level.',
-        body: `TIQ shows you playing ${diffStr} above your USTA base in ${view}.${streakNote} ${confNote} Keep competing at this level, especially in singles against similarly-rated opponents, to hold this gap through your next rating review window. Avoid coasting against lower-rated competition; the engine weights quality of result over volume.`,
-      }
-    case 'Trending Up':
-      return {
-        headline: 'Good momentum, keep pushing.',
-        body: `TIQ is tracking ${diffStr} above your USTA base in ${view}.${streakNote} You're not yet in Bump Up Pace range, but ${(0.15 - ratingDiff).toFixed(2)} more points of separation would get you there. Focus on wins against players at or above your rating; that's where the signal moves fastest. ${confNote}`,
-      }
-    case 'Holding':
-      return {
-        headline: 'Performing at level.',
-        body: `TIQ and USTA signals are closely aligned (${ratingDiff >= 0 ? '+' : ''}${ratingDiff.toFixed(2)}) in ${view}.${streakNote} ${confNote} To shift the signal upward, prioritize matches against players rated at or above you; the engine rewards quality of competition over easy wins.`,
-      }
-    case 'At Risk':
-      return {
-        headline: 'USTA signal is sliding below your base.',
-        body: `TIQ shows ${diffStr} below your USTA base in ${view}.${streakNote} ${confNote} Competitive wins at or near your rated level are the most direct recovery path. Close losses against strong competition still move the signal better than blowout wins against lower-rated players; focus on quality matchups.`,
-      }
-    case 'Drop Watch':
-      return {
-        headline: 'Gap warrants attention.',
-        body: `TIQ shows ${diffStr} below your USTA base in ${view}, well into knockdown range.${streakNote} ${confNote} Consistent wins against rated opponents are the clearest path forward. Review your recent match log: look for patterns in the loss column and check whether your toughest matches are close or getting away from you; that distinction matters for recovery pace.`,
-      }
+  const confNote = confidence === 'Low' ? 'More usable results will help sharpen this estimate.' : 'This estimate reflects the usable results in your match history.'
+  const headline = status === 'Next band' ? 'Playing in the next TIQ band.' : status === 'Upper band' ? 'Playing near the top of your TIQ band.' : status === 'Within band' ? 'Playing within your TIQ band.' : 'Playing below your current USTA level in TIQ.'
+  return {
+    headline,
+    body: `Your ${view} TIQ strength is ${diffStr} ${ratingDiff >= 0 ? 'above' : 'below'} your published USTA level.${streakNote} ${confNote} TIQ bands span half a point: 4.50 to below 5.00 belongs to the 4.5 band. These labels describe estimated playing strength and do not predict a USTA bump or drop. Review your recent scores and opponent strength to understand what is moving your estimate.`,
   }
 }
 
@@ -4854,16 +4827,6 @@ function getProgressToNextLevel(rating: number, next: number) {
   return { previous, percent, remaining }
 }
 
-function getRatingStatus(base: number, dynamic: number): RatingStatus {
-  const diff = dynamic - base
-
-  if (diff >= 0.15) return 'Bump Up Pace'
-  if (diff >= 0.07) return 'Trending Up'
-  if (diff > -0.07) return 'Holding'
-  if (diff > -0.15) return 'At Risk'
-  return 'Drop Watch'
-}
-
 function getTrendDirection(points: Array<{ rating: number }>): TrendDirection {
   if (points.length < 2) return 'flat'
 
@@ -4897,7 +4860,7 @@ function roundToTwo(value: number) {
 function getTrendLabel(direction: TrendDirection) {
   if (direction === 'up') return 'Trending up'
   if (direction === 'down') return 'Trending down'
-  return 'Holding steady'
+  return 'Within band steady'
 }
 
 function getTrendShortLabel(direction: TrendDirection) {
@@ -4914,7 +4877,7 @@ function getTrendIcon(direction: TrendDirection) {
 
 function getMeterTheme(status: RatingStatus) {
   switch (status) {
-    case 'Bump Up Pace':
+    case 'Next band':
       return {
         fill: 'color-mix(in srgb, var(--brand-green) 34%, var(--shell-panel-border) 66%)',
         shadow: '0 10px 24px color-mix(in srgb, var(--brand-green) 18%, transparent)',
@@ -4925,7 +4888,7 @@ function getMeterTheme(status: RatingStatus) {
         trendColor: '#bef264',
         trendBorder: 'rgba(132, 204, 22, 0.24)',
       }
-    case 'Trending Up':
+    case 'Upper band':
       return {
         fill: 'linear-gradient(135deg, #60a5fa 0%, #34d399 65%, #9be11d 100%)',
         shadow: '0 10px 24px rgba(52,211,153,0.22)',
@@ -4936,7 +4899,7 @@ function getMeterTheme(status: RatingStatus) {
         trendColor: '#a7f3d0',
         trendBorder: 'rgba(52,211,153,0.22)',
       }
-    case 'Holding':
+    case 'Within band':
       return {
         fill: 'linear-gradient(135deg, #60a5fa 0%, #3fa7ff 50%, #93c5fd 100%)',
         shadow: '0 10px 24px rgba(63,167,255,0.22)',
@@ -4947,7 +4910,7 @@ function getMeterTheme(status: RatingStatus) {
         trendColor: '#dbeafe',
         trendBorder: 'rgba(96,165,250,0.20)',
       }
-    case 'At Risk':
+    case 'Below band':
       return {
         fill: 'linear-gradient(135deg, #facc15 0%, #fb923c 65%, #f59e0b 100%)',
         shadow: '0 10px 24px rgba(251,146,60,0.22)',
@@ -4958,7 +4921,7 @@ function getMeterTheme(status: RatingStatus) {
         trendColor: '#fde68a',
         trendBorder: 'rgba(245,158,11,0.22)',
       }
-    case 'Drop Watch':
+    case 'Lower band':
       return {
         fill: 'linear-gradient(135deg, #f87171 0%, #ef4444 55%, #dc2626 100%)',
         shadow: '0 10px 24px rgba(239,68,68,0.22)',

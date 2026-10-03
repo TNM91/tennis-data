@@ -241,7 +241,7 @@ describe('player profile mobile streamline', () => {
     expect(page).toContain("label: 'Reviewed competitor'")
     expect(page).toContain('aria-label="Player achievements"')
     expect(page).toContain('className={profileStory.ratingTrajectory}')
-    expect(page).toContain('USTA ${baseRating.toFixed(1)} toward ${nextThreshold.toFixed(1)}')
+    expect(page).toContain('TIQ playing band toward ${nextThreshold.toFixed(1)}')
     expect(styles).toContain('.achievementShelf')
     expect(styles).toContain('.ratingTrajectory')
   })
