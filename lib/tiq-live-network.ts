@@ -10,14 +10,20 @@ type Observation = { canonical_player_id: string | null; ntrp: number; designati
 type Identity = { canonical_player_id: string | null; status: string }
 async function pages<T>(client: SupabaseClient, table: string, select: string, filter?: { column: string; value: string | boolean }) {
   const rows: T[] = []
+  let cursor: string | null = null
   for (let offset = 0; ; offset += 1000) {
-    let query = client.from(table).select(select).order(table === 'tennisrecord_canonical_matches' ? 'fingerprint' : table === 'tennisrecord_player_identities' ? 'staged_player_id' : 'id').range(offset, offset + 999)
+    let query = client.from(table).select(select).order(table === 'tennisrecord_canonical_matches' ? 'fingerprint' : table === 'tennisrecord_player_identities' ? 'staged_player_id' : 'id')
+    if (table === 'tennisrecord_ntrp_observations') {
+      query = query.limit(1000)
+      if (cursor) query = query.gt('id', cursor)
+    } else query = query.range(offset, offset + 999)
     if (filter) query = query.eq(filter.column, filter.value)
     const { data, error } = await query
     if (error) throw new Error(`Network rating evidence ${table}: ${error.message}`)
     const page = (data ?? []) as unknown as T[]
     rows.push(...page)
     if (page.length < 1000) return rows
+    if (table === 'tennisrecord_ntrp_observations') cursor = (page[page.length - 1] as { id: string }).id
   }
 }
 export async function loadLiveNetworkEvidence(client: SupabaseClient, season: number) {
