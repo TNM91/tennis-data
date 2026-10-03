@@ -15,7 +15,7 @@ export default function CookiesPage() {
   return (
     <SiteShell active="/legal/cookies">
       <JsonLd id="cookies-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Cookie Policy', '/legal/cookies')} />
-      <LegalPage title="Cookie Policy" effectiveDate="April 10, 2026">
+      <LegalPage title="Cookie Policy" effectiveDate="October 2, 2026">
         <p>
           This Cookie Policy explains how TenAceIQ uses cookies and similar technologies
           to support authentication, performance, analytics, and user experience.
@@ -49,6 +49,10 @@ export default function CookiesPage() {
             limit repeated ad exposure, measure performance, and support reporting. The exact
             technologies in use may change over time as advertising tools evolve.
           </p>
+          <p>
+            These vendors include Google and its advertising partners. Advertising cookies may
+            help them serve ads based on your visits to TenAceIQ and other websites.
+          </p>
         </div>
 
         <div>
@@ -57,6 +61,11 @@ export default function CookiesPage() {
             Most browsers allow you to control cookies through browser settings. Disabling
             cookies may affect functionality and may prevent some parts of TenAceIQ from
             working as intended.
+          </p>
+          <p>
+            Manage personalized ads in <a href="https://myadcenter.google.com/">Google My Ad Center</a>,
+            or use <a href="https://www.aboutads.info/choices/">AdChoices</a> for participating
+            third-party vendors. These choices do not disable essential sign-in cookies.
           </p>
         </div>
       </LegalPage>
