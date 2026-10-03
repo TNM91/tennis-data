@@ -23,8 +23,8 @@ const [campaign] = await query('tennisrecord_campaigns', { select: 'id', slug: '
 if (!campaign) throw new Error('Missouri campaign missing')
 const players = await all('tennisrecord_staged_players', { select: 'id,source_url,name', state: 'eq.MO' })
 const queue = await all('tennisrecord_crawl_queue', { select: 'id,source_url,page_kind,status,current_refreshed_at,refresh_season,refresh_due_at', campaign_id: `eq.${campaign.id}` })
-const byUrl = new Map(queue.map(row => [row.source_url, row])), coverage = { players: players.length, missingProfiles: 0, freshProfiles: 0, staleProfiles: 0, heldProfiles: 0, activeHistoriesExpected: 0, missingActiveHistories: 0 }
-const gaps = [], years = now.getUTCMonth() >= 7 ? [season, season + 1] : [season]
+const byUrl = new Map(queue.map(row => [row.source_url, row])), coverage = { players: players.length, missingProfiles: 0, freshProfiles: 0, staleProfiles: 0, heldProfiles: 0, activeHistoriesExpected: 0, missingHistoryPages: 0, unenrolledActiveHistories: 0, unscheduledActiveHistories: 0, heldActiveHistories: 0, missingActiveHistories: 0 }
+const gaps = [], historyGaps = [], years = now.getUTCMonth() >= 7 ? [season, season + 1] : [season]
 for (const player of players) {
   const row = byUrl.get(player.source_url)
   if (!row) coverage.missingProfiles++
@@ -38,7 +38,16 @@ for (const player of players) {
     for (const year of years) {
       const history = new URL(url); history.pathname = '/adult/matchhistory.aspx'; history.searchParams.set('year', year)
       coverage.activeHistoriesExpected++
-      if (!byUrl.has(history.toString())) coverage.missingActiveHistories++
+      const sourceUrl = history.toString(), historyRow = byUrl.get(sourceUrl)
+      let reason = null
+      if (!historyRow) { coverage.missingHistoryPages++; reason = 'missing_history_page' }
+      else if (['review', 'blocked', 'error'].includes(historyRow.status)) { coverage.heldActiveHistories++; reason = 'history_review_hold' }
+      else if (historyRow.refresh_season !== season) { coverage.unenrolledActiveHistories++; reason = 'not_enrolled_in_current_refresh' }
+      else if (!Number.isFinite(Date.parse(historyRow.refresh_due_at))) { coverage.unscheduledActiveHistories++; reason = 'missing_refresh_schedule' }
+      if (reason) {
+        coverage.missingActiveHistories++
+        historyGaps.push({ playerId: player.id, name: player.name, sourceUrl, status: historyRow?.status ?? 'missing', refreshSeason: historyRow?.refresh_season ?? null, refreshDueAt: historyRow?.refresh_due_at ?? null, reason })
+      }
     }
   } catch { /* Invalid source is exposed in missing/stale profile coverage. */ }
 }
@@ -54,7 +63,7 @@ for (const row of queue.filter(row => row.refresh_season === season)) {
     if (!group.oldestOverdueAt || row.refresh_due_at < group.oldestOverdueAt) group.oldestOverdueAt = row.refresh_due_at
   }
 }
-const report = { generatedAt: now.toISOString(), targetDays: 7, scope: 'Missouri campaign and known MO profiles; held evidence remains held', settings, coverage, pages, gaps, limitations: ['current_refreshed_at is successful collector processing, not the source estimate measurement date.', 'Queue coverage is campaign-specific; cross-campaign aliases need review before repair.', 'Weekly scheduling does not guarantee source publication or complete statewide discovery.'] }
+const report = { generatedAt: now.toISOString(), targetDays: 7, scope: 'Missouri campaign and known MO profiles; active history coverage requires current-season enrollment and a valid refresh schedule, not just queue existence; held evidence remains held', settings, coverage, pages, gaps, historyGaps, limitations: ['current_refreshed_at is successful collector processing, not the source estimate measurement date.', 'Queue coverage is campaign-specific; cross-campaign aliases need review before repair.', 'Weekly scheduling does not guarantee source publication or complete statewide discovery.'] }
 const out = process.argv.find(arg => arg.startsWith('--out='))?.slice(6) || 'artifacts/rating-evidence'
 await mkdir(out, { recursive: true })
 const path = `${out}/missouri-freshness-${now.toISOString().replace(/[:.]/g, '-')}.json`
