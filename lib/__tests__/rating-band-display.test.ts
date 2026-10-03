@@ -8,3 +8,8 @@ describe('rating display at band boundaries', () => {
     expect(formatRatingValue(4.6288)).toBe('4.63')
   })
 })
+import { getRatingProgressToNextLevel } from '../recalculateRatings'
+it('starts a new TIQ band at zero progress and preserves values below its boundary', () => {
+  expect(getRatingProgressToNextLevel(4.5)).toMatchObject({ previous: 4.5, next: 5, progressPct: 0 })
+  expect(getRatingProgressToNextLevel(4.4997)).toMatchObject({ previous: 4, next: 4.5 })
+})
