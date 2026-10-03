@@ -13,7 +13,7 @@ import TiqDirectoryFallbackCard from '@/app/components/tiq-directory-fallback-ca
 import TiqTrustStrip from '@/app/components/tiq-trust-strip'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
-import { getTiqRating, getUstaRating } from '@/lib/player-rating-display'
+import { getTiqRating, getUstaRating, hasVerifiedUstaBaseline } from '@/lib/player-rating-display'
 import { cleanText, formatRating } from '@/lib/captain-formatters'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -1003,12 +1003,12 @@ export default function PlayersPage() {
                     <div style={playerScoreMiniGrid}>
                       <div style={scoreMini}>
                         <span style={scoreMiniLabel}>USTA</span>
-                        <strong style={scoreMiniValue}>{isSelfRatedPlayer(player) ? 'Pending' : player.baseOverall.toFixed(2)}</strong>
+                        <strong style={scoreMiniValue}>{!hasVerifiedUstaBaseline(player) ? 'Pending' : player.baseOverall.toFixed(2)}</strong>
                       </div>
                       <div style={scoreMini}>
                         <span style={scoreMiniLabel}>TIQ vs USTA</span>
                         <strong style={scoreMiniValue}>
-                          {isSelfRatedPlayer(player)
+                          {!hasVerifiedUstaBaseline(player)
                             ? 'Pending'
                             : `${player.overallDiff >= 0 ? '+' : ''}${player.overallDiff.toFixed(2)}`}
                         </strong>
