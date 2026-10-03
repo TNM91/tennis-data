@@ -5,7 +5,7 @@ import type { CSSProperties } from 'react'
 import TrackedProductLink from '@/app/components/tracked-product-link'
 
 type TrustSignal = {
-  label: 'Source' | 'Freshness' | 'Confidence' | 'Status'
+  label: 'Source' | 'Freshness' | 'Confidence' | 'Rating history' | 'Status'
   value: string
 }
 
