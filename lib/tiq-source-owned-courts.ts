@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { parseScoreMetrics, type MatchRow } from './recalculateRatings'
 import { saveRatingSnapshotBatches } from './rating-snapshot-batches'
+import { isWinnerFirstTennisRecordScore } from './tennisrecord-score-orientation'
 
 type Participant = { match_id: string; player_id: string; side: 'A' | 'B' }
 type ReceiptParticipant = { sourcePlayerKey?: string; side?: string; seat?: number }
@@ -12,7 +13,7 @@ export function isSourceOwnedCourt(match: MatchRow, lineup: Participant[], recei
   if (match.source !== 'tennisrecord' || !match.external_match_id?.startsWith('tennisrecord:') || receipt.source !== 'tennisrecord') return false
   if (!receipt.score_text || match.winner_side !== receipt.winner_side) return false
   const rawScore = normalizeScore(receipt.score_text)
-  const winnerFirst = receipt.winner_side === 'B' && !parseScoreMetrics(rawScore, 'B').parsed
+  const winnerFirst = receipt.winner_side === 'B' && isWinnerFirstTennisRecordScore(rawScore, 'B')
   const sameScore = normalizeScore(match.score) === rawScore
   const alreadyOriented = winnerFirst && parseScoreMetrics(match.score, 'B').parsed && normalizeScore(match.score) === rawScore.replace(/(\d+)-(\d+)/g, '$2-$1')
   if (!sameScore && !alreadyOriented) return false
