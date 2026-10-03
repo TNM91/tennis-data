@@ -1,3 +1,5 @@
+import { isKnownMissouriPlayerHistory } from './current-refresh'
+import { assignMissouriPlayerRefreshPages } from './missouri-player-refresh'
 import { conflictsWithTennisRecordSourceIdentity } from './source-player-link'
 import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -876,12 +878,13 @@ export async function prepareCurrentSeasonRefresh(service: SupabaseClient, runId
       // Keyset pagination discovers every known MO player's current history,
       // even when no recent result exists yet. Do not infer state from names.
       const cursor = settings.current_refresh_seed_cycle_at && String(new Date(settings.current_refresh_seed_cycle_at).getUTCFullYear()) === year ? settings.current_refresh_player_cursor : null
-      let query = service.from('tennisrecord_staged_players').select('id,name,source_url').eq('state', 'MO').order('id').limit(500)
+      let query = service.from('tennisrecord_staged_players').select('id,name,source_url,state').eq('state', 'MO').order('id').limit(500)
       if (cursor) query = query.gt('id', cursor)
       const page = await query
       if (page.error) throw new Error(page.error.message)
       const urls = (page.data || []).flatMap(p => currentPlayerRefreshUrls(p.source_url))
       await enqueueTennisRecordUrls(service, urls, campaign.data.id)
+      await assignMissouriPlayerRefreshPages(service, page.data || [], campaign.data.id)
       await markCurrentSeasonUrls(service, urls)
       seedComplete = !page.data || page.data.length < 500
       if (!seedComplete) {
@@ -1946,10 +1949,18 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
       if (observation.error) throw new Error(observation.error.message)
     }
   }
-  const scopedDiscoveryUrls = parsed.discoveredUrls.filter((candidateUrl) => isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, candidateUrl, parsed))
+  let historyOwner: { sourceUrl: string; state: string | null } | undefined
+  if (campaignSlug === 'missouri-2025-current' && tennisRecordRecordPageKind(sourceUrl) === 'history') {
+    const ownerName = new URL(sourceUrl).searchParams.get('playername')
+    const owners = await service.from('tennisrecord_staged_players').select('source_url,state').eq('name', ownerName).eq('state', 'MO').limit(10)
+    if (owners.error) throw new Error(owners.error.message)
+    historyOwner = (owners.data || []).map(owner => ({ sourceUrl: owner.source_url as string, state: owner.state as string | null }))
+      .find(owner => isKnownMissouriPlayerHistory(sourceUrl, owner))
+  }
+  const scopedDiscoveryUrls = parsed.discoveredUrls.filter((candidateUrl) => isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, candidateUrl, parsed, historyOwner))
   if (scopedDiscoveryUrls.length) await enqueueTennisRecordUrls(service, scopedDiscoveryUrls, campaignId)
   if (currentRefreshEnabled && campaignSlug === 'missouri-2025-current') {
-    const ownPageAllowed = isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, sourceUrl, parsed)
+    const ownPageAllowed = isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, sourceUrl, parsed, historyOwner)
     await markCurrentSeasonUrls(service, currentSeasonDiscoveryUrls([...scopedDiscoveryUrls, ...(ownPageAllowed ? [sourceUrl] : [])]))
   }
   if (currentRefreshEnabled && currentSeason && campaignSlug === 'us-2025-current') {

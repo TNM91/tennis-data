@@ -1,3 +1,4 @@
+import { isKnownMissouriPlayerHistory } from './current-refresh'
 import type { ParsedTennisRecordPage } from './types'
 import { activeChampionshipYears, hasMissouriPageEvidence } from './current-refresh'
 
@@ -85,7 +86,7 @@ function isMissouriValleyDirectoryUrl(url: URL) {
  * directory link must identify Missouri Valley and cannot name another
  * district. Non-directory expansion requires Missouri district/profile data.
  */
-export function isTennisRecordCampaignDiscoveryAllowed(campaignSlug: string | null | undefined, sourceUrl: string, candidateUrl: string, page?: ParsedTennisRecordPage) {
+export function isTennisRecordCampaignDiscoveryAllowed(campaignSlug: string | null | undefined, sourceUrl: string, candidateUrl: string, page?: ParsedTennisRecordPage, sourceProfile?: { sourceUrl: string; state: string | null }) {
   try {
     const source = new URL(sourceUrl)
     const candidate = new URL(candidateUrl)
@@ -102,7 +103,8 @@ export function isTennisRecordCampaignDiscoveryAllowed(campaignSlug: string | nu
     // Participant profiles remain factual references, not permission to crawl
     // that opponent's unrelated history. Their own profile must prove MO.
     if (candidatePath.endsWith('/profile.aspx')) return Boolean(page?.players.some(p => p.sourceUrl === candidateUrl))
-    return inScope
+    const knownOwner = sourceProfile && isKnownMissouriPlayerHistory(sourceUrl, sourceProfile)
+    return inScope || Boolean(knownOwner && (candidatePath === '/adult/matchresults.aspx' || (sourceProfile && isKnownMissouriPlayerHistory(candidateUrl, sourceProfile))))
   } catch {
     return false
   }
