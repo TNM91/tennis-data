@@ -29,12 +29,12 @@ const methodologyCards: InfoActionCard[] = [
   },
   {
     title: 'Doubles uses all four players',
-    text: 'Both teams shape the expectation. A stronger player is protected from a close-loss penalty when carrying a materially weaker partner.',
+    text: 'Both players on each side shape the expected game share. Each player keeps a separate doubles strength estimate.',
     icon: 'lineupBuilder',
   },
   {
     title: 'Keep TiQ and USTA separate',
-    text: 'TiQ reads all reviewed competition. The USTA-proximity track reads eligible USTA results only.',
+    text: 'TIQ estimates playing strength. Your official USTA level stays separate; the USTA-proximity view is another TenAceIQ estimate.',
     icon: 'leagueTennis',
   },
   {
@@ -55,166 +55,34 @@ export default function MethodologyPage() {
   return (
     <SiteShell active="/methodology">
       <JsonLd id="methodology-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Methodology', '/methodology')} />
-      <InfoPage
-        kicker="Methodology"
-        title="Understand your TiQ rating at a glance."
-        intro="TiQ is a score-aware competitive signal, not a replacement for your official USTA rating. It begins with factual USTA context when available, then learns from reviewed match results."
-      >
+      <InfoPage kicker="Methodology" title="Understand your TIQ rating." intro="TIQ estimates how strongly you are playing from your scores, opponents, and doubles partners. Your official USTA rating stays separate.">
         <InfoActionGrid cards={methodologyCards} />
-
         <section id="rating-basics" style={ratingBasicsStyle} aria-labelledby="rating-basics-title">
-          <div>
-            <span style={basicsKickerStyle}>TiQ rating in plain English</span>
-            <h2 id="rating-basics-title" className="section-title" style={basicsTitleStyle}>What makes your number move?</h2>
-          </div>
+          <div><span style={basicsKickerStyle}>TiQ rating in plain English</span><h2 id="rating-basics-title" className="section-title" style={basicsTitleStyle}>What makes your number move?</h2></div>
           <div style={basicsGridStyle}>
-            <MethodologyBasicStep number="1" title="Set a credible starting point">
-              A computer-rated USTA level is a protected starting band. A self-rated or unknown player can settle faster as results arrive.
-            </MethodologyBasicStep>
-            <MethodologyBasicStep number="2" title="Compare performance with expectation">
-              TiQ looks at the score, not only win or loss. Playing a stronger side close can help; underperforming against an expected matchup can trim the signal.
-            </MethodologyBasicStep>
-            <MethodologyBasicStep number="3" title="Build separate singles and doubles reads">
-              Singles and doubles have their own history. Overall blends the competitive evidence without pretending the two formats are identical.
-            </MethodologyBasicStep>
-            <MethodologyBasicStep number="4" title="Let evidence—not time—do the work">
-              A rating changes only when an eligible reviewed result is processed. Time away lowers confidence, not your demonstrated playing strength.
-            </MethodologyBasicStep>
+            <MethodologyBasicStep number="1" title="Start with dated evidence">A usable individual computer rating from the previous year starts at the midpoint of its TIQ band. A 4.5 label starts at 4.75. This is a starting assumption, not your unpublished USTA dynamic rating.</MethodologyBasicStep>
+            <MethodologyBasicStep number="2" title="Use the court context">When an individual starting label is missing, existing opponent and partner estimates help establish a starting point. A suitable individual Adult division also supplies context. A combined team level never becomes your individual rating.</MethodologyBasicStep>
+            <MethodologyBasicStep number="3" title="Compare the score with expectations">Winning more games than expected moves strength upward; winning fewer moves it downward. A close loss to stronger opponents can help. Singles compares two players; doubles compares the average strength of each pair.</MethodologyBasicStep>
+            <MethodologyBasicStep number="4" title="Build your history in order">All courts on a day use the estimates available before that day’s results. Updates are applied together afterward. Singles and doubles stay separate; overall blends them according to the number of usable courts.</MethodologyBasicStep>
           </div>
-          <p style={basicsNoteStyle}>
-            TiQ does not import or mirror TennisRecord&rsquo;s estimated rating. It keeps TiQ, USTA-proximity, singles, doubles, and overall views distinct so you can see what the match evidence actually supports.
-          </p>
+          <p style={basicsNoteStyle}>Missing, conflicting, or incomplete evidence cannot establish a reliable new estimate. A player without a connected starting point remains without a new network estimate. Where current evidence cannot support recalculation, an existing rating may remain visible.</p>
         </section>
-
+        <section id="rating-scale" style={ratingBasicsStyle} aria-labelledby="rating-scale-title">
+          <h2 id="rating-scale-title" className="section-title">How to read your playing band</h2>
+          <p>TIQ 4.00 to below 4.50 sits in the 4.0 band. TIQ 4.50 to below 5.00 sits in the 4.5 band. TIQ 5.00 to below 5.50 sits in the 5.0 band.</p>
+          <p>A 4.63 estimate sits within the 4.5 band. A 4.95 estimate sits near its upper end. These are TIQ display bands, not official USTA dynamic thresholds. Read the number as estimated playing strength.</p>
+        </section>
         <section id="year-end-movement" style={ratingBasicsStyle} aria-labelledby="year-end-title">
-          <h2 id="year-end-title" className="section-title">Playing strength and year-end movement</h2>
-          <p>Your official USTA level determines the level you can enter. Your TiQ rating describes performance in the matches we have reviewed. A year-end forecast asks a different question: will your next official level move up, stay the same, or move down?</p>
-          <p>A TiQ 4.6 does not automatically mean a USTA bump from 4.5. The TiQ scale and its next half-point marker are playing-strength signals, not official USTA dynamic thresholds. The USTA-proximity view uses USTA results but is still a TenAceIQ calculation.</p>
-          <p>Computer-rated players begin at their stated level. Early downward movement is protected, then gradually allowed as evidence builds. This helps stabilize playing-strength ratings; it can also delay a drop signal. Match confidence describes how much evidence supports your rating, not the chance of a year-end bump.</p>
-          <p>Year-end forecasting is being evaluated against historical official movement. We will distinguish bump, stay, and drop probabilities only after testing them on seasons and players held out from model tuning. TennisRecord estimates are a separate comparison, never an input that sets your TiQ rating.</p>
-          <p>If a recent result is missing, check the match date and source and <a href={dataAssistMethodologyHref}>request a data review</a>. A fresh rating needs complete scores, the right players, and enough context about their competition.</p>
+          <h2 id="year-end-title" className="section-title">What movement can tell you</h2>
+          <p>Sustained results near the top of your band suggest stronger play. Sustained results above it suggest the next band may describe your play better. The same principle applies downward. One match or one boundary crossing does not establish a USTA bump or drop.</p>
+          <p>Your official USTA level and designation are shown separately. The USTA-proximity view is a TenAceIQ estimate from USTA results, not USTA’s unpublished dynamic rating. Match counts and evidence labels describe available history; they are not probabilities of a year-end change.</p>
+          <p>TIQ does not publish validated bump or drop probabilities. TennisRecord estimates provide an outside comparison and never set or move your TIQ rating.</p>
+          <p>If a recent result is missing or attached to the wrong player, <a href={dataAssistMethodologyHref}>request a data review</a>.</p>
         </section>
-
         <MethodologyDetails>
-          <div>
-            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>The rating scale</h2>
-            <p>
-              Ratings run from 1.5 to 7.0 and align with NTRP levels. Bands are spaced 0.5 apart
-              (1.5, 2.0, 2.5 ... 6.5, 7.0). A profile with a factual USTA designation begins from
-              that band. A profile without one starts provisionally at 3.5 until reviewed match
-              evidence establishes a better read. The level-up meter shows the current TiQ signal
-              against the next half-point marker; it does not replace an official USTA rating.
-            </p>
-          </div>
-
-          <div>
-            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Two independent tracks</h2>
-            <p>
-              Every player carries two parallel sets of dynamic ratings: a <strong>TIQ track</strong> that
-              updates from all matches regardless of source, and a <strong>USTA track</strong> that updates
-              only from eligible USTA results, including reviewed local uploads and factual USTA-match evidence.
-              TIQ ratings reflect full competitive activity across all leagues; the USTA-proximity view shows
-              our calculation from a USTA-only result set. It does not reproduce USTA&rsquo;s unpublished calculation. Both tracks maintain separate singles, doubles, and
-              overall ratings -- six dynamic values per player in total.
-            </p>
-          </div>
-
-          <div>
-            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Expected performance</h2>
-            <p>
-              Before each scored match the system estimates each side&rsquo;s expected share of games from
-              their current ratings:
-            </p>
-            <p style={{ fontFamily: 'monospace', background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: '10px 14px', margin: '10px 0', fontSize: 14, overflowWrap: 'anywhere' }}>
-              expected game share = 1 / (1 + 10 ^ ((opponent rating - your rating) / 1.6))
-            </p>
-            <p>
-              The rating change starts with actual game share minus expected game share. A result close
-              to expectation makes only a small move. A lower-rated player who keeps a strong opponent
-              close can therefore gain rating despite losing; a favorite who wins less decisively than
-              expected can give some rating back. The Win% column remains a pre-match win estimate,
-              separate from this score-aware performance calculation.
-            </p>
-          </div>
-
-          <div>
-            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>K-factors</h2>
-            <p>
-              The K-factor controls how much a single match can shift a rating. TenAceIQ uses three
-              separate K values: <strong>0.12 for singles</strong>, <strong>0.107 for doubles</strong>,
-              and <strong>0.052 for the overall rating</strong>. For a usable score, the movement is
-              roughly K x (actual game share - expected game share). When a score is unavailable, the
-              system uses a conservative expected win/loss fallback.
-            </p>
-            <p style={{ marginTop: 10 }}>
-              New players are in a <strong>provisional phase</strong> where the K-factor is temporarily
-              multiplied to help them converge to their true level faster:
-            </p>
-            <ul style={{ paddingLeft: 20, marginTop: 8, display: 'grid', gap: 6 }}>
-              <li>Matches 1-9: <strong>2x K</strong> (fast calibration)</li>
-              <li>Matches 10-19: <strong>1.5x K</strong></li>
-              <li>Matches 20-29: <strong>1.2x K</strong></li>
-              <li>Match 30+: <strong>1x K</strong> (stable)</li>
-            </ul>
-            <p style={{ marginTop: 10 }}>
-              The confidence level shown on a player profile -- Low, Medium, or High -- reflects these
-              phases directly. A Low confidence rating is still moving quickly toward equilibrium.
-            </p>
-          </div>
-
-          <div>
-            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>How the score changes the signal</h2>
-            <p>
-              A 7-6, 7-6 result between similarly rated players is nearly what the ratings predict, so
-              it moves them only slightly. A 6-0, 6-0 result or a close loss by a substantially lower-
-              rated player is more informative because the game share differs more from expectation.
-            </p>
-            <p style={{ marginTop: 10 }}>
-              Recent results carry somewhat more weight, and an upset win receives a modest additional
-              boost. These adjustments refine the performance signal; they do not use an external source&rsquo;s
-              proprietary rating.
-            </p>
-          </div>
-
-          <div>
-            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Doubles context</h2>
-            <p>
-              Doubles begins with the combined strength of both players on each side. TiQ then reads
-              the result against that team expectation and maintains a separate doubles signal. When
-              a stronger player has a materially lower-rated partner and loses a close scored match to
-              a comparable pair, TiQ protects that player from a speculative negative adjustment.
-            </p>
-          </div>
-
-          <div>
-            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Recency weighting</h2>
-            <p>
-              When ratings are recalculated, matches are weighted by how recently they were played.
-              A match played today carries full weight (1.12x); a match played two or more years ago
-              carries reduced weight (0.88x), with a linear scale in between. A player&rsquo;s recent
-              form therefore has more influence on their current rating than results from seasons ago.
-            </p>
-          </div>
-
-          <div>
-            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Inactivity and confidence</h2>
-            <p>
-              Time away does not regress a player toward a default rating. TenAceIQ changes rating
-              strength only when an eligible match result is processed. Match volume and the age of a
-              player&rsquo;s last result provide context for how much evidence sits behind that rating.
-            </p>
-          </div>
-
-          <div>
-            <h2 className="section-title" style={{ fontSize: '1.2rem' }}>Score parsing and edge cases</h2>
-            <p>
-              Scores are normalized before processing. Tiebreak notation like 7-6(3) has the
-              point score stripped, leaving 7-6. Match tiebreaks stored without brackets (e.g. 10-8)
-              are excluded from the set-level calculation to avoid inflating game counts. A 7-5 set
-              is treated as a regular set, not a tiebreak. Retirements and walkovers use the
-              conservative win/loss fallback because they do not provide a complete game-share signal.
-            </p>
-          </div>
+          <div><h2 className="section-title">Which matches count</h2><p>The improved current-season calculation uses complete, eligible courts with usable scores and resolved player identities. Defaults, walkovers, retirements, duplicates, and unresolved source conflicts are excluded. A playing-strength result may still require separate eligibility review for year-end USTA forecasting.</p></div>
+          <div><h2 className="section-title">How much a result changes strength</h2><p>The update depends on the difference between expected and actual game share and the model’s internal uncertainty. More match evidence changes how strongly a new result influences the estimate. Internal uncertainty is not a measured probability that the rating is correct.</p><p>There is no inactivity penalty, additional recency weighting, or repeated-partner discount in the improved network calculation. It does not impose a protected minimum rating or an automatic upset bonus.</p></div>
+          <div><h2 className="section-title">Starting evidence and history</h2><p>A USTA label copied from a source profile is kept separate from that source’s estimated strength. An older label does not prove a later stay at the same level. Current-season estimates use usable previous-year individual labels; earlier seasons retain their existing calculation.</p><p>Unknown-player initialization blends 75% of a suitable individual Adult division midpoint with 25% of the existing court estimate. It requires a connection to an anchored estimate. A division provides competition context, not an official individual rating.</p></div>
         </MethodologyDetails>
       </InfoPage>
     </SiteShell>
@@ -359,3 +227,4 @@ const detailsBodyStyle: CSSProperties = {
   minWidth: 0,
   padding: '0 14px 16px',
 }
+

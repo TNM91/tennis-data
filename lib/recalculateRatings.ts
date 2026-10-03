@@ -79,8 +79,8 @@ export type RatingSnapshotInsert = {
   track: 'usta' | 'tiq'
   delta: number
   opponent_rating: number
-  win_probability: number
-  multiplier: number
+  win_probability: number | null
+  multiplier: number | null
 }
 
 type LegacyRatingSnapshotInsert = Omit<
@@ -163,6 +163,8 @@ export type RatingRecalculationOptions = {
    * This is intended for admin-safe audits before a production rerun.
    */
   dryRun?: boolean
+  /** Explicit audit override; production activation uses TIQ_RATING_ENGINE. */
+  engine?: 'legacy' | 'network'
   now?: number
   /**
    * Full rebuilds can update the existing per-match snapshots in place. This
@@ -190,12 +192,18 @@ export async function recalculateDynamicRatings(
   client: SupabaseClient = supabase,
   options: RatingRecalculationOptions = {},
 ): Promise<RatingRecalculationResult> {
-  onPhase?.('fetching-players')
-  const players = await fetchPlayers(client)
-  onPhase?.('fetching-matches')
-  const matches = await fetchMatches(client)
-  onPhase?.('fetching-participants')
-  const matchPlayers = await fetchMatchPlayers(client)
+  const engine = options.engine ?? (process.env.TIQ_RATING_ENGINE === 'network' || (process.env.NODE_ENV === 'production' && process.env.TIQ_RATING_ENGINE !== 'legacy') ? 'network' : 'legacy')
+  const cutoff = new Date(options.now ?? Date.now()).toISOString().slice(0, 10), season = Number(cutoff.slice(0, 4))
+  const [players, matches, matchPlayers, networkInputs] = await Promise.all([
+    (async () => { onPhase?.('fetching-players'); return fetchPlayers(client) })(),
+    (async () => { onPhase?.('fetching-matches'); return fetchMatches(client) })(),
+    (async () => { onPhase?.('fetching-participants'); return fetchMatchPlayers(client) })(),
+    engine === 'network' ? (async () => {
+      const adapter = await import('./tiq-live-network')
+      const evidence = await adapter.loadLiveNetworkEvidence(client, season)
+      return { adapter, evidence }
+    })() : Promise.resolve(null),
+  ])
 
   onPhase?.('processing', `${matches.length} matches`)
 
@@ -327,14 +335,36 @@ export async function recalculateDynamicRatings(
   onPhase?.('finalizing')
   applyInactivityDecay(playersById.values(), options.now ?? Date.now())
 
-  const recalculatedPlayers = [...playersById.values()]
+  let recalculatedPlayers = [...playersById.values()]
+  let networkPublication: { season: number; playerIds: string[] } | null = null
+  if (networkInputs) {
+    const { calculateLiveNetwork, applyLiveNetworkPlayers } = networkInputs.adapter
+    const { evidence } = networkInputs
+    const network = calculateLiveNetwork({ season, cutoff, matches, participants: matchPlayers, ...evidence })
+    recalculatedPlayers = applyLiveNetworkPlayers(recalculatedPlayers, network)
+    const published = new Set(network.snapshots.map(row => row.player_id))
+    networkPublication = { season, playerIds: [...published] }
+    const retained = snapshotRows.filter(row => row.track !== 'tiq' || !published.has(row.player_id) || row.snapshot_date < season + '-01-01')
+    snapshotRows.length = 0
+    for (const row of retained) snapshotRows.push(row)
+    for (const row of network.snapshots) snapshotRows.push(row)
+    console.info(JSON.stringify({ event: 'tiq_network_replay', model: network.model, cutoff, publishedPlayers: published.size, usableCourts: network.predictions.length, excludedIdentities: evidence.excluded.size, skippedCourts: network.skippedMatches.length }))
+  }
 
   if (!options.dryRun) {
     onPhase?.('saving-ratings', `${players.length} players`)
-    await persistPlayerRatings(recalculatedPlayers, client)
+    await persistPlayerRatings(recalculatedPlayers, client, engine === 'network' ? 4 : 1, engine === 'network')
 
     onPhase?.('saving-snapshots', `${snapshotRows.length} snapshots`)
-    await replaceRatingSnapshots(snapshotRows, client, options.replaceSnapshots !== false, options.snapshotWriteConcurrency)
+    // Incremental upserts alone would leave excluded legacy courts in the new model's history.
+    if (networkPublication && options.replaceSnapshots === false) {
+      const seasonStart = networkPublication.season + '-01-01'
+      await saveRatingSnapshotBatches(chunkArray(networkPublication.playerIds, 200), async ids => {
+        const { error } = await client.from('rating_snapshots').delete().eq('track', 'tiq').gte('snapshot_date', seasonStart).in('player_id', ids)
+        if (error) throw new Error('Failed to replace current-season TIQ history: ' + error.message)
+      }, 4)
+    }
+    await replaceRatingSnapshots(snapshotRows, client, options.replaceSnapshots !== false, options.snapshotWriteConcurrency ?? (engine === 'network' ? 4 : 1))
   }
 
   onPhase?.('done')
@@ -730,14 +760,15 @@ function buildSnapshot(
   }
 }
 
-async function persistPlayerRatings(players: WorkingPlayer[], client: SupabaseClient) {
-  for (const chunk of chunkArray(players, 200)) {
+async function persistPlayerRatings(players: WorkingPlayer[], client: SupabaseClient, concurrency: 1 | 4 = 1, network = false) {
+  const tiqRound = (value: number) => network ? Math.min(roundRating(value), Math.floor(value * 2) / 2 + 0.499) : roundRating(value)
+  await saveRatingSnapshotBatches(chunkArray(players, 200), async chunk => {
     const fullPayload = chunk.map((player) => ({
       id: player.id,
       name: player.name,
-      singles_dynamic_rating: roundRating(player.singlesDynamic),
-      doubles_dynamic_rating: roundRating(player.doublesDynamic),
-      overall_dynamic_rating: roundRating(player.overallDynamic),
+      singles_dynamic_rating: tiqRound(player.singlesDynamic),
+      doubles_dynamic_rating: tiqRound(player.doublesDynamic),
+      overall_dynamic_rating: tiqRound(player.overallDynamic),
       singles_usta_dynamic_rating: roundRating(player.singlesUstaDynamic),
       doubles_usta_dynamic_rating: roundRating(player.doublesUstaDynamic),
       overall_usta_dynamic_rating: roundRating(player.overallUstaDynamic),
@@ -753,9 +784,9 @@ async function persistPlayerRatings(players: WorkingPlayer[], client: SupabaseCl
         const tiqPayload = chunk.map((player) => ({
           id: player.id,
           name: player.name,
-          singles_dynamic_rating: roundRating(player.singlesDynamic),
-          doubles_dynamic_rating: roundRating(player.doublesDynamic),
-          overall_dynamic_rating: roundRating(player.overallDynamic),
+          singles_dynamic_rating: tiqRound(player.singlesDynamic),
+          doubles_dynamic_rating: tiqRound(player.doublesDynamic),
+          overall_dynamic_rating: tiqRound(player.overallDynamic),
         }))
         const { error: fallbackError } = await client
           .from('players')
@@ -763,11 +794,11 @@ async function persistPlayerRatings(players: WorkingPlayer[], client: SupabaseCl
         if (fallbackError) {
           throw new Error(`Failed to save recalculated player ratings: ${fallbackError.message}`)
         }
-        continue
+        return
       }
       throw new Error(`Failed to save recalculated player ratings: ${error.message}`)
     }
-  }
+  }, concurrency)
 }
 
 async function replaceRatingSnapshots(
@@ -1354,3 +1385,4 @@ function chunkArray<T>(items: T[], size: number): T[][] {
 
   return chunks
 }
+
