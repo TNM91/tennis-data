@@ -1,3 +1,4 @@
+import { isKnownMissouriPlayerHistory } from './current-refresh'
 import { assignMissouriPlayerRefreshPages } from './missouri-player-refresh'
 import { conflictsWithTennisRecordSourceIdentity } from './source-player-link'
 import { createHash } from 'node:crypto'
@@ -1948,10 +1949,18 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
       if (observation.error) throw new Error(observation.error.message)
     }
   }
-  const scopedDiscoveryUrls = parsed.discoveredUrls.filter((candidateUrl) => isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, candidateUrl, parsed))
+  let historyOwner: { sourceUrl: string; state: string | null } | undefined
+  if (campaignSlug === 'missouri-2025-current' && tennisRecordRecordPageKind(sourceUrl) === 'history') {
+    const ownerName = new URL(sourceUrl).searchParams.get('playername')
+    const owners = await service.from('tennisrecord_staged_players').select('source_url,state').eq('name', ownerName).eq('state', 'MO').limit(10)
+    if (owners.error) throw new Error(owners.error.message)
+    historyOwner = (owners.data || []).map(owner => ({ sourceUrl: owner.source_url as string, state: owner.state as string | null }))
+      .find(owner => isKnownMissouriPlayerHistory(sourceUrl, owner))
+  }
+  const scopedDiscoveryUrls = parsed.discoveredUrls.filter((candidateUrl) => isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, candidateUrl, parsed, historyOwner))
   if (scopedDiscoveryUrls.length) await enqueueTennisRecordUrls(service, scopedDiscoveryUrls, campaignId)
   if (currentRefreshEnabled && campaignSlug === 'missouri-2025-current') {
-    const ownPageAllowed = isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, sourceUrl, parsed)
+    const ownPageAllowed = isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, sourceUrl, parsed, historyOwner)
     await markCurrentSeasonUrls(service, currentSeasonDiscoveryUrls([...scopedDiscoveryUrls, ...(ownPageAllowed ? [sourceUrl] : [])]))
   }
   if (currentRefreshEnabled && currentSeason && campaignSlug === 'us-2025-current') {

@@ -84,3 +84,19 @@ export function futureScorecardRefreshAt(html: string, page: ParsedTennisRecordP
   if (!Number.isFinite(scheduled.getTime()) || scheduled.toISOString().slice(0, 10) !== iso || iso < now.toISOString().slice(0, 10)) return null
   return nextCurrentRefreshAt(now)
 }
+
+/** A history inherits geography only from the exact previously captured profile locator. */
+export function isKnownMissouriPlayerHistory(historyUrl: string, profile: { sourceUrl: string; state: string | null }) {
+  if (profile.state !== 'MO') return false
+  try {
+    const history = new URL(historyUrl), owner = new URL(profile.sourceUrl)
+    if (![history, owner].every(url => ['www.tennisrecord.com', 'tennisrecord.com'].includes(url.hostname) && ['http:', 'https:'].includes(url.protocol))) return false
+    if (history.pathname.toLowerCase() !== '/adult/matchhistory.aspx' || owner.pathname.toLowerCase() !== '/adult/profile.aspx' || !history.searchParams.get('playername')) return false
+    if (!/^20\d{2}$/.test(history.searchParams.get('year') || '')) return false
+    history.searchParams.delete('year')
+    owner.searchParams.delete('year')
+    history.searchParams.sort()
+    owner.searchParams.sort()
+    return history.searchParams.toString() === owner.searchParams.toString()
+  } catch { return false }
+}

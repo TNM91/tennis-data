@@ -1,3 +1,4 @@
+import { isKnownMissouriPlayerHistory } from '../tennisrecord/current-refresh'
 import { describe, expect, it } from 'vitest'
 import { activeChampionshipYears, currentPlayerRefreshUrls, currentRefreshPageKindPlan, currentSeasonDiscoveryUrls, currentSeasonPreferredScope, nationalCurrentSeasonUrl, futureScorecardRefreshAt, hasMissouriPageEvidence, isMissouriCompetition, nextCurrentRefreshAt, preferCurrentSeason } from '../tennisrecord/current-refresh'
 import { parseTennisRecordMatchPage } from '../tennisrecord/parser'
@@ -82,4 +83,18 @@ describe('independent current-season refresh', () => {
     expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', source, 'https://evil.example/?year=2026')).toBe(false)
     expect(isTennisRecordCampaignDiscoveryAllowed('us-2025-current', source, 'https://evil.example/?year=2026')).toBe(false)
   })
+})
+
+it('discovers direct courts from a known MO history without geography in the history page', () => {
+  const history = base + 'matchhistory.aspx?playername=Nathan+Meinert&year=2026&s=7'
+  const owner = { sourceUrl: base + 'profile.aspx?s=7&playername=Nathan%20Meinert', state: 'MO' }
+  const court = base + 'matchresults.aspx?year=2027&mid=13347'
+  expect(isKnownMissouriPlayerHistory(history, owner)).toBe(true)
+  expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', history, court, empty)).toBe(false)
+  expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', history, court, empty, owner)).toBe(true)
+  expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', history, history, empty, owner)).toBe(true)
+  expect(isKnownMissouriPlayerHistory(history, { ...owner, state: 'KS' })).toBe(false)
+  expect(isKnownMissouriPlayerHistory(history, { ...owner, sourceUrl: base + 'profile.aspx?playername=Nathan+Meinert&s=8' })).toBe(false)
+  expect(isKnownMissouriPlayerHistory(history, { ...owner, sourceUrl: 'https://evil.example/adult/profile.aspx?playername=Nathan+Meinert&s=7' })).toBe(false)
+  expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', history, base + 'matchhistory.aspx?playername=Other&year=2026', empty, owner)).toBe(false)
 })
