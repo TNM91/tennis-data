@@ -1,29 +1,36 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { replayRatingNetwork, type NetworkCourt } from './tiq-rating-network'
 import { individualAdultDivisionLevel } from './tiq-division-context'
+import { selectComputerPriors, type ComputerPriorLabel } from './tiq-computer-priors'
 import { parseScoreMetrics, type MatchRow, type RatingSnapshotInsert, type WorkingPlayer } from './recalculateRatings'
 
-export const LIVE_NETWORK_MODEL = 'tiq-network-1'
+export const LIVE_NETWORK_MODEL = 'tiq-network-1.1'
 type Participant = { match_id: string; player_id: string; side: 'A' | 'B' }
-type Observation = { canonical_player_id: string | null; ntrp: number; source_url: string; tennisrecord_staged_players: { source_url: string; tennisrecord_player_identities: { canonical_player_id: string | null; status: string } } | null }
+type Observation = { canonical_player_id: string | null; ntrp: number; designation: string; effective_date: string; source_url: string; tennisrecord_staged_players: { source_url: string; ntrp_label: string; tennisrecord_player_identities: { canonical_player_id: string | null; status: string } } | null }
 type Identity = { canonical_player_id: string | null; status: string }
 async function pages<T>(client: SupabaseClient, table: string, select: string, filter?: { column: string; value: string | boolean }) {
   const rows: T[] = []
+  let cursor: string | null = null
   for (let offset = 0; ; offset += 1000) {
-    let query = client.from(table).select(select).order(table === 'tennisrecord_canonical_matches' ? 'fingerprint' : table === 'tennisrecord_player_identities' ? 'staged_player_id' : 'id').range(offset, offset + 999)
+    let query = client.from(table).select(select).order(table === 'tennisrecord_canonical_matches' ? 'fingerprint' : table === 'tennisrecord_player_identities' ? 'staged_player_id' : 'id')
+    if (table === 'tennisrecord_ntrp_observations') {
+      query = query.limit(1000)
+      if (cursor) query = query.gt('id', cursor)
+    } else query = query.range(offset, offset + 999)
     if (filter) query = query.eq(filter.column, filter.value)
     const { data, error } = await query
     if (error) throw new Error(`Network rating evidence ${table}: ${error.message}`)
     const page = (data ?? []) as unknown as T[]
     rows.push(...page)
     if (page.length < 1000) return rows
+    if (table === 'tennisrecord_ntrp_observations') cursor = (page[page.length - 1] as { id: string }).id
   }
 }
 export async function loadLiveNetworkEvidence(client: SupabaseClient, season: number) {
   const [identities, observations, conflicts] = await Promise.all([
     pages<Identity>(client, 'tennisrecord_player_identities', 'staged_player_id,canonical_player_id,status'),
-    // Only a previous-year annual C label may initialize this season. No current-year lookahead.
-    pages<Observation>(client, 'tennisrecord_ntrp_observations', 'id,canonical_player_id,ntrp,source_url,designation,tennisrecord_staged_players(source_url,tennisrecord_player_identities(canonical_player_id,status))', { column: 'effective_date', value: `${season - 1}-12-31` }),
+    // The two preceding annual labels are valid for every age group. No current-year lookahead.
+    Promise.all([1, 2].map(age => pages<Observation>(client, 'tennisrecord_ntrp_observations', 'id,canonical_player_id,ntrp,source_url,designation,effective_date,tennisrecord_staged_players(source_url,ntrp_label,tennisrecord_player_identities(canonical_player_id,status))', { column: 'effective_date', value: `${season - age}-12-31` }))).then(rows => rows.flat()),
     pages<{ canonical_match_id: string }>(client, 'tennisrecord_canonical_matches', 'fingerprint,canonical_match_id', { column: 'has_conflict', value: true }),
   ])
   const counts = new Map<string, number>(), excluded = new Set<string>()
@@ -32,13 +39,13 @@ export async function loadLiveNetworkEvidence(client: SupabaseClient, season: nu
     if (row.status === 'ambiguous') excluded.add(row.canonical_player_id)
   }
   for (const [id, count] of counts) if (count > 1) excluded.add(id)
-  const candidates = new Map<string, Set<number>>()
-  for (const row of observations as (Observation & { designation: string })[]) {
+  const candidates: ComputerPriorLabel[] = []
+  for (const row of observations) {
     const id = row.canonical_player_id, owner = row.tennisrecord_staged_players, link = owner?.tennisrecord_player_identities, level = Number(row.ntrp)
-    if (row.designation !== 'computer' || !id || excluded.has(id) || !owner || row.source_url !== owner.source_url || link?.status !== 'matched' || link.canonical_player_id !== id || !Number.isFinite(level) || level < 1.5 || level > 7 || !Number.isInteger(level * 2)) continue
-    const levels = candidates.get(id) ?? new Set<number>(); levels.add(level); candidates.set(id, levels)
+    if (!id || excluded.has(id) || !owner || row.source_url !== owner.source_url || link?.status !== 'matched' || link.canonical_player_id !== id) continue
+    candidates.push({ playerId: id, level, designation: row.designation, effectiveDate: row.effective_date, currentLabel: owner.ntrp_label ?? '' })
   }
-  const priors = new Map([...candidates].filter(([, levels]) => levels.size === 1).map(([id, levels]) => [id, [...levels][0]]))
+  const priors = selectComputerPriors(candidates, season)
   return { priors, excluded, conflictedMatches: new Set(conflicts.map(row => row.canonical_match_id)) }
 }
 export function calculateLiveNetwork(input: { season: number; cutoff: string; matches: MatchRow[]; participants: Participant[]; priors: ReadonlyMap<string, number>; excluded: ReadonlySet<string>; conflictedMatches: ReadonlySet<string> }) {
