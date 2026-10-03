@@ -179,6 +179,7 @@ export type RatingRecalculationOptions = {
 
 export type RatingRecalculationResult = {
   dryRun: boolean
+  queued?: boolean
   playerCount: number
   eligibleMatchCount: number
   snapshotCount: number
@@ -193,6 +194,15 @@ export async function recalculateDynamicRatings(
   client: SupabaseClient = supabase,
   options: RatingRecalculationOptions = {},
 ): Promise<RatingRecalculationResult> {
+  // Browser submissions request the protected server job; they never read private source evidence.
+  if (typeof window !== 'undefined' && !options.dryRun) {
+    const { data, error } = await client.auth.getSession()
+    if (error || !data.session?.access_token) throw new Error('Sign in to request a rating refresh.')
+    const response = await fetch('/api/ratings/refresh', { method: 'POST', headers: { Authorization: 'Bearer ' + data.session.access_token } })
+    if (!response.ok) throw new Error('Unable to queue the rating refresh.')
+    onPhase?.('done', 'Rating refresh queued')
+    return { dryRun: false, queued: true, playerCount: 0, eligibleMatchCount: 0, snapshotCount: 0, players: [], snapshots: [], processedMatchCount: 0, skippedMatches: [] }
+  }
   const engine = options.engine ?? (process.env.TIQ_RATING_ENGINE === 'network' || (process.env.NODE_ENV === 'production' && process.env.TIQ_RATING_ENGINE !== 'legacy') ? 'network' : 'legacy')
   const cutoff = new Date(options.now ?? Date.now()).toISOString().slice(0, 10), season = Number(cutoff.slice(0, 4))
   const [players, matches, matchPlayers, networkInputs] = await Promise.all([
