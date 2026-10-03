@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { RatingSnapshotInsert } from '../recalculateRatings'
 import { recalculateDynamicRatings } from '../recalculateRatings'
-import { loadCurrentRatingSnapshots } from '../rating-snapshot-diff'
+import { loadRatingSnapshotDiff } from '../rating-snapshot-diff'
 
 const networkRow: RatingSnapshotInsert = { player_id: 'a', match_id: 'm', snapshot_date: '2026-06-01', rating_type: 'overall', track: 'tiq', dynamic_rating: 4.6, delta: 0.1, opponent_rating: 4.7, win_probability: null, multiplier: null }
 vi.mock('../tiq-live-network', () => ({
@@ -12,7 +12,7 @@ vi.mock('../tiq-live-network', () => ({
   applyLiveNetworkPlayers: (players: unknown) => players,
 }))
 vi.mock('../tiq-source-owned-courts', () => ({ loadSourceOwnedCourts: async () => new Set() }))
-vi.mock('../rating-snapshot-diff', async importOriginal => ({ ...await importOriginal<typeof import('../rating-snapshot-diff')>(), loadCurrentRatingSnapshots: vi.fn() }))
+vi.mock('../rating-snapshot-diff', async importOriginal => ({ ...await importOriginal<typeof import('../rating-snapshot-diff')>(), loadRatingSnapshotDiff: vi.fn() }))
 
 function fixture(failure?: 'write' | 'constraint') {
   const events: Array<{ operation: string; table: string; rows?: RatingSnapshotInsert[]; ids?: string[] }> = []
@@ -39,8 +39,8 @@ function fixture(failure?: 'write' | 'constraint') {
 }
 const options = { engine: 'network' as const, now: Date.parse('2026-06-02T00:00:00Z') }
 beforeEach(() => {
-  vi.mocked(loadCurrentRatingSnapshots).mockReset()
-  vi.mocked(loadCurrentRatingSnapshots).mockResolvedValue([{ ...networkRow, id: 'kept' }, { ...networkRow, match_id: 'stale', id: 'stale' }])
+  vi.mocked(loadRatingSnapshotDiff).mockReset()
+  vi.mocked(loadRatingSnapshotDiff).mockResolvedValue({ writes: [], remove: ['stale'], unchanged: 1, desired: 1, existing: 2, existingRows: [] })
 })
 
 it('keeps identical network history and deletes stale IDs only after writes complete', async () => {
@@ -52,20 +52,21 @@ it('keeps identical network history and deletes stale IDs only after writes comp
 })
 
 it('does not publish players or history if the inventory read fails', async () => {
-  vi.mocked(loadCurrentRatingSnapshots).mockRejectedValue(new Error('statement timeout'))
+  vi.mocked(loadRatingSnapshotDiff).mockRejectedValue(new Error('statement timeout'))
   const data = fixture()
   await expect(recalculateDynamicRatings(undefined, data.client, options)).rejects.toThrow('statement timeout')
   expect(data.events).toEqual([])
 })
 
 it('preserves old history when a changed-row write fails', async () => {
+  vi.mocked(loadRatingSnapshotDiff).mockResolvedValue({ writes: [networkRow], remove: ['stale'], unchanged: 0, desired: 1, existing: 2, existingRows: [{ ...networkRow, id: 'changed' }] })
   const data = fixture('write')
   await expect(recalculateDynamicRatings(undefined, data.client, options)).rejects.toThrow('write failed')
   expect(data.events.some(e => e.operation === 'delete')).toBe(false)
 })
 
 it('replaces only exact changed keys when the unique-constraint insert fallback is needed', async () => {
-  vi.mocked(loadCurrentRatingSnapshots).mockResolvedValue([{ ...networkRow, dynamic_rating: 4.4, id: 'changed' }, { ...networkRow, match_id: 'stale', id: 'stale' }])
+  vi.mocked(loadRatingSnapshotDiff).mockResolvedValue({ writes: [networkRow], remove: ['stale'], unchanged: 0, desired: 1, existing: 2, existingRows: [{ ...networkRow, id: 'changed' }] })
   const data = fixture('constraint')
   await recalculateDynamicRatings(undefined, data.client, options)
   expect(data.events.filter(e => e.operation === 'delete').map(e => e.ids)).toEqual([['changed'], ['stale']])
@@ -73,8 +74,9 @@ it('replaces only exact changed keys when the unique-constraint insert fallback 
 })
 
 it('retains full replacement behavior for schemas without snapshot metrics', async () => {
-  vi.mocked(loadCurrentRatingSnapshots).mockRejectedValue(new Error('column rating_snapshots.delta does not exist'))
+  vi.mocked(loadRatingSnapshotDiff).mockRejectedValue(new Error('column rating_snapshots.delta does not exist'))
   const data = fixture()
   await recalculateDynamicRatings(undefined, data.client, options)
   expect(data.events.some(e => e.operation === 'delete' && e.ids?.includes('a'))).toBe(true)
 })
+

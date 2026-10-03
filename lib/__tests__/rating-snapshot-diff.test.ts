@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import type { RatingSnapshotInsert } from '../recalculateRatings'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { loadCurrentRatingSnapshots, planRatingSnapshotDiff } from '../rating-snapshot-diff'
+import { createRatingSnapshotDiffPlanner, loadCurrentRatingSnapshots, planRatingSnapshotDiff } from '../rating-snapshot-diff'
 
 const row = (match: string, change: Partial<RatingSnapshotInsert> = {}): RatingSnapshotInsert => ({ player_id: 'p', match_id: match, snapshot_date: '2026-06-01', rating_type: 'overall', track: 'tiq', dynamic_rating: 4.6, delta: 0.1, opponent_rating: 4.7, win_probability: 45, multiplier: null, ...change })
 const stored = (match: string, change: Partial<RatingSnapshotInsert> = {}, id = match) => ({ ...row(match, change), id })
@@ -71,4 +71,17 @@ it('reads four disjoint indexed ranges completely, including a second page and f
   expect(calls.some(c => c.cursor === uuid('00000000', 999))).toBe(true)
   expect(maximum).toBe(4)
   expect(active).toBe(0)
+})
+
+it('streamed planning matches full replacement across pages without retaining unchanged rows', () => {
+  const desired = [row('same'), row('changed', { dynamic_rating: 4.8 }), row('new'), row('duplicate')]
+  const old = [stored('same'), stored('changed'), stored('stale'), stored('fallback', { player_id: 'other' }), stored('duplicate'), stored('duplicate', {}, 'extra')]
+  const planner = createRatingSnapshotDiffPlanner(desired, 2026, new Set(['p']))
+  planner.consume(old.slice(0, 3)); planner.consume(old.slice(3))
+  const actual = planner.finish(), expected = planRatingSnapshotDiff(desired, old, 2026, new Set(['p']))
+  expect(actual.writes).toEqual(expected.writes)
+  expect(actual.remove).toEqual(expected.remove)
+  expect(actual.unchanged).toBe(expected.unchanged)
+  expect(actual.existingRows.map(r => r.id)).toEqual(['changed'])
+  expect(actual.existing).toBe(6)
 })

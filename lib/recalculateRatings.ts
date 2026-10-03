@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { saveRatingSnapshotBatches } from './rating-snapshot-batches'
-import { loadCurrentRatingSnapshots, planRatingSnapshotDiff, type StoredRatingSnapshot } from './rating-snapshot-diff'
+import { loadRatingSnapshotDiff, type StoredRatingSnapshot } from './rating-snapshot-diff'
 
 type MatchType = 'singles' | 'doubles'
 export type MatchSide = 'A' | 'B'
@@ -375,13 +375,13 @@ export async function recalculateDynamicRatings(
     const replaceExisting = options.replaceSnapshots ?? (engine === 'legacy')
     const rowsToSave = networkPublication && !replaceExisting ? snapshotRows.filter(row => row.snapshot_date >= networkPublication.season + '-01-01') : snapshotRows
     let storedSnapshots: StoredRatingSnapshot[] | undefined
-    let snapshotDiff: ReturnType<typeof planRatingSnapshotDiff> | undefined
+    let snapshotDiff: Awaited<ReturnType<typeof loadRatingSnapshotDiff>> | undefined
     if (networkPublication && !replaceExisting && options.snapshotDiff !== false) {
       const readStarted = Date.now()
       try {
-        storedSnapshots = await loadCurrentRatingSnapshots(client, networkPublication.season)
-        snapshotDiff = planRatingSnapshotDiff(rowsToSave, storedSnapshots, networkPublication.season, new Set(networkPublication.playerIds))
-        console.info(JSON.stringify({ event: 'rating_snapshot_diff', read_ms: Date.now() - readStarted, existing: storedSnapshots.length, desired: snapshotDiff.desired, changed: snapshotDiff.writes.length, unchanged: snapshotDiff.unchanged, removed: snapshotDiff.remove.length }))
+        snapshotDiff = await loadRatingSnapshotDiff(client, rowsToSave, networkPublication.season, new Set(networkPublication.playerIds))
+        storedSnapshots = snapshotDiff.existingRows
+        console.info(JSON.stringify({ event: 'rating_snapshot_diff', read_ms: Date.now() - readStarted, existing: snapshotDiff.existing, desired: snapshotDiff.desired, changed: snapshotDiff.writes.length, unchanged: snapshotDiff.unchanged, removed: snapshotDiff.remove.length }))
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         // Older schemas retain the established full publication fallback. A
