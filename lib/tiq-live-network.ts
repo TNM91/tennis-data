@@ -4,7 +4,7 @@ import { individualAdultDivisionLevel } from './tiq-division-context'
 import { selectComputerPriors, type ComputerPriorLabel } from './tiq-computer-priors'
 import { parseScoreMetrics, type MatchRow, type RatingSnapshotInsert, type WorkingPlayer } from './recalculateRatings'
 
-export const LIVE_NETWORK_MODEL = 'tiq-network-1.1'
+export const LIVE_NETWORK_MODEL = 'tiq-network-1.2'
 type Participant = { match_id: string; player_id: string; side: 'A' | 'B' }
 type Observation = { canonical_player_id: string | null; ntrp: number; designation: string; effective_date: string; source_url: string; tennisrecord_staged_players: { source_url: string; ntrp_label: string; tennisrecord_player_identities: { canonical_player_id: string | null; status: string } } | null }
 type Identity = { canonical_player_id: string | null; status: string }
@@ -48,7 +48,7 @@ export async function loadLiveNetworkEvidence(client: SupabaseClient, season: nu
   const priors = selectComputerPriors(candidates, season)
   return { priors, excluded, conflictedMatches: new Set(conflicts.map(row => row.canonical_match_id)) }
 }
-export function calculateLiveNetwork(input: { season: number; cutoff: string; matches: MatchRow[]; participants: Participant[]; priors: ReadonlyMap<string, number>; excluded: ReadonlySet<string>; conflictedMatches: ReadonlySet<string> }) {
+export function calculateLiveNetwork(input: { season: number; cutoff: string; matches: MatchRow[]; participants: Participant[]; priors: ReadonlyMap<string, number>; excluded: ReadonlySet<string>; conflictedMatches: ReadonlySet<string>; sourceOwnedCourts?: ReadonlySet<string> }) {
   const participants = new Map<string, Participant[]>(), courts: NetworkCourt[] = [], skipped: { matchId: string; reason: string }[] = [], seen = new Set<string>()
   for (const row of input.participants) { const rows = participants.get(row.match_id) ?? []; rows.push(row); participants.set(row.match_id, rows) }
   for (const match of input.matches) {
@@ -59,7 +59,7 @@ export function calculateLiveNetwork(input: { season: number; cutoff: string; ma
     else if (match.rating_eligible !== true || !['usta', 'tiq_team', 'tiq_individual', 'tiq_tournament'].includes(match.match_source ?? '')) reason = 'ineligible_source'
     else if (input.conflictedMatches.has(match.id)) reason = 'source_conflict'
     else if (!count || !['A', 'B'].includes(match.winner_side) || lineup.length !== count * 2 || new Set(lineup.map(p => p.player_id)).size !== count * 2 || lineup.some(p => !p.player_id || !['A', 'B'].includes(p.side)) || ['A', 'B'].some(side => lineup.filter(p => p.side === side).length !== count)) reason = 'incomplete_lineup'
-    else if (lineup.some(p => input.excluded.has(p.player_id))) reason = 'unresolved_identity'
+    else if (lineup.some(p => input.excluded.has(p.player_id)) && !input.sourceOwnedCourts?.has(match.id)) reason = 'unresolved_identity'
     else if (/\b(default|walkover|retired|retirement|w\/o)\b/i.test(match.score)) reason = 'incomplete_score'
     seen.add(match.id)
     const score = parseScoreMetrics(match.score, match.winner_side)

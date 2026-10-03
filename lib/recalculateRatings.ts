@@ -351,8 +351,13 @@ export async function recalculateDynamicRatings(
   if (networkInputs) {
     const { calculateLiveNetwork, applyLiveNetworkPlayers, orientReviewedLiveScores } = networkInputs.adapter
     const { evidence } = networkInputs
-    const reviewedMatches = await orientReviewedLiveScores(client, matches.filter(match => match.match_date >= season + '-01-01' && match.match_date <= cutoff))
-    const network = calculateLiveNetwork({ season, cutoff, matches: reviewedMatches, participants: matchPlayers, ...evidence })
+    const currentMatches = matches.filter(match => match.match_date >= season + '-01-01' && match.match_date <= cutoff)
+    const { loadSourceOwnedCourts } = await import('./tiq-source-owned-courts')
+    const [reviewedMatches, sourceOwnedCourts] = await Promise.all([
+      orientReviewedLiveScores(client, currentMatches),
+      loadSourceOwnedCourts(client, currentMatches, matchPlayers, evidence.excluded),
+    ])
+    const network = calculateLiveNetwork({ season, cutoff, matches: reviewedMatches, participants: matchPlayers, ...evidence, sourceOwnedCourts })
     recalculatedPlayers = applyLiveNetworkPlayers(recalculatedPlayers, network)
     const published = new Set(network.snapshots.map(row => row.player_id))
     networkPublication = { season, playerIds: [...published] }
