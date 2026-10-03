@@ -76,3 +76,8 @@ export function getRatingViewLabel(view: RatingView) {
   if (view === 'doubles') return 'Doubles'
   return 'Overall'
 }
+
+/** Only an explicitly verified source can supply a published USTA comparison. */
+export function hasVerifiedUstaBaseline(player: { rating_source?: string | null } | null | undefined) {
+  return player?.rating_source === 'verified'
+}

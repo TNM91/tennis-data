@@ -25,6 +25,7 @@ import TiqFeatureIcon, { type TiqFeatureIconName } from '@/components/brand/TiqF
 import { buildProductAccessState } from '@/lib/access-model'
 import {
   formatRatingValue,
+  hasVerifiedUstaBaseline,
   getRatingViewLabel,
   getTiqRating,
   getUstaDynamicRating,
@@ -839,6 +840,7 @@ function PlayerProfileContent() {
 
   const selectedDynamicRating = useMemo(() => getTiqRating(player, ratingView), [player, ratingView])
   const ustaDynamicRating = useMemo(() => getUstaDynamicRating(player, ratingView), [player, ratingView])
+  const hasPendingUstaBaseline = !hasVerifiedUstaBaseline(player)
   const isSelfRatedProfile = isSelfRatedPlayer(player)
   const hasInferredUstaBaseline = hasInferredAdultFlightBaseline(player)
 
@@ -1213,7 +1215,7 @@ function PlayerProfileContent() {
   ] as const
   const playerPathIdentitySignals = [
     { label: 'Player ID', value: playerId },
-    { label: 'Profile source', value: isSelfRatedProfile ? 'Self-rated S' : hasInferredUstaBaseline ? 'Adult-flight baseline' : 'Verified record' },
+    { label: 'Profile source', value: isSelfRatedProfile ? 'Self-rated S' : hasInferredUstaBaseline ? 'Adult-flight baseline' : hasPendingUstaBaseline ? 'Unverified baseline' : 'Verified record' },
     { label: 'Level Up input', value: totalMatches > 0 ? `${totalMatches} matches` : 'Start with profile' },
     { label: 'First read', value: playerPathIdentityRead.label },
   ] as const
@@ -1266,8 +1268,8 @@ function PlayerProfileContent() {
   const trackedRecordLabel = hasTrackedMatches ? `${wins}-${losses}` : '--'
   const trackedWinRateLabel = hasTrackedMatches ? `${winPct}%` : '--'
   const trackedFormLabel = hasTrackedMatches ? getTrendShortLabel(trendDirection) : 'New'
-  const officialUstaRead = isSelfRatedProfile ? 'Self-rated USTA (S)' : hasInferredUstaBaseline ? 'Inferred USTA level' : 'Verified USTA level'
-  const officialUstaShortRead = isSelfRatedProfile ? 'USTA S' : hasInferredUstaBaseline ? 'Inferred USTA' : 'Verified USTA'
+  const officialUstaRead = isSelfRatedProfile ? 'Self-rated USTA (S)' : hasInferredUstaBaseline ? 'Inferred baseline · USTA pending' : hasPendingUstaBaseline ? 'USTA level pending' : 'Verified USTA level'
+  const officialUstaShortRead = isSelfRatedProfile ? 'USTA S' : hasInferredUstaBaseline ? 'Inferred baseline' : hasPendingUstaBaseline ? 'USTA pending' : 'Verified USTA'
   const tiqReadLabel = `TIQ ${ratingViewLabel} read`
   const tiqReadNote = canViewExactTiqRating
     ? 'Current performance signal from reviewed results.'
@@ -1545,7 +1547,7 @@ function PlayerProfileContent() {
       : 'Match history is still building.'
   const publicProfileBody = hasTrackedMatches
     ? 'Review recent scorecards, rating movement, and team history below.'
-    : 'The verified USTA baseline is available now; scorecards add form and rating movement as they arrive.'
+    : hasPendingUstaBaseline ? 'Your USTA level is pending verification; reviewed scores build your TIQ estimate.' : 'Your published USTA level is available; reviewed scores build your TIQ estimate.'
   const heroEyebrow = isPublicExplorerProfile ? 'Player snapshot' : 'Your tennis journey'
   const heroStoryTitle = isPublicExplorerProfile ? publicProfileTitle : storyChapter
   const heroStoryBody = isPublicExplorerProfile ? publicProfileBody : storyChapterBody
@@ -1739,12 +1741,14 @@ function PlayerProfileContent() {
   const playerSignals = [
     {
       label: 'Official baseline',
-      value: isSelfRatedProfile ? 'USTA Pending' : `USTA ${baseRating.toFixed(2)}`,
+      value: hasPendingUstaBaseline ? 'USTA Pending' : `USTA ${baseRating.toFixed(2)}`,
       note: isSelfRatedProfile
         ? 'This profile is self-rated until verified match or TennisLink data replaces the S signal.'
         : hasInferredUstaBaseline
           ? 'This level is inferred from sustained standard Adult-flight results. The official C or S designation is still pending.'
-        : 'Use USTA to understand official standing, bump pressure, and baseline comparison.',
+        : hasPendingUstaBaseline
+          ? 'The imported baseline has not been verified as your published USTA level.'
+          : 'Your published USTA level is separate from your current TIQ playing strength.',
     },
     {
       label: 'Strategy signal',
@@ -1854,7 +1858,7 @@ function PlayerProfileContent() {
           </div>
           <div>
             <span>{officialUstaShortRead}</span>
-            <strong>{isSelfRatedProfile ? 'Pending' : baseRating.toFixed(2)}</strong>
+            <strong>{hasPendingUstaBaseline ? 'Pending' : baseRating.toFixed(2)}</strong>
             <small>Official level</small>
           </div>
           <div>
@@ -1900,7 +1904,7 @@ function PlayerProfileContent() {
               <div className={profileStory.identityBlock}>
                 <h1>{player.name}</h1>
                 <div className={profileStory.identityMeta}>
-                  <span className={profileStory.verified}>{isSelfRatedProfile ? 'Self-rated profile' : hasInferredUstaBaseline ? 'Adult-flight baseline' : 'Verified player record'}</span>
+                  <span className={profileStory.verified}>{isSelfRatedProfile ? 'Self-rated profile' : hasInferredUstaBaseline ? 'Adult-flight baseline' : hasPendingUstaBaseline ? 'Unverified baseline' : 'Verified player record'}</span>
                   {primaryUstaMembership && primaryTeamHref ? (
                     <Link href={primaryTeamHref}>{primaryUstaMembership.teamName}</Link>
                   ) : (
@@ -1974,7 +1978,7 @@ function PlayerProfileContent() {
                   <span>{tiqReadLabel}</span>
                   <strong>{formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}</strong>
                   <small>{hasTrackedMatches ? ratingStatus : tiqReadNote}</small>
-                  {!isSelfRatedProfile ? (
+                  {!hasPendingUstaBaseline ? (
                     <div className={profileStory.ratingTrajectory} aria-label={`TIQ playing band toward ${nextThreshold.toFixed(1)}`}>
                       <span>{baseRating.toFixed(1)}</span>
                       <i><b style={{ width: `${storyNextLevelProgress}%` }} /></i>
@@ -1990,7 +1994,7 @@ function PlayerProfileContent() {
                   <div className={profileStory.ratingReadGuide} aria-label="Rating read guide">
                     <div>
                       <span>{officialUstaRead}</span>
-                      <strong>{isSelfRatedProfile ? 'Pending' : `USTA ${baseRating.toFixed(2)}`}</strong>
+                      <strong>{hasPendingUstaBaseline ? 'Pending' : `USTA ${baseRating.toFixed(2)}`}</strong>
                       <small>Official designation and level.</small>
                     </div>
                     <div>
@@ -2081,7 +2085,7 @@ function PlayerProfileContent() {
 
             <div className={profileStory.storyFooter}>
               <div className={profileStory.ratingMeta} aria-label="Player rating context">
-                <div><span>{officialUstaShortRead}</span><strong>{isSelfRatedProfile ? 'Pending' : baseRating.toFixed(2)}</strong></div>
+                <div><span>{officialUstaShortRead}</span><strong>{hasPendingUstaBaseline ? 'Pending' : baseRating.toFixed(2)}</strong></div>
                 <div><span>Confidence</span><strong>{hasTrackedMatches ? confidence : 'Baseline'}</strong></div>
                 <div><span>Form</span><strong>{hasTrackedMatches ? trackedFormLabel : 'New'}</strong></div>
                 <div><span>Reviewed</span><strong>{totalMatches}</strong></div>
@@ -2116,7 +2120,7 @@ function PlayerProfileContent() {
                 <strong>{formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}</strong>
                 <small>
                   {recentTrendDelta === null
-                    ? `USTA ${isSelfRatedProfile ? 'pending' : baseRating.toFixed(2)}`
+                    ? `USTA ${hasPendingUstaBaseline ? 'pending' : baseRating.toFixed(2)}`
                     : `${recentTrendDelta >= 0 ? '▲' : '▼'} ${Math.abs(recentTrendDelta).toFixed(2)} in recent results`}
                 </small>
               </div>
@@ -2336,8 +2340,8 @@ function PlayerProfileContent() {
               <div className={profileStory.journeyEmpty}>
                 <div className={profileStory.journeyStep}>
                   <span>Official baseline</span>
-                  <strong>{isSelfRatedProfile ? 'USTA pending' : `USTA ${baseRating.toFixed(2)}`}</strong>
-                  <small>{isPublicExplorerProfile ? 'Verified starting point.' : 'Your verified starting point.'}</small>
+                  <strong>{hasPendingUstaBaseline ? 'USTA pending' : `USTA ${baseRating.toFixed(2)}`}</strong>
+                  <small>{hasPendingUstaBaseline ? 'Awaiting a published USTA level.' : isPublicExplorerProfile ? 'Verified starting point.' : 'Your verified starting point.'}</small>
                 </div>
                 <div className={profileStory.journeyStep}>
                   <span>First reviewed match</span>
@@ -2509,7 +2513,7 @@ function PlayerProfileContent() {
                   <h1 style={dynamicHeroTitle}>{player.name}</h1>
                   <div style={playerHeroMetaRowStyle}>
                     <span>{player.location || 'Location not added'}</span>
-                    <span>{isSelfRatedProfile ? 'Self-rated profile' : hasInferredUstaBaseline ? 'Adult-flight baseline' : 'Verified player record'}</span>
+                    <span>{isSelfRatedProfile ? 'Self-rated profile' : hasInferredUstaBaseline ? 'Adult-flight baseline' : hasPendingUstaBaseline ? 'Unverified baseline' : 'Verified player record'}</span>
                     {primaryUstaMembership && primaryTeamHref ? (
                       <Link href={primaryTeamHref} style={playerHeroTeamLinkStyle}>
                         {primaryUstaMembership.teamName}
@@ -2603,8 +2607,8 @@ function PlayerProfileContent() {
 
                     <div style={meterSubtext}>
                       {hasTrackedMatches
-                        ? `USTA ${isSelfRatedPlayer(player) ? 'Pending' : formatRatingValue(baseRating)} - TIQ ${ratingViewLabel.toLowerCase()} rating ${formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}`
-                        : `Official baseline: ${isSelfRatedPlayer(player) ? 'USTA pending' : `USTA ${formatRatingValue(baseRating)}`}. TIQ starts at ${formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)} and gains confidence from reviewed results.`}
+                        ? `USTA ${hasPendingUstaBaseline ? 'Pending' : formatRatingValue(baseRating)} - TIQ ${ratingViewLabel.toLowerCase()} rating ${formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}`
+                        : `Official baseline: ${hasPendingUstaBaseline ? 'USTA pending' : `USTA ${formatRatingValue(baseRating)}`}. TIQ starts at ${formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)} and gains confidence from reviewed results.`}
                     </div>
 
                     {hasTrackedMatches ? (
@@ -2623,11 +2627,11 @@ function PlayerProfileContent() {
 
                   <div style={meterValueGroup}>
                     <div style={meterCurrent}>{formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)}</div>
-                    <div style={meterTarget}>USTA {isSelfRatedPlayer(player) ? 'Pending' : baseRating.toFixed(2)} - Next {nextThreshold.toFixed(1)}</div>
+                    <div style={meterTarget}>USTA {hasPendingUstaBaseline ? 'Pending' : baseRating.toFixed(2)} - Next {nextThreshold.toFixed(1)}</div>
                     <div style={meterDelta}>
                       {!hasTrackedMatches
                         ? 'Match movement not available yet'
-                        : isSelfRatedProfile
+                        : hasPendingUstaBaseline
                         ? 'TIQ vs USTA Pending'
                         : `TIQ vs USTA ${ratingDiff >= 0 ? '+' : ''}${ratingDiff.toFixed(2)}`}
                     </div>
@@ -2661,8 +2665,8 @@ function PlayerProfileContent() {
 
                 <div style={dynamicFocusMetrics}>
                   <StatChip label={canViewExactTiqRating ? 'TIQ' : 'TIQ 🔒'} value={formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)} accent />
-                  <StatChip label="USTA Dynamic" value={isSelfRatedProfile ? 'Pending' : ustaDynamicRating.toFixed(2)} />
-                  <StatChip label="USTA Base" value={isSelfRatedProfile ? 'Pending' : baseRating.toFixed(2)} />
+                  <StatChip label="USTA-match estimate" value={hasPendingUstaBaseline ? 'Pending' : ustaDynamicRating.toFixed(2)} />
+                  <StatChip label="USTA Base" value={hasPendingUstaBaseline ? 'Pending' : baseRating.toFixed(2)} />
                   <StatChip label="Trend" value={hasTrackedMatches ? getTrendShortLabel(trendDirection) : 'New'} />
                   <StatChip label="Confidence" value={hasTrackedMatches ? confidence : 'Baseline'} />
                   <StatChip
@@ -2700,7 +2704,7 @@ function PlayerProfileContent() {
                 <div style={profileCompetitiveSignalGridStyle}>
                   <div style={profileCompetitiveSignalStyle}>
                     <span style={profileCompetitiveSignalLabelStyle}>Official base</span>
-                    <strong style={profileCompetitiveSignalValueStyle}>{isSelfRatedProfile ? 'Pending' : baseRating.toFixed(2)}</strong>
+                    <strong style={profileCompetitiveSignalValueStyle}>{hasPendingUstaBaseline ? 'Pending' : baseRating.toFixed(2)}</strong>
                   </div>
                   <div style={profileCompetitiveSignalStyle}>
                     <span style={profileCompetitiveSignalLabelStyle}>Next level</span>
@@ -2993,7 +2997,7 @@ function PlayerProfileContent() {
             </div>
             <div style={rosterReadyStats}>
               <StatChip label="Roster status" value="Rostered" accent />
-              <StatChip label="USTA Base" value={isSelfRatedPlayer(player) ? 'Pending' : formatRatingValue(player.overall_rating)} />
+              <StatChip label="USTA Base" value={hasPendingUstaBaseline ? 'Pending' : formatRatingValue(player.overall_rating)} />
               <StatChip label={canViewExactTiqRating ? 'TIQ Overall' : 'TIQ Overall 🔒'} value={formatTiqRating(player.overall_dynamic_rating, player, canViewExactTiqRating)} />
               <StatChip label="Matches" value="0" />
             </div>
@@ -3012,13 +3016,13 @@ function PlayerProfileContent() {
           </article>
 
           <article style={statCard}>
-            <div style={statLabel}>USTA Dynamic {ratingViewLabel}</div>
-            <div style={statValue}>{isSelfRatedPlayer(player) ? 'Pending' : ustaDynamicRating.toFixed(2)}</div>
+            <div style={statLabel}>USTA-match estimate {ratingViewLabel}</div>
+            <div style={statValue}>{hasPendingUstaBaseline ? 'Pending' : ustaDynamicRating.toFixed(2)}</div>
           </article>
 
           <article style={statCard}>
             <div style={statLabel}>USTA Base {ratingViewLabel}</div>
-            <div style={statValue}>{isSelfRatedPlayer(player) ? 'Pending' : baseRating.toFixed(2)}</div>
+            <div style={statValue}>{hasPendingUstaBaseline ? 'Pending' : baseRating.toFixed(2)}</div>
           </article>
 
           <article style={statCard}>
@@ -3084,7 +3088,7 @@ function PlayerProfileContent() {
           <article style={statCard}>
             <div style={statLabel}>TIQ vs USTA</div>
             <div style={statValue}>
-              {isSelfRatedProfile ? 'Pending' : `${ratingDiff >= 0 ? '+' : ''}${ratingDiff.toFixed(2)}`}
+              {hasPendingUstaBaseline ? 'Pending' : `${ratingDiff >= 0 ? '+' : ''}${ratingDiff.toFixed(2)}`}
             </div>
           </article>
 
