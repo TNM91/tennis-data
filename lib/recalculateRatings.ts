@@ -409,7 +409,7 @@ export function getPreviousRatingThreshold(currentRating: number): number {
 export function getRatingProgressToNextLevel(currentRating: number): RatingProgress {
   const current = clampNumber(safeNumber(currentRating, DEFAULT_RATING), MIN_RATING, MAX_RATING)
   const previous = Math.floor(current * 2) / 2
-  const next = getNextRatingThreshold(current)
+  const next = Math.min(MAX_RATING, previous + 0.5)
   const bandWidth = Math.max(next - previous, 0.5)
   const gainedWithinBand = clampNumber(current - previous, 0, bandWidth)
   const progressPct = roundRating((gainedWithinBand / bandWidth) * 100)
