@@ -22,6 +22,7 @@ type MatchSource = 'usta' | 'tiq_team' | 'tiq_individual' | 'tiq_tournament'
 export type MatchRow = {
   id: string
   external_match_id?: string | null
+  source?: string | null
   match_date: string
   match_type: MatchType
   score: string
@@ -79,8 +80,8 @@ export type RatingSnapshotInsert = {
   track: 'usta' | 'tiq'
   delta: number
   opponent_rating: number
-  win_probability: number
-  multiplier: number
+  win_probability: number | null
+  multiplier: number | null
 }
 
 type LegacyRatingSnapshotInsert = Omit<
@@ -163,6 +164,8 @@ export type RatingRecalculationOptions = {
    * This is intended for admin-safe audits before a production rerun.
    */
   dryRun?: boolean
+  /** Explicit audit override; production activation uses TIQ_RATING_ENGINE. */
+  engine?: 'legacy' | 'network'
   now?: number
   /**
    * Full rebuilds can update the existing per-match snapshots in place. This
@@ -176,6 +179,7 @@ export type RatingRecalculationOptions = {
 
 export type RatingRecalculationResult = {
   dryRun: boolean
+  queued?: boolean
   playerCount: number
   eligibleMatchCount: number
   snapshotCount: number
@@ -190,12 +194,27 @@ export async function recalculateDynamicRatings(
   client: SupabaseClient = supabase,
   options: RatingRecalculationOptions = {},
 ): Promise<RatingRecalculationResult> {
-  onPhase?.('fetching-players')
-  const players = await fetchPlayers(client)
-  onPhase?.('fetching-matches')
-  const matches = await fetchMatches(client)
-  onPhase?.('fetching-participants')
-  const matchPlayers = await fetchMatchPlayers(client)
+  // Browser submissions request the protected server job; they never read private source evidence.
+  if (typeof window !== 'undefined' && !options.dryRun) {
+    const { data, error } = await client.auth.getSession()
+    if (error || !data.session?.access_token) throw new Error('Sign in to request a rating refresh.')
+    const response = await fetch('/api/ratings/refresh', { method: 'POST', headers: { Authorization: 'Bearer ' + data.session.access_token } })
+    if (!response.ok) throw new Error('Unable to queue the rating refresh.')
+    onPhase?.('done', 'Rating refresh queued')
+    return { dryRun: false, queued: true, playerCount: 0, eligibleMatchCount: 0, snapshotCount: 0, players: [], snapshots: [], processedMatchCount: 0, skippedMatches: [] }
+  }
+  const engine = options.engine ?? (process.env.TIQ_RATING_ENGINE === 'network' || (process.env.NODE_ENV === 'production' && process.env.TIQ_RATING_ENGINE !== 'legacy') ? 'network' : 'legacy')
+  const cutoff = new Date(options.now ?? Date.now()).toISOString().slice(0, 10), season = Number(cutoff.slice(0, 4))
+  const [players, matches, matchPlayers, networkInputs] = await Promise.all([
+    (async () => { onPhase?.('fetching-players'); return fetchPlayers(client) })(),
+    (async () => { onPhase?.('fetching-matches'); return fetchMatches(client) })(),
+    (async () => { onPhase?.('fetching-participants'); return fetchMatchPlayers(client) })(),
+    engine === 'network' ? (async () => {
+      const adapter = await import('./tiq-live-network')
+      const evidence = await adapter.loadLiveNetworkEvidence(client, season)
+      return { adapter, evidence }
+    })() : Promise.resolve(null),
+  ])
 
   onPhase?.('processing', `${matches.length} matches`)
 
@@ -327,14 +346,39 @@ export async function recalculateDynamicRatings(
   onPhase?.('finalizing')
   applyInactivityDecay(playersById.values(), options.now ?? Date.now())
 
-  const recalculatedPlayers = [...playersById.values()]
+  let recalculatedPlayers = [...playersById.values()]
+  let networkPublication: { season: number; playerIds: string[] } | null = null
+  if (networkInputs) {
+    const { calculateLiveNetwork, applyLiveNetworkPlayers, orientReviewedLiveScores } = networkInputs.adapter
+    const { evidence } = networkInputs
+    const reviewedMatches = await orientReviewedLiveScores(client, matches.filter(match => match.match_date >= season + '-01-01' && match.match_date <= cutoff))
+    const network = calculateLiveNetwork({ season, cutoff, matches: reviewedMatches, participants: matchPlayers, ...evidence })
+    recalculatedPlayers = applyLiveNetworkPlayers(recalculatedPlayers, network)
+    const published = new Set(network.snapshots.map(row => row.player_id))
+    networkPublication = { season, playerIds: [...published] }
+    const retained = snapshotRows.filter(row => row.track !== 'tiq' || !published.has(row.player_id) || row.snapshot_date < season + '-01-01')
+    snapshotRows.length = 0
+    for (const row of retained) snapshotRows.push(row)
+    for (const row of network.snapshots) snapshotRows.push(row)
+    console.info(JSON.stringify({ event: 'tiq_network_replay', model: network.model, cutoff, publishedPlayers: published.size, usableCourts: network.predictions.length, excludedIdentities: evidence.excluded.size, skippedCourts: network.skippedMatches.length }))
+  }
 
   if (!options.dryRun) {
     onPhase?.('saving-ratings', `${players.length} players`)
-    await persistPlayerRatings(recalculatedPlayers, client)
+    await persistPlayerRatings(recalculatedPlayers, client, engine === 'network' ? 4 : 1, engine === 'network')
 
     onPhase?.('saving-snapshots', `${snapshotRows.length} snapshots`)
-    await replaceRatingSnapshots(snapshotRows, client, options.replaceSnapshots !== false, options.snapshotWriteConcurrency)
+    // Incremental upserts alone would leave excluded legacy courts in the new model's history.
+    const replaceExisting = options.replaceSnapshots ?? (engine === 'legacy')
+    if (networkPublication && !replaceExisting) {
+      const seasonStart = networkPublication.season + '-01-01'
+      await saveRatingSnapshotBatches(chunkArray(networkPublication.playerIds, 200), async ids => {
+        const { error } = await client.from('rating_snapshots').delete().eq('track', 'tiq').gte('snapshot_date', seasonStart).in('player_id', ids)
+        if (error) throw new Error('Failed to replace current-season TIQ history: ' + error.message)
+      }, 4)
+    }
+    const rowsToSave = networkPublication && !replaceExisting ? snapshotRows.filter(row => row.snapshot_date >= networkPublication.season + '-01-01') : snapshotRows
+    await replaceRatingSnapshots(rowsToSave, client, replaceExisting, options.snapshotWriteConcurrency ?? (engine === 'network' ? 4 : 1))
   }
 
   onPhase?.('done')
@@ -373,9 +417,9 @@ export function getPreviousRatingThreshold(currentRating: number): number {
 }
 
 export function getRatingProgressToNextLevel(currentRating: number): RatingProgress {
-  const current = clampAndRoundRating(currentRating)
-  const previous = getPreviousRatingThreshold(current)
-  const next = getNextRatingThreshold(current)
+  const current = clampNumber(safeNumber(currentRating, DEFAULT_RATING), MIN_RATING, MAX_RATING)
+  const previous = Math.floor(current * 2) / 2
+  const next = Math.min(MAX_RATING, previous + 0.5)
   const bandWidth = Math.max(next - previous, 0.5)
   const gainedWithinBand = clampNumber(current - previous, 0, bandWidth)
   const progressPct = roundRating((gainedWithinBand / bandWidth) * 100)
@@ -436,6 +480,8 @@ async function fetchMatches(client: SupabaseClient): Promise<MatchRow[]> {
       .from('matches')
       .select(`
         id,
+        external_match_id,
+        source,
         match_date,
         match_type,
         score,
@@ -730,14 +776,15 @@ function buildSnapshot(
   }
 }
 
-async function persistPlayerRatings(players: WorkingPlayer[], client: SupabaseClient) {
-  for (const chunk of chunkArray(players, 200)) {
+async function persistPlayerRatings(players: WorkingPlayer[], client: SupabaseClient, concurrency: 1 | 4 = 1, network = false) {
+  const tiqRound = (value: number) => network ? Math.min(roundRating(value), Math.floor(value * 2) / 2 + 0.499) : roundRating(value)
+  await saveRatingSnapshotBatches(chunkArray(players, 200), async chunk => {
     const fullPayload = chunk.map((player) => ({
       id: player.id,
       name: player.name,
-      singles_dynamic_rating: roundRating(player.singlesDynamic),
-      doubles_dynamic_rating: roundRating(player.doublesDynamic),
-      overall_dynamic_rating: roundRating(player.overallDynamic),
+      singles_dynamic_rating: tiqRound(player.singlesDynamic),
+      doubles_dynamic_rating: tiqRound(player.doublesDynamic),
+      overall_dynamic_rating: tiqRound(player.overallDynamic),
       singles_usta_dynamic_rating: roundRating(player.singlesUstaDynamic),
       doubles_usta_dynamic_rating: roundRating(player.doublesUstaDynamic),
       overall_usta_dynamic_rating: roundRating(player.overallUstaDynamic),
@@ -753,9 +800,9 @@ async function persistPlayerRatings(players: WorkingPlayer[], client: SupabaseCl
         const tiqPayload = chunk.map((player) => ({
           id: player.id,
           name: player.name,
-          singles_dynamic_rating: roundRating(player.singlesDynamic),
-          doubles_dynamic_rating: roundRating(player.doublesDynamic),
-          overall_dynamic_rating: roundRating(player.overallDynamic),
+          singles_dynamic_rating: tiqRound(player.singlesDynamic),
+          doubles_dynamic_rating: tiqRound(player.doublesDynamic),
+          overall_dynamic_rating: tiqRound(player.overallDynamic),
         }))
         const { error: fallbackError } = await client
           .from('players')
@@ -763,11 +810,11 @@ async function persistPlayerRatings(players: WorkingPlayer[], client: SupabaseCl
         if (fallbackError) {
           throw new Error(`Failed to save recalculated player ratings: ${fallbackError.message}`)
         }
-        continue
+        return
       }
       throw new Error(`Failed to save recalculated player ratings: ${error.message}`)
     }
-  }
+  }, concurrency)
 }
 
 async function replaceRatingSnapshots(
@@ -1354,3 +1401,4 @@ function chunkArray<T>(items: T[], size: number): T[][] {
 
   return chunks
 }
+

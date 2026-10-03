@@ -66,7 +66,9 @@ export function getTiqRating(player: PlayerRatingShape | null | undefined, view:
 }
 
 export function formatRatingValue(value: number | string | null | undefined, fallback = 3.5) {
-  return toRatingNumber(value, fallback).toFixed(2)
+  const strength = toRatingNumber(value, fallback)
+  const band = Math.floor(strength * 2) / 2
+  return Math.min(Number(strength.toFixed(2)), band + 0.49).toFixed(2)
 }
 
 export function getRatingViewLabel(view: RatingView) {

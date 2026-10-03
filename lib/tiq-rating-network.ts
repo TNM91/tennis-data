@@ -52,6 +52,8 @@ export function replayRatingNetwork(input: {
   courts: NetworkCourt[]
   config?: Partial<NetworkConfig>
   priorStrengthShifts?: ReadonlyMap<string, number>
+  /** Called synchronously after a complete day's updates. Consumers must copy values. */
+  onDay?: (day: { date: string; courts: NetworkCourt[]; states: ReadonlyMap<string, NetworkState>; previous: ReadonlyMap<string, { strength: number; matches: number }> }) => void
 }) {
   const config = { ...NETWORK_CONFIG, ...input.config }
   if (!validDate(input.startsOn) || !validDate(input.cutoff) || input.startsOn > input.cutoff) throw new Error('Invalid replay window')
@@ -92,6 +94,11 @@ export function replayRatingNetwork(input: {
       }
     }
     for (const [id, proposal] of proposals) states.set(id, initialize(proposal.strengths.reduce((sum, value) => sum + value, 0) / proposal.strengths.length, 'network-estimate', Math.min(...proposal.distances)))
+    const previous = new Map<string, { strength: number; matches: number }>()
+    if (input.onDay) for (const court of courts) for (const player of court.participants) for (const format of ['singles', 'doubles'] as const) {
+      const id = key(player.playerId, format), state = states.get(id)
+      if (state) previous.set(id, { strength: state.strength, matches: state.matches })
+    }
     const updates = new Map<NetworkState, { residual: number; weight: number; partners: string[]; opponents: string[] }[]>()
     for (const court of courts) {
       const allStates = court.participants.map(p => states.get(key(p.playerId, court.format)))
@@ -113,6 +120,8 @@ export function replayRatingNetwork(input: {
       state.variance = Math.max(0.0001, posterior); state.matches += entries.length; state.playingDays.add(date)
       for (const entry of entries) { for (const partner of entry.partners) state.partners.add(partner); for (const opponent of entry.opponents) state.opponents.add(opponent) }
     }
+    input.onDay?.({ date, courts: courts.filter(court => court.participants.every(p => states.has(key(p.playerId, court.format)))), states, previous })
   }
   return { config, states, predictions, skippedUnanchored, confidenceCalibrated: false as const, movementForecastAvailable: false as const }
 }
+
