@@ -21,7 +21,7 @@ describe('public detail data trust panels', () => {
     expect(playerDetailSource).toContain('Player profiles combine public player records')
     expect(playerDetailSource).toContain("label: 'Source'")
     expect(playerDetailSource).toContain("label: 'Freshness'")
-    expect(playerDetailSource).toContain("label: 'Confidence'")
+    expect(playerDetailSource).toContain("label: 'Rating history'")
     expect(playerDetailSource).toContain("label: 'Status'")
     expect(playerDetailSource).toContain('Report, upload, or request review through Data Assist')
   })
