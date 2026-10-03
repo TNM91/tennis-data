@@ -1,5 +1,5 @@
 import { isKnownMissouriPlayerHistory } from './current-refresh'
-import { assignMissouriPlayerRefreshPages } from './missouri-player-refresh'
+import { assignMissouriPlayerRefreshPages, enrollDiscoveredMissouriPlayers } from './missouri-player-refresh'
 import { conflictsWithTennisRecordSourceIdentity } from './source-player-link'
 import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -1915,6 +1915,9 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
       }
     }
     await enqueueDiscoveredCampaignPlayerHistory(service, parsed.players, campaignId)
+    if (currentRefreshEnabled) {
+      await enrollDiscoveredMissouriPlayers(service, parsed.players, (urls, scope) => enqueueTennisRecordUrls(service, urls, scope))
+    }
   }
   if (parsed.leagues.length) {
     const { error } = await service.from('tennisrecord_staged_leagues').upsert(parsed.leagues.map((league) => ({ source_league_key: league.sourceLeagueKey, name: league.name, flight: league.flight || null, season_year: league.seasonYear, source_url: league.sourceUrl, raw: league, last_seen_at: new Date().toISOString() })), { onConflict: 'source_league_key' })
