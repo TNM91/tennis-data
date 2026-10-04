@@ -1271,9 +1271,9 @@ function PlayerProfileContent() {
   const trackedFormLabel = hasTrackedMatches ? getTrendShortLabel(trendDirection) : 'New'
   const officialUstaRead = isSelfRatedProfile ? 'Self-rated USTA (S)' : hasInferredUstaBaseline ? 'Inferred baseline · USTA pending' : hasPendingUstaBaseline ? 'USTA level pending' : 'Verified USTA level'
   const officialUstaShortRead = isSelfRatedProfile ? 'USTA S' : hasInferredUstaBaseline ? 'Inferred baseline' : hasPendingUstaBaseline ? 'USTA pending' : 'Verified USTA'
-  const tiqReadLabel = `TIQ ${ratingViewLabel} read`
+  const tiqReadLabel = `TIQ ${ratingViewLabel} strength`
   const tiqReadNote = canViewExactTiqRating
-    ? 'Current performance signal from reviewed results.'
+    ? 'Estimated playing strength from scores, opponents and partners.'
     : 'Exact TiQ read is available with Player.'
   const profileReadTitle = hasTrackedMatches
     ? `${ratingStatus}. ${trackedRecordLabel} across ${totalMatches} tracked match${totalMatches === 1 ? '' : 'es'}.`
@@ -2004,6 +2004,11 @@ function PlayerProfileContent() {
                       <small>{tiqReadNote}</small>
                     </div>
                   </div>
+                  <p className={profileStory.achievementShelfNote}>
+                    {ratingHistoryLabel}. Stored results may include fallback estimates.
+                    {currentRatingHistory.length > 0 ? ` Latest rated result: ${formatDate(currentRatingHistory[currentRatingHistory.length - 1].snapshot_date)}.` : ' No rated results are available for this format this year.'}
+                    {' '}Result dates do not confirm the last import. <Link href="/methodology#rating-evidence">How TIQ works</Link>
+                  </p>
                   {isPublicExplorerProfile ? (
                     <div className={profileStory.publicEvidenceRail} aria-label="Public player performance at a glance">
                       <div>

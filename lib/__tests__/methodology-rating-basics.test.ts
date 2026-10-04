@@ -10,7 +10,7 @@ describe('TiQ rating methodology', () => {
     expect(methodology).toContain('TiQ rating in plain English')
     expect(methodology).toContain('What makes your number move?')
     expect(methodology).toContain('Doubles uses all four players')
-    expect(methodology).toContain('TennisRecord’s estimated rating never sets or moves a TiQ rating.')
+    expect(methodology).not.toMatch(/tennisrecord|tennis record/i)
   })
 
   it('links player profiles to the public guide', () => {
