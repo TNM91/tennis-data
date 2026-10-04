@@ -98,7 +98,7 @@ describe('recalculateDynamicRatings pagination', () => {
       },
     } as unknown as SupabaseClient
 
-    const result = await recalculateDynamicRatings(undefined, client, { dryRun: true })
+    const result = await recalculateDynamicRatings(undefined, client, { engine: 'legacy', dryRun: true })
 
     expect(result.dryRun).toBe(true)
     expect(result.playerCount).toBe(1001)
@@ -379,7 +379,7 @@ describe('verified NTRP baseline calibration', () => {
       },
     } as unknown as SupabaseClient
 
-    const result = await recalculateDynamicRatings(undefined, client, { dryRun: true })
+    const result = await recalculateDynamicRatings(undefined, client, { engine: 'legacy', dryRun: true })
     const player = result.players.find((candidate) => candidate.id === 'a')
 
     expect(player?.overallDynamic).toBe(4)
@@ -647,7 +647,7 @@ describe('dual-track rating integrity', () => {
       },
     } as unknown as SupabaseClient
 
-    const result = await recalculateDynamicRatings(undefined, client, { dryRun: true })
+    const result = await recalculateDynamicRatings(undefined, client, { engine: 'legacy', dryRun: true })
 
     expect(result.players).toHaveLength(1001)
     expect(result.eligibleMatchCount).toBe(0)

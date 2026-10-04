@@ -28,7 +28,7 @@ function fixture(onCalculation = () => {}) {
 }
 
 it('timing leaves every derived rating, snapshot and persistence payload unchanged', async () => {
-  const options = { now: Date.parse('2026-09-05T00:00:00Z'), replaceSnapshots: false }
+  const options = { engine: 'legacy' as const, now: Date.parse('2026-09-05T00:00:00Z'), replaceSnapshots: false }
   const plain = fixture()
   const expected = await recalculateDynamicRatings(undefined, plain.client, options)
   let phase: RecalcPhase | undefined

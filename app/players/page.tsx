@@ -1,5 +1,7 @@
 'use client'
 
+import { getTiqEvidence, type TiqEvidenceShape } from '@/lib/tiq-rating-evidence'
+
 import { getTiqBandStatus, type TiqBandStatus } from '@/lib/tiq-band-status'
 import Link from 'next/link'
 import { CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
@@ -33,7 +35,7 @@ type TrendDirection = 'up' | 'down' | 'flat'
 type ConfidenceLevel = 'Low' | 'Medium' | 'High'
 type RatingStatus = TiqBandStatus
 
-type PlayerRow = {
+type PlayerRow = TiqEvidenceShape & {
   id: string
   name: string
   location?: string | null
@@ -101,7 +103,12 @@ const PLAYER_DIRECTORY_SELECT_BASE = `
   doubles_dynamic_rating,
   overall_usta_dynamic_rating,
   singles_usta_dynamic_rating,
-  doubles_usta_dynamic_rating
+  doubles_usta_dynamic_rating,
+  tiq_rating_status,
+  tiq_rating_model,
+  tiq_rating_season,
+  tiq_singles_matches,
+  tiq_doubles_matches
 `
 const PLAYER_DIRECTORY_SELECT_WITH_SOURCE = `
   ${PLAYER_DIRECTORY_SELECT_BASE},
@@ -997,8 +1004,8 @@ export default function PlayersPage() {
 
                   <div style={playerScorecard}>
                     <div style={playerScorePrimary}>
-                      <span style={scoreLabel}>TIQ overall</span>
-                      <strong style={scoreValue}>{formatPublicRating(getRating(player, 'overall'), player)}</strong>
+                      <span style={scoreLabel}>{getTiqEvidence(player, 'overall').label}</span>
+                      <strong style={scoreValue}>{getTiqEvidence(player, 'overall').status === 'review' ? 'Under review' : getTiqEvidence(player, 'overall').status === 'unknown' ? 'Awaiting refresh' : formatPublicRating(getRating(player, 'overall'), player)}</strong>
                     </div>
                     <div style={playerScoreMiniGrid}>
                       <div style={scoreMini}>
@@ -1008,7 +1015,7 @@ export default function PlayersPage() {
                       <div style={scoreMini}>
                         <span style={scoreMiniLabel}>TIQ vs USTA</span>
                         <strong style={scoreMiniValue}>
-                          {!hasVerifiedUstaBaseline(player)
+                          {(!hasVerifiedUstaBaseline(player) || getTiqEvidence(player, 'overall').status !== 'current')
                             ? 'Pending'
                             : `${player.overallDiff >= 0 ? '+' : ''}${player.overallDiff.toFixed(2)}`}
                         </strong>

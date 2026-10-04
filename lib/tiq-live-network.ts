@@ -5,7 +5,7 @@ import { selectComputerPriors, type ComputerPriorLabel } from './tiq-computer-pr
 import { parseScoreMetrics, type MatchRow, type RatingSnapshotInsert, type WorkingPlayer } from './recalculateRatings'
 import { isWinnerFirstTennisRecordScore } from './tennisrecord-score-orientation'
 
-export const LIVE_NETWORK_MODEL = 'tiq-network-1.3'
+export const LIVE_NETWORK_MODEL = 'tiq-network-1.4'
 type Participant = { match_id: string; player_id: string; side: 'A' | 'B' }
 type Observation = { canonical_player_id: string | null; ntrp: number; designation: string; effective_date: string; source_url: string; tennisrecord_staged_players: { source_url: string; ntrp_label: string; tennisrecord_player_identities: { canonical_player_id: string | null; status: string } } | null }
 type Identity = { canonical_player_id: string | null; status: string }
@@ -87,11 +87,14 @@ export function calculateLiveNetwork(input: { season: number; cutoff: string; ma
   } })
   return { ...result, snapshots, skippedMatches: [...skipped, ...result.skippedUnanchored.map(matchId => ({ matchId, reason: 'unanchored_network' }))], model: LIVE_NETWORK_MODEL }
 }
-export function applyLiveNetworkPlayers(players: WorkingPlayer[], result: ReturnType<typeof calculateLiveNetwork>) {
+export function applyLiveNetworkPlayers(players: WorkingPlayer[], result: ReturnType<typeof calculateLiveNetwork>, evidence: { season: number; priors: ReadonlyMap<string, number>; excluded: ReadonlySet<string> }) {
   return players.map(player => {
     const singles = result.states.get(`${player.id}:singles`), doubles = result.states.get(`${player.id}:doubles`), count = (singles?.matches ?? 0) + (doubles?.matches ?? 0)
-    if (!count) return player
-    return { ...player, singlesDynamic: singles?.strength ?? player.singlesDynamic, doublesDynamic: doubles?.strength ?? player.doublesDynamic, overallDynamic: ((singles?.strength ?? 0) * (singles?.matches ?? 0) + (doubles?.strength ?? 0) * (doubles?.matches ?? 0)) / count }
+    // An unrated format receives a starting estimate, never legacy output.
+    const seed = (baseline: number) => Math.max(1.5, Math.min(7, (evidence.priors.get(player.id) ?? baseline) + result.config.priorOffset))
+    const status = count ? 'current' as const : evidence.excluded.has(player.id) ? 'review' as const : 'provisional' as const
+    return { ...player, singlesDynamic: singles?.matches ? singles.strength : seed(player.singlesBase), doublesDynamic: doubles?.matches ? doubles.strength : seed(player.doublesBase), overallDynamic: count ? ((singles?.strength ?? 0) * (singles?.matches ?? 0) + (doubles?.strength ?? 0) * (doubles?.matches ?? 0)) / count : seed(player.overallBase), tiqEvidence: { status, model: LIVE_NETWORK_MODEL, season: evidence.season, singlesMatches: singles?.matches ?? 0, doublesMatches: doubles?.matches ?? 0 } }
+
   })
 }
 
@@ -121,4 +124,8 @@ export async function orientReviewedLiveScores(client: SupabaseClient, matches: 
   }, 4)
   console.info(JSON.stringify({ event: 'tiq_network_score_orientation', candidates: candidates.length, oriented: oriented.size }))
   return matches.map(match => oriented.has(match.id) ? { ...match, score: oriented.get(match.id)! } : match)
+}
+
+export function retainPreNetworkHistory(rows: RatingSnapshotInsert[], season: number) {
+  return rows.filter(row => row.track !== 'tiq' || row.snapshot_date < season + '-01-01')
 }

@@ -5,7 +5,8 @@ import { recalculateDynamicRatings } from '../recalculateRatings'
 import { loadRatingSnapshotDiff } from '../rating-snapshot-diff'
 
 const networkRow: RatingSnapshotInsert = { player_id: 'a', match_id: 'm', snapshot_date: '2026-06-01', rating_type: 'overall', track: 'tiq', dynamic_rating: 4.6, delta: 0.1, opponent_rating: 4.7, win_probability: null, multiplier: null }
-vi.mock('../tiq-live-network', () => ({
+vi.mock('../tiq-live-network', async importOriginal => ({
+  ...await importOriginal<typeof import('../tiq-live-network')>(),
   loadLiveNetworkEvidence: async () => ({ excluded: new Set(), priors: new Map() }),
   orientReviewedLiveScores: async (_client: unknown, rows: unknown) => rows,
   calculateLiveNetwork: () => ({ snapshots: [networkRow], model: 'fixture', predictions: [], skippedMatches: [] }),
@@ -45,7 +46,7 @@ beforeEach(() => {
 
 it('keeps identical network history and deletes stale IDs only after writes complete', async () => {
   const data = fixture()
-  await recalculateDynamicRatings(undefined, data.client, options)
+  await recalculateDynamicRatings(undefined, data.client, { now: options.now })
   const snapshots = data.events.filter(e => e.table === 'rating_snapshots')
   expect(snapshots.filter(e => e.operation === 'upsert').flatMap(e => e.rows ?? []).some(r => r.track === 'tiq' && r.player_id === 'a' && r.rating_type === 'overall')).toBe(false)
   expect(snapshots.at(-1)).toEqual({ operation: 'delete', table: 'rating_snapshots', ids: ['stale'] })
