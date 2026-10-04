@@ -5,7 +5,8 @@ import { recalculateDynamicRatings } from '../recalculateRatings'
 import { loadRatingSnapshotDiff } from '../rating-snapshot-diff'
 
 const networkRow: RatingSnapshotInsert = { player_id: 'a', match_id: 'm', snapshot_date: '2026-06-01', rating_type: 'overall', track: 'tiq', dynamic_rating: 4.6, delta: 0.1, opponent_rating: 4.7, win_probability: null, multiplier: null }
-vi.mock('../tiq-live-network', () => ({
+vi.mock('../tiq-live-network', async importOriginal => ({
+  ...await importOriginal<typeof import('../tiq-live-network')>(),
   loadLiveNetworkEvidence: async () => ({ excluded: new Set(), priors: new Map() }),
   orientReviewedLiveScores: async (_client: unknown, rows: unknown) => rows,
   calculateLiveNetwork: () => ({ snapshots: [networkRow], model: 'fixture', predictions: [], skippedMatches: [] }),

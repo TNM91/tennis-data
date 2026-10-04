@@ -70,6 +70,7 @@ export type WorkingPlayer = {
   overallMatchesProcessed: number
   matchesProcessed: number
   lastMatchDate: string | null
+  tiqEvidence?: { status: 'current' | 'provisional' | 'review'; model: string; season: number; singlesMatches: number; doublesMatches: number }
 }
 
 export type RatingSnapshotInsert = {
@@ -206,7 +207,7 @@ export async function recalculateDynamicRatings(
     onPhase?.('done', 'Rating refresh queued')
     return { dryRun: false, queued: true, playerCount: 0, eligibleMatchCount: 0, snapshotCount: 0, players: [], snapshots: [], processedMatchCount: 0, skippedMatches: [] }
   }
-  const engine = options.engine ?? (process.env.TIQ_RATING_ENGINE === 'network' || (process.env.NODE_ENV === 'production' && process.env.TIQ_RATING_ENGINE !== 'legacy') ? 'network' : 'legacy')
+  const engine = options.engine ?? 'network'
   const cutoff = new Date(options.now ?? Date.now()).toISOString().slice(0, 10), season = Number(cutoff.slice(0, 4))
   const [players, matches, matchPlayers, networkInputs] = await Promise.all([
     (async () => { onPhase?.('fetching-players'); return fetchPlayers(client) })(),
@@ -352,7 +353,7 @@ export async function recalculateDynamicRatings(
   let recalculatedPlayers = [...playersById.values()]
   let networkPublication: { season: number; playerIds: string[] } | null = null
   if (networkInputs) {
-    const { calculateLiveNetwork, applyLiveNetworkPlayers, orientReviewedLiveScores } = networkInputs.adapter
+    const { calculateLiveNetwork, applyLiveNetworkPlayers, orientReviewedLiveScores, retainPreNetworkHistory } = networkInputs.adapter
     const { evidence } = networkInputs
     const currentMatches = matches.filter(match => match.match_date >= season + '-01-01' && match.match_date <= cutoff)
     const { loadSourceOwnedCourts } = await import('./tiq-source-owned-courts')
@@ -361,14 +362,13 @@ export async function recalculateDynamicRatings(
       loadSourceOwnedCourts(client, currentMatches, matchPlayers, evidence.excluded),
     ])
     const network = calculateLiveNetwork({ season, cutoff, matches: reviewedMatches, participants: matchPlayers, ...evidence, sourceOwnedCourts })
-    recalculatedPlayers = applyLiveNetworkPlayers(recalculatedPlayers, network)
-    const published = new Set(network.snapshots.map(row => row.player_id))
-    networkPublication = { season, playerIds: [...published] }
-    const retained = snapshotRows.filter(row => row.track !== 'tiq' || !published.has(row.player_id) || row.snapshot_date < season + '-01-01')
+    recalculatedPlayers = applyLiveNetworkPlayers(recalculatedPlayers, network, { season, ...evidence })
+    networkPublication = { season, playerIds: players.map(player => player.id) }
+    const retained = retainPreNetworkHistory(snapshotRows, season)
     snapshotRows.length = 0
     for (const row of retained) snapshotRows.push(row)
     for (const row of network.snapshots) snapshotRows.push(row)
-    console.info(JSON.stringify({ event: 'tiq_network_replay', model: network.model, cutoff, publishedPlayers: published.size, usableCourts: network.predictions.length, excludedIdentities: evidence.excluded.size, skippedCourts: network.skippedMatches.length }))
+    console.info(JSON.stringify({ event: 'tiq_network_replay', model: network.model, cutoff, publishedPlayers: new Set(network.snapshots.map(row => row.player_id)).size, usableCourts: network.predictions.length, excludedIdentities: evidence.excluded.size, skippedCourts: network.skippedMatches.length }))
   }
 
   if (!options.dryRun) {
@@ -821,6 +821,7 @@ async function persistPlayerRatings(players: WorkingPlayer[], client: SupabaseCl
       singles_dynamic_rating: tiqRound(player.singlesDynamic),
       doubles_dynamic_rating: tiqRound(player.doublesDynamic),
       overall_dynamic_rating: tiqRound(player.overallDynamic),
+      ...(player.tiqEvidence ? { tiq_rating_status: player.tiqEvidence.status, tiq_rating_model: player.tiqEvidence.model, tiq_rating_season: player.tiqEvidence.season, tiq_singles_matches: player.tiqEvidence.singlesMatches, tiq_doubles_matches: player.tiqEvidence.doublesMatches } : {}),
       singles_usta_dynamic_rating: roundRating(player.singlesUstaDynamic),
       doubles_usta_dynamic_rating: roundRating(player.doublesUstaDynamic),
       overall_usta_dynamic_rating: roundRating(player.overallUstaDynamic),
@@ -839,6 +840,7 @@ async function persistPlayerRatings(players: WorkingPlayer[], client: SupabaseCl
           singles_dynamic_rating: tiqRound(player.singlesDynamic),
           doubles_dynamic_rating: tiqRound(player.doublesDynamic),
           overall_dynamic_rating: tiqRound(player.overallDynamic),
+      ...(player.tiqEvidence ? { tiq_rating_status: player.tiqEvidence.status, tiq_rating_model: player.tiqEvidence.model, tiq_rating_season: player.tiqEvidence.season, tiq_singles_matches: player.tiqEvidence.singlesMatches, tiq_doubles_matches: player.tiqEvidence.doublesMatches } : {}),
         }))
         const { error: fallbackError } = await client
           .from('players')

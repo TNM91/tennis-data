@@ -39,7 +39,7 @@ function fixture(mode: Mode, failFirstSnapshot = false) {
 
 it.each<Mode>(['modern', 'metrics-missing', 'constraint-missing', 'both-missing'])('larger bounded batches preserve every successful stored row (%s)', async mode => {
   const small = fixture(mode), large = fixture(mode)
-  const options = { now: Date.parse('2026-09-05T00:00:00Z'), replaceSnapshots: false, snapshotWriteConcurrency: 2 as const }
+  const options = { engine: 'legacy' as const, now: Date.parse('2026-09-05T00:00:00Z'), replaceSnapshots: false, snapshotWriteConcurrency: 2 as const }
   const expected = await recalculateDynamicRatings(undefined, small.client, options)
   const actual = await recalculateDynamicRatings(undefined, large.client, { ...options, snapshotWriteBatchSize: 1000 })
   expect(actual).toEqual(expected)
@@ -56,7 +56,7 @@ it.each<Mode>(['modern', 'metrics-missing', 'constraint-missing', 'both-missing'
 
 it.each<Mode>(['modern', 'metrics-missing', 'constraint-missing', 'both-missing'])('preserves every rating, snapshot and request payload across multiple batches (%s)', async mode => {
   const sequential = fixture(mode), paired = fixture(mode)
-  const options = { now: Date.parse('2026-09-05T00:00:00Z'), replaceSnapshots: false }
+  const options = { engine: 'legacy' as const, now: Date.parse('2026-09-05T00:00:00Z'), replaceSnapshots: false }
   const expected = await recalculateDynamicRatings(undefined, sequential.client, options)
   const actual = await recalculateDynamicRatings(undefined, paired.client, { ...options, snapshotWriteConcurrency: 2 })
   expect(actual.processedMatchCount).toBe(180)
@@ -70,7 +70,7 @@ it.each<Mode>(['modern', 'metrics-missing', 'constraint-missing', 'both-missing'
 
 it('preserves the full rating and snapshot payload with four bounded writes', async () => {
   const sequential = fixture('modern'), parallel = fixture('modern')
-  const options = { now: Date.parse('2026-09-05T00:00:00Z'), replaceSnapshots: false }
+  const options = { engine: 'legacy' as const, now: Date.parse('2026-09-05T00:00:00Z'), replaceSnapshots: false }
   const expected = await recalculateDynamicRatings(undefined, sequential.client, options)
   const actual = await recalculateDynamicRatings(undefined, parallel.client, { ...options, snapshotWriteConcurrency: 4 })
   expect(actual).toEqual(expected)
@@ -81,14 +81,14 @@ it('preserves the full rating and snapshot payload with four bounded writes', as
 
 it('performs no snapshot writes during a dry run even when paired writes are requested', async () => {
   const data = fixture('modern')
-  const result = await recalculateDynamicRatings(undefined, data.client, { dryRun: true, snapshotWriteConcurrency: 2 })
+  const result = await recalculateDynamicRatings(undefined, data.client, { engine: 'legacy', dryRun: true, snapshotWriteConcurrency: 2 })
   expect(result.processedMatchCount).toBe(180)
   expect(data.inventory()).toEqual([])
 })
 
 it('the actual engine rejects only after the sibling snapshot save settles, without reporting done', async () => {
   const data = fixture('modern', true), phases: string[] = []
-  await expect(recalculateDynamicRatings(phase => phases.push(phase), data.client, {
+  await expect(recalculateDynamicRatings(phase => phases.push(phase), data.client, { engine: 'legacy',
     replaceSnapshots: false, snapshotWriteConcurrency: 2,
   })).rejects.toThrow('storage write failed')
   expect(data.active()).toBe(0)
@@ -134,7 +134,7 @@ it('drops snapshots for matches replaced while a long rating rebuild is running'
     return query
   } } as unknown as SupabaseClient
 
-  const result = await recalculateDynamicRatings(undefined, client, { replaceSnapshots: false })
+  const result = await recalculateDynamicRatings(undefined, client, { engine: 'legacy', replaceSnapshots: false })
 
   expect(result.processedMatchCount).toBe(2)
   expect(snapshotWrites).toHaveLength(2)
