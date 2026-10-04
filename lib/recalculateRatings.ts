@@ -166,7 +166,7 @@ export type RatingRecalculationOptions = {
    * This is intended for admin-safe audits before a production rerun.
    */
   dryRun?: boolean
-  /** Explicit audit override; production activation uses TIQ_RATING_ENGINE. */
+  /** Explicit historical audit override; current TIQ defaults to the network model. */
   engine?: 'legacy' | 'network'
   now?: number
   /**

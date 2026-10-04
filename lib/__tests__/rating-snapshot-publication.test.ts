@@ -46,7 +46,7 @@ beforeEach(() => {
 
 it('keeps identical network history and deletes stale IDs only after writes complete', async () => {
   const data = fixture()
-  await recalculateDynamicRatings(undefined, data.client, options)
+  await recalculateDynamicRatings(undefined, data.client, { now: options.now })
   const snapshots = data.events.filter(e => e.table === 'rating_snapshots')
   expect(snapshots.filter(e => e.operation === 'upsert').flatMap(e => e.rows ?? []).some(r => r.track === 'tiq' && r.player_id === 'a' && r.rating_type === 'overall')).toBe(false)
   expect(snapshots.at(-1)).toEqual({ operation: 'delete', table: 'rating_snapshots', ids: ['stale'] })
