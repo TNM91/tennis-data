@@ -248,7 +248,12 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
     if (left.length !== expected || right.length !== expected) continue
     const scoreCellIndex = resultRow.findIndex((cell) => /\b\d+\s*-\s*\d+\b/.test(cell))
     const scoreCell = scoreCellIndex >= 0 ? resultRow[scoreCellIndex] : ''
-    const scoreText = [...scoreCell.matchAll(/\b(\d+)\s*-\s*(\d+)\b/g)].map((score) => `${score[1]}-${score[2]}`).join(' ')
+    const numericScore = [...scoreCell.matchAll(/\b(\d+)\s*-\s*(\d+)\b/g)].map((score) => `${score[1]}-${score[2]}`).join(' ')
+    // Preserve explicit result status so downstream rating admission cannot
+    // mistake a retirement or default with numeric scores for a full match.
+    const completionMarker = stripTags(scoreCell).match(/\b(retired|retirement|default(?:ed)?|walkover|w\s*\/\s*o)\b/i)?.[1]
+    const status = completionMarker ? (/^retir/i.test(completionMarker) ? 'retired' : /^default/i.test(completionMarker) ? 'default' : 'walkover') : ''
+    const scoreText = [numericScore, status].filter(Boolean).join(' ')
     const participants = [...left, ...right]
     const winnerSide = winnerFromResultCells(resultRow, scoreCellIndex, profileCells)
     const sourceMatchKey = sourceKey('trm', `${sourceUrl}::${discipline}::${courtNumber}`)
