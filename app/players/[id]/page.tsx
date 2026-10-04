@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
 import EntityDetailLink from '@/app/components/entity-detail-link'
 import DataTrustPanel from '@/app/components/data-trust-panel'
+import { unknownImportFreshness, type PlayerImportFreshness } from '@/lib/player-import-freshness'
 import PublicDetailState from '@/app/components/public-detail-state'
 import { useAuth } from '@/app/components/auth-provider'
 import FollowButton from '@/app/components/follow-button'
@@ -318,6 +319,17 @@ function PlayerProfileContent() {
   const initialPreview = usePlayerProfilePreview()
 
   const [player, setPlayer] = useState<Player | null>(null)
+  const [importFreshness, setImportFreshness] = useState<PlayerImportFreshness>(unknownImportFreshness)
+  useEffect(() => {
+    setImportFreshness(unknownImportFreshness)
+    if (!playerId) return
+    const controller = new AbortController()
+    void fetch('/api/player/import-freshness?playerId=' + encodeURIComponent(playerId), { signal: controller.signal })
+      .then(r => r.ok ? r.json() : unknownImportFreshness)
+      .then((data: PlayerImportFreshness) => { if (!controller.signal.aborted) setImportFreshness(data) })
+      .catch(() => {})
+    return () => controller.abort()
+  }, [playerId])
   const [matches, setMatches] = useState<MatchRecord[]>([])
   const [snapshots, setSnapshots] = useState<SnapshotRow[]>([])
   const [rosterMemberships, setRosterMemberships] = useState<TeamRosterMembershipRow[]>([])
@@ -2009,6 +2021,11 @@ function PlayerProfileContent() {
                     {currentRatingHistory.length > 0 ? ` Latest rated result: ${formatDate(currentRatingHistory[currentRatingHistory.length - 1].snapshot_date)}.` : ' No rated results are available for this format this year.'}
                     {' '}Result dates do not confirm the last import. <Link href="/methodology#rating-evidence">How TIQ works</Link>
                   </p>
+                  <p className={profileStory.achievementShelfNote} aria-label="Match import freshness">
+                    {importFreshness.lastImportedAt ? `Match histories refreshed: ${formatDate(importFreshness.lastImportedAt)}. ` : 'Verified match import date unavailable. '}
+                    {importFreshness.status === 'current' ? 'Within the refresh schedule.' : importFreshness.status === 'overdue' ? 'Update overdue; recent results may be missing.' : importFreshness.status === 'review' ? 'Import pages need review; some results may be missing.' : importFreshness.status === 'pending' ? 'Match history refresh pending.' : 'Import freshness has not been verified.'}
+                    {' '}Imported matches and rated results can differ.
+                  </p>
                   {isPublicExplorerProfile ? (
                     <div className={profileStory.publicEvidenceRail} aria-label="Public player performance at a glance">
                       <div>
@@ -2752,9 +2769,9 @@ function PlayerProfileContent() {
               body="Player profiles combine public player records, TIQ ratings, reviewed scorecards, Player Rosters, and tournament awards when available. Use Data Assist when a rating, match, team, or award needs review."
               signals={[
                 { label: 'Source', value: 'Player records, scorecards, teams, awards' },
-                { label: 'Freshness', value: stalenessLabel || 'Updates as reviewed data connects' },
+                { label: 'Freshness', value: importFreshness.lastImportedAt ? 'Match histories refreshed ' + formatDate(importFreshness.lastImportedAt) + ' · ' + importFreshness.status : 'Verified import date unavailable' },
                 { label: 'Rating history', value: `${ratingHistoryLabel}. Stored TIQ results may include fallback estimates; this count is not an accuracy probability.` },
-                { label: 'Status', value: 'Report, upload, or request review through Data Assist' },
+                { label: 'Status', value: stalenessLabel ? stalenessLabel + '. Request review through Data Assist.' : 'Report, upload, or request review through Data Assist' },
               ]}
             />
           </div>
