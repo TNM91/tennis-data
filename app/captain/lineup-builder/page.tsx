@@ -3524,6 +3524,25 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     }
   }
 
+  function clearTeamLineup(slotId?: string) {
+    if (saving || loading) return
+    const clearedSlots = teamSlots.filter((slot) => !slotId || slot.id === slotId)
+    const clearedSlotIds = new Set(clearedSlots.map((slot) => slot.id))
+    const clearedPlayerIds = new Set(clearedSlots.flatMap((slot) => slot.players.map((player) => player.playerId)))
+    setTeamSlots((current) => current.map((slot) => clearedSlotIds.has(slot.id)
+      ? { ...slot, players: slot.players.map(() => ({ playerId: '', playerName: '' })) }
+      : slot))
+    setLockedSlotIds((current) => slotId ? current.filter((id) => !clearedSlotIds.has(id)) : [])
+    setLockedPlayerIds((current) => slotId ? current.filter((id) => !clearedPlayerIds.has(id)) : [])
+    setReleasedConfirmedPlayerIds((current) => slotId ? current.filter((id) => !clearedPlayerIds.has(id)) : [])
+    setAppliedLineupNotice(null)
+    setSuggestedSwapDraft(null)
+    setSavedLineupChangeDelivery(null)
+    if (!slotId || directCourtTextHandoff?.courtId === slotId) saveDirectCourtTextHandoff(null)
+    setError('')
+    setMessage(slotId ? `${clearedSlots[0]?.label ?? 'Line'} cleared. Choose new players.` : 'Lineup cleared. Choose your players to start again.')
+  }
+
   function setSlotLabel(side: 'team' | 'opponent', slotId: string, label: string) {
     const update = (slots: LineupSlot[]) =>
       slots.map((slot) => (slot.id === slotId ? { ...slot, label } : slot))
@@ -7838,6 +7857,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                     </>
                   ) : null}
                   <GhostLink href={teamContactsHref}>Team contacts</GhostLink>
+                  <GhostSmallBtn onClick={() => clearTeamLineup()} disabled={saving || loading || !teamSlots.some((slot) => slot.players.some((player) => player.playerId || player.playerName))}>
+                    Clear lineup
+                  </GhostSmallBtn>
                 </div>
               </div>
 
@@ -7905,6 +7927,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                     onSwapCourt={swapTeamCourtAssignments}
                     onLabelChange={setSlotLabel}
                     onRemove={removeSlot}
+                    onClear={() => clearTeamLineup(slot.id)}
                     toggleLockedSlot={toggleLockedSlot}
                     toggleLockedPlayer={toggleLockedPlayer}
                     onUndoConfirmation={resetPlayerConfirmation}
@@ -8554,6 +8577,7 @@ function SlotEditor({
   onSwapCourt,
   onLabelChange,
   onRemove,
+  onClear,
   toggleLockedSlot,
   toggleLockedPlayer,
   onUndoConfirmation,
@@ -8588,6 +8612,7 @@ function SlotEditor({
   onSwapCourt?: (sourceSlotId: string, targetSlotId: string) => void
   onLabelChange: (side: 'team' | 'opponent', slotId: string, label: string) => void
   onRemove: (side: 'team' | 'opponent', slotId: string) => void
+  onClear?: () => void
   toggleLockedSlot: (slotId: string) => void
   toggleLockedPlayer: (playerId: string) => void
   onUndoConfirmation?: (playerId: string) => void
@@ -8642,6 +8667,7 @@ function SlotEditor({
       tabIndex={focused ? -1 : undefined}
     >
       {showCompactMobileCourt ? (
+        <>
         <button
           type="button"
           aria-expanded={false}
@@ -8659,6 +8685,8 @@ function SlotEditor({
             <span style={compactCourtEditStyle}>Edit court</span>
           </span>
         </button>
+        {onClear ? <GhostSmallBtn onClick={onClear} disabled={!selectedPlayers.length}>Clear line</GhostSmallBtn> : null}
+        </>
       ) : (
         <div id={`captain-lineup-slot-editor-${slot.id}`} style={slotEditorBodyStyle}>
           <div style={slotHeaderStyle}>
@@ -8682,6 +8710,7 @@ function SlotEditor({
             </div>
 
             <div style={slotHeaderActionsStyle}>
+              {onClear ? <GhostSmallBtn onClick={onClear} disabled={!selectedPlayers.length}>Clear line</GhostSmallBtn> : null}
               {isMobileLayout && onToggleExpanded ? (
                 <GhostSmallBtn onClick={onToggleExpanded}>Done</GhostSmallBtn>
               ) : null}
