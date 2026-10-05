@@ -1688,6 +1688,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     getCaptainLineupFormatKey(initialLeagueName, initialFlight, initialMatchFormat)
   )
   const [lockedSlotIds, setLockedSlotIds] = useState<string[]>([])
+  const [lineupManuallyCleared, setLineupManuallyCleared] = useState(false)
   const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
   const [releasedConfirmedPlayerIds, setReleasedConfirmedPlayerIds] = useState<string[]>([])
   const [openingFinalDelivery, setOpeningFinalDelivery] = useState(false)
@@ -3526,6 +3527,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
   function clearTeamLineup(slotId?: string) {
     if (saving || loading) return
+    setLineupManuallyCleared(true)
     const clearedSlots = teamSlots.filter((slot) => !slotId || slot.id === slotId)
     const clearedSlotIds = new Set(clearedSlots.map((slot) => slot.id))
     const clearedPlayerIds = new Set(clearedSlots.flatMap((slot) => slot.players.map((player) => player.playerId)))
@@ -5593,7 +5595,11 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     ])
   ), [builderPlayers, historicalLineMatches, historicalLineMatchPlayers])
 
-  const lineupIntelligenceSlots = optimizerTeamSlots.some((slot) =>
+  useEffect(() => {
+    setLineupManuallyCleared(false)
+  }, [teamName, leagueName, flight, matchDate])
+
+  const lineupIntelligenceSlots = lineupManuallyCleared || optimizerTeamSlots.some((slot) =>
     slot.players.some((player) => Boolean(player.playerId))
   )
     ? optimizerTeamSlots
