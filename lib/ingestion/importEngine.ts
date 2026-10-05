@@ -1912,7 +1912,11 @@ export class ImportEngine {
         })
       } else {
         for (const row of (data ?? []) as PlayerRecord[]) {
-          addResolvedPlayer(row, row.normalized_name || row.name)
+          // A renamed identity may still have its old normalized lookup key.
+          // Match current names so a separated profile cannot claim another player.
+          if (normalizedNames.includes(normalizeName(row.name))) {
+            addResolvedPlayer(row, row.name)
+          }
         }
       }
     }
@@ -2335,7 +2339,8 @@ export class ImportEngine {
 
         if (!error) {
           for (const row of (data ?? []) as Array<ExistingPlayerRow & { normalized_name?: string | null }>) {
-            const key = normalizeName(row.normalized_name || row.name)
+            const key = normalizeName(row.name)
+            if (!allNormalizedNames.includes(key)) continue
             const current = byNormalizedName.get(key)
             if (current && current.id !== row.id) {
               throw new Error(`Duplicate player records found for ${row.name}; resolve the identity conflict before importing`)
@@ -2463,7 +2468,7 @@ export class ImportEngine {
 
     const playerIdByNormalizedName = new Map<string, string>()
     for (const row of existingByNorm.values() as Iterable<ExistingPlayerRow & { normalized_name?: string | null }>) {
-      playerIdByNormalizedName.set(normalizeName(row.normalized_name || row.name), row.id)
+      playerIdByNormalizedName.set(normalizeName(row.name), row.id)
     }
 
     if (toInsert.length > 0) {
