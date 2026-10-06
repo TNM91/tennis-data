@@ -156,6 +156,8 @@ import {
 } from '@/lib/captain-lineup-confirmation'
 import type { TeamRoomFinalLineupReceipt } from '@/lib/team-room-final-lineup'
 import mobileCommandStyles from './captain-mobile-command.module.css'
+import CaptainHomeMatchFocusCard from '@/app/components/captain-home-match-focus'
+import { buildCaptainHomeMatchFocus, type CaptainHomeFocusAction } from '@/lib/captain-home-match-focus'
 
 const dataAssistCaptainHref = '/data-assist?intent=upload-source&context=Team%20Hub'
 const captainPlayerRosterHref = `${dataAssistCaptainHref}&type=team_summary&help=1&returnTo=%2Fcaptain#upload`
@@ -1812,6 +1814,7 @@ function CaptainHubContent() {
     home: boolean
   } | null>(null)
   const [captainTodayDate, setCaptainTodayDate] = useState('')
+  const [teamRoomSummaryScope, setTeamRoomSummaryScope] = useState('')
   const [refreshTick, setRefreshTick] = useState(0)
   const [teamRoomSummary, setTeamRoomSummary] = useState<CaptainTeamRoomSummary>({
     unreadCount: 0,
@@ -2474,6 +2477,7 @@ function CaptainHubContent() {
     teamRoomSummaryRequestRef.current = requestId
     const accessToken = session?.access_token || ''
     if (!accessToken || !selectedTeam) {
+      setTeamRoomSummaryScope('')
       setTeamRoomSummary({ unreadCount: 0, pendingCount: 0, maybeCount: 0, unseenLineupCount: 0, unresolvedCount: 0, responseCount: 0, latestResponseAt: '', latestMatchDate: '', reminderAt: '', reminderStatus: '', arrivalState: '', matchCompleted: false, resultExternalMatchId: '', arrivalLate: null, arrivalFollowUp: null, courtReadiness: { messageId: '', confirmedCount: 0, totalCount: 0, courts: [] } })
       return
     }
@@ -2491,6 +2495,7 @@ function CaptainHubContent() {
       const payload = await response.json() as { ok?: boolean; summary?: CaptainTeamRoomSummary }
       if (requestId !== teamRoomSummaryRequestRef.current || !response.ok || !payload.ok || !payload.summary) return
       setTeamRoomSummary(payload.summary)
+      setTeamRoomSummaryScope([selectedTeam, selectedLeague, selectedFlight].join('|'))
     } catch {
       // Team Room remains optional while a team link is being completed.
     }
@@ -3539,16 +3544,16 @@ function CaptainHubContent() {
     team: selectedTeam,
     league: selectedLeague,
     flight: selectedFlight,
-    date: captainResume?.eventDate,
-    opponent: captainResume?.opponentTeam,
+    date: matchWeekDate,
+    opponent: matchWeekOpponent,
   })
   const teamBriefHref = buildCaptainScopedHref('/captain/team-brief', {
     competitionLayer: selectedCompetitionLayer || captainResume?.competitionLayer,
     team: selectedTeam,
     league: selectedLeague,
     flight: selectedFlight,
-    date: captainResume?.eventDate,
-    opponent: captainResume?.opponentTeam,
+    date: matchWeekDate,
+    opponent: matchWeekOpponent,
   })
   const levelUpPracticeHref = levelUpTeamChallenge
     ? appendLevelUpChallengeHref(practiceHref, levelUpTeamChallenge.id, levelUpTeamChallenge.cardIds[0])
@@ -17063,6 +17068,65 @@ function CaptainHubContent() {
     </section>
   ) : null
 
+  const captainHomeMatchDate = safeText(matchWeekDate).slice(0, 10)
+  const captainHomeRoomMatchesCurrentMatch = Boolean(captainHomeMatchDate
+    && teamRoomSummaryScope === [selectedTeam, selectedLeague, selectedFlight].join('|')
+    && teamRoomSummary.latestMatchDate?.slice(0, 10) === captainHomeMatchDate)
+  const captainHomeCurrentEventKey = safeKey(selectedTeam, selectedLeague, selectedFlight, captainHomeMatchDate || null)
+  const captainHomeLocalSnapshot = {
+    lineup: readLocalArray<CaptainLineupAssignment>(WEEKLY_LINEUPS_STORAGE_KEY).filter((row) => row.event_key === captainHomeCurrentEventKey),
+    responses: readLocalArray<CaptainWeeklyResponse>(WEEKLY_RESPONSES_STORAGE_KEY).filter((row) => row.event_key === captainHomeCurrentEventKey),
+    details: readLocalArray<CaptainEventDetail>(WEEKLY_EVENT_DETAILS_STORAGE_KEY).find((row) => row.key === captainHomeCurrentEventKey),
+  }
+  const captainHomeRoomLineup = captainHomeRoomMatchesCurrentMatch ? captainCourtReadiness?.lineup : undefined
+  const captainHomeCurrentLineup: CaptainLineupAssignment[] = captainHomeRoomLineup?.length
+    ? captainHomeRoomLineup.map((court) => ({ court_label: court.label, slot_type: safeKey(court.label).includes('single') ? 'singles' : 'doubles', players: court.players }))
+    : captainHomeLocalSnapshot.lineup
+  const captainHomeAvailabilityRequest = captainAvailabilityRequestSummary?.request
+  const captainHomeAvailabilityMatchesCurrentMatch = Boolean(captainHomeAvailabilityRequest
+    && captainHomeAvailabilityRequest.teamName === selectedTeam
+    && (!selectedLeague || captainHomeAvailabilityRequest.leagueName === selectedLeague)
+    && (!selectedFlight || captainHomeAvailabilityRequest.flight === selectedFlight)
+    && captainHomeAvailabilityRequest.matchDate.slice(0, 10) === captainHomeMatchDate)
+  const captainHomeConfirmedCourtLabels = captainHomeRoomMatchesCurrentMatch
+    && captainCourtReadiness?.totalCount === captainHomeCurrentLineup.length
+    && captainCourtReadiness.confirmedCount === captainCourtReadiness.totalCount - captainUnresolvedCourts.length
+    ? captainHomeCurrentLineup.filter((row) => !captainUnresolvedCourts.some((court) => safeKey(court.label) === safeKey(row.court_label))).map((row) => safeText(row.court_label))
+    : []
+  const captainHomeCurrentPeople = captainHomeAvailabilityMatchesCurrentMatch
+    ? captainAvailabilityPeople ?? []
+    : captainHomeLocalSnapshot.responses.map((row) => ({
+        name: captainRosterContacts.find((contact) => contact.id === row.contact_id)?.full_name || safeText(row.contact_id),
+        status: safeText(row.status),
+      }))
+  const captainHomeLateArrival = captainHomeRoomMatchesCurrentMatch ? teamRoomSummary.arrivalLate : null
+  const captainHomeMatchFocus = buildCaptainHomeMatchFocus({
+    hasTeam: hasTeamScope,
+    matchDate: captainHomeMatchDate,
+    lineup: {
+      matchDate: captainHomeMatchDate,
+      courts: captainHomeCurrentLineup.map((row) => ({ label: safeText(row.court_label, 'Court'), slotType: row.slot_type, players: row.players ?? [] })),
+      expectedCourtCount: captainHomeRoomMatchesCurrentMatch ? captainCourtReadiness?.totalCount : undefined,
+      confirmedCourtLabels: captainHomeConfirmedCourtLabels,
+      attentionCourtLabels: captainHomeRoomMatchesCurrentMatch
+        ? [...new Set([...captainUnresolvedCourts.filter((court) => court.status === 'needs_captain').map((court) => court.label), captainHomeLateArrival?.courtLabel || ''])].filter(Boolean)
+        : [],
+      sent: captainHomeRoomMatchesCurrentMatch && captainLockedLineupWasSent,
+    },
+    availability: { matchDate: captainHomeMatchDate, people: captainHomeLateArrival
+      ? [...captainHomeCurrentPeople, { name: captainHomeLateArrival.playerName, status: 'running-late' }]
+      : captainHomeCurrentPeople },
+  })
+  function handleCaptainHomeFocusAction(kind: CaptainHomeFocusAction) {
+    if (kind === 'team') { router.push('/team-connections'); return }
+    if (kind === 'schedule') { handleCaptainAction(captainScheduleHref, 'team'); return }
+    if (kind === 'court' || kind === 'chat') {
+      handleCaptainTeamRoomNav(kind === 'court' && captainHomeRoomMatchesCurrentMatch && captainPrimaryCourtHref ? captainPrimaryCourtHref : teamRoomHref)
+      return
+    }
+    handleCaptainAction(kind === 'availability' ? availabilityHref : lineupBuilderHref, kind === 'availability' ? 'availability' : 'lineup')
+  }
+
   const captainMobileCommandCenter = (
     <section className={mobileCommandStyles.shell} aria-label="Captain mobile command center">
       <div className={mobileCommandStyles.header}>
@@ -17071,11 +17135,11 @@ function CaptainHubContent() {
           <h1 className={mobileCommandStyles.teamName}>{selectedTeam || 'Choose your team'}</h1>
           <span className={mobileCommandStyles.matchContext}>
             {hasTeamScope
-              ? `${weekAtGlance.eventDateLabel} · ${weekAtGlance.opponentLabel}`
+              ? [selectedLeague, selectedFlight].filter(Boolean).join(' · ')
               : 'Select a linked team to start.'}
           </span>
         </div>
-        {captainPrimaryUnresolvedCourt ? (
+        {captainPrimaryUnresolvedCourt && captainHomeRoomMatchesCurrentMatch ? (
           <button
             className={`${mobileCommandStyles.attentionBadge} ${mobileCommandStyles.attentionBadgeButton}`}
             type="button"
@@ -17085,12 +17149,8 @@ function CaptainHubContent() {
             {captainUnresolvedCourts.length} {captainUnresolvedCourts.length === 1 ? 'court' : 'courts'} open
           </button>
         ) : (
-          <span className={captainMobileNowItems.length ? mobileCommandStyles.attentionBadge : mobileCommandStyles.readyBadge}>
-            {captainLatestReplyAlert
-              ? `${captainReplyAlerts.length} new ${captainReplyAlerts.length === 1 ? 'reply' : 'replies'}`
-              : captainAvailabilityPendingCount > 0
-                ? `${captainAvailabilityPendingCount} waiting`
-                : captainMobileAttention ? 'Needs action' : 'Ready'}
+          <span className={captainHomeMatchFocus.issues.length ? mobileCommandStyles.attentionBadge : mobileCommandStyles.readyBadge}>
+            {captainHomeMatchFocus.issues.length ? 'Needs attention' : captainHomeMatchFocus.action.kind === 'send' ? 'Ready to review' : captainHomeMatchFocus.action.kind === 'chat' ? 'Lineup sent' : 'Match week'}
           </span>
         )}
       </div>
@@ -17133,12 +17193,12 @@ function CaptainHubContent() {
       {hasTeamScope ? (
         <section className={mobileCommandStyles.matchPocket} aria-label="Captain next match">
           <div className={mobileCommandStyles.matchPocketCopy}>
-            <span>Next match</span>
-            <strong>vs {weekAtGlance.opponentLabel}</strong>
-            <small>{weekAtGlance.eventDateLabel} · Arrive {matchDayArrivalLabel}</small>
-            <small>{matchDayLocationLabel}</small>
+            <span>{nextMatch ? 'Next match' : 'Selected match'}</span>
+            <strong>vs {matchWeekOpponent || 'Choose opponent'}</strong>
+            <small>{formatDate(matchWeekDate || null)}{captainHomeLocalSnapshot.details?.arrivalTime ? ` · Arrive ${captainHomeLocalSnapshot.details.arrivalTime}` : nextMatch?.time ? ` · ${nextMatch.time}` : ''}</small>
+            <small>{safeText(captainHomeLocalSnapshot.details?.location || nextMatch?.facility, 'Add location')}</small>
           </div>
-          {captainMobileMatchPocketLinks.length ? (
+          {workspaceState.currentEventKey === captainHomeCurrentEventKey && captainMobileMatchPocketLinks.length ? (
             <div className={mobileCommandStyles.matchPocketActions}>
               {captainMobileMatchPocketLinks.map((handoff) => (
                 <a key={handoff.id} className={mobileCommandStyles.matchPocketAction} href={handoff.href} title={handoff.detail}>
@@ -17159,6 +17219,11 @@ function CaptainHubContent() {
         </section>
       ) : null}
 
+      <CaptainHomeMatchFocusCard
+        focus={captainHomeMatchFocus}
+        disabled={loadingTeam || loadingOptions || (!premiumEnabled && captainHomeMatchFocus.action.kind !== 'team')}
+        onAction={handleCaptainHomeFocusAction}
+      />
       {hasTeamScope && captainMobileActionLayout.phase === 'match_day' ? (
         <details className={mobileCommandStyles.matchDay}>
           <summary className={mobileCommandStyles.matchDayButton}>
@@ -17234,19 +17299,21 @@ function CaptainHubContent() {
         </div>
       ) : null}
 
-      {captainMobileNow}
-
-      <div className={mobileCommandStyles.pulseRail} aria-label="Captain team pulse">
-        {captainMobileTeamPulse.map((item) => (
-          <div key={item.label} className={mobileCommandStyles.pulse}>
-            <span>{item.label}</span>
-            <strong>{item.value}</strong>
-            <small>{item.detail}</small>
+      <details className={mobileCommandStyles.more}>
+        <summary className={mobileCommandStyles.moreSummary}>
+          <span>More</span>
+          <span>Pairings, setup, and extras</span>
+        </summary>
+        <div className={mobileCommandStyles.moreBody}>
+          {captainMobileNow}
+          <div className={mobileCommandStyles.pulseRail} aria-label="Captain team pulse">
+            {captainMobileTeamPulse.map((item) => (
+              <div key={item.label} className={mobileCommandStyles.pulse}>
+                <span>{item.label}</span><strong>{item.value}</strong><small>{item.detail}</small>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-
-      <div className={mobileCommandStyles.actionGrid} aria-label="Captain one tap actions">
+          <div className={mobileCommandStyles.actionGrid} aria-label="Captain one tap actions">
         {captainMobileVisibleActions.map((item) => {
           const disabled = !hasTeamScope || (!premiumEnabled && item.id !== 'chat')
           return (
@@ -17267,12 +17334,6 @@ function CaptainHubContent() {
         })}
       </div>
 
-      <details className={mobileCommandStyles.more}>
-        <summary className={mobileCommandStyles.moreSummary}>
-          <span>More</span>
-          <span>Pairings, setup, and extras</span>
-        </summary>
-        <div className={mobileCommandStyles.moreBody}>
           {captainMobileMoreMatchActions.map((item) => (
             <button
               key={`more-${item.id}`}
@@ -17287,6 +17348,9 @@ function CaptainHubContent() {
           <button className={mobileCommandStyles.moreButton} type="button" onClick={() => handleCaptainAction(lineupProjectionHref, 'projection')}>Check pairings</button>
           <button className={mobileCommandStyles.moreButton} type="button" onClick={() => handleCaptainAction(scenarioHref, 'scenario')}>Compare lineups</button>
           <button className={mobileCommandStyles.moreButton} type="button" onClick={() => handleCaptainAction(teamBriefHref, 'brief')}>Team brief</button>
+          <button className={mobileCommandStyles.moreButton} type="button" onClick={() => handleCaptainAction(weeklyBriefHref, 'brief')}>Weekly brief &amp; scouting</button>
+          <button className={mobileCommandStyles.moreButton} type="button" onClick={() => handleCaptainAction(analyticsHref, 'analytics')}>Season analytics</button>
+          <Link className={mobileCommandStyles.moreLink} href={currentLeagueStatsHref}>League rankings</Link>
           <button className={mobileCommandStyles.moreButton} type="button" onClick={() => handleCaptainAction(practiceHref, 'team')}>Plan practice</button>
           <Link className={mobileCommandStyles.moreLink} href={captainPlayerRosterHref}>Upload Player Roster</Link>
           <Link className={mobileCommandStyles.moreLink} href={captainScheduleHref}>Add schedule</Link>
@@ -18574,7 +18638,7 @@ function CaptainHubContent() {
         ) : null}
         {!isMobile && hasTeamScope ? captainHomeShortcut : null}
         {isMobile ? captainMobileCommandCenter : null}
-        <section style={dynamicCaptainScoreboardBannerStyle} aria-label="League rankings">
+        {!isMobile ? <section style={dynamicCaptainScoreboardBannerStyle} aria-label="League rankings">
           <TiqFeatureIcon name="teamRankings" size="md" variant="surface" />
           <div style={captainScoreboardBannerCopyStyle}>
             <div style={sectionKicker}>League scoreboard</div>
@@ -18596,7 +18660,7 @@ function CaptainHubContent() {
               <strong>Open league rankings</strong>
             </span>
           </Link>
-        </section>
+        </section> : null}
         {!isMobile ? captainMobileCommandCenter : null}
         {!isMobile ? (
         <>

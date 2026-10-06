@@ -154,10 +154,10 @@ describe('Captain projected lineup confirmation flow', () => {
     expect(source).toContain('TiQ will ask only the players in this lineup—no names to enter again.')
     expect(source).toContain('onConfirmPlayers={() => void saveAndConfirmPotentialLineupAvailability()}')
     expect(source).toContain('confirmPlayersDisabled={!teamLineupComplete || finalLineupReady || preparingConfirmation}')
-    expect(source).toContain("current={finalLineupReady ? 'messaging' : teamLineupComplete ? 'availability' : 'lineup'}")
+    expect(source).toContain('current="lineup"')
     expect(rail).toContain("? 'Open the current lineup courts'")
     expect(rail).toContain("? 'Save lineup and check selected player replies'")
-    expect(rail).toContain("if (step === 'availability') return 'Replies'")
+    expect(rail).toContain("if (step === 'availability') return 'Confirm'")
     expect(rail).toContain('if (onClick) {')
   })
 

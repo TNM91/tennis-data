@@ -130,6 +130,18 @@ describe('Captain mobile command center', () => {
     expect(page).toContain('{!isMobile ? captainMobileCommandCenter : null}')
   })
 
+  it('puts match readiness first and keeps the tool grid behind More', () => {
+    const mobileStart = page.indexOf('const captainMobileCommandCenter = (')
+    const focus = page.indexOf('<CaptainHomeMatchFocusCard', mobileStart)
+    const more = page.indexOf('<details className={mobileCommandStyles.more}>', mobileStart)
+    const grid = page.indexOf('aria-label="Captain one tap actions"', mobileStart)
+    expect(focus).toBeGreaterThan(mobileStart)
+    expect(more).toBeGreaterThan(focus)
+    expect(grid).toBeGreaterThan(more)
+    expect(page).toContain('teamRoomSummaryScope === [selectedTeam, selectedLeague, selectedFlight]')
+    expect(page).toContain('{!isMobile ? <section style={dynamicCaptainScoreboardBannerStyle}')
+  })
+
   it('turns the already-open Captain connection action into Team Chat', () => {
     expect(connectionBanner).toContain("import { buildTeamRoomHref } from '@/lib/team-room'")
     expect(connectionBanner).toContain('Open Team Chat')

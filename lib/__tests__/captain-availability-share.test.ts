@@ -46,6 +46,7 @@ describe('captain availability share', () => {
     expect(source).toContain(".from('team_roster_members')")
     expect(source).toContain("fetch('/api/captain/availability-requests', {")
     expect(source).toContain('invitedPlayers: players.map')
+    expect(source).toContain("inviteMode: 'append'")
     expect(source).toContain("typeof navigator.share === 'function'")
     expect(source).toContain('await navigator.share')
     expect(source).toContain('Nothing is sent until you tap Share availability.')
