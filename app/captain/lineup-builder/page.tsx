@@ -21,6 +21,8 @@ import { useAuth } from '@/app/components/auth-provider'
 import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
 import CaptainLineupMobileAction from '@/app/components/captain-lineup-mobile-action'
+import CaptainOpponentSeasonScout from '@/app/components/captain-opponent-season-scout'
+import { buildOpponentSeasonScout, fillOpponentSeasonDraft, type OpponentScoutFixture } from '@/lib/captain-opponent-season-scout'
 import { captainMobileResumeKey } from '@/lib/captain-mobile-resume'
 import { useCaptainMobileResume } from '@/lib/use-captain-mobile-resume'
 import mobileActionStyles from '@/app/components/captain-lineup-mobile-action.module.css'
@@ -177,6 +179,7 @@ type AvailabilityRow = {
 }
 
 type MatchTeamRow = {
+  source?: string | null
   id: string
   league_name: string | null
   flight: string | null
@@ -458,6 +461,7 @@ type LineupBuilderPayload = {
   matches?: MatchTeamRow[]
   matchPlayers?: MatchPlayerLinkRow[]
   historicalLineMatches?: MatchTeamRow[]
+  opponentHistoryTeamNames?: string[]
   historicalLineMatchPlayers?: MatchPlayerLinkRow[]
   rosterMembers?: TeamRosterMemberRow[]
   availableOpponentRosters?: AvailableOpponentRoster[]
@@ -1555,6 +1559,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const [matches, setMatches] = useState<MatchTeamRow[]>([])
   const [matchPlayers, setMatchPlayers] = useState<MatchPlayerLinkRow[]>([])
   const [historicalLineMatches, setHistoricalLineMatches] = useState<MatchTeamRow[]>([])
+  const [opponentHistoryTeamNames, setOpponentHistoryTeamNames] = useState<string[]>([])
   const [historicalLineMatchPlayers, setHistoricalLineMatchPlayers] = useState<MatchPlayerLinkRow[]>([])
   const [rosterMembers, setRosterMembers] = useState<TeamRosterMemberRow[]>([])
   const [availableOpponentRosters, setAvailableOpponentRosters] = useState<AvailableOpponentRoster[]>([])
@@ -2340,6 +2345,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     setMatches(nextMatches)
     setMatchPlayers(nextMatchPlayers)
     setHistoricalLineMatches(result.historicalLineMatches ?? [])
+    setOpponentHistoryTeamNames(result.opponentHistoryTeamNames ?? [])
     setHistoricalLineMatchPlayers(result.historicalLineMatchPlayers ?? [])
     setRosterMembers(result.rosterMembers ?? [])
     setAvailableOpponentRosters(result.availableOpponentRosters ?? [])
@@ -3416,6 +3422,12 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     window.requestAnimationFrame(() => {
       document.getElementById('opponent-lineup')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
+  }
+
+  function openOpponentSeasonScout() {
+    const scout = document.getElementById('captain-opponent-season-scout')
+    if (scout instanceof HTMLDetailsElement) scout.open = true
+    scout?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   function openMatchForecast() {
@@ -6434,6 +6446,23 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     setError('')
   }
 
+  const opponentSeasonScout = useMemo(() => buildOpponentSeasonScout({
+    opponent: opponentTeam, aliases: opponentHistoryTeamNames, league: leagueName, flight, beforeDate: matchDate,
+    matches: historicalLineMatches, links: historicalLineMatchPlayers, players: builderPlayers, slots: opponentSlots,
+  }), [opponentTeam, opponentHistoryTeamNames, leagueName, flight, matchDate, historicalLineMatches, historicalLineMatchPlayers, builderPlayers, opponentSlots])
+
+  function applyOpponentSeasonWeek(fixture: OpponentScoutFixture) {
+    const next = fillOpponentSeasonDraft(opponentSlots, fixture, opponentPlayerPool, (player, slot) => isPlayerEligibleForSlot(player, slot, competitionRules))
+    if (next.filled) setOpponentSlots(next.slots)
+    setBuilderMode('insights')
+    setOpponentCourtSetupPromptOpen(false)
+    setMessage(next.filled
+      ? `Added ${next.filled} opponent player${next.filled === 1 ? '' : 's'} from ${formatDate(fixture.date)} to open spots. Review the draft for this week.`
+      : 'No eligible open spots matched this recorded lineup. Your existing selections stay in place.')
+    setError('')
+    window.requestAnimationFrame(() => document.getElementById('opponent-lineup')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+
   function applyRecentHistoricalOpponentLineup() {
     if (!recentHistoricalOpponentLineup) return
     const playerById = new Map(opponentPlayerPool.map((player) => [player.id, player]))
@@ -7446,8 +7475,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             </div>
             <div style={decisionCompactCardStyle}>
               <div style={decisionCardLabelStyle}>Opponent scouting</div>
-              <div style={decisionCardValueStyle}>Optional</div>
-              <div style={decisionCardTextStyle}>Open it when you want matchup projections and court edges.</div>
+              <div style={decisionCardValueStyle}>{opponentSeasonScout.fixtures.length} recorded weeks</div>
+              <div style={decisionCardTextStyle}>See their recent players, winning lines, and game scores.</div>
             </div>
             {recentHistoricalLineup ? (
               <div style={decisionCompactCardStyle}>
@@ -7469,7 +7498,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             {recentHistoricalLineup ? (
               <GhostBtn onClick={applyRecentHistoricalLineup}>Use recent lineup</GhostBtn>
             ) : null}
-            <GhostBtn onClick={openOpponentCourts}>Scout opponent &amp; forecast</GhostBtn>
+            <GhostBtn onClick={openOpponentSeasonScout}>Scout opponent season</GhostBtn>
             <GhostBtn onClick={() => focusTeamCourts()}>Review my courts</GhostBtn>
             <GhostLink href={compareHref}>Compare versions</GhostLink>
           </div>
@@ -8021,6 +8050,16 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           </div>
 
           <div style={columnStyle}>
+            <CaptainOpponentSeasonScout
+              scout={opponentSeasonScout}
+              opponent={opponentTeam}
+              loading={loading || recoveringSecureSession}
+              onUseLineup={applyOpponentSeasonWeek}
+              onReviewCourt={(index) => {
+                const slot = teamSlots[index]
+                if (slot) focusTeamCourts(teamSlots, slot.id)
+              }}
+            />
             <details id="captain-lineup-insights" open={builderMode === 'insights'} style={surfaceCardStrong}>
               <summary style={detailsSummaryStyle}>
                 <div>

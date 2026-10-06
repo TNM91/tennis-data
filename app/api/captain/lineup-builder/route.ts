@@ -178,7 +178,7 @@ export async function GET(request: Request) {
     .limit(120)
   const historicalLineMatchesPromise = service
     .from('matches')
-    .select('id,league_name,flight,match_date,match_time,facility,home_team,away_team,line_number,match_type,winner_side,score')
+    .select('id,league_name,flight,match_date,match_time,facility,home_team,away_team,line_number,match_type,winner_side,score,source')
     .not('line_number', 'is', null)
     .or(`home_team.eq."${escapedTeam}",away_team.eq."${escapedTeam}"`)
     .order('match_date', { ascending: false })
@@ -412,14 +412,17 @@ export async function GET(request: Request) {
       return [`home_team.eq."${escapedName}"`, `away_team.eq."${escapedName}"`]
     })
     .join(',')
+  let opponentHistoryQuery = service
+    .from('matches')
+    .select('id,league_name,flight,match_date,match_time,facility,home_team,away_team,line_number,match_type,winner_side,score,source')
+    .not('line_number', 'is', null)
+    .or(opponentHistoricalTeamFilter || 'id.eq.00000000-0000-0000-0000-000000000000')
+  if (leagueName) opponentHistoryQuery = opponentHistoryQuery.eq('league_name', leagueName)
+  if (flight) opponentHistoryQuery = opponentHistoryQuery.eq('flight', flight)
   const opponentHistoricalLineMatchesResult = normalizedOpponent && normalizedOpponent !== normalizedTeam
     ? await resolveOptionalQuery(
       'opponent historical court lineups',
-      service
-        .from('matches')
-        .select('id,league_name,flight,match_date,match_time,facility,home_team,away_team,line_number,match_type,winner_side,score')
-        .not('line_number', 'is', null)
-        .or(opponentHistoricalTeamFilter)
+      opponentHistoryQuery
         .order('match_date', { ascending: false })
         .limit(360),
       emptyHistoricalLineMatchesResult,
@@ -483,6 +486,7 @@ export async function GET(request: Request) {
     matches: matchesResult.data ?? [],
     matchPlayers: matchPlayersResult.data ?? [],
     historicalLineMatches,
+    opponentHistoryTeamNames: opponentHistoricalTeamNames,
     historicalLineMatchPlayers: historicalLineMatchPlayersResult.data ?? [],
     rosterMembers,
     availableOpponentRosters,

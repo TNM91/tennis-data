@@ -334,7 +334,7 @@ describe('Captain lineup builder mobile layout guards', () => {
     expect(source).toContain('aria-label="Lineup next decision"')
     expect(source).toContain('const teamCourtProgress = useMemo(() =>')
     expect(source).toContain('const teamLineupComplete = completedTeamCourtCount === teamCourtProgress.length')
-    expect(source).toContain('Scout opponent &amp; forecast')
+    expect(source).toContain('Scout opponent season')
     expect(source).toContain('const recentHistoricalLineup = useMemo<HistoricalLineupSuggestion | null>(() =>')
     expect(source).toContain('Use recent lineup')
     expect(source).toContain('fills open spots only')
