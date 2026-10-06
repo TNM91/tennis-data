@@ -63,6 +63,7 @@ export type CaptainLineupIntelligenceCourt = {
   scoreSummary: string
   confidence: CaptainLineupConfidence
   confidenceDetail: string
+  availabilityLabel?: string
 }
 
 export type CaptainLineupStrategyPreview = {
@@ -563,24 +564,26 @@ export default function CaptainLineupIntelligence({
           const tone = courtTone(court.probability)
           const courtLocked = lockedCourtSet.has(court.id)
           return (
-            <article key={court.id} className={styles.courtCard}>
-              <button type="button" className={styles.courtRow} onClick={() => openCourt(court)}>
+            <details key={court.id} className={styles.courtCard}>
+              <summary className={styles.courtRow}>
                 <span className={styles.courtTop}><span className={styles.courtLabel}>{court.label}</span><span className={`${styles.role} ${tone.className}`}>{tone.role}</span></span>
                 <span className={styles.courtBottom}>
                   <span>
                     <span className={styles.playerName}>{court.playerNames.length ? court.playerNames.join(' + ') : 'Choose player'}</span>
-                    <span className={styles.evidence}>
-                      {court.playerEvidence.length > 1 ? court.playerEvidence.map((player) => <span key={player.id}><strong>{firstName(player.name)}</strong> · {player.positionSummary}</span>) : <span>{court.positionSummary}</span>}
-                      {court.pairEvidence ? <span className={styles.pairSignal}><UsersThree size={14} weight="bold" aria-hidden="true" /><strong>Pair</strong> · {summarizeCaptainPairRecord(court.pairEvidence)}</span> : null}
-                      <span>{court.scoreSummary}</span>
-                    </span>
+                    <span className={styles.evidence}>{court.availabilityLabel || 'Availability not confirmed'}{courtLocked ? ' · Court locked' : ''}</span>
                   </span>
                   <span className={styles.probabilityBlock}>
                     <span className={styles.probability}>{percent(court.probability)} <CaretRight className={styles.disclosure} size={20} weight="bold" aria-hidden="true" /></span>
-                    <span className={styles.confidenceDetail}>{court.confidence} · {court.confidenceDetail}</span>
                   </span>
                 </span>
-              </button>
+              </summary>
+              <div className={styles.courtDetails}>
+                <div className={styles.evidence}>
+                  {court.playerEvidence.length > 1 ? court.playerEvidence.map((player) => <span key={player.id}><strong>{firstName(player.name)}</strong> · {player.positionSummary}</span>) : <span>{court.positionSummary}</span>}
+                  {court.pairEvidence ? <span className={styles.pairSignal}><UsersThree size={14} weight="bold" aria-hidden="true" /><strong>Pair</strong> · {summarizeCaptainPairRecord(court.pairEvidence)}</span> : null}
+                  <span>{court.scoreSummary}</span>
+                  <span>{court.confidence} · {court.confidenceDetail}</span>
+                </div>
               <div className={styles.lockRow} aria-label={`${court.label} locks`}>
                 <button type="button" className={`${styles.lockButton} ${courtLocked ? styles.lockActive : ''}`} aria-pressed={courtLocked} onClick={() => onToggleCourtLock(court.id)}>
                   {courtLocked ? <LockSimple size={15} weight="fill" aria-hidden="true" /> : <LockSimpleOpen size={15} aria-hidden="true" />}{courtLocked ? 'Court locked' : 'Lock court'}
@@ -595,7 +598,12 @@ export default function CaptainLineupIntelligence({
                   </button>
                 ) : null}
               </div>
-            </article>
+                <div className={styles.actionRow}>
+                  {court.playerIds.length ? <button type="button" className={styles.secondaryButton} onClick={() => openCourt(court)}>Player insights</button> : null}
+                  <button type="button" className={styles.secondaryButton} onClick={() => onEditCourt(court.id)}>Edit court</button>
+                </div>
+              </div>
+            </details>
           )
         })}
       </div>

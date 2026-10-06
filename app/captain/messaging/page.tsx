@@ -11,6 +11,7 @@ import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
 import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
+import CaptainMessageSendFocus from '@/app/components/captain-message-send-focus'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
 import { markCaptainLaunchOutreachStarted } from '@/lib/captain-launch-progress'
@@ -2293,7 +2294,7 @@ function CaptainMessagingContent() {
 
   const finalizationReadiness = useMemo(() => {
     const lineupComplete = lineupRows.length > 0 && lineupRows.every((row) =>
-      row.players.every((player) => normalizeText(player))
+      row.players.length > 0 && row.players.every((player) => normalizeText(player))
     )
     const clearAvailability = availabilitySummary.noResponseCount === 0 && availabilitySummary.tentativeCount === 0
     const responseStable =
@@ -2311,6 +2312,15 @@ function CaptainMessagingContent() {
       label: ready ? 'Ready to send' : 'Needs captain attention',
     }
   }, [lineupRows, availabilitySummary, responseSummary])
+  const confirmedLineupContacts = scopedContacts.filter((contact) =>
+    lineupPlayerSet.has(contact.full_name.toLowerCase())
+    && availabilityMap.get(contact.id)?.status === 'available'
+    && !['declined', 'need-sub', 'running-late'].includes(responseMap.get(contact.id)?.status ?? '')
+  )
+  const confirmedLineupNames = new Set(confirmedLineupContacts.map((contact) => contact.full_name.toLowerCase()))
+  const lineupPlayersConfirmed = finalizationReadiness.lineupComplete
+    && lineupPlayerSet.size > 0
+    && confirmedLineupNames.size === lineupPlayerSet.size
   const mobileSendPulse = [
     {
       label: 'Lineup',
@@ -3141,7 +3151,11 @@ function importScenarioToLineup() {
   return (
     <section style={pageContentStyle}>
          {!isMobile ? <CaptainSuitePanel active="messaging" teamLabel={teamFilter || 'Team week'} /> : null}
-         <CaptainMatchWeekRail current="messaging" scope={matchWeekScope} />
+         <CaptainMatchWeekRail current="messaging" scope={matchWeekScope} progress={{
+           lineup: { complete: finalizationReadiness.lineupComplete, label: finalizationReadiness.lineupComplete ? 'Courts filled' : 'Review courts' },
+           availability: { complete: lineupPlayersConfirmed, label: `${confirmedLineupNames.size}/${lineupPlayerSet.size} confirmed` },
+           messaging: { complete: false, label: 'Send in texts' },
+         }} />
          {displayedMessagingChallenge ? (
           <section
             style={weekChallengeStripStyle}
@@ -3173,6 +3187,24 @@ function importScenarioToLineup() {
             </div>
           </section>
          ) : null}
+         {isMobile && !availabilityHandoff && !liveAvailabilityRequest?.request ? (
+           <CaptainMessageSendFocus
+             recipients={selectedRecipients.map((recipient) => recipient.full_name)}
+             body={messageBody}
+             title={messageTitle}
+             match={[selectedMatch ? formatDate(selectedMatch.match_date) : '', inferredOpponent].filter(Boolean).join(' · ')}
+             smsHref={smsHref}
+             allowed={captainAccess}
+             loading={loading}
+             error={error}
+             onOpenTexts={() => {
+               if (setupTeamLinkRequested) markCaptainLaunchOutreachStarted({ team: teamFilter, league: leagueFilter, flight: flightFilter })
+               prepareSmsBodyForNativeComposer(messageBody)
+             }}
+           />
+         ) : null}
+         <details open={!isMobile || contactManagerRequested || !!availabilityHandoff || !!liveAvailabilityRequest?.request || undefined} style={isMobile ? surfaceCard : { display: 'contents' }}>
+           <summary style={isMobile ? { ...detailsSummaryStyle, minHeight: 44 } : { display: 'none' }}>Message tools · edit draft, audience, and contacts</summary>
          {!availabilityHandoff && !liveAvailabilityRequest?.request ? (
           <section style={messageControlShellResponsive(isTablet, isMobile)} aria-label="Messaging controls">
             <div>
@@ -5128,6 +5160,7 @@ function importScenarioToLineup() {
             </>
           )}
         </section>
+        </details>
       </section>
   )
 }

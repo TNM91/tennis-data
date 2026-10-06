@@ -465,6 +465,11 @@
 }
 
 .courtCard { border-top: 1px solid var(--card-border); }
+.courtRow { list-style: none; cursor: pointer; }
+.courtRow::-webkit-details-marker { display: none; }
+.courtRow:focus-visible { outline: 2px solid var(--brand-blue-2); outline-offset: -2px; }
+.courtCard[open] .disclosure { transform: rotate(90deg); }
+.courtDetails { display: grid; gap: 10px; padding: 0 0 12px; }
 .lineupHeader + .courtCard { border-top: 0; }
 
 .courtLabel {
@@ -739,9 +744,6 @@
 }
 
 .stickyActions {
-  position: sticky;
-  bottom: 8px;
-  z-index: 4;
   display: grid;
   gap: 8px;
   margin: 0 -6px -6px;

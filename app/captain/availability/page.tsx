@@ -18,6 +18,10 @@ import SiteShell from '@/app/components/site-shell'
 import LockedPlanPage from '@/app/components/locked-plan-page'
 import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
+import CaptainConfirmationFocusPanel from '@/app/components/captain-confirmation-focus'
+import { buildCaptainConfirmationFocus, readScopedConfirmationSelections, type ConfirmationSelection } from '@/lib/captain-confirmation-focus'
+import { getCaptainLineupDraftStorageKey, readCaptainLineupBuilderDraft } from '@/lib/captain-lineup-handoff'
+import { buildTeamRoomHref } from '@/lib/team-room'
 import {
   buildCaptainScopedHref,
   readCaptainResumeState,
@@ -218,6 +222,10 @@ function CaptainAvailabilityContent() {
   const [shareFeedback, setShareFeedback] = useState('')
   const [playerActionFeedback, setPlayerActionFeedback] = useState<{ playerId: string; message: string } | null>(null)
   const [savingPlayerId, setSavingPlayerId] = useState('')
+  const [sharedAvailabilityKey, setSharedAvailabilityKey] = useState('')
+  const [sharingAvailability, setSharingAvailability] = useState(false)
+  const [confirmationLineup, setConfirmationLineup] = useState<{ scope: string; selections: ConfirmationSelection[] }>({ scope: '', selections: [] })
+  const [loadingConfirmationLineup, setLoadingConfirmationLineup] = useState(false)
   const [availabilityLiveNotice, setAvailabilityLiveNotice] = useState('')
   const preparingRequestKeyRef = useRef('')
   const availabilityRefreshInFlightRef = useRef('')
@@ -442,6 +450,38 @@ function CaptainAvailabilityContent() {
   const selectedMatch = scheduledMatches.find((match) => match.id === selectedMatchId) ?? null
   const selectedOpponent = selectedMatch ? getOpponent(selectedMatch, selectedTeam) : preferredOpponent
   const selectedEventDate = selectedMatch?.match_date || preferredMatchDate
+  const confirmationScopeKey = [auth.userId, selectedTeam, selectedLeague, selectedFlight, selectedEventDate, selectedOpponent].join('|')
+  useEffect(() => {
+    let cancelled = false
+    const scope = { team: selectedTeam, league: selectedLeague, flight: selectedFlight, date: selectedEventDate, opponent: selectedOpponent }
+    const finish = (selections: ConfirmationSelection[]) => {
+      if (!cancelled) { setConfirmationLineup({ scope: confirmationScopeKey, selections }); setLoadingConfirmationLineup(false) }
+    }
+    if (!authResolved || !access.canUseCaptainWorkflow || !selectedTeam || !selectedEventDate) { finish([]); return }
+    setLoadingConfirmationLineup(true)
+    try {
+      const draft = auth.userId ? readCaptainLineupBuilderDraft(window.localStorage.getItem(getCaptainLineupDraftStorageKey(auth.userId))) : null
+      const selections = readScopedConfirmationSelections(scope, draft ? {
+        team: draft.teamName, league: draft.leagueName, flight: draft.flight, date: draft.matchDate, opponent: draft.opponentTeam, slots: draft.teamSlots,
+      } : null)
+      if (selections !== null) { finish(selections); return }
+    } catch { /* The shared lineup remains available when device storage cannot be read. */ }
+    const controller = new AbortController()
+    void (async () => {
+      try {
+        const accessToken = session?.access_token
+        if (!accessToken) { finish([]); return }
+        const roomHref = buildTeamRoomHref({ teamName: selectedTeam, leagueName: selectedLeague, flight: selectedFlight }).replace('/team-room', '/api/team-rooms')
+        const response = await fetch(`${roomHref}${roomHref.includes('?') ? '&' : '?'}summary=1`, { headers: { Authorization: `Bearer ${accessToken}` }, signal: controller.signal, cache: 'no-store' })
+        const result = await response.json() as { summary?: { latestMatchDate?: string; courtReadiness?: { lineup?: Array<{ label: string; players: string[] }> } } }
+        const selections = response.ok ? readScopedConfirmationSelections(scope, {
+          team: selectedTeam, league: selectedLeague, flight: selectedFlight, date: result.summary?.latestMatchDate || '', slots: result.summary?.courtReadiness?.lineup,
+        }) : null
+        finish(selections ?? [])
+      } catch { finish([]) }
+    })()
+    return () => { cancelled = true; controller.abort() }
+  }, [access.canUseCaptainWorkflow, auth.userId, authResolved, confirmationScopeKey, selectedEventDate, selectedFlight, selectedLeague, selectedOpponent, selectedTeam, session?.access_token])
   const availabilityRequestKey = useMemo(() => [
     selectedTeam,
     selectedLeague,
@@ -499,6 +539,8 @@ function CaptainAvailabilityContent() {
           matchTime: selectedMatch?.match_time || '',
           facility: selectedMatch?.facility || '',
           slots: [],
+          // Preserve reply links players already received from the lineup builder.
+          inviteMode: 'append',
           invitedPlayers: players.map((player) => ({
             playerId: player.id,
             playerName: player.name,
@@ -596,7 +638,9 @@ function CaptainAvailabilityContent() {
   }, [availabilityLiveNotice])
 
   async function shareAvailabilityRequest() {
-    if (!availabilityRequestUrl || preparedRequestKey !== availabilityRequestKey || !session?.access_token) return
+    if (sharingAvailability || !availabilityRequestUrl || preparedRequestKey !== availabilityRequestKey || !session?.access_token) return
+    setSharingAvailability(true)
+    try {
     setShareFeedback('Preparing availability preview…')
     setAvailabilityRequestError('')
     const requestTarget = new URL(availabilityRequestUrl, window.location.origin)
@@ -626,6 +670,7 @@ function CaptainAvailabilityContent() {
       if (typeof navigator.share === 'function') {
         await navigator.share({ title: `Availability check: ${selectedTeam}`, text })
         setShareFeedback('Availability request shared.')
+        setSharedAvailabilityKey(availabilityRequestKey)
         return
       }
       await navigator.clipboard.writeText(text)
@@ -634,6 +679,7 @@ function CaptainAvailabilityContent() {
       if (nextError instanceof DOMException && nextError.name === 'AbortError') return
       setAvailabilityRequestError('Sharing was blocked. Try again or open Team Messages.')
     }
+    } finally { setSharingAvailability(false) }
   }
 
   async function copyAvailabilityLink(url: string, label: string) {
@@ -809,6 +855,11 @@ function CaptainAvailabilityContent() {
         ? 'Start by picking a team to load the weekly roster.'
         : 'The roster is fully answered, so you can move straight into lineup planning.'
   const attentionPlayerCount = counts.unanswered + counts.maybe
+  const confirmationFocus = buildCaptainConfirmationFocus(players,
+    confirmationLineup.scope === confirmationScopeKey ? confirmationLineup.selections : [],
+    sharedAvailabilityKey === availabilityRequestKey,
+  )
+  const confirmationLoading = loadingRoster || loadingConfirmationLineup || confirmationLineup.scope !== confirmationScopeKey
   const visibleAvailabilityPlayers = useMemo(() => {
     const statusOrder: Record<AvailabilityStatus, number> = {
       unanswered: 0,
@@ -917,6 +968,10 @@ function CaptainAvailabilityContent() {
         {!isMobile ? <CaptainSuitePanel active="availability" teamLabel={selectedTeam || 'Team week'} /> : null}
         <CaptainMatchWeekRail
           current="availability"
+          progress={{
+            availability: { complete: confirmationFocus.selected.length > 0 && confirmationFocus.confirmed.length === confirmationFocus.selected.length,
+              label: confirmationFocus.selected.length ? `${confirmationFocus.confirmed.length}/${confirmationFocus.selected.length} confirmed` : players.length ? counts.unanswered ? `${counts.unanswered} waiting` : counts.maybe ? `${counts.maybe} maybe` : 'Roster replies in' : 'No replies loaded' },
+          }}
           scope={{
             competitionLayer: competitionLayerParam,
             team: selectedTeam,
@@ -932,11 +987,11 @@ function CaptainAvailabilityContent() {
             <div style={availabilityControlHeader}>
               <div>
                 <div style={sectionKicker}>Availability controls</div>
-                <h1 style={availabilityControlTitle}>Who can play?</h1>
+                <h1 style={availabilityControlTitle}>{isMobile && confirmationFocus.selected.length ? 'Confirm players' : 'Who can play?'}</h1>
               </div>
-              <span style={responseProgress >= 80 ? badgeGreen : responseProgress >= 50 ? badgeBlue : badgeSlate}>
+              {!isMobile ? <span style={responseProgress >= 80 ? badgeGreen : responseProgress >= 50 ? badgeBlue : badgeSlate}>
                 {responseProgress}% answered
-              </span>
+              </span> : null}
             </div>
 
             {isMobile ? (
@@ -956,45 +1011,7 @@ function CaptainAvailabilityContent() {
                   <Link href="/compete/teams#captain-setup" style={{ ...primaryButton, textDecoration: 'none', textAlign: 'center' }}>
                     Connect a captain team
                   </Link>
-                ) : (
-                  <div style={mobileRequestActionsStyle}>
-                    <button
-                      type="button"
-                      style={{ ...primaryButton, ...(!canShareAvailability ? disabledAction : {}) }}
-                      onClick={() => void shareAvailabilityRequest()}
-                      disabled={!canShareAvailability}
-                    >
-                      {availabilityRequestState === 'preparing' ? 'Preparing…' : counts.unanswered ? `Remind ${counts.unanswered}` : 'Share request'}
-                    </button>
-                    <button
-                      type="button"
-                      style={{ ...sectionCtaSecondary, ...(!canShareAvailability ? disabledAction : {}) }}
-                      onClick={() => void copyAvailabilityLink(availabilityRequestUrl, 'Team link')}
-                      disabled={!canShareAvailability}
-                    >
-                      Copy link
-                    </button>
-                  </div>
-                )}
-
-                <div style={mobileAvailabilityReadStyle} aria-label="Availability summary">
-                  <div style={mobileAvailabilityCountStyle}>
-                    <strong>{responseAnswered} of {responseTotal || players.length} answered</strong>
-                    <span>{counts.unanswered ? `${counts.unanswered} waiting` : lineupPoolLabel}</span>
-                  </div>
-                  <div
-                    style={responseTrack}
-                    role="meter"
-                    aria-label="Availability responses answered"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={responseProgress}
-                  >
-                    <span style={{ ...responseFill, width: `${responseProgress}%` }} />
-                  </div>
-                </div>
-
-                {shareFeedback ? <div style={mobileActionReceiptStyle} role="status">{shareFeedback}</div> : null}
+                ) : null}
 
                 <details style={mobileMatchDetailsStyle}>
                   <summary style={mobileMatchSummaryButtonStyle}>Change team or match</summary>
@@ -1177,8 +1194,17 @@ function CaptainAvailabilityContent() {
           </section>
         ) : null}
 
-        {!isMobile ? (
-          <section style={decisionPanel}>
+        {isMobile ? <CaptainConfirmationFocusPanel
+          focus={confirmationFocus}
+          loading={confirmationLoading}
+          disabled={confirmationLoading || sharingAvailability || (confirmationFocus.nextAction !== 'lineup' && !canShareAvailability)}
+          busyLabel={sharingAvailability ? 'Preparing share…' : confirmationFocus.nextAction !== 'lineup' && availabilityRequestState === 'preparing' ? 'Preparing request…' : undefined}
+          feedback={preparedRequestKey === availabilityRequestKey ? shareFeedback || undefined : undefined}
+          error={availabilityRequestError || undefined}
+          onAction={() => confirmationFocus.nextAction === 'lineup' ? router.push(lineupBuilderHref) : void shareAvailabilityRequest()}
+          onReview={() => router.push(lineupBuilderHref)}
+          onRetry={availabilityRequestState === 'error' ? () => void prepareAvailabilityRequest(true) : undefined}
+        /> : <section style={decisionPanel}>
           <div style={sectionHeadResponsive(isTablet)}>
             <div>
               <div style={sectionKicker}>Availability read</div>
@@ -1230,9 +1256,10 @@ function CaptainAvailabilityContent() {
               </article>
             ))}
           </div>
-          </section>
-        ) : null}
+          </section>}
 
+        <details open={!isMobile} style={{ minWidth: 0 }}>
+          <summary style={{ ...sectionCtaSecondary, display: isMobile ? 'flex' : 'none', cursor: 'pointer' }}>Roster response tools</summary>
         <section style={contentWrap}>
           {!isMobile ? <div style={metricGridResponsive(false)}>
             <MetricCard label="In" value={String(counts.in)} accent="green" compact={isMobile} />
@@ -1263,7 +1290,11 @@ function CaptainAvailabilityContent() {
                 </div> : null}
               </div>
 
-              {!isMobile ? <div style={sectionActions}>
+              <div style={sectionActions}>
+                <button type="button" style={sectionCtaSecondary} onClick={() => void copyAvailabilityLink(availabilityRequestUrl, 'Team link')} disabled={!canShareAvailability}>Copy link</button>
+                {isMobile ? <button type="button" style={sectionCtaSecondary} onClick={() => void loadRoster()} disabled={loadingRoster}>
+                  {loadingRoster ? 'Refreshing...' : 'Refresh roster'}
+                </button> : null}
                 <Link href={lineupBuilderHref} style={sectionCtaPrimary}>
                   Build Lineup
                 </Link>
@@ -1290,7 +1321,7 @@ function CaptainAvailabilityContent() {
                     defaultFacility={selectedMatch?.facility || ''}
                   />
                 ) : null}
-              </div> : null}
+              </div>
             </div>
 
             {!filteredTeamOptions.length && !loadingOptions ? (
@@ -1387,24 +1418,7 @@ function CaptainAvailabilityContent() {
             )}
           </section>
         </section>
-
-        {isMobile ? (
-          <section style={mobileNextMoveStyle} aria-label="Availability next move">
-            <div>
-              <div style={sectionKicker}>Next move</div>
-              <strong style={mobileNextMoveTitleStyle}>
-                {counts.unanswered > 0 ? `Chase ${counts.unanswered} repl${counts.unanswered === 1 ? 'y' : 'ies'}` : 'Build the lineup'}
-              </strong>
-              <span style={mobileNextMoveTextStyle}>{responseSummary}</span>
-            </div>
-            <div style={mobileNextMoveActionsStyle}>
-              <Link href={counts.unanswered > 0 ? messagingHref : lineupBuilderHref} style={sectionCtaPrimary}>
-                {counts.unanswered > 0 ? 'Open team chat' : 'Build lineup'}
-              </Link>
-              <Link href={lineupBuilderHref} style={sectionCtaSecondary}>Open courts</Link>
-            </div>
-          </section>
-        ) : null}
+        </details>
       </div>
   )
 }
@@ -1738,12 +1752,6 @@ const captainReadText: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const mobileAvailabilityReadStyle: CSSProperties = {
-  display: 'grid',
-  gap: 9,
-  color: 'var(--foreground-strong)',
-  fontSize: 13,
-}
 
 const mobileAvailabilityCommandStyle: CSSProperties = {
   display: 'grid',
@@ -1799,26 +1807,8 @@ const mobileLinkReadyStyle: CSSProperties = {
   fontSize: 10,
 }
 
-const mobileRequestActionsStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.35fr) minmax(0, .85fr)',
-  gap: 8,
-  minWidth: 0,
-}
 
-const mobileAvailabilityCountStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'baseline',
-  gap: 10,
-  minWidth: 0,
-}
 
-const mobileActionReceiptStyle: CSSProperties = {
-  color: '#dffad5',
-  fontSize: 11,
-  fontWeight: 800,
-}
 
 const mobileMatchDetailsStyle: CSSProperties = {
   borderTop: '1px solid var(--shell-panel-border)',
@@ -1838,37 +1828,6 @@ const mobileMatchDetailControlsStyle: CSSProperties = {
   gap: 9,
   marginTop: 10,
   minWidth: 0,
-}
-
-const mobileNextMoveStyle: CSSProperties = {
-  display: 'grid',
-  gap: 12,
-  padding: '15px 16px',
-  borderRadius: 18,
-  border: '1px solid color-mix(in srgb, var(--brand-green) 32%, var(--shell-panel-border) 68%)',
-  background: 'color-mix(in srgb, var(--brand-green) 8%, var(--shell-panel-bg-strong) 92%)',
-  minWidth: 0,
-}
-
-const mobileNextMoveTitleStyle: CSSProperties = {
-  display: 'block',
-  color: 'var(--foreground-strong)',
-  fontSize: 19,
-  lineHeight: 1.15,
-}
-
-const mobileNextMoveTextStyle: CSSProperties = {
-  display: 'block',
-  marginTop: 5,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 13,
-  lineHeight: 1.45,
-}
-
-const mobileNextMoveActionsStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: 8,
 }
 
 const captainReadStats: CSSProperties = {
