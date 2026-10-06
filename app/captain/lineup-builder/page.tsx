@@ -21,6 +21,8 @@ import { useAuth } from '@/app/components/auth-provider'
 import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
 import CaptainLineupMobileAction from '@/app/components/captain-lineup-mobile-action'
+import { captainMobileResumeKey } from '@/lib/captain-mobile-resume'
+import { useCaptainMobileResume } from '@/lib/use-captain-mobile-resume'
 import mobileActionStyles from '@/app/components/captain-lineup-mobile-action.module.css'
 import { getCaptainLineupNextAction } from '@/lib/captain-lineup-next-action'
 import CaptainLineupIntelligence, {
@@ -6573,6 +6575,14 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       ? `Waiting on ${assignedTeamReplySummary.waiting.slice(0, 2).map((player) => player.name).join(' and ')}${assignedTeamReplySummary.waiting.length > 2 ? ` and ${assignedTeamReplySummary.waiting.length - 2} more` : ''}.`
       : 'A selected player only counts after they reply Yes or you use Mark Yes & lock to record a text or call confirmation.'
   const finalLineupSent = lineupDeliveryReceipt?.kind === 'final'
+  useCaptainMobileResume({
+    storageKey: captainMobileResumeKey(userId, 'lineup', [teamName, leagueName, flight, matchDate, opponentTeam]),
+    ready: isMobile && authResolved && !loading && !loadingScenarioId,
+    data: { expandedTeamSlotId },
+    onRestore: (draft) => {
+      if (typeof draft.expandedTeamSlotId === 'string' && teamSlots.some((slot) => slot.id === draft.expandedTeamSlotId)) setExpandedTeamSlotId(draft.expandedTeamSlotId)
+    },
+  })
   const finalLineupDeliveryLabel = openingFinalDelivery
     ? 'Sending lineup…'
     : finalLineupSent ? 'Sent to Team Chat' : 'Send lineup to Team Chat'
