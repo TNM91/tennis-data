@@ -40,7 +40,7 @@ const SHARE_CONFIG: Record<CaptainShareKind, CaptainShareConfig> = {
   },
   availability: {
     eyebrow: 'Availability check',
-    title: 'Can you play?',
+    title: 'Are you in for the match?',
     description: 'Reply In, Out, or Maybe so your captain can build the lineup.',
     action: 'Reply now',
     accent: '#FACC15',
@@ -123,8 +123,8 @@ export function buildCaptainShareMetadata(input: {
   const title = matchup ? `${config.eyebrow}: ${matchup}` : config.title
   const description = input.detail?.trim() || config.description
   const path = safeCaptainSharePath(input.sharePath, input.kind)
-  const image = `${path}/opengraph-image`
-  const previewImage = `/share/captain/${input.kind}/opengraph-image`
+  const image = input.kind === 'availability' ? '/availability/opengraph-image?v=20261005' : `${path}/opengraph-image`
+  const previewImage = input.kind === 'availability' ? image : `/share/captain/${input.kind}/opengraph-image`
 
   return {
     title: { absolute: `${title} | TenAceIQ` },
