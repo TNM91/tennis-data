@@ -94,26 +94,9 @@ export default function CaptainMatchWeekRail({
     )
   }
 
-  return (
-    <section className={styles.rail} style={isMobile ? mobileRailShell : railShell} aria-label="Match week progress">
-      <div className={styles.context} style={matchContext}>
-        <div className={styles.kicker} style={matchHeadingRow}>
-          <div style={kicker}>Match week</div>
-          {canSwitchMatches ? <span style={matchCountPill}>{matchChoices.length} scheduled</span> : null}
-        </div>
-        <strong style={title}>
-          {scope.opponent ? `vs ${scope.opponent}` : 'Selected match'}
-          {scope.date ? <span style={dateText}> - {formatMatchDate(scope.date)}</span> : null}
-        </strong>
-        {scope.team ? <>
-          <span className={styles.desktopScope} style={teamText}>{scope.team}{scope.league ? ` · ${scope.league}` : ''}{scope.flight ? ` · ${scope.flight}` : ''}</span>
-          <details className={styles.mobileScope}>
-            <summary>Team details</summary>
-            <p>{scope.team}{scope.league ? ` · ${scope.league}` : ''}{scope.flight ? ` · ${scope.flight}` : ''}</p>
-          </details>
-        </> : null}
+  const matchToolsContent = (<>
         {canSwitchMatches ? (
-          <details open={!isMobile} className={styles.matchTools}><summary>Change match</summary>
+          <details open className={styles.matchTools}><summary>Change match</summary>
           <div style={matchPickerRow}>
             <button
               type="button"
@@ -151,7 +134,7 @@ export default function CaptainMatchWeekRail({
           </div></details>
         ) : null}
         {upcomingChoices.length ? (
-          <details open={!isMobile} className={styles.matchTools} style={planningQueue}><summary>Upcoming matches</summary>
+          <details open className={styles.matchTools} style={planningQueue}><summary>Upcoming matches</summary>
             <div style={planningQueueHeading}>
               <div>
                 <div style={planningKicker}>Plan ahead</div>
@@ -197,6 +180,27 @@ export default function CaptainMatchWeekRail({
             </div>
           </details>
         ) : null}
+</>)
+
+  return (
+    <section className={styles.rail} style={isMobile ? mobileRailShell : railShell} aria-label="Match week progress">
+      <div className={styles.context} style={matchContext}>
+        <div className={styles.kicker} style={matchHeadingRow}>
+          <div style={kicker}>Match week</div>
+          {canSwitchMatches ? <span style={matchCountPill}>{matchChoices.length} scheduled</span> : null}
+        </div>
+        <strong style={title}>
+          {scope.opponent ? `vs ${scope.opponent}` : 'Selected match'}
+          {scope.date ? <span style={isMobile ? { ...dateText, display: 'block', marginTop: 4, fontSize: 12 } : dateText}>{isMobile ? '' : ' · '}{formatMatchDate(scope.date)}</span> : null}
+        </strong>
+        {scope.team ? <>
+          <span className={styles.desktopScope} style={teamText}>{scope.team}{scope.league ? ` · ${scope.league}` : ''}{scope.flight ? ` · ${scope.flight}` : ''}</span>
+          <details className={styles.mobileScope}>
+            <summary>Team details</summary>
+            <p>{scope.team}{scope.league ? ` · ${scope.league}` : ''}{scope.flight ? ` · ${scope.flight}` : ''}</p>
+          </details>
+        </> : null}
+        {!isMobile ? matchToolsContent : null}
       </div>
       <nav style={isMobile ? mobileStepList : stepList} aria-label="Match week steps">
         {steps.map((step, index) => {
@@ -268,6 +272,10 @@ export default function CaptainMatchWeekRail({
           )
         })}
       </nav>
+      {isMobile && (canSwitchMatches || upcomingChoices.length) ? <details className={styles.matchOptions}>
+        <summary>Match options</summary>
+        <div className={styles.matchOptionBody}>{matchToolsContent}</div>
+      </details> : null}
     </section>
   )
 }

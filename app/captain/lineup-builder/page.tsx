@@ -24,6 +24,7 @@ import CaptainLineupMobileAction from '@/app/components/captain-lineup-mobile-ac
 import { captainMobileResumeKey } from '@/lib/captain-mobile-resume'
 import { useCaptainMobileResume } from '@/lib/use-captain-mobile-resume'
 import mobileActionStyles from '@/app/components/captain-lineup-mobile-action.module.css'
+import courtEditorStyles from '../lineup-court-editor.module.css'
 import { getCaptainLineupNextAction } from '@/lib/captain-lineup-next-action'
 import CaptainLineupIntelligence, {
   type CaptainLineupIntelligenceCourt,
@@ -6635,7 +6636,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       </div>
     </div>
   ) : null
+  const editingTeamSlot = teamSlots.find((slot) => slot.id === expandedTeamSlotId)
   const mobileNextAction = getCaptainLineupNextAction({
+    editingCourtLabel: editingTeamSlot ? editingTeamSlot.label || 'this court' : undefined,
     hasMatch: hasCoreContext,
     lineupComplete: teamLineupComplete,
     openCourtLabel: firstOpenTeamCourt?.label,
@@ -6646,6 +6649,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     maybeCount: assignedTeamReplySummary.maybe.length,
   })
   function handleMobileNextAction() {
+    if (editingTeamSlot) { setExpandedTeamSlotId(''); return }
     if (mobileNextAction.step === 'setup') {
       setMatchSetupOpen(true)
       window.requestAnimationFrame(() => document.getElementById('captain-lineup-match-setup')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
@@ -8725,65 +8729,7 @@ function SlotEditor({
     targetSlot.id !== slot.id
     && canSwapCaptainCourtAssignments(slot, targetSlot, playerPool, competitionRules)
   ))
-  return (
-    <div
-      id={`captain-lineup-slot-${slot.id}`}
-      style={focused ? { ...slotCardStyle, ...focusedSlotCardStyle } : slotCardStyle}
-      tabIndex={focused ? -1 : undefined}
-    >
-      {showCompactMobileCourt ? (
-        <>
-        <button
-          type="button"
-          aria-expanded={false}
-          aria-controls={`captain-lineup-slot-editor-${slot.id}`}
-          onClick={onToggleExpanded}
-          style={compactCourtTriggerStyle}
-        >
-          <span style={compactCourtTriggerHeaderStyle}>
-            <span style={compactCourtLabelStyle}>{slot.label}</span>
-            <span style={miniPillSlateStyle}>{selectedPlayers.length}/{slot.players.length} set</span>
-          </span>
-          <span style={compactCourtSelectionStyle}>{compactSelectionSummary}</span>
-          <span style={compactCourtTriggerFooterStyle}>
-            <span style={compactCourtStatusStyle}>{compactReplySummary}</span>
-            <span style={compactCourtEditStyle}>Edit court</span>
-          </span>
-        </button>
-        {onClear ? <GhostSmallBtn onClick={onClear} disabled={!selectedPlayers.length}>Clear line</GhostSmallBtn> : null}
-        </>
-      ) : (
-        <div id={`captain-lineup-slot-editor-${slot.id}`} style={slotEditorBodyStyle}>
-          <div style={slotHeaderStyle}>
-            <div style={slotHeaderLeftStyle}>
-              {fixedFormat ? (
-                <strong style={fixedSlotLabelStyle}>{slot.label}</strong>
-              ) : (
-                <input
-                  aria-label={`${side} slot label`}
-                  value={slot.label}
-                  onChange={(e) => onLabelChange(side, slot.id, e.target.value)}
-                  style={slotLabelInputStyle}
-                />
-              )}
-              <span style={miniPillSlateStyle}>{slot.slotType}</span>
-              {side === 'team' ? (
-                <button type="button" aria-pressed={lockedSlotIds.has(slot.id)} style={lockedSlotIds.has(slot.id) ? pillButtonActive : pillButton} onClick={() => toggleLockedSlot(slot.id)}>
-                  {lockedSlotIds.has(slot.id) ? 'line locked' : 'lock line'}
-                </button>
-              ) : null}
-            </div>
-
-            <div style={slotHeaderActionsStyle}>
-              {onClear ? <GhostSmallBtn onClick={onClear} disabled={!selectedPlayers.length}>Clear line</GhostSmallBtn> : null}
-              {isMobileLayout && onToggleExpanded ? (
-                <GhostSmallBtn onClick={onToggleExpanded}>Done</GhostSmallBtn>
-              ) : null}
-              {!fixedFormat ? <GhostSmallBtn onClick={() => onRemove(side, slot.id)}>Remove</GhostSmallBtn> : null}
-            </div>
-          </div>
-
-          {side === 'team' && onSwapCourt && compatibleCourtSwapTargets.length ? (
+  const courtMoveControl = (side === 'team' && onSwapCourt && compatibleCourtSwapTargets.length ? (
             <label style={courtMoveControlStyle}>
               <span style={courtMoveLabelStyle}>Move or swap court</span>
               <select
@@ -8811,7 +8757,67 @@ function SlotEditor({
                   : `Moves the whole ${slot.slotType === 'doubles' ? 'pair' : 'player'} and keeps replies and locks.`}
               </span>
             </label>
-          ) : null}
+          ) : null)
+  return (
+    <div
+      id={`captain-lineup-slot-${slot.id}`}
+      className={courtEditorStyles.card}
+      data-mobile={isMobileLayout}
+      style={focused ? { ...slotCardStyle, ...focusedSlotCardStyle } : slotCardStyle}
+      tabIndex={focused ? -1 : undefined}
+    >
+      {showCompactMobileCourt ? (
+        <>
+        <button
+          type="button"
+          aria-expanded={false}
+          aria-controls={`captain-lineup-slot-editor-${slot.id}`}
+          onClick={onToggleExpanded}
+          style={compactCourtTriggerStyle}
+        >
+          <span style={compactCourtTriggerHeaderStyle}>
+            <span style={compactCourtLabelStyle}>{slot.label}</span>
+            <span style={miniPillSlateStyle}>{selectedPlayers.length}/{slot.players.length} set</span>
+          </span>
+          <span style={compactCourtSelectionStyle}>{compactSelectionSummary}</span>
+          <span style={compactCourtTriggerFooterStyle}>
+            <span style={compactCourtStatusStyle}>{compactReplySummary}</span>
+            <span style={compactCourtEditStyle}>Edit court</span>
+          </span>
+        </button>
+        </>
+      ) : (
+        <div id={`captain-lineup-slot-editor-${slot.id}`} style={slotEditorBodyStyle}>
+          <div className={courtEditorStyles.header} style={slotHeaderStyle}>
+            <div className={courtEditorStyles.headerLeft} style={slotHeaderLeftStyle}>
+              {fixedFormat ? (
+                <strong style={fixedSlotLabelStyle}>{slot.label}</strong>
+              ) : (
+                <input
+                  aria-label={`${side} slot label`}
+                  value={slot.label}
+                  onChange={(e) => onLabelChange(side, slot.id, e.target.value)}
+                  style={slotLabelInputStyle}
+                />
+              )}
+              <span className={courtEditorStyles.type} style={miniPillSlateStyle}>{slot.slotType}</span>
+              {side === 'team' && !isMobileLayout ? (
+                <button type="button" aria-pressed={lockedSlotIds.has(slot.id)} style={lockedSlotIds.has(slot.id) ? pillButtonActive : pillButton} onClick={() => toggleLockedSlot(slot.id)}>
+                  {lockedSlotIds.has(slot.id) ? 'line locked' : 'lock line'}
+                </button>
+              ) : null}
+            </div>
+
+            <div style={slotHeaderActionsStyle}>
+              {!isMobileLayout && onClear ? <GhostSmallBtn onClick={onClear} disabled={!selectedPlayers.length}>Clear line</GhostSmallBtn> : null}
+              {isMobileLayout && onToggleExpanded ? (
+                <GhostSmallBtn onClick={onToggleExpanded}>Done</GhostSmallBtn>
+              ) : null}
+              {!isMobileLayout && !fixedFormat ? <GhostSmallBtn onClick={() => onRemove(side, slot.id)}>Remove</GhostSmallBtn> : null}
+            </div>
+          </div>
+
+          {!isMobileLayout ? courtMoveControl : null}
 
           <div style={slotPlayersGridStyle}>
         {slot.players.map((player, index) => {
@@ -8847,6 +8853,8 @@ function SlotEditor({
           return (
             <div
               key={`${slot.id}-${index}`}
+              className={courtEditorStyles.player}
+              data-reply={selectedReplyLabel}
               style={selectedReplyLabel === 'Confirmed'
                 ? { ...slotPlayerRowStyle, ...confirmedPlayerRowStyle }
                 : slotPlayerRowStyle}
@@ -8871,14 +8879,14 @@ function SlotEditor({
 
                   return (
                     <option key={poolPlayer.id} value={poolPlayer.id} disabled={disabled}>
-                      {poolPlayer.name} · {availabilityLabel(poolPlayer.availabilityStatus)} · {typeof slot.ratingLevel === 'number' ? `NTRP ${formatRating(getPlayerBaseRating(poolPlayer))}` : `OVR ${formatRating(poolPlayer.overall_dynamic_rating ?? poolPlayer.overall_rating)}`}
+                      {isMobileLayout ? `${poolPlayer.name}${['Out', 'Maybe'].includes(availabilityLabel(poolPlayer.availabilityStatus)) ? ` · ${availabilityLabel(poolPlayer.availabilityStatus)}` : ''}` : <>{poolPlayer.name} · {availabilityLabel(poolPlayer.availabilityStatus)} · {typeof slot.ratingLevel === 'number' ? `NTRP ${formatRating(getPlayerBaseRating(poolPlayer))}` : `OVR ${formatRating(poolPlayer.overall_dynamic_rating ?? poolPlayer.overall_rating)}`}</>}
                     </option>
                   )
                 })}
               </select>
 
               {side === 'team' && player.playerId ? (
-                <div style={isMobileLayout
+                <div className={courtEditorStyles.playerActions} style={isMobileLayout
                   ? {
                       ...mobileSlotPlayerActionRowStyle,
                       gridTemplateColumns: showAskSignal ? 'minmax(0, 1fr) auto' : 'auto',
@@ -8912,6 +8920,7 @@ function SlotEditor({
                 </div>
               ) : null}
               {side === 'team' && selectedReplyLabel === 'Confirmed' && player.playerId && onUndoConfirmation ? (
+                <details open={!isMobileLayout} className={courtEditorStyles.replyTools}><summary>Change reply</summary>
                 <button
                   type="button"
                   disabled={resettingConfirmationPlayerId === player.playerId}
@@ -8919,7 +8928,7 @@ function SlotEditor({
                   style={undoPlayerConfirmationButtonStyle}
                 >
                   {resettingConfirmationPlayerId === player.playerId ? 'Undoing Yes…' : 'Undo Yes — ask again'}
-                </button>
+                </button></details>
               ) : null}
             </div>
           )
@@ -8995,6 +9004,16 @@ function SlotEditor({
           </span>
         </div>
           ) : null}
+          {isMobileLayout ? <details className={courtEditorStyles.options} id={`court-options-${slot.id}`}>
+            <summary>Court options</summary>
+            <div className={courtEditorStyles.optionActions}>
+              {side === 'team' ? <button type="button" aria-pressed={lockedSlotIds.has(slot.id)} style={pillButton} onClick={() => toggleLockedSlot(slot.id)}>{lockedSlotIds.has(slot.id) ? 'Unlock court' : 'Lock court'}</button> : null}
+              {onClear ? <GhostSmallBtn onClick={onClear} disabled={!selectedPlayers.length}>Clear line</GhostSmallBtn> : null}
+              {!fixedFormat ? <GhostSmallBtn onClick={() => onRemove(side, slot.id)}>Remove</GhostSmallBtn> : null}
+            </div>
+            {courtMoveControl}
+          </details> : null}
+
         </div>
       )}
     </div>
@@ -11399,4 +11418,3 @@ function GhostSmallBtn({
     </button>
   )
 }
-
