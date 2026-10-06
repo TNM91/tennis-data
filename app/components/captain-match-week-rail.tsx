@@ -228,7 +228,6 @@ export default function CaptainMatchWeekRail({
                 key={step.id}
                 type="button"
                 className={styles.step}
-                className={styles.step}
                 aria-current={isCurrent ? 'step' : undefined}
                 aria-label={step.id === 'lineup'
                   ? 'Open the current lineup courts'
