@@ -19,6 +19,8 @@ import LockedPlanPage from '@/app/components/locked-plan-page'
 import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
 import CaptainConfirmationFocusPanel from '@/app/components/captain-confirmation-focus'
+import { captainMobileResumeKey } from '@/lib/captain-mobile-resume'
+import { useCaptainMobileResume } from '@/lib/use-captain-mobile-resume'
 import { buildCaptainConfirmationFocus, readScopedConfirmationSelections, type ConfirmationSelection } from '@/lib/captain-confirmation-focus'
 import { getCaptainLineupDraftStorageKey, readCaptainLineupBuilderDraft } from '@/lib/captain-lineup-handoff'
 import { buildTeamRoomHref } from '@/lib/team-room'
@@ -450,6 +452,12 @@ function CaptainAvailabilityContent() {
   const selectedMatch = scheduledMatches.find((match) => match.id === selectedMatchId) ?? null
   const selectedOpponent = selectedMatch ? getOpponent(selectedMatch, selectedTeam) : preferredOpponent
   const selectedEventDate = selectedMatch?.match_date || preferredMatchDate
+  useCaptainMobileResume({
+    storageKey: captainMobileResumeKey(auth.userId, 'availability', [selectedTeam, selectedLeague, selectedFlight, selectedEventDate, selectedOpponent]),
+    ready: isMobile && authResolved && !loadingOptions && !loadingRoster,
+    data: {},
+    onRestore: () => {},
+  })
   const confirmationScopeKey = [auth.userId, selectedTeam, selectedLeague, selectedFlight, selectedEventDate, selectedOpponent].join('|')
   useEffect(() => {
     let cancelled = false

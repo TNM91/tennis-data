@@ -17225,17 +17225,16 @@ function CaptainHubContent() {
         onAction={handleCaptainHomeFocusAction}
       />
       {hasTeamScope && captainMobileActionLayout.phase === 'match_day' ? (
-        <details className={mobileCommandStyles.matchDay}>
-          <summary className={mobileCommandStyles.matchDayButton}>
+        <section className={mobileCommandStyles.matchDay} aria-label="Match Day">
+          <div className={mobileCommandStyles.matchDayButton}>
             <span className={mobileCommandStyles.matchDayButtonCopy}>
               <strong>Match Day</strong>
               <span>{captainMatchDayPrimaryCue}</span>
             </span>
-            <span className={mobileCommandStyles.matchDayButtonCue}>Game-day actions</span>
-          </summary>
+          </div>
           <div className={mobileCommandStyles.matchDaySheet} aria-label="Match Day tools">
             <Link className={mobileCommandStyles.matchDayPrimaryAction} href={captainLiveScorecardHref}>
-              <strong>{captainScoreCaptureRows.length ? 'Continue live scorecard' : 'Open live scorecard'}</strong>
+              <strong>{captainScoreCaptureRows.length ? 'Continue scores' : 'Record scores'}</strong>
               <span>Enter each court, including defaults or retirements.</span>
             </Link>
             <div className={mobileCommandStyles.matchDayActionGrid}>
@@ -17243,6 +17242,21 @@ function CaptainHubContent() {
                 <strong>{workspaceState.lineupReady ? 'View final lineup' : 'Build lineup'}</strong>
                 <span>{workspaceState.lineupReady ? `${workspaceState.lineupCount} courts saved` : 'Set today’s courts'}</span>
               </Link>
+              {captainMatchMapsHref ? (
+                <a className={mobileCommandStyles.matchDayAction} href={captainMatchMapsHref}>
+                  <strong>Directions</strong>
+                  <span>{matchDayLocationLabel}</span>
+                </a>
+              ) : (
+                <Link className={mobileCommandStyles.matchDayAction} href={`${lineupBuilderHref}#captain-lineup-match-setup`}>
+                  <strong>Add match location</strong>
+                  <span>Set where the team should meet</span>
+                </Link>
+              )}
+            </div>
+            <details className={mobileCommandStyles.matchDayMore}>
+              <summary>More match-day tools{teamRoomSummary.unreadCount ? ` · ${teamRoomSummary.unreadCount} unread` : ''}</summary>
+              <div className={mobileCommandStyles.matchDayActionGrid}>
               <Link className={mobileCommandStyles.matchDayAction} href={captainCompletedScorecardCaptureHref}>
                 <strong>Capture scorecard</strong>
                 <span>Photograph the completed card</span>
@@ -17255,15 +17269,10 @@ function CaptainHubContent() {
                 <strong>Opponent read</strong>
                 <span>Roster and projected courts</span>
               </Link>
-              {captainMatchMapsHref ? (
-                <a className={mobileCommandStyles.matchDayAction} href={captainMatchMapsHref}>
-                  <strong>Directions</strong>
-                  <span>{matchDayLocationLabel}</span>
-                </a>
-              ) : null}
-            </div>
+              </div>
+            </details>
           </div>
-        </details>
+        </section>
       ) : null}
 
       {captainImportHandoff ? (

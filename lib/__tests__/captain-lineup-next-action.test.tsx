@@ -31,6 +31,15 @@ describe('Captain lineup next action', () => {
   it('sends only a complete lineup with every player confirmed', () => {
     expect(getCaptainLineupNextAction(ready).step).toBe('send')
   })
+  it('finishes the current court edit before offering a send or another lineup action', () => {
+    for (const changes of [{}, { lineupComplete: false }, { outCount: 1 }, { confirmedCount: 3 }]) {
+      const action = getCaptainLineupNextAction({ ...ready, ...changes, editingCourtLabel: 'Singles 1' })
+      expect(action.label).toBe('Done editing')
+      expect(action.detail).toContain('Singles 1')
+      expect(action.step).not.toBe('send')
+    }
+    expect(getCaptainLineupNextAction({ ...ready, editingCourtLabel: undefined }).step).toBe('send')
+  })
   it('renders one disabled action while saving or sending', () => {
     const html = renderToStaticMarkup(createElement(CaptainLineupMobileAction, {
       action: getCaptainLineupNextAction(ready), disabled: true, busyLabel: 'Sending lineup…', onAction: () => {},

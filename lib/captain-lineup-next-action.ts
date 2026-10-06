@@ -6,7 +6,7 @@ export type CaptainLineupNextAction = {
 
 export function getCaptainLineupNextAction({
   hasMatch, lineupComplete, openCourtLabel, selectedCount, requiredCount,
-  confirmedCount, outCount, maybeCount,
+  confirmedCount, outCount, maybeCount, editingCourtLabel,
 }: {
   hasMatch: boolean
   lineupComplete: boolean
@@ -16,7 +16,9 @@ export function getCaptainLineupNextAction({
   confirmedCount: number
   outCount: number
   maybeCount: number
+  editingCourtLabel?: string
 }): CaptainLineupNextAction {
+  if (editingCourtLabel) return { step: 'finish', label: 'Done editing', detail: `Review ${editingCourtLabel}, then continue with your lineup.` }
   if (!hasMatch) return { step: 'setup', label: 'Choose match', detail: 'Choose your team, opponent, and match date.' }
   if (!lineupComplete || requiredCount <= 0 || selectedCount !== requiredCount) {
     return {

@@ -272,7 +272,7 @@
     padding: 11px 13px;
     color: var(--foreground-strong);
     list-style: none;
-    cursor: pointer;
+    border-bottom: 1px solid rgba(155, 225, 29, 0.2);
   }
 
   .matchDayButton::-webkit-details-marker {
@@ -318,6 +318,10 @@
     padding: 10px;
     background: rgba(5, 11, 22, 0.56);
   }
+
+  .matchDayMore { min-width: 0; border-top: 1px solid var(--shell-panel-border); }
+  .matchDayMore summary { display: flex; align-items: center; min-height: 44px; padding: 8px 2px; color: var(--foreground-strong); font-size: .75rem; font-weight: 800; cursor: pointer; overflow-wrap: anywhere; }
+  .matchDayMore summary:focus-visible, .matchDayAction:focus-visible, .matchDayPrimaryAction:focus-visible { outline: 2px solid var(--brand-blue-2); outline-offset: 3px; }
 
   .matchDayPrimaryAction,
   .matchDayAction {

@@ -1,18 +1,29 @@
 .mobileScope { display: none; }
 .matchTools summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-size: 12px; color: var(--foreground-strong); }
+.matchOptions > summary { display: none; }
+.matchOptionBody { min-width: 0; }
 @media (max-width: 819px) {
-  .rail { grid-template-columns: minmax(0, 1fr); gap: 6px !important; padding: 10px 12px !important; border-radius: 16px !important; }
+  .rail { grid-template-columns: minmax(0, 1fr); gap: 8px !important; padding: 12px 14px !important; border-radius: 14px !important; background: var(--shell-panel-bg-strong) !important; box-shadow: none !important; }
   .kicker, .desktopScope, .number { display: none !important; }
   .context { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0 8px; }
-  .context > strong { margin-top: 0 !important; font-size: 14px !important; }
+  .context > strong { margin-top: 0 !important; font-size: 15px !important; line-height: 1.3 !important; }
   .mobileScope { display: block; color: var(--shell-copy-muted); font-size: 11px; }
   .mobileScope[open] { grid-column: 1 / -1; }
-  .matchTools { grid-column: 1 / -1; }
+  .matchTools { grid-column: 1 / -1; display: block !important; margin-top: 0 !important; padding-top: 0 !important; border-top: 0 !important; }
+  .matchTools summary { min-height: 44px; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--shell-copy-muted); }
+  .matchTools summary::after { content: ''; width: 5px; height: 5px; margin-right: 3px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg); flex-shrink: 0; }
+  .matchTools[open] summary::after { transform: rotate(225deg); }
+  .matchTools[open] > :not(summary) { margin-top: 10px; }
   .mobileScope summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; }
   .mobileScope summary::after { content: ''; width: 5px; height: 5px; margin-left: 8px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg); }
   .mobileScope[open] summary::after { transform: rotate(225deg); }
   .mobileScope p { margin: 0 0 8px; overflow-wrap: anywhere; line-height: 1.4; }
-  .step { min-height: 44px !important; padding: 6px 4px !important; }
-  .step small { overflow-wrap: anywhere; }
+  .step { min-height: 48px !important; padding: 7px 4px !important; border-radius: 10px !important; font-size: 12px !important; line-height: 1.25 !important; }
+  .step small { overflow-wrap: anywhere; font-size: 11px !important; font-weight: 500; }
+  .matchOptions { min-width: 0; border-top: 1px solid var(--shell-panel-border); }
+  .matchOptions > summary { display: flex; align-items: center; justify-content: space-between; min-height: 44px; color: var(--shell-copy-muted); font-size: 13px; cursor: pointer; }
+  .matchOptions > summary::after { content: ''; width: 5px; height: 5px; border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg); margin-right: 3px; }
+  .matchOptions[open] > summary::after { transform: rotate(225deg); }
+  .matchOptions > summary:focus-visible { outline: 2px solid var(--brand-blue-2); outline-offset: 3px; }
   .mobileScope summary:focus-visible, .step:focus-visible { outline: 2px solid var(--brand-blue-2); outline-offset: 3px; }
 }

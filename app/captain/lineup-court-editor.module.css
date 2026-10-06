@@ -1,0 +1,19 @@
+@media (max-width: 819px) {
+  .card[data-mobile='true'] { padding: 14px !important; border-radius: 14px !important; }
+  .card[data-mobile='true'] .header { display: grid !important; grid-template-columns: minmax(0, 1fr) auto; align-items: center !important; gap: 10px !important; margin-bottom: 14px !important; }
+  .card[data-mobile='true'] .headerLeft { min-width: 0; }
+  .card[data-mobile='true'] .type { display: none !important; }
+  .card[data-mobile='true'] .header button { min-height: 44px; border-radius: 10px !important; }
+  .card[data-mobile='true'] .player { padding: 0 !important; border: 0 !important; box-shadow: none !important; background: transparent !important; border-radius: 0 !important; gap: 6px !important; }
+  .card[data-mobile='true'] .player select { width: 100%; min-width: 0; min-height: 48px; border: 1px solid var(--shell-panel-border) !important; border-radius: 10px !important; box-shadow: none !important; background: var(--shell-chip-bg); font-size: 16px !important; }
+  .card[data-mobile='true'] .player[data-reply='Confirmed'] select { border-color: color-mix(in srgb, var(--brand-green) 35%, var(--shell-panel-border)) !important; }
+  .card[data-mobile='true'] .playerActions { align-items: center !important; }
+  .card[data-mobile='true'] .playerActions button { min-height: 44px !important; padding: 6px 10px !important; border-radius: 8px !important; border-color: var(--shell-panel-border) !important; box-shadow: none !important; background: transparent !important; color: var(--foreground-strong) !important; font-size: 13px !important; }
+  .card[data-mobile='true'] .playerActions > span { padding: 0 !important; border: 0 !important; box-shadow: none !important; background: transparent !important; text-align: left !important; font-size: 13px !important; }
+  .options { margin-top: 6px; border-top: 1px solid var(--shell-panel-border); }
+  .options summary, .replyTools summary { min-height: 44px; padding: 12px 0; box-sizing: border-box; color: var(--shell-copy-muted); font-size: 13px; font-weight: 650; cursor: pointer; }
+  .optionActions { display: flex; flex-wrap: wrap; gap: 8px; padding-bottom: 12px; }
+  .optionActions button { min-height: 44px !important; }
+  .options summary:focus-visible, .replyTools summary:focus-visible { outline: 2px solid var(--brand-blue-2); outline-offset: 3px; }
+}
+@media (min-width: 820px) { .replyTools summary { display: none; } }

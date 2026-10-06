@@ -11,6 +11,8 @@ import LockedPlanPage from '@/app/components/locked-plan-page'
 import SiteShell from '@/app/components/site-shell'
 import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
+import { captainMobileResumeKey, shouldRefreshCaptainMessageDraft } from '@/lib/captain-mobile-resume'
+import { useCaptainMobileResume } from '@/lib/use-captain-mobile-resume'
 import CaptainMessageSendFocus from '@/app/components/captain-message-send-focus'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildCaptainScopedHref, readCaptainResumeState, writeCaptainResumeState } from '@/lib/captain-memory'
@@ -790,6 +792,8 @@ function CaptainMessagingContent() {
   const [messageKind, setMessageKind] = useState<MessageKind>('availability')
   const [messageTitle, setMessageTitle] = useState('Availability Check')
   const [messageBody, setMessageBody] = useState('')
+  const generatedDraftRef = useRef<{ scope: string; body: string; title: string } | null>(null)
+  const restoredDraftScopeRef = useRef('')
   const [connectedWeekChallenge, setConnectedWeekChallenge] = useState<CaptainWeekChallenge | null>(null)
   const [completedWeekChallenge, setCompletedWeekChallenge] = useState<CaptainWeekChallenge | null>(null)
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
@@ -1701,6 +1705,8 @@ function CaptainMessagingContent() {
   useEffect(() => {
     if (!selectedMatch) return
     if (availabilityHandoff) return
+    if (!shouldRefreshCaptainMessageDraft({ scope: eventKey, body: messageBody, title: messageTitle,
+      previous: generatedDraftRef.current, restoredScope: restoredDraftScopeRef.current, templateId: selectedTemplateId })) return
     const nextTitleMap: Record<MessageKind, string> = {
       availability: 'Availability Check',
       lineup: 'Lineup Announcement',
@@ -1708,10 +1714,7 @@ function CaptainMessagingContent() {
       reminder: 'Match Reminder',
       'follow-up': 'Follow-Up Reminder',
     }
-    setMessageTitle(nextTitleMap[messageKind])
-    setMessageBody((current) => {
-      if (selectedTemplateId) return current
-      return appendCaptainWeekChallengeToMessage(eventDefaultMessage(messageKind, {
+    const nextBody = appendCaptainWeekChallengeToMessage(eventDefaultMessage(messageKind, {
         teamName: inferredTeamName,
         opponent: inferredOpponent,
         dateText: formatDate(selectedMatch.match_date),
@@ -1719,8 +1722,31 @@ function CaptainMessagingContent() {
         arrivalTime: eventArrivalTime,
         lineupText: lineupTextForMessage,
       }), currentMessagingChallenge?.challenge ?? null)
-    })
-  }, [availabilityHandoff, currentMessagingChallenge, messageKind, selectedMatch, inferredTeamName, inferredOpponent, lineupTextForMessage, eventLocation, eventArrivalTime, selectedTemplateId])
+    generatedDraftRef.current = { scope: eventKey, body: nextBody, title: nextTitleMap[messageKind] }
+    setMessageTitle(nextTitleMap[messageKind])
+    setMessageBody(nextBody)
+  }, [availabilityHandoff, currentMessagingChallenge, messageKind, selectedMatch, inferredTeamName, inferredOpponent, lineupTextForMessage, eventLocation, eventArrivalTime, selectedTemplateId, eventKey, messageBody, messageTitle])
+
+  useCaptainMobileResume({
+    storageKey: captainMobileResumeKey(auth.userId, 'messaging', [matchWeekScope.team, matchWeekScope.league, matchWeekScope.flight, matchWeekScope.date, matchWeekScope.opponent, setupTeamLinkRequested ? 'team-invite' : availabilityHandoff ? 'availability-request' : 'composer']),
+    ready: isMobile && authResolved && captainAccess && !loading && (!prefillScenarioRaw || prefillApplied),
+    data: { messageBody, messageTitle, messageKind, recipientMode, selectedRecipientIds, selectedTemplateId },
+    onRestore: (draft) => {
+      const kinds: MessageKind[] = ['availability', 'lineup', 'directions', 'reminder', 'follow-up']
+      const modes: RecipientMode[] = ['all-opted-in', 'captains', 'active-only', 'available-only', 'lineup-only', 'non-responders', 'custom']
+      if (typeof draft.messageBody !== 'string' || typeof draft.messageTitle !== 'string'
+        || !kinds.includes(draft.messageKind as MessageKind) || !modes.includes(draft.recipientMode as RecipientMode)
+        || !Array.isArray(draft.selectedRecipientIds) || !draft.selectedRecipientIds.every((id) => typeof id === 'string')) return
+      restoredDraftScopeRef.current = eventKey
+      if (setupTeamLinkRequested) teamConnectionInviteAppliedRef.current = true
+      setMessageBody(draft.messageBody)
+      setMessageTitle(draft.messageTitle)
+      setMessageKind(draft.messageKind as MessageKind)
+      setRecipientMode(draft.recipientMode as RecipientMode)
+      setSelectedRecipientIds(draft.selectedRecipientIds)
+      setSelectedTemplateId(typeof draft.selectedTemplateId === 'string' ? draft.selectedTemplateId : '')
+    },
+  })
 
   const availabilityMap = useMemo(() => new Map(availabilityRows.map((row) => [row.contact_id, row])), [availabilityRows])
   const responseMap = useMemo(() => new Map(responseRows.map((row) => [row.contact_id, row])), [responseRows])
@@ -4866,7 +4892,7 @@ function importScenarioToLineup() {
                         htmlFor="message-kind"
                         hint="Start with the communication goal, then tailor the audience and body."
                       >
-                        <select id="message-kind" aria-describedby="captain-messaging-composer-helper" value={messageKind} onChange={(e) => setMessageKind(e.target.value as MessageKind)} style={inputStyle}>
+                        <select id="message-kind" aria-describedby="captain-messaging-composer-helper" value={messageKind} onChange={(e) => { generatedDraftRef.current = null; restoredDraftScopeRef.current = ''; setSelectedTemplateId(''); setMessageKind(e.target.value as MessageKind) }} style={inputStyle}>
                           <option value="availability">Availability check</option>
                           <option value="lineup">Lineup announcement</option>
                           <option value="directions">Directions + details</option>
