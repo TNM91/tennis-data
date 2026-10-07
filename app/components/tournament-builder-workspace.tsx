@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
-import TournamentEventPanel from '@/app/components/tournament-event-panel'
+import TournamentEventDesk, { type EventCourtAssignment } from '@/app/components/tournament-event-desk'
 import { normalizeTournamentEventDetails, type TournamentEventDetails } from '@/lib/tournament-event-presentation'
 import { buildTournamentDivisionDraft, getTournamentEventContext, getTournamentEventRoots, getTournamentEventDivisions } from '@/lib/tournament-events'
 import ClubContextBanner from '@/app/components/club-context-banner'
@@ -65,6 +65,7 @@ import {
   requestTiqTournamentEntryInformation,
   saveTiqTournamentAlertRecordForUser,
   saveTiqTournamentRecord,
+  saveTiqTournamentEventCourtAssignment,
   summarizeTournamentResults,
   updateTiqTournamentEntryStatus,
   updateTiqTournamentMatchScheduleForUser,
@@ -1002,6 +1003,18 @@ export default function TournamentBuilderWorkspace() {
     setNotice('Match result cleared.')
   }
 
+  async function saveEventCourtAssignment(assignment: EventCourtAssignment) {
+    if (!eventContext.event) throw new Error('Choose an event first.')
+    const result = await saveTiqTournamentEventCourtAssignment({ ...assignment,
+      eventId: eventContext.event.id, tournamentId: assignment.divisionId,
+    }, userId)
+    refreshRecords(selectedId)
+    if (result.error || !result.data) throw result.error || new Error('Court assignment could not be saved.')
+    if (selectedId === result.data.id) setScheduleInputs(buildScheduleInputState(result.data))
+    const savedMessage = result.source === 'cloud' ? 'Court assignment synced.' : 'Court assignment saved on this device.'
+    setSyncNotice(savedMessage)
+    return savedMessage
+  }
   async function updateMatchSchedule(matchId: string) {
     if (!selectedRecord) return
     const schedule = scheduleInputs[matchId] || selectedRecord.schedule[matchId] || { date: '', time: '', court: '' }
@@ -1727,7 +1740,7 @@ export default function TournamentBuilderWorkspace() {
       </section>
 
       {eventContext.event ? <>
-        <TournamentEventPanel event={eventContext.event} divisions={eventContext.divisions} selectedId={selectedId} onSelect={record => loadRecordSection(record, 'tournament-setup')} />
+        <TournamentEventDesk key={eventContext.event.id} event={eventContext.event} divisions={eventContext.divisions} onManage={loadRecordSection} onScheduleSave={saveEventCourtAssignment} />
         <section style={panelStyle} aria-label="Add event division">
           <div style={fieldGridStyle}>
             <label style={fieldStyle}>New division
@@ -2008,7 +2021,7 @@ export default function TournamentBuilderWorkspace() {
         </div>
       </details>
 
-      <details className="tournamentBuilderDetailsSection" style={calendarPanelStyle}>
+      {!eventContext.event ? <details className="tournamentBuilderDetailsSection" style={calendarPanelStyle}>
         <summary style={calendarSummaryStyle}>
           <div>
             <div style={sectionEyebrowStyle}>Shared calendar</div>
@@ -2097,7 +2110,7 @@ export default function TournamentBuilderWorkspace() {
             )}
           </aside>
         </div>
-      </details>
+      </details> : null}
 
 
       {selectedRecord && !selectedRecord.isEvent ? (

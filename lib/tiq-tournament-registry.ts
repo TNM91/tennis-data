@@ -1309,6 +1309,40 @@ export async function updateTiqTournamentMatchScheduleForUser(
   return updated
 }
 
+
+// Event-wide court edits update only schedule fields and report persistence failures.
+export async function saveTiqTournamentEventCourtAssignment(input: {
+  eventId: string; tournamentId: string; matchId: string; date: string; time: string; court: string
+}, userId?: string | null): Promise<{ data: TiqTournamentRecord | null; error: Error | null; source: 'cloud' | 'local' }> {
+  const previous = readTiqTournamentRegistry().find(record => record.id === input.tournamentId)
+  const source = userId ? 'cloud' as const : 'local' as const
+  const fail = (message: string) => ({ data: previous || null, error: new Error(message), source })
+  if (!previous || previous.eventId !== input.eventId) return fail('Choose a division in this event.')
+  const date = cleanText(input.date), time = cleanText(input.time), court = cleanText(input.court)
+  if (date || time || court) {
+    const parsed = new Date(`${date}T12:00:00Z`)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date
+      || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time) || !court) return fail('Choose a valid date, start time, and court.')
+  }
+  let latestUpdatedAt = ''
+  if (userId) {
+    const latest = await supabase.from('tiq_tournaments').select('format,entrants,results,schedule,status,updated_at')
+      .eq('id', previous.id).eq('event_id', input.eventId).maybeSingle()
+    if (latest.error || !latest.data?.updated_at) return fail('This division could not be loaded. Try again.')
+    latestUpdatedAt = latest.data.updated_at
+    mergeLocalTournamentRecord({ ...previous, format: latest.data.format, entrants: latest.data.entrants,
+      results: latest.data.results, schedule: latest.data.schedule, status: latest.data.status })
+  }
+  const updated = updateTiqTournamentMatchSchedule({ tournamentId: previous.id, matchId: input.matchId, date, time, court })
+  if (!updated) { mergeLocalTournamentRecord(previous); return fail('This match is no longer in the draw. Refresh the event.') }
+  if (userId) {
+    const result = await supabase.from('tiq_tournaments').update({ schedule: updated.schedule, status: updated.status,
+      updated_by_user_id: userId, updated_at: new Date().toISOString() }).eq('id', updated.id).eq('event_id', input.eventId)
+      .eq('updated_at', latestUpdatedAt).select('id').maybeSingle()
+    if (result.error || !result.data) { mergeLocalTournamentRecord(previous); return fail('The court assignment could not be saved. Try again.') }
+  }
+  return { data: updated, error: null, source }
+}
 export function updateTiqTournamentParticipantContact(input: {
   tournamentId: string
   entrantName: string
