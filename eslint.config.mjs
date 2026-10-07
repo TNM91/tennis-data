@@ -11,6 +11,7 @@ const eslintConfig = defineConfig([
     ".next/**",
     "**/.next/**",
     ".codex-audits/**",
+    ".codex-audit/**",
     ".codex-deck/**",
     ".codex-worktrees/**",
     ".pricing-release-worktree/**",
