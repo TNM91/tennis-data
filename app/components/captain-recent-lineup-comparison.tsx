@@ -5,6 +5,7 @@ import CaptainRecentLineupSwaps from './captain-recent-lineup-swaps'
 import type { RecentLineupSwap } from '@/lib/captain-recent-lineup-swaps'
 import type { OpponentSeasonScout } from '@/lib/captain-opponent-season-scout'
 import CaptainOpponentCourtScorePatterns from './captain-opponent-court-score-patterns'
+import CaptainCourtMatchupSummary from './captain-court-matchup-summary'
 
 const percent = (value: number) => `${Math.round(value * 100)}%`
 
@@ -20,6 +21,7 @@ export default function CaptainRecentLineupComparison({ comparison, scout, onRev
     {comparison.courts.map((court) => <details key={court.id} className={styles.evidenceCourt}>
       <summary><strong>{court.label}</strong><span>{court.status}</span>
         <span>{court.minimum === null ? 'No forecast' : `${court.minimum === court.maximum ? percent(court.minimum) : `${percent(court.minimum)}–${percent(court.maximum!)}`} win estimate`} · {court.assessed}/{comparison.fixtureCount} weeks assessed</span>
+        {scout ? <CaptainCourtMatchupSummary scout={scout} index={court.index} mode={court.slotType} names={court.names} /> : null}
       </summary>
       <p className={styles.note}>{court.names.join(' / ') || 'Choose your players'}</p>
       <ul className={styles.courts}>{court.weeks.map((week) => <li key={week.key}>

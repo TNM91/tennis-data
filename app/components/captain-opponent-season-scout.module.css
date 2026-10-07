@@ -21,6 +21,10 @@
 .evidenceCourt { padding: 10px 0; border-top: 1px solid rgba(129,169,207,.18); min-width: 0; }
 .evidenceCourt > summary { min-height: 44px; overflow-wrap: anywhere; }
 .evidenceCourt > summary strong { color: #edf4fc; }
+.matchupSummary { display: grid; gap: 8px; margin-top: 8px; padding: 10px; border-radius: 10px; background: rgba(3,15,29,.35); min-width: 0; }
+.matchupSummary > span { display: grid; gap: 3px; }
+.matchupSummary strong { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.matchupStats { color: #c8d5e5; font-size: 12px; line-height: 1.5; }
 .evidenceCourt ul { margin: 10px 0; }
 .matchOdds { display: grid; gap: 5px; margin: 12px 0 6px; }
 .matchOdds strong { font-size: 13px; color: #b6c6d7; }
