@@ -43,7 +43,7 @@ export default function CaptainOpponentSeasonScout({ scout, opponent, loading = 
     <div className={styles.body}>
       {loading ? <p className={styles.note} role="status">Loading season results…</p> : !scout.ready ? <p className={styles.note}>Choose your league, flight, opponent, and match date to scout their season.</p> : !latest ? <p className={styles.note}>No earlier court results are recorded for this opponent in the selected season, league, and flight. Add their match results to see recent lineups and scores.</p> : <>
         {projection && onUseSeasonDraft ? <CaptainOpponentSeasonProjection projection={projection} onUseDraft={onUseSeasonDraft} /> : null}
-        {comparison ? <CaptainRecentLineupComparison comparison={comparison} onReviewCourt={onReviewCourt} swaps={swaps} onApplySwap={onApplySwap} swapsDisabled={swapsDisabled} /> : null}
+        {comparison ? <CaptainRecentLineupComparison comparison={comparison} scout={scout} onReviewCourt={onReviewCourt} swaps={swaps} onApplySwap={onApplySwap} swapsDisabled={swapsDisabled} /> : null}
         <details className={styles.lineRecords} aria-label="Opponent season line records">
           <summary>Which lines are winning? <span>Season W–L & games</span></summary>
           <p className={styles.note}>Recorded season matches before your match date. W–L includes defaults when recorded.</p>

@@ -3,11 +3,14 @@ import type { RecentLineupComparison } from '@/lib/captain-recent-lineup-compari
 import styles from './captain-opponent-season-scout.module.css'
 import CaptainRecentLineupSwaps from './captain-recent-lineup-swaps'
 import type { RecentLineupSwap } from '@/lib/captain-recent-lineup-swaps'
+import type { OpponentSeasonScout } from '@/lib/captain-opponent-season-scout'
+import CaptainOpponentCourtScorePatterns from './captain-opponent-court-score-patterns'
 
 const percent = (value: number) => `${Math.round(value * 100)}%`
 
-export default function CaptainRecentLineupComparison({ comparison, onReviewCourt, swaps, onApplySwap, swapsDisabled }: {
+export default function CaptainRecentLineupComparison({ comparison, scout, onReviewCourt, swaps, onApplySwap, swapsDisabled }: {
   comparison: RecentLineupComparison; onReviewCourt: (index: number) => void
+  scout?: OpponentSeasonScout
   swaps?: RecentLineupSwap[]; onApplySwap?: (suggestion: RecentLineupSwap) => void; swapsDisabled?: boolean
 }) {
   return <details className={styles.lineRecords}>
@@ -24,6 +27,7 @@ export default function CaptainRecentLineupComparison({ comparison, onReviewCour
         <p className={styles.names}>{week.names.join(' / ') || 'Players not recorded'}</p>
         <p className={styles.note}>Their match vs {week.opponent}{week.result ? ` · ${week.result}` : ''}{week.score ? ` · Recorded score: ${week.score}` : ''}</p>
       </li>)}</ul>
+      {scout ? <CaptainOpponentCourtScorePatterns scout={scout} slotIndex={court.index} mode={court.slotType} courtLabel={court.label} /> : null}
       <button className={styles.action} type="button" onClick={() => onReviewCourt(court.index)}>Review {court.label}</button>
     </details>)}
     <p className={styles.note}>Missing ratings, incomplete courts, defaults, and conflicting records are not assessed. A forecast is an estimate, not a match result.</p>

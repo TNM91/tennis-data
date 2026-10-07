@@ -31,7 +31,7 @@ export function compareRecentOpponentLineups(
         : values.length === 1 ? 'One matchup recorded'
         : minimum! >= 0.5 ? 'Favored across recorded weeks'
         : maximum! < 0.5 ? 'Underdog across recorded weeks' : 'Changes with their lineup'
-      return { id: slot.id, index, label: slot.label, names: slot.players.map((player) => player.playerName).filter(Boolean), weeks, assessed: values.length, minimum, maximum, status }
+      return { id: slot.id, index, label: slot.label, slotType: slot.slotType, names: slot.players.map((player) => player.playerName).filter(Boolean), weeks, assessed: values.length, minimum, maximum, status }
     }),
   }
 }
