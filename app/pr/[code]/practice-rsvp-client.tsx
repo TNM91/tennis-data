@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
-import { buildPracticeGoogleCalendarHref, type PracticeDisplayStatus, type PracticeResponseStatus } from '@/lib/captain-practice-rsvp'
+import { buildPracticeGoogleCalendarHref, normalizePracticeName, type PracticeDisplayStatus, type PracticeResponseStatus } from '@/lib/captain-practice-rsvp'
 import { buildLocationDirectionsHref } from '@/lib/location-directions'
 import styles from './practice-rsvp.module.css'
 
@@ -113,6 +113,10 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
   if (!data) return <main className={styles.page}><section className={styles.card}><h1>Link unavailable</h1><p>{error}</p></section></main>
 
   const practice = data.practice
+  const selectedName = normalizePracticeName(identityMode === 'guest' ? guestName : playerName)
+  const selectedResponse = selectedName
+    ? data.roster.find((player) => normalizePracticeName(player.playerName) === selectedName)?.responseStatus
+    : undefined
   const signedUpCount = data.roster.filter((player) => player.responseStatus === 'in').length
   const captainConfirmedCount = captainConfirmedNames.length
   const calendarHref = buildPracticeGoogleCalendarHref(practice)
@@ -167,7 +171,7 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
           {identityMode === 'roster' ? (
             <label className={styles.field}>
               <span>Your name</span>
-              <select value={playerName} onChange={(event) => { setPlayerName(event.target.value); setSavedStatus(null) }}>
+              <select disabled={Boolean(saving)} value={playerName} onChange={(event) => { setPlayerName(event.target.value); setSavedStatus(null) }}>
                 <option value="">Choose your name</option>
                 {data.roster.filter((player) => player.isTeamRoster).map((player) => <option key={player.id} value={player.playerName}>{player.playerName}</option>)}
               </select>
@@ -175,15 +179,11 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
           ) : (
             <label className={styles.field}>
               <span>Add your name</span>
-              <input value={guestName} maxLength={80} autoComplete="name" onChange={(event) => { setGuestName(event.target.value); setSavedStatus(null) }} placeholder="First and last name" />
+              <input disabled={Boolean(saving)} value={guestName} maxLength={80} autoComplete="name" onChange={(event) => { setGuestName(event.target.value); setSavedStatus(null) }} placeholder="First and last name" />
               <small>You do not need a TenAceIQ account. Your name will be added to this practice roster.</small>
             </label>
           )}
-          <div className={styles.replyGrid}>
-            <button type="button" disabled={Boolean(saving)} onClick={() => void respond('in')} className={styles.inButton}>{saving === 'in' ? 'Saving...' : 'I’m in'}</button>
-            <button type="button" disabled={Boolean(saving)} onClick={() => void respond('maybe')}>Maybe</button>
-            <button type="button" disabled={Boolean(saving)} onClick={() => void respond('out')}>I’m out</button>
-          </div>
+          <PracticeReplyButtons selectedResponse={selectedResponse} saving={saving} onRespond={(status) => void respond(status)} />
           <label className={styles.field}>
             <span>Note <small>optional</small></span>
             <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Running late, can bring balls…" />
@@ -230,6 +230,22 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
         <Link href={`/signup?next=${encodeURIComponent(`/pr/${token}`)}`}>Join TenAceIQ</Link>
       </footer>
     </main>
+  )
+}
+
+export function PracticeReplyButtons({ selectedResponse, saving, onRespond }: {
+  selectedResponse: PracticeResponseStatus | undefined
+  saving: PracticeResponseStatus | ''
+  onRespond: (status: Exclude<PracticeResponseStatus, 'unanswered'>) => void
+}) {
+  return (
+    <div className={styles.replyGrid} aria-label="Your practice response" aria-busy={Boolean(saving)}>
+      {(['in', 'maybe', 'out'] as const).map((status) => (
+        <button key={status} type="button" disabled={Boolean(saving)} aria-pressed={selectedResponse === status} onClick={() => onRespond(status)}>
+          {saving === status ? 'Saving...' : status === 'in' ? 'I’m in' : status === 'out' ? 'I’m out' : 'Maybe'}
+        </button>
+      ))}
+    </div>
   )
 }
 
