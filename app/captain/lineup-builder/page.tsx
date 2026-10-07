@@ -5661,6 +5661,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       return {
         id: slot.id,
         label: slot.label,
+        slotType: slot.slotType,
+        opponentPlayerIds: (activeProjectedOpponentSlots[index]?.players || []).map((player) => player.playerId),
+        opponentPlayerNames: (activeProjectedOpponentSlots[index]?.players || []).map((player) => player.playerName),
         playerIds: selectedPlayers.map((player) => player.playerId),
         playerNames: selectedPlayers.map((player) => player.playerName),
         availabilityLabel: selectedPlayers.length
@@ -5679,7 +5682,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           : 'History still building',
       }
     })
-  ), [availabilityMap, historicalLineMatchPlayers, historicalLineMatches, lineupIntelligenceAnalysis.lines, lineupIntelligenceSlots, opponentPlayerPool.length, playerLineupInsightsById])
+  ), [activeProjectedOpponentSlots, availabilityMap, historicalLineMatchPlayers, historicalLineMatches, lineupIntelligenceAnalysis.lines, lineupIntelligenceSlots, opponentPlayerPool.length, playerLineupInsightsById])
 
   const lineupOpponentScenarios = useMemo<CaptainOpponentScenario[]>(() => {
     const likelySlots = opponentScenarioLineups.find((scenario) => scenario.id === 'likely')?.slots ?? []

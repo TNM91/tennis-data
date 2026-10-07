@@ -11,6 +11,7 @@ import {
 } from '@/lib/captain-lineup-intelligence'
 import styles from './captain-lineup-intelligence.module.css'
 import PlayerSetScoreGrid from './player-set-score-grid'
+import CaptainCourtScoreComparison from './captain-court-score-comparison'
 
 export type CaptainLineupIntelligenceStrategy = 'best' | 'safe' | 'upside'
 export type CaptainLineupConfidence = 'High' | 'Medium' | 'Low' | 'Needs opponent'
@@ -53,6 +54,9 @@ export type CaptainLineupPlayerEvidence = {
 }
 
 export type CaptainLineupIntelligenceCourt = {
+  slotType?: 'singles' | 'doubles'
+  opponentPlayerIds?: string[]
+  opponentPlayerNames?: string[]
   id: string
   label: string
   playerIds: string[]
@@ -813,6 +817,7 @@ export default function CaptainLineupIntelligence({
               </section>
             ) : null}
             {selectedCourt.playerEvidence.length > 1 ? <div className={styles.partnerTabs} role="tablist" aria-label={`${selectedCourt.label} partners`}>{selectedCourt.playerEvidence.map((player) => <button key={player.id} type="button" role="tab" aria-selected={player.id === selectedEvidence.id} className={`${styles.partnerTab} ${player.id === selectedEvidence.id ? styles.partnerTabActive : ''}`} onClick={() => setSelectedPlayerId(player.id)}>{firstName(player.name)}</button>)}</div> : null}
+            <CaptainCourtScoreComparison key={selectedCourt.id} mode={selectedCourt.slotType || (selectedCourt.playerIds.length > 1 ? 'doubles' : 'singles')} team={{ ids: selectedCourt.playerIds, names: selectedCourt.playerNames }} opponent={{ ids: selectedCourt.opponentPlayerIds || [], names: selectedCourt.opponentPlayerNames || [] }} histories={insightsByPlayerId} />
             <PlayerSetScoreGrid key={selectedEvidence.id} playerName={selectedEvidence.name} matches={selectedInsight?.setScoreMatches || []} scopeLabel="Recorded court history" />
             <div className={styles.sheetGrid}>
               <section className={styles.chartSection} aria-label="Court position tendency">
