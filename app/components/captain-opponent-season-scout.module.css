@@ -17,6 +17,17 @@
 .review { justify-self: start; background: none; border: 0; color: #bde88b; padding: 0; min-height: 36px; cursor: pointer; font: inherit; text-align: left; }
 .lineRecords summary { display: grid; gap: 4px; font-weight: 700; font-size: 15px; cursor: pointer; padding: 10px 0; }
 .lineRecords summary span { font-size: 12px; color: #b6c6d7; font-weight: 400; }
+.lineRecords > summary { min-height: 44px; }
+.lineRecords summary:focus-visible, .alternatives summary:focus-visible { outline: 2px solid #b7e871; outline-offset: 2px; }
+.evidence { display: grid; gap: 5px; margin: 8px 0; }
+.alternatives { margin: 8px 0; }
+.alternatives summary { min-height: 44px; font-size: 12px; font-weight: 600; color: #bad7f3; }
+.alternative { padding: 10px 0; border-top: 1px solid rgba(129,169,207,.18); }
+.projectionCourt > summary { display: grid; gap: 5px; min-height: 44px; padding: 0; list-style: none; }
+.projectionCourt > summary::-webkit-details-marker { display: none; }
+.projectionCourt > summary .names { font-size: 14px; margin: 0; color: #edf4fc; }
+.projectionCourt > summary .courtHeading { font-size: 14px; font-weight: 700; }
+.lineRecords > .action { margin: 12px 0 8px; }
 .playerLabel { display: block; font-size: 13px; margin: 12px 0 6px; }
 .playerSelect { width: 100%; min-height: 44px; border: 1px solid rgba(129,169,207,.4); border-radius: 9px; padding: 8px 10px; background: #183047; color: #edf4fc; font: inherit; font-size: 14px; }
 .fixtureTitle { margin: 0 0 8px; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }

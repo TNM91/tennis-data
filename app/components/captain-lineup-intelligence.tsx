@@ -16,7 +16,7 @@ import CaptainCourtScoreComparison from './captain-court-score-comparison'
 export type CaptainLineupIntelligenceStrategy = 'best' | 'safe' | 'upside'
 export type CaptainLineupConfidence = 'High' | 'Medium' | 'Low' | 'Needs opponent'
 export type CaptainOpponentScenarioId = 'likely' | 'aggressive' | 'conservative'
-export type CaptainOpponentLineupState = 'entered' | 'historical' | 'projected' | 'missing'
+export type CaptainOpponentLineupState = 'entered' | 'season' | 'historical' | 'projected' | 'missing'
 
 export type CaptainOpponentScenario = {
   id: CaptainOpponentScenarioId
@@ -292,7 +292,9 @@ export default function CaptainLineupIntelligence({
     ? 'Checking opponent data…'
     : opponentLineupState === 'entered'
       ? 'Opponent courts set'
-      : opponentLineupState === 'historical'
+      : opponentLineupState === 'season'
+        ? 'Recent-season lineup suggested'
+        : opponentLineupState === 'historical'
         ? 'Latest opponent lineup found'
         : opponentLineupState === 'projected'
           ? 'Roster ready · likely lineup projected'
@@ -465,7 +467,7 @@ export default function CaptainLineupIntelligence({
           </button>
         ) : rosterState === 'loaded' ? (
           <button type="button" className={styles.statusAction} onClick={onOpponentLineupAction}>
-            {opponentLineupState === 'historical' ? 'Use latest lineup' : opponentLineupState === 'entered' ? 'Edit courts' : 'Review projection'}
+            {opponentLineupState === 'season' ? 'Use season draft' : opponentLineupState === 'historical' ? 'Use latest lineup' : opponentLineupState === 'entered' ? 'Edit courts' : 'Review projection'}
           </button>
         ) : null}
       </div>

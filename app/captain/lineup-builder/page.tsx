@@ -23,6 +23,7 @@ import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
 import CaptainLineupMobileAction from '@/app/components/captain-lineup-mobile-action'
 import CaptainOpponentSeasonScout from '@/app/components/captain-opponent-season-scout'
 import { buildOpponentSeasonScout, fillOpponentSeasonDraft, type OpponentScoutFixture } from '@/lib/captain-opponent-season-scout'
+import { projectOpponentSeasonLineup } from '@/lib/captain-opponent-season-projection'
 import { captainMobileResumeKey } from '@/lib/captain-mobile-resume'
 import { useCaptainMobileResume } from '@/lib/use-captain-mobile-resume'
 import mobileActionStyles from '@/app/components/captain-lineup-mobile-action.module.css'
@@ -5522,13 +5523,29 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     [effectiveMatchFormatId, opponentSlots, selectedFormatFlight, selectedFormatLeagueName]
   )
 
+  const opponentSeasonScout = useMemo(() => buildOpponentSeasonScout({
+    opponent: opponentTeam, aliases: opponentHistoryTeamNames, league: leagueName, flight, beforeDate: matchDate,
+    matches: historicalLineMatches, links: historicalLineMatchPlayers, players: builderPlayers, slots: optimizerOpponentSlots,
+  }), [opponentTeam, opponentHistoryTeamNames, leagueName, flight, matchDate, historicalLineMatches, historicalLineMatchPlayers, builderPlayers, optimizerOpponentSlots])
+
+  const opponentSeasonProjection = useMemo(() => projectOpponentSeasonLineup(
+    loading || recoveringSecureSession ? { fixtures: [], lines: [], ready: false } : opponentSeasonScout,
+    optimizerOpponentSlots, opponentPlayerPool,
+    (players, slot) => players.every((player) => isPlayerEligibleForSlot(player, slot, competitionRules))
+      && (slot.slotType === 'singles' || !competitionRules || (
+        isCompetitionPairRatingEligible(competitionRules, players.map(getPlayerBaseRating), slot.ratingLevel)
+        && isMixedPairEligible(competitionRules.requiresMixedPair, players.map((player) => player.mixed_pair_role))
+      )),
+  ), [competitionRules, loading, recoveringSecureSession, opponentSeasonScout, optimizerOpponentSlots, opponentPlayerPool])
+
   const projectedOpponentSlots = useMemo(() => {
     const hasOpponentAssignments = optimizerOpponentSlots.some((slot) =>
-      slot.players.some((player) => Boolean(player.playerId))
+      slot.players.some((player) => Boolean(player.playerId || player.playerName.trim()))
     )
+    if (opponentSeasonProjection.filled) return opponentSeasonProjection.slots
     if (hasOpponentAssignments || !opponentPlayerPool.length) return optimizerOpponentSlots
     return recommendLineupFromPool(optimizerOpponentSlots, opponentPlayerPool, 'balanced', competitionRules).slots
-  }, [competitionRules, opponentPlayerPool, optimizerOpponentSlots])
+  }, [competitionRules, opponentPlayerPool, optimizerOpponentSlots, opponentSeasonProjection])
 
   const opponentScenarioLineups = useMemo(() => {
     const strongestRoster = opponentPlayerPool.length
@@ -5698,7 +5715,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         id: scenario.id,
         label: scenario.id === 'likely' ? 'Likely' : scenario.id === 'aggressive' ? 'Aggressive' : 'Conservative',
         detail: scenario.id === 'likely'
-          ? 'Uses the courts you entered, or TiQ’s balanced roster projection when courts are open.'
+          ? opponentSeasonProjection.filled
+            ? `Uses recorded court combinations from their last ${opponentSeasonProjection.fixtureCount} season matches, preserving your choices. Unmatched courts stay open.`
+            : 'Uses the courts you entered, or TiQ’s balanced roster projection when courts are open.'
           : scenario.id === 'aggressive'
             ? 'Uses their strongest available roster and sends the strongest same-format line at your weakest court.'
             : 'Uses their strongest available roster in traditional top-to-bottom court order.',
@@ -5719,7 +5738,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         })),
       }
     })
-  }, [builderPlayers, knownCourtDefaults, lineupIntelligenceSlots, opponentScenarioLineups])
+  }, [builderPlayers, knownCourtDefaults, lineupIntelligenceSlots, opponentScenarioLineups, opponentSeasonProjection])
 
   const lineupIntelligenceOverallProbability = lineupIntelligenceAnalysis.lines.some((line) => typeof line.projection === 'number')
     ? lineupIntelligenceAnalysis.projection
@@ -6403,18 +6422,22 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
 
   const opponentLineupState = opponentLineupComplete
     ? 'entered' as const
-    : recentHistoricalOpponentLineup
-      ? 'historical' as const
-      : opponentPlayerPool.length
-        ? 'projected' as const
-        : 'missing' as const
+    : opponentSeasonProjection.filled
+      ? 'season' as const
+      : recentHistoricalOpponentLineup
+        ? 'historical' as const
+        : opponentPlayerPool.length
+          ? 'projected' as const
+          : 'missing' as const
   const opponentLineupDetail = opponentLineupState === 'entered'
     ? `${opponentAssignedPlayerCount} players across ${opponentSlots.length} courts`
-    : opponentLineupState === 'historical' && recentHistoricalOpponentLineup
-      ? `${formatDate(recentHistoricalOpponentLineup.matchDate)} · ${recentHistoricalOpponentLineup.returningPlayerCount} returning player${recentHistoricalOpponentLineup.returningPlayerCount === 1 ? '' : 's'}`
-      : opponentLineupState === 'projected'
-        ? `${opponentPlayerPool.length} known player${opponentPlayerPool.length === 1 ? '' : 's'} · no prior courts found`
-        : 'Add their Team Summary or enter names'
+    : opponentLineupState === 'season'
+      ? `${opponentSeasonProjection.courts.filter((court) => court.selected).length} courts supported by the last ${opponentSeasonProjection.fixtureCount} recorded matches · review the draft`
+      : opponentLineupState === 'historical' && recentHistoricalOpponentLineup
+        ? `${formatDate(recentHistoricalOpponentLineup.matchDate)} · ${recentHistoricalOpponentLineup.returningPlayerCount} returning player${recentHistoricalOpponentLineup.returningPlayerCount === 1 ? '' : 's'}`
+        : opponentLineupState === 'projected'
+          ? `${opponentPlayerPool.length} known player${opponentPlayerPool.length === 1 ? '' : 's'} · no prior courts found`
+          : 'Add their Team Summary or enter names'
 
   function applyRecentHistoricalLineup() {
     if (!recentHistoricalLineup) return
@@ -6449,10 +6472,16 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     setError('')
   }
 
-  const opponentSeasonScout = useMemo(() => buildOpponentSeasonScout({
-    opponent: opponentTeam, aliases: opponentHistoryTeamNames, league: leagueName, flight, beforeDate: matchDate,
-    matches: historicalLineMatches, links: historicalLineMatchPlayers, players: builderPlayers, slots: opponentSlots,
-  }), [opponentTeam, opponentHistoryTeamNames, leagueName, flight, matchDate, historicalLineMatches, historicalLineMatchPlayers, builderPlayers, opponentSlots])
+  function applyOpponentSeasonProjection() {
+    if (loading || recoveringSecureSession || !opponentSeasonProjection.filled) return
+    setOpponentSlots(opponentSeasonProjection.slots)
+    setActiveOpponentScenarioId('likely')
+    setBuilderMode('insights')
+    setOpponentCourtSetupPromptOpen(false)
+    setMessage(`Added ${opponentSeasonProjection.filled} opponent players from recent court appearances. Review availability and adjust the draft for this week.`)
+    setError('')
+    window.requestAnimationFrame(() => document.getElementById('opponent-lineup')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
 
   function applyOpponentSeasonWeek(fixture: OpponentScoutFixture) {
     const next = fillOpponentSeasonDraft(opponentSlots, fixture, opponentPlayerPool, (player, slot) => isPlayerEligibleForSlot(player, slot, competitionRules))
@@ -6838,7 +6867,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                    document.querySelector('[aria-label="Opponent roster options"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                  })
                }}
-               onOpponentLineupAction={opponentLineupState === 'historical' ? applyRecentHistoricalOpponentLineup : openOpponentCourts}
+               onOpponentLineupAction={opponentLineupState === 'season' ? applyOpponentSeasonProjection : opponentLineupState === 'historical' ? applyRecentHistoricalOpponentLineup : openOpponentCourts}
                onToggleCourtLock={toggleLockedSlot}
                onTogglePlayerLock={toggleOptimizerPlayerLock}
                onApplySimulation={applyLineupSimulationSwap}
@@ -8058,6 +8087,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               opponent={opponentTeam}
               loading={loading || recoveringSecureSession}
               onUseLineup={applyOpponentSeasonWeek}
+              projection={opponentSeasonProjection}
+              onUseSeasonDraft={applyOpponentSeasonProjection}
               onReviewCourt={(index) => {
                 const slot = teamSlots[index]
                 if (slot) focusTeamCourts(teamSlots, slot.id)

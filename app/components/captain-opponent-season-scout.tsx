@@ -4,10 +4,13 @@ import { formatDate } from '@/lib/captain-formatters'
 import type { OpponentScoutFixture, OpponentSeasonScout } from '@/lib/captain-opponent-season-scout'
 import styles from './captain-opponent-season-scout.module.css'
 import CaptainOpponentPlayerScoreScout from './captain-opponent-player-score-scout'
+import CaptainOpponentSeasonProjection from './captain-opponent-season-projection'
+import type { OpponentSeasonProjection } from '@/lib/captain-opponent-season-projection'
 
-export default function CaptainOpponentSeasonScout({ scout, opponent, loading = false, onUseLineup, onReviewCourt }: {
+export default function CaptainOpponentSeasonScout({ scout, opponent, loading = false, onUseLineup, onReviewCourt, projection, onUseSeasonDraft }: {
   scout: OpponentSeasonScout; opponent: string; loading?: boolean
   onUseLineup: (fixture: OpponentScoutFixture) => void; onReviewCourt: (slotIndex: number) => void
+  projection?: OpponentSeasonProjection; onUseSeasonDraft?: () => void
 }) {
   const latest = scout.fixtures[0]
   function fixtureBody(fixture: OpponentScoutFixture) {
@@ -34,6 +37,7 @@ export default function CaptainOpponentSeasonScout({ scout, opponent, loading = 
     </summary>
     <div className={styles.body}>
       {loading ? <p className={styles.note} role="status">Loading season results…</p> : !scout.ready ? <p className={styles.note}>Choose your league, flight, opponent, and match date to scout their season.</p> : !latest ? <p className={styles.note}>No earlier court results are recorded for this opponent in the selected season, league, and flight. Add their match results to see recent lineups and scores.</p> : <>
+        {projection && onUseSeasonDraft ? <CaptainOpponentSeasonProjection projection={projection} onUseDraft={onUseSeasonDraft} /> : null}
         <details className={styles.lineRecords} aria-label="Opponent season line records">
           <summary>Which lines are winning? <span>Season W–L & games</span></summary>
           <p className={styles.note}>Recorded season matches before your match date. W–L includes defaults when recorded.</p>
@@ -46,10 +50,10 @@ export default function CaptainOpponentSeasonScout({ scout, opponent, loading = 
           <p className={styles.note}>Tap a line to review your matchup.</p>
         </details>
         <CaptainOpponentPlayerScoreScout scout={scout} />
-        <section aria-label="Latest opponent lineup">
-          <h3>Latest recorded lineup</h3><p className={styles.fixtureTitle}>{formatDate(latest.date)} · vs {latest.opponent}</p>
+        <details className={styles.week} aria-label="Latest opponent lineup">
+          <summary><strong>Latest recorded lineup</strong><span>{formatDate(latest.date)} · vs {latest.opponent}</span></summary>
           {fixtureBody(latest)}
-        </section>
+        </details>
         {scout.fixtures.length > 1 ? <section aria-label="Earlier opponent lineups"><h3>Earlier weeks</h3>{scout.fixtures.slice(1).map((fixture) => <details key={fixture.key} className={styles.week}><summary><strong>{formatDate(fixture.date)}</strong><span>vs {fixture.opponent}</span><span>{fixture.wins}–{fixture.losses} courts{fixture.unknown ? ' · incomplete' : ''}</span></summary>{fixtureBody(fixture)}</details>)}</section> : null}
         <p className={styles.note}>Completed scores and games read from {opponent}’s side. Game totals exclude match tiebreaks. Unresolved scores stay as recorded.</p>
       </>}
