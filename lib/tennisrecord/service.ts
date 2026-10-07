@@ -12,7 +12,7 @@ import { findExistingProductionMatch, type ProductionMatch, type CanonicalPartic
 import { tennisRecordEventReviews } from './source-event-identity'
 import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordCampaignCurrentEndOn, tennisRecordFrontierStatus } from './frontier'
 import type { TennisRecordRunSummary } from './types'
-import { activeChampionshipYears, currentPlayerRefreshUrls, currentRefreshPageKindPlan, currentSeasonDiscoveryUrls, currentSeasonPreferredScope, nationalCurrentSeasonUrl, futureScorecardRefreshAt, nextCurrentRefreshAt, preferCurrentSeason } from './current-refresh'
+import { activeChampionshipYears, currentPlayerRefreshUrls, currentRefreshPageKindPlan, currentSeasonDiscoveryUrls, currentSeasonPreferredScope, nationalCurrentSeasonUrl, futureScorecardRefreshAt, nextCurrentRefreshAt, preferCurrentSeason, teamScheduleRefreshAt } from './current-refresh'
 import { createRatingTimingObserver, emitImporterTelemetry, sourceAttemptFailureSignal, type SourceAttemptSample } from './telemetry'
 import { readSourceOutageState, recordSourceOutageFailure, sourceOutageIsCooling, type SourceOutageState } from './source-outage'
 
@@ -1092,7 +1092,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
         summary.pagesProcessed += 1; summary.playersDiscovered += parsed.players.length; summary.teamsDiscovered += parsed.teams.length; summary.matchesStaged += parsed.matches.length
         const unclearWinners = parsed.matches.filter(match => !match.winnerSide).length
         summary.parserFailures += unclearWinners
-        const savedJob = await service.from('tennisrecord_crawl_queue').update({ status: unclearWinners ? 'review' : 'done', retry_count: 0, deferred_retry_at: null, failure_reason: unclearWinners ? 'Winner indicator is missing or conflicting. Source scorecards retained for review.' : '', completed_at: new Date().toISOString(), ...(input.currentSeason && !unclearWinners ? { current_refreshed_at: new Date().toISOString(), refresh_due_at: nextCurrentRefreshAt() } : {}) }).eq('id', job.id)
+        const savedJob = await service.from('tennisrecord_crawl_queue').update({ status: unclearWinners ? 'review' : 'done', retry_count: 0, deferred_retry_at: null, failure_reason: unclearWinners ? 'Winner indicator is missing or conflicting. Source scorecards retained for review.' : '', completed_at: new Date().toISOString(), ...(input.currentSeason && !unclearWinners ? { current_refreshed_at: new Date().toISOString(), refresh_due_at: teamScheduleRefreshAt(page.html, parsed, page.url) || nextCurrentRefreshAt() } : {}) }).eq('id', job.id)
         if (savedJob.error) throw new Error(savedJob.error.message)
         if (settings.current_refresh_enabled) {
           // Transfer enrollment only after the claim is settled, so the source

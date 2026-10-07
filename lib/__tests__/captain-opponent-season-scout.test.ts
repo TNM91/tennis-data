@@ -36,13 +36,26 @@ describe('opponent season scope and courts', () => {
   })
   it('excludes other seasons, leagues, flights, teams, future and same-day matches', () => {
     const wrong = [
-      { match_date: '2025-10-01' }, { match_date: '2026-10-11' }, { match_date: '2026-10-12' },
+      { match_date: '2025-07-01' }, { match_date: '2026-10-11' }, { match_date: '2026-10-12' },
       { league_name: '2026 Spring' }, { flight: '3.5' }, { away_team: 'Different' }, { league_name: null }, { match_date: null },
     ].map((change, index) => ({ ...match, ...change, id: `wrong-${index}` }))
     expect(buildOpponentSeasonScout({ ...input, matches: [match, ...wrong] }).fixtures).toHaveLength(1)
   })
   it('requires the full selected match scope', () => {
     expect(buildOpponentSeasonScout({ ...input, flight: '' })).toEqual({ ready: false, fixtures: [], lines: [] })
+  })
+  it('includes fall results played before the championship year without admitting other leagues or future play', () => {
+    const league = '2027 Adult 18+ Missouri Valley Missouri St. Louis M 4.5'
+    const matches = [
+      { ...match, id: 'week1', league_name: league, match_date: '2026-09-20' },
+      { ...match, id: 'week2', league_name: league, match_date: '2026-09-27' },
+      { ...match, id: 'week3', league_name: league, match_date: '2026-10-04' },
+      { ...match, id: 'same-day', league_name: league, match_date: '2026-10-11' },
+      { ...match, id: 'future', league_name: league, match_date: '2027-01-01' },
+      { ...match, id: 'other-season', league_name: '2026 Adult 18+ Missouri Valley Missouri St. Louis M 4.5', match_date: '2026-09-27' },
+      { ...match, id: 'too-early', league_name: league, match_date: '2026-07-01' },
+    ]
+    expect(buildOpponentSeasonScout({ ...input, league, matches }).fixtures.map((fixture) => fixture.date)).toEqual(['2026-10-04', '2026-09-27', '2026-09-20'])
   })
   it('supports verified roster aliases but ignores stale aliases after switching opponent', () => {
     expect(buildOpponentSeasonScout({ ...input, aliases: ['Rivals', 'Roster Name'], matches: [{ ...match, away_team: 'Roster Name' }] }).fixtures).toHaveLength(1)

@@ -73,6 +73,39 @@ export function nextCurrentRefreshAt(now = new Date()) {
   return new Date(now.getTime() + 7 * 86_400_000).toISOString()
 }
 
+function scheduledResultRefreshAt(iso: string, now: Date) {
+  const day = new Date(`${iso}T00:00:00Z`)
+  if (!Number.isFinite(day.getTime()) || day.toISOString().slice(0, 10) !== iso) return null
+  const today = new Date(`${now.toISOString().slice(0, 10)}T00:00:00Z`).getTime()
+  if (day.getTime() < today - 3 * 86_400_000) return null
+  // A morning refresh must not postpone a same-day evening result for a week.
+  // Allow source posting time, and bound missing-result follow-ups to daily.
+  const due = day.getTime() >= today ? day.getTime() + 36 * 3_600_000 : now.getTime() + 86_400_000
+  return new Date(Math.min(Date.parse(nextCurrentRefreshAt(now)), Math.max(now.getTime() + 3_600_000, due))).toISOString()
+}
+
+/** Follow an unplayed team schedule shortly after play, when its scorecard
+ * links become available. Other pages retain the normal seven-day cadence. */
+export function teamScheduleRefreshAt(html: string, page: ParsedTennisRecordPage, sourceUrl: string, now = new Date()) {
+  if (page.reviewReason || !currentSeasonDiscoveryUrls([sourceUrl], now).length) return null
+  const url = new URL(sourceUrl)
+  if (url.pathname.toLowerCase() !== '/adult/teamprofile.aspx' || !url.searchParams.get('teamname')) return null
+  // Real team profiles may expose their identity only through the roster and
+  // scorecard links, rather than the event header used by match-result pages.
+  if (!page.teams.length && !page.teamMembers.length && !page.discoveredUrls.some(value => /\/adult\/matchresults\.aspx(?:\?|$)/i.test(value))) return null
+  const due: string[] = []
+  const cleaned = html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+  for (const row of cleaned.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
+    const text = row[1].replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ')
+    if (!/\b0\s*[-–]\s*0\b/.test(text)) continue
+    const date = text.match(/\b(\d{1,2})\/(\d{1,2})\/(20\d{2})\b/)
+    if (!date) continue
+    const next = scheduledResultRefreshAt(`${date[3]}-${date[1].padStart(2, '0')}-${date[2].padStart(2, '0')}`, now)
+    if (next) due.push(next)
+  }
+  return due.sort()[0] || null
+}
+
 /** A complete scheduled event with no courts before play is not a parser quarantine. */
 export function futureScorecardRefreshAt(html: string, page: ParsedTennisRecordPage, now = new Date()) {
   if (page.reviewReason || page.matches.length || page.teams.length !== 2 || page.leagues.length !== 1) return null
@@ -81,8 +114,8 @@ export function futureScorecardRefreshAt(html: string, page: ParsedTennisRecordP
   if (!date) return null
   const iso = `${date[3]}-${date[1].padStart(2, '0')}-${date[2].padStart(2, '0')}`
   const scheduled = new Date(iso + 'T00:00:00Z')
-  if (!Number.isFinite(scheduled.getTime()) || scheduled.toISOString().slice(0, 10) !== iso || iso < now.toISOString().slice(0, 10)) return null
-  return nextCurrentRefreshAt(now)
+  if (!Number.isFinite(scheduled.getTime()) || scheduled.toISOString().slice(0, 10) !== iso) return null
+  return scheduledResultRefreshAt(iso, now)
 }
 
 /** A history inherits geography only from the exact previously captured profile locator. */
