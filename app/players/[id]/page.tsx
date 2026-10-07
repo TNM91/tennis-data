@@ -19,6 +19,7 @@ import PublicDetailState from '@/app/components/public-detail-state'
 import { useAuth } from '@/app/components/auth-provider'
 import FollowButton from '@/app/components/follow-button'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import PlayerSetScoreGrid from '@/app/components/player-set-score-grid'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import {
   getReportStatusLabel,
@@ -89,6 +90,7 @@ type MatchRecord = {
   source: string | null
   score: string
   result: 'W' | 'L'
+  scoreResult?: 'W' | 'L' | null
   opponent: string
   opponentIds: string[]
   opponentRatings: MatchParticipantRating[]
@@ -708,6 +710,7 @@ function PlayerProfileContent() {
           source: match.source,
           score: match.score,
           result: isWin ? 'W' : 'L',
+          scoreResult: match.winner_side && new Set(participants.filter((participant) => participant.player_id === playerId).map((participant) => participant.side)).size === 1 && playerSideParts.some((participant) => participant.player_id === playerId) ? isWin ? 'W' : 'L' : null,
           opponent: opponentTeam.join(' / '),
           opponentIds,
           opponentRatings,
@@ -797,6 +800,7 @@ function PlayerProfileContent() {
     if (ratingView === 'overall') return matches
     return matches.filter((match) => match.matchType === ratingView)
   }, [matches, ratingView])
+  const playerSetScoreMatches = useMemo(() => matches.map((match) => ({ ...match, result: match.scoreResult ?? null })), [matches])
 
   const wins = useMemo(
     () => filteredMatches.filter((match) => match.result === 'W').length,
@@ -2209,6 +2213,12 @@ function PlayerProfileContent() {
                 ))}
               </div>
             </div>
+            {access.canUseAdvancedPlayerInsights ? (
+              <details style={advancedStatsDetailsStyle}>
+                <summary style={advancedStatsSummaryStyle}><span>Set-score grid</span><strong>Singles & doubles</strong></summary>
+                <PlayerSetScoreGrid key={`${player.id}:${ratingView}`} playerName={player.name} matches={playerSetScoreMatches} initialMode={ratingView === 'overall' ? undefined : ratingView} />
+              </details>
+            ) : null}
             <div className={profileStory.recentResultSnapshot} aria-label="Recent scorecards">
               <div className={profileStory.recentResultSnapshotHeading}>
                 <span>Match tape</span>

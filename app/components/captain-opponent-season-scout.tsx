@@ -3,6 +3,7 @@
 import { formatDate } from '@/lib/captain-formatters'
 import type { OpponentScoutFixture, OpponentSeasonScout } from '@/lib/captain-opponent-season-scout'
 import styles from './captain-opponent-season-scout.module.css'
+import CaptainOpponentPlayerScoreScout from './captain-opponent-player-score-scout'
 
 export default function CaptainOpponentSeasonScout({ scout, opponent, loading = false, onUseLineup, onReviewCourt }: {
   scout: OpponentSeasonScout; opponent: string; loading?: boolean
@@ -44,6 +45,7 @@ export default function CaptainOpponentSeasonScout({ scout, opponent, loading = 
           </div>
           <p className={styles.note}>Tap a line to review your matchup.</p>
         </details>
+        <CaptainOpponentPlayerScoreScout scout={scout} />
         <section aria-label="Latest opponent lineup">
           <h3>Latest recorded lineup</h3><p className={styles.fixtureTitle}>{formatDate(latest.date)} · vs {latest.opponent}</p>
           {fixtureBody(latest)}

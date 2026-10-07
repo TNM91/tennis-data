@@ -10,6 +10,7 @@ import {
   type CaptainPlayerLineupIntelligence,
 } from '@/lib/captain-lineup-intelligence'
 import styles from './captain-lineup-intelligence.module.css'
+import PlayerSetScoreGrid from './player-set-score-grid'
 
 export type CaptainLineupIntelligenceStrategy = 'best' | 'safe' | 'upside'
 export type CaptainLineupConfidence = 'High' | 'Medium' | 'Low' | 'Needs opponent'
@@ -812,15 +813,16 @@ export default function CaptainLineupIntelligence({
               </section>
             ) : null}
             {selectedCourt.playerEvidence.length > 1 ? <div className={styles.partnerTabs} role="tablist" aria-label={`${selectedCourt.label} partners`}>{selectedCourt.playerEvidence.map((player) => <button key={player.id} type="button" role="tab" aria-selected={player.id === selectedEvidence.id} className={`${styles.partnerTab} ${player.id === selectedEvidence.id ? styles.partnerTabActive : ''}`} onClick={() => setSelectedPlayerId(player.id)}>{firstName(player.name)}</button>)}</div> : null}
+            <PlayerSetScoreGrid key={selectedEvidence.id} playerName={selectedEvidence.name} matches={selectedInsight?.setScoreMatches || []} scopeLabel="Recorded court history" />
             <div className={styles.sheetGrid}>
               <section className={styles.chartSection} aria-label="Court position tendency">
                 <div><h4 className={styles.sectionTitle}>Court position tendency</h4><span className={styles.sample}>{selectedInsight?.startCount ? `Based on ${selectedInsight.startCount} start${selectedInsight.startCount === 1 ? '' : 's'}` : 'More history needed'}</span></div>
                 {visiblePositions.length ? visiblePositions.map((position) => <div key={position.label} className={styles.barRow}><span>{position.label}</span><span className={styles.barTrack}><span className={styles.barFill} style={{ width: `${position.percentage}%` }} /></span><strong>{position.percentage}%</strong></div>) : <span className={styles.empty}>No recorded court positions yet.</span>}
               </section>
-              <section className={styles.chartSection} aria-label="Recent win score distribution">
-                <div><h4 className={styles.sectionTitle}>Win score distribution</h4><span className={styles.sample}>{selectedInsight?.scoredWinCount ? `Based on ${selectedInsight.scoredWinCount} scored win${selectedInsight.scoredWinCount === 1 ? '' : 's'} · ${selectedInsight.scoredSetCount} set${selectedInsight.scoredSetCount === 1 ? '' : 's'}` : 'More scored wins needed'}</span></div>
+              <details className={styles.chartSection} aria-label="Recent win score distribution">
+                <summary className={styles.sectionTitle}>Win score distribution</summary><span className={styles.sample}>{selectedInsight?.scoredWinCount ? `Based on ${selectedInsight.scoredWinCount} scored win${selectedInsight.scoredWinCount === 1 ? '' : 's'} · ${selectedInsight.scoredSetCount} set${selectedInsight.scoredSetCount === 1 ? '' : 's'}` : 'More scored wins needed'}</span>
                 {selectedInsight?.scoredSetCount ? selectedInsight.scoreOutcomes.map((outcome) => <div key={outcome.label} className={styles.barRow}><span>{outcome.label}</span><span className={styles.barTrack}><span className={styles.barFill} style={{ width: `${outcome.percentage}%` }} /></span><strong>{outcome.percentage}%</strong></div>) : <span className={styles.empty}>No scored wins are connected to this player yet.</span>}
-              </section>
+              </details>
             </div>
             <p className={styles.insight}><strong>Matchup read:</strong> {selectedCourt.probability !== null && selectedCourt.probability >= 0.58 ? 'This court protects one of your clearest paths to a team point.' : 'Compare this player on another court before locking the matchup.'}</p>
             <div className={styles.sheetActions}><button type="button" className={styles.keepButton} onClick={() => setSelectedCourtId('')}>Keep at {selectedCourt.label}</button><button type="button" className={styles.secondaryButton} onClick={() => { setSelectedCourtId(''); onEditCourt(selectedCourt.id) }}>Compare or edit court</button></div>

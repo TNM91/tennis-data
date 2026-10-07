@@ -1,0 +1,24 @@
+.panel { padding: 16px; margin: 12px 0; border: 1px solid rgba(135,169,205,.24); border-radius: 14px; background: rgba(12,28,45,.8); color: #edf4fc; min-width: 0; }
+.heading h4 { font-size: 16px; margin: 0 0 5px; }
+.heading p, .note, .sample { margin: 0; color: #b9c9d9; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.modes { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 12px; }
+.modes button { border: 1px solid rgba(135,169,205,.3); border-radius: 9px; min-height: 44px; padding: 8px 12px; background: rgba(135,169,205,.06); color: #d3dfeb; font: inherit; font-size: 13px; cursor: pointer; }
+.modes button[aria-pressed="true"] { color: #e6f7c8; background: rgba(159,216,57,.14); border-color: rgba(177,222,102,.6); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(66px, 1fr)); gap: 8px; margin: 14px 0 10px; }
+.cell { display: grid; gap: 7px; justify-items: stretch; min-width: 0; border: 1px solid rgba(135,169,205,.25); border-radius: 10px; background: rgba(100,140,180,.09); color: #edf4fc; padding: 12px 6px 8px; font: inherit; cursor: pointer; }
+.cell > strong { font-size: 17px; text-align: center; }
+.cell small { color: #b9c9d9; font-size: 11px; text-align: center; }
+.cell[aria-pressed="true"] { border-color: #b3df74; background: rgba(159,216,57,.12); }
+.cell:disabled { opacity: .5; cursor: default; }
+.counts { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.won { color: #c9e9a1; } .lost { color: #f5c4bf; }
+.heat { height: 4px; border-radius: 4px; background: rgba(130,159,183,.15); overflow: hidden; }
+.heat i { display: block; height: 100%; background: #9fc9ee; }
+.note + .note { margin-top: 10px; }
+.scorecards { margin: 14px 0; padding-top: 12px; border-top: 1px solid rgba(135,169,205,.25); font-size: 13px; }
+.scorecards ul { list-style: none; margin: 8px 0 0; padding: 0; }
+.scorecards li { display: grid; gap: 5px; padding: 10px 0; border-bottom: 1px solid rgba(135,169,205,.16); line-height: 1.5; overflow-wrap: anywhere; }
+.scorecards li span { color: #b9c9d9; font-size: 12px; }
+.more { border: 1px solid rgba(135,169,205,.3); border-radius: 9px; padding: 8px 12px; min-height: 44px; margin-top: 12px; background: rgba(135,169,205,.08); color: #d3dfeb; font: inherit; font-size: 13px; cursor: pointer; }
+.modes button:focus-visible, .cell:focus-visible { outline: 2px solid #b3df74; outline-offset: 3px; }
+@media (max-width: 420px) { .panel { padding: 12px; } .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; } }

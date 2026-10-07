@@ -1,6 +1,7 @@
 import { normalizeTeamName, normalizeUstaRosterTeamName } from './captain-formatters'
 import { validateTiqTennisMatchScore } from './tiq-scoring'
 import type { CaptainLineupSlot } from './captain-lineup-format'
+import type { PlayerSetScoreMatch } from './player-set-score-grid'
 
 type Match = {
   id: string; league_name: string | null; flight: string | null; match_date: string | null
@@ -25,6 +26,19 @@ export type OpponentScoutLine = {
   wins: number; losses: number; gamesFor: number; gamesAgainst: number; scoredCourts: number; defaults: number
 }
 export type OpponentSeasonScout = { fixtures: OpponentScoutFixture[]; lines: OpponentScoutLine[]; ready: boolean }
+
+export function buildOpponentSetScorePlayers(scout: OpponentSeasonScout) {
+  const players = new Map<string, { id: string; name: string; matches: PlayerSetScoreMatch[] }>()
+  for (const fixture of scout.fixtures) for (const court of fixture.courts) {
+    if (!court.slotType) continue
+    court.playerIds.forEach((id, index) => {
+      const player = players.get(id) || { id, name: court.playerNames[index] || 'Player not linked', matches: [] }
+      player.matches.push({ id: `${fixture.key}:${court.key}`, matchType: court.slotType!, score: court.score, result: court.needsReview ? null : court.result, date: fixture.date, opponent: fixture.opponent, partner: court.slotType === 'doubles' ? court.playerNames.filter((_name, partnerIndex) => partnerIndex !== index).join(' / ') : null })
+      players.set(id, player)
+    })
+  }
+  return [...players.values()].sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+}
 
 // Imports include both winner-first and home-first scores. A complete score and
 // the declared winner together establish orientation; partial scores cannot.
