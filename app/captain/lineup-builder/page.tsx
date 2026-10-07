@@ -5672,9 +5672,10 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       comparison: compareRecentOpponentLineups(opponentSeasonScout, lineupIntelligenceSlots, project),
       swaps: suggestRecentLineupSwaps(opponentSeasonScout, teamSlots, project, {
         lockedSlotIds: lockedSlotIdSet, lockedPlayerIds: lockedPlayerIdSet, excludedSlotIds, eligible,
+        teamScoring: { supported: competitionRules.formatId !== 'custom' && competitionRules.standingsRule !== 'points', expectedCourts: competitionRules.courts, knownDefaults: knownCourtDefaults },
       }),
     }
-  }, [opponentSeasonScout, lineupIntelligenceSlots, builderPlayers, teamSlots, knownDefaultLabelSet, myPlayerPool, availabilityMap, competitionRules, lockedSlotIdSet, lockedPlayerIdSet])
+  }, [opponentSeasonScout, lineupIntelligenceSlots, builderPlayers, teamSlots, knownDefaultLabelSet, knownCourtDefaults, myPlayerPool, availabilityMap, competitionRules, lockedSlotIdSet, lockedPlayerIdSet])
 
   function applyRecentLineupSwap(suggestion: RecentLineupSwap) {
     if (loading || recoveringSecureSession || loadingScenarioId) return
