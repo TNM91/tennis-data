@@ -11,6 +11,7 @@ import {
 import { safeText, normalizeTeamName } from '@/lib/captain-formatters'
 import { assignPracticeDisplayStatuses, normalizePracticeName, type PracticeDisplayStatus } from '@/lib/captain-practice-rsvp'
 import { supabase } from '@/lib/supabase'
+import { resolveSchedulingProfileIds } from './scheduling-profile-resolution'
 import {
   saveTiqLeagueScheduleItem,
   updateTiqLeagueScheduleItem,
@@ -195,23 +196,7 @@ async function resolveProfileIds(input: {
   names?: string[]
   profileIds?: string[]
 }) {
-  const profileIds = new Set<string>()
-
-  for (const profileId of input.profileIds || []) {
-    if (cleanText(profileId)) profileIds.add(cleanText(profileId))
-  }
-
-  for (const playerId of input.playerIds || []) {
-    const recipient = await findInternalRecipientByPlayerId(playerId)
-    if (recipient) profileIds.add(recipient.id)
-  }
-
-  for (const name of input.names || []) {
-    const recipient = await findInternalRecipient(name)
-    if (recipient) profileIds.add(recipient.id)
-  }
-
-  return Array.from(profileIds)
+  return resolveSchedulingProfileIds(input, { byPlayerId: findInternalRecipientByPlayerId, byName: findInternalRecipient })
 }
 
 async function loadCaptainPracticeRoster(input: {
@@ -400,13 +385,15 @@ export async function createCaptainPracticeThread(input: {
   recurrenceRule?: string | null
   notes?: string | null
   capacity?: number | null
-}) {
+}, onProgress?: (phase: 'roster' | 'participants' | 'practice' | 'rsvp') => void) {
   const identity = await getInternalIdentity()
   if (!identity) throw new Error('Sign in to schedule practice through Messages.')
 
+  onProgress?.('roster')
   const filteredRows = await loadCaptainPracticeRoster(input)
   const playerIds = filteredRows.map((row) => cleanText(row.player_id)).filter(Boolean)
   const names = filteredRows.map((row) => cleanText(row.player_name)).filter(Boolean)
+  onProgress?.('participants')
   const participantProfileIds = await resolveProfileIds({ playerIds, names })
   const title = `${input.teamName} practice`
   const body = [
@@ -423,14 +410,13 @@ export async function createCaptainPracticeThread(input: {
     'Please mark In, Out, or Maybe so the captain knows who can make it.',
   ].filter(Boolean).join('\n')
 
+  onProgress?.('practice')
   const conversationId = await createLeagueConversation(identity, {
     leagueId: input.teamName,
     leagueName: input.teamName,
     subject: title,
     body,
     participantProfileIds,
-    participantPlayerIds: playerIds,
-    participantNames: names,
     entityType: 'captain_practice',
     entityId: `${normalizeTeamName(input.teamName)}-${input.scheduledDate}`,
     metadata: {
@@ -468,6 +454,7 @@ export async function createCaptainPracticeThread(input: {
     participantProfileIds,
   })
 
+  onProgress?.('rsvp')
   const invite = await createCaptainPracticeInvite({
     eventId: event.id,
     identity,

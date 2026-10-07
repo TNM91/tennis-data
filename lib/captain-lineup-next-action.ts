@@ -4,6 +4,10 @@ export type CaptainLineupNextAction = {
   detail: string
 }
 
+export function shouldShowCaptainLineupMobileAction(action: CaptainLineupNextAction, finalLineupSent: boolean) {
+  return !(finalLineupSent && action.step === 'send')
+}
+
 export function getCaptainLineupNextAction({
   hasMatch, lineupComplete, openCourtLabel, selectedCount, requiredCount,
   confirmedCount, outCount, maybeCount, editingCourtLabel,

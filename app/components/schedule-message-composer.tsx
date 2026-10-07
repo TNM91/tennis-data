@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import {
   buildCaptainPracticeInviteText,
@@ -74,6 +74,12 @@ export default function ScheduleMessageComposer({
   const [notes, setNotes] = useState('')
   const [capacity, setCapacity] = useState('')
   const [saving, setSaving] = useState(false)
+  const [saveProgress, setSaveProgress] = useState('Saving practice…')
+  const [chatPosting, setChatPosting] = useState(false)
+  const [chatError, setChatError] = useState('')
+  const saveInFlightRef = useRef(false)
+  const requestGenerationRef = useRef(0)
+  const deliveryPanelRef = useRef<HTMLDivElement>(null)
   const [conversationId, setConversationId] = useState('')
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
@@ -92,6 +98,7 @@ export default function ScheduleMessageComposer({
 
   useEffect(() => {
     if (!open) {
+      requestGenerationRef.current += 1
       setScheduledDate(defaultDate)
       setScheduledTime(defaultTime)
       setScheduledEndTime(defaultEndTime)
@@ -105,8 +112,21 @@ export default function ScheduleMessageComposer({
       setRecipientPreview(null)
       setPreviewLoading(false)
       setPracticeDelivery(null)
+      setChatPosting(false)
+      setChatError('')
     }
   }, [defaultDate, defaultEndTime, defaultFacility, defaultNotes, defaultTime, open])
+
+  useEffect(() => () => { requestGenerationRef.current += 1 }, [])
+  const practiceResponseUrl = practiceDelivery?.responseUrl || ''
+  useEffect(() => {
+    if (!practiceResponseUrl) return
+    const frame = window.requestAnimationFrame(() => {
+      deliveryPanelRef.current?.focus({ preventScroll: true })
+      deliveryPanelRef.current?.scrollIntoView({ block: 'nearest', behavior: 'auto' })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [practiceResponseUrl])
 
   useEffect(() => {
     if (!open || mode !== 'captain-practice' || !teamName) return
@@ -129,8 +149,11 @@ export default function ScheduleMessageComposer({
   }, [flight, leagueName, mode, open, teamName])
 
   async function submitSchedule() {
-    if (saving) return
+    if (saveInFlightRef.current || (mode === 'captain-practice' && practiceDelivery)) return
+    saveInFlightRef.current = true
+    const generation = ++requestGenerationRef.current
     setSaving(true)
+    setSaveProgress('Saving practice…')
     setError('')
     setStatus('')
 
@@ -156,6 +179,7 @@ export default function ScheduleMessageComposer({
           participantNames,
           participantPlayerIds,
         })
+        if (generation !== requestGenerationRef.current) return
         setConversationId(result.conversationId)
         setStatus(result.warning || 'Match scheduled and message thread opened.')
       } else {
@@ -173,7 +197,11 @@ export default function ScheduleMessageComposer({
           recurrenceRule,
           notes,
           capacity: capacity ? Number(capacity) : null,
+        }, (phase) => {
+          if (generation !== requestGenerationRef.current) return
+          setSaveProgress({ roster: 'Loading team roster…', participants: 'Finding linked players…', practice: 'Saving practice…', rsvp: 'Preparing RSVP link…' }[phase])
         })
+        if (generation !== requestGenerationRef.current) return
         setConversationId(result.conversationId)
         const responseUrl = `${window.location.origin}${practiceRsvpPath(result.publicToken)}`
         const inviteText = buildCaptainPracticeInviteText({
@@ -186,38 +214,35 @@ export default function ScheduleMessageComposer({
           practiceFocus: extractCaptainPracticeFocus(notes),
           responseUrl,
         })
-        let postedToTeamChat = false
-        if (session?.access_token) {
-          const teamRoomResponse = await fetch('/api/team-rooms', {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              action: 'send',
-              teamName,
-              leagueName,
-              flight,
-              body: inviteText,
-              announcement: true,
-            }),
-          }).catch(() => null)
-          postedToTeamChat = Boolean(teamRoomResponse?.ok)
-        }
-        setPracticeDelivery({ responseUrl, inviteText, postedToTeamChat })
-        setStatus(
-          postedToTeamChat
-            ? `Practice posted to Team Chat for ${result.linkedParticipantCount} linked player account${result.linkedParticipantCount === 1 ? '' : 's'}.`
-            : result.linkedParticipantCount > 0
-              ? `Practice RSVP opened for ${result.linkedParticipantCount} linked player account${result.linkedParticipantCount === 1 ? '' : 's'}. Share it with the team below.`
-              : 'Practice RSVP opened. Share the link below; teammates and guest players can add their own response.',
-        )
+        setPracticeDelivery({ responseUrl, inviteText, postedToTeamChat: false })
+        setStatus('Practice saved. Text the team or copy your invite below.')
+        if (session?.access_token) void postPracticeToTeamChat(inviteText, responseUrl, generation)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Schedule could not be created.')
+      if (generation === requestGenerationRef.current) setError(err instanceof Error ? err.message : 'Schedule could not be created.')
     } finally {
-      setSaving(false)
+      saveInFlightRef.current = false
+      if (generation === requestGenerationRef.current) setSaving(false)
+    }
+  }
+
+  async function postPracticeToTeamChat(inviteText: string, responseUrl: string, generation: number) {
+    setChatPosting(true)
+    setChatError('')
+    try {
+      const response = await fetch('/api/team-rooms', {
+        method: 'POST',
+        signal: AbortSignal.timeout(20000),
+        headers: { Authorization: `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'send', teamName, leagueName, flight, body: inviteText, announcement: true }),
+      })
+      const result = await response.json().catch(() => null) as { ok?: boolean } | null
+      if (!response.ok || !result?.ok) throw new Error('Team Chat could not confirm the post.')
+      if (generation === requestGenerationRef.current) setPracticeDelivery((current) => current?.responseUrl === responseUrl ? { ...current, postedToTeamChat: true } : current)
+    } catch {
+      if (generation === requestGenerationRef.current) setChatError('Team Chat could not confirm the post. Your practice is saved and the team text is ready.')
+    } finally {
+      if (generation === requestGenerationRef.current) setChatPosting(false)
     }
   }
 
@@ -232,6 +257,7 @@ export default function ScheduleMessageComposer({
   }
 
   const title = mode === 'tiq-league-match' ? 'Schedule through Messages' : 'Schedule practice'
+  const submitDisabled = saving || !scheduledDate || (mode === 'captain-practice' && Boolean(practiceDelivery))
 
   return (
     <>
@@ -246,7 +272,7 @@ export default function ScheduleMessageComposer({
                 <div style={kickerStyle}>Schedule</div>
                 <h2 style={titleStyle}>{title}</h2>
               </div>
-              <button type="button" onClick={() => setOpen(false)} style={closeButtonStyle} aria-label="Close scheduler">
+              <button type="button" disabled={saving} onClick={() => { requestGenerationRef.current += 1; setOpen(false) }} style={closeButtonStyle} aria-label="Close scheduler">
                 x
               </button>
             </div>
@@ -289,6 +315,7 @@ export default function ScheduleMessageComposer({
               </div>
             ) : null}
 
+            <fieldset disabled={saving || Boolean(practiceDelivery)} style={{ display: 'grid', gap: 14, border: 0, padding: 0, margin: 0, minWidth: 0 }}>
             <div style={fieldGridStyle}>
               <label style={fieldStyle}>
                 <span style={labelStyle}>Date</span>
@@ -315,7 +342,7 @@ export default function ScheduleMessageComposer({
                 facility={facility}
                 context={['practice', teamName, leagueName, flight].filter(Boolean).join(':')}
                 token={session.access_token}
-                disabled={saving}
+                disabled={saving || Boolean(practiceDelivery)}
                 onChoose={setFacility}
               />
             ) : null}
@@ -350,30 +377,35 @@ export default function ScheduleMessageComposer({
               <span style={labelStyle}>Notes</span>
               <textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Arrival time, court notes, rain plan..." style={textareaStyle} />
             </label>
+            </fieldset>
 
             <div style={actionRowStyle}>
               <button
                 type="button"
                 onClick={() => void submitSchedule()}
-                disabled={saving || !scheduledDate}
-                style={{ ...primaryStyle, ...((saving || !scheduledDate) ? disabledStyle : {}) }}
+                disabled={submitDisabled}
+                aria-busy={saving}
+                style={{ ...primaryStyle, ...(submitDisabled ? disabledStyle : {}) }}
               >
-                {saving ? 'Sending...' : mode === 'captain-practice' ? 'Send practice invite' : 'Create schedule thread'}
+                {saving ? mode === 'captain-practice' ? 'Saving practice…' : 'Sending...' : mode === 'captain-practice' ? practiceDelivery ? 'Practice saved' : 'Save practice' : 'Create schedule thread'}
               </button>
-              <Link href={conversationId ? `/messages?thread=${encodeURIComponent(conversationId)}#message-schedule-panel` : '/messages'} style={secondaryStyle}>
+              <Link aria-disabled={saving} onClick={(event) => { if (saving) event.preventDefault() }} href={conversationId ? `/messages?thread=${encodeURIComponent(conversationId)}#message-schedule-panel` : '/messages'} style={secondaryStyle}>
                 {conversationId ? 'Open RSVP roster' : 'Open Messages'}
               </Link>
             </div>
+            {saving && mode === 'captain-practice' ? <p role="status" aria-live="polite" style={deliveryHintStyle}>{saveProgress} Your team text will be ready as soon as the RSVP link is saved.</p> : null}
 
             {status ? (
-              <div style={successStyle}>{status}</div>
+              <div style={successStyle} role="status" aria-live="polite">{status}</div>
             ) : null}
             {practiceDelivery ? (
-              <div style={deliveryPanelStyle} aria-label="Share practice invite">
+              <div ref={deliveryPanelRef} tabIndex={-1} role="region" style={deliveryPanelStyle} aria-label="Share practice invite">
                 <div style={deliveryHeaderStyle}>
                   <span style={kickerStyle}>Practice ready</span>
-                  <strong>{practiceDelivery.postedToTeamChat ? 'Posted to Team Chat' : 'Ready to share'}</strong>
+                  <strong>{practiceDelivery.postedToTeamChat ? 'Posted to Team Chat' : chatPosting ? 'Posting to Team Chat…' : 'Ready to share'}</strong>
                 </div>
+                {chatPosting ? <p role="status" style={deliveryHintStyle}>You can text the team now while Team Chat updates.</p> : null}
+                {chatError ? <p role="status" style={deliveryHintStyle}>{chatError}</p> : null}
                 <div style={deliveryActionsStyle}>
                   <Link href={`/messages?thread=${encodeURIComponent(conversationId)}#message-schedule-panel`} style={primaryStyle}>View RSVPs</Link>
                   <a href={buildCaptainPracticeSmsHref(practiceDelivery.inviteText)} style={primaryStyle}>Text group</a>

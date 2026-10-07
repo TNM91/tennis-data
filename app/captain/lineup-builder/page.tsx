@@ -30,7 +30,7 @@ import { captainMobileResumeKey } from '@/lib/captain-mobile-resume'
 import { useCaptainMobileResume } from '@/lib/use-captain-mobile-resume'
 import mobileActionStyles from '@/app/components/captain-lineup-mobile-action.module.css'
 import courtEditorStyles from '../lineup-court-editor.module.css'
-import { getCaptainLineupNextAction } from '@/lib/captain-lineup-next-action'
+import { getCaptainLineupNextAction, shouldShowCaptainLineupMobileAction } from '@/lib/captain-lineup-next-action'
 import CaptainLineupIntelligence, {
   type CaptainLineupIntelligenceCourt,
   type CaptainPairMatrixCourt,
@@ -6753,6 +6753,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     outCount: assignedTeamReplySummary.out.length,
     maybeCount: assignedTeamReplySummary.maybe.length,
   })
+  const showMobileNextAction = isMobile && shouldShowCaptainLineupMobileAction(mobileNextAction, finalLineupSent)
   function handleMobileNextAction() {
     if (editingTeamSlot) { setExpandedTeamSlotId(''); return }
     if (mobileNextAction.step === 'setup') {
@@ -6797,7 +6798,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   }
 
   return (
-    <div style={pageWrap} className={isMobile ? mobileActionStyles.page : undefined}>
+    <div style={pageWrap} className={showMobileNextAction ? mobileActionStyles.page : undefined}>
          {!isMobile ? <CaptainSuitePanel active="lineup" teamLabel={teamName || 'Team week'} /> : null}
          <CaptainMatchWeekRail
            current="lineup"
@@ -8732,9 +8733,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             </div>
           )}
         </div>
-        {isMobile ? <CaptainLineupMobileAction
-          action={finalLineupSent && mobileNextAction.step === 'send' ? { ...mobileNextAction, label: 'Sent to Team Chat', detail: 'Your final lineup is in Team Chat.' } : mobileNextAction}
-          disabled={loading || recoveringSecureSession || loadingScenarioId !== '' || saving || preparingConfirmation || openingFinalDelivery || (finalLineupSent && mobileNextAction.step === 'send')}
+        {showMobileNextAction ? <CaptainLineupMobileAction
+          action={mobileNextAction}
+          disabled={loading || recoveringSecureSession || loadingScenarioId !== '' || saving || preparingConfirmation || openingFinalDelivery}
           busyLabel={openingFinalDelivery ? 'Sending lineup…' : preparingConfirmation ? saveAndAskLabel : saving ? 'Saving…' : undefined}
           error={error || undefined}
           onAction={handleMobileNextAction}
