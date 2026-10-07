@@ -1,7 +1,9 @@
 import { parseTennisScoreSets } from '@/lib/tiq-scoring'
+import { buildPlayerSetScoreMatches, type PlayerSetScoreMatch } from './player-set-score-grid'
 
 export type CaptainHistoricalLineMatch = {
   id: string
+  match_date?: string | null
   line_number: string | null
   match_type?: string | null
   winner_side?: 'A' | 'B' | null
@@ -28,6 +30,7 @@ export type CaptainScoreOutcome = {
 
 export type CaptainPlayerLineupIntelligence = {
   playerId: string
+  setScoreMatches?: PlayerSetScoreMatch[]
   startCount: number
   scoredWinCount: number
   scoredSetCount: number
@@ -123,7 +126,7 @@ export function buildCaptainPlayerLineupIntelligence(
     }
   })
 
-  return { playerId, startCount, scoredWinCount, scoredSetCount, positions, scoreOutcomes }
+  return { playerId, startCount, scoredWinCount, scoredSetCount, positions, scoreOutcomes, setScoreMatches: buildPlayerSetScoreMatches(playerId, matches, playerLinks) }
 }
 
 export function buildCaptainPairLineupIntelligence(
