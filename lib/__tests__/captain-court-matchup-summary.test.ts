@@ -30,4 +30,20 @@ describe('court matchup summary', () => {
     scout.fixtures[2].courts.push({ ...court, result: 'L', score: '6-7 1-6' })
     expect(buildCourtMatchupSummary(scout, 0, 'doubles')).toMatchObject({ recentSample: 3, seasonMatches: 4 })
   })
+  it('selects the recorded alternate pair without changing the source or substituting the latest pair', () => {
+    const scout = source()
+    Object.assign(scout.fixtures[2].courts[0], { playerIds: ['a', 'c'], playerNames: ['Alex', 'Casey'], result: 'L', score: '6-7 1-6' })
+    const before = JSON.stringify(scout)
+    expect(buildCourtMatchupSummary(scout, 0, 'doubles', '3')).toMatchObject({ names: ['Alex', 'Casey'], date: '2026-09-03', patternId: 'pair:["a","c"]', recentWins: 0, recentLosses: 1, recentSample: 1, close: { wins: 0, losses: 1 } })
+    expect(JSON.stringify(scout)).toBe(before)
+  })
+  it('rejects stale and out-of-window selection keys', () => {
+    expect(buildCourtMatchupSummary(source(), 0, 'doubles', 'missing')).toBeNull()
+    expect(buildCourtMatchupSummary(source(), 0, 'doubles', '1')).toBeNull()
+  })
+  it('selects an earlier singles occupant while excluding doubles history', () => {
+    const scout = source()
+    scout.fixtures.forEach((fixture) => Object.assign(fixture.courts[0], { slotType: 'singles', playerIds: [fixture.key === '3' ? 'c' : 'a'], playerNames: [fixture.key === '3' ? 'Casey' : 'Alex'] }))
+    expect(buildCourtMatchupSummary(scout, 0, 'singles', '3')).toMatchObject({ names: ['Casey'], patternId: 'player:c', recentSample: 1, seasonMatches: 1 })
+  })
 })
