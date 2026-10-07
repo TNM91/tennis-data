@@ -23,6 +23,7 @@ import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
 import CaptainLineupMobileAction from '@/app/components/captain-lineup-mobile-action'
 import CaptainOpponentSeasonScout from '@/app/components/captain-opponent-season-scout'
 import { compareRecentOpponentLineups } from '@/lib/captain-recent-lineup-comparison'
+import { suggestRecentLineupSwaps, resolveCurrentRecentLineupSwap, type RecentLineupSwap } from '@/lib/captain-recent-lineup-swaps'
 import { buildOpponentSeasonScout, fillOpponentSeasonDraft, type OpponentScoutFixture } from '@/lib/captain-opponent-season-scout'
 import { projectOpponentSeasonLineup } from '@/lib/captain-opponent-season-projection'
 import { captainMobileResumeKey } from '@/lib/captain-mobile-resume'
@@ -5645,10 +5646,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     return compareLineupStrengthWithDefaults(lineupIntelligenceSlots, activeProjectedOpponentSlots, builderPlayers, knownCourtDefaults)
   }, [activeProjectedOpponentSlots, builderPlayers, knownCourtDefaults, lineupIntelligenceSlots])
 
-  const recentLineupComparison = useMemo(() => compareRecentOpponentLineups(
-    opponentSeasonScout,
-    lineupIntelligenceSlots,
-    (team, opponent) => {
+  const recentLineupScouting = useMemo(() => {
+    const project = (team: LineupSlot, opponent: LineupSlot) => {
       const rated = [team, opponent].every((slot) => slot.players.every((assignment) => {
         const player = builderPlayers.find((candidate) => candidate.id === assignment.playerId)
         const rating = player ? getPlayerSlotRating(player, slot.slotType) : null
@@ -5657,8 +5656,36 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       if (!rated) return null
       const analysis = compareLineupStrength([team], [opponent], builderPlayers)
       return analysis.lines[0]?.projection ?? null
-    },
-  ), [opponentSeasonScout, lineupIntelligenceSlots, builderPlayers])
+    }
+    const excludedSlotIds = new Set(teamSlots.filter((slot) => knownDefaultLabelSet.has(normalizeTeamName(slot.label))).map((slot) => slot.id))
+    const eligible = (from: LineupSlot, to: LineupSlot) => {
+      const movedPlayers = from.players.map((assignment) => myPlayerPool.find((player) => player.id === assignment.playerId))
+      if (movedPlayers.some((player) => !player)) return false
+      const players = movedPlayers as PoolPlayer[]
+      return players.every((player) => availabilityLabel(availabilityMap.get(player.id)?.status) !== 'Out' && isPlayerEligibleForSlot(player, to, competitionRules))
+        && (to.slotType === 'singles' || (
+          isCompetitionPairRatingEligible(competitionRules, players.map(getPlayerBaseRating), to.ratingLevel)
+          && isMixedPairEligible(competitionRules.requiresMixedPair, players.map((player) => player.mixed_pair_role))
+        ))
+    }
+    return {
+      comparison: compareRecentOpponentLineups(opponentSeasonScout, lineupIntelligenceSlots, project),
+      swaps: suggestRecentLineupSwaps(opponentSeasonScout, teamSlots, project, {
+        lockedSlotIds: lockedSlotIdSet, lockedPlayerIds: lockedPlayerIdSet, excludedSlotIds, eligible,
+      }),
+    }
+  }, [opponentSeasonScout, lineupIntelligenceSlots, builderPlayers, teamSlots, knownDefaultLabelSet, myPlayerPool, availabilityMap, competitionRules, lockedSlotIdSet, lockedPlayerIdSet])
+
+  function applyRecentLineupSwap(suggestion: RecentLineupSwap) {
+    if (loading || recoveringSecureSession || loadingScenarioId) return
+    const current = resolveCurrentRecentLineupSwap(suggestion, teamSlotsRef.current, recentLineupScouting.swaps)
+    if (!current) {
+      setError('Your draft or matchup changed. Review the current swap suggestions before applying.')
+      setMessage('')
+      return
+    }
+    swapTeamCourtAssignments(current.sourceId, current.targetId)
+  }
 
   const lineupIntelligenceCourts = useMemo<CaptainLineupIntelligenceCourt[]>(() => (
     lineupIntelligenceSlots.map((slot, index) => {
@@ -8104,7 +8131,10 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               loading={loading || recoveringSecureSession}
               onUseLineup={applyOpponentSeasonWeek}
               projection={opponentSeasonProjection}
-              comparison={recentLineupComparison}
+              comparison={recentLineupScouting.comparison}
+              swaps={recentLineupScouting.swaps}
+              onApplySwap={applyRecentLineupSwap}
+              swapsDisabled={loading || recoveringSecureSession || Boolean(loadingScenarioId)}
               onUseSeasonDraft={applyOpponentSeasonProjection}
               onReviewCourt={(index) => {
                 const slot = teamSlots[index]

@@ -1,15 +1,19 @@
 import { formatDate } from '@/lib/captain-formatters'
 import type { RecentLineupComparison } from '@/lib/captain-recent-lineup-comparison'
 import styles from './captain-opponent-season-scout.module.css'
+import CaptainRecentLineupSwaps from './captain-recent-lineup-swaps'
+import type { RecentLineupSwap } from '@/lib/captain-recent-lineup-swaps'
 
 const percent = (value: number) => `${Math.round(value * 100)}%`
 
-export default function CaptainRecentLineupComparison({ comparison, onReviewCourt }: {
+export default function CaptainRecentLineupComparison({ comparison, onReviewCourt, swaps, onApplySwap, swapsDisabled }: {
   comparison: RecentLineupComparison; onReviewCourt: (index: number) => void
+  swaps?: RecentLineupSwap[]; onApplySwap?: (suggestion: RecentLineupSwap) => void; swapsDisabled?: boolean
 }) {
   return <details className={styles.lineRecords}>
     <summary>Test your draft against recent lineups <span>Last {comparison.fixtureCount} recorded weeks</span></summary>
     <p className={styles.note}>Today’s rating forecast against the players recorded each week. Review availability before choosing your lineup.</p>
+    {swaps && onApplySwap ? <CaptainRecentLineupSwaps suggestions={swaps} onApply={onApplySwap} disabled={swapsDisabled} /> : null}
     {comparison.courts.map((court) => <details key={court.id} className={styles.evidenceCourt}>
       <summary><strong>{court.label}</strong><span>{court.status}</span>
         <span>{court.minimum === null ? 'No forecast' : `${court.minimum === court.maximum ? percent(court.minimum) : `${percent(court.minimum)}–${percent(court.maximum!)}`} win estimate`} · {court.assessed}/{comparison.fixtureCount} weeks assessed</span>
