@@ -7,6 +7,26 @@ import type { ParsedTennisRecordPage } from '../tennisrecord/types'
 
 const empty: ParsedTennisRecordPage = { players: [], teams: [], leagues: [], matches: [], teamMembers: [], discoveredUrls: [] }
 const base = 'https://www.tennisrecord.com/adult/'
+describe('verified team scorecard discovery', () => {
+  const source = base + 'teamprofile.aspx?teamname=Levin-Malpartida%20(F)&year=2027'
+  const oldCard = base + 'matchresults.aspx?year=2027&mid=13353'
+  const newCard = base + 'matchresults.aspx?year=2027&mid=13357'
+  const page = { ...empty, discoveredUrls: [oldCard, newCard] }
+  const proof = { sourceUrl: source, teamName: 'Levin-Malpartida (F)', seasonYear: 2027, leagueName: '2027 Adult 18+ Missouri Valley Missouri St. Louis M 4.5', verifiedScorecardUrl: oldCard }
+  it('follows direct same-season scorecards only when the page links verified Missouri match evidence', () => {
+    expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', source, newCard, page)).toBe(false)
+    expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', source, newCard, page, undefined, proof)).toBe(true)
+    expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', source, source, page, undefined, proof)).toBe(true)
+    expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', source, newCard.replace('2027','2026'), page, undefined, proof)).toBe(false)
+    expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', source, base + 'matchhistory.aspx?playername=Other&year=2027', page, undefined, proof)).toBe(false)
+  })
+  it.each([
+    { teamName: 'Different team' }, { seasonYear: 2026 }, { leagueName: '2027 Adult Missouri Valley Kansas' },
+    { sourceUrl: source.replace('Levin', 'Other') }, { verifiedScorecardUrl: 'unknown' },
+  ])('rejects unverified or mismatched context %j', (change) => {
+    expect(isTennisRecordCampaignDiscoveryAllowed('missouri-2025-current', source, newCard, page, undefined, { ...proof, ...change })).toBe(false)
+  })
+})
 const mo = { ...empty, players: [{ sourcePlayerKey: 'p1', name: 'Example Player', city: 'St. Louis', state: 'MO', ntrpLabel: '', sourceUrl: base + 'profile.aspx?playername=Example' }] }
 
 describe('independent current-season refresh', () => {
