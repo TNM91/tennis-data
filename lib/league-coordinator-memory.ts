@@ -1,4 +1,5 @@
 import { notifyPlatformResumeUpdated } from './platform-resume-events'
+import { normalizeTournamentEventDetails, type TournamentEventDetails } from './tournament-event-presentation'
 
 export const LEAGUE_COORDINATOR_RESUME_STORAGE_KEY = 'tenaceiq_league_coordinator_resume_v1'
 
@@ -40,6 +41,11 @@ export type LeagueCoordinatorIndividualResultDraft = {
 
 export type LeagueCoordinatorTournamentDraft = {
   tournamentId?: string
+  eventId?: string
+  isEvent?: boolean
+  eventTheme?: 'classic' | 'pumpkin'
+  registrationEmail?: string
+  eventDetails?: TournamentEventDetails
   name?: string
   format?: string
   entrantType?: 'players' | 'teams'
@@ -142,13 +148,18 @@ function sanitizeTournamentDraft(value: unknown): LeagueCoordinatorTournamentDra
   const isPublic = cleanBoolean(input.isPublic)
   const resultMode = cleanResultMode(input.resultMode)
   const draft: LeagueCoordinatorTournamentDraft = {
+    ...(cleanText(input.eventId, 160) ? { eventId: cleanText(input.eventId, 160) } : {}),
+    ...(typeof input.isEvent === 'boolean' ? { isEvent: input.isEvent } : {}),
+    ...(input.eventTheme === 'classic' || input.eventTheme === 'pumpkin' ? { eventTheme: input.eventTheme } : {}),
+    ...(cleanText(input.registrationEmail, 240) ? { registrationEmail: cleanText(input.registrationEmail, 240) } : {}),
+    ...(input.eventDetails ? { eventDetails: normalizeTournamentEventDetails(input.eventDetails) } : {}),
     ...(cleanText(input.tournamentId, 160) ? { tournamentId: cleanText(input.tournamentId, 160) } : {}),
     ...(cleanText(input.name, 240) ? { name: cleanText(input.name, 240) } : {}),
     ...(cleanText(input.format, 80) ? { format: cleanText(input.format, 80) } : {}),
     ...(entrantType ? { entrantType } : {}),
     ...(cleanText(input.startsOn, 40) ? { startsOn: cleanText(input.startsOn, 40) } : {}),
     ...(cleanText(input.locationLabel, 240) ? { locationLabel: cleanText(input.locationLabel, 240) } : {}),
-    ...(cleanText(input.directorNotes, 1000) ? { directorNotes: cleanText(input.directorNotes, 1000) } : {}),
+    ...(cleanText(input.directorNotes, 8000) ? { directorNotes: cleanText(input.directorNotes, 8000) } : {}),
     ...(cleanText(input.entrantsText, 8000) ? { entrantsText: cleanText(input.entrantsText, 8000) } : {}),
     ...(isPublic === undefined ? {} : { isPublic }),
     ...(resultMode ? { resultMode } : {}),

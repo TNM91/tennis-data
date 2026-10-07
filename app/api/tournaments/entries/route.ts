@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 import { normalizeMixedPairRole, normalizePlayerRatingSource } from '@/lib/player-eligibility'
 import { supabaseUrl } from '@/lib/supabase'
+import { isTournamentEventRegistrationClosed, normalizeTournamentEventDetails } from '@/lib/tournament-event-presentation'
 
 export const runtime = 'nodejs'
 
@@ -73,7 +74,7 @@ export async function POST(request: Request) {
 
   const tournamentResult = await supabase
     .from('tiq_tournaments')
-    .select('id,is_public,status')
+    .select('id,is_public,status,is_event,registration_email,starts_on,event_details')
     .eq('id', tournamentId)
     .maybeSingle()
   if (tournamentResult.error) {
@@ -83,6 +84,13 @@ export async function POST(request: Request) {
   if (!tournamentResult.data?.is_public || tournamentResult.data.status === 'completed') {
     return Response.json({ ok: false, message: 'This tournament is not accepting entries.' }, { status: 404 })
   }
+  if (tournamentResult.data.is_event || tournamentResult.data.registration_email) {
+    return Response.json({ ok: false, message: tournamentResult.data.is_event ? 'Choose a division before entering.' : 'Sign up directly with the tournament director.' }, { status: 400 })
+  }
+  if (isTournamentEventRegistrationClosed({
+    status: tournamentResult.data.status, startsOn: tournamentResult.data.starts_on || '',
+    eventDetails: normalizeTournamentEventDetails(tournamentResult.data.event_details),
+  })) return Response.json({ ok: false, message: 'Registration for this division is closed.' }, { status: 400 })
 
   const preferenceToken = randomBytes(32).toString('base64url')
   const expiresAt = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString()
