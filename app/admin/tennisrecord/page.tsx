@@ -43,6 +43,7 @@ export default function TennisRecordAdminPage() {
   const [mappingIds, setMappingIds] = useState<Record<string, string>>({})
   const [statusRefreshDelayed, setStatusRefreshDelayed] = useState(false)
   const hasStatusRef = useRef(false)
+  const statusRefreshInFlightRef = useRef(false)
 
   useEffect(() => {
     hasStatusRef.current = status !== null
@@ -69,6 +70,8 @@ export default function TennisRecordAdminPage() {
   }, [])
 
   const refresh = useCallback(async () => {
+    if (statusRefreshInFlightRef.current) return
+    statusRefreshInFlightRef.current = true
     try {
       const nextStatus = await request()
       setStatus(nextStatus)
@@ -82,6 +85,8 @@ export default function TennisRecordAdminPage() {
     } catch (error) {
       setStatusRefreshDelayed(true)
       if (!hasStatusRef.current) setMessage(error instanceof Error ? error.message : 'Could not load collector status.')
+    } finally {
+      statusRefreshInFlightRef.current = false
     }
   }, [request])
   useEffect(() => {
@@ -96,11 +101,18 @@ export default function TennisRecordAdminPage() {
       })
       if (snapshot) setStatus(snapshot.value)
     })
-    void refresh()
-    const timer = window.setInterval(() => { void refresh() }, 60_000)
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refresh()
+    }
+    refreshWhenVisible()
+    const timer = window.setInterval(refreshWhenVisible, 60_000)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    window.addEventListener('focus', refreshWhenVisible)
     return () => {
       active = false
       window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+      window.removeEventListener('focus', refreshWhenVisible)
     }
   }, [refresh])
 

@@ -746,6 +746,8 @@ function TeamRoomSession() {
       if (realtimeRefreshRef.current !== null) window.clearTimeout(realtimeRefreshRef.current)
       realtimeRefreshRef.current = window.setTimeout(() => void loadRoom({ quiet: true }), 180)
     }
+    let realtimeHealthy = false
+    let lastReconciliationAt = Date.now()
     const channel = supabase
       .channel(`team-room:${room.id}`, { config: { presence: { key: userId } } })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'internal_messages', filter: `conversation_id=eq.${room.id}` }, scheduleRefresh)
@@ -757,12 +759,16 @@ function TeamRoomSession() {
       })
       .subscribe((status) => {
         const connected = status === 'SUBSCRIBED'
+        realtimeHealthy = connected
         setRealtimeConnected(connected)
         if (connected) void channel.track({ profileId: userId, onlineAt: new Date().toISOString() })
       })
 
     const fallbackRefresh = window.setInterval(() => {
-      if (document.visibilityState === 'visible') void loadRoom({ quiet: true })
+      if (document.visibilityState !== 'visible') return
+      if (realtimeHealthy && Date.now() - lastReconciliationAt < 5 * 60_000) return
+      lastReconciliationAt = Date.now()
+      void loadRoom({ quiet: true })
     }, 25000)
     const refreshOnReturn = () => {
       if (document.visibilityState === 'visible') void loadRoom({ quiet: true })
