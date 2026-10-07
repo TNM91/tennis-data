@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 vi.mock('@/lib/recalculateRatings', () => ({ recalculateDynamicRatings: vi.fn() }))
 import { recalculateDynamicRatings } from '../recalculateRatings'
-import { hasOverdueCurrentRefresh, prepareCurrentSeasonRefresh, runScheduledTennisRecordRatingBatch } from '../tennisrecord/service'
+import { hasOverdueCurrentRefresh, prepareCurrentSeasonRefresh, runScheduledTennisRecordRatingBatch, requeueDuePostMatchRefreshes } from '../tennisrecord/service'
 import { activeChampionshipYears } from '../tennisrecord/current-refresh'
 
 type Call = { table: string; ops: { name: string; args: unknown[] }[] }
@@ -27,6 +27,43 @@ function fakeDb(respond: (call: Call) => Result) {
   return { db: { from, rpc } as unknown as SupabaseClient, calls }
 }
 const op = (call: Call, name: string) => call.ops.find(o => o.name === name)
+describe('post-match refresh release', () => {
+  const now = new Date('2026-10-07T00:00:00Z')
+  const captured = '2026-10-04T16:37:11Z'
+  it('releases only due short follow-ups from a completed current capture under the weekly lock', async () => {
+    const { db, calls } = fakeDb(call => {
+      if (call.table === 'tennisrecord_sync_runs') return { data: { id: 'run' } }
+      if (call.table === 'tennisrecord_collector_settings') return { data: { enabled: true, current_refresh_enabled: true } }
+      if (op(call, 'update')) return { data: [{ id: 'follow-up' }] }
+      return { data: [
+        { id: 'follow-up', completed_at: captured, current_refreshed_at: captured, refresh_due_at: '2026-10-05T12:00:00Z' },
+        { id: 'weekly', completed_at: captured, current_refreshed_at: captured, refresh_due_at: '2026-10-11T16:37:11Z' },
+        { id: 'old-seed', completed_at: captured, current_refreshed_at: captured, refresh_due_at: '2026-09-28T00:00:00Z' },
+        { id: 'changed-capture', completed_at: '2026-10-06T00:00:00Z', current_refreshed_at: captured, refresh_due_at: '2026-10-05T12:00:00Z' },
+      ] }
+    })
+    expect(await requeueDuePostMatchRefreshes(db, 'run', now)).toBe(1)
+    const update = calls.find(call => op(call, 'update'))!
+    expect(op(update, 'in')?.args).toEqual(['id', ['follow-up']])
+    expect(update.ops).toContainEqual({ name: 'eq', args: ['status', 'done'] })
+    expect(update.ops).toContainEqual({ name: 'lte', args: ['completed_at', '2026-10-06T23:00:00.000Z'] })
+    expect(update.ops).toContainEqual({ name: 'lte', args: ['refresh_due_at', now.toISOString()] })
+    expect(op(update, 'update')?.args).toEqual([{ status: 'pending' }])
+    expect(calls[0].ops).toContainEqual({ name: 'eq', args: ['trigger_kind', 'weekly'] })
+    expect(calls.find(call => call.table === 'tennisrecord_crawl_queue' && !op(call, 'update'))?.ops).toContainEqual({ name: 'limit', args: [100] })
+  })
+  it.each(['no-lock', 'paused', 'cooldown'])('does not release pages during %s', async (state) => {
+    const { db, calls } = fakeDb(call => call.table === 'tennisrecord_sync_runs'
+      ? { data: state === 'no-lock' ? null : { id: 'run' } }
+      : { data: { enabled: state !== 'paused', current_refresh_enabled: true, source_outage_state: state === 'cooldown' ? { cooldownUntil: '2026-10-08T00:00:00Z' } : null } })
+    expect(await requeueDuePostMatchRefreshes(db, 'run', now)).toBe(0)
+    expect(calls.some(call => call.table === 'tennisrecord_crawl_queue')).toBe(false)
+  })
+  it('fails closed when the queue read fails', async () => {
+    const { db } = fakeDb(call => call.table === 'tennisrecord_sync_runs' ? { data: { id: 'run' } } : call.table === 'tennisrecord_collector_settings' ? { data: { enabled: true, current_refresh_enabled: true } } : { error: { message: 'queue unavailable' } })
+    await expect(requeueDuePostMatchRefreshes(db, 'run', now)).rejects.toThrow('queue unavailable')
+  })
+})
 describe('Missouri freshness before national catch-up', () => {
   it('prioritizes pending and overdue successful pages without releasing held evidence', async () => {
     const { db, calls } = fakeDb(() => ({ data: { id: 'overdue' }, error: null }))

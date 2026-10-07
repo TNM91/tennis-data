@@ -1,6 +1,8 @@
 import { isKnownMissouriPlayerHistory } from './current-refresh'
 import type { ParsedTennisRecordPage } from './types'
-import { activeChampionshipYears, hasMissouriPageEvidence } from './current-refresh'
+import { activeChampionshipYears, hasMissouriPageEvidence, isMissouriCompetition } from './current-refresh'
+
+export type TennisRecordVerifiedTeamSource = { sourceUrl: string; teamName: string; seasonYear: number; leagueName: string; verifiedScorecardUrl: string }
 
 /**
  * Public, explicit-season history pages provide a bounded starting frontier.
@@ -86,7 +88,7 @@ function isMissouriValleyDirectoryUrl(url: URL) {
  * directory link must identify Missouri Valley and cannot name another
  * district. Non-directory expansion requires Missouri district/profile data.
  */
-export function isTennisRecordCampaignDiscoveryAllowed(campaignSlug: string | null | undefined, sourceUrl: string, candidateUrl: string, page?: ParsedTennisRecordPage, sourceProfile?: { sourceUrl: string; state: string | null }) {
+export function isTennisRecordCampaignDiscoveryAllowed(campaignSlug: string | null | undefined, sourceUrl: string, candidateUrl: string, page?: ParsedTennisRecordPage, sourceProfile?: { sourceUrl: string; state: string | null }, sourceTeam?: TennisRecordVerifiedTeamSource) {
   try {
     const source = new URL(sourceUrl)
     const candidate = new URL(candidateUrl)
@@ -104,7 +106,15 @@ export function isTennisRecordCampaignDiscoveryAllowed(campaignSlug: string | nu
     // that opponent's unrelated history. Their own profile must prove MO.
     if (candidatePath.endsWith('/profile.aspx')) return Boolean(page?.players.some(p => p.sourceUrl === candidateUrl))
     const knownOwner = sourceProfile && isKnownMissouriPlayerHistory(sourceUrl, sourceProfile)
-    return inScope || Boolean(knownOwner && (candidatePath === '/adult/matchresults.aspx' || (sourceProfile && isKnownMissouriPlayerHistory(candidateUrl, sourceProfile))))
+    const knownTeam = sourceTeam && sourceTeam.sourceUrl === sourceUrl
+      && source.pathname.toLowerCase() === '/adult/teamprofile.aspx'
+      && source.searchParams.get('teamname')?.trim().toLowerCase() === sourceTeam.teamName.trim().toLowerCase()
+      && source.searchParams.get('year') === String(sourceTeam.seasonYear)
+      && isMissouriCompetition(sourceTeam.leagueName)
+      && page?.discoveredUrls.includes(sourceTeam.verifiedScorecardUrl)
+    const directTeamEvidence = knownTeam && candidate.searchParams.get('year') === String(sourceTeam.seasonYear)
+      && (candidatePath === '/adult/matchresults.aspx' || candidateUrl === sourceUrl)
+    return inScope || Boolean(directTeamEvidence) || Boolean(knownOwner && (candidatePath === '/adult/matchresults.aspx' || (sourceProfile && isKnownMissouriPlayerHistory(candidateUrl, sourceProfile))))
   } catch {
     return false
   }

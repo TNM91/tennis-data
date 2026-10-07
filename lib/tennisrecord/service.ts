@@ -10,9 +10,9 @@ import { canonicalTennisRecordFingerprint, normalizeTennisIdentity, sourcePriori
 import { isSyntheticTennisRecordObservation, tennisRecordResultCorrection } from './result-integrity'
 import { findExistingProductionMatch, type ProductionMatch, type CanonicalParticipant } from './production-match-lookup'
 import { tennisRecordEventReviews } from './source-event-identity'
-import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordCampaignCurrentEndOn, tennisRecordFrontierStatus } from './frontier'
+import { getTennisRecordCampaignPlayerHistoryUrls, getTennisRecordCampaignSeedUrls, isTennisRecordCampaignDiscoveryAllowed, tennisRecordCampaignCurrentEndOn, tennisRecordFrontierStatus, type TennisRecordVerifiedTeamSource } from './frontier'
 import type { TennisRecordRunSummary } from './types'
-import { activeChampionshipYears, currentPlayerRefreshUrls, currentRefreshPageKindPlan, currentSeasonDiscoveryUrls, currentSeasonPreferredScope, nationalCurrentSeasonUrl, futureScorecardRefreshAt, nextCurrentRefreshAt, preferCurrentSeason, teamScheduleRefreshAt } from './current-refresh'
+import { activeChampionshipYears, currentPlayerRefreshUrls, currentRefreshPageKindPlan, currentSeasonDiscoveryUrls, currentSeasonPreferredScope, nationalCurrentSeasonUrl, futureScorecardRefreshAt, nextCurrentRefreshAt, preferCurrentSeason, teamScheduleRefreshAt, isMissouriCompetition } from './current-refresh'
 import { createRatingTimingObserver, emitImporterTelemetry, sourceAttemptFailureSignal, type SourceAttemptSample } from './telemetry'
 import { readSourceOutageState, recordSourceOutageFailure, sourceOutageIsCooling, type SourceOutageState } from './source-outage'
 
@@ -859,6 +859,38 @@ async function enrollKnownNationalCurrentSeasonPages(service: SupabaseClient) {
   return urls.length
 }
 
+export async function requeueDuePostMatchRefreshes(service: SupabaseClient, runId: string, now = new Date()) {
+  const [run, settings] = await Promise.all([
+    service.from('tennisrecord_sync_runs').select('id').eq('id', runId).eq('status', 'running').eq('trigger_kind', 'weekly').maybeSingle(),
+    service.from('tennisrecord_collector_settings').select('enabled,current_refresh_enabled,source_outage_state').eq('id', true).single(),
+  ])
+  if (run.error || settings.error) throw new Error(run.error?.message || settings.error?.message || 'Post-match refresh status unavailable.')
+  if (!run.data || !settings.data?.enabled || !settings.data.current_refresh_enabled || sourceOutageIsCooling(settings.data.source_outage_state, now.getTime())) return 0
+  const recent = new Date(now.getTime() - 7 * 86_400_000).toISOString()
+  const cooldown = new Date(now.getTime() - 3_600_000).toISOString()
+  const candidates = await service.from('tennisrecord_crawl_queue')
+    .select('id,completed_at,current_refreshed_at,refresh_due_at')
+    .eq('status', 'done').eq('refresh_season', now.getUTCFullYear()).in('page_kind', ['team', 'match'])
+    .gt('current_refreshed_at', recent).lte('completed_at', cooldown)
+    .gt('refresh_due_at', recent).lte('refresh_due_at', now.toISOString())
+    .or(`deferred_retry_at.is.null,deferred_retry_at.lte.${now.toISOString()}`)
+    .order('refresh_due_at', { ascending: false }).limit(100)
+  if (candidates.error) throw new Error(candidates.error.message)
+  // The SQL weekly gate still handles normal refreshes. Only a deliberately
+  // shorter due date from the same successful current-season capture qualifies.
+  const ids = (candidates.data || []).filter((row) => {
+    const completed = Date.parse(row.completed_at), refreshed = Date.parse(row.current_refreshed_at), due = Date.parse(row.refresh_due_at)
+    return Number.isFinite(completed + refreshed + due) && Math.abs(completed - refreshed) <= 5_000
+      && due >= refreshed + 3_600_000 && due < refreshed + 7 * 86_400_000
+  }).map((row) => row.id)
+  if (!ids.length) return 0
+  const released = await service.from('tennisrecord_crawl_queue').update({ status: 'pending' }).in('id', ids)
+    .eq('status', 'done').eq('refresh_season', now.getUTCFullYear()).lte('completed_at', cooldown)
+    .lte('refresh_due_at', now.toISOString()).or(`deferred_retry_at.is.null,deferred_retry_at.lte.${now.toISOString()}`).select('id')
+  if (released.error) throw new Error(released.error.message)
+  return released.data?.length || 0
+}
+
 export async function prepareCurrentSeasonRefresh(service: SupabaseClient, runId: string, settings: Settings) {
   if (!settings.current_refresh_enabled) throw new Error('Current-season refresh is not enabled.')
   const lastSeed = settings.current_refresh_seeded_at
@@ -896,6 +928,7 @@ export async function prepareCurrentSeasonRefresh(service: SupabaseClient, runId
   }
   const prepared = await service.rpc('prepare_tennisrecord_current_refresh', { p_run_id: runId, p_seed: seedComplete })
   if (prepared.error) throw new Error(prepared.error.message)
+  await requeueDuePostMatchRefreshes(service, runId)
   const recorded = await service.from('tennisrecord_collector_settings').update({ weekly_refresh_started_at: new Date().toISOString() }).eq('id', true).is('weekly_refresh_started_at', null)
   if (recorded.error) throw new Error(recorded.error.message)
   await enrollKnownNationalCurrentSeasonPages(service)
@@ -1962,10 +1995,26 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
     historyOwner = (owners.data || []).map(owner => ({ sourceUrl: owner.source_url as string, state: owner.state as string | null }))
       .find(owner => isKnownMissouriPlayerHistory(sourceUrl, owner))
   }
-  const scopedDiscoveryUrls = parsed.discoveredUrls.filter((candidateUrl) => isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, candidateUrl, parsed, historyOwner))
+  let sourceTeam: TennisRecordVerifiedTeamSource | undefined
+  if (campaignSlug === 'missouri-2025-current' && tennisRecordRecordPageKind(sourceUrl) === 'team') {
+    const source = new URL(sourceUrl)
+    const teamName = source.searchParams.get('teamname') || ''
+    const seasonYear = Number(source.searchParams.get('year'))
+    const linkedScorecards = parsed.discoveredUrls.filter(url => tennisRecordRecordPageKind(url) === 'match')
+    if (teamName && linkedScorecards.length) {
+      const known = await service.from('tennisrecord_staged_matches').select('source_url,home_team,away_team,league_name')
+        .in('source_url', linkedScorecards).eq('parse_status', 'valid').limit(100)
+      if (known.error) throw new Error(known.error.message)
+      const proof = (known.data || []).find(row => isMissouriCompetition(row.league_name || '')
+        && row.league_name?.match(/\b20\d{2}\b/)?.[0] === String(seasonYear)
+        && [row.home_team, row.away_team].some(name => normalizeTennisIdentity(name || '') === normalizeTennisIdentity(teamName)))
+      if (proof) sourceTeam = { sourceUrl, teamName, seasonYear, leagueName: proof.league_name!, verifiedScorecardUrl: proof.source_url }
+    }
+  }
+  const scopedDiscoveryUrls = parsed.discoveredUrls.filter((candidateUrl) => isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, candidateUrl, parsed, historyOwner, sourceTeam))
   if (scopedDiscoveryUrls.length) await enqueueTennisRecordUrls(service, scopedDiscoveryUrls, campaignId)
   if (currentRefreshEnabled && campaignSlug === 'missouri-2025-current') {
-    const ownPageAllowed = isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, sourceUrl, parsed, historyOwner)
+    const ownPageAllowed = isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, sourceUrl, parsed, historyOwner, sourceTeam)
     await markCurrentSeasonUrls(service, currentSeasonDiscoveryUrls([...scopedDiscoveryUrls, ...(ownPageAllowed ? [sourceUrl] : [])]))
   }
   if (currentRefreshEnabled && currentSeason && campaignSlug === 'us-2025-current') {
