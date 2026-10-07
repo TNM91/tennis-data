@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { getCaptainLineupNextAction } from '@/lib/captain-lineup-next-action'
+import { getCaptainLineupNextAction, shouldShowCaptainLineupMobileAction } from '@/lib/captain-lineup-next-action'
 import CaptainLineupMobileAction from '@/app/components/captain-lineup-mobile-action'
 
 const ready = {
@@ -30,6 +30,12 @@ describe('Captain lineup next action', () => {
   })
   it('sends only a complete lineup with every player confirmed', () => {
     expect(getCaptainLineupNextAction(ready).step).toBe('send')
+  })
+  it('removes the completed mobile Send action and restores it when the draft needs another action', () => {
+    expect(shouldShowCaptainLineupMobileAction(getCaptainLineupNextAction(ready), true)).toBe(false)
+    expect(shouldShowCaptainLineupMobileAction(getCaptainLineupNextAction(ready), false)).toBe(true)
+    expect(shouldShowCaptainLineupMobileAction(getCaptainLineupNextAction({ ...ready, editingCourtLabel: 'Singles 1' }), true)).toBe(true)
+    expect(shouldShowCaptainLineupMobileAction(getCaptainLineupNextAction({ ...ready, confirmedCount: 5 }), true)).toBe(true)
   })
   it('finishes the current court edit before offering a send or another lineup action', () => {
     for (const changes of [{}, { lineupComplete: false }, { outCount: 1 }, { confirmedCount: 3 }]) {
