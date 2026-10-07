@@ -5,10 +5,11 @@ import { formatDate } from '@/lib/captain-formatters'
 import { buildPlayerSetScoreGrid, type PlayerSetScoreMatch, type SetScoreLabel, type SetScoreMode } from '@/lib/player-set-score-grid'
 import styles from './player-set-score-grid.module.css'
 
-export default function PlayerSetScoreGrid({ matches, playerName, initialMode, scopeLabel = 'Recorded player history' }: {
-  matches: PlayerSetScoreMatch[]; playerName: string; initialMode?: SetScoreMode; scopeLabel?: string
+export default function PlayerSetScoreGrid({ matches, playerName, initialMode, fixedMode, doublesScope = 'all-partners', scopeLabel = 'Recorded player history' }: {
+  matches: PlayerSetScoreMatch[]; playerName: string; initialMode?: SetScoreMode; fixedMode?: SetScoreMode; doublesScope?: 'pair' | 'all-partners'; scopeLabel?: string
 }) {
-  const [mode, setMode] = useState<SetScoreMode>(initialMode || (matches.some((match) => match.matchType === 'singles') ? 'singles' : 'doubles'))
+  const [selectedMode, setMode] = useState<SetScoreMode>(initialMode || (matches.some((match) => match.matchType === 'singles') ? 'singles' : 'doubles'))
+  const mode = fixedMode || selectedMode
   const [selectedScore, setSelectedScore] = useState<SetScoreLabel | null>(null)
   const [visibleScorecards, setVisibleScorecards] = useState(5)
   const headingId = useId()
@@ -17,9 +18,9 @@ export default function PlayerSetScoreGrid({ matches, playerName, initialMode, s
   const peak = Math.max(1, ...grid.buckets.map((bucket) => bucket.wins + bucket.losses))
   return <section className={styles.panel} aria-labelledby={headingId}>
     <div className={styles.heading}><div><h4 id={headingId}>Set-score grid</h4><p>{playerName} · {scopeLabel}</p></div></div>
-    <div className={styles.modes} role="group" aria-label={`${playerName} set-score discipline`}>
+    {fixedMode ? <p className={styles.sample}>{mode === 'singles' ? 'Singles' : doublesScope === 'pair' ? 'Doubles · this pair together' : 'Doubles · all partners'}</p> : <div className={styles.modes} role="group" aria-label={`${playerName} set-score discipline`}>
       {(['singles', 'doubles'] as const).map((value) => <button type="button" key={value} aria-pressed={mode === value} onClick={() => { setMode(value); setSelectedScore(null); setVisibleScorecards(5) }}>{value === 'singles' ? 'Singles' : 'Doubles · all partners'}</button>)}
-    </div>
+    </div>}
     {grid.totalSets ? <>
       <p className={styles.sample}>{grid.totalSets} sets · {grid.setWins} won / {grid.setLosses} lost · {grid.scoredMatches} scored matches</p>
       <div className={styles.grid} aria-label={`${mode === 'singles' ? 'Singles' : 'Doubles'} set wins and losses by score`}>
@@ -41,6 +42,6 @@ export default function PlayerSetScoreGrid({ matches, playerName, initialMode, s
         {selected.matches.length > visibleScorecards ? <button type="button" className={styles.more} onClick={() => setVisibleScorecards((count) => count + 5)}>Show {Math.min(5, selected.matches.length - visibleScorecards)} more matches</button> : null}
       </div> : null}
     </> : <p className={styles.note}>No complete, decided {mode} scores are recorded for this view yet.</p>}
-    <p className={styles.note}>Set results include wins inside lost matches and losses inside won matches. Complete best-of-three scores only; match tiebreaks are excluded.{mode === 'doubles' ? ' Doubles combines every recorded partner.' : ''}{grid.excludedMatches ? ` ${grid.excludedMatches} match${grid.excludedMatches === 1 ? '' : 'es'} excluded for unusable scores, unknown results, or conflicting records.` : ''}</p>
+    <p className={styles.note}>Set results include wins inside lost matches and losses inside won matches. Complete best-of-three scores only; match tiebreaks are excluded.{mode === 'doubles' ? doublesScope === 'pair' ? ' Only matches played together by this pair.' : ' Doubles combines every recorded partner.' : ''}{grid.excludedMatches ? ` ${grid.excludedMatches} match${grid.excludedMatches === 1 ? '' : 'es'} excluded for unusable scores, unknown results, or conflicting records.` : ''}</p>
   </section>
 }
