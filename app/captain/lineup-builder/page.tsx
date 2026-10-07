@@ -22,6 +22,7 @@ import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
 import CaptainLineupMobileAction from '@/app/components/captain-lineup-mobile-action'
 import CaptainOpponentSeasonScout from '@/app/components/captain-opponent-season-scout'
+import { compareRecentOpponentLineups } from '@/lib/captain-recent-lineup-comparison'
 import { buildOpponentSeasonScout, fillOpponentSeasonDraft, type OpponentScoutFixture } from '@/lib/captain-opponent-season-scout'
 import { projectOpponentSeasonLineup } from '@/lib/captain-opponent-season-projection'
 import { captainMobileResumeKey } from '@/lib/captain-mobile-resume'
@@ -5644,6 +5645,21 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     return compareLineupStrengthWithDefaults(lineupIntelligenceSlots, activeProjectedOpponentSlots, builderPlayers, knownCourtDefaults)
   }, [activeProjectedOpponentSlots, builderPlayers, knownCourtDefaults, lineupIntelligenceSlots])
 
+  const recentLineupComparison = useMemo(() => compareRecentOpponentLineups(
+    opponentSeasonScout,
+    lineupIntelligenceSlots,
+    (team, opponent) => {
+      const rated = [team, opponent].every((slot) => slot.players.every((assignment) => {
+        const player = builderPlayers.find((candidate) => candidate.id === assignment.playerId)
+        const rating = player ? getPlayerSlotRating(player, slot.slotType) : null
+        return typeof rating === 'number' && Number.isFinite(rating)
+      }))
+      if (!rated) return null
+      const analysis = compareLineupStrength([team], [opponent], builderPlayers)
+      return analysis.lines[0]?.projection ?? null
+    },
+  ), [opponentSeasonScout, lineupIntelligenceSlots, builderPlayers])
+
   const lineupIntelligenceCourts = useMemo<CaptainLineupIntelligenceCourt[]>(() => (
     lineupIntelligenceSlots.map((slot, index) => {
       const selectedPlayers = slot.players.filter((player) => Boolean(player.playerId))
@@ -8088,6 +8104,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               loading={loading || recoveringSecureSession}
               onUseLineup={applyOpponentSeasonWeek}
               projection={opponentSeasonProjection}
+              comparison={recentLineupComparison}
               onUseSeasonDraft={applyOpponentSeasonProjection}
               onReviewCourt={(index) => {
                 const slot = teamSlots[index]
