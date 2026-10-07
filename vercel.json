@@ -1,4 +1,5 @@
 {
+  "git": { "deploymentEnabled": { "codex/**": false } },
   "crons": [
     {
       "path": "/api/team-rooms/reminders",

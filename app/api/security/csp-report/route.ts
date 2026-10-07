@@ -1,4 +1,8 @@
 const MAX_REPORT_BYTES = 16_384
+const REPORT_LOG_WINDOW_MS = 5 * 60_000
+const MAX_REPORT_SIGNATURES = 256
+// Best-effort per-instance consolidation, not a security rate limit.
+const recentReports = new Map<string, { loggedAt: number; suppressed: number }>()
 
 type UnknownRecord = Record<string, unknown>
 
@@ -61,7 +65,23 @@ export async function POST(request: Request) {
 
   const reports = Array.isArray(payload) ? payload : [payload]
   for (const report of reports.slice(0, 20)) {
-    console.warn('[security:csp-report]', normalizeReport(report))
+    const normalized = normalizeReport(report)
+    const key = JSON.stringify(normalized)
+    const now = Date.now()
+    const previous = recentReports.get(key)
+    if (previous && now - previous.loggedAt < REPORT_LOG_WINDOW_MS) {
+      previous.suppressed += 1
+      continue
+    }
+    recentReports.delete(key)
+    if (recentReports.size >= MAX_REPORT_SIGNATURES) {
+      const oldest = recentReports.keys().next().value
+      if (oldest !== undefined) recentReports.delete(oldest)
+    }
+    recentReports.set(key, { loggedAt: now, suppressed: 0 })
+    console.warn('[security:csp-report]', previous?.suppressed
+      ? { ...normalized, repeatedReports: previous.suppressed }
+      : normalized)
   }
 
   return new Response(null, {
