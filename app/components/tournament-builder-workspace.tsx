@@ -4,6 +4,9 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import UpgradePrompt from '@/app/components/upgrade-prompt'
+import TournamentEventPanel from '@/app/components/tournament-event-panel'
+import { normalizeTournamentEventDetails, type TournamentEventDetails } from '@/lib/tournament-event-presentation'
+import { buildTournamentDivisionDraft, getTournamentEventContext, getTournamentEventRoots, getTournamentEventDivisions } from '@/lib/tournament-events'
 import ClubContextBanner from '@/app/components/club-context-banner'
 import CompetitionResponseSummary from '@/app/components/competition-response-summary'
 import { useClubSponsoredAccess } from '@/app/components/use-club-sponsored-access'
@@ -177,6 +180,13 @@ export default function TournamentBuilderWorkspace() {
   const [entrantsText, setEntrantsText] = useState(sampleEntrants.join('\n'))
   const [isPublic, setIsPublic] = useState(false)
   const [selectedId, setSelectedId] = useState('')
+  const [isEvent, setIsEvent] = useState(false)
+  const [eventId, setEventId] = useState('')
+  const [eventTheme, setEventTheme] = useState<'classic' | 'pumpkin'>('classic')
+  const [registrationEmail, setRegistrationEmail] = useState('')
+  const [eventDetails, setEventDetails] = useState<TournamentEventDetails>({})
+  const [divisionName, setDivisionName] = useState('')
+  const [addingDivision, setAddingDivision] = useState(false)
   const [notice, setNotice] = useState('')
   const [syncNotice, setSyncNotice] = useState('')
   const [scoreInputs, setScoreInputs] = useState<Record<string, string>>({})
@@ -220,6 +230,9 @@ export default function TournamentBuilderWorkspace() {
   const [coordinatorResumeResolved, setCoordinatorResumeResolved] = useState(false)
 
   const selectedRecord = records.find((record) => record.id === selectedId) || null
+  const eventRoots = getTournamentEventRoots(records)
+  const eventContext = getTournamentEventContext(records, selectedRecord)
+  const activeEventId = eventContext.event?.id
   const selectedRecordId = selectedRecord?.id || ''
   const draftEntrants = parseTournamentEntrantsInput(entrantsText)
   const draftPreview = buildTournamentPreview({
@@ -230,7 +243,7 @@ export default function TournamentBuilderWorkspace() {
   const selectedPreview = selectedRecord ? buildTournamentPreview(selectedRecord) : []
   const selectedSummary = selectedRecord ? summarizeTournamentResults(selectedRecord) : null
   const selectedStandings = selectedRecord?.format === 'round_robin' ? buildRoundRobinStandings(selectedRecord) : []
-  const scheduledEvents = useMemo(() => buildTournamentScheduleEvents(records), [records])
+  const scheduledEvents = useMemo(() => buildTournamentScheduleEvents(activeEventId ? getTournamentEventDivisions(records, activeEventId) : records), [records, activeEventId])
   const calendarDays = useMemo(() => buildCalendarDays(calendarMonth, scheduledEvents), [calendarMonth, scheduledEvents])
   const scheduledMonthEvents = useMemo(() => (
     scheduledEvents
@@ -353,7 +366,7 @@ export default function TournamentBuilderWorkspace() {
     awardCount: awardRecords.length,
     alertCount: alertRecords.length,
   }) : []
-  const activeCount = records.filter((record) => record.status !== 'completed').length
+  const activeCount = eventRoots.filter((record) => record.status !== 'completed').length
   const canCreateMore = hasUnlimitedCompetition || activeCount < 1 || Boolean(selectedId)
   const setupReadinessItems = [
     {
@@ -363,8 +376,8 @@ export default function TournamentBuilderWorkspace() {
     },
     {
       label: 'Field',
-      value: `${draftEntrants.length} ${entrantType}`,
-      ready: draftEntrants.length >= 2,
+      value: isEvent ? `${eventContext.divisions.length} divisions` : `${draftEntrants.length} ${entrantType}`,
+      ready: isEvent || draftEntrants.length >= 2,
     },
     {
       label: 'When',
@@ -374,7 +387,7 @@ export default function TournamentBuilderWorkspace() {
     {
       label: 'Entry',
       value: isPublic ? 'Public' : 'Private',
-      ready: isPublic || draftEntrants.length >= 2,
+      ready: isEvent || isPublic || draftEntrants.length >= 2,
     },
   ]
   const setupPathItems = [
@@ -387,14 +400,14 @@ export default function TournamentBuilderWorkspace() {
     {
       step: '2',
       label: 'Set the field',
-      detail: draftEntrants.length >= 2 ? `${draftEntrants.length} ${entrantType} in the draw.` : 'Add at least two entrants.',
-      ready: draftEntrants.length >= 2,
+      detail: isEvent ? 'Add divisions after saving the event.' : draftEntrants.length >= 2 ? `${draftEntrants.length} ${entrantType} in the draw.` : 'Save a draft now or add at least two entrants to preview a draw.',
+      ready: isEvent || draftEntrants.length >= 2,
     },
     {
       step: '3',
       label: 'Save and schedule',
       detail: startsOn ? 'Date is set. Save before assigning courts.' : 'Pick a date, then save the room.',
-      ready: Boolean(startsOn) && draftEntrants.length >= 2,
+      ready: Boolean(startsOn) && (isEvent || draftEntrants.length >= 2),
     },
   ]
   const tournamentPathStatusItems = selectedRecord ? [
@@ -632,6 +645,11 @@ export default function TournamentBuilderWorkspace() {
         setStartsOn(draft.startsOn || '')
         setLocationLabel(draft.locationLabel || '')
         setDirectorNotes(draft.directorNotes || '')
+        setIsEvent(Boolean(draft.isEvent))
+        setEventId(draft.eventId || '')
+        setEventTheme(draft.eventTheme || 'classic')
+        setRegistrationEmail(draft.registrationEmail || '')
+        setEventDetails(normalizeTournamentEventDetails(draft.eventDetails))
         setEntrantsText(draft.entrantsText || sampleEntrants.join('\n'))
         setIsPublic(Boolean(draft.isPublic))
         setResultMode(normalizeClubCompetitionResultMode(draft.resultMode))
@@ -650,6 +668,11 @@ export default function TournamentBuilderWorkspace() {
     if (!resumeTargetTournamentId || appliedResumeTournamentId) return
     const record = records.find((item) => item.id === resumeTargetTournamentId)
     if (!record) return
+    setIsEvent(Boolean(record.isEvent))
+    setEventId(record.eventId || '')
+    setEventTheme(record.eventTheme || 'classic')
+    setRegistrationEmail(record.registrationEmail || '')
+    setEventDetails(normalizeTournamentEventDetails(record.eventDetails))
     setSelectedId(record.id)
     setClubId(record.clubId || '')
     setClubGroupId(record.clubGroupId || '')
@@ -687,6 +710,11 @@ export default function TournamentBuilderWorkspace() {
         startsOn,
         locationLabel,
         directorNotes,
+        isEvent,
+        eventId,
+        eventTheme,
+        registrationEmail,
+        eventDetails,
         entrantsText,
         isPublic,
         resultMode,
@@ -701,6 +729,11 @@ export default function TournamentBuilderWorkspace() {
     canUseLeague,
     coordinatorResumeResolved,
     directorNotes,
+    isEvent,
+    eventId,
+    eventTheme,
+    registrationEmail,
+    eventDetails,
     entrantType,
     entrantsText,
     format,
@@ -904,12 +937,13 @@ export default function TournamentBuilderWorkspace() {
       return
     }
 
-    if (draftEntrants.length < 2) {
-      setNotice('Add at least two entrants before building the draw.')
-      return
-    }
-
     const saved = await upsertTiqTournamentRecordForUser({
+      isEvent,
+      eventId,
+      eventTheme,
+      registrationEmail,
+      eventDetails,
+      createdByUserId: selectedRecord?.createdByUserId,
       clubId,
       clubGroupId,
       resultMode,
@@ -920,13 +954,13 @@ export default function TournamentBuilderWorkspace() {
       startsOn,
       locationLabel,
       directorNotes,
-      entrants: draftEntrants,
+      entrants: isEvent ? [] : draftEntrants,
       isPublic,
     }, selectedId, userId)
 
     refreshRecords(saved.data.id)
     setSyncNotice(saved.source === 'cloud' ? 'Tournament room synced.' : 'Saved on this device.')
-    setNotice(`${saved.data.name} is saved${saved.data.clubGroupId ? ' and connected to its Club program' : ''}. The draw preview is ready for scheduling.`)
+    setNotice(`${saved.data.name} is saved${saved.data.clubGroupId ? ' and connected to its Club program' : ''}. ${isEvent ? 'Add divisions below.' : draftEntrants.length < 2 ? 'Add teams or players when signups arrive.' : 'The draw preview is ready for scheduling.'}`)
     if (saved.error) setNotice(saved.error.message)
   }
 
@@ -1427,6 +1461,11 @@ export default function TournamentBuilderWorkspace() {
   }
 
   function loadRecord(record: TiqTournamentRecord) {
+    setIsEvent(Boolean(record.isEvent))
+    setEventId(record.eventId || '')
+    setEventTheme(record.eventTheme || 'classic')
+    setRegistrationEmail(record.registrationEmail || '')
+    setEventDetails(normalizeTournamentEventDetails(record.eventDetails))
     setSelectedId(record.id)
     setClubId(record.clubId || '')
     setClubGroupId(record.clubGroupId || '')
@@ -1455,6 +1494,11 @@ export default function TournamentBuilderWorkspace() {
   }
 
   function startNew() {
+    setIsEvent(false)
+    setEventId('')
+    setEventTheme('classic')
+    setRegistrationEmail('')
+    setEventDetails({})
     setSelectedId('')
     setClubGroupId('')
     setResultMode('tiq_rated')
@@ -1483,10 +1527,29 @@ export default function TournamentBuilderWorkspace() {
 
   async function removeRecord(record: TiqTournamentRecord) {
     const result = await deleteTiqTournamentRecordForUser(record.id, userId)
+    if (result.error) { setNotice(result.error.message); return }
     refreshRecords(selectedId === record.id ? '' : selectedId)
     if (selectedId === record.id) startNew()
     setSyncNotice(result.source === 'cloud' ? 'Tournament removed.' : 'Removed from this device.')
-    if (result.error) setNotice(result.error.message)
+  }
+
+  async function addDivision() {
+    const parent = eventContext.event
+    if (!parent || !divisionName.trim() || addingDivision) return
+    if (eventContext.divisions.some(division => division.name.toLowerCase() === divisionName.trim().toLowerCase())) {
+      setNotice('That division already exists. Open it below.'); return
+    }
+    setAddingDivision(true)
+    try {
+      const draft = buildTournamentDivisionDraft(parent, divisionName)
+      const id = `${parent.id}-division-${crypto.randomUUID()}`
+      const saved = await upsertTiqTournamentRecordForUser(draft, id, userId)
+      if (saved.error) { setNotice(saved.error.message); return }
+      refreshRecords(saved.data.id)
+      loadRecordSection(saved.data, 'tournament-setup')
+      setDivisionName('')
+      setNotice('Division added. Add its teams or players here; event details are shared.')
+    } finally { setAddingDivision(false) }
   }
 
   const tournamentHero = (
@@ -1499,7 +1562,7 @@ export default function TournamentBuilderWorkspace() {
           Create the field, schedule courts, post scores, send alerts, and finish awards from one event desk.
         </p>
         <div style={statGridStyle}>
-          <Stat label="Saved events" value={String(records.length)} />
+          <Stat label="Saved events" value={String(eventRoots.length)} />
           <Stat label="Active room" value={hasUnlimitedCompetition ? 'Included' : `${Math.max(0, 1 - activeCount)} left`} />
           <Stat label="Format" value={getTournamentDrawFormatDefinition(format).label} />
         </div>
@@ -1589,8 +1652,8 @@ export default function TournamentBuilderWorkspace() {
       <section style={tournamentPathStyle} aria-labelledby="tournament-desk-path-title">
         <div style={tournamentPathHeaderStyle}>
           <div>
-            <div style={sectionEyebrowStyle}>Tournament Desk path</div>
-            <h1 id="tournament-desk-path-title" style={tournamentPathTitleStyle}>Run or update a tournament</h1>
+            <div style={sectionEyebrowStyle}>Tournament Desk path · Tournaments / Events</div>
+            <h1 id="tournament-desk-path-title" style={tournamentPathTitleStyle}>Run or update a tournament or event</h1>
           </div>
           <p style={tournamentPathIntroStyle}>
             Set up the room, review entries, schedule courts, post scores, or send updates.
@@ -1663,6 +1726,19 @@ export default function TournamentBuilderWorkspace() {
         </div>
       </section>
 
+      {eventContext.event ? <>
+        <TournamentEventPanel event={eventContext.event} divisions={eventContext.divisions} selectedId={selectedId} onSelect={record => loadRecordSection(record, 'tournament-setup')} />
+        <section style={panelStyle} aria-label="Add event division">
+          <div style={fieldGridStyle}>
+            <label style={fieldStyle}>New division
+              <input value={divisionName} onChange={event => setDivisionName(event.target.value)} placeholder="Men's 4.0 Doubles" style={inputStyle} />
+            </label>
+            <button type="button" disabled={!divisionName.trim() || addingDivision} onClick={() => void addDivision()} style={primaryButtonStyle}>{addingDivision ? 'Adding…' : 'Add division'}</button>
+          </div>
+          <p style={helperTextStyle}>Each division has its own entrants, format, court schedule, results, and awards.</p>
+        </section>
+      </> : null}
+
       <section style={builderGridStyle}>
         <form id="tournament-setup" style={panelStyle} onSubmit={handleSubmit}>
           <div style={panelHeaderStyle}>
@@ -1672,6 +1748,49 @@ export default function TournamentBuilderWorkspace() {
             </div>
             <button type="button" onClick={startNew} style={ghostButtonStyle}>New</button>
           </div>
+
+          {!eventId ? <label style={toggleFieldStyle}>
+            <input type="checkbox" checked={isEvent} disabled={Boolean(selectedRecord?.entrants.length || eventContext.divisions.length)} onChange={event => setIsEvent(event.target.checked)} />
+            <span><strong>Event with multiple divisions</strong><small>Share event details and manage a separate draw for each division.</small></span>
+          </label> : <p style={helperTextStyle}>Division of {eventContext.event?.name || 'your event'}. Change shared details from Event details.</p>}
+
+          {!eventId ? <div style={fieldGridStyle}>
+            <label style={fieldStyle}>Event theme
+              <select value={eventTheme} onChange={event => setEventTheme(event.target.value as 'classic' | 'pumpkin')} style={inputStyle}>
+                <option value="classic">Classic tennis</option><option value="pumpkin">Pumpkin · autumn night</option>
+              </select>
+            </label>
+            <label style={fieldStyle}>Director signup email (optional)
+              <input type="email" value={registrationEmail} onChange={event => setRegistrationEmail(event.target.value)} style={inputStyle} placeholder="Sign up directly with the director" />
+              <small>When set, players sign up by email instead of submitting an entry here.</small>
+            </label>
+          </div> : null}
+
+          {isEvent && !eventId ? <details style={{ padding: '12px 0' }}>
+            <summary style={{ cursor: 'pointer', fontWeight: 700 }}>Event timing, fees, and signup details</summary>
+            <div style={{ ...fieldGridStyle, marginTop: 16 }}>
+              <label style={fieldStyle}>Play starts
+                <input type="time" value={eventDetails.startsAt || ''} onChange={event => setEventDetails(current => ({ ...current, startsAt: event.target.value }))} style={inputStyle} />
+              </label>
+              <label style={fieldStyle}>Signup deadline
+                <input type="date" value={eventDetails.registrationClosesOn || ''} onChange={event => setEventDetails(current => ({ ...current, registrationClosesOn: event.target.value }))} style={inputStyle} />
+              </label>
+              {(['feePerPlayer', 'feePerTeam'] as const).map(key => <label key={key} style={fieldStyle}>{key === 'feePerPlayer' ? 'Entry fee per player' : 'Entry fee per team'}
+                <input type="number" min="0" max="100000" step="0.01" value={eventDetails[key] ?? ''} onChange={event => setEventDetails(current => ({ ...current, [key]: event.target.value === '' ? undefined : Number(event.target.value) }))} style={inputStyle} />
+              </label>)}
+              {([
+                ['subtitle', 'Event introduction'], ['finishLabel', 'Expected finish'], ['venueName', 'Venue name'],
+                ['venueAddress', 'Street address'], ['directorName', 'Director name'], ['currency', 'Currency (USD, EUR, etc.)'],
+                ['timeZone', 'Time zone (America/Chicago, etc.)'], ['timeZoneLabel', 'Time zone label (Central, etc.)'],
+                ['formatSummary', 'Format summary'], ['hospitalitySummary', 'Prizes, food, and event rules'], ['sanctioningLabel', 'Sanctioning information'],
+              ] as const).map(([key, label]) => <label key={key} style={fieldStyle}>{label}
+                <input value={eventDetails[key] || ''} onChange={event => setEventDetails(current => ({ ...current, [key]: event.target.value }))} style={inputStyle} />
+              </label>)}
+              <label style={fieldStyle}>Sponsors (one per line)
+                <textarea value={(eventDetails.sponsors || []).join('\n')} onChange={event => setEventDetails(current => ({ ...current, sponsors: event.target.value.split('\n') }))} style={textareaStyle} />
+              </label>
+            </div>
+          </details> : null}
 
           <div style={setupReadinessGridStyle} aria-label="Tournament setup readiness">
             {setupReadinessItems.map((item) => (
@@ -1697,12 +1816,12 @@ export default function TournamentBuilderWorkspace() {
 
           <div style={fieldGridStyle}>
             <label style={fieldStyle}>
-              Tournament name
+              {eventId ? 'Division name' : isEvent ? 'Event name' : 'Tournament name'}
               <input value={name} onChange={(event) => setName(event.target.value)} style={inputStyle} />
             </label>
             <label style={fieldStyle}>
               Start date
-              <input type="date" value={startsOn} onChange={(event) => setStartsOn(event.target.value)} style={inputStyle} />
+              <input type="date" value={startsOn} disabled={Boolean(eventId)} onChange={(event) => setStartsOn(event.target.value)} style={inputStyle} />
             </label>
           </div>
 
@@ -1747,13 +1866,14 @@ export default function TournamentBuilderWorkspace() {
             Site
             <input
               value={locationLabel}
+              disabled={Boolean(eventId)}
               onChange={(event) => setLocationLabel(event.target.value)}
               placeholder="Facility or city"
               style={inputStyle}
             />
           </label>
 
-          <label style={fieldStyle}>
+          {!isEvent ? <label style={fieldStyle}>
             Entrants
             <textarea
               value={entrantsText}
@@ -1761,7 +1881,7 @@ export default function TournamentBuilderWorkspace() {
               placeholder="One player or team per line"
               style={textareaStyle}
             />
-          </label>
+          </label> : null}
 
           <label style={fieldStyle}>
             Director notes
@@ -1777,11 +1897,12 @@ export default function TournamentBuilderWorkspace() {
             <input
               type="checkbox"
               checked={isPublic}
+              disabled={Boolean(eventId)}
               onChange={(event) => setIsPublic(event.target.checked)}
               style={checkboxStyle}
             />
             <span>
-              <strong>Public bracket</strong>
+              <strong>{eventId ? 'Visibility shared with event' : isEvent ? 'Public event page' : 'Public bracket'}</strong>
               <small>Anyone with the link can view the tournament page.</small>
             </span>
           </label>
@@ -1804,11 +1925,11 @@ export default function TournamentBuilderWorkspace() {
 
           <div style={actionRowStyle}>
             <button type="submit" style={primaryButtonStyle}>
-              {selectedId ? 'Save tournament' : 'Build tournament'}
+              {selectedId ? isEvent ? 'Save event' : 'Save tournament' : isEvent ? 'Create event' : 'Build tournament'}
             </button>
             {selectedRecord ? (
               <Link href={`/tournaments/${encodeURIComponent(selectedRecord.id)}`} style={secondaryButtonStyle}>
-                Open bracket
+                {isEvent ? 'Open event page' : 'Open bracket'}
               </Link>
             ) : null}
             {clubId && (clubGroupId || requestedClubGroupId) ? <Link href={`/clubs?${new URLSearchParams({ clubId, tab: 'home' }).toString()}`} style={secondaryButtonStyle}>Return to Club</Link> : null}
@@ -1819,14 +1940,14 @@ export default function TournamentBuilderWorkspace() {
         <section style={panelStyle}>
           <div style={panelHeaderStyle}>
             <div>
-              <div style={sectionEyebrowStyle}>Draw preview</div>
-              <h2 style={sectionTitleStyle}>{draftEntrants.length || 0} entrants</h2>
+              <div style={sectionEyebrowStyle}>{isEvent ? 'Event divisions' : 'Draw preview'}</div>
+              <h2 style={sectionTitleStyle}>{isEvent ? `${eventContext.divisions.length} divisions` : `${draftEntrants.length || 0} entrants`}</h2>
             </div>
             <span style={pillStyle}>{format.replace('_', ' ')}</span>
           </div>
 
           <div style={previewListStyle}>
-            {draftPreview.length ? (
+            {isEvent ? <div style={emptyStateStyle}>Save the event, then add divisions. Open a division to build its draw and schedule courts.</div> : draftPreview.length ? (
               draftPreview.slice(0, 16).map((match) => (
                 <div key={`${match.round}-${match.court}-${match.sideA}-${match.sideB}`} style={matchCardStyle}>
                   <span style={matchMetaStyle}>{match.label} - Court {match.court}</span>
@@ -1866,7 +1987,7 @@ export default function TournamentBuilderWorkspace() {
             Create the field, schedule courts, post scores, send alerts, and finish awards from one event desk.
           </p>
           <div style={statGridStyle}>
-            <Stat label="Saved events" value={String(records.length)} />
+            <Stat label="Saved events" value={String(eventRoots.length)} />
             <Stat label="Active room" value={hasUnlimitedCompetition ? 'Included' : `${Math.max(0, 1 - activeCount)} left`} />
             <Stat label="Format" value={getTournamentDrawFormatDefinition(format).label} />
           </div>
@@ -1979,7 +2100,7 @@ export default function TournamentBuilderWorkspace() {
       </details>
 
 
-      {selectedRecord ? (
+      {selectedRecord && !selectedRecord.isEvent ? (
         <section style={runSheetStyle} aria-label="Tournament run sheet">
           <div style={runSheetHeaderStyle}>
             <div>
@@ -2022,7 +2143,7 @@ export default function TournamentBuilderWorkspace() {
         </section>
       ) : null}
 
-      {selectedRecord ? (
+      {selectedRecord && !selectedRecord.isEvent ? (
         <section id="tournament-entries" style={panelStyle}>
           <div style={panelHeaderStyle}>
             <div>
@@ -2163,7 +2284,7 @@ export default function TournamentBuilderWorkspace() {
         </section>
       ) : null}
 
-      {selectedRecord ? (
+      {selectedRecord && !selectedRecord.isEvent ? (
         <section id="tournament-scorebook" style={panelStyle}>
           <div style={panelHeaderStyle}>
             <div>
@@ -2379,7 +2500,7 @@ export default function TournamentBuilderWorkspace() {
         </section>
       ) : null}
 
-      {selectedRecord ? (
+      {selectedRecord && !selectedRecord.isEvent ? (
         <section id="tournament-alerts" style={panelStyle}>
           <div style={panelHeaderStyle}>
             <div>
@@ -2617,7 +2738,7 @@ export default function TournamentBuilderWorkspace() {
         </section>
       ) : null}
 
-      {selectedRecord ? (
+      {selectedRecord && !selectedRecord.isEvent ? (
         <section id="tournament-profiles" style={panelStyle}>
           <div style={panelHeaderStyle}>
             <div>
@@ -2665,7 +2786,7 @@ export default function TournamentBuilderWorkspace() {
         </section>
       ) : null}
 
-      {selectedRecord ? (
+      {selectedRecord && !selectedRecord.isEvent ? (
         <section id="tournament-awards" style={panelStyle}>
           <div style={panelHeaderStyle}>
             <div>
@@ -2813,7 +2934,21 @@ export default function TournamentBuilderWorkspace() {
         </div>
 
         <div style={recordGridStyle}>
-          {records.length ? records.map((record) => {
+          {eventRoots.length ? eventRoots.map((record) => {
+            if (record.isEvent) {
+              const divisions = getTournamentEventDivisions(records, record.id)
+              return <article key={record.id} style={recordCardStyle}>
+                <h3 style={recordTitleStyle}>{record.eventTheme === 'pumpkin' ? <span aria-hidden="true">🎃 </span> : null}{record.name}</h3>
+                <p style={recordTextStyle}>{record.startsOn || 'Date TBD'} · {divisions.length} divisions · {divisions.reduce((count, division) => count + division.entrants.length, 0)} entrants</p>
+                <div style={recordToolRowStyle}>
+                  <button type="button" onClick={() => loadRecord(record)} style={recordToolButtonStyle}>Manage event</button>
+                  <Link href={`/tournaments/${encodeURIComponent(record.id)}`} style={recordToolButtonStyle}>Event page</Link>
+                </div>
+                {divisions.map(division => <button key={division.id} type="button" onClick={() => loadRecord(division)} style={recordToolButtonStyle}>{division.name} · {entryCounts[division.id] || 0} pending</button>)}
+                <button type="button" disabled={Boolean(divisions.length)} onClick={() => void removeRecord(record)} style={recordRemoveButtonStyle}>Remove event</button>
+                {divisions.length ? <small>Remove divisions before removing the event.</small> : null}
+              </article>
+            }
             const preview = buildTournamentPreview(record)
             const summary = summarizeTournamentResults(record)
             const pendingEntryCount = entryCounts[record.id] || 0

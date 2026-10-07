@@ -16,7 +16,7 @@ import { buildRouteMetadata } from '@/lib/route-metadata'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 
 export const metadata: Metadata = buildRouteMetadata({
-  title: 'Tournaments',
+  title: 'Tournaments / Events',
   description:
     'Tournament tennis without the chaos. Find events, manage entries and draws, schedule courts, collect scores, publish results, and keep players informed.',
   path: '/tournaments',
@@ -44,9 +44,9 @@ export default function TournamentsPage() {
       <main style={pageWrapStyle}>
         <JsonLd id="tournaments-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Tournaments', '/tournaments')} />
         <CommandHero
-          eyebrow="Tournaments"
+          eyebrow="Tournaments / Events"
           title="Tournament tennis without the chaos."
-          body="Find events, manage entries and draws, schedule courts, collect scores, publish results, and keep players informed."
+          body="Find tennis events or run one with multiple divisions. Manage entries, draws, courts, scores, and player updates from one event desk."
           primary={{ href: '#find', label: 'Find Tournaments' }}
           secondary={{ href: '#desk', label: 'Run a Tournament' }}
           searchPlaceholder="Search tournaments, draws, divisions, round robins, court schedules, or results"
