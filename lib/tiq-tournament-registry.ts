@@ -687,7 +687,7 @@ export async function loadTiqTournamentRegistry(userId?: string | null): Promise
 
   const result = await supabase
     .from('tiq_tournaments')
-    .select('id,event_id,is_event,event_theme,registration_email,event_details,created_by_user_id,club_id,club_group_id,result_mode,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
+    .select('id,event_id,is_event,event_theme,registration_email,event_details,created_by_user_id,club_id,club_group_id,result_mode,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,entrant_player_ids,is_public,created_at,updated_at')
     .order('updated_at', { ascending: false })
 
   if (result.error) {
@@ -712,7 +712,7 @@ export async function loadTiqTournamentRecord(id: string): Promise<{
 
   const result = await supabase
     .from('tiq_tournaments')
-    .select('id,event_id,is_event,event_theme,registration_email,event_details,created_by_user_id,club_id,club_group_id,result_mode,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
+    .select('id,event_id,is_event,event_theme,registration_email,event_details,created_by_user_id,club_id,club_group_id,result_mode,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,entrant_player_ids,is_public,created_at,updated_at')
     .eq('id', cleanId)
     .maybeSingle()
 
@@ -807,7 +807,7 @@ export async function saveTiqTournamentRecord(
   const result = await supabase
     .from('tiq_tournaments')
     .upsert(toCloudTournamentPayload(record, userId), { onConflict: 'id' })
-    .select('id,event_id,is_event,event_theme,registration_email,event_details,created_by_user_id,club_id,club_group_id,result_mode,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
+    .select('id,event_id,is_event,event_theme,registration_email,event_details,created_by_user_id,club_id,club_group_id,result_mode,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,entrant_player_ids,is_public,created_at,updated_at')
     .maybeSingle()
 
   if (result.error) {
