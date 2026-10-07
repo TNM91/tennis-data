@@ -2,6 +2,7 @@ import { normalizeTeamName, normalizeUstaRosterTeamName } from './captain-format
 import { validateTiqTennisMatchScore } from './tiq-scoring'
 import type { CaptainLineupSlot } from './captain-lineup-format'
 import type { PlayerSetScoreMatch } from './player-set-score-grid'
+import { activeChampionshipYears } from './tennisrecord/current-refresh'
 
 type Match = {
   id: string; league_name: string | null; flight: string | null; match_date: string | null
@@ -73,7 +74,11 @@ export function buildOpponentSeasonScout(input: {
   const groups = new Map<string, { date: string; opponent: string; matches: Array<{ match: Match; side: 'A' | 'B' }> }>()
   for (const match of new Map(input.matches.map((row) => [row.id, row])).values()) {
     const date = (match.match_date || '').slice(0, 10)
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date >= beforeDate || !years.includes(date.slice(0, 4))) continue
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date >= beforeDate) continue
+    // Fall play can belong to the following championship year. The exact
+    // league/flight still scopes the season; its year is not the calendar year.
+    const matchSeasons = activeChampionshipYears(new Date(`${date}T00:00:00Z`)).map(String)
+    if (!years.some((year) => matchSeasons.includes(year))) continue
     if (normalizeTeamName(match.league_name) !== normalizeTeamName(league) || normalizeTeamName(match.flight) !== normalizeTeamName(flight)) continue
     const home = names.has(normalizeUstaRosterTeamName(match.home_team))
     const away = names.has(normalizeUstaRosterTeamName(match.away_team))

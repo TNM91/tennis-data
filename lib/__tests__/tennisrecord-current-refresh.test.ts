@@ -1,6 +1,6 @@
 import { isKnownMissouriPlayerHistory } from '../tennisrecord/current-refresh'
 import { describe, expect, it } from 'vitest'
-import { activeChampionshipYears, currentPlayerRefreshUrls, currentRefreshPageKindPlan, currentSeasonDiscoveryUrls, currentSeasonPreferredScope, nationalCurrentSeasonUrl, futureScorecardRefreshAt, hasMissouriPageEvidence, isMissouriCompetition, nextCurrentRefreshAt, preferCurrentSeason } from '../tennisrecord/current-refresh'
+import { activeChampionshipYears, currentPlayerRefreshUrls, currentRefreshPageKindPlan, currentSeasonDiscoveryUrls, currentSeasonPreferredScope, nationalCurrentSeasonUrl, futureScorecardRefreshAt, hasMissouriPageEvidence, isMissouriCompetition, nextCurrentRefreshAt, preferCurrentSeason, teamScheduleRefreshAt } from '../tennisrecord/current-refresh'
 import { parseTennisRecordMatchPage } from '../tennisrecord/parser'
 import { isTennisRecordCampaignDiscoveryAllowed } from '../tennisrecord/frontier'
 import type { ParsedTennisRecordPage } from '../tennisrecord/types'
@@ -62,6 +62,33 @@ describe('independent current-season refresh', () => {
     expect(isMissouriCompetition('2026 Adult Missouri Valley Kansas')).toBe(false)
     expect(isMissouriCompetition('Missouri Valley')).toBe(false)
     expect(isMissouriCompetition('2026 Texas Dallas')).toBe(false)
+  })
+  it('rechecks a morning-captured team schedule after its evening match', () => {
+    const url = base + 'teamprofile.aspx?teamname=Levin-Malpartida&year=2027'
+    const page: ParsedTennisRecordPage = { ...empty,
+      teams: [{ sourceTeamKey: 'team', name: 'Levin-Malpartida', leagueName: '2027 Adult 18+', flight: '4.5', seasonYear: 2027, sourceUrl: url }],
+      leagues: [{ sourceLeagueKey: 'league', name: '2027 Adult 18+', flight: '4.5', seasonYear: 2027, sourceUrl: url }],
+    }
+    const html = '<table><tr><td>09/27/2026</td><td>3-2</td></tr><tr><td>10/04/2026</td><td>5:00 PM</td><td>0-0</td></tr><tr><td>10/11/2026</td><td>0-0</td></tr></table>'
+    const now = new Date('2026-10-04T16:37:11Z')
+    expect(teamScheduleRefreshAt(html, page, url, now)).toBe('2026-10-05T12:00:00.000Z')
+    expect(teamScheduleRefreshAt(html, { ...empty, discoveredUrls: [base + 'matchresults.aspx?year=2027&mid=13353'] }, url, now)).toBe('2026-10-05T12:00:00.000Z')
+    expect(teamScheduleRefreshAt(html, page, url, new Date('2026-10-06T16:37:11Z'))).toBe('2026-10-07T16:37:11.000Z')
+    expect(teamScheduleRefreshAt(html, { ...page, reviewReason: 'held evidence' }, url, now)).toBeNull()
+    expect(teamScheduleRefreshAt(html, empty, url, now)).toBeNull()
+    expect(teamScheduleRefreshAt(html, page, base + 'profile.aspx?playername=A', now)).toBeNull()
+    expect(teamScheduleRefreshAt(html, page, 'https://example.com/teamprofile.aspx?year=2027', now)).toBeNull()
+    expect(teamScheduleRefreshAt('<tr><td>10/04/2026</td><td>3-2</td></tr>', page, url, now)).toBeNull()
+    expect(teamScheduleRefreshAt('<tr><td>02/30/2027</td><td>0-0</td></tr>', page, url, now)).toBeNull()
+    expect(teamScheduleRefreshAt('<tr><td>09/20/2026</td><td>0-0</td></tr>', page, url, now)).toBeNull()
+    expect(teamScheduleRefreshAt('<tr><td>11/01/2026</td><td>0-0</td></tr>', page, url, now)).toBe(nextCurrentRefreshAt(now))
+  })
+  it('follows a near-term empty scorecard after play, then stops extra retries on old missing results', () => {
+    const html = '<h1>Match Results</h1><p>2027 Adult 18+ Missouri Valley Missouri St. Louis M 4.5 Scheduled Date: 10/04/2026</p><table><tr><th>Team Name</th></tr><tr><td>Levin-Malpartida</td></tr><tr><td>Schlueter-White</td></tr></table>'
+    const page = parseTennisRecordMatchPage(html, base + 'matchresults.aspx?year=2027&mid=123')
+    expect(futureScorecardRefreshAt(html, page, new Date('2026-10-04T16:00:00Z'))).toBe('2026-10-05T12:00:00.000Z')
+    expect(futureScorecardRefreshAt(html, page, new Date('2026-10-06T16:00:00Z'))).toBe('2026-10-07T16:00:00.000Z')
+    expect(futureScorecardRefreshAt(html, page, new Date('2026-10-08T16:00:00Z'))).toBeNull()
   })
 
   it('requires profile location before expanding a player history', () => {
