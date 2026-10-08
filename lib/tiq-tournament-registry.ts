@@ -1,6 +1,7 @@
 'use client'
 
 import { supabase } from './supabase'
+import { normalizeEventScheduleChange, recordEventScheduleChange, type EventScheduleChange } from './tournament-event-schedule-notice'
 import { buildGroupPlayoffs } from './tournament-group-playoffs'
 import { normalizeTournamentEventDetails, type TournamentEventDetails } from './tournament-event-presentation'
 import {
@@ -73,6 +74,7 @@ export type TiqTournamentMatchResult = {
 }
 
 export type TiqTournamentMatchSchedule = {
+  change?: EventScheduleChange
   date: string
   time: string
   court: string
@@ -1295,7 +1297,8 @@ export function updateTiqTournamentMatchSchedule(input: {
 
   const record = registry[index]
   const matches = buildTournamentPreview(record)
-  if (!matches.some((item) => item.id === matchId)) return null
+  const match = matches.find((item) => item.id === matchId)
+  if (!match) return null
 
   const nextSchedule = { ...record.schedule }
   const schedule = {
@@ -1305,8 +1308,9 @@ export function updateTiqTournamentMatchSchedule(input: {
     updatedAt: new Date().toISOString(),
   }
 
-  if (schedule.date || schedule.time || schedule.court) {
-    nextSchedule[matchId] = schedule
+  const change = record.eventId ? recordEventScheduleChange(record.schedule[matchId], schedule, match.sideA, match.sideB) : undefined
+  if (schedule.date || schedule.time || schedule.court || change) {
+    nextSchedule[matchId] = { ...schedule, ...(change ? { change } : {}) }
   } else {
     delete nextSchedule[matchId]
   }
@@ -1785,9 +1789,10 @@ function normalizeTournamentSchedule(value: unknown): Record<string, TiqTourname
       time: cleanText(schedule?.time),
       court: cleanText(schedule?.court),
       updatedAt: cleanText(schedule?.updatedAt),
+      change: normalizeEventScheduleChange(schedule?.change),
     }
 
-    if (matchId && (normalizedSchedule.date || normalizedSchedule.time || normalizedSchedule.court)) {
+    if (matchId && (normalizedSchedule.date || normalizedSchedule.time || normalizedSchedule.court || normalizedSchedule.change)) {
       nextSchedule[matchId] = normalizedSchedule
     }
 

@@ -1036,13 +1036,20 @@ export default function TournamentBuilderWorkspace() {
   async function updateMatchSchedule(matchId: string) {
     if (!selectedRecord) return
     const schedule = scheduleInputs[matchId] || selectedRecord.schedule[matchId] || { date: '', time: '', court: '' }
-    const updated = await updateTiqTournamentMatchScheduleForUser({
-      tournamentId: selectedRecord.id,
-      matchId,
-      date: schedule.date,
-      time: schedule.time,
-      court: schedule.court,
-    }, userId)
+    let updated: TiqTournamentRecord | null
+    if (selectedRecord.eventId) {
+      const saved = await saveTiqTournamentEventCourtAssignment({
+        eventId: selectedRecord.eventId, tournamentId: selectedRecord.id, matchId,
+        date: schedule.date, time: schedule.time, court: schedule.court,
+      }, userId)
+      if (saved.error) { setNotice(saved.error.message); return }
+      updated = saved.data
+    } else {
+      updated = await updateTiqTournamentMatchScheduleForUser({
+        tournamentId: selectedRecord.id, matchId,
+        date: schedule.date, time: schedule.time, court: schedule.court,
+      }, userId)
+    }
     if (!updated) {
       setNotice('That schedule could not be saved. Check the draw and try again.')
       return

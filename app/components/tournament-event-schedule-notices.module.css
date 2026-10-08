@@ -1,0 +1,16 @@
+.panel { padding:24px; border:1px solid var(--shell-panel-border, #29415e); border-radius:20px; background:var(--shell-panel-bg, #0b213e); color:var(--foreground, #fff); margin:24px 0; }
+.panel header { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.panel header p { color:#9be11d; margin:0; font-size:12px; text-transform:uppercase; letter-spacing:.1em; }
+.panel h2 { margin:8px 0; font-size:24px; }
+.panel p,.panel small { color:#b5c7df; line-height:1.6; }
+.panel article { border-top:1px solid #29415e; padding-top:20px; margin-top:20px; }
+.panel h3 { font-size:17px; overflow-wrap:anywhere; }
+.panel dl { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.panel dt { color:#b5c7df; font-size:12px; }
+.panel dd { margin:6px 0; overflow-wrap:anywhere; }
+.panel label { display:grid; gap:8px; font-size:13px; }
+.panel textarea { width:100%; box-sizing:border-box; min-height:150px; resize:vertical; border:1px solid #476383; border-radius:12px; padding:14px; background:#06172f; color:#fff; font:inherit; line-height:1.6; }
+.panel button { margin:14px 12px 0 0; background:#9be11d; color:#06172f; border:0; border-radius:10px; padding:12px 18px; font-weight:700; cursor:pointer; }
+.panel button:disabled { opacity:.5; cursor:default; }
+.panel button:focus-visible,.panel textarea:focus-visible { outline:2px solid #9be11d; outline-offset:3px; }
+@media(max-width:600px) { .panel { padding:18px; } .panel header { align-items:flex-start; flex-direction:column; } .panel dl { grid-template-columns:1fr; } .panel small { display:block; margin-top:10px; } }
