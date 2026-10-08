@@ -2418,7 +2418,7 @@ export default function TournamentBuilderWorkspace() {
                   })
                 : null
               return (
-                <div key={match.id} style={scorebookMatchStyle}>
+                <div key={match.id} id={`tournament-match-${match.id}`} style={{ ...scorebookMatchStyle, scrollMarginTop: 100 }}>
                   <span style={matchMetaStyle}>{match.label}{selectedRecord.format === 'group_playoffs' ? '' : ` - Court ${match.court}`}</span>
                   <div style={scorebookSidesStyle}>
                     <strong>{match.sideA}</strong>
