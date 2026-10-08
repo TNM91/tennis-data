@@ -8,6 +8,7 @@ import type { TiqTournamentRecord } from '@/lib/tiq-tournament-registry'
 import { buildEventDeskMatches, buildEventDivisionReadiness, findEventCourtOverlaps, isCompleteEventSlot, type EventDeskMatch } from '@/lib/tournament-event-desk'
 import { formatTournamentEventDate, formatTournamentEventTime } from '@/lib/tournament-event-presentation'
 import styles from './tournament-event-desk.module.css'
+import TournamentEventPass from './tournament-event-pass'
 
 export type EventCourtAssignment = { divisionId: string; matchId: string; date: string; time: string; court: string }
 
@@ -139,5 +140,6 @@ export default function TournamentEventDesk({ event, divisions, onManage, onSche
         </div>
       </div>
     </section>
+    <TournamentEventPass key={event.id} event={event} divisions={divisions} director />
   </section>
 }

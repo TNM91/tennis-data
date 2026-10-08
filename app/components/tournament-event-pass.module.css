@@ -1,0 +1,30 @@
+.pass { margin:24px 0; padding:clamp(20px,4vw,40px); border:1px solid #d5dcd6; border-radius:24px; background:#f5f4ed; color:#172e2b; scroll-margin-top:90px }
+.pass header,.pass footer { display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap }
+.pass h2 { font-size:clamp(25px,3vw,36px); letter-spacing:-1px; margin:8px 0 12px; line-height:1.15 }
+.pass h3 { font-size:clamp(23px,3vw,32px); line-height:1.2; overflow-wrap:anywhere; margin:12px 0 }
+.pass p { line-height:1.6; margin:8px 0 }
+.eyebrow { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:2px }
+.badge { align-self:flex-start; background:#e6eadc; padding:10px 14px; border-radius:99px; font-size:13px; font-weight:700 }
+.controls { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:24px 0 }
+.controls label { display:grid; gap:8px; font-weight:700; font-size:13px; min-width:0 }
+.pass select { appearance:auto; width:100%; min-width:0; border:1px solid #b5c4ba; background:white; color:#172e2b; padding:12px; border-radius:10px; min-height:48px; font:inherit }
+.pass button,.pass a { display:inline-flex; justify-content:center; align-items:center; gap:8px; min-height:44px; font:inherit; font-size:13px; font-weight:700; border-radius:10px; padding:10px 14px; text-decoration:none; cursor:pointer }
+.pass button { background:#173e34; color:white; border:1px solid #173e34 }
+.pass a { color:#173e34; background:#e5ebdf }
+.pass a:focus-visible,.pass button:focus-visible,.pass select:focus-visible { outline:3px solid #ba4f1d; outline-offset:3px }
+.pass button:disabled { opacity:.6; cursor:wait }
+.ticket { display:grid; grid-template-columns:1fr 1fr; background:#142f2b; color:#fff; border-radius:18px; overflow:hidden; margin-bottom:24px }
+.identity,.match { padding:clamp(20px,3vw,30px) }
+.match { background:#1d3b33; border-left:1px dashed #7d9783 }
+.ticket .eyebrow { color:#d5dcb4 }
+.ticket p { color:#e0e9e2; font-size:14px }
+.status { display:flex; gap:8px; align-items:center; font-weight:700 }
+.ticket .note { font-size:12px; margin-top:18px }
+.ticket button { background:#e0ecab; color:#142f2b; margin-top:12px }
+.ticket dl { display:flex; gap:32px; margin:22px 0 }
+.ticket dt { color:#c9d6c7; font-size:12px }
+.ticket dd { margin:8px 0; font-size:23px; font-weight:800; line-height:1.2 }
+.actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center }
+.empty { border:1px dashed #b5c4ba; padding:24px; border-radius:12px; margin-bottom:24px!important }
+.error { color:#8c3018; font-weight:700 }
+@media(max-width:650px) { .controls,.ticket { grid-template-columns:1fr }.match { border-left:0; border-top:1px dashed #7d9783 }.pass { border-radius:18px }.pass footer { flex-direction:column }.actions>* { flex:1 }.badge { max-width:100%; overflow-wrap:anywhere } }
