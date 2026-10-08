@@ -1770,7 +1770,7 @@ export default function TournamentBuilderWorkspace() {
       {eventContext.event ? <>
         <TournamentEventPublication key={eventContext.event.id} event={eventContext.event} divisions={eventContext.divisions} onEdit={()=>loadRecordSection(eventContext.event!, 'tournament-setup')} onVisibility={async makePublic=>{
           await setEventPublication(eventContext.event!,eventContext.divisions,makePublic,userId)
-          refreshRecords(selectedId);if(selectedRecord?.isEvent) setIsPublic(makePublic)
+          refreshRecords(selectedId);setIsPublic(makePublic)
         }} />
         <TournamentEventDesk key={eventContext.event.id} event={eventContext.event} divisions={eventContext.divisions} onManage={loadRecordSection} onScheduleSave={saveEventCourtAssignment} onRegistrationsChanged={refreshEventRegistrations} />
         <section style={panelStyle} aria-label="Add event division">
