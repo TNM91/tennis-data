@@ -13,6 +13,8 @@ export type EventDeskMatch = {
   court: string
   completed: boolean
   assigned: boolean
+  round: number
+  ready?: boolean
 }
 
 export function normalizeEventCourt(court: string) {
@@ -37,7 +39,7 @@ export function buildEventDeskMatches(divisions: TiqTournamentRecord[]): EventDe
       const slot = { date: match.schedule?.date || '', time: match.schedule?.time || '', court: match.schedule?.court || '' }
       return { key: `${division.id}:${match.id}`, divisionId: division.id, divisionName: division.name, matchId: match.id,
         label: match.label, sideA: match.sideA, sideB: match.sideB, ...slot,
-        completed: Boolean(match.result?.winner), assigned: isCompleteEventSlot(slot) }
+        completed: Boolean(match.result?.winner), assigned: isCompleteEventSlot(slot), round: match.round, ready: match.ready }
     }))
     .sort((a, b) => Number(b.assigned) - Number(a.assigned) || `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)
       || a.court.localeCompare(b.court, undefined, { numeric: true }) || a.divisionName.localeCompare(b.divisionName))

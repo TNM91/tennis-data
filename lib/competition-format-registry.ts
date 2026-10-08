@@ -42,6 +42,7 @@ export type ResolvedTeamMatchFormat = TeamMatchFormatDefinition & {
 export type TournamentDrawFormatId =
   | 'single_elimination'
   | 'round_robin'
+  | 'group_playoffs'
   | 'round_robin_first_match_consolation'
   | 'modified_feed_in_consolation'
   | 'compass_draw'
@@ -184,6 +185,7 @@ export const TEAM_MATCH_FORMATS: readonly TeamMatchFormatDefinition[] = [
 export const TOURNAMENT_DRAW_FORMATS: readonly TournamentDrawFormatDefinition[] = [
   { id: 'single_elimination', label: 'Single elimination', description: 'One main draw; a loss ends the entrant’s run.', structure: 'bracket' },
   { id: 'round_robin', label: 'Round robin', description: 'Entrants play through a pool or flight with standings.', structure: 'round_robin' },
+  { id: 'group_playoffs', label: 'Group play + championship', description: 'Groups of 3–4 play round robin; group winners advance to a championship bracket. Fields below 6 use elimination.', structure: 'round_robin' },
   { id: 'round_robin_first_match_consolation', label: 'Round robin + first-match consolation', description: 'Round-robin play followed by a first-match consolation path.', structure: 'consolation' },
   { id: 'modified_feed_in_consolation', label: 'Modified feed-in consolation', description: 'Main-draw losses feed into a modified consolation bracket.', structure: 'consolation' },
   { id: 'compass_draw', label: 'Compass draw', description: 'Entrants move through named directions after wins and losses.', structure: 'compass' },

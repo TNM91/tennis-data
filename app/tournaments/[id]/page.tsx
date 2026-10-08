@@ -827,7 +827,7 @@ function TournamentPublicInner() {
               <div style={matchListStyle}>
                 {roundMatches.map((match) => (
                   <article key={match.id} style={matchCardStyle}>
-                    <span style={matchMetaStyle}>Court {match.court}</span>
+                    <span style={matchMetaStyle}>{record.format === 'group_playoffs' ? match.schedule?.court ? `Court ${match.schedule.court}` : 'Court pending' : `Court ${match.court}`}</span>
                     <div style={sideRowStyle}>
                       <strong><TournamentEntrantLink record={record} entrant={match.sideA} /></strong>
                       {match.result?.winner === match.sideA ? <span style={winnerPillStyle}>W</span> : null}

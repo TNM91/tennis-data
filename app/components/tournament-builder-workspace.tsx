@@ -199,6 +199,7 @@ export default function TournamentBuilderWorkspace() {
   const [alertRecords, setAlertRecords] = useState<TiqTournamentAlertRecord[]>([])
   const [preferenceEvents, setPreferenceEvents] = useState<TiqTournamentPreferenceEventRecord[]>([])
   const [alertSaving, setAlertSaving] = useState(false)
+  const [matchSaving, setMatchSaving] = useState(false)
   const [alertQueueingId, setAlertQueueingId] = useState('')
   const [alertPreviewingId, setAlertPreviewingId] = useState('')
   const [alertDeliveryPreview, setAlertDeliveryPreview] = useState<{
@@ -244,6 +245,7 @@ export default function TournamentBuilderWorkspace() {
   const selectedPreview = selectedRecord ? buildTournamentPreview(selectedRecord) : []
   const selectedSummary = selectedRecord ? summarizeTournamentResults(selectedRecord) : null
   const selectedStandings = selectedRecord?.format === 'round_robin' ? buildRoundRobinStandings(selectedRecord) : []
+  const groupFieldLocked = selectedRecord?.format === 'group_playoffs' && Object.keys(selectedRecord.results).length > 0
   const scheduledEvents = useMemo(() => buildTournamentScheduleEvents(activeEventId ? getTournamentEventDivisions(records, activeEventId) : records), [records, activeEventId])
   const calendarDays = useMemo(() => buildCalendarDays(calendarMonth, scheduledEvents), [calendarMonth, scheduledEvents])
   const scheduledMonthEvents = useMemo(() => (
@@ -959,21 +961,24 @@ export default function TournamentBuilderWorkspace() {
       isPublic,
     }, selectedId, userId)
 
+    if (saved.error) { setNotice(saved.error.message); setSyncNotice('Changes could not be synced. Review the message.'); return }
     refreshRecords(saved.data.id)
     setSyncNotice(saved.source === 'cloud' ? 'Tournament room synced.' : 'Saved on this device.')
     setNotice(`${saved.data.name} is saved${saved.data.clubGroupId ? ' and connected to its Club program' : ''}. ${isEvent ? 'Add divisions below.' : draftEntrants.length < 2 ? 'Add teams or players when signups arrive.' : 'The draw preview is ready for scheduling.'}`)
-    if (saved.error) setNotice(saved.error.message)
   }
 
   async function updateMatchResult(matchId: string, winner: string) {
-    if (!selectedRecord) return
+    if (!selectedRecord || matchSaving) return
     const score = (scoreInputs[matchId] || '').trim()
-    const updated = await updateTiqTournamentMatchResultForUser({
+    setMatchSaving(true)
+    let updated
+    try { updated = await updateTiqTournamentMatchResultForUser({
       tournamentId: selectedRecord.id,
       matchId,
       winner,
       score,
-    }, userId)
+    }, userId) } catch { setNotice('Result sync could not finish. Refresh the division and try again.'); return }
+    finally { setMatchSaving(false) }
     if (!updated) {
       setNotice('That match could not be updated. Check the draw and try again.')
       return
@@ -992,9 +997,13 @@ export default function TournamentBuilderWorkspace() {
   }
 
   async function clearMatchResult(matchId: string) {
-    if (!selectedRecord) return
-    const updated = await clearTiqTournamentMatchResultForUser(selectedRecord.id, matchId, userId)
-    if (!updated) return
+    if (!selectedRecord || matchSaving) return
+    setMatchSaving(true)
+    let updated
+    try { updated = await clearTiqTournamentMatchResultForUser(selectedRecord.id, matchId, userId) }
+    catch { setNotice('Result sync could not finish. Refresh the division and try again.'); return }
+    finally { setMatchSaving(false) }
+    if (!updated) { setNotice('The result could not be cleared. Refresh the division and try again.'); return }
 
     refreshRecords(updated.id)
     setScoreInputs(buildScoreInputState(updated))
@@ -1844,6 +1853,7 @@ export default function TournamentBuilderWorkspace() {
               aria-label="Tournament format"
               value={format}
               onChange={(event) => setFormat(event.target.value as TiqTournamentFormat)}
+              disabled={groupFieldLocked}
               style={inputStyle}
             >
               {TOURNAMENT_DRAW_FORMATS.map((option) => (
@@ -1865,6 +1875,7 @@ export default function TournamentBuilderWorkspace() {
                 key={value}
                 type="button"
                 onClick={() => setEntrantType(value as 'players' | 'teams')}
+                disabled={groupFieldLocked}
                 style={{
                   ...segmentButtonStyle,
                   ...(entrantType === value ? segmentActiveStyle : null),
@@ -1890,11 +1901,14 @@ export default function TournamentBuilderWorkspace() {
             Entrants
             <textarea
               value={entrantsText}
+              disabled={groupFieldLocked}
               onChange={(event) => setEntrantsText(event.target.value)}
               placeholder="One player or team per line"
               style={textareaStyle}
             />
           </label> : null}
+
+          {groupFieldLocked ? <p style={smallNoteStyle}>The group field is locked after scoring starts. Clear recorded results before changing entrants or the draw format.</p> : null}
 
           <label style={fieldStyle}>
             Director notes
@@ -1963,7 +1977,7 @@ export default function TournamentBuilderWorkspace() {
             {isEvent ? <div style={emptyStateStyle}>Save the event, then add divisions. Open a division to build its draw and schedule courts.</div> : draftPreview.length ? (
               draftPreview.slice(0, 16).map((match) => (
                 <div key={`${match.round}-${match.court}-${match.sideA}-${match.sideB}`} style={matchCardStyle}>
-                  <span style={matchMetaStyle}>{match.label} - Court {match.court}</span>
+                  <span style={matchMetaStyle}>{match.label}{format === 'group_playoffs' ? '' : ` - Court ${match.court}`}</span>
                   <strong>{match.sideA}</strong>
                   <span style={vsStyle}>vs</span>
                   <strong>{match.sideB}</strong>
@@ -2348,7 +2362,7 @@ export default function TournamentBuilderWorkspace() {
             {selectedPreview.map((match) => {
               const sideAPlayable = match.sideA !== 'Bye' && !match.sideA.startsWith('Winner ')
               const sideBPlayable = match.sideB !== 'Bye' && !match.sideB.startsWith('Winner ')
-              const canRecord = sideAPlayable && sideBPlayable
+              const canRecord = match.ready === undefined ? sideAPlayable && sideBPlayable : match.ready
               const schedule = scheduleInputs[match.id] || match.schedule || { date: '', time: '', court: '' }
               const matchScheduleReady = Boolean(match.schedule?.date || match.schedule?.time || match.schedule?.court)
               const matchResultReady = Boolean(match.result?.winner)
@@ -2396,7 +2410,7 @@ export default function TournamentBuilderWorkspace() {
                 : null
               return (
                 <div key={match.id} style={scorebookMatchStyle}>
-                  <span style={matchMetaStyle}>{match.label} - Court {match.court}</span>
+                  <span style={matchMetaStyle}>{match.label}{selectedRecord.format === 'group_playoffs' ? '' : ` - Court ${match.court}`}</span>
                   <div style={scorebookSidesStyle}>
                     <strong>{match.sideA}</strong>
                     <span style={vsStyle}>vs</span>
@@ -2471,7 +2485,7 @@ export default function TournamentBuilderWorkspace() {
                     <div style={smallNoteStyle}>Complete earlier matches to unlock this slot.</div>
                   )}
                   <label style={scoreFieldStyle}>
-                    <span>Score</span>
+                    <span>Score{selectedRecord.format === 'group_playoffs' ? ' (first name first)' : ''}</span>
                     <input
                       value={scoreInputs[match.id] ?? match.result?.score ?? ''}
                       onChange={(event) => {
@@ -2479,14 +2493,14 @@ export default function TournamentBuilderWorkspace() {
                         setScoreInputs((current) => ({ ...current, [match.id]: nextScore }))
                       }}
                       placeholder="6-4 6-4"
-                      disabled={!canRecord}
+                      disabled={!canRecord || matchSaving}
                       style={{ ...scoreInputStyle, ...(!canRecord ? disabledInputStyle : null) }}
                     />
                   </label>
                   <div style={actionRowStyle}>
                     <button
                       type="button"
-                      disabled={!canRecord}
+                      disabled={!canRecord || matchSaving}
                       onClick={() => updateMatchResult(match.id, match.sideA)}
                       style={{ ...secondaryButtonStyle, ...(!canRecord ? disabledButtonStyle : null) }}
                     >
@@ -2494,14 +2508,14 @@ export default function TournamentBuilderWorkspace() {
                     </button>
                     <button
                       type="button"
-                      disabled={!canRecord}
+                      disabled={!canRecord || matchSaving}
                       onClick={() => updateMatchResult(match.id, match.sideB)}
                       style={{ ...secondaryButtonStyle, ...(!canRecord ? disabledButtonStyle : null) }}
                     >
                       {match.sideB}
                     </button>
                     {match.result?.winner ? (
-                      <button type="button" onClick={() => clearMatchResult(match.id)} style={ghostButtonStyle}>
+                      <button type="button" disabled={matchSaving} onClick={() => clearMatchResult(match.id)} style={ghostButtonStyle}>
                         Clear
                       </button>
                     ) : null}

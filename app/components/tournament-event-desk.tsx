@@ -9,6 +9,7 @@ import { buildEventDeskMatches, buildEventDivisionReadiness, findEventCourtOverl
 import { formatTournamentEventDate, formatTournamentEventTime } from '@/lib/tournament-event-presentation'
 import styles from './tournament-event-desk.module.css'
 import TournamentEventPass from './tournament-event-pass'
+import TournamentEventChampionship from './tournament-event-championship'
 
 export type EventCourtAssignment = { divisionId: string; matchId: string; date: string; time: string; court: string }
 
@@ -140,6 +141,7 @@ export default function TournamentEventDesk({ event, divisions, onManage, onSche
         </div>
       </div>
     </section>
+    <TournamentEventChampionship key={event.id} event={event} divisions={divisions} onManage={onManage} />
     <TournamentEventPass key={event.id} event={event} divisions={divisions} director />
   </section>
 }
