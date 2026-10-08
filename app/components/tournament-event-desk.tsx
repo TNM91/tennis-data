@@ -89,7 +89,7 @@ export default function TournamentEventDesk({ event, divisions, onManage, onSche
       <div><dt>Match progress</dt><dd>{completed}<span> / {matches.length}</span></dd><small>{matches.length ? `${matches.length - completed} matches remaining` : 'Add teams to build draws'}</small></div>
       <div><dt>Divisions scheduled</dt><dd>{readyDivisions}<span> / {divisions.length}</span></dd><small>{overlaps.length ? `${overlaps.length} court overlap${overlaps.length === 1 ? '' : 's'} to review` : 'Shared court planning'}</small></div>
     </dl>
-    <TournamentEventNextOnCourt matches={matches} divisions={divisions} conflictKeys={conflictKeys} onEdit={edit} onManage={onManage} disabled={saving} />
+    <TournamentEventNextOnCourt eventId={event.id} matches={matches} divisions={divisions} conflictKeys={conflictKeys} onEdit={edit} onManage={onManage} disabled={saving} />
     <div className={styles.readiness}>
       <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Next moves</p><h3>Every division, at a glance.</h3></div><span className={styles.count}>{divisions.length} divisions</span></div>
       <div className={styles.divisions}>

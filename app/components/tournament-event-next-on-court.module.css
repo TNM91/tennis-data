@@ -15,3 +15,9 @@
 .actions button:first-child { background:var(--brand-green-3,#9be11d); color:#06172f; border-color:transparent; font-weight:750; }
 .assign { margin-top:16px; }
 .warning { color:#ffcc98; font-size:12px; line-height:1.6; }
+
+.callStatus { color:var(--brand-green-3,#9be11d); font-weight:750; font-size:13px; line-height:1.7; }
+.callStatus span { color:var(--shell-muted,#9aacc4); font-weight:400; }
+.actions button:disabled { opacity:.5; cursor:default; }
+
+.checkInLink { display:inline-flex; align-items:center; min-height:44px; font-size:12px; color:var(--brand-green-3,#9be11d); }
