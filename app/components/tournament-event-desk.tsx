@@ -11,6 +11,7 @@ import { formatTournamentEventDate, formatTournamentEventTime } from '@/lib/tour
 import styles from './tournament-event-desk.module.css'
 import TournamentEventPass from './tournament-event-pass'
 import TournamentEventChampionship from './tournament-event-championship'
+import TournamentEventRecap from './tournament-event-recap'
 import TournamentEventRegistration from './tournament-event-registration'
 import TournamentEventRunSheet from './tournament-event-run-sheet'
 import TournamentEventNextOnCourt from './tournament-event-next-on-court'
@@ -156,6 +157,7 @@ export default function TournamentEventDesk({ event, divisions, onManage, onSche
     </section>
     <TournamentEventRunSheet event={event} divisions={divisions} windowMinutes={windowMinutes} />
     <TournamentEventChampionship key={event.id} event={event} divisions={divisions} onManage={onManage} />
+    <TournamentEventRecap event={event} divisions={divisions} director />
     <TournamentEventPass key={event.id} event={event} divisions={divisions} director />
   </section>
 }
