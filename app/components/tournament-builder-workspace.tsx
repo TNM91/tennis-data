@@ -1,5 +1,7 @@
 'use client'
 
+import TournamentEventPublication from './tournament-event-publication'
+import { setEventPublication } from '@/lib/tournament-event-publication-client'
 import { EVENT_COURT_ASSIGNMENT_LOCKED } from '@/lib/tournament-event-court-status'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -960,7 +962,7 @@ export default function TournamentBuilderWorkspace() {
       locationLabel,
       directorNotes,
       entrants: isEvent ? [] : draftEntrants,
-      isPublic,
+      isPublic: isEvent ? Boolean(selectedRecord?.isEvent && selectedRecord.isPublic) : isPublic,
     }, selectedId, userId)
 
     if (saved.error) { setNotice(saved.error.message); setSyncNotice('Changes could not be synced. Review the message.'); return }
@@ -1766,6 +1768,10 @@ export default function TournamentBuilderWorkspace() {
       </section>
 
       {eventContext.event ? <>
+        <TournamentEventPublication key={eventContext.event.id} event={eventContext.event} divisions={eventContext.divisions} onEdit={()=>loadRecordSection(eventContext.event!, 'tournament-setup')} onVisibility={async makePublic=>{
+          await setEventPublication(eventContext.event!,eventContext.divisions,makePublic,userId)
+          refreshRecords(selectedId);setIsPublic(makePublic)
+        }} />
         <TournamentEventDesk key={eventContext.event.id} event={eventContext.event} divisions={eventContext.divisions} onManage={loadRecordSection} onScheduleSave={saveEventCourtAssignment} onRegistrationsChanged={refreshEventRegistrations} />
         <section style={panelStyle} aria-label="Add event division">
           <div style={fieldGridStyle}>
@@ -1907,7 +1913,7 @@ export default function TournamentBuilderWorkspace() {
             Site
             <input
               value={locationLabel}
-              disabled={Boolean(eventId)}
+              disabled={Boolean(eventId) || isEvent}
               onChange={(event) => setLocationLabel(event.target.value)}
               placeholder="Facility or city"
               style={inputStyle}
@@ -1940,14 +1946,14 @@ export default function TournamentBuilderWorkspace() {
           <label style={toggleFieldStyle}>
             <input
               type="checkbox"
-              checked={isPublic}
-              disabled={Boolean(eventId)}
+              checked={isEvent ? Boolean(selectedRecord?.isEvent && selectedRecord.isPublic) : isPublic}
+              disabled={Boolean(eventId) || isEvent}
               onChange={(event) => setIsPublic(event.target.checked)}
               style={checkboxStyle}
             />
             <span>
               <strong>{eventId ? 'Visibility shared with event' : isEvent ? 'Public event page' : 'Public bracket'}</strong>
-              <small>Anyone with the link can view the tournament page.</small>
+              <small>{isEvent ? 'Use the player access review to publish the event or make it private.' : 'Anyone with the link can view the tournament page.'}</small>
             </span>
           </label>
 
