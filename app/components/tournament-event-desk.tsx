@@ -10,6 +10,7 @@ import { formatTournamentEventDate, formatTournamentEventTime } from '@/lib/tour
 import styles from './tournament-event-desk.module.css'
 import TournamentEventPass from './tournament-event-pass'
 import TournamentEventChampionship from './tournament-event-championship'
+import TournamentEventRegistration from './tournament-event-registration'
 
 export type EventCourtAssignment = { divisionId: string; matchId: string; date: string; time: string; court: string }
 
@@ -18,9 +19,10 @@ type Props = {
   divisions: TiqTournamentRecord[]
   onManage: (division: TiqTournamentRecord, section: string) => void
   onScheduleSave: (assignment: EventCourtAssignment) => Promise<string>
+  onRegistrationsChanged: (divisionId: string) => Promise<void>
 }
 
-export default function TournamentEventDesk({ event, divisions, onManage, onScheduleSave }: Props) {
+export default function TournamentEventDesk({ event, divisions, onManage, onScheduleSave, onRegistrationsChanged }: Props) {
   const [divisionFilter, setDivisionFilter] = useState('all')
   const [view, setView] = useState<'all' | 'unassigned' | 'conflicts'>('all')
   const [windowMinutes, setWindowMinutes] = useState(60)
@@ -105,6 +107,7 @@ export default function TournamentEventDesk({ event, divisions, onManage, onSche
         {!divisions.length ? <p className={styles.empty}>Add your first division below, then confirm its teams.</p> : null}
       </div>
     </div>
+    <TournamentEventRegistration key={event.id} event={event} divisions={divisions} onChanged={onRegistrationsChanged} onManage={onManage} />
     <section className={styles.schedule} aria-label="Shared event court schedule">
       <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Court plan</p><h3>One schedule. Every division.</h3><p>Assign start times and courts without leaving the event.</p></div><label className={styles.window}>Planning window<select value={windowMinutes} onChange={event => setWindowMinutes(Number(event.target.value))}><option value={30}>30 minutes</option><option value={45}>45 minutes</option><option value={60}>60 minutes</option><option value={90}>90 minutes</option></select></label></div>
       <p className={styles.windowNote}>Overlap warnings use a {windowMinutes}-minute planning window. Actual match lengths may vary.</p>

@@ -57,6 +57,7 @@ import {
   getTournamentLimitSummary,
   loadTiqTournamentAlertRecordsForUser,
   loadTiqTournamentRegistry,
+  loadTiqTournamentRecord,
   loadTiqTournamentEntriesForUser,
   loadTiqTournamentPreferenceEventsForUser,
   parseTournamentEntrantsInput,
@@ -1012,6 +1013,14 @@ export default function TournamentBuilderWorkspace() {
     setNotice('Match result cleared.')
   }
 
+  async function refreshEventRegistrations(divisionId: string) {
+    if (!userId) throw new Error('Sign in to manage registrations.')
+    const result = await loadTiqTournamentRecord(divisionId)
+    if (result.error || result.source !== 'cloud' || !result.data) throw new Error('Event refresh could not finish.')
+    refreshRecords()
+    if (selectedId === divisionId) setEntrantsText(result.data.entrants.join('\n'))
+  }
+
   async function saveEventCourtAssignment(assignment: EventCourtAssignment) {
     if (!eventContext.event) throw new Error('Choose an event first.')
     const result = await saveTiqTournamentEventCourtAssignment({ ...assignment,
@@ -1749,7 +1758,7 @@ export default function TournamentBuilderWorkspace() {
       </section>
 
       {eventContext.event ? <>
-        <TournamentEventDesk key={eventContext.event.id} event={eventContext.event} divisions={eventContext.divisions} onManage={loadRecordSection} onScheduleSave={saveEventCourtAssignment} />
+        <TournamentEventDesk key={eventContext.event.id} event={eventContext.event} divisions={eventContext.divisions} onManage={loadRecordSection} onScheduleSave={saveEventCourtAssignment} onRegistrationsChanged={refreshEventRegistrations} />
         <section style={panelStyle} aria-label="Add event division">
           <div style={fieldGridStyle}>
             <label style={fieldStyle}>New division
