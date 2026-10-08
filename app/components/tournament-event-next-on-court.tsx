@@ -49,7 +49,7 @@ export default function TournamentEventNextOnCourt({ eventId, matches, divisions
     } catch (cause) { if (token.active && token === generation.current) setError(cause instanceof Error ? cause.message : 'Court status could not be saved.') }
     finally { if (token.active && token === generation.current) setSaving(false) }
   }
-  return <section className={styles.panel} aria-labelledby="event-next-on-court-heading">
+  return <section id="event-next-on-court" className={styles.panel} aria-labelledby="event-next-on-court-heading">
     <p className={styles.eyebrow}>Event night</p><h3 id="event-next-on-court-heading">Next on court</h3>
     <p className={styles.note}>The earliest unfinished, playable match on each court. Scheduled times guide the order; check in both entrants and resolve overlaps before calling players. Post the result to mark a match finished.</p>
     <button type="button" className={styles.assign} disabled={loading || saving || disabled} onClick={() => setRevision(value => value + 1)}>Refresh court status and check-in</button>
@@ -68,6 +68,7 @@ export default function TournamentEventNextOnCourt({ eventId, matches, divisions
       <strong className={styles.pairing}>{next.sideA}<span>vs</span>{next.sideB}</strong>
       <p className={styles.callStatus}>{loading || error ? 'Status unavailable' : status === 'on_court' ? 'On court' : status === 'called' ? 'Called' : 'Queued'} <span>· {loading || error ? 'Check-in unavailable' : `${checkedIn}/2 entrants checked in`}</span></p>
       {!loading && !error && checkedIn < 2 ? <p className={styles.note}>Check in both entrants in the player pass before calling this match.</p> : null}
+      {!loading && !error && status !== 'queued' ? <p className={styles.note}>Court and time are locked. Undo this call before changing the assignment.</p> : null}
       <a href="#event-pass" className={styles.checkInLink}>Review player check-in</a>
       <div className={styles.actions}>{status === 'queued' ? <button type="button" disabled={blocked || checkedIn !== 2 || conflictKeys.has(next.key)} onClick={() => void update(next, 'called')}>Call match</button> : <>{status === 'called' ? <button type="button" disabled={blocked || checkedIn !== 2 || conflictKeys.has(next.key)} onClick={() => void update(next, 'on_court')}>Mark on court</button> : null}<button type="button" disabled={blocked} onClick={() => void update(next, 'queued')}>Undo call</button></>}</div>
       {conflictKeys.has(next.key) ? <p className={styles.warning}>Court overlap: review the slot before calling this match.</p> : null}

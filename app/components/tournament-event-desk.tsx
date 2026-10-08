@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { EVENT_COURT_ASSIGNMENT_LOCKED } from '@/lib/tournament-event-court-status'
 import Link from 'next/link'
 import { useMemo, useRef, useState, type FormEvent } from 'react'
 import { ArrowRight, CalendarBlank, CheckCircle, Clock, WarningCircle } from '@phosphor-icons/react'
@@ -149,7 +150,7 @@ export default function TournamentEventDesk({ event, divisions, onManage, onSche
             <div className={styles.editorActions}><button type="button" disabled={saving} onClick={() => { setEditing(null); setError('') }}>Cancel</button>{editing.date || editing.time || editing.court ? <button type="button" disabled={saving} onClick={() => void save({ divisionId: editing.divisionId, matchId: editing.matchId, date: '', time: '', court: '' })}>Clear assignment</button> : null}</div>
           </form> : <><p className={styles.eyebrow}>Quick assignment</p><h4>Keep play moving.</h4><p className={styles.editorSubtitle}>Select a match to change its court or start time. All divisions share this court plan.</p>{overlaps.length ? <button type="button" className={styles.primary} onClick={() => edit(overlaps[0].first)}>Review first overlap <ArrowRight size={16} aria-hidden="true" /></button> : matches.find(match => !match.assigned && !match.completed) ? <button type="button" className={styles.primary} onClick={() => edit(matches.find(match => !match.assigned && !match.completed)!)}>Assign next match <ArrowRight size={16} aria-hidden="true" /></button> : <p className={styles.editorNote}>{matches.length ? 'Court assignments are up to date.' : 'Matches appear after teams are confirmed.'}</p>}</>}
           {message ? <p role="status" className={styles.success}>{message}</p> : null}
-          {error ? <p role="alert" className={styles.overlapNotice}>{error}</p> : null}
+          {error ? <p role="alert" className={styles.overlapNotice}>{error}{error === EVENT_COURT_ASSIGNMENT_LOCKED ? <> <a href="#event-next-on-court">Review court call</a></> : null}</p> : null}
         </div>
       </div>
     </section>

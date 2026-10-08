@@ -1,5 +1,6 @@
 'use client'
 
+import { EVENT_COURT_ASSIGNMENT_LOCKED } from '@/lib/tournament-event-court-status'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
@@ -1964,7 +1965,7 @@ export default function TournamentBuilderWorkspace() {
             <small>{getClubCompetitionResultModeDescription(resultMode)}</small>
           </label>
 
-          {notice ? <p style={noticeStyle}>{notice}</p> : null}
+          {notice ? <p style={noticeStyle}>{notice}{notice === EVENT_COURT_ASSIGNMENT_LOCKED ? <> <a href="#event-next-on-court">Review court call</a></> : null}</p> : null}
 
           <div style={actionRowStyle}>
             <button type="submit" style={primaryButtonStyle}>

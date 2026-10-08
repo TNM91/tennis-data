@@ -1,5 +1,6 @@
 'use client'
 
+import { EVENT_COURT_ASSIGNMENT_LOCKED } from './tournament-event-court-status'
 import { supabase } from './supabase'
 import { normalizeEventScheduleChange, recordEventScheduleChange, type EventScheduleChange } from './tournament-event-schedule-notice'
 import { buildGroupPlayoffs } from './tournament-group-playoffs'
@@ -1374,7 +1375,7 @@ export async function saveTiqTournamentEventCourtAssignment(input: {
     const result = await supabase.from('tiq_tournaments').update({ schedule: updated.schedule, status: updated.status,
       updated_by_user_id: userId, updated_at: new Date().toISOString() }).eq('id', updated.id).eq('event_id', input.eventId)
       .eq('updated_at', latestUpdatedAt).select('id').maybeSingle()
-    if (result.error || !result.data) { mergeLocalTournamentRecord(previous); return fail('The court assignment could not be saved. Try again.') }
+    if (result.error || !result.data) { mergeLocalTournamentRecord(previous); return fail(result.error?.message?.includes(EVENT_COURT_ASSIGNMENT_LOCKED) ? EVENT_COURT_ASSIGNMENT_LOCKED : 'The court assignment could not be saved. Try again.') }
   }
   return { data: updated, error: null, source }
 }
