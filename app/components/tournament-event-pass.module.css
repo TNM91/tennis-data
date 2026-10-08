@@ -48,3 +48,6 @@
 .ticket .partners { font-size:12px; color:var(--brand-green-3,#c7f36b); }
 
 .scheduleChange { grid-column:1 / -1; padding:20px 30px; border-bottom:1px solid rgba(155,225,29,.25); background:rgba(155,225,29,.05); }
+
+.calendarAction { margin:20px 0; }
+.ticket .calendarAction p { font-size:12px; margin-top:10px; }

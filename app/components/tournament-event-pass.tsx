@@ -8,6 +8,7 @@ import { buildEventDirectionsHref, buildTournamentEventPass } from '@/lib/tourna
 import { loadEventArrivals, saveEventArrival, type EventArrival } from '@/lib/tournament-event-arrivals'
 import { formatTournamentEventDate, formatTournamentEventTime } from '@/lib/tournament-event-presentation'
 import styles from './tournament-event-pass.module.css'
+import { buildTournamentNextMatchCalendar } from '@/lib/tournament-event-calendar'
 import { formatEventScheduleSlot } from '@/lib/tournament-event-schedule-notice'
 
 export default function TournamentEventPass({ event, divisions, director = false, initialDivisionId = '' }: {
@@ -28,6 +29,7 @@ export default function TournamentEventPass({ event, divisions, director = false
   const pass = useMemo(() => division && selected ? buildTournamentEventPass(division, selected) : null, [division, selected])
   const divisionIds = divisions.map(item => item.id).sort().join('\n')
   const checkedIn = arrivals.some(row => row.tournament_id === division?.id && row.entrant_name === selected && row.checked_in)
+  const calendar = useMemo(() => division && selected ? buildTournamentNextMatchCalendar(event, division, selected) : null, [event, division, selected])
   const nextSchedule = pass?.next ? division?.schedule[pass.next.matchId] : undefined
   const nextChange = nextSchedule?.change
   const showChange = nextChange && pass?.next && nextChange.sideA === pass.next.sideA && nextChange.sideB === pass.next.sideB
@@ -41,6 +43,19 @@ export default function TournamentEventPass({ event, divisions, director = false
     }).catch(() => { if (active) { setArrivalError('Check-in status could not be loaded. Ask the event desk.'); setLoading(false) } })
     return () => { active = false }
   }, [divisionIds])
+
+  function downloadCalendar() {
+    if (!calendar) return
+    let url = ''
+    try {
+      url = URL.createObjectURL(new Blob([calendar.content], { type: 'text/calendar;charset=utf-8' }))
+      const link = document.createElement('a')
+      link.href = url; link.download = calendar.filename
+      document.body.appendChild(link); link.click(); link.remove()
+      setNotice('Calendar file prepared. Open it in your calendar app. Refresh your event pass for schedule changes.')
+    } catch { setError('Calendar download could not start. Try again.') }
+    finally { if (url) window.setTimeout(() => URL.revokeObjectURL(url), 1000) }
+  }
 
   async function refresh() {
     setLoading(true); setError(''); setArrivalError(''); setNotice('')
@@ -76,7 +91,7 @@ export default function TournamentEventPass({ event, divisions, director = false
     {!division?.entrants.length ? <p className={styles.empty}>The director hasn’t posted confirmed {division?.entrantType || 'entrants'} yet. Your pass will be available after the field is set.</p> : !pass ? <p className={styles.empty}>Select a name above to see check-in and match details.</p> : <div className={styles.ticket}>
       {showChange ? <div className={styles.scheduleChange} role="note" aria-label="Schedule updated"><p className={styles.eyebrow}>Schedule updated</p><p>Previously: {formatEventScheduleSlot(nextChange.previous, event.eventDetails?.timeZoneLabel)}</p><p><strong>Now: {formatEventScheduleSlot(nextSchedule!, event.eventDetails?.timeZoneLabel)}</strong></p><p>Use the latest assignment below. Check with the event desk if you have questions.</p></div> : null}
       <div className={styles.identity}><p className={styles.eyebrow}>{division?.name}</p><h3>{pass.entrant}</h3>{pass.partners.length ? <p className={styles.partners}>Partners · {pass.partners.join(" + ")}</p> : null}<p className={styles.status}><CheckCircle aria-hidden="true" size={22} />{loading ? 'Checking arrival status…' : arrivalError ? 'Check-in status unavailable' : checkedIn ? 'Checked in · See you on court' : 'Check in at the event desk'}</p><p>{formatTournamentEventDate(event.startsOn)} · {formatTournamentEventTime(event.eventDetails?.startsAt)} {event.eventDetails?.timeZoneLabel || ''}</p>{director ? <button type="button" disabled={busy || loading || Boolean(arrivalError)} onClick={() => void confirmArrival()}>{busy ? 'Saving…' : checkedIn ? 'Clear check-in' : 'Confirm arrival'}</button> : <p className={styles.note}>Choosing a name opens the pass. The event desk confirms check-in.</p>}</div>
-      <div className={styles.match}><p className={styles.eyebrow}>{pass.champion ? 'Division champion':'Next match'}</p><h3>{pass.next ? pass.next.ready===false ? pass.awaitingGroupResults ? 'Awaiting group results' : 'Opponent to be confirmed':`vs ${pass.opponent}` : pass.champion ? 'You’re the champion' : pass.runComplete ? 'Your run is complete':pass.finished ? 'Event complete' : pass.awaitingGroupResults ? 'Awaiting group results' : 'Awaiting the next draw'}</h3>{pass.next ? <><p>{pass.next.label}</p>{pass.next.ready===false ? <p>{pass.opponent} will be decided by the earlier results.</p>:null}<dl><div><dt>Court</dt><dd>{pass.next.assigned ? pass.next.court : 'Assignment pending'}</dd></div><div><dt>Start</dt><dd>{pass.next.assigned ? formatTournamentEventTime(pass.next.time) : 'Time pending'}</dd></div></dl>{pass.next.assigned ? <p>{formatTournamentEventDate(pass.next.date, true)} {event.eventDetails?.timeZoneLabel || ''}</p> : <p>The director will post the court and start time here.</p>}</> : <p>{pass.champion ? 'Well played. Follow your division for awards.':pass.runComplete ? 'Thank you for playing. Follow the championship draw and results.':pass.finished ? 'Thank you for playing. Follow your division for results and awards.' : pass.awaitingGroupResults ? 'Your group results and qualifying spot must be decided before your next playoff match is confirmed.' : 'Check with the event desk for your next round.'}</p>}<Link href={`/tournaments/${encodeURIComponent(division!.id)}#draw`}>View division draw <ArrowRight aria-hidden="true" /></Link></div>
+      <div className={styles.match}><p className={styles.eyebrow}>{pass.champion ? 'Division champion':'Next match'}</p><h3>{pass.next ? pass.next.ready===false ? pass.awaitingGroupResults ? 'Awaiting group results' : 'Opponent to be confirmed':`vs ${pass.opponent}` : pass.champion ? 'You’re the champion' : pass.runComplete ? 'Your run is complete':pass.finished ? 'Event complete' : pass.awaitingGroupResults ? 'Awaiting group results' : 'Awaiting the next draw'}</h3>{pass.next ? <><p>{pass.next.label}</p>{pass.next.ready===false ? <p>{pass.opponent} will be decided by the earlier results.</p>:null}<dl><div><dt>Court</dt><dd>{pass.next.assigned ? pass.next.court : 'Assignment pending'}</dd></div><div><dt>Start</dt><dd>{pass.next.assigned ? formatTournamentEventTime(pass.next.time) : 'Time pending'}</dd></div></dl>{pass.next.assigned ? <p>{formatTournamentEventDate(pass.next.date, true)} {event.eventDetails?.timeZoneLabel || ''}</p> : <p>The director will post the court and start time here.</p>}</> : <p>{pass.champion ? 'Well played. Follow your division for awards.':pass.runComplete ? 'Thank you for playing. Follow the championship draw and results.':pass.finished ? 'Thank you for playing. Follow your division for results and awards.' : pass.awaitingGroupResults ? 'Your group results and qualifying spot must be decided before your next playoff match is confirmed.' : 'Check with the event desk for your next round.'}</p>}{calendar ? <div className={styles.calendarAction}><button type="button" onClick={downloadCalendar} disabled={loading || busy}>Add next match to calendar</button><p>Start-time reminder · Saved snapshot. Refresh your pass for changes.</p></div> : null}<Link href={`/tournaments/${encodeURIComponent(division!.id)}#draw`}>View division draw <ArrowRight aria-hidden="true" /></Link></div>
     </div>}
     {pass ? <section className={styles.journey} aria-label="Your event matches">
       <div className={styles.resultHeading}><h3>Your results</h3><span>{pass.results.length} posted</span></div>

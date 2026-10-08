@@ -68,7 +68,7 @@ export function buildScheduleCalendarDays(items: TiqLeagueScheduleItem[]): Sched
     }))
 }
 
-function escapeIcsText(value: string) {
+export function escapeIcsText(value: string) {
   return value
     .replace(/\\/g, '\\\\')
     .replace(/;/g, '\\;')
@@ -77,7 +77,7 @@ function escapeIcsText(value: string) {
 }
 
 // RFC 5545 content lines: fold at 75 UTF-8 octets without splitting a character.
-function foldIcsLine(value: string) {
+export function foldIcsLine(value: string) {
   const encoder = new TextEncoder()
   let line = ''
   let size = 0
