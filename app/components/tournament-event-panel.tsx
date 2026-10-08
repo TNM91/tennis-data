@@ -19,9 +19,10 @@ import TournamentEventPass from './tournament-event-pass'
 import TournamentEventChampionship from './tournament-event-championship'
 import TournamentEventRecap from './tournament-event-recap'
 
-export default function TournamentEventPanel({ event, divisions, selectedId, onSelect }: {
+export default function TournamentEventPanel({ event, divisions, selectedId, onSelect, announcementOnly = false }: {
   event: TiqTournamentRecord
   divisions: TiqTournamentRecord[]
+  announcementOnly?: boolean
   selectedId?: string
   onSelect?: (record: TiqTournamentRecord) => void
 }) {
@@ -108,9 +109,9 @@ export default function TournamentEventPanel({ event, divisions, selectedId, onS
           </> : selected ? <Link className={styles.primary} href={`/tournaments/${encodeURIComponent(selected.id)}#enter-tournament`}>Open division signup <ArrowRight size={20} aria-hidden="true" /></Link> : <p className={styles.signupHelp}>Signup details will be available when divisions are posted.</p>}
         </aside>
       </div>
-      {!director ? <TournamentEventChampionship key={`${event.id}:${selected?.id || ''}`} event={event} divisions={divisions} initialDivisionId={selected?.id} /> : null}
-      {!director ? <TournamentEventRecap event={event} divisions={divisions} /> : null}
-      {!director ? <TournamentEventPass key={`${event.id}:${selected?.id || ''}`} event={event} divisions={divisions} initialDivisionId={selected?.id} /> : null}
+      {!director && !announcementOnly ? <TournamentEventChampionship key={`${event.id}:${selected?.id || ''}`} event={event} divisions={divisions} initialDivisionId={selected?.id} /> : null}
+      {!director && !announcementOnly ? <TournamentEventRecap event={event} divisions={divisions} /> : null}
+      {!director && !announcementOnly ? <TournamentEventPass key={`${event.id}:${selected?.id || ''}`} event={event} divisions={divisions} initialDivisionId={selected?.id} /> : null}
       <footer className={styles.eventFooter}>
         <div><h3><Trophy size={18} aria-hidden="true" /> Event details</h3><p>{details.hospitalitySummary || details.formatSummary || 'Check the event notes for format and match-day information.'}</p>
           {event.directorNotes ? <details className={styles.fullNotes}><summary><EnvelopeSimple size={15} aria-hidden="true" /> Full announcement and rules</summary><p>{event.directorNotes}</p></details> : null}
