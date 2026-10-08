@@ -51,7 +51,7 @@ describe('event court assignment persistence', () => {
     state.latest.results = { 'r1-m1': { winner: 'A', score: '6-4', updatedAt: '' } }
     state.latest.schedule = { 'r1-m1': { date: '2026-10-17', time: '17:30', court: '1', updatedAt: '' } }
     const result = await saveTiqTournamentEventCourtAssignment({ ...assignment, date: '', time: '', court: '' }, 'organizer')
-    expect(result.data?.schedule).toEqual({})
+    expect(result.data?.schedule['r1-m1']).toMatchObject({ date: '', time: '', court: '', change: { previous: { date: '2026-10-17', time: '17:30', court: '1' } } })
     expect(result.data?.results['r1-m1'].winner).toBe('A')
   })
 })
