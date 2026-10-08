@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildTournamentEventPass, buildEventDirectionsHref } from '../tournament-event-pass'
+import { buildTournamentGroupChampionship } from '../tiq-tournament-registry'
 import type { TiqTournamentRecord } from '../tiq-tournament-registry'
 
 const division: TiqTournamentRecord = { id:'40', eventId:'pumpkin', name:'Men’s 4.0 Doubles', format:'round_robin',
@@ -21,7 +22,29 @@ describe('player event pass', () => {
   it('does not declare the event finished before the organizer closes it', () => {
     const record = { ...division, entrants:['A','B'], results:{'r1-m1':{winner:'A',score:'6-4',updatedAt:''}} }
     expect(buildTournamentEventPass(record,'A')?.finished).toBe(false)
+    expect(buildTournamentEventPass(record,'A')?.runComplete).toBe(true)
     expect(buildTournamentEventPass({...record,status:'completed'},'A')?.finished).toBe(true)
+  })
+  it('shows only the chosen entrant’s posted results and preserves score order', () => {
+    const record = {...division, results:{'r1-m1':{winner:'A',score:'6-4',updatedAt:''},'r1-m2':{winner:'B',score:'7-5',updatedAt:''}}}
+    const pass = buildTournamentEventPass(record,'A')!
+    expect(pass.results).toHaveLength(1)
+    expect(pass.results[0]).toMatchObject({score:'6-4',won:true,winner:'A'})
+    expect(pass.upcoming).toHaveLength(2)
+  })
+  it('explains waiting for a group qualifier after the entrant finishes their group matches', () => {
+    const record = {...division,format:'group_playoffs' as const,entrants:['A','B','C','D','E','F']}
+    const group = buildTournamentGroupChampionship(record).groups.find(item=>item.entrants.includes('A'))!
+    const results = Object.fromEntries(group.matches.filter(match=>[match.sideA,match.sideB].includes('A')).map(match=>[match.id,{winner:'A',sideA:match.sideA,sideB:match.sideB,score:match.sideA==='A'?'6-4':'4-6',updatedAt:''}]))
+    const pass = buildTournamentEventPass({...record,results},'A')!
+    expect(pass.next).toBeNull()
+    expect(pass.awaitingGroupResults).toBe(true)
+    expect(pass.runComplete).toBe(false)
+  })
+  it('recognizes a bracket champion and an eliminated entrant without inventing a next match', () => {
+    const record = {...division,format:'single_elimination' as const,entrants:['A','B'],results:{'r1-m1':{winner:'A',score:'6-4',updatedAt:''}}}
+    expect(buildTournamentEventPass(record,'A')).toMatchObject({champion:true,next:null})
+    expect(buildTournamentEventPass(record,'B')).toMatchObject({runComplete:true,next:null})
   })
   it('uses the event address and encodes special characters for directions', () => {
     expect(buildEventDirectionsHref({...division,eventDetails:{venueAddress:'910 Old Woodsmill Road, MO'}})).toContain('910%20Old%20Woodsmill')
