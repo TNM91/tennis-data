@@ -1,6 +1,7 @@
 'use client'
 
 import { supabase } from './supabase'
+import { buildGroupPlayoffs } from './tournament-group-playoffs'
 import { normalizeTournamentEventDetails, type TournamentEventDetails } from './tournament-event-presentation'
 import {
   normalizeTournamentDrawFormatId,
@@ -67,6 +68,8 @@ export type TiqTournamentMatchResult = {
   winner: string
   score: string
   updatedAt: string
+  sideA?: string
+  sideB?: string
 }
 
 export type TiqTournamentMatchSchedule = {
@@ -93,6 +96,8 @@ export type TiqTournamentMatchPreview = {
   sideB: string
   result?: TiqTournamentMatchResult
   schedule?: TiqTournamentMatchSchedule
+  stage?: 'group' | 'qualification' | 'championship'
+  ready?: boolean
 }
 
 export type TiqTournamentStanding = {
@@ -104,6 +109,7 @@ export type TiqTournamentStanding = {
   gamesLost: number
   gameDiff: number
   winPct: number
+  gamesKnown?: boolean
 }
 
 export type TiqTournamentCalendarEvent = {
@@ -764,6 +770,12 @@ export function upsertTiqTournamentRecord(draft: TiqTournamentDraft, existingId?
   }
   const nextId = cleanText(existingId) || buildTournamentId(normalizedDraft)
   const existing = registry.find((record) => record.id === nextId)
+  if (existing && Object.keys(existing.results).length && (existing.format === 'group_playoffs' || normalizedDraft.format === 'group_playoffs')) {
+    if (existing.format !== normalizedDraft.format || JSON.stringify(existing.entrants) !== JSON.stringify(normalizedDraft.entrants)) {
+      throw new Error('Clear recorded results before changing the group field or format.')
+    }
+    if (normalizedDraft.status === 'draft') normalizedDraft.status = existing.status
+  }
   const parent = registry.find(record => record.id === normalizedDraft.eventId && record.isEvent)
   if (normalizedDraft.eventId) {
     if (!parent || normalizedDraft.isEvent || parent.id === nextId) throw new Error('Choose a valid event for this division.')
@@ -830,7 +842,13 @@ export async function upsertTiqTournamentRecordForUser(
   existingId?: string,
   userId?: string | null,
 ): Promise<TiqTournamentRegistrySaveResult> {
-  const saved = upsertTiqTournamentRecord(draft, existingId)
+  let saved
+  try { saved = upsertTiqTournamentRecord(draft, existingId) }
+  catch (error) {
+    const existing=readTiqTournamentRegistry().find(record=>record.id===existingId)
+    if (!existing) throw error
+    return { data:existing,error:error instanceof Error ? error:new Error('Tournament could not be saved.'),source:'local' }
+  }
   return saveTiqTournamentRecord(saved, userId)
 }
 
@@ -1156,7 +1174,7 @@ export function updateTiqTournamentMatchResult(input: {
   const record = registry[index]
   const matches = buildTournamentPreview(record)
   const match = matches.find((item) => item.id === matchId)
-  if (!match || (winner !== match.sideA && winner !== match.sideB)) return null
+  if (!match || match.ready === false || (winner !== match.sideA && winner !== match.sideB)) return null
 
   const nextRecord: TiqTournamentRecord = {
     ...record,
@@ -1167,6 +1185,7 @@ export function updateTiqTournamentMatchResult(input: {
         winner,
         score: cleanText(input.score),
         updatedAt: new Date().toISOString(),
+        ...(record.format === 'group_playoffs' ? { sideA: match.sideA, sideB: match.sideB } : {}),
       },
     },
     updatedAt: new Date().toISOString(),
@@ -1187,9 +1206,15 @@ export async function updateTiqTournamentMatchResultForUser(
   },
   userId?: string | null,
 ) {
-  const updated = updateTiqTournamentMatchResult(input)
+  const groupFormat = readTiqTournamentRegistry().find(record => record.id === input.tournamentId)?.format === 'group_playoffs'
+  const groupSave = groupFormat ? await saveTiqTournamentGroupResult(input, userId) : null
+  const updated = groupFormat ? groupSave?.data : updateTiqTournamentMatchResult(input)
+  if (groupSave?.error) return null
   if (!updated) return null
-  await saveTiqTournamentRecord(updated, userId)
+  if (!groupFormat) await saveTiqTournamentRecord(updated, userId)
+  if (userId && groupSave && updated.entrantType === 'players') {
+    for (const removedId of groupSave.removedResultIds) await deleteTiqTournamentResultMatch(updated.id, removedId)
+  }
   if (userId && updated.entrantType === 'players') {
     const match = buildTournamentPreview(updated).find((item) => item.id === cleanText(input.matchId))
     if (match) {
@@ -1237,10 +1262,16 @@ export function clearTiqTournamentMatchResult(tournamentId: string, matchId: str
 }
 
 export async function clearTiqTournamentMatchResultForUser(tournamentId: string, matchId: string, userId?: string | null) {
-  const updated = clearTiqTournamentMatchResult(tournamentId, matchId)
+  const groupFormat = readTiqTournamentRegistry().find(record => record.id === tournamentId)?.format === 'group_playoffs'
+  const groupSave = groupFormat ? await saveTiqTournamentGroupResult({ tournamentId, matchId }, userId) : null
+  const updated = groupFormat ? groupSave?.data : clearTiqTournamentMatchResult(tournamentId, matchId)
+  if (groupSave?.error) return null
   if (!updated) return null
-  await saveTiqTournamentRecord(updated, userId)
+  if (!groupFormat) await saveTiqTournamentRecord(updated, userId)
   if (userId) {
+    if (groupSave && updated.entrantType === 'players') {
+      for (const removedId of groupSave.removedResultIds.filter(id => id !== cleanText(matchId))) await deleteTiqTournamentResultMatch(updated.id, removedId)
+    }
     await deleteTiqTournamentResultMatch(updated.id, cleanText(matchId))
     await recalculateDynamicRatings()
   }
@@ -1571,8 +1602,41 @@ export function buildRoundRobinPreview(
 }
 
 export function buildTournamentPreview(record: Pick<TiqTournamentRecord, 'format' | 'entrants'> & { results?: Record<string, TiqTournamentMatchResult>, schedule?: Record<string, TiqTournamentMatchSchedule> }) {
+  if (record.format === 'group_playoffs') return buildTournamentGroupChampionship(record).matches
   if (record.format === 'round_robin') return buildRoundRobinPreview(record.entrants, record.results, record.schedule)
   return buildSingleEliminationPreview(record.entrants, record.results, record.schedule)
+}
+
+export async function saveTiqTournamentGroupResult(input: {tournamentId:string;matchId:string;winner?:string;score?:string}, userId?:string|null) {
+  const previous=readTiqTournamentRegistry().find(record=>record.id===input.tournamentId)
+  const fail=(message:string)=>({data:null,error:new Error(message),removedResultIds:[] as string[]})
+  if (!previous || previous.format!=='group_playoffs') return fail('Choose a group-play division.')
+  let version=''
+  if (userId) {
+    const latest=await supabase.from('tiq_tournaments').select('format,entrants,results,schedule,status,updated_at').eq('id',input.tournamentId).maybeSingle()
+    if (latest.error || !latest.data || latest.data.format!=='group_playoffs') return fail('The division could not be loaded. Refresh and try again.')
+    version=latest.data.updated_at
+    mergeLocalTournamentRecord({...previous,...latest.data,updatedAt:version})
+  }
+  const current=readTiqTournamentRegistry().find(record=>record.id===input.tournamentId)!
+  if (!buildTournamentPreview(current).some(match=>match.id===input.matchId)) { mergeLocalTournamentRecord(previous); return fail('This match is no longer in the draw.') }
+  const updated=input.winner ? updateTiqTournamentMatchResult({...input,winner:input.winner}) : clearTiqTournamentMatchResult(input.tournamentId,input.matchId)
+  if (!updated) { mergeLocalTournamentRecord(previous); return fail('Complete the earlier round before recording this result.') }
+  if (updated.status==='completed' && summarizeTournamentResults(updated).openMatches>0) {
+    updated.status='scheduled'; mergeLocalTournamentRecord(updated)
+  }
+  if (userId) {
+    try {
+      const saved=await supabase.from('tiq_tournaments').update({results:updated.results,status:updated.status,
+        updated_by_user_id:userId,updated_at:new Date().toISOString()}).eq('id',input.tournamentId).eq('updated_at',version).select('id').maybeSingle()
+      if (saved.error || !saved.data) { mergeLocalTournamentRecord(previous); return fail('Result could not be saved. Refresh and try again.') }
+    } catch { mergeLocalTournamentRecord(previous); return fail('Result could not be saved. Refresh and try again.') }
+  }
+  return {data:updated,error:null,removedResultIds:Object.keys(current.results).filter(id=>!updated.results[id])}
+}
+
+export function buildTournamentGroupChampionship(record: Pick<TiqTournamentRecord,'entrants'> & {results?: Record<string,TiqTournamentMatchResult>; schedule?: Record<string,TiqTournamentMatchSchedule>}) {
+  return buildGroupPlayoffs({ ...record, results: record.results || {} }, { roundRobin: buildRoundRobinPreview, elimination: buildSingleEliminationPreview })
 }
 
 export function summarizeTournamentResults(record: Pick<TiqTournamentRecord, 'format' | 'entrants' | 'results'>) {
@@ -1698,6 +1762,7 @@ function normalizeTournamentResults(value: unknown): Record<string, TiqTournamen
       winner: cleanText(result?.winner),
       score: cleanText(result?.score),
       updatedAt: cleanText(result?.updatedAt),
+      ...(cleanText(result?.sideA) && cleanText(result?.sideB) ? { sideA: cleanText(result.sideA), sideB: cleanText(result.sideB) } : {}),
     }
 
     if (matchId && normalizedResult.winner) {
@@ -1810,7 +1875,8 @@ function pruneInvalidTournamentResults(record: Pick<TiqTournamentRecord, 'format
     for (const match of preview) {
       const result = candidates[match.id]
       if (!result || pruned[match.id]) continue
-      const sidesKnown = !match.sideA.startsWith('Winner ') && !match.sideB.startsWith('Winner ')
+      if (record.format === 'group_playoffs' && (!match.ready || result.sideA !== match.sideA || result.sideB !== match.sideB)) continue
+      const sidesKnown = record.format === 'group_playoffs' ? Boolean(match.ready) : !match.sideA.startsWith('Winner ') && !match.sideB.startsWith('Winner ')
       const winnerValid = result.winner === match.sideA || result.winner === match.sideB
       if (sidesKnown && winnerValid) {
         pruned[match.id] = result
