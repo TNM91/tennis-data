@@ -17,6 +17,7 @@ import {
 import styles from './tournament-event-panel.module.css'
 import TournamentEventPass from './tournament-event-pass'
 import TournamentEventChampionship from './tournament-event-championship'
+import TournamentEventRecap from './tournament-event-recap'
 
 export default function TournamentEventPanel({ event, divisions, selectedId, onSelect }: {
   event: TiqTournamentRecord
@@ -108,6 +109,7 @@ export default function TournamentEventPanel({ event, divisions, selectedId, onS
         </aside>
       </div>
       {!director ? <TournamentEventChampionship key={`${event.id}:${selected?.id || ''}`} event={event} divisions={divisions} initialDivisionId={selected?.id} /> : null}
+      {!director ? <TournamentEventRecap event={event} divisions={divisions} /> : null}
       {!director ? <TournamentEventPass key={`${event.id}:${selected?.id || ''}`} event={event} divisions={divisions} initialDivisionId={selected?.id} /> : null}
       <footer className={styles.eventFooter}>
         <div><h3><Trophy size={18} aria-hidden="true" /> Event details</h3><p>{details.hospitalitySummary || details.formatSummary || 'Check the event notes for format and match-day information.'}</p>
