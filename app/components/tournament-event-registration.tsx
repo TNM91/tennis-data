@@ -7,9 +7,9 @@ import { loadEventRegistrations, saveEventRegistration } from '@/lib/tournament-
 import { registrationReadiness, untrackedRegistrations, validateRegistration, type EventRegistration, type RegistrationDraft, type RegistrationStatus } from '@/lib/tournament-event-registration'
 import styles from './tournament-event-registration.module.css'
 
-type Props = { event: TiqTournamentRecord; divisions: TiqTournamentRecord[]; onChanged: (divisionId: string) => Promise<void>; onManage: (division: TiqTournamentRecord, section: string) => void }
+type Props = { event: TiqTournamentRecord; divisions: TiqTournamentRecord[]; onChanged: (divisionId: string) => Promise<void>; courtActions?: React.ReactNode; onManage: (division: TiqTournamentRecord, section: string) => void }
 const statusLabels: Record<RegistrationStatus, string> = { pending: 'Needs review', confirmed: 'Confirmed', waitlisted: 'Waitlisted', withdrawn: 'Withdrawn' }
-export default function TournamentEventRegistration({ event, divisions, onChanged, onManage }: Props) {
+export default function TournamentEventRegistration({ event, divisions, onChanged, onManage, courtActions }: Props) {
   const [rows, setRows] = useState<EventRegistration[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -45,6 +45,13 @@ export default function TournamentEventRegistration({ event, divisions, onChange
   const visible = all.filter(row => (divisionFilter === 'all' || row.tournament_id === divisionFilter)
     && (!query || row.entrant_name.toLowerCase().includes(query.toLowerCase()))
     && (filter === 'all' || (filter === 'active' ? row.status !== 'withdrawn' : filter === 'partners' ? row.status !== 'withdrawn' && divisions.find(item => item.id === row.tournament_id)?.entrantType === 'teams' && !row.player_two : filter === 'balance' ? row.status !== 'withdrawn' && row.paid_cents < row.fee_cents : row.status === filter)))
+  const actionable = active.filter(row => row.status !== 'waitlisted')
+  const checks = [
+    { label: 'Missing partners', rows: actionable.filter(row => divisions.find(division => division.id === row.tournament_id)?.entrantType === 'teams' && !row.player_two.trim()) },
+    { label: 'Outstanding payments', rows: actionable.filter(row => !row.id.startsWith('existing:') && row.paid_cents < row.fee_cents) },
+    { label: 'Payments to verify', rows: actionable.filter(row => row.id.startsWith('existing:')) },
+    { label: 'Entries to confirm', rows: actionable.filter(row => row.status === 'pending' || !divisions.find(division => division.id === row.tournament_id)?.entrants.includes(row.entrant_name)) },
+  ]
   const selectedDivision = divisions.find(division => division.id === draft?.tournament_id)
   function edit(row?: EventRegistration) {
     const division = divisions.find(item => item.id === row?.tournament_id) || divisions.find(item => item.id === divisionFilter) || divisions[0]
@@ -73,6 +80,12 @@ export default function TournamentEventRegistration({ event, divisions, onChange
     finally { setSaving(false) }
   }
   return <section id="event-registration" className={styles.panel} aria-labelledby="event-registration-heading">
+    <section className={styles.readiness} aria-labelledby="event-readiness-heading">
+      <p className={styles.eyebrow}>Before the first serve</p><h2 id="event-readiness-heading">Event readiness</h2>
+      <p>Review registrations and court assignments before play. Waitlisted teams stay outside the field.</p>
+      <div className={styles.readinessGrid}>{checks.map(check => <button key={check.label} type="button" disabled={loading || !!loadError || saving || !check.rows.length} onClick={() => edit(check.rows[0])}><span>{check.label}</span><strong>{loading || loadError ? '—' : check.rows.length}</strong><small>{loading ? 'Checking roster…' : loadError ? 'Refresh roster to check' : check.rows.length ? `Review ${check.rows[0].entrant_name}` : 'No action needed'}</small></button>)}{courtActions}</div>
+      {!loading && !loadError && !actionable.length ? <p className={styles.note}>Confirm your field to prepare the event.</p> : null}
+    </section>
     <header className={styles.heading}><div><p className={styles.eyebrow}>Registration desk</p><h2 id="event-registration-heading">One roster. Every division.</h2><p>Pair partners, record entry payments, and confirm the field before play.</p></div><button className={styles.primary} type="button" disabled={saving || loading || !!loadError || !divisions.length} onClick={() => edit()}><Plus size={18} aria-hidden="true" /> Add registration</button></header>
     <div className={styles.stats} aria-label="Event registration totals">
       <div><Users size={19} aria-hidden="true" /><span>Ready to play</span><strong>{loading || loadError ? '—' : ready.length}<small> / {active.length}</small></strong></div>
