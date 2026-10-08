@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-const state = vi.hoisted(() => ({ latest: {} as Record<string, unknown>, failure: false, payload: null as Record<string, unknown> | null }))
+const state = vi.hoisted(() => ({ latest: {} as Record<string, unknown>, failure: false, errorMessage: 'denied', payload: null as Record<string, unknown> | null }))
 vi.mock('../supabase', () => ({ supabase: { from: () => {
   let updating = false
   const query = { select: () => query, eq: () => query,
     update: (payload: Record<string, unknown>) => { updating = true; state.payload = payload; return query },
-    maybeSingle: async () => updating ? state.failure ? { data: null, error: { message: 'denied' } } : { data: { id: '40' }, error: null }
+    maybeSingle: async () => updating ? state.failure ? { data: null, error: { message: state.errorMessage } } : { data: { id: '40' }, error: null }
       : { data: state.latest, error: null } }
   return query
 } } }))
@@ -21,7 +21,7 @@ describe('event court assignment persistence', () => {
   beforeEach(() => {
     const storage = new Map<string, string>()
     vi.stubGlobal('window', { localStorage: { getItem: (key: string) => storage.get(key) || null, setItem: (key: string, value: string) => storage.set(key, value) } })
-    state.failure = false; state.payload = null
+    state.failure = false; state.errorMessage = 'denied'; state.payload = null
     const record = seed()
     state.latest = { format: record.format, entrants: record.entrants, results: {}, schedule: {}, status: record.status, updated_at: '2026-10-07T22:00:00Z' }
   })
@@ -38,6 +38,13 @@ describe('event court assignment persistence', () => {
     state.failure = true
     const result = await saveTiqTournamentEventCourtAssignment(assignment, 'organizer')
     expect(result.error).toBeInstanceOf(Error)
+    expect(readTiqTournamentRegistry().find(record => record.id === '40')?.schedule).toEqual({})
+  })
+  it('explains an active court lock without retaining an unsaved assignment or notice', async () => {
+    state.failure = true
+    state.errorMessage = 'This match is called or on court. Undo the call in Next on court before changing its assignment.'
+    const result = await saveTiqTournamentEventCourtAssignment(assignment, 'organizer')
+    expect(result.error?.message).toBe(state.errorMessage)
     expect(readTiqTournamentRegistry().find(record => record.id === '40')?.schedule).toEqual({})
   })
   it('rejects a different event, an invalid slot, and a match removed from the cloud draw', async () => {

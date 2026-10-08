@@ -1,3 +1,4 @@
+export const EVENT_COURT_ASSIGNMENT_LOCKED = 'This match is called or on court. Undo the call in Next on court before changing its assignment.'
 import type { EventDeskMatch } from './tournament-event-desk'
 export type CourtStatus = 'queued' | 'called' | 'on_court'
 export type EventCourtStatus = { event_id: string; tournament_id: string; match_id: string; status: CourtStatus; side_a: string; side_b: string; slot: string; updated_at: string }
