@@ -9,3 +9,12 @@
 .editor { padding:22px; border:1px solid var(--card-border-strong,rgba(116,190,255,.22)); border-radius:16px; background:rgba(6,23,47,.65) }.editor fieldset { border:0; margin:18px 0; padding:0; display:grid; gap:16px; min-width:0 }.editor ol { padding-left:18px; margin:22px 0; line-height:2; font-size:14px }.editor form>button { margin:6px 8px 0 0 }.amounts { display:grid; grid-template-columns:1fr 1fr; gap:12px }.drawLink { width:100%; text-align:left; justify-content:space-between!important; margin-top:10px }.empty { padding:30px; text-align:center; border:1px dashed var(--card-border-strong,rgba(116,190,255,.22)); border-radius:16px }.empty p { color:var(--muted-strong,#c5d5ea) }.error { color:var(--error-text,#ffd7bf); padding:14px; background:rgba(255,163,66,.08); border-radius:10px; line-height:1.6 }.success { color:var(--brand-green-3,#c7f36b); padding:14px; border:1px solid rgba(155,225,29,.3); border-radius:10px }
 @media(max-width:900px) { .workspace { grid-template-columns:1fr }.stats { grid-template-columns:repeat(2,minmax(0,1fr)) } }
 @media(max-width:550px) { .panel { border-radius:18px }.heading>button,.toolbar>button { width:100% }.toolbar label { flex-basis:100% }.stats strong { font-size:24px }.stats>div { padding:14px }.stats svg { display:none }.row { padding:16px }.rowFooter>button { width:100% }.editor { padding:18px }.heading>div { min-width:0 }.amounts { grid-template-columns:1fr } }
+
+.readiness { padding-bottom: 28px; margin-bottom: 28px; border-bottom: 1px solid var(--shell-panel-border,rgba(116,190,255,.14)); }
+.readiness h2 { margin: 8px 0; font-size: clamp(23px, 3vw, 30px); }
+.readiness > p { color: var(--shell-muted,#9aacc4); }
+.readinessGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 12px; margin-top: 20px; }
+.readinessGrid button { display: flex; flex-direction: column; align-items: start; gap: 10px; text-align: left; padding: 18px; border: 1px solid var(--shell-panel-border,rgba(116,190,255,.14)); border-radius: 12px; background: transparent; color: inherit; }
+.readinessGrid button strong { font-size: 28px; color: var(--brand-green-3,#c7f36b); }
+.readinessGrid button small { overflow-wrap: anywhere; color: var(--shell-muted,#9aacc4); }
+.readinessGrid button:disabled { opacity: .7; cursor: default; }

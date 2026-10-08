@@ -108,7 +108,11 @@ export default function TournamentEventDesk({ event, divisions, onManage, onSche
         {!divisions.length ? <p className={styles.empty}>Add your first division below, then confirm its teams.</p> : null}
       </div>
     </div>
-    <TournamentEventRegistration key={event.id} event={event} divisions={divisions} onChanged={onRegistrationsChanged} onManage={onManage} />
+    <TournamentEventRegistration key={event.id} event={event} divisions={divisions} onChanged={onRegistrationsChanged} onManage={onManage} courtActions={<>
+      <button type="button" disabled={saving || !matches.some(match => !match.completed && match.ready !== false && !match.assigned)} onClick={() => { const target = matches.find(match => !match.completed && match.ready !== false && !match.assigned); if (target) edit(target) }}><span>Playable matches without a court</span><strong>{matches.filter(match => !match.completed && match.ready !== false && !match.assigned).length}</strong><small>Assign the next match</small></button>
+      <button type="button" disabled={saving || !overlaps.length} onClick={() => edit(overlaps[0].first)}><span>Court overlaps</span><strong>{overlaps.length}</strong><small>Review the first overlap</small></button>
+      {matches.some(match => !match.completed && match.ready === false) ? <p>Later matches await players or qualifying results. Review qualification as group play finishes.</p> : null}
+    </>} />
     <section className={styles.schedule} aria-label="Shared event court schedule">
       <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Court plan</p><h3>One schedule. Every division.</h3><p>Assign start times and courts without leaving the event.</p></div><label className={styles.window}>Planning window<select value={windowMinutes} onChange={event => setWindowMinutes(Number(event.target.value))}><option value={30}>30 minutes</option><option value={45}>45 minutes</option><option value={60}>60 minutes</option><option value={90}>90 minutes</option></select></label></div>
       <p className={styles.windowNote}>Overlap warnings use a {windowMinutes}-minute planning window. Actual match lengths may vary.</p>
