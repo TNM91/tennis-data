@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import type { ResumeMatchPrep } from '@/lib/resume-match-prep'
 import Link from 'next/link'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import styles from './my-lab-command-center.module.css'
@@ -46,6 +47,7 @@ type PostRepReturn = {
 }
 
 type MyLabCommandCenterProps = {
+  resumePrep?: ResumeMatchPrep | null
   firstName: string
   playerId: string
   playerName: string
@@ -64,6 +66,7 @@ type MyLabCommandCenterProps = {
 }
 
 export default function MyLabCommandCenter({
+  resumePrep = null,
   firstName,
   playerId,
   playerName,
@@ -136,6 +139,17 @@ export default function MyLabCommandCenter({
           </Link>
         )}
       </header>
+
+      {resumePrep ? (
+        <Link className={styles.nextCourtEvent} href={resumePrep.href} aria-label="Resume match prep">
+          <div className={styles.nextCourtEventCopy}>
+            <p className={styles.cardEyebrow}>Saved match prep</p>
+            <h2>{resumePrep.title}</h2>
+            <p>{resumePrep.courtPlan}</p>
+          </div>
+          <div className={styles.nextCourtEventMeta}><span>Resume match prep <i aria-hidden="true">→</i></span></div>
+        </Link>
+      ) : null}
 
       {firstServeSteps.length ? (
         <section className={styles.firstServe} aria-label="First serve setup">

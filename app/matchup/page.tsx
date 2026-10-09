@@ -231,6 +231,7 @@ export default function MatchupPage() {
   const [accuracyLoading, setAccuracyLoading] = useState(false)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
 
+  const [resumeCourtside, setResumeCourtside] = useState(false)
   const [matchType, setMatchType] = useState<MatchType>('singles')
 
   const [playerAId, setPlayerAId] = useState('')
@@ -318,6 +319,7 @@ export default function MatchupPage() {
     if (typeof window === 'undefined') return
 
     const params = new URLSearchParams(window.location.search)
+    setResumeCourtside(params.get('courtside') === '1')
     const typeFromUrl = params.get('type')
     if (typeFromUrl === 'doubles') setMatchType('doubles')
 
@@ -359,6 +361,7 @@ export default function MatchupPage() {
     if (!urlReadyRef.current || typeof window === 'undefined') return
     const params = new URLSearchParams()
     params.set('type', matchType)
+    if (resumeCourtside) params.set('courtside', '1')
     if (matchType === 'singles') {
       if (playerAId) params.set('playerA', playerAId)
       if (playerBId) params.set('playerB', playerBId)
@@ -370,7 +373,7 @@ export default function MatchupPage() {
     }
     const search = params.toString()
     window.history.replaceState(null, '', search ? `?${search}` : window.location.pathname)
-  }, [matchType, playerAId, playerBId, teamA1Id, teamA2Id, teamB1Id, teamB2Id])
+  }, [matchType, playerAId, playerBId, teamA1Id, teamA2Id, teamB1Id, teamB2Id, resumeCourtside])
 
   useEffect(() => {
     if (matchType === 'singles') {
@@ -2376,7 +2379,7 @@ export default function MatchupPage() {
 
               {access.canUseAdvancedPlayerInsights && playerMatchPrep ? (
                 <>
-                <CourtsideMatchPrep key={matchupPrepId} context={playerMatchPrep.context} courtPlan={playerMatchPrep.courtPlan} saveHref={labTakeawayHref} doubles={matchType === 'doubles'} />
+                <CourtsideMatchPrep initialOpen={resumeCourtside} key={matchupPrepId} context={playerMatchPrep.context} courtPlan={playerMatchPrep.courtPlan} saveHref={labTakeawayHref} doubles={matchType === 'doubles'} />
                 <section style={playerMatchPrepCardStyle} aria-labelledby="player-match-prep-title">
                   <div style={playerMatchPrepHeaderStyle}>
                     <div>
