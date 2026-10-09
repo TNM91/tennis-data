@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import { LEVEL_UP_HISTORY_UNAVAILABLE, readLevelUpSessionHistory } from '@/lib/level-up/read-session-history'
+import { getPreviousPracticeProof } from '@/lib/practice-proof-comparison'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
 import type { LevelUpSessionJson } from '@/lib/level-up-sessions'
@@ -530,6 +531,7 @@ export default function PlayerLiveWorkbench({
   const savedRecapChecklist = lastSavedSession
     ? getSavedRecapChecklist(lastSavedSession, selectedSavedNextCue, selectedSavedProofMoment, selectedSavedCoachAsk)
     : []
+  const previousPracticeProof = lastSavedSession ? getPreviousPracticeProof(lastSavedSession, sessions) : null
   const savedProofFullRecap = lastSavedSession ? buildSavedProofRecap(lastSavedSession, selectedSavedNextCue, selectedSavedProofMoment, selectedSavedCoachAsk, savedCoachBrief) : ''
   const savedProofTextRecap = lastSavedSession ? buildSavedProofTextRecap(lastSavedSession, selectedSavedNextCue, selectedSavedProofMoment, selectedSavedCoachAsk, savedCoachBrief) : ''
   const savedProofRecap = recapMode === 'text' ? savedProofTextRecap : savedProofFullRecap
@@ -2853,6 +2855,11 @@ export default function PlayerLiveWorkbench({
                 <article>
                   <span>Proof</span>
                   <strong>{lastSavedSession.rating}/5</strong>
+                  <small className={styles.liveProofComparison} aria-label="Same-drill proof comparison">
+                    {previousPracticeProof
+                      ? 'Earlier: ' + previousPracticeProof.rating + '/5 · ' + (lastSavedSession.rating > previousPracticeProof.rating ? '+' : '') + (lastSavedSession.rating - previousPracticeProof.rating)
+                      : 'No earlier rep here'}
+                  </small>
                 </article>
                 <article>
                   <span>Time</span>
