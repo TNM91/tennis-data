@@ -19,7 +19,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatDate, formatRating } from '@/lib/captain-formatters'
 import { useProductAccess } from '@/lib/use-product-access'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
-import { getMatchupStaleSelectionNotice, normalizeMatchupPlayerOptions } from '@/lib/matchup-player-options'
+import { getMatchupStaleSelectionNotice, normalizeMatchupPlayerOptions, resolveMatchupPlayerOptions } from '@/lib/matchup-player-options'
 import { buildMatchupPrepHref } from '@/lib/matchup-prep-note'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
@@ -226,6 +226,7 @@ export default function MatchupPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectionNotice, setSelectionNotice] = useState('')
+  const [resolvedPlayerLookupKey, setResolvedPlayerLookupKey] = useState('')
   const [headToHeadLoading, setHeadToHeadLoading] = useState(false)
   const [accuracyLoading, setAccuracyLoading] = useState(false)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
@@ -257,6 +258,28 @@ export default function MatchupPage() {
   const { access, user, authResolved } = useProductAccess()
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
   const canUseCaptainTools = authResolved && access.canUseCaptainWorkflow
+  const requiredPlayerIds = [...new Set([playerAId, playerBId, teamA1Id, teamA2Id, teamB1Id, teamB2Id, profileLink?.linked_player_id].filter((id): id is string => Boolean(id)))]
+  const missingPlayerLookupKey = requiredPlayerIds.filter(id => !players.some(player => player.id === id)).sort().join('|')
+
+  useEffect(() => {
+    if (loading || !missingPlayerLookupKey || missingPlayerLookupKey === resolvedPlayerLookupKey) return
+    let active = true
+    void resolveMatchupPlayerOptions(players, missingPlayerLookupKey.split('|'), async ids => {
+      const withSource = await supabase.from('players').select(MATCHUP_PLAYER_SELECT_WITH_SOURCE).in('id', ids)
+      if (!withSource.error) return (withSource.data || []) as Player[]
+      if (!isMissingRatingSourceError(withSource.error.message)) throw new Error(withSource.error.message)
+      const base = await supabase.from('players').select(MATCHUP_PLAYER_SELECT_BASE).in('id', ids)
+      if (base.error) throw new Error(base.error.message)
+      return ((base.data || []) as Player[]).map(player => ({ ...player, rating_source: null }))
+    }).then(resolved => {
+      if (!active) return
+      setPlayers(resolved)
+      setResolvedPlayerLookupKey(missingPlayerLookupKey)
+    }).catch(() => {
+      if (active) setSelectionNotice('Selected players could not be checked. Refresh Matchup to try again.')
+    })
+    return () => { active = false }
+  }, [loading, missingPlayerLookupKey, resolvedPlayerLookupKey, players])
 
   useEffect(() => {
     void loadPlayers()
@@ -320,6 +343,7 @@ export default function MatchupPage() {
     if (!urlReadyRef.current || !profileLink?.linked_player_id) return
     if (matchType !== 'singles') return
     if (players.length && !players.some((player) => player.id === profileLink.linked_player_id)) {
+      if (missingPlayerLookupKey !== resolvedPlayerLookupKey) return
       profilePrefillAttemptedRef.current = true
       setSelectionNotice('Your profile player is not in the active Matchup list yet. Set your profile or refresh data after review connects the current record.')
       return
@@ -329,7 +353,7 @@ export default function MatchupPage() {
 
     profilePrefillAttemptedRef.current = true
     setPlayerAId(profileLink.linked_player_id)
-  }, [matchType, playerAId, playerBId, players, profileLink?.linked_player_id])
+  }, [matchType, playerAId, playerBId, players, profileLink?.linked_player_id, missingPlayerLookupKey, resolvedPlayerLookupKey])
 
   useEffect(() => {
     if (!urlReadyRef.current || typeof window === 'undefined') return
@@ -363,6 +387,7 @@ export default function MatchupPage() {
 
   useEffect(() => {
     if (loading || !urlReadyRef.current) return
+    if (missingPlayerLookupKey && missingPlayerLookupKey !== resolvedPlayerLookupKey) return
 
     const activePlayerIds = new Set(players.map((player) => player.id))
     const selectedIds = [playerAId, playerBId, teamA1Id, teamA2Id, teamB1Id, teamB2Id].filter(Boolean)
@@ -380,7 +405,7 @@ export default function MatchupPage() {
     setFormScores({ left: null, right: null })
     setTrajectories({ left: [], right: [] })
     setSelectionNotice(getMatchupStaleSelectionNotice(staleIds.length))
-  }, [loading, players, playerAId, playerBId, teamA1Id, teamA2Id, teamB1Id, teamB2Id])
+  }, [loading, players, playerAId, playerBId, teamA1Id, teamA2Id, teamB1Id, teamB2Id, missingPlayerLookupKey, resolvedPlayerLookupKey])
 
   useEffect(() => {
     if (matchType === 'singles') {
