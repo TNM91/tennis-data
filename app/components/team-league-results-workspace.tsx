@@ -1729,6 +1729,12 @@ function TeamLeagueResultsWorkspaceInner({
     }
   }
 
+  function handleShowAllLeagueMatches() {
+    setResultSearch('')
+    setCompletionFilter('all')
+    setDateFilter('all')
+  }
+
   async function handleClearReviewFilters() {
     setResultSearch('')
     setCompletionFilter('all')
@@ -1948,12 +1954,14 @@ function TeamLeagueResultsWorkspaceInner({
           <div style={reviewFilterGridStyle} aria-label="Team result review filters">
             <input
               style={inputStyle}
+              aria-label="Search team matches"
               value={resultSearch}
               onChange={(event) => setResultSearch(event.target.value)}
               placeholder="Team, facility, note..."
             />
             <select
               style={selectStyle}
+              aria-label="Filter by league"
               value={filterLeagueId}
               onChange={(e) => void handleFilterChange(e.target.value)}
             >
@@ -1964,6 +1972,7 @@ function TeamLeagueResultsWorkspaceInner({
             </select>
             <select
               style={selectStyle}
+              aria-label="Filter by match status"
               value={completionFilter}
               onChange={(event) => setCompletionFilter(event.target.value as TeamResultCompletionFilter)}
             >
@@ -1974,6 +1983,7 @@ function TeamLeagueResultsWorkspaceInner({
             </select>
             <select
               style={selectStyle}
+              aria-label="Filter by match date"
               value={dateFilter}
               onChange={(event) => setDateFilter(event.target.value as TeamResultDateFilter)}
             >
@@ -2014,7 +2024,17 @@ function TeamLeagueResultsWorkspaceInner({
         ) : events.length === 0 ? (
           <EmptyTeamResultsPanel />
         ) : visibleEvents.length === 0 ? (
-          <p style={{ color: '#94a3b8' }}>No team matches match the current review filters.</p>
+          <section style={emptyResultPanel} aria-label="No matching team results">
+            <div style={emptyResultCopy}>
+              <h3 style={{ margin: 0 }}>No matches in this view</h3>
+              <p style={{ margin: 0, color: '#94a3b8' }}>
+                Try another team, date, or match status, or show every match in {selectedFilterLeague?.leagueName || 'your leagues'}.
+              </p>
+            </div>
+            <button type="button" style={btnSecondary} onClick={handleShowAllLeagueMatches}>
+              {selectedFilterLeague ? 'Show all league matches' : 'Show all matches'}
+            </button>
+          </section>
         ) : (
           visibleEvents.map((event) => (
             <EventCard
