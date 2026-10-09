@@ -22803,3 +22803,12 @@
     display: grid;
   }
 }
+
+.liveProofComparison {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted-strong);
+  font-size: 0.65rem;
+  line-height: 1.35;
+  white-space: normal;
+}
