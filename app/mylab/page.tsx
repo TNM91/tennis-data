@@ -10,6 +10,8 @@ import SiteShell from '@/app/components/site-shell'
 import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
 import ActiveTeamChallengeCard from '@/app/components/active-team-challenge-card'
 import MyLabCommandCenter from './my-lab-command-center'
+import { resolveMatchupPlayerOptions } from '@/lib/matchup-player-options'
+import { useMyLabGoalSync } from '@/lib/use-my-lab-goal-sync'
 import WatchlistVisitSummary from '@/app/components/watchlist-visit-summary'
 import WeeklyLeagueActionCard from './weekly-league-action-card'
 import MyLeaguesPanel from './my-leagues-panel'
@@ -421,7 +423,7 @@ function readLocalLabText(baseKey: string, userId: string | null, playerId: stri
 
 function writeLocalLabText(baseKey: string, userId: string | null, playerId: string | null | undefined, value: string) {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(scopedLabStorageKey(baseKey, userId, playerId), value)
+  try { window.localStorage.setItem(scopedLabStorageKey(baseKey, userId, playerId), value) } catch { /* Keep account saving available when browser storage is blocked. */ }
 }
 
 function createEmptyGoal(): LabGoalState {
@@ -470,7 +472,7 @@ function readLocalGoals(userId: string | null, playerId: string | null | undefin
 
 function writeLocalGoals(userId: string | null, playerId: string | null | undefined, value: LabGoalState[]) {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(scopedLabStorageKey(LOCAL_GOALS_KEY, userId, playerId), JSON.stringify(value))
+  try { window.localStorage.setItem(scopedLabStorageKey(LOCAL_GOALS_KEY, userId, playerId), JSON.stringify(value)) } catch { /* Keep account saving available when browser storage is blocked. */ }
 }
 
 function normalizePersonalCalendarItem(value: Partial<PersonalCalendarItem> | null | undefined): PersonalCalendarItem | null {
@@ -1001,6 +1003,18 @@ function MyLabPageInner() {
     email: session?.user?.email,
   })
 
+  const goalSync = useMyLabGoalSync({
+    userId, playerId: profileLink?.linked_player_id || null,
+    token: session?.access_token || '', enabled: authResolved && !loading && canUseAdvancedPlayerInsights,
+    readLocal: () => readLocalGoals(userId, profileLink?.linked_player_id),
+    onGoals: next => {
+      const restored = next.length ? next : [EMPTY_LAB_GOAL]
+      setGoals(restored)
+      setActiveGoalId(current => restored.some(goal => goal.id === current) ? current : restored[0].id)
+      writeLocalGoals(userId, profileLink?.linked_player_id, restored)
+    },
+  })
+
   useEffect(() => {
     if (!authResolved) return
     const accessToken = session?.access_token || ''
@@ -1067,6 +1081,7 @@ function MyLabPageInner() {
   useEffect(() => {
     if (
       matchupPrepHandledRef.current ||
+      !goalSync.ready ||
       loading ||
       !authResolved ||
       !canUseAdvancedPlayerInsights ||
@@ -1122,6 +1137,7 @@ function MyLabPageInner() {
   }, [
     authResolved,
     canUseAdvancedPlayerInsights,
+    goalSync.ready,
     goals,
     loading,
     profileLink?.linked_player_id,
@@ -1388,7 +1404,20 @@ function MyLabPageInner() {
       setError(firstHardError.message)
     }
 
-    setPlayers(playersRes)
+    try {
+      const resolvedPlayers = await resolveMatchupPlayerOptions(playersRes, [profileLinkRes.data?.linked_player_id || ''], async ids => {
+        const withSource = await supabase.from('players').select(MY_LAB_PLAYER_SELECT_WITH_SOURCE).in('id', ids)
+        if (!withSource.error) return (withSource.data || []) as PlayerRow[]
+        if (!isMissingRatingSourceError(withSource.error.message)) throw new Error(withSource.error.message)
+        const base = await supabase.from('players').select(MY_LAB_PLAYER_SELECT_BASE).in('id', ids)
+        if (base.error) throw new Error(base.error.message)
+        return ((base.data || []) as PlayerRow[]).map(player => ({ ...player, rating_source: null }))
+      })
+      setPlayers(resolvedPlayers)
+    } catch {
+      setPlayers(playersRes)
+      setError('Your linked player could not be loaded. Refresh My Lab to try again.')
+    }
     setMatches(
       ((matchesRes.data ?? []) as MatchRow[]).filter(
         (row) => cleanText(row.home_team) && cleanText(row.away_team),
@@ -2695,6 +2724,7 @@ function MyLabPageInner() {
     writeLocalLabText(LOCAL_NOTEBOOK_KEY, userId, profileLink?.linked_player_id, activeGoal.notes)
     setLastSavedAt(activeGoal.updatedAt || new Date().toISOString())
     setNotebookSavedLabel(label)
+    goalSync.save(nextGoals)
   }
 
   function saveNotebook() {
@@ -4902,7 +4932,8 @@ function MyLabPageInner() {
                       />
                     </div>
                     <div style={notebookFooterStyle}>
-                      <span>{notebookSavedLabel}{lastSavedAt ? ` - ${timeAgo(lastSavedAt)}` : ''}</span>
+                      {goalSync.canRetry ? <button type="button" onClick={goalSync.retry} style={smallGhostButtonStyle}>Retry account save</button> : null}
+                      <span role="status">{goalSync.label} · {notebookSavedLabel}{lastSavedAt ? ` - ${timeAgo(lastSavedAt)}` : ''}</span>
                       <div style={goalFooterActionsStyle}>
                         <button type="button" onClick={() => removeGoal(activeGoal.id)} style={smallGhostButtonStyle}>
                           Remove goal
@@ -5064,7 +5095,7 @@ function MyLabPageInner() {
                 </p>
               </div>
               <span style={savedToCloud ? pillGreenStyle : pillSlateStyle}>
-                {savedToCloud ? 'Cloud synced' : userId ? 'Sync failed' : 'Sign in to save'}
+                {savedToCloud ? 'Watchlist synced' : userId ? 'Watchlist saved here' : 'Sign in to save'}
               </span>
             </div>
 
