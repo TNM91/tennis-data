@@ -37,6 +37,19 @@ export function normalizeMatchupPlayerOptions<T extends MatchupPlayerOptionBase>
     }))
 }
 
+export async function resolveMatchupPlayerOptions<T extends MatchupPlayerOptionBase>(
+  catalogue: T[],
+  requiredIds: string[],
+  fetchByIds: (ids: string[]) => Promise<T[]>,
+) {
+  const available = normalizeMatchupPlayerOptions(catalogue)
+  const knownIds = new Set(available.map(player => player.id))
+  const missingIds = [...new Set(requiredIds.map(id => id.trim()).filter(Boolean))].filter(id => !knownIds.has(id))
+  if (!missingIds.length) return available
+  const selected = await fetchByIds(missingIds)
+  return normalizeMatchupPlayerOptions([...available, ...selected]).sort((a, b) => String(a.name).localeCompare(String(b.name)))
+}
+
 export function getMatchupStaleSelectionNotice(staleCount: number) {
   if (staleCount <= 1) {
     return 'One selected player was removed or replaced, so Matchup cleared that slot. Use Data Assist after review if this player needs a refreshed record.'
