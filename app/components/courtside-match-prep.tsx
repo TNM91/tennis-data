@@ -1,16 +1,22 @@
 'use client'
 
 import Link from 'next/link'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
+import { matchPrepActionEvent } from '@/lib/match-prep-usage'
 import { useEffect, useId, useRef, useState } from 'react'
 import styles from './tennis-insight-cards.module.css'
 
 export default function CourtsideMatchPrep({ context, courtPlan, saveHref, doubles, initialOpen = false }: { initialOpen?: boolean; context: string; courtPlan: string; saveHref: string; doubles: boolean }) {
   const [open, setOpen] = useState(initialOpen)
+  function toggleCourtside() {
+    if (!open) void trackProductUsageEvent(matchPrepActionEvent('open_courtside'))
+    setOpen(value => !value)
+  }
   const contentId = useId()
   const section = useRef<HTMLElement>(null)
   useEffect(() => { if (initialOpen) section.current?.scrollIntoView({ block: 'start', behavior: 'instant' }) }, [initialOpen])
   return <section ref={section} id="courtside-match-prep" className={styles.card} aria-label="Courtside match prep">
-    <div className={styles.header}><h3>Take your focus onto court</h3><button className={styles.button} type="button" aria-expanded={open} aria-controls={contentId} onClick={() => setOpen(value => !value)}>{open ? 'Close courtside view' : 'Open courtside view'}</button></div>
+    <div className={styles.header}><h3>Take your focus onto court</h3><button className={styles.button} type="button" aria-expanded={open} aria-controls={contentId} onClick={toggleCourtside}>{open ? 'Close courtside view' : 'Open courtside view'}</button></div>
     <div id={contentId} hidden={!open}>
     {open ? <>
       <p>{context}</p>
