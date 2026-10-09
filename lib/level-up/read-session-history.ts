@@ -1,4 +1,4 @@
-export const LEVEL_UP_HISTORY_UNAVAILABLE = 'Account history is unavailable. Proof already on this device is still available. Try reloading.'
+export const LEVEL_UP_HISTORY_UNAVAILABLE = 'Account history is unavailable. Proof already on this device is still available. Try again to load account proof.'
 
 export async function readLevelUpSessionHistory<T>(response: Response): Promise<T[]> {
   if (!response.ok) throw new Error(LEVEL_UP_HISTORY_UNAVAILABLE)

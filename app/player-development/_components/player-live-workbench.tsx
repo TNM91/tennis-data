@@ -418,6 +418,8 @@ export default function PlayerLiveWorkbench({
   const [readiness, setReadiness] = useState<PlayerReadiness>('okay')
   const [scoringDrillId, setScoringDrillId] = useState('')
   const [syncState, setSyncState] = useState<SyncState>({ status: 'idle', message: '' })
+  const [historyRetryVersion, setHistoryRetryVersion] = useState(0)
+  const [historyRetryPending, setHistoryRetryPending] = useState(false)
   const [questCreditMessage, setQuestCreditMessage] = useState('')
   const [questHandoff, setQuestHandoff] = useState<LevelUpQuestHandoff | null>(null)
   const [activeTimerSnapshot, setActiveTimerSnapshot] = useState<DrillTimerSnapshot | null>(null)
@@ -897,11 +899,15 @@ export default function PlayerLiveWorkbench({
     let active = true
 
     void (async () => {
-      const { data } = await supabase.auth.getSession()
-      const token = data.session?.access_token
-      if (!token) return
-
       try {
+        setHistoryRetryPending(true)
+        const { data } = await supabase.auth.getSession()
+        const token = data.session?.access_token
+        if (!token) {
+          if (active && historyRetryVersion > 0) setSyncState({ status: 'local', message: LEVEL_UP_HISTORY_UNAVAILABLE })
+          return
+        }
+
         const response = await fetch('/api/player/level-up-sessions', {
           headers: { Authorization: `Bearer ${token}` },
         })
@@ -914,17 +920,20 @@ export default function PlayerLiveWorkbench({
         const merged = mergeSessions(remoteSessions, readSavedSessions(storageKey)).slice(0, 40)
         setSessions(merged)
         window.localStorage.setItem(storageKey, JSON.stringify(merged))
+        setSyncState((current) => current.message === LEVEL_UP_HISTORY_UNAVAILABLE ? { status: 'idle', message: '' } : current)
       } catch {
         if (active) {
           setSyncState({ status: 'local', message: LEVEL_UP_HISTORY_UNAVAILABLE })
         }
+      } finally {
+        if (active) setHistoryRetryPending(false)
       }
     })()
 
     return () => {
       active = false
     }
-  }, [identitySlug, storageKey])
+  }, [identitySlug, storageKey, historyRetryVersion])
 
   useEffect(() => {
     let active = true
@@ -1814,6 +1823,9 @@ export default function PlayerLiveWorkbench({
         <aside className={styles.levelUpSyncStatus} data-sync-status="local" role="status">
           <span>History unavailable</span>
           <strong>{syncState.message}</strong>
+          <button type="button" className="button-secondary" disabled={historyRetryPending} onClick={() => { setHistoryRetryPending(true); setHistoryRetryVersion((version) => version + 1) }}>
+            {historyRetryPending ? 'Checking history...' : 'Retry history'}
+          </button>
         </aside>
       ) : null}
 
