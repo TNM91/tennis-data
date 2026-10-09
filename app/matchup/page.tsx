@@ -26,6 +26,7 @@ import { trackProductUsageEvent } from '@/lib/product-usage-client'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import CompeteResumeTracker from '@/app/compete/_components/compete-resume-tracker'
+import CourtsideMatchPrep from '@/app/components/courtside-match-prep'
 
 const dataAssistMatchupHref = '/data-assist?intent=request-review&context=Matchup'
 
@@ -2349,6 +2350,8 @@ export default function MatchupPage() {
               ) : null}
 
               {access.canUseAdvancedPlayerInsights && playerMatchPrep ? (
+                <>
+                <CourtsideMatchPrep key={matchupPrepId} context={playerMatchPrep.context} courtPlan={playerMatchPrep.courtPlan} saveHref={labTakeawayHref} doubles={matchType === 'doubles'} />
                 <section style={playerMatchPrepCardStyle} aria-labelledby="player-match-prep-title">
                   <div style={playerMatchPrepHeaderStyle}>
                     <div>
@@ -2378,6 +2381,7 @@ export default function MatchupPage() {
                     <strong style={playerMatchPrepPlanTextStyle}>{playerMatchPrep.courtPlan}</strong>
                   </div>
                 </section>
+                </>
               ) : null}
 
               {projection && !isMobile ? (

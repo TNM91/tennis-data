@@ -10,6 +10,7 @@ import SiteShell from '@/app/components/site-shell'
 import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
 import ActiveTeamChallengeCard from '@/app/components/active-team-challenge-card'
 import MyLabCommandCenter from './my-lab-command-center'
+import WatchlistVisitSummary from '@/app/components/watchlist-visit-summary'
 import WeeklyLeagueActionCard from './weekly-league-action-card'
 import MyLeaguesPanel from './my-leagues-panel'
 import { useAuth } from '@/app/components/auth-provider'
@@ -5183,6 +5184,13 @@ function MyLabPageInner() {
                 </div>
               )}
             </div>
+
+            <WatchlistVisitSummary key={userId} userId={userId} ready={!loading && !error} items={feed.map(item => ({
+              id: item.id, title: item.title, createdAt: item.createdAt,
+              href: item.entityType === 'player' && item.entityId ? `/players/${encodeURIComponent(item.entityId)}`
+                : item.entityType === 'team' && item.entityId ? buildTeamHrefFromEntityId(item.entityId)
+                  : item.entityType === 'league' && item.entityId ? buildLeagueHrefFromEntityId(item.entityId) : undefined,
+            }))} />
 
             {loading ? (
               <div style={emptyStateStyle}>

@@ -1,7 +1,10 @@
 import { ImageResponse } from 'next/og'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { getTiqShareCardLabel, type TiqShareCardKind } from './share-card'
 
 export const TIQ_SHARE_CARD_SIZE = { width: 1200, height: 630 }
+const shareCardLogo = `data:image/png;base64,${readFileSync(join(process.cwd(), 'public/brand/web/header-logo-transparent.png')).toString('base64')}`
 
 export function renderTiqShareCard(input: {
   kind: TiqShareCardKind
@@ -12,7 +15,8 @@ export function renderTiqShareCard(input: {
   return new ImageResponse(
     <div style={{ width: '100%', height: '100%', display: 'flex', padding: 56, background: 'linear-gradient(135deg,#06172f 0%,#0b2346 58%,#0d4852 100%)', color: '#fff', fontFamily: 'sans-serif' }}>
       <div style={{ width: '66%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', color: '#9be11d', fontSize: 25, fontWeight: 900, letterSpacing: 3 }}>TENACEIQ</div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={shareCardLogo} alt="TenAceIQ" width={260} height={73.125} style={{ objectFit: 'contain' }} />
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', marginBottom: 16, color: '#9be11d', fontSize: 31, fontWeight: 900 }}>{getTiqShareCardLabel(input.kind)}</div>
           <div style={{ display: 'flex', fontSize: input.title.length > 34 ? 58 : 72, lineHeight: .98, fontWeight: 950 }}>{input.title}</div>
