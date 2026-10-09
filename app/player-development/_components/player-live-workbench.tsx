@@ -432,6 +432,7 @@ export default function PlayerLiveWorkbench({
   const [selectedCoachAskId, setSelectedCoachAskId] = useState<SavedCoachAskId>('next')
   const [timerResetSignal, setTimerResetSignal] = useState(0)
   const [timerStartSignal, setTimerStartSignal] = useState(0)
+  const [timerToggleSignal, setTimerToggleSignal] = useState(0)
   const [pressureRepeatCue, setPressureRepeatCue] = useState('')
   const storageKey = `tenaceiq:level-up:${identitySlug}`
   const sentProofRecapStorageKey = `tenaceiq:level-up-recap-sent:${identitySlug}`
@@ -483,6 +484,7 @@ export default function PlayerLiveWorkbench({
   )
   const drillDayStreak = getDrillDayStreak(sessions, activeDrill?.title ?? '')
   const activeTimerSeconds = activeTimerSnapshot?.drillId === activeDrill?.id ? activeTimerSnapshot.elapsedSeconds : 0
+  const activeTimerRunning = activeTimerSnapshot?.drillId === activeDrill?.id && activeTimerSnapshot.running
   const progress = getProgressSummary(sessions, playableFocuses)
   const weeklyRecap = useMemo(() => buildWeeklyLevelUpRecap({
     identitySlug,
@@ -2240,11 +2242,29 @@ export default function PlayerLiveWorkbench({
         </div>
       </details>
 
-      <nav className={styles.liveSessionDock} data-active={sessionDockActive ? 'true' : 'false'} aria-label="Level Up bottom session dock">
-        <a href="#level-up-flow">Today</a>
-        <button type="button" onClick={showActivity}>Drill</button>
-        <button type="button" onClick={goToScore}>Score</button>
-        <button type="button" disabled={!todaySessions.length} onClick={finishToday}>Finish</button>
+      <nav className={styles.liveSessionDock} data-active={sessionDockActive ? 'true' : 'false'} data-saved={hasActiveSaveReceipt ? 'true' : 'false'} aria-label="Level Up bottom session dock">
+        <div className={styles.liveSessionDockRead}>
+          <strong>{lastSavedSession ? 'Proof saved' : activeDrill.title}</strong>
+          <span aria-label={lastSavedSession ? 'Saved proof score and time' : 'Active drill timer'}>
+            {lastSavedSession ? lastSavedSession.rating + '/5 · ' + formatClock(lastSavedSession.elapsedSeconds) : (activeTimerRunning ? 'Running' : activeTimerSeconds > 0 ? 'Paused' : 'Ready') + ' · ' + formatClock(activeTimerSeconds)}
+          </span>
+        </div>
+        {hasActiveSaveReceipt ? (
+          <>
+            <button type="button" data-primary="true" onClick={runSmartNextPrimary}>{smartNextAction?.primaryLabel || 'Repeat rep'}</button>
+            <button type="button" onClick={showSavedRecap}>Saved proof</button>
+            <Link href="/mylab#level-up-proof">My Lab</Link>
+          </>
+        ) : (
+          <>
+            <button type="button" data-primary="true" onClick={activeTimerRunning || activeTimerSeconds > 0 ? () => setTimerToggleSignal((signal) => signal + 1) : startDrillJourney}>
+              {activeTimerRunning ? 'Pause' : activeTimerSeconds > 0 ? 'Resume' : 'Start timer'}
+            </button>
+            <button type="button" onClick={showActivity}>Drill</button>
+            <button type="button" onClick={goToScore}>Score</button>
+            <button type="button" disabled={!todaySessions.length} onClick={finishToday}>Finish</button>
+          </>
+        )}
       </nav>
 
       {todaySessions.length ? (
@@ -2603,6 +2623,7 @@ export default function PlayerLiveWorkbench({
               targetSeconds={activeDrill.timerSeconds}
               resetSignal={timerResetSignal}
               startSignal={timerStartSignal}
+              toggleSignal={timerToggleSignal}
               onDone={goToScore}
               onSnapshotChange={handleTimerSnapshotChange}
             />
@@ -3145,6 +3166,7 @@ function DrillTimer({
   targetSeconds,
   resetSignal,
   startSignal,
+  toggleSignal,
   onDone,
   onSnapshotChange,
 }: {
@@ -3153,10 +3175,12 @@ function DrillTimer({
   targetSeconds: number
   resetSignal: number
   startSignal: number
+  toggleSignal: number
   onDone: () => void
   onSnapshotChange: (snapshot: DrillTimerSnapshot) => void
 }) {
   const timerRef = useRef<HTMLDivElement>(null)
+  const lastToggleSignalRef = useRef(toggleSignal)
   const wakeLockRef = useRef<LevelUpWakeLockSentinel | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [running, setRunning] = useState(false)
@@ -3198,6 +3222,13 @@ function DrillTimer({
 
     return () => window.cancelAnimationFrame(id)
   }, [startSignal])
+
+  useEffect(() => {
+    if (toggleSignal === lastToggleSignalRef.current) return
+    lastToggleSignalRef.current = toggleSignal
+    const frame = window.requestAnimationFrame(() => setRunning((value) => !value))
+    return () => window.cancelAnimationFrame(frame)
+  }, [toggleSignal])
 
   useEffect(() => {
     onSnapshotChange({ drillId, elapsedSeconds, running, targetSeconds })
