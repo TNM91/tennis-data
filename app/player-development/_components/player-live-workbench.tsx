@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import { LEVEL_UP_HISTORY_UNAVAILABLE, readLevelUpSessionHistory } from '@/lib/level-up/read-session-history'
+import { buildPracticeHistoryRepeatHref } from '@/lib/practice-history-repeat'
 import { getPreviousPracticeProof } from '@/lib/practice-proof-comparison'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
@@ -475,6 +476,14 @@ export default function PlayerLiveWorkbench({
   const quickNoteChips = getQuickNoteChips(activeDrill)
   const contextOptions = contextOptionsByWorkType[workType]
   const recentSessions = sessions.slice(0, 4)
+  function getHistoryRepeatHref(saved: SavedSession) {
+    const card = LEVEL_UP_CARDS.find((candidate) => candidate.id === saved.cardId)
+    if (card) return buildPracticeHistoryRepeatHref(identitySlug, saved, { cardId: card.id })
+    const focus = playableFocuses.find((candidate) => candidate.id === saved.focusId)
+    if (!focus) return ''
+    const drill = buildDrillOptions(focus, { solo, partner, offCourt, performance }).find((candidate) => candidate.title === saved.drillTitle && candidate.workType === saved.workType && candidate.context === saved.context)
+    return buildPracticeHistoryRepeatHref(identitySlug, saved, drill ? { drillId: drill.id } : null)
+  }
   const todaySessions = sessions.filter(isSessionFromToday).slice(0, 4)
   const todayCloseoutRead = getTodayCloseoutRead(todaySessions)
   const tomorrowStarterSaved = Boolean(
@@ -3163,12 +3172,24 @@ export default function PlayerLiveWorkbench({
             <em aria-hidden="true" />
           </summary>
           <div className={styles.liveRecentList}>
-          {recentSessions.map((session) => (
-            <article key={session.id}>
-              <strong>{session.focusTitle}: {session.drillTitle}</strong>
-              <p>{getRecentSessionDetail(session)}</p>
-            </article>
-          ))}
+          {recentSessions.map((session) => {
+            const repeatHref = getHistoryRepeatHref(session)
+            const completedDate = new Date(session.completedAt)
+            return (
+              <article key={session.id}>
+                <div className={styles.liveHistoryHeading}>
+                  <strong>{session.drillTitle}</strong>
+                  <span className={styles.liveHistoryScore} aria-label="Saved rep score">{session.rating}/5</span>
+                </div>
+                <div className={styles.liveHistoryMeta}>
+                  <span>{session.focusTitle} · {formatClock(session.elapsedSeconds)}</span>
+                  {Number.isFinite(completedDate.getTime()) ? <time dateTime={session.completedAt}>{completedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</time> : <span>Date unavailable</span>}
+                </div>
+                <p>{getRecentSessionDetail(session)}</p>
+                {repeatHref ? <Link className="button-secondary" href={repeatHref} prefetch={false} onClick={repeatActivity} aria-label={'Repeat ' + session.drillTitle}>Repeat this drill</Link> : null}
+              </article>
+            )
+          })}
           </div>
         </details>
       ) : null}
@@ -4523,7 +4544,7 @@ function getRecentSessionDetail(session: SavedSession) {
   const pressureProof = getSavedPressureProofValue(session)
   const starterProof = getSavedStarterProofValue(session)
   const playerNote = getPlayerProofNote(session.note)
-  const baseDetail = `${session.rating}/5 ${formatClock(session.elapsedSeconds)} ${feelingLabels[session.feeling] ?? 'Ready'} ${accessModes[session.accessMode]?.label ?? 'Level Up'} ${session.sharedWithCoach ? 'shared with coach' : 'private'}`
+  const baseDetail = `${feelingLabels[session.feeling] ?? 'Ready'} · ${accessModes[session.accessMode]?.label ?? 'Level Up'} · ${session.sharedWithCoach ? 'Coach sharing selected' : 'Private'}`
 
   return `${baseDetail}${starterProof ? ` starter proof: ${starterProof}` : ''}${pressureProof ? ` pressure proof: ${pressureProof}` : ''}${playerNote ? ` - ${playerNote}` : ''}`
 }
