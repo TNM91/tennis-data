@@ -557,7 +557,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
     [coachChallenges, localCoachChallenges],
   )
   const assignmentByCardId = useMemo(() => buildAssignmentByCardId(allCoachChallenges), [allCoachChallenges])
-  const [completions, logCompletion, completionSyncState] = useLevelUpCompletions(identitySlug, assignmentByCardId)
+  const [completions, logCompletion, completionSyncState, retryCompletionHistory] = useLevelUpCompletions(identitySlug, assignmentByCardId)
   const completionSummaryByCardId = useMemo(() => buildCompletionSummaryByCardId(completions), [completions])
   const recommendations = useMemo(
     () => recommendLevelUpCards({
@@ -766,7 +766,7 @@ export default function LevelUpPortal({ identitySlug, identityTitle }: LevelUpPo
           <small>Restored from this phone. Score proof or finish to clear it.</small>
         </div>
       ) : null}
-      <LevelUpSyncStatus state={completionSyncState} />
+      <LevelUpSyncStatus state={completionSyncState} onRetry={retryCompletionHistory} />
       <LevelUpOnCourtCommand
         activeCardTitle={activeCardTitle}
         coachChallengeCard={coachChallengeCard}
@@ -9041,13 +9041,16 @@ function LevelUpSafetyNote() {
   )
 }
 
-function LevelUpSyncStatus({ state }: { state: CompletionSyncState }) {
+function LevelUpSyncStatus({ state, onRetry }: { state: CompletionSyncState; onRetry: () => void }) {
   if (!state.message) return null
 
   return (
     <aside className={styles.levelUpSyncStatus} data-sync-status={state.status} aria-live="polite">
       <span>{state.message === LEVEL_UP_HISTORY_UNAVAILABLE ? 'History unavailable' : state.status === 'loading' ? 'Checking history' : state.status === 'synced' ? 'History synced' : state.status === 'syncing' ? 'Saving proof' : 'Proof saved'}</span>
       <strong>{state.message}</strong>
+      {state.message === LEVEL_UP_HISTORY_UNAVAILABLE ? (
+        <button type="button" className="button-secondary" onClick={onRetry}>Retry history</button>
+      ) : null}
     </aside>
   )
 }
@@ -9216,9 +9219,10 @@ function readLocalCoachChallenges(key: string): LevelUpCoachChallenge[] {
 function useLevelUpCompletions(
   identitySlug: string,
   assignmentByCardId: Map<string, LevelUpAssignment>,
-): [LevelUpCompletion[], CompletionLogger, CompletionSyncState] {
+): [LevelUpCompletion[], CompletionLogger, CompletionSyncState, () => void] {
   const [completions, setCompletions] = useState<LevelUpCompletion[]>([])
   const [syncState, setSyncState] = useState<CompletionSyncState>({ status: 'idle', message: '' })
+  const [historyRetryVersion, setHistoryRetryVersion] = useState(0)
 
   useEffect(() => {
     const hydrationTimer = window.setTimeout(() => {
@@ -9231,11 +9235,14 @@ function useLevelUpCompletions(
     let active = true
 
     void (async () => {
-      const { data } = await supabase.auth.getSession()
-      const token = data.session?.access_token
-      if (!token) return
-
       try {
+
+        const { data } = await supabase.auth.getSession()
+        const token = data.session?.access_token
+        if (!token) {
+          if (active && historyRetryVersion > 0) setSyncState({ status: 'local', message: LEVEL_UP_HISTORY_UNAVAILABLE })
+          return
+        }
         setSyncState({ status: 'loading', message: 'Checking your Level Up history...' })
         const response = await fetch('/api/player/level-up-sessions', {
           headers: { Authorization: `Bearer ${token}` },
@@ -9264,7 +9271,7 @@ function useLevelUpCompletions(
     return () => {
       active = false
     }
-  }, [identitySlug])
+  }, [identitySlug, historyRetryVersion])
 
   function log(cardId: string, rating: number, note: string, elapsedSeconds = 0) {
     const card = LEVEL_UP_CARDS.find((candidate) => candidate.id === cardId)
@@ -9294,7 +9301,10 @@ function useLevelUpCompletions(
     setSyncState({ status: 'syncing', message: 'Saved on this device. Syncing proof now...' })
     void syncPortalCompletion({ card, completion: nextCompletion, identitySlug, elapsedSeconds, setSyncState })
   }
-  return [completions, log, syncState]
+  return [completions, log, syncState, () => {
+    setSyncState({ status: 'loading', message: 'Checking your Level Up history...' })
+    setHistoryRetryVersion((version) => version + 1)
+  }]
 }
 
 async function syncPortalCompletion({
