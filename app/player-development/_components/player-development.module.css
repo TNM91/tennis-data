@@ -22772,3 +22772,34 @@
     display: none;
   }
 }
+
+.liveProofReceiptTop > :global(.button-primary) {
+  min-height: 44px;
+  padding-inline: 12px;
+}
+
+@media (max-width: 860px) {
+  .liveProofReceiptStats {
+    order: -1;
+  }
+
+  .liveProofReceiptStats article:first-child {
+    border-color: rgba(155, 225, 29, 0.3);
+    background: rgba(155, 225, 29, 0.08);
+  }
+
+  .liveProofReceiptStats article:first-child strong {
+    color: var(--brand-green-3);
+    font-size: 1.35rem;
+  }
+
+  .liveProofReceiptTop > :global(.button-primary) {
+    width: 100%;
+  }
+}
+
+@media (max-width: 860px) {
+  .liveProofReceiptDetails[open] > .liveRecentList {
+    display: grid;
+  }
+}

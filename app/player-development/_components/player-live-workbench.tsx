@@ -2847,7 +2847,7 @@ export default function PlayerLiveWorkbench({
               <div className={styles.liveProofReceiptCopy}>
                 <span>Proof banked</span>
                 <strong>{lastSavedSession.focusTitle}: {lastSavedSession.drillTitle}</strong>
-                <p>{selectedSavedNextCue ? `Carry forward: ${selectedSavedNextCue.value}` : 'Your score and next cue are ready.'}</p>
+                <p>Carry forward: {selectedSavedNextCue?.value || activeDrill.sourceCard?.cue || smartNextAction?.copy || 'Repeat the same rep with one clean cue.'}</p>
               </div>
               <div className={styles.liveProofReceiptStats} aria-label="Saved proof score, time, and feel">
                 <article>
@@ -2863,9 +2863,9 @@ export default function PlayerLiveWorkbench({
                   <strong>{feelingLabels[lastSavedSession.feeling]}</strong>
                 </article>
               </div>
-              <a className="button-secondary" href={lastSavedSession.accessMode === 'player_plus' ? '/pricing' : '/mylab#coach-assignments'}>
-                {lastSavedSession.accessMode === 'player_plus' ? PLAYER_TIER_NAME : 'Open My Lab'}
-              </a>
+              <button type="button" className="button-primary" onClick={runSmartNextPrimary}>
+                {smartNextAction?.primaryLabel || 'Repeat rep'}
+              </button>
             </div>
             <details className={styles.liveProofReceiptDetails}>
               <summary className={styles.liveProofReceiptSummary}>
@@ -2884,6 +2884,7 @@ export default function PlayerLiveWorkbench({
                       : 'Kept as a local preview for now.')}
                   {questCreditMessage ? ` ${questCreditMessage}` : ''}
                 </p>
+              <Link className="button-secondary" href="/mylab#level-up-proof">View proof in My Lab</Link>
               <div className={styles.liveSavedIdentitySignals} aria-label="Saved proof identity signals">
                 {savedIdentitySignals.map((signal) => (
                   <article key={signal.label}>
@@ -3146,15 +3147,23 @@ export default function PlayerLiveWorkbench({
       </div>
 
       {recentSessions.length ? (
-        <div className={styles.liveRecentList}>
-          <span>Recent work</span>
+        <details className={styles.liveProofReceiptDetails} aria-label="Saved practice history">
+          <summary className={styles.liveProofReceiptSummary}>
+            <div>
+              <span>Recent work</span>
+              <strong>{recentSessions.length} saved rep{recentSessions.length === 1 ? '' : 's'}</strong>
+            </div>
+            <em aria-hidden="true" />
+          </summary>
+          <div className={styles.liveRecentList}>
           {recentSessions.map((session) => (
             <article key={session.id}>
               <strong>{session.focusTitle}: {session.drillTitle}</strong>
               <p>{getRecentSessionDetail(session)}</p>
             </article>
           ))}
-        </div>
+          </div>
+        </details>
       ) : null}
     </section>
   )
