@@ -51,7 +51,7 @@ import {
 
 type PlayerOption = { id: string; name: string }
 import { summarizeTeamMatchLines, type MatchLineSummary } from '@/lib/team-match-line-summary'
-type TeamResultCompletionFilter = 'all' | 'complete' | 'incomplete'
+import { buildTeamResultReviewHref, matchesTeamResultReviewFilter, readTeamResultReviewFilter, type TeamResultCompletionFilter } from '@/lib/team-result-review-filter'
 type TeamResultDateFilter = 'all' | 'week' | 'month'
 
 const dataAssistTeamResultsHref = '/data-assist?intent=upload-source&context=Team%20league%20results'
@@ -1379,7 +1379,10 @@ function TeamLeagueResultsWorkspaceInner({
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
   const [resultSearch, setResultSearch] = useState('')
-  const [completionFilter, setCompletionFilter] = useState<TeamResultCompletionFilter>('all')
+  const completionFilter = readTeamResultReviewFilter(searchParams.get('status'))
+  function setCompletionFilter(filter: TeamResultCompletionFilter) {
+    window.history.replaceState(null, '', buildTeamResultReviewHref(window.location.href, filter))
+  }
   const [dateFilter, setDateFilter] = useState<TeamResultDateFilter>('all')
   const [newMatchFormOpen, setNewMatchFormOpen] = useState(false)
   const [activeEntryEventId, setActiveEntryEventId] = useState('')
@@ -1403,15 +1406,13 @@ function TeamLeagueResultsWorkspaceInner({
   const visibleEvents = useMemo(() => {
     return events.filter((event) => {
       const summary = lineSummaries.get(event.id)
-      const isComplete = Boolean(summary && summary.total > 0 && summary.completed === summary.total)
-      if (completionFilter === 'complete' && !isComplete) return false
-      if (completionFilter === 'incomplete' && isComplete) return false
+      const league = leagues.find((item) => item.id === event.leagueId)
+      if (!matchesTeamResultReviewFilter(completionFilter, summary, league?.scoringSystem)) return false
       if (dateFilter === 'week' && !resultDateIsWithinDays(event.matchDate, 7)) return false
       if (dateFilter === 'month' && !resultDateIsWithinDays(event.matchDate, 30)) return false
 
       if (!normalizedResultSearch) return true
 
-      const league = leagues.find((item) => item.id === event.leagueId)
       const haystack = [
         event.teamAName,
         event.teamBName,
@@ -1601,12 +1602,12 @@ function TeamLeagueResultsWorkspaceInner({
     return () => window.clearTimeout(timeoutId)
   }, [loadData])
 
-  async function handleFilterChange(leagueId: string) {
+  async function handleFilterChange(leagueId: string, reviewFilter = completionFilter) {
     setFilterLeagueId(leagueId)
     const nextHref = leagueId
       ? `${resultsHref}?leagueId=${encodeURIComponent(leagueId)}`
       : resultsHref
-    router.replace(nextHref, { scroll: false })
+    router.replace(buildTeamResultReviewHref(nextHref, reviewFilter), { scroll: false })
     setLoading(true)
     setError('')
     const { events: evts, warning } = await listTiqTeamMatchEvents({ leagueId: leagueId || null })
@@ -1733,7 +1734,7 @@ function TeamLeagueResultsWorkspaceInner({
     setCompletionFilter('all')
     setDateFilter('all')
     if (filterLeagueId) {
-      await handleFilterChange('')
+      await handleFilterChange('', 'all')
     }
   }
 
@@ -1969,6 +1970,7 @@ function TeamLeagueResultsWorkspaceInner({
               <option value="all">All statuses</option>
               <option value="complete">Complete only</option>
               <option value="incomplete">Needs lines</option>
+              <option value="score_review">Needs score review</option>
             </select>
             <select
               style={selectStyle}
