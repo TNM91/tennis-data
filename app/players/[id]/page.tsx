@@ -56,6 +56,8 @@ import {
 } from '@/lib/tiq-awards-registry'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 import profileStory from './player-profile-story.module.css'
+import RatingJourneyExplorer from '@/app/components/rating-journey-explorer'
+import TennisShareCardPreview from '@/app/components/tennis-share-card-preview'
 import { usePlayerProfilePreview } from './player-profile-preview-context'
 import { buildPlayerProfileConnectHref, PLAYER_PROFILE_SHARE_SOURCE, PLAYER_PROFILE_SOURCE } from '@/lib/player-profile-acquisition'
 
@@ -847,6 +849,8 @@ function PlayerProfileContent() {
         : snapshots.filter((snapshot) => snapshot.rating_type === ratingView)
 
     return relevantSnapshots.map((snapshot, index) => ({
+      id: snapshot.id,
+      matchId: snapshot.match_id,
       x: index + 1,
       date: snapshot.snapshot_date,
       rating: snapshot.dynamic_rating,
@@ -860,6 +864,14 @@ function PlayerProfileContent() {
     const cutoff = Date.now() - (chartWindow === '90d' ? 90 : 30) * 24 * 60 * 60 * 1000
     return chartPoints.filter((p) => new Date(p.date).getTime() >= cutoff)
   }, [chartPoints, chartWindow])
+
+  const ratingJourneyPoints = useMemo(() => {
+    const matchById = new Map(matches.map(match => [match.id, match]))
+    return filteredChartPoints.map(point => {
+      const match = matchById.get(point.matchId)
+      return { ...point, opponent: match?.opponent, score: match?.score, result: match?.result }
+    })
+  }, [filteredChartPoints, matches])
 
   const selectedDynamicRating = useMemo(() => getTiqRating(player, ratingView), [player, ratingView])
   const selectedTiqEvidence = getTiqEvidence(player, ratingView)
@@ -2352,7 +2364,9 @@ function PlayerProfileContent() {
             </div>
 
             {chartPoints.length > 1 && showDetailedRatingHistory ? (
-              <SimpleLineChart points={filteredChartPoints} baseRating={baseRating} />
+              access.canUseAdvancedPlayerInsights
+                ? <RatingJourneyExplorer key={ratingView} points={ratingJourneyPoints} />
+                : <SimpleLineChart points={filteredChartPoints} baseRating={baseRating} />
             ) : chartPoints.length > 1 ? (
               <div className={profileStory.ratingHistorySummary} aria-label="Compact TIQ rating journey">
                 <div className={profileStory.ratingJourneyPulse}>
@@ -2498,6 +2512,7 @@ function PlayerProfileContent() {
               </article>
 
               <article className={profileStory.playerCardPreview} data-own-profile={hasPersonalPlayerExperience}>
+                <TennisShareCardPreview kind="player" title={player.name} subtitle={player.location || 'Player profile'} detail={`${totalMatches} reviewed matches`} publicPath={`/players/${encodeURIComponent(player.id)}`} />
                 <span className={profileStory.playerCardEyebrow}>Your player card</span>
                 <h3>A profile worth sharing.</h3>
                 <div className={profileStory.playerCard} aria-label={`${player.name} share card preview`}>

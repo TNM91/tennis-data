@@ -29,6 +29,7 @@ import PublicDetailState from '@/app/components/public-detail-state'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import FollowButton from '@/app/components/follow-button'
+import TennisShareCardPreview from '@/app/components/tennis-share-card-preview'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import {
   buildSmsHref,
@@ -2093,6 +2094,10 @@ function TeamPageContent() {
           onRetry={() => void loadTeamPage()}
           importHref={`/data-assist?type=schedule&team=${encodeURIComponent(team)}&league=${encodeURIComponent(leagueFilter || teamMeta.league || '')}`}
         /> : null}
+
+        {nextScheduledMatch || latestUnreportedMatch || roster.length || teamCourtLead ? (
+          <TennisShareCardPreview kind="team" title={team} subtitle="Team tennis" detail="Results, roster, and match context" publicPath={teamProfileHref} />
+        ) : null}
 
         {nextScheduledMatch || latestUnreportedMatch || roster.length || teamCourtLead ? (
           <section style={teamMatchPulseStyle} aria-label="Team match pulse">

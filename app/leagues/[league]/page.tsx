@@ -10,6 +10,7 @@ import SiteShell from '@/app/components/site-shell'
 import DataTrustPanel from '@/app/components/data-trust-panel'
 import PublicDetailState from '@/app/components/public-detail-state'
 import FollowButton from '@/app/components/follow-button'
+import TennisShareCardPreview from '@/app/components/tennis-share-card-preview'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
@@ -723,6 +724,7 @@ function LeagueDetailContent() {
           </div>
 
           <div style={dynamicSeasonToolsCard}>
+            <TennisShareCardPreview kind="league" title={leagueInfo.leagueName || leagueFromRoute || 'League'} subtitle={subtitleParts.join(' | ')} detail={`${stats.teams} teams · ${stats.matchCount} matches`} publicPath={buildLeagueScopeHref(leagueInfo.leagueName || leagueFromRoute, leagueInfo.flight, leagueInfo.section, leagueInfo.district, leagueFormat)} />
             <div style={seasonToolsLabel}>Season tools</div>
             <div style={seasonToolsValue}>
               {leagueInfo.flight || getCompetitionLayerLabel(competitionLayer)}
