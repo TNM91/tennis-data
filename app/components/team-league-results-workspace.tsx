@@ -50,14 +50,7 @@ import {
 } from '@/lib/competition-format-registry'
 
 type PlayerOption = { id: string; name: string }
-type MatchLineSummary = {
-  total: number
-  completed: number
-  teamAWins: number
-  teamBWins: number
-  teamAPoints: number
-  teamBPoints: number
-}
+import { summarizeTeamMatchLines, type MatchLineSummary } from '@/lib/team-match-line-summary'
 type TeamResultCompletionFilter = 'all' | 'complete' | 'incomplete'
 type TeamResultDateFilter = 'all' | 'week' | 'month'
 
@@ -788,7 +781,9 @@ function EventCard({
   const maxFormatLines = teamMatchFormat.id === 'custom' ? 20 : teamMatchFormat.slots.length
 
   const loadLines = useCallback(async () => {
-    const { lines: l } = await listTiqTeamMatchLines(event.id)
+    const { lines: l, warning: loadWarning } = await listTiqTeamMatchLines(event.id)
+    if (loadWarning) { setWarning(loadWarning); return }
+    setWarning('')
     setLines(l)
     setLinesLoaded(true)
   }, [event.id])
@@ -862,7 +857,9 @@ function EventCard({
   const showDynamicPoints = scoringSystem === 'dynamic_points'
   const dynamicPoints = summarizeDynamicPoints(lines)
   const dynamicScoreReviewCount = showDynamicPoints
-    ? lines.filter((line) => line.winnerSide && line.score && !formatDynamicPointsForSides(line.score, line.winnerSide)).length
+    ? linesLoaded
+      ? lines.filter((line) => line.winnerSide && line.score && !formatDynamicPointsForSides(line.score, line.winnerSide)).length
+      : lineSummary?.scoreReview ?? null
     : 0
   const displayTeamAPoints = linesLoaded ? dynamicPoints.teamAPoints : lineSummary?.teamAPoints ?? 0
   const displayTeamBPoints = linesLoaded ? dynamicPoints.teamBPoints : lineSummary?.teamBPoints ?? 0
@@ -881,7 +878,7 @@ function EventCard({
     },
     {
       label: 'Review',
-      value: dynamicScoreReviewCount > 0 ? `${dynamicScoreReviewCount}` : 'Clear',
+      value: dynamicScoreReviewCount === null ? 'Not checked' : (dynamicScoreReviewCount ?? 0) > 0 ? `${dynamicScoreReviewCount}` : 'Clear',
       ready: dynamicScoreReviewCount === 0,
     },
   ]
@@ -923,7 +920,7 @@ function EventCard({
                   <span style={displayTeamAPoints > displayTeamBPoints ? pillGreen : pill}>{event.teamAName} pts: {displayTeamAPoints}</span>
                   {' '}
                   <span style={displayTeamBPoints > displayTeamAPoints ? pillGreen : pill}>{event.teamBName} pts: {displayTeamBPoints}</span>
-                  {dynamicScoreReviewCount > 0 ? (
+                  {(dynamicScoreReviewCount ?? 0) > 0 ? (
                     <>
                       {' '}
                       <span style={pill}>{dynamicScoreReviewCount} score review</span>
@@ -1191,42 +1188,13 @@ async function loadLineSummaries(events: TiqTeamMatchEventRecord[]) {
   const eventIds = events.map((event) => event.id)
   if (eventIds.length === 0) return new Map<string, MatchLineSummary>()
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('tiq_team_league_match_lines')
     .select('event_id, winner_side, score')
     .in('event_id', eventIds)
 
-  const summaries = new Map<string, MatchLineSummary>()
-  for (const eventId of eventIds) {
-    summaries.set(eventId, { total: 0, completed: 0, teamAWins: 0, teamBWins: 0, teamAPoints: 0, teamBPoints: 0 })
-  }
-
-  for (const row of data || []) {
-    const eventId = String(row.event_id || '')
-    const summary = summaries.get(eventId)
-    if (!summary) continue
-
-    summary.total += 1
-    if (row.winner_side === 'A') {
-      summary.completed += 1
-      summary.teamAWins += 1
-    }
-    if (row.winner_side === 'B') {
-      summary.completed += 1
-      summary.teamBWins += 1
-    }
-
-    const points = formatDynamicPointsForSides(
-      typeof row.score === 'string' ? row.score : null,
-      row.winner_side === 'A' || row.winner_side === 'B' ? row.winner_side : null,
-    )
-    if (points) {
-      summary.teamAPoints += points.sideAPoints
-      summary.teamBPoints += points.sideBPoints
-    }
-  }
-
-  return summaries
+  if (error) return new Map<string, MatchLineSummary>()
+  return summarizeTeamMatchLines(eventIds, data || [])
 }
 
 function NewEventForm({
@@ -1945,7 +1913,7 @@ function TeamLeagueResultsWorkspaceInner({
                 setResumeTeamResultDraft(null)
                 setNewMatchFormOpen(false)
                 setActiveEntryEventId(event.id)
-                setLineSummaries((prev) => new Map(prev).set(event.id, { total: 0, completed: 0, teamAWins: 0, teamBWins: 0, teamAPoints: 0, teamBPoints: 0 }))
+                setLineSummaries((prev) => new Map(prev).set(event.id, { total: 0, completed: 0, teamAWins: 0, teamBWins: 0, teamAPoints: 0, teamBPoints: 0, scoreReview: 0 }))
                 setEvents((prev) => [event, ...prev])
               }}
             />
