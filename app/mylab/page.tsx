@@ -11,6 +11,7 @@ import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
 import ActiveTeamChallengeCard from '@/app/components/active-team-challenge-card'
 import MyLabCommandCenter from './my-lab-command-center'
 import { resolveMatchupPlayerOptions } from '@/lib/matchup-player-options'
+import { latestResumeMatchPrep } from '@/lib/resume-match-prep'
 import { useMyLabGoalSync } from '@/lib/use-my-lab-goal-sync'
 import WatchlistVisitSummary from '@/app/components/watchlist-visit-summary'
 import WeeklyLeagueActionCard from './weekly-league-action-card'
@@ -3769,6 +3770,7 @@ function MyLabPageInner() {
       ) : null}
 
       <MyLabCommandCenter
+        resumePrep={canUseAdvancedPlayerInsights && goalSync.ready ? latestResumeMatchPrep(goals) : null}
         firstName={firstName}
         playerId={linkedPlayer?.id || profileLink?.linked_player_id || ''}
         playerName={commandCenterPlayerName}
