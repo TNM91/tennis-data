@@ -1125,7 +1125,7 @@ function MyLabPageInner() {
       eventName: 'matchup_prep_saved',
       surface: 'mylab',
       planId: 'player_plus',
-      metadata: { matchupPrepId: draft.id },
+      metadata: { entryPoint: 'matchup_handoff' },
     })
 
     if (typeof window !== 'undefined') {

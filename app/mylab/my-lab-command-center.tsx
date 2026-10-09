@@ -1,6 +1,8 @@
 'use client'
 
 import Image from 'next/image'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
+import { matchPrepActionEvent } from '@/lib/match-prep-usage'
 import type { ResumeMatchPrep } from '@/lib/resume-match-prep'
 import Link from 'next/link'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
@@ -141,7 +143,7 @@ export default function MyLabCommandCenter({
       </header>
 
       {resumePrep ? (
-        <Link className={styles.nextCourtEvent} href={resumePrep.href} aria-label="Resume match prep">
+        <Link className={styles.nextCourtEvent} href={resumePrep.href} aria-label="Resume match prep" onClick={() => { void trackProductUsageEvent(matchPrepActionEvent('resume_match_prep')) }}>
           <div className={styles.nextCourtEventCopy}>
             <p className={styles.cardEyebrow}>Saved match prep</p>
             <h2>{resumePrep.title}</h2>

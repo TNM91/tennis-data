@@ -21,6 +21,7 @@ import {
   type ProductUsageEventSurface,
 } from '@/lib/product-usage-events'
 import type { PricingPlanId } from '@/lib/pricing-plans'
+import { summarizeMatchPrepUsage } from '@/lib/match-prep-usage'
 
 type ProductUsageEventRow = {
   id: string
@@ -154,6 +155,7 @@ export default function AdminProductEventsPage() {
     return filterSearch(events.filter((event) => event.surface === filter))
   }, [deferredSearch, events, filter, profileSyncReviews])
 
+  const prepUsage = summarizeMatchPrepUsage(events)
   const uniqueUsers = new Set(events.map((event) => event.user_id)).size
   const billingEvents = events.filter((event) => event.surface === 'billing').length
   const myLabEvents = events.filter((event) => event.surface === 'mylab').length
@@ -217,6 +219,16 @@ export default function AdminProductEventsPage() {
           >
             <a href="https://vercel.com/tennis-data/tennis-data/analytics" target="_blank" rel="noreferrer" className="button-ghost">Open site traffic</a>
           </AdminStatusPanel>
+
+          <AdminReviewPanel style={{ marginTop: 18 }}>
+            <h2>Match prep activity</h2>
+            <p>Actions in the latest {events.length} loaded events across all surfaces. Saves record notebook handoffs, resume clicks record intent, and courtside opens count manual opens. These counts are not a conversion rate or confirmation of account sync.</p>
+            <div className="metric-grid">
+              <MetricCard label="Prep saves" value={prepUsage.saves} />
+              <MetricCard label="Resume clicks" value={prepUsage.resumeClicks} />
+              <MetricCard label="Manual courtside opens" value={prepUsage.courtsideOpens} />
+            </div>
+          </AdminReviewPanel>
 
           <AdminReviewPanel style={{ marginTop: 18 }}>
             {message ? <AdminStatusPanel tone="success" text={message} /> : null}
