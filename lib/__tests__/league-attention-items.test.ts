@@ -8,7 +8,8 @@ describe('league attention actions', () => {
     expect(items[0].title).toBe('1 match needs score review')
     expect(items[1].title).toBe('2 matches have incomplete lines')
     expect(new Set(items.map(item => item.id)).size).toBe(2)
-    expect(items.every(item => item.href.endsWith('leagueId=fall'))).toBe(true)
+    expect(items.map(item => new URL(item.href, 'https://test.local').searchParams.get('leagueId'))).toEqual(['fall', 'fall'])
+    expect(items.map(item => new URL(item.href, 'https://test.local').searchParams.get('status'))).toEqual(['score_review', 'incomplete'])
   })
   it('does not fabricate missing matches for an empty result book', () => {
     expect(buildLeagueAttentionItems({ teams: [{ id: 'new', name: 'New league', missing: 0, scoreReview: 0, href: '/results' }], approvals: [{ leagueId: 'new', leagueName: 'New league', count: 0 }] })).toEqual([])
