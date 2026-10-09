@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
+import { LEVEL_UP_HISTORY_UNAVAILABLE, readLevelUpSessionHistory } from '@/lib/level-up/read-session-history'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import type { LevelUpCard, LevelUpCompletion } from '@/lib/level-up/level-up-types'
 import type { LevelUpSessionJson } from '@/lib/level-up-sessions'
@@ -904,10 +905,10 @@ export default function PlayerLiveWorkbench({
         const response = await fetch('/api/player/level-up-sessions', {
           headers: { Authorization: `Bearer ${token}` },
         })
-        const json = (await response.json()) as { ok?: boolean; sessions?: RemoteLevelUpSession[] }
-        if (!response.ok || !json.ok || !active) return
+        const history = await readLevelUpSessionHistory<RemoteLevelUpSession>(response)
+        if (!active) return
 
-        const remoteSessions = (json.sessions ?? [])
+        const remoteSessions = history
           .filter((session) => session.identitySlug === identitySlug)
           .map(remoteToSavedSession)
         const merged = mergeSessions(remoteSessions, readSavedSessions(storageKey)).slice(0, 40)
@@ -915,7 +916,7 @@ export default function PlayerLiveWorkbench({
         window.localStorage.setItem(storageKey, JSON.stringify(merged))
       } catch {
         if (active) {
-          setSyncState({ status: 'local', message: 'Saved work will stay on this device until sync is available.' })
+          setSyncState({ status: 'local', message: LEVEL_UP_HISTORY_UNAVAILABLE })
         }
       }
     })()
@@ -1808,6 +1809,13 @@ export default function PlayerLiveWorkbench({
           <a className="button-secondary" href="/mylab#coach-assignments">Coach challenges</a>
         </div>
       </div>
+
+      {syncState.message === LEVEL_UP_HISTORY_UNAVAILABLE ? (
+        <aside className={styles.levelUpSyncStatus} data-sync-status="local" role="status">
+          <span>History unavailable</span>
+          <strong>{syncState.message}</strong>
+        </aside>
+      ) : null}
 
       <div id="level-up-flow" className={styles.liveFlowAnchor} aria-hidden="true" />
 

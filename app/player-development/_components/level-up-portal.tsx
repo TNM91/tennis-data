@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type RefObject } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { LEVEL_UP_HISTORY_UNAVAILABLE, readLevelUpSessionHistory } from '@/lib/level-up/read-session-history'
 import { LEVEL_UP_CARDS } from '@/lib/level-up/level-up-cards'
 import { LEVEL_UP_MODULES } from '@/lib/level-up/level-up-modules'
 import { notifyLevelUpProgressSynced } from '@/lib/level-up/level-up-progress-events'
@@ -9045,7 +9046,7 @@ function LevelUpSyncStatus({ state }: { state: CompletionSyncState }) {
 
   return (
     <aside className={styles.levelUpSyncStatus} data-sync-status={state.status} aria-live="polite">
-      <span>{state.status === 'synced' ? 'History synced' : state.status === 'syncing' ? 'Saving proof' : 'Proof saved'}</span>
+      <span>{state.message === LEVEL_UP_HISTORY_UNAVAILABLE ? 'History unavailable' : state.status === 'loading' ? 'Checking history' : state.status === 'synced' ? 'History synced' : state.status === 'syncing' ? 'Saving proof' : 'Proof saved'}</span>
       <strong>{state.message}</strong>
     </aside>
   )
@@ -9239,10 +9240,10 @@ function useLevelUpCompletions(
         const response = await fetch('/api/player/level-up-sessions', {
           headers: { Authorization: `Bearer ${token}` },
         })
-        const json = (await response.json()) as { ok?: boolean; sessions?: RemoteLevelUpSession[] }
-        if (!response.ok || !json.ok || !active) return
+        const history = await readLevelUpSessionHistory<RemoteLevelUpSession>(response)
+        if (!active) return
 
-        const remoteCompletions = (json.sessions ?? [])
+        const remoteCompletions = history
           .filter((session) => session.identitySlug === identitySlug)
           .map(remoteSessionToCompletion)
           .filter(Boolean) as LevelUpCompletion[]
@@ -9255,7 +9256,7 @@ function useLevelUpCompletions(
         })
       } catch {
         if (active) {
-          setSyncState({ status: 'local', message: 'Saved proof will stay on this device until sync is available.' })
+          setSyncState({ status: 'local', message: LEVEL_UP_HISTORY_UNAVAILABLE })
         }
       }
     })()
