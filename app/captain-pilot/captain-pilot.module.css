@@ -79,6 +79,16 @@
 .shareCard span { color: #c8d8eb; font-weight: 700; }
 .printLink { margin-left: auto; color: #9be11d; font-weight: 800; text-decoration: none; }
 .dateNote { margin: -5px 0 0; color: #aebfd5; font-size: 13px; text-align: center; }
+.promoShare { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 24px; padding: 24px; border: 1px solid rgba(155,225,29,.24); border-radius: 24px; background: #06172f; }
+.promoShare > a, .promoDetails { min-width: 0; }
+.promoImage { display: block; width: 100%; height: auto; }
+.promoDetails { display: grid; gap: 14px; }
+.promoDetails h2 { margin: 0; color: #fff; font-size: 28px; letter-spacing: -.03em; }
+.promoDetails p { margin: 0; color: #c8d8eb; line-height: 1.5; }
+.promoActions { display: flex; flex-wrap: wrap; gap: 10px; }
+.promoDetails .promoHint { font-size: 13px; }
+.promoDetails textarea { box-sizing: border-box; width: 100%; padding: 12px; font: inherit; font-size: 16px; color: #fff; background: #0a2546; border: 1px solid #9be11d; border-radius: 10px; }
+@media (max-width: 720px) { .promoShare { grid-template-columns: 1fr; padding: 18px; } }
 .claimCard { scroll-margin-top: 90px; }
 .form input, .form textarea { font-size: 16px; }
 @media (max-width: 900px) { .tourCard { grid-template-columns: 1fr; } .tourMedia { justify-self: stretch; max-width: none; } .previewGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
