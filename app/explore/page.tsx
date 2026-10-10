@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import TennisGuideLinks from '@/app/components/tennis-guide-links'
 import { CSSProperties } from 'react'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
@@ -186,6 +187,7 @@ export default function ExplorePage() {
           <FindCommandPanel compact={isTablet} mobile={isMobile} />
         </div>
       </section>
+      <TennisGuideLinks />
       {shouldShowAds ? (
         <div style={{ marginTop: 12 }}>
           <AdsenseSlot slot={EXPLORE_INLINE_AD_SLOT} label="Sponsored" minHeight={250} />

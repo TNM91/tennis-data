@@ -21,6 +21,7 @@ export default function TrackedProductLink({
   onClick,
   onMouseEnter,
   onMouseLeave,
+  prefetch,
 }: {
   href: string
   children: ReactNode
@@ -31,6 +32,7 @@ export default function TrackedProductLink({
   onClick?: MouseEventHandler<HTMLAnchorElement>
   onMouseEnter?: MouseEventHandler<HTMLAnchorElement>
   onMouseLeave?: MouseEventHandler<HTMLAnchorElement>
+  prefetch?: boolean
 }) {
   const handleClick: MouseEventHandler<HTMLAnchorElement> = (clickEvent) => {
     if (event) void trackProductUsageEvent(event)
@@ -40,6 +42,7 @@ export default function TrackedProductLink({
   return (
     <Link
       href={href}
+      prefetch={prefetch ?? (href.startsWith('/players/') || href.startsWith('/teams/') ? false : undefined)}
       style={style}
       className={className}
       aria-label={ariaLabel}

@@ -4,6 +4,7 @@ import { getTiqEvidence, type TiqEvidenceShape } from '@/lib/tiq-rating-evidence
 
 import { getTiqBandStatus, type TiqBandStatus } from '@/lib/tiq-band-status'
 import Link from 'next/link'
+import { usePublicPlayerContent } from '@/app/components/public-player-content-context'
 import { CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
@@ -28,6 +29,10 @@ import { loadPlayerDirectoryBatches } from '@/lib/player-directory-batching'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 type SortKey = 'overall' | 'singles' | 'doubles' | 'name'
+
+function PublicPlayerDirectoryContent() {
+  return usePublicPlayerContent().directoryContent
+}
 type FilterKey = 'all' | 'with-matches' | 'high-rated' | 'trending-up' | 'at-risk'
 type FlightFilter = 'all' | '2.5' | '3.0' | '3.5' | '4.0' | '4.5+'
 type RatingView = 'overall' | 'singles' | 'doubles'
@@ -63,6 +68,7 @@ type MatchPlayerCountRow = {
   match_id: string | null
   side?: string | null
   matches?: {
+    public_history_eligible?: boolean | null
     match_type?: string | null
     winner_side?: string | null
     score?: string | null
@@ -283,6 +289,7 @@ export default function PlayersPage() {
               player_id,
               match_id,
               matches (
+                public_history_eligible,
                 match_type,
                 winner_side,
                 score,
@@ -302,6 +309,8 @@ export default function PlayersPage() {
           const matchId = String(row.match_id || '')
           if (!matchId) continue
           if (!row.matches?.match_type) continue
+          if (row.matches.public_history_eligible !== true) continue
+          if (!row.matches.match_date || row.matches.match_date.slice(0, 10) > new Date().toISOString().slice(0, 10)) continue
           if (!row.matches?.winner_side && !cleanText(row.matches?.score)) continue
 
           const existing = uniqueMatchesByPlayer.get(playerId) ?? new Set<string>()
@@ -847,6 +856,7 @@ export default function PlayersPage() {
         </div>
       </section>
 
+      <PublicPlayerDirectoryContent />
       {error ? (
       <section style={errorCard}>
           <div style={sectionKicker}>Players</div>
@@ -979,7 +989,7 @@ export default function PlayersPage() {
                     <div style={matchCountPill}>{player.matches} matches</div>
                   </div>
 
-                  <Link href={`/players/${player.id}`} style={playerNameLink}>
+                  <Link href={`/players/${player.id}`} prefetch={false} style={playerNameLink}>
                     {player.name}
                   </Link>
                   {player.awards.length ? (
@@ -995,7 +1005,7 @@ export default function PlayersPage() {
                           <small>{award.sourceType === 'league' ? 'League' : 'Tournament'}</small>
                         </Link>
                       ))}
-                      <Link href={`/players/${player.id}#profile-trophy-case`} style={playerAwardCaseLinkStyle}>
+                      <Link href={`/players/${player.id}#profile-trophy-case`} prefetch={false} style={playerAwardCaseLinkStyle}>
                         Trophy case
                       </Link>
                     </div>
@@ -1105,6 +1115,7 @@ export default function PlayersPage() {
                   <div style={playerCardFooter}>
                     <Link
                       href={`/players/${player.id}`}
+                      prefetch={false}
                       aria-label={`View ${player.name} profile`}
                       style={profileLinkText}
                     >

@@ -1,8 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { LockFunc } from '@supabase/auth-js'
 
-export const supabaseUrl = 'https://pwxppfazbyourjrsutgx.supabase.co'
-export const supabaseKey = 'sb_publishable_FQBYCnXJy2vjIYlri8TG7g_2XZ9IqqZ'
+import { supabaseUrl, supabaseKey } from './supabase-public-config'
+export { supabaseUrl, supabaseKey } from './supabase-public-config'
 
 let client: SupabaseClient | null = null
 let authLockQueue: Promise<unknown> = Promise.resolve()

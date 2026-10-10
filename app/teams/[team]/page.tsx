@@ -3,6 +3,8 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import { usePublicCompetitionContent } from '@/app/components/public-competition-content-context'
+import PublicTeamProfileSnapshot from '@/app/components/public-team-profile-snapshot'
 import React from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
@@ -352,6 +354,9 @@ function TeamPageContent() {
   const layerFilter = cleanText(searchParams.get('layer'))
   const leagueFilter = cleanText(searchParams.get('league'))
   const flightFilter = cleanText(searchParams.get('flight'))
+  const publicContent = usePublicCompetitionContent()
+  const publicSnapshot = publicContent.teamName === team && !leagueFilter && !flightFilter ? publicContent.teamContent : null
+  const publicEvidence = publicSnapshot ? publicContent.teamEvidence : null
   const contactHubRequested = searchParams.get('contacts') === '1'
 
   const [matches, setMatches] = useState<TeamMatch[]>([])
@@ -1828,6 +1833,7 @@ function TeamPageContent() {
     flight: teamMeta.flight,
   })
   if (loading) {
+    if (publicSnapshot) return <>{publicSnapshot}<p role="status" style={{ textAlign: 'center' }}>Loading the full team history and tools…</p></>
     return (
       <section style={pageContent}>
         <PublicDetailState
@@ -1851,6 +1857,10 @@ function TeamPageContent() {
     )
   }
 
+  if (error && publicSnapshot) {
+    return <>{publicSnapshot}<section className="page-shell-tight" role="alert"><p>The full team details could not load. The public court snapshot is still available above.</p><button type="button" onClick={() => void loadTeamPage()}>Retry team details</button></section></>
+  }
+
   return (
     <section style={pageContent}>
         <ExploreResumeTracker
@@ -1860,6 +1870,10 @@ function TeamPageContent() {
           contextLabel={team}
           enabled={detailReady}
         />
+        {publicEvidence && publicEvidence.results.length > 0 ? <details className="surface-card-strong panel-pad" aria-label="Scored public court results" style={{ marginBottom: 16 }}>
+          <summary>Read scored public court results across competitions</summary>
+          <PublicTeamProfileSnapshot evidence={publicEvidence} titleAs="h2" />
+        </details> : null}
         <section id="team-overview" style={{ ...dynamicHeroShell, scrollMarginTop: 16 }}>
           <span aria-hidden="true" style={watermarkStyle} />
           <div>
@@ -3080,7 +3094,7 @@ function TeamPageContent() {
                   const rosterPlayerTools = (
                     <>
                       <div style={rosterActionRow}>
-                        {!isPendingLink ? <Link href={`/players/${player.id}`} style={rosterActionLink}>Profile</Link> : null}
+                        {!isPendingLink ? <Link href={`/players/${player.id}`} prefetch={false} style={rosterActionLink}>Profile</Link> : null}
                         {!isPendingLink && access.canUseAdvancedPlayerInsights ? (
                           <Link href={`/matchup?type=singles&playerA=${encodeURIComponent(player.id)}`} style={rosterActionLinkAccent}>Matchup</Link>
                         ) : null}
@@ -3131,7 +3145,7 @@ function TeamPageContent() {
                       <div style={mobileRosterHeaderStyle}>
                         <div style={mobileRosterIdentityStyle}>
                           {isPendingLink ? <strong>{player.name}</strong> : (
-                            <Link href={`/players/${player.id}`} style={playerLink}><strong>{player.name}</strong></Link>
+                            <Link href={`/players/${player.id}`} prefetch={false} style={playerLink}><strong>{player.name}</strong></Link>
                           )}
                           {player.location ? <span style={mutedText}>{player.location}</span> : null}
                         </div>
@@ -3205,7 +3219,7 @@ function TeamPageContent() {
               {tennisRecordRoster.map((player) => (
                 <div key={`${player.canonical_player_id || 'source'}-${player.player_name}`} style={dynamicListRow}>
                   <div style={listRowCopyStyle}>
-                    {player.canonical_player_id ? <Link href={`/players/${player.canonical_player_id}`} style={playerLink}><strong>{player.player_name}</strong></Link> : <strong>{player.player_name}</strong>}
+                    {player.canonical_player_id ? <Link href={`/players/${player.canonical_player_id}`} prefetch={false} style={playerLink}><strong>{player.player_name}</strong></Link> : <strong>{player.player_name}</strong>}
                     <div style={mutedText}>Recorded team listing</div>
                   </div>
                 </div>

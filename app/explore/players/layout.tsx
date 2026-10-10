@@ -1,6 +1,11 @@
 import type { Metadata } from 'next'
+import { PublicPlayerContentProvider } from '@/app/components/public-player-content-context'
+import PublicPlayerDiscovery from '@/app/components/public-player-evidence'
+
 import type { ReactNode } from 'react'
 import { buildRouteMetadata } from '@/lib/route-metadata'
+
+export const revalidate = 86400
 
 export const metadata: Metadata = buildRouteMetadata({
   title: 'Find Players',
@@ -10,5 +15,5 @@ export const metadata: Metadata = buildRouteMetadata({
 })
 
 export default function ExplorePlayersLayout({ children }: { children: ReactNode }) {
-  return children
+  return <PublicPlayerContentProvider directoryContent={<PublicPlayerDiscovery />}>{children}</PublicPlayerContentProvider>
 }

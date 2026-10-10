@@ -28,7 +28,7 @@ export default function EntityDetailLink({
       style={style}
       title={title}
       aria-label={ariaLabel}
-      prefetch={prefetch}
+      prefetch={prefetch ?? (href.startsWith('/players/') || href.startsWith('/teams/') ? false : undefined)}
       data-entity-detail-link="true"
     >
       {children}
