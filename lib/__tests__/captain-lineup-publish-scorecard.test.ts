@@ -25,7 +25,7 @@ describe('Captain lineup publishing and scorecard handoff', () => {
     expect(sheet).toContain('Capture completed scorecard')
     expect(sheet).toContain('This scorecard stays connected to the confirmed lineup and match.')
     expect(sheet).toContain("const printRequested = searchParams.get('print') === '1'")
-    expect(sheet).toContain('window.setTimeout(() => window.print(), 240)')
+    expect(sheet).toContain('window.setTimeout(() => void printScorecard(), 240)')
     expect(sheet).toContain('.row > strong, .row > i')
     expect(sheet).toContain('border-right: 1px solid #718196')
     expect(sheet).toContain('captainScorecardOpponentSlots')

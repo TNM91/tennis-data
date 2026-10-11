@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import QRCode from 'qrcode'
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
@@ -62,6 +62,7 @@ function createPrintableScorecard(input: {
   facility: string
   opponent: string
   lineup: Array<{ label?: string; players?: string[] }>
+  rosters?: { team: string[]; opponent: string[] }
 }) {
   const matchDetails = [formatDate(input.matchDate), input.matchTime, input.facility].filter(Boolean).join(' · ') || 'Match details to be confirmed'
   const scorecardFormat = inferCaptainScorecardFormat(input)
@@ -70,11 +71,11 @@ function createPrintableScorecard(input: {
   // navy/white/lime system as the Captain flyer and lock it to a single page.
   const premiumPrintStyle = `<style>
     @page { size: letter portrait; margin: .22in; }
-    html, body { width: 8.06in; height: 10.56in; background: #fff !important; color: #0a2b4c; }
+    html, body { width: auto; min-height: 0; background: #fff !important; color: #0a2b4c; }
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .sheet { width: 8.06in; height: 10.56in; min-height: 0; display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; overflow: hidden; border: 3px solid #0a2b4c; background: #fff; }
+    .sheet { width: 100%; min-height: 0; display: block; border: 3px solid #0a2b4c; background: #fff; }
     .top { position: relative; padding: .14in .28in .16in; border-bottom: 2px solid #0a2b4c; background: #fff; color: #0a2b4c; }
-    .top::before { content: ''; display: block; width: 2.5in; height: .52in; margin-bottom: .08in; background: url('${brandLogoUrl}') left center / contain no-repeat; }
+    .printLogo { display: block; width: 2.5in; height: .52in; object-fit: contain; object-position: left center; margin-bottom: .08in; }
     .brand { color: #65b900; font-size: 8px; font-weight: 950; letter-spacing: .16em; }
     h1 { margin: 4px 0 0; color: #0a2b4c; font-size: 24px; font-weight: 950; letter-spacing: -.045em; line-height: 1; text-transform: uppercase; }
     .league { margin: 5px 0 0; color: #40506a; font-size: 10px; font-weight: 800; }
@@ -82,9 +83,9 @@ function createPrintableScorecard(input: {
     .label { color: #557a16; font-size: 8px; font-weight: 950; letter-spacing: .13em; }
     .team { color: #0a2b4c; font-size: 14px; font-weight: 950; }
     .vs { width: 27px; height: 27px; border: 1px solid #0a2b4c; border-radius: 50%; background: #9be11d; color: #0a2b4c; font-size: 9px; }
-    .details { padding: .1in .28in; border-bottom: 1px dashed #8797ae; background: #fff !important; color: #40506a; font-size: 9px; font-weight: 800; }
-    .courts { grid-auto-rows: minmax(0, 1fr); gap: .1in; padding: .12in .18in; background: #fff !important; }
-    .court { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; padding: .12in; border: 1.5px solid #0a2b4c; border-left: 6px solid #9be11d; border-radius: 0; background: #fff; box-shadow: none !important; }
+    .details { margin: 0; padding: .1in .28in; border-bottom: 1px dashed #8797ae; background: #fff !important; color: #40506a; font-size: 9px; font-weight: 800; }
+    .courts { display: grid; gap: .06in; padding: .12in .18in; background: #fff !important; }
+    .court { display: block; min-height: 0; padding: .08in; break-inside: avoid; page-break-inside: avoid; border: 1.5px solid #0a2b4c; border-left: 6px solid #9be11d; border-radius: 0; background: #fff; box-shadow: none !important; }
     .court:last-child:nth-child(odd) { grid-column: 1 / -1; }
     h2 { margin: 0 0 8px; color: #0a2b4c; font-size: 13px; font-weight: 950; letter-spacing: .045em; text-transform: uppercase; }
     .grid { border: 1px solid #0a2b4c; border-radius: 0; }
@@ -102,9 +103,16 @@ function createPrintableScorecard(input: {
     footer { padding: .09in .28in; border-top: 2px solid #0a2b4c; background: #fff; color: #40506a; font-size: 8px; font-weight: 800; }
     footer b { color: #65b900; }
     footer span:last-child { color: #0a2b4c; font-weight: 950; letter-spacing: .06em; }
+    .rosterReference { padding: .1in .18in; border-top: 1px solid #9aa8b7; }
+    .rosterReference > h1 { font-size: 13px; }
+    .rosterReference > p { font-size: 8px; margin: 5px 0; }
+    .rosterColumns h2 { font-size: 10px; margin-bottom: 4px; }
+    .rosterColumns ol { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 10px; }
+    .rosterColumns { display: grid; grid-template-columns: 1fr 1fr; gap: .3in; }
+    .rosterColumns li { padding: 2px 0; font-size: 8px; overflow-wrap: anywhere; break-inside: avoid; }
     @media print { .courts, .court, .details { background: #fff !important; } }
   </style>`
-  const courts = `${premiumPrintStyle}${input.lineup.map((court, index) => {
+  const courts = `${input.lineup.map((court, index) => {
     const opponentSlots = captainScorecardOpponentSlots(court.label)
     return `
     <article class="court">
@@ -116,12 +124,13 @@ function createPrintableScorecard(input: {
       </div>
     </article>`
   }).join('') || '<p class="empty">Save a lineup first, then print its court scorecard.</p>'}`
+  const rosterReference = input.rosters ? `<section class="rosterReference"><h1>Team rosters</h1><p>Check names against the roster on file. Confirm eligibility with your league before play.</p><div class="rosterColumns">${[{ name: input.teamName, names: input.rosters.team }, { name: input.opponent, names: input.rosters.opponent }].map((team) => `<section><h2>${escapePrintText(team.name)}</h2>${team.names.length ? `<ol>${team.names.map((name) => `<li>${escapePrintText(name)}</li>`).join('')}</ol>` : '<p>No registered roster connected. Confirm with the captain.</p>'}</section>`).join('')}</div></section>` : ''
   return `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>TenAceIQ scorecard</title>
 <style>
 @page { size: letter portrait; margin: .25in; }
-* { box-sizing: border-box; } body { margin: 0; background: #fff; color: #102035; font-family: Arial, Helvetica, sans-serif; } .sheet { width: 8in; min-height: 10.5in; display: grid; grid-template-rows: auto auto 1fr auto; border: 1px solid #c9d3dc; } .top { padding: 18px 20px 15px; background: #08213c; color: #fff; } .brand { color: #c9ef75; font-size: 10px; font-weight: 900; letter-spacing: .12em; } h1 { margin: 5px 0 0; font-size: 23px; } .league { margin: 5px 0 0; color: #cfdae7; font-size: 11px; font-weight: 700; } .matchup { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; padding: 12px 20px; border-bottom: 1px solid #d6e0e8; } .matchup div { min-width: 0; } .matchup div:last-child { text-align: right; } .label { display: block; color: #5279a3; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; } .team { display: block; margin-top: 4px; font-size: 15px; font-weight: 900; overflow-wrap: anywhere; } .vs { display: grid; width: 29px; height: 29px; place-items: center; border: 1px solid #bedc75; border-radius: 50%; background: #f3fae8; color: #557a16; font-size: 10px; font-weight: 900; } .details { padding: 8px 20px; background: #eef7e5; color: #526171; font-size: 10px; font-weight: 700; } .courts { display: grid; grid-template-columns: ${input.lineup.length > 3 ? 'repeat(2, minmax(0, 1fr))' : '1fr'}; align-content: stretch; gap: 7px; padding: 9px; background: #edf1f4; } .court { min-height: 0; padding: 9px; border: 1px solid #ccd7df; border-radius: 7px; background: #fff; break-inside: avoid; } .court:last-child:nth-child(odd) { grid-column: 1 / -1; } h2 { margin: 0 0 6px; font-size: 12px; } .grid { overflow: hidden; border: 1px solid #718196; border-radius: 5px; } .head, .row { display: grid; grid-template-columns: minmax(0, 1.45fr) repeat(3, minmax(35px, .6fr)) minmax(38px, .62fr); } .head { background: #102e4c; color: #d6eeff; font-size: 8px; font-weight: 900; text-align: center; text-transform: uppercase; } .head span { padding: 4px 2px; border-right: 1px solid rgba(213,238,255,.35); } .head span:last-child { border-right: 0; } .row { min-height: 31px; background: #fff; } .row + .row { border-top: 1px solid #718196; } .row > strong, .row > i { display: grid; min-width: 0; min-height: 31px; border-right: 1px solid #718196; background-color: #fff; } .row > :last-child { border-right: 0; } .row strong { place-items: center start; padding: 4px 6px; color: #173b61; font-size: 9px; line-height: 1.15; } footer { display: flex; justify-content: space-between; gap: 12px; padding: 8px 20px; background: #08213c; color: #dce9f2; font-size: 9px; font-weight: 700; } footer b { color: #c9ef75; letter-spacing: .08em; text-transform: uppercase; } .empty { padding: 20px; color: #526171; text-align: center; }
-</style></head><body><main class="sheet"><header class="top"><div class="brand">TENACEIQ · CAPTAIN SCORECARD</div><h1>${escapePrintText(input.teamName || 'Team')} scorecard</h1><p class="league">${escapePrintText([scorecardFormat.label, input.leagueName, input.flight].filter(Boolean).join(' · ') || 'Verified match record')}</p></header><section class="matchup"><div><span class="label">Your side</span><span class="team">${escapePrintText(input.teamName || 'Team')}</span></div><span class="vs">VS</span><div><span class="label">Opponent</span><span class="team">${escapePrintText(input.opponent || 'Opponent')}</span></div></section><p class="details">${escapePrintText(matchDetails)}</p><section class="courts">${courts}</section><footer><span><b>TiQ verified match record</b> · Record final scores in TenAceIQ</span><span>More Tennis. Less Chaos.</span></footer></main></body></html>`
+* { box-sizing: border-box; } body { margin: 0; background: #fff; color: #102035; font-family: Arial, Helvetica, sans-serif; } .sheet { width: 8in; min-height: 10.5in; display: grid; grid-template-rows: auto auto 1fr auto; border: 1px solid #c9d3dc; } .top { padding: 18px 20px 15px; background: #08213c; color: #fff; } .brand { color: #c9ef75; font-size: 10px; font-weight: 900; letter-spacing: .12em; } h1 { margin: 5px 0 0; font-size: 23px; } .league { margin: 5px 0 0; color: #cfdae7; font-size: 11px; font-weight: 700; } .matchup { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; padding: 12px 20px; border-bottom: 1px solid #d6e0e8; } .matchup div { min-width: 0; } .matchup div:last-child { text-align: right; } .label { display: block; color: #5279a3; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; } .team { display: block; margin-top: 4px; font-size: 15px; font-weight: 900; overflow-wrap: anywhere; } .vs { display: grid; width: 29px; height: 29px; place-items: center; border: 1px solid #bedc75; border-radius: 50%; background: #f3fae8; color: #557a16; font-size: 10px; font-weight: 900; } .details { padding: 8px 20px; background: #eef7e5; color: #526171; font-size: 10px; font-weight: 700; } .courts { display: grid; grid-template-columns: ${input.lineup.length > 3 ? 'repeat(2, minmax(0, 1fr))' : '1fr'}; align-content: stretch; gap: 7px; padding: 9px; background: #edf1f4; } .court { min-height: 0; padding: 9px; border: 1px solid #ccd7df; border-radius: 7px; background: #fff; break-inside: avoid; } .court:last-child:nth-child(odd) { grid-column: 1 / -1; } h2 { margin: 0 0 6px; font-size: 12px; } .grid { overflow: hidden; border: 1px solid #718196; border-radius: 5px; } .head, .row { display: grid; grid-template-columns: minmax(0, 2.8fr) repeat(3, minmax(35px, .6fr)) minmax(38px, .62fr); } .head { background: #102e4c; color: #d6eeff; font-size: 8px; font-weight: 900; text-align: center; text-transform: uppercase; } .head span { padding: 4px 2px; border-right: 1px solid rgba(213,238,255,.35); } .head span:last-child { border-right: 0; } .row { min-height: 31px; background: #fff; } .row + .row { border-top: 1px solid #718196; } .row > strong, .row > i { display: grid; min-width: 0; min-height: 31px; border-right: 1px solid #718196; background-color: #fff; } .row > :last-child { border-right: 0; } .row strong { place-items: center start; padding: 4px 6px; color: #173b61; font-size: 9px; line-height: 1.15; } footer { display: flex; justify-content: space-between; gap: 12px; padding: 8px 20px; background: #08213c; color: #dce9f2; font-size: 9px; font-weight: 700; } footer b { color: #c9ef75; letter-spacing: .08em; text-transform: uppercase; } .empty { padding: 20px; color: #526171; text-align: center; }
+</style>${premiumPrintStyle}</head><body><main class="sheet"><header class="top"><img class="printLogo" src="${brandLogoUrl}" alt="TenAceIQ"><div class="brand">TENACEIQ · CAPTAIN SCORECARD</div><h1>${escapePrintText(input.teamName || 'Team')} scorecard</h1><p class="league">${escapePrintText([scorecardFormat.label, input.leagueName, input.flight].filter(Boolean).join(' · ') || 'Verified match record')}</p></header><section class="matchup"><div><span class="label">Your side</span><span class="team">${escapePrintText(input.teamName || 'Team')}</span></div><span class="vs">VS</span><div><span class="label">Opponent</span><span class="team">${escapePrintText(input.opponent || 'Opponent')}</span></div></section><p class="details">${escapePrintText(matchDetails)}</p><section class="courts">${courts}</section><footer><span><b>TiQ verified match record</b> · Record final scores in TenAceIQ</span><span>More Tennis. Less Chaos.</span></footer>${rosterReference}</main></body></html>`
 }
 
 function buildRecordResultHref(input: {
@@ -338,6 +347,7 @@ function MatchupSheetContent() {
   const [qrCode, setQrCode] = useState('')
   const [sharing, setSharing] = useState(false)
   const [shareNotice, setShareNotice] = useState('')
+  const [includeRosters, setIncludeRosters] = useState(true)
 
   const matchWeekScope = useMemo(() => ({
     competitionLayer,
@@ -444,7 +454,7 @@ function MatchupSheetContent() {
     }
   }
 
-  function printScorecard() {
+  const printScorecard = useCallback(async () => {
     if (!lineup.length) {
       setShareNotice('Save or load a lineup before printing its scorecard.')
       return
@@ -454,6 +464,27 @@ function MatchupSheetContent() {
       setShareNotice('Allow pop-ups for TenAceIQ, then try Print one-page scorecard again.')
       return
     }
+    let rosters: { team: string[]; opponent: string[] } | undefined
+    if (includeRosters) {
+      try {
+        const params = new URLSearchParams({ team: teamName, league: leagueName, flight, opponent })
+        const response = await fetch(`/api/captain/lineup-builder?${params}`, {
+          headers: { Authorization: `Bearer ${session?.access_token || ''}` }, cache: 'no-store',
+        })
+        if (!response.ok) throw new Error('Roster unavailable')
+        const payload = await response.json() as { ok?: boolean; rosterMembers?: Array<{ player_name?: string }>; opponentRosterNames?: string[] }
+        if (!payload.ok) throw new Error('Roster unavailable')
+        rosters = {
+          team: [...new Set((payload.rosterMembers || []).map((player) => cleanText(player.player_name)).filter(Boolean))].sort(),
+          opponent: [...new Set((payload.opponentRosterNames || []).map(cleanText).filter(Boolean))].sort(),
+        }
+      } catch {
+        printWindow.close()
+        setShareNotice('Team rosters could not be loaded. Try again, or turn off the roster reference to print only the scorecard.')
+        return
+      }
+    }
+    if (printWindow.closed) return
     printWindow.document.open()
     printWindow.document.write(createPrintableScorecard({
       teamName,
@@ -464,13 +495,23 @@ function MatchupSheetContent() {
       facility,
       opponent,
       lineup,
+      rosters,
     }))
     printWindow.document.close()
-    window.setTimeout(() => {
-      printWindow.focus()
-      printWindow.print()
-    }, 180)
-  }
+    await Promise.all(Array.from(printWindow.document.images).map((image) => {
+      if (image.complete) return Promise.resolve()
+      return new Promise<void>((resolve) => {
+        image.onload = () => resolve()
+        image.onerror = () => resolve()
+      })
+    }))
+    if (printWindow.closed) return
+    await new Promise<void>((resolve) => printWindow.requestAnimationFrame(() => {
+      printWindow.requestAnimationFrame(() => resolve())
+    }))
+    printWindow.focus()
+    printWindow.print()
+  }, [facility, flight, includeRosters, leagueName, lineup, matchDate, matchTime, opponent, session?.access_token, teamName])
 
   useEffect(() => {
     if (!authResolved || !session?.access_token || !teamName || !requestedDate || !requestedOpponent) return
@@ -517,9 +558,9 @@ function MatchupSheetContent() {
   useEffect(() => {
     if (!printRequested || lineupLoading || !lineup.length || printStartedRef.current) return
     printStartedRef.current = true
-    const timer = window.setTimeout(() => window.print(), 240)
+    const timer = window.setTimeout(() => void printScorecard(), 240)
     return () => window.clearTimeout(timer)
-  }, [lineup.length, lineupLoading, printRequested])
+  }, [lineup.length, lineupLoading, printRequested, printScorecard])
 
   return (
     <main className={styles.page}>
@@ -529,7 +570,8 @@ function MatchupSheetContent() {
           {sharing ? 'Preparing image…' : 'Share final lineup + chat'}
         </button>
         <Link href={scanHref} className={styles.actionSecondary}>Capture completed scorecard</Link>
-        <button type="button" className={styles.actionSecondary} onClick={printScorecard}>Print one-page scorecard</button>
+        <button type="button" className={styles.actionSecondary} onClick={() => void printScorecard()}>{includeRosters ? 'Print scorecard + rosters' : 'Print one-page scorecard'}</button>
+        <label className={styles.rosterToggle}><input type="checkbox" checked={includeRosters} onChange={(event) => setIncludeRosters(event.target.checked)} /> Include both team rosters on the scorecard</label>
       </section>
       {shareNotice ? <p className={styles.shareNotice} role="status">{shareNotice} <Link href={teamChatHref}>Open Team Chat</Link></p> : null}
 
