@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import JsonLd from '@/app/components/json-ld'
 import SiteShell from '@/app/components/site-shell'
 import LegalPage from '@/app/components/legal-page'
@@ -15,7 +16,7 @@ export default function CookiesPage() {
   return (
     <SiteShell active="/legal/cookies">
       <JsonLd id="cookies-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Cookie Policy', '/legal/cookies')} />
-      <LegalPage title="Cookie Policy" effectiveDate="April 10, 2026">
+      <LegalPage title="Cookie Policy" effectiveDate="October 11, 2026">
         <p>
           This Cookie Policy explains how TenAceIQ uses cookies and similar technologies
           to support authentication, performance, analytics, and user experience.
@@ -57,6 +58,11 @@ export default function CookiesPage() {
             Most browsers allow you to control cookies through browser settings. Disabling
             cookies may affect functionality and may prevent some parts of TenAceIQ from
             working as intended.
+          </p>
+          <p>
+            Manage Google&apos;s personalized advertising through <a href="https://myadcenter.google.com/">Google My Ad Center</a>,
+            or visit <a href="https://www.aboutads.info/choices/">AdChoices</a> for choices from participating advertising vendors.
+            See our <Link href="/legal/privacy">Privacy Policy</Link> for how Google and other advertising providers may use information.
           </p>
         </div>
       </LegalPage>
