@@ -90,12 +90,12 @@ function loadDotenv(path) {
 }
 
 function readSupabasePublicConfig() {
-  const source = readFileSync('lib/supabase.ts', 'utf8')
+  const source = readFileSync('lib/supabase-public-config.ts', 'utf8')
   const url = source.match(/supabaseUrl = '([^']+)'/)?.[1]
   const key = source.match(/supabaseKey = '([^']+)'/)?.[1]
 
   if (!url || !key) {
-    stop('Could not read the public Supabase config from lib/supabase.ts.')
+    stop('Could not read the public Supabase config from lib/supabase-public-config.ts.')
   }
 
   return { url, key }

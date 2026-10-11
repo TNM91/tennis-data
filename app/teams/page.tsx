@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { usePublicCompetitionContent } from '@/app/components/public-competition-content-context'
 import { CSSProperties, useEffect, useMemo, useState, type ReactNode } from 'react'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import DataTrustPanel from '@/app/components/data-trust-panel'
@@ -33,6 +34,11 @@ type MatchRow = {
   source?: string | null
   status?: string | null
   score?: string | null
+}
+
+function PublicTeamsContent({ visible }: { visible: boolean }) {
+  const content = usePublicCompetitionContent().teamsContent
+  return visible ? content : null
 }
 
 type MatchPlayerRow = {
@@ -841,6 +847,7 @@ export default function TeamsPage() {
             ) : null}
           </section>
 
+          <PublicTeamsContent visible={!hasActiveFilters && !browseAll} />
           {loading ? (
             null
           ) : error ? (
@@ -1255,7 +1262,7 @@ function TeamPulseFeature({ href, row }: { href: object; row: TeamDirectoryEntry
       <div style={teamPulseFeatureTopStyle}>
         <div style={teamPulseFeatureCopyStyle}>
           <span style={teamPulseEyebrowStyle}>Team pulse</span>
-          <Link href={href as Parameters<typeof Link>[0]['href']} style={teamPulseTitleStyle}>{row.team}</Link>
+          <Link prefetch={false} href={href as Parameters<typeof Link>[0]['href']} style={teamPulseTitleStyle}>{row.team}</Link>
           <div style={teamPulseMetaStyle}>
             {row.league ? <span>{row.league}</span> : null}
             {row.flight ? <span style={teamPulseFlightStyle}>{row.flight} flight</span> : null}
@@ -1291,7 +1298,7 @@ function TeamPulseFeature({ href, row }: { href: object; row: TeamDirectoryEntry
 
       <div style={teamPulseFooterStyle}>
         <span style={teamPulseSupportStyle}>{row.mostRecentMatchDate ? `Updated ${formatShortDate(row.mostRecentMatchDate, 'recently')}` : 'League context is ready to explore.'}</span>
-        <Link href={href as Parameters<typeof Link>[0]['href']} style={teamPulseActionStyle}>Open team</Link>
+        <Link prefetch={false} href={href as Parameters<typeof Link>[0]['href']} style={teamPulseActionStyle}>Open team</Link>
       </div>
     </article>
   )
@@ -1348,7 +1355,7 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
     >
         <div style={teamCardTop}>
           <div style={teamCardCopy}>
-            <Link href={href as Parameters<typeof Link>[0]['href']} style={teamNameLink}>
+            <Link prefetch={false} href={href as Parameters<typeof Link>[0]['href']} style={teamNameLink}>
               {row.team}
             </Link>
 
@@ -1361,7 +1368,7 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
             ) : null}
           </div>
 
-          <Link
+          <Link prefetch={false}
             href={href as Parameters<typeof Link>[0]['href']}
             style={{
               ...viewPill,

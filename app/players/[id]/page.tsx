@@ -5,6 +5,7 @@ import { getTiqEvidence, type TiqEvidenceShape } from '@/lib/tiq-rating-evidence
 import { getTiqBandStatus } from '@/lib/tiq-band-status'
 import { getCurrentRatingHistory, getPlayerRatingStatus, type PlayerRatingStatus } from '@/lib/player-rating-context'
 import Link from 'next/link'
+import { usePublicPlayerContent } from '@/app/components/public-player-content-context'
 import Image from 'next/image'
 import { track } from '@vercel/analytics'
 import React from 'react'
@@ -263,7 +264,7 @@ function RatedParticipantLinks({
           <React.Fragment key={participant.id || `${participant.name}-${index}`}>
             {index > 0 ? ' / ' : null}
             {participant.id ? (
-              <Link href={`/players/${encodeURIComponent(participant.id)}`}>{label}</Link>
+              <Link href={`/players/${encodeURIComponent(participant.id)}`} prefetch={false}>{label}</Link>
             ) : (
               label
             )}
@@ -327,6 +328,8 @@ export default function PlayerProfilePage() {
 function PlayerProfileContent() {
   const params = useParams()
   const playerId = String(params.id)
+  const publicContent = usePublicPlayerContent()
+  const publicSnapshot = publicContent.profileId === playerId ? publicContent.profileContent : null
   const initialPreview = usePlayerProfilePreview()
 
   const [player, setPlayer] = useState<Player | null>(null)
@@ -609,6 +612,7 @@ function PlayerProfileContent() {
             .in('id', matchIds)
             .eq('public_history_eligible', true)
             .not('match_type', 'is', null)
+            .lte('match_date', new Date().toISOString().slice(0, 10))
             .eq('public_history_eligible', true)
             .order('match_date', { ascending: false })
             .order('match_time', { ascending: false })
@@ -1802,6 +1806,7 @@ function PlayerProfileContent() {
     },
   ]
   if (loading) {
+    if (publicSnapshot) return <>{publicSnapshot}<p role="status" style={{ textAlign: 'center' }}>Loading the full player history and tools…</p></>
     const previewName = initialPreview?.name !== 'Player Profile' ? initialPreview?.name : null
     return (
       <section style={dynamicHeroWrap}>
@@ -1832,6 +1837,7 @@ function PlayerProfileContent() {
   if (error || !player) {
     return (
       <section style={dynamicHeroWrap}>
+        {publicSnapshot}
         <div style={dynamicHeroShell}>
           <div style={heroNoise} />
           <div style={errorCard}>
@@ -3767,7 +3773,7 @@ function PlayerProfileContent() {
                             {match.opponent}
                           </Link>
                         ) : match.opponentIds.length > 1 ? (
-                          <Link href={`/players/${encodeURIComponent(match.opponentIds[0])}`} style={mobileMatchOpponentLinkStyle}>
+                          <Link href={`/players/${encodeURIComponent(match.opponentIds[0])}`} prefetch={false} style={mobileMatchOpponentLinkStyle}>
                             {match.opponent}
                           </Link>
                         ) : (
@@ -3888,6 +3894,7 @@ function PlayerProfileContent() {
                           ) : match.opponentIds.length > 1 ? (
                             <Link
                               href={`/players/${encodeURIComponent(match.opponentIds[0])}`}
+                              prefetch={false}
                               style={{ color: '#93c5fd', fontWeight: 700, textDecoration: 'none' }}
                             >
                               {match.opponent}
@@ -4011,7 +4018,7 @@ function PlayerProfileContent() {
                   <div key={opp.name} style={rivalryRowStyle}>
                     <div style={rivalryCopyStyle}>
                       {opp.id ? (
-                        <EntityDetailLink href={`/players/${encodeURIComponent(opp.id)}`} style={rivalryNameLinkStyle}>
+                        <EntityDetailLink href={`/players/${encodeURIComponent(opp.id)}`} prefetch={false} style={rivalryNameLinkStyle}>
                           {opp.name}
                         </EntityDetailLink>
                       ) : (
@@ -4144,7 +4151,7 @@ function PlayerProfileContent() {
                     style={nearbyPlayerRowStyle}
                   >
                     <div style={nearbyPlayerCopyStyle}>
-                      <Link href={`/players/${p.id}`} style={nearbyPlayerNameStyle}>{p.name}</Link>
+                      <Link href={`/players/${p.id}`} prefetch={false} style={nearbyPlayerNameStyle}>{p.name}</Link>
                       <div style={nearbyPlayerMetaStyle}>{p.location || 'No location'}</div>
                     </div>
                     <div style={nearbyPlayerActionRowStyle}>

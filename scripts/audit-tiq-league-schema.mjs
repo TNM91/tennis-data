@@ -51,7 +51,7 @@ async function readEnvFile(filePath) {
 }
 
 async function readSupabaseConstants() {
-  const sourcePath = path.join(process.cwd(), 'lib', 'supabase.ts')
+  const sourcePath = path.join(process.cwd(), 'lib', 'supabase-public-config.ts')
   if (!existsSync(sourcePath)) return {}
 
   const source = await readFile(sourcePath, 'utf8')

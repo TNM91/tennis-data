@@ -1,5 +1,9 @@
 import type { Metadata } from 'next'
 import { buildRouteMetadata } from '@/lib/route-metadata'
+import { PublicCompetitionContentProvider } from '@/app/components/public-competition-content-context'
+import { PublicTeamsSnapshot } from '@/app/components/public-competition-evidence'
+
+export const revalidate = 86400
 
 export const metadata: Metadata = buildRouteMetadata({
   title: 'Teams',
@@ -9,5 +13,5 @@ export const metadata: Metadata = buildRouteMetadata({
 })
 
 export default function TeamsLayout({ children }: { children: React.ReactNode }) {
-  return children
+  return <PublicCompetitionContentProvider teamsContent={<PublicTeamsSnapshot />}>{children}</PublicCompetitionContentProvider>
 }

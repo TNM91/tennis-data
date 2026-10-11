@@ -1,6 +1,10 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { buildRouteMetadata } from '@/lib/route-metadata'
+import { PublicCompetitionContentProvider } from '@/app/components/public-competition-content-context'
+import { PublicRankingsSnapshot } from '@/app/components/public-competition-evidence'
+
+export const revalidate = 86400
 
 export const metadata: Metadata = buildRouteMetadata({
   title: 'Explore Rankings',
@@ -10,5 +14,5 @@ export const metadata: Metadata = buildRouteMetadata({
 })
 
 export default function ExploreRankingsLayout({ children }: { children: ReactNode }) {
-  return children
+  return <PublicCompetitionContentProvider rankingsContent={<PublicRankingsSnapshot />}>{children}</PublicCompetitionContentProvider>
 }

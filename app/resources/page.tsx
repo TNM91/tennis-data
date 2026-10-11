@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import TennisGuideLinks from '@/app/components/tennis-guide-links'
 import JsonLd from '@/app/components/json-ld'
 import {
   ActionGrid,
@@ -76,6 +77,7 @@ export default function ResourcesPage() {
           visual="resources"
         />
         <ActionGrid cards={resourceActions} />
+        <TennisGuideLinks />
       </main>
     </PublicPageShell>
   )

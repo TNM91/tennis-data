@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { usePublicCompetitionContent } from '@/app/components/public-competition-content-context'
 import { CSSProperties, ReactNode, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
@@ -27,6 +28,11 @@ import { loadPlayerDirectoryBatches } from '@/lib/player-directory-batching'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
+
+function PublicRankingsContent({ visible }: { visible: boolean }) {
+  const content = usePublicCompetitionContent().rankingsContent
+  return visible ? content : null
+}
 type TrendDirection = 'up' | 'down' | 'flat'
 type ConfidenceLevel = 'Low' | 'Medium' | 'High'
 type RatingStatus =
@@ -828,6 +834,7 @@ export default function RankingsPage() {
         </div>
       </section>
 
+      <PublicRankingsContent visible={ratingView === 'overall' && !searchText.trim() && !locationFilter.trim() && !hideInactive} />
       {!loading && !error && topThree.length > 0 ? (
         <section style={contentWrap}>
           {isMobile ? (
@@ -850,7 +857,7 @@ export default function RankingsPage() {
                     <article key={player.id} style={mobileTopFieldRowStyle}>
                       <div style={mobileTopFieldRankStyle}>#{index + 1}</div>
                       <div style={mobileTopFieldPlayerStyle}>
-                        <Link href={`/players/${player.id}`} style={mobileTopFieldNameStyle}>
+                        <Link href={`/players/${player.id}`} prefetch={false} style={mobileTopFieldNameStyle}>
                           {player.name}
                         </Link>
                         <span style={mobileTopFieldSubtextStyle}>
@@ -868,7 +875,7 @@ export default function RankingsPage() {
                         {player.status}
                       </span>
                       <div style={mobileTopFieldActionRowStyle}>
-                        <Link href={`/players/${player.id}`} style={mobileTopFieldActionStyle}>
+                        <Link href={`/players/${player.id}`} prefetch={false} style={mobileTopFieldActionStyle}>
                           Profile
                         </Link>
                         <Link href={compareHref} style={mobileTopFieldActionSecondaryStyle}>
@@ -903,7 +910,7 @@ export default function RankingsPage() {
                     }}
                   >
                     <div style={podiumRank}>#{index + 1}</div>
-                    <Link href={`/players/${player.id}`} style={podiumName}>
+                    <Link href={`/players/${player.id}`} prefetch={false} style={podiumName}>
                       {player.name}
                     </Link>
                     <div style={podiumLocation}>{player.location || 'No location'}</div>
@@ -939,7 +946,7 @@ export default function RankingsPage() {
                       <span style={confidencePill}>{player.confidence}</span>
                     </div>
                     <div style={podiumActionRowStyle}>
-                      <Link href={`/players/${player.id}`} style={podiumActionPrimaryStyle}>
+                      <Link href={`/players/${player.id}`} prefetch={false} style={podiumActionPrimaryStyle}>
                         View profile
                       </Link>
                       <Link href={compareHref} style={podiumActionSecondaryStyle}>
@@ -1023,7 +1030,7 @@ export default function RankingsPage() {
                   {risers.map(({ player, delta }) => (
                     <div key={player.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const, minWidth: 0, padding: '12px 14px', borderRadius: 16, background: 'rgba(155,225,29,0.05)', border: '1px solid rgba(155,225,29,0.14)', marginBottom: 8 }}>
                       <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-                        <Link href={`/players/${player.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
+                        <Link href={`/players/${player.id}`} prefetch={false} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
                         <div style={{ color: 'rgba(224,234,247,0.55)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {player.selectedRating.toFixed(2)} TIQ</div>
                       </div>
                       <span style={{ color: '#9be11d', fontWeight: 900, fontSize: 16, letterSpacing: 0 }}>+{delta.toFixed(2)}</span>
@@ -1038,7 +1045,7 @@ export default function RankingsPage() {
                   {fallers.map(({ player, delta }) => (
                     <div key={player.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const, minWidth: 0, padding: '12px 14px', borderRadius: 16, background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.14)', marginBottom: 8 }}>
                       <div style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-                        <Link href={`/players/${player.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
+                        <Link href={`/players/${player.id}`} prefetch={false} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
                         <div style={{ color: 'rgba(224,234,247,0.55)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {player.selectedRating.toFixed(2)} TIQ</div>
                       </div>
                       <span style={{ color: '#f87171', fontWeight: 900, fontSize: 16, letterSpacing: 0 }}>{delta.toFixed(2)}</span>
@@ -1067,7 +1074,7 @@ export default function RankingsPage() {
                 <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, padding: '12px 16px', borderRadius: 18, background: 'rgba(155,225,29,0.04)', border: '1px solid rgba(155,225,29,0.12)' }}>
                   <span style={{ flex: '0 1 24px', minWidth: 0, color: 'rgba(190,210,240,0.4)', fontWeight: 900, fontSize: 13, textAlign: 'right' as const }}>#{i + 1}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <Link href={`/players/${player.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
+                    <Link href={`/players/${player.id}`} prefetch={false} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
                     <div style={{ color: 'rgba(224,234,247,0.5)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {player.matches} matches{boardRank > 0 ? ` · board #${boardRank}` : ''}</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1095,7 +1102,7 @@ export default function RankingsPage() {
                 return (
                   <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', borderRadius: 18, background: positive ? 'rgba(155,225,29,0.04)' : 'rgba(239,68,68,0.04)', border: `1px solid ${positive ? 'rgba(155,225,29,0.12)' : 'rgba(239,68,68,0.12)'}` }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <Link href={`/players/${player.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
+                      <Link href={`/players/${player.id}`} prefetch={false} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
                       <div style={{ color: 'rgba(224,234,247,0.5)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {matchesThisWeek} match{matchesThisWeek !== 1 ? 'es' : ''} this week</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1125,7 +1132,7 @@ export default function RankingsPage() {
                 <div key={player.id} style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, padding: '12px 16px', borderRadius: 18, background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.14)' }}>
                   <span style={{ flex: '0 1 24px', minWidth: 0, color: 'rgba(190,210,240,0.4)', fontWeight: 900, fontSize: 13, textAlign: 'center' as const }}>#{i + 1}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <Link href={`/players/${player.id}`} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
+                    <Link href={`/players/${player.id}`} prefetch={false} style={{ color: '#f8fbff', fontWeight: 800, fontSize: 15, textDecoration: 'none' }}>{player.name}</Link>
                     <div style={{ color: 'rgba(224,234,247,0.5)', fontSize: 12, marginTop: 3 }}>{player.location || 'No location'} · {matchesThisMonth} match{matchesThisMonth !== 1 ? 'es' : ''} this month · {player.selectedRating.toFixed(2)} TIQ</div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1289,7 +1296,7 @@ export default function RankingsPage() {
 
                           <td style={tableCell}>
                             <div style={rankingPlayerIdentityStyle}>
-                              <Link href={`/players/${player.id}`} style={playerLink}>
+                              <Link href={`/players/${player.id}`} prefetch={false} style={playerLink}>
                                 {player.name}
                               </Link>
                               <RankingAwardBadges player={player} />
@@ -1389,7 +1396,7 @@ export default function RankingsPage() {
                           <td style={tableCell}>
                             <div style={rowActionStackStyle}>
                               <Link
-                                href={`/players/${player.id}`}
+                                href={`/players/${player.id}`} prefetch={false}
                                 aria-label={`View ${player.name} profile`}
                                 style={rowActionPrimaryStyle}
                               >
@@ -1812,7 +1819,7 @@ function RankingAwardBadges({ player, compact = false }: { player: RankedPlayer;
           <small>{award.sourceType === 'league' ? 'League' : 'Tournament'}</small>
         </Link>
       ))}
-      <Link href={`/players/${player.id}#profile-trophy-case`} style={rankingAwardCaseLinkStyle}>
+      <Link href={`/players/${player.id}#profile-trophy-case`} prefetch={false} style={rankingAwardCaseLinkStyle}>
         Trophy case
       </Link>
     </div>
@@ -1850,7 +1857,7 @@ function RankingCompactCard({
       <div style={dense ? compactRankingTopDenseStyle : compactRankingTopStyle}>
         <span style={rankBadge}>{rank}</span>
         <div style={compactPlayerCopyStyle}>
-          <Link href={`/players/${player.id}`} aria-label={`View ${player.name} profile`} style={compactPlayerNameStyle}>
+          <Link href={`/players/${player.id}`} prefetch={false} aria-label={`View ${player.name} profile`} style={compactPlayerNameStyle}>
             {player.name}
           </Link>
           <RankingAwardBadges player={player} compact />
@@ -1904,7 +1911,7 @@ function RankingCompactCard({
         </div>
       ) : null}
       <div style={compactActionRowStyle}>
-        <Link href={`/players/${player.id}`} aria-label={`View ${player.name} profile`} style={compactActionPrimaryStyle}>
+        <Link href={`/players/${player.id}`} prefetch={false} aria-label={`View ${player.name} profile`} style={compactActionPrimaryStyle}>
           Profile
         </Link>
         <Link href={compareHref} aria-label={`Compare ${player.name} in Matchup`} style={compactActionSecondaryStyle}>
