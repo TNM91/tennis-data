@@ -21,10 +21,22 @@ describe('Captain live scorecard', () => {
     expect(sheet).toContain('@page { size: letter portrait; margin: .25in; }')
     expect(sheet).toContain('const premiumPrintStyle')
     expect(sheet).toContain('/brand/logos/tenaceiq-full-for-light-bg.png')
-    expect(sheet).toContain('height: 10.56in')
+    expect(sheet).toContain('.sheet { width: 100%; min-height: 0; display: block;')
+    expect(sheet).toContain('printWindow.document.images')
+    expect(sheet).toContain('${premiumPrintStyle}</head>')
     expect(sheet).toContain('border-left: 6px solid #9be11d')
     expect(sheet).toContain("const printWindow = window.open('', '_blank')")
     expect(sheet).toContain('printWindow.print()')
+  })
+
+  it('prints connected registered rosters together with the courts', () => {
+    expect(sheet).toContain('payload.rosterMembers || []')
+    expect(sheet).toContain('payload.opponentRosterNames || []')
+    expect(sheet).toContain('Include both team rosters on the scorecard')
+    expect(sheet).toContain('${rosterReference}</main>')
+    expect(sheet).not.toContain('page-break-before: always')
+    expect(liveScorecard).toContain('Finalize & save to TiQ')
+    expect(liveScorecard).toContain('completedCourtCount !== courts.length')
   })
 
   it('uses the approved TenAceIQ brand asset in the lineup image shared by text', () => {
@@ -94,7 +106,7 @@ describe('Captain live scorecard', () => {
   })
 
   it('puts live match entry ahead of printable scorecard actions', () => {
-    expect(sheet.indexOf('>Open live scorecard</Link>')).toBeLessThan(sheet.indexOf('>Print one-page scorecard</button>'))
+    expect(sheet.indexOf('>Open live scorecard</Link>')).toBeLessThan(sheet.indexOf('onClick={() => void printScorecard()}'))
     expect(builder).toContain('const lineupLiveScorecardHref')
     expect(builder).toContain('<GhostLink href={lineupLiveScorecardHref}>Open live scorecard</GhostLink>')
   })

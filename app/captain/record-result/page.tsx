@@ -735,7 +735,7 @@ function RecordResultContent() {
           <div>
             <p className={styles.eyebrow}>Live scorecard</p>
             <h1 id="record-result-title">Record the result.</h1>
-            <p>Enter the opponents and final score for each court, then submit once.</p>
+            <p>Enter scores live or scan your completed card. Review each court, then finalize once to save it in TiQ.</p>
           </div>
           <Link className={styles.backLink} href={teamRoomHref}>Back to team</Link>
         </div>
@@ -932,8 +932,8 @@ function RecordResultContent() {
         {error ? <p className={styles.error} role="alert">{error}</p> : null}
         {notice ? <p className={styles.notice} role="status">{notice}</p> : null}
         <div className={styles.saveBar}>
-          <p>Review the courts, then submit the final result to TiQ.</p>
-          <button className={styles.saveButton} type="button" disabled={saving || !authResolved} onClick={() => void saveResult()}>{saving ? 'Saving result…' : 'Submit final result'}</button>
+          <p>Finalize to save every court in TiQ and refresh player ratings. No separate upload needed.</p>
+          <button className={styles.saveButton} type="button" disabled={saving || !authResolved || !courts.length || completedCourtCount !== courts.length} onClick={() => void saveResult()}>{saving ? 'Saving result…' : 'Finalize & save to TiQ'}</button>
         </div>
         <datalist id="captain-score-options">
           {['6-0 6-0', '6-1 6-1', '6-2 6-2', '6-3 6-3', '6-4 6-4', '7-5 6-4', '7-6 6-4', '6-4 6-7 10-8', '6-7 6-4 10-8'].map((score) => <option value={score} key={score} />)}

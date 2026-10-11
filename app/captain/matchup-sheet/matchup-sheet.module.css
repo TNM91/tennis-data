@@ -187,3 +187,5 @@
   .denseSheet .court { padding: 7px 8px; }
   .sheet, .sheetHeader, .instructions, .sheetFooter, .scoreGridHead { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+.rosterToggle input { width: 20px; height: 20px; accent-color: #9be11d; }
