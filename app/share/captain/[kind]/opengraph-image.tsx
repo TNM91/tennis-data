@@ -10,9 +10,7 @@ function PreviewGraphic({ kind, accent }: { kind: CaptainShareKind; accent: stri
   if (kind === 'final-result') {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-        <div style={{ display: 'flex', width: 120, height: 120, alignItems: 'center', justifyContent: 'center', borderRadius: 28, background: accent, color: 'rgb(6, 23, 47)', fontSize: 54, fontWeight: 950 }}>3</div>
-        <div style={{ display: 'flex', color: '#fff', fontSize: 54, fontWeight: 900 }}>—</div>
-        <div style={{ display: 'flex', width: 120, height: 120, alignItems: 'center', justifyContent: 'center', borderRadius: 28, border: `2px solid ${accent}`, color: '#fff', fontSize: 54, fontWeight: 950 }}>2</div>
+        <div style={{ display: 'flex', padding: 28, borderRadius: 28, border: `2px solid ${accent}`, color: '#fff', fontSize: 54, fontWeight: 950 }}>FINAL</div>
       </div>
     )
   }
