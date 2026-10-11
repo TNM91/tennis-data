@@ -501,7 +501,7 @@ function RecordResultContent() {
       matchDate,
       detail: scoreLine,
     }), window.location.origin).toString()
-    const courtLines = savedRecap.lines.map((line) => `${line.label}: ${line.outcome === 'team' ? 'W' : 'L'} ${line.score}`).join('\n')
+    const courtLines = savedRecap.lines.map((line) => `${line.label}: ${line.teamPlayers.join(' / ')} vs ${line.opponentPlayers.join(' / ')} · ${line.outcome === 'team' ? 'W' : 'L'} ${line.score}`).join('\n')
     const message = ['Final result', scoreLine, matchDate ? `Match date: ${matchDate}` : '', courtLines, `Open final scorecard: ${finalResultUrl}`].filter(Boolean).join('\n')
     setResultShareNotice('Opening Messages with the final result ready to send.')
     window.location.href = buildSmsHref([], message, navigator.userAgent)
