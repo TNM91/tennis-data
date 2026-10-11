@@ -88,6 +88,13 @@ export function getCaptainShareConfig(kind: CaptainShareKind) {
   return SHARE_CONFIG[kind]
 }
 
+export function getCaptainFinalScore(detail: string, teamName = '') {
+  const value = detail.trim()
+  const scoreText = teamName && value.startsWith(teamName) ? value.slice(teamName.length).trim() : value
+  const score = scoreText.match(/^(?:won\s+|lost\s+)?(\d{1,2})\s*[-–—]\s*(\d{1,2})(?=\s|$)/i)
+  return score ? `${Number(score[1])}–${Number(score[2])}` : null
+}
+
 export function buildCaptainShareHref(input: {
   kind: CaptainShareKind
   targetHref: string
@@ -102,6 +109,7 @@ export function buildCaptainShareHref(input: {
   if (input.opponent?.trim()) params.set('opponent', input.opponent.trim())
   if (input.matchDate?.trim()) params.set('date', input.matchDate.trim())
   if (input.detail?.trim()) params.set('detail', input.detail.trim())
+  if (input.kind === 'final-result') params.set('preview', 'score-v2')
   return `/share/captain/${input.kind}?${params.toString()}`
 }
 
@@ -125,6 +133,14 @@ export function buildCaptainShareMetadata(input: {
   const path = safeCaptainSharePath(input.sharePath, input.kind)
   const image = input.kind === 'availability' ? '/availability/opengraph-image?v=20261005' : `${path}/opengraph-image`
   const previewImage = input.kind === 'availability' ? image : `/share/captain/${input.kind}/opengraph-image`
+  const finalScore = input.kind === 'final-result' ? getCaptainFinalScore(input.detail || '', input.teamName) : null
+  const selectedImage = input.kind === 'final-result'
+    ? `/share/captain/final-result/score-image?${new URLSearchParams({
+        ...(finalScore ? { score: finalScore } : {}),
+        ...(input.teamName ? { team: input.teamName } : {}),
+        ...(input.opponent ? { opponent: input.opponent } : {}),
+      }).toString()}`
+    : input.sharePath ? previewImage : image
 
   return {
     title: { absolute: `${title} | TenAceIQ` },
@@ -136,13 +152,13 @@ export function buildCaptainShareMetadata(input: {
       title,
       description,
       url: path,
-      images: [{ url: input.sharePath ? previewImage : image, width: 1200, height: 630, alt: `${config.eyebrow} from TenAceIQ` }],
+      images: [{ url: selectedImage, width: 1200, height: 630, alt: `${config.eyebrow} from TenAceIQ` }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: [input.sharePath ? previewImage : image],
+      images: [selectedImage],
     },
   }
 }

@@ -5,10 +5,32 @@ import {
   buildCaptainShareHref,
   buildCaptainShareMetadata,
   getCaptainShareConfig,
+  getCaptainFinalScore,
   safeCaptainShareTarget,
 } from '../captain-share-preview'
 
 describe('captain contextual share previews', () => {
+  it('puts the actual final score in both preview image URLs, including short shares', () => {
+    for (const sharePath of [undefined, '/s/saved-result-token']) {
+      for (const score of ['4–1', '4–2', '0–5']) {
+        const metadata = buildCaptainShareMetadata({ kind: 'final-result', teamName: 'Aces', opponent: 'Levin', detail: `Aces ${score} Levin`, sharePath })
+        const image = metadata.openGraph?.images as Array<{ url: string }>
+        const url = new URL(image[0].url, 'https://www.tenaceiq.com')
+        expect(url.pathname).toBe('/share/captain/final-result/score-image')
+        expect(url.searchParams.get('score')).toBe(score)
+        expect(metadata.twitter?.images).toEqual([image[0].url])
+      }
+    }
+  })
+
+  it('does not invent a result or confuse team names and dates with a score', () => {
+    expect(getCaptainFinalScore('18-40 Aces 4-2 Levin', '18-40 Aces')).toBe('4–2')
+    expect(getCaptainFinalScore('Aces won 4–1 Levin', 'Aces')).toBe('4–1')
+    expect(getCaptainFinalScore('2026-10-11')).toBeNull()
+    expect(getCaptainFinalScore('Result pending')).toBeNull()
+    const image = buildCaptainShareMetadata({ kind: 'final-result' }).openGraph?.images as Array<{ url: string }>
+    expect(new URL(image[0].url, 'https://www.tenaceiq.com').searchParams.has('score')).toBe(false)
+  })
   it('builds distinct, safe share destinations for lineup and final result texts', () => {
     const target = '/team-room?team=Aces&date=2026-09-20'
     const lineup = buildCaptainShareHref({ kind: 'lineup', targetHref: target, teamName: 'Aces' })
@@ -16,6 +38,7 @@ describe('captain contextual share previews', () => {
 
     expect(lineup).toContain('/share/captain/lineup?')
     expect(result).toContain('/share/captain/final-result?')
+    expect(new URL(result, 'https://www.tenaceiq.com').searchParams.get('preview')).toBe('score-v2')
     expect(lineup).not.toBe(result)
     expect(safeCaptainShareTarget('https://example.com')).toBe('/team-room')
     expect(safeCaptainShareTarget('//example.com')).toBe('/team-room')
