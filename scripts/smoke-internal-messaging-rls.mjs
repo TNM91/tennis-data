@@ -14,7 +14,7 @@ function readEnvFile(filePath) {
 }
 
 function readSupabaseConstants() {
-  const source = readFileSync(path.join(process.cwd(), 'lib', 'supabase.ts'), 'utf8')
+  const source = readFileSync(path.join(process.cwd(), 'lib', 'supabase-public-config.ts'), 'utf8')
   return {
     url: source.match(/supabaseUrl\s*=\s*['"]([^'"]+)['"]/)?.[1] || '',
     key: source.match(/supabaseKey\s*=\s*['"]([^'"]+)['"]/)?.[1] || '',
