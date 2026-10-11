@@ -249,7 +249,7 @@ test.describe('captain weekly continuity', () => {
     }
 
     await expect(page.getByText('3/3 ready to submit')).toBeVisible()
-    await page.getByRole('button', { name: 'Submit final result' }).evaluate((button) => {
+    await page.getByRole('button', { name: 'Finalize & save to TiQ' }).evaluate((button) => {
       const submit = button as HTMLButtonElement
       submit.click()
       submit.click()
@@ -306,7 +306,7 @@ test.describe('captain weekly continuity', () => {
     await firstCourt.getByRole('button', { name: 'Enter result' }).click()
     await firstCourt.getByPlaceholder('6-4 3-6 10-8').fill('6-4 4-6 10-7')
     await firstCourt.getByRole('button', { name: 'Done for now' }).click()
-    await page.getByRole('button', { name: 'Submit final result' }).click()
+    await page.getByRole('button', { name: 'Finalize & save to TiQ' }).click()
 
     await expect(page.getByText('Verified correction', { exact: true })).toBeVisible()
     await expect(page.getByText('Correction saved safely', { exact: true })).toBeVisible()
