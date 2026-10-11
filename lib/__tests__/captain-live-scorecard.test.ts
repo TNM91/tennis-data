@@ -31,12 +31,15 @@ describe('Captain live scorecard', () => {
 
   it('prints connected registered rosters together with the courts', () => {
     expect(sheet).toContain('payload.rosterMembers || []')
-    expect(sheet).toContain('payload.opponentRosterNames || []')
+    expect(sheet).toContain('team: opponent, league: leagueName, flight')
+    expect(sheet).toContain('fitScorecardToLetterPage(printWindow.document)')
     expect(sheet).toContain('Include both team rosters on the scorecard')
     expect(sheet).toContain('${rosterReference}</main>')
     expect(sheet).not.toContain('page-break-before: always')
     expect(liveScorecard).toContain('Finalize & save to TiQ')
     expect(liveScorecard).toContain('completedCourtCount !== courts.length')
+    expect(liveScorecard).toContain('getScorecardRosterNames(payload.rosterMembers || []')
+    expect(liveScorecard).not.toContain('(payload.players || []).map')
   })
 
   it('uses the approved TenAceIQ brand asset in the lineup image shared by text', () => {

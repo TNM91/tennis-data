@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import type { CaptainScorecardSavedRecap } from '@/lib/captain-scorecard'
-import { buildSmsHref, normalizeUstaRosterTeamName } from '@/lib/captain-formatters'
+import { buildSmsHref } from '@/lib/captain-formatters'
 import { buildCaptainShareHref } from '@/lib/captain-share-preview'
 import {
   captainScorecardPhotoPrefillStorageKey,
@@ -14,6 +14,7 @@ import {
 } from '@/lib/captain-scorecard-photo-prefill'
 import { buildTeamRoomHref } from '@/lib/team-room'
 import { useCaptainMatchWeekDraft } from '@/lib/use-captain-match-week-draft'
+import { getScorecardRosterNames, type ScorecardRosterRow } from '@/lib/captain-scorecard-print'
 import styles from './record-result.module.css'
 
 type CourtDraft = {
@@ -45,7 +46,7 @@ type StoredScorecardDraft = {
 type RosterResponse = {
   ok?: boolean
   players?: Array<{ name?: string | null }>
-  rosterMembers?: Array<{ team_name?: string | null; player_name?: string | null }>
+  rosterMembers?: ScorecardRosterRow[]
   opponentRosterNames?: string[]
 }
 
@@ -339,16 +340,9 @@ function RecordResultContent() {
       })
       .then((payload) => {
         if (!active || !payload?.ok) return
-        const teamRosterNames = (payload.rosterMembers || [])
-          .filter((member) => normalizeUstaRosterTeamName(member.team_name) === normalizeUstaRosterTeamName(teamName))
-          .map((member) => normalizeName(member.player_name))
-          .filter(Boolean)
-        const names = [...new Set((teamRosterNames.length
-          ? teamRosterNames
-          : (payload.players || []).map((player) => normalizeName(player.name))
-        ).filter(Boolean))].sort((left, right) => left.localeCompare(right))
+        const names = getScorecardRosterNames(payload.rosterMembers || [], { team: teamName, league: leagueName, flight })
         setRosterNames(names)
-        setOpponentRosterNames((payload.opponentRosterNames || []).map(normalizeName).filter(Boolean))
+        setOpponentRosterNames(getScorecardRosterNames(payload.rosterMembers || [], { team: opponentTeam, league: leagueName, flight }))
       })
       .catch(() => undefined)
       .finally(() => {
