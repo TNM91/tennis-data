@@ -6839,6 +6839,13 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                <GhostBtn onClick={() => void refreshAvailabilityReplies()} disabled={refreshingReplies}>
                  {refreshingReplies ? 'Refreshing…' : 'Refresh replies'}
                </GhostBtn>
+               {coCaptainReviewShare ? (
+                 <PrimaryBtn onClick={openCoCaptainReviewText}>Text co-captain</PrimaryBtn>
+               ) : (
+                 <GhostBtn onClick={() => void createCoCaptainReview()} disabled={!teamLineupComplete || saving || creatingCoCaptainReview}>
+                   {creatingCoCaptainReview ? 'Preparing review…' : 'Share with co-captain'}
+                 </GhostBtn>
+               )}
              </div>
            </section>
          ) : null}
