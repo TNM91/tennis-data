@@ -21,7 +21,7 @@ import {
   type BillablePricingPlanId as PricingPlanId,
 } from '@/lib/pricing-plans'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
-import { CLUB_PLAN_STORY, getMembershipTier } from '@/lib/product-story'
+import { CLUB_PLAN_STORY, getMembershipTier, PLAYER_VALUE_STORY } from '@/lib/product-story'
 import { COACH_TACTICS_BOARD_HREF } from '@/lib/tactics-hrefs'
 import { buildSupportMessageHref } from '@/lib/message-links'
 import { supabase } from '@/lib/supabase'
@@ -66,7 +66,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   free: {
     eyebrow: 'Free path',
     title: 'Start with the tennis map.',
-    body: 'Search players, teams, leagues, rankings, flights, and areas before choosing paid tools.',
+    body: `${PLAYER_VALUE_STORY.freeSummary} Search players, teams, leagues, rankings, flights, and areas before choosing paid tools.`,
     action: 'Open Find',
     checkoutAction: 'Open Find',
     setupAction: 'Open Free',
@@ -74,7 +74,7 @@ const UNLOCK_COPY: Record<PricingPlanId, {
   player_plus: {
     eyebrow: 'Player unlock',
     title: 'Activate My Lab for your game.',
-    body: 'Continue with Player when you want My Lab, matchup prep, follows, Level Up work, and tennis messages tied to your game.',
+    body: `${PLAYER_VALUE_STORY.freeSummary} ${PLAYER_VALUE_STORY.playerSummary}`,
     action: 'Continue with Player',
     checkoutAction: 'Unlock Player',
     setupAction: 'Preview Player setup',
@@ -143,11 +143,11 @@ const UPGRADE_JOB_FIT: Record<PricingPlanId, string> = {
 const MOBILE_UNLOCK_COPY: Record<PricingPlanId, { title: string; body: string }> = {
   free: {
     title: 'Open the tennis map.',
-    body: 'Search players, teams, leagues, rankings, flights, and areas.',
+    body: PLAYER_VALUE_STORY.freeSummary,
   },
   player_plus: {
     title: 'Unlock My Lab.',
-    body: 'Open My Lab, matchup prep, follows, Level Up work, and tennis messages.',
+    body: PLAYER_VALUE_STORY.playerSummary,
   },
   coach: {
     title: 'Unlock Coach Hub.',
@@ -861,7 +861,7 @@ function UpgradeContent({
             ? `Your account already has the access needed for ${plan.name}. Open ${getPlanDestinationLabel(planId)} when you are ready.`
             : checkoutReturnState === 'success'
               ? isPublic ? 'Sign in to confirm your payment and open your tools.' : 'We are checking your payment and refreshing your account access.'
-              : plan.audience)}
+              : planId === 'player_plus' ? PLAYER_VALUE_STORY.freeSummary : plan.audience)}
           benefits={plan.valueProps}
           outcome={plan.outcome}
           destinationLabel={getPlanDestinationLabel(planId)}

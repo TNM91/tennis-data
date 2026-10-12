@@ -113,7 +113,7 @@ describe('player profile mobile streamline', () => {
     expect(page).toContain("const officialUstaRead = isSelfRatedProfile ? 'Self-rated USTA (S)' : hasInferredUstaBaseline ? 'Inferred baseline · USTA pending' : hasPendingUstaBaseline ? 'USTA level pending' : 'Verified USTA level'")
     expect(page).toContain('hasInferredAdultFlightBaseline(player)')
     expect(page).toContain("const tiqReadLabel = `TIQ ${ratingViewLabel} strength`")
-    expect(page).toContain("'Exact TiQ read is available with Player.'")
+    expect(page).toContain("PLAYER_VALUE_STORY.freeSummary")
     expect(page).toContain('aria-label="Rating read guide"')
     expect(page).toContain('className={profileStory.ratingReadGuide}')
     expect(styles).toContain('.ratingReadGuide')

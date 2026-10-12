@@ -202,6 +202,11 @@ export type MembershipTier = {
   valueProps: string[]
 }
 
+export const PLAYER_VALUE_STORY = {
+  freeSummary: 'Full rankings, TiQ ratings, and public player results are free.',
+  playerSummary: 'Add My Lab, follows, matchup insight, and personalized analysis with Player.',
+} as const
+
 export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
   free: {
     id: 'free',
@@ -210,10 +215,10 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     audience: 'Players, captains, and fans getting oriented',
     upgradeCue: 'Start with public tennis intelligence.',
     description:
-      'Explore players, teams, leagues, rankings, tournaments, and public tennis context for free, with collaboration for every connected USTA or TIQ team.',
+      `${PLAYER_VALUE_STORY.freeSummary} Explore teams, leagues, tournaments, and public tennis context for free, with collaboration for every connected USTA or TIQ team.`,
     valueProps: [
       'Search players, teams, leagues, and rankings',
-      'View public tennis context',
+      'View full TiQ ratings and public player results',
       'Open linked team rosters, schedules, stats, and Team Chat',
       'Contribute TennisLink exports through Data Assist',
       'Understand the landscape before upgrading',
@@ -224,12 +229,14 @@ export const MEMBERSHIP_TIERS: Record<MembershipTierId, MembershipTier> = {
     name: 'Player',
     shortPromise: 'Personalize TenAceIQ around your game.',
     audience: 'Players who want clearer prep and a personalized tennis home',
-    upgradeCue: 'Unlock My Lab, Level Up, data refreshes, matchups, and messages.',
+    upgradeCue: PLAYER_VALUE_STORY.playerSummary,
     description:
-      'Keep Free team access, then add My Lab, Level Up training cards, Tactics Tools, refreshed tennis context, matchup prep, and tennis messages.',
+      `Keep Free team access. ${PLAYER_VALUE_STORY.playerSummary} Use Level Up training cards, Tactics Tools, refreshed tennis context, and tennis messages to prepare for your next match.`,
     valueProps: [
-      'Keep linked team access from Free',
       'Unlock My Lab',
+      'Follow players and teams',
+      'Use matchup insight and personalized analysis',
+      'Keep linked team access from Free',
       'Use Level Up cards and Tactics Tools to improve your game',
       'Save serve and stroke clips for coach review',
       'Improve the data behind your tennis read',

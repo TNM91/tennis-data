@@ -1,5 +1,6 @@
 import {
   CLUB_PLAN_STORY,
+  PLAYER_VALUE_STORY,
   getMembershipTier,
   PRODUCT_PROOF_POINTS,
   type MembershipTierId,
@@ -210,7 +211,7 @@ export const PRICING_PLANS: PricingPlan[] = [
     problem: 'Want TenAceIQ to revolve around your game?',
     friction: 'Raw match history does not tell you who to follow, how the next match shapes up, or what to prepare for next.',
     solution: getMembershipTier('player_plus').description,
-    outcome: 'Open My Lab, improve your data, prep matchups, and keep tennis messages together.',
+    outcome: PLAYER_VALUE_STORY.playerSummary,
     valueProps: getMembershipTier('player_plus').valueProps,
   },
   {

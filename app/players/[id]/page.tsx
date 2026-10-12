@@ -43,7 +43,7 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { formatDate, parseDisplayDate } from '@/lib/captain-formatters'
-import { DATA_ASSIST_STORY } from '@/lib/product-story'
+import { DATA_ASSIST_STORY, PLAYER_VALUE_STORY } from '@/lib/product-story'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { buildPlayerTrophyBadges } from '@/lib/player-trophy-badges'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -1315,7 +1315,7 @@ function PlayerProfileContent() {
   const tiqReadLabel = `TIQ ${ratingViewLabel} strength`
   const tiqReadNote = selectedTiqEvidence.status !== 'current' ? selectedTiqEvidence.label : canViewExactTiqRating
     ? 'Estimated playing strength from scores, opponents and partners.'
-    : 'Exact TiQ read is available with Player.'
+    : PLAYER_VALUE_STORY.freeSummary
   const profileReadTitle = hasTrackedMatches
     ? `${ratingStatus}. ${trackedRecordLabel} across ${totalMatches} tracked match${totalMatches === 1 ? '' : 'es'}.`
     : isRosterOnlyProfile
@@ -1797,7 +1797,7 @@ function PlayerProfileContent() {
       value: `TIQ ${selectedTiqRatingLabel}`,
       note: canViewExactTiqRating
         ? `Use the ${ratingViewLabel.toLowerCase()} TIQ read to understand current form and decision support.`
-        : 'Player members can view the exact TIQ read across the network.',
+        : PLAYER_VALUE_STORY.freeSummary,
     },
     {
       label: 'Competition context',
@@ -1898,7 +1898,7 @@ function PlayerProfileContent() {
           <div>
             <span>TIQ read</span>
             <strong>{selectedTiqRatingLabel}</strong>
-            <small>{canViewExactTiqRating ? `${ratingViewLabel} signal` : 'Player member view'}</small>
+            <small>{canViewExactTiqRating ? `${ratingViewLabel} signal` : 'Free rating view'}</small>
           </div>
           <div>
             <span>{officialUstaShortRead}</span>
@@ -2242,12 +2242,12 @@ function PlayerProfileContent() {
                 <span>Match tape</span>
                 <small>{publicRecentResults.length > 0 ? (showAllPublicResults ? `${publicRecentResults.length} matches` : `Latest ${publicRecentResults.length}`) : `0 ${ratingViewLabel.toLowerCase()} matches`}</small>
               </div>
-              {!canViewExactParticipantTiq ? (
+              {!access.canUseAdvancedPlayerInsights ? (
                 <aside className={profileStory.matchTapeAccessHint} aria-label="Player membership match tape detail">
                   <div>
                     <span>{MEMBERSHIP_TIERS.player_plus.name} detail</span>
-                    <strong>{isOwnProfile ? 'Your TIQ is yours. See every competitor clearly.' : 'See every competitor clearly.'}</strong>
-                    <small>Unlock exact partner and opponent TIQ ratings, plus each match’s full TIQ impact.</small>
+                    <strong>Prepare for your next match.</strong>
+                    <small>{PLAYER_VALUE_STORY.freeSummary} {PLAYER_VALUE_STORY.playerSummary}</small>
                   </div>
                   <Link href="/pricing">Unlock Player</Link>
                 </aside>
@@ -2737,18 +2737,18 @@ function PlayerProfileContent() {
                     value={hasTrackedMatches && formScore !== null ? `${formScore >= 0 ? '+' : ''}${formScore.toFixed(3)}` : 'Awaiting results'}
                   />
                 </div>
-                {!canViewExactTiqRating ? (
+                {!access.canUseAdvancedPlayerInsights ? (
                   <div style={profileRatingUnlockStyle}>
                     <div>
                       <span style={profileRatingUnlockKickerStyle}>Player member view</span>
-                      <strong style={profileRatingUnlockTitleStyle}>Exact TIQ and match context</strong>
+                      <strong style={profileRatingUnlockTitleStyle}>My Lab and personalized analysis</strong>
                       <span style={profileRatingUnlockBodyStyle}>
                         {isOwnProfile
-                          ? 'See your exact rating, match-by-match movement, and the full path into My Lab.'
-                          : 'See exact TIQ, opponent context, and the match impact behind this player’s results.'}
+                          ? 'Track your goals, follow players and teams, and prepare for your next match in My Lab.'
+                          : 'Follow this player and use matchup insight and personalized analysis before you play.'}
                       </span>
                     </div>
-                    <Link href="/pricing" style={profileRatingUnlockLinkStyle} aria-label="Unlock exact TIQ ratings with Player">Unlock Player</Link>
+                    <Link href="/pricing" style={profileRatingUnlockLinkStyle} aria-label="Unlock My Lab and personalized analysis with Player">Unlock Player</Link>
                   </div>
                 ) : null}
               </div>
@@ -4356,7 +4356,7 @@ function SeasonReviewPanel({
           <Link href={hasPersonalPlayerExperience ? '/mylab' : matchupHref} style={seasonReviewLinkStyle}>{hasPersonalPlayerExperience ? 'Open My Lab' : 'Open matchup'}</Link>
         </div>
       ) : (
-        <Link href="/pricing" style={seasonReviewLinkStyle}>{isOwnProfile ? 'Unlock your full season read with Player' : 'Unlock exact TIQ season detail with Player'}</Link>
+        <Link href="/pricing" style={seasonReviewLinkStyle}>{isOwnProfile ? 'Unlock your full season read with Player' : 'Unlock season analysis with Player'}</Link>
       )}
     </article>
   )
