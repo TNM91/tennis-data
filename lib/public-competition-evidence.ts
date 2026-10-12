@@ -64,5 +64,5 @@ export function isDiscoverablePublicTeam(team: PublicTeamEvidence | null) {
 }
 
 export function publicTiqRead(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 1.5 && value <= 7 ? `${Math.floor(value)}.XX` : null
+  return typeof value === 'number' && Number.isFinite(value) && value >= 1.5 && value <= 7 ? value.toFixed(2) : null
 }

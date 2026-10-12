@@ -15,7 +15,7 @@ export const getPublicRankingsEvidence = cache(async (): Promise<PublicRankedEvi
   const candidates = (data || []) as Array<{ id: string; name: string; location: string | null; overall_dynamic_rating: number }>
   const evidence = await getPublicPlayerEvidenceForIds(candidates.map(({ id }) => id))
   const byId = new Map(evidence.map((row) => [row.player.id, row]))
-  // Raw rating values stay on the server. Only the existing public mask is returned.
+  // Public rankings show the same two-decimal TiQ rating as the interactive table.
   return candidates.flatMap((candidate) => {
     const profile = byId.get(candidate.id)
     const read = publicTiqRead(candidate.overall_dynamic_rating)
