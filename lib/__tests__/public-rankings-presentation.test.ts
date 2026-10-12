@@ -10,12 +10,12 @@ vi.mock('../public-player-evidence-server', () => ({
 import { getPublicRankingsEvidence } from '../public-competition-evidence-server'
 
 describe('public ranking output', () => {
-  it('returns masked signals and scored evidence without serializing exact ratings', async () => {
+  it('returns free two-decimal ratings and scored evidence', async () => {
     mocks.candidates = [{ id: 'leader', name: 'Alex', location: null, overall_dynamic_rating: 4.237 }, { id: 'sparse', name: 'Blair', location: null, overall_dynamic_rating: 4.126 }]
     mocks.evidence = [{ player: { id: 'leader', name: 'Alex', location: null }, results: [{ id: '1' }, { id: '2' }, { id: '3' }] }, { player: { id: 'sparse', name: 'Blair', location: null }, results: [{ id: '4' }] }]
     const rows = await getPublicRankingsEvidence()
     expect(rows).toHaveLength(1)
-    expect(rows[0].publicRead).toBe('4.XX')
+    expect(rows[0].publicRead).toBe('4.24')
     expect(rows[0].results).toHaveLength(3)
     expect(JSON.stringify(rows)).not.toContain('4.237')
     expect(JSON.stringify(rows)).not.toContain('overall_dynamic_rating')

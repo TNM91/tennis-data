@@ -13,7 +13,7 @@ export async function PublicRankingsSnapshot() {
         <div className="section-kicker">Rating and evidence</div>
         <h2 className="section-title">Read the signal alongside the results.</h2>
         <p>This limited snapshot follows stored overall TiQ order and includes players with at least three named, scored public results in the checked sample. It is not an official USTA ranking. A rating alone does not establish current form or matchup certainty.</p>
-        <p>A read such as 3.XX shows the integer portion of a TiQ signal, not an official NTRP designation. Choose singles or doubles in the interactive table to compare the right format.</p>
+        <p>TiQ ratings are free to view and show performance to two decimal places. They are separate from official NTRP designations. Choose singles or doubles in the interactive table to compare the right format.</p>
         <div style={grid}>
           {rows.map(({ player, publicRead, results }) => {
             const singles = results.filter((result) => result.format === 'singles').length

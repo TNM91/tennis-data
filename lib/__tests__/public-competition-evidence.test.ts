@@ -28,8 +28,8 @@ describe('public competition evidence', () => {
     expect(isDiscoverablePublicTeam(evidence[0])).toBe(true)
     expect(buildPublicTeamEvidence(Array.from({ length: 10 }, (_, i) => row(String(i))))[0].results).toHaveLength(6)
   })
-  it('masks decimal precision and refuses missing or invalid rating signals', () => {
-    expect(publicTiqRead(3.734)).toBe('3.XX')
+  it('shows two-decimal precision and refuses missing or invalid rating signals', () => {
+    expect(publicTiqRead(3.734)).toBe('3.73')
     for (const value of [null, undefined, 0, NaN, Infinity, 7.1, '3.734']) expect(publicTiqRead(value)).toBeNull()
   })
   it('keeps slash-containing team names in one route segment and quotes filter delimiters', () => {

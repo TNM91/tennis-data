@@ -1203,9 +1203,9 @@ function PlayerProfileContent() {
   }, [matches, rosterMemberships])
 
   const isOwnProfile = linkedPlayerId === playerId
-  const canViewExactTiqRating = isOwnProfile || access.canUseAdvancedPlayerInsights
+  const canViewExactTiqRating = true
   const selectedTiqRatingLabel = selectedTiqEvidence.status === 'review' ? 'Under review' : selectedTiqEvidence.status === 'unknown' ? 'Awaiting refresh' : formatTiqRating(selectedDynamicRating, player, canViewExactTiqRating)
-  const canViewExactParticipantTiq = access.canUseAdvancedPlayerInsights
+  const canViewExactParticipantTiq = true
   const hasPersonalPlayerExperience = isOwnProfile && access.canUseAdvancedPlayerInsights
   const isLinkedFreeProfile = isOwnProfile && !hasPersonalPlayerExperience
   const matchupHref = linkedPlayerId && linkedPlayerId !== playerId
