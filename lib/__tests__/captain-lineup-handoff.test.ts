@@ -74,7 +74,8 @@ describe('captain potential-lineup handoff', () => {
     })
 
     expect(message).toContain('Your proposed court: 3.5 Doubles. Your teammate is still being determined.')
-    expect(message).toContain('Add it to your calendar, then set future availability below.')
+    expect(message).toContain('Tap to reply and add the match to your calendar.')
+    expect(message.endsWith('Reply in TiQ: https://www.tenaceiq.com/availability/alex-token')).toBe(true)
   })
 
   it('rejects invalid stored handoffs', () => {

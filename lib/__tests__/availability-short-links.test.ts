@@ -55,13 +55,19 @@ describe('short personal availability links', () => {
     expect(buildMatchWeekPhoneCalendarHref(`${origin}/a/broken`)).toBe('')
     expect(buildMatchWeekPhoneCalendarHref(`${origin}${seasonAvailabilityPath(token)}`)).toBe('')
   })
-  it('redirects only to the existing player page, ignoring attacker-supplied redirect arguments', async () => {
+  it('serves the image preview before forwarding browsers to the original player page', async () => {
     const response = await matchRedirect(new Request(`https://www.tenaceiq.com/a/${code}?next=https://evil.test`), { params: Promise.resolve({ code }) })
-    expect(response.status).toBe(307)
-    expect(response.headers.get('location')).toBe(`/availability/${token}`)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('location')).toBeNull()
     expect(response.headers.get('cache-control')).toBe('private, no-store')
     expect(response.headers.get('referrer-policy')).toBe('no-referrer')
     expect(response.headers.get('x-robots-tag')).toContain('noindex')
+    expect(response.headers.get('content-type')).toBe('text/html; charset=utf-8')
+    const html = await response.text()
+    expect(html).toContain('property="og:image" content="https://www.tenaceiq.com/availability/opengraph-image?v=20261005"')
+    expect(html).toContain('property="og:url" content="https://www.tenaceiq.com/a/' + code + '"')
+    expect(html).toContain('window.location.replace("/availability/' + token + '")')
+    expect(html).not.toContain('evil.test')
   })
   it('gives a clear error for an incomplete match link without redirecting', async () => {
     const response = await matchRedirect(new Request('https://www.tenaceiq.com/a/broken'), { params: Promise.resolve({ code: 'broken' }) })
