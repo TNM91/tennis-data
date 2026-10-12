@@ -17,7 +17,7 @@ describe('Captain lineup publishing and scorecard handoff', () => {
 
   it('gives captains a native-share lineup image and a printable, scannable scorecard', () => {
     expect(sheet).toContain('async function createLineupImage')
-    expect(sheet).toContain('Share final lineup + chat')
+    expect(sheet).toContain("confirmedLineup ? 'Share confirmed lineup' : 'Share draft lineup'")
     expect(sheet).toContain('navigator.canShare?.({ files: [file] })')
     expect(sheet).toContain("const lineupLabel = confirmedLineup ? 'Confirmed lineup' : 'Projected lineup'")
     expect(sheet).toContain("kind: 'lineup'")

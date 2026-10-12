@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import CaptainLineupReviewShare from '@/app/components/captain-lineup-review-share'
 import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
@@ -15401,6 +15402,18 @@ function CaptainHubContent() {
                   +{matchDayLineupRows.length - matchDayLineupPreview.length} more saved court{matchDayLineupRows.length - matchDayLineupPreview.length === 1 ? '' : 's'} in Lineup Builder.
                 </div>
               ) : null}
+              <CaptainLineupReviewShare
+                lineup={{
+                  team: selectedTeam,
+                  opponent: matchWeekOpponent || 'Opponent to be confirmed',
+                  date: matchWeekDate || '',
+                  courts: matchDayLineupRows.map((row, index) => ({
+                    label: safeText(row.court_label, `Court ${index + 1}`),
+                    players: row.players ?? [],
+                  })),
+                }}
+                disabled={!premiumEnabled}
+              />
             </div>
           ) : (
             <div style={emptyLine}>

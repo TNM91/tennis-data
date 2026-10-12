@@ -479,7 +479,7 @@ function MatchupSheetContent() {
     <main className={styles.page}>
       <section className={styles.screenControls} aria-label="Matchup sheet actions">
         <button type="button" className={styles.actionPrimary} disabled={!lineup.length || sharing} onClick={() => void shareLineupImage()}>
-          {sharing ? 'Preparing image…' : 'Share final lineup + chat'}
+          {sharing ? 'Preparing image…' : confirmedLineup ? 'Share confirmed lineup' : 'Share draft lineup'}
         </button>
         <button type="button" className={styles.actionSecondary} onClick={printScorecard}>Print one-page scorecard</button>
         <Link href={scanHref} className={styles.actionSecondary}>Capture completed scorecard</Link>

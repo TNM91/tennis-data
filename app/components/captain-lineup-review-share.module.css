@@ -1,0 +1,6 @@
+.share { display: grid; gap: 8px; min-width: 0; }
+.button { min-height: 48px; padding: 10px 14px; border: 1px solid var(--brand-green); border-radius: 14px; background: var(--shell-panel-bg-strong); color: var(--foreground-strong); font: inherit; font-weight: 800; overflow-wrap: anywhere; cursor: pointer; }
+.button:disabled { opacity: .55; cursor: not-allowed; }
+.button:focus-visible, .copy:focus-visible { outline: 2px solid var(--brand-blue-2); outline-offset: 3px; }
+.help { margin: 0; color: var(--shell-copy-muted); font-size: .78rem; line-height: 1.4; }
+.copy { box-sizing: border-box; width: 100%; min-height: 180px; padding: 12px; border: 1px solid var(--shell-panel-border); border-radius: 12px; background: var(--shell-panel-bg-strong); color: var(--foreground-strong); font: inherit; }
