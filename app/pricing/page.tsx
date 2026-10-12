@@ -10,7 +10,7 @@ import { buildAuthEntryHref } from '@/lib/auth-entry-hrefs'
 import { BILLING_SUPPORT_PATH } from '@/lib/billing-policy'
 import { getPlanCheckoutHref, getPlanDestinationHref, getPlanSignupHref, getPlanUnlockHref } from '@/lib/plan-intent'
 import { PAID_CHECKOUT_ENABLED, PAID_CHECKOUT_PAUSED_MESSAGE } from '@/lib/paid-checkout'
-import { CLUB_PLAN_STORY, DATA_ASSIST_STORY } from '@/lib/product-story'
+import { CLUB_PLAN_STORY, DATA_ASSIST_STORY, PLAYER_VALUE_STORY } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import {
   getPricingBillingCue,
@@ -183,7 +183,7 @@ const COMPARE_ROWS: Array<{
   full_court: string
 }> = [
   {
-    need: 'Find public tennis context',
+    need: 'Full rankings, TiQ ratings, and public results',
     free: 'Included',
     player_plus: 'Included',
     coach: 'Included',
@@ -270,6 +270,7 @@ function PricingContent() {
             ? 'Start free. Add a role when it helps.'
             : 'Start free. Add Player, Coach, Captain, League, or Full-Court when it helps.'}
         </p>
+        <p style={smallTextStyle}>{PLAYER_VALUE_STORY.freeSummary}</p>
         <p style={smallTextStyle}>Running a club? Club Starter and Club Unlimited add one premium branded Club workspace.</p>
         {!PAID_CHECKOUT_ENABLED ? (
           <div role="status" style={checkoutPauseStyle}>{PAID_CHECKOUT_PAUSED_MESSAGE}</div>

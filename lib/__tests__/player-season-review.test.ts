@@ -23,6 +23,6 @@ describe('player season review', () => {
     expect(source).toContain("const seasonTitle = hasPersonalPlayerExperience ? `${review.season} season check-in.` : `${review.season} at a glance.`")
     expect(source).toContain('const hasExactSeasonDetail = canViewDetailed && (!isOwnProfile || hasPersonalPlayerExperience)')
     expect(source).toContain("highlight.snap.delta >= 0 ? 'Up' : 'Down'")
-    expect(source).toContain('Unlock exact TIQ season detail with Player')
+    expect(source).toContain('Unlock season analysis with Player')
   })
 })

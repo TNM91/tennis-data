@@ -18,7 +18,7 @@ describe('upgrade page naming', () => {
       'Activate Full-Court for every tennis role.',
       'const UPGRADE_JOB_FIT',
       'Search players, teams, leagues, rankings, flights, and areas before choosing paid tools.',
-      'Continue with Player when you want My Lab, matchup prep, follows, Level Up work, and tennis messages tied to your game.',
+      '${PLAYER_VALUE_STORY.freeSummary} ${PLAYER_VALUE_STORY.playerSummary}',
       'Continue with Coach when lessons need a clearer loop for drill assignments, development tracking, reviews, resources, scheduling, and tactical boards.',
       'Continue with Team Hub when match week needs lineup decisions, scouting, readiness, and team communication in one place.',
       'Continue with League Office when players or teams, schedules, scores, standings, visibility, and corrections need organized season tools.',

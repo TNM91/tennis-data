@@ -7,6 +7,7 @@ import { buildProductAccessState, hasPlanAccess } from '@/lib/access-model'
 import { getPricingPlan, type PricingPlanId } from '@/lib/pricing-plans'
 import { getPlanDestinationHref } from '@/lib/plan-intent'
 import { getUpgradePromptHref } from '@/lib/upgrade-prompt-routing'
+import { PLAYER_VALUE_STORY } from '@/lib/product-story'
 import { PAID_CHECKOUT_ENABLED, PAID_CHECKOUT_PAUSED_MESSAGE } from '@/lib/paid-checkout'
 import { buildUpgradePricingSnapshot, type UpgradeRequestRecord } from '@/lib/upgrade-requests'
 
@@ -163,6 +164,7 @@ export default function UpgradePrompt({
 
         <h2 style={{ ...titleStyle, ...(phoneGateway ? phoneGatewayTitleStyle : null) }}>{headline}</h2>
         <p style={{ ...bodyStyle, ...(compact ? compactBodyStyle : null), ...(phoneGateway ? phoneGatewayBodyStyle : null) }}>{body}</p>
+        {planId === 'player_plus' ? <p style={entitlementNoteStyle}>{PLAYER_VALUE_STORY.freeSummary}</p> : null}
         {planId !== 'free' && showDetailedGuidance ? (
           <p style={{ ...entitlementNoteStyle, ...(compact ? compactEntitlementNoteStyle : null) }}>
             {PAID_CHECKOUT_ENABLED
@@ -284,8 +286,8 @@ function getUnlockSteps(planId: PricingPlanId) {
   if (planId === 'player_plus') {
     return [
       { title: 'Open My Lab', body: 'Keep your scorecard, goals, and next tennis read together.' },
-      { title: 'Fix tennis info', body: 'Upload, report, or refresh the context behind your tennis read.' },
-      { title: 'Prep matchup', body: 'Turn public discovery into personal match prep.' },
+      { title: 'Follow your tennis', body: 'Keep players and teams close as new results arrive.' },
+      { title: 'Prep your next match', body: 'Use matchup insight and personalized analysis before you play.' },
     ]
   }
 

@@ -37,11 +37,11 @@ describe('premium player profile', () => {
     expect(source).toContain('id="profile-player-id"')
   })
 
-  it('makes the exact competitor TIQ benefit clear in the match tape without hiding the public result', () => {
+  it('offers personalized prep beside free match results', () => {
     expect(source).toContain('className={profileStory.matchTapeAccessHint}')
-    expect(source).toContain('!canViewExactParticipantTiq')
-    expect(source).toContain('exact partner and opponent TIQ ratings')
-    expect(source).toContain('full TIQ impact')
+    expect(source).toContain('!access.canUseAdvancedPlayerInsights')
+    expect(source).toContain('PLAYER_VALUE_STORY.freeSummary')
+    expect(source).toContain('PLAYER_VALUE_STORY.playerSummary')
     expect(source).toContain("MEMBERSHIP_TIERS.player_plus.name")
   })
 })

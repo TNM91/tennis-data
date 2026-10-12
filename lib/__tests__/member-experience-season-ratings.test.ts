@@ -29,7 +29,7 @@ describe('member experience season and rating access', () => {
   it('shows exact TiQ ratings for every player and participant for free', () => {
     expect(playerProfileSource).toContain('const canViewExactTiqRating = true')
     expect(playerProfileSource).toContain('`${Math.floor(numeric)}.XX`')
-    expect(playerProfileSource).toContain('Unlock exact TIQ ratings with Player')
+    expect(playerProfileSource).toContain('Unlock My Lab and personalized analysis with Player')
     expect(playerProfileSource).toContain("'TiQ after'")
     expect(playerProfileSource).toContain('recentResultTiq')
     expect(playerProfileSource).toContain('const canViewExactParticipantTiq = true')
