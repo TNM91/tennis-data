@@ -18,6 +18,7 @@ import {
 import { buildConsumedWorkflowHref } from '@/lib/workflow-return'
 import {
   cancelInternalScheduleEvent,
+  updateInternalScheduleEvent,
   listCaptainPracticeManagementOverview,
   listCaptainPracticeRoster,
   setCaptainPracticeInviteeConfirmed,
@@ -274,6 +275,8 @@ function CaptainPracticeContent() {
                 onUpdatePlayerStatus={updatePracticePlayerStatus}
                 onRosterRefresh={updateLoadedRoster}
                 onDelete={deletePractice}
+                onUpdated={loadPractices}
+                actorUserId={userId || ''}
               />
             ) : (
               <div style={noticeStyle}>No upcoming practice yet. Create one when the team is ready.</div>
@@ -292,6 +295,8 @@ function CaptainPracticeContent() {
                 onUpdatePlayerStatus={updatePracticePlayerStatus}
                 onRosterRefresh={updateLoadedRoster}
                 onDelete={deletePractice}
+                onUpdated={loadPractices}
+                actorUserId={userId || ''}
               />
             ) : null}
           </div>
@@ -430,7 +435,11 @@ function PracticeList({
   onUpdatePlayerStatus,
   onRosterRefresh,
   onDelete,
+  onUpdated,
+  actorUserId,
 }: {
+  onUpdated: () => Promise<void>
+  actorUserId: string
   label: string
   practices: CaptainPracticeManagementOverview[]
   compact?: boolean
@@ -483,6 +492,7 @@ function PracticeList({
                     : 'No players signed up yet'}
                 </strong>
               </div>
+              <PracticeEditor key={`${event.id}-${event.updatedAt}`} event={event} actorUserId={actorUserId} onUpdated={onUpdated} />
               <div style={practiceActionsStyle}>
                 <button
                   type="button"
@@ -532,6 +542,44 @@ function PracticeList({
       </div>
     </section>
   )
+}
+
+function PracticeEditor({ event, actorUserId, onUpdated }: {
+  event: CaptainPracticeManagementOverview['event']
+  actorUserId: string
+  onUpdated: () => Promise<void>
+}) {
+  const [open, setOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  return <div>
+    <button type="button" style={secondaryButtonStyle} onClick={() => { setError(''); setOpen(!open) }}>{open ? 'Close edit' : 'Edit practice'}</button>
+    {open ? <form style={{ display: 'grid', gap: 12, marginTop: 12 }} onSubmit={async (submitEvent) => {
+      submitEvent.preventDefault()
+      const form = new FormData(submitEvent.currentTarget)
+      setSaving(true)
+      setError('')
+      try {
+        await updateInternalScheduleEvent({ eventId: event.id, actorUserId,
+          scheduledDate: String(form.get('date')), scheduledTime: String(form.get('time')),
+          scheduledEndTime: String(form.get('endTime')), facility: String(form.get('facility')),
+          notes: String(form.get('notes')), recurrenceRule: String(form.get('repeat')) })
+        await onUpdated()
+        setOpen(false)
+      } catch (failure) { setError(failure instanceof Error ? failure.message : 'Practice could not be saved.') }
+      finally { setSaving(false) }
+    }}>
+      <label style={fieldStyle}>Date<input required type="date" name="date" defaultValue={event.scheduledDate} style={inputStyle} /></label>
+      <label style={fieldStyle}>Start time<input type="time" name="time" defaultValue={event.scheduledTime} style={inputStyle} /></label>
+      <label style={fieldStyle}>End time<input type="time" name="endTime" defaultValue={event.metadata.practiceEndTime || event.metadata.scheduleEndTime || ''} style={inputStyle} /></label>
+      <label style={fieldStyle}>Location<input name="facility" defaultValue={event.facility} style={inputStyle} /></label>
+      <label style={fieldStyle}>Notes<textarea name="notes" defaultValue={event.metadata.practiceNotes || ''} style={textareaStyle} /></label>
+      <label style={fieldStyle}>Repeats<select name="repeat" defaultValue={event.recurrenceRule} style={inputStyle}><option value="">One time</option><option value="weekly">Weekly</option><option value="biweekly">Every other week</option></select></label>
+      <span style={practiceMetaStyle}>{event.metadata.nextPracticeId ? 'Current replies stay with this practice. Edit the upcoming practice to change future repeats.' : 'Current replies stay with this practice. Future repeats use the updated schedule.'}</span>
+      {error ? <div role="alert" style={errorStyle}>{error}</div> : null}
+      <button disabled={saving} style={primaryButtonStyle}>{saving ? 'Saving...' : 'Save practice'}</button>
+    </form> : null}
+  </div>
 }
 
 function sharePracticeInvite(practice: CaptainPracticeManagementOverview) {
