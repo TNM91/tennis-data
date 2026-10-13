@@ -609,6 +609,9 @@ export async function listCaptainPracticeManagementOverview(): Promise<CaptainPr
   const identity = await getInternalIdentity()
   if (!identity) return []
 
+  const { error: recurrenceError } = await supabase.rpc('advance_captain_practices')
+  if (recurrenceError) throw new Error(recurrenceError.message)
+
   const { data, error } = await supabase
     .from('internal_schedule_events')
     .select('id, conversation_id, event_type, title, scheduled_date, scheduled_time, facility, recurrence_rule, status, source_entity_type, source_entity_id, metadata, created_by_user_id, created_at, updated_at')
@@ -859,6 +862,8 @@ export async function updateInternalScheduleEvent(input: {
   scheduledTime?: string | null
   facility?: string | null
   notes?: string | null
+  scheduledEndTime?: string
+  recurrenceRule?: string
 }) {
   const eventId = cleanText(input.eventId)
   const scheduledDate = cleanText(input.scheduledDate)
@@ -869,8 +874,17 @@ export async function updateInternalScheduleEvent(input: {
   const existingEvent = existingEvents[0]
   if (!existingEvent) throw new Error('Schedule event was not found.')
 
+  if (existingEvent.eventType === 'captain_practice' && existingEvent.createdByUserId !== input.actorUserId) {
+    throw new Error('Only the captain who created this practice can edit it.')
+  }
+  if (input.recurrenceRule !== undefined && !['', 'weekly', 'biweekly'].includes(input.recurrenceRule)) {
+    throw new Error('Choose a supported repeat schedule.')
+  }
+
   const metadata = {
     ...existingEvent.metadata,
+    ...(input.scheduledEndTime !== undefined ? { practiceEndTime: input.scheduledEndTime, scheduleEndTime: input.scheduledEndTime } : {}),
+    ...(input.notes !== undefined && existingEvent.eventType === 'captain_practice' ? { practiceNotes: cleanText(input.notes) } : {}),
     scheduleDate: scheduledDate,
     scheduleTime: cleanText(input.scheduledTime),
     facility: cleanText(input.facility),
@@ -889,6 +903,7 @@ export async function updateInternalScheduleEvent(input: {
   const { data, error } = await supabase
     .from('internal_schedule_events')
     .update({
+      ...(input.recurrenceRule !== undefined ? { recurrence_rule: input.recurrenceRule } : {}),
       scheduled_date: scheduledDate,
       scheduled_time: cleanText(input.scheduledTime),
       facility: cleanText(input.facility),
