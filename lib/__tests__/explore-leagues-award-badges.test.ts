@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 describe('explore leagues award badges', () => {
   it('surfaces league award winners as linked badges without nesting card anchors', () => {
-    const source = readFileSync(join(process.cwd(), 'app/explore/leagues/page.tsx'), 'utf8')
+    const source = readFileSync(join(process.cwd(), 'app/explore/leagues/leagues-directory-client.tsx'), 'utf8')
 
     expect(source).toContain('loadRecentTiqAwards')
     expect(source).toContain('awardsByLeagueId')

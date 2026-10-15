@@ -17,7 +17,7 @@ const pricingSource = readFileSync(join(process.cwd(), 'app/pricing/page.tsx'), 
 const publicToolPages = [
   ['app/explore/page.tsx', 'explore-breadcrumb-jsonld'],
   ['app/players/page.tsx', 'players-breadcrumb-jsonld'],
-  ['app/explore/leagues/page.tsx', 'explore-leagues-breadcrumb-jsonld'],
+  ['app/explore/leagues/leagues-directory-client.tsx', 'explore-leagues-breadcrumb-jsonld'],
   ['app/explore/search/page.tsx', 'explore-search-breadcrumb-jsonld'],
   ['app/matchup/page.tsx', 'matchup-breadcrumb-jsonld'],
   ['app/player-development/page.tsx', 'player-development-breadcrumb-jsonld'],

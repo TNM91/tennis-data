@@ -124,7 +124,7 @@ describe('public loading state polish', () => {
   })
 
   it('gives Explore Leagues a useful starter card while the layer refreshes', () => {
-    const exploreLeaguesSource = read('app/explore/leagues/page.tsx')
+    const exploreLeaguesSource = read('app/explore/leagues/leagues-directory-client.tsx')
 
     expect(exploreLeaguesSource).toContain('Featured league path')
     expect(exploreLeaguesSource).toContain('Search a flight, section, or district.')

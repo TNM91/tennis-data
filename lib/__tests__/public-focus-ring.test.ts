@@ -7,7 +7,7 @@ const sources = {
   coach: readFileSync(join(process.cwd(), 'app/coach/page.tsx'), 'utf8'),
   upgrade: readFileSync(join(process.cwd(), 'app/upgrade/page.tsx'), 'utf8'),
   search: readFileSync(join(process.cwd(), 'app/explore/search/page.tsx'), 'utf8'),
-  leagues: readFileSync(join(process.cwd(), 'app/explore/leagues/page.tsx'), 'utf8'),
+  leagues: readFileSync(join(process.cwd(), 'app/explore/leagues/leagues-directory-client.tsx'), 'utf8'),
 }
 
 describe('public focus rings', () => {
