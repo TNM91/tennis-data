@@ -14,6 +14,7 @@ import {
   inferCaptainScorecardFormat,
 } from '@/lib/captain-scorecard-format'
 import { useCaptainMatchWeekDraft } from '@/lib/use-captain-match-week-draft'
+import { fitScorecardToLetterPage, getScorecardRosterNames, type ScorecardRosterRow } from '@/lib/captain-scorecard-print'
 import styles from './matchup-sheet.module.css'
 
 type MatchupCard = {
@@ -70,7 +71,7 @@ function createPrintableScorecard(input: {
   // The popup has its own document. These rules give it the same crisp, ink-safe
   // navy/white/lime system as the Captain flyer and lock it to a single page.
   const premiumPrintStyle = `<style>
-    @page { size: letter portrait; margin: .22in; }
+    @page { size: letter portrait; margin: .25in; }
     html, body { width: auto; min-height: 0; background: #fff !important; color: #0a2b4c; }
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .sheet { width: 100%; min-height: 0; display: block; border: 3px solid #0a2b4c; background: #fff; }
@@ -109,7 +110,7 @@ function createPrintableScorecard(input: {
     .rosterColumns h2 { font-size: 10px; margin-bottom: 4px; }
     .rosterColumns ol { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 10px; }
     .rosterColumns { display: grid; grid-template-columns: 1fr 1fr; gap: .3in; }
-    .rosterColumns li { padding: 2px 0; font-size: 8px; overflow-wrap: anywhere; break-inside: avoid; }
+    .rosterColumns li { padding: 2px 0; font-size: 10px; line-height: 1.25; overflow-wrap: anywhere; break-inside: avoid; }
     @media print { .courts, .court, .details { background: #fff !important; } }
   </style>`
   const courts = `${input.lineup.map((court, index) => {
@@ -126,7 +127,7 @@ function createPrintableScorecard(input: {
   }).join('') || '<p class="empty">Save a lineup first, then print its court scorecard.</p>'}`
   const rosterReference = input.rosters ? `<section class="rosterReference"><h1>Team rosters</h1><p>Check names against the roster on file. Confirm eligibility with your league before play.</p><div class="rosterColumns">${[{ name: input.teamName, names: input.rosters.team }, { name: input.opponent, names: input.rosters.opponent }].map((team) => `<section><h2>${escapePrintText(team.name)}</h2>${team.names.length ? `<ol>${team.names.map((name) => `<li>${escapePrintText(name)}</li>`).join('')}</ol>` : '<p>No registered roster connected. Confirm with the captain.</p>'}</section>`).join('')}</div></section>` : ''
   return `<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>TenAceIQ scorecard</title>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=816"><title>TenAceIQ scorecard</title>
 <style>
 @page { size: letter portrait; margin: .25in; }
 * { box-sizing: border-box; } body { margin: 0; background: #fff; color: #102035; font-family: Arial, Helvetica, sans-serif; } .sheet { width: 8in; min-height: 10.5in; display: grid; grid-template-rows: auto auto 1fr auto; border: 1px solid #c9d3dc; } .top { padding: 18px 20px 15px; background: #08213c; color: #fff; } .brand { color: #c9ef75; font-size: 10px; font-weight: 900; letter-spacing: .12em; } h1 { margin: 5px 0 0; font-size: 23px; } .league { margin: 5px 0 0; color: #cfdae7; font-size: 11px; font-weight: 700; } .matchup { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; padding: 12px 20px; border-bottom: 1px solid #d6e0e8; } .matchup div { min-width: 0; } .matchup div:last-child { text-align: right; } .label { display: block; color: #5279a3; font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; } .team { display: block; margin-top: 4px; font-size: 15px; font-weight: 900; overflow-wrap: anywhere; } .vs { display: grid; width: 29px; height: 29px; place-items: center; border: 1px solid #bedc75; border-radius: 50%; background: #f3fae8; color: #557a16; font-size: 10px; font-weight: 900; } .details { padding: 8px 20px; background: #eef7e5; color: #526171; font-size: 10px; font-weight: 700; } .courts { display: grid; grid-template-columns: ${input.lineup.length > 3 ? 'repeat(2, minmax(0, 1fr))' : '1fr'}; align-content: stretch; gap: 7px; padding: 9px; background: #edf1f4; } .court { min-height: 0; padding: 9px; border: 1px solid #ccd7df; border-radius: 7px; background: #fff; break-inside: avoid; } .court:last-child:nth-child(odd) { grid-column: 1 / -1; } h2 { margin: 0 0 6px; font-size: 12px; } .grid { overflow: hidden; border: 1px solid #718196; border-radius: 5px; } .head, .row { display: grid; grid-template-columns: minmax(0, 2.8fr) repeat(3, minmax(35px, .6fr)) minmax(38px, .62fr); } .head { background: #102e4c; color: #d6eeff; font-size: 8px; font-weight: 900; text-align: center; text-transform: uppercase; } .head span { padding: 4px 2px; border-right: 1px solid rgba(213,238,255,.35); } .head span:last-child { border-right: 0; } .row { min-height: 31px; background: #fff; } .row + .row { border-top: 1px solid #718196; } .row > strong, .row > i { display: grid; min-width: 0; min-height: 31px; border-right: 1px solid #718196; background-color: #fff; } .row > :last-child { border-right: 0; } .row strong { place-items: center start; padding: 4px 6px; color: #173b61; font-size: 9px; line-height: 1.15; } footer { display: flex; justify-content: space-between; gap: 12px; padding: 8px 20px; background: #08213c; color: #dce9f2; font-size: 9px; font-weight: 700; } footer b { color: #c9ef75; letter-spacing: .08em; text-transform: uppercase; } .empty { padding: 20px; color: #526171; text-align: center; }
@@ -472,11 +473,12 @@ function MatchupSheetContent() {
           headers: { Authorization: `Bearer ${session?.access_token || ''}` }, cache: 'no-store',
         })
         if (!response.ok) throw new Error('Roster unavailable')
-        const payload = await response.json() as { ok?: boolean; rosterMembers?: Array<{ player_name?: string }>; opponentRosterNames?: string[] }
+        const payload = await response.json() as { ok?: boolean; rosterMembers?: ScorecardRosterRow[] }
         if (!payload.ok) throw new Error('Roster unavailable')
+        const rows = payload.rosterMembers || []
         rosters = {
-          team: [...new Set((payload.rosterMembers || []).map((player) => cleanText(player.player_name)).filter(Boolean))].sort(),
-          opponent: [...new Set((payload.opponentRosterNames || []).map(cleanText).filter(Boolean))].sort(),
+          team: getScorecardRosterNames(rows, { team: teamName, league: leagueName, flight }),
+          opponent: getScorecardRosterNames(rows, { team: opponent, league: leagueName, flight }),
         }
       } catch {
         printWindow.close()
@@ -498,17 +500,18 @@ function MatchupSheetContent() {
       rosters,
     }))
     printWindow.document.close()
-    await Promise.all(Array.from(printWindow.document.images).map((image) => {
+    fitScorecardToLetterPage(printWindow.document)
+    printWindow.focus()
+    await Promise.race([Promise.all(Array.from(printWindow.document.images).map((image) => {
       if (image.complete) return Promise.resolve()
       return new Promise<void>((resolve) => {
         image.onload = () => resolve()
         image.onerror = () => resolve()
       })
-    }))
+    })), new Promise<void>((resolve) => window.setTimeout(resolve, 3000))])
     if (printWindow.closed) return
-    await new Promise<void>((resolve) => printWindow.requestAnimationFrame(() => {
-      printWindow.requestAnimationFrame(() => resolve())
-    }))
+    // Measuring the sheet flushes layout even when the popup is a background tab.
+    fitScorecardToLetterPage(printWindow.document)
     printWindow.focus()
     printWindow.print()
   }, [facility, flight, includeRosters, leagueName, lineup, matchDate, matchTime, opponent, session?.access_token, teamName])
