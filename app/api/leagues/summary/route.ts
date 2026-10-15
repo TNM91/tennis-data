@@ -1,11 +1,4 @@
-import { unstable_cache } from 'next/cache'
-import { fetchLeagueSummary } from '@/lib/league-summary'
-
-const getCachedLeagueSummary = unstable_cache(
-  fetchLeagueSummary,
-  ['league-summary'],
-  { revalidate: 300 } // 5-minute TTL
-)
+import { getCachedLeagueSummary } from '@/lib/league-summary-server'
 
 export async function GET() {
   try {
