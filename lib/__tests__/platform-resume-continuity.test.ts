@@ -35,11 +35,12 @@ describe('platform-wide pick up continuity', () => {
     expect(hook).toContain("document.addEventListener('visibilitychange'")
   })
 
-  it('can keep resume sync out of the mobile header critical path', () => {
+  it('loads mobile resume work when the menu opens without delaying the initial header', () => {
     expect(hook).toContain('enabled = true')
     expect(hook).toContain('if (!enabled) return')
     expect(hook).toContain('if (!enabled || !accessToken || !userId)')
-    expect(header).toContain('enabled: !isMobile && authenticated && authResolved')
+    expect(header).toContain('enabled: authenticated && authResolved && (!isMobile || menuOpen)')
+    expect(header).toContain('const resumeItems = accessPending ? [] : savedResumeItems.filter')
   })
 
   it('keeps one-tap Continue compact and puts alternatives in the account menu', () => {

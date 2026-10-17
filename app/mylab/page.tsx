@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import SiteShell from '@/app/components/site-shell'
 import TennisSetupChecklist from '@/app/components/tennis-setup-checklist'
 import ActiveTeamChallengeCard from '@/app/components/active-team-challenge-card'
+import { includeLinkedPlayer } from '@/lib/linked-player-context'
 import MyLabCommandCenter from './my-lab-command-center'
 import { useAuth } from '@/app/components/auth-provider'
 import ClubContextBanner from '@/app/components/club-context-banner'
@@ -39,6 +40,7 @@ import {
   buildScopedTeamEntityId,
 } from '@/lib/entity-ids'
 import { supabase } from '@/lib/supabase'
+import { createFollow, removeFollow as deleteFollow } from '@/lib/follow-feeds'
 import { listTiqIndividualLeagueResults, type TiqIndividualLeagueResultRecord } from '@/lib/tiq-individual-results-service'
 import { buildTiqIndividualLeagueSummaries } from '@/lib/tiq-individual-results-summary'
 import {
@@ -56,6 +58,8 @@ import {
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
 import { buildProductAccessState } from '@/lib/access-model'
+import { sortWatchlistFeed } from '@/lib/watchlist-feed'
+import WatchlistVisitSummary from '@/app/components/watchlist-visit-summary'
 import type { ClubRole } from '@/lib/club-workspace'
 import { isPersonalQuestOwner } from '@/lib/personal-quest'
 import { DATA_ASSIST_STORY, MY_LAB_STORY } from '@/lib/product-story'
@@ -70,6 +74,7 @@ import { formatRating, cleanText } from '@/lib/captain-formatters'
 import { buildMatchIntelligenceRead } from '@/lib/player-match-intelligence'
 import { filterMatchbookEntries, getMatchbookFilterLabel, type MatchbookFilter } from '@/lib/player-matchbook'
 import { buildPlayerRatingJourneyRead, type RatingJourneySnapshot } from '@/lib/player-rating-journey'
+import { buildTenAceMemberRead } from '@/lib/player-tenace-read'
 import type { PlayerCompetitionScheduleEvent } from '@/lib/player-competition-schedule'
 import {
   PLAYER_DEVELOPMENT_IDENTITIES,
@@ -123,7 +128,8 @@ type FeedItem = {
   entityType: EntityType | 'community'
   entityId: string | null
   entityName: string
-  createdAt: string
+  createdAt: string | null
+  freshnessLabel?: string
   score: number
   badge: string
   accent: 'blue' | 'green' | 'violet'
@@ -340,6 +346,7 @@ function timeAgo(value: string | null | undefined) {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) return 'Recently'
   const diffMs = Date.now() - d.getTime()
+  if (diffMs < 0) return safeDate(value)
   const minutes = Math.floor(diffMs / 60000)
   if (minutes < 60) return `${Math.max(minutes, 1)}m ago`
   const hours = Math.floor(minutes / 60)
@@ -373,19 +380,18 @@ function isMissingRatingSourceError(message: string | null | undefined) {
   return normalized.includes('rating_source') || normalized.includes('schema cache') || normalized.includes('column')
 }
 
-async function loadMyLabPlayers(): Promise<PlayerRow[]> {
-  const withSource = await supabase
-    .from('players')
-    .select(MY_LAB_PLAYER_SELECT_WITH_SOURCE)
-    .order('name', { ascending: true })
+async function loadMyLabPlayers(playerId?: string): Promise<PlayerRow[]> {
+  const query = (columns: string) => {
+    const rows = supabase.from('players').select(columns)
+    return (playerId ? rows.eq('id', playerId) : rows)
+      .order('name', { ascending: true }).returns<PlayerRow[]>()
+  }
+  const withSource = await query(MY_LAB_PLAYER_SELECT_WITH_SOURCE)
 
   if (!withSource.error) return (withSource.data ?? []) as PlayerRow[]
   if (!isMissingRatingSourceError(withSource.error.message)) throw new Error(withSource.error.message)
 
-  const base = await supabase
-    .from('players')
-    .select(MY_LAB_PLAYER_SELECT_BASE)
-    .order('name', { ascending: true })
+  const base = await query(MY_LAB_PLAYER_SELECT_BASE)
 
   if (base.error) throw new Error(base.error.message)
   return ((base.data ?? []) as PlayerRow[]).map((player) => ({ ...player, rating_source: null }))
@@ -613,17 +619,15 @@ function goalStatusLabel(value: LabGoalState['progressStatus']) {
 function goalReadinessChecksFor(goal: LabGoalState) {
   return [
     { label: 'Goal', complete: Boolean(goal.goal.trim()) },
-    { label: 'Update', complete: Boolean(goal.progressUpdate.trim()) },
-    { label: 'Strength', complete: Boolean(goal.doingWell.trim()) },
-    { label: 'Improve', complete: Boolean(goal.improveNext.trim()) },
-    { label: 'Notes', complete: Boolean(goal.notes.trim()) },
+    { label: 'Update (optional)', complete: Boolean(goal.progressUpdate.trim()) },
+    { label: 'Strength (optional)', complete: Boolean(goal.doingWell.trim()) },
+    { label: 'Improve (optional)', complete: Boolean(goal.improveNext.trim()) },
+    { label: 'Notes (optional)', complete: Boolean(goal.notes.trim()) },
   ]
 }
 
 function goalReadinessScoreFor(goal: LabGoalState) {
-  if (goal.progressStatus === 'completed') return 100
-  const checks = goalReadinessChecksFor(goal)
-  return Math.round((checks.filter((item) => item.complete).length / checks.length) * 100)
+  return goal.goal.trim() ? 100 : 0
 }
 
 function compactOpponentLabel(value: string | null | undefined) {
@@ -1348,7 +1352,12 @@ function MyLabPageInner() {
       setError(firstHardError.message)
     }
 
-    setPlayers(playersRes)
+    try {
+      setPlayers(await includeLinkedPlayer(playersRes, profileLinkRes.data?.linked_player_id, loadMyLabPlayers))
+    } catch (playerError) {
+      setPlayers(playersRes)
+      setError(playerError instanceof Error ? playerError.message : 'Your linked player could not be loaded. Refresh My Lab to try again.')
+    }
     setMatches(
       ((matchesRes.data ?? []) as MatchRow[]).filter(
         (row) => cleanText(row.home_team) && cleanText(row.away_team),
@@ -1894,6 +1903,16 @@ function MyLabPageInner() {
     return map
   }, [matchPlayers])
 
+  const teamCompetitionLayers = useMemo(() => {
+    const layers = new Map<string, CompetitionLayer>()
+    for (const match of matches) {
+      const key = JSON.stringify([cleanText(match.league_name), cleanText(match.flight)])
+      const layer = inferCompetitionLayerForContext({ leagueName: match.league_name, section: match.usta_section, district: match.district_area })
+      if (!layers.has(key) || layer === 'usta') layers.set(key, layer)
+    }
+    return layers
+  }, [matches])
+
   const teamSummaries = useMemo<TeamSummary[]>(() => {
     const map = new Map<string, TeamSummary>()
     const rosterByTeam = new Map<string, Set<string>>()
@@ -1903,9 +1922,7 @@ function MyLabPageInner() {
       const away = cleanText(match.away_team)
       const league = cleanText(match.league_name)
       const flight = cleanText(match.flight)
-      const competitionLayer = inferCompetitionLayerForContext({
-        leagueName: league,
-      })
+      const competitionLayer = teamCompetitionLayers.get(JSON.stringify([league, flight])) || inferCompetitionLayerForContext({ leagueName: league })
       if (!home || !away) continue
 
       const homeKey = buildScopedTeamEntityId({
@@ -1955,7 +1972,7 @@ function MyLabPageInner() {
     return Array.from(map.values())
       .map((team) => ({ ...team, playerCount: rosterByTeam.get(team.id)?.size ?? 0 }))
       .sort((a, b) => a.name.localeCompare(b.name))
-  }, [matches, matchPlayersByMatch])
+  }, [matches, matchPlayersByMatch, teamCompetitionLayers])
 
   const leagueSummaries = useMemo<LeagueSummary[]>(() => {
     const map = new Map<
@@ -2042,7 +2059,7 @@ function MyLabPageInner() {
 
       teamIds.add(
         buildScopedTeamEntityId({
-          competitionLayer: inferCompetitionLayerForContext({ leagueName }),
+          competitionLayer: teamCompetitionLayers.get(JSON.stringify([leagueName, flight])) || inferCompetitionLayerForContext({ leagueName }),
           teamName,
           leagueName,
           flight,
@@ -2051,7 +2068,7 @@ function MyLabPageInner() {
     }
 
     return teamSummaries.filter((team) => teamIds.has(team.id))
-  }, [matches, matchPlayersByMatch, profileLink?.linked_player_id, teamSummaries])
+  }, [matches, matchPlayersByMatch, profileLink?.linked_player_id, teamCompetitionLayers, teamSummaries])
 
   const searchOptions = useMemo<SearchOption[]>(() => {
     const playerOptions = players.slice(0, 300).map((player) => ({
@@ -2220,7 +2237,8 @@ function MyLabPageInner() {
         entityType: 'player',
         entityId: player.id,
         entityName: player.name,
-        createdAt: new Date().toISOString(),
+        createdAt: null,
+        freshnessLabel: 'Current rating',
         score: 98,
         badge: 'Ratings',
         accent: accentForType('rating'),
@@ -2294,7 +2312,8 @@ function MyLabPageInner() {
             ? getFollowedEntityId(followTeams, 'team', [homeTeamId, awayTeamId])
             : (playersInMatch[0]?.player_id ?? null),
         entityName: leagueName || homeTeam || 'Watched match',
-        createdAt: match.match_date || new Date().toISOString(),
+        createdAt: match.match_date,
+        freshnessLabel: 'Match date unavailable',
         score: 94,
         badge: 'Match',
         accent: accentForType('match'),
@@ -2341,34 +2360,13 @@ function MyLabPageInner() {
         entityType: scenarioTeamId ? 'team' : 'league',
         entityId: scenarioTeamId || scenarioLeagueId,
         entityName: scenario.team_name || scenario.league_name || 'Scenario',
-        createdAt: scenario.match_date || new Date().toISOString(),
+        createdAt: null,
+        freshnessLabel: scenario.match_date ? `For ${safeDate(scenario.match_date)}` : 'Saved scenario',
         score: 87,
         badge: 'Lineup',
         accent: accentForType('team'),
       })
     }
-
-    const streakPlayers = players
-      .filter((player) => typeof player.overall_dynamic_rating === 'number')
-      .sort((a, b) => (b.overall_dynamic_rating ?? 0) - (a.overall_dynamic_rating ?? 0))
-      .slice(0, 8)
-
-    streakPlayers.forEach((player, index) => {
-      if (!followPlayers.some((f) => f.entity_id === player.id)) return
-      items.push({
-        id: `achievement-${player.id}`,
-        type: 'achievement',
-        title: `${player.name} is trending up`,
-        body: `${player.name} is sitting near the top of your followed players by overall dynamic rating at ${formatRating(player.overall_dynamic_rating)}.`,
-        entityType: 'player',
-        entityId: player.id,
-        entityName: player.name,
-        createdAt: new Date(Date.now() - index * 3600 * 1000).toISOString(),
-        score: 85 - index,
-        badge: 'Achievement',
-        accent: accentForType('achievement'),
-      })
-    })
 
     followedTiqIndividualParticipations.slice(0, 24).forEach((entry, index) => {
       const leagueEntityId = buildScopedLeagueEntityId({
@@ -2387,7 +2385,8 @@ function MyLabPageInner() {
         entityType: 'league',
         entityId: leagueEntityId,
         entityName: entry.leagueName,
-        createdAt: new Date(Date.now() - index * 2700 * 1000).toISOString(),
+        createdAt: null,
+        freshnessLabel: 'Current entry',
         score: 89 - index,
         badge: 'TIQ League',
         accent: accentForType('league'),
@@ -2495,7 +2494,8 @@ function MyLabPageInner() {
         entityType: 'community',
         entityId: null,
         entityName: 'Community',
-        createdAt: new Date().toISOString(),
+        createdAt: null,
+        freshnessLabel: 'Start here',
         score: 999,
         badge: 'Welcome',
         accent: accentForType('community'),
@@ -2507,13 +2507,9 @@ function MyLabPageInner() {
       if (!deduped.has(item.id)) deduped.set(item.id, item)
     }
 
-    return Array.from(deduped.values())
-      .filter((item) => feedFilter === 'all' || item.type === feedFilter)
-      .sort(
-        (a, b) =>
-          b.score - a.score || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      )
-      .slice(0, 30)
+    return sortWatchlistFeed(
+      Array.from(deduped.values()).filter((item) => feedFilter === 'all' || item.type === feedFilter),
+    ).slice(0, 30)
   }, [
     follows,
     players,
@@ -2554,41 +2550,19 @@ function MyLabPageInner() {
   }, [follows, playerMap])
 
   async function persistFollows(next: FollowItem[]) {
-    setFollows(next)
-    writeLocalFollows(next)
-
     try {
       if (!userId) {
-        setSavedToCloud(false)
-        return
+        throw new Error('Sign in to save follows.')
       }
-
-      const { error: deleteError } = await supabase.from('user_follows').delete().eq('user_id', userId)
-
-      if (deleteError && !/relation .* does not exist/i.test(deleteError.message)) {
-        throw deleteError
-      }
-
-      if (next.length) {
-        const payload = next.map((item) => ({
-          user_id: userId,
-          entity_type: item.entity_type,
-          entity_id: item.entity_id,
-          entity_name: item.entity_name,
-          subtitle: item.subtitle,
-        }))
-
-        const { error: insertError } = await supabase.from('user_follows').insert(payload)
-
-        if (insertError && !/relation .* does not exist/i.test(insertError.message)) {
-          throw insertError
-        }
-
-        if (!insertError) setSavedToCloud(true)
-      } else {
-        setSavedToCloud(true)
-      }
-    } catch {
+      const added = next.filter((item) => !followContainsEntity(follows, item.entity_type, item.entity_id))
+      const removed = follows.filter((item) => !followContainsEntity(next, item.entity_type, item.entity_id))
+      for (const item of added) await createFollow(item)
+      for (const item of removed) await deleteFollow(item)
+      setFollows(next)
+      writeLocalFollows(next)
+      setSavedToCloud(true)
+    } catch (error) {
+      console.error('Failed to save follows', error)
       setSavedToCloud(false)
     }
   }
@@ -2783,7 +2757,9 @@ function MyLabPageInner() {
   const firstName = (profileLink?.linked_player_name || linkedPlayer?.name || '').split(' ')[0] || ''
   const welcomeLine = firstName ? `${firstName}, start with the next useful move.` : 'Start with the next useful move.'
   const myLabTitle = isProfileConfirmed ? welcomeLine : 'My Lab.'
-  const recentDecisionMatches = personalMatches.filter((match) => match.result === 'W' || match.result === 'L')
+  const recentDecisionMatches = personalMatches.filter(
+    (match): match is PersonalMatchRow & { result: 'W' | 'L' } => match.result === 'W' || match.result === 'L',
+  )
   const recentWins = recentDecisionMatches.filter((match) => match.result === 'W').length
   const recentLosses = recentDecisionMatches.filter((match) => match.result === 'L').length
   const recentRecordLabel = recentDecisionMatches.length ? `${recentWins}-${recentLosses}` : 'New'
@@ -2921,12 +2897,15 @@ function MyLabPageInner() {
       .filter((item) => item.eventType === 'match' && item.date >= todayDateKey)
       .map((item) => ({
         title: item.title || item.competitionName,
+        shortTitle: item.opponent ? `vs ${item.opponent}` : (item.title || item.competitionName).split(' · ')[0],
+        context: item.competitionName,
         date: item.date,
+        daysUntil: Math.max(0, Math.ceil((Date.parse(item.date) - Date.parse(todayDateKey)) / 86_400_000)),
         time: item.time,
         dateLabel: formatPlayerCoachCalendarDate(item.time ? `${item.date}T${item.time}` : item.date),
         detail: [item.detail, item.location].filter(Boolean).join(' - ') || item.competitionName,
-        href: item.href || '/mylab#player-workshop',
-        cta: 'Open match details',
+        href: item.href && item.href !== '/mylab#player-workshop' ? item.href : '/mylab#my-calendar',
+        cta: item.href && item.href !== '/mylab#player-workshop' ? 'Open match details' : 'Open calendar',
         readiness: item.responseStatus === 'unavailable'
           ? 'Marked unavailable'
           : item.responseStatus === 'available' && !item.responseIsStale
@@ -2937,11 +2916,14 @@ function MyLabPageInner() {
       .filter((item) => item.kind === 'match' && item.date >= todayDateKey)
       .map((item) => ({
         title: item.title || 'Personal match',
+        shortTitle: (item.title || 'Personal match').split(' · ')[0].replace(/^.+?\s+vs\.?\s+/i, 'vs '),
+        context: item.title?.split(' · ').slice(1).join(' · ') || 'Personal calendar',
         date: item.date,
+        daysUntil: Math.max(0, Math.ceil((Date.parse(item.date) - Date.parse(todayDateKey)) / 86_400_000)),
         time: item.time,
         dateLabel: formatPersonalCalendarItemDate(item),
         detail: item.location || 'Personal calendar match',
-        href: '/mylab#player-workshop',
+        href: '/mylab#my-calendar',
         cta: 'Open calendar',
         readiness: item.availabilityStatus === 'unavailable' ? 'Marked unavailable' : 'Personal calendar',
       })),
@@ -2973,8 +2955,8 @@ function MyLabPageInner() {
   const matchPrepGoals = goals.filter((goal) => goal.id.startsWith('matchup-prep-'))
   const matchPrepHeld = matchPrepGoals.filter((goal) => goal.progressUpdate.includes('plan held')).length
   const matchPrepAdjusted = matchPrepGoals.filter((goal) => goal.progressUpdate.includes('adjust the plan')).length
-  const activeGoals = goals.filter((goal) => goal.progressStatus !== 'completed')
-  const completedGoals = goals.filter((goal) => goal.progressStatus === 'completed')
+  const activeGoals = goals.filter((goal) => goal.goal.trim() && goal.progressStatus !== 'completed')
+  const completedGoals = goals.filter((goal) => goal.goal.trim() && goal.progressStatus === 'completed')
   const goalReadinessChecks = goalReadinessChecksFor(activeGoal)
   const goalReadinessScore = goalReadinessScoreFor(activeGoal)
   const nextReadinessStep = goalReadinessChecks.find((item) => !item.complete)?.label || 'Ready'
@@ -3168,7 +3150,7 @@ function MyLabPageInner() {
   const goalSummaryCards = [
     {
       label: 'Active goals',
-      value: String(activeGoals.length || goals.length),
+      value: String(activeGoals.length),
       note: progressUpdatedLabel,
     },
     {
@@ -3434,6 +3416,28 @@ function MyLabPageInner() {
     ...point,
     position: Math.max(8, Math.min(100, ((point.rating - ratingJourneyMin) / ratingJourneyRange) * 92 + 8)),
   }))
+  const ratingJourneyBaseline = ratingJourney.snapshotPoints[0]?.rating
+  const mobileCurrentRating = currentTiq ?? ratingJourney.snapshotPoints.at(-1)?.rating ?? null
+  const recentRatingDelta = typeof mobileCurrentRating === 'number' && typeof ratingJourneyBaseline === 'number'
+    ? mobileCurrentRating - ratingJourneyBaseline
+    : null
+  const mobileRatingStory = typeof recentRatingDelta === 'number'
+    ? `Across these visible checkpoints, TIQ moved ${recentRatingDelta >= 0 ? '+' : ''}${recentRatingDelta.toFixed(2)}.`
+    : ratingJourney.movementNote
+  const tenAceMemberRead = buildTenAceMemberRead({
+    currentRating: mobileCurrentRating,
+    ratingDelta: recentRatingDelta,
+    wins: matchIntelligence.wins,
+    losses: matchIntelligence.losses,
+    confidence: confidenceLabel.replace(' confidence', ''),
+    recentPattern: matchIntelligence.pattern,
+    courtMix: matchIntelligence.courtMixLabel,
+    activeFocus: activeGoal.goal,
+    recentMatches: recentDecisionMatches.slice(0, 8).map((match) => ({
+      result: match.result,
+      matchType: match.matchType,
+    })),
+  })
   const starterActionCards = [
     {
       title: 'Upload scores',
@@ -3534,8 +3538,8 @@ function MyLabPageInner() {
         {
           title: 'Choose one focus',
           description: hasMyLabFocus ? activeGoal.goal : 'Name the one thing you want to improve next.',
-          href: !linkedPlayer ? '/profile' : hasMyLabFocus ? '/mylab#player-tools' : MY_LAB_GOAL_PROGRESS_HREF,
-          action: linkedPlayer ? 'Set my focus' : 'Connect player first',
+          href: !isProfileConfirmed ? '/profile' : hasMyLabFocus ? '/mylab#player-tools' : MY_LAB_GOAL_PROGRESS_HREF,
+          action: isProfileConfirmed ? 'Set my focus' : 'Connect player first',
           complete: hasMyLabFocus,
         },
         {
@@ -3602,6 +3606,16 @@ function MyLabPageInner() {
           completedSessions={0}
           sessionTarget={4}
           progressHref="/join?next=%2Fmylab"
+          currentRating={null}
+          ratingBaseline={null}
+          ratingDelta={null}
+          currentFocus="Connect your player record"
+          ratingStory="Connect results to build your rating story."
+          recentRecord="New"
+          lastResult="No result connected yet"
+          winRate={0}
+          confidence="Early"
+          memberRead={null}
           firstServeSteps={[]}
           postRepReturn={null}
           matchup={null}
@@ -3648,6 +3662,16 @@ function MyLabPageInner() {
         completedSessions={commandCenterCompletedSessions}
         sessionTarget={4}
         progressHref={MY_LAB_GOAL_PROGRESS_HREF}
+        currentRating={mobileCurrentRating}
+        ratingBaseline={ratingJourneyBaseline ?? null}
+        ratingDelta={recentRatingDelta}
+        currentFocus={activeGoal.goal}
+        ratingStory={mobileRatingStory}
+        recentRecord={recentRecordLabel}
+        lastResult={lastMatchSummary}
+        winRate={recentWinRate}
+        confidence={confidenceLabel.replace(' confidence', '')}
+        memberRead={canUseAdvancedPlayerInsights ? tenAceMemberRead : null}
         firstServeSteps={firstServeSteps}
         postRepReturn={postRepReturn}
         matchup={topMatchupCandidate ? {
@@ -3668,7 +3692,7 @@ function MyLabPageInner() {
           <summary style={mobileMyLabExtrasSummaryStyle}>
             <span style={labDrawerSummaryCopyStyle}>
               <strong>More in My Lab</strong>
-              <em style={labDrawerSummaryHintStyle}>Teams, tools, goals, and calendar.</em>
+              <em style={labDrawerSummaryHintStyle}>Progress, teams, and calendar.</em>
             </span>
             <span style={optionalContextCountStyle}>Open</span>
           </summary>
@@ -4495,11 +4519,11 @@ function MyLabPageInner() {
       ) : null}
 
       {linkedPlayer ? (
-        <details id="player-tools" className="myLabDetailsSection" style={labDrawerDetailsStyle} open={!hasMyLabFocus}>
+        <details id="player-tools" className="myLabDetailsSection" style={labDrawerDetailsStyle} open={!isMobile && !hasMyLabFocus}>
           <summary style={labDrawerSummaryStyle}>
             <span style={labDrawerSummaryCopyStyle}>
-              <strong>Notebook and match history</strong>
-              <em style={labDrawerSummaryHintStyle}>Notes, reports, tennis context.</em>
+              <strong>Goals and match tools</strong>
+              <em style={labDrawerSummaryHintStyle}>Training notes, team prep, and reports.</em>
             </span>
             <span style={optionalContextCountStyle}>Open</span>
           </summary>
@@ -4625,7 +4649,7 @@ function MyLabPageInner() {
                     <div style={metricLabelStyle}>Active goal readiness</div>
                     <p style={goalReadinessTextStyle}>
                       {goalReadinessScore === 100
-                        ? 'This focus is ready to take into your next match.'
+                        ? 'Your focus is ready. Add practice notes whenever they help.'
                         : `Next: add ${nextReadinessStep.toLowerCase()} detail.`}
                     </p>
                   </div>
@@ -4696,8 +4720,8 @@ function MyLabPageInner() {
                   ))}
                 </div>
 
-                <details className="myLabDetailsSection" style={goalEditorDetailsStyle}>
-                  <summary style={collapsibleSummaryStyle}>+ Update goals and notes</summary>
+                <details id="goal-editor" className="myLabDetailsSection" style={goalEditorDetailsStyle}>
+                  <summary style={collapsibleSummaryStyle}>Edit goal and notes</summary>
                   <div className="myLabDetailsBody" style={goalEditorStyle}>
                     {activeGoal.id.startsWith('matchup-prep-') ? (
                       <section style={matchPrepReviewStyle(isTablet)} aria-labelledby="match-prep-review-title">
@@ -4750,6 +4774,9 @@ function MyLabPageInner() {
                         <option value="completed">Completed</option>
                       </select>
                     </div>
+                    <details style={goalEditorDetailsStyle} open={!isMobile || undefined}>
+                      <summary style={{ ...collapsibleSummaryStyle, minHeight: 44, marginBottom: 0 }}>Practice notes (optional)</summary>
+                      <div style={goalEditorStyle}>
                     <div style={inputWrapStyle}>
                       <label style={labelStyle} htmlFor={`my-lab-progress-update-${activeGoal.id}`}>Progress update</label>
                       <textarea
@@ -4792,6 +4819,8 @@ function MyLabPageInner() {
                         style={textAreaStyle}
                       />
                     </div>
+                      </div>
+                    </details>
                     <div style={notebookFooterStyle}>
                       <span>{notebookSavedLabel}{lastSavedAt ? ` - ${timeAgo(lastSavedAt)}` : ''}</span>
                       <div style={goalFooterActionsStyle}>
@@ -4931,7 +4960,7 @@ function MyLabPageInner() {
                 </p>
               </div>
               <span style={savedToCloud ? pillGreenStyle : pillSlateStyle}>
-                {savedToCloud ? 'Cloud synced' : 'Saved on device'}
+                {savedToCloud ? 'Cloud synced' : userId ? 'Sync failed' : 'Sign in to save'}
               </span>
             </div>
 
@@ -4998,8 +5027,8 @@ function MyLabPageInner() {
           <section style={surfaceStyle}>
             <div style={sectionHeaderStyle}>
               <div>
-                <p style={sectionKickerStyle}>Watchlist updates</p>
-                <h2 style={sectionTitleStyle}>What changed around your watchlist</h2>
+                <p style={sectionKickerStyle}>Your watchlist</p>
+                <h2 style={sectionTitleStyle}>Recent results and current reads</h2>
               </div>
               <div style={filterRowStyle}>
                 <GhostButton onClick={() => setRefreshTick((current) => current + 1)}>
@@ -5019,6 +5048,13 @@ function MyLabPageInner() {
                 )}
               </div>
             </div>
+
+            <WatchlistVisitSummary key={userId} userId={userId} ready={!loading && !error} items={feed.map(item => ({
+              id: item.id, title: item.title, createdAt: item.createdAt,
+              href: item.entityType === 'player' && item.entityId ? `/players/${encodeURIComponent(item.entityId)}`
+                : item.entityType === 'team' && item.entityId ? buildTeamHrefFromEntityId(item.entityId)
+                  : item.entityType === 'league' && item.entityId ? buildLeagueHrefFromEntityId(item.entityId) : undefined,
+            }))} />
 
             {loading ? (
               <div style={emptyStateStyle}>
@@ -5042,7 +5078,7 @@ function MyLabPageInner() {
                   <article key={item.id} style={feedCardStyle(item.accent)}>
                     <div style={feedTopRowStyle}>
                       <span style={badgeForAccent(item.accent)}>{item.badge}</span>
-                      <span style={feedTimeStyle}>{timeAgo(item.createdAt)}</span>
+                      <span style={feedTimeStyle}>{item.createdAt ? timeAgo(item.createdAt) : item.freshnessLabel || 'Current context'}</span>
                     </div>
                     <h3 style={feedTitleStyle}>{item.title}</h3>
                     <p style={feedBodyStyle}>{item.body}</p>

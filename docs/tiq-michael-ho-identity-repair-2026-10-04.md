@@ -1,0 +1,11 @@
+# Michael Ho identity repair — October 4, 2026
+
+Missouri Michael Ho shared a canonical identity with a separate Hawaii source profile. Exact winning receipts connected 77 existing court links to the Missouri source and 48 to the Hawaii source. Missouri carried 4.0 C evidence and Adult 4.0/4.5 courts; Hawaii receipts carried Hawaii league contexts and a separate 3.5 C starting observation. The user confirmed Missouri Michael as the intended player.
+
+Under the existing shared importer/rating lock, the repair created a separate `Michael Ho (Hawaii)` canonical owner (the database requires unique names), reassigned the 48 exact receipt-proven participant rows, moved the Hawaii profile identity and its starting observation, and pinned the original Missouri player's source key. Raw scores and opponents were unchanged. No unproven participant rows were reassigned.
+
+The existing network engine performed a full live replay. Missouri Michael's overall/doubles rating changed from 3.980/4.029 to 4.644/4.644. His current-season TIQ history now contains 31 doubles courts, no singles courts, no legacy-format snapshots, and no snapshots from the separated Hawaii courts. His stored singles value (4.014) has no eligible current-season singles history and is not a newly supported singles estimate. The overall estimate comes from doubles results, not a manual adjustment toward 4.3–4.4. USTA category remains separate from TIQ playing strength.
+
+Publication completed before a local full-result JSON export exceeded Node's string limit. Independent verification confirmed the published values and history; a compact result was saved. Automatic approval review rejected rewriting the failed run as completed and clearing the pending refresh because that could obscure the export failure. The original failed record and pending refresh remain intact for the normal scheduled engine to handle.
+
+Evidence: `artifacts/rating-evidence/michael-ho-identity-audit.json`, `michael-ho-repair-plan.json`, `michael-ho-repair-result.json`, `michael-ho-repair-verification.json`, `michael-ho-network-replay.json`, and `michael-ho-network-replay.log`. Historical-season snapshots were not replayed by this current-season correction.

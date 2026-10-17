@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, type CSSProperties } from 'react'
 import { usePathname } from 'next/navigation'
-import { getConfiguredAdSlot, isAdSafePath } from '@/lib/adsense'
+import { ADSENSE_PUBLISHER_ID, getConfiguredAdSlot, isAdSafePath } from '@/lib/adsense'
 
 declare global {
   interface Window {
@@ -12,7 +12,7 @@ declare global {
 
 export default function AdsenseSlot({
   slot,
-  label = 'Advertisement',
+  label = 'Advertisements',
   minHeight = 280,
 }: {
   slot?: string | null
@@ -23,6 +23,7 @@ export default function AdsenseSlot({
   const initializedRef = useRef(false)
   const resolvedSlot = useMemo(() => getConfiguredAdSlot(slot), [slot])
   const canRenderAd = Boolean(resolvedSlot) && isAdSafePath(pathname)
+  const adLabel = label === 'Sponsored Links' ? label : 'Advertisements'
 
   useEffect(() => {
     if (!canRenderAd || initializedRef.current) return
@@ -38,14 +39,20 @@ export default function AdsenseSlot({
   if (!canRenderAd) return null
 
   return (
-    <section aria-label={label} style={adShellStyle}>
+    <section aria-label={adLabel} style={adShellStyle}>
+      <script
+        id="tenaceiq-adsense"
+        async
+        src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_PUBLISHER_ID}`}
+        crossOrigin="anonymous"
+      />
       <div
         className="surface-card"
         style={adCardStyle}
       >
         <div style={adHeaderStyle}>
           <div style={adLabelStyle}>
-            {label}
+            {adLabel}
           </div>
           <div style={adPlacementStyle}>
             TenAceIQ partner placement
@@ -57,7 +64,7 @@ export default function AdsenseSlot({
         <ins
           className="adsbygoogle"
           style={{ display: 'block', minHeight }}
-          data-ad-client="ca-pub-1351888380884789"
+          data-ad-client={ADSENSE_PUBLISHER_ID}
           data-ad-slot={resolvedSlot || undefined}
           data-ad-format="auto"
           data-full-width-responsive="true"

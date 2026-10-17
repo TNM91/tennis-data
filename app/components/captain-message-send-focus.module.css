@@ -1,0 +1,10 @@
+.panel { display: grid; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--card-border); border-radius: 18px; background: var(--surface-strong); }
+.panel h2 { margin: 0; color: var(--foreground-strong); font-size: 1.15rem; overflow-wrap: anywhere; }
+.detail { margin: 0; color: var(--muted-strong); font-size: .8rem; line-height: 1.5; overflow-wrap: anywhere; }
+.body { margin: 0; padding: 12px; border-radius: 12px; background: var(--surface); color: var(--foreground-strong); white-space: pre-wrap; overflow-wrap: anywhere; font-size: .9rem; line-height: 1.5; }
+.audience summary { min-height: 44px; padding: 10px 0; cursor: pointer; color: var(--foreground-strong); overflow-wrap: anywhere; font-size: .85rem; }
+.audience ul { margin: 0; padding-left: 20px; color: var(--foreground-strong); overflow-wrap: anywhere; }
+.primary { display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; min-height: 48px; padding: 12px; border: 0; border-radius: 12px; background: var(--brand-green); color: #071107; font: inherit; font-weight: 800; text-decoration: none; }
+.primary:disabled { opacity: .55; }
+.primary:focus-visible, .audience summary:focus-visible { outline: 2px solid var(--brand-blue-2); outline-offset: 3px; }
+.error { margin: 0; padding-left: 8px; border-left: 3px solid #fb7185; color: var(--foreground-strong); font-size: .85rem; overflow-wrap: anywhere; }

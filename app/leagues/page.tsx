@@ -994,6 +994,7 @@ function LeagueCardItem({
               entityId={league.key}
               entityName={league.leagueName}
               subtitle={subtitle}
+              showUnlock={false}
             />
           </div>
 

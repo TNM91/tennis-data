@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import TennisGuideLinks from '@/app/components/tennis-guide-links'
 import {
   CommandHero,
   GuestTierPreview,
@@ -58,6 +59,7 @@ export default function HomePage() {
           showBoard={false}
         />
         <ProductTourHomeSpotlight />
+        <TennisGuideLinks />
         <GuestTierPreview />
       </main>
     </PublicPageShell>

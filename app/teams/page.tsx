@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { usePublicCompetitionContent } from '@/app/components/public-competition-content-context'
 import { CSSProperties, useEffect, useMemo, useState, type ReactNode } from 'react'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import DataTrustPanel from '@/app/components/data-trust-panel'
@@ -20,6 +21,11 @@ import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
+import { getTeamDirectoryMatchDates, mergeTeamDirectoryDates } from '@/lib/team-directory-dates'
+import { getTeamDirectoryReturnHref } from '@/lib/team-directory-navigation'
+import { loadTeamDirectoryPages } from '@/lib/team-directory-pages'
+import { indexTeamDirectoryRoster, teamDirectoryRosterKey } from '@/lib/team-directory-roster'
+import { reconcileTeamProfileFixtures } from '@/lib/team-profile-fixtures'
 
 type MatchRow = {
   id: string
@@ -33,6 +39,11 @@ type MatchRow = {
   source?: string | null
   status?: string | null
   score?: string | null
+}
+
+function PublicTeamsContent({ visible }: { visible: boolean }) {
+  const content = usePublicCompetitionContent().teamsContent
+  return visible ? content : null
 }
 
 type MatchPlayerRow = {
@@ -76,6 +87,7 @@ type TeamDirectoryEntry = {
   playerIds: Set<string>
   sourceRosterCount: number
   mostRecentMatchDate: string | null
+  nextScheduledMatchDate: string | null
   source: 'canonical' | 'tennisrecord'
 }
 
@@ -124,6 +136,7 @@ export default function TeamsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [rows, setRows] = useState<TeamDirectoryEntry[]>([])
+  const [rosterIdsByScope, setRosterIdsByScope] = useState<Record<string, string[]>>({})
   const [awardsByTeamName, setAwardsByTeamName] = useState<Record<string, TiqAwardRecord[]>>({})
 
   const [search, setSearch] = useState('')
@@ -173,7 +186,8 @@ export default function TeamsPage() {
     setLeagueFilter(nextLeague)
     setFlightFilter(nextFlight)
     setSeasonFilter(nextSeason)
-    setBrowseAll(Boolean(nextSearch || nextLeague || nextFlight || nextSeason))
+    setBrowseAll(params.get('browse') === '1' || Boolean(nextSearch || nextLeague || nextFlight || nextSeason))
+    setShowAllTeams(params.get('show') === 'all')
     const nextSort = params.get('sort') as SortKey | null
     if (nextSort === 'team' || nextSort === 'matches' || nextSort === 'players' || nextSort === 'recent' || nextSort === 'winpct') setSortBy(nextSort)
     setDirectoryReady(true)
@@ -186,9 +200,11 @@ export default function TeamsPage() {
     if (flightFilter) params.set('flight', flightFilter)
     if (seasonFilter) params.set('season', seasonFilter)
     if (sortBy !== 'matches') params.set('sort', sortBy)
+    if (browseAll) params.set('browse', '1')
+    if (showAllTeams) params.set('show', 'all')
     const query = params.toString()
     return `/explore/teams${query ? `?${query}` : ''}`
-  }, [flightFilter, leagueFilter, search, seasonFilter, sortBy])
+  }, [browseAll, flightFilter, leagueFilter, search, seasonFilter, showAllTeams, sortBy])
 
   useEffect(() => {
     if (!directoryReady) return
@@ -205,12 +221,13 @@ export default function TeamsPage() {
         { data: tennisRecordContext, error: tennisRecordContextError },
         { data: tennisRecordRosterCounts, error: tennisRecordRosterCountsError },
       ] = await Promise.all([
-        supabase
+        loadTeamDirectoryPages<MatchRow>((from, to) => supabase
           .from('matches')
           .select('id, match_date, home_team, away_team, league_name, flight, line_number, winner_side, source, status, score')
           .is('line_number', null)
           .order('match_date', { ascending: false })
-          .limit(10000),
+          .order('id', { ascending: true })
+          .range(from, to)),
         supabase
           .from('tennisrecord_public_team_context')
           .select('team_name, league_name, flight, last_seen_at')
@@ -223,7 +240,7 @@ export default function TeamsPage() {
 
       if (matchError) throw new Error(matchError.message)
 
-      const matches = ((matchData ?? []) as MatchRow[]).filter((row) => {
+      const sourceMatches = ((matchData ?? []) as MatchRow[]).filter((row) => {
         const homeTeam = cleanText(row.home_team)
         const awayTeam = cleanText(row.away_team)
 
@@ -234,6 +251,7 @@ export default function TeamsPage() {
           source: row.source,
         })
       })
+      const matches = reconcileTeamProfileFixtures(sourceMatches)
 
       const sourceContexts = tennisRecordContextError
         ? []
@@ -259,10 +277,13 @@ export default function TeamsPage() {
       const scheduleTeamsByScope = new Map<string, Set<string>>()
       const rosterTeamsByScope = new Map<string, Set<string>>()
 
-      const { data: rosterTeamData } = await supabase
+      const { data: rosterTeamData, error: rosterTeamError } = await loadTeamDirectoryPages((from, to) => supabase
         .from('team_roster_members')
-        .select('team_name, league_name, flight')
-        .limit(3000)
+        .select('team_name, league_name, flight, player_id')
+        .order('id', { ascending: true })
+        .range(from, to))
+      if (rosterTeamError) throw new Error(rosterTeamError.message)
+      setRosterIdsByScope(indexTeamDirectoryRoster(rosterTeamData || []))
 
       for (const row of (rosterTeamData || []) as Array<{ team_name: string | null; league_name: string | null; flight: string | null }>) {
         const teamName = normalizeTeamName(row.team_name)
@@ -272,7 +293,9 @@ export default function TeamsPage() {
         rosterTeamsByScope.get(scopeKey)!.add(teamName)
       }
 
-      for (const match of matches) {
+      const directoryToday = new Date()
+      const directoryTodayKey = `${directoryToday.getFullYear()}-${String(directoryToday.getMonth() + 1).padStart(2, '0')}-${String(directoryToday.getDate()).padStart(2, '0')}`
+      for (const match of sourceMatches) {
         if (!isScheduleTeamSource(match.source)) continue
         const league = cleanText(match.league_name)
         const flight = cleanText(match.flight)
@@ -321,6 +344,7 @@ export default function TeamsPage() {
             playerIds: new Set<string>(),
             sourceRosterCount: sourceRosterCountByTeam.get(normalizeTeamName(homeTeam)) || 0,
             mostRecentMatchDate: null,
+            nextScheduledMatchDate: null,
             source: 'canonical',
           })
         }
@@ -339,39 +363,31 @@ export default function TeamsPage() {
             playerIds: new Set<string>(),
             sourceRosterCount: sourceRosterCountByTeam.get(normalizeTeamName(awayTeam)) || 0,
             mostRecentMatchDate: null,
+            nextScheduledMatchDate: null,
             source: 'canonical',
           })
         }
 
         const homeEntry = directoryMap.get(homeKey)
         const awayEntry = directoryMap.get(awayKey)
+        const matchDates = getTeamDirectoryMatchDates(match, directoryTodayKey)
 
         if (homeEntry) {
           homeEntry.matchCount += 1
-          const homeResult: 'W' | 'L' | null = match.winner_side === 'A' ? 'W' : match.winner_side === 'B' ? 'L' : null
+          const homeResult: 'W' | 'L' | null = !matchDates.result ? null : match.winner_side === 'A' ? 'W' : 'L'
           if (homeResult === 'W') homeEntry.wins += 1
           else if (homeResult === 'L') homeEntry.losses += 1
           if (homeResult && homeEntry.recentForm.length < 5) homeEntry.recentForm.push(homeResult)
-          if (
-            compareNullableDatesDesc(match.match_date, homeEntry.mostRecentMatchDate) < 0 ||
-            homeEntry.mostRecentMatchDate === null
-          ) {
-            homeEntry.mostRecentMatchDate = match.match_date
-          }
+          Object.assign(homeEntry, mergeTeamDirectoryDates(homeEntry, matchDates))
         }
 
         if (awayEntry) {
           awayEntry.matchCount += 1
-          const awayResult: 'W' | 'L' | null = match.winner_side === 'B' ? 'W' : match.winner_side === 'A' ? 'L' : null
+          const awayResult: 'W' | 'L' | null = !matchDates.result ? null : match.winner_side === 'B' ? 'W' : 'L'
           if (awayResult === 'W') awayEntry.wins += 1
           else if (awayResult === 'L') awayEntry.losses += 1
           if (awayResult && awayEntry.recentForm.length < 5) awayEntry.recentForm.push(awayResult)
-          if (
-            compareNullableDatesDesc(match.match_date, awayEntry.mostRecentMatchDate) < 0 ||
-            awayEntry.mostRecentMatchDate === null
-          ) {
-            awayEntry.mostRecentMatchDate = match.match_date
-          }
+          Object.assign(awayEntry, mergeTeamDirectoryDates(awayEntry, matchDates))
         }
 
         teamSideByMatchAndTeam.set(`${match.id}__${homeKey}`, 'A')
@@ -472,6 +488,7 @@ export default function TeamsPage() {
           playerIds: new Set<string>(),
           sourceRosterCount: sourceRosterCountByTeam.get(normalizeTeamName(team)) || 0,
           mostRecentMatchDate: cleanText(context.last_seen_at),
+          nextScheduledMatchDate: null,
           source: 'tennisrecord',
         })
       }
@@ -543,12 +560,23 @@ export default function TeamsPage() {
           existing.losses += row.losses
           existing.sourceRosterCount = Math.max(existing.sourceRosterCount, row.sourceRosterCount)
           for (const playerId of row.playerIds) existing.playerIds.add(playerId)
-          if (compareNullableDatesDesc(row.mostRecentMatchDate, existing.mostRecentMatchDate) < 0) {
+          if (row.source === 'canonical' && existing.source === 'tennisrecord') {
+            existing.source = 'canonical'
+            existing.mostRecentMatchDate = row.mostRecentMatchDate
+            existing.recentForm = row.recentForm
+          } else if (row.source === existing.source && compareNullableDatesDesc(row.mostRecentMatchDate, existing.mostRecentMatchDate) < 0) {
             existing.mostRecentMatchDate = row.mostRecentMatchDate
             existing.recentForm = row.recentForm
           }
+          existing.nextScheduledMatchDate = mergeTeamDirectoryDates(existing, row).nextScheduledMatchDate
           return map
         }, new Map<string, TeamDirectoryEntry>()).values())
+
+    if (!seasonFilter) {
+      for (const row of displayRows) {
+        for (const playerId of rosterIdsByScope[teamDirectoryRosterKey(row.team, row.league, row.flight)] || []) row.playerIds.add(playerId)
+      }
+    }
 
     displayRows.sort((left, right) => {
       if (sortBy === 'team') return left.team.localeCompare(right.team)
@@ -576,7 +604,7 @@ export default function TeamsPage() {
     })
 
     return displayRows
-  }, [flightFilter, leagueFilter, rows, search, seasonFilter, sortBy])
+  }, [flightFilter, leagueFilter, rosterIdsByScope, rows, search, seasonFilter, sortBy])
   const hasActiveFilters =
     search.trim().length > 0 || leagueFilter.length > 0 || flightFilter.length > 0 || seasonFilter.length > 0 || sortBy !== 'matches'
   const shouldShowTeamResults = hasActiveFilters || browseAll
@@ -645,14 +673,18 @@ export default function TeamsPage() {
               </button>
             </div>
 
-            <div style={summaryRow(isSmallMobile, isMobile)}>
+            {isMobile ? <p role="status" style={{ ...sectionText, margin: '0 0 12px' }}>
+              {loading ? 'Loading teams…' : shouldShowTeamResults
+                ? `${filteredRows.length} matching ${filteredRows.length === 1 ? 'team' : 'teams'}`
+                : `${rows.length} teams to explore`}
+            </p> : <div style={summaryRow(isSmallMobile, isMobile)}>
               <StatPill label="Teams" value={loading ? 'Refreshing' : String(totals.teams)} />
               <StatPill label="Leagues" value={loading ? 'Starter' : String(totals.leagues)} />
               <StatPill label="Flights" value={loading ? 'Reviewing' : String(totals.flights)} />
               <StatPill label="Players" value={loading ? 'Roster sync' : String(totals.players)} />
-            </div>
+            </div>}
 
-            <div style={filtersGrid(isMobile)}>
+            <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
               <div>
                 <label htmlFor="team-directory-search" style={{ ...labelStyle, marginBottom: isMobile ? 6 : labelStyle.marginBottom }}>Search</label>
                 <input
@@ -673,6 +705,11 @@ export default function TeamsPage() {
                 />
               </div>
 
+              <details open={!isMobile || undefined} style={{ minWidth: 0 }}>
+                <summary style={{ ...labelStyle, cursor: 'pointer', minHeight: 44, display: isMobile ? undefined : 'none' }}>
+                  Filters &amp; sort{leagueFilter || flightFilter || seasonFilter || sortBy !== 'matches' ? ' · Active' : ''}
+                </summary>
+                <div style={{ ...filtersGrid(isMobile), gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(4, minmax(0, 1fr))' }}>
               <div>
                 <label htmlFor="team-directory-league" style={{ ...labelStyle, marginBottom: isMobile ? 6 : labelStyle.marginBottom }}>League</label>
                 <select
@@ -778,11 +815,16 @@ export default function TeamsPage() {
                   <option value="matches">Most matches</option>
                   <option value="winpct">Best win %</option>
                   <option value="players">Most players</option>
-                  <option value="recent">Most recent</option>
+                  <option value="recent">Most recent result</option>
                   <option value="team">Team name</option>
                 </select>
               </div>
             </div>
+                </details>
+            </div>
+            {isMobile && (leagueFilter || flightFilter || seasonFilter || sortBy !== 'matches') ? <p style={{ ...sectionText, margin: '12px 0 0', overflowWrap: 'anywhere' }}>
+              {[leagueFilter ? `League: ${leagueFilter}` : '', flightFilter ? `Flight: ${flightFilter}` : '', seasonFilter ? `Season: ${seasonFilter}` : '', sortBy !== 'matches' ? `Sort: ${{ winpct: 'Win %', players: 'Players', recent: 'Recent', team: 'Name', matches: 'Matches' }[sortBy]}` : ''].filter(Boolean).join(' · ')}
+            </p> : null}
             <div style={filtersActionRow}>
               <button
                 type="button"
@@ -841,6 +883,7 @@ export default function TeamsPage() {
             ) : null}
           </section>
 
+          <PublicTeamsContent visible={!hasActiveFilters && !browseAll} />
           {loading ? (
             null
           ) : error ? (
@@ -886,7 +929,7 @@ export default function TeamsPage() {
                 >
                   Reset team filters
                 </button>
-                <Link href={DATA_ASSIST_STORY.href} style={ghostButton}>
+                <Link prefetch={false} href={DATA_ASSIST_STORY.href} style={ghostButton}>
                   {DATA_ASSIST_STORY.cta}
                 </Link>
               </div>
@@ -897,6 +940,7 @@ export default function TeamsPage() {
                 href={{
                   pathname: `/teams/${encodeTeamRouteSegment(visibleRows[0].team)}`,
                   query: {
+                    returnTo: getTeamDirectoryReturnHref(exploreResumeHref),
                     ...(visibleRows[0].league ? { league: visibleRows[0].league } : {}),
                     ...(visibleRows[0].flight ? { flight: visibleRows[0].flight } : {}),
                     ...(visibleRows[0].season ? { season: visibleRows[0].season } : {}),
@@ -909,6 +953,7 @@ export default function TeamsPage() {
                 const teamHref = {
                   pathname: `/teams/${encodeTeamRouteSegment(row.team)}`,
                   query: {
+                    returnTo: getTeamDirectoryReturnHref(exploreResumeHref),
                     ...(row.league ? { league: row.league } : {}),
                     ...(row.flight ? { flight: row.flight } : {}),
                     ...(row.season ? { season: row.season } : {}),
@@ -1255,7 +1300,7 @@ function TeamPulseFeature({ href, row }: { href: object; row: TeamDirectoryEntry
       <div style={teamPulseFeatureTopStyle}>
         <div style={teamPulseFeatureCopyStyle}>
           <span style={teamPulseEyebrowStyle}>Team pulse</span>
-          <Link href={href as Parameters<typeof Link>[0]['href']} style={teamPulseTitleStyle}>{row.team}</Link>
+          <Link prefetch={false} href={href as Parameters<typeof Link>[0]['href']} style={teamPulseTitleStyle}>{row.team}</Link>
           <div style={teamPulseMetaStyle}>
             {row.league ? <span>{row.league}</span> : null}
             {row.flight ? <span style={teamPulseFlightStyle}>{row.flight} flight</span> : null}
@@ -1285,13 +1330,13 @@ function TeamPulseFeature({ href, row }: { href: object; row: TeamDirectoryEntry
 
       <div style={teamPulseSignalGridStyle} aria-label={`${row.team} scouting signals`}>
         <TeamPulseSignal label="Roster" value={rosterCount > 0 ? `${rosterCount} listed` : 'Building'} />
-        <TeamPulseSignal label="Match record" value={row.matchCount > 0 ? `${row.matchCount} logged` : 'New'} />
-        <TeamPulseSignal label="Latest" value={formatShortDate(row.mostRecentMatchDate, 'Pending')} />
+        <TeamPulseSignal label="Matches listed" value={row.matchCount > 0 ? `${row.matchCount} total` : 'New'} />
+        <TeamPulseSignal label={row.source === 'tennisrecord' ? 'Source updated' : row.nextScheduledMatchDate ? 'Next match' : 'Last result'} value={formatShortDate(row.nextScheduledMatchDate || row.mostRecentMatchDate, 'Pending')} />
       </div>
 
       <div style={teamPulseFooterStyle}>
-        <span style={teamPulseSupportStyle}>{row.mostRecentMatchDate ? `Updated ${formatShortDate(row.mostRecentMatchDate, 'recently')}` : 'League context is ready to explore.'}</span>
-        <Link href={href as Parameters<typeof Link>[0]['href']} style={teamPulseActionStyle}>Open team</Link>
+        <span style={teamPulseSupportStyle}>{row.mostRecentMatchDate ? `${row.source === 'tennisrecord' ? 'Source updated' : 'Last result'} ${formatShortDate(row.mostRecentMatchDate, 'recently')}` : row.nextScheduledMatchDate ? 'Upcoming match scheduled.' : 'League context is ready to explore.'}</span>
+        <Link prefetch={false} href={href as Parameters<typeof Link>[0]['href']} style={teamPulseActionStyle}>Open team</Link>
       </div>
     </article>
   )
@@ -1348,7 +1393,7 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
     >
         <div style={teamCardTop}>
           <div style={teamCardCopy}>
-            <Link href={href as Parameters<typeof Link>[0]['href']} style={teamNameLink}>
+            <Link prefetch={false} href={href as Parameters<typeof Link>[0]['href']} style={teamNameLink}>
               {row.team}
             </Link>
 
@@ -1361,7 +1406,7 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
             ) : null}
           </div>
 
-          <Link
+          <Link prefetch={false}
             href={href as Parameters<typeof Link>[0]['href']}
             style={{
               ...viewPill,
@@ -1413,9 +1458,9 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
             </>
           ) : (
             <>
-              <Metric label="Matches" value={String(row.matchCount)} />
+              <Metric label="Matches listed" value={String(row.matchCount)} />
               <Metric label="Players" value={String(getDirectoryPlayerCount(row))} />
-              <Metric label="Last match" value={formatShortDate(row.mostRecentMatchDate, '--')} />
+              <Metric label={row.nextScheduledMatchDate ? 'Next match' : 'Last result'} value={formatShortDate(row.nextScheduledMatchDate || row.mostRecentMatchDate, '--')} />
             </>
           )}
         </div>
@@ -1429,7 +1474,7 @@ function TeamCard({ href, row, awards }: { href: object; row: TeamDirectoryEntry
               label={`${row.team} data trust signals`}
               signals={[
                 { label: 'Source', value: isTennisRecordContext ? 'League and flight context' : 'Scorecards / rosters', tone: 'info' },
-                { label: 'Freshness', value: row.mostRecentMatchDate ? formatShortDate(row.mostRecentMatchDate, 'Review pending') : 'Review pending', tone: row.mostRecentMatchDate ? 'good' : 'warn' },
+                { label: 'Freshness', value: row.mostRecentMatchDate ? `${isTennisRecordContext ? 'Source updated' : 'Last result'} ${formatShortDate(row.mostRecentMatchDate, 'Review pending')}` : 'No result dated', tone: row.mostRecentMatchDate ? 'good' : 'warn' },
                 { label: 'Confidence', value: row.matchCount >= 5 ? 'High' : row.matchCount >= 2 ? 'Medium' : 'Limited', tone: row.matchCount >= 5 ? 'good' : row.matchCount >= 2 ? 'warn' : 'info' },
                 { label: 'Status', value: isTennisRecordContext ? 'Ready to explore' : 'Reviewable', tone: 'good' },
               ]}
@@ -1447,7 +1492,7 @@ function TeamAwardBadges({ awards }: { awards: TiqAwardRecord[] }) {
   return (
     <div style={teamAwardRowStyle} aria-label="Team league awards">
       {awards.slice(0, 3).map((award) => (
-        <Link
+        <Link prefetch={false}
           key={award.id}
           href={`/awards/${encodeURIComponent(award.id)}`}
           style={teamAwardPillStyle}

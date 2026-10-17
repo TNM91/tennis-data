@@ -1,4 +1,3 @@
-import { getClientAuthState } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 
 export type FollowEntityType = 'player' | 'team' | 'league'
@@ -12,7 +11,6 @@ export type FollowRecord = {
 
 export type FeedEventType = 'followed' | 'unfollowed'
 
-const LOCAL_FOLLOW_KEY = 'tenaceiq:user_follows'
 const LOCAL_FEED_KEY = 'tenaceiq:my_lab_feed'
 
 function canUseWindow() {
@@ -36,13 +34,27 @@ function writeLocal<T>(key: string, value: T) {
   } catch {}
 }
 
-async function getCurrentUserId(): Promise<string | null> {
-  const authState = await getClientAuthState()
-  return authState.user?.id ?? null
+async function getSession() {
+  const { data: { session } } = await supabase.auth.getSession()
+  return session
+}
+
+async function mutateFollow(method: 'POST' | 'DELETE', record: FollowRecord) {
+  const session = await getSession()
+  if (!session) throw new Error('Sign in to manage follows.')
+  const response = await fetch('/api/follows', {
+    method,
+    headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(record),
+  })
+  if (!response.ok) {
+    const result = await response.json().catch(() => null)
+    throw new Error(result?.message || 'Could not save your follows.')
+  }
 }
 
 export async function isFollowing(record: FollowRecord) {
-  const userId = await getCurrentUserId()
+  const userId = (await getSession())?.user.id
 
   if (userId) {
     const { data, error } = await supabase
@@ -51,89 +63,21 @@ export async function isFollowing(record: FollowRecord) {
       .eq('user_id', userId)
       .eq('entity_type', record.entity_type)
       .eq('entity_id', record.entity_id)
-      .maybeSingle()
+      .limit(1)
 
-    if (!error) return Boolean(data)
+    if (error) throw error
+    return Boolean(data?.length)
   }
-
-  const follows = readLocal<FollowRecord[]>(LOCAL_FOLLOW_KEY, [])
-  return follows.some(
-    (item) =>
-      item.entity_type === record.entity_type &&
-      item.entity_id === record.entity_id,
-  )
+  return false
 }
 
 export async function createFollow(record: FollowRecord) {
-  const userId = await getCurrentUserId()
-
-  if (userId) {
-    const payload = {
-      user_id: userId,
-      entity_type: record.entity_type,
-      entity_id: record.entity_id,
-      entity_name: record.entity_name,
-      subtitle: record.subtitle ?? null,
-    }
-
-    const insert = await supabase.from('user_follows').insert(payload)
-
-    if (!insert.error) {
-      await appendFeedEvent('followed', record)
-      return
-    }
-  }
-
-  const payload = {
-    entity_type: record.entity_type,
-    entity_id: record.entity_id,
-    entity_name: record.entity_name,
-    subtitle: record.subtitle ?? null,
-  }
-
-  const follows = readLocal<FollowRecord[]>(LOCAL_FOLLOW_KEY, [])
-  const exists = follows.some(
-    (item) =>
-      item.entity_type === record.entity_type &&
-      item.entity_id === record.entity_id,
-  )
-
-  if (!exists) {
-    writeLocal(LOCAL_FOLLOW_KEY, [payload, ...follows])
-  }
-
+  await mutateFollow('POST', record)
   await appendFeedEvent('followed', record)
 }
 
 export async function removeFollow(record: FollowRecord) {
-  const userId = await getCurrentUserId()
-
-  if (userId) {
-    const del = await supabase
-      .from('user_follows')
-      .delete()
-      .eq('user_id', userId)
-      .eq('entity_type', record.entity_type)
-      .eq('entity_id', record.entity_id)
-
-    if (!del.error) {
-      await appendFeedEvent('unfollowed', record)
-      return
-    }
-  }
-
-  const follows = readLocal<FollowRecord[]>(LOCAL_FOLLOW_KEY, [])
-  writeLocal(
-    LOCAL_FOLLOW_KEY,
-    follows.filter(
-      (item) =>
-        !(
-          item.entity_type === record.entity_type &&
-          item.entity_id === record.entity_id
-        ),
-    ),
-  )
-
+  await mutateFollow('DELETE', record)
   await appendFeedEvent('unfollowed', record)
 }
 

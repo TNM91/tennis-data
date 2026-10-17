@@ -83,8 +83,8 @@ describe('competition format registry', () => {
     }
   })
 
-  it('keeps every current USTA tournament draw format as a distinct value', () => {
-    expect(TOURNAMENT_DRAW_FORMATS).toHaveLength(11)
+  it('keeps USTA and TIQ tournament draw formats as distinct values', () => {
+    expect(TOURNAMENT_DRAW_FORMATS).toHaveLength(12)
     for (const format of TOURNAMENT_DRAW_FORMATS) {
       expect(normalizeTournamentDrawFormatId(format.id)).toBe(format.id)
     }

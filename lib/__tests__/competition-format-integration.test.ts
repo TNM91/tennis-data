@@ -45,7 +45,7 @@ describe('shared competition formats', () => {
   it('offers every registered USTA/TIQ draw format in Tournament Desk', () => {
     const workspace = read('app/components/tournament-builder-workspace.tsx')
     const tournament = read('lib/tiq-tournament-registry.ts')
-    const migration = read('supabase/migrations/20260801000500_add_shared_competition_formats.sql')
+    const migration = read('supabase/migrations/20261007000600_tournament_group_championship_format.sql')
 
     expect(workspace).toContain('TOURNAMENT_DRAW_FORMATS.map')
     expect(workspace).toContain('getTournamentDrawFormatDefinition(format).label')

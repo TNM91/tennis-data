@@ -63,13 +63,13 @@ describe('portal shortcut personalization', () => {
     expect(getPortalShortcutStorageKey('player-123')).toBe('tenaceiq.portal-shortcuts.v2.player-123')
   })
 
-  it('offers actions, a single shortcut editor, and a one-time cue in the shared top menu', () => {
+  it('keeps shortcut customization in the editor without a separate onboarding banner', () => {
     expect(portalSource).toContain("id: 'action:mylab'")
     expect(portalSource).toContain("id: 'action:tactics'")
     expect(portalSource).not.toContain('data-mobile-portal-shortcut-add={index + 1}')
     expect(portalSource).toContain('data-mobile-portal-personalize="open"')
-    expect(portalSource).toContain('data-portal-personalization-cue="true"')
-    expect(portalSource).toContain('Pin My Lab, Tactics, or the hubs you use most.')
+    expect(portalSource).not.toContain('data-portal-personalization-cue="true"')
+    expect(portalSource).toContain('Choose up to seven shortcuts.')
     expect(portalSource).toContain('writePinnedPortalShortcuts(draftPinnedPortalShortcutIds, userId)')
     expect(portalSource).toContain('loadPortalShortcutCloudState(accessToken, controller.signal)')
     expect(portalSource).toContain('syncPortalShortcutsToCloud(savedShortcutIds, true)')

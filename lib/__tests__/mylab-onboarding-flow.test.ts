@@ -32,7 +32,7 @@ describe('My Lab onboarding flow', () => {
     expect(source).toContain('Find your record or create a self-rated profile.')
     expect(source).toContain('Take one short court card and leave proof behind.')
     expect(source).toContain('!isProfileConfirmed || (hasMyLabFocus && latestLevelUpProof)')
-    expect(source).toContain('open={!hasMyLabFocus}')
+    expect(source).toContain('open={!isMobile && !hasMyLabFocus}')
   })
 
   it('offers tennis-specific goal templates without exposing empty counters first', () => {

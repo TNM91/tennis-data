@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react'
 import SiteShell from '@/app/components/site-shell'
+import TournamentEventPanel from '@/app/components/tournament-event-panel'
+import { getTournamentEventContext } from '@/lib/tournament-events'
 import EntityDetailLink from '@/app/components/entity-detail-link'
 import DataTrustPanel from '@/app/components/data-trust-panel'
 import PublicDetailState from '@/app/components/public-detail-state'
@@ -17,6 +19,7 @@ import {
   buildRoundRobinStandings,
   buildTournamentPreview,
   loadTiqTournamentRecord,
+  loadTiqTournamentEventRecords,
   submitTiqTournamentEntry,
   summarizeTournamentResults,
   type TiqTournamentMatchSchedule,
@@ -67,6 +70,8 @@ function TournamentPublicInner() {
   const { isMobile } = useViewportBreakpoints()
   const { userId, authResolved } = useAuth()
   const [record, setRecord] = useState<TiqTournamentRecord | null>(null)
+  const [eventRecords, setEventRecords] = useState<TiqTournamentRecord[]>([])
+  const [eventError, setEventError] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [source, setSource] = useState<'cloud' | 'local' | 'none'>('none')
@@ -93,6 +98,11 @@ function TournamentPublicInner() {
       setError('')
       const result = await loadTiqTournamentRecord(tournamentId)
       if (!active) return
+      const parentId = result.data?.isEvent ? result.data.id : result.data?.eventId
+      const context = parentId ? await loadTiqTournamentEventRecords(parentId) : null
+      if (!active) return
+      setEventRecords(context?.data || [])
+      setEventError(context?.error ? 'Divisions could not be loaded. Please try again.' : '')
       setRecord(result.data)
       setSource(result.source)
       if (result.error) console.error('Tournament page lookup failed', result.error)
@@ -357,8 +367,16 @@ function TournamentPublicInner() {
     )
   }
 
+  const eventContext = getTournamentEventContext(eventRecords, record)
+  if (record.isEvent) return <main style={pageStyle}>
+    <TournamentEventPanel event={record} divisions={eventContext.divisions} selectedId={record.id} />
+    {eventError ? <p role="alert">{eventError}</p> : null}
+  </main>
+
   return (
     <main style={pageStyle}>
+      {eventContext.event ? <TournamentEventPanel event={eventContext.event} divisions={eventContext.divisions} selectedId={record.id} /> : null}
+      {eventError ? <p role="alert">{eventError}</p> : null}
       <CompeteResumeTracker
         surface={entryFocusedField || entryName || entryEmail || entryPhone ? 'tournament-entry' : 'tournament'}
         label={entryFocusedField || entryName || entryEmail || entryPhone ? 'tournament entry' : 'tournament'}
@@ -383,7 +401,7 @@ function TournamentPublicInner() {
             <Stat label="Champion" value={summary?.champion || 'TBD'} />
           </div>
           <div style={actionRowStyle}>
-            {record.isPublic ? <a href="#enter-tournament" style={primaryButtonStyle}>Enter tournament</a> : null}
+            {record.isPublic && !record.registrationEmail ? <a href="#enter-tournament" style={primaryButtonStyle}>Enter tournament</a> : null}
             <a href="#draw" style={secondaryButtonStyle}>View draw</a>
             <span style={pillStyle}>{source === 'cloud' ? (record.isPublic ? 'Public' : 'Director view') : 'Device preview'}</span>
           </div>
@@ -395,7 +413,7 @@ function TournamentPublicInner() {
         </div>
       </section>
 
-      {record.isPublic ? (
+      {record.isPublic && !record.registrationEmail ? (
         <section id="enter-tournament" style={entryShellStyle}>
           <div style={sectionHeaderStyle}>
             <div>
@@ -807,7 +825,7 @@ function TournamentPublicInner() {
               <div style={matchListStyle}>
                 {roundMatches.map((match) => (
                   <article key={match.id} style={matchCardStyle}>
-                    <span style={matchMetaStyle}>Court {match.court}</span>
+                    <span style={matchMetaStyle}>{record.format === 'group_playoffs' ? match.schedule?.court ? `Court ${match.schedule.court}` : 'Court pending' : `Court ${match.court}`}</span>
                     <div style={sideRowStyle}>
                       <strong><TournamentEntrantLink record={record} entrant={match.sideA} /></strong>
                       {match.result?.winner === match.sideA ? <span style={winnerPillStyle}>W</span> : null}

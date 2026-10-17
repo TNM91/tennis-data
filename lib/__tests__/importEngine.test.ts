@@ -1,6 +1,51 @@
 import { describe, expect, it } from 'vitest'
 import { buildVerifiedPlayerRatingUpdate, createImportEngine } from '../ingestion/importEngine'
 
+describe('separated player identities', () => {
+  const missouri = { id: 'missouri', name: 'Michael Ho', normalized_name: 'michael ho' }
+  const hawaii = { id: 'hawaii', name: 'Michael Ho (Hawaii)', normalized_name: 'michael ho' }
+
+  function engineFor(players: typeof missouri[]) {
+    return createImportEngine({
+      from() {
+        return {
+          select() {
+            return {
+              in(column: keyof typeof missouri, names: string[]) {
+                return { data: players.filter((row) => names.includes(row[column])), error: null }
+              },
+            }
+          },
+        }
+      },
+    } as never, { hasNormalizedPlayerNameColumn: true })
+  }
+
+  it.each([[missouri, hawaii], [hawaii, missouri]])('uses current names despite stale normalized keys (%j)', async (...players) => {
+    const engine = engineFor(players) as unknown as {
+      resolvePlayersBatch(names: string[]): Promise<{ map: Map<string, { id: string }> }>
+    }
+    const result = await engine.resolvePlayersBatch(['Michael Ho', 'Michael Ho (Hawaii)'])
+    expect(result.map.get('michael ho')?.id).toBe('missouri')
+    expect(result.map.get('michael ho (hawaii)')?.id).toBe('hawaii')
+  })
+
+  it('still rejects two identities with the same current name', async () => {
+    const engine = engineFor([missouri, { ...missouri, id: 'duplicate' }]) as unknown as {
+      resolvePlayersBatch(names: string[]): Promise<unknown>
+    }
+    await expect(engine.resolvePlayersBatch(['Michael Ho'])).rejects.toThrow('Duplicate player records')
+  })
+
+  it('previews roster import without confusing the separated Hawaii profile', async () => {
+    const result = await engineFor([hawaii, missouri]).importTeamSummary([{
+      teams: [], players: [{ name: 'Michael Ho', ntrp: 4 }],
+    }], 'preview')
+    expect(result.updatedCount).toBe(1)
+    expect(result.failedCount).toBe(0)
+  })
+})
+
 describe('scorecard official rating updates', () => {
   it('replaces a stale 3.5 baseline and untouched dynamics with line-level 4.0 evidence', () => {
     expect(buildVerifiedPlayerRatingUpdate({

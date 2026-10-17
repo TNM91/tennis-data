@@ -27,13 +27,16 @@ describe('captain lineup intelligence UI', () => {
     expect(page).toContain('onAutoBuild={(strategy) => applyOptimizedPlan(strategy, false)}')
   })
 
-  it('puts the phone win-path directly after match week navigation', () => {
+  it('puts lineup controls and courts before optional phone analysis', () => {
     const matchWeek = page.lastIndexOf('<CaptainMatchWeekRail')
     const winPath = page.indexOf('<CaptainLineupIntelligence', matchWeek)
     const controls = page.indexOf('aria-label="Lineup controls"', matchWeek)
+    const courts = page.indexOf('Build your team courts', controls)
     expect(matchWeek).toBeGreaterThanOrEqual(0)
     expect(winPath).toBeGreaterThan(matchWeek)
-    expect(winPath).toBeLessThan(controls)
+    expect(controls).toBeGreaterThan(matchWeek)
+    expect(courts).toBeGreaterThan(controls)
+    expect(winPath).toBeGreaterThan(courts)
   })
 
   it('loads real court result evidence for sample-backed tendencies', () => {

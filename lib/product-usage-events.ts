@@ -4,6 +4,8 @@ export const PRODUCT_USAGE_EVENT_NAMES = [
   'billing_portal_opened',
   'signup_confirmation_sent',
   'upgrade_checkout_started',
+  'follow_upgrade_clicked',
+  'follow_intent_completed',
   'profile_player_linked',
   'profile_cloud_sync_repair',
   'mylab_match_plan_action',

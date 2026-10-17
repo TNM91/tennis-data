@@ -29,7 +29,7 @@ describe('public access cue flicker guards', () => {
     const playersSource = readAppFile('app/players/page.tsx')
     const matchupSource = readAppFile('app/matchup/page.tsx')
     const exploreSearchSource = readAppFile('app/explore/search/page.tsx')
-    const exploreLeaguesSource = readAppFile('app/explore/leagues/page.tsx')
+    const exploreLeaguesSource = readAppFile('app/explore/leagues/leagues-directory-client.tsx')
 
     expect(teamsSource).not.toContain('UpgradePrompt')
     expect(rankingsSource).not.toContain('UpgradePrompt')

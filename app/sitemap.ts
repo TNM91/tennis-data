@@ -1,5 +1,11 @@
 import type { MetadataRoute } from 'next'
 import { PLAYER_DEVELOPMENT_IDENTITIES } from '@/lib/player-development'
+import { TENNIS_GUIDES } from '@/lib/tennis-guides'
+import { getPublicPlayerDiscovery } from '@/lib/public-player-evidence-server'
+import { getPublicTeamDiscovery } from '@/lib/public-competition-evidence-server'
+import { buildTeamProfileHref } from '@/lib/team-routes'
+
+export const revalidate = 86400
 
 const SITE_URL = 'https://www.tenaceiq.com'
 
@@ -34,7 +40,6 @@ const routes: RouteConfig[] = [
   { path: '/players', changeFrequency: 'daily', priority: 0.8 },
   { path: '/leagues', changeFrequency: 'weekly', priority: 0.75 },
   { path: '/teams', changeFrequency: 'weekly', priority: 0.75 },
-  { path: '/data-assist', changeFrequency: 'weekly', priority: 0.65 },
   { path: '/rankings', changeFrequency: 'weekly', priority: 0.75 },
   { path: '/how-it-works', changeFrequency: 'monthly', priority: 0.7 },
   { path: '/methodology', changeFrequency: 'monthly', priority: 0.7 },
@@ -59,11 +64,26 @@ const playerDevelopmentRoutes: RouteConfig[] = PLAYER_DEVELOPMENT_IDENTITIES.fla
   { path: `/player-development/${identity.slug}/coach-planner`, changeFrequency: 'monthly', priority: 0.52 },
 ])
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  return [...routes, ...playerDevelopmentRoutes].map(({ path, changeFrequency, priority }) => ({
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const [players, teams] = await Promise.all([getPublicPlayerDiscovery(), getPublicTeamDiscovery()])
+  const entries: MetadataRoute.Sitemap = [...routes, ...playerDevelopmentRoutes].map(({ path, changeFrequency, priority }) => ({
     url: `${SITE_URL}${path}`,
-    lastModified: new Date(),
     changeFrequency,
     priority,
-  }))
+  })).concat(TENNIS_GUIDES.map((guide) => ({
+    url: `${SITE_URL}/resources/guides/${guide.slug}`,
+    lastModified: new Date(guide.published),
+    changeFrequency: 'monthly' as const,
+    priority: 0.75,
+  })))
+  // A match date is evidence freshness, not a reliable page-edit timestamp.
+  return [...entries, ...players.map(({ player }) => ({
+    url: `${SITE_URL}/players/${player.id}`,
+    changeFrequency: 'daily' as const,
+    priority: 0.7,
+  })), ...teams.map(({ name }) => ({
+    url: `${SITE_URL}${buildTeamProfileHref(name)}`,
+    changeFrequency: 'daily' as const,
+    priority: 0.65,
+  }))]
 }

@@ -4,8 +4,10 @@ import Link from 'next/link'
 import type { CSSProperties } from 'react'
 import { buildCaptainScopedHref } from '@/lib/captain-memory'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
+import styles from './captain-match-week-rail.module.css'
 
 type MatchWeekStep = 'availability' | 'lineup' | 'messaging'
+type MatchWeekProgress = Partial<Record<MatchWeekStep, { complete: boolean; label: string }>>
 
 type MatchWeekScope = {
   competitionLayer?: string
@@ -25,12 +27,13 @@ const steps: Array<{ id: MatchWeekStep; label: string; path: string }> = [
 export default function CaptainMatchWeekRail({
   current,
   scope,
+  progress,
 }: {
   current: MatchWeekStep
   scope: MatchWeekScope
+  progress?: MatchWeekProgress
 }) {
   const { isMobile } = useViewportBreakpoints()
-  const currentIndex = steps.findIndex((step) => step.id === current)
   const hasMatch = Boolean(scope.date || scope.opponent)
 
   if (!hasMatch) {
@@ -49,24 +52,31 @@ export default function CaptainMatchWeekRail({
   }
 
   return (
-    <section style={isMobile ? mobileRailShell : railShell} aria-label="Match week progress">
-      <div style={matchContext}>
-        <div style={kicker}>Match week</div>
+    <section className={styles.rail} style={isMobile ? mobileRailShell : railShell} aria-label="Match week progress">
+      <div className={styles.context} style={matchContext}>
+        <div className={styles.kicker} style={kicker}>Match week</div>
         <strong style={title}>
           {scope.opponent ? `vs ${scope.opponent}` : 'Selected match'}
           {scope.date ? <span style={dateText}> - {formatMatchDate(scope.date)}</span> : null}
         </strong>
-        {scope.team ? <span style={teamText}>{scope.team}{scope.league ? ` · ${scope.league}` : ''}{scope.flight ? ` · ${scope.flight}` : ''}</span> : null}
+        {scope.team ? <>
+          <span className={styles.desktopScope} style={teamText}>{scope.team}{scope.league ? ` · ${scope.league}` : ''}{scope.flight ? ` · ${scope.flight}` : ''}</span>
+          <details className={styles.mobileScope}>
+            <summary>Team details</summary>
+            <p>{scope.team}{scope.league ? ` · ${scope.league}` : ''}{scope.flight ? ` · ${scope.flight}` : ''}</p>
+          </details>
+        </> : null}
       </div>
       <nav style={isMobile ? mobileStepList : stepList} aria-label="Match week steps">
         {steps.map((step, index) => {
           const isCurrent = step.id === current
-          const isComplete = index < currentIndex
+          const isComplete = progress?.[step.id]?.complete === true
           const href = buildCaptainScopedHref(step.path, scope)
           return (
             <Link
               key={step.id}
               href={href}
+              className={styles.step}
               aria-current={isCurrent ? 'step' : undefined}
               style={{
                 ...stepLink,
@@ -75,8 +85,8 @@ export default function CaptainMatchWeekRail({
                 ...(isComplete ? completeStep : {}),
               }}
             >
-              <span aria-hidden="true" style={stepNumber}>{isComplete ? 'Done' : index + 1}</span>
-              <span>{isMobile ? mobileStepLabel(step.id) : step.label}</span>
+              <span className={styles.number} aria-hidden="true" style={stepNumber}>{isComplete ? 'Done' : index + 1}</span>
+              <span>{isMobile ? mobileStepLabel(step.id) : step.label}{progress?.[step.id] ? <small style={{ display: 'block', fontSize: 10, marginTop: 3 }}>{progress[step.id]?.label}</small> : null}</span>
             </Link>
           )
         })}

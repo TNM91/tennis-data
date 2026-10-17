@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useCallback, useEffect, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useAuth } from '@/app/components/auth-provider'
 import {
   listInternalNotifications,
@@ -15,12 +15,15 @@ export default function LevelUpCoachAlert() {
   const pathname = usePathname() || '/'
   const { authResolved, userId } = useAuth()
   const [notification, setNotification] = useState<InternalNotification | null>(null)
+  const alertInFlightRef = useRef(false)
 
   const loadAlert = useCallback(async () => {
     if (!authResolved || !userId) {
       setNotification(null)
       return
     }
+    if (document.visibilityState === 'hidden' || alertInFlightRef.current) return
+    alertInFlightRef.current = true
 
     try {
       const notifications = await listInternalNotifications(userId, { unreadOnly: true, limit: 20 })
@@ -33,6 +36,8 @@ export default function LevelUpCoachAlert() {
       setNotification(coachAlerts[0] ?? null)
     } catch {
       // The next focus or timed refresh will quietly retry.
+    } finally {
+      alertInFlightRef.current = false
     }
   }, [authResolved, pathname, userId])
 

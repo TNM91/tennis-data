@@ -103,8 +103,8 @@ describe('public loading state polish', () => {
     expect(rankingsSource).not.toContain('Showing {rankedPlayers.length}')
     expect(rankingsSource).not.toContain("value={loading ? '-'")
     expect(rankingsSource).not.toContain('Player rankings are not available yet.')
-    expect(playersSource).toContain("value={loading ? 'Refreshing' : String(players.length)}")
-    expect(playersSource).toContain("value={loading ? 'Starter' : shouldShowPlayerResults")
+    expect(playersSource).toContain("'Finding players…'")
+    expect(playersSource).toContain("'No matching players'")
     expect(playersSource).not.toContain("value={loading ? '-'")
     expect(teamsSource).toContain('Search for a team or browse by league.')
     expect(teamsSource).toContain('loadingInlineStyle')
@@ -124,7 +124,7 @@ describe('public loading state polish', () => {
   })
 
   it('gives Explore Leagues a useful starter card while the layer refreshes', () => {
-    const exploreLeaguesSource = read('app/explore/leagues/page.tsx')
+    const exploreLeaguesSource = read('app/explore/leagues/leagues-directory-client.tsx')
 
     expect(exploreLeaguesSource).toContain('Featured league path')
     expect(exploreLeaguesSource).toContain('Search a flight, section, or district.')

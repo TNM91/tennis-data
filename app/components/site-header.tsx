@@ -345,9 +345,9 @@ export default function SiteHeader({ active, railLayout = false, onCompactMenuOp
     accessToken: session?.access_token,
     userId,
     refreshKey: pathname,
-    enabled: !isMobile && authenticated && authResolved,
+    enabled: authenticated && authResolved && (!isMobile || menuOpen),
   })
-  const resumeItems = accessPending || isMobile ? [] : savedResumeItems.filter((item) => {
+  const resumeItems = accessPending ? [] : savedResumeItems.filter((item) => {
     if (item.id === 'captain') return access.canUseCaptainWorkflow
     if (item.id === 'coach') return access.canUseCoachWorkflow
     if (item.id === 'league') return access.canUseLeagueTools

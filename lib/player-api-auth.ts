@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { buildProductAccessState } from './access-model-core'
 import { normalizeSubscriptionStatus } from './subscription-status'
 import { MEMBERSHIP_TIERS } from './product-story'
+import { normalizeUserRole } from './roles'
 import { supabaseKey, supabaseUrl } from './supabase'
 
 const PLAYER_TIER_NAME = MEMBERSHIP_TIERS.player_plus.name
@@ -18,6 +19,7 @@ export type PlayerApiAuth =
     }
 
 type ProfileEntitlementRow = {
+  role?: unknown
   player_plus_subscription_active?: boolean | null
   player_plus_subscription_status?: string | null
   player_plus_access_expires_at?: string | null
@@ -85,13 +87,13 @@ export async function loadPlayerAccess(supabase: SupabaseClient, userId: string)
   const { data } = await supabase
     .from('profiles')
     .select(
-      'player_plus_subscription_active, player_plus_subscription_status, player_plus_access_expires_at, coach_subscription_active, coach_subscription_status, coach_access_expires_at, captain_subscription_active, captain_subscription_status, captain_access_expires_at, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled, league_access_expires_at',
+      'role, player_plus_subscription_active, player_plus_subscription_status, player_plus_access_expires_at, coach_subscription_active, coach_subscription_status, coach_access_expires_at, captain_subscription_active, captain_subscription_status, captain_access_expires_at, tiq_team_league_entry_enabled, tiq_individual_league_creator_enabled, league_access_expires_at',
     )
     .eq('id', userId)
     .maybeSingle()
 
   const row = (data ?? {}) as ProfileEntitlementRow
-  return buildProductAccessState('member', {
+  return buildProductAccessState(normalizeUserRole(row.role), {
     playerPlusSubscriptionActive: Boolean(row.player_plus_subscription_active),
     playerPlusSubscriptionStatus: normalizeSubscriptionStatus(row.player_plus_subscription_status),
     playerPlusAccessExpiresAt: row.player_plus_access_expires_at ?? null,

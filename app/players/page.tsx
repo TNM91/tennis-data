@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { usePublicPlayerContent } from '@/app/components/public-player-content-context'
+import { CSSProperties, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdsenseSlot from '@/app/components/adsense-slot'
 import DataTrustPanel from '@/app/components/data-trust-panel'
@@ -22,9 +23,15 @@ import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
 import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } from '@/lib/player-development'
 import { loadPlayerDirectoryBatches } from '@/lib/player-directory-batching'
+import { buildDirectoryPlayerHref } from '@/lib/player-directory-navigation'
+import { playerDirectorySearchFilter } from '@/lib/player-directory-search'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 type SortKey = 'overall' | 'singles' | 'doubles' | 'name'
+
+function PublicPlayerDirectoryContent() {
+  return usePublicPlayerContent().directoryContent
+}
 type FilterKey = 'all' | 'with-matches' | 'high-rated' | 'trending-up' | 'at-risk'
 type FlightFilter = 'all' | '2.5' | '3.0' | '3.5' | '4.0' | '4.5+'
 type RatingView = 'overall' | 'singles' | 'doubles'
@@ -65,6 +72,7 @@ type MatchPlayerCountRow = {
   match_id: string | null
   side?: string | null
   matches?: {
+    public_history_eligible?: boolean | null
     match_type?: string | null
     winner_side?: string | null
     score?: string | null
@@ -117,19 +125,18 @@ function isMissingRatingSourceError(message: string) {
   return normalized.includes('rating_source') || normalized.includes('schema cache') || normalized.includes('column')
 }
 
-async function loadPlayerDirectoryRows(): Promise<PlayerRow[]> {
-  const withSource = await supabase
-    .from('players')
-    .select(PLAYER_DIRECTORY_SELECT_WITH_SOURCE)
-    .order('name', { ascending: true })
+async function loadPlayerDirectoryRows(search: string): Promise<PlayerRow[]> {
+  const applySearch = (columns: string) => {
+    const query = supabase.from('players').select(columns)
+    return (search.trim() ? query.or(playerDirectorySearchFilter(search)) : query)
+      .order('name', { ascending: true }).order('id', { ascending: true }).limit(1000).returns<PlayerRow[]>()
+  }
+  const withSource = await applySearch(PLAYER_DIRECTORY_SELECT_WITH_SOURCE)
 
   if (!withSource.error) return (withSource.data || []) as PlayerRow[]
   if (!isMissingRatingSourceError(withSource.error.message)) throw new Error(withSource.error.message)
 
-  const base = await supabase
-    .from('players')
-    .select(PLAYER_DIRECTORY_SELECT_BASE)
-    .order('name', { ascending: true })
+  const base = await applySearch(PLAYER_DIRECTORY_SELECT_BASE)
 
   if (base.error) throw new Error(base.error.message)
   return ((base.data || []) as PlayerRow[]).map((player) => ({ ...player, rating_source: null }))
@@ -159,14 +166,14 @@ export default function PlayersPage() {
   const [browseAll, setBrowseAll] = useState(false)
   const [showAllPlayers, setShowAllPlayers] = useState(false)
   const [directoryReady, setDirectoryReady] = useState(false)
+  const restorePlayerCardId = useRef('')
   const searchInputRef = useRef<HTMLInputElement | null>(null)
   const { isTablet, isMobile, isSmallMobile } = useViewportBreakpoints()
   const { access, user, authResolved } = useProductAccess()
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
 
-  useEffect(() => {
-    void loadPlayers()
-  }, [])
+  const playerRequestId = useRef(0)
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -220,6 +227,8 @@ export default function PlayersPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const nextSearch = params.get('q')?.trim() || ''
+    restorePlayerCardId.current = /^#player-[a-zA-Z0-9-]+$/.test(window.location.hash) ? window.location.hash.slice(1) : ''
+    setShowAllPlayers(params.get('show') === 'all')
     const nextFlight = params.get('flight')?.trim() as FlightFilter | undefined
     const nextSort = params.get('sort') as SortKey | null
     const nextFilter = params.get('filter') as FilterKey | null
@@ -235,7 +244,7 @@ export default function PlayersPage() {
         ? nextFlight
         : 'all',
     )
-    setBrowseAll(Boolean(nextSearch || (nextFlight && nextFlight !== 'all')))
+    setBrowseAll(params.get('browse') === '1' || Boolean(nextSearch || (nextFlight && nextFlight !== 'all')))
     if (nextSort === 'overall' || nextSort === 'singles' || nextSort === 'doubles' || nextSort === 'name') setSortBy(nextSort)
     if (nextFilter === 'all' || nextFilter === 'with-matches' || nextFilter === 'high-rated' || nextFilter === 'trending-up' || nextFilter === 'at-risk') setFilterBy(nextFilter)
     setDirectoryReady(true)
@@ -247,25 +256,30 @@ export default function PlayersPage() {
     if (sortBy !== 'overall') params.set('sort', sortBy)
     if (filterBy !== 'all') params.set('filter', filterBy)
     if (flightFilter !== 'all') params.set('flight', flightFilter)
+    if (browseAll) params.set('browse', '1')
+    if (showAllPlayers) params.set('show', 'all')
     const query = params.toString()
     return `/explore/players${query ? `?${query}` : ''}`
-  }, [filterBy, flightFilter, search, sortBy])
+  }, [browseAll, filterBy, flightFilter, search, showAllPlayers, sortBy])
 
   useEffect(() => {
     if (!directoryReady) return
-    window.history.replaceState(null, '', exploreResumeHref)
+    window.history.replaceState(null, '', exploreResumeHref + window.location.hash)
   }, [directoryReady, exploreResumeHref])
 
   useEffect(() => {
+    if (!directoryReady || restorePlayerCardId.current) return
     setShowAllPlayers(false)
-  }, [browseAll, filterBy, flightFilter, search, sortBy])
+  }, [browseAll, directoryReady, filterBy, flightFilter, search, sortBy])
 
-  async function loadPlayers() {
+  const loadPlayers = useCallback(async (query: string) => {
+    const requestId = ++playerRequestId.current
     setLoading(true)
     setError('')
 
     try {
-      const typedPlayers = await loadPlayerDirectoryRows()
+      const typedPlayers = await loadPlayerDirectoryRows(query)
+      if (requestId !== playerRequestId.current) return
       const playerIds = typedPlayers.map((player) => player.id)
       const matchCounts = new Map<string, number>()
       const matchEvidenceByPlayer = new Map<string, Array<{ id: string; date: string; result: 'W' | 'L' }>>()
@@ -280,6 +294,7 @@ export default function PlayersPage() {
               player_id,
               match_id,
               matches (
+                public_history_eligible,
                 match_type,
                 winner_side,
                 score,
@@ -299,6 +314,8 @@ export default function PlayersPage() {
           const matchId = String(row.match_id || '')
           if (!matchId) continue
           if (!row.matches?.match_type) continue
+          if (row.matches.public_history_eligible !== true) continue
+          if (!row.matches.match_date || row.matches.match_date.slice(0, 10) > new Date().toISOString().slice(0, 10)) continue
           if (!row.matches?.winner_side && !cleanText(row.matches?.score)) continue
 
           const existing = uniqueMatchesByPlayer.get(playerId) ?? new Set<string>()
@@ -352,6 +369,7 @@ export default function PlayersPage() {
         awardsByPlayerId.set(award.recipientPlayerId, existing)
       }
 
+      if (requestId !== playerRequestId.current) return
       setPlayers(
         typedPlayers.map((player) => {
           const matches = matchCounts.get(player.id) || 0
@@ -388,11 +406,22 @@ export default function PlayersPage() {
         }),
       )
     } catch (err) {
+      if (requestId !== playerRequestId.current) return
       setError(err instanceof Error ? err.message : 'Failed to load players')
     } finally {
-      setLoading(false)
+      if (requestId === playerRequestId.current) setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!directoryReady) return
+    setLoading(true)
+    const timer = window.setTimeout(() => void loadPlayers(search), search.trim() ? 300 : 0)
+    return () => {
+      window.clearTimeout(timer)
+      playerRequestId.current += 1
+    }
+  }, [directoryReady, search, loadPlayers])
 
   const filteredPlayers = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -405,10 +434,10 @@ export default function PlayersPage() {
 
       if (!matchesSearch) return false
 
-      if (filterBy === 'with-matches') return player.matches > 0
-      if (filterBy === 'high-rated') return getRating(player, 'overall') >= 4.0
-      if (filterBy === 'trending-up') return player.overallStatus === 'Trending Up' || player.overallStatus === 'Bump Up Pace'
-      if (filterBy === 'at-risk') return player.overallStatus === 'At Risk' || player.overallStatus === 'Drop Watch'
+      if (filterBy === 'with-matches' && player.matches <= 0) return false
+      if (filterBy === 'high-rated' && getRating(player, 'overall') < 4.0) return false
+      if (filterBy === 'trending-up' && player.overallStatus !== 'Trending Up' && player.overallStatus !== 'Bump Up Pace') return false
+      if (filterBy === 'at-risk' && player.overallStatus !== 'At Risk' && player.overallStatus !== 'Drop Watch') return false
 
       if (flightFilter !== 'all') {
         const base = player.baseOverall
@@ -429,13 +458,22 @@ export default function PlayersPage() {
 
     return next
   }, [filterBy, flightFilter, players, search, sortBy])
-  const hasActiveFilters = search.trim().length > 0 || filterBy !== 'all' || sortBy !== 'overall' || flightFilter !== 'all'
+  const hasDirectoryRefinements = filterBy !== 'all' || sortBy !== 'overall' || flightFilter !== 'all'
+  const directoryFilterLabel = { all: 'All players', 'with-matches': 'With matches', 'high-rated': '4.0+ overall', 'trending-up': 'Trending up', 'at-risk': 'At risk' }[filterBy]
+  const directorySortLabel = { overall: 'Overall', singles: 'Singles', doubles: 'Doubles', name: 'Name' }[sortBy]
+  const hasActiveFilters = search.trim().length > 0 || hasDirectoryRefinements
   const shouldShowPlayerResults = hasActiveFilters || browseAll
   const visiblePlayers = shouldShowPlayerResults
     ? showAllPlayers
       ? filteredPlayers
       : filteredPlayers.slice(0, PLAYER_DEFAULT_CARD_LIMIT)
     : []
+  useEffect(() => {
+    if (loading || !directoryReady || !restorePlayerCardId.current) return
+    const card = document.getElementById(restorePlayerCardId.current)
+    if (card) card.scrollIntoView({ block: 'center' })
+    restorePlayerCardId.current = ''
+  }, [directoryReady, loading, filteredPlayers, showAllPlayers])
   const hasMorePlayers = shouldShowPlayerResults && filteredPlayers.length > visiblePlayers.length
   const playersWithMatches = useMemo(() => players.filter((player) => player.matches > 0).length, [players])
   const trendingPlayers = useMemo(
@@ -664,9 +702,10 @@ export default function PlayersPage() {
                 <div style={sectionKicker}>Player discovery</div>
               <h1 style={controlsLabel}>Find a player.</h1>
             </div>
-            <div style={inlineStatRow}>
-              <StatChip label="Players" value={loading ? 'Refreshing' : String(players.length)} compact={isMobile} />
-              <StatChip label="Shown" value={loading ? 'Starter' : shouldShowPlayerResults ? `${visiblePlayers.length}/${filteredPlayers.length}` : 'Ready'} accent compact={isMobile} />
+            <div role="status" aria-live="polite" style={{ fontSize: 14, color: 'var(--foreground-muted)', lineHeight: 1.5 }}>
+              {loading ? 'Finding players…' : error ? 'Search unavailable — try again below' : shouldShowPlayerResults
+                ? filteredPlayers.length === 0 ? 'No matching players' : `${filteredPlayers.length} matching player${filteredPlayers.length === 1 ? '' : 's'}${players.length === 1000 ? ' in the first 1,000 results — narrow your search' : ''}`
+                : 'Search by name or city'}
             </div>
           </div>
 
@@ -687,11 +726,18 @@ export default function PlayersPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
-              placeholder="Search player name or location..."
+                placeholder="Search player name or location..."
                 style={dynamicSearchInput}
               />
             </div>
 
+            <button type="button" aria-expanded={filtersOpen} aria-controls="player-directory-filters"
+              onClick={() => setFiltersOpen((open) => !open)} style={dynamicClearFilterButton}>
+              {filtersOpen ? 'Hide filters' : 'Filters & sort'}{filterBy !== 'all' || flightFilter !== 'all' || sortBy !== 'overall' ? ' · Active' : ''}
+            </button>
+          </div>
+          <div id="player-directory-filters" hidden={!filtersOpen}>
+          <div style={dynamicControlsRow}>
             <div style={dynamicSelectWrap}>
               <label htmlFor="players-directory-sort" style={srOnlyStyle}>
                 Sort player directory
@@ -806,6 +852,14 @@ export default function PlayersPage() {
               <strong>{loading ? '-' : highRatedPlayers}</strong>
             </button>
           </div>
+          </div>
+          {hasDirectoryRefinements ? (
+            <div role="group" aria-label="Active directory filters" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12, minWidth: 0 }}>
+              {filterBy !== 'all' ? <button type="button" aria-label={`Remove ${directoryFilterLabel} filter`} onClick={() => setFilterBy('all')} style={{ ...dynamicClearFilterButton, minHeight: 44 }}>{directoryFilterLabel} <span aria-hidden="true">×</span></button> : null}
+              {flightFilter !== 'all' ? <button type="button" aria-label={`Remove ${flightFilter} level filter`} onClick={() => setFlightFilter('all')} style={{ ...dynamicClearFilterButton, minHeight: 44 }}>Level {flightFilter} <span aria-hidden="true">×</span></button> : null}
+              {sortBy !== 'overall' ? <button type="button" aria-label={`Reset ${directorySortLabel} sort`} onClick={() => setSortBy('overall')} style={{ ...dynamicClearFilterButton, minHeight: 44 }}>Sort: {directorySortLabel} <span aria-hidden="true">×</span></button> : null}
+            </div>
+          ) : null}
           <div style={dynamicControlsActionRow}>
             <button
               type="button"
@@ -836,20 +890,21 @@ export default function PlayersPage() {
                 }}
                 style={dynamicClearFilterButton}
               >
-                Reset directory filters
+                Reset search
               </button>
             ) : null}
           </div>
         </div>
       </section>
 
+      {!shouldShowPlayerResults ? <PublicPlayerDirectoryContent /> : null}
       {error ? (
       <section style={errorCard}>
           <div style={sectionKicker}>Players</div>
           <h2 style={sectionTitle}>Unable to load players</h2>
           <p style={sectionText}>{error}</p>
           <div style={controlsActionRow}>
-            <button type="button" onClick={() => void loadPlayers()} style={clearFilterButton}>
+            <button type="button" onClick={() => void loadPlayers(search)} style={clearFilterButton}>
               Retry player directory
             </button>
           </div>
@@ -915,9 +970,17 @@ export default function PlayersPage() {
             <div style={sectionKicker}>Directory reset</div>
             <div style={emptyStateTitle}>No players matched the current directory view.</div>
             <p style={emptyStateText}>
-              Public discovery only shows reviewed player context. Try a broader name or location search, reset the filters, or refresh roster and scorecard context through Data Assist.
+              Try a shorter name, another spelling, or a city. Remove a filter to widen your search.
             </p>
             <div style={emptyStateActionRow}>
+              {hasDirectoryRefinements ? (
+                <button type="button" onClick={() => {
+                  setSortBy('overall')
+                  setFilterBy('all')
+                  setFlightFilter('all')
+                  setShowAllPlayers(false)
+                }} style={emptyStateButton}>Clear filters, keep search</button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => {
@@ -930,7 +993,7 @@ export default function PlayersPage() {
                 }}
                 style={emptyStateButton}
               >
-                Reset filters
+                Start a new search
               </button>
               <Link href={DATA_ASSIST_STORY.href} style={secondaryLink}>
                 {DATA_ASSIST_STORY.cta}
@@ -958,6 +1021,7 @@ export default function PlayersPage() {
               return (
                 <article
                   key={player.id}
+                  id={`player-${player.id}`}
                   style={{
                     ...playerCard,
                     ...(isHovered ? playerCardHover : {}),
@@ -975,7 +1039,7 @@ export default function PlayersPage() {
                     <div style={matchCountPill}>{player.matches} matches</div>
                   </div>
 
-                  <Link href={`/players/${player.id}`} style={playerNameLink}>
+                  <Link href={buildDirectoryPlayerHref(player.id, exploreResumeHref, showAllPlayers)} prefetch={false} style={playerNameLink}>
                     {player.name}
                   </Link>
                   {player.awards.length ? (
@@ -991,7 +1055,7 @@ export default function PlayersPage() {
                           <small>{award.sourceType === 'league' ? 'League' : 'Tournament'}</small>
                         </Link>
                       ))}
-                      <Link href={`/players/${player.id}#profile-trophy-case`} style={playerAwardCaseLinkStyle}>
+                      <Link href={`${buildDirectoryPlayerHref(player.id, exploreResumeHref, showAllPlayers)}#profile-trophy-case`} prefetch={false} style={playerAwardCaseLinkStyle}>
                         Trophy case
                       </Link>
                     </div>
@@ -1025,6 +1089,7 @@ export default function PlayersPage() {
                       entityId={player.id}
                       entityName={player.name}
                       subtitle={player.location || ''}
+                      showUnlock={false}
                     />
                   </div>
 
@@ -1100,7 +1165,8 @@ export default function PlayersPage() {
 
                   <div style={playerCardFooter}>
                     <Link
-                      href={`/players/${player.id}`}
+                      href={buildDirectoryPlayerHref(player.id, exploreResumeHref, showAllPlayers)}
+                      prefetch={false}
                       aria-label={`View ${player.name} profile`}
                       style={profileLinkText}
                     >
@@ -1232,30 +1298,6 @@ export default function PlayersPage() {
   )
 }
 
-function StatChip({
-  label,
-  value,
-  accent = false,
-  compact = false,
-}: {
-  label: string
-  value: string
-  accent?: boolean
-  compact?: boolean
-}) {
-  return (
-    <div
-      style={{
-        ...statChip,
-        ...(accent ? statChipAccent : {}),
-        ...(compact ? compactStatChip : {}),
-      }}
-    >
-      <div style={{ ...statChipLabel, ...(compact ? compactStatChipLabel : {}) }}>{label}</div>
-      <div style={{ ...statChipValue, ...(compact ? compactStatChipValue : {}) }}>{value}</div>
-    </div>
-  )
-}
 
 function PlayerDirectoryDetails({
   kicker,
@@ -1454,12 +1496,6 @@ const controlsRow: CSSProperties = {
   minWidth: 0,
 }
 
-const inlineStatRow: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(96px, 1fr))',
-  gap: 10,
-  minWidth: 0,
-}
 
 const searchInputWrap: CSSProperties = {
   position: 'relative',
@@ -1610,48 +1646,12 @@ const browseAllButtonActiveStyle: CSSProperties = {
   color: 'var(--foreground-strong)',
 }
 
-const statChip: CSSProperties = {
-  borderRadius: '18px',
-  padding: '12px 12px 11px',
-  background: 'rgba(8,16,34,0.7)',
-  border: '1px solid rgba(116,190,255,0.13)',
-  minWidth: 0,
-}
 
-const compactStatChip: CSSProperties = {
-  borderRadius: '12px',
-  padding: '8px 9px',
-}
 
-const statChipAccent: CSSProperties = {
-  background: 'color-mix(in srgb, var(--brand-lime) 16%, var(--shell-chip-bg) 84%)',
-  border: '1px solid color-mix(in srgb, var(--brand-lime) 24%, var(--shell-panel-border) 76%)',
-}
 
-const statChipLabel: CSSProperties = {
-  color: 'var(--shell-copy-muted)',
-  fontSize: '12px',
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: 0,
-  marginBottom: '6px',
-}
 
-const compactStatChipLabel: CSSProperties = {
-  fontSize: '10px',
-  marginBottom: '3px',
-}
 
-const statChipValue: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '20px',
-  fontWeight: 900,
-  letterSpacing: 0,
-}
 
-const compactStatChipValue: CSSProperties = {
-  fontSize: '16px',
-}
 
 const errorCard: CSSProperties = {
   position: 'relative',

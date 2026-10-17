@@ -59,6 +59,7 @@ import {
   type TiqLeagueRecord,
 } from '@/lib/tiq-league-registry'
 import { buildScheduleCalendarDays } from '@/lib/tiq-league-schedule-calendar'
+import type { LeagueWeeklyCourt, LeagueWeeklyPlayerStat } from '@/lib/league-weekly-format'
 import {
   buildCompetitionScheduleResponseSummary,
   loadCompetitionScheduleResponses,
@@ -476,6 +477,8 @@ function TiqLeagueDetailContent() {
   const [scheduleNotes, setScheduleNotes] = useState('')
   const [scheduleEditingItemId, setScheduleEditingItemId] = useState('')
   const [scheduleDisplayMode, setScheduleDisplayMode] = useState<ScheduleDisplayMode>('calendar')
+  const [weeklySummary, setWeeklySummary] = useState<WeeklyLeaguePublicSummary | null>(null)
+  const [canManageLeague, setCanManageLeague] = useState(false)
   const { role, userId, entitlements, authResolved, session } = useAuth()
   const resolvedRole = authResolved || !userId ? role : 'member'
   const userEmail = session?.user.email || ''
@@ -702,6 +705,44 @@ function TiqLeagueDetailContent() {
     setScheduleFacility(league.defaultFacility || '')
   }, [league])
 
+  useEffect(() => {
+    if (!league?.weeklySettings.enabled) {
+      setWeeklySummary(null)
+      return
+    }
+    let active = true
+    void fetch(`/api/leagues/${encodeURIComponent(league.id)}/weekly-summary`, { cache: 'no-store' })
+      .then(async (response) => {
+        const payload = await response.json() as WeeklyLeaguePublicSummary & { ok?: boolean }
+        if (!active) return
+        setWeeklySummary(response.ok && payload.ok !== false ? payload : null)
+      })
+      .catch(() => {
+        if (active) setWeeklySummary(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [league])
+
+  useEffect(() => {
+    if (!league || !authResolved || !userId) {
+      setCanManageLeague(false)
+      return
+    }
+    let active = true
+    void Promise.resolve(supabase.rpc('can_manage_tiq_league', { target_league_id: league.id }))
+      .then(({ data }) => {
+        if (active) setCanManageLeague(Boolean(data))
+      })
+      .catch(() => {
+        if (active) setCanManageLeague(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [authResolved, league, userId])
+
   async function handleExpandMatchEvent(eventId: string) {
     if (expandedMatchEventId === eventId) {
       setExpandedMatchEventId(null)
@@ -796,8 +837,8 @@ function TiqLeagueDetailContent() {
   const resultEntryDisabled = resultSaving || !canLogIndividualResults
   const seasonWindowText =
     league?.startsOn || league?.endsOn
-      ? [league.startsOn || 'Start TBD', league.endsOn || 'End TBD'].join(' to ')
-      : 'Season window not set'
+      ? formatLeagueDateRange(league.startsOn, league.endsOn)
+      : 'Season dates to be announced'
   const visibleTeamEntries = useMemo(() => {
     if (!league || league.leagueFormat !== 'team') return []
 
@@ -877,6 +918,9 @@ function TiqLeagueDetailContent() {
       : league?.leagueFormat === 'individual'
         ? visiblePlayerEntries.length
         : 0
+  const isWeeklyLeague = Boolean(league?.leagueFormat === 'individual' && league.weeklySettings.enabled)
+  const weeklyStandings = useMemo(() => weeklySummary?.standings || [], [weeklySummary])
+  const weeklyWeek = weeklySummary?.week || null
   const pendingEntries =
     league?.leagueFormat === 'team'
       ? teamEntries.filter((entry) => entry.entryStatus === 'pending')
@@ -969,6 +1013,11 @@ function TiqLeagueDetailContent() {
       coverageRate: possiblePairs > 0 ? pairKeys.size / possiblePairs : null,
     }
   }, [individualResults, visiblePlayerEntries])
+  const hasLeagueResults = isWeeklyLeague
+    ? weeklyStandings.some((entry) => entry.setsPlayed > 0)
+    : league?.leagueFormat === 'team'
+      ? teamMatchEvents.some((event) => Boolean(event.winnerTeamName))
+      : individualResultBookStats.total > 0
   const suggestedResultKey = `${suggestedResultPlayerA}::${suggestedResultPlayerB}`
   const savedSuggestionByOpportunityKey = useMemo(() => {
     const map = new Map<string, TiqIndividualSuggestionRecord>()
@@ -1254,7 +1303,32 @@ function TiqLeagueDetailContent() {
   const hubNavItems = useMemo<HubNavItem[]>(() => {
     if (!league) return []
 
-    return [
+    if (isWeeklyLeague) {
+      return [
+        {
+          href: '#league-this-week',
+          label: 'This Week',
+          detail: weeklyWeek ? formatLeagueDate(weeklyWeek.playOn, { includeYear: false }) : 'Not open yet',
+        },
+        {
+          href: '#league-standings',
+          label: 'Standings',
+          detail: hasLeagueResults ? `${weeklyStandings.length} players` : 'Begins after play',
+        },
+        {
+          href: '#league-schedule',
+          label: 'Schedule',
+          detail: league.defaultMatchDay || 'Weekly play',
+        },
+        {
+          href: '#league-participants',
+          label: 'Players',
+          detail: `${activeEntryCount} active`,
+        },
+      ]
+    }
+
+    const items: HubNavItem[] = [
       {
         href: '#league-overview',
         label: 'Overview',
@@ -1296,22 +1370,30 @@ function TiqLeagueDetailContent() {
             ? `${teamStandings.length} rows`
             : `${individualStandings.length} rows`,
       },
-      {
-        href: '#league-settings',
-        label: 'Settings',
-        detail: getTiqLeagueSchedulingModeLabel(league.schedulingMode),
-      },
     ]
+    if (canManageLeague) {
+      items.push({
+        href: '#league-settings',
+        label: 'Manage',
+        detail: 'League Office',
+      })
+    }
+    return items
   }, [
     activeEntryCount,
+    canManageLeague,
     competitionOpportunities.length,
+    hasLeagueResults,
     individualResultBookStats.total,
     individualStandings.length,
+    isWeeklyLeague,
     league,
     pendingEntryCount,
     teamMatchEvents.length,
     teamStandings.length,
     visibleScheduleItems.length,
+    weeklyStandings.length,
+    weeklyWeek,
   ])
 
   const teamResultCue = useMemo(() => {
@@ -1352,14 +1434,26 @@ function TiqLeagueDetailContent() {
     league?.leagueFormat === 'team'
       ? buildTeamResultEntryHref(league.id, teamMatchEvents.length > 0 ? 'team-match-review' : 'team-match-entry')
       : '/league-coordinator/results#team-match-entry'
-  const individualLeader = league?.leagueFormat === 'individual' ? individualStandings[0] || null : null
-  const teamLeader = league?.leagueFormat === 'team' ? teamStandings[0] || null : null
-  const leaderName = individualLeader?.playerName || teamLeader?.teamName || ''
+  const individualLeader = league?.leagueFormat === 'individual' && hasLeagueResults ? individualStandings[0] || null : null
+  const teamLeader = league?.leagueFormat === 'team' && hasLeagueResults ? teamStandings[0] || null : null
+  const leaderName = isWeeklyLeague
+    ? weeklyStandings[0]?.playerName || ''
+    : individualLeader?.playerName || teamLeader?.teamName || ''
   const scheduleSubscribeHref = league
     ? `/api/calendar/tiq-league/${encodeURIComponent(league.id)}/calendar.ics`
     : ''
   const leaderRows = useMemo<LeagueLeaderRow[]>(() => {
     if (!league) return []
+
+    if (isWeeklyLeague) {
+      return weeklyStandings.filter((entry) => entry.setsPlayed > 0).slice(0, 5).map((entry, index) => ({
+        rank: index + 1,
+        name: entry.playerName,
+        record: `${entry.setsWon} set${entry.setsWon === 1 ? '' : 's'} won`,
+        detail: `${entry.gamesWon}-${entry.gamesLost} games · ${entry.gameDifferential >= 0 ? '+' : ''}${entry.gameDifferential}`,
+        href: null,
+      }))
+    }
 
     if (league.leagueFormat === 'individual') {
       return individualStandings.slice(0, 5).map((entry) => ({
@@ -1384,7 +1478,7 @@ function TiqLeagueDetailContent() {
           : `${entry.lineWins} line win${entry.lineWins === 1 ? '' : 's'}`,
       href: `/team/${encodeURIComponent(entry.teamName)}?layer=tiq&league=${encodeURIComponent(league.leagueName)}`,
     }))
-  }, [individualStandings, league, teamStandings])
+  }, [individualStandings, isWeeklyLeague, league, teamStandings, weeklyStandings])
   useEffect(() => {
     if (!league || league.leagueFormat !== 'individual') return
     if (!suggestedResultPlayerA || !suggestedResultPlayerB) return
@@ -4398,6 +4492,42 @@ const statusBanner: CSSProperties = {
   fontWeight: 700,
   minWidth: 0,
   overflowWrap: 'anywhere',
+}
+
+type WeeklyLeaguePublicSummary = {
+  week: {
+    playOn: string
+    responseDeadline: string | null
+    status: 'collecting' | 'roster_confirmed' | 'published' | 'completed'
+    rosterCount: number
+    assignments: LeagueWeeklyCourt[]
+    completedSets: number
+    totalSets: number
+    recap: { headline: string; summary: string; stories: string[] } | null
+  } | null
+  standings: LeagueWeeklyPlayerStat[]
+}
+
+function formatLeagueDate(value: string | null | undefined, options?: { includeYear?: boolean }) {
+  if (!value) return 'Date to be announced'
+  const parsed = new Date(`${value.slice(0, 10)}T12:00:00`)
+  if (Number.isNaN(parsed.getTime())) return value
+  return parsed.toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: options?.includeYear === false ? undefined : 'numeric',
+  })
+}
+
+function formatLeagueDateRange(startsOn: string, endsOn: string) {
+  if (!startsOn && !endsOn) return 'Season dates to be announced'
+  if (!startsOn || !endsOn) return formatLeagueDate(startsOn || endsOn, { includeYear: true })
+  const start = new Date(`${startsOn}T12:00:00`)
+  const end = new Date(`${endsOn}T12:00:00`)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return `${startsOn} – ${endsOn}`
+  const sameYear = start.getFullYear() === end.getFullYear()
+  return `${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: sameYear ? undefined : 'numeric' })}–${end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
 }
 
 const teamEntryPathStyle: CSSProperties = {

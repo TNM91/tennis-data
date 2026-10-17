@@ -31,8 +31,8 @@ describe('premium player profile', () => {
   })
 
   it('puts public performance evidence in the first profile screen without exposing Player Focus', () => {
-    expect(source).toContain('aria-label="Public player performance at a glance"')
-    expect(source).toContain('className={profileStory.publicEvidenceRail}')
+    expect(source).toContain('aria-label="Player at a glance"')
+    expect(source).toContain('className={profileStory.profileGlanceStrip}')
     expect(source).toContain('{hasPersonalPlayerExperience ? (')
     expect(source).toContain('id="profile-player-id"')
   })

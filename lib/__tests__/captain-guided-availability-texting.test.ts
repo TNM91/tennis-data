@@ -12,7 +12,7 @@ describe('Captain guided availability texting', () => {
     expect(source).toContain('Text next: {nextPotentialTextTarget.playerName.split(\' \')[0]}')
     expect(source).toContain('TiQ keeps your place and replies appear here automatically.')
     expect(source).toContain('{!availabilityHandoff && !liveAvailabilityRequest?.request ? (')
-    expect(source).toContain('<GhostLink href="/captain/lineup-builder">Edit lineup</GhostLink>')
+    expect(source).toContain('<GhostLink href={scopedLineupBuilderHref}>Edit lineup</GhostLink>')
   })
 
   it('puts players needing captain attention ahead of completed replies', () => {

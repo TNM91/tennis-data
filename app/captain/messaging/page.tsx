@@ -439,13 +439,14 @@ function eventDefaultMessage(kind: MessageKind, params: {
   location: string
   arrivalTime: string
   lineupText: string
+  matchTime?: string | null
 }) {
-  const { teamName, opponent, dateText, location, arrivalTime, lineupText } = params
+  const { teamName, opponent, dateText, location, arrivalTime, lineupText, matchTime } = params
   if (kind === 'availability') {
     return `Hey ${teamName || 'team'} - please reply YES, NO, or MAYBE for ${dateText}. I am locking the lineup soon.`
   }
   if (kind === 'lineup') {
-    return `Lineup is set for ${dateText} vs ${opponent || 'the opponent'}:\n${lineupText || 'Line assignments are being finalized.'}\nPlease arrive by ${arrivalTime || 'match time'}.`
+    return [`Lineup is set for ${dateText} vs ${opponent || 'the opponent'}:`, lineupText || 'Line assignments are being finalized.', matchTime ? `Match time: ${matchTime}.` : '', location ? `Location: ${location}` : '', `Please arrive by ${arrivalTime || 'match time'}.`].filter(Boolean).join('\n')
   }
   if (kind === 'directions') {
     return `Match details for ${dateText}: ${location || 'facility details coming shortly.'} Please plan to arrive by ${arrivalTime || 'match time'}. Reply if you have any issues getting there.`
@@ -675,6 +676,7 @@ function CaptainMessagingContent() {
   const [prefillFlowSource] = useState(initialContext.flowSource)
   const [availabilityHandoff] = useState<CaptainLineupHandoff | null>(initialContext.handoff)
   const [liveAvailabilityRequest, setLiveAvailabilityRequest] = useState<LiveAvailabilityRequest | null>(null)
+  const liveAvailabilityRequestIdRef = useRef(0)
   const [liveResponsesLoading, setLiveResponsesLoading] = useState(false)
   const [lastResponseRefreshAt, setLastResponseRefreshAt] = useState<Date | null>(null)
   const [prefillApplied, setPrefillApplied] = useState(false)
@@ -700,6 +702,8 @@ function CaptainMessagingContent() {
   const [messageKind, setMessageKind] = useState<MessageKind>('availability')
   const [messageTitle, setMessageTitle] = useState('Availability Check')
   const [messageBody, setMessageBody] = useState('')
+  const generatedMessageBodyRef = useRef('')
+  const matchMessageDraftsRef = useRef(new Map<string, { body: string; kind: MessageKind }>())
   const [connectedWeekChallenge, setConnectedWeekChallenge] = useState<CaptainWeekChallenge | null>(null)
   const [completedWeekChallenge, setCompletedWeekChallenge] = useState<CaptainWeekChallenge | null>(null)
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
@@ -1201,10 +1205,11 @@ function CaptainMessagingContent() {
 
   const selectedScenario = scenarioOptions.find((scenario) => scenario.id === selectedScenarioId) ?? null
   const availabilityScenarioId = selectedScenario?.id || availabilityHandoff?.scenario.id || ''
-  const availabilityTeamName = selectedScenario?.team_name || availabilityHandoff?.scenario.team_name || inferredTeamName
-  const availabilityMatchDate = selectedScenario?.match_date || availabilityHandoff?.match.date || selectedMatch?.match_date || preferredEventDate
+  const availabilityTeamName = matchWeekScope.team || selectedScenario?.team_name || availabilityHandoff?.scenario.team_name || inferredTeamName
+  const availabilityMatchDate = matchWeekScope.date || selectedScenario?.match_date || availabilityHandoff?.match.date || selectedMatch?.match_date || preferredEventDate
 
   const loadLiveAvailabilityRequest = useCallback(async (showLoading = false) => {
+    const requestId = ++liveAvailabilityRequestIdRef.current
     if (!requestedAvailabilityRequestId && !availabilityScenarioId && (!availabilityTeamName || !availabilityMatchDate)) return
     if (showLoading) setLiveResponsesLoading(true)
     try {
@@ -1213,7 +1218,7 @@ function CaptainMessagingContent() {
       if (!accessToken) return
       const params = new URLSearchParams()
       if (requestedAvailabilityRequestId) params.set('requestId', requestedAvailabilityRequestId)
-      else if (availabilityScenarioId) params.set('scenarioId', availabilityScenarioId)
+      else if (availabilityScenarioId && (!availabilityTeamName || !availabilityMatchDate)) params.set('scenarioId', availabilityScenarioId)
       if (availabilityTeamName) params.set('teamName', availabilityTeamName)
       if (availabilityMatchDate) params.set('matchDate', availabilityMatchDate)
       const response = await fetch(`/api/captain/availability-requests?${params.toString()}`, {
@@ -1221,15 +1226,16 @@ function CaptainMessagingContent() {
         cache: 'no-store',
       })
       const result = await response.json() as LiveAvailabilityRequest & { message?: string }
+      if (requestId !== liveAvailabilityRequestIdRef.current) return
       if (!response.ok) throw new Error(result.message || 'Availability responses could not be refreshed.')
       setLiveAvailabilityRequest(result)
       setLastResponseRefreshAt(new Date())
     } catch (nextError) {
-      if (showLoading) {
+      if (showLoading && requestId === liveAvailabilityRequestIdRef.current) {
         setError(nextError instanceof Error ? nextError.message : 'Availability responses could not be refreshed.')
       }
     } finally {
-      if (showLoading) setLiveResponsesLoading(false)
+      if (showLoading && requestId === liveAvailabilityRequestIdRef.current) setLiveResponsesLoading(false)
     }
   }, [availabilityMatchDate, availabilityScenarioId, availabilityTeamName, requestedAvailabilityRequestId])
 
@@ -1334,21 +1340,50 @@ function CaptainMessagingContent() {
       'follow-up': 'Follow-Up Reminder',
     }
     setMessageTitle(nextTitleMap[messageKind])
-    setMessageBody((current) => {
-      if (selectedTemplateId) return current
-      return appendCaptainWeekChallengeToMessage(eventDefaultMessage(messageKind, {
+    if (selectedTemplateId) return
+    const previousGenerated = generatedMessageBodyRef.current
+    const generated = appendCaptainWeekChallengeToMessage(eventDefaultMessage(messageKind, {
         teamName: inferredTeamName,
         opponent: inferredOpponent,
         dateText: formatDate(selectedMatch.match_date),
-        location: eventLocation,
+        location: eventLocation || selectedMatch.facility || '',
+        matchTime: selectedMatch.match_time,
         arrivalTime: eventArrivalTime,
         lineupText: lineupTextForMessage,
       }), currentMessagingChallenge?.challenge ?? null)
-    })
+    generatedMessageBodyRef.current = generated
+    setMessageBody((current) => current.trim() && current !== previousGenerated ? current : generated)
   }, [availabilityHandoff, currentMessagingChallenge, messageKind, selectedMatch, inferredTeamName, inferredOpponent, lineupTextForMessage, eventLocation, eventArrivalTime, selectedTemplateId])
 
-  const availabilityMap = useMemo(() => new Map(availabilityRows.map((row) => [row.contact_id, row])), [availabilityRows])
-  const responseMap = useMemo(() => new Map(responseRows.map((row) => [row.contact_id, row])), [responseRows])
+  const liveResponseByPlayer = useMemo(() => {
+    const request = liveAvailabilityRequest?.request
+    if (!request || request.teamName !== availabilityTeamName || request.matchDate !== availabilityMatchDate) return new Map<string, LiveAvailabilityRequest['responses'][number]>()
+    return new Map((liveAvailabilityRequest?.responses ?? [])
+      .filter((response) => response.match_date === availabilityMatchDate)
+      .map((response) => [response.player_name.trim().toLowerCase(), response]))
+  }, [availabilityMatchDate, availabilityTeamName, liveAvailabilityRequest])
+  const availabilityMap = useMemo(() => {
+    const map = new Map(availabilityRows.map((row) => [row.contact_id, row]))
+    for (const contact of scopedContacts) {
+      const reply = liveResponseByPlayer.get(contact.full_name.trim().toLowerCase())
+      if (!reply) continue
+      map.set(contact.id, { id: `live:${contact.id}`, event_key: eventKey, contact_id: contact.id,
+        status: reply.status === 'maybe' ? 'tentative' : reply.status,
+        note: reply.notes || '', updated_at: reply.responded_at || '' })
+    }
+    return map
+  }, [availabilityRows, scopedContacts, liveResponseByPlayer, eventKey])
+  const responseMap = useMemo(() => {
+    const map = new Map(responseRows.map((row) => [row.contact_id, row]))
+    for (const contact of scopedContacts) {
+      const reply = liveResponseByPlayer.get(contact.full_name.trim().toLowerCase())
+      if (!reply || ['need-sub', 'running-late'].includes(map.get(contact.id)?.status || '')) continue
+      map.set(contact.id, { id: `live:${contact.id}`, event_key: eventKey, contact_id: contact.id,
+        status: reply.status === 'available' ? 'confirmed' : reply.status === 'unavailable' ? 'declined' : 'viewed',
+        note: reply.notes || '', updated_at: reply.responded_at || '' })
+    }
+    return map
+  }, [responseRows, scopedContacts, liveResponseByPlayer, eventKey])
   const lineupPlayerSet = useMemo(() => new Set(lineupRows.flatMap((row) => row.players.map((player) => player.toLowerCase()))), [lineupRows])
 
   const selectedRecipients = useMemo(() => {
@@ -1390,13 +1425,16 @@ function CaptainMessagingContent() {
 
   const recipientsPhones = useMemo(() => selectedRecipients.map((recipient) => recipient.phone).filter(Boolean), [selectedRecipients])
   const smsHref = buildSmsHref(recipientsPhones, messageBody)
+  const canOpenMessageTexts = captainAccess && !loading && selectedRecipients.length > 0 && messageBody.trim().length > 0
   const potentialLineupNames = useMemo(
     () => {
+      const currentPlayers = lineupRows.flatMap((row) => row.players).filter((name) => name.trim())
+      if (currentPlayers.length) return [...new Map(currentPlayers.map((name) => [name.trim().toLowerCase(), name])).values()]
       const invited = liveAvailabilityRequest?.request?.invitedPlayers ?? []
       if (invited.length) return invited.map((player) => player.playerName)
       return availabilityHandoff ? extractPotentialLineupPlayers(availabilityHandoff.scenario.slots_json) : []
     },
-    [availabilityHandoff, liveAvailabilityRequest]
+    [availabilityHandoff, liveAvailabilityRequest, lineupRows]
   )
   const potentialLineupContacts = useMemo(() => {
     const names = new Set(potentialLineupNames.map((name) => name.toLowerCase()))
@@ -1410,14 +1448,6 @@ function CaptainMessagingContent() {
     )
     return potentialLineupNames.filter((name) => !readyNames.has(name.trim().toLowerCase()))
   }, [potentialLineupContacts, potentialLineupNames])
-  const liveResponseByPlayer = useMemo(() => {
-    const matchDate = liveAvailabilityRequest?.request?.matchDate || availabilityMatchDate
-    return new Map(
-      (liveAvailabilityRequest?.responses ?? [])
-        .filter((response) => !matchDate || response.match_date === matchDate)
-        .map((response) => [response.player_name.trim().toLowerCase(), response])
-    )
-  }, [availabilityMatchDate, liveAvailabilityRequest])
   const privateInviteByPlayer = useMemo(() => {
     const invites = liveAvailabilityRequest?.invites.length
       ? liveAvailabilityRequest.invites
@@ -1511,6 +1541,8 @@ function CaptainMessagingContent() {
     })
     return { yes, maybe, no, waiting: Math.max(0, potentialLineupNames.length - yes - maybe - no) }
   }, [liveResponseByPlayer, potentialLineupNames])
+  const allLineupRepliesReceived = potentialLineupNames.length > 0 && liveResponseCounts.waiting === 0
+  const allLineupPlayersIn = allLineupRepliesReceived && liveResponseCounts.yes === potentialLineupNames.length
 
   const recipientIntelligence = useMemo(() => {
     const base = scopedContacts.filter((contact) => contact.phone && contact.opt_in_text)
@@ -1886,7 +1918,7 @@ function CaptainMessagingContent() {
 
   const finalizationReadiness = useMemo(() => {
     const lineupComplete = lineupRows.length > 0 && lineupRows.every((row) =>
-      row.players.every((player) => normalizeText(player))
+      row.players.length > 0 && row.players.every((player) => normalizeText(player))
     )
     const clearAvailability = availabilitySummary.noResponseCount === 0 && availabilitySummary.tentativeCount === 0
     const responseStable =
@@ -1904,6 +1936,21 @@ function CaptainMessagingContent() {
       label: ready ? 'Ready to send' : 'Needs captain attention',
     }
   }, [lineupRows, availabilitySummary, responseSummary])
+  const confirmedLineupContacts = scopedContacts.filter((contact) =>
+    lineupPlayerSet.has(contact.full_name.toLowerCase())
+    && availabilityMap.get(contact.id)?.status === 'available'
+    && !['declined', 'need-sub', 'running-late'].includes(responseMap.get(contact.id)?.status ?? '')
+  )
+  const confirmedLineupNames = new Set([...lineupPlayerSet].filter((name) => {
+    const liveReply = liveResponseByPlayer.get(name.trim().toLowerCase())
+    const contact = scopedContacts.find((person) => person.full_name.trim().toLowerCase() === name.trim().toLowerCase())
+    const risk = contact ? responseMap.get(contact.id)?.status : undefined
+    if (['declined', 'need-sub', 'running-late'].includes(risk || '')) return false
+    return liveReply ? liveReply.status === 'available' : confirmedLineupContacts.some((person) => person.full_name.toLowerCase() === name)
+  }))
+  const lineupPlayersConfirmed = finalizationReadiness.lineupComplete
+    && lineupPlayerSet.size > 0
+    && confirmedLineupNames.size === lineupPlayerSet.size
   const mobileSendPulse = [
     {
       label: 'Lineup',
@@ -2414,14 +2461,16 @@ function buildWinningLineupMessage() {
   const eventDateText = selectedMatch ? formatDate(selectedMatch.match_date) : scenarioDateText
   const opponentText = inferredOpponent || selectedScenario.opponent_team || 'the opponent'
   const eventDate = selectedMatch?.match_date || selectedScenario.match_date || ''
+  const lineupLocation = eventLocation || selectedMatch?.facility || ''
+  const lineupStartTime = selectedMatch?.match_time || ''
   const calendarHref = buildMatchWeekGoogleCalendarHref({
     eventDate,
-    eventTime: eventArrivalTime,
+    eventTime: eventArrivalTime || lineupStartTime,
     opponent: opponentText,
-    location: eventLocation,
+    location: lineupLocation,
     details: `Final lineup for ${teamFilter || selectedScenario.team_name || 'your TiQ team'}.`,
   })
-  const mapsHref = buildMatchWeekMapsHref(eventLocation)
+  const mapsHref = buildMatchWeekMapsHref(lineupLocation)
   const phoneCalendarHref = buildMatchWeekPhoneCalendarHref(
     liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl || ''
   )
@@ -2429,8 +2478,9 @@ function buildWinningLineupMessage() {
   return withWeekChallenge([
     `Lineup is set for ${eventDateText} vs ${opponentText}:`,
     lineupText,
+    lineupStartTime ? `Match time: ${lineupStartTime}.` : '',
     `Arrive by ${eventArrivalTime || 'match time'}.`,
-    eventLocation ? `Location: ${eventLocation}` : '',
+    lineupLocation ? `Location: ${lineupLocation}` : '',
     calendarHref ? `Add to Google Calendar: ${calendarHref}` : '',
     phoneCalendarHref ? `Add calendar reminder: ${phoneCalendarHref}` : '',
     mapsHref ? `Open directions: ${mapsHref}` : '',
@@ -2721,7 +2771,11 @@ function importScenarioToLineup() {
   return (
     <section style={pageContentStyle}>
          {!isMobile ? <CaptainSuitePanel active="messaging" teamLabel={teamFilter || 'Team week'} /> : null}
-         <CaptainMatchWeekRail current="messaging" scope={matchWeekScope} />
+         <CaptainMatchWeekRail current="messaging" scope={matchWeekScope} progress={{
+           lineup: { complete: finalizationReadiness.lineupComplete, label: finalizationReadiness.lineupComplete ? 'Courts filled' : 'Review courts' },
+           availability: { complete: lineupPlayersConfirmed, label: `${confirmedLineupNames.size}/${lineupPlayerSet.size} confirmed` },
+           messaging: { complete: false, label: 'Send in texts' },
+         }} />
          {displayedMessagingChallenge ? (
           <section
             style={weekChallengeStripStyle}
@@ -2753,6 +2807,7 @@ function importScenarioToLineup() {
             </div>
           </section>
          ) : null}
+         <div style={{ display: 'contents' }}>
          {!availabilityHandoff && !liveAvailabilityRequest?.request ? (
           <section style={messageControlShellResponsive(isTablet, isMobile)} aria-label="Messaging controls">
             <div>
@@ -2833,9 +2888,11 @@ function importScenarioToLineup() {
             <div style={tableHeaderStyle}>
               <div>
                 <p style={sectionKicker}>Availability</p>
-                <h2 id="potential-lineup-confirm-title" style={sectionTitle}>Who can play?</h2>
+                <h2 id="potential-lineup-confirm-title" style={sectionTitle}>{allLineupPlayersIn ? 'Lineup confirmed' : allLineupRepliesReceived ? 'Review player replies' : 'Who can play?'}</h2>
                 <p style={mutedTextStyle}>
-                  Open each private text in order. TiQ keeps your place and replies appear here automatically.
+                  {allLineupPlayersIn ? 'Every selected player is in. Review your message before sharing the lineup.'
+                    : allLineupRepliesReceived ? 'All selected players have replied. Resolve Out and Maybe replies before sharing the lineup.'
+                      : 'Open each private text in order. TiQ keeps your place and replies appear here automatically.'}
                 </p>
               </div>
               <button
@@ -2848,7 +2905,25 @@ function importScenarioToLineup() {
               </button>
             </div>
 
-            <div style={potentialTextQueueStyle}>
+            {allLineupRepliesReceived ? (
+              <div style={potentialTextQueueStyle}>
+                <div style={potentialTextQueueCopyStyle}>
+                  <span style={sectionKicker}>{allLineupPlayersIn ? 'Players confirmed' : 'Needs a decision'}</span>
+                  <strong style={potentialTextQueueTitleStyle}>{allLineupPlayersIn
+                    ? `${liveResponseCounts.yes}/${potentialLineupNames.length} players are in`
+                    : [liveResponseCounts.no ? `${liveResponseCounts.no} out` : '', liveResponseCounts.maybe ? `${liveResponseCounts.maybe} maybe` : ''].filter(Boolean).join(' · ')}</strong>
+                </div>
+                {allLineupPlayersIn && messageKind !== 'lineup' ? (
+                  <button type="button" style={primaryButtonBlock} onClick={() => {
+                    setRecipientMode('lineup-only')
+                    applyWinningLineupToComposer()
+                    document.getElementById('captain-message-composer')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }}>Use confirmed lineup</button>
+                ) : <a href={allLineupPlayersIn ? '#captain-message-composer' : scopedLineupBuilderHref} style={primaryButtonBlock}>
+                  {allLineupPlayersIn ? 'Review message' : 'Review lineup'}
+                </a>}
+              </div>
+            ) : <div style={potentialTextQueueStyle}>
               <div style={potentialTextQueueCopyStyle}>
                 <span style={sectionKicker}>Send availability</span>
                 <strong style={potentialTextQueueTitleStyle}>
@@ -2885,7 +2960,7 @@ function importScenarioToLineup() {
                     : liveResponseCounts.waiting > 0 ? 'Texts opened' : 'Replies complete'}
                 </span>
               )}
-            </div>
+            </div>}
 
             <div style={availabilityCountGridStyle} aria-label="Availability response summary">
               <span style={availabilityCountStyle('#61c47c')}><strong>{liveResponseCounts.yes}</strong> Yes</span>
@@ -3006,7 +3081,7 @@ function importScenarioToLineup() {
             ) : null}
 
             <div style={actionRowStyle}>
-              <GhostLink href="/captain/lineup-builder">Edit lineup</GhostLink>
+              <GhostLink href={scopedLineupBuilderHref}>Edit lineup</GhostLink>
               <GhostLink href="#captain-message-composer">Edit message</GhostLink>
               {liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl ? (
                 <GhostLink href={liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl || '#'}>Open shared response page</GhostLink>
@@ -3019,6 +3094,188 @@ function importScenarioToLineup() {
           </section>
         ) : null}
 
+              {error ? (
+                <section style={surfaceCard}>
+                  <p role="alert" style={errorTextStyle}>{error}</p>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
+                    <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)}>Retry load</GhostSmallBtn>
+                  </div>
+                </section>
+              ) : null}
+                  {loading ? <p role="status" style={mutedTextStyle}>Loading match and contacts…</p> : null}
+                  <section id="captain-message-composer" style={surfaceCard}>
+                    <div style={tableHeaderStyle}>
+                      <div>
+                        <p style={sectionKicker}>Composer</p>
+                        <h3 style={sectionTitleSmall}>Review and send</h3>
+                      </div>
+                      <span style={miniPillSlate}>{selectedRecipients.length} recipients</span>
+                    </div>
+
+                    <p id="captain-messaging-composer-helper" style={sectionBodyTextStyle}>
+                      Check the players, match, and message before opening your texting app.
+                    </p>
+
+                    <div style={composerPreviewStyle}>
+                      <div style={composerPreviewTopStyle}>
+                        <div>
+                          <div style={composerPreviewLabelStyle}>Ready preview</div>
+                          <div style={composerPreviewTitleStyle}>{messageTitle || 'Untitled message'}</div>
+                        </div>
+                        <span style={messageBody.trim() && selectedRecipients.length ? miniPillGreen : warnPill}>
+                          {messageBody.trim() && selectedRecipients.length ? 'Ready to review' : 'Needs setup'}
+                        </span>
+                      </div>
+
+                      <div style={{ ...composerPreviewGridStyle, ...(isMobile ? { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' } : {}) }}>
+                        <div style={composerPreviewMetricStyle}>
+                          <span style={composerPreviewMetricLabelStyle}>Audience</span>
+                          <strong>{selectedRecipients.length}</strong>
+                          <small>{recipientMode.replace('-', ' ')}</small>
+                        </div>
+                        <div style={composerPreviewMetricStyle}>
+                          <span style={composerPreviewMetricLabelStyle}>Message</span>
+                          <strong>{messageKind.replace('-', ' ')}</strong>
+                          <small>{messageBody.trim() ? `${messageBody.trim().length} chars` : 'empty'}</small>
+                        </div>
+                        <div style={{ ...composerPreviewMetricStyle, ...(isMobile ? { gridColumn: '1 / -1' } : {}) }}>
+                          <span style={composerPreviewMetricLabelStyle}>Match</span>
+                          <strong>{selectedMatch ? formatDate(selectedMatch.match_date) : 'Not set'}</strong>
+                          <small>{inferredOpponent || 'opponent pending'}</small>
+                        </div>
+                      </div>
+
+                      {selectedRecipients.length > 0 ? (
+                        <details style={{ marginTop: 12 }}>
+                          <summary style={{ ...detailsSummaryStyle, minHeight: 44 }}>View {selectedRecipients.length} recipients</summary>
+                          <ul aria-label="Message recipients" style={{ margin: '8px 0 0', paddingLeft: 20, lineHeight: 1.7 }}>
+                            {selectedRecipients.map((recipient) => <li key={recipient.id}>{recipient.full_name}</li>)}
+                          </ul>
+                        </details>
+                      ) : null}
+
+                      <div style={composerBodyPreviewStyle}>
+                        {messageBody.trim() || 'Load a message from the playbook above.'}
+                      </div>
+                    </div>
+
+                    <div style={filtersGridStyle}>
+                      <Field
+                        label="Message type"
+                        htmlFor="message-kind"
+                        hint="Start with the communication goal, then tailor the audience and body."
+                      >
+                        <select id="message-kind" aria-describedby="captain-messaging-composer-helper" value={messageKind} onChange={(e) => setMessageKind(e.target.value as MessageKind)} style={inputStyle}>
+                          <option value="availability">Availability check</option>
+                          <option value="lineup">Lineup announcement</option>
+                          <option value="directions">Directions + details</option>
+                          <option value="reminder">Match reminder</option>
+                          <option value="follow-up">Follow-up</option>
+                        </select>
+                      </Field>
+                      <Field
+                        label="Recipient mode"
+                        htmlFor="recipient-mode"
+                        hint="Choose the broadest useful audience first, then narrow it only if needed."
+                      >
+                        <select id="recipient-mode" aria-describedby="captain-messaging-composer-helper" value={recipientMode} onChange={(e) => setRecipientMode(e.target.value as RecipientMode)} style={inputStyle}>
+                          <option value="all-opted-in">All opted-in</option>
+                          <option value="captains">Captains only</option>
+                          <option value="active-only">Active only</option>
+                          <option value="available-only">Available only</option>
+                          <option value="lineup-only">Lineup only</option>
+                          <option value="non-responders">Non-responders only</option>
+                          <option value="custom">Custom</option>
+                        </select>
+                      </Field>
+
+                      <Field
+                        label="Message title"
+                        htmlFor="message-title"
+                        hint="Use a short private label so you can find or save this message later."
+                      >
+                        <input id="message-title" aria-describedby="captain-messaging-composer-helper" value={messageTitle} onChange={(e) => setMessageTitle(e.target.value)} style={inputStyle} />
+                      </Field>
+                    </div>
+
+                    {recipientMode === 'custom' ? (
+                      <div style={recipientChooserStyle} role="group" aria-label="Custom recipient list" aria-describedby="captain-messaging-recipient-helper">
+                        <p id="captain-messaging-recipient-helper" style={fieldHintStyle}>
+                          {scopedContacts.filter((c) => c.phone && c.opt_in_text).length > 0
+                            ? 'Only opted-in contacts with a saved phone number are shown here.'
+                            : 'No opted-in contacts with phone numbers are available in the current scope yet.'}
+                        </p>
+                        {scopedContacts.filter((c) => c.phone && c.opt_in_text).map((contact) => (
+                          <label key={contact.id} style={checkboxRowStyle}>
+                            <input
+                              type="checkbox"
+                              checked={selectedRecipientIds.includes(contact.id)}
+                              onChange={(e) => {
+                                setSelectedRecipientIds((current) =>
+                                  e.target.checked ? [...current, contact.id] : current.filter((id) => id !== contact.id)
+                                )
+                              }}
+                            />
+                            <span>{contact.full_name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ) : null}
+
+                    <Field
+                      label="Message body"
+                      htmlFor="message-body"
+                      hint="Keep it skimmable: key ask first, details second, deadlines or arrival notes last."
+                    >
+                      <textarea id="message-body" aria-describedby="captain-messaging-composer-helper" value={messageBody} onChange={(e) => setMessageBody(e.target.value)} style={textareaStyleLarge} />
+                    </Field>
+
+                    <div style={pillRowStyle}>
+                      <span style={miniPillSlate}>
+                        {selectedRecipients.length
+                          ? `${selectedRecipients.slice(0, 4).map((r) => r.full_name).join(', ')}${selectedRecipients.length > 4 ? ` +${selectedRecipients.length - 4} more` : ''}`
+                          : 'No recipients selected'}
+                      </span>
+                    </div>
+
+                    <div style={actionRowStyle}>
+                      <a href={canOpenMessageTexts ? smsHref : undefined} aria-disabled={!canOpenMessageTexts} style={{ ...primaryButton, ...(!canOpenMessageTexts ? disabledButtonStyle : {}) }} onClick={(event) => { if (!canOpenMessageTexts) { event.preventDefault(); return } if (setupTeamLinkRequested) markCaptainLaunchOutreachStarted({ team: teamFilter, league: leagueFilter, flight: flightFilter }); prepareSmsBodyForNativeComposer(messageBody) }}>Open texts</a>
+                      <GhostSmallBtn onClick={copyBody}>{copiedState === 'body' ? 'Copied body' : 'Copy body'}</GhostSmallBtn>
+                      <GhostSmallBtn onClick={copyNumbers}>{copiedState === 'numbers' ? 'Copied numbers' : 'Copy numbers'}</GhostSmallBtn>
+                    </div>
+
+                    <p style={fieldHintStyle}>Your texting app opens with this draft. Review it and send it there.</p>
+                  </section>
+
+        <details open={!isMobile || contactManagerRequested || undefined} style={surfaceCard}>
+          <summary style={{ ...detailsSummaryStyle, minHeight: 44 }}>More tools · messages, team setup, and contacts</summary>
+<div style={surfaceCard}>
+                      <Field
+                        label="Saved template"
+                        htmlFor="saved-template"
+                        hint="Loading a template will replace the current title and body."
+                      >
+                        <select
+                          id="saved-template"
+                          aria-describedby="captain-messaging-composer-helper"
+                          value={selectedTemplateId}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            setSelectedTemplateId(value)
+                            const template = scopedTemplates.find((item) => item.id === value)
+                            if (template) {
+                              setMessageTitle(template.template_name)
+                              setMessageBody(withWeekChallenge(template.message_body))
+                            }
+                          }}
+                          style={inputStyle}
+                        >
+                          <option value="">None</option>
+                          {scopedTemplates.map((template) => <option key={template.id} value={template.id}>{template.template_name}</option>)}
+                        </select>
+                      </Field>
+<GhostSmallBtn onClick={() => void handleSaveTemplate()} disabled={!captainAccess}>Save current message as template</GhostSmallBtn>
+</div>
         <section style={messagePlaybookSurfaceStyle}>
           <div style={tableHeaderStyle}>
             <div>
@@ -3173,7 +3430,15 @@ function importScenarioToLineup() {
                 </select>
               </Field>
               <Field label="Upcoming match" htmlFor="captain-messaging-match">
-                <select id="captain-messaging-match" value={eventMatchId} onChange={(e) => setEventMatchId(e.target.value)} style={inputStyle}>
+                <select id="captain-messaging-match" value={eventMatchId} onChange={(e) => {
+                  matchMessageDraftsRef.current.set(eventMatchId, { body: messageBody, kind: messageKind })
+                  const draft = matchMessageDraftsRef.current.get(e.target.value)
+                  generatedMessageBodyRef.current = ''
+                  setSelectedTemplateId('')
+                  setMessageKind(draft?.kind || 'availability')
+                  setMessageBody(draft?.body || '')
+                  setEventMatchId(e.target.value)
+                }} style={inputStyle}>
                   <option value="">Select match</option>
                   {filteredMatches.map((match) => (
                     <option key={match.id} value={match.id}>
@@ -3197,14 +3462,7 @@ function importScenarioToLineup() {
             <section style={surfaceCard}><p style={mutedTextStyle}>Preparing Team Hub...</p></section>
           ) : (
             <>
-              {error ? (
-                <section style={surfaceCard}>
-                  <p role="alert" style={errorTextStyle}>{error}</p>
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 12 }}>
-                    <GhostSmallBtn onClick={() => setRefreshTick((current) => current + 1)}>Retry load</GhostSmallBtn>
-                  </div>
-                </section>
-              ) : null}
+
 
               <section style={twoColumnGridResponsive(isTablet)}>
                 <section style={surfaceCard}>
@@ -3614,7 +3872,7 @@ function importScenarioToLineup() {
                     </div>
                   </section>
 
-                  <section id="captain-message-composer" style={surfaceCard}>
+                  <section style={surfaceCard}>
                     <div style={tableHeaderStyle}>
                       <div>
                         <p style={sectionKicker}>Smart follow-ups</p>
@@ -4346,162 +4604,7 @@ function importScenarioToLineup() {
                     </>
                   ) : null}
 
-                  <section style={surfaceCard}>
-                    <div style={tableHeaderStyle}>
-                      <div>
-                        <p style={sectionKicker}>Composer</p>
-                        <h3 style={sectionTitleSmall}>Review and send</h3>
-                      </div>
-                      <span style={miniPillSlate}>{selectedRecipients.length} recipients</span>
-                    </div>
 
-                    <p id="captain-messaging-composer-helper" style={sectionBodyTextStyle}>
-                      The playbook loads the draft. Use this area for the final check before opening texts.
-                    </p>
-
-                    <div style={composerPreviewStyle}>
-                      <div style={composerPreviewTopStyle}>
-                        <div>
-                          <div style={composerPreviewLabelStyle}>Ready preview</div>
-                          <div style={composerPreviewTitleStyle}>{messageTitle || 'Untitled message'}</div>
-                        </div>
-                        <span style={messageBody.trim() && selectedRecipients.length ? miniPillGreen : warnPill}>
-                          {messageBody.trim() && selectedRecipients.length ? 'Ready to review' : 'Needs setup'}
-                        </span>
-                      </div>
-
-                      <div style={composerPreviewGridStyle}>
-                        <div style={composerPreviewMetricStyle}>
-                          <span style={composerPreviewMetricLabelStyle}>Audience</span>
-                          <strong>{selectedRecipients.length}</strong>
-                          <small>{recipientMode.replace('-', ' ')}</small>
-                        </div>
-                        <div style={composerPreviewMetricStyle}>
-                          <span style={composerPreviewMetricLabelStyle}>Message</span>
-                          <strong>{messageKind.replace('-', ' ')}</strong>
-                          <small>{messageBody.trim() ? `${messageBody.trim().length} chars` : 'empty'}</small>
-                        </div>
-                        <div style={composerPreviewMetricStyle}>
-                          <span style={composerPreviewMetricLabelStyle}>Match</span>
-                          <strong>{selectedMatch ? formatDate(selectedMatch.match_date) : 'Not set'}</strong>
-                          <small>{inferredOpponent || 'opponent pending'}</small>
-                        </div>
-                      </div>
-
-                      <div style={composerBodyPreviewStyle}>
-                        {messageBody.trim() || 'Load a message from the playbook above.'}
-                      </div>
-                    </div>
-
-                    <div style={filtersGridStyle}>
-                      <Field
-                        label="Message type"
-                        htmlFor="message-kind"
-                        hint="Start with the communication goal, then tailor the audience and body."
-                      >
-                        <select id="message-kind" aria-describedby="captain-messaging-composer-helper" value={messageKind} onChange={(e) => setMessageKind(e.target.value as MessageKind)} style={inputStyle}>
-                          <option value="availability">Availability check</option>
-                          <option value="lineup">Lineup announcement</option>
-                          <option value="directions">Directions + details</option>
-                          <option value="reminder">Match reminder</option>
-                          <option value="follow-up">Follow-up</option>
-                        </select>
-                      </Field>
-                      <Field
-                        label="Recipient mode"
-                        htmlFor="recipient-mode"
-                        hint="Choose the broadest useful audience first, then narrow it only if needed."
-                      >
-                        <select id="recipient-mode" aria-describedby="captain-messaging-composer-helper" value={recipientMode} onChange={(e) => setRecipientMode(e.target.value as RecipientMode)} style={inputStyle}>
-                          <option value="all-opted-in">All opted-in</option>
-                          <option value="captains">Captains only</option>
-                          <option value="active-only">Active only</option>
-                          <option value="available-only">Available only</option>
-                          <option value="lineup-only">Lineup only</option>
-                          <option value="non-responders">Non-responders only</option>
-                          <option value="custom">Custom</option>
-                        </select>
-                      </Field>
-                      <Field
-                        label="Saved template"
-                        htmlFor="saved-template"
-                        hint="Loading a template will replace the current title and body."
-                      >
-                        <select
-                          id="saved-template"
-                          aria-describedby="captain-messaging-composer-helper"
-                          value={selectedTemplateId}
-                          onChange={(e) => {
-                            const value = e.target.value
-                            setSelectedTemplateId(value)
-                            const template = scopedTemplates.find((item) => item.id === value)
-                            if (template) {
-                              setMessageTitle(template.template_name)
-                              setMessageBody(withWeekChallenge(template.message_body))
-                            }
-                          }}
-                          style={inputStyle}
-                        >
-                          <option value="">None</option>
-                          {scopedTemplates.map((template) => <option key={template.id} value={template.id}>{template.template_name}</option>)}
-                        </select>
-                      </Field>
-                      <Field
-                        label="Message title"
-                        htmlFor="message-title"
-                        hint="Use a short private label so you can find or save this message later."
-                      >
-                        <input id="message-title" aria-describedby="captain-messaging-composer-helper" value={messageTitle} onChange={(e) => setMessageTitle(e.target.value)} style={inputStyle} />
-                      </Field>
-                    </div>
-
-                    {recipientMode === 'custom' ? (
-                      <div style={recipientChooserStyle} role="group" aria-label="Custom recipient list" aria-describedby="captain-messaging-recipient-helper">
-                        <p id="captain-messaging-recipient-helper" style={fieldHintStyle}>
-                          {scopedContacts.filter((c) => c.phone && c.opt_in_text).length > 0
-                            ? 'Only opted-in contacts with a saved phone number are shown here.'
-                            : 'No opted-in contacts with phone numbers are available in the current scope yet.'}
-                        </p>
-                        {scopedContacts.filter((c) => c.phone && c.opt_in_text).map((contact) => (
-                          <label key={contact.id} style={checkboxRowStyle}>
-                            <input
-                              type="checkbox"
-                              checked={selectedRecipientIds.includes(contact.id)}
-                              onChange={(e) => {
-                                setSelectedRecipientIds((current) =>
-                                  e.target.checked ? [...current, contact.id] : current.filter((id) => id !== contact.id)
-                                )
-                              }}
-                            />
-                            <span>{contact.full_name}</span>
-                          </label>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    <Field
-                      label="Message body"
-                      htmlFor="message-body"
-                      hint="Keep it skimmable: key ask first, details second, deadlines or arrival notes last."
-                    >
-                      <textarea id="message-body" aria-describedby="captain-messaging-composer-helper" value={messageBody} onChange={(e) => setMessageBody(e.target.value)} style={textareaStyleLarge} />
-                    </Field>
-
-                    <div style={pillRowStyle}>
-                      <span style={miniPillSlate}>
-                        {selectedRecipients.length
-                          ? `${selectedRecipients.slice(0, 4).map((r) => r.full_name).join(', ')}${selectedRecipients.length > 4 ? ` +${selectedRecipients.length - 4} more` : ''}`
-                          : 'No recipients selected'}
-                      </span>
-                    </div>
-
-                    <div style={actionRowStyle}>
-                      <a href={captainAccess ? smsHref : undefined} style={{ ...primaryButton, ...(captainAccess ? null : disabledButtonStyle) }} onClick={(event) => { if (!captainAccess) { event.preventDefault(); setError('Captain tier required to send team messages.'); return } if (setupTeamLinkRequested) markCaptainLaunchOutreachStarted({ team: teamFilter, league: leagueFilter, flight: flightFilter }); prepareSmsBodyForNativeComposer(messageBody) }}>Open texts</a>
-                      <GhostSmallBtn onClick={copyBody}>{copiedState === 'body' ? 'Copied body' : 'Copy body'}</GhostSmallBtn>
-                      <GhostSmallBtn onClick={copyNumbers}>{copiedState === 'numbers' ? 'Copied numbers' : 'Copy numbers'}</GhostSmallBtn>
-                      <GhostSmallBtn onClick={() => void handleSaveTemplate()} disabled={!captainAccess}>Save template</GhostSmallBtn>
-                    </div>
-                  </section>
                 </div>
               </section>
 
@@ -4693,6 +4796,8 @@ function importScenarioToLineup() {
             </>
           )}
         </section>
+        </details>
+        </div>
       </section>
   )
 }

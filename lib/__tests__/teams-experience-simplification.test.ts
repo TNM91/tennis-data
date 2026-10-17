@@ -1,4 +1,7 @@
 import { readFileSync } from 'node:fs'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -68,7 +71,12 @@ describe('Teams experience simplification', () => {
     expect(matchWeekRail).toContain("return 'Confirm'")
     expect(matchWeekRail).toContain("Add ${scope.team}'s schedule to choose the next match.")
     expect(matchWeekRail).toContain('const teamText: CSSProperties')
-    expect(matchWeekRail).toContain('{scope.team ? <span style={teamText}>')
+    const renderedRail = renderToStaticMarkup(createElement(CaptainMatchWeekRail, {
+      current: 'lineup',
+      scope: { team: 'Court Aces', league: 'Fall League', flight: '4.0', date: '2026-10-10' },
+    }))
+    expect(renderedRail).toContain('Court Aces · Fall League · 4.0')
+    expect(renderedRail).toContain('<summary>Team details</summary>')
     expect(lineupBuilder).toContain('<summary style={builderMoreActionsSummaryStyle}>More lineup actions</summary>')
     expect(lineupBuilder).toContain('builderMobileActionStackStyle')
   })

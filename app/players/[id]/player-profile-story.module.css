@@ -549,7 +549,7 @@
   border-right: 1px solid rgba(116, 190, 255, 0.2);
 }
 
-.ratingBlock span,
+.ratingBlock > span,
 .journeyCopy > span,
 .journeyPanelTitle,
 .playerIdEyebrow,
@@ -561,7 +561,7 @@
   text-transform: uppercase;
 }
 
-.ratingBlock strong {
+.ratingBlock > strong {
   color: #ffffff;
   font-size: clamp(58px, 7vw, 88px);
   font-weight: 950;
@@ -569,7 +569,7 @@
   line-height: 0.94;
 }
 
-.ratingBlock small {
+.ratingBlock > small {
   color: #d9f84a;
   font-size: 13px;
   font-weight: 900;
@@ -631,6 +631,8 @@
 }
 
 .ratingTrajectory {
+  grid-column: 1 / -1;
+  min-width: 0;
   display: grid;
   grid-template-columns: auto minmax(40px, 1fr) auto;
   gap: 7px;
@@ -2416,12 +2418,12 @@
     border-bottom: 1px solid rgba(116, 190, 255, 0.18);
   }
 
-  .ratingBlock span,
-  .ratingBlock small {
+  .ratingBlock > span,
+  .ratingBlock > small {
     grid-column: 2;
   }
 
-  .ratingBlock strong {
+  .ratingBlock > strong {
     grid-row: 1 / span 2;
     font-size: 62px;
   }
@@ -3048,4 +3050,23 @@
   .playerIdentityPanel {
     scroll-behavior: auto;
   }
+}
+
+.ratingExplanation {
+  border-top: 1px solid rgba(116, 190, 255, 0.18);
+}
+
+.ratingExplanation summary {
+  min-height: 44px;
+  padding: 12px 0;
+  box-sizing: border-box;
+  cursor: pointer;
+  color: #dce8f7;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ratingExplanation summary:focus-visible {
+  outline: 2px solid var(--brand-green);
+  outline-offset: 3px;
 }

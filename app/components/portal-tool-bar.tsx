@@ -653,11 +653,6 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
     setShowPortalPersonalizationCue(shouldShowPortalPersonalizationCue(userId))
   }
 
-  function skipPortalPersonalizationCue() {
-    portalShortcutInteractionVersionRef.current += 1
-    dismissPortalPersonalizationCue(userId)
-    setShowPortalPersonalizationCue(false)
-  }
 
   function applyPortalPinRecommendation() {
     if (!portalPinRecommendation) return
@@ -889,7 +884,9 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
               gridTemplateColumns: isMobile
                 ? mobilePortalLane
                   ? 'repeat(3, minmax(0, 1fr))'
-                  : 'repeat(4, minmax(0, 1fr))'
+                  : customizingPortalShortcuts
+                    ? 'repeat(4, minmax(0, 1fr))'
+                    : 'repeat(5, minmax(0, 1fr))'
                 : 'repeat(8, minmax(0, 1fr))',
               gap: isMobile ? 4 : 6,
             }}
@@ -1044,18 +1041,6 @@ export default function PortalToolBar({ layout = 'top', suppressed = false }: Po
           </div>
         ) : null}
 
-        {collapseMobilePortal && showPortalPersonalizationCue && !customizingPortalShortcuts ? (
-          <div data-portal-personalization-cue="true" style={mobilePortalPersonalizationCueStyle}>
-            <span style={mobilePortalPersonalizationCueCopyStyle}>
-              <strong>Make this yours.</strong>
-              <span>Pin My Lab, Tactics, or the hubs you use most.</span>
-            </span>
-            <span style={mobilePortalCustomizerActionsStyle}>
-              <button type="button" onClick={openPortalShortcutCustomization} style={mobilePortalCuePrimaryButtonStyle}>Choose</button>
-              <button type="button" onClick={skipPortalPersonalizationCue} style={mobilePortalCustomizerButtonStyle}>Skip</button>
-            </span>
-          </div>
-        ) : null}
 
         {collapseMobilePortal
         && portalPinRecommendation
@@ -2069,11 +2054,11 @@ const mobilePortalScrollbarThumbStyle: CSSProperties = {
 const mobilePortalTileStyle: CSSProperties = {
   position: 'relative',
   display: 'grid',
-  gridTemplateRows: '34px minmax(0, auto)',
+  gridTemplateRows: '28px minmax(0, auto)',
   justifyItems: 'center',
   alignContent: 'center',
   gap: 3,
-  minHeight: 64,
+  minHeight: 54,
   padding: '6px 4px',
   borderRadius: 12,
   border: '1px solid rgba(116,190,255,0.20)',

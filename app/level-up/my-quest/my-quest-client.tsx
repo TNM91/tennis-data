@@ -1237,7 +1237,7 @@ export default function MyQuestClient() {
     if (identitySlug) params.set('identitySlug', identitySlug)
     let loadingRemotePlan = false
     const loadRemotePlan = async () => {
-      if (loadingRemotePlan) return
+      if (loadingRemotePlan || document.visibilityState === 'hidden') return
       loadingRemotePlan = true
       try {
         const response = await fetch(`/api/player/level-up-weekly-plan?${params.toString()}`, {

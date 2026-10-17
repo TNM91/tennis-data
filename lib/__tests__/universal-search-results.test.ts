@@ -126,8 +126,8 @@ describe('universal search result model', () => {
 
   it('offers live player-name autocomplete before someone has to leave the search field', () => {
     expect(source).toContain("supabase.rpc('search_public_players'")
-    expect(source).toContain('Player name suggestions')
-    expect(source).toContain('Player matches')
+    expect(source).toContain('Quick player matches')
+    expect(source).toContain('Choose a player or search all tennis')
     expect(source).toContain('aria-autocomplete="list"')
     expect(source).toContain('aria-expanded={showPlayerSuggestions}')
   })

@@ -9,12 +9,13 @@ const exploreHome = read('app/explore/page.tsx')
 const playerProfileStory = read('app/players/[id]/player-profile-story.module.css')
 
 describe('free Explore search', () => {
-  it('sends an unmatched home or Explore query into the free player search path', () => {
-    expect(universalSearch).toContain('buildFreePlayerSearchHref(q)')
-    expect(universalSearch).toContain('`/explore/search?scope=players&q=${encodeURIComponent(query.trim())}`')
+  it('sends an unmatched query to all-category search so area terms do not become player names', () => {
+    expect(universalSearch).toContain('buildFreeTennisSearchHref(q)')
+    expect(universalSearch).toContain('`/explore/search?scope=all&q=${encodeURIComponent(query.trim())}`')
     expect(universalSearch).toContain('function isLikelyPlayerLookupQuery')
     expect(universalSearch).toContain("filtered.filter((item) => item.result.group !== 'Actions')")
-    expect(universalSearch).toContain('const shouldOpenPlayerSearch = isLikelyPlayerLookupQuery(q)')
+    expect(exploreSearch).toContain("searchLeagues(trimmedQuery, 'all')")
+    expect(exploreSearch).toContain('playerMatches.value.usedSpellingHelp')
   })
 
   it('uses the indexed public player lookup instead of broad client-side player scans', () => {
@@ -45,8 +46,8 @@ describe('free Explore search', () => {
   })
 
   it('keeps Explore free while giving searchers a clear plan comparison path', () => {
-    expect(exploreHome).toContain('Explore stays free')
-    expect(exploreHome).toContain('PRODUCT_UPGRADE_MESSAGE')
-    expect(exploreHome).toContain('Compare plans')
+    expect(exploreHome).toContain('Free to start')
+    expect(exploreHome).toContain("getMembershipTier('free')")
+    expect(exploreHome).toContain("href: '/pricing'")
   })
 })

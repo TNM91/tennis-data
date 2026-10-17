@@ -3,9 +3,24 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { ADSENSE_IMPLEMENTATION_GUIDELINES } from '../adsense-guidelines'
-import { isAdSafePath } from '../adsense'
+import { getConfiguredAdSlot, isAdSafePath } from '../adsense'
 
 describe('AdSense private route exclusions', () => {
+  it('rejects placeholder and malformed ad unit IDs', () => {
+    for (const value of [undefined, null, '', 'your-slot-id', '123', '1234567890<script>']) {
+      expect(getConfiguredAdSlot(value)).toBeNull()
+    }
+    expect(getConfiguredAdSlot(' 1234567890 ')).toBe('1234567890')
+  })
+
+  it('loads the ad script only alongside an allowed configured placement', () => {
+    const layout = readFileSync(join(process.cwd(), 'app/layout.tsx'), 'utf8')
+    const slot = readFileSync(join(process.cwd(), 'app/components/adsense-slot.tsx'), 'utf8')
+    expect(layout).not.toContain('pagead2.googlesyndication.com')
+    expect(layout).toContain("'google-adsense-account': ADSENSE_PUBLISHER_ID")
+    expect(slot.indexOf('if (!canRenderAd) return null')).toBeLessThan(slot.indexOf('<script'))
+  })
+
   it('collapses an unfilled ad canvas without removing the sponsor fallback', () => {
     const slotSource = readFileSync(join(process.cwd(), 'app/components/adsense-slot.tsx'), 'utf8')
     const globalCss = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')

@@ -2,9 +2,11 @@
 
 Use this checklist before promoting the current redesign and product-architecture changes to production.
 
+For routine releases, follow `docs/deployment-workflow.md` and run only the applicable checks below. This launch inventory is not a requirement to execute every QA command for each small fix. Iterate locally, verify the final candidate, and use one production deployment path.
+
 ## Build
 
-- Confirm the active release branch is `master`. GitHub default branch is `master`, but the Vercel Git production branch setting still reports `main`; do not rely on automatic production deploys from Git until that Vercel dashboard setting is changed to `master`.
+- Confirm the active release branch and current Vercel Git production branch are `master`. Run `npm run qa:vercel-branch` when release configuration needs verification; do not assume the historical `main` mismatch is still present.
 - Run `npm run build`
 - Run `npm run audit:artifacts` after local builds to confirm generated files, logs, zips, screenshots, and nested repo copies are not sitting in the workspace
 - Confirm the homepage, pricing page, explore routes, captain routes, and auth pages load locally
@@ -85,7 +87,7 @@ Use this checklist before promoting the current redesign and product-architectur
 
 ## Production Promotion
 
-- Until Vercel's Git production branch setting is aligned from `main` to `master`, promote production intentionally from a verified deployment instead of assuming a `master` push becomes production.
+- Use the automatic Git production deployment from `master` after confirming branch alignment. Do not manually deploy a change and then merge it into the automatically deploying branch. If a mismatch is confirmed, resolve it or deliberately choose one manual promotion path using an existing verified artifact.
 - `npm run qa:vercel-branch` should pass after the Vercel dashboard setting is corrected at `https://vercel.com/tennis-data/tennis-data/settings/git#connected-git-repository`.
 - Confirm `npx vercel project inspect tennis-data --scope tennis-data` before promotion; Node.js Version should be `22.x`.
 - Confirm the deployment to promote is `Ready`, tied to the expected `master` commit, and has passed the relevant QA gates.

@@ -50,7 +50,10 @@ function collectTsxSources(directory: string): string[] {
     const fullPath = join(directory, entry)
     const stats = statSync(fullPath)
     if (stats.isDirectory()) return collectTsxSources(fullPath)
-    if (entry.endsWith('.tsx')) return [readFileSync(fullPath, 'utf8')]
+    // Share images use fixed colors and contain no interactive app controls.
+    if (entry.endsWith('.tsx') && entry !== 'opengraph-image.tsx' && entry !== 'twitter-image.tsx') {
+      return [readFileSync(fullPath, 'utf8')]
+    }
     return []
   })
 }

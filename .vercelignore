@@ -33,6 +33,8 @@ public/brand/social/og-fast-ace-preview-1200x630.png
 *.zip
 .codex-deck
 .codex
+.codex-*
+.pricing-release-worktree
 artifacts
 deliverables
 output

@@ -30,8 +30,9 @@ import { getPlayerDevelopmentIdentity, getPlayerDevelopmentIdentityActionRead } 
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 import { useProductAccess } from '@/lib/use-product-access'
 import { MY_LAB_STORY } from '@/lib/product-story'
+import { trackProductUsageEvent } from '@/lib/product-usage-client'
 
-type SearchScope = 'players' | 'teams' | 'leagues' | 'flight' | 'area'
+type SearchScope = 'all' | 'players' | 'teams' | 'leagues' | 'flight' | 'area'
 
 type PlayerSearchRow = {
   id: string
@@ -82,6 +83,7 @@ type MatchupSuggestion = {
 }
 
 const searchScopes: Array<{ value: SearchScope; label: string }> = [
+  { value: 'all', label: 'All tennis' },
   { value: 'players', label: 'Player name' },
   { value: 'teams', label: 'Team' },
   { value: 'leagues', label: 'League' },
@@ -98,6 +100,12 @@ const scopeGuides: Record<
     examples: string[]
   }
 > = {
+  all: {
+    eyebrow: 'All tennis',
+    placeholder: 'Search a player, team, league, or area...',
+    emptyTitle: 'Try a tennis clue.',
+    examples: ['Chicago', 'Tri-Level', 'Smith'],
+  },
   players: {
     eyebrow: 'Player lookup',
     placeholder: 'Search a player name...',
@@ -182,6 +190,14 @@ function buildTeamKey(team: string, league: string | null, flight: string | null
   return `${team}__${league || ''}__${flight || ''}`
 }
 
+function buildTeamSearchHref(team: TeamSearchResult) {
+  const params = new URLSearchParams({
+    ...(team.league ? { league: team.league } : {}),
+    ...(team.flight ? { flight: team.flight } : {}),
+  })
+  return `/teams/${encodeTeamRouteSegment(team.team)}${params.size ? `?${params.toString()}` : ''}`
+}
+
 export default function ExploreSearchPage() {
   return (
     <SiteShell active="explore">
@@ -197,7 +213,7 @@ function ExploreSearchContent() {
 
   const [query, setQuery] = useState('')
   const [submittedQuery, setSubmittedQuery] = useState('')
-  const [scope, setScope] = useState<SearchScope>('players')
+  const [scope, setScope] = useState<SearchScope>('all')
   const [ratingBand, setRatingBand] = useState<'all' | '2.5' | '3.0' | '3.5' | '4.0' | '4.5+'>('all')
   const [yearFilter, setYearFilter] = useState('all')
   const [seasonFilter, setSeasonFilter] = useState('all')
@@ -220,13 +236,14 @@ function ExploreSearchContent() {
     setQuery(nextQuery)
     setSubmittedQuery(nextQuery)
     setScope(
+      nextScope === 'all' ||
       nextScope === 'players' ||
         nextScope === 'teams' ||
         nextScope === 'leagues' ||
         nextScope === 'flight' ||
         nextScope === 'area'
         ? nextScope
-        : 'players',
+        : 'all',
     )
     setRatingBand((params.get('rating') as typeof ratingBand) || 'all')
     setYearFilter(params.get('year') || 'all')
@@ -280,7 +297,26 @@ function ExploreSearchContent() {
         let teamsResult: TeamSearchResult[] = []
         let leagueResult: LeagueCard[] = []
 
-        if (scope === 'players') {
+        if (scope === 'all') {
+          const [playerMatches, teamMatches, leagueMatches] = await runWithSearchTimeout(Promise.allSettled([
+            searchPlayers(trimmedQuery),
+            searchTeams(trimmedQuery),
+            searchLeagues(trimmedQuery, 'all'),
+          ]))
+          if ([playerMatches, teamMatches, leagueMatches].every((result) => result.status === 'rejected')) {
+            throw new Error('Tennis search is unavailable right now. Please try again.')
+          }
+          // Fuzzy player-name suggestions are useful in the dedicated player search,
+          // but a city or league query must not masquerade as a player-name match.
+          playersResult = playerMatches.status !== 'fulfilled' || playerMatches.value.usedSpellingHelp
+            ? { players: [], usedSpellingHelp: false }
+            : playerMatches.value
+          teamsResult = teamMatches.status === 'fulfilled' ? teamMatches.value : []
+          leagueResult = leagueMatches.status === 'fulfilled' ? leagueMatches.value : []
+          if ([playerMatches, teamMatches, leagueMatches].some((result) => result.status === 'rejected')) {
+            setError('Some tennis sources could not be searched. Choose a category to retry.')
+          }
+        } else if (scope === 'players') {
           playersResult = await runWithSearchTimeout(searchPlayers(trimmedQuery))
         } else if (scope === 'teams') {
           teamsResult = await runWithSearchTimeout(searchTeams(trimmedQuery))
@@ -334,6 +370,14 @@ function ExploreSearchContent() {
 
   function retrySearch() {
     setSearchAttempt((current) => current + 1)
+  }
+
+  function trackResultOpen(category: 'players' | 'teams' | 'leagues', destination: string) {
+    void trackProductUsageEvent({
+      eventName: 'search_result_clicked',
+      surface: 'search',
+      metadata: { query: submittedQuery.trim(), category, destination },
+    })
   }
 
   const matchedFlights = useMemo(() => {
@@ -396,20 +440,22 @@ function ExploreSearchContent() {
     })
   }, [leagues, yearFilter, seasonFilter, genderFilter, leagueRatingFilter])
 
-  const selectedScopeLabel = searchScopes.find((item) => item.value === scope)?.label ?? 'Player name'
+  const selectedScopeLabel = searchScopes.find((item) => item.value === scope)?.label ?? 'All tennis'
   const selectedScopeGuide = scopeGuides[scope]
   const hasQuery = Boolean(submittedQuery.trim())
-  const showPlayerResults = scope === 'players'
-  const showTeamResults = scope === 'teams'
-  const showLeagueResults = scope === 'leagues' || scope === 'flight' || scope === 'area'
+  const showPlayerResults = scope === 'players' || (scope === 'all' && filteredPlayers.length > 0)
+  const showTeamResults = scope === 'teams' || (scope === 'all' && teams.length > 0)
+  const showLeagueResults = scope === 'leagues' || scope === 'flight' || scope === 'area' || (scope === 'all' && filteredLeagues.length > 0)
   const totalResults =
     (showPlayerResults ? filteredPlayers.length + matchupSuggestions.length : 0) +
     (showTeamResults ? teams.length : 0) +
     (showLeagueResults ? filteredLeagues.length : 0)
   const topPlayerResult = showPlayerResults ? filteredPlayers[0] : null
+  const topTeamResult = showTeamResults ? teams[0] : null
+  const topLeagueResult = showLeagueResults ? filteredLeagues[0] : null
   const shouldOfferPlayerUnlock = authResolved && !access.canUseAdvancedPlayerInsights && Boolean(topPlayerResult)
   const playerUnlockHref = `/upgrade?plan=player_plus&next=${encodeURIComponent(resumeHref)}&source=explore_search`
-  const searchNextActions = [
+  const playerNextActions = [
     {
       label: 'Open profile',
       value: topPlayerResult?.name || 'Find the record',
@@ -434,10 +480,40 @@ function ExploreSearchContent() {
       cta: 'Start Level Up',
     },
   ] as const
+  const broadNextActions = [
+    {
+      label: topLeagueResult ? 'Open league' : topTeamResult ? 'Open team' : 'Explore tennis',
+      value: topLeagueResult?.leagueName || topTeamResult?.team || 'Try another tennis clue',
+      body: 'Open a matching public record to see its schedule, results, and related tennis context.',
+      href: topLeagueResult
+        ? buildExploreLeagueHref(topLeagueResult)
+        : topTeamResult
+          ? buildTeamSearchHref(topTeamResult)
+          : '/explore',
+      cta: topLeagueResult ? 'View league' : topTeamResult ? 'View team' : 'Explore',
+    },
+    {
+      label: 'Browse teams',
+      value: 'Find a roster',
+      body: 'Check teams and the league context around them.',
+      href: '/explore/teams',
+      cta: 'Open teams',
+    },
+    {
+      label: 'Check leagues',
+      value: 'See the season',
+      body: 'Find a league, flight, or area and review where the season stands.',
+      href: '/explore/leagues',
+      cta: 'Open leagues',
+    },
+  ] as const
+  const searchNextActions = topPlayerResult || (!hasQuery && scope === 'players')
+    ? playerNextActions
+    : broadNextActions
   const searchNextActionsPanel = (
     <section style={searchNextActionsStyle} aria-label="Search next actions">
       <div style={isMobile ? compactSearchNextActionsHeaderStyle : searchNextActionsHeaderStyle}>
-        {!isMobile ? <TiqFeatureIcon name="playerRatings" size="sm" variant="ghost" /> : null}
+        {!isMobile ? <TiqFeatureIcon name={topLeagueResult ? 'reports' : topTeamResult ? 'teamRankings' : 'playerRatings'} size="sm" variant="ghost" /> : null}
         <div style={searchNextActionsCopyStyle}>
           <span style={searchNextActionsKickerStyle}>After search</span>
           <h2 style={searchNextActionsTitleStyle}>Open the record, then act on it.</h2>
@@ -510,8 +586,8 @@ function ExploreSearchContent() {
               display: 'grid',
               gridTemplateColumns: hasQuery
                 ? isMobile
-                  ? 'minmax(0, 1fr) minmax(96px, auto)'
-                  : 'minmax(0, 1fr) minmax(128px, auto)'
+                  ? 'minmax(0, 1fr)'
+                  : 'minmax(min(100%, 172px), 196px) minmax(0, 1fr) minmax(128px, auto)'
                 : isMobile
                   ? 'minmax(0, 1fr)'
                   : isTablet
@@ -523,8 +599,7 @@ function ExploreSearchContent() {
               alignItems: hasQuery ? 'end' : isMobile ? 'stretch' : 'end',
             }}
           >
-            {!hasQuery ? (
-              <label style={{ display: 'grid', gap: isMobile ? 4 : 6, minWidth: 0 }}>
+            <label style={{ display: 'grid', gap: isMobile ? 4 : 6, minWidth: 0 }}>
                 <span style={searchLabelStyle}>Search by</span>
                 <select
                   className="tiq-focus-ring"
@@ -543,8 +618,7 @@ function ExploreSearchContent() {
                     </option>
                   ))}
                 </select>
-              </label>
-            ) : null}
+            </label>
 
             <label style={{ display: 'grid', gap: isMobile ? 4 : 6, minWidth: 0 }}>
               <span style={searchLabelStyle}>{hasQuery ? selectedScopeLabel : 'Search term'}</span>
@@ -568,7 +642,7 @@ function ExploreSearchContent() {
                 minHeight: hasQuery || isMobile ? 42 : 56,
                 minWidth: 0,
                 maxWidth: '100%',
-                width: hasQuery ? undefined : isMobile ? '100%' : undefined,
+                width: isMobile ? '100%' : undefined,
                 border: 'none',
                 overflowWrap: 'anywhere',
               }}
@@ -659,7 +733,9 @@ function ExploreSearchContent() {
             <section style={{ ...portalInsetCardStyle, padding: 18 }}>
               <div style={sectionKicker}>Searching</div>
               <div style={{ color: 'var(--foreground-strong)', fontSize: 20, fontWeight: 900, overflowWrap: 'anywhere' }}>
-                {scope === 'players'
+                {scope === 'all'
+                  ? 'Finding tennis records...'
+                  : scope === 'players'
                   ? 'Finding player records...'
                   : scope === 'teams'
                     ? 'Finding team records...'
@@ -693,6 +769,13 @@ function ExploreSearchContent() {
 
           {!loading && submittedQuery.trim().length > 0 ? (
             <>
+              {scope === 'all' && totalResults === 0 ? (
+                <section style={emptyStateStyle} role="status">
+                  <div style={sectionKicker}>No matches yet</div>
+                  <div style={emptyTitleStyle}>Try a broader name, team, league, or area.</div>
+                  <span>Choose a category above if you want to search a player name more closely.</span>
+                </section>
+              ) : null}
               {showPlayerResults ? (
               <div
                 style={{
@@ -717,7 +800,7 @@ function ExploreSearchContent() {
                     </div>
                   ) : null}
                   {filteredPlayers.map((player) => (
-                    <Link key={player.id} href={`/players/${player.id}`} style={getPlayerSearchResultStyle()}>
+                    <Link key={player.id} href={`/players/${player.id}`} onClick={() => trackResultOpen('players', `/players/${player.id}`)} style={getPlayerSearchResultStyle()}>
                       <TiqFeatureIcon name="playerRatings" size="sm" variant="surface" />
                       <div style={playerSearchIdentityStyle}>
                         <div style={resultTitleStyle}>{player.name}</div>
@@ -784,10 +867,8 @@ function ExploreSearchContent() {
                   {showTeamResults ? teams.map((team) => (
                     <Link
                       key={team.key}
-                      href={`/teams/${encodeTeamRouteSegment(team.team)}${team.league || team.flight ? `?${new URLSearchParams({
-                        ...(team.league ? { league: team.league } : {}),
-                        ...(team.flight ? { flight: team.flight } : {}),
-                      }).toString()}` : ''}`}
+                      href={buildTeamSearchHref(team)}
+                      onClick={() => trackResultOpen('teams', buildTeamSearchHref(team))}
                       style={getResultCardStyle()}
                     >
                       <div style={resultHeaderStyle}>
@@ -812,7 +893,7 @@ function ExploreSearchContent() {
                   compact={hasQuery}
                 >
                   {showLeagueResults ? filteredLeagues.map((league) => (
-                    <Link key={league.key} href={buildExploreLeagueHref(league)} style={getResultCardStyle()}>
+                    <Link key={league.key} href={buildExploreLeagueHref(league)} onClick={() => trackResultOpen('leagues', buildExploreLeagueHref(league))} style={getResultCardStyle()}>
                       <div style={resultHeaderStyle}>
                         <div style={resultPrimaryStyle}>
                           <div style={resultTitleStyle}>{league.leagueName}</div>

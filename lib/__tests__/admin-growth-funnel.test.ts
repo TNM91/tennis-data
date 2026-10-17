@@ -8,13 +8,17 @@ const signupSource = readFileSync(join(process.cwd(), 'app/api/auth/signup/route
 
 describe('admin growth funnel', () => {
   it('keeps visitor traffic separate from signed-in product and billing conversion signals', () => {
-    expect(pageSource).toContain('Visitor and page-view traffic belongs in Vercel Web Analytics.')
+    expect(pageSource).toContain('Visitor traffic belongs in Vercel Web Analytics.')
     expect(pageSource).toContain('Signup requests')
     expect(pageSource).toContain('Checkout starts')
     expect(pageSource).toContain('Paid activations')
-    expect(routeSource).toContain("uniqueUsers(events, 'signup_confirmation_sent')")
-    expect(routeSource).toContain("uniqueUsers(events, 'upgrade_checkout_started')")
-    expect(routeSource).toContain("event.resulting_status === 'active' || event.resulting_status === 'trial'")
+    expect(routeSource).toContain('buildGrowthCohort(events, billingEvents)')
+    expect(routeSource).toContain('buildFollowGrowthCohort(events, followRequests)')
+    expect(routeSource).toContain(".select('requester_user_id, plan_id, next_href, created_at')")
+    expect(pageSource).toContain('Player requests after click')
+    expect(routeSource).toContain('.range(offset, offset + EVENT_PAGE_SIZE - 1)')
+    expect(pageSource).toContain('First useful action')
+    expect(pageSource).toContain('same members from signup')
   })
 
   it('records a successful signup email as the funnel entry step without blocking signup delivery', () => {

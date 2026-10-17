@@ -31,7 +31,7 @@ describe('public entity trust strips', () => {
     const teams = read('app/teams/page.tsx')
     const rankings = read('app/rankings/page.tsx')
     const leagues = read('app/leagues/page.tsx')
-    const exploreLeagues = read('app/explore/leagues/page.tsx')
+    const exploreLeagues = read('app/explore/leagues/leagues-directory-client.tsx')
 
     for (const source of [players, teams, rankings, leagues, exploreLeagues]) {
       expect(source).toContain('TiqTrustStrip')

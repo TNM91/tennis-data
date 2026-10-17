@@ -12,6 +12,8 @@ import RoleActionHome, {
 } from '@/app/components/role-action-home'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
 import OrganizerScheduleAttention from '@/app/components/organizer-schedule-attention'
+import LeagueAttentionList from '@/app/components/league-attention-list'
+import { buildLeagueAttentionItems } from '@/lib/league-attention-items'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import type { ClubRole } from '@/lib/club-workspace'
@@ -433,6 +435,9 @@ export function LeagueCoordinatorWorkspace() {
   const [teamEntryRequests, setTeamEntryRequests] = useState<TiqTeamLeagueEntryRecord[]>([])
   const [playerEntryRequests, setPlayerEntryRequests] = useState<TiqPlayerLeagueEntryRecord[]>([])
   const [entryRequestStatus, setEntryRequestStatus] = useState('')
+  const [entryRequestLoadError, setEntryRequestLoadError] = useState('')
+  const [attentionEntryRecords, setAttentionEntryRecords] = useState<TiqLeagueRecord[] | null>(null)
+  const [attentionTeamLeagues, setAttentionTeamLeagues] = useState<TiqLeagueRecord[] | null>(null)
   const [entryInfoRequestKey, setEntryInfoRequestKey] = useState('')
   const [entryInfoRequestNote, setEntryInfoRequestNote] = useState('')
   const [publicPageFilter, setPublicPageFilter] = useState<PublicPageReadinessFilter>('all')
@@ -545,11 +550,15 @@ export function LeagueCoordinatorWorkspace() {
         setTeamEntryRequests(teamResults.flatMap((result) => result.entries))
         setPlayerEntryRequests(playerResults.flatMap((result) => result.entries))
         setEntryRequestStatus('')
+        setEntryRequestLoadError(Array.from(new Set([...teamResults, ...playerResults].map(result => result.warning).filter(Boolean))).join(' '))
       } catch (error) {
         if (!active) return
         setTeamEntryRequests([])
         setPlayerEntryRequests([])
         setEntryRequestStatus(error instanceof Error ? error.message : 'League entry requests could not load.')
+        setEntryRequestLoadError(error instanceof Error ? error.message : 'League entry requests could not load.')
+      } finally {
+        if (active) setAttentionEntryRecords(records)
       }
     }
 
@@ -603,6 +612,7 @@ export function LeagueCoordinatorWorkspace() {
         setTeamMatchLines([])
         setTeamStandingsByLeague({})
         setTeamResultWarning('')
+        setAttentionTeamLeagues(teamLeagues)
         return
       }
 
@@ -642,6 +652,8 @@ export function LeagueCoordinatorWorkspace() {
         setTeamMatchLines([])
         setTeamStandingsByLeague({})
         setTeamResultWarning(error instanceof Error ? error.message : 'Team result books could not load.')
+      } finally {
+        if (active) setAttentionTeamLeagues(teamLeagues)
       }
     }
 
@@ -962,6 +974,10 @@ export function LeagueCoordinatorWorkspace() {
   const pendingTeamEntryRequests = teamEntryRequests.filter((entry) => entry.entryStatus === 'pending')
   const pendingPlayerEntryRequests = playerEntryRequests.filter((entry) => entry.entryStatus === 'pending')
   const pendingEntryRequestCount = pendingTeamEntryRequests.length + pendingPlayerEntryRequests.length
+  const attentionItems = buildLeagueAttentionItems({
+    teams: teamResultBookRows.map(row => ({ id: row.league.id, name: row.league.leagueName, missing: row.missingLineEvents, scoreReview: row.scoreReviewEvents, href: buildTeamResultEntryHref(row.league.id) })),
+    approvals: records.map(record => ({ leagueId: record.id, leagueName: record.leagueName, count: [...pendingTeamEntryRequests, ...pendingPlayerEntryRequests].filter(entry => entry.leagueId === record.id).length })),
+  })
   const resultQueueItemCount =
     teamResultBooksNeedAttention +
     resultBookNeedsAttention +
@@ -1860,6 +1876,7 @@ export function LeagueCoordinatorWorkspace() {
         {leagueMobileSeasonPulse}
 
         {canUseLeagueTools ? <OrganizerScheduleAttention /> : null}
+        {canUseLeagueTools && hasSavedLeague ? <LeagueAttentionList items={attentionItems} ready={registryLoaded && attentionEntryRecords === records && attentionTeamLeagues === teamLeagues} warning={[storageWarning, teamResultWarning, entryRequestLoadError].filter(Boolean).join(' ')} /> : null}
 
         {canUseLeagueTools ? (
           <>

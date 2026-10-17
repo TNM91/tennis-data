@@ -269,7 +269,6 @@ export async function recalculateDynamicRatings(
       if (sideA.length !== 1 || sideB.length !== 1) {
         const reason = 'expected 1 player per side'
         skippedMatches.push({ matchId: match.id, reason })
-        console.warn(`Skipping singles match ${match.id}: ${reason}.`)
         continue
       }
 
@@ -279,7 +278,6 @@ export async function recalculateDynamicRatings(
       if (!playerA || !playerB) {
         const reason = 'missing player(s)'
         skippedMatches.push({ matchId: match.id, reason })
-        console.warn(`Skipping singles match ${match.id}: ${reason}.`)
         continue
       }
 
@@ -292,7 +290,6 @@ export async function recalculateDynamicRatings(
       if (sideA.length !== 2 || sideB.length !== 2) {
         const reason = 'expected 2 players per side'
         skippedMatches.push({ matchId: match.id, reason })
-        console.warn(`Skipping doubles match ${match.id}: ${reason}.`)
         continue
       }
 
@@ -307,7 +304,6 @@ export async function recalculateDynamicRatings(
       if (teamA.length !== 2 || teamB.length !== 2) {
         const reason = 'missing player(s)'
         skippedMatches.push({ matchId: match.id, reason })
-        console.warn(`Skipping doubles match ${match.id}: ${reason}.`)
         continue
       }
 

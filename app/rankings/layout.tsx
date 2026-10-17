@@ -1,5 +1,9 @@
 import type { Metadata } from 'next'
 import { getRankingsMetadata } from '@/lib/route-metadata'
+import { PublicCompetitionContentProvider } from '@/app/components/public-competition-content-context'
+import { PublicRankingsSnapshot } from '@/app/components/public-competition-evidence'
+
+export const revalidate = 86400
 
 export const metadata: Metadata = getRankingsMetadata()
 
@@ -8,5 +12,5 @@ export default function RankingsLayout({
 }: {
   children: React.ReactNode
 }) {
-  return children
+  return <PublicCompetitionContentProvider rankingsContent={<PublicRankingsSnapshot />}>{children}</PublicCompetitionContentProvider>
 }

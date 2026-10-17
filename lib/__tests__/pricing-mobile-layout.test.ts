@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/pricing/page.tsx'), 'utf8')
+const mobileLanesSource = readFileSync(join(process.cwd(), 'app/pricing/pricing-mobile-lanes.tsx'), 'utf8')
+const mobileLanesStyles = readFileSync(join(process.cwd(), 'app/pricing/pricing-mobile-lanes.module.css'), 'utf8')
 const globalsSource = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
 
 function styleBlock(styleName: string) {
@@ -36,7 +38,12 @@ describe('pricing mobile layout guards', () => {
       expect(styleBlock(styleName), styleName).toContain('minWidth: 0')
     }
     expect(styleBlock('planGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))'")
-    expect(source).toContain('style={isMobile ? compactPlanGridStyle : planGridStyle}')
+    expect(source).toContain('<PricingMobileLanes')
+    expect(mobileLanesSource).toContain("const [activeLaneId, setActiveLaneId] = useState<LaneId>('lead')")
+    expect(mobileLanesSource).toContain('selectedPlan.valueProps.slice(0, 2)')
+    expect(mobileLanesSource).toContain('Compare all plans')
+    expect(mobileLanesStyles).toContain('grid-template-columns: repeat(3, minmax(0, 1fr));')
+    expect(mobileLanesStyles).toContain('min-height: 48px;')
     expect(styleBlock('compactPlanGridStyle')).toContain("gridTemplateColumns: 'minmax(0, 1fr)'")
     expect(styleBlock('jobChooserGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))'")
     expect(styleBlock('workspaceGridStyle')).toContain("gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))'")

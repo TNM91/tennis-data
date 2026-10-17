@@ -15,6 +15,7 @@ import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import { useAuth } from '@/app/components/auth-provider'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import TiqFeatureIcon from '@/components/brand/TiqFeatureIcon'
+import CaptainScenarioCourts from '@/app/components/captain-scenario-courts'
 
 type ScenarioRow = {
   id: string
@@ -852,6 +853,7 @@ function ScenarioComparisonContent() {
 
               {leftScenario && rightScenario ? (
                 <>
+                  <CaptainScenarioCourts rows={yourComparison.rows} leftName={leftScenario.scenario_name} rightName={rightScenario.scenario_name} />
                   <section style={verdictCardStyle}>
                     <div style={verdictMainStyle}>
                       <p style={sectionKicker}>Comparison verdict</p>

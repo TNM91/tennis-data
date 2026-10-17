@@ -33,6 +33,22 @@ Default to focused, low-noise iteration:
 - Keep CI and deployment polling quiet: check status at useful intervals and report only actionable failures, completion, or a clear blocker.
 - Do not skip full verification for broad, risky, shared, or production-facing changes; run it once the focused loop says the change is ready.
 
+## TenAceIQ Cost-Aware Engineering
+
+Treat paid infrastructure usage as part of correctness. Follow `docs/deployment-workflow.md` for release decisions.
+
+- Iterate locally with focused tests and browser checks. Use a local production bundle for deployment-sensitive behavior; a Vercel build is not a routine verification step.
+- Batch related, reviewable fixes before pushing. Do not push or create a paid preview for each cosmetic iteration. Documentation-only work needs document checks, not a cloud deployment.
+- Use Git deployment from `master` as the default production path after confirming the current Vercel production branch. Never run a manual production deploy and then merge the same change into an automatically deploying branch. Reuse or promote an already verified artifact when an intentional manual release is necessary; do not rebuild it solely to obtain another URL.
+- Before any cloud deployment, inspect existing deployments for the intended commit and environment. Reuse a ready deployment or wait for one already building. Retry only after an actionable failure or a material change.
+- Use a preview only when it proves something local checks cannot, such as hosted auth, webhooks, or device access. Use staging only when the release requires a stable shared review environment. Do not automatically run both lanes for every change.
+- Keep full verification and required CI gates for releases and broad or risky changes. Run once per candidate; repeat only for new changes, failures, or unresolved evidence. Cost control must not weaken correctness, security, accessibility, or performance checks.
+- After release, run one bounded smoke of affected routes and inspect a short log window. Avoid repeated broad production crawls, continuous polling, or load tests against paid production services unless requested or necessary to diagnose a specific incident.
+- Before increasing cron frequency, collector concurrency, refresh scope, polling, retries, or logging, estimate request volume and runtime. Jobs should skip unchanged or not-yet-due work, checkpoint progress, and back off on errors. Preserve agreed freshness and measure throughput before changing cadence.
+- Preserve useful error reporting and performance signals. Avoid verbose per-record success logs, duplicate telemetry, and unnecessary paid monitoring features. Attribute costs to routes/jobs before reducing observability or backend capacity.
+- For cost investigations, compare equal time windows and separate effective usage, billed charges, credits, and subscription fees. Do not infer a traffic spike or a job's cost from team totals alone.
+- Do not raise budgets, enable paid features, or pause production as a substitute for eliminating waste. Report any remaining measured cost driver and the tradeoff of a proposed runtime change.
+
 ## TenAceIQ Brand Source of Truth
 
 Use only `public/brand/` as the production source of truth for TenAceIQ logos, app icons, favicons, social cards, and approved wallpapers. Read `public/brand/docs/MANIFEST.txt` and `public/brand/docs/CODEX_IMPLEMENTATION_PROMPT.txt` before changing brand presentation.

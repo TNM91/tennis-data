@@ -3,6 +3,8 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import { usePublicCompetitionContent } from '@/app/components/public-competition-content-context'
+import PublicTeamProfileSnapshot from '@/app/components/public-team-profile-snapshot'
 import React from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
@@ -29,6 +31,7 @@ import PublicDetailState from '@/app/components/public-detail-state'
 import { useAuth } from '@/app/components/auth-provider'
 import { buildProductAccessState } from '@/lib/access-model'
 import FollowButton from '@/app/components/follow-button'
+import TennisShareCardPreview from '@/app/components/tennis-share-card-preview'
 import MatchAccuracyReportButton from '@/app/components/match-accuracy-report-button'
 import {
   buildSmsHref,
@@ -45,6 +48,7 @@ import {
   type MatchAccuracyReport,
 } from '@/lib/match-accuracy-reports'
 import { CAPTAIN_STORY, DATA_ASSIST_STORY } from '@/lib/product-story'
+import { getPlanUnlockHref } from '@/lib/plan-intent'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { loadUserProfileLink } from '@/lib/user-profile'
 import { loadRecentTiqAwards, type TiqAwardRecord } from '@/lib/tiq-awards-registry'
@@ -60,6 +64,9 @@ import {
 } from '@/lib/captain-roster-contacts'
 import { getTeamMatchFormatSummary, resolveTeamMatchFormat } from '@/lib/competition-format-registry'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
+import { getTeamDirectoryReturnHref } from '@/lib/team-directory-navigation'
+import { getTeamActivityGroup } from '@/lib/team-activity'
+import { reconcileTeamProfileFixtures } from '@/lib/team-profile-fixtures'
 
 type TeamMatch = {
   id: string
@@ -87,7 +94,7 @@ type LineMatch = {
 
 type TeamRatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
 type RosterFilter = 'all' | 'played' | 'roster-only' | 'singles' | 'doubles' | 'needs-mobile'
-type TeamActivityFilter = 'all' | 'upcoming' | 'results'
+type TeamActivityFilter = 'all' | 'upcoming' | 'results' | 'unreported'
 type TeamSection = 'overview' | 'activity' | 'roster' | 'chat' | 'lineup'
 
 type Player = {
@@ -337,6 +344,8 @@ export default function TeamPage() {
 function TeamPageContent() {
   const params = useParams()
   const searchParams = useSearchParams()
+  const directoryReturnHref = getTeamDirectoryReturnHref(searchParams.get('returnTo'))
+  const hasDirectoryReturn = searchParams.has('returnTo')
 
   const rawTeam = getParamValue(params.team as string | string[] | undefined)
   const team = decodeTeamRouteSegment(rawTeam)
@@ -344,6 +353,9 @@ function TeamPageContent() {
   const layerFilter = cleanText(searchParams.get('layer'))
   const leagueFilter = cleanText(searchParams.get('league'))
   const flightFilter = cleanText(searchParams.get('flight'))
+  const publicContent = usePublicCompetitionContent()
+  const publicSnapshot = publicContent.teamName === team && !leagueFilter && !flightFilter ? publicContent.teamContent : null
+  const publicEvidence = publicSnapshot ? publicContent.teamEvidence : null
   const contactHubRequested = searchParams.get('contacts') === '1'
 
   const [matches, setMatches] = useState<TeamMatch[]>([])
@@ -408,7 +420,7 @@ function TeamPageContent() {
     const query = new URLSearchParams(window.location.search)
     setSeasonFilter(query.get('season') || 'all')
     const nextActivity = query.get('activity')
-    if (nextActivity === 'upcoming' || nextActivity === 'results' || nextActivity === 'all') {
+    if (nextActivity === 'upcoming' || nextActivity === 'results' || nextActivity === 'unreported' || nextActivity === 'all') {
       setActivityFilter(nextActivity)
     }
     const nextRoster = query.get('roster')
@@ -440,6 +452,7 @@ function TeamPageContent() {
 
   const exploreResumeHref = useMemo(() => {
     const query = new URLSearchParams()
+    if (hasDirectoryReturn) query.set('returnTo', directoryReturnHref)
     if (layerFilter) query.set('layer', layerFilter)
     if (leagueFilter) query.set('league', leagueFilter)
     if (flightFilter) query.set('flight', flightFilter)
@@ -448,7 +461,7 @@ function TeamPageContent() {
     if (rosterFilter !== 'all') query.set('roster', rosterFilter)
     const search = query.toString()
     return `/teams/${rawTeam}${search ? `?${search}` : ''}`
-  }, [activityFilter, flightFilter, layerFilter, leagueFilter, rawTeam, rosterFilter, seasonFilter])
+  }, [activityFilter, directoryReturnHref, hasDirectoryReturn, flightFilter, layerFilter, leagueFilter, rawTeam, rosterFilter, seasonFilter])
 
   useEffect(() => {
     if (!detailReady) return
@@ -672,7 +685,7 @@ function TeamPageContent() {
         return home === team || away === team
       })
 
-      setMatches(scopedMatches)
+      setMatches(reconcileTeamProfileFixtures(scopedMatches))
 
       const rosterQuery = supabase
         .from('team_roster_members')
@@ -1432,6 +1445,8 @@ function TeamPageContent() {
       job: 'check_availability',
       href: buildCaptainScopedHref('/captain/availability', {
         competitionLayer,
+        date: nextScheduledMatch?.match_date || undefined,
+        opponent: nextScheduledMatch?.opponent || undefined,
         team,
         league: leagueFilter || teamMeta.league || undefined,
         flight: flightFilter || teamMeta.flight || undefined,
@@ -1445,6 +1460,8 @@ function TeamPageContent() {
       job: 'build_lineup',
       href: buildCaptainScopedHref('/captain/lineup-builder', {
         competitionLayer,
+        date: nextScheduledMatch?.match_date || undefined,
+        opponent: nextScheduledMatch?.opponent || undefined,
         team,
         league: leagueFilter || teamMeta.league || undefined,
         flight: flightFilter || teamMeta.flight || undefined,
@@ -1458,6 +1475,8 @@ function TeamPageContent() {
       job: 'compare_pairings',
       href: buildCaptainScopedHref('/captain/scenario-builder', {
         competitionLayer,
+        date: nextScheduledMatch?.match_date || undefined,
+        opponent: nextScheduledMatch?.opponent || undefined,
         team,
         league: leagueFilter || teamMeta.league || undefined,
         flight: flightFilter || teamMeta.flight || undefined,
@@ -1471,12 +1490,20 @@ function TeamPageContent() {
       job: 'send_team_plan',
       href: buildCaptainScopedHref('/captain/messaging', {
         competitionLayer,
+        date: nextScheduledMatch?.match_date || undefined,
+        opponent: nextScheduledMatch?.opponent || undefined,
         team,
         league: leagueFilter || teamMeta.league || undefined,
         flight: flightFilter || teamMeta.flight || undefined,
       }),
     },
   ]
+  const captainPreviewHref = authResolved && !access.canUseCaptainWorkflow
+    ? getPlanUnlockHref('captain', captainLinks[1].href)
+    : '/captain'
+  const captainPreviewLabel = authResolved && !access.canUseCaptainWorkflow
+    ? CAPTAIN_STORY.upgradeCta
+    : 'Open Captain'
   const teamRoomHref = buildTeamRoomHref({
     teamName: team,
     leagueName: leagueFilter || teamMeta.league || undefined,
@@ -1506,7 +1533,7 @@ function TeamPageContent() {
     : captainWeekStatus?.status === 'finalized'
       ? { href: teamRoomHref, label: 'Open Team Chat' }
       : { href: captainLinks[1].href, label: 'Build lineup' }
-  const captainMatchPulseAction = latestUnreportedMatch && latestUnreportedMatchScorecardHref
+  const captainMatchPulseAction = !nextScheduledMatch && latestUnreportedMatch && latestUnreportedMatchScorecardHref
     ? { href: latestUnreportedMatchScorecardHref, label: 'Record result' }
     : captainMatchWeekAction
   const captainMatchWeekMeta = captainWeekStatus
@@ -1803,6 +1830,7 @@ function TeamPageContent() {
     flight: teamMeta.flight,
   })
   if (loading) {
+    if (publicSnapshot) return <>{publicSnapshot}<p role="status" style={{ textAlign: 'center' }}>Loading the full team history and tools…</p></>
     return (
       <section style={pageContent}>
         <PublicDetailState
@@ -1826,6 +1854,10 @@ function TeamPageContent() {
     )
   }
 
+  if (error && publicSnapshot) {
+    return <>{publicSnapshot}<section className="page-shell-tight" role="alert"><p>The full team details could not load. The public court snapshot is still available above.</p><button type="button" onClick={() => void loadTeamPage()}>Retry team details</button></section></>
+  }
+
   return (
     <section style={pageContent}>
         <ExploreResumeTracker
@@ -1835,6 +1867,10 @@ function TeamPageContent() {
           contextLabel={team}
           enabled={detailReady}
         />
+        {publicEvidence && publicEvidence.results.length > 0 ? <details className="surface-card-strong panel-pad" aria-label="Scored public court results" style={{ marginBottom: 16 }}>
+          <summary>Read scored public court results across competitions</summary>
+          <PublicTeamProfileSnapshot evidence={publicEvidence} titleAs="h2" />
+        </details> : null}
         <nav style={isMobile ? teamSectionNavMobileStyle : teamSectionNavStyle} aria-label="Team page sections">
           {([
             { id: 'overview', label: 'Overview', href: '#team-overview' },
@@ -1893,7 +1929,7 @@ function TeamPageContent() {
         <section id="team-overview" style={{ ...dynamicHeroShell, scrollMarginTop: 16 }}>
           <span aria-hidden="true" style={watermarkStyle} />
           <div>
-            <Link href="/teams" style={heroBackLinkStyle}>Back to teams</Link>
+            <Link href={directoryReturnHref} style={heroBackLinkStyle}>Back to teams</Link>
             <p style={eyebrow}>Team profile</p>
             <h1 style={dynamicHeroTitle}>{team || 'Team Detail'}</h1>
 
@@ -2051,20 +2087,24 @@ function TeamPageContent() {
         </section>
 
         {nextScheduledMatch || latestUnreportedMatch || roster.length || teamCourtLead ? (
+          <TennisShareCardPreview kind="team" title={team} subtitle="Team tennis" detail="Results, roster, and match context" publicPath={teamProfileHref} />
+        ) : null}
+
+        {nextScheduledMatch || latestUnreportedMatch || roster.length || teamCourtLead ? (
           <section style={teamMatchPulseStyle} aria-label="Team match pulse">
             <div style={teamMatchPulseHeadingStyle}>
               <div>
                 <p style={sectionKicker}>Match pulse</p>
                 <h2 style={teamMatchPulseTitleStyle}>
-                  {latestUnreportedMatch
-                    ? 'Close the last match before planning ahead.'
-                    : nextScheduledMatch
-                      ? 'Ready for the next opponent.'
+                  {nextScheduledMatch
+                    ? 'Ready for the next opponent.'
+                    : latestUnreportedMatch
+                      ? 'Close the last match before planning ahead.'
                       : 'Team readiness at a glance.'}
                 </h2>
               </div>
-              <Link href={canManageThisTeam ? captainMatchPulseAction.href : '/captain'} style={teamMatchPulseActionStyle}>
-                {canManageThisTeam ? captainMatchPulseAction.label : 'Explore Captain'}
+              <Link href={canManageThisTeam ? captainMatchPulseAction.href : captainPreviewHref} style={teamMatchPulseActionStyle}>
+                {canManageThisTeam ? captainMatchPulseAction.label : captainPreviewLabel}
               </Link>
             </div>
 
@@ -2138,10 +2178,11 @@ function TeamPageContent() {
             </div>
 
             {!canManageThisTeam ? (
-              <Link href="/captain" style={teamPulseCaptainPreviewStyle}>
+              <Link href={captainPreviewHref} style={teamPulseCaptainPreviewStyle}>
                 <span style={teamPulseCaptainCopyStyle}>
                   <span style={teamPulseLabelStyle}>{CAPTAIN_STORY.quickStartKicker}</span>
                   <strong>Turn this team read into a clear lineup.</strong>
+                  <span style={teamPulseLabelStyle}>{captainPreviewLabel}</span>
                 </span>
                 <span aria-hidden="true" style={teamPulseCaptainArrowStyle}>→</span>
               </Link>
@@ -2156,7 +2197,7 @@ function TeamPageContent() {
               <h2 style={captainAccessTitleStyle}>Get the lineup ready before match day.</h2>
               <p style={captainAccessTextStyle}>Availability, pairings, and team messaging stay in one weekly flow.</p>
             </div>
-            <SecondaryLink href="/captain">{CAPTAIN_STORY.quickStartKicker}</SecondaryLink>
+            <SecondaryLink href={captainPreviewHref}>{captainPreviewLabel}</SecondaryLink>
           </section>
         ) : null}
 
@@ -2609,24 +2650,28 @@ function TeamPageContent() {
           ) : null}
 
           {matchCards.length ? (() => {
+            const activityToday = new Date().toISOString().slice(0, 10)
             const filteredCards = seasonFilter === 'all'
               ? matchCards
               : matchCards.filter((m) => (m.match_date || '').startsWith(seasonFilter))
             const upcomingCards = filteredCards
-              .filter((match) => match.won === null)
+              .filter((match) => getTeamActivityGroup(match, activityToday) === 'upcoming')
               .sort((left, right) => (left.match_date || '').localeCompare(right.match_date || ''))
+            const unreportedCards = filteredCards
+              .filter((match) => getTeamActivityGroup(match, activityToday) === 'unreported')
+              .sort((left, right) => (right.match_date || '').localeCompare(left.match_date || ''))
             const completedCards = filteredCards
               .filter((match) => match.won !== null)
               .sort((left, right) => (right.match_date || '').localeCompare(left.match_date || ''))
-            const orderedCards = [...upcomingCards, ...completedCards]
+            const orderedCards = [...upcomingCards, ...completedCards, ...unreportedCards]
             const activityCards = activityFilter === 'upcoming'
               ? upcomingCards
               : activityFilter === 'results'
                 ? completedCards
-                : orderedCards
+                : activityFilter === 'unreported' ? unreportedCards : orderedCards
             const previewCards = isMobile
               ? activityFilter === 'all'
-                ? [...upcomingCards.slice(0, 2), ...completedCards.slice(0, 2)]
+                ? [...upcomingCards.slice(0, 2), ...completedCards.slice(0, 2), ...unreportedCards.slice(0, 1)]
                 : activityCards.slice(0, 4)
               : activityCards.slice(0, 8)
             const visibleCards = showFullMatchHistory ? activityCards : previewCards
@@ -2638,6 +2683,7 @@ function TeamPageContent() {
                   { key: 'all', label: 'All' },
                   { key: 'upcoming', label: `Upcoming ${upcomingCards.length}` },
                   { key: 'results', label: `Results ${completedCards.length}` },
+                  { key: 'unreported', label: `Missing results ${unreportedCards.length}` },
                 ] as const).map((option) => {
                   const active = activityFilter === option.key
                   return (
@@ -2663,8 +2709,9 @@ function TeamPageContent() {
             {isMobile ? (
               <div style={mobileMatchListStyle}>
                 {[
-                  { key: 'upcoming', label: 'Upcoming', cards: visibleCards.filter((match) => match.won === null) },
+                  { key: 'upcoming', label: 'Upcoming', cards: visibleCards.filter((match) => getTeamActivityGroup(match, activityToday) === 'upcoming') },
                   { key: 'recent', label: 'Recent results', cards: visibleCards.filter((match) => match.won !== null) },
+                  { key: 'unreported', label: 'Missing results', cards: visibleCards.filter((match) => getTeamActivityGroup(match, activityToday) === 'unreported') },
                 ].filter((group) => group.cards.length > 0).map((group) => (
                   <section key={group.key} style={mobileMatchGroupStyle} aria-label={group.label}>
                     <h3 style={mobileMatchGroupTitleStyle}>{group.label}</h3>
@@ -3035,7 +3082,7 @@ function TeamPageContent() {
                   const rosterPlayerTools = (
                     <>
                       <div style={rosterActionRow}>
-                        {!isPendingLink ? <Link href={`/players/${player.id}`} style={rosterActionLink}>Profile</Link> : null}
+                        {!isPendingLink ? <Link href={`/players/${player.id}`} prefetch={false} style={rosterActionLink}>Profile</Link> : null}
                         {!isPendingLink && access.canUseAdvancedPlayerInsights ? (
                           <Link href={`/matchup?type=singles&playerA=${encodeURIComponent(player.id)}`} style={rosterActionLinkAccent}>Matchup</Link>
                         ) : null}
@@ -3086,7 +3133,7 @@ function TeamPageContent() {
                       <div style={mobileRosterHeaderStyle}>
                         <div style={mobileRosterIdentityStyle}>
                           {isPendingLink ? <strong>{player.name}</strong> : (
-                            <Link href={`/players/${player.id}`} style={playerLink}><strong>{player.name}</strong></Link>
+                            <Link href={`/players/${player.id}`} prefetch={false} style={playerLink}><strong>{player.name}</strong></Link>
                           )}
                           {player.location ? <span style={mutedText}>{player.location}</span> : null}
                         </div>
@@ -3160,7 +3207,7 @@ function TeamPageContent() {
               {tennisRecordRoster.map((player) => (
                 <div key={`${player.canonical_player_id || 'source'}-${player.player_name}`} style={dynamicListRow}>
                   <div style={listRowCopyStyle}>
-                    {player.canonical_player_id ? <Link href={`/players/${player.canonical_player_id}`} style={playerLink}><strong>{player.player_name}</strong></Link> : <strong>{player.player_name}</strong>}
+                    {player.canonical_player_id ? <Link href={`/players/${player.canonical_player_id}`} prefetch={false} style={playerLink}><strong>{player.player_name}</strong></Link> : <strong>{player.player_name}</strong>}
                     <div style={mutedText}>Recorded team listing</div>
                   </div>
                 </div>
@@ -4851,14 +4898,14 @@ const teamSeasonScopeDetailStyle: CSSProperties = {
 
 const activityFilterControlsStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap: 6,
   marginBottom: 12,
   minWidth: 0,
 }
 
 const activityFilterButtonStyle: CSSProperties = {
-  minHeight: 40,
+  minHeight: 44,
   minWidth: 0,
   border: '1px solid rgba(125, 211, 252, 0.14)',
   borderRadius: 12,

@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import { getPlayerDirectoryReturnHref } from '@/lib/player-directory-navigation'
+import { usePublicPlayerContent } from '@/app/components/public-player-content-context'
 import Image from 'next/image'
 import React from 'react'
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
@@ -33,7 +35,7 @@ import {
   type TiqLeagueStorageSource,
   type TiqPlayerParticipationRecord,
 } from '@/lib/tiq-league-service'
-import { formatDate } from '@/lib/captain-formatters'
+import { formatDate, parseDisplayDate } from '@/lib/captain-formatters'
 import { DATA_ASSIST_STORY } from '@/lib/product-story'
 import { MEMBERSHIP_TIERS } from '@/lib/product-story'
 import { buildPlayerTrophyBadges } from '@/lib/player-trophy-badges'
@@ -48,6 +50,8 @@ import {
 } from '@/lib/tiq-awards-registry'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 import profileStory from './player-profile-story.module.css'
+import RatingJourneyExplorer from '@/app/components/rating-journey-explorer'
+import TennisShareCardPreview from '@/app/components/tennis-share-card-preview'
 
 type RatingView = 'overall' | 'singles' | 'doubles'
 type ProfileNavSection = 'overview' | 'rating' | 'performance' | 'player-id' | 'teams'
@@ -251,7 +255,7 @@ function RatedParticipantLinks({
           <React.Fragment key={participant.id || `${participant.name}-${index}`}>
             {index > 0 ? ' / ' : null}
             {participant.id ? (
-              <Link href={`/players/${encodeURIComponent(participant.id)}`}>{label}</Link>
+              <Link href={`/players/${encodeURIComponent(participant.id)}`} prefetch={false}>{label}</Link>
             ) : (
               label
             )}
@@ -313,8 +317,14 @@ export default function PlayerProfilePage() {
 }
 
 function PlayerProfileContent() {
+  const [backToPlayersHref, setBackToPlayersHref] = useState('/explore/players')
+  useEffect(() => {
+    setBackToPlayersHref(getPlayerDirectoryReturnHref(new URLSearchParams(window.location.search).get('returnTo')))
+  }, [])
   const params = useParams()
   const playerId = String(params.id)
+  const publicContent = usePublicPlayerContent()
+  const publicSnapshot = publicContent.profileId === playerId ? publicContent.profileContent : null
 
   const [player, setPlayer] = useState<Player | null>(null)
   const [matches, setMatches] = useState<MatchRecord[]>([])
@@ -564,6 +574,7 @@ function PlayerProfileContent() {
             .in('id', matchIds)
             .eq('public_history_eligible', true)
             .not('match_type', 'is', null)
+            .lte('match_date', new Date().toISOString().slice(0, 10))
             .eq('public_history_eligible', true)
             .order('match_date', { ascending: false })
             .order('match_time', { ascending: false })
@@ -802,6 +813,8 @@ function PlayerProfileContent() {
         : snapshots.filter((snapshot) => snapshot.rating_type === ratingView)
 
     return relevantSnapshots.map((snapshot, index) => ({
+      id: snapshot.id,
+      matchId: snapshot.match_id,
       x: index + 1,
       date: snapshot.snapshot_date,
       rating: snapshot.dynamic_rating,
@@ -815,6 +828,14 @@ function PlayerProfileContent() {
     const cutoff = Date.now() - (chartWindow === '90d' ? 90 : 30) * 24 * 60 * 60 * 1000
     return chartPoints.filter((p) => new Date(p.date).getTime() >= cutoff)
   }, [chartPoints, chartWindow])
+
+  const ratingJourneyPoints = useMemo(() => {
+    const matchById = new Map(matches.map(match => [match.id, match]))
+    return filteredChartPoints.map(point => {
+      const match = matchById.get(point.matchId)
+      return { ...point, opponent: match?.opponent, score: match?.score, result: match?.result }
+    })
+  }, [filteredChartPoints, matches])
 
   const selectedDynamicRating = useMemo(() => getTiqRating(player, ratingView), [player, ratingView])
   const ustaDynamicRating = useMemo(() => getUstaDynamicRating(player, ratingView), [player, ratingView])
@@ -1139,8 +1160,8 @@ function PlayerProfileContent() {
   }, [matches, rosterMemberships])
 
   const isOwnProfile = linkedPlayerId === playerId
-  const canViewExactTiqRating = isOwnProfile || access.canUseAdvancedPlayerInsights
-  const canViewExactParticipantTiq = access.canUseAdvancedPlayerInsights
+  const canViewExactTiqRating = true
+  const canViewExactParticipantTiq = true
   const hasPersonalPlayerExperience = isOwnProfile && access.canUseAdvancedPlayerInsights
   const isLinkedFreeProfile = isOwnProfile && !hasPersonalPlayerExperience
   const matchupHref = linkedPlayerId && linkedPlayerId !== playerId
@@ -1738,6 +1759,7 @@ function PlayerProfileContent() {
     },
   ]
   if (loading) {
+    if (publicSnapshot) return <>{publicSnapshot}<p role="status" style={{ textAlign: 'center' }}>Loading the full player history and tools…</p></>
     return (
       <section style={dynamicHeroWrap}>
         <PublicDetailState
@@ -1765,6 +1787,7 @@ function PlayerProfileContent() {
   if (error || !player) {
     return (
       <section style={dynamicHeroWrap}>
+        {publicSnapshot}
         <div style={dynamicHeroShell}>
           <div style={heroNoise} />
           <div style={errorCard}>
@@ -1773,7 +1796,7 @@ function PlayerProfileContent() {
             <p style={sectionText}>{getPublicPlayerErrorMessage(error)}</p>
             <div style={errorActionRow}>
               <MiniButton onClick={() => void loadPlayerProfile()}>Retry profile load</MiniButton>
-              <MiniLink href="/players">Back to players</MiniLink>
+              <MiniLink href={backToPlayersHref}>Back to players</MiniLink>
               <MiniLink href="/rankings">Browse rankings</MiniLink>
             </div>
           </div>
@@ -1868,7 +1891,7 @@ function PlayerProfileContent() {
           <div className={profileStory.storyContent}>
             <div>
               <div className={profileStory.identityTopline}>
-                <Link href="/players" className={profileStory.backLink}>Back to players</Link>
+                <Link href={backToPlayersHref} className={profileStory.backLink}>Back to players</Link>
                 <span className={profileStory.profileLabel}>{hasPersonalPlayerExperience ? 'Your player profile' : 'Player profile'}</span>
               </div>
 
@@ -1885,64 +1908,25 @@ function PlayerProfileContent() {
                 </div>
               </div>
 
-              {profileAchievementShowcase.length > 0 ? (
-                <section className={profileStory.achievementShelf} aria-label="Player achievements">
-                  <div className={profileStory.achievementShelfHeading}>
-                    <span>Achievements</span>
+              <div className={profileStory.heroActions}>
+                    <Link href={storyActionHref} className={profileStory.primaryAction}>{heroPrimaryLabel}</Link>
+                    <Link href={heroSecondaryHref} className={profileStory.quietAction}>{heroSecondaryLabel}</Link>
+                    <FollowButton
+                      entityType="player"
+                      entityId={player.id}
+                      entityName={player.name}
+                      subtitle={player.location || ''}
+                    />
                     {hasPersonalPlayerExperience ? (
                       <button
                         type="button"
-                        className={profileStory.achievementEditButton}
-                        onClick={() => setAchievementEditorOpen((open) => !open)}
+                        className={`${profileStory.quietAction} ${profileStory.mobileOnlyAction}`}
+                        onClick={() => void sharePlayerProfile()}
                       >
-                        {achievementEditorOpen ? 'Done' : 'Edit showcase'}
+                        {profileShareStatus === 'copied' ? 'Link copied' : profileShareStatus === 'shared' ? 'Shared' : 'Share profile'}
                       </button>
-                    ) : (
-                      <small>Player showcase</small>
-                    )}
+                    ) : null}
                   </div>
-                  {featuredTrophyBadge ? (
-                    <div className={profileStory.featuredTrophyBadge} aria-label={`Featured badge: ${featuredTrophyBadge.label}`}>
-                      <TiqFeatureIcon name={featuredTrophyBadge.icon} size="sm" variant="surface" />
-                      <div>
-                        <span>Featured trophy</span>
-                        <strong>{featuredTrophyBadge.label}</strong>
-                        <small>{earnedTrophyBadges.length} badge{earnedTrophyBadges.length === 1 ? '' : 's'} earned</small>
-                      </div>
-                    </div>
-                  ) : null}
-                  <div className={profileStory.achievementShelfItems}>
-                    {orderedAchievementShowcase.map((achievement) => (
-                      <article
-                        key={achievement.key}
-                        className={profileStory.achievementShelfItem}
-                        data-featured={featuredAchievementKeys.includes(achievement.key)}
-                      >
-                        <TiqFeatureIcon name={achievement.icon} size="sm" variant="surface" />
-                        <div>
-                          <strong>{achievement.label}</strong>
-                          <small>{achievement.detail}</small>
-                        </div>
-                        {achievementEditorOpen ? (
-                          <button
-                            type="button"
-                            className={profileStory.achievementFeatureButton}
-                            disabled={achievementSaveStatus === 'saving'}
-                            onClick={() => void saveFeaturedAchievement(achievement.key)}
-                          >
-                            {featuredAchievementKeys.includes(achievement.key) ? 'Remove' : 'Feature'}
-                          </button>
-                        ) : null}
-                      </article>
-                    ))}
-                  </div>
-                  {hasPersonalPlayerExperience ? (
-                    <p className={profileStory.achievementShelfNote} data-tone={achievementSaveStatus}>
-                      {achievementSaveMessage || 'Choose up to three earned badges for your public profile.'}
-                    </p>
-                  ) : null}
-                </section>
-              ) : null}
 
               <div className={profileStory.heroMain}>
                 <div className={profileStory.ratingBlock}>
@@ -1962,6 +1946,8 @@ function PlayerProfileContent() {
                   <span>{heroEyebrow}</span>
                   <h2>{heroStoryTitle}</h2>
                   <p>{heroStoryBody}</p>
+                  <details className={profileStory.ratingExplanation}>
+                    <summary>About these ratings</summary>
                   <div className={profileStory.ratingReadGuide} aria-label="Rating read guide">
                     <div>
                       <span>{officialUstaRead}</span>
@@ -1974,48 +1960,7 @@ function PlayerProfileContent() {
                       <small>{tiqReadNote}</small>
                     </div>
                   </div>
-                  {isPublicExplorerProfile ? (
-                    <div className={profileStory.publicEvidenceRail} aria-label="Public player performance at a glance">
-                      <div>
-                        <span>Record</span>
-                        <strong>{trackedRecordLabel}</strong>
-                        <small>{totalMatches} reviewed</small>
-                      </div>
-                      <div>
-                        <span>Recent form</span>
-                        <strong className={profileStory.publicFormMarks} aria-label={`${recentFormWins} wins and ${recentFormLosses} losses in recent results`}>
-                          {visibleLastFive.length > 0 ? visibleLastFive.map((match) => <i key={match.id} data-result={match.result}>{match.result}</i>) : '—'}
-                        </strong>
-                        <small>{trackedFormLabel}</small>
-                      </div>
-                      <div>
-                        <span>TIQ movement</span>
-                        <strong data-direction={recentTrendDelta === null ? 'flat' : recentTrendDelta >= 0 ? 'up' : 'down'}>
-                          {recentTrendDelta === null ? '—' : `${recentTrendDelta >= 0 ? '+' : ''}${recentTrendDelta.toFixed(2)}`}
-                        </strong>
-                        <small>{recentTrendDelta === null ? 'Trend building' : 'Recent results'}</small>
-                      </div>
-                    </div>
-                  ) : null}
-                  <div className={profileStory.heroActions}>
-                    <Link href={storyActionHref} className={profileStory.primaryAction}>{heroPrimaryLabel}</Link>
-                    <Link href={heroSecondaryHref} className={profileStory.quietAction}>{heroSecondaryLabel}</Link>
-                    <FollowButton
-                      entityType="player"
-                      entityId={player.id}
-                      entityName={player.name}
-                      subtitle={player.location || ''}
-                    />
-                    {hasPersonalPlayerExperience ? (
-                      <button
-                        type="button"
-                        className={`${profileStory.quietAction} ${profileStory.mobileOnlyAction}`}
-                        onClick={() => void sharePlayerProfile()}
-                      >
-                        {profileShareStatus === 'copied' ? 'Link copied' : profileShareStatus === 'shared' ? 'Shared' : 'Share profile'}
-                      </button>
-                    ) : null}
-                  </div>
+                  </details>
                   {shouldShowPlayerAccessHint ? (
                     <div className={profileStory.playerAccessHint}>
                       <span>Unlock Player for My Lab, saved reads, and personal coaching.</span>
@@ -2027,11 +1972,8 @@ function PlayerProfileContent() {
             </div>
 
             <div className={profileStory.storyFooter}>
-              <div className={profileStory.ratingMeta} aria-label="Player rating context">
-                <div><span>{officialUstaShortRead}</span><strong>{isSelfRatedProfile ? 'Pending' : baseRating.toFixed(2)}</strong></div>
+              <div className={profileStory.ratingMeta} style={{ display: 'flex' }} aria-label="Player rating context">
                 <div><span>Confidence</span><strong>{hasTrackedMatches ? confidence : 'Baseline'}</strong></div>
-                <div><span>Form</span><strong>{hasTrackedMatches ? trackedFormLabel : 'New'}</strong></div>
-                <div><span>Reviewed</span><strong>{totalMatches}</strong></div>
               </div>
 
               <div className={profileStory.ratingFocusSummary} aria-label="Selected rating focus">
@@ -2239,6 +2181,67 @@ function PlayerProfileContent() {
           </section>
         ) : null}
 
+        {profileAchievementShowcase.length > 0 ? (
+          <section className={profileStory.achievementShelf} aria-label="Player achievements">
+            <div className={profileStory.achievementShelfHeading}>
+              <span>Achievements</span>
+              {hasPersonalPlayerExperience ? (
+                <button
+                  type="button"
+                  className={profileStory.achievementEditButton}
+                  onClick={() => setAchievementEditorOpen((open) => !open)}
+                >
+                  {achievementEditorOpen ? 'Done' : 'Edit showcase'}
+                </button>
+              ) : (
+                <small>Player showcase</small>
+              )}
+            </div>
+            {featuredTrophyBadge ? (
+              <div className={profileStory.featuredTrophyBadge} aria-label={`Featured badge: ${featuredTrophyBadge.label}`}>
+                <TiqFeatureIcon name={featuredTrophyBadge.icon} size="sm" variant="surface" />
+                <div>
+                  <span>Featured trophy</span>
+                  <strong>{featuredTrophyBadge.label}</strong>
+                  <small>{earnedTrophyBadges.length} badge{earnedTrophyBadges.length === 1 ? '' : 's'} earned</small>
+                </div>
+              </div>
+            ) : null}
+            <div className={profileStory.achievementShelfItems}>
+              {orderedAchievementShowcase.map((achievement) => (
+                <article
+                  key={achievement.key}
+                  className={profileStory.achievementShelfItem}
+                  data-featured={featuredAchievementKeys.includes(achievement.key)}
+                >
+                  <TiqFeatureIcon name={achievement.icon} size="sm" variant="surface" />
+                  <div>
+                    <strong>{achievement.label}</strong>
+                    <small>{achievement.detail}</small>
+                  </div>
+                  {achievementEditorOpen ? (
+                    <button
+                      type="button"
+                      className={profileStory.achievementFeatureButton}
+                      disabled={achievementSaveStatus === 'saving'}
+                      onClick={() => void saveFeaturedAchievement(achievement.key)}
+                    >
+                      {featuredAchievementKeys.includes(achievement.key) ? 'Remove' : 'Feature'}
+                    </button>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+            {hasPersonalPlayerExperience ? (
+              <p className={profileStory.achievementShelfNote} data-tone={achievementSaveStatus}>
+                {achievementSaveMessage || 'Choose up to three earned badges for your public profile.'}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
+
+
         <article id="profile-rating-journey" className={profileStory.journeyPanel}>
           <div className={profileStory.journeyMain}>
             <div className={profileStory.journeyHeadingRow}>
@@ -2250,7 +2253,9 @@ function PlayerProfileContent() {
             </div>
 
             {chartPoints.length > 1 && showDetailedRatingHistory ? (
-              <SimpleLineChart points={filteredChartPoints} baseRating={baseRating} />
+              access.canUseAdvancedPlayerInsights
+                ? <RatingJourneyExplorer key={ratingView} points={ratingJourneyPoints} />
+                : <SimpleLineChart points={filteredChartPoints} baseRating={baseRating} />
             ) : chartPoints.length > 1 ? (
               <div className={profileStory.ratingHistorySummary} aria-label="Compact TIQ rating journey">
                 <div className={profileStory.ratingJourneyPulse}>
@@ -2396,6 +2401,7 @@ function PlayerProfileContent() {
               </article>
 
               <article className={profileStory.playerCardPreview} data-own-profile={hasPersonalPlayerExperience}>
+                <TennisShareCardPreview kind="player" title={player.name} subtitle={player.location || 'Player profile'} detail={`${totalMatches} reviewed matches`} publicPath={`/players/${encodeURIComponent(player.id)}`} />
                 <span className={profileStory.playerCardEyebrow}>Your player card</span>
                 <h3>A profile worth sharing.</h3>
                 <div className={profileStory.playerCard} aria-label={`${player.name} share card preview`}>
@@ -2443,7 +2449,7 @@ function PlayerProfileContent() {
           <div style={dynamicHeroContent}>
             <div style={heroLeft}>
               <div style={playerHeroToplineStyle}>
-                <BreadcrumbLink href="/players" label="Back to players" />
+                <BreadcrumbLink href={backToPlayersHref} label="Back to players" />
                 <div style={eyebrow}>{isOwnProfile ? 'Your player scorecard' : 'Player scorecard'}</div>
               </div>
 
@@ -3616,7 +3622,7 @@ function PlayerProfileContent() {
                   Try another rating view or head back to the player directory to compare against teammates and nearby-rated players.
                 </p>
                 <div style={dynamicFollowRow}>
-                  <MiniLink href="/players">Back to players</MiniLink>
+                  <MiniLink href={backToPlayersHref}>Back to players</MiniLink>
                   <MiniLink href="/mylab">Open My Lab</MiniLink>
                 </div>
               </div>
@@ -3650,7 +3656,7 @@ function PlayerProfileContent() {
                             {match.opponent}
                           </Link>
                         ) : match.opponentIds.length > 1 ? (
-                          <Link href={`/players/${encodeURIComponent(match.opponentIds[0])}`} style={mobileMatchOpponentLinkStyle}>
+                          <Link href={`/players/${encodeURIComponent(match.opponentIds[0])}`} prefetch={false} style={mobileMatchOpponentLinkStyle}>
                             {match.opponent}
                           </Link>
                         ) : (
@@ -3771,6 +3777,7 @@ function PlayerProfileContent() {
                           ) : match.opponentIds.length > 1 ? (
                             <Link
                               href={`/players/${encodeURIComponent(match.opponentIds[0])}`}
+                              prefetch={false}
                               style={{ color: '#93c5fd', fontWeight: 700, textDecoration: 'none' }}
                             >
                               {match.opponent}
@@ -3894,7 +3901,7 @@ function PlayerProfileContent() {
                   <div key={opp.name} style={rivalryRowStyle}>
                     <div style={rivalryCopyStyle}>
                       {opp.id ? (
-                        <EntityDetailLink href={`/players/${encodeURIComponent(opp.id)}`} style={rivalryNameLinkStyle}>
+                        <EntityDetailLink href={`/players/${encodeURIComponent(opp.id)}`} prefetch={false} style={rivalryNameLinkStyle}>
                           {opp.name}
                         </EntityDetailLink>
                       ) : (
@@ -4027,7 +4034,7 @@ function PlayerProfileContent() {
                     style={nearbyPlayerRowStyle}
                   >
                     <div style={nearbyPlayerCopyStyle}>
-                      <Link href={`/players/${p.id}`} style={nearbyPlayerNameStyle}>{p.name}</Link>
+                      <Link href={`/players/${p.id}`} prefetch={false} style={nearbyPlayerNameStyle}>{p.name}</Link>
                       <div style={nearbyPlayerMetaStyle}>{p.location || 'No location'}</div>
                     </div>
                     <div style={nearbyPlayerActionRowStyle}>
@@ -4703,7 +4710,7 @@ function getSpreadIndices(total: number, count: number): number[] {
 }
 
 function formatChartDate(dateStr: string): string {
-  const d = new Date(dateStr)
+  const d = parseDisplayDate(dateStr)
   if (isNaN(d.getTime())) return dateStr.slice(5) // fallback: MM-DD
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }

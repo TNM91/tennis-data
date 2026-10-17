@@ -290,11 +290,10 @@ export default function UniversalSearch({
       return
     }
 
-    const shouldOpenPlayerSearch = isLikelyPlayerLookupQuery(q)
-    const first = shouldOpenPlayerSearch ? undefined : visibleResults[0]
+    const first = isLikelyPlayerLookupQuery(q) ? undefined : visibleResults[0]
     const destination = first
       ? buildResultHref(first, q, Boolean(session?.user))
-      : buildFreePlayerSearchHref(q)
+      : buildFreeTennisSearchHref(q)
     const searchEvent = getSearchIntentEvent(q, first?.group)
     void trackProductUsageEvent({
       eventName: visibleResults.length ? searchEvent.eventName : 'zero_result_seen',
@@ -397,10 +396,10 @@ export default function UniversalSearch({
         </button>
       </form>
       {showPlayerSuggestions ? (
-        <section style={playerSuggestionPanelStyle} aria-label="Player name suggestions" aria-live="polite" role="listbox">
+        <section style={playerSuggestionPanelStyle} aria-label="Quick player matches" aria-live="polite" role="listbox">
           <div style={playerSuggestionHeaderStyle}>
-            <strong>Player matches</strong>
-            <span>{playerSuggestionLoading ? 'Searching names…' : 'Pick a player or keep searching'}</span>
+            <strong>Quick player matches</strong>
+            <span>{playerSuggestionLoading ? 'Searching names…' : 'Choose a player or search all tennis'}</span>
           </div>
           {playerSuggestions.length > 0 ? (
             <div style={playerSuggestionListStyle}>
@@ -416,7 +415,7 @@ export default function UniversalSearch({
               ))}
             </div>
           ) : !playerSuggestionLoading ? (
-            <div style={playerSuggestionEmptyStyle}>No close player name yet. Press Search to widen the tennis lookup.</div>
+            <div style={playerSuggestionEmptyStyle}>Press Search for players, teams, leagues, and areas.</div>
           ) : null}
         </section>
       ) : null}
@@ -560,8 +559,8 @@ function appendSearchQuery(href: string, query: string) {
   return `${pathWithSearch}${separator}q=${encodeURIComponent(q)}${hash ? `#${hash}` : ''}`
 }
 
-function buildFreePlayerSearchHref(query: string) {
-  return `/explore/search?scope=players&q=${encodeURIComponent(query.trim())}`
+function buildFreeTennisSearchHref(query: string) {
+  return `/explore/search?scope=all&q=${encodeURIComponent(query.trim())}`
 }
 
 function isLikelyPlayerLookupQuery(query: string) {

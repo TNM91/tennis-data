@@ -1,8 +1,10 @@
 'use client'
+import { orderCaptainMatchOptions, uniqueCaptainMatchOptions } from '@/lib/captain-match-options'
 
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import CaptainLineupReviewShare from '@/app/components/captain-lineup-review-share'
 import {
   useCallback,
   useEffect,
@@ -19,6 +21,9 @@ import LockedPlanPage from '@/app/components/locked-plan-page'
 import { useAuth } from '@/app/components/auth-provider'
 import CaptainSuitePanel from '@/app/components/captain-suite-panel'
 import CaptainMatchWeekRail from '@/app/components/captain-match-week-rail'
+import CaptainLineupMobileAction from '@/app/components/captain-lineup-mobile-action'
+import mobileActionStyles from '@/app/components/captain-lineup-mobile-action.module.css'
+import { getCaptainLineupNextAction } from '@/lib/captain-lineup-next-action'
 import CaptainLineupIntelligence, {
   type CaptainLineupIntelligenceCourt,
   type CaptainPairMatrixCourt,
@@ -1531,6 +1536,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     getCaptainLineupFormatKey(initialLeagueName, initialFlight, initialMatchFormat)
   )
   const [lockedSlotIds, setLockedSlotIds] = useState<string[]>([])
+  const [lineupManuallyCleared, setLineupManuallyCleared] = useState(false)
   const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
   const [releasedConfirmedPlayerIds, setReleasedConfirmedPlayerIds] = useState<string[]>([])
   const [openingFinalDelivery, setOpeningFinalDelivery] = useState(false)
@@ -2101,12 +2107,12 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   }, [flight, leagueName, linkedCaptainTeams, teamName])
 
   const scopedMatchOptions = useMemo(() => {
-    return matches.filter((match) => isSameScope(match, {
-      leagueName: teamName ? '' : leagueName,
-      flight: teamName ? '' : flight,
+    return orderCaptainMatchOptions(uniqueCaptainMatchOptions(matches.filter((match) => match.line_number === null && isSameScope(match, {
+      leagueName,
+      flight,
       teamName,
-    }))
-  }, [flight, leagueName, matches, teamName])
+    })), selectedMatchId), new Date().toISOString().slice(0, 10))
+  }, [flight, leagueName, matches, selectedMatchId, teamName])
 
   const selectedMatch = useMemo(() => {
     return scopedMatchOptions.find((match) => match.id === selectedMatchId) ?? null
@@ -2167,9 +2173,10 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       const dateMatch = !matchDate || row.match_date === matchDate
       const teamMatch = !teamName || row.team_name === teamName
       const leagueMatch = !leagueName || row.league_name === leagueName
-      return dateMatch && teamMatch && leagueMatch
+      const flightMatch = !flight || !row.flight || row.flight === flight
+      return dateMatch && teamMatch && leagueMatch && flightMatch
     })
-  }, [availability, matchDate, teamName, leagueName])
+  }, [availability, matchDate, teamName, leagueName, flight])
 
   const availabilityMap = useMemo(() => {
     const map = new Map<string, { status: string | null; notes: string | null }>()
@@ -2923,6 +2930,26 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       setMobileForecastOpen(false)
       setError('')
     }
+  }
+
+  function clearTeamLineup(slotId?: string) {
+    if (saving || loading) return
+    setLineupManuallyCleared(true)
+    const clearedSlots = teamSlots.filter((slot) => !slotId || slot.id === slotId)
+    const clearedSlotIds = new Set(clearedSlots.map((slot) => slot.id))
+    const clearedPlayerIds = new Set(clearedSlots.flatMap((slot) => slot.players.map((player) => player.playerId)))
+    setTeamSlots((current) => current.map((slot) => clearedSlotIds.has(slot.id)
+      ? { ...slot, players: slot.players.map(() => ({ playerId: '', playerName: '' })) }
+      : slot))
+    setLockedSlotIds((current) => slotId ? current.filter((id) => !clearedSlotIds.has(id)) : [])
+    setLockedPlayerIds((current) => slotId ? current.filter((id) => !clearedPlayerIds.has(id)) : [])
+    setReleasedConfirmedPlayerIds((current) => slotId ? current.filter((id) => !clearedPlayerIds.has(id)) : [])
+    setAppliedLineupNotice(null)
+    setSuggestedSwapDraft(null)
+    setSavedLineupChangeDelivery(null)
+    if (!slotId || directCourtTextHandoff?.courtId === slotId) saveDirectCourtTextHandoff(null)
+    setError('')
+    setMessage(slotId ? `${clearedSlots[0]?.label ?? 'Line'} cleared. Choose new players.` : 'Lineup cleared. Choose your players to start again.')
   }
 
   function setSlotLabel(side: 'team' | 'opponent', slotId: string, label: string) {
@@ -4510,7 +4537,11 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     ])
   ), [builderPlayers, historicalLineMatches, historicalLineMatchPlayers])
 
-  const lineupIntelligenceSlots = optimizerTeamSlots.some((slot) =>
+  useEffect(() => {
+    setLineupManuallyCleared(false)
+  }, [teamName, leagueName, flight, matchDate])
+
+  const lineupIntelligenceSlots = lineupManuallyCleared || optimizerTeamSlots.some((slot) =>
     slot.players.some((player) => Boolean(player.playerId))
   )
     ? optimizerTeamSlots
@@ -4557,6 +4588,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         label: slot.label,
         playerIds: selectedPlayers.map((player) => player.playerId),
         playerNames: selectedPlayers.map((player) => player.playerName),
+        availabilityLabel: selectedPlayers.length
+          ? selectedPlayers.map((player) => `${player.playerName.split(' ')[0]}: ${availabilityLabel(availabilityMap.get(player.playerId)?.status)}`).join(' · ')
+          : 'Players needed',
         playerEvidence,
         pairEvidence,
         probability: lineupIntelligenceAnalysis.lines[index]?.projection ?? null,
@@ -4570,7 +4604,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           : 'History still building',
       }
     })
-  ), [historicalLineMatchPlayers, historicalLineMatches, lineupIntelligenceAnalysis.lines, lineupIntelligenceSlots, opponentPlayerPool.length, playerLineupInsightsById])
+  ), [availabilityMap, historicalLineMatchPlayers, historicalLineMatches, lineupIntelligenceAnalysis.lines, lineupIntelligenceSlots, opponentPlayerPool.length, playerLineupInsightsById])
 
   const lineupOpponentScenarios = useMemo<CaptainOpponentScenario[]>(() => {
     const likelySlots = opponentScenarioLineups.find((scenario) => scenario.id === 'likely')?.slots ?? []
@@ -5173,6 +5207,18 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   const completedTeamCourtCount = teamCourtProgress.filter((court) => court.openPlayers === 0).length
   const firstOpenTeamCourt = teamCourtProgress.find((court) => court.openPlayers > 0) ?? null
   const teamLineupComplete = completedTeamCourtCount === teamCourtProgress.length && teamRequiredPlayerCount > 0
+  const savedTeamSlots = normalizeSavedSlots(currentScenario?.slots_json)
+  const savedLineupMatchesDraft = teamLineupComplete
+    && currentScenario?.team_name === teamName
+    && currentScenario?.opponent_team === opponentTeam
+    && currentScenario?.match_date?.slice(0, 10) === matchDate.slice(0, 10)
+    && savedTeamSlots.length === teamSlots.length
+    && teamSlots.every((slot) => {
+      const savedSlot = savedTeamSlots.find((saved) => saved.id === slot.id)
+      return savedSlot?.slotType === slot.slotType
+        && savedSlot.players.length === slot.players.length
+        && slotPlayerSignature(savedSlot.players) === slotPlayerSignature(slot.players)
+    })
   const lineupHasAssignments = teamAssignedPlayerCount > 0
   const opponentAssignedPlayerCount = opponentSlots.reduce(
     (total, slot) => total + slot.players.filter((player) => player.playerId || player.playerName.trim()).length,
@@ -5412,6 +5458,31 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       ? `Waiting on ${assignedTeamReplySummary.waiting.slice(0, 2).map((player) => player.name).join(' and ')}${assignedTeamReplySummary.waiting.length > 2 ? ` and ${assignedTeamReplySummary.waiting.length - 2} more` : ''}.`
       : 'A selected player only counts after they reply Yes or you use Mark Yes & lock to record a text or call confirmation.'
   const finalLineupDeliveryLabel = openingFinalDelivery ? 'Sending lineup…' : 'Send lineup to Team Chat'
+  const mobileNextAction = getCaptainLineupNextAction({
+    hasMatch: hasCoreContext,
+    lineupComplete: teamLineupComplete,
+    openCourtLabel: firstOpenTeamCourt?.label,
+    selectedCount: assignedTeamReplySummary.players.length,
+    requiredCount: teamRequiredPlayerCount,
+    confirmedCount: assignedTeamReplySummary.confirmed.length,
+    outCount: assignedTeamReplySummary.out.length,
+    maybeCount: assignedTeamReplySummary.maybe.length,
+  })
+  function handleMobileNextAction() {
+    if (mobileNextAction.step === 'setup') {
+      setMatchSetupOpen(true)
+      window.requestAnimationFrame(() => document.getElementById('captain-lineup-match-setup')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    } else if (mobileNextAction.step === 'finish') {
+      focusTeamCourts(teamSlots, firstOpenTeamCourt?.id)
+    } else if (mobileNextAction.step === 'replace') {
+      const outCourt = teamSlots.find((slot) => slot.players.some((player) => availabilityLabel(availabilityMap.get(player.playerId)?.status) === 'Out'))
+      focusTeamCourts(teamSlots, outCourt?.id)
+    } else if (mobileNextAction.step === 'ask') {
+      void saveAndConfirmPotentialLineupAvailability()
+    } else {
+      void openFinalLineupDelivery()
+    }
+  }
   if (!authResolved) {
     return (
       <div style={pageWrap}>
@@ -5440,10 +5511,14 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   }
 
   return (
-    <div style={pageWrap}>
+    <div style={pageWrap} className={isMobile ? mobileActionStyles.page : undefined}>
          {!isMobile ? <CaptainSuitePanel active="lineup" teamLabel={teamName || 'Team week'} /> : null}
          <CaptainMatchWeekRail
            current="lineup"
+           progress={{
+             lineup: { complete: savedLineupMatchesDraft, label: savedLineupMatchesDraft ? 'Lineup saved' : teamLineupComplete ? 'Save lineup' : `${completedTeamCourtCount}/${teamCourtProgress.length} courts` },
+             availability: { complete: finalLineupReady && assignedTeamReplySummary.confirmed.length === teamRequiredPlayerCount, label: `${assignedTeamReplySummary.confirmed.length}/${teamRequiredPlayerCount} confirmed` },
+           }}
            scope={{
              competitionLayer,
              team: teamName,
@@ -5453,42 +5528,6 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
              opponent: opponentTeam,
            }}
          />
-         {isMobile && teamName ? (
-           <div role="region" aria-label="Lineup next decision">
-             <CaptainLineupIntelligence
-               matchDateLabel={formatDate(matchDate)}
-               opponentName={opponentTeam}
-               opponentRosterCount={opponentPlayerPool.length}
-               rosterLoading={loading || recoveringSecureSession}
-               rosterUploadHref={opponentSummaryUploadHref}
-               courts={lineupIntelligenceCourts}
-               overallProbability={lineupIntelligenceOverallProbability}
-               insightsByPlayerId={playerLineupInsightsById}
-               opponentScenarios={lineupOpponentScenarios}
-               activeOpponentScenarioId={activeOpponentScenarioId}
-               resilientPreview={lineupResilientPreview}
-               strategyPreviews={lineupStrategyPreviews}
-               simulations={lineupSimulations}
-               pairMatrix={lineupPairMatrix}
-               lockedCourtIds={lockedSlotIds}
-               lockedPlayerIds={[...lockedPlayerIdSet]}
-               onAutoBuild={(strategy) => applyOptimizedPlan(strategy, false)}
-               onOpponentScenarioChange={setActiveOpponentScenarioId}
-               onBuildResilient={applyResilientPlan}
-               onEditCourt={(courtId) => focusTeamCourts(teamSlots, courtId)}
-               onEnterRosterManually={() => {
-                 setManualOpponentRosterOpen(true)
-                 window.requestAnimationFrame(() => {
-                   document.querySelector('[aria-label="Opponent roster options"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                 })
-               }}
-               onToggleCourtLock={toggleLockedSlot}
-               onTogglePlayerLock={toggleOptimizerPlayerLock}
-               onApplySimulation={applyLineupSimulationSwap}
-               onApplyPair={applyPairMatrixRecommendation}
-             />
-           </div>
-         ) : null}
          {linkedCaptainTeams.length > 1 ? (
            <section style={linkedTeamSwitcherStyle(isMobile)} aria-label="Active lineup team">
              <div style={linkedTeamSwitcherCopyStyle}>
@@ -5530,7 +5569,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           <div style={builderControlHeaderStyle}>
             <div>
               <p style={sectionKicker}>Lineup controls</p>
-              <h1 style={builderControlTitleStyle}>Build a potential lineup.</h1>
+              <h1 style={builderControlTitleStyle}>{finalLineupReady ? 'Your lineup is confirmed.' : teamLineupComplete ? 'Confirm your selected players.' : 'Build a potential lineup.'}</h1>
               <div style={builderDraftStatusStyle} role="status" aria-live="polite">
                 <span style={miniPillGreenStyle}>Draft autosaved on this phone</span>
                 {currentScenarioId ? <span style={miniPillBlueStyle}>Saved lineup version</span> : null}
@@ -5541,23 +5580,16 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             </span>
           </div>
 
-          {isSmallMobile ? (
+          {isMobile ? (
             <div style={builderMobileActionStackStyle}>
-              {lineupHasAssignments ? (
-                <PrimaryBtn onClick={() => saveScenario(false)} disabled={saving}>
-                  {saving ? 'Saving...' : currentScenarioId ? 'Update saved version' : 'Save lineup version'}
-                </PrimaryBtn>
-              ) : (
-                <Link href="#captain-lineup-courts" style={primaryButton}>Build lineup</Link>
-              )}
+              {lineupHasAssignments ? <GhostBtn onClick={() => focusTeamCourts(teamSlots, firstOpenTeamCourt?.id)}>{finalLineupReady ? 'Review courts' : 'Edit courts'}</GhostBtn> : null}
               <details style={builderMoreActionsStyle}>
                 <summary style={builderMoreActionsSummaryStyle}>More lineup actions</summary>
                 <div style={builderMoreActionsBodyStyle}>
-                  <PrimaryBtn onClick={() => void saveAndConfirmPotentialLineupAvailability()} disabled={saving || preparingConfirmation}>
-                    {saveAndAskLabel}
-                  </PrimaryBtn>
+                  <GhostBtn onClick={() => saveScenario(false)} disabled={saving}>{saving ? 'Saving...' : currentScenarioId ? 'Update saved version' : 'Save lineup version'}</GhostBtn>
                   <Link href={compareHref} style={hasComparisonCandidates ? primaryButton : disabledLinkButtonStyle}>Compare versions</Link>
                   <GhostBtn onClick={resetBuilder}>Reset Builder</GhostBtn>
+                  <GhostBtn onClick={() => clearTeamLineup()} disabled={saving || loading || !lineupHasAssignments}>Clear all courts</GhostBtn>
                 </div>
               </details>
             </div>
@@ -5879,11 +5911,6 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                   </span>
                 </div>
                 <div style={mobileFinalLineupActionsStyle}>
-                  {finalLineupReady ? (
-                    <PrimaryBtn disabled={openingFinalDelivery} onClick={() => void openFinalLineupDelivery()}>{finalLineupDeliveryLabel}</PrimaryBtn>
-                  ) : (
-                    <GhostBtn onClick={() => focusTeamCourts()}>Review player replies</GhostBtn>
-                  )}
                   <GhostBtn onClick={() => focusTeamCourts()}>Edit courts</GhostBtn>
                 </div>
               </section>
@@ -6241,6 +6268,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
         <div style={builderLayoutResponsive(isTablet)}>
           <div style={columnStyle}>
             <details
+              id="captain-lineup-match-setup"
               open={matchSetupOpen}
               onToggle={(event) => setMatchSetupOpen(event.currentTarget.open)}
               style={surfaceCardStrong}
@@ -6465,6 +6493,9 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                     </>
                   ) : null}
                   <GhostLink href={teamContactsHref}>Team contacts</GhostLink>
+                  {!isMobile ? <GhostSmallBtn onClick={() => clearTeamLineup()} disabled={saving || loading || !teamSlots.some((slot) => slot.players.some((player) => player.playerId || player.playerName))}>
+                    Clear lineup
+                  </GhostSmallBtn> : null}
                 </div>
               </div>
 
@@ -6506,8 +6537,12 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
               ) : null}
 
               {isFixedLineupFormat ? (
-                <div style={triLevelFormatStyle}>
-                  <strong>{resolvedMatchFormat.label} · {matchFormatSummary.courts} courts</strong>
+                <details open={!isMobile || undefined} style={triLevelFormatStyle}>
+                  <summary style={{ cursor: 'pointer', minHeight: 44, alignContent: 'center' }}>
+                    <strong>{resolvedMatchFormat.label} · {matchFormatSummary.courts} courts</strong>
+                    <span style={{ display: 'block', marginTop: 4 }}>Format &amp; player eligibility</span>
+                  </summary>
+                  <div style={{ display: 'grid', gap: 8 }}>
                   <span>
                     {isTriLevel
                       ? triLevelRatings.length === 3
@@ -6516,7 +6551,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                       : `${resolvedMatchFormat.description} ${matchFormatSummary.players} players fill the scorecard.`}
                   </span>
                   <span><strong>{competitionRules.eligibilityTitle}.</strong> {competitionRules.eligibilityDetail}</span>
-                </div>
+                  </div>
+                </details>
               ) : null}
 
               <div style={stackStyle}>
@@ -6530,6 +6566,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                     onPlayerChange={setSlotPlayer}
                     onLabelChange={setSlotLabel}
                     onRemove={removeSlot}
+                    onClear={() => clearTeamLineup(slot.id)}
                     toggleLockedSlot={toggleLockedSlot}
                     toggleLockedPlayer={toggleLockedPlayer}
                     lockedSlotIds={lockedSlotIdSet}
@@ -6559,6 +6596,52 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
           </div>
 
           <div style={columnStyle}>
+         {savedLineupMatchesDraft ? <CaptainLineupReviewShare
+           lineup={{ team: teamName, opponent: opponentTeam, date: matchDate, courts: teamSlots.map((slot) => ({ label: slot.label, players: slot.players.map((player) => builderPlayers.find((candidate) => candidate.id === player.playerId)?.name || player.playerName) })) }}
+           disabled={saving}
+         /> : null}
+         {isMobile && teamName ? (
+           <details style={surfaceCardStrong} aria-label="Lineup next decision">
+             <summary style={{ ...detailsSummaryStyle, marginBottom: 0, minHeight: 44 }}>
+               <strong>Win-path lineup details</strong>
+               <span style={subtleHelperTextStyle}>Tap to view</span>
+             </summary>
+             <div style={{ marginTop: 12 }}>
+             <CaptainLineupIntelligence
+               matchDateLabel={formatDate(matchDate)}
+               opponentName={opponentTeam}
+               opponentRosterCount={opponentPlayerPool.length}
+               rosterLoading={loading || recoveringSecureSession}
+               rosterUploadHref={opponentSummaryUploadHref}
+               courts={lineupIntelligenceCourts}
+               overallProbability={lineupIntelligenceOverallProbability}
+               insightsByPlayerId={playerLineupInsightsById}
+               opponentScenarios={lineupOpponentScenarios}
+               activeOpponentScenarioId={activeOpponentScenarioId}
+               resilientPreview={lineupResilientPreview}
+               strategyPreviews={lineupStrategyPreviews}
+               simulations={lineupSimulations}
+               pairMatrix={lineupPairMatrix}
+               lockedCourtIds={lockedSlotIds}
+               lockedPlayerIds={[...lockedPlayerIdSet]}
+               onAutoBuild={(strategy) => applyOptimizedPlan(strategy, false)}
+               onOpponentScenarioChange={setActiveOpponentScenarioId}
+               onBuildResilient={applyResilientPlan}
+               onEditCourt={(courtId) => focusTeamCourts(teamSlots, courtId)}
+               onEnterRosterManually={() => {
+                 setManualOpponentRosterOpen(true)
+                 window.requestAnimationFrame(() => {
+                   document.querySelector('[aria-label="Opponent roster options"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                 })
+               }}
+               onToggleCourtLock={toggleLockedSlot}
+               onTogglePlayerLock={toggleOptimizerPlayerLock}
+               onApplySimulation={applyLineupSimulationSwap}
+               onApplyPair={applyPairMatrixRecommendation}
+             />
+             </div>
+           </details>
+         ) : null}
             <details id="captain-lineup-insights" open={builderMode === 'insights'} style={surfaceCardStrong}>
               <summary style={detailsSummaryStyle}>
                 <div>
@@ -7149,6 +7232,13 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             </div>
           )}
         </div>
+        {isMobile ? <CaptainLineupMobileAction
+          action={mobileNextAction}
+          disabled={loading || recoveringSecureSession || loadingScenarioId !== '' || saving || preparingConfirmation || openingFinalDelivery}
+          busyLabel={openingFinalDelivery ? 'Sending lineup…' : preparingConfirmation ? saveAndAskLabel : saving ? 'Saving…' : undefined}
+          error={error || undefined}
+          onAction={handleMobileNextAction}
+        /> : null}
       </div>
   )
 }
@@ -7175,6 +7265,7 @@ function SlotEditor({
   onPlayerChange,
   onLabelChange,
   onRemove,
+  onClear,
   toggleLockedSlot,
   toggleLockedPlayer,
   lockedSlotIds,
@@ -7205,6 +7296,7 @@ function SlotEditor({
   onPlayerChange: (side: 'team' | 'opponent', slotId: string, playerIndex: number, playerId: string) => void
   onLabelChange: (side: 'team' | 'opponent', slotId: string, label: string) => void
   onRemove: (side: 'team' | 'opponent', slotId: string) => void
+  onClear?: () => void
   toggleLockedSlot: (slotId: string) => void
   toggleLockedPlayer: (playerId: string) => void
   lockedSlotIds: Set<string>
@@ -7253,6 +7345,7 @@ function SlotEditor({
       tabIndex={focused ? -1 : undefined}
     >
       {showCompactMobileCourt ? (
+        <>
         <button
           type="button"
           aria-expanded={false}
@@ -7270,6 +7363,7 @@ function SlotEditor({
             <span style={compactCourtEditStyle}>Edit court</span>
           </span>
         </button>
+        </>
       ) : (
         <div id={`captain-lineup-slot-editor-${slot.id}`} style={slotEditorBodyStyle}>
           <div style={slotHeaderStyle}>
@@ -7293,6 +7387,7 @@ function SlotEditor({
             </div>
 
             <div style={slotHeaderActionsStyle}>
+              {onClear ? <GhostSmallBtn onClick={onClear} disabled={!selectedPlayers.length}>Clear line</GhostSmallBtn> : null}
               {isMobileLayout && onToggleExpanded ? (
                 <GhostSmallBtn onClick={onToggleExpanded}>Done</GhostSmallBtn>
               ) : null}

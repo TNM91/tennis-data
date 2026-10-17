@@ -1,0 +1,21 @@
+.panel { display: grid; gap: 12px; min-width: 0; padding: 16px; border: 1px solid var(--card-border); border-radius: 18px; background: var(--surface-strong); }
+.header { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-width: 0; }
+.header h2 { margin: 0; color: var(--foreground-strong); font-size: 1rem; }
+.header > span { flex-shrink: 0; color: var(--muted-strong); font-size: 0.8rem; }
+.list { display: grid; margin: 0; padding: 0; list-style: none; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; min-width: 0; padding: 10px 0; border-bottom: 1px solid var(--card-border); }
+.row:last-child { border-bottom: 0; }
+.row strong { color: var(--foreground-strong); font-size: 0.9rem; overflow-wrap: anywhere; }
+.row small { display: block; margin-top: 4px; color: var(--muted-strong); font-size: 0.74rem; overflow-wrap: anywhere; }
+.status { color: var(--foreground-strong); border: 1px solid var(--card-border); border-radius: 999px; padding: 5px 8px; font-size: 0.74rem; font-weight: 800; }
+.status[data-status='out'] { border-color: #fb7185; }
+.status[data-status='maybe'] { border-color: #fbbf24; }
+.status[data-status='in'] { border-color: var(--brand-green); }
+.review { justify-self: start; grid-column: 1 / -1; min-height: 44px; border: 0; border-radius: 8px; padding: 6px 0; background: transparent; color: var(--brand-blue-2); font: inherit; font-size: 0.78rem; cursor: pointer; }
+.disclosure { border-top: 1px solid var(--card-border); padding-top: 4px; }
+.disclosure summary { min-height: 44px; padding: 12px 0; color: var(--foreground-strong); font-size: 0.84rem; font-weight: 800; cursor: pointer; }
+.detail, .error { margin: 0; color: var(--muted-strong); font-size: 0.8rem; line-height: 1.4; overflow-wrap: anywhere; }
+.error { color: var(--foreground-strong); border-left: 3px solid #fb7185; padding-left: 8px; }
+.primary { width: 100%; min-height: 48px; padding: 10px 14px; border: 1px solid var(--brand-green); border-radius: 14px; background: var(--brand-green); color: #071107; font: inherit; font-weight: 800; cursor: pointer; }
+.primary:disabled { opacity: 0.55; cursor: not-allowed; }
+.primary:focus-visible, .review:focus-visible, .disclosure summary:focus-visible { outline: 2px solid var(--brand-blue-2); outline-offset: 3px; }

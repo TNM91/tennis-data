@@ -42,5 +42,5 @@ export function isAdSafePath(pathname: string): boolean {
 
 export function getConfiguredAdSlot(slot: string | undefined | null) {
   const trimmed = (slot || '').trim()
-  return trimmed.length ? trimmed : null
+  return /^\d{10}$/.test(trimmed) ? trimmed : null
 }

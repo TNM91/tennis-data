@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { buildReflectionPatternRead } from '@/lib/player-reflections'
 
 const pageSource = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
 const componentSource = readFileSync(join(process.cwd(), 'app/mylab/my-lab-command-center.tsx'), 'utf8')
@@ -9,6 +10,9 @@ const iconSource = readFileSync(join(process.cwd(), 'components/brand/TiqFeature
 const portalSource = readFileSync(join(process.cwd(), 'app/components/portal-tool-bar.tsx'), 'utf8')
 const pricingSource = readFileSync(join(process.cwd(), 'app/pricing/page.tsx'), 'utf8')
 const upgradeSource = readFileSync(join(process.cwd(), 'app/upgrade/page.tsx'), 'utf8')
+const reflectionApiSource = readFileSync(join(process.cwd(), 'app/api/player/reflections/route.ts'), 'utf8')
+const reflectionModelSource = readFileSync(join(process.cwd(), 'lib/player-reflections.ts'), 'utf8')
+const reflectionMigrationSource = readFileSync(join(process.cwd(), 'supabase/migrations/20260928000200_create_player_reflections.sql'), 'utf8')
 
 describe('My Lab command center', () => {
   it('puts one data-backed court action ahead of the legacy lab workspace', () => {
@@ -53,8 +57,9 @@ describe('My Lab command center', () => {
     expect(pageSource).toContain("title: 'Connect your player'")
     expect(pageSource).toContain("title: 'Choose one focus'")
     expect(pageSource).toContain("title: 'Finish your first rep'")
-    expect(pageSource).toContain("href: !linkedPlayer ? '/profile' : hasMyLabFocus ? '/mylab#player-tools' : MY_LAB_GOAL_PROGRESS_HREF")
-    expect(pageSource).toContain('open={!hasMyLabFocus}')
+    expect(pageSource).toContain("href: !isProfileConfirmed ? '/profile' : hasMyLabFocus ? '/mylab#player-tools' : MY_LAB_GOAL_PROGRESS_HREF")
+    expect(pageSource).toContain("action: isProfileConfirmed ? 'Set my focus' : 'Connect player first'")
+    expect(pageSource).toContain('open={!isMobile && !hasMyLabFocus}')
     expect(pageSource).toContain("? 'Find your player record'")
     expect(pageSource).toContain("? 'Choose one tennis focus'")
     expect(componentSource).toContain('Build your player loop.')
@@ -126,11 +131,11 @@ describe('My Lab command center', () => {
     expect(pageSource).toContain("'Availability confirmed'")
   })
 
-  it('keeps the deeper legacy workspace behind one mobile disclosure', () => {
+  it('keeps optional progress and calendar tools behind a mobile disclosure', () => {
     expect(pageSource).toContain('const collapseLegacyWorkspace = isMobile && isProfileConfirmed')
     expect(pageSource).toContain("const PlayerWorkshopShell: 'details' | 'section'")
     expect(pageSource).toContain('<strong>More in My Lab</strong>')
-    expect(pageSource).toContain('Teams, tools, goals, and calendar.')
+    expect(pageSource).toContain('Progress, teams, and calendar.')
     expect(pageSource).toContain('mobileMyLabExtrasDetailsStyle')
   })
 
@@ -144,5 +149,70 @@ describe('My Lab command center', () => {
     expect(portalSource).toContain("icon: 'myLab'")
     expect(pricingSource).toContain("player_plus: 'myLab'")
     expect(upgradeSource).toContain("player_plus: 'myLab'")
+  })
+
+  it('turns Reflect into a fast device-safe player check-in', () => {
+    expect(componentSource).toContain('tiq-mylab-reflection:')
+    expect(componentSource).toContain('How did it go?')
+    expect(componentSource).toContain('What worked?')
+    expect(componentSource).toContain('What changes next?')
+    expect(componentSource).toContain('Save reflection')
+    expect(componentSource).toContain('Offline work stays safe on this phone.')
+    expect(componentSource).toContain('window.localStorage.setItem(reflectionStorageKey')
+    expect(componentSource).toContain('aria-pressed={reflectionScore === item.score}')
+    expect(styleSource).toContain('.mobileReflectionForm')
+    expect(styleSource).toContain('.mobileReflectionScores')
+  })
+
+  it('remembers the latest proof-to-next-move cycle on the phone', () => {
+    expect(pageSource).toContain('lastResult={lastMatchSummary}')
+    expect(componentSource).toContain('Your cycle memory')
+    expect(componentSource).toContain('What led to what')
+    expect(componentSource).toContain('01 · Proof')
+    expect(componentSource).toContain('02 · Result')
+    expect(componentSource).toContain('03 · Lesson')
+    expect(componentSource).toContain('04 · Next move')
+    expect(componentSource).toContain("savedReflection?.next || repNote")
+    expect(styleSource).toContain('.mobileCycleMemory')
+    expect(styleSource).toContain('.mobileCycleNext')
+  })
+
+  it('syncs reflection history to each signed-in player without losing the phone fallback', () => {
+    expect(componentSource).toContain("fetch('/api/player/reflections'")
+    expect(componentSource).toContain('supabase.auth.getSession()')
+    expect(componentSource).toContain('Saved to your account')
+    expect(componentSource).toContain('Start a new reflection')
+    expect(componentSource).toContain('Past loops')
+    expect(componentSource).toContain('mergeReflectionHistory')
+    expect(reflectionApiSource).toContain('getSignedInPlayerApiAuth(request)')
+    expect(reflectionApiSource).toContain(".from('player_reflections')")
+    expect(reflectionApiSource).toContain(".upsert(payload, { onConflict: 'id' })")
+    expect(reflectionModelSource).toContain('buildPlayerReflectionPayload')
+    expect(reflectionMigrationSource).toContain('enable row level security')
+    expect(reflectionMigrationSource).toContain('auth.uid() = player_user_id')
+    expect(styleSource).toContain('.mobilePastLoops')
+  })
+
+  it('turns completed reflection loops into an evidence-bound pattern read', () => {
+    const read = buildReflectionPatternRead([
+      { outcome: 3, worked: 'Second serve shape held under pressure', nextStep: 'Keep more margin' },
+      { outcome: 3, worked: 'Trusted the second serve', nextStep: 'Use margin over the net' },
+      { outcome: 2, worked: 'Second serve improved late', nextStep: 'Stay patient' },
+      { outcome: 1, worked: 'Forehand timing was late', nextStep: 'Reset footwork' },
+    ])
+
+    expect(read).toMatchObject({
+      sampleSize: 4,
+      heldUpRate: 50,
+      direction: 'Strengthening',
+      workingTheme: { label: 'Second Serve', count: 3 },
+      adjustmentTheme: { label: 'Margin', count: 2 },
+    })
+    expect(componentSource).toContain('Your pattern read')
+    expect(componentSource).toContain('What keeps working')
+    expect(componentSource).toContain('Adjustment resurfacing')
+    expect(componentSource).toContain('One more reflection unlocks your first pattern read.')
+    expect(styleSource).toContain('.mobilePatternRead')
+    expect(styleSource).toContain('.mobilePatternSignals')
   })
 })

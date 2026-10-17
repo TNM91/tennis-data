@@ -1,6 +1,8 @@
 'use client'
 
 import { supabase } from './supabase'
+import { buildGroupPlayoffs } from './tournament-group-playoffs'
+import { normalizeTournamentEventDetails, type TournamentEventDetails } from './tournament-event-presentation'
 import {
   normalizeTournamentDrawFormatId,
   type TournamentDrawFormatId,
@@ -34,6 +36,12 @@ export type TiqTournamentAlertStatus = 'draft' | 'queued' | 'sent' | 'cancelled'
 
 export type TiqTournamentRecord = {
   id: string
+  eventId?: string
+  isEvent?: boolean
+  eventTheme?: 'classic' | 'pumpkin'
+  registrationEmail?: string
+  eventDetails?: TournamentEventDetails
+  createdByUserId?: string
   clubId?: string
   clubGroupId?: string
   resultMode?: ClubCompetitionResultMode
@@ -60,6 +68,8 @@ export type TiqTournamentMatchResult = {
   winner: string
   score: string
   updatedAt: string
+  sideA?: string
+  sideB?: string
 }
 
 export type TiqTournamentMatchSchedule = {
@@ -86,6 +96,8 @@ export type TiqTournamentMatchPreview = {
   sideB: string
   result?: TiqTournamentMatchResult
   schedule?: TiqTournamentMatchSchedule
+  stage?: 'group' | 'qualification' | 'championship'
+  ready?: boolean
 }
 
 export type TiqTournamentStanding = {
@@ -97,6 +109,7 @@ export type TiqTournamentStanding = {
   gamesLost: number
   gameDiff: number
   winPct: number
+  gamesKnown?: boolean
 }
 
 export type TiqTournamentCalendarEvent = {
@@ -186,6 +199,12 @@ export type TiqTournamentPreferenceEventRecord = {
 
 type TiqTournamentCloudRow = {
   id: string
+  event_id?: string | null
+  is_event?: boolean
+  event_theme?: string
+  registration_email?: string
+  event_details?: unknown
+  created_by_user_id?: string | null
   club_id?: string | null
   club_group_id?: string | null
   result_mode?: string | null
@@ -336,6 +355,12 @@ function buildTournamentId(input: { name: string; startsOn: string }) {
 function normalizeTiqTournamentRecord(record: Partial<TiqTournamentRecord>): TiqTournamentRecord {
   return {
     id: cleanText(record.id),
+    eventId: cleanText(record.eventId),
+    isEvent: Boolean(record.isEvent),
+    eventTheme: record.eventTheme === 'pumpkin' ? 'pumpkin' : 'classic',
+    registrationEmail: cleanText(record.registrationEmail),
+    eventDetails: normalizeTournamentEventDetails(record.eventDetails),
+    createdByUserId: cleanText(record.createdByUserId),
     clubId: cleanText(record.clubId),
     clubGroupId: cleanText(record.clubGroupId),
     resultMode: normalizeClubCompetitionResultMode(record.resultMode),
@@ -363,6 +388,12 @@ function mapCloudTournamentRow(
 ): TiqTournamentRecord {
   return normalizeTiqTournamentRecord({
     id: row.id,
+    eventId: row.event_id || '',
+    isEvent: row.is_event,
+    eventTheme: row.event_theme === 'pumpkin' ? 'pumpkin' : 'classic',
+    registrationEmail: row.registration_email || '',
+    eventDetails: normalizeTournamentEventDetails(row.event_details),
+    createdByUserId: row.created_by_user_id || '',
     clubId: row.club_id || '',
     clubGroupId: row.club_group_id || '',
     resultMode: normalizeClubCompetitionResultMode(row.result_mode),
@@ -387,6 +418,11 @@ function mapCloudTournamentRow(
 function toCloudTournamentPayload(record: TiqTournamentRecord, userId: string) {
   return {
     id: record.id,
+    event_id: cleanText(record.eventId) || null,
+    is_event: Boolean(record.isEvent),
+    event_theme: record.eventTheme || 'classic',
+    registration_email: cleanText(record.registrationEmail),
+    event_details: normalizeTournamentEventDetails(record.eventDetails),
     club_id: cleanText(record.clubId) || null,
     club_group_id: cleanText(record.clubGroupId) || null,
     result_mode: normalizeClubCompetitionResultMode(record.resultMode),
@@ -403,7 +439,7 @@ function toCloudTournamentPayload(record: TiqTournamentRecord, userId: string) {
     entrant_player_ids: record.entrantPlayerIds,
     is_public: record.isPublic,
     updated_by_user_id: userId,
-    created_by_user_id: userId,
+    created_by_user_id: record.createdByUserId || userId,
   }
 }
 
@@ -657,7 +693,7 @@ export async function loadTiqTournamentRegistry(userId?: string | null): Promise
 
   const result = await supabase
     .from('tiq_tournaments')
-    .select('id,club_id,club_group_id,result_mode,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
+    .select('id,event_id,is_event,event_theme,registration_email,event_details,created_by_user_id,club_id,club_group_id,result_mode,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,entrant_player_ids,is_public,created_at,updated_at')
     .order('updated_at', { ascending: false })
 
   if (result.error) {
@@ -682,7 +718,7 @@ export async function loadTiqTournamentRecord(id: string): Promise<{
 
   const result = await supabase
     .from('tiq_tournaments')
-    .select('id,club_id,club_group_id,result_mode,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
+    .select('id,event_id,is_event,event_theme,registration_email,event_details,created_by_user_id,club_id,club_group_id,result_mode,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,entrant_player_ids,is_public,created_at,updated_at')
     .eq('id', cleanId)
     .maybeSingle()
 
@@ -713,6 +749,12 @@ export function upsertTiqTournamentRecord(draft: TiqTournamentDraft, existingId?
   const registry = readTiqTournamentRegistry()
   const now = new Date().toISOString()
   const normalizedDraft: TiqTournamentDraft = {
+    eventId: cleanText(draft.eventId),
+    isEvent: Boolean(draft.isEvent),
+    eventTheme: draft.eventTheme === 'pumpkin' ? 'pumpkin' : 'classic',
+    registrationEmail: cleanText(draft.registrationEmail),
+    eventDetails: normalizeTournamentEventDetails(draft.eventDetails),
+    createdByUserId: cleanText(draft.createdByUserId),
     clubId: cleanText(draft.clubId),
     clubGroupId: cleanText(draft.clubGroupId),
     resultMode: normalizeClubCompetitionResultMode(draft.resultMode),
@@ -728,6 +770,23 @@ export function upsertTiqTournamentRecord(draft: TiqTournamentDraft, existingId?
   }
   const nextId = cleanText(existingId) || buildTournamentId(normalizedDraft)
   const existing = registry.find((record) => record.id === nextId)
+  if (existing && Object.keys(existing.results).length && (existing.format === 'group_playoffs' || normalizedDraft.format === 'group_playoffs')) {
+    if (existing.format !== normalizedDraft.format || JSON.stringify(existing.entrants) !== JSON.stringify(normalizedDraft.entrants)) {
+      throw new Error('Clear recorded results before changing the group field or format.')
+    }
+    if (normalizedDraft.status === 'draft') normalizedDraft.status = existing.status
+  }
+  const parent = registry.find(record => record.id === normalizedDraft.eventId && record.isEvent)
+  if (normalizedDraft.eventId) {
+    if (!parent || normalizedDraft.isEvent || parent.id === nextId) throw new Error('Choose a valid event for this division.')
+    normalizedDraft.startsOn = parent.startsOn
+    normalizedDraft.locationLabel = parent.locationLabel
+    normalizedDraft.eventTheme = parent.eventTheme
+    normalizedDraft.registrationEmail = parent.registrationEmail
+    normalizedDraft.eventDetails = parent.eventDetails
+    normalizedDraft.isPublic = parent.isPublic
+  }
+  if (normalizedDraft.isEvent) normalizedDraft.entrants = []
   const nextRecord: TiqTournamentRecord = {
     ...normalizedDraft,
     id: nextId,
@@ -739,7 +798,10 @@ export function upsertTiqTournamentRecord(draft: TiqTournamentDraft, existingId?
     updatedAt: now,
   }
 
-  const nextRegistry = [nextRecord, ...registry.filter((record) => record.id !== nextId)]
+  const nextRegistry = [nextRecord, ...registry.filter((record) => record.id !== nextId).map(record =>
+    nextRecord.isEvent && record.eventId === nextId ? { ...record, startsOn: nextRecord.startsOn,
+      locationLabel: nextRecord.locationLabel, eventTheme: nextRecord.eventTheme,
+      registrationEmail: nextRecord.registrationEmail, eventDetails: nextRecord.eventDetails, isPublic: nextRecord.isPublic } : record)]
   writeTiqTournamentRegistry(nextRegistry)
   return nextRecord
 }
@@ -757,7 +819,7 @@ export async function saveTiqTournamentRecord(
   const result = await supabase
     .from('tiq_tournaments')
     .upsert(toCloudTournamentPayload(record, userId), { onConflict: 'id' })
-    .select('id,club_id,club_group_id,result_mode,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,contacts,entrant_player_ids,is_public,created_at,updated_at')
+    .select('id,event_id,is_event,event_theme,registration_email,event_details,created_by_user_id,club_id,club_group_id,result_mode,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,entrant_player_ids,is_public,created_at,updated_at')
     .maybeSingle()
 
   if (result.error) {
@@ -780,7 +842,13 @@ export async function upsertTiqTournamentRecordForUser(
   existingId?: string,
   userId?: string | null,
 ): Promise<TiqTournamentRegistrySaveResult> {
-  const saved = upsertTiqTournamentRecord(draft, existingId)
+  let saved
+  try { saved = upsertTiqTournamentRecord(draft, existingId) }
+  catch (error) {
+    const existing=readTiqTournamentRegistry().find(record=>record.id===existingId)
+    if (!existing) throw error
+    return { data:existing,error:error instanceof Error ? error:new Error('Tournament could not be saved.'),source:'local' }
+  }
   return saveTiqTournamentRecord(saved, userId)
 }
 
@@ -859,6 +927,17 @@ export async function submitTiqTournamentEntry(draft: TiqTournamentEntryDraft) {
     console.error('Tournament entry request failed', error)
     return { data: null, error: new Error('The entry could not be submitted.'), source: 'cloud' as const }
   }
+}
+
+export async function loadTiqTournamentEventRecords(eventId: string) {
+  const columns = 'id,event_id,is_event,event_theme,registration_email,event_details,created_by_user_id,club_id,club_group_id,result_mode,name,format,entrant_type,status,starts_on,location_label,director_notes,entrants,results,schedule,entrant_player_ids,is_public,created_at,updated_at'
+  const [parent, divisions] = await Promise.all([
+    supabase.from('tiq_tournaments').select(columns).eq('id', cleanText(eventId)),
+    supabase.from('tiq_tournaments').select(columns).eq('event_id', cleanText(eventId)).order('name'),
+  ])
+  const error = parent.error || divisions.error
+  if (error) return { data: [] as TiqTournamentRecord[], error: new Error(error.message) }
+  return { data: [...(parent.data || []), ...(divisions.data || [])].map(row => mapCloudTournamentRow(row as TiqTournamentCloudRow)), error: null }
 }
 
 export async function loadTiqTournamentEntriesForUser(tournamentId: string) {
@@ -1056,13 +1135,20 @@ export function deleteTiqTournamentRecord(id: string) {
 }
 
 export async function deleteTiqTournamentRecordForUser(id: string, userId?: string | null) {
-  deleteTiqTournamentRecord(id)
-  if (!userId) return { error: null, source: 'local' as const }
+  if (readTiqTournamentRegistry().some(record => record.eventId === cleanText(id))) {
+    return { error: new Error('Remove the divisions before removing this event.'), source: 'local' as const }
+  }
+  if (!userId) {
+    deleteTiqTournamentRecord(id)
+    return { error: null, source: 'local' as const }
+  }
 
   const result = await supabase
     .from('tiq_tournaments')
     .delete()
     .eq('id', cleanText(id))
+
+  if (!result.error) deleteTiqTournamentRecord(id)
 
   return {
     error: result.error ? new Error(result.error.message) : null,
@@ -1088,7 +1174,7 @@ export function updateTiqTournamentMatchResult(input: {
   const record = registry[index]
   const matches = buildTournamentPreview(record)
   const match = matches.find((item) => item.id === matchId)
-  if (!match || (winner !== match.sideA && winner !== match.sideB)) return null
+  if (!match || match.ready === false || (winner !== match.sideA && winner !== match.sideB)) return null
 
   const nextRecord: TiqTournamentRecord = {
     ...record,
@@ -1099,6 +1185,7 @@ export function updateTiqTournamentMatchResult(input: {
         winner,
         score: cleanText(input.score),
         updatedAt: new Date().toISOString(),
+        ...(record.format === 'group_playoffs' ? { sideA: match.sideA, sideB: match.sideB } : {}),
       },
     },
     updatedAt: new Date().toISOString(),
@@ -1119,9 +1206,15 @@ export async function updateTiqTournamentMatchResultForUser(
   },
   userId?: string | null,
 ) {
-  const updated = updateTiqTournamentMatchResult(input)
+  const groupFormat = readTiqTournamentRegistry().find(record => record.id === input.tournamentId)?.format === 'group_playoffs'
+  const groupSave = groupFormat ? await saveTiqTournamentGroupResult(input, userId) : null
+  const updated = groupFormat ? groupSave?.data : updateTiqTournamentMatchResult(input)
+  if (groupSave?.error) return null
   if (!updated) return null
-  await saveTiqTournamentRecord(updated, userId)
+  if (!groupFormat) await saveTiqTournamentRecord(updated, userId)
+  if (userId && groupSave && updated.entrantType === 'players') {
+    for (const removedId of groupSave.removedResultIds) await deleteTiqTournamentResultMatch(updated.id, removedId)
+  }
   if (userId && updated.entrantType === 'players') {
     const match = buildTournamentPreview(updated).find((item) => item.id === cleanText(input.matchId))
     if (match) {
@@ -1169,10 +1262,16 @@ export function clearTiqTournamentMatchResult(tournamentId: string, matchId: str
 }
 
 export async function clearTiqTournamentMatchResultForUser(tournamentId: string, matchId: string, userId?: string | null) {
-  const updated = clearTiqTournamentMatchResult(tournamentId, matchId)
+  const groupFormat = readTiqTournamentRegistry().find(record => record.id === tournamentId)?.format === 'group_playoffs'
+  const groupSave = groupFormat ? await saveTiqTournamentGroupResult({ tournamentId, matchId }, userId) : null
+  const updated = groupFormat ? groupSave?.data : clearTiqTournamentMatchResult(tournamentId, matchId)
+  if (groupSave?.error) return null
   if (!updated) return null
-  await saveTiqTournamentRecord(updated, userId)
+  if (!groupFormat) await saveTiqTournamentRecord(updated, userId)
   if (userId) {
+    if (groupSave && updated.entrantType === 'players') {
+      for (const removedId of groupSave.removedResultIds.filter(id => id !== cleanText(matchId))) await deleteTiqTournamentResultMatch(updated.id, removedId)
+    }
     await deleteTiqTournamentResultMatch(updated.id, cleanText(matchId))
     await recalculateDynamicRatings()
   }
@@ -1241,6 +1340,40 @@ export async function updateTiqTournamentMatchScheduleForUser(
   return updated
 }
 
+
+// Event-wide court edits update only schedule fields and report persistence failures.
+export async function saveTiqTournamentEventCourtAssignment(input: {
+  eventId: string; tournamentId: string; matchId: string; date: string; time: string; court: string
+}, userId?: string | null): Promise<{ data: TiqTournamentRecord | null; error: Error | null; source: 'cloud' | 'local' }> {
+  const previous = readTiqTournamentRegistry().find(record => record.id === input.tournamentId)
+  const source = userId ? 'cloud' as const : 'local' as const
+  const fail = (message: string) => ({ data: previous || null, error: new Error(message), source })
+  if (!previous || previous.eventId !== input.eventId) return fail('Choose a division in this event.')
+  const date = cleanText(input.date), time = cleanText(input.time), court = cleanText(input.court)
+  if (date || time || court) {
+    const parsed = new Date(`${date}T12:00:00Z`)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date
+      || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time) || !court) return fail('Choose a valid date, start time, and court.')
+  }
+  let latestUpdatedAt = ''
+  if (userId) {
+    const latest = await supabase.from('tiq_tournaments').select('format,entrants,results,schedule,status,updated_at')
+      .eq('id', previous.id).eq('event_id', input.eventId).maybeSingle()
+    if (latest.error || !latest.data?.updated_at) return fail('This division could not be loaded. Try again.')
+    latestUpdatedAt = latest.data.updated_at
+    mergeLocalTournamentRecord({ ...previous, format: latest.data.format, entrants: latest.data.entrants,
+      results: latest.data.results, schedule: latest.data.schedule, status: latest.data.status })
+  }
+  const updated = updateTiqTournamentMatchSchedule({ tournamentId: previous.id, matchId: input.matchId, date, time, court })
+  if (!updated) { mergeLocalTournamentRecord(previous); return fail('This match is no longer in the draw. Refresh the event.') }
+  if (userId) {
+    const result = await supabase.from('tiq_tournaments').update({ schedule: updated.schedule, status: updated.status,
+      updated_by_user_id: userId, updated_at: new Date().toISOString() }).eq('id', updated.id).eq('event_id', input.eventId)
+      .eq('updated_at', latestUpdatedAt).select('id').maybeSingle()
+    if (result.error || !result.data) { mergeLocalTournamentRecord(previous); return fail('The court assignment could not be saved. Try again.') }
+  }
+  return { data: updated, error: null, source }
+}
 export function updateTiqTournamentParticipantContact(input: {
   tournamentId: string
   entrantName: string
@@ -1469,8 +1602,41 @@ export function buildRoundRobinPreview(
 }
 
 export function buildTournamentPreview(record: Pick<TiqTournamentRecord, 'format' | 'entrants'> & { results?: Record<string, TiqTournamentMatchResult>, schedule?: Record<string, TiqTournamentMatchSchedule> }) {
+  if (record.format === 'group_playoffs') return buildTournamentGroupChampionship(record).matches
   if (record.format === 'round_robin') return buildRoundRobinPreview(record.entrants, record.results, record.schedule)
   return buildSingleEliminationPreview(record.entrants, record.results, record.schedule)
+}
+
+export async function saveTiqTournamentGroupResult(input: {tournamentId:string;matchId:string;winner?:string;score?:string}, userId?:string|null) {
+  const previous=readTiqTournamentRegistry().find(record=>record.id===input.tournamentId)
+  const fail=(message:string)=>({data:null,error:new Error(message),removedResultIds:[] as string[]})
+  if (!previous || previous.format!=='group_playoffs') return fail('Choose a group-play division.')
+  let version=''
+  if (userId) {
+    const latest=await supabase.from('tiq_tournaments').select('format,entrants,results,schedule,status,updated_at').eq('id',input.tournamentId).maybeSingle()
+    if (latest.error || !latest.data || latest.data.format!=='group_playoffs') return fail('The division could not be loaded. Refresh and try again.')
+    version=latest.data.updated_at
+    mergeLocalTournamentRecord({...previous,...latest.data,updatedAt:version})
+  }
+  const current=readTiqTournamentRegistry().find(record=>record.id===input.tournamentId)!
+  if (!buildTournamentPreview(current).some(match=>match.id===input.matchId)) { mergeLocalTournamentRecord(previous); return fail('This match is no longer in the draw.') }
+  const updated=input.winner ? updateTiqTournamentMatchResult({...input,winner:input.winner}) : clearTiqTournamentMatchResult(input.tournamentId,input.matchId)
+  if (!updated) { mergeLocalTournamentRecord(previous); return fail('Complete the earlier round before recording this result.') }
+  if (updated.status==='completed' && summarizeTournamentResults(updated).openMatches>0) {
+    updated.status='scheduled'; mergeLocalTournamentRecord(updated)
+  }
+  if (userId) {
+    try {
+      const saved=await supabase.from('tiq_tournaments').update({results:updated.results,status:updated.status,
+        updated_by_user_id:userId,updated_at:new Date().toISOString()}).eq('id',input.tournamentId).eq('updated_at',version).select('id').maybeSingle()
+      if (saved.error || !saved.data) { mergeLocalTournamentRecord(previous); return fail('Result could not be saved. Refresh and try again.') }
+    } catch { mergeLocalTournamentRecord(previous); return fail('Result could not be saved. Refresh and try again.') }
+  }
+  return {data:updated,error:null,removedResultIds:Object.keys(current.results).filter(id=>!updated.results[id])}
+}
+
+export function buildTournamentGroupChampionship(record: Pick<TiqTournamentRecord,'entrants'> & {results?: Record<string,TiqTournamentMatchResult>; schedule?: Record<string,TiqTournamentMatchSchedule>}) {
+  return buildGroupPlayoffs({ ...record, results: record.results || {} }, { roundRobin: buildRoundRobinPreview, elimination: buildSingleEliminationPreview })
 }
 
 export function summarizeTournamentResults(record: Pick<TiqTournamentRecord, 'format' | 'entrants' | 'results'>) {
@@ -1596,6 +1762,7 @@ function normalizeTournamentResults(value: unknown): Record<string, TiqTournamen
       winner: cleanText(result?.winner),
       score: cleanText(result?.score),
       updatedAt: cleanText(result?.updatedAt),
+      ...(cleanText(result?.sideA) && cleanText(result?.sideB) ? { sideA: cleanText(result.sideA), sideB: cleanText(result.sideB) } : {}),
     }
 
     if (matchId && normalizedResult.winner) {
@@ -1708,7 +1875,8 @@ function pruneInvalidTournamentResults(record: Pick<TiqTournamentRecord, 'format
     for (const match of preview) {
       const result = candidates[match.id]
       if (!result || pruned[match.id]) continue
-      const sidesKnown = !match.sideA.startsWith('Winner ') && !match.sideB.startsWith('Winner ')
+      if (record.format === 'group_playoffs' && (!match.ready || result.sideA !== match.sideA || result.sideB !== match.sideB)) continue
+      const sidesKnown = record.format === 'group_playoffs' ? Boolean(match.ready) : !match.sideA.startsWith('Winner ') && !match.sideB.startsWith('Winner ')
       const winnerValid = result.winner === match.sideA || result.winner === match.sideB
       if (sidesKnown && winnerValid) {
         pruned[match.id] = result

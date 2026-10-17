@@ -7,6 +7,7 @@ import NavigationScrollManager from '@/app/components/navigation-scroll-manager'
 import { ThemeProvider } from '@/app/components/theme-provider'
 import { PLATFORM_POSITIONING, PRODUCT_MOTTO } from '@/lib/product-story'
 import { buildOrganizationJsonLd, buildWebSiteJsonLd } from '@/lib/structured-data'
+import { ADSENSE_PUBLISHER_ID } from '@/lib/adsense'
 import './globals.css'
 
 const SITE_DESCRIPTION = `${PRODUCT_MOTTO} ${PLATFORM_POSITIONING}`
@@ -68,7 +69,7 @@ export const metadata: Metadata = {
     title: 'TenAceIQ',
   },
   other: {
-    'google-adsense-account': 'ca-pub-1351888380884789',
+    'google-adsense-account': ADSENSE_PUBLISHER_ID,
   },
   robots: {
     index: true,
@@ -150,11 +151,6 @@ export default function RootLayout({
             <SpeedInsights />
           </>
         ) : null}
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1351888380884789"
-          crossOrigin="anonymous"
-        />
       </body>
     </html>
   )

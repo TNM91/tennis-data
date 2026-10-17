@@ -11,6 +11,8 @@ const siteShellSource = readFileSync(join(process.cwd(), 'app/components/site-sh
 const universalSearchSource = readFileSync(join(process.cwd(), 'app/components/universal-search.tsx'), 'utf8')
 const shellSmokeSource = readFileSync(join(process.cwd(), 'scripts/site-shell-layout-smoke.mjs'), 'utf8')
 const globalsSource = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
+const planLanesSource = readFileSync(join(process.cwd(), 'app/components/home-plan-lanes.tsx'), 'utf8')
+const planLanesCss = readFileSync(join(process.cwd(), 'app/components/home-plan-lanes.module.css'), 'utf8')
 
 function styleBlock(source: string, name: string) {
   const pattern = new RegExp(`const ${name}: CSSProperties = \\{([\\s\\S]*?)\\n\\}`)
@@ -141,10 +143,11 @@ describe('Public home mobile layout guards', () => {
     expect(homePageSource).not.toContain('<HomeModeRouter />')
     expect(homePageSource).not.toContain('<HomeClosingBand />')
     expect(commandCenterSource).toContain('export function GuestTierPreview()')
-    expect(commandCenterSource).toContain('Start free. Add only what helps.')
-    expect(styleBlock(commandCenterSource, 'guestTierGridStyle')).toContain(
-      "gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))'",
-    )
+    expect(commandCenterSource).toContain('return <HomePlanLanes />')
+    expect(planLanesSource).toContain('Pick your court.')
+    expect(planLanesCss).toContain('grid-template-columns: repeat(2, minmax(0, 1fr))')
+    expect(planLanesCss).toContain('grid-template-columns: minmax(0, 1fr)')
+    expect(planLanesCss).toContain('.laneBody[hidden] { display: none; }')
     expect(homePageSource).not.toContain('<ActionGrid />')
     expect(homePageSource).not.toContain('<PlatformPillarGrid />')
     expect(homePageSource).not.toContain('<ProductPreviewGrid />')
@@ -260,7 +263,7 @@ describe('Public home mobile layout guards', () => {
     expect(portalToolbarSource).toContain('setCurrentHash(target.hash || \'\')')
     expect(styleBlock(portalToolbarSource, 'mobilePortalPaletteStyle')).toContain("gridTemplateColumns: 'repeat(4, minmax(0, 1fr))'")
     expect(portalToolbarSource).toContain("? mobilePortalLane")
-    expect(portalToolbarSource).toContain(": 'repeat(4, minmax(0, 1fr))'")
+    expect(portalToolbarSource).toContain(": 'repeat(5, minmax(0, 1fr))'")
     expect(styleBlock(portalToolbarSource, 'mobilePortalPaletteStyle')).toContain("width: '100%'")
     expect(styleBlock(portalToolbarSource, 'mobilePortalPaletteStyle')).toContain("boxSizing: 'border-box'")
     expect(styleBlock(portalToolbarSource, 'mobilePortalPaletteStyle')).toContain("overflow: 'hidden'")
@@ -278,7 +281,7 @@ describe('Public home mobile layout guards', () => {
     expect(styleBlock(portalToolbarSource, 'mobilePortalActionPaletteStyle')).not.toContain('gridTemplateColumns')
     expect(portalToolbarSource).toContain('mobilePortalLane.tasks.slice(0, 4)')
     expect(styleBlock(portalToolbarSource, 'mobilePortalTileStyle')).toContain('gridTemplateRows')
-    expect(styleBlock(portalToolbarSource, 'mobilePortalTileStyle')).toContain('minHeight: 64')
+    expect(styleBlock(portalToolbarSource, 'mobilePortalTileStyle')).toContain('minHeight: 54')
     expect(portalToolbarSource).toContain("const portalLaneOrder: PortalLaneId[] = ['find', 'you', 'compete', 'team', 'coach', 'league', 'club']")
     expect(portalToolbarSource).toContain('function MobilePortalShortcutTile')
     expect(portalToolbarSource).toContain('data-portal-shortcut={shortcut.id}')

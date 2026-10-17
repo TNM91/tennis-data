@@ -241,10 +241,10 @@ export function buildPlayerPotentialLineupAvailabilityMessage(input: {
     'This is a proposed lineup; your captain will send the final courts after confirmations.',
     input.time ? `Time: ${input.time}` : '',
     input.facility ? `Location: ${input.facility}` : '',
+    input.availabilityRequestUrl ? 'Tap to reply and add the match to your calendar.' : '',
     input.availabilityRequestUrl
       ? `Reply in TiQ: ${input.availabilityRequestUrl}`
       : 'Reply YES, NO, or MAYBE to your captain.',
-    input.availabilityRequestUrl ? 'One tap answers this match. Add it to your calendar, then set future availability below.' : '',
   ]
     .filter(Boolean)
     .join('\n\n')

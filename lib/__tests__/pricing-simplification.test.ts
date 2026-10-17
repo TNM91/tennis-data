@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const pricingSource = readFileSync(join(process.cwd(), 'app/pricing/page.tsx'), 'utf8')
+const mobileLanesSource = readFileSync(join(process.cwd(), 'app/pricing/pricing-mobile-lanes.tsx'), 'utf8')
 const pricingLayoutSource = readFileSync(join(process.cwd(), 'app/pricing/layout.tsx'), 'utf8')
 const joinSource = readFileSync(join(process.cwd(), 'app/join/page.tsx'), 'utf8')
 
@@ -52,9 +53,10 @@ describe('pricing simplification', () => {
     expect(pricingSource).toContain('You support more than one tennis role and need My Lab, Coach Hub, Team Hub, League Office, and Tournament Desk connected.')
     expect(pricingSource).toContain('Choose a role to see what it includes.')
     expect(pricingSource).toContain('Start free. Add Player, Coach, Captain, League, or Full-Court when it helps.')
-    expect(pricingSource).toContain('Start with your role')
-    expect(pricingSource).toContain("{ planId: 'player_plus', label: 'Player', detail: 'My Lab' }")
-    expect(pricingSource).toContain("{ planId: 'captain', label: 'Captain', detail: 'Team Hub' }")
+    expect(mobileLanesSource).toContain("id: 'play'")
+    expect(mobileLanesSource).toContain("{ planId: 'player_plus', label: 'Player'")
+    expect(mobileLanesSource).toContain("{ planId: 'captain', label: 'Captain'")
+    expect(mobileLanesSource).toContain("{ planId: 'club_starter', label: 'Club'")
     expect(pricingSource).toContain('Search players, teams, leagues, rankings, tournaments, coaches, and tennis resources before choosing paid tools.')
     expect(pricingSource).toContain('Your tools are ready.')
     expect(pricingSource).toContain('Open the role you need.')

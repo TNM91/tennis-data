@@ -13,7 +13,7 @@ const teamsSource = source('app/teams/page.tsx')
 const teamDetailSource = source('app/teams/[team]/page.tsx')
 const leaguesSource = source('app/leagues/page.tsx')
 const leagueDetailSource = source('app/leagues/[league]/page.tsx')
-const exploreLeaguesSource = source('app/explore/leagues/page.tsx')
+const exploreLeaguesSource = source('app/explore/leagues/leagues-directory-client.tsx')
 const tiqLeagueDetailSource = source('app/explore/leagues/tiq/[league]/page.tsx')
 const pricingSource = source('app/pricing/page.tsx')
 const myLabSource = source('app/mylab/page.tsx')
@@ -46,7 +46,7 @@ function functionBlock(sourceText: string, functionName: string) {
 describe('Explore responsive surfaces', () => {
   it('keeps the simplified Explore hub aligned with the persistent Find portal', () => {
     expect(exploreSource).toContain('FIND_COMMAND_STEPS')
-    expect(exploreSource).toContain('EXPLORE_PRIMARY_COMMAND')
+    expect(exploreSource).not.toContain('EXPLORE_PRIMARY_COMMAND')
     expect(exploreSource).toContain('PUBLIC_DISCOVERY_PROOF_STEPS')
     expect(exploreSource).toContain('function FindCommandPanel')
     expect(exploreSource).toContain('TrackedProductLink')
@@ -58,11 +58,11 @@ describe('Explore responsive surfaces', () => {
     expect(exploreSource).toContain('getMembershipTier')
     expect(exploreSource).toContain('DATA_ASSIST_STORY.shortCue')
     expect(exploreSource).toContain('aria-label="Explore tennis search tools"')
-    expect(exploreSource).toContain('className="explore-primary-command"')
-    expect(exploreSource).toContain("label: 'Search first'")
-    expect(exploreSource).toContain('Search all tennis.')
-    expect(exploreSource).toContain('Popular searches.')
-    expect(exploreSource).toContain('Open search')
+    expect(exploreSource).not.toContain('className="explore-primary-command"')
+    expect(exploreSource).not.toContain("label: 'Search first'")
+    expect(exploreSource).not.toContain('Search all tennis.')
+    expect(exploreSource).toContain('Browse tennis.')
+    expect(exploreSource).not.toContain('Open search')
     expect(exploreSource).toContain('aria-label="What you can check free"')
     expect(exploreSource).toContain('What you can check free')
     expect(exploreSource).not.toContain('Public discovery proof cue')
@@ -78,7 +78,7 @@ describe('Explore responsive surfaces', () => {
     expect(exploreSource).toContain("location: 'explore_path'")
     expect(exploreSource).toContain("location: 'public_discovery_proof'")
 
-    for (const label of ['Find a player', 'Browse teams', 'Check standings', 'Check rankings']) {
+    for (const label of ['Players', 'Teams', 'Leagues', 'Rankings']) {
       expect(exploreSource).toContain(`label: '${label}'`)
     }
 
@@ -86,13 +86,8 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(exploreSource, 'heroShell')).toContain('minWidth: 0')
     expect(styleBlock(exploreSource, 'heroTitle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(exploreSource, 'findCommandHeader')).toContain("'48px minmax(0, 1fr) minmax(0, auto)'")
-    expect(styleBlock(exploreSource, 'findCommandWorkspace')).toContain("'minmax(min(100%, 360px), 0.9fr) minmax(0, 1.1fr)'")
+    expect(styleBlock(exploreSource, 'findCommandWorkspace')).toContain("'minmax(0, 1fr)'")
     expect(styleBlock(exploreSource, 'findCommandGrid')).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
-    expect(styleBlock(exploreSource, 'findCommandPrimaryCard')).toContain('minHeight: 220')
-    expect(styleBlock(exploreSource, 'findCommandPrimaryCard')).toContain("overflowWrap: 'anywhere'")
-    expect(exploreSource).toContain("const primaryCardStyle = compact")
-    expect(exploreSource).toContain('minHeight: mobile ? 62 : 152')
-    expect(exploreSource).toContain("gridTemplateRows: mobile ? 'auto auto' : findCommandPrimaryCard.gridTemplateRows")
     expect(exploreSource).toContain("padding: mobile ? '8px' : '12px'")
     expect(exploreSource).toContain('compactFindCommandHeader')
     expect(exploreSource).toContain('compactFindCommandTitle')
@@ -113,7 +108,6 @@ describe('Explore responsive surfaces', () => {
     expect(styleBlock(exploreSource, 'findCommandCard')).toContain("'32px minmax(0, 1fr)'")
     expect(styleBlock(exploreSource, 'findCommandCard')).toContain('minHeight: 64')
     expect(styleBlock(exploreSource, 'findCommandCardTitle')).toContain("overflowWrap: 'anywhere'")
-    expect(styleBlock(exploreSource, 'findCommandPrimaryBodyStyle')).toContain("overflowWrap: 'anywhere'")
     expect(styleBlock(exploreSource, 'publicDiscoveryProofStyle')).toContain("display: 'block'")
     expect(styleBlock(exploreSource, 'publicDiscoveryProofSummaryStyle')).toContain("flexWrap: 'wrap'")
     expect(styleBlock(exploreSource, 'publicDiscoveryProofGridStyle')).toContain("gridTemplateColumns: 'repeat(2, minmax(0, 1fr))'")
@@ -274,8 +268,8 @@ describe('Explore responsive surfaces', () => {
   })
 
   it('keeps public player and team discovery empty states actionable', () => {
-    expect(playersSource).toContain('Public discovery only shows reviewed player context')
-    expect(playersSource).toContain('Reset filters')
+    expect(playersSource).toContain('Clear filters, keep search')
+    expect(playersSource).toContain('Start a new search')
     expect(playersSource).toContain('DATA_ASSIST_STORY.cta')
     expect(playersSource).toContain('<label htmlFor="players-directory-search"')
     expect(playersSource).toContain('<label htmlFor="players-directory-sort"')

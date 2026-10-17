@@ -28,7 +28,7 @@ export default function PrivacyPage() {
   return (
     <SiteShell active="/legal/privacy">
       <JsonLd id="privacy-breadcrumb-jsonld" data={buildPublicSectionBreadcrumbJsonLd('Privacy Policy', '/legal/privacy')} />
-      <LegalPage title="Privacy Policy" effectiveDate="April 10, 2026">
+      <LegalPage title="Privacy Policy" effectiveDate="October 2, 2026">
         <p>
           TenAceIQ (&quot;TenAceIQ,&quot; &quot;we,&quot; &quot;our,&quot; or &quot;us&quot;) respects your privacy and is
           committed to protecting your information. This Privacy Policy explains what
@@ -99,6 +99,18 @@ export default function PrivacyPage() {
             If advertising is enabled on parts of the site, third-party advertising providers may
             also use cookies, similar technologies, or request metadata to support ad serving and
             measurement.
+          </p>
+          <p>
+            Third-party vendors, including Google, may use cookies to serve ads based on your
+            previous visits to TenAceIQ or other websites. Google and its partners may use
+            advertising cookies to personalize ads using those visits.
+          </p>
+          <p>
+            You can manage personalized advertising in <a href="https://myadcenter.google.com/">Google My Ad Center</a>.
+            You can also visit <a href="https://www.aboutads.info/choices/">AdChoices</a> to
+            opt out of personalized advertising from participating third-party vendors.
+            Learn <a href="https://policies.google.com/technologies/partner-sites">how Google uses information from sites that use its services</a>.
+            See our <Link href="/legal/cookies">Cookie Policy</Link> for more about cookies and your choices.
           </p>
         </div>
 

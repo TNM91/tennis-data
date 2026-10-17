@@ -33,6 +33,8 @@ describe('TennisRecord checkpoint stability', () => {
 
   it('runs rating catch-up daily during bootstrap and only on Wednesday once in weekly mode', () => {
     expect(isTennisRecordRatingBatchDue('bootstrap', new Date('2026-08-24T15:00:00Z'))).toBe(true)
+    expect(isTennisRecordRatingBatchDue('bootstrap', new Date('2026-08-24T15:00:00Z'), '2026-08-24T08:17:00Z')).toBe(false)
+    expect(isTennisRecordRatingBatchDue('bootstrap', new Date('2026-08-25T08:17:00Z'), '2026-08-24T08:17:00Z')).toBe(true)
     expect(isTennisRecordRatingBatchDue('weekly', new Date('2026-08-24T15:00:00Z'))).toBe(false)
     expect(isTennisRecordRatingBatchDue('weekly', new Date('2026-08-26T15:00:00Z'))).toBe(true)
   })

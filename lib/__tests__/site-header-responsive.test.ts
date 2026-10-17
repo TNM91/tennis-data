@@ -139,8 +139,8 @@ describe('site header responsive rules', () => {
     expect(siteHeaderSource).toContain('<UniversalSearch compact placeholder="Search TenAceIQ" showResults={false} />')
   })
 
-  it('does not prefetch the full site when the menu opens on a phone', () => {
-    expect(siteHeaderSource).toContain('enabled: !isMobile && authenticated && authResolved')
+  it('loads saved work on demand while keeping phone menu links from prefetching', () => {
+    expect(siteHeaderSource).toContain('enabled: authenticated && authResolved && (!isMobile || menuOpen)')
     expect(siteHeaderSource.match(/prefetch=\{false\}/g)?.length).toBeGreaterThanOrEqual(14)
   })
 })

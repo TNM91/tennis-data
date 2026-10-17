@@ -1,0 +1,111 @@
+.shell {
+  position: relative;
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding: 10px;
+  overflow: clip;
+  border: 1px solid rgba(116, 190, 255, 0.16);
+  border-radius: 18px;
+  background-color: rgba(5, 17, 35, 0.98);
+  box-shadow: 0 24px 64px rgba(2, 8, 23, 0.32);
+}
+
+.shell::after {
+  position: absolute;
+  right: -34%;
+  bottom: 54px;
+  width: 92%;
+  height: 44%;
+  content: '';
+  pointer-events: none;
+  opacity: 0.12;
+  background: url('/tiq/courts/tiq-court-master.png') right bottom / contain no-repeat;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 48%);
+}
+
+.laneTabs {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.laneTab {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 78px;
+  padding: 8px 4px;
+  border: 1px solid rgba(93, 159, 232, 0.24);
+  border-radius: 14px;
+  background-color: rgba(10, 29, 55, 0.86);
+  color: var(--foreground-strong);
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+}
+
+.laneTab strong { font-size: 13px; font-weight: 950; text-transform: uppercase; }
+.laneTab small { color: var(--shell-copy-muted); font-size: 9px; font-weight: 750; line-height: 1.15; }
+.laneTabActive { border-color: rgba(155, 225, 29, 0.8); background-color: rgba(20, 58, 48, 0.94); box-shadow: inset 0 0 0 1px rgba(155, 225, 29, 0.12); }
+
+.lanePanel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(155, 225, 29, 0.55);
+  border-radius: 16px;
+  background-color: rgba(7, 28, 39, 0.96);
+}
+
+.roleTabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border: 1px solid rgba(116, 190, 255, 0.18); border-radius: 14px; background-color: rgba(3, 12, 27, 0.78); }
+.roleTab { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 6px; align-items: center; min-width: 0; min-height: 52px; padding: 5px 8px; border: 0; border-radius: 11px; background: transparent; color: var(--foreground-strong); cursor: pointer; font: inherit; font-weight: 900; text-align: left; }
+.roleTab small { grid-column: 2; margin-top: -5px; color: var(--shell-copy-muted); font-size: 10px; font-weight: 800; }
+.roleTabActive { background-color: var(--brand-green); color: #06172f; box-shadow: 0 10px 24px rgba(155, 225, 29, 0.16); }
+.roleTabActive small { color: rgba(6, 23, 47, 0.76); }
+
+.clubToggle { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+.clubToggle button { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 40px; padding: 0 9px; border: 1px solid rgba(116, 190, 255, 0.16); border-radius: 10px; background-color: rgba(7, 17, 33, 0.76); color: var(--foreground-strong); cursor: pointer; font: inherit; font-size: 11px; font-weight: 900; }
+.clubToggle small { color: var(--shell-copy-muted); font-size: 9px; }
+.clubToggle .clubToggleActive { border-color: rgba(155, 225, 29, 0.7); background-color: rgba(155, 225, 29, 0.12); }
+
+.planCard { position: relative; display: grid; gap: 8px; min-width: 0; padding: 12px; overflow: hidden; border: 1px solid rgba(155, 225, 29, 0.2); border-radius: 14px; background-color: rgba(4, 18, 34, 0.97); }
+.planMeta { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--brand-green); font-size: 11px; font-weight: 950; letter-spacing: 0.09em; text-transform: uppercase; }
+.planMeta strong { white-space: nowrap; letter-spacing: 0; text-transform: none; }
+.titleRow { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; min-width: 0; }
+.titleRow h3 { flex: 1 1 220px; min-width: 0; margin: 0; color: var(--foreground-strong); font-size: clamp(1.55rem, 7.3vw, 1.95rem); font-weight: 950; letter-spacing: -0.04em; line-height: 0.98; }
+.badge { display: inline-flex; align-items: center; min-height: 24px; padding: 0 8px; border: 1px solid rgba(155, 225, 29, 0.3); border-radius: 999px; background-color: rgba(155, 225, 29, 0.1); color: var(--foreground-strong); font-size: 10px; font-weight: 950; }
+.planCard > p { max-width: 92%; margin: 0; color: var(--shell-copy-muted); font-size: 12px; font-weight: 720; line-height: 1.35; }
+.benefits { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.benefits li { position: relative; padding-left: 18px; color: var(--foreground-strong); font-size: 12px; font-weight: 820; line-height: 1.32; }
+.benefits li::before { position: absolute; top: 0.55em; left: 0; width: 9px; height: 3px; border-radius: 999px; background-color: var(--brand-green); content: ''; }
+
+.details { min-width: 0; overflow: hidden; border: 1px solid rgba(116, 190, 255, 0.14); border-radius: 11px; background-color: rgba(9, 25, 47, 0.66); }
+.details summary { min-height: 42px; padding: 12px; color: var(--brand-blue-2); cursor: pointer; font-size: 12px; font-weight: 950; list-style-position: inside; }
+.detailsBody { display: grid; gap: 8px; padding: 0 12px 12px; color: var(--shell-copy-muted); font-size: 12px; font-weight: 720; line-height: 1.4; }
+.detailsBody p, .detailsBody ul { margin: 0; }
+.detailsBody ul { display: grid; gap: 4px; padding-left: 18px; }
+
+.primaryAction { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 16px; border: 1px solid rgba(155, 225, 29, 0.72); border-radius: 999px; background-color: var(--brand-green); box-shadow: 0 14px 28px rgba(155, 225, 29, 0.16); color: #06172f; font-size: 14px; font-weight: 950; text-decoration: none; }
+
+.fullCourt { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 9px; min-width: 0; padding: 10px; border: 1px solid rgba(116, 190, 255, 0.18); border-radius: 13px; background-color: rgba(10, 27, 50, 0.78); }
+.fullCourt > div { display: grid; gap: 2px; min-width: 0; }
+.fullCourt span { color: var(--brand-blue-2); font-size: 10px; font-weight: 950; letter-spacing: 0.08em; text-transform: uppercase; }
+.fullCourt strong { color: var(--foreground-strong); font-size: 12px; }
+.fullCourt a { display: inline-flex; align-items: center; gap: 5px; min-height: 38px; color: var(--brand-blue-2); font-size: 11px; font-weight: 900; text-decoration: none; white-space: nowrap; }
+
+.stickyCompare { position: sticky; z-index: 5; bottom: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; margin-top: 2px; border: 1px solid rgba(116, 190, 255, 0.32); border-radius: 999px; background-color: rgba(7, 23, 44, 0.98); box-shadow: 0 16px 34px rgba(2, 8, 23, 0.42); color: var(--foreground-strong); font-size: 13px; font-weight: 950; text-decoration: none; }
+
+.laneTab:focus-visible, .roleTab:focus-visible, .clubToggle button:focus-visible, .primaryAction:focus-visible, .fullCourt a:focus-visible, .stickyCompare:focus-visible { outline: 2px solid rgba(155, 225, 29, 0.9); outline-offset: 2px; }
+.laneTab:active, .roleTab:active, .clubToggle button:active { transform: scale(0.985); }
+
+@media (prefers-reduced-motion: reduce) {
+  .laneTab, .roleTab, .clubToggle button { transition: none; }
+}

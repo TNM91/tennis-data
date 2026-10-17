@@ -66,6 +66,210 @@ final result: passed
 
 ---
 
+# Design QA — My Lab zero-cost Player insight
+
+## Visual truth
+
+- Source surface: `.codex-audit/mylab-ai-audit-2026-09-28/01-scoreboard-first.png`
+- Verification route: `http://localhost:3000/mylab`
+- Verification viewport: 375 × 812 CSS pixels.
+- Required state: authenticated Player member with connected rating and recent results.
+
+## Comparison evidence
+
+- Typography and hierarchy: the large TIQ scoreboard remains the first read; the new member conclusion is the next compact card.
+- Layout and spacing: the first view retains the scoreboard, insight, and next action sequence. The expanded evidence card uses the existing analytics panel instead of adding another dashboard.
+- Color and components: the new read reuses the established midnight navy, lime decision state, blue evidence accents, existing iconography, and existing card radii.
+- Copy and data: Player members see a conclusion, supporting evidence, and a two-match next test. The visible 4.42 → 4.41 comparison and explanatory −0.01 movement now use the same baseline.
+
+## Interaction and runtime checks
+
+- Tapping the compact TenAce read opens `Why your number moved`.
+- The expanded read shows evidence chips and a next test before the supporting analytics rows.
+- Iteration 2 looks beneath the blended record: the verified 4-4 state now surfaces the two newest wins while explaining that TIQ remains nearly flat.
+- The paid read closes the loop with a pressure test and a `Compare after` baseline for the next two results.
+- Same-page analytics actions use native anchors, eliminating the development-time RSC navigation fallback found during interaction QA.
+- Anonymous/free state does not receive a paid-member read.
+- Document width measured 360 px inside the 375 px viewport, with no horizontal overflow.
+- Browser console errors after the final interaction pass: none.
+- Focused ESLint: passed.
+- Typecheck: passed.
+- Focused tests: 3 files, 27 tests passed.
+
+final result: passed
+
+---
+
+# Design QA — My Lab mobile formatting and cycle copy
+
+## Visual truth
+
+- User-reported mobile capture: `C:\Users\nmein\.codex\codex-remote-attachments\01a0e921-d80c-7cd3-8136-5738a1f77d37\3136EC51-ECE8-4D95-B61B-6B4DC2C079A2\1-Pasted-Image-1.jpg`
+- Browser-rendered implementation: `C:\Users\nmein\tennis-data\.codex-audit\mylab-scoreboard-2026-09-28\implementation-mobile-copy-format-fix.png`
+- Focused cycle evidence: `C:\Users\nmein\tennis-data\.codex-audit\mylab-scoreboard-2026-09-28\implementation-mobile-cycle-copy-fix.png`
+- Combined comparison: `C:\Users\nmein\tennis-data\.codex-audit\mylab-scoreboard-2026-09-28\comparison-mobile-format-copy-fix.png`
+- Source dimensions: 591 × 1280 pixels; browser chrome is present in the capture.
+- Implementation capture: 360 × 780 pixels from a 375 × 812 CSS viewport override in the Codex in-app browser.
+- State note: the user capture shows the unlinked-player empty state while the authenticated local browser shows a connected 4.41 player. Comparison is therefore limited to shared component structure, responsive text behavior, and copy hierarchy rather than data parity.
+
+## Findings and fixes
+
+- P1 — The empty-state trend and priority signal clipped at phone width. Fixed by allowing the trend to wrap, changing the empty label to `No trend yet`, allowing the priority title to use two lines, and moving `See why` into the flexible copy column.
+- P1 — `Stand → Understand → Act → Reflect` required interpretation. Fixed with direct player language: `Where I am → What changed → Next move → How it went`.
+- Post-fix evidence: the scoreboard and priority card each report matching rendered and scroll widths, document width and scroll width both measure 360 px, and no browser console errors were recorded.
+
+## Required fidelity surfaces
+
+- Typography: the existing TenAceIQ font hierarchy and weights are preserved; previously truncated text now wraps within its card.
+- Spacing and layout: the scoreboard remains the first dominant element, the priority signal keeps a compact three-column structure, and the four-step cycle fits without horizontal overflow.
+- Colors and tokens: existing navy, blue, white, and lime product tokens are unchanged.
+- Image and icon quality: existing approved product icons are retained; no supplied brand artwork was changed.
+- Copy: the empty state and cycle now explain the player journey without shorthand.
+
+## Verification
+
+- My Lab focused tests: 14 passed.
+- Targeted ESLint: passed.
+- TypeScript: passed.
+- Browser console errors: none.
+- Horizontal overflow: none.
+
+final result: passed
+
+---
+
+# Design QA — My Lab ultimate scoreboard
+
+## Visual truth and capture
+
+- Source visual truth: `C:\Users\nmein\.codex\generated_images\01a0e921-d80c-7cd3-8136-5738a1f77d37\exec-684a4be5-0875-48af-8583-e932eccc366c.png`
+- Browser-rendered implementation: `C:\Users\nmein\tennis-data\.codex-audit\mylab-scoreboard-2026-09-28\implementation-mobile-first-five-seconds-final.png`
+- Full page evidence: `C:\Users\nmein\tennis-data\.codex-audit\mylab-scoreboard-2026-09-28\implementation-mobile-390x844-full.png`
+- Focused analytics evidence: `C:\Users\nmein\tennis-data\.codex-audit\mylab-scoreboard-2026-09-28\implementation-mobile-first-five-seconds-analytics.png`
+- Combined comparison: `C:\Users\nmein\tennis-data\.codex-audit\mylab-scoreboard-2026-09-28\comparison-mobile-first-five-seconds-final.png`
+- Browser viewport: 390 × 844 CSS pixels at 1×; Chromium content width is 375 pixels and the My Lab surface is 351 × 1243 CSS pixels.
+- Source pixels: 853 × 1844. Implementation component pixels: 351 × 1243. Both were normalized to 400 pixels wide in the combined comparison.
+- First-five-seconds comparison normalization: the 852 × 1877 source was top-aligned and cover-normalized to 390 × 844 beside the 390 × 844 implementation at 1× density.
+- State: signed-in linked player Nathan; TIQ 4.41, prior checkpoint 4.42, recent record 4–4, 50% win rate, high confidence, no active focus or saved Level Up proof, next connected match in six days.
+
+## Full-view and focused comparison evidence
+
+The side-by-side comparison confirms the selected scoreboard-first hierarchy: dominant TIQ standing, trend meaning, recent record/win-rate/confidence evidence, what-was → what-is narrative, improvement cycle, high-contrast next action, latest-work reflection, contextual next match, and persistent phone shortcuts.
+
+Focused inspection confirmed the 4.41 score remains the first dominant product object at the actual 351-pixel content width. The real-data implementation is intentionally taller than the generated concept because it preserves readable match location, reflection copy, and 44-pixel-or-larger actions rather than compressing live content into concept-only rows.
+
+## Fidelity surfaces
+
+- Fonts and typography: the production display stack preserves the source's heavy athletic score, uppercase blue metadata, compact evidence labels, and readable action copy. Long real team names are clamped rather than overflowing.
+- Spacing and layout rhythm: navy panels, restrained separators, rounded surfaces, and the lime action maintain the reference rhythm. The opening order is unchanged even when data is incomplete.
+- Colors and visual tokens: the implementation uses the established TenAceIQ navy, electric green, blue, white, and muted evidence colors with strong contrast.
+- Image and icon fidelity: the shared shell uses approved brand assets; the command surface uses the existing TenAceIQ feature icon plus direct Phosphor icon modules. No logo artwork, fake player imagery, handcrafted SVG, emoji, or CSS illustration was introduced.
+- Copy and content: all visible standing, record, trend, focus, proof, reflection, and match values come from connected My Lab data. Empty states remain honest and action-oriented.
+
+## Findings and comparison history
+
+No actionable P0, P1, or P2 findings remain.
+
+1. Earlier P2: the rating delta collapsed into a vertical word stack beside the large score at the actual content width.
+   Fix: changed the score composition to a two-column/two-row layout and reserved a readable right-side evidence lane.
+   Post-fix evidence: the final component capture shows `-0.01 recently` and `From 4.42` on readable lines beside 4.41.
+2. Earlier P2: `Understand` wrapped inside the flywheel and weakened the cycle.
+   Fix: tightened rail spacing and label optical size while keeping every stage and arrow visible.
+   Post-fix evidence: Stand → Understand → Act → Reflect reads as one continuous phone-width rail.
+3. Earlier P1: scoreboard and next-action fragment links targeted content inside a closed `details` workspace.
+   Fix: each flywheel stage now lands on a visible mobile target: `#mobile-scoreboard`, `#player-insights`, `#next-action`, or `#latest-reflection`. Internal setup actions use the valid `#player-workshop` fallback and open that disclosure before navigation.
+   Post-fix evidence: browser interaction confirmed all four stages resolve to visible content at 390 × 844.
+4. Earlier P2: the what-was → what-is card promised analytics but did not expose a phone-native insight surface.
+   Fix: added a compact connected-data insight panel for direction, form, confidence, focus, and the rating narrative immediately beneath the story.
+   Post-fix evidence: the final implementation capture shows the analytics panel directly below the first-view scoreboard and comparison card.
+5. Follow-up refinement: the first analytics panel surfaced values but did not fully explain the decision behind them.
+   Fix: expanded Understand into a compact evidence-to-action readout covering rating direction, recent form, signal quality, recommended focus, and a direct handoff to the next action.
+   Post-fix evidence: `.codex-audit/mylab-scoreboard-2026-09-28/implementation-mobile-analytics-final.png`; the `Use this read` control resolves to the visible `#next-action` card.
+6. Follow-up refinement: Reflect landed on a summary but did not let the player close the loop from the phone.
+   Fix: added a three-state outcome check plus two short prompts for what worked and what changes next. The reflection remains device-safe and does not overwrite synced Level Up proof.
+   Post-fix evidence: `.codex-audit/mylab-scoreboard-2026-09-28/implementation-mobile-reflection-final.png`; outcome selection, both labeled inputs, enabled save state, and draft reset on reload were verified at 390 × 844.
+7. Follow-up refinement: proof, results, reflection, and the next action existed as separate cards without one persistent causal read.
+   Fix: added Cycle Memory, a chronological proof → result → lesson → next move ledger. It uses connected Level Up proof, the latest match result, the saved phone reflection, and the existing recommended action; absent evidence is labeled honestly.
+   Post-fix evidence: `.codex-audit/mylab-scoreboard-2026-09-28/implementation-mobile-cycle-memory-final.png`; the next-move control returns to the visible `#next-action` card.
+8. Follow-up refinement: a single device-only reflection could not follow the player across devices or preserve multiple completed loops.
+   Fix: added authenticated reflection history with per-player row security, local-first fallback, editable saved loops, a new-reflection action, and a compact Past loops library beneath Cycle Memory. The device cache accepts the earlier one-record format and upgrades it without discarding the player’s note.
+   Post-fix evidence: the 390 × 844 browser pass opened the complete reflection form above Cycle Memory, confirmed the empty-history state, measured 375 px document and content widths with no horizontal overflow, and found no browser console errors. Migration `20260928000200` is applied; the authenticated reflection-history endpoint returns 200 while the device fallback remains available offline.
+9. Follow-up refinement: saved loops existed, but My Lab did not yet turn their repeated outcomes and language into a concise player read.
+   Fix: added an evidence-bound Pattern Read across the latest eight reflections. It calculates held-up rate and direction, surfaces repeated tennis themes only after they recur, and withholds the panel until two loops exist.
+   Verification state: an isolated local-only two-loop fixture rendered the 50% held-up score, Strengthening direction, Second Serve working theme, and Margin adjustment theme at 390 × 844 with matching 390 px client and document widths, no horizontal overflow, and no console errors. The final capture is `.codex-audit/mylab-scoreboard-2026-09-28/implementation-mobile-pattern-read-final.png`. The fixture ran in a disposable browser profile and did not write test data to the player account; the two earlier `qa-*` device entries were also removed before the production-only code path was restored.
+10. Follow-up refinement: the phone opening still made the player process multiple analytical cards before reaching the recommended action.
+    Fix: compressed the authenticated first view into one decision sequence: rating and movement, one clearest signal, and the full next action. Moved the what-was → what-is story and three supporting signals into an on-demand analytics disclosure without removing any insight.
+    Post-fix evidence: `.codex-audit/mylab-scoreboard-2026-09-28/comparison-mobile-first-five-seconds-final.png` confirms the same scoreboard-first hierarchy as the selected direction while reducing the path to action. In the authenticated in-app state, the score occupies y=336–553, the clearest signal y=563–634, and the complete next action y=644–810. In the isolated browser capture, the corresponding stack ends at y=800. Client and document widths match with no horizontal overflow, the analytics disclosure expands and closes cleanly, and browser console errors are zero.
+
+## Primary interactions and runtime checks
+
+- Stand, Understand, Act, and Reflect each navigate to a visible phone-native stage in the flywheel.
+- `Use this read` carries the player from the analytics interpretation to the next recommended action without leaving My Lab.
+- Reflect opens the inline check-in, exposes Off/Mixed/Held up as pressed states, and enables save only after an outcome plus a useful note is present.
+- Signed-in reflections sync through the player-authenticated API after the new migration is applied; offline or failed syncs remain available on the current phone.
+- Returning players can start a new loop or reopen one of the three most recent past loops without leaving the mobile command center.
+- Pattern Read uses the latest eight loops, requires at least two before rendering, and requires a tennis theme to appear twice before calling it recurrent.
+- Cycle Memory renders all four chronological stages and closes the loop back to the next action.
+- The primary action and Train shortcut open the deeper workspace when their configured action depends on an internal My Lab editor.
+- Scoreboard, analytic story, latest reflection, match plan, Today, Train, Matchup, and Profile expose semantic links.
+- Browser console errors: none. One development-only Fast Refresh full-reload warning appeared during editing and did not recur as an application error.
+- Focused ESLint: passed.
+- Focused My Lab suite: 14 tests passed.
+- Full TypeScript verification: passed.
+
+## Follow-up polish
+
+- P3: a future analytics pass can replace the compact trend icon with a data-rendered sparkline once a shared chart primitive is approved.
+- P3: verified shot-pattern analytics can enrich the what-was → what-is story when point-level evidence is available; the current implementation correctly limits the story to connected rating and result evidence.
+
+final result: passed
+
+---
+
+# Design QA — Home plan lanes refinement
+
+## Visual truth and capture
+
+- Source visual truth: `C:\Users\nmein\.codex\generated_images\01a0dffb-1b8a-7212-a5e7-f04542c4a5a3\exec-c262affd-315c-4e2c-a68d-9ab78f12eea1.png`
+- Browser-rendered implementation: `C:\Users\nmein\tennis-data\artifacts\home-plan-lanes-qa\implementation-mobile-viewport-refined.png`
+- Deployed implementation: `https://tennis-data-6vab4q5dq-tennis-data.vercel.app/#home-plan-lanes-title`
+- Viewport and state: 390 × 844 CSS pixels, dark theme, Lead expanded, Captain selected.
+- Density normalization: source 853 × 1844 pixels (~2.19× density); implementation 390 × 844 pixels at device-pixel ratio 1. The source was visually normalized to the implementation viewport before judging proportions.
+
+## Full-view and focused comparison
+
+- Full-view: the implementation retains the source's vertical Court Lane Map, navy/blue frame, lime Lead state, two-option role switch, prominent Captain CTA, and compact mobile hierarchy. The production header and surrounding homepage content remain intentionally outside the recreated component.
+- Focused plan panel: the two strongest benefits now fit above the CTA at 390 pixels wide, bringing the primary action higher without weakening the selected-plan hierarchy.
+- Focused anchor state: the fragment-targeted heading lands at approximately 102 CSS pixels from the viewport top, clearing the sticky navigation instead of touching the phone edge.
+
+## Fidelity surfaces
+
+- Fonts and typography: display weight, compact uppercase metadata, price hierarchy, wrapping, and small-label optical weight remain consistent with the source direction and production font stack.
+- Spacing and layout rhythm: mobile section height is approximately 828 CSS pixels, down from approximately 870; the tighter plan panel preserves touch-target sizes and improves scan speed.
+- Colors and visual tokens: midnight navy, restrained blue outlines, electric-lime active state, and text contrast remain consistent with the selected direction.
+- Image quality and assets: approved TenAceIQ player/court assets and the existing `TiqFeatureIcon` system remain sharp and correctly masked; no brand artwork was redrawn.
+- Copy and content: plan names, pricing, audience text, and benefits still come from centralized pricing content. Mobile intentionally shows the two strongest benefits while larger screens retain all three.
+
+## Findings and comparison history
+
+- No actionable P0/P1/P2 findings remain.
+- Prior P3: fragment navigation placed the heading too close to the phone edge. Fixed with a 112-pixel heading scroll margin; post-fix evidence shows a ~102-pixel rendered top offset after sticky-header layout.
+- Prior P3: the active plan panel was denser than necessary. Fixed with tighter mobile rhythm and two visible benefit rows; post-fix component height is approximately 828 CSS pixels.
+- Prior P3: lane and role controls needed clearer touch feedback. Fixed with pressed-state scaling and subtle hover/transition feedback, with reduced-motion handling preserved.
+
+## Runtime verification
+
+- Organize opened and Club updated the panel to `$99/month`.
+- Lead reopened and restored Captain at `$4.99/month`.
+- Browser console errors: none.
+- Targeted ESLint: passed.
+- Local production build: passed (246 pages).
+- Vercel preview build: READY (245 pages).
+
+final result: passed
+
+---
+
 # Desktop and tablet watermark visual QA
 
 Final result: **passed**
@@ -606,3 +810,171 @@ The expanded 390 px and 360 px captures show rank, names, pair rating, availabil
 - Diff whitespace check: passed (line-ending warnings only).
 
 final result: passed
+
+---
+
+# Design QA — Home plan lanes
+
+## Visual truth
+
+- Selected source mock: `C:\Users\nmein\.codex\generated_images\01a0dffb-1b8a-7212-a5e7-f04542c4a5a3\exec-c262affd-315c-4e2c-a68d-9ab78f12eea1.png`
+- Final implementation capture: `C:\Users\nmein\tennis-data\artifacts\home-plan-lanes-qa\implementation-mobile-section-final.png`
+- Production browser check: `http://127.0.0.1:3000/#home-plan-lanes-title`
+- Reference dimensions: 853 × 1844 pixels.
+- Verification viewport: 390 × 844 CSS pixels at device-pixel ratio 1.
+- Reference normalization: the source is approximately 2.19× the verification viewport density. The final component measures 351 × 870 CSS pixels inside the 390-pixel viewport.
+- Required state: Lead lane expanded with Captain selected.
+
+## Comparison evidence
+
+The source and final implementation were inspected together at full-view and focused component scale.
+
+- Typography: preserves the heavy display heading, compact uppercase labels, clear price hierarchy, and high-contrast body copy. The production site retains its approved font stack.
+- Spacing and layout: preserves the vertical lane map, nested selected plan panel, large thumb-friendly role tabs, and single-column mobile rhythm.
+- Color: preserves the midnight navy field, electric-lime active state and CTA, restrained blue outlines, and white/gray text hierarchy.
+- Imagery and iconography: uses approved existing TenAceIQ court and player imagery plus the existing `TiqFeatureIcon` system. No logo or brand artwork was redrawn or recolored.
+- Copy: keeps the selected concept's short tennis-specific framing while sourcing plan names, prices, descriptions, and benefits from the centralized pricing model.
+
+## Iteration history
+
+### Iteration 1
+
+- Severity: P2
+- Finding: the first mobile pass measured 366 × 1005 CSS pixels, which made the section materially taller and slower to scan than the normalized reference.
+- Fix: tightened the mobile intro, lane headers, role tabs, detail panel, benefit spacing, and Full-Court row while retaining 44-pixel-or-larger primary tap targets.
+
+### Iteration 2
+
+- Result: the final component measures 351 × 870 CSS pixels, approximately 3% taller than the normalized source treatment.
+- Remaining P0/P1/P2 issues: none.
+- P3 note: player artwork is intentionally subtler than the generated mock so it does not compete with plan selection. Collapsed lanes intentionally omit secondary role buttons until expanded.
+
+## Interaction and runtime checks
+
+- Play opens and defaults to Explore.
+- Player updates the detail panel with centralized plan content.
+- Organize opens and exposes League and Club.
+- Club updates price, description, benefits, and CTA.
+- Lead returns to Captain as the default active role.
+- Production bundle rendered at 390 × 844 with `Pick your court` and `Captain` present.
+- Browser console errors: none.
+- Targeted ESLint: passed.
+- Production build: passed (246 pages).
+
+final result: passed
+
+---
+
+# Pumpkin Playoffs — Night Session design QA (2026-10-07)
+
+This section preserves the earlier QA reports above and covers the selected tournament/event redesign only.
+
+## Visual truth and evidence
+
+- Selected source: `C:/Users/nmein/.codex/generated_images/01a11818-aa69-7842-a52f-d66e97d64d35/exec-369c68d1-008a-4a6b-89b7-f0ff693a0825.png` (the first displayed concept).
+- Source pixels: 1487 × 1058.
+- Interactive implementation: `http://127.0.0.1:3221/tournaments/pumpkin-playoffs-2026`; this harness imports the actual production `TournamentEventPanel` and supplies the announced event facts, with zero entrants.
+- Desktop viewport requested: 1488 × 1056 CSS pixels. Browser screenshots measure 1473 pixels wide because the capture includes the content area beside the scrollbar. Density: 1×.
+- Browser capture: `.codex-audit/night-session-preview/desktop-final.png` (1473 × 1174, including the separate preview toolbar).
+- Feature-only capture: `.codex-audit/night-session-preview/desktop-feature-final.png` (1473 × 1106; full event content, without the test harness toolbar).
+- Combined full-view comparison: `.codex-audit/night-session-preview/comparison-final.png`. Both panels are proportionally normalized to 744 pixels wide; no stretching.
+- Combined title/typography comparison: `.codex-audit/night-session-preview/comparison-title.png`.
+- Phone viewport: 390 × 844; `.codex-audit/night-session-preview/mobile-final-390x844.png` captures the first fold, including the reachable signup action.
+- Director view: `.codex-audit/night-session-preview/director-final.png`.
+- Tested state: Pumpkin Playoffs, October 17, 2026; Men's 4.0 and 4.5 doubles; $40/player and $80/team; direct email signup; private draft; no invented entrants, matches, or courts.
+
+## Comparison history
+
+### Initial comparison — blocked
+
+- [P2] The implementation was materially taller than the selected design. The hero, extra draw link, separate announcement row, and preview toolbar increased vertical density. Evidence: `comparison-initial.png` and `desktop-initial.png` (1473 × 1260).
+- [P2] Unselected native radio controls rendered as bright white discs against the dark surface. They competed with the primary action.
+- [P2] Phone signup required scrolling through all event facts and divisions before reaching the main action.
+
+### Revised comparison — passed
+
+- Tightened the hero typography and vertical spacing; suppressed draw links until at least two entrants exist; moved the full announcement into the event-details disclosure; kept the preview toolbar outside the production component.
+- Applied native dark control styling rather than drawing replacement radio assets.
+- On phones, removed the duplicated start-time tile and placed price and deadline side by side. Added a bottom signup action with the selected division and price, safe-area padding, and enough page padding to keep final content reachable.
+- Re-captured and compared the actual component to the source in `comparison-final.png` and `comparison-title.png`.
+- No remaining actionable P0/P1/P2 findings in the implemented frontend states.
+
+## Required fidelity surfaces
+
+- Typography: strong two-line headline, ivory first line and pumpkin accent second line; readable product sans for body copy; restored the signup heading and summary to the source hierarchy. Small differences in glyph shapes from the system font fallback are P3.
+- Spacing/layout: open page surface, photographic hero, three desktop facts, division rows on one shared surface, and one restrained signup panel. The existing product's Events breadcrumb replaces the mock's invented global navigation; the real product retains its own shell. The complete rules disclosure adds a small intentional amount of height.
+- Colors/tokens: navy/evergreen base, warm ivory, pumpkin-orange accent, and the approved green action color. No TenAceIQ brand artwork was redrawn, recolored, or replaced.
+- Image quality: generated a separate photographic hero rather than rasterizing the UI. Natural dark court on the left, pumpkins/balls/racket on the right, correct crop and proportions. Optimized WebP is 147,820 bytes. The missing generic fence lettering is an acceptable artistic difference; it is not event information.
+- Copy/content: date, start time, expected finish, deadline, fees, director, venue/address, format, refreshments, outside-alcohol rule, sponsors, and sanctioning status match the supplied announcement. No fake confirmed draws or availability metrics.
+
+## Interaction and accessibility checks
+
+- Selecting 4.5 changes the signup summary and both email links to 4.5.
+- Email subject and body contain the selected division, blank player/partner fields, and the correct recipient; testing inspected the link without sending email.
+- Native radio keyboard ArrowDown changes the selection and the phone signup link.
+- Director division buttons trigger the supplied selection callback. The real workspace now scrolls to the event/division editor after that selection.
+- Announcement disclosure is operable; ordinary app links retain their existing route targets.
+- Hero art is decorative with empty alt text. Icons come from the existing Phosphor library. No emoji or fabricated artwork shapes.
+- Visible focus styles, native labeled controls, minimum practical tap targets, and reduced-motion styling are present. This is not a claim of full WCAG certification.
+- No horizontal overflow at desktop or phone width. Browser warnings/errors: none in the tested frontend.
+- Unit tests cover selected-division email construction, timezone-aware inclusive deadlines, invalid event data, division isolation, shared detail propagation, and API refusal of parent-event or closed registrations.
+
+## Asset provenance
+
+- Built-in ImageGen created the photograph. Prompt: photographic recreation of the selected night-session hero, wide 2.4:1 frame, naturally dark court across the left 55%, warm floodlights and autumn foliage, pumpkin, two tennis balls and black/orange racket on a wood bench across the right 45%; no typography, UI, logos, or emoji.
+- Master: `public/media/tournaments/pumpkin-playoffs-night-session-v1.png` (1942 × 809).
+- Production image: `public/media/tournaments/pumpkin-playoffs-night-session-v1.webp`.
+
+## Limits and follow-up
+
+- The live event migration and consolidation remain unapplied pending approval after automatic review rejected the persistent database/access-policy change. This QA pass verifies the frontend and local tests; live database persistence and public publishing are not claimed.
+- One pre-existing `teams-experience-simplification` assertion fails in the full suite; the event tests pass.
+- P3: exact typeface/glyph matching and physical fence lettering can be refined later without changing the working event flow.
+
+final result: passed
+
+## Pumpkin Playoffs release verification — October 7, 2026
+
+PR #1500 merged to master as a4bb907ca2fd6b714da04bebc56e9c95b206f747. Vercel production deployment tennis-data-hjtt93f02-tennis-data.vercel.app is READY. Final local lint, typecheck, 673 test files / 3,540 tests, extension syntax check, and production build passed. Required GitHub Verify, TIQ Schema Audit, and Captain weekly continuity checks passed.
+
+Both approved event migrations are applied and recorded. Anonymous users can read the new public metadata columns but cannot read the legacy private contacts column or the private Pumpkin Playoffs records. An authenticated organizer role can read the parent and both existing divisions. Transactional inheritance, results, ownership, deletion, and visibility checks passed.
+
+Bounded live checks: /tournaments rendered the new events copy without console errors; 390px mobile had no horizontal overflow; the night-session WebP returned HTTP 200 and image/webp; the private Pumpkin Playoffs URL rendered its unavailable state without lookup errors. The five-minute production log scan returned zero errors, fatals, HTTP 500s, or warnings. Authenticated editing was verified through local tests and database policies; an authenticated production browser session was not available for an interactive editing check.
+
+Release screenshot: .codex-audit/night-session-preview/live-tournament-hub.png. Pumpkin Playoffs remains a private draft. Final result: passed for release; organizer review/publication remains a separate action.
+
+## Event organizer overview and shared court planning — October 7, 2026
+
+Added division readiness, confirmed-team totals, schedule/result progress, and direct next actions, plus a shared court timeline with division, unassigned, and overlap filters. The inline editor supports date/time/court changes, explicit overlapping-slot saves, clearing assignments, and failed-save recovery. Planning warnings use a visible 30/45/60/90-minute estimate rather than a claimed match duration. Schedule-only persistence refreshes draw data and checks the last update version before saving.
+
+Focused tests passed for real draw IDs, midnight overlaps, adjacent slots, completed matches, readiness transitions, invalid slots, rejected writes, refreshed schedules, removed matches, and result preservation. Full local lint, typecheck, 675 files / 3,550 tests, extension syntax check, and Next.js production build passed. Generated preview files are excluded from application checks; application source remains included.
+
+Desktop and 390px phone checks passed for reassignment, failed-save input retention, clearing, filters, keyboard focus, and zero-entrant drafts. No horizontal overflow or console warnings/errors were observed in the isolated component preview. The actual production-bundle organizer route passed its logged-out access-gate smoke without console errors. An authenticated browser session was unavailable; a rollback-only authenticated database test verified allowed organizer writes and rejected stale versions. It exposed an existing trigger SELECT * permission bug, repaired by reading only already-authorized metadata; migration 20261007000300 is applied and recorded, with private contacts still restricted. Production event data was not changed.
+
+Visual evidence: .codex-audit/night-session-preview/organizer-desktop.png and organizer-mobile-editor.png. Interactive preview: http://127.0.0.1:3225, with explicitly labeled sample teams and a switch for an empty draft. PR: https://github.com/TNM91/tennis-data/pull/1502. Final UI verification: passed; release checks pending at this entry.
+
+Release completed: PR #1502 merged to master as a886c50a69580bb2eb5c57264014612c64a5daae. Production deployment tennis-data-mlq21b0ew-tennis-data.vercel.app is READY. Required Verify, TIQ Schema Audit, and Captain weekly continuity checks passed on the final commit. Bounded live checks passed for the organizer sign-in gate, zero console errors, no horizontal overflow at 390px, and the private Pumpkin Playoffs unavailable state. The five-minute production log scan returned zero errors, fatals, HTTP 500s, or warnings. Pumpkin Playoffs remains a private draft. Final release result: passed.
+
+## Player event pass — approved database verification (2026-10-07)
+
+Implemented player passes and organizer arrival confirmation in focused PR #1503. Full local release checks passed: lint, typecheck, 676 test files / 3,555 tests, extension syntax, production build. Desktop and 390px sample browser checks passed selection, pending/assigned courts, confirm/clear, refresh, and failed save/direct retry. Production bundle smoke confirmed logged-out access gates without console errors.
+
+The user approved attendance storage, public status reads for published divisions, and tournament-manager writes. Applied migrations 20261007000400 and 20261007000500; explicitly revoked inherited table privileges. Rolled-back linked database fixtures proved public/private reads and manager/anonymous/unrelated-user write restrictions. No test fixtures remain. Readback confirmed all three Pumpkin Playoffs records remain private drafts with zero entrants. Authenticated production browser saves were not exercised. CI/release are pending; preserve this limitation in release reporting.
+
+Player event pass release passed: PR #1503 merged to master at a64ddf52a04a12f9618dccb882fcde5e18e2ec52. GitHub Verify, TIQ Schema Audit, and Captain weekly continuity passed. The single Git production deployment tennis-data-1k1su99iq-tennis-data.vercel.app is READY and serves www.tenaceiq.com. Bounded live smoke confirmed the logged-out organizer access gate, 390px layout without horizontal overflow, and private Pumpkin Playoffs rejection, with no browser console errors. Five-minute deployment log scan returned no error/fatal/warning records. Authenticated production browser edits were not exercised; direct role-based database verification passed. Pumpkin Playoffs and both divisions remain private drafts with zero entrants.
+
+## Group standings and championship release (2026-10-07)
+
+Released PR #1504, merge e82e7a2d765e8ba95a128da53d39d2a47b746f20, via one master Git production deployment dpl_CrCA5rGeJFMpXhNUoDH5w41vCxRg (tennis-data-clp5sds2n-tennis-data.vercel.app). READY; www.tenaceiq.com alias explicitly confirmed on this deployment. Full local checks passed: lint, typecheck, 678 test files / 3,571 tests, extension syntax, and production build. Required Verify, TIQ Schema Audit, and Captain weekly continuity CI gates passed.
+
+Real component sample-browser checks passed group qualification, ties, small-field bracket, empty draft, champion/earlier-score clear, organizer scorebook/setup callbacks, and player-pass champion/completed-run states on desktop and 390px phone, with no console errors or horizontal overflow. Direct role-based, rollback-only database verification passed organizer persistence, stale-version rejection, field/format lock, clear-then-edit, and unrelated-user rejection. Authenticated production browser edits were not exercised.
+
+Migration 20261007000600 is applied and recorded. After deployment, the guarded operation configured the Pumpkin Playoffs root and both original division IDs to group_playoffs. Readback confirmed one root, its same two children, private draft status, and zero entrants. No participants, court assignments, or scores were added. Five-minute deployment log scan found no error/fatal/warning records; bounded live desktop/phone organizer access and private-event gates passed. Preview and screenshots use explicitly labeled sample teams.
+
+## Event palette correction — 2026-10-08
+
+- Event pass and championship standings now use the site's shared navy surfaces, borders, text colors, and lime highlights. Dark native selects and keyboard focus checked; pumpkin-orange trophy detail retained.
+- Desktop and 390px sample-component previews reviewed with no horizontal overflow. Proof: `.codex-audit/night-session-preview/site-palette-pass-desktop.png` and corresponding standings/mobile captures.
+- Lint, typecheck, 678 test files / 3,571 tests, extension syntax, and local production build passed. Logged-out production bundle organizer and private-event gates passed.
+- PR #1505 merged as `0491d81fc6fac28a95bb3ef0ae22fd62005ca52c`; all required CI passed. Git production deployment `dpl_Gm8neYTtZ81LaJh2jtbZSb4X4VPH` READY on www.tenaceiq.com.
+- Bounded live organizer/private-event gate smoke passed, 390px overflow false, browser console clean, five-minute deployment warning/error/fatal log scan empty. No authenticated event saves exercised for this CSS-only correction. Event visibility and data unchanged.

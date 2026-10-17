@@ -7,6 +7,7 @@ import {
   isUuid,
 } from '@/lib/captain-availability-request-server'
 import { canManageTeamRoom, normalizeTeamRoomKey } from '@/lib/team-room'
+import { mergeCaptainMatchResponses } from '@/lib/captain-match-responses'
 
 export const runtime = 'nodejs'
 
@@ -59,7 +60,7 @@ export async function GET(request: Request) {
     return Response.json({ ok: false, message: 'This availability request is not linked to one of your teams.' }, { status: 403 })
   }
 
-  const [invitesResult, responsesResult] = await Promise.all([
+  const [invitesResult, responsesResult, availabilityResult] = await Promise.all([
     service
       .from('captain_availability_request_invites')
       .select('player_id,player_name,response_token')
@@ -70,9 +71,16 @@ export async function GET(request: Request) {
       .select('player_id,player_name,match_date,status,notes,responded_at')
       .eq('request_id', row.id)
       .order('responded_at', { ascending: false }),
+    service
+      .from('lineup_availability')
+      .select('team_name,league_name,flight,match_date,player_id,status,notes')
+      .eq('team_name', row.team_name)
+      .eq('match_date', row.match_date)
+      .limit(500),
   ])
   if (invitesResult.error) return Response.json({ ok: false, message: invitesResult.error.message }, { status: 500 })
   if (responsesResult.error) return Response.json({ ok: false, message: responsesResult.error.message }, { status: 500 })
+  if (availabilityResult.error) return Response.json({ ok: false, message: availabilityResult.error.message }, { status: 500 })
 
   const origin = url.origin
   return Response.json({
@@ -97,7 +105,8 @@ export async function GET(request: Request) {
       playerName: invite.player_name,
       requestUrl: `${origin}/availability/${encodeURIComponent(invite.response_token)}`,
     })),
-    responses: responsesResult.data ?? [],
+    responses: mergeCaptainMatchResponses({ team: row.team_name, league: row.league_name || '', flight: row.flight || '', date: row.match_date },
+      invitesResult.data ?? [], responsesResult.data ?? [], availabilityResult.data ?? []),
   })
 }
 
