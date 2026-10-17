@@ -27,7 +27,7 @@ export function PublicPlayerSnapshot({ evidence }: { evidence: PublicPlayerEvide
           ))}
         </div>
         <p>Results shown through {results.length ? <time dateTime={results[0].date}>{dateLabel(results[0].date)}</time> : 'the available public record'}. Public snapshots refresh daily; match dates describe when play occurred.</p>
-        <p><Link href="/resources/guides/read-your-tennis-rating">Understand the rating evidence</Link> · <Link href="/methodology">Read the methodology</Link> · <Link href={`/data-assist?intent=request-review&context=${encodeURIComponent(`Player ${player.id}`)}`}>Request a data correction</Link></p>
+        <p><Link href="/resources/guides/read-your-tennis-rating">Understand the rating evidence</Link> · <Link href="/methodology">Read the methodology</Link> · <Link prefetch={false} rel="nofollow" href={`/data-assist?intent=request-review&context=${encodeURIComponent(`Player ${player.id}`)}`}>Request a data correction</Link></p>
       </div>
     </section>
   )
@@ -57,7 +57,7 @@ export default async function PublicPlayerDiscovery() {
             </article>
           ))}
         </div>
-        <p><Link href="/resources/guides/matchup-confidence">Check how much evidence a matchup needs</Link> · <Link href="/data-assist?intent=request-review&context=Public%20players">Request a data correction</Link></p>
+        <p><Link href="/resources/guides/matchup-confidence">Check how much evidence a matchup needs</Link> · <Link prefetch={false} rel="nofollow" href="/data-assist?intent=request-review&context=Public%20players">Request a data correction</Link></p>
       </div>
     </section>
   )
