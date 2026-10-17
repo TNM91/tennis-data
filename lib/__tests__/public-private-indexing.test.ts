@@ -50,7 +50,7 @@ describe('public and private indexing boundaries', () => {
     expect(robotsSource).not.toContain("'/coaches'")
     expect(robotsSource).not.toContain("'/tournaments',")
     expect(robotsSource).not.toContain("'/resources'")
-    expect(robotsSource).not.toContain("'/data-assist'")
+    expect(robotsSource).toContain("'/data-assist'")
   })
 
   it('marks private layouts noindex and nofollow', () => {

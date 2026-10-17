@@ -6,7 +6,7 @@ export const revalidate = 86400
 export default async function robots(): Promise<MetadataRoute.Robots> {
   const playerSitemapCount = await getPlayerSitemapCount()
   return {
-    rules: {
+    rules: [{
       userAgent: '*',
       allow: '/',
       disallow: [
@@ -20,6 +20,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
         '/preview-home',
         '/tactics',
         '/api/',
+        '/data-assist',
         '/login',
         '/join',
         '/level-up/my-quest',
@@ -28,7 +29,11 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
         '/tournaments/*/preferences',
         '/upgrade',
       ],
-    },
+    }, {
+      // Restrict training crawls while retaining public search discovery.
+      userAgent: 'GPTBot',
+      disallow: '/',
+    }],
     sitemap: [
       'https://www.tenaceiq.com/sitemap.xml',
       ...Array.from({ length: playerSitemapCount }, (_, id) => `https://www.tenaceiq.com/players/sitemap/${id}.xml`),

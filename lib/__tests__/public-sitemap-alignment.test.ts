@@ -21,7 +21,6 @@ describe('public sitemap alignment', () => {
       '/teams',
       '/leagues',
       '/rankings',
-      '/data-assist',
     ]) {
       expect(sitemapSource).toContain(`path: '${path}'`)
     }
@@ -64,6 +63,7 @@ describe('public sitemap alignment', () => {
       '/reset-password',
       '/tournaments/*/preferences',
       '/upgrade',
+      '/data-assist',
     ]) {
       expect(robotsSource).toContain(`'${path}`)
       expect(sitemapSource).not.toContain(`path: '${path}'`)

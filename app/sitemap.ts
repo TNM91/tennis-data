@@ -40,7 +40,6 @@ const routes: RouteConfig[] = [
   { path: '/players', changeFrequency: 'daily', priority: 0.8 },
   { path: '/leagues', changeFrequency: 'weekly', priority: 0.75 },
   { path: '/teams', changeFrequency: 'weekly', priority: 0.75 },
-  { path: '/data-assist', changeFrequency: 'weekly', priority: 0.65 },
   { path: '/rankings', changeFrequency: 'weekly', priority: 0.75 },
   { path: '/how-it-works', changeFrequency: 'monthly', priority: 0.7 },
   { path: '/methodology', changeFrequency: 'monthly', priority: 0.7 },
