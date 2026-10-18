@@ -88,6 +88,7 @@ import {
 } from '@/lib/captain-managed-team-context'
 import type { TeamConnection } from '@/lib/team-profile-links'
 import { buildCaptainMessagingAudienceCopy } from '@/lib/captain-messaging-audience'
+import { buildCaptainLineupAnnouncement } from '@/lib/captain-lineup-announcement'
 import {
   reconcileCaptainCloudAvailability,
   reconcileCaptainGuestAvailability,
@@ -522,13 +523,14 @@ function eventDefaultMessage(kind: MessageKind, params: {
   location: string
   arrivalTime: string
   lineupText: string
+  matchTime?: string | null
 }) {
-  const { teamName, opponent, dateText, location, arrivalTime, lineupText } = params
+  const { teamName, opponent, dateText, location, arrivalTime, lineupText, matchTime } = params
   if (kind === 'availability') {
     return `Hey ${teamName || 'team'} - please reply YES, NO, or MAYBE for ${dateText}. I am locking the lineup soon.`
   }
   if (kind === 'lineup') {
-    return `Lineup is set for ${dateText} vs ${opponent || 'the opponent'}:\n${lineupText || 'Line assignments are being finalized.'}\nPlease arrive by ${arrivalTime || 'match time'}.`
+    return buildCaptainLineupAnnouncement({ dateText, opponent, lineupText, location, arrivalTime, matchTime })
   }
   if (kind === 'directions') {
     return `Match details for ${dateText}: ${location || 'facility details coming shortly.'} Please plan to arrive by ${arrivalTime || 'match time'}. Reply if you have any issues getting there.`
@@ -1718,7 +1720,8 @@ function CaptainMessagingContent() {
         teamName: inferredTeamName,
         opponent: inferredOpponent,
         dateText: formatDate(selectedMatch.match_date),
-        location: eventLocation,
+        location: eventLocation || selectedMatch.facility || '',
+        matchTime: selectedMatch.match_time,
         arrivalTime: eventArrivalTime,
         lineupText: lineupTextForMessage,
       }), currentMessagingChallenge?.challenge ?? null)
@@ -2868,23 +2871,25 @@ function buildWinningLineupMessage() {
   const eventDateText = selectedMatch ? formatDate(selectedMatch.match_date) : scenarioDateText
   const opponentText = inferredOpponent || selectedScenario.opponent_team || 'the opponent'
   const eventDate = selectedMatch?.match_date || selectedScenario.match_date || ''
+  const lineupLocation = eventLocation || selectedMatch?.facility || ''
+  const lineupStartTime = selectedMatch?.match_time || ''
   const calendarHref = buildMatchWeekGoogleCalendarHref({
     eventDate,
-    eventTime: eventArrivalTime,
+    eventTime: eventArrivalTime || lineupStartTime,
     opponent: opponentText,
-    location: eventLocation,
+    location: lineupLocation,
     details: `Final lineup for ${teamFilter || selectedScenario.team_name || 'your TiQ team'}.`,
   })
-  const mapsHref = buildMatchWeekMapsHref(eventLocation)
+  const mapsHref = buildMatchWeekMapsHref(lineupLocation)
   const phoneCalendarHref = buildMatchWeekPhoneCalendarHref(
     liveAvailabilityRequest?.request?.requestUrl || availabilityHandoff?.availabilityRequestUrl || ''
   )
 
   return withWeekChallenge([
-    `Lineup is set for ${eventDateText} vs ${opponentText}:`,
-    lineupText,
-    `Arrive by ${eventArrivalTime || 'match time'}.`,
-    eventLocation ? `Location: ${eventLocation}` : '',
+    buildCaptainLineupAnnouncement({
+      dateText: eventDateText, opponent: opponentText, lineupText,
+      matchTime: lineupStartTime, location: lineupLocation, arrivalTime: eventArrivalTime,
+    }),
     calendarHref ? `Add to Google Calendar: ${calendarHref}` : '',
     phoneCalendarHref ? `Add calendar reminder: ${phoneCalendarHref}` : '',
     mapsHref ? `Open directions: ${mapsHref}` : '',
