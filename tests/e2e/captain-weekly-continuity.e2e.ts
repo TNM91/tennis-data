@@ -220,6 +220,36 @@ test.describe('captain weekly continuity', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true)
   })
 
+  test('prints separate large registered team rosters on one page', async ({ page }) => {
+    await seedCaptainSession(page)
+    await mockPostMatchJourney(page, { saved: false, submissions: [], latestFirstCourtScore: '6-4 6-7 10-8' })
+    const homeNames = [...players.map(([, name]) => name), ...Array.from({ length: 74 }, (_, index) => 'Christopher Alexander Longsurname ' + index)]
+    const awayNames = [...opponentPlayers, ...Array.from({ length: 74 }, (_, index) => 'Maximilian Matthew Longsurname ' + index)]
+    await page.route('**/api/captain/lineup-builder**', async (route) => {
+      await json(route, { ok: true, rosterMembers: [
+        ...homeNames.map((name) => ({ team_name: TEAM, player_name: name, league_name: LEAGUE, flight: FLIGHT })),
+        ...awayNames.map((name) => ({ team_name: OPPONENT, player_name: name, league_name: LEAGUE, flight: FLIGHT })),
+        { team_name: TEAM, player_name: 'Prior Season Player', league_name: '2025 Adult Spring', flight: FLIGHT },
+        { team_name: TEAM, player_name: 'Other Flight Player', league_name: LEAGUE, flight: 'Other flight' },
+      ] })
+    })
+await page.goto(scorecardHref().replace('/captain/record-result', '/captain/matchup-sheet'))
+    await expect(page.getByText('3.5 Doubles', { exact: true }).first()).toBeVisible()
+    const popupPromise = page.waitForEvent('popup')
+    await page.getByRole('button', { name: 'Print scorecard + rosters' }).click()
+    const popup = await popupPromise
+    await expect(popup.locator('body')).toHaveCSS('width', '768px')
+    const rosters = popup.locator('.rosterColumns > section')
+    expect(await rosters.nth(0).locator('li').allTextContents()).toEqual(homeNames.sort((left, right) => left.localeCompare(right)))
+    expect(await rosters.nth(1).locator('li').allTextContents()).toEqual(awayNames.sort((left, right) => left.localeCompare(right)))
+    await expect(popup.getByText('Prior Season Player')).toHaveCount(0)
+    await expect(popup.getByText('Other Flight Player')).toHaveCount(0)
+    expect(await popup.locator('.sheet').evaluate((sheet) => sheet.getBoundingClientRect().width)).toBeCloseTo(768, 0)
+    const pdf = await popup.pdf({ preferCSSPageSize: true, printBackground: true })
+    expect((pdf.toString('latin1').match(/\/Type \/Page\b/g) || []).length).toBe(1)
+    await popup.close()
+  })
+
   test('records a deciding match tiebreak and advances Team Chat to the next match', async ({ page }) => {
     const state: PostMatchState = {
       saved: false,
@@ -718,7 +748,11 @@ async function mockPostMatchJourney(page: Page, state: PostMatchState) {
       await json(route, {
         ok: true,
         players: players.map(([id, name]) => ({ id, name })),
-        rosterMembers: players.map(([id, name]) => ({ player_id: id, player_name: name })),
+        rosterMembers: [
+          ...players.map(([id, name]) => ({ team_name: TEAM, player_id: id, player_name: name, league_name: LEAGUE, flight: FLIGHT })),
+          ...opponentPlayers.map((name) => ({ team_name: OPPONENT, player_name: name, league_name: LEAGUE, flight: FLIGHT })),
+          { team_name: TEAM, player_name: 'Prior Season Player', league_name: '2025 Adult Spring', flight: FLIGHT },
+        ],
         opponentRosterNames: [...opponentPlayers],
       })
       return
