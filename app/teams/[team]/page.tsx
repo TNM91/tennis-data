@@ -17,6 +17,7 @@ import {
 } from '@/lib/competition-layers'
 import { buildScopedTeamEntityId } from '@/lib/entity-ids'
 import { supabase } from '@/lib/supabase'
+import { teamRosterForSeason, teamSeasonYear, teamSeasonYears } from '@/lib/team-season-scope'
 import { buildTeamProfileHref, decodeTeamRouteSegment } from '@/lib/team-routes'
 import {
   listTiqTeamParticipations,
@@ -366,11 +367,14 @@ function TeamPageContent() {
   const [summaryTeams, setSummaryTeams] = useState<TeamSummaryTeamRow[]>([])
   const [lineMatches, setLineMatches] = useState<LineMatch[]>([])
   const [linePlayers, setLinePlayers] = useState<MatchPlayer[]>([])
-  const [tennisRecordRoster, setTennisRecordRoster] = useState<TennisRecordTeamRosterContextRow[]>([])
+  const [tennisRecordRosterEntries, setTennisRecordRoster] = useState<TennisRecordTeamRosterContextRow[]>([])
   const [tennisRecordHistory, setTennisRecordHistory] = useState<TennisRecordTeamHistoryRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [seasonFilter, setSeasonFilter] = useState<string>('all')
+  // This source has no league, flight, or season on individual memberships.
+  const tennisRecordRoster = useMemo(() => seasonFilter === 'all' && !leagueFilter && !flightFilter
+    ? tennisRecordRosterEntries : [], [tennisRecordRosterEntries, seasonFilter, leagueFilter, flightFilter])
   const [activityFilter, setActivityFilter] = useState<TeamActivityFilter>('all')
   const [activeTeamSection, setActiveTeamSection] = useState<TeamSection>('overview')
   const [rosterFilter, setRosterFilter] = useState<RosterFilter>('all')
@@ -976,9 +980,9 @@ function TeamPageContent() {
   }, [matches, summaryTeams, leagueFilter, flightFilter])
 
   // All seasons is the team's dynasty read. A selected season scopes every
-  // performance and roster calculation to players with evidence that year.
+  // performance and roster calculation to that championship season.
   const seasonMatches = useMemo(
-    () => seasonFilter === 'all' ? matches : matches.filter((match) => (match.match_date || '').startsWith(seasonFilter)),
+    () => seasonFilter === 'all' ? matches : matches.filter((match) => teamSeasonYear(match) === seasonFilter),
     [matches, seasonFilter],
   )
 
@@ -1070,10 +1074,14 @@ function TeamPageContent() {
   const latestResult = latestCompletedMatch
   const latestResultOpponent = latestResult ? getOpponent(latestResult, team) : null
 
+  const seasonRosterMembers = useMemo(() => teamRosterForSeason(rosterMembers, matches, {
+    season: seasonFilter, league: leagueFilter, flight: flightFilter,
+  }), [rosterMembers, matches, seasonFilter, leagueFilter, flightFilter])
+
   const roster = useMemo<RosterPlayer[]>(() => {
     const map = new Map<string, RosterPlayer>()
 
-    if (seasonFilter === 'all') rosterMembers.forEach((entry) => {
+    seasonRosterMembers.forEach((entry) => {
       const player = rosterMemberPlayer(entry)
       if (!player || !player.id) return
       if (!map.has(player.id)) {
@@ -1188,7 +1196,7 @@ function TeamPageContent() {
       if (bOverall !== aOverall) return bOverall - aOverall
       return a.name.localeCompare(b.name)
     })
-  }, [lineMatches, linePlayers, rosterMembers, seasonFilter, seasonMatches, players, team])
+  }, [lineMatches, linePlayers, seasonRosterMembers, seasonMatches, players, team])
 
   const teamChatPlayerIds = useMemo(() => Array.from(new Set(
     rosterMembers
@@ -1317,10 +1325,9 @@ function TeamPageContent() {
     })
   }, [matches, players, team])
 
-  const seasonOptions = useMemo(() => {
-    const years = new Set(matches.map((m) => m.match_date?.slice(0, 4)).filter(Boolean) as string[])
-    return [...years].sort((a, b) => b.localeCompare(a))
-  }, [matches])
+  const seasonOptions = useMemo(() => teamSeasonYears(
+    [...matches, ...rosterMembers, ...summaryTeams], { league: leagueFilter, flight: flightFilter },
+  ), [matches, rosterMembers, summaryTeams, leagueFilter, flightFilter])
 
   const opponentAnalysis = useMemo(() => {
     const map = new Map<string, { wins: number; losses: number; lastDate: string | null }>()
@@ -1895,7 +1902,7 @@ function TeamPageContent() {
                 : 'See the team context that helps everyone stay ready.'}
             </p>
 
-            {seasonOptions.length > 1 ? (
+            {seasonOptions.length > 0 ? (
               <div style={teamSeasonScopeStyle} aria-label="Team season view">
                 <span style={teamSeasonScopeLabelStyle}>Season view</span>
                 <div style={teamSeasonScopeControlsStyle}>
@@ -2661,7 +2668,7 @@ function TeamPageContent() {
           {matchCards.length ? (() => {
             const filteredCards = seasonFilter === 'all'
               ? matchCards
-              : matchCards.filter((m) => (m.match_date || '').startsWith(seasonFilter))
+              : matchCards.filter((m) => teamSeasonYear(m) === seasonFilter)
             const upcomingCards = filteredCards
               .filter((match) => match.won === null)
               .sort((left, right) => (left.match_date || '').localeCompare(right.match_date || ''))
