@@ -12,6 +12,7 @@ import { TiqWorkspacePreview } from '@/app/components/tiq-product-preview-cards'
 import TrackedProductLink from '@/app/components/tracked-product-link'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { supabase } from '@/lib/supabase'
+import { teamSeasonYear } from '@/lib/team-season-scope'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -309,7 +310,7 @@ export default function TeamsPage() {
           continue
         }
 
-        const season = cleanText(match.match_date)?.slice(0, 4) || null
+        const season = teamSeasonYear(match)
         const homeKey = buildTeamKey(homeTeam, league, flight, season)
         const awayKey = buildTeamKey(awayTeam, league, flight, season)
 
@@ -427,7 +428,7 @@ export default function TeamsPage() {
         matchMetaById.set(match.id, {
           league: cleanText(match.league_name),
           flight: cleanText(match.flight),
-          season: cleanText(match.match_date)?.slice(0, 4) || null,
+          season: teamSeasonYear(match),
           homeTeam,
           awayTeam,
         })
@@ -462,7 +463,8 @@ export default function TeamsPage() {
         const flight = cleanText(context.flight)
         if (!team || !isPublicTeamDirectoryName(team, league)) continue
 
-        const key = buildTeamKey(team, league, flight)
+        const season = teamSeasonYear(context)
+        const key = buildTeamKey(team, league, flight, season)
         if (directoryMap.has(key)) continue
 
         directoryMap.set(key, {
@@ -470,7 +472,7 @@ export default function TeamsPage() {
           team,
           league,
           flight,
-          season: null,
+          season,
           matchCount: 0,
           wins: 0,
           losses: 0,
