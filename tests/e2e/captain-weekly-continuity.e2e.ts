@@ -245,7 +245,9 @@ test.describe('captain weekly continuity', () => {
       await opponentSelects.nth(1).selectOption(opponentPlayers[index * 2 + 1])
       await courtCard.getByPlaceholder('6-4 3-6 10-8').fill(scores[index])
       await courtCard.getByRole('button', { name: index === 1 ? 'They won' : 'We won' }).click()
-      await courtCard.getByRole('button', { name: 'Done for now' }).click()
+      await expect(courtCard).toHaveAttribute('data-ready', 'true')
+      await courtCard.getByRole('button', { name: 'Done reviewing' }).click()
+      await expect(courtCard.getByRole('button', { name: 'Edit result' })).toBeVisible()
     }
 
     await expect(page.getByText('3/3 ready to submit')).toBeVisible()
@@ -303,9 +305,9 @@ test.describe('captain weekly continuity', () => {
 
     await page.getByRole('button', { name: 'Edit scorecard' }).click()
     const firstCourt = page.locator('article').filter({ hasText: '3.5 Doubles' }).first()
-    await firstCourt.getByRole('button', { name: 'Enter result' }).click()
+    await firstCourt.getByRole('button', { name: 'Edit result' }).click()
     await firstCourt.getByPlaceholder('6-4 3-6 10-8').fill('6-4 4-6 10-7')
-    await firstCourt.getByRole('button', { name: 'Done for now' }).click()
+    await firstCourt.getByRole('button', { name: 'Done reviewing' }).click()
     await page.getByRole('button', { name: 'Finalize & save to TiQ' }).click()
 
     await expect(page.getByText('Verified correction', { exact: true })).toBeVisible()
