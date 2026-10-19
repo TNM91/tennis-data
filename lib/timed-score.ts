@@ -13,7 +13,7 @@ export type TimedScoreInput = {
 }
 
 export function timedScoreSets(score: string) {
-  return score.trim().split(/[\s,]+/).filter(Boolean)
+  return score.trim().split(/[\s,;]+/).filter(Boolean)
 }
 
 export function validateTimedScore(input: TimedScoreInput): string | null {

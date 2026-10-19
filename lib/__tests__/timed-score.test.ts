@@ -11,6 +11,24 @@ const loss: TimedScoreInput = {
 }
 
 describe('timed sets', () => {
+
+  it.each(['4-6;5-4', '4-6; 5-4', '4-6,5-4', '4-6 5-4'])(
+    'accepts a timed-set loss entered as %s through scorecard validation',
+    (score) => {
+      const input = { ...loss, score }
+      expect(validateTimedScore(input)).toBeNull()
+      expect(formatTimedScore(input)).toBe(formatTimedScore(loss))
+      expect(validateCaptainScorecardInput({
+        teamName: 'The Other Guys', opponentTeam: 'Hodge-Kamman', matchDate: '2026-10-18',
+        lines: [{ courtNumber: 1, matchType: 'doubles', teamPlayers: ['David', 'Chris'], opponentPlayers: ['One', 'Two'], ...input }],
+      })).toBeNull()
+    },
+  )
+
+  it('accepts a tied timed set with an explicit opposing tiebreak winner', () => {
+    expect(validateTimedScore({ ...loss, score: '4-6;5-5' })).toBeNull()
+  })
+
   it('records a 5-4 lead followed by a set-tiebreak loss without inventing games', () => {
     expect(validateTimedScore(loss)).toBeNull()
     expect(formatTimedScore(loss)).toBe('4-6 5-4 (timed: opponents won by tiebreak 5-7)')

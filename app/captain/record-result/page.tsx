@@ -6,7 +6,8 @@ import { useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import type { CaptainScorecardSavedRecap } from '@/lib/captain-scorecard'
-import { formatTimedScore, timedScoreSets, validateTimedScore, type TimedSetResult } from '@/lib/timed-score'
+import { formatTimedScore, timedScoreSets, type TimedSetResult } from '@/lib/timed-score'
+import { courtEntryIssue, isCourtEntryComplete } from '@/lib/captain-scorecard-readiness'
 import TimedSetControls from './timed-set-controls'
 import { buildSmsHref, normalizeUstaRosterTeamName } from '@/lib/captain-formatters'
 import { buildCaptainShareHref } from '@/lib/captain-share-preview'
@@ -104,19 +105,6 @@ function stripRetirementMarker(value: string) {
   return value.replace(/(?:^|\s)RET(?:IRED)?\.?(?:\s|$)/gi, ' ').replace(/\s+/g, ' ').trim()
 }
 
-function isCourtEntryComplete(court: CourtDraft) {
-  if (court.resultType === 'default') return court.defaultKnownBeforeMatch !== null
-  const playerCount = court.matchType === 'doubles' ? 2 : 1
-  const baseComplete = court.teamPlayers.slice(0, playerCount).every((name) => Boolean(normalizeName(name)))
-    && court.opponentPlayers.slice(0, playerCount).every((name) => Boolean(normalizeName(name)))
-    && Boolean(court.score.trim())
-    && !validateTimedScore(court)
-  if (!baseComplete || court.resultType !== 'retired') return baseComplete
-  const retiredSidePlayers = court.outcome === 'team' ? court.opponentPlayers : court.teamPlayers
-  return retiredSidePlayers.map(normalizeName).includes(normalizeName(court.retiredPlayer))
-    && court.retirementReason !== null
-    && court.retirementKnownBeforeMatch !== null
-}
 
 function buildScorecardDraftStorageKey(input: {
   teamName: string
@@ -774,8 +762,9 @@ function RecordResultContent() {
           <div>
             <p className={styles.eyebrow}>Court results</p>
             <h2>Enter one court at a time.</h2>
-            <p>{completedCourtCount}/{courts.length} ready to submit</p>
-            {draftSaved ? <span className={styles.draftSaved} role="status">Draft saved on this device</span> : null}
+            <p role="status">{completedCourtCount}/{courts.length} ready to submit</p>
+            <p>Green courts are ready. You can still edit them before you finalize.</p>
+            {draftSaved ? <span className={styles.draftSaved} role="status">Draft saved on this device · not submitted</span> : null}
           </div>
           <button className={styles.addCourt} type="button" onClick={() => setCourts((current) => [...current, createCourt(Math.max(0, ...current.map((court) => court.courtNumber)) + 1)])}>Add court</button>
         </div>
@@ -789,14 +778,14 @@ function RecordResultContent() {
             const opponentPlayers = court.opponentPlayers.slice(0, playerCount).map(normalizeName).filter(Boolean)
             const retiredSidePlayers = court.outcome === 'team' ? opponentPlayers : teamPlayers
             return (
-              <article className={styles.courtCard} key={court.id} id={`scorecard-court-${court.id}`} data-open={isOpen}>
+              <article className={styles.courtCard} key={court.id} id={`scorecard-court-${court.id}`} data-open={isOpen} data-ready={entryComplete}>
                 <div className={styles.courtTitle}>
                   <div>
                     <span>Match line</span>
                     <strong>{court.label || `${court.matchType === 'doubles' ? 'Doubles' : 'Singles'} ${court.courtNumber}`}</strong>
                   </div>
                   <div className={styles.courtTitleActions}>
-                    <span className={entryComplete ? styles.courtReady : styles.courtPending}>{entryComplete ? 'Ready' : isOpen ? 'Editing' : 'Needs result'}</span>
+                    <span className={entryComplete ? styles.courtReady : styles.courtPending}>{entryComplete ? '✓ Ready to submit' : 'Needs attention'}</span>
                     <button
                       type="button"
                       className={styles.toggleCourt}
@@ -804,11 +793,12 @@ function RecordResultContent() {
                       aria-controls={`scorecard-court-entry-${court.id}`}
                       onClick={() => setOpenCourtId(isOpen ? '' : court.id)}
                     >
-                      {isOpen ? 'Done for now' : 'Enter result'}
+                      {isOpen ? entryComplete ? 'Done reviewing' : 'Close for now' : entryComplete ? 'Edit result' : 'Enter result'}
                     </button>
                     {courts.length > 1 ? <button type="button" className={styles.removeCourt} onClick={() => setCourts((current) => current.filter((item) => item.id !== court.id))}>Remove</button> : null}
                   </div>
                 </div>
+                {!entryComplete ? <p className={styles.courtIssue}>{courtEntryIssue(court)}</p> : null}
                 {!isOpen ? <p className={styles.courtSummary}>{court.resultType === 'default'
                   ? `${court.outcome === 'team' ? opponentTeam || 'Opponent' : teamName || 'Your team'} defaulted${court.defaultKnownBeforeMatch === true ? ' · known before match' : court.defaultKnownBeforeMatch === false ? ' · match-day update' : ''}`
                   : court.resultType === 'retired'
@@ -937,9 +927,20 @@ function RecordResultContent() {
 
         {error ? <p className={styles.error} role="alert">{error}</p> : null}
         {notice ? <p className={styles.notice} role="status">{notice}</p> : null}
+        {courts.some((court) => courtEntryIssue(court)) ? (
+          <div className={styles.submitIssues} aria-label="Finish these courts to submit">
+            <p>Finish these courts to submit:</p>
+            <ul>
+              {courts.map((court) => {
+                const issue = courtEntryIssue(court)
+                return issue ? <li key={court.id}><button type="button" onClick={() => { setOpenCourtId(court.id); document.getElementById(`scorecard-court-${court.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}>{court.label || `Court ${court.courtNumber}`}</button>: {issue}</li> : null
+              })}
+            </ul>
+          </div>
+        ) : null}
         <div className={styles.saveBar}>
-          <p>Finalize to save every court in TiQ and refresh player ratings. No separate upload needed.</p>
-          <button className={styles.saveButton} type="button" disabled={saving || !authResolved || !courts.length || completedCourtCount !== courts.length} onClick={() => void saveResult()}>{saving ? 'Saving result…' : 'Finalize & save to TiQ'}</button>
+          <p>{completedCourtCount === courts.length && courts.length > 0 ? 'All courts are ready. Review or edit any result, then finalize to save the match to TiQ.' : 'Complete the courts marked “Needs attention” to submit your match.'}</p>
+          <button className={styles.saveButton} type="button" disabled={saving || !authResolved || !courts.length || completedCourtCount !== courts.length} onClick={() => void saveResult()}>{saving ? 'Saving result…' : !authResolved ? 'Checking sign-in…' : 'Finalize & save to TiQ'}</button>
         </div>
         <datalist id="captain-score-options">
           {['6-0 6-0', '6-1 6-1', '6-2 6-2', '6-3 6-3', '6-4 6-4', '7-5 6-4', '7-6 6-4', '6-4 6-7 10-8', '6-7 6-4 10-8'].map((score) => <option value={score} key={score} />)}
