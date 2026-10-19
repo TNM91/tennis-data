@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { formatTimedScore, validateTimedScore, type TimedSetResult } from './timed-score'
 import type { ScorecardImportRow } from './ingestion/importEngine'
 import type { DataAssistScorecardParsedDraft } from './data-assist-ocr'
 import type { CaptainLineupCalibration } from './captain-lineup-calibration'
@@ -12,6 +13,7 @@ export type CaptainScorecardLineInput = {
   opponentPlayers: string[]
   outcome: 'team' | 'opponent'
   score: string
+  timedSets?: TimedSetResult[]
   resultType?: 'played' | 'default' | 'retired'
   defaultKnownBeforeMatch?: boolean | null
   retiredPlayer?: string | null
@@ -51,6 +53,7 @@ export type CaptainScorecardRecap = {
     opponentPlayers: string[]
     outcome: 'team' | 'opponent'
     score: string
+    timedSets?: TimedSetResult[]
     resultType: 'played' | 'default' | 'retired'
     defaultKnownBeforeMatch: boolean | null
     retiredPlayer: string | null
@@ -94,8 +97,9 @@ function cleanNames(values: string[]) {
   return values.map(cleanText).filter(Boolean)
 }
 
-function scoreTextForStorage(line: Pick<CaptainScorecardLineInput, 'resultType' | 'score'>) {
+function scoreTextForStorage(line: Pick<CaptainScorecardLineInput, 'resultType' | 'score' | 'timedSets'>) {
   if (line.resultType === 'default') return 'DEFAULT'
+  if (line.resultType !== 'retired' && line.timedSets?.length) return formatTimedScore(line)
   const score = cleanText(line.score).replace(/(?:^|\s)RET(?:IRED)?\.?$/i, '').trim()
   return line.resultType === 'retired' ? `${score} RET`.trim() : score
 }
@@ -116,6 +120,7 @@ export function validateCaptainScorecardInput(input: CaptainScorecardInput): str
     seenCourts.add(line.courtNumber)
     if (line.matchType !== 'singles' && line.matchType !== 'doubles') return 'Choose singles or doubles for every court.'
     if (line.resultType && line.resultType !== 'played' && line.resultType !== 'default' && line.resultType !== 'retired') return `Choose a valid result type for court ${line.courtNumber}.`
+    if (line.resultType && line.resultType !== 'played' && line.timedSets !== undefined) return `Court ${line.courtNumber}: Timed sets apply to played courts only.`
     if (line.resultType === 'default') {
       if (line.outcome !== 'team' && line.outcome !== 'opponent') return `Choose which team received court ${line.courtNumber}.`
       if (typeof line.defaultKnownBeforeMatch !== 'boolean') return `Choose when the default for court ${line.courtNumber} became known.`
@@ -126,6 +131,8 @@ export function validateCaptainScorecardInput(input: CaptainScorecardInput): str
     if (cleanNames(line.opponentPlayers).length !== neededPlayers) return `Court ${line.courtNumber} needs ${neededPlayers === 1 ? 'one opponent' : 'two opponents'}.`
     if (line.outcome !== 'team' && line.outcome !== 'opponent') return `Choose who won court ${line.courtNumber}.`
     if (!cleanText(line.score)) return `Add the final score for court ${line.courtNumber}.`
+    const timedError = validateTimedScore(line)
+    if (timedError) return `Court ${line.courtNumber}: ${timedError}`
     if (line.resultType === 'retired') {
       if (!/\d+\s*[-–]\s*\d+/.test(cleanText(line.score))) return `Add the score when play stopped on court ${line.courtNumber}.`
       const retiredSidePlayers = line.outcome === 'team' ? cleanNames(line.opponentPlayers) : cleanNames(line.teamPlayers)
@@ -215,7 +222,8 @@ export function buildCaptainScorecardRecap(input: CaptainScorecardInput): Captai
       teamPlayers: cleanNames(line.teamPlayers),
       opponentPlayers: cleanNames(line.opponentPlayers),
       outcome: line.outcome,
-      score: line.resultType === 'default' ? 'Default' : cleanText(line.score),
+      score: line.resultType === 'default' ? 'Default' : formatTimedScore(line),
+      ...(line.timedSets ? { timedSets: line.timedSets } : {}),
       resultType: line.resultType === 'default' ? 'default' : line.resultType === 'retired' ? 'retired' : 'played',
       defaultKnownBeforeMatch: line.resultType === 'default' ? line.defaultKnownBeforeMatch ?? null : null,
       retiredPlayer: line.resultType === 'retired' ? cleanText(line.retiredPlayer) || null : null,
@@ -280,9 +288,10 @@ export function buildCaptainScorecardImportRow(
       winnerSide: line.outcome === 'team' ? 'A' : 'B',
       score: scoreTextForStorage(line),
       rawScoreText: scoreTextForStorage(line),
+      timedMatch: Boolean(line.timedSets?.length),
       captureConfidence: 1,
       winnerSource: 'winner_column',
-      scoreEventType: /(?:^|\s)(?:1[-–]0|10[-–]\d+)(?:\s|$)/.test(cleanText(line.score))
+      scoreEventType: line.timedSets?.length ? 'timed_match' : /(?:^|\s)(?:1[-–]0|10[-–]\d+)(?:\s|$)/.test(cleanText(line.score))
         ? 'third_set_match_tiebreak'
         : 'standard',
       parseNotes: [],
@@ -318,7 +327,7 @@ export function buildCaptainScorecardTeamRoomDraft(
       winner: line.outcome === 'team' ? 'home' : 'away',
       winnerSource: 'winner_column',
       confidenceScore: 1,
-      scoreEventType: /(?:^|\s)(?:1[-–]0|10[-–]\d+)(?:\s|$)/.test(cleanText(line.score))
+      scoreEventType: line.timedSets?.length ? 'timed_match' : /(?:^|\s)(?:1[-–]0|10[-–]\d+)(?:\s|$)/.test(cleanText(line.score))
         ? 'third_set_match_tiebreak'
         : 'standard',
       parseNotes: [],

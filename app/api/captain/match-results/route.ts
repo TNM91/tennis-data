@@ -78,6 +78,7 @@ function parseInput(value: unknown): CaptainScorecardInput | null {
       opponentPlayers: Array.isArray(item.opponentPlayers) ? item.opponentPlayers.filter((name): name is string => typeof name === 'string') : [],
       outcome,
       score: typeof item.score === 'string' ? item.score : '',
+      ...(item.timedSets !== undefined ? { timedSets: item.timedSets } : {}),
       resultType: item.resultType === 'default' ? 'default' as const : item.resultType === 'retired' ? 'retired' as const : 'played' as const,
       defaultKnownBeforeMatch: item.resultType === 'default' && typeof item.defaultKnownBeforeMatch === 'boolean'
         ? item.defaultKnownBeforeMatch

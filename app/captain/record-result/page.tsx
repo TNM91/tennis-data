@@ -6,6 +6,8 @@ import { useSearchParams } from 'next/navigation'
 import SiteShell from '@/app/components/site-shell'
 import { useAuth } from '@/app/components/auth-provider'
 import type { CaptainScorecardSavedRecap } from '@/lib/captain-scorecard'
+import { formatTimedScore, timedScoreSets, validateTimedScore, type TimedSetResult } from '@/lib/timed-score'
+import TimedSetControls from './timed-set-controls'
 import { buildSmsHref, normalizeUstaRosterTeamName } from '@/lib/captain-formatters'
 import { buildCaptainShareHref } from '@/lib/captain-share-preview'
 import {
@@ -25,6 +27,7 @@ type CourtDraft = {
   opponentPlayers: string[]
   outcome: 'team' | 'opponent'
   score: string
+  timedSets?: TimedSetResult[]
   resultType: 'played' | 'default' | 'retired'
   defaultKnownBeforeMatch: boolean | null
   retiredPlayer: string
@@ -107,6 +110,7 @@ function isCourtEntryComplete(court: CourtDraft) {
   const baseComplete = court.teamPlayers.slice(0, playerCount).every((name) => Boolean(normalizeName(name)))
     && court.opponentPlayers.slice(0, playerCount).every((name) => Boolean(normalizeName(name)))
     && Boolean(court.score.trim())
+    && !validateTimedScore(court)
   if (!baseComplete || court.resultType !== 'retired') return baseComplete
   const retiredSidePlayers = court.outcome === 'team' ? court.opponentPlayers : court.teamPlayers
   return retiredSidePlayers.map(normalizeName).includes(normalizeName(court.retiredPlayer))
@@ -538,7 +542,7 @@ function RecordResultContent() {
           flight,
           dataAssistBatchId,
           dataAssistDraftId,
-          lines: courts.map(({ courtNumber, label, matchType, teamPlayers, opponentPlayers, outcome, score, resultType, defaultKnownBeforeMatch, retiredPlayer, retirementReason, retirementKnownBeforeMatch }) => ({
+          lines: courts.map(({ courtNumber, label, matchType, teamPlayers, opponentPlayers, outcome, score, timedSets, resultType, defaultKnownBeforeMatch, retiredPlayer, retirementReason, retirementKnownBeforeMatch }) => ({
             courtNumber,
             label,
             matchType,
@@ -546,6 +550,7 @@ function RecordResultContent() {
             opponentPlayers,
             outcome,
             score,
+            timedSets,
             resultType,
             defaultKnownBeforeMatch,
             retiredPlayer,
@@ -808,7 +813,7 @@ function RecordResultContent() {
                   ? `${court.outcome === 'team' ? opponentTeam || 'Opponent' : teamName || 'Your team'} defaulted${court.defaultKnownBeforeMatch === true ? ' · known before match' : court.defaultKnownBeforeMatch === false ? ' · match-day update' : ''}`
                   : court.resultType === 'retired'
                     ? `${court.outcome === 'team' ? 'Won' : 'Lost'} when ${court.retiredPlayer || 'a player'} retired${court.score ? ` · ${court.score}` : ''}`
-                  : <>{teamPlayers.length ? teamPlayers.join(' / ') : 'Add your player(s)'} <small>vs</small> {opponentPlayers.length ? opponentPlayers.join(' / ') : 'add opponent(s)'}{court.score ? ` · ${court.score}` : ''}</>}</p> : null}
+                  : <>{teamPlayers.length ? teamPlayers.join(' / ') : 'Add your player(s)'} <small>vs</small> {opponentPlayers.length ? opponentPlayers.join(' / ') : 'add opponent(s)'}{court.score ? ` · ${formatTimedScore(court)}` : ''}</>}</p> : null}
                 {isOpen ? (
                   <div className={styles.courtEntry} id={`scorecard-court-entry-${court.id}`}>
                     <div className={styles.matchTypeControl} aria-label={`Court ${court.courtNumber} match type`}>
@@ -819,8 +824,8 @@ function RecordResultContent() {
                       <legend>How was this court decided?</legend>
                       <div className={styles.outcomeButtons}>
                         <button type="button" data-active={court.resultType === 'played'} onClick={() => updateCourt(court.id, { resultType: 'played', defaultKnownBeforeMatch: null, retiredPlayer: '', retirementReason: null, retirementKnownBeforeMatch: null })}>Played</button>
-                        <button type="button" data-active={court.resultType === 'retired'} onClick={() => updateCourt(court.id, { resultType: 'retired', defaultKnownBeforeMatch: null, retiredPlayer: '', retirementReason: null, retirementKnownBeforeMatch: null })}>Retired</button>
-                        <button type="button" data-active={court.resultType === 'default'} onClick={() => updateCourt(court.id, { resultType: 'default', score: '', defaultKnownBeforeMatch: null, retiredPlayer: '', retirementReason: null, retirementKnownBeforeMatch: null })}>Defaulted</button>
+                        <button type="button" data-active={court.resultType === 'retired'} onClick={() => updateCourt(court.id, { resultType: 'retired', timedSets: undefined, defaultKnownBeforeMatch: null, retiredPlayer: '', retirementReason: null, retirementKnownBeforeMatch: null })}>Retired</button>
+                        <button type="button" data-active={court.resultType === 'default'} onClick={() => updateCourt(court.id, { resultType: 'default', timedSets: undefined, score: '', defaultKnownBeforeMatch: null, retiredPlayer: '', retirementReason: null, retirementKnownBeforeMatch: null })}>Defaulted</button>
                       </div>
                       <p className={styles.resultTypeHelp}>Defaulted means play never began. Retired means the court started and stopped early.</p>
                     </fieldset>
@@ -886,7 +891,7 @@ function RecordResultContent() {
                       </div>
                     )}
                     {court.resultType !== 'default' ? <div className={styles.resultControls}>
-                      <label className={styles.scoreInput}><span>{court.resultType === 'retired' ? 'Score when play stopped' : 'Select or enter final score'}</span><input list="captain-score-options" value={court.score} onChange={(event) => updateCourt(court.id, { score: event.target.value })} placeholder={court.resultType === 'retired' ? '6-4 2-1' : '6-4 3-6 10-8'} /></label>
+                      <label className={styles.scoreInput}><span>{court.resultType === 'retired' ? 'Score when play stopped' : 'Select or enter final score'}</span><input list="captain-score-options" value={court.score} onChange={(event) => updateCourt(court.id, { score: event.target.value, timedSets: court.timedSets?.filter((set) => set.setNumber <= timedScoreSets(event.target.value).length) })} placeholder={court.resultType === 'retired' ? '6-4 2-1' : '6-4 3-6 10-8'} /></label>
                       <fieldset>
                         <legend>Winner</legend>
                         <div className={styles.outcomeButtons}>
@@ -895,6 +900,7 @@ function RecordResultContent() {
                         </div>
                       </fieldset>
                     </div> : null}
+                    {court.resultType === 'played' ? <TimedSetControls court={court} onChange={(timedSets) => updateCourt(court.id, { timedSets })} /> : null}
                     {court.resultType === 'retired' ? (
                       <div className={styles.defaultEntry} aria-label={`Court ${court.courtNumber} retirement details`}>
                         <label className={styles.compactLabel}>
