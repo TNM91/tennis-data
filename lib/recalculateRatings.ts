@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { timedScoreAnnotations } from './timed-score'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { saveRatingSnapshotBatches } from './rating-snapshot-batches'
 import { loadRatingSnapshotDiff, type StoredRatingSnapshot } from './rating-snapshot-diff'
@@ -96,6 +97,8 @@ type ParsedSetScore = {
   sideB: number
   /** A deciding match tiebreak shown as `1-0`, not a one-game tennis set. */
   isMatchTiebreak?: boolean
+  timedWinner?: MatchSide
+  isTimedTiebreak?: boolean
 }
 
 export type ScoreMetrics = {
@@ -1060,10 +1063,17 @@ export function parseScoreMetrics(score: string | null | undefined, winnerSide: 
     .filter(Boolean)
 
   const sets: ParsedSetScore[] = []
+  const timedAnnotations = timedScoreAnnotations(score)
 
-  for (const token of setTokens) {
+  for (const [index, token] of setTokens.entries()) {
     const parsed = parseSetToken(token)
     if (parsed) {
+      const timed = timedAnnotations.get(index)
+      if (timed) {
+        parsed.timedWinner = timed.winner
+        parsed.isTimedTiebreak = timed.tiebreak
+        parsed.isMatchTiebreak = false
+      }
       sets.push(parsed)
     }
   }
@@ -1099,14 +1109,14 @@ export function parseScoreMetrics(score: string | null | undefined, winnerSide: 
     const winnerGamesInSet = winnerSide === 'A' ? set.sideA : set.sideB
     const loserGamesInSet = winnerSide === 'A' ? set.sideB : set.sideA
 
-    if (winnerGamesInSet > loserGamesInSet) {
+    if (set.timedWinner ? set.timedWinner === winnerSide : winnerGamesInSet > loserGamesInSet) {
       winnerSetCount += 1
-    } else if (loserGamesInSet > winnerGamesInSet) {
+    } else if (set.timedWinner || loserGamesInSet > winnerGamesInSet) {
       loserSetCount += 1
     }
 
     const isTiebreakSet =
-      (set.sideA === 7 && set.sideB === 6) ||
+      set.isTimedTiebreak || (set.sideA === 7 && set.sideB === 6) ||
       (set.sideB === 7 && set.sideA === 6)
 
     if (isTiebreakSet) {

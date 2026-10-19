@@ -391,6 +391,11 @@
 .ratingValues span[data-direction="up"] { color: var(--brand-green-3); }
 .ratingValues span[data-direction="down"] { color: #fda4af; }
 
+.timedSets { display: grid; gap: 12px; min-width: 0; }
+.timedSets p { margin: 0; color: var(--shell-copy-muted); font-size: .85rem; line-height: 1.5; overflow-wrap: anywhere; }
+.timedSet { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 12px; min-width: 0; margin: 0; padding: 12px; border: 1px solid var(--shell-panel-border); border-radius: 12px; }
+.timedSet legend { color: var(--foreground-strong); font-weight: 700; }
+
 .auditNote { display: grid; gap: 5px; padding: 14px; border: 1px solid color-mix(in srgb, var(--brand-blue-2) 32%, var(--shell-panel-border)); border-radius: 16px; background: color-mix(in srgb, var(--brand-blue-2) 8%, var(--shell-panel-bg)); }
 .auditNote strong { color: var(--foreground-strong); }
 .teamUpdateNote { display: grid; gap: 4px; padding: 14px; border: 1px solid color-mix(in srgb, var(--brand-green) 52%, var(--shell-panel-border)); border-radius: 16px; background: color-mix(in srgb, var(--brand-green) 11%, var(--shell-panel-bg)); }
