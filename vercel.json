@@ -1,5 +1,5 @@
 {
-  "git": { "deploymentEnabled": { "*": false, "master": true, "staging": true } },
+  "git": { "deploymentEnabled": { "**": false, "master": true, "staging": true } },
   "crons": [
     {
       "path": "/api/team-rooms/reminders",

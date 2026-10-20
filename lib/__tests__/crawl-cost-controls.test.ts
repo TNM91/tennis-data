@@ -16,5 +16,6 @@ it('restricts training and correction crawls while retaining public player sitem
 
 it('limits automatic paid builds to production and intentional staging', () => {
   const config = JSON.parse(readFileSync('vercel.json', 'utf8'))
-  expect(config.git.deploymentEnabled).toEqual({ '*': false, master: true, staging: true })
+  // Globstar also covers branch names containing slashes, such as codex/court-defaults.
+  expect(config.git.deploymentEnabled).toEqual({ '**': false, master: true, staging: true })
 })
