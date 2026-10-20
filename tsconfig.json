@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", ".codex-audit"]
+  "exclude": ["node_modules", "artifacts", "deliverables", "output", ".codex-audit"]
 }

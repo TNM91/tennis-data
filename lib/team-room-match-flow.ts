@@ -1,6 +1,7 @@
 export type TeamRoomLineupRow = {
   label: string
   players: string[]
+  defaulted?: boolean
 }
 
 export type TeamRoomLineupChangeContext = {
@@ -44,6 +45,8 @@ export function buildTeamRoomCourtReadiness(input: {
   const changeCourtKey = normalizeName(input.lineupChange?.courtLabel || '')
 
   return input.lineup.map((row) => {
+    // A captain-declared default needs no replies or replacement players.
+    if (row.defaulted) return { ...row, players: [], status: 'confirmed' as const }
     const playerKeys = row.players.map(normalizeName).filter(Boolean)
     const isChangedCourt = Boolean(changeCourtKey && normalizeName(row.label) === changeCourtKey)
     const changeNeedsCaptain = isChangedCourt && Boolean(
@@ -102,7 +105,8 @@ export function normalizeLineupRows(value: unknown): TeamRoomLineupRow[] {
       : {}
     return {
       label: cleanText(row.label).slice(0, 80),
-      players: (Array.isArray(row.players) ? row.players : [])
+      ...(row.defaulted === true ? { defaulted: true } : {}),
+      players: (row.defaulted === true ? [] : Array.isArray(row.players) ? row.players : [])
         .map((player) => cleanText(player).slice(0, 120))
         .filter(Boolean)
         .slice(0, 4),
@@ -118,10 +122,10 @@ export function buildLineupChanges(previous: TeamRoomLineupRow[], next: TeamRoom
   return keys.flatMap((key) => {
     const before = previousByCourt.get(key)
     const after = nextByCourt.get(key)
-    if (before && after && samePlayers(before.players, after.players)) return []
+    if (before && after && Boolean(before.defaulted) === Boolean(after.defaulted) && samePlayers(before.players, after.players)) return []
     const label = after?.label || before?.label || 'Court'
-    const beforePlayers = before?.players.join(' / ') || 'Open'
-    const afterPlayers = after?.players.join(' / ') || 'Open'
+    const beforePlayers = before?.defaulted ? 'Default' : before?.players.join(' / ') || 'Open'
+    const afterPlayers = after?.defaulted ? 'Default' : after?.players.join(' / ') || 'Open'
     return [`${label}: ${beforePlayers} -> ${afterPlayers}`]
   })
 }

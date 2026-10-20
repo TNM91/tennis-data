@@ -1,5 +1,5 @@
 {
-  "git": { "deploymentEnabled": { "codex/**": false } },
+  "git": { "deploymentEnabled": { "**": false, "master": true, "staging": true } },
   "crons": [
     {
       "path": "/api/team-rooms/reminders",
@@ -11,7 +11,7 @@
     },
     {
       "path": "/api/cron/tennisrecord-ratings",
-      "schedule": "2,17,32,47 * * * *"
+      "schedule": "17 8 * * *"
     },
     {
       "path": "/api/cron/league-weekly-reminders",

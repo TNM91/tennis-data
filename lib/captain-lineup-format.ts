@@ -8,12 +8,15 @@ export type CaptainLineupSlot = {
   id: string
   label: string
   slotType: 'singles' | 'doubles'
+  defaulted?: boolean
   ratingLevel?: number
   players: Array<{
     playerId: string
     playerName: string
   }>
 }
+
+export { calculateTeamMatchWinProbability as getCaptainMatchWinProbability } from './captain-lineup-defaults'
 
 export function getTriLevelRatings(leagueName: string, flight: string) {
   return extractTriLevelRatings(leagueName, flight)
@@ -52,6 +55,8 @@ export function swapCaptainLineupCourtAssignments(
     !sourceSlot
     || !targetSlot
     || sourceSlot.id === targetSlot.id
+    || sourceSlot.defaulted
+    || targetSlot.defaulted
     || sourceSlot.slotType !== targetSlot.slotType
     || sourceSlot.players.length !== targetSlot.players.length
   ) {
@@ -126,9 +131,10 @@ export function fitCaptainLineupSlotsToFormat(
     usedSlotIds.add(matchingSlot.id)
     return {
       ...expectedSlot,
+      ...(matchingSlot.defaulted === true ? { defaulted: true } : {}),
       players: expectedSlot.players.map((_, playerIndex) => ({
-        playerId: matchingSlot.players[playerIndex]?.playerId || '',
-        playerName: matchingSlot.players[playerIndex]?.playerName || '',
+        playerId: matchingSlot.defaulted ? '' : matchingSlot.players[playerIndex]?.playerId || '',
+        playerName: matchingSlot.defaulted ? '' : matchingSlot.players[playerIndex]?.playerName || '',
       })),
     }
   })

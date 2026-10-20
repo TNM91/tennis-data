@@ -481,14 +481,18 @@ export function isTennisRecordWeeklyWindowOpen(now = new Date()) {
  * Both lanes can finish results throughout the week. The existing rating cron
  * decides the invocation cadence; do not strand new evidence until Wednesday.
  */
-export function isTennisRecordRatingBatchDue(automationState: AutomationState, now = new Date()) {
-  void now
-  return automationState === 'bootstrap' || automationState === 'weekly'
+export function isTennisRecordRatingBatchDue(automationState: AutomationState, now = new Date(), lastRecalculatedAt?: string | null) {
+  if (automationState !== 'bootstrap' && automationState !== 'weekly') return false
+  const completedAt = lastRecalculatedAt ? new Date(lastRecalculatedAt) : null
+  // Match the daily cron's UTC calendar day, rather than a 24-hour interval:
+  // yesterday's completion can be a few minutes later than today's start.
+  return !completedAt || Number.isNaN(completedAt.getTime())
+    || completedAt.toISOString().slice(0, 10) < now.toISOString().slice(0, 10)
 }
 
-/** Rating cron fires at UTC minutes 2, 17, 32, 47. */
+/** Yield one collector slot before the daily 08:17 UTC rating cron. */
 export function isTennisRecordRatingReservationWindow(now = new Date()) {
-  return now.getUTCMinutes() % 15 < 2
+  return now.getUTCHours() === 8 && now.getUTCMinutes() >= 15 && now.getUTCMinutes() < 17
 }
 
 export function tennisRecordPipelineHealth(input: {
@@ -1500,7 +1504,7 @@ export async function runScheduledTennisRecordRatingBatch(service: SupabaseClien
 
   const settings = rawSettings as Pick<Settings, 'enabled' | 'automation_state' | 'rating_recalculation_requested_at' | 'rating_recalculated_at'> | null
   if (!settings?.enabled) return { status: 'disabled', pendingMatches: 0, processedMatches: 0, reason: 'collector_disabled' }
-  if (!isTennisRecordRatingBatchDue(settings.automation_state, now)) {
+  if (!isTennisRecordRatingBatchDue(settings.automation_state, now, settings.rating_recalculated_at)) {
     return { status: 'skipped', pendingMatches: 0, processedMatches: 0, reason: 'outside_rating_cadence' }
   }
 

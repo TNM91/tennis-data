@@ -150,7 +150,7 @@ type TeamRoomMatchCard = {
   facility: string
   matchId: string
   externalMatchId: string
-  lineup: Array<{ label: string; players: string[] }>
+  lineup: Array<{ label: string; players: string[]; defaulted?: boolean }>
   availabilityRequestId: string
   availabilityRequestUrl: string
   state: 'active' | 'upcoming' | 'archived'
@@ -2930,7 +2930,7 @@ function PublishedLineupPin({
           {card.lineup.map((court, index) => (
             <div key={`${court.label}-${index}`}>
               <span>{court.label || `Court ${index + 1}`}</span>
-              <strong>{court.players.join(' / ') || 'Open'}</strong>
+              <strong>{court.defaulted ? 'Default' : court.players.join(' / ') || 'Open'}</strong>
             </div>
           ))}
         </div>
@@ -3369,7 +3369,7 @@ function MatchRecap({ message }: { message: TeamRoomMessage }) {
       </summary>
       {card.lineup.length ? (
         <div className={styles.lineupPreview}>
-          {card.lineup.map((row, index) => <div key={`${row.label}-${index}`} className={styles.lineupRow}><strong>{row.label}</strong><span>{row.players.join(' / ') || 'Open'}</span></div>)}
+          {card.lineup.map((row, index) => <div key={`${row.label}-${index}`} className={styles.lineupRow}><strong>{row.label}</strong><span>{row.defaulted ? 'Default' : row.players.join(' / ') || 'Open'}</span></div>)}
         </div>
       ) : <p>{message.body}</p>}
     </details>
@@ -3578,7 +3578,7 @@ function MatchCard({
                 tabIndex={-1}
               >
                 <strong>{row.label || `Court ${index + 1}`}</strong>
-                <span>{row.players.join(' / ') || 'Open'}</span>
+                <span>{row.defaulted ? 'Default' : row.players.join(' / ') || 'Open'}</span>
               </div>
             )
           })}
@@ -3794,7 +3794,7 @@ function CourtReadinessStrip({
             href={`#${courtReadinessAnchor(messageId, index)}`}
           >
             <strong>{court.label || `Court ${index + 1}`}</strong>
-            <span>{court.status === 'confirmed'
+            <span>{court.defaulted ? 'Default' : court.status === 'confirmed'
               ? 'Confirmed'
               : court.status === 'needs_captain' ? 'Needs captain' : 'Waiting'}</span>
           </a>

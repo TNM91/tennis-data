@@ -14,7 +14,7 @@ describe('TennisRecord scheduled rating batch', () => {
 
   it('schedules the controlled rating batch separately from source checkpoints', () => {
     expect(config).toContain('"path": "/api/cron/tennisrecord-ratings"')
-    expect(config).toContain('"schedule": "2,17,32,47 * * * *"')
+    expect(config).toContain('"schedule": "17 8 * * *"')
     expect(config).toContain('"schedule": "*/3 * * * *"')
   })
 })

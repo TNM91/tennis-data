@@ -36,4 +36,14 @@ describe('TennisRecord checkpoint stability', () => {
     expect(isTennisRecordRatingBatchDue('weekly', new Date('2026-08-24T15:00:00Z'))).toBe(true)
     expect(isTennisRecordRatingBatchDue('weekly', new Date('2026-08-26T15:00:00Z'))).toBe(true)
   })
+
+  it('skips repeated scheduled rebuilds after a success on the same UTC day', () => {
+    const now = new Date('2026-10-20T08:17:00Z')
+    expect(isTennisRecordRatingBatchDue('weekly', now, '2026-10-20T01:30:00Z')).toBe(false)
+    expect(isTennisRecordRatingBatchDue('bootstrap', now, '2026-10-20T08:00:00Z')).toBe(false)
+    expect(isTennisRecordRatingBatchDue('weekly', now, '2026-10-19T08:22:00Z')).toBe(true)
+    expect(isTennisRecordRatingBatchDue('weekly', now, null)).toBe(true)
+    expect(isTennisRecordRatingBatchDue('weekly', now, 'invalid')).toBe(true)
+    expect(isTennisRecordRatingBatchDue('manual', now, null)).toBe(false)
+  })
 })

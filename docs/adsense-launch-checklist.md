@@ -1,5 +1,11 @@
 # AdSense Launch Checklist
 
+## October 20, 2026 account review
+
+The AdSense Sites dashboard reports **Needs attention — Low value content**, updated October 20 at 12:07 AM EDT. Ads.txt is **Authorized**. Ownership/ads.txt repair is not the remaining approval issue.
+
+Google requests substantial unique value, ongoing curation and maintenance, and sustained genuine user interest. Prioritize useful signed-out tennis analysis and tools, original explanations of findings, and healthy public detail pages. Technical readiness checks alone do not satisfy this review. Do not confirm that the issues are fixed or request another review solely because the smoke passes.
+
 Use this checklist after deployment and before or during AdSense review.
 
 ## Account and ads

@@ -52,8 +52,8 @@ export default function LineupReviewClient({ token }: { token: string }) {
     player.playerId || player.playerName.toLowerCase()
   )).filter(Boolean))), [slots])
   const changedCourts = review ? countCaptainLineupReviewChanges(review.slots, slots) : 0
-  const filledPlayers = slots.flatMap((slot) => slot.players).filter((player) => player.playerName).length
-  const totalPlayers = slots.reduce((count, slot) => count + slot.players.length, 0)
+  const filledPlayers = slots.filter((slot) => !slot.defaulted).flatMap((slot) => slot.players).filter((player) => player.playerName).length
+  const totalPlayers = slots.reduce((count, slot) => count + (slot.defaulted ? 0 : slot.players.length), 0)
 
   function choosePlayer(slotIndex: number, playerIndex: number, playerId: string) {
     if (!review) return
@@ -149,10 +149,10 @@ export default function LineupReviewClient({ token }: { token: string }) {
               <article className={styles.court} key={slot.id}>
                 <div className={styles.courtHeading}>
                   <strong>{slot.label}</strong>
-                  <span>{slot.slotType === 'singles' ? '1 player' : '2 players'}</span>
+                  <span>{slot.defaulted ? 'Default' : slot.slotType === 'singles' ? '1 player' : '2 players'}</span>
                 </div>
                 <div className={styles.playerFields}>
-                  {slot.players.map((player, playerIndex) => {
+                  {slot.defaulted ? <p>Default · no players needed. Ask the captain to reopen this court before proposing players.</p> : slot.players.map((player, playerIndex) => {
                     const ownKey = player.playerId || player.playerName.toLowerCase()
                     return (
                       <label key={`${slot.id}-${playerIndex}`}>

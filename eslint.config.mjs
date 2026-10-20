@@ -10,6 +10,7 @@ const eslintConfig = defineConfig([
     // Default ignores of eslint-config-next:
     ".next/**",
     "**/.next/**",
+    ".vercel/**",
     ".codex-audits/**",
     ".codex-audit/**",
     ".codex-deck/**",

@@ -66,6 +66,7 @@ import {
   getTriLevelRatings,
   isPlayerEligibleForCaptainRating,
   swapCaptainLineupCourtAssignments,
+  getCaptainMatchWinProbability,
   type CaptainLineupSlot,
 } from '@/lib/captain-lineup-format'
 import {
@@ -790,7 +791,7 @@ function normalizeSavedSlots(raw: unknown): LineupSlot[] {
         ? obj.ratingLevel
         : undefined
 
-    const rawPlayers = Array.isArray(obj.players) ? obj.players : []
+    const rawPlayers = obj.defaulted !== true && Array.isArray(obj.players) ? obj.players : []
     const players = rawPlayers.map((player) => {
       const entry =
         typeof player === 'object' && player !== null
@@ -807,6 +808,7 @@ function normalizeSavedSlots(raw: unknown): LineupSlot[] {
       label,
       slotType,
       ...(ratingLevel !== undefined ? { ratingLevel } : {}),
+      ...(obj.defaulted === true ? { defaulted: true } : {}),
       players:
         slotType === 'doubles'
           ? [
@@ -841,7 +843,7 @@ function canSwapCaptainCourtAssignments(
   playerPool: PoolPlayer[],
   rules: TeamCompetitionRules,
 ) {
-  if (sourceSlot.slotType !== targetSlot.slotType || sourceSlot.players.length !== targetSlot.players.length) {
+  if (sourceSlot.defaulted || targetSlot.defaulted || sourceSlot.slotType !== targetSlot.slotType || sourceSlot.players.length !== targetSlot.players.length) {
     return false
   }
 
@@ -939,13 +941,15 @@ function compareLineupStrength(
       yourRating: yourStrength,
       opponentRating: opponentStrength,
       diff,
-      projection: probabilityFromDiff(diff),
+      projection: slot.defaulted ? 0 : opponentSlot?.defaulted ? 1 : probabilityFromDiff(diff),
     }
   })
 
   const diffs = lines.map((line) => line.diff).filter((value): value is number => typeof value === 'number')
   const avgDiff = diffs.length ? diffs.reduce((a, b) => a + b, 0) / diffs.length : 0
-  const projection = 1 / (1 + Math.exp(-avgDiff * 3.2))
+  const projection = teamSlots.some((slot) => slot.defaulted) || opponentSlots.some((slot) => slot.defaulted)
+    ? getCaptainMatchWinProbability(lines.map((line) => line.projection ?? 0.5))
+    : 1 / (1 + Math.exp(-avgDiff * 3.2))
 
   return { lines, avgDiff, projection }
 }
@@ -1306,7 +1310,7 @@ function rebuildCandidateWithLocks(
     scorePoolPlayerForSlot(player, slotType) + reliabilityWeight(player.availabilityStatus) * 0.15
 
   next.forEach((slot, index) => {
-    if (!lockedSlotIds.has(slot.id)) return
+    if (!lockedSlotIds.has(slot.id) && !currentMap.get(slot.id)?.defaulted) return
     const current = currentMap.get(slot.id)
     if (!current) return
     next[index] = current
@@ -1318,7 +1322,7 @@ function rebuildCandidateWithLocks(
   })
 
   next.forEach((slot) => {
-    if (lockedSlotIds.has(slot.id)) return
+    if (lockedSlotIds.has(slot.id) || slot.defaulted) return
     const current = currentMap.get(slot.id)
     if (!current) return
 
@@ -1365,6 +1369,7 @@ function rebuildCandidateWithLocks(
 
   next.forEach((slot) => {
     slot.players = slot.players.map((player) => {
+      if (slot.defaulted) return { playerId: '', playerName: '' }
       if (player.playerId) return player
       const best = pickBest(slot)
       return {
@@ -1389,7 +1394,7 @@ function getLineupWarnings(
 
   const validateSlots = (slots: LineupSlot[], sideLabel: string) => {
     for (const slot of slots) {
-      if (knownDefaultLabels.has(normalizeTeamName(slot.label))) continue
+      if (slot.defaulted || knownDefaultLabels.has(normalizeTeamName(slot.label))) continue
       const filled = slot.players.filter((player) => player.playerId)
       if (slot.slotType === 'singles' && filled.length < 1) warnings.push(`${sideLabel} ${slot.label} is missing a player.`)
       if (slot.slotType === 'doubles' && filled.length < 2) warnings.push(`${sideLabel} ${slot.label} needs two players.`)
@@ -3517,7 +3522,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             playerName: matchedPlayer?.name ?? '',
           }
         })
-        return { ...slot, players: nextPlayers }
+        return { ...slot, defaulted: false, players: nextPlayers }
       })
 
     if (side === 'team') {
@@ -3546,6 +3551,25 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     }
   }
 
+  function toggleCourtDefault(slotId: string) {
+    if (saving || loading) return
+    const court = teamSlots.find((slot) => slot.id === slotId)
+    if (!court) return
+    clearTeamLineup(slotId)
+    setTeamSlots((current) => current.map((slot) => slot.id === slotId
+      ? { ...slot, defaulted: !court.defaulted }
+      : slot))
+    if (competitionLayer === 'usta') {
+      setKnownCourtDefaults((current) => {
+        const remaining = current.filter((item) => normalizeTeamName(item.label) !== normalizeTeamName(court.label))
+        return court.defaulted ? remaining : [...remaining, { label: court.label, awardedTo: 'opponent' }]
+      })
+    }
+    setMessage(court.defaulted
+      ? `${court.label} reopened. Choose your players.`
+      : `${court.label} marked Default. No players needed; this court counts as a loss. Check your league's default rules.`)
+  }
+
   function clearTeamLineup(slotId?: string) {
     if (saving || loading) return
     setLineupManuallyCleared(true)
@@ -3553,7 +3577,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     const clearedSlotIds = new Set(clearedSlots.map((slot) => slot.id))
     const clearedPlayerIds = new Set(clearedSlots.flatMap((slot) => slot.players.map((player) => player.playerId)))
     setTeamSlots((current) => current.map((slot) => clearedSlotIds.has(slot.id)
-      ? { ...slot, players: slot.players.map(() => ({ playerId: '', playerName: '' })) }
+      ? { ...slot, defaulted: false, players: slot.players.map(() => ({ playerId: '', playerName: '' })) }
       : slot))
     setLockedSlotIds((current) => slotId ? current.filter((id) => !clearedSlotIds.has(id)) : [])
     setLockedPlayerIds((current) => slotId ? current.filter((id) => !clearedPlayerIds.has(id)) : [])
@@ -4089,7 +4113,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                 availabilityRequestUrl,
                 lineup: teamSlots.map((slot) => ({
                   label: slot.label,
-                  players: slot.players.map((player) => player.playerName).filter(Boolean),
+                  ...(slot.defaulted ? { defaulted: true } : {}),
+                  players: slot.defaulted ? [] : slot.players.map((player) => player.playerName).filter(Boolean),
                 })),
               },
             }),
@@ -4208,7 +4233,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             captainConfirmedLineup: true,
             lineup: teamSlots.map((slot) => ({
               label: slot.label,
-              players: slot.players.map((player) => player.playerName).filter(Boolean),
+              ...(slot.defaulted ? { defaulted: true } : {}),
+              players: slot.defaulted ? [] : slot.players.map((player) => player.playerName).filter(Boolean),
             })),
           },
         }),
@@ -4755,6 +4781,13 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
   )
 
   function setKnownDefaultForCourt(label: string, awardedTo: 'team' | 'opponent' | null) {
+    const slot = teamSlots.find((court) => normalizeTeamName(court.label) === normalizeTeamName(label))
+    if (slot) {
+      if (awardedTo === 'opponent') clearTeamLineup(slot.id)
+      setTeamSlots((current) => current.map((court) => court.id === slot.id
+        ? { ...court, defaulted: awardedTo === 'opponent' }
+        : court))
+    }
     setKnownCourtDefaults((current) => {
       const withoutCourt = current.filter((item) => normalizeTeamName(item.label) !== normalizeTeamName(label))
       return awardedTo ? [...withoutCourt, { label, awardedTo }] : withoutCourt
@@ -5134,7 +5167,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
             matchId: selectedMatch?.id || '',
             lineup: teamSlots.map((slot) => ({
               label: slot.label,
-              players: slot.players.map((player) => player.playerName).filter(Boolean),
+              ...(slot.defaulted ? { defaulted: true } : {}),
+              players: slot.defaulted ? [] : slot.players.map((player) => player.playerName).filter(Boolean),
             })),
           },
         }),
@@ -5399,7 +5433,11 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     setNotes(scenario.notes ?? '')
     setKnownCourtDefaults(normalizeKnownCourtDefaults(scenario.known_defaults_json))
 
-    const loadedTeamSlots = normalizeSavedSlots(scenario.slots_json)
+    const savedDefaults = normalizeKnownCourtDefaults(scenario.known_defaults_json)
+    const loadedTeamSlots = normalizeSavedSlots(scenario.slots_json).map((slot) =>
+      savedDefaults.some((court) => court.awardedTo === 'opponent' && normalizeTeamName(court.label) === normalizeTeamName(slot.label))
+        ? { ...slot, defaulted: true, players: slot.players.map(() => ({ playerId: '', playerName: '' })) }
+        : slot)
     const loadedOpponentSlots = normalizeSavedSlots(scenario.opponent_slots_json)
     const knownPlayerIds = new Set(players.map((player) => player.id))
     const recoveredManualPlayers = uniqueSorted(
@@ -6143,7 +6181,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       effectiveMatchFormatId
     )
     const incompleteCourts = formatSafeSlots.filter((slot) =>
-      slot.players.some((player) => !player.playerId)
+      !slot.defaulted && slot.players.some((player) => !player.playerId)
     )
 
     setTeamSlots(formatSafeSlots)
@@ -6173,7 +6211,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       effectiveMatchFormatId,
     )
     const incompleteCourts = formatSafeSlots.filter((slot) =>
-      slot.players.some((player) => !player.playerId)
+      !slot.defaulted && slot.players.some((player) => !player.playerId)
     )
 
     setTeamSlots(formatSafeSlots)
@@ -6341,8 +6379,8 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
       id: slot.id,
       label: slot.label,
       selectedPlayers,
-      requiredPlayers: slot.players.length,
-      openPlayers: Math.max(0, slot.players.length - selectedPlayers),
+      requiredPlayers: slot.defaulted ? 0 : slot.players.length,
+      openPlayers: slot.defaulted ? 0 : Math.max(0, slot.players.length - selectedPlayers),
     }
   }), [teamSlots])
   const teamAssignedPlayerCount = teamCourtProgress.reduce((total, court) => total + court.selectedPlayers, 0)
@@ -6359,6 +6397,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     && teamSlots.every((slot) => {
       const savedSlot = savedTeamSlots.find((saved) => saved.id === slot.id)
       return savedSlot?.slotType === slot.slotType
+        && Boolean(savedSlot.defaulted) === Boolean(slot.defaulted)
         && savedSlot.players.length === slot.players.length
         && slotPlayerSignature(savedSlot.players) === slotPlayerSignature(slot.players)
     })
@@ -6489,6 +6528,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     const alreadyAssignedPlayerIds = new Set(teamSlots.flatMap((slot) => slot.players.map((player) => player.playerId).filter(Boolean)))
     let filled = 0
     const nextSlots = teamSlots.map((slot, index) => {
+      if (slot.defaulted) return slot
       const historicalCourt = recentHistoricalLineup.courts.find((court) => court.lineNumber === index + 1)
         ?? recentHistoricalLineup.courts[index]
       if (!historicalCourt) return slot
@@ -8103,6 +8143,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                     onLabelChange={setSlotLabel}
                     onRemove={removeSlot}
                     onClear={() => clearTeamLineup(slot.id)}
+                    onToggleDefault={() => toggleCourtDefault(slot.id)}
                     toggleLockedSlot={toggleLockedSlot}
                     toggleLockedPlayer={toggleLockedPlayer}
                     onUndoConfirmation={resetPlayerConfirmation}
@@ -8776,6 +8817,7 @@ function SlotEditor({
   onLabelChange,
   onRemove,
   onClear,
+  onToggleDefault,
   toggleLockedSlot,
   toggleLockedPlayer,
   onUndoConfirmation,
@@ -8811,6 +8853,7 @@ function SlotEditor({
   onLabelChange: (side: 'team' | 'opponent', slotId: string, label: string) => void
   onRemove: (side: 'team' | 'opponent', slotId: string) => void
   onClear?: () => void
+  onToggleDefault?: () => void
   toggleLockedSlot: (slotId: string) => void
   toggleLockedPlayer: (playerId: string) => void
   onUndoConfirmation?: (playerId: string) => void
@@ -8844,10 +8887,10 @@ function SlotEditor({
     const selectedPoolPlayer = playerPool.find((poolPlayer) => poolPlayer.id === player.playerId)
     return availabilityLabel(selectedPoolPlayer?.availabilityStatus) !== 'Confirmed'
   })
-  const compactSelectionSummary = selectedPlayers.length
+  const compactSelectionSummary = slot.defaulted ? 'Default · court forfeited' : selectedPlayers.length
     ? selectedPlayers.map((player) => player.playerName).join(' · ')
     : slot.players.length === 1 ? 'Choose a player' : `Choose ${slot.players.length} players`
-  const compactReplySummary = selectedPlayers.length
+  const compactReplySummary = slot.defaulted ? 'No players needed' : selectedPlayers.length
     ? selectedPlayers.map((player) => {
         const selectedPoolPlayer = playerPool.find((poolPlayer) => poolPlayer.id === player.playerId)
         return availabilityLabel(selectedPoolPlayer?.availabilityStatus)
@@ -8906,7 +8949,7 @@ function SlotEditor({
         >
           <span style={compactCourtTriggerHeaderStyle}>
             <span style={compactCourtLabelStyle}>{slot.label}</span>
-            <span style={miniPillSlateStyle}>{selectedPlayers.length}/{slot.players.length} set</span>
+            <span style={miniPillSlateStyle}>{slot.defaulted ? 'Default' : `${selectedPlayers.length}/${slot.players.length} set`}</span>
           </span>
           <span style={compactCourtSelectionStyle}>{compactSelectionSummary}</span>
           <span style={compactCourtTriggerFooterStyle}>
@@ -8930,7 +8973,7 @@ function SlotEditor({
                 />
               )}
               <span className={courtEditorStyles.type} style={miniPillSlateStyle}>{slot.slotType}</span>
-              {side === 'team' && !isMobileLayout ? (
+              {side === 'team' && !isMobileLayout && !slot.defaulted ? (
                 <button type="button" aria-pressed={lockedSlotIds.has(slot.id)} style={lockedSlotIds.has(slot.id) ? pillButtonActive : pillButton} onClick={() => toggleLockedSlot(slot.id)}>
                   {lockedSlotIds.has(slot.id) ? 'line locked' : 'lock line'}
                 </button>
@@ -8938,6 +8981,9 @@ function SlotEditor({
             </div>
 
             <div style={slotHeaderActionsStyle}>
+              {onToggleDefault ? <button type="button" aria-label={`${slot.defaulted ? 'Reopen' : 'Default'} ${slot.label}`} aria-pressed={Boolean(slot.defaulted)} onClick={onToggleDefault} style={{ ...pillButton, minHeight: 44 }}>
+                {slot.defaulted ? 'Reopen court' : 'Default court'}
+              </button> : null}
               {!isMobileLayout && onClear ? <GhostSmallBtn onClick={onClear} disabled={!selectedPlayers.length}>Clear line</GhostSmallBtn> : null}
               {isMobileLayout && onToggleExpanded ? (
                 <GhostSmallBtn onClick={onToggleExpanded}>Done</GhostSmallBtn>
@@ -8949,7 +8995,7 @@ function SlotEditor({
           {!isMobileLayout ? courtMoveControl : null}
 
           <div style={slotPlayersGridStyle}>
-        {slot.players.map((player, index) => {
+        {slot.defaulted ? <p style={mutedTextStyle}>Default · this court counts as a loss. No players or availability replies needed. Check your league’s default rules before submitting.</p> : slot.players.map((player, index) => {
           const selectedPoolPlayer = player.playerId
             ? playerPool.find((poolPlayer) => poolPlayer.id === player.playerId)
             : null
