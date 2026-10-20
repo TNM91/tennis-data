@@ -9,6 +9,7 @@ export type CaptainLineupReviewSlot = {
   id: string
   label: string
   slotType: 'singles' | 'doubles'
+  defaulted?: boolean
   players: CaptainLineupReviewPlayer[]
 }
 
@@ -81,7 +82,7 @@ export function sanitizeCaptainLineupReviewSlots(value: unknown): CaptainLineupR
     const record = candidate as Record<string, unknown>
     const slotType = record.slotType === 'singles' ? 'singles' : 'doubles'
     const expectedPlayers = slotType === 'singles' ? 1 : 2
-    const rawPlayers = Array.isArray(record.players) ? record.players : []
+    const rawPlayers = record.defaulted !== true && Array.isArray(record.players) ? record.players : []
     const players = Array.from({ length: expectedPlayers }, (_, playerIndex) => {
       const rawPlayer = rawPlayers[playerIndex]
       const playerRecord = rawPlayer && typeof rawPlayer === 'object'
@@ -96,6 +97,7 @@ export function sanitizeCaptainLineupReviewSlots(value: unknown): CaptainLineupR
       id: clean(record.id, 80) || `court-${slotIndex + 1}`,
       label: clean(record.label, 100) || `Court ${slotIndex + 1}`,
       slotType,
+      ...(record.defaulted === true ? { defaulted: true } : {}),
       players,
     }]
   })
@@ -118,6 +120,7 @@ export function validateCaptainLineupReviewProposal(
       proposed.id !== original.id ||
       proposed.label !== original.label ||
       proposed.slotType !== original.slotType ||
+      Boolean(proposed.defaulted) !== Boolean(original.defaulted) ||
       proposed.players.length !== original.players.length
     ) return null
 

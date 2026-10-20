@@ -21,7 +21,7 @@ type MatchupCard = {
   opponent?: string
   matchTime?: string
   facility?: string
-  lineup?: Array<{ label?: string; players?: string[] }>
+  lineup?: Array<{ label?: string; players?: string[]; defaulted?: boolean }>
 }
 
 type TeamRoomResponse = {
@@ -61,7 +61,7 @@ function createPrintableScorecard(input: {
   matchTime: string
   facility: string
   opponent: string
-  lineup: Array<{ label?: string; players?: string[] }>
+  lineup: Array<{ label?: string; players?: string[]; defaulted?: boolean }>
   rosters?: { team: string[]; opponent: string[] }
 }) {
   const matchDetails = [formatDate(input.matchDate), input.matchTime, input.facility].filter(Boolean).join(' · ') || 'Match details to be confirmed'
@@ -119,7 +119,7 @@ function createPrintableScorecard(input: {
       <h2>${escapePrintText(court.label || `Court ${index + 1}`)}</h2>
       <div class="grid">
         <div class="head"><span>Player(s)</span><span>Set 1</span><span>Set 2</span><span>TB</span><span>W/L</span></div>
-        <div class="row"><strong>${escapePrintText((court.players || []).filter(Boolean).join(' / ') || 'Your pair')}</strong><i></i><i></i><i></i><i></i></div>
+        <div class="row"><strong>${escapePrintText(court.defaulted ? 'Default · loss' : (court.players || []).filter(Boolean).join(' / ') || 'Your pair')}</strong><i></i><i></i><i></i><i></i></div>
         <div class="row"><strong class="opponent-name" data-player-slots="${opponentSlots}" aria-label="Opponent ${opponentSlots === 1 ? 'name' : 'names'}"><span></span>${opponentSlots === 2 ? '<span></span>' : ''}</strong><i></i><i></i><i></i><i></i></div>
       </div>
     </article>`
@@ -188,7 +188,7 @@ async function createLineupImage(input: {
   matchTime: string
   facility: string
   confirmed: boolean
-  lineup: Array<{ label?: string; players?: string[] }>
+  lineup: Array<{ label?: string; players?: string[]; defaulted?: boolean }>
 }) {
   const courtHeight = 156
   const canvas = document.createElement('canvas')
@@ -305,10 +305,10 @@ async function createLineupImage(input: {
     context.fillText((court.label || `Court ${index + 1}`).toUpperCase(), 166, top + 46)
     context.fillStyle = '#8cb2d3'
     context.font = '800 13px Arial, sans-serif'
-    context.fillText(input.confirmed ? 'CONFIRMED PAIR' : 'PROJECTED PAIR', 166, top + 70)
+    context.fillText(court.defaulted ? 'DEFAULT' : input.confirmed ? 'CONFIRMED PAIR' : 'PROJECTED PAIR', 166, top + 70)
     context.fillStyle = '#ffffff'
     context.font = '800 30px Arial, sans-serif'
-    const names = (court.players || []).filter(Boolean).join('  /  ') || 'Player to be set'
+    const names = court.defaulted ? 'Default · court forfeited' : (court.players || []).filter(Boolean).join('  /  ') || 'Player to be set'
     for (const [lineIndex, line] of wrapCanvasText(context, names, 890).slice(0, 2).entries()) {
       context.fillText(line, 166, top + 105 + lineIndex * 29)
     }
@@ -639,7 +639,7 @@ function MatchupSheetContent() {
                   <span>W/L</span>
                 </div>
                 <div className={styles.scoreGridRow}>
-                  <strong>{(court.players || []).filter(Boolean).join(' / ') || 'Your pair'}</strong>
+                  <strong>{court.defaulted ? 'Default · loss' : (court.players || []).filter(Boolean).join(' / ') || 'Your pair'}</strong>
                   <i aria-hidden="true" />
                   <i aria-hidden="true" />
                   <i aria-hidden="true" />

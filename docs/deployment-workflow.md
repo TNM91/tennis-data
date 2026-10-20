@@ -44,3 +44,12 @@ Before tuning runtime costs, compare equal billing windows and identify the resp
 Collectors and refresh jobs must retain their freshness and completeness goals. Prefer skipping unchanged work, caching reusable results, bounded batches, and error backoff to simply reducing capacity. Verify latency, error rate, data freshness, and queue progress when changing runtime behavior. Keep useful error and performance monitoring while avoiding verbose success events and duplicate instrumentation.
 
 Check usage after a material runtime change or a billing alert. Future recurring monitoring requires a requested schedule; do not create one automatically.
+
+## Supabase Data API Grants
+
+From October 30, 2026, new tables in `public` do not inherit Data API grants automatically. Existing production tables retain their grants, but fresh projects, preview branches, and database resets must be checked separately.
+
+- Include explicit grants in the migration that creates a table. Grant only the operations and roles that its callers require; RLS policies do not replace table grants.
+- Keep private and service-only tables private. Do not copy a blanket `anon` or `authenticated` CRUD grant across the schema.
+- Check `service_role` access explicitly for server APIs and collectors, and sequence permissions when a caller inserts through an identity/serial sequence.
+- Validate newly created tables with their actual API role after a reset or migration. Legacy migrations relying on inherited grants need a role-by-role audit before a fresh environment is treated as ready.

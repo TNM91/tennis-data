@@ -8,11 +8,28 @@ export type CaptainLineupSlot = {
   id: string
   label: string
   slotType: 'singles' | 'doubles'
+  defaulted?: boolean
   ratingLevel?: number
   players: Array<{
     playerId: string
     playerName: string
   }>
+}
+
+// A default is a zero-probability court, rather than an unrated open court.
+// This estimates an outright majority of courts; tied scorecards are not wins.
+export function getCaptainMatchWinProbability(courtProbabilities: number[]) {
+  let outcomes = [1]
+  for (const probability of courtProbabilities) {
+    const chance = Math.max(0, Math.min(1, probability))
+    const next = Array(outcomes.length + 1).fill(0) as number[]
+    outcomes.forEach((weight, wins) => {
+      next[wins] += weight * (1 - chance)
+      next[wins + 1] += weight * chance
+    })
+    outcomes = next
+  }
+  return outcomes.slice(Math.floor(courtProbabilities.length / 2) + 1).reduce((sum, value) => sum + value, 0)
 }
 
 export function getTriLevelRatings(leagueName: string, flight: string) {
@@ -126,9 +143,10 @@ export function fitCaptainLineupSlotsToFormat(
     usedSlotIds.add(matchingSlot.id)
     return {
       ...expectedSlot,
+      ...(matchingSlot.defaulted === true ? { defaulted: true } : {}),
       players: expectedSlot.players.map((_, playerIndex) => ({
-        playerId: matchingSlot.players[playerIndex]?.playerId || '',
-        playerName: matchingSlot.players[playerIndex]?.playerName || '',
+        playerId: matchingSlot.defaulted ? '' : matchingSlot.players[playerIndex]?.playerId || '',
+        playerName: matchingSlot.defaulted ? '' : matchingSlot.players[playerIndex]?.playerName || '',
       })),
     }
   })

@@ -105,6 +105,7 @@ type MessageSlot = {
   label: string
   slotType: 'singles' | 'doubles'
   players: string[]
+  defaulted?: boolean
 }
 
 export function readCaptainLineupHandoff(raw: string | null): CaptainLineupHandoff | null {
@@ -141,7 +142,7 @@ export function buildPotentialLineupAvailabilityMessage(input: {
   availabilityRequestUrl?: string
 }) {
   const lines = normalizeMessageSlots(input.slotsJson)
-    .map((slot) => `${slot.label}: ${slot.players.join(' / ') || 'Open'}`)
+    .map((slot) => `${slot.label}: ${slot.defaulted ? 'Default' : slot.players.join(' / ') || 'Open'}`)
     .join('\n')
   const details = [
     input.time ? `Time: ${input.time}` : '',
@@ -374,7 +375,7 @@ function normalizeMessageSlots(raw: unknown): MessageSlot[] {
     const record = typeof item === 'object' && item !== null
       ? item as Record<string, unknown>
       : {}
-    const players = Array.isArray(record.players)
+    const players = record.defaulted !== true && Array.isArray(record.players)
       ? record.players.map((player) => {
           if (typeof player === 'string') return player.trim()
           if (typeof player !== 'object' || player === null) return ''
@@ -388,6 +389,7 @@ function normalizeMessageSlots(raw: unknown): MessageSlot[] {
         ? record.label.trim()
         : `Court ${index + 1}`,
       slotType: record.slotType === 'singles' ? 'singles' : record.slotType === 'doubles' || /doubles/i.test(String(record.label || '')) ? 'doubles' : 'singles',
+      ...(record.defaulted === true ? { defaulted: true } : {}),
       players,
     }
   })

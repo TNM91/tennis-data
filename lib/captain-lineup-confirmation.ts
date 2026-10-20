@@ -24,6 +24,7 @@ export type CaptainLineupConfirmationNextStep = {
 export type CaptainLockedLineupRow = {
   label: string
   players: string[]
+  defaulted?: boolean
 }
 
 export function buildCaptainLineupConfirmationId(change: CaptainConfirmedLineupChange) {
@@ -66,6 +67,7 @@ export function buildCaptainLockedLineupId(input: {
 }) {
   const lineupSignature = input.lineup.map((row) => [
     normalizeKey(row.label),
+    ...(row.defaulted ? ['default'] : []),
     ...row.players.map(normalizeKey).filter(Boolean),
   ].join(':')).join('|')
   return ['lineup-locked', input.messageId.trim(), stableHash(lineupSignature)].filter(Boolean).join(':')
@@ -84,6 +86,7 @@ export function buildCaptainLockedLineupAnnouncement(input: {
     opponent ? `vs ${opponent}` : '',
   ].filter(Boolean).join(' ')
   const lineupRows = input.lineup.flatMap((row) => {
+    if (row.defaulted) return [`${row.label.trim() || 'Court'}: Default`]
     const players = row.players.map((name) => name.trim()).filter(Boolean)
     return players.length ? [`${row.label.trim() || 'Court'}: ${players.join(' / ')}`] : []
   })
