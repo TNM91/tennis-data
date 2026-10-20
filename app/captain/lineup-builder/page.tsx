@@ -8981,7 +8981,7 @@ function SlotEditor({
             </div>
 
             <div style={slotHeaderActionsStyle}>
-              {onToggleDefault ? <button type="button" aria-label={`${slot.defaulted ? 'Reopen' : 'Default'} ${slot.label}`} aria-pressed={Boolean(slot.defaulted)} onClick={onToggleDefault} style={{ ...pillButton, minHeight: 44 }}>
+              {!isMobileLayout && onToggleDefault ? <button type="button" aria-label={`${slot.defaulted ? 'Reopen' : 'Default'} ${slot.label}`} aria-pressed={Boolean(slot.defaulted)} onClick={onToggleDefault} style={{ ...pillButton, minHeight: 44 }}>
                 {slot.defaulted ? 'Reopen court' : 'Default court'}
               </button> : null}
               {!isMobileLayout && onClear ? <GhostSmallBtn onClick={onClear} disabled={!selectedPlayers.length}>Clear line</GhostSmallBtn> : null}
@@ -9182,7 +9182,10 @@ function SlotEditor({
           {isMobileLayout ? <details className={courtEditorStyles.options} id={`court-options-${slot.id}`}>
             <summary>Court options</summary>
             <div className={courtEditorStyles.optionActions}>
-              {side === 'team' ? <button type="button" aria-pressed={lockedSlotIds.has(slot.id)} style={pillButton} onClick={() => toggleLockedSlot(slot.id)}>{lockedSlotIds.has(slot.id) ? 'Unlock court' : 'Lock court'}</button> : null}
+              {onToggleDefault ? <button type="button" aria-label={`${slot.defaulted ? 'Reopen' : 'Default'} ${slot.label}`} aria-pressed={Boolean(slot.defaulted)} onClick={onToggleDefault} style={{ ...pillButton, minHeight: 44 }}>
+                {slot.defaulted ? 'Reopen court' : 'Default court'}
+              </button> : null}
+              {side === 'team' && !slot.defaulted ? <button type="button" aria-pressed={lockedSlotIds.has(slot.id)} style={pillButton} onClick={() => toggleLockedSlot(slot.id)}>{lockedSlotIds.has(slot.id) ? 'Unlock court' : 'Lock court'}</button> : null}
               {onClear ? <GhostSmallBtn onClick={onClear} disabled={!selectedPlayers.length}>Clear line</GhostSmallBtn> : null}
               {!fixedFormat ? <GhostSmallBtn onClick={() => onRemove(side, slot.id)}>Remove</GhostSmallBtn> : null}
             </div>
