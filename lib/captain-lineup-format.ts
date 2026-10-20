@@ -16,21 +16,7 @@ export type CaptainLineupSlot = {
   }>
 }
 
-// A default is a zero-probability court, rather than an unrated open court.
-// This estimates an outright majority of courts; tied scorecards are not wins.
-export function getCaptainMatchWinProbability(courtProbabilities: number[]) {
-  let outcomes = [1]
-  for (const probability of courtProbabilities) {
-    const chance = Math.max(0, Math.min(1, probability))
-    const next = Array(outcomes.length + 1).fill(0) as number[]
-    outcomes.forEach((weight, wins) => {
-      next[wins] += weight * (1 - chance)
-      next[wins + 1] += weight * chance
-    })
-    outcomes = next
-  }
-  return outcomes.slice(Math.floor(courtProbabilities.length / 2) + 1).reduce((sum, value) => sum + value, 0)
-}
+export { calculateTeamMatchWinProbability as getCaptainMatchWinProbability } from './captain-lineup-defaults'
 
 export function getTriLevelRatings(leagueName: string, flight: string) {
   return extractTriLevelRatings(leagueName, flight)
@@ -69,6 +55,8 @@ export function swapCaptainLineupCourtAssignments(
     !sourceSlot
     || !targetSlot
     || sourceSlot.id === targetSlot.id
+    || sourceSlot.defaulted
+    || targetSlot.defaulted
     || sourceSlot.slotType !== targetSlot.slotType
     || sourceSlot.players.length !== targetSlot.players.length
   ) {

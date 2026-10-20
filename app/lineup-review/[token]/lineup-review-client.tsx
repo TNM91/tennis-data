@@ -52,8 +52,8 @@ export default function LineupReviewClient({ token }: { token: string }) {
     player.playerId || player.playerName.toLowerCase()
   )).filter(Boolean))), [slots])
   const changedCourts = review ? countCaptainLineupReviewChanges(review.slots, slots) : 0
-  const filledPlayers = slots.flatMap((slot) => slot.players).filter((player) => player.playerName).length
-  const totalPlayers = slots.reduce((count, slot) => count + slot.players.length, 0)
+  const filledPlayers = slots.filter((slot) => !slot.defaulted).flatMap((slot) => slot.players).filter((player) => player.playerName).length
+  const totalPlayers = slots.reduce((count, slot) => count + (slot.defaulted ? 0 : slot.players.length), 0)
 
   function choosePlayer(slotIndex: number, playerIndex: number, playerId: string) {
     if (!review) return

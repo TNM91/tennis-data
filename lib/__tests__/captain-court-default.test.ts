@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildCaptainLineupSlots, fitCaptainLineupSlotsToFormat, getCaptainMatchWinProbability } from '../captain-lineup-format'
+import { buildCaptainLineupSlots, fitCaptainLineupSlotsToFormat, getCaptainMatchWinProbability, swapCaptainLineupCourtAssignments } from '../captain-lineup-format'
 import { buildPotentialLineupAvailabilityMessage, extractPotentialLineupPlayers } from '../captain-lineup-handoff'
 import { buildLineupChanges, buildTeamRoomCourtReadiness, normalizeLineupRows, selectPrimaryTeamRoomCourtReadiness } from '../team-room-match-flow'
 import { buildCaptainLockedLineupAnnouncement, buildCaptainLockedLineupId } from '../captain-lineup-confirmation'
@@ -60,5 +60,12 @@ describe('captain court defaults', () => {
     expect(buildLineupChanges(before, after)).toEqual(['Singles 2: Open -> Default'])
     expect(buildCaptainLockedLineupId({ messageId: 'same', lineup: before }))
       .not.toBe(buildCaptainLockedLineupId({ messageId: 'same', lineup: after }))
+  })
+
+  it('requires reopening a default before swapping players onto it', () => {
+    const slots = buildCaptainLineupSlots('Adult 18 & Over', 'Men 4.0', 'team')
+    slots[1].defaulted = true
+    expect(swapCaptainLineupCourtAssignments(slots, slots[0].id, slots[1].id).swapped).toBe(false)
+    expect(slots[1].players.every((player) => !player.playerId)).toBe(true)
   })
 })

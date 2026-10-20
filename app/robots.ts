@@ -33,6 +33,9 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
       // Restrict training crawls while retaining public search discovery.
       userAgent: 'GPTBot',
       disallow: '/',
+    }, {
+      userAgent: ['meta-externalagent', 'Amazonbot', 'SemrushBot', 'AhrefsBot'],
+      disallow: '/',
     }],
     sitemap: [
       'https://www.tenaceiq.com/sitemap.xml',

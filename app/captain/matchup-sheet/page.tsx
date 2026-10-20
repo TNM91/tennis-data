@@ -367,7 +367,7 @@ function MatchupSheetContent() {
   const opponent = card?.opponent || requestedOpponent
   const matchTime = matchWeek?.details.arrivalTime || card?.matchTime || requestedTime
   const facility = matchWeek?.details.location || card?.facility || requestedFacility
-  const lineup = useMemo(() => card?.lineup?.length
+  const lineup = useMemo<NonNullable<MatchupCard['lineup']>>(() => card?.lineup?.length
     ? card.lineup
     : matchWeek?.courts.map((court) => ({ label: court.label, players: court.players })) || [], [card?.lineup, matchWeek?.courts])
   const scorecardFormat = useMemo(() => inferCaptainScorecardFormat({ leagueName, flight, lineup }), [flight, leagueName, lineup])

@@ -843,7 +843,7 @@ function canSwapCaptainCourtAssignments(
   playerPool: PoolPlayer[],
   rules: TeamCompetitionRules,
 ) {
-  if (sourceSlot.slotType !== targetSlot.slotType || sourceSlot.players.length !== targetSlot.players.length) {
+  if (sourceSlot.defaulted || targetSlot.defaulted || sourceSlot.slotType !== targetSlot.slotType || sourceSlot.players.length !== targetSlot.players.length) {
     return false
   }
 
@@ -5433,7 +5433,11 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
     setNotes(scenario.notes ?? '')
     setKnownCourtDefaults(normalizeKnownCourtDefaults(scenario.known_defaults_json))
 
-    const loadedTeamSlots = normalizeSavedSlots(scenario.slots_json)
+    const savedDefaults = normalizeKnownCourtDefaults(scenario.known_defaults_json)
+    const loadedTeamSlots = normalizeSavedSlots(scenario.slots_json).map((slot) =>
+      savedDefaults.some((court) => court.awardedTo === 'opponent' && normalizeTeamName(court.label) === normalizeTeamName(slot.label))
+        ? { ...slot, defaulted: true, players: slot.players.map(() => ({ playerId: '', playerName: '' })) }
+        : slot)
     const loadedOpponentSlots = normalizeSavedSlots(scenario.opponent_slots_json)
     const knownPlayerIds = new Set(players.map((player) => player.id))
     const recoveredManualPlayers = uniqueSorted(
