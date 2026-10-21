@@ -24,8 +24,6 @@ function isTeamName(value: string) {
 }
 
 export type TennisRecordRecordPageKind = 'match' | 'player' | 'team' | 'history' | 'league'
-const MAX_DISCOVERED_RECORD_URLS_PER_PAGE = 25
-const MAX_DISCOVERED_DIRECTORY_URLS_PER_PAGE = 100
 
 function isExplicitSeason(value: string | null) { return /^20\d{2}$/.test(value || '') }
 
@@ -301,10 +299,9 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
   const discoveredUrls = [...html.matchAll(/href\s*=\s*(["'])([\s\S]*?)\1/gi)]
     .map((link) => new URL(htmlDecode(link[2]), sourceUrl).toString())
     .filter((url) => isAllowedTennisRecordDiscovery(sourceUrl, url))
-  const discoveryLimit = tennisRecordRecordPageKind(sourceUrl) === 'league'
-    ? MAX_DISCOVERED_DIRECTORY_URLS_PER_PAGE
-    : MAX_DISCOVERED_RECORD_URLS_PER_PAGE
-  return { players: [...players.values()], teams, teamMembers, leagues, matches: matches.map((match) => ({ ...match, sourceMatchKey: `${match.sourceMatchKey}:${canonicalTennisRecordFingerprint(match).slice(-16)}` })), discoveredUrls: [...new Set(discoveredUrls)].slice(0, discoveryLimit) }
+  // Persist the entire supported frontier. Fetch limits belong to the durable
+  // queue: truncating here loses the same later teams/scorecards on every visit.
+  return { players: [...players.values()], teams, teamMembers, leagues, matches: matches.map((match) => ({ ...match, sourceMatchKey: `${match.sourceMatchKey}:${canonicalTennisRecordFingerprint(match).slice(-16)}` })), discoveredUrls: [...new Set(discoveredUrls)] }
 }
 
 /**

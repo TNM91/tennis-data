@@ -35,6 +35,14 @@ The fixture executes the actual migration and stored function, checks >100 sourc
 - Improve rating persistence efficiency with exact full-engine equivalence checks, without changing the scoring model.
 - Extend explicit scope definitions for additional state/section-season campaigns before national activation. This initial current lane is Missouri, not national coverage.
 
+## Complete discovery from captured pages
+
+Team schedules, player histories and league directories retain every unique supported link. The former first-25 record-link and first-100 directory-link limits could repeatedly omit the same later scorecards or teams. URL allowlists, campaign geography and season guards still apply. The queue deduplicates discoveries and writes them in batches of at most 50; Missouri team-evidence lookups use at most 25 scorecard URLs per filter and stop after finding verified evidence.
+
+This increases the backlog available to the existing collector, not its fetch cadence, concurrency, retries or checkpoint ceiling. At 151 unique eligible links, eventual collection requires up to 151 page fetches instead of the former 25 (record page) or 100 (directory), minus URLs already queued. At the existing maximum of 18 source requests per checkpoint, that is at least nine full checkpoints, with actual throughput depending on source response time and other queued work. No additional paid feature or cloud deployment is required for local verification.
+
+Existing stored pages are not mass-replayed or requeued by this change. Newly captured pages and ordinary due refreshes discover the omitted links; review/error holds remain intact. Complete link discovery alone does not establish complete league coverage: source publication, successful capture, parsing and reconciliation must still be checked. This change does not add new statistics fields or a direct USTA source integration.
+
 ## Verification — September 5, 2026
 
 Story: authenticated scheduled invocation → shared job lock → bounded current-season queue → existing source validation/reconciliation → status response, while historical checkpoints retain processing opportunities.

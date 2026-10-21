@@ -2006,13 +2006,17 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
     const seasonYear = Number(source.searchParams.get('year'))
     const linkedScorecards = parsed.discoveredUrls.filter(url => tennisRecordRecordPageKind(url) === 'match')
     if (teamName && linkedScorecards.length) {
-      const known = await service.from('tennisrecord_staged_matches').select('source_url,home_team,away_team,league_name')
-        .in('source_url', linkedScorecards).eq('parse_status', 'valid').limit(100)
-      if (known.error) throw new Error(known.error.message)
-      const proof = (known.data || []).find(row => isMissouriCompetition(row.league_name || '')
-        && row.league_name?.match(/\b20\d{2}\b/)?.[0] === String(seasonYear)
-        && [row.home_team, row.away_team].some(name => normalizeTennisIdentity(name || '') === normalizeTennisIdentity(teamName)))
-      if (proof) sourceTeam = { sourceUrl, teamName, seasonYear, leagueName: proof.league_name!, verifiedScorecardUrl: proof.source_url }
+      // Team schedules can contain more links than one PostgREST filter can
+      // safely hold. Stop as soon as one exact team/season proof is found.
+      for (let offset = 0; offset < linkedScorecards.length && !sourceTeam; offset += 25) {
+        const known = await service.from('tennisrecord_staged_matches').select('source_url,home_team,away_team,league_name')
+          .in('source_url', linkedScorecards.slice(offset, offset + 25)).eq('parse_status', 'valid').limit(1000)
+        if (known.error) throw new Error(known.error.message)
+        const proof = (known.data || []).find(row => isMissouriCompetition(row.league_name || '')
+          && row.league_name?.match(/\b20\d{2}\b/)?.[0] === String(seasonYear)
+          && [row.home_team, row.away_team].some(name => normalizeTennisIdentity(name || '') === normalizeTennisIdentity(teamName)))
+        if (proof) sourceTeam = { sourceUrl, teamName, seasonYear, leagueName: proof.league_name!, verifiedScorecardUrl: proof.source_url }
+      }
     }
   }
   const scopedDiscoveryUrls = parsed.discoveredUrls.filter((candidateUrl) => isTennisRecordCampaignDiscoveryAllowed(campaignSlug, sourceUrl, candidateUrl, parsed, historyOwner, sourceTeam))
