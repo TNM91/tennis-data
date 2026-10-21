@@ -270,6 +270,20 @@ describe('TennisRecord ingestion safety', () => {
     expect(tennisRecordRecordPageKind('https://www.tennisrecord.com/adult/search.aspx')).toBeNull()
   })
 
+  it.each([
+    ['teamprofile.aspx?teamname=Example&year=2026', 'matchresults.aspx?year=2026&mid='],
+    ['matchhistory.aspx?playername=Example&year=2026', 'matchresults.aspx?year=2026&mid='],
+    ['league.aspx?flightname=Example&year=2026', 'teamprofile.aspx?year=2026&teamname='],
+  ])('retains the entire supported frontier from %s across repeat refreshes', (source, target) => {
+    const base = 'https://www.tennisrecord.com/adult/'
+    const urls = Array.from({ length: 151 }, (_, index) => base + target + index)
+    const html = [...urls, urls[150], base + 'search.aspx', 'https://example.com/adult/matchresults.aspx?mid=1']
+      .map(url => `<a href="${url}">Result</a>`).join('')
+    for (let refresh = 0; refresh < 2; refresh++) {
+      expect(parseTennisRecordMatchPage(html, base + source).discoveredUrls).toEqual(urls)
+    }
+  })
+
   it('keeps bootstrap discovery anchored to results and prevents profile fan-out', () => {
     const profileSource = 'https://www.tennisrecord.com/adult/profile.aspx?playername=Charles+Kern'
     const matchUrl = 'https://www.tennisrecord.com/adult/matchresults.aspx?mid=123'
