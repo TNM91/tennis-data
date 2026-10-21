@@ -54,6 +54,12 @@ export type TennisRecordTeamMember = {
   sourcePlayerKey: string
   name: string
   sourceUrl: string
+  /** Exact linked profile, separate from the team page proving membership. */
+  profileSourceUrl?: string
+  seasonYear?: number
+  leagueName?: string
+  flight?: string
+  leagueSourceUrl?: string
 }
 
 export type ParsedTennisRecordPage = {

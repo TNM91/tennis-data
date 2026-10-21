@@ -43,6 +43,18 @@ This increases the backlog available to the existing collector, not its fetch ca
 
 Existing stored pages are not mass-replayed or requeued by this change. Newly captured pages and ordinary due refreshes discover the omitted links; review/error holds remain intact. Complete link discovery alone does not establish complete league coverage: source publication, successful capture, parsing and reconciliation must still be checked. This change does not add new statistics fields or a direct USTA source integration.
 
+## Current team roster tables
+
+Current source team profiles use `Name`, `Location`, `NTRP` and a championship-year `Record` header without the word "Roster". Accept this table only when the visible Team Profile owner matches the requested team and one same-season linked league supplies the exact league/flight context. Read profile links only from the name column; deduplicate responsive copies. Legacy explicitly labelled rosters remain supported. Published estimates and per-player record columns do not become rating inputs or match results.
+
+Membership evidence retains the team page, linked player profile, championship year, league and full flight name. Staged players use the actual profile locator. Only verified roster profiles become new profile-discovery candidates; schedule/opponent links remain excluded. This can add up to one queued profile per distinct listed profile not already known (46 listings across the three audit seed teams; 518 listings across their 32 linked teams, with shared players and existing queue URLs reducing new work). Existing request pacing, checkpoint limits and campaign geography checks remain in force.
+
+Apply `20261021000100_scope_source_rosters.sql` before deploying the matching code. It replaces the old team/player uniqueness with team/player/source-page uniqueness, preserving distinct seasons, and appends scope to the public read-only roster views. Coordinate schema and code release because the previous collector's two-column upsert target is replaced. The source membership table stays private. Do not roll back the conflict target or remove the new index after multi-season evidence has been written; preserve observations and use a forward repair if rollback is needed.
+
+Team roster filtering occurs before deduplication, and public directory counts use the explicit source championship year. Unknown legacy context is shown only without that specific filter; it is never assigned to a selected season or flight by guesswork. Exact source league/flight names are retained: cross-provider label aliases and standings aggregation remain separate repair work.
+
+No global parser revision bump or bulk production replay is included. Due team captures can populate memberships at the existing pace. Verify any intentional targeted retained-page replay separately, with bounds and preserved holds. Run `scripts/verify-source-roster-migration.mjs` against disposable PGlite (set `TIQ_PGLITE_MODULE` when installed outside the project) to check the actual migration, multi-season upserts, public permissions and distinct season counts without production credentials.
+
 ## Verification — September 5, 2026
 
 Story: authenticated scheduled invocation → shared job lock → bounded current-season queue → existing source validation/reconciliation → status response, while historical checkpoints retain processing opportunities.

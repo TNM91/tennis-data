@@ -65,6 +65,23 @@ function response(status: number, blockReason = '') {
 }
 afterEach(() => { vi.useRealTimers(); vi.resetAllMocks() })
 
+describe('source roster persistence', () => {
+  it('keeps each season capture as a distinct membership with its scope and profile locator', async () => {
+    response(200)
+    const member = { teamName: 'Example', name: 'Taylor Smith', sourcePlayerKey: 'player-key',
+      sourceUrl: 'https://www.tennisrecord.com/adult/teamprofile.aspx?teamname=Example&year=2027',
+      profileSourceUrl: 'https://www.tennisrecord.com/adult/profile.aspx?playername=Taylor%20Smith',
+      seasonYear: 2027, leagueName: '2027 Adult Fall', flight: 'Men 4.5 (F)' }
+    vi.mocked(parseTennisRecordMatchPage).mockReturnValue({ players: [], teams: [], leagues: [], teamMembers: [member], matches: [], discoveredUrls: [] })
+    const f = fixture({ kind: 'team' })
+    expect(await runTennisRecordSync(f.db, { triggerKind: 'manual', recalculateRatings: false })).toMatchObject({ status: 'completed', pagesProcessed: 1 })
+    const write = f.calls.find(call => call.table === 'tennisrecord_staged_team_memberships' && op(call, 'upsert'))!
+    expect(op(write, 'upsert')?.args).toEqual([[expect.objectContaining({ source_url: member.sourceUrl, raw: member, normalized_team_name: 'example' })],
+      { onConflict: 'normalized_team_name,source_player_key,source_url' }])
+    expect(f.calls.some(call => call.table === 'team_roster_members' || call.table === 'matches')).toBe(false)
+  })
+})
+
 describe('scheduled rating lock reservation', () => {
   it('reserves only the collector slot immediately before the daily rating cron', () => {
     for (const minute of [15, 16]) {
