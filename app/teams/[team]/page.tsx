@@ -18,6 +18,7 @@ import {
 import { buildScopedTeamEntityId } from '@/lib/entity-ids'
 import { supabase } from '@/lib/supabase'
 import { teamRosterForSeason, teamSeasonYear, teamSeasonYears } from '@/lib/team-season-scope'
+import { sourceRosterForScope, sourceRosterTeamKey } from '@/lib/source-roster-scope'
 import { buildTeamProfileHref, decodeTeamRouteSegment } from '@/lib/team-routes'
 import {
   listTiqTeamParticipations,
@@ -153,6 +154,9 @@ type TennisRecordTeamRosterContextRow = {
   team_name: string | null
   player_name: string | null
   canonical_player_id: string | null
+  season_year: number | null
+  league_name: string | null
+  flight: string | null
 }
 
 type TennisRecordTeamHistoryRow = {
@@ -372,9 +376,8 @@ function TeamPageContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [seasonFilter, setSeasonFilter] = useState<string>('all')
-  // This source has no league, flight, or season on individual memberships.
-  const tennisRecordRoster = useMemo(() => seasonFilter === 'all' && !leagueFilter && !flightFilter
-    ? tennisRecordRosterEntries : [], [tennisRecordRosterEntries, seasonFilter, leagueFilter, flightFilter])
+  const tennisRecordRoster = useMemo(() => sourceRosterForScope(tennisRecordRosterEntries,
+    { season: seasonFilter, league: leagueFilter, flight: flightFilter }), [tennisRecordRosterEntries, seasonFilter, leagueFilter, flightFilter])
   const [activityFilter, setActivityFilter] = useState<TeamActivityFilter>('all')
   const [activeTeamSection, setActiveTeamSection] = useState<TeamSection>('overview')
   const [rosterFilter, setRosterFilter] = useState<RosterFilter>('all')
@@ -607,10 +610,10 @@ function TeamPageContent() {
 
       const tennisRecordRosterQuery = supabase
         .from('tennisrecord_public_team_roster_context')
-        .select('team_name, player_name, canonical_player_id')
-        .eq('normalized_team_name', normalizeTeamName(team))
+        .select('team_name, player_name, canonical_player_id, season_year, league_name, flight')
+        .eq('normalized_team_name', sourceRosterTeamKey(team))
         .order('player_name')
-        .limit(100)
+        .limit(500)
 
       let tennisRecordHistoryQuery = supabase
         .from('tennisrecord_public_team_match_history')
@@ -632,12 +635,7 @@ function TeamPageContent() {
         setTennisRecordRoster([])
       } else {
         const rosterRows = (tennisRecordRosterResult.data || []) as TennisRecordTeamRosterContextRow[]
-        const uniqueRoster = new Map<string, TennisRecordTeamRosterContextRow>()
-        for (const row of rosterRows) {
-          const key = cleanText(row.player_name).toLowerCase()
-          if (key && !uniqueRoster.has(key)) uniqueRoster.set(key, row)
-        }
-        setTennisRecordRoster([...uniqueRoster.values()])
+        setTennisRecordRoster(rosterRows)
       }
       if (tennisRecordHistoryResult.error) {
         console.warn('TennisRecord team history lookup skipped', tennisRecordHistoryResult.error.message)
@@ -1326,8 +1324,8 @@ function TeamPageContent() {
   }, [matches, players, team])
 
   const seasonOptions = useMemo(() => teamSeasonYears(
-    [...matches, ...rosterMembers, ...summaryTeams], { league: leagueFilter, flight: flightFilter },
-  ), [matches, rosterMembers, summaryTeams, leagueFilter, flightFilter])
+    [...matches, ...rosterMembers, ...summaryTeams, ...tennisRecordRosterEntries], { league: leagueFilter, flight: flightFilter },
+  ), [matches, rosterMembers, summaryTeams, tennisRecordRosterEntries, leagueFilter, flightFilter])
 
   const opponentAnalysis = useMemo(() => {
     const map = new Map<string, { wins: number; losses: number; lastDate: string | null }>()

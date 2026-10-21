@@ -1975,7 +1975,7 @@ async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeo
       source_url: member.sourceUrl,
       raw: member,
       last_seen_at: new Date().toISOString(),
-    })), { onConflict: 'normalized_team_name,source_player_key' })
+    })), { onConflict: 'normalized_team_name,source_player_key,source_url' })
     if (error) throw new Error(error.message)
   }
   if (parsed.matches.length) {

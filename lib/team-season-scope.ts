@@ -2,6 +2,7 @@ export type TeamSeasonContext = {
   league_name?: string | null
   flight?: string | null
   match_date?: string | null
+  season_year?: number | null
 }
 
 type Scope = { league?: string | null; flight?: string | null }
@@ -11,6 +12,7 @@ const scopeKey = (row: TeamSeasonContext) => JSON.stringify([clean(row.league_na
 /** Championship seasons can begin in the previous calendar year. */
 export function teamSeasonYear(row: TeamSeasonContext): string | null {
   return /\b(20\d{2})\b/.exec(clean(row.league_name))?.[1]
+    || (row.season_year && /^20\d{2}$/.test(String(row.season_year)) ? String(row.season_year) : null)
     || /^(20\d{2})-\d{2}-\d{2}/.exec(clean(row.match_date))?.[1]
     || null
 }

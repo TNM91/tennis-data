@@ -152,7 +152,7 @@ function winnerFromResultCells(cells: string[], scoreCellIndex: number, profileC
 /**
  * Team membership is intentionally stricter than participant parsing. A
  * player becomes a source roster observation only when a team-profile page
- * contains a table explicitly labelled as a roster. Match-result participants
+ * contains a labelled roster or the verified current team-player table. Match-result participants
  * are never inferred to be team members because court side does not prove
  * which team listing they belong to on every historical layout.
  */
@@ -161,26 +161,57 @@ function parseExplicitTeamRoster(html: string, sourceUrl: string): TennisRecordT
 
   let url: URL
   try { url = new URL(sourceUrl) } catch { return [] }
-  const teamName = clean(url.searchParams.get('teamname')?.replace(/\+/g, ' ') || '')
+  const teamName = clean(url.searchParams.get('teamname') || '')
   if (!isTeamName(teamName)) return []
+  const year = url.searchParams.get('year')
+  const seasonYear = /^20\d{2}$/.test(year || '') ? Number(year) : undefined
 
   const members = new Map<string, TennisRecordTeamMember>()
   for (const table of html.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/gi)) {
     const tableHtml = table[0]
     const precedingHtml = html.slice(Math.max(0, (table.index || 0) - 500), table.index || 0)
     const scope = `${getText(precedingHtml)} ${getText(tableHtml)}`
-    if (!/\b(?:team\s+roster|player\s+roster|roster)\b/i.test(scope)) continue
-
-    const headerText = [...tableHtml.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/gi)].map((header) => getText(header[1])).join(' ')
+    const headers = [...tableHtml.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/gi)].map((header) => getText(header[1]))
+    const headerText = headers.join(' ')
     if (!/\b(?:player|name)\b/i.test(headerText)) continue
+    const prefix = html.slice(0, table.index)
+    const headingAt = prefix.search(/>\s*Team\s+Profile\s*</i)
+    const identityHeader = headingAt >= 0 ? prefix.slice(headingAt) : ''
+    const ownerMatches = [...identityHeader.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)]
+      .some(cell => htmlDecode(getText(cell[1])) === teamName)
+    const leagueLinks = [...identityHeader.matchAll(/<a\b[^>]*href\s*=\s*(["'])([\s\S]*?)\1[^>]*>([\s\S]*?)<\/a>/gi)].flatMap(link => {
+      try {
+        const target = new URL(htmlDecode(link[2]), sourceUrl)
+        const flight = target.searchParams.get('flightname')?.trim()
+        const label = htmlDecode(getText(link[3]))
+        if (tennisRecordRecordPageKind(target.toString()) !== 'league' || target.pathname.toLowerCase() !== '/adult/league.aspx'
+          || !seasonYear || target.searchParams.get('year') !== year || !flight || !label.startsWith(`${year} `) || !label.endsWith(`(${flight})`)) return []
+        return [{ seasonYear, leagueName: label.slice(0, -flight.length - 2).trim(), flight, leagueSourceUrl: target.toString() }]
+      } catch { return [] }
+    })
+    const contexts = [...new Map(leagueLinks.map(context => [context.leagueSourceUrl, context])).values()]
+    const context = ownerMatches && contexts.length === 1 ? contexts[0] : undefined
+    const currentLayout = Boolean(context && headers.includes('Name') && headers.includes('Location') && headers.includes('NTRP')
+      && headers.some(header => header === `${year} Record`))
+    if (!currentLayout && !/\b(?:team\s+roster|player\s+roster|roster)\b/i.test(scope)) continue
 
-    for (const participant of parseProfileLinks(tableHtml, 'A', 1)) {
+    const nameColumn = Math.max(0, headers.findIndex(header => /^(?:Player\s+)?Name$/i.test(header)))
+    const participants = [...tableHtml.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].flatMap(row => {
+      const cells = [...row[1].matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)]
+      const links = parseProfileLinks(cells[nameColumn]?.[1] || '', 'A', 1)
+        .filter(player => player.sourceUrl && tennisRecordRecordPageKind(player.sourceUrl) === 'player')
+      return links.length === 1 ? links : []
+    })
+    for (const participant of participants) {
       if (!participant.name || members.has(participant.sourcePlayerKey)) continue
       members.set(participant.sourcePlayerKey, {
         teamName,
         sourcePlayerKey: participant.sourcePlayerKey,
         name: participant.name,
         sourceUrl,
+        profileSourceUrl: participant.sourceUrl,
+        ...(seasonYear ? { seasonYear } : {}),
+        ...context,
       })
     }
   }
@@ -273,7 +304,7 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
     players.set(member.sourcePlayerKey, {
       sourcePlayerKey: member.sourcePlayerKey,
       name: member.name,
-      city: '', state: '', ntrpLabel: '', sourceUrl: member.sourceUrl,
+      city: '', state: '', ntrpLabel: '', sourceUrl: member.profileSourceUrl || member.sourceUrl,
     })
   }
   // A player profile is the only source page eligible to provide its owner's
@@ -301,7 +332,7 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
     .filter((url) => isAllowedTennisRecordDiscovery(sourceUrl, url))
   // Persist the entire supported frontier. Fetch limits belong to the durable
   // queue: truncating here loses the same later teams/scorecards on every visit.
-  return { players: [...players.values()], teams, teamMembers, leagues, matches: matches.map((match) => ({ ...match, sourceMatchKey: `${match.sourceMatchKey}:${canonicalTennisRecordFingerprint(match).slice(-16)}` })), discoveredUrls: [...new Set(discoveredUrls)] }
+  return { players: [...players.values()], teams, teamMembers, leagues, matches: matches.map((match) => ({ ...match, sourceMatchKey: `${match.sourceMatchKey}:${canonicalTennisRecordFingerprint(match).slice(-16)}` })), discoveredUrls: [...new Set([...discoveredUrls, ...teamMembers.flatMap(member => member.profileSourceUrl ? [member.profileSourceUrl] : [])])] }
 }
 
 /**

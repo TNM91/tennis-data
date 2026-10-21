@@ -13,6 +13,7 @@ import TrackedProductLink from '@/app/components/tracked-product-link'
 import { shouldShowSponsoredPlacements } from '@/lib/access-model'
 import { supabase } from '@/lib/supabase'
 import { teamSeasonYear } from '@/lib/team-season-scope'
+import { sourceRosterCountKey } from '@/lib/source-roster-scope'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useProductAccess } from '@/lib/use-product-access'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
@@ -68,6 +69,7 @@ type TennisRecordTeamContextRow = {
 type TennisRecordTeamRosterCountRow = {
   normalized_team_name: string | null
   listed_player_count: number | null
+  season_year: number | null
 }
 
 type TeamDirectoryEntry = {
@@ -224,7 +226,7 @@ export default function TeamsPage() {
           .limit(10000),
         supabase
           .from('tennisrecord_public_team_roster_counts')
-          .select('normalized_team_name, listed_player_count')
+          .select('normalized_team_name, listed_player_count, season_year')
           .limit(10000),
       ])
 
@@ -253,7 +255,7 @@ export default function TeamsPage() {
       for (const row of sourceRosterCounts) {
         const normalizedTeam = normalizeTeamName(row.normalized_team_name)
         if (!normalizedTeam) continue
-        sourceRosterCountByTeam.set(normalizedTeam, Math.max(0, Number(row.listed_player_count) || 0))
+        sourceRosterCountByTeam.set(sourceRosterCountKey(normalizedTeam, row.season_year), Math.max(0, Number(row.listed_player_count) || 0))
       }
 
       if (!matches.length && !sourceContexts.length) {
@@ -326,7 +328,7 @@ export default function TeamsPage() {
             losses: 0,
             recentForm: [],
             playerIds: new Set<string>(),
-            sourceRosterCount: sourceRosterCountByTeam.get(normalizeTeamName(homeTeam)) || 0,
+            sourceRosterCount: sourceRosterCountByTeam.get(sourceRosterCountKey(normalizeTeamName(homeTeam), season)) || 0,
             mostRecentMatchDate: null,
             source: 'canonical',
           })
@@ -344,7 +346,7 @@ export default function TeamsPage() {
             losses: 0,
             recentForm: [],
             playerIds: new Set<string>(),
-            sourceRosterCount: sourceRosterCountByTeam.get(normalizeTeamName(awayTeam)) || 0,
+            sourceRosterCount: sourceRosterCountByTeam.get(sourceRosterCountKey(normalizeTeamName(awayTeam), season)) || 0,
             mostRecentMatchDate: null,
             source: 'canonical',
           })
@@ -478,7 +480,7 @@ export default function TeamsPage() {
           losses: 0,
           recentForm: [],
           playerIds: new Set<string>(),
-          sourceRosterCount: sourceRosterCountByTeam.get(normalizeTeamName(team)) || 0,
+          sourceRosterCount: sourceRosterCountByTeam.get(sourceRosterCountKey(normalizeTeamName(team), season)) || 0,
           mostRecentMatchDate: cleanText(context.last_seen_at),
           source: 'tennisrecord',
         })
