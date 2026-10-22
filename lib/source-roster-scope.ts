@@ -22,3 +22,9 @@ export function sourceRosterForScope<T extends SourceRosterScope>(rows: T[], sco
 export function sourceRosterCountKey(team: string, season: string | number | null) {
   return JSON.stringify([sourceRosterTeamKey(team), season === null ? null : String(season)])
 }
+
+/** An unresolved same-name listing is not proof of a canonical player identity. */
+export function additionalSourceRosterListings<T extends { canonical_player_id?: string | null }>(rows: T[], linkedPlayerIds: string[]) {
+  const linked = new Set(linkedPlayerIds)
+  return rows.filter(row => !row.canonical_player_id || !linked.has(row.canonical_player_id))
+}

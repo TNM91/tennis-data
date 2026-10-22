@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseTennisRecordMatchPage } from '../tennisrecord/parser'
-import { sourceRosterCountKey, sourceRosterForScope, sourceRosterTeamKey } from '../source-roster-scope'
+import { additionalSourceRosterListings, sourceRosterCountKey, sourceRosterForScope, sourceRosterTeamKey } from '../source-roster-scope'
 import { normalizeTennisIdentity } from '../tennisrecord/reconcile'
 
 const base = 'https://www.tennisrecord.com/adult/'
@@ -11,6 +11,11 @@ const heading = `<table><tr><td>Team Profile</td></tr></table><table><tr><td><a 
 const html = heading + table + table
 
 describe('current source team roster', () => {
+  it('retains roster-only listings beside tracked players without joining unresolved names', () => {
+    const listed = [{ canonical_player_id: 'tracked', player_name: 'Taylor' }, { canonical_player_id: 'unplayed', player_name: 'Jamie' }, { canonical_player_id: null, player_name: 'Taylor' }]
+    expect(additionalSourceRosterListings(listed, ['tracked'])).toEqual(listed.slice(1))
+    expect(additionalSourceRosterListings(listed, [])).toEqual(listed)
+  })
   it('recognizes the verified current layout and deduplicates desktop/mobile copies', () => {
     const parsed = parseTennisRecordMatchPage(html, teamUrl)
     expect(parsed.teamMembers).toHaveLength(2)

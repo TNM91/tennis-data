@@ -268,7 +268,7 @@ export async function fetchLeagueSummary(): Promise<LeagueSummaryPayload> {
 
     try {
       const { data, error } = await supabase
-        .from('matches')
+        .from('team_match_results')
         .select(`
           id,
           external_match_id,

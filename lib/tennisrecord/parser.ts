@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto'
 import { canonicalTennisRecordFingerprint, normalizeTennisIdentity } from './reconcile'
+import { tennisRecordSourceEventId } from './source-event-identity'
+import type { TennisRecordTeamEvent } from './types'
 import type { ParsedTennisRecordPage, TennisRecordLeague, TennisRecordMatch, TennisRecordParticipant, TennisRecordPlayer, TennisRecordSide, TennisRecordTeam, TennisRecordTeamMember } from './types'
 
 function clean(value: string) { return value.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim() }
@@ -103,6 +105,50 @@ function readTeamNames(html: string) {
 function readLeagueName(plain: string) {
   const currentOrLegacy = plain.match(/Match\s+Results\s+(.+?)\s+Scheduled\s+Date\s*:/i)?.[1] || ''
   return currentOrLegacy.trim()
+}
+
+export function parseTennisRecordTeamEvent(html: string, sourceUrl: string): TennisRecordTeamEvent | undefined {
+  const sourceEventId = tennisRecordSourceEventId(sourceUrl)
+  if (!sourceEventId) return
+  const visible = html.replace(/<!--[\s\S]*?-->/g, '').replace(/<(script|style|template)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+  const plain = getText(visible)
+  // Other scoring systems and tied court totals need an explicit winner rule.
+  if (!/Match\s+Criteria\s*:\s*Team\s+Wins\b/i.test(plain)) return
+  const playedOn = readDate(plain)
+  if (!/^20\d{2}-\d{2}-\d{2}$/.test(playedOn) || Number.isNaN(Date.parse(playedOn))
+    || new Date(playedOn).toISOString().slice(0, 10) !== playedOn) return
+  const leagueName = readLeagueName(plain)
+  const seasonYear = Number(sourceEventId.split(':')[1])
+  if (leagueName.match(/\b20\d{2}\b/)?.[0] !== String(seasonYear)) return
+  const candidates: TennisRecordTeamEvent[] = []
+  for (const table of visible.matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)) {
+    const headers = [...table[1].matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/gi)].map(cell => getText(cell[1]))
+    const nameColumn = headers.indexOf('Team Name'), scoreColumn = headers.indexOf('Courts Won')
+    if (nameColumn < 0 || scoreColumn < 0) continue
+    const teams = [...table[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)].flatMap<{ invalid: true } | { name: string; courts: number }>(row => {
+      const cells = [...row[1].matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)].map(cell => cell[1])
+      if (!cells.length) return []
+      const name = htmlDecode(getText(cells[nameColumn] || ''))
+      const courts = getText(cells[scoreColumn] || '')
+      const links = [...(cells[nameColumn] || '').matchAll(/href\s*=\s*(["'])([\s\S]*?)\1/gi)]
+      if (!isTeamName(name) || !/^\d{1,2}$/.test(courts) || links.length !== 1) return [{ invalid: true } as const]
+      try {
+        const target = new URL(htmlDecode(links[0][2]), sourceUrl)
+        if (tennisRecordRecordPageKind(target.toString()) !== 'team' || target.searchParams.get('teamname') !== name
+          || target.searchParams.get('year') !== String(seasonYear)) return [{ invalid: true } as const]
+      } catch { return [{ invalid: true } as const] }
+      return [{ name, courts: Number(courts) }]
+    })
+    if (teams.length !== 2 || teams.some(team => 'invalid' in team)) return
+    const [home, away] = teams as { name: string; courts: number }[]
+    if (home.name === away.name || home.courts === away.courts || home.courts + away.courts > 20) return
+    candidates.push({ sourceEventId, sourceUrl, seasonYear, playedOn, leagueName,
+      flight: leagueName.match(/\b[1-7](?:\.0|\.5)\b/)?.[0] || '',
+      homeTeam: home.name, awayTeam: away.name, homeCourts: home.courts, awayCourts: away.courts,
+      winnerSide: home.courts > away.courts ? 'A' : 'B' })
+  }
+  const unique = [...new Map(candidates.map(event => [JSON.stringify(event), event])).values()]
+  return unique.length === 1 ? unique[0] : undefined
 }
 function parseProfileLinks(html: string, side: TennisRecordSide, startSeat: number) {
   const participants: TennisRecordParticipant[] = []
@@ -332,7 +378,8 @@ export function parseTennisRecordMatchPage(html: string, sourceUrl: string): Par
     .filter((url) => isAllowedTennisRecordDiscovery(sourceUrl, url))
   // Persist the entire supported frontier. Fetch limits belong to the durable
   // queue: truncating here loses the same later teams/scorecards on every visit.
-  return { players: [...players.values()], teams, teamMembers, leagues, matches: matches.map((match) => ({ ...match, sourceMatchKey: `${match.sourceMatchKey}:${canonicalTennisRecordFingerprint(match).slice(-16)}` })), discoveredUrls: [...new Set([...discoveredUrls, ...teamMembers.flatMap(member => member.profileSourceUrl ? [member.profileSourceUrl] : [])])] }
+  const teamEvent = parseTennisRecordTeamEvent(html, sourceUrl)
+  return { ...(teamEvent ? { teamEvent } : {}), players: [...players.values()], teams, teamMembers, leagues, matches: matches.map((match) => ({ ...match, sourceMatchKey: `${match.sourceMatchKey}:${canonicalTennisRecordFingerprint(match).slice(-16)}` })), discoveredUrls: [...new Set([...discoveredUrls, ...teamMembers.flatMap(member => member.profileSourceUrl ? [member.profileSourceUrl] : [])])] }
 }
 
 /**

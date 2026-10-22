@@ -63,6 +63,7 @@ export type TennisRecordTeamMember = {
 }
 
 export type ParsedTennisRecordPage = {
+  teamEvent?: TennisRecordTeamEvent
   /** Retain the source for review; no part of this page may be staged. */
   reviewReason?: string
   players: TennisRecordPlayer[]
@@ -71,6 +72,21 @@ export type ParsedTennisRecordPage = {
   leagues: TennisRecordLeague[]
   matches: TennisRecordMatch[]
   discoveredUrls: string[]
+}
+
+/** Printed team totals, independent of whether every court names its players. */
+export type TennisRecordTeamEvent = {
+  sourceEventId: string
+  sourceUrl: string
+  seasonYear: number
+  playedOn: string
+  leagueName: string
+  flight: string
+  homeTeam: string
+  awayTeam: string
+  homeCourts: number
+  awayCourts: number
+  winnerSide: TennisRecordSide
 }
 
 export type TennisRecordRunSummary = {

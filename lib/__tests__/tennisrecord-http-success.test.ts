@@ -68,6 +68,18 @@ function response(status: number, blockReason = '') {
 afterEach(() => { vi.useRealTimers(); vi.resetAllMocks() })
 
 describe('source roster persistence', () => {
+  it('saves printed team totals with capture provenance without creating player courts', async () => {
+    response(200)
+    const teamEvent = { sourceEventId: 'tennisrecord:2027:1', sourceUrl: url, seasonYear: 2027,
+      playedOn: '2026-09-01', leagueName: '2027 Adult Fall', flight: '4.0',
+      homeTeam: 'Home', awayTeam: 'Away', homeCourts: 3, awayCourts: 2, winnerSide: 'A' as const }
+    vi.mocked(parseTennisRecordMatchPage).mockReturnValue({ players: [], teams: [], leagues: [], teamMembers: [], matches: [], discoveredUrls: [], teamEvent })
+    const f = fixture({ kind: 'match' })
+    expect(await runTennisRecordSync(f.db, { triggerKind: 'manual', recalculateRatings: false })).toMatchObject({ pagesProcessed: 1, matchesStaged: 0 })
+    expect(f.db.rpc).toHaveBeenCalledWith('save_tennisrecord_team_event', { p_event: teamEvent, p_page_id: 'saved-evidence' })
+    expect(f.calls.some(call => call.table === 'matches' || call.table === 'match_players')).toBe(false)
+    expect(f.queueWrites().at(-1)).toMatchObject({ status: 'done' })
+  })
   it('keeps each season capture as a distinct membership with its scope and profile locator', async () => {
     response(200)
     const member = { teamName: 'Example', name: 'Taylor Smith', sourcePlayerKey: 'player-key',

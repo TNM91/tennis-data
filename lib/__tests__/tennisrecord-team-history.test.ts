@@ -16,8 +16,10 @@ describe('TennisRecord public team history', () => {
     expect(migration).toContain('canonical_match_id')
   })
 
-  it('shows only unpromoted source history as neutral team activity', () => {
-    expect(teamPage).toContain(".is('canonical_match_id', null)")
+  it('keeps promoted and unpromoted court history separate from team records', () => {
+    expect(teamPage).not.toContain(".is('canonical_match_id', null)")
+    expect(teamPage).toContain('Individual court results are shown here separately')
+    expect(teamPage).toContain('seasonCourtHistory')
     expect(teamPage).toContain('Recorded match history')
     expect(teamPage).toContain('Recorded team listing')
     expect(teamPage).toContain('Team activity')

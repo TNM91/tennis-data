@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import { teamResultHref } from '@/lib/team-match-results'
 import { usePublicCompetitionContent } from '@/app/components/public-competition-content-context'
 import PublicTeamProfileSnapshot from '@/app/components/public-team-profile-snapshot'
 import React from 'react'
@@ -18,7 +19,7 @@ import {
 import { buildScopedTeamEntityId } from '@/lib/entity-ids'
 import { supabase } from '@/lib/supabase'
 import { teamRosterForSeason, teamSeasonYear, teamSeasonYears } from '@/lib/team-season-scope'
-import { sourceRosterForScope, sourceRosterTeamKey } from '@/lib/source-roster-scope'
+import { additionalSourceRosterListings, sourceRosterForScope, sourceRosterTeamKey } from '@/lib/source-roster-scope'
 import { buildTeamProfileHref, decodeTeamRouteSegment } from '@/lib/team-routes'
 import {
   listTiqTeamParticipations,
@@ -71,6 +72,8 @@ import TeamQuickActions from './team-quick-actions'
 import profileStyles from './team-profile.module.css'
 
 type TeamMatch = {
+  source_url?: string | null
+  season_year?: number | null
   id: string
   external_match_id?: string | null
   home_team: string | null
@@ -160,6 +163,8 @@ type TennisRecordTeamRosterContextRow = {
 }
 
 type TennisRecordTeamHistoryRow = {
+  source_url?: string | null
+  canonical_match_id?: string | null
   source_match_key: string
   opponent_team: string | null
   played_on: string | null
@@ -365,6 +370,7 @@ function TeamPageContent() {
   const contactHubRequested = searchParams.get('contacts') === '1'
 
   const [matches, setMatches] = useState<TeamMatch[]>([])
+  const [courtParents, setCourtParents] = useState<TeamMatch[]>([])
   const [scheduleLoadError, setScheduleLoadError] = useState('')
   const [players, setPlayers] = useState<MatchPlayer[]>([])
   const [rosterMembers, setRosterMembers] = useState<TeamRosterMemberRow[]>([])
@@ -532,6 +538,7 @@ function TeamPageContent() {
     try {
       if (!team) {
         setMatches([])
+        setCourtParents([])
         setPlayers([])
         setRosterMembers([])
         setSummaryTeams([])
@@ -617,9 +624,8 @@ function TeamPageContent() {
 
       let tennisRecordHistoryQuery = supabase
         .from('tennisrecord_public_team_match_history')
-        .select('source_match_key, opponent_team, played_on, league_name, flight, discipline, court_number, score_text, winner_side, team_side')
+        .select('source_match_key, opponent_team, played_on, league_name, flight, discipline, court_number, score_text, winner_side, team_side, source_url, canonical_match_id')
         .ilike('team_name', team)
-        .is('canonical_match_id', null)
         .order('played_on', { ascending: false })
         .limit(50)
 
@@ -681,7 +687,14 @@ function TeamPageContent() {
         matchQuery = matchQuery.or(`home_team.eq."${safeTeam}",away_team.eq."${safeTeam}"`)
       }
 
-      const { data: matchData, error: matchError } = await matchQuery
+      let teamResultQuery = supabase.from('team_match_results').select('*')
+        .order('match_date', { ascending: false }).limit(250)
+      if (leagueFilter) teamResultQuery = teamResultQuery.eq('league_name', leagueFilter)
+      if (flightFilter) teamResultQuery = teamResultQuery.eq('flight', flightFilter)
+      const safeResultTeam = escapePostgrestValue(team)
+      teamResultQuery = teamResultQuery.or(`home_team.eq."${safeResultTeam}",away_team.eq."${safeResultTeam}"`)
+      const [{ data: matchData, error: matchError }, teamResults] = await Promise.all([matchQuery, teamResultQuery])
+      if (teamResults.error) throw new Error(teamResults.error.message)
       if (matchError) {
         console.warn('team match lookup skipped', matchError.message)
         setScheduleLoadError('Your saved schedule could not be loaded right now.')
@@ -698,7 +711,9 @@ function TeamPageContent() {
         return home === team || away === team
       })
 
-      setMatches(scopedMatches)
+      setCourtParents(scopedMatches)
+      setMatches(((teamResults.data || []) as TeamMatch[]).filter(match =>
+        cleanText(match.home_team) === team || cleanText(match.away_team) === team))
 
       const rosterQuery = supabase
         .from('team_roster_members')
@@ -889,6 +904,7 @@ function TeamPageContent() {
     } catch (err) {
       console.error(err)
       setMatches([])
+      setCourtParents([])
       setPlayers([])
       setRosterMembers([])
       setSummaryTeams([])
@@ -984,6 +1000,16 @@ function TeamPageContent() {
     [matches, seasonFilter],
   )
 
+  const seasonCourtParents = useMemo(
+    () => seasonFilter === 'all' ? courtParents : courtParents.filter(match => teamSeasonYear(match) === seasonFilter),
+    [courtParents, seasonFilter],
+  )
+
+  const seasonCourtHistory = useMemo(
+    () => tennisRecordHistory.filter(row => seasonFilter === 'all' || teamSeasonYear({ league_name: row.league_name, match_date: row.played_on }) === seasonFilter),
+    [tennisRecordHistory, seasonFilter],
+  )
+
   const latestCompletedMatch = useMemo(
     () => seasonMatches.find((match) => didTeamWin(match, team) !== null) || null,
     [seasonMatches, team],
@@ -1068,6 +1094,7 @@ function TeamPageContent() {
   }, [seasonMatches, team])
 
   const completedMatchCount = record.wins + record.losses
+  const teamRecordLabel = completedMatchCount ? `${record.wins}-${record.losses}` : '—'
   const winRate = completedMatchCount > 0 ? Math.round((record.wins / completedMatchCount) * 100) : null
   const latestResult = latestCompletedMatch
   const latestResultOpponent = latestResult ? getOpponent(latestResult, team) : null
@@ -1101,7 +1128,7 @@ function TeamPageContent() {
       const lineMatchLookup = new Map(lineMatches.map((lm) => [lm.id, lm]))
       // Map the parent external_match_id prefix to its parent TeamMatch.
       const parentByExternalId = new Map(
-        seasonMatches.map((m) => [cleanText(m.external_match_id) ?? '', m]),
+        seasonCourtParents.map((m) => [cleanText(m.external_match_id) ?? '', m]),
       )
 
       linePlayers.forEach((entry) => {
@@ -1146,7 +1173,7 @@ function TeamPageContent() {
       })
     } else {
       // Legacy data path: match_players linked directly to parent matches.
-      const matchLookup = new Map(seasonMatches.map((match) => [match.id, match]))
+      const matchLookup = new Map(seasonCourtParents.map((match) => [match.id, match]))
 
       players.forEach((entry) => {
         const player = normalizePlayer(entry.players)
@@ -1194,7 +1221,10 @@ function TeamPageContent() {
       if (bOverall !== aOverall) return bOverall - aOverall
       return a.name.localeCompare(b.name)
     })
-  }, [lineMatches, linePlayers, seasonRosterMembers, seasonMatches, players, team])
+  }, [lineMatches, linePlayers, seasonRosterMembers, seasonCourtParents, players, team])
+
+  const additionalRosterListings = useMemo(() => additionalSourceRosterListings(tennisRecordRoster,
+    roster.map(player => player.id)), [tennisRecordRoster, roster])
 
   const teamChatPlayerIds = useMemo(() => Array.from(new Set(
     rosterMembers
@@ -1324,8 +1354,8 @@ function TeamPageContent() {
   }, [matches, players, team])
 
   const seasonOptions = useMemo(() => teamSeasonYears(
-    [...matches, ...rosterMembers, ...summaryTeams, ...tennisRecordRosterEntries], { league: leagueFilter, flight: flightFilter },
-  ), [matches, rosterMembers, summaryTeams, tennisRecordRosterEntries, leagueFilter, flightFilter])
+    [...matches, ...courtParents, ...tennisRecordHistory.map(row => ({ league_name: row.league_name, match_date: row.played_on })), ...rosterMembers, ...summaryTeams, ...tennisRecordRosterEntries], { league: leagueFilter, flight: flightFilter },
+  ), [matches, courtParents, tennisRecordHistory, rosterMembers, summaryTeams, tennisRecordRosterEntries, leagueFilter, flightFilter])
 
   const opponentAnalysis = useMemo(() => {
     const map = new Map<string, { wins: number; losses: number; lastDate: string | null }>()
@@ -1896,7 +1926,7 @@ function TeamPageContent() {
 
             <p style={heroContextText}>
               {completedMatchCount > 0
-                ? `${completedMatchCount} reviewed ${completedMatchCount === 1 ? 'result' : 'results'} shape this team view.`
+                ? `${completedMatchCount} recorded team ${completedMatchCount === 1 ? 'result' : 'results'} shape this team view.`
                 : 'See the team context that helps everyone stay ready.'}
             </p>
 
@@ -1966,11 +1996,11 @@ function TeamPageContent() {
           </div>
 
           <details style={dynamicSummaryCard} open={!isMobile}>
-            <summary style={{ ...(isMobile ? mobileSummaryTitle : summaryTitle), cursor: 'pointer', minHeight: 44, alignContent: 'center' }}>Season stats · {record.wins}–{record.losses}<span style={{ display: 'block', fontSize: 12, fontWeight: 600, marginTop: 5, color: 'var(--shell-copy-muted)' }}>Record, roster and recent results</span></summary>
+            <summary style={{ ...(isMobile ? mobileSummaryTitle : summaryTitle), cursor: 'pointer', minHeight: 44, alignContent: 'center' }}>Season stats · {teamRecordLabel}<span style={{ display: 'block', fontSize: 12, fontWeight: 600, marginTop: 5, color: 'var(--shell-copy-muted)' }}>Record, roster and recent results</span></summary>
             <div style={{ display: 'grid', gap: 14, paddingTop: 12, minWidth: 0 }}>
 
             <div style={dynamicSummaryMetricGrid}>
-              <MetricCard compact={isMobile} label="Record" value={`${record.wins}-${record.losses}`} subtle="Wins / losses" />
+              <MetricCard compact={isMobile} label="Record" value={teamRecordLabel} subtle="Team match wins / losses" />
               <MetricCard
                 compact={isMobile}
                 label="Win rate"
@@ -1980,8 +2010,8 @@ function TeamPageContent() {
               <MetricCard
                 compact={isMobile}
                 label={roster.length ? 'Roster' : tennisRecordRoster.length ? 'Listed' : 'Roster'}
-                value={String(roster.length || tennisRecordRoster.length)}
-                subtle={roster.length ? 'Players tracked' : tennisRecordRoster.length ? 'Recorded roster' : 'Not listed'}
+                value={String(Math.max(roster.length, tennisRecordRoster.length))}
+                subtle={tennisRecordRoster.length > roster.length ? 'Listed players' : roster.length ? 'Players tracked' : 'Not listed'}
               />
             </div>
 
@@ -2029,12 +2059,12 @@ function TeamPageContent() {
                 </span>
                 <span style={featuredTeamResultScoreStyle}>{latestResult.score || 'View'}</span>
               </a>
-            ) : tennisRecordHistory.length > 0 ? (
+            ) : seasonCourtHistory.length > 0 ? (
               <a href="#team-source-history" style={featuredTeamResultStyle}>
                 <span style={sourceHistoryMarkStyle}>•</span>
                 <span style={featuredTeamResultCopyStyle}>
                   <span style={featuredTeamResultKickerStyle}>Team activity</span>
-                  <strong>{tennisRecordHistory.length} results ready to review</strong>
+                  <strong>{seasonCourtHistory.length} recorded courts</strong>
                 </span>
                 <span style={featuredTeamResultScoreStyle}>View</span>
               </a>
@@ -2326,7 +2356,7 @@ function TeamPageContent() {
           <div style={detailDrawerContentStyle}>
             <DataTrustPanel
               title="Team data trust"
-              body="Team pages combine reviewed Player Rosters, scorecards, TIQ league entries, and public tennis context when available. Use Data Assist when a roster, result, or team identity needs review."
+              body="Your team record counts team results. Player records count individual courts. Results that may overlap an existing scorecard stay out of the team record until reviewed. Use Data Assist when a roster or result needs review."
               signals={[
                 { label: 'Source', value: 'Player rosters, scorecards, and TIQ entries' },
                 { label: 'Freshness', value: 'Updates as reviewed uploads connect' },
@@ -2347,7 +2377,7 @@ function TeamPageContent() {
           </section>
         ) : null}
 
-        {!error && !matches.length && !tennisRecordHistory.length ? (
+        {!error && !matches.length && !seasonCourtHistory.length ? (
           <section style={surfaceCard}>
             <h2 style={sectionTitle}>No reviewed scorecards yet</h2>
             <p style={bodyText}>
@@ -2362,18 +2392,18 @@ function TeamPageContent() {
           </section>
         ) : null}
 
-        {!error && tennisRecordHistory.length ? (
+        {!error && seasonCourtHistory.length ? (
           <section style={{ ...surfaceCard, order: 2, scrollMarginTop: 16 }} id="team-source-history">
             <div style={sectionHeadingRow}>
               <div style={sectionHeadingCopyStyle}>
                 <p style={sectionKicker}>Team activity</p>
                 <h2 style={sectionTitle}>Recorded match history</h2>
-                <p style={bodyText}>Match results that are still being connected to this team record.</p>
+                <p style={bodyText}>Individual court results are shown here separately from your team match record.</p>
               </div>
-              <span style={panelCountPill}>{tennisRecordHistory.length} {tennisRecordHistory.length === 1 ? 'line' : 'lines'}</span>
+              <span style={panelCountPill}>{seasonCourtHistory.length} {seasonCourtHistory.length === 1 ? 'line' : 'lines'}</span>
             </div>
             <div style={stackList}>
-              {tennisRecordHistory.slice(0, 8).map((match) => {
+              {seasonCourtHistory.slice(0, 8).map((match) => {
                 const won = match.winner_side && match.team_side ? match.winner_side === match.team_side : null
                 return (
                   <div key={match.source_match_key} style={dynamicListRow}>
@@ -2386,12 +2416,13 @@ function TeamPageContent() {
                     <div style={dynamicHeroActions}>
                       {match.score_text ? <strong>{match.score_text}</strong> : <span style={mutedText}>Score pending</span>}
                       {won != null ? <span style={won ? badgeGreen : badgeBlue}>{won ? 'Win' : 'Loss'}</span> : null}
+                      {match.canonical_match_id || match.source_url ? <Link href={teamResultHref({ id: match.canonical_match_id || match.source_match_key, source_url: match.canonical_match_id ? null : match.source_url })} style={matchDetailLinkStyle}>View court →</Link> : null}
                     </div>
                   </div>
                 )
               })}
             </div>
-            {tennisRecordHistory.length > 8 ? <p style={{ ...mutedText, marginTop: 14 }}>Showing the latest 8 match lines while team history connects.</p> : null}
+            {seasonCourtHistory.length > 8 ? <p style={{ ...mutedText, marginTop: 14 }}>Showing the latest 8 recorded courts.</p> : null}
           </section>
         ) : null}
 
@@ -2757,7 +2788,7 @@ function TeamPageContent() {
                               {match.match_type ? <span>{match.match_type[0].toUpperCase() + match.match_type.slice(1)}</span> : null}
                               {match.score ? <strong>Score {match.score}</strong> : null}
                             </div>
-                            <Link href={`/matches/${encodeURIComponent(match.id)}`} style={matchDetailLinkStyle}>
+                            <Link href={teamResultHref(match)} style={matchDetailLinkStyle}>
                               View match →
                             </Link>
                             {existingReport ? (
@@ -2831,7 +2862,7 @@ function TeamPageContent() {
                       <td style={tableCell}>
                         <div style={scoreCellStackStyle}>
                           <span>{match.score ?? '--'}</span>
-                          <Link href={`/matches/${encodeURIComponent(match.id)}`} style={matchDetailLinkStyle}>
+                          <Link href={teamResultHref(match)} style={matchDetailLinkStyle}>
                             View match →
                           </Link>
                           {existingReport ? (
@@ -3218,10 +3249,11 @@ function TeamPageContent() {
                 </div>
               ) : null}
             </>
-          ) : tennisRecordRoster.length ? (
+          ) : null}
+          {additionalRosterListings.length ? (
             <div style={stackList}>
-              <p style={bodyText}>These players were explicitly listed in an external public roster. They are source context only until a verified roster or scorecard confirms the TenAceIQ team record.</p>
-              {tennisRecordRoster.map((player) => (
+              <p style={bodyText}>These players are listed on the team roster. Court results appear after their scorecards are connected.</p>
+              {additionalRosterListings.map((player) => (
                 <div key={`${player.canonical_player_id || 'source'}-${player.player_name}`} style={dynamicListRow}>
                   <div style={listRowCopyStyle}>
                     {player.canonical_player_id ? <Link href={`/players/${player.canonical_player_id}`} prefetch={false} style={playerLink}><strong>{player.player_name}</strong></Link> : <strong>{player.player_name}</strong>}
@@ -3230,7 +3262,7 @@ function TeamPageContent() {
                 </div>
               ))}
             </div>
-          ) : (
+          ) : !roster.length ? (
             <div style={emptyStateBlock}>
               <p style={emptyState}>
                 {teamExistsFromSummary
@@ -3243,7 +3275,7 @@ function TeamPageContent() {
                   : 'Import this team’s Player Roster, or import scorecards to add player usage.'}
               </p>
             </div>
-          )}
+          ) : null}
         </section>
         ) : null}
       </section>
