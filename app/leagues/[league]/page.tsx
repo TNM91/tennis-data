@@ -3,8 +3,9 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import { loadLeagueCourtData, leagueCourtLeaders, leagueCourtScorePatterns, type LeagueCourtData } from '@/lib/league-court-stats'
 import { teamResultHref } from '@/lib/team-match-results'
-import { CSSProperties, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import SiteShell from '@/app/components/site-shell'
@@ -165,7 +166,10 @@ function LeagueDetailContent() {
     window.history.replaceState(null, '', exploreResumeHref)
   }, [exploreResumeHref])
 
+  const leagueRequest = useRef(0)
+  const invalidateLeagueRequest = useCallback(() => { leagueRequest.current++ }, [])
   const loadLeagueMatches = useCallback(async () => {
+    const request = ++leagueRequest.current
     setLoading(true)
     setError('')
 
@@ -200,6 +204,7 @@ function LeagueDetailContent() {
 
       if (error) throw new Error(error.message)
 
+      if (request !== leagueRequest.current) return
       const exactRows = (data || []) as LeagueMatchRow[]
       setRows(exactRows)
 
@@ -231,20 +236,22 @@ function LeagueDetailContent() {
 
         const { data: fallbackData, error: fallbackError } = await fallbackQuery
         if (fallbackError) throw new Error(fallbackError.message)
+        if (request !== leagueRequest.current) return
         setNearbyRows((fallbackData || []) as LeagueMatchRow[])
       } else {
         setNearbyRows([])
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load league.')
+      if (request === leagueRequest.current) setError(err instanceof Error ? err.message : 'Failed to load league.')
     } finally {
-      setLoading(false)
+      if (request === leagueRequest.current) setLoading(false)
     }
   }, [district, flight, leagueFromRoute, section])
 
   useEffect(() => {
     void loadLeagueMatches()
-  }, [loadLeagueMatches])
+    return invalidateLeagueRequest
+  }, [loadLeagueMatches, invalidateLeagueRequest])
 
   const validRows = useMemo(() => {
     return rows.filter((row) => {
@@ -450,62 +457,32 @@ function LeagueDetailContent() {
   }, [validRows, teamSummaries])
   const hasLeagueData = validRows.length > 0
 
-  const [topPerformers, setTopPerformers] = useState<Array<{ id: string; name: string; wins: number; losses: number; appearances: number }>>([])
-
+  const [courtData, setCourtData] = useState<LeagueCourtData>({ courts: [], players: [] })
+  const [courtError, setCourtError] = useState('')
+  const [courtsLoading, setCourtsLoading] = useState(false)
   useEffect(() => {
-    if (rows.length === 0) return
-    const matchIds = rows.map((r) => r.id)
-    const CHUNK = 200
-    const chunks: string[][] = []
-    for (let i = 0; i < matchIds.length; i += CHUNK) chunks.push(matchIds.slice(i, i + CHUNK))
+    let active = true
+    setCourtData({ courts: [], players: [] })
+    setCourtError('')
+    setCourtsLoading(false)
+    if (loading || error || !validRows.length) return
+    setCourtsLoading(true)
     void (async () => {
-      const all: Array<{ match_id: string; side: string; player_id: string; players: { id: string; name: string } | null }> = []
-      const matchWinnerMap = new Map(rows.map((r) => [r.id, r.winner_side]))
-      for (const chunk of chunks) {
-        const { data } = await supabase
-          .from('match_players')
-          .select('match_id, side, player_id, players(id, name)')
-          .in('match_id', chunk)
-        if (data) all.push(...(data as unknown as typeof all))
+      try {
+        const result = await loadLeagueCourtData(supabase, { league: leagueFromRoute, flight, section, district }, validRows.flatMap(row => row.match_date ? [row.match_date] : []))
+        if (!active) return
+        if (result.error || !result.data) throw new Error('Court statistics could not be loaded. Try refreshing.')
+        setCourtData(result.data)
+      } catch {
+        if (active) setCourtError('Court statistics could not be loaded. Try refreshing.')
+      } finally {
+        if (active) setCourtsLoading(false)
       }
-      const map = new Map<string, { id: string; name: string; wins: number; losses: number; appearances: number }>()
-      for (const row of all) {
-        const playerData = Array.isArray(row.players) ? row.players[0] : row.players
-        if (!playerData?.id || !playerData?.name) continue
-        const winner = matchWinnerMap.get(row.match_id)
-        const existing = map.get(playerData.id) ?? { id: playerData.id, name: playerData.name, wins: 0, losses: 0, appearances: 0 }
-        existing.appearances++
-        if (winner === row.side) existing.wins++
-        else if (winner && winner !== row.side) existing.losses++
-        map.set(playerData.id, existing)
-      }
-      setTopPerformers(
-        [...map.values()]
-          .filter((p) => p.appearances >= 2)
-          .sort((a, b) => b.wins - a.wins || b.appearances - a.appearances)
-          .slice(0, 8)
-      )
     })()
-  }, [rows])
-
-  const matchQualityStats = useMemo(() => {
-    let dominant = 0   // has a 6-0 set
-    let tiebreak = 0   // has a 7-6 set
-    let threeSets = 0  // 3 sets played
-    let missingScore = 0
-    for (const row of validRows) {
-      const s = (row.score || '').trim()
-      if (!s) { missingScore++; continue }
-      const sets = s.split(/[;,|]/).map((t) => t.trim()).filter(Boolean)
-      if (sets.length >= 3) threeSets++
-      for (const set of sets) {
-        if (/^6-0$|^0-6$/.test(set)) { dominant++; break }
-        if (/^7-6$|^6-7$/.test(set)) { tiebreak++; break }
-      }
-    }
-    const total = validRows.length
-    return { dominant, tiebreak, threeSets, missingScore, total }
-  }, [validRows])
+    return () => { active = false }
+  }, [validRows, loading, error, leagueFromRoute, flight, section, district])
+  const topPerformers = useMemo(() => leagueCourtLeaders(courtData), [courtData])
+  const matchQualityStats = useMemo(() => leagueCourtScorePatterns(courtData.courts), [courtData])
 
   const leagueLeader = teamSummaries[0] ?? null
   const leagueChaser = teamSummaries[1] ?? null
@@ -787,13 +764,13 @@ function LeagueDetailContent() {
         </div>
         ) : null}
 
-        {matchQualityStats.total > 0 ? (
-          <div style={matchQualityRowStyle}>
+        {!loading && !courtsLoading && !courtError && matchQualityStats.total > 0 ? (
+          <div style={matchQualityRowStyle} aria-label="Completed court score patterns">
             {[
               { label: 'Dominant (6-0 set)', count: matchQualityStats.dominant, color: '#d9f84a', bg: 'rgba(155,225,29,0.10)', border: 'rgba(155,225,29,0.20)' },
               { label: 'Tiebreak (7-6 set)', count: matchQualityStats.tiebreak, color: '#fed7aa', bg: 'rgba(251,146,60,0.10)', border: 'rgba(251,146,60,0.20)' },
-              { label: '3-set battles', count: matchQualityStats.threeSets, color: '#93c5fd', bg: 'rgba(116,190,255,0.10)', border: 'rgba(116,190,255,0.20)' },
-              { label: 'Missing scores', count: matchQualityStats.missingScore, color: matchQualityStats.missingScore > 0 ? '#fca5a5' : 'var(--shell-copy-muted)', bg: matchQualityStats.missingScore > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.04)', border: matchQualityStats.missingScore > 0 ? 'rgba(239,68,68,0.18)' : 'rgba(255,255,255,0.08)' },
+              { label: 'Deciding sets', count: matchQualityStats.threeSets, color: '#93c5fd', bg: 'rgba(116,190,255,0.10)', border: 'rgba(116,190,255,0.20)' },
+              { label: 'Scores unavailable', count: matchQualityStats.missingScore, color: matchQualityStats.missingScore > 0 ? '#fca5a5' : 'var(--shell-copy-muted)', bg: matchQualityStats.missingScore > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.04)', border: matchQualityStats.missingScore > 0 ? 'rgba(239,68,68,0.18)' : 'rgba(255,255,255,0.08)' },
             ].map((item) => (
               <div key={item.label} style={{ ...matchQualityPillStyle, background: item.bg, border: `1px solid ${item.border}` }}>
                 <span style={{ fontSize: 15, fontWeight: 900, color: item.color, overflowWrap: 'anywhere' }}>{item.count}</span>
@@ -871,9 +848,14 @@ function LeagueDetailContent() {
             </div>
           ) : (
             <>
-              {topPerformers.length > 0 ? (
+              {courtsLoading || courtError || topPerformers.length === 0 ? (
+                <div style={{ ...stateHelperText, marginBottom: 24 }} role="status">
+                  {courtsLoading ? 'Loading player court records…' : courtError || 'Player court leaders appear once linked players have at least two completed courts.'}
+                </div>
+              ) : null}
+              {!courtsLoading && !courtError && topPerformers.length > 0 ? (
                 <section style={{ marginBottom: 24 }}>
-                  <div style={topPerformerSectionLabelStyle}>Top performers</div>
+                  <div style={topPerformerSectionLabelStyle}>Player court leaders</div>
                   <div style={topPerformerGridStyle}>
                     {topPerformers.map((p, i) => {
                       const winPct = p.appearances > 0 ? Math.round((p.wins / p.appearances) * 100) : 0
@@ -884,7 +866,7 @@ function LeagueDetailContent() {
                             <span style={topPerformerWinPctStyle(winPct)}>{winPct}%</span>
                           </div>
                           <div style={topPerformerNameStyle}>{p.name}</div>
-                          <div style={topPerformerMetaStyle}>{p.wins}W-{p.losses}L | {p.appearances} matches</div>
+                          <div style={topPerformerMetaStyle}>{p.wins}W-{p.losses}L | {p.appearances} courts</div>
                         </Link>
                       )
                     })}
