@@ -23,6 +23,10 @@ export async function GET(request: Request) {
   try {
     const service = createServerSupabaseClient()
     const summary = await runAutomaticTennisRecordSync(service)
+    // The database checks only registered league pages, at most once a week.
+    // Monitoring failure must not undo a completed collection checkpoint.
+    const coverage = await service.rpc('check_tennisrecord_league_coverage')
+    if (coverage.error) console.error('[api/cron/tennisrecord-automation] league coverage check failed', { message: coverage.error.message })
     console.info('[api/cron/tennisrecord-automation] completed', {
       durationMs: Date.now() - startedAt,
       status: summary.status,

@@ -1,4 +1,5 @@
 import { isKnownMissouriPlayerHistory } from './current-refresh'
+import { isLeagueWatchSlot, recordLeagueWatchCapture } from './league-coverage'
 import { assignMissouriPlayerRefreshPages, enrollDiscoveredMissouriPlayers } from './missouri-player-refresh'
 import { conflictsWithTennisRecordSourceIdentity } from './source-player-link'
 import { createHash } from 'node:crypto'
@@ -19,7 +20,7 @@ import { readSourceOutageState, recordSourceOutageFailure, sourceOutageIsCooling
 type AutomationState = 'manual' | 'bootstrap' | 'weekly'
 type SourceOutageSettings = { source_outage_state?: unknown }
 type Settings = { enabled: boolean; current_refresh_enabled?: boolean; current_refresh_seeded_at?: string | null; current_refresh_player_cursor?: string | null; current_refresh_seed_cycle_at?: string | null; min_request_interval_ms: number; max_requests_per_run: number; weekly_lookback_days: number; automation_state: AutomationState; bootstrap_started_at: string | null; bootstrap_completed_at: string | null; weekly_refresh_started_at: string | null; active_campaign_id: string | null; rating_recalculation_requested_at: string | null; rating_recalculation_reason: string | null; rating_recalculated_at: string | null }
-type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number; deferred_retry_count: number; deferred_retry_at: string | null }
+type QueueRow = { id: string; source_url: string; page_kind: string; campaign_id: string | null; retry_count: number; deferred_retry_count: number; deferred_retry_at: string | null; league_watch?: boolean }
 type SyncTriggerKind = 'manual' | 'bootstrap' | 'weekly'
 type SyncInput = { triggerKind: SyncTriggerKind; requestedByUserId?: string; limit?: number; pageKinds?: string[]; pageKindPlan?: readonly (readonly string[])[]; campaignId?: string | null; recalculateRatings?: boolean; currentSeason?: boolean; replayOnly?: boolean }
 type ProvisionalTennisRecordPlayer = { id: string; source_player_key: string; name: string; normalized_name: string; city?: string | null; state?: string | null; ntrp_label?: string | null }
@@ -565,7 +566,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
   // version paged every verified player and loaded every NTRP observation to
   // render secondary calibration metrics. During a large import that made the
   // status page itself compete with the collector for database IO.
-  const [settings, lastRun, lastSuccessfulRun, recentCompletedRuns, pending, conflicts, ratingPending, identities, campaigns] = await Promise.all([
+  const [settings, lastRun, lastSuccessfulRun, recentCompletedRuns, pending, conflicts, ratingPending, identities, campaigns, leagueCoverage] = await Promise.all([
     service.from('tennisrecord_collector_settings').select('*').eq('id', true).maybeSingle(),
     service.from('tennisrecord_sync_runs').select('*').neq('trigger_kind', 'ratings').order('started_at', { ascending: false }).limit(1).maybeSingle(),
     service.from('tennisrecord_sync_runs').select('completed_at').neq('trigger_kind', 'ratings').eq('status', 'completed').not('completed_at', 'is', null).order('started_at', { ascending: false }).limit(1).maybeSingle(),
@@ -575,6 +576,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
     service.from('tennisrecord_canonical_matches').select('fingerprint', TENNISRECORD_STATUS_COUNT).not('canonical_match_id', 'is', null).is('rating_processed_at', null),
     service.from('tennisrecord_player_identities').select('staged_player_id,status,confidence,tennisrecord_staged_players(name,city,state,ntrp_label,source_url)').in('status', ['pending', 'ambiguous']).order('updated_at').limit(50),
     service.from('tennisrecord_campaigns').select('id,slug,name,region_label,starts_on,ends_on,status,seed_provenance').order('created_at'),
+    service.from('tennisrecord_league_watches').select('source_url,label,checked_at,next_check_at,report').eq('enabled', true).order('label').limit(50),
   ])
   if (settings.error || lastRun.error || lastSuccessfulRun.error || recentCompletedRuns.error || pending.error || conflicts.error || ratingPending.error || identities.error || campaigns.error) throw new Error('TennisRecord operations status is unavailable.')
   const activeCampaignId = (settings.data as Settings | null)?.active_campaign_id || null
@@ -668,6 +670,7 @@ export async function getTennisRecordOperationalStatus(service: SupabaseClient) 
   const collectorSettings = settings.data as Settings | null
   return {
     settings: settings.data,
+    leagueCoverage: leagueCoverage.error ? null : leagueCoverage.data,
     lastRun: lastRun.data,
     automationCadenceMinutes: TENNISRECORD_AUTOMATION_INTERVAL_MINUTES,
     safetyThrottle,
@@ -1022,7 +1025,12 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
       if (!hasTennisRecordFetchBudget(sourceDeadlineAt, settings.min_request_interval_ms)) break
       const preferredKinds = input.pageKindPlan?.[index] || input.pageKinds || []
       const preferredScope = input.currentSeason && missouriCurrentCampaignId ? currentSeasonPreferredScope(index) : 'any'
-      const job = await selectNextTennisRecordQueueJob(service, input, preferredKinds, preferredScope, missouriCurrentCampaignId)
+      const watchResult = isLeagueWatchSlot(index, input.currentSeason) && !input.campaignId
+        ? await service.rpc('next_tennisrecord_watched_page')
+        : { data: null, error: null }
+      if (watchResult.error) throw new Error(watchResult.error.message)
+      const watchedJob = (watchResult.data?.[0] as QueueRow | undefined) || null
+      const job = watchedJob || await selectNextTennisRecordQueueJob(service, input, preferredKinds, preferredScope, missouriCurrentCampaignId)
         || (input.pageKindPlan ? await selectNextTennisRecordQueueJob(service, input, input.pageKinds || []) : null)
       if (!job) break
       // Queue selection can itself take time. Do not claim another row once
@@ -1089,8 +1097,9 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
           if (review.error) throw new Error(review.error.message)
           continue
         }
+        const watchedFacts = job.league_watch && sourcePageId ? await recordLeagueWatchCapture(service, parsed, page.url, sourcePageId, page.html) : null
         if (job.page_kind === 'match' && parsed.matches.length === 0 && !parsed.teamEvent) {
-          const scheduledRefresh = settings.current_refresh_enabled ? futureScorecardRefreshAt(page.html, parsed) : null
+          const scheduledRefresh = settings.current_refresh_enabled ? (watchedFacts?.pending ? nextCurrentRefreshAt() : futureScorecardRefreshAt(page.html, parsed)) : null
           if (scheduledRefresh) {
             const scheduled = await service.from('tennisrecord_crawl_queue').update({
               status: 'done', failure_reason: '', completed_at: new Date().toISOString(),
@@ -1357,7 +1366,7 @@ async function completeActiveTennisRecordCampaign(service: SupabaseClient, activ
 
 async function selectNextTennisRecordQueueJob(service: SupabaseClient, input: SyncInput, pageKinds: readonly string[], preferredScope: 'missouri' | 'national' | 'any' = 'any', missouriCampaignId: string | null = null) {
   const find = async (scope: typeof preferredScope) => {
-    let query = service.from('tennisrecord_crawl_queue').select('id,source_url,page_kind,campaign_id,retry_count,deferred_retry_count,deferred_retry_at').eq('status', 'pending')
+    let query = service.from('tennisrecord_crawl_queue').select('id,source_url,page_kind,campaign_id,retry_count,deferred_retry_count,deferred_retry_at,league_watch').eq('status', 'pending')
     query = query.or(`deferred_retry_at.is.null,deferred_retry_at.lte.${new Date().toISOString()}`)
     if (pageKinds.length) query = query.in('page_kind', pageKinds)
     if (input.campaignId) query = query.eq('campaign_id', input.campaignId)
