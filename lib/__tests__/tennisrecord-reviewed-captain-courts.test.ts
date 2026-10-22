@@ -57,7 +57,7 @@ describe('explicit reviewed captain courts', () => {
 })
 
 describe('reviewed captain reconciliation', () => {
-  function database(options: { collision?: boolean; changedPlayer?: boolean; changedWinner?: boolean; existing?: boolean; failReviewRead?: boolean } = {}) {
+  function database(options: { collision?: boolean; changedPlayer?: boolean; changedWinner?: boolean; existing?: boolean; unlinkedExisting?: boolean; failReviewRead?: boolean } = {}) {
     const writes: { table: string; data: Record<string, unknown> }[] = []
     const link = fixture()
     if (options.changedPlayer) link.court!.match_players[0].player_id = 'changed'
@@ -80,7 +80,7 @@ describe('reviewed captain reconciliation', () => {
           if (table === 'tennisrecord_reviewed_captain_courts') return options.failReviewRead ? { data: null, error: { message: 'Review read failed' } } : { data: [link], error: null }
           if (table === 'tennisrecord_staged_players') return { data: [{ id: 'sa-id', source_player_key: 'sa' }, { id: 'sb-id', source_player_key: 'sb' }], error: null }
           if (table === 'tennisrecord_player_identities') return { data: [{ staged_player_id: 'sa-id', canonical_player_id: 'a', status: 'matched' }, { staged_player_id: 'sb-id', canonical_player_id: 'b', status: 'matched' }], error: null }
-          if (table === 'tennisrecord_canonical_matches') return { data: operation('range') ? [{ fingerprint: 'legacy', winning_source: 'captain_upload' }] : options.existing ? { fingerprint: 'fp', canonical_match_id: 'court' } : null, error: null }
+          if (table === 'tennisrecord_canonical_matches') return { data: operation('range') ? [{ fingerprint: 'legacy', winning_source: 'captain_upload' }] : options.existing || options.unlinkedExisting ? { fingerprint: 'fp', canonical_match_id: options.unlinkedExisting ? null : 'court' } : null, error: null }
           if (table === 'tennisrecord_staged_matches') return { data: operation('range') ? [{ id: 'evidence', fingerprint: 'fp', source_url: url }, ...(options.collision ? [{ id: 'collision', fingerprint: 'legacy', source_url: url.replace('123','456') }] : [])] : [incoming], error: null }
           if (table === 'tennisrecord_match_observations') return { data: operation('range') ? [] : [localObservation, sourceObservation].filter(Boolean), error: null }
           throw new Error(`Unexpected table: ${table}`)
@@ -102,6 +102,11 @@ describe('reviewed captain reconciliation', () => {
     const db = database({ existing: true })
     expect((await reconcileTennisRecordMatches(db.service, ['key'], false)).duplicates).toBe(1)
     expect(db.writes[1].data).not.toHaveProperty('rating_processed_at')
+  })
+  it('carries the captain rating marker when a prior source association exists without a played court', async () => {
+    const db = database({ unlinkedExisting: true })
+    expect((await reconcileTennisRecordMatches(db.service, ['key'], false)).ratingChanged).toBe(false)
+    expect(db.writes[1].data).toMatchObject({ canonical_match_id: 'court', rating_processed_at: db.link.rating_processed_at })
   })
   it('keeps a source disagreement visible while preserving the captain winner', async () => {
     const db = database({ changedWinner: true })

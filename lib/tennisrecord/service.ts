@@ -2291,7 +2291,7 @@ export async function reconcileTennisRecordMatches(service: SupabaseClient, sour
     const correction = existing && existing.id === canonicalMatchId ? tennisRecordResultCorrection(existing, winner) : null
     // Queue before changing the winner. A failed/interrupted write must not
     // leave corrected evidence marked as already reflected in TiQ ratings.
-    const result = await service.from('tennisrecord_canonical_matches').upsert({ fingerprint: item.fingerprint, winning_observation_id: winner.id, canonical_match_id: canonicalMatchId, winning_source: winner.source, has_conflict: conflicting.length > 0, conflict_count: conflicting.length, reconciled_at: new Date().toISOString(), ...(reviewed && !existingCanonical.data ? { rating_processed_at: reviewed.link.rating_processed_at } : {}), ...(correction ? { rating_processed_at: null } : {}) }, { onConflict: 'fingerprint' })
+    const result = await service.from('tennisrecord_canonical_matches').upsert({ fingerprint: item.fingerprint, winning_observation_id: winner.id, canonical_match_id: canonicalMatchId, winning_source: winner.source, has_conflict: conflicting.length > 0, conflict_count: conflicting.length, reconciled_at: new Date().toISOString(), ...(reviewed && !existingCanonical.data?.canonical_match_id ? { rating_processed_at: reviewed.link.rating_processed_at } : {}), ...(correction ? { rating_processed_at: null } : {}) }, { onConflict: 'fingerprint' })
     if (result.error) throw new Error(result.error.message)
     if (correction && existing) {
       let update = service.from('matches').update(correction).eq('id', existing.id).eq('source', 'tennisrecord')
