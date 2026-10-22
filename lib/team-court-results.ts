@@ -6,6 +6,7 @@ export type TeamCourtMatch = {
   winner_side: 'A' | 'B' | null
   match_type: 'singles' | 'doubles' | null
   line_number: string | null
+  score?: string | null
 }
 type ReadResult<T> = { data: T[] | null; error: { message: string } | null }
 const PAGE_SIZE = 200
@@ -34,7 +35,7 @@ export async function loadTeamCourtResults(client: SupabaseClient, parentMatches
     const dates = [...new Set(batchParents.map(parent => parent.matchDate!))]
     const allowed = new Set(batch)
     for (let offset = 0; ; offset += PAGE_SIZE) {
-      let query = client.from('matches').select('id,external_match_id,winner_side,match_type,line_number')
+      let query = client.from('matches').select('id,external_match_id,winner_side,match_type,line_number,score')
         .not('line_number', 'is', null).or(batch.map(teamCourtPrefixFilter).join(','))
       // Keep the existing date index available; an unbounded regex over the
       // historical archive is slower than this team's known fixture dates.
