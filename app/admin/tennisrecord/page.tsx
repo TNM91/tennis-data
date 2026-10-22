@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase'
 import { readPrivateClientSnapshot, writePrivateClientSnapshot } from '@/lib/private-client-snapshot'
 
 type Status = {
+  leagueCoverage?: Array<{ source_url: string; label: string; checked_at: string | null; next_check_at: string; report: { knownTeams: number; knownScorecards: number; missingPages: number; stalePages: number; heldPages: number; missingRosters: number; incompleteScorecards: number; unpostedResults: number; unpromotedCourts: number; directoryVerified: boolean; mappingVerified: boolean } | null }> | null
   settings: { enabled?: boolean; bootstrap_region?: string; automation_state?: 'manual' | 'bootstrap' | 'weekly'; current_refresh_enabled?: boolean; active_campaign_id?: string | null; max_requests_per_run?: number; bootstrap_started_at?: string | null; bootstrap_completed_at?: string | null; weekly_refresh_started_at?: string | null } | null
   lastRun: Record<string, unknown> | null
   automationCadenceMinutes: number
@@ -282,6 +283,20 @@ export default function TennisRecordAdminPage() {
           <Metric label="Evidence review" value={String(progress?.review ?? '—')} />
           <Metric label="Attention queue" value={status?.attentionItems?.length ?? '—'} />
         </div>
+        <section aria-label="Weekly league coverage" style={{ marginTop: 20 }}>
+          <h2>Weekly league coverage</h2>
+          <p className="subtle-text">Check known teams, rosters and scorecards each week. A completed collection run does not mean every league result is available.</p>
+          {!status?.leagueCoverage?.length && <p className="subtle-text">No league coverage report is available yet.</p>}
+          {status?.leagueCoverage?.map(league => <article key={league.source_url} style={{ marginBottom: 12 }}>
+            <strong>{league.label}</strong>
+            <p className="subtle-text">Checked {formatDateTime(league.checked_at)}. Next check {formatDateTime(league.next_check_at)}.</p>
+            {league.report && <>
+              <p>{league.report.knownTeams} known teams · {league.report.knownScorecards} scorecards · {league.report.stalePages} stale pages · {league.report.heldPages} held for review</p>
+              <p className="subtle-text">{league.report.missingPages} missing pages · {league.report.missingRosters} incomplete rosters · {league.report.incompleteScorecards} incomplete scorecards · {league.report.unpostedResults} unposted results · {league.report.unpromotedCourts} courts awaiting verified player statistics.</p>
+              {(!league.report.directoryVerified || !league.report.mappingVerified) && <p>Coverage needs review: {!league.report.directoryVerified ? 'the league directory is not verified. ' : ''}{!league.report.mappingVerified ? 'League label mapping is not verified.' : ''}</p>}
+            </>}
+          </article>)}
+        </section>
         <section aria-label="Import health" style={{ marginTop: 20, padding: 16, borderRadius: 18, border: `1px solid ${pipelineHealth?.state === 'attention' ? 'rgba(255,157,114,0.52)' : 'rgba(116,190,255,0.2)'}`, background: pipelineHealth?.state === 'attention' ? 'rgba(98, 38, 24, 0.22)' : 'rgba(11, 31, 55, 0.42)' }}>
           <div style={{ display: 'grid', gap: 4 }}>
             <strong style={{ color: 'var(--foreground-strong)', fontSize: 18 }}>{pipelineHealth?.state === 'attention' ? 'Import health needs review' : pipelineHealth?.state === 'cooling_down' ? 'Import health: safety pause' : pipelineHealth?.state === 'paused' ? 'Import health: paused' : 'Import health: on pace'}</strong>

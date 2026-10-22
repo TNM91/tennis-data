@@ -20,7 +20,7 @@ type Op = { name: string; args: unknown[] }
 type Call = { table: string; ops: Op[] }
 const op = (call: Call, name: string) => call.ops.find(o => o.name === name)
 
-function fixture(options: { missouriDue?: boolean; eventAliases?: string[]; eventEvidence?: Row[]; priorPlayer?: Row; kind?: string; retryCount?: number; deferredCount?: number; replay?: Row[]; failSave?: boolean; outage?: Row; lockedOutage?: Row; jobCount?: number; failOutageSave?: boolean; failCapture?: boolean; staleRun?: boolean; ratingRefreshRequested?: boolean; ratingPending?: boolean } = {}) {
+function fixture(options: { watched?: boolean; missouriDue?: boolean; eventAliases?: string[]; eventEvidence?: Row[]; priorPlayer?: Row; kind?: string; retryCount?: number; deferredCount?: number; replay?: Row[]; failSave?: boolean; outage?: Row; lockedOutage?: Row; jobCount?: number; failOutageSave?: boolean; failCapture?: boolean; staleRun?: boolean; ratingRefreshRequested?: boolean; ratingPending?: boolean } = {}) {
   const calls: Call[] = []
   let selections = 0
   let outage = options.outage || {}
@@ -44,7 +44,7 @@ function fixture(options: { missouriDue?: boolean; eventAliases?: string[]; even
       if (options.priorPlayer && table === 'tennisrecord_staged_players') return { data: [options.priorPlayer], error: null }
       if (options.staleRun && table === 'tennisrecord_sync_runs' && op(call, 'lt')) return { data: [{ id: 'stale-run' }], error: null }
       if (table === 'tennisrecord_collector_settings') return { data: { automation_state: 'bootstrap', source_outage_state: op(call, 'select')?.args[0] === 'source_outage_state' ? options.lockedOutage || outage : outage, enabled: true, current_refresh_enabled: true, current_refresh_seeded_at: new Date(now).toISOString(), min_request_interval_ms: 3000, max_requests_per_run: options.jobCount || 1, rating_recalculation_requested_at: options.ratingRefreshRequested ? new Date(now).toISOString() : null } }
-      if (table === 'tennisrecord_crawl_queue' && String(op(call, 'select')?.args[0]).startsWith('id,source_url,page_kind')) return { data: ++selections <= (options.jobCount || 1) && !options.replay ? { id: `queue-${selections}`, source_url: url, page_kind: options.kind || 'player', retry_count: options.retryCount || 0, deferred_retry_count: options.deferredCount || 0 } : null }
+      if (table === 'tennisrecord_crawl_queue' && String(op(call, 'select')?.args[0]).startsWith('id,source_url,page_kind')) return { data: ++selections <= (options.jobCount || 1) && !options.replay ? { id: `queue-${selections}`, league_watch: options.watched, source_url: url, page_kind: options.kind || 'player', retry_count: options.retryCount || 0, deferred_retry_count: options.deferredCount || 0 } : null }
       if (table === 'tennisrecord_source_pages') return { data: options.replay || [] }
       return { data: [], error: null }
     }
@@ -173,6 +173,20 @@ describe('source-event guard runs before import writes', () => {
 })
 
 describe('HTTP success is required for import completion', () => {
+  it('keeps a monitored past unposted scorecard on weekly refresh instead of permanently quarantining it', async () => {
+    response(200)
+    const sourceUrl = 'https://www.tennisrecord.com/adult/matchresults.aspx?year=2027&mid=123'
+    vi.mocked(fetchTennisRecordPage).mockResolvedValue({ url: sourceUrl, status: 200, html: 'Scheduled Date: 8/1/2026', blockReason: '', contentHash: 'unposted', transientRetries: 0 })
+    vi.mocked(parseTennisRecordMatchPage).mockReturnValue({ players: [], teamMembers: [], matches: [], discoveredUrls: [],
+      teams: ['Home', 'Away'].map(name => ({ sourceTeamKey: name, name, leagueName: '2027 Fall', flight: '4.5', seasonYear: 2027, sourceUrl })),
+      leagues: [{ sourceLeagueKey: 'league', name: '2027 Fall', flight: '4.5', seasonYear: 2027, sourceUrl }],
+    })
+    const f = fixture({ kind: 'match', watched: true })
+    const result = await runTennisRecordSync(f.db, { triggerKind: 'weekly', currentSeason: true, recalculateRatings: false })
+    expect(result).toMatchObject({ pagesProcessed: 1, parserFailures: 0, matchesStaged: 0 })
+    expect(f.queueWrites().at(-1)).toMatchObject({ status: 'done', refresh_due_at: '2026-09-12T17:00:00.000Z' })
+    expect(f.calls.some(c => c.table === 'matches' && (op(c, 'insert') || op(c, 'update')))).toBe(false)
+  })
   it('uses the real parser to block a 200 No Player Found response before any identity write', async () => {
     response(200)
     const real = await vi.importActual<typeof import('../tennisrecord/parser')>('../tennisrecord/parser')
