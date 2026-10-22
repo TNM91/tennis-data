@@ -20,7 +20,7 @@ type Op = { name: string; args: unknown[] }
 type Call = { table: string; ops: Op[] }
 const op = (call: Call, name: string) => call.ops.find(o => o.name === name)
 
-function fixture(options: { eventAliases?: string[]; eventEvidence?: Row[]; priorPlayer?: Row; kind?: string; retryCount?: number; deferredCount?: number; replay?: Row[]; failSave?: boolean; outage?: Row; lockedOutage?: Row; jobCount?: number; failOutageSave?: boolean; failCapture?: boolean; staleRun?: boolean; ratingRefreshRequested?: boolean; ratingPending?: boolean } = {}) {
+function fixture(options: { missouriDue?: boolean; eventAliases?: string[]; eventEvidence?: Row[]; priorPlayer?: Row; kind?: string; retryCount?: number; deferredCount?: number; replay?: Row[]; failSave?: boolean; outage?: Row; lockedOutage?: Row; jobCount?: number; failOutageSave?: boolean; failCapture?: boolean; staleRun?: boolean; ratingRefreshRequested?: boolean; ratingPending?: boolean } = {}) {
   const calls: Call[] = []
   let selections = 0
   let outage = options.outage || {}
@@ -36,6 +36,8 @@ function fixture(options: { eventAliases?: string[]; eventEvidence?: Row[]; prio
       if (options.failCapture && table === 'tennisrecord_source_pages' && op(call, 'upsert')) return { error: { message: 'Database network timeout' } }
       if (options.failSave && table === 'tennisrecord_crawl_queue' && update?.failure_reason) return { error: { message: 'Retry save failed' } }
       if (op(call, 'insert') || op(call, 'upsert') || update) return { data: { id: 'saved-evidence' }, error: null }
+      if (options.missouriDue && table === 'tennisrecord_campaigns') return { data: { id: op(call, 'eq')?.args[1] === 'us-2025-current' ? 'us' : 'mo' }, error: null }
+      if (options.missouriDue && table === 'tennisrecord_crawl_queue' && op(call, 'select')?.args[0] === 'id') return { data: { id: 'overdue' }, error: null }
       if (options.eventEvidence && table === 'tennisrecord_staged_matches' && op(call, 'range')) return { data: options.eventEvidence, error: null }
       if (options.eventAliases && table === 'tennisrecord_canonical_matches') return { data: op(call, 'range') ? options.eventAliases.map(fingerprint => ({ fingerprint })) : { canonical_match_id: 'existing-result' }, error: null }
       if (options.ratingPending && table === 'tennisrecord_canonical_matches' && op(call, 'limit')) return { data: [{ fingerprint: 'pending-rating' }], error: null }
@@ -79,6 +81,22 @@ describe('source roster persistence', () => {
     expect(op(write, 'upsert')?.args).toEqual([[expect.objectContaining({ source_url: member.sourceUrl, raw: member, normalized_team_name: 'example' })],
       { onConflict: 'normalized_team_name,source_player_key,source_url' }])
     expect(f.calls.some(call => call.table === 'team_roster_members' || call.table === 'matches')).toBe(false)
+  })
+})
+
+describe('automatic current-season queue fairness', () => {
+  it('keeps nationwide claims available while Missouri is overdue', async () => {
+    response(200)
+    const f = fixture({ missouriDue: true, jobCount: 3 })
+    expect(await runAutomaticTennisRecordSync(f.db)).toMatchObject({ pagesAttempted: 3 })
+    const claims = f.calls.filter(call => call.table === 'tennisrecord_crawl_queue'
+      && String(op(call, 'select')?.args[0]).startsWith('id,source_url,page_kind'))
+    expect(claims).toHaveLength(3)
+    expect(claims[0].ops).toContainEqual({ name: 'eq', args: ['campaign_id', 'mo'] })
+    expect(claims[1].ops).toContainEqual({ name: 'eq', args: ['campaign_id', 'mo'] })
+    expect(claims[2].ops).toContainEqual({ name: 'neq', args: ['campaign_id', 'mo'] })
+    expect(claims[2].ops).not.toContainEqual({ name: 'eq', args: ['campaign_id', 'mo'] })
+    expect(claims.every(call => call.ops.some(o => o.name === 'eq' && o.args[0] === 'refresh_season' && o.args[1] === 2026))).toBe(true)
   })
 })
 
