@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { teamResultHref } from '@/lib/team-match-results'
+import { loadTeamCourtPlayers, loadTeamCourtResults, type TeamCourtMatch } from '@/lib/team-court-results'
 import { usePublicCompetitionContent } from '@/app/components/public-competition-content-context'
 import PublicTeamProfileSnapshot from '@/app/components/public-team-profile-snapshot'
 import React from 'react'
@@ -92,13 +93,7 @@ type TeamMatch = {
   line_number?: string | null
 }
 
-type LineMatch = {
-  id: string
-  external_match_id: string | null
-  winner_side: 'A' | 'B' | null
-  match_type: 'singles' | 'doubles' | null
-  line_number: string | null
-}
+type LineMatch = TeamCourtMatch
 
 type TeamRatingStatus = 'Bump Up Pace' | 'Trending Up' | 'Holding' | 'At Risk' | 'Drop Watch'
 type RosterFilter = 'all' | 'played' | 'roster-only' | 'singles' | 'doubles' | 'needs-mobile'
@@ -799,11 +794,6 @@ function TeamPageContent() {
         .map((m) => cleanText(m.external_match_id))
         .filter((id): id is string => id !== null)
 
-      const matchDates = scopedMatches
-        .map((m) => m.match_date)
-        .filter((d): d is string => Boolean(d))
-        .sort()
-
       let fetchedLineMatches: LineMatch[] = []
       let fetchedLinePlayers: MatchPlayer[] = []
 
@@ -833,19 +823,11 @@ function TeamPageContent() {
       type LineResult = { data: LineMatch[] | null; error: { message: string } | null }
       let lineDataPromise: Promise<LineResult> = Promise.resolve({ data: null, error: null })
 
-      if (parentExternalIds.length > 0 && matchDates.length > 0) {
-        let lineQuery = supabase
-          .from('matches')
-          .select('id, external_match_id, winner_side, match_type, line_number')
-          .not('line_number', 'is', null)
-          .gte('match_date', matchDates[0])
-          .lte('match_date', matchDates[matchDates.length - 1])
-
-        if (leagueFilter) lineQuery = lineQuery.eq('league_name', leagueFilter)
-        if (flightFilter) lineQuery = lineQuery.eq('flight', flightFilter)
-
-        lineDataPromise = lineQuery as unknown as Promise<LineResult>
-      }
+      if (parentExternalIds.length > 0) lineDataPromise = loadTeamCourtResults(supabase,
+        scopedMatches.flatMap(match => {
+          const externalId = cleanText(match.external_match_id)
+          return externalId ? [{ externalId, matchDate: match.match_date }] : []
+        }))
 
       const [{ data: playerData, error: playerError }, lineResult] = await Promise.all([
         playerDataPromise,
@@ -874,9 +856,7 @@ function TeamPageContent() {
 
         if (fetchedLineMatches.length > 0) {
           const lineIds = fetchedLineMatches.map((lm) => lm.id)
-          const { data: linePlayerData, error: linePlayerError } = await supabase
-            .from('match_players')
-            .select(`
+          const { data: linePlayerData, error: linePlayerError } = await loadTeamCourtPlayers<MatchPlayer>(supabase, lineIds, `
               match_id,
               side,
               player_id,
@@ -891,7 +871,6 @@ function TeamPageContent() {
                 location
               )
             `)
-            .in('match_id', lineIds)
 
           if (linePlayerError) {
             console.warn('team line player lookup skipped', linePlayerError.message)
