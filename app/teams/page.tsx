@@ -215,7 +215,7 @@ export default function TeamsPage() {
         { data: tennisRecordRosterCounts, error: tennisRecordRosterCountsError },
       ] = await Promise.all([
         supabase
-          .from('matches')
+          .from('team_match_results')
           .select('id, match_date, home_team, away_team, league_name, flight, line_number, winner_side, source, status, score')
           .is('line_number', null)
           .order('match_date', { ascending: false })

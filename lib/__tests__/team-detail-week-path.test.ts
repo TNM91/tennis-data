@@ -93,7 +93,7 @@ describe('team detail week path', () => {
     expect(source).toContain("...(isLinkedTeamMember ? [{ id: 'chat', label: 'Team chat', href: '#team-chat' }] : [])")
     expect(source).toContain("{isLinkedTeamMember ? <section id=\"team-chat\"")
     expect(source).toContain('Team activity')
-    expect(source).toContain('results ready to review')
+    expect(source).toContain('recorded courts')
     expect(source).toContain("{ id: 'activity', label: 'Schedule', href: '#team-schedule' }")
     expect(source).toContain('{!canManageThisTeam && !isMobile && !(nextScheduledMatch || roster.length || teamCourtLead) ? (')
   })

@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import { teamResultHref } from '@/lib/team-match-results'
 import { CSSProperties, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -29,6 +30,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
 
 type LeagueMatchRow = {
+  source_url?: string | null
   id: string
   league_name: string | null
   flight: string | null
@@ -169,9 +171,10 @@ function LeagueDetailContent() {
 
     try {
       let query = supabase
-        .from('matches')
+        .from('team_match_results')
         .select(`
           id,
+          source_url,
           league_name,
           flight,
           usta_section,
@@ -202,9 +205,10 @@ function LeagueDetailContent() {
 
       if (exactRows.length === 0 && (flight || section || district)) {
         let fallbackQuery = supabase
-          .from('matches')
+          .from('team_match_results')
           .select(`
             id,
+          source_url,
             league_name,
             flight,
             usta_section,
@@ -762,7 +766,7 @@ function LeagueDetailContent() {
           <div style={detailDrawerContentStyle}>
             <DataTrustPanel
               title="League data trust"
-              body="League pages combine reviewed schedules, scorecards, Player Rosters, and public tennis context when available. Use Data Assist when standings, teams, or scorecards need review."
+              body="Standings count team matches, with individual court results kept separate. Only recorded team totals count; possible duplicate events need review. Use Data Assist when a team or scorecard needs review."
               signals={[
                 { label: 'Source', value: 'Schedules, scorecards, Player Rosters' },
                 { label: 'Freshness', value: 'Refreshes as reviewed league uploads connect' },
@@ -1221,7 +1225,7 @@ function LeagueDetailContent() {
                           <div style={subMeta}>
                             {[leagueInfo.flight, leagueInfo.district].filter(Boolean).join(' | ')}
                           </div>
-                          <Link href={`/matches/${encodeURIComponent(row.id)}`} style={matchDetailLinkStyle}>
+                          <Link href={teamResultHref(row)} style={matchDetailLinkStyle}>
                             View match →
                           </Link>
                         </div>

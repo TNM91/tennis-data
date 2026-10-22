@@ -1089,7 +1089,7 @@ export async function runTennisRecordSync(service: SupabaseClient, input: SyncIn
           if (review.error) throw new Error(review.error.message)
           continue
         }
-        if (job.page_kind === 'match' && parsed.matches.length === 0) {
+        if (job.page_kind === 'match' && parsed.matches.length === 0 && !parsed.teamEvent) {
           const scheduledRefresh = settings.current_refresh_enabled ? futureScorecardRefreshAt(page.html, parsed) : null
           if (scheduledRefresh) {
             const scheduled = await service.from('tennisrecord_crawl_queue').update({
@@ -1665,7 +1665,7 @@ async function reparseCapturedTennisRecordMatchPages(service: SupabaseClient, ru
     const isMatchPage = tennisRecordRecordPageKind(sourceUrl) === 'match'
     const hasCompleteMatches = parsed.matches.length > 0
 
-    if (isMatchPage && !hasCompleteMatches) {
+    if (isMatchPage && !hasCompleteMatches && !parsed.teamEvent) {
       const quarantine = await service.from('tennisrecord_staged_matches').update({
         parse_status: 'quarantined',
         parse_failure_reason: 'No complete court result with trustworthy team context was parsed.',
@@ -1745,6 +1745,10 @@ async function associatedSourceEventReview(service: SupabaseClient, court: { fin
 
 async function stageParsedPage(service: SupabaseClient, parsed: ReturnType<typeof parseTennisRecordMatchPage>, sourceUrl: string, pageId?: string, campaignId?: string | null, campaignSlug?: string, parserRevision = TENNISRECORD_PARSER_REVISION, currentRefreshEnabled = false, currentSeason = false) {
   if (parsed.reviewReason) throw new Error(parsed.reviewReason)
+  if (parsed.teamEvent && pageId) {
+    const savedEvent = await service.rpc('save_tennisrecord_team_event', { p_event: parsed.teamEvent, p_page_id: pageId })
+    if (savedEvent.error) throw new Error(savedEvent.error.message)
+  }
   let savedSourceMatchKeys: string[] = []
   const sourcePlayerKeys = [...new Set(parsed.players.map((player) => player.sourcePlayerKey).filter(Boolean))]
   let baselineChanged = false

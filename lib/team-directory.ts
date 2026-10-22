@@ -135,7 +135,7 @@ function isFutureOrTodayMatch(matchDate: string | null, today = getLocalIsoDate(
 export async function listTeamDirectoryOptions(options?: { teamNames?: string[] }): Promise<TeamDirectoryOption[]> {
   const requestedTeamNames = [...new Set((options?.teamNames || []).map((name) => cleanText(name)).filter((name): name is string => Boolean(name)))]
   const matchQuery = () => supabase
-    .from('matches')
+    .from('team_match_results')
     .select('id, home_team, away_team, league_name, flight, match_date, line_number')
     .is('line_number', null)
     .order('match_date', { ascending: false })
