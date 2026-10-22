@@ -2010,8 +2010,8 @@ function TeamPageContent() {
               <MetricCard
                 compact={isMobile}
                 label={roster.length ? 'Roster' : tennisRecordRoster.length ? 'Listed' : 'Roster'}
-                value={String(roster.length || tennisRecordRoster.length)}
-                subtle={roster.length ? 'Players tracked' : tennisRecordRoster.length ? 'Recorded roster' : 'Not listed'}
+                value={String(Math.max(roster.length, tennisRecordRoster.length))}
+                subtle={tennisRecordRoster.length > roster.length ? 'Listed players' : roster.length ? 'Players tracked' : 'Not listed'}
               />
             </div>
 
