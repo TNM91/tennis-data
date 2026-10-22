@@ -4,7 +4,7 @@ import type { ParsedTennisRecordPage } from './types'
 
 /** One existing request slot per checkpoint, leaving the other slots fair. */
 export function isLeagueWatchSlot(index: number, currentSeason?: boolean) {
-  return Boolean(currentSeason && index === 3)
+  return Boolean(currentSeason && index === 0)
 }
 
 export function leagueWatchCaptureFacts(parsed: ParsedTennisRecordPage, sourceUrl: string, now = new Date(), html = '') {

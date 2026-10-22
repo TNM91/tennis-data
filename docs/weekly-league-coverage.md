@@ -1,9 +1,11 @@
 # Weekly league coverage
 
-The existing three-minute collector reserves one of its existing request slots
+The existing three-minute collector reserves the first of its existing request slots
 for registered leagues. It keeps the same request cap, pacing, source cooldown,
 run lock, deferred retries and review holds. Empty priority work falls back to
 the ordinary current-season lanes. This is not additional collection capacity.
+Giving monitored work the first slot prevents earlier source timeouts from
+using the checkpoint budget before a monitored page gets an opportunity.
 
 Register a league from an exact team URL whose retained roster names its league:
 
