@@ -13,6 +13,7 @@ function fixture(options: { alias?: boolean; failRead?: boolean; failHold?: bool
     const call: Call = { table, ops: [] }
     const resolve = () => {
       calls.push(call)
+      if (table === 'tennisrecord_reviewed_captain_courts') return { data: [], error: null }
       if (operation(call, 'update')) return { data: [], error: options.failHold ? { message: 'hold failed' } : null }
       if (operation(call, 'range')) {
         if (options.failRead) return { data: null, error: { message: 'event read failed' } }
