@@ -38,11 +38,11 @@ export async function loadTeamCourtResults(client: SupabaseClient, parentMatches
         .not('line_number', 'is', null).or(batch.map(teamCourtPrefixFilter).join(','))
       // Keep the existing date index available; an unbounded regex over the
       // historical archive is slower than this team's known fixture dates.
-      if (dates.length) query = query.in('match_date', dates)
+      query = query.in('match_date', dates).in('winner_side', ['A', 'B'])
       const result = await query.order('id').range(offset, offset + PAGE_SIZE - 1)
       if (result.error) return { data: null, error: result.error }
       const rows = (result.data || []) as TeamCourtMatch[]
-      for (const row of rows) if (allowed.has(parentId(row.external_match_id) || '')) matches.set(row.id, row)
+      for (const row of rows) if (allowed.has(parentId(row.external_match_id) || '') && (row.winner_side === 'A' || row.winner_side === 'B')) matches.set(row.id, row)
       if (rows.length < PAGE_SIZE) break
     }
   }

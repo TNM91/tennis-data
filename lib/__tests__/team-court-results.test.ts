@@ -33,6 +33,11 @@ describe('scoped team court reads', () => {
     expect(result.data).toHaveLength(201)
     expect(f.calls.map(call => op(call, 'range'))).toEqual([[0, 199], [200, 399]])
   })
+  it('does not count prepared lineups or undecided courts as played statistics', async () => {
+    const f = fixture(() => ({ data: [line('played'), { ...line('scheduled'), winner_side: null }] }))
+    expect((await readCourts(f.client, ['team-event'], ['2026-09-13'])).data).toEqual([line('played')])
+    expect(f.calls[0].ops).toContainEqual({ name: 'in', args: ['winner_side', ['A', 'B']] })
+  })
   it('bounds long parent filters and ignores duplicate discovery locators', async () => {
     const parents = Array.from({ length: 45 }, (_, i) => `event-${i}`)
     const f = fixture(() => ({ data: [] }))
