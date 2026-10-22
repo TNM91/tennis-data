@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SupabaseClient } from '@supabase/supabase-js'
 vi.mock('@/lib/recalculateRatings', () => ({ recalculateDynamicRatings: vi.fn() }))
 import { recalculateDynamicRatings } from '../recalculateRatings'
@@ -87,6 +87,7 @@ const settings: Parameters<typeof prepareCurrentSeasonRefresh>[2] = {
   rating_recalculation_reason: null, rating_recalculated_at: null,
 }
 beforeEach(() => vi.clearAllMocks())
+afterEach(() => vi.useRealTimers())
 
 describe('current refresh preparation', () => {
   it('paginates every known MO profile and bounds URL batches before advancing the seed watermark', async () => {
@@ -134,10 +135,15 @@ describe('current refresh preparation', () => {
     expect(calls[0].ops[0].args).toEqual([{ p_run_id: 'run', p_seed: false }])
   })
 
-  it('gradually enrolls known nationwide current-year competition pages without player histories', async () => {
+  it('enrolls fall championship pages alongside calendar-year competition pages without player histories', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-22T12:00:00Z'))
     const year = new Date().getUTCFullYear()
     const candidate = (page_kind: string, path: string) => ({ page_kind, source_url: `https://www.tennisrecord.com/adult/${path}?year=${year}` })
-    const rows = [candidate('league', 'league/leaguetype.aspx'), candidate('team', 'teamprofile.aspx'), candidate('match', 'matchresults.aspx'), candidate('history', 'matchhistory.aspx')]
+    const rows = [candidate('league', 'league/leaguetype.aspx'), candidate('team', 'teamprofile.aspx'), candidate('match', 'matchresults.aspx'),
+      { page_kind: 'match', source_url: 'https://www.tennisrecord.com/adult/matchresults.aspx?year=2027&mid=13347' },
+      candidate('history', 'matchhistory.aspx'),
+      { page_kind: 'match', source_url: 'https://www.tennisrecord.com/adult/matchresults.aspx?year=2025&mid=13347' }]
     const { db, calls } = fakeDb(call => {
       if (call.table === 'tennisrecord_campaigns') return { data: { id: op(call, 'eq')?.args[1] === 'us-2025-current' ? 'us' : 'mo' } }
       if (call.table === 'tennisrecord_crawl_queue' && op(call, 'select')) return { data: rows }
@@ -148,8 +154,9 @@ describe('current refresh preparation', () => {
     expect(op(enrollment, 'eq')?.args).toEqual(['campaign_id', 'us'])
     expect(op(enrollment, 'in')?.args).toEqual(['status', ['pending', 'done']])
     expect(op(enrollment, 'limit')?.args).toEqual([48])
+    expect(enrollment.ops).toContainEqual({ name: 'or', args: [activeChampionshipYears().map(year => `source_url.like.%year=${year}%`).join(',')] })
     const marked = calls.find(call => call.table === 'tennisrecord_crawl_queue' && op(call, 'update'))!
-    expect(op(marked, 'in')?.args).toEqual(['source_url', rows.slice(0, 3).map(row => row.source_url)])
+    expect(op(marked, 'in')?.args).toEqual(['source_url', rows.slice(0, 4).map(row => row.source_url)])
   })
 })
 

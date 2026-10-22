@@ -850,7 +850,7 @@ async function enrollKnownNationalCurrentSeasonPages(service: SupabaseClient) {
     .eq('campaign_id', campaign.data.id)
     .in('status', ['pending', 'done'])
     .in('page_kind', ['league', 'team', 'match'])
-    .like('source_url', `%year=${season}%`)
+    .or(activeChampionshipYears().map(year => `source_url.like.%year=${year}%`).join(','))
     .or(`refresh_season.is.null,refresh_season.neq.${season}`)
     .order('first_seen_at')
     .limit(NATIONAL_CURRENT_SEED_BATCH_LIMIT * 4)
@@ -1481,7 +1481,10 @@ export async function runAutomaticTennisRecordSync(service: SupabaseClient) {
     // Reuse the established checkpoint ceiling and deadline, not the legacy
     // three-page weekly cap. Pacing and the admin request limit stay unchanged.
     const limit = scheduledTennisRecordBatchLimit(data.max_requests_per_run, 'bootstrap')
-    const current = await runTennisRecordSync(service, { triggerKind: 'weekly', currentSeason: true, campaignId: missouriDueCampaignId, recalculateRatings: false, limit, pageKindPlan: currentRefreshPageKindPlan(limit) })
+    // Queue ownership follows first discovery, not geography. Keep Missouri
+    // urgency as the lane trigger, while the per-claim scope plan reserves
+    // nationwide capacity (including Missouri pages first discovered there).
+    const current = await runTennisRecordSync(service, { triggerKind: 'weekly', currentSeason: true, recalculateRatings: false, limit, pageKindPlan: currentRefreshPageKindPlan(limit) })
     if (current.status !== 'completed' || current.pagesAttempted > 0 || automationState !== 'bootstrap') return current
     // Nothing due: give this opportunity back to historical work.
   }
