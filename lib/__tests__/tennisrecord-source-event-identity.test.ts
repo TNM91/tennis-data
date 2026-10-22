@@ -37,6 +37,14 @@ describe('source event URL identity', () => {
 })
 
 describe('fail-closed legacy event guard', () => {
+  it('allows absent local evidence only after an explicit captain review, while retaining collision checks', async () => {
+    const court = { fingerprint: 'fp', sourceUrl: url }
+    expect((await tennisRecordEventReviews(client([]).db, [court], ['local'], ['local'])).size).toBe(0)
+    expect((await tennisRecordEventReviews(client([]).db, [court], ['local','unreviewed'], ['local'])).has('fp')).toBe(true)
+    for (const source_url of [null, other]) {
+      expect((await tennisRecordEventReviews(client([{ id: 'old', fingerprint: 'local', source_url }]).db, [court], ['local'], ['local'])).has('fp')).toBe(true)
+    }
+  })
   it('reproduces the legacy collision without changing existing fingerprint semantics', () => {
     const court = { playedOn: '2025-09-27', leagueName: 'League', flight: '', homeTeam: 'Home', awayTeam: 'Away', discipline: 'singles', courtNumber: 1, participants: [{ side: 'A', seat: 1, name: 'Player One' }, { side: 'B', seat: 1, name: 'Player Two' }] } as TennisRecordMatch
     expect(canonicalTennisRecordFingerprint({ ...court, sourceUrl: url } as TennisRecordMatch)).toBe(canonicalTennisRecordFingerprint({ ...court, sourceUrl: other } as TennisRecordMatch))

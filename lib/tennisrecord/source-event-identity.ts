@@ -31,6 +31,7 @@ export async function tennisRecordEventReviews(
   service: SupabaseClient,
   courts: SourceEventCourt[],
   associatedFingerprints: string[] = [],
+  reviewedLocalFingerprints: string[] = [],
 ): Promise<Map<string, string>> {
   const reviews = new Map<string, string>()
   const expected = new Map<string, string>()
@@ -63,7 +64,10 @@ export async function tennisRecordEventReviews(
       if (!prior) reviews.set(court.fingerprint, UNKNOWN)
       else if (prior !== event) reviews.set(court.fingerprint, COLLISION)
     }
-    if (associatedFingerprints.some(fingerprint => !evidence.some(row => row.fingerprint === fingerprint))) reviews.set(court.fingerprint, UNKNOWN)
+    // A reviewed captain court can have a pre-source local fingerprint. Only
+    // absence is allowed; retained conflicting/invalid source evidence above
+    // still blocks it, including evidence on a whitelisted local fingerprint.
+    if (associatedFingerprints.some(fingerprint => !evidence.some(row => row.fingerprint === fingerprint) && !reviewedLocalFingerprints.includes(fingerprint))) reviews.set(court.fingerprint, UNKNOWN)
   }
   return reviews
 }
