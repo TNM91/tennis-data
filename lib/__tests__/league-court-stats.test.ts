@@ -22,6 +22,23 @@ describe('league court statistics', () => {
     const client = { from() { throw new Error('Unexpected read') } } as unknown as SupabaseClient
     expect(await loadLeagueCourtData(client, { league: 'League' }, [])).toEqual({ data: { courts: [], players: [] }, error: null })
   })
+  it('bounds date filters for a complete long season', async () => {
+    const batches: string[][] = []
+    const client = { from() {
+      const query: object = new Proxy({}, { get(_, name: string) {
+        if (name === 'then') return (resolve: (value: unknown) => void) => resolve({ data: [] })
+        return (...args: unknown[]) => {
+          if (name === 'in' && args[0] === 'match_date') batches.push(args[1] as string[])
+          return query
+        }
+      } })
+      return query
+    } } as unknown as SupabaseClient
+    const dates = Array.from({ length: 101 }, (_, i) => new Date(Date.UTC(2026, 0, i + 1)).toISOString().slice(0, 10))
+    expect((await loadLeagueCourtData(client, { league: 'League' }, [...dates, dates[0]])).error).toBeNull()
+    expect(batches.map(batch => batch.length)).toEqual([50, 50, 1])
+    expect(batches.flat()).toEqual(dates)
+  })
   it('pages exact league parents and fails closed on a later page', async () => {
     const calls: { table: string; ops: { name: string; args: unknown[] }[] }[] = []
     const client = { from(table: string) {

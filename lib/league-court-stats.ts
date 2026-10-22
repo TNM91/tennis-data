@@ -15,18 +15,22 @@ export async function loadLeagueCourtData(client: SupabaseClient, scope: {
   const parents: { externalId: string; matchDate: string | null }[] = []
   const uniqueDates = [...new Set(dates.filter(Boolean))]
   if (!uniqueDates.length) return { data: { courts: [], players: [] }, error: null }
-  for (let offset = 0; ; offset += 200) {
-    let query = client.from('matches').select('id,external_match_id,match_date')
-      .eq('league_name', scope.league).is('line_number', null)
-      .not('external_match_id', 'is', null).in('match_date', uniqueDates)
-    if (scope.flight) query = query.eq('flight', scope.flight)
-    if (scope.section) query = query.eq('usta_section', scope.section)
-    if (scope.district) query = query.eq('district_area', scope.district)
-    const result = await query.order('id').range(offset, offset + 199)
-    if (result.error) return { data: null, error: result.error }
-    const rows = result.data || []
-    parents.push(...rows.map(row => ({ externalId: row.external_match_id as string, matchDate: row.match_date as string | null })))
-    if (rows.length < 200) break
+  // Bound date filters as the complete history grows across a long season.
+  for (let start = 0; start < uniqueDates.length; start += 50) {
+    const dateBatch = uniqueDates.slice(start, start + 50)
+    for (let offset = 0; ; offset += 200) {
+      let query = client.from('matches').select('id,external_match_id,match_date')
+        .eq('league_name', scope.league).is('line_number', null)
+        .not('external_match_id', 'is', null).in('match_date', dateBatch)
+      if (scope.flight) query = query.eq('flight', scope.flight)
+      if (scope.section) query = query.eq('usta_section', scope.section)
+      if (scope.district) query = query.eq('district_area', scope.district)
+      const result = await query.order('id').range(offset, offset + 199)
+      if (result.error) return { data: null, error: result.error }
+      const rows = result.data || []
+      parents.push(...rows.map(row => ({ externalId: row.external_match_id as string, matchDate: row.match_date as string | null })))
+      if (rows.length < 200) break
+    }
   }
   const courts = await loadTeamCourtResults(client, parents)
   if (courts.error || !courts.data) return { data: null, error: courts.error }

@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { loadLeagueCourtData, leagueCourtLeaders, leagueCourtScorePatterns, type LeagueCourtData } from '@/lib/league-court-stats'
+import { loadLeagueMatchHistory, type LeagueMatchRow } from '@/lib/league-match-history'
 import { teamResultHref } from '@/lib/team-match-results'
 import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
@@ -29,22 +30,6 @@ import { getPlanUnlockHref } from '@/lib/plan-intent'
 import { encodeTeamRouteSegment } from '@/lib/team-routes'
 import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import ExploreResumeTracker from '@/app/explore/_components/explore-resume-tracker'
-
-type LeagueMatchRow = {
-  source_url?: string | null
-  id: string
-  league_name: string | null
-  flight: string | null
-  usta_section: string | null
-  district_area: string | null
-  home_team: string | null
-  away_team: string | null
-  match_date: string
-  match_type: 'singles' | 'doubles' | null
-  score: string | null
-  winner_side: 'A' | 'B' | null
-  status: string | null
-}
 
 type TeamSummary = {
   name: string
@@ -172,35 +157,14 @@ function LeagueDetailContent() {
     const request = ++leagueRequest.current
     setLoading(true)
     setError('')
+    setRows([])
+    setNearbyRows([])
 
     try {
-      let query = supabase
-        .from('team_match_results')
-        .select(`
-          id,
-          source_url,
-          league_name,
-          flight,
-          usta_section,
-          district_area,
-          home_team,
-          away_team,
-          match_date,
-          match_type,
-          score,
-          winner_side,
-          status
-        `)
-        .eq('league_name', leagueFromRoute)
-        .is('line_number', null)
-        .order('match_date', { ascending: false })
-        .limit(200)
-
-      if (flight) query = query.eq('flight', flight)
-      if (section) query = query.eq('usta_section', section)
-      if (district) query = query.eq('district_area', district)
-
-      const { data, error } = await query
+      const { data, error } = await loadLeagueMatchHistory(
+        supabase, { league: leagueFromRoute, flight, section, district },
+        () => request === leagueRequest.current,
+      )
 
       if (error) throw new Error(error.message)
 
