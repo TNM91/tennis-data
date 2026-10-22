@@ -8,8 +8,8 @@ const page = (): ParsedTennisRecordPage => ({ players: [], teams: [], teamMember
 describe('monitored league coverage', () => {
   it('reserves only one existing current-season slot, never historical slots', () => {
     expect(Array.from({ length: 18 }, (_, i) => isLeagueWatchSlot(i, true)).filter(Boolean)).toHaveLength(1)
-    expect(isLeagueWatchSlot(3, false)).toBe(false)
-    expect(isLeagueWatchSlot(3, true)).toBe(true)
+    expect(isLeagueWatchSlot(0, false)).toBe(false)
+    expect(isLeagueWatchSlot(0, true)).toBe(true)
   })
   it('preserves review holds', () => {
     expect(leagueWatchCaptureFacts({ ...page(), reviewReason: 'Identity conflict' }, team)).toBeNull()
