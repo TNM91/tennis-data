@@ -1,0 +1,32 @@
+{
+  "name": "tenaceiq-mobile-prototype",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Local device feasibility prototype; not a store release",
+  "scripts": {
+    "doctor": "node scripts/doctor.mjs",
+    "smoke:auth-entry": "node scripts/smoke-auth-entry.mjs",
+    "prepare:device": "node scripts/prepare-device.mjs",
+    "test": "node --test scripts/prepare-device.test.mjs",
+    "add:android": "cap add android",
+    "add:ios": "cap add ios",
+    "sync": "cap sync",
+    "open:android": "cap open android",
+    "open:ios": "cap open ios",
+    "build:bundled": "node scripts/build-bundled.mjs",
+    "prepare:ios": "node scripts/prepare-ios.mjs",
+    "check:ios": "node scripts/check-ios.mjs"
+  },
+  "dependencies": {
+    "@aparajita/capacitor-secure-storage": "8.0.1",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/browser": "8.0.5",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "esbuild": "0.28.2"
+  }
+}

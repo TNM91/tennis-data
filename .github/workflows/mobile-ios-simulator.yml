@@ -1,0 +1,70 @@
+name: Mobile iOS simulator build
+
+# Manual dispatch or an explicit PR label; never run on pushes or PR updates.
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-ios-simulator-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulator:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'ios-simulator'
+    runs-on: macos-15
+    timeout-minutes: 25
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+      - name: Check Xcode
+        run: xcodebuild -version
+      - name: Install locked dependencies
+        run: |
+          npm ci
+          npm ci --prefix mobile
+      - name: Check bundled client
+        run: |
+          npx vitest run lib/__tests__/mobile-account-links.test.ts lib/__tests__/mobile-match-details.test.ts lib/__tests__/mobile-recent-results.test.ts lib/__tests__/native-auth-storage.test.ts
+          node --test mobile/scripts/prepare-device.test.mjs mobile/scripts/ios-workflow.test.mjs
+      - name: Bundle and generate iOS project
+        run: |
+          npm run build:bundled --prefix mobile
+          npm run prepare:ios --prefix mobile
+          npm run check:ios --prefix mobile
+      - name: Compile simulator app without signing
+        run: |
+          xcodebuild -project mobile/ios/App/App.xcodeproj -scheme App \
+            -configuration Debug -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath mobile/ios-build \
+            CODE_SIGNING_ALLOWED=NO build
+      - name: Package simulator app
+        run: |
+          test -d mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app
+          ditto -c -k --sequesterRsrc --keepParent \
+            mobile/ios-build/Build/Products/Debug-iphonesimulator/App.app \
+            mobile/ios-simulator.zip
+      - name: Save simulator artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: tenaceiq-ios-simulator-${{ github.sha }}
+          path: mobile/ios-simulator.zip
+          if-no-files-found: error
+          retention-days: 3

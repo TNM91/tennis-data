@@ -1,0 +1,7 @@
+node_modules/
+capacitor.config.json
+android/
+ios/
+bundled/
+ios-build/
+ios-simulator.zip
