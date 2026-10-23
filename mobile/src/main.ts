@@ -8,6 +8,7 @@ import { loadRecentResults, type RecentMatchRow } from './recent-results'
 import { showRecentResults } from './results-view'
 import { connectPlayer, findPlayers, showPlayerConnection } from './player-connection'
 import { createMatchDetails, html as escape } from './match-details'
+import { showExplore } from './explore'
 import { accountLinksHtml, bindAccountLinks, showPasswordRecovery } from './account-actions'
 
 const client = createClient(supabaseUrl, supabaseKey, { auth: {
@@ -15,6 +16,13 @@ const client = createClient(supabaseUrl, supabaseKey, { auth: {
   detectSessionInUrl: false,
 } })
 const app = document.querySelector<HTMLElement>('#app')!
+const navigation = document.createElement('nav')
+navigation.className = 'app-navigation'
+navigation.setAttribute('aria-label','Main navigation')
+navigation.hidden = true
+navigation.innerHTML = '<button type="button" data-screen="lab">My Lab</button><button type="button" data-screen="explore">Explore</button>'
+app.after(navigation)
+let explore: ReturnType<typeof showExplore> | null = null
 let session: Session | null = null
 let revision = 0
 let connection: ReturnType<typeof showPlayerConnection> | null = null
@@ -23,7 +31,8 @@ let recovery: ReturnType<typeof showPasswordRecovery> | null = null
 
 if (Capacitor.getPlatform() === 'android') {
   void App.addListener('backButton', () => {
-    if (connection) { if (!connection.isSaving()) void lab() }
+    if (explore) { if (!explore.back()) void lab() }
+    else if (connection) { if (!connection.isSaving()) void lab() }
     else if (recovery) login()
     else if (details?.isOpen()) history.back()
     else void App.minimizeApp()
@@ -31,6 +40,9 @@ if (Capacitor.getPlatform() === 'android') {
 }
 
 function login(message = '') {
+  explore?.dispose()
+  explore = null
+  navigation.hidden = true
   connection?.dispose()
   connection = null
   recovery?.dispose()
@@ -57,11 +69,33 @@ function login(message = '') {
   }
 }
 
+function selectNavigation(screen: 'lab' | 'explore') {
+  navigation.hidden = false
+  navigation.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
+    if (button.dataset.screen === screen) button.setAttribute('aria-current','page')
+    else button.removeAttribute('aria-current')
+  })
+}
+navigation.querySelector<HTMLButtonElement>('[data-screen="lab"]')!.onclick = () => {if (!connection?.isSaving()) void lab()}
+navigation.querySelector<HTMLButtonElement>('[data-screen="explore"]')!.onclick = () => {
+  if (!session || connection?.isSaving() || explore) return
+  connection?.dispose(); connection = null
+  recovery?.dispose(); recovery = null
+  details?.dispose(); details = null
+  const userId = session.user.id
+  const version = ++revision
+  selectNavigation('explore')
+  explore = showExplore(app,client,()=>version === revision && userId === session?.user.id)
+}
+
 async function lab() {
+  explore?.dispose()
+  explore = null
   connection?.dispose()
   connection = null
   const current = session
   if (!current) return login()
+  selectNavigation('lab')
   recovery?.dispose()
   recovery = null
   details?.dispose()
@@ -131,7 +165,7 @@ async function lab() {
 }
 
 client.auth.onAuthStateChange((_event, next) => {
-  if (next?.user.id === session?.user.id && (details?.isOpen() || connection)) { session = next; return }
+  if (next?.user.id === session?.user.id && (details?.isOpen() || connection || explore)) { session = next; return }
   session = next
   revision++
   // Schedule outside the auth callback's lock before making another SDK call.
@@ -142,7 +176,7 @@ client.auth.getSession().catch(() => {
   app.innerHTML = '<h1>Couldn’t open your account</h1><p role="alert">Close the app and try again. Secure sign-in storage is unavailable.</p>'
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !details?.isOpen() && !connection) void lab() }
+  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !details?.isOpen() && !connection && !explore) void lab() }
   else client.auth.stopAutoRefresh()
 })
-window.addEventListener('online', () => { if (session && !details?.isOpen() && !connection) void lab() })
+window.addEventListener('online', () => { if (session && !details?.isOpen() && !connection && !explore) void lab() })
