@@ -8,7 +8,7 @@ import { loadRecentResults, type RecentMatchRow } from './recent-results'
 import { showRecentResults } from './results-view'
 import { connectPlayer, findPlayers, showPlayerConnection } from './player-connection'
 import { createMatchDetails, html as escape } from './match-details'
-import { showExplore } from './explore'
+import { showExplore } from './explore-directory'
 import { accountLinksHtml, bindAccountLinks, showPasswordRecovery } from './account-actions'
 
 const client = createClient(supabaseUrl, supabaseKey, { auth: {
