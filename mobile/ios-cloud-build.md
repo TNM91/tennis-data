@@ -87,3 +87,23 @@ entitlements, certificate count, and identifiers before producing export options
 The runner additionally verifies the profile certificate is available as a valid
 code-signing identity in its temporary keychain. Xcode remains responsible for
 validating the signing chain and final archive/export.
+
+## App-first player candidate
+
+The bundled client now includes recent-form totals and All/Singles/Doubles
+filters within the latest ten connected results. Pending results remain separate
+from wins and losses. Filtering preserves source order and opens the selected
+match without fetching another results page.
+
+Unlinked players can search their name (explicit submit, at most twelve results),
+review location and flight, and confirm their own record in the app. The native
+HTTP request uses the existing authenticated profile-link endpoint, disables
+redirects, and checks the exact saved player ID. It does not create a player or
+change the server's linking rules. Search and save responses from a disposed
+screen or changed account cannot update the active UI.
+
+Local browser checks use synthetic players and matches. Real iPhone acceptance
+must still verify native HTTP, session renewal, profile refresh after linking,
+and match details after a successful connection. Failed/ambiguous saves tell the
+player to refresh My Lab before retrying; the app does not automatically retry
+profile writes. No real profile is changed during these local tests.
