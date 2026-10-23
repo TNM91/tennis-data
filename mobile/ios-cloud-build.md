@@ -42,3 +42,48 @@ No signed workflow is enabled yet: there is no verified Apple team, final bundle
 - [Hosted runners and private-repository billing](https://docs.github.com/en/actions/reference/runners/github-hosted-runners).
 - [Selected runner's Xcode inventory](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md).
 - [Apple developer account and membership](https://developer.apple.com/help/account/basics/about-your-developer-account).
+
+## Signed iOS candidate workflow
+
+`mobile-ios-signed.yml` is a separate, manual-only lane. It uses a fresh native
+project, applies the store identity to generated files, validates the distribution
+profile, and archives/exports with manual signing. Its default is **no upload**.
+An explicit upload input sends the IPA to App Store Connect; it does not submit an
+App Store release or invite testers. Apple processing and device tests remain
+separate acceptance steps.
+
+The workflow needs to exist on the repository default branch before GitHub offers
+manual dispatch for this new workflow. Do not merge this candidate solely to run
+it without reviewing the production impact of the full PR. No signed cloud run
+has been verified yet.
+
+Before storing credentials, create the `apple-testflight` GitHub environment with
+deployment branches restricted to `master` and `codex/apple-mobile-build`. Use
+required review where supported. Keep the workflow manual-only and do not permit
+arbitrary checkout refs or PR-triggered jobs to consume these credentials.
+
+Environment secrets (never commit their values):
+
+- `APPLE_DISTRIBUTION_P12_BASE64`: encrypted distribution certificate/key archive.
+- `APPLE_DISTRIBUTION_P12_PASSWORD`: its export password.
+- `APPLE_PROVISIONING_PROFILE_BASE64`: app-specific App Store profile.
+- `APPLE_UPLOAD_API_KEY_P8_BASE64`: upload key, needed only when uploading.
+- `APPLE_UPLOAD_API_KEY_ID` and `APPLE_UPLOAD_API_ISSUER_ID`: upload key identifiers.
+
+Obtain explicit authorization before transmitting signing material to GitHub.
+The runner imports signing material into a temporary keychain and removes it in
+an always-run cleanup step. Only the IPA is saved, with three-day retention;
+anyone with repository artifact access can download that IPA. Private keys,
+profiles, passwords, decoded metadata, and keychains must never be artifacts.
+
+Run focused checks before changing this lane:
+
+```
+node --test mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-store.test.mjs
+```
+
+The Python profile validator checks the app identifier, expiry, distribution
+entitlements, certificate count, and identifiers before producing export options.
+The runner additionally verifies the profile certificate is available as a valid
+code-signing identity in its temporary keychain. Xcode remains responsible for
+validating the signing chain and final archive/export.
