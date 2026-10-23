@@ -1,3 +1,4 @@
+import { encountersHtml, recentEncounters } from './recent-encounters'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {MATCHUP_STORY,MEMBERSHIP_TIERS} from '../../lib/product-story'
 import type {RatingView} from '../../lib/player-rating-display'
@@ -5,9 +6,10 @@ import {canFollowPlayers as canUsePlayerInsights} from './follows-data'
 import {findPlayers,type PlayerChoice} from './player-connection'
 import {loadComparison,comparisonCard,type ComparedPlayer} from './comparison-data'
 import {showExplore as showPlayer} from './explore'
-import {html} from './match-details'
+import {html,createMatchDetails} from './match-details'
 export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean) {
  let disposed=false,revision=0,view:RatingView='overall',data:ComparedPlayer[]|null=null,detail:ReturnType<typeof showPlayer>|null=null,scroll=0
+ let meetings:ReturnType<typeof createMatchDetails>|null=null
  const valid=()=>!disposed && isCurrent()
  app.innerHTML='<h1 tabindex="-1">Matchup</h1><p role="status">Checking your player access…</p>'
  app.querySelector<HTMLElement>('h1')!.focus()
@@ -31,7 +33,7 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
   const pickerRevision=[0,0]
   const pickers=list.querySelector<HTMLElement>('#comparison-pickers')!
   pickers.innerHTML=[0,1].map(index=>`<section data-picker="${index}"><h2>Player ${index+1}</h2><form><label>Player ${index+1} name<input type="search" minlength="2" maxlength="80" required autocomplete="off"></label><button class="secondary">Search player ${index+1}</button></form><p role="status"></p><div class="comparison-choices"></div></section>`).join('')
-  const reset=()=>{revision++;data=null;result.innerHTML='';status.textContent='';compare.disabled=!chosen[0]||!chosen[1]||chosen[0].id===chosen[1].id;if(chosen[0] && chosen[0].id===chosen[1]?.id)status.textContent='Choose two different players.'}
+  const reset=()=>{meetings?.dispose();meetings=null;revision++;data=null;result.innerHTML='';status.textContent='';compare.disabled=!chosen[0]||!chosen[1]||chosen[0].id===chosen[1].id;if(chosen[0] && chosen[0].id===chosen[1]?.id)status.textContent='Choose two different players.'}
   pickers.querySelectorAll<HTMLElement>('[data-picker]').forEach(panel=>{
    const index=Number(panel.dataset.picker),form=panel.querySelector<HTMLFormElement>('form')!,input=form.querySelector<HTMLInputElement>('input')!,button=form.querySelector<HTMLButtonElement>('button')!,notice=panel.querySelector<HTMLElement>('[role="status"]')!,choices=panel.querySelector<HTMLElement>('.comparison-choices')!
    input.oninput=()=>{pickerRevision[index]++;chosen[index]=null;notice.textContent='Search, then choose a player.';choices.innerHTML='';button.disabled=false;reset()}
@@ -51,12 +53,15 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
   const back=()=>{detail?.dispose();detail=null;playerHost.hidden=true;playerHost.innerHTML='';list.hidden=false;window.scrollTo(0,scroll);result.querySelector<HTMLElement>('h2')?.focus({preventScroll:true})}
   const render=()=>{
    if(!data)return
-   result.innerHTML=`<h2 tabindex="-1">Recorded comparison</h2><div class="match-filters" role="group" aria-label="Comparison view">${(['overall','singles','doubles'] as RatingView[]).map(value=>`<button type="button" class="secondary" data-view="${value}" aria-pressed="${view===value}">${value[0].toUpperCase()+value.slice(1)}</button>`).join('')}</div><p class="rating-context">TIQ ratings are estimates, not official USTA ratings. Singles and Doubles use Overall when a separate rating is missing. This comparison does not predict a winner.</p>${data.map((player,index)=>comparisonCard(player,view,index)).join('')}`
-   result.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(button=>{button.onclick=()=>{view=button.dataset.view as RatingView;render();result.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus({preventScroll:true})}})
-   result.querySelectorAll<HTMLButtonElement>('[data-comparison-player]').forEach(button=>{button.onclick=()=>{if(!valid() || !data)return;scroll=window.scrollY;list.hidden=true;playerHost.hidden=false;detail=showPlayer(playerHost,client,valid,{player:data[Number(button.dataset.comparisonPlayer)].player,back,backLabel:'Back to comparison'})}})
+   result.innerHTML=`<h2 tabindex="-1">Recorded comparison</h2><div class="match-filters" role="group" aria-label="Comparison view">${(['overall','singles','doubles'] as RatingView[]).map(value=>`<button type="button" class="secondary" data-view="${value}" aria-pressed="${view===value}">${value[0].toUpperCase()+value.slice(1)}</button>`).join('')}</div><p class="rating-context">TIQ ratings are estimates, not official USTA ratings. Singles and Doubles use Overall when a separate rating is missing. This comparison does not predict a winner.</p>${encountersHtml(data,view)}${data.map((player,index)=>comparisonCard(player,view,index)).join('')}`
+   const encounters=recentEncounters(data,view).matches
+   result.querySelectorAll<HTMLButtonElement>('[data-encounter]').forEach(button=>{button.onclick=()=>{if(!valid() || !data)return;meetings?.dispose();meetings=createMatchDetails(app,client,valid,{backLabel:'Back to comparison',sideLabel:data[0].player.name});meetings.open(encounters[Number(button.dataset.encounter)],data[0].player.id)}})
+   result.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(button=>{button.onclick=()=>{meetings?.dispose();meetings=null;view=button.dataset.view as RatingView;render();result.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus({preventScroll:true})}})
+   result.querySelectorAll<HTMLButtonElement>('[data-comparison-player]').forEach(button=>{button.onclick=()=>{if(!valid() || !data)return;meetings?.dispose();meetings=null;scroll=window.scrollY;list.hidden=true;playerHost.hidden=false;detail=showPlayer(playerHost,client,valid,{player:data[Number(button.dataset.comparisonPlayer)].player,back,backLabel:'Back to comparison'})}})
   }
   compare.onclick=async()=>{
    if(!valid() || !chosen[0] || !chosen[1] || compare.disabled)return
+   meetings?.dispose();meetings=null
    const request=++revision,players:[PlayerChoice,PlayerChoice]=[chosen[0],chosen[1]]
    compare.disabled=true;result.innerHTML='';status.textContent='Loading recorded comparison…'
    try{
@@ -71,5 +76,5 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
   }
  }
  void start()
- return {dispose:()=>{disposed=true;revision++;detail?.dispose()},back:()=>{if(!detail)return false;if(detail.isMatchOpen()){history.back();return true}app.querySelector<HTMLButtonElement>('#back-explore')?.click();return true}}
+ return {dispose:()=>{disposed=true;revision++;detail?.dispose();meetings?.dispose()},back:()=>{if(meetings?.isOpen()){history.back();return true}if(!detail)return false;if(detail.isMatchOpen()){history.back();return true}app.querySelector<HTMLButtonElement>('#back-explore')?.click();return true}}
 }
