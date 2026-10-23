@@ -1,3 +1,4 @@
+import { showPlayerRatings } from './player-ratings-view'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { findPlayers, type PlayerChoice } from './player-connection'
 import { createMatchDetails, html } from './match-details'
@@ -50,11 +51,12 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
     search.hidden = true
     intro.hidden = true
     playerPanel.hidden = false
-    playerPanel.innerHTML = `<button type="button" class="secondary" id="back-explore">${initial?'Back to rankings':'Back to search'}</button>${playerSummary(player)}<p>Public player record · Results below are for ${html(player.name)}.</p><h2>Recent matches</h2><div id="explore-results" aria-live="polite"></div>`
+    playerPanel.innerHTML = `<button type="button" class="secondary" id="back-explore">${initial?'Back to rankings':'Back to search'}</button>${playerSummary(player)}<p>Public player record · Results below are for ${html(player.name)}.</p><section aria-labelledby="explore-ratings-title"><h2 id="explore-ratings-title">Recorded TIQ ratings</h2><div id="explore-ratings" aria-live="polite"></div></section><h2>Recent matches</h2><div id="explore-results" aria-live="polite"></div>`
     playerPanel.querySelector<HTMLButtonElement>('#back-explore')!.onclick = back
     playerPanel.querySelector<HTMLElement>('h1')!.focus()
     window.scrollTo(0,0)
     matchDetails = createMatchDetails(app,client,valid,{backLabel:'Back to player',sideLabel:player.name})
+    showPlayerRatings(playerPanel.querySelector<HTMLElement>('#explore-ratings')!,client,player.id,()=>valid() && version===request)
     const content = playerPanel.querySelector<HTMLElement>('#explore-results')!
     const load = async () => {
       content.innerHTML = '<p role="status">Loading recent matches…</p>'

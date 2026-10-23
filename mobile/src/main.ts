@@ -1,3 +1,4 @@
+import { showPlayerRatings } from './player-ratings-view'
 import { createClient, type Session } from '@supabase/supabase-js'
 import { Capacitor } from '@capacitor/core'
 import { App } from '@capacitor/app'
@@ -144,6 +145,11 @@ async function lab() {
       content.dataset.state = 'unlinked'
       content.innerHTML = '<p>Find your player record above to bring your results here.</p>'
     } else {
+      const ratingsSection=document.createElement('section')
+      ratingsSection.setAttribute('aria-labelledby','lab-ratings-title')
+      ratingsSection.innerHTML='<h2 id="lab-ratings-title">Your recorded TIQ ratings</h2><div aria-live="polite"></div>'
+      app.querySelector('#recent-results')!.before(ratingsSection)
+      showPlayerRatings(ratingsSection.querySelector<HTMLElement>('div')!,client,playerId,()=>version===revision && current.user.id===session?.user.id)
       const refreshResults = async () => {
         content.dataset.state = 'loading'
         content.innerHTML = '<p role="status">Loading your latest matches…</p>'
