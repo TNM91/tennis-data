@@ -1,3 +1,4 @@
+import { showComparison } from './comparison-view'
 import { showFollowing } from './follows-view'
 import { showPlayerRatings } from './player-ratings-view'
 import { createClient, type Session } from '@supabase/supabase-js'
@@ -22,8 +23,9 @@ const navigation = document.createElement('nav')
 navigation.className = 'app-navigation'
 navigation.setAttribute('aria-label','Main navigation')
 navigation.hidden = true
-navigation.innerHTML = '<button type="button" data-screen="lab">My Lab</button><button type="button" data-screen="explore">Explore</button><button type="button" data-screen="following">Following</button>'
+navigation.innerHTML = '<button type="button" data-screen="lab">My Lab</button><button type="button" data-screen="explore">Explore</button><button type="button" data-screen="following">Following</button><button type="button" data-screen="matchup">Matchup</button>'
 app.after(navigation)
+let comparison:ReturnType<typeof showComparison>|null=null
 let following:ReturnType<typeof showFollowing>|null=null
 let explore: ReturnType<typeof showExplore> | null = null
 let session: Session | null = null
@@ -34,7 +36,8 @@ let recovery: ReturnType<typeof showPasswordRecovery> | null = null
 
 if (Capacitor.getPlatform() === 'android') {
   void App.addListener('backButton', () => {
-    if(following){if(!following.back())void lab()}
+    if(comparison){if(!comparison.back())void lab()}
+    else if(following){if(!following.back())void lab()}
     else if (explore) { if (!explore.back()) void lab() }
     else if (connection) { if (!connection.isSaving()) void lab() }
     else if (recovery) login()
@@ -44,6 +47,7 @@ if (Capacitor.getPlatform() === 'android') {
 }
 
 function login(message = '') {
+  comparison?.dispose();comparison=null
   following?.dispose();following=null
   explore?.dispose()
   explore = null
@@ -74,7 +78,7 @@ function login(message = '') {
   }
 }
 
-function selectNavigation(screen: 'lab' | 'explore' | 'following') {
+function selectNavigation(screen: 'lab' | 'explore' | 'following' | 'matchup') {
   navigation.hidden = false
   navigation.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
     if (button.dataset.screen === screen) button.setAttribute('aria-current','page')
@@ -84,6 +88,7 @@ function selectNavigation(screen: 'lab' | 'explore' | 'following') {
 navigation.querySelector<HTMLButtonElement>('[data-screen="lab"]')!.onclick = () => {if (!connection?.isSaving()) void lab()}
 navigation.querySelector<HTMLButtonElement>('[data-screen="explore"]')!.onclick = () => {
   if (!session || connection?.isSaving() || explore) return
+  comparison?.dispose();comparison=null
   following?.dispose();following=null
   connection?.dispose(); connection = null
   recovery?.dispose(); recovery = null
@@ -96,13 +101,23 @@ navigation.querySelector<HTMLButtonElement>('[data-screen="explore"]')!.onclick 
 
 navigation.querySelector<HTMLButtonElement>('[data-screen="following"]')!.onclick=()=>{
   if(!session || connection?.isSaving() || following)return
+  comparison?.dispose();comparison=null
   explore?.dispose();explore=null;connection?.dispose();connection=null;details?.dispose();details=null
   const userId=session.user.id,version=++revision
   selectNavigation('following')
   following=showFollowing(app,client,()=>version===revision && userId===session?.user.id)
 }
 
+navigation.querySelector<HTMLButtonElement>('[data-screen="matchup"]')!.onclick=()=>{
+  if(!session || connection?.isSaving() || comparison)return
+  following?.dispose();following=null;explore?.dispose();explore=null;connection?.dispose();connection=null;details?.dispose();details=null
+  const userId=session.user.id,version=++revision
+  selectNavigation('matchup')
+  comparison=showComparison(app,client,()=>version===revision && userId===session?.user.id)
+}
+
 async function lab() {
+  comparison?.dispose();comparison=null
   following?.dispose();following=null
   explore?.dispose()
   explore = null
@@ -185,7 +200,7 @@ async function lab() {
 }
 
 client.auth.onAuthStateChange((_event, next) => {
-  if (next?.user.id === session?.user.id && (details?.isOpen() || connection || explore || following)) { session = next; return }
+  if (next?.user.id === session?.user.id && (details?.isOpen() || connection || explore || following || comparison)) { session = next; return }
   session = next
   revision++
   // Schedule outside the auth callback's lock before making another SDK call.
@@ -196,7 +211,7 @@ client.auth.getSession().catch(() => {
   app.innerHTML = '<h1>Couldn’t open your account</h1><p role="alert">Close the app and try again. Secure sign-in storage is unavailable.</p>'
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !details?.isOpen() && !connection && !explore && !following) void lab() }
+  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !details?.isOpen() && !connection && !explore && !following && !comparison) void lab() }
   else client.auth.stopAutoRefresh()
 })
-window.addEventListener('online', () => { if (session && !details?.isOpen() && !connection && !explore && !following) void lab() })
+window.addEventListener('online', () => { if (session && !details?.isOpen() && !connection && !explore && !following && !comparison) void lab() })
