@@ -6,7 +6,7 @@ Status: Apple is the current priority; Android work is deferred. The owner repor
 
 Use the repository's GitHub Actions Mac runner rather than introducing another build-service account. The workflow is `.github/workflows/mobile-ios-simulator.yml`. It runs by manual dispatch or by explicitly adding the `ios-simulator` label to a PR; pushes and PR updates do not run it. It uses read-only repository permission, stops after 25 minutes, and retains one zipped simulator app for three days. This repository is currently public; standard GitHub-hosted runners are free for public repositories. Recheck visibility and Actions allowances if that changes. No budget or billing setting is changed.
 
-The workflow installs both lockfiles, runs focused mobile checks, bundles the client, regenerates the ignored iOS project using Swift Package Manager, preserves the approved icon artwork on the opaque brand-white tile required by Apple, and compiles with Xcode 26.3 on `macos-15`. The explicit Xcode path avoids that image's older default Xcode. Runner images evolve: a missing selected Xcode is an actionable failure to review, not a reason to download a different toolchain automatically.
+The workflow installs both lockfiles, runs focused mobile checks, bundles the client, regenerates the ignored iOS project using Swift Package Manager, preserves the approved icon artwork on the opaque brand navy tile (Apple requires opacity), and compiles with Xcode 26.3 on `macos-15`. The explicit Xcode path avoids that image's older default Xcode. Runner images evolve: a missing selected Xcode is an actionable failure to review, not a reason to download a different toolchain automatically.
 
 The workflow and every referenced source must be committed and reviewed together. For the first build before merging, apply the `ios-simulator` label to the reviewed PR once. This explicitly requests a Mac compile without merging into production; subsequent pushes do not restart it. GitHub's manual-dispatch workflow must exist on the default branch before its Run workflow button is available. Do not merge only the workflow while mobile sources remain untracked. Follow the repository's release workflow and CI gates before merging shared code; a merge to `master` also triggers the web production deployment.
 
@@ -110,9 +110,7 @@ profile writes. No real profile is changed during these local tests.
 
 ## Upload acceptance checks
 
-The approved transparent source artwork stays unchanged. Native packaging adds
-only the mandatory opaque #FFFFFF tile, preserving dimensions, positioning, and
-all fully opaque artwork pixels. Tests reject alpha in the packaged icon.
+The approved dark-background artwork in public/brand/web/header-iq-compact.png stays unchanged. Native packaging contains it at 82% scale on an opaque #06172F tile. Tests verify the navy background, preserve opaque artwork pixels at the packaged scale, and reject alpha in the packaged icon.
 
 Do not infer Apple acceptance from altool exit status alone: it can return zero
 after validation errors. The signed lane requests JSON output and requires an
