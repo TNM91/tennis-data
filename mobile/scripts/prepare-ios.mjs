@@ -1,7 +1,8 @@
-import { copyFile, readFile, writeFile, access, mkdir } from 'node:fs/promises'
+import { readFile, writeFile, access, mkdir } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { resolve } from 'node:path'
+import { iosIcon } from './ios-icon.mjs'
 
 const mobile = fileURLToPath(new URL('../', import.meta.url))
 const config = JSON.parse(await readFile(resolve(mobile, 'capacitor.config.json'), 'utf8'))
@@ -48,6 +49,6 @@ if (contents.images.length !== 1 || contents.images[0].size !== '1024x1024') {
   throw new Error('Unexpected iOS icon layout; review approved artwork before applying it.')
 }
 contents.images[0].filename = 'tenaceiq-app-icon.png'
-await copyFile(resolve(mobile, '../public/brand/icons/app-icon-1024.png'), resolve(icons, 'tenaceiq-app-icon.png'))
+await writeFile(resolve(icons, 'tenaceiq-app-icon.png'), await iosIcon())
 await writeFile(resolve(icons, 'Contents.json'), JSON.stringify(contents, null, 2) + '\n')
-console.log('Prepared SPM iOS prototype and copied the approved icon unchanged. Xcode compilation/signing is not verified on Windows.')
+console.log('Prepared SPM iOS prototype and packaged the approved artwork on the required opaque white icon tile. Xcode compilation/signing is not verified on Windows.')

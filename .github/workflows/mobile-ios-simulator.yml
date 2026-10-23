@@ -42,7 +42,7 @@ jobs:
       - name: Check bundled client
         run: |
           npx vitest run lib/__tests__/mobile-account-links.test.ts lib/__tests__/mobile-match-details.test.ts lib/__tests__/mobile-recent-results.test.ts lib/__tests__/mobile-recent-form.test.ts lib/__tests__/mobile-player-connection.test.ts lib/__tests__/native-auth-storage.test.ts
-          node --test mobile/scripts/prepare-device.test.mjs mobile/scripts/ios-workflow.test.mjs
+          node --test mobile/scripts/prepare-device.test.mjs mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-icon.test.mjs
       - name: Bundle and generate iOS project
         run: |
           npm run build:bundled --prefix mobile
