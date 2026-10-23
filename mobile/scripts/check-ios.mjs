@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { createHash } from 'node:crypto'
+import sharp from 'sharp'
+import { iosIcon } from './ios-icon.mjs'
 
 const root = new URL('../', import.meta.url)
 const read = path => readFile(new URL(path, root), 'utf8')
@@ -16,7 +17,7 @@ const app = await read('ios/App/App/public/app.js')
 assert.ok(app.length > 10000, 'Expected bundled client code')
 const contents = JSON.parse(await read('ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json'))
 assert.equal(contents.images[0].filename, 'tenaceiq-app-icon.png')
-const hash = async url => createHash('sha256').update(await readFile(url)).digest('hex')
-assert.equal(await hash(new URL('ios/App/App/Assets.xcassets/AppIcon.appiconset/tenaceiq-app-icon.png', root)),
-  await hash(new URL('../../public/brand/icons/app-icon-1024.png', import.meta.url)), 'Icon must match approved source byte-for-byte')
+const actualIcon = await readFile(new URL('ios/App/App/Assets.xcassets/AppIcon.appiconset/tenaceiq-app-icon.png', root))
+assert.equal((await sharp(actualIcon).metadata()).hasAlpha, false, 'App Store icon must not contain alpha')
+assert.deepEqual(await sharp(actualIcon).raw().toBuffer(), await sharp(await iosIcon()).raw().toBuffer(), 'Icon must preserve approved artwork on the brand white tile')
 console.log('iOS source checks passed: bundled assets, three SPM plugins, prototype ID, approved icon. This is not an Xcode build or device test.')

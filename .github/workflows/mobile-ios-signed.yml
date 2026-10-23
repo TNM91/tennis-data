@@ -43,7 +43,8 @@ jobs:
         run: |
           npm ci
           npm ci --prefix mobile
-          node --test mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-store.test.mjs
+          node --test mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-store.test.mjs mobile/scripts/ios-icon.test.mjs
+          python3 mobile/scripts/test-altool-upload.py
           npm run build:bundled --prefix mobile
           npm run prepare:ios --prefix mobile
           npm run check:ios --prefix mobile
@@ -103,7 +104,9 @@ jobs:
           mkdir -p "$RUNNER_TEMP/tiq-api"
           printf '%s' "$API_KEY" | base64 --decode > "$RUNNER_TEMP/tiq-api/AuthKey_${API_KEY_ID}.p8"
           API_PRIVATE_KEYS_DIR="$RUNNER_TEMP/tiq-api" xcrun altool --upload-app \
-            --file "$RUNNER_TEMP/tiq-export/App.ipa" --type ios --apiKey "$API_KEY_ID" --apiIssuer "$API_ISSUER"
+            --file "$RUNNER_TEMP/tiq-export/App.ipa" --type ios --apiKey "$API_KEY_ID" --apiIssuer "$API_ISSUER" \
+            --output-format json > "$RUNNER_TEMP/tiq-upload.json"
+          python3 mobile/scripts/validate-altool-upload.py "$RUNNER_TEMP/tiq-upload.json"
       - name: Save signed app only
         uses: actions/upload-artifact@v6
         with:
