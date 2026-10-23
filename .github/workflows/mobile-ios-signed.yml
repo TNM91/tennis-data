@@ -1,0 +1,122 @@
+name: Mobile iOS signed build
+
+# Credentials must be scoped to the apple-testflight environment. Never add a
+# pull_request trigger or check out an arbitrary input ref in this workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: Unique positive build number (at most nine digits)
+        required: true
+        type: string
+      upload:
+        description: Upload the signed build to App Store Connect
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: apple-testflight
+  cancel-in-progress: false
+jobs:
+  signed:
+    if: github.repository == 'TNM91/tennis-data' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/codex/apple-mobile-build')
+    environment: apple-testflight
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+      - name: Prepare bundled native app
+        env:
+          TIQ_BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          npm ci
+          npm ci --prefix mobile
+          node --test mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-store.test.mjs
+          npm run build:bundled --prefix mobile
+          npm run prepare:ios --prefix mobile
+          npm run check:ios --prefix mobile
+          node mobile/scripts/prepare-ios-store.mjs
+      - name: Import signing material and validate profile
+        env:
+          CERTIFICATE: ${{ secrets.APPLE_DISTRIBUTION_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_P12_PASSWORD }}
+          PROFILE: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$CERTIFICATE" && test -n "$CERTIFICATE_PASSWORD" && test -n "$PROFILE"
+          mkdir -p "$RUNNER_TEMP/tiq-signing"
+          printf '%s' "$CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/tiq-signing/distribution.p12"
+          printf '%s' "$PROFILE" | base64 --decode > "$RUNNER_TEMP/tiq-signing/app.mobileprovision"
+          security cms -D -i "$RUNNER_TEMP/tiq-signing/app.mobileprovision" > "$RUNNER_TEMP/tiq-signing/profile.plist"
+          python3 mobile/scripts/validate-ios-profile.py "$RUNNER_TEMP/tiq-signing/profile.plist" "$RUNNER_TEMP/tiq-signing"
+          KEYCHAIN_PASSWORD=$(openssl rand -hex 32)
+          echo "::add-mask::$KEYCHAIN_PASSWORD"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$RUNNER_TEMP/tiq-signing/build.keychain-db"
+          security set-keychain-settings -lut 3600 "$RUNNER_TEMP/tiq-signing/build.keychain-db"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$RUNNER_TEMP/tiq-signing/build.keychain-db"
+          security import "$RUNNER_TEMP/tiq-signing/distribution.p12" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$RUNNER_TEMP/tiq-signing/build.keychain-db"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$KEYCHAIN_PASSWORD" "$RUNNER_TEMP/tiq-signing/build.keychain-db" > /dev/null
+          security list-keychains -d user -s "$RUNNER_TEMP/tiq-signing/build.keychain-db" "$HOME/Library/Keychains/login.keychain-db"
+          openssl x509 -inform DER -in "$RUNNER_TEMP/tiq-signing/profile-certificate.cer" -noout -fingerprint -sha1 > "$RUNNER_TEMP/tiq-signing/fingerprint.txt"
+          FINGERPRINT=$(cut -d= -f2 "$RUNNER_TEMP/tiq-signing/fingerprint.txt" | tr -d ':')
+          security find-identity -v -p codesigning "$RUNNER_TEMP/tiq-signing/build.keychain-db" | grep -q "$FINGERPRINT"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$RUNNER_TEMP/tiq-signing/app.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$(cat "$RUNNER_TEMP/tiq-signing/uuid").mobileprovision"
+      - name: Archive and export signed IPA
+        run: |
+          set -euo pipefail
+          TEAM=$(cat "$RUNNER_TEMP/tiq-signing/team")
+          UUID=$(cat "$RUNNER_TEMP/tiq-signing/uuid")
+          echo "::add-mask::$TEAM"
+          echo "::add-mask::$UUID"
+          xcodebuild -project mobile/ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/tiq-app.xcarchive" \
+            DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution' \
+            PROVISIONING_PROFILE_SPECIFIER="$UUID" archive
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/tiq-app.xcarchive" \
+            -exportPath "$RUNNER_TEMP/tiq-export" -exportOptionsPlist "$RUNNER_TEMP/tiq-signing/export.plist"
+          codesign --verify --deep --strict "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app"
+          test -f "$RUNNER_TEMP/tiq-export/App.ipa"
+      - name: Upload to App Store Connect
+        if: inputs.upload
+        env:
+          API_KEY: ${{ secrets.APPLE_UPLOAD_API_KEY_P8_BASE64 }}
+          API_KEY_ID: ${{ secrets.APPLE_UPLOAD_API_KEY_ID }}
+          API_ISSUER: ${{ secrets.APPLE_UPLOAD_API_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$API_KEY" && test -n "$API_KEY_ID" && test -n "$API_ISSUER"
+          mkdir -p "$RUNNER_TEMP/tiq-api"
+          printf '%s' "$API_KEY" | base64 --decode > "$RUNNER_TEMP/tiq-api/AuthKey_${API_KEY_ID}.p8"
+          API_PRIVATE_KEYS_DIR="$RUNNER_TEMP/tiq-api" xcrun altool --upload-app \
+            --file "$RUNNER_TEMP/tiq-export/App.ipa" --type ios --apiKey "$API_KEY_ID" --apiIssuer "$API_ISSUER"
+      - name: Save signed app only
+        uses: actions/upload-artifact@v6
+        with:
+          name: tenaceiq-ios-signed-${{ inputs.build_number }}
+          path: ${{ runner.temp }}/tiq-export/App.ipa
+          if-no-files-found: error
+          retention-days: 3
+      - name: Clean up signing material
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/tiq-signing/build.keychain-db" 2>/dev/null || true
+          if test -f "$RUNNER_TEMP/tiq-signing/uuid"; then
+            rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$(cat "$RUNNER_TEMP/tiq-signing/uuid").mobileprovision"
+          fi
+          rm -rf "$RUNNER_TEMP/tiq-signing" "$RUNNER_TEMP/tiq-api"
+

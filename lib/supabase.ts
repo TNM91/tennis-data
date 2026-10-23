@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { LockFunc } from '@supabase/auth-js'
 
 import { supabaseUrl, supabaseKey } from './supabase-public-config'
+import { getNativeAuthStorage } from './native-auth-storage'
 export { supabaseUrl, supabaseKey } from './supabase-public-config'
 
 let client: SupabaseClient | null = null
@@ -22,6 +23,7 @@ function getSupabaseClient() {
       autoRefreshToken: true,
       detectSessionInUrl: true,
       lock: serializedAuthLock,
+      storage: getNativeAuthStorage(),
     },
   })
 
