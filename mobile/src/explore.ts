@@ -8,7 +8,7 @@ export function playerSummary(player: PlayerChoice) {
   return `<h1 tabindex="-1">${html(player.name)}</h1><dl><dt>Location</dt><dd>${html(player.location || 'Location unavailable')}</dd><dt>Flight</dt><dd>${html(player.flight || 'Flight unavailable')}</dd></dl>`
 }
 
-export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean) {
+export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, initial?: {player:PlayerChoice;back:()=>void}) {
   let disposed = false
   let request = 0
   let selected: PlayerChoice | null = null
@@ -18,7 +18,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
   const valid = () => !disposed && isCurrent()
   app.dataset.state = 'explore'
   app.innerHTML = '<div id="explore-intro"><small>Tennis intelligence</small><h1 tabindex="-1">Explore</h1><p>Find players. Get to know their game.</p></div><div id="explore-search"><form><label>Player name<input name="player" type="search" autocomplete="off" minlength="2" maxlength="80" required placeholder="Search by tennis name"></label><button>Search players</button></form><p role="status" id="explore-status">Search at least two characters to find a player.</p><p role="alert" id="explore-error"></p><div id="explore-choices"></div></div><section id="explore-player" hidden></section>'
-  app.querySelector<HTMLElement>('h1')!.focus()
+  if(!initial)app.querySelector<HTMLElement>('h1')!.focus()
   const intro = app.querySelector<HTMLElement>('#explore-intro')!
   const search = app.querySelector<HTMLElement>('#explore-search')!
   const form = search.querySelector<HTMLFormElement>('form')!
@@ -29,6 +29,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
   const choices = search.querySelector<HTMLElement>('#explore-choices')!
   const playerPanel = app.querySelector<HTMLElement>('#explore-player')!
   const back = () => {
+    if(initial){initial.back();return}
     request++
     selected = null
     matchDetails?.dispose()
@@ -49,7 +50,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
     search.hidden = true
     intro.hidden = true
     playerPanel.hidden = false
-    playerPanel.innerHTML = `<button type="button" class="secondary" id="back-explore">Back to search</button>${playerSummary(player)}<p>Public player record · Results below are for ${html(player.name)}.</p><h2>Recent matches</h2><div id="explore-results" aria-live="polite"></div>`
+    playerPanel.innerHTML = `<button type="button" class="secondary" id="back-explore">${initial?'Back to rankings':'Back to search'}</button>${playerSummary(player)}<p>Public player record · Results below are for ${html(player.name)}.</p><h2>Recent matches</h2><div id="explore-results" aria-live="polite"></div>`
     playerPanel.querySelector<HTMLButtonElement>('#back-explore')!.onclick = back
     playerPanel.querySelector<HTMLElement>('h1')!.focus()
     window.scrollTo(0,0)
@@ -99,6 +100,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
       error.textContent = 'Can’t search players. Check your connection and try again.'
     } finally {if(valid() && version===request)button.disabled=false}
   }
+  if(initial)void open(initial.player)
   return {
     isMatchOpen:()=>matchDetails?.isOpen() || false,
     back:()=>{if(matchDetails?.isOpen()){history.back();return true}if(selected){back();return true}return false},
