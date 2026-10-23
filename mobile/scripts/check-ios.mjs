@@ -19,5 +19,5 @@ const contents = JSON.parse(await read('ios/App/App/Assets.xcassets/AppIcon.appi
 assert.equal(contents.images[0].filename, 'tenaceiq-app-icon.png')
 const actualIcon = await readFile(new URL('ios/App/App/Assets.xcassets/AppIcon.appiconset/tenaceiq-app-icon.png', root))
 assert.equal((await sharp(actualIcon).metadata()).hasAlpha, false, 'App Store icon must not contain alpha')
-assert.deepEqual(await sharp(actualIcon).raw().toBuffer(), await sharp(await iosIcon()).raw().toBuffer(), 'Icon must preserve approved artwork on the brand white tile')
+assert.deepEqual(await sharp(actualIcon).raw().toBuffer(), await sharp(await iosIcon()).raw().toBuffer(), 'Icon must preserve approved artwork on the brand navy tile')
 console.log('iOS source checks passed: bundled assets, three SPM plugins, prototype ID, approved icon. This is not an Xcode build or device test.')
