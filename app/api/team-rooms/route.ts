@@ -1,3 +1,5 @@
+import {loadTeamFixtures} from '@/lib/team-fixtures'
+import {seasonToday} from '@/lib/season-kickoff-server'
 import {searchTeamChatRows,publicChatSearchResult} from '@/lib/team-chat-search'
 import {readChatMentions,validateChatMentions} from '@/lib/team-chat-mentions'
 import {loadTeamChatMessage,publicChatMessage} from '@/lib/team-chat-message'
@@ -306,7 +308,7 @@ export async function GET(request: Request) {
   const linksResult = await loadAcceptedTeamLinks(auth.service, auth.userId)
   if (!linksResult.ok) return Response.json({ ok: false, message: linksResult.message }, { status: 500 })
   if (!linksResult.links.length) {
-    if(url.searchParams.get('chatMessage')==='1'||url.searchParams.get('chatSearch')==='1')return Response.json({ok:false,message:'Team access is unavailable.'},{status:403,headers:{'Cache-Control':'private, no-store'}})
+    if(url.searchParams.get('chatMessage')==='1'||url.searchParams.get('chatSearch')==='1'||url.searchParams.get('teamFixtures')==='1')return Response.json({ok:false,message:'Team access is unavailable.'},{status:403,headers:{'Cache-Control':'private, no-store'}})
     return Response.json({
       ok: true,
       room: null,
@@ -351,7 +353,9 @@ export async function GET(request: Request) {
   if (url.searchParams.get('chatUpdates') === '1') {
     const scope={teamName:url.searchParams.get('team')||'',leagueName:url.searchParams.get('league')||'',flight:url.searchParams.get('flight')||''}
     if(scope.teamName!==selected.team_name || scope.leagueName!==selected.league_name || scope.flight!==(selected.flight||''))return Response.json({ok:false,message:'This team connection changed. Refresh your team.'},{status:403,headers:{'Cache-Control':'private, no-store'}})
-    const result = url.searchParams.get('chatSearch')==='1'
+    const result = url.searchParams.get('teamFixtures')==='1'
+      ? await loadNativeTeamFixtures(auth.service,auth.userId,selected,url.searchParams.get('fixture')||'')
+      : url.searchParams.get('chatSearch')==='1'
       ? await loadNativeChatSearch(auth.service,auth.userId,selected,url.searchParams.get('q')||'',url.searchParams.get('kind')||'all',url.searchParams.get('before')||'')
       : url.searchParams.get('chatMessage')==='1'
       ? await loadNativeChatMessage(auth.service,auth.userId,selected,url.searchParams.get('message')||'',url.searchParams.get('view')||'')
@@ -2718,6 +2722,11 @@ async function loadNativeChatMessage(service:SupabaseClient,userId:string,select
   const row=loaded.row,profiles=await loadProfileMap(service,[row.sender_user_id]),profile=profiles.get(row.sender_user_id)
   return {ok:true as const,messageView:1,roomId:conversation.id,requestedId,view:loaded.view,message:publicChatMessage(row,profile?.message_display_name?.trim()||profile?.linked_player_name?.trim()||'Team member',Boolean(cleanAttachmentMetadata(row.metadata)))}
  }catch{return {ok:false as const,status:503}}
+}
+
+async function loadNativeTeamFixtures(service:SupabaseClient,userId:string,selected:TeamLinkRow,fixture:string){
+ const conversation=await findNativeChatConversation(service,selected);if(!conversation.ok)return conversation
+ try{return await loadTeamFixtures(service,userId,conversation.id,{teamName:selected.team_name,leagueName:selected.league_name,flight:selected.flight||''},seasonToday(),fixture)}catch{return {ok:false as const,status:503}}
 }
 
 async function loadNativeChatSearch(service:SupabaseClient,userId:string,selected:TeamLinkRow,query:string,kind:string,before:string){
