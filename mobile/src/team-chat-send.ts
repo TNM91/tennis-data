@@ -3,6 +3,7 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import type {TeamScope} from './team-room-data'
 
 export type ChatAction =
+  | {action:'mark_chat_read';messageId:string}
   | {action:'send';clientMessageId:string;body:string;replyToMessageId:string}
   | {action:'report_chat_message';messageId:string;reason:'harassment'|'spam'|'inappropriate'|'other'}
   | {action:'block_chat_member'|'unblock_chat_member';memberId:string}
