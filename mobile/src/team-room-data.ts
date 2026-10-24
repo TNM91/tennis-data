@@ -1,3 +1,4 @@
+import {readTeamChatCursor} from '../../lib/team-chat-cursor'
 import {parseChatReactions,type ChatReaction} from './chat-reactions'
 import {CapacitorHttp} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
@@ -39,15 +40,20 @@ export async function loadTeamRoom(client:SupabaseClient,userId:string,isCurrent
  if(selected && parsed.room && (parsed.room.teamName!==selected.teamName || parsed.room.leagueName!==selected.leagueName || parsed.room.flight!==selected.flight))throw Error('Team scope mismatch')
  return parsed
 }
-export async function loadTeamChatUpdate(client:SupabaseClient,userId:string,isCurrent:()=>boolean,selected:TeamScope,roomId:string,send:typeof CapacitorHttp.get=options=>CapacitorHttp.get(options)) {
+export async function loadTeamChatUpdate(client:SupabaseClient,userId:string,isCurrent:()=>boolean,selected:TeamScope,roomId:string,send:typeof CapacitorHttp.get=options=>CapacitorHttp.get(options),before='') {
+ if(before && !readTeamChatCursor(before))throw Error('Invalid conversation page')
  const {data,error}=await client.auth.getSession()
  if(error || data.session?.user.id!==userId || !isCurrent())throw Error('Sign in again to open your team.')
  const url=new URL('https://www.tenaceiq.com/api/team-rooms/chat')
  for(const [key,value] of [['team',selected.teamName],['league',selected.leagueName],['flight',selected.flight],['chatUpdates','1']])url.searchParams.set(key,value)
+ if(before)url.searchParams.set('before',before)
  const response=await send({url:url.toString(),headers:{Authorization:`Bearer ${data.session.access_token}`},responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:12000})
  if(response.status===401 || response.status===403)throw new TeamRoomAccessError('Team access is unavailable.')
  const root=record(response.data),room=record(root.room)
  if(response.status!==200 || root.ok!==true || root.chatUpdate!==true || !Array.isArray(room.blockedUserIds) || room.id!==roomId)throw Error('Conversation updates are unavailable.')
+ if((before || root.beforeCursor!==undefined) && root.beforeCursor!==before)throw Error('Conversation page mismatch')
+ const nextCursor=typeof root.nextCursor==='string'?root.nextCursor:''
+ if(nextCursor && !readTeamChatCursor(nextCursor))throw Error('Invalid conversation page')
  const parsed=parseTeamData({ok:true,teams:[selected],room:{...selected,...room,members:[]}}).room!
- return {messages:parsed.messages,lastReadAt:parsed.lastReadAt,blockedUserIds:array(room.blockedUserIds).filter((id):id is string=>typeof id==='string').slice(0,1000)}
+ return {beforeCursor:before,nextCursor,messages:parsed.messages,lastReadAt:parsed.lastReadAt,blockedUserIds:array(room.blockedUserIds).filter((id):id is string=>typeof id==='string').slice(0,1000)}
 }
