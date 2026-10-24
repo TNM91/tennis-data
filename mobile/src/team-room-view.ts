@@ -1,3 +1,5 @@
+import {chooseChatGif} from './chat-gifs'
+import {chatGifPlayback} from './chat-gif-playback'
 import {teamChatCursor} from '../../lib/team-chat-cursor'
 import {showCaptainWorkspace} from './captain-view'
 import {openChatPostEditor} from './chat-post-editor'
@@ -21,7 +23,7 @@ export function teamConversationHtml(room:NativeTeamRoom,earlier=false) {
  const byId=new Map(room.messages.map(message=>[message.id,message]))
  return `<div class="chat-history-heading"><p class="rating-context">${earlier?'Earlier messages':`Latest ${room.messages.length} messages`}</p><button type="button" class="secondary" id="chat-earlier">Earlier messages</button><button type="button" class="secondary" id="chat-latest">Latest ↓</button></div><ol class="team-conversation" aria-label="Team conversation" tabindex="0">${room.messages.map(message=>{
   const reply=byId.get(message.replyToMessageId)
-  return `<li data-chat-message="${html(message.id)}" class="team-bubble ${message.isMine?'team-bubble-mine':''}"><div class="team-message-meta"><strong>${html(message.senderName)}</strong><span>${html(messageTime(message.createdAt))}${message.editedAt && !message.deletedAt?' · edited':''}</span></div>${message.kind==='announcement'?'<small class="chat-announcement">Captain announcement</small>':''}${message.replyToMessageId?`<blockquote>${reply && !reply.deletedAt?`<strong>${html(reply.senderName)}</strong><span>${html(reply.body.slice(0,160))}</span>`:'Earlier or removed message'}</blockquote>`:''}<p>${html(message.body)}</p>${message.hasPhoto && !message.deletedAt?`<button type="button" class="secondary chat-photo-open" data-chat-photo="${html(message.id)}" aria-label="Open team photo full screen"><span data-photo-preview>Loading photo…</span></button>`:message.hasAttachment && !message.deletedAt?'<small>Attachment available on the website.</small>':''}${message.card?'<small>Match-day card · open Match day for the shared court plan.</small>':''}${room.chatReady && !message.deletedAt?`<div class="chat-message-actions"><button type="button" class="secondary" data-chat-reply="${html(message.id)}" aria-label="Reply to ${html(message.senderName)}">Reply</button>${message.canManageOwn && message.isMine?`<button type="button" class="secondary" data-chat-edit="${html(message.id)}">Edit</button><button type="button" class="secondary" data-chat-remove="${html(message.id)}">Remove</button>`:''}${!message.isMine?`<button type="button" class="secondary" data-chat-report="${html(message.id)}" aria-label="Report message from ${html(message.senderName)}">Report</button>${message.senderUserId?`<button type="button" class="secondary" data-chat-block="${html(message.senderUserId)}" aria-label="Block chat posts from ${html(message.senderName)}">Block</button>`:''}`:''}</div>${chatReactionButtons(message)}`:''}</li>`
+  return `<li data-chat-message="${html(message.id)}" class="team-bubble ${message.isMine?'team-bubble-mine':''}"><div class="team-message-meta"><strong>${html(message.senderName)}</strong><span>${html(messageTime(message.createdAt))}${message.editedAt && !message.deletedAt?' · edited':''}</span></div>${message.kind==='announcement'?'<small class="chat-announcement">Captain announcement</small>':''}${message.replyToMessageId?`<blockquote>${reply && !reply.deletedAt?`<strong>${html(reply.senderName)}</strong><span>${html(reply.body.slice(0,160))}</span>`:'Earlier or removed message'}</blockquote>`:''}<p>${html(message.body)}</p>${message.hasPhoto && !message.deletedAt?`<button type="button" class="secondary chat-photo-open" data-chat-photo="${html(message.id)}" aria-label="${message.isGif?'Play team GIF':'Open team photo full screen'}"><span data-photo-preview>Loading photo…</span>${message.isGif?'<span data-gif-label>Play team GIF</span>':''}</button>`:message.hasAttachment && !message.deletedAt?'<small>Attachment available on the website.</small>':''}${message.card?'<small>Match-day card · open Match day for the shared court plan.</small>':''}${room.chatReady && !message.deletedAt?`<div class="chat-message-actions"><button type="button" class="secondary" data-chat-reply="${html(message.id)}" aria-label="Reply to ${html(message.senderName)}">Reply</button>${message.canManageOwn && message.isMine?`<button type="button" class="secondary" data-chat-edit="${html(message.id)}">Edit</button><button type="button" class="secondary" data-chat-remove="${html(message.id)}">Remove</button>`:''}${!message.isMine?`<button type="button" class="secondary" data-chat-report="${html(message.id)}" aria-label="Report message from ${html(message.senderName)}">Report</button>${message.senderUserId?`<button type="button" class="secondary" data-chat-block="${html(message.senderUserId)}" aria-label="Block chat posts from ${html(message.senderName)}">Block</button>`:''}`:''}</div>${chatReactionButtons(message)}`:''}</li>`
  }).join('') || '<li class="rating-context">Start the team conversation.</li>'}</ol>`
 }
 export function teamMatchDayHtml(room:NativeTeamRoom) {
@@ -38,12 +40,14 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  let captainView:ReturnType<typeof showCaptainWorkspace>|null=null
  let searchText='',postEditor:ReturnType<typeof openChatPostEditor>|null=null
  let muteSending=false,mutePending:boolean|null=null,muteNotice=''
+ let gifChooser:AbortController|null=null
  let photoChoosing=false,photoDialog:HTMLDialogElement|null=null,photoVersion=0,viewedPhotoId=''
  const closePhoto=()=>{photoVersion++;photoDialog?.remove();photoDialog=null;viewedPhotoId=''}
- const onVisibility=()=>{if(document.visibilityState!=='visible'){captainView?.dispose();captainView=null;if(tab==='Captain'){const panel=app.querySelector('#team-panel');if(panel)panel.innerHTML='<p role="status">Captain tools paused.</p>'}postEditor?.dispose();postEditor=null;closePhoto();previews.clear()}else if(snapshot?.room){if(tab==='Captain')render();else previews.attach(app.querySelector<HTMLElement>('.team-conversation'))}}
+ const onVisibility=()=>{if(document.visibilityState!=='visible'){captainView?.dispose();captainView=null;if(tab==='Captain'){const panel=app.querySelector('#team-panel');if(panel)panel.innerHTML='<p role="status">Captain tools paused.</p>'}postEditor?.dispose();postEditor=null;closePhoto();gifs.clear();previews.clear()}else if(snapshot?.room){if(tab==='Captain')render();else previews.attach(app.querySelector<HTMLElement>('.team-conversation'))}}
  document.addEventListener('visibilitychange',onVisibility)
  const valid=()=>!disposed && isCurrent()
- const previews=chatPhotoPreviews(async id=>{const data=await postTeamChat(client,userId,valid,{...currentScope()},{action:'read_chat_photo',messageId:id,photoPreview:true});if(data.messageId!==id || typeof data.base64!=='string' || data.base64.length>128000)throw Error('Photo preview unavailable');return privatePhotoData(data)},valid)
+ const previews=chatPhotoPreviews(async id=>{const data=await postTeamChat(client,userId,valid,{...currentScope()},{action:'read_chat_photo',messageId:id,photoPreview:true});if(data.messageId!==id || data.mimeType!=='image/jpeg' || typeof data.base64!=='string' || data.base64.length>128000)throw Error('Photo preview unavailable');return privatePhotoData(data)},valid)
+ const gifs=chatGifPlayback(async id=>{const data=await postTeamChat(client,userId,valid,{...currentScope()},{action:'read_chat_photo',messageId:id});if(data.mimeType!=='image/gif')throw Error('GIF unavailable');return privatePhotoData(data)},valid)
  const statusText=()=>liveStatus==='live'?'Live chat on':liveStatus==='connecting'?'Connecting to live chat…':liveStatus==='paused'?'Live updates paused. Refresh if needed.':'Live updates unavailable. Refresh to check for messages.'
  const updateLabels=()=>{
   const button=app.querySelector<HTMLButtonElement>('[data-team-tab="Conversation"]');if(button)button.textContent=`Conversation${unread.size?` (${unread.size})`:''}`
@@ -88,7 +92,8 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   app.querySelectorAll<HTMLButtonElement>('[data-chat-photo]').forEach(button=>{button.onclick=()=>{void (async()=>{
    const message=room.messages.find(item=>item.id===button.dataset.chatPhoto)
    if(!message?.hasPhoto || message.deletedAt || !valid())return
-   closePhoto();viewedPhotoId=message.id
+   if(message.isGif){await gifs.toggle(button);return}
+   gifs.clear();closePhoto();viewedPhotoId=message.id
    const version=photoVersion,epoch=reactionEpoch,scope={...currentScope()}
    photoDialog=document.createElement('dialog');photoDialog.className='chat-photo-dialog';photoDialog.setAttribute('aria-label','Team photo')
    photoDialog.innerHTML='<button type="button" class="secondary">Close photo</button><p role="status">Opening photo…</p>'
@@ -129,6 +134,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   const previous=list.scrollTop,top=list.getBoundingClientRect().top
   const first=Array.from(list.children).find(child=>child.getBoundingClientRect().bottom>top+1) as HTMLElement|undefined
   const anchor=first?{id:first.dataset.chatMessage,delta:first.getBoundingClientRect().top-top}:null
+  gifs.clear()
   const fragment=document.createElement('template');fragment.innerHTML=teamConversationHtml(room,Boolean(historyBefore))
   const next=fragment.content.querySelector('.team-conversation')!
   list.replaceChildren(...Array.from(next.childNodes))
@@ -166,7 +172,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    const blocked=new Set(update.blockedUserIds)
    if(draft.reply && blocked.has(draft.reply.senderUserId || ''))draft.reply=null
    snapshot={...snapshot,room:{...snapshot.room,messages:update.messages,lastReadAt:update.lastReadAt,activeCard:room.activeCard && !blocked.has(room.activeCard.senderUserId)?room.activeCard:null,blockedMembers:update.blockedUserIds.map(id=>({id,name:room.blockedMembers.find(member=>member.id===id)?.name || 'Team member'}))}}
-   closePhoto();previews.clear();historyScroll=0;matchDetailsDirty=true;updateUnread(snapshot.room!);render(!before)
+   closePhoto();gifs.clear();previews.clear();historyScroll=0;matchDetailsDirty=true;updateUnread(snapshot.room!);render(!before)
    const list=app.querySelector<HTMLElement>('.team-conversation');if(list && before)list.scrollTop=0;list?.focus({preventScroll:true})
   }catch(cause){
    if(!valid() || version!==revision || epoch!==reactionEpoch)return
@@ -184,7 +190,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  const currentScope=():TeamScope=>{if(!selected)throw Error('Open a team first.');return {...selected}}
  let draft=new TeamChatDraft(action=>postTeamChat(client,userId,valid,currentScope(),action))
  let matchActions=new TeamMatchActions(action=>postTeamChat(client,userId,valid,currentScope(),action))
- const freshDraft=()=>{historyBefore='';historyNext='';historyNotice='';historyLoading=false;captainView?.dispose();captainView=null;searchText='';postEditor?.dispose();postEditor=null;matchActions.dispose();matchActions=new TeamMatchActions(action=>postTeamChat(client,userId,valid,currentScope(),action));muteSending=false;mutePending=null;muteNotice='';previews.clear();closePhoto();photoChoosing=false;reactionEpoch++;reactionSending=false;reactionNotice='';pendingReactions.clear();live?.dispose();live=null;watchedRoomId='';readRoomId='';readThrough='';lastAckAttempt='';readNotice='';unread.clear();needsLiveRefresh=false;draft.dispose();draft=new TeamChatDraft(action=>postTeamChat(client,userId,valid,currentScope(),action))}
+ const freshDraft=()=>{gifChooser?.abort();gifChooser=null;gifs.clear();historyBefore='';historyNext='';historyNotice='';historyLoading=false;captainView?.dispose();captainView=null;searchText='';postEditor?.dispose();postEditor=null;matchActions.dispose();matchActions=new TeamMatchActions(action=>postTeamChat(client,userId,valid,currentScope(),action));muteSending=false;mutePending=null;muteNotice='';previews.clear();closePhoto();photoChoosing=false;reactionEpoch++;reactionSending=false;reactionNotice='';pendingReactions.clear();live?.dispose();live=null;watchedRoomId='';readRoomId='';readThrough='';lastAckAttempt='';readNotice='';unread.clear();needsLiveRefresh=false;draft.dispose();draft=new TeamChatDraft(action=>postTeamChat(client,userId,valid,currentScope(),action))}
  const load=async(preserve=false,latest=false)=>{
   historyLoading=false
   fullLoads++
@@ -216,6 +222,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  }
  const render=(latest=false)=>{
   if(!snapshot || !valid())return
+  gifs.clear()
   captainView?.dispose();captainView=null
   const oldList=app.querySelector<HTMLElement>('.team-conversation')
   if(oldList)historyScroll=oldList.scrollTop
@@ -247,7 +254,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    app.querySelector<HTMLInputElement>('#chat-search')!.oninput=event=>{searchText=(event.currentTarget as HTMLInputElement).value;applySearch(room)}
    app.querySelector<HTMLButtonElement>('#chat-search-clear')!.onclick=()=>{searchText='';const input=app.querySelector<HTMLInputElement>('#chat-search')!;input.value='';applySearch(room);input.focus()}
    if(room.chatReady){
-    panel.insertAdjacentHTML('beforeend',`<form id="chat-composer" class="chat-composer"><div id="chat-reply-context">${draft.reply?`<div class="chat-reply-context"><strong>Replying to ${html(draft.reply.name)}</strong><p>${html(draft.reply.body.slice(0,160))}</p><button type="button" class="secondary" id="chat-cancel-reply" ${draft.pending || draft.sending?'disabled':''}>Cancel reply</button></div>`:''}</div>${draft.photo?`<figure class="chat-photo-preview"><img src="${draft.photo.preview}" alt="Photo ready to share"><figcaption>Photo ready to share</figcaption><button type="button" class="secondary" id="chat-photo-remove" ${draft.pending || draft.sending?'disabled':''}>Remove photo</button></figure>`:''}<div class="chat-photo-tools"><button type="button" class="secondary" data-photo-source="library" ${draft.pending || draft.sending || busy || photoChoosing?'disabled':''}>Choose photo</button><button type="button" class="secondary" data-photo-source="camera" ${draft.pending || draft.sending || busy || photoChoosing?'disabled':''}>Take photo</button></div><label class="sr-only" for="chat-draft">Message your team</label><textarea id="chat-draft" maxlength="2400" rows="2" placeholder="Message your team…" ${draft.pending || draft.sending || photoChoosing?'readonly':''}>${html(draft.text)}</textarea><div class="chat-compose-footer"><span id="chat-count">${draft.text.length}/2400</span><button type="submit" ${draft.sending || busy || photoChoosing || !draft.pending && !draft.text.trim() && !draft.photo?'disabled':''}>${photoChoosing?'Opening photos…':draft.sending?'Sending…':draft.pending?'Retry same message':draft.photo?'Send photo':'Send'}</button></div><p role="status" id="chat-send-status">${html(draft.notice)}</p>${draft.pending && !draft.sending?'<p class="rating-context">This message may already be posted. Retry checks the same send without creating another post.</p><button type="button" class="secondary" id="chat-discard">Discard retry</button>':''}</form>`)
+    panel.insertAdjacentHTML('beforeend',`<form id="chat-composer" class="chat-composer"><div id="chat-reply-context">${draft.reply?`<div class="chat-reply-context"><strong>Replying to ${html(draft.reply.name)}</strong><p>${html(draft.reply.body.slice(0,160))}</p><button type="button" class="secondary" id="chat-cancel-reply" ${draft.pending || draft.sending?'disabled':''}>Cancel reply</button></div>`:''}</div>${draft.photo?`<figure class="chat-photo-preview"><img src="${draft.photo.preview}" alt="${draft.photo.mimeType==='image/gif'?'GIF preview':'Photo ready to share'}"><figcaption>${draft.photo.mimeType==='image/gif'?'GIF ready to share · tap Play after posting':'Photo ready to share'}</figcaption><button type="button" class="secondary" id="chat-photo-remove" ${draft.pending || draft.sending?'disabled':''}>${draft.photo.mimeType==='image/gif'?'Remove GIF':'Remove photo'}</button></figure>`:''}<div class="chat-photo-tools"><button type="button" class="secondary" id="chat-choose-gif" ${draft.pending || draft.sending || busy || photoChoosing?'disabled':''}>Choose GIF</button><button type="button" class="secondary" data-photo-source="library" ${draft.pending || draft.sending || busy || photoChoosing?'disabled':''}>Choose photo</button><button type="button" class="secondary" data-photo-source="camera" ${draft.pending || draft.sending || busy || photoChoosing?'disabled':''}>Take photo</button></div><label class="sr-only" for="chat-draft">Message your team</label><textarea id="chat-draft" maxlength="2400" rows="2" placeholder="Message your team…" ${draft.pending || draft.sending || photoChoosing?'readonly':''}>${html(draft.text)}</textarea><div class="chat-compose-footer"><span id="chat-count">${draft.text.length}/2400</span><button type="submit" ${draft.sending || busy || photoChoosing || !draft.pending && !draft.text.trim() && !draft.photo?'disabled':''}>${photoChoosing?'Choosing…':draft.sending?'Sending…':draft.pending?'Retry same message':draft.photo?draft.photo.mimeType==='image/gif'?'Send GIF':'Send photo':'Send'}</button></div><p role="status" id="chat-send-status">${html(draft.notice)}</p>${draft.pending && !draft.sending?'<p class="rating-context">This message may already be posted. Retry checks the same send without creating another post.</p><button type="button" class="secondary" id="chat-discard">Discard retry</button>':''}</form>`)
     const textarea=app.querySelector<HTMLTextAreaElement>('#chat-draft')!
     textarea.oninput=()=>{draft.text=textarea.value;app.querySelector('#chat-count')!.textContent=`${draft.text.length}/2400`;app.querySelector<HTMLButtonElement>('#chat-composer button[type=submit]')!.disabled=busy || draft.sending || photoChoosing || !draft.text.trim() && !draft.photo}
     app.querySelector<HTMLFormElement>('#chat-composer')!.onsubmit=event=>{event.preventDefault();if(busy || photoChoosing)return;const task=draft.submit();render();void task.then(sent=>{if(!valid())return;render();if(sent)void load(true,true);else if(needsLiveRefresh){needsLiveRefresh=false;void refreshLive().catch(()=>{})}})}
@@ -258,6 +265,13 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
      catch{if(valid() && epoch===reactionEpoch)draft.notice='No photo added. Try again and allow access when asked.'}
      finally{if(valid() && epoch===reactionEpoch){photoChoosing=false;render()}}
     })()}})
+    app.querySelector<HTMLButtonElement>('#chat-choose-gif')?.addEventListener('click',()=>{void (async()=>{
+     if(draft.pending || draft.sending || busy || photoChoosing)return
+     const epoch=reactionEpoch;photoChoosing=true;gifChooser=new AbortController();draft.notice='Choose a GIF file up to 2 MB.';render()
+     try{const photo=await chooseChatGif(gifChooser.signal);if(valid() && epoch===reactionEpoch){draft.photo=photo;draft.notice='Add a caption or send your GIF.'}}
+     catch(cause){if(valid() && epoch===reactionEpoch)draft.notice=cause instanceof Error?cause.message:'No GIF added.'}
+     finally{if(valid() && epoch===reactionEpoch){gifChooser=null;photoChoosing=false;render()}}
+    })()})
     app.querySelector<HTMLButtonElement>('#chat-photo-remove')?.addEventListener('click',()=>{if(!draft.pending && !draft.sending){draft.photo=null;draft.notice='';render()}})
     app.querySelector<HTMLButtonElement>('#chat-cancel-reply')?.addEventListener('click',()=>{draft.reply=null;render();app.querySelector<HTMLTextAreaElement>('#chat-draft')?.focus()})
     app.querySelector<HTMLButtonElement>('#chat-discard')?.addEventListener('click',()=>{draft.discard();render()})
@@ -293,5 +307,5 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   markLatest()
  }
  void load()
- return {hasDraft:()=>Boolean(postEditor?.isOpen() || matchActions.pending || matchActions.sending || draft.photo || photoChoosing || draft.text.trim() || draft.pending || draft.sending),dispose:()=>{captainView?.dispose();postEditor?.dispose();matchActions.dispose();previews.dispose();closePhoto();document.removeEventListener('visibilitychange',onVisibility);disposed=true;revision++;snapshot=null;live?.dispose();draft.dispose()},back:()=>false}
+ return {hasDraft:()=>Boolean(postEditor?.isOpen() || matchActions.pending || matchActions.sending || draft.photo || photoChoosing || draft.text.trim() || draft.pending || draft.sending),dispose:()=>{gifChooser?.abort();gifs.clear();captainView?.dispose();postEditor?.dispose();matchActions.dispose();previews.dispose();closePhoto();document.removeEventListener('visibilitychange',onVisibility);disposed=true;revision++;snapshot=null;live?.dispose();draft.dispose()},back:()=>false}
 }

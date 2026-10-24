@@ -223,6 +223,7 @@ type TeamRoomActionBody = {
   expectedBody?: unknown
   expectedEditedAt?: unknown
   photoPreview?: unknown
+  photoMimeType?: unknown
   photoBase64?: unknown
   active?: unknown
   memberId?: unknown
@@ -482,6 +483,7 @@ export async function POST(request: Request) {
     }catch{return Response.json({ok:false,message:'Publication could not be confirmed. Retry the same request.'},{status:503})}
   }
   if (action === 'send_chat_photo' || action === 'read_chat_photo') {
+    if(cleanText(body.teamName)!==selected.team_name || cleanText(body.leagueName)!==selected.league_name || cleanText(body.flight)!==(selected.flight||''))return Response.json({ok:false,message:'This team connection changed. Refresh your team.'},{status:403})
     const existing = await findNativeChatConversation(auth.service, selected)
     if (!existing.ok) return Response.json(existing, {status: existing.status})
     const access = await checkTeamChatAccess(auth.service, auth.userId, existing.id, canManageTeamRoom(teamRoles(selected)))
@@ -495,7 +497,7 @@ export async function POST(request: Request) {
       if (!result.ok) return Response.json(result, {status: result.status})
       if (!result.replayed) {
         await auth.service.from('internal_conversations').update({updated_at:new Date().toISOString()}).eq('id',existing.id)
-        await notifyTeamRoom(auth.service,{conversationId:existing.id,actorUserId:auth.userId,teamName:selected.team_name,scope:selected,body:'Shared a photo.',announcement:false})
+        await notifyTeamRoom(auth.service,{conversationId:existing.id,actorUserId:auth.userId,teamName:selected.team_name,scope:selected,body:body.photoMimeType==='image/gif'?'Shared a GIF.':'Shared a photo.',announcement:false})
       }
       return Response.json({ok:true,replayed:result.replayed,message:toMessage(result.message,new Map(),auth.userId)}, {headers:{'Cache-Control':'private, no-store'}})
     } catch { return Response.json({ok:false,message:'Team photos are unavailable. Try again.'},{status:503}) }
@@ -4351,7 +4353,7 @@ function cleanAttachmentMetadata(metadata: unknown) {
   const name = cleanText(attachment.name)
   const mimeType = cleanText(attachment.mimeType)
   const size = Math.max(0, Number(attachment.size) || 0)
-  if (bucket !== 'team-room-files' || !path || !name || !['image/jpeg', 'image/png', 'image/webp', 'application/pdf'].includes(mimeType)) return null
+  if (bucket !== 'team-room-files' || !path || !name || !['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'].includes(mimeType)) return null
   return { bucket, path, name, mimeType, size }
 }
 

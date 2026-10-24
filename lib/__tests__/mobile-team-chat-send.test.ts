@@ -71,3 +71,12 @@ describe('native team alert confirmations',()=>{
   }
  })
 })
+
+describe('GIF send receipts',()=>{
+ it('requires the GIF MIME and exact message receipt instead of accepting a flattened photo',async()=>{
+  const gif={...action,action:'send_chat_photo' as const,body:'',photoBase64:'original',photoMimeType:'image/gif' as const},send=vi.fn().mockResolvedValue({status:200,data:{ok:true,message:{id:action.clientMessageId,isMine:true,body:'Shared a GIF.',attachment:{mimeType:'image/gif'}}}})
+  await postTeamChat(client,'owner',()=>true,scope,gif,send);expect(send.mock.calls[0][0].data.photoMimeType).toBe('image/gif');expect(send.mock.calls[0][0].readTimeout).toBe(30000)
+  send.mockResolvedValue({status:200,data:{ok:true,message:{id:action.clientMessageId,isMine:true,body:'Shared a GIF.',attachment:{mimeType:'image/jpeg'}}}})
+  await expect(postTeamChat(client,'owner',()=>true,scope,gif,send)).rejects.toMatchObject({uncertain:true})
+ })
+})

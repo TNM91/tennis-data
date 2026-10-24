@@ -56,3 +56,10 @@ describe('read-only native conversation history API',()=>{
   expect(calls.some(c=>c.table==='internal_conversation_participants')).toBe(false)
  })
 })
+
+describe('native media exact-scope guard',()=>{
+ it('denies another linked flight before photo/GIF reads, uploads or notifications',async()=>{
+  for(const action of ['send_chat_photo','read_chat_photo'])expect((await POST(post({action,flight:'4.5',photoMimeType:'image/gif'}))).status).toBe(403)
+  expect(calls.every(c=>c.table==='team_profile_links')).toBe(true);expect(m.push).not.toHaveBeenCalled();expect(m.nativePush).not.toHaveBeenCalled()
+ })
+})

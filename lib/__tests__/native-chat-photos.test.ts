@@ -81,3 +81,41 @@ describe('private native chat photos',()=>{
   for(const data of [{ok:true,mimeType:'image/svg+xml',base64:'PHN2Zz4='},{ok:true,mimeType:'image/jpeg',base64:'" onerror=bad'},{ok:false,mimeType:'image/jpeg',base64:'/9j/'}])expect(()=>privatePhotoData(data)).toThrow()
  })
 })
+
+describe('private team GIF uploads',()=>{
+ async function gif(loop=3){return sharp(Buffer.concat([Buffer.alloc(20*20*3,40),Buffer.alloc(20*20*3,220)]),{raw:{width:20,height:40,channels:3,pageHeight:20}}).gif({delay:[120,180],loop}).toBuffer()}
+ it('preserves both frames, their delays and loop count, with no public media URL',async()=>{
+  const original=await gif(),comment=Buffer.from('private-test-comment'),source=Buffer.concat([original.subarray(0,-1),Buffer.from([0x21,0xfe,comment.length]),comment,Buffer.from([0,0x3b])]),database=db(),input={clientMessageId:id,photoBase64:source.toString('base64'),photoMimeType:'image/gif'}
+  const sent=await sendChatPhoto(database.service,'owner','room',input)
+  expect(sent).toMatchObject({ok:true,replayed:false,message:{body:'Shared a GIF.'}})
+  const [path,bytes,options]=database.upload.mock.calls[0];expect(path).toBe('room/owner/'+id+'-photo.gif');expect(options).toMatchObject({contentType:'image/gif',upsert:false})
+  const metadata=await sharp(bytes,{animated:true}).metadata();expect(metadata).toMatchObject({format:'gif',pages:2,delay:[120,180],loop:3});expect(metadata.exif).toBeUndefined();expect(Buffer.from(bytes).includes(comment)).toBe(false)
+  const saved={...database.insert.mock.calls[0][0],edited_at:null,deleted_at:null},replay=db(saved)
+  expect(await sendChatPhoto(replay.service,'owner','room',input)).toMatchObject({ok:true,replayed:true});expect(replay.upload).not.toHaveBeenCalled()
+  expect(await sendChatPhoto(replay.service,'other','room',input)).toMatchObject({status:409});expect(await sendChatPhoto(replay.service,'owner','room',{...input,body:'Changed caption'})).toMatchObject({status:409})
+  const reader=db(saved);reader.download.mockResolvedValue({data:new Blob([new Uint8Array(bytes)]),error:null})
+  const full=await readChatPhoto(reader.service,'viewer','room',id),poster=await readChatPhoto(reader.service,'viewer','room',id,true)
+  expect(full).toMatchObject({ok:true,mimeType:'image/gif'});expect(poster).toMatchObject({ok:true,mimeType:'image/jpeg'});if(!full.ok || !poster.ok)return
+  expect((await sharp(Buffer.from(full.base64,'base64'),{animated:true}).metadata()).pages).toBe(2)
+  expect((await sharp(Buffer.from(poster.base64,'base64')).metadata()).format).toBe('jpeg');expect(Buffer.from(poster.base64,'base64').length).toBeLessThanOrEqual(96000);expect(JSON.stringify(full)).not.toContain('https:')
+ })
+ it('recovers a committed GIF object after an upload timeout without changing its key or bytes',async()=>{
+  const source=await gif(),first=db();await sendChatPhoto(first.service,'owner','room',{clientMessageId:id,photoBase64:source.toString('base64'),photoMimeType:'image/gif'})
+  const retry=db();retry.upload.mockResolvedValue({error:{statusCode:'409'}});retry.download.mockResolvedValue({data:new Blob([new Uint8Array(first.upload.mock.calls[0][1])]),error:null})
+  expect(await sendChatPhoto(retry.service,'owner','room',{clientMessageId:id,photoBase64:source.toString('base64'),photoMimeType:'image/gif'})).toMatchObject({ok:true,replayed:false});expect(retry.insert).toHaveBeenCalledTimes(1)
+ })
+ it('rejects incorrect MIME, oversized frames, excessive duration and truncated bytes before storage writes',async()=>{
+  const good=await gif(),wide=Buffer.from(good);wide.writeUInt16LE(2048,6)
+  const long=await sharp(Buffer.concat([Buffer.alloc(20*20*3,40),Buffer.alloc(20*20*3,220)]),{raw:{width:20,height:40,channels:3,pageHeight:20}}).gif({delay:[20000,20000]}).toBuffer()
+  for(const bytes of [wide,long,good.subarray(0,good.length-1),Buffer.from('<svg/>'),Buffer.concat([good,Buffer.from('extra')])]){
+   const database=db();expect(await sendChatPhoto(database.service,'owner','room',{clientMessageId:id,photoBase64:bytes.toString('base64'),photoMimeType:'image/gif'})).toMatchObject({status:400});expect(database.upload).not.toHaveBeenCalled();expect(database.insert).not.toHaveBeenCalled()
+  }
+  const database=db();expect(await sendChatPhoto(database.service,'owner','room',{clientMessageId:id,photoBase64:good.toString('base64'),photoMimeType:'image/svg+xml'})).toMatchObject({status:400});expect(database.upload).not.toHaveBeenCalled()
+ })
+ it('retains GIF bytes, MIME, caption and reply across uncertain sends, and clears them on disposal',async()=>{
+  let fail=true;const send=vi.fn(async()=>{if(fail){fail=false;throw new ChatActionError('Uncertain',true)}}),draft=new TeamChatDraft(send,()=>id)
+  draft.photo={base64:'original-animation',preview:'still-poster',mimeType:'image/gif'};draft.text='Great point!';draft.reply={id:'prior',name:'Alex',body:'Winner'}
+  expect(await draft.submit()).toBe(false);expect(await draft.submit()).toBe(true);expect(send.mock.calls[0]).toEqual(send.mock.calls[1]);expect(send.mock.calls[0]).toEqual([{action:'send_chat_photo',clientMessageId:id,photoBase64:'original-animation',photoMimeType:'image/gif',body:'Great point!',replyToMessageId:'prior'}]);expect(draft.photo).toBeNull()
+  draft.photo={base64:'private',preview:'private',mimeType:'image/gif'};draft.dispose();expect(draft.photo).toBeNull()
+ })
+})
