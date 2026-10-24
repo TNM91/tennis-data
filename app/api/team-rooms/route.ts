@@ -1,3 +1,4 @@
+import {loadTeamChatMessage,publicChatMessage} from '@/lib/team-chat-message'
 import {replacementReminderRequestId} from '@/lib/replacement-reminder-target'
 import {saveNativeReplacementFollowup} from '@/lib/native-replacement-followup'
 import {lineupRecord as lineupRecordForNative} from '@/lib/native-captain-lineup-contract'
@@ -302,6 +303,7 @@ export async function GET(request: Request) {
   const linksResult = await loadAcceptedTeamLinks(auth.service, auth.userId)
   if (!linksResult.ok) return Response.json({ ok: false, message: linksResult.message }, { status: 500 })
   if (!linksResult.links.length) {
+    if(url.searchParams.get('chatMessage')==='1')return Response.json({ok:false,message:'Team access is unavailable.'},{status:403,headers:{'Cache-Control':'private, no-store'}})
     return Response.json({
       ok: true,
       room: null,
@@ -346,7 +348,9 @@ export async function GET(request: Request) {
   if (url.searchParams.get('chatUpdates') === '1') {
     const scope={teamName:url.searchParams.get('team')||'',leagueName:url.searchParams.get('league')||'',flight:url.searchParams.get('flight')||''}
     if(scope.teamName!==selected.team_name || scope.leagueName!==selected.league_name || scope.flight!==(selected.flight||''))return Response.json({ok:false,message:'This team connection changed. Refresh your team.'},{status:403,headers:{'Cache-Control':'private, no-store'}})
-    const result = await loadNativeChatUpdate(auth.service, auth.userId, selected, url.searchParams.get('before') || '')
+    const result = url.searchParams.get('chatMessage')==='1'
+      ? await loadNativeChatMessage(auth.service,auth.userId,selected,url.searchParams.get('message')||'',url.searchParams.get('view')||'')
+      : await loadNativeChatUpdate(auth.service, auth.userId, selected, url.searchParams.get('before') || '')
     return Response.json(result, { status: result.ok ? 200 : result.status, headers: { 'Cache-Control': 'private, no-store' } })
   }
 
@@ -2695,6 +2699,15 @@ async function findNativeChatConversation(service: SupabaseClient, selected: Tea
   if (conversation.error) return {ok: false as const, status: 503, message: 'Conversation updates are unavailable.'}
   if (!conversation.data) return {ok: false as const, status: 404, message: 'Open your team before loading updates.'}
   return {ok: true as const, id: String(conversation.data.id)}
+}
+
+async function loadNativeChatMessage(service:SupabaseClient,userId:string,selected:TeamLinkRow,requestedId:string,view:string){
+ const conversation=await findNativeChatConversation(service,selected);if(!conversation.ok)return conversation
+ const loaded=await loadTeamChatMessage(service,userId,conversation.id,requestedId,view);if(!loaded.ok)return loaded
+ try{
+  const row=loaded.row,profiles=await loadProfileMap(service,[row.sender_user_id]),profile=profiles.get(row.sender_user_id)
+  return {ok:true as const,messageView:1,roomId:conversation.id,requestedId,view:loaded.view,message:publicChatMessage(row,profile?.message_display_name?.trim()||profile?.linked_player_name?.trim()||'Team member',Boolean(cleanAttachmentMetadata(row.metadata)))}
+ }catch{return {ok:false as const,status:503}}
 }
 
 async function loadNativeChatUpdate(service: SupabaseClient, userId: string, selected: TeamLinkRow, before = '') {
