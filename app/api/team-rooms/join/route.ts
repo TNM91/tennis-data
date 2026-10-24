@@ -1,3 +1,4 @@
+import {teamRoomJoinExclusion} from '@/lib/team-room-join-exclusion'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import { buildTeamRoomHref } from '@/lib/team-room'
@@ -25,6 +26,8 @@ export async function GET(request: Request) {
   const token = new URL(request.url).searchParams.get('token')?.trim() || ''
   const invite = await loadInvite(auth.service, token)
   if (!invite.ok) return Response.json({ ok: false, message: invite.message }, { status: invite.status })
+  const exclusion = await teamRoomJoinExclusion(auth.service, auth.userId, invite.row.conversation_id)
+  if (exclusion) return exclusion
 
   const { data: existing } = await auth.service
     .from('team_profile_links')
@@ -78,6 +81,8 @@ export async function POST(request: Request) {
 
   const invite = await loadInvite(auth.service, token)
   if (!invite.ok) return Response.json({ ok: false, message: invite.message }, { status: invite.status })
+  const exclusion = await teamRoomJoinExclusion(auth.service, auth.userId, invite.row.conversation_id)
+  if (exclusion) return exclusion
   const row = invite.row
   const now = new Date().toISOString()
 
