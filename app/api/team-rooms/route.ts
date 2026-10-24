@@ -1,3 +1,4 @@
+import {boundedChatJson,readChatPhoto,sendChatPhoto} from '@/lib/native-chat-photos'
 import { loadNativeReactionSummary, setNativeChatReaction } from '@/lib/native-chat-reactions'
 import { sendNativeTeamChatPush } from '@/lib/native-chat-push-server'
 import { checkTeamChatAccess, loadTeamChatRows } from '@/lib/team-chat-updates'
@@ -193,6 +194,7 @@ type TeamRoomActionBody = {
   clientMessageId?: unknown
   replyToMessageId?: unknown
   reaction?: unknown
+  photoBase64?: unknown
   active?: unknown
   memberId?: unknown
   silent?: unknown
@@ -359,7 +361,7 @@ export async function POST(request: Request) {
 
   let body: TeamRoomActionBody
   try {
-    body = await request.json() as TeamRoomActionBody
+    body = await boundedChatJson(request) as TeamRoomActionBody
   } catch {
     return Response.json({ ok: false, message: 'Invalid Team Room request.' }, { status: 400 })
   }
@@ -376,6 +378,25 @@ export async function POST(request: Request) {
   }
 
   const action = cleanText(body.action)
+  if (action === 'send_chat_photo' || action === 'read_chat_photo') {
+    const existing = await findNativeChatConversation(auth.service, selected)
+    if (!existing.ok) return Response.json(existing, {status: existing.status})
+    const access = await checkTeamChatAccess(auth.service, auth.userId, existing.id, canManageTeamRoom(teamRoles(selected)))
+    if (!access.ok) return Response.json(access, {status: access.status})
+    try {
+      if (action === 'read_chat_photo') {
+        const result = await readChatPhoto(auth.service, auth.userId, existing.id, body.messageId)
+        return Response.json(result, {status: result.status, headers: {'Cache-Control':'private, no-store'}})
+      }
+      const result = await sendChatPhoto(auth.service, auth.userId, existing.id, body)
+      if (!result.ok) return Response.json(result, {status: result.status})
+      if (!result.replayed) {
+        await auth.service.from('internal_conversations').update({updated_at:new Date().toISOString()}).eq('id',existing.id)
+        await notifyTeamRoom(auth.service,{conversationId:existing.id,actorUserId:auth.userId,teamName:selected.team_name,scope:selected,body:'Shared a photo.',announcement:false})
+      }
+      return Response.json({ok:true,replayed:result.replayed,message:toMessage(result.message,new Map(),auth.userId)}, {headers:{'Cache-Control':'private, no-store'}})
+    } catch { return Response.json({ok:false,message:'Team photos are unavailable. Try again.'},{status:503}) }
+  }
   if (action === 'set_chat_reaction') {
     const existing = await findNativeChatConversation(auth.service, selected)
     if (!existing.ok) return Response.json(existing, {status: existing.status})
@@ -2544,7 +2565,7 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
     loadLineupAcknowledgments(service, messageIds),
     loadReminderSchedules(service, messageIds),
     loadMessageReactions(service, messageIds),
-    loadAttachmentUrls(service, typedMessageRows),
+    markRead ? loadAttachmentUrls(service, typedMessageRows) : Promise.resolve(new Map<string,string>()),
     loadAvailabilityRequestSummaries(service, typedMessageRows),
     canManageTeamRoom(teamRoles(selected))
       ? loadTeamRoomManagement(service, userId, conversation.id, selected, members)

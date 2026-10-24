@@ -59,3 +59,10 @@ const pushSources=iosPushSources(await readFile(resolve(project,'project.pbxproj
 await writeFile(resolve(project,'project.pbxproj'),pushSources.project)
 await writeFile(delegatePath,pushSources.delegate)
 await writeFile(resolve(ios,'App/App/Push.entitlements'),pushEntitlements('development'))
+
+const infoPath=resolve(ios,'App/App/Info.plist')
+let info=await readFile(infoPath,'utf8')
+for(const [key,value] of Object.entries({NSCameraUsageDescription:'Take a photo to share with your tennis team.',NSPhotoLibraryUsageDescription:'Choose a photo to share with your tennis team.',NSPhotoLibraryAddUsageDescription:'Save a team photo only when you choose to.'})){
+ if(!info.includes('<key>'+key+'</key>'))info=info.replace('</dict>','<key>'+key+'</key><string>'+value+'</string>\n</dict>')
+}
+await writeFile(infoPath,info)
