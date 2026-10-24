@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { PRODUCT_LANGUAGE_SYSTEM, PRODUCT_MOTTO } from '@/lib/product-story'
 
-const PWA_ICON_VERSION = '20260831-final-svg-v1'
+const PWA_ICON_VERSION = '20261024-approved-v1'
 const PWA_ICON = `/brand/icons/pwa-192.png?v=${PWA_ICON_VERSION}`
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -77,12 +77,6 @@ export default function manifest(): MetadataRoute.Manifest {
         purpose: 'any',
       },
       {
-        src: `/brand/icons/pwa-maskable-512.png?v=${PWA_ICON_VERSION}`,
-        sizes: '512x512',
-        type: 'image/png',
-        purpose: 'maskable',
-      },
-      {
         src: `/brand/icons/pwa-512.png?v=${PWA_ICON_VERSION}`,
         sizes: '512x512',
         type: 'image/png',
@@ -91,7 +85,7 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     screenshots: [
       {
-        src: '/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1',
+        src: '/brand/social/og-approved-20261024.png?v=20261024-brand-v2',
         sizes: '1200x630',
         type: 'image/png',
       },

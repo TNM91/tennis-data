@@ -109,7 +109,7 @@ describe('Team Room', () => {
     expect(roomPage).toContain('aria-label="Back to My Teams"')
     expect(roomPage).toContain('Register to access your teams.')
     expect(roomPage).not.toContain('/tenaceiq-icon-192.png')
-    expect(notificationWorker).toContain('/brand/icons/pwa-192.png?v=20260831-final-svg-v1')
+    expect(notificationWorker).toContain('/brand/icons/pwa-192.png?v=20261024-approved-v1')
     expect(notificationWorker).not.toContain('/tenaceiq-icon-192.png')
     expect(roomApi).toContain("action === 'create_invite'")
     expect(roomApi).toContain("action === 'post_match_card'")

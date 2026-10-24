@@ -35,13 +35,13 @@ const VISUAL_CONFIG: Record<TennisStateVisual, TennisStateVisualConfig> = {
     icon: 'teamRankings',
   },
   matchup: {
-    src: '/tiq/courts/tiq-court-master.png',
+    src: '/brand/courts/tiq-court-approved-20261024-v2.png',
     objectPosition: 'center 42%',
     opacity: 0.2,
     icon: 'matchupAnalysis',
   },
   captain: {
-    src: '/tiq/courts/tiq-court-master.png',
+    src: '/brand/courts/tiq-court-approved-20261024-v2.png',
     objectPosition: 'center 38%',
     opacity: 0.19,
     icon: 'captainDashboard',
@@ -53,13 +53,13 @@ const VISUAL_CONFIG: Record<TennisStateVisual, TennisStateVisualConfig> = {
     icon: 'coachTennis',
   },
   league: {
-    src: '/tiq/courts/tiq-court-master.png',
+    src: '/brand/courts/tiq-court-approved-20261024-v2.png',
     objectPosition: 'center 44%',
     opacity: 0.19,
     icon: 'leagueTennis',
   },
   tournament: {
-    src: '/tiq/courts/tiq-court-master.png',
+    src: '/brand/courts/tiq-court-approved-20261024-v2.png',
     objectPosition: 'center 42%',
     opacity: 0.19,
     icon: 'competeTennis',

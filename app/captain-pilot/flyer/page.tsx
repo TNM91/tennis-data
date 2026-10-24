@@ -11,12 +11,12 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Fall Captain Pilot | TenAceIQ',
     description: 'Three months of Captain free for eligible local tennis captains.',
-    images: ['/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1'],
+    images: ['/brand/social/og-approved-20261024.png?v=20261024-brand-v2'],
   },
   twitter: {
     title: 'Fall Captain Pilot | TenAceIQ',
     description: 'Three months of Captain free for eligible local tennis captains.',
-    images: ['/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1'],
+    images: ['/brand/social/og-approved-20261024.png?v=20261024-brand-v2'],
   },
 }
 
@@ -29,7 +29,7 @@ export default function CaptainPilotFlyerPage() {
       </nav>
       <article className={styles.flyer}>
         <header className={styles.header}>
-          <Image src="/brand/logos/tenaceiq-full-white.png" alt="TenAceIQ" width={544} height={144} priority className={styles.logo} />
+          <Image src="/brand/logos/tenaceiq-full-white.png?v=20261024-approved-v1" alt="TenAceIQ" width={2109} height={461} priority className={styles.logo} />
           <h1>Local Tennis<br />Captains</h1>
           <div className={styles.pilotLabel}><i /> <span>Fall Captain Pilot</span> <i /></div>
           <p>Start your fall season on us.</p>
@@ -68,7 +68,7 @@ export default function CaptainPilotFlyerPage() {
               <strong>Your feedback builds what’s next</strong>
               <span>Questions or feedback? <a href="mailto:nathan@tenaceiq.com">Nathan@TenAceiQ.com</a></span>
             </div>
-            <Image src="/brand/logos/tenaceiq-iq-for-light-bg.png" alt="TenAceIQ iQ" width={142} height={142} loading="eager" />
+            <Image src="/brand/logos/tenaceiq-iq-for-light-bg.png?v=20261024-approved-v1" alt="TenAceIQ iQ" width={142} height={142} loading="eager" />
           </div>
           <div className={styles.terms}>
             <strong>Pilot terms</strong>

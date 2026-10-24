@@ -11,7 +11,7 @@ describe('premium workflow states', () => {
     expect(art).toContain("from 'next/image'")
     expect(art).toContain("'/player-profile/journey-hero.png'")
     expect(art).toContain("'/player-profile/player-id-court.png'")
-    expect(art).toContain("'/tiq/courts/tiq-court-master.png'")
+    expect(art).toContain("'/brand/courts/tiq-court-approved-20261024-v2.png'")
     expect(art).toContain('loading="lazy"')
     expect(art).toContain('quality={75}')
     expect(art).toContain('sizes="(max-width: 720px) 78vw, 44vw"')

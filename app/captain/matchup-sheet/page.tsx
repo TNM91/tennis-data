@@ -233,7 +233,7 @@ async function createLineupImage(input: {
 
   try {
     const logo = await loadCanvasImage('/brand/web/header-logo-transparent.png')
-    context.drawImage(logo, 78, 58, 300, 78)
+    context.drawImage(logo, 78, 58, 300, 300 * logo.naturalHeight / logo.naturalWidth)
   } catch {
     // The share card remains usable if the approved logo asset is temporarily unavailable.
   }
@@ -580,10 +580,10 @@ function MatchupSheetContent() {
           <div className={styles.brandBlock}>
             <Image
               className={styles.brandLogo}
-              src="/brand/web/header-logo-transparent.png"
+              src="/brand/web/header-logo-transparent.png?v=20261024-approved-v1"
               alt="TenAceIQ"
-              width={300}
-              height={78}
+              width={2109}
+              height={461}
               priority
             />
             <div>

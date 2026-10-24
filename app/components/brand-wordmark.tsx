@@ -19,34 +19,34 @@ type BrandAsset = {
 
 const BRAND_ASSETS = {
   header: {
-    src: '/brand/web/header-logo-transparent.png',
-    width: 6118,
-    height: 1947,
+    src: '/brand/web/header-logo-transparent.png?v=20261024-approved-v1',
+    width: 2109,
+    height: 461,
   },
   headerOnLight: {
-    src: '/brand/web/header-logo-light-bg.png',
-    width: 6118,
-    height: 1947,
+    src: '/brand/web/header-logo-light-bg.png?v=20261024-approved-v1',
+    width: 2158,
+    height: 483,
   },
   compact: {
-    src: '/brand/web/header-iq-compact.png',
-    width: 1552,
-    height: 1614,
+    src: '/brand/approved/TiQ_White_Transparent_Refined.png?v=20261024-approved-v1',
+    width: 1774,
+    height: 887,
   },
   compactOnLight: {
-    src: '/brand/web/header-iq-light-bg.png',
-    width: 1552,
-    height: 1614,
+    src: '/brand/approved/TiQ_Navy_Transparent_Corrected.png?v=20261024-approved-v1',
+    width: 1774,
+    height: 887,
   },
   footer: {
-    src: '/brand/web/footer-logo-dark-bg.png',
-    width: 6118,
-    height: 1947,
+    src: '/brand/web/footer-logo-dark-bg.png?v=20261024-approved-v1',
+    width: 2109,
+    height: 461,
   },
   footerOnLight: {
-    src: '/brand/web/footer-logo-light-bg.png',
-    width: 6118,
-    height: 1947,
+    src: '/brand/web/footer-logo-light-bg.png?v=20261024-approved-v1',
+    width: 2158,
+    height: 483,
   },
 } satisfies Record<string, BrandAsset>
 
@@ -67,7 +67,7 @@ export default function BrandWordmark({
   if (responsiveHeader) return <ResponsiveHeaderBrand />
 
   const asset = getBrandAsset({ compact, footer, onLight, top })
-  const height = compact ? (top ? 36 : 34) : footer ? 42 : top ? (siteHeaderCompact ? 42 : 64) : 48
+  const height = compact ? (top ? 36 : 34) : footer ? 32 : top ? (siteHeaderCompact ? 32 : 44) : 36
   const width = Math.round((asset.width / asset.height) * height)
 
   return (
@@ -113,7 +113,7 @@ function ResponsiveHeaderBrand() {
         height={BRAND_ASSETS.header.height}
         loading="eager"
         fetchPriority="high"
-        sizes="(max-width: 819px) 150px, 168px"
+        sizes="(max-width: 819px) 178px, 200px"
         style={{
           display: 'block',
           width: '100%',

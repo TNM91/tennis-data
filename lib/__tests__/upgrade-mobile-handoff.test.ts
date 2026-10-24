@@ -21,7 +21,7 @@ describe('mobile upgrade handoff', () => {
     expect(stylesSource).toContain('min-height: 50px')
     expect(stylesSource).toContain('grid-template-columns: auto minmax(0, 1fr) auto')
     expect(stylesSource).toContain('min-width: 0')
-    expect(stylesSource).toContain("background: url('/tiq/courts/tiq-court-master.png')")
+    expect(stylesSource).toContain("background: url('/brand/courts/tiq-court-approved-20261024-v2.png')")
   })
 
   it('turns a completed checkout into a stable mobile receipt', () => {

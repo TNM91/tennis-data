@@ -75,7 +75,7 @@ describe('site header responsive rules', () => {
     expect(siteHeaderSource).toContain("maxWidth: isMobile ? (screenWidth < 380 ? 70 : 110)")
     expect(siteHeaderSource).toContain("resumePrimary?.status === 'unfinished' ? 'Needs attention'")
     expect(readFileSync(join(process.cwd(), 'app/components/brand-wordmark.tsx'), 'utf8')).toContain(
-      'top ? (siteHeaderCompact ? 42 : 64)',
+      'top ? (siteHeaderCompact ? 32 : 44)',
     )
   })
 

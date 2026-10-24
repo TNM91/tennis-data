@@ -1,38 +1,33 @@
-TENACEIQ BRAND DEPLOYMENT — CODEX IMPLEMENTATION PROMPT
+TENACEIQ BRAND IMPLEMENTATION
 
-Use the assets in this folder as the production source of truth. The approved
-SVGs in /masters are the canonical artwork. Do not redraw, recreate,
-reinterpret, or substitute the TenAceIQ logo.
+Approved originals are in public/brand/approved/. Preserve them byte-for-byte.
+Use the full light wordmark on dark UI and the full dark wordmark on light UI.
+Use TiQ_White_Transparent_Refined.png for compact marks on dark UI and
+TiQ_Navy_Transparent_Corrected.png for compact marks on light UI. Keep the
+TiQ app icon for square icon tiles and device icons.
 
-Brand rules:
-- Primary dark background: #06172F
-- Brand green: #9BE11D
-- White: #FFFFFF
-- The standalone iQ mark ends visually at the green border. Pixels outside that border are transparent in transparent assets.
-- Preserve the approved tennis-ball seam exactly as supplied.
-- Do not change the i/Q spacing, open-left enclosure, wordmark geometry, or proportions.
+Preserve aspect ratios, supplied transparency, tennis-ball seams, colors,
+letter shapes, and spacing. Never redraw, recolor, crop, skew, stretch, filter,
+round, or regenerate supplied artwork. Use object-fit: contain and clear space.
 
-Recommended web usage:
-- Header on dark UI: /web/header-logo-transparent.png
-- Compact/mobile mark: /web/header-iq-compact.png
-- Footer on dark UI: /web/footer-logo-dark-bg.png
-- Footer on light UI: /web/footer-logo-light-bg.png
-- Open Graph / share card: /social/og-image-1200x630.png
-- Apple touch icon: /icons/apple-touch-icon.png
-- PWA icons: /icons/pwa-192.png and /icons/pwa-512.png
-- Favicon: /icons/favicon.ico
+The dark header uses the full wordmark: 178px on phones and 200px on wider UI.
+The court net uses the transparent white TiQ mark centered on the existing net.
+Court geometry and interaction coordinates must remain unchanged.
+The social card mixes the full wordmark and transparent TiQ mark.
+Tour posters and video lockups use approved artwork; retain narration,
+captions, timing, and CTA destinations.
 
-Implementation:
-1. Preserve the SVG masters in the site's public/brand/masters directory and
-   regenerate derivatives with `node scripts/promote-final-tenaceiq-brand.mjs`.
-2. Replace any older TenAceIQ logo assets and references with these files.
-3. Use object-fit: contain; never stretch or crop logo artwork.
-4. Do not apply CSS filters, skew, rotation, shadows, or border-radius to the transparent logo files.
-5. Keep sufficient clear space around full-logo lockups.
-6. For standalone iQ transparent assets, do not add a colored padding/background outside the supplied border unless the UI intentionally requires a tile.
-7. Update metadata/social sharing to use social/og-image-1200x630.png.
-8. Update favicon/PWA manifest references to use the supplied icon set.
-9. Verify on both dark and light themes at desktop and mobile sizes.
-10. Remove obsolete logo files only after confirming all references have been migrated.
+Canonical production court: /brand/courts/tiq-court-approved-20261024-v2.png.
+Canonical share card: /brand/social/og-approved-20261024.png.
+Use versioned URLs for Next Image aliases and media when artwork changes.
+Allow only the exact version query strings needed in images.localPatterns.
 
-Do not alter the logo design during implementation.
+Refresh compatibility files with node scripts/integrate-approved-brand.mjs.
+Refresh court/social/poster compositions with node scripts/refresh-approved-brand-media.mjs.
+Set BRAND_FFMPEG to a local FFmpeg executable for video lockup updates.
+Historical SVGs are retained but are not the source for the new raster artwork.
+
+Verify dark/light placement, phone/tablet/desktop headers, transparent edges,
+original icon bytes, correct favicon/Apple/PWA references, video playback,
+captions, court geometry, and share metadata. Never deploy to production
+without the user's approval.

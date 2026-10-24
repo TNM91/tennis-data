@@ -20,7 +20,7 @@
   content: '';
   pointer-events: none;
   opacity: 0.12;
-  background: url('/tiq/courts/tiq-court-master.png') right bottom / contain no-repeat;
+  background: url('/brand/courts/tiq-court-approved-20261024-v2.png') right bottom / contain no-repeat;
   mask-image: linear-gradient(90deg, transparent 0%, #000 48%);
 }
 

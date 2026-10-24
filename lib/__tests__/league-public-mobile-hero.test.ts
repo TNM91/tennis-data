@@ -13,7 +13,7 @@ function styleBlock(styleName: string) {
 
 describe('public league mobile hero', () => {
   it('leads with the uploaded league logo and keeps it fully visible', () => {
-    expect(source).toContain("src={league.photoUrl || '/brand/web/header-iq-compact.png'}")
+    expect(source).toContain("src={league.photoUrl || '/brand/web/header-iq-compact.png?v=20261024-approved-v1'}")
     expect(source).toContain("alt={league.photoUrl ? `${league.leagueName} logo` : 'TenAceIQ'}")
     expect(styleBlock('mobileLeagueLogo')).toContain("objectFit: 'contain'")
     expect(styleBlock('leaguePhoto')).toContain("objectFit: 'contain'")

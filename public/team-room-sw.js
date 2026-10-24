@@ -12,8 +12,8 @@ self.addEventListener('push', (event) => {
   const tag = typeof payload.tag === 'string' ? payload.tag : 'tenaceiq-team-room'
   event.waitUntil(self.registration.showNotification(title, {
     body,
-    icon: '/brand/icons/pwa-192.png?v=20260831-final-svg-v1',
-    badge: '/brand/icons/pwa-192.png?v=20260831-final-svg-v1',
+    icon: '/brand/icons/pwa-192.png?v=20261024-approved-v1',
+    badge: '/brand/icons/pwa-192.png?v=20261024-approved-v1',
     tag,
     data: { href },
   }))

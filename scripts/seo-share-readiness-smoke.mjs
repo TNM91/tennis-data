@@ -5,9 +5,9 @@ const args = new Set(process.argv.slice(2))
 const includeLive = args.has('--live')
 const baseUrl = cleanBaseUrl(process.env.SEO_SHARE_QA_BASE_URL || 'https://www.tenaceiq.com')
 const canonicalBaseUrl = 'https://www.tenaceiq.com'
-const previewImagePath = '/brand/social/og-image-1200x630.png'
-const previewImageUrl = `${previewImagePath}?v=20260831-final-svg-v1`
-const previewImageFile = join(process.cwd(), 'public', 'brand', 'social', 'og-image-1200x630.png')
+const previewImagePath = '/brand/social/og-approved-20261024.png'
+const previewImageUrl = `${previewImagePath}?v=20261024-brand-v2`
+const previewImageFile = join(process.cwd(), 'public', 'brand', 'social', 'og-approved-20261024.png')
 const maxPreviewBytes = 5 * 1024 * 1024
 
 const publicRoutes = [
@@ -107,7 +107,7 @@ function runLocalChecks() {
   assertIncludes(manifestSource, "name: 'TenAceIQ'", 'manifest app name')
   assertIncludes(manifestSource, 'PRODUCT_MOTTO', 'manifest product story language')
   assertIncludes(manifestSource, '/brand/icons/pwa-512.png?v=${PWA_ICON_VERSION}', 'manifest 512 icon')
-  assertIncludes(manifestSource, "'/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1'", 'manifest screenshot')
+  assertIncludes(manifestSource, "'/brand/social/og-approved-20261024.png?v=20261024-brand-v2'", 'manifest screenshot')
 
   for (const route of publicRoutes) {
     if (route === '/') continue

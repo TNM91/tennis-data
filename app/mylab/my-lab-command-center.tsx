@@ -267,7 +267,7 @@ export default function MyLabCommandCenter({
           >
             <Image
               className={styles.courtImage}
-              src="/tiq/courts/tiq-court-master.png"
+              src="/brand/courts/tiq-court-approved-20261024-v2.png"
               alt=""
               fill
               sizes="(max-width: 760px) 100vw, 760px"

@@ -49,7 +49,7 @@ export default async function CaptainSharePage({ params, searchParams }: SharePa
     <main className={styles.page} style={{ '--share-accent': config.accent } as CSSProperties}>
       <CaptainShareRedirect targetHref={targetHref} />
       <section className={styles.card}>
-        <Image className={styles.logo} src="/brand/web/header-logo-transparent.png" alt="TenAceIQ" width={300} height={78} priority />
+        <Image className={styles.logo} src="/brand/web/header-logo-transparent.png?v=20261024-approved-v1" alt="TenAceIQ" width={2109} height={461} priority />
         <p className={styles.eyebrow}>{config.eyebrow}</p>
         <h1>{config.title}</h1>
         {context ? <p className={styles.context}>{context}</p> : null}

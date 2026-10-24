@@ -84,7 +84,7 @@ describe('My Lab command center', () => {
   })
 
   it('uses real TenAceIQ court assets and a mobile-safe hierarchy', () => {
-    expect(componentSource).toContain('src="/tiq/courts/tiq-court-master.png"')
+    expect(componentSource).toContain('src="/brand/courts/tiq-court-approved-20261024-v2.png"')
     expect(componentSource).toContain('src="/tiq/tokens/tennis-ball-reference.png"')
     expect(componentSource).toContain('sizes="(max-width: 760px) 100vw, 760px"')
     expect(styleSource).toContain('@media (max-width: 680px)')

@@ -258,10 +258,10 @@ function CaptainPilotContent({ renewalDateLabel }: CaptainPilotPageProps) {
       <div className={styles.page}>
         <section className={styles.hero} aria-labelledby="captain-pilot-title">
           <Image
-            src="/brand/web/header-logo-transparent.png"
+            src="/brand/web/header-logo-transparent.png?v=20261024-approved-v1"
             alt="TenAceIQ"
-            width={544}
-            height={144}
+            width={2109}
+            height={461}
             priority
             className={styles.logo}
           />

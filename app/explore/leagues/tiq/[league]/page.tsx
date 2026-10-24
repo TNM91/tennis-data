@@ -2564,7 +2564,7 @@ function TiqLeagueDetailContent() {
                       <div style={mobileLeagueLogoWrap}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={league.photoUrl || '/brand/web/header-iq-compact.png'}
+                          src={league.photoUrl || '/brand/web/header-iq-compact.png?v=20261024-approved-v1'}
                           alt={league.photoUrl ? `${league.leagueName} logo` : 'TenAceIQ'}
                           style={mobileLeagueLogo}
                         />
@@ -4448,7 +4448,7 @@ const watermarkStyle: CSSProperties = {
   top: '-118px',
   width: 'min(100%, 310px)',
   aspectRatio: '1552 / 1614',
-  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
+  background: 'url("/brand/approved/TiQ_White_Transparent_Refined.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }

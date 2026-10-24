@@ -135,7 +135,7 @@ export default function PracticeRsvpClient({ token }: { token: string }) {
   return (
     <main className={styles.page}>
       <header className={styles.brandBar}>
-        <Image src="/brand/web/header-logo-transparent.png" alt="TenAceIQ" width={258} height={86} priority />
+        <Image src="/brand/web/header-logo-transparent.png?v=20261024-approved-v1" alt="TenAceIQ" width={2109} height={461} priority />
         <span>Practice RSVP</span>
       </header>
 

@@ -33,7 +33,7 @@ export default function TiqLoader({
         aria-label={label || "Loading"}
       >
         <Image
-          src="/brand/web/header-iq-compact.png"
+          src="/brand/web/header-iq-compact.png?v=20261024-approved-v1"
           alt=""
           width={512}
           height={512}

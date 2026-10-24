@@ -13,7 +13,7 @@ export default async function Image() {
       <div style={{ width: 710, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
         {/* Preserve the supplied brand artwork at its original aspect ratio. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`data:image/png;base64,${logo.toString('base64')}`} width={320} height={90} alt="TenAceIQ" />
+        <img src={`data:image/png;base64,${logo.toString('base64')}`} width={320} height={320 * 461 / 2109} style={{ objectFit: 'contain' }} alt="TenAceIQ" />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div style={{ display: 'flex', color: '#9be11d', fontSize: 28, fontWeight: 700 }}>MATCH AVAILABILITY</div>
           <div style={{ display: 'flex', fontSize: 76, lineHeight: 1.05, fontWeight: 700 }}>Are you in?</div>

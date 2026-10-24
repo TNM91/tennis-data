@@ -1,48 +1,41 @@
-TenAceIQ FINAL Deployment Pack
+TenAceIQ Approved Production Brand Assets — October 24, 2026
 
-masters/
-  tenaceiq-full-dark-ui.svg
-  tenaceiq-full-light-ui.svg
-  tenaceiq-iq-dark-ui.svg
-  tenaceiq-iq-light-ui.svg
+Source: Google Drive folder 1l1TiPxfnUTMmVhnxmaPQxTqHfmCWNEpP.
+Use only public/brand/ for production logo, icon, court, and social artwork.
 
-The four SVGs in masters/ are the approved, print-quality source artwork. Every
-PNG, JPG, app icon, favicon, social card, wallpaper, and browser compatibility
-alias in this pack is generated from those vectors. Do not use older raster
-logo artwork as a source.
+approved/ — original files, preserved byte-for-byte
+  TenAceIQ_Light_Transparent.png — full wordmark on dark backgrounds
+  TenAceIQ_Dark_Transparent.png — full wordmark on light backgrounds
+  TiQ_White_Transparent_Refined.png — transparent compact mark on dark backgrounds
+  TiQ_Navy_Transparent_Corrected.png — latest transparent compact mark on light backgrounds
+  TiQ_AppIcon_Approved.png — app icon and square icon tiles
+  TiQ_Icon_180.png, TiQ_Icon_192.png, TiQ_Icon_512.png — device/PWA icons
+  TenAceIQ_favicon.ico — browser favicon
+  TiQ_Light_Transparent.png, TiQ_Dark_Transparent.png,
+  TiQ_Navy_Transparent_Refined.png — retained supplied alternatives
 
-logos/
-  tenaceiq-full-transparent.png
-  tenaceiq-full-for-light-bg.png
-  tenaceiq-full-white.png
-  tenaceiq-full-black.png
-  tenaceiq-full-navy.jpg
-  tenaceiq-iq-transparent.png
-  tenaceiq-iq-for-light-bg.png
-  tenaceiq-iq-white.png
-  tenaceiq-iq-black.png
-  tenaceiq-iq-navy.jpg
+The original TiQ_Light_Transparent.png contains a full TenAceIQ wordmark.
+Use the explicitly named refined white/corrected navy files for compact TiQ.
+Do not crop a full wordmark or app tile to invent another mark.
 
-icons/
-  app-icon-1024.png
-  favicon.ico
-  favicon-256.png
-  favicon-512.png
-  apple-touch-icon.png
-  pwa-192.png
-  pwa-512.png
+web/, icons/, logos/ — compatibility aliases copied from approved originals
+Run node scripts/integrate-approved-brand.mjs to refresh these byte-for-byte.
+The historic promote-final-tenaceiq-brand.mjs entrypoint runs the same copier.
+Historical masters/ SVGs are retained but must not overwrite the new artwork.
 
-web/
-  header-logo-transparent.png
-  header-iq-compact.png
-  footer-logo-dark-bg.png
-  footer-logo-light-bg.png
+courts/
+  tiq-court-base.png — preserved court geometry source
+  tiq-court-approved-20261024-v2.png — production court with transparent white TiQ on the net
 
 social/
-  og-image-1200x630.png
-  social-profile-1080.png
+  og-approved-20261024.png — current 1200x630 share card, full wordmark plus transparent TiQ
+  og-background-v2.png — existing approved unbranded court background
 
-docs/
-  CODEX_IMPLEMENTATION_PROMPT.txt
+public/media/product-tours/ contains refreshed tour posters and video lockups.
+Run node scripts/refresh-approved-brand-media.mjs for court/social/poster
+compositions. Set BRAND_FFMPEG to a local FFmpeg executable to also refresh
+video lockups. The compositor places approved PNGs proportionally and reuses
+the existing tour background code; it never generates or redraws logos.
+Media originals are backed up outside public/ before replacement.
 
-All derivatives come from the approved full-logo and standalone iQ SVG masters.
+No approved maskable asset was supplied. PWA icons use purpose=any.

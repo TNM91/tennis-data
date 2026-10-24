@@ -16,7 +16,7 @@ describe('premium detail-page atmosphere', () => {
   })
 
   it('uses the approved full-resolution TenAceIQ court art for strategy detail pages', () => {
-    expect(globalStyles).toContain("background-image: url('/tiq/courts/tiq-court-master.png')")
+    expect(globalStyles).toContain("background-image: url('/brand/courts/tiq-court-approved-20261024-v2.png')")
     expect(globalStyles).toContain('.brand-atmosphere-mark--detail.brand-atmosphere-mark--strategy')
     expect(globalStyles).toContain('-webkit-mask-image:')
   })
@@ -24,7 +24,7 @@ describe('premium detail-page atmosphere', () => {
   it('replaces generic directory logo watermarks with tennis-specific approved artwork', () => {
     expect(playersSource).toContain('url("/player-profile/journey-hero.png")')
     expect(teamsSource).toContain('url("/player-profile/player-id-court.png")')
-    expect(playersSource).not.toContain('url("/brand/web/header-iq-compact.png") center / contain no-repeat')
-    expect(teamsSource).not.toContain('url("/brand/web/header-iq-compact.png") center / contain no-repeat')
+    expect(playersSource).not.toContain('url("/brand/approved/TiQ_White_Transparent_Refined.png") center / contain no-repeat')
+    expect(teamsSource).not.toContain('url("/brand/approved/TiQ_White_Transparent_Refined.png") center / contain no-repeat')
   })
 })
