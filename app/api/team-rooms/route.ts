@@ -1,5 +1,6 @@
 import {getCaptainApiAuth} from '@/lib/captain-api-auth'
 import {loadNativePublication,publishNativeLineup,confirmNativeFinalReceipt,markNativeDraftFinal,completeNativeFinalAnnouncement,nativeSharedLineupIsComplete} from '@/lib/native-captain-publication'
+import {replacementReplyToken, replacementReplyIsCurrent, replacementReplyReplayed, saveReplacementCard} from '@/lib/native-replacement-reply'
 import {nativeMatchTargetIsCurrent} from '@/lib/native-match-target'
 import {canManageNativePost,changeNativePost} from '@/lib/native-chat-message-tools'
 import {setTeamChatMute} from '@/lib/team-chat-alerts'
@@ -203,6 +204,7 @@ type TeamRoomActionBody = {
   draftVersion?: unknown
   expectedCardToken?: unknown
   publicationId?: unknown
+  replacementToken?: unknown
   nativeClient?: unknown
   lineupVersion?: unknown
   expectedBody?: unknown
@@ -462,7 +464,8 @@ export async function POST(request: Request) {
       return Response.json({ok:true,replayed:result.replayed,message:toMessage(result.message,new Map(),auth.userId)}, {headers:{'Cache-Control':'private, no-store'}})
     } catch { return Response.json({ok:false,message:'Team photos are unavailable. Try again.'},{status:503}) }
   }
-  if (body.nativeClient === true && ['respond','acknowledge_lineup','set_arrival_status','ack_final_lineup'].includes(action)) {
+  if (body.nativeClient === true && ['respond','acknowledge_lineup','set_arrival_status','ack_final_lineup','respond_lineup_change'].includes(action)) {
+    if (cleanText(body.teamName)!==selected.team_name || cleanText(body.leagueName)!==selected.league_name || cleanText(body.flight)!==(selected.flight||'')) return Response.json({ok:false,message:'This team connection changed. Refresh your team.'},{status:403})
     const existing = await findNativeChatConversation(auth.service, selected)
     if (!existing.ok) return Response.json(existing, {status: existing.status})
     const access = await checkTeamChatAccess(auth.service, auth.userId, existing.id, canManageTeamRoom(teamRoles(selected)))
@@ -1587,7 +1590,13 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, message: 'Only the replacement player can answer this lineup change.' }, { status: 403 })
     }
 
-    const respondedAt = new Date().toISOString()
+    const replayed = body.nativeClient === true && replacementReplyReplayed(cardResult.metadata,auth.userId,response,body.replacementToken)
+    if (body.nativeClient === true && !replayed && !replacementReplyIsCurrent({
+      messageId: cardResult.messageId, metadata: cardResult.metadata,
+      token: body.replacementToken, linkedPlayerName: actor?.linked_player_name,
+    })) return Response.json({ok:false,message:'The replacement request changed. Refresh Match day.'},{status:409})
+
+    const respondedAt = replayed ? changeNotice.respondedAt : new Date().toISOString()
     const nextNotice: StoredLineupChangeNotice = {
       ...changeNotice,
       response,
@@ -1595,6 +1604,59 @@ export async function POST(request: Request) {
       responderProfileId: auth.userId,
       responderName: actorName,
       deadlineStatus: changeNotice.deadlineAt ? 'answered' : '',
+    }
+    if (body.nativeClient === true && response === 'accepted' && changeNotice.publishedLineupChange) {
+      const delivered = await auth.service.from('internal_messages').select('metadata')
+        .eq('id',changeNotice.publishedAnnouncementMessageId).eq('conversation_id',conversation.id).is('deleted_at',null).maybeSingle()
+      const proof = delivered.data?.metadata as Record<string,unknown> | undefined
+      if (delivered.error) return Response.json({ok:false,message:'Could not check the lineup update. Retry the same reply.'},{status:503})
+      if (!proof || proof.finalLineupChangeAnnouncement !== true || proof.sourceMessageId !== cardResult.messageId
+        || proof.previousFinalLineupId !== changeNotice.previousFinalLineupId || proof.courtLabel !== changeNotice.courtLabel)
+        return Response.json({ok:false,message:'The captain’s lineup update is not yet confirmed. Refresh Match day.'},{status:409})
+    }
+
+    const republishedFinalLineup = response === 'accepted'
+      && changeNotice.publishedLineupChange
+      && changeNotice.publishedAnnouncementMessageId
+      && changeNotice.publishedAt
+      && changeNotice.publishedByUserId
+      ? buildTeamRoomFinalLineupReceipt({
+          lineupId: buildCaptainLockedLineupId({
+            messageId: cardResult.messageId,
+            lineup: normalizeLineupRows(cardResult.metadata.lineup),
+          }),
+          sourceMessageId: cardResult.messageId,
+          announcementMessageId: changeNotice.publishedAnnouncementMessageId,
+          sentAt: changeNotice.publishedAt,
+          sentByUserId: changeNotice.publishedByUserId,
+          sentByName: changeNotice.publishedByName,
+        })
+      : null
+    const nextFinalLineup = changeNotice.publishedLineupChange
+      ? republishedFinalLineup
+      : readTeamRoomFinalLineupReceipt(cardResult.metadata.finalLineup)
+
+    if (!replayed) {
+      const saved = await saveReplacementCard(auth.service, conversation.id, cardResult.messageId, cardResult.metadata, {
+          ...cardResult.metadata,
+          lineupChangeNotice: nextNotice,
+          ...(body.nativeClient === true ? {nativeReplacementReply:{token:body.replacementToken,actor:auth.userId,response,lineupVersion:cardResult.metadata.lineupVersion,lineup:cardResult.metadata.lineup}} : {}),
+          finalLineup: nextFinalLineup,
+          arrivalCheckIns: response === 'accepted'
+            ? keepTeamRoomArrivalCheckInsForLineup(
+                normalizeLineupRows(cardResult.metadata.lineup),
+                cardResult.metadata.arrivalCheckIns,
+              )
+            : readTeamRoomArrivalCheckIns(cardResult.metadata.arrivalCheckIns),
+          arrivalOutreach: response === 'accepted'
+            ? keepTeamRoomArrivalOutreachForLineup(
+                normalizeLineupRows(cardResult.metadata.lineup),
+                cardResult.metadata.arrivalOutreach,
+              )
+            : readTeamRoomArrivalOutreach(cardResult.metadata.arrivalOutreach),
+        }, respondedAt)
+      if (saved === 'unconfirmed') return Response.json({ok:false,message:'Could not confirm your reply. Retry the same choice.'},{status:503})
+      if (saved === 'changed') return Response.json({ok:false,message:'The lineup changed. Refresh Match day.'},{status:409})
     }
     const availabilityResponse: MatchResponseRow['response'] = response === 'accepted' ? 'yes' : 'no'
     const { error: responseError } = await auth.service
@@ -1629,52 +1691,6 @@ export async function POST(request: Request) {
       scope: selected,
     })
 
-    const republishedFinalLineup = response === 'accepted'
-      && changeNotice.publishedLineupChange
-      && changeNotice.publishedAnnouncementMessageId
-      && changeNotice.publishedAt
-      && changeNotice.publishedByUserId
-      ? buildTeamRoomFinalLineupReceipt({
-          lineupId: buildCaptainLockedLineupId({
-            messageId: cardResult.messageId,
-            lineup: normalizeLineupRows(cardResult.metadata.lineup),
-          }),
-          sourceMessageId: cardResult.messageId,
-          announcementMessageId: changeNotice.publishedAnnouncementMessageId,
-          sentAt: changeNotice.publishedAt,
-          sentByUserId: changeNotice.publishedByUserId,
-          sentByName: changeNotice.publishedByName,
-        })
-      : null
-    const nextFinalLineup = changeNotice.publishedLineupChange
-      ? republishedFinalLineup
-      : readTeamRoomFinalLineupReceipt(cardResult.metadata.finalLineup)
-
-    const { error: updateError } = await auth.service
-      .from('internal_messages')
-      .update({
-        metadata: {
-          ...cardResult.metadata,
-          lineupChangeNotice: nextNotice,
-          finalLineup: nextFinalLineup,
-          arrivalCheckIns: response === 'accepted'
-            ? keepTeamRoomArrivalCheckInsForLineup(
-                normalizeLineupRows(cardResult.metadata.lineup),
-                cardResult.metadata.arrivalCheckIns,
-              )
-            : readTeamRoomArrivalCheckIns(cardResult.metadata.arrivalCheckIns),
-          arrivalOutreach: response === 'accepted'
-            ? keepTeamRoomArrivalOutreachForLineup(
-                normalizeLineupRows(cardResult.metadata.lineup),
-                cardResult.metadata.arrivalOutreach,
-              )
-            : readTeamRoomArrivalOutreach(cardResult.metadata.arrivalOutreach),
-        },
-        edited_at: respondedAt,
-      })
-      .eq('id', cardResult.messageId)
-      .eq('conversation_id', conversation.id)
-    if (updateError) return Response.json({ ok: false, message: updateError.message }, { status: 500 })
     const { data: replacementSchedule } = await auth.service
       .from('team_room_reminder_schedules')
       .select('id,targets')
@@ -1692,7 +1708,7 @@ export async function POST(request: Request) {
       .update({ updated_at: respondedAt })
       .eq('id', conversation.id)
 
-    const notificationIds = await notifyManagersOfLineupChangeResponse(auth.service, {
+    const notificationIds = replayed ? [] : await notifyManagersOfLineupChangeResponse(auth.service, {
       conversationId: conversation.id,
       messageId: cardResult.messageId,
       actorUserId: auth.userId,
@@ -1705,6 +1721,8 @@ export async function POST(request: Request) {
     return Response.json({
       ok: true,
       response,
+      messageId: cardResult.messageId,
+      replacementToken: body.nativeClient === true ? body.replacementToken : undefined,
       respondedAt,
       notificationIds,
       finalLineupPublished: Boolean(republishedFinalLineup),
@@ -2653,7 +2671,7 @@ async function loadNativeChatUpdate(service: SupabaseClient, userId: string, sel
   if (!loaded.ok) return loaded
   try {
     const [profiles, reactions] = await Promise.all([
-      loadProfileMap(service, loaded.rows.map(row => row.sender_user_id)),
+      loadProfileMap(service, [userId, ...loaded.rows.map(row => row.sender_user_id)]),
       loadNativeReactionSummary(service, userId, id, loaded.rows.map(row => row.id)),
     ])
     return {ok: true as const, chatUpdate: true, room: {id, blockedUserIds: loaded.blockedUserIds, lastReadAt: loaded.lastReadAt, messages: loaded.rows.map(row => ({...toMessage(row, profiles, userId), reactions: reactions.get(row.id) || []}))}}
@@ -3893,6 +3911,16 @@ function toMessage(
     lineupChanges: Array.isArray(row.metadata.lineupChanges)
       ? row.metadata.lineupChanges.map((item) => cleanText(item)).filter(Boolean).slice(0, 12)
       : [],
+    nativeReplacement: (() => {
+      const notice = cleanStoredLineupChangeNotice(row.metadata.lineupChangeNotice)
+      if (!notice || notice.pending || cleanText(row.metadata.matchCompletedAt)) return null
+      const token = replacementReplyToken(row.id, row.metadata)
+      return {courtLabel:notice.courtLabel,outgoingPlayerName:notice.outgoingPlayerName,
+        replacementPlayerName:notice.replacementPlayerName,afterPlayers:notice.afterPlayers,
+        response:notice.response,deadlineAt:notice.deadlineAt,token,
+        canRespond:replacementReplyIsCurrent({messageId:row.id,metadata:row.metadata,token,
+          linkedPlayerName:profileById.get(currentUserId)?.linked_player_name})}
+    })(),
     acknowledged: currentAcknowledgments.some((item) => item.profile_id === currentUserId),
     acknowledgmentSummary: {
       total: currentAcknowledgments.length,
