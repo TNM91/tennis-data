@@ -31,6 +31,7 @@ test('store preparation updates generated app identity and rejects unsafe input'
     assert.equal(result.status, 0, result.stderr)
     assert.equal(JSON.parse(await readFile(configPath,'utf8')).appId, 'com.tenaceiq.app')
     assert.equal((await readFile(join(root,'ios/App/App.xcodeproj/project.pbxproj'),'utf8')).includes('CURRENT_PROJECT_VERSION = 12;'), true)
+    assert.match(await readFile(join(root, 'ios/App/App/Info.plist'),'utf8'), /<key>ITSAppUsesNonExemptEncryption<\/key>\s*<false\/>/)
     assert.notEqual(run('13').status, 0, 'Refuse reusing a modified store project')
   } finally { await rm(root, {recursive:true, force:true}) }
 })

@@ -1,3 +1,5 @@
+import { chatSafetyAction, loadChatBlocks, redactBlockedChatRows, chatNotificationRecipients } from '@/lib/team-chat-safety'
+import { insertTeamMessage, parseTeamMessageSendId } from '@/lib/team-room-message-send'
 import { loadTeamConversationMessages } from '@/lib/team-room-message-history'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
@@ -183,6 +185,8 @@ type TeamRoomActionBody = {
   messageId?: unknown
   response?: unknown
   reminderAt?: unknown
+  reason?: unknown
+  clientMessageId?: unknown
   replyToMessageId?: unknown
   reaction?: unknown
   memberId?: unknown
@@ -370,6 +374,10 @@ export async function POST(request: Request) {
   }
 
   const action = cleanText(body.action)
+  if (['report_chat_message', 'block_chat_member', 'unblock_chat_member'].includes(action)) {
+    const result = await chatSafetyAction(auth.service, auth.userId, conversation.id, syncedMembers, body)
+    return Response.json(result, { status: result.status })
+  }
   if (action === 'record_arrival_outreach') {
     if (!canManageTeamRoom(teamRoles(selected))) {
       return Response.json({ ok: false, message: 'Only a captain or co-captain can text a teammate.' }, { status: 403 })
@@ -742,6 +750,13 @@ export async function POST(request: Request) {
   }
 
   if (action === 'send') {
+    try { await loadChatBlocks(auth.service, auth.userId) } catch {
+      return Response.json({ ok: false, message: 'Chat safety settings are unavailable. Try again later.' }, { status: 503 })
+    }
+    const clientMessageId = parseTeamMessageSendId(body.clientMessageId)
+    if (clientMessageId === false) {
+      return Response.json({ ok: false, message: 'Invalid message send ID.' }, { status: 400 })
+    }
     const messageBody = cleanText(body.body).slice(0, 2400)
     if (!messageBody) return Response.json({ ok: false, message: 'Write a message first.' }, { status: 400 })
     const isAnnouncement = body.announcement === true
@@ -762,18 +777,19 @@ export async function POST(request: Request) {
       }
     }
 
-    const { data: message, error } = await auth.service
-      .from('internal_messages')
-      .insert({
-        conversation_id: conversation.id,
-        sender_user_id: auth.userId,
-        body: messageBody,
-        message_kind: isAnnouncement ? 'announcement' : 'message',
-        reply_to_message_id: replyToMessageId || null,
-      })
-      .select('id,sender_user_id,body,message_kind,metadata,created_at,edited_at,deleted_at,reply_to_message_id')
-      .single()
-    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    const sent = await insertTeamMessage(auth.service, {
+      conversationId: conversation.id,
+      senderUserId: auth.userId,
+      body: messageBody,
+      announcement: isAnnouncement,
+      replyToMessageId: replyToMessageId || null,
+      clientMessageId,
+    })
+    if (!sent.ok) return Response.json({ ok: false, message: sent.message }, { status: sent.status })
+    const message = sent.message
+    if (sent.replayed) {
+      return Response.json({ ok: true, replayed: true, message: toMessage(message, new Map(), auth.userId) })
+    }
 
     await auth.service
       .from('internal_conversations')
@@ -2458,10 +2474,15 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
   const { data: messageRows, error: messageError } = await loadTeamConversationMessages(service, conversation.id)
   if (messageError) return { ok: false as const, status: 500, message: messageError.message }
 
-  const typedMessageRows = (messageRows ?? []) as MessageRow[]
+  let blockedIds: Set<string>
+  try { blockedIds = await loadChatBlocks(service, userId) } catch {
+    return { ok: false as const, status: 503, message: 'Chat safety settings are unavailable. Try again later.' }
+  }
+  const typedMessageRows = redactBlockedChatRows((messageRows ?? []) as MessageRow[], blockedIds)
   const senderIds = Array.from(new Set([
     ...typedMessageRows.map((row) => row.sender_user_id),
     ...members.map((member) => member.id),
+    ...blockedIds,
   ]))
   const profileById = await loadProfileMap(service, senderIds)
   const messageIds = typedMessageRows.map((row) => row.id)
@@ -2593,6 +2614,8 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
       teamLogoUrl,
       leagueName: selected.league_name,
       flight: selected.flight,
+      chatReady: true,
+      blockedMembers: Array.from(blockedIds).map(id => ({id, name: profileById.get(id)?.message_display_name?.trim() || profileById.get(id)?.linked_player_name?.trim() || 'Team member'})),
       roles: teamRoles(selected),
       canManage: canManageTeamRoom(teamRoles(selected)),
       muted: currentParticipant?.muted ?? false,
@@ -3239,8 +3262,10 @@ async function notifyTeamRoom(service: SupabaseClient, input: {
     .from('internal_conversation_participants')
     .select('profile_id,muted')
     .eq('conversation_id', input.conversationId)
-  const recipients = ((data ?? []) as ParticipantRow[])
+  const candidates = ((data ?? []) as ParticipantRow[])
     .filter((row) => row.profile_id !== input.actorUserId && row.muted !== true)
+  const allowedIds = new Set(await chatNotificationRecipients(service, input.actorUserId, candidates.map(row => row.profile_id)))
+  const recipients = candidates.filter(row => allowedIds.has(row.profile_id))
   if (!recipients.length) return
 
   const title = input.announcement ? `${input.teamName} announcement` : `New message in ${input.teamName}`
