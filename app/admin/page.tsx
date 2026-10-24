@@ -130,6 +130,17 @@ const adminTools: AdminTool[] = [
     statValue: 'Match hygiene',
   },
   {
+    title: 'Team Chat Reports',
+    href: '/admin/team-chat',
+    description: 'Review private reports and remove inappropriate team posts.',
+    badge: 'Moderation',
+    accent: 'green',
+    icon: 'clubTennis',
+    highlights: ['Private reports', 'Post review', 'Team safety'],
+    statLabel: 'Best for',
+    statValue: 'Chat moderation',
+  },
+  {
     title: 'Venue Addresses',
     href: '/admin/venue-locations',
     description: 'Verify playing addresses suggested by players and captains.',
