@@ -1,12 +1,12 @@
 import type {NativeTeamRoom} from './team-room-data'
 import {html} from './match-details'
-import {findTeamRoomAssignedCourt} from '../../lib/team-room-arrival'
+import {currentTeamPlan,ownTeamCourt} from './team-hub'
 import {ChatActionError,type ChatAction} from './team-chat-send'
 export type MatchAction=Extract<ChatAction,{action:'respond_lineup_change'|'respond'|'acknowledge_lineup'|'set_arrival_status'|'ack_final_lineup'}>
 export function matchActionsHtml(room:NativeTeamRoom,owner:string){
- const message=room.activeCard,card=message?.card
+ const message=currentTeamPlan(room),card=message?.card
  if(!message || !card || message.deletedAt || card.state==='archived' || card.completed)return '<p class="rating-context">Match replies open when your captain shares an active match plan.</p>'
- const player=room.members.find(member=>member.id===owner),assigned=findTeamRoomAssignedCourt(card.lineup,[player?.playerName,player?.name]),arrival=card.arrivals?.find(item=>item.profileId===owner)
+ const assigned=ownTeamCourt(room,owner),arrival=card.arrivals?.find(item=>item.profileId===owner)
  const response=message.response==='yes'?'Available':message.response==='maybe'?'Maybe':message.response==='no'?'Unavailable':'Not answered'
  const replacement=card.replacement
  const replacementHtml=replacement?`<section aria-label="Lineup replacement"><h3>Lineup change · ${html(replacement.courtLabel)}</h3><p>${html(replacement.replacementPlayerName)} is in for ${html(replacement.outgoingPlayerName)}.</p><p>New court: ${replacement.afterPlayers.map(html).join(' &amp; ')}</p><p>${replacement.response==='accepted'?'Replacement accepted.':replacement.response==='declined'?'Replacement can’t play.':'Waiting for the replacement’s reply.'}</p>${replacement.deadlineAt&&Number.isFinite(Date.parse(replacement.deadlineAt))?`<p>Reply by ${html(new Date(replacement.deadlineAt).toLocaleString())}</p>`:''}${replacement.canRespond?'<p>Your reply updates your availability and lets your captain know.</p><div class="match-filters" role="group" aria-label="Your replacement reply"><button type="button" data-replacement-response="accepted">Accept replacement</button><button type="button" class="secondary" data-replacement-response="declined">Can’t play replacement</button></div>':''}</section>`:''
@@ -23,5 +23,7 @@ export class TeamMatchActions {
   catch(cause){if(this.disposed)return false;if(cause instanceof ChatActionError && !cause.uncertain){this.pending=null;this.notice='The match changed or your access is unavailable. Refresh Match day.'}else this.notice='Couldn’t confirm your reply. Retry saves the same choice.';return false}
   finally{this.sending=false}
  }
+ discardStale(action:MatchAction){if(this.disposed||this.sending||!this.pending||JSON.stringify(this.pending)!==JSON.stringify(action))return false;this.pending=null;this.notice='The previous reply is no longer current. Check the latest match plan.';return true}
+ confirmSaved(action:MatchAction){if(this.disposed||this.sending||this.pending&&JSON.stringify(this.pending)!==JSON.stringify(action))return false;this.pending=null;this.notice='Match reply confirmed.';return true}
  dispose(){this.disposed=true;this.pending=null;this.notice=''}
 }
