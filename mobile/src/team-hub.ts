@@ -1,0 +1,20 @@
+import type {NativeTeamRoom} from './team-room-data'
+import {findTeamRoomAssignedCourt} from '../../lib/team-room-arrival'
+import {html} from './match-details'
+import {matchDate} from './recent-results'
+export function currentTeamPlan(room:NativeTeamRoom){const message=room.activeCard,card=message?.card;return message&&!message.deletedAt&&card&&!card.completed&&['active','upcoming'].includes(card.state)?message:null}
+export function teamMatchOverview(room:NativeTeamRoom){const card=currentTeamPlan(room)?.card;return card?{matchDate:card.matchDate,opponent:card.opponent,matchTime:card.matchTime,facility:card.facility}:room.nextMatch}
+export function ownTeamCourt(room:NativeTeamRoom,owner:string){
+ const member=room.members.find(member=>member.id===owner),plan=currentTeamPlan(room)?.card;if(!member||!plan)return null
+ const courts=plan.lineup.filter(court=>!court.defaulted),matches=courts.flatMap(court=>{const match=findTeamRoomAssignedCourt([court],[member.playerName,member.name]);return match?[match]:[]})
+ if(matches.length!==1)return null
+ const sameName=room.members.some(other=>other.id!==owner&&findTeamRoomAssignedCourt([{label:matches[0].courtLabel,players:[matches[0].playerName]}],[other.playerName,other.name]))
+ return sameName?null:matches[0]
+}
+export function latestTeamAnnouncement(room:NativeTeamRoom){return [...room.messages].reverse().find(message=>message.kind==='announcement'&&!message.deletedAt)||null}
+export function teamHubHtml(room:NativeTeamRoom,owner:string,open=false){
+ const plan=currentTeamPlan(room),card=plan?.card,match=teamMatchOverview(room),court=ownTeamCourt(room,owner),announcement=latestTeamAnnouncement(room)
+ const response=plan?.response==='yes'?'Available':plan?.response==='maybe'?'Maybe':plan?.response==='no'?'Unavailable':'Not answered'
+ return `<details class="team-hub" ${open?'open':''}><summary>Team hub${match?` · ${html(matchDate(match.matchDate))}`:''}</summary><div class="team-hub-body"><h2>Your team, ready for court</h2>${match?`<p><strong>${html(match.opponent||'Opponent not recorded')}</strong></p><p>${html(matchDate(match.matchDate))} · ${html(match.matchTime||'Time not recorded')}</p><p>${html(match.facility||'Facility not recorded')}</p>`:'<p>No upcoming match is recorded.</p>'}${card?`<dl class="team-hub-status"><dt>Your availability</dt><dd>${response}</dd><dt>Your court</dt><dd>${html(court?.courtLabel||'Not assigned')}${court&&!card.published?' · Working plan':''}</dd><dt>Lineup review</dt><dd>${card.lineupVersion?`Version ${card.lineupVersion} · ${card.acknowledged?'Reviewed':'Review needed'}`:'Not shared yet'}</dd></dl>${card.replacement?.canRespond?'<p class="chat-mention-badge">Your replacement reply is needed.</p>':''}${room.finalLineupReview?.currentUserRequired&&!room.finalLineupReview.currentUserSeen?'<p class="chat-mention-badge">Check the final lineup.</p>':''}`:''}<button type="button" class="secondary" data-hub-match>Open Match day</button><p class="rating-context">Open Match day to check the latest plan before replying.</p>${announcement?`<button type="button" class="secondary" data-hub-announcement="${html(announcement.id)}">Captain announcement</button><p class="team-hub-preview">${html(announcement.body.slice(0,140))}</p>`:'<p>No captain announcement is in this conversation page.</p>'}<div class="team-hub-shortcuts" role="group" aria-label="Team chat shortcuts"><button type="button" class="secondary" data-hub-filter="announcements">Announcements</button><button type="button" class="secondary" data-hub-filter="media">Photos & GIFs</button><button type="button" class="secondary" data-hub-filter="mentions">Mentions</button></div><p class="rating-context">Chat shortcuts search the current conversation page. Earlier messages opens an older page.</p></div></details>`
+}
+export function teamDirectionsHref(room:NativeTeamRoom){const facility=teamMatchOverview(room)?.facility.trim();return facility?`https://maps.apple.com/?q=${encodeURIComponent(facility.slice(0,240))}`:''}
