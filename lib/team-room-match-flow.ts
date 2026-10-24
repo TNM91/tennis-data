@@ -86,6 +86,7 @@ export type TeamRoomReminderTarget = {
   needsMaybeFollowup: boolean
   needsAckVersion: number
   needsLineupChangeResponse: boolean
+  lineupChangeRequestId?: string
 }
 
 export function getLineupChangeReminderAt(deadlineDate: string) {
@@ -215,6 +216,7 @@ export function parseReminderTargets(value: unknown): TeamRoomReminderTarget[] {
       needsMaybeFollowup: row.needsMaybeFollowup === true,
       needsAckVersion: Math.max(0, Math.floor(Number(row.needsAckVersion) || 0)),
       needsLineupChangeResponse: row.needsLineupChangeResponse === true,
+      ...(typeof row.lineupChangeRequestId==='string'&&row.lineupChangeRequestId.trim()?{lineupChangeRequestId:row.lineupChangeRequestId.trim().slice(0,120)}:{}),
     }]
   })
 }

@@ -1,3 +1,5 @@
+import {replacementReminderRequestId} from '@/lib/replacement-reminder-target'
+import {saveNativeReplacementFollowup} from '@/lib/native-replacement-followup'
 import {lineupRecord as lineupRecordForNative} from '@/lib/native-captain-lineup-contract'
 import {loadNativeReplacement,publishNativeReplacement} from '@/lib/native-captain-replacement'
 import {notifyNativeReplacement} from '@/lib/native-replacement-notifications'
@@ -210,6 +212,11 @@ type TeamRoomActionBody = {
   courtLabel?: unknown
   outgoingPlayerName?: unknown
   replacementKey?: unknown
+  supersede?: unknown
+  operationId?: unknown
+  kind?: unknown
+  deadlineAt?: unknown
+  requestId?: unknown
   replacementToken?: unknown
   nativeClient?: unknown
   lineupVersion?: unknown
@@ -422,13 +429,21 @@ export async function POST(request: Request) {
   }
 
   const action = cleanText(body.action)
-  if (action === 'publish_native_replacement' || action === 'publish_native_lineup' || (body.nativeClient === true && action === 'send_final_lineup')) {
+  if (action === 'native_replacement_followup' || action === 'publish_native_replacement' || action === 'publish_native_lineup' || (body.nativeClient === true && action === 'send_final_lineup')) {
     const captain=await getCaptainApiAuth(request)
     if(!captain.ok)return captain.response
     if(captain.userId!==auth.userId)return Response.json({ok:false},{status:403})
     const scope={teamName:cleanText(body.teamName),leagueName:cleanText(body.leagueName),flight:cleanText(body.flight)}
     if(scope.teamName!==selected.team_name||scope.leagueName!==selected.league_name||scope.flight!==selected.flight)return Response.json({ok:false},{status:403})
     try {
+      if(action==='native_replacement_followup'){
+        const result=await saveNativeReplacementFollowup(auth.service,auth.userId,scope,body as Record<string,unknown>)
+        if(!result.ok)return Response.json(result,{status:result.status})
+        if(!result.replayed&&result.kind==='reminder'){
+          try{await notifyNativeReplacement(auth.service,{conversationId:result.conversationId,messageId:result.messageId,owner:auth.userId,scope,affectedNames:[result.replacementPlayerName],courtLabel:result.courtLabel,replacementPlayerName:result.replacementPlayerName,outgoingPlayerName:'',kind:'reminder'})}catch{console.warn('Replacement reminder unavailable')}
+        }
+        return Response.json({ok:true,messageId:result.messageId,operationId:result.operationId,kind:result.kind,deadlineAt:result.deadlineAt,replayed:result.replayed},{headers:{'Cache-Control':'private, no-store'}})
+      }
       if(action==='publish_native_replacement'){
         const result=await publishNativeReplacement(auth.service,auth.userId,scope,body as Record<string,unknown>)
         if(!result.ok)return Response.json(result,{status:result.status})
@@ -1780,6 +1795,7 @@ export async function POST(request: Request) {
       needsMaybeFollowup: false,
       needsAckVersion: 0,
       needsLineupChangeResponse: true,
+      lineupChangeRequestId: replacementReminderRequestId(changeNotice),
     }]
     const updatedAt = new Date().toISOString()
     const { error: scheduleError } = await auth.service
@@ -1803,17 +1819,12 @@ export async function POST(request: Request) {
       deadlineStatus: 'scheduled',
       reminderSentAt: '',
     }
-    const { error: messageError } = await auth.service
-      .from('internal_messages')
-      .update({ metadata: { ...cardResult.metadata, lineupChangeNotice: nextNotice }, edited_at: updatedAt })
-      .eq('id', cardResult.messageId)
-      .eq('conversation_id', conversation.id)
-    if (messageError) {
-      await auth.service
-        .from('team_room_reminder_schedules')
-        .update({ status: 'cancelled', updated_at: updatedAt })
-        .eq('message_id', cardResult.messageId)
-      return Response.json({ ok: false, message: messageError.message }, { status: 500 })
+    const saved = await saveReplacementCard(auth.service,conversation.id,cardResult.messageId,cardResult.metadata,{...cardResult.metadata,lineupChangeNotice:nextNotice},updatedAt)
+    if (saved !== 'saved') {
+      await auth.service.from('team_room_reminder_schedules')
+        .update({status:'cancelled',updated_at:updatedAt}).eq('message_id',cardResult.messageId)
+        .eq('updated_at',updatedAt).eq('status','scheduled')
+      return Response.json({ok:false,message:'The replacement changed or scheduling could not be confirmed. Refresh before trying again.'},{status:saved==='changed'?409:503})
     }
     return Response.json({ ok: true, deadlineAt: reminderAt })
   }

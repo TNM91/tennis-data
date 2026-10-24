@@ -1,9 +1,10 @@
 import {beforeEach,afterEach,describe,it,expect,vi} from 'vitest'
-const m=vi.hoisted(()=>({replace:vi.fn(),replaceReview:vi.fn(),replaceNotify:vi.fn(),captain:vi.fn(),publish:vi.fn(),load:vi.fn(),create:vi.fn(),push:vi.fn(),nativePush:vi.fn(),recipients:vi.fn()}))
+const m=vi.hoisted(()=>({follow:vi.fn(),replace:vi.fn(),replaceReview:vi.fn(),replaceNotify:vi.fn(),captain:vi.fn(),publish:vi.fn(),load:vi.fn(),create:vi.fn(),push:vi.fn(),nativePush:vi.fn(),recipients:vi.fn()}))
 vi.mock('server-only',()=>({}))
 vi.mock('@supabase/supabase-js',()=>({createClient:m.create}))
 vi.mock('@/lib/supabase',()=>({supabaseUrl:'https://synthetic.supabase.co',supabaseKey:'synthetic-public'}))
 vi.mock('@/lib/captain-api-auth',()=>({getCaptainApiAuth:m.captain}))
+vi.mock('@/lib/native-replacement-followup',()=>({saveNativeReplacementFollowup:m.follow}))
 vi.mock('@/lib/native-captain-replacement',()=>({loadNativeReplacement:m.replaceReview,publishNativeReplacement:m.replace}))
 vi.mock('@/lib/native-replacement-notifications',()=>({notifyNativeReplacement:m.replaceNotify}))
 vi.mock('@/lib/native-captain-publication',()=>({loadNativePublication:m.load,publishNativeLineup:m.publish,confirmNativeFinalReceipt:vi.fn(),markNativeDraftFinal:vi.fn(),completeNativeFinalAnnouncement:vi.fn()}))
@@ -31,4 +32,9 @@ describe('native captain replacement API',()=>{
 
 describe('native replacement final guard',()=>{
  it('cannot bypass an outstanding replacement reply by sending another final',async()=>{m.load.mockResolvedValue({ok:true,status:200,card:{id:'card',metadata:{cardType:'projected_lineup',lineupChangeNotice:{publishedLineupChange:true,response:''}}}});expect((await POST(post({action:'send_final_lineup',nativeClient:true,messageId:'card'}))).status).toBe(409);expect(calls.every(c=>c.table==='team_profile_links')).toBe(true);expect(m.push).not.toHaveBeenCalled()})
+})
+
+describe('native replacement follow-up API',()=>{
+ it('checks Captain entitlement and exact accepted flight before any follow-up action',async()=>{m.captain.mockResolvedValueOnce({ok:false,response:Response.json({ok:false},{status:403})});expect((await POST(post({action:'native_replacement_followup'}))).status).toBe(403);expect((await POST(post({action:'native_replacement_followup',flight:'4.5'}))).status).toBe(403);expect(m.follow).not.toHaveBeenCalled();expect(m.replaceNotify).not.toHaveBeenCalled()})
+ it('targets only the replacement for a reminder winner, suppresses replays and never alerts when saving a deadline',async()=>{const result={ok:true,status:200,messageId:'card',operationId:'op',kind:'reminder',deadlineAt:'',conversationId:'room',replacementPlayerName:'Riley',courtLabel:'D1'};m.follow.mockResolvedValueOnce({...result,replayed:false}).mockResolvedValueOnce({...result,replayed:true}).mockResolvedValueOnce({...result,kind:'deadline',replayed:false,deadlineAt:'2026-10-29T18:00:00.000Z'});m.replaceNotify.mockResolvedValue({notifiedCount:1});for(let i=0;i<3;i++)expect((await POST(post({action:'native_replacement_followup'}))).status).toBe(200);expect(m.replaceNotify).toHaveBeenCalledTimes(1);expect(m.replaceNotify.mock.calls[0][1]).toMatchObject({kind:'reminder',affectedNames:['Riley'],scope,owner:'owner'});expect(calls.every(c=>c.table==='team_profile_links')).toBe(true)})
 })
