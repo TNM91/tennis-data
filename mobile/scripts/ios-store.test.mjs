@@ -15,6 +15,7 @@ test('store preparation updates generated app identity and rejects unsafe input'
     await mkdir(join(root, 'ios/App/App.xcodeproj'), {recursive:true})
     await mkdir(join(root, 'ios/App/App'), {recursive:true})
     await copyFile(new URL('prepare-ios-store.mjs', import.meta.url), join(root, 'scripts/prepare-ios-store.mjs'))
+    await copyFile(new URL('ios-push.mjs', import.meta.url), join(root, 'scripts/ios-push.mjs'))
     const config = {appId:'com.tenaceiq.prototype', webDir:'bundled', loggingBehavior:'none'}
     const configPath = join(root, 'ios/App/App/capacitor.config.json')
     await writeFile(configPath, JSON.stringify(config))
@@ -32,6 +33,7 @@ test('store preparation updates generated app identity and rejects unsafe input'
     assert.equal(JSON.parse(await readFile(configPath,'utf8')).appId, 'com.tenaceiq.app')
     assert.equal((await readFile(join(root,'ios/App/App.xcodeproj/project.pbxproj'),'utf8')).includes('CURRENT_PROJECT_VERSION = 12;'), true)
     assert.match(await readFile(join(root, 'ios/App/App/Info.plist'),'utf8'), /<key>ITSAppUsesNonExemptEncryption<\/key>\s*<false\/>/)
+    assert.match(await readFile(join(root,'ios/App/App/Push.entitlements'),'utf8'), /<string>production<\/string>/)
     assert.notEqual(run('13').status, 0, 'Refuse reusing a modified store project')
   } finally { await rm(root, {recursive:true, force:true}) }
 })

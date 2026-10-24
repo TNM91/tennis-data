@@ -1,0 +1,33 @@
+# iPhone team alerts
+
+## Candidate behavior
+
+My Lab has an explicit Enable team alerts control. The iPhone permission prompt appears only after that tap; previously enabled devices can register again without prompting. Native foreground presentation is suppressed because live Conversation already updates. Background alerts show only “TenAceIQ — You have a new team message.” Message text, sender names and team names do not appear in the alert text. Routing metadata contains the intended recipient ID and the existing team URL; Apple receives that metadata and the device token for delivery.
+
+Tapping an alert opens the exact accepted team scope only when its recipient matches the signed-in account. Room APIs still authorize access. A pending composer prompts before navigation discards it. Sign-out revokes the server registration before clearing the session, unregisters APNs and removes delivered alerts; failed server revocation keeps the user signed in so it can be retried. Unexpected session expiry/account switching also unregisters locally and rejects old-account taps. Already enqueued OS notifications and remote delivery are best effort; the app cannot promise that an alert already handed to Apple is recalled.
+
+The per-installation random secret and opt-in owner live in existing device-only Keychain storage. Device tokens remain transient on the client. The private device table stores a SHA-256 verifier, token and owner. An atomic service-only function requires the same secret to update/reassign an installation, caps each profile at three active devices and rejects token collisions. Client API requests cannot select an owner. Registrations expire after 30 days and renew on app startup/foreground. Direct anonymous/authenticated table and binding-function access is denied. No device identifiers, raw tokens, signing keys or message text are logged.
+
+## Delivery and cost bounds
+
+Only the existing Team Room notification path invokes native delivery. The server rechecks exact accepted scope, participants, explicit removals, captain exception, mute and sender blocks. Failed safety/membership lookup suppresses delivery. Existing retry-safe message replays do not repeat this notification path. The native sender uses Apple's production HTTP/2 endpoint and the fixed com.tenaceiq.app topic. Provider JWTs are cached per credential for 45 minutes; there are at most four concurrent streams, 100 device candidates per notification, a ten-second connection budget and five-second stream timeouts. Invalid tokens are disabled only if the stored token and registration timestamp still match. Transient failures are counted without token/content logs; there is no automatic retry loop or guaranteed offline delivery.
+
+At typical team size 20, with three devices per player, one message can produce up to 57 Apple requests after excluding the sender, fewer after mute/block/expiry filters. A device enable/foreground refresh uses one capability request and one registration write; no background timer, polling interval, new cron, paid push provider or new subscription is added. Apple/OS delivery may delay, collapse or drop alerts. There is no global badge count, attachment preview, silent background fetch or Android push in this candidate.
+
+## Activation prerequisites
+
+Delivery remains disabled unless APNS_ENABLED=true, APNS_KEY_ID, APNS_TEAM_ID and APNS_PRIVATE_KEY_BASE64 are configured server-side. The team ID must match the existing signing team, and delivery is refused in non-production Vercel environments. These values must never be NEXT_PUBLIC variables, committed source, client bundle values or public Actions artifacts. Existing App Store Connect upload credentials do not grant APNs delivery and are not reused.
+
+Before release: enable Push Notifications on the existing App ID, create the narrowest available production APNs key for com.tenaceiq.app, download it privately, and replace the protected GitHub provisioning-profile secret with a regenerated App Store profile. Add APNs server values only to Vercel production. Credential creation/storage requires the owner's specific approval. The candidate migration must be applied and actual Data API role checks completed before enabling the endpoint. No paid feature or public App Store submission is needed.
+
+Generated native projects include the official Capacitor push plugin, the AppDelegate registration bridge and signing entitlements. Prototype preparation uses development; store preparation writes production. The profile validator refuses a profile lacking production aps-environment. Fresh Mac signing and real TestFlight device acceptance remain required; Windows source checks and synthetic plugin tests do not establish APNs delivery.
+
+## Current verification
+
+Focused tests cover provider signing/token caching, private payloads, concurrency/failure classification, recipient safety filters, installation-secret binding, bearer API validation, opt-in restoration, revocation failure, OS denial, late registration/account switches and owned-team routing. Synthetic phone checks cover enable/disable, exact-team alert navigation and sign-out. A rollback-only PostgreSQL transaction passed ownership transfer, wrong-secret rejection, device cap, token collision, opt-out and private-role assertions; schema and fixtures are not activated by that test. No real device token, Apple request, chat message or tester invitation was created by these tests.
+
+Full verification passed lint, typecheck, 744 test files / 3,927 tests, extension syntax and the production build. The final focused push set passed 17 tests, including the added API and cold-start cases. Eight native guards plus the upload-parser test passed, as did bundled client preparation and iOS source checks. Local production GET/POST smoke denied anonymous registration with 401 JSON.
+
+Build 13 remains the released internal beta. This push candidate is not yet deployed or uploaded.
+
+Official implementation references: [Capacitor iOS push plugin](https://capacitorjs.com/docs/apis/push-notifications), [Apple provider authentication](https://developer.apple.com/documentation/usernotifications/establishing-a-token-based-connection-to-apns), [Apple APNs key creation](https://developer.apple.com/help/account/keys/create-a-private-key).

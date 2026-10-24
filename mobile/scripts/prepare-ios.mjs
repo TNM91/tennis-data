@@ -1,3 +1,4 @@
+import {iosPushSources,pushEntitlements} from './ios-push.mjs'
 import { readFile, writeFile, access, mkdir } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -52,3 +53,9 @@ contents.images[0].filename = 'tenaceiq-app-icon.png'
 await writeFile(resolve(icons, 'tenaceiq-app-icon.png'), await iosIcon())
 await writeFile(resolve(icons, 'Contents.json'), JSON.stringify(contents, null, 2) + '\n')
 console.log('Prepared SPM iOS prototype and packaged the approved artwork on the opaque brand navy icon tile. Xcode compilation/signing is not verified on Windows.')
+
+const delegatePath=resolve(ios,'App/App/AppDelegate.swift')
+const pushSources=iosPushSources(await readFile(resolve(project,'project.pbxproj'),'utf8'),await readFile(delegatePath,'utf8'))
+await writeFile(resolve(project,'project.pbxproj'),pushSources.project)
+await writeFile(delegatePath,pushSources.delegate)
+await writeFile(resolve(ios,'App/App/Push.entitlements'),pushEntitlements('development'))

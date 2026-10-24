@@ -1,3 +1,5 @@
+import type {TeamScope} from './team-room-data'
+import {createNativePush} from './native-push'
 import { showTeamRoom } from './team-room-view'
 import { showComparison } from './comparison-view'
 import { showFollowing } from './follows-view'
@@ -123,13 +125,19 @@ navigation.querySelector<HTMLButtonElement>('[data-screen="matchup"]')!.onclick=
   comparison=showComparison(app,client,()=>version===revision && userId===session?.user.id)
 }
 
-navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')!.onclick=()=>{
-  if(!session || connection?.isSaving() || teamRoom)return
+function openTeamRoom(initialScope?:TeamScope){
+  if(!session || connection?.isSaving())return
+  if(teamRoom && !initialScope)return
+  if(teamRoom?.hasDraft() && !window.confirm('Open this team alert? Your unfinished message will be discarded.'))return
+  teamRoom?.dispose();teamRoom=null
   comparison?.dispose();comparison=null;following?.dispose();following=null;explore?.dispose();explore=null;connection?.dispose();connection=null;details?.dispose();details=null
   const userId=session.user.id,version=++revision
   selectNavigation('teams')
-  teamRoom=showTeamRoom(app,client,userId,()=>version===revision && userId===session?.user.id)
+  teamRoom=showTeamRoom(app,client,userId,()=>version===revision && userId===session?.user.id,initialScope)
 }
+
+navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')!.onclick=()=>openTeamRoom()
+const nativePush=createNativePush(client,scope=>openTeamRoom(scope))
 
 async function lab() {
   teamRoom?.dispose();teamRoom=null
@@ -159,6 +167,7 @@ async function lab() {
     : `<section><h2>Your player profile</h2>${data?.linked_player_id && data?.linked_player_name
       ? `<dl><dt>Player</dt><dd>${escape(data.linked_player_name)}</dd><dt>Team</dt><dd>${escape(data.linked_team_name || 'No team linked')}</dd><dt>League</dt><dd>${escape(data.linked_league_name || 'No league linked')}</dd></dl>`
       : '<p>Connect your tennis record to bring your results into My Lab.</p><button type="button" id="connect-player">Find my player record</button>'}</section>`}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Sign out</button><p role="alert" id="notice"></p>`
+  const alerts=document.createElement('section');app.querySelector('#logout')!.before(alerts);nativePush.mount(alerts)
   app.insertAdjacentHTML('beforeend', accountLinksHtml)
   bindAccountLinks(app)
   const connectButton = app.querySelector<HTMLButtonElement>('#connect-player')
@@ -176,6 +185,7 @@ async function lab() {
   app.querySelector<HTMLButtonElement>('#logout')!.onclick = async event => {
     (event.currentTarget as HTMLButtonElement).disabled = true
     try {
+      await nativePush.beforeSignOut()
       const { error: logoutError } = await client.auth.signOut({scope: 'local'})
       if (logoutError) throw logoutError
     } catch {
@@ -216,11 +226,14 @@ async function lab() {
 }
 
 client.auth.onAuthStateChange((_event, next) => {
-  if (next?.user.id === session?.user.id && (details?.isOpen() || connection || explore || following || comparison || teamRoom)) { session = next; return }
+  if (next?.user.id === session?.user.id && (details?.isOpen() || connection || explore || following || comparison || teamRoom)) { session = next; setTimeout(()=>nativePush.setSession(next),0); return }
   session = next
   revision++
   // Schedule outside the auth callback's lock before making another SDK call.
-  setTimeout(() => { if (session) void lab(); else login() }, 0)
+  setTimeout(() => {
+    if(next?.user.id!==session?.user.id)return
+    void (async()=>{if(session)await lab();else login();if(next?.user.id===session?.user.id)nativePush.setSession(session)})()
+  }, 0)
 })
 client.auth.getSession().catch(() => {
   app.dataset.state = 'storage-error'

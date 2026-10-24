@@ -1,3 +1,4 @@
+import {pushEntitlements} from './ios-push.mjs'
 import assert from 'node:assert/strict'
 import { readFile, writeFile } from 'node:fs/promises'
 
@@ -26,3 +27,5 @@ await writeFile(projectPath, project.replaceAll('PRODUCT_BUNDLE_IDENTIFIER = com
 await writeFile(infoPath, info.replace('<key>CFBundleDisplayName</key>', '<key>ITSAppUsesNonExemptEncryption</key>\n\t<false/>\n\t<key>CFBundleDisplayName</key>').replace(/(<key>CFBundleDisplayName<\/key>\s*)<string>TenAceIQ Prototype<\/string>/, '$1<string>TenAceIQ</string>'))
 await writeFile(configPath, JSON.stringify({...config, appId: 'com.tenaceiq.app', appName: 'TenAceIQ'}, null, 2) + '\n')
 console.log('Prepared generated iOS project for TenAceIQ 1.0. Signing and device verification are still required.')
+
+await writeFile(new URL('ios/App/App/Push.entitlements',root),pushEntitlements('production'))

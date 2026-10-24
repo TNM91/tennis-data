@@ -1,3 +1,4 @@
+import { sendNativeTeamChatPush } from '@/lib/native-chat-push-server'
 import { checkTeamChatAccess, loadTeamChatRows } from '@/lib/team-chat-updates'
 import { markTeamChatRead } from '@/lib/team-chat-read'
 import { chatSafetyAction, loadChatBlocks, redactBlockedChatRows, chatNotificationRecipients } from '@/lib/team-chat-safety'
@@ -3322,12 +3323,14 @@ async function notifyTeamRoom(service: SupabaseClient, input: {
     href,
     conversation_id: input.conversationId,
   })))
-  await sendTeamRoomPush(service, recipients.map((row) => row.profile_id), {
-    title,
-    body: input.body.slice(0, 180),
-    href,
-    tag: `team-room-${input.conversationId}`,
-  })
+  await Promise.all([
+    sendTeamRoomPush(service, recipients.map((row) => row.profile_id), {
+      title, body: input.body.slice(0, 180), href, tag: `team-room-${input.conversationId}`,
+    }),
+    sendNativeTeamChatPush(service, {conversationId: input.conversationId, actorId: input.actorUserId,
+      recipients: recipients.map(row => row.profile_id), href,
+      scope: {teamName: input.scope.team_name, leagueName: input.scope.league_name, flight: input.scope.flight}}),
+  ])
 }
 
 async function notifyAffectedLineupPlayers(service: SupabaseClient, input: {
