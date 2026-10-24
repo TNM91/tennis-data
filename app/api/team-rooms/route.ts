@@ -1,3 +1,4 @@
+import { loadTeamConversationMessages } from '@/lib/team-room-message-history'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
 import {
@@ -2454,12 +2455,7 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
     return { ok: false as const, status: 403, message: 'A captain removed this profile from Team Chat.' }
   }
 
-  const { data: messageRows, error: messageError } = await service
-    .from('internal_messages')
-    .select('id,sender_user_id,body,message_kind,metadata,created_at,edited_at,deleted_at,reply_to_message_id')
-    .eq('conversation_id', conversation.id)
-    .order('created_at', { ascending: true })
-    .limit(300)
+  const { data: messageRows, error: messageError } = await loadTeamConversationMessages(service, conversation.id)
   if (messageError) return { ok: false as const, status: 500, message: messageError.message }
 
   const typedMessageRows = (messageRows ?? []) as MessageRow[]
