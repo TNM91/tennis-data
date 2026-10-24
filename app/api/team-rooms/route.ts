@@ -194,6 +194,7 @@ type TeamRoomActionBody = {
   clientMessageId?: unknown
   replyToMessageId?: unknown
   reaction?: unknown
+  photoPreview?: unknown
   photoBase64?: unknown
   active?: unknown
   memberId?: unknown
@@ -385,7 +386,7 @@ export async function POST(request: Request) {
     if (!access.ok) return Response.json(access, {status: access.status})
     try {
       if (action === 'read_chat_photo') {
-        const result = await readChatPhoto(auth.service, auth.userId, existing.id, body.messageId)
+        const result = await readChatPhoto(auth.service, auth.userId, existing.id, body.messageId, body.photoPreview === true)
         return Response.json(result, {status: result.status, headers: {'Cache-Control':'private, no-store'}})
       }
       const result = await sendChatPhoto(auth.service, auth.userId, existing.id, body)

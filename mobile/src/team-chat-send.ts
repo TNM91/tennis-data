@@ -4,7 +4,7 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import type {TeamScope} from './team-room-data'
 
 export type ChatAction =
-  | {action:'read_chat_photo';messageId:string}
+  | {action:'read_chat_photo';messageId:string;photoPreview?:boolean}
   | {action:'send_chat_photo';clientMessageId:string;body:string;replyToMessageId:string;photoBase64:string}
   | {action:'set_chat_reaction';messageId:string;reaction:'helpful'|'celebrate';active:boolean}
   | {action:'mark_chat_read';messageId:string}
