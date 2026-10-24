@@ -6,7 +6,7 @@ import {checkTeamChatAccess} from './team-chat-updates'
 import {loadSeasonRoster,seasonToday} from './season-kickoff-server'
 const text=(value:unknown,max=160)=>typeof value==='string'?value.trim().slice(0,max):''
 /** Caller verifies Captain account entitlement. All service-role reads stay within an accepted exact captain team. */
-export async function loadNativeCaptainWorkspace(service:SupabaseClient,owner:string,scope:TeamRoomScope){
+export async function authorizeNativeCaptainScope(service:SupabaseClient,owner:string,scope:TeamRoomScope){
  if(!scope.teamName || !scope.leagueName || scope.teamName.length>160 || scope.leagueName.length>160 || scope.flight.length>120)return {ok:false as const,status:400}
  const links=await service.from('team_profile_links').select('team_role,team_roles').eq('profile_user_id',owner).eq('normalized_team_name',normalizeTeamRoomKey(scope.teamName)).eq('league_name',scope.leagueName).eq('flight',scope.flight).eq('status','accepted').is('archived_at',null).limit(2)
  if(links.error)return {ok:false as const,status:503}
@@ -15,6 +15,11 @@ export async function loadNativeCaptainWorkspace(service:SupabaseClient,owner:st
  if(conversation.error)return {ok:false as const,status:503}
  if(!conversation.data)return {ok:false as const,status:403}
  const access=await checkTeamChatAccess(service,owner,conversation.data.id,true)
+ if(!access.ok)return access
+ return {ok:true as const,status:200}
+}
+export async function loadNativeCaptainWorkspace(service:SupabaseClient,owner:string,scope:TeamRoomScope){
+ const access=await authorizeNativeCaptainScope(service,owner,scope)
  if(!access.ok)return access
  const today=seasonToday(),until=new Date(today+'T12:00:00Z');until.setUTCDate(until.getUTCDate()+120)
  const escaped=scope.teamName.replace(/\\/g,'\\\\').replace(/"/g,'\\"')
