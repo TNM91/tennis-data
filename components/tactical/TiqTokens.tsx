@@ -7,7 +7,7 @@ export default function TiqTokenIcon({ token }: { token: TacticalToken }) {
   if (token.type === 'player') {
     return (
       <span className={styles.playerTokenHead}>
-        <Image alt="" draggable={false} fill sizes="38px" src="/brand/icons/app-icon-1024.png" />
+        <Image alt="" draggable={false} fill sizes="38px" src="/brand/icons/app-icon-1024.png?v=20261024-approved-v1" />
       </span>
     )
   }

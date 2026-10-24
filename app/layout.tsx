@@ -11,8 +11,8 @@ import { buildOrganizationJsonLd, buildWebSiteJsonLd } from '@/lib/structured-da
 import './globals.css'
 
 const SITE_DESCRIPTION = `${PRODUCT_MOTTO} ${PLATFORM_POSITIONING}`
-const SOCIAL_BRAND_IMAGE = '/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1'
-const BRAND_ICON_VERSION = '20260831-final-svg-v1'
+const SOCIAL_BRAND_IMAGE = '/brand/social/og-approved-20261024.png?v=20261024-brand-v2'
+const BRAND_ICON_VERSION = '20261024-approved-v1'
 const VERCEL_OBSERVABILITY_ENABLED = process.env.VERCEL === '1'
 
 export const viewport: Viewport = {
@@ -101,12 +101,6 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: `/favicon.ico?v=${BRAND_ICON_VERSION}`, sizes: 'any', type: 'image/x-icon' },
-      { url: `/favicon-32x32.png?v=${BRAND_ICON_VERSION}`, sizes: '32x32', type: 'image/png' },
-      { url: `/favicon-16x16.png?v=${BRAND_ICON_VERSION}`, sizes: '16x16', type: 'image/png' },
-      { url: `/brand/icons/favicon-32.png?v=${BRAND_ICON_VERSION}`, sizes: '32x32', type: 'image/png' },
-      { url: `/brand/icons/favicon-16.png?v=${BRAND_ICON_VERSION}`, sizes: '16x16', type: 'image/png' },
-      { url: `/brand/icons/favicon-256.png?v=${BRAND_ICON_VERSION}`, sizes: '256x256', type: 'image/png' },
-      { url: `/brand/icons/favicon-512.png?v=${BRAND_ICON_VERSION}`, sizes: '512x512', type: 'image/png' },
     ],
     shortcut: `/favicon.ico?v=${BRAND_ICON_VERSION}`,
     apple: [

@@ -23,7 +23,7 @@ describe('SEO and share readiness smoke', () => {
       'application\\/ld\\+json',
       '/robots.txt',
       '/sitemap.xml',
-      '/brand/social/og-image-1200x630.png',
+      '/brand/social/og-approved-20261024.png',
       '/pricing',
       '/explore',
       '/players',

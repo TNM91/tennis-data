@@ -1334,7 +1334,7 @@ function BoardToolDock({
 
 function BoardToolIcon({ type }: { type: TacticalTokenType }) {
   if (type === 'player') {
-    return <Image alt="" aria-hidden="true" className={styles.paletteQIcon} height={34} src="/brand/icons/app-icon-1024.png" width={34} />
+    return <Image alt="" aria-hidden="true" className={styles.paletteQIcon} height={34} src="/brand/icons/app-icon-1024.png?v=20261024-approved-v1" width={34} />
   }
 
   return <MarkerIcon type={type} />
@@ -1389,15 +1389,15 @@ function BrandLockup() {
       <Image
         alt=""
         height={1024}
-        src="/brand/icons/app-icon-1024.png"
+        src="/brand/icons/app-icon-1024.png?v=20261024-approved-v1"
         width={1024}
         className={styles.brandIcon}
       />
       <Image
         alt="TenAceIQ"
-        height={1947}
-        src="/brand/web/header-logo-transparent.png"
-        width={6118}
+        height={461}
+        src="/brand/web/header-logo-transparent.png?v=20261024-approved-v1"
+        width={2109}
         className={styles.brandLockup}
       />
     </div>
@@ -1457,7 +1457,7 @@ function isTacticalRole(value: string | null): value is TacticalRole {
 function ScenarioThumbnail({ scenario }: { scenario: TacticalScenario }) {
   return (
     <span className={styles.scenarioThumbnail} aria-hidden="true">
-      <Image alt="" fill sizes="92px" src="/tiq/courts/tiq-court-master.png" />
+      <Image alt="" fill sizes="92px" src="/brand/courts/tiq-court-approved-20261024-v2.png" />
       {scenario.zones.slice(0, 3).map((zone) => (
         <span
           className={styles.thumbnailZone}
@@ -1502,7 +1502,7 @@ async function exportScenarioPng(
   if (!context) throw new Error('Canvas unavailable')
 
   const [court, qIcon, ballIcon] = await Promise.all([
-    loadCanvasImage('/tiq/courts/tiq-court-master.png'),
+    loadCanvasImage('/brand/courts/tiq-court-approved-20261024-v2.png'),
     loadCanvasImage('/brand/icons/app-icon-1024.png'),
     loadCanvasImage('/tiq/tokens/tennis-ball-reference.png'),
   ])

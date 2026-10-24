@@ -2053,7 +2053,7 @@ const portalBrandRunwayStyle: CSSProperties = {
 const portalBrandRunwayMarkStyle: CSSProperties = {
   display: 'block',
   aspectRatio: '1552 / 1614',
-  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
+  background: 'url("/brand/approved/TiQ_White_Transparent_Refined.png") center / contain no-repeat',
   pointerEvents: 'none',
 }
 

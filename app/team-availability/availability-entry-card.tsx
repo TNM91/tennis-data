@@ -9,7 +9,7 @@ export default function AvailabilityEntryCard({ href, signedIn, loading = false,
   if (!entry) return <main className={styles.page}><section className={styles.card}><h1>Ask for the full team link.</h1><p>This availability link is incomplete. Ask your captain to resend the group message, then open its link.</p></section></main>
   const next = encodeURIComponent(entry?.href || '/compete/teams')
   return <main className={styles.page}>
-    <Link href="/" className={styles.brand} aria-label="TenAceIQ home"><Image src="/brand/masters/tenaceiq-full-dark-ui.svg" width={220} height={70} alt="TenAceIQ" priority /></Link>
+    <Link href="/" className={styles.brand} aria-label="TenAceIQ home"><Image src="/brand/web/header-logo-transparent.png?v=20261024-approved-v1" width={2109} height={461} style={{ width: 220, height: 'auto', maxWidth: '100%', objectFit: 'contain' }} alt="TenAceIQ" priority /></Link>
     <section className={styles.card} data-signed-in={signedIn}>
       <p className={styles.eyebrow}>{entry?.match ? 'Match-week availability' : 'Season availability'}</p>
       <h1>{signedIn ? 'Let’s connect your team.' : 'Your team. Your availability.'}</h1>

@@ -47,6 +47,12 @@ const nextConfig: NextConfig = {
 
   images: {
     formats: ['image/avif', 'image/webp'],
+    localPatterns: [
+      { pathname: '/**', search: '' },
+      { pathname: '/brand/**', search: '?v=20261024-approved-v1' },
+      { pathname: '/brand/**', search: '?v=20261024-brand-v2' },
+      { pathname: '/media/product-tours/**', search: '?v=20261024-brand-v2' },
+    ],
     remotePatterns: [
       {
         protocol: 'https',

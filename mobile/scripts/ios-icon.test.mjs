@@ -5,7 +5,7 @@ import sharp from 'sharp'
 import {iosIcon} from './ios-icon.mjs'
 
 test('App Store tile is opaque navy with approved dark-background artwork', async () => {
-  const source = await readFile(new URL('../../public/brand/web/header-iq-compact.png', import.meta.url))
+  const source = await readFile(new URL('../../public/brand/approved/TiQ_AppIcon_Approved.png', import.meta.url))
   const icon = await iosIcon()
   const metadata = await sharp(icon).metadata()
   assert.equal(metadata.hasAlpha, false)

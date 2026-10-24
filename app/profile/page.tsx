@@ -1707,7 +1707,7 @@ const watermarkStyle: CSSProperties = {
   bottom: 'clamp(-120px, -11vw, -54px)',
   width: 'clamp(210px, 29vw, 390px)',
   aspectRatio: '1552 / 1614',
-  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
+  background: 'url("/brand/approved/TiQ_White_Transparent_Refined.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }

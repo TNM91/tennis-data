@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { createClient } from '@supabase/supabase-js'
 import { buildShareCardImageUrl } from './share-card'
 
-const DEFAULT_IMAGE = '/brand/social/og-image-1200x630.png?v=20260831-final-svg-v1'
+const DEFAULT_IMAGE = '/brand/social/og-approved-20261024.png?v=20261024-brand-v2'
 let metadataSupabase: ReturnType<typeof createClient> | null = null
 
 export function getMetadataSupabase() {

@@ -430,7 +430,7 @@ export default function HomePageHeroResponsive() {
               }}
             >
               <Image
-                src="/brand/web/header-iq-compact.png"
+                src="/brand/web/header-iq-compact.png?v=20261024-approved-v1"
                 alt="TenAceIQ"
                 fill
                 priority

@@ -6,13 +6,13 @@ const layoutSource = readFileSync(join(process.cwd(), 'app/layout.tsx'), 'utf8')
 const manifestSource = readFileSync(join(process.cwd(), 'app/manifest.ts'), 'utf8')
 
 describe('bookmark and installed app branding', () => {
-  it('uses the transparent iQ outline set for browser bookmarks', () => {
-    expect(layoutSource).toContain("const BRAND_ICON_VERSION = '20260831-final-svg-v1'")
+  it('uses the approved ICO for browser bookmarks', () => {
+    expect(layoutSource).toContain("const BRAND_ICON_VERSION = '20261024-approved-v1'")
     expect(layoutSource).toContain('/favicon.ico')
-    expect(layoutSource).toContain('/favicon-32x32.png')
-    expect(layoutSource).toContain('/favicon-16x16.png')
-    expect(layoutSource).toContain('/brand/icons/favicon-32.png')
-    expect(layoutSource).toContain('/brand/icons/favicon-16.png')
+    expect(layoutSource).not.toContain('/favicon-32x32.png')
+    expect(layoutSource).not.toContain('/brand/icons/favicon-16.png')
+    expect(readFileSync('app/favicon.ico')).toEqual(readFileSync('public/brand/approved/TenAceIQ_favicon.ico'))
+    expect(readFileSync('app/apple-icon.png')).toEqual(readFileSync('public/brand/approved/TiQ_Icon_180.png'))
     expect(layoutSource).toContain("shortcut: `/favicon.ico?v=${BRAND_ICON_VERSION}`")
     expect(layoutSource).toContain('/apple-touch-icon.png')
     expect(existsSync(join(process.cwd(), 'app/favicon.ico'))).toBe(true)
@@ -21,12 +21,15 @@ describe('bookmark and installed app branding', () => {
     expect(existsSync(join(process.cwd(), 'public/apple-touch-icon-precomposed.png'))).toBe(true)
   })
 
-  it('keeps installed apps on the transparent iQ outline assets', () => {
-    expect(manifestSource).toContain("const PWA_ICON_VERSION = '20260831-final-svg-v1'")
+  it('uses the approved installed app icons without an unapproved maskable variant', () => {
+    expect(manifestSource).toContain("const PWA_ICON_VERSION = '20261024-approved-v1'")
     expect(manifestSource).toContain('/brand/icons/pwa-192.png')
-    expect(manifestSource).toContain('/brand/icons/pwa-maskable-512.png')
+    expect(manifestSource).not.toContain('pwa-maskable-512.png')
     expect(manifestSource).toContain('/brand/icons/pwa-512.png')
     expect(existsSync(join(process.cwd(), 'public/android-chrome-192x192.png'))).toBe(true)
     expect(existsSync(join(process.cwd(), 'public/android-chrome-512x512.png'))).toBe(true)
+    for (const size of [192, 512]) {
+      expect(readFileSync(`public/brand/icons/pwa-${size}.png`)).toEqual(readFileSync(`public/brand/approved/TiQ_Icon_${size}.png`))
+    }
   })
 })

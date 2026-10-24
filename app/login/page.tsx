@@ -349,7 +349,7 @@ function canUseBrowserStorage() {
         <div style={loadingCard}>
           <span style={authLoadingIconStyle}>
             <Image
-              src="/brand/icons/app-icon-1024.png"
+              src="/brand/icons/app-icon-1024.png?v=20261024-approved-v1"
               alt=""
               width={512}
               height={512}
@@ -522,7 +522,7 @@ const watermarkStyle: CSSProperties = {
   bottom: '-12px',
   width: 'min(380px, 58vw)',
   aspectRatio: '1552 / 1614',
-  background: 'url("/brand/web/header-iq-compact.png") center / contain no-repeat',
+  background: 'url("/brand/approved/TiQ_White_Transparent_Refined.png") center / contain no-repeat',
   opacity: 0.14,
   pointerEvents: 'none',
 }

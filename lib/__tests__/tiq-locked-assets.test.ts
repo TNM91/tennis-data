@@ -7,7 +7,7 @@ const root = process.cwd()
 const sourceRoots = ['app', 'components', 'lib', 'public', 'docs']
 const textFilePattern = /\.(css|html|json|md|mjs|ts|tsx|txt|webmanifest)$/i
 const lockedAssets = [
-  'public/tiq/courts/tiq-court-master.png',
+  'public/brand/courts/tiq-court-approved-20261024-v2.png',
   'public/brand/icons/app-icon-1024.png',
   'public/brand/icons/apple-touch-icon.png',
   'public/brand/icons/favicon-256.png',
@@ -79,7 +79,7 @@ describe('TenAceIQ locked brand assets', () => {
   it('renders the tactical board from the locked court image, not a recreated court', () => {
     const boardSource = readFileSync(join(root, 'components/tactical/TiqCourtBoard.tsx'), 'utf8')
 
-    expect(boardSource).toContain('src="/tiq/courts/tiq-court-master.png"')
+    expect(boardSource).toContain('src="/brand/courts/tiq-court-approved-20261024-v2.png"')
     expect(boardSource).toContain('className={styles.courtImage}')
     expect(boardSource).toContain('fill priority')
   })
@@ -119,17 +119,17 @@ describe('TenAceIQ locked brand assets', () => {
     const globalsSource = readFileSync(join(root, 'app/globals.css'), 'utf8')
 
     expect(brandSource).toContain('/brand/web/header-logo-transparent.png')
-    expect(brandSource).toContain('/brand/web/header-iq-compact.png')
+    expect(brandSource).toContain('/brand/approved/TiQ_White_Transparent_Refined.png')
     expect(brandSource).toContain('/brand/web/footer-logo-dark-bg.png')
     expect(brandSource).toContain('/brand/web/footer-logo-light-bg.png')
     expect(brandSource).toContain('/brand/web/header-logo-light-bg.png')
-    expect(brandSource).toContain('/brand/web/header-iq-light-bg.png')
+    expect(brandSource).toContain('width: 2158')
     expect(brandSource).toContain("objectFit: 'contain'")
     expect(brandSource).not.toMatch(/filter|rotate|skew|boxShadow|borderRadius/)
     expect(brandSource).toContain('src={BRAND_ASSETS.header.src}')
-    expect(brandSource).toContain('sizes="(max-width: 819px) 150px, 168px"')
+    expect(brandSource).toContain('sizes="(max-width: 819px) 178px, 200px"')
     expect(brandSource).not.toContain('getImageProps')
-    expect(globalsSource).toMatch(/@media \(max-width: 819px\)[\s\S]*?\.site-header-brand-picture \{[\s\S]*?width: 150px;[\s\S]*?height: 48px;/)
+    expect(globalsSource).toMatch(/@media \(max-width: 819px\)[\s\S]*?\.site-header-brand-picture \{[\s\S]*?width: 178px;[\s\S]*?height: 48px;/)
     expect(headerSource).toContain('<BrandWordmark responsiveHeader />')
   })
 })

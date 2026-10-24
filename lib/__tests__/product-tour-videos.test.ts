@@ -20,8 +20,8 @@ const sitemapSource = readFileSync(join(process.cwd(), 'app/sitemap.ts'), 'utf8'
 
 describe('product tour videos', () => {
   it('keeps the public Captain clip free of the private draft recording and uses valid caption cues', () => {
-    expect(PRODUCT_TOUR_VIDEOS.captain.src).toBe('/media/product-tours/captain.mp4')
-    expect(PRODUCT_TOUR_VIDEOS.captain.poster).toBe('/media/product-tours/captain-poster.jpg')
+    expect(PRODUCT_TOUR_VIDEOS.captain.src).toBe('/media/product-tours/captain.mp4?v=20261024-brand-v2')
+    expect(PRODUCT_TOUR_VIDEOS.captain.poster).toBe('/media/product-tours/captain-poster.jpg?v=20261024-brand-v2')
     const captions = readFileSync(join(process.cwd(), 'public/media/product-tours/captain.vtt'), 'utf8')
     const cues = captions.trim().split(/\r?\n\r?\n/).slice(1)
     expect(cues).toHaveLength(5)
@@ -42,7 +42,7 @@ describe('product tour videos', () => {
   it('ships every video with an optimized poster and English caption track', () => {
     for (const video of Object.values(PRODUCT_TOUR_VIDEOS)) {
       for (const publicPath of [video.src, video.captions, video.poster]) {
-        const filePath = join(process.cwd(), 'public', publicPath.replace(/^\//, ''))
+        const filePath = join(process.cwd(), 'public', publicPath.split('?')[0].replace(/^\//, ''))
         expect(existsSync(filePath), publicPath).toBe(true)
         expect(statSync(filePath).size, publicPath).toBeGreaterThan(100)
       }

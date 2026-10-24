@@ -57,7 +57,7 @@ describe('route loading shells', () => {
   it('uses the supplied high-contrast TenAceIQ Q and ball asset without an extra drawn loading badge', () => {
     for (const file of ['components/TiqLoader.tsx', 'app/components/TiqLoader.tsx']) {
       const source = readAppFile(file)
-      expect(source).toContain('src="/brand/web/header-iq-compact.png"')
+      expect(source).toContain('src="/brand/web/header-iq-compact.png?v=20261024-approved-v1"')
       expect(source).toContain('Math.round(config.icon * 0.9)')
       expect(source).toContain('objectFit: "contain"')
       expect(source).toContain('grid place-items-center')

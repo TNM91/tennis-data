@@ -1800,7 +1800,7 @@ function TeamRoomSession() {
           aria-label="Back to My Teams"
         >
           <span className={styles.appBrandMarks}>
-            <Image className={styles.appTiqMark} src="/brand/web/header-iq-compact.png" alt="TenAceIQ" width={34} height={34} />
+            <Image className={styles.appTiqMark} src="/brand/web/header-iq-compact.png?v=20261024-approved-v1" alt="TenAceIQ" width={34} height={34} />
             {room.teamLogoUrl ? <Image className={styles.appTeamMark} src={room.teamLogoUrl} alt={`${room.teamName} logo`} width={40} height={40} /> : null}
           </span>
           <span>My Teams</span>
