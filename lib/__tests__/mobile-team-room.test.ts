@@ -1,6 +1,6 @@
 import {describe,expect,it,vi} from 'vitest'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {loadTeamRoom,parseTeamData} from '../../mobile/src/team-room-data'
+import {loadTeamRoom,loadTeamChatUpdate,parseTeamData} from '../../mobile/src/team-room-data'
 import {teamConversationHtml,teamMatchDayHtml} from '../../mobile/src/team-room-view'
 const scope={teamName:'North Aces',leagueName:'City League',flight:'4.0'}
 const raw=()=>({ok:true,teams:[scope],room:{...scope,id:'room-1',subject:'Team Room',muted:false,activeCardId:'message-0',nextScheduledMatch:{matchDate:'2026-10-29',opponent:'South',matchTime:'18:00',facility:'Club'},members:[{name:'<Alex>',roles:['captain']}],messages:Array.from({length:90},(_,i)=>({id:'message-'+i,senderName:'<Alex>',body:'<script>private</script>',kind:'message',createdAt:'2026-10-20T18:00:00Z',deletedAt:i===89?'2026-10-21':'',isMine:false,attachment:i===89?{url:'https://untrusted.invalid'}:null,card:i===0?{matchDate:'2026-10-29',opponent:'South',state:'active',lineup:[{label:'D1',players:['<Alex>','Jordan']}]}:null}))}})
@@ -33,4 +33,14 @@ describe('native linked team room',()=>{
   await expect(loadTeamRoom(client,'owner',()=>true,{...scope,teamName:'Other'},send)).rejects.toThrow('scope mismatch')
   send.mockResolvedValue({status:403,data:raw()});await expect(loadTeamRoom(client,'owner',()=>true,scope,send)).rejects.toThrow('access is unavailable')
  })
+ it('loads a bounded text update only for the captured room, with no read acknowledgement in the GET',async()=>{
+  const client={auth:{getSession:vi.fn().mockResolvedValue({data:{session:{user:{id:'owner'},access_token:'test-token'}},error:null})}} as unknown as SupabaseClient
+  const room=raw().room,send=vi.fn().mockResolvedValue({status:200,data:{ok:true,chatUpdate:true,room:{id:room.id,blockedUserIds:[],messages:room.messages,lastReadAt:'2026-10-01T00:00:00Z'}}})
+  const update=await loadTeamChatUpdate(client,'owner',()=>true,scope,room.id,send)
+  expect(update.messages).toHaveLength(75);expect(new URL(send.mock.calls[0][0].url).pathname).toBe('/api/team-rooms/chat')
+  expect(send.mock.calls[0][0].disableRedirects).toBe(true)
+  await expect(loadTeamChatUpdate(client,'owner',()=>true,scope,'other-room',send)).rejects.toThrow('unavailable')
+  send.mockResolvedValue({status:403});await expect(loadTeamChatUpdate(client,'owner',()=>true,scope,room.id,send)).rejects.toThrow('access is unavailable')
+ })
+
 })

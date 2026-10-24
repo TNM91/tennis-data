@@ -1,3 +1,5 @@
+import { checkTeamChatAccess, loadTeamChatRows } from '@/lib/team-chat-updates'
+import { markTeamChatRead } from '@/lib/team-chat-read'
 import { chatSafetyAction, loadChatBlocks, redactBlockedChatRows, chatNotificationRecipients } from '@/lib/team-chat-safety'
 import { insertTeamMessage, parseTeamMessageSendId } from '@/lib/team-room-message-send'
 import { loadTeamConversationMessages } from '@/lib/team-room-message-history'
@@ -306,6 +308,11 @@ export async function GET(request: Request) {
     return Response.json({ ok: false, message: 'This team is not linked to your profile.' }, { status: 403 })
   }
 
+  if (url.searchParams.get('chatUpdates') === '1') {
+    const result = await loadNativeChatUpdate(auth.service, auth.userId, selected)
+    return Response.json(result, { status: result.ok ? 200 : result.status, headers: { 'Cache-Control': 'private, no-store' } })
+  }
+
   const challengeId = url.searchParams.get('levelUpChallenge')?.trim() || ''
   if (challengeId) {
     const challenge = buildCaptainLevelUpChallenge(challengeId)
@@ -333,7 +340,7 @@ export async function GET(request: Request) {
     if (!summaryResult.ok) return Response.json({ ok: false, message: summaryResult.message }, { status: summaryResult.status })
     return Response.json({ ok: true, summary: summaryResult.summary })
   }
-  const roomResult = await loadTeamRoom(auth.service, auth.userId, selected)
+  const roomResult = await loadTeamRoom(auth.service, auth.userId, selected, url.searchParams.get('read') !== '0')
   if (!roomResult.ok) return Response.json({ ok: false, message: roomResult.message }, { status: roomResult.status })
 
   return Response.json({
@@ -365,6 +372,16 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'This team is not linked to your profile.' }, { status: 403 })
   }
 
+  const action = cleanText(body.action)
+  if (action === 'mark_chat_read') {
+    const existing = await findNativeChatConversation(auth.service, selected)
+    if (!existing.ok) return Response.json(existing, { status: existing.status })
+    const access = await checkTeamChatAccess(auth.service, auth.userId, existing.id, canManageTeamRoom(teamRoles(selected)))
+    if (!access.ok) return Response.json(access, { status: access.status })
+    const result = await markTeamChatRead(auth.service, auth.userId, existing.id, body.messageId)
+    return Response.json(result, { status: result.status })
+  }
+
   const roomResult = await ensureTeamRoom(auth.service, selected)
   if (!roomResult.ok) return Response.json({ ok: false, message: roomResult.message }, { status: roomResult.status })
   const conversation = roomResult.conversation
@@ -373,7 +390,6 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'You no longer have access to this Team Chat.' }, { status: 403 })
   }
 
-  const action = cleanText(body.action)
   if (['report_chat_message', 'block_chat_member', 'unblock_chat_member'].includes(action)) {
     const result = await chatSafetyAction(auth.service, auth.userId, conversation.id, syncedMembers, body)
     return Response.json(result, { status: result.status })
@@ -2458,7 +2474,28 @@ async function loadActionableLevelUpChallenge(
   return { ok: true as const, message: data, challenge, completedIds: completionResult.completedIds }
 }
 
-async function loadTeamRoom(service: SupabaseClient, userId: string, selected: TeamLinkRow) {
+// Live text refreshes do not ensure rooms, rewrite participants, mark read, sign files,
+// or recompute match plans. Current accepted links and explicit removals still gate every read.
+async function findNativeChatConversation(service: SupabaseClient, selected: TeamLinkRow) {
+  const scopeId = buildTeamRoomScopeId({teamName: selected.team_name, leagueName: selected.league_name, flight: selected.flight})
+  const conversation = await service.from('internal_conversations').select('id')
+    .eq('related_entity_type', 'team_room').eq('related_entity_id', scopeId).maybeSingle()
+  if (conversation.error) return {ok: false as const, status: 503, message: 'Conversation updates are unavailable.'}
+  if (!conversation.data) return {ok: false as const, status: 404, message: 'Open your team before loading updates.'}
+  return {ok: true as const, id: String(conversation.data.id)}
+}
+
+async function loadNativeChatUpdate(service: SupabaseClient, userId: string, selected: TeamLinkRow) {
+  const conversation = await findNativeChatConversation(service, selected)
+  if (!conversation.ok) return conversation
+  const id = conversation.id
+  const loaded = await loadTeamChatRows(service, userId, id, canManageTeamRoom(teamRoles(selected)))
+  if (!loaded.ok) return loaded
+  const profiles = await loadProfileMap(service, loaded.rows.map(row => row.sender_user_id))
+  return {ok: true as const, chatUpdate: true, room: {id, blockedUserIds: loaded.blockedUserIds, lastReadAt: loaded.lastReadAt, messages: loaded.rows.map(row => toMessage(row, profiles, userId))}}
+}
+
+async function loadTeamRoom(service: SupabaseClient, userId: string, selected: TeamLinkRow, markRead = true) {
   const ensured = await ensureTeamRoom(service, selected)
   if (!ensured.ok) return ensured
   const conversation = ensured.conversation
@@ -2598,7 +2635,7 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
         currentUserId: userId,
       })
     : null
-  await service
+  if (markRead) await service
     .from('internal_conversation_participants')
     .update({ last_read_at: new Date().toISOString() })
     .eq('conversation_id', conversation.id)
@@ -2614,12 +2651,13 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
       teamLogoUrl,
       leagueName: selected.league_name,
       flight: selected.flight,
+      lastReadAt: currentParticipant?.lastReadAt || '',
       chatReady: true,
       blockedMembers: Array.from(blockedIds).map(id => ({id, name: profileById.get(id)?.message_display_name?.trim() || profileById.get(id)?.linked_player_name?.trim() || 'Team member'})),
       roles: teamRoles(selected),
       canManage: canManageTeamRoom(teamRoles(selected)),
       muted: currentParticipant?.muted ?? false,
-      members,
+      members: members.map(member => ({id: member.id, name: member.name, playerName: member.playerName, roles: member.roles, muted: member.muted})),
       rosterMembers: management.rosterMembers,
       removedMembers: management.removedMembers,
       activeInviteCount: management.activeInviteCount,
@@ -3222,7 +3260,7 @@ async function syncTeamRoomParticipants(service: SupabaseClient, conversationId:
 
   const { data: existingRows } = await service
     .from('internal_conversation_participants')
-    .select('profile_id,participant_role,muted')
+    .select('profile_id,participant_role,muted,last_read_at')
     .eq('conversation_id', conversationId)
   const activeIds = new Set(participantRows.map((row) => row.profile_id))
   const staleIds = ((existingRows ?? []) as ParticipantRow[])
@@ -3246,6 +3284,7 @@ async function syncTeamRoomParticipants(service: SupabaseClient, conversationId:
       playerName: profile?.linked_player_name?.trim() || '',
       roles: teamRoles(link),
       muted: participantById.get(link.profile_user_id)?.muted === true,
+      lastReadAt: participantById.get(link.profile_user_id)?.last_read_at || '',
     }
   }).sort((left, right) => left.name.localeCompare(right.name))
 }
