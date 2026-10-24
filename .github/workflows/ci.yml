@@ -38,7 +38,7 @@ jobs:
 
       - name: Check native packaging guards
         run: |
-          node --test mobile/scripts/prepare-device.test.mjs mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-store.test.mjs mobile/scripts/ios-icon.test.mjs
+          node --test mobile/scripts/prepare-device.test.mjs mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-store.test.mjs mobile/scripts/ios-icon.test.mjs mobile/scripts/ios-push.test.mjs
           python3 mobile/scripts/test-altool-upload.py
 
   tiq-schema-audit:

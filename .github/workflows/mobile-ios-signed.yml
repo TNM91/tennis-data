@@ -43,7 +43,7 @@ jobs:
         run: |
           npm ci
           npm ci --prefix mobile
-          node --test mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-store.test.mjs mobile/scripts/ios-icon.test.mjs
+          node --test mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-store.test.mjs mobile/scripts/ios-icon.test.mjs mobile/scripts/ios-push.test.mjs
           python3 mobile/scripts/test-altool-upload.py
           npm run build:bundled --prefix mobile
           npm run prepare:ios --prefix mobile

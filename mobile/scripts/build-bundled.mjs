@@ -15,5 +15,6 @@ await copyFile(new URL('../../public/brand/web/header-logo-transparent.png', imp
 await writeFile(new URL('capacitor.config.json', root), JSON.stringify({
   appId: 'com.tenaceiq.prototype', appName: 'TenAceIQ Prototype',
   webDir: 'bundled', loggingBehavior: 'none',
+  plugins: {PushNotifications: {presentationOptions: []}},
 }, null, 2) + '\n')
 console.log('Built bundled client. No development server URL. Run cap sync android before building the APK.')
