@@ -1,0 +1,8 @@
+import {beforeEach,it,expect,vi} from 'vitest'
+const {auth,body,act}=vi.hoisted(()=>({auth:vi.fn(),body:vi.fn(),act:vi.fn()}))
+vi.mock('@/lib/native-team-invites',()=>({nativeInviteAuth:auth,nativeInviteBody:body,actOnNativeInvite:act}))
+import {POST} from '../../app/api/mobile/team-invites/route'
+beforeEach(()=>{auth.mockReset();body.mockReset();act.mockReset()})
+it('denies before reading an invite body or calling the join service',async()=>{auth.mockResolvedValue({ok:false,status:401});const r=await POST(new Request('https://local',{method:'POST',body:'{}'}));expect(r.status).toBe(401);expect(body).not.toHaveBeenCalled();expect(act).not.toHaveBeenCalled();expect(r.headers.get('cache-control')).toBe('private, no-store')})
+it('uses verified owner and hides internal failures',async()=>{auth.mockResolvedValue({ok:true,owner:'verified-owner',service:'service'});body.mockResolvedValue({owner:'attacker'});act.mockResolvedValueOnce({ok:true,status:200});expect((await POST(new Request('https://local',{method:'POST'}))).status).toBe(200);expect(act).toHaveBeenCalledWith('service','verified-owner',{owner:'attacker'});act.mockRejectedValue(Error('secret database detail'));const r=await POST(new Request('https://local',{method:'POST'}));expect(r.status).toBe(503);expect(await r.text()).not.toContain('secret database detail')})
+it('rejects invalid body before the join service',async()=>{auth.mockResolvedValue({ok:true,owner:'owner',service:'service'});body.mockRejectedValue(Error('oversized'));expect((await POST(new Request('https://local',{method:'POST'}))).status).toBe(400);expect(act).not.toHaveBeenCalled()})
