@@ -1,3 +1,4 @@
+import {cameraPrivacyPlist,cameraPurposeStrings} from './ios-camera.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mkdtemp, mkdir, readFile, writeFile, copyFile, rm } from 'node:fs/promises'
@@ -62,4 +63,18 @@ test('signed workflow restricts secret use and defaults to no upload', async () 
   assert.equal(artifact.with.path, '${{ runner.temp }}/tiq-export/App.ipa')
   assert.equal(steps.at(-1).if,'always()')
   assert.doesNotMatch(JSON.stringify(workflow), /-allowProvisioningUpdates|pull_request_target/)
+})
+
+test('camera purposes are top-level plist values even with nested scene dictionaries',()=>{
+ const nested='<?xml version="1.0"?><plist version="1.0"><dict><key>UIApplicationSceneManifest</key><dict><key>Scene</key><array><dict><key>Name</key><string>Main</string></dict></array></dict></dict></plist>'
+ const previous=nested.replace('</dict>',Object.entries(cameraPurposeStrings).map(([key,value])=>'<key>'+key+'</key><string>'+value+'</string>').join('')+'</dict>')
+ for(const source of [nested,previous]){
+  const result=cameraPrivacyPlist(source)
+  assert.equal(cameraPrivacyPlist(result),result)
+  const parsed=spawnSync(process.platform==='win32'?'python':'python3',['-c','import plistlib,sys,json; print(json.dumps(plistlib.loads(sys.stdin.buffer.read())))'],{input:result,encoding:'utf8'})
+  assert.equal(parsed.status,0,parsed.stderr)
+  const root=JSON.parse(parsed.stdout)
+  for(const [key,value] of Object.entries(cameraPurposeStrings)){assert.equal(root[key],value);assert.equal(root.UIApplicationSceneManifest.Scene[0][key],undefined)}
+ }
+ assert.throws(()=>cameraPrivacyPlist('<plist><string>Unexpected</string></plist>'))
 })

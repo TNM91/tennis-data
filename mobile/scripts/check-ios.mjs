@@ -1,3 +1,5 @@
+import {spawnSync} from 'node:child_process'
+import {fileURLToPath} from 'node:url'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import sharp from 'sharp'
@@ -26,4 +28,6 @@ assert.match(await read('ios/App/App/Push.entitlements'), /<key>aps-environment<
 assert.match(await read('ios/App/App/AppDelegate.swift'), /capacitorDidRegisterForRemoteNotifications/)
 assert.equal(((await read('ios/App/App.xcodeproj/project.pbxproj')).match(/CODE_SIGN_ENTITLEMENTS = App\/Push.entitlements;/g) || []).length,2)
 
-for(const key of ['NSCameraUsageDescription','NSPhotoLibraryUsageDescription','NSPhotoLibraryAddUsageDescription'])assert.ok((await read('ios/App/App/Info.plist')).includes('<key>'+key+'</key>'))
+const privacy=spawnSync(process.platform==='win32'?'python':'python3',[fileURLToPath(new URL('scripts/validate-ios-privacy.py',root)),fileURLToPath(new URL('ios/App/App/Info.plist',root))],{encoding:'utf8'})
+assert.equal(privacy.status,0,privacy.stderr || privacy.error?.message || 'Camera privacy plist validation failed')
+console.log(privacy.stdout.trim())
