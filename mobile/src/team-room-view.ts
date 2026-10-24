@@ -1,3 +1,4 @@
+import {chatPhotoPreviews} from './chat-photo-previews'
 import {chooseChatPhoto,privatePhotoData} from './chat-photos'
 import {chatReactionButtons,type ChatReactionKind} from './chat-reactions'
 import {watchTeamChat,type TeamLiveStatus} from './team-chat-live'
@@ -16,7 +17,7 @@ export function teamConversationHtml(room:NativeTeamRoom) {
  const byId=new Map(room.messages.map(message=>[message.id,message]))
  return `<div class="chat-history-heading"><p class="rating-context">Latest 75 messages</p><button type="button" class="secondary" id="chat-latest">Latest ↓</button></div><ol class="team-conversation" aria-label="Team conversation" tabindex="0">${room.messages.map(message=>{
   const reply=byId.get(message.replyToMessageId)
-  return `<li data-chat-message="${html(message.id)}" class="team-bubble ${message.isMine?'team-bubble-mine':''}"><div class="team-message-meta"><strong>${html(message.senderName)}</strong><span>${html(messageTime(message.createdAt))}</span></div>${message.kind==='announcement'?'<small class="chat-announcement">Captain announcement</small>':''}${message.replyToMessageId?`<blockquote>${reply && !reply.deletedAt?`<strong>${html(reply.senderName)}</strong><span>${html(reply.body.slice(0,160))}</span>`:'Earlier or removed message'}</blockquote>`:''}<p>${html(message.body)}</p>${message.hasPhoto && !message.deletedAt?`<button type="button" class="secondary chat-photo-open" data-chat-photo="${html(message.id)}">▧ View photo</button>`:message.hasAttachment && !message.deletedAt?'<small>Attachment available on the website.</small>':''}${message.card?'<small>Match-day card · open Match day for the shared court plan.</small>':''}${room.chatReady && !message.deletedAt?`<div class="chat-message-actions"><button type="button" class="secondary" data-chat-reply="${html(message.id)}" aria-label="Reply to ${html(message.senderName)}">Reply</button>${!message.isMine?`<button type="button" class="secondary" data-chat-report="${html(message.id)}" aria-label="Report message from ${html(message.senderName)}">Report</button>${message.senderUserId?`<button type="button" class="secondary" data-chat-block="${html(message.senderUserId)}" aria-label="Block chat posts from ${html(message.senderName)}">Block</button>`:''}`:''}</div>${chatReactionButtons(message)}`:''}</li>`
+  return `<li data-chat-message="${html(message.id)}" class="team-bubble ${message.isMine?'team-bubble-mine':''}"><div class="team-message-meta"><strong>${html(message.senderName)}</strong><span>${html(messageTime(message.createdAt))}</span></div>${message.kind==='announcement'?'<small class="chat-announcement">Captain announcement</small>':''}${message.replyToMessageId?`<blockquote>${reply && !reply.deletedAt?`<strong>${html(reply.senderName)}</strong><span>${html(reply.body.slice(0,160))}</span>`:'Earlier or removed message'}</blockquote>`:''}<p>${html(message.body)}</p>${message.hasPhoto && !message.deletedAt?`<button type="button" class="secondary chat-photo-open" data-chat-photo="${html(message.id)}" aria-label="Open team photo full screen"><span data-photo-preview>Loading photo…</span></button>`:message.hasAttachment && !message.deletedAt?'<small>Attachment available on the website.</small>':''}${message.card?'<small>Match-day card · open Match day for the shared court plan.</small>':''}${room.chatReady && !message.deletedAt?`<div class="chat-message-actions"><button type="button" class="secondary" data-chat-reply="${html(message.id)}" aria-label="Reply to ${html(message.senderName)}">Reply</button>${!message.isMine?`<button type="button" class="secondary" data-chat-report="${html(message.id)}" aria-label="Report message from ${html(message.senderName)}">Report</button>${message.senderUserId?`<button type="button" class="secondary" data-chat-block="${html(message.senderUserId)}" aria-label="Block chat posts from ${html(message.senderName)}">Block</button>`:''}`:''}</div>${chatReactionButtons(message)}`:''}</li>`
  }).join('') || '<li class="rating-context">Start the team conversation.</li>'}</ol>`
 }
 export function teamMatchDayHtml(room:NativeTeamRoom) {
@@ -31,9 +32,10 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  const pendingReactions=new Map<string,Extract<ChatAction,{action:'set_chat_reaction'}>>()
  let photoChoosing=false,photoDialog:HTMLDialogElement|null=null,photoVersion=0,viewedPhotoId=''
  const closePhoto=()=>{photoVersion++;photoDialog?.remove();photoDialog=null;viewedPhotoId=''}
- const onVisibility=()=>{if(document.visibilityState!=='visible')closePhoto()}
+ const onVisibility=()=>{if(document.visibilityState!=='visible'){closePhoto();previews.clear()}else if(snapshot?.room)previews.attach(app.querySelector<HTMLElement>('.team-conversation'))}
  document.addEventListener('visibilitychange',onVisibility)
  const valid=()=>!disposed && isCurrent()
+ const previews=chatPhotoPreviews(async id=>{const data=await postTeamChat(client,userId,valid,{...currentScope()},{action:'read_chat_photo',messageId:id,photoPreview:true});if(data.messageId!==id || typeof data.base64!=='string' || data.base64.length>128000)throw Error('Photo preview unavailable');return privatePhotoData(data)},valid)
  const statusText=()=>liveStatus==='live'?'Live chat on':liveStatus==='connecting'?'Connecting to live chat…':liveStatus==='paused'?'Live updates paused. Refresh if needed.':'Live updates unavailable. Refresh to check for messages.'
  const updateLabels=()=>{
   const button=app.querySelector<HTMLButtonElement>('[data-team-tab="Conversation"]');if(button)button.textContent=`Conversation${unread.size?` (${unread.size})`:''}`
@@ -64,6 +66,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   for(const [key,action] of pendingReactions){const message=room.messages.find(message=>message.id===action.messageId);if(!message || message.deletedAt || (message.reactions?.find(item=>item.reaction===action.reaction)?.reacted===true)===action.active)pendingReactions.delete(key)}
  }
  const bindMessageActions=(room:NativeTeamRoom)=>{
+  previews.attach(app.querySelector<HTMLElement>('.team-conversation'))
   app.querySelectorAll<HTMLButtonElement>('[data-chat-photo]').forEach(button=>{button.onclick=()=>{void (async()=>{
    const message=room.messages.find(item=>item.id===button.dataset.chatPhoto)
    if(!message?.hasPhoto || message.deletedAt || !valid())return
@@ -135,7 +138,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  }
  const currentScope=():TeamScope=>{if(!selected)throw Error('Open a team first.');return {...selected}}
  let draft=new TeamChatDraft(action=>postTeamChat(client,userId,valid,currentScope(),action))
- const freshDraft=()=>{closePhoto();photoChoosing=false;reactionEpoch++;reactionSending=false;reactionNotice='';pendingReactions.clear();live?.dispose();live=null;watchedRoomId='';readRoomId='';readThrough='';lastAckAttempt='';readNotice='';unread.clear();needsLiveRefresh=false;draft.dispose();draft=new TeamChatDraft(action=>postTeamChat(client,userId,valid,currentScope(),action))}
+ const freshDraft=()=>{previews.clear();closePhoto();photoChoosing=false;reactionEpoch++;reactionSending=false;reactionNotice='';pendingReactions.clear();live?.dispose();live=null;watchedRoomId='';readRoomId='';readThrough='';lastAckAttempt='';readNotice='';unread.clear();needsLiveRefresh=false;draft.dispose();draft=new TeamChatDraft(action=>postTeamChat(client,userId,valid,currentScope(),action))}
  const load=async(preserve=false,latest=false)=>{
   fullLoads++
   const version=++revision
@@ -216,5 +219,5 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   markLatest()
  }
  void load()
- return {hasDraft:()=>Boolean(draft.photo || photoChoosing || draft.text.trim() || draft.pending || draft.sending),dispose:()=>{closePhoto();document.removeEventListener('visibilitychange',onVisibility);disposed=true;revision++;snapshot=null;live?.dispose();draft.dispose()},back:()=>false}
+ return {hasDraft:()=>Boolean(draft.photo || photoChoosing || draft.text.trim() || draft.pending || draft.sending),dispose:()=>{previews.dispose();closePhoto();document.removeEventListener('visibilitychange',onVisibility);disposed=true;revision++;snapshot=null;live?.dispose();draft.dispose()},back:()=>false}
 }

@@ -50,6 +50,15 @@ describe('private native chat photos',()=>{
   const result=await readChatPhoto(database.service,'viewer','room',id);expect(result).toMatchObject({ok:true,messageId:id,mimeType:'image/jpeg'});expect(JSON.stringify(result)).not.toContain('https:')
   const uncertain=db(null,[],{code:'NETWORK'});expect(await sendChatPhoto(uncertain.service,'owner','room',{clientMessageId:id,photoBase64:base64})).toMatchObject({status:503});expect(uncertain.upload).toHaveBeenCalledTimes(1)
  })
+ it('returns a bounded thumbnail only after the same private message checks',async()=>{
+  const bytes=await sharp({create:{width:1200,height:800,channels:3,background:'#254e34'}}).jpeg().toBuffer()
+  const database=db({sender_user_id:'owner',metadata:{teamRoomAttachment:{bucket:'team-room-files',path:'room/owner/photo.jpg',mimeType:'image/jpeg',size:bytes.length}}})
+  database.download.mockResolvedValue({data:new Blob([new Uint8Array(bytes)]),error:null})
+  const result=await readChatPhoto(database.service,'viewer','room',id,true)
+  expect(result.ok).toBe(true);if(!result.ok)return
+  const thumb=Buffer.from(result.base64,'base64'),metadata=await sharp(thumb).metadata()
+  expect(metadata.width).toBe(320);expect(metadata.height).toBeLessThanOrEqual(320);expect(thumb.length).toBeLessThanOrEqual(96000)
+ })
  it('bounds streamed JSON bodies rather than trusting Content-Length',async()=>{
   expect(await boundedChatJson(new Request('https://local.test',{method:'POST',body:JSON.stringify({action:'read_chat_photo'})}))).toEqual({action:'read_chat_photo'})
   await expect(boundedChatJson(new Request('https://local.test',{method:'POST',body:'x'.repeat(2900001)}))).rejects.toThrow('large')
