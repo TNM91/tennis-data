@@ -1,3 +1,4 @@
+import {readChatMentions,type ChatMention} from '../../lib/team-chat-mentions'
 import type {ChatPhoto} from './chat-photos'
 import {CapacitorHttp} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
@@ -15,7 +16,7 @@ export type ChatAction =
   | {action:'send_chat_photo';clientMessageId:string;body:string;replyToMessageId:string;photoBase64:string;photoMimeType?:'image/gif'}
   | {action:'set_chat_reaction';messageId:string;reaction:'helpful'|'celebrate';active:boolean}
   | {action:'mark_chat_read';messageId:string}
-  | {action:'send';clientMessageId:string;body:string;replyToMessageId:string;announcement?:true}
+  | {action:'send';clientMessageId:string;body:string;replyToMessageId:string;announcement?:true;mentions?:ChatMention[]}
   | {action:'report_chat_message';messageId:string;reason:'harassment'|'spam'|'inappropriate'|'other'}
   | {action:'block_chat_member'|'unblock_chat_member';memberId:string}
 export class ChatActionError extends Error {
@@ -46,6 +47,7 @@ export async function postTeamChat(client:SupabaseClient,userId:string,isCurrent
  if(action.action==='set_chat_reaction' && (response.data.messageId!==action.messageId || response.data.reaction!==action.reaction || response.data.active!==action.active))throw new ChatActionError('Couldn’t confirm this reaction. Retry the same choice.',true)
  if(action.action==='send_chat_photo' && response.data.message?.attachment?.mimeType!==(action.photoMimeType || 'image/jpeg'))throw new ChatActionError('Couldn’t confirm your photo. Retry the same send.',true)
  if((action.action==='send' || action.action==='send_chat_photo') && (response.data.message?.id!==action.clientMessageId || response.data.message?.isMine!==true || response.data.message?.body!==(action.action==='send_chat_photo'?(action.body || (action.photoMimeType==='image/gif'?'Shared a GIF.':'Shared a photo.')):action.body)))throw new ChatActionError('We couldn’t confirm this send. Retry the same message.',true)
+ if(action.action==='send' && JSON.stringify(readChatMentions(response.data.message?.mentions,action.body))!==JSON.stringify(readChatMentions(action.mentions,action.body)))throw new ChatActionError('Couldn’t confirm your mentions. Retry the same message.',true)
  if(action.action==='send' && action.announcement===true && (response.data.message?.kind!=='announcement' || response.data.message?.replyToMessageId))throw new ChatActionError('Couldn’t confirm your announcement. Retry the same post.',true)
  return response.data
 }
@@ -53,6 +55,7 @@ export async function postTeamChat(client:SupabaseClient,userId:string,isCurrent
 export class TeamChatDraft {
  photo:ChatPhoto|null=null
  text=''
+ mentions:ChatMention[]=[]
  reply:{id:string;name:string;body:string;senderUserId?:string}|null=null
  pending:Extract<ChatAction,{action:'send'|'send_chat_photo'}>|null=null
  sending=false
@@ -62,13 +65,13 @@ export class TeamChatDraft {
  async submit():Promise<boolean> {
   if(this.disposed || this.sending || !this.pending && !this.text.trim() && !this.photo)return false
   const wasPending=Boolean(this.pending)
-  if(!this.pending)this.pending={...(this.photo?{action:'send_chat_photo' as const,photoBase64:this.photo.base64,...(this.photo.mimeType?{photoMimeType:this.photo.mimeType}:{})}:{action:'send' as const}),clientMessageId:this.newId(),body:this.text.trim().slice(0,2400),replyToMessageId:this.reply?.id || ''}
+  if(!this.pending)this.pending={...(this.photo?{action:'send_chat_photo' as const,photoBase64:this.photo.base64,...(this.photo.mimeType?{photoMimeType:this.photo.mimeType}:{})}:{action:'send' as const}),clientMessageId:this.newId(),body:this.text.trim().slice(0,2400),replyToMessageId:this.reply?.id || '',...(!this.photo&&this.mentions.length?{mentions:readChatMentions(this.mentions,this.text.trim().slice(0,2400))}:{})}
   const pending=this.pending
   this.sending=true;this.notice='Sending…'
   try{
    await this.send(pending)
    if(this.disposed)return false
-   this.photo=null;this.text='';this.reply=null;this.pending=null;this.notice='Sent.'
+   this.photo=null;this.text='';this.mentions=[];this.reply=null;this.pending=null;this.notice='Sent.'
    return true
   }catch(cause){
    if(this.disposed)return false
@@ -77,6 +80,6 @@ export class TeamChatDraft {
    return false
   }finally{this.sending=false}
  }
- discard(){if(this.sending)return;this.photo=null;this.text='';this.reply=null;this.pending=null;this.notice='Retry discarded. The original message may already be in the conversation.'}
- dispose(){this.disposed=true;this.photo=null;this.text='';this.reply=null;this.pending=null;this.notice=''}
+ discard(){if(this.sending)return;this.photo=null;this.text='';this.mentions=[];this.reply=null;this.pending=null;this.notice='Retry discarded. The original message may already be in the conversation.'}
+ dispose(){this.disposed=true;this.photo=null;this.text='';this.mentions=[];this.reply=null;this.pending=null;this.notice=''}
 }

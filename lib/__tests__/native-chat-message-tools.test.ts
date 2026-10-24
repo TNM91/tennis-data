@@ -47,3 +47,14 @@ it('edits or soft-removes plain announcements while protecting every workflow an
  for(const metadata of [{teamRoomCard:{}},{finalLineupAnnouncement:true},{nativePublicationId:'x'},{teamRoomAttachment:{}}]){const blocked=database([{data:{...announcement,metadata}}]);expect(await changeNativePost(blocked.service,'owner','room',edit)).toMatchObject({status:404});expect(blocked.calls.some(c=>c.method==='update')).toBe(false)}
  const removal=database([{data:announcement}],[{data:{...announcement,body:'Message removed.',deleted_at:'saved',edited_at:'saved'}}]);expect(await changeNativePost(removal.service,'owner','room',{...edit,action:'remove_chat_post'})).toMatchObject({ok:true,removed:true})
 })
+
+it('keeps identity tags only while their exact text remains after an owned edit',async()=>{
+ const tag={profileId:'11111111-1111-4111-8111-111111111111',label:'Alex Sample'},original={...row,body:'Ready @Alex Sample?',metadata:{nativeMentions:[tag]}}
+ expect(canManageNativePost(original)).toBe(true)
+ const removed=database([{data:original}],[{data:{...original,body:'Updated',edited_at:'saved',metadata:{nativeMentions:[]}}}])
+ expect(await changeNativePost(removed.service,'owner','room',{...edit,expectedBody:original.body})).toMatchObject({ok:true})
+ const update=removed.calls.find(call=>call.method==='update')!.args[0] as {metadata:unknown};expect(update.metadata).toEqual({nativeMentions:[]})
+ const keep=database([{data:original}],[{data:{...original,body:'Thanks @Alex Sample!',edited_at:'saved'}}]);await changeNativePost(keep.service,'owner','room',{...edit,body:'Thanks @Alex Sample!',expectedBody:original.body})
+ expect((keep.calls.find(call=>call.method==='update')!.args[0] as {metadata:unknown}).metadata).toEqual({nativeMentions:[tag]})
+ expect(removed.calls).toContainEqual({method:'filter',args:['metadata','eq',JSON.stringify(original.metadata)]})
+})

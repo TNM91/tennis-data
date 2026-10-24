@@ -1,3 +1,4 @@
+import {readChatMentions,type ChatMention} from './team-chat-mentions'
 import type {SupabaseClient} from '@supabase/supabase-js'
 
 export type SentTeamMessage = {
@@ -29,6 +30,7 @@ export async function insertTeamMessage(service: SupabaseClient, input: {
   announcement: boolean
   replyToMessageId: string | null
   clientMessageId: string | null
+  mentions?: ChatMention[]
 }): Promise<
   | {ok: true; message: SentTeamMessage; replayed: boolean}
   | {ok: false; status: 409 | 500; message: string}
@@ -36,6 +38,7 @@ export async function insertTeamMessage(service: SupabaseClient, input: {
   const kind = input.announcement ? 'announcement' : 'message'
   const inserted = await service.from('internal_messages').insert({
     ...(input.clientMessageId ? {id: input.clientMessageId} : {}),
+    ...(input.mentions?.length ? {metadata:{nativeMentions:input.mentions}} : {}),
     conversation_id: input.conversationId,
     sender_user_id: input.senderUserId,
     body: input.body,
@@ -60,7 +63,8 @@ export async function insertTeamMessage(service: SupabaseClient, input: {
   }
   const message = existing.data as SentTeamMessage | null
   if (!message || message.deleted_at || message.edited_at || message.body !== input.body
-    || message.message_kind !== kind || message.reply_to_message_id !== input.replyToMessageId) {
+    || message.message_kind !== kind || message.reply_to_message_id !== input.replyToMessageId
+    || JSON.stringify(readChatMentions(message.metadata?.nativeMentions,message.body))!==JSON.stringify(readChatMentions(input.mentions,input.body))) {
     return {ok: false, status: 409, message: 'This send has already been used. Refresh the conversation before sending again.'}
   }
   return {ok: true, message, replayed: true}
