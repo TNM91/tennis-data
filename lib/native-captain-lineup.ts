@@ -6,7 +6,7 @@ import {getCaptainLineupDraftScopeKey} from './captain-lineup-handoff'
 import {buildTeamSeasonCalendars} from './team-season-calendar'
 import {lineupRecord,readLineupPlan,type LineupEditorData,type LineupPlan,type LineupPlayer} from './native-captain-lineup-contract'
 const fail=(status:number,message:string)=>({ok:false as const,status,message})
-const fields='id,scope_key,competition_layer,selected_match_id,slots_json,notes,match_location,match_directions,arrival_time,captain_notes,updated_at,delivery_status'
+const fields='id,scope_key,competition_layer,selected_match_id,slots_json,notes,match_location,match_directions,arrival_time,captain_notes,updated_at,delivery_status,team_room_message_id'
 const str=(v:unknown)=>typeof v==='string'?v:''
 async function context(service:SupabaseClient,owner:string,scope:TeamRoomScope,matchId:string){
  const access=await authorizeNativeCaptainScope(service,owner,scope);if(!access.ok)return access
@@ -41,7 +41,7 @@ function rowPlan(row:Record<string,unknown>|undefined,roster:LineupPlayer[]):Lin
 export async function loadNativeLineup(service:SupabaseClient,owner:string,scope:TeamRoomScope,matchId:string){
  const ctx=await context(service,owner,scope,matchId);if(!ctx.ok)return ctx
  const data:LineupEditorData={ok:true,scope,match:ctx.match,version:str(ctx.row?.updated_at),sent:ctx.row?.delivery_status==='sent',roster:ctx.roster,plan:rowPlan(ctx.row,ctx.roster)}
- return {status:200,...data}
+ return {status:200,...data,draftId:str(ctx.row?.id),deliveryMessageId:str(ctx.row?.team_room_message_id)}
 }
 export async function saveNativeLineup(service:SupabaseClient,owner:string,scope:TeamRoomScope,body:Record<string,unknown>){
  const ctx=await context(service,owner,scope,str(body.matchId));if(!ctx.ok)return ctx

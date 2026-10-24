@@ -1,3 +1,5 @@
+import {getCaptainApiAuth} from '@/lib/captain-api-auth'
+import {loadNativePublication,publishNativeLineup,confirmNativeFinalReceipt,markNativeDraftFinal,completeNativeFinalAnnouncement,nativeSharedLineupIsComplete} from '@/lib/native-captain-publication'
 import {nativeMatchTargetIsCurrent} from '@/lib/native-match-target'
 import {canManageNativePost,changeNativePost} from '@/lib/native-chat-message-tools'
 import {setTeamChatMute} from '@/lib/team-chat-alerts'
@@ -197,6 +199,10 @@ type TeamRoomActionBody = {
   clientMessageId?: unknown
   replyToMessageId?: unknown
   reaction?: unknown
+  fixtureId?: unknown
+  draftVersion?: unknown
+  expectedCardToken?: unknown
+  publicationId?: unknown
   nativeClient?: unknown
   lineupVersion?: unknown
   expectedBody?: unknown
@@ -348,6 +354,27 @@ export async function GET(request: Request) {
     return Response.json({ ok: true, history: historyResult.history })
   }
 
+  if (url.searchParams.get('nativeCaptainReview') === '1') {
+    const captain = await getCaptainApiAuth(request)
+    if (!captain.ok) return captain.response
+    if (captain.userId !== auth.userId) return Response.json({ok:false},{status:403})
+    const scope={teamName:url.searchParams.get('team')||'',leagueName:url.searchParams.get('league')||'',flight:url.searchParams.get('flight')||''}
+    if(scope.teamName!==selected.team_name||scope.leagueName!==selected.league_name||scope.flight!==selected.flight)return Response.json({ok:false},{status:403})
+    try {
+      const state=await loadNativePublication(auth.service,auth.userId,scope,url.searchParams.get('fixture')||'')
+      if(!state.ok)return Response.json(state,{status:state.status,headers:{'Cache-Control':'private, no-store'}})
+      const summary=await loadTeamRoomSummary(auth.service,auth.userId,selected)
+      if(!summary.ok)return Response.json({ok:false,message:'Team confirmations are unavailable.'},{status:503})
+      const readiness=summary.summary.courtReadiness
+      const active=!!state.card&&state.card.id===readiness.messageId&&state.card.metadata.cardType==='projected_lineup'
+      const final=readiness.finalLineup&&active?readiness.finalLineup:null
+      const delivered=final?await confirmNativeFinalReceipt(auth.service,state.conversationId,final):false
+      return Response.json({ok:true,scope,fixtureId:state.match.id,matchDate:state.match.date,opponent:state.match.opponent,draftVersion:state.draftVersion,expectedCardToken:state.token,
+        proposal:{canShare:state.canShare,reason:state.reason,lineup:state.proposal.lineup,arrivalTime:state.proposal.matchTime,facility:state.proposal.facility},
+        shared:{active,messageId:active?readiness.messageId:'',lineupId:active?buildCaptainLockedLineupId({messageId:readiness.messageId,lineup:readiness.lineup}):'',lineup:active?readiness.lineup:[],confirmedCount:active?readiness.confirmedCount:0,totalCount:active?readiness.totalCount:0,courts:active?readiness.courts:[],canFinalize:active&&nativeSharedLineupIsComplete(state.card?.metadata.lineup)&&!delivered&&(!final||final.lineupId===buildCaptainLockedLineupId({messageId:readiness.messageId,lineup:readiness.lineup}))&&isCaptainLineupLocked(readiness),alreadyFinal:delivered,pendingFinal:!!final&&!delivered}},
+        {headers:{'Cache-Control':'private, no-store'}})
+    } catch { return Response.json({ok:false,message:'Publication review is unavailable. Try refreshing.'},{status:503}) }
+  }
   if (url.searchParams.get('summary') === '1') {
     const summaryResult = await loadTeamRoomSummary(auth.service, auth.userId, selected)
     if (!summaryResult.ok) return Response.json({ ok: false, message: summaryResult.message }, { status: summaryResult.status })
@@ -386,6 +413,36 @@ export async function POST(request: Request) {
   }
 
   const action = cleanText(body.action)
+  if (action === 'publish_native_lineup' || (body.nativeClient === true && action === 'send_final_lineup')) {
+    const captain=await getCaptainApiAuth(request)
+    if(!captain.ok)return captain.response
+    if(captain.userId!==auth.userId)return Response.json({ok:false},{status:403})
+    const scope={teamName:cleanText(body.teamName),leagueName:cleanText(body.leagueName),flight:cleanText(body.flight)}
+    if(scope.teamName!==selected.team_name||scope.leagueName!==selected.league_name||scope.flight!==selected.flight)return Response.json({ok:false},{status:403})
+    try {
+      if(action==='publish_native_lineup'){
+        const result=await publishNativeLineup(auth.service,auth.userId,scope,body as Record<string,unknown>)
+        if(!result.ok)return Response.json(result,{status:result.status})
+        if(!result.replayed){
+          await applySeasonAvailabilityDefaults(auth.service,{conversationId:result.conversationId,messageId:result.messageId,matchDate:result.matchDate!,scope:selected})
+          await auth.service.from('internal_conversations').update({updated_at:new Date().toISOString()}).eq('id',result.conversationId)
+          await notifyTeamRoom(auth.service,{conversationId:result.conversationId,actorUserId:auth.userId,teamName:selected.team_name,scope:selected,body:result.body!,announcement:true})
+        }
+        return Response.json({ok:true,messageId:result.messageId,replayed:result.replayed},{headers:{'Cache-Control':'private, no-store'}})
+      }
+      const state=await loadNativePublication(auth.service,auth.userId,scope,cleanText(body.fixtureId))
+      if(!state.ok)return Response.json(state,{status:state.status})
+      if(!state.card||state.card.id!==body.messageId||state.card.metadata.cardType!=='projected_lineup')return Response.json({ok:false,message:'Refresh the shared lineup before sending.'},{status:409})
+      if(!nativeSharedLineupIsComplete(state.card.metadata.lineup))return Response.json({ok:false,message:'Check the shared court assignments before sending a final lineup.'},{status:409})
+      const receipt=readTeamRoomFinalLineupReceipt(state.card.metadata.finalLineup)
+      if(receipt&&receipt.lineupId!==buildCaptainLockedLineupId({messageId:state.card.id,lineup:normalizeLineupRows(state.card.metadata.lineup)}))return Response.json({ok:false,message:'The final lineup changed. Reopen the review.'},{status:409})
+      if(state.token!==body.expectedCardToken&&receipt?.lineupId!==body.lineupId)return Response.json({ok:false,message:'The shared lineup changed. Reopen the review.'},{status:409})
+      if(receipt?.lineupId===body.lineupId&&await confirmNativeFinalReceipt(auth.service,state.conversationId,receipt)){
+        const draftFinalized=await markNativeDraftFinal(auth.service,auth.userId,scope,cleanText(body.fixtureId),cleanText(body.draftVersion),receipt)
+        return Response.json({ok:true,alreadySent:true,finalLineup:receipt,draftFinalized},{headers:{'Cache-Control':'private, no-store'}})
+      }
+    }catch{return Response.json({ok:false,message:'Publication could not be confirmed. Retry the same request.'},{status:503})}
+  }
   if (action === 'send_chat_photo' || action === 'read_chat_photo') {
     const existing = await findNativeChatConversation(auth.service, selected)
     if (!existing.ok) return Response.json(existing, {status: existing.status})
@@ -714,6 +771,18 @@ export async function POST(request: Request) {
     if (!canManageTeamRoom(teamRoles(selected))) {
       return Response.json({ ok: false, message: 'Only a captain or co-captain can send the final lineup.' }, { status: 403 })
     }
+    const replayResponse=async (receipt:unknown)=>{
+      if(body.nativeClient===true){
+        const recovery=await completeNativeFinalAnnouncement(auth.service,conversation.id,receipt)
+        if(!recovery.ok)return Response.json(recovery,{status:recovery.status})
+        if(recovery.inserted){
+          await auth.service.from('internal_conversations').update({updated_at:new Date().toISOString()}).eq('id',conversation.id)
+          await notifyTeamRoom(auth.service,{conversationId:conversation.id,actorUserId:auth.userId,teamName:selected.team_name,scope:selected,body:recovery.body,announcement:true})
+        }
+      }
+      const draftFinalized=body.nativeClient===true?await markNativeDraftFinal(auth.service,auth.userId,{teamName:selected.team_name,leagueName:selected.league_name,flight:selected.flight},cleanText(body.fixtureId),cleanText(body.draftVersion),receipt):undefined
+      return Response.json({ok:true,alreadySent:true,finalLineup:receipt,draftFinalized})
+    }
     const requestedMessageId = cleanText(body.messageId)
     const requestedLineupId = cleanText(body.lineupId)
     if (!requestedMessageId || !requestedLineupId) {
@@ -739,7 +808,7 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, message: 'The lineup changed. Refresh before sending the final update.' }, { status: 409 })
     }
     if (readiness.finalLineup?.lineupId === serverLineupId) {
-      return Response.json({ ok: true, alreadySent: true, finalLineup: readiness.finalLineup })
+      return replayResponse(readiness.finalLineup)
     }
 
     const cardResult = await loadActionableMatchCard(auth.service, conversation.id, requestedMessageId)
@@ -748,7 +817,7 @@ export async function POST(request: Request) {
     }
     const existingReceipt = readTeamRoomFinalLineupReceipt(cardResult.metadata.finalLineup)
     if (existingReceipt?.lineupId === serverLineupId) {
-      return Response.json({ ok: true, alreadySent: true, finalLineup: existingReceipt })
+      return replayResponse(existingReceipt)
     }
     const messageBody = buildCaptainLockedLineupAnnouncement({
       lineup,
@@ -785,7 +854,7 @@ export async function POST(request: Request) {
         ? readTeamRoomFinalLineupReceipt(currentCard.metadata.finalLineup)
         : null
       if (currentReceipt?.lineupId === serverLineupId) {
-        return Response.json({ ok: true, alreadySent: true, finalLineup: currentReceipt })
+        return replayResponse(currentReceipt)
       }
       return Response.json({ ok: false, message: 'The lineup changed. Refresh before sending the final update.' }, { status: 409 })
     }
@@ -807,6 +876,7 @@ export async function POST(request: Request) {
       .select('id,sender_user_id,body,message_kind,metadata,created_at,edited_at,deleted_at,reply_to_message_id')
       .single()
     if (error) {
+      if(body.nativeClient===true)return replayResponse(finalLineup)
       await auth.service
         .from('internal_messages')
         .update({ metadata: cardResult.metadata })
@@ -815,6 +885,8 @@ export async function POST(request: Request) {
         .filter('metadata', 'eq', JSON.stringify(claimedMetadata))
       return Response.json({ ok: false, message: error.message }, { status: 500 })
     }
+
+    if(body.nativeClient===true){const current=await completeNativeFinalAnnouncement(auth.service,conversation.id,finalLineup);if(!current.ok)return Response.json(current,{status:current.status})}
 
     await auth.service
       .from('internal_conversations')
@@ -829,9 +901,11 @@ export async function POST(request: Request) {
       announcement: true,
     })
 
+    const draftFinalized=body.nativeClient===true?await markNativeDraftFinal(auth.service,auth.userId,{teamName:selected.team_name,leagueName:selected.league_name,flight:selected.flight},cleanText(body.fixtureId),cleanText(body.draftVersion),finalLineup):undefined
     return Response.json({
       ok: true,
       alreadySent: false,
+      draftFinalized,
       finalLineup,
       message: toMessage(message as MessageRow, new Map(), auth.userId),
     })

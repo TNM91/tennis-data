@@ -1,0 +1,22 @@
+import {beforeEach,afterEach,describe,it,expect,vi} from 'vitest'
+const m=vi.hoisted(()=>({captain:vi.fn(),publish:vi.fn(),load:vi.fn(),create:vi.fn(),push:vi.fn(),nativePush:vi.fn(),recipients:vi.fn()}))
+vi.mock('server-only',()=>({}))
+vi.mock('@supabase/supabase-js',()=>({createClient:m.create}))
+vi.mock('@/lib/supabase',()=>({supabaseUrl:'https://synthetic.supabase.co',supabaseKey:'synthetic-public'}))
+vi.mock('@/lib/captain-api-auth',()=>({getCaptainApiAuth:m.captain}))
+vi.mock('@/lib/native-captain-publication',()=>({loadNativePublication:m.load,publishNativeLineup:m.publish,confirmNativeFinalReceipt:vi.fn(),markNativeDraftFinal:vi.fn(),completeNativeFinalAnnouncement:vi.fn()}))
+vi.mock('@/lib/team-room-push-server',()=>({sendTeamRoomPush:m.push}))
+vi.mock('@/lib/native-chat-push-server',()=>({sendNativeTeamChatPush:m.nativePush}))
+vi.mock('@/lib/team-chat-safety',()=>({chatNotificationRecipients:m.recipients,loadChatBlocks:vi.fn(),redactBlockedChatRows:vi.fn(),chatSafetyAction:vi.fn()}))
+import {GET,POST} from '../../app/api/team-rooms/route'
+const scope={teamName:'Aces',leagueName:'City',flight:'4.0'}
+const post=(patch:Record<string,unknown>={})=>new Request('https://local/api/team-rooms',{method:'POST',headers:{Authorization:'Bearer synthetic','Content-Type':'application/json'},body:JSON.stringify({...scope,action:'publish_native_lineup',...patch})})
+let calls:{table:string;method:string;args:unknown[]}[]=[]
+beforeEach(()=>{vi.resetAllMocks();calls=[];vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY','synthetic-service');m.captain.mockResolvedValue({ok:true,userId:'owner'});m.recipients.mockImplementation(async(_s,_o,ids)=>ids);m.push.mockResolvedValue(undefined);m.nativePush.mockResolvedValue(undefined);const service={auth:{getUser:async()=>({data:{user:{id:'owner'}},error:null})},from:(table:string)=>{const data=table==='team_profile_links'?[{profile_user_id:'owner',team_name:'Aces',league_name:'City',flight:'4.0',team_role:'captain'}]:table==='internal_conversation_participants'?[{profile_id:'teammate',muted:false}]:[];const q:Record<string,unknown>={then:(resolve:(v:unknown)=>unknown)=>Promise.resolve(resolve({data,error:null}))};for(const method of ['select','eq','order','in','insert','update'])q[method]=(...args:unknown[])=>{calls.push({table,method,args});return q};return q}};m.create.mockReturnValue(service)})
+afterEach(()=>vi.unstubAllEnvs())
+describe('native publishing API authorization and side effects',()=>{
+ it('requires Captain entitlement before review, proposal publication or native final writes',async()=>{for(const request of [post(),post({action:'send_final_lineup',nativeClient:true})]){m.captain.mockResolvedValueOnce({ok:false,response:Response.json({ok:false},{status:403})});expect((await POST(request)).status).toBe(403)}m.captain.mockResolvedValueOnce({ok:false,response:Response.json({ok:false},{status:403})});expect((await GET(new Request('https://local/api/team-rooms?team=Aces&league=City&flight=4.0&nativeCaptainReview=1',{headers:{Authorization:'Bearer synthetic'}}))).status).toBe(403);expect(m.publish).not.toHaveBeenCalled();expect(m.load).not.toHaveBeenCalled();expect(calls.every(c=>c.table==='team_profile_links')).toBe(true)})
+ it('rejects another flight even when the legacy team selector falls back to a linked team',async()=>{expect((await POST(post({flight:'4.5'}))).status).toBe(403);expect(m.publish).not.toHaveBeenCalled()})
+ it('does not repeat defaults, conversation updates or notifications for a committed replay',async()=>{m.publish.mockResolvedValue({ok:true,status:200,replayed:true,messageId:'message',conversationId:'room'});expect((await POST(post())).status).toBe(200);expect(calls.every(c=>c.table==='team_profile_links')).toBe(true);expect(m.push).not.toHaveBeenCalled();expect(m.nativePush).not.toHaveBeenCalled()})
+ it('notifies once for the insert winner and suppresses every effect on its replay',async()=>{m.publish.mockResolvedValueOnce({ok:true,status:200,replayed:false,messageId:'message',conversationId:'room',matchDate:'2026-10-30',body:'Proposed lineup'}).mockResolvedValueOnce({ok:true,status:200,replayed:true,messageId:'message',conversationId:'room'});expect((await POST(post())).status).toBe(200);expect((await POST(post())).status).toBe(200);expect(m.push).toHaveBeenCalledTimes(1);expect(m.nativePush).toHaveBeenCalledTimes(1);expect(calls.filter(c=>c.table==='internal_notifications'&&c.method==='insert')).toHaveLength(1)})
+})
