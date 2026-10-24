@@ -1,3 +1,4 @@
+import { insertTeamMessage, parseTeamMessageSendId } from '@/lib/team-room-message-send'
 import { loadTeamConversationMessages } from '@/lib/team-room-message-history'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { supabaseKey, supabaseUrl } from '@/lib/supabase'
@@ -183,6 +184,7 @@ type TeamRoomActionBody = {
   messageId?: unknown
   response?: unknown
   reminderAt?: unknown
+  clientMessageId?: unknown
   replyToMessageId?: unknown
   reaction?: unknown
   memberId?: unknown
@@ -742,6 +744,10 @@ export async function POST(request: Request) {
   }
 
   if (action === 'send') {
+    const clientMessageId = parseTeamMessageSendId(body.clientMessageId)
+    if (clientMessageId === false) {
+      return Response.json({ ok: false, message: 'Invalid message send ID.' }, { status: 400 })
+    }
     const messageBody = cleanText(body.body).slice(0, 2400)
     if (!messageBody) return Response.json({ ok: false, message: 'Write a message first.' }, { status: 400 })
     const isAnnouncement = body.announcement === true
@@ -762,18 +768,19 @@ export async function POST(request: Request) {
       }
     }
 
-    const { data: message, error } = await auth.service
-      .from('internal_messages')
-      .insert({
-        conversation_id: conversation.id,
-        sender_user_id: auth.userId,
-        body: messageBody,
-        message_kind: isAnnouncement ? 'announcement' : 'message',
-        reply_to_message_id: replyToMessageId || null,
-      })
-      .select('id,sender_user_id,body,message_kind,metadata,created_at,edited_at,deleted_at,reply_to_message_id')
-      .single()
-    if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
+    const sent = await insertTeamMessage(auth.service, {
+      conversationId: conversation.id,
+      senderUserId: auth.userId,
+      body: messageBody,
+      announcement: isAnnouncement,
+      replyToMessageId: replyToMessageId || null,
+      clientMessageId,
+    })
+    if (!sent.ok) return Response.json({ ok: false, message: sent.message }, { status: sent.status })
+    const message = sent.message
+    if (sent.replayed) {
+      return Response.json({ ok: true, replayed: true, message: toMessage(message, new Map(), auth.userId) })
+    }
 
     await auth.service
       .from('internal_conversations')
