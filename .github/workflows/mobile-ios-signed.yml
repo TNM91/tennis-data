@@ -88,6 +88,7 @@ jobs:
             TIQ_APP_TEAM="$TEAM" TIQ_APP_PROFILE="$UUID" archive
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/tiq-app.xcarchive" \
             -exportPath "$RUNNER_TEMP/tiq-export" -exportOptionsPlist "$RUNNER_TEMP/tiq-signing/export.plist"
+          python3 mobile/scripts/validate-ios-privacy.py "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app/Info.plist"
           codesign --verify --deep --strict "$RUNNER_TEMP/tiq-app.xcarchive/Products/Applications/App.app"
           test -f "$RUNNER_TEMP/tiq-export/App.ipa"
       - name: Upload to App Store Connect
