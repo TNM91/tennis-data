@@ -1,3 +1,4 @@
+import {replacementReminderIsCurrent} from '../replacement-reminder-target'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -116,7 +117,9 @@ describe('Team Room live availability card', () => {
     expect(roomPage).toContain('TIQ will check that morning.')
     expect(roomPage).toContain('Response overdue')
     expect(roomPage).toContain('Review this court')
-    expect(reminderRunner).toContain('target.needsLineupChangeResponse && !lineupChangeAnswered')
+    const card={cardType:'projected_lineup',lineupChangeNotice:{pending:false,response:'',publishedAnnouncementMessageId:'request'}}
+    expect(replacementReminderIsCurrent(card,'request','')).toBe(true)
+    expect(replacementReminderIsCurrent({...card,lineupChangeNotice:{...card.lineupChangeNotice,response:'accepted'}},'request','')).toBe(false)
     expect(reminderRunner).toContain("deadlineStatus: 'reminded'")
     expect(reminderRunner).toContain('Accept or choose Can’t play')
     expect(roomStyles).toContain('.lineupChangeDeadline')

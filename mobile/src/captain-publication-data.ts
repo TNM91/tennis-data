@@ -14,7 +14,7 @@ export async function publicationRequest(client:SupabaseClient,owner:string,curr
  let response:HttpResponse;try{response=await send(body?'POST':'GET',{url:url.toString(),headers:{Authorization:`Bearer ${session.data.session.access_token}`,'Content-Type':'application/json'},...(body?{data:body}:{}),disableRedirects:true,responseType:'json',connectTimeout:12000,readTimeout:30000})}catch{throw new PublicationError('Delivery could not be confirmed. Retry the same request.',0)}
  if(!current())throw new PublicationError('This team review is no longer open.',401)
  const row=lineupRecord(response.data)
- if(response.status!==200||row.ok!==true)throw new PublicationError(response.status===403?'Captain access is required for this team.':response.status===409?'The saved or shared lineup changed. Close and reopen this review.':response.status===400?'Check the lineup before publishing.':'Delivery could not be confirmed. Retry the same request.',response.status)
+ if(response.status!==200||row.ok!==true)throw new PublicationError(response.status===403?'Captain access is required for this team.':response.status===409?'The saved or shared lineup changed. Close and reopen this review.':response.status===400?(lineupRecord(body).action==='native_replacement_followup'?'Choose a future reply-by time on or before match day.':'Check the lineup before publishing.'):'Delivery could not be confirmed. Retry the same request.',response.status)
  return row
 }
 const text=(value:unknown,max:number)=>{if(typeof value!=='string'||value.length>max)throw new PublicationError('The lineup review could not be confirmed.',503);return value}

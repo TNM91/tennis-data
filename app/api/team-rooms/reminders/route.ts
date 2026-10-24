@@ -1,3 +1,4 @@
+import {replacementReminderIsCurrent,replacementReminderRequestId} from '@/lib/replacement-reminder-target'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { supabaseUrl } from '@/lib/supabase'
 import { buildTeamRoomHref } from '@/lib/team-room'
@@ -12,6 +13,7 @@ type DueScheduleRow = {
   message_id: string
   created_by_user_id: string
   targets: unknown
+  updated_at: string
 }
 
 type NotificationRow = {
@@ -34,7 +36,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await service
     .from('team_room_reminder_schedules')
-    .select('id,conversation_id,message_id,created_by_user_id,targets')
+    .select('id,conversation_id,message_id,created_by_user_id,targets,updated_at')
     .eq('status', 'scheduled')
     .lte('reminder_at', new Date().toISOString())
     .order('reminder_at', { ascending: true })
@@ -66,7 +68,7 @@ async function processSchedule(service: SupabaseClient, schedule: DueScheduleRow
   const [responsesResult, acknowledgmentsResult, messageResult, conversationResult] = await Promise.all([
     service.from('team_room_message_responses').select('profile_id,response').eq('message_id', schedule.message_id),
     service.from('team_room_lineup_acknowledgments').select('profile_id,lineup_version').eq('message_id', schedule.message_id),
-    service.from('internal_messages').select('metadata').eq('id', schedule.message_id).maybeSingle(),
+    service.from('internal_messages').select('metadata').eq('id', schedule.message_id).eq('conversation_id',schedule.conversation_id).is('deleted_at',null).maybeSingle(),
     service.from('internal_conversations').select('subject,metadata').eq('id', schedule.conversation_id).maybeSingle(),
   ])
   const responseByProfileId = new Map(((responsesResult.data ?? []) as Array<{ profile_id: string; response?: string }>).map((row) => [row.profile_id, row.response || ''] as const))
@@ -77,13 +79,13 @@ async function processSchedule(service: SupabaseClient, schedule: DueScheduleRow
   const lineupChangeNotice = metadata.lineupChangeNotice && typeof metadata.lineupChangeNotice === 'object' && !Array.isArray(metadata.lineupChangeNotice)
     ? metadata.lineupChangeNotice as Record<string, unknown>
     : null
-  const lineupChangeAnswered = ['accepted', 'declined'].includes(cleanText(lineupChangeNotice?.response))
-  const openTargets = targets.filter((target) => (
-    (target.needsResponse && !responseByProfileId.has(target.profileId))
-    || (target.needsMaybeFollowup && responseByProfileId.get(target.profileId) === 'maybe')
-    || (target.needsAckVersion > 0 && !acknowledgedKeys.has(`${target.profileId}:${target.needsAckVersion}`))
-    || (target.needsLineupChangeResponse && !lineupChangeAnswered)
-  ))
+  const openTargets = targets.filter((target) => {
+    if (target.needsLineupChangeResponse && !replacementReminderIsCurrent(metadata,target.lineupChangeRequestId||'',schedule.updated_at)) return false
+    return (target.needsResponse && !responseByProfileId.has(target.profileId))
+      || (target.needsMaybeFollowup && responseByProfileId.get(target.profileId) === 'maybe')
+      || (target.needsAckVersion > 0 && !acknowledgedKeys.has(`${target.profileId}:${target.needsAckVersion}`))
+      || target.needsLineupChangeResponse
+  })
   if (!openTargets.length) {
     await service.from('team_room_reminder_schedules').update({ notification_count: 0 }).eq('id', schedule.id)
     return { completed: true, sent: 0 }
@@ -142,6 +144,7 @@ async function processSchedule(service: SupabaseClient, schedule: DueScheduleRow
       .from('internal_messages')
       .select('metadata')
       .eq('id', schedule.message_id)
+      .eq('conversation_id',schedule.conversation_id).is('deleted_at',null)
       .maybeSingle()
     const latestMetadata = latestMessage?.metadata && typeof latestMessage.metadata === 'object'
       ? latestMessage.metadata as Record<string, unknown>
@@ -149,14 +152,14 @@ async function processSchedule(service: SupabaseClient, schedule: DueScheduleRow
     const latestNotice = latestMetadata.lineupChangeNotice && typeof latestMetadata.lineupChangeNotice === 'object' && !Array.isArray(latestMetadata.lineupChangeNotice)
       ? latestMetadata.lineupChangeNotice as Record<string, unknown>
       : lineupChangeNotice
-    if (!['accepted', 'declined'].includes(cleanText(latestNotice.response))) {
+    if (replacementReminderIsCurrent(latestMetadata,replacementReminderRequestId(lineupChangeNotice),schedule.updated_at)) {
       await service.from('internal_messages').update({
         metadata: {
           ...latestMetadata,
           lineupChangeNotice: { ...latestNotice, deadlineStatus: 'reminded', reminderSentAt: now },
         },
         edited_at: now,
-      }).eq('id', schedule.message_id)
+      }).eq('id', schedule.message_id).eq('conversation_id',schedule.conversation_id).is('deleted_at',null).filter('metadata','eq',JSON.stringify(latestMetadata))
     }
   }
   await service.from('team_room_reminder_schedules').update({ notification_count: notifications.length }).eq('id', schedule.id)

@@ -5,7 +5,7 @@ import {sendTeamRoomPush} from './team-room-push-server'
 import {sendNativeTeamChatPush} from './native-chat-push-server'
 const key=(v:unknown)=>typeof v==='string'?v.trim().toLowerCase().replace(/\s+/g,' '):''
 /** Only the publication winner calls this best-effort fanout. Never broadcast a replacement. */
-export async function notifyNativeReplacement(service:SupabaseClient,input:{conversationId:string;messageId:string;owner:string;scope:TeamRoomScope;affectedNames:string[];courtLabel:string;replacementPlayerName:string;outgoingPlayerName:string}){
+export async function notifyNativeReplacement(service:SupabaseClient,input:{conversationId:string;messageId:string;owner:string;scope:TeamRoomScope;affectedNames:string[];courtLabel:string;replacementPlayerName:string;outgoingPlayerName:string;kind?:'reminder'}){
  const [participants,links,removals]=await Promise.all([
   service.from('internal_conversation_participants').select('profile_id,muted').eq('conversation_id',input.conversationId).limit(101),
   service.from('team_profile_links').select('profile_user_id,team_name,league_name,flight,team_role,team_roles').eq('status','accepted').is('archived_at',null).eq('normalized_team_name',normalizeTeamRoomKey(input.scope.teamName)).eq('league_name',input.scope.leagueName).eq('flight',input.scope.flight).limit(1001),
@@ -21,7 +21,7 @@ export async function notifyNativeReplacement(service:SupabaseClient,input:{conv
  const candidates=people.filter(p=>affected.has(key(p.linked_player_name))&&people.filter(other=>key(other.linked_player_name)===key(p.linked_player_name)).length===1).map(p=>String(p.id))
  const recipients=await chatNotificationRecipients(service,input.owner,candidates);if(!recipients.length)return {notifiedCount:0}
  const url=new URL(buildTeamRoomHref(input.scope),'https://www.tenaceiq.com');url.searchParams.set('message',input.messageId);url.searchParams.set('court',input.courtLabel);url.hash=`match-card-${encodeURIComponent(input.messageId)}`
- const href=url.pathname+url.search+url.hash,title=`${input.scope.teamName} lineup changed`,body=`${input.courtLabel}: ${input.replacementPlayerName} is in for ${input.outgoingPlayerName}.`
+ const href=url.pathname+url.search+url.hash,title=input.kind==='reminder'?`${input.scope.teamName} replacement reply`:`${input.scope.teamName} lineup changed`,body=input.kind==='reminder'?`${input.courtLabel}: please answer your replacement request.`:`${input.courtLabel}: ${input.replacementPlayerName} is in for ${input.outgoingPlayerName}.`
  const saved=await service.from('internal_notifications').insert(recipients.map(id=>({recipient_profile_id:id,actor_user_id:input.owner,notification_type:'message',title,body,href,conversation_id:input.conversationId})))
  if(saved.error)return {notifiedCount:0}
  await Promise.all([sendTeamRoomPush(service,recipients,{title,body,href,tag:`team-room-lineup-${input.messageId}`}),sendNativeTeamChatPush(service,{conversationId:input.conversationId,actorId:input.owner,recipients,href,scope:input.scope})])
