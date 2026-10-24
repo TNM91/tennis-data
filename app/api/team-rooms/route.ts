@@ -1,3 +1,4 @@
+import {setTeamChatMute} from '@/lib/team-chat-alerts'
 import {boundedChatJson,readChatPhoto,sendChatPhoto} from '@/lib/native-chat-photos'
 import { loadNativeReactionSummary, setNativeChatReaction } from '@/lib/native-chat-reactions'
 import { sendNativeTeamChatPush } from '@/lib/native-chat-push-server'
@@ -397,6 +398,14 @@ export async function POST(request: Request) {
       }
       return Response.json({ok:true,replayed:result.replayed,message:toMessage(result.message,new Map(),auth.userId)}, {headers:{'Cache-Control':'private, no-store'}})
     } catch { return Response.json({ok:false,message:'Team photos are unavailable. Try again.'},{status:503}) }
+  }
+  if (action === 'set_chat_mute') {
+    const existing = await findNativeChatConversation(auth.service, selected)
+    if (!existing.ok) return Response.json(existing, {status: existing.status})
+    const access = await checkTeamChatAccess(auth.service, auth.userId, existing.id, canManageTeamRoom(teamRoles(selected)))
+    if (!access.ok) return Response.json(access, {status: access.status})
+    const result = await setTeamChatMute(auth.service, auth.userId, existing.id, body.muted)
+    return Response.json(result, {status: result.status, headers: {'Cache-Control':'private, no-store'}})
   }
   if (action === 'set_chat_reaction') {
     const existing = await findNativeChatConversation(auth.service, selected)
