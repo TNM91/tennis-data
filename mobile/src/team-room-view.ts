@@ -1,8 +1,9 @@
+import {chatReactionButtons,type ChatReactionKind} from './chat-reactions'
 import {watchTeamChat,type TeamLiveStatus} from './team-chat-live'
 import {newerChatTime} from './team-chat-read'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {loadTeamRoom,loadTeamChatUpdate,TeamRoomAccessError,type NativeTeamData,type NativeTeamRoom,type TeamScope} from './team-room-data'
-import {TeamChatDraft,postTeamChat,type ChatAction} from './team-chat-send'
+import {ChatActionError,TeamChatDraft,postTeamChat,type ChatAction} from './team-chat-send'
 import {html} from './match-details'
 import {matchDate} from './recent-results'
 
@@ -14,7 +15,7 @@ export function teamConversationHtml(room:NativeTeamRoom) {
  const byId=new Map(room.messages.map(message=>[message.id,message]))
  return `<div class="chat-history-heading"><p class="rating-context">Latest 75 messages</p><button type="button" class="secondary" id="chat-latest">Latest ↓</button></div><ol class="team-conversation" aria-label="Team conversation" tabindex="0">${room.messages.map(message=>{
   const reply=byId.get(message.replyToMessageId)
-  return `<li data-chat-message="${html(message.id)}" class="team-bubble ${message.isMine?'team-bubble-mine':''}"><div class="team-message-meta"><strong>${html(message.senderName)}</strong><span>${html(messageTime(message.createdAt))}</span></div>${message.kind==='announcement'?'<small class="chat-announcement">Captain announcement</small>':''}${message.replyToMessageId?`<blockquote>${reply && !reply.deletedAt?`<strong>${html(reply.senderName)}</strong><span>${html(reply.body.slice(0,160))}</span>`:'Earlier or removed message'}</blockquote>`:''}<p>${html(message.body)}</p>${message.hasAttachment && !message.deletedAt?'<small>Attachment available on the website.</small>':''}${message.card?'<small>Match-day card · open Match day for the shared court plan.</small>':''}${room.chatReady && !message.deletedAt?`<div class="chat-message-actions"><button type="button" class="secondary" data-chat-reply="${html(message.id)}" aria-label="Reply to ${html(message.senderName)}">Reply</button>${!message.isMine?`<button type="button" class="secondary" data-chat-report="${html(message.id)}" aria-label="Report message from ${html(message.senderName)}">Report</button>${message.senderUserId?`<button type="button" class="secondary" data-chat-block="${html(message.senderUserId)}" aria-label="Block chat posts from ${html(message.senderName)}">Block</button>`:''}`:''}</div>`:''}</li>`
+  return `<li data-chat-message="${html(message.id)}" class="team-bubble ${message.isMine?'team-bubble-mine':''}"><div class="team-message-meta"><strong>${html(message.senderName)}</strong><span>${html(messageTime(message.createdAt))}</span></div>${message.kind==='announcement'?'<small class="chat-announcement">Captain announcement</small>':''}${message.replyToMessageId?`<blockquote>${reply && !reply.deletedAt?`<strong>${html(reply.senderName)}</strong><span>${html(reply.body.slice(0,160))}</span>`:'Earlier or removed message'}</blockquote>`:''}<p>${html(message.body)}</p>${message.hasAttachment && !message.deletedAt?'<small>Attachment available on the website.</small>':''}${message.card?'<small>Match-day card · open Match day for the shared court plan.</small>':''}${room.chatReady && !message.deletedAt?`<div class="chat-message-actions"><button type="button" class="secondary" data-chat-reply="${html(message.id)}" aria-label="Reply to ${html(message.senderName)}">Reply</button>${!message.isMine?`<button type="button" class="secondary" data-chat-report="${html(message.id)}" aria-label="Report message from ${html(message.senderName)}">Report</button>${message.senderUserId?`<button type="button" class="secondary" data-chat-block="${html(message.senderUserId)}" aria-label="Block chat posts from ${html(message.senderName)}">Block</button>`:''}`:''}</div>${chatReactionButtons(message)}`:''}</li>`
  }).join('') || '<li class="rating-context">Start the team conversation.</li>'}</ol>`
 }
 export function teamMatchDayHtml(room:NativeTeamRoom) {
@@ -25,13 +26,15 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  let disposed=false,revision=0,selected:TeamScope|undefined=initialScope,tab:'Match day'|'Conversation'|'Members'='Conversation',snapshot:NativeTeamData|null=null
  let busy=false,safetyNotice='',safetyChoice:{kind:'report'|'block';id:string;name:string}|null=null
  let live:ReturnType<typeof watchTeamChat>|null=null,watchedRoomId='',liveStatus:TeamLiveStatus='connecting',readRoomId='',matchDetailsDirty=false,readThrough='',lastAckAttempt='',readNotice='',historyScroll=0,needsLiveRefresh=false
- let unread=new Set<string>(),fullLoads=0
+ let unread=new Set<string>(),fullLoads=0,reactionSending=false,reactionEpoch=0,reactionNotice=''
+ const pendingReactions=new Map<string,Extract<ChatAction,{action:'set_chat_reaction'}>>()
  const valid=()=>!disposed && isCurrent()
  const statusText=()=>liveStatus==='live'?'Live chat on':liveStatus==='connecting'?'Connecting to live chat…':liveStatus==='paused'?'Live updates paused. Refresh if needed.':'Live updates unavailable. Refresh to check for messages.'
  const updateLabels=()=>{
   const button=app.querySelector<HTMLButtonElement>('[data-team-tab="Conversation"]');if(button)button.textContent=`Conversation${unread.size?` (${unread.size})`:''}`
   const latest=app.querySelector<HTMLButtonElement>('#chat-latest');if(latest)latest.textContent=unread.size?`${unread.size} new · Latest ↓`:'Latest ↓'
   const status=app.querySelector('#chat-live-status');if(status)status.textContent=statusText()
+  const reaction=app.querySelector('#chat-reaction-status');if(reaction)reaction.textContent=reactionNotice
   const read=app.querySelector('#chat-read-status');if(read)read.textContent=readNotice
  }
  const updateUnread=(room:NativeTeamRoom)=>{
@@ -52,7 +55,26 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   const roomId=room.id
   void postTeamChat(client,userId,valid,{...selected},{action:'mark_chat_read',messageId:latest.id}).catch(()=>{if(valid() && snapshot?.room?.id===roomId){readNotice='Read position will retry when you refresh.';updateLabels()}})
  }
+ const reconcileReactions=(room:NativeTeamRoom)=>{
+  for(const [key,action] of pendingReactions){const message=room.messages.find(message=>message.id===action.messageId);if(!message || message.deletedAt || (message.reactions?.find(item=>item.reaction===action.reaction)?.reacted===true)===action.active)pendingReactions.delete(key)}
+ }
  const bindMessageActions=(room:NativeTeamRoom)=>{
+  app.querySelectorAll<HTMLButtonElement>('[data-chat-reaction]').forEach(button=>{
+   const key=`${button.dataset.reactionMessage}:${button.dataset.chatReaction}`
+   button.disabled=reactionSending || busy || draft.sending
+   if(pendingReactions.has(key))button.setAttribute('aria-label',`Retry ${button.dataset.chatReaction} reaction`)
+   button.onclick=()=>{void (async()=>{
+    if(reactionSending || busy || draft.sending)return
+    const message=room.messages.find(message=>message.id===button.dataset.reactionMessage),reaction=button.dataset.chatReaction as ChatReactionKind
+    if(!message || message.deletedAt || !['helpful','celebrate'].includes(reaction))return
+    const action=pendingReactions.get(key) || {action:'set_chat_reaction' as const,messageId:message.id,reaction,active:!message.reactions?.find(item=>item.reaction===reaction)?.reacted}
+    const epoch=reactionEpoch,roomId=room.id
+    reactionSending=true;reactionNotice='Saving reaction…';bindMessageActions(room);updateLabels()
+    try{await postTeamChat(client,userId,valid,currentScope(),action);if(!valid() || epoch!==reactionEpoch || snapshot?.room?.id!==roomId)return;pendingReactions.delete(key);reactionNotice='Reaction saved.'}
+    catch(cause){if(!valid() || epoch!==reactionEpoch || snapshot?.room?.id!==roomId)return;if(!(cause instanceof ChatActionError) || cause.uncertain){pendingReactions.set(key,action);reactionNotice='Couldn’t confirm the reaction. Tap it again to retry the same choice.'}else{pendingReactions.delete(key);reactionNotice='Reaction wasn’t saved. Refresh the team and try again.'}}
+    finally{if(valid() && epoch===reactionEpoch && snapshot?.room?.id===roomId){reactionSending=false;await refreshLive().catch(()=>{});if(snapshot?.room){reconcileReactions(snapshot.room);bindMessageActions(snapshot.room)}updateLabels()}}
+   })()}
+  })
   app.querySelectorAll<HTMLButtonElement>('[data-chat-reply]').forEach(button=>{button.disabled=Boolean(draft.pending || draft.sending || busy);button.onclick=()=>{const message=room.messages.find(message=>message.id===button.dataset.chatReply);if(!message || draft.pending || draft.sending)return;draft.reply={id:message.id,name:message.senderName,body:message.body};render();app.querySelector<HTMLTextAreaElement>('#chat-draft')?.focus()}})
   app.querySelectorAll<HTMLButtonElement>('[data-chat-report],[data-chat-block]').forEach(button=>{button.disabled=busy || draft.sending;button.onclick=()=>{if(busy || draft.sending)return;const report=button.dataset.chatReport;const message=room.messages.find(message=>report?message.id===report:message.senderUserId===button.dataset.chatBlock);if(!message)return;safetyChoice={kind:report?'report':'block',id:report || message.senderUserId,name:message.senderName};render();app.querySelector<HTMLElement>('[aria-label="Chat safety"]')?.scrollIntoView({block:'nearest'})}})
  }
@@ -80,7 +102,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
    if(!valid() || version!==revision || snapshot?.room?.id!==room.id)return
    const {blockedUserIds,...fields}=update,blocked=new Set(blockedUserIds)
    if(draft.reply && room.messages.some(message=>message.id===draft.reply?.id && blocked.has(message.senderUserId)))draft.reply=null
-   snapshot={...snapshot,room:{...room,...fields,activeCard:room.activeCard && !blocked.has(room.activeCard.senderUserId)?room.activeCard:null,blockedMembers:blockedUserIds.map(id=>({id,name:room.messages.find(message=>message.senderUserId===id)?.senderName || room.blockedMembers.find(member=>member.id===id)?.name || 'Team member'}))}};matchDetailsDirty=true;updateUnread(snapshot.room!);if(tab==='Conversation' && !safetyChoice)renderLiveHistory(snapshot.room!,followLatest);else updateLabels()
+   snapshot={...snapshot,room:{...room,...fields,activeCard:room.activeCard && !blocked.has(room.activeCard.senderUserId)?room.activeCard:null,blockedMembers:blockedUserIds.map(id=>({id,name:room.messages.find(message=>message.senderUserId===id)?.senderName || room.blockedMembers.find(member=>member.id===id)?.name || 'Team member'}))}};matchDetailsDirty=true;reconcileReactions(snapshot.room!);updateUnread(snapshot.room!);if(tab==='Conversation' && !safetyChoice)renderLiveHistory(snapshot.room!,followLatest);else updateLabels()
   }catch(cause){
    if(valid() && version===revision && cause instanceof TeamRoomAccessError){freshDraft();snapshot=null;app.innerHTML='<h1>Team unavailable</h1><p role="alert">Your team access changed. Open My teams again to check your connections.</p>'}
    if(valid() && version===revision){liveStatus='paused';updateLabels()}
@@ -94,7 +116,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
  }
  const currentScope=():TeamScope=>{if(!selected)throw Error('Open a team first.');return {...selected}}
  let draft=new TeamChatDraft(action=>postTeamChat(client,userId,valid,currentScope(),action))
- const freshDraft=()=>{live?.dispose();live=null;watchedRoomId='';readRoomId='';readThrough='';lastAckAttempt='';readNotice='';unread.clear();needsLiveRefresh=false;draft.dispose();draft=new TeamChatDraft(action=>postTeamChat(client,userId,valid,currentScope(),action))}
+ const freshDraft=()=>{reactionEpoch++;reactionSending=false;reactionNotice='';pendingReactions.clear();live?.dispose();live=null;watchedRoomId='';readRoomId='';readThrough='';lastAckAttempt='';readNotice='';unread.clear();needsLiveRefresh=false;draft.dispose();draft=new TeamChatDraft(action=>postTeamChat(client,userId,valid,currentScope(),action))}
  const load=async(preserve=false,latest=false)=>{
   fullLoads++
   const version=++revision
@@ -132,7 +154,7 @@ export function showTeamRoom(app:HTMLElement,client:SupabaseClient,userId:string
   const caret=oldInput && document.activeElement===oldInput?{start:oldInput.selectionStart,end:oldInput.selectionEnd}:null
   const room=snapshot.room
   if(!room){freshDraft();app.innerHTML='<h1 tabindex="-1">My teams</h1><p>No accepted team connection is available. Connect your team on the website, then refresh here.</p><button type="button" class="secondary">Refresh teams</button>';app.querySelector<HTMLButtonElement>('button')!.onclick=()=>{void load()};return}
-  app.innerHTML=`<small>Team chat</small><h1 tabindex="-1">${html(room.teamName)}</h1><p>${html(room.leagueName)} · ${html(room.flight || 'Flight unavailable')}</p><label class="sr-only" for="linked-team">Linked team</label><select id="linked-team" ${draft.pending || busy || draft.sending?'disabled':''}>${snapshot.teams.map((team,index)=>`<option value="${index}" ${team.teamName===room.teamName && team.leagueName===room.leagueName && team.flight===room.flight?'selected':''}>${html(team.teamName)} · ${html(team.leagueName)} · ${html(team.flight)}</option>`).join('')}</select><div class="match-filters" role="group" aria-label="Team views">${(['Conversation','Match day','Members'] as const).map(value=>`<button type="button" class="secondary" data-team-tab="${value}" aria-pressed="${tab===value}">${value}</button>`).join('')}</div><p id="chat-live-status" role="status" class="rating-context"></p><div id="team-panel"></div><p id="chat-read-status" role="status" class="rating-context"></p><p role="status" class="chat-safety-status">${html(safetyNotice)}</p><button type="button" class="secondary" id="refresh-team" ${busy || draft.sending?'disabled':''}>Refresh team</button><p class="rating-context">Manage team alerts in My Lab. Photos and reactions are coming next.</p>`
+  app.innerHTML=`<small>Team chat</small><h1 tabindex="-1">${html(room.teamName)}</h1><p>${html(room.leagueName)} · ${html(room.flight || 'Flight unavailable')}</p><label class="sr-only" for="linked-team">Linked team</label><select id="linked-team" ${draft.pending || busy || draft.sending?'disabled':''}>${snapshot.teams.map((team,index)=>`<option value="${index}" ${team.teamName===room.teamName && team.leagueName===room.leagueName && team.flight===room.flight?'selected':''}>${html(team.teamName)} · ${html(team.leagueName)} · ${html(team.flight)}</option>`).join('')}</select><div class="match-filters" role="group" aria-label="Team views">${(['Conversation','Match day','Members'] as const).map(value=>`<button type="button" class="secondary" data-team-tab="${value}" aria-pressed="${tab===value}">${value}</button>`).join('')}</div><p id="chat-live-status" role="status" class="rating-context"></p><p id="chat-reaction-status" role="status" class="rating-context"></p><div id="team-panel"></div><p id="chat-read-status" role="status" class="rating-context"></p><p role="status" class="chat-safety-status">${html(safetyNotice)}</p><button type="button" class="secondary" id="refresh-team" ${busy || draft.sending?'disabled':''}>Refresh team</button><p class="rating-context">Manage team alerts in My Lab. Photos are coming next.</p>`
   const panel=app.querySelector<HTMLElement>('#team-panel')!
   panel.innerHTML=tab==='Match day'?teamMatchDayHtml(room):tab==='Conversation'?teamConversationHtml(room):`<section><h2>Team members</h2><ul class="team-members">${room.members.map(member=>`<li><strong>${html(member.name)}</strong><span>${member.roles.includes('captain')?'Captain':member.roles.includes('co_captain')?'Co-captain':'Player'}</span></li>`).join('')}</ul></section>${room.blockedMembers.length?`<section><h2>Blocked chat posts</h2><p>These members’ posts are hidden from your team conversations. Blocking does not remove anyone from the team. Your posts remain visible to the group.</p><ul class="team-members">${room.blockedMembers.map(member=>`<li>${html(member.name)}<button type="button" class="secondary" data-chat-unblock="${html(member.id)}" ${busy?'disabled':''}>Unblock chat posts</button></li>`).join('')}</ul></section>`:''}`
   if(tab==='Conversation'){

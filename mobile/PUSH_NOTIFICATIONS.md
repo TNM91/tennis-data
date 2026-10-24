@@ -28,6 +28,6 @@ Focused tests cover provider signing/token caching, private payloads, concurrenc
 
 Full verification passed lint, typecheck, 744 test files / 3,927 tests, extension syntax and the production build. The final focused push set passed 17 tests, including the added API and cold-start cases. Eight native guards plus the upload-parser test passed, as did bundled client preparation and iOS source checks. Local production GET/POST smoke denied anonymous registration with 401 JSON.
 
-Build 13 remains the released internal beta. This push candidate is not yet deployed or uploaded.
+Build 14 is released to the existing internal TestFlight group. The push migration and production-only APNs configuration are active, with the regenerated push-enabled App Store profile. Production bearer and role checks passed. The owner opted in on build 14; Apple accepted the single authorized generic test alert (HTTP 200), and the owner confirmed receipt on the iPhone. No additional test alert or real chat post was sent. The preceding candidate checks are retained as implementation evidence.
 
 Official implementation references: [Capacitor iOS push plugin](https://capacitorjs.com/docs/apis/push-notifications), [Apple provider authentication](https://developer.apple.com/documentation/usernotifications/establishing-a-token-based-connection-to-apns), [Apple APNs key creation](https://developer.apple.com/help/account/keys/create-a-private-key).

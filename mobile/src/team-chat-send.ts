@@ -3,6 +3,7 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import type {TeamScope} from './team-room-data'
 
 export type ChatAction =
+  | {action:'set_chat_reaction';messageId:string;reaction:'helpful'|'celebrate';active:boolean}
   | {action:'mark_chat_read';messageId:string}
   | {action:'send';clientMessageId:string;body:string;replyToMessageId:string}
   | {action:'report_chat_message';messageId:string;reason:'harassment'|'spam'|'inappropriate'|'other'}
@@ -22,6 +23,7 @@ export async function postTeamChat(client:SupabaseClient,userId:string,isCurrent
   const uncertain=response.status>=500 || response.status===409 || response.status>=300 && response.status<400 || response.status===200
   throw new ChatActionError(response.status===403?'Your team access is unavailable.':response.status===401?'Sign in again to continue.':uncertain?'We couldn’t confirm this send. Retry the same message.':'This action wasn’t saved. Refresh the team and try again.',uncertain)
  }
+ if(action.action==='set_chat_reaction' && (response.data.messageId!==action.messageId || response.data.reaction!==action.reaction || response.data.active!==action.active))throw new ChatActionError('Couldn’t confirm this reaction. Retry the same choice.',true)
  if(action.action==='send' && (response.data.message?.id!==action.clientMessageId || response.data.message?.isMine!==true || response.data.message?.body!==action.body))throw new ChatActionError('We couldn’t confirm this send. Retry the same message.',true)
  return response.data
 }
