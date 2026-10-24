@@ -1,3 +1,4 @@
+import { showTeamRoom } from './team-room-view'
 import { showComparison } from './comparison-view'
 import { showFollowing } from './follows-view'
 import { showPlayerRatings } from './player-ratings-view'
@@ -23,8 +24,9 @@ const navigation = document.createElement('nav')
 navigation.className = 'app-navigation'
 navigation.setAttribute('aria-label','Main navigation')
 navigation.hidden = true
-navigation.innerHTML = '<button type="button" data-screen="lab">My Lab</button><button type="button" data-screen="explore">Explore</button><button type="button" data-screen="following">Following</button><button type="button" data-screen="matchup">Matchup</button>'
+navigation.innerHTML = '<button type="button" data-screen="lab">My Lab</button><button type="button" data-screen="explore">Explore</button><button type="button" data-screen="following">Following</button><button type="button" data-screen="matchup">Matchup</button><button type="button" data-screen="teams">My teams</button>'
 app.after(navigation)
+let teamRoom:ReturnType<typeof showTeamRoom>|null=null
 let comparison:ReturnType<typeof showComparison>|null=null
 let following:ReturnType<typeof showFollowing>|null=null
 let explore: ReturnType<typeof showExplore> | null = null
@@ -36,7 +38,8 @@ let recovery: ReturnType<typeof showPasswordRecovery> | null = null
 
 if (Capacitor.getPlatform() === 'android') {
   void App.addListener('backButton', () => {
-    if(comparison){if(!comparison.back())void lab()}
+    if(teamRoom){void lab()}
+    else if(comparison){if(!comparison.back())void lab()}
     else if(following){if(!following.back())void lab()}
     else if (explore) { if (!explore.back()) void lab() }
     else if (connection) { if (!connection.isSaving()) void lab() }
@@ -47,6 +50,7 @@ if (Capacitor.getPlatform() === 'android') {
 }
 
 function login(message = '') {
+  teamRoom?.dispose();teamRoom=null
   comparison?.dispose();comparison=null
   following?.dispose();following=null
   explore?.dispose()
@@ -78,7 +82,7 @@ function login(message = '') {
   }
 }
 
-function selectNavigation(screen: 'lab' | 'explore' | 'following' | 'matchup') {
+function selectNavigation(screen: 'lab' | 'explore' | 'following' | 'matchup' | 'teams') {
   navigation.hidden = false
   navigation.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
     if (button.dataset.screen === screen) button.setAttribute('aria-current','page')
@@ -88,6 +92,7 @@ function selectNavigation(screen: 'lab' | 'explore' | 'following' | 'matchup') {
 navigation.querySelector<HTMLButtonElement>('[data-screen="lab"]')!.onclick = () => {if (!connection?.isSaving()) void lab()}
 navigation.querySelector<HTMLButtonElement>('[data-screen="explore"]')!.onclick = () => {
   if (!session || connection?.isSaving() || explore) return
+  teamRoom?.dispose();teamRoom=null
   comparison?.dispose();comparison=null
   following?.dispose();following=null
   connection?.dispose(); connection = null
@@ -101,6 +106,7 @@ navigation.querySelector<HTMLButtonElement>('[data-screen="explore"]')!.onclick 
 
 navigation.querySelector<HTMLButtonElement>('[data-screen="following"]')!.onclick=()=>{
   if(!session || connection?.isSaving() || following)return
+  teamRoom?.dispose();teamRoom=null
   comparison?.dispose();comparison=null
   explore?.dispose();explore=null;connection?.dispose();connection=null;details?.dispose();details=null
   const userId=session.user.id,version=++revision
@@ -110,13 +116,23 @@ navigation.querySelector<HTMLButtonElement>('[data-screen="following"]')!.onclic
 
 navigation.querySelector<HTMLButtonElement>('[data-screen="matchup"]')!.onclick=()=>{
   if(!session || connection?.isSaving() || comparison)return
+  teamRoom?.dispose();teamRoom=null
   following?.dispose();following=null;explore?.dispose();explore=null;connection?.dispose();connection=null;details?.dispose();details=null
   const userId=session.user.id,version=++revision
   selectNavigation('matchup')
   comparison=showComparison(app,client,()=>version===revision && userId===session?.user.id)
 }
 
+navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')!.onclick=()=>{
+  if(!session || connection?.isSaving() || teamRoom)return
+  comparison?.dispose();comparison=null;following?.dispose();following=null;explore?.dispose();explore=null;connection?.dispose();connection=null;details?.dispose();details=null
+  const userId=session.user.id,version=++revision
+  selectNavigation('teams')
+  teamRoom=showTeamRoom(app,client,userId,()=>version===revision && userId===session?.user.id)
+}
+
 async function lab() {
+  teamRoom?.dispose();teamRoom=null
   comparison?.dispose();comparison=null
   following?.dispose();following=null
   explore?.dispose()
@@ -200,7 +216,7 @@ async function lab() {
 }
 
 client.auth.onAuthStateChange((_event, next) => {
-  if (next?.user.id === session?.user.id && (details?.isOpen() || connection || explore || following || comparison)) { session = next; return }
+  if (next?.user.id === session?.user.id && (details?.isOpen() || connection || explore || following || comparison || teamRoom)) { session = next; return }
   session = next
   revision++
   // Schedule outside the auth callback's lock before making another SDK call.
@@ -211,7 +227,7 @@ client.auth.getSession().catch(() => {
   app.innerHTML = '<h1>Couldn’t open your account</h1><p role="alert">Close the app and try again. Secure sign-in storage is unavailable.</p>'
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !details?.isOpen() && !connection && !explore && !following && !comparison) void lab() }
+  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !details?.isOpen() && !connection && !explore && !following && !comparison && !teamRoom) void lab() }
   else client.auth.stopAutoRefresh()
 })
-window.addEventListener('online', () => { if (session && !details?.isOpen() && !connection && !explore && !following && !comparison) void lab() })
+window.addEventListener('online', () => { if (session && !details?.isOpen() && !connection && !explore && !following && !comparison && !teamRoom) void lab() })
