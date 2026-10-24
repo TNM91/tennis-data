@@ -4,6 +4,7 @@ import type {SupabaseClient} from '@supabase/supabase-js'
 import type {TeamScope} from './team-room-data'
 
 export type ChatAction =
+  | {action:'set_chat_mute';conversationId:string;muted:boolean}
   | {action:'read_chat_photo';messageId:string;photoPreview?:boolean}
   | {action:'send_chat_photo';clientMessageId:string;body:string;replyToMessageId:string;photoBase64:string}
   | {action:'set_chat_reaction';messageId:string;reaction:'helpful'|'celebrate';active:boolean}
@@ -26,6 +27,7 @@ export async function postTeamChat(client:SupabaseClient,userId:string,isCurrent
   const uncertain=response.status>=500 || response.status===409 || response.status>=300 && response.status<400 || response.status===200
   throw new ChatActionError(response.status===403?'Your team access is unavailable.':response.status===401?'Sign in again to continue.':uncertain?'We couldn’t confirm this send. Retry the same message.':'This action wasn’t saved. Refresh the team and try again.',uncertain)
  }
+ if(action.action==='set_chat_mute' && (response.data.conversationId!==action.conversationId || response.data.muted!==action.muted))throw new ChatActionError('Couldn’t confirm your team alerts. Retry the same setting.',true)
  if(action.action==='read_chat_photo' && response.data.messageId!==action.messageId)throw new ChatActionError('Photo unavailable. Close and try again.',false)
  if(action.action==='set_chat_reaction' && (response.data.messageId!==action.messageId || response.data.reaction!==action.reaction || response.data.active!==action.active))throw new ChatActionError('Couldn’t confirm this reaction. Retry the same choice.',true)
  if(action.action==='send_chat_photo' && response.data.message?.attachment?.mimeType!=='image/jpeg')throw new ChatActionError('Couldn’t confirm your photo. Retry the same send.',true)

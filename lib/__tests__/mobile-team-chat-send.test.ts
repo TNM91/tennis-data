@@ -59,3 +59,15 @@ describe('native reaction transport confirmations',()=>{
   }
  })
 })
+
+describe('native team alert confirmations',()=>{
+ it('requires the exact room and desired boolean before showing success',async()=>{
+  const mute={action:'set_chat_mute' as const,conversationId:'room',muted:true}
+  const send=vi.fn().mockResolvedValue({status:200,data:{ok:true,conversationId:'room',muted:true}})
+  await expect(postTeamChat(client,'owner',()=>true,scope,mute,send)).resolves.toMatchObject({muted:true})
+  for(const patch of [{muted:false},{muted:'true'},{conversationId:'other'}]){
+   send.mockResolvedValueOnce({status:200,data:{ok:true,conversationId:'room',muted:true,...patch}})
+   await expect(postTeamChat(client,'owner',()=>true,scope,mute,send)).rejects.toMatchObject({uncertain:true})
+  }
+ })
+})
