@@ -12,7 +12,7 @@ export type ChatAction =
   | {action:'ack_final_lineup';messageId:string}
   | {action:'set_chat_mute';conversationId:string;muted:boolean}
   | {action:'read_chat_photo';messageId:string;photoPreview?:boolean}
-  | {action:'send_chat_photo';clientMessageId:string;body:string;replyToMessageId:string;photoBase64:string}
+  | {action:'send_chat_photo';clientMessageId:string;body:string;replyToMessageId:string;photoBase64:string;photoMimeType?:'image/gif'}
   | {action:'set_chat_reaction';messageId:string;reaction:'helpful'|'celebrate';active:boolean}
   | {action:'mark_chat_read';messageId:string}
   | {action:'send';clientMessageId:string;body:string;replyToMessageId:string}
@@ -44,8 +44,8 @@ export async function postTeamChat(client:SupabaseClient,userId:string,isCurrent
  if(action.action==='set_chat_mute' && (response.data.conversationId!==action.conversationId || response.data.muted!==action.muted))throw new ChatActionError('Couldn’t confirm your team alerts. Retry the same setting.',true)
  if(action.action==='read_chat_photo' && response.data.messageId!==action.messageId)throw new ChatActionError('Photo unavailable. Close and try again.',false)
  if(action.action==='set_chat_reaction' && (response.data.messageId!==action.messageId || response.data.reaction!==action.reaction || response.data.active!==action.active))throw new ChatActionError('Couldn’t confirm this reaction. Retry the same choice.',true)
- if(action.action==='send_chat_photo' && response.data.message?.attachment?.mimeType!=='image/jpeg')throw new ChatActionError('Couldn’t confirm your photo. Retry the same send.',true)
- if((action.action==='send' || action.action==='send_chat_photo') && (response.data.message?.id!==action.clientMessageId || response.data.message?.isMine!==true || response.data.message?.body!==(action.action==='send_chat_photo'?(action.body || 'Shared a photo.'):action.body)))throw new ChatActionError('We couldn’t confirm this send. Retry the same message.',true)
+ if(action.action==='send_chat_photo' && response.data.message?.attachment?.mimeType!==(action.photoMimeType || 'image/jpeg'))throw new ChatActionError('Couldn’t confirm your photo. Retry the same send.',true)
+ if((action.action==='send' || action.action==='send_chat_photo') && (response.data.message?.id!==action.clientMessageId || response.data.message?.isMine!==true || response.data.message?.body!==(action.action==='send_chat_photo'?(action.body || (action.photoMimeType==='image/gif'?'Shared a GIF.':'Shared a photo.')):action.body)))throw new ChatActionError('We couldn’t confirm this send. Retry the same message.',true)
  return response.data
 }
 
@@ -61,7 +61,7 @@ export class TeamChatDraft {
  async submit():Promise<boolean> {
   if(this.disposed || this.sending || !this.pending && !this.text.trim() && !this.photo)return false
   const wasPending=Boolean(this.pending)
-  if(!this.pending)this.pending={...(this.photo?{action:'send_chat_photo' as const,photoBase64:this.photo.base64}:{action:'send' as const}),clientMessageId:this.newId(),body:this.text.trim().slice(0,2400),replyToMessageId:this.reply?.id || ''}
+  if(!this.pending)this.pending={...(this.photo?{action:'send_chat_photo' as const,photoBase64:this.photo.base64,...(this.photo.mimeType?{photoMimeType:this.photo.mimeType}:{})}:{action:'send' as const}),clientMessageId:this.newId(),body:this.text.trim().slice(0,2400),replyToMessageId:this.reply?.id || ''}
   const pending=this.pending
   this.sending=true;this.notice='Sending…'
   try{

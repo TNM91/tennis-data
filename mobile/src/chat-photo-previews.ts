@@ -4,6 +4,7 @@ export function chatPhotoPreviews(load:(id:string)=>Promise<string>,isCurrent:()
  let observer:IntersectionObserver|null=null,root:HTMLElement|null=null,epoch=0,active=0,disposed=false
  const buttons=()=>root?Array.from(root.querySelectorAll<HTMLButtonElement>('[data-chat-photo]')):[]
  const paint=(id:string,source:string)=>{for(const button of buttons().filter(button=>button.dataset.chatPhoto===id)){
+  if(button.dataset.gifPlaying==='true')continue
   const target=button.querySelector('[data-photo-preview]');if(!target)continue
   const image=document.createElement('img');image.src=source;image.alt='Photo shared with your team';image.width=320;image.height=240;image.decoding='async';target.replaceChildren(image)
  }}

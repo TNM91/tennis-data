@@ -1,5 +1,5 @@
 import {Camera,MediaTypeSelection} from '@capacitor/camera'
-export type ChatPhoto={base64:string;preview:string}
+export type ChatPhoto={base64:string;preview:string;mimeType?:'image/gif'}
 export async function chooseChatPhoto(source:'camera'|'library'):Promise<ChatPhoto>{
  const options={quality:75,targetWidth:1600,targetHeight:1600,correctOrientation:true,includeMetadata:false,webUseInput:true}
  const media=source==='camera'?await Camera.takePhoto({...options,saveToGallery:false}):(await Camera.chooseFromGallery({...options,mediaType:MediaTypeSelection.Photo,allowMultipleSelection:false,limit:1})).results[0]
@@ -22,8 +22,8 @@ export async function resizeChatPhoto(source:string):Promise<ChatPhoto>{
 }
 export function privatePhotoData(value:unknown):string{
  const data=value as {ok?:boolean;mimeType?:string;base64?:string}
- if(data?.ok!==true || data.mimeType!=='image/jpeg' || typeof data.base64!=='string' || !data.base64.length || data.base64.length>2796204 || !/^[A-Za-z0-9+/]+={0,2}$/.test(data.base64))throw Error('Photo unavailable.')
- return 'data:image/jpeg;base64,'+data.base64
+ if(data?.ok!==true || !['image/jpeg','image/gif'].includes(data.mimeType || '') || typeof data.base64!=='string' || !data.base64.length || data.base64.length>2796204 || !/^[A-Za-z0-9+/]+={0,2}$/.test(data.base64))throw Error('Photo unavailable.')
+ return `data:${data.mimeType};base64,`+data.base64
 }
 
 export function localCameraSource(source:string,locationHref:string){
