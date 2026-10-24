@@ -44,3 +44,25 @@ describe('native linked team room',()=>{
  })
 
 })
+
+describe('older conversation transport',()=>{
+ const client={auth:{getSession:vi.fn().mockResolvedValue({data:{session:{user:{id:'owner'},access_token:'test-token'}},error:null})}} as unknown as SupabaseClient
+ const before='2026-10-24T08:00:00.123456+00:00|1959be10-0000-4000-8000-000000000075'
+ it('requests the exact page on the read-only endpoint and rejects rollback, wrong page, room, and malformed cursor responses',async()=>{
+  const data={ok:true,chatUpdate:true,beforeCursor:before,nextCursor:'',room:{id:'room-1',blockedUserIds:[],messages:raw().room.messages,lastReadAt:''}}
+  const send=vi.fn().mockResolvedValue({status:200,data})
+  const page=await loadTeamChatUpdate(client,'owner',()=>true,scope,'room-1',send,before)
+  expect(page.messages).toHaveLength(75);expect(page.nextCursor).toBe('');expect(page.beforeCursor).toBe(before)
+  const url=new URL(send.mock.calls[0][0].url);expect(url.searchParams.get('before')).toBe(before);expect(url.searchParams.get('team')).toBe(scope.teamName);expect(url.searchParams.get('flight')).toBe('4.0');expect(url.pathname).toBe('/api/team-rooms/chat')
+  for(const change of [{beforeCursor:undefined},{beforeCursor:''},{nextCursor:'unsafe'},{room:{...data.room,id:'another-room'}},{chatUpdate:false}]){
+   send.mockResolvedValue({status:200,data:{...data,...change}})
+   await expect(loadTeamChatUpdate(client,'owner',()=>true,scope,'room-1',send,before)).rejects.toThrow()
+  }
+  send.mockClear();await expect(loadTeamChatUpdate(client,'owner',()=>true,scope,'room-1',send,'unsafe')).rejects.toThrow();expect(send).not.toHaveBeenCalled()
+  await expect(loadTeamChatUpdate(client,'other',()=>true,scope,'room-1',send,before)).rejects.toThrow();expect(send).not.toHaveBeenCalled()
+ })
+ it('renders navigation without attachment URLs and clearly identifies an older window',()=>{
+  const markup=teamConversationHtml(parseTeamData(raw()).room!,true)
+  expect(markup).toContain('Earlier messages');expect(markup).toContain('id="chat-earlier"');expect(markup).not.toContain('Latest 75 messages');expect(markup).not.toContain('https://untrusted.invalid')
+ })
+})

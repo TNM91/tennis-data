@@ -343,7 +343,9 @@ export async function GET(request: Request) {
   }
 
   if (url.searchParams.get('chatUpdates') === '1') {
-    const result = await loadNativeChatUpdate(auth.service, auth.userId, selected)
+    const scope={teamName:url.searchParams.get('team')||'',leagueName:url.searchParams.get('league')||'',flight:url.searchParams.get('flight')||''}
+    if(scope.teamName!==selected.team_name || scope.leagueName!==selected.league_name || scope.flight!==(selected.flight||''))return Response.json({ok:false,message:'This team connection changed. Refresh your team.'},{status:403,headers:{'Cache-Control':'private, no-store'}})
+    const result = await loadNativeChatUpdate(auth.service, auth.userId, selected, url.searchParams.get('before') || '')
     return Response.json(result, { status: result.ok ? 200 : result.status, headers: { 'Cache-Control': 'private, no-store' } })
   }
 
@@ -2693,18 +2695,18 @@ async function findNativeChatConversation(service: SupabaseClient, selected: Tea
   return {ok: true as const, id: String(conversation.data.id)}
 }
 
-async function loadNativeChatUpdate(service: SupabaseClient, userId: string, selected: TeamLinkRow) {
+async function loadNativeChatUpdate(service: SupabaseClient, userId: string, selected: TeamLinkRow, before = '') {
   const conversation = await findNativeChatConversation(service, selected)
   if (!conversation.ok) return conversation
   const id = conversation.id
-  const loaded = await loadTeamChatRows(service, userId, id, canManageTeamRoom(teamRoles(selected)))
+  const loaded = await loadTeamChatRows(service, userId, id, canManageTeamRoom(teamRoles(selected)), before)
   if (!loaded.ok) return loaded
   try {
     const [profiles, reactions] = await Promise.all([
       loadProfileMap(service, [userId, ...loaded.rows.map(row => row.sender_user_id)]),
       loadNativeReactionSummary(service, userId, id, loaded.rows.map(row => row.id)),
     ])
-    return {ok: true as const, chatUpdate: true, room: {id, blockedUserIds: loaded.blockedUserIds, lastReadAt: loaded.lastReadAt, messages: loaded.rows.map(row => ({...toMessage(row, profiles, userId), reactions: reactions.get(row.id) || []}))}}
+    return {ok: true as const, chatUpdate: true, beforeCursor: loaded.beforeCursor, nextCursor: loaded.nextCursor, room: {id, blockedUserIds: loaded.blockedUserIds, lastReadAt: loaded.lastReadAt, messages: loaded.rows.map(row => ({...toMessage(row, profiles, userId), reactions: reactions.get(row.id) || []}))}}
   } catch { return {ok: false as const, status: 503, message: 'Conversation updates are unavailable.'} }
 }
 

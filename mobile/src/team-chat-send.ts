@@ -52,7 +52,7 @@ export async function postTeamChat(client:SupabaseClient,userId:string,isCurrent
 export class TeamChatDraft {
  photo:ChatPhoto|null=null
  text=''
- reply:{id:string;name:string;body:string}|null=null
+ reply:{id:string;name:string;body:string;senderUserId?:string}|null=null
  pending:Extract<ChatAction,{action:'send'|'send_chat_photo'}>|null=null
  sending=false
  notice=''

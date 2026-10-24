@@ -122,3 +122,12 @@ Final cleanup explicitly waited for asynchronous Logout to complete (public role
 - Isolated the mobile work from unrelated website edits on a fresh current-master checkout (`codex/apple-mobile-build`). Clean-checkout lint, TypeScript, all 3,829 tests across 724 files, extension syntax and local production build passed. Signed-out production smoke returned Home 200, Login 200 and account-access 401; browser sign-in inputs rendered.
 - Clean iOS generation and packaging checks passed, including all three plugins, shared scheme and unchanged approved artwork. Workflow/config tests passed. The Mac compile can be explicitly requested with an `ios-simulator` PR label, without requiring a production merge or rerunning on every push.
 - The reviewed candidate remains local at this checkpoint. No push, PR, Mac compile, signing or TestFlight upload has occurred. Publication and the first Mac run are the next steps after owner authorization.
+
+
+## Bounded team conversation history
+
+- The bundled conversation opens with the latest 75 messages. Earlier messages replaces the current window with up to 75 older messages; Back to latest returns to the current window. Search covers only the loaded window.
+- The read-only chat endpoint accepts a validated timestamp/UUID tuple, retains timestamp microseconds, and checks the current accepted team scope, participation, removals, and block settings for every page. It does not mark messages read, sign attachment URLs, create a room, or sync membership.
+- Foreground activity refreshes the same older window so edits, removals, reactions, and block redaction remain current. Reading an older window does not advance the latest read position. No extra polling, persistent history cache, schema, or scheduled job is added.
+- Local blocked-network phone fixture: multiple pages including timestamp ties, beginning of conversation, draft retention, loaded-window search, incoming activity without a jump/read write, failed page and retry, return to latest, inline photo, access removal, and team switch. Positive effects are synthetic only.
+- Physical iPhone acceptance remains: use a team with over 75 posts; open Earlier messages, search, reply to an older post, view an older photo, background/resume, and return to latest. Confirm unread behavior from a second team member. Do not treat the synthetic fixture as physical-device acceptance.
