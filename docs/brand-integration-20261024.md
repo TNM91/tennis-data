@@ -2,7 +2,7 @@
 
 The website uses the supplied TenAceIQ full wordmarks, transparent TiQ marks, app icon, favicon, and device icons. Originals are preserved in `public/brand/approved/`; aliases are exact copies. The header uses the light full wordmark at 178px on phones and 200px on wider screens. Authentication pages, footers, loading states, compact marks, decorative watermarks, share/print surfaces, court net, social card, and nine tour posters/videos use the approved branding.
 
-Court interaction geometry is unchanged. All nine refreshed videos retain their encoded audio streams and durations. No authentication, Supabase, payment, rating, league, database, dependency, or native-app changes are included. The release is based on production commit `37d79d357d5eb883887c24a851c34dfbc6b47f50`.
+Court interaction geometry is unchanged. All nine refreshed videos retain their encoded audio streams and durations. No authentication, Supabase, payment, rating, league, database, dependency, or native-app functionality changes are included. The native icon packager reads the approved 1254px original while retaining its existing opaque 1024px App Store output. The release is based on production commit `37d79d357d5eb883887c24a851c34dfbc6b47f50`.
 
 Validation:
 
@@ -17,3 +17,5 @@ Validation:
 Dependency installation reported existing advisories (root: 4 moderate, 11 high, 1 critical; native package: 3 moderate). Lockfiles are unchanged; dependency remediation should be assessed separately.
 
 See `public/brand/docs/MANIFEST.txt` and `CODEX_IMPLEMENTATION_PROMPT.txt` for asset mappings and repeatable refresh commands. GitHub checks and the single Git-triggered production deployment must pass before release completion.
+
+CI initially caught the old native icon source-size assumption (1024px); the helper now explicitly reads the approved 1254px original. Native packaging guards are rerun for this compatibility adjustment.
