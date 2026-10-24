@@ -8,3 +8,5 @@ export const fixtureSide=(fixture:TeamFixture,scope:TeamRoomScope)=>fixture.home
 export const fixtureOpponent=(fixture:TeamFixture,scope:TeamRoomScope)=>fixture.home===scope.teamName?fixture.away:fixture.home
 
 export function fixtureWindow(today:string){if(!fixtureDate(today))throw Error('Invalid schedule date');const shift=(days:number)=>{const date=new Date(today+'T12:00:00Z');date.setUTCDate(date.getUTCDate()+days);return date.toISOString().slice(0,10)};return {from:shift(-365),until:shift(180)}}
+
+export const fixtureSignature=(item:TeamFixture)=>JSON.stringify([item.id,item.date,item.time,item.home,item.away,item.facility,item.status,item.score])
