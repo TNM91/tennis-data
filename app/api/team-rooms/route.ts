@@ -1,3 +1,5 @@
+import {nativeMatchTargetIsCurrent} from '@/lib/native-match-target'
+import {canManageNativePost,changeNativePost} from '@/lib/native-chat-message-tools'
 import {setTeamChatMute} from '@/lib/team-chat-alerts'
 import {boundedChatJson,readChatPhoto,sendChatPhoto} from '@/lib/native-chat-photos'
 import { loadNativeReactionSummary, setNativeChatReaction } from '@/lib/native-chat-reactions'
@@ -195,6 +197,10 @@ type TeamRoomActionBody = {
   clientMessageId?: unknown
   replyToMessageId?: unknown
   reaction?: unknown
+  nativeClient?: unknown
+  lineupVersion?: unknown
+  expectedBody?: unknown
+  expectedEditedAt?: unknown
   photoPreview?: unknown
   photoBase64?: unknown
   active?: unknown
@@ -398,6 +404,30 @@ export async function POST(request: Request) {
       }
       return Response.json({ok:true,replayed:result.replayed,message:toMessage(result.message,new Map(),auth.userId)}, {headers:{'Cache-Control':'private, no-store'}})
     } catch { return Response.json({ok:false,message:'Team photos are unavailable. Try again.'},{status:503}) }
+  }
+  if (body.nativeClient === true && ['respond','acknowledge_lineup','set_arrival_status','ack_final_lineup'].includes(action)) {
+    const existing = await findNativeChatConversation(auth.service, selected)
+    if (!existing.ok) return Response.json(existing, {status: existing.status})
+    const access = await checkTeamChatAccess(auth.service, auth.userId, existing.id, canManageTeamRoom(teamRoles(selected)))
+    if (!access.ok) return Response.json(access, {status: access.status})
+    const current = await loadActionableMatchCard(auth.service, existing.id, '')
+    if (!current.ok) return Response.json(current, {status: current.status})
+    if (!nativeMatchTargetIsCurrent(action, body.messageId, current.messageId, current.metadata)) {
+      return Response.json({ok:false,message:'The match changed. Refresh Match day.'}, {status:409})
+    }
+    if (action === 'ack_final_lineup') {
+      const final = await loadCurrentFinalLineupAction(auth.service, existing.id, cleanText(body.messageId))
+      if (!final.ok) return Response.json(final, {status:final.status})
+      if (final.card.messageId !== current.messageId) return Response.json({ok:false,message:'The final lineup changed. Refresh Match day.'}, {status:409})
+    }
+  }
+  if (action === 'edit_chat_post' || action === 'remove_chat_post') {
+    const existing = await findNativeChatConversation(auth.service, selected)
+    if (!existing.ok) return Response.json(existing, {status: existing.status})
+    const access = await checkTeamChatAccess(auth.service, auth.userId, existing.id, canManageTeamRoom(teamRoles(selected)))
+    if (!access.ok) return Response.json(access, {status: access.status})
+    const result = await changeNativePost(auth.service, auth.userId, existing.id, body)
+    return Response.json(result, {status: result.status, headers: {'Cache-Control':'private, no-store'}})
   }
   if (action === 'set_chat_mute') {
     const existing = await findNativeChatConversation(auth.service, selected)
@@ -1694,6 +1724,10 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, message: 'This match update is no longer available.' }, { status: 404 })
     }
 
+    const priorNativeResponse = body.nativeClient === true
+      ? await auth.service.from('team_room_message_responses').select('response').eq('message_id',messageId).eq('conversation_id',conversation.id).eq('profile_id',auth.userId).maybeSingle()
+      : null
+    if (priorNativeResponse?.error) return Response.json({ok:false,message:'Availability could not be checked.'},{status:503})
     const updatedAt = new Date().toISOString()
     const { error: responseError } = await auth.service
       .from('team_room_message_responses')
@@ -1707,7 +1741,7 @@ export async function POST(request: Request) {
     if (responseError) return Response.json({ ok: false, message: responseError.message }, { status: 500 })
 
     const lineupVersion = Math.max(0, Number((message.metadata as Record<string, unknown>).lineupVersion) || 0)
-    if (cleanText((message.metadata as Record<string, unknown>).cardType) === 'projected_lineup' && lineupVersion > 0) {
+    if (body.nativeClient !== true && cleanText((message.metadata as Record<string, unknown>).cardType) === 'projected_lineup' && lineupVersion > 0) {
       await auth.service
         .from('team_room_lineup_acknowledgments')
         .upsert({
@@ -1729,17 +1763,19 @@ export async function POST(request: Request) {
       response,
       scope: selected,
     })
-    await notifyTeamRoomManagers(auth.service, {
-      conversationId: conversation.id,
-      messageId,
-      actorUserId: auth.userId,
-      teamName: selected.team_name,
-      scope: selected,
-      actorName,
-      response,
-      metadata: message.metadata as Record<string, unknown>,
+    if (body.nativeClient !== true || priorNativeResponse?.data?.response !== response) {
+      await notifyTeamRoomManagers(auth.service, {
+        conversationId: conversation.id,
+        messageId,
+        actorUserId: auth.userId,
+        teamName: selected.team_name,
+        scope: selected,
+        actorName,
+        response,
+        metadata: message.metadata as Record<string, unknown>,
     })
-    return Response.json({ ok: true, response, lineupAcknowledged: lineupVersion > 0, updatedAt })
+    }
+    return Response.json({ ok: true, response, lineupAcknowledged: body.nativeClient !== true && lineupVersion > 0, updatedAt })
   }
 
   if (action === 'acknowledge_lineup') {
@@ -1751,6 +1787,14 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, message: 'This lineup does not need an acknowledgment.' }, { status: 400 })
     }
 
+    if (body.nativeClient === true && body.lineupVersion !== lineupVersion) {
+      return Response.json({ok:false,message:'The lineup changed. Review it again.'}, {status:409})
+    }
+    if (body.nativeClient === true) {
+      const prior = await auth.service.from('team_room_lineup_acknowledgments').select('lineup_version').eq('conversation_id',conversation.id).eq('message_id',cardResult.messageId).eq('profile_id',auth.userId).eq('lineup_version',lineupVersion).maybeSingle()
+      if (prior.error) return Response.json({ok:false,message:'Lineup review could not be checked.'},{status:503})
+      if (prior.data) return Response.json({ok:true,lineupVersion,alreadySaved:true})
+    }
     const updatedAt = new Date().toISOString()
     const { error } = await auth.service
       .from('team_room_lineup_acknowledgments')
@@ -3822,6 +3866,7 @@ function toMessage(
       : row.message_kind === 'system' ? 'system' : 'message',
     createdAt: row.created_at || '',
     editedAt: row.edited_at || '',
+    canManageOwn: row.sender_user_id === currentUserId && !row.deleted_at && canManageNativePost(row),
     deletedAt: row.deleted_at || '',
     isMine: row.sender_user_id === currentUserId,
     replyToMessageId: row.reply_to_message_id || '',
@@ -4194,6 +4239,7 @@ async function loadActionableMatchCard(service: SupabaseClient, conversationId: 
     .select('id,metadata,created_at')
     .eq('conversation_id', conversationId)
     .contains('metadata', { teamRoomCard: true })
+    .is('deleted_at', null)
   if (requestedMessageId) query = query.eq('id', requestedMessageId)
   const { data, error } = await query.order('created_at', { ascending: false }).limit(requestedMessageId ? 1 : 300)
   if (error) return { ok: false as const, status: 500, message: error.message }
