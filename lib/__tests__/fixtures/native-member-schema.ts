@@ -1,0 +1,20 @@
+export const memberSchema=`
+set timezone='UTC';
+create role anon;create role authenticated;create role service_role bypassrls;
+create schema auth;create schema private;grant usage on schema auth,private to authenticated,service_role;
+create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+create table profiles(id uuid primary key,role text default 'member',tiq_public_id text default '',message_display_name text default '',linked_player_id uuid,linked_player_name text,linked_team_name text,linked_league_name text,linked_flight text,linked_team_at timestamptz);
+create table team_roster_members(player_id uuid,normalized_team_name text,league_name text,flight text);
+create table internal_conversations(id uuid primary key,status text default 'open',created_by_user_id uuid references profiles(id),assigned_admin_user_id uuid,related_entity_type text,related_entity_id text,metadata jsonb default '{}',updated_at timestamptz default now());
+create table team_profile_links(id uuid primary key default gen_random_uuid(),profile_user_id uuid references profiles(id),source_actor_user_id uuid,team_name text,normalized_team_name text,league_name text,flight text,team_role text,team_roles text[],status text,archived_at timestamptz,updated_at timestamptz default now(),unique(profile_user_id,normalized_team_name,league_name,flight));
+create table team_room_member_removals(conversation_id uuid references internal_conversations(id),profile_id uuid references profiles(id),removed_by_user_id uuid references profiles(id),removed_at timestamptz default now(),primary key(conversation_id,profile_id));
+create table internal_conversation_participants(conversation_id uuid references internal_conversations(id),profile_id uuid references profiles(id),participant_role text default 'member',last_read_at timestamptz,muted boolean default false,created_at timestamptz default now(),primary key(conversation_id,profile_id));
+create table internal_messages(id uuid primary key default gen_random_uuid(),conversation_id uuid references internal_conversations(id),sender_user_id uuid references profiles(id),body text,message_kind text default 'message');
+create table team_room_member_preferences(conversation_id uuid,profile_id uuid,season_availability text default 'ask_me',email_opt_in boolean default false,browser_opt_in boolean default false,primary key(conversation_id,profile_id));
+create table team_chat_signals(conversation_id uuid primary key,revision bigint default 1,changed_at timestamptz default now());
+create function public.is_admin() returns boolean language sql stable security definer set search_path='' as $$select exists(select 1 from public.profiles where id=auth.uid() and role='admin')$$;
+alter table internal_conversations enable row level security;alter table internal_messages enable row level security;alter table internal_conversation_participants enable row level security;alter table team_room_member_removals enable row level security;alter table team_chat_signals enable row level security;
+grant select,insert,update,delete on all tables in schema public to service_role;
+grant select,insert,update on internal_conversations,internal_messages,internal_conversation_participants to authenticated;
+grant select on team_chat_signals to authenticated;
+`;
