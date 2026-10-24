@@ -1,3 +1,4 @@
+import {readChatMentions,validateChatMentions} from '@/lib/team-chat-mentions'
 import {loadTeamChatMessage,publicChatMessage} from '@/lib/team-chat-message'
 import {replacementReminderRequestId} from '@/lib/replacement-reminder-target'
 import {saveNativeReplacementFollowup} from '@/lib/native-replacement-followup'
@@ -203,6 +204,7 @@ type TeamRoomActionBody = {
   response?: unknown
   reminderAt?: unknown
   reason?: unknown
+  mentions?: unknown
   clientMessageId?: unknown
   replyToMessageId?: unknown
   reaction?: unknown
@@ -957,7 +959,8 @@ export async function POST(request: Request) {
   }
 
   if (action === 'send') {
-    try { await loadChatBlocks(auth.service, auth.userId) } catch {
+    let mentionBlocks: Set<string>
+    try { mentionBlocks = await loadChatBlocks(auth.service, auth.userId) } catch {
       return Response.json({ ok: false, message: 'Chat safety settings are unavailable. Try again later.' }, { status: 503 })
     }
     const clientMessageId = parseTeamMessageSendId(body.clientMessageId)
@@ -984,6 +987,9 @@ export async function POST(request: Request) {
       }
     }
 
+    const mentions = validateChatMentions(body.mentions,messageBody,auth.userId,syncedMembers.filter(member=>!mentionBlocks.has(member.id)))
+    if (!mentions || isAnnouncement && mentions.length) return Response.json({ok:false,message:'Choose up to five current teammates in a regular text message.'},{status:400})
+
     const sent = await insertTeamMessage(auth.service, {
       conversationId: conversation.id,
       senderUserId: auth.userId,
@@ -991,6 +997,7 @@ export async function POST(request: Request) {
       announcement: isAnnouncement,
       replyToMessageId: replyToMessageId || null,
       clientMessageId,
+      mentions,
     })
     if (!sent.ok) return Response.json({ ok: false, message: sent.message }, { status: sent.status })
     const message = sent.message
@@ -4008,6 +4015,7 @@ function toMessage(
   return {
     id: row.id,
     senderUserId: row.sender_user_id,
+    mentions: row.deleted_at ? [] : readChatMentions(row.metadata?.nativeMentions,row.body),
     senderName: profile?.message_display_name?.trim() || profile?.linked_player_name?.trim() || 'Team member',
     body: row.deleted_at ? 'Message removed.' : row.body,
     kind: row.message_kind === 'announcement'
