@@ -70,3 +70,5 @@ describe('team message retry safety', () => {
     expect(legacyConflict.query.maybeSingle).not.toHaveBeenCalled()
   })
 })
+
+it('replays only the same plain announcement and never converts a retry into a normal post',async()=>{const announcement={...row,message_kind:'announcement'},db=database({error:{code:'23505'}},{data:announcement});expect(await insertTeamMessage(db.service,{...input,announcement:true})).toMatchObject({ok:true,replayed:true});expect(await insertTeamMessage(database({error:{code:'23505'}},{data:row}).service,{...input,announcement:true})).toMatchObject({ok:false,status:409})})

@@ -25,7 +25,7 @@ describe('native own-post edits and soft removal',()=>{
  })
  it('rejects malformed inputs and formal workflow posts before mutation',async()=>{
   for(const patch of [{messageId:'invalid'},{body:''},{body:'x'.repeat(2401)},{expectedEditedAt:null}]){const db=database();expect(await changeNativePost(db.service,'owner','room',{...edit,...patch})).toMatchObject({status:400});expect(db.calls).toEqual([])}
-  for(const data of [null,{...row,message_kind:'announcement'},{...row,metadata:{teamRoomCard:true}},{...row,metadata:{finalLineupAnnouncement:true}}]){const db=database([{data}]);expect(await changeNativePost(db.service,'owner','room',edit)).toMatchObject({status:404});expect(db.calls.some(c=>c.method==='update')).toBe(false)}
+  for(const data of [null,{...row,message_kind:'system'},{...row,metadata:{teamRoomCard:true}},{...row,metadata:{finalLineupAnnouncement:true}}]){const db=database([{data}]);expect(await changeNativePost(db.service,'owner','room',edit)).toMatchObject({status:404});expect(db.calls.some(c=>c.method==='update')).toBe(false)}
   expect(canManageNativePost({...row,metadata:{nativePhotoSha256:'hash',teamRoomAttachment:{path:'private'}}})).toBe(true)
  })
  it('soft-removes the owned photo without deleting storage or rewriting attachment metadata',async()=>{
@@ -39,4 +39,11 @@ describe('native own-post edits and soft removal',()=>{
   const conflict=database([{data:row},{data:{...row,body:'Different'}}],[{data:null}]);expect(await changeNativePost(conflict.service,'owner','room',edit)).toMatchObject({status:409})
   expect(await changeNativePost(database([{error:{}}]).service,'owner','room',edit)).toMatchObject({status:503})
  })
+})
+
+it('edits or soft-removes plain announcements while protecting every workflow announcement',async()=>{
+ const announcement={...row,message_kind:'announcement'},updated={...announcement,body:'Updated',edited_at:'saved'}
+ const db=database([{data:announcement}],[{data:updated}]);expect(await changeNativePost(db.service,'owner','room',edit)).toMatchObject({ok:true,body:'Updated'});expect(db.calls).toContainEqual({method:'eq',args:['message_kind','announcement']})
+ for(const metadata of [{teamRoomCard:{}},{finalLineupAnnouncement:true},{nativePublicationId:'x'},{teamRoomAttachment:{}}]){const blocked=database([{data:{...announcement,metadata}}]);expect(await changeNativePost(blocked.service,'owner','room',edit)).toMatchObject({status:404});expect(blocked.calls.some(c=>c.method==='update')).toBe(false)}
+ const removal=database([{data:announcement}],[{data:{...announcement,body:'Message removed.',deleted_at:'saved',edited_at:'saved'}}]);expect(await changeNativePost(removal.service,'owner','room',{...edit,action:'remove_chat_post'})).toMatchObject({ok:true,removed:true})
 })

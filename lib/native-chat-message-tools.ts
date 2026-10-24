@@ -3,7 +3,7 @@ import type {SentTeamMessage} from './team-room-message-send'
 import {parseTeamMessageSendId} from './team-room-message-send'
 const columns='id,sender_user_id,body,message_kind,metadata,created_at,edited_at,deleted_at,reply_to_message_id'
 export function canManageNativePost(row:Pick<SentTeamMessage,'message_kind'|'metadata'>){
- return row.message_kind==='message' && Object.keys(row.metadata || {}).every(key=>['teamRoomAttachment','nativePhotoSha256'].includes(key))
+ return row.message_kind==='announcement'?Object.keys(row.metadata || {}).length===0:row.message_kind==='message' && Object.keys(row.metadata || {}).every(key=>['teamRoomAttachment','nativePhotoSha256'].includes(key))
 }
 /** Caller checks accepted exact room scope and current participation/removals. No attachment object is purged. */
 export async function changeNativePost(service:SupabaseClient,owner:string,room:string,input:{action?:unknown;messageId?:unknown;body?:unknown;expectedBody?:unknown;expectedEditedAt?:unknown}){
@@ -20,7 +20,7 @@ export async function changeNativePost(service:SupabaseClient,owner:string,room:
  if(remove && row.deleted_at || !remove && !row.deleted_at && row.body===body)return confirm(row)
  if(row.deleted_at || row.body!==input.expectedBody || (row.edited_at || '')!==input.expectedEditedAt)return {ok:false as const,status:409}
  const now=new Date().toISOString()
- let query=service.from('internal_messages').update(remove?{body:'Message removed.',deleted_at:now,edited_at:now}:{body,edited_at:now}).eq('id',row.id).eq('conversation_id',room).eq('sender_user_id',owner).eq('body',row.body).is('deleted_at',null)
+ let query=service.from('internal_messages').update(remove?{body:'Message removed.',deleted_at:now,edited_at:now}:{body,edited_at:now}).eq('id',row.id).eq('conversation_id',room).eq('sender_user_id',owner).eq('message_kind',row.message_kind).eq('body',row.body).is('deleted_at',null)
  query=row.edited_at?query.eq('edited_at',row.edited_at):query.is('edited_at',null)
  // Guard workflow metadata against a concurrent captain publication as well as concurrent text edits.
  query=row.metadata?query.filter('metadata','eq',JSON.stringify(row.metadata)):query.is('metadata',null)

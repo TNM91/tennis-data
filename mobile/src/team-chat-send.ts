@@ -15,7 +15,7 @@ export type ChatAction =
   | {action:'send_chat_photo';clientMessageId:string;body:string;replyToMessageId:string;photoBase64:string;photoMimeType?:'image/gif'}
   | {action:'set_chat_reaction';messageId:string;reaction:'helpful'|'celebrate';active:boolean}
   | {action:'mark_chat_read';messageId:string}
-  | {action:'send';clientMessageId:string;body:string;replyToMessageId:string}
+  | {action:'send';clientMessageId:string;body:string;replyToMessageId:string;announcement?:true}
   | {action:'report_chat_message';messageId:string;reason:'harassment'|'spam'|'inappropriate'|'other'}
   | {action:'block_chat_member'|'unblock_chat_member';memberId:string}
 export class ChatActionError extends Error {
@@ -46,6 +46,7 @@ export async function postTeamChat(client:SupabaseClient,userId:string,isCurrent
  if(action.action==='set_chat_reaction' && (response.data.messageId!==action.messageId || response.data.reaction!==action.reaction || response.data.active!==action.active))throw new ChatActionError('Couldn’t confirm this reaction. Retry the same choice.',true)
  if(action.action==='send_chat_photo' && response.data.message?.attachment?.mimeType!==(action.photoMimeType || 'image/jpeg'))throw new ChatActionError('Couldn’t confirm your photo. Retry the same send.',true)
  if((action.action==='send' || action.action==='send_chat_photo') && (response.data.message?.id!==action.clientMessageId || response.data.message?.isMine!==true || response.data.message?.body!==(action.action==='send_chat_photo'?(action.body || (action.photoMimeType==='image/gif'?'Shared a GIF.':'Shared a photo.')):action.body)))throw new ChatActionError('We couldn’t confirm this send. Retry the same message.',true)
+ if(action.action==='send' && action.announcement===true && (response.data.message?.kind!=='announcement' || response.data.message?.replyToMessageId))throw new ChatActionError('Couldn’t confirm your announcement. Retry the same post.',true)
  return response.data
 }
 
