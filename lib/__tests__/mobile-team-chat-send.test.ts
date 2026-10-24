@@ -47,3 +47,15 @@ describe('native team composer send lifecycle',()=>{
   await expect(postTeamChat(client,'owner',()=>true,scope,action,vi.fn().mockResolvedValue({status:403}))).rejects.toMatchObject({uncertain:false})
  })
 })
+
+describe('native reaction transport confirmations',()=>{
+ it('confirms the exact desired state and treats ambiguous success as retryable',async()=>{
+  const reaction={action:'set_chat_reaction' as const,messageId:action.clientMessageId,reaction:'helpful' as const,active:true}
+  const send=vi.fn().mockResolvedValue({status:200,data:{ok:true,...reaction}})
+  await expect(postTeamChat(client,'owner',()=>true,scope,reaction,send)).resolves.toMatchObject({active:true})
+  for(const patch of [{active:false},{reaction:'celebrate'},{messageId:'different'}]){
+   send.mockResolvedValueOnce({status:200,data:{ok:true,...reaction,...patch}})
+   await expect(postTeamChat(client,'owner',()=>true,scope,reaction,send)).rejects.toMatchObject({uncertain:true})
+  }
+ })
+})

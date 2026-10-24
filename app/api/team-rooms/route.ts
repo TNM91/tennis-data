@@ -1,3 +1,4 @@
+import { loadNativeReactionSummary, setNativeChatReaction } from '@/lib/native-chat-reactions'
 import { sendNativeTeamChatPush } from '@/lib/native-chat-push-server'
 import { checkTeamChatAccess, loadTeamChatRows } from '@/lib/team-chat-updates'
 import { markTeamChatRead } from '@/lib/team-chat-read'
@@ -192,6 +193,7 @@ type TeamRoomActionBody = {
   clientMessageId?: unknown
   replyToMessageId?: unknown
   reaction?: unknown
+  active?: unknown
   memberId?: unknown
   silent?: unknown
   changeContext?: unknown
@@ -374,6 +376,14 @@ export async function POST(request: Request) {
   }
 
   const action = cleanText(body.action)
+  if (action === 'set_chat_reaction') {
+    const existing = await findNativeChatConversation(auth.service, selected)
+    if (!existing.ok) return Response.json(existing, {status: existing.status})
+    const access = await checkTeamChatAccess(auth.service, auth.userId, existing.id, canManageTeamRoom(teamRoles(selected)))
+    if (!access.ok) return Response.json(access, {status: access.status})
+    const result = await setNativeChatReaction(auth.service, auth.userId, existing.id, body)
+    return Response.json(result, {status: result.status})
+  }
   if (action === 'mark_chat_read') {
     const existing = await findNativeChatConversation(auth.service, selected)
     if (!existing.ok) return Response.json(existing, { status: existing.status })
@@ -2492,8 +2502,13 @@ async function loadNativeChatUpdate(service: SupabaseClient, userId: string, sel
   const id = conversation.id
   const loaded = await loadTeamChatRows(service, userId, id, canManageTeamRoom(teamRoles(selected)))
   if (!loaded.ok) return loaded
-  const profiles = await loadProfileMap(service, loaded.rows.map(row => row.sender_user_id))
-  return {ok: true as const, chatUpdate: true, room: {id, blockedUserIds: loaded.blockedUserIds, lastReadAt: loaded.lastReadAt, messages: loaded.rows.map(row => toMessage(row, profiles, userId))}}
+  try {
+    const [profiles, reactions] = await Promise.all([
+      loadProfileMap(service, loaded.rows.map(row => row.sender_user_id)),
+      loadNativeReactionSummary(service, userId, id, loaded.rows.map(row => row.id)),
+    ])
+    return {ok: true as const, chatUpdate: true, room: {id, blockedUserIds: loaded.blockedUserIds, lastReadAt: loaded.lastReadAt, messages: loaded.rows.map(row => ({...toMessage(row, profiles, userId), reactions: reactions.get(row.id) || []}))}}
+  } catch { return {ok: false as const, status: 503, message: 'Conversation updates are unavailable.'} }
 }
 
 async function loadTeamRoom(service: SupabaseClient, userId: string, selected: TeamLinkRow, markRead = true) {
@@ -2636,6 +2651,13 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
         currentUserId: userId,
       })
     : null
+  let nativeMessages = messages.slice(-75)
+  if (!markRead) {
+    try {
+      const reactions = await loadNativeReactionSummary(service, userId, conversation.id, nativeMessages.map(message => message.id))
+      nativeMessages = messages.map(message => ({...message, reactions: (reactions.get(message.id) || []).map(item => ({...item, profileIds: []}))}))
+    } catch { return {ok: false as const, status: 503, message: 'Conversation updates are unavailable.'} }
+  }
   if (markRead) await service
     .from('internal_conversation_participants')
     .update({ last_read_at: new Date().toISOString() })
@@ -2685,7 +2707,7 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
         reminderSentAt: cleanText(currentFinalLineupAnnouncement?.metadata?.finalLineupReviewReminderSentAt),
       } : null,
       actionQueue: buildTeamRoomActionQueue(members, messages.find((message) => message.id === planningCardId) || null),
-      messages,
+      messages: markRead ? messages : nativeMessages,
       href: buildTeamRoomHref({
         teamName: selected.team_name,
         leagueName: selected.league_name,

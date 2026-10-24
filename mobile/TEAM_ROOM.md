@@ -26,7 +26,7 @@ The APIs fail closed when moderation storage is unavailable. Release requires fu
 
 Focused tests cover send IDs and racing retries, payload/owner/session checks, uncertain responses, late/disposed state, private report author/scope derivation, block redaction, notification suppression, admin-only queue access, and report-scoped post removal. The actual mobile entry is exercised at phone width with synthetic auth/data and all external requests blocked: draft retention between views, one stored post across a simulated failed response and retry, report save, block redaction, unblock and no horizontal overflow.
 
-Real iPhone keyboard/transport acceptance and moderator use with actual reports remain beta acceptance checks; local and role verification do not establish those device/user flows. Push notifications, reactions, photos/files, availability replies, lineup acknowledgment and captain publishing remain connected follow-up work. Build 12 remains the released internal beta until this candidate's release checks are complete.
+Real iPhone keyboard/transport acceptance and moderator use with actual reports remain beta acceptance checks; local and role verification do not establish those device/user flows. Photos/files, availability replies, lineup acknowledgment and captain publishing remain follow-up work. Release status is recorded below.
 
 ## Foreground updates and read checkpoints
 
@@ -40,4 +40,12 @@ Runtime estimate: one socket per foreground open team, zero idle chat GETs, at m
 
 ## Push candidate
 
-The next candidate's iPhone registration and Apple delivery design, privacy boundaries, runtime bounds and activation requirements are in [PUSH_NOTIFICATIONS.md](PUSH_NOTIFICATIONS.md). Build 13 is the released foreground live-chat beta. Push delivery remains disabled pending credential/profile setup, schema activation and a new signed beta.
+iPhone registration and Apple delivery design, privacy boundaries and runtime bounds are in [PUSH_NOTIFICATIONS.md](PUSH_NOTIFICATIONS.md). Build 14 is the released internal beta. Push storage, app capability, production topic-scoped credentials and provisioning are active. One authorized generic alert was accepted by Apple and its receipt confirmed by the owner on the iPhone.
+
+## Helpful and Celebrate reactions
+
+The native candidate adds Helpful and Celebrate using the existing website reaction records. Formal lineup acknowledgments remain separate. The API verifies the accepted exact team scope and participation before selecting a live message in that conversation. Each request sets the desired state; repeated adds use conflict-ignore and repeated removals target only that owner, message, room and kind. Ambiguous responses retain the same desired choice for retry. Reactions send no push or email.
+
+The service-only aggregate returns counts and the current owner's selected state for at most 75 message IDs. It excludes deleted messages, blocked authors and blocked reactors; it exposes no reactor identities. Full room reads preserve older match-card context while native rendering stays bounded to 75 messages. Reactions invalidate the existing content-free foreground signal. They do not create messages or advance unread timestamps, and live refresh keeps the composer DOM and visible history anchor.
+
+`20261024000400_native_chat_reactions.sql` was applied before dependent release. Rollback-only checks covered counts, own selected state, formal-ack exclusion, reaction signal revisions, blocked reactors, deleted posts, and denied client execution. Actual Data API checks returned anon 401, authenticated 403 and service-role 200 with an empty synthetic window. No real posts or reactions were created. This candidate still requires final verification, CI and signed beta release.
