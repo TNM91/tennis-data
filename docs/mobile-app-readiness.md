@@ -49,3 +49,11 @@ Do not create paid deployments for local iteration. Use an existing suitable hos
 - Google Play payments: https://support.google.com/googleplay/android-developer/answer/9858738.
 
 Recheck store policies for the selected launch regions before implementing purchasing or submitting.
+
+## Native team invite candidate (build 30)
+
+My teams includes Join team for both connected players and players with no accepted team. Paste an existing TenAceIQ HTTPS team invite (or its UUID), review the exact team, league, flight, expiry and Player role, then confirm. Existing members can open the team without another join write. Invite tokens are sent only in the authenticated POST body to `/api/mobile/team-invites`; they are not stored by the client or opened as external URLs.
+
+Apply `supabase/migrations/20261024000100_native_team_invite_join.sql` before releasing this client. The new server-only RPC uses the existing service role and existing tables. It validates current captain authority, invite validity, exact room scope and removal status, then joins atomically. A failed transaction rolls back membership, participant, preferences, notice, default-team updates and invite count. Replaying the reviewed invite preserves accepted roles, mute/read state and preferences, and does not repeat the notice or count. An inactive connection becomes Player only. A changed inactive connection or changed invite requires review again. No email opt-in, availability response or test notification is performed.
+
+Uncertain delivery retains the same reviewed invite for manual retry; Close and refresh teams provides recovery if the first response was lost. Backgrounding or leaving the session discards late UI responses. Existing drafts and pending team actions must be finished before opening an invite. Local SQL tests execute the actual migration in PGlite with representative existing table definitions; they prove transaction rollback, replay and permission behavior, not multi-session concurrency. Positive app checks use a blocked-network synthetic team. Physical iPhone acceptance and real invite use remain pending; no production team was joined for testing.
