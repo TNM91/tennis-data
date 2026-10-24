@@ -1,9 +1,11 @@
 import {beforeEach,afterEach,describe,it,expect,vi} from 'vitest'
-const m=vi.hoisted(()=>({captain:vi.fn(),publish:vi.fn(),load:vi.fn(),create:vi.fn(),push:vi.fn(),nativePush:vi.fn(),recipients:vi.fn()}))
+const m=vi.hoisted(()=>({replace:vi.fn(),replaceReview:vi.fn(),replaceNotify:vi.fn(),captain:vi.fn(),publish:vi.fn(),load:vi.fn(),create:vi.fn(),push:vi.fn(),nativePush:vi.fn(),recipients:vi.fn()}))
 vi.mock('server-only',()=>({}))
 vi.mock('@supabase/supabase-js',()=>({createClient:m.create}))
 vi.mock('@/lib/supabase',()=>({supabaseUrl:'https://synthetic.supabase.co',supabaseKey:'synthetic-public'}))
 vi.mock('@/lib/captain-api-auth',()=>({getCaptainApiAuth:m.captain}))
+vi.mock('@/lib/native-captain-replacement',()=>({loadNativeReplacement:m.replaceReview,publishNativeReplacement:m.replace}))
+vi.mock('@/lib/native-replacement-notifications',()=>({notifyNativeReplacement:m.replaceNotify}))
 vi.mock('@/lib/native-captain-publication',()=>({loadNativePublication:m.load,publishNativeLineup:m.publish,confirmNativeFinalReceipt:vi.fn(),markNativeDraftFinal:vi.fn(),completeNativeFinalAnnouncement:vi.fn()}))
 vi.mock('@/lib/team-room-push-server',()=>({sendTeamRoomPush:m.push}))
 vi.mock('@/lib/native-chat-push-server',()=>({sendNativeTeamChatPush:m.nativePush}))
@@ -20,4 +22,13 @@ describe('native publishing API authorization and side effects',()=>{
  it('rejects a fallback team scope before native match or replacement side effects',async()=>{for(const action of ['respond','acknowledge_lineup','set_arrival_status','ack_final_lineup','respond_lineup_change'])expect((await POST(post({action,nativeClient:true,flight:'4.5'}))).status).toBe(403);expect(calls.every(c=>c.table==='team_profile_links')).toBe(true);expect(m.push).not.toHaveBeenCalled()})
  it('does not repeat defaults, conversation updates or notifications for a committed replay',async()=>{m.publish.mockResolvedValue({ok:true,status:200,replayed:true,messageId:'message',conversationId:'room'});expect((await POST(post())).status).toBe(200);expect(calls.every(c=>c.table==='team_profile_links')).toBe(true);expect(m.push).not.toHaveBeenCalled();expect(m.nativePush).not.toHaveBeenCalled()})
  it('notifies once for the insert winner and suppresses every effect on its replay',async()=>{m.publish.mockResolvedValueOnce({ok:true,status:200,replayed:false,messageId:'message',conversationId:'room',matchDate:'2026-10-30',body:'Proposed lineup'}).mockResolvedValueOnce({ok:true,status:200,replayed:true,messageId:'message',conversationId:'room'});expect((await POST(post())).status).toBe(200);expect((await POST(post())).status).toBe(200);expect(m.push).toHaveBeenCalledTimes(1);expect(m.nativePush).toHaveBeenCalledTimes(1);expect(calls.filter(c=>c.table==='internal_notifications'&&c.method==='insert')).toHaveLength(1)})
+})
+
+describe('native captain replacement API',()=>{
+ it('requires Captain entitlement and exact scope before replacement reads or writes',async()=>{m.captain.mockResolvedValueOnce({ok:false,response:Response.json({ok:false},{status:403})});expect((await POST(post({action:'publish_native_replacement'}))).status).toBe(403);m.captain.mockResolvedValueOnce({ok:false,response:Response.json({ok:false},{status:403})});expect((await GET(new Request('https://local/api/team-rooms?team=Aces&league=City&flight=4.0&nativeCaptainReplacement=1',{headers:{Authorization:'Bearer synthetic'}}))).status).toBe(403);expect((await POST(post({action:'publish_native_replacement',flight:'4.5'}))).status).toBe(403);expect(m.replace).not.toHaveBeenCalled();expect(m.replaceReview).not.toHaveBeenCalled()})
+ it('alerts affected players only for the completed delivery winner, never for a replay',async()=>{const result={ok:true,status:200,messageId:'card',announcementMessageId:'announcement',publicationId:'one',conversationId:'room',notice:{affectedNames:['Alex','Riley','Jordan'],courtLabel:'D1',outgoingPlayerName:'Alex',replacementPlayerName:'Riley'}};m.replace.mockResolvedValueOnce({...result,replayed:false}).mockResolvedValueOnce({...result,replayed:true});m.replaceNotify.mockResolvedValue({notifiedCount:3});expect((await POST(post({action:'publish_native_replacement'}))).status).toBe(200);expect((await POST(post({action:'publish_native_replacement'}))).status).toBe(200);expect(m.replaceNotify).toHaveBeenCalledTimes(1);expect(m.replaceNotify.mock.calls[0][1]).toMatchObject({affectedNames:['Alex','Riley','Jordan'],scope,owner:'owner'});expect(calls.filter(c=>c.table==='internal_conversations'&&c.method==='update')).toHaveLength(1)})
+})
+
+describe('native replacement final guard',()=>{
+ it('cannot bypass an outstanding replacement reply by sending another final',async()=>{m.load.mockResolvedValue({ok:true,status:200,card:{id:'card',metadata:{cardType:'projected_lineup',lineupChangeNotice:{publishedLineupChange:true,response:''}}}});expect((await POST(post({action:'send_final_lineup',nativeClient:true,messageId:'card'}))).status).toBe(409);expect(calls.every(c=>c.table==='team_profile_links')).toBe(true);expect(m.push).not.toHaveBeenCalled()})
 })

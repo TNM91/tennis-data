@@ -53,9 +53,10 @@ export async function loadNativePublication(service:SupabaseClient,owner:string,
   if(!names.size)throw Error('Assign at least one playing court before sharing.')
  }catch(cause){reason=cause instanceof Error?cause.message:'Check your saved lineup.'}
  const final=readTeamRoomFinalLineupReceipt(metadata.finalLineup)
+ if(lineupRecord(metadata.lineupChangeNotice).publishedLineupChange===true)reason='Use a captain lineup change to manage this published replacement.'
  if(final)reason='A final lineup was already sent. Use a captain lineup change to replace a player.'
  const proposal={cardType:'projected_lineup',title:'Proposed lineup',matchDate:draft.match.date,opponent:draft.match.opponent,matchId,matchTime:draft.plan.arrivalTime,facility:draft.plan.location,lineup,captainConfirmedLineup:false,teamRoomCard:true}
- return {ok:true as const,status:200,scope,match:draft.match,draftVersion:draft.version,draftId:draft.draftId,draftSent:draft.sent,deliveryMessageId:draft.deliveryMessageId,conversationId:str(room.data.id),card:row?{id:str(row.id),metadata}:null,token:nativePublicationToken(str(row?.id),row?.metadata||null),proposal,canShare:!reason,reason}
+ return {ok:true as const,status:200,scope,match:draft.match,roster:draft.roster,draftVersion:draft.version,draftId:draft.draftId,draftSent:draft.sent,deliveryMessageId:draft.deliveryMessageId,conversationId:str(room.data.id),card:row?{id:str(row.id),metadata}:null,token:nativePublicationToken(str(row?.id),row?.metadata||null),proposal,canShare:!reason,reason}
 }
 /** At-most-once publication effects. A committed card is the replay receipt, even if a notification failed. */
 export async function publishNativeLineup(service:SupabaseClient,owner:string,scope:TeamRoomScope,body:Record<string,unknown>){
@@ -85,7 +86,15 @@ export async function confirmNativeFinalReceipt(service:SupabaseClient,roomId:st
  const receipt=readTeamRoomFinalLineupReceipt(value);if(!receipt)return false
  const result=await service.from('internal_messages').select('metadata').eq('id',receipt.announcementMessageId).eq('conversation_id',roomId).is('deleted_at',null).maybeSingle()
  const metadata=lineupRecord(result.data?.metadata)
- return !result.error&&metadata.finalLineupAnnouncement===true&&metadata.lineupId===receipt.lineupId&&metadata.sourceMessageId===receipt.sourceMessageId
+ if(result.error||metadata.sourceMessageId!==receipt.sourceMessageId)return false
+ if((metadata.finalLineupAnnouncement===true||metadata.finalLineupChangeAnnouncement===true)&&metadata.lineupId===receipt.lineupId)return true
+ // Older website change announcements did not store the locked lineup ID.
+ if(metadata.finalLineupChangeAnnouncement!==true)return false
+ const source=await service.from('internal_messages').select('metadata').eq('id',receipt.sourceMessageId).eq('conversation_id',roomId).is('deleted_at',null).maybeSingle()
+ const card=lineupRecord(source.data?.metadata),notice=lineupRecord(card.lineupChangeNotice),stored=readTeamRoomFinalLineupReceipt(card.finalLineup)
+ return !source.error&&!card.matchCompletedAt&&stored?.announcementMessageId===receipt.announcementMessageId&&stored.lineupId===receipt.lineupId
+  &&notice.response==='accepted'&&notice.publishedAnnouncementMessageId===receipt.announcementMessageId&&notice.previousFinalLineupId===metadata.previousFinalLineupId&&notice.courtLabel===metadata.courtLabel
+  &&buildCaptainLockedLineupId({messageId:receipt.sourceMessageId,lineup:normalizeLineupRows(card.lineup)})===receipt.lineupId
 }
 
 /** Reconcile only the unchanged owner draft whose courts actually match the delivered shared lineup. */

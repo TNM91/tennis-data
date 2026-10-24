@@ -1,3 +1,6 @@
+import {lineupRecord as lineupRecordForNative} from '@/lib/native-captain-lineup-contract'
+import {loadNativeReplacement,publishNativeReplacement} from '@/lib/native-captain-replacement'
+import {notifyNativeReplacement} from '@/lib/native-replacement-notifications'
 import {getCaptainApiAuth} from '@/lib/captain-api-auth'
 import {loadNativePublication,publishNativeLineup,confirmNativeFinalReceipt,markNativeDraftFinal,completeNativeFinalAnnouncement,nativeSharedLineupIsComplete} from '@/lib/native-captain-publication'
 import {replacementReplyToken, replacementReplyIsCurrent, replacementReplyReplayed, saveReplacementCard} from '@/lib/native-replacement-reply'
@@ -204,6 +207,9 @@ type TeamRoomActionBody = {
   draftVersion?: unknown
   expectedCardToken?: unknown
   publicationId?: unknown
+  courtLabel?: unknown
+  outgoingPlayerName?: unknown
+  replacementKey?: unknown
   replacementToken?: unknown
   nativeClient?: unknown
   lineupVersion?: unknown
@@ -356,13 +362,14 @@ export async function GET(request: Request) {
     return Response.json({ ok: true, history: historyResult.history })
   }
 
-  if (url.searchParams.get('nativeCaptainReview') === '1') {
+  if (url.searchParams.get('nativeCaptainReview') === '1' || url.searchParams.get('nativeCaptainReplacement') === '1') {
     const captain = await getCaptainApiAuth(request)
     if (!captain.ok) return captain.response
     if (captain.userId !== auth.userId) return Response.json({ok:false},{status:403})
     const scope={teamName:url.searchParams.get('team')||'',leagueName:url.searchParams.get('league')||'',flight:url.searchParams.get('flight')||''}
     if(scope.teamName!==selected.team_name||scope.leagueName!==selected.league_name||scope.flight!==selected.flight)return Response.json({ok:false},{status:403})
     try {
+      if(url.searchParams.get('nativeCaptainReplacement')==='1'){const result=await loadNativeReplacement(auth.service,auth.userId,scope,url.searchParams.get('fixture')||'');return Response.json(result.ok?{ok:true,...result.review}:result,{status:result.status,headers:{'Cache-Control':'private, no-store'}})}
       const state=await loadNativePublication(auth.service,auth.userId,scope,url.searchParams.get('fixture')||'')
       if(!state.ok)return Response.json(state,{status:state.status,headers:{'Cache-Control':'private, no-store'}})
       const summary=await loadTeamRoomSummary(auth.service,auth.userId,selected)
@@ -373,7 +380,7 @@ export async function GET(request: Request) {
       const delivered=final?await confirmNativeFinalReceipt(auth.service,state.conversationId,final):false
       return Response.json({ok:true,scope,fixtureId:state.match.id,matchDate:state.match.date,opponent:state.match.opponent,draftVersion:state.draftVersion,expectedCardToken:state.token,
         proposal:{canShare:state.canShare,reason:state.reason,lineup:state.proposal.lineup,arrivalTime:state.proposal.matchTime,facility:state.proposal.facility},
-        shared:{active,messageId:active?readiness.messageId:'',lineupId:active?buildCaptainLockedLineupId({messageId:readiness.messageId,lineup:readiness.lineup}):'',lineup:active?readiness.lineup:[],confirmedCount:active?readiness.confirmedCount:0,totalCount:active?readiness.totalCount:0,courts:active?readiness.courts:[],canFinalize:active&&nativeSharedLineupIsComplete(state.card?.metadata.lineup)&&!delivered&&(!final||final.lineupId===buildCaptainLockedLineupId({messageId:readiness.messageId,lineup:readiness.lineup}))&&isCaptainLineupLocked(readiness),alreadyFinal:delivered,pendingFinal:!!final&&!delivered}},
+        shared:{active,messageId:active?readiness.messageId:'',lineupId:active?buildCaptainLockedLineupId({messageId:readiness.messageId,lineup:readiness.lineup}):'',lineup:active?readiness.lineup:[],confirmedCount:active?readiness.confirmedCount:0,totalCount:active?readiness.totalCount:0,courts:active?readiness.courts:[],canFinalize:active&&!(lineupRecordForNative(state.card?.metadata.lineupChangeNotice).publishedLineupChange===true&&lineupRecordForNative(state.card?.metadata.lineupChangeNotice).response!=='accepted')&&nativeSharedLineupIsComplete(state.card?.metadata.lineup)&&!delivered&&(!final||final.lineupId===buildCaptainLockedLineupId({messageId:readiness.messageId,lineup:readiness.lineup}))&&isCaptainLineupLocked(readiness),alreadyFinal:delivered,pendingFinal:!!final&&!delivered}},
         {headers:{'Cache-Control':'private, no-store'}})
     } catch { return Response.json({ok:false,message:'Publication review is unavailable. Try refreshing.'},{status:503}) }
   }
@@ -415,13 +422,23 @@ export async function POST(request: Request) {
   }
 
   const action = cleanText(body.action)
-  if (action === 'publish_native_lineup' || (body.nativeClient === true && action === 'send_final_lineup')) {
+  if (action === 'publish_native_replacement' || action === 'publish_native_lineup' || (body.nativeClient === true && action === 'send_final_lineup')) {
     const captain=await getCaptainApiAuth(request)
     if(!captain.ok)return captain.response
     if(captain.userId!==auth.userId)return Response.json({ok:false},{status:403})
     const scope={teamName:cleanText(body.teamName),leagueName:cleanText(body.leagueName),flight:cleanText(body.flight)}
     if(scope.teamName!==selected.team_name||scope.leagueName!==selected.league_name||scope.flight!==selected.flight)return Response.json({ok:false},{status:403})
     try {
+      if(action==='publish_native_replacement'){
+        const result=await publishNativeReplacement(auth.service,auth.userId,scope,body as Record<string,unknown>)
+        if(!result.ok)return Response.json(result,{status:result.status})
+        let notifiedCount=0
+        if(!result.replayed){
+          try{const notice=result.notice;const alerts=await notifyNativeReplacement(auth.service,{conversationId:result.conversationId,messageId:result.messageId,owner:auth.userId,scope,affectedNames:Array.isArray(notice.affectedNames)?notice.affectedNames.filter((n):n is string=>typeof n==='string'):[],courtLabel:cleanText(notice.courtLabel),replacementPlayerName:cleanText(notice.replacementPlayerName),outgoingPlayerName:cleanText(notice.outgoingPlayerName)});notifiedCount=alerts.notifiedCount}catch{console.warn('Replacement alerts unavailable')}
+          await auth.service.from('internal_conversations').update({updated_at:new Date().toISOString()}).eq('id',result.conversationId)
+        }
+        return Response.json({ok:true,messageId:result.messageId,announcementMessageId:result.announcementMessageId,publicationId:result.publicationId,replayed:result.replayed,notifiedCount},{headers:{'Cache-Control':'private, no-store'}})
+      }
       if(action==='publish_native_lineup'){
         const result=await publishNativeLineup(auth.service,auth.userId,scope,body as Record<string,unknown>)
         if(!result.ok)return Response.json(result,{status:result.status})
@@ -435,6 +452,8 @@ export async function POST(request: Request) {
       const state=await loadNativePublication(auth.service,auth.userId,scope,cleanText(body.fixtureId))
       if(!state.ok)return Response.json(state,{status:state.status})
       if(!state.card||state.card.id!==body.messageId||state.card.metadata.cardType!=='projected_lineup')return Response.json({ok:false,message:'Refresh the shared lineup before sending.'},{status:409})
+      const replacementNotice=lineupRecordForNative(state.card.metadata.lineupChangeNotice)
+      if(replacementNotice.publishedLineupChange===true&&replacementNotice.response!=='accepted')return Response.json({ok:false,message:'Wait for the replacement to accept before sending another final lineup.'},{status:409})
       if(!nativeSharedLineupIsComplete(state.card.metadata.lineup))return Response.json({ok:false,message:'Check the shared court assignments before sending a final lineup.'},{status:409})
       const receipt=readTeamRoomFinalLineupReceipt(state.card.metadata.finalLineup)
       if(receipt&&receipt.lineupId!==buildCaptainLockedLineupId({messageId:state.card.id,lineup:normalizeLineupRows(state.card.metadata.lineup)}))return Response.json({ok:false,message:'The final lineup changed. Reopen the review.'},{status:409})
