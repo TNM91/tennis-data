@@ -43,3 +43,23 @@ describe('native active-match write boundary',()=>{
   expect(nativeMatchTargetIsCurrent('ack_final_lineup','announcement','current',{matchCompletedAt:'done'})).toBe(false)
  })
 })
+
+
+describe('native replacement experience',()=>{
+ const token='a'.repeat(64)
+ it('shows the court and status, escapes names and only exposes server-authorized reply buttons',()=>{
+  const value=raw();Object.assign(value.room.messages[0].card,{nativeReplacement:{courtLabel:'D1',outgoingPlayerName:'<Taylor>',replacementPlayerName:'Alex',afterPlayers:['Alex','<Jordan>'],response:'',token,canRespond:true}})
+  let room=parseTeamData(value).room!,markup=matchActionsHtml(room,'owner');expect(markup).toContain('Accept replacement');expect(markup).toContain('&lt;Taylor&gt;');expect(markup).not.toContain('<Jordan>')
+  Object.assign(value.room.messages[0].card,{nativeReplacement:{courtLabel:'D1',replacementPlayerName:'Alex',afterPlayers:['Alex'],response:'accepted',token,canRespond:true}})
+  room=parseTeamData(value).room!;markup=matchActionsHtml(room,'owner');expect(markup).toContain('Replacement accepted.');expect(markup).not.toContain('data-replacement-response')
+  Object.assign(value.room.messages[0].card,{nativeReplacement:{courtLabel:'D1',replacementPlayerName:'Alex',afterPlayers:[],token:'bad',canRespond:true}});expect(parseTeamData(value).room!.activeCard!.card!.replacement).toBeNull()
+ })
+ it('sends the frozen request token and requires the same card, response and token as proof',async()=>{
+  const client={auth:{getSession:async()=>({data:{session:{user:{id:'owner'},access_token:'synthetic'}},error:null})}} as unknown as SupabaseClient
+  const action={action:'respond_lineup_change' as const,messageId:'card',response:'accepted' as const,replacementToken:token}
+  const send=vi.fn().mockResolvedValue({status:200,data:{ok:true,response:'accepted',messageId:'card',replacementToken:token}})
+  await postTeamChat(client,'owner',()=>true,scope,action,send);expect(send.mock.calls[0][0].data).toMatchObject({...action,nativeClient:true,...scope})
+  for(const data of [{response:'declined',messageId:'card',replacementToken:token},{response:'accepted',messageId:'other',replacementToken:token},{response:'accepted',messageId:'card',replacementToken:'old'}]){send.mockResolvedValueOnce({status:200,data:{ok:true,...data}});await expect(postTeamChat(client,'owner',()=>true,scope,action,send)).rejects.toMatchObject({uncertain:true})}
+  send.mockResolvedValueOnce({status:409,data:{ok:false}});await expect(postTeamChat(client,'owner',()=>true,scope,action,send)).rejects.toMatchObject({uncertain:false})
+ })
+})
