@@ -210,3 +210,7 @@ Adds the three modules from the active website Level Up catalogue, ordered drill
 ### Build 49 candidate: chosen training direction
 
 Adds separate playing style/development focus choices, account-scoped device preferences, website recommendation and practice-menu helpers, and the complete six-week development guides for all thirteen identities. A confirmed saved session preserves the explicitly chosen identity through the existing server contract. No new backend or access permissions. Week completion and cross-device preference sync are not claimed. Physical iPhone acceptance remains pending.
+
+### Build 50 candidate: account training inbox
+
+Adds account-saved weekly plans and coach assignments to native My Lab, including effective coach replacement reps, due states, feedback, pack/check-in summaries, exact-card private practice, and manual per-section refresh. Uses existing bearer-authenticated read APIs and shared website helpers. No plan/assignment writes, coach messages, read acknowledgments or notifications. Plan management and coach check-ins remain explicit website actions until their native write flows are ported. Source identity stays with a private session; device playing-style choices remain unchanged. Physical iPhone acceptance is pending.
