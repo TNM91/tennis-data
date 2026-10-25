@@ -1,3 +1,5 @@
+import {createTeamNavigationGuard} from './navigation-warning'
+import {labIdentityHtml,labActionsHtml} from './lab-home'
 import type {TeamScope} from './team-room-data'
 import {createNativePush} from './native-push'
 import { showTeamRoom } from './team-room-view'
@@ -40,7 +42,7 @@ let recovery: ReturnType<typeof showPasswordRecovery> | null = null
 
 if (Capacitor.getPlatform() === 'android') {
   void App.addListener('backButton', () => {
-    if(teamRoom){void lab()}
+    if(teamRoom){if(!teamRoom.back())guardNavigation(()=>{void lab()})}
     else if(comparison){if(!comparison.back())void lab()}
     else if(following){if(!following.back())void lab()}
     else if (explore) { if (!explore.back()) void lab() }
@@ -52,6 +54,7 @@ if (Capacitor.getPlatform() === 'android') {
 }
 
 function login(message = '') {
+  document.querySelector<HTMLDialogElement>('[data-team-navigation-warning]')?.close()
   teamRoom?.dispose();teamRoom=null
   comparison?.dispose();comparison=null
   following?.dispose();following=null
@@ -86,43 +89,54 @@ function login(message = '') {
 
 function selectNavigation(screen: 'lab' | 'explore' | 'following' | 'matchup' | 'teams') {
   navigation.hidden = false
+  window.scrollTo(0,0)
   navigation.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
     if (button.dataset.screen === screen) button.setAttribute('aria-current','page')
     else button.removeAttribute('aria-current')
   })
 }
-navigation.querySelector<HTMLButtonElement>('[data-screen="lab"]')!.onclick = () => {if (!connection?.isSaving()) void lab()}
+const guardNavigation=createTeamNavigationGuard(()=>Boolean(teamRoom?.hasDraft()),()=>revision)
+navigation.querySelector<HTMLButtonElement>('[data-screen="lab"]')!.onclick = () => {if (!connection?.isSaving()) guardNavigation(()=>{void lab()})}
 navigation.querySelector<HTMLButtonElement>('[data-screen="explore"]')!.onclick = () => {
   if (!session || connection?.isSaving() || explore) return
-  teamRoom?.dispose();teamRoom=null
-  comparison?.dispose();comparison=null
-  following?.dispose();following=null
-  connection?.dispose(); connection = null
-  recovery?.dispose(); recovery = null
-  details?.dispose(); details = null
-  const userId = session.user.id
-  const version = ++revision
-  selectNavigation('explore')
-  explore = showExplore(app,client,()=>version === revision && userId === session?.user.id)
+  guardNavigation(()=>{
+    if(!session)return
+    teamRoom?.dispose();teamRoom=null
+    comparison?.dispose();comparison=null
+    following?.dispose();following=null
+    connection?.dispose(); connection = null
+    recovery?.dispose(); recovery = null
+    details?.dispose(); details = null
+    const userId = session.user.id
+    const version = ++revision
+    selectNavigation('explore')
+    explore = showExplore(app,client,()=>version === revision && userId === session?.user.id)
+  })
 }
 
 navigation.querySelector<HTMLButtonElement>('[data-screen="following"]')!.onclick=()=>{
   if(!session || connection?.isSaving() || following)return
-  teamRoom?.dispose();teamRoom=null
-  comparison?.dispose();comparison=null
-  explore?.dispose();explore=null;connection?.dispose();connection=null;details?.dispose();details=null
-  const userId=session.user.id,version=++revision
-  selectNavigation('following')
-  following=showFollowing(app,client,()=>version===revision && userId===session?.user.id)
+  guardNavigation(()=>{
+    if(!session)return
+    teamRoom?.dispose();teamRoom=null
+    comparison?.dispose();comparison=null
+    explore?.dispose();explore=null;connection?.dispose();connection=null;details?.dispose();details=null
+    const userId=session.user.id,version=++revision
+    selectNavigation('following')
+    following=showFollowing(app,client,()=>version===revision && userId===session?.user.id)
+  })
 }
 
 navigation.querySelector<HTMLButtonElement>('[data-screen="matchup"]')!.onclick=()=>{
   if(!session || connection?.isSaving() || comparison)return
-  teamRoom?.dispose();teamRoom=null
-  following?.dispose();following=null;explore?.dispose();explore=null;connection?.dispose();connection=null;details?.dispose();details=null
-  const userId=session.user.id,version=++revision
-  selectNavigation('matchup')
-  comparison=showComparison(app,client,()=>version===revision && userId===session?.user.id)
+  guardNavigation(()=>{
+    if(!session)return
+    teamRoom?.dispose();teamRoom=null
+    following?.dispose();following=null;explore?.dispose();explore=null;connection?.dispose();connection=null;details?.dispose();details=null
+    const userId=session.user.id,version=++revision
+    selectNavigation('matchup')
+    comparison=showComparison(app,client,()=>version===revision && userId===session?.user.id)
+  })
 }
 
 function openTeamRoom(initialScope?:TeamScope){
@@ -140,6 +154,7 @@ navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')!.onclick=()
 const nativePush=createNativePush(client,scope=>openTeamRoom(scope))
 
 async function lab() {
+  document.querySelector<HTMLDialogElement>('[data-team-navigation-warning]')?.close()
   teamRoom?.dispose();teamRoom=null
   comparison?.dispose();comparison=null
   following?.dispose();following=null
@@ -162,11 +177,11 @@ async function lab() {
     .eq('id', current.user.id).abortSignal(AbortSignal.timeout(12000)).maybeSingle()
   if (version !== revision || current.user.id !== session?.user.id) return
   app.dataset.state = error ? 'unavailable' : 'ready'
-  app.innerHTML = `<small>${escape(MY_LAB_STORY.eyebrow)}</small><h1>My Lab</h1><p>${escape(MY_LAB_STORY.headline)}</p>${error
+  app.innerHTML = `<small>${escape(MY_LAB_STORY.eyebrow)}</small><h1 tabindex="-1">My Lab</h1><p>${escape(MY_LAB_STORY.headline)}</p>${error
     ? '<section><h2>Can’t load your profile</h2><p role="alert">Check your connection, then try again. Your profile has not been changed.</p></section>'
-    : `<section><h2>Your player profile</h2>${data?.linked_player_id && data?.linked_player_name
-      ? `<dl><dt>Player</dt><dd>${escape(data.linked_player_name)}</dd><dt>Team</dt><dd>${escape(data.linked_team_name || 'No team linked')}</dd><dt>League</dt><dd>${escape(data.linked_league_name || 'No league linked')}</dd></dl>`
-      : '<p>Connect your tennis record to bring your results into My Lab.</p><button type="button" id="connect-player">Find my player record</button>'}</section>`}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Sign out</button><p role="alert" id="notice"></p>`
+    : labIdentityHtml(data)}${!error ? labActionsHtml() : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Sign out</button><p role="alert" id="notice"></p>`
+  app.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
+  app.querySelectorAll<HTMLButtonElement>('[data-lab-screen]').forEach(b=>{b.onclick=()=>{navigation.querySelector<HTMLButtonElement>(`[data-screen="${b.dataset.labScreen}"]`)?.click()}})
   const alerts=document.createElement('section');app.querySelector('#logout')!.before(alerts);nativePush.mount(alerts)
   app.insertAdjacentHTML('beforeend', accountLinksHtml)
   bindAccountLinks(app)
