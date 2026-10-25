@@ -15,13 +15,14 @@ describe('native Captain workspace boundary',()=>{
  it('requires one exact accepted captain link and current participation before private reads',async()=>{
   const db=database(),result=await loadNativeCaptainWorkspace(db.service,'owner',scope)
   expect(result.ok).toBe(true);if(!result.ok)return
-  expect(result.roster).toEqual([{id:'player',name:'Alex'}]);expect(result.drafts[0]).toMatchObject({status:'working',sent:false});expect(JSON.stringify(result)).not.toContain('secret')
+  expect(result.roster).toEqual([{id:'player',name:'Alex',playerId:'player'}]);expect(result.drafts[0]).toMatchObject({status:'working',sent:false});expect(JSON.stringify(result)).not.toContain('secret')
   for(const args of [['profile_user_id','owner'],['league_name','City'],['flight','4.0'],['status','accepted']])expect(db.calls).toContainEqual({table:'team_profile_links',method:'eq',args})
   expect(db.calls).toContainEqual({table:'team_profile_links',method:'is',args:['archived_at',null]})
   expect(roster).toHaveBeenCalledWith(db.service,{team:'Aces',league:'City',flight:'4.0',seasonKey:''})
   for(const args of [['user_id','owner'],['team_name','Aces'],['league_name','City'],['flight','4.0']])expect(db.calls).toContainEqual({table:'captain_lineup_drafts',method:'eq',args})
   expect(db.calls).toContainEqual({table:'matches',method:'limit',args:[41]});expect(db.calls).toContainEqual({table:'captain_lineup_drafts',method:'limit',args:[21]})
  })
+ it('keeps an unlinked roster key separate from a connected public player ID',async()=>{roster.mockResolvedValueOnce([{key:'roster-only',playerId:null,name:'Alex'}]);const result=await loadNativeCaptainWorkspace(database().service,'owner',scope);expect(result.ok).toBe(true);if(result.ok)expect(result.roster).toEqual([{id:'roster-only',name:'Alex',playerId:null}])})
  it('does not load roster, schedule or drafts for missing, player-only, duplicate or unavailable links',async()=>{
   for(const link of [{data:[]},{data:[{team_role:'player'}]},{data:[{team_role:'captain'},{team_role:'captain'}]},{error:{}}]){
    const db=database({team_profile_links:link});expect((await loadNativeCaptainWorkspace(db.service,'owner',scope)).ok).toBe(false);expect(db.calls.some(c=>['matches','captain_lineup_drafts'].includes(c.table))).toBe(false)

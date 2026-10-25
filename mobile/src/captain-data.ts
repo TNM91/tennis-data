@@ -3,7 +3,7 @@ import {CapacitorHttp} from '@capacitor/core'
 import type {TeamScope} from './team-room-data'
 export type CaptainMatch={id:string;date:string;time:string;facility:string;opponent:string}
 export type CaptainDraft={matchDate:string;opponent:string;status:string;sent:boolean;updatedAt:string;notes:string;location:string;arrivalTime:string;courts:{label:string;players:string[]}[]}
-export type CaptainData={scope:TeamScope;checkedAt:string;moreMatches:boolean;moreDrafts:boolean;roster:{id:string;name:string}[];matches:CaptainMatch[];drafts:CaptainDraft[]}
+export type CaptainData={scope:TeamScope;checkedAt:string;moreMatches:boolean;moreDrafts:boolean;roster:{id:string;name:string;playerId?:string|null}[];matches:CaptainMatch[];drafts:CaptainDraft[]}
 export type CaptainReplies={people:{key:string;name:string;status:'available'|'maybe'|'unavailable'|'waiting';source:string;selected:boolean}[];selection:string;dayScopedAnswersOmitted:boolean}
 const record=(value:unknown):Record<string,unknown>=>value && typeof value==='object' && !Array.isArray(value)?value as Record<string,unknown>:{}
 const text=(value:unknown,max=160)=>typeof value==='string'?value.slice(0,max):''
@@ -12,7 +12,7 @@ export function parseCaptainData(value:unknown,scope:TeamScope):CaptainData{
  const row=record(value)
  if(row.ok!==true || !same(row.scope,scope) || !Array.isArray(row.roster) || row.roster.length>250 || !Array.isArray(row.matches) || row.matches.length>40 || !Array.isArray(row.drafts) || row.drafts.length>20)throw Error('Captain data could not be confirmed.')
  return {scope:{...scope},checkedAt:text(row.checkedAt,80),moreMatches:row.moreMatches===true,moreDrafts:row.moreDrafts===true,
-  roster:row.roster.map(value=>{const player=record(value);return {id:text(player.id,120),name:text(player.name)}}),
+  roster:row.roster.map(value=>{const player=record(value);return {id:text(player.id,120),name:text(player.name),playerId:typeof player.playerId==='string'&&player.playerId.length<=120?player.playerId:null}}),
   matches:row.matches.map(value=>{const match=record(value);return {id:text(match.id,120),date:text(match.date,10),time:text(match.time,80),facility:text(match.facility,240),opponent:text(match.opponent)}}),
   drafts:row.drafts.map(value=>{const draft=record(value);return {matchDate:text(draft.matchDate,10),opponent:text(draft.opponent),status:draft.status==='final'?'final':'working',sent:draft.sent===true,updatedAt:text(draft.updatedAt,80),notes:text(draft.notes,1200),location:text(draft.location,240),arrivalTime:text(draft.arrivalTime,80),courts:(Array.isArray(draft.courts)?draft.courts:[]).slice(0,30).map(value=>{const court=record(value);return {label:text(court.label,120),players:(Array.isArray(court.players)?court.players:[]).slice(0,2).map(value=>text(value))}})}})}
 }
