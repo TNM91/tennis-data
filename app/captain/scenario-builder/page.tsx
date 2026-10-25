@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import {scenarioCourtStrength} from '@/lib/captain-scenario-strength'
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
@@ -164,24 +165,7 @@ function slotsToMap(slots: NormalizedSlot[]) {
 }
 
 function strengthForSlot(slot: NormalizedSlot | undefined, players: PlayerRow[]) {
-  if (!slot) return null
-  const resolved = slot.playerIds
-    .map((id) => players.find((p) => p.id === id))
-    .filter(Boolean) as PlayerRow[]
-
-  if (!resolved.length) return null
-
-  if (slot.slotType === 'singles') {
-    const p = resolved[0]
-    return p.singles_dynamic_rating ?? p.overall_dynamic_rating
-  }
-
-  const values = resolved
-    .map((p) => p.doubles_dynamic_rating ?? p.overall_dynamic_rating)
-    .filter((v): v is number => typeof v === 'number')
-
-  if (!values.length) return null
-  return values.reduce((a, b) => a + b, 0) / values.length
+  return slot ? scenarioCourtStrength(slot.slotType, slot.playerIds, players) : null
 }
 
 function compareSlots(leftSlots: NormalizedSlot[], rightSlots: NormalizedSlot[], players: PlayerRow[]) {
