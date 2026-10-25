@@ -1,3 +1,5 @@
+import {loadTrainingHistory} from './level-up-data'
+import {labTrainingOverview} from './lab-training-overview'
 import websiteUi from '../generated/website-ui.json'
 import {showExplore as showPlayerDetail} from './explore'
 import {openLevelUp} from './level-up-view'
@@ -188,13 +190,11 @@ async function lab() {
   app.dataset.state = error ? 'unavailable' : 'ready'
   app.innerHTML = `${error
     ? '<h1 tabindex="-1">My Lab</h1><section><h2>Can’t load your profile</h2><p role="alert">Check your connection, then try again. Your profile has not been changed.</p></section>'
-    : labIdentityHtml(data)}${!error ? labActionsHtml() : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Sign out</button><p role="alert" id="notice"></p>`
+    : `<div id="lab-identity">${labIdentityHtml(data)}</div>${data?.linked_player_id&&data.linked_player_name?'<section aria-label="Account training overview"><button type="button" class="secondary" id="lab-training-refresh">Load training overview</button><p role="status" id="lab-training-status">Open your latest account proof and weekly progress.</p></section>':''}`}${!error ? labActionsHtml() : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Sign out</button><p role="alert" id="notice"></p>`
   const labHeading=app.querySelector<HTMLElement>('h1');if(labHeading){labHeading.tabIndex=-1;labHeading.focus({preventScroll:true})}
+  const bindLabActions=()=>{
   app.querySelectorAll<HTMLButtonElement>('[data-lab-screen]').forEach(b=>{b.onclick=()=>{navigation.querySelector<HTMLButtonElement>(`[data-screen="${b.dataset.labScreen}"]`)?.click()}})
-  app.querySelectorAll<HTMLButtonElement>('[data-training]').forEach(b=>{b.onclick=()=>{if(training?.isOpen())return;training=openLevelUp(client,current.user.id,()=>version===revision&&current.user.id===session?.user.id,b.dataset.training==='inbox'?'inbox':b.dataset.training==='progress'?'progress':'catalog')}})
-  const alerts=document.createElement('section');app.querySelector('#logout')!.before(alerts);nativePush.mount(alerts)
-  app.insertAdjacentHTML('beforeend', accountLinksHtml)
-  bindAccountLinks(app)
+  app.querySelectorAll<HTMLButtonElement>('[data-training]').forEach(b=>{b.onclick=()=>{if(training?.isOpen())return;training=openLevelUp(client,current.user.id,()=>version===revision&&current.user.id===session?.user.id,b.dataset.training==='inbox'?'inbox':b.dataset.training==='progress'?'progress':'catalog',b.dataset.training==='next'?{cardId:b.dataset.trainingCard||'',identitySlug:b.dataset.trainingDirection||''}:undefined)}})
   app.querySelectorAll<HTMLButtonElement>('[data-lab-profile]').forEach(button=>{button.onclick=()=>{if(!data?.linked_player_id||!data.linked_player_name)return;details?.dispose();details=null;const profileVersion=++revision;selectNavigation('explore');profileOpen=true;explore=showPlayerDetail(app,client,()=>profileVersion===revision&&current.user.id===session?.user.id,{player:{id:data.linked_player_id,name:data.linked_player_name,location:null,flight:null},back:()=>{void lab()},backLabel:'Back to My Lab'})}})
   app.querySelectorAll<HTMLButtonElement>('[data-connect-player],#connect-player').forEach(connectButton=>{connectButton.onclick = () => {
     details?.dispose()
@@ -206,6 +206,25 @@ async function lab() {
       connect: playerId => connectPlayer(client, playerId, current.user.id, isCurrent),
     }, () => { void lab() }, isCurrent)
   }})
+  }
+  bindLabActions()
+  const alerts=document.createElement('section');app.querySelector('#logout')!.before(alerts);nativePush.mount(alerts)
+  app.insertAdjacentHTML('beforeend', accountLinksHtml)
+  bindAccountLinks(app)
+  const overviewButton=app.querySelector<HTMLButtonElement>('#lab-training-refresh'),overviewStatus=app.querySelector<HTMLElement>('#lab-training-status'),identityHost=app.querySelector<HTMLElement>('#lab-identity')
+  if(overviewButton&&overviewStatus&&identityHost)overviewButton.onclick=async()=>{
+    if(overviewButton.disabled||version!==revision||current.user.id!==session?.user.id)return
+    overviewButton.disabled=true;overviewStatus.textContent='Loading account training…';identityHost.innerHTML=labIdentityHtml(data);bindLabActions()
+    const active=()=>version===revision&&current.user.id===session?.user.id&&identityHost.isConnected
+    try{
+      const rows=await loadTrainingHistory(client,current.user.id,active)
+      if(!active())return
+      if(training?.isOpen()){overviewStatus.textContent='Close training, then refresh this overview to see your latest proof.';return}
+      identityHost.innerHTML=labIdentityHtml(data,labTrainingOverview(rows));bindLabActions()
+      overviewButton.textContent='Refresh training overview';overviewStatus.textContent='Training overview loaded. Weekly progress uses your latest 40 sessions.'
+    }catch{if(active())overviewStatus.textContent='Training overview unavailable. Your saved sessions have not changed. Try again when connected.'}
+    finally{if(active())overviewButton.disabled=false}
+  }
   app.querySelector<HTMLButtonElement>('#refresh')!.onclick = () => { void lab() }
   app.querySelector<HTMLButtonElement>('#logout')!.onclick = async event => {
     (event.currentTarget as HTMLButtonElement).disabled = true
