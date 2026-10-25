@@ -49,7 +49,7 @@ export async function saveLabGoal(client:SupabaseClient,draft:GoalDraft,current:
  // A null payload is a website tombstone. Never resurrect it through an edit.
  if(existing&&object(existing).payload===null)throw new GoalConflict('This goal was removed on another device.')
  const write={payload:draft.payload,edited_at:draft.revision}
- const result=draft.expected?await client.from('my_lab_goals').update(write).eq('user_id',draft.scope.owner).eq('player_id',draft.scope.player).eq('goal_id',draft.id).eq('edited_at',draft.expected).select('goal_id,payload,edited_at').abortSignal(AbortSignal.timeout(12000)).maybeSingle():await client.from('my_lab_goals').insert({...write,user_id:draft.scope.owner,player_id:draft.scope.player,goal_id:draft.id}).select('goal_id,payload,edited_at').abortSignal(AbortSignal.timeout(12000)).maybeSingle()
+ const result=draft.expected?await client.from('my_lab_goals').update(write).eq('user_id',draft.scope.owner).eq('player_id',draft.scope.player).eq('goal_id',draft.id).eq('edited_at',draft.expected).not('payload','is',null).select('goal_id,payload,edited_at').abortSignal(AbortSignal.timeout(12000)).maybeSingle():await client.from('my_lab_goals').insert({...write,user_id:draft.scope.owner,player_id:draft.scope.player,goal_id:draft.id}).select('goal_id,payload,edited_at').abortSignal(AbortSignal.timeout(12000)).maybeSingle()
  await own(client,draft.scope,current)
  if(result.error)throw Error('Goal save not confirmed. Check this exact goal before retrying.')
  if(!result.data)throw new GoalConflict('This goal changed. Reload it before editing again.')
