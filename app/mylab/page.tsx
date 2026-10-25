@@ -1,4 +1,6 @@
 'use client'
+import {goalReadinessChecksFor,goalReadinessScoreFor} from '@/lib/my-lab-goal-readiness'
+import MyLabGoalFields,{inputWrapStyle,labelStyle,inputStyle} from '@/components/mylab/MyLabGoalFields'
 
 export const dynamic = 'force-dynamic'
 
@@ -628,21 +630,6 @@ function goalStatusLabel(value: LabGoalState['progressStatus']) {
   return 'Completed'
 }
 
-function goalReadinessChecksFor(goal: LabGoalState) {
-  return [
-    { label: 'Goal', complete: Boolean(goal.goal.trim()) },
-    { label: 'Update', complete: Boolean(goal.progressUpdate.trim()) },
-    { label: 'Strength', complete: Boolean(goal.doingWell.trim()) },
-    { label: 'Improve', complete: Boolean(goal.improveNext.trim()) },
-    { label: 'Notes', complete: Boolean(goal.notes.trim()) },
-  ]
-}
-
-function goalReadinessScoreFor(goal: LabGoalState) {
-  if (goal.progressStatus === 'completed') return 100
-  const checks = goalReadinessChecksFor(goal)
-  return Math.round((checks.filter((item) => item.complete).length / checks.length) * 100)
-}
 
 function compactOpponentLabel(value: string | null | undefined) {
   if (!value) return 'opponent'
@@ -4863,76 +4850,7 @@ function MyLabPageInner() {
                         </div>
                       </section>
                     ) : null}
-                    <div style={inputWrapStyle}>
-                      <label style={labelStyle} htmlFor={`my-lab-goal-${activeGoal.id}`}>Goal</label>
-                      <input
-                        id={`my-lab-goal-${activeGoal.id}`}
-                        value={activeGoal.goal}
-                        onChange={(event) => updateGoal(activeGoal.id, { goal: event.target.value })}
-                        placeholder="Example: attack second serves this month"
-                        style={inputStyle}
-                      />
-                    </div>
-                    <div style={inputWrapStyle}>
-                      <label style={labelStyle} htmlFor={`my-lab-progress-${activeGoal.id}`}>Status</label>
-                      <select
-                        id={`my-lab-progress-${activeGoal.id}`}
-                        value={activeGoal.progressStatus}
-                        onChange={(event) => {
-                          const nextStatus = event.target.value
-                          if (!isGoalProgressStatus(nextStatus)) return
-                          updateGoal(activeGoal.id, { progressStatus: nextStatus })
-                        }}
-                        style={inputStyle}
-                      >
-                        <option value="not-started">Not started</option>
-                        <option value="in-progress">In progress</option>
-                        <option value="improving">Improving</option>
-                        <option value="completed">Completed</option>
-                      </select>
-                    </div>
-                    <div style={inputWrapStyle}>
-                      <label style={labelStyle} htmlFor={`my-lab-progress-update-${activeGoal.id}`}>Progress update</label>
-                      <textarea
-                        id={`my-lab-progress-update-${activeGoal.id}`}
-                        value={activeGoal.progressUpdate}
-                        onChange={(event) => updateGoal(activeGoal.id, { progressUpdate: event.target.value })}
-                        placeholder="What changed since the last match or practice?"
-                        style={shortTextAreaStyle}
-                      />
-                    </div>
-                    <div style={goalFieldGridStyle(isTablet)}>
-                      <div style={inputWrapStyle}>
-                        <label style={labelStyle} htmlFor={`my-lab-doing-well-${activeGoal.id}`}>What am I doing well?</label>
-                        <textarea
-                          id={`my-lab-doing-well-${activeGoal.id}`}
-                          value={activeGoal.doingWell}
-                          onChange={(event) => updateGoal(activeGoal.id, { doingWell: event.target.value })}
-                          placeholder="Example: holding serve under pressure"
-                          style={shortTextAreaStyle}
-                        />
-                      </div>
-                      <div style={inputWrapStyle}>
-                        <label style={labelStyle} htmlFor={`my-lab-improve-next-${activeGoal.id}`}>Where can I improve?</label>
-                        <textarea
-                          id={`my-lab-improve-next-${activeGoal.id}`}
-                          value={activeGoal.improveNext}
-                          onChange={(event) => updateGoal(activeGoal.id, { improveNext: event.target.value })}
-                          placeholder="Example: return depth on second serves"
-                          style={shortTextAreaStyle}
-                        />
-                      </div>
-                    </div>
-                    <div style={inputWrapStyle}>
-                      <label style={labelStyle} htmlFor={`my-lab-notebook-${activeGoal.id}`}>Notes</label>
-                      <textarea
-                        id={`my-lab-notebook-${activeGoal.id}`}
-                        value={activeGoal.notes}
-                        onChange={(event) => updateGoal(activeGoal.id, { notes: event.target.value })}
-                        placeholder="What felt good? What broke down? What should I test next?"
-                        style={textAreaStyle}
-                      />
-                    </div>
+                    <MyLabGoalFields goal={activeGoal} compact={isTablet} onChange={patch => updateGoal(activeGoal.id, patch)} />
                     <div style={notebookFooterStyle}>
                       {goalSync.canRetry ? <button type="button" onClick={goalSync.retry} style={smallGhostButtonStyle}>Retry account save</button> : null}
                       <span role="status">{goalSync.label} · {notebookSavedLabel}{lastSavedAt ? ` - ${timeAgo(lastSavedAt)}` : ''}</span>
@@ -10991,14 +10909,7 @@ const saveNotebookButtonStyle: CSSProperties = {
   textAlign: 'center',
 }
 
-const goalFieldGridStyle = (isTablet: boolean): CSSProperties => ({
-  display: 'grid',
-  gridTemplateColumns: isTablet
-    ? 'minmax(0, 1fr)'
-    : 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))',
-  gap: 12,
-  minWidth: 0,
-})
+
 
 const metricLabelStyle: CSSProperties = {
   color: 'var(--muted)',
@@ -11337,46 +11248,15 @@ const searchPanelStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const inputWrapStyle: CSSProperties = {
-  display: 'grid',
-  gap: 8,
-  minWidth: 0,
-}
 
-const labelStyle: CSSProperties = {
-  color: 'var(--brand-blue-2)',
-  fontSize: 13,
-  fontWeight: 800,
-  letterSpacing: 0,
-  textTransform: 'uppercase',
-  overflowWrap: 'anywhere',
-}
 
-const inputStyle: CSSProperties = {
-  width: '100%',
-  height: 48,
-  borderRadius: 14,
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground-strong)',
-  padding: '0 14px',
-  fontSize: 14,
-  outline: 'none',
-  boxShadow: 'var(--home-control-shadow)',
-}
 
-const textAreaStyle: CSSProperties = {
-  ...inputStyle,
-  height: 112,
-  padding: '12px 14px',
-  resize: 'vertical',
-  lineHeight: 1.45,
-}
 
-const shortTextAreaStyle: CSSProperties = {
-  ...textAreaStyle,
-  height: 84,
-}
+
+
+
+
+
 
 const filterRowStyle: CSSProperties = {
   display: 'flex',

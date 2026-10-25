@@ -363,3 +363,8 @@ This corrects the shared visual foundation and main entries; it does not establi
 ### Build 68 — account-backed My Lab training overview
 
 Linked players can explicitly load their saved account proof into the website's actual My Lab proof-return panel, with shared weekly progress, trend and next-rep rules. The recommended current card opens directly for review; unknown cards offer catalog selection. Failed/stale reads withhold progress, screen/account changes invalidate pending results, and open training dialogs retain focus. No API, migration, notification, polling or encryption change. See `docs/mobile-website-parity.md` for scope and remaining goals/next-event gaps. Physical iPhone and VoiceOver acceptance remain pending.
+
+
+### Build 69 — shared account goal notebook
+
+Linked players with Player access can read/create/edit the same account goals and training notes as the website, using the actual shared field component and readiness rules. Explicit save review, exact revision comparisons, same-change retry/read-only recovery and memory-only focus selection are described in `docs/mobile-website-parity.md`. No API, migration, grant, service-role expansion or notification change. Browser-only unsynced goals, goal deletion and Match Prep-specific actions remain gaps; physical iPhone acceptance is pending.

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const source = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8')
+const source = readFileSync(join(process.cwd(), 'app/mylab/page.tsx'), 'utf8') + '\n' + readFileSync(join(process.cwd(), 'components/mylab/MyLabGoalFields.tsx'), 'utf8')
 const commandStyles = readFileSync(join(process.cwd(), 'app/mylab/my-lab-command-center.module.css'), 'utf8')
 
 function styleBlock(styleName: string) {
