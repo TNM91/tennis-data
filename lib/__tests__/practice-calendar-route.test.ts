@@ -1,0 +1,11 @@
+import {beforeEach,it,expect,vi} from 'vitest'
+const s=vi.hoisted(()=>({result:{data:null,error:null} as {data:unknown,error:unknown},service:vi.fn(),select:vi.fn()}))
+vi.mock('@/lib/captain-availability-request-server',()=>({getCaptainAvailabilityServiceClient:s.service}))
+import {GET} from '../../app/api/practice/[token]/calendar.ics/route'
+const token='66666666-6666-4666-8666-666666666666',event={title:'Aces practice',status:'confirmed',scheduled_date:'2026-10-30',scheduled_time:'18:00',facility:'Court 3',metadata:{teamName:'Aces',practiceEndTime:'19:30',practiceNotes:'Return deep'}}
+const call=(t=token)=>GET(new Request('https://synthetic.invalid'),{params:Promise.resolve({token:t})})
+beforeEach(()=>{vi.clearAllMocks();s.result={data:{id:'invite',internal_schedule_events:event},error:null};const q={select:s.select,eq:vi.fn(()=>q),maybeSingle:async()=>s.result};s.select.mockReturnValue(q);s.service.mockReturnValue({from:()=>q})})
+it('does not read private tables for malformed tokens',async()=>{expect((await call('bad')).status).toBe(404);expect(s.service).not.toHaveBeenCalled()})
+it('rejects cancelled or completed occurrences even when an old calendar link is held',async()=>{for(const status of ['cancelled','completed']){s.result.data={id:'invite',internal_schedule_events:{...event,status}};const r=await call();expect(r.status).toBe(409);expect(r.headers.get('Cache-Control')).toContain('no-store')}expect(s.select).toHaveBeenCalledWith(expect.stringContaining('status'))})
+it('exports one open occurrence with private headers and no attendee information',async()=>{const r=await call();expect(r.status).toBe(200);expect(r.headers.get('Referrer-Policy')).toBe('no-referrer');expect(r.headers.get('Content-Type')).toContain('text/calendar');const body=await r.text();expect(body).toContain('DTEND:20261030T193000');expect(body).not.toContain('ATTENDEE');expect(body).not.toContain('RRULE')})
+it('returns unavailable for data errors or missing events and rejects impossible dates',async()=>{s.result.error={message:'private database detail'};expect((await call()).status).toBe(503);s.result={data:null,error:null};expect((await call()).status).toBe(404);s.result.data={id:'invite',internal_schedule_events:{...event,scheduled_date:'2026-02-30'}};expect((await call()).status).toBe(422)})

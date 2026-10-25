@@ -15,14 +15,15 @@ export async function GET(
   } catch {
     return new Response('Calendar service is temporarily unavailable.', { status: 503 })
   }
-  const { data } = await service
+  const { data, error } = await service
     .from('captain_practice_invites')
-    .select('id,internal_schedule_events(title,scheduled_date,scheduled_time,facility,metadata)')
+    .select('id,internal_schedule_events(title,status,scheduled_date,scheduled_time,facility,metadata)')
     .eq('public_token', token)
     .maybeSingle()
   const event = (data as unknown as {
     id: string
     internal_schedule_events: {
+      status: string
       title: string
       scheduled_date: string
       scheduled_time: string
@@ -30,7 +31,9 @@ export async function GET(
       metadata: Record<string, unknown> | null
     } | null
   } | null)?.internal_schedule_events
+  if (error) return new Response('Calendar service is temporarily unavailable.', { status: 503, headers: { 'Cache-Control': 'private, no-store' } })
   if (!data || !event) return new Response('Calendar invite unavailable.', { status: 404 })
+  if (!['proposed', 'confirmed'].includes(event.status)) return new Response('This practice is no longer open for calendar additions.', { status: 409, headers: { 'Cache-Control': 'private, no-store' } })
   const metadata = event.metadata ?? {}
   const ics = buildPracticeIcs({
     uid: `captain-practice-${data.id}`,
@@ -47,6 +50,8 @@ export async function GET(
       'Content-Type': 'text/calendar; charset=utf-8',
       'Content-Disposition': 'attachment; filename="tenaceiq-practice.ics"',
       'Cache-Control': 'private, no-store',
+      'Referrer-Policy': 'no-referrer',
+      'X-Content-Type-Options': 'nosniff',
     },
   })
 }
