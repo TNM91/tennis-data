@@ -1,3 +1,5 @@
+import type {LabGoal} from '../../lib/my-lab-goal-sync'
+import {openLabGoals,goalReadinessHtml} from './lab-goals-view'
 import {loadTrainingHistory} from './level-up-data'
 import {labTrainingOverview} from './lab-training-overview'
 import websiteUi from '../generated/website-ui.json'
@@ -34,6 +36,7 @@ navigation.setAttribute('aria-label','Main navigation')
 navigation.hidden = true
 navigation.innerHTML = (['lab','explore','following','matchup','teams'] as const).map(key=>`<button type="button" data-screen="${key}"><span aria-hidden="true">${websiteUi.icons[key]}</span><span>${({lab:'My Lab',explore:'Explore',following:'Following',matchup:'Matchup',teams:'My teams'})[key]}</span></button>`).join('')
 app.after(navigation)
+let goals:ReturnType<typeof openLabGoals>|null=null
 let training:ReturnType<typeof openLevelUp>|null=null
 let teamRoom:ReturnType<typeof showTeamRoom>|null=null
 let comparison:ReturnType<typeof showComparison>|null=null
@@ -48,7 +51,8 @@ let recovery: ReturnType<typeof showPasswordRecovery> | null = null
 
 if (Capacitor.getPlatform() === 'android') {
   void App.addListener('backButton', () => {
-    if(training?.isOpen()){training.back()}
+    if(goals?.isOpen()){goals.back()}
+    else if(training?.isOpen()){training.back()}
     else if(teamRoom){if(!teamRoom.back())guardNavigation(()=>{void lab()})}
     else if(comparison){if(!comparison.back())void lab()}
     else if(following){if(!following.back())void lab()}
@@ -61,6 +65,7 @@ if (Capacitor.getPlatform() === 'android') {
 }
 
 function login(message = '') {
+  goals?.dispose();goals=null
   training?.dispose();training=null
   document.querySelector<HTMLDialogElement>('[data-team-navigation-warning]')?.close()
   teamRoom?.dispose();teamRoom=null
@@ -150,6 +155,7 @@ navigation.querySelector<HTMLButtonElement>('[data-screen="matchup"]')!.onclick=
 }
 
 function openTeamRoom(initialScope?:TeamScope){
+  if(goals?.isOpen()){goals.back();return}
   if(!session || connection?.isSaving())return
   if(teamRoom && !initialScope)return
   if(teamRoom?.hasDraft() && !window.confirm('Open this team alert? Your unfinished message will be discarded.'))return
@@ -164,6 +170,7 @@ navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')!.onclick=()
 const nativePush=createNativePush(client,scope=>openTeamRoom(scope))
 
 async function lab() {
+  goals?.dispose();goals=null
   training?.dispose();training=null
   document.querySelector<HTMLDialogElement>('[data-team-navigation-warning]')?.close()
   teamRoom?.dispose();teamRoom=null
@@ -190,9 +197,18 @@ async function lab() {
   app.dataset.state = error ? 'unavailable' : 'ready'
   app.innerHTML = `${error
     ? '<h1 tabindex="-1">My Lab</h1><section><h2>Can’t load your profile</h2><p role="alert">Check your connection, then try again. Your profile has not been changed.</p></section>'
-    : `<div id="lab-identity">${labIdentityHtml(data)}</div>${data?.linked_player_id&&data.linked_player_name?'<section aria-label="Account training overview"><button type="button" class="secondary" id="lab-training-refresh">Load training overview</button><p role="status" id="lab-training-status">Open your latest account proof and weekly progress.</p></section>':''}`}${!error ? labActionsHtml() : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Sign out</button><p role="alert" id="notice"></p>`
+    : `<div id="lab-identity">${labIdentityHtml(data)}</div>${data?.linked_player_id&&data.linked_player_name?'<section aria-label="Account training overview"><button type="button" class="secondary" id="lab-training-refresh">Load training overview</button><p role="status" id="lab-training-status">Open your latest account proof and weekly progress.</p></section>':''}`}${!error&&data?.linked_player_id&&data.linked_player_name?'<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''}${!error ? labActionsHtml() : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Sign out</button><p role="alert" id="notice"></p>`
   const labHeading=app.querySelector<HTMLElement>('h1');if(labHeading){labHeading.tabIndex=-1;labHeading.focus({preventScroll:true})}
+  let selectedLabGoal:LabGoal|undefined
   const bindLabActions=()=>{
+  app.querySelectorAll<HTMLButtonElement>('[data-lab-goals]').forEach(button=>{button.onclick=()=>{
+    if(goals?.isOpen()||training?.isOpen()||!data?.linked_player_id)return
+    const active=()=>version===revision&&current.user.id===session?.user.id,heroTrigger=Boolean(button.closest('#lab-identity'))
+    goals=openLabGoals(client,{owner:current.user.id,player:data.linked_player_id},active,goal=>{
+      const host=app.querySelector<HTMLElement>('#goal-context-copy');if(!active()||!host)return;selectedLabGoal=goal
+      host.innerHTML='<h3>'+escape(goal.goal)+'</h3><p>'+escape(goal.improveNext||goal.progressUpdate||'Review your notes before the next match or practice.')+'</p>'+goalReadinessHtml(goal)
+    },()=>{if(!active()||!selectedLabGoal)return;const host=app.querySelector<HTMLElement>('#lab-identity');if(host){host.innerHTML=labIdentityHtml(data,undefined,selectedLabGoal);bindLabActions();if(heroTrigger)host.querySelector<HTMLElement>('[data-lab-goals]')?.focus({preventScroll:true})}})
+  }})
   app.querySelectorAll<HTMLButtonElement>('[data-lab-screen]').forEach(b=>{b.onclick=()=>{navigation.querySelector<HTMLButtonElement>(`[data-screen="${b.dataset.labScreen}"]`)?.click()}})
   app.querySelectorAll<HTMLButtonElement>('[data-training]').forEach(b=>{b.onclick=()=>{if(training?.isOpen())return;training=openLevelUp(client,current.user.id,()=>version===revision&&current.user.id===session?.user.id,b.dataset.training==='inbox'?'inbox':b.dataset.training==='progress'?'progress':'catalog',b.dataset.training==='next'?{cardId:b.dataset.trainingCard||'',identitySlug:b.dataset.trainingDirection||''}:undefined)}})
   app.querySelectorAll<HTMLButtonElement>('[data-lab-profile]').forEach(button=>{button.onclick=()=>{if(!data?.linked_player_id||!data.linked_player_name)return;details?.dispose();details=null;const profileVersion=++revision;selectNavigation('explore');profileOpen=true;explore=showPlayerDetail(app,client,()=>profileVersion===revision&&current.user.id===session?.user.id,{player:{id:data.linked_player_id,name:data.linked_player_name,location:null,flight:null},back:()=>{void lab()},backLabel:'Back to My Lab'})}})
@@ -219,7 +235,7 @@ async function lab() {
     try{
       const rows=await loadTrainingHistory(client,current.user.id,active)
       if(!active())return
-      if(training?.isOpen()){overviewStatus.textContent='Close training, then refresh this overview to see your latest proof.';return}
+      if(training?.isOpen()||goals?.isOpen()){overviewStatus.textContent='Close training or notes, then refresh this overview to see your latest proof.';return}
       identityHost.innerHTML=labIdentityHtml(data,labTrainingOverview(rows));bindLabActions()
       overviewButton.textContent='Refresh training overview';overviewStatus.textContent='Training overview loaded. Weekly progress uses your latest 40 sessions.'
     }catch{if(active())overviewStatus.textContent='Training overview unavailable. Your saved sessions have not changed. Try again when connected.'}
@@ -270,7 +286,7 @@ async function lab() {
 }
 
 client.auth.onAuthStateChange((_event, next) => {
-  if (next?.user.id === session?.user.id && (details?.isOpen() || connection || explore || following || comparison || teamRoom || training?.isOpen())) { session = next; setTimeout(()=>nativePush.setSession(next),0); return }
+  if (next?.user.id === session?.user.id && (details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen())) { session = next; setTimeout(()=>nativePush.setSession(next),0); return }
   session = next
   revision++
   // Schedule outside the auth callback's lock before making another SDK call.
@@ -284,7 +300,7 @@ client.auth.getSession().catch(() => {
   app.innerHTML = '<h1>Couldn’t open your account</h1><p role="alert">Close the app and try again. Secure sign-in storage is unavailable.</p>'
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !details?.isOpen() && !connection && !explore && !following && !comparison && !teamRoom && !training?.isOpen()) void lab() }
+  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !details?.isOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen()) void lab() }
   else client.auth.stopAutoRefresh()
 })
-window.addEventListener('online', () => { if (session && !details?.isOpen() && !connection && !explore && !following && !comparison && !teamRoom && !training?.isOpen()) void lab() })
+window.addEventListener('online', () => { if (session && !details?.isOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen()) void lab() })
