@@ -1,9 +1,9 @@
 import {describe,expect,it,vi} from 'vitest'
 import type {SupabaseClient} from '@supabase/supabase-js'
-import {LEVEL_UP_CARDS} from '../../lib/level-up/level-up-cards'
+import {LEVEL_UP_CARDS,LEVEL_UP_MODULES} from '../../lib/level-up/level-up-cards'
 import {TrainingClock,freezeTrainingSave,trainingWorkType,trainingContexts,initialTrainingContext,trainingSelection,trainingProgress} from '../../mobile/src/level-up-model'
 import {parseTrainingHistory,parseTrainingSession,loadTrainingHistory,saveTrainingSession,confirmsTrainingSave,type TrainingSend} from '../../mobile/src/level-up-data'
-import {trainingCardHtml,trainingHistoryHtml} from '../../mobile/src/level-up-view'
+import {trainingCardHtml,trainingModuleHtml,trainingHistoryHtml} from '../../mobile/src/level-up-view'
 const owner='owner',id='level-up-11111111-1111-4111-8111-111111111111',date='2026-10-25T01:00:00.000Z',card=LEVEL_UP_CARDS.find(c=>c.category==='solo-drill')||LEVEL_UP_CARDS[0]
 const payload=()=>freezeTrainingSave(card,4,'One clear cue','alone','ready',90,id,date)
 const row=()=>({...payload(),playerUserId:owner,sessionJson:{cardId:card.id}})
@@ -25,4 +25,10 @@ describe('native Level Up training',()=>{
  it('retries the exact payload and never converts a denial into a confirmed save',async()=>{const p=payload(),bodies:string[]=[];const send:TrainingSend=async(_method,options)=>{bodies.push(JSON.stringify(options.data));return bodies.length===1?response({ok:false},503):response({ok:true,session:row()})};await expect(saveTrainingSession(client(),owner,()=>true,p,send)).rejects.toThrow();await expect(saveTrainingSession(client(),owner,()=>true,p,send)).resolves.toMatchObject({id});expect(bodies[0]).toBe(bodies[1]);await expect(saveTrainingSession(client(),owner,()=>true,p,async()=>response({ok:false},403))).rejects.toThrow()})
  it('withholds a response if the signed-in account changes during the request',async()=>{let calls=0;const changed={auth:{getSession:async()=>({data:{session:{user:{id:++calls===1?owner:'other'},access_token:'synthetic'}},error:null})}} as unknown as SupabaseClient;await expect(loadTrainingHistory(changed,owner,()=>true,async()=>response({ok:true,sessions:[row()]}))).rejects.toThrow()})
  it('renders escaped card instructions, safety, notes and subjective proof',()=>{const s=trainingCardHtml({...card,title:'<img>',routine:['<script>'],safetyNote:'Stop & reset'});expect(s).toContain('&lt;img&gt;');expect(s).toContain('&lt;script&gt;');expect(s).toContain('Stop &amp; reset');const h=trainingHistoryHtml([{...row(),note:'<img>'}]);expect(h).toContain('&lt;img&gt;');expect(h).toContain('Self-rated proof: 4/5');expect(h).toContain('not your TIQ rating');expect(trainingHistoryHtml([row()],false)).toContain('Refresh account progress to load your other records')})
+})
+
+describe('website practice modules in native training',()=>{
+ it('resolves every website module card in its prescribed order',()=>{for(const m of LEVEL_UP_MODULES){const rendered=trainingModuleHtml(m);let last=-1;for(const id of m.cardIds){expect(LEVEL_UP_CARDS.some(c=>c.id===id)).toBe(true);const at=rendered.indexOf('data-card="'+id+'"');expect(at).toBeGreaterThan(last);last=at}expect(rendered).toContain(m.proof);expect(rendered).toContain(m.durationLabel)}})
+ it('only shows explicitly confirmed cards from this visit and explains the persistence boundary',()=>{const m=LEVEL_UP_MODULES[0];expect(trainingModuleHtml(m)).toContain('0 of '+m.cardIds.length);const rendered=trainingModuleHtml(m,new Set([m.cardIds[0],'unrelated']));expect(rendered).toContain('1 of '+m.cardIds.length);expect(rendered).toContain('Saved during this visit');expect(rendered).toContain('checkmarks reset');expect(rendered).toContain('module completion is not stored')})
+ it('escapes module text and withholds controls for missing cards',()=>{const rendered=trainingModuleHtml({...LEVEL_UP_MODULES[0],title:'<img src=x>',cardIds:['missing']});expect(rendered).toContain('&lt;img');expect(rendered).not.toContain('<img');expect(rendered).not.toContain('data-card=');expect(rendered).toContain('unavailable')})
 })
