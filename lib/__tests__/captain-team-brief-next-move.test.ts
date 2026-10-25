@@ -13,12 +13,11 @@ function styleBlock(styleName: string) {
 
 describe('Captain Team Brief next move', () => {
   it('prioritizes the single next action required to make a match plan send-ready', () => {
-    expect(source).toContain('const nextMove = !team || !league || !flight')
-    expect(source).toContain("title: 'Choose the team week'")
-    expect(source).toContain("title: 'Build the current courts'")
-    expect(source).toContain("title: 'Resolve availability'")
-    expect(source).toContain("title: 'Add match logistics'")
-    expect(source).toContain("title: 'Share the match plan'")
+    expect(source).toContain('captainBriefNext({ hasScope: Boolean(team && league && flight)')
+    expect(source).toContain('responseRisks: alertLines.length, hasLogistics: hasMatchPlan')
+    expect(source).toContain("briefAction.kind === 'lineup' ? lineupBuilderHref")
+    expect(source).toContain("briefAction.kind === 'availability' ? availabilityHref")
+    expect(source).toContain("briefAction.kind === 'logistics' ? weeklyBriefHref")
     expect(source).toContain('aria-label="Next match-day action"')
   })
 
