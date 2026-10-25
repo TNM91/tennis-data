@@ -1,3 +1,4 @@
+import {openLevelUp} from './level-up-view'
 import {createTeamNavigationGuard} from './navigation-warning'
 import {labIdentityHtml,labActionsHtml} from './lab-home'
 import type {TeamScope} from './team-room-data'
@@ -30,6 +31,7 @@ navigation.setAttribute('aria-label','Main navigation')
 navigation.hidden = true
 navigation.innerHTML = '<button type="button" data-screen="lab">My Lab</button><button type="button" data-screen="explore">Explore</button><button type="button" data-screen="following">Following</button><button type="button" data-screen="matchup">Matchup</button><button type="button" data-screen="teams">My teams</button>'
 app.after(navigation)
+let training:ReturnType<typeof openLevelUp>|null=null
 let teamRoom:ReturnType<typeof showTeamRoom>|null=null
 let comparison:ReturnType<typeof showComparison>|null=null
 let following:ReturnType<typeof showFollowing>|null=null
@@ -42,7 +44,8 @@ let recovery: ReturnType<typeof showPasswordRecovery> | null = null
 
 if (Capacitor.getPlatform() === 'android') {
   void App.addListener('backButton', () => {
-    if(teamRoom){if(!teamRoom.back())guardNavigation(()=>{void lab()})}
+    if(training?.isOpen()){training.back()}
+    else if(teamRoom){if(!teamRoom.back())guardNavigation(()=>{void lab()})}
     else if(comparison){if(!comparison.back())void lab()}
     else if(following){if(!following.back())void lab()}
     else if (explore) { if (!explore.back()) void lab() }
@@ -54,6 +57,7 @@ if (Capacitor.getPlatform() === 'android') {
 }
 
 function login(message = '') {
+  training?.dispose();training=null
   document.querySelector<HTMLDialogElement>('[data-team-navigation-warning]')?.close()
   teamRoom?.dispose();teamRoom=null
   comparison?.dispose();comparison=null
@@ -154,6 +158,7 @@ navigation.querySelector<HTMLButtonElement>('[data-screen="teams"]')!.onclick=()
 const nativePush=createNativePush(client,scope=>openTeamRoom(scope))
 
 async function lab() {
+  training?.dispose();training=null
   document.querySelector<HTMLDialogElement>('[data-team-navigation-warning]')?.close()
   teamRoom?.dispose();teamRoom=null
   comparison?.dispose();comparison=null
@@ -182,6 +187,7 @@ async function lab() {
     : labIdentityHtml(data)}${!error ? labActionsHtml() : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Sign out</button><p role="alert" id="notice"></p>`
   app.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
   app.querySelectorAll<HTMLButtonElement>('[data-lab-screen]').forEach(b=>{b.onclick=()=>{navigation.querySelector<HTMLButtonElement>(`[data-screen="${b.dataset.labScreen}"]`)?.click()}})
+  app.querySelectorAll<HTMLButtonElement>('[data-training]').forEach(b=>{b.onclick=()=>{if(training?.isOpen())return;training=openLevelUp(client,current.user.id,()=>version===revision&&current.user.id===session?.user.id,b.dataset.training==='progress'?'progress':'catalog')}})
   const alerts=document.createElement('section');app.querySelector('#logout')!.before(alerts);nativePush.mount(alerts)
   app.insertAdjacentHTML('beforeend', accountLinksHtml)
   bindAccountLinks(app)
@@ -241,7 +247,7 @@ async function lab() {
 }
 
 client.auth.onAuthStateChange((_event, next) => {
-  if (next?.user.id === session?.user.id && (details?.isOpen() || connection || explore || following || comparison || teamRoom)) { session = next; setTimeout(()=>nativePush.setSession(next),0); return }
+  if (next?.user.id === session?.user.id && (details?.isOpen() || connection || explore || following || comparison || teamRoom || training?.isOpen())) { session = next; setTimeout(()=>nativePush.setSession(next),0); return }
   session = next
   revision++
   // Schedule outside the auth callback's lock before making another SDK call.
@@ -255,7 +261,7 @@ client.auth.getSession().catch(() => {
   app.innerHTML = '<h1>Couldn’t open your account</h1><p role="alert">Close the app and try again. Secure sign-in storage is unavailable.</p>'
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !details?.isOpen() && !connection && !explore && !following && !comparison && !teamRoom) void lab() }
+  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !details?.isOpen() && !connection && !explore && !following && !comparison && !teamRoom && !training?.isOpen()) void lab() }
   else client.auth.stopAutoRefresh()
 })
-window.addEventListener('online', () => { if (session && !details?.isOpen() && !connection && !explore && !following && !comparison && !teamRoom) void lab() })
+window.addEventListener('online', () => { if (session && !details?.isOpen() && !connection && !explore && !following && !comparison && !teamRoom && !training?.isOpen()) void lab() })

@@ -196,3 +196,9 @@ The child and parent clear on close/background/team/account disposal and ignore 
 ## Website parity correction — build 46 candidate
 
 See [the parity register](mobile-website-parity.md) for the website baseline and explicit native gaps. My Lab now offers working next-action cards with compact player identity; Explore starts with player/team/league/ranking tasks. Existing destinations and read limits remain unchanged. Leaving an unfinished team conversation asks before discarding; cancellation retains context. Synthetic entry/back/draft checks and physical-device acceptance must be recorded separately from feature availability.
+
+## Connected Level Up — build 47 candidate
+
+My Lab → Level Up and Your training progress reuse the website catalogue and existing player session API. Search/filter training cards locally, review full instructions, run/pause the session timer, record subjective proof/context/feeling/note, and save a private self-guided session. Confirmed records appear in the same account history used by the website. Player authority remains server-enforced; a lapsed/free account may read cards/history but cannot start a saved self-guided session.
+
+Every request checks the current signed-in owner before and after transport. Responses must match that owner and the expected save receipt. An uncertain save freezes one stable ID/payload for exact retry or explicit receipt lookup; no automatic retry, account write, coach assignment, message or notification is produced. Backgrounding pauses the timer, closing requires an explicit discard choice, and account/disposal changes clear private content and ignore late results. Positive acceptance uses only blocked-network synthetic data. Physical iPhone timer/background, keyboard, large-text and VoiceOver acceptance remain pending. See the parity register for explicit unported training features and in-memory draft limits.
