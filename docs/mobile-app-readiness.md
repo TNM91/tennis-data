@@ -206,3 +206,7 @@ Every request checks the current signed-in owner before and after transport. Res
 ### Build 48 candidate: website practice modules
 
 Adds the three modules from the active website Level Up catalogue, ordered drill entry, back-to-module navigation, return after confirmed saves, and explicitly visit-scoped saved-card checkmarks. Account history remains the durable source for individual sessions. Module enrollment/completion is not stored. No API/schema/permissions/encryption changes. Focused coverage checks canonical card references/order, proof copy, scoped checkmarks, missing cards and HTML escaping; synthetic UI covers module-to-card-to-save-to-module. Physical iPhone checks are still required.
+
+### Build 49 candidate: chosen training direction
+
+Adds separate playing style/development focus choices, account-scoped device preferences, website recommendation and practice-menu helpers, and the complete six-week development guides for all thirteen identities. A confirmed saved session preserves the explicitly chosen identity through the existing server contract. No new backend or access permissions. Week completion and cross-device preference sync are not claimed. Physical iPhone acceptance remains pending.
