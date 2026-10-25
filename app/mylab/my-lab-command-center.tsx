@@ -247,18 +247,7 @@ export default function MyLabCommandCenter({
       ) : null}
 
       {nextCourtEvent ? (
-        <Link className={styles.nextCourtEvent} href={nextCourtEvent.href} aria-label={`${nextCourtEvent.cta}: ${nextCourtEvent.title}`}>
-          <div className={styles.nextCourtEventCopy}>
-            <p className={styles.cardEyebrow}>Next on court</p>
-            <h2>{nextCourtEvent.title}</h2>
-            <p>{nextCourtEvent.detail}</p>
-          </div>
-          <div className={styles.nextCourtEventMeta}>
-            <strong>{nextCourtEvent.dateLabel}</strong>
-            <small>{nextCourtEvent.readiness}</small>
-            <span>{nextCourtEvent.cta} <i aria-hidden="true">→</i></span>
-          </div>
-        </Link>
+        <NextCourtCard event={nextCourtEvent} />
       ) : null}
 
       <div className={`${styles.primaryGrid} ${postRepReturn ? styles.primaryGridAfterRep : ''}`}>
@@ -362,5 +351,22 @@ export default function MyLabCommandCenter({
         </div>
       </div>
     </section>
+  )
+}
+
+export function NextCourtCard({event}:{event:NextCourtEvent}){
+  return (
+        <Link className={styles.nextCourtEvent} href={event.href} aria-label={`${event.cta}: ${event.title}`}>
+          <div className={styles.nextCourtEventCopy}>
+            <p className={styles.cardEyebrow}>Next on court</p>
+            <h2>{event.title}</h2>
+            <p>{event.detail}</p>
+          </div>
+          <div className={styles.nextCourtEventMeta}>
+            <strong>{event.dateLabel}</strong>
+            <small>{event.readiness}</small>
+            <span>{event.cta} <i aria-hidden="true">→</i></span>
+          </div>
+        </Link>
   )
 }

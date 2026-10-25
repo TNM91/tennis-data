@@ -1,3 +1,4 @@
+import {mountCourtCalendar} from './lab-calendar'
 import type {LabGoal} from '../../lib/my-lab-goal-sync'
 import {openLabGoals,goalReadinessHtml} from './lab-goals-view'
 import {loadTrainingHistory} from './level-up-data'
@@ -224,6 +225,7 @@ async function lab() {
   }})
   }
   bindLabActions()
+  if(!error){const calendar=document.createElement('section');app.querySelector('#lab-goal-context')?.before(calendar);if(!calendar.isConnected)app.querySelector('#refresh')!.before(calendar);mountCourtCalendar(calendar,client,current.user.id,()=>version===revision&&current.user.id===session?.user.id)}
   const alerts=document.createElement('section');app.querySelector('#logout')!.before(alerts);nativePush.mount(alerts)
   app.insertAdjacentHTML('beforeend', accountLinksHtml)
   bindAccountLinks(app)
