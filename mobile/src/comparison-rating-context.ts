@@ -1,3 +1,4 @@
+import {trajectoryGeometry} from '../../lib/rating-trajectory'
 import {ratingSignal} from '../../lib/rating-signal'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {ComparedPlayer} from './comparison-data'
@@ -55,10 +56,22 @@ export async function loadComparisonRatingHistory(client:SupabaseClient,players:
  }))
  await own(owner);return result
 }
+export function comparisonTrajectoriesHtml(players:ComparedPlayer[],history:PlayerRatingHistory[]){
+ if(![2,4].includes(players.length))return ''
+ const pairs=players.length===2?[[0,1]]:[[0,1],[2,3]]
+ return pairs.map(([a,b],index)=>{
+  const left=history.find(h=>h.playerId===players[a].player.id),right=history.find(h=>h.playerId===players[b].player.id),title=players.length===2?'Rating trajectory comparison':(index===0?'Your side':'Other side')+' · individual rating histories'
+  if(!left||!right||left.unavailable||right.unavailable)return '<h3>'+html(title)+'</h3><p>Both player histories are needed for this chart. Refresh rating history to try again.</p>'
+  const points=(h:PlayerRatingHistory)=>h.overall.map(r=>({date:r.snapshot_date,rating:r.dynamic_rating})),chart=trajectoryGeometry(points(left),points(right))
+  if(!chart)return '<h3>'+html(title)+'</h3><p>Each player needs three dated Overall TIQ ratings to draw this comparison. Review the dated histories below.</p>'
+  const values:Record<string,string>={TIQ_CHART_LEFT:players[a].player.name,TIQ_CHART_RIGHT:players[b].player.name,TIQ_CHART_LEFTPATH:chart.left.path,TIQ_CHART_RIGHTPATH:chart.right.path,TIQ_CHART_LEFTX:String(chart.left.last.x),TIQ_CHART_LEFTY:String(chart.left.last.y),TIQ_CHART_RIGHTX:String(chart.right.last.x),TIQ_CHART_RIGHTY:String(chart.right.last.y),TIQ_CHART_START:chart.start,TIQ_CHART_END:chart.end,TIQ_CHART_RANGE:chart.min.toFixed(2)+'–'+chart.max.toFixed(2)}
+  return '<h3>'+html(title)+'</h3><div class="website-ui website-rating-trajectory">'+websiteUi.trajectory.replace(/TIQ_CHART_[A-Z]+/g,key=>html(values[key]??key))+'</div><p class="rating-context">Latest loaded Overall snapshots only; this is not a complete season.'+(players.length===4?' These are individual curves, not a combined pair rating.':'')+'</p>'
+ }).join('')
+}
 export function ratingHistoryHtml(players:ComparedPlayer[],history:PlayerRatingHistory[]|null){
  if(!history)return '<p>Load recent form and dated Overall TIQ snapshots for the selected players.</p>'
  const engine=players.length===4?'doubles':'singles'
- return players.map(p=>{
+ return comparisonTrajectoriesHtml(players,history)+players.map(p=>{
   const h=history.find(h=>h.playerId===p.player.id)
   if(!h||h.unavailable)return `<article><h3>${html(p.player.name)}</h3><p>Rating history unavailable. Refresh to try again.</p></article>`
   const form=sumLastFiveRatingDeltas(h.specific,p.player.id,engine),usable=h.specific.slice(0,5).filter(r=>r.delta!==null).length,points=h.overall.filter(r=>r.dynamic_rating!==null),first=points.at(-1),last=points[0],change=first&&last&&points.length>=2?last.dynamic_rating!-first.dynamic_rating!:null
