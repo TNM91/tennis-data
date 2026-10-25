@@ -368,3 +368,7 @@ Linked players can explicitly load their saved account proof into the website's 
 ### Build 69 — shared account goal notebook
 
 Linked players with Player access can read/create/edit the same account goals and training notes as the website, using the actual shared field component and readiness rules. Explicit save review, exact revision comparisons, same-change retry/read-only recovery and memory-only focus selection are described in `docs/mobile-website-parity.md`. No API, migration, grant, service-role expansion or notification change. Browser-only unsynced goals, goal deletion and Match Prep-specific actions remain gaps; physical iPhone acceptance is pending.
+
+### Build 70 — goal notebook release guard
+
+Build 69 was withheld from the internal group. Build 70 includes the shared notebook and an atomic non-null-payload condition so an in-flight edit cannot restore an equal-revision website removal. See `docs/mobile-website-parity.md`; all prior scope and physical-device limitations remain.
