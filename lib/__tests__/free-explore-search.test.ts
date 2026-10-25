@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 const read = (file: string) => readFileSync(join(process.cwd(), file), 'utf8')
 const universalSearch = read('app/components/universal-search.tsx')
 const exploreSearch = read('app/explore/search/page.tsx')
-const exploreHome = read('app/explore/page.tsx')
+const exploreHome = read('app/explore/page.tsx') + read('components/explore/FindCommandPanel.tsx')
 const playerProfileStory = read('app/players/[id]/player-profile-story.module.css')
 
 describe('free Explore search', () => {

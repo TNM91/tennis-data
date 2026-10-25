@@ -37,7 +37,9 @@ describe('entity detail linking', () => {
   })
 
   it('links named players, teams, leagues, and tournament entrants on primary surfaces', () => {
-    const exploreSource = source('app/explore/page.tsx')
+    const explorePageSource = source('app/explore/page.tsx')
+    expect(explorePageSource).toContain('<FindCommandPanel compact={isTablet} mobile={isMobile} />')
+    const exploreSource = source('components/explore/FindCommandPanel.tsx')
     const teamDetailSource = source('app/teams/[team]/page.tsx')
     const playerDetailSource = source('app/players/[id]/page.tsx')
     const leagueDetailSource = source('app/explore/leagues/tiq/[league]/page.tsx')

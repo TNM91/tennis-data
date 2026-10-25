@@ -1,3 +1,5 @@
+import websiteUi from '../generated/website-ui.json'
+import {showExplore as showPlayerDetail} from './explore'
 import {openLevelUp} from './level-up-view'
 import {createTeamNavigationGuard} from './navigation-warning'
 import {labIdentityHtml,labActionsHtml} from './lab-home'
@@ -12,7 +14,6 @@ import { Capacitor } from '@capacitor/core'
 import { App } from '@capacitor/app'
 import { supabaseUrl, supabaseKey } from '../../lib/supabase-public-config'
 import { getNativeAuthStorage } from '../../lib/native-auth-storage'
-import { MY_LAB_STORY } from '../../lib/product-story'
 import { loadRecentResults, type RecentMatchRow } from './recent-results'
 import { showRecentResults } from './results-view'
 import { connectPlayer, findPlayers, showPlayerConnection } from './player-connection'
@@ -29,7 +30,7 @@ const navigation = document.createElement('nav')
 navigation.className = 'app-navigation'
 navigation.setAttribute('aria-label','Main navigation')
 navigation.hidden = true
-navigation.innerHTML = '<button type="button" data-screen="lab">My Lab</button><button type="button" data-screen="explore">Explore</button><button type="button" data-screen="following">Following</button><button type="button" data-screen="matchup">Matchup</button><button type="button" data-screen="teams">My teams</button>'
+navigation.innerHTML = (['lab','explore','following','matchup','teams'] as const).map(key=>`<button type="button" data-screen="${key}"><span aria-hidden="true">${websiteUi.icons[key]}</span><span>${({lab:'My Lab',explore:'Explore',following:'Following',matchup:'Matchup',teams:'My teams'})[key]}</span></button>`).join('')
 app.after(navigation)
 let training:ReturnType<typeof openLevelUp>|null=null
 let teamRoom:ReturnType<typeof showTeamRoom>|null=null
@@ -38,6 +39,7 @@ let following:ReturnType<typeof showFollowing>|null=null
 let explore: ReturnType<typeof showExplore> | null = null
 let session: Session | null = null
 let revision = 0
+let profileOpen=false
 let connection: ReturnType<typeof showPlayerConnection> | null = null
 let details: ReturnType<typeof createMatchDetails> | null = null
 let recovery: ReturnType<typeof showPasswordRecovery> | null = null
@@ -93,6 +95,7 @@ function login(message = '') {
 
 function selectNavigation(screen: 'lab' | 'explore' | 'following' | 'matchup' | 'teams') {
   navigation.hidden = false
+  document.body.dataset.screen=screen
   window.scrollTo(0,0)
   navigation.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
     if (button.dataset.screen === screen) button.setAttribute('aria-current','page')
@@ -102,9 +105,10 @@ function selectNavigation(screen: 'lab' | 'explore' | 'following' | 'matchup' | 
 const guardNavigation=createTeamNavigationGuard(()=>Boolean(teamRoom?.hasDraft()),()=>revision)
 navigation.querySelector<HTMLButtonElement>('[data-screen="lab"]')!.onclick = () => {if (!connection?.isSaving()) guardNavigation(()=>{void lab()})}
 navigation.querySelector<HTMLButtonElement>('[data-screen="explore"]')!.onclick = () => {
-  if (!session || connection?.isSaving() || explore) return
+  if (!session || connection?.isSaving() || explore&&!profileOpen) return
   guardNavigation(()=>{
     if(!session)return
+    explore?.dispose();explore=null;profileOpen=false
     teamRoom?.dispose();teamRoom=null
     comparison?.dispose();comparison=null
     following?.dispose();following=null
@@ -182,17 +186,17 @@ async function lab() {
     .eq('id', current.user.id).abortSignal(AbortSignal.timeout(12000)).maybeSingle()
   if (version !== revision || current.user.id !== session?.user.id) return
   app.dataset.state = error ? 'unavailable' : 'ready'
-  app.innerHTML = `<small>${escape(MY_LAB_STORY.eyebrow)}</small><h1 tabindex="-1">My Lab</h1><p>${escape(MY_LAB_STORY.headline)}</p>${error
-    ? '<section><h2>Can’t load your profile</h2><p role="alert">Check your connection, then try again. Your profile has not been changed.</p></section>'
+  app.innerHTML = `${error
+    ? '<h1 tabindex="-1">My Lab</h1><section><h2>Can’t load your profile</h2><p role="alert">Check your connection, then try again. Your profile has not been changed.</p></section>'
     : labIdentityHtml(data)}${!error ? labActionsHtml() : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Sign out</button><p role="alert" id="notice"></p>`
-  app.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
+  const labHeading=app.querySelector<HTMLElement>('h1');if(labHeading){labHeading.tabIndex=-1;labHeading.focus({preventScroll:true})}
   app.querySelectorAll<HTMLButtonElement>('[data-lab-screen]').forEach(b=>{b.onclick=()=>{navigation.querySelector<HTMLButtonElement>(`[data-screen="${b.dataset.labScreen}"]`)?.click()}})
   app.querySelectorAll<HTMLButtonElement>('[data-training]').forEach(b=>{b.onclick=()=>{if(training?.isOpen())return;training=openLevelUp(client,current.user.id,()=>version===revision&&current.user.id===session?.user.id,b.dataset.training==='inbox'?'inbox':b.dataset.training==='progress'?'progress':'catalog')}})
   const alerts=document.createElement('section');app.querySelector('#logout')!.before(alerts);nativePush.mount(alerts)
   app.insertAdjacentHTML('beforeend', accountLinksHtml)
   bindAccountLinks(app)
-  const connectButton = app.querySelector<HTMLButtonElement>('#connect-player')
-  if (connectButton) connectButton.onclick = () => {
+  app.querySelectorAll<HTMLButtonElement>('[data-lab-profile]').forEach(button=>{button.onclick=()=>{if(!data?.linked_player_id||!data.linked_player_name)return;details?.dispose();details=null;const profileVersion=++revision;selectNavigation('explore');profileOpen=true;explore=showPlayerDetail(app,client,()=>profileVersion===revision&&current.user.id===session?.user.id,{player:{id:data.linked_player_id,name:data.linked_player_name,location:null,flight:null},back:()=>{void lab()},backLabel:'Back to My Lab'})}})
+  app.querySelectorAll<HTMLButtonElement>('[data-connect-player],#connect-player').forEach(connectButton=>{connectButton.onclick = () => {
     details?.dispose()
     details = null
     const connectionVersion = ++revision
@@ -201,7 +205,7 @@ async function lab() {
       search: term => findPlayers(client, term),
       connect: playerId => connectPlayer(client, playerId, current.user.id, isCurrent),
     }, () => { void lab() }, isCurrent)
-  }
+  }})
   app.querySelector<HTMLButtonElement>('#refresh')!.onclick = () => { void lab() }
   app.querySelector<HTMLButtonElement>('#logout')!.onclick = async event => {
     (event.currentTarget as HTMLButtonElement).disabled = true

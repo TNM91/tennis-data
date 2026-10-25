@@ -49,6 +49,7 @@ type PostRepReturn = {
 }
 
 type MyLabCommandCenterProps = {
+  progressAvailable?: boolean
   resumePrep?: ResumeMatchPrep | null
   firstName: string
   playerId: string
@@ -68,6 +69,7 @@ type MyLabCommandCenterProps = {
 }
 
 export default function MyLabCommandCenter({
+  progressAvailable = true,
   resumePrep = null,
   firstName,
   playerId,
@@ -232,7 +234,7 @@ export default function MyLabCommandCenter({
         </section>
       ) : null}
 
-      {!postRepReturn ? (
+      {!postRepReturn && progressAvailable ? (
         <section className={styles.dailyPulse} aria-label="My Lab daily pulse">
           {dailyPulseItems.map((item) => (
             <Link key={item.label} className={styles.dailyPulseItem} href={item.href}>
@@ -302,7 +304,7 @@ export default function MyLabCommandCenter({
         ) : null}
 
         <div className={`${styles.supportStack} ${postRepReturn ? styles.supportStackAfterRep : ''}`}>
-          {!postRepReturn ? <article className={styles.momentumCard}>
+          {!postRepReturn && progressAvailable ? <article className={styles.momentumCard}>
             <div className={styles.cardHeadingRow}>
               <div>
                 <p className={styles.supportEyebrow}>Weekly momentum</p>

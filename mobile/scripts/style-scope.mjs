@@ -1,0 +1,2 @@
+import postcss from 'postcss'
+export function scopeNativeStyles(css){const sheet=postcss.parse(css);sheet.walkRules(rule=>{if(rule.parent?.type==='atrule'&&/keyframes$/i.test(rule.parent.name))return;rule.selectors=rule.selectors.map(selector=>{if(selector==='*'||selector===':root')return selector;const pseudo=selector.indexOf('::'),guard=':where(:not(.website-ui,.website-ui *))';return pseudo<0?selector+guard:selector.slice(0,pseudo)+guard+selector.slice(pseudo)})});return sheet.toString()}

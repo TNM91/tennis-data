@@ -10,7 +10,7 @@ export function playerSummary(player: PlayerChoice) {
   return `<h1 tabindex="-1">${html(player.name)}</h1><dl><dt>Location</dt><dd>${html(player.location || 'Location unavailable')}</dd><dt>Flight</dt><dd>${html(player.flight || 'Flight unavailable')}</dd></dl>`
 }
 
-export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, initial?: {player:PlayerChoice;back:()=>void;backLabel?:string}) {
+export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, initial?: {player:PlayerChoice;back:()=>void;backLabel?:string},initialTerm='') {
   let disposed = false
   let request = 0
   let selected: PlayerChoice | null = null
@@ -104,6 +104,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
       error.textContent = 'Can’t search players. Check your connection and try again.'
     } finally {if(valid() && version===request)button.disabled=false}
   }
+  if(initialTerm){input.value=initialTerm;form.requestSubmit()}
   if(initial)void open(initial.player)
   return {
     isMatchOpen:()=>matchDetails?.isOpen() || false,

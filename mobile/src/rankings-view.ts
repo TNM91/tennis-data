@@ -7,7 +7,7 @@ import { createRankingLoader, type RankingRow } from './rankings-data'
 export function rankingCards(rows:RankingRow[]) {
   return `<ol class="player-choices rankings-list">${rows.map((row,index)=>`<li><div class="ranking-heading"><h2>${index+1}. ${html(row.player.name)}</h2><strong class="ranking-value">${html(row.display)}</strong></div><p>${html(row.player.location || 'Location unavailable')}</p><p class="ranking-note">${row.fallback?'Overall TIQ rating used; no separate rating recorded for this view.':'Recorded TIQ rating.'}${row.player.rating_source==='self'?' Self-rated record.':row.player.rating_source==null?' Rating source unavailable.':''}</p><button type="button" class="secondary" data-ranking-player="${index}">View player<span class="sr-only"> ${html(row.player.name)}</span></button></li>`).join('')}</ol>`
 }
-export function showRankings(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean) {
+export function showRankings(app:HTMLElement,client:SupabaseClient,isCurrent:()=>boolean,initialTerm='') {
   let disposed=false,request=0,view:RatingView='overall',selected=false,scroll=0
   let player:ReturnType<typeof showPlayer>|null=null
   let previousFocus:HTMLElement|null=null
@@ -54,6 +54,7 @@ export function showRankings(app:HTMLElement,client:SupabaseClient,isCurrent:()=
   }})
   input.oninput=()=>{request++;submit.disabled=false;content.innerHTML='';status.textContent='Apply the location to update rankings.';error.textContent=''}
   form.onsubmit=event=>{event.preventDefault();if(!submit.disabled)void load()}
+  input.value=initialTerm
   void load()
   return {dispose:()=>{disposed=true;request++;player?.dispose()},back:()=>{if(!selected)return false;if(player?.isMatchOpen()){history.back();return true}back();return true}}
 }

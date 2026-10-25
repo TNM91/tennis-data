@@ -23,6 +23,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "mobile/android/**",
+    "mobile/generated/**",
     "mobile/ios/**",
     "mobile/bundled/app.js",
     "tmp/**",

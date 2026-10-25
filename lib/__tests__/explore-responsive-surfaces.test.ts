@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const exploreSource = source('app/explore/page.tsx')
+const exploreSource = source('app/explore/page.tsx') + source('components/explore/FindCommandPanel.tsx')
 const exploreSearchSource = source('app/explore/search/page.tsx')
 const publicCommandCenterSource = source('app/components/public-command-center.tsx')
 const contextualVisualSource = source('app/components/contextual-tennis-visual.tsx')
