@@ -228,3 +228,8 @@ Adds recap/proof entry, explicit completion review, frozen save/recovery, confli
 ### Build 53 candidate: weekly coach acknowledgments and questions
 
 Adds native review/send of Seen acknowledgments and questions on shared weekly coach updates, exact request receipt recovery, stale-update conflict handling and draft-close protection. Reuses existing authenticated row permissions and website reply semantics; no new schema, grants, notifications or encryption. Rep completion and sharing are unchanged. Custom week edits and sharing management remain website actions; physical iPhone acceptance is pending. Positive QA remains synthetic only.
+
+
+### Build 54 candidate: Captain practice attendance
+
+Adds exact-team saved practice browsing, Upcoming/Earlier views, focus/recurrence detail, player search, canonical RSVP/waitlist/captain-confirmed status and reviewed confirmation/removal. Read-only snapshots do not advance recurrences or send reminders. Existing authenticated RLS writes use invitee revisions, with pre/post practice checks and manual uncertain-state recovery; parent edits can leave a child write unconfirmed rather than falsely reporting success. No new schema, grants, roles, notifications or encryption. Creation/editing/cancellation, RSVP sharing/calendar and reminders remain website workflows. Physical iPhone acceptance is pending.
