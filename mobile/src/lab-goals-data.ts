@@ -25,7 +25,7 @@ export function freezeGoalDraft(scope:GoalScope,base:GoalSnapshot|null,fields:Pa
  function freeze(v:object){Object.values(v).forEach(x=>{if(x&&typeof x==='object')freeze(x)});Object.freeze(v)}freeze(draft);return draft
 }
 const stable=(v:unknown):string=>v&&typeof v==='object'?Array.isArray(v)?'['+v.map(stable).join(',')+']':'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+stable((v as Record<string,unknown>)[k])).join(',')+'}':JSON.stringify(v)
-export function confirmsGoalDraft(draft:GoalDraft,row:unknown){try{const saved=parseGoalSnapshot(row);return saved.id===draft.id&&Date.parse(saved.revision)===Date.parse(draft.revision)&&stable(saved.payload)===stable(draft.payload)}catch{return false}}
+export function confirmsGoalDraft(draft:GoalDraft,row:unknown){try{const saved=parseGoalSnapshot(row);const fractional=saved.revision.match(/\.(\d+)(?:Z|[+-]\d\d:?\d\d)$/i)?.[1]||'';return !/[1-9]/.test(fractional.slice(3))&&saved.id===draft.id&&Date.parse(saved.revision)===Date.parse(draft.revision)&&stable(saved.payload)===stable(draft.payload)}catch{return false}}
 async function own(client:SupabaseClient,scope:GoalScope,current:()=>boolean){
  const {data,error}=await client.auth.getSession();if(error||!current()||data.session?.user.id!==scope.owner)throw Error('This notebook is no longer open.')
  const result=await client.from('profiles').select('linked_player_id').eq('id',scope.owner).abortSignal(AbortSignal.timeout(12000)).maybeSingle()
