@@ -156,6 +156,7 @@ navigation.querySelector<HTMLButtonElement>('[data-screen="matchup"]')!.onclick=
 }
 
 function openTeamRoom(initialScope?:TeamScope){
+  if(comparison?.isNotebookOpen()){comparison.back();return}
   if(goals?.isOpen()){goals.back();return}
   if(!session || connection?.isSaving())return
   if(teamRoom && !initialScope)return
