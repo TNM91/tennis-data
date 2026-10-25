@@ -1,3 +1,4 @@
+import {captainBriefNext} from '../../lib/captain-brief-next'
 import {readTeamFixtures,parseFixtureDetail} from './team-fixtures-data'
 import {fixtureOpponent,fixtureSignature,type TeamFixture} from '../../lib/team-fixtures-contract'
 import type {SupabaseClient} from '@supabase/supabase-js'
@@ -27,6 +28,7 @@ export function matchCenterNext(data:MatchCenter):{action:'plan'|'publish'|'day'
  if(pub.shared.alreadyFinal)return {action:'day',label:'Check match-day status',reason:'The final lineup is recorded as sent. Check replacements and arrival updates.'}
  if(!data.lineup.version||ready.openSeats||ready.duplicates||ready.attention.length)return {action:'plan',label:'Review working lineup',reason:ready.openSeats?'Fill the open playing seats before publishing.':ready.attention.length?'Review selected players who are unavailable, uncertain or waiting.':'Save a private working lineup before sharing.'}
  if(pub.shared.active)return {action:'publish',label:pub.shared.canFinalize?'Review final lineup':'Check court confirmations',reason:pub.shared.canFinalize?'Review the confirmed shared courts before sending the final lineup.':'Some shared courts still need replies or captain attention.'}
+ const advice=captainBriefNext({hasScope:true,hasLineup:Boolean(data.lineup.version)&&ready.selected.length>0,responseRisks:ready.attention.length,hasLogistics:Boolean(data.lineup.plan.location.trim()&&data.lineup.plan.arrivalTime.trim())});if(advice.kind==='logistics'||advice.kind==='lineup')return {action:'plan',label:advice.title,reason:advice.detail}
  return {action:'publish',label:'Review team publishing',reason:pub.proposal.canShare?'Review the saved courts before posting the proposal to your team.':pub.proposal.reason||'Check the saved court plan before publishing.'}
 }
 export type ArrivalSnapshot={available:boolean;reason:string;here:number;onMyWay:number;runningLate:number;people:{profileId:string;name:string;court:string;status:'here'|'on_my_way'|'running_late'}[]}

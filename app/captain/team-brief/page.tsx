@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
+import { captainBriefNext } from '@/lib/captain-brief-next'
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import LockedPlanPage from '@/app/components/locked-plan-page'
@@ -403,40 +404,12 @@ function CaptainTeamBriefContent() {
     date: eventDate,
     opponent: resolvedOpponent,
   })
-  const nextMove = !team || !league || !flight
-    ? {
-        title: 'Choose the team week',
-        detail: 'Set the team, league, and flight before building a match-day plan.',
-        href: '/captain',
-        cta: 'Choose team scope',
-      }
-    : !lineupRows.length
-      ? {
-          title: 'Build the current courts',
-          detail: 'Set the lineup first so the team receives a clear, usable plan.',
-          href: lineupBuilderHref,
-          cta: 'Open lineup builder',
-        }
-      : alertLines.length
-        ? {
-            title: 'Resolve availability',
-            detail: `${alertLines.length} response risk${alertLines.length === 1 ? '' : 's'} still need attention before sending.`,
-            href: availabilityHref,
-            cta: 'Open availability',
-          }
-        : !hasMatchPlan
-          ? {
-              title: 'Add match logistics',
-              detail: 'Confirm the opponent, arrival time, and location before sharing the plan.',
-              href: weeklyBriefHref,
-              cta: 'Open captain brief',
-            }
-          : {
-              title: 'Share the match plan',
-              detail: 'Your lineup, logistics, and readiness are in place. Send the team update now.',
-              href: '',
-              cta: 'Copy team message',
-            }
+  const briefAction = captainBriefNext({ hasScope: Boolean(team && league && flight), hasLineup: Boolean(lineupRows.length), responseRisks: alertLines.length, hasLogistics: hasMatchPlan })
+  const nextMove = {
+    ...briefAction,
+    href: briefAction.kind === 'scope' ? '/captain' : briefAction.kind === 'lineup' ? lineupBuilderHref : briefAction.kind === 'availability' ? availabilityHref : briefAction.kind === 'logistics' ? weeklyBriefHref : '',
+    cta: briefAction.kind === 'scope' ? 'Choose team scope' : briefAction.kind === 'lineup' ? 'Open lineup builder' : briefAction.kind === 'availability' ? 'Open availability' : briefAction.kind === 'logistics' ? 'Open captain brief' : 'Copy team message',
+  }
 
   function updateWeekStatus(nextStatus: CaptainWeekStatus) {
     setWeekStatusState({
