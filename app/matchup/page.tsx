@@ -20,6 +20,7 @@ import { formatDate, formatRating } from '@/lib/captain-formatters'
 import { useProductAccess } from '@/lib/use-product-access'
 import { loadUserProfileLink, type UserProfileLink } from '@/lib/user-profile'
 import { getMatchupStaleSelectionNotice, normalizeMatchupPlayerOptions, resolveMatchupPlayerOptions } from '@/lib/matchup-player-options'
+import {expectedScore,getConfidenceLabel,matchupCourtPlan} from '@/lib/matchup-preparation'
 import { buildMatchupPrepHref } from '@/lib/matchup-prep-note'
 import { buildPublicSectionBreadcrumbJsonLd } from '@/lib/structured-data'
 import { trackProductUsageEvent } from '@/lib/product-usage-client'
@@ -157,7 +158,6 @@ type AccuracyState = {
   sampleSize: number
 }
 
-const RATING_DIVISOR = 0.45
 const MATCHUP_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_MATCHUP_INLINE || null
 const MATCHUP_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
 const MATCHUP_PLAYER_IDENTITY_READ = getPlayerDevelopmentIdentityActionRead(MATCHUP_PLAYER_IDENTITY)
@@ -1478,9 +1478,7 @@ export default function MatchupPage() {
       : headToHead.total === 0
         ? 'No recorded head-to-head yet. Let current form set the plan.'
         : `${headToHead.total} past meeting${headToHead.total === 1 ? '' : 's'}: ${comparison.leftLabel} ${headToHead.winsA} - ${headToHead.winsB} ${comparison.rightLabel}.`
-    const courtPlan = projection.isSwingMatch
-      ? 'Treat the opening four games as the test: protect serve patterns, notice the first repeatable opening, then commit to it.'
-      : `${projection.favoriteLabel} has the current edge. Start with the highest-percentage pattern and make the other side earn every change.`
+    const courtPlan = matchupCourtPlan(Math.max(projection.leftWinProbability, projection.rightWinProbability), projection.favoriteLabel)
 
     return {
       context: `${projection.favoriteEdgeText} - ${projection.confidenceLabel} confidence`,
@@ -3151,19 +3149,6 @@ function getProjectionRating(player: Player, view: RatingView): number | null {
 
 function getEngineRatingView(matchType: MatchType): RatingView {
   return matchType === 'singles' ? 'singles' : 'doubles'
-}
-
-function expectedScore(leftRating: number, rightRating: number) {
-  const exponent = (rightRating - leftRating) / RATING_DIVISOR
-  return 1 / (1 + Math.pow(10, exponent))
-}
-
-function getConfidenceLabel(favoriteProbability: number) {
-  if (favoriteProbability >= 0.75) return 'Very High'
-  if (favoriteProbability >= 0.66) return 'High'
-  if (favoriteProbability >= 0.58) return 'Moderate'
-  if (favoriteProbability >= 0.52) return 'Low'
-  return 'Toss-up'
 }
 
 function getUpsetIndicator(favoriteProbability: number) {

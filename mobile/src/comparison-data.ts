@@ -6,8 +6,8 @@ import type {PlayerChoice} from './player-connection'
 import type {RatingView} from '../../lib/player-rating-display'
 import {html} from './match-details'
 export type ComparedPlayer={player:PlayerChoice;ratings:RecordedRatings|null;matches:RecentMatchRow[]}
-export async function loadComparison(client:SupabaseClient,players:[PlayerChoice,PlayerChoice]):Promise<ComparedPlayer[]> {
- if(players[0].id===players[1].id)throw Error('Choose two different players.')
+export async function loadComparison(client:SupabaseClient,players:PlayerChoice[]):Promise<ComparedPlayer[]> {
+ if(![2,4].includes(players.length)||players.some(p=>!p.id)||new Set(players.map(p=>p.id)).size!==players.length)throw Error('Choose different players for every slot.')
  return Promise.all(players.map(async player=>{
   const [ratings,results]=await Promise.all([loadPlayerRatings(client,player.id),loadRecentResults(client,player.id)])
   if(results.error)throw Error('Comparison unavailable')

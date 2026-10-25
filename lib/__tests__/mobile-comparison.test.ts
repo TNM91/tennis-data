@@ -12,6 +12,13 @@ describe('native recorded player comparison',()=>{
   const client={} as SupabaseClient,result=await loadComparison(client,[player('a'),player('b')])
   expect(result.map(row=>row.player.id)).toEqual(['a','b']);expect(state.ratings).toHaveBeenCalledTimes(2);expect(state.results).toHaveBeenCalledWith(client,'b')
  })
+ it('loads four exact doubles slots in order and rejects incomplete or duplicate sides before reads',async()=>{
+  const client={} as SupabaseClient,result=await loadComparison(client,['a','b','c','d'].map(player))
+  expect(result.map(row=>row.player.id)).toEqual(['a','b','c','d']);expect(state.ratings).toHaveBeenCalledTimes(4)
+  state.ratings.mockClear();state.results.mockClear()
+  for(const ids of [['a','b','c'],['a','b','c','d','e'],['a','b','c','a']])await expect(loadComparison(client,ids.map(player))).rejects.toThrow()
+  expect(state.ratings).not.toHaveBeenCalled();expect(state.results).not.toHaveBeenCalled()
+ })
  it('rejects duplicate players before issuing comparison reads',async()=>{
   await expect(loadComparison({} as SupabaseClient,[player('a'),player('a')])).rejects.toThrow('different players');expect(state.ratings).not.toHaveBeenCalled()
  })

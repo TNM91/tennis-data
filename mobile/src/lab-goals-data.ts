@@ -1,3 +1,4 @@
+import {buildResumeMatchPrepHref} from '../../lib/resume-match-prep'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {LabGoal} from '../../lib/my-lab-goal-sync'
 import {canFollowPlayers} from './follows-data'
@@ -16,7 +17,7 @@ export function parseGoalSnapshot(value:unknown):GoalSnapshot{
  return {id:r.goal_id,revision:r.edited_at,goal,payload:JSON.parse(JSON.stringify(p)) as Record<string,unknown>}
 }
 export function freezeGoalDraft(scope:GoalScope,base:GoalSnapshot|null,fields:Partial<LabGoal>,id:string,now=new Date()):GoalDraft{
- if(!scope.owner||!scope.player||scope.player.length>200||(!base&&!/^native-goal-[0-9a-f-]{36}$/i.test(id))||base&&base.id!==id)throw Error('Refresh your linked player and goals.')
+ if(!scope.owner||!scope.player||scope.player.length>200||(!base&&!/^native-goal-[0-9a-f-]{36}$/i.test(id)&&!buildResumeMatchPrepHref(id))||base&&base.id!==id)throw Error('Refresh your linked player and goals.')
  const revision=new Date(Math.max(now.getTime(),base?Date.parse(base.revision)+1:0)).toISOString()
  const goal:LabGoal={id,goal:fields.goal??'',progressStatus:fields.progressStatus??'not-started',progressUpdate:fields.progressUpdate??'',doingWell:fields.doingWell??'',improveNext:fields.improveNext??'',notes:fields.notes??'',updatedAt:revision}
  if(!goal.goal.trim())throw Error('Name one tennis goal before reviewing it.')
