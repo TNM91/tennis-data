@@ -103,10 +103,12 @@ export function buildPracticeIcs(input: {
   ].join('\r\n')
 }
 
-function buildPracticeCalendarRange(dateValue: string, timeValue: string, endTimeValue = '') {
+export function buildPracticeCalendarRange(dateValue: string, timeValue: string, endTimeValue = '') {
   const date = dateValue.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/)
   const time = timeValue.trim().match(/^(\d{1,2}):(\d{2})$/)
   if (!date || !time) return null
+  const day = new Date(`${dateValue.trim()}T00:00:00Z`)
+  if (!Number.isFinite(day.getTime()) || day.toISOString().slice(0, 10) !== dateValue.trim()) return null
   const hour = Number(time[1])
   const minute = Number(time[2])
   if (hour > 23 || minute > 59) return null
@@ -119,6 +121,7 @@ function buildPracticeCalendarRange(dateValue: string, timeValue: string, endTim
   const endMinutes = requestedEnd && requestedEndHour <= 23 && requestedEndMinute <= 59 && requestedEndMinutes > startMinutes
     ? requestedEndMinutes
     : Math.min(startMinutes + 90, (24 * 60) - 1)
+  if (endMinutes <= startMinutes) return null
   const stamp = (minutes: number) => `${dateStamp}T${String(Math.floor(minutes / 60)).padStart(2, '0')}${String(minutes % 60).padStart(2, '0')}00`
   return { start: stamp(startMinutes), end: stamp(endMinutes) }
 }
