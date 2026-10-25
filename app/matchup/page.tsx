@@ -1,5 +1,8 @@
 'use client'
 
+import MatchupMeetingSummary from '../../components/matchup/MatchupMeetingSummary'
+import {matchupOutcome} from '../../lib/matchup-outcome'
+
 import {sumLastFiveRatingDeltas} from '@/lib/rating-form'
 import CompareCard,{miniGhostButton} from '@/components/matchup/MatchupCompareCard'
 
@@ -89,13 +92,13 @@ type HeadToHeadState = {
     matchDate: string
     matchType: MatchType
     score: string
-    winner: 'A' | 'B'
+    winner: 'A' | 'B' | null
   } | null
   recentMatches: Array<{
     matchDate: string
     matchType: MatchType
     score: string
-    winner: 'A' | 'B'
+    winner: 'A' | 'B' | null
   }>
 }
 
@@ -603,16 +606,17 @@ export default function MatchupPage() {
         const participantB = participants.find((p) => p.player_id === playerBIdValue)
 
         if (!participantA || !participantB) continue
-        if (participantA.side === participantB.side) continue
+        if (!['A','B'].includes(participantA.side) || !['A','B'].includes(participantB.side) || participantA.side === participantB.side) continue
 
         total += 1
-        const playerAWon = participantA.side === match.winner_side
+        const outcome = matchupOutcome(participantA.side, match.winner_side)
+        const playerAWon = outcome === 'A'
 
         if (playerAWon) {
           winsA += 1
           if (match.match_type === 'singles') singlesA += 1
           else doublesA += 1
-        } else {
+        } else if (outcome === 'B') {
           winsB += 1
           if (match.match_type === 'singles') singlesB += 1
           else doublesB += 1
@@ -622,7 +626,7 @@ export default function MatchupPage() {
           matchDate: match.match_date,
           matchType: match.match_type,
           score: match.score,
-          winner: playerAWon ? 'A' : 'B',
+          winner: outcome,
         })
 
         if (
@@ -633,7 +637,7 @@ export default function MatchupPage() {
             matchDate: match.match_date,
             matchType: match.match_type,
             score: match.score,
-            winner: playerAWon ? 'A' : 'B',
+            winner: outcome,
           }
         }
       }
@@ -758,12 +762,13 @@ export default function MatchupPage() {
         }
 
         total += 1
-        const teamAWon = teamASide === match.winner_side
+        const outcome = matchupOutcome(teamASide, match.winner_side)
+        const teamAWon = outcome === 'A'
 
         if (teamAWon) {
           winsA += 1
           doublesA += 1
-        } else {
+        } else if (outcome === 'B') {
           winsB += 1
           doublesB += 1
         }
@@ -772,7 +777,7 @@ export default function MatchupPage() {
           matchDate: match.match_date,
           matchType: match.match_type,
           score: match.score,
-          winner: teamAWon ? 'A' : 'B',
+          winner: outcome,
         })
 
         if (
@@ -783,7 +788,7 @@ export default function MatchupPage() {
             matchDate: match.match_date,
             matchType: match.match_type,
             score: match.score,
-            winner: teamAWon ? 'A' : 'B',
+            winner: outcome,
           }
         }
       }
@@ -1476,7 +1481,7 @@ export default function MatchupPage() {
       ? 'Checking past meetings…'
       : headToHead.total === 0
         ? 'No recorded head-to-head yet. Let current form set the plan.'
-        : `${headToHead.total} past meeting${headToHead.total === 1 ? '' : 's'}: ${comparison.leftLabel} ${headToHead.winsA} - ${headToHead.winsB} ${comparison.rightLabel}.`
+        : `${headToHead.total} past meeting${headToHead.total === 1 ? '' : 's'}: ${comparison.leftLabel} ${headToHead.winsA} - ${headToHead.winsB} ${comparison.rightLabel}. ${headToHead.total - headToHead.winsA - headToHead.winsB} pending.`
     const courtPlan = matchupCourtPlan(Math.max(projection.leftWinProbability, projection.rightWinProbability), projection.favoriteLabel)
 
     return {
@@ -2613,8 +2618,8 @@ export default function MatchupPage() {
                   <div style={emptyHeadToHeadCard}>
                     <div style={emptyHeadToHeadTitle}>No direct head-to-head history yet.</div>
                     <p style={emptyHeadToHeadText}>
-                      The projection still uses current ratings, but there are no recorded matches for this
-                      exact singles pairing or doubles team matchup.
+                      The projection still uses current ratings, but no direct meetings were found in this search for this
+                      singles pairing or doubles team matchup. Older or incomplete records may be outside the search.
                     </p>
                     <div style={emptyHeadToHeadActions}>
                       <Link href="/explore/players" style={miniGhostButton}>
@@ -2627,47 +2632,7 @@ export default function MatchupPage() {
                   </div>
                 ) : (
                   <>
-                    <div style={dynamicMetricGrid}>
-                      <MetricCard label="Total matches" value={String(headToHead.total)} />
-                      <MetricCard
-                        label="Overall record"
-                        value={`${headToHead.winsA} - ${headToHead.winsB}`}
-                        sub={`${comparison.leftLabel} vs ${comparison.rightLabel}`}
-                      />
-                      <MetricCard
-                        label="Singles record"
-                        value={`${headToHead.singlesA} - ${headToHead.singlesB}`}
-                      />
-                      <MetricCard
-                        label="Doubles record"
-                        value={`${headToHead.doublesA} - ${headToHead.doublesB}`}
-                      />
-                    </div>
-
-                    {headToHead.total > 0 ? (() => {
-                      const pctA = Math.round((headToHead.winsA / headToHead.total) * 100)
-                      const pctB = 100 - pctA
-                      const leaderLabel = headToHead.winsA > headToHead.winsB
-                        ? comparison.leftLabel
-                        : headToHead.winsB > headToHead.winsA
-                          ? comparison.rightLabel
-                          : null
-                      return (
-                        <div style={headToHeadDominanceStyle}>
-                          <div style={headToHeadDominanceKickerStyle}>
-                            Head-to-head dominance{leaderLabel ? ` | ${leaderLabel} leads` : ' | Even'}
-                          </div>
-                          <div style={headToHeadBarStyle}>
-                            <div style={headToHeadBarFillStyle(pctA)} />
-                            <div style={headToHeadBarRemainderStyle} />
-                          </div>
-                          <div style={headToHeadPercentRowStyle}>
-                            <span style={headToHeadPercentLabelGreenStyle}>{comparison.leftLabel} {pctA}%</span>
-                            <span style={headToHeadPercentLabelBlueStyle}>{pctB}% {comparison.rightLabel}</span>
-                          </div>
-                        </div>
-                      )
-                    })() : null}
+                    <MatchupMeetingSummary record={headToHead} leftLabel={comparison.leftLabel} rightLabel={comparison.rightLabel}/>
 
                     {headToHead.recentMatches.length > 0 ? (() => {
                       let threeSets = 0, tiebreaks = 0, scoredMatches = 0
@@ -2690,7 +2655,7 @@ export default function MatchupPage() {
                         <div style={headToHeadDominanceKickerStyle}>Match history</div>
                         {headToHead.recentMatches.map((m, i) => {
                           const quality = getH2HScoreQuality(m.score)
-                          const winnerLabel = m.winner === 'A' ? comparison.leftLabel : comparison.rightLabel
+                          const winnerLabel = m.winner === null ? 'Result pending' : m.winner === 'A' ? comparison.leftLabel : comparison.rightLabel
                           return (
                             <div
                               key={i}
@@ -2713,7 +2678,7 @@ export default function MatchupPage() {
                         <strong>Last match:</strong> {formatDate(headToHead.lastMatch.matchDate)} |{' '}
                         {capitalize(headToHead.lastMatch.matchType)} |{' '}
                         {headToHead.lastMatch.score || 'No score entered'} | Winner:{' '}
-                        {headToHead.lastMatch.winner === 'A'
+                        {headToHead.lastMatch.winner === null ? 'Result pending' : headToHead.lastMatch.winner === 'A'
                           ? comparison.leftLabel
                           : comparison.rightLabel}
                       </p>
@@ -5038,11 +5003,6 @@ const emptyHeadToHeadText: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-const headToHeadDominanceStyle: CSSProperties = {
-  marginTop: 18,
-  minWidth: 0,
-}
-
 const headToHeadDominanceKickerStyle: CSSProperties = {
   color: 'var(--brand-blue-2)',
   fontWeight: 800,
@@ -5051,55 +5011,6 @@ const headToHeadDominanceKickerStyle: CSSProperties = {
   letterSpacing: '0.08em',
   marginBottom: 10,
   overflowWrap: 'anywhere',
-}
-
-const headToHeadBarStyle: CSSProperties = {
-  display: 'flex',
-  borderRadius: 999,
-  overflow: 'hidden',
-  height: 12,
-  background: 'var(--shell-chip-bg)',
-  minWidth: 0,
-}
-
-function headToHeadBarFillStyle(value: number): CSSProperties {
-  return {
-    width: `${value}%`,
-    background: 'linear-gradient(90deg, var(--brand-green), var(--brand-lime))',
-    transition: 'width 500ms ease',
-    minWidth: value > 0 ? 4 : 0,
-  }
-}
-
-const headToHeadBarRemainderStyle: CSSProperties = {
-  flex: 1,
-  background: 'color-mix(in srgb, var(--brand-blue-2) 28%, var(--shell-chip-bg) 72%)',
-  minWidth: 0,
-}
-
-const headToHeadPercentRowStyle: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: 10,
-  flexWrap: 'wrap',
-  marginTop: 8,
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
-
-const headToHeadPercentLabelGreenStyle: CSSProperties = {
-  color: '#d9f84a',
-  fontWeight: 800,
-  fontSize: 13,
-  maxWidth: '100%',
-  minWidth: 0,
-  whiteSpace: 'normal',
-  overflowWrap: 'anywhere',
-}
-
-const headToHeadPercentLabelBlueStyle: CSSProperties = {
-  ...headToHeadPercentLabelGreenStyle,
-  color: '#93c5fd',
 }
 
 const headToHeadTagRowStyle: CSSProperties = {
@@ -5190,14 +5101,14 @@ const headToHeadQualityPillStyle: CSSProperties = {
   overflowWrap: 'anywhere',
 }
 
-function headToHeadWinnerPillStyle(winner: 'A' | 'B'): CSSProperties {
+function headToHeadWinnerPillStyle(winner: 'A' | 'B' | null): CSSProperties {
   return {
     marginLeft: 'auto',
     padding: '3px 10px',
     borderRadius: 999,
-    background: winner === 'A' ? 'rgba(155,225,29,0.10)' : 'rgba(116,190,255,0.10)',
+    background: winner === null ? 'var(--shell-chip-bg)' : winner === 'A' ? 'rgba(155,225,29,0.10)' : 'rgba(116,190,255,0.10)',
     border: `1px solid ${winner === 'A' ? 'rgba(155,225,29,0.22)' : 'rgba(116,190,255,0.20)'}`,
-    color: winner === 'A' ? '#d9f84a' : '#93c5fd',
+    color: winner === null ? 'var(--shell-copy-muted)' : winner === 'A' ? '#d9f84a' : '#93c5fd',
     fontSize: 12,
     fontWeight: 800,
     maxWidth: '100%',

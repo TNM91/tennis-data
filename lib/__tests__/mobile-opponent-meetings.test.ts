@@ -25,10 +25,10 @@ describe('deeper opposing meeting search',()=>{
   expect(opposingMeetings([exact],['a','c'],'singles')).toEqual([])
  })
  it('recognizes reversed source sides without changing selected pair order',()=>{
-  const r=row('m',['c','d','a','b'],'A');expect(opposingMeetings([r],['a','b','c','d'],'doubles')).toEqual([r]);const h=opponentHistoryHtml(players(['a','b','c','d']),{rows:[r],limited:false},'doubles');expect(h).toContain('c / d won');expect(h).toContain('&lt;Alex&gt; / b wins</dt><dd>0')
+  const r=row('m',['c','d','a','b'],'A');expect(opposingMeetings([r],['a','b','c','d'],'doubles')).toEqual([r]);const h=opponentHistoryHtml(players(['a','b','c','d']),{rows:[r],limited:false},'doubles');expect(h).toContain('c / d won');expect(h).toContain('0 - 1');expect(h).toContain('&lt;Alex&gt; / b 0%')
  })
  it('keeps missing winners pending, escapes source text and states bounded coverage',()=>{
-  const r={...row('m',['a','b'],null),score:'<script>'};const h=opponentHistoryHtml(players(),{rows:[r],limited:true},'overall');expect(h).toContain('Pending</dt><dd>1');expect(h).toContain('Result pending');expect(h).toContain('&lt;script&gt;');expect(h).toContain('200-match limit');expect(h).toContain('not a complete career record')
+  const r={...row('m',['a','b'],null),score:'<script>'};const h=opponentHistoryHtml(players(),{rows:[r],limited:true},'overall');expect(h).toMatch(/data-meeting-metric="Pending"[^>]*>.*?>Pending<.*?>1</);expect(h).toContain('Result pending');expect(h).toContain('&lt;script&gt;');expect(h).toContain('200-match limit');expect(h).toContain('not a complete career record')
  })
  it('makes exactly two bounded reads and hydrates every participant without an inner filter',async()=>{
   const f=fake();const h=await loadOpponentMeetings(f.client,players(),()=>true);expect(h.rows).toEqual([row()]);expect(f.calls).toHaveLength(2);expect(f.calls[0].limit).toBe(201);expect(f.calls[0].filters).toEqual({'match_players.player_id':'a'});expect(f.calls[1].limit).toBe(200);expect(f.calls[1].filters).toEqual({id:['m']});expect(f.calls[1].select).toContain('match_players(player_id,side)');expect(f.calls[1].select).not.toContain('!inner')

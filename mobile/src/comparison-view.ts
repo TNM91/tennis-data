@@ -2,7 +2,6 @@ import {loadOpponentMeetings,opposingMeetings,opponentHistoryHtml,type OpponentH
 import {sharedComparisonCards,loadComparisonRatingHistory,ratingHistoryHtml,type PlayerRatingHistory} from './comparison-rating-context'
 import {comparisonPreparation,courtsideHtml,bindCourtside} from './matchup-preparation'
 import {openLabGoals} from './lab-goals-view'
-import { encountersHtml, recentEncounters } from './recent-encounters'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {MATCHUP_STORY,MEMBERSHIP_TIERS} from '../../lib/product-story'
 import type {RatingView} from '../../lib/player-rating-display'
@@ -77,7 +76,7 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
   const render=()=>{
    if(!data)return
    const prep=comparisonPreparation(data)
-   result.innerHTML=`<h2 tabindex="-1">Recorded comparison</h2><div class="match-filters" role="group" aria-label="Comparison view">${(['overall','singles','doubles'] as RatingView[]).map(value=>`<button type="button" class="secondary" data-view="${value}" aria-pressed="${view===value}">${value[0].toUpperCase()+value.slice(1)}</button>`).join('')}</div><p class="rating-context">TIQ ratings are estimates, not official USTA ratings. Singles and Doubles use Overall when a separate rating is missing. Ratings provide an estimate, not a guaranteed result. Model confidence is not measured prediction accuracy.</p>${sharedComparisonCards(data,view)}<section class="comparison-rating-history" data-rating-history></section>${prep?`<h2>${html(prep.title)}</h2><p>${html(prep.evidence)}</p><div data-courtside>${courtsideHtml(prep.context,prep.courtPlan,matchType==='doubles')}</div>`:'<p>Courtside preparation needs a valid recorded rating for every selected player.</p>'}<section class="encounter-history" data-opponent-history></section>${data.length===2?encountersHtml(data,view):''}${data.map((player,index)=>comparisonCard(player,view,index,false)).join('')}`
+   result.innerHTML=`<h2 tabindex="-1">Recorded comparison</h2><div class="match-filters" role="group" aria-label="Comparison view">${(['overall','singles','doubles'] as RatingView[]).map(value=>`<button type="button" class="secondary" data-view="${value}" aria-pressed="${view===value}">${value[0].toUpperCase()+value.slice(1)}</button>`).join('')}</div><p class="rating-context">TIQ ratings are estimates, not official USTA ratings. Singles and Doubles use Overall when a separate rating is missing. Ratings provide an estimate, not a guaranteed result. Model confidence is not measured prediction accuracy.</p>${sharedComparisonCards(data,view)}<section class="comparison-rating-history" data-rating-history></section>${prep?`<h2>${html(prep.title)}</h2><p>${html(prep.evidence)}</p><div data-courtside>${courtsideHtml(prep.context,prep.courtPlan,matchType==='doubles')}</div>`:'<p>Courtside preparation needs a valid recorded rating for every selected player.</p>'}<section class="encounter-history" data-opponent-history></section>${data.map((player,index)=>comparisonCard(player,view,index,false)).join('')}`
    updateHistory()
    updateOpponents()
    const prepHost=result.querySelector<HTMLElement>('[data-courtside]')
@@ -90,8 +89,6 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
     }catch(error){if(prepCurrent())status.textContent=error instanceof Error&&error.message?error.message:'Could not open your account notebook. Try again.'}
     finally{if(prepCurrent())button.disabled=false}
    })()})
-   const encounters=recentEncounters(data,view).matches
-   result.querySelectorAll<HTMLButtonElement>('[data-encounter]').forEach(button=>{button.onclick=()=>{if(!valid() || !data)return;meetings?.dispose();meetings=createMatchDetails(app,client,valid,{backLabel:'Back to comparison',sideLabel:data[0].player.name});meetings.open(encounters[Number(button.dataset.encounter)],data[0].player.id)}})
    result.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(button=>{button.onclick=()=>{meetings?.dispose();meetings=null;view=button.dataset.view as RatingView;render();result.querySelector<HTMLElement>('[aria-pressed="true"]')?.focus({preventScroll:true})}})
    result.querySelectorAll<HTMLButtonElement>('[data-comparison-player]').forEach(button=>{button.onclick=()=>{if(!valid() || !data)return;meetings?.dispose();meetings=null;scroll=window.scrollY;list.hidden=true;playerHost.hidden=false;detail=showPlayer(playerHost,client,valid,{player:data[Number(button.dataset.comparisonPlayer)].player,back,backLabel:'Back to comparison'})}})
   }
