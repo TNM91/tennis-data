@@ -1,3 +1,4 @@
+import {matchupOutcome} from '../../lib/matchup-outcome'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type RecentMatchRow = {
@@ -13,8 +14,8 @@ export type RecentMatchRow = {
 export function matchResult(row: RecentMatchRow, playerId: string): 'Won' | 'Lost' | 'Result pending' {
   const participant = row.match_players.find(player => player.player_id === playerId)
   const side = participant?.side
-  if (!['A', 'B'].includes(side || '') || !['A', 'B'].includes(row.winner_side || '')) return 'Result pending'
-  return side === row.winner_side ? 'Won' : 'Lost'
+  const outcome=matchupOutcome(side,row.winner_side)
+  return outcome==='A'?'Won':outcome==='B'?'Lost':'Result pending'
 }
 
 export function matchDate(value: string | null): string {
