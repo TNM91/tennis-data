@@ -1,3 +1,4 @@
+import {openCaptainPractices} from './captain-practices-view'
 import {openTeamFixtures} from './team-fixtures-view'
 import {openRosterScout} from './captain-roster-scout-view'
 import {openCaptainMatchCenter} from './captain-match-center-view'
@@ -23,7 +24,8 @@ export function showCaptainWorkspace(panel:HTMLElement,client:SupabaseClient,own
  const render=()=>{
   if(!current() || !data)return
   const snapshot=data
-  panel.innerHTML=`<button type="button" class="secondary" id="captain-invites">Invite teammates</button><button type="button" class="secondary" id="captain-member-access">Manage chat access</button><div class="match-filters" role="group" aria-label="Captain views">${(['Week','Roster','Lineups'] as const).map(value=>`<button type="button" class="secondary" data-captain-tab="${value}" aria-pressed="${tab===value}">${value}</button>`).join('')}</div><p role="status">${html(savedNotice)}</p><div id="captain-content"></div><button type="button" class="secondary" id="captain-refresh">Refresh Captain tools</button>`
+  panel.innerHTML=`<button type="button" id="captain-practices">Manage practices</button><button type="button" class="secondary" id="captain-invites">Invite teammates</button><button type="button" class="secondary" id="captain-member-access">Manage chat access</button><div class="match-filters" role="group" aria-label="Captain views">${(['Week','Roster','Lineups'] as const).map(value=>`<button type="button" class="secondary" data-captain-tab="${value}" aria-pressed="${tab===value}">${value}</button>`).join('')}</div><p role="status">${html(savedNotice)}</p><div id="captain-content"></div><button type="button" class="secondary" id="captain-refresh">Refresh Captain tools</button>`
+  panel.querySelector<HTMLButtonElement>('#captain-practices')!.onclick=()=>{if(!current())return;editor?.dispose();editor=openCaptainPractices(client,owner,{...scope},current)}
   panel.querySelector<HTMLButtonElement>('#captain-invites')!.onclick=()=>{editor?.dispose();editor=openCaptainInvites(client,owner,{...scope},current)}
   panel.querySelector<HTMLButtonElement>('#captain-member-access')!.onclick=()=>{editor?.dispose();editor=openMemberAccess(client,owner,{...scope},current,onMemberAccessChanged)}
   const content=panel.querySelector<HTMLElement>('#captain-content')!
