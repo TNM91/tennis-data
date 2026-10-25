@@ -38,7 +38,7 @@ export async function GET(request: Request) {
   if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
 
   const plans = ((data ?? []) as WeeklyLevelUpPlanRow[])
-    .map(mapWeeklyLevelUpPlanRow)
+    .map(mapPlan)
     .filter((plan) => plan !== null)
   return Response.json({ ok: true, plans })
 }
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
   }
 
   const existingPlan = existingResult.data
-    ? mapWeeklyLevelUpPlanRow(existingResult.data as WeeklyLevelUpPlanRow)
+    ? mapPlan(existingResult.data as WeeklyLevelUpPlanRow)
     : null
   if (body.createOnly && existingResult.data) return Response.json({ ok: false, code: 'plan_conflict', message: 'This week already has a plan. Refresh saved weeks to open it.' }, { status: 409 })
   const trustedInput = { ...input, coachResponse: existingPlan?.coachResponse ?? null }
@@ -115,14 +115,14 @@ export async function POST(request: Request) {
   if (body.createOnly && error?.code === '23505') return Response.json({ ok: false, code: 'plan_conflict', message: 'This week was saved on another device. Refresh saved weeks.' }, { status: 409 })
 
   if (error) return Response.json({ ok: false, message: error.message }, { status: 500 })
-  return Response.json({ ok: true, plan: mapWeeklyLevelUpPlanRow(data as WeeklyLevelUpPlanRow) })
+  return Response.json({ ok: true, plan: mapPlan(data as WeeklyLevelUpPlanRow) })
 }
 
 export async function PATCH(request: Request) {
   const auth = await getSignedInPlayerApiAuth(request)
   if (!auth.ok) return auth.response
 
-  let body: { planId?: unknown; action?: unknown; message?: unknown; repId?: unknown; completed?: unknown; expectedUpdatedAt?: unknown }
+  let body: { planId?: unknown; action?: unknown; message?: unknown; repId?: unknown; completed?: unknown; expectedUpdatedAt?: unknown; replyAction?: unknown; requestId?: unknown }
   try {
     const value: unknown = await request.json()
     if (!value || typeof value !== 'object' || Array.isArray(value)) return Response.json({ ok: false, message: 'Choose a valid plan action.' }, { status: 400 })
@@ -131,6 +131,7 @@ export async function PATCH(request: Request) {
     return Response.json({ ok: false, message: 'Choose a reply first.' }, { status: 400 })
   }
 
+  if (body.action === 'set_player_reply') return setPlayerReply(auth.supabase, auth.userId, body)
   if (body.action === 'set_rep_completion') return setRepCompletion(auth.supabase, auth.userId, body)
   const planId = typeof body.planId === 'string' ? body.planId.trim() : ''
   const action = body.action === 'acknowledged' || body.action === 'question' ? body.action : null
@@ -145,7 +146,7 @@ export async function PATCH(request: Request) {
     .maybeSingle()
   if (findError) return Response.json({ ok: false, message: findError.message }, { status: 500 })
 
-  const plan = row ? mapWeeklyLevelUpPlanRow(row as WeeklyLevelUpPlanRow) : null
+  const plan = row ? mapPlan(row as WeeklyLevelUpPlanRow) : null
   if (!plan?.coachResponse) {
     return Response.json({ ok: false, message: 'This coach update is no longer available.' }, { status: 404 })
   }
@@ -163,7 +164,7 @@ export async function PATCH(request: Request) {
     .select(planSelect)
     .single()
   if (error) return Response.json({ ok: false, message: error.message }, { status: 400 })
-  return Response.json({ ok: true, plan: mapWeeklyLevelUpPlanRow(data as WeeklyLevelUpPlanRow) })
+  return Response.json({ ok: true, plan: mapPlan(data as WeeklyLevelUpPlanRow) })
 }
 
 function cleanKey(value: string) {
@@ -194,7 +195,7 @@ async function setRepCompletion(supabase: SupabaseClient, userId: string, body: 
   const { data: row, error: findError } = await supabase.from('level_up_weekly_plans').select(planSelect).eq('id', planId).eq('player_user_id', userId).maybeSingle()
   if (findError) return Response.json({ ok: false, message: 'The plan could not be loaded.' }, { status: 500 })
   if (!row || row.player_user_id !== userId) return Response.json({ ok: false, message: 'This plan is not available.' }, { status: 404 })
-  const plan = mapWeeklyLevelUpPlanRow(row as WeeklyLevelUpPlanRow)
+  const plan = mapPlan(row as WeeklyLevelUpPlanRow)
   if (!plan || !plan.reps.some(rep => rep.id === repId)) return Response.json({ ok: false, message: 'This rep is not available.' }, { status: 404 })
   const [access, link] = await Promise.all([loadPlayerAccess(supabase, userId), resolveActiveCoachLink(supabase, userId, plan.studentLinkId)])
   if (!access.canUseAdvancedPlayerInsights && !link) return Response.json({ ok: false, message: 'Player access or an active coach connection is required.' }, { status: 403 })
@@ -208,5 +209,39 @@ async function setRepCompletion(supabase: SupabaseClient, userId: string, body: 
   const { data, error } = await supabase.from('level_up_weekly_plans').update({ plan_json: { ...raw, reps, updatedAt: timestamp }, updated_at: timestamp }).eq('id', planId).eq('player_user_id', userId).eq('updated_at', row.updated_at).select(planSelect).maybeSingle()
   if (error) return Response.json({ ok: false, message: 'The rep change could not be confirmed.' }, { status: 500 })
   if (!data) return Response.json({ ok: false, code: 'plan_conflict', message: 'This plan changed while saving. Refresh before trying again.' }, { status: 409 })
-  return Response.json({ ok: true, plan: mapWeeklyLevelUpPlanRow(data as WeeklyLevelUpPlanRow) })
+  return Response.json({ ok: true, plan: mapPlan(data as WeeklyLevelUpPlanRow) })
+}
+
+
+async function setPlayerReply(supabase: SupabaseClient, userId: string, body: { planId?: unknown; replyAction?: unknown; message?: unknown; expectedUpdatedAt?: unknown; requestId?: unknown }) {
+  const planId = typeof body.planId === 'string' ? body.planId.trim() : ''
+  const requestId = typeof body.requestId === 'string' ? body.requestId : ''
+  const action = body.replyAction === 'acknowledged' || body.replyAction === 'question' ? body.replyAction : null
+  const revision = typeof body.expectedUpdatedAt === 'string' ? body.expectedUpdatedAt : ''
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId) || !planId || planId.length > 240 || !action || typeof body.message !== 'string' || body.message.length > 500 || (action === 'question' && !body.message.trim()) || revision.length > 80 || !Number.isFinite(Date.parse(revision))) return Response.json({ ok: false, message: 'Choose a reply and keep your question under 500 characters.' }, { status: 400 })
+  const { data: row, error: findError } = await supabase.from('level_up_weekly_plans').select(planSelect).eq('id', planId).eq('player_user_id', userId).eq('shared_with_coach', true).maybeSingle()
+  if (findError) return Response.json({ ok: false, message: 'The coach update could not be loaded.' }, { status: 500 })
+  if (!row || row.player_user_id !== userId) return Response.json({ ok: false, message: 'This coach update is not available.' }, { status: 404 })
+  const plan = mapPlan(row as WeeklyLevelUpPlanRow)
+  if (!plan?.sharedWithCoach || !plan.coachResponse || !plan.studentLinkId || !plan.coachUserId) return Response.json({ ok: false, message: 'This coach update is not available.' }, { status: 404 })
+  const link = await resolveActiveCoachLink(supabase, userId, plan.studentLinkId)
+  if (!link || link.id !== plan.studentLinkId || link.coach_user_id !== plan.coachUserId || plan.coachResponse.coachUserId !== plan.coachUserId) return Response.json({ ok: false, code: 'plan_conflict', message: 'The coach connection changed. Refresh this week.' }, { status: 409 })
+  const raw = row.plan_json as Record<string, unknown>, response = raw?.coachResponse as Record<string, unknown>
+  if (row.updated_at !== revision || !response || typeof response !== 'object' || Array.isArray(response) || response.playerReply != null) return Response.json({ ok: false, code: 'plan_conflict', message: 'This coach update changed or already has a reply. Refresh this week.' }, { status: 409 })
+  const now = new Date(Math.max(Date.now(), Date.parse(row.updated_at) + 1)), reply = buildWeeklyLevelUpPlayerReply(plan, { action, message: body.message }, userId, now)
+  if (!reply) return Response.json({ ok: false, message: 'Choose a valid reply.' }, { status: 400 })
+  const { data, error } = await supabase.from('level_up_weekly_plans').update({ plan_json: { ...raw, coachResponse: { ...response, playerReply: { ...reply, nativeReplyId: requestId, inReplyToUpdatedAt: revision } }, updatedAt: now.toISOString() }, updated_at: now.toISOString() }).eq('id', planId).eq('player_user_id', userId).eq('shared_with_coach', true).eq('updated_at', row.updated_at).select(planSelect).maybeSingle()
+  if (error) return Response.json({ ok: false, message: 'The reply could not be confirmed.' }, { status: 500 })
+  if (!data) return Response.json({ ok: false, code: 'plan_conflict', message: 'This coach update changed while sending. Refresh before replying.' }, { status: 409 })
+  return Response.json({ ok: true, plan: mapPlan(data as WeeklyLevelUpPlanRow) })
+}
+
+
+function mapPlan(row: WeeklyLevelUpPlanRow) {
+  const plan = mapWeeklyLevelUpPlanRow(row)
+  if (!plan?.coachResponse?.playerReply) return plan
+  const raw = row.plan_json as { coachResponse?: { playerReply?: { nativeReplyId?: unknown; inReplyToUpdatedAt?: unknown } } }
+  const receipt = raw?.coachResponse?.playerReply
+  if (typeof receipt?.nativeReplyId !== 'string' || !/^[0-9a-f-]{36}$/i.test(receipt.nativeReplyId) || typeof receipt.inReplyToUpdatedAt !== 'string' || receipt.inReplyToUpdatedAt.length > 80 || !Number.isFinite(Date.parse(receipt.inReplyToUpdatedAt))) return plan
+  return { ...plan, coachResponse: { ...plan.coachResponse, playerReply: { ...plan.coachResponse.playerReply, nativeReplyId: receipt.nativeReplyId, inReplyToUpdatedAt: receipt.inReplyToUpdatedAt } } }
 }

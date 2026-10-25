@@ -223,3 +223,8 @@ Adds create-only private three-rep weeks and explicit rep completion/reopening t
 ### Build 52 candidate: native coach assignment check-ins
 
 Adds recap/proof entry, explicit completion review, frozen save/recovery, conflict handling and recorded check-ins to the native training inbox. Uses the existing coach assignment API/helper with optional revision-checked updates and no new schema, permissions, notifications or encryption. Whole-assignment submission completes non-skipped pack cards as on the website. Weekly coach replies/custom changes remain website actions. No authenticated positive production QA writes; physical iPhone acceptance remains pending.
+
+
+### Build 53 candidate: weekly coach acknowledgments and questions
+
+Adds native review/send of Seen acknowledgments and questions on shared weekly coach updates, exact request receipt recovery, stale-update conflict handling and draft-close protection. Reuses existing authenticated row permissions and website reply semantics; no new schema, grants, notifications or encryption. Rep completion and sharing are unchanged. Custom week edits and sharing management remain website actions; physical iPhone acceptance is pending. Positive QA remains synthetic only.
