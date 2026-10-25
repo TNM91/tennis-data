@@ -267,3 +267,12 @@ The selected goal appears in the actual shared My Lab hero after notebook close.
 ### Build 70 — preserve concurrent goal removals
 
 Build 69 was uploaded but withheld from the internal group during final review. The goal CAS update now also requires a non-null payload in the same database statement. The website RPC permits equal-revision tombstones as a merge tie-break; checking only the revision could otherwise restore a concurrently removed goal. Lookup and write both reject removals, including that equal-revision race. The new regression simulates removal after lookup and confirms zero writes. No schema, grant, API, UI, notification or encryption changes. Build 70 carries the shared notebook feature to internal TestFlight after required verification.
+
+
+## Account calendar and shared next-match card — build 71 candidate
+
+My Lab explicitly loads the same authenticated personal and competition calendar endpoint used by the website. Upcoming saved entries show their kind, date, recorded time, location and match availability. The Next on court card now comes from the actual website component and CSS rather than a separate native interpretation. Its match selection follows the website's date-based rule; a partial competition failure withholds the card instead of implying that the personal calendar is the complete schedule.
+
+This is read-only calendar access. Team-room practices, browser-only entries, expanded recurrence, calendar edits, availability replies and calendar-feed links are outside this view. Recurring personal entries retain their saved date and display their recurrence rule. The list shows at most the next 100 loaded upcoming entries and labels that limit. Oversized or malformed payloads are rejected rather than silently truncated before selection.
+
+Captured account and view checks bracket transport; late results after navigation or sign-out are discarded. No new endpoint, table, grant, private feed token, notification or background polling is introduced. Synthetic app-entry checks cover loaded dates, card-to-list focus, keyboard disclosure, partial/failing responses, sign-out during a slow load, and 320/390 CSS-pixel widths without horizontal overflow. Physical iPhone, VoiceOver, keyboard and Dynamic Type acceptance remain pending.
