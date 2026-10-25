@@ -1,3 +1,4 @@
+import {openCaptainHome} from './captain-home-view'
 import {openCaptainWeekBrief} from './captain-week-brief-view'
 import {openCaptainPractices} from './captain-practices-view'
 import {openTeamFixtures} from './team-fixtures-view'
@@ -18,6 +19,7 @@ export function captainDraftHtml(draft:CaptainDraft){return `<h2>${html(draft.op
 export function captainRepliesHtml(data:CaptainReplies){const labels={available:'Available',maybe:'Maybe',unavailable:'Unavailable',waiting:'Waiting'};return `<div class="captain-counts">${(['available','maybe','unavailable','waiting'] as const).map(status=>`<div><strong>${data.people.filter(person=>person.status===status).length}</strong><span>${labels[status]}</span></div>`).join('')}</div>${data.dayScopedAnswersOmitted?'<p class="rating-context">Day-only replies are excluded because this team has more than one fixture that day.</p>':''}<p class="rating-context">${data.selection==='draft'?'Selected players follow your saved draft.':data.selection==='saved'?'Selected players follow the saved lineup.':'No single saved lineup is selected.'}</p><ul class="team-members">${data.people.map(person=>`<li><strong>${html(person.name)}</strong><span>${labels[person.status]}${person.selected?' · Selected':''}${person.source==='season'?' · Season reply':person.source==='captain'?' · Captain confirmed':person.source==='player'?' · Player reply':person.source==='saved'?' · Saved answer':''}</span></li>`).join('')}</ul>`}
 export function showCaptainWorkspace(panel:HTMLElement,client:SupabaseClient,owner:string,scope:TeamScope,isCurrent:()=>boolean,onSharedChange:()=>void=()=>{},onMemberAccessChanged:()=>void=onSharedChange,roomId=''){
  let disposed=false,version=0,data:CaptainData|null=null,tab:'Week'|'Roster'|'Lineups'='Week',filter='',savedNotice=''
+ let home:ReturnType<typeof openCaptainHome>|null=null
  let editor:{dispose:()=>void}|null=null
  const selectedRoster=new Set<string>()
  const current=()=>!disposed && isCurrent()
@@ -25,7 +27,9 @@ export function showCaptainWorkspace(panel:HTMLElement,client:SupabaseClient,own
  const render=()=>{
   if(!current() || !data)return
   const snapshot=data
-  panel.innerHTML=`<button type="button" id="captain-week-brief">Review week brief</button><button type="button" id="captain-practices">Manage practices</button><button type="button" class="secondary" id="captain-invites">Invite teammates</button><button type="button" class="secondary" id="captain-member-access">Manage chat access</button><div class="match-filters" role="group" aria-label="Captain views">${(['Week','Roster','Lineups'] as const).map(value=>`<button type="button" class="secondary" data-captain-tab="${value}" aria-pressed="${tab===value}">${value}</button>`).join('')}</div><p role="status">${html(savedNotice)}</p><div id="captain-content"></div><button type="button" class="secondary" id="captain-refresh">Refresh Captain tools</button>`
+  home?.dispose();home=null
+  panel.innerHTML=`<section class="captain-home" data-captain-home></section><button type="button" id="captain-week-brief">Review week brief</button><button type="button" id="captain-practices">Manage practices</button><button type="button" class="secondary" id="captain-invites">Invite teammates</button><button type="button" class="secondary" id="captain-member-access">Manage chat access</button><div class="match-filters" role="group" aria-label="Captain views">${(['Week','Roster','Lineups'] as const).map(value=>`<button type="button" class="secondary" data-captain-tab="${value}" aria-pressed="${tab===value}">${value}</button>`).join('')}</div><p role="status">${html(savedNotice)}</p><div id="captain-content"></div><button type="button" class="secondary" id="captain-refresh">Refresh Captain tools</button>`
+  home=openCaptainHome(panel.querySelector<HTMLElement>('[data-captain-home]')!,client,owner,{...scope},snapshot,current,(match,next)=>{if(!current())return;editor?.dispose();editor=openCaptainMatchCenter(client,owner,{...scope},match,roomId,current,onSharedChange,changed=>{if(changed&&current()){savedNotice='Match tasks updated. Recheck your next decision.';void load()}},next)})
   panel.querySelector<HTMLButtonElement>('#captain-week-brief')!.onclick=()=>{if(!current())return;editor?.dispose();editor=openCaptainWeekBrief(client,owner,{...scope},roomId,current,onSharedChange,()=>{if(current()){savedNotice='Match tasks updated. Review the latest Captain plans.';void load()}},()=>{if(current()){editor?.dispose();editor=openCaptainPractices(client,owner,{...scope},current)}})}
   panel.querySelector<HTMLButtonElement>('#captain-practices')!.onclick=()=>{if(!current())return;editor?.dispose();editor=openCaptainPractices(client,owner,{...scope},current)}
   panel.querySelector<HTMLButtonElement>('#captain-invites')!.onclick=()=>{editor?.dispose();editor=openCaptainInvites(client,owner,{...scope},current)}
@@ -56,7 +60,7 @@ export function showCaptainWorkspace(panel:HTMLElement,client:SupabaseClient,own
    if(current() && attempt===version)content.querySelector<HTMLButtonElement>('#captain-back')!.onclick=()=>{version++;render()}
   })()}})
  }
- const load=async()=>{const attempt=++version;panel.innerHTML='<p role="status">Loading your Captain tools…</p>';try{const result=await loadCaptainData(client,owner,()=>current() && attempt===version,scope);if(!current() || attempt!==version)return;data=result;for(const key of selectedRoster)if(!result.roster.some(p=>p.id===key&&p.playerId))selectedRoster.delete(key);render()}catch(cause){if(current() && attempt===version)notice(cause instanceof Error?cause.message:'Captain tools are unavailable.')}}
+ const load=async()=>{home?.dispose();home=null;const attempt=++version;panel.innerHTML='<p role="status">Loading your Captain tools…</p>';try{const result=await loadCaptainData(client,owner,()=>current() && attempt===version,scope);if(!current() || attempt!==version)return;data=result;for(const key of selectedRoster)if(!result.roster.some(p=>p.id===key&&p.playerId))selectedRoster.delete(key);render()}catch(cause){if(current() && attempt===version)notice(cause instanceof Error?cause.message:'Captain tools are unavailable.')}}
  void load()
- return {dispose:()=>{disposed=true;editor?.dispose();editor=null;version++;data=null;filter='';selectedRoster.clear()}}
+ return {dispose:()=>{disposed=true;home?.dispose();home=null;editor?.dispose();editor=null;version++;data=null;filter='';selectedRoster.clear()}}
 }
