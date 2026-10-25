@@ -79,3 +79,6 @@ skills-lock.json
 *.tsbuildinfo
 next-env.d.ts
 .vercel
+
+# Derived from the canonical website UI during mobile builds and verification.
+/mobile/generated/

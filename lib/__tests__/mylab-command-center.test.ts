@@ -96,7 +96,7 @@ describe('My Lab command center', () => {
     expect(styleSource).toContain(".firstServeGrid[data-has-current='true'] .firstServeStepSecondary")
     expect(componentSource).toContain("${postRepReturn ? styles.primaryGridAfterRep : ''}")
     expect(componentSource).toContain('className={styles.repCard}')
-    expect(componentSource).toContain('{!postRepReturn ? <article className={styles.momentumCard}>')
+    expect(componentSource).toContain('{!postRepReturn && progressAvailable ? <article className={styles.momentumCard}>')
     expect(styleSource).toContain('.supportStackAfterRep .matchCard')
     expect(styleSource).toContain('.ballImage {\n    right: 0;')
     expect(styleSource).toContain('width: clamp(128px, 23vw, 178px);')
