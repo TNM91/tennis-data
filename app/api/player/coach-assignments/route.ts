@@ -56,13 +56,17 @@ export async function PATCH(request: Request) {
   const auth = await getSignedInPlayerApiAuth(request)
   if (!auth.ok) return auth.response
 
-  let body: { assignmentId?: unknown; recap?: unknown; evidence?: unknown }
+  let body: { assignmentId?: unknown; recap?: unknown; evidence?: unknown; expectedUpdatedAt?: unknown }
   try {
-    body = (await request.json()) as { assignmentId?: unknown; recap?: unknown; evidence?: unknown }
+    const value: unknown = await request.json()
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return Response.json({ ok: false, message: 'Invalid assignment check-in.' }, { status: 400 })
+    body = value as typeof body
   } catch {
     return Response.json({ ok: false, message: 'Invalid assignment check-in.' }, { status: 400 })
   }
 
+  const guarded = body.expectedUpdatedAt !== undefined
+  if (guarded && (typeof body.expectedUpdatedAt !== 'string' || body.expectedUpdatedAt.length > 80 || !Number.isFinite(Date.parse(body.expectedUpdatedAt)) || typeof body.recap !== 'string' || body.recap.length > 700 || typeof body.evidence !== 'string' || body.evidence.length > 300)) return Response.json({ ok: false, message: 'Refresh this assignment and keep your recap under 700 characters and proof under 300.' }, { status: 400 })
   const assignmentId = typeof body.assignmentId === 'string' ? body.assignmentId.trim() : ''
   if (!assignmentId) {
     return Response.json({ ok: false, message: 'Assignment id is required.' }, { status: 400 })
@@ -94,6 +98,8 @@ export async function PATCH(request: Request) {
     return Response.json({ ok: false, message: 'Assignment was not found for this player.' }, { status: 404 })
   }
 
+  if (guarded && (existingData.updated_at !== body.expectedUpdatedAt || existing.status !== 'assigned' || existing.assignment.playerCheckIn)) return Response.json({ ok: false, code: 'assignment_conflict', message: 'This assignment changed. Refresh before sending your check-in.' }, { status: 409 })
+
   const service = getServiceClient()
   if (!service) {
     return Response.json({ ok: false, message: 'Coach assignment check-ins are not configured yet.' }, { status: 503 })
@@ -104,20 +110,21 @@ export async function PATCH(request: Request) {
     evidence: body.evidence,
   })
 
-  const { data: updatedData, error: updateError } = await service
+  let update = service
     .from('coach_assignments')
     .update({
       status: 'completed',
       assignment_json: nextAssignmentJson,
-      updated_at: new Date().toISOString(),
+      updated_at: new Date(Math.max(Date.now(), Date.parse(existingData.updated_at) + 1)).toISOString(),
     })
     .eq('id', assignmentId)
     .eq('student_link_id', existing.studentLinkId)
-    .select('id,student_link_id,title,focus,due_date,status,assignment_json,updated_at')
-    .single()
+  if (guarded) update = update.eq('updated_at', body.expectedUpdatedAt as string).eq('status', 'assigned')
+  const { data: updatedData, error: updateError } = await update.select('id,student_link_id,title,focus,due_date,status,assignment_json,updated_at').maybeSingle()
 
   if (updateError) return apiServerError('Could not update player coach assignment', updateError, 'The coach assignment could not be updated.')
 
+  if (!updatedData) return Response.json({ ok: false, code: 'assignment_conflict', message: 'The assignment changed while saving. Refresh before trying again.' }, { status: 409 })
   return Response.json({ ok: true, assignment: mapCoachAssignmentRow(updatedData as CoachAssignmentRow) })
 }
 
