@@ -1,0 +1,34 @@
+import {courtScoutEvidence,type CourtScoutContext} from './native-captain-court-scout-contract'
+import {compareCaptainScenarios,type CaptainScenarioContext} from './native-captain-scenario-contract'
+import {scenarioCourtStrength,type ScenarioRatingPlayer} from './captain-scenario-strength'
+import type {LineupEditorData,LineupPlan} from './native-captain-lineup-contract'
+export type OpponentScenarioContext=CourtScoutContext&{ratings:ScenarioRatingPlayer[]}
+export type OpponentAssumptions={courts:{id:string;players:string[]}[];sourceKey:string|null;edited:boolean}
+export function opponentScenarioRatings(value:unknown,ctx:CourtScoutContext):ScenarioRatingPlayer[]{
+ if(!Array.isArray(value)||value.length>320)throw Error('Opponent ratings unavailable.')
+ const ids=new Set(ctx.records.players.map(p=>p.id)),rows=value.map(v=>{if(!v||typeof v!=='object'||Array.isArray(v))throw Error('Opponent ratings unavailable.');const p=v as ScenarioRatingPlayer;if(!ids.has(p.id)||(['singles_dynamic_rating','doubles_dynamic_rating','overall_dynamic_rating'] as const).some(k=>p[k]!==null&&(typeof p[k]!=='number'||!Number.isFinite(p[k])||p[k]<0||p[k]>10)))throw Error('Opponent ratings unavailable.');return {id:p.id,singles_dynamic_rating:p.singles_dynamic_rating,doubles_dynamic_rating:p.doubles_dynamic_rating,overall_dynamic_rating:p.overall_dynamic_rating}})
+ if(new Set(rows.map(p=>p.id)).size!==rows.length)throw Error('Duplicate opponent ratings.');return rows.sort((a,b)=>a.id.localeCompare(b.id))
+}
+const shape=(courts:{id:string;label:string;slotType:string}[])=>JSON.stringify(courts.map(({id,label,slotType})=>({id,label,slotType})))
+export function assertOpponentScenarioContext(own:CaptainScenarioContext,opp:OpponentScenarioContext){if(own.owner!==opp.owner||own.lineup.scope.teamName!==opp.scope.teamName||own.lineup.scope.leagueName!==opp.scope.leagueName||own.lineup.scope.flight!==opp.scope.flight||own.lineup.match.id!==opp.match.id||own.lineup.match.date!==opp.match.date||own.lineup.match.opponent!==opp.match.opponent||shape(own.lineup.plan.courts)!==shape(opp.records.slots))throw Error('The fixture or court format changed. Refresh comparison.')}
+export function emptyOpponentAssumptions(base:LineupEditorData):OpponentAssumptions{return {courts:base.plan.courts.map(c=>({id:c.id,players:Array(c.slotType==='singles'?1:2).fill('')})),sourceKey:null,edited:false}}
+export function readOpponentAssumptions(base:LineupEditorData,ctx:OpponentScenarioContext,value:OpponentAssumptions){
+ if(!value||!Array.isArray(value.courts)||value.courts.length!==base.plan.courts.length||typeof value.edited!=='boolean'||value.sourceKey!==null&&!courtScoutEvidence(ctx).fixtures.some(f=>f.key===value.sourceKey))throw Error('Opponent assumptions changed.')
+ const pool=new Set(ctx.records.players.map(p=>p.id)),seen=new Set<string>(),courts=value.courts.map((c,i)=>{const own=base.plan.courts[i];if(c.id!==own.id||!Array.isArray(c.players)||c.players.length!==(own.slotType==='singles'?1:2))throw Error('Opponent court format changed.');const players=c.players.map(id=>{if(typeof id!=='string'||id&&(!pool.has(id)||seen.has(id)||own.defaulted))throw Error('Choose each linked opponent once on played courts.');if(id)seen.add(id);return id});return {id:c.id,players}})
+ return {courts,sourceKey:value.sourceKey,edited:value.edited}
+}
+export function previewOpponentFixture(base:LineupEditorData,ctx:OpponentScenarioContext,key:string){
+ const fixture=courtScoutEvidence(ctx).fixtures.find(f=>f.key===key);if(!fixture)throw Error('Choose a recorded fixture.')
+ const draft=emptyOpponentAssumptions(base),notes:string[]=[],pool=new Set(ctx.records.players.map(p=>p.id)),candidates=base.plan.courts.map((own,i)=>{const c=fixture.courts.find(c=>c.slotIndex===i);if(own.defaulted){notes.push(own.label+': your working court is defaulted.');return null}if(!c||c.needsReview||c.defaulted||c.slotType!==own.slotType||c.playerIds.length!==(own.slotType==='singles'?1:2)||new Set(c.playerIds).size!==c.playerIds.length||c.playerIds.some(id=>!pool.has(id))){notes.push(own.label+': left open; recorded court missing, defaulted, conflicting or incompletely linked.');return null}return c})
+ const counts=new Map<string,number>();candidates.forEach(c=>c?.playerIds.forEach(id=>counts.set(id,(counts.get(id)||0)+1)))
+ candidates.forEach((c,i)=>{if(!c)return;if(c.playerIds.some(id=>counts.get(id)!==1)){notes.push(base.plan.courts[i].label+': left open; a player appears on more than one court.');return}draft.courts[i].players=[...c.playerIds]})
+ const unmapped=fixture.courts.filter(c=>c.slotIndex===null).length;if(unmapped)notes.push(unmapped+' recorded courts could not be mapped to your working format.')
+ draft.sourceKey=key;return {draft:readOpponentAssumptions(base,ctx,draft),notes,date:fixture.date,opponent:fixture.opponent}
+}
+function ratedOpponent(type:'singles'|'doubles',ids:string[],ctx:OpponentScenarioContext){const mode=type==='singles'?'singles_dynamic_rating':'doubles_dynamic_rating',rows=ids.map(id=>ctx.ratings.find(p=>p.id===id));if(ids.some(id=>!id)||rows.some(p=>!p||p[mode]===null&&p.overall_dynamic_rating===null))return {strength:null,overall:0};return {strength:scenarioCourtStrength(type,ids,ctx.ratings),overall:rows.filter(p=>p![mode]===null).length}}
+export function compareOpponentScenarios(own:CaptainScenarioContext,opp:OpponentScenarioContext,left:LineupPlan,right:LineupPlan,a:OpponentAssumptions,b:OpponentAssumptions){
+ assertOpponentScenarioContext(own,opp);const aa=readOpponentAssumptions(own.lineup,opp,a),bb=readOpponentAssumptions(own.lineup,opp,b),comparison=compareCaptainScenarios(own,left,right),rows=comparison.rows.map((r,i)=>{const oa=ratedOpponent(r.slotType,aa.courts[i].players,opp),ob=ratedOpponent(r.slotType,bb.courts[i].players,opp),marginA=!r.defaulted&&r.left.strength!==null&&oa.strength!==null?r.left.strength-oa.strength:null,marginB=!r.defaulted&&r.right.strength!==null&&ob.strength!==null?r.right.strength-ob.strength:null;return {...r,opponentA:oa,opponentB:ob,marginA,marginB}}),played=rows.filter(r=>!r.defaulted),mean=(side:'marginA'|'marginB')=>played.length&&played.every(r=>r[side]!==null)?played.reduce((n,r)=>n+r[side]!,0)/played.length:null
+ return {rows,meanA:mean('marginA'),meanB:mean('marginB'),ratedA:played.filter(r=>r.marginA!==null).length,ratedB:played.filter(r=>r.marginB!==null).length,played:played.length}
+}
+export const opponentHistorySignature=(ctx:OpponentScenarioContext)=>JSON.stringify([ctx.owner,ctx.scope,ctx.match,ctx.before,ctx.from,ctx.records])
+export function reviewedOpponentContext(old:OpponentScenarioContext,fresh:OpponentScenarioContext){if(opponentHistorySignature(old)!==opponentHistorySignature(fresh))throw Error('Opponent history or court format changed. Refresh comparison.');return {context:fresh,changed:JSON.stringify(old.ratings)!==JSON.stringify(fresh.ratings)}}
