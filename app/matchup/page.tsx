@@ -1,5 +1,7 @@
 'use client'
 
+import RatingTrajectoryChart from '../../components/matchup/RatingTrajectoryChart'
+
 import HistoricalRatingCheck from '../../components/matchup/HistoricalRatingCheck'
 import {readHistoricalRatingCheck,type HistoricalCheck} from '../../lib/historical-rating-check'
 
@@ -2360,7 +2362,7 @@ export default function MatchupPage() {
               {trajectories.left.length >= 3 && trajectories.right.length >= 3 ? (
                 <div style={trajectoryPanelStyle}>
                   <div style={trajectoryKickerStyle}>Rating trajectory comparison</div>
-                  <DualTrajectoryChart
+                  <RatingTrajectoryChart
                     leftPoints={trajectories.left}
                     rightPoints={trajectories.right}
                     leftLabel={comparison?.leftLabel ?? 'Player A'}
@@ -2881,45 +2883,6 @@ function getExpectedOutcomeText(
   if (favoriteProbability >= 0.58) return `${favoriteLabel} is favored, but ${underdogLabel} is very live.`
   if (favoriteProbability >= 0.52) return `${favoriteLabel} has a slight edge in a tight matchup.`
   return `This matchup projects as nearly even.`
-}
-
-function DualTrajectoryChart({ leftPoints, rightPoints, leftLabel, rightLabel }: {
-  leftPoints: Array<{ date: string; rating: number }>
-  rightPoints: Array<{ date: string; rating: number }>
-  leftLabel: string
-  rightLabel: string
-}) {
-  const W = 800, H = 160, pad = 28
-  const allRatings = [...leftPoints.map((p) => p.rating), ...rightPoints.map((p) => p.rating)]
-  const allDates = [...leftPoints.map((p) => p.date), ...rightPoints.map((p) => p.date)].sort()
-  const minR = Math.min(...allRatings) - 0.1
-  const maxR = Math.max(...allRatings) + 0.1
-  const spread = Math.max(maxR - minR, 0.1)
-  const minD = new Date(allDates[0]).getTime()
-  const maxD = new Date(allDates[allDates.length - 1]).getTime()
-  const xRange = Math.max(maxD - minD, 1)
-
-  function toX(date: string) { return pad + ((new Date(date).getTime() - minD) / xRange) * (W - pad * 2) }
-  function toY(r: number) { return H - pad - ((r - minR) / spread) * (H - pad * 2) }
-  function makePath(pts: typeof leftPoints) {
-    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${toX(p.date)} ${toY(p.rating)}`).join(' ')
-  }
-
-  return (
-    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: 'block', borderRadius: 12 }}>
-      <rect x={0} y={0} width={W} height={H} rx={12} fill="#0f1c38" />
-      {[0.25, 0.5, 0.75].map((t) => {
-        const y = pad + (H - pad * 2) * t
-        return <line key={t} x1={pad} x2={W - pad} y1={y} y2={y} stroke="rgba(255,255,255,0.07)" strokeWidth={1} />
-      })}
-      <path d={makePath(leftPoints)} fill="none" stroke="#9be11d" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-      <path d={makePath(rightPoints)} fill="none" stroke="#3FA7FF" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
-      {leftPoints.length > 0 && <circle cx={toX(leftPoints[leftPoints.length - 1].date)} cy={toY(leftPoints[leftPoints.length - 1].rating)} r={4} fill="#9be11d" />}
-      {rightPoints.length > 0 && <circle cx={toX(rightPoints[rightPoints.length - 1].date)} cy={toY(rightPoints[rightPoints.length - 1].rating)} r={4} fill="#3FA7FF" />}
-      <text x={pad + 4} y={H - 6} fill="rgba(155,225,29,0.7)" fontSize={10} fontWeight={700}>{leftLabel}</text>
-      <text x={W - pad - 4} y={H - 6} textAnchor="end" fill="rgba(63,167,255,0.7)" fontSize={10} fontWeight={700}>{rightLabel}</text>
-    </svg>
-  )
 }
 
 function capitalize(value: string) {
