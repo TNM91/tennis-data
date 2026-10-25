@@ -1,0 +1,10 @@
+import {beforeEach,it,expect,vi} from 'vitest'
+const s=vi.hoisted(()=>({allowed:false,service:vi.fn(),repeat:vi.fn()}))
+vi.mock('@/lib/captain-api-auth',()=>({getCaptainApiAuth:async()=>s.allowed?{ok:true,userId:'owner'}:{ok:false,response:Response.json({ok:false},{status:401})}}))
+vi.mock('@/lib/captain-availability-request-server',()=>({getCaptainAvailabilityServiceClient:s.service}))
+vi.mock('@/lib/native-practice-repeat',()=>({nativePracticeRepeat:s.repeat}))
+import {GET,POST} from '../../app/api/mobile/captain/practices/repeat/route'
+beforeEach(()=>{s.allowed=false;vi.clearAllMocks();s.repeat.mockResolvedValue({ok:true,status:200})})
+it('authenticates before preview, create or lookup service access',async()=>{expect((await GET(new Request('https://synthetic.invalid/api/mobile/captain/practices/repeat'))).status).toBe(401);expect((await POST(new Request('https://synthetic.invalid/api/mobile/captain/practices/repeat',{method:'POST',body:'{}'}))).status).toBe(401);expect(s.service).not.toHaveBeenCalled();expect(s.repeat).not.toHaveBeenCalled()})
+it('previews only the explicit event scope with private headers',async()=>{s.allowed=true;const r=await GET(new Request('https://synthetic.invalid/api/mobile/captain/practices/repeat?team=Aces&league=City&flight=4.0&eventId=source'));expect(r.status).toBe(200);expect(r.headers.get('Cache-Control')).toBe('private, no-store');expect(r.headers.get('Referrer-Policy')).toBe('no-referrer');expect(s.repeat).toHaveBeenCalledWith(undefined,'owner',{teamName:'Aces',leagueName:'City',flight:'4.0'},{action:'preview',sourceId:'source'})})
+it('rejects malformed bodies before service access and contains server failures',async()=>{s.allowed=true;for(const body of ['{','[]','null'])expect((await POST(new Request('https://synthetic.invalid',{method:'POST',body}))).status).toBe(400);expect(s.service).not.toHaveBeenCalled();s.repeat.mockRejectedValue(Error('private'));expect((await GET(new Request('https://synthetic.invalid'))).status).toBe(503)})
