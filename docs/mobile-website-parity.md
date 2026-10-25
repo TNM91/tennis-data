@@ -27,7 +27,7 @@ Captured steps:
 | Teams | Team context and match-week tools | Team chat, hub, schedule, recorded fixtures/courts | Compare team detail/roster/season depth and entry accessibility |
 | Team messaging | Tennis messaging, team coordination | Photos/GIFs, reactions, replies, history, mentions, moderation, alerts | Preserve intentional mobile chat design; continue real-device keyboard, media and accessibility checks |
 | Captain | Availability, lineups, scouting, scenario/projection tools, practice, briefs and messaging | Readiness, private working lineups, proposal/publication/replacements, roster/pair scouting, match center | Scenario/projection parity, practice, briefs, richer planning and direct discovery outside conversation |
-| Improve | Level Up, development paths, training sessions, goals/progress, resources | Not implemented as a connected native flow | High-priority player feature gap; port real storage/workflows rather than decorative cards |
+| Improve | Level Up, development paths, training sessions, goals/progress, resources | Build 47 candidate: shared training cards, session timer, private self-guided account saves and latest account progress | Modules, identity/goal recommendations, coach assignments, quests, weekly plans, proof counters and durable unsaved-draft recovery remain gaps |
 | Tactics and video | Court tools, tactical planning and video review | Not implemented as a native flow | Preserve editable court geometry, saved state and actual review workflows |
 | League coordination | League/player/team results, structure, schedules, administration | Public league summary only | Coordinator/admin flows are a substantial gap; public browsing is not league management |
 | Tournaments, coach, club | Dedicated discovery and role workflows | Not implemented | Keep separate scope and entitlement validation; do not label these complete |
@@ -48,3 +48,13 @@ Navigation also asks before discarding an unfinished team message or open team r
 5. Run physical iPhone acceptance, VoiceOver, large text, keyboard/media and offline/error-state checks across the connected flows before App Store submission.
 
 Every batch should name website source screens/contracts, state preserved functionality and explicit gaps, show same-size before/after evidence, exercise failure/back/disposal behavior, and meet release checks. A growing list of isolated buttons is not sufficient evidence of product parity.
+
+## Connected training — build 47 candidate
+
+My Lab opens Level Up and account training progress directly. The catalogue imports `lib/level-up/level-up-cards.ts`; local search/setting filters cover all cards and render up to 24 at once. Card detail retains routines, goal, cue, proof anchors, quality checks, common-miss correction, progressions/regressions, equipment, reward and safety text. Active sessions keep instructions available in a disclosure above the timer.
+
+Source behavior: `app/player-development/_components/player-live-workbench.tsx` supplies category/context conventions. Native training uses the existing `api/player/level-up-sessions` bearer-authenticated contract and `lib/level-up-sessions.ts` mapping, not a second training database. New sessions are self-guided Player saves; coach assignments and team messages are not modified. No personalized identity is inferred; the existing endpoint's default identity applies until native identity selection is ported.
+
+The timer is local, pauses when backgrounded or leaving an unfinished session, and caps recorded time at two hours. Proof is an explicit self-rating from 0–5, separate from TIQ. Saving freezes the ID, completion timestamp and submitted fields. An unconfirmed save offers an exact retry or a history lookup for the same receipt. History is limited to the account's latest 80 records; malformed, duplicate or wrong-owner responses are withheld rather than shown as empty. No polling or training request runs on timer ticks or catalogue filters.
+
+Closing an unfinished session requires a discard choice; keeping it preserves fields and timer state. Unsaved work exists only while the screen/app process remains open. A frozen save is not a durable offline queue; after intentionally discarding it or restarting the app, review account progress before logging the same work again. Native offline draft recovery, modules/quests, coach assignments, weekly-plan actions, proof counters and identity recommendations are not claimed as parity in this batch.
