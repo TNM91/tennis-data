@@ -1,5 +1,8 @@
 'use client'
 
+import {sumLastFiveRatingDeltas} from '@/lib/rating-form'
+import CompareCard,{miniGhostButton} from '@/components/matchup/MatchupCompareCard'
+
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
@@ -460,13 +463,9 @@ export default function MatchupPage() {
         .limit(30)
       if (!active || !data) return
       function computeForm(id: string) {
-        const snaps = (data as Array<{ player_id: string; delta: number | null; rating_type: string }>)
-          .filter((s) => s.player_id === id && s.rating_type === view)
-          .slice(0, 5)
-        const deltas = snaps.map((s) => s.delta).filter((d): d is number => d != null)
-        if (deltas.length === 0) return null
-        return Math.round(deltas.reduce((sum, d) => sum + d, 0) * 1000) / 1000
+        return sumLastFiveRatingDeltas(data as Array<{player_id:string;rating_type:string;delta:number|null}>, id, view)
       }
+
       setFormScores({ left: computeForm(idA), right: computeForm(idB) })
     })()
     return () => { active = false }
@@ -2876,120 +2875,6 @@ function getH2HScoreQuality(score: string | null | undefined): string {
   return ''
 }
 
-function CompareCard({
-  title,
-  subtitle,
-  ratings,
-  ustaRatings,
-  projectionRating,
-  ratingView,
-  projectionView,
-  profileHref,
-  favored,
-  selfRated,
-  dynamicRatingGrid,
-}: {
-  title: string
-  subtitle: string
-  ratings: { overall: number | null; singles: number | null; doubles: number | null }
-  ustaRatings: { overall: number | null; singles: number | null; doubles: number | null }
-  projectionRating: number | null
-  ratingView: RatingView
-  projectionView: RatingView
-  profileHref: string | null
-  favored: boolean
-  selfRated: boolean
-  dynamicRatingGrid: CSSProperties
-}) {
-  return (
-    <div
-      style={{
-        ...compareCard,
-        ...(favored ? favoredCompareCard : {}),
-      }}
-    >
-      <div style={compareHead}>
-        <div style={compareHeadCopyStyle}>
-          <div style={compareTitle}>{title}</div>
-          <div style={compareSubtitle}>{subtitle}</div>
-        </div>
-
-        {profileHref ? (
-          <Link href={profileHref} style={miniGhostButton}>
-            View profile
-          </Link>
-        ) : null}
-      </div>
-
-      <div style={ratingSectionLabelStyle}>TIQ DYNAMIC</div>
-      <div style={dynamicRatingGrid}>
-        <RatingPill label="Overall" value={ratings.overall} active={ratingView === 'overall'} selfRated={selfRated} />
-        <RatingPill label="Singles" value={ratings.singles} active={ratingView === 'singles'} selfRated={selfRated} />
-        <RatingPill label="Doubles" value={ratings.doubles} active={ratingView === 'doubles'} selfRated={selfRated} />
-      </div>
-
-      <div style={{ ...ratingSectionLabelStyle, marginTop: 10 }}>USTA DYNAMIC</div>
-      <div style={dynamicRatingGrid}>
-        <RatingPill label="Overall" value={selfRated ? null : ustaRatings.overall} active={ratingView === 'overall'} pendingLabel={selfRated ? 'Pending' : undefined} />
-        <RatingPill label="Singles" value={selfRated ? null : ustaRatings.singles} active={ratingView === 'singles'} pendingLabel={selfRated ? 'Pending' : undefined} />
-        <RatingPill label="Doubles" value={selfRated ? null : ustaRatings.doubles} active={ratingView === 'doubles'} pendingLabel={selfRated ? 'Pending' : undefined} />
-      </div>
-
-      <div style={highlightBox}>
-        <div style={highlightLabel}>
-          {projectionView === 'singles' ? 'Singles projection rating' : 'Doubles projection rating'}
-        </div>
-        <div style={highlightValue}>{formatRating(projectionRating)}{selfRated ? ' S' : ''}</div>
-      </div>
-
-      {(() => {
-        if (selfRated) return (
-          <div style={{ ...ratingSignalStyle, color: 'var(--brand-lime)' }}>
-            Self-rated - verified results will replace the S signal.
-          </div>
-        )
-        const tiqVal = ratingView === 'singles' ? ratings.singles : ratingView === 'doubles' ? ratings.doubles : ratings.overall
-        const ustaVal = ratingView === 'singles' ? ustaRatings.singles : ratingView === 'doubles' ? ustaRatings.doubles : ustaRatings.overall
-        if (tiqVal == null || ustaVal == null) return null
-        const diff = tiqVal - ustaVal
-        const label = diff >= 0.15 ? 'Hot' : diff >= 0.07 ? 'Rising' : diff <= -0.15 ? 'Cooling' : diff <= -0.07 ? 'Softening' : 'Stable'
-        const color = diff >= 0.07 ? '#9be11d' : diff <= -0.07 ? '#f87171' : 'rgba(190,210,240,0.6)'
-        return (
-          <div style={{ ...ratingSignalStyle, color }}>
-            {label} - TIQ signal {diff >= 0 ? '+' : ''}{diff.toFixed(2)}
-          </div>
-        )
-      })()}
-    </div>
-  )
-}
-
-function RatingPill({
-  label,
-  value,
-  active,
-  selfRated = false,
-  pendingLabel,
-}: {
-  label: string
-  value: number | null
-  active?: boolean
-  selfRated?: boolean
-  pendingLabel?: string
-}) {
-  return (
-    <div
-      style={{
-        ...ratingPill,
-        ...(active ? ratingPillActive : {}),
-      }}
-    >
-      <div style={ratingPillLabel}>{label}</div>
-      <div style={ratingPillValue}>{pendingLabel ?? `${formatRating(value)}${selfRated && value != null ? ' S' : ''}`}</div>
-    </div>
-  )
-}
-
 function MetricCard({
   label,
   value,
@@ -4779,73 +4664,12 @@ const compareGrid: CSSProperties = {
   minWidth: 0,
 }
 
-const compareCard: CSSProperties = {
-  borderRadius: '24px',
-  padding: '18px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-panel-bg)',
-  boxShadow: 'var(--shadow-soft)',
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
 
-const favoredCompareCard: CSSProperties = {
-  borderColor: 'color-mix(in srgb, var(--brand-green) 36%, var(--shell-panel-border) 64%)',
-  background: 'color-mix(in srgb, var(--brand-green) 7%, var(--shell-panel-bg) 93%)',
-}
 
-const compareHead: CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-  gap: '12px',
-  marginBottom: '16px',
-  flexWrap: 'wrap',
-  minWidth: 0,
-}
 
-const compareHeadCopyStyle: CSSProperties = {
-  minWidth: 0,
-  overflowWrap: 'anywhere',
-}
 
-const compareTitle: CSSProperties = {
-  color: 'var(--foreground-strong)',
-  fontSize: '24px',
-  lineHeight: 1.15,
-  fontWeight: 900,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
 
-const compareSubtitle: CSSProperties = {
-  marginTop: '6px',
-  color: 'var(--shell-copy-muted)',
-  fontSize: '14px',
-  lineHeight: 1.5,
-  fontWeight: 500,
-  overflowWrap: 'anywhere',
-}
 
-const miniGhostButton: CSSProperties = {
-  whiteSpace: 'normal',
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '40px',
-  padding: '0 14px',
-  borderRadius: '999px',
-  border: '1px solid var(--shell-panel-border)',
-  background: 'var(--shell-chip-bg)',
-  color: 'var(--foreground-strong)',
-  textDecoration: 'none',
-  fontWeight: 800,
-  fontSize: '13px',
-  maxWidth: '100%',
-  minWidth: 0,
-  textAlign: 'center',
-  overflowWrap: 'anywhere',
-}
 
 const ratingGrid: CSSProperties = {
   display: 'grid',
@@ -4854,80 +4678,14 @@ const ratingGrid: CSSProperties = {
   minWidth: 0,
 }
 
-const ratingSectionLabelStyle: CSSProperties = {
-  marginBottom: 6,
-  color: 'var(--shell-copy-muted)',
-  fontSize: 11,
-  fontWeight: 800,
-  letterSpacing: '0.04em',
-  overflowWrap: 'anywhere',
-}
 
-const ratingSignalStyle: CSSProperties = {
-  marginTop: 10,
-  minWidth: 0,
-  maxWidth: '100%',
-  fontSize: 12,
-  fontWeight: 800,
-  overflowWrap: 'anywhere',
-}
 
-const ratingPill: CSSProperties = {
-  borderRadius: '16px',
-  padding: '14px 14px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  minWidth: 0,
-}
 
-const ratingPillActive: CSSProperties = {
-  background: 'color-mix(in srgb, var(--brand-blue-2) 12%, var(--shell-chip-bg) 88%)',
-  borderColor: 'color-mix(in srgb, var(--brand-blue-2) 30%, var(--shell-panel-border) 70%)',
-}
 
-const ratingPillLabel: CSSProperties = {
-  color: 'rgba(197,213,234,0.72)',
-  fontSize: '12px',
-  lineHeight: 1.5,
-  fontWeight: 700,
-  overflowWrap: 'anywhere',
-}
 
-const ratingPillValue: CSSProperties = {
-  marginTop: '4px',
-  color: 'var(--foreground-strong)',
-  fontSize: '20px',
-  lineHeight: 1,
-  fontWeight: 900,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
 
-const highlightBox: CSSProperties = {
-  borderRadius: '16px',
-  padding: '16px',
-  background: 'var(--shell-chip-bg)',
-  border: '1px solid var(--shell-panel-border)',
-  minWidth: 0,
-}
 
-const highlightLabel: CSSProperties = {
-  color: 'rgba(197,213,234,0.72)',
-  fontSize: '12px',
-  lineHeight: 1.5,
-  fontWeight: 700,
-  overflowWrap: 'anywhere',
-}
 
-const highlightValue: CSSProperties = {
-  marginTop: '6px',
-  color: '#9bd2ff',
-  fontSize: '32px',
-  lineHeight: 1,
-  fontWeight: 900,
-  letterSpacing: 0,
-  overflowWrap: 'anywhere',
-}
 
 const centerColumn: CSSProperties = {
   display: 'flex',
