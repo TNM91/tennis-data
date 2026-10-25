@@ -218,3 +218,8 @@ Adds account-saved weekly plans and coach assignments to native My Lab, includin
 ### Build 51 candidate: native weekly-plan actions
 
 Adds create-only private three-rep weeks and explicit rep completion/reopening through the existing authenticated weekly-plan API. Revision-checked narrow updates preserve coach instructions, replies and sharing; existing weeks cannot be overwritten by native creation. Confirmations, exact manual retry, current-state lookup, stale-edit recovery and close/discard guards cover unconfirmed changes. Individual private training sessions remain separate. No new schema, grants, permissions, notifications or encryption. Coach replies/check-ins, sharing and custom rep editing remain website actions. Physical iPhone acceptance is pending.
+
+
+### Build 52 candidate: native coach assignment check-ins
+
+Adds recap/proof entry, explicit completion review, frozen save/recovery, conflict handling and recorded check-ins to the native training inbox. Uses the existing coach assignment API/helper with optional revision-checked updates and no new schema, permissions, notifications or encryption. Whole-assignment submission completes non-skipped pack cards as on the website. Weekly coach replies/custom changes remain website actions. No authenticated positive production QA writes; physical iPhone acceptance remains pending.
