@@ -5,10 +5,10 @@ import {parsePracticeSnapshot,type NativePractice} from './captain-practices-dat
 import {validPracticeEditFields,validPracticeEditId,samePracticeEditFields,type PracticeEditFields} from '../../lib/native-practice-edit'
 export type PracticeEdit={owner:string;eventId:string;expectedUpdatedAt:string;requestId:string;fields:PracticeEditFields}
 export function freezePracticeEdit(p:NativePractice,fields:PracticeEditFields,requestId:string):PracticeEdit{
- if(p.status==='completed'||!validPracticeEditFields(fields)||!validPracticeEditId(requestId))throw Error('Check the date, times and practice details.')
+ if((p.status==='completed'||p.status==='cancelled')||!validPracticeEditFields(fields)||!validPracticeEditId(requestId))throw Error('Check the date, times and practice details.')
  return Object.freeze({owner:p.owner,eventId:p.id,expectedUpdatedAt:p.updatedAt,requestId,fields:Object.freeze({...fields})})
 }
-export function practiceEditMatches(edit:PracticeEdit,p:NativePractice){return p.owner===edit.owner&&p.id===edit.eventId&&p.status!=='completed'&&p.editReceipt?.requestId===edit.requestId&&p.editReceipt.expectedUpdatedAt===edit.expectedUpdatedAt&&samePracticeEditFields(edit.fields,p)}
+export function practiceEditMatches(edit:PracticeEdit,p:NativePractice){return p.owner===edit.owner&&p.id===edit.eventId&&p.status!=='completed'&&p.status!=='cancelled'&&p.editReceipt?.requestId===edit.requestId&&p.editReceipt.expectedUpdatedAt===edit.expectedUpdatedAt&&samePracticeEditFields(edit.fields,p)}
 export class PracticeEditError extends Error{constructor(public conflict=false){super('Practice details not confirmed.')}}
 export type EditSend=(options:HttpOptions)=>Promise<HttpResponse>
 export async function savePracticeEdit(client:SupabaseClient,current:()=>boolean,scope:TeamScope,edit:PracticeEdit,send:EditSend=o=>CapacitorHttp.patch(o)){
