@@ -19,3 +19,5 @@ dialog{border-radius:24px;color:var(--foreground);max-height:calc(100dvh - 24px)
 .website-goal-fields{display:grid;gap:14px;min-width:0}
 .website-goal-fields input,.website-goal-fields textarea,.website-goal-fields select{font-family:inherit;box-sizing:border-box}
 .website-goal-fields input:focus-visible,.website-goal-fields textarea:focus-visible,.website-goal-fields select:focus-visible{outline:2px solid var(--brand-blue-2);outline-offset:2px}
+
+.website-comparison-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:16px;min-width:0}

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const matchupSource = readFileSync(join(process.cwd(), 'app/matchup/page.tsx'), 'utf8')
+const matchupSource = readFileSync(join(process.cwd(), 'app/matchup/page.tsx'), 'utf8') + '\n' + readFileSync(join(process.cwd(), 'components/matchup/MatchupCompareCard.tsx'), 'utf8')
 
 describe('matchup readability surfaces', () => {
   it('keeps head-to-head score text theme-aware and ASCII-safe', () => {

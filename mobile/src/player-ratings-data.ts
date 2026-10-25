@@ -11,7 +11,7 @@ export function ratingValues(player:RecordedRatings) {
   })
 }
 export async function loadPlayerRatings(client:SupabaseClient,playerId:string):Promise<RecordedRatings|null> {
-  const {data,error}=await client.from('players').select('overall_dynamic_rating,singles_dynamic_rating,doubles_dynamic_rating,rating_source')
+  const {data,error}=await client.from('players').select('overall_dynamic_rating,singles_dynamic_rating,doubles_dynamic_rating,overall_usta_dynamic_rating,singles_usta_dynamic_rating,doubles_usta_dynamic_rating,rating_source')
     .eq('id',playerId).abortSignal(AbortSignal.timeout(12000)).maybeSingle()
   if(error)throw Error('Ratings unavailable')
   return data as RecordedRatings|null

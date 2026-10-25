@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const matchupSource = readFileSync(join(process.cwd(), 'app/matchup/page.tsx'), 'utf8')
+const matchupSource = readFileSync(join(process.cwd(), 'app/matchup/page.tsx'), 'utf8') + '\n' + readFileSync(join(process.cwd(), 'components/matchup/MatchupCompareCard.tsx'), 'utf8')
 
 function styleBlock(styleName: string) {
   const match = matchupSource.match(new RegExp(`const ${styleName}: CSSProperties = \\{[\\s\\S]*?\\n\\}`))
