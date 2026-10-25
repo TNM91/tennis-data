@@ -214,3 +214,7 @@ Adds separate playing style/development focus choices, account-scoped device pre
 ### Build 50 candidate: account training inbox
 
 Adds account-saved weekly plans and coach assignments to native My Lab, including effective coach replacement reps, due states, feedback, pack/check-in summaries, exact-card private practice, and manual per-section refresh. Uses existing bearer-authenticated read APIs and shared website helpers. No plan/assignment writes, coach messages, read acknowledgments or notifications. Plan management and coach check-ins remain explicit website actions until their native write flows are ported. Source identity stays with a private session; device playing-style choices remain unchanged. Physical iPhone acceptance is pending.
+
+### Build 51 candidate: native weekly-plan actions
+
+Adds create-only private three-rep weeks and explicit rep completion/reopening through the existing authenticated weekly-plan API. Revision-checked narrow updates preserve coach instructions, replies and sharing; existing weeks cannot be overwritten by native creation. Confirmations, exact manual retry, current-state lookup, stale-edit recovery and close/discard guards cover unconfirmed changes. Individual private training sessions remain separate. No new schema, grants, permissions, notifications or encryption. Coach replies/check-ins, sharing and custom rep editing remain website actions. Physical iPhone acceptance is pending.
