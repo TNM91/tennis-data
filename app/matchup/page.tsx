@@ -1,5 +1,8 @@
 'use client'
 
+import HistoricalRatingCheck from '../../components/matchup/HistoricalRatingCheck'
+import {readHistoricalRatingCheck,type HistoricalCheck} from '../../lib/historical-rating-check'
+
 import MatchupMeetingSummary from '../../components/matchup/MatchupMeetingSummary'
 import {matchupOutcome} from '../../lib/matchup-outcome'
 
@@ -40,7 +43,6 @@ const dataAssistMatchupHref = '/data-assist?intent=request-review&context=Matchu
 type RatingView = 'overall' | 'singles' | 'doubles'
 type MatchType = 'singles' | 'doubles'
 type MatchSide = 'A' | 'B'
-type AccuracyBand = 'high' | 'medium' | 'low'
 
 type Player = {
   id: string
@@ -156,13 +158,7 @@ type ProjectionState = {
   swapImpactHint: string
 }
 
-type AccuracyState = {
-  overall: number | null
-  high: number | null
-  medium: number | null
-  low: number | null
-  sampleSize: number
-}
+
 
 const MATCHUP_INLINE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_MATCHUP_INLINE || null
 const MATCHUP_PLAYER_IDENTITY = getPlayerDevelopmentIdentity('relentless-competitor-4-0')
@@ -255,13 +251,10 @@ export default function MatchupPage() {
   const urlReadyRef = useRef(false)
   const profilePrefillAttemptedRef = useRef(false)
   const previewTrackedRef = useRef('')
-  const [accuracy, setAccuracy] = useState<AccuracyState>({
-    overall: null,
-    high: null,
-    medium: null,
-    low: null,
-    sampleSize: 0,
-  })
+  const [accuracy, setAccuracy] = useState<HistoricalCheck|null>(null)
+  const [accuracyFailed,setAccuracyFailed]=useState(false)
+  const accuracyRequest=useRef(0)
+  const accuracyScope=useRef({active:false})
   const { access, user, authResolved } = useProductAccess()
   const shouldShowAds = authResolved && shouldShowSponsoredPlacements(access)
   const canUseCaptainTools = authResolved && access.canUseCaptainWorkflow
@@ -441,10 +434,10 @@ export default function MatchupPage() {
   }, [matchType, playerAId, playerBId, teamA1Id, teamA2Id, teamB1Id, teamB2Id])
 
   useEffect(() => {
-    if (!players.length) return
-    void loadPredictionAccuracy()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players, matchType])
+    const scope={active:true};accuracyScope.current=scope
+    accuracyRequest.current++;setAccuracy(null);setAccuracyFailed(false);setAccuracyLoading(false)
+    return ()=>{scope.active=false}
+  }, [matchType,user?.id])
 
   useEffect(() => {
     const idA = playerAId || null
@@ -816,170 +809,15 @@ export default function MatchupPage() {
   }
 
   async function loadPredictionAccuracy() {
-    setAccuracyLoading(true)
-
+    if(accuracyLoading||!accuracyScope.current.active)return
+    const scope=accuracyScope.current,request=++accuracyRequest.current
+    const current=()=>scope.active&&accuracyRequest.current===request
+    setAccuracyLoading(true);setAccuracyFailed(false);setAccuracy(null)
     try {
-      const engineView = getEngineRatingView(matchType)
-
-      const { data: matchesData, error: matchesError } = await supabase
-        .from('matches')
-        .select(`
-          id,
-          match_date,
-          match_type,
-          score,
-          winner_side
-        `)
-        .eq('match_type', matchType)
-        .order('match_date', { ascending: false })
-        .limit(500)
-
-      if (matchesError) throw new Error(matchesError.message)
-
-      const typedMatches = (matchesData || []) as MatchRow[]
-      const matchIds = typedMatches.map((match) => match.id)
-
-      if (!matchIds.length) {
-        setAccuracy({
-          overall: null,
-          high: null,
-          medium: null,
-          low: null,
-          sampleSize: 0,
-        })
-        return
-      }
-
-      const { data: participantsData, error: participantsError } = await supabase
-        .from('match_players')
-        .select(`
-          match_id,
-          player_id,
-          side,
-          seat,
-          players (
-            id,
-            name
-          )
-        `)
-        .in('match_id', matchIds)
-
-      if (participantsError) throw new Error(participantsError.message)
-
-      const typedParticipants = (participantsData || []) as MatchPlayerRow[]
-      const participantsByMatchId = new Map<string, MatchPlayerRow[]>()
-
-      for (const participant of typedParticipants) {
-        const existing = participantsByMatchId.get(participant.match_id) ?? []
-        existing.push(participant)
-        participantsByMatchId.set(participant.match_id, existing)
-      }
-
-      let overallTotal = 0
-      let overallCorrect = 0
-      let highTotal = 0
-      let highCorrect = 0
-      let mediumTotal = 0
-      let mediumCorrect = 0
-      let lowTotal = 0
-      let lowCorrect = 0
-
-      for (const match of typedMatches) {
-        const participants = participantsByMatchId.get(match.id) ?? []
-
-        if (matchType === 'singles') {
-          const leftParticipant = participants.find((p) => p.side === 'A')
-          const rightParticipant = participants.find((p) => p.side === 'B')
-          if (!leftParticipant || !rightParticipant) continue
-
-          const leftPlayer = players.find((player) => player.id === leftParticipant.player_id)
-          const rightPlayer = players.find((player) => player.id === rightParticipant.player_id)
-          if (!leftPlayer || !rightPlayer) continue
-
-          const leftRating = getSelectedRating(leftPlayer, engineView)
-          const rightRating = getSelectedRating(rightPlayer, engineView)
-          if (!hasValidRating(leftRating) || !hasValidRating(rightRating)) continue
-          if (leftRating === rightRating) continue
-
-          const leftWinProbability = expectedScore(leftRating, rightRating)
-          const predictedWinner: MatchSide = leftWinProbability >= 0.5 ? 'A' : 'B'
-          const band = getAccuracyBand(leftWinProbability)
-          const wasCorrect = predictedWinner === match.winner_side
-
-          overallTotal += 1
-          if (wasCorrect) overallCorrect += 1
-
-          if (band === 'high') {
-            highTotal += 1
-            if (wasCorrect) highCorrect += 1
-          } else if (band === 'medium') {
-            mediumTotal += 1
-            if (wasCorrect) mediumCorrect += 1
-          } else {
-            lowTotal += 1
-            if (wasCorrect) lowCorrect += 1
-          }
-        } else {
-          const sideAPlayers = participants
-            .filter((p) => p.side === 'A')
-            .map((p) => players.find((player) => player.id === p.player_id))
-            .filter(Boolean) as Player[]
-
-          const sideBPlayers = participants
-            .filter((p) => p.side === 'B')
-            .map((p) => players.find((player) => player.id === p.player_id))
-            .filter(Boolean) as Player[]
-
-          if (sideAPlayers.length !== 2 || sideBPlayers.length !== 2) continue
-
-          const leftRatings = sideAPlayers.map((player) => getSelectedRating(player, engineView))
-          const rightRatings = sideBPlayers.map((player) => getSelectedRating(player, engineView))
-
-          if (!leftRatings.every(hasValidRating) || !rightRatings.every(hasValidRating)) continue
-
-          const leftRating = average(leftRatings)
-          const rightRating = average(rightRatings)
-          if (leftRating === rightRating) continue
-
-          const leftWinProbability = expectedScore(leftRating, rightRating)
-          const predictedWinner: MatchSide = leftWinProbability >= 0.5 ? 'A' : 'B'
-          const band = getAccuracyBand(leftWinProbability)
-          const wasCorrect = predictedWinner === match.winner_side
-
-          overallTotal += 1
-          if (wasCorrect) overallCorrect += 1
-
-          if (band === 'high') {
-            highTotal += 1
-            if (wasCorrect) highCorrect += 1
-          } else if (band === 'medium') {
-            mediumTotal += 1
-            if (wasCorrect) mediumCorrect += 1
-          } else {
-            lowTotal += 1
-            if (wasCorrect) lowCorrect += 1
-          }
-        }
-      }
-
-      setAccuracy({
-        overall: toAccuracyValue(overallCorrect, overallTotal),
-        high: toAccuracyValue(highCorrect, highTotal),
-        medium: toAccuracyValue(mediumCorrect, mediumTotal),
-        low: toAccuracyValue(lowCorrect, lowTotal),
-        sampleSize: overallTotal,
-      })
-    } catch {
-      setAccuracy({
-        overall: null,
-        high: null,
-        medium: null,
-        low: null,
-        sampleSize: 0,
-      })
-    } finally {
-      setAccuracyLoading(false)
-    }
+      const report=await readHistoricalRatingCheck(supabase,matchType,current)
+      if(current())setAccuracy(report)
+    }catch{if(current())setAccuracyFailed(true)}
+    finally{if(current())setAccuracyLoading(false)}
   }
 
   function setEmptyHeadToHead() {
@@ -2578,35 +2416,12 @@ export default function MatchupPage() {
 
               <article style={summaryCard}>
                 <div style={summaryHead}>
-                  <h2 style={sectionTitle}>Confidence check</h2>
+                  <h2 style={sectionTitle}>Historical rating check</h2>
                   <div style={metaNote}>Based on recent {matchType} matches</div>
                 </div>
 
-                {accuracyLoading ? (
-                  <p style={paragraph}>Calculating accuracy...</p>
-                ) : accuracy.sampleSize === 0 ? (
-                  <p style={paragraph}>Not enough history yet.</p>
-                ) : (
-                  <>
-                    <div style={dynamicMetricGrid}>
-                      <MetricCard label="Overall" value={formatNullablePercent(accuracy.overall)} />
-                      <MetricCard
-                        label="High confidence"
-                        value={formatNullablePercent(accuracy.high)}
-                      />
-                      <MetricCard
-                        label="Medium confidence"
-                        value={formatNullablePercent(accuracy.medium)}
-                      />
-                      <MetricCard label="Low confidence" value={formatNullablePercent(accuracy.low)} />
-                    </div>
-
-                    <p style={{ ...paragraph, marginTop: '16px' }}>
-                      Sample size: <strong>{accuracy.sampleSize}</strong>. This checks how often the
-                      current rating favorite would have been correct on recent historical matchups.
-                    </p>
-                  </>
-                )}
+                <button type="button" style={miniGhostButton} disabled={accuracyLoading} onClick={()=>{void loadPredictionAccuracy()}}>{accuracy?'Refresh historical check':'Load historical check'}</button>
+                {accuracyLoading ? <p style={paragraph}>Checking recent results…</p> : accuracyFailed ? <p role="alert" style={paragraph}>Historical check unavailable. <button type="button" style={miniGhostButton} onClick={()=>{void loadPredictionAccuracy()}}>Retry historical check</button></p> : accuracy ? <HistoricalRatingCheck report={accuracy}/> : <p style={paragraph}>Check today’s rating favorites against recent completed singles or doubles results.</p>}
               </article>
 
               <article style={summaryCard}>
@@ -3068,18 +2883,6 @@ function getExpectedOutcomeText(
   return `This matchup projects as nearly even.`
 }
 
-function getAccuracyBand(probabilityLeft: number): AccuracyBand {
-  const favoriteProbability = Math.max(probabilityLeft, 1 - probabilityLeft)
-  if (favoriteProbability >= 0.72) return 'high'
-  if (favoriteProbability >= 0.6) return 'medium'
-  return 'low'
-}
-
-function toAccuracyValue(correct: number, total: number) {
-  if (!total) return null
-  return correct / total
-}
-
 function DualTrajectoryChart({ leftPoints, rightPoints, leftLabel, rightLabel }: {
   leftPoints: Array<{ date: string; rating: number }>
   rightPoints: Array<{ date: string; rating: number }>
@@ -3127,10 +2930,7 @@ function formatPercent(value: number) {
   return `${(value * 100).toFixed(1)}%`
 }
 
-function formatNullablePercent(value: number | null) {
-  if (value === null) return '-'
-  return formatPercent(value)
-}
+
 
 const contentWrap: CSSProperties = {
   position: 'relative',

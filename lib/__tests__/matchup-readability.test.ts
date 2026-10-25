@@ -8,7 +8,8 @@ describe('matchup readability surfaces', () => {
   it('keeps head-to-head score text theme-aware and ASCII-safe', () => {
     expect(matchupSource).toContain('const headToHeadScoreText: CSSProperties')
     expect(matchupSource).toContain("<span style={headToHeadScoreText}>{m.score || '-'}</span>")
-    expect(matchupSource).toContain("if (value === null) return '-'")
+    // Historical no-sample rendering is owned by the shared component and its behavioral tests.
+    expect(matchupSource).toContain('<HistoricalRatingCheck report={accuracy}/>')
     expect(matchupSource).toContain("Favorite: <strong>{projection.favoriteLabel}</strong> | Underdog:")
     expect(matchupSource).toContain("S {formatMatchupRating(getSelectedRating(player, 'singles'), player)} - O {formatMatchupRating(getSelectedRating(player, 'overall'), player)}")
     expect(matchupSource).toContain("{projection.favoriteEdgeText} - {projection.confidenceLabel} confidence")
