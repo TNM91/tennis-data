@@ -233,3 +233,12 @@ Adds native review/send of Seen acknowledgments and questions on shared weekly c
 ### Build 54 candidate: Captain practice attendance
 
 Adds exact-team saved practice browsing, Upcoming/Earlier views, focus/recurrence detail, player search, canonical RSVP/waitlist/captain-confirmed status and reviewed confirmation/removal. Read-only snapshots do not advance recurrences or send reminders. Existing authenticated RLS writes use invitee revisions, with pre/post practice checks and manual uncertain-state recovery; parent edits can leave a child write unconfirmed rather than falsely reporting success. No new schema, grants, roles, notifications or encryption. Creation/editing/cancellation, RSVP sharing/calendar and reminders remain website workflows. Physical iPhone acceptance is pending.
+
+
+### Build 55: native practice detail editing
+
+Captain practice details can be edited on iPhone: date, start/end time, location, focus, and the website's one-time/weekly/biweekly recurrence choices. Review is explicit **Save details only**: RSVP responses, capacity and captain confirmations stay unchanged, and no message, notification or reminder is sent. The website editor still supplies its existing announcement behavior. This is partial practice parity; creation, cancellation, sharing, RSVP resets, calendar export and reminders remain website actions.
+
+The API checks Captain entitlement, accepted exact team scope and creator ownership, then updates only the event through authenticated RLS with an exact raw revision. Existing private metadata and next-occurrence links are preserved server-side; other saved occurrences are not edited. A narrow UUID request receipt and original revision permit identical retries and scoped recovery without duplicate writes. Recovery requires matching receipt and every desired field, not merely similar schedule values. No schema, grants or service-write permissions change.
+
+The app freezes the reviewed fields, checks account/screen ownership before and after transport, blocks stale retries, offers a current-state lookup and guards unsaved or uncertain close actions. Pending edits are memory-only and are cleared on screen/session disposal. Local and synthetic tests do not mutate production or send APNs tests. Physical iPhone acceptance remains pending.

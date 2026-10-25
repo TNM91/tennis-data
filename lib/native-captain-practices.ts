@@ -1,3 +1,4 @@
+import {validPracticeEditFields,validPracticeEditId,samePracticeEditFields,type PracticeEditReceipt} from './native-practice-edit'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import type {TeamRoomScope} from './team-room'
 import {authorizeNativeCaptainScope} from './native-captain-workspace'
@@ -10,7 +11,7 @@ const date=(v:unknown)=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&Numb
 const record=(v:unknown):Record<string,unknown>=>v&&typeof v==='object'&&!Array.isArray(v)?v as Record<string,unknown>:{}
 const unique=(rows:{id:string}[])=>rows.every(r=>r.id)&&new Set(rows.map(r=>r.id)).size===rows.length
 export type NativePracticePerson={id:string;name:string;response:'in'|'out'|'maybe'|'unanswered';displayStatus:'in'|'out'|'maybe'|'unanswered'|'waitlist';respondedAt:string|null;confirmedAt:string|null;updatedAt:string}
-export type NativePractice={id:string;owner:string;title:string;date:string;time:string;endTime:string;facility:string;recurrence:string;status:'proposed'|'confirmed'|'completed';focus:string;updatedAt:string;capacity:number|null;inviteId:string|null;roster:NativePracticePerson[]}
+export type NativePractice={id:string;owner:string;title:string;date:string;time:string;endTime:string;facility:string;recurrence:string;status:'proposed'|'confirmed'|'completed';focus:string;updatedAt:string;capacity:number|null;inviteId:string|null;roster:NativePracticePerson[];editReceipt?:PracticeEditReceipt}
 export async function loadNativeCaptainPractices(service:SupabaseClient,owner:string,scope:TeamRoomScope,eventId?:string){
  const access=await authorizeNativeCaptainScope(service,owner,scope);if(!access.ok)return access
  let query=service.from('internal_schedule_events').select(eventSelect).eq('created_by_user_id',owner).eq('event_type','captain_practice').eq('metadata->>teamName',scope.teamName).eq('metadata->>leagueName',scope.leagueName).eq('metadata->>flight',scope.flight).in('status',['proposed','confirmed','completed']).order('scheduled_date',{ascending:false}).order('id').limit(41)
@@ -23,7 +24,7 @@ export async function loadNativeCaptainPractices(service:SupabaseClient,owner:st
  if(invites.error||!Array.isArray(invites.data)||invites.data.length>40||!unique(invites.data)||new Set(invites.data.map(i=>i.event_id)).size!==invites.data.length||invites.data.some(i=>i.created_by_user_id!==owner||!rows.some(e=>e.id===i.event_id)||(i.capacity!==null&&(!Number.isInteger(i.capacity)||i.capacity<1||i.capacity>100))))return {ok:false as const,status:503}
  const roster=invites.data.length?await service.from('captain_practice_invitees').select(rosterSelect).in('invite_id',invites.data.map(i=>i.id)).in('event_id',rows.map(e=>e.id)).order('player_name').order('id').limit(2001):{data:[],error:null}
  if(roster.error||!Array.isArray(roster.data)||roster.data.length>2000||!unique(roster.data)||roster.data.some(p=>!invites.data.some(i=>i.id===p.invite_id&&i.event_id===p.event_id)||!text(p.player_name,300)||!['in','out','maybe','unanswered'].includes(p.response_status)||!timestamp(p.updated_at)||(p.responded_at!==null&&!timestamp(p.responded_at))||(p.captain_confirmed_at!==null&&!timestamp(p.captain_confirmed_at))))return {ok:false as const,status:503}
- const practices:NativePractice[]=rows.map(e=>{const invite=invites.data.find(i=>i.event_id===e.id),people=roster.data.filter(p=>p.event_id===e.id);if(people.length>250)throw Error('Practice roster exceeds the native limit');const assigned=assignPracticeDisplayStatuses(people.map(p=>({id:p.id,name:p.player_name,response:p.response_status as NativePracticePerson['response'],responseStatus:p.response_status as NativePracticePerson['response'],respondedAt:p.responded_at||'',captainConfirmedAt:p.captain_confirmed_at||'',confirmedAt:p.captain_confirmed_at as string|null,updatedAt:p.updated_at})),invite?.capacity??null);return {id:e.id,owner,title:text(e.title,300)||'Team practice',date:e.scheduled_date,time:text(e.scheduled_time,80),endTime:text(record(e.metadata).practiceEndTime,80),facility:text(e.facility,300),recurrence:text(e.recurrence_rule,160),status:e.status as NativePractice['status'],focus:text(record(e.metadata).practiceNotes,3000),updatedAt:e.updated_at,capacity:invite?.capacity??null,inviteId:invite?.id??null,roster:assigned.map(p=>({id:p.id,name:p.name,response:p.response,displayStatus:p.displayStatus,respondedAt:p.respondedAt||null,confirmedAt:p.confirmedAt,updatedAt:p.updatedAt}))}})
+ const practices:NativePractice[]=rows.map(e=>{const invite=invites.data.find(i=>i.event_id===e.id),people=roster.data.filter(p=>p.event_id===e.id);if(people.length>250)throw Error('Practice roster exceeds the native limit');const assigned=assignPracticeDisplayStatuses(people.map(p=>({id:p.id,name:p.player_name,response:p.response_status as NativePracticePerson['response'],responseStatus:p.response_status as NativePracticePerson['response'],respondedAt:p.responded_at||'',captainConfirmedAt:p.captain_confirmed_at||'',confirmedAt:p.captain_confirmed_at as string|null,updatedAt:p.updated_at})),invite?.capacity??null);return {id:e.id,owner,title:text(e.title,300)||'Team practice',date:e.scheduled_date,time:text(e.scheduled_time,80),endTime:text(record(e.metadata).practiceEndTime,80),facility:text(e.facility,300),recurrence:text(e.recurrence_rule,160),status:e.status as NativePractice['status'],focus:text(record(e.metadata).practiceNotes,3000),updatedAt:e.updated_at,capacity:invite?.capacity??null,inviteId:invite?.id??null,...(validPracticeEditId(e.metadata?.nativePracticeEdit?.requestId)&&timestamp(e.metadata?.nativePracticeEdit?.expectedUpdatedAt)?{editReceipt:{requestId:e.metadata.nativePracticeEdit.requestId,expectedUpdatedAt:e.metadata.nativePracticeEdit.expectedUpdatedAt}}:{}),roster:assigned.map(p=>({id:p.id,name:p.name,response:p.response,displayStatus:p.displayStatus,respondedAt:p.respondedAt||null,confirmedAt:p.confirmedAt,updatedAt:p.updatedAt}))}})
  return {ok:true as const,status:200,scope,owner,more:events.data.length>40,practices}
 }
 export async function setNativePracticeConfirmation(service:SupabaseClient,authenticated:SupabaseClient,owner:string,scope:TeamRoomScope,body:Record<string,unknown>){
@@ -40,5 +41,27 @@ export async function setNativePracticeConfirmation(service:SupabaseClient,authe
  const latest=await loadNativeCaptainPractices(service,owner,scope,eventId);if(!latest.ok)return latest
  const saved=latest.practices.find(p=>p.id===eventId),updated=saved?.roster.find(p=>p.id===personId)
  if(!saved||saved.status==='completed'||saved.updatedAt!==eventRevision||!updated||updated.response!=='in'||Boolean(updated.confirmedAt)!==body.confirmed)return {ok:false as const,status:409}
+ return {ok:true as const,status:200,practice:saved}
+}
+
+export async function editNativePractice(service:SupabaseClient,authenticated:SupabaseClient,owner:string,scope:TeamRoomScope,body:Record<string,unknown>){
+ const eventId=text(body.eventId,120),revision=text(body.expectedUpdatedAt,80),requestId=body.requestId,fields=body.fields
+ if(!eventId||!timestamp(revision)||!validPracticeEditId(requestId)||!validPracticeEditFields(fields))return {ok:false as const,status:400}
+ const before=await loadNativeCaptainPractices(service,owner,scope,eventId);if(!before.ok)return before
+ const practice=before.practices.find(p=>p.id===eventId);if(!practice)return {ok:false as const,status:404}
+ if(practice.status==='completed')return {ok:false as const,status:409}
+ if(practice.editReceipt?.requestId===requestId){return practice.editReceipt.expectedUpdatedAt===revision&&samePracticeEditFields(practice,fields)?{ok:true as const,status:200,practice}:{ok:false as const,status:409}}
+ if(practice.updatedAt!==revision)return {ok:false as const,status:409}
+ // Preserve private metadata server-side. The authenticated update still applies existing owner RLS.
+ const raw=await service.from('internal_schedule_events').select('id,metadata,updated_at').eq('id',eventId).eq('created_by_user_id',owner).eq('event_type','captain_practice').eq('updated_at',revision).maybeSingle()
+ if(raw.error)return {ok:false as const,status:503}
+ if(!raw.data||raw.data.id!==eventId||raw.data.updated_at!==revision)return {ok:false as const,status:409}
+ const metadata={...record(raw.data.metadata),practiceEndTime:fields.endTime,scheduleEndTime:fields.endTime,practiceNotes:fields.focus,scheduleDate:fields.date,scheduleTime:fields.time,facility:fields.facility,nativePracticeEdit:{requestId,expectedUpdatedAt:revision}}
+ const result=await authenticated.from('internal_schedule_events').update({scheduled_date:fields.date,scheduled_time:fields.time,facility:fields.facility,recurrence_rule:fields.recurrence,metadata,updated_at:new Date().toISOString()}).eq('id',eventId).eq('created_by_user_id',owner).eq('event_type','captain_practice').eq('updated_at',revision).in('status',['proposed','confirmed']).select('id').maybeSingle()
+ if(result.error)return {ok:false as const,status:503}
+ if(!result.data)return {ok:false as const,status:409}
+ const after=await loadNativeCaptainPractices(service,owner,scope,eventId);if(!after.ok)return after
+ const saved=after.practices.find(p=>p.id===eventId)
+ if(!saved||saved.status==='completed'||saved.editReceipt?.requestId!==requestId||saved.editReceipt.expectedUpdatedAt!==revision||!samePracticeEditFields(saved,fields))return {ok:false as const,status:409}
  return {ok:true as const,status:200,practice:saved}
 }
