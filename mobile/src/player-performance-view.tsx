@@ -1,3 +1,4 @@
+import {NativePlayerSeasonReview} from './player-season-review-view'
 import {PlayerMatchQuality} from '../../app/components/player-profile-overview'
 import {playerMatchQuality} from '../../lib/player-profile-overview'
 import type {PlayerChoice} from './player-connection'
@@ -20,6 +21,7 @@ export function PlayerPerformance({data,onRefresh,onOpenPlayer,format}:{data:Pla
       <p>{data.matches.length} public decided matches loaded across recorded years. Pending results and future matches are excluded.</p>
       {data.snapshots.length>0||data.matches.length>0||data.insight?.player?<div className={styles.chartNavigation} role="group" aria-label="Performance format">{journeyViews.map(kind=><button key={kind} type="button" className={styles.button} aria-pressed={view===kind} onClick={()=>setView(kind)}>{getRatingViewLabel(kind)}</button>)}</div>:null}
       {data.ratingsLimited?<p role="status">The loaded rating history is incomplete. Peak TIQ and yearly rating movement are withheld; match records remain available.</p>:<p>{getRatingViewLabel(view)} peak uses saved TIQ history. Streaks and seasons use all loaded public decided matches.</p>}
+      <NativePlayerSeasonReview data={data} view={view}/>
       <PlayerMatchQuality metrics={playerMatchQuality(data.matches.filter(m=>view==='overall'||m.matchType===view),data.ratingsLimited?[]:data.snapshots.filter(s=>s.view===view&&s.opponentRating!==null).map(s=>s.opponentRating!),getRatingViewLabel(view))}/>
       {summary.careerHighs.peakRating!==null||summary.careerHighs.bestSeason?<PlayerCareerRecords careerHighs={summary.careerHighs} coverage="Best marks in this player’s recorded public history. Best season means most wins; ties keep the latest year."/>:null}
       {insight?<><p>{getRatingViewLabel(view)} comparisons use selected-format results and snapshots. Streaks and yearly records remain across all formats.</p>{onRefresh&&(!data.insight?.player||!insight.reference)?<button type="button" className={styles.button} onClick={onRefresh}>Retry comparison data</button>:null}<PlayerBenchmarkPanel benchmark={insight.benchmark} reference={insight.reference} ratingNote={insight.usedOverall?'Missing split TIQ; the recorded Overall estimate is used.':undefined}/>
