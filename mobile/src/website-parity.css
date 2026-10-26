@@ -238,3 +238,14 @@ body[data-screen="lab"] #recent-results .recent-form dd { font-size:25px; }
 .rating-scale-caption { color:var(--native-blue); font-size:11px; margin:12px 0 0; }
 .recent-match-list { margin-top:18px; border-top:1px solid var(--shell-panel-border); }
 .recent-match-list>summary { cursor:pointer; padding:16px 0; min-height:44px; font-size:14px; color:var(--native-blue); font-weight:650; }
+
+.lab-rating-trends { border-top:2px solid var(--brand-blue); }
+.lab-rating-trends>h2 { margin:8px 0 12px; font-size:22px; }
+.lab-rating-trends>p { font-size:14px; }
+.lab-rating-trends .native-player-journey>h2 { font-size:24px; margin-bottom:18px; }
+.lab-rating-trends .native-player-journey section { padding:16px; border-radius:16px; background:var(--native-inset); }
+.lab-rating-trends .native-player-journey details>summary { min-height:44px; padding:14px 0; cursor:pointer; color:var(--native-blue); font-size:14px; }
+.lab-rating-trends .native-player-journey p { font-size:13px; }
+
+.lab-rating-trends [aria-label="Navigate reviewed results"] { display:flex; flex-wrap:wrap; gap:8px; }
+.lab-rating-trends [aria-label="Navigate reviewed results"] button { flex:1 1 80px; width:auto; min-width:0; }

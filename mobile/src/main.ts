@@ -1,3 +1,4 @@
+import {mountLabRatingTrends} from './lab-rating-trends'
 import {openDataImports} from './data-imports-view'
 import {openLeagueOffice} from './league-office-view'
 import {mountCourtCalendar} from './lab-calendar'
@@ -39,6 +40,7 @@ navigation.setAttribute('aria-label','Main navigation')
 navigation.hidden = true
 navigation.innerHTML = (['lab','explore','following','matchup','teams'] as const).map(key=>`<button type="button" data-screen="${key}"><span aria-hidden="true">${websiteUi.icons[key]}</span><span>${({lab:'My Lab',explore:'Explore',following:'Following',matchup:'Matchup',teams:'My teams'})[key]}</span></button>`).join('')
 app.after(navigation)
+let labRatingTrends:ReturnType<typeof mountLabRatingTrends>|null=null
 let dataImports:ReturnType<typeof openDataImports>|null=null
 let leagueOffice:ReturnType<typeof openLeagueOffice>|null=null
 let goals:ReturnType<typeof openLabGoals>|null=null
@@ -60,6 +62,7 @@ if (Capacitor.getPlatform() === 'android') {
     else if(leagueOffice?.isOpen()){leagueOffice.back()}
     else if(goals?.isOpen()){goals.back()}
     else if(training?.isOpen()){training.back()}
+    else if(labRatingTrends?.isScorecardOpen()){labRatingTrends.back()}
     else if(teamRoom){if(!teamRoom.back())guardNavigation(()=>{void lab()})}
     else if(comparison){if(!comparison.back())void lab()}
     else if(following){if(!following.back())void lab()}
@@ -72,6 +75,7 @@ if (Capacitor.getPlatform() === 'android') {
 }
 
 function login(message = '') {
+  labRatingTrends?.dispose();labRatingTrends=null
   dataImports?.dispose();dataImports=null
   leagueOffice?.dispose();leagueOffice=null
   goals?.dispose();goals=null
@@ -110,6 +114,7 @@ function login(message = '') {
 }
 
 function selectNavigation(screen: 'lab' | 'explore' | 'following' | 'matchup' | 'teams') {
+  labRatingTrends?.dispose();labRatingTrends=null
   dataImports?.dispose();dataImports=null
   leagueOffice?.dispose();leagueOffice=null
   navigation.hidden = false
@@ -227,6 +232,7 @@ async function lab() {
   app.querySelectorAll<HTMLButtonElement>('[data-connect-player],#connect-player').forEach(connectButton=>{connectButton.onclick = () => {
     details?.dispose()
     details = null
+    labRatingTrends?.dispose();labRatingTrends=null
     const connectionVersion = ++revision
     const isCurrent = () => connectionVersion === revision && current.user.id === session?.user.id
     connection = showPlayerConnection(app, {
@@ -280,6 +286,9 @@ async function lab() {
       ratingsSection.className='lab-stat-panel'
       ratingsSection.innerHTML='<small class="stat-eyebrow">Your game, in numbers</small><h2 id="lab-ratings-title">Your recorded TIQ ratings</h2><div aria-live="polite"></div><button type="button" class="secondary" data-lab-profile>Open full player profile</button>'
       app.querySelector('#lab-identity')!.after(ratingsSection,app.querySelector('#recent-results')!)
+      const trendSection=document.createElement('section')
+      ratingsSection.after(trendSection)
+      labRatingTrends=mountLabRatingTrends(trendSection,client,playerId,()=>version===revision&&current.user.id===session?.user.id)
       bindLabActions()
       showPlayerRatings(ratingsSection.querySelector<HTMLElement>('div')!,client,playerId,()=>version===revision && current.user.id===session?.user.id,true)
       const refreshResults = async () => {
@@ -317,7 +326,7 @@ client.auth.getSession().catch(() => {
   app.innerHTML = '<h1>Couldn’t open your account</h1><p role="alert">Close the app and try again. Secure sign-in storage is unavailable.</p>'
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !details?.isOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
-  else client.auth.stopAutoRefresh()
+  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() }
+  else {labRatingTrends?.dispose();labRatingTrends=null;client.auth.stopAutoRefresh()}
 })
-window.addEventListener('online', () => { if (session && !details?.isOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() })
+window.addEventListener('online', () => { if (session && !details?.isOpen() && !labRatingTrends?.isScorecardOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !leagueOffice?.isOpen() && !dataImports?.isOpen()) void lab() })
