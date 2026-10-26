@@ -9,6 +9,7 @@ await mkdir(new URL('bundled', root), { recursive: true })
 await build({
   entryPoints: [fileURLToPath(new URL('src/main.ts', root))],
   outfile: fileURLToPath(new URL('bundled/app.js', root)),
+  loader:{'.module.css':'local-css'}, jsx:'automatic',
   bundle: true, platform: 'browser', format: 'esm', target: 'es2022', minify: true,
 })
 await copyFile(new URL('src/index.html', root), new URL('bundled/index.html', root))

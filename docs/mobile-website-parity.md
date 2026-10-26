@@ -368,8 +368,17 @@ Owner feedback on October 25 prioritizes the whole-screen horizontal scrolling d
 
 Acceptance requires side-by-side phone-size evidence, functional controls and navigation, accurate data/entitlement boundaries, no page-level horizontal scrolling, and physical iPhone/large-text/VoiceOver checks before public App Store submission. Do not call a view complete merely because a shortcut or text summary exists.
 
-## Horizontal layout correction — build 84 candidate
+## Horizontal layout correction — build 84 released
 
 A synthetic 75-character player name reproduced page-level overflow: a 305 CSS-pixel layout expanded its scroll width to 818 pixels. Selected-player copy, headings, courtside text and an open rating-history caption contributed. The native viewport now stays bounded, text can wrap at long names/URLs, containers and controls may shrink, and oversized media stays within its panel. Dated rating tables have labeled keyboard-accessible local scroll regions. Shared goal controls use 16px text to avoid small-input focus zoom; user zoom is not disabled. Native Capacitor already disables bounce, so no speculative Swift/controller change is added.
 
 The same synthetic case fits at 305/305 CSS pixels after the fix, with no offscreen elements and the complete table retained. This proves the content-sizing failure and local correction in a browser; the owner's exact physical iPhone gesture still needs confirmation on the beta. No data, permissions, queries, notifications, or public website styles are changed.
+
+
+## Player rating journey — build 85 candidate
+
+Explore player visits now mount the website's actual `RatingJourneyExplorer` and original CSS module as a small interactive React view. Previous/Next/Latest, the range slider, selected-point details and chart geometry come directly from the website component. Format controls select independent Overall/Singles/Doubles histories; All loaded/90-day/30-day windows filter in memory, reset the selected point safely and make no additional requests. A dated accessible table, first/latest/window-change summary and missing-rating counts remain beside the chart. This adds the detailed journey, not the website's full player-profile layout or complete statistical parity.
+
+The existing Player entitlement is checked before reading detailed histories, with the same signed-in account rechecked before and after transport. Reads use the caller's Supabase client/RLS and exact player/track/format filters, limited to 60 snapshots per format plus one sentinel, with deterministic date/id order. Partial/invalid/failed responses are withheld; close, account change and screen disposal ignore late reads and unmount the React view. Current rating tiles and recent results remain independent. No new database permission, schema, notification or private production QA is introduced.
+
+History limits are visible: loaded snapshots are not advertised as full-season totals or match counts. Missing ratings remain missing, formats never borrow each other's history, and missing historical match context is stated. Full personal records, benchmark comparison, opponent breakdowns, repeat opponents, year-by-year statistics, profile meters/compact journey and scorecard links remain next work. The shared chart CSS is packaged as an external local stylesheet without relaxing CSP. Physical iPhone, VoiceOver and large-text acceptance remain pending.
