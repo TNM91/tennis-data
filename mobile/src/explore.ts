@@ -1,7 +1,8 @@
+import {showPlayerProfileHeader} from './player-profile-header-view'
+import {createPlayerProfileFormat} from './player-profile-format'
 import { showPlayerPerformance } from './player-performance-view'
 import { showPlayerJourney } from './player-journey-view'
 import { showFollowControl } from './follow-control'
-import { showPlayerRatings } from './player-ratings-view'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { findPlayers, type PlayerChoice } from './player-connection'
 import { createMatchDetails, html } from './match-details'
@@ -13,6 +14,7 @@ export function playerSummary(player: PlayerChoice) {
 }
 
 export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, initial?: {player:PlayerChoice;back:()=>void;backLabel?:string},initialTerm='') {
+  let header:ReturnType<typeof showPlayerProfileHeader>|null=null
   let performance: ReturnType<typeof showPlayerPerformance> | null = null
   let journey: ReturnType<typeof showPlayerJourney> | null = null
   let disposed = false
@@ -40,6 +42,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
     if(parent){void open(parent.player,true);return}
     if(initial){initial.back();return}
     request++
+    header?.dispose();header=null
     performance?.dispose();performance=null
     journey?.dispose();journey=null
     selected = null
@@ -54,6 +57,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
   }
   async function open(player: PlayerChoice,nested=false) {
     if (!valid()) return
+    header?.dispose();header=null
     performance?.dispose();performance=null
     journey?.dispose();journey=null
     matchDetails?.dispose();matchDetails=null
@@ -63,15 +67,16 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
     search.hidden = true
     intro.hidden = true
     playerPanel.hidden = false
-    playerPanel.innerHTML = `<button type="button" class="secondary" id="back-explore">${html(profileHistory.length?'Back to previous player':initial?.backLabel || (initial?'Back to rankings':'Back to search'))}</button>${playerSummary(player)}<p>Public player record · Results below are for ${html(player.name)}.</p><div id="player-follow" aria-live="polite"></div><section aria-labelledby="explore-ratings-title"><h2 id="explore-ratings-title">Recorded TIQ ratings</h2><div id="explore-ratings" aria-live="polite"></div></section><section id="explore-journey"></section><section id="explore-performance"></section><h2>Recent matches</h2><div id="explore-results" aria-live="polite"></div>`
+    playerPanel.innerHTML = `<button type="button" class="secondary" id="back-explore">${html(profileHistory.length?'Back to previous player':initial?.backLabel || (initial?'Back to rankings':'Back to search'))}</button><div id="explore-profile-header">${playerSummary(player)}</div><div id="player-follow" aria-live="polite"></div><section id="explore-journey"></section><section id="explore-performance"></section><h2 id="explore-results-title" tabindex="-1">Recent matches</h2><div id="explore-results" aria-live="polite"></div>`
     playerPanel.querySelector<HTMLButtonElement>('#back-explore')!.onclick = back
     playerPanel.querySelector<HTMLElement>('h1')!.focus()
     window.scrollTo(0,0)
     matchDetails = createMatchDetails(app,client,valid,{backLabel:'Back to player',sideLabel:player.name})
     showFollowControl(playerPanel.querySelector<HTMLElement>('#player-follow')!,client,player,()=>valid() && version===request)
-    showPlayerRatings(playerPanel.querySelector<HTMLElement>('#explore-ratings')!,client,player.id,()=>valid() && version===request)
-    journey=showPlayerJourney(playerPanel.querySelector<HTMLElement>('#explore-journey')!,client,player.id,()=>valid() && version===request)
-    performance=showPlayerPerformance(playerPanel.querySelector<HTMLElement>('#explore-performance')!,client,player.id,()=>valid() && version===request,next=>{if(!valid()||version!==request||next.id===player.id)return;profileHistory.push({player});void open(next,true)})
+    const format=createPlayerProfileFormat()
+    header=showPlayerProfileHeader(playerPanel.querySelector<HTMLElement>('#explore-profile-header')!,client,player,()=>valid()&&version===request,format,target=>{if(!valid()||version!==request)return;const element=playerPanel.querySelector<HTMLElement>(target==='overview'?'#explore-profile-header h1':target==='results'?'#explore-results-title':target==='journey'?'#explore-journey h2':'#explore-performance h2');if(!element)return;element.tabIndex=-1;element.scrollIntoView({block:'start'});element.focus({preventScroll:true})})
+    journey=showPlayerJourney(playerPanel.querySelector<HTMLElement>('#explore-journey')!,client,player.id,()=>valid() && version===request,format,data=>{if(valid()&&version===request)header?.history(data)})
+    performance=showPlayerPerformance(playerPanel.querySelector<HTMLElement>('#explore-performance')!,client,player.id,()=>valid() && version===request,next=>{if(!valid()||version!==request||next.id===player.id)return;profileHistory.push({player});void open(next,true)},(data,state)=>{if(valid()&&version===request)header?.performance(data,state)},format)
     const content = playerPanel.querySelector<HTMLElement>('#explore-results')!
     const load = async () => {
       content.innerHTML = '<p role="status">Loading recent matches…</p>'
@@ -122,6 +127,6 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
   return {
     isMatchOpen:()=>journey?.isScorecardOpen()||matchDetails?.isOpen() || false,
     back:()=>{if(journey?.closeScorecard())return true;if(matchDetails?.isOpen()){history.back();return true}if(selected){back();return true}return false},
-    dispose:()=>{disposed=true;request++;performance?.dispose();performance=null;journey?.dispose();journey=null;matchDetails?.dispose()},
+    dispose:()=>{disposed=true;request++;header?.dispose();header=null;performance?.dispose();performance=null;journey?.dispose();journey=null;matchDetails?.dispose()},
   }
 }

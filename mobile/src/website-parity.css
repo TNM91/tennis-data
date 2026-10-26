@@ -35,3 +35,8 @@ main :where(svg,canvas,video),dialog :where(svg,canvas,video){max-inline-size:10
 .website-goal-fields :is(input,select,textarea){font-size:16px}
 
 #explore-journey,#explore-performance{padding:0;border:0;background:transparent;box-shadow:none}
+
+#explore-profile-header { display:contents; }
+#explore-profile-header h1,#explore-journey h2,#explore-performance h2,#explore-results-title { scroll-margin-top:88px; }
+
+#explore-player { padding:0; border:0; background:transparent; box-shadow:none; }
