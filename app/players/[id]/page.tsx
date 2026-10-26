@@ -1,5 +1,8 @@
 'use client'
 
+import PlayerCareerRecords from '@/app/components/player-career-records'
+import { playerSeasonPerformance, longestPlayerWinStreak, playerCareerHighs } from '@/lib/player-performance'
+
 import { getTiqEvidence, type TiqEvidenceShape } from '@/lib/tiq-rating-evidence'
 
 import { getTiqBandStatus } from '@/lib/tiq-band-status'
@@ -1123,32 +1126,7 @@ function PlayerProfileContent() {
       .map(([name, rec]) => ({ name, id: rec.id, wins: rec.wins, losses: rec.losses, lastDate: rec.lastDate, total: rec.wins + rec.losses }))
   }, [matches])
 
-  const seasonBreakdown = useMemo(() => {
-    const map = new Map<string, { wins: number; losses: number; singles: number; doubles: number; deltaSum: number; deltaCount: number }>()
-    for (const match of matches) {
-      const year = match.date.slice(0, 4)
-      const existing = map.get(year) ?? { wins: 0, losses: 0, singles: 0, doubles: 0, deltaSum: 0, deltaCount: 0 }
-      if (match.result === 'W') existing.wins++
-      else existing.losses++
-      if (match.matchType === 'singles') existing.singles++
-      else existing.doubles++
-      const snap = snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`)
-      if (snap?.delta != null) { existing.deltaSum += snap.delta; existing.deltaCount++ }
-      map.set(year, existing)
-    }
-    return [...map.entries()]
-      .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([year, rec]) => ({
-        year,
-        wins: rec.wins,
-        losses: rec.losses,
-        total: rec.wins + rec.losses,
-        singles: rec.singles,
-        doubles: rec.doubles,
-        netDelta: rec.deltaCount > 0 ? rec.deltaSum : null,
-        winRate: rec.wins + rec.losses > 0 ? Math.round((rec.wins / (rec.wins + rec.losses)) * 100) : 0,
-      }))
-  }, [matches, snapshotByMatchId])
+  const seasonBreakdown = useMemo(() => playerSeasonPerformance(matches, snapshotByMatchId), [matches, snapshotByMatchId])
 
   const ustaTeamMemberships = useMemo<UstaTeamMembership[]>(() => {
     const map = new Map<string, UstaTeamMembership>()
@@ -1361,32 +1339,9 @@ function PlayerProfileContent() {
     return { tiebreakTotal, tiebreakWins, threeSetTotal, threeSetWins, upsetWins, upsetTotal }
   }, [filteredMatches, snapshotByMatchId])
 
-  const longestWinStreak = useMemo(() => {
-    let best = 0
-    let current = 0
-    for (const match of [...matches].reverse()) { // oldest to newest
-      if (match.result === 'W') {
-        current++
-        if (current > best) best = current
-      } else {
-        current = 0
-      }
-    }
-    return best
-  }, [matches])
+  const longestWinStreak = useMemo(() => longestPlayerWinStreak(matches), [matches])
 
-  const careerHighs = useMemo(() => {
-    const peakRating = chartPoints.length > 0
-      ? Math.max(...chartPoints.map((p) => p.rating))
-      : null
-    const bestSeason = seasonBreakdown.length > 0
-      ? seasonBreakdown.reduce((best, s) => s.wins > best.wins ? s : best, seasonBreakdown[0])
-      : null
-    const mostMatchesSeason = seasonBreakdown.length > 0
-      ? seasonBreakdown.reduce((best, s) => s.total > best.total ? s : best, seasonBreakdown[0])
-      : null
-    return { peakRating, bestSeason, longestStreak: longestWinStreak, mostMatchesSeason }
-  }, [chartPoints, seasonBreakdown, longestWinStreak])
+  const careerHighs = useMemo(() => playerCareerHighs(chartPoints, seasonBreakdown, longestWinStreak), [chartPoints, seasonBreakdown, longestWinStreak])
 
   const benchmark = useMemo(() => {
     if (!fieldAvgRating) return null
@@ -3286,45 +3241,7 @@ function PlayerProfileContent() {
           </summary>
           <div style={detailDrawerStackStyle}>
         {(careerHighs.peakRating !== null || careerHighs.longestStreak > 0 || careerHighs.bestSeason) ? (
-          <article style={panelCard}>
-            <div style={panelHead}>
-              <div style={panelHeadCopyStyle}>
-                <div style={sectionKicker}>Career highs</div>
-                <h2 style={panelTitle}>Personal records</h2>
-              </div>
-            </div>
-            <p style={sectionText}>Best marks across the full tracked history for this profile.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 12, marginTop: 16, minWidth: 0 }}>
-              {careerHighs.peakRating !== null ? (
-                <div style={{ padding: '14px 16px', borderRadius: 16, background: 'rgba(155,225,29,0.05)', border: '1px solid rgba(155,225,29,0.14)', minWidth: 0, overflowWrap: 'anywhere' }}>
-                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>Peak TIQ</div>
-                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 0, color: '#d9f84a' }}>{careerHighs.peakRating.toFixed(2)}</div>
-                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>Highest rating reached</div>
-                </div>
-              ) : null}
-              {careerHighs.longestStreak > 1 ? (
-                <div style={{ padding: '14px 16px', borderRadius: 16, background: 'rgba(116,190,255,0.05)', border: '1px solid rgba(116,190,255,0.14)', minWidth: 0, overflowWrap: 'anywhere' }}>
-                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>Best win streak</div>
-                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 0, color: '#93c5fd' }}>{careerHighs.longestStreak}W</div>
-                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>Consecutive wins</div>
-                </div>
-              ) : null}
-              {careerHighs.bestSeason ? (
-                <div style={{ padding: '14px 16px', borderRadius: 16, background: 'rgba(52,211,153,0.05)', border: '1px solid rgba(52,211,153,0.14)', minWidth: 0, overflowWrap: 'anywhere' }}>
-                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>Best season</div>
-                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 0, color: '#a7f3d0' }}>{careerHighs.bestSeason.year}</div>
-                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>{careerHighs.bestSeason.wins}W-{careerHighs.bestSeason.losses}L - {careerHighs.bestSeason.winRate}% win rate</div>
-                </div>
-              ) : null}
-              {careerHighs.mostMatchesSeason && careerHighs.mostMatchesSeason.year !== careerHighs.bestSeason?.year ? (
-                <div style={{ padding: '14px 16px', borderRadius: 16, background: 'rgba(251,146,60,0.05)', border: '1px solid rgba(251,146,60,0.14)', minWidth: 0, overflowWrap: 'anywhere' }}>
-                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>Most active season</div>
-                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 0, color: '#fed7aa' }}>{careerHighs.mostMatchesSeason.year}</div>
-                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>{careerHighs.mostMatchesSeason.total} matches played</div>
-                </div>
-              ) : null}
-            </div>
-          </article>
+          <PlayerCareerRecords careerHighs={careerHighs} />
         ) : null}
 
         {benchmark ? (
