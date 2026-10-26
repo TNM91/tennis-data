@@ -1,7 +1,9 @@
 'use client'
 
+import {PlayerBenchmarkPanel,PlayerOpponentQualityPanel} from '@/app/components/player-benchmark-panels'
+import {loadPlayerFieldReference,type PlayerFieldReference} from '@/lib/player-field-reference'
 import PlayerCareerRecords from '@/app/components/player-career-records'
-import { playerSeasonPerformance, longestPlayerWinStreak, playerCareerHighs } from '@/lib/player-performance'
+import { playerSeasonPerformance, longestPlayerWinStreak, playerCareerHighs, playerBenchmark, playerOpponentBands, playerRecentForm, playerPublishedBaseline } from '@/lib/player-performance'
 
 import { getTiqEvidence, type TiqEvidenceShape } from '@/lib/tiq-rating-evidence'
 
@@ -363,6 +365,7 @@ function PlayerProfileContent() {
   const [playerRank, setPlayerRank] = useState<number | null>(null)
   const [totalPlayers, setTotalPlayers] = useState<number | null>(null)
   const [nearbyPlayers, setNearbyPlayers] = useState<Array<{ id: string; name: string; location: string | null; overall_dynamic_rating: number }>>([])
+  const [fieldReference,setFieldReference] = useState<PlayerFieldReference|null>(null)
   const [fieldAvgRating, setFieldAvgRating] = useState<number | null>(null)
   const [playerAwards, setPlayerAwards] = useState<TiqAwardRecord[]>([])
   const [detailReady, setDetailReady] = useState(false)
@@ -512,7 +515,7 @@ function PlayerProfileContent() {
     if (typeof tiq !== 'number') return
     let active = true
     void (async () => {
-      const [{ count: total }, { count: above }, { data: nearby }, { data: avgData }] = await Promise.all([
+      const [{ count: total }, { count: above }, { data: nearby }, reference] = await Promise.all([
         supabase.from('players').select('*', { count: 'exact', head: true }),
         supabase.from('players').select('*', { count: 'exact', head: true })
           .gt('overall_dynamic_rating', tiq),
@@ -524,19 +527,13 @@ function PlayerProfileContent() {
           .lte('overall_dynamic_rating', tiq + 0.15)
           .order('overall_dynamic_rating', { ascending: false })
           .limit(5),
-        supabase
-          .from('players')
-          .select('overall_dynamic_rating')
-          .not('overall_dynamic_rating', 'is', null)
-          .limit(500),
+        loadPlayerFieldReference(supabase),
       ])
       if (!active) return
       setPlayerRank(typeof above === 'number' ? above + 1 : null)
       setTotalPlayers(total)
-      if (avgData && avgData.length > 0) {
-        const vals = (avgData as Array<{ overall_dynamic_rating: number }>).map((r) => r.overall_dynamic_rating)
-        setFieldAvgRating(vals.reduce((a, b) => a + b, 0) / vals.length)
-      }
+      setFieldReference(reference)
+      setFieldAvgRating(reference?.average ?? null)
       setNearbyPlayers(
         ((nearby ?? []) as Array<{ id: string; name: string; location: string | null; overall_dynamic_rating: number }>)
           .filter((p) => p.id !== playerId),
@@ -1029,20 +1026,8 @@ function PlayerProfileContent() {
     return validRatings.reduce((sum, r) => sum + r, 0) / validRatings.length
   }, [snapshots, ratingView])
 
-  const opponentQualityBreakdown = useMemo(() => {
-    const bands = { weaker: { w: 0, l: 0 }, similar: { w: 0, l: 0 }, stronger: { w: 0, l: 0 } }
-    for (const match of filteredMatches) {
-      const snap = snapshotByMatchId.get(`${match.id}:${match.matchType}`) ?? snapshotByMatchId.get(`${match.id}:overall`)
-      if (!snap?.opponent_rating || !baseRating) continue
-      const diff = snap.opponent_rating - baseRating
-      const bucket = diff > 0.25 ? 'stronger' : diff < -0.25 ? 'weaker' : 'similar'
-      if (match.result === 'W') bands[bucket].w++
-      else bands[bucket].l++
-    }
-    const total = Object.values(bands).reduce((s, b) => s + b.w + b.l, 0)
-    if (total === 0) return null
-    return bands
-  }, [filteredMatches, snapshotByMatchId, baseRating])
+  const opponentBaseline = useMemo(() => playerPublishedBaseline(player,ratingView),[player,ratingView])
+  const opponentQualityBreakdown = useMemo(() => playerOpponentBands(filteredMatches,snapshotByMatchId,opponentBaseline), [filteredMatches,snapshotByMatchId,opponentBaseline])
 
   const formScore = useMemo(() => {
     const relevant = snapshots.filter((snap) =>
@@ -1050,10 +1035,7 @@ function PlayerProfileContent() {
         ? !snap.rating_type || snap.rating_type === 'overall'
         : snap.rating_type === ratingView,
     )
-    const last5 = relevant.slice(-5)
-    const deltas = last5.map((s) => s.delta).filter((d): d is number => d != null)
-    if (deltas.length === 0) return null
-    return deltas.reduce((sum, d) => sum + d, 0)
+    return playerRecentForm(relevant)
   }, [snapshots, ratingView])
 
   const singlesRecord = useMemo(() => {
@@ -1343,13 +1325,7 @@ function PlayerProfileContent() {
 
   const careerHighs = useMemo(() => playerCareerHighs(chartPoints, seasonBreakdown, longestWinStreak), [chartPoints, seasonBreakdown, longestWinStreak])
 
-  const benchmark = useMemo(() => {
-    if (!fieldAvgRating) return null
-    const tiqDiff = selectedDynamicRating - fieldAvgRating
-    const winRateDiff = totalMatches > 0 ? ((wins / totalMatches) * 100 - 50) : null
-    const formVsNeutral = formScore !== null ? formScore : null
-    return { tiqDiff, winRateDiff, formVsNeutral, fieldAvgRating }
-  }, [fieldAvgRating, selectedDynamicRating, wins, totalMatches, formScore])
+  const benchmark = useMemo(() => fieldAvgRating===null?null:playerBenchmark(fieldAvgRating,player?.[`${ratingView}_dynamic_rating`]??player?.overall_dynamic_rating??null,wins,totalMatches,formScore), [fieldAvgRating,player,ratingView,wins,totalMatches,formScore])
 
   const volatilityScore = useMemo(() => {
     const deltas = chartPoints
@@ -3244,79 +3220,8 @@ function PlayerProfileContent() {
           <PlayerCareerRecords careerHighs={careerHighs} />
         ) : null}
 
-        {benchmark ? (
-          <article style={panelCard}>
-            <div style={panelHead}>
-              <div style={panelHeadCopyStyle}>
-                <div style={sectionKicker}>Vs. the field</div>
-                <h2 style={panelTitle}>Benchmark comparison</h2>
-              </div>
-              <span style={panelChip}>Field avg {benchmark.fieldAvgRating.toFixed(2)}</span>
-            </div>
-            <p style={sectionText}>How this profile compares to the field average across TIQ rating, win rate, and recent form.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: 12, marginTop: 16, minWidth: 0 }}>
-              {[
-                {
-                  label: 'TIQ vs field avg',
-                  value: `${benchmark.tiqDiff >= 0 ? '+' : ''}${benchmark.tiqDiff.toFixed(2)}`,
-                  positive: benchmark.tiqDiff > 0,
-                  negative: benchmark.tiqDiff < -0.05,
-                  note: benchmark.tiqDiff > 0.1 ? 'Above average' : benchmark.tiqDiff < -0.1 ? 'Below average' : 'Near average',
-                },
-                {
-                  label: 'Win rate vs 50%',
-                  value: benchmark.winRateDiff !== null ? `${benchmark.winRateDiff >= 0 ? '+' : ''}${benchmark.winRateDiff.toFixed(1)}%` : '--',
-                  positive: benchmark.winRateDiff !== null && benchmark.winRateDiff > 0,
-                  negative: benchmark.winRateDiff !== null && benchmark.winRateDiff < -5,
-                  note: benchmark.winRateDiff !== null ? (benchmark.winRateDiff > 5 ? 'Winning more than losing' : benchmark.winRateDiff < -5 ? 'More losses than wins' : 'Near even') : 'Not enough data',
-                },
-                {
-                  label: 'Form vs neutral',
-                  value: benchmark.formVsNeutral !== null ? `${benchmark.formVsNeutral >= 0 ? '+' : ''}${benchmark.formVsNeutral.toFixed(3)}` : '--',
-                  positive: benchmark.formVsNeutral !== null && benchmark.formVsNeutral > 0.01,
-                  negative: benchmark.formVsNeutral !== null && benchmark.formVsNeutral < -0.01,
-                  note: benchmark.formVsNeutral !== null ? (benchmark.formVsNeutral > 0.01 ? 'Gaining recently' : benchmark.formVsNeutral < -0.01 ? 'Losing recently' : 'Flat') : 'Not enough matches',
-                },
-              ].map((row) => (
-                <div key={row.label} style={{ padding: '13px 16px', borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', minWidth: 0, overflowWrap: 'anywhere' }}>
-                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>{row.label}</div>
-                  <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: 0, color: row.positive ? '#86efac' : row.negative ? '#fca5a5' : 'var(--foreground)' }}>{row.value}</div>
-                  <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>{row.note}</div>
-                </div>
-              ))}
-            </div>
-          </article>
-        ) : null}
-
-        {opponentQualityBreakdown ? (
-          <article style={panelCard}>
-            <div style={panelHead}>
-              <div style={panelHeadCopyStyle}>
-                <div style={sectionKicker}>Matchup quality</div>
-                <h2 style={panelTitle}>Who they beat and lose to</h2>
-              </div>
-            </div>
-            <p style={sectionText}>W-L split by opponent rating relative to this player&apos;s USTA base. &quot;Stronger&quot; means the opponent rated 0.25+ higher; &quot;weaker&quot; means 0.25+ lower.</p>
-            <div style={comparisonMetricGridStyle}>
-              {[
-                { key: 'weaker' as const, label: 'vs Weaker', color: '#d9f84a', bg: 'rgba(155,225,29,0.06)', border: 'rgba(155,225,29,0.16)' },
-                { key: 'similar' as const, label: 'vs Similar', color: '#93c5fd', bg: 'rgba(116,190,255,0.06)', border: 'rgba(116,190,255,0.16)' },
-                { key: 'stronger' as const, label: 'vs Stronger', color: '#fed7aa', bg: 'rgba(251,146,60,0.06)', border: 'rgba(251,146,60,0.16)' },
-              ].map(({ key, label, color, bg, border }) => {
-                const b = opponentQualityBreakdown[key]
-                const total = b.w + b.l
-                const pct = total > 0 ? Math.round((b.w / total) * 100) : null
-                return (
-                  <div key={key} style={{ padding: '14px 16px', borderRadius: 16, background: bg, border: `1px solid ${border}` }}>
-                    <div style={{ color: 'var(--shell-copy-muted)', fontSize: 11, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>{label}</div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color, letterSpacing: 0 }}>{b.w}-{b.l}</div>
-                    {pct !== null ? <div style={{ color: 'var(--shell-copy-muted)', fontSize: 12, fontWeight: 600, marginTop: 4 }}>{pct}% win rate</div> : null}
-                  </div>
-                )
-              })}
-            </div>
-          </article>
-        ) : null}
+        {benchmark ? <PlayerBenchmarkPanel benchmark={benchmark} reference={fieldReference} ratingNote={ratingView!=='overall'&&player[`${ratingView}_dynamic_rating`]==null&&player.overall_dynamic_rating!=null?'Missing split TIQ; the recorded Overall estimate is used.':undefined}/> : null}
+        {opponentQualityBreakdown && opponentBaseline!==null ? <PlayerOpponentQualityPanel bands={opponentQualityBreakdown} baseline={opponentBaseline} matchCount={filteredMatches.length}/> : null}
 
         {access.canUseAdvancedPlayerInsights ? (() => {
           const rec = buildPlayerRecommendation(ratingStatus, ratingDiff, ratingHistoryCount, statusStreakMatches, ratingView)
@@ -6804,13 +6709,6 @@ const profileDetailListStyle: CSSProperties = {
   minWidth: 0,
 }
 
-const comparisonMetricGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))',
-  gap: 12,
-  marginTop: 16,
-  minWidth: 0,
-}
 
 const matchHistoryToolbarStyle: CSSProperties = {
   display: 'flex',
