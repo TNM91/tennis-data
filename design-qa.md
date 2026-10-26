@@ -922,3 +922,9 @@ Synthetic app-entry checks exercised main navigation, player search/profile, Sta
 Earlier P1/P2 findings were corrected and compared again using the revised captures. The reference is brand art, so decorative scene geometry and logo placement are intentionally not cloned into the functional UI. Remaining follow-up: physical-device visual acceptance.
 
 final result: passed
+
+## Build 103 — chat text layout
+
+Fixed inherited mid-word breaking on control labels, fixed-width history columns that reserved space for hidden actions, and competing navigation flex widths. Chat utilities use two bounded tracks and a full-width Find disclosure; history controls wrap based on visible actions; main navigation uses five equal tracks.
+
+Synthetic actual-entry browser checks: 320×780 and 390×844; latest/unread and oldest-history states; First unread hidden; Find expanded/collapsed. No horizontal overflow in visible chat controls or main navigation, and all five navigation labels occupy one line at 320. Oldest-history label wraps between words at 390. No console errors. Screenshots: private build103-chat-390.png and build103-search-320.png. No production data writes. Physical iPhone, Dynamic Type and VoiceOver remain pending.
