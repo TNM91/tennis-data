@@ -36,6 +36,9 @@ jobs:
       - name: Verify
         run: npm run verify
 
+      - name: Check named lineup ownership in isolated PostgreSQL
+        run: node scripts/verify-named-lineup-ownership.mjs
+
       - name: Check native packaging guards
         run: |
           node --test mobile/scripts/prepare-device.test.mjs mobile/scripts/ios-workflow.test.mjs mobile/scripts/ios-store.test.mjs mobile/scripts/ios-icon.test.mjs mobile/scripts/ios-push.test.mjs
