@@ -34,4 +34,4 @@ main :where(svg,canvas,video),dialog :where(svg,canvas,video){max-inline-size:10
 .horizontal-data caption{overflow-wrap:anywhere}
 .website-goal-fields :is(input,select,textarea){font-size:16px}
 
-#explore-journey{padding:0;border:0;background:transparent;box-shadow:none}
+#explore-journey,#explore-performance{padding:0;border:0;background:transparent;box-shadow:none}
