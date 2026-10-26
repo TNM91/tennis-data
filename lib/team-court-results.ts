@@ -25,7 +25,9 @@ export function teamCourtPrefixFilter(externalId: string) {
 
 /** Claim the team's exact parent locators before paging; a global date window
  * can fill the API's row cap with other teams and hide every relevant court. */
-export async function loadTeamCourtResults(client: SupabaseClient, parentMatches: { externalId: string; matchDate: string | null }[]): Promise<ReadResult<TeamCourtMatch>> {
+export async function loadTeamCourtResults(client: SupabaseClient, parentMatches: { externalId: string; matchDate: string | null }[], options: {maxRows?:number;signal?:AbortSignal} = {}): Promise<ReadResult<TeamCourtMatch>> {
+  if(options.maxRows!==undefined&&(!Number.isSafeInteger(options.maxRows)||options.maxRows<1||options.maxRows>1000))return {data:null,error:{message:'Invalid court coverage bound.'}}
+  let rowsRead=0
   const parents = [...new Map(parentMatches.filter(parent => parent.externalId).map(parent => [parent.externalId, parent])).values()]
   if (parents.some(parent => !parent.matchDate)) return { data: null, error: { message: 'Court history requires dated team scorecards.' } }
   const matches = new Map<string, TeamCourtMatch>()
@@ -40,11 +42,15 @@ export async function loadTeamCourtResults(client: SupabaseClient, parentMatches
       // Keep the existing date index available; an unbounded regex over the
       // historical archive is slower than this team's known fixture dates.
       query = query.in('match_date', dates).in('winner_side', ['A', 'B'])
-      const result = await query.order('id').range(offset, offset + PAGE_SIZE - 1)
+      const pageSize=options.maxRows===undefined?PAGE_SIZE:Math.min(PAGE_SIZE,options.maxRows+1-rowsRead)
+      if(options.signal)query=query.abortSignal(options.signal)
+      const result = await query.order('id').range(offset, offset + pageSize - 1)
       if (result.error) return { data: null, error: result.error }
       const rows = (result.data || []) as TeamCourtMatch[]
+      rowsRead+=rows.length
+      if(options.maxRows!==undefined&&rowsRead>options.maxRows)return {data:null,error:{message:'Court sample exceeds the coverage bound.'}}
       for (const row of rows) if (allowed.has(parentId(row.external_match_id) || '') && (row.winner_side === 'A' || row.winner_side === 'B')) matches.set(row.id, row)
-      if (rows.length < PAGE_SIZE) break
+      if (rows.length < pageSize) break
     }
   }
   return { data: [...matches.values()], error: null }

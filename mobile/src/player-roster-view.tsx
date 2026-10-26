@@ -1,3 +1,4 @@
+import {TeamCourtRecords} from './team-court-records-view'
 import {useEffect,useRef,type ReactNode} from 'react'
 import {createRoot} from 'react-dom/client'
 import type {SupabaseClient} from '@supabase/supabase-js'
@@ -17,7 +18,7 @@ export function PlayerTeamFixtures({team,records}:{team:PlayerRosterTeam;records
 }
 function TeamFrame({team,onClose,children,client,current,navigation}:{team:PlayerRosterTeam;onClose:()=>void;children:ReactNode;client:SupabaseClient;current:()=>boolean;navigation:RosterProfileNavigation}) {
  const heading=useRef<HTMLHeadingElement>(null);useEffect(()=>{heading.current?.focus()},[])
- return <><h2 tabIndex={-1} ref={heading}>{team.name}</h2><button type="button" className={`${styles.button} ${rosterStyles.back}`} onClick={onClose}>Back to player profile</button>{children}<TeamRosterSection client={client} team={team} current={current} navigation={navigation}/></>
+ return <><h2 tabIndex={-1} ref={heading}>{team.name}</h2><button type="button" className={`${styles.button} ${rosterStyles.back}`} onClick={onClose}>Back to player profile</button>{children}<TeamRosterSection client={client} team={team} current={current} navigation={navigation}/><TeamCourtRecords client={client} team={team} current={current}/></>
 }
 export function openPlayerTeam(client:SupabaseClient,team:PlayerRosterTeam,current:()=>boolean) {
  const previous=document.activeElement instanceof HTMLElement?document.activeElement:null,dialog=document.createElement('dialog');dialog.className='captain-lineup-dialog website-ui';dialog.setAttribute('aria-label','Player roster team')

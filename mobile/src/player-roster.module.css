@@ -20,3 +20,5 @@
 
 .depth summary::after { content:'+'; margin-left:auto; padding-left:8px; }
 .depth[open]>summary::after { content:'-'; }
+
+.courtFormats { grid-template-columns:repeat(3,minmax(0,1fr)); }

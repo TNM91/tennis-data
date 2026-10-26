@@ -1,3 +1,4 @@
+import {TeamCourtRecords} from './team-court-records-view'
 import {useEffect,useId,useRef,useState} from 'react'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {createRoot} from 'react-dom/client'
@@ -30,6 +31,6 @@ export function TeamRosterSection({client,team,current,navigation}:{client:Supab
 
 export function showTeamRoster(host:HTMLElement,client:SupabaseClient,team:RosterTeamScope,current:()=>boolean) {
  let disposed=false;const navigation:RosterProfileNavigation={profile:null};const root=createRoot(host),valid=()=>!disposed&&host.isConnected&&current()
- root.render(<div className="website-ui"><TeamRosterSection client={client} team={team} current={valid} navigation={navigation}/></div>)
+ root.render(<div className="website-ui"><TeamRosterSection client={client} team={team} current={valid} navigation={navigation}/><TeamCourtRecords client={client} team={team} current={valid}/></div>)
  return {back:()=>navigation.profile?.back()??false,dispose:()=>{disposed=true;navigation.profile?.dispose();navigation.profile=null;root.unmount();host.replaceChildren()}}
 }
