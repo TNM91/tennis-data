@@ -84,3 +84,5 @@ body{background:#07111f}.lab-identity{background:#0b1a2f;border-color:rgba(116,1
 .comparison-rating-history table{width:100%;border-collapse:collapse;font-size:14px}.comparison-rating-history th,.comparison-rating-history td{padding:8px 4px;text-align:left;border-bottom:1px solid #29415c}.comparison-rating-history caption{text-align:left;padding:10px 0}.comparison-rating-history summary{min-height:44px;padding:10px 0;cursor:pointer}.comparison-rating-history article{margin-top:18px}
 
 .match-center-dialog [data-center-panel][hidden]{display:none}.match-week-navigation{margin:16px 0}.match-center-dialog [data-center-panel]{min-width:0}
+
+.league-office-dialog{width:min(760px,calc(100vw - 24px));overflow-wrap:anywhere}.league-office-dialog .team-members li{gap:8px}.league-office-dialog [data-office-content]{min-width:0}

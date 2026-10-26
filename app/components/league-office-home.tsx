@@ -26,6 +26,7 @@ export type LeagueOfficePulseItem = {
 
 export default function LeagueOfficeHome({
   planLabel,
+  planCaption = 'Your plan',
   leagueName,
   leagueMeta,
   leagueCount,
@@ -39,6 +40,7 @@ export default function LeagueOfficeHome({
   onAction,
 }: {
   planLabel: string
+  planCaption?: string
   leagueName: string
   leagueMeta: string
   leagueCount: number
@@ -54,7 +56,7 @@ export default function LeagueOfficeHome({
   return (
     <section className={styles.shell} aria-label="League Office home">
       <div className={styles.topline}>
-        <span className={styles.plan}>Your plan · {planLabel}</span>
+        <span className={styles.plan}>{planCaption} · {planLabel}</span>
         <Link href={leagueHref} className={styles.allLeagues}>
           {leagueCount > 1 ? `All ${leagueCount} leagues` : 'League record'}
         </Link>

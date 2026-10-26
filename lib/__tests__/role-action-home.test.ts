@@ -22,7 +22,7 @@ describe('role action home', () => {
     expect(coach).toContain('roleLabel="Coach"')
     expect(league).toContain('<LeagueOfficeHome')
     expect(leagueHome).toContain('Your next league decision.')
-    expect(leagueHome).toContain('Your plan · {planLabel}')
+    expect(leagueHome).toContain("planCaption = 'Your plan'");expect(leagueHome).toContain('{planCaption} · {planLabel}')
     expect(improve).toContain('<RoleActionHome')
     expect(improve).toContain('roleLabel="Improve"')
     expect(competeHome).toContain('<RoleActionHome')

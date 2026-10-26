@@ -1,3 +1,4 @@
+import {openLeagueOffice} from './league-office-view'
 import {mountCourtCalendar} from './lab-calendar'
 import type {LabGoal} from '../../lib/my-lab-goal-sync'
 import {openLabGoals,goalReadinessHtml} from './lab-goals-view'
@@ -37,6 +38,7 @@ navigation.setAttribute('aria-label','Main navigation')
 navigation.hidden = true
 navigation.innerHTML = (['lab','explore','following','matchup','teams'] as const).map(key=>`<button type="button" data-screen="${key}"><span aria-hidden="true">${websiteUi.icons[key]}</span><span>${({lab:'My Lab',explore:'Explore',following:'Following',matchup:'Matchup',teams:'My teams'})[key]}</span></button>`).join('')
 app.after(navigation)
+let leagueOffice:ReturnType<typeof openLeagueOffice>|null=null
 let goals:ReturnType<typeof openLabGoals>|null=null
 let training:ReturnType<typeof openLevelUp>|null=null
 let teamRoom:ReturnType<typeof showTeamRoom>|null=null
@@ -52,7 +54,8 @@ let recovery: ReturnType<typeof showPasswordRecovery> | null = null
 
 if (Capacitor.getPlatform() === 'android') {
   void App.addListener('backButton', () => {
-    if(goals?.isOpen()){goals.back()}
+    if(leagueOffice?.isOpen()){leagueOffice.back()}
+    else if(goals?.isOpen()){goals.back()}
     else if(training?.isOpen()){training.back()}
     else if(teamRoom){if(!teamRoom.back())guardNavigation(()=>{void lab()})}
     else if(comparison){if(!comparison.back())void lab()}
@@ -66,6 +69,7 @@ if (Capacitor.getPlatform() === 'android') {
 }
 
 function login(message = '') {
+  leagueOffice?.dispose();leagueOffice=null
   goals?.dispose();goals=null
   training?.dispose();training=null
   document.querySelector<HTMLDialogElement>('[data-team-navigation-warning]')?.close()
@@ -102,6 +106,7 @@ function login(message = '') {
 }
 
 function selectNavigation(screen: 'lab' | 'explore' | 'following' | 'matchup' | 'teams') {
+  leagueOffice?.dispose();leagueOffice=null
   navigation.hidden = false
   document.body.dataset.screen=screen
   window.scrollTo(0,0)
@@ -199,7 +204,7 @@ async function lab() {
   app.dataset.state = error ? 'unavailable' : 'ready'
   app.innerHTML = `${error
     ? '<h1 tabindex="-1">My Lab</h1><section><h2>Can’t load your profile</h2><p role="alert">Check your connection, then try again. Your profile has not been changed.</p></section>'
-    : `<div id="lab-identity">${labIdentityHtml(data)}</div>${data?.linked_player_id&&data.linked_player_name?'<section aria-label="Account training overview"><button type="button" class="secondary" id="lab-training-refresh">Load training overview</button><p role="status" id="lab-training-status">Open your latest account proof and weekly progress.</p></section>':''}`}${!error&&data?.linked_player_id&&data.linked_player_name?'<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''}${!error ? labActionsHtml() : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Sign out</button><p role="alert" id="notice"></p>`
+    : `<div id="lab-identity">${labIdentityHtml(data)}</div>${data?.linked_player_id&&data.linked_player_name?'<section aria-label="Account training overview"><button type="button" class="secondary" id="lab-training-refresh">Load training overview</button><p role="status" id="lab-training-status">Open your latest account proof and weekly progress.</p></section>':''}`}${!error&&data?.linked_player_id&&data.linked_player_name?'<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''}${!error ? labActionsHtml()+'<section><h2>League Office</h2><p>Review your owned league seasons, schedules and results.</p><button type="button" class="secondary" data-league-office>Open League Office</button></section>' : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Sign out</button><p role="alert" id="notice"></p>`
   const labHeading=app.querySelector<HTMLElement>('h1');if(labHeading){labHeading.tabIndex=-1;labHeading.focus({preventScroll:true})}
   let selectedLabGoal:LabGoal|undefined
   const bindLabActions=()=>{
@@ -225,6 +230,7 @@ async function lab() {
     }, () => { void lab() }, isCurrent)
   }})
   }
+  app.querySelector('[data-league-office]')?.addEventListener('click',()=>{if(leagueOffice?.isOpen()||training?.isOpen()||goals?.isOpen())return;leagueOffice=openLeagueOffice(client,current.user.id,()=>version===revision&&current.user.id===session?.user.id)})
   bindLabActions()
   if(!error){const calendar=document.createElement('section');app.querySelector('#lab-goal-context')?.before(calendar);if(!calendar.isConnected)app.querySelector('#refresh')!.before(calendar);mountCourtCalendar(calendar,client,current.user.id,()=>version===revision&&current.user.id===session?.user.id)}
   const alerts=document.createElement('section');app.querySelector('#logout')!.before(alerts);nativePush.mount(alerts)
@@ -289,7 +295,7 @@ async function lab() {
 }
 
 client.auth.onAuthStateChange((_event, next) => {
-  if (next?.user.id === session?.user.id && (details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen())) { session = next; setTimeout(()=>nativePush.setSession(next),0); return }
+  if (next?.user.id === session?.user.id && (details?.isOpen() || connection || explore || following || comparison || teamRoom || goals?.isOpen() || training?.isOpen() || leagueOffice?.isOpen())) { session = next; setTimeout(()=>nativePush.setSession(next),0); return }
   session = next
   revision++
   // Schedule outside the auth callback's lock before making another SDK call.
@@ -303,7 +309,7 @@ client.auth.getSession().catch(() => {
   app.innerHTML = '<h1>Couldn’t open your account</h1><p role="alert">Close the app and try again. Secure sign-in storage is unavailable.</p>'
 })
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !details?.isOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen()) void lab() }
+  if (document.visibilityState === 'visible') { client.auth.startAutoRefresh(); if (session && !details?.isOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !leagueOffice?.isOpen()) void lab() }
   else client.auth.stopAutoRefresh()
 })
-window.addEventListener('online', () => { if (session && !details?.isOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen()) void lab() })
+window.addEventListener('online', () => { if (session && !details?.isOpen() && !connection && !explore && !following && !comparison && !teamRoom && !goals?.isOpen() && !training?.isOpen() && !leagueOffice?.isOpen()) void lab() })
