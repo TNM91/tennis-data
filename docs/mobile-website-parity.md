@@ -320,3 +320,12 @@ Captain → Match Center → Compare what-if lineups → Compare courts now uses
 Changes only filters the already loaded A/B assignments; it performs no read or write and does not alter assignments, opponent assumptions or save baselines. The empty changed state is explicit. Existing opponent comparison, saved-lineup import, fresh context checks, availability review and explicit working-save/publishing steps stay in their existing flows. This does not add scenario-library saves or win-probability claims.
 
 Focused tests cover filtering, escaping, unavailable ratings, defaults and duplicate assignments. Synthetic actual-app checks cover unchanged and changed filters, open seats versus rated courts, no additional requests or writes while filtering, and 320/390 CSS-pixel layouts. Physical iPhone, VoiceOver and Dynamic Type acceptance remain pending; positive private production QA is excluded.
+
+
+## Shared assumed-opponent court cards — build 80 candidate
+
+The what-if comparison retains the shared website court-card/grid presentation after loading opponent history. Each court shows Alternative A and B separately, with explicit Your court and Assumed opponent labels, exact roster/historical names, current mode/Overall strength, fallback counts, and signed rating margins. A common bar scale spans all four strengths for that court; bars are bounded numeric SVG attributes. Missing seats/ratings withhold margins, defaults have no rated bars or margins, and complete-court mean denominators and assumption-source disclosures remain visible. The website component's default A/B rendering remains unchanged.
+
+Changes only includes differences in your assignments or assumed opponent identities, ignoring doubles seat order. It filters loaded state without a read/write and preserves both alternatives. Existing source review, opponent identity validation, fresh working-save handoff, unsaved-close guard and separate publishing remain in force. No endpoint, schema, permission, polling, library save or notification is added.
+
+Focused tests cover opponent-only changes, reorder invariance, unavailable/defaulted courts, escaping and context rejection. Synthetic actual-app checks cover an explicit assumed opponent with an Overall fallback and signed margin, B left open, unchanged/changed filters, stable request counts and zero writes, keep/discard navigation, and 320/390 CSS-pixel layout. Positive private production QA is excluded. Physical iPhone, VoiceOver and Dynamic Type acceptance remain pending.

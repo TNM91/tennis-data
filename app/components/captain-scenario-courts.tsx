@@ -19,12 +19,12 @@ export default function CaptainScenarioCourts({ rows, leftName, rightName }: { r
   </section>
 }
 
-export function CaptainScenarioCourt({row,leftName,rightName,display}:{row:ScenarioCourt;leftName:string;rightName:string;display?:{leftRating:string;rightRating:string;difference:string;leftWidth:string;rightWidth:string}}){
+export function CaptainScenarioCourt({row,leftName,rightName,display}:{row:ScenarioCourt;leftName:string;rightName:string;display?:{leftRating:string;rightRating:string;difference:string;leftWidth:string;rightWidth:string;heading?:string;hideSideLetter?:boolean}}){
  const maximum=Math.max(row.leftStrength??0,row.rightStrength??0,1)
  return <article className={styles.court} data-changed={row.changed}>
-  <h4>{row.label} · {row.changed?'Lineup changed':'Same lineup'}</h4>
+  <h4>{display?.heading??<>{row.label} · {row.changed?'Lineup changed':'Same lineup'}</>}</h4>
   {[{name:leftName,text:row.leftText,rating:row.leftStrength},{name:rightName,text:row.rightText,rating:row.rightStrength}].map((side,index)=><div key={index}>
-   <span className={styles.muted}>{index===0?'A':'B'} · {side.name}</span><p>{side.text==='-'?'Court unfilled':side.text}</p>
+   <span className={styles.muted}>{display?.hideSideLetter?side.name:<>{index===0?'A':'B'} · {side.name}</>}</span><p>{side.text==='-'?'Court unfilled':side.text}</p>
    {display?<svg className={styles.bar} viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true"><rect width={index===0?display.leftWidth:display.rightWidth} height="8" fill="#9be11d"/></svg>:<div className={styles.bar} aria-hidden="true"><span style={{width:`${Math.max(0,(side.rating??0)/maximum*100)}%`}}/></div>}
    <span className={styles.muted}>{display?(index===0?display.leftRating:display.rightRating):side.rating===null?'Rating unavailable':`Average rating ${side.rating.toFixed(3)}`}</span>
   </div>)}
