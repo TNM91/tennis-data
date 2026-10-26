@@ -249,3 +249,33 @@ body[data-screen="lab"] #recent-results .recent-form dd { font-size:25px; }
 
 .lab-rating-trends [aria-label="Navigate reviewed results"] { display:flex; flex-wrap:wrap; gap:8px; }
 .lab-rating-trends [aria-label="Navigate reviewed results"] button { flex:1 1 80px; width:auto; min-width:0; }
+
+/* Player and team record charts share a readable, text-labeled native treatment. */
+.native-record-graphics { min-width:0; padding:18px; margin:18px 0; border:1px solid var(--shell-panel-border); border-top:2px solid var(--brand-blue); border-radius:18px; background:var(--native-inset); }
+.native-record-graphics h2 { font-size:24px; margin:10px 0; line-height:1.2; }
+.native-record-graphics h3 { font-size:18px; margin:0 0 12px; }
+.native-record-graphics p { font-size:13px; line-height:1.6; color:var(--shell-copy-muted); }
+.record-chart { display:grid; gap:12px; min-width:0; margin:18px 0; }
+.record-chart-row { min-width:0; padding:14px; border-radius:13px; border:1px solid var(--shell-panel-border); background:#061c3b; }
+.record-chart-row:first-child { background:#08264b; border-color:rgba(7,137,255,.45); }
+.record-chart-heading { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:12px; }
+.record-chart-heading strong { color:var(--foreground-strong); font-size:15px; }
+.record-chart-heading span { color:#c4d7ef; font-size:14px; font-weight:650; font-variant-numeric:tabular-nums; }
+.record-chart-row small { display:block; margin-top:9px; color:var(--shell-copy-muted); font-size:12px; }
+.record-chart meter { display:block; appearance:none; width:100%; height:9px; border:0; border-radius:8px; background:#243751; }
+.record-chart meter::-webkit-meter-bar { height:9px; border:0; border-radius:8px; background:#243751; }
+.record-chart meter::-webkit-meter-optimum-value { background:var(--native-blue); border-radius:8px; }
+.record-chart meter::-moz-meter-bar { background:var(--native-blue); border-radius:8px; }
+.record-form { margin-top:22px; }
+.record-form ol { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; padding:0; list-style:none; }
+.record-form li { min-width:0; text-align:center; }
+.record-form strong { display:grid; place-items:center; min-height:38px; border:1px solid #678a49; border-radius:9px; background:#18352b; color:#c4f17e; }
+.record-form li[data-outcome="L"] strong { border-color:#926176; background:#342236; color:#ffbdc8; }
+.record-form li span { display:block; margin-top:7px; font-size:10px; line-height:1.5; color:var(--shell-copy-muted); }
+@media(max-width:350px) { .native-record-graphics { padding:12px; } .record-chart-row { padding:12px; } .record-form ol { gap:4px; } }
+
+.website-ui [aria-label="Team court format"] { display:flex; flex-wrap:wrap; gap:8px; }
+.website-ui [aria-label="Team court format"] button { flex:1 1 76px; min-width:0; width:auto; }
+.website-ui [aria-label="Team court results"]>.native-record-graphics { padding:0; border:0; background:none; }
+
+[aria-label="Player sections"] button { padding:10px 4px; min-width:0; overflow-wrap:normal; word-break:normal; white-space:nowrap; }
