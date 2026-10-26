@@ -593,3 +593,11 @@ My Lab now offers Open rating trends directly between recorded ratings and recen
 Cost: initial My Lab visits make no new history requests. Each explicit load/refresh uses the existing entitlement check and three bounded snapshot queries (61 per format; at most 60 displayed). Format/window changes use loaded data without refetching. Scorecards retain their existing bounded confirmation reads. No polling, mutations, permissions or encryption changes.
 
 The controller is disposed on navigation, sign-out, player connection and backgrounding; pending work cannot repaint a closed visit. Linked scorecards use the existing back controller. Chart navigation wraps at narrow widths. Synthetic checks cover 320/390, format/window/previous/latest, confirmed singles and doubles scorecards, empty/retry and navigation during a delayed load. Physical iPhone, backgrounding, native back, Dynamic Type and VoiceOver remain pending.
+
+### Build 106: player, opponent and team record graphics
+
+Native player Stats now includes selected-format record bars by year and dated recent form. Calculations reuse playerSeasonPerformance over confirmed loaded matches; incomplete match coverage withholds the graphics. Missing rating history does not hide confirmed match records. Career streaks and the detailed year-by-year table remain explicitly labeled as all-format totals. The native opponent panel uses the website’s verified-baseline bands and coverage notes with labeled win-rate bars; zero-coverage bands do not invent a zero-percent record. The website’s default numerical panel remains unchanged.
+
+Team court results compare the shown sample and its Singles/Doubles split, with year/format filters applied locally. The detailed court list is expandable. The sample remains bounded to existing court/fixture limits and is not presented as team-tie wins or standings. Shared native charts expose counts, percentages and meter labels, without new queries, polling, schema, permissions or writes. Narrow player section tabs and team format controls were corrected to keep whole labels readable.
+
+Synthetic checks at320/390 cover selected-format/year denominators, opponent coverage, court-list disclosure, no additional reads on filters, and incomplete match/rating histories. Physical iPhone, Dynamic Type and VoiceOver acceptance remain pending.
