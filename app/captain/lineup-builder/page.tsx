@@ -7826,7 +7826,7 @@ function LineupBuilderContent({ routeSearch }: { routeSearch: string }) {
                   <p style={sectionKicker}>Match details</p>
                   <h3 style={sectionTitleSmall}>Edit this match</h3>
                   <p style={sectionBodyTextStyle}>
-                    Choose the team and match. A clear name is added automatically if you leave it blank.
+                    Choose the team and match. A clear name is added automatically if you leave it blank. New named lineups stay in your account and can reopen in the app. Older shared lineups may also appear in the library.
                   </p>
                 </div>
 

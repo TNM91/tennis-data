@@ -1,0 +1,8 @@
+import {it,expect} from 'vitest'
+import type {SupabaseClient} from '@supabase/supabase-js'
+import {scenarioFixture} from './fixtures/captain-scenarios'
+import {namedLineupRequest} from '../native-named-lineup-contract'
+import {saveNamedLineup} from '../../mobile/src/named-lineup-data'
+const c=scenarioFixture(),r=namedLineupRequest(c.lineup,c.lineup.plan,'Option','11111111-1111-4111-8111-111111111111'),client=(id='owner')=>({auth:{getSession:async()=>({data:{session:{user:{id},access_token:'synthetic'}},error:null})}} as unknown as SupabaseClient)
+it('posts the frozen exact ID once and checks the returned identity after account validation',async()=>{let calls=0;expect(await saveNamedLineup(client(),c.owner,()=>true,r,async o=>{calls++;expect(o.data).toEqual(r);expect(o.disableRedirects).toBe(true);return {status:200,data:{ok:true,id:r.id,name:r.name,replayed:false},headers:{},url:''}})).toMatchObject({id:r.id});expect(calls).toBe(1)})
+it('contains uncertain/conflicting results without automatic retry and rejects late accounts',async()=>{let calls=0;await expect(saveNamedLineup(client(),c.owner,()=>true,r,async()=>{calls++;throw Error('uncertain')})).rejects.toThrow();expect(calls).toBe(1);await expect(saveNamedLineup(client(),c.owner,()=>true,r,async()=>({status:409,data:{ok:false},headers:{},url:''}))).rejects.toMatchObject({status:409});await expect(saveNamedLineup(client('other'),c.owner,()=>true,r,async()=>{throw Error('must not send')})).rejects.toThrow();let active=true;await expect(saveNamedLineup(client(),c.owner,()=>active,r,async()=>{active=false;return {status:200,data:{ok:true,id:r.id,name:r.name,replayed:true},headers:{},url:''}})).rejects.toThrow()})
