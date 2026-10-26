@@ -38,3 +38,5 @@
 .courtDiagram { width:100%; max-width:260px; height:180px; display:block; margin:auto; }
 @media(max-width:600px) { .card { padding:16px; } .grid { grid-template-columns:1fr; } }
 @media(prefers-reduced-motion:reduce) { .button, .bar span { transition:none; } }
+
+svg.bar { display:block; width:100%; }
