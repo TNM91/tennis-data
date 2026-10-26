@@ -1,3 +1,4 @@
+import {showPlayerRosterTeams} from './player-roster-view'
 import {showPlayerProfileHeader} from './player-profile-header-view'
 import {createPlayerProfileFormat} from './player-profile-format'
 import { showPlayerPerformance } from './player-performance-view'
@@ -14,6 +15,7 @@ export function playerSummary(player: PlayerChoice) {
 }
 
 export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, initial?: {player:PlayerChoice;back:()=>void;backLabel?:string},initialTerm='') {
+  let roster:ReturnType<typeof showPlayerRosterTeams>|null=null
   let header:ReturnType<typeof showPlayerProfileHeader>|null=null
   let performance: ReturnType<typeof showPlayerPerformance> | null = null
   let journey: ReturnType<typeof showPlayerJourney> | null = null
@@ -42,6 +44,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
     if(parent){void open(parent.player,true);return}
     if(initial){initial.back();return}
     request++
+    roster?.dispose();roster=null
     header?.dispose();header=null
     performance?.dispose();performance=null
     journey?.dispose();journey=null
@@ -57,6 +60,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
   }
   async function open(player: PlayerChoice,nested=false) {
     if (!valid()) return
+    roster?.dispose();roster=null
     header?.dispose();header=null
     performance?.dispose();performance=null
     journey?.dispose();journey=null
@@ -67,12 +71,14 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
     search.hidden = true
     intro.hidden = true
     playerPanel.hidden = false
-    playerPanel.innerHTML = `<button type="button" class="secondary" id="back-explore">${html(profileHistory.length?'Back to previous player':initial?.backLabel || (initial?'Back to rankings':'Back to search'))}</button><div id="explore-profile-header">${playerSummary(player)}</div><div id="player-follow" aria-live="polite"></div><section id="explore-journey"></section><section id="explore-performance"></section><h2 id="explore-results-title" tabindex="-1">Recent matches</h2><div id="explore-results" aria-live="polite"></div>`
+    playerPanel.innerHTML = `<button type="button" class="secondary" id="back-explore">${html(profileHistory.length?'Back to previous player':initial?.backLabel || (initial?'Back to rankings':'Back to search'))}</button><div id="explore-profile-header">${playerSummary(player)}</div><div id="player-follow" aria-live="polite"></div><details id="explore-roster"><summary>Roster teams</summary><div id="explore-roster-content"></div></details><section id="explore-journey"></section><section id="explore-performance"></section><h2 id="explore-results-title" tabindex="-1">Recent matches</h2><div id="explore-results" aria-live="polite"></div>`
     playerPanel.querySelector<HTMLButtonElement>('#back-explore')!.onclick = back
     playerPanel.querySelector<HTMLElement>('h1')!.focus()
     window.scrollTo(0,0)
     matchDetails = createMatchDetails(app,client,valid,{backLabel:'Back to player',sideLabel:player.name})
     showFollowControl(playerPanel.querySelector<HTMLElement>('#player-follow')!,client,player,()=>valid() && version===request)
+    const rosterDisclosure=playerPanel.querySelector<HTMLDetailsElement>('#explore-roster')!
+    rosterDisclosure.ontoggle=()=>{if(rosterDisclosure.open&&!roster&&valid()&&version===request)roster=showPlayerRosterTeams(playerPanel.querySelector<HTMLElement>('#explore-roster-content')!,client,player.id,()=>valid()&&version===request)}
     const format=createPlayerProfileFormat()
     header=showPlayerProfileHeader(playerPanel.querySelector<HTMLElement>('#explore-profile-header')!,client,player,()=>valid()&&version===request,format,target=>{if(!valid()||version!==request)return;const element=playerPanel.querySelector<HTMLElement>(target==='overview'?'#explore-profile-header h1':target==='results'?'#explore-performance [data-match-history-title], #explore-results-title':target==='journey'?'#explore-journey h2':'#explore-performance h2');if(!element)return;element.tabIndex=-1;element.scrollIntoView({block:'start'});element.focus({preventScroll:true})})
     journey=showPlayerJourney(playerPanel.querySelector<HTMLElement>('#explore-journey')!,client,player.id,()=>valid() && version===request,format,data=>{if(valid()&&version===request)header?.history(data)})
@@ -124,9 +130,11 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
   }
   if(initialTerm){input.value=initialTerm;form.requestSubmit()}
   if(initial)void open(initial.player)
+  const closeOverlay=()=>{if(roster?.closeTeam())return true;if(journey?.closeScorecard())return true;if(matchDetails?.isOpen()){history.back();return true}return false}
   return {
+    closeOverlay,
     isMatchOpen:()=>journey?.isScorecardOpen()||matchDetails?.isOpen() || false,
-    back:()=>{if(journey?.closeScorecard())return true;if(matchDetails?.isOpen()){history.back();return true}if(selected){back();return true}return false},
-    dispose:()=>{disposed=true;request++;header?.dispose();header=null;performance?.dispose();performance=null;journey?.dispose();journey=null;matchDetails?.dispose()},
+    back:()=>{if(closeOverlay())return true;if(selected){back();return true}return false},
+    dispose:()=>{disposed=true;request++;roster?.dispose();roster=null;header?.dispose();header=null;performance?.dispose();performance=null;journey?.dispose();journey=null;matchDetails?.dispose()},
   }
 }

@@ -40,3 +40,7 @@ main :where(svg,canvas,video),dialog :where(svg,canvas,video){max-inline-size:10
 #explore-profile-header h1,#explore-journey h2,#explore-performance h2,#explore-results-title { scroll-margin-top:88px; }
 
 #explore-player { padding:0; border:0; background:transparent; box-shadow:none; }
+
+#explore-roster { margin:16px 0; padding:14px; border:1px solid var(--shell-panel-border); border-radius:18px; background:var(--shell-panel-bg); }
+#explore-roster>summary { min-height:44px; padding:10px; color:var(--foreground-strong); font-size:16px; font-weight:800; cursor:pointer; }
+#explore-roster>summary:focus-visible { outline:2px solid var(--brand-green); outline-offset:3px; }

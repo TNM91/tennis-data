@@ -128,5 +128,5 @@ export function showComparison(app:HTMLElement,client:SupabaseClient,isCurrent:(
   }
  }
  void start()
- return {isNotebookOpen:()=>Boolean(notes?.isOpen()),dispose:()=>{disposed=true;revision++;notes?.dispose();notes=null;detail?.dispose();meetings?.dispose()},back:()=>{if(notes?.isOpen()){notes.back();return true}if(meetings?.isOpen()){history.back();return true}if(!detail)return false;if(detail.isMatchOpen()){history.back();return true}app.querySelector<HTMLButtonElement>('#back-explore')?.click();return true}}
+ return {isNotebookOpen:()=>Boolean(notes?.isOpen()),dispose:()=>{disposed=true;revision++;notes?.dispose();notes=null;detail?.dispose();meetings?.dispose()},back:()=>{if(notes?.isOpen()){notes.back();return true}if(meetings?.isOpen()){history.back();return true}if(!detail)return false;if(detail.closeOverlay())return true;app.querySelector<HTMLButtonElement>('#back-explore')?.click();return true}}
 }

@@ -1,0 +1,5 @@
+.fixtures { list-style:none; padding:0; }
+.row { gap:10px; }
+.row h3,.row p { margin:0; }
+.fixturePanel { padding:16px; margin:12px 0; }
+.fixturePanel>p { margin:10px 0; }
