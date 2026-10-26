@@ -17,6 +17,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
   let journey: ReturnType<typeof showPlayerJourney> | null = null
   let disposed = false
   let request = 0
+  const profileHistory: Array<{player:PlayerChoice}>=[]
   let selected: PlayerChoice | null = null
   let previousFocus: HTMLElement | null = null
   let searchScroll = 0
@@ -35,6 +36,8 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
   const choices = search.querySelector<HTMLElement>('#explore-choices')!
   const playerPanel = app.querySelector<HTMLElement>('#explore-player')!
   const back = () => {
+    const parent=profileHistory.pop()
+    if(parent){void open(parent.player,true);return}
     if(initial){initial.back();return}
     request++
     performance?.dispose();performance=null
@@ -49,18 +52,18 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
     window.scrollTo(0,searchScroll)
     previousFocus?.focus({preventScroll:true})
   }
-  async function open(player: PlayerChoice) {
+  async function open(player: PlayerChoice,nested=false) {
     if (!valid()) return
     performance?.dispose();performance=null
     journey?.dispose();journey=null
+    matchDetails?.dispose();matchDetails=null
     selected = player
     const version = ++request
-    previousFocus = document.activeElement as HTMLElement | null
-    searchScroll = window.scrollY
+    if(!nested){previousFocus = document.activeElement as HTMLElement | null;searchScroll = window.scrollY}
     search.hidden = true
     intro.hidden = true
     playerPanel.hidden = false
-    playerPanel.innerHTML = `<button type="button" class="secondary" id="back-explore">${html(initial?.backLabel || (initial?'Back to rankings':'Back to search'))}</button>${playerSummary(player)}<p>Public player record · Results below are for ${html(player.name)}.</p><div id="player-follow" aria-live="polite"></div><section aria-labelledby="explore-ratings-title"><h2 id="explore-ratings-title">Recorded TIQ ratings</h2><div id="explore-ratings" aria-live="polite"></div></section><section id="explore-journey"></section><section id="explore-performance"></section><h2>Recent matches</h2><div id="explore-results" aria-live="polite"></div>`
+    playerPanel.innerHTML = `<button type="button" class="secondary" id="back-explore">${html(profileHistory.length?'Back to previous player':initial?.backLabel || (initial?'Back to rankings':'Back to search'))}</button>${playerSummary(player)}<p>Public player record · Results below are for ${html(player.name)}.</p><div id="player-follow" aria-live="polite"></div><section aria-labelledby="explore-ratings-title"><h2 id="explore-ratings-title">Recorded TIQ ratings</h2><div id="explore-ratings" aria-live="polite"></div></section><section id="explore-journey"></section><section id="explore-performance"></section><h2>Recent matches</h2><div id="explore-results" aria-live="polite"></div>`
     playerPanel.querySelector<HTMLButtonElement>('#back-explore')!.onclick = back
     playerPanel.querySelector<HTMLElement>('h1')!.focus()
     window.scrollTo(0,0)
@@ -68,7 +71,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
     showFollowControl(playerPanel.querySelector<HTMLElement>('#player-follow')!,client,player,()=>valid() && version===request)
     showPlayerRatings(playerPanel.querySelector<HTMLElement>('#explore-ratings')!,client,player.id,()=>valid() && version===request)
     journey=showPlayerJourney(playerPanel.querySelector<HTMLElement>('#explore-journey')!,client,player.id,()=>valid() && version===request)
-    performance=showPlayerPerformance(playerPanel.querySelector<HTMLElement>('#explore-performance')!,client,player.id,()=>valid() && version===request)
+    performance=showPlayerPerformance(playerPanel.querySelector<HTMLElement>('#explore-performance')!,client,player.id,()=>valid() && version===request,next=>{if(!valid()||version!==request||next.id===player.id)return;profileHistory.push({player});void open(next,true)})
     const content = playerPanel.querySelector<HTMLElement>('#explore-results')!
     const load = async () => {
       content.innerHTML = '<p role="status">Loading recent matches…</p>'
