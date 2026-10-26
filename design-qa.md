@@ -886,3 +886,39 @@ The source and implementation were opened together for a full-view comparison. T
 ## Follow-up polish
 
 None required for the inspected states.
+
+
+# Native midnight redesign — build 102
+
+## Source and evidence
+
+- Visual truth: supplied Photo 1 and Photo 2, retained locally as `tmp/build102-reference1.jpg` (592 x 1280) and `tmp/build102-reference2.jpg` (500 x 500); production artwork remains `public/brand/approved/TiQ_AppIcon_Approved.png` and the approved wordmark/court assets.
+- These are brand/color references, not an interface mockup. Interface typography, content, navigation and data controls adapt existing TenAceIQ components rather than reproducing the artwork as a screen.
+- Fresh baseline captures: `tmp/apple-signing/build102-before-lab-390.png`, `build102-before-explore-390.png`, `build102-before-chat-390.png` in the task's private release folder.
+- Revised captures in that folder: `build102-lab-390.png`, `build102-lab-320.png`, `build102-explore-390.png`, `build102-chat-390.png`, `build102-player-stats-390.png`.
+- Full combined comparison: `build102-comparison.png`, rendered in the browser with the supplied reference, baseline and revised home together. Comparison viewport 1180 x 950 at 1x. Source art and both 375 x 812 implementation PNGs are proportionally normalized to 750px image height, without cropping or altering artwork.
+- App viewport checks: 320 x 740, 390 x 844 and 1050 x 900 CSS pixels at 1x. Root widths respectively 305/305, 375/375 and 1035/1035 (client/scroll width). Mock data only.
+
+## Initial findings and fixes
+
+1. [P1, color] The previous blue-filled cards and navigation drifted toward teal compared with the source's midnight blue. Sampled source points include #021b44, #011435 and #001437; the native base is now #011435, with dark cool surfaces and bright blue limited to accents.
+2. [P2, typography/layout] The original 510px minimum focus card and oversized display heading dominated the phone. Native-only semantic hooks now compact the focus card to 292px in the checked phone states, reduce heading scale/weight and show the matchup action above navigation.
+3. [P2, hierarchy] Nested blue Explore wrappers and small shortcut labels obscured the search hierarchy. Removed redundant visual wrappers; kept source content and actions; increased shortcut card height and title readability.
+4. [P2, controls] The app's broad primary-button rule overrode shared profile navigation colors. Reduced that default rule's specificity and excluded navigation buttons. Final computed profile section backgrounds are #061324 with #8ec5ff text rather than four lime actions.
+5. [P2, spacing] The first compact focus draft allowed the decorative tennis ball close to body copy. Reduced its size and reserved more text space. The later 320px and 390px captures show separated artwork and text.
+
+## Required fidelity surfaces
+
+- Fonts/typography: native system stack (SF on iPhone, Segoe UI in the Windows browser); 30px home heading, 30/34px phone focus heading, 14px supporting copy, less aggressive display weights. Source brand lettering remains untouched. Physical iPhone font rendering is pending.
+- Spacing/layout: coherent 13–22px control/card radii, smaller focus card, one principal visual container, clearer Explore shortcuts and quieter chat utilities. Persistent controls remain visible at checked widths; content can scroll vertically.
+- Colors/tokens: sampled midnight palette replaces the rejected lighter fill. White text, cool muted copy, electric-blue accents and existing lime actions retain clear roles. Targeted text ratios are 8.69:1 or higher for checked new text/surface pairs; input border contrast is 3.25:1. This is not a complete accessibility certification.
+- Image quality: supplied brand assets are not regenerated, recolored or substituted. The approved court and existing tennis imagery remain proportional; UI does not turn the wallpaper into a text background. Focused 320px home and 390px profile/stat captures were inspected for wrapping, asset/text overlap and navigation finish.
+- Copy/content: existing tennis-specific content and action destinations remain intact. No speculative stats or new data claims.
+
+## Behavior and limits
+
+Synthetic app-entry checks exercised main navigation, player search/profile, Stats navigation, chat, responsive layouts and disclosure controls. Browser console errors: none in the checked run. Existing reduced-motion handling and focus states remain; new focus color is blue. No backend, schema, entitlement, import, messaging, notification or encryption behavior changes. Physical iPhone, VoiceOver and Dynamic Type acceptance remain pending.
+
+Earlier P1/P2 findings were corrected and compared again using the revised captures. The reference is brand art, so decorative scene geometry and logo placement are intentionally not cloned into the functional UI. Remaining follow-up: physical-device visual acceptance.
+
+final result: passed
