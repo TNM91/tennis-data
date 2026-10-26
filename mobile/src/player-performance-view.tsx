@@ -1,3 +1,4 @@
+import {NativePlayerSetScores} from './player-set-score-view'
 import {PlayerMatchTape} from './player-match-tape'
 import {NativePlayerSeasonReview} from './player-season-review-view'
 import {PlayerMatchQuality} from '../../app/components/player-profile-overview'
@@ -14,7 +15,7 @@ import {getRatingViewLabel} from '../../lib/player-rating-display'
 import {journeyViews} from './player-journey-data'
 import {loadPlayerPerformance,playerPerformanceSummary,playerInsightSummary,type PlayerPerformanceData} from './player-performance-data'
 import {FollowAccessError} from './follows-data'
-export function PlayerPerformance({data,onRefresh,onOpenPlayer,format}:{data:PlayerPerformanceData;format?:PlayerProfileFormat;onRefresh?:()=>void;onOpenPlayer?:(player:PlayerChoice)=>void}) {
+export function PlayerPerformance({data,onRefresh,onOpenPlayer,format,playerName,playerId}:{playerName?:string;playerId?:string;data:PlayerPerformanceData;format?:PlayerProfileFormat;onRefresh?:()=>void;onOpenPlayer?:(player:PlayerChoice)=>void}) {
   const [view,setView]=usePlayerProfileFormat(format)
   const summary=playerPerformanceSummary(data,view),insight=playerInsightSummary(data,view)
   return <div className="website-ui"><h2>Performance</h2>
@@ -23,6 +24,7 @@ export function PlayerPerformance({data,onRefresh,onOpenPlayer,format}:{data:Pla
       {data.snapshots.length>0||data.matches.length>0||data.insight?.player?<div className={styles.chartNavigation} role="group" aria-label="Performance format">{journeyViews.map(kind=><button key={kind} type="button" className={styles.button} aria-pressed={view===kind} onClick={()=>setView(kind)}>{getRatingViewLabel(kind)}</button>)}</div>:null}
       {data.ratingsLimited?<p role="status">The loaded rating history is incomplete. Peak TIQ and yearly rating movement are withheld; match records remain available.</p>:<p>{getRatingViewLabel(view)} peak uses saved TIQ history. Streaks and seasons use all loaded public decided matches.</p>}
       <NativePlayerSeasonReview data={data} view={view}/>
+      <NativePlayerSetScores data={data} view={view} onView={setView} playerName={playerName} playerId={playerId}/>
       <PlayerMatchQuality metrics={playerMatchQuality(data.matches.filter(m=>view==='overall'||m.matchType===view),data.ratingsLimited?[]:data.snapshots.filter(s=>s.view===view&&s.opponentRating!==null).map(s=>s.opponentRating!),getRatingViewLabel(view))}/>
       {summary.careerHighs.peakRating!==null||summary.careerHighs.bestSeason?<PlayerCareerRecords careerHighs={summary.careerHighs} coverage="Best marks in this player’s recorded public history. Best season means most wins; ties keep the latest year."/>:null}
       {insight?<><p>{getRatingViewLabel(view)} comparisons use selected-format results and snapshots. Streaks and yearly records remain across all formats.</p>{onRefresh&&(!data.insight?.player||!insight.reference)?<button type="button" className={styles.button} onClick={onRefresh}>Retry comparison data</button>:null}<PlayerBenchmarkPanel benchmark={insight.benchmark} reference={insight.reference} ratingNote={insight.usedOverall?'Missing split TIQ; the recorded Overall estimate is used.':undefined}/>
@@ -34,11 +36,11 @@ export function PlayerPerformance({data,onRefresh,onOpenPlayer,format}:{data:Pla
     <p>TIQ is an estimate, not an official USTA rating. These are recorded results, not a forecast.</p>
   </div>
 }
-export function showPlayerPerformance(host:HTMLElement,client:SupabaseClient,playerId:string,current:()=>boolean,onOpenPlayer?:(player:PlayerChoice)=>void,onSummary?:(data:PlayerPerformanceData|null,state:'loading'|'ready'|'denied'|'unavailable')=>void,format?:PlayerProfileFormat) {
+export function showPlayerPerformance(host:HTMLElement,client:SupabaseClient,playerId:string,current:()=>boolean,onOpenPlayer?:(player:PlayerChoice)=>void,onSummary?:(data:PlayerPerformanceData|null,state:'loading'|'ready'|'denied'|'unavailable')=>void,format?:PlayerProfileFormat,playerName='Selected player') {
   let disposed=false,request=0,root:ReturnType<typeof createRoot>|null=null
   const valid=()=>!disposed&&current()&&host.isConnected
   const load=async()=>{if(!valid())return;const version=++request;onSummary?.(null,'loading');root?.unmount();root=null;host.innerHTML='<h2>Performance</h2><p role="status">Loading player performance…</p>'
-    try{const data=await loadPlayerPerformance(client,playerId,valid);if(!valid()||version!==request)return;onSummary?.(data,'ready');host.innerHTML='';root=createRoot(host);root.render(<PlayerPerformance data={data} format={format} onOpenPlayer={onOpenPlayer} onRefresh={()=>{void load()}}/>)}
+    try{const data=await loadPlayerPerformance(client,playerId,valid);if(!valid()||version!==request)return;onSummary?.(data,'ready');host.innerHTML='';root=createRoot(host);root.render(<PlayerPerformance data={data} format={format} playerName={playerName} playerId={playerId} onOpenPlayer={onOpenPlayer} onRefresh={()=>{void load()}}/>)}
     catch(error){if(!valid()||version!==request)return;if(error instanceof FollowAccessError){onSummary?.(null,'denied');host.innerHTML='<h2>Performance</h2><p>Personal records and season analysis are included with Player access.</p>';return}onSummary?.(null,'unavailable');host.innerHTML='<h2>Performance</h2><p role="alert">Can’t load player performance. Check your connection and try again.</p><button type="button" class="secondary">Retry performance</button>';host.querySelector<HTMLButtonElement>('button')!.onclick=()=>{void load()}}
   };void load()
   return {dispose:()=>{disposed=true;request++;root?.unmount();root=null;host.replaceChildren()}}

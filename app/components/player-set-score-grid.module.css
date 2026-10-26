@@ -12,13 +12,15 @@
 .cell:disabled { opacity: .5; cursor: default; }
 .counts { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .won { color: #c9e9a1; } .lost { color: #f5c4bf; }
-.heat { height: 4px; border-radius: 4px; background: rgba(130,159,183,.15); overflow: hidden; }
-.heat i { display: block; height: 100%; background: #9fc9ee; }
+.heat { display:block; appearance:none; border:0; width:100%; height: 4px; border-radius: 4px; background: rgba(130,159,183,.15); overflow: hidden; }
+.heat::-webkit-progress-bar { background:rgba(130,159,183,.15); }
+.heat::-webkit-progress-value { background:#9fc9ee; }
+.heat::-moz-progress-bar { background:#9fc9ee; }
 .note + .note { margin-top: 10px; }
 .scorecards { margin: 14px 0; padding-top: 12px; border-top: 1px solid rgba(135,169,205,.25); font-size: 13px; }
 .scorecards ul { list-style: none; margin: 8px 0 0; padding: 0; }
 .scorecards li { display: grid; gap: 5px; padding: 10px 0; border-bottom: 1px solid rgba(135,169,205,.16); line-height: 1.5; overflow-wrap: anywhere; }
 .scorecards li span { color: #b9c9d9; font-size: 12px; }
 .more { border: 1px solid rgba(135,169,205,.3); border-radius: 9px; padding: 8px 12px; min-height: 44px; margin-top: 12px; background: rgba(135,169,205,.08); color: #d3dfeb; font: inherit; font-size: 13px; cursor: pointer; }
-.modes button:focus-visible, .cell:focus-visible { outline: 2px solid #b3df74; outline-offset: 3px; }
+.modes button:focus-visible, .cell:focus-visible, .more:focus-visible { outline: 2px solid #b3df74; outline-offset: 3px; }
 @media (max-width: 420px) { .panel { padding: 12px; } .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; } }
