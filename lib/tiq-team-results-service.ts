@@ -1,5 +1,7 @@
 'use client'
 
+import {buildTiqTeamStandings,type TiqTeamStandingRow} from './tiq-team-standings'
+
 import { getClientAuthState } from '@/lib/auth'
 import { recalculateDynamicRatings } from '@/lib/recalculateRatings'
 import { supabase } from '@/lib/supabase'
@@ -8,8 +10,6 @@ import {
   syncTiqTeamMatchLineToMatch,
 } from '@/lib/tiq-match-sync'
 import {
-  calculateDynamicPointsForSides,
-  compareTiqTeamStandings,
   validateTiqTennisMatchScore,
 } from '@/lib/tiq-scoring'
 import { getTiqLeagueById } from '@/lib/tiq-league-service'
@@ -372,15 +372,7 @@ export async function saveTiqTeamMatchLine(
 
 // ─── Standings ────────────────────────────────────────────────────────────────
 
-export type TiqTeamStandingRow = {
-  teamName: string
-  wins: number
-  losses: number
-  ties: number
-  lineWins: number
-  lineLosses: number
-  points: number
-}
+export type {TiqTeamStandingRow} from './tiq-team-standings'
 
 export async function computeTiqTeamLeagueStandings(leagueId: string): Promise<{
   standings: TiqTeamStandingRow[]
@@ -409,55 +401,7 @@ export async function computeTiqTeamLeagueStandings(leagueId: string): Promise<{
     const useDynamicPoints = leagueResult.record?.scoringSystem === 'dynamic_points'
     const standingsRule = leagueResult.record?.competitionRules.standingsRule || 'auto'
 
-    const lineCountsByEvent: Record<string, { a: number; b: number; aPoints: number; bPoints: number }> = {}
-    for (const line of (lines || []) as Array<{ event_id: string; winner_side: string; score: string | null }>) {
-      if (!lineCountsByEvent[line.event_id]) lineCountsByEvent[line.event_id] = { a: 0, b: 0, aPoints: 0, bPoints: 0 }
-      if (line.winner_side === 'A') lineCountsByEvent[line.event_id].a++
-      else if (line.winner_side === 'B') lineCountsByEvent[line.event_id].b++
-
-      if (useDynamicPoints) {
-        const points = calculateDynamicPointsForSides(
-          line.score,
-          line.winner_side === 'A' || line.winner_side === 'B' ? line.winner_side : null,
-        )
-        lineCountsByEvent[line.event_id].aPoints += points.sideAPoints
-        lineCountsByEvent[line.event_id].bPoints += points.sideBPoints
-      }
-    }
-
-    const records: Record<string, TiqTeamStandingRow> = {}
-
-    function ensureTeam(name: string) {
-      if (!records[name]) records[name] = { teamName: name, wins: 0, losses: 0, ties: 0, lineWins: 0, lineLosses: 0, points: 0 }
-    }
-
-    for (const event of events as Array<{ id: string; team_a_name: string; team_b_name: string }>) {
-      const counts = lineCountsByEvent[event.id] || { a: 0, b: 0, aPoints: 0, bPoints: 0 }
-      ensureTeam(event.team_a_name)
-      ensureTeam(event.team_b_name)
-
-      if (counts.a > counts.b) {
-        records[event.team_a_name].wins++
-        records[event.team_b_name].losses++
-      } else if (counts.b > counts.a) {
-        records[event.team_b_name].wins++
-        records[event.team_a_name].losses++
-      } else if (counts.a > 0 || counts.b > 0) {
-        records[event.team_a_name].ties++
-        records[event.team_b_name].ties++
-      }
-
-      records[event.team_a_name].lineWins += counts.a
-      records[event.team_a_name].lineLosses += counts.b
-      records[event.team_a_name].points += useDynamicPoints ? counts.aPoints : counts.a
-      records[event.team_b_name].lineWins += counts.b
-      records[event.team_b_name].lineLosses += counts.a
-      records[event.team_b_name].points += useDynamicPoints ? counts.bPoints : counts.b
-    }
-
-    const standings = Object.values(records).sort((a, b) =>
-      compareTiqTeamStandings(a, b, useDynamicPoints ? 'dynamic_points' : 'standard', standingsRule),
-    )
+    const standings = buildTiqTeamStandings(events, (lines || []) as Array<{event_id:string;winner_side:string;score:string|null}>, useDynamicPoints, standingsRule)
 
     return { standings, warning: null }
   } catch (err) {

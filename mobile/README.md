@@ -1,6 +1,6 @@
 # TenAceIQ mobile feasibility prototype
 
-Apple is the current priority; Android work is deferred. The owner has completed enrollment, while the Apple Developer account currently shows Pending. The iOS source project can be generated on Windows with `npm run prepare:ios` after `build:bundled`; `npm run check:ios` verifies packaging. The GitHub Mac simulator workflow and signing steps are documented in [ios-cloud-build.md](ios-cloud-build.md). The owner has no Mac.
+Apple is the current priority; Android work is deferred. Signed TestFlight builds are active through build 82. The owner has no Mac; the protected GitHub Mac workflow signs and uploads internal betas. Current scope and acceptance limits are tracked in [website-to-iPhone parity](../docs/mobile-website-parity.md). The early feasibility instructions below are retained as historical setup notes; they do not describe the current Apple enrollment or release state.
 
 ## Bundled My Lab proof (October 23, 2026)
 
