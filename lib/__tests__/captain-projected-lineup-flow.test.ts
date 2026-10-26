@@ -147,7 +147,7 @@ describe('Captain projected lineup confirmation flow', () => {
 
   it('carries a completed lineup directly into confirmation without re-entering the roster', () => {
     const source = readSource('app/captain/lineup-builder/page.tsx')
-    const rail = readSource('app/components/captain-match-week-rail.tsx')
+    const rail = readSource('app/components/captain-match-week-rail.tsx') + '\n' + readSource('app/components/captain-match-week-steps.tsx')
 
     expect(source).toContain('aria-label="Continue lineup workflow"')
     expect(source).toContain('Check replies for these ${assignedTeamReplySummary.players.length} selected players.')

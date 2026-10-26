@@ -5,7 +5,7 @@ import { resolveCaptainMatchContext } from '../captain-memory'
 
 const builderSource = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
 const availabilitySource = readFileSync(join(process.cwd(), 'app/captain/availability/page.tsx'), 'utf8')
-const railSource = readFileSync(join(process.cwd(), 'app/components/captain-match-week-rail.tsx'), 'utf8')
+const railSource = readFileSync(join(process.cwd(), 'app/components/captain-match-week-rail.tsx'), 'utf8') + '\n' + readFileSync(join(process.cwd(), 'app/components/captain-match-week-steps.tsx'), 'utf8')
 const globalStyles = readFileSync(join(process.cwd(), 'app/globals.css'), 'utf8')
 
 function dateOffset(days: number) {
