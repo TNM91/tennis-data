@@ -479,3 +479,14 @@ The adapter uses already-loaded eligible match outcomes and the existing validat
 Synthetic actual-entry checks cover selected buckets and supporting results, complete doubles partner context, year/format reset without resurrecting old selection, shared format synchronization and retained focus. Narrow and wide checks at 320/390/1050px show no root overflow, including expanded scorecards. Missing names keep totals, incomplete history withholds the grid, and Back clears it. Physical iPhone, VoiceOver and large-text acceptance remain pending; broader website parity remains unfinished.
 
 Release verification: lint, typecheck, all 4,848 tests across 875 files, extension syntax and production build passed. Native bundle/prepare/check, seven Node signing guards and one Python upload guard passed. Anonymous local production smoke confirmed the invalid-player fallback and protected access 401; populated UI checks used synthetic records.
+
+
+## Player-linked roster teams — build 95 candidate
+
+Player profiles now lazily open linked public roster teams and exact team/league/flight fixtures. Separate league contexts remain distinct even when team names match. The team dialog preserves profile format and match-history filters, restores focus on close, and integrates with the existing nested-profile Back handling in Following, Rankings and Comparison.
+
+The first roster expansion makes one caller-RLS query, capped at 50 raw rows with an extra sentinel and exact count; incomplete coverage is withheld rather than called empty. Reopening uses the loaded roster. Refresh or retry makes one deliberate read. Opening or retrying a team reuses the directory loader's two bounded home/away queries, each limited to ten, merged into at most ten displayed fixtures. Scheduled fixtures are labeled; this sample is not a full-season record. No guessed team win/loss attribution, writes, polling, schema, grants or notification changes.
+
+This release uses direct player-linked roster records only. Website name-matched team-summary fallback remains a parity gap. TIQ records are excluded under existing public-directory rules. Account/visit guards discard late results after closing or changing accounts. Synthetic actual-entry checks cover separate league contexts, lazy/cached reads, preserved filters, failure/retry, capped coverage withholding, delayed dialog close, focus restoration and 320/390/1050px containment. Physical iPhone, VoiceOver, large text and native hardware Back remain pending.
+
+Release verification: lint, typecheck, all 4,854 tests across 876 files, extension syntax and production build passed. Final focused 14 tests and scoped lint passed after accessibility/spacing refinements. Native bundle/prepare/check, seven Node signing guards and one Python upload guard passed. Anonymous local production smoke confirmed the invalid-player fallback and protected access 401; populated UI checks used synthetic records only.

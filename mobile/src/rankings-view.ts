@@ -56,5 +56,5 @@ export function showRankings(app:HTMLElement,client:SupabaseClient,isCurrent:()=
   form.onsubmit=event=>{event.preventDefault();if(!submit.disabled)void load()}
   input.value=initialTerm
   void load()
-  return {dispose:()=>{disposed=true;request++;player?.dispose()},back:()=>{if(!selected)return false;if(player?.isMatchOpen()){history.back();return true}back();return true}}
+  return {dispose:()=>{disposed=true;request++;player?.dispose()},back:()=>{if(!selected)return false;if(player?.closeOverlay())return true;back();return true}}
 }

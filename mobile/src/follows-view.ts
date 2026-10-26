@@ -32,5 +32,5 @@ export function showFollowing(app:HTMLElement,client:SupabaseClient,isCurrent:()
     } finally {if(valid() && version===request)refresh.disabled=false}
   }
   refresh.onclick=()=>{void load()};void load()
-  return {dispose:()=>{disposed=true;request++;player?.dispose()},back:()=>{if(!player)return false;if(player.isMatchOpen()){history.back();return true}back();return true}}
+  return {dispose:()=>{disposed=true;request++;player?.dispose()},back:()=>{if(!player)return false;if(player.closeOverlay())return true;back();return true}}
 }
