@@ -876,7 +876,7 @@ function PlayerProfileContent() {
     const matchById = new Map(matches.map(match => [match.id, match]))
     return filteredChartPoints.map(point => {
       const match = matchById.get(point.matchId)
-      return { ...point, opponent: match?.opponent, score: match?.score, result: match?.result }
+      return { ...point, matchId:match?.id??null, opponent: match?.opponent, score: match?.score, result: match?.result }
     })
   }, [filteredChartPoints, matches])
 
