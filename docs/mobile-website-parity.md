@@ -466,3 +466,16 @@ Synthetic actual-entry QA covers combined year/format/outcome/partner search, co
 Release verification: lint, typecheck, all 4,843 tests across 874 files, extension syntax and production build passed. Final native bundle/prepare/check, seven Node signing guards and one Python upload guard passed. Synthetic checks confirmed 320/390/1050px containment, empty-search messaging and Back cleanup. Anonymous local production smoke confirmed the invalid-player fallback and protected access 401; no populated private production QA was used. History above the existing 500-eligible-match coverage bound remains withheld.
 
 The required captain browser CI job retains its dependencies, checks and ten-minute timeout and uses Ubuntu’s main HTTPS package archive after repeated Azure mirror download stalls. No test gate is skipped or weakened.
+
+
+## Shared set-score grid — build 94 candidate
+
+The native performance view now uses the website Set-score grid and its existing validated best-of-three arithmetic. Seven score buckets show set wins, losses, percentage and relative frequency; a bucket opens supporting recorded matches with dates, opponent names and doubles partners when confirmed. A native calendar-year control scopes the loaded history. Grid format changes update the existing shared profile format; Overall initially shows Singles when available, otherwise Doubles, with the grid discipline explicitly labeled.
+
+The website component retains standalone and fixed-mode uses and gains optional controlled format/scope props for native. Scope changes clear bucket selection and scorecard pagination without remounting format buttons. Five supporting scorecards appear initially; local expansion retains focus at the final all-shown state. Relative-frequency bars now use semantic progress elements with isolated CSS instead of inline width styles, preserving native CSP. No permission or artwork changes.
+
+The adapter uses already-loaded eligible match outcomes and the existing validated participant context. Missing names leave set totals usable, incomplete matches withhold analysis, and incomplete ratings do not invalidate known set scores. Deciding match-tiebreak points, incomplete/unsupported scores and conflicting records follow the website exclusions; sets won in lost matches still count. Year, format, bucket and pagination changes add no reads, writes or polling. The existing 500-match coverage bound remains.
+
+Synthetic actual-entry checks cover selected buckets and supporting results, complete doubles partner context, year/format reset without resurrecting old selection, shared format synchronization and retained focus. Narrow and wide checks at 320/390/1050px show no root overflow, including expanded scorecards. Missing names keep totals, incomplete history withholds the grid, and Back clears it. Physical iPhone, VoiceOver and large-text acceptance remain pending; broader website parity remains unfinished.
+
+Release verification: lint, typecheck, all 4,848 tests across 875 files, extension syntax and production build passed. Native bundle/prepare/check, seven Node signing guards and one Python upload guard passed. Anonymous local production smoke confirmed the invalid-player fallback and protected access 401; populated UI checks used synthetic records.
