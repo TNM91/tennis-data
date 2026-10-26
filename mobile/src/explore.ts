@@ -120,8 +120,8 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
   if(initialTerm){input.value=initialTerm;form.requestSubmit()}
   if(initial)void open(initial.player)
   return {
-    isMatchOpen:()=>matchDetails?.isOpen() || false,
-    back:()=>{if(matchDetails?.isOpen()){history.back();return true}if(selected){back();return true}return false},
+    isMatchOpen:()=>journey?.isScorecardOpen()||matchDetails?.isOpen() || false,
+    back:()=>{if(journey?.closeScorecard())return true;if(matchDetails?.isOpen()){history.back();return true}if(selected){back();return true}return false},
     dispose:()=>{disposed=true;request++;performance?.dispose();performance=null;journey?.dispose();journey=null;matchDetails?.dispose()},
   }
 }

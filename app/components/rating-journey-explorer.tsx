@@ -3,14 +3,15 @@
 import { useState } from 'react'
 import styles from './tennis-insight-cards.module.css'
 
-export type RatingJourneyPoint = { id: string; date: string; rating: number; delta: number | null; opponent?: string; score?: string; result?: string }
+export type RatingJourneyPoint = { id: string; date: string; rating: number; delta: number | null; matchId?:string|null; opponent?: string; score?: string; result?: string }
 
-export default function RatingJourneyExplorer({ points }: { points: RatingJourneyPoint[] }) {
+export default function RatingJourneyExplorer({ points,onOpenMatch }: { points: RatingJourneyPoint[];onOpenMatch?:(point:RatingJourneyPoint)=>void }) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   if (!points.length) return null
   const foundIndex = selectedId === null ? -1 : points.findIndex(point => point.id === selectedId)
   const selectedIndex = foundIndex < 0 ? points.length - 1 : foundIndex
   const selected = points[selectedIndex]
+  const hasMatch=Boolean(selected.matchId&&/^[a-zA-Z0-9_-]{1,100}$/.test(selected.matchId))
   const bounds = points.reduce((range, point) => ({ low: Math.min(range.low, point.rating), high: Math.max(range.high, point.rating) }), { low: Infinity, high: -Infinity })
   const low = bounds.low - .05
   const spread = bounds.high + .05 - low
@@ -42,7 +43,8 @@ export default function RatingJourneyExplorer({ points }: { points: RatingJourne
     <div className={styles.detail} aria-live="polite">
       <span>{dateLabel}</span><strong>TIQ {selected.rating.toFixed(3)}</strong>
       <p>{selected.delta === null ? 'Rating change unavailable for this result.' : `${selected.delta >= 0 ? '+' : ''}${selected.delta.toFixed(3)} rating change after this reviewed result.`}</p>
-      <p>{selected.opponent ? `${selected.result || 'Result'} vs ${selected.opponent} · ${selected.score || 'Score unavailable'}` : 'Match details are unavailable for this rating snapshot.'}</p>
+      <p>{selected.opponent ? `${selected.result || 'Result'} vs ${selected.opponent} · ${selected.score || 'Score unavailable'}` : hasMatch?'Open the recorded scorecard for match details.':'Match details are unavailable for this rating snapshot.'}</p>
+      {hasMatch?onOpenMatch?<button className={styles.button} type="button" onClick={()=>onOpenMatch(selected)}>Open scorecard</button>:<a className={styles.button} href={`/matches/${encodeURIComponent(selected.matchId!)}`}>Open scorecard</a>:null}
     </div>
     <p className={styles.muted}>{points.length < 8 ? 'Limited history: a few results can move the trend quickly.' : 'The trend reflects reviewed results in the selected window.'} Rating movement reflects the rating model, not a diagnosis of your technique.</p>
   </section>
