@@ -112,3 +112,17 @@ input:not(.website-ui input),select:not(.website-ui select),textarea:not(.websit
 .team-bubble blockquote,.chat-composer { background:var(--native-inset); }
 
 dialog[open] { background:var(--shell-panel-bg); border-color:var(--shell-panel-border); }
+
+.data-imports-dialog { width:min(680px,calc(100vw - 24px)); }
+.import-history { list-style:none; padding:0; }
+.import-history>li,.import-row { padding:14px; margin:12px 0; border:1px solid var(--shell-panel-border); border-radius:16px; background:var(--native-inset); }
+.import-history h2 { font-size:18px; margin:0; }
+.import-history p { font-size:14px; }
+.import-fields { display:grid; gap:12px; margin:16px 0; }
+.import-fields dt { font-size:12px; color:var(--shell-copy-muted); margin:0; }
+.import-fields dd { margin:4px 0 0; font-size:15px; overflow-wrap:anywhere; }
+.import-row summary { min-height:44px; display:flex; align-items:center; cursor:pointer; font-weight:750; }
+.import-row summary:focus-visible { outline:2px solid var(--brand-green); outline-offset:3px; }
+
+.import-row summary::after { content:"+"; margin-left:auto; padding-left:12px; color:var(--brand-blue-2); }
+.import-row[open]>summary::after { content:"−"; }
