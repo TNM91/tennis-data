@@ -1,4 +1,4 @@
-/* Layout adapters only. Canonical theme, My Lab CSS and Explore panel styles are generated from website sources. */
+/* Website layout adapters plus the native icon-blue palette below. Website component styles remain generated from source. */
 :root{font-family:var(--font-geist-sans);color:var(--foreground);background:var(--background);color-scheme:dark}
 body{background:var(--page-background);padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right));color:var(--foreground);line-height:1.5}
 .app-header{max-width:1180px;margin:0 auto;padding:12px 4px;border-bottom:1px solid var(--header-border);background:var(--header-bg)}.app-header img{display:block;width:178px;height:auto;object-fit:contain}
@@ -51,3 +51,64 @@ main :where(svg,canvas,video),dialog :where(svg,canvas,video){max-inline-size:10
 .roster-profile-back.roster-profile-back { position:sticky; top:0; z-index:2; background:#0b1b30; color:#f3f7ff; min-height:44px; box-shadow:0 6px 12px #020913; }
 
 .roster-player-content h1,.roster-player-content h2,.roster-player-content [data-match-history-title] { scroll-margin-top:72px; }
+
+/* Native palette: the approved icon's navy base and brighter blue edges.
+   Keep this after generated website styles so shared components inherit it.
+   Lime retains its action/result meaning; artwork is never filtered or recolored. */
+:root {
+  --native-navy: #082344;
+  --native-panel: #10385e;
+  --native-inset: #0c2c4d;
+  --native-blue: #76c8ff;
+  --background: var(--native-navy);
+  --brand-blue: #238ee8;
+  --brand-blue-2: var(--native-blue);
+  --muted: #bed2e8;
+  --shell-copy-muted: #c5d9ed;
+  --page-background:
+    radial-gradient(ellipse at 12% 0%, rgba(35,142,232,.26), transparent 42%),
+    linear-gradient(165deg, #0d3157 0%, #082344 48%, #071b35 100%);
+  --surface: linear-gradient(145deg, #143f69, #0d2e51);
+  --surface-strong: linear-gradient(145deg, #184b78, #10385e);
+  --portal-surface-bg:
+    radial-gradient(ellipse at 95% 0%, rgba(35,142,232,.2), transparent 52%),
+    linear-gradient(145deg, #123c65, #0c2b4d);
+  --portal-tool-surface-bg: linear-gradient(145deg, #10385e, #0c2b4d);
+  --portal-active-card-bg: linear-gradient(145deg, #17466f, #103454);
+  --header-bg: linear-gradient(180deg, rgba(18,60,101,.84), rgba(8,35,68,.3));
+  --header-border: rgba(118,200,255,.25);
+  --shell-panel-border: rgba(118,200,255,.3);
+  --card-border-soft: rgba(118,200,255,.26);
+  --card-border-strong: #668eaf;
+  --shell-chip-bg: #153d63;
+  --shell-chip-bg-strong: linear-gradient(145deg, #205b87, #123e67);
+  --home-input-bg: var(--native-inset);
+  --home-input-border: var(--card-border-strong);
+}
+.native-explore-hero { background:var(--portal-surface-bg); }
+.app-navigation {
+  background:linear-gradient(180deg, rgba(16,53,88,.98), #082344);
+  border-color:rgba(118,200,255,.38);
+}
+.app-navigation button[aria-current=page] {
+  background:var(--shell-chip-bg-strong);
+  border-color:var(--native-blue);
+  box-shadow:inset 0 2px 0 rgba(118,200,255,.35);
+}
+.explore-categories [aria-pressed=true] { border-color:var(--native-blue); }
+input:not(.website-ui input),select:not(.website-ui select),textarea:not(.website-ui textarea),
+.native-explore-hero form select { background:var(--native-inset); }
+.match-filters { background:var(--native-inset); }
+.recent-form>div,.team-hub-status>div {
+  background:var(--native-inset);
+  border-color:var(--shell-panel-border);
+}
+
+/* Explicit native containers keep generated website component geometry intact. */
+.website-lab>section { background:var(--portal-surface-bg); border-color:var(--shell-panel-border); }
+.website-lab article { background-color:var(--native-panel); border-color:var(--shell-panel-border); }
+.team-bubble { background:#123c65; border-color:var(--shell-panel-border); }
+.team-bubble-mine { background:#20537b; border-color:#76c8ff; }
+.team-bubble blockquote,.chat-composer { background:var(--native-inset); }
+
+dialog[open] { background:var(--shell-panel-bg); border-color:var(--shell-panel-border); }

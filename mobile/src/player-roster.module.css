@@ -4,9 +4,9 @@
 .fixturePanel { padding:16px; margin:12px 0; }
 .fixturePanel>p { margin:10px 0; }
 
-.searchInput { width:100%; min-width:0; box-sizing:border-box; min-height:44px; padding:10px 12px; border:1px solid rgba(116,190,255,.35); border-radius:12px; background:#09172b; color:#f3f7ff; font:inherit; }
+.searchInput { width:100%; min-width:0; box-sizing:border-box; min-height:44px; padding:10px 12px; border:1px solid rgba(116,190,255,.35); border-radius:12px; background:var(--native-inset,#09172b); color:#f3f7ff; font:inherit; }
 .searchInput:focus-visible { outline:2px solid #d9f84a; outline-offset:2px; }
-.back.back { background:#0b1b30; color:#f3f7ff; box-shadow:0 6px 12px #020913; position:sticky; top:0; z-index:1; width:100%; min-height:44px; }
+.back.back { background:var(--native-inset,#0b1b30); color:#f3f7ff; box-shadow:0 6px 12px #020913; position:sticky; top:0; z-index:1; width:100%; min-height:44px; }
 
 .depth { margin:14px 0 20px; min-width:0; border:1px solid rgba(116,190,255,.25); border-radius:14px; padding:12px; }
 .depth summary { cursor:pointer; min-height:44px; display:flex; align-items:center; font-weight:800; }

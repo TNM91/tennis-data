@@ -1,9 +1,9 @@
 .shell { min-width:0; overflow-wrap:anywhere; }
 .window { display:grid; gap:8px; margin:16px 0; font-weight:700; }
-.window select { display:block; box-sizing:border-box; width:100%; min-width:0; min-height:44px; padding:10px 12px; border:1px solid #60809c; border-radius:10px; background:#0b2038; color:#fff; font:inherit; font-size:16px; }
+.window select { display:block; box-sizing:border-box; width:100%; min-width:0; min-height:44px; padding:10px 12px; border:1px solid #60809c; border-radius:10px; background:var(--native-inset,#0b2038); color:#fff; font:inherit; font-size:16px; }
 .window select:focus-visible { outline:3px solid #fff; outline-offset:4px; }
 .summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:16px 0; }
-.summary div { padding:12px 8px; border:1px solid #34506a; border-radius:12px; background:#0b2038; min-width:0; }
+.summary div { padding:12px 8px; border:1px solid #34506a; border-radius:12px; background:var(--native-inset,#0b2038); min-width:0; }
 .summary dt { font-size:12px; line-height:1.4; color:#b8c8da; }
 .summary dd { margin:8px 0 0; font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; }
 .coverage { font-size:14px; color:#b8c8da; line-height:1.6; }
