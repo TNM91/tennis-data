@@ -1,4 +1,5 @@
-import {loadRepeatOpponents} from './player-repeat-opponents'
+import {loadOpponentHistory,type OpponentHistoryMatch} from './player-repeat-opponents'
+import {playerRepeatOpponents} from '../../lib/player-repeat-opponents'
 import type {RepeatOpponent} from '../../lib/player-repeat-opponents'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {canFollowPlayers,FollowAccessError} from './follows-data'
@@ -9,7 +10,7 @@ import type {RatingView,PlayerRatingShape} from '../../lib/player-rating-display
 import {loadPlayerFieldReference,type PlayerFieldReference} from '../../lib/player-field-reference'
 type PerformancePlayer=PlayerRatingShape & {rating_source:string|null}
 type Snapshot={id:string;matchId:string|null;date:string;view:RatingView;rating:number|null;delta:number|null;opponentRating:number|null}
-export type PlayerPerformanceData={matches:Array<PerformanceMatch&{score?:string|null}>;snapshots:Snapshot[];matchesLimited:boolean;ratingsLimited:boolean;repeatOpponents?:RepeatOpponent[]|null;insight?:{player:PerformancePlayer|null;reference:PlayerFieldReference|null}}
+export type PlayerPerformanceData={matches:Array<PerformanceMatch&{score?:string|null}>;snapshots:Snapshot[];matchesLimited:boolean;ratingsLimited:boolean;repeatOpponents?:RepeatOpponent[]|null;opponentHistory?:OpponentHistoryMatch[]|null;insight?:{player:PerformancePlayer|null;reference:PlayerFieldReference|null}}
 const record=(value:unknown):Record<string,unknown>=>{if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Performance unavailable.');return value as Record<string,unknown>}
 const key=(value:unknown)=>{if(typeof value!=='string'||!/^[a-zA-Z0-9_-]{1,100}$/.test(value))throw Error('Performance unavailable.');return value}
 function date(value:unknown){if(typeof value!=='string'||value.length>40||!isValidCalendarDate(value.slice(0,10))||!Number.isFinite(Date.parse(value)))throw Error('Performance unavailable.');return value}
@@ -46,7 +47,8 @@ export async function loadPlayerPerformance(client:SupabaseClient,playerId:strin
   for(const response of [matches,snapshots])if(typeof response.count!=='number'||!Number.isSafeInteger(response.count)||response.count<(response.data?.length??0))throw Error('Performance coverage unavailable.')
   result.matchesLimited ||= matches.count!>500||matches.count!==matches.data!.length
   result.ratingsLimited ||= snapshots.count!>500||snapshots.count!==snapshots.data!.length
-  result.repeatOpponents=result.matchesLimited?null:await loadRepeatOpponents(client,result.matches,playerId,current)
+  result.opponentHistory=result.matchesLimited?null:await loadOpponentHistory(client,result.matches,playerId,current)
+  result.repeatOpponents=result.opponentHistory===null?null:playerRepeatOpponents(result.opponentHistory)
   await own(owner)
   result.insight={player,reference}
   return result
