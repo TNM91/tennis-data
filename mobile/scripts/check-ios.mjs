@@ -17,6 +17,8 @@ assert.ok(scheme.includes('BlueprintName="App"') && scheme.includes('container:A
 for (const name of ['AparajitaCapacitorSecureStorage', 'CapacitorApp', 'CapacitorBrowser', 'CapacitorPushNotifications', 'CapacitorCamera', 'CapacitorShare', 'CapacitorClipboard']) assert.ok(spm.includes(name), `Missing ${name}`)
 const app = await read('ios/App/App/public/app.js')
 assert.ok(app.length > 10000, 'Expected bundled client code')
+assert.match(await read('ios/App/App/public/index.html'), /href="\.\/app\.css"/)
+assert.ok((await read('ios/App/App/public/app.css')).length > 1000, 'Expected shared interactive chart CSS in the signed bundle')
 const contents = JSON.parse(await read('ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json'))
 assert.equal(contents.images[0].filename, 'tenaceiq-app-icon.png')
 const actualIcon = await readFile(new URL('ios/App/App/Assets.xcassets/AppIcon.appiconset/tenaceiq-app-icon.png', root))

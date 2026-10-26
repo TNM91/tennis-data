@@ -1,0 +1,48 @@
+import { useState } from 'react'
+import { createRoot } from 'react-dom/client'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import RatingJourneyExplorer from '../../app/components/rating-journey-explorer'
+import styles from '../../app/components/tennis-insight-cards.module.css'
+import layout from './player-journey.module.css'
+import { getRatingViewLabel, type RatingView } from '../../lib/player-rating-display'
+import { loadPlayerJourney,journeyPoints,journeyViews,type JourneyHistory,type JourneyWindow } from './player-journey-data'
+import { FollowAccessError } from './follows-data'
+export function PlayerJourney({history}:{history:JourneyHistory}) {
+  const [view,setView]=useState<RatingView>('overall')
+  const [window,setWindow]=useState<JourneyWindow>('all')
+  const points=journeyPoints(history,view,window)
+  const loaded=history[view],missing=loaded.rows.filter(row=>row.dynamic_rating===null).length
+  const first=points[0],latest=points.at(-1),change=first&&latest&&points.length>1?latest.rating-first.rating:null
+  return <div className={"website-ui native-player-journey "+layout.shell}>
+    <h2>Rating journey</h2>
+    <div className={styles.chartNavigation} role="group" aria-label="Rating format">{journeyViews.map(kind=><button key={kind} className={styles.button} type="button" aria-pressed={view===kind} onClick={()=>setView(kind)}>{getRatingViewLabel(kind)}</button>)}</div>
+    <label className={layout.window}>History window<select value={window} onChange={event=>setWindow(event.target.value as JourneyWindow)}><option value="all">All loaded history</option><option value="90d">Last 90 days</option><option value="30d">Last 30 days</option></select></label>
+    <p className={layout.coverage}>{getRatingViewLabel(view)} TIQ · Latest {loaded.rows.length}{loaded.more?' of more saved':''} snapshot{loaded.rows.length===1?'':'s'} loaded. This is not a complete season or a match count. {missing?`${missing} snapshot${missing===1?' has':'s have'} no rating and ${missing===1?'is':'are'} omitted from the chart.`:''}</p>
+    {first&&latest?<dl className={layout.summary}><div><dt>First in window</dt><dd>{first.rating.toFixed(3)}</dd></div><div><dt>Latest in window</dt><dd>{latest.rating.toFixed(3)}</dd></div><div><dt>Window change</dt><dd>{change===null?'—':`${change>=0?'+':''}${change.toFixed(3)}`}</dd></div></dl>:null}
+    {points.length?<RatingJourneyExplorer key={view+':'+window} points={points}/>:<p role="status">No recorded {getRatingViewLabel(view).toLowerCase()} ratings in this window. Try another format or All loaded history.</p>}
+    <details><summary>Dated {getRatingViewLabel(view)} ratings · {points.length}</summary><div className="horizontal-data" role="region" tabIndex={0} aria-label="Dated player ratings"><table className={layout.table}><caption>{getRatingViewLabel(view)} TIQ · selected window</caption><thead><tr><th scope="col">Date</th><th scope="col">TIQ</th><th scope="col">Change</th></tr></thead><tbody>{points.map(point=><tr key={point.id}><td>{point.date.slice(0,10)}</td><td>{point.rating.toFixed(3)}</td><td>{point.delta===null?'—':`${point.delta>=0?'+':''}${point.delta.toFixed(3)}`}</td></tr>)}</tbody></table></div></details>
+    <p>TIQ is an estimate, not an official USTA rating. Each format uses its own saved ratings; missing Singles or Doubles history stays empty.</p>
+  </div>
+}
+export function showPlayerJourney(host:HTMLElement,client:SupabaseClient,playerId:string,current:()=>boolean) {
+  let disposed=false,request=0
+  let root:ReturnType<typeof createRoot>|null=null
+  const valid=()=>!disposed&&current()&&host.isConnected
+  const load=async()=>{
+    const version=++request
+    root?.unmount();root=null
+    host.innerHTML='<h2>Rating journey</h2><p role="status">Loading rating history…</p>'
+    try{
+      const history=await loadPlayerJourney(client,playerId,valid)
+      if(!valid()||version!==request)return
+      host.innerHTML='';root=createRoot(host);root.render(<PlayerJourney history={history}/>)
+    }catch(error){
+      if(!valid()||version!==request)return
+      if(error instanceof FollowAccessError){host.innerHTML='<h2>Rating journey</h2><p>Detailed rating history is included with Player access.</p>';return}
+      host.innerHTML='<h2>Rating journey</h2><p role="alert">Can’t load rating history. Check your connection and try again.</p><button type="button" class="secondary">Retry rating history</button>'
+      host.querySelector<HTMLButtonElement>('button')!.onclick=()=>{void load()}
+    }
+  }
+  void load()
+  return {dispose:()=>{disposed=true;request++;root?.unmount();root=null;host.replaceChildren()}}
+}

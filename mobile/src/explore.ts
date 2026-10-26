@@ -1,3 +1,4 @@
+import { showPlayerJourney } from './player-journey-view'
 import { showFollowControl } from './follow-control'
 import { showPlayerRatings } from './player-ratings-view'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -11,6 +12,7 @@ export function playerSummary(player: PlayerChoice) {
 }
 
 export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, initial?: {player:PlayerChoice;back:()=>void;backLabel?:string},initialTerm='') {
+  let journey: ReturnType<typeof showPlayerJourney> | null = null
   let disposed = false
   let request = 0
   let selected: PlayerChoice | null = null
@@ -33,6 +35,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
   const back = () => {
     if(initial){initial.back();return}
     request++
+    journey?.dispose();journey=null
     selected = null
     matchDetails?.dispose()
     matchDetails = null
@@ -45,6 +48,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
   }
   async function open(player: PlayerChoice) {
     if (!valid()) return
+    journey?.dispose();journey=null
     selected = player
     const version = ++request
     previousFocus = document.activeElement as HTMLElement | null
@@ -52,13 +56,14 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
     search.hidden = true
     intro.hidden = true
     playerPanel.hidden = false
-    playerPanel.innerHTML = `<button type="button" class="secondary" id="back-explore">${html(initial?.backLabel || (initial?'Back to rankings':'Back to search'))}</button>${playerSummary(player)}<p>Public player record · Results below are for ${html(player.name)}.</p><div id="player-follow" aria-live="polite"></div><section aria-labelledby="explore-ratings-title"><h2 id="explore-ratings-title">Recorded TIQ ratings</h2><div id="explore-ratings" aria-live="polite"></div></section><h2>Recent matches</h2><div id="explore-results" aria-live="polite"></div>`
+    playerPanel.innerHTML = `<button type="button" class="secondary" id="back-explore">${html(initial?.backLabel || (initial?'Back to rankings':'Back to search'))}</button>${playerSummary(player)}<p>Public player record · Results below are for ${html(player.name)}.</p><div id="player-follow" aria-live="polite"></div><section aria-labelledby="explore-ratings-title"><h2 id="explore-ratings-title">Recorded TIQ ratings</h2><div id="explore-ratings" aria-live="polite"></div></section><section id="explore-journey"></section><h2>Recent matches</h2><div id="explore-results" aria-live="polite"></div>`
     playerPanel.querySelector<HTMLButtonElement>('#back-explore')!.onclick = back
     playerPanel.querySelector<HTMLElement>('h1')!.focus()
     window.scrollTo(0,0)
     matchDetails = createMatchDetails(app,client,valid,{backLabel:'Back to player',sideLabel:player.name})
     showFollowControl(playerPanel.querySelector<HTMLElement>('#player-follow')!,client,player,()=>valid() && version===request)
     showPlayerRatings(playerPanel.querySelector<HTMLElement>('#explore-ratings')!,client,player.id,()=>valid() && version===request)
+    journey=showPlayerJourney(playerPanel.querySelector<HTMLElement>('#explore-journey')!,client,player.id,()=>valid() && version===request)
     const content = playerPanel.querySelector<HTMLElement>('#explore-results')!
     const load = async () => {
       content.innerHTML = '<p role="status">Loading recent matches…</p>'
@@ -109,6 +114,6 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
   return {
     isMatchOpen:()=>matchDetails?.isOpen() || false,
     back:()=>{if(matchDetails?.isOpen()){history.back();return true}if(selected){back();return true}return false},
-    dispose:()=>{disposed=true;request++;matchDetails?.dispose()},
+    dispose:()=>{disposed=true;request++;journey?.dispose();journey=null;matchDetails?.dispose()},
   }
 }
