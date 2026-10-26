@@ -14,7 +14,7 @@ export function playerSummary(player: PlayerChoice) {
   return `<h1 tabindex="-1">${html(player.name)}</h1><dl><dt>Location</dt><dd>${html(player.location || 'Location unavailable')}</dd><dt>Flight</dt><dd>${html(player.flight || 'Flight unavailable')}</dd></dl>`
 }
 
-export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, initial?: {player:PlayerChoice;back:()=>void;backLabel?:string},initialTerm='') {
+export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, initial?: {player:PlayerChoice;back:()=>void;backLabel?:string;localMatches?:boolean;scrollHost?:HTMLElement;hideRootBack?:boolean;onPlayerChange?:(player:PlayerChoice)=>void},initialTerm='') {
   let roster:ReturnType<typeof showPlayerRosterTeams>|null=null
   let header:ReturnType<typeof showPlayerProfileHeader>|null=null
   let performance: ReturnType<typeof showPlayerPerformance> | null = null
@@ -66,16 +66,17 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
     journey?.dispose();journey=null
     matchDetails?.dispose();matchDetails=null
     selected = player
+    initial?.onPlayerChange?.(player)
     const version = ++request
     if(!nested){previousFocus = document.activeElement as HTMLElement | null;searchScroll = window.scrollY}
     search.hidden = true
     intro.hidden = true
     playerPanel.hidden = false
-    playerPanel.innerHTML = `<button type="button" class="secondary" id="back-explore">${html(profileHistory.length?'Back to previous player':initial?.backLabel || (initial?'Back to rankings':'Back to search'))}</button><div id="explore-profile-header">${playerSummary(player)}</div><div id="player-follow" aria-live="polite"></div><details id="explore-roster"><summary>Roster teams</summary><div id="explore-roster-content"></div></details><section id="explore-journey"></section><section id="explore-performance"></section><h2 id="explore-results-title" tabindex="-1">Recent matches</h2><div id="explore-results" aria-live="polite"></div>`
+    playerPanel.innerHTML = `<button type="button" class="secondary" id="back-explore" ${initial?.hideRootBack&&!profileHistory.length?'hidden':''}>${html(profileHistory.length?'Back to previous player':initial?.backLabel || (initial?'Back to rankings':'Back to search'))}</button><div id="explore-profile-header">${playerSummary(player)}</div><div id="player-follow" aria-live="polite"></div><details id="explore-roster"><summary>Roster teams</summary><div id="explore-roster-content"></div></details><section id="explore-journey"></section><section id="explore-performance"></section><h2 id="explore-results-title" tabindex="-1">Recent matches</h2><div id="explore-results" aria-live="polite"></div>`
     playerPanel.querySelector<HTMLButtonElement>('#back-explore')!.onclick = back
     playerPanel.querySelector<HTMLElement>('h1')!.focus()
     window.scrollTo(0,0)
-    matchDetails = createMatchDetails(app,client,valid,{backLabel:'Back to player',sideLabel:player.name})
+    matchDetails = createMatchDetails(app,client,valid,{backLabel:'Back to player',sideLabel:player.name,local:initial?.localMatches,scrollHost:initial?.scrollHost})
     showFollowControl(playerPanel.querySelector<HTMLElement>('#player-follow')!,client,player,()=>valid() && version===request)
     const rosterDisclosure=playerPanel.querySelector<HTMLDetailsElement>('#explore-roster')!
     rosterDisclosure.ontoggle=()=>{if(rosterDisclosure.open&&!roster&&valid()&&version===request)roster=showPlayerRosterTeams(playerPanel.querySelector<HTMLElement>('#explore-roster-content')!,client,player.id,()=>valid()&&version===request)}
@@ -130,7 +131,7 @@ export function showExplore(app: HTMLElement, client: SupabaseClient, isCurrent:
   }
   if(initialTerm){input.value=initialTerm;form.requestSubmit()}
   if(initial)void open(initial.player)
-  const closeOverlay=()=>{if(roster?.closeTeam())return true;if(journey?.closeScorecard())return true;if(matchDetails?.isOpen()){history.back();return true}return false}
+  const closeOverlay=()=>{if(roster?.closeTeam())return true;if(journey?.closeScorecard())return true;if(matchDetails?.back())return true;return false}
   return {
     closeOverlay,
     isMatchOpen:()=>journey?.isScorecardOpen()||matchDetails?.isOpen() || false,

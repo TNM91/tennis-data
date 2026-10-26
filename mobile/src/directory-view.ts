@@ -81,5 +81,5 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
   input.oninput=()=>{request++;button.disabled=false;choices.innerHTML='';status.textContent='';error.textContent=''}
   form.onsubmit=event=>{event.preventDefault();void run()}
   if(mode==='Leagues'||initialTerm)void run()
-  return {dispose:()=>{disposed=true;request++;clearRoster()},back:()=>{if(selected){back();return true}return false}}
+  return {dispose:()=>{disposed=true;request++;clearRoster()},back:()=>{if(roster?.back())return true;if(selected){back();return true}return false}}
 }

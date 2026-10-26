@@ -44,3 +44,10 @@ main :where(svg,canvas,video),dialog :where(svg,canvas,video){max-inline-size:10
 #explore-roster { margin:16px 0; padding:14px; border:1px solid var(--shell-panel-border); border-radius:18px; background:var(--shell-panel-bg); }
 #explore-roster>summary { min-height:44px; padding:10px; color:var(--foreground-strong); font-size:16px; font-weight:800; cursor:pointer; }
 #explore-roster>summary:focus-visible { outline:2px solid var(--brand-green); outline-offset:3px; }
+
+.roster-player-dialog { width:min(780px,calc(100vw - 24px)); max-width:calc(100vw - 24px); box-sizing:border-box; }
+.roster-player-content { min-width:0; overflow-wrap:anywhere; }
+.roster-player-content[data-view="match"]>:not(#match-detail) { display:none; }
+.roster-profile-back.roster-profile-back { position:sticky; top:0; z-index:2; background:#0b1b30; color:#f3f7ff; min-height:44px; box-shadow:0 6px 12px #020913; }
+
+.roster-player-content h1,.roster-player-content h2,.roster-player-content [data-match-history-title] { scroll-margin-top:72px; }
