@@ -87,6 +87,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Use the Ubuntu archive for browser dependencies
+        run: |
+          # The Azure package mirror can throttle font downloads until this job times out.
+          # Keep the same signed Ubuntu packages and existing test/time limit.
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' /etc/apt/apt-mirrors.txt
+          fi
+
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
