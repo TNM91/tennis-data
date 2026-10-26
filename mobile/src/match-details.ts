@@ -11,7 +11,7 @@ export function participantNames(rows: Participant[], side: 'A' | 'B') {
   })
 }
 
-export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, labels: {backLabel?: string; sideLabel?: string} = {}) {
+export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, labels: {backLabel?: string; sideLabel?: string;local?: boolean;scrollHost?: HTMLElement} = {}) {
   let selected: { row: RecentMatchRow; playerId: string } | null = null
   let request = 0
   let previousFocus: HTMLElement | null = null
@@ -22,22 +22,22 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
     request++
     delete app.dataset.view
     app.querySelector('#match-detail')?.remove()
-    window.scrollTo(0, scroll)
+    if(labels.scrollHost)labels.scrollHost.scrollTop=scroll;else window.scrollTo(0, scroll)
     previousFocus?.focus({preventScroll: true})
   }
   async function show(push: boolean) {
     if (!selected || !valid()) return
     const { row, playerId } = selected
     const version = ++request
-    if (push) history.pushState({view: 'match'}, '', '#match')
+    if (push&&!labels.local) history.pushState({view: 'match'}, '', '#match')
     app.dataset.view = 'match'
     app.querySelector('#match-detail')?.remove()
     const detail = document.createElement('section')
     detail.id = 'match-detail'
     detail.innerHTML = `<button class="secondary" id="back-matches">${html(labels.backLabel || 'Back to My Lab')}</button><h1 tabindex="-1">Match details</h1><p>${html(matchDate(row.match_date))} · ${html(row.match_type || 'Match')}</p><dl><dt>Result</dt><dd>${html(matchResult(row, playerId))}</dd><dt>League</dt><dd>${html(row.league_name || 'League unavailable')}</dd><dt>Recorded score</dt><dd>${html(row.score || 'Score unavailable')}</dd></dl><p>Scores follow the source’s court order.</p><div id="match-players" aria-live="polite" data-state="loading"><p role="status">Loading the players…</p></div>`
     app.append(detail)
-    detail.querySelector<HTMLButtonElement>('#back-matches')!.onclick = () => history.back()
-    window.scrollTo(0, 0)
+    detail.querySelector<HTMLButtonElement>('#back-matches')!.onclick = () => {if(labels.local)close();else history.back()}
+    if(labels.scrollHost)labels.scrollHost.scrollTop=0;else window.scrollTo(0, 0)
     detail.querySelector<HTMLElement>('h1')!.focus({preventScroll: true})
     const result = await client.from('match_players').select('player_id,side,seat,players(name)')
       .eq('match_id', row.id).order('seat', {ascending: true}).limit(8).abortSignal(AbortSignal.timeout(12000))
@@ -61,12 +61,13 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
     if (location.hash === '#match' && selected) void show(false)
     else close()
   }
-  window.addEventListener('popstate', pop)
+  if(!labels.local)window.addEventListener('popstate', pop)
   return {
     isOpen: () => app.dataset.view === 'match',
+    back:()=>{if(app.dataset.view!=='match')return false;if(labels.local)close();else history.back();return true},
     open(row: RecentMatchRow, playerId: string) {
       previousFocus = document.activeElement as HTMLElement | null
-      scroll = window.scrollY
+      scroll = labels.scrollHost?.scrollTop??window.scrollY
       selected = {row, playerId}
       void show(true)
     },
@@ -76,7 +77,7 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
       selected = null
       window.removeEventListener('popstate', pop)
       delete app.dataset.view
-      if (location.hash) history.replaceState(null, '', '/')
+      if (!labels.local&&location.hash) history.replaceState(null, '', '/')
     },
   }
 }
