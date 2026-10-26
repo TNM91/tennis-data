@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import {showTeamRoster} from './team-roster-view'
 import type { LeagueCard } from '../../lib/league-summary'
 import { html } from './match-details'
 import { matchDate } from './recent-results'
@@ -12,6 +13,8 @@ export function leagueDetails(row:LeagueCard) {
 export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:SupabaseClient,isCurrent:()=>boolean,initialTerm='') {
   let disposed=false,request=0,selected=false,scroll=0
   let previousFocus:HTMLElement|null=null
+  let roster:ReturnType<typeof showTeamRoster>|null=null
+  const clearRoster=()=>{roster?.dispose();roster=null}
   const valid=()=>!disposed && isCurrent()
   app.innerHTML=`<div id="directory-search"><small>Tennis intelligence</small><h1 tabindex="-1">${mode}</h1><p>${mode==='Teams'?'Find a team and its recorded fixtures.':'Find leagues by name, flight, season, or area.'}</p><form><label>${mode==='Teams'?'Team name':'League or area'}<input type="search" maxlength="80" ${mode==='Teams'?'minlength="2" required':''}></label><button>Search ${mode.toLowerCase()}</button></form><p role="status" id="directory-status">${mode==='Teams'?'Enter at least two characters of a team name.':''}</p><p role="alert" id="directory-error"></p><div id="directory-choices"></div></div><section id="directory-detail" hidden></section>`
   app.querySelector<HTMLElement>('h1')!.focus()
@@ -24,9 +27,9 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
   const error=search.querySelector<HTMLElement>('#directory-error')!
   const choices=search.querySelector<HTMLElement>('#directory-choices')!
   const detail=app.querySelector<HTMLElement>('#directory-detail')!
-  const back=()=>{request++;selected=false;detail.hidden=true;detail.innerHTML='';search.hidden=false;window.scrollTo(0,scroll);previousFocus?.focus({preventScroll:true})}
+  const back=()=>{clearRoster();request++;selected=false;detail.hidden=true;detail.innerHTML='';search.hidden=false;window.scrollTo(0,scroll);previousFocus?.focus({preventScroll:true})}
   const open=(markup:string)=>{
-    request++;selected=true;scroll=window.scrollY;previousFocus=document.activeElement as HTMLElement|null
+    clearRoster();request++;selected=true;scroll=window.scrollY;previousFocus=document.activeElement as HTMLElement|null
     search.hidden=true;detail.hidden=false
     detail.innerHTML=`<button type="button" class="secondary" id="directory-back">Back to ${mode.toLowerCase()}</button>${markup}`
     detail.querySelector<HTMLButtonElement>('#directory-back')!.onclick=back
@@ -34,8 +37,9 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
   }
   const openTeam=(team:TeamChoice)=>{
     if(!valid())return
-    open(`<h1 tabindex="-1">${html(team.name)}</h1><p>${html(team.league || 'League unavailable')} · ${html(team.flight || 'Flight unavailable')}</p><p>${team.source==='observation'?'Public source observation':'Recorded team context'}</p><h2>Recorded fixtures</h2><div id="team-records" aria-live="polite"></div>`)
+    open(`<h1 tabindex="-1">${html(team.name)}</h1><p>${html(team.league || 'League unavailable')} · ${html(team.flight || 'Flight unavailable')}</p><p>${team.source==='observation'?'Public source observation':'Recorded team context'}</p><h2>Recorded fixtures</h2><div id="team-records" aria-live="polite"></div><div id="team-roster-details"></div>`)
     const version=request,content=detail.querySelector<HTMLElement>('#team-records')!
+    roster=showTeamRoster(detail.querySelector<HTMLElement>('#team-roster-details')!,client,team,()=>valid()&&request===version)
     const load=async()=>{
       content.innerHTML='<p role="status">Loading team records…</p>'
       try {
@@ -77,5 +81,5 @@ export function showDirectory(app:HTMLElement,mode:DirectoryMode,client:Supabase
   input.oninput=()=>{request++;button.disabled=false;choices.innerHTML='';status.textContent='';error.textContent=''}
   form.onsubmit=event=>{event.preventDefault();void run()}
   if(mode==='Leagues'||initialTerm)void run()
-  return {dispose:()=>{disposed=true;request++},back:()=>{if(selected){back();return true}return false}}
+  return {dispose:()=>{disposed=true;request++;clearRoster()},back:()=>{if(selected){back();return true}return false}}
 }
