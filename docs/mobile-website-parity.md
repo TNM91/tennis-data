@@ -402,3 +402,14 @@ The original website field reference was a 500-row sample. A shared loader now s
 Opponent bands require a verified source and a recorded published baseline, shared by both versions; a missing baseline never becomes the display helper's default 3.5. Boundaries retain the website's strict greater/less-than 0.25 rule, with decimal boundary normalization, and the copy now states that rule accurately. Missing opponent ratings are excluded and coverage is shown. The selected player's caller-RLS TIQ snapshot read adds only opponent_rating. Incomplete match history still withholds aggregates, and incomplete rating history withholds form/opponent breakdowns. Optional player/reference failures do not erase existing records. Same-account/stale-view/disposal safeguards remain in place.
 
 Repeat-opponent records, profile meters/compact journey and historical scorecard links remain gaps. This slice does not claim complete player-profile or visual parity. Physical iPhone, large-text and VoiceOver acceptance remain pending.
+
+
+## Repeat opponents — build 88 candidate
+
+Explore player profiles now show repeat-opponent records using the website calculation: at least two public decided meetings, wins/losses, win percentage, last meeting and up to eight opponents. Doubles pairs stay together. The shared calculation now keys by linked player IDs, so homonyms stay distinct and reversed doubles seat order stays one pair.
+
+Native opponent names open the linked player profile; Back to previous player returns to the original profile and Back to search preserves search results. Doubles rows explicitly identify that the link opens the first player's profile. Profile changes dispose prior charts, performance roots and match-detail listeners, and ignore late responses.
+
+Participant reads use the existing caller session and RLS, restricted to IDs from the eligible decided player-history query. Batches contain at most 100 matches, request an exact count and a 401-row sentinel, and stop after a closed visit. Every match must have complete, unique singles/doubles participants and linked names before head-to-head totals appear. Missing/truncated/failed participant reads withhold totals with a retry; reliable career and season records remain available. No schema, grants, messages or notifications change.
+
+Synthetic actual-entry browser checks covered singles and pair totals, linked profile/back/search navigation, recoverable failure and 320/390/1050 viewport widths without root horizontal overflow. Physical iPhone, VoiceOver and large-text acceptance remain pending. Remaining player-profile parity includes profile meters, compact journey presentation and historical scorecard connections.

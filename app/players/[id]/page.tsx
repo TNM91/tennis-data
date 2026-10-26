@@ -1,4 +1,5 @@
 'use client'
+import {playerRepeatOpponents} from '../../../lib/player-repeat-opponents'
 
 import {PlayerBenchmarkPanel,PlayerOpponentQualityPanel} from '@/app/components/player-benchmark-panels'
 import {loadPlayerFieldReference,type PlayerFieldReference} from '@/lib/player-field-reference'
@@ -1089,24 +1090,7 @@ function PlayerProfileContent() {
   }, [playerRank, totalPlayers])
 
   // Longest win streak across all matches (not filtered by view).
-  const opponentRecords = useMemo(() => {
-    const map = new Map<string, { wins: number; losses: number; lastDate: string; id: string | null }>()
-    for (const match of matches) {
-      const opp = match.opponent
-      if (!opp || opp === 'Player not linked') continue
-      const existing = map.get(opp) ?? { wins: 0, losses: 0, lastDate: match.date, id: match.opponentIds[0] ?? null }
-      if (match.result === 'W') existing.wins++
-      else existing.losses++
-      if (match.date > existing.lastDate) existing.lastDate = match.date
-      if (!existing.id && match.opponentIds[0]) existing.id = match.opponentIds[0]
-      map.set(opp, existing)
-    }
-    return [...map.entries()]
-      .filter(([, rec]) => rec.wins + rec.losses >= 2)
-      .sort((a, b) => (b[1].wins + b[1].losses) - (a[1].wins + a[1].losses))
-      .slice(0, 8)
-      .map(([name, rec]) => ({ name, id: rec.id, wins: rec.wins, losses: rec.losses, lastDate: rec.lastDate, total: rec.wins + rec.losses }))
-  }, [matches])
+  const opponentRecords = useMemo(() => playerRepeatOpponents(matches), [matches])
 
   const seasonBreakdown = useMemo(() => playerSeasonPerformance(matches, snapshotByMatchId), [matches, snapshotByMatchId])
 
@@ -3829,7 +3813,7 @@ function PlayerProfileContent() {
               <span style={panelChip}>{opponentRecords.length} opponents</span>
             </div>
             <p style={sectionText}>
-              Players faced at least twice. Win rate reflects all tracked matches, not just the current view.
+              Players or doubles pairs faced at least twice. Win rate reflects all tracked matches, not just the current view.
             </p>
             <div style={rivalryListStyle}>
               {opponentRecords.map((opp) => {
@@ -3837,7 +3821,7 @@ function PlayerProfileContent() {
                 const dominant = rate >= 70
                 const struggling = rate <= 30
                 return (
-                  <div key={opp.name} style={rivalryRowStyle}>
+                  <div key={opp.key} style={rivalryRowStyle}>
                     <div style={rivalryCopyStyle}>
                       {opp.id ? (
                         <EntityDetailLink href={`/players/${encodeURIComponent(opp.id)}`} prefetch={false} style={rivalryNameLinkStyle}>

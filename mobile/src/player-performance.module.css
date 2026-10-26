@@ -10,3 +10,10 @@
 .grid div { min-width:0; }
 .grid dt { color:var(--shell-copy-muted); font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
 .grid dd { margin:3px 0 0; color:var(--foreground-strong); font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; }
+
+.opponent { min-width:0; text-align:left; background:none; border:0; color:#93c5fd; font:inherit; padding:8px 0; cursor:pointer; overflow-wrap:anywhere; }
+.opponent:focus-visible { outline:2px solid #d9f84a; outline-offset:3px; }
+.linkHint { display:block; font-size:11px; color:var(--shell-copy-muted); margin-top:4px; }
+.strong { color:#d9f84a; }
+.struggling { color:#fca5a5; }
+.balanced { color:#93c5fd; }
