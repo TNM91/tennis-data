@@ -1,0 +1,21 @@
+/* Shared website season check-in; no native inline-style permission required. */
+.panel { display:grid; gap:16px; margin-top:16px; padding:18px; border-radius:22px; border:1px solid rgba(116,190,255,.25); background:radial-gradient(circle at 86% 0%,rgba(116,190,255,.16),transparent 34%),linear-gradient(135deg,rgba(8,25,46,.98),rgba(4,13,29,.98)); box-shadow:0 22px 56px rgba(2,8,20,.26); min-width:0; overflow-wrap:anywhere; }
+.header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.header>div { min-width:0; flex:1 1 200px; }
+.panel .kicker { margin:0; color:#93c5fd; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+.panel .title { margin:4px 0 0; color:var(--foreground-strong); font-size:22px; font-weight:900; line-height:1.08; }
+.panel .body { margin:6px 0 0; color:var(--shell-copy-muted); font-size:14px; font-weight:650; line-height:1.5; }
+.pill { border-radius:999px; padding:7px 10px; background:rgba(116,190,255,.11); border:1px solid rgba(116,190,255,.22); color:#bfdbfe; font-size:12px; font-weight:850; }
+.metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr)); gap:10px; min-width:0; }
+.metric { display:grid; align-content:start; gap:4px; padding:13px 14px; border-radius:15px; border:1px solid rgba(255,255,255,.08); background:rgba(1,10,24,.42); color:var(--shell-copy-muted); font-size:11px; font-weight:750; min-width:0; }
+.metric strong { color:var(--foreground-strong); font-size:22px; font-variant-numeric:tabular-nums; }
+.metric small { font-size:11px; line-height:1.5; }
+.focus { display:grid; gap:6px; padding:14px 15px; border-radius:15px; border:1px solid rgba(155,225,29,.22); background:rgba(155,225,29,.07); color:var(--foreground-strong); font-size:14px; line-height:1.5; }
+.focus>span { font-size:11px; color:var(--shell-copy-muted); font-weight:750; }
+.detail { display:flex; gap:10px; align-items:center; flex-wrap:wrap; color:var(--shell-copy-muted); font-size:12px; font-weight:700; min-width:0; }
+.detail a { color:var(--brand-lime); font-size:13px; font-weight:850; text-decoration:none; }
+.detail p { margin:0; }
+
+.controls { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:16px; color:var(--foreground-strong); font-size:14px; font-weight:800; }
+.controls select { min-height:44px; padding:8px 32px 8px 12px; border:1px solid rgba(116,190,255,.35); border-radius:12px; font:inherit; font-size:16px; color:var(--foreground-strong); background:#10203a; max-width:100%; }
+.controls select:focus-visible { outline:2px solid var(--brand-green); outline-offset:3px; }
