@@ -1,19 +1,19 @@
 import {PlayerMatchQuality} from '../../app/components/player-profile-overview'
 import {playerMatchQuality} from '../../lib/player-profile-overview'
 import type {PlayerChoice} from './player-connection'
-import {useState} from 'react'
+import {usePlayerProfileFormat,type PlayerProfileFormat} from './player-profile-format'
 import {createRoot} from 'react-dom/client'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {PlayerBenchmarkPanel,PlayerOpponentQualityPanel} from '../../app/components/player-benchmark-panels'
 import PlayerCareerRecords from '../../app/components/player-career-records'
 import styles from '../../app/components/tennis-insight-cards.module.css'
 import cards from './player-performance.module.css'
-import {getRatingViewLabel,type RatingView} from '../../lib/player-rating-display'
+import {getRatingViewLabel} from '../../lib/player-rating-display'
 import {journeyViews} from './player-journey-data'
 import {loadPlayerPerformance,playerPerformanceSummary,playerInsightSummary,type PlayerPerformanceData} from './player-performance-data'
 import {FollowAccessError} from './follows-data'
-export function PlayerPerformance({data,onRefresh,onOpenPlayer}:{data:PlayerPerformanceData;onRefresh?:()=>void;onOpenPlayer?:(player:PlayerChoice)=>void}) {
-  const [view,setView]=useState<RatingView>('overall')
+export function PlayerPerformance({data,onRefresh,onOpenPlayer,format}:{data:PlayerPerformanceData;format?:PlayerProfileFormat;onRefresh?:()=>void;onOpenPlayer?:(player:PlayerChoice)=>void}) {
+  const [view,setView]=usePlayerProfileFormat(format)
   const summary=playerPerformanceSummary(data,view),insight=playerInsightSummary(data,view)
   return <div className="website-ui"><h2>Performance</h2>
     {!summary?<p role="status">The loaded public match history is incomplete. Personal records and season totals are withheld until the complete record is available.</p>:<>
@@ -30,12 +30,12 @@ export function PlayerPerformance({data,onRefresh,onOpenPlayer}:{data:PlayerPerf
     <p>TIQ is an estimate, not an official USTA rating. These are recorded results, not a forecast.</p>
   </div>
 }
-export function showPlayerPerformance(host:HTMLElement,client:SupabaseClient,playerId:string,current:()=>boolean,onOpenPlayer?:(player:PlayerChoice)=>void) {
+export function showPlayerPerformance(host:HTMLElement,client:SupabaseClient,playerId:string,current:()=>boolean,onOpenPlayer?:(player:PlayerChoice)=>void,onSummary?:(data:PlayerPerformanceData|null,state:'loading'|'ready'|'denied'|'unavailable')=>void,format?:PlayerProfileFormat) {
   let disposed=false,request=0,root:ReturnType<typeof createRoot>|null=null
   const valid=()=>!disposed&&current()&&host.isConnected
-  const load=async()=>{const version=++request;root?.unmount();root=null;host.innerHTML='<h2>Performance</h2><p role="status">Loading player performance…</p>'
-    try{const data=await loadPlayerPerformance(client,playerId,valid);if(!valid()||version!==request)return;host.innerHTML='';root=createRoot(host);root.render(<PlayerPerformance data={data} onOpenPlayer={onOpenPlayer} onRefresh={()=>{void load()}}/>)}
-    catch(error){if(!valid()||version!==request)return;if(error instanceof FollowAccessError){host.innerHTML='<h2>Performance</h2><p>Personal records and season analysis are included with Player access.</p>';return}host.innerHTML='<h2>Performance</h2><p role="alert">Can’t load player performance. Check your connection and try again.</p><button type="button" class="secondary">Retry performance</button>';host.querySelector<HTMLButtonElement>('button')!.onclick=()=>{void load()}}
+  const load=async()=>{if(!valid())return;const version=++request;onSummary?.(null,'loading');root?.unmount();root=null;host.innerHTML='<h2>Performance</h2><p role="status">Loading player performance…</p>'
+    try{const data=await loadPlayerPerformance(client,playerId,valid);if(!valid()||version!==request)return;onSummary?.(data,'ready');host.innerHTML='';root=createRoot(host);root.render(<PlayerPerformance data={data} format={format} onOpenPlayer={onOpenPlayer} onRefresh={()=>{void load()}}/>)}
+    catch(error){if(!valid()||version!==request)return;if(error instanceof FollowAccessError){onSummary?.(null,'denied');host.innerHTML='<h2>Performance</h2><p>Personal records and season analysis are included with Player access.</p>';return}onSummary?.(null,'unavailable');host.innerHTML='<h2>Performance</h2><p role="alert">Can’t load player performance. Check your connection and try again.</p><button type="button" class="secondary">Retry performance</button>';host.querySelector<HTMLButtonElement>('button')!.onclick=()=>{void load()}}
   };void load()
   return {dispose:()=>{disposed=true;request++;root?.unmount();root=null;host.replaceChildren()}}
 }

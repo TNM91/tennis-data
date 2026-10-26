@@ -1,4 +1,5 @@
 'use client'
+import {PlayerIdentityHeader,PlayerEvidenceRail} from '../../components/player-profile-header'
 import {CompactRatingJourney,PlayerMatchQuality,RatingSparkline} from '../../components/player-profile-overview'
 import {playerMatchQuality} from '../../../lib/player-profile-overview'
 import {playerRepeatOpponents} from '../../../lib/player-repeat-opponents'
@@ -1829,18 +1830,8 @@ function PlayerProfileContent() {
                 <span className={profileStory.profileLabel}>{hasPersonalPlayerExperience ? 'Your player profile' : 'Player profile'}</span>
               </div>
 
-              <div className={profileStory.identityBlock}>
-                <h1>{player.name}</h1>
-                <div className={profileStory.identityMeta}>
-                  <span className={profileStory.verified}>{isSelfRatedProfile ? 'Self-rated profile' : hasInferredUstaBaseline ? 'Adult-flight baseline' : hasPendingUstaBaseline ? 'Unverified baseline' : 'Verified player record'}</span>
-                  {primaryUstaMembership && primaryTeamHref ? (
-                    <Link href={primaryTeamHref}>{primaryUstaMembership.teamName}</Link>
-                  ) : (
-                    <span>{storyTeamName}</span>
-                  )}
-                  {player.location ? <span>{player.location}</span> : null}
-                </div>
-              </div>
+              <PlayerIdentityHeader name={player.name} status={isSelfRatedProfile?'Self-rated profile':hasInferredUstaBaseline?'Adult-flight baseline':hasPendingUstaBaseline?'Unverified baseline':'Verified player record'} team={primaryUstaMembership?.teamName??storyTeamName} teamLink={primaryUstaMembership&&primaryTeamHref?<Link href={primaryTeamHref}>{primaryUstaMembership.teamName}</Link>:undefined} location={player.location}/>
+
 
               {profileAchievementShowcase.length > 0 ? (
                 <section className={profileStory.achievementShelf} aria-label="Player achievements">
@@ -1942,27 +1933,8 @@ function PlayerProfileContent() {
                     {' '}Imported matches and rated results can differ.
                   </p>
                   {isPublicExplorerProfile ? (
-                    <div className={profileStory.publicEvidenceRail} aria-label="Public player performance at a glance">
-                      <div>
-                        <span>Record</span>
-                        <strong>{trackedRecordLabel}</strong>
-                        <small>{totalMatches} reviewed</small>
-                      </div>
-                      <div>
-                        <span>Recent form</span>
-                        <strong className={profileStory.publicFormMarks} aria-label={`${recentFormWins} wins and ${recentFormLosses} losses in recent results`}>
-                          {visibleLastFive.length > 0 ? visibleLastFive.map((match) => <i key={match.id} data-result={match.result}>{match.result}</i>) : '—'}
-                        </strong>
-                        <small>{trackedFormLabel}</small>
-                      </div>
-                      <div>
-                        <span>TIQ movement</span>
-                        <strong data-direction={recentTrendDelta === null ? 'flat' : recentTrendDelta >= 0 ? 'up' : 'down'}>
-                          {recentTrendDelta === null ? '—' : `${recentTrendDelta >= 0 ? '+' : ''}${recentTrendDelta.toFixed(2)}`}
-                        </strong>
-                        <small>{recentTrendDelta === null ? 'Trend building' : 'Recent results'}</small>
-                      </div>
-                    </div>
+                    <PlayerEvidenceRail record={trackedRecordLabel} total={totalMatches} form={visibleLastFive} movement={recentTrendDelta} formNote={trackedFormLabel}/>
+
                   ) : null}
                   <div className={profileStory.heroActions}>
                     <Link href={storyActionHref} className={profileStory.primaryAction}>{heroPrimaryLabel}</Link>

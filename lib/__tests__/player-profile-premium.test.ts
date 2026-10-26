@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
+const sharedHeader = readFileSync(join(process.cwd(), 'app/components/player-profile-header.tsx'), 'utf8')
 const source = readFileSync(join(process.cwd(), 'app/players/[id]/page.tsx'), 'utf8')
 
 describe('premium player profile', () => {
@@ -31,8 +32,8 @@ describe('premium player profile', () => {
   })
 
   it('puts public performance evidence in the first profile screen without exposing Player Focus', () => {
-    expect(source).toContain('aria-label="Public player performance at a glance"')
-    expect(source).toContain('className={profileStory.publicEvidenceRail}')
+    expect(sharedHeader).toContain('aria-label="Public player performance at a glance"')
+    expect(source).toContain('<PlayerEvidenceRail record={trackedRecordLabel}')
     expect(source).toContain('{hasPersonalPlayerExperience ? (')
     expect(source).toContain('id="profile-player-id"')
   })

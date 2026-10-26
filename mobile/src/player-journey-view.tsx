@@ -1,3 +1,4 @@
+import {usePlayerProfileFormat,type PlayerProfileFormat} from './player-profile-format'
 import {openHistoryScorecard} from './player-history-scorecard-view'
 import type {RatingJourneyPoint} from '../../app/components/rating-journey-explorer'
 import {CompactRatingJourney} from '../../app/components/player-profile-overview'
@@ -11,8 +12,8 @@ import layout from './player-journey.module.css'
 import { getRatingViewLabel, type RatingView } from '../../lib/player-rating-display'
 import { loadPlayerJourney,journeyPoints,journeyViews,type JourneyHistory,type JourneyWindow } from './player-journey-data'
 import { FollowAccessError } from './follows-data'
-export function PlayerJourney({history,onOpenMatch,onRefresh}:{history:JourneyHistory;onRefresh?:()=>void;onOpenMatch?:(point:RatingJourneyPoint,view:RatingView)=>void}) {
-  const [view,setView]=useState<RatingView>('overall')
+export function PlayerJourney({history,onOpenMatch,onRefresh,format}:{history:JourneyHistory;format?:PlayerProfileFormat;onRefresh?:()=>void;onOpenMatch?:(point:RatingJourneyPoint,view:RatingView)=>void}) {
+  const [view,setView]=usePlayerProfileFormat(format)
   const [window,setWindow]=useState<JourneyWindow>('all')
   const points=journeyPoints(history,view,window)
   const loaded=history[view],missing=loaded.rows.filter(row=>row.dynamic_rating===null).length
@@ -29,20 +30,23 @@ export function PlayerJourney({history,onOpenMatch,onRefresh}:{history:JourneyHi
     <p>TIQ is an estimate, not an official USTA rating. Each format uses its own saved ratings; missing Singles or Doubles history stays empty.</p>
   </div>
 }
-export function showPlayerJourney(host:HTMLElement,client:SupabaseClient,playerId:string,current:()=>boolean) {
+export function showPlayerJourney(host:HTMLElement,client:SupabaseClient,playerId:string,current:()=>boolean,format?:PlayerProfileFormat,onHistory?:(data:JourneyHistory|null)=>void) {
   let scorecard:ReturnType<typeof openHistoryScorecard>|null=null
   let disposed=false,request=0
   let root:ReturnType<typeof createRoot>|null=null
   const valid=()=>!disposed&&current()&&host.isConnected
   const load=async()=>{
+    if(!valid())return
     const version=++request
+    onHistory?.(null)
     scorecard?.dispose();scorecard=null
     root?.unmount();root=null
     host.innerHTML='<h2>Rating journey</h2><p role="status">Loading rating history…</p>'
     try{
       const history=await loadPlayerJourney(client,playerId,valid)
       if(!valid()||version!==request)return
-      host.innerHTML='';root=createRoot(host);root.render(<PlayerJourney history={history} onRefresh={()=>{void load()}} onOpenMatch={(point,view)=>{if(!valid()||version!==request)return;scorecard?.dispose();scorecard=openHistoryScorecard(client,playerId,view,point,()=>valid()&&version===request)}}/>)
+      onHistory?.(history)
+      host.innerHTML='';root=createRoot(host);root.render(<PlayerJourney history={history} format={format} onRefresh={()=>{void load()}} onOpenMatch={(point,view)=>{if(!valid()||version!==request)return;scorecard?.dispose();scorecard=openHistoryScorecard(client,playerId,view,point,()=>valid()&&version===request)}}/>)
     }catch(error){
       if(!valid()||version!==request)return
       if(error instanceof FollowAccessError){host.innerHTML='<h2>Rating journey</h2><p>Detailed rating history is included with Player access.</p>';return}
