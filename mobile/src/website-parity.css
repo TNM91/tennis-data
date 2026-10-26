@@ -21,3 +21,15 @@ dialog{border-radius:24px;color:var(--foreground);max-height:calc(100dvh - 24px)
 .website-goal-fields input:focus-visible,.website-goal-fields textarea:focus-visible,.website-goal-fields select:focus-visible{outline:2px solid var(--brand-blue-2);outline-offset:2px}
 
 .website-comparison-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:16px;min-width:0}
+
+/* Keep the app viewport fixed to the screen; wide data scrolls inside its own region. */
+html,body{inline-size:100%;max-inline-size:100%;overflow-x:hidden;overflow-x:clip}
+body{overflow-wrap:anywhere}
+main,.app-header{min-inline-size:0;max-inline-size:min(1180px,100%)}
+dialog{min-inline-size:0;max-inline-size:calc(100% - 24px);overflow-wrap:anywhere}
+main :where(section,article,fieldset,form,details),dialog :where(section,article,fieldset,form,details){min-inline-size:0;max-inline-size:100%}
+:where(input,select,textarea){min-inline-size:0;max-inline-size:100%}
+main :where(svg,canvas,video),dialog :where(svg,canvas,video){max-inline-size:100%}
+.horizontal-data{min-inline-size:0;max-inline-size:100%;overflow-x:auto;overscroll-behavior-x:contain}
+.horizontal-data caption{overflow-wrap:anywhere}
+.website-goal-fields :is(input,select,textarea){font-size:16px}

@@ -346,10 +346,30 @@ Isolated PostgreSQL checks exercise actual RLS/default/index behavior for owners
 
 Match Center reuses the website's extracted match-week navigation for Lineup, Check replies and Send team update workspaces. Planning keeps readiness, saved A/B alternatives and scouting together; replies retain local search/status filters; Send keeps private/shared/final progress, explicit publishing review, replacements and match-day checks together. Step navigation changes no records and retains fixture context. Existing child save/publication reviews, CAS/idempotency and stale-context checks remain in force. Failure clears tools until a successful refresh. All 4,768 tests and CI passed; physical iPhone acceptance is still pending.
 
-## League Office season review — build 83 candidate
+## League Office season review — build 83 released
 
 My Lab → League Office adds a connected read-only visit through seasons created by the signed-in account, participant entry records, schedules, recorded results/courts and team standings. The home is generated from the actual website `LeagueOfficeHome` component and its CSS; the optional caption says Workspace in the app without claiming a different membership plan. The website's team standings calculation is extracted into a pure helper and reused unchanged by both callers, including dynamic points and configured standings rules. Unplayed events do not become wins, losses or ties. Individual leagues show recorded player results; this slice does not invent individual standings.
 
 The GET first verifies the signed-in account and the existing current League Office entitlement. Every table read uses the caller's JWT/RLS client, with an explicit owner filter on season records and exact league/event filters on dependent reads. No privileged client, new table, policy, grant or schema change is introduced. The list is limited to 20 seasons plus a sentinel. A selected season reads up to 100 participant entries, 100 scheduled dates and 100 result events, with sentinels; team court reads are limited to 500 plus a sentinel. Limits are disclosed, and incomplete results/courts withhold season standings. Ownership and season revision are checked again before returning details. Participant contact details, eligibility notes, internal season/result notes and ownership columns are omitted.
 
 Tabs use loaded state without requests; only entry, selection and explicit refresh read data. A failed refresh clears the previous snapshot. Account/screen checks run before and after transport; close, account change, navigation and backgrounding dispose the private view and ignore late responses. This is cloud season review for explicit owners, not full coordinator parity: local website drafts, club/delegated access, legacy ownerless seasons, setup/renewal, entry approvals, schedule edits, result corrections, weekly operations and tournaments remain gaps. Positive QA stays local/synthetic; production smoke stays anonymous. Physical iPhone, VoiceOver and Dynamic Type acceptance remain pending.
+
+
+## Current priority: visual and statistical parity
+
+Owner feedback on October 25 prioritizes the whole-screen horizontal scrolling defect, then the website's existing visual/statistical depth. Additional coordinator write workflows are deferred while these views catch up. Existing charts in Matchup do not establish player-profile parity: the native player profile currently has recorded rating tiles and recent match results, while the website profile contains substantially richer views.
+
+| Priority | Existing website source | Native gap and acceptance target |
+| --- | --- | --- |
+| 1 | `app/players/[id]/page.tsx`: TIQ meters, rating journey, Singles/Doubles views, `RatingSparkline`, `SimpleLineChart` | Reuse the actual player-profile panels, calculations, controls and chart behavior; show them within the player visit with honest history limits and empty states. Matchup's Overall comparison chart is not a substitute. |
+| 2 | Same player page: Personal records, Benchmark comparison, Who they beat and lose to, Repeat opponents, Year-by-year performance | Bring the existing statistical breakdowns and filters into the app with the same source definitions and coverage, not totals inferred from the latest ten results. |
+| 3 | `app/matchup/page.tsx` and `components/matchup/` | Finish remaining visual/context/interaction parity around the shared comparison cards, history and prep panels already present. Compare visibility and interactions as well as component inventory. |
+| 4 | Website team/league detail and coordinator views | Bring remaining season, roster, result and standings visualizations over as connected views. The build-83 read-only season review remains partial coordinator parity. |
+
+Acceptance requires side-by-side phone-size evidence, functional controls and navigation, accurate data/entitlement boundaries, no page-level horizontal scrolling, and physical iPhone/large-text/VoiceOver checks before public App Store submission. Do not call a view complete merely because a shortcut or text summary exists.
+
+## Horizontal layout correction — build 84 candidate
+
+A synthetic 75-character player name reproduced page-level overflow: a 305 CSS-pixel layout expanded its scroll width to 818 pixels. Selected-player copy, headings, courtside text and an open rating-history caption contributed. The native viewport now stays bounded, text can wrap at long names/URLs, containers and controls may shrink, and oversized media stays within its panel. Dated rating tables have labeled keyboard-accessible local scroll regions. Shared goal controls use 16px text to avoid small-input focus zoom; user zoom is not disabled. Native Capacitor already disables bounce, so no speculative Swift/controller change is added.
+
+The same synthetic case fits at 305/305 CSS pixels after the fix, with no offscreen elements and the complete table retained. This proves the content-sizing failure and local correction in a browser; the owner's exact physical iPhone gesture still needs confirmation on the beta. No data, permissions, queries, notifications, or public website styles are changed.
