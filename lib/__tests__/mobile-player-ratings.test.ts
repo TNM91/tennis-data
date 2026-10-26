@@ -4,6 +4,13 @@ import {loadPlayerRatings,ratingValues,type RecordedRatings} from '../../mobile/
 import {ratingsHtml} from '../../mobile/src/player-ratings-view'
 const ratings:RecordedRatings={overall_dynamic_rating:4.499,singles_dynamic_rating:null,doubles_dynamic_rating:4.6,rating_source:'self'}
 describe('native recorded player ratings',()=>{
+  it('charts only valid recorded values with the explicit Overall fallback and rating scale',()=>{
+    const markup=ratingsHtml(ratings,true)
+    expect(markup).toContain('min="1.5" max="7" value="4.49"')
+    expect(markup).toContain('Singles Overall fallback')
+    expect(ratingsHtml({...ratings,overall_dynamic_rating:null,doubles_dynamic_rating:null},true)).not.toContain('<meter')
+  })
+
   it('uses recorded discipline values and clearly identifies the shared overall fallback',()=>{
     expect(ratingValues(ratings)).toEqual([{label:'Overall',value:'4.49',fallback:false},{label:'Singles',value:'4.49',fallback:true},{label:'Doubles',value:'4.60',fallback:false}])
   })

@@ -205,3 +205,36 @@ button,summary { overflow-wrap:normal; word-break:normal; hyphens:none; }
 .app-navigation { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); }
 .app-navigation button { width:100%; max-width:none; line-height:1.25; }
 .app-navigation button>span:last-child { white-space:normal; overflow-wrap:normal; word-break:normal; }
+
+/* My Lab: readable statistical graphics, using actual recorded values. */
+.lab-stat-panel { border-top:2px solid var(--brand-blue); }
+.stat-eyebrow { color:var(--native-blue); font-size:10px; letter-spacing:.12em; text-transform:uppercase; font-weight:750; }
+.lab-stat-panel h2 { margin:8px 0 20px; font-size:22px; }
+.lab-rating-chart { gap:10px; }
+.lab-rating-chart>div { background:var(--native-inset); border-color:var(--shell-panel-border); padding:16px 8px; text-align:left; border-radius:14px; }
+.lab-rating-chart>div:first-child { border-color:rgba(7,137,255,.55); background:#09274d; }
+.lab-rating-chart dt { font-size:11px; font-weight:650; }
+.lab-rating-chart dd { font-size:30px; color:var(--foreground-strong); letter-spacing:-.04em; }
+.lab-rating-chart .rating-scale { margin:12px 0; }
+.lab-rating-chart meter,.match-pulse meter { display:block; appearance:none; width:100%; height:7px; border:0; border-radius:8px; background:#1b3657; }
+.lab-rating-chart meter::-webkit-meter-bar,.match-pulse meter::-webkit-meter-bar { height:7px; border:0; border-radius:8px; background:#1b3657; }
+.lab-rating-chart meter::-webkit-meter-optimum-value,.match-pulse meter::-webkit-meter-optimum-value { border-radius:8px; background:var(--native-blue); }
+.lab-rating-chart meter::-moz-meter-bar,.match-pulse meter::-moz-meter-bar { background:var(--native-blue); border-radius:8px; }
+.lab-rating-chart .rating-note { font-size:10px; line-height:1.5; }
+.match-pulse { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; margin:20px 0 12px; }
+.match-pulse>div { min-width:0; }
+.match-pulse span { color:var(--shell-copy-muted); font-size:12px; }
+.match-pulse-rate strong { display:block; font-size:44px; line-height:1.2; letter-spacing:-.04em; color:var(--foreground-strong); margin:8px 0 12px; font-variant-numeric:tabular-nums; }
+.match-pulse-rate strong small { font-size:20px; margin-left:3px; color:var(--native-blue); }
+.match-pulse p { font-size:11px; margin:10px 0; line-height:1.5; }
+.match-pulse ol { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); list-style:none; padding:0; gap:5px; margin:16px 0; }
+.match-pulse li { display:grid; place-items:center; min-width:0; width:100%; height:32px; border-radius:7px; border:1px solid #426994; background:var(--native-inset); font-size:12px; font-weight:750; color:#b5c5dd; }
+.match-pulse li[data-outcome="W"] { background:#18352b; color:#c4f17e; border-color:#698d4b; }
+.match-pulse li[data-outcome="L"] { background:#342236; color:#ffbdc8; border-color:#926176; }
+body[data-screen="lab"] #recent-results .recent-form>div { padding:12px 4px; }
+body[data-screen="lab"] #recent-results .recent-form dd { font-size:25px; }
+@media(max-width:350px) { .lab-rating-chart { gap:6px; } .lab-rating-chart>div { padding:12px 6px; } .lab-rating-chart dd { font-size:26px; } .match-pulse { gap:10px; } }
+
+.rating-scale-caption { color:var(--native-blue); font-size:11px; margin:12px 0 0; }
+.recent-match-list { margin-top:18px; border-top:1px solid var(--shell-panel-border); }
+.recent-match-list>summary { cursor:pointer; padding:16px 0; min-height:44px; font-size:14px; color:var(--native-blue); font-weight:650; }
