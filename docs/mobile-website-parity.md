@@ -573,3 +573,9 @@ Explore removes redundant nested visual panels and gives shortcuts larger readab
 Fresh synthetic before/after captures and a combined supplied-reference/baseline/revised-home comparison were reviewed; the current report is appended in `design-qa.md`. Phone checks at 320/390 CSS pixels and tablet at 1050 showed no root overflow. Search, player profile/Stats navigation and chat were exercised without live private data or production mutations. Targeted new text/surface checks exceed 8.6:1; the checked input border exceeds 3:1. These checks do not establish full accessibility or physical iPhone/VoiceOver/Dynamic Type acceptance. No backend, data, import, entitlement, push or encryption changes are included.
 
 Release verification passed full lint/typecheck, all 4,889 tests across 881 files, extension syntax and production build. Native bundle/prepare/check and nine Node plus one Python guards passed. Browser evidence remains synthetic and physical-device acceptance pending.
+
+### Build 103: readable chat controls
+
+Chat search uses full-width disclosure controls, with history buttons wrapping into rows based on available space and visible actions. Button and disclosure labels wrap between words; message text retains safe long-URL wrapping. The five main navigation destinations now have equal-width tracks instead of competing flex widths. Midnight brand styling is preserved.
+
+Synthetic browser checks at 320 and 390 pixels cover unread and oldest-history states, hidden First unread, and expanded search. No live team messages or private data were used. Physical iPhone, Dynamic Type and VoiceOver checks remain pending.

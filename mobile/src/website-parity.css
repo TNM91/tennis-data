@@ -155,7 +155,7 @@ input:not(.website-ui input),select:not(.website-ui select),textarea:not(.websit
 .team-bubble p { font-size:15px; line-height:1.55; }
 .team-bubble blockquote,.chat-composer { background:var(--native-inset); border-color:var(--shell-panel-border); }
 .team-bubble .chat-message-actions button.secondary { background:none; border:0; box-shadow:none; }
-.chat-tool-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.chat-tool-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
 .chat-tool-row>.chat-find { grid-column:1/-1; grid-row:2; }
 .chat-tool-row>.chat-find summary { min-height:44px; padding:12px; background:var(--native-inset); border-color:var(--shell-panel-border); }
 [data-team-tab] { overflow-wrap:normal; word-break:normal; }
@@ -192,3 +192,16 @@ body[data-screen="teams"] #join-team { width:auto; margin:0 0 12px; min-height:4
 body[data-screen="teams"] .match-filters+p.rating-context { display:inline-block; margin:4px 0 14px; }
 #chat-live-status { display:inline-block; margin:4px 0 14px 12px; color:var(--native-blue); }
 #chat-reaction-status:empty,#chat-read-status:empty,#chat-history-status:empty { display:none; }
+
+/* Controls wrap between words; message content can still break long URLs safely. */
+button,summary { overflow-wrap:normal; word-break:normal; hyphens:none; }
+.chat-tool-row>button.secondary,.chat-tool-row>.chat-find { min-width:0; width:100%; box-sizing:border-box; }
+.chat-tool-row>button.secondary { margin:0; padding:12px; line-height:1.4; }
+.chat-tool-row:not(:has(#chat-announcement))>#chat-history-search { grid-column:1/-1; }
+.chat-find summary { line-height:1.5; }
+.chat-history-heading { display:flex; flex-wrap:wrap; gap:8px; }
+.chat-history-heading>p { flex:1 0 100%; }
+.chat-history-heading>button { flex:1 1 140px; width:auto; min-width:0; margin:0; padding:12px; line-height:1.4; }
+.app-navigation { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); }
+.app-navigation button { width:100%; max-width:none; line-height:1.25; }
+.app-navigation button>span:last-child { white-space:normal; overflow-wrap:normal; word-break:normal; }
