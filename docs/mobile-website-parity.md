@@ -579,3 +579,9 @@ Release verification passed full lint/typecheck, all 4,889 tests across 881 file
 Chat search uses full-width disclosure controls, with history buttons wrapping into rows based on available space and visible actions. Button and disclosure labels wrap between words; message text retains safe long-URL wrapping. The five main navigation destinations now have equal-width tracks instead of competing flex widths. Midnight brand styling is preserved.
 
 Synthetic browser checks at 320 and 390 pixels cover unread and oldest-history states, hidden First unread, and expanded search. No live team messages or private data were used. Physical iPhone, Dynamic Type and VoiceOver checks remain pending.
+
+### Build 104: My Lab statistical graphics
+
+Recorded ratings and recent results now sit directly after My Lab’s identity/focus area, ahead of utility cards. Recorded Overall, Singles and Doubles estimates use labeled 1.5–7.0 meter scales, retaining explicit Overall fallback and missing-value behavior. Recent results show decided-result win percentage and a five-result W/L/pending form strip. Format filters apply to every summary; pending outcomes are excluded from the percentage denominator. This is the latest ten connected results, not a full-history record or forecast. My Lab’s detailed match list is collapsed initially, with existing match-detail actions preserved, and a full-profile shortcut opens the existing journey/stat screens. No new reads, permissions or mutations.
+
+Synthetic actual-entry checks cover 320/390 widths, filtered and pending-only/empty/error histories, disclosure, and full-profile navigation. Physical iPhone, Dynamic Type and VoiceOver remain pending. This pass upgrades My Lab statistical presentation; it does not complete all app graphics or website parity.

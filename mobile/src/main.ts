@@ -277,9 +277,11 @@ async function lab() {
     } else {
       const ratingsSection=document.createElement('section')
       ratingsSection.setAttribute('aria-labelledby','lab-ratings-title')
-      ratingsSection.innerHTML='<h2 id="lab-ratings-title">Your recorded TIQ ratings</h2><div aria-live="polite"></div>'
-      app.querySelector('#recent-results')!.before(ratingsSection)
-      showPlayerRatings(ratingsSection.querySelector<HTMLElement>('div')!,client,playerId,()=>version===revision && current.user.id===session?.user.id)
+      ratingsSection.className='lab-stat-panel'
+      ratingsSection.innerHTML='<small class="stat-eyebrow">Your game, in numbers</small><h2 id="lab-ratings-title">Your recorded TIQ ratings</h2><div aria-live="polite"></div><button type="button" class="secondary" data-lab-profile>Open full player profile</button>'
+      app.querySelector('#lab-identity')!.after(ratingsSection,app.querySelector('#recent-results')!)
+      bindLabActions()
+      showPlayerRatings(ratingsSection.querySelector<HTMLElement>('div')!,client,playerId,()=>version===revision && current.user.id===session?.user.id,true)
       const refreshResults = async () => {
         content.dataset.state = 'loading'
         content.innerHTML = '<p role="status">Loading your latest matches…</p>'
@@ -293,7 +295,7 @@ async function lab() {
         }
         const rows = (result.data || []) as RecentMatchRow[]
         content.dataset.state = rows.length ? 'ready' : 'empty'
-        showRecentResults(content, rows, playerId, row => details?.open(row, playerId))
+        showRecentResults(content, rows, playerId, row => details?.open(row, playerId),'your',true)
       }
       void refreshResults()
     }

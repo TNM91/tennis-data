@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import {recentPulseHtml} from '../../mobile/src/results-view'
 import { matchDate, matchResult, type RecentMatchRow } from '../../mobile/src/recent-results'
 
 const match: RecentMatchRow = {
@@ -6,6 +7,18 @@ const match: RecentMatchRow = {
   score: '6-4 6-3', winner_side: 'A', match_players: [{player_id: 'linked', side: 'A'}],
 }
 describe('bundled recent results', () => {
+  it('calculates recent win percentage from decided results only and identifies pending form',()=>{
+    const markup=recentPulseHtml([match,{...match,winner_side:'B'},{...match,winner_side:null}], 'linked')
+    expect(markup).toContain('value="50"')
+    expect(markup).toContain('1 win · 1 loss')
+    expect(markup).toContain('Newest first · 1 pending')
+    expect(markup).toContain('data-outcome="W"')
+    expect(markup).toContain('data-outcome="L"')
+    expect(markup).toContain('Result pending')
+    expect(recentPulseHtml([{...match,winner_side:null}], 'linked')).not.toContain('<meter')
+    expect(recentPulseHtml([], 'linked')).toContain('No decided results yet.')
+  })
+
   it('reads the result from the linked player’s side, not score ordering', () => {
     expect(matchResult(match, 'linked')).toBe('Won')
     expect(matchResult({...match, winner_side: 'B'}, 'linked')).toBe('Lost')
