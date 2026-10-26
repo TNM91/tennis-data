@@ -10,7 +10,7 @@ main{max-width:1180px;padding-top:16px}body:has(.app-navigation:not([hidden])) m
 .tennis-tools{padding:18px;background:var(--shell-panel-bg);border-color:var(--shell-panel-border);box-shadow:var(--shadow-soft)}.tennis-tool-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.tennis-tool-grid button.tennis-tool{display:flex;flex-direction:row;align-items:center;gap:10px;min-height:88px;padding:12px;background:var(--portal-active-card-bg);border-color:var(--card-border-soft);border-radius:16px}.tool-icon{flex:0 0 32px}.tool-copy{display:grid;gap:4px;min-width:0}.tool-copy strong{font-size:14px;line-height:1.2}.tool-copy>span{font-size:12px;line-height:1.4;color:var(--shell-copy-muted)}.tool-arrow{margin-left:auto;color:var(--brand-green)}
 .native-explore-hero{padding:14px;background:linear-gradient(135deg,rgba(8,13,30,.96),rgba(4,10,24,.9));border:1px solid var(--card-border-soft);border-radius:20px;box-shadow:var(--shadow-card)}.native-explore-hero h1{font-size:26px;font-weight:900;line-height:1.05;letter-spacing:0;margin:0 0 14px;max-width:600px}.native-explore-hero form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-bottom:14px}.native-explore-hero form input{grid-column:1/-1;background:var(--home-input-bg);border-color:var(--home-input-border);margin:0;min-width:0}.native-explore-hero form select{font:inherit;color:var(--foreground);background:#10203a;border:1px solid var(--card-border-soft);border-radius:12px;padding:10px;min-height:44px;min-width:0;grid-row:2}.native-explore-hero form button{grid-row:2;margin:0;min-height:44px;padding:10px 22px;background:linear-gradient(180deg,#d2fa75,var(--brand-green));border-radius:999px}.native-explore-hero input:focus-visible,.native-explore-hero select:focus-visible{outline-color:var(--brand-green)}
 .explore-categories{border-color:var(--shell-panel-border);background:var(--shell-panel-bg);border-radius:16px;padding:4px;margin-bottom:12px}.explore-categories button{font-size:11px;min-height:44px}.explore-categories [aria-pressed=true]{background:var(--shell-chip-bg-strong);color:var(--brand-green-3);border-color:rgba(155,225,29,.3)}
-section:not(.website-ui section),dialog{border-color:var(--shell-panel-border);background:var(--shell-panel-bg);box-shadow:var(--shadow-soft)}button:not(.website-ui button){border-radius:14px}button:not(.secondary):not(.website-ui button):not(.app-navigation button):not([aria-pressed]){background:linear-gradient(180deg,#cdf66c,var(--brand-green));color:var(--text-dark)}button.secondary:not(.website-ui button){background:var(--portal-active-card-bg);border-color:var(--card-border-strong);color:var(--foreground)}input:not(.website-ui input),select:not(.website-ui select),textarea:not(.website-ui textarea){background:#0a192c;border-color:var(--card-border-strong);color:var(--foreground)}
+section:not(.website-ui section),dialog{border-color:var(--shell-panel-border);background:var(--shell-panel-bg);box-shadow:var(--shadow-soft)}button:not(.website-ui button){border-radius:14px}:where(button:not(.secondary):not(.website-ui button):not(.app-navigation button):not([aria-pressed]):not(nav button)){background:linear-gradient(180deg,#cdf66c,var(--brand-green));color:var(--text-dark)}button.secondary:not(.website-ui button){background:var(--portal-active-card-bg);border-color:var(--card-border-strong);color:var(--foreground)}input:not(.website-ui input),select:not(.website-ui select),textarea:not(.website-ui textarea){background:#0a192c;border-color:var(--card-border-strong);color:var(--foreground)}
 dialog{border-radius:24px;color:var(--foreground);max-height:calc(100dvh - 24px);width:min(760px,calc(100vw - 24px));padding:20px}dialog::backdrop{background:rgba(2,8,20,.8);backdrop-filter:blur(4px)}.lineup-court,.history-result,.match-center-progress li{background:var(--portal-active-card-bg);border-color:var(--card-border-soft);border-radius:16px}.match-center-next{background:linear-gradient(135deg,rgba(155,225,29,.09),rgba(13,30,58,.94));border-color:rgba(155,225,29,.24)}.player-ratings>div{background:var(--portal-active-card-bg);border-color:var(--card-border-soft)}.match-filters{border-color:var(--shell-panel-border);background:#071426}.match-filters button[aria-pressed=true]{background:var(--shell-chip-bg-strong);color:var(--brand-green-3)}
 @media(max-width:500px){.tennis-tool-grid{grid-template-columns:1fr}.tennis-tool-grid button.tennis-tool{min-height:78px}.tool-copy strong{font-size:15px}.tool-copy>span{font-size:13px}.website-lab>section{border-radius:22px}.app-navigation button{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.website-ui *,.app-navigation *{transition:none!important;animation:none!important}}
@@ -52,66 +52,126 @@ main :where(svg,canvas,video),dialog :where(svg,canvas,video){max-inline-size:10
 
 .roster-player-content h1,.roster-player-content h2,.roster-player-content [data-match-history-title] { scroll-margin-top:72px; }
 
-/* Native palette: the approved icon's navy base and brighter blue edges.
-   Keep this after generated website styles so shared components inherit it.
-   Lime retains its action/result meaning; artwork is never filtered or recolored. */
+/* Native midnight palette: dark regions sampled from the supplied TiQ reference.
+   Bright blue is reserved for accents; the approved artwork stays unchanged. */
 :root {
-  --native-navy: #082344;
-  --native-panel: #10385e;
-  --native-inset: #0c2c4d;
-  --native-blue: #76c8ff;
-  --background: var(--native-navy);
-  --brand-blue: #238ee8;
-  --brand-blue-2: var(--native-blue);
-  --muted: #bed2e8;
-  --shell-copy-muted: #c5d9ed;
-  --page-background:
-    radial-gradient(ellipse at 12% 0%, rgba(35,142,232,.26), transparent 42%),
-    linear-gradient(165deg, #0d3157 0%, #082344 48%, #071b35 100%);
-  --surface: linear-gradient(145deg, #143f69, #0d2e51);
-  --surface-strong: linear-gradient(145deg, #184b78, #10385e);
-  --portal-surface-bg:
-    radial-gradient(ellipse at 95% 0%, rgba(35,142,232,.2), transparent 52%),
-    linear-gradient(145deg, #123c65, #0c2b4d);
-  --portal-tool-surface-bg: linear-gradient(145deg, #10385e, #0c2b4d);
-  --portal-active-card-bg: linear-gradient(145deg, #17466f, #103454);
-  --header-bg: linear-gradient(180deg, rgba(18,60,101,.84), rgba(8,35,68,.3));
-  --header-border: rgba(118,200,255,.25);
-  --shell-panel-border: rgba(118,200,255,.3);
-  --card-border-soft: rgba(118,200,255,.26);
-  --card-border-strong: #668eaf;
-  --shell-chip-bg: #153d63;
-  --shell-chip-bg-strong: linear-gradient(145deg, #205b87, #123e67);
-  --home-input-bg: var(--native-inset);
-  --home-input-border: var(--card-border-strong);
+  --font-geist-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --native-navy:#011435;
+  --native-panel:#061b3a;
+  --native-inset:#03132c;
+  --native-blue:#65baff;
+  --background:var(--native-navy);
+  --foreground:#e9f1ff;
+  --foreground-strong:#f8fbff;
+  --brand-blue:#0789ff;
+  --brand-blue-2:var(--native-blue);
+  --muted:#a6b9d3;
+  --shell-copy-muted:#b5c5dd;
+  --page-background:linear-gradient(160deg,#021b44 0%,#011435 42%,#010d22 100%);
+  --surface:linear-gradient(145deg,#071e42,#04132b);
+  --surface-strong:linear-gradient(145deg,#092750,#051833);
+  --portal-surface-bg:linear-gradient(145deg,#071e42,#04132b);
+  --portal-tool-surface-bg:linear-gradient(145deg,#061a39,#031229);
+  --portal-active-card-bg:#071c3b;
+  --header-bg:transparent;
+  --header-border:rgba(7,137,255,.28);
+  --shell-panel-border:rgba(87,157,244,.22);
+  --card-border-soft:rgba(87,157,244,.18);
+  --card-border-strong:#426994;
+  --shell-chip-bg:#081e3e;
+  --shell-chip-bg-strong:#0a2b54;
+  --home-input-bg:var(--native-inset);
+  --home-input-border:var(--card-border-strong);
+  --shadow-soft:0 12px 28px rgba(0,4,15,.22);
+  --shadow-card:0 18px 40px rgba(0,4,15,.28);
 }
-.native-explore-hero { background:var(--portal-surface-bg); }
-.app-navigation {
-  background:linear-gradient(180deg, rgba(16,53,88,.98), #082344);
-  border-color:rgba(118,200,255,.38);
-}
-.app-navigation button[aria-current=page] {
-  background:var(--shell-chip-bg-strong);
-  border-color:var(--native-blue);
-  box-shadow:inset 0 2px 0 rgba(118,200,255,.35);
-}
-.explore-categories [aria-pressed=true] { border-color:var(--native-blue); }
+body { background:var(--page-background); }
+.app-header { padding:16px 4px; }
+main { padding-top:20px; }
+main>h1,dialog h1 { font-size:30px; line-height:1.15; font-weight:750; letter-spacing:-.035em; }
+main>section { border-radius:20px; }
+h2 { font-weight:700; letter-spacing:-.025em; }
+button:not(.website-ui button) { font-weight:650; }
+button.secondary:not(.website-ui button) { box-shadow:none; }
 input:not(.website-ui input),select:not(.website-ui select),textarea:not(.website-ui textarea),
-.native-explore-hero form select { background:var(--native-inset); }
-.match-filters { background:var(--native-inset); }
-.recent-form>div,.team-hub-status>div {
-  background:var(--native-inset);
-  border-color:var(--shell-panel-border);
+.native-explore-hero form select { background:var(--native-inset); border-color:var(--card-border-strong); }
+:where(input,select,textarea,button,summary):focus-visible { outline:3px solid var(--native-blue); outline-offset:3px; }
+/* Floating controls stay quiet; selected navigation uses a blue edge, not a bright tile. */
+.app-navigation {
+  background:rgba(1,13,34,.97);
+  border-color:rgba(7,137,255,.32);
+  box-shadow:0 -8px 28px rgba(0,4,15,.22);
+  gap:4px;
 }
-
-/* Explicit native containers keep generated website component geometry intact. */
-.website-lab>section { background:var(--portal-surface-bg); border-color:var(--shell-panel-border); }
-.website-lab article { background-color:var(--native-panel); border-color:var(--shell-panel-border); }
-.team-bubble { background:#123c65; border-color:var(--shell-panel-border); }
-.team-bubble-mine { background:#20537b; border-color:#76c8ff; }
-.team-bubble blockquote,.chat-composer { background:var(--native-inset); }
-
-dialog[open] { background:var(--shell-panel-bg); border-color:var(--shell-panel-border); }
+.app-navigation button { color:#a6b9d3; font-weight:600; border-radius:12px; }
+.app-navigation button[aria-current=page] {
+  background:#071e3d; color:#f8fbff; border-color:transparent;
+  box-shadow:inset 0 -2px 0 #0789ff;
+}
+/* Compact the website's large editorial hero into a useful native home. */
+.website-lab>[data-native-part="commandCenter"] { padding:0; margin-bottom:12px; background:none; border:0; box-shadow:none; }
+.website-lab [data-native-part="intro"] { gap:12px; margin-bottom:20px; }
+.website-lab [data-native-part="intro"] h1 { font-size:30px; font-weight:750; line-height:1.15; letter-spacing:-.04em; margin-top:10px; }
+.website-lab [data-native-part="labSignature"] strong { font-size:12px; font-weight:700; letter-spacing:.12em; color:var(--native-blue); }
+.website-lab [data-native-part="playerLink"] { background:#061a37; border-color:var(--shell-panel-border); border-radius:999px; }
+.website-lab [data-native-part="playerLink"] strong { color:#e9f1ff; font-weight:650; }
+.website-lab [data-native-part="repCard"] { min-height:0; border-radius:22px; border-color:rgba(7,137,255,.42); background:#041632; box-shadow:0 12px 32px rgba(0,4,15,.26); }
+.website-lab [data-native-part="repContent"] { min-height:290px; padding:22px; }
+.website-lab [data-native-part="repContent"] h2 { margin:26px 0 12px; padding-right:38px; font-size:34px; font-weight:750; line-height:1.06; letter-spacing:-.045em; max-width:560px; }
+.website-lab [data-native-part="repNote"] { font-size:14px; line-height:1.55; padding-right:88px; margin-bottom:22px; color:var(--shell-copy-muted); }
+.website-lab [data-native-part="ballImage"] { width:78px; right:14px; bottom:82px; }
+.website-lab [data-native-part="cardEyebrow"],.website-lab [data-native-part="supportEyebrow"] { font-size:10px; font-weight:700; letter-spacing:.13em; }
+.website-lab [data-native-part="primaryAction"] { min-height:50px; padding:0 18px; border-radius:13px; font-size:15px; font-weight:750; box-shadow:0 5px 16px rgba(155,225,29,.12); }
+.website-lab [data-native-part="matchCard"],.website-lab [data-native-part="momentumCard"] { background:var(--portal-tool-surface-bg); border-color:var(--shell-panel-border); border-radius:20px; padding:20px; min-height:0; gap:12px; }
+.website-lab [data-native-part="emptyMatchTitle"] { font-size:23px; font-weight:700; line-height:1.15; letter-spacing:-.035em; }
+.website-lab [data-native-part="matchCopy"] p { color:var(--shell-copy-muted); }
+.website-lab [data-native-part="matchCopy"] p:not([data-native-part="supportEyebrow"]) { font-size:14px; line-height:1.5; }
+.lab-context { padding:0 2px; font-size:12px; color:#a6b9d3; }
+.tennis-tools { padding:20px; }
+.tennis-tool-grid button.tennis-tool { background:var(--native-inset); border-color:var(--shell-panel-border); border-radius:14px; min-height:72px; }
+.tool-copy strong { font-weight:650; }
+/* Search and shortcut cards share one hierarchy rather than nested blue panels. */
+.native-explore-hero { padding:0; background:none; border:0; box-shadow:none; }
+.native-explore-hero h1 { font-size:32px; font-weight:750; line-height:1.1; letter-spacing:-.04em; margin:22px 0; }
+.native-explore-hero form { gap:10px; margin-bottom:26px; }
+.native-explore-hero form input { min-height:54px; border-radius:14px; }
+.native-explore-hero form button { border-radius:13px; font-weight:700; }
+.website-explore>section { padding:0; border:0; background:none; box-shadow:none; }
+.website-explore button { background:var(--portal-tool-surface-bg); border-color:var(--shell-panel-border); border-radius:16px; }
+.website-explore button strong { font-size:15px; line-height:1.25; font-weight:650; }
+.website-explore button:not(.explore-primary-command) { min-height:82px; padding:14px; }
+.website-explore h2 { font-size:20px; font-weight:700; }
+.website-explore .explore-primary-command strong { font-size:20px; }
+.website-explore .explore-primary-command { background:var(--portal-surface-bg); border-color:rgba(7,137,255,.34); box-shadow:none; }
+.explore-categories { background:rgba(3,19,44,.9); border:1px solid var(--shell-panel-border); border-radius:13px; padding:4px; }
+.explore-categories button { font-weight:600; }
+.explore-categories button[aria-pressed=true] { background:#0a2b54; color:#f8fbff; border-color:transparent; }
+.match-filters { background:var(--native-inset); }
+.recent-form>div,.team-hub-status>div { background:var(--native-inset); border-color:var(--shell-panel-border); }
+/* Sports chat: neutral incoming messages, a cobalt distinction for your posts. */
+.team-bubble { background:#061a36; border-color:rgba(87,157,244,.2); border-radius:17px 17px 17px 5px; }
+.team-bubble-mine { background:#0a2c5c; border-color:rgba(7,137,255,.44); border-radius:17px 17px 5px 17px; }
+.team-message-meta { color:#b5c5dd; }
+.team-bubble p { font-size:15px; line-height:1.55; }
+.team-bubble blockquote,.chat-composer { background:var(--native-inset); border-color:var(--shell-panel-border); }
+.team-bubble .chat-message-actions button.secondary { background:none; border:0; box-shadow:none; }
+.chat-tool-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.chat-tool-row>.chat-find { grid-column:1/-1; grid-row:2; }
+.chat-tool-row>.chat-find summary { min-height:44px; padding:12px; background:var(--native-inset); border-color:var(--shell-panel-border); }
+[data-team-tab] { overflow-wrap:normal; word-break:normal; }
+#app [data-team-tab="Conversation"] { font-size:11px; }
+.team-hub { background:var(--native-inset); border-color:var(--shell-panel-border); }
+dialog[open] { background:var(--portal-tool-surface-bg); border-color:rgba(7,137,255,.32); border-radius:22px; box-shadow:0 24px 64px rgba(0,4,15,.58); }
+@media(min-width:700px) {
+  .website-lab [data-native-part="repContent"] { min-height:320px; padding:30px; }
+  .website-lab [data-native-part="repContent"] h2 { font-size:44px; }
+  .website-lab [data-native-part="ballImage"] { width:130px; bottom:90px; }
+}
+@media(max-width:340px) {
+  .website-lab [data-native-part="repContent"] { padding:18px; }
+  .website-lab [data-native-part="repContent"] h2 { font-size:30px; padding-right:20px; }
+  .website-lab [data-native-part="repNote"] { padding-right:70px; }
+}
 
 .data-imports-dialog { width:min(680px,calc(100vw - 24px)); }
 .import-history { list-style:none; padding:0; }
@@ -126,3 +186,9 @@ dialog[open] { background:var(--shell-panel-bg); border-color:var(--shell-panel-
 
 .import-row summary::after { content:"+"; margin-left:auto; padding-left:12px; color:var(--brand-blue-2); }
 .import-row[open]>summary::after { content:"−"; }
+
+/* Keep chat utility states on one quiet line above the conversation. */
+body[data-screen="teams"] #join-team { width:auto; margin:0 0 12px; min-height:44px; padding:10px 16px; }
+body[data-screen="teams"] .match-filters+p.rating-context { display:inline-block; margin:4px 0 14px; }
+#chat-live-status { display:inline-block; margin:4px 0 14px 12px; color:var(--native-blue); }
+#chat-reaction-status:empty,#chat-read-status:empty,#chat-history-status:empty { display:none; }
