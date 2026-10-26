@@ -82,3 +82,5 @@ body{background:#07111f}.lab-identity{background:#0b1a2f;border-color:rgba(116,1
 .practice-edit-summary{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:20px 0}.practice-edit-summary dt{color:#a9bdd6;font-size:13px;margin-top:16px}.practice-edit-summary dd{font:inherit;font-size:16px;line-height:1.5;margin:6px 0 0;overflow-wrap:anywhere}
 
 .comparison-rating-history table{width:100%;border-collapse:collapse;font-size:14px}.comparison-rating-history th,.comparison-rating-history td{padding:8px 4px;text-align:left;border-bottom:1px solid #29415c}.comparison-rating-history caption{text-align:left;padding:10px 0}.comparison-rating-history summary{min-height:44px;padding:10px 0;cursor:pointer}.comparison-rating-history article{margin-top:18px}
+
+.match-center-dialog [data-center-panel][hidden]{display:none}.match-week-navigation{margin:16px 0}.match-center-dialog [data-center-panel]{min-width:0}

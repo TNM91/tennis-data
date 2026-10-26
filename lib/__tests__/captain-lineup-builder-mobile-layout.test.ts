@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(join(process.cwd(), 'app/captain/lineup-builder/page.tsx'), 'utf8')
-const matchWeekRail = readFileSync(join(process.cwd(), 'app/components/captain-match-week-rail.tsx'), 'utf8')
+const matchWeekRail = readFileSync(join(process.cwd(), 'app/components/captain-match-week-rail.tsx'), 'utf8') + '\n' + readFileSync(join(process.cwd(), 'app/components/captain-match-week-steps.tsx'), 'utf8')
 const intelligence = readFileSync(join(process.cwd(), 'app/components/captain-lineup-intelligence.tsx'), 'utf8')
 const intelligenceStyles = readFileSync(join(process.cwd(), 'app/components/captain-lineup-intelligence.module.css'), 'utf8')
 
