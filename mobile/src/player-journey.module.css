@@ -11,3 +11,6 @@
 .table caption { text-align:left; padding:12px 0; color:#b8c8da; }
 .table th,.table td { padding:10px 6px; text-align:left; border-bottom:1px solid #34506a; }
 @media(max-width:350px) { .summary dd { font-size:16px; } }
+
+.fullChart { margin:16px 0; min-width:0; }
+.fullChart > summary { cursor:pointer; min-height:44px; color:#8ec5ff; font-weight:800; padding:12px 0; }

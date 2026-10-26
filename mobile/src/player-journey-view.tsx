@@ -1,3 +1,5 @@
+import {CompactRatingJourney} from '../../app/components/player-profile-overview'
+import {recentProfileMove} from '../../lib/player-profile-overview'
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -12,14 +14,14 @@ export function PlayerJourney({history}:{history:JourneyHistory}) {
   const [window,setWindow]=useState<JourneyWindow>('all')
   const points=journeyPoints(history,view,window)
   const loaded=history[view],missing=loaded.rows.filter(row=>row.dynamic_rating===null).length
-  const first=points[0],latest=points.at(-1),change=first&&latest&&points.length>1?latest.rating-first.rating:null
+  const first=points[0],latest=points.at(-1)
   return <div className={"website-ui native-player-journey "+layout.shell}>
     <h2>Rating journey</h2>
     <div className={styles.chartNavigation} role="group" aria-label="Rating format">{journeyViews.map(kind=><button key={kind} className={styles.button} type="button" aria-pressed={view===kind} onClick={()=>setView(kind)}>{getRatingViewLabel(kind)}</button>)}</div>
     <label className={layout.window}>History window<select value={window} onChange={event=>setWindow(event.target.value as JourneyWindow)}><option value="all">All loaded history</option><option value="90d">Last 90 days</option><option value="30d">Last 30 days</option></select></label>
     <p className={layout.coverage}>{getRatingViewLabel(view)} TIQ · Latest {loaded.rows.length}{loaded.more?' of more saved':''} snapshot{loaded.rows.length===1?'':'s'} loaded. This is not a complete season or a match count. {missing?`${missing} snapshot${missing===1?' has':'s have'} no rating and ${missing===1?'is':'are'} omitted from the chart.`:''}</p>
-    {first&&latest?<dl className={layout.summary}><div><dt>First in window</dt><dd>{first.rating.toFixed(3)}</dd></div><div><dt>Latest in window</dt><dd>{latest.rating.toFixed(3)}</dd></div><div><dt>Window change</dt><dd>{change===null?'—':`${change>=0?'+':''}${change.toFixed(3)}`}</dd></div></dl>:null}
-    {points.length?<RatingJourneyExplorer key={view+':'+window} points={points}/>:<p role="status">No recorded {getRatingViewLabel(view).toLowerCase()} ratings in this window. Try another format or All loaded history.</p>}
+    {first&&latest?<CompactRatingJourney points={points} firstLabel={first.rating.toFixed(3)} currentLabel={latest.rating.toFixed(3)} recentChange={recentProfileMove(points)} firstTitle="First in window" currentTitle="Latest in window" note="Recent move compares the latest five available ratings. The sparkline shows up to six. Open the full chart for every loaded rating."/>:null}
+    {points.length?<details key={view+':'+window} className={layout.fullChart}><summary>Open full rating chart</summary><RatingJourneyExplorer key={view+':'+window} points={points}/></details>:<p role="status">No recorded {getRatingViewLabel(view).toLowerCase()} ratings in this window. Try another format or All loaded history.</p>}
     <details><summary>Dated {getRatingViewLabel(view)} ratings · {points.length}</summary><div className="horizontal-data" role="region" tabIndex={0} aria-label="Dated player ratings"><table className={layout.table}><caption>{getRatingViewLabel(view)} TIQ · selected window</caption><thead><tr><th scope="col">Date</th><th scope="col">TIQ</th><th scope="col">Change</th></tr></thead><tbody>{points.map(point=><tr key={point.id}><td>{point.date.slice(0,10)}</td><td>{point.rating.toFixed(3)}</td><td>{point.delta===null?'—':`${point.delta>=0?'+':''}${point.delta.toFixed(3)}`}</td></tr>)}</tbody></table></div></details>
     <p>TIQ is an estimate, not an official USTA rating. Each format uses its own saved ratings; missing Singles or Doubles history stays empty.</p>
   </div>

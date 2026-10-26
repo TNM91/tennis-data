@@ -1,4 +1,6 @@
 'use client'
+import {CompactRatingJourney,PlayerMatchQuality,RatingSparkline} from '../../components/player-profile-overview'
+import {playerMatchQuality} from '../../../lib/player-profile-overview'
 import {playerRepeatOpponents} from '../../../lib/player-repeat-opponents'
 
 import {PlayerBenchmarkPanel,PlayerOpponentQualityPanel} from '@/app/components/player-benchmark-panels'
@@ -1550,40 +1552,7 @@ function PlayerProfileContent() {
   const compactJourneyPoints = chartPoints.slice(-6)
   const journeyStartRating = chartPoints[0]?.rating ?? selectedDynamicRating
   const journeyCurrentRating = chartPoints.at(-1)?.rating ?? selectedDynamicRating
-  const journeyRecentChange = recentTrendDelta === null
-    ? null
-    : `${recentTrendDelta >= 0 ? '+' : ''}${recentTrendDelta.toFixed(2)}`
-  const scoredMatches = filteredMatches.filter((match) => /\d+\s*[-:]\s*\d+/.test(match.score || ''))
-  const competitiveScorecards = scoredMatches.filter((match) => {
-    const sets = Array.from((match.score || '').matchAll(/(\d+)\s*[-:]\s*(\d+)/g))
-    return sets.some((set) => Math.abs(Number(set[1]) - Number(set[2])) <= 2)
-  }).length
-  const publicMatchQuality = [
-    {
-      label: 'Scores captured',
-      value: totalMatches ? `${scoredMatches.length}/${totalMatches}` : '—',
-      note: totalMatches ? 'Results with a final score' : 'No results yet',
-      percent: totalMatches ? Math.round((scoredMatches.length / totalMatches) * 100) : 0,
-    },
-    {
-      label: 'Current streak',
-      value: winStreak.count ? `${winStreak.count}${winStreak.type}` : '—',
-      note: winStreak.count ? `${winStreak.type === 'W' ? 'Wins' : 'Losses'} in a row` : 'Trend building',
-      percent: totalMatches ? Math.min(100, Math.round((winStreak.count / totalMatches) * 100)) : 0,
-    },
-    {
-      label: 'Close scorecards',
-      value: scoredMatches.length ? `${competitiveScorecards}/${scoredMatches.length}` : '—',
-      note: scoredMatches.length ? 'At least one close set' : 'Scores still arriving',
-      percent: scoredMatches.length ? Math.round((competitiveScorecards / scoredMatches.length) * 100) : 0,
-    },
-    {
-      label: 'Avg opponent',
-      value: avgOpponentRating !== null ? avgOpponentRating.toFixed(2) : '—',
-      note: avgOpponentRating !== null ? `${ratingViewLabel} TIQ rating` : 'More context needed',
-      percent: avgOpponentRating !== null ? Math.min(100, Math.round((avgOpponentRating / 7) * 100)) : 0,
-    },
-  ]
+  const publicMatchQuality = playerMatchQuality(filteredMatches,snapshots.filter(s=>ratingView==='overall'? !s.rating_type||s.rating_type==='overall':s.rating_type===ratingView).flatMap(s=>s.opponent_rating==null?[]:[s.opponent_rating]),ratingViewLabel)
   const profileAchievementShowcase = useMemo(() => {
     const showcase: Array<{ key: string; label: string; detail: string; icon: TiqFeatureIconName }> = []
 
@@ -2128,24 +2097,7 @@ function PlayerProfileContent() {
                 </article>
               ))}
             </div>
-            <div className={profileStory.matchQualitySnapshot} aria-label="Match quality snapshot">
-              <div className={profileStory.matchQualitySnapshotHeading}>
-                <span>Match quality</span>
-                <small>Scorecards and competition context</small>
-              </div>
-              <div className={profileStory.matchQualityGrid}>
-                {publicMatchQuality.map((metric) => (
-                  <article key={metric.label} className={profileStory.matchQualityMetric}>
-                    <div>
-                      <span>{metric.label}</span>
-                      <strong>{metric.value}</strong>
-                    </div>
-                    <small>{metric.note}</small>
-                    <i aria-hidden="true"><b style={{ width: `${metric.percent}%` }} /></i>
-                  </article>
-                ))}
-              </div>
-            </div>
+            <PlayerMatchQuality metrics={publicMatchQuality}/>
             {access.canUseAdvancedPlayerInsights ? (
               <details style={advancedStatsDetailsStyle}>
                 <summary style={advancedStatsSummaryStyle}><span>Set-score grid</span><strong>Singles & doubles</strong></summary>
@@ -2289,24 +2241,7 @@ function PlayerProfileContent() {
                 ? <RatingJourneyExplorer key={ratingView} points={ratingJourneyPoints} />
                 : <SimpleLineChart points={filteredChartPoints} baseRating={baseRating} />
             ) : chartPoints.length > 1 ? (
-              <div className={profileStory.ratingHistorySummary} aria-label="Compact TIQ rating journey">
-                <div className={profileStory.ratingJourneyPulse}>
-                  <div>
-                    <span>First result</span>
-                    <strong>{formatTiqRating(journeyStartRating, player, canViewExactTiqRating)}</strong>
-                  </div>
-                  <RatingSparkline points={compactJourneyPoints} />
-                  <div>
-                    <span>TIQ now</span>
-                    <strong>{formatTiqRating(journeyCurrentRating, player, canViewExactTiqRating)}</strong>
-                  </div>
-                  <div data-direction={recentTrendDelta === null ? 'flat' : recentTrendDelta >= 0 ? 'up' : 'down'}>
-                    <span>Recent move</span>
-                    <strong>{journeyRecentChange ?? 'Building'}</strong>
-                  </div>
-                </div>
-                <small>Open the full chart when you want every reviewed result.</small>
-              </div>
+              <CompactRatingJourney points={compactJourneyPoints} firstLabel={formatTiqRating(journeyStartRating,player,canViewExactTiqRating)} currentLabel={formatTiqRating(journeyCurrentRating,player,canViewExactTiqRating)} recentChange={recentTrendDelta}/>
             ) : chartPoints.length === 1 ? (
               <div className={profileStory.singlePointRead}>
                 <span>First reviewed result</span>
@@ -4275,39 +4210,6 @@ function StatChip({
 }
 
 type ChartPoint = { x: number; date: string; rating: number; delta: number | null; winProbability: number | null }
-
-function RatingSparkline({ points }: { points: ChartPoint[] }) {
-  if (points.length < 2) {
-    return <div className={profileStory.ratingPulseEmpty} aria-hidden="true"><i /></div>
-  }
-
-  const width = 220
-  const height = 68
-  const padding = 5
-  const min = Math.min(...points.map((point) => point.rating))
-  const max = Math.max(...points.map((point) => point.rating))
-  const spread = Math.max(max - min, 0.08)
-  const path = points.map((point, index) => {
-    const x = padding + (index / (points.length - 1)) * (width - padding * 2)
-    const y = height - padding - ((point.rating - min) / spread) * (height - padding * 2)
-    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`
-  }).join(' ')
-  const last = points[points.length - 1]
-  const lastY = height - padding - ((last.rating - min) / spread) * (height - padding * 2)
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Recent TIQ rating movement" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="publicProfileSparkline" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#58a6ff" />
-          <stop offset="100%" stopColor="#b7ed23" />
-        </linearGradient>
-      </defs>
-      <path d={path} fill="none" stroke="url(#publicProfileSparkline)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={width - padding} cy={lastY} r="4.5" fill="#d9f84a" stroke="#09192d" strokeWidth="3" />
-    </svg>
-  )
-}
 
 function dotStyle(point: ChartPoint): { fill: string; halo: string; r: number } {
   const { delta, winProbability } = point
