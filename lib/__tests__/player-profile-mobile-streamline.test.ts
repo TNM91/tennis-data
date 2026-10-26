@@ -3,6 +3,8 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const page = readFileSync(join(process.cwd(), 'app/players/[id]/page.tsx'), 'utf8')
+const overview = readFileSync(join(process.cwd(), 'app/components/player-profile-overview.tsx'), 'utf8')
+const calculations = readFileSync(join(process.cwd(), 'lib/player-profile-overview.ts'), 'utf8')
 const styles = readFileSync(join(process.cwd(), 'app/players/[id]/player-profile-story.module.css'), 'utf8')
 
 describe('player profile mobile streamline', () => {
@@ -167,7 +169,7 @@ describe('player profile mobile streamline', () => {
     expect(page).toContain('<span>Opponent</span>')
     expect(page).toContain('{match.context}</span>')
     expect(page).toContain('{!isPublicExplorerProfile ? <div id="profile-match-strip"')
-    expect(page).toContain('function RatingSparkline')
+    expect(overview).toContain('function RatingSparkline')
     expect(styles).toContain('.ratingPulse')
     expect(styles).toContain('.recentResultTileGrid')
     expect(styles).toContain('.recentResultTileTopline')
@@ -213,23 +215,23 @@ describe('player profile mobile streamline', () => {
 
   it('turns the collapsed rating history into a compact TIQ journey read', () => {
     expect(page).toContain('const compactJourneyPoints = chartPoints.slice(-6)')
-    expect(page).toContain('aria-label="Compact TIQ rating journey"')
-    expect(page).toContain('<span>First result</span>')
-    expect(page).toContain('<span>TIQ now</span>')
-    expect(page).toContain('<span>Recent move</span>')
-    expect(page).toContain('<RatingSparkline points={compactJourneyPoints} />')
+    expect(overview).toContain('aria-label="Compact TIQ rating journey"')
+    expect(overview).toContain("firstTitle='First result'")
+    expect(overview).toContain("currentTitle='TIQ now'")
+    expect(overview).toContain('<span>Recent move</span>')
+    expect(page).toContain('<CompactRatingJourney points={compactJourneyPoints}')
     expect(styles).toContain('.ratingJourneyPulse')
   })
 
   it('adds factual match-quality visuals to the public performance read', () => {
-    expect(page).toContain('const publicMatchQuality = [')
+    expect(page).toContain('const publicMatchQuality = playerMatchQuality(')
     expect(page).toContain("const selectedMatchLabel = ratingView === 'overall' ? 'All matches' : `${capitalize(ratingView)} only`")
     expect(page).toContain("label: ratingView === 'overall' ? 'Match mix' : 'Reviewed'")
-    expect(page).toContain("label: 'Scores captured'")
-    expect(page).toContain("label: 'Current streak'")
-    expect(page).toContain("label: 'Close scorecards'")
-    expect(page).toContain("label: 'Avg opponent'")
-    expect(page).toContain('aria-label="Match quality snapshot"')
+    expect(calculations).toContain("label:'Scores captured'")
+    expect(calculations).toContain("label:'Current streak'")
+    expect(calculations).toContain("label:'Close scorecards'")
+    expect(calculations).toContain("label:'Avg opponent'")
+    expect(overview).toContain('aria-label="Match quality snapshot"')
     expect(styles).toContain('.matchQualitySnapshot')
     expect(styles).toContain('.matchQualityGrid')
     expect(styles).toContain('.matchQualityMetric')
