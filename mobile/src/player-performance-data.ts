@@ -1,3 +1,4 @@
+import type {RecentMatchRow} from './recent-results'
 import {loadOpponentHistory,type OpponentHistoryMatch} from './player-repeat-opponents'
 import {playerRepeatOpponents} from '../../lib/player-repeat-opponents'
 import type {RepeatOpponent} from '../../lib/player-repeat-opponents'
@@ -10,7 +11,7 @@ import type {RatingView,PlayerRatingShape} from '../../lib/player-rating-display
 import {loadPlayerFieldReference,type PlayerFieldReference} from '../../lib/player-field-reference'
 type PerformancePlayer=PlayerRatingShape & {rating_source:string|null}
 type Snapshot={id:string;matchId:string|null;date:string;view:RatingView;rating:number|null;delta:number|null;opponentRating:number|null}
-export type PlayerPerformanceData={matches:Array<PerformanceMatch&{score?:string|null}>;snapshots:Snapshot[];matchesLimited:boolean;ratingsLimited:boolean;repeatOpponents?:RepeatOpponent[]|null;opponentHistory?:OpponentHistoryMatch[]|null;insight?:{player:PerformancePlayer|null;reference:PlayerFieldReference|null}}
+export type PlayerPerformanceData={matches:Array<PerformanceMatch&{score?:string|null;scorecard?:RecentMatchRow}>;snapshots:Snapshot[];matchesLimited:boolean;ratingsLimited:boolean;repeatOpponents?:RepeatOpponent[]|null;opponentHistory?:OpponentHistoryMatch[]|null;insight?:{player:PerformancePlayer|null;reference:PlayerFieldReference|null}}
 const record=(value:unknown):Record<string,unknown>=>{if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Performance unavailable.');return value as Record<string,unknown>}
 const key=(value:unknown)=>{if(typeof value!=='string'||!/^[a-zA-Z0-9_-]{1,100}$/.test(value))throw Error('Performance unavailable.');return value}
 function date(value:unknown){if(typeof value!=='string'||value.length>40||!isValidCalendarDate(value.slice(0,10))||!Number.isFinite(Date.parse(value)))throw Error('Performance unavailable.');return value}
@@ -21,7 +22,7 @@ export function parsePlayerPerformance(matchRows:unknown,snapshotRows:unknown,pl
     const score=r.score??null;if(score!==null&&(typeof score!=='string'||score.length>500))throw Error('Performance unavailable.')
     const participant=record(r.match_players[0]);if(participant.player_id!==playerId)throw Error('Performance unavailable.')
     const outcome=matchupOutcome(participant.side,r.winner_side);if(!outcome)throw Error('Performance unavailable.')
-    return {id,score:score as string|null,date:day,matchType:r.match_type as 'singles'|'doubles',result:outcome==='A'?'W' as const:'L' as const}
+    return {id,score:score as string|null,date:day,matchType:r.match_type as 'singles'|'doubles',result:outcome==='A'?'W' as const:'L' as const,scorecard:{id,score:score as string|null,match_date:day,match_type:r.match_type as string,league_name:typeof r.league_name==='string'&&r.league_name.length<=200?r.league_name:null,winner_side:r.winner_side as string,match_players:[{player_id:playerId,side:participant.side as string}]}}
   })
   const snapshots=snapshotRows.map(value=>{const r=record(value),id=key(r.id),day=date(r.snapshot_date),view=r.rating_type??'overall'
     if(r.player_id!==playerId||r.track!=='tiq'||!['overall','singles','doubles'].includes(String(view))||r.dynamic_rating!==null&&(typeof r.dynamic_rating!=='number'||!Number.isFinite(r.dynamic_rating)||r.dynamic_rating<1.5||r.dynamic_rating>7)||r.delta!==null&&(typeof r.delta!=='number'||!Number.isFinite(r.delta)||Math.abs(r.delta)>10))throw Error('Performance unavailable.')
@@ -38,7 +39,7 @@ export async function loadPlayerPerformance(client:SupabaseClient,playerId:strin
   const owner=await own();if(!await canFollowPlayers(client,current))throw new FollowAccessError('Player access is required.');await own(owner)
   const today=new Date().toISOString().slice(0,10)
   const [matches,snapshots,player,reference]=await Promise.all([
-    client.from('matches').select('id,score,match_date,match_type,winner_side,public_history_eligible,match_players!inner(player_id,side)',{count:'exact'}).eq('match_players.player_id',playerId).eq('public_history_eligible',true).in('match_type',['singles','doubles']).in('winner_side',['A','B']).lte('match_date',today).order('match_date',{ascending:false}).order('match_time',{ascending:false}).order('id',{ascending:false}).limit(501).abortSignal(AbortSignal.timeout(12000)),
+    client.from('matches').select('id,score,league_name,match_date,match_type,winner_side,public_history_eligible,match_players!inner(player_id,side)',{count:'exact'}).eq('match_players.player_id',playerId).eq('public_history_eligible',true).in('match_type',['singles','doubles']).in('winner_side',['A','B']).lte('match_date',today).order('match_date',{ascending:false}).order('match_time',{ascending:false}).order('id',{ascending:false}).limit(501).abortSignal(AbortSignal.timeout(12000)),
     client.from('rating_snapshots').select('id,player_id,match_id,snapshot_date,rating_type,dynamic_rating,delta,opponent_rating,track',{count:'exact'}).eq('player_id',playerId).eq('track','tiq').order('snapshot_date',{ascending:false}).order('id',{ascending:false}).limit(501).abortSignal(AbortSignal.timeout(12000)),
     loadPerformancePlayer(client,playerId),loadPlayerFieldReference(client)
   ])
