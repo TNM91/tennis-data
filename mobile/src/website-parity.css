@@ -360,3 +360,4 @@ body[data-screen="lab"] #recent-results .match-filters button[aria-pressed="true
 .scorecard-share-dialog { min-width:0; }
 .scorecard-share-dialog .match-share-preview { max-width:100%; white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; padding:14px; border:1px solid var(--shell-panel-border); border-radius:12px; background:var(--native-inset); }
 .scorecard-share-url { overflow-wrap:anywhere; font-size:12px; color:var(--native-blue); }
+.roster-player-dialog nav[aria-label="Player sections"] { position:static; }
