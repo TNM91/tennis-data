@@ -601,3 +601,11 @@ Native player Stats now includes selected-format record bars by year and dated r
 Team court results compare the shown sample and its Singles/Doubles split, with year/format filters applied locally. The detailed court list is expandable. The sample remains bounded to existing court/fixture limits and is not presented as team-tie wins or standings. Shared native charts expose counts, percentages and meter labels, without new queries, polling, schema, permissions or writes. Narrow player section tabs and team format controls were corrected to keep whole labels readable.
 
 Synthetic checks at320/390 cover selected-format/year denominators, opponent coverage, court-list disclosure, no additional reads on filters, and incomplete match/rating histories. Physical iPhone, Dynamic Type and VoiceOver acceptance remain pending.
+
+### Build 107: review saved imports inside the app
+
+Uploads & imports now lets the owner read saved, unprocessed/failed files, confirm a fully displayed processed draft, or flag incorrect data. Reading and confirmation explicitly disclose that the existing website rules can import records immediately, with an unchecked acknowledgement before either action. Imported, rejected, verified, queued and unknown states do not expose those actions. Drafts larger than the 100-row preview cannot be confirmed here; corrections and new file selection still use Data Assist in the system browser.
+
+The native transport posts only saved batch/draft IDs and a review decision to the existing HTTPS OCR/review endpoints, with native redirect rejection and bounded timeouts. It rechecks the current owner and saved draft before sending, then discards replies after account/visit changes. Requests are never automatically retried; another action requires an explicit saved-draft refresh, including after an uncertain response. Server ownership, validation, parsing, auto-import and rating-refresh rules remain unchanged. No schema or permission changes.
+
+Synthetic actual-entry checks cover confirmation, saved-file reading, timeout recovery, acknowledgement reset, 320/390 containment and zero production writes. Native file selection, editing/corrections and physical iPhone/VoiceOver/Dynamic Type acceptance remain unfinished.
