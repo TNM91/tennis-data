@@ -82,6 +82,7 @@ import { buildMatchIntelligenceRead } from '@/lib/player-match-intelligence'
 import { filterMatchbookEntries, getMatchbookFilterLabel, type MatchbookFilter } from '@/lib/player-matchbook'
 import { playerRecentRecord } from '@/lib/player-recent-record'
 import { playerLevelPath } from '@/lib/player-level-path'
+import { playerResultBreakdown } from '@/lib/player-result-breakdown'
 import { buildPlayerRatingJourneyRead, type RatingJourneySnapshot } from '@/lib/player-rating-journey'
 import { buildPlayerLeagueHome } from '@/lib/player-league-home'
 import type { LeagueWeeklyPlayerRecord } from '@/lib/league-weekly-player-records'
@@ -2935,35 +2936,9 @@ function MyLabPageInner() {
   })
   const earnedTrophyBadges = trophyBadges.filter((badge) => badge.earned)
   const nextTrophyBadge = trophyBadges.find((badge) => !badge.earned) || null
-  const seasonRecords = new Map<string, { wins: number; losses: number }>()
-  const leagueRecords = new Map<string, { wins: number; losses: number }>()
-  recentDecisionMatches.forEach((match) => {
-    const year = match.date && !Number.isNaN(new Date(match.date).getTime())
-      ? String(new Date(match.date).getFullYear())
-      : 'Connected'
-    const season = seasonRecords.get(year) || { wins: 0, losses: 0 }
-    if (match.result === 'W') season.wins += 1
-    if (match.result === 'L') season.losses += 1
-    seasonRecords.set(year, season)
-
-    const leagueName = match.leagueName || 'Connected matches'
-    const league = leagueRecords.get(leagueName) || { wins: 0, losses: 0 }
-    if (match.result === 'W') league.wins += 1
-    if (match.result === 'L') league.losses += 1
-    leagueRecords.set(leagueName, league)
-  })
-  const rankRecords = (records: Map<string, { wins: number; losses: number }>) =>
-    [...records.entries()]
-      .map(([label, record]) => ({
-        label,
-        ...record,
-        total: record.wins + record.losses,
-        winRate: record.wins + record.losses ? Math.round((record.wins / (record.wins + record.losses)) * 100) : 0,
-      }))
-      .filter((record) => record.total > 0)
-      .sort((a, b) => b.winRate - a.winRate || b.wins - a.wins || b.total - a.total)
-  const bestSeason = rankRecords(seasonRecords)[0] || null
-  const bestLeague = rankRecords(leagueRecords)[0] || null
+  const resultBreakdown = playerResultBreakdown(personalMatches)
+  const bestSeason = resultBreakdown.seasons[0] || null
+  const bestLeague = resultBreakdown.leagues[0] || null
   const anchorRating = linkedPlayer?.singles_dynamic_rating ?? linkedPlayer?.overall_dynamic_rating ?? null
   const matchupCandidates =
     linkedPlayer && typeof anchorRating === 'number'
