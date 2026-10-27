@@ -1,7 +1,9 @@
 import {describe,it,expect,vi} from 'vitest'
+import {teamChatReactions} from '../team-chat-reaction-kinds'
+import type {TeamMessage} from '../../mobile/src/team-room-data'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {loadNativeReactionSummary,setNativeChatReaction} from '../native-chat-reactions'
-import {parseChatReactions} from '../../mobile/src/chat-reactions'
+import {chatReactionButtons,parseChatReactions} from '../../mobile/src/chat-reactions'
 const id='1959be10-4557-4a03-87bd-584ba14ff519'
 function database(message:unknown={id,sender_user_id:'teammate'},blocks:unknown=[]){
  const calls:{table:string;method:string;args:unknown[]}[]=[]
@@ -46,4 +48,20 @@ describe('native chat reactions',()=>{
   expect(parseChatReactions([{reaction:'helpful',count:3,reacted:true,profileIds:['private']},{reaction:'ack',count:1,reacted:true},{reaction:'celebrate',count:-1,reacted:true}])).toEqual([{reaction:'helpful',count:3,reacted:true}])
   expect(parseChatReactions([{reaction:'helpful',count:0,reacted:true}])).toEqual([{reaction:'helpful',count:0,reacted:false}])
  })
+ it('accepts all six social kinds without turning reactions into formal acknowledgments',async()=>{
+  for(const {reaction} of teamChatReactions){const db=database();expect(await setNativeChatReaction(db.service,'owner','room',{messageId:id,reaction,active:true})).toMatchObject({ok:true,reaction})}
+  expect(parseChatReactions([{reaction:'heart',count:3,reacted:true},{reaction:'heart',count:3,reacted:false}])).toEqual([])
+ })
+ it('bounds all six summaries and keeps large or unsafe counts out of the UI',async()=>{
+  const data=teamChatReactions.map(({reaction})=>({message_id:id,reaction,reaction_count:2,reacted:false})),rpc=vi.fn().mockResolvedValue({data}),service={rpc} as unknown as SupabaseClient
+  expect((await loadNativeReactionSummary(service,'owner','room',[id])).get(id)).toHaveLength(6)
+  rpc.mockResolvedValueOnce({data:[{...data[0],reaction_count:1000001}]});await expect(loadNativeReactionSummary(service,'owner','room',[id])).rejects.toThrow()
+  rpc.mockResolvedValueOnce({data:[...data,data[0]]});await expect(loadNativeReactionSummary(service,'owner','room',[id])).rejects.toThrow()
+ })
+ it('shows counted emoji pills and a labelled picker without names or unsafe message markup',()=>{
+  const rendered=chatReactionButtons({id:'<message>',senderName:'<sender>',reactions:[{reaction:'heart',count:3,reacted:true}]} as TeamMessage)
+  expect(rendered).toContain('aria-label="Love: 3 reactions"');expect(rendered).toContain('chat-reaction-picker');expect(rendered).not.toContain('<message>');expect(rendered).not.toContain('<sender>')
+  expect(rendered.match(/data-chat-reaction=/g)).toHaveLength(7);expect(rendered).not.toContain('profileIds')
+ })
+
 })

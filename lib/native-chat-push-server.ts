@@ -53,7 +53,7 @@ export async function deliverAppleChat(devices:Device[],href:string,conversation
  return {sent,failed:failed+devices.length-index,expired}
 }
 /** Ordinary chat only; fail closed for membership, safety or device storage errors. */
-export async function sendNativeTeamChatPush(service:SupabaseClient,input:{conversationId:string;actorId:string;recipients:string[];scope:TeamRoomScope;href:string}){
+export async function sendNativeTeamChatPush(service:SupabaseClient,input:{conversationId:string;parentConversationId?:string;actorId:string;recipients:string[];scope:TeamRoomScope;href:string}){
  const config=nativePushConfiguration()
  if(!config || !input.recipients.length)return {sent:0,failed:0}
  try{
@@ -65,18 +65,28 @@ export async function sendNativeTeamChatPush(service:SupabaseClient,input:{conve
  }catch{console.warn('Native team alerts unavailable');return {sent:0,failed:input.recipients.length}}
 }
 
-export async function loadNativeChatDevices(service:SupabaseClient,input:{conversationId:string;actorId:string;recipients:string[];scope:TeamRoomScope}){
+export async function loadNativeChatDevices(service:SupabaseClient,input:{conversationId:string;parentConversationId?:string;actorId:string;recipients:string[];scope:TeamRoomScope}){
  const candidates=Array.from(new Set(input.recipients.filter(id=>id!==input.actorId))).slice(0,100)
  if(!candidates.length)return []
+ let roomMuted=new Set<string>()
+ if(input.parentConversationId){
+  const mapping=await service.from('team_chat_rooms').select('parent_conversation_id,team_name,league_name,flight').eq('conversation_id',input.conversationId).eq('parent_conversation_id',input.parentConversationId).maybeSingle()
+  if(mapping.error||!mapping.data||mapping.data.team_name!==input.scope.teamName||mapping.data.league_name!==input.scope.leagueName||(mapping.data.flight||'')!==input.scope.flight)throw Error('membership')
+  const parent=await service.from('internal_conversations').select('related_entity_id,metadata').eq('id',input.parentConversationId).eq('related_entity_type','team_room').eq('status','open').maybeSingle()
+  if(parent.error||!parent.data||parent.data.related_entity_id!==buildTeamRoomScopeId(input.scope)||parent.data.metadata?.teamName!==input.scope.teamName||parent.data.metadata?.leagueName!==input.scope.leagueName||(parent.data.metadata?.flight||'')!==input.scope.flight)throw Error('membership')
+  const choices=await service.from('internal_conversation_participants').select('profile_id,muted').eq('conversation_id',input.conversationId).in('profile_id',candidates)
+  if(choices.error||!choices.data)throw Error('membership')
+  roomMuted=new Set(choices.data.filter(row=>row.muted===true).map(row=>String(row.profile_id)))
+ }
  const [links,participants,removals]=await Promise.all([
-   service.from('team_profile_links').select('profile_user_id,team_name,league_name,flight,team_role,team_roles').in('profile_user_id',candidates).eq('status','accepted').limit(1000),
-   service.from('internal_conversation_participants').select('profile_id,muted').eq('conversation_id',input.conversationId).in('profile_id',candidates),
-   service.from('team_room_member_removals').select('profile_id').eq('conversation_id',input.conversationId).in('profile_id',candidates),
+   service.from('team_profile_links').select('profile_user_id,team_name,league_name,flight,team_role,team_roles,archived_at').in('profile_user_id',candidates).eq('status','accepted').limit(1000),
+   service.from('internal_conversation_participants').select('profile_id,muted').eq('conversation_id',input.parentConversationId||input.conversationId).in('profile_id',candidates),
+   service.from('team_room_member_removals').select('profile_id').eq('conversation_id',input.parentConversationId||input.conversationId).in('profile_id',candidates),
   ])
  if(links.error || participants.error || removals.error || !links.data || links.data.length>=1000)throw Error('membership')
  const removed=new Set((removals.data || []).map(row=>row.profile_id)),scopeId=buildTeamRoomScopeId(input.scope)
- const accepted=new Set(links.data.filter(row=>buildTeamRoomScopeId({teamName:row.team_name,leagueName:row.league_name,flight:row.flight})===scopeId && (!removed.has(row.profile_user_id) || canManageTeamRoom(row.team_roles?.length?row.team_roles:[row.team_role]))).map(row=>row.profile_user_id))
- const members=(participants.data || []).filter(row=>candidates.includes(row.profile_id) && !row.muted && accepted.has(row.profile_id)).map(row=>String(row.profile_id))
+ const accepted=new Set(links.data.filter(row=>(!input.parentConversationId||!row.archived_at&&row.team_name===input.scope.teamName&&row.league_name===input.scope.leagueName&&(row.flight||'')===input.scope.flight)&&buildTeamRoomScopeId({teamName:row.team_name,leagueName:row.league_name,flight:row.flight})===scopeId && (!removed.has(row.profile_user_id) || !input.parentConversationId&&canManageTeamRoom(row.team_roles?.length?row.team_roles:[row.team_role]))).map(row=>row.profile_user_id))
+ const members=(participants.data || []).filter(row=>candidates.includes(row.profile_id) && !row.muted && !roomMuted.has(row.profile_id) && accepted.has(row.profile_id)).map(row=>String(row.profile_id))
  const recipients=await chatNotificationRecipients(service,input.actorId,members)
  if(!recipients.length)return []
  const devices=await service.from('native_push_devices').select('installation_id,profile_id,device_token,updated_at').in('profile_id',recipients).eq('enabled',true).gt('expires_at',new Date().toISOString()).limit(100)

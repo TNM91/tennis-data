@@ -67,4 +67,12 @@ describe('Apple team alert boundaries',()=>{
   rpc.mockResolvedValue({data:false,error:null});expect((await bindPushDevice({rpc} as unknown as SupabaseClient,'owner',input)).status).toBe(409)
   rpc.mockResolvedValue({error:{}});expect((await bindPushDevice({rpc} as unknown as SupabaseClient,'owner',input)).status).toBe(503)
  })
+ it('requires the parent mapping and respects both team and room mute without a captain removal bypass',async()=>{
+  const candidates=['allowed','room-muted','team-muted','removed-captain','archived','actor'],calls:{table:string;method:string;args:unknown[]}[]=[]
+  const service={from:(table:string)=>{let selected='';const data=()=>table==='team_chat_rooms'?{parent_conversation_id:'parent',team_name:'T',league_name:'L',flight:'4'}:table==='internal_conversations'?{related_entity_id:'t__l__4',metadata:{teamName:'T',leagueName:'L',flight:'4'}}:table==='team_profile_links'?candidates.map(id=>({profile_user_id:id,team_name:'T',league_name:'L',flight:'4',team_roles:id==='removed-captain'?['captain']:['player'],archived_at:id==='archived'?'time':null})):table==='internal_conversation_participants'?candidates.map(id=>({profile_id:id,muted:selected==='child'?id==='room-muted':id==='team-muted'})):table==='team_room_member_removals'?[{profile_id:'removed-captain'}]:[];const q:Record<string,unknown>={then:(resolve:(value:unknown)=>unknown)=>Promise.resolve(resolve({data:data(),error:null})),maybeSingle:async()=>({data:data(),error:null})};for(const method of ['select','in','eq','gt','limit'])q[method]=(...args:unknown[])=>{calls.push({table,method,args});if(method==='eq'&&args[0]==='conversation_id')selected=String(args[1]);return q};return q}} as unknown as SupabaseClient
+  await loadNativeChatDevices(service,{actorId:'actor',conversationId:'child',parentConversationId:'parent',recipients:candidates,scope:{teamName:'T',leagueName:'L',flight:'4'}})
+  expect(calls).toContainEqual({table:'native_push_devices',method:'in',args:['profile_id',['allowed']]})
+  expect(calls).toContainEqual({table:'team_chat_rooms',method:'eq',args:['parent_conversation_id','parent']})
+ })
+
 })

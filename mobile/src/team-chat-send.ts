@@ -1,3 +1,4 @@
+import type {TeamChatReactionKind} from '../../lib/team-chat-reaction-kinds'
 import {readChatMentions,type ChatMention} from '../../lib/team-chat-mentions'
 import type {ChatPhoto} from './chat-photos'
 import {CapacitorHttp} from '@capacitor/core'
@@ -14,7 +15,7 @@ export type ChatAction =
   | {action:'set_chat_mute';conversationId:string;muted:boolean}
   | {action:'read_chat_photo';messageId:string;photoPreview?:boolean}
   | {action:'send_chat_photo';clientMessageId:string;body:string;replyToMessageId:string;photoBase64:string;photoMimeType?:'image/gif'}
-  | {action:'set_chat_reaction';messageId:string;reaction:'helpful'|'celebrate';active:boolean}
+  | {action:'set_chat_reaction';messageId:string;reaction:TeamChatReactionKind;active:boolean}
   | {action:'mark_chat_read';messageId:string}
   | {action:'send';clientMessageId:string;body:string;replyToMessageId:string;announcement?:true;mentions?:ChatMention[]}
   | {action:'report_chat_message';messageId:string;reason:'harassment'|'spam'|'inappropriate'|'other'}
