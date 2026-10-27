@@ -1,3 +1,6 @@
+import {nativeActionIcon} from './native-action-icons'
+import {labRecentFormHtml} from './lab-recent-form'
+import {labLevelPathHtml} from './lab-level-path'
 import {loadOlderResults} from './recent-results-history'
 import {mountLabRatingTrends} from './lab-rating-trends'
 import {openDataImports} from './data-imports-view'
@@ -215,7 +218,7 @@ async function lab() {
   app.dataset.state = error ? 'unavailable' : 'ready'
   app.innerHTML = `${error
     ? '<h1 tabindex="-1">My Lab</h1><section><h2>Can’t load your profile</h2><p role="alert">Check your connection, then try again. Your profile has not been changed.</p></section>'
-    : `${data?.linked_player_id&&data.linked_player_name?'<header class="lab-scoreboard-intro"><small class="stat-eyebrow">My Lab</small><h1 tabindex="-1">'+escape(data.linked_player_name)+'</h1><p>Your scoreboard. Your progress. Your next move.</p></header>':''}<div id="lab-identity">${labIdentityHtml(data)}</div>${data?.linked_player_id&&data.linked_player_name?'<section aria-label="Account training overview"><button type="button" class="secondary" id="lab-training-refresh">Load training overview</button><p role="status" id="lab-training-status">Open your latest account proof and weekly progress.</p></section>':''}`}${!error&&data?.linked_player_id&&data.linked_player_name?'<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''}${!error ? labActionsHtml()+'<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section><section><h2>League Office</h2><p>Review your owned league seasons, schedules and results.</p><button type="button" class="secondary" data-league-office>Open League Office</button></section>' : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Sign out</button><p role="alert" id="notice"></p>`
+    : `${data?.linked_player_id&&data.linked_player_name?'<header class="lab-scoreboard-intro"><div><small class="stat-eyebrow">My Lab</small><h1 tabindex="-1">'+escape(data.linked_player_name)+'</h1><p>'+escape(data.linked_team_name||'Your tennis, in focus')+'</p></div><button type="button" class="secondary lab-profile-action" data-lab-profile aria-label="Open full player profile">'+nativeActionIcon('profile')+'</button></header>':''}<div id="lab-identity">${labIdentityHtml(data)}</div>${data?.linked_player_id&&data.linked_player_name?'<section aria-label="Account training overview"><button type="button" class="secondary" id="lab-training-refresh">Load training overview</button><p role="status" id="lab-training-status">Open your latest account proof and weekly progress.</p></section>':''}`}${!error&&data?.linked_player_id&&data.linked_player_name?'<section id="lab-goal-context"><h2>Training notes</h2><div id="goal-context-copy"><p>Bring your saved goals and notes into this week’s tennis.</p></div><button type="button" data-lab-goals>Open goals and notes</button></section>':''}${!error ? labActionsHtml()+'<section><h2>Uploads & imports</h2><p>Check saved scorecards, schedules and roster imports.</p><button type="button" class="secondary" data-open-imports>Open uploads & imports</button></section><section><h2>League Office</h2><p>Review your owned league seasons, schedules and results.</p><button type="button" class="secondary" data-league-office>Open League Office</button></section>' : ''}${!error ? '<section id="recent-results" aria-labelledby="results-title"><h2 id="results-title">Recent matches</h2><div id="results-content" aria-live="polite"></div></section>' : ''}<button id="refresh">${error ? 'Try again' : 'Refresh profile'}</button><button class="secondary" id="logout">Sign out</button><p role="alert" id="notice"></p>`
   const labHeading=app.querySelector<HTMLElement>('h1');if(labHeading){labHeading.tabIndex=-1;labHeading.focus({preventScroll:true})}
   let selectedLabGoal:LabGoal|undefined
   const bindLabActions=()=>{
@@ -285,13 +288,15 @@ async function lab() {
       const ratingsSection=document.createElement('section')
       ratingsSection.setAttribute('aria-labelledby','lab-ratings-title')
       ratingsSection.className='lab-stat-panel lab-scoreboard'
-      ratingsSection.innerHTML='<small class="stat-eyebrow">Your game, in numbers</small><h2 id="lab-ratings-title">Your scoreboard</h2><div aria-live="polite"></div><button type="button" class="secondary" data-lab-profile>Open full player profile</button>'
+      ratingsSection.innerHTML='<small class="stat-eyebrow">Your game, in numbers</small><h2 id="lab-ratings-title">Your scoreboard</h2><div aria-live="polite"></div>'
       app.querySelector('#lab-identity')!.before(ratingsSection,app.querySelector('#recent-results')!)
       const trendSection=document.createElement('section')
-      ratingsSection.after(trendSection)
+      const formSection=document.createElement('div');formSection.className='lab-form-host'
+      ratingsSection.after(formSection,trendSection)
       labRatingTrends=mountLabRatingTrends(trendSection,client,playerId,()=>version===revision&&current.user.id===session?.user.id)
       bindLabActions()
-      showPlayerRatings(ratingsSection.querySelector<HTMLElement>('div')!,client,playerId,()=>version===revision && current.user.id===session?.user.id,true)
+      const pathSection=document.createElement('div');pathSection.className='lab-next-band';app.querySelector('#recent-results')!.after(pathSection)
+      showPlayerRatings(ratingsSection.querySelector<HTMLElement>('div')!,client,playerId,()=>version===revision && current.user.id===session?.user.id,true,{showcase:true,onReady:player=>{pathSection.innerHTML=labLevelPathHtml(player)}})
       const refreshResults = async () => {
         content.dataset.state = 'loading'
         content.innerHTML = '<p role="status">Loading your latest matches…</p>'
@@ -304,6 +309,8 @@ async function lab() {
           return
         }
         const rows = (result.data || []) as RecentMatchRow[]
+        formSection.innerHTML=labRecentFormHtml(rows,playerId)
+        formSection.querySelectorAll<HTMLButtonElement>('[data-lab-form-index]').forEach(button=>{button.onclick=()=>{const row=rows[Number(button.dataset.labFormIndex)];if(row&&version===revision&&current.user.id===session?.user.id)details?.open(row,playerId)}})
         content.dataset.state = rows.length ? 'ready' : 'empty'
         showRecentResults(content, rows, playerId, row => details?.open(row, playerId),'your',true,{current:()=>version===revision&&current.user.id===session?.user.id,load:loaded=>loadOlderResults(client,playerId,loaded)})
       }
