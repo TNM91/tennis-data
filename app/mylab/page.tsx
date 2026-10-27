@@ -81,6 +81,7 @@ import { formatRating, cleanText } from '@/lib/captain-formatters'
 import { buildMatchIntelligenceRead } from '@/lib/player-match-intelligence'
 import { filterMatchbookEntries, getMatchbookFilterLabel, type MatchbookFilter } from '@/lib/player-matchbook'
 import { playerRecentRecord } from '@/lib/player-recent-record'
+import { playerLevelPath } from '@/lib/player-level-path'
 import { buildPlayerRatingJourneyRead, type RatingJourneySnapshot } from '@/lib/player-rating-journey'
 import { buildPlayerLeagueHome } from '@/lib/player-league-home'
 import type { LeagueWeeklyPlayerRecord } from '@/lib/league-weekly-player-records'
@@ -2919,28 +2920,9 @@ function MyLabPageInner() {
   const personalDoublesCount = personalMatches.filter((match) => (match.matchType || '').toLowerCase().includes('doubles')).length
   const currentTiq = linkedPlayer?.overall_dynamic_rating ?? null
   const ustaDynamic = isSelfRatedProfile ? null : linkedPlayer?.overall_usta_dynamic_rating ?? null
-  const ustaBase =
-    typeof ustaDynamic === 'number'
-      ? Math.max(2.5, Math.floor(ustaDynamic * 2) / 2)
-      : null
-  const nextUstaLevel = ustaBase == null ? null : ustaBase + 0.5
-  const levelProgress =
-    typeof currentTiq === 'number' && ustaBase != null
-      ? Math.max(0, Math.min(100, ((currentTiq - ustaBase) / 0.5) * 100))
-      : 0
-  const hasLevelProgress = typeof currentTiq === 'number' && ustaBase != null
-  const tiqVsUsta = typeof currentTiq === 'number' && typeof ustaDynamic === 'number' ? currentTiq - ustaDynamic : null
-  const levelStatus =
-    tiqVsUsta == null
-      ? 'Building profile'
-      : tiqVsUsta >= 0.05
-        ? 'Trending up'
-        : tiqVsUsta <= -0.05
-          ? 'Needs work'
-          : 'Holding steady'
+  const {ustaBase,nextUstaLevel,hasLevelProgress,levelProgress,tiqVsUsta,levelStatus,ratingToGo} = playerLevelPath(currentTiq,ustaDynamic,isSelfRatedProfile)
   const confidenceLabel =
     recentDecisionMatches.length >= 8 ? 'High confidence' : recentDecisionMatches.length >= 4 ? 'Medium confidence' : 'Low confidence'
-  const ratingToGo = typeof currentTiq === 'number' && nextUstaLevel != null ? Math.max(0, nextUstaLevel - currentTiq) : null
   const {bestWinStreak,currentWinStreak} = playerRecentRecord(personalMatches)
   const firstServeFocusComplete = Boolean(
     (goals.find((goal) => goal.id === activeGoalId) || goals[0] || EMPTY_LAB_GOAL).goal.trim(),

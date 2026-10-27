@@ -304,3 +304,24 @@ body[data-screen="lab"] #recent-results .recent-form dd { font-size:25px; }
 .lab-format-grid span,.lab-format-grid small,.lab-format-grid p { font-size:11px; color:var(--shell-copy-muted); overflow-wrap:anywhere; }
 .lab-format-grid meter { display:block; width:100%; height:10px; margin:12px 0; accent-color:var(--native-blue); }
 @media(max-width:350px) { .lab-streak-grid,.lab-format-grid { gap:8px; } .lab-streak-grid>div,.lab-format-grid>div { padding:12px 8px; } }
+
+.lab-level-path { min-width:0; margin-top:24px; padding:18px 14px; border:1px solid var(--shell-panel-border); border-radius:16px; background:var(--native-inset); }
+.lab-level-path h3 { margin:8px 0 12px; font-size:20px; }
+.lab-level-status { color:var(--native-blue); font-weight:700; }
+.lab-level-values { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.lab-level-values>div { min-width:0; }
+.lab-level-values dt { font-size:12px; color:var(--shell-copy-muted); }
+.lab-level-values dd { margin:8px 0; font-size:30px; font-weight:750; font-variant-numeric:tabular-nums; }
+.lab-level-path label { display:block; font-size:12px; }
+.lab-level-path meter { display:block; width:100%; margin:12px 0; accent-color:var(--native-blue); }
+.lab-level-scale { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; font-size:12px; }
+.lab-level-scale strong { color:var(--native-blue); }
+.lab-level-path p { overflow-wrap:anywhere; }
+.lab-level-path .rating-context { font-size:11px; line-height:1.6; }
+
+.lab-level-path meter { appearance:none; height:10px; background:#1b3657; border:0; border-radius:8px; }
+.lab-level-path meter::-webkit-meter-bar { height:10px; background:#1b3657; border:0; border-radius:8px; }
+.lab-level-path meter::-webkit-meter-optimum-value { background:var(--native-blue); border-radius:8px; }
+.lab-level-path meter::-moz-meter-bar { background:var(--native-blue); border-radius:8px; }
+.lab-level-scale strong { font-size:26px; line-height:1; }
+.lab-level-about summary { min-height:44px; padding:12px 0; font-size:12px; color:var(--native-blue); cursor:pointer; }
