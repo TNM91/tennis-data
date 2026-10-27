@@ -31,6 +31,7 @@ describe('native team and league discovery',()=>{
     const result=await searchTeams(client,'A_%')
     expect(result).toEqual({teams:[],limited:false,partial:true})
     expect(queries).toHaveLength(3)
+    expect(queries[0].select).toHaveBeenCalledWith('home_team,away_team,league_name,flight,source,usta_section,district_area')
     for(const query of queries){expect(query.limit).toHaveBeenCalledWith(20);expect(query.abortSignal).toHaveBeenCalled()}
     expect(queries[0].ilike).toHaveBeenCalledWith('home_team','%A\\_\\%%')
     expect(queries[1].ilike).toHaveBeenCalledWith('away_team','%A\\_\\%%')
