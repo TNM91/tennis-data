@@ -80,6 +80,7 @@ import { useViewportBreakpoints } from '@/lib/use-viewport-breakpoints'
 import { formatRating, cleanText } from '@/lib/captain-formatters'
 import { buildMatchIntelligenceRead } from '@/lib/player-match-intelligence'
 import { filterMatchbookEntries, getMatchbookFilterLabel, type MatchbookFilter } from '@/lib/player-matchbook'
+import { playerRecentRecord } from '@/lib/player-recent-record'
 import { buildPlayerRatingJourneyRead, type RatingJourneySnapshot } from '@/lib/player-rating-journey'
 import { buildPlayerLeagueHome } from '@/lib/player-league-home'
 import type { LeagueWeeklyPlayerRecord } from '@/lib/league-weekly-player-records'
@@ -2940,26 +2941,7 @@ function MyLabPageInner() {
   const confidenceLabel =
     recentDecisionMatches.length >= 8 ? 'High confidence' : recentDecisionMatches.length >= 4 ? 'Medium confidence' : 'Low confidence'
   const ratingToGo = typeof currentTiq === 'number' && nextUstaLevel != null ? Math.max(0, nextUstaLevel - currentTiq) : null
-  const chronologicalDecisions = [...recentDecisionMatches].sort((a, b) => {
-    const left = a.date ? new Date(a.date).getTime() : 0
-    const right = b.date ? new Date(b.date).getTime() : 0
-    return left - right
-  })
-  let bestWinStreak = 0
-  let rollingWinStreak = 0
-  chronologicalDecisions.forEach((match) => {
-    if (match.result === 'W') {
-      rollingWinStreak += 1
-      bestWinStreak = Math.max(bestWinStreak, rollingWinStreak)
-    } else {
-      rollingWinStreak = 0
-    }
-  })
-  let currentWinStreak = 0
-  for (const match of recentDecisionMatches) {
-    if (match.result !== 'W') break
-    currentWinStreak += 1
-  }
+  const {bestWinStreak,currentWinStreak} = playerRecentRecord(personalMatches)
   const firstServeFocusComplete = Boolean(
     (goals.find((goal) => goal.id === activeGoalId) || goals[0] || EMPTY_LAB_GOAL).goal.trim(),
   )
