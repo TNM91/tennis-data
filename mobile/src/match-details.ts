@@ -1,3 +1,5 @@
+import {openRosterPlayerProfile} from './roster-player-profile'
+import type {PlayerChoice} from './player-connection'
 import {renderMatchSetScores} from './match-set-scores'
 import {openScorecardShare} from './match-scorecard-share'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -13,15 +15,25 @@ export function participantNames(rows: Participant[], side: 'A' | 'B') {
   })
 }
 
+export function matchParticipantChoice(rows: Participant[], index: number): PlayerChoice | null {
+  const row = rows[index]
+  if (!row || !['A', 'B'].includes(row.side || '') || typeof row.player_id !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(row.player_id) || rows.filter(other => other.player_id === row.player_id).length !== 1) return null
+  const player = Array.isArray(row.players) ? row.players.length === 1 ? row.players[0] : null : row.players
+  if (!player || typeof player.name !== 'string' || !player.name.trim() || player.name.length > 200) return null
+  return {id:row.player_id, name:player.name.trim(), location:null, flight:null}
+}
+
 export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isCurrent: () => boolean, labels: {backLabel?: string; sideLabel?: string;local?: boolean;scrollHost?: HTMLElement} = {}) {
   let selected: { row: RecentMatchRow; playerId: string } | null = null
   let request = 0
   let previousFocus: HTMLElement | null = null
   let scroll = 0
   let disposed = false
+  let profile:ReturnType<typeof openRosterPlayerProfile>|null=null
   let sharing:ReturnType<typeof openScorecardShare>|null=null
   const valid = () => !disposed && isCurrent()
   const close = () => {
+    profile?.dispose();profile=null
     sharing?.dispose();sharing=null
     request++
     delete app.dataset.view
@@ -32,6 +44,7 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
   async function show(push: boolean) {
     if (!selected || !valid()) return
     const { row, playerId } = selected
+    profile?.dispose();profile=null
     sharing?.dispose();sharing=null
     const version = ++request
     if (push&&!labels.local) history.pushState({view: 'match'}, '', '#match')
@@ -59,9 +72,14 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
     content.dataset.state = rows.length ? 'ready' : 'empty'
     const yourSide = row.match_players.find(player => player.player_id === playerId)?.side
     content.innerHTML = (['A', 'B'] as const).map(side => {
-      const names = participantNames(rows, side)
-      return `<h2>Side ${side}${yourSide === side ? ' · ' + html(labels.sideLabel || 'Your side') : ''}</h2><p>${names.length ? names.map(html).join(' &amp; ') : 'Players unavailable'}</p>`
+      const entries = rows.map((row,index)=>({row,index})).filter(entry=>entry.row.side===side).sort((a,b)=>(a.row.seat??99)-(b.row.seat??99))
+      return `<h2>Side ${side}${yourSide === side ? ' &middot; ' + html(labels.sideLabel || 'Your side') : ''}</h2>${entries.length ? `<ul class="match-participants">${entries.map(({row,index})=>{const choice=matchParticipantChoice(rows,index);const name=participantNames([row],side)[0];return `<li>${choice?`<button type="button" class="secondary" data-match-player="${index}"><span>${html(name)}</span><small>View player profile</small></button>`:`<p>${html(name)}</p>`}</li>`}).join('')}</ul>` : '<p>Players unavailable</p>'}`
     }).join('')
+    content.querySelectorAll<HTMLButtonElement>('[data-match-player]').forEach(button=>{button.onclick=()=>{
+      if(!valid()||version!==request||!detail.isConnected)return
+      const choice=matchParticipantChoice(rows,Number(button.dataset.matchPlayer));if(!choice)return
+      profile?.dispose();profile=openRosterPlayerProfile(client,choice,()=>valid()&&version===request&&detail.isConnected,'Back to match details')
+    }})
   }
   const pop = () => {
     if (location.hash === '#match' && selected) void show(false)
@@ -70,7 +88,7 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
   if(!labels.local)window.addEventListener('popstate', pop)
   return {
     isOpen: () => app.dataset.view === 'match',
-    back:()=>{if(sharing?.isOpen()){sharing.dispose();sharing=null;return true}if(app.dataset.view!=='match')return false;if(labels.local)close();else history.back();return true},
+    back:()=>{if(profile?.isOpen()){profile.back();return true}if(sharing?.isOpen()){sharing.dispose();sharing=null;return true}if(app.dataset.view!=='match')return false;if(labels.local)close();else history.back();return true},
     open(row: RecentMatchRow, playerId: string) {
       previousFocus = document.activeElement as HTMLElement | null
       scroll = labels.scrollHost?.scrollTop??window.scrollY
@@ -79,6 +97,7 @@ export function createMatchDetails(app: HTMLElement, client: SupabaseClient, isC
     },
     dispose() {
       disposed = true
+      profile?.dispose();profile=null
       sharing?.dispose();sharing=null
       request++
       selected = null

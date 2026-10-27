@@ -146,3 +146,9 @@ body{background:#07111f}.lab-identity{background:#0b1a2f;border-color:rgba(116,1
 .match-set-scores strong { text-decoration:underline; text-underline-offset:.25rem; }
 .match-set-scores p { font-size:.85rem; }
 .match-set-scores thead th:not(:first-child) { white-space:nowrap; font-size:.8rem; }
+
+.match-participants { list-style:none; padding:0; display:grid; gap:.6rem; }
+.match-participants li { min-width:0; }
+.match-participants button { display:flex; flex-direction:column; align-items:flex-start; text-align:left; width:100%; gap:.3rem; }
+.match-participants button span { overflow-wrap:anywhere; }
+.match-participants small { font-size:.8rem; font-weight:400; }
