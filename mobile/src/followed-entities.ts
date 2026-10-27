@@ -33,7 +33,7 @@ export function followedTarget(item:FollowedEntity):FollowedTarget|null {
   const [layer,name,league,flight]=scoped?parts:['',...parts]
   // The public roster/fixture view currently supports USTA/source teams only.
   if(layer!=='usta'||!name||!league||!flight||/\btiq\b/i.test(league)||!isPublicTeamDirectoryName(name,league))return null
-  return {kind:'team',team:{name,league,flight,source:'recorded'}}
+  return {kind:'team',team:{name,league,flight,source:'recorded',followLayer:'usta'}}
  }
  const scoped=parts.length===5;if(!scoped&&parts.length!==4)return null
  const [layer,name,flight,section,district]=scoped?parts:['',...parts]

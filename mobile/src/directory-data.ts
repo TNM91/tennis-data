@@ -1,30 +1,39 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { CapacitorHttp } from '@capacitor/core'
 import { isPublicTeamDirectoryName, isPublicTeamDirectoryMatch } from '../../lib/team-directory-rules'
+import {inferCompetitionLayerFromValues} from '../../lib/competition-layers'
 import type { LeagueCard } from '../../lib/league-summary'
 import { playerSearchTerm } from './player-connection'
 
-export type TeamChoice = {name:string;league:string|null;flight:string|null;source:'recorded'|'observation'}
+export type TeamChoice = {name:string;league:string|null;flight:string|null;source:'recorded'|'observation';followLayer?:'usta'}
 export type TeamRecord = {id:string;home_team:string|null;away_team:string|null;league_name:string|null;flight:string|null;match_date:string|null;score:string|null;status:string|null;source?:string|null}
+type TeamFollowContext={usta_section?:string|null;district_area?:string|null}
 type Context = {team_name:string|null;league_name:string|null;flight:string|null}
 export const teamKey = (team:TeamChoice)=>JSON.stringify([team.name.trim().toLowerCase(),team.league?.trim().toLowerCase() || '',team.flight?.trim().toLowerCase() || ''])
-export function collectTeams(matches: Pick<TeamRecord,'home_team'|'away_team'|'league_name'|'flight'|'source'>[],contexts:Context[],term:string) {
-  const teams=new Map<string,TeamChoice>()
-  const add=(name:string|null,league:string|null,flight:string|null,source:TeamChoice['source'])=>{
+export function collectTeams(matches: (Pick<TeamRecord,'home_team'|'away_team'|'league_name'|'flight'|'source'> & TeamFollowContext)[],contexts:Context[],term:string) {
+  const teams=new Map<string,TeamChoice>(),blocked=new Set<string>()
+  const add=(name:string|null,league:string|null,flight:string|null,source:TeamChoice['source'],context?:TeamFollowContext)=>{
     if(!name || !isPublicTeamDirectoryName(name,league) || !name.toLowerCase().includes(term.toLowerCase()))return
-    const team={name:name.trim(),league,flight,source}
-    if(!teams.has(teamKey(team)))teams.set(teamKey(team),team)
+    const team:TeamChoice={name:name.trim(),league,flight,source},key=teamKey(team)
+    const section=typeof context?.usta_section==='string'?context.usta_section:null,district=typeof context?.district_area==='string'?context.district_area:null
+    const layer=inferCompetitionLayerFromValues({leagueName:league,ustaSection:section,districtArea:district})
+    if(layer==='usta')team.followLayer='usta'
+    else if(/tiq|tenaceiq|internal league|challenge ladder/i.test(league||''))blocked.add(key)
+    const existing=teams.get(key)
+    if(!existing)teams.set(key,team)
+    else if(team.followLayer)existing.followLayer=team.followLayer
   }
   for(const row of matches) {
     if(!isPublicTeamDirectoryMatch({homeTeam:row.home_team,awayTeam:row.away_team,league:row.league_name,source:row.source}))continue
-    for(const name of [row.home_team,row.away_team])add(name,row.league_name,row.flight,'recorded')
+    for(const name of [row.home_team,row.away_team])add(name,row.league_name,row.flight,'recorded',row)
   }
   for(const row of contexts)add(row.team_name,row.league_name,row.flight,'observation')
+  for(const key of blocked){const team=teams.get(key);if(team)delete team.followLayer}
   return [...teams.values()].sort((a,b)=>a.name.localeCompare(b.name)||teamKey(a).localeCompare(teamKey(b)))
 }
 export async function searchTeams(client:SupabaseClient,value:string) {
   const text=value.trim().replace(/\s+/g,' '),term=playerSearchTerm(text)
-  const query=(column:string)=>client.from('team_match_results').select('home_team,away_team,league_name,flight,source').is('line_number',null).ilike(column,`%${term}%`).order('match_date',{ascending:false,nullsFirst:false}).order('id',{ascending:false}).limit(20).abortSignal(AbortSignal.timeout(12000))
+  const query=(column:string)=>client.from('team_match_results').select('home_team,away_team,league_name,flight,source,usta_section,district_area').is('line_number',null).ilike(column,`%${term}%`).order('match_date',{ascending:false,nullsFirst:false}).order('id',{ascending:false}).limit(20).abortSignal(AbortSignal.timeout(12000))
   const results=await Promise.all([query('home_team'),query('away_team'),client.from('tennisrecord_public_team_context').select('team_name,league_name,flight').ilike('team_name',`%${term}%`).order('team_name').order('league_name').order('flight').limit(20).abortSignal(AbortSignal.timeout(12000))])
   if(results.every(result=>result.error))throw Error('Team search unavailable')
   const teams=collectTeams([...(results[0].data || []),...(results[1].data || [])],results[2].data || [],text)
