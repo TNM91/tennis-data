@@ -61,6 +61,24 @@ type StorageDownloadClient = {
   }
 }
 
+export async function GET(request: Request) {
+  const headers = { 'Cache-Control': 'private, no-store' }
+  const token = getBearerToken(request)
+  if (!token) return Response.json({ ok: false }, { status: 401, headers })
+  try {
+    const requester = await getRequester(token)
+    if (!requester.ok) {
+      if (requester.status >= 500) console.error('Could not check Data Assist photo availability')
+      return Response.json({ ok: false }, { status: requester.status, headers })
+    }
+    const readiness = getServerDataAssistOcrReadiness()
+    return Response.json({ ok: true, canReadScorecardPhotos: readiness.canRun && readiness.provider === 'tesseract' }, { headers })
+  } catch {
+    console.error('Could not check Data Assist photo availability')
+    return Response.json({ ok: false }, { status: 503, headers })
+  }
+}
+
 export async function POST(request: Request) {
   const token = getBearerToken(request)
   if (!token) {
