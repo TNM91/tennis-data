@@ -124,3 +124,15 @@ body{background:#07111f}.lab-identity{background:#0b1a2f;border-color:rgba(116,1
 
 .source-photo-frame { width: 100%; max-width: 100%; min-width: 0; overflow: auto; max-height: 65dvh; overscroll-behavior: contain; }
 .import-sources .source-photo-zoomed img { width: auto; max-width: none; }
+
+.data-imports-dialog .import-outcome { padding: 18px; margin-block: 18px; border: 1px solid var(--card-border-soft,#344b65); border-radius: 16px; background: var(--portal-active-card-bg,#102944); min-width: 0; }
+.import-outcome h3 { margin: 8px 0 12px; font-size: 1.35rem; }
+.import-outcome h4 { margin: 18px 0 8px; }
+.import-outcome p { overflow-wrap: anywhere; }
+.import-outcome-eyebrow { font-size: .75rem; letter-spacing: .08em; font-weight: 700; }
+.import-outcome-complete .import-outcome-eyebrow { color: var(--tiq-lime,#baf33e); }
+.import-outcome-attention .import-outcome-eyebrow { color: #ffd19a; }
+.import-outcome-counts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin: 12px 0; }
+.import-outcome-counts>div { min-width: 0; padding: 12px; border: 1px solid var(--card-border-soft,#344b65); border-radius: 12px; }
+.import-outcome-counts dt { font-size: .85rem; }
+.import-outcome-counts dd { font-size: clamp(1.1rem,5vw,1.75rem); font-weight: 700; margin: 8px 0 0; overflow-wrap: anywhere; }

@@ -7,7 +7,7 @@ export type ImportAction = 'read' | 'confirmed' | 'flagged'
 export type ImportSend = (options:HttpOptions)=>Promise<HttpResponse>
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 export function availableImportActions(batch:ImportBatch,detail:ImportDetail):ImportAction[]{
- if(batch.status==='imported'||detail.status==='imported'||batch.status==='rejected')return []
+ if(batch.status==='imported'||detail.status==='imported'||batch.status==='rejected'||batch.status==='verified')return []
  if(detail.ocr==='processed')return ['needs_review','ready_for_verification'].includes(detail.status)
   ? [...(detail.total>0&&detail.total<=100?['confirmed' as const]:[]),'flagged'] : []
  return ['needs_review','blocked'].includes(detail.status)&&['not_started','failed'].includes(detail.ocr)?['read']:[]
