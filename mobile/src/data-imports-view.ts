@@ -1,3 +1,4 @@
+import {actOnImport,availableImportActions,type ImportAction} from './data-import-actions'
 import {Browser} from '@capacitor/browser'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {html} from './match-details'
@@ -14,27 +15,39 @@ export function importDetailHtml(batch:ImportBatch,detail:ImportDetail|null){
 export function openDataImports(client:SupabaseClient,owner:string,current:()=>boolean){
  const dialog=document.createElement('dialog');dialog.className='data-imports-dialog';dialog.setAttribute('aria-label','Uploads and imports')
  const previous=document.activeElement as HTMLElement|null
- let disposed=false,busy=false,version=0,loaded=false,limited=false,batches:ImportBatch[]=[],selected:ImportBatch|null=null,detail:ImportDetail|null=null,notice='',failed=false,filter='all',returnId=''
+ let disposed=false,busy=false,version=0,loaded=false,limited=false,batches:ImportBatch[]=[],selected:ImportBatch|null=null,detail:ImportDetail|null=null,notice='',failed=false,filter='all',returnId='',actionLocked=false,actionMessage=''
  const active=()=>!disposed&&current()&&dialog.isConnected
  const focus=()=>dialog.querySelector<HTMLElement>('h1')?.focus({preventScroll:true})
  const dispose=()=>{if(disposed)return;disposed=true;version++;document.removeEventListener('visibilitychange',visibility);dialog.remove();batches=[];selected=null;detail=null;if(current()&&previous?.isConnected)previous.focus({preventScroll:true})}
- const back=()=>{if(!active())return false;if(selected){version++;busy=false;selected=null;detail=null;notice='';failed=false;render();dialog.querySelector<HTMLElement>('[data-import-id="'+returnId+'"]')?.focus();return true}dispose();return true}
+ const back=()=>{if(!active())return false;if(busy)return true;if(selected){version++;busy=false;selected=null;detail=null;notice='';failed=false;actionMessage='';actionLocked=false;render();dialog.querySelector<HTMLElement>('[data-import-id="'+returnId+'"]')?.focus();return true}dispose();return true}
  const visibility=()=>{if(document.visibilityState==='hidden')dispose()}
  const read=async(batch?:ImportBatch)=>{
   if(!active()||busy)return;const visit=++version;busy=true;failed=false;notice=batch?'Loading saved draft…':'Loading your uploads…';selected=batch||null;detail=null;render();focus()
   const valid=()=>active()&&version===visit
-  try{if(batch){const result=await loadImportDetail(client,batch,valid);if(!valid())return;detail=result}else{const result=await loadImportBatches(client,owner,valid);if(!valid())return;batches=result.batches;limited=result.limited;loaded=true}notice=''}
+  try{if(batch){const result=await loadImportDetail(client,batch,valid);if(!valid())return;detail=result;actionLocked=false}else{const result=await loadImportBatches(client,owner,valid);if(!valid())return;batches=result.batches;limited=result.limited;loaded=true}notice=''}
   catch(cause){if(!valid())return;failed=true;notice=cause instanceof Error?cause.message:'Uploads are unavailable. Try again.'}
+  finally{if(valid()){busy=false;render();focus()}}
+ }
+ const perform=async(action:ImportAction)=>{
+  if(!active()||busy||actionLocked||!selected||!detail)return
+  if(action!=='flagged'&&!dialog.querySelector<HTMLInputElement>('[data-import-consent]')?.checked)return
+  const batch=selected,saved=detail,visit=++version;busy=true;actionLocked=true;actionMessage='';notice=action==='read'?'Reading saved file…':'Saving your review…';render();focus()
+  const valid=()=>active()&&visit===version
+  try{actionMessage=await actOnImport(client,owner,valid,batch,saved,action);if(!valid())return;detail=await loadImportDetail(client,batch,valid);if(!valid())return;notice='';}
+  catch(cause){if(valid())notice=cause instanceof Error?cause.message:'Refresh this upload to check its status.'}
   finally{if(valid()){busy=false;render();focus()}}
  }
  const render=()=>{
   if(!active())return
   const visible=batches.filter(b=>filter==='all'||filter==='imported'&&b.status==='imported'||filter==='review'&&['needs_review','rejected'].includes(b.status)||filter==='pending'&&!['imported','needs_review','rejected'].includes(b.status))
-  dialog.innerHTML='<h1 tabindex="-1">Uploads & imports</h1><p>Review your saved tennis data and import status.</p>'+(selected?'<button type="button" class="secondary" data-import-back>Back to uploads</button>':'')+'<p role="status">'+html(notice)+'</p>'+(selected?!busy&&!failed?importDetailHtml(selected,detail):'':(loaded?'<label>Show uploads<select data-import-filter><option value="all">All uploads</option><option value="review">Needs review / not accepted</option><option value="pending">Not yet imported</option><option value="imported">Imported</option></select></label><p>'+(limited?'Latest 40 uploads. Older uploads are available in Data Assist.':batches.length+' saved upload'+(batches.length===1?'':'s')+' loaded.')+'</p><ul class="import-history">'+visible.map(b=>'<li><h2>'+html(kindLabel[b.kind])+'</h2><p>'+html(label(b.status))+' · '+html(stamp(b.created))+'</p><button type="button" class="secondary" data-import-id="'+html(b.id)+'">View '+html(kindLabel[b.kind].toLowerCase())+' upload</button></li>').join('')+'</ul>'+(!visible.length?'<p>'+(batches.length?'No loaded uploads match this filter.':'No saved uploads were found for this account.')+'</p>':''):'')+'<button type="button" class="secondary" data-import-refresh '+(busy?'disabled':'')+'>'+(loaded?'Refresh uploads':'Load my uploads')+'</button>')+(failed&&selected?'<button type="button" class="secondary" data-import-retry>Retry saved draft</button>':'')+'<section><h2>Upload or finish review</h2><p>Use Data Assist for scorecards, schedules, Team Summary and Player Roster exports. Some high-confidence files can import automatically after reading. Check the outcome in Saved uploads.</p><p>This opens TenAceIQ in your browser. You may need to sign in there.</p><button type="button" class="secondary" data-import-web>Open Data Assist</button><p role="status" data-import-web-status></p></section><button type="button" class="secondary" data-import-close>Close uploads</button>'
+  dialog.innerHTML='<h1 tabindex="-1">Uploads & imports</h1><p>Review your saved tennis data and import status.</p>'+(selected?'<button type="button" class="secondary" data-import-back '+(busy?'disabled':'')+'>Back to uploads</button>':'')+'<p role="status">'+html(notice||actionMessage)+'</p>'+(selected?!busy&&!failed?importDetailHtml(selected,detail)+(detail?importActionHtml(selected,detail,actionLocked):'')+'<button type="button" class="secondary" data-import-refresh-draft>Refresh saved draft</button>':'':(loaded?'<label>Show uploads<select data-import-filter><option value="all">All uploads</option><option value="review">Needs review / not accepted</option><option value="pending">Not yet imported</option><option value="imported">Imported</option></select></label><p>'+(limited?'Latest 40 uploads. Older uploads are available in Data Assist.':batches.length+' saved upload'+(batches.length===1?'':'s')+' loaded.')+'</p><ul class="import-history">'+visible.map(b=>'<li><h2>'+html(kindLabel[b.kind])+'</h2><p>'+html(label(b.status))+' · '+html(stamp(b.created))+'</p><button type="button" class="secondary" data-import-id="'+html(b.id)+'">View '+html(kindLabel[b.kind].toLowerCase())+' upload</button></li>').join('')+'</ul>'+(!visible.length?'<p>'+(batches.length?'No loaded uploads match this filter.':'No saved uploads were found for this account.')+'</p>':''):'')+'<button type="button" class="secondary" data-import-refresh '+(busy?'disabled':'')+'>'+(loaded?'Refresh uploads':'Load my uploads')+'</button>')+(failed&&selected?'<button type="button" class="secondary" data-import-retry>Retry saved draft</button>':'')+'<section><h2>Upload or finish review</h2><p>Use Data Assist for scorecards, schedules, Team Summary and Player Roster exports. Some high-confidence files can import automatically after reading. Check the outcome in Saved uploads.</p><p>File selection and corrections open TenAceIQ in your browser. You may need to sign in there.</p><button type="button" class="secondary" data-import-web>Open Data Assist</button><p role="status" data-import-web-status></p></section><button type="button" class="secondary" data-import-close '+(busy?'disabled':'')+'>Close uploads</button>'
   dialog.querySelector<HTMLSelectElement>('[data-import-filter]')?.addEventListener('change',event=>{filter=(event.currentTarget as HTMLSelectElement).value;render();dialog.querySelector<HTMLSelectElement>('[data-import-filter]')?.focus()})
   const select=dialog.querySelector<HTMLSelectElement>('[data-import-filter]');if(select)select.value=filter
+  dialog.querySelector('[data-import-refresh-draft]')?.addEventListener('click',()=>{if(selected)void read(selected)})
+  dialog.querySelector('[data-import-consent]')?.addEventListener('change',event=>{const checked=(event.currentTarget as HTMLInputElement).checked;dialog.querySelectorAll<HTMLButtonElement>('[data-import-action]:not([data-import-action=flagged])').forEach(button=>button.disabled=!checked)})
+  dialog.querySelectorAll<HTMLButtonElement>('[data-import-action]').forEach(button=>button.onclick=()=>{void perform(button.dataset.importAction as ImportAction)})
   dialog.querySelector('[data-import-back]')?.addEventListener('click',back)
-  dialog.querySelector('[data-import-close]')?.addEventListener('click',dispose)
+  dialog.querySelector('[data-import-close]')?.addEventListener('click',()=>{if(!busy)dispose()})
   dialog.querySelector('[data-import-refresh]')?.addEventListener('click',()=>{void read()})
   dialog.querySelector('[data-import-retry]')?.addEventListener('click',()=>{if(selected)void read(selected)})
   dialog.querySelectorAll<HTMLButtonElement>('[data-import-id]').forEach(b=>b.onclick=()=>{const batch=batches.find(r=>r.id===b.dataset.importId);if(batch){returnId=batch.id;void read(batch)}})
@@ -45,4 +58,12 @@ export function openDataImports(client:SupabaseClient,owner:string,current:()=>b
  }
  dialog.addEventListener('cancel',event=>{event.preventDefault();back()});document.addEventListener('visibilitychange',visibility);document.body.append(dialog);render();dialog.showModal();focus()
  return {dispose,back,isOpen:()=>active()}
+}
+
+export function importActionHtml(batch:ImportBatch,detail:ImportDetail,locked=false){
+ if(locked)return '<p>Refresh the saved draft before taking another action.</p>'
+ const actions=availableImportActions(batch,detail)
+ if(!actions.length)return ''
+ const reading=actions.includes('read')
+ return '<section class="import-review"><h3>'+ (reading?'Read saved file':'Review extracted data')+'</h3><p>'+ (reading?'Reading uses the same rules as Data Assist. A high-confidence file may import automatically.':'Check the teams, dates, player names and scores above. Confirming can immediately import these records. Use Data Assist in your browser for corrections.')+'</p>'+ (actions.some(a=>a!=='flagged')?'<label class="import-consent"><input type="checkbox" data-import-consent> '+(reading?'I understand this may import the saved file.':'I checked all extracted rows and want to confirm this import.')+'</label>':'')+'<div class="import-review-actions">'+actions.map(a=>'<button type="button" class="secondary" data-import-action="'+a+'" '+(a==='flagged'?'':'disabled')+'>'+(a==='read'?'Read saved file':a==='confirmed'?'Confirm reviewed data':'Flag incorrect data')+'</button>').join('')+'</div></section>'
 }

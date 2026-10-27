@@ -279,3 +279,9 @@ body[data-screen="lab"] #recent-results .recent-form dd { font-size:25px; }
 .website-ui [aria-label="Team court results"]>.native-record-graphics { padding:0; border:0; background:none; }
 
 [aria-label="Player sections"] button { padding:10px 4px; min-width:0; overflow-wrap:normal; word-break:normal; white-space:nowrap; }
+
+.import-review { padding:16px; margin:20px 0; border:1px solid #38658b; border-radius:16px; background:#071c36; }
+.import-review-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
+.import-review-actions button { flex:1 1 180px; min-width:0; white-space:normal; word-break:normal; overflow-wrap:normal; }
+.import-consent { display:flex; align-items:flex-start; gap:12px; line-height:1.5; }
+.import-consent input[type="checkbox"] { flex:0 0 22px; width:22px; height:22px; margin-top:2px; accent-color:#42aaff; }

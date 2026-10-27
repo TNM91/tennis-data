@@ -947,3 +947,8 @@ Added consistent native meter charts for selected-format player seasons, existin
 At320 root305/305, team dialog260/260 and no overflow in new graphics or team format controls. At390 root375/375, team dialog330/330. Found and corrected mid-word player navigation labels and clipped team format buttons; flattened the team chart’s duplicate frame. Accepted private screenshots: build106-player-390.png, build106-player-320.png, build106-opponents-390.png, build106-team-390.png and build106-team-320.png. No console errors or production private reads/writes.
 
 React review: derived immutable bounded data, stable keys, no new hooks/effects/fetches, type-only shared panel slot, no inline styles, text labels alongside color, zero-denominator and coverage guards. Existing website panel stays the default. Physical iPhone, VoiceOver and Dynamic Type pending.
+
+
+## Build 107 — saved import review
+
+Actual mobile entry, synthetic owner/auth/data and intercepted OCR/review only. At 390 CSS pixels: root375/375, dialog330/330. At320: root305/305, dialog260/260. Confirmation begins disabled, enables only after acknowledgement, sends one synthetic decision, refreshes saved state and withholds repeat actions. A simulated transport timeout sends once and replaces actions with explicit saved-draft refresh; after refresh acknowledgement starts unchecked. Saved-file reading has its own immediate-import acknowledgement. No console errors observed. No production data reads/writes or real OCR jobs used. Screenshot: private build107-review-390.png. Physical iPhone, Dynamic Type and VoiceOver pending. New file selection and draft correction remain browser handoffs, not completed native functionality.
