@@ -1,3 +1,4 @@
+import {nativeActionIcon} from './native-action-icons'
 /** Locally bundled choices: inserting an emoji never sends a message. */
 export const chatEmojiChoices = [
  ['\u{1F3BE}','Tennis'],['\u{1F44F}','Applause'],['\u{1F525}','Fire'],['\u{1F4AA}','Strong'],
@@ -16,5 +17,5 @@ export function insertChatEmoji(text:string,start:number,end:number,emoji:string
  return value.length<=limit?{text:value,caret:start+emoji.length}:null
 }
 export function chatEmojiPickerHtml(disabled:boolean){
- return `<details class="chat-emoji-picker"><summary>Emoji</summary><div class="chat-emoji-grid" role="group" aria-label="Choose an emoji">${chatEmojiChoices.map(([emoji,label])=>`<button type="button" class="secondary" data-chat-emoji="${emoji}" aria-label="Insert ${label}" ${disabled?'disabled':''}>${emoji}</button>`).join('')}</div></details>`
+ return `<details class="chat-emoji-picker"><summary aria-label="Emoji">${nativeActionIcon('emoji')}<span class="sr-only">Emoji</span></summary><div class="chat-emoji-grid" role="group" aria-label="Choose an emoji">${chatEmojiChoices.map(([emoji,label])=>`<button type="button" class="secondary" data-chat-emoji="${emoji}" aria-label="Insert ${label}" ${disabled?'disabled':''}>${emoji}</button>`).join('')}</div></details>`
 }
