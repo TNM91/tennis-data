@@ -627,3 +627,12 @@ The website image preparation helper is shared without changing its default beha
 Known team-only iOS camera/library purpose text migrates to include scorecard imports; custom purpose text remains protected. No new plugin, schema, grant, service-role use or paid feature is introduced. Photo and Files picker backgrounding, permissions/denial/cancel, real-device OCR accuracy, VoiceOver and Dynamic Type still require physical iPhone acceptance. Bulk uploads and correction editing remain browser handoffs; same-screen resume limits from108 remain.
 
 Synthetic actual-entry library/camera checks at320/390 cover 1000×1500 preview, separate save/read, no OCR on save, disabled availability and non-overflowing controls. No private production reads, live uploads or real OCR/import jobs were used.
+
+### Build 110 — schedule date review
+
+- Uploads & imports now exposes the website's Confirm date fields for saved schedule rows flagged `Check date`.
+- The native reviewer preserves schedule details and changes only flagged dates. It uses the shared schedule review checks, validates calendar dates, and blocks confirmation while any match still needs review.
+- Confirmation re-reads the owner-scoped saved draft before submitting its corrected schedule through the existing review API. A changed saved draft requires refresh; an uncertain write is not retried automatically.
+- Other schedule corrections and bulk uploads continue in Data Assist. No server API, database permissions, import rules, provider settings or paid infrastructure settings changed.
+
+Synthetic production-mode mobile QA corrected a flagged date, acknowledged import, submitted once, refreshed, and expanded the saved match showing the corrected date. Root/dialog client widths equal scroll widths at390/320; changing a date clears acknowledgement. No private production reads, real uploads or imports were used. Physical iPhone date picker, Dynamic Type and VoiceOver remain pending.

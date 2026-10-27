@@ -1,3 +1,4 @@
+import {reviewedSchedule,type ScheduleDates} from './data-import-schedule'
 import {CapacitorHttp,type HttpOptions,type HttpResponse} from '@capacitor/core'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {loadImportDetail,type ImportBatch,type ImportDetail} from './data-imports-data'
@@ -11,15 +12,21 @@ export function availableImportActions(batch:ImportBatch,detail:ImportDetail):Im
   ? [...(detail.total>0&&detail.total<=100?['confirmed' as const]:[]),'flagged'] : []
  return ['needs_review','blocked'].includes(detail.status)&&['not_started','failed'].includes(detail.ocr)?['read']:[]
 }
-export async function actOnImport(client:SupabaseClient,owner:string,current:()=>boolean,batch:ImportBatch,detail:ImportDetail,action:ImportAction,send:ImportSend=o=>CapacitorHttp.post(o)){
+export async function actOnImport(client:SupabaseClient,owner:string,current:()=>boolean,batch:ImportBatch,detail:ImportDetail,action:ImportAction,send:ImportSend=o=>CapacitorHttp.post(o),dates:ScheduleDates={}){
  const own=async()=>{if(!current()||owner!==batch.owner||!uuid.test(owner)||!uuid.test(batch.id)||!uuid.test(detail.draftId))throw Error('Close this upload and sign in again.');const {data,error}=await client.auth.getSession();if(error||data.session?.user.id!==owner||!data.session.access_token||!current())throw Error('Close this upload and sign in again.');return data.session.access_token}
  await own()
  // Recheck the saved source before any write; a changed draft needs a fresh review.
  const latest=await loadImportDetail(client,batch,current)
  if(!latest||JSON.stringify(latest)!==JSON.stringify(detail)||!availableImportActions(batch,latest).includes(action))throw Error('This saved draft changed. Refresh it and review the latest values before continuing.')
+ let parsedDraft
+ if(action==='confirmed'&&batch.kind==='schedule'){
+  if(!latest.schedule)throw Error('Open this schedule in Data Assist to finish review.')
+  parsedDraft=reviewedSchedule(latest.schedule,dates)
+  if(parsedDraft.matches.some(m=>m.reviewNotes.length))throw Error('Finish the highlighted checks before importing this schedule.')
+ }
  const token=await own()
  let response:HttpResponse
- try{response=await send({url:'https://www.tenaceiq.com/api/data-assist/'+(action==='read'?'ocr':'review'),headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},data:{batchId:batch.id,draftId:detail.draftId,...(action==='read'?{}:{decision:action})},disableRedirects:true,responseType:'json',connectTimeout:12000,readTimeout:100000})}
+ try{response=await send({url:'https://www.tenaceiq.com/api/data-assist/'+(action==='read'?'ocr':'review'),headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},data:{batchId:batch.id,draftId:detail.draftId,...(action==='read'?{}:{decision:action}),...(parsedDraft?{parsedDraft}:{})},disableRedirects:true,responseType:'json',connectTimeout:12000,readTimeout:100000})}
  catch{throw Error('The result could not be confirmed. This action may still finish. Refresh the saved upload before trying again.')}
  await own()
  const data=response.data as {ok?:boolean;autoImport?:{ok?:boolean}}|null
