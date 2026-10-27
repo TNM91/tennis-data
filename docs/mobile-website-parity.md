@@ -636,3 +636,11 @@ Synthetic actual-entry library/camera checks at320/390 cover 1000×1500 preview,
 - Other schedule corrections and bulk uploads continue in Data Assist. No server API, database permissions, import rules, provider settings or paid infrastructure settings changed.
 
 Synthetic production-mode mobile QA corrected a flagged date, acknowledged import, submitted once, refreshed, and expanded the saved match showing the corrected date. Root/dialog client widths equal scroll widths at390/320; changing a date clears acknowledgement. No private production reads, real uploads or imports were used. Physical iPhone date picker, Dynamic Type and VoiceOver remain pending.
+
+### Build 111 — bulk scorecard save queue
+
+Uploads & imports accepts 2–10 TennisLink scorecard exports, sharing the existing website batch-limit constant. Schedules and rosters remain one file at a time; each file keeps the existing 10 MB limit. Every selected file is recognized before any write. The owner reviews filenames and sizes and acknowledges the private save. No reading/OCR/import is triggered by saving the queue; each saved upload opens the existing separately acknowledged Read action.
+
+Saves are sequential. Each file retains its own existing fixed upload IDs and non-overwriting storage path. The first uncertain save pauses later files, hides bulk continuation, and offers explicit Resume for that same file. Saved files are skipped on subsequent continuation. Opening a saved draft and returning preserves the current queue. Closing/backgrounding clears local files and queue; cross-session recovery remains through Saved uploads/Data Assist. Existing RLS, quotas, scorecard suspension, parsing and import rules remain authoritative. No API, schema/grant, provider, plugin or paid-setting changes.
+
+Synthetic actual-entry multi-file chooser/save/lost-response/resume/continue tests show exactly nine metadata rows for three files, no OCR/review requests on save, and zero production reads/writes. Root/dialog widths fit390/320 and long filenames wrap within cards. Model tests cover batch/type validation, paused recovery, no overlapping runs, saved-file skipping and closed/changed visits. Physical iPhone Files/iCloud multi-selection, backgrounding, VoiceOver and Dynamic Type remain pending.

@@ -1,0 +1,1 @@
+export const DATA_ASSIST_MAX_BULK_SCORECARDS = 10
