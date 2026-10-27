@@ -370,3 +370,47 @@ body[data-screen="lab"] #recent-results .match-filters button[aria-pressed="true
  .roster-comparison-dialog [data-comparison-rating-grid]>div { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; }
  .roster-comparison-dialog [data-comparison-rating-grid]>div>div:last-child { font-size:20px; overflow-wrap:normal; word-break:normal; }
 }
+
+/* Scoreboard first: quiet navy surfaces, strong type and purposeful blue accents. */
+.lab-scoreboard-intro { margin:4px 0 18px; }
+.lab-scoreboard-intro h1 { margin:8px 0; font-size:clamp(25px,7vw,34px); line-height:1.15; letter-spacing:-.03em; overflow-wrap:anywhere; }
+.lab-scoreboard-intro p { margin:0; color:var(--shell-copy-muted); font-size:14px; }
+.lab-scoreboard { background:linear-gradient(145deg,#0d2d52,#07182e); border:1px solid #295580; border-top:2px solid var(--native-blue); border-radius:22px; padding:20px 16px; box-shadow:0 12px 28px #020c1c40; }
+.lab-scoreboard h2 { margin:6px 0 18px; font-size:20px; }
+.lab-scoreboard .lab-rating-chart { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.lab-scoreboard .lab-rating-chart>div { padding:16px; background:#0b213b; border-radius:16px; }
+.lab-scoreboard .lab-rating-chart>div:first-child { grid-column:1/-1; padding:20px; background:linear-gradient(120deg,#123b67,#092341); border-color:#368ed0; }
+.lab-scoreboard .lab-rating-chart dt { font-size:13px; }
+.lab-scoreboard .lab-rating-chart dd { font-size:36px; font-variant-numeric:tabular-nums; line-height:1.1; }
+.lab-scoreboard .lab-rating-chart>div:first-child>dd:not(.rating-note):not(.rating-scale) { font-size:64px; letter-spacing:-.05em; }
+.lab-scoreboard .lab-rating-chart .rating-note { font-size:12px; margin-top:8px; line-height:1.4; }
+.lab-scoreboard .lab-rating-chart .rating-scale { font-size:inherit; }
+.lab-scoreboard .rating-scale-caption,.lab-scoreboard .rating-context { font-size:12px; line-height:1.6; }
+.chat-emoji-picker { min-width:0; position:relative; }
+.chat-emoji-picker summary { padding:12px; min-height:44px; box-sizing:border-box; border:1px solid var(--shell-panel-border); border-radius:12px; cursor:pointer; }
+.chat-emoji-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; padding:10px 0; }
+.chat-emoji-grid button.secondary { min-width:44px; min-height:44px; margin:0; padding:8px; font-size:24px; }
+.chat-photo-tools:has(.chat-emoji-picker[open]) .chat-emoji-picker { grid-column:1/-1; }
+.chat-reactions { gap:8px; flex-wrap:wrap; }
+.chat-reactions .chat-reaction { border-radius:999px; font-size:12px; padding:8px 12px; min-height:44px; }
+.team-message-meta { gap:8px; flex-wrap:wrap; }
+.team-message-meta>span { font-size:11px; }
+.team-bubble { border-radius:18px 18px 18px 5px; }
+.team-bubble-mine { border-radius:18px 18px 5px 18px; }
+
+.chats-intro h1 { margin:8px 0; font-size:32px; letter-spacing:-.03em; }
+.chats-intro p { color:var(--shell-copy-muted); font-size:14px; line-height:1.6; }
+.chats-section-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.chats-section-heading button { width:auto; margin:0; }
+.chats-team-list { list-style:none; padding:0; margin:16px 0 24px; display:grid; gap:12px; }
+.chats-team-card.secondary { display:flex; align-items:center; gap:12px; width:100%; margin:0; padding:18px 14px; text-align:left; border:1px solid #295580; border-radius:18px; background:linear-gradient(125deg,#103253,#0a203a); }
+.chats-team-avatar { display:grid; place-items:center; flex:0 0 44px; width:44px; height:44px; font-size:22px; font-weight:750; border-radius:14px; background:#184a76; color:#f0f7ff; }
+.chats-team-copy { min-width:0; flex:1; display:grid; gap:6px; }
+.chats-team-copy strong { font-size:17px; overflow-wrap:anywhere; }
+.chats-team-copy>span { color:var(--shell-copy-muted); font-size:12px; overflow-wrap:anywhere; }
+.chats-team-copy .chats-room-name { color:var(--native-blue); font-size:13px; }
+
+.chat-gif-library-grid { display:grid; gap:12px; margin:18px 0; }
+.chat-gif-library-grid button.secondary { padding:0 0 12px; margin:0; overflow:hidden; border-radius:16px; }
+.chat-gif-library-grid img { display:block; width:100%; height:auto; aspect-ratio:14/9; object-fit:contain; }
+.chat-gif-library-grid span { display:block; margin-top:10px; }
