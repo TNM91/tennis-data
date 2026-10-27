@@ -1,3 +1,4 @@
+import {importHistoryCursor,checkOlderImportPage,type ImportHistoryCursor} from './data-import-history'
 import {readReviewSchedule} from './data-import-schedule'
 import type {DataAssistScheduleParsedDraft} from '../../lib/data-assist-schedule-parser'
 import type {SupabaseClient} from '@supabase/supabase-js'
@@ -53,11 +54,14 @@ async function ownerSession(client:SupabaseClient,owner:string,current:()=>boole
  if(!uuid.test(owner)||!current())throw Error('Close this screen and sign in again.')
  const {data,error}=await client.auth.getSession();if(error||data.session?.user.id!==owner||!current())throw Error('Close this screen and sign in again.')
 }
-export async function loadImportBatches(client:SupabaseClient,owner:string,current:()=>boolean):Promise<{batches:ImportBatch[];limited:boolean;namesUnavailable:boolean}>{
+export async function loadImportBatches(client:SupabaseClient,owner:string,current:()=>boolean,cursor?:ImportHistoryCursor):Promise<{batches:ImportBatch[];limited:boolean;namesUnavailable:boolean}>{
  await ownerSession(client,owner,current)
- const r=await client.from('data_assist_batches').select('id,submitted_by_user_id,requested_import_type,status,screenshot_count,review_note,rejection_reason,created_at,updated_at').eq('submitted_by_user_id',owner).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(41).abortSignal(AbortSignal.timeout(12000))
+ let query=client.from('data_assist_batches').select('id,submitted_by_user_id,requested_import_type,status,screenshot_count,review_note,rejection_reason,created_at,updated_at').eq('submitted_by_user_id',owner)
+ if(cursor){const safe=importHistoryCursor(cursor);query=query.or('created_at.lt.'+safe.created+',and(created_at.eq.'+safe.created+',id.lt.'+safe.id+')')}
+ const r=await query.order('created_at',{ascending:false}).order('id',{ascending:false}).limit(41).abortSignal(AbortSignal.timeout(12000))
  await ownerSession(client,owner,current);if(r.error)throw Error('Could not load your uploads. Check your connection and try again.')
  const result=readImportBatches(r.data,owner)
+ if(cursor)checkOlderImportPage(result.batches,cursor)
  if(!result.batches.length)return {...result,namesUnavailable:false}
  let names=new Map<string,string>(),namesUnavailable=false
  try{
