@@ -1,3 +1,4 @@
+import {loadOlderResults} from './recent-results-history'
 import {mountLabRatingTrends} from './lab-rating-trends'
 import {openDataImports} from './data-imports-view'
 import {openLeagueOffice} from './league-office-view'
@@ -304,7 +305,7 @@ async function lab() {
         }
         const rows = (result.data || []) as RecentMatchRow[]
         content.dataset.state = rows.length ? 'ready' : 'empty'
-        showRecentResults(content, rows, playerId, row => details?.open(row, playerId),'your',true)
+        showRecentResults(content, rows, playerId, row => details?.open(row, playerId),'your',true,{current:()=>version===revision&&current.user.id===session?.user.id,load:loaded=>loadOlderResults(client,playerId,loaded)})
       }
       void refreshResults()
     }

@@ -1,3 +1,4 @@
+import {RECENT_HISTORY_LIMIT} from './recent-results-history'
 import {labResultBreakdownHtml,type BreakdownView} from './lab-result-breakdown'
 import {playerRecentRecord} from '../../lib/player-recent-record'
 import {filterMatchbookEntries} from '../../lib/player-matchbook'
@@ -33,15 +34,20 @@ export function resultsHtml(rows: RecentMatchRow[], playerId: string, filter: Ma
   const form = recentForm(shown, playerId)
   return `<div class="match-filters" role="group" aria-label="Match type">${filters.map(value => `<button type="button" class="secondary" data-match-filter="${value}" aria-pressed="${value === filter}">${value}</button>`).join('')}</div><div role="status" class="form-status"><p>${shown.length} ${filter === 'All' ? 'match' : filter.toLowerCase() + ' match'}${shown.length === 1 ? '' : 'es'} in ${html(owner)} latest ${rows.length} connected results.</p>${shown.length ? `${recentPulseHtml(shown,playerId)}<dl class="recent-form" aria-label="Recent form"><div><dt>Wins</dt><dd>${form.wins}</dd></div><div><dt>Losses</dt><dd>${form.losses}</dd></div><div><dt>Pending</dt><dd>${form.pending}</dd></div></dl>` : `<p>No matches of this type in ${html(owner)} latest results. Try All.</p>`}</div>${compact?recentStatsHtml(rows,playerId,filter)+labResultBreakdownHtml(shown,playerId,breakdown,rows.length,filter==='All'?'All formats':filter):''}${shown.length ? `${compact?'<details class="recent-match-list"><summary>View recent match list</summary>':''}<ol class="matches">${shown.map((row, index) => `<li><div class="match-heading"><strong class="result-${matchResult(row, playerId) === 'Won' ? 'won' : matchResult(row, playerId) === 'Lost' ? 'lost' : 'pending'}">${html(matchResult(row, playerId))}</strong><span>${html(matchDate(row.match_date))}</span></div><p>${html(row.match_type || 'Match')} · ${html(row.league_name || 'League unavailable')}</p><p class="score">${html(row.score || 'Score unavailable')}</p><button type="button" class="secondary match-open" data-index="${index}" aria-label="View match details, ${html(matchDate(row.match_date))}, ${html(row.match_type || 'match')}">View match</button></li>`).join('')}</ol><small>Scores are shown as recorded, in the source’s court order.</small>${compact?'</details>':''}` : ''}`
 }
-export function showRecentResults(content: HTMLElement, rows: RecentMatchRow[], playerId: string, open: (row: RecentMatchRow) => void, owner = 'your', compact=false) {
-  if (!rows.length) {
+export type RecentHistoryLoader={current:()=>boolean;load:(rows:RecentMatchRow[])=>Promise<{rows:RecentMatchRow[];hasMore:boolean}>}
+export function showRecentResults(content: HTMLElement, initialRows: RecentMatchRow[], playerId: string, open: (row: RecentMatchRow) => void, owner = 'your', compact=false,history?:RecentHistoryLoader) {
+  if (!initialRows.length) {
     content.innerHTML = '<p>No matches are connected to this player record yet. Results will appear here as scores are added.</p>'
     return
   }
-  let breakdown:BreakdownView='leagues'
-  const render = (filter: MatchFilter, restoreFocus = false,breakdownFocus=false) => {
-    content.innerHTML = resultsHtml(rows, playerId, filter, owner,compact,breakdown)
-    content.querySelectorAll<HTMLButtonElement>('[data-result-breakdown]').forEach(button=>{button.onclick=()=>{breakdown=button.dataset.resultBreakdown as BreakdownView;render(filter,false,true)}})
+  let rows=initialRows,breakdown:BreakdownView='leagues',activeFilter:MatchFilter='All',busy=false,hasMore=rows.length===10,notice=''
+  const valid=()=>content.isConnected&&(!history||history.current())
+  const render = (filter: MatchFilter, restoreFocus = false,breakdownFocus=false,historyFocus=false) => {
+    activeFilter=filter
+    const expanded=content.querySelector<HTMLDetailsElement>('.recent-match-list')?.open??false
+    content.innerHTML = resultsHtml(rows, playerId, filter, owner,compact,breakdown)+(history?`<div class="recent-history-actions"><p>${rows.length} connected results loaded. Up to ${RECENT_HISTORY_LIMIT} per visit; this is not a full-history total.</p><p role="status">${html(notice)}</p>${hasMore&&rows.length<RECENT_HISTORY_LIMIT?`<button type="button" class="secondary" data-older-results ${busy?'disabled':''}>${busy?'Loading older matches...':'Load older matches'}</button>`:`<p>${rows.length>=RECENT_HISTORY_LIMIT?'Sample limit reached. Refresh profile to return to the latest ten.':'No more older matches were found in this loaded history.'}</p>`}</div>`:'')
+    const list=content.querySelector<HTMLDetailsElement>('.recent-match-list');if(list)list.open=expanded
+    content.querySelectorAll<HTMLButtonElement>('[data-result-breakdown]').forEach(button=>{button.onclick=()=>{breakdown=button.dataset.resultBreakdown as BreakdownView;render(activeFilter,false,true)}})
     content.querySelectorAll<HTMLButtonElement>('[data-match-filter]').forEach(button => {
       button.onclick = () => render(button.dataset.matchFilter as MatchFilter, true)
     })
@@ -49,8 +55,17 @@ export function showRecentResults(content: HTMLElement, rows: RecentMatchRow[], 
     content.querySelectorAll<HTMLButtonElement>('.match-open').forEach(button => {
       button.onclick = () => open(shown[Number(button.dataset.index)])
     })
+    const older=content.querySelector<HTMLButtonElement>('[data-older-results]')
+    if(older&&history)older.onclick=async()=>{
+      if(busy||!valid())return
+      busy=true;notice='';render(activeFilter)
+      try{const result=await history.load(rows);if(!valid())return;rows=result.rows;hasMore=result.hasMore;notice='Older match check finished. Charts and records use the loaded sample.'}
+      catch{if(!valid())return;notice='Could not add older matches. Your loaded results are still here. Try again, or refresh your profile if history changed.'}
+      finally{busy=false;if(valid())render(activeFilter,false,false,true)}
+    }
     if (restoreFocus) content.querySelector<HTMLButtonElement>('[data-match-filter][aria-pressed="true"]')?.focus({preventScroll:true})
     if (breakdownFocus) content.querySelector<HTMLButtonElement>('[data-result-breakdown][aria-pressed="true"]')?.focus({preventScroll:true})
+    if (historyFocus) (content.querySelector<HTMLButtonElement>('[data-older-results]')||content.querySelector<HTMLButtonElement>('[data-match-filter][aria-pressed="true"]'))?.focus({preventScroll:true})
   }
   render('All')
 }
