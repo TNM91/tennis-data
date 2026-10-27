@@ -1,3 +1,4 @@
+import {savedImportOutcome} from './data-import-outcome'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {DATA_ASSIST_MAX_BULK_SCORECARDS} from '../../lib/data-assist-limits'
 import {actOnImport,availableImportActions} from './data-import-actions'
@@ -18,11 +19,12 @@ export function createScorecardReader(client:SupabaseClient,owner:string,ids:str
  const checked=(item:ReadingItem,snapshot:Snapshot,wasUncertain=false)=>{
   const {batch,detail}=snapshot
   if(batch.id!==item.id||batch.owner!==owner||batch.kind!=='scorecard'||batch.files!==1)throw Error('This saved file changed.')
+  if(savedImportOutcome(batch,detail).state==='conflict'){item.state='blocked';item.message='Saved statuses disagree. Refresh the saved file or open Data Assist.';return}
   if(!detail){item.state='blocked';item.message='No saved draft. Open the file to check its status.';return}
   if(detail.ocr==='processed'||detail.ocr==='failed'||batch.status==='imported'||detail.status==='imported')unconfirmed.delete(item.id)
   const counts=detail.outcome.map(([label,value])=>label+': '+value).join(' · ')
   if(batch.status==='imported'||detail.status==='imported'){
-   item.state=Number(detail.outcome.find(([label])=>label==='Failed')?.[1]||0)>0?'review':detail.duplicate?'duplicate':'imported'
+   item.state=savedImportOutcome(batch,detail).state==='partial'?'review':savedImportOutcome(batch,detail).state==='duplicate'?'duplicate':'imported'
    item.message=(item.state==='review'?'Import recorded with rows to review.':item.state==='duplicate'?'Already imported. No result changes recorded.':'Import recorded.')+(counts?' '+counts:'');return
   }
   if(detail.status==='verified'||batch.status==='verified'){item.state='blocked';item.message='Confirmation recorded. Refresh later to check the import outcome.';return}
