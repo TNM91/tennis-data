@@ -1,5 +1,6 @@
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {followSession} from './follows-data'
+import {CapacitorHttp} from '@capacitor/core'
 import type {PlayerChoice} from './player-connection'
 import type {TeamChoice} from './directory-data'
 import type {LeagueCard} from '../../lib/league-summary'
@@ -40,7 +41,23 @@ export function followedTarget(item:FollowedEntity):FollowedTarget|null {
  return {kind:'league',scope:{layer:layer as FollowedLeagueScope['layer'],name,flight,section,district}}
 }
 export function followedLeagueRows(rows:LeagueCard[],scope:FollowedLeagueScope){
- const matching=rows.filter(row=>(!scope.layer||row.competitionLayer===scope.layer)&&row.leagueName===scope.name&&row.flight===scope.flight&&row.ustaSection===scope.section&&row.districtArea===scope.district)
+ const savedParts=[scope.name,scope.flight,scope.section,scope.district]
+ const matching=rows.filter(row=>{
+  if(scope.layer&&row.competitionLayer!==scope.layer)return false
+  const parts=[row.leagueName,row.flight,row.ustaSection,row.districtArea]
+  // Website league-directory keys lowercase every dimension; detail-page keys retain display case.
+  return parts.every((part,index)=>part===savedParts[index])||Boolean(scope.layer&&parts.every((part,index)=>typeof part==='string'&&part.trim().toLowerCase()===savedParts[index]))
+ })
  if(!scope.layer&&new Set(matching.map(row=>row.competitionLayer)).size>1)throw Error('Saved league context is ambiguous.')
  return matching
+}
+
+/** Remove the exact saved identity; legacy identifiers must not be rebuilt. */
+export async function removeFollowedEntity(client:SupabaseClient,item:FollowedEntity,current:()=>boolean,send:typeof CapacitorHttp.request=options=>CapacitorHttp.request(options)){
+ if(!item||!['player','team','league'].includes(item.entity_type))throw Error('Following unavailable.')
+ const [saved]=parseFollowedEntities([item],item.entity_type)
+ const session=await followSession(client,current)
+ const response=await send({url:'https://www.tenaceiq.com/api/follows',method:'DELETE',headers:{Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json'},data:saved,responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:12000})
+ const next=await followSession(client,current)
+ if(next.user.id!==session.user.id||response.status<200||response.status>=300||response.data?.ok!==true||response.data.following!==false)throw Error('Could not confirm removal. Refresh following before trying again.')
 }
