@@ -1,3 +1,4 @@
+import {namedChatRoomId} from '../../lib/named-team-chat-rooms'
 import {App} from '@capacitor/app'
 import {Capacitor,CapacitorHttp,type PluginListenerHandle} from '@capacitor/core'
 import {PushNotifications,type PushNotificationsPlugin} from '@capacitor/push-notifications'
@@ -15,7 +16,8 @@ export function pushTeamDestination(data:unknown,userId:string):TeamScope|null {
  if(url.origin!=='https://www.tenaceiq.com' || url.pathname!=='/team-room' || url.hash)return null
  const teamName=url.searchParams.get('team') || '',leagueName=url.searchParams.get('league') || '',flight=url.searchParams.get('flight') || ''
  if(!teamName || !leagueName || [teamName,leagueName,flight].some(value=>value.length>200))return null
- return {teamName,leagueName,flight}
+ const chatRoomId=url.searchParams.get('chatRoom');if(chatRoomId!==null&&!namedChatRoomId(chatRoomId))return null
+ return {teamName,leagueName,flight,...(chatRoomId?{chatRoomId}:{})}
 }
 export async function nativePushRequest(session:Session,data?:unknown,transport=CapacitorHttp):Promise<PushReply>{
  const options={url:'https://www.tenaceiq.com/api/mobile/push',headers:{Authorization:`Bearer ${session.access_token}`,'Content-Type':'application/json'},responseType:'json' as const,disableRedirects:true,connectTimeout:12000,readTimeout:12000}

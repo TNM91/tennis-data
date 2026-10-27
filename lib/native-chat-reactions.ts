@@ -1,8 +1,9 @@
+import {teamChatReactions,isTeamChatReaction,maxTeamChatReactionCount} from './team-chat-reaction-kinds'
 import type {SupabaseClient} from '@supabase/supabase-js'
 import {loadChatBlocks} from './team-chat-safety'
-export const nativeReactionKinds=['helpful','celebrate'] as const
+export const nativeReactionKinds=teamChatReactions.map(item=>item.reaction)
 export type NativeReactionKind=typeof nativeReactionKinds[number]
-export const isNativeReaction=(value:unknown):value is NativeReactionKind=>nativeReactionKinds.some(kind=>kind===value)
+export const isNativeReaction=isTeamChatReaction
 const uuid=(value:unknown):value is string=>typeof value==='string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value)
 /** Caller verifies the exact accepted team scope and current participation first. */
 export async function setNativeChatReaction(service:SupabaseClient,owner:string,roomId:string,input:{messageId?:unknown;reaction?:unknown;active?:unknown}){
@@ -22,10 +23,10 @@ export async function loadNativeReactionSummary(service:SupabaseClient,owner:str
  const map=new Map<string,{reaction:NativeReactionKind;count:number;reacted:boolean}[]>()
  if(!messageIds.length)return map
  const result=await service.rpc('native_chat_reaction_summary',{p_conversation:roomId,p_messages:messageIds,p_owner:owner})
- if(result.error || !Array.isArray(result.data) || result.data.length>150)throw Error('Reaction summaries unavailable')
+ if(result.error || !Array.isArray(result.data) || result.data.length>messageIds.length*nativeReactionKinds.length)throw Error('Reaction summaries unavailable')
  const visible=new Set(messageIds)
  for(const row of result.data){
-  if(!visible.has(row.message_id) || !isNativeReaction(row.reaction) || !Number.isSafeInteger(Number(row.reaction_count)) || Number(row.reaction_count)<1 || typeof row.reacted!=='boolean')throw Error('Invalid reaction summary')
+  if(!visible.has(row.message_id) || !isNativeReaction(row.reaction) || !Number.isSafeInteger(Number(row.reaction_count)) || Number(row.reaction_count)<1 || Number(row.reaction_count)>maxTeamChatReactionCount || typeof row.reacted!=='boolean')throw Error('Invalid reaction summary')
   const current=map.get(row.message_id) || []
   if(current.some(item=>item.reaction===row.reaction))throw Error('Duplicate reaction summary')
   current.push({reaction:row.reaction,count:Number(row.reaction_count),reacted:row.reacted});map.set(row.message_id,current)

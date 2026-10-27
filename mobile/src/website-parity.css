@@ -414,3 +414,30 @@ body[data-screen="lab"] #recent-results .match-filters button[aria-pressed="true
 .chat-gif-library-grid button.secondary { padding:0 0 12px; margin:0; overflow:hidden; border-radius:16px; }
 .chat-gif-library-grid img { display:block; width:100%; height:auto; aspect-ratio:14/9; object-fit:contain; }
 .chat-gif-library-grid span { display:block; margin-top:10px; }
+
+.chat-reaction-picker { min-width:0; flex:1 1 100%; }
+.chat-reaction-picker summary { display:inline-flex; align-items:center; min-height:44px; padding:6px 12px; box-sizing:border-box; border:1px solid var(--shell-panel-border); border-radius:999px; font-size:12px; cursor:pointer; }
+.chat-reaction-choices { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin:8px 0; }
+.chat-reaction-choices .chat-reaction-choice { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px; width:100%; min-width:0; margin:0; padding:10px 6px; border-radius:12px; }
+.chat-reaction-choice>span:first-child { font-size:20px; }
+.chat-reactions>.chat-reaction { display:inline-flex; align-items:center; gap:6px; width:auto; margin:0; }
+.chat-reactions>.chat-reaction[aria-pressed="true"],.chat-reaction-choice[aria-pressed="true"] { border-color:var(--native-blue); background:#123b67; }
+
+.room-switcher { width:100%; text-align:left; border-color:var(--native-blue); }
+.named-room-list { list-style:none; padding:0; display:grid; gap:10px; }
+.named-room-list button.secondary { width:100%; margin:0; padding:16px; text-align:left; display:grid; gap:6px; }
+.named-room-list button span { color:var(--shell-copy-muted); font-size:12px; }
+.named-room-list button[aria-pressed="true"] { border-color:var(--native-blue); background:#123b67; }
+.team-rooms-dialog input { box-sizing:border-box; width:100%; }
+
+/* Compact messaging controls leave room for the conversation on small phones. */
+.chat-photo-tools { grid-template-columns:repeat(5,minmax(0,1fr)); gap:4px; margin-bottom:10px; }
+.chat-photo-tools>button.secondary { display:flex; align-items:center; justify-content:center; min-height:46px; min-width:0; padding:8px 2px; margin:0; font-size:13px; }
+.chat-photo-tools #chat-tag-person { font-size:23px; }
+.chat-photo-tools .chat-emoji-picker summary { display:flex; align-items:center; justify-content:center; min-height:46px; padding:8px 2px; font-size:12px; }
+.chat-photo-tools:has(.chat-emoji-picker[open]) { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.chat-reaction-choices { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.chat-reaction-choices .chat-reaction-choice { min-height:48px; }
+.chat-reaction-choice>span:first-child { font-size:24px; }
+
+.named-room-list strong,.team-rooms-dialog h2,.room-switcher { min-width:0; overflow-wrap:anywhere; word-break:normal; }

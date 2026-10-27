@@ -1,3 +1,4 @@
+import {namedTeamChatRooms,type NamedChatRoom} from '@/lib/named-team-chat-rooms'
 import {loadTeamFixtures} from '@/lib/team-fixtures'
 import {seasonToday} from '@/lib/season-kickoff-server'
 import {searchTeamChatRows,publicChatSearchResult} from '@/lib/team-chat-search'
@@ -100,6 +101,7 @@ import {
 export const runtime = 'nodejs'
 
 type TeamLinkRow = {
+  namedRoom?: NamedChatRoom
   id?: string
   profile_user_id: string
   team_name: string
@@ -195,6 +197,9 @@ type TeamRoomMessageCardPayload = Record<string, unknown> & {
 }
 
 type TeamRoomActionBody = {
+  chatRoomId?: unknown
+  roomName?: unknown
+  clientRoomId?: unknown
   action?: unknown
   teamName?: unknown
   leagueName?: unknown
@@ -305,6 +310,8 @@ export async function GET(request: Request) {
   if (!auth.ok) return auth.response
 
   const url = new URL(request.url)
+  if(url.searchParams.has('namedRooms')&&url.searchParams.get('namedRooms')!=='1')return Response.json({ok:false},{status:400})
+  if(url.searchParams.has('chatRoom')&&['summary','teamFixtures','activeChallenge','levelUpChallenge','levelUpHistory','nativeCaptainReview','nativeCaptainReplacement','namedRooms'].some(key=>url.searchParams.has(key)))return Response.json({ok:false},{status:400})
   const linksResult = await loadAcceptedTeamLinks(auth.service, auth.userId)
   if (!linksResult.ok) return Response.json({ ok: false, message: linksResult.message }, { status: 500 })
   if (!linksResult.links.length) {
@@ -348,6 +355,19 @@ export async function GET(request: Request) {
       })
   if (!selected) {
     return Response.json({ ok: false, message: 'This team is not linked to your profile.' }, { status: 403 })
+  }
+
+  if((url.searchParams.has('chatRoom')||url.searchParams.has('namedRooms'))&&(url.searchParams.get('team')!==selected.team_name||url.searchParams.get('league')!==selected.league_name||(url.searchParams.get('flight')||'')!==(selected.flight||'')))return Response.json({ok:false},{status:403})
+  if(url.searchParams.get('namedRooms')==='1'){
+    const result=await namedTeamChatRooms(auth.service,auth.userId,{teamName:selected.team_name,leagueName:selected.league_name,flight:selected.flight},'list')
+    return Response.json(result,{status:result.status,headers:{'Cache-Control':'private, no-store'}})
+  }
+  const namedId=url.searchParams.get('chatRoom')
+  if(namedId!==null){
+    if(url.searchParams.get('read')!=='0'&&url.searchParams.get('chatUpdates')!=='1'||['summary','teamFixtures','activeChallenge','levelUpChallenge','levelUpHistory','nativeCaptainReview','nativeCaptainReplacement'].some(key=>url.searchParams.has(key)))return Response.json({ok:false},{status:400})
+    const named=await namedTeamChatRooms(auth.service,auth.userId,{teamName:selected.team_name,leagueName:selected.league_name,flight:selected.flight},'open',namedId)
+    if(!named.ok||!('id' in named))return Response.json({ok:false},{status:named.ok?503:named.status})
+    selected.namedRoom={id:named.id,name:named.name,parentId:named.parentId,teamMuted:named.teamMuted}
   }
 
   if (url.searchParams.get('chatUpdates') === '1') {
@@ -419,7 +439,7 @@ export async function GET(request: Request) {
     ok: true,
     teams: linksResult.links.map(toTeamOption),
     room: roomResult.room,
-  })
+  },{headers:{'Cache-Control':'private, no-store'}})
 }
 
 export async function POST(request: Request) {
@@ -444,6 +464,18 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: 'This team is not linked to your profile.' }, { status: 403 })
   }
 
+  if((body.chatRoomId!==undefined||body.action==='create_chat_room'||body.action==='lookup_chat_room')&&(body.teamName!==selected.team_name||body.leagueName!==selected.league_name||(body.flight||'')!==(selected.flight||'')))return Response.json({ok:false},{status:403})
+  if(body.action==='create_chat_room'||body.action==='lookup_chat_room'){
+    if(body.chatRoomId!==undefined)return Response.json({ok:false},{status:400})
+    const result=await namedTeamChatRooms(auth.service,auth.userId,{teamName:selected.team_name,leagueName:selected.league_name,flight:selected.flight},body.action==='create_chat_room'?'create':'lookup',body.clientRoomId,body.roomName)
+    return Response.json(result,{status:result.status,headers:{'Cache-Control':'private, no-store'}})
+  }
+  if(body.chatRoomId!==undefined){
+    if(!['send','send_chat_photo','read_chat_photo','edit_chat_post','remove_chat_post','set_chat_reaction','mark_chat_read','set_chat_mute','report_chat_message','block_chat_member','unblock_chat_member'].includes(cleanText(body.action))||body.announcement===true)return Response.json({ok:false},{status:400})
+    const named=await namedTeamChatRooms(auth.service,auth.userId,{teamName:selected.team_name,leagueName:selected.league_name,flight:selected.flight},'open',body.chatRoomId)
+    if(!named.ok||!('id' in named))return Response.json({ok:false},{status:named.ok?503:named.status})
+    selected.namedRoom={id:named.id,name:named.name,parentId:named.parentId,teamMuted:named.teamMuted}
+  }
   const action = cleanText(body.action)
   if (action === 'native_replacement_followup' || action === 'publish_native_replacement' || action === 'publish_native_lineup' || (body.nativeClient === true && action === 'send_final_lineup')) {
     const captain=await getCaptainApiAuth(request)
@@ -2707,6 +2739,7 @@ async function loadActionableLevelUpChallenge(
 // Live text refreshes do not ensure rooms, rewrite participants, mark read, sign files,
 // or recompute match plans. Current accepted links and explicit removals still gate every read.
 async function findNativeChatConversation(service: SupabaseClient, selected: TeamLinkRow) {
+  if(selected.namedRoom){const row=await service.from('internal_conversations').select('id').eq('id',selected.namedRoom.id).eq('related_entity_type','team_room_chat').eq('status','open').maybeSingle();return row.error?{ok:false as const,status:503}:row.data?{ok:true as const,id:String(row.data.id)}:{ok:false as const,status:404}}
   const scopeId = buildTeamRoomScopeId({teamName: selected.team_name, leagueName: selected.league_name, flight: selected.flight})
   const conversation = await service.from('internal_conversations').select('id')
     .eq('related_entity_type', 'team_room').eq('related_entity_id', scopeId).maybeSingle()
@@ -2747,7 +2780,7 @@ async function loadNativeChatUpdate(service: SupabaseClient, userId: string, sel
       loadProfileMap(service, [userId, ...loaded.rows.map(row => row.sender_user_id)]),
       loadNativeReactionSummary(service, userId, id, loaded.rows.map(row => row.id)),
     ])
-    return {ok: true as const, chatUpdate: true, beforeCursor: loaded.beforeCursor, nextCursor: loaded.nextCursor, room: {id, blockedUserIds: loaded.blockedUserIds, lastReadAt: loaded.lastReadAt, messages: loaded.rows.map(row => ({...toMessage(row, profiles, userId), reactions: reactions.get(row.id) || []}))}}
+    return {ok: true as const, chatUpdate: true, beforeCursor: loaded.beforeCursor, nextCursor: loaded.nextCursor, room: {id,...(selected.namedRoom?{chatRoom:selected.namedRoom}:{}), blockedUserIds: loaded.blockedUserIds, lastReadAt: loaded.lastReadAt, messages: loaded.rows.map(row => ({...toMessage(row, profiles, userId), reactions: reactions.get(row.id) || []}))}}
   } catch { return {ok: false as const, status: 503, message: 'Conversation updates are unavailable.'} }
 }
 
@@ -2764,6 +2797,12 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
     return { ok: false as const, status: 403, message: 'A captain removed this profile from Team Chat.' }
   }
 
+  if(selected.namedRoom){
+    const update=await loadNativeChatUpdate(service,userId,selected,'')
+    if(!update.ok)return update
+    const member=members.find(item=>item.id===userId)
+    return {ok:true as const,room:{...update.room,chatRoom:selected.namedRoom,teamName:selected.team_name,leagueName:selected.league_name,flight:selected.flight,subject:selected.namedRoom.name,canManage:false,chatReady:true,members:members.map(item=>({id:item.id,name:item.name,playerName:item.playerName,roles:item.roles})),muted:member?.muted===true,lastReadAt:member?.lastReadAt||'',activeCardId:'',nextScheduledMatch:null}}
+  }
   const { data: messageRows, error: messageError } = await loadTeamConversationMessages(service, conversation.id)
   if (messageError) return { ok: false as const, status: 500, message: messageError.message }
 
@@ -2891,7 +2930,7 @@ async function loadTeamRoom(service: SupabaseClient, userId: string, selected: T
         currentUserId: userId,
       })
     : null
-  let nativeMessages = messages.slice(-75)
+  let nativeMessages:Array<Omit<typeof messages[number],'reactions'>&{reactions:{reaction:string;count:number;profileIds:string[];reacted:boolean}[]}>=messages.slice(-75)
   if (!markRead) {
     try {
       const reactions = await loadNativeReactionSummary(service, userId, conversation.id, nativeMessages.map(message => message.id))
@@ -3432,6 +3471,7 @@ async function loadTeamRoomSummary(service: SupabaseClient, userId: string, sele
 }
 
 async function ensureTeamRoom(service: SupabaseClient, selected: TeamLinkRow) {
+  if(selected.namedRoom){const row=await service.from('internal_conversations').select('id,subject,created_by_user_id,related_entity_id,metadata,created_at,updated_at').eq('id',selected.namedRoom.id).eq('related_entity_type','team_room_chat').eq('status','open').maybeSingle();return row.error?{ok:false as const,status:503,message:'Room unavailable.'}:row.data?{ok:true as const,conversation:row.data as ConversationRow}:{ok:false as const,status:404,message:'Room unavailable.'}}
   const scopeId = buildTeamRoomScopeId({
     teamName: selected.team_name,
     leagueName: selected.league_name,
@@ -3485,11 +3525,17 @@ async function ensureTeamRoom(service: SupabaseClient, selected: TeamLinkRow) {
 }
 
 async function syncTeamRoomParticipants(service: SupabaseClient, conversationId: string, selected: TeamLinkRow) {
-  const { data: linkedRows } = await service
+  const parentMembers=selected.namedRoom?await service.from('internal_conversation_participants').select('profile_id').eq('conversation_id',selected.namedRoom.parentId).limit(251):null
+  if(parentMembers&&(parentMembers.error||!parentMembers.data||parentMembers.data.length>250))throw Error('Team membership unavailable.')
+  const parentIds=parentMembers?new Set(parentMembers.data.map(row=>String(row.profile_id))):null
+  let linkedQuery = service
     .from('team_profile_links')
     .select('profile_user_id,team_role,team_roles,team_name,normalized_team_name,league_name,flight,status')
     .eq('normalized_team_name', selected.normalized_team_name)
-    .eq('status', 'accepted')
+    .eq('status', 'accepted').is('archived_at',null)
+  if(selected.namedRoom)linkedQuery=linkedQuery.eq('team_name',selected.team_name).eq('league_name',selected.league_name).eq('flight',selected.flight).limit(251)
+  const {data:linkedRows,error:linksError}=await linkedQuery
+  if(selected.namedRoom&&(linksError||!linkedRows||linkedRows.length>250))throw Error('Team membership unavailable.')
 
   const scopeId = buildTeamRoomScopeId({
     teamName: selected.team_name,
@@ -3501,14 +3547,15 @@ async function syncTeamRoomParticipants(service: SupabaseClient, conversationId:
     leagueName: link.league_name,
     flight: link.flight,
   }) === scopeId)
-  if (!scopedLinks.some((link) => link.profile_user_id === selected.profile_user_id)) scopedLinks.push(selected)
+  if (!scopedLinks.some((link) => link.profile_user_id === selected.profile_user_id)){if(selected.namedRoom)return [];scopedLinks.push(selected)}
 
-  const { data: removalRows } = await service
+  const { data: removalRows,error:removalError } = await service
     .from('team_room_member_removals')
     .select('profile_id')
-    .eq('conversation_id', conversationId)
+    .eq('conversation_id', selected.namedRoom?.parentId||conversationId)
+  if(selected.namedRoom&&(removalError||removalRows===null))throw Error('Team membership unavailable.')
   const removedIds = new Set(((removalRows ?? []) as Array<{ profile_id: string }>).map((row) => row.profile_id))
-  const activeLinks = scopedLinks.filter((link) => canManageTeamRoom(teamRoles(link)) || !removedIds.has(link.profile_user_id))
+  const activeLinks = scopedLinks.filter((link) => selected.namedRoom?parentIds!.has(link.profile_user_id)&&!removedIds.has(link.profile_user_id):canManageTeamRoom(teamRoles(link)) || !removedIds.has(link.profile_user_id))
 
   const participantRows = activeLinks.map((link) => ({
     conversation_id: conversationId,
@@ -3516,20 +3563,22 @@ async function syncTeamRoomParticipants(service: SupabaseClient, conversationId:
     participant_role: canManageTeamRoom(teamRoles(link)) ? 'coordinator' : 'member',
   }))
   if (participantRows.length) {
-    await service
+    const result=await service
       .from('internal_conversation_participants')
       .upsert(participantRows, { onConflict: 'conversation_id,profile_id' })
+    if(selected.namedRoom&&result.error)throw Error('Team membership unavailable.')
   }
 
-  const { data: existingRows } = await service
+  const { data: existingRows,error:membersError } = await service
     .from('internal_conversation_participants')
     .select('profile_id,participant_role,muted,last_read_at')
     .eq('conversation_id', conversationId)
+  if(selected.namedRoom&&(membersError||!existingRows))throw Error('Team membership unavailable.')
   const activeIds = new Set(participantRows.map((row) => row.profile_id))
   const staleIds = ((existingRows ?? []) as ParticipantRow[])
     .map((row) => row.profile_id)
     .filter((id) => !activeIds.has(id))
-  if (staleIds.length) {
+  if (staleIds.length&&!selected.namedRoom) {
     await service
       .from('internal_conversation_participants')
       .delete()
@@ -3563,7 +3612,7 @@ async function notifyTeamRoom(service: SupabaseClient, input: {
   const { data } = await service
     .from('internal_conversation_participants')
     .select('profile_id,muted')
-    .eq('conversation_id', input.conversationId)
+    .eq('conversation_id', input.scope.namedRoom?.parentId||input.conversationId)
   const candidates = ((data ?? []) as ParticipantRow[])
     .filter((row) => row.profile_id !== input.actorUserId && row.muted !== true)
   const allowedIds = new Set(await chatNotificationRecipients(service, input.actorUserId, candidates.map(row => row.profile_id)))
@@ -3576,6 +3625,11 @@ async function notifyTeamRoom(service: SupabaseClient, input: {
     leagueName: input.scope.league_name,
     flight: input.scope.flight,
   })
+  if(input.scope.namedRoom){
+    const url=new URL(href,'https://www.tenaceiq.com');url.searchParams.set('chatRoom',input.scope.namedRoom.id)
+    await sendNativeTeamChatPush(service,{conversationId:input.conversationId,parentConversationId:input.scope.namedRoom.parentId,actorId:input.actorUserId,recipients:recipients.map(row=>row.profile_id),href:url.pathname+url.search,scope:{teamName:input.scope.team_name,leagueName:input.scope.league_name,flight:input.scope.flight}})
+    return
+  }
   await service.from('internal_notifications').insert(recipients.map((row) => ({
     recipient_profile_id: row.profile_id,
     actor_user_id: input.actorUserId,

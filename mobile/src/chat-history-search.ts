@@ -20,6 +20,7 @@ export async function readChatSearch(client:SupabaseClient,owner:string,current:
  const input=chatSearchInput(query,kind,before);if(!input)throw Error('Use two or more characters, up to 120, or leave the search empty to browse.')
  const {data,error}=await client.auth.getSession();if(error||data.session?.user.id!==owner||!current())throw Error('Sign in again to search your team.')
  const url=new URL('https://www.tenaceiq.com/api/team-rooms/search');for(const [key,value] of Object.entries({team:scope.teamName,league:scope.leagueName,flight:scope.flight,q:input.query,kind:input.kind,before}))url.searchParams.set(key,value)
+ if(scope.chatRoomId)url.searchParams.set('chatRoom',scope.chatRoomId)
  const response=await send({url:url.href,headers:{Authorization:'Bearer '+data.session.access_token},responseType:'json',disableRedirects:true,connectTimeout:12000,readTimeout:12000});if(!current())throw Error('This search is no longer open.');if(response.status!==200)throw Error('Search unavailable. Your team access or connection may have changed.')
  return parseChatSearch(response.data,roomId,input.query,kind,before)
 }
