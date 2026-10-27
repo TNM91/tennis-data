@@ -90,3 +90,10 @@ body{background:#07111f}.lab-identity{background:#0b1a2f;border-color:rgba(116,1
 .import-schedule-dates { display: grid; gap: 16px; margin-block: 16px; min-width: 0; }
 .import-schedule-dates label { display: grid; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
 .import-schedule-dates input { box-sizing: border-box; min-width: 0; width: 100%; max-width: 100%; min-height: 48px; color-scheme: dark; }
+
+.import-bulk ol { display: grid; gap: 16px; padding: 0; list-style: none; min-width: 0; }
+.import-bulk li { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--card-border-soft,#344b65); border-radius: 12px; min-width: 0; background: var(--portal-active-card-bg,#102944); }
+.import-bulk li strong, .import-bulk li span { overflow-wrap: anywhere; min-width: 0; }
+
+.data-imports-dialog .import-bulk { padding: 0; border: 0; background: transparent; box-shadow: none; }
+.import-bulk li button { width: 100%; margin: 0; }

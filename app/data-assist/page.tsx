@@ -60,7 +60,7 @@ import {
 const DATA_ASSIST_OCR_TIMEOUT_MS = 100_000
 const DATA_ASSIST_BULK_OCR_TIMEOUT_MS = 45_000
 const DATA_ASSIST_CONFIRM_TIMEOUT_MS = 45_000
-const DATA_ASSIST_MAX_BULK_SCORECARDS = 10
+import { DATA_ASSIST_MAX_BULK_SCORECARDS } from '@/lib/data-assist-limits'
 const newPlayerActions = [
   { href: '/data-assist#upload', label: 'Upload tennis data', detail: 'Scorecard, schedule, or Team Summary' },
   { href: '/explore/leagues', label: 'Local leagues', detail: 'Find a first match lane' },
