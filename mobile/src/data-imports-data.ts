@@ -64,3 +64,11 @@ export async function loadImportDetail(client:SupabaseClient,batch:ImportBatch,c
  await ownerSession(client,batch.owner,current);if(r.error)throw Error('Could not load this draft. Try again when connected.')
  return readImportDetail(r.data,batch)
 }
+
+export async function loadImportBatch(client:SupabaseClient,owner:string,id:string,current:()=>boolean){
+ if(!uuid.test(id))throw Error('Choose a saved upload again.')
+ await ownerSession(client,owner,current)
+ const r=await client.from('data_assist_batches').select('id,submitted_by_user_id,requested_import_type,status,screenshot_count,review_note,rejection_reason,created_at,updated_at').eq('submitted_by_user_id',owner).eq('id',id).limit(2).abortSignal(AbortSignal.timeout(12000))
+ await ownerSession(client,owner,current);if(r.error||!Array.isArray(r.data)||r.data.length!==1)throw Error('Refresh saved uploads to find this file.')
+ const batch=readImportBatches(r.data,owner).batches[0];if(batch.id!==id)throw Error('Choose the saved upload again.');return batch
+}
