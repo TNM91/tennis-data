@@ -110,3 +110,7 @@ body{background:#07111f}.lab-identity{background:#0b1a2f;border-color:rgba(116,1
 .import-schedule-dates legend { padding-inline: 6px; font-weight: 700; }
 .import-schedule-dates fieldset label { margin-block: 14px; }
 .import-schedule-dates fieldset p { overflow-wrap: anywhere; }
+
+.import-calendar { margin-block: 20px; min-width: 0; }
+.import-calendar ol { padding-left: 22px; }
+.import-calendar li { margin-block: 16px; overflow-wrap: anywhere; }
