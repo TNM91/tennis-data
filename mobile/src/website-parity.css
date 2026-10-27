@@ -344,3 +344,7 @@ body[data-screen="lab"] #recent-results .recent-form dd { font-size:25px; }
 .lab-format-grid meter::-webkit-meter-bar { height:10px; background:#1b3657; border:0; border-radius:8px; }
 .lab-format-grid meter::-webkit-meter-optimum-value { background:var(--native-blue); border-radius:8px; }
 .lab-format-grid meter::-moz-meter-bar { background:var(--native-blue); border-radius:8px; }
+
+.recent-history-actions { min-width:0; margin-top:18px; padding-top:14px; border-top:1px solid var(--shell-panel-border); }
+.recent-history-actions p { font-size:12px; color:var(--shell-copy-muted); overflow-wrap:anywhere; }
+.recent-history-actions button { width:100%; min-height:44px; }

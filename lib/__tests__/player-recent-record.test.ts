@@ -15,6 +15,9 @@ describe('shared My Lab recent record',()=>{
   expect(playerRecentRecord(entries(['W','W']))).toMatchObject({winRate:100,currentWinStreak:2})
   expect(playerRecentRecord(entries(['L','L']))).toMatchObject({winRate:0,bestWinStreak:0})
  })
+ it('keeps equal-date ordering consistent across chronological day boundaries',()=>{
+  expect(playerRecentRecord([{date:'2026-10-27',result:'W'},{date:'2026-10-27',result:'L'},{date:'2026-10-26',result:'L'},{date:'2026-10-26',result:'W'}])).toMatchObject({currentWinStreak:1,bestWinStreak:1})
+ })
  it('does not mutate its input while ordering best-streak history',()=>{
   const source=entries(['W','L','W']);const copy=structuredClone(source);playerRecentRecord(source);expect(source).toEqual(copy)
  })
