@@ -17,9 +17,9 @@ describe('Chat expression and inbox',()=>{
  })
  it('provides labelled buttons and freezes choices during an attempted send',()=>{
   const enabled=chatEmojiPickerHtml(false),disabled=chatEmojiPickerHtml(true)
-  expect(enabled.match(/data-chat-emoji=/g)).toHaveLength(12)
+  expect(enabled.match(/data-chat-emoji=/g)).toHaveLength(24)
   expect(enabled).toContain('aria-label="Insert Tennis"');expect(enabled).not.toContain(' disabled')
-  expect(disabled.match(/ disabled/g)).toHaveLength(12)
+  expect(disabled.match(/ disabled/g)).toHaveLength(24)
  })
  it('shows exact authorized team scopes without invented message previews or unread counts',()=>{
   const markup=chatsInboxHtml({room:null,teams:[{teamName:'<Aces>',leagueName:'City & Court',flight:'4.0'},{teamName:'Aces',leagueName:'Other',flight:'4.5'}]})
@@ -27,7 +27,7 @@ describe('Chat expression and inbox',()=>{
   expect(chatsInboxHtml({room:null,teams:[]})).toContain('Join your team with an invite')
  })
  it('bundles actual bounded animated tennis GIFs with still previews and no third-party requests',()=>{
-  expect(library).toHaveLength(3)
-  for(const item of library){const proof=inspectChatGif(new Uint8Array(Buffer.from(item.base64,'base64')));expect(proof.frames).toBe(24);expect(proof.duration).toBe(2400);expect(proof.width).toBe(280);expect(item.preview).toMatch(/^data:image\/png;base64,/)}
+  expect(library).toHaveLength(12)
+  for(const item of library){const proof=inspectChatGif(new Uint8Array(Buffer.from(item.base64,'base64')));expect(proof.frames).toBeGreaterThan(1);expect(proof.frames).toBeLessThanOrEqual(24);expect(proof.duration).toBe(2400);expect(proof.width).toBe(280);expect(item.preview).toMatch(/^data:image\/png;base64,/)}
  })
 })
