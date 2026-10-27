@@ -105,3 +105,8 @@ body{background:#07111f}.lab-identity{background:#0b1a2f;border-color:rgba(116,1
 .import-history .import-consent { margin: 12px 0; }
 .import-history>li>button { width: 100%; margin: 8px 0 0; }
 .import-history-selection { margin-block: 16px; }
+
+.import-schedule-dates fieldset { min-width: 0; margin: 0; padding: 14px; border: 1px solid var(--card-border-soft,#344b65); border-radius: 14px; }
+.import-schedule-dates legend { padding-inline: 6px; font-weight: 700; }
+.import-schedule-dates fieldset label { margin-block: 14px; }
+.import-schedule-dates fieldset p { overflow-wrap: anywhere; }
